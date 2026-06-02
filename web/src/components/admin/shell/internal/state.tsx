@@ -10,6 +10,7 @@
 export * from "./state/types";
 export * from "./state/drawer-ids";
 export * from "./state/fixtures";
+export * from "./state/recent-activity";
 export * from "./state/context";
 
 // ─────────────────────────────────────────────────────────────────────

@@ -1,9 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { COLORS, FONTS } from "@/components/admin/shell/internal/state";
 import { formatMoneyCents } from "@/lib/talent/earnings-view";
 import { useResolvedTalentEarnings } from "./use-resolved-talent-earnings";
+
+// Real "now" — module helper keeps the argless new Date() out of the render
+// body (react-hooks/purity). Returns the current year and 1-based month so the
+// goal-pace math reflects the actual calendar, not a hardcoded April.
+function calClock(): { year: number; monthsElapsed: number } {
+  const d = new Date();
+  return { year: d.getFullYear(), monthsElapsed: d.getMonth() + 1 };
+}
 
 /** Bare currency symbol/code for inline prefixes (e.g. the goal editor). */
 function currencyPrefix(currencyCode: string): string {
@@ -81,7 +89,9 @@ function EarningsGoalRing({ ytdNetCents, currency }: { ytdNetCents: number; curr
 
   const total = ytdNetCents / 100;
   const goalEur = goal / 100;
-  const monthsElapsed = 4;
+  // Real elapsed-months + year so the pace label ("On track" / "Behind") and
+  // the goal heading reflect the actual calendar instead of a fixed April.
+  const { year: goalYear, monthsElapsed } = useMemo(() => calClock(), []);
   const expectedByNow = (goalEur / 12) * monthsElapsed;
   const paceRatio = expectedByNow > 0 ? total / expectedByNow : 0;
   const paceLabel = paceRatio >= 1 ? "On track" : paceRatio >= 0.7 ? "Slightly behind" : "Behind pace";
@@ -186,7 +196,7 @@ function EarningsGoalRing({ ytdNetCents, currency }: { ytdNetCents: number; curr
               color: COLORS.inkMuted,
             }}
           >
-            2026 earnings goal
+            {goalYear} earnings goal
           </span>
           <span
             style={{

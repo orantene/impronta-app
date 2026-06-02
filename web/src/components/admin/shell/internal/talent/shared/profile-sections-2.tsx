@@ -13,11 +13,29 @@ import { Grid } from "./page-chrome-1";
 // rather than disabled controls, so the ladder is always visible.
 
 export function PersonalPageBand() {
-  const { openDrawer, toast, state } = useAdminShell();
+  const { openDrawer, toast, state, bridgeTalentSelfProfile, setTalentPage } = useAdminShell();
   const p = MY_TALENT_PROFILE;
   const sub = p.subscription;
   // Tier from shared shell state — reflects live plan switches.
   const tier = state.talentTier;
+
+  // Real talent: the Pro/Max band below is fed entirely by the demo profile
+  // (Marta's page URL, domain, embed/press counts, "6 sections"), and there's
+  // no bridge source for it here — the canonical personal-page surface is
+  // "My pages". So for a real talent we show an honest pointer instead of
+  // fabricated owned-page data; the full demo band only renders in standalone
+  // preview mode (no bridge identity).
+  if (bridgeTalentSelfProfile && tier !== "free") {
+    return (
+      <PrimaryCard
+        title="Your personal Tulala page"
+        description="Manage your templates, media embeds, press band, media kit and custom domain on My pages."
+        icon={<Icon name="globe" size={14} stroke={1.7} />}
+        affordance="Open My pages"
+        onClick={() => setTalentPage("public-page")}
+      />
+    );
+  }
 
   // Free talent: hide the full premium band and show a single "coming soon" card instead.
   if (tier === "free") {

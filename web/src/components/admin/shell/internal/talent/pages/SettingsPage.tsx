@@ -7,7 +7,7 @@ import { PasskeysCard } from "../../modern-features";
 import { Divider, Icon, SecondaryButton, SecondaryCard, StatDot } from "../../primitives";
 import { COLORS, FONTS, MY_AGENCIES, MY_TALENT_PROFILE, useAdminShell } from "../../state";
 import { Grid, PageHeader } from "../shared/page-chrome-1";
-import { ContactPolicySummary, MOCK_CIRCLE_PREVIEW_COUNT, TalentTrustCard } from "../shared/settings-1";
+import { ContactPolicySummary, TalentTrustCard } from "../shared/settings-1";
 
 
 
@@ -148,7 +148,7 @@ export function SettingsPage() {
         <div className="flex-1 min-w-0">
           <div className="text-admin-royal-deep text-admin-13 font-semibold">My Circle</div>
           <div style={{ fontSize: 11.5, opacity: 0.78, marginTop: 2 }} className="text-admin-royal">
-            Trusted collaborators you can recommend into bookings in one tap. {MOCK_CIRCLE_PREVIEW_COUNT} people in your circle.
+            Trusted collaborators you can recommend into bookings in one tap.
           </div>
         </div>
         <span className="text-admin-royal-deep text-admin-11h font-semibold">Manage →</span>
@@ -246,7 +246,6 @@ export function SettingsPage() {
         <SecondaryCard
           title="Refer a friend"
           description="When a talent you invite closes their first booking, you both earn €50 in payout credit."
-          meta={<><StatDot tone="green" /> 1 active</>}
           affordance="Open referrals"
           onClick={() => openDrawer("talent-referrals")}
         />
@@ -259,14 +258,12 @@ export function SettingsPage() {
         <SecondaryCard
           title="Talent network"
           description="Follow other talents, see who's working where, hand off briefs you can't take."
-          meta={<><StatDot tone="green" /> 2 following</>}
           affordance="Open network"
           onClick={() => openDrawer("talent-network")}
         />
         <SecondaryCard
           title="Workspace · multi-agency"
-          description="On the Network plan? Switch between agencies you own. Studio Reyes + Bumble live · Acme primary."
-          meta={<><StatDot tone="green" /> 3 workspaces</>}
+          description="On the Network plan? Switch between agencies you own from one account."
           affordance="Switch workspace"
           onClick={() => openDrawer("talent-multi-agency-picker")}
         />

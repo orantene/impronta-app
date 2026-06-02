@@ -24,9 +24,9 @@ import {
   StatDot,
   TRANSITION,
   batchNotifications,
-  getInquiries,
   useAdminShell
 } from "./drawer-shared";
+import { formatRecentActivity, groupRecentActivityByDay } from "../state";
 
 // Phase 1d (remediation §4): 6 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
@@ -41,8 +41,10 @@ export function TodayPulseDrawer() {
       .map((i) => ({
         id: i.id,
         title: `${i.clientName} · waiting on confirmation`,
-        sub: `${i.brief} · ${i.ageDays}d ago`,
+        // Offer total (when priced) + how long it's waited — no name echo.
+        sub: [i.offer?.total ? `${i.offer.total} offer` : null, `${i.ageDays}d waiting`].filter(Boolean).join(" · "),
         tone: "amber" as const,
+        ageDays: i.ageDays,
         action: () => openDrawer("inquiry-workspace", { id: i.id }),
       })),
     ...richInqs
@@ -50,17 +52,19 @@ export function TodayPulseDrawer() {
       .map((i) => ({
         id: i.id,
         title: `${i.clientName} · draft never sent`,
-        sub: i.brief,
+        sub: i.brief && i.brief !== i.clientName ? i.brief : `Draft · started ${i.ageDays}d ago`,
         tone: "dim" as const,
+        ageDays: i.ageDays,
         action: () => openDrawer("inquiry-workspace", { id: i.id }),
       })),
-  ];
+  ]
+    .sort((a, b) => b.ageDays - a.ageDays); // oldest-waiting first (matches the copy)
 
   return (
     <DrawerShell
       open
       onClose={closeDrawer}
-      title="Needs attention"
+      title="Today's pulse"
       description="What needs you, ranked by what's been waiting longest."
       width={560}
       footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
@@ -192,8 +196,21 @@ export function PipelineFilterDrawer({ filter }: { filter: "drafts" | "awaiting"
     confirmed: { title: "Confirmed bookings", desc: "Booked. Calendar locked.", stages: ["confirmed"] },
     archived: { title: "Archived", desc: "Past or canceled work.", stages: ["archived"] },
   }[filter];
-  // Phase 3.12 — "confirmed" filter uses live booking rows when available.
-  // Other filters use bridge-adapted RichInquiry or fall back to mock.
+  // "confirmed" uses live bookings; other filters now read real bridge
+  // inquiries (same mapping as the Pipeline kanban), not the per-plan mock.
+  const mappedInquiries = effectiveMessagesInquiries.map((i) => ({
+    id: i.id,
+    client: i.clientName,
+    brief: i.brief,
+    date: "",
+    stage:
+      i.stage === "draft" ? "draft" :
+      i.stage === "offer_pending" || i.stage === "approved" ? "awaiting-client" :
+      i.stage === "booked" ? "confirmed" :
+      i.stage === "rejected" || i.stage === "expired" ? "archived" :
+      i.stage,
+    amount: i.offer?.total,
+  }));
   const items = filter === "confirmed" && effectiveBookings.length > 0
     ? effectiveBookings.map((b) => ({
         id: b.id,
@@ -205,7 +222,7 @@ export function PipelineFilterDrawer({ filter }: { filter: "drafts" | "awaiting"
           ? new Intl.NumberFormat("en-EU", { style: "currency", currency: b.currencyCode ?? "EUR", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(b.grossRevenueCents / 100)
           : undefined,
       }))
-    : getInquiries(state.plan).filter((i) => meta.stages.includes(i.stage));
+    : mappedInquiries.filter((i) => meta.stages.includes(i.stage));
 
   return (
     <DrawerShell
@@ -586,8 +603,57 @@ export function NotificationsDrawer() {
 
 
 export function ActivityFeedDrawer({ kind }: { kind: "team" | "talent" }) {
-  const { closeDrawer } = useAdminShell();
+  const { closeDrawer, bridgeRecentActivity } = useAdminShell();
   type FeedItem = { actor: string; action: string; target: string; timestamp: string; iconName: "mail" | "check" | "user" | "team" | "settings" | "calendar" };
+  // Real workspace activity (inquiry_events). null = mock mode → demo below.
+  const liveTeam = useMemo(
+    () => (bridgeRecentActivity ?? []).map((it) => formatRecentActivity(it)),
+    [bridgeRecentActivity],
+  );
+  if (kind === "team" && bridgeRecentActivity != null) {
+    const groups = groupRecentActivityByDay(liveTeam);
+    return (
+      <DrawerShell
+        open
+        onClose={closeDrawer}
+        title="Recent activity"
+        description="Every offer, approval, roster change, and booking across your workspace."
+        footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      >
+        {liveTeam.length === 0 ? (
+          <EmptyState
+            icon="sparkle"
+            title="No activity yet"
+            body="Offers, approvals, roster changes, and bookings will appear here as your team works through inquiries."
+          />
+        ) : (
+          <div className="flex flex-col gap-3">
+            {groups.map((group) => (
+              <div key={group.bucket}>
+                <div className="pt-1.5 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-admin-ink-dim">
+                  {group.bucket}
+                </div>
+                <div className="divide-y divide-admin-border-soft">
+                  {group.items.map((it) => (
+                    <ActivityFeedItem
+                      key={it.id}
+                      actor={it.actor}
+                      action={it.action}
+                      target={it.target}
+                      timestamp={it.timestamp}
+                      iconName={it.iconName}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </DrawerShell>
+    );
+  }
+
+  // Standalone/mock fallback (team) + talent feed (no live loader yet).
   const teamItems: FeedItem[] = [
     { actor: "Sara Bianchi",  action: "sent an offer to",         target: "Vogue Italia",                timestamp: "1h ago",   iconName: "mail"     },
     { actor: "Daniel Ferrer", action: "added",                    target: "Tomás Navarro to roster",      timestamp: "3h ago",   iconName: "user"     },

@@ -250,12 +250,15 @@ export function TodaysFocusCard({
   nextBookingLabel,
   oldestWaitDays,
   onOpen,
+  onOpenDrafts,
 }: {
   pendingClients: number;
   draftCount: number;
   nextBookingLabel: string | null;
   oldestWaitDays: number;
   onOpen: () => void;
+  /** Routes the draft-branch CTA to the Drafts drawer (falls back to onOpen). */
+  onOpenDrafts?: () => void;
 }) {
   // Build a one-line action priority — most urgent thing wins.
   let title = "All caught up — nothing urgent today.";
@@ -271,7 +274,7 @@ export function TodaysFocusCard({
   } else if (draftCount > 0) {
     title = `${draftCount} ${draftCount === 1 ? "draft hasn't" : "drafts haven't"} been sent yet.`;
     body = "Finish the brief and send while the client's still warm.";
-    primary = { label: "Open drafts", onClick: onOpen };
+    primary = { label: "Open drafts", onClick: onOpenDrafts ?? onOpen };
   }
   return (
     <section

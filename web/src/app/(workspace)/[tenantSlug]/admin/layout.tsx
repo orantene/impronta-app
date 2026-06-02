@@ -30,6 +30,7 @@ import {
   loadTalentInquiries,
   loadUserNotifications,
   loadRosterCardBadges,
+  loadRecentActivity,
 } from "@/components/admin/shell/internal/data-bridge";
 import { loadPayoutsSurface } from "./payouts/payouts-surface-actions";
 import { loadTalentUnreadCount } from "@/lib/saas/unread-counts";
@@ -120,6 +121,7 @@ export default async function WorkspaceAdminLayout({
     userNotifications,
     rosterCardBadges,
     payoutsSurface,
+    recentActivity,
   ] = await Promise.all([
     loadWorkspaceRosterForCurrentTenant(tenantId),
     loadInquiriesForMessages(tenantId),
@@ -146,6 +148,9 @@ export default async function WorkspaceAdminLayout({
     // the loader resolves scope by slug and gates on the owner capability.
     // Returns `{ ok: false }` on any failure, so it never breaks the layout.
     loadPayoutsSurface(tenantSlug),
+    // Recent workspace activity feed (real inquiry_events). Returns [] on
+    // any failure — never breaks the layout.
+    loadRecentActivity(tenantId),
   ]);
 
   // Pre-fetch hybrid-only data (talent inquiries + cross-mode unread + user
@@ -218,6 +223,7 @@ export default async function WorkspaceAdminLayout({
           userNotifications,
           rosterCardBadges,
           payoutsSurface,
+          recentActivity,
         }}
       >
         {/* PageRouteSyncer lives here — inside AdminShellProvider context, returns null */}
