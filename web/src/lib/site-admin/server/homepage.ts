@@ -608,9 +608,20 @@ export async function saveHomepageDraftComposition(
     values: HomepageSaveDraftValues;
     actorProfileId: string | null;
     correlationId?: string;
+    /**
+     * Opt-in: this save is seeding a **curated first-party page design** (one of
+     * the productised starter layouts), not the operator hand-building advanced
+     * nested composition. Skips the Free-plan nested-builder draft guard for the
+     * seed only — the on-ramp is free (same as the curated section recipes), while
+     * subsequent inserts/expansion of the tree stay gated normally. Reachable ONLY
+     * from `applyPageDesignToHomepage`, which validates the design against the
+     * fixed `getPageDesign` registry, so no user-supplied tree can use this.
+     */
+    seedCuratedDesign?: boolean;
   },
 ): Promise<Phase5Result<{ id: string; version: number }>> {
   const { tenantId, values, actorProfileId } = params;
+  const seedCuratedDesign = params.seedCuratedDesign ?? false;
   const correlationId = params.correlationId ?? randomUUID();
 
   await requirePhase5Capability("agency.site_admin.homepage.compose", tenantId);
@@ -696,23 +707,29 @@ export async function saveHomepageDraftComposition(
 
   const compositionSnapshot = buildSnapshotSlots(values.slots, factsById);
 
-  const draftGuard = await enforceFreePlanNestedBuilderDraftGuard({
-    supabase,
-    tenantId,
-    pageId: beforeRow.id,
-    pageVersion: beforeRow.version,
-    logTag: "homepage-draft-save-builder-plan",
-    baselineLegacyTree: resolveBuilderTreeForComposition({
-      composition: compositionSnapshot,
-      preferredBuilderTree: undefined,
-    }),
-    nextTree: resolveBuilderTreeForComposition({
-      composition: compositionSnapshot,
-      preferredBuilderTree: values.builderTree,
-    }),
-  });
-  if (!draftGuard.ok) {
-    return fail("VALIDATION_FAILED", draftGuard.message);
+  // Curated first-party design seeds (the productised starter layouts) are the
+  // free on-ramp — exempt from the Free-plan nested-builder draft guard, exactly
+  // as the curated section recipes are. Everything else still runs the guard so
+  // hand-building/expanding advanced nested composition stays a paid capability.
+  if (!seedCuratedDesign) {
+    const draftGuard = await enforceFreePlanNestedBuilderDraftGuard({
+      supabase,
+      tenantId,
+      pageId: beforeRow.id,
+      pageVersion: beforeRow.version,
+      logTag: "homepage-draft-save-builder-plan",
+      baselineLegacyTree: resolveBuilderTreeForComposition({
+        composition: compositionSnapshot,
+        preferredBuilderTree: undefined,
+      }),
+      nextTree: resolveBuilderTreeForComposition({
+        composition: compositionSnapshot,
+        preferredBuilderTree: values.builderTree,
+      }),
+    });
+    if (!draftGuard.ok) {
+      return fail("VALIDATION_FAILED", draftGuard.message);
+    }
   }
 
   // --- apply: bump version, update page fields ---

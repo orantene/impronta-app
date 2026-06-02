@@ -22,6 +22,7 @@
  */
 
 import {
+  startTransition,
   useActionState,
   useCallback,
   useEffect,
@@ -588,7 +589,9 @@ export function EmptyCanvasStarter({
                   setPendingDesignId(summary.id);
                   const fd = new FormData();
                   fd.set("designId", summary.id);
-                  designDispatch(fd);
+                  startTransition(() => {
+                    designDispatch(fd);
+                  });
                 }}
                 className="group relative flex flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-stone-300 hover:shadow-[0_18px_44px_-26px_rgba(15,23,20,0.5)] focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900/25 disabled:cursor-not-allowed disabled:opacity-60"
               >
