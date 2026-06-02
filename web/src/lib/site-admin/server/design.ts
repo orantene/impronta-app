@@ -600,13 +600,18 @@ export async function applyThemePreset(
   // Defensive: run the merged map through the registry gate so a bad preset
   // (caught by the module-load validator) or a stale draft key still gets
   // filtered out before it hits the database.
+  // Forgiving merge: a stale operator-draft key (left over from an older token
+  // schema) or a preset key the registry no longer accepts must NOT block
+  // applying the preset's valid tokens — that surfaced to operators as the
+  // "Preset produced rejected keys: color.background" error. validateThemePatch
+  // always returns the normalized (registry-accepted) subset, which includes
+  // every preset key the registry still accepts; drop anything rejected and
+  // proceed. Genuine preset-authoring mistakes are caught by the module-load
+  // validator, so rejects reaching here are legacy/stale keys, safe to discard.
+  // `gate.normalized` is the registry-accepted subset in both the ok and
+  // rejected cases, so reading it unconditionally drops the stale keys and
+  // applies the preset's valid tokens.
   const gate = validateThemePatch(merged);
-  if (!gate.ok) {
-    return fail(
-      "TOKEN_NOT_OVERRIDABLE",
-      `Preset produced rejected keys: ${gate.rejected.join(", ")}`,
-    );
-  }
 
   const nextVersion = beforeRow.version + 1;
   const { data: updatedRow, error: updateError } = await supabase

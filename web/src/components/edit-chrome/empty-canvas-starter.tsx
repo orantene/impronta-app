@@ -516,158 +516,118 @@ export function EmptyCanvasStarter({
       className="mx-auto my-16 w-full max-w-3xl px-6"
     >
       <div className="rounded-2xl border border-stone-200 bg-white p-8 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.25),0_2px_0_rgba(0,0,0,0.04)]">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
-          Start here
+        <div className="flex flex-col items-center text-center">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-500">
+            New page
+          </span>
+          <h2 className="mt-4 text-[28px] font-semibold leading-[1.1] tracking-tight text-stone-900">
+            Start with a design.
+          </h2>
+          <p className="mt-2 max-w-md text-sm leading-relaxed text-stone-500">
+            Pick a layout to begin — then make every word, color, and font your
+            own. Nothing goes live until you publish.
+          </p>
         </div>
-        <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
-          Your homepage is a blank canvas.
-        </h2>
-        <p className="mt-2 max-w-xl text-sm leading-relaxed text-stone-600">
-          Pick a starter to seed real sections you can rewrite, reorder, and
-          restyle inline. Nothing goes live until you click Publish — you&apos;re
-          only ever editing a draft.
-        </p>
 
-        {error ? (
-          <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
-            {error}
-          </div>
-        ) : null}
-        {quickInsertError ? (
-          <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
-            {quickInsertError}
+        {error || quickInsertError ? (
+          <div className="mx-auto mt-5 max-w-md rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-center text-xs text-red-700">
+            {error ?? quickInsertError}
           </div>
         ) : null}
 
-        <div className="mt-6 rounded-xl border border-stone-200 bg-stone-50/70 p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="max-w-xl">
-              <h3 className="text-sm font-semibold text-stone-900">
-                Build from scratch
-              </h3>
-              <p className="mt-1 text-xs leading-relaxed text-stone-600">
-                For Impronta QA, start empty and add one real section at a time.
-                Add the hero first, then use the live canvas and navigator to
-                test deeper parent/child flows one by one.
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-4">
-            <button
-              type="button"
-              data-empty-canvas-quick-add="hero"
-              disabled={pending || quickInsertPending}
-              onClick={handleQuickHeroInsert}
-              className="flex min-h-[92px] w-full flex-col items-start justify-between rounded-xl border border-stone-200 bg-white px-4 py-3 text-left transition hover:border-indigo-300 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <div className="flex w-full items-center justify-between gap-3">
-                <span className="text-sm font-semibold text-stone-900">
-                  Add hero first
-                </span>
-                <span className="rounded-full border border-stone-200 bg-stone-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-stone-500">
-                  Required first
-                </span>
-              </div>
-              <span className="mt-2 text-xs leading-relaxed text-stone-500">
-                {quickInsertPending
-                  ? "Adding section…"
-                  : "Seeds the required homepage hero so the blank state disappears and the normal section-by-section builder flow takes over."}
-              </span>
-            </button>
-          </div>
-
-          <ol className="mt-4 list-decimal space-y-1 pl-4 text-[11px] leading-relaxed text-stone-500">
-            <li>Add the hero and confirm the blank state disappears.</li>
-            <li>Use the navigator Add section button to insert the next body section.</li>
-            <li>
-              Rebuild advanced sections one by one: FAQ, tabs, carousel,
-              masonry, then CTA.
-            </li>
-          </ol>
-        </div>
-
-        <div className="mt-6 grid gap-3 sm:grid-cols-3">
+        <div className="mt-8 grid gap-4 sm:grid-cols-2">
           {visibleTiles.map((tile) => {
             const busy = pending && pendingSlug === tile.slug;
             const Wire = tile.Wire;
             return (
-              <div
+              <button
                 key={tile.slug}
-                className="group flex flex-col gap-2 rounded-xl border border-stone-200 bg-white p-3 text-left transition hover:border-indigo-300 hover:shadow-md"
+                type="button"
+                disabled={pending}
+                data-empty-canvas-template-open={tile.slug}
+                onClick={() => openTemplateGallery(tile.slug)}
+                title={`Use the ${tile.label} layout`}
+                className="group relative flex flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-stone-300 hover:shadow-[0_18px_44px_-26px_rgba(15,23,20,0.5)] focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900/25 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <div className="overflow-hidden rounded-md bg-stone-50 p-2">
-                  <Wire className="h-20 w-full text-stone-400" />
-                </div>
-                <div className="flex items-start justify-between gap-2 px-1 pt-1">
-                  <div className="flex items-center gap-1.5">
-                    <h3 className="text-sm font-semibold text-stone-900">
-                      {tile.label}
-                    </h3>
-                    <InfoTip label={tile.info} />
-                  </div>
-                  <span className="rounded-full border border-stone-200 bg-stone-50 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-stone-500">
+                <div className="relative aspect-[16/10] w-full overflow-hidden border-b border-stone-100 bg-gradient-to-br from-stone-50 to-stone-100/70 p-5">
+                  <Wire className="h-full w-full text-stone-300 transition-colors duration-200 group-hover:text-stone-400" />
+                  <span className="absolute right-3 top-3 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-medium tabular-nums text-stone-500 shadow-sm ring-1 ring-stone-200/70 backdrop-blur">
                     {tile.sections} sections
                   </span>
                 </div>
-                <p className="line-clamp-3 px-1 text-xs leading-relaxed text-stone-500">
-                  {tile.summary}
-                </p>
-                <button
-                  type="button"
-                  disabled={pending}
-                  data-empty-canvas-template-open={tile.slug}
-                  onClick={() => openTemplateGallery(tile.slug)}
-                  className="mt-auto inline-flex items-center justify-center rounded-md bg-[#3d4f7c] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#4a5e94] disabled:cursor-not-allowed disabled:opacity-50"
-                  title={`Open the template gallery with the ${tile.label} starter highlighted.`}
-                >
-                  {busy ? "Applying…" : "Start with this"}
-                </button>
-              </div>
+                <div className="flex items-center justify-between gap-3 px-4 py-3.5">
+                  <div className="min-w-0">
+                    <h3 className="truncate text-[15px] font-semibold text-stone-900">
+                      {tile.label}
+                    </h3>
+                    <p className="mt-0.5 truncate text-xs text-stone-500">
+                      {tile.bestFor}
+                    </p>
+                  </div>
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-stone-900 px-3 py-1.5 text-xs font-semibold text-white transition group-hover:bg-stone-700">
+                    {busy ? "Applying…" : "Use this"}
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 14 10"
+                      fill="none"
+                      aria-hidden
+                      className="transition-transform duration-200 group-hover:translate-x-0.5"
+                    >
+                      <path
+                        d="M1 5h12M9 1l4 4-4 4"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                </div>
+              </button>
             );
           })}
         </div>
+        <div className="mt-7 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs">
+          <button
+            type="button"
+            data-empty-canvas-quick-add="hero"
+            disabled={pending || quickInsertPending}
+            onClick={handleQuickHeroInsert}
+            className="font-medium text-stone-500 underline-offset-4 transition hover:text-stone-900 hover:underline disabled:opacity-50"
+          >
+            {quickInsertPending ? "Adding…" : "Start from scratch"}
+          </button>
+          {showTemplateGallery ? (
+            <>
+              <span className="text-stone-300" aria-hidden>
+                ·
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  window.dispatchEvent(
+                    new CustomEvent(IMPRONTA_OPEN_TEMPLATE_GALLERY_EVENT),
+                  );
+                }}
+                className="font-medium text-stone-500 underline-offset-4 transition hover:text-stone-900 hover:underline"
+              >
+                Browse all templates
+              </button>
+            </>
+          ) : null}
+        </div>
+
         {!availabilityLoaded ? (
-          <p className="mt-3 text-[11px] text-stone-500">Loading starters…</p>
-        ) : null}
-        {availabilityError ? (
-          <p className="mt-3 text-[11px] text-stone-500">
-            Couldn&apos;t load full template access. Showing available starters
-            only.
+          <p className="mt-4 text-center text-[11px] text-stone-400">
+            Loading designs…
           </p>
         ) : null}
         {freePlan ? (
-          <p className="mt-3 text-[11px] text-stone-500">
-            Free includes one single-page starter with featured roster profiles
-            (up to five on Free). Upgrade to Studio to unlock additional starter
-            templates.
+          <p className="mt-4 text-center text-[11px] leading-relaxed text-stone-400">
+            Free includes one starter design. Upgrade to Studio for the full
+            gallery.
           </p>
-        ) : null}
-
-        <p className="mt-6 text-[11px] leading-relaxed text-stone-500">
-          Every starter creates a draft composition with real-looking default
-          copy. You can change anything — including the starter&apos;s brand
-          preset — after it&apos;s applied.
-        </p>
-
-        {showTemplateGallery ? (
-          <div className="mt-6 border-t border-stone-100 pt-4">
-            <p className="text-[11px] leading-relaxed text-stone-600">
-              Saved workspace layouts are listed under{" "}
-              <strong className="font-semibold text-stone-800">Templates</strong>
-              {" "}in the editor top bar. Use the button below if that drawer isn&apos;t
-              open yet.
-            </p>
-            <button
-              type="button"
-              className="mt-3 inline-flex items-center justify-center rounded-md border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-900 shadow-sm transition hover:bg-stone-50"
-              onClick={() => {
-                window.dispatchEvent(new CustomEvent(IMPRONTA_OPEN_TEMPLATE_GALLERY_EVENT));
-              }}
-            >
-              Open Templates gallery
-            </button>
-          </div>
         ) : null}
       </div>
       <StarterTemplateGalleryModal
