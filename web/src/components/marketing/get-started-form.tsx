@@ -51,8 +51,10 @@ import {
   preferredLinkPreview,
   submitCtaLabel,
 } from "./get-started-form-tier-copy";
+import { getAudienceOptions, getFormCopy } from "./get-started-form-copy";
 
 type Props = {
+  locale?: string;
   initialAudience?: AudienceKey;
   tier?: TierKey;
   variant?: "page" | "compact";
@@ -70,23 +72,7 @@ type Props = {
   appliedDiscountLabel?: string;
 };
 
-const AUDIENCE_OPTIONS: { key: AudienceKey; label: string; description: string }[] = [
-  {
-    key: "operator",
-    label: "Just me",
-    description: "I sell my own services.",
-  },
-  {
-    key: "agency",
-    label: "An agency or studio",
-    description: "We represent other people.",
-  },
-  {
-    key: "organization",
-    label: "A band, team, or network",
-    description: "We're a group working together.",
-  },
-];
+// getAudienceOptions + getFormCopy live in ./get-started-form-copy.ts
 
 
 // submitCtaLabel lives in get-started-form-tier-copy.ts (client-safe + keeps
@@ -110,6 +96,7 @@ function rosterTierHint(
 }
 
 export function GetStartedForm({
+  locale = "en",
   initialAudience = "operator",
   tier,
   variant = "page",
@@ -119,6 +106,8 @@ export function GetStartedForm({
   tierNames,
   appliedDiscountLabel,
 }: Props) {
+  const audienceOptions = getAudienceOptions(locale);
+  const t = getFormCopy(locale);
   const [state, formAction, isPending] = useActionState<
     GetStartedActionResult | null,
     FormData
@@ -491,7 +480,7 @@ export function GetStartedForm({
           className="plt-mono text-[0.6875rem] font-medium uppercase tracking-[0.28em]"
           style={{ color: "var(--plt-forest)" }}
         >
-          Start your business
+          {t.eyebrow}
         </span>
         <span
           className="plt-mono inline-flex items-center gap-2 text-[0.75rem]"
@@ -502,7 +491,7 @@ export function GetStartedForm({
             style={{ background: "var(--plt-forest-bright)" }}
             aria-hidden
           />
-          Free · no card
+          {t.freeNoCard}
         </span>
       </div>
 
@@ -514,7 +503,7 @@ export function GetStartedForm({
         }`}
         style={{ color: "var(--plt-ink)" }}
       >
-        {variant === "compact" ? "Create your free site" : "Start in under ten minutes."}
+        {variant === "compact" ? t.headingCompact : t.heading}
       </h3>
 
       <fieldset className="mt-6">
@@ -522,10 +511,10 @@ export function GetStartedForm({
           className="text-[0.8125rem] font-medium"
           style={{ color: "var(--plt-ink)" }}
         >
-          Which describes you best?
+          {t.whichDescribes}
         </legend>
         <div className="mt-3 grid gap-2">
-          {AUDIENCE_OPTIONS.map((opt) => {
+          {audienceOptions.map((opt) => {
             const active = audience === opt.key;
             return (
               <label
@@ -596,7 +585,7 @@ export function GetStartedForm({
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         <TextField
-          label="Your name"
+          label={t.yourName}
           id="name"
           value={name}
           onChange={setName}
@@ -605,7 +594,7 @@ export function GetStartedForm({
           error={errors.name}
         />
         <TextField
-          label="Work email"
+          label={t.workEmail}
           id="email"
           type="email"
           value={email}
@@ -627,7 +616,7 @@ export function GetStartedForm({
           className="text-[0.8125rem] font-medium"
           style={{ color: "var(--plt-ink)" }}
         >
-          Pick your link name
+          {t.pickLink}
         </label>
         <div
           className="mt-2 flex items-stretch overflow-hidden rounded-xl border transition-colors"
@@ -702,7 +691,7 @@ export function GetStartedForm({
           className="text-[0.8125rem] font-medium"
           style={{ color: "var(--plt-ink)" }}
         >
-          How big is your team?
+          {t.teamSize}
         </legend>
         <div className="mt-3 flex flex-wrap gap-2">
           {(["1-5", "6-20", "21-50", "50+"] as const).map((r) => {
@@ -763,7 +752,11 @@ export function GetStartedForm({
           boxShadow: "0 18px 40px -18px rgba(31,74,58,0.55)",
         }}
       >
-        {isPending ? "Reserving your link…" : submitCtaLabel(tier, audience, tierPrices, tierNames)}
+        {isPending
+          ? t.reserving
+          : tier
+            ? submitCtaLabel(tier, audience, tierPrices, tierNames)
+            : t.createWorkspace}
         <svg width="14" height="10" viewBox="0 0 14 10" fill="none" aria-hidden>
           <path
             d="M1 5H13M13 5L9 1M13 5L9 9"
