@@ -394,6 +394,8 @@ function archetypeGradient(archetype: PageDesignSummary["archetype"]): string {
       return "from-fuchsia-100 to-purple-300";
     case "studio":
       return "from-orange-50 to-amber-200";
+    case "noir":
+      return "from-stone-700 to-neutral-950";
     default:
       return "from-stone-50 to-stone-200";
   }
