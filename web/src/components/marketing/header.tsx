@@ -580,7 +580,7 @@ function TulalaWordmark() {
         fontWeight: 700,
         letterSpacing: "-0.045em",
         fontSize: "1.5rem",
-        color: "var(--plt-ink)",
+        color: "var(--plt-accent)",
       }}
     >
       tulala
