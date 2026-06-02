@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { signOut } from "@/app/auth/actions";
 
 const START_WORKSPACE_EVENT = "tulala:open-start-workspace-dialog";
@@ -13,7 +13,7 @@ import type { Locale } from "@/i18n/config";
 import { useDashboardText } from "../dashboard-i18n";
 import { NotificationsBell } from "../notifications-hub";
 import { Avatar, Icon, ShortcutsModal } from "../primitives";
-import { COLORS, FONTS, MY_TALENT_PROFILE, PLAN_META, TRANSITION, fmtMoney, meetsRole, useAdminShell } from "../state";
+import { COLORS, MY_TALENT_PROFILE, PLAN_META, fmtMoney, meetsRole, useAdminShell } from "../state";
 import { TULALA_BRAND } from "@/lib/brand/tulala";
 import { formatMoneyCents } from "@/lib/talent/earnings-view";
 import { AccountMenuItem, IdentityBarIconButton, LocaleToggle, ModeTogglePill } from "./IdentityBar-2";
@@ -204,25 +204,10 @@ export function TulalaIdentityBar() {
   return (
     <header
       data-tulala-identity-bar
-      style={{
-        background: "#fff",
-        borderBottom: `1px solid ${COLORS.borderSoft}`,
-        position: "sticky",
-        top: "var(--proto-cbar, 50px)",
-        zIndex: 50,
-        padding: "0 24px",
-        height: 56,
-      }}
+      className="sticky top-[var(--proto-cbar,50px)] z-50 h-[56px] border-b border-admin-border-soft bg-white px-[24px]"
     >
       <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 14,
-          height: "100%",
-          maxWidth: 1440,
-          margin: "0 auto",
-        }}
+        className="mx-auto flex h-full max-w-[1440px] items-center gap-[14px]"
       >
         {/* Brand mark — talent surface is Tulala-canonical (L41): always the
             platform wordmark, never the active agency logo. Workspace/client
@@ -239,35 +224,19 @@ export function TulalaIdentityBar() {
             src={bridgeTenantIdentity.logoUrl}
             alt={bridgeTenantIdentity.displayName || "Workspace logo"}
             data-tulala-brand
-            style={{
-              height: 36,
-              width: "auto",
-              maxWidth: 220,
-              objectFit: "contain",
-              objectPosition: "left center",
-              paddingRight: 4,
-              display: "block",
-            }}
+            className="block h-[36px] w-auto max-w-[220px] object-contain object-left pr-[4px]"
           />
         ) : (
           <div
             aria-label={TULALA_BRAND.name}
             data-tulala-brand
-            style={{
-              fontFamily: FONTS.display,
-              fontSize: 16,
-              fontWeight: 500,
-              letterSpacing: 0.4,
-              color: COLORS.ink,
-              textTransform: "uppercase",
-              paddingRight: 4,
-            }}
+            className="font-admin-display text-[16px] font-medium uppercase tracking-[0.4px] text-admin-ink pr-[4px]"
           >
             {TULALA_BRAND.name}
           </div>
         )}
 
-        <div data-tulala-id-divider style={{ width: 1, height: 22, background: COLORS.borderSoft, margin: "0 4px" }} />
+        <div data-tulala-id-divider className="mx-[4px] h-[22px] w-px bg-admin-border-soft" />
 
         {/* User identity — the one human across modes. Click opens
             the account menu (audit #3). */}
@@ -275,20 +244,14 @@ export function TulalaIdentityBar() {
           <Avatar initials={userInitials} size={26} tone="ink" hashSeed={userName} photoUrl={userPhotoUrl} />
           <span
             data-tulala-identity-name
-            style={{
-              fontFamily: FONTS.body,
-              fontSize: 14,
-              fontWeight: 500,
-              color: COLORS.ink,
-              letterSpacing: -0.05,
-            }}
+            className="font-admin-body text-[14px] font-medium tracking-[-0.05px] text-admin-ink"
           >
             {userName}
           </span>
           {/* Hamburger icon — universal "menu" affordance. Replaces the
               ambiguous chevron-down so the avatar reads as a tappable
               menu trigger, not just identity. */}
-          <span aria-hidden style={{ display: "inline-flex", alignItems: "center", color: COLORS.inkMuted, marginLeft: 1 }}>
+          <span aria-hidden className="ml-px inline-flex items-center text-admin-ink-muted">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
               <path d="M2 4h10M2 7h10M2 10h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
             </svg>
@@ -300,7 +263,7 @@ export function TulalaIdentityBar() {
         <span
           aria-hidden
           data-tulala-id-slash
-          style={{ fontFamily: FONTS.body, fontSize: 14, color: COLORS.inkDim, marginLeft: -2 }}
+          className="-ml-[2px] font-admin-body text-[14px] text-admin-ink-dim"
         >
           /
         </span>
@@ -313,74 +276,34 @@ export function TulalaIdentityBar() {
           onClick={onActingClick}
           aria-label={copy.isSpanish ? `Actuando como ${actingLabel} — cambiar` : `Acting as ${actingLabel} — switch`}
           title={actingSubLabel}
-          className="tulala-acting-chip"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
-            background: "transparent",
-            border: "none",
-            cursor: "pointer",
-            padding: "5px 9px",
-            borderRadius: 999,
-            fontFamily: FONTS.body,
-            transition: `background ${TRANSITION.micro}`,
-          }}
+          className="tulala-acting-chip inline-flex cursor-pointer items-center gap-[8px] rounded-[999px] border-none bg-transparent px-[9px] py-[5px] font-admin-body [transition:background_var(--transition-admin-micro)]"
           onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.04)")}
           onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
         >
           <span
             aria-hidden
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              background: COLORS.green,
-              flexShrink: 0,
-            }}
+            className="h-[6px] w-[6px] shrink-0 rounded-full bg-admin-green"
           />
           <span
             data-tulala-acting-label
-            style={{
-              display: "inline-flex",
-              flexDirection: "column",
-              alignItems: "flex-start",
-              minWidth: 0,
-              overflow: "hidden",
-              maxWidth: 220,
-            }}
+            className="inline-flex max-w-[220px] min-w-0 flex-col items-start overflow-hidden"
           >
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: FONTS.body, fontSize: 13, fontWeight: 500, letterSpacing: -0.05, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", lineHeight: 1.15 }} className="text-admin-ink">
+            <span className="inline-flex items-center gap-[6px] font-admin-body text-[13px] font-medium tracking-[-0.05px] whitespace-nowrap overflow-hidden text-ellipsis leading-[1.15] text-admin-ink">
               {/* Plan tier moved to its own clickable <WorkspacePlanBadge> in the
                   right utility cluster — opens a summary popover. */}
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{actingLabel}</span>
+              <span className="overflow-hidden text-ellipsis">{actingLabel}</span>
             </span>
-            <span data-tulala-acting-detail style={{
-              fontFamily: FONTS.body,
-              fontSize: 10,
-              fontWeight: 500,
-              color: COLORS.inkMuted,
-              letterSpacing: 0,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              lineHeight: 1.1,
-              marginTop: 1,
-            }}>{actingDetail}</span>
+            <span data-tulala-acting-detail className="mt-px font-admin-body text-[10px] font-medium tracking-[0px] whitespace-nowrap overflow-hidden text-ellipsis leading-[1.1] text-admin-ink-muted">{actingDetail}</span>
           </span>
           <span
             aria-hidden
-            className="tulala-acting-chevron"
-            style={{
-              display: "inline-flex",
-              transition: `transform ${TRANSITION.layout}`,
-            }}
+            className="tulala-acting-chevron inline-flex [transition:transform_var(--transition-admin-layout)]"
           >
             <Icon name="chevron-down" size={10} color={COLORS.inkDim} />
           </span>
         </button>
 
-        <div style={{ flex: 1 }} />
+        <div className="flex-1" />
 
         {/* Workspace plan badge — clickable tier chip + summary popover
             (registration, renewal, seats, subscription, plan override).
@@ -422,7 +345,7 @@ export function TulalaIdentityBar() {
           aria-label={copy.t("Help")}
           onClick={() => openDrawer("help")}
         >
-          <span style={{ fontFamily: FONTS.body, fontWeight: 700, fontSize: 13 }}>?</span>
+          <span className="font-admin-body text-[13px] font-bold">?</span>
         </IdentityBarIconButton>
 
         {/* Locale toggle — matches production EN/ES affordance.
@@ -436,20 +359,7 @@ export function TulalaIdentityBar() {
           rel="noopener noreferrer"
           aria-label="Preview site"
           title="Preview public site"
-          style={{
-            width: 34,
-            height: 34,
-            borderRadius: 8,
-            border: `1px solid ${COLORS.borderSoft}`,
-            background: "#fff",
-            color: COLORS.inkMuted,
-            cursor: "pointer",
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            textDecoration: "none",
-            transition: `border-color ${TRANSITION.micro}, color ${TRANSITION.micro}`,
-          }}
+          className="inline-flex h-[34px] w-[34px] cursor-pointer items-center justify-center rounded-[8px] border border-admin-border-soft bg-white text-admin-ink-muted no-underline [transition:border-color_var(--transition-admin-micro),color_var(--transition-admin-micro)]"
           onMouseEnter={(e) => {
             e.currentTarget.style.borderColor = COLORS.border;
             e.currentTarget.style.color = COLORS.ink;
@@ -553,7 +463,7 @@ function AccountMenuTrigger({
   return (
     <div
       data-tulala-account-menu-root
-      style={{ position: "relative" }}
+      className="relative"
       onBlur={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false);
       }}
@@ -564,31 +474,26 @@ function AccountMenuTrigger({
         aria-label={`${copy.t("Open account menu")} — ${copy.t("Signed in as")} ${userName}`}
         aria-haspopup="menu"
         aria-expanded={open}
+        // Always-on subtle pill so the trigger reads as a button, not just an
+        // avatar. Stronger when open / hovered. Border makes it visually
+        // distinct from a static avatar. The open/hover shades flow through CSS
+        // custom properties so the imperative hover handlers stay no-render and
+        // React still reconciles the open-state color on toggle.
+        className="inline-flex cursor-pointer items-center gap-[8px] rounded-[999px] border border-[var(--ib-pill-bd)] bg-[var(--ib-pill-bg)] pt-[3px] pr-[8px] pb-[3px] pl-[3px] font-admin-body [transition:background_var(--transition-admin-micro),border-color_var(--transition-admin-micro)]"
         style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 8,
-          // Always-on subtle pill so the trigger reads as a button, not
-          // just an avatar. Stronger when open / hovered. Border makes
-          // it visually distinct from a static avatar.
-          background: open ? "rgba(11,11,13,0.08)" : "rgba(11,11,13,0.035)",
-          border: `1px solid ${open ? "rgba(11,11,13,0.12)" : "rgba(11,11,13,0.07)"}`,
-          cursor: "pointer",
-          padding: "3px 8px 3px 3px",
-          borderRadius: 999,
-          fontFamily: FONTS.body,
-          transition: `background ${TRANSITION.micro}, border-color ${TRANSITION.micro}`,
-        }}
+          "--ib-pill-bg": open ? "rgba(11,11,13,0.08)" : "rgba(11,11,13,0.035)",
+          "--ib-pill-bd": open ? "rgba(11,11,13,0.12)" : "rgba(11,11,13,0.07)",
+        } as CSSProperties}
         onMouseEnter={(e) => {
           if (!open) {
-            e.currentTarget.style.background = "rgba(11,11,13,0.06)";
-            e.currentTarget.style.borderColor = "rgba(11,11,13,0.10)";
+            e.currentTarget.style.setProperty("--ib-pill-bg", "rgba(11,11,13,0.06)");
+            e.currentTarget.style.setProperty("--ib-pill-bd", "rgba(11,11,13,0.10)");
           }
         }}
         onMouseLeave={(e) => {
           if (!open) {
-            e.currentTarget.style.background = "rgba(11,11,13,0.035)";
-            e.currentTarget.style.borderColor = "rgba(11,11,13,0.07)";
+            e.currentTarget.style.setProperty("--ib-pill-bg", "rgba(11,11,13,0.035)");
+            e.currentTarget.style.setProperty("--ib-pill-bd", "rgba(11,11,13,0.07)");
           }
         }}
       >
@@ -597,51 +502,24 @@ function AccountMenuTrigger({
       {open && (
         <div
           role="menu"
-          style={{
-            position: "absolute",
-            top: "calc(100% + 6px)",
-            left: 0,
-            minWidth: 240,
-            background: "#fff",
-            border: `1px solid ${COLORS.borderSoft}`,
-            borderRadius: 12,
-            boxShadow: "0 10px 40px rgba(11,11,13,0.16)",
-            padding: 6,
-            zIndex: 200,
-            fontFamily: FONTS.body,
-            animation: "tulala-menu-fade .14s ease",
-          }}
+          className="absolute left-0 top-[calc(100%_+_6px)] z-[200] min-w-[240px] rounded-[12px] border border-admin-border-soft bg-white p-[6px] font-admin-body shadow-[0_10px_40px_rgba(11,11,13,0.16)] [animation:tulala-menu-fade_.14s_ease]"
         >
           <style>{`@keyframes tulala-menu-fade { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
           {/* Header — signed-in-as identity */}
           <div
-            style={{
-              padding: "10px 12px 10px",
-              borderBottom: `1px solid ${COLORS.borderSoft}`,
-              marginBottom: 4,
-            }}
+            className="mb-[4px] border-b border-admin-border-soft px-[12px] pt-[10px] pb-[10px]"
           >
-            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", marginBottom: 2 }} className="text-admin-ink-muted">
+            <div className="mb-[2px] text-[10.5px] font-bold uppercase tracking-[0.7px] text-admin-ink-muted">
               {copy.t("Signed in as")}
             </div>
             <div className="text-admin-ink text-admin-13 font-semibold">{userName}</div>
-            <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">{bridgeSessionIdentity?.email ?? ""}</div>
+            <div className="mt-px text-[11.5px] text-admin-ink-muted">{bridgeSessionIdentity?.email ?? ""}</div>
             {/* Tenant meta — plan / role, shown on mobile where the identity
                 bar chips are hidden (#2) */}
             {state.surface === "workspace" && (
               <div
                 data-tulala-tenant-meta-mobile
-                style={{
-                  display: "none",
-                  marginTop: 8,
-                  padding: "6px 8px",
-                  background: COLORS.surfaceAlt,
-                  borderRadius: 7,
-                  fontSize: 11,
-                  color: COLORS.ink,
-                  fontWeight: 500,
-                  gap: 6,
-                }}
+                className="mt-[8px] hidden gap-[6px] rounded-[7px] bg-admin-surface-alt px-[8px] py-[6px] text-[11px] font-medium text-admin-ink"
               >
                 <span className="capitalize">{copy.t(PLAN_META[state.plan].label)}</span>
                 <span className="text-admin-ink-muted">·</span>
@@ -680,14 +558,10 @@ function AccountMenuTrigger({
             onClick={() => { setOpen(false); openDrawer("notifications-prefs"); }}
           />
           {/* Language — real cookie-based switcher */}
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            padding: "8px 10px", borderRadius: 8,
-            fontFamily: FONTS.body,
-          }}>
+          <div className="flex items-center justify-between rounded-[8px] px-[10px] py-[8px] font-admin-body">
             <div>
               <div className="text-admin-ink text-admin-13 font-medium">{copy.t("Language")}</div>
-              <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">{copy.t("Dashboard display language")}</div>
+              <div className="mt-px text-[11.5px] text-admin-ink-muted">{copy.t("Dashboard display language")}</div>
             </div>
             <DashboardLocaleToggle variant="prototype" />
           </div>
@@ -702,7 +576,7 @@ function AccountMenuTrigger({
               workspace surface with admin-level access. */}
           {bridgeTalentSelfProfile === null && state.surface === "workspace" && meetsRole(state.role, "admin") && tenantSlug && (
             <>
-              <div style={{ borderTop: `1px solid ${COLORS.borderSoft}`, margin: "4px 0" }} />
+              <div className="my-1 border-t border-admin-border-soft" />
               <AccountMenuItem
                 label="Create your talent page"
                 sub="Take bookings as a talent on this workspace"
@@ -710,7 +584,7 @@ function AccountMenuTrigger({
               />
             </>
           )}
-          <div style={{ borderTop: `1px solid ${COLORS.borderSoft}`, marginTop: 4, paddingTop: 4 }}>
+          <div className="mt-1 border-t border-admin-border-soft pt-1">
             {isWorkspaceSurface && (
               <AccountMenuItem
                 label={isWorkspaceOwner ? "Archive workspace" : "Leave workspace"}

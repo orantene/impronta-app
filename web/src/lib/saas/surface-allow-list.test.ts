@@ -269,6 +269,15 @@ test("marketing host: public marketing pages + root + static + bearer-gated shar
     "/legal/terms",
     // Global Talent Directory — public cross-tenant browse on the marketing host.
     "/directory",
+    // Auth surfaces are reachable on the marketing apex (tulala.digital): OAuth
+    // callbacks use window.location.origin as the redirectTo base, and the
+    // branded sign-in / registration entry points live on the apex too. The
+    // marketing branch returns anyPrefix(pathname, AUTH_PREFIXES) — commit
+    // f1a456b2a "allow AUTH_PREFIXES on marketing host for OAuth callback".
+    "/login",
+    "/register",
+    "/join",
+    "/auth/callback",
   ];
   for (const p of allowed) {
     assert.equal(
@@ -282,12 +291,9 @@ test("marketing host: public marketing pages + root + static + bearer-gated shar
     "/admin",
     "/client",
     "/talent",
-    "/login",
-    "/join",
     "/onboarding/role",
     "/models",
     "/contact",
-    "/auth/callback",
     "/api/directory",
     "/api/ai/search",
     "/api/admin/search",
