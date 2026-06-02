@@ -22,6 +22,7 @@ import {
   persistBookingCommissionSnapshot,
   loadBookingCommissionSnapshots,
   sumBookingGrossChargedCents,
+  sumBookingPlatformFeeCents,
 } from "@/lib/billing/commission-engine";
 import type {
   PaymentMethod,
@@ -419,6 +420,11 @@ export async function createInquiryTransactionDraft(
     // booking revenue when no snapshot exists yet.
     const grossChargedCents = await sumBookingGrossChargedCents(supabase, booking.id as string);
     const grossAmountCents = grossChargedCents > 0 ? grossChargedCents : baseRevenueCents;
+    // #4: the REAL platform fee from the commission snapshot — so the transaction's
+    // fee/net match the actual split (transfers pay per snapshot, not this row).
+    // Only used when the gross also came from the snapshot; otherwise the flat
+    // plan-tier % applies (legacy/no-snapshot path).
+    const snapshotPlatformFeeCents = await sumBookingPlatformFeeCents(supabase, booking.id as string);
 
     const { data: agency } = await supabase
       .from("agencies")
@@ -433,6 +439,8 @@ export async function createInquiryTransactionDraft(
       sourceInquiryId: inquiryId,
       planTier,
       grossAmountCents,
+      platformFeeCentsOverride:
+        grossChargedCents > 0 && snapshotPlatformFeeCents > 0 ? snapshotPlatformFeeCents : null,
       currency: (booking.currency_code as string | null) ?? "USD",
       payerUserId: (booking.client_user_id as string | null) ?? null,
       payerEmail: (booking.contact_email as string | null) ?? null,
