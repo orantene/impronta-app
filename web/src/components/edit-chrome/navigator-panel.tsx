@@ -234,6 +234,7 @@ export function NavigatorPanel() {
     moveBuilderNodeWithinParent,
     moveBuilderNodeToParentIndex,
     insertBuilderNode,
+    insertBuilderSectionEmbed,
     duplicateBuilderNode,
     copyBuilderNode,
     pasteCopiedBuilderNode,
@@ -838,6 +839,22 @@ export function NavigatorPanel() {
       }
     },
     [insertBuilderNode, nodeInsertTarget, reportMutationError],
+  );
+  const commitNodeInsertSectionEmbed = useCallback(
+    async (sectionTypeKey: string) => {
+      if (!nodeInsertTarget) return;
+      const target = nodeInsertTarget;
+      setNodeInsertTarget(null);
+      const inserted = await insertBuilderSectionEmbed(
+        target.parentId,
+        sectionTypeKey,
+        target.index,
+      );
+      if (!inserted.ok && inserted.error) {
+        reportMutationError(inserted.error);
+      }
+    },
+    [insertBuilderSectionEmbed, nodeInsertTarget, reportMutationError],
   );
   const commitSectionDuplicate = useCallback(
     async (sectionId: string) => {
@@ -2409,6 +2426,7 @@ export function NavigatorPanel() {
                   targetKey={row.builderNodeId ? `section:${row.builderNodeId}` : null}
                   target={nodeInsertTarget}
                   onInsert={commitNodeInsert}
+                  onInsertSectionEmbed={commitNodeInsertSectionEmbed}
                   onDismiss={() => setNodeInsertTarget(null)}
                 />
                 {visibleChildNodes.length > 0 && childListExpanded ? (
@@ -2926,6 +2944,7 @@ export function NavigatorPanel() {
                             targetKey={`child:${child.id}`}
                             target={nodeInsertTarget}
                             onInsert={commitNodeInsert}
+                            onInsertSectionEmbed={commitNodeInsertSectionEmbed}
                             onDismiss={() => setNodeInsertTarget(null)}
                           />
                           {showChildDropTail ? <DropLine /> : null}
@@ -3344,11 +3363,13 @@ function NodeInsertMenu({
   targetKey,
   target,
   onInsert,
+  onInsertSectionEmbed,
   onDismiss,
 }: {
   targetKey: string | null;
   target: NodeInsertTarget | null;
   onInsert: (kind: BuilderNodeKind) => Promise<void>;
+  onInsertSectionEmbed: (sectionTypeKey: string) => Promise<void>;
   onDismiss: () => void;
 }) {
   if (!targetKey || !target || target.key !== targetKey) {
@@ -3427,6 +3448,9 @@ function NodeInsertMenu({
         variant="navigator"
         allowedKinds={target.allowedKinds}
         onPick={(kind) => void onInsert(kind)}
+        onPickSectionEmbed={(sectionTypeKey) =>
+          void onInsertSectionEmbed(sectionTypeKey)
+        }
       />
     </div>
   );

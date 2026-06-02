@@ -25,7 +25,7 @@ import { ArrowDown, ArrowUp, Plus, X } from "lucide-react";
 
 import { CHROME, CHROME_RADII } from "./kit";
 import { useEditContext } from "./edit-context";
-import { ElementLibraryInsertPicker } from "./element-library-insert-picker";
+import { FreeformInsertPopover } from "./freeform-insert-popover";
 import {
   BUILDER_NODE_REGISTRY,
   gateNestedInsertKinds,
@@ -323,6 +323,7 @@ export function FreeformLayersTree() {
     moveBuilderNodeWithinParent,
     removeBuilderNode,
     insertBuilderNode,
+    insertBuilderSectionEmbed,
     advancedElementLibraryEnabled,
     canInsertRawHtmlElements,
   } = useEditContext();
@@ -374,21 +375,36 @@ export function FreeformLayersTree() {
     setInsertTarget((prev) => (prev?.key === target.key ? null : target));
   }, []);
 
-  const handleInsert = useCallback(
-    async (parentId: string | null, kind: BuilderNodeKind) => {
+  // Shared insert scaffold (pending guard → run → select the new node). Both the
+  // generic-kind insert and the Tulala-component (section_embed) insert funnel
+  // through it so the popovers stay in sync.
+  const runInsert = useCallback(
+    async (
+      insert: () => Promise<{ ok: boolean; error?: string; nodeId?: string }>,
+    ) => {
       if (pending) return;
       setInsertTarget(null);
       setPending(true);
       try {
-        const result = await insertBuilderNode(parentId, kind);
-        if (result.ok && result.nodeId) {
-          selectBuilderNode(result.nodeId);
-        }
+        const result = await insert();
+        if (result.ok && result.nodeId) selectBuilderNode(result.nodeId);
       } finally {
         setPending(false);
       }
     },
-    [insertBuilderNode, pending, selectBuilderNode],
+    [pending, selectBuilderNode],
+  );
+
+  const handleInsert = useCallback(
+    (parentId: string | null, kind: BuilderNodeKind) =>
+      runInsert(() => insertBuilderNode(parentId, kind)),
+    [insertBuilderNode, runInsert],
+  );
+
+  const handleInsertSectionEmbed = useCallback(
+    (parentId: string | null, sectionTypeKey: string) =>
+      runInsert(() => insertBuilderSectionEmbed(parentId, sectionTypeKey)),
+    [insertBuilderSectionEmbed, runInsert],
   );
 
   const handleMove = useCallback(
@@ -470,6 +486,9 @@ export function FreeformLayersTree() {
         <FreeformInsertPopover
           target={insertTarget}
           onPick={(kind) => void handleInsert(insertTarget.parentId, kind)}
+          onPickSectionEmbed={(sectionTypeKey) =>
+            void handleInsertSectionEmbed(insertTarget.parentId, sectionTypeKey)
+          }
           onDismiss={() => setInsertTarget(null)}
         />
       ) : null}
@@ -627,6 +646,9 @@ export function FreeformLayersTree() {
               target={insertTarget}
               indent={ROOT_PADDING + row.depth * DEPTH_INDENT}
               onPick={(kind) => void handleInsert(insertTarget.parentId, kind)}
+              onPickSectionEmbed={(sectionTypeKey) =>
+                void handleInsertSectionEmbed(insertTarget.parentId, sectionTypeKey)
+              }
               onDismiss={() => setInsertTarget(null)}
             />
           ) : null}
@@ -697,103 +719,3 @@ function HeaderAddButton({
   );
 }
 
-/**
- * Inline insert popover — reuses the governed ElementLibraryInsertPicker (the
- * same UI the Navigator/canvas/inspector use) scoped to the target container's
- * allowed kinds. Indented to sit under its trigger row; calm surface, no harsh
- * border, matching NodeInsertMenu.
- */
-function FreeformInsertPopover({
-  target,
-  indent = ROOT_PADDING,
-  onPick,
-  onDismiss,
-}: {
-  target: InsertTarget;
-  indent?: number;
-  onPick: (kind: BuilderNodeKind) => void;
-  onDismiss: () => void;
-}) {
-  return (
-    <div
-      data-freeform-insert-menu={target.key}
-      onClick={(e) => e.stopPropagation()}
-      onPointerDown={(e) => e.stopPropagation()}
-      style={{
-        marginLeft: indent,
-        marginRight: 6,
-        marginTop: 4,
-        marginBottom: 6,
-        padding: "8px 9px 9px",
-        borderRadius: CHROME_RADII.sm,
-        border: `1px solid ${CHROME.line}`,
-        background: CHROME.surface,
-        boxShadow: "0 8px 22px rgba(15,23,42,0.10)",
-        display: "flex",
-        flexDirection: "column",
-        gap: 7,
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 8,
-        }}
-      >
-        <div style={{ minWidth: 0 }}>
-          <div
-            style={{
-              fontSize: 9,
-              fontWeight: 700,
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-              color: CHROME.muted2,
-            }}
-          >
-            Add block
-          </div>
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              color: CHROME.text,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            {target.label}
-          </div>
-        </div>
-        <button
-          type="button"
-          aria-label="Close add block menu"
-          onClick={onDismiss}
-          style={{
-            width: 20,
-            height: 20,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            border: "none",
-            borderRadius: 6,
-            background: "transparent",
-            color: CHROME.muted,
-            cursor: "pointer",
-            padding: 0,
-            flexShrink: 0,
-          }}
-        >
-          <X size={14} strokeWidth={2.2} aria-hidden />
-        </button>
-      </div>
-      <ElementLibraryInsertPicker
-        variant="navigator"
-        allowedKinds={target.allowedKinds}
-        onPick={(kind) => onPick(kind)}
-      />
-    </div>
-  );
-}

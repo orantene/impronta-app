@@ -14,6 +14,7 @@ import {
   elementLibraryCategoryForKind,
   elementLibraryPrimaryLabel,
   elementLibrarySearchExtraTerms,
+  SECTION_EMBED_PRESETS,
   sortKindsForElementLibraryCatalog,
   type BuilderNodeKind,
   type ElementLibraryCategory,
@@ -24,17 +25,46 @@ import { CHROME } from "./kit";
 export function ElementLibraryInsertPicker({
   allowedKinds,
   onPick,
+  onPickSectionEmbed,
   variant,
 }: {
   allowedKinds: ReadonlyArray<BuilderNodeKind>;
   onPick: (kind: BuilderNodeKind) => void | Promise<void>;
+  /**
+   * When provided, the picker surfaces a "Tulala" category with the curated
+   * dynamic-component tiles (Directory / Featured talent / Booking / CTA). Each
+   * inserts a `section_embed` node for that section key. Omitted at mounts that
+   * can't host a section embed (or don't want it).
+   */
+  onPickSectionEmbed?: (sectionTypeKey: string) => void | Promise<void>;
   variant: "navigator" | "canvas" | "inspector";
 }) {
   const searchId = useId();
   const [query, setQuery] = useState("");
 
+  // Curated Tulala components (live dynamic sections) — shown only when the
+  // mount supports embedding them AND `section_embed` is droppable here. The
+  // `section_embed` kind never enters the generic catalog; it is surfaced
+  // exclusively through these labeled entries.
+  const sectionEmbeds = useMemo(() => {
+    if (!onPickSectionEmbed) return [];
+    if (!allowedKinds.includes("section_embed")) return [];
+    const q = query.trim().toLowerCase();
+    return SECTION_EMBED_PRESETS.filter((preset) => {
+      if (!q) return true;
+      return [preset.label, preset.description, "tulala component dynamic section"]
+        .join(" ")
+        .toLowerCase()
+        .includes(q);
+    });
+  }, [onPickSectionEmbed, allowedKinds, query]);
+
   const grouped = useMemo(() => {
-    const sorted = sortKindsForElementLibraryCatalog(allowedKinds);
+    // `section_embed` is surfaced via the dedicated "Tulala" group below, never
+    // as a bare generic pill, so drop it from the kind catalog here.
+    const sorted = sortKindsForElementLibraryCatalog(
+      allowedKinds.filter((k) => k !== "section_embed"),
+    );
     const q = query.trim().toLowerCase();
     const match = (kind: BuilderNodeKind) => {
       if (!q) return true;
@@ -201,7 +231,49 @@ export function ElementLibraryInsertPicker({
           gap: 10,
         }}
       >
-        {grouped.length === 0 ? (
+        {sectionEmbeds.length > 0 ? (
+          <div data-element-library-category="tulala">
+            <div
+              style={{
+                fontSize: 9,
+                fontWeight: 700,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                color: categoryLabelColor,
+                marginBottom: 6,
+              }}
+            >
+              Tulala
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {sectionEmbeds.map((preset) => (
+                <PickerPill
+                  key={preset.id}
+                  label={preset.label}
+                  tone={pillTone}
+                  onClick={() => void onPickSectionEmbed?.(preset.sectionTypeKey)}
+                  dataAttrs={{
+                    "data-element-library-section-embed": preset.sectionTypeKey,
+                    "data-builder-node-insert-section-embed": preset.sectionTypeKey,
+                    ...(isCanvas
+                      ? {
+                          "data-builder-node-canvas-insert-section-embed":
+                            preset.sectionTypeKey,
+                        }
+                      : {}),
+                    ...(isInspector
+                      ? {
+                          "data-builder-node-inspector-insert-section-embed":
+                            preset.sectionTypeKey,
+                        }
+                      : {}),
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        ) : null}
+        {grouped.length === 0 && sectionEmbeds.length === 0 ? (
           <div
             role="status"
             aria-live="polite"

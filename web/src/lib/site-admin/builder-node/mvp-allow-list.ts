@@ -103,6 +103,9 @@ const KIND_ELEMENT_CATEGORY: Readonly<Record<BuilderNodeKind, ElementLibraryCate
     button: "actions",
     divider: "utility",
     spacer: "utility",
+    // Surfaced via the picker's dedicated "Tulala" group, not this generic
+    // category map; "layout" is a sensible fallback for any non-grouped path.
+    section_embed: "layout",
   };
 
 export function elementLibraryCategoryForKind(
@@ -190,6 +193,12 @@ export const SHIPPED_ELEMENT_INSERT_KINDS: ReadonlyArray<BuilderNodeKind> = [
     // from ordinary editors and is surfaced only through the owner-only gate
     // (see OWNER_ONLY_ELEMENT_INSERT_KINDS + gateNestedInsertKinds).
     "code",
+    // `section_embed` (Tulala component) is shipped + droppable, but the picker
+    // surfaces it ONLY through the curated "Tulala" entries (Directory /
+    // Featured talent / Booking / CTA) — never as a bare generic pill. Keeping
+    // it in the shipped catalog lets it survive the allow-list filter so those
+    // curated entries reach the picker's `allowedKinds` gate.
+    "section_embed",
   ]),
 ];
 

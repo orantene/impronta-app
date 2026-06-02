@@ -384,6 +384,7 @@ export function SelectionLayer() {
     slotDefs,
     builderTree,
     insertBuilderNode,
+    insertBuilderSectionEmbed,
     moveBuilderNodeWithinParent,
     moveBuilderNodeToParentIndex,
     removeBuilderNode,
@@ -568,6 +569,23 @@ export function SelectionLayer() {
       }
     },
     [insertBuilderNode, nodeInsertTarget, reportMutationError],
+  );
+
+  const commitNodeInsertSectionEmbed = useCallback(
+    async (sectionTypeKey: string) => {
+      if (!nodeInsertTarget) return;
+      const target = nodeInsertTarget;
+      setNodeInsertTarget(null);
+      const inserted = await insertBuilderSectionEmbed(
+        target.nodeId,
+        sectionTypeKey,
+        target.index,
+      );
+      if (!inserted.ok && inserted.error) {
+        reportMutationError(inserted.error);
+      }
+    },
+    [insertBuilderSectionEmbed, nodeInsertTarget, reportMutationError],
   );
 
   // Sprint 4 — auto-scroll the canvas to the selected section when it's
@@ -2341,6 +2359,7 @@ export function SelectionLayer() {
             selectedRect={renderSelectedRect}
             target={nodeInsertTarget}
             onInsert={commitNodeInsert}
+            onInsertSectionEmbed={commitNodeInsertSectionEmbed}
             onDismiss={() => setNodeInsertTarget(null)}
           />
           {canManageSelectedNodeChildren ? (
@@ -3236,11 +3255,13 @@ function CanvasNodeInsertMenu({
   selectedRect,
   target,
   onInsert,
+  onInsertSectionEmbed,
   onDismiss,
 }: {
   selectedRect: Rect;
   target: NodeInsertTarget | null;
   onInsert: (kind: BuilderNodeKind) => Promise<void>;
+  onInsertSectionEmbed: (sectionTypeKey: string) => Promise<void>;
   onDismiss: () => void;
 }) {
   if (!target) return null;
@@ -3336,6 +3357,9 @@ function CanvasNodeInsertMenu({
         variant="canvas"
         allowedKinds={target.allowedKinds}
         onPick={(kind) => void onInsert(kind)}
+        onPickSectionEmbed={(sectionTypeKey) =>
+          void onInsertSectionEmbed(sectionTypeKey)
+        }
       />
     </div>
   );
@@ -3882,6 +3906,8 @@ function canvasChildSecondaryLabel(node: BuilderNode): string {
       return `Navigation · ${node.props.links.length} link${node.props.links.length === 1 ? "" : "s"}`;
     case "section":
       return BUILDER_NODE_REGISTRY[node.kind].description;
+    case "section_embed":
+      return `Tulala component · ${node.props.sectionTypeKey}`;
   }
 }
 

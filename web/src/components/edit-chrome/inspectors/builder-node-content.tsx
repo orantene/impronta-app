@@ -1813,6 +1813,8 @@ function childSecondaryLabel(node: BuilderNode): string {
       return `Navigation · ${node.props.links.length} link${node.props.links.length === 1 ? "" : "s"}`;
     case "section":
       return BUILDER_NODE_REGISTRY[node.kind].description;
+    case "section_embed":
+      return `Tulala component · ${node.props.sectionTypeKey}`;
   }
 }
 

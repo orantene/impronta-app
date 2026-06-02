@@ -79,6 +79,7 @@ import {
   buildLegacySectionBuilderTree,
   BUILDER_NODE_REGISTRY,
   createBuilderNodeCompositionPreset,
+  createBuilderSectionEmbed,
   builderNodeKindAllowedAtRoot,
   cloneNodeWithFreshIds,
   createBuilderMutationAuditEvent,
@@ -453,6 +454,16 @@ export interface EditContextValue {
   insertBuilderNodeCompositionPreset: (
     parentId: string | null,
     presetId: BuilderNodeCompositionPresetId,
+    index?: number,
+  ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
+  /**
+   * Insert a curated Tulala component (`section_embed` node) — Directory,
+   * Featured talent, Booking, or CTA — seeded with that section's default
+   * config, at the target. Mirrors the composition-preset insert.
+   */
+  insertBuilderSectionEmbed: (
+    parentId: string | null,
+    sectionTypeKey: string,
     index?: number,
   ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
   /**
@@ -3761,6 +3772,46 @@ export function EditProvider({
       markNavigatorAddition,
     ],
   );
+  const insertBuilderSectionEmbed = useCallback<
+    EditContextValue["insertBuilderSectionEmbed"]
+  >(
+    async (parentId, sectionTypeKey, index) => {
+      const node = createBuilderSectionEmbed(sectionTypeKey);
+      const inserted = await executeBuilderNodeOperation({
+        operation: "insert",
+        nodeId: node.id,
+        parentId,
+        run: (tree) =>
+          runBuilderNodeOp({
+            operation: "insert",
+            tree,
+            node,
+            parentId,
+            index,
+          }),
+      });
+      if (!inserted.ok) {
+        return { ok: false, error: inserted.error };
+      }
+      const ownerSectionId = findOwnerSectionIdForBuilderNode(
+        inserted.tree,
+        node.id,
+      );
+      if (ownerSectionId) {
+        setSelectedSectionId(ownerSectionId);
+        setSelectedBuilderNodeIdOverride(node.id);
+        markNavigatorAddition(ownerSectionId, node.id, "block");
+      }
+      return { ok: true, nodeId: node.id };
+    },
+    [
+      executeBuilderNodeOperation,
+      runBuilderNodeOp,
+      setSelectedSectionId,
+      setSelectedBuilderNodeIdOverride,
+      markNavigatorAddition,
+    ],
+  );
   const insertBuilderComponent = useCallback<
     EditContextValue["insertBuilderComponent"]
   >(
@@ -5183,6 +5234,7 @@ export function EditProvider({
       moveBuilderNodeToParentIndex,
       insertBuilderNode,
       insertBuilderNodeCompositionPreset,
+      insertBuilderSectionEmbed,
       insertBuilderComponent,
       insertLinkedComponent,
       syncComponentInstances,
@@ -5350,6 +5402,7 @@ export function EditProvider({
       moveBuilderNodeToParentIndex,
       insertBuilderNode,
       insertBuilderNodeCompositionPreset,
+      insertBuilderSectionEmbed,
       insertBuilderComponent,
       insertLinkedComponent,
       syncComponentInstances,

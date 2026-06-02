@@ -38,6 +38,7 @@ import {
   resolveSnapshotBuilderTree,
 } from "@/lib/site-admin/builder-node";
 import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
+import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { listBuilderImageMediaAssets } from "@/lib/site-admin/media/assets";
 import { getSectionType } from "@/lib/site-admin/sections/registry";
@@ -308,6 +309,11 @@ async function renderShellSlot(
             // Phase 3 — resolve live component instances in shell slots too.
             // Gated: the DB query only runs when the slot actually has instances.
             components: builderComponents,
+            renderSectionEmbed: makeSectionEmbedRenderer({
+              tenantId,
+              locale,
+              publicPathPrefix,
+            }),
           })
         : null}
     </div>

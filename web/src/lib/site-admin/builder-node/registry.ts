@@ -25,6 +25,9 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "code",
   "divider",
   "spacer",
+  // Tulala components (curated dynamic sections) are droppable inside generic
+  // layout shells as well as at the page root.
+  "section_embed",
 ];
 
 /** §7A parent/child governance — Card (typography + media + actions; no layout shells inside). */
@@ -558,6 +561,21 @@ const ctaGroupPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+// Tulala component embed — wraps a curated dynamic section by key. `config`
+// is the section's own props payload; it is deliberately a loose passthrough
+// record here (capped) because each section type owns its own Zod schema, which
+// the RENDERER applies (migrate + parse via SECTION_REGISTRY). Validating the
+// full per-type shape here would duplicate ~50 section schemas and couple the
+// node registry to every section. The loose object still bounds payload size
+// and rejects non-objects; an invalid config degrades to a placeholder at
+// render time rather than failing tree validation.
+const sectionEmbedPropsSchema = z.object({
+  sectionTypeKey: z.string().min(1).max(80),
+  sectionId: z.string().uuid().nullable().optional(),
+  dataBinding: dataBindingPropsSchema.optional(),
+  config: z.record(z.string(), z.unknown()).optional(),
+});
+
 const navPropsSchema = z.object({
   brand: z.string().max(120).optional(),
   brandHref: z.string().max(500).optional(),
@@ -821,5 +839,13 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         "Header navigation bar — inline links on desktop, hamburger menu on mobile. Links stay reachable at every width.",
       children: { type: "none" },
       propsSchema: navPropsSchema,
+    },
+    section_embed: {
+      kind: "section_embed",
+      label: "Tulala component",
+      description:
+        "Embed a live Tulala component — directory, featured talent, booking, or CTA — anywhere on the canvas. Connects to real workspace data on publish.",
+      children: { type: "none" },
+      propsSchema: sectionEmbedPropsSchema,
     },
   };

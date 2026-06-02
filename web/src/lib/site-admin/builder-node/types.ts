@@ -22,7 +22,8 @@ export type BuilderNodeKind =
   | "spacer"
   | "card"
   | "cta_group"
-  | "nav";
+  | "nav"
+  | "section_embed";
 
 export interface BuilderNodeBase {
   id: string;
@@ -635,6 +636,35 @@ export interface BuilderNavLink {
  * mobile via the disclosure menu; the toggle is keyboard-operable and exposes
  * its expanded/collapsed state natively (see render.tsx for the a11y notes).
  */
+/**
+ * Tulala component embed — drops a CURATED dynamic section (Directory,
+ * Featured talent, Booking, CTA, …) into the freeform canvas, keyed by its
+ * `sectionTypeKey` (a `SECTION_REGISTRY` key). The freeform renderer reuses the
+ * SAME curated React component + server-fetch path the storefront uses for
+ * CMS-composed sections (see `homepage-cms-sections.tsx`); it does NOT
+ * reimplement the section.
+ *
+ * `config` carries the section's own props payload (the same shape the section
+ * Editor writes for a CMS instance). At render time it is migrated + Zod-parsed
+ * through the registry exactly like a CMS section; if it is empty / invalid /
+ * the key is unknown, the renderer falls back to a labeled placeholder instead
+ * of throwing, so a freeform page can never blank out.
+ *
+ * `sectionId` is an optional stable handle (form-submission routing,
+ * section-scoped analytics). `dataBinding` is accepted for parity with other
+ * data-aware nodes; curated sections fetch their own data from tenant context,
+ * so it is currently advisory.
+ */
+export interface BuilderSectionEmbedNode extends BuilderNodeBase {
+  kind: "section_embed";
+  props: {
+    sectionTypeKey: string;
+    sectionId?: string | null;
+    dataBinding?: BuilderDataBindingProps;
+    config?: Record<string, unknown>;
+  };
+}
+
 export interface BuilderNavNode extends BuilderNodeBase {
   kind: "nav";
   props: {
@@ -679,6 +709,7 @@ export type BuilderNode =
   | BuilderSpacerNode
   | BuilderCardNode
   | BuilderCtaGroupNode
-  | BuilderNavNode;
+  | BuilderNavNode
+  | BuilderSectionEmbedNode;
 
 export type BuilderNodeTree = BuilderNode[];

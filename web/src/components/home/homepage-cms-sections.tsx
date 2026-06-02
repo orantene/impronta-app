@@ -37,6 +37,7 @@ import {
   resolveSnapshotBuilderTree,
 } from "@/lib/site-admin/builder-node";
 import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
+import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import { isPreviewActiveForTenant } from "@/lib/site-admin/server/homepage-reads";
@@ -230,6 +231,11 @@ export async function HomepageCmsSections({
             includeRendererStyles: false,
             dataSources: freeformDataSources,
             components: freeformComponents,
+            renderSectionEmbed: makeSectionEmbedRenderer({
+              tenantId,
+              locale,
+              publicPathPrefix,
+            }),
           })}
         </>
       );
@@ -506,6 +512,11 @@ export async function HomepageCmsSections({
                   includeRendererStyles: false,
                   dataSources: builderDataSources,
                   components: builderComponents,
+                  renderSectionEmbed: makeSectionEmbedRenderer({
+                    tenantId,
+                    locale,
+                    publicPathPrefix,
+                  }),
                 })
               : null}
           </div>

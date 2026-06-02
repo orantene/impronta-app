@@ -10,6 +10,7 @@ import {
 
 import { BuilderNodeCarouselTrack } from "./carousel";
 import { BuilderNodeCodeFrame } from "./code-frame";
+import type { BuilderSectionEmbedRenderer } from "./section-embed-renderer";
 import { resolveBuilderNodeRole } from "./role-bindings";
 import {
   resolveInstanceChildren,
@@ -61,9 +62,20 @@ export interface BuilderNodeRenderOptions {
   // the master subtree LIVE with per-instance overrides. When absent or the
   // component is missing, instances fall back to their own stored children.
   components?: ComponentDefinitions;
+  // `section_embed` (Tulala component) renderer — INJECTED by the server caller
+  // (homepage-cms-sections / PublishedShell) so this module never statically
+  // imports the section registry (which would pull every section Component +
+  // its server deps into the client edit-chrome bundle that imports this file).
+  // Given a section_embed node, it returns the live curated section (with
+  // tenant-scoped data) or a labeled placeholder. Absent in lighter render
+  // contexts (tests, tenant-less previews) → the case renders nothing.
+  renderSectionEmbed?: BuilderSectionEmbedRenderer | null;
 }
 
-type NormalizedBuilderNodeRenderOptions = Required<BuilderNodeRenderOptions> & {
+type NormalizedBuilderNodeRenderOptions = Required<
+  Omit<BuilderNodeRenderOptions, "renderSectionEmbed">
+> & {
+  renderSectionEmbed: BuilderSectionEmbedRenderer | null;
   repeatItem: BuilderRepeatItem | null;
   repeatDepth: number;
 };
@@ -312,6 +324,10 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--card[data-builder-card-variant="ghost"]{background:rgba(246,241,232,0.55)}
 .site-builder-node--cta-group{width:100%;max-width:1120px;margin:0 auto;display:flex;flex-wrap:wrap;gap:var(--bn-gap,1rem);box-sizing:border-box}
 .site-builder-node--cta-group[data-builder-cta-layout="stack"]{flex-direction:column;align-items:stretch}
+.site-builder-node--section-embed{display:block;width:100%}
+.site-builder-node--section-embed-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.4rem;width:100%;max-width:1120px;margin:0 auto;min-height:160px;padding:2rem 1.5rem;text-align:center;border:1px dashed rgba(18,18,18,0.22);border-radius:14px;background:rgba(246,241,232,0.4);box-sizing:border-box}
+.site-builder-node--section-embed-placeholder-label{font:700 0.95rem/1.2 var(--site-heading-font,inherit);letter-spacing:0.01em;color:var(--token-color-ink,#111)}
+.site-builder-node--section-embed-placeholder-note{font:500 0.82rem/1.4 var(--site-body-font,inherit);color:rgba(18,18,18,0.58)}
 .site-builder-node--live-talent-grid{display:grid;grid-template-columns:repeat(var(--bn-live-columns,4),minmax(0,1fr));gap:var(--bn-gap,1.25rem);width:100%}
 .site-builder-node--live-chip-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:0.75rem;width:100%}
 .site-builder-node--live-chip{display:inline-flex;align-items:center;gap:0.5rem;border:1px solid rgba(18,18,18,0.16);background:#fff;color:#111;padding:0.75rem 1rem;text-decoration:none}
@@ -2021,6 +2037,14 @@ function renderBuilderNode(
   switch (node.kind) {
     case "section":
       return null;
+    case "section_embed":
+      // Tulala component — delegate to the injected renderer (supplied by the
+      // server caller, which owns the section registry + tenant context). When
+      // no renderer is injected (lighter contexts), render nothing rather than
+      // pulling the section registry into this module's bundle.
+      return options.renderSectionEmbed
+        ? options.renderSectionEmbed(node)
+        : null;
     case "container":
       return (
         <div
@@ -2685,6 +2709,7 @@ export function renderBuilderNodes(
     includeRendererStyles: options.includeRendererStyles ?? true,
     includeFontLinks: options.includeFontLinks ?? true,
     components: options.components ?? {},
+    renderSectionEmbed: options.renderSectionEmbed ?? null,
     repeatItem: null,
     repeatDepth: 0,
   };
