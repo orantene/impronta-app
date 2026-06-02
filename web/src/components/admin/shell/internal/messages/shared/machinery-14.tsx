@@ -46,7 +46,7 @@ export function SubmitRateSheet({
   const myTalentId = currentTalentId();
   const myRow = offer.rows.find(r => r.talentId === myTalentId);
   const budget = offer.clientBudget;
-  const currency = budget?.currency ?? "EUR";
+  const currency = budget?.currency ?? "USD";
 
   // Default unit type — match the client's budget unit so the talent's
   // number lines up with the cap (€/day vs €/day, not €/day vs €/hour).

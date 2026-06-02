@@ -1595,7 +1595,7 @@ export function TalentProfileShellDrawer() {
       const child = findChild(state.primaryType);
       if (child) {
         const unit = TYPE_RATE_UNIT[child.parent.id] ?? "day";
-        updates.rates = [...state.rates, { typeId: state.primaryType, amount: 0, currency: "EUR", unit }];
+        updates.rates = [...state.rates, { typeId: state.primaryType, amount: 0, currency: "USD", unit }];
       }
     }
     if (Object.keys(updates).length > 0) patch(updates);

@@ -53,7 +53,7 @@ export function deriveClientNextAction(conv: Conversation): { label: string; pri
   // Inquiry / hold — depends on offer stage.
   if (ofStage === "sent" || ofStage === "reviewing") {
     const total = offer ? offer.rows.reduce((s, r) => s + r.clientRate * r.units, 0) + offer.agencyFee : 0;
-    const currency = offer?.clientBudget?.currency ?? "EUR";
+    const currency = offer?.clientBudget?.currency ?? "USD";
     return { label: total > 0 ? `Approve offer (${fmtMoney(total, currency)})` : "Approve offer", primary: true };
   }
   if (ofStage === "countered") return { label: "Review counter", primary: true };

@@ -76,9 +76,9 @@ function groupByCurrency(
 // ── Tests ──────────────────────────────────────────────────────────────────
 
 describe("buildTalentEarnings — currency opt", () => {
-  it("defaults to EUR when no opts provided", () => {
+  it("defaults to USD when no opts provided (USD-first)", () => {
     const out = buildTalentEarnings([row()]);
-    assert.equal(out.totals.currency, "EUR");
+    assert.equal(out.totals.currency, "USD");
   });
 
   it("uses opts.currency when provided", () => {
@@ -94,8 +94,8 @@ describe("buildTalentEarnings — currency opt", () => {
     assert.equal(out.totals.ytdNetCents, 200_00);
   });
 
-  it("EMPTY_TALENT_EARNINGS carries EUR", () => {
-    assert.equal(EMPTY_TALENT_EARNINGS.totals.currency, "EUR");
+  it("EMPTY_TALENT_EARNINGS carries USD (USD-first)", () => {
+    assert.equal(EMPTY_TALENT_EARNINGS.totals.currency, "USD");
   });
 });
 

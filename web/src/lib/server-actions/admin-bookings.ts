@@ -388,7 +388,7 @@ export async function updateBooking(
     payment_notes: trimmedString(formData, "payment_notes"),
     internal_notes: trimmedString(formData, "internal_notes"),
     client_summary: trimmedString(formData, "client_summary"),
-    currency_code: trimmedString(formData, "currency_code") || "MXN",
+    currency_code: trimmedString(formData, "currency_code") || "USD",
     starts_at: trimmedString(formData, "starts_at"),
     ends_at: trimmedString(formData, "ends_at"),
     event_date: trimmedString(formData, "event_date"),
@@ -1189,7 +1189,7 @@ export async function createManualBooking(formData: FormData): Promise<void> {
   const parsed = parseWithSchema(manualBookingSchema, {
     title: trimmedString(formData, "title"),
     booking_status: trimmedString(formData, "booking_status"),
-    currency_code: trimmedString(formData, "currency_code") || "MXN",
+    currency_code: trimmedString(formData, "currency_code") || "USD",
     client_account_id: trimmedString(formData, "client_account_id"),
     client_contact_id: trimmedString(formData, "client_contact_id"),
     owner_staff_id: trimmedString(formData, "owner_staff_id"),

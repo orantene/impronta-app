@@ -55,10 +55,12 @@ describe("formatMoneyCents — currency-aware, never a hardcoded euro", () => {
     assert.ok(out.includes("MX$"), `expected MX$ in "${out}"`);
   });
 
-  it("missing/blank code falls back to EUR (historical default)", () => {
-    assert.ok(formatMoneyCents(100_00, undefined).includes("€"));
-    assert.ok(formatMoneyCents(100_00, "").includes("€"));
-    assert.ok(formatMoneyCents(100_00, null).includes("€"));
+  it("missing/blank code falls back to USD (USD-first default)", () => {
+    assert.ok(formatMoneyCents(100_00, undefined).includes("$"));
+    assert.ok(formatMoneyCents(100_00, "").includes("$"));
+    assert.ok(formatMoneyCents(100_00, null).includes("$"));
+    // and never the legacy euro
+    assert.ok(!formatMoneyCents(100_00, undefined).includes("€"));
   });
 
   it("an unknown/garbage code never throws in render", () => {
@@ -93,9 +95,9 @@ describe("primaryBundleOrEmpty — empty state honors defaultCurrency", () => {
     assert.ok(!rendered.includes("€"));
   });
 
-  it("no rows + no default → EUR empty bundle (back-compat)", () => {
+  it("no rows + no default → USD empty bundle (USD-first back-compat)", () => {
     const bundle = primaryBundleOrEmpty({ defaultCurrency: "", byCurrency: [], currencies: [] });
-    assert.equal(bundle.totals.currency, "EUR");
+    assert.equal(bundle.totals.currency, "USD");
   });
 
   it("returns the first real bundle when present", () => {

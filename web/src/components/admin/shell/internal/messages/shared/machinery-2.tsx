@@ -65,7 +65,7 @@ export function TalentBookingTab({
     ? MOCK_OFFER_FOR_CONV[conv.id]
     : undefined;
   const histRow = histOffer?.rows.find(r => r.talentId === currentTalentId());
-  const histCurrency = histOffer?.clientBudget?.currency ?? "EUR";
+  const histCurrency = histOffer?.clientBudget?.currency ?? "USD";
 
   // Card style — compact 2026 surface. Soft hairline border, very
   // subtle shadow on desktop only (mobile keeps it flat to read more

@@ -446,25 +446,25 @@ export function LineupRowCard({
       }}>
         <RateField label="Unit" value={row.unitType} editable={editable && pov.kind === "admin"} />
         <RateField label="Units" value={String(row.units)} editable={editable} />
-        {showCost  && <RateField label="Cost rate"   value={fmtMoney(row.costRate, (offer.clientBudget?.currency ?? "EUR"))}   editable={editable && (pov.kind === "admin" || isMine)} />}
-        {showRevenue && <RateField label="Client rate" value={fmtMoney(row.clientRate, (offer.clientBudget?.currency ?? "EUR"))} editable={editable && (pov.kind === "admin" || (pov.kind === "talent" && pov.isCoordinator))} />}
+        {showCost  && <RateField label="Cost rate"   value={fmtMoney(row.costRate, (offer.clientBudget?.currency ?? "USD"))}   editable={editable && (pov.kind === "admin" || isMine)} />}
+        {showRevenue && <RateField label="Client rate" value={fmtMoney(row.clientRate, (offer.clientBudget?.currency ?? "USD"))} editable={editable && (pov.kind === "admin" || (pov.kind === "talent" && pov.isCoordinator))} />}
       </div>
 
       {/* Subtotals */}
       <div style={{ marginTop: 8, display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap", fontSize: 11.5 }}>
         {showCost && (
           <span className="text-admin-ink-muted">
-            Cost <strong style={{ marginLeft: 4 }} className="text-admin-ink">{fmtMoney(subCost, (offer.clientBudget?.currency ?? "EUR"))}</strong>
+            Cost <strong style={{ marginLeft: 4 }} className="text-admin-ink">{fmtMoney(subCost, (offer.clientBudget?.currency ?? "USD"))}</strong>
           </span>
         )}
         {showRevenue && (
           <span className="text-admin-ink-muted">
-            {pov.kind === "client" ? "Subtotal" : "Revenue"} <strong style={{ marginLeft: 4 }} className="text-admin-ink">{fmtMoney(subRevenue, (offer.clientBudget?.currency ?? "EUR"))}</strong>
+            {pov.kind === "client" ? "Subtotal" : "Revenue"} <strong style={{ marginLeft: 4 }} className="text-admin-ink">{fmtMoney(subRevenue, (offer.clientBudget?.currency ?? "USD"))}</strong>
           </span>
         )}
         {showMargin && (
           <span className="text-admin-ink-muted">
-            Margin <strong style={{ marginLeft: 4 }} className="text-admin-success">{fmtMoney(subMargin, (offer.clientBudget?.currency ?? "EUR"))}</strong>
+            Margin <strong style={{ marginLeft: 4 }} className="text-admin-success">{fmtMoney(subMargin, (offer.clientBudget?.currency ?? "USD"))}</strong>
           </span>
         )}
         {row.notes && (

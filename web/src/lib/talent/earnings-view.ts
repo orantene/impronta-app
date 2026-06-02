@@ -14,12 +14,12 @@ export type { TalentEarnings, TalentEarningsRow } from "@/lib/talent/earnings-ty
  * ARS → "ARS 800". This is what keeps a MXN booking from being mislabeled €
  * (or, paired with the no-EUR-filter loader, dropped to 0) on the dashboard.
  *
- * Falls back to EUR when the code is missing/blank (the historical default)
- * and degrades to a plain "<CODE> <amount>" string if `Intl` rejects an
- * unknown code, so a bad code never throws in render.
+ * Falls back to USD when the code is missing/blank (USD-first: the platform
+ * operates in USD) and degrades to a plain "<CODE> <amount>" string if `Intl`
+ * rejects an unknown code, so a bad code never throws in render.
  */
 export function formatMoneyCents(cents: number, currencyCode?: string | null): string {
-  const code = (currencyCode || "EUR").toUpperCase();
+  const code = (currencyCode || "USD").toUpperCase();
   try {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -118,7 +118,7 @@ export function mockTalentEarningsFromFixtures(
       ytdNetCents,
       pendingCents,
       confirmedPipelineCents,
-      currency: "EUR",
+      currency: "USD",
     },
     perAgency,
     rows: mappedRows,

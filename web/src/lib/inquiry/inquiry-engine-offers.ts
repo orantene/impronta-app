@@ -240,7 +240,10 @@ export async function createOffer(
         inquiry_id: ctx.inquiryId,
         tenant_id: ctx.tenantId,
         created_by_user_id: ctx.actorUserId,
-        currency_code: ctx.currencyCode ?? "MXN",
+        // USD-first: callers (createOfferAction) resolve the platform operating
+        // currency and pass it; this fallback is a defensive default for any
+        // direct caller that omits it (was a legacy "MXN").
+        currency_code: ctx.currencyCode ?? "USD",
         status: "draft",
       })
       .select("id")
@@ -371,7 +374,7 @@ export async function createOffer(
     await supabase.rpc("inquiry_audit_emit", {
       p_inquiry_id: ctx.inquiryId,
       p_kind: "offer_created",
-      p_payload: { offer_id: offer.id as string, currency: ctx.currencyCode ?? "MXN" },
+      p_payload: { offer_id: offer.id as string, currency: ctx.currencyCode ?? "USD" },
     }).then((r) => { if (r.error) logServerError("audit.emit.offer_created", r.error); });
 
     return { success: true, data: { offerId: offer.id as string } };
@@ -919,7 +922,9 @@ export async function counterOffer(
     tenantId: ctx.tenantId,
     actorUserId: ctx.actorUserId,
     expectedVersion: ctx.expectedVersion,
-    currencyCode: currency ?? "MXN",
+    // USD-first: a counter inherits the prior offer's currency; absent one,
+    // fall back to USD (the platform operating currency) not a legacy MXN.
+    currencyCode: currency ?? "USD",
   });
 
   // §6 chat-card: emit offer_event card (status=countered) into the

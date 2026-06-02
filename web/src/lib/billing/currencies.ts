@@ -54,8 +54,14 @@ export const CURRENCY_LABELS: Record<DefaultCurrencyCode, string> = {
   AUD: "AUD · $ · Australian Dollar",
 };
 
-/** Storage default — matches the SQL `DEFAULT 'EUR'` on both columns. */
-export const DEFAULT_CURRENCY_FALLBACK: DefaultCurrencyCode = "EUR";
+/**
+ * UI fallback when a stored `default_currency` is null/unknown. USD-first:
+ * the platform operates in USD (see `platform_settings.operating_currency`),
+ * so the picker lands on USD rather than a legacy EUR. (The SQL columns still
+ * carry a `DEFAULT 'EUR'`, but that only governs brand-new rows that never set
+ * a value; this code-level fallback is what the UI resolves to.)
+ */
+export const DEFAULT_CURRENCY_FALLBACK: DefaultCurrencyCode = "USD";
 
 /**
  * Validates and normalizes a candidate currency code against the v1
