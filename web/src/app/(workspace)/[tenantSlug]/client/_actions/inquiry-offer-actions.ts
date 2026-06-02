@@ -29,12 +29,14 @@ import {
   clientAcceptOffer,
   clientRejectOffer,
 } from "@/lib/inquiry/inquiry-engine";
+import { sendClientInquiryMessage } from "../inquiries/[id]/actions";
 import { logServerError } from "@/lib/server/safe-error";
 
 export type InquiryOfferActionState =
   | { kind: "idle" }
   | { kind: "approved"; inquiryId: string; offerId: string }
   | { kind: "rejected"; inquiryId: string; offerId: string }
+  | { kind: "countered"; inquiryId: string }
   | { kind: "error"; message: string };
 
 /** Allowed rejection-reason values (mirrors the DB CHECK constraint). */
@@ -167,4 +169,38 @@ export async function rejectOfferAction(
   revalidatePath(`/${tenantSlug}/client/messages`);
   revalidatePath(`/${tenantSlug}/client/inquiries/${inquiryId}`);
   return { kind: "rejected", inquiryId, offerId };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Counter offer — propose a change without declining.
+// ─────────────────────────────────────────────────────────────────────────────
+// A client counter is a tagged "[Counter request]" message to the coordinator;
+// it does NOT change the offer state (the coordinator re-drafts the offer). This
+// mirrors the legacy thread Counter affordance + the talent counter, so the
+// keeper OfferTab reaches Approve / Counter / Decline parity (audit #13, part 4).
+
+export async function counterOfferAction(
+  _prev: InquiryOfferActionState,
+  formData: FormData,
+): Promise<InquiryOfferActionState> {
+  const tenantSlug = String(formData.get("tenantSlug") ?? "").trim();
+  const inquiryId = String(formData.get("inquiryId") ?? "").trim();
+  const note = String(formData.get("note") ?? "").trim();
+
+  if (!tenantSlug || !inquiryId) return { kind: "error", message: "Missing counter payload." };
+  if (!note) return { kind: "error", message: "Add a note describing what you'd like to change." };
+  if (note.length > 4000) return { kind: "error", message: "Note is too long." };
+
+  const session = await getCachedActorSession();
+  if (!session.user) return { kind: "error", message: "Sign in to send a counter." };
+
+  const result = await sendClientInquiryMessage(tenantSlug, inquiryId, `[Counter request] ${note}`);
+  if (!result.ok) {
+    logServerError("client.counterOffer", new Error(result.error ?? "counter failed"));
+    return { kind: "error", message: result.error ?? "Could not send your counter. Try again." };
+  }
+
+  revalidatePath(`/${tenantSlug}/client/messages`);
+  revalidatePath(`/${tenantSlug}/client/inquiries/${inquiryId}`);
+  return { kind: "countered", inquiryId };
 }
