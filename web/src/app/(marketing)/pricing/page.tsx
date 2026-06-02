@@ -11,6 +11,7 @@ import { PricingTeaserSection } from "@/components/marketing/pricing-teaser-sect
 import { SimplePageHero } from "@/components/marketing/simple-page-hero";
 import { PlanFeatureCompareTable } from "@/components/marketing/plan-feature-compare-table";
 import { resolveCurrency } from "@/lib/pricing/currency-resolver";
+import { getRequestLocale } from "@/i18n/request-locale";
 
 export const metadata: Metadata = {
   title: "Pricing",
@@ -36,20 +37,55 @@ export default async function PricingPage({
 }) {
   const resolved = await searchParams;
   const { currency, source } = await resolveCurrency(resolved);
+  const locale = await getRequestLocale();
+  const c =
+    locale === "es"
+      ? {
+          heroEyebrow: "Precios",
+          heroTitleA: "Empieza gratis.",
+          heroTitleB: "Crece a tu ritmo.",
+          heroSubtitle:
+            "Cada plan arranca con un nivel gratis de verdad. Sube de plan cuando estés listo para un dominio propio, un pipeline real, un equipo o una red con tu marca.",
+          heroPrimary: "Empieza gratis",
+          heroSecondary: "Ver el recorrido",
+          compareEyebrow: "Comparación de planes",
+          compareTitleA: "Cada función,",
+          compareTitleB: "en cada plan.",
+          fineA: "Los planes anuales ahorran 20%.",
+          fineB:
+            "La moneda se ajusta sola para LATAM y la UE. Sin costos de instalación. Sin secuestrar tus datos —",
+          fineC: "exportas todo en cualquier plan de pago.",
+        }
+      : {
+          heroEyebrow: "Pricing",
+          heroTitleA: "Start free.",
+          heroTitleB: "Grow on your schedule.",
+          heroSubtitle:
+            "Every plan starts with a real free tier. Upgrade when you’re ready for a custom domain, a real pipeline, a team, or a white-label network.",
+          heroPrimary: "Start free",
+          heroSecondary: "See the walkthrough",
+          compareEyebrow: "Plan comparison",
+          compareTitleA: "Every feature,",
+          compareTitleB: "every plan.",
+          fineA: "Annual plans save 20%.",
+          fineB:
+            "Currency automatically localizes for LATAM and EU. No setup fees. No hostage data —",
+          fineC: "full export on every paid plan.",
+        };
   return (
     <>
       <SimplePageHero
-        eyebrow="Pricing"
+        eyebrow={c.heroEyebrow}
         title={
           <>
-            Start free.
+            {c.heroTitleA}
             <br />
-            <span style={{ color: "var(--plt-forest)" }}>Grow on your schedule.</span>
+            <span style={{ color: "var(--plt-forest)" }}>{c.heroTitleB}</span>
           </>
         }
-        subtitle="Every plan starts with a real free tier. Upgrade when you&rsquo;re ready for a custom domain, a real pipeline, a team, or a white-label network."
-        primary={{ label: "Start free", href: "/get-started?tier=free", intent: "get-started" }}
-        secondary={{ label: "See the walkthrough", href: "/how-it-works", intent: "learn" }}
+        subtitle={c.heroSubtitle}
+        primary={{ label: c.heroPrimary, href: "/get-started?tier=free", intent: "get-started" }}
+        secondary={{ label: c.heroSecondary, href: "/how-it-works", intent: "learn" }}
         sourcePage="pricing-hero"
       />
 
@@ -78,14 +114,14 @@ export default async function PricingPage({
         />
         <MarketingContainer size="wide">
           <div className="mx-auto max-w-2xl text-center">
-            <MarketingEyebrow>Plan comparison</MarketingEyebrow>
+            <MarketingEyebrow>{c.compareEyebrow}</MarketingEyebrow>
             <h2
               className="plt-display mt-5 text-[2rem] font-medium leading-[1.04] tracking-[-0.02em] sm:text-[2.5rem]"
               style={{ color: "var(--plt-ink)" }}
             >
-              Every feature,
+              {c.compareTitleA}
               <br className="hidden sm:block" />{" "}
-              <span style={{ color: "var(--plt-forest)" }}>every plan.</span>
+              <span style={{ color: "var(--plt-forest)" }}>{c.compareTitleB}</span>
             </h2>
           </div>
 
@@ -97,13 +133,12 @@ export default async function PricingPage({
             className="mx-auto mt-10 max-w-2xl text-center text-[0.875rem]"
             style={{ color: "var(--plt-muted)" }}
           >
-            Annual plans save 20%. Currency automatically localizes for LATAM and EU. No
-            setup fees. No hostage data &mdash; full export on every paid plan.
+            {c.fineA} {c.fineB} {c.fineC}
           </p>
         </MarketingContainer>
       </MarketingSection>
 
-      <FaqSection />
+      <FaqSection locale={locale} />
       <FinalCtaSection />
     </>
   );
