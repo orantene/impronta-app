@@ -10,6 +10,11 @@ import { getMarketingCopy, type MarketingCopy } from "@/lib/marketing/copy";
 import { MarketingCta } from "./cta-link";
 import { OpenTalentModalButton } from "./open-talent-modal-button";
 import { MarketingLanguageToggle } from "./marketing-language-toggle";
+import {
+  DesktopAccount,
+  AccountAvatar,
+  type MarketingAccount,
+} from "./marketing-account-menu";
 
 type NavLeaf = { label: string; href: string; description?: string };
 type NavNode =
@@ -55,9 +60,15 @@ const APP_LOGIN_URL = `${getAppUrl()}/login`;
 export function MarketingHeader({
   locale,
   pathnameWithoutLocale,
+  account,
+  signOutAction,
 }: {
   locale: string;
   pathnameWithoutLocale: string;
+  /** When present, the top-right shows the account menu instead of the
+   *  logged-out CTAs (Join as talent / Sign in / Start free). */
+  account?: MarketingAccount;
+  signOutAction?: () => void | Promise<void>;
 }) {
   const copy = getMarketingCopy(locale);
   const NAV = buildNav(copy);
@@ -182,29 +193,39 @@ export function MarketingHeader({
             pathnameWithoutLocale={pathnameWithoutLocale}
             className="mr-1"
           />
-          <OpenTalentModalButton
-            eventSource="header"
-            className="rounded-md px-3 py-2 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors hover:text-[var(--plt-ink)]"
-            style={{ color: "var(--plt-muted)" }}
-          >
-            {copy.nav.joinAsTalent}
-          </OpenTalentModalButton>
-          <a
-            href={APP_LOGIN_URL}
-            className="rounded-md px-3 py-2 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors hover:text-[var(--plt-ink)]"
-            style={{ color: "var(--plt-muted)" }}
-          >
-            {copy.nav.signIn}
-          </a>
-          <MarketingCta
-            href="/get-started"
-            variant="primary"
-            size="md"
-            eventSource="header"
-            eventIntent="get-started"
-          >
-            {copy.nav.startFree}
-          </MarketingCta>
+          {account ? (
+            <DesktopAccount
+              account={account}
+              copy={copy.nav}
+              signOutAction={signOutAction}
+            />
+          ) : (
+            <>
+              <OpenTalentModalButton
+                eventSource="header"
+                className="rounded-md px-3 py-2 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors hover:text-[var(--plt-ink)]"
+                style={{ color: "var(--plt-muted)" }}
+              >
+                {copy.nav.joinAsTalent}
+              </OpenTalentModalButton>
+              <a
+                href={APP_LOGIN_URL}
+                className="rounded-md px-3 py-2 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors hover:text-[var(--plt-ink)]"
+                style={{ color: "var(--plt-muted)" }}
+              >
+                {copy.nav.signIn}
+              </a>
+              <MarketingCta
+                href="/get-started"
+                variant="primary"
+                size="md"
+                eventSource="header"
+                eventIntent="get-started"
+              >
+                {copy.nav.startFree}
+              </MarketingCta>
+            </>
+          )}
         </div>
 
         <button
@@ -266,38 +287,93 @@ export function MarketingHeader({
                   pathnameWithoutLocale={pathnameWithoutLocale}
                 />
               </div>
-              <OpenTalentModalButton
-                eventSource="mobile-header"
-                className="flex w-full items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
-                style={{ color: "var(--plt-ink-soft)" }}
-              >
-                {copy.nav.joinAsTalent}
-                <ChevronGlyph />
-              </OpenTalentModalButton>
-              <a
-                href={APP_LOGIN_URL}
-                className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
-                style={{ color: "var(--plt-ink-soft)" }}
-              >
-                {copy.nav.signIn}
-                <ChevronGlyph />
-              </a>
-              <MarketingCta
-                href="/get-started"
-                variant="primary"
-                size="lg"
-                eventSource="mobile-header"
-                eventIntent="get-started"
-                className="w-full"
-              >
-                {copy.nav.startFree}
-              </MarketingCta>
-              <p
-                className="mt-2 text-center text-[0.75rem]"
-                style={{ color: "var(--plt-muted)" }}
-              >
-                {PLATFORM_BRAND.stage} · founder-led
-              </p>
+              {account ? (
+                <>
+                  <div
+                    className="flex items-center gap-3 rounded-2xl px-4 py-3"
+                    style={{ background: "var(--plt-bg-raised)" }}
+                  >
+                    <AccountAvatar name={account.displayName} size="lg" />
+                    <div className="min-w-0">
+                      <p
+                        className="truncate text-[0.9375rem] font-semibold"
+                        style={{ color: "var(--plt-ink)" }}
+                      >
+                        {account.displayName}
+                      </p>
+                      <p
+                        className="truncate text-[0.8125rem]"
+                        style={{ color: "var(--plt-muted)" }}
+                      >
+                        {account.email}
+                      </p>
+                    </div>
+                  </div>
+                  <a
+                    href={account.dashboardHref}
+                    className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
+                    style={{ color: "var(--plt-ink)" }}
+                  >
+                    {copy.nav.dashboard}
+                    <ChevronGlyph />
+                  </a>
+                  <Link
+                    href="/get-started"
+                    className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
+                    style={{ color: "var(--plt-ink-soft)" }}
+                  >
+                    {copy.nav.newWorkspace}
+                    <ChevronGlyph />
+                  </Link>
+                  {signOutAction ? (
+                    <form action={signOutAction}>
+                      <button
+                        type="submit"
+                        className="flex w-full items-center justify-between rounded-2xl px-4 py-4 text-left text-[1rem] font-medium"
+                        style={{ color: "var(--plt-ink-soft)" }}
+                      >
+                        {copy.nav.signOut}
+                        <ChevronGlyph />
+                      </button>
+                    </form>
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  <OpenTalentModalButton
+                    eventSource="mobile-header"
+                    className="flex w-full items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
+                    style={{ color: "var(--plt-ink-soft)" }}
+                  >
+                    {copy.nav.joinAsTalent}
+                    <ChevronGlyph />
+                  </OpenTalentModalButton>
+                  <a
+                    href={APP_LOGIN_URL}
+                    className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
+                    style={{ color: "var(--plt-ink-soft)" }}
+                  >
+                    {copy.nav.signIn}
+                    <ChevronGlyph />
+                  </a>
+                  <MarketingCta
+                    href="/get-started"
+                    variant="primary"
+                    size="lg"
+                    eventSource="mobile-header"
+                    eventIntent="get-started"
+                    className="w-full"
+                  >
+                    {copy.nav.startFree}
+                  </MarketingCta>
+                  <p
+                    className="mt-2 text-center text-[0.75rem]"
+                    style={{ color: "var(--plt-muted)" }}
+                  >
+                    {PLATFORM_BRAND.stage} · founder-led
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </div>

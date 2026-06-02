@@ -29,9 +29,9 @@ export function MarketingLanguageToggle({
     <div
       role="group"
       aria-label="Language"
-      className={cn("inline-flex items-center gap-0.5 rounded-full p-0.5", className)}
+      className={cn("inline-flex items-center gap-0.5 rounded-lg p-0.5", className)}
       style={{
-        border: "1px solid var(--plt-hairline-strong)",
+        border: "1px solid var(--plt-hairline)",
         background: "var(--plt-bg-raised)",
         ...style,
       }}
@@ -43,7 +43,7 @@ export function MarketingLanguageToggle({
             key={code}
             href={withLocalePath(pathnameWithoutLocale, code, settings)}
             aria-current={active ? "true" : undefined}
-            className="rounded-full px-2.5 py-1 text-[0.6875rem] font-semibold uppercase leading-none tracking-[0.08em] transition-colors"
+            className="rounded-[5px] px-1.5 py-1 text-[0.6875rem] font-semibold uppercase leading-none tracking-[0.06em] transition-colors"
             style={{
               background: active ? "var(--plt-forest)" : "transparent",
               color: active ? "var(--plt-forest-on)" : "var(--plt-muted)",

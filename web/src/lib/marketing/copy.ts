@@ -65,6 +65,9 @@ const en = {
     joinAsTalent: "Join as talent",
     signIn: "Sign in",
     startFree: "Start free",
+    dashboard: "Dashboard",
+    newWorkspace: "New workspace",
+    signOut: "Sign out",
   },
 
   hero: {
@@ -390,6 +393,9 @@ const es: MarketingCopy = {
     joinAsTalent: "Únete como talento",
     signIn: "Entrar",
     startFree: "Empieza gratis",
+    dashboard: "Tu panel",
+    newWorkspace: "Nuevo workspace",
+    signOut: "Cerrar sesión",
   },
 
   hero: {
