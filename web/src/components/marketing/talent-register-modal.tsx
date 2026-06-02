@@ -27,6 +27,26 @@ import { AUTH_POPUP_MESSAGE_TYPE, type AuthPopupMessage } from "@/lib/auth-popup
 
 export const TALENT_MODAL_EVENT = "tulala:open-talent-modal" as const;
 
+/**
+ * Tenant Registration Engine re-uses this modal. `tenant-register-modal-host.tsx`
+ * imports these symbols, but the change that added the host landed without them,
+ * which breaks the Turbopack production build (a missing named export is fatal,
+ * unlike a webpack-dev warning). Defined here so the build resolves. The talent
+ * flow ignores `tenant`; the full tenant-branded apply step ships with the
+ * registration engine.
+ */
+export const TENANT_REGISTER_MODAL_EVENT =
+  "tulala:open-tenant-register-modal" as const;
+
+export type TenantRegisterContext = {
+  slug: string;
+  displayName: string;
+  logoSvg: string | null;
+  ctaLabel?: string;
+  isAuthedTalent: boolean;
+  ssoSignInUrl?: string;
+};
+
 const DEFAULT_NEXT_PATH = "/onboarding/talent-location";
 
 /** Render a button that opens the talent register modal from anywhere. */
@@ -55,6 +75,9 @@ export function TalentModalTrigger({
 
 interface TalentRegisterModalProps {
   onClose: () => void;
+  /** Tenant-branded context (Tenant Registration Engine). Optional and currently
+   *  ignored by the talent flow; accepted so the storefront host can pass it. */
+  tenant?: TenantRegisterContext;
 }
 
 export function TalentRegisterModal({ onClose }: TalentRegisterModalProps) {
