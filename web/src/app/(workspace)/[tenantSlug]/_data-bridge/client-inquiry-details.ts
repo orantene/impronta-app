@@ -184,6 +184,19 @@ export type ClientInquiryDetails = {
     }>;
   } | null;
 
+  // ─── Section: Payment (client-facing, NO net/fee split) ──────────────
+  // Null until a booking exists (created at convert). Drives the client's
+  // StatusSheet payment row + Pay-now affordance. `amount_major` is the GROSS
+  // the client pays (transaction gross, else booking total) — never the
+  // platform/agency split.
+  payment: {
+    /** Normalized client-facing state; mapped to the UI PaymentStatus by the shell. */
+    state: "none" | "requested" | "partially_paid" | "paid" | "refunded" | "failed";
+    amount_major: number | null;
+    currency: string | null;
+    paid_at: string | null;
+  } | null;
+
   // ─── Section: Recent activity (client-visible events only) ───────────
   activity: Array<{
     id: string;
@@ -304,7 +317,7 @@ export async function loadClientInquiryDetails(
     // Parallel fan-out for the side data.
     const admin = createServiceRoleClient();
     const readClient = admin ?? supabase;
-    const [participantsRes, offerRes, coordRes, eventsRes, attachmentsRes, pitchRes] = await Promise.all([
+    const [participantsRes, offerRes, coordRes, eventsRes, attachmentsRes, pitchRes, bookingRes, txnRes] = await Promise.all([
       // Talent lineup — visible-to-client subset
       readClient
         .from("inquiry_participants")
@@ -370,6 +383,23 @@ export async function loadClientInquiryDetails(
             .eq("tenant_id", tenantId)
             .maybeSingle()
         : Promise.resolve({ data: null, error: null }),
+      // Booking (exists only after convert) — client-safe money fields. NO
+      // net_amount/platform_fee/talent split.
+      readClient
+        .from("agency_bookings")
+        .select("id, payment_status, client_revenue_lifecycle, currency_code, total_client_revenue, created_at")
+        .eq("source_inquiry_id", inquiryId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      // Latest payment transaction — the real charge (gross) + machine status.
+      readClient
+        .from("booking_transactions")
+        .select("status, gross_amount_cents, currency, paid_at, created_at")
+        .eq("source_inquiry_id", inquiryId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
 
     // Filter activity to client-visible events. Resolve actor display names.
@@ -537,6 +567,46 @@ export async function loadClientInquiryDetails(
     const submissionFiles = (iq.files ?? []) as Array<{ name: string; url: string; type?: string }>;
     const mergedAttachmentFiles = [...submissionFiles, ...signedFiles];
 
+    // ─── Derive client-facing payment state ────────────────────────────────
+    // Source of truth: the booking transaction (the real charge + machine
+    // status); the booking row adds partial/refund/fail nuance. Client sees
+    // GROSS only (what they pay) — never the platform/agency/talent split.
+    type BookingRow = {
+      payment_status: string | null;
+      client_revenue_lifecycle: string | null;
+      currency_code: string | null;
+      total_client_revenue: number | null;
+    };
+    type TxnRow = {
+      status: string | null;
+      gross_amount_cents: number | null;
+      currency: string | null;
+      paid_at: string | null;
+    };
+    const bookingRow = (bookingRes.data ?? null) as BookingRow | null;
+    const txnRow = (txnRes.data ?? null) as TxnRow | null;
+    let payment: ClientInquiryDetails["payment"] = null;
+    if (bookingRow || txnRow) {
+      const lifecycle = bookingRow?.client_revenue_lifecycle ?? null;
+      const payStatus = bookingRow?.payment_status ?? null;
+      const txnStatus = txnRow?.status ?? null;
+      const paidTxnStatuses = new Set(["paid", "payout_pending", "payout_sent", "payout"]);
+      let state: NonNullable<ClientInquiryDetails["payment"]>["state"];
+      if (lifecycle === "refunded") state = "refunded";
+      else if (lifecycle === "failed") state = "failed";
+      else if (lifecycle === "fully_paid" || payStatus === "paid" || (txnStatus != null && paidTxnStatuses.has(txnStatus))) state = "paid";
+      else if (lifecycle === "deposit_paid" || payStatus === "partial") state = "partially_paid";
+      else if (txnStatus === "payment_requested") state = "requested";
+      else state = "none"; // booking exists but payment not yet requested
+      const grossMajor = txnRow?.gross_amount_cents != null ? Number(txnRow.gross_amount_cents) / 100 : null;
+      payment = {
+        state,
+        amount_major: grossMajor ?? (bookingRow?.total_client_revenue != null ? Number(bookingRow.total_client_revenue) : null),
+        currency: txnRow?.currency ?? bookingRow?.currency_code ?? null,
+        paid_at: txnRow?.paid_at ?? null,
+      };
+    }
+
     return {
       id: inq.id as string,
       tenant_id: inq.tenant_id as string,
@@ -630,6 +700,8 @@ export async function loadClientInquiryDetails(
         : null,
 
       offer,
+
+      payment,
 
       activity: visibleEvents.map((e) => ({
         id: e.id,

@@ -980,13 +980,25 @@ function buildClientStatusSheetData(
     status: TALENT_FROM_ENGINE[t.status] ?? "Invited",
   }));
 
-  // Payment status not yet wired into client details loader — show
-  // "Not requested" until offer is accepted, then "Requested" as a
-  // reasonable approximation. Real status comes when Stripe wiring lands.
-  const payment: { status: PaymentStatus; amountLabel?: string; nextAction?: string } =
-    inq.status === "booked" || inq.status === "approved" || inq.status === "converted"
-      ? { status: "Requested", amountLabel: offerTotal }
-      : { status: "Not requested" };
+  // Real payment state from the booking + its transaction (loader `payment`
+  // section). The client sees GROSS only (what they pay) — never the
+  // platform/agency/talent split. Falls back to the offer total for the label
+  // when the charge amount isn't recorded yet.
+  const payment: { status: PaymentStatus; amountLabel?: string; nextAction?: string } = (() => {
+    const p = details?.payment ?? null;
+    const amountLabel =
+      p?.amount_major != null
+        ? `${p.currency ?? "USD"} ${Number(p.amount_major).toLocaleString()}`
+        : offerTotal;
+    switch (p?.state) {
+      case "requested":      return { status: "Requested", amountLabel, nextAction: "Open the Offer tab to pay and confirm your booking." };
+      case "partially_paid": return { status: "Partially paid", amountLabel, nextAction: "A balance remains — open the Offer tab to pay the rest." };
+      case "paid":           return { status: "Paid", amountLabel };
+      case "refunded":       return { status: "Refunded", amountLabel };
+      case "failed":         return { status: "Failed", amountLabel, nextAction: "The last payment attempt failed — try again from the Offer tab." };
+      default:               return { status: "Not requested" };
+    }
+  })();
 
   return {
     stage,
