@@ -12,6 +12,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { countHeldTalentPayoutLegs } from "@/lib/payments/booking-payouts-ledger";
+import { loadMyInquiryTakeHome as loadMyInquiryTakeHomeImpl, type TalentTakeHome } from "@/lib/talent/inquiry-take-home";
 
 export type TalentPayoutSnapshot = {
   hasProfile: boolean;
@@ -56,4 +57,16 @@ export async function loadCurrentTalentPayoutSnapshot(): Promise<TalentPayoutSna
     logServerError("talent-self.loadPayoutSnapshot", err);
     return { hasProfile: false, status: "none", pendingPayouts: 0 };
   }
+}
+
+/**
+ * Audit #7 tail (thin "use server" wrapper): resolve the signed-in talent then
+ * delegate to the `server-only` lib that does the scoped reads, so this action
+ * file stays free of raw tenant-bypassing `.from(...)` queries (the OfferTab is
+ * a client component, so it can only call a "use server" action — not the lib).
+ */
+export async function loadMyInquiryTakeHome(inquiryId: string): Promise<TalentTakeHome> {
+  const session = await getCachedActorSession();
+  if (!session?.user) return null;
+  return loadMyInquiryTakeHomeImpl(session.user.id, inquiryId);
 }

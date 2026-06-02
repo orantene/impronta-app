@@ -182,6 +182,15 @@ export type ClientInquiryDetails = {
       total_price: number;
       talent_name: string | null;
     }>;
+    /**
+     * Audit #12-A (client side): the CLIENT's own approval status on THIS offer.
+     * The multi-party gate keeps the offer `sent` until every party (client +
+     * each talent) approves, so without this the client's OfferTab kept
+     * re-showing Approve/Counter/Decline + "Awaiting your decision" after they
+     * had already approved. `accepted` ⇒ suppress the decision CTAs and show an
+     * honest "awaiting the other parties" state instead.
+     */
+    myApprovalStatus: "pending" | "accepted" | "rejected" | null;
   } | null;
 
   // ─── Section: Payment (client-facing, NO net/fee split) ──────────────
@@ -499,6 +508,31 @@ export async function loadClientInquiryDetails(
       inquiry_offer_line_items: OfferLineRow[] | null;
     };
     const offerRow = offerRes.data as OfferRow | null;
+    // Audit #12-A (client side): read the CLIENT's own approval on this offer so
+    // the OfferTab stops re-showing Approve/Counter/Decline after they approve
+    // (the multi-party gate keeps the offer `sent` until everyone is in). Read
+    // via service-role keyed on the inquiry's client participant + this offer —
+    // scoped to this one inquiry, so no cross-client leak.
+    let clientApprovalStatus: "pending" | "accepted" | "rejected" | null = null;
+    if (admin && offerRow?.id) {
+      const { data: cp } = await admin
+        .from("inquiry_participants")
+        .select("id")
+        .eq("inquiry_id", inq.id)
+        .eq("role", "client")
+        .limit(1)
+        .maybeSingle();
+      if (cp?.id) {
+        const { data: appr } = await admin
+          .from("inquiry_approvals")
+          .select("status")
+          .eq("offer_id", offerRow.id)
+          .eq("participant_id", cp.id as string)
+          .maybeSingle();
+        clientApprovalStatus =
+          (appr?.status as "pending" | "accepted" | "rejected" | null) ?? null;
+      }
+    }
     const offer = offerRow
       ? {
           exists: true,
@@ -528,6 +562,7 @@ export async function loadClientInquiryDetails(
                 || `${ln.talent_profiles?.first_name ?? ""} ${ln.talent_profiles?.last_name ?? ""}`.trim()
                 || null,
             })),
+          myApprovalStatus: clientApprovalStatus,
         }
       : null;
 
