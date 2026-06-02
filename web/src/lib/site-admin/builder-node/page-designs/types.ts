@@ -6,7 +6,8 @@ export type PageDesignArchetype =
   | "agency"
   | "saas"
   | "store"
-  | "festival";
+  | "festival"
+  | "studio";
 
 /**
  * A productised full-page design template.
