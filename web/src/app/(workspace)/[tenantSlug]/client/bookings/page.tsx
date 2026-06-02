@@ -79,7 +79,7 @@ function BookingRow({
   const chip = paymentChip(booking.paymentStatus);
   return (
     <Link
-      href={`/${tenantSlug}/client/inquiries/${booking.id}`}
+      href={`/${tenantSlug}/client/messages?inquiry=${booking.id}`}
       style={{
         display: "grid",
         gridTemplateColumns: "48px 1fr auto",
