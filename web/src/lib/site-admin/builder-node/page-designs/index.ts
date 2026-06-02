@@ -17,6 +17,7 @@ import { saasDesign } from "./saas";
 import { storeDesign } from "./store";
 import { festivalDesign } from "./festival";
 import { studioDesign } from "./studio";
+import { noirDesign } from "./noir";
 
 export type { PageDesign, PageDesignArchetype } from "./types";
 export {
@@ -34,6 +35,7 @@ export {
   storeDesign,
   festivalDesign,
   studioDesign,
+  noirDesign,
 };
 
 /** Registry order = display order in the template picker. */
@@ -44,6 +46,7 @@ export const PAGE_DESIGNS: ReadonlyArray<PageDesign> = [
   storeDesign,
   festivalDesign,
   studioDesign,
+  noirDesign,
 ];
 
 export function getPageDesign(id: string): PageDesign | undefined {
