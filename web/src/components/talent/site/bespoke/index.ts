@@ -11,6 +11,8 @@ export const BESPOKE_KEYS = new Set<string>([
   "photographer",
   "hybrid-singer-massage",
   "hybrid-chef-massage",
+  "hybrid-model-dj",
+  "model-flight",
 ]);
 
 export function hasBespokeTemplate(key: string): boolean {

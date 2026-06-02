@@ -10,7 +10,9 @@ import {
   HybridTemplate,
   HYBRID_CHEF_MASSAGE,
   HYBRID_SINGER_MASSAGE,
+  HYBRID_MODEL_DJ,
 } from "@/components/talent/site/bespoke/HybridTemplate";
+import { AviatrixTemplate } from "@/components/talent/site/bespoke/AviatrixTemplate";
 import { hasBespokeTemplate } from "@/components/talent/site/bespoke";
 import { resolveDemoContext } from "@/lib/talent-site/templates/demo-assets";
 import {
@@ -54,6 +56,8 @@ export default async function TemplatePreviewPage({
     if (key === "photographer") return <PhotographerTemplate />;
     if (key === "hybrid-singer-massage") return <HybridTemplate content={HYBRID_SINGER_MASSAGE} />;
     if (key === "hybrid-chef-massage") return <HybridTemplate content={HYBRID_CHEF_MASSAGE} />;
+    if (key === "hybrid-model-dj") return <HybridTemplate content={HYBRID_MODEL_DJ} />;
+    if (key === "model-flight") return <AviatrixTemplate />;
   }
 
   const def = getTemplateDef(key);

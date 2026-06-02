@@ -33,6 +33,8 @@ const DISC_ICON: Record<string, string> = {
   bodywork: "M5 20c0-8 6-14 14-15 1 8-5 15-14 15Z M6 19c3-4 7-7 11-8",
   chef: "M8 21h8v-3H8z M8 18a4.5 4.5 0 1 1 1.2-8.8 3.6 3.6 0 0 1 6.6 0A4.5 4.5 0 1 1 16 18",
   bar: "M5 4h14l-7 8-7-8Z M12 12v6 M8.5 18h7",
+  model: "M12 3l1.9 5.2 5.6.1-4.5 3.4 1.7 5.3L12 14.9 7.3 17l1.7-5.3L4.5 8.3l5.6-.1z",
+  dj: "M4 14v-2a8 8 0 0 1 16 0v2 M4 14a2 2 0 0 1 2-2h2v6H6a2 2 0 0 1-2-2Z M20 14a2 2 0 0 1-2 2h-2v-6h2a2 2 0 0 1 2 2Z",
 };
 
 type Track = { t: string; d: string };
@@ -257,6 +259,67 @@ export const HYBRID_CHEF_MASSAGE: HybridContent = {
     { cover: `${D}/massage/04-oils.jpg`, cat: "Wellness", date: "Sep 2026", title: "Recovery for people who host for a living", excerpt: "What ten years on my feet taught me.", min: "3 min" },
   ],
   socials: { instagram: "https://instagram.com", spotify: "https://open.spotify.com", whatsapp: "https://wa.me/520000000000", email: "mailto:hola@tomasvela.com" },
+};
+
+/* ── CONFIG 3 — Model + DJ ───────────────────────────────────────────────── */
+export const HYBRID_MODEL_DJ: HybridContent = {
+  name: "Nina Ferro",
+  mark: "NF",
+  roleLine: "Fashion Model · DJ",
+  location: "Mexico City · Tulum · worldwide",
+  portrait: `${D}/model/12-portrait.jpg`,
+  about: [
+    "Nina lives at two tempos — the stillness of a campaign and the pulse of a 2am set. Same instinct for a moment, two very different stages.",
+    "Book her for the shoot, the booth, or a night that needs both.",
+  ],
+  disciplines: [
+    {
+      key: "model", short: "Model", label: "model", accent: "#b8866b", accentInk: "#ffffff",
+      hero: `${D}/model/01-hero.jpg`, tagline: "The look that stops the room.",
+      sub: "Runway, editorial and campaign — represented internationally, equally at home on a catwalk or a cover.",
+      cta: { label: "Book a shoot", href: "#book" }, intro: "Runway, editorial & campaign.",
+      services: [
+        { title: "Runway", desc: "Fashion weeks, designer shows, presentations.", img: `${D}/model/03-runway.jpg` },
+        { title: "Editorial", desc: "Covers, spreads, and brand stories.", img: `${D}/model/05-editorial.jpg` },
+        { title: "Campaign", desc: "Lookbooks, e-commerce, and brand films.", img: `${D}/model/02-gown.jpg` },
+      ],
+      offer: { heading: "Digitals", note: "Full book on request", items: [
+        { name: "Height", meta: "178 cm" }, { name: "Bust · Waist · Hips", meta: "82 · 61 · 89" },
+        { name: "Shoe · Eyes", meta: "40 EU · Green" }, { name: "Represented", meta: "MX · NY · MI" },
+      ] },
+      gallery: [`${D}/model/02-gown.jpg`, `${D}/model/04-runway.jpg`, `${D}/model/06-runway.jpg`, `${D}/model/09-editorial.jpg`, `${D}/model/07-runway.jpg`, `${D}/model/10-editorial.jpg`],
+    },
+    {
+      key: "dj", short: "DJ", label: "DJ", accent: "#7c5cff", accentInk: "#ffffff",
+      hero: `${D}/dj/01-hero.jpg`, tagline: "From the runway to the booth.",
+      sub: "Open-format, house and afterparty sets — fashion-party energy with a crowd-reading instinct.",
+      cta: { label: "Book a set", href: "#book" }, intro: "Open-format, house & events.",
+      services: [
+        { title: "Club nights", desc: "Resident-quality sets for lounges and clubs.", img: `${D}/dj/05-crowd.jpg` },
+        { title: "Festivals", desc: "Main-room energy for stages and pools.", img: `${D}/dj/06-stage.jpg` },
+        { title: "Private & brand", desc: "Weddings, launches, and fashion afterparties.", img: `${D}/dj/03-dj.jpg` },
+      ],
+      offer: { heading: "Sets", note: "Own equipment available", items: [
+        { name: "Open format", meta: "from $600", detail: "2 hours · any room" },
+        { name: "House / electronic", meta: "from $800", detail: "Club & festival" },
+        { name: "Afterparty", meta: "from $1,100", detail: "Extended late set" },
+      ] },
+      gallery: [`${D}/dj/02-mixer.jpg`, `${D}/dj/04-dark.jpg`, `${D}/dj/07-crowd.jpg`, `${D}/dj/08-mixer.jpg`, `${D}/dj/05-crowd.jpg`, `${D}/dj/06-stage.jpg`],
+      player: { album: "Night Shift — Mixes", cover: `${D}/dj/04-dark.jpg`, href: "https://open.spotify.com", tracks: [{ t: "Sunset Set — Tulum", d: "58:20" }, { t: "House Sessions 04", d: "61:10" }, { t: "Fashion Week Afterparty", d: "72:40" }] },
+      shows: [{ day: "21", mon: "DEC", venue: "Bagatelle", city: "Mexico City" }, { day: "28", mon: "DEC", venue: "Vagalume", city: "Tulum" }, { day: "04", mon: "JAN", venue: "Private launch", city: "Los Cabos" }],
+    },
+  ],
+  reviews: [
+    { quote: "She walked our show and then DJ’d the afterparty — the whole night had one heartbeat.", author: "Atelier Norte", tag: "Both" },
+    { quote: "Magnetic on camera, completely professional on set.", author: "RevistaMX", tag: "Model" },
+    { quote: "Read the room perfectly and kept the floor full till close.", author: "Bagatelle", tag: "DJ" },
+  ],
+  blog: [
+    { cover: `${D}/dj/05-crowd.jpg`, cat: "Music", date: "Nov 2026", title: "Reading a fashion crowd", excerpt: "Why the first 20 minutes decide the night.", min: "4 min" },
+    { cover: `${D}/model/05-editorial.jpg`, cat: "Fashion", date: "Oct 2026", title: "Backstage to booth in 20 minutes", excerpt: "How I switch gears on show nights.", min: "5 min" },
+    { cover: `${D}/model/09-editorial.jpg`, cat: "Fashion", date: "Sep 2026", title: "Castings that actually book", excerpt: "What 200 castings taught me.", min: "3 min" },
+  ],
+  socials: { instagram: "https://instagram.com", spotify: "https://open.spotify.com", whatsapp: "https://wa.me/520000000000", email: "mailto:hola@ninaferro.com" },
 };
 
 function Stroke({ d, size = 18 }: { d: string; size?: number }) {
