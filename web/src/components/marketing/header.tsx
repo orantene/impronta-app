@@ -215,15 +215,29 @@ export function MarketingHeader({
               >
                 {copy.nav.signIn}
               </a>
-              <MarketingCta
-                href="/get-started"
-                variant="primary"
-                size="md"
-                eventSource="header"
-                eventIntent="get-started"
-              >
-                {copy.nav.startFree}
-              </MarketingCta>
+              <span className="relative inline-flex">
+                <MarketingCta
+                  href="/get-started"
+                  variant="primary"
+                  size="md"
+                  eventSource="header"
+                  eventIntent="get-started"
+                >
+                  {copy.nav.startFree}
+                </MarketingCta>
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute -right-2 -top-2 inline-flex items-center rounded-full px-1.5 py-[3px] text-[0.5625rem] font-bold uppercase leading-none tracking-[0.04em]"
+                  style={{
+                    background: "var(--plt-accent)",
+                    color: "#fff",
+                    boxShadow:
+                      "0 2px 6px -1px rgba(255,131,50,0.55), 0 0 0 2px var(--plt-bg)",
+                  }}
+                >
+                  {copy.nav.freeBadge}
+                </span>
+              </span>
             </>
           )}
         </div>
@@ -356,16 +370,30 @@ export function MarketingHeader({
                     {copy.nav.signIn}
                     <ChevronGlyph />
                   </a>
-                  <MarketingCta
-                    href="/get-started"
-                    variant="primary"
-                    size="lg"
-                    eventSource="mobile-header"
-                    eventIntent="get-started"
-                    className="w-full"
-                  >
-                    {copy.nav.startFree}
-                  </MarketingCta>
+                  <span className="relative block w-full">
+                    <MarketingCta
+                      href="/get-started"
+                      variant="primary"
+                      size="lg"
+                      eventSource="mobile-header"
+                      eventIntent="get-started"
+                      className="w-full"
+                    >
+                      {copy.nav.startFree}
+                    </MarketingCta>
+                    <span
+                      aria-hidden
+                      className="pointer-events-none absolute -right-1.5 -top-1.5 inline-flex items-center rounded-full px-1.5 py-[3px] text-[0.5625rem] font-bold uppercase leading-none tracking-[0.04em]"
+                      style={{
+                        background: "var(--plt-accent)",
+                        color: "#fff",
+                        boxShadow:
+                          "0 2px 6px -1px rgba(255,131,50,0.55), 0 0 0 2px var(--plt-bg)",
+                      }}
+                    >
+                      {copy.nav.freeBadge}
+                    </span>
+                  </span>
                   <p
                     className="mt-2 text-center text-[0.75rem]"
                     style={{ color: "var(--plt-muted)" }}
