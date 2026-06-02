@@ -3,28 +3,15 @@
 /**
  * FreeformLayersTree — left-rail layer list for FREEFORM full-page designs.
  *
- * The Structure Navigator (`navigator-panel.tsx`) lists curated *sections*
- * built from composition slots. A freeform full-page design (one-click
- * starter designs) has NO slots — its content is a non-empty `builderTree`
- * of containers + blocks. With zero slots the navigator's section list is
- * empty, so there was no way to see or navigate the block hierarchy from the
- * left rail.
- *
- * This is a SEPARATE component (it does not touch the section/slot code paths
- * or the section-coupled FlatRow model). It renders the builder tree as a
- * flat, indented, Figma/Webflow-style layer list keyed off the SAME
- * BuilderNode identity the canvas + inspector use, so selecting a row here
- * highlights the block everywhere.
- *
- * Wires (from `useEditContext`):
- *   - `builderTree` — the freeform node tree.
- *   - `selectBuilderNode(nodeId)` — click a row → select that node.
- *   - `selectedBuilderNodeId` — drives the selected-row state.
- *   - `moveBuilderNodeWithinParent(nodeId, "up"|"down")` — per-row reorder.
- *   - `removeBuilderNode(nodeId)` — per-row delete.
- *
- * Styling reuses the CHROME tokens and matches the navigator's section/child
- * rows (indigo-tinted selected fill + inset accent bar, soft hover tint).
+ * The Structure Navigator lists curated *sections* from composition slots; a
+ * freeform one-click design has NO slots, just a non-empty `builderTree` of
+ * containers + blocks the section list can't show. This SEPARATE component (it
+ * does not touch the section/slot/FlatRow paths) renders that tree as a flat,
+ * indented Figma/Webflow-style layer list keyed off the SAME BuilderNode
+ * identity the canvas + inspector use, so selecting a row highlights the block
+ * everywhere. Wires `builderTree` / `selectBuilderNode` / `selectedBuilderNodeId`
+ * / `moveBuilderNodeWithinParent` / `removeBuilderNode` from `useEditContext`;
+ * styling reuses CHROME tokens to match the navigator rows.
  */
 
 import {
@@ -67,9 +54,7 @@ interface LayerRow {
 }
 
 /** Registry-policy child kinds for a kind (raw allow-list; `[]` for leaves). */
-function rawChildKindsForKind(
-  kind: BuilderNodeKind,
-): ReadonlyArray<BuilderNodeKind> {
+function rawChildKindsForKind(kind: BuilderNodeKind): ReadonlyArray<BuilderNodeKind> {
   const policy = BUILDER_NODE_REGISTRY[kind].children;
   return policy.type === "allow_list" ? policy.kinds : [];
 }
@@ -123,25 +108,32 @@ function kindGlyph(kind: BuilderNodeKind): string {
 
 interface FlattenedTree {
   rows: LayerRow[];
-  /**
-   * Container the header "+ Add block" targets: the hoisted wrapper, else the
-   * first top-level container, else `null` (insert into `null` appends to root).
-   */
+  /** Header "+ Add block" target: hoisted wrapper, else first container anywhere, else `null` (append to tree root). */
   rootContainerId: string | null;
+  /** Raw allowed-child kinds of the resolved root container — gated-non-empty drives the header pill (so it shows even when the root is hoisted). */
+  rootContainerKinds: ReadonlyArray<BuilderNodeKind>;
+}
+
+/** Depth-first: the first `container` node anywhere in the tree, else `null`. */
+function findFirstContainer(nodes: ReadonlyArray<BuilderNode>): BuilderNode | null {
+  for (const node of nodes) {
+    if (node.kind === "container") return node;
+    if ("children" in node && Array.isArray(node.children) && node.children.length > 0) {
+      const nested = findFirstContainer(node.children);
+      if (nested) return nested;
+    }
+  }
+  return null;
 }
 
 /**
- * Flatten the tree to indented rows in document order. When the tree's single
- * root is a layout wrapper container (a full-page <main> wrapper), its children
- * start at depth 0 so the whole page isn't visually nested under one root row.
+ * Flatten the tree to indented rows in document order. When the single root is a
+ * layout wrapper container, its children start at depth 0 (not nested under it).
  */
 function flattenTree(tree: BuilderNodeTree): FlattenedTree {
   const rows: LayerRow[] = [];
 
-  const walk = (
-    nodes: ReadonlyArray<BuilderNode>,
-    depth: number,
-  ): void => {
+  const walk = (nodes: ReadonlyArray<BuilderNode>, depth: number): void => {
     nodes.forEach((node, index) => {
       rows.push({
         id: node.id,
@@ -173,15 +165,28 @@ function flattenTree(tree: BuilderNodeTree): FlattenedTree {
       : null;
 
   if (onlyRoot && "children" in onlyRoot && Array.isArray(onlyRoot.children)) {
+    // The hoisted wrapper has NO row of its own, so the header must target it by
+    // id + its real child kinds — else the kind-gated pill never renders.
     walk(onlyRoot.children, 0);
-    return { rows, rootContainerId: onlyRoot.id };
+    return {
+      rows,
+      rootContainerId: onlyRoot.id,
+      rootContainerKinds: rawChildKindsForKind(onlyRoot.kind),
+    };
   }
 
   walk(tree, 0);
-  // No hoisted wrapper: target the first top-level container if one exists so
-  // the header add lands somewhere sensible; else append to the tree root.
-  const firstTopContainer = tree.find((node) => node.kind === "container");
-  return { rows, rootContainerId: firstTopContainer?.id ?? null };
+  // No hoisted wrapper: target the first container ANYWHERE (a page may nest its
+  // only container under a section). With none, target tree root (`null`) + the
+  // container catalog so the operator can still seed a first block.
+  const firstContainer = findFirstContainer(tree);
+  return {
+    rows,
+    rootContainerId: firstContainer?.id ?? null,
+    rootContainerKinds: firstContainer
+      ? rawChildKindsForKind(firstContainer.kind)
+      : rawChildKindsForKind("container"),
+  };
 }
 
 /**
@@ -322,7 +327,7 @@ export function FreeformLayersTree() {
     canInsertRawHtmlElements,
   } = useEditContext();
 
-  const { rows, rootContainerId } = useMemo(
+  const { rows, rootContainerId, rootContainerKinds } = useMemo(
     () => flattenTree(builderTree),
     [builderTree],
   );
@@ -342,31 +347,27 @@ export function FreeformLayersTree() {
     [advancedElementLibraryEnabled, canInsertRawHtmlElements],
   );
 
-  // The header "+ Add block" inserts into the root container (or, when a
-  // container row is selected, that container). Recomputed from the live tree so
-  // it tracks selection without a second flatten pass.
+  // Header "+ Add block" targets the selected container row when one is selected,
+  // else the resolved root container. Tracks selection off the live rows.
   const selectedContainerRow = useMemo(
     () =>
-      rows.find(
-        (row) => row.id === selectedBuilderNodeId && row.rawChildKinds.length > 0,
-      ) ?? null,
+      rows.find((row) => row.id === selectedBuilderNodeId && row.rawChildKinds.length > 0) ??
+      null,
     [rows, selectedBuilderNodeId],
   );
   const headerTargetId = selectedContainerRow?.id ?? rootContainerId;
+  // Gate the ACTUAL header target's kinds: the selected container row, else the
+  // resolved root container (hoisted wrapper has no row → kinds via
+  // `rootContainerKinds`), so the pill renders even when the root is hoisted.
   const headerTargetKinds = useMemo(
     () =>
       gateChildKinds(
-        selectedContainerRow
-          ? selectedContainerRow.rawChildKinds
-          : rawChildKindsForKind("container"),
+        selectedContainerRow ? selectedContainerRow.rawChildKinds : rootContainerKinds,
       ),
-    [gateChildKinds, selectedContainerRow],
+    [gateChildKinds, selectedContainerRow, rootContainerKinds],
   );
-  const headerLabel = selectedContainerRow
-    ? selectedContainerRow.label
-    : "Page";
-  // Hide the header add only if Advanced composition is fully off (gate empties
-  // the catalog); otherwise a container always has insertable kinds.
+  const headerLabel = selectedContainerRow ? selectedContainerRow.label : "Page";
+  // Hide the header add only when the gate empties the kinds (Advanced off).
   const headerAddEnabled = headerTargetKinds.length > 0;
 
   const toggleInsertTarget = useCallback((target: InsertTarget) => {
