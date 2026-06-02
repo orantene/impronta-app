@@ -53,4 +53,11 @@ export const PAGE_DESIGN_SUMMARIES: ReadonlyArray<PageDesignSummary> = [
       "A cinematic live-event page: a characterful display masthead, a poster hero, a lineup grid, a set-times schedule, and a ticket call-to-action.",
     archetype: "festival",
   },
+  {
+    id: "studio",
+    label: "Creative studio",
+    description:
+      "A warm, light studio brand: a Fraunces statement hero, a what-we-make trio, a selected-work grid, a clay quote, and a calm contact call-to-action.",
+    archetype: "studio",
+  },
 ];
