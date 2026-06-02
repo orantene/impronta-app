@@ -25,140 +25,23 @@ import {
 export function TopPerformersDrawer() {
   const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "top-performers";
-  const [tab, setTab] = useState<"talent" | "clients">("talent");
-
-  const TALENT_ROWS = [
-    { name: "Marta Reyes",    bookings: 11, revenue: 28400, trend: "+18%" },
-    { name: "Kai Lin",        bookings: 8,  revenue: 21000, trend: "+7%"  },
-    { name: "Sofia Andrade",  bookings: 7,  revenue: 17600, trend: "+3%"  },
-    { name: "Tomás Navarro",  bookings: 5,  revenue: 12200, trend: "−2%"  },
-    { name: "Hana Matsumoto", bookings: 4,  revenue: 9800,  trend: "+11%" },
-  ];
-  const CLIENT_ROWS = [
-    { name: "Vogue Italia",  bookings: 6, spend: 18200, trend: "+22%" },
-    { name: "Bvlgari",       bookings: 4, spend: 14600, trend: "+5%"  },
-    { name: "H&M Studio",    bookings: 5, spend: 11400, trend: "−8%"  },
-    { name: "Zara Campaign", bookings: 3, spend: 9200,  trend: "+16%" },
-    { name: "L'Oréal Paris", bookings: 2, spend: 7800,  trend: "0%"   },
-  ];
-  const maxRevenue = Math.max(...TALENT_ROWS.map((r) => r.revenue));
-  const maxSpend   = Math.max(...CLIENT_ROWS.map((r) => r.spend));
-
-  const trendColor = (t: string) =>
-    t.startsWith("+") ? COLORS.successDeep : t === "0%" ? COLORS.inkMuted : COLORS.coral;
-
+  // Honest stub — per-talent / per-client revenue rankings need a real
+  // analytics aggregation that isn't wired yet. Showing fabricated revenue
+  // (e.g. "Marta Reyes €28,400") would misrepresent business numbers.
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
       title="Top performers"
-      description="Ranked by YTD revenue · last 12 months."
+      description="Talent and client rankings by booking revenue."
       footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
       defaultSize="half"
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
-        {/* Tab toggle */}
-        <div style={{ display: "flex", gap: 4, padding: 3 }} className="bg-admin-surface-alt rounded-admin-md">
-          {(["talent", "clients"] as const).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setTab(t)}
-              style={{
-                flex: 1, padding: "6px 12px",
-                background: tab === t ? "#fff" : "transparent",
-                border: `1px solid ${tab === t ? COLORS.border : "transparent"}`,
-                borderRadius: RADIUS.sm,
-                fontFamily: FONTS.body,
-                fontSize: 12.5, fontWeight: tab === t ? 600 : 400,
-                color: tab === t ? COLORS.ink : COLORS.inkMuted,
-                cursor: "pointer",
-                transition: TRANSITION.sm,
-              }}
-            >
-              {t === "talent" ? "Talent" : "Clients"}
-            </button>
-          ))}
-        </div>
-
-        {/* Talent ranked rows */}
-        {tab === "talent" && (
-          <div className="flex flex-col gap-1.5">
-            {TALENT_ROWS.map((row, i) => (
-              <div
-                key={row.name}
-                style={{
-                  padding: "12px 14px", background: COLORS.surfaceAlt,
-                  borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}`,
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                  <div className="flex items-center gap-2">
-                    <span style={{
-                      width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
-                      background: i === 0 ? COLORS.accent : COLORS.surfaceAlt,
-                      border: `1px solid ${i === 0 ? COLORS.accent : COLORS.border}`,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 10, fontWeight: 700,
-                      color: i === 0 ? "#fff" : COLORS.inkMuted,
-                    }}>
-                      {i + 1}
-                    </span>
-                    <span className="text-admin-ink text-admin-13 font-semibold">{row.name}</span>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-admin-ink text-admin-13 font-bold">€{row.revenue.toLocaleString()}</div>
-                    <div style={{ fontSize: 11, color: trendColor(row.trend) }}>{row.trend} YoY</div>
-                  </div>
-                </div>
-                <div style={{ background: COLORS.border, borderRadius: 3, height: 4, overflow: "hidden" }}>
-                  <div style={{ '--progress-w': `${Math.round((row.revenue / maxRevenue) * 100)}%`, '--progress-bg': i === 0 ? COLORS.accent : COLORS.indigo }} className="w-[var(--progress-w)] h-full rounded-[3px] bg-[var(--progress-bg)]" />
-                </div>
-                <div style={{ fontSize: 11, marginTop: 4 }} className="text-admin-ink-muted">{row.bookings} bookings YTD</div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Client ranked rows */}
-        {tab === "clients" && (
-          <div className="flex flex-col gap-1.5">
-            {CLIENT_ROWS.map((row, i) => (
-              <div
-                key={row.name}
-                style={{
-                  padding: "12px 14px", background: COLORS.surfaceAlt,
-                  borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}`,
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                  <div className="flex items-center gap-2">
-                    <span style={{
-                      width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
-                      background: i === 0 ? COLORS.indigo : COLORS.surfaceAlt,
-                      border: `1px solid ${i === 0 ? COLORS.indigo : COLORS.border}`,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 10, fontWeight: 700,
-                      color: i === 0 ? "#fff" : COLORS.inkMuted,
-                    }}>
-                      {i + 1}
-                    </span>
-                    <span className="text-admin-ink text-admin-13 font-semibold">{row.name}</span>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-admin-ink text-admin-13 font-bold">€{row.spend.toLocaleString()}</div>
-                    <div style={{ fontSize: 11, color: trendColor(row.trend) }}>{row.trend} YoY</div>
-                  </div>
-                </div>
-                <div style={{ background: COLORS.border, borderRadius: 3, height: 4, overflow: "hidden" }}>
-                  <div style={{ '--progress-w': `${Math.round((row.spend / maxSpend) * 100)}%`, '--progress-bg': i === 0 ? COLORS.indigo : COLORS.accent }} className="w-[var(--progress-w)] h-full rounded-[3px] bg-[var(--progress-bg)]" />
-                </div>
-                <div style={{ fontSize: 11, marginTop: 4 }} className="text-admin-ink-muted">{row.bookings} bookings YTD</div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <EmptyState
+        icon="sparkle"
+        title="Coming soon"
+        body="Revenue-ranked talent and client leaderboards aren't live yet. They'll appear here once booking analytics are wired up."
+      />
     </DrawerShell>
   );
 }
@@ -167,109 +50,22 @@ export function TopPerformersDrawer() {
 export function CoordinatorWorkloadDrawer() {
   const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "coordinator-workload";
-
-  const COORDINATORS = [
-    { name: "Oran Tene",     role: "Admin",       active: 6, messages: 38, avgReply: "1.2h", closed: 4, load: 85 },
-    { name: "Sara Mendes",   role: "Coordinator", active: 4, messages: 22, avgReply: "2.4h", closed: 3, load: 62 },
-    { name: "Luca Ferretti", role: "Coordinator", active: 3, messages: 17, avgReply: "4.1h", closed: 1, load: 44 },
-    { name: "Alina Popescu", role: "Editor",      active: 1, messages: 9,  avgReply: "3.8h", closed: 2, load: 22 },
-  ];
-  const totalActive   = COORDINATORS.reduce((s, c) => s + c.active, 0);
-  const totalMessages = COORDINATORS.reduce((s, c) => s + c.messages, 0);
-
-  const loadColor = (load: number) =>
-    load >= 80 ? COLORS.coral : load >= 50 ? COLORS.amber : COLORS.success;
-
+  // Honest stub — per-coordinator load / reply-time metrics have no real
+  // source yet; the old hardcoded percentages (e.g. "Oran 85%") were demo data.
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Coordinator workload"
-      description="Active inquiry load per team member. Updated every 15 minutes."
+      title="Team workload"
+      description="Active load, messages, and reply time per coordinator."
       footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
       defaultSize="half"
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
-        {/* Summary tiles */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-          {[
-            { label: "Team members",     value: String(COORDINATORS.length) },
-            { label: "Total active",     value: String(totalActive) },
-            { label: "Messages this wk", value: String(totalMessages) },
-          ].map((tile) => (
-            <div
-              key={tile.label}
-              style={{
-                background: COLORS.surfaceAlt, borderRadius: RADIUS.lg,
-                padding: "12px 14px", border: `1px solid ${COLORS.border}`,
-                textAlign: "center",
-              }}
-            >
-              <div style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }} className="text-admin-ink-muted">
-                {tile.label}
-              </div>
-              <div className="text-admin-ink text-admin-22 font-extrabold">{tile.value}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Per-coordinator rows */}
-        <div>
-          <CapsLabel>Per-coordinator breakdown</CapsLabel>
-          <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
-            {COORDINATORS.map((coord) => {
-              const color = loadColor(coord.load);
-              return (
-                <div
-                  key={coord.name}
-                  style={{
-                    padding: "14px 16px", background: COLORS.surfaceAlt,
-                    borderRadius: RADIUS.lg, border: `1px solid ${COLORS.borderSoft}`,
-                  }}
-                >
-                  {/* Header row */}
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                    <div>
-                      <div className="text-admin-ink text-admin-13 font-semibold">{coord.name}</div>
-                      <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{coord.role}</div>
-                    </div>
-                    <div style={{ fontSize: 11.5, fontWeight: 700, color: color, background: `${color}1A`, padding: "3px 8px" }} className="rounded-admin-sm">
-                      {coord.load}% load
-                    </div>
-                  </div>
-
-                  {/* Load bar */}
-                  <div style={{ background: COLORS.border, borderRadius: 4, height: 6, marginBottom: 10, overflow: "hidden" }}>
-                    <div
-                      style={{ '--progress-w': `${coord.load}%`, '--progress-bg': color }}
-                      className="w-[var(--progress-w)] h-full rounded-[4px] bg-[var(--progress-bg)] [transition:width_var(--transition-admin-layout)]"
-                    />
-                  </div>
-
-                  {/* Stat row */}
-                  <div className="flex gap-5">
-                    {[
-                      { label: "Active",    value: String(coord.active) },
-                      { label: "Messages",  value: String(coord.messages) },
-                      { label: "Avg reply", value: coord.avgReply },
-                      { label: "Closed wk", value: String(coord.closed) },
-                    ].map((stat) => (
-                      <div key={stat.label}>
-                        <div style={{ fontSize: 10, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                          {stat.label}
-                        </div>
-                        <div style={{ fontSize: 14, fontWeight: 700, marginTop: 2 }} className="text-admin-ink">
-                          {stat.value}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
+      <EmptyState
+        icon="team"
+        title="Coming soon"
+        body="Per-coordinator workload and response-time analytics aren't live yet. We'll surface them here once the data is tracked."
+      />
     </DrawerShell>
   );
 }
