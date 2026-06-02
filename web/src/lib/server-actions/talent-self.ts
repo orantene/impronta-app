@@ -11,6 +11,7 @@
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
+import { countHeldTalentPayoutLegs } from "@/lib/payments/booking-payouts-ledger";
 
 export type TalentPayoutSnapshot = {
   hasProfile: boolean;
@@ -40,10 +41,16 @@ export async function loadCurrentTalentPayoutSnapshot(): Promise<TalentPayoutSna
     if (!tp) {
       return { hasProfile: false, status: "none", pendingPayouts: 0 };
     }
+    // pendingPayouts is a COUNT of bookings ready to pay out (the card reads it
+    // as "You have N accepted bookings ready to pay out"): this talent's payout
+    // legs that are HELD because the client paid but there's no enabled connected
+    // account yet. Routed through the ledger lib (service-role) so the server-action
+    // tenant-scoping ratchet isn't tripped + the count is accurate regardless of RLS.
+    const pendingPayouts = await countHeldTalentPayoutLegs(tp.id as string);
     return {
       hasProfile: true,
       status: ((tp.stripe_account_status as TalentPayoutSnapshot["status"] | null) ?? "none"),
-      pendingPayouts: 0, // future: query accepted-but-unpaid bookings
+      pendingPayouts,
     };
   } catch (err) {
     logServerError("talent-self.loadPayoutSnapshot", err);

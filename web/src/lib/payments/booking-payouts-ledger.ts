@@ -290,6 +290,38 @@ export type HeldLedgerRow = {
 };
 
 /**
+ * Count one talent's HELD payout legs — bookings where the client paid but the
+ * transfer couldn't route because the talent has no enabled connected account
+ * yet (executeBookingTransfers records the leg as 'held', funds stay on the
+ * platform). Drives the talent PayoutNudgeCard count ("you have N accepted
+ * bookings ready to pay out — connect Stripe"). Service-role read so the count
+ * is accurate regardless of the caller's RLS; best-effort, returns 0 on error.
+ */
+export async function countHeldTalentPayoutLegs(
+  talentProfileId: string,
+  sbIn?: SupabaseClient | null,
+): Promise<number> {
+  const sb = sbIn ?? createServiceRoleClient();
+  if (!sb || !talentProfileId) return 0;
+  try {
+    const { count, error } = await sb
+      .from("booking_payouts")
+      .select("id", { count: "exact", head: true })
+      .eq("talent_profile_id", talentProfileId)
+      .eq("party", "talent")
+      .eq("status", "held");
+    if (error) {
+      logServerError("booking-payouts-ledger.countHeldTalentPayoutLegs", error);
+      return 0;
+    }
+    return count ?? 0;
+  } catch (err) {
+    logServerError("booking-payouts-ledger.countHeldTalentPayoutLegs", err);
+    return 0;
+  }
+}
+
+/**
  * All currently-held (and failed) payout legs across the platform — for the
  * platform-admin reconciliation list. Service-role read; newest first.
  */
