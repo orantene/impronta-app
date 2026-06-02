@@ -1,3 +1,4 @@
+import { getRequestLocale } from "@/i18n/request-locale";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
 import { MarketingCta } from "./cta-link";
@@ -9,31 +10,80 @@ type Step = {
   highlight: string;
 };
 
-const STEPS: Step[] = [
-  {
-    index: "01",
-    title: "Claim your roster site.",
-    body:
-      "Sign up, add the people you represent — one, ten, or forty — and upload their work. Get a branded roster site on our domain, or bring your own when you upgrade.",
-    highlight: `${PLATFORM_BRAND.domain}/your-roster`,
-  },
-  {
-    index: "02",
-    title: "Share it everywhere.",
-    body:
-      "Paste it into DMs, email signatures, bios, and proposals. Clients see a real directory, not three attached photos.",
-    highlight: "One link. Everywhere.",
-  },
-  {
-    index: "03",
-    title: "Inquiries come to you.",
-    body:
-      "Structured inquiries land in your inbox — not another chat thread. Review, respond, and turn them into real bookings.",
-    highlight: "Inquiry → Offer → Booking",
-  },
-];
+function getSteps(locale: string): Step[] {
+  if (locale === "es") {
+    return [
+      {
+        index: "01",
+        title: "Crea el sitio de tu roster.",
+        body:
+          "Regístrate, agrega a las personas que representas —una, diez o cuarenta— y sube su trabajo. Obtén un sitio de roster con tu marca en nuestro dominio, o usa el tuyo propio cuando mejores de plan.",
+        highlight: `${PLATFORM_BRAND.domain}/tu-roster`,
+      },
+      {
+        index: "02",
+        title: "Compártelo en todas partes.",
+        body:
+          "Pégalo en tus DMs, firmas de correo, bios y propuestas. Tus clientes ven un directorio de verdad, no tres fotos adjuntas.",
+        highlight: "Un solo enlace. En todas partes.",
+      },
+      {
+        index: "03",
+        title: "Las solicitudes llegan solas.",
+        body:
+          "Las solicitudes ordenadas llegan a tu bandeja —no a otro hilo de chat más—. Revísalas, responde y conviértelas en reservas reales.",
+        highlight: "Solicitud → Oferta → Reserva",
+      },
+    ];
+  }
+  return [
+    {
+      index: "01",
+      title: "Claim your roster site.",
+      body:
+        "Sign up, add the people you represent — one, ten, or forty — and upload their work. Get a branded roster site on our domain, or bring your own when you upgrade.",
+      highlight: `${PLATFORM_BRAND.domain}/your-roster`,
+    },
+    {
+      index: "02",
+      title: "Share it everywhere.",
+      body:
+        "Paste it into DMs, email signatures, bios, and proposals. Clients see a real directory, not three attached photos.",
+      highlight: "One link. Everywhere.",
+    },
+    {
+      index: "03",
+      title: "Inquiries come to you.",
+      body:
+        "Structured inquiries land in your inbox — not another chat thread. Review, respond, and turn them into real bookings.",
+      highlight: "Inquiry → Offer → Booking",
+    },
+  ];
+}
 
-export function HowItWorksSection() {
+export async function HowItWorksSection() {
+  const locale = await getRequestLocale();
+  const steps = getSteps(locale);
+  const c =
+    locale === "es"
+      ? {
+          eyebrow: "Cómo funciona",
+          titleLine1: "Tres pasos para pasar de WhatsApp",
+          titleLine2: "a un negocio de verdad.",
+          intro: "La mayoría de los coordinadores manejan un negocio con herramientas hechas para chatear con amigos.",
+          introBrandTail: " te da la estructura sin la complicación.",
+          ctaWalkthrough: "El recorrido completo",
+          ctaGetStarted: "O ve directo al grano — empieza gratis",
+        }
+      : {
+          eyebrow: "How it works",
+          titleLine1: "Three steps from WhatsApp",
+          titleLine2: "to a real business.",
+          intro: "Most coordinators are running a business with tools built for personal chat.",
+          introBrandTail: " gives you the structure without the overhead.",
+          ctaWalkthrough: "The full walkthrough",
+          ctaGetStarted: "Or skip ahead — start free",
+        };
   return (
     <MarketingSection
       id="how-it-works"
@@ -48,28 +98,28 @@ export function HowItWorksSection() {
       <MarketingContainer size="wide">
         <div className="flex flex-col items-start justify-between gap-8 md:flex-row md:items-end">
           <div className="max-w-2xl">
-            <MarketingEyebrow>How it works</MarketingEyebrow>
+            <MarketingEyebrow>{c.eyebrow}</MarketingEyebrow>
             <h2
               className="mkt-display mt-5 text-[2rem] font-medium tracking-[-0.02em] sm:text-[2.75rem] md:text-[3rem]"
               style={{ color: "var(--mkt-ink)" }}
             >
-              Three steps from WhatsApp
+              {c.titleLine1}
               <br />
-              to a real business.
+              {c.titleLine2}
             </h2>
           </div>
           <p
             className="max-w-sm text-[1rem] leading-[1.6]"
             style={{ color: "var(--mkt-muted)" }}
           >
-            Most coordinators are running a business with tools built for personal chat.
-            {` ${PLATFORM_BRAND.name} gives you the structure without the overhead.`}
+            {c.intro}
+            {` ${PLATFORM_BRAND.name}${c.introBrandTail}`}
           </p>
         </div>
 
         <div className="mt-14 grid gap-6 md:grid-cols-3 md:gap-6 lg:gap-8">
-          {STEPS.map((step, i) => (
-            <StepCard key={step.index} step={step} isLast={i === STEPS.length - 1} />
+          {steps.map((step, i) => (
+            <StepCard key={step.index} step={step} isLast={i === steps.length - 1} />
           ))}
         </div>
 
@@ -81,7 +131,7 @@ export function HowItWorksSection() {
             eventSource="home-how-it-works"
             eventIntent="learn"
           >
-            The full walkthrough
+            {c.ctaWalkthrough}
           </MarketingCta>
           <MarketingCta
             href="/get-started"
@@ -90,7 +140,7 @@ export function HowItWorksSection() {
             eventSource="home-how-it-works"
             eventIntent="get-started"
           >
-            Or skip ahead — start free
+            {c.ctaGetStarted}
           </MarketingCta>
         </div>
       </MarketingContainer>

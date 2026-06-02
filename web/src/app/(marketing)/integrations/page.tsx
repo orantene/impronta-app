@@ -12,6 +12,7 @@ import { EditorialFrame } from "@/components/marketing/editorial-image";
 import { SimplePageHero } from "@/components/marketing/simple-page-hero";
 import { MARKETING_PHOTOS } from "@/lib/marketing/photography";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { getRequestLocale } from "@/i18n/request-locale";
 
 export const metadata: Metadata = {
   title: "Integrations — one roster, rendered anywhere",
@@ -29,53 +30,104 @@ type DeliveryMode = {
   footnote: string;
 };
 
-const DELIVERY_MODES: DeliveryMode[] = [
-  {
-    id: "platform",
-    tag: "Mode 01 · Hosted",
-    index: "01",
-    title: "Full platform sites",
-    headline: "Your branded roster site, end to end.",
-    body: `A polished directory experience on your own domain — roster, profiles, posts, contact — rendered by ${PLATFORM_BRAND.name} and managed in the CMS. Best when the public site is part of the product.`,
-    bullets: [
-      "Custom domain + design tokens",
-      "Editorial pages, posts, navigation",
-      "Structured profiles with inquiry CTA",
-      "Zero build / no deploy pipeline to run",
-    ],
-    footnote: `Managed end-to-end by ${PLATFORM_BRAND.name}`,
-  },
-  {
-    id: "widgets",
-    tag: "Mode 02 · Embedded",
-    index: "02",
-    title: "Embeddable widgets",
-    headline: "Drop your roster into the site you already have.",
-    body: "Scripted + iframe embeds that render inside any modern CMS. Brand-themed with your design tokens, filtered to the slice you want shown, fallback-safe when scripts are blocked.",
-    bullets: [
-      "WordPress, Webflow, Shopify, Squarespace",
-      "Roster grid, single profile, or curated shelf",
-      "Inquiry form posts back into your pipeline",
-      "Isolated from host-page CSS + CSP-safe",
-    ],
-    footnote: "Host your site where you want it",
-  },
-  {
-    id: "api",
-    tag: "Mode 03 · API-driven",
-    index: "03",
-    title: "API-driven frontends",
-    headline: "One public read API. Anywhere you need the data.",
-    body: `An org-scoped JSON API for teams building bespoke frontends, partner experiences, or internal tooling on top of ${PLATFORM_BRAND.name}. Visibility rules carry through unchanged.`,
-    bullets: [
-      "Org-scoped read access, keyed per surface",
-      "Respects per-field visibility automatically",
-      "JSON payloads — bring your own framework",
-      "Every call audited + rate-limited",
-    ],
-    footnote: "Build anything on top",
-  },
-];
+function getDeliveryModes(locale: string): DeliveryMode[] {
+  if (locale === "es") {
+    return [
+      {
+        id: "platform",
+        tag: "Modo 01 · Hospedado",
+        index: "01",
+        title: "Sitios de plataforma completos",
+        headline: "El sitio de tu roster con tu marca, de principio a fin.",
+        body: `Una experiencia de directorio pulida en tu propio dominio — roster, perfiles, posts, contacto — renderizada por ${PLATFORM_BRAND.name} y administrada desde el CMS. Ideal cuando el sitio público es parte del producto.`,
+        bullets: [
+          "Dominio propio + tokens de diseño",
+          "Páginas editoriales, posts y navegación",
+          "Perfiles estructurados con CTA de consulta",
+          "Cero build, sin pipeline de deploy que mantener",
+        ],
+        footnote: `Administrado de extremo a extremo por ${PLATFORM_BRAND.name}`,
+      },
+      {
+        id: "widgets",
+        tag: "Modo 02 · Embebido",
+        index: "02",
+        title: "Widgets para embeber",
+        headline: "Mete tu roster en el sitio que ya tienes.",
+        body: "Embeds por script o iframe que se renderizan dentro de cualquier CMS moderno. Con tu marca y tus tokens de diseño, filtrados al pedazo que quieras mostrar y a prueba de fallos cuando se bloquean los scripts.",
+        bullets: [
+          "WordPress, Webflow, Shopify, Squarespace",
+          "Grid del roster, perfil individual o selección curada",
+          "El formulario de consulta cae directo en tu pipeline",
+          "Aislado del CSS de la página y compatible con CSP",
+        ],
+        footnote: "Hospeda tu sitio donde quieras",
+      },
+      {
+        id: "api",
+        tag: "Modo 03 · Vía API",
+        index: "03",
+        title: "Frontends hechos con la API",
+        headline: "Una sola API pública de lectura. Donde necesites los datos.",
+        body: `Una API JSON con alcance por organización para equipos que construyen frontends a la medida, experiencias para socios o herramientas internas sobre ${PLATFORM_BRAND.name}. Las reglas de visibilidad se respetan tal cual.`,
+        bullets: [
+          "Acceso de lectura por organización, con llave por superficie",
+          "Respeta la visibilidad campo por campo, automático",
+          "Respuestas en JSON — usa el framework que quieras",
+          "Cada llamada auditada y con límite de tasa",
+        ],
+        footnote: "Construye lo que sea encima",
+      },
+    ];
+  }
+  return [
+    {
+      id: "platform",
+      tag: "Mode 01 · Hosted",
+      index: "01",
+      title: "Full platform sites",
+      headline: "Your branded roster site, end to end.",
+      body: `A polished directory experience on your own domain — roster, profiles, posts, contact — rendered by ${PLATFORM_BRAND.name} and managed in the CMS. Best when the public site is part of the product.`,
+      bullets: [
+        "Custom domain + design tokens",
+        "Editorial pages, posts, navigation",
+        "Structured profiles with inquiry CTA",
+        "Zero build / no deploy pipeline to run",
+      ],
+      footnote: `Managed end-to-end by ${PLATFORM_BRAND.name}`,
+    },
+    {
+      id: "widgets",
+      tag: "Mode 02 · Embedded",
+      index: "02",
+      title: "Embeddable widgets",
+      headline: "Drop your roster into the site you already have.",
+      body: "Scripted + iframe embeds that render inside any modern CMS. Brand-themed with your design tokens, filtered to the slice you want shown, fallback-safe when scripts are blocked.",
+      bullets: [
+        "WordPress, Webflow, Shopify, Squarespace",
+        "Roster grid, single profile, or curated shelf",
+        "Inquiry form posts back into your pipeline",
+        "Isolated from host-page CSS + CSP-safe",
+      ],
+      footnote: "Host your site where you want it",
+    },
+    {
+      id: "api",
+      tag: "Mode 03 · API-driven",
+      index: "03",
+      title: "API-driven frontends",
+      headline: "One public read API. Anywhere you need the data.",
+      body: `An org-scoped JSON API for teams building bespoke frontends, partner experiences, or internal tooling on top of ${PLATFORM_BRAND.name}. Visibility rules carry through unchanged.`,
+      bullets: [
+        "Org-scoped read access, keyed per surface",
+        "Respects per-field visibility automatically",
+        "JSON payloads — bring your own framework",
+        "Every call audited + rate-limited",
+      ],
+      footnote: "Build anything on top",
+    },
+  ];
+}
 
 type Consumer = {
   name: string;
@@ -84,95 +136,187 @@ type Consumer = {
   art: "wordpress" | "webflow" | "shopify" | "custom";
 };
 
-const CONSUMERS: Consumer[] = [
-  {
-    name: "WordPress",
-    surface: "Plugin / embed",
-    line: "Drop a block into any page or post — your roster renders in the theme, styled by your brand tokens.",
-    art: "wordpress",
-  },
-  {
-    name: "Webflow",
-    surface: "Embed element",
-    line: `Use ${PLATFORM_BRAND.name} as the roster source without rebuilding CMS collections. Publish from ${PLATFORM_BRAND.name}, render in Webflow.`,
-    art: "webflow",
-  },
-  {
-    name: "Shopify",
-    surface: "Theme embed",
-    line: "Surface represented talent alongside product pages — useful for talent-branded merch and creator stores.",
-    art: "shopify",
-  },
-  {
-    name: "Custom / React / Astro",
-    surface: "Public read API",
-    line: "Consume the API from any framework. Useful for bespoke partner experiences, casting portals, and publisher sites.",
-    art: "custom",
-  },
-];
+function getConsumers(locale: string): Consumer[] {
+  if (locale === "es") {
+    return [
+      {
+        name: "WordPress",
+        surface: "Plugin / embed",
+        line: "Mete un bloque en cualquier página o post — tu roster se renderiza dentro del tema, con el estilo de tus tokens de marca.",
+        art: "wordpress",
+      },
+      {
+        name: "Webflow",
+        surface: "Elemento embed",
+        line: `Usa ${PLATFORM_BRAND.name} como la fuente del roster sin reconstruir colecciones del CMS. Publica desde ${PLATFORM_BRAND.name}, renderiza en Webflow.`,
+        art: "webflow",
+      },
+      {
+        name: "Shopify",
+        surface: "Embed en el tema",
+        line: "Muestra a tu talento representado junto a las páginas de producto — perfecto para merch con marca propia y tiendas de creadores.",
+        art: "shopify",
+      },
+      {
+        name: "Custom / React / Astro",
+        surface: "API pública de lectura",
+        line: "Consume la API desde cualquier framework. Ideal para experiencias a la medida con socios, portales de casting y sitios editoriales.",
+        art: "custom",
+      },
+    ];
+  }
+  return [
+    {
+      name: "WordPress",
+      surface: "Plugin / embed",
+      line: "Drop a block into any page or post — your roster renders in the theme, styled by your brand tokens.",
+      art: "wordpress",
+    },
+    {
+      name: "Webflow",
+      surface: "Embed element",
+      line: `Use ${PLATFORM_BRAND.name} as the roster source without rebuilding CMS collections. Publish from ${PLATFORM_BRAND.name}, render in Webflow.`,
+      art: "webflow",
+    },
+    {
+      name: "Shopify",
+      surface: "Theme embed",
+      line: "Surface represented talent alongside product pages — useful for talent-branded merch and creator stores.",
+      art: "shopify",
+    },
+    {
+      name: "Custom / React / Astro",
+      surface: "Public read API",
+      line: "Consume the API from any framework. Useful for bespoke partner experiences, casting portals, and publisher sites.",
+      art: "custom",
+    },
+  ];
+}
 
-const GOVERNANCE_RULES = [
-  {
-    title: "Org-scoped by default",
-    body: "Every surface — hosted site, widget, API key — is bound to one org. Cross-org data never leaks through the same surface.",
-  },
-  {
-    title: "One visibility truth",
-    body: "Private, org-only, public, and hub-approved flow through the same rules on every surface. No per-channel toggles to keep in sync.",
-  },
-  {
-    title: "Per-field masks",
-    body: "Hide rate cards from public embeds while keeping them on the hosted site. Mask city-level location on the API without touching the rest.",
-  },
-  {
-    title: "Domain allow-list",
-    body: "Lock widget embeds to the domains you actually ship on. Third parties copying your script see nothing useful.",
-  },
-];
+function getGovernanceRules(locale: string) {
+  if (locale === "es") {
+    return [
+      {
+        title: "Por organización, de origen",
+        body: "Cada superficie — sitio hospedado, widget, llave de API — está atada a una sola organización. Los datos de otra organización jamás se filtran por la misma superficie.",
+      },
+      {
+        title: "Una sola verdad de visibilidad",
+        body: "Privado, solo-organización, público y aprobado-en-el-hub corren con las mismas reglas en todas las superficies. Sin switches por canal que mantener sincronizados.",
+      },
+      {
+        title: "Máscaras campo por campo",
+        body: "Oculta las tarifas en los embeds públicos y déjalas visibles en el sitio hospedado. Enmascara la ubicación a nivel ciudad en la API sin tocar lo demás.",
+      },
+      {
+        title: "Lista de dominios permitidos",
+        body: "Limita los embeds a los dominios donde de verdad publicas. Si un tercero copia tu script, no ve nada útil.",
+      },
+    ];
+  }
+  return [
+    {
+      title: "Org-scoped by default",
+      body: "Every surface — hosted site, widget, API key — is bound to one org. Cross-org data never leaks through the same surface.",
+    },
+    {
+      title: "One visibility truth",
+      body: "Private, org-only, public, and hub-approved flow through the same rules on every surface. No per-channel toggles to keep in sync.",
+    },
+    {
+      title: "Per-field masks",
+      body: "Hide rate cards from public embeds while keeping them on the hosted site. Mask city-level location on the API without touching the rest.",
+    },
+    {
+      title: "Domain allow-list",
+      body: "Lock widget embeds to the domains you actually ship on. Third parties copying your script see nothing useful.",
+    },
+  ];
+}
 
-const ACCESS_PILLARS = [
-  {
-    pill: "Keys",
-    title: "Org-scoped, scope-limited, rotatable.",
-    body: "Every surface — widget, server, partner — gets its own key with its own scope. Revoke instantly when a consumer changes.",
-  },
-  {
-    pill: "Audit",
-    title: "Every call, every surface, logged.",
-    body: "The same audit trail your admin dashboard already writes to — no parallel logging system, no blind spots.",
-  },
-  {
-    pill: "Rate & quota",
-    title: "Generous by default, tunable per plan.",
-    body: "Embed + API traffic is shaped by plan entitlements. No surprise throttles, no per-endpoint configs to manage.",
-  },
-];
+function getAccessPillars(locale: string) {
+  if (locale === "es") {
+    return [
+      {
+        pill: "Llaves",
+        title: "Por organización, con alcance limitado y rotables.",
+        body: "Cada superficie — widget, servidor, socio — recibe su propia llave con su propio alcance. Revócala al instante cuando cambie un consumidor.",
+      },
+      {
+        pill: "Auditoría",
+        title: "Cada llamada, cada superficie, registrada.",
+        body: "El mismo registro de auditoría que tu panel de admin ya genera — sin un sistema de logs aparte, sin puntos ciegos.",
+      },
+      {
+        pill: "Tasa y cuota",
+        title: "Generosa de inicio, ajustable según el plan.",
+        body: "El tráfico de embeds y API se acomoda según lo que incluye tu plan. Sin frenos inesperados, sin configurar endpoint por endpoint.",
+      },
+    ];
+  }
+  return [
+    {
+      pill: "Keys",
+      title: "Org-scoped, scope-limited, rotatable.",
+      body: "Every surface — widget, server, partner — gets its own key with its own scope. Revoke instantly when a consumer changes.",
+    },
+    {
+      pill: "Audit",
+      title: "Every call, every surface, logged.",
+      body: "The same audit trail your admin dashboard already writes to — no parallel logging system, no blind spots.",
+    },
+    {
+      pill: "Rate & quota",
+      title: "Generous by default, tunable per plan.",
+      body: "Embed + API traffic is shaped by plan entitlements. No surprise throttles, no per-endpoint configs to manage.",
+    },
+  ];
+}
 
-export default function IntegrationsPage() {
+export default async function IntegrationsPage() {
+  const locale = await getRequestLocale();
+  const hero =
+    locale === "es"
+      ? {
+          eyebrow: `${PLATFORM_BRAND.name} como infraestructura`,
+          titleA: "Un roster.",
+          titleB: "Renderizado donde sea.",
+          subtitle: `${PLATFORM_BRAND.name} es la fuente de verdad de tu gente, sus perfiles y los datos de representación — y luego renderiza esa verdad donde tu negocio de verdad vive. Un sitio de plataforma pulido. Un embed dentro del sitio que ya tienes. Una API pública de lectura para los frontends que aún no construyes.`,
+          primaryLabel: "Empieza gratis",
+          secondaryLabel: "Ver precios",
+        }
+      : {
+          eyebrow: `${PLATFORM_BRAND.name} as infrastructure`,
+          titleA: "One roster.",
+          titleB: "Rendered anywhere.",
+          subtitle: `${PLATFORM_BRAND.name} is the source of truth for your people, profiles, and representation data — then it renders that truth wherever your business actually lives. A polished platform site. An embed inside the site you already have. A public read API for the frontends you haven't built yet.`,
+          primaryLabel: "Start free",
+          secondaryLabel: "See pricing",
+        };
   return (
     <>
       <SimplePageHero
-        eyebrow={`${PLATFORM_BRAND.name} as infrastructure`}
+        eyebrow={hero.eyebrow}
         title={
           <>
-            One roster.
+            {hero.titleA}
             <br />
-            <span style={{ color: "var(--plt-forest)" }}>Rendered anywhere.</span>
+            <span style={{ color: "var(--plt-forest)" }}>{hero.titleB}</span>
           </>
         }
-        subtitle={`${PLATFORM_BRAND.name} is the source of truth for your people, profiles, and representation data — then it renders that truth wherever your business actually lives. A polished platform site. An embed inside the site you already have. A public read API for the frontends you haven't built yet.`}
-        primary={{ label: "Start free", href: "/get-started", intent: "get-started" }}
-        secondary={{ label: "See pricing", href: "/pricing", intent: "pricing" }}
+        subtitle={hero.subtitle}
+        primary={{ label: hero.primaryLabel, href: "/get-started", intent: "get-started" }}
+        secondary={{ label: hero.secondaryLabel, href: "/pricing", intent: "pricing" }}
         sourcePage="integrations-hero"
       />
 
-      <FoundationSection />
-      <DeliveryModesSection />
-      <SurfacesLifestyleBand />
-      <RoadmapSection />
-      <GovernanceSection />
-      <ConsumerExamplesSection />
-      <AccessSection />
+      <FoundationSection locale={locale} />
+      <DeliveryModesSection locale={locale} />
+      <SurfacesLifestyleBand locale={locale} />
+      <RoadmapSection locale={locale} />
+      <GovernanceSection locale={locale} />
+      <ConsumerExamplesSection locale={locale} />
+      <AccessSection locale={locale} />
       <FinalCtaSection />
     </>
   );
@@ -180,7 +324,17 @@ export default function IntegrationsPage() {
 
 /* ────────────────────────────────────────────────────────────────────────── */
 
-function SurfacesLifestyleBand() {
+function SurfacesLifestyleBand({ locale }: { locale: string }) {
+  const c =
+    locale === "es"
+      ? {
+          eyebrow: "Un roster · muchas superficies",
+          caption: "Los mismos datos, renderizados donde tu equipo ya trabaja.",
+        }
+      : {
+          eyebrow: "One roster · many surfaces",
+          caption: "The same data, rendered where your team already works.",
+        };
   return (
     <MarketingSection spacing="tight" style={{ background: "var(--plt-bg)" }}>
       <MarketingContainer size="wide">
@@ -189,8 +343,8 @@ function SurfacesLifestyleBand() {
           aspect="wide"
           size="lg"
           tone="forest"
-          eyebrow="One roster · many surfaces"
-          caption="The same data, rendered where your team already works."
+          eyebrow={c.eyebrow}
+          caption={c.caption}
         />
       </MarketingContainer>
     </MarketingSection>
@@ -199,7 +353,23 @@ function SurfacesLifestyleBand() {
 
 /* ────────────────────────────────────────────────────────────────────────── */
 
-function FoundationSection() {
+function FoundationSection({ locale }: { locale: string }) {
+  const c =
+    locale === "es"
+      ? {
+          eyebrow: "La capa de gente",
+          titleA: "Un roster canónico.",
+          titleB: "Cada superficie que toca.",
+          bodyA: `Tu gente, sus medidas, su disponibilidad, su portafolio y su estatus de representación viven una sola vez — en ${PLATFORM_BRAND.name}. Cada superficie pública lee de esa misma fuente. Cambia una tarifa, cierra una colocación, marca a alguien como no disponible — fluye a todos lados donde se renderiza tu roster, sin que andes persiguiéndolo por cinco sistemas distintos.`,
+          bodyB: "La plataforma es el directorio. Todo lo demás es una proyección de eso.",
+        }
+      : {
+          eyebrow: "The people layer",
+          titleA: "One canonical roster.",
+          titleB: "Every surface it touches.",
+          bodyA: `Your people, their specs, availability, portfolio, and representation status live once — in ${PLATFORM_BRAND.name}. Every public surface reads from that same source. Change a rate card, retire a placement, mark someone unavailable — it flows everywhere your roster is rendered, without you chasing it through five different systems.`,
+          bodyB: "The platform is the directory. Everything downstream is a projection of it.",
+        };
   return (
     <MarketingSection style={{ background: "var(--plt-bg-raised)" }}>
       <span
@@ -210,30 +380,26 @@ function FoundationSection() {
       <MarketingContainer size="wide">
         <div className="grid items-start gap-10 md:grid-cols-[minmax(0,0.95fr)_minmax(0,1.1fr)] md:gap-16">
           <div>
-            <MarketingEyebrow>The people layer</MarketingEyebrow>
+            <MarketingEyebrow>{c.eyebrow}</MarketingEyebrow>
             <h2
               className="plt-display mt-5 text-[2rem] font-medium leading-[1.05] tracking-[-0.02em] sm:text-[2.75rem]"
               style={{ color: "var(--plt-ink)" }}
             >
-              One canonical roster.
+              {c.titleA}
               <br />
-              <span style={{ color: "var(--plt-forest)" }}>Every surface it touches.</span>
+              <span style={{ color: "var(--plt-forest)" }}>{c.titleB}</span>
             </h2>
             <p
               className="mt-6 max-w-xl text-[1.0625rem] leading-[1.6]"
               style={{ color: "var(--plt-muted)" }}
             >
-              Your people, their specs, availability, portfolio, and representation status
-              live once — in {PLATFORM_BRAND.name}. Every public surface reads from that same
-              source. Change a rate card, retire a placement, mark someone unavailable — it
-              flows everywhere your roster is rendered, without you chasing it through five
-              different systems.
+              {c.bodyA}
             </p>
             <p
               className="mt-4 max-w-xl text-[1.0625rem] leading-[1.6]"
               style={{ color: "var(--plt-muted)" }}
             >
-              The platform is the directory. Everything downstream is a projection of it.
+              {c.bodyB}
             </p>
           </div>
 
@@ -404,34 +570,49 @@ function SurfaceChipRow() {
 
 /* ────────────────────────────────────────────────────────────────────────── */
 
-function DeliveryModesSection() {
+function DeliveryModesSection({ locale }: { locale: string }) {
+  const modes = getDeliveryModes(locale);
+  const c =
+    locale === "es"
+      ? {
+          eyebrow: "Tres formas de entregarlo",
+          titleA: `Construido una vez en ${PLATFORM_BRAND.name}.`,
+          titleB: "Renderizado donde vive tu negocio.",
+          subhead:
+            "Elige una. Elige las tres. El mismo roster, las mismas reglas de visibilidad — distintas superficies para distintas audiencias, sin un solo sistema duplicado que mantener.",
+        }
+      : {
+          eyebrow: "Three delivery modes",
+          titleA: `Built once in ${PLATFORM_BRAND.name}.`,
+          titleB: "Rendered where your business lives.",
+          subhead:
+            "Pick one. Pick all three. Same roster, same visibility rules — different surfaces for different audiences, without a single duplicate system to maintain.",
+        };
   return (
     <MarketingSection style={{ background: "var(--plt-bg)" }}>
       <MarketingContainer size="wide">
         <div className="mx-auto max-w-2xl text-center">
-          <MarketingEyebrow>Three delivery modes</MarketingEyebrow>
+          <MarketingEyebrow>{c.eyebrow}</MarketingEyebrow>
           <h2
             className="plt-display mt-5 text-[2rem] font-medium leading-[1.05] tracking-[-0.02em] sm:text-[2.75rem] md:text-[3rem]"
             style={{ color: "var(--plt-ink)" }}
           >
-            Built once in {PLATFORM_BRAND.name}.
+            {c.titleA}
             <br />
             <span style={{ color: "var(--plt-forest)" }}>
-              Rendered where your business lives.
+              {c.titleB}
             </span>
           </h2>
           <p
             className="mx-auto mt-5 max-w-xl text-[1.0625rem] leading-[1.6]"
             style={{ color: "var(--plt-muted)" }}
           >
-            Pick one. Pick all three. Same roster, same visibility rules — different
-            surfaces for different audiences, without a single duplicate system to
-            maintain.
+            {c.subhead}
           </p>
         </div>
 
         <div className="mt-14 grid gap-6 md:grid-cols-3 md:gap-6 lg:gap-7">
-          {DELIVERY_MODES.map((mode, idx) => (
+          {modes.map((mode, idx) => (
             <DeliveryModeCard key={mode.id} mode={mode} elevated={idx === 1} />
           ))}
         </div>
@@ -821,43 +1002,103 @@ type RoadmapStage = {
   bullets: string[];
 };
 
-const ROADMAP_STAGES: RoadmapStage[] = [
-  {
-    id: "live",
-    status: "Live",
-    title: "Full platform sites",
-    body: "Hosted roster site on a free subdomain, custom domain on paid plans. What every signup gets today.",
-    bullets: [
-      "Hosted roster + canonical profiles",
-      "Inquiry inbox + booking pipeline",
-      "Shared hub discovery (opt-in)",
-    ],
-  },
-  {
-    id: "next",
-    status: "Next",
-    title: "Embeds + public read API",
-    body: "The first slice of off-platform delivery. Starts with a single-profile embed and an org-scoped read API; widens from there.",
-    bullets: [
-      "Single-profile embed (WordPress, Webflow, Shopify)",
-      "Org-scoped read-only JSON API",
-      "Admin-managed keys with domain allow-list",
-    ],
-  },
-  {
-    id: "later",
-    status: "Later",
-    title: "Deferred by design",
-    body: "Explicitly not in the MVP. We'll build them when the foundation underneath has proven itself.",
-    bullets: [
-      "Inquiry-write widgets (form \u2192 pipeline)",
-      "Webhooks + language SDKs",
-      "White-label widget domains + partner apps",
-    ],
-  },
-];
+function getRoadmapStages(locale: string): RoadmapStage[] {
+  if (locale === "es") {
+    return [
+      {
+        id: "live",
+        status: "En vivo",
+        title: "Sitios de plataforma completos",
+        body: "Sitio de roster hospedado en un subdominio gratis, dominio propio en los planes de paga. Lo que recibe hoy cualquiera que se registra.",
+        bullets: [
+          "Roster hospedado + perfiles can\u00f3nicos",
+          "Buz\u00f3n de consultas + pipeline de reservas",
+          "Descubrimiento en el hub compartido (opcional)",
+        ],
+      },
+      {
+        id: "next",
+        status: "Sigue",
+        title: "Embeds + API p\u00fablica de lectura",
+        body: "El primer pedazo de la entrega fuera de la plataforma. Empieza con un embed de perfil individual y una API de lectura por organizaci\u00f3n; de ah\u00ed se ampl\u00eda.",
+        bullets: [
+          "Embed de perfil individual (WordPress, Webflow, Shopify)",
+          "API JSON de solo lectura, por organizaci\u00f3n",
+          "Llaves administradas por el admin con lista de dominios",
+        ],
+      },
+      {
+        id: "later",
+        status: "Despu\u00e9s",
+        title: "Pospuesto a prop\u00f3sito",
+        body: "A prop\u00f3sito fuera del MVP. Los construiremos cuando los cimientos de abajo se hayan ganado su lugar.",
+        bullets: [
+          "Widgets que escriben consultas (formulario \u2192 pipeline)",
+          "Webhooks + SDKs por lenguaje",
+          "Dominios white-label para widgets + apps de socios",
+        ],
+      },
+    ];
+  }
+  return [
+    {
+      id: "live",
+      status: "Live",
+      title: "Full platform sites",
+      body: "Hosted roster site on a free subdomain, custom domain on paid plans. What every signup gets today.",
+      bullets: [
+        "Hosted roster + canonical profiles",
+        "Inquiry inbox + booking pipeline",
+        "Shared hub discovery (opt-in)",
+      ],
+    },
+    {
+      id: "next",
+      status: "Next",
+      title: "Embeds + public read API",
+      body: "The first slice of off-platform delivery. Starts with a single-profile embed and an org-scoped read API; widens from there.",
+      bullets: [
+        "Single-profile embed (WordPress, Webflow, Shopify)",
+        "Org-scoped read-only JSON API",
+        "Admin-managed keys with domain allow-list",
+      ],
+    },
+    {
+      id: "later",
+      status: "Later",
+      title: "Deferred by design",
+      body: "Explicitly not in the MVP. We'll build them when the foundation underneath has proven itself.",
+      bullets: [
+        "Inquiry-write widgets (form \u2192 pipeline)",
+        "Webhooks + language SDKs",
+        "White-label widget domains + partner apps",
+      ],
+    },
+  ];
+}
 
-function RoadmapSection() {
+function RoadmapSection({ locale }: { locale: string }) {
+  const stages = getRoadmapStages(locale);
+  const isEs = locale === "es";
+  const c = isEs
+    ? {
+        eyebrow: "Dónde estamos hoy",
+        titleA: "Lanzamos por partes,",
+        titleB: "no en un gran golpe.",
+        subhead: `${PLATFORM_BRAND.name} está en beta privada. Construimos una forma de entrega a la vez para que cada una de verdad funcione — y somos honestos sobre cómo se ve eso hoy.`,
+        footPrefix:
+          "El acceso comercial a embeds y API llega junto con la facturación y los dominios propios. ¿Quieres acceso anticipado cuando salga el primer pedazo?",
+        footLink: "Dinos cuando te registres",
+      }
+    : {
+        eyebrow: "Where we are today",
+        titleA: "Shipping in slices,",
+        titleB: "not a big-bang launch.",
+        subhead: `${PLATFORM_BRAND.name} is in private beta. We build one delivery mode at a time so each one actually works — and we’re honest about what that looks like today.`,
+        footPrefix:
+          "Commercial embed + API access roll out alongside billing and custom domains. Want early access when the first slice ships?",
+        footLink: "Tell us when you sign up",
+      };
   return (
     <MarketingSection
       id="roadmap"
@@ -871,29 +1112,27 @@ function RoadmapSection() {
       />
       <MarketingContainer size="wide">
         <div className="mx-auto max-w-2xl text-center">
-          <MarketingEyebrow>Where we are today</MarketingEyebrow>
+          <MarketingEyebrow>{c.eyebrow}</MarketingEyebrow>
           <h2
             className="plt-display mt-5 text-[2rem] font-medium leading-[1.05] tracking-[-0.02em] sm:text-[2.75rem]"
             style={{ color: "var(--plt-ink)" }}
           >
-            Shipping in slices,
+            {c.titleA}
             <br />
             <span style={{ color: "var(--plt-forest)" }}>
-              not a big-bang launch.
+              {c.titleB}
             </span>
           </h2>
           <p
             className="mx-auto mt-5 max-w-xl text-[1rem] leading-[1.6] sm:text-[1.0625rem]"
             style={{ color: "var(--plt-muted)" }}
           >
-            {PLATFORM_BRAND.name}{" "}is in private beta. We build one delivery
-            mode at a time so each one actually works — and we&rsquo;re honest
-            about what that looks like today.
+            {c.subhead}
           </p>
         </div>
 
         <div className="mt-14 grid gap-5 md:grid-cols-3 md:gap-6">
-          {ROADMAP_STAGES.map((stage) => (
+          {stages.map((stage) => (
             <RoadmapCard key={stage.id} stage={stage} />
           ))}
         </div>
@@ -902,14 +1141,13 @@ function RoadmapSection() {
           className="mx-auto mt-10 max-w-2xl text-center text-[0.875rem]"
           style={{ color: "var(--plt-muted)" }}
         >
-          Commercial embed + API access roll out alongside billing and custom
-          domains. Want early access when the first slice ships?{" "}
+          {c.footPrefix}{" "}
           <Link
             href="/get-started"
             className="underline decoration-[var(--plt-hairline-strong)] underline-offset-[3px] transition-colors hover:text-[var(--plt-ink)]"
             style={{ color: "var(--plt-ink-soft)" }}
           >
-            Tell us when you sign up
+            {c.footLink}
           </Link>
           .
         </p>
@@ -1003,7 +1241,24 @@ function RoadmapCard({ stage }: { stage: RoadmapStage }) {
 
 /* ────────────────────────────────────────────────────────────────────────── */
 
-function GovernanceSection() {
+function GovernanceSection({ locale }: { locale: string }) {
+  const rules = getGovernanceRules(locale);
+  const c =
+    locale === "es"
+      ? {
+          eyebrow: "Gobierno de datos",
+          titleA: "Tus datos.",
+          titleB: "Tus reglas.",
+          subhead:
+            "La representación es un negocio de consentimiento. El mismo modelo de visibilidad que mueve tu sitio hospedado se respeta en cada embed y cada llamada a la API — con controles por superficie y por campo cuando los necesites.",
+        }
+      : {
+          eyebrow: "Governance",
+          titleA: "Your data.",
+          titleB: "Your rules.",
+          subhead:
+            "Representation is a consent business. The same visibility model that powers your hosted site carries through every embed and every API call — with per-surface, per-field controls when you need them.",
+        };
   return (
     <MarketingSection style={{ background: "var(--plt-bg-raised)" }}>
       <span
@@ -1014,22 +1269,20 @@ function GovernanceSection() {
       <MarketingContainer size="wide">
         <div className="grid gap-12 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.15fr)] md:gap-16">
           <div>
-            <MarketingEyebrow>Governance</MarketingEyebrow>
+            <MarketingEyebrow>{c.eyebrow}</MarketingEyebrow>
             <h2
               className="plt-display mt-5 text-[2rem] font-medium leading-[1.05] tracking-[-0.02em] sm:text-[2.5rem]"
               style={{ color: "var(--plt-ink)" }}
             >
-              Your data.
+              {c.titleA}
               <br />
-              <span style={{ color: "var(--plt-forest)" }}>Your rules.</span>
+              <span style={{ color: "var(--plt-forest)" }}>{c.titleB}</span>
             </h2>
             <p
               className="mt-5 max-w-lg text-[1.0625rem] leading-[1.6]"
               style={{ color: "var(--plt-muted)" }}
             >
-              Representation is a consent business. The same visibility model that powers
-              your hosted site carries through every embed and every API call — with
-              per-surface, per-field controls when you need them.
+              {c.subhead}
             </p>
           </div>
 
@@ -1041,7 +1294,7 @@ function GovernanceSection() {
             }}
           >
             <ul className="divide-y" style={{ borderColor: "var(--plt-hairline)" }}>
-              {GOVERNANCE_RULES.map((rule) => (
+              {rules.map((rule) => (
                 <li
                   key={rule.title}
                   className="flex flex-col gap-1.5 px-6 py-5 sm:flex-row sm:items-baseline sm:gap-6 sm:px-7 sm:py-6"
@@ -1071,30 +1324,52 @@ function GovernanceSection() {
 
 /* ────────────────────────────────────────────────────────────────────────── */
 
-function ConsumerExamplesSection() {
+function ConsumerExamplesSection({ locale }: { locale: string }) {
+  const consumers = getConsumers(locale);
+  const c =
+    locale === "es"
+      ? {
+          eyebrow: "Stacks con los que trabajamos",
+          heading: "Conéctalo al sitio que ya tienes.",
+          subhead:
+            "No tienes que migrar tu sitio web para aprovechar un roster estructurado. Quédate con el sitio que tu equipo ya conoce — nosotros renderizamos dentro de él.",
+          footPrefix:
+            "¿Corres en algo más? Donde puedas meter una etiqueta de script o hacer una petición HTTP, puedes renderizar tu roster de",
+          footSuffix: ". Te ayudamos a darle forma.",
+          cta: "Hablemos",
+        }
+      : {
+          eyebrow: "Stacks we work with",
+          heading: "Plug into the site you already have.",
+          subhead:
+            "You don’t have to migrate your website to benefit from a structured roster. Keep the site your team knows — we render inside it.",
+          footPrefix:
+            "Running on something else? Anywhere you can drop a script tag or make an HTTP request, you can render your",
+          footSuffix: "roster. We’ll help you figure out the shape.",
+          cta: "Talk to us",
+        };
   return (
     <MarketingSection style={{ background: "var(--plt-bg)" }}>
       <MarketingContainer size="wide">
         <div className="mx-auto max-w-2xl text-center">
-          <MarketingEyebrow>Stacks we work with</MarketingEyebrow>
+          <MarketingEyebrow>{c.eyebrow}</MarketingEyebrow>
           <h2
             className="plt-display mt-5 text-[2rem] font-medium leading-[1.05] tracking-[-0.02em] sm:text-[2.75rem]"
             style={{ color: "var(--plt-ink)" }}
           >
-            Plug into the site you already have.
+            {c.heading}
           </h2>
           <p
             className="mx-auto mt-5 max-w-xl text-[1.0625rem] leading-[1.6]"
             style={{ color: "var(--plt-muted)" }}
           >
-            You don&rsquo;t have to migrate your website to benefit from a structured roster.
-            Keep the site your team knows — we render inside it.
+            {c.subhead}
           </p>
         </div>
 
         <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
-          {CONSUMERS.map((c) => (
-            <ConsumerCard key={c.name} consumer={c} />
+          {consumers.map((consumer) => (
+            <ConsumerCard key={consumer.name} consumer={consumer} />
           ))}
         </div>
 
@@ -1105,9 +1380,7 @@ function ConsumerExamplesSection() {
             className="max-w-2xl text-[0.9375rem] leading-[1.6]"
             style={{ color: "var(--plt-muted)" }}
           >
-            Running on something else? Anywhere you can drop a script tag or make an HTTP
-            request, you can render your {PLATFORM_BRAND.name}{" "}roster. We&rsquo;ll help
-            you figure out the shape.
+            {c.footPrefix} {PLATFORM_BRAND.name}{c.footSuffix}
           </p>
           <MarketingCta
             href="/get-started"
@@ -1116,7 +1389,7 @@ function ConsumerExamplesSection() {
             eventSource="integrations-consumers"
             eventIntent="get-started"
           >
-            Talk to us
+            {c.cta}
           </MarketingCta>
         </div>
       </MarketingContainer>
@@ -1257,7 +1530,32 @@ function ConsumerGlyph({ kind }: { kind: Consumer["art"] }) {
 
 /* ────────────────────────────────────────────────────────────────────────── */
 
-function AccessSection() {
+function AccessSection({ locale }: { locale: string }) {
+  const pillars = getAccessPillars(locale);
+  const isEs = locale === "es";
+  const c = isEs
+    ? {
+        eyebrow: "Acceso y gobierno",
+        titleA: "Hecho para negocios de representación,",
+        titleB: "no para equipos de desarrollo.",
+        subhead:
+          "No deberías necesitar a un ingeniero de plataforma para prender o apagar un embed. El acceso vive donde vive el resto de tu workspace — editable por los mismos admins que llevan el roster.",
+        footPrefix:
+          "está en beta privada. Las superficies de widgets y API pública salen junto con los dominios propios y la facturación — mira",
+        footLink: "cómo funciona",
+        footSuffix: "para verlo de principio a fin.",
+      }
+    : {
+        eyebrow: "Access & governance",
+        titleA: "Built for representation businesses,",
+        titleB: "not developer teams.",
+        subhead:
+          "You shouldn’t need a platform engineer to turn an embed on or off. Access lives where the rest of your workspace does — editable by the same admins who run the roster.",
+        footPrefix:
+          "is in private beta. Widget + public API surfaces roll out alongside custom domains and billing — see",
+        footLink: "how it works",
+        footSuffix: "for the end-to-end.",
+      };
   return (
     <MarketingSection
       className="relative overflow-hidden"
@@ -1277,12 +1575,12 @@ function AccessSection() {
       />
       <MarketingContainer size="wide" className="relative">
         <div className="mx-auto max-w-2xl text-center">
-          <MarketingEyebrow tone="inverse">Access & governance</MarketingEyebrow>
+          <MarketingEyebrow tone="inverse">{c.eyebrow}</MarketingEyebrow>
           <h2
             className="plt-display mt-5 text-[2rem] font-medium leading-[1.05] tracking-[-0.02em] sm:text-[2.75rem]"
             style={{ color: "var(--plt-on-inverse)" }}
           >
-            Built for representation businesses,
+            {c.titleA}
             <br />
             <span
               style={{
@@ -1293,21 +1591,19 @@ function AccessSection() {
                 backgroundClip: "text",
               }}
             >
-              not developer teams.
+              {c.titleB}
             </span>
           </h2>
           <p
             className="mx-auto mt-5 max-w-xl text-[1.0625rem] leading-[1.6]"
             style={{ color: "rgba(241,237,227,0.76)" }}
           >
-            You shouldn&rsquo;t need a platform engineer to turn an embed on or off. Access
-            lives where the rest of your workspace does — editable by the same admins who
-            run the roster.
+            {c.subhead}
           </p>
         </div>
 
         <div className="mt-14 grid gap-5 md:grid-cols-3 md:gap-6">
-          {ACCESS_PILLARS.map((p) => (
+          {pillars.map((p) => (
             <article
               key={p.pill}
               className="rounded-[24px] p-6 sm:p-7"
@@ -1343,15 +1639,14 @@ function AccessSection() {
           className="mx-auto mt-12 max-w-2xl text-center text-[0.8125rem]"
           style={{ color: "rgba(241,237,227,0.55)" }}
         >
-          {PLATFORM_BRAND.name}{" "}is in private beta. Widget + public API surfaces roll out
-          alongside custom domains and billing — see{" "}
+          {PLATFORM_BRAND.name}{" "}{c.footPrefix}{" "}
           <Link
             href="/how-it-works"
             className="underline decoration-[rgba(241,237,227,0.35)] underline-offset-[3px] transition-colors hover:text-[var(--plt-on-inverse)]"
           >
-            how it works
+            {c.footLink}
           </Link>{" "}
-          for the end-to-end.
+          {c.footSuffix}
         </p>
       </MarketingContainer>
     </MarketingSection>

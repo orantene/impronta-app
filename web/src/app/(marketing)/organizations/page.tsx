@@ -7,6 +7,7 @@ import {
   MarketingSection,
 } from "@/components/marketing/container";
 import { SimplePageHero } from "@/components/marketing/simple-page-hero";
+import { getRequestLocale } from "@/i18n/request-locale";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 
 export const metadata: Metadata = {
@@ -23,73 +24,174 @@ type UseCase = {
   metrics: { label: string; value: string }[];
 };
 
-const USE_CASES: UseCase[] = [
-  {
-    id: "casting",
-    tag: "Casting",
-    title: "Casting & talent placement",
-    body: "Curate the roster, expose it to clients through a filterable directory, and capture structured casting briefs that become real bookings.",
-    metrics: [
-      { label: "Roster capacity", value: "Unlimited" },
-      { label: "Attribute filters", value: "20+" },
-    ],
-  },
-  {
-    id: "staffing",
-    tag: "Staffing",
-    title: "Staffing & specialized recruiters",
-    body: "Whether you place performers, crew, coordinators, or domain specialists \u2014 organize people by skill, location, and availability, and surface the right match fast.",
-    metrics: [
-      { label: "Skill taxonomy", value: "Custom" },
-      { label: "Availability", value: "Live" },
-    ],
-  },
-  {
-    id: "speakers",
-    tag: "Speaker bureaus",
-    title: "Speaker bureaus & content rosters",
-    body: "Profiles with presenter bios, topic taxonomy, rate cards, and geography. Clients browse what they need, contact through structured intake.",
-    metrics: [
-      { label: "Topic tags", value: "Unlimited" },
-      { label: "Rate cards", value: "Versioned" },
-    ],
-  },
-  {
-    id: "internal",
-    tag: "Internal directory",
-    title: "Internal directories for large firms",
-    body: "A private network variant for organizations that need a rich, role-scoped directory without exposing anything publicly.",
-    metrics: [
-      { label: "Access", value: "Role-scoped" },
-      { label: "Audit trail", value: "Full" },
-    ],
-  },
-];
+function getUseCases(locale: string): UseCase[] {
+  if (locale === "es") {
+    return [
+      {
+        id: "casting",
+        tag: "Casting",
+        title: "Casting y colocaci\u00f3n de talento",
+        body: "Arma tu roster, mu\u00e9stralo a los clientes en un directorio con filtros y recibe briefs de casting estructurados que se vuelven reservas de verdad.",
+        metrics: [
+          { label: "Capacidad de roster", value: "Ilimitada" },
+          { label: "Filtros por atributo", value: "20+" },
+        ],
+      },
+      {
+        id: "staffing",
+        tag: "Staffing",
+        title: "Staffing y reclutadores especializados",
+        body: "Ya coloques performers, crew, coordinadores o especialistas \u2014 organiza a tu gente por habilidad, ubicaci\u00f3n y disponibilidad, y encuentra al indicado en segundos.",
+        metrics: [
+          { label: "Taxonom\u00eda de skills", value: "A medida" },
+          { label: "Disponibilidad", value: "En vivo" },
+        ],
+      },
+      {
+        id: "speakers",
+        tag: "Speaker bureaus",
+        title: "Speaker bureaus y rosters de contenido",
+        body: "Perfiles con bios de ponentes, taxonom\u00eda de temas, tarifarios y geograf\u00eda. Los clientes buscan lo que necesitan y contactan por un intake estructurado.",
+        metrics: [
+          { label: "Etiquetas de tema", value: "Ilimitadas" },
+          { label: "Tarifarios", value: "Versionados" },
+        ],
+      },
+      {
+        id: "internal",
+        tag: "Directorio interno",
+        title: "Directorios internos para empresas grandes",
+        body: "Una variante de red privada para organizaciones que necesitan un directorio completo y por roles, sin exponer nada al p\u00fablico.",
+        metrics: [
+          { label: "Acceso", value: "Por rol" },
+          { label: "Bit\u00e1cora", value: "Completa" },
+        ],
+      },
+    ];
+  }
+  return [
+    {
+      id: "casting",
+      tag: "Casting",
+      title: "Casting & talent placement",
+      body: "Curate the roster, expose it to clients through a filterable directory, and capture structured casting briefs that become real bookings.",
+      metrics: [
+        { label: "Roster capacity", value: "Unlimited" },
+        { label: "Attribute filters", value: "20+" },
+      ],
+    },
+    {
+      id: "staffing",
+      tag: "Staffing",
+      title: "Staffing & specialized recruiters",
+      body: "Whether you place performers, crew, coordinators, or domain specialists \u2014 organize people by skill, location, and availability, and surface the right match fast.",
+      metrics: [
+        { label: "Skill taxonomy", value: "Custom" },
+        { label: "Availability", value: "Live" },
+      ],
+    },
+    {
+      id: "speakers",
+      tag: "Speaker bureaus",
+      title: "Speaker bureaus & content rosters",
+      body: "Profiles with presenter bios, topic taxonomy, rate cards, and geography. Clients browse what they need, contact through structured intake.",
+      metrics: [
+        { label: "Topic tags", value: "Unlimited" },
+        { label: "Rate cards", value: "Versioned" },
+      ],
+    },
+    {
+      id: "internal",
+      tag: "Internal directory",
+      title: "Internal directories for large firms",
+      body: "A private network variant for organizations that need a rich, role-scoped directory without exposing anything publicly.",
+      metrics: [
+        { label: "Access", value: "Role-scoped" },
+        { label: "Audit trail", value: "Full" },
+      ],
+    },
+  ];
+}
 
-const SCALE_FEATURES = [
-  "SSO (Google Workspace, Okta) \u2014 on request",
-  "Granular role-scoped permissions",
-  "API access (roadmap) for integrations",
-  "White-label / private hub configuration",
-  "Priority onboarding + dedicated support",
-  "Data residency guidance for regulated markets",
-];
+function getScaleFeatures(locale: string): string[] {
+  if (locale === "es") {
+    return [
+      "SSO (Google Workspace, Okta) \u2014 bajo solicitud",
+      "Permisos granulares por rol",
+      "Acceso a API (en el roadmap) para integraciones",
+      "Configuraci\u00f3n white-label / hub privado",
+      "Onboarding prioritario + soporte dedicado",
+      "Asesor\u00eda de residencia de datos para mercados regulados",
+    ];
+  }
+  return [
+    "SSO (Google Workspace, Okta) \u2014 on request",
+    "Granular role-scoped permissions",
+    "API access (roadmap) for integrations",
+    "White-label / private hub configuration",
+    "Priority onboarding + dedicated support",
+    "Data residency guidance for regulated markets",
+  ];
+}
 
-export default function OrganizationsPage() {
+export default async function OrganizationsPage() {
+  const locale = await getRequestLocale();
+  const useCases = getUseCases(locale);
+  const scaleFeatures = getScaleFeatures(locale);
+
+  const c =
+    locale === "es"
+      ? {
+          heroEyebrow: "Para staffing, casting y colocaci\u00f3n",
+          heroTitleA: "Un directorio",
+          heroTitleB: "que s\u00ed funciona.",
+          heroSubtitle: `Tu producto es la gente que colocas. ${PLATFORM_BRAND.name} vuelve ese producto navegable, filtrable y reservable \u2014 con los accesos por rol que un equipo de verdad necesita. Las agencias de talento son solo un ejemplo; la misma infraestructura mueve casting, staffing, speaker bureaus, rosters de performers y operaciones de colocaci\u00f3n especializadas.`,
+          heroPrimary: "Agenda una demo",
+          heroSecondary: "Ver precios",
+          fitEyebrow: "D\u00f3nde encaja",
+          fitHeadingA: "El mercado es m\u00e1s grande que",
+          fitHeadingB: "las agencias de talento.",
+          fitSubhead:
+            "Cualquier negocio cuyo activo principal sea la gente que representa se beneficia de la misma infraestructura: identidad, pipeline, directorio y red.",
+          scaleEyebrow: "Necesidades a escala",
+          scaleHeadingA: "Hecho para equipos,",
+          scaleHeadingB: "no solo para due\u00f1os.",
+          scaleSubhead:
+            "SSO, roles avanzados, acceso a API, opciones white-label y onboarding prioritario para operaciones que no se pueden llevar desde el celular de una sola persona.",
+        }
+      : {
+          heroEyebrow: "For staffing, casting & placement",
+          heroTitleA: "A directory",
+          heroTitleB: "that works.",
+          heroSubtitle: `Your product is the people you place. ${PLATFORM_BRAND.name} makes that product browsable, filterable, and bookable \u2014 with the role-scoped access a real team needs. Talent agencies are one example; the same infrastructure runs casting, staffing, speaker bureaus, performer rosters, and specialized placement ops.`,
+          heroPrimary: "Book a walkthrough",
+          heroSecondary: "See pricing",
+          fitEyebrow: "Where it fits",
+          fitHeadingA: "The market is bigger than",
+          fitHeadingB: "talent agencies.",
+          fitSubhead:
+            "Any business where the core asset is people you represent benefits from the same infrastructure: identity, pipeline, directory, and network.",
+          scaleEyebrow: "Scale-grade needs",
+          scaleHeadingA: "Built for teams,",
+          scaleHeadingB: "not just owners.",
+          scaleSubhead:
+            "SSO, advanced roles, API access, white-label options, and priority onboarding for operations that can\u2019t be run out of one person\u2019s phone.",
+        };
+
   return (
     <>
       <SimplePageHero
-        eyebrow="For staffing, casting & placement"
+        eyebrow={c.heroEyebrow}
         title={
           <>
-            A directory
+            {c.heroTitleA}
             <br />
-            <span style={{ color: "var(--plt-forest)" }}>that works.</span>
+            <span style={{ color: "var(--plt-forest)" }}>{c.heroTitleB}</span>
           </>
         }
-        subtitle={`Your product is the people you place. ${PLATFORM_BRAND.name} makes that product browsable, filterable, and bookable \u2014 with the role-scoped access a real team needs. Talent agencies are one example; the same infrastructure runs casting, staffing, speaker bureaus, performer rosters, and specialized placement ops.`}
-        primary={{ label: "Book a walkthrough", href: "/get-started?tier=network", intent: "walkthrough" }}
-        secondary={{ label: "See pricing", href: "/pricing", intent: "pricing" }}
+        subtitle={c.heroSubtitle}
+        primary={{ label: c.heroPrimary, href: "/get-started?tier=network", intent: "walkthrough" }}
+        secondary={{ label: c.heroSecondary, href: "/pricing", intent: "pricing" }}
         sourcePage="organizations-hero"
       />
 
@@ -105,27 +207,26 @@ export default function OrganizationsPage() {
         <MarketingContainer size="wide">
           <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
             <div className="max-w-xl">
-              <MarketingEyebrow>Where it fits</MarketingEyebrow>
+              <MarketingEyebrow>{c.fitEyebrow}</MarketingEyebrow>
               <h2
                 className="plt-display mt-5 text-[2rem] font-medium leading-[1.04] tracking-[-0.02em] sm:text-[2.5rem]"
                 style={{ color: "var(--plt-ink)" }}
               >
-                The market is bigger than
+                {c.fitHeadingA}
                 <br className="hidden sm:block" />{" "}
-                <span style={{ color: "var(--plt-forest)" }}>talent agencies.</span>
+                <span style={{ color: "var(--plt-forest)" }}>{c.fitHeadingB}</span>
               </h2>
             </div>
             <p
               className="max-w-sm text-[1rem] leading-[1.6]"
               style={{ color: "var(--plt-muted)" }}
             >
-              Any business where the core asset is people you represent benefits from the
-              same infrastructure: identity, pipeline, directory, and network.
+              {c.fitSubhead}
             </p>
           </div>
 
           <div className="mt-12 grid gap-5 md:grid-cols-2 md:gap-6">
-            {USE_CASES.map((u) => (
+            {useCases.map((u) => (
               <article
                 key={u.id}
                 className="group relative overflow-hidden rounded-[28px] p-7 transition-all duration-300 hover:-translate-y-0.5 sm:p-8"
@@ -199,25 +300,24 @@ export default function OrganizationsPage() {
       >
         <MarketingContainer size="wide">
           <div className="mx-auto max-w-2xl text-center">
-            <MarketingEyebrow>Scale-grade needs</MarketingEyebrow>
+            <MarketingEyebrow>{c.scaleEyebrow}</MarketingEyebrow>
             <h2
               className="plt-display mt-5 text-[2rem] font-medium leading-[1.04] tracking-[-0.02em] sm:text-[2.5rem]"
               style={{ color: "var(--plt-ink)" }}
             >
-              Built for teams,
+              {c.scaleHeadingA}
               <br className="hidden sm:block" />{" "}
-              <span style={{ color: "var(--plt-forest)" }}>not just owners.</span>
+              <span style={{ color: "var(--plt-forest)" }}>{c.scaleHeadingB}</span>
             </h2>
             <p
               className="mx-auto mt-5 max-w-xl text-[1rem] leading-[1.6]"
               style={{ color: "var(--plt-muted)" }}
             >
-              SSO, advanced roles, API access, white-label options, and priority onboarding
-              for operations that can&rsquo;t be run out of one person&rsquo;s phone.
+              {c.scaleSubhead}
             </p>
           </div>
           <ul className="mx-auto mt-12 grid max-w-4xl gap-3 sm:grid-cols-2">
-            {SCALE_FEATURES.map((line) => (
+            {scaleFeatures.map((line) => (
               <li
                 key={line}
                 className="flex items-start gap-3 rounded-2xl px-5 py-4 text-[0.9375rem]"

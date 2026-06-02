@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getRequestLocale } from "@/i18n/request-locale";
 import { MARKETING_PHOTOS, type MarketingPhotoKey } from "@/lib/marketing/photography";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
 import { OpenTalentModalButton } from "./open-talent-modal-button";
@@ -172,13 +173,40 @@ export function normalizeDiscoveryFilters(
   };
 }
 
-export function AgencyHubDiscovery({
+export async function AgencyHubDiscovery({
   appDiscoverHref,
   filters,
 }: {
   appDiscoverHref: string;
   filters: DiscoveryFilters;
 }) {
+  const locale = await getRequestLocale();
+  const es = locale === "es";
+  const c = {
+    eyebrow: es ? "Agencias y redes" : "Agencies & hubs",
+    h1: es
+      ? "Encuentra dónde puede crecer tu talento."
+      : "Find where your talent can grow next.",
+    subhead: es
+      ? "Explora agencias y redes por categoría, ciudad y forma de aplicar. Crea gratis tu página de talento en Tulala y postúlate desde tu panel cuando encuentres algo que encaje."
+      : "Browse agencies and hubs by category, city, and application mode. Create a free Tulala talent page, then apply from the talent dashboard when you find a fit.",
+    ctaCreate: es ? "Crear página de talento gratis" : "Create free talent page",
+    ctaApply: es ? "Postularme desde el panel" : "Apply in dashboard",
+    feedLabel: es ? "Oportunidades en vivo" : "Opportunity feed",
+    feedTitle: es
+      ? "Busca en la red como en un marketplace y postúlate desde una sola cuenta."
+      : "Search the network like a marketplace, then apply from one account.",
+    resultsEyebrow: es ? "Resultados" : "Search results",
+    matchesReady: (n: number) =>
+      es
+        ? `${n} ${n === 1 ? "resultado listo" : "resultados listos"} para explorar`
+        : `${n} ${n === 1 ? "match" : "matches"} ready to explore`,
+    resetFilters: es ? "Limpiar filtros" : "Reset filters",
+    emptyTitle: es ? "No hay resultados para ese filtro." : "No matches for that filter.",
+    emptyBody: es
+      ? "Prueba con una categoría más amplia o abre tu panel de talento para ver las agencias y redes activas disponibles para tu perfil."
+      : "Try a broader category or open the talent dashboard to see live agencies and hubs available to your profile.",
+  };
   const { query, kind, category, location, join } = filters;
   const q = query.toLowerCase();
   const filtered = DISCOVERY_CARDS.filter((card) => {
@@ -208,20 +236,18 @@ export function AgencyHubDiscovery({
         <MarketingContainer size="wide">
           <div className="grid gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-center lg:gap-14">
             <div>
-              <MarketingEyebrow>Agencies & hubs</MarketingEyebrow>
+              <MarketingEyebrow>{c.eyebrow}</MarketingEyebrow>
               <h1
                 className="plt-display mt-6 max-w-[42rem] text-[2.65rem] font-semibold leading-[1] sm:text-[3.7rem]"
                 style={{ color: "var(--plt-ink)" }}
               >
-                Find where your talent can grow next.
+                {c.h1}
               </h1>
               <p
                 className="mt-6 max-w-[37rem] text-[1.0625rem] leading-[1.6]"
                 style={{ color: "var(--plt-muted)" }}
               >
-                Browse agencies and hubs by category, city, and application mode.
-                Create a free Tulala talent page, then apply from the talent dashboard
-                when you find a fit.
+                {c.subhead}
               </p>
               <div className="mt-8 flex flex-wrap items-center gap-3">
                 <OpenTalentModalButton
@@ -233,7 +259,7 @@ export function AgencyHubDiscovery({
                     boxShadow: "var(--plt-shadow-forest)",
                   }}
                 >
-                  Create free talent page
+                  {c.ctaCreate}
                 </OpenTalentModalButton>
                 <a
                   href={appDiscoverHref}
@@ -244,7 +270,7 @@ export function AgencyHubDiscovery({
                     background: "var(--plt-bg-elevated)",
                   }}
                 >
-                  Apply in dashboard
+                  {c.ctaApply}
                 </a>
               </div>
             </div>
@@ -273,13 +299,13 @@ export function AgencyHubDiscovery({
                   className="plt-mono text-[0.6875rem] font-medium uppercase"
                   style={{ color: "rgba(241,237,227,0.72)" }}
                 >
-                  Opportunity feed
+                  {c.feedLabel}
                 </span>
                 <p
                   className="plt-display mt-2 max-w-[28rem] text-[1.7rem] font-semibold leading-[1.08] sm:text-[2.2rem]"
                   style={{ color: "var(--plt-on-inverse)" }}
                 >
-                  Search the network like a marketplace, then apply from one account.
+                  {c.feedTitle}
                 </p>
               </div>
             </div>
@@ -308,27 +334,27 @@ export function AgencyHubDiscovery({
             }}
           >
             <div className="grid gap-3 lg:grid-cols-[minmax(13rem,1.2fr)_repeat(4,minmax(0,1fr))_minmax(7rem,0.7fr)]">
-              <FilterInput value={query} />
+              <FilterInput value={query} locale={locale} />
               <FilterSelect
-                label="Type"
+                label={es ? "Tipo" : "Type"}
                 name="kind"
                 value={kind}
                 values={KIND_OPTIONS}
               />
               <FilterSelect
-                label="Category"
+                label={es ? "Categoría" : "Category"}
                 name="category"
                 value={category}
                 values={CATEGORIES}
               />
               <FilterSelect
-                label="Location"
+                label={es ? "Ubicación" : "Location"}
                 name="location"
                 value={location}
                 values={LOCATIONS}
               />
               <FilterSelect
-                label="Apply"
+                label={es ? "Cómo aplicar" : "Apply"}
                 name="join"
                 value={join}
                 values={JOIN_OPTIONS}
@@ -342,19 +368,19 @@ export function AgencyHubDiscovery({
                   boxShadow: "var(--plt-shadow-forest)",
                 }}
               >
-                Search
+                {es ? "Buscar" : "Search"}
               </button>
             </div>
           </form>
 
           <div className="mt-8 flex items-center justify-between gap-4">
             <div>
-              <MarketingEyebrow>Search results</MarketingEyebrow>
+              <MarketingEyebrow>{c.resultsEyebrow}</MarketingEyebrow>
               <p
                 className="mt-2 text-[0.9375rem]"
                 style={{ color: "var(--plt-muted)" }}
               >
-                {filtered.length} {filtered.length === 1 ? "match" : "matches"} ready to explore
+                {c.matchesReady(filtered.length)}
               </p>
             </div>
             <Link
@@ -366,7 +392,7 @@ export function AgencyHubDiscovery({
                 background: "var(--plt-bg)",
               }}
             >
-              Reset filters
+              {c.resetFilters}
             </Link>
           </div>
 
@@ -377,6 +403,7 @@ export function AgencyHubDiscovery({
                   key={card.id}
                   card={card}
                   appDiscoverHref={appDiscoverHref}
+                  locale={locale}
                 />
               ))}
             </div>
@@ -392,10 +419,10 @@ export function AgencyHubDiscovery({
                 className="plt-display text-[1.6rem] font-semibold"
                 style={{ color: "var(--plt-ink)" }}
               >
-                No matches for that filter.
+                {c.emptyTitle}
               </h2>
               <p className="mx-auto mt-3 max-w-md text-[0.9375rem]" style={{ color: "var(--plt-muted)" }}>
-                Try a broader category or open the talent dashboard to see live agencies and hubs available to your profile.
+                {c.emptyBody}
               </p>
             </div>
           )}
@@ -418,9 +445,12 @@ function coerceOption<T extends readonly string[]>(
 
 function FilterInput({
   value,
+  locale,
 }: {
   value: string;
+  locale: string;
 }) {
+  const es = locale === "es";
   return (
     <label
       className="flex min-h-14 flex-col justify-center rounded-[18px] border px-4 py-2"
@@ -430,12 +460,12 @@ function FilterInput({
       }}
     >
       <span className="plt-mono text-[0.625rem] font-medium uppercase" style={{ color: "var(--plt-muted)" }}>
-        Search
+        {es ? "Buscar" : "Search"}
       </span>
       <input
         name="q"
         defaultValue={value}
-        placeholder="chef, singer, Tulum..."
+        placeholder={es ? "chef, cantante, Tulum..." : "chef, singer, Tulum..."}
         className="mt-1 w-full bg-transparent text-[0.9375rem] font-medium outline-none placeholder:text-[var(--plt-muted-soft)]"
         style={{ color: "var(--plt-ink)" }}
       />
@@ -484,10 +514,13 @@ function FilterSelect({
 function DiscoveryResultCard({
   card,
   appDiscoverHref,
+  locale,
 }: {
   card: DiscoveryCard;
   appDiscoverHref: string;
+  locale: string;
 }) {
+  const es = locale === "es";
   const photo = MARKETING_PHOTOS[card.photoKey];
   return (
     <article
@@ -590,7 +623,7 @@ function DiscoveryResultCard({
               color: "var(--plt-forest-on)",
             }}
           >
-            Apply from dashboard
+            {es ? "Postularme desde el panel" : "Apply from dashboard"}
           </a>
           <a
             href={card.href}
@@ -600,7 +633,7 @@ function DiscoveryResultCard({
               color: "var(--plt-ink-soft)",
             }}
           >
-            View profile
+            {es ? "Ver perfil" : "View profile"}
           </a>
         </div>
       </div>
