@@ -60,4 +60,11 @@ export const PAGE_DESIGN_SUMMARIES: ReadonlyArray<PageDesignSummary> = [
       "A warm, light studio brand: a Fraunces statement hero, a what-we-make trio, a selected-work grid, a clay quote, and a calm contact call-to-action.",
     archetype: "studio",
   },
+  {
+    id: "noir",
+    label: "Studio noir",
+    description:
+      "A dark, dramatic creative studio: a near-black canvas with a warm-gold accent, a huge Fraunces statement hero, a cinematic band, a glowing work grid, and a bold on-the-record statement.",
+    archetype: "noir",
+  },
 ];
