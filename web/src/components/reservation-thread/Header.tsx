@@ -8,14 +8,15 @@ import { useEffect, useRef, useState } from "react";
 import type { ReservationPov, ReservationThreadHeader, ReservationStage } from "./types";
 import { DENSITY, MOBILE_BP_PX, PALETTES, RADII, TYPE } from "./tokens";
 
-const STAGE_ORDER: ReservationStage[] = ["inquiry", "review", "offer", "booked", "wrapped"];
+const STAGE_ORDER: ReservationStage[] = ["inquiry", "review", "offer", "approved", "booked", "wrapped"];
 
 const STAGE_LABELS: Record<ReservationStage, string> = {
-  inquiry: "Inquiry",
-  review:  "Review",
-  offer:   "Offer",
-  booked:  "Booked",
-  wrapped: "Wrapped",
+  inquiry:  "Inquiry",
+  review:   "Review",
+  offer:    "Offer",
+  approved: "Approved",
+  booked:   "Booked",
+  wrapped:  "Wrapped",
 };
 
 interface HeaderProps {
@@ -208,8 +209,9 @@ export function Header({ pov, data, onBack }: HeaderProps) {
           </div>
         )}
       </div>
-      {/* Stage strip — 5 cells, lit up to current stage. Hidden when
-          closedReason is set (we show the closure banner instead). */}
+      {/* Stage strip — one cell per STAGE_ORDER step, lit up to current
+          stage. Hidden when closedReason is set (we show the closure
+          banner instead). */}
       {!data.closedReason ? (
         <div
           aria-label="Stage progress"

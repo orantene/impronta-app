@@ -18,7 +18,7 @@
 import type { ReactNode } from "react";
 
 export type StageStatus =
-  | "Inquiry" | "Offer sent" | "Booked" | "Today" | "Paid" | "Wrapped" | "Cancelled";
+  | "Inquiry" | "Offer sent" | "Approved" | "Booked" | "Today" | "Paid" | "Wrapped" | "Cancelled";
 
 export type OfferStatus =
   | "No offer" | "Draft" | "Sent" | "Countered" | "Accepted" | "Declined" | "Expired";
@@ -200,16 +200,17 @@ function WorkflowStepper({ currentStage }: { currentStage: StageStatus }) {
   const STAGES: { key: StageStatus; label: string; icon: string }[] = [
     { key: "Inquiry",    label: "Inquiry",   icon: "📥" },
     { key: "Offer sent", label: "Offer",     icon: "💰" },
+    { key: "Approved",   label: "Approved",  icon: "🤝" },
     { key: "Booked",     label: "Booked",    icon: "✅" },
     { key: "Today",      label: "Event day", icon: "🎬" },
     { key: "Wrapped",    label: "Wrapped",   icon: "🎉" },
   ];
 
   // Map any unusual StageStatus value (e.g. "Cancelled" / "Paid") down
-  // to a sensible position in the 5-stage line.
+  // to a sensible position in the line.
   const positionFor = (s: StageStatus): number => {
     if (s === "Cancelled") return -1; // fall outside the line
-    if (s === "Paid") return 2;       // payments live within "Booked"
+    if (s === "Paid") return STAGES.findIndex((x) => x.key === "Booked"); // payments live within "Booked"
     return STAGES.findIndex((x) => x.key === s);
   };
   const currentIdx = positionFor(currentStage);

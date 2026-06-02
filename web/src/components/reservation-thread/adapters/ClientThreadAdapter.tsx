@@ -158,7 +158,7 @@ function mapStage(status: string): ReservationStage {
     case "submitted":      return "inquiry";
     case "coordination":   return "review";
     case "offer_pending":  return "offer";
-    case "approved":
+    case "approved":       return "approved";
     case "booked":
     case "converted":      return "booked";
     case "wrapped":        return "wrapped";
