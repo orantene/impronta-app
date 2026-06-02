@@ -90,8 +90,11 @@ export function submitCtaLabel(
     const name = nameOf("network", names);
     return prices?.network ? `Continue to ${name} checkout` : `Request ${name} setup`;
   }
-  if (audience === "organization") return `Request ${nameOf("network", names)} setup`;
-  if (audience === "agency") return `Continue to ${nameOf("agency", names)} checkout`;
+  // No explicit ?tier= → everyone starts free regardless of who they are.
+  // (The agency/network paid funnels are entered via ?tier= from /pricing,
+  // handled above. The audience radio here is self-identification only —
+  // routing a small band straight to enterprise "Network setup" would
+  // contradict the free-start promise this page now makes.)
   return "Create my free workspace";
 }
 

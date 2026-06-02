@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MARKETING_PHOTOS, type MarketingPhoto } from "@/lib/marketing/photography";
 import { getMarketingCopy } from "@/lib/marketing/copy";
-import { MarketingContainer, MarketingEyebrow } from "./container";
+import { MarketingContainer } from "./container";
 import { MarketingCta } from "./cta-link";
 import { OpenTalentModalButton } from "./open-talent-modal-button";
 
@@ -21,14 +21,39 @@ const SLIDES: MarketingPhoto[] = [
 export function HeroSection({ locale }: { locale: string }) {
   const copy = getMarketingCopy(locale).hero;
   const [active, setActive] = useState(0);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     const t = setInterval(() => setActive((p) => (p + 1) % SLIDES.length), 5500);
     return () => clearInterval(t);
   }, []);
 
+  const onTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    touchStart.current = { x: t.clientX, y: t.clientY };
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const s = touchStart.current;
+    if (!s) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - s.x;
+    const dy = t.clientY - s.y;
+    // Horizontal swipe only — don't hijack vertical page scroll.
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+      setActive((p) =>
+        dx < 0 ? (p + 1) % SLIDES.length : (p - 1 + SLIDES.length) % SLIDES.length,
+      );
+    }
+    touchStart.current = null;
+  };
+
   return (
-    <section className="relative w-full overflow-hidden" style={{ background: "#0a1d16" }}>
+    <section
+      className="relative w-full overflow-hidden"
+      style={{ background: "#0a1d16" }}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
       {/* Full-bleed background slider */}
       <div aria-hidden className="absolute inset-0">
         {SLIDES.map((photo, idx) => (
@@ -67,9 +92,12 @@ export function HeroSection({ locale }: { locale: string }) {
       {/* Content */}
       <MarketingContainer size="wide" className="relative">
         <div className="max-w-[40rem] py-24 sm:py-32 lg:py-44">
-          <MarketingEyebrow tone="inverse" className="mkt-rise">
+          <span
+            className="plt-eyebrow mkt-rise"
+            style={{ color: "var(--plt-accent)" }}
+          >
             {copy.eyebrow}
-          </MarketingEyebrow>
+          </span>
 
           <h1
             className="plt-display mkt-rise mkt-rise-delay-1 mt-5 text-[3rem] font-semibold leading-[0.95] tracking-[-0.03em] sm:text-[4.25rem] lg:text-[5.25rem]"
@@ -135,7 +163,7 @@ export function HeroSection({ locale }: { locale: string }) {
       <BookingAccent index={active} />
 
       {/* Slide indicators */}
-      <div className="absolute inset-x-0 bottom-6 z-10 flex items-center justify-center gap-2">
+      <div className="absolute inset-x-0 bottom-4 z-10 flex items-center justify-center gap-0.5">
         {SLIDES.map((photo, idx) => (
           <button
             key={photo.key}
@@ -143,12 +171,16 @@ export function HeroSection({ locale }: { locale: string }) {
             onClick={() => setActive(idx)}
             aria-label={`Show slide ${idx + 1}`}
             aria-current={idx === active}
-            className="h-1.5 rounded-full transition-all duration-300"
-            style={{
-              width: idx === active ? "24px" : "7px",
-              background: idx === active ? "var(--plt-on-inverse)" : "rgba(241,237,227,0.42)",
-            }}
-          />
+            className="flex items-center justify-center px-1.5 py-3"
+          >
+            <span
+              className="block h-1.5 rounded-full transition-all duration-300"
+              style={{
+                width: idx === active ? "24px" : "7px",
+                background: idx === active ? "var(--plt-on-inverse)" : "rgba(241,237,227,0.42)",
+              }}
+            />
+          </button>
         ))}
       </div>
     </section>
