@@ -78,7 +78,7 @@ export function DesktopAccount({
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2.5 transition-colors hover:bg-[var(--plt-bg-deep)]"
+        className="group flex items-center gap-1.5 rounded-[10px] py-1 pl-1 pr-2 transition-colors hover:bg-[var(--plt-bg-deep)]"
         style={{
           border: "1px solid var(--plt-hairline-strong)",
           background: "var(--plt-bg-raised)",
@@ -86,7 +86,7 @@ export function DesktopAccount({
       >
         <AccountAvatar name={account.displayName} />
         <span
-          className="max-w-[8.5rem] truncate text-[0.875rem] font-medium leading-none"
+          className="max-w-[7rem] truncate text-[0.875rem] font-medium leading-none"
           style={{ color: "var(--plt-ink)" }}
         >
           {account.displayName}
@@ -169,21 +169,23 @@ export function DesktopAccount({
   );
 }
 
+/** Right chevron (›) by default; rotates 90° to point down (⌄) on hover or
+ *  when the menu is open. No up-flip. */
 function ChevronDownGlyph({ open }: { open: boolean }) {
   return (
     <svg
-      width="10"
-      height="7"
-      viewBox="0 0 10 7"
+      width="9"
+      height="9"
+      viewBox="0 0 12 12"
       fill="none"
       aria-hidden
-      className="transition-transform duration-200"
-      style={{ transform: open ? "rotate(180deg)" : "none", opacity: 0.7 }}
+      className={`transition-transform duration-200 group-hover:rotate-90${open ? " rotate-90" : ""}`}
+      style={{ opacity: 0.55 }}
     >
       <path
-        d="M1 1.5L5 5.5L9 1.5"
+        d="M4.5 2.5L8 6L4.5 9.5"
         stroke="currentColor"
-        strokeWidth="1.5"
+        strokeWidth="1.6"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
