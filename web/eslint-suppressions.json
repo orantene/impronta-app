@@ -587,11 +587,6 @@
       "count": 12
     }
   },
-  "src/components/admin/shell/internal/page-modules/IdentityBar-1.tsx": {
-    "ratchet/no-new-inline-style": {
-      "count": 28
-    }
-  },
   "src/components/admin/shell/internal/page-modules/IdentityBar-2.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 14

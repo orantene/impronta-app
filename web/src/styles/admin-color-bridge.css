@@ -129,6 +129,14 @@
   --transition-admin-layout: 0.22s ease-out;
   --transition-admin-drawer: 0.26s cubic-bezier(0.4, 0, 0.2, 1);
 
+  /* ── Font families (matches FONTS in fixtures.ts) ────────────────
+   * The admin shell's display + body faces. Exposed here so the
+   * `style={{ fontFamily: FONTS.body }}` → `className="font-admin-body"`
+   * codemod (Rule 2 / no-new-inline-style) swaps cleanly without
+   * changing rendered glyphs. Byte-for-byte the FONTS.* values. */
+  --font-admin-display: var(--font-geist-sans), "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+  --font-admin-body: "Inter", system-ui, sans-serif;
+
   /* ── Off-grid admin font sizes (Y3/Phase-B canonical map) ────────
    * Values that appear 5+ times in admin/shell and are NOT on
    * Tailwind's default scale (xs=12px, sm=14px, base=16px, lg=18px,
@@ -221,6 +229,10 @@
   --radius-admin-md: var(--radius-admin-md);
   --radius-admin-lg: var(--radius-admin-lg);
   --radius-admin-xl: var(--radius-admin-xl);
+
+  /* Font families → font-admin-display / font-admin-body utilities */
+  --font-admin-display: var(--font-admin-display);
+  --font-admin-body: var(--font-admin-body);
 
   /* Off-grid admin font sizes → text-admin-* utilities */
   --text-admin-9: var(--text-admin-9);
