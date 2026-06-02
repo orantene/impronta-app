@@ -373,7 +373,14 @@ export type InquiryStage = RichInquiry["stage"];
 export const NEXT_STAGES: Record<string, { label: string; value: string }[]> = {
   submitted:    [{ label: "Move to Review",  value: "reviewing"     }, { label: "Close as lost", value: "closed_lost" }],
   reviewing:    [{ label: "Move to Offer",   value: "offer_pending" }, { label: "Close as lost", value: "closed_lost" }],
-  offer_pending:[{ label: "Mark approved by client", value: "approved" }, { label: "Mark rejected by client", value: "rejected" }],
+  // offer_pending intentionally has NO manual "Move to" transitions: the client
+  // and each assigned talent approve from THEIR OWN surfaces (engine submit_approval),
+  // and that drives offer→approved. The old "Mark approved/rejected by client"
+  // entries routed through quickPatchInquiryStatus (a raw status UPDATE) which the
+  // sent-offer DB trigger always RAISEs on — a guaranteed error. Removed. (An
+  // off-platform-approval override, if ever needed, must record the real client
+  // participant's approval through the engine, not a status patch.)
+  offer_pending:[],
   approved:     [{ label: "Move to Booked",  value: "booked"        }],
   coordination: [{ label: "Move to Review",  value: "reviewing"     }, { label: "Close as lost", value: "closed_lost" }],
   draft:        [{ label: "Submit",          value: "submitted"     }],

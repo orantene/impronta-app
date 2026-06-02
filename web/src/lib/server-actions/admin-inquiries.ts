@@ -1696,6 +1696,20 @@ export async function quickPatchInquiryStatus(formData: FormData): Promise<Admin
 
   const { inquiry_id, status } = parsed.data;
 
+  // Safety: commercial transitions MUST go through the engine, never a raw status
+  // patch. The engine creates the agency_bookings row + commission snapshot
+  // (convert), records the client/talent approvals (submit_approval), emits
+  // events, and bumps the optimistic-lock version. Patching status='booked'
+  // directly here produces an orphan booked inquiry (no booking row → breaks the
+  // consistency invariant + every payment/booking view). Block them.
+  const ENGINE_ONLY_STATUSES = new Set(["approved", "booked", "rejected"]);
+  if (ENGINE_ONLY_STATUSES.has(status)) {
+    return {
+      error:
+        "That status is set automatically — by the client/talent approving, or by converting to a booking — and can't be set manually here.",
+    };
+  }
+
   const { data: prior, error: priorErr } = await supabase
     .from("inquiries")
     .select("status")

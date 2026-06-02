@@ -6,7 +6,7 @@ import { PayoutNudgeCard } from "@/components/talent-payouts/PayoutNudgeCard";
 import { loadCurrentTalentPayoutSnapshot, type TalentPayoutSnapshot } from "@/lib/server-actions/talent-self";
 import { submitMyCounterRate, submitMyRateForInquiry } from "@/lib/server-actions/talent-pipeline";
 import { clientApproveCurrentOffer, clientRejectCurrentOffer } from "@/lib/server-actions/client-pipeline";
-import { sendOfferAction, approveOfferAction, rejectOfferAction, counterOfferAction } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
+import { sendOfferAction, counterOfferAction } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import { useAdminShell, COLORS, FONTS } from "../../state";
 import { type Conversation } from "../../talent";
 import { applyRowOverrides, setRowOverride, useRowOverrideSubscription } from "../conversation-stash";
@@ -61,17 +61,14 @@ export function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: Off
           style={primaryBtn(COLORS.accent)}
         >Send to client</button>
       )}
+      {/* No admin "Approve/Reject (as client)" at status==="sent": the client and
+          each assigned talent approve from THEIR OWN surfaces (engine submit_approval).
+          The old buttons called clientAcceptOffer keyed on the staff user_id and so
+          ALWAYS failed with no_client_participant. The admin's role here is to wait
+          for approvals; once the offer is 'accepted' the inquiry flips to 'approved'
+          and the header "Move to Booked" converts it. */}
       {isAdmin && status === "sent" && (
-        <>
-          <button type="button" disabled={pending}
-            onClick={() => run("Approve offer", () => approveOfferAction(effectiveTenant.slug, inquiryId, offerId))}
-            style={primaryBtn(COLORS.success)}
-          >Approve (as client)</button>
-          <button type="button" disabled={pending}
-            onClick={() => run("Reject offer", () => rejectOfferAction(effectiveTenant.slug, inquiryId, offerId, null))}
-            style={ghostBtn()}
-          >Reject</button>
-        </>
+        <span className="text-admin-ink-muted text-admin-11">Awaiting client + talent approval…</span>
       )}
       {isAdmin && status === "rejected" && (
         <button type="button" disabled={pending}
@@ -148,14 +145,17 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
 
   if (!offer) {
     if (isTalent) {
+      // Audit #7: when a REAL offer has been SENT to this talent, show the offer
+      // awaiting their approval — NOT the "Submit your rate" rate-request stub
+      // (a permanently-disabled button, the inverse of reality once an offer
+      // exists). Approve/Decline is wired in the bottom action bar
+      // (respondToInquiryOffer). We deliberately do NOT show liveOffer.total —
+      // that's the client price (agency margin); the talent's own take-home shows
+      // in their Money dashboard. Single panel + conditional content so we add no
+      // new inline styles in the frozen admin/shell tree.
+      const hasSentOffer = !!(liveOffer && liveOffer.status === "sent");
       return (
         <div style={{ padding: 18, fontFamily: FONTS.body, display: "flex", flexDirection: "column", gap: 12 }}>
-          {/* Item #7 wiring: payout nudge surfaces when the talent's
-              Stripe Connect Express account isn't enabled yet. Snapshot
-              status data is mock here; real talent OfferTab will pass
-              status from server-loaded talent_profiles snapshot. */}
-          {/* Item #7 final: live snapshot drives status. PayoutNudgeCard
-              hides on enabled / when hasProfile=false. */}
           {talentPayout && talentPayout.hasProfile && (
             <PayoutNudgeCard
               tenantSlug={effectiveTenant?.slug ?? "impronta"}
@@ -164,22 +164,30 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
             />
           )}
           <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, padding: 16, display: "flex", flexDirection: "column", gap: 10 }} className="rounded-admin-md">
-            <div className="text-admin-ink text-admin-13h font-bold">Submit your rate</div>
+            <div className="text-admin-ink text-admin-13h font-bold">
+              {hasSentOffer ? "You've received an offer" : "Submit your rate"}
+            </div>
             <div style={{ fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink-muted">
-              The coordinator is waiting on your number. You&apos;ll see the agency
-              fee + platform fee deducted before take-home — quote what you
-              actually need to walk out with, plus a small margin for usage.
+              {hasSentOffer
+                ? "The coordinator has sent you an offer for this job. Review it, then use Approve or Decline in the action bar below. Your take-home (after the agency + platform fee) appears in your Money dashboard."
+                : "The coordinator is waiting on your number. You'll see the agency fee + platform fee deducted before take-home — quote what you actually need to walk out with, plus a small margin for usage."}
             </div>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                disabled
-                title="Rate requests need a live coordinator workflow."
-                style={disabledBtn(primaryBtn(COLORS.accent))}
-              >
-                Ask coordinator
-              </button>
-            </div>
+            {hasSentOffer ? (
+              <div className="text-admin-ink-muted text-admin-11">
+                Status <strong className="text-admin-ink">awaiting your approval</strong>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled
+                  title="Rate requests need a live coordinator workflow."
+                  style={disabledBtn(primaryBtn(COLORS.accent))}
+                >
+                  Ask coordinator
+                </button>
+              </div>
+            )}
           </div>
         </div>
       );

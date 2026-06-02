@@ -23,6 +23,7 @@ import {
   notifyTalentPayoutSettled,
 } from "@/lib/notifications/producers/payment-notify";
 import { notifyBookingConfirmed } from "@/lib/notifications/producers/booking-confirmed-notify";
+import { executeBookingTransfers } from "@/lib/payments/transfers";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -447,6 +448,37 @@ export async function markPaid(
       }).then((r) => {
         if (r.error) logServerError("transactions.markPaid.bookingConfirmedCard", r.error);
       });
+      // Talent-facing mirror to the GROUP (booking-team) thread, which is what
+      // assigned talents read — without this they never get an in-thread
+      // "you're booked & paid" confirmation. Amount-free: the shared group
+      // thread must not carry the client gross (margin) or per-talent rates;
+      // each talent sees their own take-home in the Money dashboard.
+      sb.from("inquiry_messages").insert({
+        inquiry_id: result.data.sourceInquiryId,
+        tenant_id: result.data.sourceTenantId,
+        thread_type: "group",
+        sender_user_id: null,
+        body: "Payment received — your booking is confirmed.",
+        message_kind: "payment_paid",
+        card_payload: { amount_label: "", transaction_id: result.data.id },
+      }).then((r) => {
+        if (r.error) logServerError("transactions.markPaid.chatCard.group", r.error);
+      });
+      sb.from("inquiry_messages").insert({
+        inquiry_id: result.data.sourceInquiryId,
+        tenant_id: result.data.sourceTenantId,
+        thread_type: "group",
+        sender_user_id: null,
+        body: "Booking confirmed",
+        message_kind: "booking_confirmed",
+        card_payload: {
+          total_label: "",
+          summary: "Payment received — your booking is confirmed.",
+          transaction_id: result.data.id,
+        },
+      }).then((r) => {
+        if (r.error) logServerError("transactions.markPaid.bookingConfirmedCard.group", r.error);
+      });
     }
   }
   // Slice 15.4: payment.received → client receipt (email) + workspace alert
@@ -510,6 +542,17 @@ export async function markPaid(
         inquiryId: result.data.sourceInquiryId,
         bookingId: result.data.bookingId,
       });
+    }
+    // Audit #6: disburse to talent/workspace HERE, on the paid transition itself,
+    // so EVERY paid path pays out — including a manual admin "Mark received", not
+    // only the Stripe webhook (which used to be the sole caller). markPaid is
+    // idempotent (this block runs once, on the first paid transition) and Stripe
+    // idempotency keys prevent double-pay; transfer failures are recorded as
+    // held/failed legs in booking_payouts for retry, so they must NOT fail markPaid.
+    try {
+      await executeBookingTransfers(result.data.id);
+    } catch (transferErr) {
+      logServerError("transactions.markPaid.executeBookingTransfers", transferErr);
     }
   }
   return result;

@@ -397,6 +397,24 @@ export async function sendOffer(
     // sending — so approval seeding includes them and the offer is bookable.
     await ensureOfferTalentsOnLineup(supabase, ctx.inquiryId, ctx.tenantId, ctx.offerId, ctx.actorUserId);
 
+    // Audit #3 (guard): never send a blank/zero offer to the client. The offer
+    // editor lets the Total be hand-typed independently of the priced line items,
+    // so without this an admin can send an empty or $0 offer. Reject when there are
+    // no priced lines or they sum to <= 0. (Full reconciliation of total_client_price
+    // to the line sum is a follow-up — it depends on the coordinator-fee model.)
+    const { data: liRows } = await supabase
+      .from("inquiry_offer_line_items")
+      .select("total_price")
+      .eq("offer_id", ctx.offerId)
+      .eq("tenant_id", ctx.tenantId);
+    const lineSum = (liRows ?? []).reduce(
+      (sum, r) => sum + Number((r as { total_price: number | string | null }).total_price ?? 0),
+      0,
+    );
+    if (!liRows?.length || lineSum <= 0) {
+      return { success: false, error: "empty_offer" };
+    }
+
     const { data, error } = await supabase.rpc("engine_send_offer", {
       p_inquiry_id: ctx.inquiryId,
       p_offer_id: ctx.offerId,
@@ -468,6 +486,21 @@ export async function sendOffer(
         body: "Offer sent to client.",
         message_kind: "offer_event",
         card_payload: { status: "sent", total_label: totalLabel, offer_id: ctx.offerId },
+      });
+      // Talent-facing mirror: assigned talents read the GROUP (booking-team)
+      // thread, not the private staff thread, so without this they're asked to
+      // approve a binding offer with zero in-thread context ("No activity yet").
+      // Amount-free on purpose — the shared group thread must not leak the
+      // client total (agency margin) or one talent's rate to the others; each
+      // talent sees their own cut in the Offer tab + Money dashboard.
+      await supabase.from("inquiry_messages").insert({
+        inquiry_id: ctx.inquiryId,
+        tenant_id: ctx.tenantId,
+        thread_type: "group",
+        sender_user_id: ctx.actorUserId,
+        body: "You've received an offer — open the Offer tab to review and approve.",
+        message_kind: "offer_event",
+        card_payload: { status: "sent", total_label: "", offer_id: ctx.offerId },
       });
     } catch (emitErr) {
       logServerError("inquiry-engine-offers.sendOffer.chatCard", emitErr);
