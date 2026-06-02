@@ -967,6 +967,9 @@ html[data-public-font-preset="editorial"] {
   --plt-forest-soft: var(--tl-forest-soft);
   --plt-forest-ring: var(--tl-forest-ring);
   --plt-forest-glow: var(--tl-forest-glow);
+  /* Warm accent — marketing-only highlight (eyebrows, accents). */
+  --plt-accent: #ff8332;
+  --plt-accent-soft: #ffb583;
   --plt-forest-on: var(--tl-forest-on);
 
   --plt-positive: var(--tl-positive);
