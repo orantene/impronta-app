@@ -81,7 +81,11 @@ export function OfferTab({
 
   const offer = details.offer;
   const expired = isExpired(offer.expires_at);
-  const canDecide = offer.status === "sent" && !expired;
+  // Audit #12-A (client side): once the client has approved, the offer stays
+  // `sent` while the multi-party gate waits on the talents — so suppress the
+  // re-decide CTAs and show an honest "awaiting the other parties" state.
+  const clientApproved = offer.myApprovalStatus === "accepted";
+  const canDecide = offer.status === "sent" && !expired && !clientApproved;
 
   return (
     <div style={{ padding: "16px 22px 32px", fontFamily: FONT }}>
@@ -113,6 +117,17 @@ export function OfferTab({
             />
           </>
         )}
+        {clientApproved && offer.status === "sent" && !expired && (
+          <>
+            <Divider />
+            <div style={{ padding: "12px 0 2px", fontFamily: FONT }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.ink }}>You approved this offer</div>
+              <p style={{ marginTop: 4, fontSize: 12.5, color: C.inkMuted, lineHeight: 1.5 }}>
+                Locked in on your side — we&apos;re just waiting on the other parties before it becomes a confirmed booking.
+              </p>
+            </div>
+          </>
+        )}
         {offer.status === "accepted" && (
           <>
             <Divider />
@@ -135,7 +150,12 @@ function OfferHeader({
   offer: NonNullable<ClientInquiryDetails["offer"]>;
   expired: boolean;
 }) {
-  const statusInfo = statusBadgeInfo(offer.status, expired);
+  // Audit #12-A (client side): once the client has approved, don't keep
+  // badging "Awaiting your decision" — the decision is theirs and it's made.
+  const statusInfo =
+    offer.myApprovalStatus === "accepted" && offer.status === "sent" && !expired
+      ? { tone: "success" as const, label: "You approved · awaiting others" }
+      : statusBadgeInfo(offer.status, expired);
   return (
     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
       <div>

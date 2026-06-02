@@ -3,7 +3,8 @@
 import { useTransition, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { PayoutNudgeCard } from "@/components/talent-payouts/PayoutNudgeCard";
-import { loadCurrentTalentPayoutSnapshot, type TalentPayoutSnapshot } from "@/lib/server-actions/talent-self";
+import { loadCurrentTalentPayoutSnapshot, loadMyInquiryTakeHome, type TalentPayoutSnapshot } from "@/lib/server-actions/talent-self";
+import { type TalentTakeHome } from "@/lib/talent/inquiry-take-home";
 import { submitMyCounterRate, submitMyRateForInquiry } from "@/lib/server-actions/talent-pipeline";
 import { clientApproveCurrentOffer, clientRejectCurrentOffer } from "@/lib/server-actions/client-pipeline";
 import { sendOfferAction, counterOfferAction } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
@@ -119,6 +120,17 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
     });
     return () => { cancelled = true; };
   }, [pov.kind]);
+  // Audit #7 tail: load THIS talent's own take-home on the inquiry's current
+  // offer so the Offer tab can show their actual cut inline.
+  const [takeHome, setTakeHome] = useState<TalentTakeHome>(null);
+  useEffect(() => {
+    if (pov.kind !== "talent") return;
+    let cancelled = false;
+    loadMyInquiryTakeHome(conv.id).then((t) => {
+      if (!cancelled) setTakeHome(t);
+    });
+    return () => { cancelled = true; };
+  }, [pov.kind, conv.id]);
   const [, startClientOfferTransition] = useTransition();
   const baseOffer = getOffer(conv.id);
   const liveInquiry = effectiveMessagesInquiries.find((r) => r.id === conv.id);
@@ -145,15 +157,33 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
 
   if (!offer) {
     if (isTalent) {
-      // Audit #7: when a REAL offer has been SENT to this talent, show the offer
-      // awaiting their approval — NOT the "Submit your rate" rate-request stub
-      // (a permanently-disabled button, the inverse of reality once an offer
-      // exists). Approve/Decline is wired in the bottom action bar
-      // (respondToInquiryOffer). We deliberately do NOT show liveOffer.total —
-      // that's the client price (agency margin); the talent's own take-home shows
-      // in their Money dashboard. Single panel + conditional content so we add no
-      // new inline styles in the frozen admin/shell tree.
-      const hasSentOffer = !!(liveOffer && liveOffer.status === "sent");
+      // Audit #7 tail: derive the talent's offer state from data the TALENT
+      // actually has — conv.stage / conv.myApprovalStatus. `liveOffer` reads the
+      // admin `effectiveMessagesInquiries` list, which is EMPTY in the talent
+      // shell, so the old `hasSentOffer` was always false and the talent saw the
+      // dead "Submit your rate" stub even with a live offer (and post-booking).
+      // Show their REAL take-home (loadMyInquiryTakeHome) inline so they can see
+      // their cut on the offer they're approving — the Money dashboard only
+      // renders EUR today, so this is the talent's only window into their number.
+      const isBooked = conv.stage === "booked";
+      const isApproved = conv.myApprovalStatus === "accepted";
+      const hasOffer =
+        isBooked || isApproved || conv.stage === "hold" ||
+        !!(liveOffer && liveOffer.status === "sent");
+      const heading = isBooked
+        ? "You're booked"
+        : isApproved
+        ? "You approved this offer"
+        : hasOffer
+        ? "You've received an offer"
+        : "Submit your rate";
+      const blurb = isBooked
+        ? "This job is booked and confirmed. Your take-home below is on its way to your connected payout account."
+        : isApproved
+        ? "You've approved this offer — we're just waiting on the other parties before it converts to a booking."
+        : hasOffer
+        ? "The coordinator has sent you an offer for this job. Review your take-home below, then use Approve or Decline in the action bar."
+        : "The coordinator is waiting on your number. You'll see the agency fee + platform fee deducted before take-home — quote what you actually need to walk out with, plus a small margin for usage.";
       return (
         <div style={{ padding: 18, fontFamily: FONTS.body, display: "flex", flexDirection: "column", gap: 12 }}>
           {talentPayout && talentPayout.hasProfile && (
@@ -164,15 +194,24 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
             />
           )}
           <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, padding: 16, display: "flex", flexDirection: "column", gap: 10 }} className="rounded-admin-md">
-            <div className="text-admin-ink text-admin-13h font-bold">
-              {hasSentOffer ? "You've received an offer" : "Submit your rate"}
-            </div>
-            <div style={{ fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink-muted">
-              {hasSentOffer
-                ? "The coordinator has sent you an offer for this job. Review it, then use Approve or Decline in the action bar below. Your take-home (after the agency + platform fee) appears in your Money dashboard."
-                : "The coordinator is waiting on your number. You'll see the agency fee + platform fee deducted before take-home — quote what you actually need to walk out with, plus a small margin for usage."}
-            </div>
-            {hasSentOffer ? (
+            <div className="text-admin-ink text-admin-13h font-bold">{heading}</div>
+            <div style={{ fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink-muted">{blurb}</div>
+            {takeHome && hasOffer && (
+              <div className="text-admin-ink-muted text-admin-13h">
+                Your take-home:{" "}
+                <strong className="text-admin-ink">{fmtMoney(takeHome.takeHomeCents / 100, takeHome.currency)}</strong>{" "}
+                <span className="text-admin-11">(after the agency + platform fee)</span>
+              </div>
+            )}
+            {isBooked ? (
+              <div className="text-admin-ink-muted text-admin-11">
+                Status <strong className="text-admin-ink">booked &amp; confirmed</strong>
+              </div>
+            ) : isApproved ? (
+              <div className="text-admin-ink-muted text-admin-11">
+                Status <strong className="text-admin-ink">awaiting the other parties</strong>
+              </div>
+            ) : hasOffer ? (
               <div className="text-admin-ink-muted text-admin-11">
                 Status <strong className="text-admin-ink">awaiting your approval</strong>
               </div>
