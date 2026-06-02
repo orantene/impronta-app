@@ -102,6 +102,10 @@ export async function applyPageDesignToHomepage(
       builderTree,
     },
     actorProfileId: auth.user.id,
+    // First-party curated starter layout — the free on-ramp. Exempt from the
+    // Free-plan nested-builder draft guard (same as the curated section recipes);
+    // the design is validated against the fixed getPageDesign registry above.
+    seedCuratedDesign: true,
   });
   if (!composition.ok) {
     return {
