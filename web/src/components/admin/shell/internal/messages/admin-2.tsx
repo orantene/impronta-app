@@ -273,7 +273,7 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
                         }}
                         title={`${t.name} · ${t.status}`}
                       >
-                        <Avatar size={22} tone="auto" hashSeed={t.name} initials={initials} />
+                        <Avatar size={22} tone="auto" hashSeed={t.name} initials={initials} photoUrl={t.thumb || undefined} />
                         {isAccepted && (
                           <span aria-hidden style={{
                             position: "absolute", bottom: -1, right: -1,
