@@ -73,18 +73,18 @@ type Props = {
 const AUDIENCE_OPTIONS: { key: AudienceKey; label: string; description: string }[] = [
   {
     key: "operator",
-    label: "Independent operator",
-    description: "I coordinate a roster on my own.",
+    label: "Just me",
+    description: "I sell my own services.",
   },
   {
     key: "agency",
-    label: "Agency / representation",
-    description: "We run a branded representation business.",
+    label: "An agency or studio",
+    description: "We represent other people.",
   },
   {
     key: "organization",
-    label: "Staffing / casting / placement",
-    description: "We run a larger placement operation.",
+    label: "A band, team, or network",
+    description: "We're a group working together.",
   },
 ];
 
@@ -267,7 +267,7 @@ export function GetStartedForm({
           <strong style={{ color: "var(--plt-ink)" }}>{state.email}</strong>. Sign in to finish
           {paidTier ? " setting up " : " creating "}
           <strong style={{ color: "var(--plt-ink)" }}>
-            {preferredLinkPreview(state.subdomain ?? "your-roster", tier)}
+            {preferredLinkPreview(state.subdomain ?? "your-business", tier)}
           </strong>
           {paidTier ? " — payment is the last step." : "."}
         </p>
@@ -317,7 +317,7 @@ export function GetStartedForm({
           className="plt-display mt-4 text-[1.75rem] font-medium leading-[1.1] tracking-[-0.02em] sm:text-[2rem]"
           style={{ color: "var(--plt-ink)" }}
         >
-          Welcome, {state.name || "operator"}.
+          Welcome, {state.name || "there"}.
         </h3>
         <p
           className="mt-4 text-[0.9375rem] leading-[1.6]"
@@ -383,7 +383,7 @@ export function GetStartedForm({
           <li className="flex items-start gap-2.5">
             <SuccessTick />
             {preferredLinkLabel(tier)}:{" "}
-            <strong>{preferredLinkPreview(state.subdomain ?? "your-roster", tier)}</strong>
+            <strong>{preferredLinkPreview(state.subdomain ?? "your-business", tier)}</strong>
           </li>
           <li className="flex items-start gap-2.5">
             <SuccessTick />{" "}
@@ -491,7 +491,7 @@ export function GetStartedForm({
           className="plt-mono text-[0.6875rem] font-medium uppercase tracking-[0.28em]"
           style={{ color: "var(--plt-forest)" }}
         >
-          Claim your roster
+          Start your business
         </span>
         <span
           className="plt-mono inline-flex items-center gap-2 text-[0.75rem]"
@@ -514,7 +514,7 @@ export function GetStartedForm({
         }`}
         style={{ color: "var(--plt-ink)" }}
       >
-        {variant === "compact" ? "Claim your Tulala link" : "Start in under ten minutes."}
+        {variant === "compact" ? "Create your free site" : "Start in under ten minutes."}
       </h3>
 
       <fieldset className="mt-6">
@@ -614,7 +614,7 @@ export function GetStartedForm({
             if (!email && v) trackOnce("marketing_email_focused", { audience });
             setEmail(v);
           }}
-          placeholder="you@roster.com"
+          placeholder="you@business.com"
           required
           readOnly={Boolean(initialSignedIn)}
           error={errors.email}
@@ -670,7 +670,7 @@ export function GetStartedForm({
                   .slice(0, 32),
               )
             }
-            placeholder="your-roster"
+            placeholder="your-business"
             className="h-12 flex-1 bg-transparent px-4 text-[0.9375rem] outline-none placeholder:text-[var(--plt-muted-soft)]"
             style={{ color: "var(--plt-ink)" }}
             autoComplete="off"
@@ -702,7 +702,7 @@ export function GetStartedForm({
           className="text-[0.8125rem] font-medium"
           style={{ color: "var(--plt-ink)" }}
         >
-          How many people are on your roster?
+          How big is your team?
         </legend>
         <div className="mt-3 flex flex-wrap gap-2">
           {(["1-5", "6-20", "21-50", "50+"] as const).map((r) => {

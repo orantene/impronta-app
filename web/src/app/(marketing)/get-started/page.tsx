@@ -25,9 +25,9 @@ import {
 import { validateDiscount } from "@/lib/server-actions/admin-product-discounts";
 
 export const metadata: Metadata = {
-  title: "Start free — claim your roster link",
+  title: "Start your business — free",
   description:
-    "Put your roster on the internet, properly. A free Tulala URL, a branded directory site, and a structured inquiry inbox — built for independent operators, representation businesses, casting, staffing, and placement operations.",
+    "Build your own website in one click, get your link, and start taking bookings and payments. For agencies, networks, bands, studios, teams — or just you.",
 };
 
 const FREE_LINK_EXAMPLE = workspacePathHost("your-roster");
@@ -62,9 +62,9 @@ function buildHeadlineByTier(
   return {
     free: {
       eyebrow: "Start free",
-      title: "Your roster, online in ten minutes.",
+      title: "Your business, online in ten minutes.",
       subtitle:
-        "A free Tulala URL, up to five people profiles, and the full inquiry → offer → booking pipeline. Email + in-app notifications included.",
+        "A free site and link, your work or team on it, and bookings + payments built in. No code, no credit card.",
     },
     studio: {
       eyebrow: studioEyebrow(studio),
@@ -86,9 +86,9 @@ function buildHeadlineByTier(
     },
     default: {
       eyebrow: "Start free",
-      title: "Put your roster on the internet, properly.",
+      title: "Start your business. <span style=\"color: var(--plt-forest)\">Free.</span>",
       subtitle:
-        "Claim your roster link, add your roster, and share one polished URL. Every plan ships with the full inquiry → offer → booking pipeline.",
+        "Build your own website in one click, share your link, and start taking bookings and payments. Run an agency, a network, a band, a studio, a team — or just sell your own work.",
     },
   };
 }
@@ -247,13 +247,13 @@ function HeroSection({
               style={{ color: "var(--plt-ink-soft)" }}
             >
               <li className="inline-flex items-center gap-2">
-                <Dot /> Free Tulala URL, no card
+                <Dot /> Free site + link, no card
               </li>
               <li className="inline-flex items-center gap-2">
-                <Dot /> One profile or five
+                <Dot /> Page builder included
               </li>
               <li className="inline-flex items-center gap-2">
-                <Dot /> Upgrade any time
+                <Dot /> Take bookings & payments
               </li>
             </ul>
 
@@ -263,8 +263,8 @@ function HeroSection({
               size="md"
               tone="cream"
               className="mt-10 w-full"
-              eyebrow="Built for how you already work"
-              caption="Operators and teams around the world run their rosters here."
+              eyebrow="Built to make you money"
+              caption="Agencies, bands, studios, and solo pros run their business here."
             />
 
             <div
@@ -369,32 +369,32 @@ type Audience = {
 
 const AUDIENCES: Audience[] = [
   {
-    key: "coordinators",
-    eyebrow: "Independent operators",
-    title: "You ARE the business.",
-    body: `You run a roster out of your phone — bookings, inquiries, profile shots, rate cards. ${PLATFORM_BRAND.name} gives you a real storefront without the overhead of building one.`,
-    examples: "Freelance scouts, solo reps, placement coordinators, booking agents",
-  },
-  {
-    key: "roster-managers",
-    eyebrow: "Roster managers",
-    title: "The list lives in your head.",
-    body: "You manage who's on the team, who's available, and who the client should see — but your current tools are a folder of PDFs and a shared spreadsheet. Put the list somewhere it belongs.",
-    examples: "Internal placement teams, production rosters, crew coordinators",
+    key: "solo",
+    eyebrow: "Solo & talent",
+    title: "Sell your own work.",
+    body: `You're the talent and the business. Get a site, share your link, and take bookings and payments — without building anything or paying someone to do it for you.`,
+    examples: "Singers, stylists, coaches, chefs, photographers, performers",
   },
   {
     key: "agencies",
-    eyebrow: "Representation agencies",
-    title: "Your people, presented properly.",
-    body: "A branded site on your own domain, CMS-driven pages, multi-user roles, and a real inquiry pipeline. Talent and model agencies are a strong example — but the same engine runs any representation business.",
-    examples: "Talent & model agencies, speaker bureaus, specialist rosters, performer reps",
+    eyebrow: "Agencies & studios",
+    title: "Run a branded business.",
+    body: "A branded site on your own domain, your whole roster on it, multi-user roles, and a real booking pipeline. Built for agencies and studios that represent other people.",
+    examples: "Model & talent agencies, studios, reps, speaker bureaus",
   },
   {
-    key: "placement",
-    eyebrow: "Staffing, casting & placement",
-    title: "A directory that works.",
-    body: "Taxonomy-driven profiles, filterable discovery, and role-scoped access for teams that place people at scale. Your clients browse — you don't re-send everything every time.",
-    examples: "Casting offices, staffing firms, crew agencies, placement platforms",
+    key: "teams",
+    eyebrow: "Bands & teams",
+    title: "One workspace for the crew.",
+    body: "Run the bookings, the calendar, and the money for your whole group in one place. Everyone sees the same schedule — you split the work, not the chaos.",
+    examples: "Bands, DJ crews, event teams, production units, collectives",
+  },
+  {
+    key: "networks",
+    eyebrow: "Networks & hubs",
+    title: "Many pros, one roof.",
+    body: "Bring dozens or hundreds of independents under one branded hub — filterable discovery, role-scoped access, and inquiries that route to the right person.",
+    examples: "Local hubs, marketplaces, staffing networks, communities",
   },
 ];
 
@@ -413,15 +413,15 @@ function WhoItsForSection() {
             className="plt-display mt-4 text-[1.875rem] font-medium leading-[1.1] tracking-[-0.02em] sm:text-[2.5rem]"
             style={{ color: "var(--plt-ink)" }}
           >
-            If you manage people, this was built for you.
+            Whatever you&rsquo;re building, start it here.
           </h2>
           <p
             className="mt-5 text-[1rem] leading-[1.6]"
             style={{ color: "var(--plt-muted)" }}
           >
-            {PLATFORM_BRAND.name} is the talent business platform for anyone whose product is{" "}
-            <em>people they represent</em> — solo operators, internal rosters, full
-            agencies, and large placement operations. One engine, four shapes.
+            {PLATFORM_BRAND.name} is the platform for selling services and running a people
+            business — whether that&rsquo;s just you, a full agency, a band, a team, or a whole
+            network. One engine, every shape.
           </p>
         </div>
 
@@ -493,27 +493,27 @@ function AudienceCard({ audience }: { audience: Audience }) {
 const STEPS = [
   {
     numeral: "01",
-    title: "Claim your free roster URL.",
-    body: `${FREE_LINK_EXAMPLE} — pick the link name in the form above. We create it automatically as soon as you finish account setup, no credit card on file.`,
+    title: "Build your site in one click.",
+    body: `Pick your link and the page builder spins up a real website for your business in minutes — ${FREE_LINK_EXAMPLE}. No code, no credit card.`,
     caption: FREE_LINK_EXAMPLE,
   },
   {
     numeral: "02",
-    title: "Add your first roster.",
-    body: "One profile or five. Name, category, portfolio, specs, rates, availability — the fields that matter for the people you represent, structured the same way every time.",
-    caption: "Structured people profiles",
+    title: "Add your work, services, or team.",
+    body: "Your services, your prices, your roster or band — structured the same way every time, so clients can browse exactly what you offer and what it costs.",
+    caption: "Services · team · prices",
   },
   {
     numeral: "03",
-    title: "Share one professional link.",
-    body: "Paste it into DMs, briefs, bios, email signatures, and pitch decks. Clients see a real directory — filterable, browsable, credible — not a screenshot thread.",
-    caption: "One URL. Everywhere.",
+    title: "Share your link. Get booked.",
+    body: "Drop your link in a bio, a DM, or a pitch. Clients browse, send an inquiry, and you turn it into a confirmed booking — right inside your messages.",
+    caption: "One link. Everywhere.",
   },
   {
     numeral: "04",
-    title: "Upgrade when the work demands it.",
-    body: "Bring your own domain. Turn on multi-user access. Unlock the inquiry → offer → booking pipeline. Opt into the shared discovery hub. Your schedule, not ours.",
-    caption: "Custom domain · team · pipeline",
+    title: "Get paid — and grow when you're ready.",
+    body: "Take payments in chat, add your own domain, bring on your team, open up to the discovery hub. Upgrade only when it starts paying for itself.",
+    caption: "Payments · domain · team",
   },
 ];
 
@@ -527,14 +527,14 @@ function HowItWorksSection() {
             className="plt-display mt-4 text-[1.875rem] font-medium leading-[1.1] tracking-[-0.02em] sm:text-[2.5rem]"
             style={{ color: "var(--plt-ink)" }}
           >
-            Four steps from signup to sharing.
+            Four steps to your first booking.
           </h2>
           <p
             className="mt-5 text-[1rem] leading-[1.6]"
             style={{ color: "var(--plt-muted)" }}
           >
-            Most of our operators have their first polished link before lunch. Upgrade
-            whenever it pays for itself.
+            Most people have a real site and a shareable link before lunch — and start
+            taking bookings the same week. Upgrade only when it pays for itself.
           </p>
         </div>
 
@@ -860,15 +860,15 @@ function ProductPreviewSection() {
               className="plt-display mt-4 text-[1.875rem] font-medium leading-[1.1] tracking-[-0.02em] sm:text-[2.5rem]"
               style={{ color: "var(--plt-ink)" }}
             >
-              A real directory, not a landing page.
+              A real website, not a link in bio.
             </h2>
             <p
               className="mt-5 text-[1rem] leading-[1.6]"
               style={{ color: "var(--plt-muted)" }}
             >
-              Every roster gets a branded site with the same structured profiles, same
-              filterable browsing, same inquiry inbox — whether you represent performers,
-              speakers, crew, specialists, or anyone in between.
+              Every account gets a branded site with structured profiles, filterable
+              browsing, and a booking inbox — whether you&rsquo;re selling your own services,
+              running an agency, or coordinating a whole team.
             </p>
             <ul
               className="mt-6 space-y-2.5 text-[0.9375rem] leading-[1.55]"
@@ -1163,7 +1163,7 @@ function FinalCtaSection() {
             className="plt-display mt-5 text-[2rem] font-medium leading-[1.05] tracking-[-0.02em] sm:text-[2.75rem]"
             style={{ color: "var(--plt-ink)" }}
           >
-            Claim your roster link.{" "}
+            Start your business.{" "}
             <span
               style={{
                 background:
@@ -1172,15 +1172,15 @@ function FinalCtaSection() {
                 WebkitTextFillColor: "transparent",
               }}
             >
-              Ten minutes, no card.
+              Free, in minutes.
             </span>
           </h2>
           <p
             className="mx-auto mt-5 max-w-xl text-[1rem] leading-[1.6]"
             style={{ color: "var(--plt-muted)" }}
           >
-            Free plan forever. Upgrade to your own domain, the full pipeline, or a
-            white-label network when the work calls for it.
+            Free forever. Add your own domain, take payments, and bring on your team
+            whenever the work calls for it.
           </p>
 
           <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
