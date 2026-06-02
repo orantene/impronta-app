@@ -23,6 +23,7 @@ import {
   notifyTalentPayoutSettled,
 } from "@/lib/notifications/producers/payment-notify";
 import { notifyBookingConfirmed } from "@/lib/notifications/producers/booking-confirmed-notify";
+import { executeBookingTransfers } from "@/lib/payments/transfers";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -541,6 +542,17 @@ export async function markPaid(
         inquiryId: result.data.sourceInquiryId,
         bookingId: result.data.bookingId,
       });
+    }
+    // Audit #6: disburse to talent/workspace HERE, on the paid transition itself,
+    // so EVERY paid path pays out — including a manual admin "Mark received", not
+    // only the Stripe webhook (which used to be the sole caller). markPaid is
+    // idempotent (this block runs once, on the first paid transition) and Stripe
+    // idempotency keys prevent double-pay; transfer failures are recorded as
+    // held/failed legs in booking_payouts for retry, so they must NOT fail markPaid.
+    try {
+      await executeBookingTransfers(result.data.id);
+    } catch (transferErr) {
+      logServerError("transactions.markPaid.executeBookingTransfers", transferErr);
     }
   }
   return result;

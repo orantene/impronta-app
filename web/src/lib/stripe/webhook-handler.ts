@@ -62,7 +62,6 @@ import {
 import { handleTalentStripeSubscriptionEvent } from "@/lib/payments/stripe-talent-subscription";
 import { markPaid } from "@/lib/bookings/transactions";
 import { emitBookingConfirmation } from "@/lib/payments/booking-confirmation";
-import { executeBookingTransfers } from "@/lib/payments/transfers";
 import { releaseHeldPayouts } from "@/lib/payments/booking-payouts-ledger";
 import { handleBookingRefund, handleBookingDispute } from "@/lib/payments/refunds";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -235,10 +234,11 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
       // Best-effort + idempotent; never throws, so a confirmation hiccup
       // cannot fail the webhook and force a needless Stripe retry.
       await emitBookingConfirmation(action.transactionId);
-      // Fan out the 3-way payout — talent (full quote) + workspace (margin
-      // net of the seller share); platform keeps its fee. Best-effort +
-      // idempotent; runs in skip/mock mode until Connect accounts exist.
-      await executeBookingTransfers(action.transactionId);
+      // The 3-way payout fan-out (talent + workspace; platform keeps its fee) now
+      // happens INSIDE markPaid (audit #6), so every paid path disburses — incl. a
+      // manual admin "Mark received", not just this webhook. Don't call it again
+      // here (recordPayoutLeg plain-inserts, so a second run would duplicate ledger
+      // rows; Stripe idempotency already prevents a double transfer).
       return;
     }
 
