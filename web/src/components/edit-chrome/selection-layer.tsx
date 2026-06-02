@@ -520,6 +520,40 @@ export function SelectionLayer() {
     getSelectedBuilderNodeEl,
   ]);
 
+  // 2026 direct-manipulation: glue the selection outline + handles to the
+  // element WHILE it is dragged/resized. The resize/move/padding handles write
+  // style.width/height/transform/padding inline for an instant element preview,
+  // but the overlay box was positioned from a cached rect that only refreshed
+  // on selection/scroll/commit — so the border visibly trailed the cursor and
+  // only "caught up" after the save round-trip. Observe the live element's box
+  // (ResizeObserver) and its inline-style mutations (MutationObserver) and
+  // re-measure on the spot, so the outline tracks frame-by-frame like a design
+  // app instead of lagging behind the drag.
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const el = getSelectedBuilderNodeEl() ?? getSelectedSectionEl();
+    if (!el) return undefined;
+    const recompute = () => scheduleRectRecompute();
+    const ro =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(recompute)
+        : null;
+    ro?.observe(el);
+    const mo = new MutationObserver(recompute);
+    mo.observe(el, { attributes: true, attributeFilter: ["style", "class"] });
+    return () => {
+      ro?.disconnect();
+      mo.disconnect();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- scheduleRectRecompute is a stable inline fn that reads live refs
+  }, [
+    selectedSectionId,
+    selectedBuilderNodeId,
+    pageVersion,
+    getSelectedSectionEl,
+    getSelectedBuilderNodeEl,
+  ]);
+
   useEffect(() => {
     setConfirmRemove(false);
     setNodeInsertTarget(null);
