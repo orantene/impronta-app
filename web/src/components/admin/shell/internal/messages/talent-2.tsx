@@ -361,6 +361,32 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
         const inviteStage = !isCoordinator && conv.stage === "inquiry" && !isMockConv;
         if (!isRealUuid || (!offerStage && !inviteStage)) return baseAction;
         if (offerStage) {
+          // Audit #12 — the talent has already approved THIS offer. The
+          // multi-party gate keeps the inquiry open (offer_pending/approved)
+          // until every party approves, which previously left the "Approve
+          // offer" button re-showing — a confusing idempotent re-click.
+          // Suppress it and show an awaiting state; keep Decline so the
+          // talent can still withdraw before the coordinator converts.
+          if (conv.myApprovalStatus === "accepted") {
+            return {
+              ...baseAction,
+              hint: "You approved this offer — awaiting the other parties.",
+              primary: undefined,
+              secondary: {
+                label: "Decline",
+                tone: "ghost",
+                disabled: invitePending,
+                onClick: () => {
+                  if (invitePending) return;
+                  startTalentInviteTransition(async () => {
+                    const r = await respondToInquiryOffer(conv.id, "rejected");
+                    if (!r.ok) toast(`Decline failed: ${r.error}`);
+                    else { toast("Offer declined"); router.refresh(); }
+                  });
+                },
+              },
+            };
+          }
           return {
             ...baseAction,
             hint: "You've received an offer. Approve to lock your booking, or decline.",
