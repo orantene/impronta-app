@@ -195,6 +195,21 @@ async function persistAccountFromObject(account: Stripe.Account, eventId: string
   );
 }
 
+/** Audit #5: pull the actually-charged amount + currency from the settlement event
+ *  (PaymentIntent or Checkout Session) so it can be reconciled against the booking
+ *  transaction before payout. Returns null for event types without a clear amount. */
+function extractChargedAmount(event: Stripe.Event): { amountCents: number; currency: string } | null {
+  if (event.type === "payment_intent.succeeded") {
+    const pi = event.data.object as Stripe.PaymentIntent;
+    return { amountCents: pi.amount ?? 0, currency: pi.currency ?? "" };
+  }
+  if (event.type === "checkout.session.completed") {
+    const s = event.data.object as Stripe.Checkout.Session;
+    return { amountCents: s.amount_total ?? 0, currency: s.currency ?? "" };
+  }
+  return null;
+}
+
 /**
  * Execute the classified action. Throws `TransientWebhookError` for retryable
  * failures; logs + returns for permanent ones.
@@ -223,6 +238,36 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
       return;
 
     case "booking_payment": {
+      // Audit #5: verify the actually-charged amount + currency match the booking
+      // transaction BEFORE marking paid + disbursing. The PaymentIntent is
+      // idempotency-keyed at its first amount, so a later gross edit can silently
+      // diverge; auto-paying out on a mismatched charge would over/under-pay the
+      // talent. On mismatch, skip markPaid and flag for manual reconciliation
+      // (logged) instead of auto-paying the wrong amount.
+      const charged = extractChargedAmount(event);
+      if (charged) {
+        const sbGuard = createServiceRoleClient();
+        if (sbGuard) {
+          const { data: txnRow } = await sbGuard
+            .from("booking_transactions")
+            .select("gross_amount_cents, currency")
+            .eq("id", action.transactionId)
+            .maybeSingle();
+          if (
+            txnRow &&
+            (Number(txnRow.gross_amount_cents) !== charged.amountCents ||
+              String(txnRow.currency).toLowerCase() !== charged.currency.toLowerCase())
+          ) {
+            logServerError(
+              "stripe-webhook.booking_payment.amount_mismatch",
+              new Error(
+                `charged ${charged.amountCents} ${charged.currency} != txn ${txnRow.gross_amount_cents} ${txnRow.currency} (txn ${action.transactionId}) — skipped markPaid for manual reconciliation`,
+              ),
+            );
+            return;
+          }
+        }
+      }
       const result = await markPaid(action.transactionId);
       if (!result.ok) {
         // markPaid is idempotent (sets status=paid); a failure here is almost
