@@ -786,7 +786,14 @@ export function validateThemePatch(
   patch: Record<string, unknown>,
 ):
   | { ok: true; normalized: Record<string, string> }
-  | { ok: false; rejected: string[]; reasons: Record<string, string> } {
+  | {
+      ok: false;
+      rejected: string[];
+      reasons: Record<string, string>;
+      // The registry-accepted subset is always returned so callers can choose
+      // to drop the rejected keys and proceed rather than abort.
+      normalized: Record<string, string>;
+    } {
   const rejected: string[] = [];
   const reasons: Record<string, string> = {};
   const normalized: Record<string, string> = {};
@@ -812,7 +819,7 @@ export function validateThemePatch(
     normalized[key] = parsed.data;
   }
 
-  if (rejected.length > 0) return { ok: false, rejected, reasons };
+  if (rejected.length > 0) return { ok: false, rejected, reasons, normalized };
   return { ok: true, normalized };
 }
 
