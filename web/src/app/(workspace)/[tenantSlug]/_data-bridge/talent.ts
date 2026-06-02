@@ -11,6 +11,7 @@ import {
   loadMyOfferApprovalStatus,
   type TalentOfferApprovalStatus,
 } from "./talent-approvals";
+import { loadCoordinatorInquiriesForUser } from "./talent-coordinator-inquiries";
 
 /**
  * _data-bridge/talent.ts — talent-side dashboard loaders.
@@ -368,6 +369,16 @@ export type TalentInquiryRow = {
    * inquiry open. Null when there is no live offer / no approval row yet.
    */
   myApprovalStatus: TalentOfferApprovalStatus | null;
+  /**
+   * Hub self-coordination (2026-06-02) — true when this talent ALSO holds a
+   * `role='coordinator'` participant row on the inquiry (an independent /
+   * open-hub booking they run themselves, or one an agency added them to as
+   * a coordinator). Drives the talent shell's coordinator surfaces (the
+   * client/private sub-thread, lineup edit, offers) via `conv.iAmCoordinator`.
+   * The RLS `inquiry_participants_talent_select` only returns `role='talent'`
+   * rows, so the coordinator role is resolved with a service-role lookup.
+   */
+  iAmCoordinator: boolean;
 };
 
 // Cross-agency unified inbox loader (and its row type) moved to
@@ -518,7 +529,50 @@ export async function loadTalentInquiries(
       trustLevel: r.inquiries!.trust_level_at_submission ?? null,
       sourceChannel: r.inquiries!.source_channel ?? null,
       myApprovalStatus: approvalByInquiry.get(r.inquiries!.id) ?? null,
+      // Flipped to true below when the talent ALSO coordinates this inquiry.
+      iAmCoordinator: false,
     }));
+
+    // Hub self-coordination (2026-06-02) — surface the talent's COORDINATOR
+    // role. A talent who also runs a booking as its coordinator (an
+    // independent / open-hub inquiry the engine auto-promotes them on, or one
+    // an agency adds them to) would otherwise never get coordinator
+    // capabilities here, because RLS talent-select only returns `role='talent'`
+    // rows. loadCoordinatorInquiriesForUser resolves it via service-role; we
+    // then (a) flip `iAmCoordinator` on lineup rows the talent also
+    // coordinates and (b) append coordinator-only inquiries they don't perform.
+    if (myUserId) {
+      const coordInquiries = await loadCoordinatorInquiriesForUser(myUserId, tenantId);
+      const coordIds = new Set(coordInquiries.map((i) => i.id));
+      for (const row of rows) {
+        if (coordIds.has(row.id)) row.iAmCoordinator = true;
+      }
+      const seenIds = new Set(rows.map((r) => r.id));
+      for (const i of coordInquiries) {
+        if (seenIds.has(i.id)) continue;
+        seenIds.add(i.id);
+        rows.push({
+          id: i.id,
+          status: i.status,
+          contact_name: i.contact_name,
+          company: i.company,
+          message: i.message,
+          event_date: i.event_date,
+          event_location: i.event_location,
+          created_at: i.created_at,
+          updated_at: i.updated_at,
+          participantStatus: "active",
+          unreadCount: 0,
+          trustLevel: i.trust_level_at_submission ?? null,
+          sourceChannel: i.source_channel ?? null,
+          myApprovalStatus: null,
+          iAmCoordinator: true,
+        });
+      }
+      rows.sort((a, b) =>
+        a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0,
+      );
+    }
 
     if (!myUserId || rows.length === 0) return rows;
 
