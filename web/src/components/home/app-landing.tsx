@@ -83,16 +83,17 @@ export function AppLanding() {
             className="plt-display text-xs font-medium uppercase tracking-[0.4em]"
             style={{ color: "var(--plt-muted)" }}
           >
-            {PLATFORM_BRAND.name}
+            {PLATFORM_BRAND.name} workspace
           </p>
           <h1
             className="plt-display mt-6 text-3xl font-normal leading-tight tracking-[0.02em] sm:text-4xl"
             style={{ color: "var(--plt-ink)" }}
           >
-            Workspace
+            Welcome to {PLATFORM_BRAND.name}
           </h1>
           <p className="mx-auto mt-4 max-w-sm text-base" style={{ color: "var(--plt-muted)" }}>
-            Sign in to access your admin, client, or talent workspace.
+            Sign in to your workspace — your admin, client, or talent dashboard.
+            Everything past this point is private to your account.
           </p>
 
           <div className="mt-10 flex flex-col items-center gap-3">
