@@ -1,8 +1,7 @@
 import { talentPlanToTier } from "@/lib/access/talent-membership";
 import { isTalentPersonalSectionTypeKey } from "@/lib/site-admin/sections/talent-personal-section-keys";
 
-import { isTemplateAllowedForTier } from "./templates/registry";
-import type { TalentSiteTemplateKey } from "./templates/types";
+import { isTemplateAllowedForTier, isTemplateKey } from "./templates/registry";
 import type { TalentSiteCompositionMode, TalentSiteSnapshot } from "./types";
 
 export type TalentSiteValidationResult =
@@ -15,18 +14,6 @@ const MAX_PROP_STRING = 8000;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isTemplateKey(value: unknown): value is TalentSiteTemplateKey {
-  return (
-    value === "tulala-digital" ||
-    value === "roster" ||
-    value === "editorial" ||
-    value === "studio" ||
-    value === "stage" ||
-    value === "creator" ||
-    value === "epk"
-  );
 }
 
 function isCompositionMode(value: unknown): value is TalentSiteCompositionMode {

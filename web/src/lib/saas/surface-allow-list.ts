@@ -63,6 +63,15 @@ const STATIC_PATHS = ["/sitemap.xml", "/robots.txt"] as const;
 const PROTOTYPE_PREFIX = "/prototypes" as const;
 
 /**
+ * Talent-site template previews under `/template-preview/<key>`. A standalone,
+ * no-auth, no-tenant-read demo surface that renders a talent personal-site
+ * template with a demo persona + curated imagery (opened from the template
+ * gallery's eye icon). Allowed on every host kind so the preview iframe resolves
+ * from any dashboard host without seeding `agency_domains`.
+ */
+const TEMPLATE_PREVIEW_PREFIX = "/template-preview" as const;
+
+/**
  * API paths reachable on every surface:
  *   - `/api/cron/*`          → scheduler bearer-token protected
  *   - `/api/analytics/events`→ write-only, name allow-listed
@@ -215,7 +224,7 @@ const WORKSPACE_SLUG_RESERVED_PREFIXES = new Set([
   // Static
   "sitemap.xml", "robots.txt",
   // Prototypes + internals
-  "prototypes", "_next", "share",
+  "prototypes", "template-preview", "_next", "share",
   // Phase 3.11 — HQ super_admin console at /platform/admin/*.
   // "platform" must be reserved so isWorkspaceSlugPath() never treats it
   // as a tenant slug — Next.js static segment `platform/` already takes
@@ -388,6 +397,7 @@ export function isPathAllowedForHostKind(
   if (pathname === "/") return true;
   if (anyExact(pathname, STATIC_PATHS)) return true;
   if (hasPrefix(pathname, PROTOTYPE_PREFIX)) return true;
+  if (hasPrefix(pathname, TEMPLATE_PREVIEW_PREFIX)) return true;
   if (anyPrefix(pathname, SHARED_API_PREFIXES)) return true;
   if (anyPrefix(pathname, COMPLIANCE_PREFIXES)) return true;
 

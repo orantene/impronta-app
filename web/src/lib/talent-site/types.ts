@@ -1,5 +1,17 @@
 import type { Locale } from "@/lib/site-admin/locales";
-import type { TalentSiteTemplateKey } from "./templates/types";
+import type { TalentSiteTemplateKey, TemplateCategory } from "./templates/types";
+
+export type TalentSiteTemplateCardDTO = {
+  key: string;
+  label: string;
+  blurb: string;
+  thumbnailUrl: string;
+  category: TemplateCategory;
+  /** Tier this template unlocks at: free | pro | max. */
+  tier: "free" | "pro" | "max";
+  /** True when the current plan can't select it (preview-only / upsell). */
+  locked: boolean;
+};
 
 export type TalentSiteStatus = "draft" | "published" | "unpublished" | "archived";
 
@@ -81,7 +93,7 @@ export type TalentSiteDashboardState = {
   isPubliclyHidden: boolean;
   templateKey: string | null;
   compositionMode: TalentSiteCompositionMode | null;
-  availableTemplates: { key: string; label: string; blurb: string; thumbnailUrl: string }[];
+  availableTemplates: TalentSiteTemplateCardDTO[];
   site: {
     id: string;
     status: TalentSiteStatus;

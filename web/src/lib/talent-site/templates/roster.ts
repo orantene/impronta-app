@@ -7,6 +7,7 @@ export const ROSTER_TEMPLATE: TalentSiteTemplateDef = {
   label: "Roster",
   blurb: "Classic comp-card layout with hero, gallery, and contact.",
   availableAt: "pro",
+  category: "classic",
   thumbnailUrl: "/talent-templates/roster.webp",
   buildSlots: (ctx) => {
     const snapshot = buildTalentPortfolioStarterSnapshot(ctx.profile, ctx.media);

@@ -107,6 +107,7 @@ export const STAGE_TEMPLATE: TalentSiteTemplateDef = {
   label: "Stage",
   blurb: "Video-first hero for performers and live talent.",
   availableAt: "max",
+  category: "classic",
   thumbnailUrl: "/talent-templates/stage.webp",
   buildSlots: buildStageSlots,
 };
@@ -116,6 +117,7 @@ export const CREATOR_TEMPLATE: TalentSiteTemplateDef = {
   label: "Creator",
   blurb: "Social-first layout for creators and influencers.",
   availableAt: "max",
+  category: "classic",
   thumbnailUrl: "/talent-templates/creator.webp",
   buildSlots: buildCreatorSlots,
 };
@@ -125,6 +127,7 @@ export const EPK_TEMPLATE: TalentSiteTemplateDef = {
   label: "EPK",
   blurb: "Press-kit feel — bio, gallery, and contact CTA.",
   availableAt: "max",
+  category: "classic",
   thumbnailUrl: "/talent-templates/epk.webp",
   buildSlots: buildEpkSlots,
 };

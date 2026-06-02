@@ -3,7 +3,10 @@ import {
   talentTierToPlanKey,
   type TalentPlanTier,
 } from "@/lib/access/talent-membership";
-import { listTemplatesForTier } from "@/lib/talent-site/templates/registry";
+import {
+  isTemplateAllowedForTier,
+  listAllTemplates,
+} from "@/lib/talent-site/templates/registry";
 import type { TalentSiteDashboardState } from "@/lib/talent-site/types";
 
 /**
@@ -15,11 +18,14 @@ export function mergeTalentSiteDashboardWithShellTier(
   shellTier: TalentPlanTier,
 ): TalentSiteDashboardState {
   const membership = buildTalentMembershipState(talentTierToPlanKey(shellTier));
-  const availableTemplates = listTemplatesForTier(membership.tier).map((t) => ({
+  const availableTemplates = listAllTemplates().map((t) => ({
     key: t.key,
     label: t.label,
     blurb: t.blurb,
     thumbnailUrl: t.thumbnailUrl,
+    category: t.category,
+    tier: t.availableAt,
+    locked: !isTemplateAllowedForTier(t.key, membership.tier),
   }));
 
   return {

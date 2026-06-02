@@ -86,6 +86,7 @@ export const EDITORIAL_TEMPLATE: TalentSiteTemplateDef = {
   label: "Editorial",
   blurb: "Magazine spread feel — large hero, generous white space.",
   availableAt: "pro",
+  category: "classic",
   thumbnailUrl: "/talent-templates/editorial.webp",
   buildSlots: buildEditorialSlots,
 };

@@ -1,128 +1,99 @@
 import type { TalentSiteSnapshotSection } from "../types";
 import type { TalentSiteTemplateDef, TemplateBuildContext } from "./types";
+import {
+  aboutStory,
+  compose,
+  ctaBook,
+  gallery,
+  heroSplit,
+  inquireHref,
+  marquee,
+  valuesTrio,
+} from "./section-kit";
 
-function newSectionId(): string {
-  return crypto.randomUUID();
+function serviceLabels(ctx: TemplateBuildContext): string[] {
+  const { profile } = ctx;
+  const labels = [
+    ...(profile.primaryTypeLabel ? [profile.primaryTypeLabel] : []),
+    ...profile.serviceAreaLabels,
+  ];
+  return labels.length ? labels : ["Available for select projects"];
 }
 
-function makeSlot(
-  slotKey: string,
-  sortOrder: number,
-  sectionTypeKey: string,
-  name: string,
-  props: Record<string, unknown>,
-): TalentSiteSnapshotSection {
-  return {
-    slotKey,
-    sortOrder,
-    sectionId: newSectionId(),
-    sectionTypeKey,
-    schemaVersion: 1,
-    name,
-    props,
-  };
-}
-
+/**
+ * Tulala Digital — the free, auto-assigned base. Clean, profession-agnostic,
+ * intentionally lighter than the Pro profession templates.
+ */
 function buildTulalaDigitalSlots(ctx: TemplateBuildContext): TalentSiteSnapshotSection[] {
   const { profile, media } = ctx;
   const title = profile.displayName.trim() || "My profile";
   const intro =
-    profile.publicBio?.trim().slice(0, 240) ||
+    profile.publicBio?.trim().slice(0, 200) ||
     (profile.primaryTypeLabel
       ? `${profile.primaryTypeLabel}${profile.homeCity ? ` · ${profile.homeCity}` : ""}`
-      : null);
-  const profilePath = `/t/${profile.profileCode}`;
+      : "Welcome to my Tulala page.");
+  const href = inquireHref(profile.profileCode);
+  const images = media.map((m) => m.url);
+  const labels = serviceLabels(ctx);
 
-  const galleryItems = media.slice(0, 6).map((item, index) => ({
-    src: item.url,
-    alt: item.alt ?? profile.displayName,
-    aspect: (index % 3 === 0 ? "wide" : index % 3 === 1 ? "tall" : "square") as
-      | "wide"
-      | "tall"
-      | "square",
-  }));
-
-  const slots: TalentSiteSnapshotSection[] = [
-    makeSlot("hero", 0, "hero_split", "Hero", {
-      headline: title,
-      subheadline: intro ?? undefined,
-      primaryCta: {
-        label: "Send inquiry",
-        href: `${profilePath}?inquire=1`,
-      },
-      ...(profile.headshotUrl
-        ? {
-            imageUrl: profile.headshotUrl,
-            imageAlt: profile.displayName,
-          }
-        : {}),
+  return compose([
+    heroSplit({
+      eyebrow: profile.primaryTypeLabel ?? undefined,
+      title,
+      tagline: intro,
+      primary: { label: "Send inquiry", href },
+      imageUrl: profile.headshotUrl ?? images[0] ?? "",
+      imageAlt: title,
+      side: "media-right",
+      variant: "asymmetric",
+      background: "canvas",
     }),
-    makeSlot("about", 1, "image_copy_alternating", "About", {
+    marquee({ items: labels, background: "ivory", onDark: false, variant: "tags" }),
+    aboutStory({
       eyebrow: "About",
-      headline: title,
-      items: [
-        {
-          title,
-          body: profile.publicBio?.trim() || intro || "Welcome to my Tulala profile.",
-          imageUrl: profile.headshotUrl ?? undefined,
-          imageAlt: profile.displayName,
-          side: "image-left",
-        },
-      ],
+      headline: "A little about me",
+      title,
+      body: profile.publicBio?.trim() || intro,
+      imageUrl: images[1] ?? profile.headshotUrl ?? undefined,
+      imageAlt: title,
+      side: "image-left",
+      background: "canvas",
     }),
-  ];
-
-  if (galleryItems.length >= 3) {
-    slots.push(
-      makeSlot("gallery", 2, "gallery_strip", "Portfolio", {
-        eyebrow: "Work",
-        headline: "Selected portfolio",
-        items: galleryItems,
-        variant: "mosaic",
-      }),
-    );
-  }
-
-  const serviceLabels =
-    profile.serviceAreaLabels.length > 0
-      ? profile.serviceAreaLabels
-      : profile.primaryTypeLabel
-        ? [profile.primaryTypeLabel]
-        : ["Services"];
-
-  slots.push(
-    makeSlot("services", slots.length, "values_trio", "Services", {
+    gallery({
+      eyebrow: "Work",
+      headline: "Selected work",
+      images,
+      alt: title,
+      variant: "mosaic",
+      background: "ivory",
+    }),
+    valuesTrio({
       eyebrow: "What I offer",
-      headline: "Services & focus",
-      items: serviceLabels.slice(0, 3).map((label, index) => ({
-        numberLabel: String(index + 1).padStart(2, "0"),
+      headline: "How I can help",
+      items: labels.slice(0, 3).map((label, i) => ({
+        numberLabel: String(i + 1).padStart(2, "0"),
         title: label,
         detail: profile.homeCity ? `Based in ${profile.homeCity}` : undefined,
       })),
-      variant: "numbered-cards",
+      background: "canvas",
     }),
-    makeSlot("cta", slots.length + 1, "cta_banner", "Contact", {
+    ctaBook({
       headline: "Let's work together",
-      copy: "Send an inquiry through my Tulala profile.",
-      primaryCta: {
-        label: "Contact me",
-        href: `${profilePath}?inquire=1`,
-      },
+      copy: "Send an inquiry and I'll get back to you with availability.",
+      primary: { label: "Contact me", href },
       variant: "minimal-band",
-      bandTone: "ivory",
-      insetCard: true,
+      bandTone: "espresso",
     }),
-  );
-
-  return slots;
+  ]);
 }
 
 export const TULALA_DIGITAL_TEMPLATE: TalentSiteTemplateDef = {
   key: "tulala-digital",
-  label: "Tulala Digital",
-  blurb: "Included with Free — a clean service profile on Tulala.",
+  label: "Tulala Signature",
+  blurb: "Included free — a clean, confident one-page profile.",
   availableAt: "free",
-  thumbnailUrl: "/talent-templates/tulala-digital.webp",
+  category: "base",
+  thumbnailUrl: "/marketing/photos/talent-services-hero.jpg",
   buildSlots: buildTulalaDigitalSlots,
 };
 

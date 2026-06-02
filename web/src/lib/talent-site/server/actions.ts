@@ -19,6 +19,7 @@ import { sanitizePublishedTalentSiteSnapshot } from "@/lib/talent-site/sanitize-
 import {
   buildTemplateSnapshot,
   defaultTemplateKeyForTier,
+  isFreeTemplate,
   type TalentSiteTemplateKey,
 } from "@/lib/talent-site/templates/registry";
 import { buildStarterSnapshotForTalent, loadTalentStarterProfileData } from "@/lib/talent-site/server/load-starter-data";
@@ -59,9 +60,12 @@ function clampSnapshotForPublish(
   let next = { ...snapshot };
 
   if (tier === "free") {
+    // Free can keep any free base template, but never custom composition.
     next = {
       ...next,
-      templateKey: "tulala-digital",
+      templateKey: isFreeTemplate(next.templateKey)
+        ? next.templateKey
+        : defaultTemplateKeyForTier("free"),
       compositionMode: "template",
     };
   }
@@ -469,19 +473,19 @@ export async function applyTalentSiteTemplateAction(
   if (!scope.ok) {
     return { ok: false, code: scope.code, error: scope.error };
   }
-  if (!assertTalentCanApplyTemplate(scope.planKey)) {
-    return {
-      ok: false,
-      code: "plan_required",
-      error: planDeniedMessage("template"),
-    };
+  // Editing is the baseline capability. Free bases are switchable by anyone who
+  // can edit; Pro/Max templates additionally require the template-gallery
+  // capability AND a tier that unlocks them.
+  if (!assertTalentCanEditPersonalSite(scope.planKey)) {
+    return { ok: false, code: "plan_required", error: planDeniedMessage("edit") };
   }
-  if (!assertTemplateAllowedForPlan(scope.planKey, input.templateKey)) {
-    return {
-      ok: false,
-      code: "plan_required",
-      error: planDeniedMessage("template"),
-    };
+  if (!isFreeTemplate(input.templateKey)) {
+    if (!assertTalentCanApplyTemplate(scope.planKey)) {
+      return { ok: false, code: "plan_required", error: planDeniedMessage("template") };
+    }
+    if (!assertTemplateAllowedForPlan(scope.planKey, input.templateKey)) {
+      return { ok: false, code: "plan_required", error: planDeniedMessage("template") };
+    }
   }
 
   const admin = createServiceRoleClient();

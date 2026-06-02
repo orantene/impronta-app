@@ -9,7 +9,7 @@ import {
   requireTalentSelf,
   requireTalentSelfScope,
 } from "@/lib/server/talent-self-guard";
-import { listTemplatesForTier } from "@/lib/talent-site/templates/registry";
+import { isTemplateAllowedForTier, listAllTemplates } from "@/lib/talent-site/templates/registry";
 import { provisionTalentPersonalSiteIfMissing } from "@/lib/talent-site/server/provision";
 import type { TalentSiteDashboardState, TalentSiteRow } from "@/lib/talent-site/types";
 import { parseTalentSiteSnapshot } from "@/lib/talent-site/validation";
@@ -87,11 +87,16 @@ export async function loadTalentPersonalSiteDashboardState(
     }
   }
 
-  const availableTemplates = listTemplatesForTier(membership.tier).map((t) => ({
+  // All templates are surfaced — locked (higher-tier) ones render as preview-only
+  // upsell cards in the gallery; the apply action still enforces the tier gate.
+  const availableTemplates = listAllTemplates().map((t) => ({
     key: t.key,
     label: t.label,
     blurb: t.blurb,
     thumbnailUrl: t.thumbnailUrl,
+    category: t.category,
+    tier: t.availableAt,
+    locked: !isTemplateAllowedForTier(t.key, membership.tier),
   }));
 
   const state: TalentSiteDashboardState = {

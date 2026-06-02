@@ -89,6 +89,7 @@ export const STUDIO_TEMPLATE: TalentSiteTemplateDef = {
   label: "Studio",
   blurb: "Tight grid, big imagery — fashion and lifestyle.",
   availableAt: "pro",
+  category: "classic",
   thumbnailUrl: "/talent-templates/studio.webp",
   buildSlots: buildStudioSlots,
 };
