@@ -13,11 +13,10 @@
 import { useState } from "react";
 import { COLORS, FONTS, TRANSITION, useAdminShell } from "../state";
 import {
-  Avatar,
   CapsLabel,
   Divider,
   DrawerShell,
-  Icon,
+  EmptyState,
   SecondaryButton,
 } from "../primitives";
 import { KvRow } from "./shared";
@@ -29,94 +28,27 @@ import { KvRow } from "./shared";
 // would invite spam. Instead: read-only activity feed + one-click "I'm
 // not free, try her" referral.
 
-const NETWORK_TALENTS = [
-  { id: "n1", name: "Sara Mendez", initials: "SM", category: "Editorial", lastSeen: "2d ago", booked: 12, mutuals: 3, follows: true },
-  { id: "n2", name: "Lia Torres", initials: "LT", category: "Commercial", lastSeen: "Today", booked: 8, mutuals: 5, follows: true },
-  { id: "n3", name: "Marco Vasquez", initials: "MV", category: "Runway", lastSeen: "1w ago", booked: 4, mutuals: 1, follows: false },
-  { id: "n4", name: "Camille Roux", initials: "CR", category: "Editorial · Lifestyle", lastSeen: "Today", booked: 18, mutuals: 7, follows: false },
-];
-
 export function TalentNetworkDrawer() {
   const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-network";
-  const [follows, setFollows] = useState<Record<string, boolean>>(
-    () => Object.fromEntries(NETWORK_TALENTS.map((t) => [t.id, t.follows])),
-  );
+  // Honest stub — the talent-to-talent network has no backend yet. Showing a
+  // fabricated peer list (with dead follow/refer buttons) would misrepresent a
+  // feature that isn't live, so we surface a clear "coming soon" instead.
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
       title="Your network"
-      description="Talents you follow + suggested matches. Useful when you need to hand off a brief — one tap, fully attributed."
+      description="Follow other talents, see who's working where, and hand off briefs you can't take."
       width={620}
       footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
-      <CapsLabel>Following · {Object.values(follows).filter(Boolean).length}</CapsLabel>
-      <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
-        {NETWORK_TALENTS.filter((t) => follows[t.id]).map((t) => (
-          <NetworkRow
-            key={t.id}
-            t={t}
-            following={true}
-            onToggle={() => setFollows((p) => ({ ...p, [t.id]: !p[t.id] }))}
-            onRefer={() => undefined}
-          />
-        ))}
-      </div>
-      <Divider label="Suggested · same category" />
-      <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
-        {NETWORK_TALENTS.filter((t) => !follows[t.id]).map((t) => (
-          <NetworkRow
-            key={t.id}
-            t={t}
-            following={false}
-            onToggle={() => setFollows((p) => ({ ...p, [t.id]: true }))}
-            onRefer={() => undefined}
-          />
-        ))}
-      </div>
+      <EmptyState
+        icon="team"
+        title="Coming soon"
+        body="The talent network — following peers and one-tap, fully-attributed brief hand-offs — isn't live yet. We'll let you know when it opens."
+      />
     </DrawerShell>
-  );
-}
-
-function NetworkRow({
-  t,
-  following,
-  onToggle,
-  onRefer,
-}: {
-  t: typeof NETWORK_TALENTS[number];
-  following: boolean;
-  onToggle: () => void;
-  onRefer: () => void;
-}) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        padding: "10px 12px",
-        background: "#fff",
-        border: `1px solid ${COLORS.borderSoft}`,
-        borderRadius: 9,
-        fontFamily: FONTS.body,
-      }}
-    >
-      <Avatar initials={t.initials} size={32} tone="ink" />
-      <div className="flex-1 min-w-0">
-        <div className="text-admin-ink text-admin-13 font-medium">{t.name}</div>
-        <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
-          {t.category} · {t.booked} bookings · {t.mutuals} mutuals · {t.lastSeen}
-        </div>
-      </div>
-      {following && (
-        <SecondaryButton size="sm" onClick={onRefer}>Refer brief</SecondaryButton>
-      )}
-      <SecondaryButton size="sm" onClick={onToggle}>
-        {following ? "Unfollow" : "Follow"}
-      </SecondaryButton>
-    </div>
   );
 }
 
@@ -252,66 +184,26 @@ export function TalentVoiceReplyDrawer() {
 // keeps its own contracted rate; the picker is only about WHO sees the
 // inquiry first, not who gets paid.
 
-const MY_NETWORK_AGENCIES = [
-  { id: "ag-acme", name: "Acme Models", role: "Owner", plan: "Agency", talents: 28, primary: true },
-  { id: "ag-studio", name: "Studio Reyes", role: "Owner", plan: "Studio", talents: 6, primary: false },
-  { id: "ag-bumble", name: "Bumble Talents (sub-roster)", role: "Coordinator", plan: "Free", talents: 4, primary: false },
-];
-
 export function TalentMultiAgencyPickerDrawer() {
   const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-multi-agency-picker";
+  // Honest stub — the in-drawer multi-agency picker was demo-only (it never
+  // actually switched workspace). Real workspace switching already lives in
+  // the top-bar workspace switcher; this dedicated picker isn't built yet.
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
       title="Switch workspace"
-      description="On the Network plan you can own multiple agencies. Each keeps its own roster + commission. Pick one to see its inbox."
+      description="On the Network plan you can own multiple agencies, each with its own roster and commission."
       width={520}
       footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
-      <div className="flex flex-col gap-2">
-        {MY_NETWORK_AGENCIES.map((a) => (
-          <button
-            key={a.id}
-            type="button"
-            onClick={closeDrawer}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              padding: "12px 14px",
-              background: "#fff",
-              border: `1px solid ${a.primary ? COLORS.accent : COLORS.borderSoft}`,
-              borderRadius: 10,
-              fontFamily: FONTS.body,
-              cursor: "pointer",
-              textAlign: "left",
-              position: "relative",
-            }}
-          >
-            <Avatar initials={a.name.split(" ").map((n) => n[0]).join("")} size={32} tone="ink" />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-admin-ink text-admin-13 font-semibold">{a.name}</span>
-                {a.primary && (
-                  <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", padding: "2px 6px", borderRadius: 999 }} className="text-admin-accent-deep bg-admin-accent-soft">
-                    Primary
-                  </span>
-                )}
-              </div>
-              <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
-                {a.role} · {a.plan} plan · {a.talents} talents
-              </div>
-            </div>
-            <Icon name="chevron-right" size={13} color={COLORS.inkDim} />
-          </button>
-        ))}
-      </div>
-      <div style={{ marginTop: 16, padding: "12px 14px", border: `1px solid rgba(91,107,160,0.18)`, borderRadius: 10, fontFamily: FONTS.body, fontSize: 12, lineHeight: 1.5 }} className="bg-admin-indigo-soft text-admin-indigo-deep">
-        <strong className="font-semibold">Cross-agency commission:</strong>{" "}
-        Each agency keeps its contracted rate. Switching workspace doesn&apos;t move money — it&apos;s only about who sees what inbox.
-      </div>
+      <EmptyState
+        icon="team"
+        title="Coming soon"
+        body="Switching between agencies you own from here isn't live yet. For now, use the workspace switcher in the top bar."
+      />
     </DrawerShell>
   );
 }

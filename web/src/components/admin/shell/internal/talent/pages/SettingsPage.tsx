@@ -203,9 +203,8 @@ export function SettingsPage() {
         <SecondaryCard
           title="Personal page builder"
           description="Templates, sections, embeds and a Max custom domain. Coexists with all your agency rosters."
-          meta={<><StatDot tone="dim" /> Coming soon</>}
-          affordance="Choose template"
-          onClick={() => openDrawer("talent-page-template")}
+          affordance="Open page builder"
+          onClick={() => setTalentPage("public-page")}
         />
       </Grid>
 
