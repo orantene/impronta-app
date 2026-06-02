@@ -3,9 +3,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 /**
  * M2.3 — Per-requirement-group fulfillment readiness.
  *
- * A requirement group is "fulfilled" when the number of talent participants
- * (in_status {invited, active}) whose `inquiry_approvals` row for the current
- * offer is `accepted` meets the group's `quantity_required`.
+ * Audit #1 (2026-06): a requirement group is "fulfilled" when every talent who
+ * is ON THE CURRENT OFFER (has an `inquiry_offer_line_items` row, mapped to a
+ * participant in that group) has an `accepted` `inquiry_approvals` row for the
+ * offer. The gate counts the OFFERED headcount — the same set
+ * `engine_send_offer` seeds approvals for — NOT the stored, drift-prone
+ * `inquiry_requirement_groups.quantity_required`.
  *
  * This module is the single source of truth on the TS side. The server-side
  * RPC `engine_inquiry_group_shortfall(p_inquiry_id)` is the canonical computer
@@ -16,9 +19,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  *     {
  *       "group_id": "<uuid>",
  *       "role_key": "hosts",
- *       "quantity_required": 4,
- *       "approved_count": 2,
- *       "shortfall": 2
+ *       "quantity_required": 2,   // offered headcount (keeps shortfall = required - approved)
+ *       "offered_count": 2,       // same value, explicit
+ *       "approved_count": 1,
+ *       "shortfall": 1
  *     },
  *     ...
  *   ]
@@ -34,7 +38,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export type GroupShortfall = {
   group_id: string;
   role_key: string;
+  /** Offered headcount for the group (= `offered_count`); preserves `shortfall = quantity_required - approved_count`. */
   quantity_required: number;
+  /** Talents on the current offer assigned to this group. Absent on legacy payloads. */
+  offered_count?: number;
   approved_count: number;
   shortfall: number;
 };
@@ -64,7 +71,8 @@ function parseShortfall(data: unknown): GroupShortfall[] {
     ) {
       continue;
     }
-    out.push({ group_id, role_key, quantity_required, approved_count, shortfall });
+    const offered_count = typeof r.offered_count === "number" ? r.offered_count : quantity_required;
+    out.push({ group_id, role_key, quantity_required, offered_count, approved_count, shortfall });
   }
   return out;
 }
