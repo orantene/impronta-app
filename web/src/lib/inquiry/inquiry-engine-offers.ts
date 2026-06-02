@@ -469,6 +469,21 @@ export async function sendOffer(
         message_kind: "offer_event",
         card_payload: { status: "sent", total_label: totalLabel, offer_id: ctx.offerId },
       });
+      // Talent-facing mirror: assigned talents read the GROUP (booking-team)
+      // thread, not the private staff thread, so without this they're asked to
+      // approve a binding offer with zero in-thread context ("No activity yet").
+      // Amount-free on purpose — the shared group thread must not leak the
+      // client total (agency margin) or one talent's rate to the others; each
+      // talent sees their own cut in the Offer tab + Money dashboard.
+      await supabase.from("inquiry_messages").insert({
+        inquiry_id: ctx.inquiryId,
+        tenant_id: ctx.tenantId,
+        thread_type: "group",
+        sender_user_id: ctx.actorUserId,
+        body: "You've received an offer — open the Offer tab to review and approve.",
+        message_kind: "offer_event",
+        card_payload: { status: "sent", total_label: "", offer_id: ctx.offerId },
+      });
     } catch (emitErr) {
       logServerError("inquiry-engine-offers.sendOffer.chatCard", emitErr);
     }

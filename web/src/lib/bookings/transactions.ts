@@ -447,6 +447,37 @@ export async function markPaid(
       }).then((r) => {
         if (r.error) logServerError("transactions.markPaid.bookingConfirmedCard", r.error);
       });
+      // Talent-facing mirror to the GROUP (booking-team) thread, which is what
+      // assigned talents read — without this they never get an in-thread
+      // "you're booked & paid" confirmation. Amount-free: the shared group
+      // thread must not carry the client gross (margin) or per-talent rates;
+      // each talent sees their own take-home in the Money dashboard.
+      sb.from("inquiry_messages").insert({
+        inquiry_id: result.data.sourceInquiryId,
+        tenant_id: result.data.sourceTenantId,
+        thread_type: "group",
+        sender_user_id: null,
+        body: "Payment received — your booking is confirmed.",
+        message_kind: "payment_paid",
+        card_payload: { amount_label: "", transaction_id: result.data.id },
+      }).then((r) => {
+        if (r.error) logServerError("transactions.markPaid.chatCard.group", r.error);
+      });
+      sb.from("inquiry_messages").insert({
+        inquiry_id: result.data.sourceInquiryId,
+        tenant_id: result.data.sourceTenantId,
+        thread_type: "group",
+        sender_user_id: null,
+        body: "Booking confirmed",
+        message_kind: "booking_confirmed",
+        card_payload: {
+          total_label: "",
+          summary: "Payment received — your booking is confirmed.",
+          transaction_id: result.data.id,
+        },
+      }).then((r) => {
+        if (r.error) logServerError("transactions.markPaid.bookingConfirmedCard.group", r.error);
+      });
     }
   }
   // Slice 15.4: payment.received → client receipt (email) + workspace alert
