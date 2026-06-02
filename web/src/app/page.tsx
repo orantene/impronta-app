@@ -6,6 +6,8 @@ import { AppLanding } from "@/components/home/app-landing";
 import { HubLanding } from "@/components/home/hub-landing";
 import { MarketingLanding } from "@/components/home/marketing-landing";
 import { getPublicHostContext } from "@/lib/saas/scope";
+import { getCachedActorSession } from "@/lib/server/request-cache";
+import { resolveAuthenticatedDestination } from "@/lib/auth-flow";
 import { createTranslator } from "@/i18n/messages";
 import {
   getRequestLocale,
@@ -128,9 +130,20 @@ export default async function HomePage() {
     case "marketing":
       return <MarketingLanding />;
     case "app":
-    default:
-      // `unknown` only happens outside a real request (build / tests).
-      // Render the app landing — it has no tenant reads and is safe.
+    default: {
+      // App-host ROOT only: a signed-in visitor jumps straight to their
+      // dashboard (admin / client / talent — whichever their role resolves
+      // to); a signed-out visitor gets the welcome / sign-in gateway below.
+      // Every OTHER app route auth-gates itself in middleware, so this
+      // redirect is scoped to "/" — deep links into the app are untouched.
+      const actor = await getCachedActorSession();
+      if (actor.user) {
+        const dest = resolveAuthenticatedDestination(actor.profile);
+        if (dest && dest !== "/") redirect(dest);
+      }
+      // `unknown` only happens outside a real request (build / tests) — the
+      // landing has no tenant reads and is safe.
       return <AppLanding />;
+    }
   }
 }
