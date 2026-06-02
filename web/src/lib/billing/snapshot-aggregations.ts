@@ -7,6 +7,8 @@ import { logServerError } from "@/lib/server/safe-error";
 
 import {
   mapBookingPayoutStatus,
+  resolveEarningsPayoutDate,
+  isWithinEarningsWindow,
   type TalentSnapshotAggregateRow,
 } from "@/lib/talent/earnings-types";
 
@@ -28,6 +30,7 @@ type BookingTalentJoinRow = {
     payout_lifecycle: string;
     payment_status: string;
     status: string;
+    client_revenue_lifecycle: string | null;
     source_type_snapshot: string | null;
     payment_method: string | null;
     source_inquiry_id: string | null;
@@ -144,6 +147,7 @@ export async function fetchTalentSnapshotAggregateRows(
           payout_lifecycle,
           payment_status,
           status,
+          client_revenue_lifecycle,
           source_type_snapshot,
           payment_method,
           source_inquiry_id
@@ -179,7 +183,7 @@ export async function fetchTalentSnapshotAggregateRows(
     ),
   ];
 
-  const [snapshotsRes, participantsRes] = await Promise.all([
+  const [snapshotsRes, participantsRes, payoutLegsRes] = await Promise.all([
     supabase
       .from("booking_commission_snapshot")
       .select(
@@ -193,6 +197,16 @@ export async function fetchTalentSnapshotAggregateRows(
           .eq("talent_profile_id", opts.talentProfileId)
           .in("inquiry_id", inquiryIds)
       : Promise.resolve({ data: [] as ParticipantRow[], error: null }),
+    // Audit #14: the REAL payout date = when this talent's transfer settled.
+    // Read transferred talent legs from the payout ledger so "Paid this month"
+    // windows on the pay date, not the shoot date.
+    supabase
+      .from("booking_payouts")
+      .select("booking_id, transferred_at")
+      .in("booking_id", bookingIds)
+      .eq("party", "talent")
+      .eq("talent_profile_id", opts.talentProfileId)
+      .eq("status", "transferred"),
   ]);
 
   if (snapshotsRes.error) {
@@ -203,9 +217,22 @@ export async function fetchTalentSnapshotAggregateRows(
     logServerError("snapshot-aggregations/participants", participantsRes.error);
     return [];
   }
+  // The payout-ledger read is non-fatal: a failure just falls back to the
+  // legacy payout-date behaviour rather than dropping the whole dashboard.
+  if (payoutLegsRes.error) {
+    logServerError("snapshot-aggregations/payout_legs", payoutLegsRes.error);
+  }
 
   const snapshots = (snapshotsRes.data ?? []) as SnapshotRow[];
   const participants = (participantsRes.data ?? []) as ParticipantRow[];
+
+  // booking_id → latest talent-leg transfer settlement timestamp.
+  const transferredAtByBooking = new Map<string, string>();
+  for (const leg of (payoutLegsRes.data ?? []) as Array<{ booking_id: string; transferred_at: string | null }>) {
+    if (!leg.transferred_at) continue;
+    const prev = transferredAtByBooking.get(leg.booking_id);
+    if (!prev || leg.transferred_at > prev) transferredAtByBooking.set(leg.booking_id, leg.transferred_at);
+  }
 
   const participantIdsByInquiry = new Map<string, Set<string>>();
   for (const p of participants) {
@@ -220,10 +247,22 @@ export async function fetchTalentSnapshotAggregateRows(
   for (const row of rows) {
     const booking = row.agency_bookings;
     if (booking.status === "cancelled") continue;
+    // Audit #14: a fully-refunded / chargeback-lost booking earned the talent
+    // nothing (their payout was clawed back) — drop it from Money entirely,
+    // the same way cancelled bookings are dropped.
+    if (booking.client_revenue_lifecycle === "refunded") continue;
 
     const workDateIso = resolveWorkDateIso(booking);
     if (!workDateIso) continue;
-    if (Date.parse(workDateIso) < sinceMs) continue;
+
+    const payoutDate = resolveEarningsPayoutDate({
+      transferredAtIso: transferredAtByBooking.get(row.booking_id) ?? null,
+      workDateIso,
+      payoutLifecycle: booking.payout_lifecycle,
+    });
+    // Audit #14: window on shoot date OR payout date — keeps unpaid pipeline
+    // while still surfacing a job paid this period but shot in a prior one.
+    if (!isWithinEarningsWindow(workDateIso, payoutDate, sinceMs)) continue;
 
     const inquiryId = booking.source_inquiry_id;
     const participantIds = inquiryId
@@ -247,7 +286,7 @@ export async function fetchTalentSnapshotAggregateRows(
       agencySlug: agency?.slug ?? "",
       agencyName: agency?.display_name ?? "Agency",
       workDate: workDateIso,
-      payoutDate: booking.payout_lifecycle === "paid" ? workDateIso : null,
+      payoutDate,
       clientLabel: resolveClientLabel(booking),
       grossCents: snapshot.gross_cents,
       netCents: snapshot.talent_net_cents,

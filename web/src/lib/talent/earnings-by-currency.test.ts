@@ -15,6 +15,8 @@ import assert from "node:assert/strict";
 import {
   buildTalentEarnings,
   EMPTY_TALENT_EARNINGS,
+  resolveEarningsPayoutDate,
+  isWithinEarningsWindow,
   type TalentSnapshotAggregateRow,
 } from "./earnings-types";
 
@@ -188,5 +190,73 @@ describe("groupByCurrency — currencyCode fallback", () => {
     assert.equal(byCurrency.length, 1);
     assert.equal(currencies[0], "EUR");
     assert.equal(byCurrency[0]!.totals.ytdNetCents, 160_00);
+  });
+});
+
+// ── Audit #14: payout date is the PAY date, not the shoot date ───────────────
+
+describe("resolveEarningsPayoutDate — windows Money on the real pay date", () => {
+  it("prefers the ledger transfer settlement date over the shoot date", () => {
+    // Shot in May, the transfer settled in June → payout date is JUNE.
+    const out = resolveEarningsPayoutDate({
+      transferredAtIso: "2026-06-02T14:31:00.000Z",
+      workDateIso: "2026-05-10",
+      payoutLifecycle: "paid",
+    });
+    assert.equal(out, "2026-06-02");
+  });
+
+  it("falls back to the shoot date for a legacy paid booking with no ledger date", () => {
+    const out = resolveEarningsPayoutDate({
+      transferredAtIso: null,
+      workDateIso: "2026-05-10",
+      payoutLifecycle: "paid",
+    });
+    assert.equal(out, "2026-05-10");
+  });
+
+  it("returns null when not yet paid out (no ledger date, lifecycle not paid)", () => {
+    assert.equal(
+      resolveEarningsPayoutDate({ transferredAtIso: null, workDateIso: "2026-05-10", payoutLifecycle: "pending" }),
+      null,
+    );
+    assert.equal(
+      resolveEarningsPayoutDate({ transferredAtIso: null, workDateIso: "2026-05-10", payoutLifecycle: "scheduled" }),
+      null,
+    );
+  });
+
+  it("truncates a full timestamp to the calendar date", () => {
+    assert.equal(
+      resolveEarningsPayoutDate({ transferredAtIso: "2026-01-15T23:59:59.000Z", workDateIso: "2025-12-20", payoutLifecycle: "paid" }),
+      "2026-01-15",
+    );
+  });
+});
+
+describe("isWithinEarningsWindow — shoot-date OR payout-date arm", () => {
+  const since = Date.parse("2026-01-01T00:00:00.000Z");
+
+  it("keeps an unpaid pipeline job shot inside the window (no payout date)", () => {
+    assert.equal(isWithinEarningsWindow("2026-03-10", null, since), true);
+  });
+
+  it("keeps a job shot BEFORE the window but PAID inside it (cross-year fix)", () => {
+    // Shot last December, paid this January → must still appear so "Paid this
+    // month" can see it. Shoot-date-only windowing dropped it.
+    assert.equal(isWithinEarningsWindow("2025-12-20", "2026-01-15", since), true);
+  });
+
+  it("drops a job both shot and paid before the window", () => {
+    assert.equal(isWithinEarningsWindow("2025-11-01", "2025-12-15", since), false);
+  });
+
+  it("drops a job shot before the window with no payout date", () => {
+    assert.equal(isWithinEarningsWindow("2025-12-31", null, since), false);
+  });
+
+  it("ignores an unparseable shoot date but still honours the payout arm", () => {
+    assert.equal(isWithinEarningsWindow("not-a-date", "2026-02-01", since), true);
+    assert.equal(isWithinEarningsWindow("not-a-date", null, since), false);
   });
 });
