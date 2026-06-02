@@ -64,6 +64,9 @@ function adaptTalentInquiry(row: InquiryBridgeRow, fallbackAgencyName: string): 
     },
     location: row.event_location ?? undefined,
     date:     row.event_date ?? undefined,
+    // Audit #12 — carry the talent's own approval on the current offer through
+    // to the thread so it stops re-showing "Approve offer" post-approval.
+    myApprovalStatus: row.myApprovalStatus,
     lastMessage: {
       sender:  "coordinator" as const,
       preview: stage === "booked" ? "Booking confirmed — check logistics tab." : "Awaiting your response.",

@@ -4,6 +4,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { logServerError } from "@/lib/server/safe-error";
 
 import type { TalentInquiryRow } from "./talent";
+import { loadMyOfferApprovalStatus } from "./talent-approvals";
 
 /**
  * _data-bridge/talent-inquiries-all-agencies.ts — Tulala-canonical unified
@@ -41,6 +42,7 @@ export async function loadTalentInquiriesAllAgencies(
     const { data, error } = await supabase
       .from("inquiry_participants")
       .select(`
+        id,
         status,
         inquiries!inner (
           id,
@@ -54,7 +56,8 @@ export async function loadTalentInquiriesAllAgencies(
           updated_at,
           tenant_id,
           trust_level_at_submission,
-          source_channel
+          source_channel,
+          current_offer_id
         )
       `)
       .eq("talent_profile_id", talentProfileId)
@@ -69,6 +72,8 @@ export async function loadTalentInquiriesAllAgencies(
     }
 
     type PartRow = {
+      /** inquiry_participants.id — this talent's participant row (audit #12). */
+      id: string;
       status: string;
       inquiries: {
         id: string;
@@ -83,27 +88,41 @@ export async function loadTalentInquiriesAllAgencies(
         tenant_id: string;
         trust_level_at_submission: "basic" | "verified" | "silver" | "gold" | null;
         source_channel: string | null;
+        current_offer_id: string | null;
       } | null;
     };
 
-    const partialRows = ((data ?? []) as unknown as PartRow[])
-      .filter((r) => r.inquiries)
-      .map((r) => ({
-        id: r.inquiries!.id,
-        status: r.inquiries!.status,
-        contact_name: r.inquiries!.contact_name,
-        company: r.inquiries!.company,
-        message: r.inquiries!.message,
-        event_date: r.inquiries!.event_date,
-        event_location: r.inquiries!.event_location,
-        created_at: r.inquiries!.created_at,
-        updated_at: r.inquiries!.updated_at,
-        participantStatus: r.status,
-        unreadCount: 0,
-        trustLevel: r.inquiries!.trust_level_at_submission ?? null,
-        sourceChannel: r.inquiries!.source_channel ?? null,
-        tenantId: r.inquiries!.tenant_id,
-      }));
+    const partRows = ((data ?? []) as unknown as PartRow[]).filter((r) => r.inquiries);
+
+    // Audit #12 — read THIS talent's own approval status on each inquiry's
+    // current offer so the unified-inbox thread can stop re-showing "Approve
+    // offer" after the talent has already approved.
+    const approvalByInquiry = await loadMyOfferApprovalStatus(
+      supabase,
+      partRows.map((r) => ({
+        inquiryId: r.inquiries!.id,
+        participantId: r.id,
+        currentOfferId: r.inquiries!.current_offer_id,
+      })),
+    );
+
+    const partialRows = partRows.map((r) => ({
+      id: r.inquiries!.id,
+      status: r.inquiries!.status,
+      contact_name: r.inquiries!.contact_name,
+      company: r.inquiries!.company,
+      message: r.inquiries!.message,
+      event_date: r.inquiries!.event_date,
+      event_location: r.inquiries!.event_location,
+      created_at: r.inquiries!.created_at,
+      updated_at: r.inquiries!.updated_at,
+      participantStatus: r.status,
+      unreadCount: 0,
+      trustLevel: r.inquiries!.trust_level_at_submission ?? null,
+      sourceChannel: r.inquiries!.source_channel ?? null,
+      myApprovalStatus: approvalByInquiry.get(r.inquiries!.id) ?? null,
+      tenantId: r.inquiries!.tenant_id,
+    }));
 
     if (partialRows.length === 0) return [];
 

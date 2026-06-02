@@ -7,6 +7,10 @@ import {
   buildTalentMembershipState,
   type TalentMembershipState,
 } from "@/lib/access/talent-membership";
+import {
+  loadMyOfferApprovalStatus,
+  type TalentOfferApprovalStatus,
+} from "./talent-approvals";
 
 /**
  * _data-bridge/talent.ts — talent-side dashboard loaders.
@@ -356,6 +360,14 @@ export type TalentInquiryRow = {
    * the agency's existing direct funnel.
    */
   sourceChannel: string | null;
+  /**
+   * Audit #12 — THIS talent's own approval status on the inquiry's CURRENT
+   * offer (from `inquiry_approvals`, the corrected audit-#1 set). `accepted`
+   * means the talent has already approved the live offer, so the thread must
+   * stop re-showing "Approve offer" while the multi-party gate keeps the
+   * inquiry open. Null when there is no live offer / no approval row yet.
+   */
+  myApprovalStatus: TalentOfferApprovalStatus | null;
 };
 
 // Cross-agency unified inbox loader (and its row type) moved to
@@ -425,6 +437,7 @@ export async function loadTalentInquiries(
     const { data, error } = await supabase
       .from("inquiry_participants")
       .select(`
+        id,
         status,
         inquiries!inner (
           id,
@@ -438,7 +451,8 @@ export async function loadTalentInquiries(
           updated_at,
           tenant_id,
           trust_level_at_submission,
-          source_channel
+          source_channel,
+          current_offer_id
         )
       `)
       .eq("talent_profile_id", talentProfileId)
@@ -454,6 +468,8 @@ export async function loadTalentInquiries(
     }
 
     type PartRow = {
+      /** inquiry_participants.id — this talent's participant row (audit #12). */
+      id: string;
       status: string;
       inquiries: {
         id: string;
@@ -467,26 +483,42 @@ export async function loadTalentInquiries(
         updated_at: string;
         trust_level_at_submission: "basic" | "verified" | "silver" | "gold" | null;
         source_channel: string | null;
+        current_offer_id: string | null;
       } | null;
     };
 
-    const rows = ((data ?? []) as unknown as PartRow[])
-      .filter((r) => r.inquiries)
-      .map((r) => ({
-        id: r.inquiries!.id,
-        status: r.inquiries!.status,
-        contact_name: r.inquiries!.contact_name,
-        company: r.inquiries!.company,
-        message: r.inquiries!.message,
-        event_date: r.inquiries!.event_date,
-        event_location: r.inquiries!.event_location,
-        created_at: r.inquiries!.created_at,
-        updated_at: r.inquiries!.updated_at,
-        participantStatus: r.status,
-        unreadCount: 0,
-        trustLevel: r.inquiries!.trust_level_at_submission ?? null,
-        sourceChannel: r.inquiries!.source_channel ?? null,
-      }));
+    const partRows = ((data ?? []) as unknown as PartRow[]).filter((r) => r.inquiries);
+
+    // Audit #12 — read THIS talent's own approval status on each inquiry's
+    // current offer (keyed on the participant + current offer, the corrected
+    // audit-#1 set) so the thread can stop re-showing "Approve offer" after
+    // the talent has already approved while the multi-party gate keeps the
+    // inquiry open.
+    const approvalByInquiry = await loadMyOfferApprovalStatus(
+      supabase,
+      partRows.map((r) => ({
+        inquiryId: r.inquiries!.id,
+        participantId: r.id,
+        currentOfferId: r.inquiries!.current_offer_id,
+      })),
+    );
+
+    const rows = partRows.map((r) => ({
+      id: r.inquiries!.id,
+      status: r.inquiries!.status,
+      contact_name: r.inquiries!.contact_name,
+      company: r.inquiries!.company,
+      message: r.inquiries!.message,
+      event_date: r.inquiries!.event_date,
+      event_location: r.inquiries!.event_location,
+      created_at: r.inquiries!.created_at,
+      updated_at: r.inquiries!.updated_at,
+      participantStatus: r.status,
+      unreadCount: 0,
+      trustLevel: r.inquiries!.trust_level_at_submission ?? null,
+      sourceChannel: r.inquiries!.source_channel ?? null,
+      myApprovalStatus: approvalByInquiry.get(r.inquiries!.id) ?? null,
+    }));
 
     if (!myUserId || rows.length === 0) return rows;
 
