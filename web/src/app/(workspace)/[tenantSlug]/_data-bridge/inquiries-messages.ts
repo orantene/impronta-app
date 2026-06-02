@@ -2,6 +2,7 @@ import "server-only";
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
+import { loadTalentChipInfo } from "@/lib/talent/talent-chip-info";
 export { loadInquiryMessages, loadTotalUnreadMessages } from "./inquiry-thread-messages";
 
 /**
@@ -103,6 +104,10 @@ export type WorkspaceInquiryForMessages = {
     talentProfileId: string | null;
     displayName: string;
     status: string;
+    /** Real face (directory 'card' crop) for the lineup; null → initials. */
+    photoUrl: string | null;
+    /** One-line discipline, e.g. "Editorial Model". */
+    headline: string | null;
   }>;
 
   // ── Offer ────────────────────────────────────────────────────────────────────
@@ -416,9 +421,18 @@ export async function loadInquiriesForMessages(
       pending: number;
       declined: number;
       total: number;
-      talent: Array<{ talentProfileId: string | null; displayName: string; status: string }>;
+      talent: Array<{ talentProfileId: string | null; displayName: string; status: string; photoUrl: string | null; headline: string | null }>;
     }>();
     const participantRoleByInquiryUser = new Map<string, "client" | "coordinator" | "talent">();
+    // Confidence: resolve a real face + discipline for every lineup talent in
+    // ONE batch (across all inquiries) so the Lineup tab + roster cards in the
+    // admin/talent/client shells show people, not initials-in-a-box.
+    const lineupChips = await loadTalentChipInfo(
+      supabase,
+      ((participantsRes.data ?? []) as Array<{ talent_profile_id: string | null }>).map(
+        (r) => r.talent_profile_id,
+      ),
+    );
     for (const row of (participantsRes.data ?? []) as Array<{
       inquiry_id: string;
       role: "client" | "coordinator" | "talent";
@@ -442,6 +456,12 @@ export async function loadInquiriesForMessages(
         talentProfileId: row.talent_profile_id,
         displayName: displayNameFromTalentProfile(row.talent_profiles),
         status: row.status ?? "pending",
+        photoUrl: row.talent_profile_id
+          ? (lineupChips.get(row.talent_profile_id)?.photoUrl ?? null)
+          : null,
+        headline: row.talent_profile_id
+          ? (lineupChips.get(row.talent_profile_id)?.headline ?? null)
+          : null,
       });
       lineup.set(row.inquiry_id, cur);
     }

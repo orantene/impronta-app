@@ -62,6 +62,7 @@ import {
 } from "@/lib/inquiry/inquiry-engine-offers";
 import { clientAcceptOffer } from "@/lib/inquiry/inquiry-engine-approvals";
 import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
+import { loadTalentChipInfo } from "@/lib/talent/talent-chip-info";
 
 export type PipelineActionResult<T = undefined> =
   | { ok: true; data?: T }
@@ -914,6 +915,10 @@ export type InquiryParticipant = {
   status: "invited" | "active" | "declined" | "removed";
   talentProfileId: string | null;
   talentDisplayName: string | null;
+  /** Real face for the lineup — directory 'card' crop, or null (→ initials). */
+  talentPhotoUrl: string | null;
+  /** One-line discipline (primary taxonomy term), e.g. "Editorial Model". */
+  talentHeadline: string | null;
   userId: string | null;
   invitedAt: string | null;
 };
@@ -959,17 +964,28 @@ export async function loadInquiryLineup(
       talent_profiles: { display_name: string | null } | null;
     };
     const rows = (data ?? []) as unknown as Row[];
+    // Confidence: resolve a real face + discipline per talent so the lineup
+    // shows people, not initials. Best-effort (missing → nulls → initials).
+    const chips = await loadTalentChipInfo(
+      supabase,
+      rows.map((r) => r.talent_profile_id),
+    );
     return {
       ok: true,
-      data: rows.map((r) => ({
-        id: r.id,
-        role: r.role,
-        status: r.status,
-        talentProfileId: r.talent_profile_id,
-        talentDisplayName: r.talent_profiles?.display_name ?? null,
-        userId: r.user_id,
-        invitedAt: r.invited_at,
-      })),
+      data: rows.map((r) => {
+        const chip = r.talent_profile_id ? chips.get(r.talent_profile_id) : null;
+        return {
+          id: r.id,
+          role: r.role,
+          status: r.status,
+          talentProfileId: r.talent_profile_id,
+          talentDisplayName: r.talent_profiles?.display_name ?? null,
+          talentPhotoUrl: chip?.photoUrl ?? null,
+          talentHeadline: chip?.headline ?? null,
+          userId: r.user_id,
+          invitedAt: r.invited_at,
+        };
+      }),
     };
   } catch (err) {
     logServerError("admin._pipeline-actions.loadInquiryLineup", err);

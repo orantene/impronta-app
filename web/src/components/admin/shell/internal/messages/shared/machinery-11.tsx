@@ -166,6 +166,7 @@ export function LiveLineupPanel({
               >
                 <Avatar
                   size={22}
+                  photoUrl={p.talentPhotoUrl ?? undefined}
                   initials={initialsOf(p.talentDisplayName)}
                   tone="auto"
                   hashSeed={p.talentDisplayName ?? p.id}
@@ -259,10 +260,22 @@ export function LiveLineupPanel({
                 color: COLORS.inkDim, fontSize: 12, fontWeight: 700,
                 cursor: "grab", userSelect: "none",
               }}>⋮⋮</span>
+              <Avatar
+                size={32}
+                photoUrl={p.talentPhotoUrl ?? undefined}
+                initials={initialsOf(p.talentDisplayName)}
+                tone="auto"
+                hashSeed={p.talentDisplayName ?? p.id}
+              />
               <div className="flex-1 min-w-0">
                 <div style={{ fontWeight: 600 }} className="text-admin-ink">
                   {p.talentDisplayName ?? "(unnamed talent)"}
                 </div>
+                {p.talentHeadline && (
+                  <div className="text-admin-ink-muted text-admin-11">
+                    {p.talentHeadline}
+                  </div>
+                )}
                 <div className="text-admin-ink-muted text-admin-11" style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                   <span
                     style={{
