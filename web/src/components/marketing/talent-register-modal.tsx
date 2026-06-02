@@ -17,23 +17,37 @@
  *   so the role-selection step is bypassed.
  */
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { signUpWithEmail, type AuthActionState } from "@/app/auth/actions";
+import {
+  requestTenantRegistration,
+  type RequestTenantRegistrationState,
+} from "@/app/onboarding/actions";
 import { AUTH_POPUP_MESSAGE_TYPE, type AuthPopupMessage } from "@/lib/auth-popup";
+import { getAppUrl } from "@/lib/auth-flow";
+import {
+  ArrowGlyph,
+  CloseGlyph,
+  GoogleGlyph,
+  MailGlyph,
+  Spinner,
+  TrustTick,
+} from "./talent-register-modal-glyphs";
 
 export const TALENT_MODAL_EVENT = "tulala:open-talent-modal" as const;
 
 /**
- * Tenant Registration Engine re-uses this modal. `tenant-register-modal-host.tsx`
- * imports these symbols, but the change that added the host landed without them,
- * which breaks the Turbopack production build (a missing named export is fatal,
- * unlike a webpack-dev warning). Defined here so the build resolves. The talent
- * flow ignores `tenant`; the full tenant-branded apply step ships with the
- * registration engine.
+ * Tenant Registration Engine re-uses this modal. A tenant storefront mounts
+ * `<TenantRegisterModalHost tenant={...}>`, which opens the modal in response to
+ * this event (dispatched by `OpenTenantRegisterButton`). Kept distinct from
+ * `TALENT_MODAL_EVENT` so a tenant page can host both the platform signup and
+ * the workspace-scoped join CTA without cross-firing. When `tenant` is passed,
+ * the modal re-themes to the storefront, scopes signup to `/<slug>/talent`, and
+ * offers a one-tap apply to already-signed-in talent.
  */
 export const TENANT_REGISTER_MODAL_EVENT =
   "tulala:open-tenant-register-modal" as const;
@@ -48,6 +62,23 @@ export type TenantRegisterContext = {
 };
 
 const DEFAULT_NEXT_PATH = "/onboarding/talent-location";
+
+/** Re-theme the modal to a tenant storefront by remapping `--plt-*` onto the
+ *  storefront's design tokens. Unmapped vars fall back to platform defaults. */
+const TENANT_THEME_VARS: React.CSSProperties = {
+  ["--plt-forest" as string]: "var(--token-color-primary, #0F4F3E)",
+  ["--plt-forest-on" as string]: "#ffffff",
+  ["--plt-shadow-forest" as string]: "0 14px 32px -16px rgba(0,0,0,0.4)",
+  ["--plt-ink" as string]: "var(--token-color-ink, #0B0B0D)",
+  ["--plt-ink-soft" as string]: "var(--token-color-neutral, #3f3f46)",
+  ["--plt-muted" as string]: "var(--token-color-muted, #6b7280)",
+  ["--plt-muted-soft" as string]: "var(--token-color-muted, #9ca3af)",
+  ["--plt-bg" as string]: "var(--token-color-background, #ffffff)",
+  ["--plt-bg-elevated" as string]: "var(--token-color-surface-raised, #ffffff)",
+  ["--plt-bg-raised" as string]: "var(--token-color-surface-raised, #f4f4f5)",
+  ["--plt-hairline" as string]: "var(--token-color-line, rgba(24,24,27,0.10))",
+  ["--plt-hairline-strong" as string]: "var(--token-color-line, rgba(24,24,27,0.16))",
+} as React.CSSProperties;
 
 /** Render a button that opens the talent register modal from anywhere. */
 export function TalentModalTrigger({
@@ -75,15 +106,21 @@ export function TalentModalTrigger({
 
 interface TalentRegisterModalProps {
   onClose: () => void;
-  /** Tenant-branded context (Tenant Registration Engine). Optional and currently
-   *  ignored by the talent flow; accepted so the storefront host can pass it. */
+  /** When present, render the tenant-branded variant scoped to this workspace. */
   tenant?: TenantRegisterContext;
 }
 
-export function TalentRegisterModal({ onClose }: TalentRegisterModalProps) {
+export function TalentRegisterModal({ onClose, tenant }: TalentRegisterModalProps) {
   const [mounted, setMounted] = useState(false);
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const emailRef = useRef<HTMLInputElement | null>(null);
+
+  // Tenant registrations scope post-signup to /<slug>/talent so the workspace
+  // join policy applies; the platform signup keeps its onboarding destination.
+  const nextPath = tenant ? `/${tenant.slug}/talent` : DEFAULT_NEXT_PATH;
+  // An already-signed-in Tulala talent skips signup and applies in one tap.
+  const applyMode = Boolean(tenant?.isAuthedTalent);
+  const header = headerCopy(tenant, applyMode);
 
   useEffect(() => setMounted(true), []);
 
@@ -117,7 +154,11 @@ export function TalentRegisterModal({ onClose }: TalentRegisterModalProps) {
   // tokens to this subtree, since portaling escapes the marketing layout
   // wrapper that normally defines them.
   return createPortal(
-    <div className="tlmodal-root" data-platform-surface="marketing">
+    <div
+      className="tlmodal-root"
+      data-platform-surface="marketing"
+      style={tenant ? TENANT_THEME_VARS : undefined}
+    >
       {/* ── Backdrop ── */}
       <div
         className="fixed inset-0 z-[200] bg-[rgba(15,23,20,0.55)] backdrop-blur-sm"
@@ -160,68 +201,261 @@ export function TalentRegisterModal({ onClose }: TalentRegisterModalProps) {
             </span>
           </button>
 
+          {/* Tenant brand lockup */}
+          {tenant ? <TenantBrandMark tenant={tenant} /> : null}
+
           {/* Header */}
           <div className="mb-7">
             <p
               className="plt-mono text-[0.625rem] font-semibold uppercase tracking-[0.22em]"
               style={{ color: "var(--plt-forest)" }}
             >
-              Join as talent · free
+              {header.eyebrow}
             </p>
             <h2
               id="talent-modal-title"
               className="plt-display mt-2 text-[1.625rem] font-semibold leading-[1.15] tracking-[-0.02em]"
               style={{ color: "var(--plt-ink)" }}
             >
-              Your talent page,{" "}
-              <span style={{ color: "var(--plt-forest)" }}>live in minutes.</span>
+              {header.title}{" "}
+              <span style={{ color: "var(--plt-forest)" }}>{header.titleAccent}</span>
             </h2>
             <p
               className="mt-2 text-[0.875rem] leading-[1.5]"
               style={{ color: "var(--plt-muted)" }}
             >
-              Show your work, share one link, and let bookings come to you.
+              {header.sub}
             </p>
           </div>
 
-          {/* Body */}
-          <ModalForm onSuccessClose={onClose} />
+          {/* Body — signed-in talent applies in one tap; everyone else signs up. */}
+          {applyMode && tenant ? (
+            <TenantApplyPanel tenant={tenant} onClose={onClose} />
+          ) : (
+            <ModalForm onSuccessClose={onClose} next={nextPath} />
+          )}
 
-          {/* Trust strip */}
-          <ul
-            className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[0.75rem]"
-            style={{ color: "var(--plt-muted)" }}
-          >
-            <li className="inline-flex items-center gap-1.5">
-              <TrustTick /> Free forever
-            </li>
-            <li className="inline-flex items-center gap-1.5">
-              <TrustTick /> No credit card
-            </li>
-            <li className="inline-flex items-center gap-1.5">
-              <TrustTick /> 2-min setup
-            </li>
-          </ul>
+          {/* Trust strip + sign-in footer — signup form only, not the apply panel */}
+          {!applyMode ? (
+            <>
+              <ul
+                className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[0.75rem]"
+                style={{ color: "var(--plt-muted)" }}
+              >
+                <li className="inline-flex items-center gap-1.5">
+                  <TrustTick /> Free forever
+                </li>
+                <li className="inline-flex items-center gap-1.5">
+                  <TrustTick /> No credit card
+                </li>
+                <li className="inline-flex items-center gap-1.5">
+                  <TrustTick /> 2-min setup
+                </li>
+              </ul>
 
-          {/* Footer link */}
-          <p
-            className="mt-5 text-center text-[0.8125rem]"
-            style={{ color: "var(--plt-muted)" }}
-          >
-            Already have an account?{" "}
-            <Link
-              href="/login"
-              onClick={onClose}
-              className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
-              style={{ color: "var(--plt-ink-soft)" }}
-            >
-              Sign in
-            </Link>
-          </p>
+              <p
+                className="mt-5 text-center text-[0.8125rem]"
+                style={{ color: "var(--plt-muted)" }}
+              >
+                {tenant
+                  ? "Already have a Tulala account? "
+                  : "Already have an account? "}
+                {tenant ? (
+                  <a
+                    href={
+                      tenant.ssoSignInUrl ??
+                      `${getAppUrl()}/login?next=${encodeURIComponent(
+                        `/${tenant.slug}/talent?register=1`,
+                      )}`
+                    }
+                    onClick={onClose}
+                    className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
+                    style={{ color: "var(--plt-ink-soft)" }}
+                  >
+                    Sign in to apply
+                  </a>
+                ) : (
+                  <Link
+                    href="/login"
+                    onClick={onClose}
+                    className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
+                    style={{ color: "var(--plt-ink-soft)" }}
+                  >
+                    Sign in
+                  </Link>
+                )}
+              </p>
+            </>
+          ) : null}
         </div>
       </div>
     </div>,
     document.body
+  );
+}
+
+/* ───────────────────────── Tenant variant ───────────────────────── */
+
+function headerCopy(
+  tenant: TenantRegisterContext | undefined,
+  applyMode: boolean,
+): { eyebrow: string; title: string; titleAccent: string; sub: string } {
+  if (tenant) {
+    if (applyMode) {
+      return {
+        eyebrow: "Join the roster",
+        title: "Apply to",
+        titleAccent: `${tenant.displayName}.`,
+        sub: "You're signed in to Tulala — send your request in one tap.",
+      };
+    }
+    return {
+      eyebrow: "Join the roster",
+      title: "Join",
+      titleAccent: `${tenant.displayName}.`,
+      sub: "Create your free Tulala talent profile and request to join the roster.",
+    };
+  }
+  return {
+    eyebrow: "Join as talent · free",
+    title: "Your talent page,",
+    titleAccent: "live in minutes.",
+    sub: "Show your work, share one link, and let bookings come to you.",
+  };
+}
+
+/** Workspace brand lockup shown atop the tenant-branded variant. */
+function TenantBrandMark({ tenant }: { tenant: TenantRegisterContext }) {
+  return (
+    <div className="mb-5 flex items-center gap-2.5">
+      {tenant.logoSvg ? (
+        <span
+          aria-hidden
+          className="inline-flex h-8 max-w-[140px] items-center [&>svg]:h-8 [&>svg]:w-auto"
+          style={{ color: "var(--plt-ink)" }}
+          dangerouslySetInnerHTML={{ __html: tenant.logoSvg }}
+        />
+      ) : (
+        <span
+          className="plt-display text-[1.05rem] font-semibold tracking-[-0.01em]"
+          style={{ color: "var(--plt-ink)" }}
+        >
+          {tenant.displayName}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * One-tap apply for a visitor who is already a signed-in Tulala talent. Sends
+ * the join request via `requestTenantRegistration`; the outcome — "active"
+ * (joined) or "pending" (awaiting the workspace's approval) — is shown inline.
+ */
+function TenantApplyPanel({
+  tenant,
+  onClose,
+}: {
+  tenant: TenantRegisterContext;
+  onClose: () => void;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState<"active" | "pending" | null>(null);
+
+  function apply() {
+    setError(null);
+    startTransition(async () => {
+      const res: RequestTenantRegistrationState =
+        await requestTenantRegistration(tenant.slug);
+      if (res.ok) setDone(res.status);
+      else setError(res.error);
+    });
+  }
+
+  if (done) {
+    return (
+      <div className="space-y-5 py-2 text-center">
+        <div
+          className="mx-auto flex h-14 w-14 items-center justify-center rounded-full"
+          style={{
+            background: "color-mix(in srgb, var(--plt-forest) 12%, transparent)",
+            color: "var(--plt-forest)",
+          }}
+        >
+          <MailGlyph />
+        </div>
+        <div className="space-y-1.5">
+          <h3
+            className="plt-display text-[1.125rem] font-semibold"
+            style={{ color: "var(--plt-ink)" }}
+          >
+            {done === "active"
+              ? `You've joined ${tenant.displayName}`
+              : "Request sent"}
+          </h3>
+          <p
+            className="text-[0.875rem] leading-[1.5]"
+            style={{ color: "var(--plt-muted)" }}
+          >
+            {done === "active"
+              ? "You're on the roster — manage your work from your Tulala dashboard."
+              : `${tenant.displayName} will review your application and be in touch.`}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="inline-flex items-center justify-center rounded-full border px-5 py-2.5 text-[0.8125rem] font-medium transition-colors"
+          style={{
+            borderColor: "var(--plt-hairline-strong)",
+            color: "var(--plt-ink)",
+            background: "var(--plt-bg-raised)",
+          }}
+        >
+          Got it
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3.5">
+      {error ? (
+        <p
+          className="rounded-xl px-3 py-2 text-[0.8125rem]"
+          style={{
+            background: "rgba(180, 35, 24, 0.08)",
+            color: "#9b1c14",
+            border: "1px solid rgba(180, 35, 24, 0.18)",
+          }}
+        >
+          {error}
+        </p>
+      ) : null}
+      <button
+        type="button"
+        onClick={apply}
+        disabled={pending}
+        className="group relative inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-[0.9375rem] font-medium leading-none tracking-[-0.005em] transition-[background,transform,box-shadow] duration-200 disabled:cursor-wait disabled:opacity-80"
+        style={{
+          background: "var(--plt-forest)",
+          color: "var(--plt-forest-on)",
+          boxShadow: "var(--plt-shadow-forest)",
+        }}
+      >
+        <span>
+          {pending ? "Sending your request…" : `Apply to ${tenant.displayName}`}
+        </span>
+        {pending ? <Spinner /> : <ArrowGlyph />}
+      </button>
+      <p
+        className="text-center text-[0.75rem]"
+        style={{ color: "var(--plt-muted)" }}
+      >
+        Applying as your signed-in Tulala account.
+      </p>
+    </div>
   );
 }
 
@@ -230,7 +464,13 @@ export function TalentRegisterModal({ onClose }: TalentRegisterModalProps) {
  * the parent re-renders on every keystroke (it doesn't here, but keeps the
  * boundaries tidy).
  */
-function ModalForm({ onSuccessClose }: { onSuccessClose: () => void }) {
+function ModalForm({
+  onSuccessClose,
+  next,
+}: {
+  onSuccessClose: () => void;
+  next: string;
+}) {
   const [state, formAction, pending] = useActionState<
     AuthActionState,
     FormData
@@ -243,11 +483,11 @@ function ModalForm({ onSuccessClose }: { onSuccessClose: () => void }) {
 
   return (
     <form action={formAction} className="space-y-3.5">
-      <input type="hidden" name="next" value={DEFAULT_NEXT_PATH} />
+      <input type="hidden" name="next" value={next} />
       <input type="hidden" name="locale" value="en" />
 
       {/* Google */}
-      <GoogleButton />
+      <GoogleButton next={next} />
 
       {/* OR */}
       <div className="flex items-center gap-3 py-1">
@@ -322,7 +562,7 @@ function ModalForm({ onSuccessClose }: { onSuccessClose: () => void }) {
   );
 }
 
-function GoogleButton() {
+function GoogleButton({ next }: { next: string }) {
   const router = useRouter();
   const popupRef = useRef<Window | null>(null);
   const closeWatcherRef = useRef<number | null>(null);
@@ -342,7 +582,7 @@ function GoogleButton() {
       popupRef.current?.close();
       popupRef.current = null;
       if (event.data.success) {
-        router.push(event.data.destination ?? DEFAULT_NEXT_PATH);
+        router.push(event.data.destination ?? next);
         router.refresh();
       }
     }
@@ -353,7 +593,7 @@ function GoogleButton() {
         window.clearInterval(closeWatcherRef.current);
       }
     };
-  }, [router]);
+  }, [router, next]);
 
   function handleClick() {
     setError(null);
@@ -363,7 +603,7 @@ function GoogleButton() {
     const top = Math.max(window.screenY + (window.outerHeight - H) / 2, 0);
     const startUrl = new URL("/auth/google", window.location.origin);
     startUrl.searchParams.set("popup", "1");
-    startUrl.searchParams.set("next", DEFAULT_NEXT_PATH);
+    startUrl.searchParams.set("next", next);
     const popup = window.open(
       startUrl.toString(),
       "google-auth-popup",
@@ -504,130 +744,5 @@ function FieldShell({
         </span>
       ) : null}
     </label>
-  );
-}
-
-/* ───────────────────────── Glyphs ───────────────────────── */
-
-function CloseGlyph() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden>
-      <path
-        d="M1 1L13 13M13 1L1 13"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function ArrowGlyph() {
-  return (
-    <svg
-      aria-hidden
-      width="14"
-      height="10"
-      viewBox="0 0 14 10"
-      fill="none"
-      className="transition-transform duration-200 group-hover:translate-x-0.5"
-    >
-      <path
-        d="M1 5H13M13 5L9 1M13 5L9 9"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function GoogleGlyph() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden>
-      <path
-        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09Z"
-        fill="#4285F4"
-      />
-      <path
-        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.99.66-2.25 1.06-3.71 1.06-2.86 0-5.29-1.93-6.15-4.53H2.18v2.84A10.99 10.99 0 0 0 12 23Z"
-        fill="#34A853"
-      />
-      <path
-        d="M5.85 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.07H2.18A10.99 10.99 0 0 0 1 12c0 1.78.43 3.47 1.18 4.93l3.67-2.83Z"
-        fill="#FBBC05"
-      />
-      <path
-        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A10.99 10.99 0 0 0 2.18 7.07l3.67 2.83C6.71 7.31 9.14 5.38 12 5.38Z"
-        fill="#EA4335"
-      />
-    </svg>
-  );
-}
-
-function MailGlyph() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <rect
-        x="3"
-        y="5"
-        width="18"
-        height="14"
-        rx="2.5"
-        stroke="currentColor"
-        strokeWidth="1.6"
-      />
-      <path
-        d="M4 7l8 6 8-6"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function TrustTick() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden>
-      <circle cx="7" cy="7" r="6.25" stroke="var(--plt-forest)" strokeWidth="1.2" />
-      <path
-        d="M4.5 7.25L6.2 9L9.5 5.5"
-        stroke="var(--plt-forest)"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function Spinner() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden
-      className="animate-spin"
-    >
-      <circle
-        cx="12"
-        cy="12"
-        r="9"
-        stroke="currentColor"
-        strokeOpacity="0.25"
-        strokeWidth="2"
-      />
-      <path
-        d="M21 12a9 9 0 0 0-9-9"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
   );
 }
