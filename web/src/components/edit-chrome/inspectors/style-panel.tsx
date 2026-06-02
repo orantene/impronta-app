@@ -5497,6 +5497,24 @@ export function StylePanel({
                   />
                 </div>
 
+                <details
+                  open={Boolean(
+                    selectedStandaloneViewportStyle?.textTransform ||
+                      selectedStandaloneViewportStyle?.fontStyle ||
+                      selectedStandaloneViewportStyle?.textDecoration ||
+                      selectedStandaloneViewportStyle?.textWrap ||
+                      selectedStandaloneViewportStyle?.whiteSpace ||
+                      selectedStandaloneViewportStyle?.lineClamp,
+                  )}
+                >
+                  <summary
+                    className="flex items-center justify-between select-none"
+                    style={{ cursor: "pointer", outline: "none", listStyle: "none" }}
+                  >
+                    <span className={FIELD_LABEL}>More text options</span>
+                    <span style={{ color: CHROME.muted, fontSize: 9 }}>›</span>
+                  </summary>
+                  <div className="mt-2 flex flex-col gap-2">
                 <div
                   className="flex flex-col gap-1.5"
                   data-builder-node-style-control="textTransform"
@@ -5630,6 +5648,8 @@ export function StylePanel({
                     }}
                   />
                 </div>
+                  </div>
+                </details>
               </div>
             ) : null}
 
@@ -5644,10 +5664,25 @@ export function StylePanel({
               />
             </div>
 
-            <div
-              className="flex flex-col gap-2"
+            <details
+              open={Boolean(
+                selectedStandaloneViewportStyle?.width ||
+                  selectedStandaloneViewportStyle?.height ||
+                  selectedStandaloneViewportStyle?.minHeight ||
+                  selectedStandaloneViewportStyle?.minWidth ||
+                  selectedStandaloneViewportStyle?.maxWidthFree ||
+                  selectedStandaloneViewportStyle?.maxHeight,
+              )}
               data-builder-node-style-control="dimensions"
             >
+              <summary
+                className="flex items-center justify-between select-none"
+                style={{ cursor: "pointer", outline: "none", listStyle: "none" }}
+              >
+                <span className={FIELD_LABEL}>Exact size</span>
+                <span style={{ color: CHROME.muted, fontSize: 9 }}>›</span>
+              </summary>
+              <div className="mt-2 flex flex-col gap-2">
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex flex-col gap-1.5">
                   <span className={FIELD_LABEL}>Exact width</span>
@@ -5738,7 +5773,8 @@ export function StylePanel({
                   />
                 </div>
               </div>
-            </div>
+              </div>
+            </details>
 
             {["container", "split", "card", "cta_group"].includes(
               selectedStandaloneStyleNode.kind,
@@ -6078,6 +6114,35 @@ export function StylePanel({
               selectedStandaloneStyleNode.kind,
             ) ? (
               <div
+                className="border-t pt-3"
+                data-builder-node-style-control="fineSpacing"
+                style={{ borderColor: CHROME.line }}
+              >
+                <details
+                  open={Boolean(
+                    selectedStandaloneViewportStyle?.paddingTop ||
+                      selectedStandaloneViewportStyle?.paddingRight ||
+                      selectedStandaloneViewportStyle?.paddingBottom ||
+                      selectedStandaloneViewportStyle?.paddingLeft ||
+                      selectedStandaloneViewportStyle?.marginTopFree ||
+                      selectedStandaloneViewportStyle?.marginRightFree ||
+                      selectedStandaloneViewportStyle?.marginBottomFree ||
+                      selectedStandaloneViewportStyle?.marginLeftFree ||
+                      selectedStandaloneViewportStyle?.gap,
+                  )}
+                >
+                  <summary
+                    className="flex items-center justify-between select-none"
+                    style={{ cursor: "pointer", outline: "none", listStyle: "none" }}
+                  >
+                    <span className={FIELD_LABEL}>Fine-tune spacing</span>
+                    <span style={{ color: CHROME.muted, fontSize: 9 }}>›</span>
+                  </summary>
+                  <div className="mt-2 flex flex-col gap-2">
+            {!["divider", "spacer"].includes(
+              selectedStandaloneStyleNode.kind,
+            ) ? (
+              <div
                 className="flex flex-col gap-2"
                 data-builder-node-style-control="exactPadding"
               >
@@ -6247,6 +6312,10 @@ export function StylePanel({
                     })
                   }
                 />
+              </div>
+            ) : null}
+                  </div>
+                </details>
               </div>
             ) : null}
 
