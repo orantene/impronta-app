@@ -22,6 +22,7 @@ import type { ClientInquiryDetails } from "../../_data-bridge/client-inquiry-det
 import {
   approveOfferAction,
   rejectOfferAction,
+  counterOfferAction,
   type InquiryOfferActionState,
 } from "../_actions/inquiry-offer-actions";
 
@@ -298,7 +299,7 @@ function DecisionRibbon({
   tenantSlug: string;
   onAfterAction?: () => void;
 }) {
-  const [confirming, setConfirming] = useState<"approve" | "decline" | null>(null);
+  const [confirming, setConfirming] = useState<"approve" | "counter" | "decline" | null>(null);
   return (
     <>
       <div className="flex gap-2 flex-wrap">
@@ -308,6 +309,13 @@ function DecisionRibbon({
           style={primaryBtn}
         >
           Approve &amp; lock
+        </button>
+        <button
+          type="button"
+          onClick={() => setConfirming("counter")}
+          style={ghostBtn}
+        >
+          Counter
         </button>
         <button
           type="button"
@@ -339,6 +347,14 @@ function DecisionRibbon({
           onAfterAction={onAfterAction}
         />
       )}
+      {confirming === "counter" && (
+        <CounterDrawer
+          details={details}
+          tenantSlug={tenantSlug}
+          onClose={() => setConfirming(null)}
+          onAfterAction={onAfterAction}
+        />
+      )}
       {confirming === "decline" && (
         <DeclineDrawer
           details={details}
@@ -348,6 +364,91 @@ function DecisionRibbon({
         />
       )}
     </>
+  );
+}
+
+// ─── Counter drawer ──────────────────────────────────────────────────────────
+// A counter is a "[Counter request]" message to the coordinator — it does not
+// change the offer state; the coordinator re-drafts. Lighter than Decline (no
+// reason taxonomy): just the proposed change.
+
+function CounterDrawer({
+  details,
+  tenantSlug,
+  onClose,
+  onAfterAction,
+}: {
+  details: ClientInquiryDetails;
+  tenantSlug: string;
+  onClose: () => void;
+  onAfterAction?: () => void;
+}) {
+  const [note, setNote] = useState("");
+  const [state, formAction, pending] = useActionState<InquiryOfferActionState, FormData>(
+    counterOfferAction,
+    { kind: "idle" },
+  );
+  const [, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (state.kind === "countered") {
+      onAfterAction?.();
+      onClose();
+    }
+  }, [state, onClose, onAfterAction]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const submit = () => {
+    const fd = new FormData();
+    fd.set("tenantSlug", tenantSlug);
+    fd.set("inquiryId", details.id);
+    fd.set("note", note.trim());
+    startTransition(() => formAction(fd));
+  };
+
+  const canSend = note.trim().length > 0 && !pending;
+
+  return (
+    <DrawerShell title="Propose a change" subtitle="Keep the project — ask the coordinator to adjust the offer." onClose={onClose}>
+      <div className="flex flex-col gap-3.5">
+        <label className="flex flex-col gap-1.5">
+          <span style={{ fontSize: 11.5, color: C.inkMuted, fontWeight: 600 }}>What would you like to change?</span>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={4}
+            placeholder="e.g. budget closer to $3k, swap one talent, shift the date a week…"
+            style={{ ...inputStyle, resize: "vertical", minHeight: 80, lineHeight: 1.45 }}
+          />
+        </label>
+        <Hint>
+          This sends your request to the coordinator without declining — they&apos;ll
+          rework the offer and send an updated version. The current offer stays open
+          until you approve or decline.
+        </Hint>
+        {state.kind === "error" && (
+          <div style={errorBoxStyle}>{state.message}</div>
+        )}
+      </div>
+      <DrawerFooter>
+        <button type="button" style={ghostBtn} onClick={onClose}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          style={canSend ? primaryBtn : { ...primaryBtn, opacity: 0.6, cursor: "not-allowed" }}
+          onClick={submit}
+          disabled={!canSend}
+        >
+          {pending ? "Sending…" : "Send counter"}
+        </button>
+      </DrawerFooter>
+    </DrawerShell>
   );
 }
 
