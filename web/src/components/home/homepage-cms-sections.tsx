@@ -199,6 +199,43 @@ export async function HomepageCmsSections({
     return true;
   });
 
+  // Freeform full-page design: a builderTree persisted with NO curated slots
+  // (e.g. a one-click starter design). The slot loop below only renders
+  // section-mapped slots, and the `entries.length === 0` guard would otherwise
+  // short-circuit to an empty placeholder — so render the whole resolved tree
+  // here. Published, preview, AND edit all want the design on the canvas; only
+  // a genuinely empty page (no slots and no tree) falls through to the
+  // placeholder below.
+  if (entries.length === 0 && snapshot.slots.length === 0) {
+    const freeform = resolveSnapshotBuilderTree(snapshot);
+    if (freeform.tree.length > 0) {
+      const freeformDataSources = await loadBuilderNodeDataSources(
+        freeform.tree,
+        tenantId,
+        locale,
+      );
+      const freeformComponents =
+        !editMode && treeHasInstances(freeform.tree)
+          ? await loadBuilderComponentsForTenant(tenantId)
+          : {};
+      return (
+        <>
+          {includeBuilderNodeRendererStyles &&
+          hasRenderableBuilderNodes(freeform.tree, { mode: "freeform" }) ? (
+            <BuilderNodeRendererStyles />
+          ) : null}
+          {renderBuilderNodes(freeform.tree, {
+            publicPathPrefix,
+            mode: "freeform",
+            includeRendererStyles: false,
+            dataSources: freeformDataSources,
+            components: freeformComponents,
+          })}
+        </>
+      );
+    }
+  }
+
   if (entries.length === 0) {
     if (!editMode && !previewActive) return null;
     return (
