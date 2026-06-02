@@ -162,11 +162,22 @@ export type ClientBookingRow = {
   company: string | null;
   quantity: number | null;
   created_at: string;
+  /** Gross the client pays, in cents (agency_bookings.total_client_revenue ×100). Null if no booking row yet. */
+  amountCents: number | null;
+  /** Booking currency (agency_bookings.currency_code). */
+  currencyCode: string | null;
+  /** Client-facing payment status from agency_bookings.payment_status: 'unpaid' | 'partial' | 'paid' | 'cancelled' | null. */
+  paymentStatus: string | null;
 };
 
 /**
  * Load confirmed bookings for a client at this tenant.
  * Booked = status IN ('booked', 'converted'). Ordered by event_date ascending.
+ *
+ * Joins the linked agency_bookings row (the canonical booking record) so the
+ * client sees the real amount + payment status — not just a booked inquiry.
+ * Client-safe: only GROSS (total_client_revenue, what the client pays) +
+ * currency + payment_status; never the platform/agency/talent split.
  */
 export async function loadClientBookings(
   userId: string,
@@ -176,9 +187,13 @@ export async function loadClientBookings(
     const supabase = await createSupabaseServerClient();
     if (!supabase) return [];
 
+    const baseCols = "id, event_date, event_location, company, quantity, created_at";
     const { data, error } = await supabase
       .from("inquiries")
-      .select("id, event_date, event_location, company, quantity, created_at")
+      .select(
+        `${baseCols},
+         agency_bookings!agency_bookings_source_inquiry_id_fkey(total_client_revenue, currency_code, payment_status)`,
+      )
       .eq("tenant_id", tenantId)
       .eq("client_user_id", userId)
       .in("status", ["booked", "converted"])
@@ -186,11 +201,50 @@ export async function loadClientBookings(
       .limit(200);
 
     if (error) {
+      // Fallback: if the join fails (e.g. fkey rename), load plain inquiry rows
+      // so the page still renders (without amounts).
       logServerError("client.loadBookings", error);
-      return [];
+      const { data: plain } = await supabase
+        .from("inquiries")
+        .select(baseCols)
+        .eq("tenant_id", tenantId)
+        .eq("client_user_id", userId)
+        .in("status", ["booked", "converted"])
+        .order("event_date", { ascending: true, nullsFirst: false })
+        .limit(200);
+      return (plain ?? []).map((r: Record<string, unknown>) => ({
+        id: r.id as string,
+        event_date: (r.event_date as string | null) ?? null,
+        event_location: (r.event_location as string | null) ?? null,
+        company: (r.company as string | null) ?? null,
+        quantity: (r.quantity as number | null) ?? null,
+        created_at: r.created_at as string,
+        amountCents: null,
+        currencyCode: null,
+        paymentStatus: null,
+      }));
     }
 
-    return (data ?? []) as ClientBookingRow[];
+    return (data ?? []).map((r: Record<string, unknown>) => {
+      const bookingJoin = r["agency_bookings"] as
+        | { total_client_revenue?: number | string | null; currency_code?: string | null; payment_status?: string | null }
+        | { total_client_revenue?: number | string | null; currency_code?: string | null; payment_status?: string | null }[]
+        | null
+        | undefined;
+      const booking = Array.isArray(bookingJoin) ? bookingJoin[0] ?? null : bookingJoin ?? null;
+      const rawRevenue = booking?.total_client_revenue;
+      return {
+        id: r.id as string,
+        event_date: (r.event_date as string | null) ?? null,
+        event_location: (r.event_location as string | null) ?? null,
+        company: (r.company as string | null) ?? null,
+        quantity: (r.quantity as number | null) ?? null,
+        created_at: r.created_at as string,
+        amountCents: rawRevenue != null ? Math.round(Number(rawRevenue) * 100) : null,
+        currencyCode: (booking?.currency_code as string | null) ?? null,
+        paymentStatus: (booking?.payment_status as string | null) ?? null,
+      };
+    });
   } catch (err) {
     logServerError("client.loadBookings", err);
     return [];

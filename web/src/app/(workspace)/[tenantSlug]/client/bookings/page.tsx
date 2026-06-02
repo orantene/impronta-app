@@ -46,6 +46,22 @@ function isPast(iso: string | null): boolean {
   return isPastClientDate(iso);
 }
 
+function fmtMoney(cents: number | null, currency: string | null): string | null {
+  if (cents == null) return null;
+  return `${currency ?? "USD"} ${(cents / 100).toLocaleString()}`;
+}
+
+// Client-facing payment label + tone from agency_bookings.payment_status.
+function paymentChip(status: string | null): { label: string; paid: boolean } | null {
+  switch (status) {
+    case "paid":      return { label: "Paid", paid: true };
+    case "partial":   return { label: "Partially paid", paid: false };
+    case "unpaid":    return { label: "Payment due", paid: false };
+    case "cancelled": return { label: "Cancelled", paid: false };
+    default:          return null;
+  }
+}
+
 function BookingRow({
   booking,
   idx,
@@ -59,6 +75,8 @@ function BookingRow({
 }) {
   const future = !isPast(booking.event_date);
   const dateParts = getClientDateParts(booking.event_date);
+  const money = fmtMoney(booking.amountCents, booking.currencyCode);
+  const chip = paymentChip(booking.paymentStatus);
   return (
     <Link
       href={`/${tenantSlug}/client/inquiries/${booking.id}`}
@@ -133,6 +151,29 @@ function BookingRow({
             <span style={{ fontSize: 12, color: C.inkMuted }}>· {booking.quantity} talent</span>
           )}
         </div>
+        {(money || chip) && (
+          <div style={{ display: "flex", gap: 8, marginTop: 5, alignItems: "center" }}>
+            {money && (
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: C.ink, fontVariantNumeric: "tabular-nums" }}>{money}</span>
+            )}
+            {chip && (
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: 0.3,
+                  textTransform: "uppercase" as const,
+                  padding: "2px 7px",
+                  borderRadius: 999,
+                  background: chip.paid ? C.greenSoft : "rgba(11,11,13,0.05)",
+                  color: chip.paid ? C.greenDeep : C.inkMuted,
+                }}
+              >
+                {chip.label}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Status */}
