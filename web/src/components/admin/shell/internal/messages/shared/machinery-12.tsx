@@ -6,7 +6,7 @@ import { PayoutNudgeCard } from "@/components/talent-payouts/PayoutNudgeCard";
 import { loadCurrentTalentPayoutSnapshot, type TalentPayoutSnapshot } from "@/lib/server-actions/talent-self";
 import { submitMyCounterRate, submitMyRateForInquiry } from "@/lib/server-actions/talent-pipeline";
 import { clientApproveCurrentOffer, clientRejectCurrentOffer } from "@/lib/server-actions/client-pipeline";
-import { sendOfferAction, approveOfferAction, rejectOfferAction, counterOfferAction } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
+import { sendOfferAction, counterOfferAction } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import { useAdminShell, COLORS, FONTS } from "../../state";
 import { type Conversation } from "../../talent";
 import { applyRowOverrides, setRowOverride, useRowOverrideSubscription } from "../conversation-stash";
@@ -61,17 +61,14 @@ export function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: Off
           style={primaryBtn(COLORS.accent)}
         >Send to client</button>
       )}
+      {/* No admin "Approve/Reject (as client)" at status==="sent": the client and
+          each assigned talent approve from THEIR OWN surfaces (engine submit_approval).
+          The old buttons called clientAcceptOffer keyed on the staff user_id and so
+          ALWAYS failed with no_client_participant. The admin's role here is to wait
+          for approvals; once the offer is 'accepted' the inquiry flips to 'approved'
+          and the header "Move to Booked" converts it. */}
       {isAdmin && status === "sent" && (
-        <>
-          <button type="button" disabled={pending}
-            onClick={() => run("Approve offer", () => approveOfferAction(effectiveTenant.slug, inquiryId, offerId))}
-            style={primaryBtn(COLORS.success)}
-          >Approve (as client)</button>
-          <button type="button" disabled={pending}
-            onClick={() => run("Reject offer", () => rejectOfferAction(effectiveTenant.slug, inquiryId, offerId, null))}
-            style={ghostBtn()}
-          >Reject</button>
-        </>
+        <span className="text-admin-ink-muted text-admin-11">Awaiting client + talent approval…</span>
       )}
       {isAdmin && status === "rejected" && (
         <button type="button" disabled={pending}
