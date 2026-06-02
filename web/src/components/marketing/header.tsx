@@ -8,7 +8,6 @@ import { getAppUrl } from "@/lib/auth-flow";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { getMarketingCopy, type MarketingCopy } from "@/lib/marketing/copy";
 import { MarketingCta } from "./cta-link";
-import { OpenTalentModalButton } from "./open-talent-modal-button";
 import { MarketingLanguageToggle } from "./marketing-language-toggle";
 import {
   DesktopAccount,
@@ -201,13 +200,6 @@ export function MarketingHeader({
             />
           ) : (
             <>
-              <OpenTalentModalButton
-                eventSource="header"
-                className="rounded-md px-3 py-2 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors hover:text-[var(--plt-ink)]"
-                style={{ color: "var(--plt-muted)" }}
-              >
-                {copy.nav.joinAsTalent}
-              </OpenTalentModalButton>
               <a
                 href={APP_LOGIN_URL}
                 className="rounded-md px-3 py-2 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors hover:text-[var(--plt-ink)]"
@@ -354,14 +346,6 @@ export function MarketingHeader({
                 </>
               ) : (
                 <>
-                  <OpenTalentModalButton
-                    eventSource="mobile-header"
-                    className="flex w-full items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
-                    style={{ color: "var(--plt-ink-soft)" }}
-                  >
-                    {copy.nav.joinAsTalent}
-                    <ChevronGlyph />
-                  </OpenTalentModalButton>
                   <a
                     href={APP_LOGIN_URL}
                     className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
