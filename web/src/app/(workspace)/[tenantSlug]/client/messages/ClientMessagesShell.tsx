@@ -172,17 +172,22 @@ export function ClientMessagesShell({
 
   // Reconcile optimistic bubbles with server messages on send success.
   //
-  // MERGE, don't replace. Three guarantees:
-  //   1. Optimistic tmp- bubble whose body matches a server message gets
-  //      replaced by the canonical row (real id, real sender_user_id).
-  //   2. Optimistic tmp- bubble with no server match stays visible —
-  //      protects against the user-reported "1-second vanish" if the
-  //      server returns 0 (RLS misconfig, transient error, auth blip).
-  //   3. New server messages we didn't have locally (e.g. coordinator
-  //      auto-ack) get added in chronological order.
+  // Reconcile by ROW ID, never body text. The composer swaps each
+  // optimistic `tmp-` bubble's id to the canonical row id (returned by the
+  // send action) the instant the server accepts it, so by the time this
+  // refetch lands every sent bubble already carries its real id. That makes
+  // the merge a pure by-id operation — two messages with identical bodies
+  // (e.g. "ok" sent twice) can no longer collide and drop/duplicate, which
+  // was the body-match bug (audit #15). Three guarantees:
+  //   1. A locally-held row is replaced by its canonical server version
+  //      (real created_at / sender_user_id / seen_at / reactions).
+  //   2. A still-optimistic tmp- bubble with no server row yet stays visible
+  //      — protects against the "1-second vanish" on a transient empty read.
+  //   3. Server rows we didn't have locally (coordinator auto-ack, the other
+  //      party's messages) are appended in chronological order, deduped by id.
   useEffect(() => {
     function onOk(e: Event) {
-      const detail = (e as CustomEvent<{ tempId: string; inquiryId: string }>).detail;
+      const detail = (e as CustomEvent<{ inquiryId: string }>).detail;
       if (!detail?.inquiryId || detail.inquiryId !== activeId) return;
       fetch(`/api/client/messages?inquiry=${encodeURIComponent(detail.inquiryId)}`)
         .then((r) => (r.ok ? r.json() : { messages: null }))
@@ -190,15 +195,14 @@ export function ClientMessagesShell({
           if (!j.messages) return;
           const serverMsgs = j.messages;
           setMessages((prev) => {
-            const prevIds = new Set(prev.map((m) => m.id));
-            // Server rows we don't already have locally.
-            const incoming = serverMsgs.filter((m) => !prevIds.has(m.id));
-            // Drop tmp- bubbles whose body matches an incoming server row.
-            const cleaned = prev.filter((m) => {
-              if (!m.id.startsWith("tmp-")) return true;
-              return !incoming.some((s) => s.body === m.body);
-            });
-            return [...cleaned, ...incoming].sort((a, b) =>
+            const serverById = new Map(serverMsgs.map((m) => [m.id, m]));
+            // Replace each locally-held row with its canonical server version;
+            // leave still-optimistic tmp- bubbles (no server row yet) as-is.
+            const merged = prev.map((m) => serverById.get(m.id) ?? m);
+            const haveIds = new Set(merged.map((m) => m.id));
+            // Append server rows we don't have yet — by id, never body text.
+            const incoming = serverMsgs.filter((m) => !haveIds.has(m.id));
+            return [...merged, ...incoming].sort((a, b) =>
               a.created_at.localeCompare(b.created_at),
             );
           });
@@ -609,6 +613,16 @@ export function ClientMessagesShell({
 
 // ─── Inquiry row ─────────────────────────────────────────────────────────
 
+type RowChip = {
+  label: string;
+  bg: string;
+  color: string;
+  title?: string;
+  uppercase?: boolean;
+  fontSize?: number;
+  padding?: string;
+};
+
 function InquiryRow({ inq, active, onClick }: { inq: ClientInquiryRow; active: boolean; onClick: () => void }) {
   const stage = stageStyle(inq.status);
   const company = inq.company || "Unnamed inquiry";
@@ -616,6 +630,38 @@ function InquiryRow({ inq, active, onClick }: { inq: ClientInquiryRow; active: b
   const location = inq.event_location;
   const needsMe = inq.next_action_by === "client";
   const unread = inq.unreadCount > 0;
+  const isDiscover =
+    inq.source_channel === "discover_single_talent" ||
+    inq.source_channel === "discover_shortlist";
+
+  // Status + state chip stack — same metadata/status treatment as the polished
+  // talent inbox (audit #15): an uppercase status pill, an amber "Your turn"
+  // when the client owes the next move, a blue "N new" unread count, and
+  // Discover provenance. The status pill carries the default 10.5/"2px 8px"
+  // metric; secondary state chips are 10/"1px 7px" (mirrors talent toThreadItem).
+  const chips: RowChip[] = [
+    { label: stage.label, bg: stage.bg, color: stage.fg, uppercase: true },
+  ];
+  if (needsMe) {
+    chips.push({ label: "Your turn", bg: "rgba(245,158,11,0.12)", color: "#92400E", fontSize: 10, padding: "1px 7px" });
+  }
+  if (unread) {
+    chips.push({ label: `${inq.unreadCount} new`, bg: C.accentSoft, color: C.accent, fontSize: 10, padding: "1px 7px" });
+  }
+  if (isDiscover) {
+    chips.push({
+      label: `◎ via ${inq.source_channel === "discover_shortlist" ? "Shortlist" : "Discover"}`,
+      bg: C.accentSoft,
+      color: C.accent,
+      fontSize: 10,
+      padding: "1px 7px",
+      uppercase: true,
+      title:
+        inq.source_channel === "discover_shortlist"
+          ? "You added talent from a Discover shortlist."
+          : "This inquiry started from Discover.",
+    });
+  }
 
   // Build the last-message preview line. "You: …" when the client sent
   // the newest message, plain body otherwise. Truncated to ~70 chars so
@@ -644,24 +690,43 @@ function InquiryRow({ inq, active, onClick }: { inq: ClientInquiryRow; active: b
       }}
     >
       {unread && (
-        <span style={{ position: "absolute", left: 4, top: "50%", transform: "translateY(-50%)", width: 6, height: 6, borderRadius: "50%", background: C.accent }} />
+        <span style={{ position: "absolute", left: 4, top: 16, width: 6, height: 6, borderRadius: "50%", background: C.accent }} />
       )}
-      {/* Row 1 — Company + stage pill */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between" }}>
-        <div style={{ fontSize: 13, fontWeight: unread ? 700 : 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
-          {company}
-        </div>
-        <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: stage.bg, color: stage.fg, whiteSpace: "nowrap" }}>
-          {stage.label}
-        </span>
+      {/* Row 1 — status + state chip stack (status · Your turn · N new · via Discover) */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+        {chips.map((c, i) => (
+          <span
+            key={`${inq.id}-chip-${i}`}
+            title={c.title}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              padding: c.padding ?? "2px 8px",
+              borderRadius: 999,
+              background: c.bg,
+              color: c.color,
+              fontSize: c.fontSize ?? 10.5,
+              fontWeight: 700,
+              letterSpacing: c.uppercase ? 0.3 : undefined,
+              textTransform: c.uppercase ? "uppercase" : undefined,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {c.label}
+          </span>
+        ))}
       </div>
-      {/* Row 2 — Event date + location (only when set) */}
+      {/* Row 2 — Company / project title */}
+      <div style={{ fontSize: 13, fontWeight: unread ? 700 : 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        {company}
+      </div>
+      {/* Row 3 — Event date + location (only when set) */}
       {(dateLabel || location) && (
         <div style={{ fontSize: 11.5, color: C.inkMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {[dateLabel, location].filter(Boolean).join(" · ")}
         </div>
       )}
-      {/* Row 3 — Last-message preview + relative time. This is what
+      {/* Row 4 — Last-message preview + relative time. This is what
           makes the row feel like a real conversation list (familiar
           WhatsApp / iMessage pattern): user sees the last thing said
           and roughly when it happened without opening the thread. */}
@@ -676,7 +741,6 @@ function InquiryRow({ inq, active, onClick }: { inq: ClientInquiryRow; active: b
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
-            fontStyle: inq.last_message_from_me ? "normal" : "normal",
           }}>
             {preview}
           </span>
@@ -685,13 +749,6 @@ function InquiryRow({ inq, active, onClick }: { inq: ClientInquiryRow; active: b
               {previewTime}
             </span>
           )}
-        </div>
-      )}
-      {needsMe && !preview && (
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 2 }}>
-          <span style={{ fontSize: 10.5, fontWeight: 700, color: C.accent, textTransform: "uppercase", letterSpacing: 0.3 }}>
-            Action needed
-          </span>
         </div>
       )}
     </button>
@@ -707,6 +764,32 @@ const TAB_CONFIG: Array<{ id: ThreadTab; label: string }> = [
   { id: "details", label: "Details" },
   { id: "files", label: "Files" },
 ];
+
+/** Within-Chat sub-view (audit #15) — mirrors the talent shell's Chat/Activity
+ *  split. "Chat" is the human conversation; "Activity" is the read-only
+ *  money/booking timeline. */
+type ChatMode = "chat" | "activity";
+
+/** Message kinds that render as structured cards — the money/booking/system
+ *  timeline shown in the thread's "Activity" sub-view. Mirrors the talent
+ *  shell's MONEY_KINDS, limited to the kinds the client card renderer actually
+ *  draws (renderClientChatCard). Everything else — plain text, plus staff-only
+ *  kinds that fall through to a text bubble — stays in "Chat", so no message is
+ *  ever hidden from both views. */
+const CLIENT_ACTIVITY_KINDS = new Set<string>([
+  "offer_event",
+  "payment_request",
+  "payment_paid",
+  "booking_confirmed",
+  "call_sheet_update",
+  "booking_status",
+  "system_event",
+]);
+
+function isClientActivityMessage(m: WorkspaceMessage): boolean {
+  const kind = m.message_kind ?? "text";
+  return kind !== "text" && CLIENT_ACTIVITY_KINDS.has(kind);
+}
 
 function ThreadPaneWithTabs({
   inq,
@@ -739,6 +822,15 @@ function ThreadPaneWithTabs({
   const router = useRouter();
   const [statusSheetOpen, setStatusSheetOpen] = useState(false);
   const [payNowSheet, setPayNowSheet] = useState<{ amountLabel: string } | null>(null);
+  // Chat/Activity sub-view (audit #15) — mirrors the talent shell. Resets to
+  // "chat" whenever the selected inquiry changes so a new thread always opens
+  // on the conversation.
+  const [chatMode, setChatMode] = useState<ChatMode>("chat");
+  useEffect(() => { setChatMode("chat"); }, [inq.id]);
+  const activityCount = useMemo(
+    () => messages.filter(isClientActivityMessage).length,
+    [messages],
+  );
   const statusSheetData = useMemo<StatusSheetData>(
     () => buildClientStatusSheetData(inq, details),
     [inq, details],
@@ -861,6 +953,67 @@ function ThreadPaneWithTabs({
             );
           })}
         </div>
+
+        {/* Chat / Activity sub-toggle — mirrors the talent shell (audit #15).
+            "Chat" is the human conversation; "Activity" is the read-only
+            money/booking timeline (offer → payment → booking). Only shown on
+            the Chat tab; lives in the fixed header so it stays pinned. */}
+        {activeTab === "chat" && (
+          <div role="tablist" aria-label="Chat or activity" style={{ display: "flex", gap: 4, marginTop: 8, marginBottom: 10 }}>
+            {([
+              { id: "chat" as ChatMode, label: "Chat" },
+              { id: "activity" as ChatMode, label: "Activity" },
+            ]).map(({ id, label }) => {
+              const isActive = chatMode === id;
+              const count = id === "activity" ? activityCount : 0;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => setChatMode(id)}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "4px 12px",
+                    borderRadius: 999,
+                    border: `1px solid ${isActive ? C.ink : C.borderSoft}`,
+                    background: isActive ? C.ink : "transparent",
+                    color: isActive ? "#fff" : C.inkMuted,
+                    fontFamily: FONT,
+                    fontSize: 11.5,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {label}
+                  {count > 0 && (
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        minWidth: 16,
+                        height: 16,
+                        padding: "0 4px",
+                        borderRadius: 999,
+                        background: isActive ? "rgba(255,255,255,0.22)" : C.accentSoft,
+                        color: isActive ? "#fff" : C.accent,
+                        fontSize: 10,
+                        fontWeight: 700,
+                      }}
+                    >
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Tab body */}
@@ -869,6 +1022,7 @@ function ThreadPaneWithTabs({
           <ChatThreadBody
             inq={inq}
             messages={messages}
+            mode={chatMode}
             loading={loadingMessages}
             tenantSlug={tenantSlug}
             pitch={details?.pitch ?? null}
@@ -916,8 +1070,9 @@ function ThreadPaneWithTabs({
         />
       )}
 
-      {/* Inline composer — only on Chat tab */}
-      {activeTab === "chat" && (
+      {/* Inline composer — only on the Chat tab's Chat sub-view. The Activity
+          sub-view is a read-only money/booking timeline (audit #15). */}
+      {activeTab === "chat" && chatMode === "chat" && (
         <ChatComposer
           inquiryId={inq.id}
           tenantSlug={tenantSlug}
@@ -925,6 +1080,11 @@ function ThreadPaneWithTabs({
           inquiryStatus={inq.status}
           hasOffer={!!details?.offer?.exists}
           onSent={(msg) => onMessagesChange((prev) => [...prev, msg])}
+          onReconcileSent={(tempId, realId) =>
+            onMessagesChange((prev) =>
+              prev.map((m) => (m.id === tempId ? { ...m, id: realId } : m)),
+            )
+          }
         />
       )}
     </>
@@ -1176,6 +1336,7 @@ function ChatComposer({
   inquiryStatus,
   hasOffer,
   onSent,
+  onReconcileSent,
 }: {
   inquiryId: string;
   tenantSlug: string;
@@ -1183,6 +1344,9 @@ function ChatComposer({
   inquiryStatus?: string;
   hasOffer?: boolean;
   onSent: (msg: WorkspaceMessage) => void;
+  /** Promote an optimistic `tmp-` bubble to its canonical server row id so
+   *  the reconcile dedups by id, never body text (audit #15). */
+  onReconcileSent: (tempId: string, realId: string) => void;
 }) {
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -1292,12 +1456,14 @@ function ChatComposer({
         window.dispatchEvent(new CustomEvent("client-message-send-failed", { detail: { tempId } }));
         return;
       }
-      // Server accepted — refetch the thread to reconcile the optimistic
-      // bubble with the canonical row (real id, real sender_user_id, real
-      // created_at). Fire-and-forget; failure just leaves the optimistic
-      // bubble in place.
+      // Server accepted — promote the optimistic bubble to its canonical row
+      // id immediately so the refetch reconciles by id, never body text
+      // (audit #15: identical bodies used to collide). The refetch then swaps
+      // in the canonical row data (created_at / seen_at). Fire-and-forget;
+      // failure just leaves the (now real-id) bubble in place.
+      if (res.messageId) onReconcileSent(tempId, res.messageId);
       window.dispatchEvent(
-        new CustomEvent("client-message-send-ok", { detail: { tempId, inquiryId } }),
+        new CustomEvent("client-message-send-ok", { detail: { inquiryId } }),
       );
     });
   }
@@ -1352,10 +1518,12 @@ function ChatComposer({
         setError(`Uploaded, but message failed: ${sendRes.error}`);
         return;
       }
-      // Add the canonical announce bubble.
-      const announceTempId = `tmp-up-msg-${Date.now()}`;
+      // The announce send already succeeded — add the bubble with its
+      // canonical row id directly so the refetch reconciles by id, never body
+      // text (audit #15). Falls back to a tmp id only if the action somehow
+      // returned no id (defensive; the engine always returns one).
       onSent({
-        id: announceTempId,
+        id: sendRes.messageId || `tmp-up-msg-${Date.now()}`,
         sender_user_id: "",
         sender_name: senderName,
         body: announceBody,
@@ -1363,7 +1531,7 @@ function ChatComposer({
         is_mine: true,
       });
       window.dispatchEvent(
-        new CustomEvent("client-message-send-ok", { detail: { tempId: announceTempId, inquiryId } }),
+        new CustomEvent("client-message-send-ok", { detail: { inquiryId } }),
       );
     });
   }
@@ -1595,10 +1763,11 @@ function ChatComposer({
 }
 
 function ChatThreadBody({
-  inq, messages, loading, tenantSlug, pitch, onJumpToOffer, onPayNow, onMessagesChange,
+  inq, messages, mode, loading, tenantSlug, pitch, onJumpToOffer, onPayNow, onMessagesChange,
 }: {
   inq: ClientInquiryRow;
   messages: WorkspaceMessage[];
+  mode: ChatMode;
   loading: boolean;
   tenantSlug: string;
   pitch: ClientInquiryDetails["pitch"];
@@ -1607,37 +1776,48 @@ function ChatThreadBody({
   onMessagesChange?: (next: WorkspaceMessage[] | ((prev: WorkspaceMessage[]) => WorkspaceMessage[])) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  // "Chat" shows the human conversation (text bubbles + any staff-only kinds
+  // that fall through to a plain bubble); "Activity" shows only the
+  // money/booking/system cards as a read-only timeline. The two are a strict
+  // partition so no message is hidden from both views (audit #15).
+  const visible = useMemo(
+    () =>
+      mode === "activity"
+        ? messages.filter(isClientActivityMessage)
+        : messages.filter((m) => !isClientActivityMessage(m)),
+    [messages, mode],
+  );
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [messages]);
-  void inq;
+  }, [visible]);
   return (
     <div
       ref={scrollRef}
       role="log"
       aria-live="polite"
-      aria-label="Conversation messages"
+      aria-label={mode === "activity" ? "Booking activity timeline" : "Conversation messages"}
       style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 10 }}
     >
-      {pitch && <PitchOriginBlock pitch={pitch} />}
+      {mode === "chat" && pitch && <PitchOriginBlock pitch={pitch} />}
       {loading ? (
         <ChatLoadingSkeleton />
-      ) : messages.length === 0 ? (
+      ) : visible.length === 0 ? (
         <div style={{ color: C.inkDim, fontSize: 12.5, textAlign: "center", padding: 30, fontStyle: "italic" }}>
-          No messages yet. Your coordinator will reply here once they pick up your inquiry.
+          {mode === "activity"
+            ? "No activity yet. Offers, payments and booking confirmations will appear here as your booking progresses."
+            : "No messages yet. Your coordinator will reply here once they pick up your inquiry."}
         </div>
       ) : (
         (() => {
           // Find the latest is_mine message with a seen_at — only that one
           // gets the "Seen" pill so the indicator doesn't repeat down the
-          // thread. Reading from the loader's seen_at field which already
-          // compares per-message created_at against the counterparty's
-          // last_read_at on this thread.
+          // thread. Computed over the visible (filtered) list so the pill
+          // tracks the sub-view the user is looking at.
           let lastSeenMineIdx = -1;
-          for (let i = messages.length - 1; i >= 0; i--) {
-            if (messages[i].is_mine && messages[i].seen_at) { lastSeenMineIdx = i; break; }
+          for (let i = visible.length - 1; i >= 0; i--) {
+            if (visible[i].is_mine && visible[i].seen_at) { lastSeenMineIdx = i; break; }
           }
-          return messages.map((m, i) => (
+          return visible.map((m, i) => (
             <Bubble
               key={m.id}
               m={m}

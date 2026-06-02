@@ -194,11 +194,20 @@ export async function convertToBooking(
     }
 
     // Best-effort post-commit effects (kept outside transaction wrapper).
+    // Read the real figures off the just-committed booking so the structured
+    // log records the actual amount / currency / client instead of zeros
+    // (audit #15). The RPC above already wrote the row; a read failure here
+    // degrades to the prior zero/empty values rather than throwing.
+    const { data: bookingFigures } = await supabase
+      .from("agency_bookings")
+      .select("total_client_revenue, currency_code, client_account_id")
+      .eq("id", bookingId)
+      .maybeSingle();
     await onBookingCreated(bookingId, {
       inquiryId: ctx.inquiryId,
-      totalClientPrice: 0,
-      currencyCode: "",
-      clientAccountId: null,
+      totalClientPrice: Number(bookingFigures?.total_client_revenue ?? 0),
+      currencyCode: bookingFigures?.currency_code ?? "",
+      clientAccountId: bookingFigures?.client_account_id ?? null,
     });
 
     // Phase B PR 2 — persist commission snapshot. Non-fatal: a failure
