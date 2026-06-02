@@ -52,7 +52,8 @@ export function AdminReservationView({ inquiry, onBack }: { inquiry: RichInquiry
     inquiry.stage === "draft" || inquiry.stage === "submitted" ? "inquiry"
     : inquiry.stage === "coordination" ? "review"
     : inquiry.stage === "offer_pending" ? "offer"
-    : inquiry.stage === "approved" || inquiry.stage === "booked" ? "booked"
+    : inquiry.stage === "approved" ? "approved"
+    : inquiry.stage === "booked" ? "booked"
     : inquiry.stage === "rejected" || inquiry.stage === "expired" ? "wrapped"
     : "inquiry";
 

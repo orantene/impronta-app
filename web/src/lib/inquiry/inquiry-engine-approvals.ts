@@ -5,6 +5,7 @@ import { engineRateKey, rateLimiter } from "./inquiry-rate-limiter";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
 import { assertConsistencyAfterWrite, runWithEngineLog } from "./inquiry-engine.helpers";
 import type { EngineResult } from "./inquiry-engine.types";
+import { logServerError } from "@/lib/server/safe-error";
 
 // SaaS P1.B STEP A: tenant-scoped by construction. Pre-flight the inquiry's
 // tenant_id before invoking the SECURITY DEFINER RPC so cross-tenant ids are
@@ -201,7 +202,7 @@ export async function talentRespondToOffer(
   }
   if (!offerId) return { success: false, error: "no_active_offer" };
 
-  return submitApproval(supabase, {
+  const result = await submitApproval(supabase, {
     inquiryId: ctx.inquiryId,
     tenantId: ctx.tenantId,
     offerId,
@@ -210,4 +211,36 @@ export async function talentRespondToOffer(
     expectedVersion: ctx.expectedVersion,
     decision: ctx.decision,
   });
+
+  // §6 chat-card (audit #12): on a successful APPROVE, mirror a talent-safe
+  // card into the GROUP (booking-team) thread so staff + the other talents see
+  // the approval land — symmetric with the client's approve card
+  // (client-pipeline). A decline already surfaces via the engine's
+  // `approval.rejected` event, so we only emit on accept. Amount-free on
+  // purpose: the shared group thread must not leak the client total (agency
+  // margin) or another talent's rate. Fire-and-forget — never fail the
+  // approval on a card-emit error.
+  if (result.success && ctx.decision === "accepted") {
+    try {
+      const { data: tp } = await supabase
+        .from("talent_profiles")
+        .select("display_name")
+        .eq("user_id", ctx.actorUserId)
+        .maybeSingle();
+      const who = (tp?.display_name as string | null | undefined)?.trim() || "A talent";
+      await supabase.from("inquiry_messages").insert({
+        inquiry_id: ctx.inquiryId,
+        tenant_id: ctx.tenantId,
+        thread_type: "group",
+        sender_user_id: ctx.actorUserId,
+        body: `${who} approved the offer.`,
+        message_kind: "offer_event",
+        card_payload: { status: "accepted", total_label: "", offer_id: offerId },
+      });
+    } catch (emitErr) {
+      logServerError("inquiry-engine-approvals.talentRespondToOffer.chatCard", emitErr);
+    }
+  }
+
+  return result;
 }

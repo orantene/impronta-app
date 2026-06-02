@@ -22,6 +22,7 @@ export type ReservationStage =
   | "inquiry"
   | "review"
   | "offer"
+  | "approved"
   | "booked"
   | "wrapped";
 
