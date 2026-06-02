@@ -18,6 +18,13 @@ import { createClient } from "@/lib/supabase/client";
 import { ThreadSearch, type ThreadSearchMessage, type JumpTarget } from "@/components/thread-search/ThreadSearch";
 import { StatusSheet, type StatusSheetData, type StageStatus, type OfferStatus, type PaymentStatus, type TalentParticipationRow } from "@/components/messages-status-sheet/StatusSheet";
 import { PayNowSheet } from "@/components/chat-cards/PayNowSheet";
+import {
+  OfferCard,
+  PaymentRequestCard,
+  BookingConfirmedCard,
+  CallSheetUpdateCard,
+  SystemEventCard,
+} from "@/components/chat-cards/ChatCard";
 import { addReaction, removeReaction } from "@/lib/server-actions/message-reactions";
 import { StarButton } from "@/components/chat-interactions/StarButton";
 
@@ -866,7 +873,13 @@ function ThreadPaneWithTabs({
             tenantSlug={tenantSlug}
             pitch={details?.pitch ?? null}
             onJumpToOffer={() => onTabChange("offer")}
-            onPayNow={(amountLabel) => setPayNowSheet({ amountLabel })}
+            onPayNow={(cardAmountLabel) =>
+              // #13-2 — open the Pay-now sheet on the REAL charge (the booking
+              // transaction's gross from the loader's `payment` section), not
+              // the offer total / stale card label. Falls back to the card's
+              // own amount pre-charge (no transaction row yet).
+              setPayNowSheet({ amountLabel: clientChargeLabel(details) ?? cardAmountLabel })
+            }
             onMessagesChange={onMessagesChange}
           />
         )}
@@ -962,6 +975,19 @@ const NEXT_STEP_FROM_STATUS: Record<string, string> = {
   cancelled: "This project has been cancelled.",
 };
 
+/**
+ * #13-2 — format the client's REAL charge (booking-transaction gross, GROSS
+ * only) from the loader's `payment` section, for the Pay-now sheet + status.
+ * Returns null when no transaction exists yet (pre-charge) so callers can fall
+ * back to the triggering card's own amount. Mirrors the label format used in
+ * buildClientStatusSheetData so the sheet and the status row read identically.
+ */
+function clientChargeLabel(details: ClientInquiryDetails | null): string | null {
+  const p = details?.payment;
+  if (!p || p.amount_major == null) return null;
+  return `${p.currency ?? "USD"} ${Number(p.amount_major).toLocaleString()}`;
+}
+
 function buildClientStatusSheetData(
   inq: ClientInquiryRow,
   details: ClientInquiryDetails | null,
@@ -986,10 +1012,7 @@ function buildClientStatusSheetData(
   // when the charge amount isn't recorded yet.
   const payment: { status: PaymentStatus; amountLabel?: string; nextAction?: string } = (() => {
     const p = details?.payment ?? null;
-    const amountLabel =
-      p?.amount_major != null
-        ? `${p.currency ?? "USD"} ${Number(p.amount_major).toLocaleString()}`
-        : offerTotal;
+    const amountLabel = clientChargeLabel(details) ?? offerTotal;
     switch (p?.state) {
       case "requested":      return { status: "Requested", amountLabel, nextAction: "Open the Offer tab to pay and confirm your booking." };
       case "partially_paid": return { status: "Partially paid", amountLabel, nextAction: "A balance remains — open the Offer tab to pay the rest." };
@@ -2545,10 +2568,15 @@ function Bubble({
 }
 
 /**
- * Client-side chat-card dispatcher — mirrors the admin shell's
- * renderChatCardForMessage but with client-appropriate actions only.
- * Returns null for kinds the client surface doesn't render (admin-only
- * cards like admin_suggested_talent, coordinator_request).
+ * Client-side chat-card dispatcher. Maps a message `kind` + payload to the
+ * SHARED `@/components/chat-cards/ChatCard` components — the same green card
+ * primitives the admin shell uses (admin-3 `renderChatCardForMessage`) — with
+ * client-appropriate actions only. Audit #11 removed the forked blue
+ * client-only card JSX that used to live here so there is one card renderer.
+ *
+ * Returns null for kinds the client surface doesn't render (staff-only cards
+ * like admin_suggested_talent / coordinator_request / talent_rate) so the
+ * caller falls back to the plain message body.
  */
 function renderClientChatCard(
   kind: string,
@@ -2558,168 +2586,50 @@ function renderClientChatCard(
   const get = <T,>(k: string, fallback: T): T => (payload[k] as T) ?? fallback;
 
   switch (kind) {
-    case "offer_event": {
-      const status = get<"draft" | "sent" | "accepted" | "declined" | "countered">("status", "sent");
-      const totalLabel = get<string>("total_label", "—");
-      const hint = get<string>("hint", "Tap to review");
+    case "offer_event":
+      // Whole-card deep-link to the Offer tab. The client decides on the offer
+      // there (Approve / Counter / Decline) — never inline on the card.
       return (
-        <button
-          type="button"
-          onClick={ctx.onJumpToOffer}
-          style={{
-            textAlign: "left",
-            background: "#fff",
-            border: `1px solid ${C.border}`,
-            borderRadius: 12,
-            padding: "12px 14px",
-            cursor: ctx.onJumpToOffer ? "pointer" : "default",
-            fontFamily: FONT,
-            display: "flex",
-            flexDirection: "column",
-            gap: 4,
-            width: "100%",
-          }}
-        >
-          <div style={{ fontSize: 10, fontWeight: 700, color: C.accent, textTransform: "uppercase", letterSpacing: 0.5 }}>
-            Offer · {status}
-          </div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: C.ink, fontFamily: FONT_DISPLAY }}>
-            {totalLabel}
-          </div>
-          <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 2 }}>
-            {hint}
-          </div>
-        </button>
+        <OfferCard
+          status={get<"draft" | "sent" | "accepted" | "declined" | "countered">("status", "sent")}
+          totalLabel={get<string>("total_label", "—")}
+          hint={get<string>("hint", "Tap to review")}
+          onOpen={ctx.onJumpToOffer}
+        />
       );
-    }
-    case "payment_request":
-    case "payment_paid": {
+    case "payment_request": {
       const amountLabel = get<string>("amount_label", "—");
-      const paid = kind === "payment_paid";
+      // The client IS the payer — surface the Pay-now CTA. onPayNow opens the
+      // checkout sheet on the REAL charge (see the onPayNow wiring / #13-2).
       return (
-        <div
-          style={{
-            background: paid ? "rgba(16,185,129,0.06)" : "#fff",
-            border: `1px solid ${paid ? "rgba(16,185,129,0.20)" : C.border}`,
-            borderRadius: 12,
-            padding: "12px 14px",
-            fontFamily: FONT,
-            display: "flex",
-            flexDirection: "column",
-            gap: 6,
-          }}
-        >
-          <div style={{ fontSize: 10, fontWeight: 700, color: paid ? "#047857" : C.accent, textTransform: "uppercase", letterSpacing: 0.5 }}>
-            Payment {paid ? "received" : "requested"}
-          </div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: C.ink, fontFamily: FONT_DISPLAY }}>
-            {amountLabel}
-          </div>
-          {!paid && (
-            <>
-              {get<string>("hint", "") && (
-                <div style={{ fontSize: 12, color: C.inkMuted }}>
-                  {get<string>("hint", "")}
-                </div>
-              )}
-              {ctx.onPayNow && (
-                <button
-                  type="button"
-                  onClick={() => ctx.onPayNow!(amountLabel)}
-                  style={{
-                    marginTop: 6,
-                    padding: "8px 14px",
-                    borderRadius: 8,
-                    background: "#0F4F3E",
-                    color: "#fff",
-                    border: "none",
-                    fontFamily: FONT,
-                    fontSize: 12.5,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    alignSelf: "flex-start",
-                  }}
-                >
-                  Pay {amountLabel}
-                </button>
-              )}
-            </>
-          )}
-        </div>
+        <PaymentRequestCard
+          amountLabel={amountLabel}
+          status="requested"
+          hint={get<string>("hint", "")}
+          onPayNow={ctx.onPayNow ? () => ctx.onPayNow!(amountLabel) : undefined}
+        />
       );
     }
-    case "booking_confirmed": {
-      const totalLabel = get<string>("total_label", "");
-      const summary = get<string>("summary", "Payment received — your booking is confirmed.");
+    case "payment_paid":
+      return <PaymentRequestCard amountLabel={get<string>("amount_label", "—")} status="paid" />;
+    case "booking_confirmed":
       return (
-        <div
-          style={{
-            background: "rgba(16,185,129,0.06)",
-            border: `1px solid rgba(16,185,129,0.20)`,
-            borderRadius: 12,
-            padding: "12px 14px",
-            fontFamily: FONT,
-            display: "flex",
-            flexDirection: "column",
-            gap: 4,
-          }}
-        >
-          <div style={{ fontSize: 10, fontWeight: 700, color: "#047857", textTransform: "uppercase", letterSpacing: 0.5 }}>
-            Booking confirmed
-          </div>
-          {totalLabel && (
-            <div style={{ fontSize: 16, fontWeight: 600, color: C.ink, fontFamily: FONT_DISPLAY }}>
-              {totalLabel}
-            </div>
-          )}
-          <div style={{ fontSize: 12, color: C.inkMuted }}>{summary}</div>
-        </div>
+        <BookingConfirmedCard
+          totalLabel={get<string>("total_label", "")}
+          summary={get<string>("summary", "Payment received — your booking is confirmed.")}
+        />
       );
-    }
-    case "call_sheet_update": {
-      const changedField = get<string>("changed_field", "");
-      const byName = get<string>("by_name", "");
+    case "call_sheet_update":
       return (
-        <div
-          style={{
-            background: "rgba(15,81,50,0.05)",
-            border: `1px solid rgba(15,81,50,0.15)`,
-            borderRadius: 12,
-            padding: "10px 14px",
-            fontFamily: FONT,
-          }}
-        >
-          <div style={{ fontSize: 10, fontWeight: 700, color: "#0F5132", textTransform: "uppercase", letterSpacing: 0.5 }}>
-            Call sheet updated
-          </div>
-          <div style={{ fontSize: 13, color: C.ink, marginTop: 3 }}>
-            {byName ? `${byName} updated` : "Updated"} <strong>{changedField}</strong>.
-          </div>
-        </div>
+        <CallSheetUpdateCard
+          changedField={get<string>("changed_field", "")}
+          byName={get<string>("by_name", "")}
+        />
       );
-    }
     case "booking_status":
-    case "system_event": {
-      const text = get<string>("text", "Status updated");
-      return (
-        <div
-          style={{
-            fontSize: 11.5,
-            color: C.inkMuted,
-            textAlign: "center",
-            padding: "6px 12px",
-            background: "rgba(11,11,13,0.03)",
-            borderRadius: 999,
-            display: "inline-block",
-            margin: "0 auto",
-            fontFamily: FONT,
-          }}
-        >
-          {text}
-        </div>
-      );
-    }
-    // Admin/staff-only cards — fall through to plain body render.
+    case "system_event":
+      return <SystemEventCard text={get<string>("text", "Status updated")} />;
+    // Staff-only cards — the client surface never renders these.
     case "coordinator_request":
     case "talent_rate":
     case "admin_suggested_talent":

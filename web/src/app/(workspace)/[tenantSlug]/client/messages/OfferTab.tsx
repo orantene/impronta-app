@@ -326,7 +326,7 @@ function DecisionRibbon({
         </button>
         <div style={{ flex: 1 }} />
         <a
-          href={`/${tenantSlug}/client/inquiries/${details.id}`}
+          href={`/${tenantSlug}/client/messages?inquiry=${details.id}&tab=chat`}
           style={{
             ...ghostBtn,
             textDecoration: "none",
