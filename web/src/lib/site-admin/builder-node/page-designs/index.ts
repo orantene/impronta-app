@@ -11,6 +11,7 @@
  */
 
 import type { PageDesign } from "./types";
+import { improntaDesign } from "./impronta";
 import { editorialDesign } from "./editorial";
 import { agencyDesign } from "./agency";
 import { saasDesign } from "./saas";
@@ -29,6 +30,7 @@ export { PAGE_DESIGN_PHOTOS, pageDesignPhoto } from "./photos";
 export type { PageDesignPhotoKey } from "./photos";
 
 export {
+  improntaDesign,
   editorialDesign,
   agencyDesign,
   saasDesign,
@@ -40,6 +42,7 @@ export {
 
 /** Registry order = display order in the template picker. */
 export const PAGE_DESIGNS: ReadonlyArray<PageDesign> = [
+  improntaDesign,
   editorialDesign,
   agencyDesign,
   saasDesign,

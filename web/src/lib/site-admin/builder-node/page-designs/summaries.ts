@@ -19,6 +19,13 @@ export interface PageDesignSummary {
 
 export const PAGE_DESIGN_SUMMARIES: ReadonlyArray<PageDesignSummary> = [
   {
+    id: "impronta",
+    label: "Impronta agency",
+    description:
+      "The Impronta Models flagship home, freeform: a dark editorial models-&-image agency site with a warm-gold accent, a directory-search hero, a discipline roster, featured talent, markets, process, and inquiry CTAs.",
+    archetype: "agency",
+  },
+  {
     id: "editorial",
     label: "Editorial portfolio",
     description:
