@@ -13,6 +13,7 @@ import {
   formatCents,
 } from "@/lib/bookings/commission";
 import { loadCommissionContext, loadInquiryActivity, type InquiryActivityItem } from "../../../_data-bridge";
+import { loadBookingCommissionSnapshots } from "@/lib/billing/commission-engine";
 import {
   cancelTransactionAction,
   createAgencyPayoutAccountAction,
@@ -187,7 +188,7 @@ export default async function WorkspaceWorkDetailPage({
     .eq("source_inquiry_id", inquiryId)
     .maybeSingle();
 
-  const [transaction, commission, payoutCandidates, activityItems] = await Promise.all([
+  const [transaction, commission, payoutCandidates, activityItems, commissionSnapshots] = await Promise.all([
     booking ? loadActiveBookingTransaction(booking.id as string, supabase) : Promise.resolve(null),
     loadCommissionContext(scope.tenantId),
     booking && canRunBillingActions
@@ -198,6 +199,7 @@ export default async function WorkspaceWorkDetailPage({
         })
       : Promise.resolve([]),
     loadInquiryActivity(scope.tenantId, inquiryId, 15),
+    booking ? loadBookingCommissionSnapshots(supabase, booking.id as string) : Promise.resolve([]),
   ]);
 
   // Age of this inquiry in days
@@ -230,6 +232,37 @@ export default async function WorkspaceWorkDetailPage({
           currency: (booking as { currency_code?: string | null } | null)?.currency_code ?? "USD",
         }
       : null;
+
+  // Audit #4: once a booking_commission_snapshot exists it is the SOURCE OF TRUTH
+  // for the real split — what's actually collected from the client and disbursed —
+  // NOT the flat plan-tier % that calculateTransactionAmounts shows. Reconciles:
+  // gross_charged = platform_fee + workspace_fee (kept) + talent_net (paid out).
+  // Pre-snapshot we fall back to the flat-% preview above.
+  const snapPlatformCents = commissionSnapshots.reduce((s, r) => s + r.platform_fee_cents, 0);
+  const snapWorkspaceCents = commissionSnapshots.reduce((s, r) => s + r.workspace_fee_cents, 0);
+  const snapTalentCents = commissionSnapshots.reduce((s, r) => s + r.talent_net_cents, 0);
+  const snapGrossChargedCents = commissionSnapshots.reduce(
+    (s, r) => s + (r.gross_charged_cents ?? r.gross_cents),
+    0,
+  );
+  const snapBreakdown = commissionSnapshots.length
+    ? {
+        grossCents: snapGrossChargedCents,
+        feeCents: snapPlatformCents, // the REAL platform fee, not a flat plan %
+        netCents: snapWorkspaceCents, // the workspace's actual net (agency margin)
+        feeLabel:
+          snapGrossChargedCents > 0
+            ? `${Math.round((snapPlatformCents / snapGrossChargedCents) * 100)}%`
+            : "0%",
+        currency: commissionSnapshots[0].currency_code,
+      }
+    : null;
+  const effectiveBreakdown = snapBreakdown ?? breakdown;
+  // Talent payout lane — only shown when the snapshot exists (so the three kept/paid
+  // lanes reconcile to gross). currency from the snapshot.
+  const talentPayout = snapBreakdown
+    ? { cents: snapTalentCents, currency: commissionSnapshots[0].currency_code }
+    : null;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18, fontFamily: FONT }}>
@@ -501,23 +534,31 @@ export default async function WorkspaceWorkDetailPage({
             <div style={{ border: `1px solid ${C.borderSoft}`, borderRadius: 10, padding: 10 }}>
               <div style={{ fontSize: 11, color: C.inkMuted }}>{t("admin.work.detail.grossRevenue")}</div>
               <div style={{ marginTop: 2, fontSize: 16, color: C.ink, fontWeight: 600 }}>
-                {breakdown ? formatCents(breakdown.grossCents, breakdown.currency) : "—"}
+                {effectiveBreakdown ? formatCents(effectiveBreakdown.grossCents, effectiveBreakdown.currency) : "—"}
               </div>
             </div>
             <div style={{ border: `1px solid ${C.borderSoft}`, borderRadius: 10, padding: 10 }}>
               <div style={{ fontSize: 11, color: C.inkMuted }}>
-                {t("admin.work.detail.platformFee").replace("{pct}", breakdown?.feeLabel ?? commission.feePercent)}
+                {t("admin.work.detail.platformFee").replace("{pct}", effectiveBreakdown?.feeLabel ?? commission.feePercent)}
               </div>
               <div style={{ marginTop: 2, fontSize: 16, color: C.ink, fontWeight: 600 }}>
-                {breakdown ? formatCents(breakdown.feeCents, breakdown.currency) : "—"}
+                {effectiveBreakdown ? formatCents(effectiveBreakdown.feeCents, effectiveBreakdown.currency) : "—"}
               </div>
             </div>
             <div style={{ border: `1px solid ${C.borderSoft}`, borderRadius: 10, padding: 10 }}>
               <div style={{ fontSize: 11, color: C.inkMuted }}>{t("admin.work.detail.netPayout")}</div>
               <div style={{ marginTop: 2, fontSize: 16, color: C.ink, fontWeight: 600 }}>
-                {breakdown ? formatCents(breakdown.netCents, breakdown.currency) : "—"}
+                {effectiveBreakdown ? formatCents(effectiveBreakdown.netCents, effectiveBreakdown.currency) : "—"}
               </div>
             </div>
+            {talentPayout ? (
+              <div style={{ border: `1px solid ${C.borderSoft}`, borderRadius: 10, padding: 10 }}>
+                <div style={{ fontSize: 11, color: C.inkMuted }}>Talent payout</div>
+                <div style={{ marginTop: 2, fontSize: 16, color: C.ink, fontWeight: 600 }}>
+                  {formatCents(talentPayout.cents, talentPayout.currency)}
+                </div>
+              </div>
+            ) : null}
           </div>
         ) : null}
 
