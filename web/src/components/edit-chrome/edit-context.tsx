@@ -2193,7 +2193,12 @@ export function EditProvider({
     // Selection-sync hardening: if the selected child node disappeared from
     // the tree (delete/move/refresh) or now belongs to another section, clear
     // the override so inspector/navigator fall back to the section root.
-    if (!ownerSectionId || ownerSectionId !== selectedSectionId) {
+    // NOTE: freeform full-page-design nodes legitimately have NO owner section
+    // (ownerSectionId === null), and selectBuilderNode sets selectedSectionId
+    // to null for them — so they MATCH and must NOT be cleared. Only clear on a
+    // real mismatch; the old `!ownerSectionId ||` clause wrongly cleared every
+    // freeform selection the instant it was made.
+    if (ownerSectionId !== selectedSectionId) {
       setSelectedBuilderNodeIdOverride(null);
     }
   }, [

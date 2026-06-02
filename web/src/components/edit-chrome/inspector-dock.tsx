@@ -703,7 +703,11 @@ export function InspectorDock() {
       currentLoadedSection?.sectionTypeKey === "site_header" ||
       currentLoadedSection?.sectionTypeKey === "site_footer");
 
-  const dockOpen = !!selectedSectionId;
+  // Freeform full-page-design blocks have NO owner section, so selection lands
+  // a standalone builder node with selectedSectionId === null. Open the dock for
+  // either a section OR a standalone node — otherwise freeform blocks select in
+  // state but the inspector stays collapsed/empty.
+  const dockOpen = !!selectedSectionId || !!selectedStandaloneBuilderNode;
 
   // T2-1 — Use the skeleton hint (name + type known from slots) when the
   // field-draft fetch hasn't resolved yet. Falls back to "Inspector" only
@@ -916,7 +920,7 @@ export function InspectorDock() {
         }
       />
 
-      {!selectedSectionId ? (
+      {!selectedSectionId && !selectedStandaloneBuilderNode ? (
         <EmptyState />
       ) : shellSectionLocked ? (
         <ShellLockedState />
