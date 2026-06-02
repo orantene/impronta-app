@@ -13,8 +13,6 @@ import { useRouter } from "next/navigation";
 
 import { AUTH_POPUP_MESSAGE_TYPE, type AuthPopupMessage } from "@/lib/auth-popup";
 import { getAppUrl } from "@/lib/auth-flow";
-import { createClient } from "@/lib/supabase/client";
-import { SUPABASE_ENV_HELP } from "@/lib/supabase/config";
 import {
   ArrowGlyph,
   GoogleGlyph,
@@ -66,19 +64,21 @@ export function GoogleButton({
     };
   }, [router, onAuthed]);
 
-  async function handleClick() {
+  function handleClick() {
     setError(null);
-    const supabase = createClient();
-    if (!supabase) {
-      setError(SUPABASE_ENV_HELP);
-      return;
-    }
     const W = 520;
     const H = 640;
     const left = Math.max(window.screenX + (window.outerWidth - W) / 2, 0);
     const top = Math.max(window.screenY + (window.outerHeight - H) / 2, 0);
+    // Use the app host for /auth/google so the server can set the PKCE
+    // verifier cookie via Set-Cookie — more reliable than document.cookie in
+    // a cross-origin popup redirect chain. The callback lands on the app host
+    // where /auth/callback is allow-listed.
+    const startUrl = new URL("/auth/google", getAppUrl());
+    startUrl.searchParams.set("popup", "1");
+    startUrl.searchParams.set("next", next ?? OAUTH_NEXT_PATH);
     const popup = window.open(
-      "",
+      startUrl.toString(),
       "google-auth-popup",
       `width=${W},height=${H},left=${left},top=${top},popup=yes,resizable=yes,scrollbars=yes`,
     );
@@ -88,24 +88,6 @@ export function GoogleButton({
     }
     popupRef.current = popup;
     setPending(true);
-    // The callback must run on the app host — /auth/callback isn't allowed on
-    // the marketing host. The PKCE verifier cookie is shared across the parent
-    // domain (see lib/supabase/client.ts), so the exchange succeeds there.
-    const cb = new URL("/auth/callback", getAppUrl());
-    cb.searchParams.set("popup", "1");
-    cb.searchParams.set("next", next ?? OAUTH_NEXT_PATH);
-    const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: cb.toString(), skipBrowserRedirect: true },
-    });
-    if (oauthError || !data?.url) {
-      popup.close();
-      popupRef.current = null;
-      setPending(false);
-      setError(oauthError?.message ?? "Unable to start Google sign-in.");
-      return;
-    }
-    popup.location.href = data.url;
     closeWatcherRef.current = window.setInterval(() => {
       if (!popupRef.current || popupRef.current.closed) {
         if (closeWatcherRef.current) {

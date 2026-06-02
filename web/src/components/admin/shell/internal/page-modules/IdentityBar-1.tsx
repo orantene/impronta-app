@@ -39,6 +39,7 @@ export function TulalaIdentityBar() {
     bridgeWorkspaceUnread,
     bridgeFirstRunToggleTipSeen,
     effectiveTenant,
+    tenantSlug,
   } = useAdminShell();
   const copy = useDashboardText();
   const { surface, alsoTalent, role, entityType } = state;
@@ -427,6 +428,42 @@ export function TulalaIdentityBar() {
         {/* Locale toggle — matches production EN/ES affordance.
             Compact pill; the inactive side flips on click. */}
         <LocaleToggle />
+
+        {/* Preview public site — opens the agency homepage in a new tab */}
+        <a
+          href={tenantSlug ? `/${tenantSlug}` : "/"}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Preview site"
+          title="Preview public site"
+          style={{
+            width: 34,
+            height: 34,
+            borderRadius: 8,
+            border: `1px solid ${COLORS.borderSoft}`,
+            background: "#fff",
+            color: COLORS.inkMuted,
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            textDecoration: "none",
+            transition: `border-color ${TRANSITION.micro}, color ${TRANSITION.micro}`,
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = COLORS.border;
+            e.currentTarget.style.color = COLORS.ink;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = COLORS.borderSoft;
+            e.currentTarget.style.color = COLORS.inkMuted;
+          }}
+        >
+          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        </a>
 
         {/* Sign out — calls the real signOut server action (clears the
             Supabase session + redirects to "/"). Previously a prototype

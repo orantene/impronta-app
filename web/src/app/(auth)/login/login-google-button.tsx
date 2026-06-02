@@ -13,8 +13,6 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { AUTH_POPUP_MESSAGE_TYPE, type AuthPopupMessage } from "@/lib/auth-popup";
-import { createClient } from "@/lib/supabase/client";
-import { SUPABASE_ENV_HELP } from "@/lib/supabase/config";
 
 export function LoginGoogleButton({
   nextPath,
@@ -63,19 +61,22 @@ export function LoginGoogleButton({
     };
   }, [failedLabel, router]);
 
-  async function handleClick() {
+  function handleClick() {
     setError(null);
-    const supabase = createClient();
-    if (!supabase) {
-      setError(SUPABASE_ENV_HELP);
-      return;
-    }
     const W = 520;
     const H = 640;
     const left = Math.max(window.screenX + (window.outerWidth - W) / 2, 0);
     const top = Math.max(window.screenY + (window.outerHeight - H) / 2, 0);
+
+    // Build the server-initiated OAuth URL. The server stores the PKCE
+    // code verifier in Set-Cookie (more reliable than document.cookie in
+    // a popup's cross-origin redirect chain).
+    const startUrl = new URL("/auth/google", window.location.origin);
+    startUrl.searchParams.set("popup", "1");
+    if (nextPath) startUrl.searchParams.set("next", nextPath);
+
     const popup = window.open(
-      "",
+      startUrl.toString(),
       "google-auth-popup",
       `width=${W},height=${H},left=${left},top=${top},popup=yes,resizable=yes,scrollbars=yes`,
     );
@@ -85,21 +86,6 @@ export function LoginGoogleButton({
     }
     popupRef.current = popup;
     setPending(true);
-    const cb = new URL("/auth/callback", window.location.origin);
-    cb.searchParams.set("popup", "1");
-    if (nextPath) cb.searchParams.set("next", nextPath);
-    const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: cb.toString(), skipBrowserRedirect: true },
-    });
-    if (oauthError || !data?.url) {
-      popup.close();
-      popupRef.current = null;
-      setPending(false);
-      setError(oauthError?.message ?? unableToStartMessage);
-      return;
-    }
-    popup.location.href = data.url;
     closeWatcherRef.current = window.setInterval(() => {
       if (!popupRef.current || popupRef.current.closed) {
         if (closeWatcherRef.current) {

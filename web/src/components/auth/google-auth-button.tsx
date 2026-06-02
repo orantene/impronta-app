@@ -1,8 +1,6 @@
 "use client";
 
 import { AUTH_POPUP_MESSAGE_TYPE, type AuthPopupMessage } from "@/lib/auth-popup";
-import { SUPABASE_ENV_HELP } from "@/lib/supabase/config";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -66,28 +64,21 @@ export function GoogleAuthButton({
     };
   }, [failedLabel, router]);
 
-  async function handleClick() {
+  function handleClick() {
     setError(null);
 
-    const supabase = createClient();
-    if (!supabase) {
-      setError(SUPABASE_ENV_HELP);
-      return;
-    }
+    const left = getPopupPosition(POPUP_WIDTH, window.screenX, window.outerWidth);
+    const top = getPopupPosition(POPUP_HEIGHT, window.screenY, window.outerHeight);
 
-    const left = getPopupPosition(
-      POPUP_WIDTH,
-      window.screenX,
-      window.outerWidth,
-    );
-    const top = getPopupPosition(
-      POPUP_HEIGHT,
-      window.screenY,
-      window.outerHeight,
-    );
+    // Open popup directly to the server-initiated OAuth route so the PKCE
+    // verifier is stored via Set-Cookie (server-side) rather than
+    // document.cookie, avoiding "bad_oauth_callback" state mismatches.
+    const startUrl = new URL("/auth/google", window.location.origin);
+    startUrl.searchParams.set("popup", "1");
+    if (nextPath) startUrl.searchParams.set("next", nextPath);
 
     const popup = window.open(
-      "",
+      startUrl.toString(),
       "google-auth-popup",
       `width=${POPUP_WIDTH},height=${POPUP_HEIGHT},left=${left},top=${top},popup=yes,resizable=yes,scrollbars=yes`,
     );
@@ -99,30 +90,6 @@ export function GoogleAuthButton({
 
     popupRef.current = popup;
     setPending(true);
-
-    const callbackUrl = new URL("/auth/callback", window.location.origin);
-    callbackUrl.searchParams.set("popup", "1");
-    if (nextPath) {
-      callbackUrl.searchParams.set("next", nextPath);
-    }
-
-    const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: callbackUrl.toString(),
-        skipBrowserRedirect: true,
-      },
-    });
-
-    if (oauthError || !data?.url) {
-      popup.close();
-      popupRef.current = null;
-      setPending(false);
-      setError(oauthError?.message ?? unableToStartMessage);
-      return;
-    }
-
-    popup.location.href = data.url;
 
     closeWatcherRef.current = window.setInterval(() => {
       if (!popupRef.current || popupRef.current.closed) {

@@ -8,6 +8,7 @@ import {
   CalendarPlus,
   ChevronDown,
   ChevronRight,
+  Eye,
   Keyboard,
   LogOut,
   Menu,
@@ -470,6 +471,27 @@ export function AdminShellTopBar({
           <TooltipContent side="bottom">
             {chromeTheme === "dark" ? "Light mode" : "Dark mode"}
           </TooltipContent>
+        </Tooltip>
+
+        {/* Preview site */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <a
+              href="/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border border-foreground/15 bg-foreground/[0.04] px-2.5 py-1.5 text-[12px] font-semibold text-foreground",
+                "transition-colors hover:border-foreground/30 hover:bg-foreground/[0.08]",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--admin-gold)]/50",
+              )}
+              aria-label="Preview public site"
+            >
+              <Eye className="size-3.5" aria-hidden />
+              <span className="hidden md:inline">Preview</span>
+            </a>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Preview public site</TooltipContent>
         </Tooltip>
 
         {/* Avatar / account menu */}
