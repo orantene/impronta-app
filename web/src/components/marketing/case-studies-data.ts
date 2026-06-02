@@ -352,6 +352,318 @@ export const CASE_STUDIES: CaseStudy[] = [
   },
 ];
 
+/**
+ * Prose fields that carry meaning and need translation. Structural fields
+ * (key, motion, persona, link, photo) stay shared across languages so the
+ * card badges, filtering, and imagery never drift between locales.
+ */
+type LocalizedStudy = Pick<
+  CaseStudy,
+  | "plan"
+  | "role"
+  | "location"
+  | "cardTitle"
+  | "cardSummary"
+  | "challenge"
+  | "approach"
+  | "outcome"
+  | "quote"
+  | "tags"
+>;
+
+/** Natural Mexican-Spanish ("tú") translations, keyed by study `key`. */
+const CASE_STUDIES_ES: Record<string, LocalizedStudy> = {
+  singer: {
+    plan: "Talento · Max",
+    role: "Cantautora independiente",
+    location: "Ciudad de México",
+    cardTitle: "Una página de reservas que suena a su disco",
+    cardSummary:
+      "Daniela convirtió un perfil gratis en su sitio personal con su música integrada — y los venues la contratan sin un solo DM.",
+    challenge:
+      "Daniela conseguía fechas por DMs de Instagram y un link en la bio. Los promotores no podían escucharla, ver su rider ni revisar una fecha sin tres mensajes de ida y vuelta — y la mitad nunca respondía.",
+    approach: [
+      "Creó su sitio personal en un clic y le integró su Spotify y un reel en vivo con el editor de páginas",
+      "Publicó sus tarifas y disponibilidad para que los venues se filtren solos antes de escribir",
+      "Recibe solicitudes por el mensajero de reservas — cotización, depósito y contrato en un mismo hilo",
+      "Pasó a Talento · Max por el dominio propio y media ilimitada",
+    ],
+    outcome: [
+      { stat: "3×", label: "más solicitudes de reserva" },
+      { stat: "48 h", label: "promedio para cerrar una fecha" },
+      { stat: "$0", label: "gastado en un desarrollador web" },
+    ],
+    quote: "Mi link por fin suena a mi música. Los venues llegan ya sabiendo el precio.",
+    tags: ["Editor de páginas", "Spotify integrado", "Reservas"],
+  },
+  massage: {
+    plan: "Talento · Max",
+    role: "Masajista a domicilio",
+    location: "Playa del Carmen",
+    cardTitle: "Agenda llena desde un solo link tranquilo",
+    cardSummary:
+      "Una terapeuta independiente cambió el teléfono que nunca para por una página de reservas — sus clientes reservan y dejan depósito mientras ella está en sesión.",
+    challenge:
+      "Renata perdía reservas cada vez que estaba en la camilla y no podía contestar el teléfono. Perseguir a los que no llegaban le comía las noches.",
+    approach: [
+      "Creó un sitio de una página, sereno, con servicios, duraciones y precios usando el editor",
+      "Activó las reservas para que el cliente elija horario y deje depósito al instante",
+      "Confirmaciones, recordatorios y reagendas corren dentro del mensajero de reservas",
+      "Ofrece opciones a domicilio y en estudio a distintas tarifas",
+    ],
+    outcome: [
+      { stat: "−90%", label: "ausencias tras pedir depósito" },
+      { stat: "15 h", label: "ahorradas en agenda al mes" },
+      { stat: "24/7", label: "reservas, hasta en sesión" },
+    ],
+    quote: "Llevo meses sin contestar un '¿cuánto cuesta, tienes espacio?'. Se agenda solo.",
+    tags: ["Reservas", "Depósitos", "Editor de páginas"],
+  },
+  wedding: {
+    plan: "Talento · Pro",
+    role: "Fotógrafo de bodas",
+    location: "Riviera Maya",
+    cardTitle: "De la consulta al contrato firmado sin salir del chat",
+    cardSummary:
+      "Mateo cierra bodas de destino de principio a fin — galería, cotización, depósito y contrato — todo dentro del mensajero de reservas.",
+    challenge:
+      "Las parejas de destino querían ver su trabajo, recibir una cotización a la medida y firmar rápido entre husos horarios. Los correos y PDFs volvían lenta cada reserva.",
+    approach: [
+      "Publicó un sitio de portafolio con paquetes y preguntas frecuentes usando el editor",
+      "Las parejas mandan una consulta; Mateo responde con una oferta versionada en el mensajero",
+      "Cobra el depósito y la firma electrónica en el mismo hilo — sin herramienta de facturas aparte",
+      "Guarda los archivos, fechas y pagos de cada boda en un solo lugar",
+    ],
+    outcome: [
+      { stat: "2 días", label: "de consulta a firma, en promedio" },
+      { stat: "+40%", label: "conversión de reservas" },
+      { stat: "1 hilo", label: "por boda, de inicio a fin" },
+    ],
+    quote: "Las parejas firman antes de que otro fotógrafo mande su PDF.",
+    tags: ["Mensajero de reservas", "Ofertas y depósitos", "Bodas"],
+  },
+  tattoo: {
+    plan: "Talento · Max",
+    role: "Tatuador",
+    location: "Tulum",
+    cardTitle: "Una lista de espera que se filtra sola",
+    cardSummary:
+      "Iván cambió una lista de espera caótica en DMs por un flujo de reservas con depósito — solo los clientes en serio consiguen lugar.",
+    challenge:
+      "Los DMs de Iván estaban llenos de '¿cuánto?' y las ausencias quemaban sus mejores horas. Cada drop de flash se volvía 200 mensajes sin responder.",
+    approach: [
+      "Creó un sitio con la galería al frente para flash y trabajo a la medida con el editor",
+      "El cliente pide lugar y paga un depósito para apartarlo",
+      "Las consultas de piezas a la medida y los diseños finales corren por el mensajero de reservas",
+      "Los drops de flash salen como inventario reservable — el primer depósito gana",
+    ],
+    outcome: [
+      { stat: "100%", label: "reservas con depósito" },
+      { stat: "0", label: "ausencias en horas pico" },
+      { stat: "5 min", label: "para vaciar un drop de flash" },
+    ],
+    quote: "El depósito filtra a los curiosos. Mi silla se llena con gente que sí llega.",
+    tags: ["Reservas", "Depósitos", "Sitio con galería"],
+  },
+  band: {
+    plan: "Negocio · Studio",
+    role: "Banda en vivo de 7 integrantes",
+    location: "Cancún y Riviera Maya",
+    cardTitle: "Siete músicos, un workspace, pagos divididos",
+    cardSummary:
+      "Una banda opera sus shows como negocio — calendario compartido, un solo sitio de reservas y reparto automático de pagos por integrante.",
+    challenge:
+      "Coordinar la disponibilidad de siete músicos, una sola cuenta de banco y quién-cobra-cuánto después de cada show era una pesadilla de hojas de cálculo.",
+    approach: [
+      "Levantaron un workspace Studio con un sitio de reservas creado en un clic",
+      "Cada integrante tiene un rol; el calendario compartido bloquea fechas en cuanto se confirma un show",
+      "Las consultas de eventos → oferta → depósito → saldo corren por el mensajero de reservas",
+      "Los pagos se reparten solos por integrante cuando se paga un evento",
+    ],
+    outcome: [
+      { stat: "7", label: "integrantes, un workspace" },
+      { stat: "auto", label: "reparto de pagos por show" },
+      { stat: "+60%", label: "reservas de eventos corporativos" },
+    ],
+    quote: "Por fin operamos como empresa, no como un chat de grupo con instrumentos.",
+    tags: ["Workspace", "Roles de equipo", "Pagos divididos"],
+  },
+  salon: {
+    plan: "Negocio · Studio",
+    role: "Salón de belleza",
+    location: "Tulum",
+    cardTitle: "Cada silla ocupada, cada estilista en un solo sitio",
+    cardSummary:
+      "Un salón puso a todo su equipo en línea — el cliente elige estilista, ve el precio y aparta su silla con depósito.",
+    challenge:
+      "Cinco estilistas, un teléfono y una libreta de papel. Los empalmes y los huecos entre clientes costaban dinero real cada semana.",
+    approach: [
+      "Crearon un sitio de salón con su marca usando el editor — servicios, equipo y precios",
+      "Cada estilista tiene su calendario reservable; el cliente elige con quién y cuándo",
+      "El depósito aparta la silla; los recordatorios bajan las ausencias",
+      "La recepción lleva todo el día desde un solo buzón del workspace",
+    ],
+    outcome: [
+      { stat: "−75%", label: "empalmes de citas" },
+      { stat: "+30%", label: "ocupación de sillas" },
+      { stat: "5", label: "estilistas, un calendario" },
+    ],
+    quote: "La agenda se lleva sola. Nosotros solo cortamos.",
+    tags: ["Reserva por estilista", "Depósitos", "Workspace"],
+  },
+  models: {
+    plan: "Negocio · Agency",
+    role: "Agencia de talento y modelos",
+    location: "Riviera Maya",
+    cardTitle: "Un roster de agencia que se reserva solo",
+    cardSummary:
+      "Impronta lleva un sitio de roster con dominio propio y un pipeline completo de consulta a reserva — cada solicitud rastreada al talento que la ganó.",
+    challenge:
+      "Mandar los paquetes de modelos por WhatsApp hacía que una agencia de verdad pareciera un contacto. Nada estaba estructurado, nada era rastreable y las tarifas se filtraban.",
+    approach: [
+      "Lanzaron un sitio de roster con su marca en dominio propio usando el editor",
+      "Cada modelo tiene un perfil en forma — medidas, portafolio, disponibilidad",
+      "Los clientes consultan; la agencia manda ofertas versionadas y las convierte en reservas en el mensajero",
+      "Comisión y exclusividad se rastrean solas por reserva",
+    ],
+    outcome: [
+      { stat: "1", label: "hogar con marca para el roster" },
+      { stat: "100%", label: "consultas rastreadas a su origen" },
+      { stat: "+45%", label: "conversión de reservas" },
+    ],
+    quote: "Nos vemos como la agencia que siempre fuimos — y nada se escapa.",
+    tags: ["Dominio propio", "Pipeline de consultas", "Comisión"],
+  },
+  fitness: {
+    plan: "Negocio · Studio",
+    role: "Estudio de pilates y movimiento",
+    location: "Ciudad de México",
+    cardTitle: "Paquetes de clases, membresías y un sitio en un fin de semana",
+    cardSummary:
+      "Un estudio boutique lanzó reservas en línea, paquetes de clases y un roster de instructores sin contratar a un desarrollador.",
+    challenge:
+      "Flota llevaba las clases por una app de mensajes y un cuaderno. Vender paquetes y saber quién había pagado era pura adivinanza.",
+    approach: [
+      "Crearon un sitio del estudio con horario, instructores y precios usando el editor",
+      "Los clientes apartan lugar en una clase y compran paquetes de varias clases",
+      "Las listas de espera y los recordatorios corren por el mensajero de reservas",
+      "Los instructores tienen acceso por rol a sus propios horarios",
+    ],
+    outcome: [
+      { stat: "1 finde", label: "para lanzar en línea" },
+      { stat: "+50%", label: "ingresos por paquetes" },
+      { stat: "lleno", label: "clases, con listas de espera reales" },
+    ],
+    quote: "Vendimos toda la primera semana de paquetes antes de que secara la pintura.",
+    tags: ["Reserva de clases", "Paquetes", "Workspace"],
+  },
+  cityhub: {
+    plan: "Hub",
+    role: "Hub de servicios locales",
+    location: "Playa del Carmen → Tulum",
+    cardTitle: "La red de trabajo local para toda una costa",
+    cardSummary:
+      "Un hub reúne a personal de limpieza, anfitriones, choferes y gente de mantenimiento ya verificada — los trabajadores aplican, los clientes buscan y reservan en un solo lugar.",
+    challenge:
+      "Grandes trabajadores locales — amas de llaves, anfitriones, choferes — no tenían un lugar común y confiable donde ser encontrados. Los administradores de villas recontrataban a ciegas cada temporada.",
+    approach: [
+      "Lanzaron un workspace Hub con un directorio de profesionales locales para buscar y filtrar",
+      "Los trabajadores aplican para unirse; el hub los verifica y aprueba",
+      "Los clientes filtran por servicio, zona y disponibilidad, y reservan por el mensajero",
+      "El ruteo de consultas mantiene cada reserva atribuida al profesional correcto",
+    ],
+    outcome: [
+      { stat: "120+", label: "profesionales locales verificados" },
+      { stat: "6", label: "categorías de servicio" },
+      { stat: "1", label: "lugar confiable para contratar" },
+    ],
+    quote: "Los administradores de villas dejaron de apostar con desconocidos. Contratan del hub.",
+    tags: ["Aplicaciones", "Buscar y filtrar", "Ruteo de consultas"],
+  },
+  chefs: {
+    plan: "Hub",
+    role: "Hub culinario",
+    location: "Tulum",
+    cardTitle: "Un colectivo de chefs curado que los invitados sí encuentran",
+    cardSummary:
+      "Un hub culinario lista chefs privados por cocina y tamaño de grupo — los invitados ven menús y reservan una cena en minutos.",
+    challenge:
+      "Los chefs privados independientes competían en listados dispersos y DMs. Los invitados no podían comparar menús ni confiar en quién llegaría.",
+    approach: [
+      "Crearon un workspace Hub que presenta a cada chef con menús, fotos y precios",
+      "Los chefs aplican y publican menús de muestra desde su propio perfil",
+      "Los invitados piden fecha y número de personas; los chefs cotizan y confirman en el mensajero",
+      "El depósito asegura la reserva y la compra del mandado",
+    ],
+    outcome: [
+      { stat: "25", label: "chefs privados curados" },
+      { stat: "+70%", label: "reservas vs. listados sueltos" },
+      { stat: "menús", label: "comparados antes de reservar" },
+    ],
+    quote: "Los invitados eligen chef y menú como quien pide mesa — solo que llega a la villa.",
+    tags: ["Menús y perfiles", "Mensajero de reservas", "Depósitos"],
+  },
+  villa: {
+    plan: "Hub",
+    role: "Hub de servicios para villas",
+    location: "Riviera Maya",
+    cardTitle: "Concierge, limpieza y chefs bajo un mismo techo",
+    cardSummary:
+      "Una cooperativa de hospitalidad le da a los administradores de villas un solo lugar para armar el personal de cada estancia — concierge, limpieza, chefs y choferes a demanda.",
+    challenge:
+      "Los administradores de rentas de lujo hacían malabares con una docena de proveedores por propiedad. Un solo eslabón flojo arruinaba la estancia de un huésped — y la reseña.",
+    approach: [
+      "Crearon un workspace Hub que reúne cada servicio que una villa necesita",
+      "Cada proveedor es un miembro verificado con disponibilidad y tarifas",
+      "Los administradores arman el personal de una estancia y lo reservan todo por el mensajero",
+      "Un solo hilo de reserva, una sola fuente de verdad por propiedad",
+    ],
+    outcome: [
+      { stat: "8", label: "servicios, un hub" },
+      { stat: "5★", label: "estancias, bien atendidas" },
+      { stat: "10 min", label: "para armar una semana completa" },
+    ],
+    quote: "Armo el personal de una villa entera para una semana en diez minutos, no en diez llamadas.",
+    tags: ["Multiservicio", "Proveedores verificados", "Ruteo de consultas"],
+  },
+  hybrid: {
+    plan: "Talento + Workspace",
+    role: "Maquillista → fundadora de Glow Studio",
+    location: "Guadalajara",
+    cardTitle: "Empezó como el talento. Ahora dirige el estudio.",
+    cardSummary:
+      "Sofía conservó su página personal de talento y le sumó un workspace para su equipo en crecimiento — una cuenta, dos lados del negocio.",
+    challenge:
+      "Sofía superó las reservas en solitario. Quería sumar a dos artistas y tomar trabajos más grandes — sin perder su marca personal ni empezar de cero.",
+    approach: [
+      "Conservó su página de Talento para sus clientes y reservas personales",
+      "Abrió un workspace Studio, Glow Studio, para el equipo y los eventos más grandes",
+      "Cambia entre su perfil de talento y el workspace desde un mismo login",
+      "Manda los trabajos en solitario a ella y los de evento al equipo por el mensajero",
+    ],
+    outcome: [
+      { stat: "1", label: "cuenta, talento + negocio" },
+      { stat: "3", label: "artistas en Glow Studio" },
+      { stat: "2×", label: "tamaño promedio de trabajo" },
+    ],
+    quote: "No tuve que elegir entre ser la artista y construir el negocio. Soy las dos.",
+    tags: ["Talento + workspace", "Equipo", "Un solo login"],
+  },
+};
+
+/**
+ * Studies for a locale. Spanish overrides the prose fields per study and
+ * falls back to English for any study without a translation, so the grid is
+ * never half-empty even if a new study ships before its ES copy.
+ */
+export function getCaseStudies(locale: string): CaseStudy[] {
+  if (locale !== "es") return CASE_STUDIES;
+  return CASE_STUDIES.map((s) => {
+    const es = CASE_STUDIES_ES[s.key];
+    return es ? { ...s, ...es } : s;
+  });
+}
+
 export type Filter = { label: string; value: Motion | null };
 
 export const FILTERS: Filter[] = [

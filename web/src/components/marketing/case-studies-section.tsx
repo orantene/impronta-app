@@ -19,7 +19,7 @@ import { createPortal } from "react-dom";
 import { CASE_STUDY_PHOTOS, type MarketingPhoto } from "@/lib/marketing/photography";
 import { trackProductEvent } from "@/lib/analytics/track-client";
 import { getMarketingCopy, type MarketingCopy } from "@/lib/marketing/copy";
-import { CASE_STUDIES, type CaseStudy, type Motion } from "./case-studies-data";
+import { getCaseStudies, type CaseStudy, type Motion } from "./case-studies-data";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
 import { EditorialFrame } from "./editorial-image";
 
@@ -32,8 +32,9 @@ export function CaseStudiesSection({ locale = "en" }: { locale?: string }) {
   const [filter, setFilter] = useState<Motion | null>(null);
   const [openKey, setOpenKey] = useState<string | null>(null);
 
-  const visible = filter ? CASE_STUDIES.filter((c) => c.motion === filter) : CASE_STUDIES;
-  const active = openKey ? CASE_STUDIES.find((c) => c.key === openKey) ?? null : null;
+  const studies = getCaseStudies(locale);
+  const visible = filter ? studies.filter((c) => c.motion === filter) : studies;
+  const active = openKey ? studies.find((c) => c.key === openKey) ?? null : null;
 
   const open = (study: CaseStudy) => {
     setOpenKey(study.key);
