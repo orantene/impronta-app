@@ -3,6 +3,15 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { TalentSiteRenderer } from "@/components/talent/site/TalentSiteRenderer";
+import { ChefTemplate } from "@/components/talent/site/bespoke/ChefTemplate";
+import { SingerTemplate } from "@/components/talent/site/bespoke/SingerTemplate";
+import { PhotographerTemplate } from "@/components/talent/site/bespoke/PhotographerTemplate";
+import {
+  HybridTemplate,
+  HYBRID_CHEF_MASSAGE,
+  HYBRID_SINGER_MASSAGE,
+} from "@/components/talent/site/bespoke/HybridTemplate";
+import { hasBespokeTemplate } from "@/components/talent/site/bespoke";
 import { resolveDemoContext } from "@/lib/talent-site/templates/demo-assets";
 import {
   buildTemplateSnapshot,
@@ -37,6 +46,16 @@ export default async function TemplatePreviewPage({
   params: Promise<{ key: string }>;
 }) {
   const { key } = await params;
+
+  // Bespoke, hand-built premium templates render full-bleed (no section renderer).
+  if (hasBespokeTemplate(key)) {
+    if (key === "chef") return <ChefTemplate />;
+    if (key === "singer") return <SingerTemplate />;
+    if (key === "photographer") return <PhotographerTemplate />;
+    if (key === "hybrid-singer-massage") return <HybridTemplate content={HYBRID_SINGER_MASSAGE} />;
+    if (key === "hybrid-chef-massage") return <HybridTemplate content={HYBRID_CHEF_MASSAGE} />;
+  }
+
   const def = getTemplateDef(key);
   if (!def) notFound();
 
