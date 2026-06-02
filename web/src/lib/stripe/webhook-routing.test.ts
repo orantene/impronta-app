@@ -369,6 +369,32 @@ test("charge.dispute.created → charge_dispute", () => {
   assert.equal(action.amount, 9900);
   assert.equal(action.reason, "fraudulent");
   assert.equal(action.status, "warning_needs_response");
+  assert.equal(action.closed, false, "created is an open dispute");
+});
+
+test("charge.dispute.closed (lost) → charge_dispute with closed=true", () => {
+  const a = classifyStripeEvent(
+    evt("charge.dispute.closed", {
+      id: "dp_2",
+      payment_intent: "pi_dispute",
+      amount: 9900,
+      reason: "fraudulent",
+      status: "lost",
+    }),
+  );
+  const action = expectKind(a, "charge_dispute");
+  assert.equal(action.disputeId, "dp_2");
+  assert.equal(action.status, "lost");
+  assert.equal(action.closed, true, "closed dispute routes for reversal");
+});
+
+test("charge.dispute.closed (won) → charge_dispute closed=true status=won", () => {
+  const a = classifyStripeEvent(
+    evt("charge.dispute.closed", { id: "dp_3", payment_intent: "pi_d", amount: 100, reason: "x", status: "won" }),
+  );
+  const action = expectKind(a, "charge_dispute");
+  assert.equal(action.closed, true);
+  assert.equal(action.status, "won");
 });
 
 // ─── payment_intent events ──────────────────────────────────────────────────────
