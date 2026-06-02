@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- hand-authored page-design BuilderNode tree (data); inherently large, like the other page-designs. */
 import type { BuilderNode } from "../types";
 import type { BuilderNodeRenderDataSources } from "../render";
 import type { PageDesign } from "./types";
@@ -467,24 +468,24 @@ const heroClassic: BuilderNode = {
             },
           ],
         },
-        // stage cards
+        // stage cards — overlapping stacked portraits (rotation + negative gutters + depth)
         {
           id: "impronta-hc-stage",
           kind: "container",
-          props: { layout: "row", align: "center", style: { gap: "16px", maxWidthFree: "560px", justifyContent: "center" } },
+          props: { layout: "row", align: "center", style: { gap: "0px", maxWidthFree: "560px", justifyContent: "center", paddingTop: "24px", paddingBottom: "24px" } },
           children: [
             {
               id: "impronta-hc-stage-l",
               kind: "image",
-              props: { src: PHOTO.party, alt: "Lucía M.", style: { width: "120px", aspectRatioFree: "0.7", objectFit: "cover", objectPosition: "center", borderRadius: "4px", marginTopFree: "40px", boxShadow: "0 20px 50px rgba(0,0,0,0.5)" } },
+              props: { src: PHOTO.party, alt: "Lucía M.", style: { width: "158px", aspectRatioFree: "0.72", objectFit: "cover", objectPosition: "center", borderRadius: "6px", rotate: "-5deg", marginTopFree: "44px", marginRightFree: "-38px", zIndex: 1, boxShadow: "0 24px 60px rgba(0,0,0,0.55)", borderColor: "rgba(255,255,255,0.08)", borderWidth: "1px", borderStyle: "solid" } },
             },
             {
               id: "impronta-hc-stage-main",
               kind: "container",
-              props: { layout: "stack", align: "center", style: { gap: "10px" } },
+              props: { layout: "stack", align: "center", style: { gap: "12px", zIndex: 3 } },
               children: [
                 { id: "impronta-hc-stage-tab", kind: "paragraph", props: { text: "SELECTED", style: { fontFamily: CINZEL, fontSize: "10px", letterSpacing: "0.24em", textColor: "#1a1407", backgroundColor: GOLD, paddingTop: "4px", paddingBottom: "4px", paddingLeft: "12px", paddingRight: "12px", borderRadius: "2px" } } },
-                { id: "impronta-hc-stage-img", kind: "image", props: { src: PHOTO.runway, alt: "Sofía R.", style: { width: "260px", aspectRatioFree: "0.74", objectFit: "cover", objectPosition: "center top", borderRadius: "4px", boxShadow: "0 30px 70px rgba(0,0,0,0.6)" } } },
+                { id: "impronta-hc-stage-img", kind: "image", props: { src: PHOTO.runway, alt: "Sofía R.", style: { width: "256px", aspectRatioFree: "0.74", objectFit: "cover", objectPosition: "center top", borderRadius: "6px", boxShadow: "0 36px 80px rgba(0,0,0,0.65)", borderColor: HAIRLINE, borderWidth: "1px", borderStyle: "solid" } } },
                 { id: "impronta-hc-stage-name", kind: "paragraph", props: { text: "Sofía R.", style: { fontFamily: FRAUNCES, fontSize: "20px", textColor: TEXT, align: "center", marginBottomFree: "0px" } } },
                 { id: "impronta-hc-stage-role", kind: "paragraph", props: { text: "Editorial · Tulum", style: { fontFamily: INTER, fontSize: "12px", letterSpacing: "0.08em", textColor: FAINT, align: "center" } } },
               ],
@@ -492,7 +493,7 @@ const heroClassic: BuilderNode = {
             {
               id: "impronta-hc-stage-r",
               kind: "image",
-              props: { src: PHOTO.hosts, alt: "Marco V.", style: { width: "120px", aspectRatioFree: "0.7", objectFit: "cover", objectPosition: "center", borderRadius: "4px", marginTopFree: "40px", boxShadow: "0 20px 50px rgba(0,0,0,0.5)" } },
+              props: { src: PHOTO.hosts, alt: "Marco V.", style: { width: "158px", aspectRatioFree: "0.72", objectFit: "cover", objectPosition: "center", borderRadius: "6px", rotate: "5deg", marginTopFree: "44px", marginLeftFree: "-38px", zIndex: 1, boxShadow: "0 24px 60px rgba(0,0,0,0.55)", borderColor: "rgba(255,255,255,0.08)", borderWidth: "1px", borderStyle: "solid" } },
             },
           ],
         },
@@ -585,6 +586,58 @@ const featured: BuilderNode = band("impronta-featured", INK, [
   },
 ]);
 
+// A positioned map pin (gold dot + label) for the markets network panel.
+const mapPin = (
+  id: string,
+  name: string,
+  sub: string | null,
+  top: string,
+  left: string,
+  featured: boolean,
+  faint = false,
+): BuilderNode => ({
+  id: `impronta-pin-${id}`,
+  kind: "container",
+  props: { layout: "row", align: "center", style: { position: "absolute", top, left, gap: "9px", zIndex: featured ? 4 : 3 } },
+  children: [
+    {
+      id: `impronta-pin-${id}-dot`,
+      kind: "paragraph",
+      props: {
+        text: faint ? "○" : "●",
+        style: {
+          fontFamily: INTER,
+          fontSize: featured ? "17px" : "12px",
+          lineHeight: "1",
+          textColor: faint ? "rgba(244,238,226,0.4)" : featured ? GOLD_BRIGHT : GOLD,
+          marginBottomFree: "0px",
+        },
+      },
+    },
+    {
+      id: `impronta-pin-${id}-lbls`,
+      kind: "container",
+      props: { layout: "stack", style: { gap: "0px" } },
+      children: [
+        {
+          id: `impronta-pin-${id}-name`,
+          kind: "paragraph",
+          props: { text: name, style: { fontFamily: INTER, fontSize: "13px", fontWeight: 600, letterSpacing: "0.03em", textColor: faint ? FAINT : featured ? GOLD_BRIGHT : TEXT, marginBottomFree: "0px" } },
+        },
+        ...(sub
+          ? [
+              {
+                id: `impronta-pin-${id}-sub`,
+                kind: "paragraph" as const,
+                props: { text: sub, style: { fontFamily: INTER, fontSize: "9px", letterSpacing: "0.16em", textTransform: "uppercase" as const, textColor: faint ? "rgba(244,238,226,0.3)" : GOLD } },
+              },
+            ]
+          : []),
+      ],
+    },
+  ],
+});
+
 // Local faces / markets
 const markets: BuilderNode = band(
   "impronta-markets",
@@ -592,24 +645,76 @@ const markets: BuilderNode = band(
   [
     centerHead("impronta-mk", "Talent network", "Local faces, international reach.", "Starting with Riviera Maya, expanding across Mexico City, Buenos Aires, and other creative markets — international reach with a real team in every market."),
     {
-      id: "impronta-mk-grid",
+      id: "impronta-mk-layout",
       kind: "container",
       props: {
         layout: "grid",
-        columns: 4,
+        columns: 2,
         gap: "m",
-        dataBinding: { sourceKey: "impronta_markets", mode: "bound", repeat: true, maxItems: 5 },
-        style: { width: "100%", maxWidthFree: "100%", gap: "14px", gridTemplateColumns: "repeat(5,minmax(0,1fr))", responsive: { tablet: { gridTemplateColumns: "repeat(2,minmax(0,1fr))" }, mobile: { gridTemplateColumns: "repeat(1,minmax(0,1fr))" } } },
+        style: { width: "100%", maxWidthFree: "100%", gap: "20px", gridTemplateColumns: "1.6fr 1fr", responsive: { mobile: { gridTemplateColumns: "1fr" } } },
       },
       children: [
+        // ── map / network panel ──
         {
-          id: "impronta-mk-card",
+          id: "impronta-mk-map",
           kind: "container",
-          props: { layout: "stack", align: "start", style: { gap: "8px", borderRadius: "6px", borderColor: HAIRLINE, borderWidth: "1px", borderStyle: "solid", backgroundColor: "rgba(201,162,39,0.04)", paddingTop: "20px", paddingBottom: "22px", paddingLeft: "18px", paddingRight: "18px", minHeight: "120px", justifyContent: "space-between" } },
+          props: {
+            layout: "stack",
+            style: { position: "relative", width: "100%", minHeight: "440px", borderRadius: "12px", backgroundColor: "#090c10", backgroundImage: "radial-gradient(58% 58% at 44% 42%, rgba(201,162,39,0.16), rgba(201,162,39,0) 62%), linear-gradient(180deg,#0b0e13,#070a0d)", borderColor: HAIRLINE, borderWidth: "1px", borderStyle: "solid", overflow: "hidden" },
+          },
           children: [
-            { id: "impronta-mk-card-dot", kind: "paragraph", props: { text: "◆", style: { fontFamily: INTER, fontSize: "13px", textColor: GOLD } } },
-            { id: "impronta-mk-card-name", kind: "heading", props: { text: "{{name}}", level: 3, fieldBindings: { text: "name" }, style: { fontFamily: FRAUNCES, fontSize: "22px", fontWeight: 500, textColor: TEXT, marginBottomFree: "0px" } } },
-            { id: "impronta-mk-card-status", kind: "paragraph", props: { text: "{{status}}", fieldBindings: { text: "status" }, style: { fontFamily: INTER, fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase", textColor: MUTED } } },
+            mapPin("riv", "Riviera Maya", "FEATURED MARKET", "48%", "40%", true),
+            mapPin("cdmx", "Mexico City", null, "27%", "27%", false),
+            mapPin("baires", "Buenos Aires", null, "70%", "60%", false),
+            mapPin("la", "Los Angeles", "Coming soon", "23%", "13%", false, true),
+            mapPin("mad", "Madrid", "Coming soon", "20%", "74%", false, true),
+            {
+              id: "impronta-mk-legend",
+              kind: "container",
+              props: { layout: "row", align: "center", style: { position: "absolute", bottom: "18px", left: "20px", gap: "18px", zIndex: 5 } },
+              children: [
+                { id: "impronta-mk-leg-a", kind: "paragraph", props: { text: "● Active markets", style: { fontFamily: INTER, fontSize: "11px", letterSpacing: "0.06em", textColor: GOLD } } },
+                { id: "impronta-mk-leg-s", kind: "paragraph", props: { text: "○ Coming soon", style: { fontFamily: INTER, fontSize: "11px", letterSpacing: "0.06em", textColor: FAINT } } },
+              ],
+            },
+          ],
+        },
+        // ── featured market card ──
+        {
+          id: "impronta-mk-feat",
+          kind: "container",
+          props: { layout: "stack", style: { gap: "0px", borderRadius: "12px", backgroundColor: CARD, borderColor: CARD_BORDER, borderWidth: "1px", borderStyle: "solid", paddingTop: "28px", paddingBottom: "28px", paddingLeft: "26px", paddingRight: "26px", justifyContent: "center" } },
+          children: [
+            { id: "impronta-mk-feat-tag", kind: "paragraph", props: { text: "FEATURED MARKET", style: { fontFamily: CINZEL, fontSize: "10px", letterSpacing: "0.22em", textColor: "#1a1407", backgroundColor: GOLD, paddingTop: "4px", paddingBottom: "4px", paddingLeft: "10px", paddingRight: "10px", borderRadius: "2px", width: "fit-content", marginBottomFree: "18px" } } },
+            { id: "impronta-mk-feat-name", kind: "heading", props: { text: "Riviera Maya", level: 3, style: { fontFamily: FRAUNCES, fontSize: "34px", lineHeight: "1.04", fontWeight: 500, textColor: TEXT, marginBottomFree: "2px" } } },
+            { id: "impronta-mk-feat-country", kind: "paragraph", props: { text: "Mexico", style: { fontFamily: INTER, fontSize: "13px", letterSpacing: "0.08em", textColor: GOLD_BRIGHT, marginBottomFree: "16px" } } },
+            { id: "impronta-mk-feat-desc", kind: "paragraph", props: { text: "Agency-managed discovery for destination briefs, productions, and brand experiences — vetted, represented talent ready to book.", style: { fontFamily: INTER, fontSize: "14px", lineHeight: "1.6", textColor: MUTED, marginBottomFree: "22px" } } },
+            {
+              id: "impronta-mk-feat-stats",
+              kind: "container",
+              props: { layout: "row", style: { gap: "30px", marginBottomFree: "22px" } },
+              children: [
+                {
+                  id: "impronta-mk-stat-1",
+                  kind: "container",
+                  props: { layout: "stack", style: { gap: "2px" } },
+                  children: [
+                    { id: "impronta-mk-stat-1-n", kind: "paragraph", props: { text: "3", style: { fontFamily: FRAUNCES, fontSize: "32px", fontWeight: 500, textColor: GOLD } } },
+                    { id: "impronta-mk-stat-1-l", kind: "paragraph", props: { text: "Active markets", style: { fontFamily: INTER, fontSize: "11px", letterSpacing: "0.1em", textTransform: "uppercase", textColor: FAINT } } },
+                  ],
+                },
+                {
+                  id: "impronta-mk-stat-2",
+                  kind: "container",
+                  props: { layout: "stack", style: { gap: "2px" } },
+                  children: [
+                    { id: "impronta-mk-stat-2-n", kind: "paragraph", props: { text: "2", style: { fontFamily: FRAUNCES, fontSize: "32px", fontWeight: 500, textColor: TEXT } } },
+                    { id: "impronta-mk-stat-2-l", kind: "paragraph", props: { text: "Coming soon", style: { fontFamily: INTER, fontSize: "11px", letterSpacing: "0.1em", textTransform: "uppercase", textColor: FAINT } } },
+                  ],
+                },
+              ],
+            },
+            { id: "impronta-mk-feat-cta", kind: "button", props: { label: "Browse market →", href: "/directory", tone: "secondary", style: { fontFamily: INTER, fontSize: "14px", fontWeight: 600, textColor: GOLD_BRIGHT, backgroundColor: "rgba(0,0,0,0)", width: "fit-content", hover: { color: GOLD } } } },
           ],
         },
       ],
