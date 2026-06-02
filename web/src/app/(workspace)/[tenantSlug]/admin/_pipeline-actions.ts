@@ -439,6 +439,33 @@ export async function createInquiryTransactionDraft(
     });
     if (!result.ok) return { ok: false, error: result.error };
 
+    // #28 smoothing: auto-default the payout receiver to the booking's primary
+    // talent. The single payout_receiver_id is vestigial for multi-talent
+    // bookings (executeBookingTransfers fans out per the commission snapshot,
+    // not this field), but the DB trigger requires it before "Request payment".
+    // Defaulting it here makes the admin flow one click (Create draft →
+    // Request payment) instead of forcing a manual receiver pick; the picker
+    // stays available for an explicit override. Non-fatal on failure.
+    try {
+      const { loadPayoutReceiverCandidatesForBooking, setTransactionPayoutReceiver } =
+        await import("@/lib/bookings/transactions");
+      const candidates = await loadPayoutReceiverCandidatesForBooking({
+        tenantId,
+        bookingId: booking.id as string,
+        supabase,
+      });
+      const primary = candidates[0];
+      if (primary && result.data?.id) {
+        await setTransactionPayoutReceiver({
+          transactionId: result.data.id,
+          payoutAccountId: primary.payoutAccountId,
+          sourceTenantId: tenantId,
+        });
+      }
+    } catch (recvErr) {
+      logServerError("admin._pipeline-actions.createInquiryTransactionDraft.autoReceiver", recvErr);
+    }
+
     revalidatePath(`/${auth.tenantSlug}`, "layout");
     return { ok: true };
   } catch (err) {
