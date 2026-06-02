@@ -41,6 +41,14 @@ import {
   type StarterActionState,
 } from "@/lib/site-admin/edit-mode/starter-action";
 import {
+  applyPageDesignToHomepage,
+  type ApplyPageDesignState,
+} from "@/lib/site-admin/edit-mode/page-design-apply-action";
+import {
+  PAGE_DESIGN_SUMMARIES,
+  type PageDesignSummary,
+} from "@/lib/site-admin/builder-node/page-designs/summaries";
+import {
   resolveEssentialHomeIndexes,
   sectionSourceKind,
   sectionSourceLabel,
@@ -370,6 +378,24 @@ export const STARTER_TEMPLATE_CATEGORIES: Array<{
   { key: "food", label: "Food" },
 ];
 
+/** A soft archetype-tinted gradient for each full-page design preview card. */
+function archetypeGradient(archetype: PageDesignSummary["archetype"]): string {
+  switch (archetype) {
+    case "editorial":
+      return "from-amber-50 to-stone-300";
+    case "agency":
+      return "from-rose-50 to-stone-300";
+    case "saas":
+      return "from-sky-50 to-indigo-200";
+    case "store":
+      return "from-stone-100 to-amber-200";
+    case "festival":
+      return "from-fuchsia-100 to-purple-300";
+    default:
+      return "from-stone-50 to-stone-200";
+  }
+}
+
 export function EmptyCanvasStarter({
   locale = "en",
 }: {
@@ -381,6 +407,11 @@ export function EmptyCanvasStarter({
     applyStarterComposition,
     undefined,
   );
+  const [designState, designDispatch, designPending] = useActionState<
+    ApplyPageDesignState,
+    FormData
+  >(applyPageDesignToHomepage, undefined);
+  const [pendingDesignId, setPendingDesignId] = useState<string | null>(null);
   const [quickInsertPending, startQuickInsert] = useTransition();
   const [allowedSlugs, setAllowedSlugs] = useState<ReadonlySet<string>>(
     new Set(["free-quickstart-5"]),
@@ -491,6 +522,14 @@ export function EmptyCanvasStarter({
     }
   }, [state, requestStarterSync]);
 
+  // A one-click full-page design fills the homepage builderTree; reuse the same
+  // in-place refresh so the canvas paints the design without a manual reload.
+  useEffect(() => {
+    if (designState?.ok) {
+      void requestStarterSync();
+    }
+  }, [designState, requestStarterSync]);
+
   function openTemplateGallery(slug?: string) {
     setHighlightedTemplateSlug(slug ?? null);
     setTemplateGalleryOpen(true);
@@ -535,7 +574,88 @@ export function EmptyCanvasStarter({
           </div>
         ) : null}
 
+        {/* World-class full-page designs — the new 2026 starting point */}
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
+          {PAGE_DESIGN_SUMMARIES.map((summary) => {
+            const busy = designPending && pendingDesignId === summary.id;
+            return (
+              <button
+                key={summary.id}
+                type="button"
+                disabled={designPending || pending}
+                title={`Use the ${summary.label} design`}
+                onClick={() => {
+                  setPendingDesignId(summary.id);
+                  const fd = new FormData();
+                  fd.set("designId", summary.id);
+                  designDispatch(fd);
+                }}
+                className="group relative flex flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-stone-300 hover:shadow-[0_18px_44px_-26px_rgba(15,23,20,0.5)] focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900/25 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <div
+                  className={`relative aspect-[16/10] w-full overflow-hidden border-b border-stone-100 bg-gradient-to-br ${archetypeGradient(summary.archetype)}`}
+                >
+                  <span className="absolute right-3 top-3 rounded-full bg-white/85 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-stone-600 shadow-sm ring-1 ring-stone-200/70 backdrop-blur">
+                    Full page
+                  </span>
+                  <div className="absolute inset-x-5 bottom-4 flex flex-col gap-1.5 opacity-80">
+                    <div className="h-1.5 w-1/3 rounded-full bg-white/70" />
+                    <div className="h-6 w-full rounded-md bg-white/60" />
+                    <div className="grid grid-cols-3 gap-1.5">
+                      <div className="h-4 rounded bg-white/50" />
+                      <div className="h-4 rounded bg-white/50" />
+                      <div className="h-4 rounded bg-white/50" />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-3 px-4 py-3.5">
+                  <div className="min-w-0">
+                    <h3 className="truncate text-[15px] font-semibold text-stone-900">
+                      {summary.label}
+                    </h3>
+                    <p className="mt-0.5 line-clamp-1 text-xs text-stone-500">
+                      {summary.description}
+                    </p>
+                  </div>
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-stone-900 px-3 py-1.5 text-xs font-semibold text-white transition group-hover:bg-stone-700">
+                    {busy ? "Applying…" : "Use this"}
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 14 10"
+                      fill="none"
+                      aria-hidden
+                      className="transition-transform duration-200 group-hover:translate-x-0.5"
+                    >
+                      <path
+                        d="M1 5h12M9 1l4 4-4 4"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+        {designState && !designState.ok ? (
+          <div className="mx-auto mt-3 max-w-md rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-center text-xs text-red-700">
+            {designState.error}
+          </div>
+        ) : null}
+
+        <div className="mt-9 flex items-center gap-3">
+          <div className="h-px flex-1 bg-stone-100" />
+          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-400">
+            Or a section kit
+          </span>
+          <div className="h-px flex-1 bg-stone-100" />
+        </div>
+
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
           {visibleTiles.map((tile) => {
             const busy = pending && pendingSlug === tile.slug;
             const Wire = tile.Wire;
