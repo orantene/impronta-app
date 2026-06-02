@@ -26,6 +26,13 @@ import {
   createFeatureComparisonPreset,
   createAnnouncementBarPreset,
 } from "./composition-preset-factories-extra";
+import {
+  createEditorialPortfolioPreset,
+  createProductionAgencyPreset,
+  createSaasProductPreset,
+  createPrintStorePreset,
+  createLiveEventPreset,
+} from "./composition-preset-factories-page";
 
 export type BuilderNodeCompositionPresetId =
   | "agency-search-hero"
@@ -44,14 +51,19 @@ export type BuilderNodeCompositionPresetId =
   | "team-grid"
   | "process-steps"
   | "feature-comparison"
-  | "announcement-bar";
+  | "announcement-bar"
+  | "editorial-portfolio"
+  | "production-agency"
+  | "saas-product"
+  | "print-store"
+  | "live-event";
 
 export interface BuilderNodeCompositionPreset {
   id: BuilderNodeCompositionPresetId;
   label: string;
   description: string;
   rootKind: Extract<BuilderNodeKind, "container" | "split" | "accordion" | "card">;
-  category: "hero" | "data" | "story" | "trust" | "conversion";
+  category: "hero" | "data" | "story" | "trust" | "conversion" | "page";
   dataMode: "starter" | "data-ready";
   keywords: ReadonlyArray<string>;
   sectionCount: number;
@@ -228,6 +240,66 @@ export const BUILDER_NODE_COMPOSITION_PRESETS: ReadonlyArray<BuilderNodeComposit
     keywords: ["announcement", "banner", "promo", "notice", "bar", "alert"],
     sectionCount: 2,
   },
+  // ── Full-page designs ─────────────────────────────────────────────────
+  // Productised versions of the fidelity-harness archetypes: one-click,
+  // self-contained full pages (repeaters baked to static cards, real
+  // photography, registry fonts) a tenant can drop onto a blank canvas and
+  // edit. The same trees are scored at ~90 by the fidelity harness.
+  {
+    id: "editorial-portfolio",
+    label: "Editorial portfolio",
+    description:
+      "Full page — serif display, an asymmetric full-bleed hero, a selected-series triptych, and a dark statement.",
+    rootKind: "container",
+    category: "page",
+    dataMode: "starter",
+    keywords: ["page", "full page", "template", "portfolio", "editorial", "photography", "magazine", "serif"],
+    sectionCount: 4,
+  },
+  {
+    id: "production-agency",
+    label: "Production agency",
+    description:
+      "Full page — a fashion-masthead serif, a credits marquee, a roster grid, and a services breakdown.",
+    rootKind: "container",
+    category: "page",
+    dataMode: "starter",
+    keywords: ["page", "full page", "template", "agency", "production", "roster", "creative", "masthead"],
+    sectionCount: 5,
+  },
+  {
+    id: "saas-product",
+    label: "SaaS product",
+    description:
+      "Full page — a geometric-sans benefit hero, a three-up feature grid, a live console card, and a pricing table.",
+    rootKind: "container",
+    category: "page",
+    dataMode: "starter",
+    keywords: ["page", "full page", "template", "saas", "product", "landing", "pricing", "features"],
+    sectionCount: 4,
+  },
+  {
+    id: "print-store",
+    label: "Print store",
+    description:
+      "Full page — Roman-caps display, a product hero gallery, edition details, a buy block, and a related-prints row.",
+    rootKind: "container",
+    category: "page",
+    dataMode: "starter",
+    keywords: ["page", "full page", "template", "store", "shop", "ecommerce", "product", "gallery", "pricing"],
+    sectionCount: 6,
+  },
+  {
+    id: "live-event",
+    label: "Live event",
+    description:
+      "Full page — a characterful display masthead, a poster hero, a lineup grid, a set-times schedule, and a ticket CTA.",
+    rootKind: "container",
+    category: "page",
+    dataMode: "starter",
+    keywords: ["page", "full page", "template", "event", "festival", "lineup", "schedule", "tickets", "music"],
+    sectionCount: 6,
+  },
 ] as const;
 
 export function createBuilderNodeCompositionPreset(
@@ -268,5 +340,15 @@ export function createBuilderNodeCompositionPreset(
       return createFeatureComparisonPreset();
     case "announcement-bar":
       return createAnnouncementBarPreset();
+    case "editorial-portfolio":
+      return createEditorialPortfolioPreset();
+    case "production-agency":
+      return createProductionAgencyPreset();
+    case "saas-product":
+      return createSaasProductPreset();
+    case "print-store":
+      return createPrintStorePreset();
+    case "live-event":
+      return createLiveEventPreset();
   }
 }
