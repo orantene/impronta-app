@@ -550,8 +550,16 @@ export async function loadHomepageCompositionAction(input: {
   // for a freeform page — the design renders on the canvas but no block is
   // selectable/editable. When the snapshot has no tree, pull it from the latest
   // draft revision directly (mirrors the non-homepage pageSlug path above).
+  // For a slot-less (freeform full-page) homepage, loadDraftHomepage's snapshot
+  // builderTree can carry DIFFERENT node ids than the canvas actually renders —
+  // which silently breaks click-to-select, because the edit-shell's tree ids
+  // must match the rendered ids (treeContainsBuilderNodeId + the selection
+  // overlay both key off them). Load the tree straight from the latest draft
+  // revision (the canonical stored tree the canvas renders from) so the ids
+  // line up. Curated slot pages keep their existing snapshot tree.
+  const isFreeformPage = Object.keys(slots).length === 0;
   let draftRevisionBuilderTree: BuilderNodeTree | undefined;
-  if (!comp?.builderTree || comp.builderTree.length === 0) {
+  if (isFreeformPage) {
     const adminClient = createServiceRoleClient();
     if (adminClient) {
       const { data: revisionRow } = await adminClient
@@ -559,7 +567,6 @@ export async function loadHomepageCompositionAction(input: {
         .select("snapshot")
         .eq("tenant_id", scope.tenantId)
         .eq("page_id", page.pageId)
-        .eq("version", page.version)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle<{ snapshot: { builderTree?: unknown } | null }>();
@@ -589,10 +596,10 @@ export async function loadHomepageCompositionAction(input: {
       },
       slots,
       builderTree:
-        comp?.builderTree && comp.builderTree.length > 0
+        (isFreeformPage ? draftRevisionBuilderTree : undefined) ??
+        (comp?.builderTree && comp.builderTree.length > 0
           ? comp.builderTree
-          : (draftRevisionBuilderTree ??
-            buildBuilderTreeFromCompositionSlots(slots)),
+          : buildBuilderTreeFromCompositionSlots(slots)),
       slotDefs,
       library,
       availableLocales: localeSettings.supportedLocales,

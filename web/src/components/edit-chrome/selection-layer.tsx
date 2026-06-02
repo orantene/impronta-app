@@ -673,12 +673,18 @@ export function SelectionLayer() {
         }
       }
       const el = findSectionEl(e.target);
-      if (!el) return;
-      const id = el.getAttribute("data-section-id");
-      if (!id) return;
+      const builderNodeEl = findBuilderNodeEl(e.target);
+      // Freeform full-page designs (one-click starter designs) render builder
+      // nodes with NO [data-cms-section] wrapper. The old `if (!el) return`
+      // bailed before the builder-node path, so freeform blocks were never
+      // selectable — accept a bare builder node when there's no section.
+      if (!el && !builderNodeEl) return;
+      const id = el?.getAttribute("data-section-id") ?? null;
       const builderNodeId =
-        findBuilderNodeEl(e.target)?.getAttribute("data-builder-node-id") ??
-        el.getAttribute("data-builder-node-id");
+        builderNodeEl?.getAttribute("data-builder-node-id") ??
+        el?.getAttribute("data-builder-node-id") ??
+        null;
+      if (!id && !builderNodeId) return;
 
       // Intercept link/button navigation so editors don't accidentally leave.
       e.preventDefault();
@@ -688,14 +694,14 @@ export function SelectionLayer() {
       // plain click sets primary and clears multi.
       if (e.shiftKey) {
         if (builderNodeId) callbacksRef.current.extendBuilderNodeSelection(builderNodeId);
-        else callbacksRef.current.extendSelection(id);
+        else if (id) callbacksRef.current.extendSelection(id);
       } else if (e.metaKey || e.ctrlKey) {
         if (builderNodeId) callbacksRef.current.toggleBuilderNodeSelection(builderNodeId);
-        else callbacksRef.current.toggleSelection(id);
+        else if (id) callbacksRef.current.toggleSelection(id);
       } else {
         if (builderNodeId) {
           callbacksRef.current.selectBuilderNode(builderNodeId);
-        } else {
+        } else if (id) {
           callbacksRef.current.focusSectionForEdit(id);
         }
       }

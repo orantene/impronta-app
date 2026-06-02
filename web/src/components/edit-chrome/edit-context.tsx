@@ -1124,6 +1124,13 @@ function reconcileBuilderTreeFromSlots(
   previousTree: BuilderNodeTree,
   slots: Record<string, CompositionSectionRef[]>,
 ): BuilderNodeTree {
+  // A freeform full-page design (one-click starter design) has a builderTree
+  // with NO curated slots. Reconciling it against zero slots strips the whole
+  // tree (no section maps to any slot), leaving the editor with an empty tree
+  // and an unselectable canvas — the root cause of "clicking a freeform block
+  // does nothing". There is nothing to reconcile when there are no slots, so
+  // keep the freeform tree intact.
+  if (Object.keys(slots).length === 0) return previousTree;
   return reconcileBuilderTreeWithLegacySlots(
     previousTree,
     toLegacySnapshotSlots(slots),
@@ -2215,8 +2222,13 @@ export function EditProvider({
   const selectBuilderNode = useCallback(
     (nodeId: string) => {
       if (!treeContainsBuilderNodeId(builderTree, nodeId)) return;
-      const sectionId = sectionIdByBuilderNodeId.get(nodeId);
-      if (!sectionId) return;
+      // Freeform full-page designs (one-click starter designs) have builder
+      // nodes with NO parent CMS section, so `sectionIdByBuilderNodeId` has no
+      // entry. The old `if (!sectionId) return` bailed on every freeform block —
+      // making the whole design unselectable. Select the node directly; the
+      // section id is only selection *context* (null is fine), and the inspector
+      // + canvas overlay both key off the selected builder-node id.
+      const sectionId = sectionIdByBuilderNodeId.get(nodeId) ?? null;
       setSelectedSectionId(sectionId);
       setSelectedBuilderNodeIdOverride(nodeId);
     },
