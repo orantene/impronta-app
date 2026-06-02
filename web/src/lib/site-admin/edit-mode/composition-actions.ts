@@ -544,6 +544,32 @@ export async function loadHomepageCompositionAction(input: {
       ? page.publishedAt
       : null;
 
+  // Freeform full-page designs (one-click starter designs) persist a builderTree
+  // in the draft revision with NO curated slots. loadDraftHomepage's snapshot
+  // doesn't carry that tree, so without this the edit-shell loads an EMPTY tree
+  // for a freeform page — the design renders on the canvas but no block is
+  // selectable/editable. When the snapshot has no tree, pull it from the latest
+  // draft revision directly (mirrors the non-homepage pageSlug path above).
+  let draftRevisionBuilderTree: BuilderNodeTree | undefined;
+  if (!comp?.builderTree || comp.builderTree.length === 0) {
+    const adminClient = createServiceRoleClient();
+    if (adminClient) {
+      const { data: revisionRow } = await adminClient
+        .from("cms_page_revisions")
+        .select("snapshot")
+        .eq("tenant_id", scope.tenantId)
+        .eq("page_id", page.pageId)
+        .eq("version", page.version)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle<{ snapshot: { builderTree?: unknown } | null }>();
+      const tree = revisionRow?.snapshot?.builderTree;
+      if (Array.isArray(tree) && tree.length > 0) {
+        draftRevisionBuilderTree = tree as BuilderNodeTree;
+      }
+    }
+  }
+
   return {
     ok: true,
     data: {
@@ -562,7 +588,11 @@ export async function loadHomepageCompositionAction(input: {
         noindex: page.noindex,
       },
       slots,
-      builderTree: comp?.builderTree ?? buildBuilderTreeFromCompositionSlots(slots),
+      builderTree:
+        comp?.builderTree && comp.builderTree.length > 0
+          ? comp.builderTree
+          : (draftRevisionBuilderTree ??
+            buildBuilderTreeFromCompositionSlots(slots)),
       slotDefs,
       library,
       availableLocales: localeSettings.supportedLocales,
