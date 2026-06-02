@@ -584,8 +584,8 @@ function TulalaWordmark() {
       }}
     >
       tulala
-      <span style={{ color: "var(--plt-forest)" }}>.</span>
-      <span style={{ fontWeight: 500, color: "var(--plt-ink-soft)" }}>digital</span>
+      <span style={{ color: "var(--plt-forest)", fontSize: "14px" }}>.</span>
+      <span style={{ fontWeight: 500, fontSize: "20px", color: "var(--plt-ink-soft)" }}>digital</span>
     </span>
   );
 }

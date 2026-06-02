@@ -49,7 +49,7 @@ export function AppLanding() {
               className="plt-display inline-flex items-baseline leading-none"
               style={{ fontWeight: 700, letterSpacing: "-0.045em", fontSize: "1.5rem", color: "var(--plt-accent)" }}
             >
-              tulala<span style={{ color: "var(--plt-forest)" }}>.</span>
+              tulala<span style={{ color: "var(--plt-forest)", fontSize: "14px" }}>.</span>
             </span>
           </a>
 
