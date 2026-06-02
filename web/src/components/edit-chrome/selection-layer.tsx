@@ -470,19 +470,28 @@ export function SelectionLayer() {
     if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(() => {
       rafRef.current = null;
-      if (selectedSectionId) {
-        const sectionEl = getSelectedSectionEl();
-        if (sectionEl) {
-          const nodeEl = getSelectedBuilderNodeEl();
-          const selectedEl =
-            nodeEl && sectionEl.contains(nodeEl) ? nodeEl : sectionEl;
-          setSelectedRect(rectOf(selectedEl));
-          const typeKey = sectionEl.getAttribute("data-section-type-key");
-          setSelectedTypeKey(typeKey);
-        } else {
-          setSelectedRect(null);
-          setSelectedTypeKey(null);
-        }
+      // Freeform full-page-design blocks have NO parent section, so the old
+      // `if (selectedSectionId)` gate left selectedRect null for them — meaning
+      // no selection box and no resize/move/spacing handles ever appeared on
+      // the canvas (clicking "selected" only the inspector). Measure the
+      // selected BUILDER NODE element first: that works for a section-less
+      // freeform block AND for a section's child node, then fall back to the
+      // section wrapper. This is what makes the on-canvas selection + the whole
+      // direct-manipulation handle set appear for freeform designs.
+      const nodeEl = getSelectedBuilderNodeEl();
+      const sectionEl = selectedSectionId ? getSelectedSectionEl() : null;
+      if (selectedSectionId && !sectionEl) {
+        // Section selected but its server DOM hasn't mounted yet — wait.
+        setSelectedRect(null);
+        setSelectedTypeKey(null);
+      } else if (nodeEl && (!sectionEl || sectionEl.contains(nodeEl))) {
+        setSelectedRect(rectOf(nodeEl));
+        setSelectedTypeKey(
+          sectionEl?.getAttribute("data-section-type-key") ?? null,
+        );
+      } else if (sectionEl) {
+        setSelectedRect(rectOf(sectionEl));
+        setSelectedTypeKey(sectionEl.getAttribute("data-section-type-key"));
       } else {
         setSelectedRect(null);
         setSelectedTypeKey(null);
