@@ -13,7 +13,7 @@ import type { Locale } from "@/i18n/config";
 import { useDashboardText } from "../dashboard-i18n";
 import { NotificationsBell } from "../notifications-hub";
 import { Avatar, Icon, ShortcutsModal } from "../primitives";
-import { COLORS, MY_TALENT_PROFILE, PLAN_META, fmtMoney, meetsRole, useAdminShell } from "../state";
+import { COLORS, MY_TALENT_PROFILE, PLAN_META, meetsRole, useAdminShell } from "../state";
 import { TULALA_BRAND } from "@/lib/brand/tulala";
 import { formatMoneyCents } from "@/lib/talent/earnings-view";
 import { AccountMenuItem, IdentityBarIconButton, LocaleToggle, ModeTogglePill } from "./IdentityBar-2";
@@ -145,10 +145,13 @@ export function TulalaIdentityBar() {
         const pendingCents = overviewMetrics.pendingPayoutCents;
         const confirmedCount = overviewMetrics.confirmedBookingCount;
         if (pendingCents != null && confirmedCount != null) {
-          const pendingEuros = Math.round(pendingCents / 100);
+          // USD-first: format in the workspace KPI currency (the platform
+          // operating currency, default USD) — never a hardcoded €. The
+          // currency-aware formatter divides cents internally.
+          const pendingLabel = formatMoneyCents(pendingCents, overviewMetrics.kpiCurrency ?? "USD");
           return copy.isSpanish
-            ? `${fmtMoney(pendingEuros)} pendiente · ${confirmedCount} confirmada${confirmedCount === 1 ? "" : "s"}`
-            : `${fmtMoney(pendingEuros)} pending · ${confirmedCount} confirmed`;
+            ? `${pendingLabel} pendiente · ${confirmedCount} confirmada${confirmedCount === 1 ? "" : "s"}`
+            : `${pendingLabel} pending · ${confirmedCount} confirmed`;
         }
         const open = overviewMetrics.openInquiries ?? 0;
         const roster = overviewMetrics.rosterTotal ?? 0;

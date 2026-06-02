@@ -56,6 +56,12 @@ export type WorkspaceOverviewMetrics = {
    * `('confirmed','completed')` for this tenant.
    */
   confirmedBookingCount: number | null;
+  /**
+   * ISO-4217 the workspace KPI cents are denominated in — the platform
+   * operating currency (default USD). The identity bar formats
+   * `pendingPayoutCents` with this so it never shows a hardcoded €.
+   */
+  kpiCurrency: string | null;
 };
 
 export async function loadWorkspaceOverviewMetrics(
@@ -192,6 +198,7 @@ export async function loadWorkspaceOverviewMetrics(
       pendingPayoutCents: financialKpisRes?.pendingPayoutCents ?? null,
       confirmedYtdWorkspaceCents: financialKpisRes?.confirmedYtdWorkspaceCents ?? null,
       confirmedBookingCount: financialKpisRes?.confirmedBookingCount ?? null,
+      kpiCurrency: financialKpisRes?.currency ?? null,
     };
   } catch (err) {
     logServerError("workspace.loadOverviewMetrics", err);
@@ -271,6 +278,8 @@ type WorkspaceFinancialKpis = {
   pendingPayoutCents: number;
   confirmedYtdWorkspaceCents: number;
   confirmedBookingCount: number;
+  /** The currency these cents are denominated in (the platform operating currency). */
+  currency: string;
 };
 
 async function loadWorkspaceFinancialKpis(
@@ -372,6 +381,7 @@ async function loadWorkspaceFinancialKpis(
       pendingPayoutCents: pending,
       confirmedYtdWorkspaceCents: confirmedYtd,
       confirmedBookingCount: confirmedBookings.size,
+      currency: kpiCurrency,
     };
   } catch (err) {
     logServerError("workspace.loadFinancialKpis", err);
