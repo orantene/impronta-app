@@ -10,10 +10,16 @@ import type { BuilderNodeKind } from "./types";
  * Phase 7A — Advanced Mode surfaces that insert **persisted** builder nodes
  * from the governed library (vs Simple Mode section templates).
  *
- * Rollout: paid workspace plans expose nested composition affordances; **free**
- * stays template-first until upgrade. Per-tenant DB kill-switch layered on
- * top of the plan rule — call sites should always check this helper rather
- * than inlining plan checks.
+ * Pre-launch: the freeform builder (element library, "Add block" picker,
+ * nested composition) is **open to every tenant regardless of plan**. The
+ * premium builder ships free for all while the product is pre-launch — this
+ * is the single source-of-truth chokepoint that the client EditContext flag,
+ * `resolveAdvancedElementLibraryEnabled`, and the server-side save guard all
+ * funnel through, so returning `true` here unlocks composition everywhere.
+ *
+ * The owner-only `code` / raw-HTML insert boundary is enforced separately
+ * (see `filterKindsForOwnerOnlyAccess` + `gateNestedInsertKinds`) and is NOT
+ * affected by this flag — that stays a security gate, not a paywall.
  *
  * Plan-only signature (no tenant override) — preserved for back-compat with
  * existing call sites + tests. New call sites should prefer
@@ -21,9 +27,10 @@ import type { BuilderNodeKind } from "./types";
  * override loaded from `agency_entitlements.element_library_override`.
  */
 export function isAdvancedElementLibraryEnabledForPlan(
-  plan: BuilderWorkspacePlan,
+  _plan: BuilderWorkspacePlan,
 ): boolean {
-  return plan !== "free";
+  // Pre-launch: open the freeform builder to all plans (no paywall).
+  return true;
 }
 
 /**
