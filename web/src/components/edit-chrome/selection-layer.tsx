@@ -506,6 +506,11 @@ export function SelectionLayer() {
       }
     });
   };
+  // Latest-value ref so observers can call the freshest recompute without
+  // listing the unstable inline fn in their deps (which would re-subscribe
+  // every render) — and without a frozen hook-deps eslint-disable.
+  const scheduleRectRecomputeRef = useRef(scheduleRectRecompute);
+  scheduleRectRecomputeRef.current = scheduleRectRecompute;
 
   useEffect(() => {
     scheduleRectRecompute();
@@ -533,7 +538,7 @@ export function SelectionLayer() {
     if (typeof window === "undefined") return undefined;
     const el = getSelectedBuilderNodeEl() ?? getSelectedSectionEl();
     if (!el) return undefined;
-    const recompute = () => scheduleRectRecompute();
+    const recompute = () => scheduleRectRecomputeRef.current();
     const ro =
       typeof ResizeObserver !== "undefined"
         ? new ResizeObserver(recompute)
@@ -545,14 +550,7 @@ export function SelectionLayer() {
       ro?.disconnect();
       mo.disconnect();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- scheduleRectRecompute is a stable inline fn that reads live refs
-  }, [
-    selectedSectionId,
-    selectedBuilderNodeId,
-    pageVersion,
-    getSelectedSectionEl,
-    getSelectedBuilderNodeEl,
-  ]);
+  }, [getSelectedSectionEl, getSelectedBuilderNodeEl]);
 
   useEffect(() => {
     setConfirmRemove(false);

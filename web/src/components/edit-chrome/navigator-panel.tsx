@@ -73,6 +73,7 @@ import { sectionDisplayName } from "@/lib/site-admin/section-display-name";
 import type { SectionVisibility as SectionVisibilityT } from "@/lib/site-admin/edit-mode/section-actions";
 
 import { useEditContext } from "./edit-context";
+import { FreeformLayersTree } from "./freeform-layers-tree";
 import {
   builderSectionNodeAddressKey,
   BUILDER_NODE_REGISTRY,
@@ -1814,7 +1815,14 @@ export function NavigatorPanel() {
               No sections match &ldquo;{search}&rdquo;. Clear the search or add a block that matches.
             </div>
           )}
-          {visible.length === 0 && !search.trim() && (
+          {/* Freeform full-page design: zero curated sections but a non-empty
+              builderTree of containers + blocks. Show the Layers tree so the
+              block hierarchy is visible + navigable from the left rail
+              (the section list / FlatRow model is empty for freeform). */}
+          {visible.length === 0 && !search.trim() && builderTree.length > 0 && (
+            <FreeformLayersTree />
+          )}
+          {visible.length === 0 && !search.trim() && builderTree.length === 0 && (
             <div
               style={{
                 padding: "12px 8px",
