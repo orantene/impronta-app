@@ -406,7 +406,12 @@ export async function loadWorkspaceRosterEnriched(
           .from("media_assets")
           .select("owner_talent_profile_id, storage_path, variant_kind")
           .in("owner_talent_profile_id", talentIds)
-          .in("variant_kind", ["card", "public_watermarked", "gallery", "portfolio", "original"])
+          // Face variants — real media_variant_kind enum values only. Adds the
+          // valid `hero` cover (was missing → hero-only talents went blank) and
+          // drops the non-existent `portfolio`. Matches the shared resolver
+          // (talent-card-thumbs.ts). The portfolio/gallery COUNT loop below is
+          // why this surface keeps its own query rather than delegating.
+          .in("variant_kind", ["card", "hero", "public_watermarked", "gallery", "original"])
           .is("deleted_at", null),
         // Languages count per talent.
         supabase
@@ -429,9 +434,9 @@ export async function loadWorkspaceRosterEnriched(
       // shouldn't go blank just because the talent only has a gallery shot.
       const THUMB_RANK: Record<string, number> = {
         card: 0,
-        public_watermarked: 1,
-        gallery: 2,
-        portfolio: 3,
+        hero: 1,
+        public_watermarked: 2,
+        gallery: 3,
         original: 4,
       };
       const bestRankByTalent = new Map<string, number>();
