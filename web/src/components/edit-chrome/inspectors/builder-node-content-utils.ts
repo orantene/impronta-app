@@ -69,14 +69,15 @@ export function findBuilderNodeById(
 export function resolveStandaloneBuilderNodeForContent(
   tree: BuilderNodeTree,
   selectedBuilderNodeId: string | null,
-): Exclude<BuilderNode, { kind: "section" | "section_embed" }> | null {
+): Exclude<BuilderNode, { kind: "section" }> | null {
   if (!selectedBuilderNodeId) return null;
   if (resolveBuilderNodeRole(selectedBuilderNodeId)) return null;
   const node = findBuilderNodeById(tree, selectedBuilderNodeId);
-  // `section` (legacy slot) and `section_embed` (Tulala component) carry no
-  // free-form style/content props — their presentation lives in the curated
-  // section payload — so they are not "standalone" style/content nodes.
-  if (!node || node.kind === "section" || node.kind === "section_embed") {
+  // `section` (legacy slot) carries no free-form props — skip it. A
+  // `section_embed` (Tulala component) DOES carry an editable `config` (the
+  // curated section payload, e.g. featured-talent's manual picks), so we now
+  // surface it for content editing — its own registry editor opens in the dock.
+  if (!node || node.kind === "section") {
     return null;
   }
   return node;

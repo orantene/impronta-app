@@ -32,6 +32,7 @@ import { Card, CardBody, CardHead, Field, FieldLabel, Helper, Segmented, Toggle 
 import { KIT } from "./kit/tokens";
 import { MediaPickerButton } from "./kit";
 import { MyBlocksPanel } from "./my-blocks-panel";
+import { GenericContent } from "./generic-content";
 
 interface BuilderNodeContentInspectorProps {
   node: Exclude<BuilderNode, { kind: "section" }>;
@@ -263,6 +264,33 @@ export function BuilderNodeContentInspector({
               />
               <Helper>Standalone paragraph block with inline text formatting.</Helper>
             </Field>
+          </CardBody>
+        </Card>
+      </div>
+    );
+  }
+
+  if (node.kind === "section_embed") {
+    const embedConfig = (node.props.config ?? {}) as Record<string, unknown>;
+    return (
+      <div className="flex flex-col gap-3">
+        <Card state="active">
+          <CardHead
+            title="Tulala component"
+            sub={node.props.sectionTypeKey}
+            iconAccent="blue"
+          />
+          <CardBody>
+            <GenericContent
+              key={`${node.id}:embed`}
+              sectionTypeKey={node.props.sectionTypeKey}
+              schemaVersion={1}
+              tenantId={tenantId}
+              draftProps={embedConfig}
+              onChange={(next) => {
+                void commitPatch({ config: next });
+              }}
+            />
           </CardBody>
         </Card>
       </div>
