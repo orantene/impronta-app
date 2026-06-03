@@ -36,10 +36,15 @@ import {
   type BuilderNodeKind,
   type BuilderNodeTree,
 } from "@/lib/site-admin/builder-node";
-import { resolveLayerDisplayName } from "./freeform-layer-name";
+import {
+  resolveLayerDisplayName,
+  resolveResponsiveOverrides,
+  type ResponsiveOverrideSummary,
+} from "./freeform-layer-name";
 import {
   layerIcon,
   LayerKindPill,
+  ResponsiveOverrideDot,
   locateCanvasNode,
   LAYERS_FLASH_KEYFRAMES,
   LAYERS_FLASH_KEYFRAMES_ID,
@@ -66,6 +71,8 @@ interface LayerRow {
   rawChildKinds: ReadonlyArray<BuilderNodeKind>;
   /** P3-LOCK — mirrors BuilderNodeBase.locked for the row renderer. */
   locked: boolean;
+  /** Job #33 — which breakpoints this block overrides (drives the responsive dot). */
+  responsive: ResponsiveOverrideSummary;
 }
 
 /** Registry-policy child kinds for a kind (raw allow-list; `[]` for leaves). */
@@ -123,6 +130,7 @@ function flattenTree(tree: BuilderNodeTree): FlattenedTree {
         siblingCount: nodes.length,
         rawChildKinds: rawChildKindsForKind(node.kind),
         locked: node.locked === true,
+        responsive: resolveResponsiveOverrides(node),
       });
       if ("children" in node && Array.isArray(node.children) && node.children.length > 0) {
         walk(node.children, depth + 1);
@@ -585,6 +593,9 @@ export function FreeformLayersTree() {
               }}
             >
               {row.label}
+              {row.responsive.any && !actionsVisible ? (
+                <ResponsiveOverrideDot summary={row.responsive} />
+              ) : null}
               {row.locked && !actionsVisible ? (
                 <Lock
                   size={10}

@@ -23,7 +23,12 @@ import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { EditErrorBoundary } from "./edit-error-boundary";
-import { EditProvider, useEditContext, type EditDevice } from "./edit-context";
+import {
+  EditProvider,
+  useEditContext,
+  type EditDevice,
+  type PreviewFrameOverride,
+} from "./edit-context";
 import { CHROME_SHADOWS } from "./kit";
 import { SelectionLayer } from "./selection-layer";
 import { InspectorDock } from "./inspector-dock";
@@ -70,6 +75,49 @@ const DEVICE_WIDTHS: Record<EditDevice, number | null> = {
   tablet: 834,
   mobile: 390,
 };
+
+// Job #17 — landscape (rotated) frame widths. A rotated frame swaps to the
+// device's "long" edge so the iframe's internal viewport (and therefore the
+// storefront `@media` queries) fire at the wider width: tablet portrait 834 →
+// landscape 1112, mobile portrait 390 → landscape 844. Desktop has no rotation.
+const DEVICE_LANDSCAPE_WIDTHS: Record<EditDevice, number | null> = {
+  desktop: null,
+  tablet: 1112,
+  mobile: 844,
+};
+
+// Job #17 — bounds for the custom-width input. Floor keeps a usable frame;
+// ceiling is a generous large-desktop preview. Clamped on entry so a stray
+// value never produces a 0-width or runaway frame.
+const PREVIEW_WIDTH_MIN = 280;
+const PREVIEW_WIDTH_MAX = 1920;
+
+/**
+ * Effective internal viewport width for one device tier's frame (job #17). The
+ * `previewFrame` override only applies to the ACTIVE tier — warm-kept inactive
+ * iframes keep their own natural width so flipping back is unchanged. A custom
+ * width wins over rotation; otherwise a rotated active frame uses the landscape
+ * width; otherwise the natural portrait width. Falls back to the tablet width
+ * for desktop (which renders only for warm-keep, display:none).
+ */
+function frameWidthForTier(
+  tier: EditDevice,
+  activeDevice: EditDevice,
+  previewFrame: PreviewFrameOverride,
+): number {
+  const natural = DEVICE_WIDTHS[tier] ?? DEVICE_WIDTHS.tablet ?? 834;
+  if (tier !== activeDevice) return natural;
+  if (previewFrame.widthPx != null) {
+    return Math.min(
+      PREVIEW_WIDTH_MAX,
+      Math.max(PREVIEW_WIDTH_MIN, Math.round(previewFrame.widthPx)),
+    );
+  }
+  if (previewFrame.rotated) {
+    return DEVICE_LANDSCAPE_WIDTHS[tier] ?? natural;
+  }
+  return natural;
+}
 
 interface EditShellProps {
   tenantId: string;
@@ -188,6 +236,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
   const {
     device,
     setDevice,
+    previewFrame,
     dirty,
     saving,
     canUndo,
@@ -815,6 +864,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
       {children}
         <DeviceFrameSurface
           device={device}
+          previewFrame={previewFrame}
           pageSlug={pageSlug}
           pageVersion={pageVersion}
           navigatorOpen={navigatorOpen}
@@ -1189,6 +1239,7 @@ function mutationCodeSuggestion(code: string): string | null {
  */
 function DeviceFrameSurface({
   device,
+  previewFrame,
   pageSlug,
   pageVersion,
   navigatorOpen,
@@ -1196,6 +1247,8 @@ function DeviceFrameSurface({
   inspectorOpen,
 }: {
   device: EditDevice;
+  /** Job #17 — custom width / landscape override layered over the device width. */
+  previewFrame: PreviewFrameOverride;
   pageSlug?: string | null;
   /** Draft CAS version — bumps on successful mutations; included in iframe `key` so device preview reloads. */
   pageVersion: number | null;
@@ -1262,14 +1315,12 @@ function DeviceFrameSurface({
   // stays in the DOM for the rest of the session.
   if (everVisited.size === 0) return null;
 
-  // `width` is the active device's width; null only when device is
-  // desktop AND we're rendering only-for-warm-keep (no visible frame).
-  const activeWidth = DEVICE_WIDTHS[device];
   const isDesktop = device === "desktop";
-  // Use the active width when we have one (tablet/mobile active),
-  // otherwise fall back to ANY warmed device's width for layout math
-  // — doesn't matter since we display:none the host on desktop.
-  const width = activeWidth ?? DEVICE_WIDTHS.tablet ?? 834;
+  // `width` is the active device's effective frame width (job #17: honours a
+  // custom width / landscape override for the active tier), used for the
+  // host-side layout math. Desktop renders only for warm-keep (display:none),
+  // so the value is irrelevant there — frameWidthForTier falls back to tablet.
+  const width = frameWidthForTier(device, device, previewFrame);
 
   // Padding rules — large gutters on desktop where the navigator + inspector
   // can be open; tight on phone where neither is mounted (their wrappers
@@ -1359,7 +1410,10 @@ function DeviceFrameSurface({
           }}
         >
           {orderedVisited.map((d) => {
-            const dWidth = DEVICE_WIDTHS[d] ?? width;
+            // Job #17 — the active tier's frame honours the custom-width /
+            // landscape override; inactive (warm-kept) frames keep their
+            // natural width so flipping back stays a CSS display change.
+            const dWidth = frameWidthForTier(d, device, previewFrame);
             const dScale = Math.min(1, containerWidth / dWidth);
             const dDisplayedW = dWidth * dScale;
             const isActive = d === device;

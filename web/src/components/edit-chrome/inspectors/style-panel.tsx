@@ -901,6 +901,72 @@ function hasSubsetValue(value: Partial<NodePresentationValue>): boolean {
   return Object.values(value).some((entry) => entry !== undefined);
 }
 
+// Job #33 — freeform-node group→key maps for the per-group "has overrides" dot.
+// These mirror the controls actually rendered inside the standalone Typography
+// and Spacing InspectorGroups, so a dot only lights when THAT group carries a
+// non-active-breakpoint override. Kept as the canonical key list (BuilderNode
+// style keys) rather than re-deriving from the DOM.
+const FREEFORM_TYPOGRAPHY_STYLE_KEYS = [
+  "align",
+  "size",
+  "tone",
+  "fontFamily",
+  "fontSize",
+  "fontWeight",
+  "lineHeight",
+  "letterSpacing",
+  "textTransform",
+  "fontStyle",
+  "textDecoration",
+  "textWrap",
+  "whiteSpace",
+  "lineClamp",
+  "textColor",
+] as const satisfies ReadonlyArray<keyof BuilderNodeStyleValue>;
+
+const FREEFORM_SPACING_STYLE_KEYS = [
+  "marginTop",
+  "marginBottom",
+  "paddingX",
+  "paddingY",
+  "marginTopFree",
+  "marginRightFree",
+  "marginBottomFree",
+  "marginLeftFree",
+  "paddingTop",
+  "paddingRight",
+  "paddingBottom",
+  "paddingLeft",
+  "gap",
+] as const satisfies ReadonlyArray<keyof BuilderNodeStyleValue>;
+
+function styleValueHasAnyKey(
+  value: BuilderNodeStyleValue | undefined,
+  keys: ReadonlyArray<keyof BuilderNodeStyleValue>,
+): boolean {
+  if (!value) return false;
+  return keys.some((key) => value[key] !== undefined);
+}
+
+/**
+ * Job #33 — does this freeform style carry a typography/spacing override on
+ * EITHER non-desktop breakpoint (responsive OR container-query channel)? Drives
+ * the per-group override dot so an operator on Desktop still sees which groups
+ * behave differently on tablet/mobile.
+ */
+function styleGroupHasResponsiveOverride(
+  style: BuilderNodeStyle | null | undefined,
+  keys: ReadonlyArray<keyof BuilderNodeStyleValue>,
+): boolean {
+  if (!style) return false;
+  return (
+    styleValueHasAnyKey(style.responsive?.tablet, keys) ||
+    styleValueHasAnyKey(style.responsive?.mobile, keys) ||
+    styleValueHasAnyKey(style.containerQueries?.tablet, keys) ||
+    styleValueHasAnyKey(style.containerQueries?.mobile, keys)
+  );
+}
+
 function countDefinedViewportKeys(
   value: NodePresentationValue | null | undefined,
 ): number {
@@ -1561,6 +1627,112 @@ function buttonStateTone(
   return node.props.stateStyles?.[state]?.tone ?? "";
 }
 
+const VIEWPORT_SCOPE_LABEL: Record<NodeViewport, string> = {
+  desktop: "Desktop",
+  tablet: "Tablet",
+  mobile: "Mobile",
+};
+
+/**
+ * Job #33 — per-group "has responsive overrides" dot. Rendered as an
+ * InspectorGroup accessory on the Typography + Spacing groups so an operator
+ * (even while scoped to Desktop) can see at a glance that the group behaves
+ * differently on a smaller breakpoint. Blue to match the viewport-scope banner +
+ * the layer-row dot.
+ */
+function StyleGroupOverrideDot({ label }: { label: string }) {
+  return (
+    <span
+      data-style-group-override-dot=""
+      title={label}
+      aria-label={label}
+      role="img"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        fontSize: 9.5,
+        fontWeight: 700,
+        letterSpacing: "0.06em",
+        textTransform: "uppercase",
+        color: CHROME.blue,
+      }}
+    >
+      <span
+        aria-hidden
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: 999,
+          background: CHROME.blue,
+          boxShadow: "0 0 0 2px rgba(58,123,255,0.18)",
+        }}
+      />
+      Responsive
+    </span>
+  );
+}
+
+/**
+ * Job #2 — persistent banner shown at the top of the Style panel whenever the
+ * scope is a non-desktop breakpoint (kept in sync with the canvas viewport).
+ * Reuses the blue "editing overrides" treatment from ResponsivePanel so the two
+ * inspectors read identically. The "Desktop base" button is the explicit escape
+ * back to editing the base values.
+ */
+function ViewportScopeBanner({
+  viewport,
+  onBackToDesktop,
+}: {
+  viewport: NodeViewport;
+  onBackToDesktop: () => void;
+}) {
+  return (
+    <div
+      data-style-panel-viewport-banner={viewport}
+      className="flex items-center justify-between gap-2 rounded-md px-3 py-2"
+      style={{
+        background: CHROME.blueBg,
+        border: `1px solid ${CHROME.blueLine}`,
+        color: CHROME.blue,
+      }}
+    >
+      <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold leading-snug">
+        <svg
+          width="13"
+          height="13"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          {/* pencil glyph */}
+          <path d="M12 20h9" />
+          <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+        </svg>
+        Editing {VIEWPORT_SCOPE_LABEL[viewport]} styles — desktop stays the base.
+      </span>
+      <button
+        type="button"
+        onClick={onBackToDesktop}
+        className="shrink-0 text-[10.5px] font-semibold uppercase tracking-[0.08em]"
+        style={{
+          background: "transparent",
+          border: "none",
+          color: CHROME.blue,
+          cursor: "pointer",
+          padding: 0,
+        }}
+      >
+        Desktop base
+      </button>
+    </div>
+  );
+}
+
 export function StylePanel({
   sectionTypeKey,
   draftProps,
@@ -1575,6 +1747,12 @@ export function StylePanel({
     detachComponentInstance,
     undo,
     redo,
+    // Job #2 — the canvas device switcher is the single source of truth for the
+    // active breakpoint. The Style panel's viewport scope follows it (and the
+    // in-panel switcher pushes back), so the operator can never preview Mobile
+    // while silently editing Desktop rules.
+    device,
+    setDevice,
   } = useEditContext();
   const [nodeStyleClipboard, setNodeStyleClipboard] =
     useState<NodeStyleClipboard | null>(null);
@@ -1644,7 +1822,19 @@ export function StylePanel({
     selectedStandaloneStyleNode?.kind === "container"
       ? (selectedStandaloneStyleNode.props.instanceOf ?? null)
       : null;
-  const [selectedViewport, setSelectedViewport] = useState<NodeViewport>("desktop");
+  // Job #2 — viewport scope SYNCED to the canvas device. We seed the local
+  // state from `device` and keep it mirrored via an effect, so opening the panel
+  // (or switching the canvas viewport) lands the inspector on the matching
+  // breakpoint. The in-panel switcher (`selectViewport`) writes BOTH this state
+  // and `setDevice`, so the canvas frame follows the inspector too. The local
+  // state is retained (rather than reading `device` directly) so the dozens of
+  // existing `selectedViewport` reads keep working and a future "decouple"
+  // affordance can diverge them without a wide refactor.
+  const [selectedViewport, setSelectedViewport] =
+    useState<NodeViewport>(device);
+  useEffect(() => {
+    setSelectedViewport((prev) => (prev === device ? prev : device));
+  }, [device]);
   const [selectedStandaloneStyleScope, setSelectedStandaloneStyleScope] =
     useState<StandaloneStyleScope>("viewport");
   const effectiveStandaloneStyleScope: StandaloneStyleScope =
@@ -1788,6 +1978,17 @@ export function StylePanel({
   );
   const selectedStandaloneFullStyle =
     selectedStandaloneStyleNode?.props.style;
+  // Job #33 — does the Typography / Spacing group carry a tablet/mobile override
+  // (any responsive or container-query bucket)? Drives the per-group "Responsive"
+  // dot so the difference is visible even while editing the desktop base.
+  const typographyHasResponsiveOverride = styleGroupHasResponsiveOverride(
+    selectedStandaloneFullStyle,
+    FREEFORM_TYPOGRAPHY_STYLE_KEYS,
+  );
+  const spacingHasResponsiveOverride = styleGroupHasResponsiveOverride(
+    selectedStandaloneFullStyle,
+    FREEFORM_SPACING_STYLE_KEYS,
+  );
   const selectedStandaloneViewportStyle = resolveBuilderNodeViewportStyle(
     selectedStandaloneFullStyle,
     selectedViewport,
@@ -3076,12 +3277,19 @@ export function StylePanel({
   function selectViewport(next: NodeViewport) {
     setSelectedViewport(next);
     if (next === "desktop") setSelectedStandaloneStyleScope("viewport");
+    // Job #2 — push the choice to the canvas device so the preview frame +
+    // ResponsivePanel + this panel all read the same breakpoint. The effect
+    // above keeps `selectedViewport` mirrored on the way back.
+    if (device !== next) setDevice(next);
   }
 
   function selectStandaloneStyleScope(next: StandaloneStyleScope) {
     setSelectedStandaloneStyleScope(next);
     if (next === "container" && selectedViewport === "desktop") {
       setSelectedViewport("tablet");
+      // Keep the canvas in sync when switching to a container-query scope flips
+      // the active viewport off desktop.
+      if (device !== "tablet") setDevice("tablet");
     }
   }
 
@@ -3491,6 +3699,17 @@ export function StylePanel({
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Job #2 — persistent breakpoint-scope banner. Synced to the canvas
+          viewport: when the operator is previewing Tablet/Mobile, every style
+          they change here lands on THAT breakpoint's override bucket (desktop
+          stays the base). The banner makes that unmistakable + offers a
+          one-click route back to the Desktop base. */}
+      {selectedViewport !== "desktop" ? (
+        <ViewportScopeBanner
+          viewport={selectedViewport}
+          onBackToDesktop={() => selectViewport("desktop")}
+        />
+      ) : null}
       {selectedNodeRole && selectedNodeLabel ? (
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
@@ -5290,6 +5509,11 @@ export function StylePanel({
               collapsible
               storageKey={`style-panel:typography:${selectedStandaloneStyleNode.kind}`}
               defaultOpen={["heading", "paragraph", "button"].includes(selectedStandaloneStyleNode.kind)}
+              accessory={
+                typographyHasResponsiveOverride ? (
+                  <StyleGroupOverrideDot label="Typography has tablet/mobile overrides" />
+                ) : null
+              }
             >
             <div className="flex flex-col gap-1.5" data-builder-node-style-control="align">
               <span className={FIELD_LABEL}>Align</span>
@@ -6108,6 +6332,11 @@ export function StylePanel({
               collapsible
               storageKey={`style-panel:spacing:${selectedStandaloneStyleNode.kind}`}
               defaultOpen
+              accessory={
+                spacingHasResponsiveOverride ? (
+                  <StyleGroupOverrideDot label="Spacing has tablet/mobile overrides" />
+                ) : null
+              }
             >
             <div className="grid grid-cols-2 gap-2">
               <div className="flex flex-col gap-1.5" data-builder-node-style-control="marginTop">

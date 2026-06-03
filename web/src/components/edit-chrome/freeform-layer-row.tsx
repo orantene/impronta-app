@@ -34,6 +34,7 @@ import {
   kindLabel,
   layerIconKeyForKind,
   type LayerIconKey,
+  type ResponsiveOverrideSummary,
 } from "./freeform-layer-name";
 import { CHROME } from "./kit";
 import type { BuilderNode, BuilderNodeKind } from "@/lib/site-admin/builder-node";
@@ -112,6 +113,44 @@ export function LayerKindPill({
     >
       <Icon size={13} strokeWidth={2} />
     </span>
+  );
+}
+
+/**
+ * Job #33 — "responsive overrides" indicator on a layer row. A small blue dot
+ * signals the block behaves differently on tablet and/or mobile, so an operator
+ * scanning the layers tree can see at a glance what is NOT just the desktop
+ * base. The tooltip names the exact breakpoints. Inline (after the label) so it
+ * rides the same row rhythm as the lock glyph; aria-label carries the meaning
+ * for screen readers.
+ */
+export function ResponsiveOverrideDot({
+  summary,
+}: {
+  summary: ResponsiveOverrideSummary;
+}) {
+  const scopes = [
+    summary.tablet ? "tablet" : null,
+    summary.mobile ? "mobile" : null,
+  ].filter((scope): scope is string => scope !== null);
+  const label = `Has ${scopes.join(" + ")} override${scopes.length > 1 ? "s" : ""}`;
+  return (
+    <span
+      title={label}
+      aria-label={label}
+      role="img"
+      style={{
+        display: "inline-block",
+        width: 6,
+        height: 6,
+        marginLeft: 6,
+        verticalAlign: "middle",
+        borderRadius: 999,
+        background: CHROME.blue,
+        boxShadow: "0 0 0 2px rgba(58,123,255,0.18)",
+        flexShrink: 0,
+      }}
+    />
   );
 }
 

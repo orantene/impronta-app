@@ -150,6 +150,25 @@ export const IMPRONTA_OPEN_TEMPLATE_GALLERY_EVENT = "impronta:open-template-gall
 
 export type EditDevice = "desktop" | "tablet" | "mobile";
 
+/**
+ * Responsive-preview frame override (job #17) — see {@link EditContextValue.previewFrame}.
+ * Kept separate from {@link EditDevice} on purpose: `device` is the breakpoint
+ * semantic (drives `@media` + which override bucket the inspectors edit) and is
+ * consumed pervasively, so widening it would ripple everywhere; the frame's
+ * pixel width + orientation are a pure presentation concern that lives here.
+ */
+export interface PreviewFrameOverride {
+  /** Explicit frame width in px; `null` = use the active device's natural width. */
+  widthPx: number | null;
+  /** Landscape orientation — swaps the portrait device frame to read wide. */
+  rotated: boolean;
+}
+
+export const DEFAULT_PREVIEW_FRAME: PreviewFrameOverride = {
+  widthPx: null,
+  rotated: false,
+};
+
 export interface LoadedSection {
   id: string;
   sectionTypeKey: string;
@@ -362,6 +381,21 @@ export interface EditContextValue {
 
   device: EditDevice;
   setDevice: (d: EditDevice) => void;
+  /**
+   * Responsive-preview frame override (job #17). Layers ON TOP of `device`
+   * WITHOUT changing the breakpoint semantics: `device` still decides which
+   * `@media` query the storefront iframe fires at (and which override bucket the
+   * inspectors edit), while this only resizes/rotates the visual frame. So
+   * "tablet landscape" = `device:"tablet"` + `rotated:true` (breakpoints stay
+   * tablet, frame goes wide), and a custom width sets `widthPx` directly.
+   * `widthPx:null` + `rotated:false` = the device's natural portrait frame, the
+   * pre-#17 behaviour. Picking a device tier from the switcher resets both.
+   */
+  previewFrame: PreviewFrameOverride;
+  /** Set an explicit frame width (px), or null to fall back to the device width. */
+  setPreviewFrameWidth: (widthPx: number | null) => void;
+  /** Toggle landscape orientation for the active device frame. */
+  togglePreviewRotated: () => void;
 
   /** Inspector autosave state. */
   dirty: boolean;
@@ -1754,7 +1788,25 @@ export function EditProvider({
   const [hoveredBuilderNodeId, setHoveredBuilderNodeId] = useState<string | null>(
     null,
   );
-  const [device, setDevice] = useState<EditDevice>("desktop");
+  const [device, setDeviceRaw] = useState<EditDevice>("desktop");
+  // Responsive-preview frame override (job #17). Reset whenever the operator
+  // picks a device tier so a custom width / rotation from a previous tier never
+  // silently carries over to the next.
+  const [previewFrame, setPreviewFrame] = useState<PreviewFrameOverride>(
+    DEFAULT_PREVIEW_FRAME,
+  );
+  const setDevice = useCallback((next: EditDevice) => {
+    setDeviceRaw((prev) => {
+      if (prev !== next) setPreviewFrame(DEFAULT_PREVIEW_FRAME);
+      return next;
+    });
+  }, []);
+  const setPreviewFrameWidth = useCallback((widthPx: number | null) => {
+    setPreviewFrame((prev) => ({ ...prev, widthPx }));
+  }, []);
+  const togglePreviewRotated = useCallback(() => {
+    setPreviewFrame((prev) => ({ ...prev, rotated: !prev.rotated }));
+  }, []);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loadedSection, setLoadedSection] = useState<LoadedSection | null>(
@@ -5294,6 +5346,9 @@ export function EditProvider({
       setHoveredBuilderNodeId,
       device,
       setDevice,
+      previewFrame,
+      setPreviewFrameWidth,
+      togglePreviewRotated,
       dirty,
       setDirty,
       saving,
@@ -5470,6 +5525,10 @@ export function EditProvider({
       hoveredSectionId,
       hoveredBuilderNodeId,
       device,
+      setDevice,
+      previewFrame,
+      setPreviewFrameWidth,
+      togglePreviewRotated,
       dirty,
       saving,
       loadedSection,

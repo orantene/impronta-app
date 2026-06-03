@@ -41,7 +41,11 @@ import {
   type PagePickerItem,
   type PagePickerAvailability,
 } from "@/lib/server-actions/admin-site-pages";
-import { useMaybeEditContext, type EditDevice } from "./edit-context";
+import {
+  useMaybeEditContext,
+  type EditDevice,
+  type PreviewFrameOverride,
+} from "./edit-context";
 import { CHROME } from "./kit";
 
 /** Minimal `LanguageSettings` for `withLocalePath` / strip-prefix helpers. */
@@ -1105,50 +1109,278 @@ function LocaleSwitcher({
   );
 }
 
+// Job #17 — custom-width bounds (mirrors edit-shell's PREVIEW_WIDTH_MIN/MAX so
+// the input clamps before the override even reaches the frame resolver).
+const PREVIEW_WIDTH_MIN = 280;
+const PREVIEW_WIDTH_MAX = 1920;
+// Natural portrait widths per tier — seed the custom-width input when blank so
+// the operator nudges from the real frame width, not an empty field.
+const VIEWPORT_NATURAL_WIDTHS: Record<EditDevice, number> = {
+  desktop: 1280,
+  tablet: 834,
+  mobile: 390,
+};
+
 function ViewportSwitcher({
   device,
   setDevice,
+  previewFrame,
+  setPreviewFrameWidth,
+  togglePreviewRotated,
 }: {
   device: EditDevice;
   setDevice: (d: EditDevice) => void;
+  /** Job #17 — current frame override; null when no EditProvider is mounted. */
+  previewFrame: PreviewFrameOverride | null;
+  setPreviewFrameWidth?: (widthPx: number | null) => void;
+  togglePreviewRotated?: () => void;
 }) {
+  // The frame tools (#17) only make sense on a non-desktop device frame, and
+  // only when the context setters are present.
+  const frameToolsAvailable =
+    device !== "desktop" &&
+    previewFrame != null &&
+    typeof setPreviewFrameWidth === "function" &&
+    typeof togglePreviewRotated === "function";
+
+  return (
+    <div className="inline-flex shrink-0 items-center gap-2">
+      <div
+        role="group"
+        aria-label="Canvas preview width"
+        className="inline-flex shrink-0 items-center rounded-full p-[3px]"
+        style={{
+          background: "rgba(0,0,0,0.05)",
+          boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.04)",
+        }}
+      >
+        {VIEWPORT_OPTS.map((opt) => {
+          const active = device === opt.key;
+          return (
+            <button
+              key={opt.key}
+              type="button"
+              onClick={() => setDevice(opt.key)}
+              title={viewportPreviewTitle(opt.key, opt.label)}
+              aria-label={opt.label}
+              aria-pressed={active}
+              className="inline-flex items-center gap-[5px] rounded-full border-none px-[14px] py-[6px] text-[12px] font-semibold tracking-[-0.005em] transition-all"
+              style={{
+                background: active ? CHROME.surface : "transparent",
+                color: active ? CHROME.ink : CHROME.muted,
+                boxShadow: active
+                  ? "0 1px 3px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.04)"
+                  : "none",
+                minWidth: 80,
+                justifyContent: "center",
+                cursor: "pointer",
+              }}
+            >
+              {opt.icon}
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+      {frameToolsAvailable && previewFrame ? (
+        <ViewportFrameTools
+          device={device}
+          previewFrame={previewFrame}
+          // Non-null asserted via frameToolsAvailable.
+          setPreviewFrameWidth={setPreviewFrameWidth!}
+          togglePreviewRotated={togglePreviewRotated!}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Job #17 — responsive-preview frame tools shown beside the device switcher
+ * when a non-desktop frame is active: a custom-width input, a one-click
+ * Landscape (rotate) toggle, and a Reset back to the device's natural portrait
+ * width. Reuses the existing `previewFrame` context override — landscape just
+ * sets `rotated`, custom width sets `widthPx` (clamped), reset clears both.
+ */
+function ViewportFrameTools({
+  device,
+  previewFrame,
+  setPreviewFrameWidth,
+  togglePreviewRotated,
+}: {
+  device: EditDevice;
+  previewFrame: PreviewFrameOverride;
+  setPreviewFrameWidth: (widthPx: number | null) => void;
+  togglePreviewRotated: () => void;
+}) {
+  const isCustom = previewFrame.widthPx != null;
+  const isRotated = previewFrame.rotated;
+  // Draft text so an in-progress entry ("8") isn't clamped mid-keystroke.
+  const [draft, setDraft] = useState<string | null>(null);
+  const naturalWidth = VIEWPORT_NATURAL_WIDTHS[device];
+  const displayWidth = previewFrame.widthPx ?? naturalWidth;
+  const inputValue = draft ?? String(displayWidth);
+
+  const commitWidth = useCallback(
+    (raw: string) => {
+      setDraft(null);
+      const trimmed = raw.trim();
+      if (trimmed === "") {
+        setPreviewFrameWidth(null);
+        return;
+      }
+      const parsed = Number.parseInt(trimmed, 10);
+      if (!Number.isFinite(parsed)) {
+        setPreviewFrameWidth(null);
+        return;
+      }
+      const clamped = Math.min(
+        PREVIEW_WIDTH_MAX,
+        Math.max(PREVIEW_WIDTH_MIN, parsed),
+      );
+      setPreviewFrameWidth(clamped);
+    },
+    [setPreviewFrameWidth],
+  );
+
   return (
     <div
-      role="group"
-      aria-label="Canvas preview width"
-      className="inline-flex shrink-0 items-center rounded-full p-[3px]"
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-full px-1.5 py-[3px]"
       style={{
         background: "rgba(0,0,0,0.05)",
         boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.04)",
       }}
     >
-      {VIEWPORT_OPTS.map((opt) => {
-        const active = device === opt.key;
-        return (
-          <button
-            key={opt.key}
-            type="button"
-            onClick={() => setDevice(opt.key)}
-            title={viewportPreviewTitle(opt.key, opt.label)}
-            aria-label={opt.label}
-            aria-pressed={active}
-            className="inline-flex items-center gap-[5px] rounded-full border-none px-[14px] py-[6px] text-[12px] font-semibold tracking-[-0.005em] transition-all"
-            style={{
-              background: active ? CHROME.surface : "transparent",
-              color: active ? CHROME.ink : CHROME.muted,
-              boxShadow: active
-                ? "0 1px 3px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.04)"
-                : "none",
-              minWidth: 80,
-              justifyContent: "center",
-              cursor: "pointer",
-            }}
+      {/* Custom-width input */}
+      <label
+        className="inline-flex items-center gap-1"
+        title="Custom preview width (px). The frame resizes and storefront breakpoints re-fire at this width."
+        style={{ color: CHROME.muted, fontSize: 11, fontWeight: 600 }}
+      >
+        <span aria-hidden>W</span>
+        <input
+          type="number"
+          inputMode="numeric"
+          min={PREVIEW_WIDTH_MIN}
+          max={PREVIEW_WIDTH_MAX}
+          step={1}
+          aria-label="Custom preview width in pixels"
+          value={inputValue}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={(e) => commitWidth(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              commitWidth((e.target as HTMLInputElement).value);
+              (e.target as HTMLInputElement).blur();
+            } else if (e.key === "Escape") {
+              setDraft(null);
+              (e.target as HTMLInputElement).blur();
+            }
+          }}
+          style={{
+            width: 52,
+            height: 24,
+            textAlign: "right",
+            borderRadius: 6,
+            border: `1px solid ${isCustom ? CHROME.blueLine : "rgba(0,0,0,0.10)"}`,
+            background: CHROME.surface,
+            color: isCustom ? CHROME.blue : CHROME.ink,
+            fontSize: 11.5,
+            fontWeight: 600,
+            padding: "0 5px",
+            outline: "none",
+            MozAppearance: "textfield",
+          }}
+        />
+        <span aria-hidden style={{ color: CHROME.muted2 }}>
+          px
+        </span>
+      </label>
+      {/* Landscape / rotate toggle */}
+      <button
+        type="button"
+        onClick={togglePreviewRotated}
+        disabled={isCustom}
+        aria-pressed={isRotated}
+        title={
+          isCustom
+            ? "Clear the custom width to rotate the device frame"
+            : isRotated
+              ? "Portrait — rotate the frame back"
+              : "Landscape — rotate the device frame (breakpoints re-fire at the wider width)"
+        }
+        className="inline-flex items-center gap-[5px] rounded-full border-none px-[10px] py-[5px] text-[11px] font-semibold tracking-[-0.005em] transition-all"
+        style={{
+          background: isRotated && !isCustom ? CHROME.surface : "transparent",
+          color: isCustom
+            ? CHROME.muted2
+            : isRotated
+              ? CHROME.ink
+              : CHROME.muted,
+          boxShadow:
+            isRotated && !isCustom
+              ? "0 1px 3px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.04)"
+              : "none",
+          cursor: isCustom ? "not-allowed" : "pointer",
+        }}
+      >
+        <svg
+          width="13"
+          height="13"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          {/* rotate-cw glyph */}
+          <path d="M21 2v6h-6" />
+          <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+          <path d="M3 22v-6h6" />
+          <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+        </svg>
+        Landscape
+      </button>
+      {/* Reset to natural portrait width */}
+      {isCustom || isRotated ? (
+        <button
+          type="button"
+          onClick={() => {
+            setDraft(null);
+            // Clearing width AND rotation: width→null, then ensure rotation off.
+            setPreviewFrameWidth(null);
+            if (isRotated) togglePreviewRotated();
+          }}
+          title="Reset the frame to this device's natural width"
+          aria-label="Reset preview frame"
+          className="inline-flex items-center justify-center rounded-full border-none transition-all"
+          style={{
+            width: 22,
+            height: 22,
+            background: "transparent",
+            color: CHROME.muted,
+            cursor: "pointer",
+          }}
+        >
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
           >
-            {opt.icon}
-            {opt.label}
-          </button>
-        );
-      })}
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -2198,7 +2430,13 @@ export function TopBar({
       <span className="flex-1" />
 
       {/* ── Viewport switcher ── */}
-      <ViewportSwitcher device={device} setDevice={setDevice} />
+      <ViewportSwitcher
+        device={device}
+        setDevice={setDevice}
+        previewFrame={editCtx?.previewFrame ?? null}
+        setPreviewFrameWidth={editCtx?.setPreviewFrameWidth}
+        togglePreviewRotated={editCtx?.togglePreviewRotated}
+      />
 
       {/* ── Preview toggle ──
        * Suppresses canvas editing chrome (selection rings, hover pills,

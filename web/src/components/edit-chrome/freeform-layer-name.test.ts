@@ -5,6 +5,7 @@ import type { BuilderNode } from "@/lib/site-admin/builder-node";
 import {
   layerIconKeyForKind,
   resolveLayerDisplayName,
+  resolveResponsiveOverrides,
   LAYER_NAME_MAX,
 } from "./freeform-layer-name";
 
@@ -184,4 +185,88 @@ test("leaf kinds map to their own icon keys", () => {
   assert.equal(layerIconKeyForKind(heading), "heading");
   assert.equal(layerIconKeyForKind(image), "image");
   assert.equal(layerIconKeyForKind(embed), "section_embed");
+});
+
+// ── Responsive-override detection (job #33, the layer-row dot) ───────────────
+
+test("a node with no style reports no responsive overrides", () => {
+  const node: BuilderNode = {
+    id: "h",
+    kind: "heading",
+    props: { text: "x", level: 1 },
+  };
+  assert.deepEqual(resolveResponsiveOverrides(node), {
+    tablet: false,
+    mobile: false,
+    any: false,
+  });
+});
+
+test("a desktop-only style is NOT a responsive override", () => {
+  const node: BuilderNode = {
+    id: "h",
+    kind: "heading",
+    props: { text: "x", level: 1, style: { fontSize: "40px" } },
+  };
+  assert.deepEqual(resolveResponsiveOverrides(node), {
+    tablet: false,
+    mobile: false,
+    any: false,
+  });
+});
+
+test("style.responsive.mobile flags a mobile override only", () => {
+  const node: BuilderNode = {
+    id: "h",
+    kind: "heading",
+    props: {
+      text: "x",
+      level: 1,
+      style: { fontSize: "40px", responsive: { mobile: { fontSize: "24px" } } },
+    },
+  };
+  const summary = resolveResponsiveOverrides(node);
+  assert.equal(summary.mobile, true);
+  assert.equal(summary.tablet, false);
+  assert.equal(summary.any, true);
+});
+
+test("an EMPTY responsive bucket does not count as an override", () => {
+  const node: BuilderNode = {
+    id: "h",
+    kind: "heading",
+    props: { text: "x", level: 1, style: { responsive: { tablet: {} } } },
+  };
+  assert.equal(resolveResponsiveOverrides(node).any, false);
+});
+
+test("containerQueries buckets count as overrides", () => {
+  const node: BuilderNode = {
+    id: "c",
+    kind: "container",
+    props: {
+      layout: "row",
+      style: { containerQueries: { tablet: { gap: "8px" } } },
+    },
+    children: [],
+  };
+  const summary = resolveResponsiveOverrides(node);
+  assert.equal(summary.tablet, true);
+  assert.equal(summary.any, true);
+});
+
+test("container props.responsive layout overrides (2A) are detected", () => {
+  const node: BuilderNode = {
+    id: "c",
+    kind: "container",
+    props: {
+      layout: "row",
+      responsive: { mobile: { layout: "stack" } },
+    },
+    children: [],
+  };
+  const summary = resolveResponsiveOverrides(node);
+  assert.equal(summary.mobile, true);
+  assert.equal(summary.tablet, false);
+  assert.equal(summary.any, true);
 });

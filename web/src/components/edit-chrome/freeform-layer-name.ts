@@ -72,6 +72,58 @@ function truncate(value: string, max: number): string {
   return `${trimmed.slice(0, max - 1).trimEnd()}…`;
 }
 
+/**
+ * Job #33 — which responsive breakpoints a freeform node actually overrides.
+ * Drives the "behaves differently on mobile" dot on the layers tree (and could
+ * back any other at-a-glance indicator). A breakpoint counts as overridden when
+ * the node carries a NON-EMPTY bucket for it across any of the three responsive
+ * channels:
+ *   - `props.style.responsive.{tablet,mobile}`        (per-breakpoint style)
+ *   - `props.style.containerQueries.{tablet,mobile}`  (container-query style)
+ *   - `props.responsive.{tablet,mobile}`              (container LAYOUT — 2A)
+ * Pure + tolerant of partial/legacy shapes (reads via a loose record cast and
+ * an emptiness check), so it never throws on an unexpected tree.
+ */
+export interface ResponsiveOverrideSummary {
+  tablet: boolean;
+  mobile: boolean;
+  any: boolean;
+}
+
+function isNonEmptyRecord(value: unknown): boolean {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    Object.keys(value as Record<string, unknown>).length > 0
+  );
+}
+
+export function resolveResponsiveOverrides(
+  node: BuilderNode,
+): ResponsiveOverrideSummary {
+  const props = (node as { props?: Record<string, unknown> }).props ?? {};
+  const style = props.style as
+    | {
+        responsive?: { tablet?: unknown; mobile?: unknown };
+        containerQueries?: { tablet?: unknown; mobile?: unknown };
+      }
+    | undefined;
+  const layoutResponsive = props.responsive as
+    | { tablet?: unknown; mobile?: unknown }
+    | undefined;
+
+  const tablet =
+    isNonEmptyRecord(style?.responsive?.tablet) ||
+    isNonEmptyRecord(style?.containerQueries?.tablet) ||
+    isNonEmptyRecord(layoutResponsive?.tablet);
+  const mobile =
+    isNonEmptyRecord(style?.responsive?.mobile) ||
+    isNonEmptyRecord(style?.containerQueries?.mobile) ||
+    isNonEmptyRecord(layoutResponsive?.mobile);
+
+  return { tablet, mobile, any: tablet || mobile };
+}
+
 /** Registry label for a kind, with an underscore→space fallback. */
 export function kindLabel(kind: BuilderNodeKind): string {
   return BUILDER_NODE_REGISTRY[kind]?.label ?? kind.replace(/_/g, " ");
