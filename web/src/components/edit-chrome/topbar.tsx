@@ -115,6 +115,13 @@ interface TbIconBtnProps {
   onClick?: () => void;
   disabled?: boolean;
   badge?: number;
+  /**
+   * #14 — optional short text label shown below the icon (10px, muted).
+   * Pass a 1–2 word label for right-cluster action buttons where the glyph
+   * alone is ambiguous. Omit for undo/redo and other utility buttons where
+   * the tooltip is sufficient and horizontal space is tight.
+   */
+  label?: string;
   children: React.ReactNode;
 }
 
@@ -128,6 +135,7 @@ function TbIconBtn({
   onClick,
   disabled,
   badge,
+  label,
   children,
 }: TbIconBtnProps) {
   return (
@@ -141,10 +149,13 @@ function TbIconBtn({
       aria-expanded={ariaExpanded}
       aria-haspopup={ariaHaspopup}
       aria-controls={ariaControls}
-      className="relative inline-flex shrink-0 cursor-pointer items-center justify-center rounded-[8px] border border-transparent transition-colors disabled:cursor-not-allowed"
+      className="relative inline-flex shrink-0 cursor-pointer items-center rounded-[8px] border border-transparent transition-colors disabled:cursor-not-allowed"
       style={{
-        width: 36,
+        width: label ? 44 : 36,
         height: 36,
+        flexDirection: label ? "column" : "row",
+        justifyContent: "center",
+        gap: label ? 1 : undefined,
         background: "transparent",
         color: CHROME.muted,
       }}
@@ -160,6 +171,21 @@ function TbIconBtn({
       }}
     >
       {children}
+      {label ? (
+        <span
+          aria-hidden
+          style={{
+            fontSize: 9,
+            fontWeight: 600,
+            letterSpacing: "0.02em",
+            lineHeight: 1,
+            color: "inherit",
+            pointerEvents: "none",
+          }}
+        >
+          {label}
+        </span>
+      ) : null}
       {badge != null && badge > 0 ? (
         <span
           aria-hidden
@@ -1593,12 +1619,13 @@ function MoreMenu({
         id={moreMenuTriggerId}
         title="More actions"
         ariaLabel="More actions"
+        label="More"
         ariaExpanded={open}
         ariaHaspopup="menu"
         ariaControls={moreMenuId}
         onClick={() => setOpen((o) => !o)}
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none" />
           <circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none" />
           <circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none" />
@@ -2192,17 +2219,21 @@ export function TopBar({
        * operators hit this constantly on new pages). Revisions · Theme ·
        * Assets · Share stay under More (⋯).
        */}
+      {/* #14 — added short visible text labels to bare-glyph right-cluster
+          buttons so operators can understand each action without hovering.
+          aria-label is already set via TbIconBtn (title fallback). */}
       <TbIconBtn
         title="Comments"
+        label="Comments"
         onClick={onComments}
         badge={commentsBadge}
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
         </svg>
       </TbIconBtn>
-      <TbIconBtn title="Preview as visitor (⌘P)" onClick={handlePreview}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <TbIconBtn title="Preview as visitor (⌘P)" label="Preview" onClick={handlePreview}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
           <circle cx="12" cy="12" r="3" />
         </svg>
@@ -2210,10 +2241,11 @@ export function TopBar({
       <TbIconBtn
         title="Page settings (,)"
         ariaLabel="Page settings"
+        label="Settings"
         disabled={!onPageSettings}
         onClick={onPageSettings}
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <circle cx="12" cy="12" r="3" />
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
         </svg>

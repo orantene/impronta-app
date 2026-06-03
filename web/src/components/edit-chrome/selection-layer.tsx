@@ -561,6 +561,8 @@ export function SelectionLayer() {
     reportMutationError,
     advancedElementLibraryEnabled,
     canInsertRawHtmlElements,
+    navigatorWidth,
+    navigatorOpen,
   } = useEditContext();
 
   const [portalEl, setPortalEl] = useState<HTMLElement | null>(null);
@@ -2020,6 +2022,53 @@ export function SelectionLayer() {
     () => findBuilderNodePath(builderTree, selectedCanvasNodeId),
     [builderTree, selectedCanvasNodeId],
   );
+
+  // #13 — canvas selection breadcrumb crumbs.
+  // Mirrors the inspector-dock's `inspectorBreadcrumbCrumbs` but lives
+  // in the selection-layer so the breadcrumb bar is always on the canvas
+  // rather than buried inside the right rail. Each crumb carries its
+  // id + label + a kind ("page"|"section"|node-kind) for the
+  // data-selection-breadcrumb-item attribute the smoke tests assert on.
+  const canvasBreadcrumbCrumbs = useMemo(() => {
+    type Crumb = {
+      id: string;
+      label: string;
+      kind: "page" | "section" | string;
+      selectable: boolean;
+    };
+    if (!selectedSectionId) return [] as Crumb[];
+    const crumbs: Crumb[] = [
+      { id: "page", label: "Page", kind: "page", selectable: false },
+    ];
+    const sectionLabel = chipLabel;
+    if (sectionLabel) {
+      crumbs.push({
+        id: selectedSectionId,
+        label: sectionLabel,
+        kind: "section",
+        selectable: true,
+      });
+    }
+    // Walk the node path (skip the root "section" node itself — already added)
+    if (selectedNodePath.length > 1 && selectedBuilderNodeId) {
+      for (const node of selectedNodePath) {
+        if (node.kind === "section") continue;
+        crumbs.push({
+          id: node.id,
+          label: truncateNodeLabel(canvasChildPrimaryLabel(node), 32),
+          kind: node.kind,
+          selectable: true,
+        });
+      }
+    }
+    return crumbs;
+  }, [
+    selectedSectionId,
+    chipLabel,
+    selectedNodePath,
+    selectedBuilderNodeId,
+  ]);
+
   const selectedSiblingContext = useMemo(() => {
     if (
       !selectedNodeIsEditableBlock ||
@@ -2375,6 +2424,141 @@ export function SelectionLayer() {
 	      <style id={SELECTION_LAYER_KEYFRAMES_ID}>
 	        {SELECTION_LAYER_KEYFRAMES}
 	      </style>
+
+      {/* #13 — always-visible canvas selection breadcrumb bar.
+       *  Pinned just below the topbar (top: 54px), spanning from the
+       *  right edge of the navigator to the right edge of the viewport
+       *  (the inspector dock overlaps but has its own stacking context).
+       *  Visible whenever a section is selected; shows the ancestor path
+       *  as clickable crumbs — Page › Section › Container › Heading.
+       *  Each crumb carries `data-selection-breadcrumb-item` so smoke
+       *  tests and a11y tooling can locate them.
+       *
+       *  Analog: inspector-dock.tsx `inspectorBreadcrumbCrumbs` (same
+       *  computation — reused via canvasBreadcrumbCrumbs above). */}
+      {canvasBreadcrumbCrumbs.length > 0 && !isDragging ? (
+        <div
+          data-selection-breadcrumb=""
+          data-edit-overlay=""
+          style={{
+            position: "fixed",
+            top: 54,
+            left: navigatorOpen ? navigatorWidth : 22,
+            right: 0,
+            height: 28,
+            zIndex: 82,
+            pointerEvents: "auto",
+            display: "flex",
+            alignItems: "center",
+            paddingLeft: 12,
+            paddingRight: 12,
+            gap: 2,
+            background: "rgba(255,255,255,0.92)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
+            borderBottom: "1px solid rgba(24,24,27,0.08)",
+            fontFamily:
+              'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
+            fontSize: 11,
+            fontWeight: 500,
+            color: CHROME.muted,
+            userSelect: "none",
+            overflow: "hidden",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {canvasBreadcrumbCrumbs.map((crumb, index) => (
+            <span
+              key={`${crumb.id}:${index}`}
+              style={{ display: "inline-flex", alignItems: "center", gap: 2 }}
+            >
+              {crumb.selectable ? (
+                <button
+                  type="button"
+                  data-selection-breadcrumb-item={crumb.kind}
+                  onClick={() => {
+                    if (crumb.kind === "section") {
+                      focusSectionForEdit(crumb.id);
+                    } else {
+                      selectBuilderNode(crumb.id);
+                    }
+                  }}
+                  title={crumb.label}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    padding: "1px 5px",
+                    borderRadius: 4,
+                    border: "none",
+                    background: "transparent",
+                    fontSize: 11,
+                    fontWeight:
+                      index === canvasBreadcrumbCrumbs.length - 1 ? 600 : 500,
+                    color:
+                      index === canvasBreadcrumbCrumbs.length - 1
+                        ? CHROME.ink
+                        : CHROME.muted,
+                    cursor: "pointer",
+                    transition: "background 80ms, color 80ms",
+                    maxWidth: 160,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = CHROME.paper2;
+                    e.currentTarget.style.color = CHROME.ink;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "transparent";
+                    e.currentTarget.style.color =
+                      index === canvasBreadcrumbCrumbs.length - 1
+                        ? CHROME.ink
+                        : CHROME.muted;
+                  }}
+                >
+                  {crumb.label}
+                </button>
+              ) : (
+                <span
+                  data-selection-breadcrumb-item={crumb.kind}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    padding: "1px 5px",
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: CHROME.muted2,
+                    maxWidth: 120,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {crumb.label}
+                </span>
+              )}
+              {index < canvasBreadcrumbCrumbs.length - 1 ? (
+                <span
+                  aria-hidden
+                  style={{
+                    fontSize: 10,
+                    color: CHROME.muted3,
+                    lineHeight: 1,
+                    flexShrink: 0,
+                  }}
+                >
+                  {/* chevron › */}
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </span>
+              ) : null}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
 	      {marquee.phase === "dragging" ? (
 	        <div
 	          data-builder-node-marquee=""

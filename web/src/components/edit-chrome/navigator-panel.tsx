@@ -1270,10 +1270,21 @@ export function NavigatorPanel() {
             />
             <span id="structure-navigator-label">Navigator</span>
             {builderPerformanceIssues.length > 0 ? (
+              /* #15 — replaced raw "PERF" badge with a human-readable label
+                 hidden behind an info affordance (title tooltip). The
+                 underlying signal is preserved; operators who hover get the
+                 full issue list. Plain "!" icon keeps it compact. */
               <span
-                title={builderPerformanceIssues.map((issue) => issue.message).join("\n")}
+                title={
+                  `${hasBlockingPerformanceIssue ? "Performance issues detected:\n" : "Performance hints:\n"}` +
+                  builderPerformanceIssues.map((issue) => `• ${issue.message}`).join("\n")
+                }
+                aria-label={`${builderPerformanceIssues.length} performance ${builderPerformanceIssues.length === 1 ? "issue" : "issues"} detected — hover for details`}
                 style={{
                   marginLeft: 6,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 3,
                   padding: "1px 6px",
                   borderRadius: 999,
                   border: hasBlockingPerformanceIssue
@@ -1285,11 +1296,14 @@ export function NavigatorPanel() {
                   color: hasBlockingPerformanceIssue ? "#9f1239" : "#8f4300",
                   fontSize: 9,
                   fontWeight: 700,
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
+                  letterSpacing: "0.04em",
+                  cursor: "default",
                 }}
               >
-                Perf
+                <svg width="8" height="8" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
+                  <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm-.75 3.5h1.5v4.5h-1.5V4.5zm0 5.5h1.5v1.5h-1.5V10z"/>
+                </svg>
+                {hasBlockingPerformanceIssue ? "Slow" : "Perf"}
               </span>
             ) : null}
           </div>
@@ -1341,8 +1355,11 @@ export function NavigatorPanel() {
             marginBottom: 6,
           }}
         >
+          {/* #15 — renamed "sections" view label to "Layers" (operator
+              language, not dev taxonomy). "Outline" stays as-is. */}
           {(["sections", "outline"] as const).map((mode) => {
             const active = viewMode === mode;
+            const displayLabel = mode === "sections" ? "Layers" : "Outline";
             return (
               <button
                 key={mode}
@@ -1368,7 +1385,7 @@ export function NavigatorPanel() {
                   transition: "background 100ms, color 100ms",
                 }}
               >
-                {mode}
+                {displayLabel}
               </button>
             );
           })}
@@ -1400,7 +1417,7 @@ export function NavigatorPanel() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={viewMode === "outline" ? "Search headings…" : "Search sections…"}
+            placeholder={viewMode === "outline" ? "Search headings…" : "Search layers…"}
             style={{
               width: "100%",
               padding: "6px 8px 6px 28px",
@@ -1616,16 +1633,20 @@ export function NavigatorPanel() {
             <polyline points="6 9 12 15 18 9" />
           </svg>
           <span>{pageMetadata?.title ?? "Page"}</span>
-          <span
-            style={{
-              color: CHROME.muted2,
-              fontWeight: 500,
-              letterSpacing: 0,
-              textTransform: "none",
-            }}
-          >
-            · {flat.length} section{flat.length === 1 ? "" : "s"}
-          </span>
+          {/* #15 — suppress "· 0 sections" when the page is empty; show
+              "· N blocks" instead of "· N sections" for plain language. */}
+          {flat.length > 0 ? (
+            <span
+              style={{
+                color: CHROME.muted2,
+                fontWeight: 500,
+                letterSpacing: 0,
+                textTransform: "none",
+              }}
+            >
+              · {flat.length} {flat.length === 1 ? "block" : "blocks"}
+            </span>
+          ) : null}
           {hasLayeredSections ? (
             <span
               style={{
@@ -1829,7 +1850,7 @@ export function NavigatorPanel() {
               role="status"
               aria-live="polite"
             >
-              No sections match &ldquo;{search}&rdquo;. Clear the search or add a block that matches.
+              No layers match &ldquo;{search}&rdquo;. Clear the search or add a block that matches.
             </div>
           )}
           {/* Freeform full-page design: zero curated sections but a non-empty
