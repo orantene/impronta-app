@@ -57,6 +57,7 @@ import {
 } from "./kit";
 import { useEditContext } from "./edit-context";
 import { PublishPreflight } from "./PublishPreflight";
+import { MobileHealthPanel } from "./MobileHealthPanel";
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
 
 const TITLE_MAX = 60;
@@ -229,6 +230,7 @@ export function PublishDrawer() {
     refreshComposition,
     savePageMetadata,
     saveDraft,
+    builderTree,
   } = useEditContext();
 
   const [state, setState] = useState<PublishState>({ kind: "idle" });
@@ -596,6 +598,14 @@ export function PublishDrawer() {
                 onFocusSection={focusSectionForEdit}
               />
             </div>
+            {/* Wave-2 2C — mobile health advisory checklist (advisory only,
+                never blocks publish). Only shown when the builder tree is
+                non-empty so the panel doesn't appear for legacy-only pages. */}
+            {builderTree.length > 0 ? (
+              <div className="mb-3">
+                <MobileHealthPanel builderTree={builderTree} />
+              </div>
+            ) : null}
             {/* ── Preview thumbnail + stats ───────────────────────── */}
             <Card>
               <CardBody>
