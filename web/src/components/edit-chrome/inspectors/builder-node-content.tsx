@@ -1597,20 +1597,82 @@ export function BuilderNodeContentInspector({
     );
   }
 
+  if (node.kind === "divider") {
+    return (
+      <div className="flex flex-col gap-3">
+        <Card state="active">
+          <CardHead title="Divider node" sub="Horizontal rule" iconAccent="blue" />
+          <CardBody>
+            <Field flush>
+              <FieldLabel>Tone</FieldLabel>
+              <Segmented
+                fullWidth
+                compact
+                value={node.props.tone ?? "default"}
+                onChange={(next) => {
+                  void commitPatch({ tone: next });
+                }}
+                options={[
+                  { value: "default", label: "Default" },
+                  { value: "muted", label: "Muted" },
+                ]}
+              />
+              <Helper>Muted draws a fainter line for subtle section breaks.</Helper>
+            </Field>
+          </CardBody>
+        </Card>
+      </div>
+    );
+  }
+
+  if (node.kind === "spacer") {
+    return (
+      <div className="flex flex-col gap-3">
+        <Card state="active">
+          <CardHead title="Spacer node" sub="Vertical gap" iconAccent="blue" />
+          <CardBody>
+            <Field flush>
+              <FieldLabel>Size</FieldLabel>
+              <Segmented
+                fullWidth
+                compact
+                value={node.props.size ?? "m"}
+                onChange={(next) => {
+                  void commitPatch({ size: next });
+                }}
+                options={[
+                  { value: "s", label: "S" },
+                  { value: "m", label: "M" },
+                  { value: "l", label: "L" },
+                ]}
+              />
+              <Helper>Controls the vertical space this block adds between sections.</Helper>
+            </Field>
+          </CardBody>
+        </Card>
+      </div>
+    );
+  }
+
+  // Every current BuilderNode kind now has a dedicated editor above, so `node`
+  // narrows to `never` here. This generic fallback stays as a safety net for any
+  // kind added later before its editor exists — cast back through the union so it
+  // remains type-safe.
+  const fallbackNode = node as Exclude<BuilderNode, { kind: "section" }>;
   return (
     <div className="flex flex-col gap-3">
       <Card>
         <CardHead
-          title={BUILDER_NODE_REGISTRY[node.kind].label}
-          sub={`${childCount(node)} nested block${childCount(node) === 1 ? "" : "s"}`}
+          title={BUILDER_NODE_REGISTRY[fallbackNode.kind].label}
+          sub={`${childCount(fallbackNode)} nested block${childCount(fallbackNode) === 1 ? "" : "s"}`}
         />
         <CardBody>
           <div className="flex flex-col gap-2">
-            <p className={KIT.hint}>{contentHint(node)}</p>
-            {childCount(node) > 0 ? (
+            <p className={KIT.hint}>{contentHint(fallbackNode)}</p>
+            {childCount(fallbackNode) > 0 ? (
               <div className="rounded-lg border border-stone-200 bg-[#faf9f6] px-3 py-2">
                 <div className={KIT.label}>Contains</div>
-                <p className={`${KIT.hint} mt-1`}>{childSummary(node)}</p>
+                <p className={`${KIT.hint} mt-1`}>{childSummary(fallbackNode)}</p>
               </div>
             ) : null}
           </div>
