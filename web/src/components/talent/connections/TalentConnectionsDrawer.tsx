@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 
 import {
   connectManualTalentIntegrationAction,
+  disconnectTalentIntegrationAction,
   fetchTalentConnectionSettingsAction,
   saveTalentIntegrationControlsAction,
   type TalentConnectionProviderState,
@@ -202,6 +203,7 @@ export function TalentConnectionsDrawer() {
   );
   const controls = selected ? defaultControls(selected) : defaultControls(fallbackProviders[0]);
   const canManualConnect = selected?.connectionMethods.includes("manual") ?? false;
+  const canOAuthConnect = selected?.key === "youtube";
   const accountHint = selected?.profileUrlHint ?? "https://...";
 
   function mergeSelected(next: TalentConnectionProviderState | null) {
@@ -269,6 +271,32 @@ export function TalentConnectionsDrawer() {
       setProfileUrl("");
       setAccountLabel("");
       setMessage("Connection saved. Manual links are display-ready but not verification badges.");
+    });
+  }
+
+  function connectOAuth() {
+    if (!selected || selected.key !== "youtube") return;
+    const returnTo = window.location.pathname + window.location.search;
+    const url = new URL("/api/connections/oauth/start", window.location.origin);
+    url.searchParams.set("owner", "talent");
+    url.searchParams.set("provider", selected.key);
+    url.searchParams.set("returnTo", returnTo);
+    window.location.href = url.toString();
+  }
+
+  function disconnectSelected() {
+    if (!selected) return;
+    startTransition(async () => {
+      setMessage(null);
+      const result = await disconnectTalentIntegrationAction({
+        providerKey: selected.key,
+      });
+      if (!result.ok) {
+        setMessage(result.error);
+        return;
+      }
+      mergeSelected(result.provider);
+      setMessage("Connection turned off and stored OAuth tokens were removed.");
     });
   }
 
@@ -393,6 +421,20 @@ export function TalentConnectionsDrawer() {
               ))}
             </div>
 
+            {canOAuthConnect ? (
+              <>
+                <Divider label="One-click connection" />
+                <div style={{ display: "grid", gap: 8 }}>
+                  <PrimaryButton onClick={connectOAuth} disabled={isPending}>
+                    Connect with YouTube
+                  </PrimaryButton>
+                  <div style={{ fontSize: 11.5, lineHeight: 1.45, color: COLORS.inkMuted }}>
+                    You will approve read-only channel access with Google. Tulala stores encrypted tokens and marks the channel as verified ownership.
+                  </div>
+                </div>
+              </>
+            ) : null}
+
             {canManualConnect ? (
               <>
                 <Divider label="Manual connection" />
@@ -410,6 +452,11 @@ export function TalentConnectionsDrawer() {
                   <PrimaryButton onClick={connectManual} disabled={isPending || !profileUrl.trim()}>
                     {isPending ? "Saving..." : "Save manual connection"}
                   </PrimaryButton>
+                  {selected.row?.status === "connected" ? (
+                    <SecondaryButton onClick={disconnectSelected}>
+                      Turn off connection
+                    </SecondaryButton>
+                  ) : null}
                 </div>
               </>
             ) : (

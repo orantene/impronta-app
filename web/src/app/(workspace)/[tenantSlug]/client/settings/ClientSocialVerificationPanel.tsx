@@ -283,6 +283,7 @@ export function ClientSocialVerificationPanel({ tenantSlug }: { tenantSlug: stri
   const controls = selected ? defaultControls(selected) : defaultControls(fallbackProviders[0]);
   const accountHint = selected?.profileUrlHint ?? "https://...";
   const canManualConnect = selected?.connectionMethods.includes("manual") ?? false;
+  const canOAuthConnect = selected?.key === "youtube";
   const selectedStatus = selected ? statusMeta(selected) : null;
 
   function mergeSelected(next: ClientConnectionProviderState | null) {
@@ -354,6 +355,17 @@ export function ClientSocialVerificationPanel({ tenantSlug }: { tenantSlug: stri
       setAccountLabel("");
       setMessage("Connection saved. Manual links are shared context, not verified trust proof.");
     });
+  }
+
+  function connectOAuth() {
+    if (!selected || selected.key !== "youtube") return;
+    const returnTo = window.location.pathname + window.location.search;
+    const url = new URL("/api/connections/oauth/start", window.location.origin);
+    url.searchParams.set("owner", "client");
+    url.searchParams.set("provider", selected.key);
+    url.searchParams.set("tenantSlug", tenantSlug);
+    url.searchParams.set("returnTo", returnTo);
+    window.location.href = url.toString();
   }
 
   function disconnectSelected() {
@@ -468,6 +480,20 @@ export function ClientSocialVerificationPanel({ tenantSlug }: { tenantSlug: stri
                 </div>
               ))}
             </div>
+
+            {canOAuthConnect ? (
+              <>
+                <div style={{ height: 1, background: C.border, margin: "13px 0" }} />
+                <div style={{ display: "grid", gap: 8 }}>
+                  <SmallButton onClick={connectOAuth} disabled={isPending}>
+                    Connect with YouTube
+                  </SmallButton>
+                  <div style={{ fontSize: 11.5, lineHeight: 1.45, color: C.inkMuted }}>
+                    You will approve read-only channel access with Google. Tulala stores encrypted tokens and marks channel ownership as verified.
+                  </div>
+                </div>
+              </>
+            ) : null}
 
             {canManualConnect ? (
               <>

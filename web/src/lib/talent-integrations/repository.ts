@@ -294,6 +294,20 @@ export async function deleteTalentIntegrationSecret(
   return !error;
 }
 
+export async function deleteTalentIntegrationSecrets(
+  talentProfileId: string,
+  providerKey: string,
+): Promise<boolean> {
+  const supabase = service();
+  if (!supabase) return false;
+  const { error } = await supabase
+    .from("talent_integration_secrets")
+    .delete()
+    .eq("talent_profile_id", talentProfileId)
+    .eq("provider_key", providerKey);
+  return !error;
+}
+
 export async function syncTalentIntegrationTrustBadge(
   row: TalentIntegrationRow,
   actorId?: string | null,

@@ -13,6 +13,7 @@ import {
   type ClientIntegrationControls,
 } from "./catalog";
 import {
+  deleteClientIntegrationSecrets,
   listClientIntegrations,
   setClientIntegrationControls,
   upsertClientIntegration,
@@ -206,6 +207,7 @@ export async function connectManualClientIntegrationAction(
   };
 
   try {
+    await deleteClientIntegrationSecrets(guard.user.id, parsed.data.providerKey);
     const row = await upsertClientIntegration({
       userId: guard.user.id,
       providerKey: parsed.data.providerKey,

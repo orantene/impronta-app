@@ -6,6 +6,7 @@ import {
   maskApiKey,
 } from "@/lib/ai/credential-vault";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { writeClientTrustLevel } from "@/lib/client-trust/evaluator";
 import {
   getClientIntegrationDef,
   type ClientIntegrationConnectionMethod,
@@ -289,4 +290,51 @@ export async function deleteClientIntegrationSecret(
     .eq("provider_key", providerKey)
     .eq("secret_field", secretField);
   return !error;
+}
+
+export async function deleteClientIntegrationSecrets(
+  userId: string,
+  providerKey: string,
+): Promise<boolean> {
+  const supabase = service();
+  if (!supabase) return false;
+  const { error } = await supabase
+    .from("client_integration_secrets")
+    .delete()
+    .eq("user_id", userId)
+    .eq("provider_key", providerKey);
+  return !error;
+}
+
+export async function syncClientIntegrationTrustSignalForTenant(
+  row: ClientIntegrationRow,
+  tenantId: string,
+): Promise<boolean> {
+  const supabase = service();
+  if (!supabase || !isClientIntegrationVerifiedTrustSignal(row)) return false;
+
+  const { data: existing } = await supabase
+    .from("client_trust_state")
+    .select("verified_at, funded_balance_cents, manual_override")
+    .eq("user_id", row.user_id)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+
+  type TrustSignalRow = {
+    verified_at: string | null;
+    funded_balance_cents: number | null;
+    manual_override: "basic" | "verified" | "silver" | "gold" | null;
+  };
+  const trust = existing as TrustSignalRow | null;
+  const result = await writeClientTrustLevel(
+    row.user_id,
+    tenantId,
+    {
+      verifiedAt: trust?.verified_at ?? row.last_verified_at ?? new Date().toISOString(),
+      fundedBalanceCents: Number(trust?.funded_balance_cents ?? 0),
+      manualOverride: trust?.manual_override ?? null,
+    },
+    supabase,
+  );
+  return Boolean(result);
 }

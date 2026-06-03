@@ -13,6 +13,7 @@ import {
   type TalentIntegrationControls,
 } from "./catalog";
 import {
+  deleteTalentIntegrationSecrets,
   listTalentIntegrations,
   setTalentIntegrationControls,
   upsertTalentIntegration,
@@ -64,6 +65,10 @@ const connectManualSchema = z.object({
   profileUrl: z.string().url().max(500),
   accountLabel: z.string().trim().max(120).optional(),
   controls: controlsSchema.optional(),
+});
+
+const disconnectSchema = z.object({
+  providerKey: providerKeySchema,
 });
 
 function providerState(
@@ -212,6 +217,51 @@ export async function connectManualTalentIntegrationAction(
     return { ok: true, provider: providerState([row])[0] ?? null };
   } catch (error) {
     logServerError("talentIntegrations.connectManual", error);
+    return { ok: false, error: CLIENT_ERROR.generic };
+  }
+}
+
+export async function disconnectTalentIntegrationAction(
+  input: z.input<typeof disconnectSchema>,
+): Promise<
+  | { ok: true; provider: TalentConnectionProviderState | null }
+  | { ok: false; error: string }
+> {
+  const guard = await requireTalentSelf();
+  if (!guard.ok) return { ok: false, error: guard.error };
+
+  const parsed = disconnectSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid request.",
+    };
+  }
+
+  try {
+    await deleteTalentIntegrationSecrets(guard.talentProfile.id, parsed.data.providerKey);
+    const row = await upsertTalentIntegration({
+      talentProfileId: guard.talentProfile.id,
+      providerKey: parsed.data.providerKey,
+      status: "disabled",
+      controls: {
+        publicBadgeEnabled: false,
+        agencyVisible: false,
+        publicProfileEnabled: false,
+        personalSiteEnabled: false,
+        autoRefreshEnabled: false,
+        calendarAvailabilityEnabled: false,
+        calendarWriteEnabled: false,
+      },
+      actorId: guard.session.user.id,
+      lastError: null,
+    });
+    if (!row) return { ok: false, error: CLIENT_ERROR.generic };
+    revalidatePath("/[tenantSlug]/talent/settings", "page");
+    revalidatePath("/[tenantSlug]/talent/public-page", "page");
+    return { ok: true, provider: providerState([row])[0] ?? null };
+  } catch (error) {
+    logServerError("talentIntegrations.disconnect", error);
     return { ok: false, error: CLIENT_ERROR.generic };
   }
 }
