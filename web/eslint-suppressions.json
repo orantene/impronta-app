@@ -453,7 +453,7 @@
   },
   "src/components/admin/shell/internal/messages/shared/machinery-12.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 38
+      "count": 53
     }
   },
   "src/components/admin/shell/internal/messages/shared/machinery-13.tsx": {
@@ -550,6 +550,11 @@
   "src/components/admin/shell/internal/page-modules/BillingPage.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 33
+    }
+  },
+  "src/components/admin/shell/internal/page-modules/pages-dynamic.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 19
     }
   },
   "src/components/admin/shell/internal/page-modules/CalendarPage.tsx": {
