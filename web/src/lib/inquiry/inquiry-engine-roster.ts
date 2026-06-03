@@ -30,7 +30,25 @@ async function invalidateOfferIfRosterChanged(
     .eq("id", inq.current_offer_id)
     .eq("tenant_id", tenantId)
     .maybeSingle();
-  if (!offer || offer.status !== "sent") return;
+  // Revert when a roster change (talent declined / removed / added) lands on a
+  // LIVE offer:
+  //   • `sent`     — awaiting decisions (inquiry offer_pending). Existing behavior.
+  //   • `accepted` AND inquiry still `approved` — all parties signed off but NOT
+  //     yet converted. This case matters for money correctness: convert builds
+  //     booking_talent + the commission snapshot straight from
+  //     inquiry_offer_line_items (engine_convert_to_booking +
+  //     engine_load_commission_context) with NO participant-status filter, and the
+  //     shortfall gate excludes a declined/removed talent — so without this revert
+  //     a talent who backs out AFTER approval would still be snapshotted a payout
+  //     lane at convert (QA playbook §4: "talent cancels after approval → convert
+  //     must be blocked").
+  // A `booked`/`converted` inquiry also carries an `accepted` offer — it must NOT
+  // be reverted (a booking already exists), hence the explicit `approved` gate.
+  if (!offer) return;
+  const offerIsLive =
+    offer.status === "sent" ||
+    (offer.status === "accepted" && inq.status === "approved");
+  if (!offerIsLive) return;
 
   await supabase
     .from("inquiry_offers")
@@ -58,7 +76,7 @@ async function invalidateOfferIfRosterChanged(
     data: { offerId: offer.id as string },
     systemMessage: {
       threadType: "private",
-      body: "Roster changed after offer was sent. A new offer is required.",
+      body: "Roster changed after the offer went out. A new offer is required before this can be booked.",
       eventType: "roster_changed_offer_invalidated",
     },
     notifications: await buildInquiryBells({
