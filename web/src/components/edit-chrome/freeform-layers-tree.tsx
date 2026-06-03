@@ -21,7 +21,7 @@ import {
   type MouseEventHandler,
   type ReactNode,
 } from "react";
-import { ArrowDown, ArrowUp, Plus, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Lock, LockOpen, Plus, X } from "lucide-react";
 
 import { CHROME, CHROME_RADII } from "./kit";
 import { useEditContext } from "./edit-context";
@@ -51,6 +51,8 @@ interface LayerRow {
   siblingCount: number;
   /** Registry-allowed child kinds (pre-gate); non-empty drives per-row "add child". */
   rawChildKinds: ReadonlyArray<BuilderNodeKind>;
+  /** P3-LOCK — mirrors BuilderNodeBase.locked for the row renderer. */
+  locked: boolean;
 }
 
 /** Registry-policy child kinds for a kind (raw allow-list; `[]` for leaves). */
@@ -143,6 +145,7 @@ function flattenTree(tree: BuilderNodeTree): FlattenedTree {
         index,
         siblingCount: nodes.length,
         rawChildKinds: rawChildKindsForKind(node.kind),
+        locked: node.locked === true,
       });
       if ("children" in node && Array.isArray(node.children) && node.children.length > 0) {
         walk(node.children, depth + 1);
@@ -324,6 +327,8 @@ export function FreeformLayersTree() {
     removeBuilderNode,
     insertBuilderNode,
     insertBuilderSectionEmbed,
+    patchBuilderNodeProps,
+    reportMutationError,
     advancedElementLibraryEnabled,
     canInsertRawHtmlElements,
   } = useEditContext();
@@ -434,6 +439,28 @@ export function FreeformLayersTree() {
     [pending, removeBuilderNode],
   );
 
+  /** P3-LOCK — toggle locked state for a node via the normal patch path. */
+  const handleToggleLock = useCallback(
+    async (nodeId: string, currentlyLocked: boolean) => {
+      if (pending) return;
+      setPending(true);
+      selectBuilderNode(nodeId);
+      try {
+        const patch = currentlyLocked
+          ? // Clearing the flag: set to undefined so the key is absent (not "false").
+            { locked: undefined }
+          : { locked: true };
+        const result = await patchBuilderNodeProps(nodeId, patch);
+        if (!result.ok && result.error) {
+          reportMutationError(result.error);
+        }
+      } finally {
+        setPending(false);
+      }
+    },
+    [pending, patchBuilderNodeProps, reportMutationError, selectBuilderNode],
+  );
+
   return (
     <div
       role="tree"
@@ -506,18 +533,25 @@ export function FreeformLayersTree() {
         // composition is off.
         const rowChildKinds = gateChildKinds(row.rawChildKinds);
         const canAddChild = rowChildKinds.length > 0;
-        // 3 base actions ≈ 72px; the add button adds ~24px more.
-        const actionsReserve = canAddChild ? 96 : 72;
+        // P3-LOCK: 4 base actions (lock + move×2 + remove) ≈ 96px;
+        // + add button ~24px more; locked rows hide add/move/remove but keep lock.
+        const actionsReserve = row.locked
+          ? 28
+          : canAddChild
+            ? 120
+            : 96;
         return (
           <div key={row.id}>
           <div
             role="treeitem"
             aria-level={row.depth + 1}
             aria-selected={selected}
+            aria-label={row.locked ? `${row.label} (locked)` : row.label}
             tabIndex={0}
             data-builder-node-id={row.id}
             data-builder-node-kind={row.kind}
             data-selected={selected ? "true" : "false"}
+            data-locked={row.locked ? "true" : undefined}
             onClick={() => selectBuilderNode(row.id)}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
@@ -541,15 +575,21 @@ export function FreeformLayersTree() {
               borderRadius: CHROME_RADII.sm,
               background: selected
                 ? "rgba(42,49,71,0.10)"
-                : hovered
-                  ? "rgba(42,49,71,0.045)"
-                  : "transparent",
-              color: selected ? CHROME.text : CHROME.muted,
+                : row.locked
+                  ? "rgba(250,174,0,0.06)"
+                  : hovered
+                    ? "rgba(42,49,71,0.045)"
+                    : "transparent",
+              color: selected ? CHROME.text : row.locked ? CHROME.amber : CHROME.muted,
               fontSize: ROW_FONT_SIZE,
               fontWeight: selected ? 600 : 500,
               cursor: "pointer",
               opacity: pending ? 0.72 : 1,
-              boxShadow: selected ? `inset 3px 0 0 ${CHROME.accent}` : "none",
+              boxShadow: selected
+                ? `inset 3px 0 0 ${CHROME.accent}`
+                : row.locked
+                  ? "inset 3px 0 0 rgba(250,174,0,0.5)"
+                  : "none",
               transition: "background 140ms ease, box-shadow 140ms ease, color 80ms ease",
             }}
           >
@@ -565,6 +605,14 @@ export function FreeformLayersTree() {
               }}
             >
               {row.label}
+              {row.locked && !actionsVisible ? (
+                <Lock
+                  size={10}
+                  strokeWidth={2.2}
+                  aria-hidden
+                  style={{ display: "inline", marginLeft: 5, verticalAlign: "middle", opacity: 0.6 }}
+                />
+              ) : null}
             </span>
             <span
               aria-hidden={!actionsVisible}
@@ -587,7 +635,24 @@ export function FreeformLayersTree() {
                 zIndex: 2,
               }}
             >
-              {canAddChild ? (
+              {/* P3-LOCK: lock/unlock toggle — always shown in the actions bar. */}
+              <LayerActionButton
+                label={row.locked ? `Unlock ${row.label}` : `Lock ${row.label}`}
+                disabled={pending}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void handleToggleLock(row.id, row.locked);
+                }}
+                tabIndex={actionsVisible ? 0 : -1}
+              >
+                {row.locked ? (
+                  <LockOpen size={ACTION_ICON_SIZE} strokeWidth={2.2} aria-hidden />
+                ) : (
+                  <Lock size={ACTION_ICON_SIZE} strokeWidth={2.2} aria-hidden />
+                )}
+              </LayerActionButton>
+              {/* Locked nodes: hide structural actions (add/move/remove). */}
+              {!row.locked && canAddChild ? (
                 <LayerActionButton
                   label={`Add block inside ${row.label}`}
                   disabled={pending}
@@ -606,39 +671,43 @@ export function FreeformLayersTree() {
                   <Plus size={ACTION_ICON_SIZE} strokeWidth={2.2} aria-hidden />
                 </LayerActionButton>
               ) : null}
-              <LayerActionButton
-                label={`Move ${row.label} up`}
-                disabled={!canMoveUp || pending}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  void handleMove(row.id, "up");
-                }}
-                tabIndex={actionsVisible ? 0 : -1}
-              >
-                <ArrowUp size={ACTION_ICON_SIZE} strokeWidth={2.2} aria-hidden />
-              </LayerActionButton>
-              <LayerActionButton
-                label={`Move ${row.label} down`}
-                disabled={!canMoveDown || pending}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  void handleMove(row.id, "down");
-                }}
-                tabIndex={actionsVisible ? 0 : -1}
-              >
-                <ArrowDown size={ACTION_ICON_SIZE} strokeWidth={2.2} aria-hidden />
-              </LayerActionButton>
-              <LayerActionButton
-                label={`Remove ${row.label}`}
-                disabled={pending}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  void handleRemove(row.id);
-                }}
-                tabIndex={actionsVisible ? 0 : -1}
-              >
-                <X size={ACTION_ICON_SIZE} strokeWidth={2.2} aria-hidden />
-              </LayerActionButton>
+              {!row.locked ? (
+                <>
+                  <LayerActionButton
+                    label={`Move ${row.label} up`}
+                    disabled={!canMoveUp || pending}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void handleMove(row.id, "up");
+                    }}
+                    tabIndex={actionsVisible ? 0 : -1}
+                  >
+                    <ArrowUp size={ACTION_ICON_SIZE} strokeWidth={2.2} aria-hidden />
+                  </LayerActionButton>
+                  <LayerActionButton
+                    label={`Move ${row.label} down`}
+                    disabled={!canMoveDown || pending}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void handleMove(row.id, "down");
+                    }}
+                    tabIndex={actionsVisible ? 0 : -1}
+                  >
+                    <ArrowDown size={ACTION_ICON_SIZE} strokeWidth={2.2} aria-hidden />
+                  </LayerActionButton>
+                  <LayerActionButton
+                    label={`Remove ${row.label}`}
+                    disabled={pending}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void handleRemove(row.id);
+                    }}
+                    tabIndex={actionsVisible ? 0 : -1}
+                  >
+                    <X size={ACTION_ICON_SIZE} strokeWidth={2.2} aria-hidden />
+                  </LayerActionButton>
+                </>
+              ) : null}
             </span>
           </div>
           {insertOpenHere && insertTarget ? (

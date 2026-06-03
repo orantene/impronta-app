@@ -28,6 +28,13 @@ export type BuilderNodeKind =
 export interface BuilderNodeBase {
   id: string;
   kind: BuilderNodeKind;
+  /**
+   * P3-LOCK — per-node editorial lock. When true the selection-layer skips
+   * click/resize/move/nudge for this node, the inspector shows a locked banner
+   * with an unlock affordance, and the layers-tree row shows a lock icon.
+   * Persisted via the normal `patchBuilderNodeProps` path (patch: { locked: true/undefined }).
+   */
+  locked?: boolean;
 }
 
 export interface BuilderNodeStyleValue {

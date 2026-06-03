@@ -300,6 +300,20 @@ function findBuilderNodeById(
   return null;
 }
 
+/**
+ * P3-LOCK — returns true when the given builder node (or its DOM element) has
+ * the `locked` flag set. Checked in click, resize, move, and nudge paths so
+ * locked nodes are entirely inert to direct manipulation.
+ */
+function isBuilderNodeLocked(
+  tree: BuilderNodeTree,
+  nodeId: string | null,
+): boolean {
+  if (!nodeId) return false;
+  const node = findBuilderNodeById(tree, nodeId);
+  return node?.locked === true;
+}
+
 function findBuilderNodePath(
   tree: BuilderNodeTree,
   nodeId: string | null,
@@ -745,6 +759,16 @@ export function SelectionLayer() {
         null;
       if (!id && !builderNodeId) return;
 
+      // P3-LOCK — locked nodes absorb the click (prevent link nav) but do not
+      // become the primary selection, so the inspector won't show stale controls
+      // for a locked element. The click is still stopped so navigation links
+      // inside the locked node don't fire.
+      if (builderNodeId && isBuilderNodeLocked(builderTree, builderNodeId)) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
       // Intercept link/button navigation so editors don't accidentally leave.
       e.preventDefault();
       e.stopPropagation();
@@ -884,7 +908,8 @@ export function SelectionLayer() {
         const id = el.getAttribute("data-builder-node-id");
         if (!id) return [];
         const node = findBuilderNodeById(builderTree, id);
-        if (!node || node.kind === "section" || resolveBuilderNodeRole(node.id)) {
+        // P3-LOCK: skip locked nodes and section/role nodes from marquee selection.
+        if (!node || node.kind === "section" || resolveBuilderNodeRole(node.id) || node.locked) {
           return [];
         }
         const box = rectOf(el);
@@ -1371,8 +1396,10 @@ export function SelectionLayer() {
   // responsive-style nesting); editable freeform blocks only (curated-role
   // nodes own their width). Commits once on release through the normal
   // patch flow, so undo/redo and persistence come for free.
+  // P3-LOCK: locked nodes suppress all direct-manipulation handles.
+  const selectedNodeIsLocked = selectedBuilderNode?.locked === true;
   const canResizeSelectedNode =
-    selectedNodeIsEditableBlock && !multiNodeSelectionActive && device === "desktop";
+    selectedNodeIsEditableBlock && !multiNodeSelectionActive && device === "desktop" && !selectedNodeIsLocked;
   const commitSelectedNodeSize = useCallback(
     (dims: { width?: number | null; height?: number | null }) => {
       if (!selectedBuilderNodeId) return;
@@ -1471,7 +1498,11 @@ export function SelectionLayer() {
       const dx = delta[0] * step;
       const dy = delta[1] * step;
       if (multiNodeSelectionActive) {
-        const nodeIds = selectedBuilderNodeRects.map((rect) => rect.id);
+        // P3-LOCK: skip locked nodes from multi-nudge.
+        const nodeIds = selectedBuilderNodeRects
+          .map((rect) => rect.id)
+          .filter((nodeId) => !isBuilderNodeLocked(builderTree, nodeId));
+        if (nodeIds.length === 0) return;
         for (const nodeId of nodeIds) {
           const el = getBuilderNodeEl(nodeId);
           if (!el) continue;
@@ -1500,6 +1531,7 @@ export function SelectionLayer() {
     window.addEventListener("keydown", onNudge);
     return () => window.removeEventListener("keydown", onNudge);
   }, [
+    builderTree,
     canResizeSelectedNode,
     getBuilderNodeEl,
     getSelectedBuilderNodeEl,

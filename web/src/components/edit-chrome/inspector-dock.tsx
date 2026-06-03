@@ -249,6 +249,7 @@ export function InspectorDock() {
     recordFieldEdit,
     syncBuilderNodeChildrenForSection,
     patchBuilderNodeProps,
+    reportMutationError,
     slots,
     builderTree,
     canEditSiteShell,
@@ -703,6 +704,10 @@ export function InspectorDock() {
       currentLoadedSection?.sectionTypeKey === "site_header" ||
       currentLoadedSection?.sectionTypeKey === "site_footer");
 
+  /** P3-LOCK — the selected standalone builder node has the lock flag set. */
+  const selectedStandaloneBuilderNodeIsLocked =
+    selectedStandaloneBuilderNode?.locked === true;
+
   // Freeform full-page-design blocks have NO owner section, so selection lands
   // a standalone builder node with selectedSectionId === null. Open the dock for
   // either a section OR a standalone node — otherwise freeform blocks select in
@@ -924,6 +929,19 @@ export function InspectorDock() {
         <EmptyState />
       ) : shellSectionLocked ? (
         <ShellLockedState />
+      ) : selectedStandaloneBuilderNodeIsLocked ? (
+        <NodeLockedState
+          nodeId={selectedStandaloneBuilderNode!.id}
+          nodeLabel={builderNodeTitle(selectedStandaloneBuilderNode!)}
+          onUnlock={async () => {
+            if (!selectedStandaloneBuilderNode) return;
+            const result = await patchBuilderNodeProps(
+              selectedStandaloneBuilderNode.id,
+              { locked: undefined },
+            );
+            if (!result.ok && result.error) reportMutationError(result.error);
+          }}
+        />
       ) : isSiteHeaderSelected ? (
         <SiteHeaderInspector tenantId={tenantId} />
       ) : loadError ? (
@@ -1141,6 +1159,81 @@ function ShellLockedState() {
           Body sections stay editable. Upgrade to Studio to edit header and footer shell controls.
         </p>
       </div>
+    </div>
+  );
+}
+
+/**
+ * P3-LOCK — shown when the selected standalone builder node has `locked: true`.
+ * Renders a clear locked banner with an "Unlock" affordance that patches
+ * `locked: undefined` via the normal mutation path, then re-opens the inspector.
+ */
+function NodeLockedState({
+  nodeId,
+  nodeLabel,
+  onUnlock,
+}: {
+  nodeId: string;
+  nodeLabel: string;
+  onUnlock: () => Promise<void>;
+}) {
+  const [unlocking, setUnlocking] = useState(false);
+  const handleUnlock = async () => {
+    setUnlocking(true);
+    try {
+      await onUnlock();
+    } finally {
+      setUnlocking(false);
+    }
+  };
+  return (
+    <div
+      className="flex flex-1 flex-col items-center justify-center gap-0 px-6 text-center"
+      style={{ color: CHROME.muted }}
+      data-node-id={nodeId}
+    >
+      <div
+        className="mb-4 flex size-12 items-center justify-center rounded-2xl border"
+        style={{
+          borderColor: CHROME.amberLine,
+          background: CHROME.amberBg,
+          color: CHROME.amber,
+          boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+        }}
+      >
+        {/* Lock icon SVG (no lucide dep in this file) */}
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </svg>
+      </div>
+      <p className="text-[13px] font-semibold tracking-tight" style={{ color: CHROME.text2 }}>
+        {nodeLabel} is locked
+      </p>
+      <p className="mt-1.5 max-w-[220px] text-[11.5px] leading-relaxed" style={{ color: CHROME.muted2 }}>
+        This block is locked and cannot be moved, resized, or edited. Unlock it to resume editing.
+      </p>
+      <button
+        type="button"
+        disabled={unlocking}
+        onClick={() => void handleUnlock()}
+        className="mt-4 inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[12px] font-semibold transition"
+        style={{
+          background: CHROME.amberBg,
+          border: `1px solid ${CHROME.amberLine}`,
+          color: CHROME.amber,
+          cursor: unlocking ? "wait" : "pointer",
+          opacity: unlocking ? 0.65 : 1,
+        }}
+        aria-label={`Unlock ${nodeLabel}`}
+      >
+        {/* Unlock icon SVG */}
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+          <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+        </svg>
+        {unlocking ? "Unlocking…" : "Unlock block"}
+      </button>
     </div>
   );
 }
