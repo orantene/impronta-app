@@ -248,10 +248,10 @@ export function SettingsPage() {
         />
         <SecondaryCard
           title="Identity verification"
-          description="Get the Verified badge on every inquiry. ID + selfie · reviewed by our trust team within 24h."
+          description="ID review plus connected-account badges. Social badges only turn on after ownership is verified."
           meta={<><StatDot tone="amber" /> Not yet verified</>}
-          affordance="Verify identity"
-          onClick={() => openDrawer("talent-verification")}
+          affordance="Open verification"
+          onClick={() => openDrawer("talent-connections")}
         />
         <SecondaryCard
           title="Refer a friend"
