@@ -120,6 +120,17 @@ export const FIDELITY_MOTION_FRAMES: readonly FidelityMotionFrame[] = [
     height: 1100,
     targetSelector: '[data-builder-node-id$="__festival-lineup-card"]',
   },
+  // ── Wave 2 — Impronta flagship ────────────────────────────────────────────────
+  // impronta process section scroll-reveal settled — proves the `rise` entrance
+  // animation (animationPreset:"rise", animationTrigger:"scroll") reaches its
+  // settled end state when the section scrolls into view, vs. stuck at opacity:0.
+  // The process band inner wrapper carries the RISE declaration.
+  { design: "impronta", state: "reveal", width: 1440, height: 1100 },
+  // impronta gold CTA hover — the heroClassic "Explore the directory" gold button
+  // (first `.site-builder-node--button` on the page) proves the declared
+  // hover transition (backgroundColor: gold_bright, translate: 0 -2px,
+  // boxShadow glow) settles to its hovered end state under animations:"disabled".
+  { design: "impronta", state: "hover", width: 1440, height: 1100 },
 ];
 
 /** First CTA on the page — hovered to prove the hover/transition system. */
