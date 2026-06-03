@@ -69,7 +69,59 @@ function testGoogleMapsApiKey(value: string): IntegrationFieldTestResult {
   return { ok: true };
 }
 
+/**
+ * Offline format checks for the PUBLIC analytics identifiers. These are
+ * plausibility/shape gates, NOT live API calls — they catch a wrong-id-type
+ * paste (e.g. a GTM container id pasted into the GA4 field) before we write it
+ * to config_json. All inputs are trimmed first.
+ */
+
+/** GA4 Measurement ID — "G-" + alphanumerics (e.g. G-XXXXXXXXXX). */
+function testGa4MeasurementId(value: string): IntegrationFieldTestResult {
+  const v = value.trim();
+  if (!v) return { ok: false, reason: "empty" };
+  if (!/^G-[A-Z0-9]+$/.test(v)) return { ok: false, reason: "expected_G-XXXX" };
+  return { ok: true };
+}
+
+/** GTM container ID — "GTM-" + alphanumerics (e.g. GTM-XXXXXXX). */
+function testGtmContainerId(value: string): IntegrationFieldTestResult {
+  const v = value.trim();
+  if (!v) return { ok: false, reason: "empty" };
+  if (!/^GTM-[A-Z0-9]+$/.test(v)) return { ok: false, reason: "expected_GTM-XXXX" };
+  return { ok: true };
+}
+
+/** Meta (Facebook) Pixel ID — a numeric string, typically 15-16 digits. */
+function testMetaPixelId(value: string): IntegrationFieldTestResult {
+  const v = value.trim();
+  if (!v) return { ok: false, reason: "empty" };
+  if (!/^\d{8,20}$/.test(v)) return { ok: false, reason: "expected_numeric_id" };
+  return { ok: true };
+}
+
+/** TikTok Pixel ID — alphanumeric handle (e.g. C4A1B2C3D4E5...). */
+function testTikTokPixelId(value: string): IntegrationFieldTestResult {
+  const v = value.trim();
+  if (!v) return { ok: false, reason: "empty" };
+  if (!/^[A-Z0-9]{10,40}$/i.test(v)) return { ok: false, reason: "expected_alnum_id" };
+  return { ok: true };
+}
+
+/** LinkedIn Insight Tag — numeric Partner ID. */
+function testLinkedInPartnerId(value: string): IntegrationFieldTestResult {
+  const v = value.trim();
+  if (!v) return { ok: false, reason: "empty" };
+  if (!/^\d{4,12}$/.test(v)) return { ok: false, reason: "expected_numeric_id" };
+  return { ok: true };
+}
+
 export const GOOGLE_MAPS_INTEGRATION_KEY = "google_maps" as const;
+export const GA4_INTEGRATION_KEY = "ga4" as const;
+export const META_PIXEL_INTEGRATION_KEY = "meta_pixel" as const;
+export const TIKTOK_PIXEL_INTEGRATION_KEY = "tiktok_pixel" as const;
+export const LINKEDIN_INSIGHT_INTEGRATION_KEY = "linkedin_insight" as const;
+export const GTM_INTEGRATION_KEY = "gtm" as const;
 
 export const INTEGRATION_CATALOG: Record<string, IntegrationDef> = {
   [GOOGLE_MAPS_INTEGRATION_KEY]: {
@@ -96,6 +148,137 @@ export const INTEGRATION_CATALOG: Record<string, IntegrationDef> = {
       },
     ],
   },
+
+  // ─── Analytics — PUBLIC identifiers only (stored in config_json) ──────────
+  // None of these need a secret or the tenant_integration_secrets table: GA4
+  // measurement IDs, pixel IDs, and GTM container IDs are all public values that
+  // ship to the browser in <script> tags anyway. They are NOT inheritable —
+  // there is no platform-level analytics identity to fall back to; a tenant
+  // either supplies its own or analytics stays off for that tenant.
+  [GA4_INTEGRATION_KEY]: {
+    key: GA4_INTEGRATION_KEY,
+    label: "Google Analytics 4",
+    category: "analytics",
+    connection: "manual",
+    inheritable: false,
+    description:
+      "Track visits to your public site with Google Analytics 4. Paste your GA4 Measurement ID and the gtag.js snippet is injected on your storefront (consent-gated).",
+    instructions: [
+      "Open Google Analytics → Admin (gear, bottom-left).",
+      'Under the Property column choose "Data streams", then select (or create) your Web stream.',
+      'Copy the "Measurement ID" at the top right of the stream details — it starts with "G-".',
+      "Paste the Measurement ID (e.g. G-XXXXXXXXXX) here.",
+    ],
+    fields: [
+      {
+        name: "measurement_id",
+        label: "GA4 Measurement ID",
+        secret: false,
+        public: true,
+        test: testGa4MeasurementId,
+      },
+    ],
+  },
+
+  [META_PIXEL_INTEGRATION_KEY]: {
+    key: META_PIXEL_INTEGRATION_KEY,
+    label: "Meta Pixel",
+    category: "analytics",
+    connection: "manual",
+    inheritable: false,
+    description:
+      "Measure conversions and build audiences for Facebook / Instagram ads. Paste your Meta (Facebook) Pixel ID and the base pixel code is injected on your storefront (consent-gated).",
+    instructions: [
+      "Open Meta Events Manager (business.facebook.com/events_manager).",
+      "Select your pixel / dataset in the Data Sources list on the left.",
+      'Find the "Dataset ID" (Pixel ID) near the top — it is a long number.',
+      "Paste the numeric Pixel ID here.",
+    ],
+    fields: [
+      {
+        name: "pixel_id",
+        label: "Meta Pixel ID",
+        secret: false,
+        public: true,
+        test: testMetaPixelId,
+      },
+    ],
+  },
+
+  [TIKTOK_PIXEL_INTEGRATION_KEY]: {
+    key: TIKTOK_PIXEL_INTEGRATION_KEY,
+    label: "TikTok Pixel",
+    category: "analytics",
+    connection: "manual",
+    inheritable: false,
+    description:
+      "Track conversions from TikTok ads. Paste your TikTok Pixel ID and the pixel base code is injected on your storefront (consent-gated).",
+    instructions: [
+      "Open TikTok Ads Manager → Assets → Events.",
+      'Under "Web Events", open (or create) your pixel.',
+      'Copy the "Pixel ID" shown in the pixel\'s details — an alphanumeric code.',
+      "Paste the Pixel ID here.",
+    ],
+    fields: [
+      {
+        name: "pixel_id",
+        label: "TikTok Pixel ID",
+        secret: false,
+        public: true,
+        test: testTikTokPixelId,
+      },
+    ],
+  },
+
+  [LINKEDIN_INSIGHT_INTEGRATION_KEY]: {
+    key: LINKEDIN_INSIGHT_INTEGRATION_KEY,
+    label: "LinkedIn Insight Tag",
+    category: "analytics",
+    connection: "manual",
+    inheritable: false,
+    description:
+      "Measure LinkedIn ad conversions and retarget visitors. Paste your LinkedIn Partner ID and the Insight Tag is injected on your storefront (consent-gated).",
+    instructions: [
+      "Open LinkedIn Campaign Manager → Analyze → Insight Tag.",
+      'Choose "Install my Insight Tag" / "Manage Insight Tag".',
+      'Copy your "Partner ID" — a short numeric value.',
+      "Paste the numeric Partner ID here.",
+    ],
+    fields: [
+      {
+        name: "partner_id",
+        label: "LinkedIn Partner ID",
+        secret: false,
+        public: true,
+        test: testLinkedInPartnerId,
+      },
+    ],
+  },
+
+  [GTM_INTEGRATION_KEY]: {
+    key: GTM_INTEGRATION_KEY,
+    label: "Google Tag Manager",
+    category: "analytics",
+    connection: "manual",
+    inheritable: false,
+    description:
+      "Manage all your marketing tags from one container without editing the site. Paste your GTM Container ID and the container snippet is injected on your storefront (consent-gated).",
+    instructions: [
+      "Open Google Tag Manager (tagmanager.google.com).",
+      "Select your account and the container for this website.",
+      'Copy the Container ID shown near the top — it starts with "GTM-".',
+      "Paste the Container ID (e.g. GTM-XXXXXXX) here.",
+    ],
+    fields: [
+      {
+        name: "container_id",
+        label: "GTM Container ID",
+        secret: false,
+        public: true,
+        test: testGtmContainerId,
+      },
+    ],
+  },
 };
 
 /** Lookup helper. Returns null for an unknown key. */
@@ -108,4 +291,21 @@ export function primarySecretField(key: string): string | null {
   const def = getIntegrationDef(key);
   if (!def) return null;
   return def.fields.find((f) => f.secret)?.name ?? null;
+}
+
+/** All integration defs (stable iteration order: catalog insertion order). */
+export function listIntegrationDefs(): IntegrationDef[] {
+  return Object.values(INTEGRATION_CATALOG);
+}
+
+/** All integration defs in a given category. */
+export function listIntegrationDefsByCategory(
+  category: IntegrationCategory,
+): IntegrationDef[] {
+  return listIntegrationDefs().filter((d) => d.category === category);
+}
+
+/** True when the integration has at least one encrypted (secret) field. */
+export function integrationHasSecret(key: string): boolean {
+  return primarySecretField(key) !== null;
 }

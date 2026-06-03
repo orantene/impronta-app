@@ -124,6 +124,82 @@ export async function upsertTenantIntegration(
   return data as TenantIntegrationRow;
 }
 
+/** List every configured integration row for a tenant. Empty array on failure. */
+export async function listTenantIntegrations(
+  tenantId: string,
+): Promise<TenantIntegrationRow[]> {
+  const supabase = service();
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("tenant_integrations")
+    .select("*")
+    .eq("tenant_id", tenantId);
+  if (error || !data) return [];
+  return data as TenantIntegrationRow[];
+}
+
+/**
+ * Merge a partial set of PUBLIC config values into the integration's config_json
+ * (read-modify-write so untouched keys survive). Optionally update status /
+ * verified-at / error in the same upsert. Returns the resulting row or null.
+ *
+ * Use ONLY for public identifiers (GA4 measurement IDs, pixel/partner/container
+ * IDs). Secrets never go through config_json — use setSecret().
+ *
+ * A partialConfig value of `null` (or `undefined`) DELETES that key from the
+ * merged config (a clear), so callers can null-out an identifier without an
+ * extra round-trip.
+ */
+export async function setIntegrationConfig(
+  tenantId: string,
+  key: string,
+  partialConfig: Record<string, unknown>,
+  opts?: {
+    status?: TenantIntegrationRow["status"];
+    connectionMethod?: TenantIntegrationRow["connection_method"];
+    lastVerifiedAt?: string | null;
+    lastError?: string | null;
+    actorId?: string | null;
+  },
+): Promise<TenantIntegrationRow | null> {
+  const existing = await getTenantIntegration(tenantId, key);
+  const mergedConfig: Record<string, unknown> = {
+    ...(existing?.config_json ?? {}),
+  };
+  for (const [k, v] of Object.entries(partialConfig)) {
+    if (v === null || v === undefined) delete mergedConfig[k];
+    else mergedConfig[k] = v;
+  }
+  return upsertTenantIntegration({
+    tenantId,
+    key,
+    configJson: mergedConfig,
+    status: opts?.status,
+    connectionMethod: opts?.connectionMethod,
+    lastVerifiedAt: opts?.lastVerifiedAt,
+    lastError: opts?.lastError,
+    actorId: opts?.actorId,
+  });
+}
+
+/**
+ * Switch the credential_mode (inherit | custom) for a (tenant, integration).
+ * Returns the resulting row or null. Does not touch secrets or config_json.
+ */
+export async function setCredentialMode(
+  tenantId: string,
+  key: string,
+  mode: "inherit" | "custom",
+  actorId?: string | null,
+): Promise<TenantIntegrationRow | null> {
+  return upsertTenantIntegration({
+    tenantId,
+    key,
+    credentialMode: mode,
+    actorId,
+  });
+}
+
 /**
  * Decrypt and return the plaintext secret for a (tenant, integration, field).
  * Null when absent or undecryptable.
@@ -146,6 +222,30 @@ export async function getDecryptedSecret(
   const ciphertext = (data as { ciphertext: string }).ciphertext;
   if (!ciphertext) return null;
   return decryptSecret(ciphertext);
+}
+
+/**
+ * Read the NON-SENSITIVE secret status for a (tenant, integration, field):
+ * whether a secret is stored and its last4. NEVER returns the ciphertext or
+ * plaintext — this is the only secret-table read that is safe to surface to a
+ * (server-side, staff-gated) UI loader.
+ */
+export async function getSecretStatus(
+  tenantId: string,
+  key: string,
+  secretField: string,
+): Promise<{ present: boolean; last4: string | null }> {
+  const supabase = service();
+  if (!supabase) return { present: false, last4: null };
+  const { data, error } = await supabase
+    .from("tenant_integration_secrets")
+    .select("last4")
+    .eq("tenant_id", tenantId)
+    .eq("integration_key", key)
+    .eq("secret_field", secretField)
+    .maybeSingle();
+  if (error || !data) return { present: false, last4: null };
+  return { present: true, last4: (data as { last4: string | null }).last4 ?? null };
 }
 
 /**

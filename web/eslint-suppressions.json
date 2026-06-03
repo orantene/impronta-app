@@ -552,11 +552,6 @@
       "count": 33
     }
   },
-  "src/components/admin/shell/internal/page-modules/pages-dynamic.tsx": {
-    "ratchet/no-new-inline-style": {
-      "count": 19
-    }
-  },
   "src/components/admin/shell/internal/page-modules/CalendarPage.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 12
@@ -662,7 +657,7 @@
       "count": 1
     },
     "ratchet/no-new-inline-style": {
-      "count": 107
+      "count": 105
     }
   },
   "src/components/admin/shell/internal/page-modules/WorkspacePlanBadge.tsx": {
@@ -686,6 +681,11 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 76
+    }
+  },
+  "src/components/admin/shell/internal/page-modules/pages-dynamic.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 19
     }
   },
   "src/components/admin/shell/internal/page-modules/pages-shared.tsx": {

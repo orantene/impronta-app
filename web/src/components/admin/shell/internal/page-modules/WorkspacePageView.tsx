@@ -16,6 +16,7 @@ import {
   type SettingsSectionTarget,
 } from "./settings-deeplink";
 import { RegistrationSection } from "./RegistrationSection";
+import { IntegrationsSection } from "./IntegrationsSection";
 
 
 /** Settings list row — white card with flex-row layout + hover lift.
@@ -704,21 +705,8 @@ export function WorkspacePageView() {
           )}
 
           {visibleSections.has("integrations") && (
-          <AccordionItem id="integrations" label="Integrations" desc="Connect calendars, CRMs, and other tools." supportLink="/help/settings/integrations" open={isOpen("integrations")} onToggle={() => toggleSection("integrations")}>
-            {[
-              { name: "Google Calendar sync", status: "Connected",  connected: true  },
-              { name: "Slack notifications",   status: "Not set up", connected: false },
-              { name: "Xero / QuickBooks",      status: "Not set up", connected: false },
-            ].map((intg) => (
-              <SettingsRow key={intg.name}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{intg.name}</div>
-                  <div style={{ fontSize: 12, marginTop: 2, color: intg.connected ? COLORS.successDeep : COLORS.inkMuted }}>
-                    {intg.status}
-                  </div>
-                </div>
-              </SettingsRow>
-            ))}
+          <AccordionItem id="integrations" label="Integrations" desc="Bring your own keys — maps, analytics, and marketing tags for your storefront." supportLink="/help/settings/integrations" open={isOpen("integrations")} onToggle={() => toggleSection("integrations")}>
+            <IntegrationsSection />
           </AccordionItem>
           )}
 
