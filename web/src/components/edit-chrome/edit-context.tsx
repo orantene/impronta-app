@@ -52,7 +52,10 @@ import {
   setSectionVisibilityAction,
   type SectionVisibility,
 } from "@/lib/site-admin/edit-mode/section-actions";
-import { restoreHomepageRevisionAction } from "@/lib/site-admin/edit-mode/revisions-actions";
+import {
+  restoreHomepageRevisionAction,
+  restorePageRevisionAction,
+} from "@/lib/site-admin/edit-mode/revisions-actions";
 import type {
   DispatchResult,
   EditorMutation,
@@ -5022,11 +5025,21 @@ export function EditProvider({
         return { ok: false, error: "This page is still loading — try again in a moment." };
       }
       setSaving(true);
-      const res = await restoreHomepageRevisionAction({
-        revisionId,
-        locale,
-        expectedVersion: pageVersionRef.current ?? pageVersion,
-      });
+      // T4.5: Branch on homepage vs non-homepage page. The homepage is keyed
+      // by locale (no pageId needed in the action); non-homepage pages use
+      // the pageId directly so the right cms_page row is targeted.
+      const casVersion = pageVersionRef.current ?? pageVersion;
+      const res = pageSlug && pageId
+        ? await restorePageRevisionAction({
+            revisionId,
+            pageId,
+            expectedVersion: casVersion,
+          })
+        : await restoreHomepageRevisionAction({
+            revisionId,
+            locale,
+            expectedVersion: casVersion,
+          });
       setSaving(false);
       if (!res.ok) {
         if (res.code === "VERSION_CONFLICT") {
@@ -5043,7 +5056,7 @@ export function EditProvider({
       void queueRouterRefresh();
       return { ok: true };
     },
-    [pageVersion, locale, refreshComposition, queueRouterRefresh, reportMutationError],
+    [pageVersion, pageSlug, pageId, locale, refreshComposition, queueRouterRefresh, reportMutationError],
   );
 
   // Sprint 5 — public setSectionVisibility now routes through the
