@@ -46,6 +46,15 @@ const PHOTO = {
   servicePros: "/marketing/photos/service-pros-lifestyle.jpg",
 } as const;
 
+// Real represented Impronta talent (public media-public bucket) for the hero
+// stage cards — actual roster portraits, not stock. The Featured Talent section
+// below pulls the same roster live.
+const TALENT = {
+  anto: "https://pluhdapdnuiulvxmyspd.supabase.co/storage/v1/object/public/media-public/42b0d16f-de76-49f3-bc98-f80b5bba377d/gallery/ac0412e7-c608-4b68-bc0d-13af97790fd3.jpg",
+  tina: "https://pluhdapdnuiulvxmyspd.supabase.co/storage/v1/object/public/media-public/1da42501-2e82-4af4-83cd-5bb97ec64718/card/ef913606-660b-4661-857f-bde4c67784e9.webp",
+  nalea: "https://pluhdapdnuiulvxmyspd.supabase.co/storage/v1/object/public/media-public/72033ce0-e8be-4e22-8981-1caa52c3207d/gallery/346ce0a8-ea98-4acb-9c56-df1cb6eaeff3.jpg",
+} as const;
+
 const dataSources: BuilderNodeRenderDataSources = {
   collections: {
     impronta_disciplines: [
@@ -477,7 +486,7 @@ const heroClassic: BuilderNode = {
             {
               id: "impronta-hc-stage-l",
               kind: "image",
-              props: { src: PHOTO.party, alt: "Lucía M.", style: { width: "158px", aspectRatioFree: "0.72", objectFit: "cover", objectPosition: "center", borderRadius: "6px", rotate: "-5deg", marginTopFree: "44px", marginRightFree: "-38px", zIndex: 1, boxShadow: "0 24px 60px rgba(0,0,0,0.55)", borderColor: "rgba(255,255,255,0.08)", borderWidth: "1px", borderStyle: "solid" } },
+              props: { src: TALENT.nalea, alt: "Nalea", style: { width: "158px", aspectRatioFree: "0.72", objectFit: "cover", objectPosition: "center top", borderRadius: "6px", rotate: "-5deg", marginTopFree: "44px", marginRightFree: "-38px", zIndex: 1, boxShadow: "0 24px 60px rgba(0,0,0,0.55)", borderColor: "rgba(255,255,255,0.08)", borderWidth: "1px", borderStyle: "solid" } },
             },
             {
               id: "impronta-hc-stage-main",
@@ -485,15 +494,15 @@ const heroClassic: BuilderNode = {
               props: { layout: "stack", align: "center", style: { gap: "12px", zIndex: 3 } },
               children: [
                 { id: "impronta-hc-stage-tab", kind: "paragraph", props: { text: "SELECTED", style: { fontFamily: CINZEL, fontSize: "10px", letterSpacing: "0.24em", textColor: "#1a1407", backgroundColor: GOLD, paddingTop: "4px", paddingBottom: "4px", paddingLeft: "12px", paddingRight: "12px", borderRadius: "2px" } } },
-                { id: "impronta-hc-stage-img", kind: "image", props: { src: PHOTO.runway, alt: "Sofía R.", style: { width: "256px", aspectRatioFree: "0.74", objectFit: "cover", objectPosition: "center top", borderRadius: "6px", boxShadow: "0 36px 80px rgba(0,0,0,0.65)", borderColor: HAIRLINE, borderWidth: "1px", borderStyle: "solid" } } },
-                { id: "impronta-hc-stage-name", kind: "paragraph", props: { text: "Sofía R.", style: { fontFamily: FRAUNCES, fontSize: "20px", textColor: TEXT, align: "center", marginBottomFree: "0px" } } },
-                { id: "impronta-hc-stage-role", kind: "paragraph", props: { text: "Editorial · Tulum", style: { fontFamily: INTER, fontSize: "12px", letterSpacing: "0.08em", textColor: FAINT, align: "center" } } },
+                { id: "impronta-hc-stage-img", kind: "image", props: { src: TALENT.anto, alt: "Anto", style: { width: "256px", aspectRatioFree: "0.74", objectFit: "cover", objectPosition: "center top", borderRadius: "6px", boxShadow: "0 36px 80px rgba(0,0,0,0.65)", borderColor: HAIRLINE, borderWidth: "1px", borderStyle: "solid" } } },
+                { id: "impronta-hc-stage-name", kind: "paragraph", props: { text: "Anto", style: { fontFamily: FRAUNCES, fontSize: "20px", textColor: TEXT, align: "center", marginBottomFree: "0px" } } },
+                { id: "impronta-hc-stage-role", kind: "paragraph", props: { text: "Commercial Model · Playa del Carmen", style: { fontFamily: INTER, fontSize: "12px", letterSpacing: "0.08em", textColor: FAINT, align: "center" } } },
               ],
             },
             {
               id: "impronta-hc-stage-r",
               kind: "image",
-              props: { src: PHOTO.hosts, alt: "Marco V.", style: { width: "158px", aspectRatioFree: "0.72", objectFit: "cover", objectPosition: "center", borderRadius: "6px", rotate: "5deg", marginTopFree: "44px", marginLeftFree: "-38px", zIndex: 1, boxShadow: "0 24px 60px rgba(0,0,0,0.55)", borderColor: "rgba(255,255,255,0.08)", borderWidth: "1px", borderStyle: "solid" } },
+              props: { src: TALENT.tina, alt: "Tina", style: { width: "158px", aspectRatioFree: "0.72", objectFit: "cover", objectPosition: "center top", borderRadius: "6px", rotate: "5deg", marginTopFree: "44px", marginLeftFree: "-38px", zIndex: 1, boxShadow: "0 24px 60px rgba(0,0,0,0.55)", borderColor: "rgba(255,255,255,0.08)", borderWidth: "1px", borderStyle: "solid" } },
             },
           ],
         },
@@ -502,89 +511,87 @@ const heroClassic: BuilderNode = {
   ],
 };
 
-// Talent by discipline (rail/grid repeater)
-const disciplines: BuilderNode = band("impronta-disciplines", SURFACE, [
-  {
-    id: "impronta-disc-head",
-    kind: "container",
-    props: { layout: "row", align: "end", responsive: { mobile: { layout: "stack", align: "start" } }, style: { width: "100%", maxWidthFree: "100%", justifyContent: "space-between", gap: "16px" } },
-    children: [
-      { id: "impronta-disc-head-l", kind: "container", props: { layout: "stack", style: { gap: "0px" } }, children: [eyebrow("The roster"), sectionTitle("Talent, by discipline", "impronta-disc-title")] },
-      { id: "impronta-disc-see", kind: "button", props: { label: "See all →", href: "/directory", tone: "secondary", style: { fontFamily: INTER, fontSize: "14px", fontWeight: 600, textColor: GOLD_BRIGHT, backgroundColor: "rgba(0,0,0,0)", hover: { color: GOLD } } } },
-    ],
-  },
-  {
-    id: "impronta-disc-grid",
-    kind: "container",
-    props: {
-      layout: "grid",
-      columns: 4,
-      gap: "m",
-      dataBinding: { sourceKey: "impronta_disciplines", mode: "bound", repeat: true, maxItems: 8 },
-      style: { width: "100%", maxWidthFree: "100%", gap: "18px", responsive: { tablet: { gridTemplateColumns: "repeat(2,minmax(0,1fr))" } } },
+// Talent by discipline — REAL curated rail (section_embed of the talent_type_grid
+// component). Matched discipline imagery + a featured-pod rail; edit/reorder in
+// the section's own editor.
+const disciplines: BuilderNode = {
+  id: "impronta-disciplines",
+  kind: "section_embed",
+  props: {
+    sectionTypeKey: "talent_type_grid",
+    config: {
+      mode: "manual",
+      items: [
+        { href: "/directory", icon: "◑", label: "Models", featured: true, imageAlt: "Studio portrait of a model with long blonde hair and a sheer black top.", imageUrl: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&q=72&w=1200&h=1500", description: "Editorial, runway & commercial" },
+        { href: "/directory", icon: "✦", label: "Hosts & Promo", imageAlt: "Confetti falling over a crowded live event.", imageUrl: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=72&w=1200&h=760", description: "Brand ambassadors & activations" },
+        { href: "/directory", icon: "✷", label: "Chefs & Culinary", imageAlt: "Chef plating food in a professional kitchen.", imageUrl: "https://images.unsplash.com/photo-1577219491135-ce391730fb2c?auto=format&fit=crop&q=72&w=1200&h=760", description: "Private chefs & catering" },
+        { href: "/directory", icon: "♪", label: "Performers", imageAlt: "Singer performing into a microphone through stage smoke.", imageUrl: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&q=72&w=1200&h=760", description: "Dancers, acts & entertainers" },
+        { href: "/directory", icon: "❀", label: "Wellness & Beauty", imageAlt: "Close-up beauty portrait showing dramatic eye makeup.", imageUrl: "https://images.unsplash.com/photo-1487412947147-5cebf100ffc2?auto=format&fit=crop&q=72&w=1200&h=760", description: "Hair, makeup & wellness" },
+        { href: "/directory", icon: "♫", label: "Music & DJs", imageAlt: "Musicians performing on a dark stage with concert lights.", imageUrl: "https://images.unsplash.com/photo-1499364615650-ec38552f4f34?auto=format&fit=crop&q=72&w=1200&h=760", description: "DJs, bands & live music" },
+        { href: "/directory", icon: "◉", label: "Photo, Video & Creative", imageAlt: "Camera equipment and lighting set up for a creative shoot.", imageUrl: "https://images.unsplash.com/photo-1478720568477-152d9b164e26?auto=format&fit=crop&q=72&w=1200&h=760", description: "Photographers & creatives" },
+      ],
+      eyebrow: "The roster",
+      showCta: true,
+      ctaLabel: "Explore",
+      headline: "Talent, by discipline",
+      maxItems: 7,
+      cardRatio: "16/9",
+      showCount: false,
+      seeAllHref: "/directory",
+      showImages: true,
+      seeAllLabel: "See all",
+      subheadline: "",
+      mobileLayout: "horizontal-scroll",
+      presentation: { background: "espresso", dividerTop: "thin-line", paddingTop: "editorial", paddingBottom: "editorial" },
+      textPosition: "overlay-bottom",
+      desktopLayout: "featured-pod-rail",
+      showCardIcons: true,
+      showDescriptions: true,
+      showRailControls: true,
+      imageOverlayStrength: "strong",
     },
-    children: [
-      {
-        id: "impronta-disc-card",
-        kind: "container",
-        props: { layout: "stack", style: { gap: "0px", borderRadius: "6px", overflow: "hidden", borderColor: CARD_BORDER, borderWidth: "1px", borderStyle: "solid", backgroundColor: CARD, containerType: "inline-size", transitionProperty: "translate, border-color", transitionDuration: "220ms", transitionTimingFunction: "ease", hover: { translate: "0 -6px", borderColor: HAIRLINE } } },
-        children: [
-          { id: "impronta-disc-card-img", kind: "image", props: { src: PHOTO.runway, alt: "Discipline", fieldBindings: { src: "imageUrl", alt: "name" }, style: { width: "100%", aspectRatio: "4:3", objectFit: "cover", objectPosition: "center" } } },
-          {
-            id: "impronta-disc-card-body",
-            kind: "container",
-            props: { layout: "stack", style: { gap: "4px", paddingTop: "16px", paddingBottom: "18px", paddingLeft: "16px", paddingRight: "16px" } },
-            children: [
-              { id: "impronta-disc-card-name", kind: "heading", props: { text: "{{name}}", level: 3, fieldBindings: { text: "name" }, style: { fontFamily: FRAUNCES, fontSize: "21px", fontWeight: 500, textColor: TEXT, marginBottomFree: "0px" } } },
-              { id: "impronta-disc-card-blurb", kind: "paragraph", props: { text: "{{blurb}}", fieldBindings: { text: "blurb" }, style: { fontFamily: INTER, fontSize: "13px", textColor: MUTED } } },
-            ],
-          },
-        ],
-      },
-    ],
   },
-]);
+};
 
-// Featured talent
-const featured: BuilderNode = band("impronta-featured", INK, [
-  centerHead("impronta-feat", "Selected", "Featured talent"),
-  {
-    id: "impronta-feat-grid",
-    kind: "container",
-    props: {
-      layout: "grid",
-      columns: 4,
-      gap: "m",
-      dataBinding: { sourceKey: "impronta_featured", mode: "bound", repeat: true, maxItems: 4 },
-      style: { width: "100%", maxWidthFree: "100%", gap: "20px", responsive: { tablet: { gridTemplateColumns: "repeat(2,minmax(0,1fr))" } } },
+// Featured talent — REAL represented roster (section_embed of the featured_talent
+// component). `sourceMode: manual_pick` shows the agency's hand-picked talent;
+// re-pick who appears right in the section's editor (manualProfileCodes).
+const featured: BuilderNode = {
+  id: "impronta-featured",
+  kind: "section_embed",
+  props: {
+    sectionTypeKey: "featured_talent",
+    config: {
+      copy: "",
+      limit: 4,
+      eyebrow: "Selected",
+      variant: "grid",
+      headline: "FEATURED TALENT",
+      showCity: true,
+      showName: true,
+      footerCta: { href: "/directory", label: "Explore Talent" },
+      showBadge: false,
+      cardChrome: "v11-noir",
+      requestCta: { href: "/contact", label: "Request" },
+      sourceMode: "manual_pick",
+      actionStyle: "outline-duo",
+      cardVariant: "editorial",
+      headerAlign: "center",
+      layoutPreset: "v11-showcase",
+      presentation: { align: "center", background: "canvas", dividerTop: "thin-line", paddingTop: "editorial", paddingBottom: "editorial", containerWidth: "wide" },
+      showLanguages: true,
+      columnsDesktop: 4,
+      emptyStateText: "Featured profiles appear here as talent are added to the roster.",
+      imageTreatment: "cinematic",
+      showPrimaryType: true,
+      showAvailability: true,
+      showBookmarkIcon: true,
+      showSecondaryType: true,
+      manualProfileCodes: ["TAL-00036", "TAL-00033", "TAL-00034", "TAL-00031", "TAL-00035", "TAL-00037"],
+      parentCategoryDisplay: false,
     },
-    children: [
-      {
-        id: "impronta-feat-card",
-        kind: "container",
-        props: { layout: "stack", style: { gap: "0px", borderRadius: "6px", overflow: "hidden", borderColor: CARD_BORDER, borderWidth: "1px", borderStyle: "solid", backgroundColor: CARD, transitionProperty: "translate", transitionDuration: "220ms", transitionTimingFunction: "ease", hover: { translate: "0 -6px" } } },
-        children: [
-          { id: "impronta-feat-card-img", kind: "image", props: { src: PHOTO.runway, alt: "Talent", fieldBindings: { src: "imageUrl", alt: "name" }, style: { width: "100%", aspectRatio: "3:4", objectFit: "cover", objectPosition: "center top" } } },
-          {
-            id: "impronta-feat-card-body",
-            kind: "container",
-            props: { layout: "stack", style: { gap: "3px", paddingTop: "14px", paddingBottom: "16px", paddingLeft: "16px", paddingRight: "16px" } },
-            children: [
-              { id: "impronta-feat-card-name", kind: "heading", props: { text: "{{name}}", level: 3, fieldBindings: { text: "name" }, style: { fontFamily: FRAUNCES, fontSize: "20px", fontWeight: 500, textColor: TEXT, marginBottomFree: "0px" } } },
-              { id: "impronta-feat-card-role", kind: "paragraph", props: { text: "{{role}}", fieldBindings: { text: "role" }, style: { fontFamily: INTER, fontSize: "12px", letterSpacing: "0.06em", textColor: GOLD_BRIGHT } } },
-            ],
-          },
-        ],
-      },
-    ],
   },
-  {
-    id: "impronta-feat-foot",
-    kind: "container",
-    props: { layout: "stack", align: "center", style: { width: "100%", marginTopFree: "12px" } },
-    children: [{ id: "impronta-feat-explore", kind: "button", props: { label: "Explore Talent →", href: "/directory", tone: "secondary", style: { fontFamily: INTER, fontSize: "14px", fontWeight: 600, textColor: GOLD_BRIGHT, backgroundColor: "rgba(0,0,0,0)", hover: { color: GOLD } } } }],
-  },
-]);
+};
 
 // A positioned map pin (gold dot + label) for the markets network panel.
 const mapPin = (
