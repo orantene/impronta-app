@@ -42,6 +42,11 @@ import { createPortal } from "react-dom";
 
 import { siblingDropGapToMoveIndex } from "@/lib/site-admin/builder-node/sibling-drop-gap";
 import {
+  resolveCanvasNodeDrop,
+  type CanvasDropCandidate,
+  type CanvasDropResult,
+} from "@/lib/site-admin/builder-node/canvas-node-drop";
+import {
   ArrowDown,
   ArrowUp,
   ClipboardPaste,
@@ -75,7 +80,12 @@ import {
   CanvasSpacingHandles,
   type PaddingSide,
 } from "./canvas-spacing-handles";
-import { ElementLibraryInsertPicker } from "./element-library-insert-picker";
+import {
+  BUILDER_NODE_PALETTE_DRAG_MIME,
+  ElementLibraryInsertPicker,
+  getActiveBuilderNodePaletteDrag,
+  type BuilderNodePaletteDragPayload,
+} from "./element-library-insert-picker";
 import { CHROME } from "./kit/tokens";
 import { MultiSelectionMoveHandle } from "./multi-selection-move-handle";
 import { MultiSelectionToolbar } from "./multi-selection-toolbar";
@@ -264,6 +274,116 @@ type MarqueeState =
       currentY: number;
     };
 
+/**
+ * P3-DRAG — a drag whose drop lands inside a freeform builder container,
+ * computing parent + index from the cursor (T3.1 palette insert + T3.2 existing
+ * block reorder/nest). Distinct from the section-level `DragState` above (which
+ * reorders whole sections within slots). Uses native HTML5 DnD (like the
+ * navigator/composition-library) so the OS drives the gesture; React only
+ * tracks the live drop target for the indicator.
+ */
+type CanvasNodeDragState =
+  | { phase: "idle" }
+  | {
+      /** Dragging a NEW element from the palette → insert on drop. */
+      phase: "palette";
+      payload: BuilderNodePaletteDragPayload;
+      draggedKind: BuilderNodeKind;
+      drop: CanvasDropResult | null;
+    }
+  | {
+      /** Dragging an EXISTING canvas block → move (reorder/nest) on drop. */
+      phase: "move";
+      nodeId: string;
+      draggedKind: BuilderNodeKind;
+      drop: CanvasDropResult | null;
+    };
+
+/**
+ * P3-DRAG — walk the live DOM to build the drop-candidate list for
+ * `resolveCanvasNodeDrop`. Every rendered `[data-builder-node-id]` whose node
+ * accepts children becomes a candidate; depth = ancestor-candidate count;
+ * `locked` covers role-bound / curated nodes (which own their structure) and
+ * the explicit `node.locked` flag. Child rows are the candidate's DIRECT
+ * builder-node children (by id), in document order, with their vertical bands.
+ */
+function collectCanvasDropCandidates(
+  tree: BuilderNodeTree,
+): CanvasDropCandidate[] {
+  if (typeof document === "undefined") return [];
+  const elements = Array.from(
+    document.querySelectorAll<HTMLElement>("[data-builder-node-id]"),
+  );
+  const idToEl = new Map<string, HTMLElement>();
+  for (const el of elements) {
+    const id = el.getAttribute("data-builder-node-id");
+    if (id && !idToEl.has(id)) idToEl.set(id, el);
+  }
+
+  const candidates: CanvasDropCandidate[] = [];
+  for (const el of elements) {
+    const id = el.getAttribute("data-builder-node-id");
+    if (!id) continue;
+    const node = findBuilderNodeById(tree, id);
+    if (!node) continue;
+    // Only containers (children policy ≠ "none") can be a drop parent.
+    if (BUILDER_NODE_REGISTRY[node.kind].children.type === "none") continue;
+    const rect = el.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) continue;
+
+    // Depth = how many OTHER candidate elements contain this one. Cheap O(n²)
+    // over the (small) candidate set; mirrors the marquee containment filter.
+    let depth = 0;
+    for (const other of elements) {
+      if (other === el) continue;
+      const otherId = other.getAttribute("data-builder-node-id");
+      if (!otherId) continue;
+      const otherNode = findBuilderNodeById(tree, otherId);
+      if (
+        otherNode &&
+        BUILDER_NODE_REGISTRY[otherNode.kind].children.type !== "none" &&
+        other.contains(el)
+      ) {
+        depth += 1;
+      }
+    }
+
+    const locked =
+      node.locked === true ||
+      // Role-bound nodes (curated section slots) own their structure — never a
+      // freeform drop parent. A `section` node is also structural shell.
+      node.kind === "section" ||
+      resolveBuilderNodeRole(node.id) !== null;
+
+    const childRows =
+      "children" in node && Array.isArray(node.children)
+        ? node.children.flatMap((child) => {
+            const childEl = idToEl.get(child.id);
+            if (!childEl) return [];
+            const childRect = childEl.getBoundingClientRect();
+            return [
+              { nodeId: child.id, top: childRect.top, bottom: childRect.bottom },
+            ];
+          })
+        : [];
+
+    candidates.push({
+      nodeId: id,
+      kind: node.kind,
+      rect: {
+        top: rect.top,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+      },
+      depth,
+      locked,
+      children: childRows,
+    });
+  }
+  return candidates;
+}
+
 const DRAG_THRESHOLD = 4; // px before an armed drag actually begins
 const AUTOSCROLL_BAND = 80; // px edge band that triggers auto-scroll
 const AUTOSCROLL_MAX = 14; // px per frame at the edge
@@ -339,6 +459,37 @@ function findBuilderNodePath(
 function builderNodeCrumbLabel(node: BuilderNode, sectionLabel: string): string {
   if (node.kind === "section") return sectionLabel;
   return truncateNodeLabel(canvasChildPrimaryLabel(node), 42);
+}
+
+/**
+ * P3-DRAG — locate a node's direct parent (the container holding it) and its
+ * index among that parent's children. Used by the canvas-block move drop to
+ * decide same-parent vs cross-parent and to apply the gap→index removal
+ * adjustment. Returns null for a root node (no builder-node parent).
+ */
+function findCanvasNodeParentContext(
+  tree: BuilderNodeTree,
+  nodeId: string,
+): { parentNodeId: string; sourceSiblingIndex: number } | null {
+  const visit = (
+    nodes: ReadonlyArray<BuilderNode>,
+    parentId: string | null,
+  ): { parentNodeId: string; sourceSiblingIndex: number } | null => {
+    for (let i = 0; i < nodes.length; i += 1) {
+      const node = nodes[i]!;
+      if (node.id === nodeId) {
+        return parentId === null
+          ? null
+          : { parentNodeId: parentId, sourceSiblingIndex: i };
+      }
+      if ("children" in node && Array.isArray(node.children)) {
+        const found = visit(node.children, node.id);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+  return visit(tree, null);
 }
 
 // Section types that may NOT be ejected to freeform: the already-freeform
@@ -421,6 +572,9 @@ export function SelectionLayer() {
     null,
   );
   const [drag, setDrag] = useState<DragState>({ phase: "idle" });
+  const [canvasNodeDrag, setCanvasNodeDrag] = useState<CanvasNodeDragState>({
+    phase: "idle",
+  });
   const [marquee, setMarquee] = useState<MarqueeState>({ phase: "idle" });
   const suppressNextClickRef = useRef(false);
   const autoscrollRafRef = useRef<number | null>(null);
@@ -988,6 +1142,268 @@ export function SelectionLayer() {
     getAllSelectedBuilderNodeIds,
     replaceBuilderNodeSelection,
   ]);
+
+  // ── P3-DRAG: palette-onto-canvas insert + canvas-block reorder/nest ──
+  //
+  // Fresh-value ref so the window-level native-DnD listeners (registered once
+  // per active drag) call today's tree + mutation fns without re-subscribing on
+  // every render. Same shape as `callbacksRef` above.
+  const canvasDropDepsRef = useRef({
+    builderTree,
+    insertBuilderNode,
+    insertBuilderSectionEmbed,
+    moveBuilderNodeToParentIndex,
+    reportMutationError,
+    selectBuilderNode,
+  });
+  useEffect(() => {
+    canvasDropDepsRef.current = {
+      builderTree,
+      insertBuilderNode,
+      insertBuilderSectionEmbed,
+      moveBuilderNodeToParentIndex,
+      reportMutationError,
+      selectBuilderNode,
+    };
+  }, [
+    builderTree,
+    insertBuilderNode,
+    insertBuilderSectionEmbed,
+    moveBuilderNodeToParentIndex,
+    reportMutationError,
+    selectBuilderNode,
+  ]);
+
+  // Resolve the canvas drop target under the cursor for the dragged kind. The
+  // DOM walk + index math live in `canvas-node-drop.ts` (pure + unit-tested);
+  // this only feeds it the live candidate boxes. For an existing-node move the
+  // dragged node is excluded so it can't parent itself or skew its own index.
+  const computeCanvasNodeDrop = useCallback(
+    (
+      cursorX: number,
+      cursorY: number,
+      draggedKind: BuilderNodeKind,
+      excludeNodeId: string | null,
+    ): CanvasDropResult | null => {
+      const candidates = collectCanvasDropCandidates(
+        canvasDropDepsRef.current.builderTree,
+      );
+      return resolveCanvasNodeDrop({
+        cursorX,
+        cursorY,
+        draggedKind,
+        candidates,
+        excludeNodeId,
+      });
+    },
+    [],
+  );
+
+  // Always-on detector: a palette drag STARTS on a pill in a different React
+  // tree, so we can't arm `canvasNodeDrag` at its source. When a drag carrying
+  // the palette MIME enters the window, flip into the "palette" phase (the main
+  // DnD effect below then drives the indicator + drop). Existing-canvas-block
+  // moves are armed directly by the chip grip's `onDragStart`, so they don't go
+  // through here.
+  useEffect(() => {
+    function onDragEnter(event: globalThis.DragEvent) {
+      if (!event.dataTransfer) return;
+      if (!event.dataTransfer.types.includes(BUILDER_NODE_PALETTE_DRAG_MIME)) {
+        return;
+      }
+      const payload = getActiveBuilderNodePaletteDrag();
+      if (!payload) return;
+      setCanvasNodeDrag((current) => {
+        if (current.phase !== "idle") return current;
+        return {
+          phase: "palette",
+          payload,
+          draggedKind:
+            payload.kind === "section_embed" ? "section_embed" : payload.elementKind,
+          drop: null,
+        };
+      });
+    }
+    window.addEventListener("dragenter", onDragEnter);
+    return () => window.removeEventListener("dragenter", onDragEnter);
+  }, []);
+
+  // Window-level native-DnD bridge. Active while a palette item OR an existing
+  // canvas block is being dragged. `dragover` previews the drop indicator;
+  // `drop` commits through the normal mutation/undo path (insert for palette,
+  // move for an existing block). The drag-image + `effectAllowed` are set by the
+  // drag source (palette pill / chip grip).
+  useEffect(() => {
+    if (canvasNodeDrag.phase === "idle") return;
+
+    function paletteKind(
+      payload: BuilderNodePaletteDragPayload,
+    ): BuilderNodeKind {
+      return payload.kind === "section_embed" ? "section_embed" : payload.elementKind;
+    }
+
+    function onDragOver(event: globalThis.DragEvent) {
+      // Read the live drag descriptor from the closed-over state. The effect
+      // re-subscribes whenever `canvasNodeDrag` changes, so phase/payload/nodeId
+      // are current (they only change on arm/disarm). Only `drop` changes per
+      // move, and it's computed purely from the event + DOM here.
+      const active = canvasNodeDrag;
+      if (active.phase === "idle") return;
+      // Inside the edit chrome (palette/inspector/topbar) → no canvas drop.
+      const overChrome =
+        event.target instanceof Element &&
+        (event.target.closest("[data-edit-topbar]") ||
+          event.target.closest("[data-edit-drawer]") ||
+          event.target.closest("[data-edit-overlay]"));
+      const draggedKind =
+        active.phase === "palette"
+          ? paletteKind(active.payload)
+          : active.draggedKind;
+      const excludeNodeId = active.phase === "move" ? active.nodeId : null;
+      const drop = overChrome
+        ? null
+        : computeCanvasNodeDrop(
+            event.clientX,
+            event.clientY,
+            draggedKind,
+            excludeNodeId,
+          );
+      // preventDefault on a valid target so the browser fires `drop`. Done
+      // synchronously here (NOT inside the state updater, which must stay pure).
+      if (drop && drop.allowed) {
+        event.preventDefault();
+        if (event.dataTransfer) {
+          event.dataTransfer.dropEffect =
+            active.phase === "palette" ? "copy" : "move";
+        }
+      } else if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = "none";
+      }
+      setCanvasNodeDrag((current) => {
+        if (current.phase === "idle") return current;
+        if (
+          drop?.parentNodeId === current.drop?.parentNodeId &&
+          drop?.index === current.drop?.index &&
+          drop?.allowed === current.drop?.allowed &&
+          drop?.indicatorY === current.drop?.indicatorY
+        ) {
+          return current;
+        }
+        return { ...current, drop };
+      });
+    }
+
+    function onDrop(event: globalThis.DragEvent) {
+      const state = canvasNodeDrag;
+      const deps = canvasDropDepsRef.current;
+      const overChrome =
+        event.target instanceof Element &&
+        (event.target.closest("[data-edit-topbar]") ||
+          event.target.closest("[data-edit-drawer]") ||
+          event.target.closest("[data-edit-overlay]"));
+      const draggedKind =
+        state.phase === "palette"
+          ? paletteKind(state.payload)
+          : state.phase === "move"
+            ? state.draggedKind
+            : null;
+      const excludeNodeId = state.phase === "move" ? state.nodeId : null;
+      const drop =
+        overChrome || draggedKind === null
+          ? null
+          : computeCanvasNodeDrop(
+              event.clientX,
+              event.clientY,
+              draggedKind,
+              excludeNodeId,
+            );
+      setCanvasNodeDrag({ phase: "idle" });
+      if (!drop || !drop.allowed) return;
+      event.preventDefault();
+
+      if (state.phase === "palette") {
+        if (state.payload.kind === "section_embed") {
+          void deps
+            .insertBuilderSectionEmbed(
+              drop.parentNodeId,
+              state.payload.sectionTypeKey,
+              drop.index,
+            )
+            .then((result) => {
+              if (!result.ok && result.error) deps.reportMutationError(result.error);
+            });
+        } else {
+          void deps
+            .insertBuilderNode(
+              drop.parentNodeId,
+              state.payload.elementKind,
+              drop.index,
+            )
+            .then((result) => {
+              if (!result.ok && result.error) deps.reportMutationError(result.error);
+            });
+        }
+        return;
+      }
+
+      if (state.phase === "move") {
+        // The resolver returns a GAP index over the post-exclusion sibling
+        // list. For a same-parent move, apply the −1 removal adjustment via the
+        // shared gap→index helper (cross-parent passes through unchanged).
+        const location = findCanvasNodeParentContext(
+          deps.builderTree,
+          state.nodeId,
+        );
+        const sameParent = location?.parentNodeId === drop.parentNodeId;
+        const resolvedIndex = sameParent
+          ? (() => {
+              const gap = siblingDropGapToMoveIndex({
+                dropGapIndex:
+                  // Re-expand the gap to the FULL sibling list: the resolver
+                  // measured against siblings WITHOUT the dragged node, so any
+                  // gap at/after the source slot is shifted up by one.
+                  location && drop.index >= location.sourceSiblingIndex
+                    ? drop.index + 1
+                    : drop.index,
+                sourceSiblingIndex: location?.sourceSiblingIndex ?? 0,
+                sameParent: true,
+              });
+              return gap.kind === "noop" ? null : gap.targetSiblingIndex;
+            })()
+          : drop.index;
+        if (resolvedIndex === null) return;
+        void deps
+          .moveBuilderNodeToParentIndex(
+            state.nodeId,
+            drop.parentNodeId,
+            resolvedIndex,
+          )
+          .then((result) => {
+            if (!result.ok && result.error) deps.reportMutationError(result.error);
+            else deps.selectBuilderNode(state.nodeId);
+          });
+      }
+    }
+
+    function onDragEnd() {
+      setCanvasNodeDrag({ phase: "idle" });
+    }
+
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setCanvasNodeDrag({ phase: "idle" });
+    }
+
+    window.addEventListener("dragover", onDragOver);
+    window.addEventListener("drop", onDrop);
+    window.addEventListener("dragend", onDragEnd);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("dragover", onDragOver);
+      window.removeEventListener("drop", onDrop);
+      window.removeEventListener("dragend", onDragEnd);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [canvasNodeDrag, computeCanvasNodeDrop]);
 
   // ── drag-to-reorder ──────────────────────────────────────────────
   // Drop target under the cursor given the current section layout.
@@ -2605,12 +3021,42 @@ export function SelectionLayer() {
               userSelect: "none",
             }}
           >
-            {/* Grip area — drag handle */}
+            {/* Grip area — drag handle.
+             *  Sections: pointer-driven reorder (existing `startDrag`).
+             *  Editable blocks (P3-DRAG T3.2): native HTML5 drag source that
+             *  arms a "move" canvas drag → reorder/nest via the canvas drop
+             *  target. The grip (not the whole element) is the source so inline
+             *  text-edit + selection on the element itself stay intact. */}
             <div
+              data-selection-chip-grip=""
+              draggable={selectedNodeIsEditableBlock ? true : undefined}
               onPointerDown={selectedNodeIsEditableBlock ? undefined : startDrag}
+              onDragStart={
+                selectedNodeIsEditableBlock && selectedBuilderNode
+                  ? (event) => {
+                      if (!selectedBuilderNodeId) return;
+                      event.dataTransfer.effectAllowed = "move";
+                      event.dataTransfer.setData(
+                        "text/plain",
+                        chipPrimaryLabel,
+                      );
+                      setCanvasNodeDrag({
+                        phase: "move",
+                        nodeId: selectedBuilderNodeId,
+                        draggedKind: selectedBuilderNode.kind,
+                        drop: null,
+                      });
+                    }
+                  : undefined
+              }
+              onDragEnd={
+                selectedNodeIsEditableBlock
+                  ? () => setCanvasNodeDrag({ phase: "idle" })
+                  : undefined
+              }
               title={
                 selectedNodeIsEditableBlock
-                  ? "Selected block"
+                  ? "Drag to move / nest this block"
                   : "Drag to reorder"
               }
               style={{
@@ -2618,11 +3064,14 @@ export function SelectionLayer() {
                 alignItems: "center",
                 padding: "0 14px 0 10px",
                 gap: 9,
-                cursor: selectedNodeIsEditableBlock
-                  ? "default"
-                  : drag.phase === "idle"
-                    ? "grab"
-                    : "grabbing",
+                cursor:
+                  canvasNodeDrag.phase === "move"
+                    ? "grabbing"
+                    : selectedNodeIsEditableBlock
+                      ? "grab"
+                      : drag.phase === "idle"
+                        ? "grab"
+                        : "grabbing",
                 touchAction: "none",
               }}
             >
@@ -2915,6 +3364,78 @@ export function SelectionLayer() {
                 : `0 0 0 2px rgba(255,255,255,0.88), 0 0 0 4px rgba(${DISALLOW_RGB},0.22), 0 0 12px rgba(${DISALLOW_RGB},0.45)`,
               animation:
                 drag.drop.allowed && !reduceMotion
+                  ? `${DROP_CAP_PULSE} 1.4s ease-in-out infinite`
+                  : undefined,
+            }}
+          />
+        </div>
+      ) : null}
+
+      {/* ── P3-DRAG canvas drop indicator ─────────────────────────────
+       *  The horizontal line where a palette element / dragged block will
+       *  land inside the resolved parent container. Blue = a legal drop;
+       *  red = the dragged kind isn't allowed under that parent. Mirrors the
+       *  section-level drop line's visual language. */}
+      {canvasNodeDrag.phase !== "idle" && canvasNodeDrag.drop ? (
+        <div
+          data-edit-overlay="canvas-node-drop-line"
+          data-canvas-node-drop-allowed={
+            canvasNodeDrag.drop.allowed ? "1" : "0"
+          }
+          style={{
+            position: "fixed",
+            top: canvasNodeDrag.drop.indicatorY - DROP_LINE_HEIGHT / 2,
+            left: canvasNodeDrag.drop.indicatorLeft,
+            width: canvasNodeDrag.drop.indicatorWidth,
+            height: DROP_LINE_HEIGHT,
+            borderRadius: DROP_LINE_RADIUS,
+            background: canvasNodeDrag.drop.allowed
+              ? `linear-gradient(90deg, rgba(${BLUE_RGB},0) 0%, rgba(${BLUE_RGB},0.45) 12%, ${BLUE} 50%, rgba(${BLUE_RGB},0.45) 88%, rgba(${BLUE_RGB},0) 100%)`
+              : `linear-gradient(90deg, rgba(${DISALLOW_RGB},0) 0%, rgba(${DISALLOW_RGB},0.5) 12%, ${DISALLOW_LINE} 50%, rgba(${DISALLOW_RGB},0.5) 88%, rgba(${DISALLOW_RGB},0) 100%)`,
+            boxShadow: canvasNodeDrag.drop.allowed
+              ? `inset 0 1px 0 rgba(255,255,255,0.42), 0 0 0 1px rgba(${BLUE_RGB},0.28), 0 4px 22px rgba(${BLUE_RGB},0.38)`
+              : `inset 0 1px 0 rgba(255,255,255,0.22), 0 0 0 1px rgba(${DISALLOW_RGB},0.35), 0 4px 18px rgba(${DISALLOW_RGB},0.28)`,
+            transition: reduceMotion
+              ? "none"
+              : "top 80ms linear, left 80ms linear, width 80ms linear",
+            pointerEvents: "none",
+            zIndex: 97,
+          }}
+        >
+          <span
+            aria-hidden
+            style={{
+              position: "absolute",
+              top: (DROP_LINE_HEIGHT - 12) / 2,
+              left: -6,
+              width: 12,
+              height: 12,
+              borderRadius: "50%",
+              background: canvasNodeDrag.drop.allowed ? BLUE : DISALLOW_LINE,
+              boxShadow: canvasNodeDrag.drop.allowed
+                ? `0 0 0 2px rgba(255,255,255,0.88), 0 0 0 4px rgba(${BLUE_RGB},0.22), 0 0 14px rgba(${BLUE_RGB},0.55)`
+                : `0 0 0 2px rgba(255,255,255,0.88), 0 0 0 4px rgba(${DISALLOW_RGB},0.22), 0 0 12px rgba(${DISALLOW_RGB},0.45)`,
+              animation:
+                canvasNodeDrag.drop.allowed && !reduceMotion
+                  ? `${DROP_CAP_PULSE} 1.4s ease-in-out infinite`
+                  : undefined,
+            }}
+          />
+          <span
+            aria-hidden
+            style={{
+              position: "absolute",
+              top: (DROP_LINE_HEIGHT - 12) / 2,
+              right: -6,
+              width: 12,
+              height: 12,
+              borderRadius: "50%",
+              background: canvasNodeDrag.drop.allowed ? BLUE : DISALLOW_LINE,
+              boxShadow: canvasNodeDrag.drop.allowed
+                ? `0 0 0 2px rgba(255,255,255,0.88), 0 0 0 4px rgba(${BLUE_RGB},0.22), 0 0 14px rgba(${BLUE_RGB},0.55)`
+                : `0 0 0 2px rgba(255,255,255,0.88), 0 0 0 4px rgba(${DISALLOW_RGB},0.22), 0 0 12px rgba(${DISALLOW_RGB},0.45)`,
+              animation:
+                canvasNodeDrag.drop.allowed && !reduceMotion
                   ? `${DROP_CAP_PULSE} 1.4s ease-in-out infinite`
                   : undefined,
             }}

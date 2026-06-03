@@ -22,6 +22,67 @@ import {
 
 import { CHROME } from "./kit";
 
+/**
+ * P3-DRAG — custom drag MIME for "drag a palette item onto the canvas". Only
+ * `selection-layer.tsx`'s canvas drop target reads it, so a palette drag never
+ * collides with the navigator's `text/plain` section/child-row DnD. Payload is
+ * `kind:<kind>` for a plain element or `embed:<sectionTypeKey>` for a Tulala
+ * component. Exported so the canvas drop handler parses the exact same format.
+ */
+export const BUILDER_NODE_PALETTE_DRAG_MIME =
+  "application/x-impronta-builder-node-palette";
+
+export function encodeBuilderNodePaletteDrag(
+  payload:
+    | { kind: "element"; elementKind: BuilderNodeKind }
+    | { kind: "section_embed"; sectionTypeKey: string },
+): string {
+  return payload.kind === "element"
+    ? `kind:${payload.elementKind}`
+    : `embed:${payload.sectionTypeKey}`;
+}
+
+export type BuilderNodePaletteDragPayload =
+  | { kind: "element"; elementKind: BuilderNodeKind }
+  | { kind: "section_embed"; sectionTypeKey: string };
+
+export function decodeBuilderNodePaletteDrag(
+  raw: string | null | undefined,
+): BuilderNodePaletteDragPayload | null {
+  if (!raw) return null;
+  if (raw.startsWith("kind:")) {
+    const elementKind = raw.slice("kind:".length);
+    if (!elementKind) return null;
+    return { kind: "element", elementKind: elementKind as BuilderNodeKind };
+  }
+  if (raw.startsWith("embed:")) {
+    const sectionTypeKey = raw.slice("embed:".length);
+    if (!sectionTypeKey) return null;
+    return { kind: "section_embed", sectionTypeKey };
+  }
+  return null;
+}
+
+/**
+ * P3-DRAG — the payload of the palette drag CURRENTLY in flight. `dataTransfer`
+ * data is unreadable during `dragover` (only `.types` is exposed), and the drag
+ * source (a palette pill) lives in a different React tree from the canvas drop
+ * target (selection-layer). This module-level holder bridges them: the pill
+ * writes on `dragstart`, the canvas reads it on `dragenter`, and both clear it
+ * on `dragend`. Single in-flight drag at a time, so a singleton is sufficient.
+ */
+let activePaletteDrag: BuilderNodePaletteDragPayload | null = null;
+
+export function setActiveBuilderNodePaletteDrag(
+  payload: BuilderNodePaletteDragPayload | null,
+): void {
+  activePaletteDrag = payload;
+}
+
+export function getActiveBuilderNodePaletteDrag(): BuilderNodePaletteDragPayload | null {
+  return activePaletteDrag;
+}
+
 export function ElementLibraryInsertPicker({
   allowedKinds,
   onPick,
@@ -252,6 +313,14 @@ export function ElementLibraryInsertPicker({
                   label={preset.label}
                   tone={pillTone}
                   onClick={() => void onPickSectionEmbed?.(preset.sectionTypeKey)}
+                  dragPayload={
+                    isCanvas
+                      ? {
+                          kind: "section_embed",
+                          sectionTypeKey: preset.sectionTypeKey,
+                        }
+                      : undefined
+                  }
                   dataAttrs={{
                     "data-element-library-section-embed": preset.sectionTypeKey,
                     "data-builder-node-insert-section-embed": preset.sectionTypeKey,
@@ -349,6 +418,11 @@ export function ElementLibraryInsertPicker({
                     label={elementLibraryPrimaryLabel(kind)}
                     tone={pillTone}
                     onClick={() => void onPick(kind)}
+                    dragPayload={
+                      isCanvas
+                        ? { kind: "element", elementKind: kind }
+                        : undefined
+                    }
                     dataAttrs={{
                       "data-element-library-kind": kind,
                       "data-builder-node-insert-kind": kind,
@@ -385,11 +459,21 @@ function PickerPill({
   tone,
   onClick,
   dataAttrs,
+  dragPayload,
 }: {
   label: string;
   tone: PillTone;
   onClick: () => void;
   dataAttrs: Record<string, string>;
+  /**
+   * P3-DRAG — when set, the pill becomes an HTML5 drag source carrying the
+   * encoded palette payload on `BUILDER_NODE_PALETTE_DRAG_MIME`. The canvas
+   * drop target (selection-layer) computes the parent + index and inserts.
+   * Click-to-insert keeps working unchanged (drag and click are distinct
+   * gestures). Omitted at mounts that can't host a canvas drop (e.g. the
+   * navigator/inspector list pickers).
+   */
+  dragPayload?: BuilderNodePaletteDragPayload;
 }) {
   const [hover, setHover] = useState(false);
   const [active, setActive] = useState(false);
@@ -398,6 +482,30 @@ function PickerPill({
     <button
       type="button"
       {...dataAttrs}
+      draggable={dragPayload ? true : undefined}
+      onDragStart={
+        dragPayload
+          ? (event) => {
+              setActive(false);
+              event.dataTransfer.effectAllowed = "copy";
+              event.dataTransfer.setData(
+                BUILDER_NODE_PALETTE_DRAG_MIME,
+                encodeBuilderNodePaletteDrag(dragPayload),
+              );
+              // A harmless text/plain mirror so the OS shows a label; the
+              // canvas listener only ever reads the custom MIME.
+              event.dataTransfer.setData("text/plain", label);
+              // Bridge the payload to the canvas drop target (unreadable from
+              // dataTransfer during dragover).
+              setActiveBuilderNodePaletteDrag(dragPayload);
+            }
+          : undefined
+      }
+      onDragEnd={
+        dragPayload
+          ? () => setActiveBuilderNodePaletteDrag(null)
+          : undefined
+      }
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => {
