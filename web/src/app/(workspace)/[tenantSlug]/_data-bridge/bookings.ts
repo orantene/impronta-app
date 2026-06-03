@@ -168,6 +168,11 @@ export type ClientBookingRow = {
   currencyCode: string | null;
   /** Client-facing payment status from agency_bookings.payment_status: 'unpaid' | 'partial' | 'paid' | 'cancelled' | null. */
   paymentStatus: string | null;
+  /**
+   * D2 — The canonical agency_bookings.id, used for the receipt download
+   * route (/api/receipt/[bookingId]).  Null if no booking row exists yet.
+   */
+  agencyBookingId: string | null;
 };
 
 /**
@@ -192,7 +197,7 @@ export async function loadClientBookings(
       .from("inquiries")
       .select(
         `${baseCols},
-         agency_bookings!agency_bookings_source_inquiry_id_fkey(total_client_revenue, currency_code, payment_status)`,
+         agency_bookings!agency_bookings_source_inquiry_id_fkey(id, total_client_revenue, currency_code, payment_status)`,
       )
       .eq("tenant_id", tenantId)
       .eq("client_user_id", userId)
@@ -222,13 +227,14 @@ export async function loadClientBookings(
         amountCents: null,
         currencyCode: null,
         paymentStatus: null,
+        agencyBookingId: null,
       }));
     }
 
     return (data ?? []).map((r: Record<string, unknown>) => {
       const bookingJoin = r["agency_bookings"] as
-        | { total_client_revenue?: number | string | null; currency_code?: string | null; payment_status?: string | null }
-        | { total_client_revenue?: number | string | null; currency_code?: string | null; payment_status?: string | null }[]
+        | { id?: string | null; total_client_revenue?: number | string | null; currency_code?: string | null; payment_status?: string | null }
+        | { id?: string | null; total_client_revenue?: number | string | null; currency_code?: string | null; payment_status?: string | null }[]
         | null
         | undefined;
       const booking = Array.isArray(bookingJoin) ? bookingJoin[0] ?? null : bookingJoin ?? null;
@@ -243,6 +249,7 @@ export async function loadClientBookings(
         amountCents: rawRevenue != null ? Math.round(Number(rawRevenue) * 100) : null,
         currencyCode: (booking?.currency_code as string | null) ?? null,
         paymentStatus: (booking?.payment_status as string | null) ?? null,
+        agencyBookingId: (booking?.id as string | null) ?? null,
       };
     });
   } catch (err) {

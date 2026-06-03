@@ -77,7 +77,16 @@ function BookingRow({
   const dateParts = getClientDateParts(booking.event_date);
   const money = fmtMoney(booking.amountCents, booking.currencyCode);
   const chip = paymentChip(booking.paymentStatus);
+  // D2 — show receipt download only when paid and a booking record exists.
+  const showReceipt =
+    booking.paymentStatus === "paid" &&
+    booking.agencyBookingId !== null;
   return (
+    <div
+      style={{
+        borderBottom: idx < total - 1 ? `1px solid ${C.borderSoft}` : "none",
+      }}
+    >
     <Link
       href={`/${tenantSlug}/client/messages?inquiry=${booking.id}`}
       style={{
@@ -85,8 +94,7 @@ function BookingRow({
         gridTemplateColumns: "48px 1fr auto",
         gap: 16,
         alignItems: "center",
-        padding: "16px 18px",
-        borderBottom: idx < total - 1 ? `1px solid ${C.borderSoft}` : "none",
+        padding: showReceipt ? "16px 18px 8px" : "16px 18px",
         fontFamily: FONT,
         textDecoration: "none",
       }}
@@ -196,6 +204,42 @@ function BookingRow({
         {future ? "Confirmed" : "Past"}
       </div>
     </Link>
+
+    {/* D2 — Receipt download strip, shown only when payment_status = paid */}
+    {showReceipt && (
+      <div
+        style={{
+          padding: "0 18px 12px",
+          display: "flex",
+          justifyContent: "flex-end",
+        }}
+      >
+        <a
+          href={`/api/receipt/${booking.agencyBookingId}`}
+          download
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            fontSize: 11.5,
+            fontWeight: 600,
+            color: C.accent,
+            textDecoration: "none",
+            padding: "4px 10px",
+            borderRadius: 7,
+            border: `1px solid rgba(29,78,216,0.18)`,
+            background: "rgba(29,78,216,0.04)",
+            fontFamily: FONT,
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M12 17V3" /><path d="M5 10l7 7 7-7" /><path d="M5 21h14" />
+          </svg>
+          Download receipt
+        </a>
+      </div>
+    )}
+    </div>
   );
 }
 

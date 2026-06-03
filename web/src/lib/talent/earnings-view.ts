@@ -71,6 +71,9 @@ export function mockTalentEarningsFromFixtures(
     const cents = parseAmountCents(row.amount);
     return {
       id: row.id,
+      // Fixture rows have no real bookingId — use a stable fallback so the
+      // payout-statement link renders in demo mode without erroring.
+      bookingId: row.id,
       workDate: row.workDate,
       payoutDate: row.payoutDate,
       agencyName: row.agency,

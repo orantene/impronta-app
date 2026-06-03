@@ -339,6 +339,32 @@ export function EarningsLedger() {
                           {row.paymentMethod.replace(/-/g, " ")}
                         </div>
                       ) : null}
+                      {row.status === "paid" && row.bookingId ? (
+                        /* Stop propagation so the download link doesn't also
+                           trigger the earnings-detail drawer open. */
+                        <a
+                          href={`/api/payout-statement/${row.bookingId}`}
+                          download
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            display: "inline-block",
+                            marginTop: 4,
+                            fontSize: 10,
+                            fontWeight: 600,
+                            color: COLORS.indigoDeep,
+                            textDecoration: "none",
+                            fontFamily: FONTS.body,
+                          }}
+                          onMouseEnter={(e) => {
+                            (e.currentTarget as HTMLAnchorElement).style.textDecoration = "underline";
+                          }}
+                          onMouseLeave={(e) => {
+                            (e.currentTarget as HTMLAnchorElement).style.textDecoration = "none";
+                          }}
+                        >
+                          ↓ Statement
+                        </a>
+                      ) : null}
                     </div>
                     <Icon name="chevron-right" size={13} color={COLORS.inkDim} />
                   </button>
