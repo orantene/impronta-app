@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { fetchGooglePlaceDetailsForCity } from "@/lib/google-places";
 import { getPublicTenantScope } from "@/lib/saas/scope";
-import { resolveGoogleMapsKey } from "@/lib/integrations/resolve";
+import { resolveGoogleMapsKeyForServer } from "@/lib/integrations/resolve";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -16,7 +16,7 @@ export async function GET(request: Request) {
   // platform env key. getPublicTenantScope resolves the host-routed tenant; on
   // platform root it returns null and we fall back to the platform key.
   const scope = await getPublicTenantScope();
-  const apiKey = await resolveGoogleMapsKey(scope?.tenantId ?? null);
+  const apiKey = await resolveGoogleMapsKeyForServer(scope?.tenantId ?? null);
 
   if (!apiKey) {
     return NextResponse.json({ ok: false as const, error: "not_configured" }, { status: 503 });

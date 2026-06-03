@@ -54,41 +54,87 @@ export async function resolveIntegration(
     if (mode === "custom" && secretField) {
       const custom = await getDecryptedSecret(tenantId, key, secretField);
       const c = custom?.trim() || null;
-      if (c) return c;
-      // custom mode but no usable secret stored: fall back to env only if the
-      // integration is inheritable, else null (custom-but-empty = nothing).
-      return inheritable ? env : null;
+      // Mirror the AI resolveKeyForMode 'agency'/custom semantics: a tenant that
+      // has explicitly chosen credential_mode='custom' must NOT silently fall
+      // back to the platform env key — that would defeat tenant isolation. When
+      // custom is selected but no usable secret is stored, resolve to null.
+      return c;
     }
-    // inherit mode (or no secret field): platform env key when inheritable.
+    // inherit mode (or no secret field / no row): platform env key when inheritable.
     return inheritable ? env : null;
   };
 
   return { mode, config, row, getSecret };
 }
 
-/** Platform-level Google Maps / Places key from env (public var first, else server Places key). */
-function platformGoogleMapsKey(): string | null {
+/**
+ * Platform-level Google Maps key destined for the BROWSER (serialized into
+ * client HTML / passed as a client component prop). This MUST use only the
+ * public NEXT_PUBLIC_ var — the server-only GOOGLE_PLACES_API_KEY must never be
+ * shipped to the client.
+ */
+function platformGoogleMapsKeyForClient(): string | null {
+  return process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim() || null;
+}
+
+/**
+ * Platform-level Google Places key for SERVER-side Places API calls (route
+ * handlers that fetch from Google directly and never serialize the key to the
+ * browser). Prefer the server-only GOOGLE_PLACES_API_KEY, falling back to the
+ * public var if only that is set.
+ */
+function platformGoogleMapsKeyForServer(): string | null {
   return (
-    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim() ||
     process.env.GOOGLE_PLACES_API_KEY?.trim() ||
+    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim() ||
     null
   );
 }
 
 /**
  * Resolve the effective Google Maps / Places key for a tenant: the tenant's
- * custom key when credential_mode='custom' and a secret exists, else the
- * platform env key. Returns null only when neither resolves (caller keeps its
- * graceful "map unavailable" fallback box).
+ * custom key when credential_mode='custom' and a secret exists; when the tenant
+ * is in inherit mode (or has no integration row) the platform env key. A tenant
+ * that selected custom mode but stored no usable secret resolves to null — it
+ * does NOT fall back to the platform key (tenant isolation). Returns null when
+ * nothing resolves (caller keeps its graceful "map unavailable" fallback box).
  *
  * Pass `null` tenantId (e.g. cross-tenant / platform-root surfaces) to get the
  * platform env key directly.
+ *
+ * @param forClient when true, the platform fallback is the public-only browser
+ *   key (no server-only GOOGLE_PLACES_API_KEY leak); when false it's the
+ *   server-side Places key. Prefer the named helpers below.
  */
 export async function resolveGoogleMapsKey(
   tenantId: string | null,
+  forClient = true,
 ): Promise<string | null> {
-  const env = platformGoogleMapsKey();
+  const env = forClient
+    ? platformGoogleMapsKeyForClient()
+    : platformGoogleMapsKeyForServer();
   if (!tenantId) return env;
   const { getSecret } = await resolveIntegration(tenantId, "google_maps", env);
   return getSecret();
+}
+
+/**
+ * CLIENT-safe resolver: the resolved key is serialized into the browser (map
+ * embed / location-map apiKey prop). Platform fallback is the public key only.
+ */
+export async function resolveGoogleMapsKeyForClient(
+  tenantId: string | null,
+): Promise<string | null> {
+  return resolveGoogleMapsKey(tenantId, true);
+}
+
+/**
+ * SERVER-only resolver: the resolved key is used by server-side Places API
+ * route handlers and never leaves the server. Platform fallback prefers the
+ * server-only GOOGLE_PLACES_API_KEY.
+ */
+export async function resolveGoogleMapsKeyForServer(
+  tenantId: string | null,
+): Promise<string | null> {
+  return resolveGoogleMapsKey(tenantId, false);
 }

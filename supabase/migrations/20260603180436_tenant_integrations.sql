@@ -14,8 +14,10 @@
 --   tenant_integration_secrets  — encrypted secrets ONLY (e.g. API keys), one
 --                                 row per (tenant, integration_key, secret_field).
 --                                 ciphertext is AES-256-GCM (credential-vault).
---                                 NO anon/public SELECT policy — staff-of-tenant
---                                 only. The service-role resolver bypasses RLS.
+--                                 RLS DENIES all authenticated/anon access — only
+--                                 the service-role resolver (which bypasses RLS)
+--                                 ever touches ciphertext, so the setSecret()
+--                                 encryption boundary can't be bypassed.
 --
 -- RLS predicate + updated_at trigger pattern copied verbatim from
 -- 20261011073000_tenant_registration_settings.sql.
@@ -91,18 +93,23 @@ CREATE TABLE IF NOT EXISTS public.tenant_integration_secrets (
 );
 
 COMMENT ON TABLE public.tenant_integration_secrets IS
-  'Encrypted per-tenant integration secrets (AES-256-GCM ciphertext from credential-vault). One row per tenant+integration_key+secret_field. NO public/anon SELECT — staff-of-tenant only; the service-role resolver bypasses RLS for runtime key resolution.';
+  'Encrypted per-tenant integration secrets (AES-256-GCM ciphertext from credential-vault). One row per tenant+integration_key+secret_field. RLS denies ALL authenticated/anon access; only the service-role resolver (bypasses RLS) reads/writes ciphertext, so the setSecret() encryption boundary cannot be bypassed via PostgREST.';
 
 ALTER TABLE public.tenant_integration_secrets ENABLE ROW LEVEL SECURITY;
 
--- Staff-of-tenant only. Deliberately NO public/anon SELECT policy: secrets must
--- never be readable without a privileged session. Runtime resolution runs under
--- the service role (createServiceRoleClient), which bypasses RLS.
+-- Deny ALL authenticated access to raw ciphertext (mirrors the ai_provider_secrets
+-- precedent). Even tenant staff must NOT read/write ciphertext directly via
+-- PostgREST — that would bypass setSecret()'s AES-256-GCM encryption and leak
+-- plaintext-handling. Only the service role (createServiceRoleClient, used by
+-- repository.ts) ever touches this table; the service role bypasses RLS, so a
+-- USING/WITH CHECK (false) policy locks out every authenticated/anon session.
 DROP POLICY IF EXISTS tenant_integration_secrets_staff_all ON public.tenant_integration_secrets;
-CREATE POLICY tenant_integration_secrets_staff_all ON public.tenant_integration_secrets
+DROP POLICY IF EXISTS tenant_integration_secrets_deny_authenticated ON public.tenant_integration_secrets;
+CREATE POLICY tenant_integration_secrets_deny_authenticated ON public.tenant_integration_secrets
   FOR ALL
-  USING       (public.is_staff_of_tenant(tenant_id))
-  WITH CHECK  (public.is_staff_of_tenant(tenant_id));
+  TO authenticated
+  USING       (false)
+  WITH CHECK  (false);
 
 CREATE OR REPLACE FUNCTION public.tenant_integration_secrets_touch_updated_at()
 RETURNS TRIGGER

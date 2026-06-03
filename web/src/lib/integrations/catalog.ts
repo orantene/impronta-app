@@ -14,7 +14,7 @@
 
 export type IntegrationCategory = "website" | "analytics" | "captcha" | "email";
 
-export type IntegrationConnection = "manual" | "oauth";
+export type IntegrationConnection = "inherit" | "manual" | "oauth";
 
 /** Outcome of a lightweight (non-live) validity check on a supplied value. */
 export type IntegrationFieldTestResult = {
