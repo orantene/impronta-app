@@ -91,6 +91,7 @@ import { MultiSelectionMoveHandle } from "./multi-selection-move-handle";
 import { MultiSelectionToolbar } from "./multi-selection-toolbar";
 import { SectionTypeIcon } from "./kit/section-type-icon";
 import type { MultiNodeRect } from "./multi-node-layout";
+import { CanvasBetweenBlocksInsert } from "./canvas-between-blocks-insert";
 
 interface Rect {
   top: number;
@@ -563,6 +564,7 @@ export function SelectionLayer() {
     canInsertRawHtmlElements,
     navigatorWidth,
     navigatorOpen,
+    previewing: isEditModePreviewing,
   } = useEditContext();
 
   const [portalEl, setPortalEl] = useState<HTMLElement | null>(null);
@@ -784,6 +786,29 @@ export function SelectionLayer() {
       }
     },
     [insertBuilderSectionEmbed, nodeInsertTarget, reportMutationError],
+  );
+
+  // #20 — between-blocks insert callbacks (root-level, index-targeted).
+  // These route through the same insertBuilderNode / insertBuilderSectionEmbed
+  // mutations as the chip toolbar's "Add" button, giving full undo/redo parity.
+  const commitBetweenBlocksInsert = useCallback(
+    async (kind: BuilderNodeKind, index: number) => {
+      const inserted = await insertBuilderNode(null, kind, index);
+      if (!inserted.ok && inserted.error) {
+        reportMutationError(inserted.error);
+      }
+    },
+    [insertBuilderNode, reportMutationError],
+  );
+
+  const commitBetweenBlocksSectionEmbed = useCallback(
+    async (sectionTypeKey: string, index: number) => {
+      const inserted = await insertBuilderSectionEmbed(null, sectionTypeKey, index);
+      if (!inserted.ok && inserted.error) {
+        reportMutationError(inserted.error);
+      }
+    },
+    [insertBuilderSectionEmbed, reportMutationError],
   );
 
   // Sprint 4 — auto-scroll the canvas to the selected section when it's
@@ -3807,6 +3832,20 @@ export function SelectionLayer() {
           </div>
         </div>
       ) : null}
+
+      {/* #20 — Between-blocks inline insert affordance.
+       *  Shows a thin "+  Add block" line in the gap between top-level sections
+       *  when the operator hovers near a section boundary. Routes through the
+       *  same insertBuilderNode / insertBuilderSectionEmbed paths as the chip
+       *  toolbar so undo/redo and persistence come for free. */}
+      <CanvasBetweenBlocksInsert
+        advancedElementLibraryEnabled={advancedElementLibraryEnabled}
+        canInsertRawHtmlElements={canInsertRawHtmlElements}
+        isDragging={drag.phase !== "idle" || canvasNodeDrag.phase !== "idle"}
+        isPreviewing={isEditModePreviewing}
+        onInsert={commitBetweenBlocksInsert}
+        onInsertSectionEmbed={commitBetweenBlocksSectionEmbed}
+      />
     </div>,
     portalEl,
   );
