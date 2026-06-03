@@ -49,7 +49,7 @@ import {
   loadMyNotifications,
   markNotificationsRead,
 } from "@/lib/notifications/my-notifications-actions";
-import type { MyNotification } from "@/lib/notifications/my-notifications-actions";
+import type { MyNotification } from "@/lib/notifications/self-types";
 
 /**
  * AdminShellTopBar — single dense sticky header for every /admin/* page.

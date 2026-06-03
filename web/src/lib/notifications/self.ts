@@ -2,6 +2,7 @@ import "server-only";
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
+import type { MyNotification } from "@/lib/notifications/self-types";
 
 /**
  * Self-service notification reads for the *current* surface shells (client,
@@ -16,15 +17,7 @@ import { logServerError } from "@/lib/server/safe-error";
  * originating inquiry for whichever role the notification was raised on.
  */
 
-export type MyNotification = {
-  id: string;
-  kind: string;
-  title: string;
-  body: string | null;
-  href: string | null;
-  createdAt: string;
-  readAt: string | null;
-};
+export type { MyNotification };
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;

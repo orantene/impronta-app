@@ -11,10 +11,8 @@
 import {
   loadMyNotifications as loadMyNotificationsImpl,
   markNotificationsRead as markNotificationsReadImpl,
-  type MyNotification,
 } from "@/lib/notifications/self";
-
-export type { MyNotification };
+import type { MyNotification } from "@/lib/notifications/self-types";
 
 export async function loadMyNotifications(limit?: number): Promise<MyNotification[]> {
   return loadMyNotificationsImpl(limit);

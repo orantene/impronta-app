@@ -21,8 +21,8 @@ import { useRouter } from "next/navigation";
 import {
   loadMyNotifications,
   markNotificationsRead,
-  type MyNotification,
 } from "@/lib/server-actions/notifications-self";
+import type { MyNotification } from "@/lib/notifications/self-types";
 
 // ── Design tokens (match client shell: blue accent, clean whites) ─────────────
 const C = {

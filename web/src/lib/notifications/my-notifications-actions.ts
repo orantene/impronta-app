@@ -14,10 +14,8 @@
 import {
   loadMyNotifications as loadMyNotificationsImpl,
   markNotificationsRead as markNotificationsReadImpl,
-  type MyNotification as CanonicalMyNotification,
 } from "@/lib/notifications/self";
-
-export type MyNotification = CanonicalMyNotification;
+import type { MyNotification } from "@/lib/notifications/self-types";
 
 /**
  * Load the calling user's most recent notifications across all tenants /
