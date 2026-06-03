@@ -430,6 +430,20 @@ export function getSectionEmbedPreset(
 }
 
 /**
+ * Friendly operator-facing label for a curated section embed, keyed by its
+ * `sectionTypeKey` (e.g. "featured_talent" → "Featured talent", "directory" →
+ * "Directory"). Used by the layers tree / navigator to name a `section_embed`
+ * row by what it IS rather than the raw key. Unknown keys (a curated section we
+ * never minted a picker preset for) return `undefined`, so callers can fall
+ * back to a humanized key.
+ */
+export function sectionEmbedTypeLabel(
+  sectionTypeKey: string,
+): string | undefined {
+  return SECTION_EMBED_PRESET_BY_TYPE_KEY.get(sectionTypeKey)?.label;
+}
+
+/**
  * Build a `section_embed` BuilderNode for a curated section type key, seeded
  * with that type's default config when one is registered above. Unknown keys
  * still produce a valid node (empty config → the renderer shows a placeholder),

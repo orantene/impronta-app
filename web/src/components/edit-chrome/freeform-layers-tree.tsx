@@ -16,8 +16,10 @@
 
 import {
   useCallback,
+  useEffect,
   useMemo,
   useState,
+  type ComponentType,
   type MouseEventHandler,
   type ReactNode,
 } from "react";
@@ -29,10 +31,19 @@ import { FreeformInsertPopover } from "./freeform-insert-popover";
 import {
   BUILDER_NODE_REGISTRY,
   gateNestedInsertKinds,
+  sectionEmbedTypeLabel,
   type BuilderNode,
   type BuilderNodeKind,
   type BuilderNodeTree,
 } from "@/lib/site-admin/builder-node";
+import { resolveLayerDisplayName } from "./freeform-layer-name";
+import {
+  layerIcon,
+  LayerKindPill,
+  locateCanvasNode,
+  LAYERS_FLASH_KEYFRAMES,
+  LAYERS_FLASH_KEYFRAMES_ID,
+} from "./freeform-layer-row";
 
 const ROW_FONT_SIZE = 14;
 const ACTION_ICON_SIZE = 15;
@@ -44,6 +55,8 @@ interface LayerRow {
   id: string;
   kind: BuilderNodeKind;
   label: string;
+  /** Per-kind lucide icon for the row pill (resolved once at flatten time). */
+  Icon: ComponentType<{ size?: number; strokeWidth?: number }>;
   depth: number;
   /** Index of this node within its parent's child list (for reorder enablement). */
   index: number;
@@ -61,52 +74,15 @@ function rawChildKindsForKind(kind: BuilderNodeKind): ReadonlyArray<BuilderNodeK
   return policy.type === "allow_list" ? policy.kinds : [];
 }
 
-function truncate(value: string, max: number): string {
-  if (value.length <= max) return value;
-  return `${value.slice(0, max - 1).trimEnd()}…`;
-}
-
-/** Registry label for a kind, with an underscore→space fallback. */
-function kindLabel(kind: BuilderNodeKind): string {
-  return BUILDER_NODE_REGISTRY[kind]?.label ?? kind.replace(/_/g, " ");
-}
-
 /**
- * Human row name: prefer the node's own text/label content, else the registry
- * label. Mirrors the canvas/navigator "primary label" derivation so the same
- * block reads the same in every surface.
+ * Human row name — delegated to the shared, unit-tested resolver so the tree,
+ * canvas chip, and inspector agree. `section_embed` rows resolve their friendly
+ * curated-section label ("Featured talent") via `sectionEmbedTypeLabel`.
  */
 function rowLabel(node: BuilderNode): string {
-  switch (node.kind) {
-    case "heading":
-      return truncate(node.props.text, 56) || "Heading";
-    case "paragraph":
-    case "rich_text":
-      return truncate(node.props.text, 56) || kindLabel(node.kind);
-    case "button":
-      return node.props.label || "Button";
-    case "image":
-      return node.props.alt?.trim() || "Image";
-    case "icon":
-      return node.props.label || kindLabel(node.kind);
-    case "accordion_item":
-    case "tab_panel":
-      return node.props.title || kindLabel(node.kind);
-    case "divider":
-      return node.props.tone === "muted" ? "Divider · muted" : "Divider";
-    case "spacer":
-      return `Spacer · ${node.props.size.toUpperCase()}`;
-    case "section":
-      return node.props.label?.trim() || kindLabel(node.kind);
-    default:
-      return kindLabel(node.kind);
-  }
+  return resolveLayerDisplayName(node, sectionEmbedTypeLabel);
 }
 
-/** Short 1–2 char glyph for the kind pill (first letter of the kind label). */
-function kindGlyph(kind: BuilderNodeKind): string {
-  return kindLabel(kind).charAt(0).toUpperCase();
-}
 
 interface FlattenedTree {
   rows: LayerRow[];
@@ -141,6 +117,7 @@ function flattenTree(tree: BuilderNodeTree): FlattenedTree {
         id: node.id,
         kind: node.kind,
         label: rowLabel(node),
+        Icon: layerIcon(node),
         depth,
         index,
         siblingCount: nodes.length,
@@ -270,42 +247,6 @@ function LayerActionButton({
   );
 }
 
-/** Kind pill — a small uppercase glyph chip, matching the navigator pill. */
-function LayerKindPill({
-  kind,
-  selected,
-}: {
-  kind: BuilderNodeKind;
-  selected: boolean;
-}) {
-  return (
-    <span
-      aria-hidden
-      title={kindLabel(kind)}
-      style={{
-        width: 22,
-        height: 20,
-        alignSelf: "center",
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        borderRadius: 5,
-        border: selected
-          ? "1px solid rgba(42,49,71,0.22)"
-          : `1px solid ${CHROME.line}`,
-        background: selected ? "rgba(42,49,71,0.10)" : CHROME.paper,
-        color: selected ? CHROME.accent : CHROME.muted,
-        fontSize: 11,
-        fontWeight: 800,
-        letterSpacing: "0.02em",
-        flexShrink: 0,
-      }}
-    >
-      {kindGlyph(kind)}
-    </span>
-  );
-}
-
 /** Active insert target — the container a freshly picked block lands inside. */
 interface InsertTarget {
   /** Stable key so a second click on the same trigger toggles the popover shut. */
@@ -331,6 +272,8 @@ export function FreeformLayersTree() {
     reportMutationError,
     advancedElementLibraryEnabled,
     canInsertRawHtmlElements,
+    hoveredBuilderNodeId,
+    setHoveredBuilderNodeId,
   } = useEditContext();
 
   const { rows, rootContainerId, rootContainerKinds } = useMemo(
@@ -351,6 +294,26 @@ export function FreeformLayersTree() {
         canInsertRawHtmlElements,
       ),
     [advancedElementLibraryEnabled, canInsertRawHtmlElements],
+  );
+
+  /**
+   * Job #5 — select a layer + scroll its canvas block into view and flash it.
+   * Selection drives the inspector + the selection ring (existing behavior);
+   * `locateCanvasNode` adds the wayfinding (scroll + brief flash).
+   */
+  const handleRowSelect = useCallback(
+    (nodeId: string) => {
+      selectBuilderNode(nodeId);
+      locateCanvasNode(nodeId);
+    },
+    [selectBuilderNode],
+  );
+
+  // Clear any lingering canvas highlight when the panel unmounts so the canvas
+  // hover ring doesn't stick after the layers rail closes.
+  useEffect(
+    () => () => setHoveredBuilderNodeId(null),
+    [setHoveredBuilderNodeId],
   );
 
   // Header "+ Add block" targets the selected container row when one is selected,
@@ -467,6 +430,9 @@ export function FreeformLayersTree() {
       aria-label="Page layers"
       style={{ display: "flex", flexDirection: "column", gap: 1 }}
     >
+      {/* Click-to-locate flash keyframes (job #5). Inert until a canvas block
+       *  carries data-builder-node-flash="1"; skipped under reduced-motion. */}
+      <style id={LAYERS_FLASH_KEYFRAMES_ID}>{LAYERS_FLASH_KEYFRAMES}</style>
       <div
         style={{
           display: "flex",
@@ -523,6 +489,9 @@ export function FreeformLayersTree() {
       {rows.map((row) => {
         const selected = row.id === selectedBuilderNodeId;
         const hovered = hoveredId === row.id;
+        // Job #5 — the canvas block under the cursor lights up its layer row.
+        const canvasHovered =
+          hoveredBuilderNodeId === row.id && !selected && !hovered;
         const insertOpenHere = insertTarget?.key === `row:${row.id}`;
         const actionsVisible = selected || hovered || insertOpenHere;
         const canMoveUp = row.siblingCount > 1 && row.index > 0;
@@ -552,17 +521,24 @@ export function FreeformLayersTree() {
             data-builder-node-kind={row.kind}
             data-selected={selected ? "true" : "false"}
             data-locked={row.locked ? "true" : undefined}
-            onClick={() => selectBuilderNode(row.id)}
+            onClick={() => handleRowSelect(row.id)}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
-                selectBuilderNode(row.id);
+                handleRowSelect(row.id);
               }
             }}
-            onMouseEnter={() => setHoveredId(row.id)}
-            onMouseLeave={() =>
-              setHoveredId((current) => (current === row.id ? null : current))
-            }
+            onMouseEnter={() => {
+              setHoveredId(row.id);
+              // Job #5 — hovering the row highlights the matching canvas block.
+              setHoveredBuilderNodeId(row.id);
+            }}
+            onMouseLeave={() => {
+              setHoveredId((current) => (current === row.id ? null : current));
+              // Plain setter (context exposes (id|null)=>void, not a reducer).
+              // Clearing to null is safe: the next row's enter re-sets it.
+              setHoveredBuilderNodeId(null);
+            }}
             style={{
               position: "relative",
               display: "grid",
@@ -579,7 +555,9 @@ export function FreeformLayersTree() {
                   ? "rgba(250,174,0,0.06)"
                   : hovered
                     ? "rgba(42,49,71,0.045)"
-                    : "transparent",
+                    : canvasHovered
+                      ? "rgba(61,79,124,0.07)"
+                      : "transparent",
               color: selected ? CHROME.text : row.locked ? CHROME.amber : CHROME.muted,
               fontSize: ROW_FONT_SIZE,
               fontWeight: selected ? 600 : 500,
@@ -589,11 +567,13 @@ export function FreeformLayersTree() {
                 ? `inset 3px 0 0 ${CHROME.accent}`
                 : row.locked
                   ? "inset 3px 0 0 rgba(250,174,0,0.5)"
-                  : "none",
+                  : canvasHovered
+                    ? "inset 3px 0 0 rgba(61,79,124,0.45)"
+                    : "none",
               transition: "background 140ms ease, box-shadow 140ms ease, color 80ms ease",
             }}
           >
-            <LayerKindPill kind={row.kind} selected={selected} />
+            <LayerKindPill kind={row.kind} Icon={row.Icon} selected={selected} />
             <span
               style={{
                 minWidth: 0,

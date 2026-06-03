@@ -409,6 +409,7 @@ export type {
 export {
   SECTION_EMBED_PRESETS,
   getSectionEmbedPreset,
+  sectionEmbedTypeLabel,
   createBuilderSectionEmbed,
 } from "./section-embed-presets";
 export type { SectionEmbedPreset } from "./section-embed-presets";

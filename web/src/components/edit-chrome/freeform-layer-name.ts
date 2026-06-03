@@ -1,0 +1,197 @@
+/**
+ * FreeformLayerName — the single, tested resolver for the operator-facing name
+ * (and a per-kind icon key) of a freeform BuilderNode in the layers tree.
+ *
+ * Job #1 (Wave 1 · 1A): the layers tree used to show a wall of identical
+ * "Container" rows — unnavigable. This resolver gives each row a SEMANTIC name
+ * derived in priority order:
+ *
+ *   1. an explicit `name`/role label if the node carries one (curated `section`
+ *      nodes store a `label`);
+ *   2. the first heading/paragraph/title text the node carries (truncated);
+ *   3. for a `section_embed`, the curated section's friendly registry label
+ *      ("Featured talent", "Directory", …) via the injected `sectionEmbedLabel`
+ *      resolver — falls back to a humanized key;
+ *   4. else a friendly kind name from the registry ("Row", "Stack", "Card"…).
+ *
+ * Pure + dependency-light: it only reads the node + the registry label map, so
+ * it is fast (no extra renders) and unit-testable without pulling the section
+ * schema graph. The `section_embed` friendly-label lookup is INJECTED (the
+ * layers tree passes `sectionEmbedTypeLabel`; tests pass a stub) so this module
+ * never imports the heavy section-preset graph itself. It does NOT mutate node
+ * data — this is display only.
+ *
+ * Mirrors the historical `rowLabel` (freeform-layers-tree) and
+ * `canvasChildPrimaryLabel` (selection-layer) derivations so the same block
+ * reads the same in the tree, the canvas chip, and the inspector.
+ */
+
+import {
+  BUILDER_NODE_REGISTRY,
+  type BuilderNode,
+  type BuilderNodeKind,
+} from "@/lib/site-admin/builder-node";
+
+/** Max characters of derived text before we truncate with an ellipsis. */
+export const LAYER_NAME_MAX = 56;
+
+/** Per-kind icon key used by the layers tree to pick a small scanning glyph. */
+export type LayerIconKey =
+  | "section"
+  | "section_embed"
+  | "container_stack"
+  | "container_row"
+  | "container_grid"
+  | "split"
+  | "card"
+  | "cta_group"
+  | "accordion"
+  | "accordion_item"
+  | "tabs"
+  | "tab_panel"
+  | "carousel"
+  | "masonry"
+  | "nav"
+  | "heading"
+  | "paragraph"
+  | "rich_text"
+  | "button"
+  | "image"
+  | "video"
+  | "embed"
+  | "icon"
+  | "pricing_table"
+  | "code"
+  | "divider"
+  | "spacer"
+  | "generic";
+
+function truncate(value: string, max: number): string {
+  const trimmed = value.trim();
+  if (trimmed.length <= max) return trimmed;
+  return `${trimmed.slice(0, max - 1).trimEnd()}…`;
+}
+
+/** Registry label for a kind, with an underscore→space fallback. */
+export function kindLabel(kind: BuilderNodeKind): string {
+  return BUILDER_NODE_REGISTRY[kind]?.label ?? kind.replace(/_/g, " ");
+}
+
+/** Title-case a snake/space key ("featured_talent" → "Featured Talent"). */
+function humanizeKey(key: string): string {
+  return key
+    .split(/[_\s]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+/**
+ * The semantic display name for a freeform layer row.
+ *
+ * `sectionEmbedLabel` resolves a `section_embed`'s `sectionTypeKey` to a
+ * friendly curated-section label; when it returns nothing the key is humanized.
+ * Omit it (tests / non-embed contexts) and the humanized key is used.
+ */
+export function resolveLayerDisplayName(
+  node: BuilderNode,
+  sectionEmbedLabel?: (sectionTypeKey: string) => string | undefined,
+): string {
+  switch (node.kind) {
+    case "heading":
+      return truncate(node.props.text, LAYER_NAME_MAX) || "Heading";
+    case "paragraph":
+    case "rich_text":
+      return truncate(node.props.text, LAYER_NAME_MAX) || kindLabel(node.kind);
+    case "button":
+      return truncate(node.props.label, LAYER_NAME_MAX) || "Button";
+    case "image":
+      return truncate(node.props.alt ?? "", LAYER_NAME_MAX) || "Image";
+    case "icon":
+      return truncate(node.props.label ?? "", LAYER_NAME_MAX) || kindLabel(node.kind);
+    case "accordion_item":
+    case "tab_panel":
+      return truncate(node.props.title, LAYER_NAME_MAX) || kindLabel(node.kind);
+    case "divider":
+      return node.props.tone === "muted" ? "Divider · muted" : "Divider";
+    case "spacer":
+      return `Spacer · ${node.props.size.toUpperCase()}`;
+    case "section": {
+      const explicit = node.props.label?.trim();
+      if (explicit) return truncate(explicit, LAYER_NAME_MAX);
+      return kindLabel(node.kind);
+    }
+    case "section_embed": {
+      const key = node.props.sectionTypeKey;
+      const friendly = sectionEmbedLabel?.(key) ?? humanizeKey(key);
+      return friendly || kindLabel(node.kind);
+    }
+    default:
+      return kindLabel(node.kind);
+  }
+}
+
+/**
+ * The per-kind icon key for a layer row. Layout containers split by their
+ * `layout` prop so a stack, row, and grid read differently at a glance.
+ */
+export function layerIconKeyForKind(node: BuilderNode): LayerIconKey {
+  switch (node.kind) {
+    case "container":
+      return node.props.layout === "row"
+        ? "container_row"
+        : node.props.layout === "grid"
+          ? "container_grid"
+          : "container_stack";
+    case "section":
+      return "section";
+    case "section_embed":
+      return "section_embed";
+    case "split":
+      return "split";
+    case "card":
+      return "card";
+    case "cta_group":
+      return "cta_group";
+    case "accordion":
+      return "accordion";
+    case "accordion_item":
+      return "accordion_item";
+    case "tabs":
+      return "tabs";
+    case "tab_panel":
+      return "tab_panel";
+    case "carousel":
+      return "carousel";
+    case "masonry":
+      return "masonry";
+    case "nav":
+      return "nav";
+    case "heading":
+      return "heading";
+    case "paragraph":
+      return "paragraph";
+    case "rich_text":
+      return "rich_text";
+    case "button":
+      return "button";
+    case "image":
+      return "image";
+    case "video":
+      return "video";
+    case "embed":
+      return "embed";
+    case "icon":
+      return "icon";
+    case "pricing_table":
+      return "pricing_table";
+    case "code":
+      return "code";
+    case "divider":
+      return "divider";
+    case "spacer":
+      return "spacer";
+    default:
+      return "generic";
+  }
+}

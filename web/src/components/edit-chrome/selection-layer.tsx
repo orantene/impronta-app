@@ -529,6 +529,8 @@ export function SelectionLayer() {
     getAllSelectedIds,
     hoveredSectionId,
     setHoveredSectionId,
+    hoveredBuilderNodeId,
+    setHoveredBuilderNodeId,
     device,
     moveSection,
     moveSectionTo,
@@ -563,6 +565,10 @@ export function SelectionLayer() {
 
   const [portalEl, setPortalEl] = useState<HTMLElement | null>(null);
   const [hoverRect, setHoverRect] = useState<Rect | null>(null);
+  // Job #5 — rect of the freeform node under the cursor (canvas OR a layers
+  // row), tracked the same way as `hoverRect` so the bidirectional highlight
+  // ring follows scroll/resize/layout changes.
+  const [nodeHoverRect, setNodeHoverRect] = useState<Rect | null>(null);
   const [selectedRect, setSelectedRect] = useState<Rect | null>(null);
   const [selectedTypeKey, setSelectedTypeKey] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState(false);
@@ -673,6 +679,27 @@ export function SelectionLayer() {
       } else {
         setHoverRect(null);
       }
+      // Job #5 — the hovered freeform node's CANVAS rect. Skip when it's the
+      // current selection (the selection ring already marks it) and prefer the
+      // first ON-CANVAS match: a layer row also carries data-builder-node-id, so
+      // exclude any element inside the edit chrome.
+      if (hoveredBuilderNodeId && hoveredBuilderNodeId !== selectedBuilderNodeId) {
+        const matches = Array.from(
+          document.querySelectorAll<HTMLElement>(
+            `[data-builder-node-id="${CSS.escape(hoveredBuilderNodeId)}"]`,
+          ),
+        );
+        const canvasEl =
+          matches.find(
+            (el) =>
+              !el.closest(
+                "[data-edit-topbar], [data-edit-drawer], [data-edit-overlay]",
+              ),
+          ) ?? null;
+        setNodeHoverRect(canvasEl ? rectOf(canvasEl) : null);
+      } else {
+        setNodeHoverRect(null);
+      }
     });
   };
   // Latest-value ref so observers can call the freshest recompute without
@@ -689,6 +716,7 @@ export function SelectionLayer() {
     selectedSectionId,
     selectedBuilderNodeId,
     hoveredSectionId,
+    hoveredBuilderNodeId,
     pageVersion,
     getSelectedSectionEl,
     getSelectedBuilderNodeEl,
@@ -848,6 +876,7 @@ export function SelectionLayer() {
 	    extendSelection,
 	    toggleSelection,
 	    setHoveredSectionId,
+	    setHoveredBuilderNodeId,
 	  });
   useEffect(() => {
     callbacksRef.current = {
@@ -859,6 +888,7 @@ export function SelectionLayer() {
 	      extendSelection,
 	      toggleSelection,
 	      setHoveredSectionId,
+	      setHoveredBuilderNodeId,
 	    };
 	  }, [
 	    setSelectedSectionId,
@@ -869,6 +899,7 @@ export function SelectionLayer() {
 	    extendSelection,
 	    toggleSelection,
 	    setHoveredSectionId,
+	    setHoveredBuilderNodeId,
 	  ]);
 
   useEffect(() => {
@@ -876,9 +907,26 @@ export function SelectionLayer() {
       const el = findSectionEl(e.target);
       const id = el?.getAttribute("data-section-id") ?? null;
       if (id !== hoveredSectionId) callbacksRef.current.setHoveredSectionId(id);
+      // Job #5 — track the freeform builder node under the cursor for the
+      // bidirectional canvas↔layers highlight. Ignore the edit chrome (the
+      // layers rail's rows ALSO carry data-builder-node-id; an inspector/topbar
+      // hover must not light a canvas block). Off-canvas → clear.
+      const source = eventTargetElement(e.target);
+      const overChrome =
+        source?.closest(
+          "[data-edit-topbar], [data-edit-drawer], [data-edit-overlay]",
+        ) ?? null;
+      const nodeId = overChrome
+        ? null
+        : (findBuilderNodeEl(e.target)?.getAttribute("data-builder-node-id") ??
+          null);
+      if (nodeId !== hoveredBuilderNodeId) {
+        callbacksRef.current.setHoveredBuilderNodeId(nodeId);
+      }
     }
     function onPointerLeave() {
       callbacksRef.current.setHoveredSectionId(null);
+      callbacksRef.current.setHoveredBuilderNodeId(null);
     }
     function onClickCapture(e: MouseEvent) {
       if (suppressNextClickRef.current) {
@@ -1030,7 +1078,7 @@ export function SelectionLayer() {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- EditContext callbacks are mirrored into callbacksRef above; re-registering on every selection change would thrash listeners
-	  }, [contextMenu, hoveredSectionId]);
+	  }, [contextMenu, hoveredSectionId, hoveredBuilderNodeId]);
 
   useEffect(() => {
     function shouldIgnoreMarqueeTarget(target: EventTarget | null) {
@@ -1670,6 +1718,17 @@ export function SelectionLayer() {
 
   const showHover =
     hoverRect && hoveredSectionId && hoveredSectionId !== selectedSectionId;
+
+  // Job #5 — show the freeform node hover ring when we have a rect for the
+  // hovered node and it isn't the current selection (the selection ring wins).
+  // Suppressed while dragging anything (the drop indicator / ghost take over).
+  const showNodeHover =
+    nodeHoverRect &&
+    hoveredBuilderNodeId !== null &&
+    hoveredBuilderNodeId !== selectedBuilderNodeId &&
+    drag.phase === "idle" &&
+    canvasNodeDrag.phase === "idle" &&
+    marquee.phase === "idle";
 
   const isDragging =
     drag.phase === "dragging" && drag.id === selectedSectionId;
@@ -2538,6 +2597,34 @@ export function SelectionLayer() {
           ) : null}
 	        </>
 	      ) : null}
+
+      {/* Job #5 — freeform node hover ring. Mirrors the section hover ring's
+       *  dual-tone treatment so a hovered LAYER ROW lights the matching canvas
+       *  block (and a hovered canvas block lights its row). Lighter than the
+       *  selection ring; suppressed for the current selection + during drags. */}
+      {showNodeHover ? (
+        <div
+          data-builder-node-hover-ring=""
+          data-builder-node-id={hoveredBuilderNodeId ?? undefined}
+          style={{
+            position: "fixed",
+            top: nodeHoverRect.top,
+            left: nodeHoverRect.left,
+            width: nodeHoverRect.width,
+            height: nodeHoverRect.height,
+            borderRadius: CANVAS_SELECTION_RADIUS,
+            boxShadow: `inset 0 0 0 1px ${HOVER_INSET}, 0 0 0 1px ${HOVER_STROKE}, 0 0 0 4px rgba(47,70,120,0.10)`,
+            pointerEvents: "none",
+            // No isScrollingRef read here (render-safe): use the reduce-motion
+            // STATE only. The rect itself is recomputed on scroll via the rAF
+            // path, so the ring still tracks; we just don't gate the transition
+            // on the scroll ref (which can't be read during render).
+            transition: reduceMotion
+              ? "none"
+              : "top 80ms linear, left 80ms linear, width 80ms linear, height 80ms linear",
+          }}
+        />
+      ) : null}
 
       {/* Sprint 4 — additional-selection rings. Render a quieter ring
        *  on every section in the multi-set (the primary keeps the full

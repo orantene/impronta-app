@@ -350,6 +350,16 @@ export interface EditContextValue {
   hoveredSectionId: string | null;
   setHoveredSectionId: (id: string | null) => void;
 
+  /**
+   * Freeform builder node under the cursor (canvas OR layers row), for the
+   * bidirectional canvas↔layers highlight. Freeform full-page designs have no
+   * `[data-cms-section]` wrapper, so `hoveredSectionId` never fires for them;
+   * this is the section-less analog. Hovering a layer row sets it (→ canvas
+   * hover ring); hovering a canvas block sets it (→ layer row tint).
+   */
+  hoveredBuilderNodeId: string | null;
+  setHoveredBuilderNodeId: (id: string | null) => void;
+
   device: EditDevice;
   setDevice: (d: EditDevice) => void;
 
@@ -1741,6 +1751,9 @@ export function EditProvider({
   }, [selectedSectionId, additionalSelectedIds]);
 
   const [hoveredSectionId, setHoveredSectionId] = useState<string | null>(null);
+  const [hoveredBuilderNodeId, setHoveredBuilderNodeId] = useState<string | null>(
+    null,
+  );
   const [device, setDevice] = useState<EditDevice>("desktop");
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -5277,6 +5290,8 @@ export function EditProvider({
 	      pasteCopiedBuilderNode,
       hoveredSectionId,
       setHoveredSectionId,
+      hoveredBuilderNodeId,
+      setHoveredBuilderNodeId,
       device,
       setDevice,
       dirty,
@@ -5453,6 +5468,7 @@ export function EditProvider({
 	      copiedBuilderNodeClipboard,
 	      setSelectedSectionId,
       hoveredSectionId,
+      hoveredBuilderNodeId,
       device,
       dirty,
       saving,
