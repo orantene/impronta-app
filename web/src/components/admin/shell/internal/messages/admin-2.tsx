@@ -25,7 +25,7 @@ import { OfferTab } from "./shared/machinery-12";
 import { LiveBookingActions, resolveFileKey } from "./shared/machinery-14";
 import { FilesTab } from "./shared/machinery-15";
 import { AdminBookingTab } from "./shared/machinery-5";
-import { LogisticsTab, ShellNextActionBar } from "./shared/machinery-6";
+import { LogisticsTab, PaymentTab, ShellNextActionBar } from "./shared/machinery-6";
 import type { ShellAction } from "./shared/machinery-6";
 import type { ChatSubThreadId, ThreadTabId } from "./shared/machinery-8";
 import { ChatSubToggleDropdown, MOCK_FILES_FOR_CONV, ThreadSearchTrigger, ThreadTabBar } from "./shared/machinery-9";
@@ -452,10 +452,14 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
             <OfferTab conv={{ id: inquiry.id } as Conversation} pov={{ kind: "admin" }} />
           </div>
         )}
-        {/* Slice B: legacy "logistics" + "payment" route to Event tab */}
-        {(activeTab === "logistics" || activeTab === "payment") && (
+        {activeTab === "logistics" && (
           <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
             <LogisticsTab inquiry={toInquiry(inquiry)} pov="admin" />
+          </div>
+        )}
+        {activeTab === "payment" && (
+          <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+            <PaymentTab inquiry={toInquiry(inquiry)} pov="admin" />
           </div>
         )}
         {activeTab === "files" && (
