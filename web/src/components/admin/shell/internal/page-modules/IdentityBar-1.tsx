@@ -148,10 +148,31 @@ export function TulalaIdentityBar() {
           // USD-first: format in the workspace KPI currency (the platform
           // operating currency, default USD) — never a hardcoded €. The
           // currency-aware formatter divides cents internally.
-          const pendingLabel = formatMoneyCents(pendingCents, overviewMetrics.kpiCurrency ?? "USD");
+          const primaryCurrency = overviewMetrics.kpiCurrency ?? "USD";
+          const pendingLabel = formatMoneyCents(pendingCents, primaryCurrency);
+
+          // Append a compact off-currency affordance when there are bookings
+          // in other currencies (e.g. "· +€1,030"). This prevents real money
+          // from silently vanishing from the KPI strip. We show the pending
+          // total per off-currency (the most actionable signal) if non-zero,
+          // otherwise skip that currency to keep the label short.
+          const offCurrencyParts: string[] = [];
+          for (const sub of overviewMetrics.offCurrencySubtotals ?? []) {
+            if (sub.pendingCents > 0) {
+              offCurrencyParts.push(`+${formatMoneyCents(sub.pendingCents, sub.currency)}`);
+            } else if (sub.confirmedCount > 0) {
+              // Nothing pending in this currency but there are confirmed
+              // bookings — show the YTD confirmed amount so it isn't invisible.
+              offCurrencyParts.push(`+${formatMoneyCents(sub.confirmedYtdCents, sub.currency)}`);
+            }
+          }
+          const offCurrencySuffix = offCurrencyParts.length > 0
+            ? ` ${offCurrencyParts.join(" ")}`
+            : "";
+
           return copy.isSpanish
-            ? `${pendingLabel} pendiente · ${confirmedCount} confirmada${confirmedCount === 1 ? "" : "s"}`
-            : `${pendingLabel} pending · ${confirmedCount} confirmed`;
+            ? `${pendingLabel}${offCurrencySuffix} pendiente · ${confirmedCount} confirmada${confirmedCount === 1 ? "" : "s"}`
+            : `${pendingLabel}${offCurrencySuffix} pending · ${confirmedCount} confirmed`;
         }
         const open = overviewMetrics.openInquiries ?? 0;
         const roster = overviewMetrics.rosterTotal ?? 0;

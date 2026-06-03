@@ -7,7 +7,8 @@ import { loadCurrentTalentPayoutSnapshot, loadMyInquiryTakeHome, type TalentPayo
 import { type TalentTakeHome } from "@/lib/talent/inquiry-take-home";
 import { submitMyCounterRate, submitMyRateForInquiry } from "@/lib/server-actions/talent-pipeline";
 import { clientApproveCurrentOffer, clientRejectCurrentOffer } from "@/lib/server-actions/client-pipeline";
-import { sendOfferAction, counterOfferAction } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
+import { sendOfferAction, counterOfferAction, loadBookingCommissionSnapshotAction } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
+import type { PersistedBookingCommissionSnapshot } from "@/lib/billing/commission";
 import { useAdminShell, COLORS, FONTS } from "../../state";
 import { type Conversation } from "../../talent";
 import { applyRowOverrides, setRowOverride, useRowOverrideSubscription } from "../conversation-stash";
@@ -18,12 +19,32 @@ import { DealSummaryCard, LineupRowCard, ParticipantRow, TimelineRow, dashedBtn,
 import { SubmitRateSheet } from "./machinery-14";
 import type { Offer } from "./machinery-9";
 
+/** Human label + tone for an inquiry_offers status. */
+function offerStatusInfo(status: string): { label: string; bg: string; tone: string } {
+  switch (status) {
+    case "draft":
+      return { label: "Draft", bg: "rgba(146,64,14,0.10)", tone: "#92400E" };
+    case "sent":
+      return { label: "Sent · awaiting approval", bg: "rgba(29,78,216,0.10)", tone: "#1D4ED8" };
+    case "accepted":
+      return { label: "Accepted", bg: "rgba(15,81,50,0.10)", tone: "#0F5132" };
+    case "rejected":
+      return { label: "Declined", bg: "rgba(153,27,27,0.08)", tone: "#991B1B" };
+    case "superseded":
+      return { label: "Superseded", bg: "rgba(146,64,14,0.10)", tone: "#92400E" };
+    default:
+      return { label: status, bg: COLORS.borderSoft, tone: COLORS.inkMuted };
+  }
+}
+
 /**
- * Live status banner shown above the (mock) OfferTab body when a real
- * inquiry_offers row exists for this inquiry. Hosts the truly-wired CTAs
- * (Send · Approve · Reject) that mutate the DB via engine actions.
+ * The real, DB-backed offer view for the inquiry. Renders the actual deal —
+ * line items, total, status — plus (admin only) the booking commission
+ * breakdown sourced from `booking_commission_snapshot`, and the engine-wired
+ * Send / Counter actions + the inline draft editor.
  *
- * Shows nothing when there's no real offer (e.g. demo / pure-mock convs).
+ * Replaces the old developer-scaffolding banner ("Live · DB-backed", raw
+ * offer UUID, "engine above"). Shows nothing for synthetic mock-only convs.
  */
 export function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: OfferPov }) {
   const { toast, effectiveMessagesInquiries, effectiveTenant } = useAdminShell();
@@ -32,12 +53,28 @@ export function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: Off
   const real = effectiveMessagesInquiries.find((r) => r.id === inquiryId);
   const offer = real?.offer ?? null;
   const offerId = offer?.id;
+  const bookingId = real?.bookingId ?? null;
   const isAdmin = pov.kind === "admin";
+
+  // Admin-only: load the per-participant commission snapshot for the booking
+  // (if one exists). One booking → N rows; we aggregate the lanes for the
+  // deal-level breakdown. Never shown to client/talent.
+  const [snapshots, setSnapshots] = useState<PersistedBookingCommissionSnapshot[] | null>(null);
+  useEffect(() => {
+    if (!isAdmin || !bookingId) { setSnapshots(null); return; }
+    let cancelled = false;
+    loadBookingCommissionSnapshotAction(effectiveTenant.slug, bookingId).then((r) => {
+      if (cancelled) return;
+      setSnapshots(r.ok ? (r.data ?? []) : []);
+    });
+    return () => { cancelled = true; };
+  }, [isAdmin, bookingId, effectiveTenant.slug]);
 
   // Render nothing for synthetic mock-only inquiries — keeps demo data clean.
   if (!offer || !offerId || offerId.endsWith("-offer")) return null;
 
   const status = offer.status;
+  const statusInfo = offerStatusInfo(status);
 
   const run = (label: string, fn: () => Promise<{ ok: boolean; error?: string }>) =>
     startTransition(async () => {
@@ -50,39 +87,182 @@ export function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: Off
       }
     });
 
+  // Aggregate commission lanes across participant rows. Currency comes from
+  // the snapshot itself — never hardcoded.
+  const hasSnapshot = isAdmin && !!snapshots && snapshots.length > 0;
+  const agg = hasSnapshot
+    ? snapshots!.reduce(
+        (a, s) => ({
+          gross: a.gross + s.gross_cents,
+          grossCharged: a.grossCharged + (s.gross_charged_cents ?? s.gross_cents),
+          platformFee: a.platformFee + s.platform_fee_cents,
+          workspaceFee: a.workspaceFee + s.workspace_fee_cents,
+          talentNet: a.talentNet + s.talent_net_cents,
+        }),
+        { gross: 0, grossCharged: 0, platformFee: 0, workspaceFee: 0, talentNet: 0 },
+      )
+    : null;
+  const snapCurrency = hasSnapshot ? (snapshots![0].currency_code || "USD") : "USD";
+
   return (
-    <div style={{ border: `1px solid ${COLORS.borderSoft}`, padding: "10px 12px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontFamily: FONTS.body, fontSize: 12 }} className="bg-admin-surface-alt rounded-admin-md">
-      <span style={{ fontWeight: 700 }} className="text-admin-ink">Live · DB-backed</span>
-      <span className="text-admin-ink-muted">Offer status: <strong>{status}</strong></span>
-      <span className="text-admin-ink-muted text-admin-11">{offerId.slice(0, 8)}…</span>
-      <span style={{ flex: 1 }} />
-      {isAdmin && status === "draft" && (
-        <button type="button" disabled={pending}
-          onClick={() => run("Send offer", () => sendOfferAction(effectiveTenant.slug, inquiryId, offerId))}
-          style={primaryBtn(COLORS.accent)}
-        >Send to client</button>
+    <div
+      style={{
+        background: "#fff",
+        border: `1px solid ${COLORS.borderSoft}`,
+        padding: 16,
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+        fontFamily: FONTS.body,
+      }}
+      className="rounded-admin-md"
+    >
+      {/* Header — status pill + total */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6 }} className="text-admin-ink-muted">
+            Offer
+          </div>
+          {offer.total && (
+            <div style={{ fontFamily: FONTS.display, fontSize: 22, fontWeight: 700, marginTop: 3 }} className="text-admin-ink">
+              {offer.total}
+            </div>
+          )}
+          {offer.sentAt && (
+            <div className="text-admin-ink-muted text-admin-11" style={{ marginTop: 3 }}>Sent {offer.sentAt}</div>
+          )}
+        </div>
+        <span
+          style={{
+            padding: "4px 10px",
+            borderRadius: 999,
+            background: statusInfo.bg,
+            color: statusInfo.tone,
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: 0.3,
+            textTransform: "uppercase",
+            whiteSpace: "nowrap",
+            flexShrink: 0,
+          }}
+        >
+          {statusInfo.label}
+        </span>
+      </div>
+
+      {/* Line items */}
+      {offer.lineItems.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 6 }} className="text-admin-ink-muted">
+            Line items
+          </div>
+          {offer.lineItems.map((ln, i) => (
+            <div
+              key={`${ln.talentName}-${i}`}
+              style={{
+                display: "flex",
+                alignItems: "baseline",
+                justifyContent: "space-between",
+                gap: 10,
+                padding: "6px 0",
+                borderTop: i === 0 ? "none" : `1px solid ${COLORS.borderSoft}`,
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{ln.talentName}</div>
+                <div className="text-admin-ink-muted text-admin-11">{ln.role}</div>
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }} className="text-admin-ink">
+                {ln.fee}
+              </div>
+            </div>
+          ))}
+          {offer.total && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "baseline",
+                justifyContent: "space-between",
+                gap: 10,
+                paddingTop: 8,
+                marginTop: 4,
+                borderTop: `1px solid ${COLORS.borderSoft}`,
+              }}
+            >
+              <span style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">Total</span>
+              <span style={{ fontFamily: FONTS.display, fontSize: 16, fontWeight: 700, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink">
+                {offer.total}
+              </span>
+            </div>
+          )}
+        </div>
       )}
-      {/* No admin "Approve/Reject (as client)" at status==="sent": the client and
-          each assigned talent approve from THEIR OWN surfaces (engine submit_approval).
-          The old buttons called clientAcceptOffer keyed on the staff user_id and so
-          ALWAYS failed with no_client_participant. The admin's role here is to wait
-          for approvals; once the offer is 'accepted' the inquiry flips to 'approved'
-          and the header "Move to Booked" converts it. */}
-      {isAdmin && status === "sent" && (
-        <span className="text-admin-ink-muted text-admin-11">Awaiting client + talent approval…</span>
+
+      {/* Admin-only commission breakdown — from booking_commission_snapshot. */}
+      {isAdmin && hasSnapshot && agg && (
+        <div style={{ padding: "12px 14px", borderRadius: 10, display: "flex", flexDirection: "column", gap: 6 }} className="bg-admin-surface-alt">
+          <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 2 }} className="text-admin-ink-muted">
+            Commission breakdown
+          </div>
+          <CommissionRow label="Client pays (gross)" value={fmtMoney(agg.grossCharged / 100, snapCurrency)} strong />
+          <CommissionRow label="Platform fee" value={`− ${fmtMoney(agg.platformFee / 100, snapCurrency)}`} />
+          <CommissionRow label="Talent net" value={fmtMoney(agg.talentNet / 100, snapCurrency)} />
+          <div style={{ height: 1, background: COLORS.borderSoft, margin: "2px 0" }} />
+          <CommissionRow label="Your margin (workspace)" value={fmtMoney(agg.workspaceFee / 100, snapCurrency)} strong />
+        </div>
       )}
-      {isAdmin && status === "rejected" && (
-        <button type="button" disabled={pending}
-          onClick={() => run("Counter offer", () => counterOfferAction(effectiveTenant.slug, inquiryId, offerId))}
-          style={primaryBtn(COLORS.accent)}
-        >Counter offer</button>
+      {isAdmin && bookingId && snapshots !== null && !hasSnapshot && (
+        <div className="text-admin-ink-muted text-admin-11" style={{ lineHeight: 1.5 }}>
+          Commission breakdown appears once the booking&apos;s commission snapshot is recorded.
+        </div>
       )}
+
+      {/* Engine-wired actions */}
+      {(isAdmin && (status === "draft" || status === "sent" || status === "rejected")) && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          {status === "draft" && (
+            <button type="button" disabled={pending}
+              onClick={() => run("Send offer", () => sendOfferAction(effectiveTenant.slug, inquiryId, offerId))}
+              style={primaryBtn(COLORS.accent)}
+            >Send to client</button>
+          )}
+          {/* No admin "Approve/Reject (as client)" at status==="sent": the client
+              and each assigned talent approve from THEIR OWN surfaces (engine
+              submit_approval). The admin waits for approvals; once 'accepted' the
+              inquiry flips to 'approved' and the header "Move to Booked" converts. */}
+          {status === "sent" && (
+            <span className="text-admin-ink-muted text-admin-11">Awaiting client + talent approval…</span>
+          )}
+          {status === "rejected" && (
+            <button type="button" disabled={pending}
+              onClick={() => run("Counter offer", () => counterOfferAction(effectiveTenant.slug, inquiryId, offerId))}
+              style={primaryBtn(COLORS.accent)}
+            >Counter offer</button>
+          )}
+        </div>
+      )}
+
       {/* Inline draft editor — only when the offer is editable. */}
       {status === "draft" && (
-        <div style={{ flexBasis: "100%", marginTop: 8 }}>
+        <div style={{ marginTop: 4 }}>
           <OfferDraftEditor inquiryId={inquiryId} offerId={offerId} isAdmin={isAdmin} />
         </div>
       )}
+    </div>
+  );
+}
+
+/** Small labeled money row for the commission breakdown. */
+function CommissionRow({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+      <span className="text-admin-ink-muted" style={{ fontSize: 12.5 }}>{label}</span>
+      <span
+        style={{ fontSize: 12.5, fontWeight: strong ? 700 : 600, fontVariantNumeric: "tabular-nums" }}
+        className="text-admin-ink"
+      >
+        {value}
+      </span>
     </div>
   );
 }
@@ -196,7 +376,10 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
           <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, padding: 16, display: "flex", flexDirection: "column", gap: 10 }} className="rounded-admin-md">
             <div className="text-admin-ink text-admin-13h font-bold">{heading}</div>
             <div style={{ fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink-muted">{blurb}</div>
-            {takeHome && hasOffer && (
+            {/* Take-home line — show on every offer state EXCEPT booked, where
+                it's folded into the dedicated payout line below so the figure
+                always sits next to the payout status. */}
+            {takeHome && hasOffer && !isBooked && (
               <div className="text-admin-ink-muted text-admin-13h">
                 Your take-home:{" "}
                 <strong className="text-admin-ink">{fmtMoney(takeHome.takeHomeCents / 100, takeHome.currency)}</strong>{" "}
@@ -204,8 +387,14 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
               </div>
             )}
             {isBooked ? (
-              <div className="text-admin-ink-muted text-admin-11">
-                Status <strong className="text-admin-ink">booked &amp; confirmed</strong>
+              <div className="text-admin-ink-muted text-admin-13h">
+                Your take-home:{" "}
+                {takeHome ? (
+                  <strong className="text-admin-ink">{fmtMoney(takeHome.takeHomeCents / 100, takeHome.currency)}</strong>
+                ) : (
+                  <strong className="text-admin-ink">{talentPayout ? "—" : "loading…"}</strong>
+                )}{" "}
+                <span className="text-admin-11">· {talentPayoutLabel(talentPayout)}</span>
               </div>
             ) : isApproved ? (
               <div className="text-admin-ink-muted text-admin-11">
@@ -234,21 +423,7 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
     return (
       <div style={{ padding: 18, fontFamily: FONTS.body, display: "flex", flexDirection: "column", gap: 12 }}>
         {liveOffer ? (
-          <>
-            <LiveOfferPanel inquiryId={conv.id} pov={pov} />
-            <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, padding: 14, fontSize: 12.5, lineHeight: 1.55 }} className="text-admin-ink-muted">
-              <div style={{ fontFamily: FONTS.display, fontSize: 15, fontWeight: 700, color: COLORS.ink, marginBottom: 4 }}>
-                Offer is live
-              </div>
-              <div>
-                Status <strong style={{ color: COLORS.ink }}>{liveOffer.status}</strong>
-                {liveOffer.total ? <> · Total <strong style={{ color: COLORS.ink }}>{liveOffer.total}</strong></> : null}
-              </div>
-              <div style={{ marginTop: 6 }}>
-                This inquiry is using the database-backed offer flow. Draft, send, approve, reject, and counter actions run through the engine above.
-              </div>
-            </div>
-          </>
+          <LiveOfferPanel inquiryId={conv.id} pov={pov} />
         ) : (
           <div style={{ padding: 24, textAlign: "center", fontSize: 13 }} className="text-admin-ink-dim">
             No offer yet for this inquiry.
@@ -552,6 +727,23 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
       )}
     </div>
   );
+}
+
+/** Human payout-status phrase for the talent's booked take-home line. */
+function talentPayoutLabel(snap: TalentPayoutSnapshot | null): string {
+  if (!snap || !snap.hasProfile) return "set up your payout account to get paid";
+  switch (snap.status) {
+    case "enabled":
+      return "on its way to your connected payout account";
+    case "pending":
+      return "payout account verification pending";
+    case "restricted":
+      return "payout account needs attention";
+    case "disabled":
+      return "payout account disabled — contact support";
+    default:
+      return "connect a payout account to get paid";
+  }
 }
 
 export function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
