@@ -197,3 +197,46 @@ test("cursor outside every candidate resolves to null", () => {
   });
   assert.equal(result, null);
 });
+
+test("result carries the resolved parent's kind + full rect (4A #6/#9 highlight)", () => {
+  const result = resolveCanvasNodeDrop({
+    cursorX: 100,
+    cursorY: 10,
+    draggedKind: "heading",
+    candidates: [stackContainer()],
+  });
+  assert.ok(result);
+  // The parent box drives the drop-target highlight + reparent/nesting preview.
+  assert.equal(result.parentKind, "container");
+  assert.deepEqual(result.parentRect, {
+    top: 0,
+    left: 0,
+    width: 400,
+    height: 300,
+  });
+});
+
+test("nested drop reports the INNER container's rect, not the outer's", () => {
+  const outer = stackContainer({
+    nodeId: "outer",
+    depth: 0,
+    rect: { top: 0, left: 0, width: 400, height: 400 },
+    children: [{ nodeId: "inner", top: 50, bottom: 250 }],
+  });
+  const inner = stackContainer({
+    nodeId: "inner",
+    depth: 1,
+    rect: { top: 50, left: 20, width: 300, height: 200 },
+    children: [{ nodeId: "leaf", top: 60, bottom: 120 }],
+  });
+  const result = resolveCanvasNodeDrop({
+    cursorX: 100,
+    cursorY: 100,
+    draggedKind: "heading",
+    candidates: [outer, inner],
+  });
+  assert.ok(result);
+  assert.equal(result.parentNodeId, "inner");
+  assert.equal(result.parentRect.left, 20);
+  assert.equal(result.parentRect.width, 300);
+});

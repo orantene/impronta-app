@@ -46,6 +46,12 @@ const MIN_SIZE = 24;
 const GRID = 8;
 // Pointer distance (px) within which a drag snaps to a parent-derived target.
 const SNAP_THRESHOLD = 14;
+// Pointer distance (px) within which the dragged EDGE snaps to a sibling /
+// parent edge (4A #8 alignment guide during resize).
+const EDGE_SNAP = 8;
+// Magenta alignment-guide colour (matches the move handle's distribution
+// language: a line-up to a neighbour edge/centre).
+const ALIGN_MAGENTA = "#ec407a";
 
 /**
  * Snap a raw dragged length to (a) the nearest grid step, and (b) any of the
@@ -88,12 +94,24 @@ export function CanvasResizeHandles({
   const [liveH, setLiveH] = useState<number>(Math.round(rect.height));
   // Non-null while the current drag is snapped to a parent target (e.g. "Full").
   const [snapHint, setSnapHint] = useState<string | null>(null);
+  // 4A #8 — alignment-guide coordinates (viewport px) when the dragged edge
+  // lines up with a sibling/parent edge; null when not snapped to one.
+  const [edgeGuide, setEdgeGuide] = useState<{ vx: number | null; hy: number | null }>(
+    { vx: null, hy: null },
+  );
   const startRef = useRef<{
     axis: Axis;
     x: number;
     y: number;
     w: number;
     h: number;
+    // Element's fixed origin at grab-time (stable while WE resize); used to map
+    // a width/height to the dragged edge's viewport coord for the edge snap.
+    left: number;
+    top: number;
+    // Sibling/parent edge X coords (for the right edge) + Y coords (bottom edge).
+    edgeX: number[];
+    edgeY: number[];
   } | null>(null);
   const latestRef = useRef<{ w: number; h: number }>({
     w: rect.width,
@@ -110,6 +128,8 @@ export function CanvasResizeHandles({
       const free = e.shiftKey;
       const parent = liveEl?.parentElement ?? null;
       let snapLabel: string | null = null;
+      let guideVx: number | null = null;
+      let guideHy: number | null = null;
       if (start.axis === "x" || start.axis === "both") {
         const raw = start.w + (e.clientX - start.x);
         const parentW = parent?.getBoundingClientRect().width ?? 0;
@@ -124,6 +144,20 @@ export function CanvasResizeHandles({
         const snapped = snapLength(raw, free, targets);
         w = Math.max(MIN_SIZE, snapped.value);
         if (snapped.label) snapLabel = snapped.label;
+        // 4A #8 — when no parent fraction won, snap the RIGHT edge's viewport X
+        // to the nearest sibling/parent edge and draw a vertical guide there.
+        if (!free && !snapped.label) {
+          const edgeX = start.left + w;
+          let best: { coord: number; d: number } | null = null;
+          for (const coord of start.edgeX) {
+            const d = Math.abs(coord - edgeX);
+            if (d <= EDGE_SNAP && (!best || d < best.d)) best = { coord, d };
+          }
+          if (best) {
+            w = Math.max(MIN_SIZE, Math.round(best.coord - start.left));
+            guideVx = best.coord;
+          }
+        }
         latestRef.current.w = w;
         setLiveW(w);
         // Instant preview — the committed prop re-applies the same value on
@@ -134,11 +168,24 @@ export function CanvasResizeHandles({
         const raw = start.h + (e.clientY - start.y);
         const snapped = snapLength(raw, free, []);
         h = Math.max(MIN_SIZE, snapped.value);
+        if (!free) {
+          const edgeY = start.top + h;
+          let best: { coord: number; d: number } | null = null;
+          for (const coord of start.edgeY) {
+            const d = Math.abs(coord - edgeY);
+            if (d <= EDGE_SNAP && (!best || d < best.d)) best = { coord, d };
+          }
+          if (best) {
+            h = Math.max(MIN_SIZE, Math.round(best.coord - start.top));
+            guideHy = best.coord;
+          }
+        }
         latestRef.current.h = h;
         setLiveH(h);
         if (liveEl) liveEl.style.height = `${h}px`;
       }
       setSnapHint(snapLabel);
+      setEdgeGuide({ vx: guideVx, hy: guideHy });
     };
     const onUp = () => {
       const start = startRef.current;
@@ -152,6 +199,7 @@ export function CanvasResizeHandles({
       onCommit(dims);
       setActiveAxis(null);
       setSnapHint(null);
+      setEdgeGuide({ vx: null, hy: null });
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp, { once: true });
@@ -164,17 +212,40 @@ export function CanvasResizeHandles({
   function begin(axis: Axis, e: React.PointerEvent) {
     e.preventDefault();
     e.stopPropagation();
+    // 4A #8 — capture sibling + parent edge coordinates once on grab (they
+    // don't move while WE resize). The right edge can snap to a sibling's
+    // left/right or the parent's right inner edge; the bottom edge likewise.
+    const edgeX: number[] = [];
+    const edgeY: number[] = [];
+    const parentNode = liveEl?.parentElement ?? null;
+    if (parentNode) {
+      const pr = parentNode.getBoundingClientRect();
+      edgeX.push(pr.left, pr.left + pr.width);
+      edgeY.push(pr.top, pr.top + pr.height);
+      for (const sib of Array.from(parentNode.children)) {
+        if (sib === liveEl || !(sib instanceof HTMLElement)) continue;
+        const sr = sib.getBoundingClientRect();
+        if (sr.width === 0 && sr.height === 0) continue;
+        edgeX.push(sr.left, sr.left + sr.width);
+        edgeY.push(sr.top, sr.top + sr.height);
+      }
+    }
     startRef.current = {
       axis,
       x: e.clientX,
       y: e.clientY,
       w: rect.width,
       h: rect.height,
+      left: rect.left,
+      top: rect.top,
+      edgeX,
+      edgeY,
     };
     latestRef.current = { w: rect.width, h: rect.height };
     setLiveW(Math.round(rect.width));
     setLiveH(Math.round(rect.height));
     setSnapHint(null);
+    setEdgeGuide({ vx: null, hy: null });
     setActiveAxis(axis);
   }
 
@@ -206,20 +277,57 @@ export function CanvasResizeHandles({
   const activeShadow = "0 0 0 3px rgba(61,79,124,0.25), 0 2px 6px rgba(0,0,0,0.35)";
 
   return (
-    <div
-      aria-hidden
-      data-canvas-resize-overlay=""
-      style={{
-        position: "fixed",
-        top: rect.top,
-        left: rect.left,
-        width: rect.width,
-        height: rect.height,
-        pointerEvents: "none",
-        zIndex: 95,
-      }}
-    >
-      {/* Right edge → width */}
+    <>
+      {/* 4A #8 — resize alignment guides. A magenta line at the sibling/parent
+       *  edge the dragged width/height edge has snapped to. Drawn in viewport
+       *  coords (outside the rect-offset overlay) spanning the active edge's
+       *  axis so the line-up reads at a glance. */}
+      {edgeGuide.vx !== null ? (
+        <div
+          aria-hidden
+          data-canvas-resize-align-guide="v"
+          style={{
+            position: "fixed",
+            left: edgeGuide.vx,
+            top: 0,
+            width: 0,
+            height: "100vh",
+            borderLeft: `1px solid ${ALIGN_MAGENTA}`,
+            pointerEvents: "none",
+            zIndex: 97,
+          }}
+        />
+      ) : null}
+      {edgeGuide.hy !== null ? (
+        <div
+          aria-hidden
+          data-canvas-resize-align-guide="h"
+          style={{
+            position: "fixed",
+            top: edgeGuide.hy,
+            left: 0,
+            height: 0,
+            width: "100vw",
+            borderTop: `1px solid ${ALIGN_MAGENTA}`,
+            pointerEvents: "none",
+            zIndex: 97,
+          }}
+        />
+      ) : null}
+      <div
+        aria-hidden
+        data-canvas-resize-overlay=""
+        style={{
+          position: "fixed",
+          top: rect.top,
+          left: rect.left,
+          width: rect.width,
+          height: rect.height,
+          pointerEvents: "none",
+          zIndex: 95,
+        }}
+      >
+        {/* Right edge → width */}
       <button
         type="button"
         aria-label="Drag to resize width (double-click to reset)"
@@ -314,6 +422,7 @@ export function CanvasResizeHandles({
               : `${liveW} × ${liveH}`) + (snapHint ? `  ·  ${snapHint}` : "")}
         </span>
       ) : null}
-    </div>
+      </div>
+    </>
   );
 }

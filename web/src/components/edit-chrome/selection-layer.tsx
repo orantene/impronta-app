@@ -161,6 +161,18 @@ function humanizeTypeKey(key: string | null | undefined): string {
     .join(" ");
 }
 
+/**
+ * 4A #6 — the human label shown on the floating drag-ghost during a
+ * palette-onto-canvas drag. A plain element reuses the registry's `label`
+ * ("Heading", "Container"…); a Tulala-component embed humanizes its type key.
+ */
+function paletteDragLabel(payload: BuilderNodePaletteDragPayload): string {
+  return payload.kind === "section_embed"
+    ? humanizeTypeKey(payload.sectionTypeKey)
+    : (BUILDER_NODE_REGISTRY[payload.elementKind]?.label ??
+        humanizeTypeKey(payload.elementKind));
+}
+
 // ── Design tokens (from mockup --select-* variables) ──────────────────────
 // White inset + ink outset + soft halo. Same values as the spec's
 // `.ring-selected` and `.ring-hover` CSS classes.
@@ -179,6 +191,13 @@ const DISALLOW_LINE = "rgba(220, 38, 38, 0.92)";
 const DISALLOW_RGB = "220, 38, 38";
 const DROP_LINE_HEIGHT = 4;
 const DROP_LINE_RADIUS = 2;
+
+// 4A #9 — when a drag would land the block in a DIFFERENT parent than its
+// current one, the would-be parent is outlined in this violet so "this will
+// nest here" reads distinctly from a same-parent reorder (which stays blue).
+// (The alignment/equal-spacing guide hues live with the move/resize handle
+// components that draw them — magenta for edge line-ups, teal for even gaps.)
+const REPARENT_RGB = "124, 92, 255"; // violet
 
 // P3-2 polish — keyframes injected once via <style> at the portal root.
 // `kit/savechip.tsx` uses the same pattern. Both animations are skipped
@@ -291,6 +310,11 @@ type CanvasNodeDragState =
       payload: BuilderNodePaletteDragPayload;
       draggedKind: BuilderNodeKind;
       drop: CanvasDropResult | null;
+      /** Human label for the floating drag-ghost (e.g. "Heading"). */
+      label: string;
+      /** Live cursor (viewport px) so the labeled ghost follows the pointer. */
+      cursorX: number;
+      cursorY: number;
     }
   | {
       /** Dragging an EXISTING canvas block → move (reorder/nest) on drop. */
@@ -298,6 +322,17 @@ type CanvasNodeDragState =
       nodeId: string;
       draggedKind: BuilderNodeKind;
       drop: CanvasDropResult | null;
+      /** Human label for the floating drag-ghost. */
+      label: string;
+      /**
+       * The dragged node's CURRENT parent id, captured at drag-start. When the
+       * resolved drop parent differs from this, the drag is a REPARENT and the
+       * chrome shows a stronger nesting preview (4A #9).
+       */
+      sourceParentNodeId: string | null;
+      /** Live cursor (viewport px) so the labeled ghost follows the pointer. */
+      cursorX: number;
+      cursorY: number;
     };
 
 /**
@@ -1274,6 +1309,54 @@ export function SelectionLayer() {
     [],
   );
 
+  // 4A #7 — arm an EXISTING-block move from a native HTML5 drag source. Shared
+  // by the selection-chip grip AND the on-hover grab handle so ANY block is
+  // directly reorderable, not just the selected one. Captures the block's
+  // current parent for the reparent/nesting preview (#9) and seeds the labeled
+  // drag-ghost (#6). The commit path is the same `moveBuilderNodeToParentIndex`
+  // the existing chip-grip drag already routes through (undo/redo for free).
+  const armCanvasNodeMove = useCallback(
+    (
+      event: DragEvent,
+      nodeId: string,
+      draggedKind: BuilderNodeKind,
+      label: string,
+    ) => {
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", label);
+      // Suppress the OS drag-image (a snapshot of the grip / handle) so our own
+      // labeled ghost is the only thing the operator sees follow the cursor.
+      // A 1×1 transparent image is the cross-browser way to hide it.
+      if (typeof document !== "undefined") {
+        const blank = document.createElement("canvas");
+        blank.width = 1;
+        blank.height = 1;
+        try {
+          event.dataTransfer.setDragImage(blank, 0, 0);
+        } catch {
+          // Some browsers reject a detached canvas — harmless; fall back to the
+          // default OS image rather than crashing the drag.
+        }
+      }
+      const sourceParentNodeId =
+        findCanvasNodeParentContext(
+          canvasDropDepsRef.current.builderTree,
+          nodeId,
+        )?.parentNodeId ?? null;
+      setCanvasNodeDrag({
+        phase: "move",
+        nodeId,
+        draggedKind,
+        drop: null,
+        label,
+        sourceParentNodeId,
+        cursorX: event.clientX,
+        cursorY: event.clientY,
+      });
+    },
+    [],
+  );
+
   // Always-on detector: a palette drag STARTS on a pill in a different React
   // tree, so we can't arm `canvasNodeDrag` at its source. When a drag carrying
   // the palette MIME enters the window, flip into the "palette" phase (the main
@@ -1288,6 +1371,8 @@ export function SelectionLayer() {
       }
       const payload = getActiveBuilderNodePaletteDrag();
       if (!payload) return;
+      const cursorX = event.clientX;
+      const cursorY = event.clientY;
       setCanvasNodeDrag((current) => {
         if (current.phase !== "idle") return current;
         return {
@@ -1296,6 +1381,9 @@ export function SelectionLayer() {
           draggedKind:
             payload.kind === "section_embed" ? "section_embed" : payload.elementKind,
           drop: null,
+          label: paletteDragLabel(payload),
+          cursorX,
+          cursorY,
         };
       });
     }
@@ -1354,17 +1442,32 @@ export function SelectionLayer() {
       } else if (event.dataTransfer) {
         event.dataTransfer.dropEffect = "none";
       }
+      // Capture the cursor so the labeled drag-ghost (4A #6) follows the
+      // pointer. `dragover` fires continuously; the drop target only changes at
+      // band boundaries, so we update position every move but keep the drop
+      // short-circuit to avoid re-deriving the (deep-equal) drop object.
+      const cursorX = event.clientX;
+      const cursorY = event.clientY;
       setCanvasNodeDrag((current) => {
         if (current.phase === "idle") return current;
-        if (
+        const dropUnchanged =
           drop?.parentNodeId === current.drop?.parentNodeId &&
           drop?.index === current.drop?.index &&
           drop?.allowed === current.drop?.allowed &&
-          drop?.indicatorY === current.drop?.indicatorY
+          drop?.indicatorY === current.drop?.indicatorY;
+        if (
+          dropUnchanged &&
+          current.cursorX === cursorX &&
+          current.cursorY === cursorY
         ) {
           return current;
         }
-        return { ...current, drop };
+        return {
+          ...current,
+          drop: dropUnchanged ? current.drop : drop,
+          cursorX,
+          cursorY,
+        };
       });
     }
 
@@ -1882,6 +1985,31 @@ export function SelectionLayer() {
   const chipPrimaryType = selectedNodeIsEditableBlock
     ? "Block"
     : chipType;
+
+  // 4A #7 — the HOVERED freeform block, when it's a directly-movable block (a
+  // real element, not a section / role-bound slot / locked node). Drives the
+  // on-hover grab handle so ANY block can be grabbed + reordered, not only the
+  // selected one. Same movability gate the chip grip's drag source uses.
+  const hoveredBuilderNode = useMemo(
+    () =>
+      hoveredBuilderNodeId
+        ? findBuilderNodeById(builderTree, hoveredBuilderNodeId)
+        : null,
+    [builderTree, hoveredBuilderNodeId],
+  );
+  const hoveredNodeIsMovableBlock =
+    !!hoveredBuilderNode &&
+    !!hoveredBuilderNodeId &&
+    hoveredBuilderNode.kind !== "section" &&
+    hoveredBuilderNode.locked !== true &&
+    !resolveBuilderNodeRole(hoveredBuilderNode.id);
+  const hoveredBlockLabel = hoveredBuilderNode
+    ? builderNodeCrumbLabel(
+        hoveredBuilderNode,
+        BUILDER_NODE_REGISTRY[hoveredBuilderNode.kind]?.label ??
+          humanizeTypeKey(hoveredBuilderNode.kind),
+      )
+    : "";
   // Show the type label only when it adds information — most sections derive
   // a name equal to their humanized type ("Featured Talent"), which made the
   // chip print the same words twice. Hoisted (not inline in JSX) to keep the
@@ -2835,6 +2963,80 @@ export function SelectionLayer() {
         />
       ) : null}
 
+      {/* 4A #7 — on-hover grab handle. A small draggable grip pinned to the
+       *  hovered block's top-left so ANY block can be grabbed + reordered
+       *  directly on the canvas (not just via the selection chip). It's the
+       *  only interactive piece of the hover affordance (the ring stays
+       *  pointer-transparent). The drag arms the SAME "move" canvas drag the
+       *  chip grip uses → identical drop math + `moveBuilderNodeToParentIndex`
+       *  commit, so reordering is discoverable without changing the engine. */}
+      {showNodeHover &&
+      hoveredNodeIsMovableBlock &&
+      hoveredBuilderNodeId &&
+      hoveredBuilderNode &&
+      device === "desktop" ? (
+        <button
+          type="button"
+          data-builder-node-hover-grip=""
+          data-builder-node-id={hoveredBuilderNodeId}
+          aria-label={`Drag to move ${hoveredBlockLabel}`}
+          title="Drag to move / nest this block"
+          draggable
+          onDragStart={(event) => {
+            armCanvasNodeMove(
+              event,
+              hoveredBuilderNodeId,
+              hoveredBuilderNode.kind,
+              hoveredBlockLabel,
+            );
+          }}
+          onDragEnd={() => setCanvasNodeDrag({ phase: "idle" })}
+          // Selecting on pointer-down makes the grabbed block the active
+          // selection too, matching the chip-grip path (which drags the
+          // selected block). Doesn't block the drag — dragstart still fires.
+          onPointerDown={() => selectBuilderNode(hoveredBuilderNodeId)}
+          style={{
+            position: "fixed",
+            // Sit just inside the ring's top-left corner; clamp to the
+            // viewport top so it never hides under the topbar.
+            top: Math.max(nodeHoverRect.top + 4, 60),
+            left: nodeHoverRect.left + 4,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 22,
+            height: 22,
+            padding: 0,
+            borderRadius: 6,
+            border: "none",
+            background: RAIL_BG,
+            color: "rgba(255,255,255,0.82)",
+            boxShadow: RAIL_SHADOW,
+            backdropFilter: "blur(10px)",
+            WebkitBackdropFilter: "blur(10px)",
+            cursor: "grab",
+            pointerEvents: "auto",
+            zIndex: 94,
+            touchAction: "none",
+          }}
+        >
+          <svg
+            width="9"
+            height="14"
+            viewBox="0 0 9 14"
+            fill="currentColor"
+            aria-hidden
+          >
+            <circle cx="2" cy="2" r="1" />
+            <circle cx="7" cy="2" r="1" />
+            <circle cx="2" cy="7" r="1" />
+            <circle cx="7" cy="7" r="1" />
+            <circle cx="2" cy="12" r="1" />
+            <circle cx="7" cy="12" r="1" />
+          </svg>
+        </button>
+      ) : null}
+
       {/* Sprint 4 — additional-selection rings. Render a quieter ring
        *  on every section in the multi-set (the primary keeps the full
        *  dual-tone ring + chip below). We compute rects synchronously
@@ -3331,17 +3533,12 @@ export function SelectionLayer() {
                 selectedNodeIsEditableBlock && selectedBuilderNode
                   ? (event) => {
                       if (!selectedBuilderNodeId) return;
-                      event.dataTransfer.effectAllowed = "move";
-                      event.dataTransfer.setData(
-                        "text/plain",
+                      armCanvasNodeMove(
+                        event,
+                        selectedBuilderNodeId,
+                        selectedBuilderNode.kind,
                         chipPrimaryLabel,
                       );
-                      setCanvasNodeDrag({
-                        phase: "move",
-                        nodeId: selectedBuilderNodeId,
-                        draggedKind: selectedBuilderNode.kind,
-                        drop: null,
-                      });
                     }
                   : undefined
               }
@@ -3667,6 +3864,107 @@ export function SelectionLayer() {
         </div>
       ) : null}
 
+      {/* ── 4A #6/#9 — drop-target PARENT highlight + reparent preview ───
+       *  Outlines the container the element will land inside, so the operator
+       *  sees WHERE it nests, not just the insertion line. A same-parent
+       *  reorder gets a quiet blue tint; a drop into a DIFFERENT parent (a
+       *  reparent) gets a stronger violet outline + a "Nest in <Parent>"
+       *  badge so the structural change is unmistakable before release.
+       *  Disallowed drops show a red wash. Hidden over edit chrome. */}
+      {canvasNodeDrag.phase !== "idle" &&
+      canvasNodeDrag.drop &&
+      canvasNodeDrag.drop.parentRect.width > 0 ? (
+        (() => {
+          const drop = canvasNodeDrag.drop;
+          const isReparent =
+            canvasNodeDrag.phase === "move" &&
+            canvasNodeDrag.sourceParentNodeId !== null &&
+            canvasNodeDrag.sourceParentNodeId !== drop.parentNodeId;
+          const accentRgb = !drop.allowed
+            ? DISALLOW_RGB
+            : isReparent
+              ? REPARENT_RGB
+              : BLUE_RGB;
+          return (
+            <div
+              aria-hidden
+              data-edit-overlay="canvas-node-drop-parent"
+              data-canvas-node-reparent={isReparent ? "1" : "0"}
+              style={{
+                position: "fixed",
+                top: drop.parentRect.top,
+                left: drop.parentRect.left,
+                width: drop.parentRect.width,
+                height: drop.parentRect.height,
+                borderRadius: CANVAS_SELECTION_RADIUS,
+                boxShadow: `inset 0 0 0 ${isReparent ? 2 : 1.5}px rgba(${accentRgb},${
+                  drop.allowed ? (isReparent ? 0.9 : 0.55) : 0.6
+                })`,
+                background: `rgba(${accentRgb},${
+                  drop.allowed ? (isReparent ? 0.08 : 0.045) : 0.06
+                })`,
+                transition: reduceMotion
+                  ? "none"
+                  : "top 80ms linear, left 80ms linear, width 80ms linear, height 80ms linear",
+                pointerEvents: "none",
+                zIndex: 96,
+              }}
+            >
+              {/* Reparent badge — names the would-be parent so the nesting is
+               *  explicit. Only on an allowed cross-parent drop. */}
+              {isReparent && drop.allowed ? (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: -11,
+                    left: 8,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    height: 22,
+                    padding: "0 9px",
+                    borderRadius: 6,
+                    background: `rgba(${REPARENT_RGB},0.96)`,
+                    color: "#ffffff",
+                    fontSize: 10.5,
+                    fontWeight: 700,
+                    letterSpacing: "0.01em",
+                    whiteSpace: "nowrap",
+                    boxShadow: `0 4px 14px rgba(${REPARENT_RGB},0.4), inset 0 1px 0 rgba(255,255,255,0.22)`,
+                    fontFamily:
+                      'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
+                  }}
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" aria-hidden>
+                    {/* nested-box glyph */}
+                    <rect
+                      x="3"
+                      y="3"
+                      width="18"
+                      height="18"
+                      rx="3"
+                      fill="none"
+                      stroke="#ffffff"
+                      strokeWidth="2"
+                      opacity="0.55"
+                    />
+                    <rect
+                      x="8"
+                      y="8"
+                      width="8"
+                      height="8"
+                      rx="1.5"
+                      fill="#ffffff"
+                    />
+                  </svg>
+                  {`Nest in ${BUILDER_NODE_REGISTRY[drop.parentKind]?.label ?? humanizeTypeKey(drop.parentKind)}`}
+                </span>
+              ) : null}
+            </div>
+          );
+        })()
+      ) : null}
+
       {/* ── P3-DRAG canvas drop indicator ─────────────────────────────
        *  The horizontal line where a palette element / dragged block will
        *  land inside the resolved parent container. Blue = a legal drop;
@@ -3737,6 +4035,145 @@ export function SelectionLayer() {
             }}
           />
         </div>
+      ) : null}
+
+      {/* ── 4A #6 — labeled drag-ghost for a CANVAS-NODE drag ─────────────
+       *  A floating chip that follows the cursor naming what's being placed
+       *  (palette element name, or the dragged block's label) with a live
+       *  status sub-line: "Drop to place" / "Nest in <Parent>" / "Not allowed
+       *  here" / "Drag to place". The native HTML5 drag-image is suppressed at
+       *  the source, so this is the only thing the operator sees move — and it
+       *  now actually says what it is. Mirrors the section-level ghost's look. */}
+      {canvasNodeDrag.phase !== "idle" ? (
+        (() => {
+          const drop = canvasNodeDrag.drop;
+          const isReparent =
+            canvasNodeDrag.phase === "move" &&
+            drop !== null &&
+            drop.allowed &&
+            canvasNodeDrag.sourceParentNodeId !== null &&
+            canvasNodeDrag.sourceParentNodeId !== drop.parentNodeId;
+          const status = !drop
+            ? canvasNodeDrag.phase === "palette"
+              ? "Drag onto the page"
+              : "Drag to place"
+            : !drop.allowed
+              ? "Not allowed here"
+              : isReparent
+                ? `Nest in ${BUILDER_NODE_REGISTRY[drop.parentKind]?.label ?? humanizeTypeKey(drop.parentKind)}`
+                : canvasNodeDrag.phase === "palette"
+                  ? "Drop to place"
+                  : "Drop to move";
+          const statusColor = drop && !drop.allowed ? "#ff9a9a" : undefined;
+          return (
+            <div
+              data-edit-overlay="canvas-node-drag-ghost"
+              style={{
+                position: "fixed",
+                top: canvasNodeDrag.cursorY + 16,
+                left: canvasNodeDrag.cursorX + 18,
+                pointerEvents: "none",
+                zIndex: 100,
+                transform: reduceMotion
+                  ? "translateZ(0)"
+                  : "rotate(-1deg) translateZ(0)",
+                willChange: reduceMotion ? undefined : "transform",
+                background: CHIP_BG,
+                color: "white",
+                padding: "10px 14px",
+                borderRadius: CANVAS_CHROME_RADIUS,
+                boxShadow:
+                  "0 28px 64px -14px rgba(0,0,0,0.44), 0 6px 16px -4px rgba(0,0,0,0.26), inset 0 0 0 1px rgba(255,255,255,0.09), inset 0 1px 0 rgba(255,255,255,0.16)",
+                display: "flex",
+                alignItems: "center",
+                gap: 11,
+                maxWidth: 320,
+                fontFamily:
+                  'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
+                backdropFilter: "blur(14px)",
+                WebkitBackdropFilter: "blur(14px)",
+                animation: reduceMotion
+                  ? undefined
+                  : `${GHOST_SPAWN} 110ms ease-out`,
+              }}
+            >
+              <span
+                aria-hidden
+                style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: CANVAS_CHROME_RADIUS,
+                  background:
+                    canvasNodeDrag.phase === "palette"
+                      ? "rgba(58,123,255,0.20)"
+                      : "rgba(255,255,255,0.10)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                  color: "rgba(255,255,255,0.92)",
+                }}
+              >
+                {/* "+" for an insert from the palette, grip-dots for a move. */}
+                {canvasNodeDrag.phase === "palette" ? (
+                  <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden>
+                    <path
+                      d="M12 5v14M5 12h14"
+                      stroke="#ffffff"
+                      strokeWidth="2.4"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    width="9"
+                    height="14"
+                    viewBox="0 0 9 14"
+                    fill="currentColor"
+                    aria-hidden
+                  >
+                    <circle cx="2" cy="2" r="1" />
+                    <circle cx="7" cy="2" r="1" />
+                    <circle cx="2" cy="7" r="1" />
+                    <circle cx="7" cy="7" r="1" />
+                    <circle cx="2" cy="12" r="1" />
+                    <circle cx="7" cy="12" r="1" />
+                  </svg>
+                )}
+              </span>
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: 13.5,
+                    fontWeight: 600,
+                    letterSpacing: "-0.005em",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {canvasNodeDrag.label}
+                </div>
+                <div
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 600,
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
+                    opacity: 0.6,
+                    marginTop: 2,
+                    color: statusColor,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {status}
+                </div>
+              </div>
+            </div>
+          );
+        })()
       ) : null}
 
       {/* ── Drag ghost ────────────────────────────────────────────── */}

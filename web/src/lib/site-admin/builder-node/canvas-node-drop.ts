@@ -52,6 +52,14 @@ export interface CanvasDropCandidate {
 export interface CanvasDropResult {
   /** Container the element will land inside. */
   parentNodeId: string;
+  /** The resolved parent container's own kind (drives the reparent label). */
+  parentKind: BuilderNodeKind;
+  /**
+   * Viewport rect of the resolved parent container. Lets the canvas chrome
+   * outline the would-be parent (drop-target highlight + reparent/nesting
+   * preview) without re-walking the DOM. Mirrors the candidate's `rect`.
+   */
+  parentRect: { top: number; left: number; width: number; height: number };
   /** Gap index among the parent's direct children (0…childCount). */
   index: number;
   /** True when the dragged kind is allowed under this parent. */
@@ -138,6 +146,13 @@ export function resolveCanvasNodeDrop(input: {
 
   return {
     parentNodeId: parent.nodeId,
+    parentKind: parent.kind,
+    parentRect: {
+      top: parent.rect.top,
+      left: parent.rect.left,
+      width: parent.rect.width,
+      height: parent.rect.height,
+    },
     index,
     allowed,
     indicatorY,
