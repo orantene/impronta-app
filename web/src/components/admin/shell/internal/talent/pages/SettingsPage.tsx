@@ -1,5 +1,6 @@
 "use client";
 
+import { CommercialBookingTermsCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/CommercialBookingTermsCard";
 import { DefaultCurrencyCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/DefaultCurrencyCard";
 import { ProfileVisibilityCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/ProfileVisibilityCard";
 import { TalentPlanCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/TalentPlanCard";
@@ -69,6 +70,16 @@ export function SettingsPage() {
           would fail. */}
       {bridgeTalentSelfProfile && (
         <DefaultCurrencyCard />
+      )}
+
+      {/* Commercial booking terms — talent's preferred deposit / refund /
+          instant-book / fixed-rate DEFAULTS. Gated on a real bridged profile
+          (same idiom as DefaultCurrencyCard — the mock prototype user has no
+          talent_profiles row, so the focused load/save actions would fail).
+          Configuration only: the binding per-offer terms are set in the
+          booking flow, not here. */}
+      {bridgeTalentSelfProfile && (
+        <CommercialBookingTermsCard talentId={bridgeTalentSelfProfile.id} />
       )}
 
       {/* Trust & Verification — talent's view of their own trust state */}

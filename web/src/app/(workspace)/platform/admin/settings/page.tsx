@@ -4,7 +4,9 @@
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadPlatformSuperAdmins } from "../../platform-data";
 import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
+import { loadPlatformCommercialDefaults } from "@/lib/platform/commercial-defaults";
 import { PlatformCurrencyCard } from "./PlatformCurrencyCard";
+import { PlatformCommercialDefaultsCard } from "./PlatformCommercialDefaultsCard";
 
 export const dynamic = "force-dynamic";
 
@@ -107,6 +109,7 @@ export default async function PlatformSettingsPage() {
   const hqTeam = await loadPlatformSuperAdmins();
   const currentUserId = session.user?.id;
   const operatingCurrency = await loadPlatformOperatingCurrency();
+  const commercialDefaults = await loadPlatformCommercialDefaults();
 
   return (
     <>
@@ -152,6 +155,20 @@ export default async function PlatformSettingsPage() {
             current={{
               operatingCurrency: operatingCurrency.operatingCurrency,
               multiCurrencyDisplayEnabled: operatingCurrency.multiCurrencyDisplayEnabled,
+            }}
+          />
+        </HqCard>
+
+        {/* Commercial defaults — base booking terms the resolver falls back to */}
+        <HqCard
+          title="Commercial defaults"
+          subtitle="Base deposit, refund policy, and instant-book the platform falls back to when a workspace or talent hasn't set their own."
+        >
+          <PlatformCommercialDefaultsCard
+            current={{
+              defaultDepositPct: commercialDefaults.defaultDepositPct,
+              defaultRefundPolicy: commercialDefaults.defaultRefundPolicy,
+              instantBookDefault: commercialDefaults.instantBookDefault,
             }}
           />
         </HqCard>

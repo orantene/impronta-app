@@ -36,6 +36,7 @@ import {
   TenantSettingsSection,
 } from "./tenant-sections-control";
 import { CommissionSection } from "./tenant-commission-section";
+import { CommercialTermsSection } from "./tenant-commercial-terms-section";
 import type { TenantManagementDetail } from "../../tenant-management-data";
 
 // ─── Shared mini-primitives ────────────────────────────────────────────────────
@@ -660,6 +661,12 @@ export function TenantSectionStack({
       />,
       <CommissionSection
         key="commission"
+        detail={detail}
+        onChanged={onChanged}
+        defaultOpen={false}
+      />,
+      <CommercialTermsSection
+        key="commercial-terms"
         detail={detail}
         onChanged={onChanged}
         defaultOpen={false}
