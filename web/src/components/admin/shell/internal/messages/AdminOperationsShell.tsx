@@ -32,7 +32,7 @@ import { withWeekday } from "./TalentJobShell";
 // need. The admin's job: flip between Client thread / Talent group /
 // Files (the existing tabs) and use the rail to drive the deal forward.
 
-export type AdminFilter = "all" | "needs-me" | "unread" | "coordinating" | "handoffs" | "inquiry" | "hold" | "booked" | "past" | "archived" | "triage";
+export type AdminFilter = "all" | "needs-me" | "unread" | "coordinating" | "handoffs" | "inquiry" | "hold" | "approved" | "booked" | "past" | "archived" | "triage";
 
 export function AdminOperationsShell() {
   const { effectiveMessagesInquiries, effectiveTenant, tenantSlug } = useAdminShell();
@@ -67,10 +67,14 @@ export function AdminOperationsShell() {
   const [filter, setFilter] = useState<AdminFilter>("needs-me");
   const [mobilePane, setMobilePane] = useState<"list" | "thread">(fromPin ? "thread" : "list");
 
-  const stageBucket = (s: string): "inquiry" | "hold" | "booked" | "past" => {
+  const stageBucket = (s: string): "inquiry" | "hold" | "approved" | "booked" | "past" => {
     if (s === "draft" || s === "submitted" || s === "coordination") return "inquiry";
     if (s === "offer_pending") return "hold";
-    if (s === "approved" || s === "booked") return "booked";
+    // Approved (all parties agreed, ready to book) is its OWN bucket — it must
+    // not read as "Booked" before the admin runs Move-to-Booked (no booking
+    // row exists yet). Aligns the admin inbox with the talent/client surfaces.
+    if (s === "approved") return "approved";
+    if (s === "booked") return "booked";
     return "past";
   };
 
@@ -296,11 +300,14 @@ export function AdminInquiryRow({
   const allTalents = inquiry.requirementGroups.flatMap(g => g.talents);
   const lineupTotal = allTalents.length;
   const lineupAccepted = allTalents.filter(t => t.status === "accepted").length;
-  const stageBucket: "inquiry" | "hold" | "booked" | "past" =
+  const stageBucket: "inquiry" | "hold" | "approved" | "booked" | "past" =
       inquiry.stage === "draft" || inquiry.stage === "submitted" || inquiry.stage === "coordination" ? "inquiry"
     : inquiry.stage === "offer_pending" ? "hold"
-    : inquiry.stage === "approved" || inquiry.stage === "booked" ? "booked"
+    : inquiry.stage === "approved" ? "approved"
+    : inquiry.stage === "booked" ? "booked"
     : "past";
+  // stageStyle already carries a distinct "approved" tone (indigo "ready to
+  // book"), so the row pill now reads Approved ≠ Booked.
   const sc = stageStyle(stageBucket);
   const needsMe = inquiry.nextActionBy === "coordinator";
   // hideNeedsYouChip is set when the user is already filtering by
@@ -364,6 +371,7 @@ export function AdminInquiryRow({
     active ? "rgba(11,11,13,0.045)"
     : isUnseen ? "rgba(176,48,58,0.05)"
     : isActionNeeded ? "rgba(176,48,58,0.04)"
+    : stageBucket === "approved" ? "rgba(43,63,163,0.05)"
     : stageBucket === "booked" ? "rgba(46,125,91,0.045)"
     : "transparent";
 
