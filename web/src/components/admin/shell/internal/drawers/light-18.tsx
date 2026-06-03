@@ -6,6 +6,7 @@ import {
   COLORS,
   CapsLabel,
   DrawerShell,
+  EmptyState,
   FONTS,
   FieldRow,
   GhostButton,
@@ -232,61 +233,22 @@ export function EmailBrandingDrawer() {
 
 
 export function EmailSequencesDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "email-sequences";
-
-  type Sequence = { id: string; name: string; trigger: string; steps: number; active: boolean; description: string };
-  const [sequences, setSequences] = useState<Sequence[]>([
-    { id: "s1", name: "Onboarding — workspace",    trigger: "Workspace created",          steps: 5, active: true,  description: "Day 1, 3, 7, 14, 30 — guides admin through setup milestones." },
-    { id: "s2", name: "Onboarding — talent",       trigger: "Talent profile created",     steps: 4, active: true,  description: "Profile completion nudges, first booking tips, agency tour." },
-    { id: "s3", name: "Onboarding — client",       trigger: "Client first login",         steps: 3, active: false, description: "Search intro, first shortlist prompt, inquiry guide." },
-    { id: "s4", name: "Dunning — payment failure", trigger: "Payment failed",             steps: 4, active: true,  description: "Immediate, +3d, +7d, +14d. Escalates to account pause at step 4." },
-    { id: "s5", name: "Win-back — dormant",        trigger: "30d no activity",           steps: 3, active: false, description: "30d, 60d, 90d. Personalised digest of what they missed." },
-    { id: "s6", name: "Booking day reminder",      trigger: "24h + 1h before booking",   steps: 2, active: true,  description: "24-hour reminder and on-day 1-hour reminder." },
-  ]);
-
+  // Honest stub — no backend yet; the previous body was hardcoded demo data.
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
       title="Email sequences"
-      description="Multi-step automated email campaigns. Toggle to pause without deleting."
-      footer={
-        <div className="flex gap-2">
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
-        </div>
-      }
-      defaultSize="half"
+      description="Automated multi-step email flows."
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, fontFamily: FONTS.body }}>
-        {sequences.map((seq) => (
-          <div
-            key={seq.id}
-            style={{
-              padding: "14px 16px", background: COLORS.surfaceAlt,
-              borderRadius: RADIUS.lg, border: `1px solid ${COLORS.borderSoft}`,
-              display: "flex", gap: 12, alignItems: "flex-start",
-            }}
-          >
-            <Toggle
-              on={seq.active}
-              onChange={(v) => setSequences((prev) => prev.map((s) => s.id === seq.id ? { ...s, active: v } : s))}
-            />
-            <div className="flex-1">
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: seq.active ? COLORS.ink : COLORS.inkMuted }}>{seq.name}</span>
-                <span style={{ fontSize: 10, fontWeight: 700, color: seq.active ? COLORS.successDeep : COLORS.inkMuted, background: seq.active ? COLORS.successSoft : COLORS.surfaceAlt, padding: "1px 6px", textTransform: "uppercase" }} className="rounded-admin-sm">
-                  {seq.active ? "Active" : "Paused"}
-                </span>
-              </div>
-              <div style={{ fontSize: 11.5, marginBottom: 4 }} className="text-admin-ink-muted">
-                Trigger: {seq.trigger} · {seq.steps} emails
-              </div>
-              <div style={{ fontSize: 11.5, lineHeight: 1.45 }} className="text-admin-ink-muted">{seq.description}</div>
-            </div>
-          </div>
-        ))}
-      </div>
+      <EmptyState
+        icon="mail"
+        title="Coming soon"
+        body="Automated email sequences aren't available yet."
+      />
     </DrawerShell>
   );
 }
