@@ -691,7 +691,7 @@
       "count": 1
     },
     "ratchet/no-new-inline-style": {
-      "count": 107
+      "count": 105
     }
   },
   "src/components/admin/shell/internal/page-modules/WorkspacePlanBadge.tsx": {

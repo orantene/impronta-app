@@ -26,6 +26,7 @@ import {
   resolveDesignTokens,
 } from "@/lib/site-admin";
 import { loadPublicBranding } from "@/lib/site-admin/server/reads";
+import { resolveTenantAnalytics } from "@/lib/integrations/analytics-resolver";
 import { GoogleFontsLink } from "./google-fonts-link";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { TenantRegisterMount } from "@/components/marketing/tenant-register-mount";
@@ -153,9 +154,10 @@ export default async function RootLayout({
   // registry defaults, which keeps the root layout safe on any path.
   // We read the LIVE row (never draft); the read is cached + tagged
   // `branding`, so publishDesign's updateTag(branding) busts this.
-  const publicBranding = publicScope
-    ? await loadPublicBranding(publicScope.tenantId)
-    : null;
+  const [publicBranding, tenantAnalytics] = await Promise.all([
+    publicScope ? loadPublicBranding(publicScope.tenantId) : Promise.resolve(null),
+    publicScope ? resolveTenantAnalytics(publicScope.tenantId) : Promise.resolve(null),
+  ]);
   const designTokens = resolveDesignTokens(publicBranding);
   const tokenCssVars = designTokensToCssVars(designTokens);
   const tokenDataAttrs = designTokensToDataAttrs(designTokens);
@@ -178,7 +180,13 @@ export default async function RootLayout({
         <GoogleFontsLink tokens={designTokens} />
         {/* Phase 5 — global scroll-reveal observer (no-op when no targets). */}
         <ScrollReveal />
-        <AnalyticsScripts />
+        <AnalyticsScripts
+          gaId={tenantAnalytics?.gaId}
+          gtmId={tenantAnalytics?.gtmId}
+          metaPixelId={tenantAnalytics?.metaPixelId}
+          tiktokPixelId={tenantAnalytics?.tiktokPixelId}
+          linkedInPartnerId={tenantAnalytics?.linkedInPartnerId}
+        />
         <WebVitalsReporter />
         <CspViolationReporter />
         {children}
