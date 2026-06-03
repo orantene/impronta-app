@@ -32,6 +32,7 @@ import { ChatSubToggleDropdown, MOCK_FILES_FOR_CONV, ThreadSearchTrigger, Thread
 import type { Offer } from "./shared/machinery-9";
 import { ShellHeader } from "./talent-1";
 import type { ShellHeaderInput } from "./talent-1";
+import { AdminActivityStream } from "./admin-4b";
 
 // ── WhosTurnBanner (D4) ─────────────────────────────────────────────
 // A slim contextual banner shown at the top of the thread content area
@@ -527,10 +528,21 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
                   topInset={42}
                 />
               )}
+              {/* D7 — Activity sub-thread: real DB-backed money/offer timeline.
+                  Replaces the prior "DM threads coming soon" stub with the same
+                  enriched activity view that the client and talent shells have.
+                  Shows: offer events, payment requests, booking confirmations,
+                  payout status, and any detail-update diffs stored as system cards.
+                  Read-only (no composer). Admin sees the full commercial picture
+                  (both talent and client sides); group thread is the right source
+                  since it receives all engine-emitted cards. */}
               {showDmStream && (
-                <div style={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: 28, textAlign: "center", fontFamily: FONTS.body, fontSize: 13 }} className="text-admin-ink-muted">
-                  DM threads land here in a later slice. Pick a participant from
-                  the Lineup tab to start a 1:1 conversation.
+                <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+                  <AdminActivityStream
+                    inquiryId={inquiry.id}
+                    tenantSlug={effectiveTenant.slug}
+                    threadType="group"
+                  />
                 </div>
               )}
             </>

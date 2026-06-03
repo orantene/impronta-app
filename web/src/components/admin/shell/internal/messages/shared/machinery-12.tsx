@@ -7,7 +7,7 @@ import { loadCurrentTalentPayoutSnapshot, loadMyInquiryTakeHome, type TalentPayo
 import { type TalentTakeHome } from "@/lib/talent/inquiry-take-home";
 import { submitMyCounterRate, submitMyRateForInquiry } from "@/lib/server-actions/talent-pipeline";
 import { clientApproveCurrentOffer, clientRejectCurrentOffer } from "@/lib/server-actions/client-pipeline";
-import { sendOfferAction, counterOfferAction, loadBookingCommissionSnapshotAction, loadInquiryPaymentState } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
+import { sendOfferAction, counterOfferAction, loadBookingCommissionSnapshotAction, loadInquiryPaymentState, reopenOfferAction } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import type { PersistedBookingCommissionSnapshot } from "@/lib/billing/commission";
 import { useAdminShell, COLORS, FONTS } from "../../state";
 import { type Conversation } from "../../talent";
@@ -249,12 +249,35 @@ export function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: Off
               style={primaryBtn(COLORS.accent)}
             >Send to client</button>
           )}
-          {/* No admin "Approve/Reject (as client)" at status==="sent": the client
-              and each assigned talent approve from THEIR OWN surfaces (engine
-              submit_approval). The admin waits for approvals; once 'accepted' the
-              inquiry flips to 'approved' and the header "Move to Booked" converts. */}
+          {/* A2 — Amend & re-send: when the offer is SENT but the admin needs
+              to adjust terms (price error, changed scope, client feedback),
+              this button calls reopenOfferAction which flips the offer back to
+              draft and clears existing approvals. The OfferDraftEditor below
+              then unlocks, and the coordinator edits + re-sends — reseeding
+              approval requests to all parties. This flow replaces the previous
+              "sent = locked with no edit path" dead-end. */}
           {status === "sent" && (
-            <span className="text-admin-ink-muted text-admin-11">Awaiting client + talent approval…</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <span className="text-admin-ink-muted text-admin-11">Awaiting client + talent approval…</span>
+              <button
+                type="button"
+                disabled={pending}
+                title="Withdraw this offer to edit the terms and re-send"
+                onClick={() => run("Amend offer", () => reopenOfferAction(effectiveTenant.slug, inquiryId, offerId))}
+                style={{
+                  padding: "5px 12px", borderRadius: 999, fontSize: 11.5, fontWeight: 600,
+                  border: `1px solid ${COLORS.border}`,
+                  background: "transparent", color: COLORS.ink, cursor: "pointer",
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  opacity: pending ? 0.5 : 1,
+                }}
+              >
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden>
+                  <path d="M8 2l2 2-6 6H2v-2l6-6zM7 3l2 2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Amend &amp; re-send
+              </button>
+            </div>
           )}
           {status === "rejected" && (
             <button type="button" disabled={pending}

@@ -61,6 +61,10 @@ export const ENGINE_EVENT_TYPES = {
   OFFER_DRAFT_UPDATED: "offer.draft_updated",
   OFFER_SENT: "offer.sent",
   OFFER_CLIENT_REJECTED: "offer.client_rejected",
+  // A2: coordinator reopens a SENT offer back to an editable draft so it can be
+  // amended and re-sent (re-seeding fresh approvals). Emitted by
+  // reopenOfferForAmendment in inquiry-engine-offers.ts.
+  OFFER_REOPENED: "offer.reopened",
 
   APPROVAL_SUBMITTED: "approval.submitted",
   APPROVAL_REJECTED: "approval.rejected",
@@ -267,6 +271,7 @@ const DEFAULT_PRIORITY: Record<EngineEventType, EngineEventPriority> = {
   [ENGINE_EVENT_TYPES.OFFER_DRAFT_UPDATED]: "low",
   [ENGINE_EVENT_TYPES.OFFER_SENT]: "high",
   [ENGINE_EVENT_TYPES.OFFER_CLIENT_REJECTED]: "high",
+  [ENGINE_EVENT_TYPES.OFFER_REOPENED]: "high",
   [ENGINE_EVENT_TYPES.APPROVAL_SUBMITTED]: "medium",
   [ENGINE_EVENT_TYPES.APPROVAL_REJECTED]: "high",
   [ENGINE_EVENT_TYPES.APPROVALS_COMPLETED]: "high",

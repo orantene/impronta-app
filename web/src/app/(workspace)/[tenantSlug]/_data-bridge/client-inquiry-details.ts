@@ -214,6 +214,13 @@ export type ClientInquiryDetails = {
     actor_name: string | null;
     actor_role: string | null;
     created_at: string;
+    /**
+     * Raw engine payload for this event. Callers may read:
+     *   - `changed` (Record<fieldName, {from, to}>) for inquiry.details_updated
+     *   - `amount_label` / `total_label` for money events
+     * Null for events that carry no structured payload.
+     */
+    payload: Record<string, unknown> | null;
   }>;
 
   /**
@@ -238,25 +245,31 @@ export type ClientInquiryDetails = {
 // ─── Client-visible activity event allow-list ───────────────────────────────
 // Spec §13 — client should see real progress, not internal noise.
 // Anything not in this list is filtered out.
+// IMPORTANT: these strings must match the DB values in ENGINE_EVENT_TYPES
+// (inquiry-events.ts), NOT the TypeScript const names.
 const CLIENT_VISIBLE_EVENT_TYPES = new Set<string>([
-  "INQUIRY_SUBMITTED",
-  "INQUIRY_MOVED_TO_COORDINATION",
-  "COORDINATOR_ASSIGNED",
-  "COORDINATOR_ACCEPTED",
-  "ROSTER_TALENT_INVITED",
-  "ROSTER_TALENT_ACCEPTED",
-  "ROSTER_TALENT_DECLINED",
-  "OFFER_CREATED",
-  "OFFER_SENT",
-  "OFFER_CLIENT_REJECTED",
-  "OFFER_CLIENT_ACCEPTED",
-  "APPROVAL_SUBMITTED",
-  "APPROVALS_COMPLETED",
-  "INQUIRY_CONVERTED_TO_BOOKING",
-  "BOOKING_CONFIRMED",
-  "INQUIRY_FROZEN",
-  "INQUIRY_UNFROZEN",
-  "INQUIRY_ARCHIVED",
+  "inquiry.submitted",
+  "inquiry.moved_to_coordination",
+  "inquiry.details_updated",
+  "inquiry.frozen",
+  "inquiry.unfrozen",
+  "inquiry.archived",
+  "inquiry.cancelled",
+  "coordinator.assigned",
+  "coordinator.accepted",
+  "roster.talent_invited",
+  "roster.talent_accepted",
+  "roster.talent_declined",
+  "offer.created",
+  "offer.sent",
+  "offer.client_rejected",
+  "approval.submitted",
+  "approval.all_complete",
+  "booking.created",
+  // Commercial audit events written by commercial-audit.ts / transactions.ts
+  "payment_requested",
+  "payment_paid",
+  "booking_confirmed",
 ]);
 
 // ─── Loader ─────────────────────────────────────────────────────────────────
@@ -367,10 +380,10 @@ export async function loadClientInquiryDetails(
             .eq("id", inq.coordinator_id)
             .maybeSingle()
         : Promise.resolve({ data: null, error: null }),
-      // Recent activity
+      // Recent activity — include payload for field-diff + money event rendering
       readClient
         .from("inquiry_events")
-        .select("id, event_type, actor_user_id, actor_role, created_at")
+        .select("id, event_type, actor_user_id, actor_role, created_at, payload")
         .eq("inquiry_id", inquiryId)
         .order("created_at", { ascending: false })
         .limit(50),
@@ -419,6 +432,7 @@ export async function loadClientInquiryDetails(
       actor_user_id: string | null;
       actor_role: string | null;
       created_at: string;
+      payload: Record<string, unknown> | null;
     };
     const allEvents = (eventsRes.data ?? []) as EventRow[];
     const visibleEvents = allEvents
@@ -753,6 +767,7 @@ export async function loadClientInquiryDetails(
         actor_name: e.actor_user_id ? (actorNameMap.get(e.actor_user_id) ?? null) : null,
         actor_role: e.actor_role,
         created_at: e.created_at,
+        payload: e.payload ?? null,
       })),
 
       // D5.4 / D5.5 — rollup labels for the Lineup tab. Two extra

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { sendInquiryMessageAsTalent } from "@/lib/server-actions/talent-pipeline";
 import { sendInquiryMessageAsClient } from "@/lib/server-actions/client-pipeline";
 import { COLORS, FONTS, useAdminShell } from "../../state";
@@ -489,6 +489,13 @@ export const SMART_REPLIES_FOR_LAST: Record<string, string[]> = {
   default: ["Sounds good", "Let me check", "Confirming shortly"],
 };
 
+/** A single mention candidate — a participant in the inquiry conversation. */
+export type MentionCandidate = {
+  /** Slash-safe name — no spaces guaranteed, but we handle it. */
+  name: string;
+  role?: string;
+};
+
 export function DraftComposer({
   threadKey, placeholder, onSend, smartReplyContext = "default",
   // Phase 4 of System User direction — when both `workspaceName` is
@@ -504,6 +511,10 @@ export function DraftComposer({
   // button is enabled and opens a file picker. The caller handles
   // the actual upload (admin passes uploadInquiryAttachment).
   onAttach,
+  // C3: optional mention candidates. When set, typing "@" opens a
+  // picker listing these participants. Selecting one inserts "@Name"
+  // at the cursor position. renderWithMentions highlights the tags.
+  mentionCandidates,
 }: {
   threadKey: string;
   placeholder: string;
@@ -513,8 +524,60 @@ export function DraftComposer({
   canSendAsWorkspace?: boolean;
   onSendAsWorkspace?: (text: string) => void;
   onAttach?: (file: File) => void;
+  mentionCandidates?: MentionCandidate[];
 }) {
   const [val, setVal] = useState(() => __draftStore.get(threadKey) ?? "");
+  // C3 — @-mention picker state. Opens when the user types "@" anywhere
+  // in the input. Stores the partial query after "@" for filtering.
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Detect "@" trigger: find the last "@" before the cursor and derive
+  // the query string (text typed after the "@"). If the user has typed
+  // a space or deleted the "@", close the picker.
+  const updateMentionState = useCallback((text: string, cursorPos: number) => {
+    if (!mentionCandidates?.length) { setMentionQuery(null); return; }
+    const textBefore = text.slice(0, cursorPos);
+    const atIdx = textBefore.lastIndexOf("@");
+    if (atIdx < 0) { setMentionQuery(null); return; }
+    const fragment = textBefore.slice(atIdx + 1);
+    // Close the picker if the fragment contains a space (mention ended).
+    if (fragment.includes(" ")) { setMentionQuery(null); return; }
+    setMentionQuery(fragment);
+  }, [mentionCandidates]);
+
+  // Filter candidates by the current query (case-insensitive prefix match).
+  const filteredMentions = mentionQuery !== null && mentionCandidates?.length
+    ? mentionCandidates.filter(c =>
+        c.name.toLowerCase().startsWith(mentionQuery.toLowerCase())
+      ).slice(0, 6)
+    : [];
+
+  const showMentionPicker = mentionQuery !== null && filteredMentions.length > 0;
+
+  // When the user selects a candidate, replace "@<query>" in the input
+  // with "@FirstName" (first word of name, no spaces — cleaner tag).
+  const selectMention = useCallback((candidate: MentionCandidate) => {
+    const input = inputRef.current;
+    const cursorPos = input?.selectionStart ?? val.length;
+    const textBefore = val.slice(0, cursorPos);
+    const textAfter = val.slice(cursorPos);
+    const atIdx = textBefore.lastIndexOf("@");
+    if (atIdx < 0) { setMentionQuery(null); return; }
+    // Use first name only so tags don't create long spans.
+    const tag = `@${candidate.name.split(" ")[0]}`;
+    const newVal = textBefore.slice(0, atIdx) + tag + " " + textAfter;
+    setVal(newVal);
+    setMentionQuery(null);
+    // Restore focus + move cursor after the inserted tag.
+    requestAnimationFrame(() => {
+      if (!input) return;
+      input.focus();
+      const newCursor = atIdx + tag.length + 1;
+      input.setSelectionRange(newCursor, newCursor);
+    });
+  }, [val]);
+
   const [hasSent, setHasSent] = useState(false);
   // Send-as state — defaults to "you" so accidental posts don't
   // attribute to the workspace.
@@ -704,18 +767,82 @@ export function DraftComposer({
             </svg>
           </button>
         )}
-        <input
-          type="text"
-          value={val}
-          onChange={(e) => setVal(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && val.trim()) handleSend(val); }}
-          placeholder={placeholder}
-          style={{
-            flex: 1, padding: "10px 14px", borderRadius: 24,
-            background: "rgba(11,11,13,0.04)", border: `1.5px solid ${val ? COLORS.accent : "transparent"}`,
-            fontFamily: FONTS.body, fontSize: 13.5, color: COLORS.ink, outline: "none",
-          }}
-        />
+        {/* C3 — @-mention picker floats above the input when active.
+            Rendered inside the flex row via absolute positioning from
+            the relative wrapper below. */}
+        <div style={{ flex: 1, position: "relative" }}>
+          {showMentionPicker && (
+            <div style={{
+              position: "absolute", bottom: "calc(100% + 4px)", left: 0, right: 0,
+              background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 10,
+              boxShadow: "0 4px 16px rgba(11,11,13,0.12)",
+              zIndex: 20,
+              overflow: "hidden",
+              fontFamily: FONTS.body,
+            }}>
+              <div style={{ padding: "5px 10px 3px", fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-muted">
+                Mention someone
+              </div>
+              {filteredMentions.map((c, i) => (
+                <button
+                  key={`${c.name}-${i}`}
+                  type="button"
+                  onMouseDown={(e) => { e.preventDefault(); selectMention(c); }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    width: "100%", padding: "7px 12px",
+                    background: "transparent", border: "none",
+                    cursor: "pointer", textAlign: "left",
+                    fontFamily: FONTS.body,
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = COLORS.surfaceAlt; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                >
+                  <span style={{
+                    width: 24, height: 24, borderRadius: "50%", flexShrink: 0,
+                    background: COLORS.accentSoft, color: COLORS.accentDeep,
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 10, fontWeight: 700,
+                  }}>
+                    {c.name.split(" ").slice(0, 2).map(w => w[0]?.toUpperCase() ?? "").join("") || "@"}
+                  </span>
+                  <div>
+                    <div style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">{c.name}</div>
+                    {c.role && <div style={{ fontSize: 10.5 }} className="text-admin-ink-muted">{c.role}</div>}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+          <input
+            ref={inputRef}
+            type="text"
+            value={val}
+            onChange={(e) => {
+              setVal(e.target.value);
+              updateMentionState(e.target.value, e.target.selectionStart ?? e.target.value.length);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Escape" && showMentionPicker) {
+                setMentionQuery(null);
+                e.preventDefault();
+                return;
+              }
+              if (e.key === "Enter" && !showMentionPicker && val.trim()) handleSend(val);
+            }}
+            onClick={(e) => {
+              updateMentionState(val, (e.target as HTMLInputElement).selectionStart ?? val.length);
+            }}
+            placeholder={placeholder}
+            style={{
+              width: "100%", padding: "10px 14px", borderRadius: 24,
+              background: "rgba(11,11,13,0.04)", border: `1.5px solid ${val ? COLORS.accent : "transparent"}`,
+              fontFamily: FONTS.body, fontSize: 13.5, color: COLORS.ink, outline: "none",
+              boxSizing: "border-box",
+            }}
+          />
+        </div>
         {!val && (
           <button type="button" aria-label="Voice note" title="Voice notes coming soon" disabled style={{
             width: 36, height: 36, borderRadius: "50%", border: "none",

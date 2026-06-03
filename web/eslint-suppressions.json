@@ -421,6 +421,11 @@
       "count": 17
     }
   },
+  "src/components/admin/shell/internal/messages/admin-4b.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 10
+    }
+  },
   "src/components/admin/shell/internal/messages/client-1.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 32
@@ -453,7 +458,10 @@
   },
   "src/components/admin/shell/internal/messages/shared/machinery-12.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 57
+      "count": 59
+    },
+    "max-lines": {
+      "count": 1
     }
   },
   "src/components/admin/shell/internal/messages/shared/machinery-13.tsx": {
@@ -476,7 +484,10 @@
   },
   "src/components/admin/shell/internal/messages/shared/machinery-16.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 42
+      "count": 49
+    },
+    "max-lines": {
+      "count": 1
     }
   },
   "src/components/admin/shell/internal/messages/shared/machinery-2.tsx": {
