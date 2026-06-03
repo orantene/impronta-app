@@ -491,16 +491,10 @@ export async function restorePageRevisionAction(input: {
 }
 
 // ── Named-version labels (no-migration, localStorage-backed on the client) ────
-
-/**
- * Add a `labelRevisionAction` stub — labels are stored client-side (localStorage)
- * by the RevisionCard. This export type is used by the drawer for the
- * saved-label map shape. No server action is needed.
- *
- * The map persisted under `builder_revision_labels_v1` is:
- *   `{ [revisionId: string]: string }` — operator-authored freeform labels.
- */
-export const REVISION_LABELS_STORAGE_KEY = "builder_revision_labels_v1";
+// Labels are stored client-side (localStorage) by the revisions drawer/card.
+// REVISION_LABELS_STORAGE_KEY lives in revisions-drawer.tsx — a "use server"
+// module can only export async functions, so a value const cannot be exported
+// from here (it would be stripped → "export not found" at build).
 
 // ── Publish diff: load the two revision IDs the diff panel needs ──────────────
 

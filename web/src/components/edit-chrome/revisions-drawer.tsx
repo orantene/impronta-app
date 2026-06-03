@@ -56,11 +56,15 @@ import { useEditContext } from "./edit-context";
 import {
   loadHomepageRevisionsAction,
   loadPageRevisionsAction,
-  REVISION_LABELS_STORAGE_KEY,
   type RevisionListRow,
 } from "@/lib/site-admin/edit-mode/revisions-actions";
 import { RevisionsDiffPanel } from "./revisions-diff-panel";
 import { RevisionCard } from "./revisions-card";
+
+// Named-version labels are persisted client-side (this drawer + RevisionCard);
+// the key lives here, not in the "use server" revisions-actions module (which
+// can only export async functions).
+const REVISION_LABELS_STORAGE_KEY = "builder_revision_labels_v1";
 
 // ── icons ────────────────────────────────────────────────────────────────
 
