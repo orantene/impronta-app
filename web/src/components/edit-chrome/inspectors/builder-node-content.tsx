@@ -790,6 +790,725 @@ export function BuilderNodeContentInspector({
     );
   }
 
+  // ── video ────────────────────────────────────────────────────────────────
+  // Pattern: MediaPickerButton for src + poster (same as image node), then
+  // four boolean toggles for autoplay/muted/loop/controls. Schema:
+  // videoPropsSchema in registry.ts.
+  if (node.kind === "video") {
+    return (
+      <div className="flex flex-col gap-3">
+        <Card state="active">
+          <CardHead title="Video node" sub="Canvas selection" iconAccent="blue" />
+          <CardBody>
+            <div className="flex flex-col gap-3">
+              <div>
+                <div className={`${KIT.label} mb-1.5`}>Video source</div>
+                <MediaPickerButton
+                  tenantId={tenantId}
+                  value={node.props.src}
+                  onChange={(next) => {
+                    if (!next) return;
+                    void commitPatch({ src: next, mediaId: undefined });
+                  }}
+                  onPickItem={(item) => {
+                    void commitPatch({ src: item.publicUrl, mediaId: item.id });
+                  }}
+                  emptyLabel="Choose video"
+                />
+                <Helper>Paste a URL or choose from the media library.</Helper>
+              </div>
+              <div>
+                <div className={`${KIT.label} mb-1.5`}>Poster image (optional)</div>
+                <MediaPickerButton
+                  tenantId={tenantId}
+                  value={node.props.poster}
+                  onChange={(next) => {
+                    void commitPatch({ poster: next === null ? undefined : next });
+                  }}
+                  onPickItem={(item) => {
+                    void commitPatch({ poster: item.publicUrl });
+                  }}
+                  emptyLabel="Choose poster"
+                  aspect="16/9"
+                />
+                <Helper>Shown before the video plays; should match the video aspect ratio.</Helper>
+              </div>
+              <div className="flex flex-col gap-2">
+                <Toggle
+                  on={node.props.controls ?? true}
+                  onChange={(next) => { void commitPatch({ controls: next }); }}
+                  label="Show controls"
+                  helper="Native browser play/pause/seek bar."
+                />
+                <Toggle
+                  on={node.props.autoplay ?? false}
+                  onChange={(next) => { void commitPatch({ autoplay: next }); }}
+                  label="Autoplay"
+                  helper="Starts playing on load. Most browsers require Muted to be on."
+                />
+                <Toggle
+                  on={node.props.muted ?? false}
+                  onChange={(next) => { void commitPatch({ muted: next }); }}
+                  label="Muted"
+                  helper="Required for autoplay in most browsers."
+                />
+                <Toggle
+                  on={node.props.loop ?? false}
+                  onChange={(next) => { void commitPatch({ loop: next }); }}
+                  label="Loop"
+                  helper="Restarts automatically when it ends."
+                />
+              </div>
+            </div>
+          </CardBody>
+        </Card>
+      </div>
+    );
+  }
+
+  // ── embed ─────────────────────────────────────────────────────────────────
+  // Pattern: URL input (https-only, validated against allow-listed providers)
+  // + provider select + title + allowFullScreen toggle. Schema:
+  // embedPropsSchema — provider enum: youtube | vimeo | maps | calendly | url.
+  if (node.kind === "embed") {
+    return (
+      <div className="flex flex-col gap-3">
+        <Card state="active">
+          <CardHead title="Embed node" sub="Canvas selection" iconAccent="blue" />
+          <CardBody>
+            <div className="flex flex-col gap-3">
+              <Field flush>
+                <FieldLabel>Embed URL</FieldLabel>
+                <input
+                  key={`${node.id}:src:${node.props.src}`}
+                  defaultValue={node.props.src}
+                  className={KIT.input}
+                  type="url"
+                  placeholder="https://www.youtube.com/embed/..."
+                  onBlur={(event) => {
+                    void commitTextInput("src", node.props.src)(event.currentTarget.value);
+                  }}
+                  onKeyDown={handleCommitKey((value) => {
+                    void commitTextInput("src", node.props.src)(value);
+                  })}
+                />
+                <Helper>
+                  Must be https://. Allowed: YouTube, Vimeo, Google Maps, Calendly.
+                </Helper>
+              </Field>
+              <Field flush>
+                <FieldLabel>Provider</FieldLabel>
+                <select
+                  className={KIT.select}
+                  value={node.props.provider ?? "url"}
+                  onChange={(event) => {
+                    void commitPatch({
+                      provider: event.currentTarget.value as
+                        | "youtube"
+                        | "vimeo"
+                        | "maps"
+                        | "calendly"
+                        | "url",
+                    });
+                  }}
+                >
+                  <option value="youtube">YouTube</option>
+                  <option value="vimeo">Vimeo</option>
+                  <option value="maps">Google Maps</option>
+                  <option value="calendly">Calendly</option>
+                  <option value="url">Other URL</option>
+                </select>
+                <Helper>Shown in the editor — used for safe rendering.</Helper>
+              </Field>
+              <Field flush>
+                <FieldLabel>Title (accessibility)</FieldLabel>
+                <input
+                  key={`${node.id}:title:${node.props.title ?? ""}`}
+                  defaultValue={node.props.title ?? ""}
+                  className={KIT.input}
+                  placeholder="e.g. Demo video"
+                  onBlur={(event) => {
+                    void commitTextInput("title", node.props.title ?? "", true)(
+                      event.currentTarget.value,
+                    );
+                  }}
+                  onKeyDown={handleCommitKey((value) => {
+                    void commitTextInput("title", node.props.title ?? "", true)(value);
+                  })}
+                />
+                <Helper>Used as the iframe&apos;s title for screen readers.</Helper>
+              </Field>
+              <div style={{ padding: "4px 0" }}>
+                <Toggle
+                  on={node.props.allowFullScreen ?? false}
+                  onChange={(next) => { void commitPatch({ allowFullScreen: next }); }}
+                  label="Allow full screen"
+                  helper="Lets visitors expand the embed to fill their screen."
+                />
+              </div>
+            </div>
+          </CardBody>
+        </Card>
+      </div>
+    );
+  }
+
+  // ── pricing_table ─────────────────────────────────────────────────────────
+  // Pattern: tier array editor (nested-list UX mirroring accordion/tabs).
+  // Each tier has: name, price, period, description, ctaLabel, ctaHref,
+  // highlighted, features[]{label, included}.
+  // Schema: pricingTablePropsSchema — tiers min(2) max(4).
+  if (node.kind === "pricing_table") {
+    const tiers = node.props.tiers;
+    return (
+      <div className="flex flex-col gap-3">
+        <Card state="active">
+          <CardHead
+            title="Pricing table"
+            sub={`${tiers.length} tier${tiers.length === 1 ? "" : "s"}`}
+            iconAccent="blue"
+          />
+          <CardBody>
+            <p className={KIT.hint}>
+              Edit each tier below. You can have 2–4 tiers. Drag to reorder, or use Remove to delete (minimum 2 required).
+            </p>
+          </CardBody>
+        </Card>
+        {tiers.map((tier, tierIndex) => (
+          <Card key={tier.id}>
+            <CardHead
+              title={tier.name || `Tier ${tierIndex + 1}`}
+              sub={`${tier.price}${tier.period ? ` / ${tier.period}` : ""}`}
+            />
+            <CardBody>
+              <div className="flex flex-col gap-3">
+                {/* Basic tier fields */}
+                <Field flush>
+                  <FieldLabel>Name</FieldLabel>
+                  <input
+                    key={`${tier.id}:name:${tier.name}`}
+                    defaultValue={tier.name}
+                    className={KIT.input}
+                    placeholder="e.g. Pro"
+                    onBlur={(event) => {
+                      const next = event.currentTarget.value.trim();
+                      if (!next || next === tier.name) return;
+                      const nextTiers = tiers.map((t, i) =>
+                        i === tierIndex ? { ...t, name: next } : t,
+                      );
+                      void commitPatch({ tiers: nextTiers });
+                    }}
+                  />
+                </Field>
+                <Field flush>
+                  <FieldLabel>Price</FieldLabel>
+                  <input
+                    key={`${tier.id}:price:${tier.price}`}
+                    defaultValue={tier.price}
+                    className={KIT.input}
+                    placeholder="e.g. $49 or Free"
+                    onBlur={(event) => {
+                      const next = event.currentTarget.value.trim();
+                      if (!next || next === tier.price) return;
+                      const nextTiers = tiers.map((t, i) =>
+                        i === tierIndex ? { ...t, price: next } : t,
+                      );
+                      void commitPatch({ tiers: nextTiers });
+                    }}
+                  />
+                </Field>
+                <Field flush>
+                  <FieldLabel>Period</FieldLabel>
+                  <input
+                    key={`${tier.id}:period:${tier.period ?? ""}`}
+                    defaultValue={tier.period ?? ""}
+                    className={KIT.input}
+                    placeholder="e.g. per month"
+                    onBlur={(event) => {
+                      const next = event.currentTarget.value.trim();
+                      if (next === (tier.period ?? "")) return;
+                      const nextTiers = tiers.map((t, i) =>
+                        i === tierIndex
+                          ? { ...t, period: next || undefined }
+                          : t,
+                      );
+                      void commitPatch({ tiers: nextTiers });
+                    }}
+                  />
+                </Field>
+                <Field flush>
+                  <FieldLabel>Description</FieldLabel>
+                  <textarea
+                    key={`${tier.id}:desc:${tier.description ?? ""}`}
+                    defaultValue={tier.description ?? ""}
+                    className={`${KIT.textarea} min-h-[64px]`}
+                    placeholder="Short description of this plan"
+                    onBlur={(event) => {
+                      const next = event.currentTarget.value.trim();
+                      if (next === (tier.description ?? "")) return;
+                      const nextTiers = tiers.map((t, i) =>
+                        i === tierIndex
+                          ? { ...t, description: next || undefined }
+                          : t,
+                      );
+                      void commitPatch({ tiers: nextTiers });
+                    }}
+                  />
+                </Field>
+                <Field flush>
+                  <FieldLabel>CTA label</FieldLabel>
+                  <input
+                    key={`${tier.id}:ctaLabel:${tier.ctaLabel ?? ""}`}
+                    defaultValue={tier.ctaLabel ?? ""}
+                    className={KIT.input}
+                    placeholder="e.g. Get started"
+                    onBlur={(event) => {
+                      const next = event.currentTarget.value.trim();
+                      if (next === (tier.ctaLabel ?? "")) return;
+                      const nextTiers = tiers.map((t, i) =>
+                        i === tierIndex
+                          ? { ...t, ctaLabel: next || undefined }
+                          : t,
+                      );
+                      void commitPatch({ tiers: nextTiers });
+                    }}
+                  />
+                </Field>
+                <Field flush>
+                  <FieldLabel>CTA destination</FieldLabel>
+                  <input
+                    key={`${tier.id}:ctaHref:${tier.ctaHref ?? ""}`}
+                    defaultValue={tier.ctaHref ?? ""}
+                    className={KIT.input}
+                    placeholder="/signup or https://..."
+                    onBlur={(event) => {
+                      const next = event.currentTarget.value.trim();
+                      if (next === (tier.ctaHref ?? "")) return;
+                      const nextTiers = tiers.map((t, i) =>
+                        i === tierIndex
+                          ? { ...t, ctaHref: next || undefined }
+                          : t,
+                      );
+                      void commitPatch({ tiers: nextTiers });
+                    }}
+                  />
+                </Field>
+                <div style={{ padding: "4px 0" }}>
+                  <Toggle
+                    on={tier.highlighted ?? false}
+                    onChange={(next) => {
+                      const nextTiers = tiers.map((t, i) =>
+                        i === tierIndex ? { ...t, highlighted: next } : t,
+                      );
+                      void commitPatch({ tiers: nextTiers });
+                    }}
+                    label="Highlighted"
+                    helper="Shows this tier with a visual accent — usually the recommended plan."
+                  />
+                </div>
+
+                {/* Features sub-list */}
+                <div>
+                  <div className={`${KIT.label} mb-1.5`}>
+                    Features ({(tier.features ?? []).length})
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {(tier.features ?? []).map((feature, featureIndex) => (
+                      <div
+                        key={`${tier.id}:feature:${featureIndex}`}
+                        className="rounded-lg border border-stone-200 bg-[#faf9f6] px-3 py-2"
+                      >
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center gap-2">
+                            <input
+                              key={`${tier.id}:feature:label:${featureIndex}:${feature.label}`}
+                              defaultValue={feature.label}
+                              className={`${KIT.input} flex-1`}
+                              placeholder="Feature label"
+                              onBlur={(event) => {
+                                const next = event.currentTarget.value.trim();
+                                if (!next || next === feature.label) return;
+                                const nextFeatures = (tier.features ?? []).map(
+                                  (f, fi) =>
+                                    fi === featureIndex ? { ...f, label: next } : f,
+                                );
+                                const nextTiers = tiers.map((t, i) =>
+                                  i === tierIndex ? { ...t, features: nextFeatures } : t,
+                                );
+                                void commitPatch({ tiers: nextTiers });
+                              }}
+                            />
+                            <button
+                              type="button"
+                              className={KIT.subtleButton}
+                              onClick={() => {
+                                const nextFeatures = (tier.features ?? []).filter(
+                                  (_, fi) => fi !== featureIndex,
+                                );
+                                const nextTiers = tiers.map((t, i) =>
+                                  i === tierIndex ? { ...t, features: nextFeatures } : t,
+                                );
+                                void commitPatch({ tiers: nextTiers });
+                              }}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                          <label className="flex items-center gap-2 text-[12px] text-stone-600">
+                            <input
+                              type="checkbox"
+                              className="h-3.5 w-3.5 accent-indigo-600"
+                              checked={feature.included ?? true}
+                              onChange={(event) => {
+                                const nextFeatures = (tier.features ?? []).map(
+                                  (f, fi) =>
+                                    fi === featureIndex
+                                      ? { ...f, included: event.currentTarget.checked }
+                                      : f,
+                                );
+                                const nextTiers = tiers.map((t, i) =>
+                                  i === tierIndex ? { ...t, features: nextFeatures } : t,
+                                );
+                                void commitPatch({ tiers: nextTiers });
+                              }}
+                            />
+                            Included
+                          </label>
+                        </div>
+                      </div>
+                    ))}
+                    {(tier.features ?? []).length < 20 ? (
+                      <button
+                        type="button"
+                        className={KIT.ghostButton}
+                        onClick={() => {
+                          const nextFeatures = [
+                            ...(tier.features ?? []),
+                            { label: "New feature", included: true },
+                          ];
+                          const nextTiers = tiers.map((t, i) =>
+                            i === tierIndex ? { ...t, features: nextFeatures } : t,
+                          );
+                          void commitPatch({ tiers: nextTiers });
+                        }}
+                      >
+                        + Add feature
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+
+                {/* Tier-level reorder / remove */}
+                <div className="flex flex-wrap gap-2">
+                  {tierIndex > 0 ? (
+                    <button
+                      type="button"
+                      className={KIT.subtleButton}
+                      onClick={() => {
+                        const nextTiers = [...tiers];
+                        [nextTiers[tierIndex - 1], nextTiers[tierIndex]] = [
+                          nextTiers[tierIndex]!,
+                          nextTiers[tierIndex - 1]!,
+                        ];
+                        void commitPatch({ tiers: nextTiers });
+                      }}
+                    >
+                      Move left
+                    </button>
+                  ) : null}
+                  {tierIndex < tiers.length - 1 ? (
+                    <button
+                      type="button"
+                      className={KIT.subtleButton}
+                      onClick={() => {
+                        const nextTiers = [...tiers];
+                        [nextTiers[tierIndex], nextTiers[tierIndex + 1]] = [
+                          nextTiers[tierIndex + 1]!,
+                          nextTiers[tierIndex]!,
+                        ];
+                        void commitPatch({ tiers: nextTiers });
+                      }}
+                    >
+                      Move right
+                    </button>
+                  ) : null}
+                  {tiers.length > 2 ? (
+                    <button
+                      type="button"
+                      className={KIT.subtleButton}
+                      onClick={() => {
+                        const nextTiers = tiers.filter((_, i) => i !== tierIndex);
+                        void commitPatch({ tiers: nextTiers });
+                      }}
+                    >
+                      Remove tier
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            </CardBody>
+          </Card>
+        ))}
+        {tiers.length < 4 ? (
+          <button
+            type="button"
+            className={KIT.ghostButton}
+            onClick={() => {
+              const nextTiers = [
+                ...tiers,
+                {
+                  id: `tier-${Date.now()}`,
+                  name: "New tier",
+                  price: "$0",
+                  period: "per month",
+                  ctaLabel: "Get started",
+                  ctaHref: "/signup",
+                  highlighted: false,
+                  features: [{ label: "Feature one", included: true }],
+                },
+              ];
+              void commitPatch({ tiers: nextTiers });
+            }}
+          >
+            + Add tier
+          </button>
+        ) : null}
+      </div>
+    );
+  }
+
+  // ── nav ───────────────────────────────────────────────────────────────────
+  // Pattern: links[] array editor (label/href rows, add/remove/reorder) +
+  // brand / brandHref text fields + collapseAt segmented control.
+  // Schema: navPropsSchema — links min(1) max(12).
+  if (node.kind === "nav") {
+    const links = node.props.links;
+    return (
+      <div className="flex flex-col gap-3">
+        <Card state="active">
+          <CardHead
+            title="Navigation"
+            sub={`${links.length} link${links.length === 1 ? "" : "s"}`}
+            iconAccent="blue"
+          />
+          <CardBody>
+            <div className="flex flex-col gap-3">
+              <Field flush>
+                <FieldLabel>Brand name</FieldLabel>
+                <input
+                  key={`${node.id}:brand:${node.props.brand ?? ""}`}
+                  defaultValue={node.props.brand ?? ""}
+                  className={KIT.input}
+                  placeholder="Your brand or site name"
+                  onBlur={(event) => {
+                    void commitTextInput("brand", node.props.brand ?? "", true)(
+                      event.currentTarget.value,
+                    );
+                  }}
+                  onKeyDown={handleCommitKey((value) => {
+                    void commitTextInput("brand", node.props.brand ?? "", true)(value);
+                  })}
+                />
+              </Field>
+              <Field flush>
+                <FieldLabel>Brand link</FieldLabel>
+                <input
+                  key={`${node.id}:brandHref:${node.props.brandHref ?? ""}`}
+                  defaultValue={node.props.brandHref ?? ""}
+                  className={KIT.input}
+                  placeholder="/ or https://..."
+                  onBlur={(event) => {
+                    void commitTextInput("brandHref", node.props.brandHref ?? "", true)(
+                      event.currentTarget.value,
+                    );
+                  }}
+                  onKeyDown={handleCommitKey((value) => {
+                    void commitTextInput("brandHref", node.props.brandHref ?? "", true)(value);
+                  })}
+                />
+              </Field>
+              <Field flush>
+                <FieldLabel>Collapse to hamburger at</FieldLabel>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={node.props.collapseAt ?? "mobile"}
+                  onChange={(next) => {
+                    void commitPatch({ collapseAt: next as "tablet" | "mobile" });
+                  }}
+                  options={[
+                    { value: "mobile", label: "Mobile" },
+                    { value: "tablet", label: "Tablet" },
+                  ]}
+                />
+                <Helper>
+                  &ldquo;Mobile&rdquo; keeps links visible on tablet and above.
+                </Helper>
+              </Field>
+            </div>
+          </CardBody>
+        </Card>
+
+        {/* Links list */}
+        <Card>
+          <CardHead
+            title="Nav links"
+            sub={`${links.length} link${links.length === 1 ? "" : "s"}`}
+          />
+          <CardBody>
+            <div className="flex flex-col gap-3">
+              <p className={KIT.hint}>Edit label and destination for each link. Drag to reorder.</p>
+              {links.map((link, linkIndex) => (
+                <div
+                  key={link.id}
+                  className="rounded-lg border border-stone-200 bg-[#faf9f6] px-3 py-2"
+                >
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <div
+                        aria-hidden
+                        className="inline-flex h-6 w-5 shrink-0 items-center justify-center text-[13px] font-semibold text-stone-400"
+                      >
+                        ⋮⋮
+                      </div>
+                      <span className="flex-1 truncate text-[12px] font-semibold text-stone-700">
+                        {link.label || `Link ${linkIndex + 1}`}
+                      </span>
+                      <button
+                        type="button"
+                        className={KIT.subtleButton}
+                        disabled={linkIndex === 0}
+                        onClick={() => {
+                          const nextLinks = [...links];
+                          [nextLinks[linkIndex - 1], nextLinks[linkIndex]] = [
+                            nextLinks[linkIndex]!,
+                            nextLinks[linkIndex - 1]!,
+                          ];
+                          void commitPatch({ links: nextLinks });
+                        }}
+                      >
+                        Up
+                      </button>
+                      <button
+                        type="button"
+                        className={KIT.subtleButton}
+                        disabled={linkIndex === links.length - 1}
+                        onClick={() => {
+                          const nextLinks = [...links];
+                          [nextLinks[linkIndex], nextLinks[linkIndex + 1]] = [
+                            nextLinks[linkIndex + 1]!,
+                            nextLinks[linkIndex]!,
+                          ];
+                          void commitPatch({ links: nextLinks });
+                        }}
+                      >
+                        Down
+                      </button>
+                      {links.length > 1 ? (
+                        <button
+                          type="button"
+                          className={KIT.subtleButton}
+                          onClick={() => {
+                            const nextLinks = links.filter((_, i) => i !== linkIndex);
+                            void commitPatch({ links: nextLinks });
+                          }}
+                        >
+                          Remove
+                        </button>
+                      ) : null}
+                    </div>
+                    <Field flush>
+                      <FieldLabel>Label</FieldLabel>
+                      <input
+                        key={`${link.id}:label:${link.label}`}
+                        defaultValue={link.label}
+                        className={KIT.input}
+                        placeholder="e.g. About"
+                        onBlur={(event) => {
+                          const next = event.currentTarget.value.trim();
+                          if (!next || next === link.label) return;
+                          const nextLinks = links.map((l, i) =>
+                            i === linkIndex ? { ...l, label: next } : l,
+                          );
+                          void commitPatch({ links: nextLinks });
+                        }}
+                      />
+                    </Field>
+                    <Field flush>
+                      <FieldLabel>Destination</FieldLabel>
+                      <input
+                        key={`${link.id}:href:${link.href}`}
+                        defaultValue={link.href}
+                        className={KIT.input}
+                        placeholder="/about or https://..."
+                        onBlur={(event) => {
+                          const next = event.currentTarget.value.trim();
+                          if (!next || next === link.href) return;
+                          const nextLinks = links.map((l, i) =>
+                            i === linkIndex ? { ...l, href: next } : l,
+                          );
+                          void commitPatch({ links: nextLinks });
+                        }}
+                      />
+                    </Field>
+                  </div>
+                </div>
+              ))}
+              {links.length < 12 ? (
+                <button
+                  type="button"
+                  className={KIT.ghostButton}
+                  onClick={() => {
+                    const nextLinks = [
+                      ...links,
+                      { id: `link-${Date.now()}`, label: "New link", href: "/" },
+                    ];
+                    void commitPatch({ links: nextLinks });
+                  }}
+                >
+                  + Add link
+                </button>
+              ) : null}
+            </div>
+          </CardBody>
+        </Card>
+      </div>
+    );
+  }
+
+  // ── rich_text ─────────────────────────────────────────────────────────────
+  // Pattern: BuilderNodeRichTextField(variant:"multi") — identical to the
+  // paragraph node but uses the rich_text label and max 10 000 chars.
+  // Schema: richTextPropsSchema — text min(1) max(10000).
+  // Double-click inline editing is wired in inline-editor.tsx below.
+  if (node.kind === "rich_text") {
+    return (
+      <div className="flex flex-col gap-3">
+        <Card state="active">
+          <CardHead title="Rich text node" sub="Canvas selection" iconAccent="blue" />
+          <CardBody>
+            <Field flush>
+              <FieldLabel>Copy</FieldLabel>
+              <BuilderNodeRichTextField
+                key={`${node.id}:text:${node.props.text}`}
+                value={node.props.text}
+                tenantId={tenantId}
+                variant="multi"
+                ariaLabel="Rich text copy"
+                className={`${KIT.textarea} min-h-[128px] whitespace-pre-wrap break-words`}
+                onCommit={(next) => commitTextInput("text", node.props.text)(next)}
+              />
+              <Helper>
+                Body copy with bold, italic, and sanitized links. Double-click on the
+                canvas to edit inline.
+              </Helper>
+            </Field>
+          </CardBody>
+        </Card>
+      </div>
+    );
+  }
+
   if (
     node.kind === "container" ||
     node.kind === "card" ||

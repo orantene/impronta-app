@@ -553,6 +553,9 @@ function resolveEditableBuilderNodeTextTarget(
   if (renderedKind === "paragraph") {
     return { id: nodeId, propKey: "text", variant: "multi" };
   }
+  if (renderedKind === "rich_text") {
+    return { id: nodeId, propKey: "text", variant: "multi" };
+  }
   if (renderedKind === "button") {
     return { id: nodeId, propKey: "label", variant: "single" };
   }
@@ -565,6 +568,9 @@ function resolveEditableBuilderNodeTextTarget(
     return { id: node.id, propKey: "text", variant: "single" };
   }
   if (node.kind === "paragraph") {
+    return { id: node.id, propKey: "text", variant: "multi" };
+  }
+  if (node.kind === "rich_text") {
     return { id: node.id, propKey: "text", variant: "multi" };
   }
   if (node.kind === "button") {
