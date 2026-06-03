@@ -172,13 +172,15 @@ export function AdminReservationView({ inquiry, onBack }: { inquiry: RichInquiry
   // sheet in a future PR; for now the existing AdminBookingTab handles
   // most of that affordance.
   const clientMessages = inquiry.messages.filter(m => m.threadType === "private");
-  const stageBucket: "inquiry" | "hold" | "booked" | "past" =
+  const stageBucket: "inquiry" | "hold" | "approved" | "booked" | "past" =
       inquiry.stage === "draft" || inquiry.stage === "submitted" || inquiry.stage === "coordination" ? "inquiry"
     : inquiry.stage === "offer_pending" ? "hold"
-    : inquiry.stage === "approved" || inquiry.stage === "booked" ? "booked"
+    : inquiry.stage === "approved" ? "approved"
+    : inquiry.stage === "booked" ? "booked"
     : "past";
   const smartCtx = stageBucket === "inquiry" ? "inquiry"
     : stageBucket === "hold" ? "hold"
+    : stageBucket === "approved" ? "offer"
     : stageBucket === "booked" ? "offer"
     : "default";
 

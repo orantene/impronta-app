@@ -50,10 +50,13 @@ export function AdminInboxList({
   // A7 — triage queue count: open-funnel inquiries owing coordinator action.
   // Same predicate as the triage filter; precomputed here for the chip label.
   // Inline the bucket helper since it's not in this function's scope.
-  const inquiryBucket = (s: string): "inquiry" | "hold" | "booked" | "past" => {
+  const inquiryBucket = (s: string): "inquiry" | "hold" | "approved" | "booked" | "past" => {
     if (s === "draft" || s === "submitted" || s === "coordination") return "inquiry";
     if (s === "offer_pending") return "hold";
-    if (s === "approved" || s === "booked") return "booked";
+    // "Approved" is ready-to-book, NOT booked (no booking row yet) — its own
+    // bucket so it doesn't hide among actually-booked inquiries.
+    if (s === "approved") return "approved";
+    if (s === "booked") return "booked";
     return "past";
   };
   const triageCount = inquiries.filter(i => {
@@ -74,6 +77,7 @@ export function AdminInboxList({
     ...(coordCount > 0 ? [{ id: "coordinating" as const, label: "Coordinating", count: coordCount, pin: true }] : []),
     { id: "inquiry", label: "Inquiry" },
     { id: "hold", label: "Offer pending" },
+    { id: "approved", label: "Approved" },
     { id: "booked", label: "Booked" },
     { id: "past", label: "Past" },
     ...(archivedCount > 0 ? [{ id: "archived" as const, label: `Archived${archivedCount > 0 ? ` (${archivedCount})` : ""}` }] : []),
