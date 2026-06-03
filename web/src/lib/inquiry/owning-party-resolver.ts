@@ -71,6 +71,31 @@ const EXCLUSIVE_PLAN_TIERS = new Set<string>(["studio", "agency", "network", "hu
  */
 const NON_EXCLUSIVE_STATUSES = new Set<string>(["declined", "notice_period"]);
 
+/**
+ * Open-marketplace source channels: the inquiry was brokered by the Tulala hub
+ * (Discover, public directory, a talent's public hub profile), NOT through a
+ * specific agency's own storefront/admin. A non-exclusive rostered talent
+ * self-coordinates these (owning_party = talent); an exclusive talent still
+ * routes to their agency. Agency-brokered channels (agency_site, admin_*, pitch,
+ * form, phone) are NOT hub-sourced — they keep the workspace as owner.
+ *
+ * Prefix matches (`discover_`, `directory_`) catch current + future variants;
+ * the explicit set covers the rest. New hub channels should match a prefix or be
+ * added here, else a non-exclusive talent inquired via that channel will wrongly
+ * route to the workspace instead of self-coordinating.
+ */
+export function isHubSourcedChannel(sourceChannel: string | null | undefined): boolean {
+  if (!sourceChannel) return false;
+  const c = sourceChannel.toLowerCase();
+  return (
+    c.startsWith("discover_") ||
+    c.startsWith("directory_") ||
+    c === "public_directory" ||
+    c === "public_talent_profile" ||
+    c === "hub"
+  );
+}
+
 type AgencyEmbed =
   | { id?: string; plan_tier: string | null }
   | { id?: string; plan_tier: string | null }[]
@@ -114,6 +139,10 @@ export async function resolveOwningPartyForTalent(
    * source-blind behavior (first active roster row wins).
    */
   inquiryTenantId?: string | null,
+  /** See {@link resolveOwningPartiesForTalents}. Open-hub source → non-exclusive
+   *  talents self-coordinate regardless of tenant. Takes precedence over
+   *  inquiryTenantId. */
+  hubSourced?: boolean,
 ): Promise<OwningParty | null> {
   // 1 + 2: any active roster row for this talent.
   const { data: rosterRows, error } = await supabase
@@ -148,7 +177,14 @@ export async function resolveOwningPartyForTalent(
     }
   }
 
-  // 2/3. Non-exclusive. When the inquiry source (its tenant) is known, route by
+  // 2. Hub-sourced: non-exclusive talent self-coordinates regardless of which
+  // workspace they're rostered on (single-tenant setups share tenant_id between
+  // hub + agency, so source_channel is the only reliable signal).
+  if (hubSourced) {
+    return { type: "talent", id: talentProfileId };
+  }
+
+  // 3. Non-exclusive. When the inquiry source (its tenant) is known, route by
   // it: an agency's own storefront (a tenant the talent is rostered on) owns
   // the relationship; the open hub (any other tenant) hands it to the talent.
   if (inquiryTenantId) {
@@ -179,6 +215,15 @@ export async function resolveOwningPartiesForTalents(
   /** The inquiry's tenant — see `resolveOwningPartyForTalent`. When provided,
    *  the resolver is source-aware for non-exclusive talents. */
   inquiryTenantId?: string | null,
+  /**
+   * When true the inquiry arrived via the open Tulala hub (Discover / shortlist /
+   * direct-hub link), NOT through any specific agency's own storefront. Non-exclusive
+   * rostered talents self-coordinate on hub-sourced inquiries regardless of which
+   * workspace they're rostered on — the same as if they had no roster at all.
+   * Exclusive agency talents are unaffected (the agency always owns them).
+   * Takes precedence over inquiryTenantId for non-exclusive resolution.
+   */
+  hubSourced?: boolean,
 ): Promise<Map<string, OwningParty>> {
   const out = new Map<string, OwningParty>();
   if (talentProfileIds.length === 0) return out;
@@ -230,7 +275,15 @@ export async function resolveOwningPartiesForTalents(
       out.set(talentId, { type: "agency", id: exclusive.tenant_id });
       continue;
     }
-    // 2/3. Non-exclusive — source-aware when the inquiry's tenant is known:
+    // 2. Hub-sourced: non-exclusive talent self-coordinates regardless of which
+    // workspace they're rostered on. In single-tenant setups the hub shares the
+    // same tenant_id as the agency, so source_channel is the only reliable
+    // signal — which the caller translates into this flag.
+    if (hubSourced) {
+      out.set(talentId, { type: "talent", id: talentId });
+      continue;
+    }
+    // 3. Non-exclusive — source-aware when the inquiry's tenant is known:
     // rostered on it (agency storefront) → workspace; else (open hub) → talent.
     if (inquiryTenantId) {
       out.set(

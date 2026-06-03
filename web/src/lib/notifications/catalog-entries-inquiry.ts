@@ -27,7 +27,7 @@ import {
   str,
   workspaceAdmins,
 } from "./catalog-audiences";
-import { pageUrl } from "./catalog-render";
+import { pageUrl, inquiryPathForRole } from "./catalog-render";
 
 /**
  * Inquiry-engine catalog entries (spec §6, Phase 5) — split out of `catalog.ts`
@@ -118,7 +118,7 @@ const INQUIRY_SUBMITTED_TALENT: CatalogEntry = {
         contactName: str(event.payload.contactName),
         eventDate: str(event.payload.eventDate),
         eventLocation: str(event.payload.eventLocation),
-        inquiryUrl: pageUrl(brand, `/talent/inquiries/${event.inquiryId}`),
+        inquiryUrl: pageUrl(brand, `/talent/inbox/${event.inquiryId}`),
         brand,
         unsubscribeUrl,
         categoryLabel: "roster",
@@ -200,7 +200,7 @@ const BOOKING_CONFIRMED_TALENT: CatalogEntry = {
         contactName: str(event.payload.contactName),
         eventDate: str(event.payload.eventDate),
         eventLocation: str(event.payload.eventLocation),
-        inquiriesUrl: pageUrl(brand, `/talent/inquiries`),
+        inquiriesUrl: pageUrl(brand, `/talent/inbox`),
         brand,
         unsubscribeUrl,
         categoryLabel: "booking",
@@ -226,7 +226,7 @@ const ROSTER_TALENT_INVITED: CatalogEntry = {
         contactName: str(event.payload.contactName),
         eventDate: str(event.payload.eventDate),
         eventLocation: str(event.payload.eventLocation),
-        inquiryUrl: pageUrl(brand, `/talent/inquiries/${event.inquiryId}`),
+        inquiryUrl: pageUrl(brand, `/talent/inbox/${event.inquiryId}`),
         brand,
         unsubscribeUrl,
         categoryLabel: "roster",
@@ -385,13 +385,12 @@ const INQUIRY_CANCELLED: CatalogEntry = {
     templateId: "inquiry.cancelled",
     subject: () => "An inquiry has been cancelled",
     render: ({ event, recipient, brand, unsubscribeUrl }) => {
-      const surface = recipient.role === "client" ? "client" : "talent";
       return React.createElement(InquiryCancelledEmail, {
         recipientName: recipient.displayName ?? str(event.payload.contactName),
         contactName: str(event.payload.contactName),
         eventDate: str(event.payload.eventDate),
         eventLocation: str(event.payload.eventLocation),
-        inquiryUrl: pageUrl(brand, `/${surface}/inquiries/${event.inquiryId}`),
+        inquiryUrl: pageUrl(brand, inquiryPathForRole(recipient.role, event.inquiryId)),
         brand,
         unsubscribeUrl,
         categoryLabel: "inquiry",
@@ -422,12 +421,7 @@ const MESSAGE_NEW: CatalogEntry = {
     digest: true,
     subject: () => "You have a new message",
     render: ({ event, recipient, brand, unsubscribeUrl }) => {
-      const surface =
-        recipient.role === "client" ? "client" : recipient.role === "talent" ? "talent" : "admin";
-      const path =
-        surface === "admin"
-          ? `/admin/work/${event.inquiryId}`
-          : `/${surface}/inquiries/${event.inquiryId}`;
+      const path = inquiryPathForRole(recipient.role, event.inquiryId);
       return React.createElement(DigestEmail, {
         recipientName: recipient.displayName,
         heading: "You have a new message",

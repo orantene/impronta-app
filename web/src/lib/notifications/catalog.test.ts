@@ -233,7 +233,7 @@ test("catalog: inquiry.cancelled link points at the recipient's own surface", ()
     brand,
   }) as ReactElement<{ inquiryUrl: string }>;
   assert.match(clientEl.props.inquiryUrl, /\/client\/inquiries\/inq-42$/);
-  assert.match(talentEl.props.inquiryUrl, /\/talent\/inquiries\/inq-42$/);
+  assert.match(talentEl.props.inquiryUrl, /\/talent\/inbox\/inq-42$/);
 });
 
 // ─── Slice 15.3b — roster claim-invite + team-invite (§12 conversions) ────────
@@ -547,7 +547,7 @@ test("catalog: Slice 15.3 welcome renders fall back gracefully on an empty paylo
 
 const BOOKING_CANCELLED = [
   { id: "booking.cancelled.client", surface: "client", urlRe: /\/client\/inquiries\/inq-7$/ },
-  { id: "booking.cancelled.talent", surface: "talent", urlRe: /\/talent\/inquiries\/inq-7$/ },
+  { id: "booking.cancelled.talent", surface: "talent", urlRe: /\/talent\/inbox\/inq-7$/ },
   { id: "booking.cancelled.coordinator", surface: "workspace", urlRe: /\/admin\/work\/inq-7$/ },
 ] as const;
 
