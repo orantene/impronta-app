@@ -57,7 +57,7 @@ interface ActiveTextEdit {
   variant: "single" | "multi";
   builderNode?: {
     id: string;
-    propKey: "text" | "label" | "title";
+    propKey: "text" | "label" | "title" | "brand";
   };
 }
 
@@ -233,7 +233,25 @@ export function InlineEditor() {
       const editable = findEditableTextEl(e.target);
       if (!editable) return;
 
-      const original = (editable.textContent ?? "").trim();
+      // #16: prefer the stored prop value for builder nodes — it carries rich
+      // marker syntax (bold/italic/links) that the RichEditor understands,
+      // while textContent would strip all markers to plain text. Fall back to
+      // textContent for legacy section text (no builder node resolved).
+      const builderNodeTarget = resolveEditableBuilderNodeTextTarget(
+        builderTreeRef.current,
+        editable,
+      );
+      // Resolve the stored value BEFORE the original-text check so an empty
+      // DOM text (e.g. a heading that contains only styled spans) doesn't block.
+      const storedValue = builderNodeTarget
+        ? resolveBuilderNodeTextValue(
+            builderTreeRef.current,
+            builderNodeTarget.id,
+            builderNodeTarget.propKey,
+          )
+        : null;
+      const original =
+        storedValue !== null ? storedValue : (editable.textContent ?? "").trim();
       if (!original) return;
 
       e.preventDefault();
@@ -242,10 +260,6 @@ export function InlineEditor() {
       const variant: "single" | "multi" = SINGLE_LINE_TAGS.has(editable.tagName)
         ? "single"
         : "multi";
-      const builderNodeTarget = resolveEditableBuilderNodeTextTarget(
-        builderTreeRef.current,
-        editable,
-      );
       if (builderNodeTarget) {
         selectBuilderNode(builderNodeTarget.id);
         setActiveEdit({
@@ -535,18 +549,28 @@ function findBuilderNodeById(
   return null;
 }
 
+/**
+ * #16 Inline-edit everywhere — resolve the prop key and editing variant for any
+ * text-bearing builder node. Fast-path: reads `data-builder-node-kind` from the
+ * DOM attr set by render.tsx. Slow-path: tree lookup for nodes whose kind was
+ * not yet in the original DOM-attr fast-path list.
+ *
+ * Extended in Wave 3 · 3D to cover `nav` (brand), `icon` (label), and
+ * `accordion_item` / `tab_panel` titles already covered by the data-attr path.
+ */
 function resolveEditableBuilderNodeTextTarget(
   tree: BuilderNodeTree,
   el: HTMLElement,
 ): {
   id: string;
-  propKey: "text" | "label" | "title";
+  propKey: "text" | "label" | "title" | "brand";
   variant: "single" | "multi";
 } | null {
   const nodeEl = el.closest<HTMLElement>("[data-builder-node-id]");
   const nodeId = nodeEl?.getAttribute("data-builder-node-id") ?? null;
   if (!nodeId || resolveBuilderNodeRole(nodeId)) return null;
   const renderedKind = nodeEl?.getAttribute("data-builder-node-kind");
+  // Fast-path — kind is present on the DOM element (covers all builder-node render cases).
   if (renderedKind === "heading") {
     return { id: nodeId, propKey: "text", variant: "single" };
   }
@@ -562,22 +586,64 @@ function resolveEditableBuilderNodeTextTarget(
   if (renderedKind === "accordion_item" || renderedKind === "tab_panel") {
     return { id: nodeId, propKey: "title", variant: "single" };
   }
+  if (renderedKind === "icon") {
+    // Only editable if it has a label (decorative icons have none).
+    const node = findBuilderNodeById(tree, nodeId);
+    if (node?.kind === "icon" && node.props.label) {
+      return { id: node.id, propKey: "label", variant: "single" };
+    }
+    return null;
+  }
+  if (renderedKind === "nav") {
+    // Only the brand name (wordmark) is inline-editable; link labels are in
+    // the inspector table. Check whether the click landed on the brand element.
+    const brandEl = nodeEl?.querySelector(".site-builder-node--nav-brand");
+    if (brandEl && (brandEl === el || brandEl.contains(el))) {
+      const node = findBuilderNodeById(tree, nodeId);
+      if (node?.kind === "nav" && node.props.brand) {
+        return { id: node.id, propKey: "brand", variant: "single" };
+      }
+    }
+    return null;
+  }
+  // Slow-path — tree lookup for any remaining text-bearing kinds.
   const node = findBuilderNodeById(tree, nodeId);
   if (!node || node.kind === "section") return null;
-  if (node.kind === "heading") {
-    return { id: node.id, propKey: "text", variant: "single" };
-  }
-  if (node.kind === "paragraph") {
-    return { id: node.id, propKey: "text", variant: "multi" };
-  }
-  if (node.kind === "rich_text") {
-    return { id: node.id, propKey: "text", variant: "multi" };
-  }
-  if (node.kind === "button") {
-    return { id: node.id, propKey: "label", variant: "single" };
-  }
+  if (node.kind === "heading") return { id: node.id, propKey: "text", variant: "single" };
+  if (node.kind === "paragraph") return { id: node.id, propKey: "text", variant: "multi" };
+  if (node.kind === "rich_text") return { id: node.id, propKey: "text", variant: "multi" };
+  if (node.kind === "button") return { id: node.id, propKey: "label", variant: "single" };
   if (node.kind === "accordion_item" || node.kind === "tab_panel") {
     return { id: node.id, propKey: "title", variant: "single" };
+  }
+  if (node.kind === "icon" && node.props.label) {
+    return { id: node.id, propKey: "label", variant: "single" };
+  }
+  if (node.kind === "nav" && node.props.brand) {
+    const brandEl = nodeEl?.querySelector(".site-builder-node--nav-brand");
+    if (brandEl && (brandEl === el || brandEl.contains(el))) {
+      return { id: node.id, propKey: "brand", variant: "single" };
+    }
+  }
+  return null;
+}
+
+/**
+ * #16 Retrieve the STORED prop value for a builder node's text field so the
+ * inline editor gets the full marker syntax (e.g. `**bold**`) rather than the
+ * plain-text DOM rendering. Returns null if the node / prop is not found.
+ */
+function resolveBuilderNodeTextValue(
+  tree: BuilderNodeTree,
+  nodeId: string,
+  propKey: "text" | "label" | "title" | "brand",
+): string | null {
+  const node = findBuilderNodeById(tree, nodeId);
+  if (!node) return null;
+  if ("props" in node) {
+    const props = node.props as Record<string, unknown>;
+    const value = props[propKey];
+    if (typeof value === "string") return value;
   }
   return null;
 }

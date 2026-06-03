@@ -342,6 +342,14 @@ const builderNodeStyleSchema = builderNodeStyleValueSchema
       })
       .optional(),
     hover: builderNodeHoverStyleSchema.optional(),
+    // UNIVERSAL STATE STYLES (Wave 3 · 3D) — focus-visible + active overrides.
+    // Reuses the hover-style schema (same curated subset). Optional + back-compat.
+    stateStyles: z
+      .object({
+        focus: builderNodeHoverStyleSchema.optional(),
+        active: builderNodeHoverStyleSchema.optional(),
+      })
+      .optional(),
     // Linked style class reference (Wave 3 · 3B) — a page-scoped class id
     // (slug). Optional + back-compat; the renderer merges the class style as
     // the base with this node's own props on top. Length-capped to the id

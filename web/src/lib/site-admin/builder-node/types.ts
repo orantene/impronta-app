@@ -316,15 +316,10 @@ export interface BuilderNodeStyle extends BuilderNodeStyleValue {
     mobile?: BuilderNodeStyleValue;
   };
   hover?: BuilderNodeHoverStyle;
-  // LINKED STYLE CLASS (Wave 3 · 3B): an optional reference to a page-scoped,
-  // named style bundle (a BuilderStyleClass id). At render time the renderer
-  // merges that class's style as the BASE with this node's own style props
-  // winning on top, so editing the class restyles EVERY linked block. Lives at
-  // the TOP level (not per-breakpoint) because a class is a whole-style bundle
-  // that may itself carry responsive/hover layers. OPTIONAL + back-compat: a
-  // node without classRef resolves to its own style by identity and renders
-  // byte-identical (the flagship uses no classRef). See style-classes.ts for
-  // the registry shape + the merge resolver.
+  // Wave 3 · 3D: focus-visible + active overrides (same subset as hover). Optional.
+  stateStyles?: { focus?: BuilderNodeHoverStyle; active?: BuilderNodeHoverStyle };
+  // Wave 3 · 3B: page-scoped linked style-class id. Optional + back-compat.
+  // Node props win over the class base. See style-classes.ts.
   classRef?: string;
 }
 

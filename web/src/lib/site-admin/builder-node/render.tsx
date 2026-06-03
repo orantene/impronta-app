@@ -395,6 +395,20 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node[data-builder-style-hover-scale]:hover,.site-builder-node[data-builder-style-hover-scale]:focus-visible{scale:var(--bn-hover-scale)!important}
 .site-builder-node[data-builder-style-hover-translate]:hover,.site-builder-node[data-builder-style-hover-translate]:focus-visible{translate:var(--bn-hover-translate)!important}
 .site-builder-node[data-builder-style-hover-opacity]:hover,.site-builder-node[data-builder-style-hover-opacity]:focus-visible{opacity:var(--bn-hover-opacity)!important}
+.site-builder-node[data-builder-style-focus-bg]:focus-visible{background-color:var(--bn-focus-bg)!important}
+.site-builder-node[data-builder-style-focus-color]:focus-visible{color:var(--bn-focus-color)!important}
+.site-builder-node[data-builder-style-focus-border-color]:focus-visible{border-color:var(--bn-focus-border-color)!important}
+.site-builder-node[data-builder-style-focus-shadow]:focus-visible{box-shadow:var(--bn-focus-shadow)!important}
+.site-builder-node[data-builder-style-focus-scale]:focus-visible{scale:var(--bn-focus-scale)!important}
+.site-builder-node[data-builder-style-focus-translate]:focus-visible{translate:var(--bn-focus-translate)!important}
+.site-builder-node[data-builder-style-focus-opacity]:focus-visible{opacity:var(--bn-focus-opacity)!important}
+.site-builder-node[data-builder-style-active-bg]:active{background-color:var(--bn-active-bg)!important}
+.site-builder-node[data-builder-style-active-color]:active{color:var(--bn-active-color)!important}
+.site-builder-node[data-builder-style-active-border-color]:active{border-color:var(--bn-active-border-color)!important}
+.site-builder-node[data-builder-style-active-shadow]:active{box-shadow:var(--bn-active-shadow)!important}
+.site-builder-node[data-builder-style-active-scale]:active{scale:var(--bn-active-scale)!important}
+.site-builder-node[data-builder-style-active-translate]:active{translate:var(--bn-active-translate)!important}
+.site-builder-node[data-builder-style-active-opacity]:active{opacity:var(--bn-active-opacity)!important}
 @media (max-width:900px){
   .site-builder-node[data-builder-style-tablet-align]{text-align:var(--bn-tablet-align)!important}
   .site-builder-node[data-builder-style-tablet-size="sm"]{font-size:clamp(0.9rem,1vw,1rem)!important}
@@ -766,7 +780,11 @@ function builderNodeContainerQueryStyleAttrs(
 function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
   const tablet = style?.responsive?.tablet;
   const mobile = style?.responsive?.mobile;
-  const hasBaseTransition = Boolean(style?.hover) || hasTransitionLonghands(style);
+  const hasBaseTransition =
+    Boolean(style?.hover) ||
+    Boolean(style?.stateStyles?.focus) ||
+    Boolean(style?.stateStyles?.active) ||
+    hasTransitionLonghands(style);
   return {
     "data-builder-style-align": style?.align,
     "data-builder-style-size": style?.size,
@@ -1003,6 +1021,36 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-hover-translate": style?.hover?.translate ? "" : undefined,
     "data-builder-style-hover-opacity":
       typeof style?.hover?.opacity === "number" ? "" : undefined,
+    // Focus-visible state gates (Wave 3 · 3D — universal state editor).
+    "data-builder-style-focus-bg":
+      style?.stateStyles?.focus?.backgroundColor ? "" : undefined,
+    "data-builder-style-focus-color":
+      style?.stateStyles?.focus?.color ? "" : undefined,
+    "data-builder-style-focus-border-color":
+      style?.stateStyles?.focus?.borderColor ? "" : undefined,
+    "data-builder-style-focus-shadow":
+      style?.stateStyles?.focus?.boxShadow ? "" : undefined,
+    "data-builder-style-focus-scale":
+      style?.stateStyles?.focus?.scale ? "" : undefined,
+    "data-builder-style-focus-translate":
+      style?.stateStyles?.focus?.translate ? "" : undefined,
+    "data-builder-style-focus-opacity":
+      typeof style?.stateStyles?.focus?.opacity === "number" ? "" : undefined,
+    // Active state gates.
+    "data-builder-style-active-bg":
+      style?.stateStyles?.active?.backgroundColor ? "" : undefined,
+    "data-builder-style-active-color":
+      style?.stateStyles?.active?.color ? "" : undefined,
+    "data-builder-style-active-border-color":
+      style?.stateStyles?.active?.borderColor ? "" : undefined,
+    "data-builder-style-active-shadow":
+      style?.stateStyles?.active?.boxShadow ? "" : undefined,
+    "data-builder-style-active-scale":
+      style?.stateStyles?.active?.scale ? "" : undefined,
+    "data-builder-style-active-translate":
+      style?.stateStyles?.active?.translate ? "" : undefined,
+    "data-builder-style-active-opacity":
+      typeof style?.stateStyles?.active?.opacity === "number" ? "" : undefined,
   };
 }
 
@@ -1153,7 +1201,10 @@ function responsiveStyleVars(
   style: BuilderNodeStyle | undefined,
 ): CSSProperties {
   const hasBaseTransition =
-    Boolean(style?.hover) || hasTransitionLonghands(style);
+    Boolean(style?.hover) ||
+    Boolean(style?.stateStyles?.focus) ||
+    Boolean(style?.stateStyles?.active) ||
+    hasTransitionLonghands(style);
   return builderNodeStyleVars({
     "--bn-container-type": style?.containerType,
     "--bn-container-name": style?.containerName,
@@ -1418,6 +1469,21 @@ function responsiveStyleVars(
     "--bn-hover-scale": style?.hover?.scale,
     "--bn-hover-translate": style?.hover?.translate,
     "--bn-hover-opacity": style?.hover?.opacity,
+    // Wave 3 · 3D — universal state editor: focus-visible + active.
+    "--bn-focus-bg": styleToken(style?.stateStyles?.focus?.backgroundColor),
+    "--bn-focus-color": styleToken(style?.stateStyles?.focus?.color),
+    "--bn-focus-border-color": styleToken(style?.stateStyles?.focus?.borderColor),
+    "--bn-focus-shadow": style?.stateStyles?.focus?.boxShadow,
+    "--bn-focus-scale": style?.stateStyles?.focus?.scale,
+    "--bn-focus-translate": style?.stateStyles?.focus?.translate,
+    "--bn-focus-opacity": style?.stateStyles?.focus?.opacity,
+    "--bn-active-bg": styleToken(style?.stateStyles?.active?.backgroundColor),
+    "--bn-active-color": styleToken(style?.stateStyles?.active?.color),
+    "--bn-active-border-color": styleToken(style?.stateStyles?.active?.borderColor),
+    "--bn-active-shadow": style?.stateStyles?.active?.boxShadow,
+    "--bn-active-scale": style?.stateStyles?.active?.scale,
+    "--bn-active-translate": style?.stateStyles?.active?.translate,
+    "--bn-active-opacity": style?.stateStyles?.active?.opacity,
   });
 }
 

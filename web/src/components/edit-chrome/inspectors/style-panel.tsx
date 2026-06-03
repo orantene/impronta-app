@@ -39,7 +39,7 @@ import type {
 } from "@/lib/site-admin/sections/shared/node-presentation";
 import { resolveStandaloneBuilderNodeForContent } from "./builder-node-content-utils";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 
 import { ColorPickerPopover, type ColorTokenSwatch } from "../kit/color-picker";
 import { STYLE_BINDABLE_COLOR_TOKENS } from "@/lib/site-admin/builder-node/style-token-bindings";
@@ -650,6 +650,155 @@ function colorSwatchDisplay(value: string | undefined): string | undefined {
   }
   return value;
 }
+/**
+ * Wave 3 · 3D — state-style fields component.
+ *
+ * Renders the same six fields (background, text color, border color, shadow,
+ * scale, translate, opacity) for whichever interaction state is active
+ * (hover / focus-visible / active). Extracted so the markup isn't triplicated
+ * inline in the `<details>` block.
+ */
+interface StateStyleFieldsProps {
+  state: "default" | "focus" | "active";
+  hoverStyle: BuilderNodeHoverStyle | undefined;
+  focusStyle: BuilderNodeHoverStyle | undefined;
+  activeStyle: BuilderNodeHoverStyle | undefined;
+  onPatchHover: (patch: Partial<BuilderNodeHoverStyle>) => void;
+  onPatchFocus: (patch: Partial<BuilderNodeHoverStyle>) => void;
+  onPatchActive: (patch: Partial<BuilderNodeHoverStyle>) => void;
+  chromeMuted: string;
+  chromeSurface2: string;
+  chromeControlBorder: string;
+  chromeInk: string;
+}
+
+function StateStyleFields({
+  state,
+  hoverStyle,
+  focusStyle,
+  activeStyle,
+  onPatchHover,
+  onPatchFocus,
+  onPatchActive,
+  chromeMuted,
+  chromeSurface2,
+  chromeControlBorder,
+  chromeInk,
+}: StateStyleFieldsProps) {
+  const stateStyle =
+    state === "default" ? hoverStyle : state === "focus" ? focusStyle : activeStyle;
+  const onPatch =
+    state === "default" ? onPatchHover : state === "focus" ? onPatchFocus : onPatchActive;
+  const hint =
+    state === "default"
+      ? "Applies while hovered or keyboard-focused."
+      : state === "focus"
+        ? "Applies while keyboard-focused (:focus-visible)."
+        : "Applies while actively pressed (:active).";
+
+  const inputStyle: CSSProperties = {
+    height: 30,
+    width: "100%",
+    fontSize: 12,
+    background: chromeSurface2,
+    border: `1px solid ${chromeControlBorder}`,
+    borderRadius: 7,
+    color: chromeInk,
+    outline: "none",
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="text-[11px]" style={{ color: chromeMuted }}>
+        {hint} Colors accept token (var(--token-color-primary)), hex, or rgb.
+      </span>
+      <div className="flex flex-col gap-1.5">
+        <span className="text-[11px]" style={{ color: chromeMuted }}>Background</span>
+        <input
+          type="text"
+          className="px-2"
+          style={inputStyle}
+          placeholder="var(--token-color-primary) / #111"
+          value={stateStyle?.backgroundColor ?? ""}
+          onChange={(e) => onPatch({ backgroundColor: e.target.value.trim() || undefined })}
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <span className="text-[11px]" style={{ color: chromeMuted }}>Text color</span>
+        <input
+          type="text"
+          className="px-2"
+          style={inputStyle}
+          placeholder="var(--token-color-surface) / #fff"
+          value={stateStyle?.color ?? ""}
+          onChange={(e) => onPatch({ color: e.target.value.trim() || undefined })}
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <span className="text-[11px]" style={{ color: chromeMuted }}>Border color</span>
+        <input
+          type="text"
+          className="px-2"
+          style={inputStyle}
+          placeholder="var(--token-color-primary) / #111"
+          value={stateStyle?.borderColor ?? ""}
+          onChange={(e) => onPatch({ borderColor: e.target.value.trim() || undefined })}
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <span className="text-[11px]" style={{ color: chromeMuted }}>Shadow</span>
+        <input
+          type="text"
+          className="px-2"
+          style={inputStyle}
+          placeholder="0 12px 32px rgba(0,0,0,.18)"
+          value={stateStyle?.boxShadow ?? ""}
+          onChange={(e) => onPatch({ boxShadow: e.target.value.trim() || undefined })}
+        />
+      </div>
+      <div className="flex gap-2">
+        <div className="flex flex-1 flex-col gap-1.5">
+          <span className="text-[11px]" style={{ color: chromeMuted }}>Scale</span>
+          <input
+            type="text"
+            className="px-2"
+            style={inputStyle}
+            placeholder="1.04"
+            value={stateStyle?.scale ?? ""}
+            onChange={(e) => onPatch({ scale: e.target.value.trim() || undefined })}
+          />
+        </div>
+        <div className="flex flex-1 flex-col gap-1.5">
+          <span className="text-[11px]" style={{ color: chromeMuted }}>Translate</span>
+          <input
+            type="text"
+            className="px-2"
+            style={inputStyle}
+            placeholder="0 -4px"
+            value={stateStyle?.translate ?? ""}
+            onChange={(e) => onPatch({ translate: e.target.value.trim() || undefined })}
+          />
+        </div>
+        <div className="flex flex-1 flex-col gap-1.5">
+          <span className="text-[11px]" style={{ color: chromeMuted }}>Opacity</span>
+          <input
+            type="text"
+            className="px-2"
+            style={inputStyle}
+            placeholder="0.85"
+            value={typeof stateStyle?.opacity === "number" ? String(stateStyle.opacity) : ""}
+            onChange={(e) => {
+              const raw = e.target.value.trim();
+              const parsed = Number.parseFloat(raw);
+              onPatch({ opacity: raw && Number.isFinite(parsed) ? parsed : undefined });
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const TEXT_ROLES: ReadonlySet<EditableNodeRole> = new Set([
   "headline",
   "subheadline",
@@ -1221,6 +1370,14 @@ function cleanBuilderNodeStyle(
   }
   const hover = cleanHoverStyle(value.hover);
   if (hover) out.hover = hover;
+  // Wave 3 · 3D — preserve per-state style overrides (focus/active).
+  const focusStyle = cleanHoverStyle(value.stateStyles?.focus);
+  const activeStyle = cleanHoverStyle(value.stateStyles?.active);
+  if (focusStyle || activeStyle) {
+    out.stateStyles = {};
+    if (focusStyle) out.stateStyles.focus = focusStyle;
+    if (activeStyle) out.stateStyles.active = activeStyle;
+  }
   // Wave 3 · 3B — preserve the linked style-class reference through every style
   // patch (the allowlist above intentionally drops unknown keys; classRef must
   // survive or "Apply class" would be wiped on the next inspector edit).
@@ -1871,6 +2028,12 @@ export function StylePanel({
   }, [device]);
   const [selectedStandaloneStyleScope, setSelectedStandaloneStyleScope] =
     useState<StandaloneStyleScope>("viewport");
+  // Wave 3 · 3D — which interaction state the hover/state editor is targeting.
+  // "default" = the existing hover style (legacy); "focus" / "active" = the new
+  // stateStyles.focus / stateStyles.active buckets.
+  const [selectedInteractionState, setSelectedInteractionState] = useState<
+    "default" | "focus" | "active"
+  >("default");
   const effectiveStandaloneStyleScope: StandaloneStyleScope =
     selectedViewport === "desktop" ? "viewport" : selectedStandaloneStyleScope;
   const selectedNodeLabel = nodeRoleLabel(selectedNodeRole);
@@ -3412,6 +3575,28 @@ export function StylePanel({
       hover: {
         ...(currentStyle?.hover ?? {}),
         ...patch,
+      },
+    });
+  }
+
+  // Wave 3 · 3D — patch a focus-visible or active state override. Merges onto
+  // the existing stateStyles object (same pattern as patchSelectedHoverStyle).
+  function patchSelectedStateStyle(
+    stateKey: "focus" | "active",
+    patch: Partial<BuilderNodeHoverStyle>,
+  ) {
+    if (!selectedStandaloneStyleNode) return;
+    const currentStyle =
+      standaloneStyleDraftRef.current.nodeId === selectedStandaloneStyleNode.id
+        ? standaloneStyleDraftRef.current.style
+        : selectedStandaloneStyleNode.props.style;
+    patchSelectedBaseStyle({
+      stateStyles: {
+        ...(currentStyle?.stateStyles ?? {}),
+        [stateKey]: {
+          ...(currentStyle?.stateStyles?.[stateKey] ?? {}),
+          ...patch,
+        },
       },
     });
   }
@@ -8311,21 +8496,19 @@ export function StylePanel({
               </details>
             </div>
 
+            {/* ── Wave 3 · 3D Universal State Editor ── */}
             <div
               className="border-t pt-3"
-              data-builder-node-style-control="hover"
+              data-builder-node-style-control="stateStyles"
               style={{ borderColor: CHROME.line }}
             >
               <details>
                 <summary className="flex items-center justify-between select-none" style={{ cursor: "pointer", outline: "none", listStyle: "none" }}>
-                  <span className={FIELD_LABEL}>Hover state</span>
+                  <span className={FIELD_LABEL}>States</span>
                   <span style={{ color: CHROME.muted, fontSize: 9 }}>›</span>
                 </summary>
               <div className="flex flex-col gap-2 mt-2">
-              <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                Applies on the live site while hovered or keyboard-focused.
-                Colors accept a token (var(--token-color-primary)), hex, or rgb.
-              </span>
+              {/* Transition (shared across all states) */}
               <div
                 className="flex flex-col gap-1.5"
                 data-builder-node-style-control="transition"
@@ -8346,7 +8529,7 @@ export function StylePanel({
                     color: CHROME.ink,
                     outline: "none",
                   }}
-                  placeholder="all .2s ease (auto when hover set)"
+                  placeholder="all .2s ease (auto when state set)"
                   value={selectedStandaloneFullStyle?.transition ?? ""}
                   onChange={(e) =>
                     patchSelectedBaseStyle({
@@ -8355,219 +8538,58 @@ export function StylePanel({
                   }
                 />
               </div>
-              <div
-                className="flex flex-col gap-1.5"
-                data-builder-node-style-control="hoverBackgroundColor"
-              >
-                <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                  Background
-                </span>
-                <input
-                  type="text"
-                  className="px-2"
-                  style={{
-                    height: 30,
-                    width: "100%",
-                    fontSize: 12,
-                    background: CHROME.surface2,
-                    border: `1px solid ${CHROME.controlBorder}`,
-                    borderRadius: 7,
-                    color: CHROME.ink,
-                    outline: "none",
-                  }}
-                  placeholder="var(--token-color-primary) / #111"
-                  value={selectedStandaloneFullStyle?.hover?.backgroundColor ?? ""}
-                  onChange={(e) =>
-                    patchSelectedHoverStyle({
-                      backgroundColor: e.target.value.trim() || undefined,
-                    })
-                  }
-                />
+              {/* State switcher — Hover / Focus / Active */}
+              <div className="flex gap-1 rounded-md overflow-hidden" style={{ border: `1px solid ${CHROME.line}` }}>
+                {(["default", "focus", "active"] as const).map((state) => {
+                  const label = state === "default" ? "Hover" : state === "focus" ? "Focus" : "Active";
+                  const hasValue =
+                    state === "default"
+                      ? Boolean(selectedStandaloneFullStyle?.hover && Object.values(selectedStandaloneFullStyle.hover).some(Boolean))
+                      : state === "focus"
+                        ? Boolean(selectedStandaloneFullStyle?.stateStyles?.focus && Object.values(selectedStandaloneFullStyle.stateStyles.focus).some(Boolean))
+                        : Boolean(selectedStandaloneFullStyle?.stateStyles?.active && Object.values(selectedStandaloneFullStyle.stateStyles.active).some(Boolean));
+                  return (
+                    <button
+                      key={state}
+                      type="button"
+                      onClick={() => setSelectedInteractionState(state)}
+                      style={{
+                        flex: 1,
+                        height: 26,
+                        fontSize: 10,
+                        fontWeight: 600,
+                        letterSpacing: "0.06em",
+                        textTransform: "uppercase",
+                        border: "none",
+                        borderRadius: 0,
+                        cursor: "pointer",
+                        background: selectedInteractionState === state ? CHROME.ink : "transparent",
+                        color: selectedInteractionState === state ? "#fff" : hasValue ? CHROME.accent : CHROME.muted,
+                        position: "relative",
+                      }}
+                    >
+                      {label}
+                      {hasValue && selectedInteractionState !== state ? (
+                        <span style={{ position: "absolute", top: 4, right: 4, width: 4, height: 4, borderRadius: "50%", background: CHROME.accent }} />
+                      ) : null}
+                    </button>
+                  );
+                })}
               </div>
-              <div
-                className="flex flex-col gap-1.5"
-                data-builder-node-style-control="hoverColor"
-              >
-                <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                  Text color
-                </span>
-                <input
-                  type="text"
-                  className="px-2"
-                  style={{
-                    height: 30,
-                    width: "100%",
-                    fontSize: 12,
-                    background: CHROME.surface2,
-                    border: `1px solid ${CHROME.controlBorder}`,
-                    borderRadius: 7,
-                    color: CHROME.ink,
-                    outline: "none",
-                  }}
-                  placeholder="var(--token-color-surface) / #fff"
-                  value={selectedStandaloneFullStyle?.hover?.color ?? ""}
-                  onChange={(e) =>
-                    patchSelectedHoverStyle({
-                      color: e.target.value.trim() || undefined,
-                    })
-                  }
-                />
-              </div>
-              <div
-                className="flex flex-col gap-1.5"
-                data-builder-node-style-control="hoverBorderColor"
-              >
-                <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                  Border color
-                </span>
-                <input
-                  type="text"
-                  className="px-2"
-                  style={{
-                    height: 30,
-                    width: "100%",
-                    fontSize: 12,
-                    background: CHROME.surface2,
-                    border: `1px solid ${CHROME.controlBorder}`,
-                    borderRadius: 7,
-                    color: CHROME.ink,
-                    outline: "none",
-                  }}
-                  placeholder="var(--token-color-primary) / #111"
-                  value={selectedStandaloneFullStyle?.hover?.borderColor ?? ""}
-                  onChange={(e) =>
-                    patchSelectedHoverStyle({
-                      borderColor: e.target.value.trim() || undefined,
-                    })
-                  }
-                />
-              </div>
-              <div
-                className="flex flex-col gap-1.5"
-                data-builder-node-style-control="hoverBoxShadow"
-              >
-                <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                  Shadow
-                </span>
-                <input
-                  type="text"
-                  className="px-2"
-                  style={{
-                    height: 30,
-                    width: "100%",
-                    fontSize: 12,
-                    background: CHROME.surface2,
-                    border: `1px solid ${CHROME.controlBorder}`,
-                    borderRadius: 7,
-                    color: CHROME.ink,
-                    outline: "none",
-                  }}
-                  placeholder="0 12px 32px rgba(0,0,0,.18)"
-                  value={selectedStandaloneFullStyle?.hover?.boxShadow ?? ""}
-                  onChange={(e) =>
-                    patchSelectedHoverStyle({
-                      boxShadow: e.target.value.trim() || undefined,
-                    })
-                  }
-                />
-              </div>
-              <div className="flex gap-2">
-                <div
-                  className="flex flex-1 flex-col gap-1.5"
-                  data-builder-node-style-control="hoverScale"
-                >
-                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                    Scale
-                  </span>
-                  <input
-                    type="text"
-                    className="px-2"
-                    style={{
-                      height: 30,
-                      width: "100%",
-                      fontSize: 12,
-                      background: CHROME.surface2,
-                      border: `1px solid ${CHROME.controlBorder}`,
-                      borderRadius: 7,
-                      color: CHROME.ink,
-                      outline: "none",
-                    }}
-                    placeholder="1.04"
-                    value={selectedStandaloneFullStyle?.hover?.scale ?? ""}
-                    onChange={(e) =>
-                      patchSelectedHoverStyle({
-                        scale: e.target.value.trim() || undefined,
-                      })
-                    }
-                  />
-                </div>
-                <div
-                  className="flex flex-1 flex-col gap-1.5"
-                  data-builder-node-style-control="hoverTranslate"
-                >
-                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                    Translate
-                  </span>
-                  <input
-                    type="text"
-                    className="px-2"
-                    style={{
-                      height: 30,
-                      width: "100%",
-                      fontSize: 12,
-                      background: CHROME.surface2,
-                      border: `1px solid ${CHROME.controlBorder}`,
-                      borderRadius: 7,
-                      color: CHROME.ink,
-                      outline: "none",
-                    }}
-                    placeholder="0 -4px"
-                    value={selectedStandaloneFullStyle?.hover?.translate ?? ""}
-                    onChange={(e) =>
-                      patchSelectedHoverStyle({
-                        translate: e.target.value.trim() || undefined,
-                      })
-                    }
-                  />
-                </div>
-                <div
-                  className="flex flex-1 flex-col gap-1.5"
-                  data-builder-node-style-control="hoverOpacity"
-                >
-                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                    Opacity
-                  </span>
-                  <input
-                    type="text"
-                    className="px-2"
-                    style={{
-                      height: 30,
-                      width: "100%",
-                      fontSize: 12,
-                      background: CHROME.surface2,
-                      border: `1px solid ${CHROME.controlBorder}`,
-                      borderRadius: 7,
-                      color: CHROME.ink,
-                      outline: "none",
-                    }}
-                    placeholder="0.85"
-                    value={
-                      typeof selectedStandaloneFullStyle?.hover?.opacity ===
-                      "number"
-                        ? String(selectedStandaloneFullStyle.hover.opacity)
-                        : ""
-                    }
-                    onChange={(e) => {
-                      const raw = e.target.value.trim();
-                      const parsed = Number.parseFloat(raw);
-                      patchSelectedHoverStyle({
-                        opacity:
-                          raw && Number.isFinite(parsed) ? parsed : undefined,
-                      });
-                    }}
-                  />
-                </div>
-              </div>
+              {/* State-specific fields — same controls for all three states */}
+              <StateStyleFields
+                state={selectedInteractionState}
+                hoverStyle={selectedStandaloneFullStyle?.hover}
+                focusStyle={selectedStandaloneFullStyle?.stateStyles?.focus}
+                activeStyle={selectedStandaloneFullStyle?.stateStyles?.active}
+                onPatchHover={(patch) => patchSelectedHoverStyle(patch)}
+                onPatchFocus={(patch) => patchSelectedStateStyle("focus", patch)}
+                onPatchActive={(patch) => patchSelectedStateStyle("active", patch)}
+                chromeMuted={CHROME.muted}
+                chromeSurface2={CHROME.surface2}
+                chromeControlBorder={CHROME.controlBorder}
+                chromeInk={CHROME.ink}
+              />
               </div>
               </details>
             </div>
