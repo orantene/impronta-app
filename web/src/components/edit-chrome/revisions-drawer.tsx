@@ -18,6 +18,10 @@
  * Diff panel lives in revisions-diff-panel.tsx (split to stay under the
  * 800-line ESLint limit).
  *
+ * Wave 6A — #18 + #19: undo-survives-reload (in edit-context.tsx), named
+ * versions (localStorage label map + inline editor in RevisionCard extracted
+ * to revisions-card.tsx), and name-filter search input.
+ *
  * Schema-light first pass. Reads existing `cms_page_revisions` rows
  * (already written by every save and every publish — no new column is
  * needed for the read path). Each row shows `kind` (Draft / Published /
@@ -43,8 +47,6 @@ import type { ReactElement } from "react";
 
 import {
   CHROME,
-  CHROME_RADII,
-  CHROME_SHADOWS,
   Drawer,
   DrawerBody,
   DrawerHead,
@@ -54,9 +56,11 @@ import { useEditContext } from "./edit-context";
 import {
   loadHomepageRevisionsAction,
   loadPageRevisionsAction,
+  REVISION_LABELS_STORAGE_KEY,
   type RevisionListRow,
 } from "@/lib/site-admin/edit-mode/revisions-actions";
 import { RevisionsDiffPanel } from "./revisions-diff-panel";
+import { RevisionCard } from "./revisions-card";
 
 // ── icons ────────────────────────────────────────────────────────────────
 
@@ -75,43 +79,6 @@ function ClockIcon() {
     >
       <circle cx="12" cy="12" r="10" />
       <polyline points="12 6 12 12 16 14" />
-    </svg>
-  );
-}
-
-function RestoreIcon() {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
-      <path d="M3 3v5h5" />
-    </svg>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg
-      width="11"
-      height="11"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <polyline points="20 6 9 17 4 12" />
     </svg>
   );
 }
@@ -137,103 +104,23 @@ function DiffIcon() {
   );
 }
 
-// ── kind chip ────────────────────────────────────────────────────────────
-
-interface KindChipMeta {
-  label: string;
-  fg: string;
-  bg: string;
-  border: string;
-}
-
-const KIND_CHIPS: Record<RevisionListRow["kind"], KindChipMeta> = {
-  draft: {
-    label: "Draft",
-    fg: CHROME.muted,
-    bg: CHROME.paper,
-    border: CHROME.lineMid,
-  },
-  published: {
-    label: "Published",
-    fg: CHROME.green,
-    bg: CHROME.greenBg,
-    border: CHROME.greenLine,
-  },
-  rollback: {
-    label: "Rollback",
-    fg: CHROME.violet,
-    bg: CHROME.violetBg,
-    border: CHROME.violetLine,
-  },
-};
-
-function KindChip({ kind }: { kind: RevisionListRow["kind"] }): ReactElement {
-  const m = KIND_CHIPS[kind];
+function TagIcon() {
   return (
-    <span
-      className="inline-flex items-center gap-1 rounded-full px-2 py-[2px]"
-      style={{
-        fontSize: 10,
-        fontWeight: 700,
-        letterSpacing: "0.04em",
-        color: m.fg,
-        background: m.bg,
-        border: `1px solid ${m.border}`,
-      }}
+    <svg
+      width="11"
+      height="11"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
     >
-      {m.label}
-    </span>
+      <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+      <line x1="7" y1="7" x2="7.01" y2="7" />
+    </svg>
   );
-}
-
-function LiveChip(): ReactElement {
-  return (
-    <span
-      className="inline-flex items-center gap-1 rounded-full px-2 py-[2px]"
-      style={{
-        fontSize: 10,
-        fontWeight: 700,
-        letterSpacing: "0.04em",
-        color: CHROME.blue,
-        background: CHROME.blueBg,
-        border: `1px solid ${CHROME.blueLine}`,
-      }}
-    >
-      <CheckIcon /> Live
-    </span>
-  );
-}
-
-// ── relative time ────────────────────────────────────────────────────────
-
-const SECOND = 1_000;
-const MINUTE = 60 * SECOND;
-const HOUR = 60 * MINUTE;
-const DAY = 24 * HOUR;
-
-function formatRelative(iso: string): string {
-  const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) return iso;
-  const diff = Date.now() - then;
-  if (diff < MINUTE) return "just now";
-  if (diff < HOUR) {
-    const m = Math.floor(diff / MINUTE);
-    return `${m}m ago`;
-  }
-  if (diff < DAY) {
-    const h = Math.floor(diff / HOUR);
-    return `${h}h ago`;
-  }
-  if (diff < 7 * DAY) {
-    const d = Math.floor(diff / DAY);
-    return `${d}d ago`;
-  }
-  return new Date(iso).toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
 }
 
 // ── Drawer ───────────────────────────────────────────────────────────────
@@ -263,6 +150,18 @@ export function RevisionsDrawer(): ReactElement | null {
   const [diffPair, setDiffPair] = useState<[RevisionListRow, RevisionListRow] | null>(null);
   // First selection for diff-mode (waiting for the second pick).
   const [diffAnchor, setDiffAnchor] = useState<RevisionListRow | null>(null);
+  // #19 — Named versions: label map persisted to localStorage. Key is revisionId.
+  const [labelMap, setLabelMap] = useState<Record<string, string>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const raw = window.localStorage.getItem(REVISION_LABELS_STORAGE_KEY);
+      return raw ? (JSON.parse(raw) as Record<string, string>) : {};
+    } catch {
+      return {};
+    }
+  });
+  // #19 — Search/filter input (matches against version label, kind, title).
+  const [nameFilter, setNameFilter] = useState("");
 
   // Reset transient state on close.
   useEffect(() => {
@@ -270,8 +169,34 @@ export function RevisionsDrawer(): ReactElement | null {
       setConfirmId(null);
       setDiffPair(null);
       setDiffAnchor(null);
+      setNameFilter("");
     }
   }, [revisionsOpen]);
+
+  // #19 — Persist label map on every change.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        REVISION_LABELS_STORAGE_KEY,
+        JSON.stringify(labelMap),
+      );
+    } catch {
+      // quota / private-browsing — skip silently
+    }
+  }, [labelMap]);
+
+  const setLabel = useCallback((revId: string, label: string) => {
+    setLabelMap((prev) => {
+      const next = { ...prev };
+      if (label.trim() === "") {
+        delete next[revId];
+      } else {
+        next[revId] = label.trim();
+      }
+      return next;
+    });
+  }, []);
 
   // Re-fetch on every open so a freshly-written draft revision shows up.
   useEffect(() => {
@@ -389,18 +314,41 @@ export function RevisionsDrawer(): ReactElement | null {
               }}
             >
               <strong style={{ color: CHROME.text }}>Undo / Redo</strong> (⌘Z /
-              ⌘⇧Z) applies to this editing session only and does not survive a
-              full reload.{" "}
+              ⌘⇧Z) depth is preserved across reloads (up to 10 steps).{" "}
               <strong style={{ color: CHROME.text }}>Restore</strong> replaces
               your draft with a saved snapshot — review the canvas, then
               publish when ready.{" "}
               {revisions && revisions.length >= 2 && (
                 <>
                   Use the <DiffIcon /> button to select two revisions and see a
-                  structural diff.
+                  structural diff. Use the <TagIcon /> button to name a
+                  checkpoint.
                 </>
               )}
             </div>
+
+            {/* ── #19 Named-version search filter ── */}
+            {revisions && revisions.length > 3 ? (
+              <div className="mb-3">
+                <input
+                  type="search"
+                  placeholder="Filter by name, kind, or title…"
+                  value={nameFilter}
+                  onChange={(e) => setNameFilter(e.target.value)}
+                  style={{
+                    width: "100%",
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.line}`,
+                    borderRadius: 7,
+                    padding: "6px 10px",
+                    fontSize: 12,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  aria-label="Filter revision history"
+                />
+              </div>
+            ) : null}
 
             {/* ── Diff-select mode hint ── */}
             {diffAnchor && (
@@ -443,232 +391,65 @@ export function RevisionsDrawer(): ReactElement | null {
               <EmptyState />
             ) : null}
 
-            {revisions && revisions.length > 0 ? (
-              <ul className="m-0 flex list-none flex-col gap-2 p-0">
-                {revisions.map((rev) => (
-                  <li key={rev.id}>
-                    <RevisionCard
-                      rev={rev}
-                      isLive={
-                        rev.kind === "published" &&
-                        publishedVersion !== null &&
-                        rev.version === publishedVersion
-                      }
-                      pending={pendingId === rev.id}
-                      confirming={confirmId === rev.id}
-                      isDiffAnchor={diffAnchor?.id === rev.id}
-                      canDiff={Boolean(revisions && revisions.length >= 2)}
-                      onAskConfirm={() => setConfirmId(rev.id)}
-                      onCancelConfirm={() => setConfirmId(null)}
-                      onConfirmRestore={() => void handleRestore(rev)}
-                      onSelectForDiff={() => handleDiffSelect(rev)}
-                    />
-                  </li>
-                ))}
-              </ul>
-            ) : null}
+            {revisions && revisions.length > 0 ? (() => {
+              // #19 — apply the name filter if set. Match against: assigned
+              // label, kind chip label, page title at revision, version number.
+              const q = nameFilter.trim().toLowerCase();
+              const filtered = q
+                ? revisions.filter((rev) => {
+                    const label = labelMap[rev.id] ?? "";
+                    return (
+                      label.toLowerCase().includes(q) ||
+                      rev.kind.includes(q) ||
+                      (rev.titleAtRevision ?? "").toLowerCase().includes(q) ||
+                      String(rev.version).includes(q)
+                    );
+                  })
+                : revisions;
+
+              if (filtered.length === 0) {
+                return (
+                  <div
+                    className="rounded-md px-3 py-6 text-center"
+                    style={{ fontSize: 12, color: CHROME.muted }}
+                  >
+                    No revisions match &ldquo;{nameFilter}&rdquo;.
+                  </div>
+                );
+              }
+
+              return (
+                <ul className="m-0 flex list-none flex-col gap-2 p-0">
+                  {filtered.map((rev) => (
+                    <li key={rev.id}>
+                      <RevisionCard
+                        rev={rev}
+                        label={labelMap[rev.id] ?? ""}
+                        isLive={
+                          rev.kind === "published" &&
+                          publishedVersion !== null &&
+                          rev.version === publishedVersion
+                        }
+                        pending={pendingId === rev.id}
+                        confirming={confirmId === rev.id}
+                        isDiffAnchor={diffAnchor?.id === rev.id}
+                        canDiff={Boolean(revisions && revisions.length >= 2)}
+                        onAskConfirm={() => setConfirmId(rev.id)}
+                        onCancelConfirm={() => setConfirmId(null)}
+                        onConfirmRestore={() => void handleRestore(rev)}
+                        onSelectForDiff={() => handleDiffSelect(rev)}
+                        onSetLabel={(l) => setLabel(rev.id, l)}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              );
+            })() : null}
           </>
         )}
       </DrawerBody>
     </Drawer>
   );
-}
-
-// ── card ─────────────────────────────────────────────────────────────────
-
-interface RevisionCardProps {
-  rev: RevisionListRow;
-  isLive: boolean;
-  pending: boolean;
-  confirming: boolean;
-  isDiffAnchor: boolean;
-  canDiff: boolean;
-  onAskConfirm: () => void;
-  onCancelConfirm: () => void;
-  onConfirmRestore: () => void;
-  onSelectForDiff: () => void;
-}
-
-function RevisionCard({
-  rev,
-  isLive,
-  pending,
-  confirming,
-  isDiffAnchor,
-  canDiff,
-  onAskConfirm,
-  onCancelConfirm,
-  onConfirmRestore,
-  onSelectForDiff,
-}: RevisionCardProps): ReactElement {
-  const author = rev.createdBy?.displayName ?? "Unknown";
-  return (
-    <article
-      className="flex flex-col gap-2"
-      style={{
-        background: isDiffAnchor ? CHROME.blueBg : CHROME.surface,
-        border: `1px solid ${isDiffAnchor ? CHROME.blueLine : CHROME.line}`,
-        borderRadius: CHROME_RADII.md,
-        boxShadow: CHROME_SHADOWS.card,
-        padding: "10px 12px",
-        transition: "background 120ms ease, border-color 120ms ease",
-      }}
-    >
-      <header className="flex items-center gap-2">
-        <KindChip kind={rev.kind} />
-        {isLive ? <LiveChip /> : null}
-        <span
-          className="ml-auto"
-          style={{ fontSize: 10.5, color: CHROME.muted2, letterSpacing: "0.02em" }}
-          title={new Date(rev.createdAt).toLocaleString()}
-        >
-          {formatRelative(rev.createdAt)}
-        </span>
-      </header>
-
-      <div className="flex items-baseline gap-2">
-        <span
-          style={{
-            fontSize: 13,
-            fontWeight: 600,
-            color: CHROME.ink,
-            letterSpacing: "-0.005em",
-          }}
-        >
-          {rev.titleAtRevision ?? "Page"}
-        </span>
-        <span style={{ fontSize: 11, color: CHROME.muted2 }}>· v{rev.version}</span>
-      </div>
-
-      <div
-        className="flex items-center justify-between gap-2"
-        style={{ fontSize: 11, color: CHROME.muted }}
-      >
-        <span>
-          {author}
-          <span style={{ color: CHROME.muted2 }}> · </span>
-          {rev.sectionCount} section{rev.sectionCount === 1 ? "" : "s"}
-        </span>
-
-        <span className="flex items-center gap-1">
-          {/* Compare button — visible when ≥2 revisions exist. */}
-          {canDiff && !confirming ? (
-            <button
-              type="button"
-              onClick={onSelectForDiff}
-              disabled={pending}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                height: 24,
-                padding: "0 8px",
-                fontSize: 10.5,
-                fontWeight: 600,
-                color: isDiffAnchor ? CHROME.blue : CHROME.muted,
-                background: isDiffAnchor ? CHROME.blueBg : CHROME.paper,
-                border: `1px solid ${isDiffAnchor ? CHROME.blueLine : CHROME.lineMid}`,
-                borderRadius: 6,
-                cursor: pending ? "not-allowed" : "pointer",
-                transition: "background 120ms ease, color 120ms ease",
-              }}
-              title={isDiffAnchor ? "Deselect from compare" : "Select for compare"}
-              aria-label={isDiffAnchor ? "Deselect this revision from the comparison" : "Select this revision for comparison"}
-              aria-pressed={isDiffAnchor}
-            >
-              <DiffIcon />
-            </button>
-          ) : null}
-
-          {confirming ? (
-            <span className="flex items-center gap-1.5">
-              <span style={{ color: CHROME.muted, fontWeight: 500 }}>Restore?</span>
-              <button
-                type="button"
-                onClick={onCancelConfirm}
-                disabled={pending}
-                style={ghostBtnStyle()}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={onConfirmRestore}
-                disabled={pending}
-                style={primaryBtnStyle(pending)}
-              >
-                {pending ? "Restoring…" : "Yes, restore"}
-              </button>
-            </span>
-          ) : isLive ? (
-            <span style={{ color: CHROME.muted2, fontStyle: "italic" }}>
-              Current published
-            </span>
-          ) : (
-            <button
-              type="button"
-              onClick={onAskConfirm}
-              disabled={pending}
-              style={iconBtnStyle()}
-              title="Restore as draft"
-              aria-label="Restore this snapshot as your current draft"
-            >
-              <RestoreIcon /> Restore
-            </button>
-          )}
-        </span>
-      </div>
-    </article>
-  );
-}
-
-// ── button styles ────────────────────────────────────────────────────────
-
-function iconBtnStyle(): React.CSSProperties {
-  return {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 4,
-    height: 24,
-    padding: "0 8px",
-    fontSize: 10.5,
-    fontWeight: 600,
-    color: CHROME.ink,
-    background: CHROME.paper,
-    border: `1px solid ${CHROME.lineMid}`,
-    borderRadius: 6,
-    cursor: "pointer",
-    transition: "background 120ms ease, color 120ms ease",
-  };
-}
-
-function ghostBtnStyle(): React.CSSProperties {
-  return {
-    height: 24,
-    padding: "0 8px",
-    fontSize: 10.5,
-    fontWeight: 500,
-    color: CHROME.muted,
-    background: "transparent",
-    border: `1px solid ${CHROME.line}`,
-    borderRadius: 6,
-    cursor: "pointer",
-  };
-}
-
-function primaryBtnStyle(disabled: boolean): React.CSSProperties {
-  return {
-    height: 24,
-    padding: "0 10px",
-    fontSize: 10.5,
-    fontWeight: 600,
-    color: "#fff",
-    background: disabled ? CHROME.muted2 : CHROME.accent,
-    border: "none",
-    borderRadius: 6,
-    cursor: disabled ? "wait" : "pointer",
-    boxShadow: CHROME_SHADOWS.card,
-  };
 }
 
 // ── empty / skeleton ─────────────────────────────────────────────────────
@@ -698,4 +479,3 @@ function EmptyState(): ReactElement {
 }
 
 // SkeletonList removed — replaced by shared DrawerSkeleton from "./kit".
-

@@ -306,6 +306,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     openShortcutOverlay,
     closeShortcutOverlay,
     saveDraft,
+    lastDraftSavedAt,
     pagesPickerOpenNonce,
     requestPagesPickerOpen,
     pageMetadata,
@@ -860,6 +861,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
           defaultLocale={defaultLocale}
           availableLocales={availableLocales}
           liveSitePublishedAt={liveSitePublishedAt}
+          lastDraftSavedAt={lastDraftSavedAt}
         />
         {/* z-[83]: above the Layers/Structure navigator (z-80) so canvas
          *  chrome — selection rings, chips, and especially the #30 right-click

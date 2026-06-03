@@ -1940,7 +1940,41 @@ export function EditProvider({
   // metadata for structural moves; `field` captures a single section's
   // pre/post props for inline text / image / URL edits. A single LIFO
   // timeline so ⌘Z honours the most recent change regardless of kind.
-  const [past, setPast] = useState<HistoryEntry[]>([]);
+  //
+  // #18 UNDO-SURVIVES-RELOAD: we persist the last UNDO_PERSIST_CAP entries of
+  // the `past` stack to localStorage keyed by pageId. On mount we attempt to
+  // rehydrate from that key so an accidental F5 doesn't wipe undo depth. The
+  // persisted stack is capped at 10 entries (smaller than the in-memory cap)
+  // because serialized snapshots are heavier. We guard with try/catch at every
+  // boundary — a storage failure must never break the editor.
+  const UNDO_PERSIST_CAP = 10;
+  const undoPersistKey = pageId ? `builder_undo_stack_v1:${pageId}` : null;
+
+  const [past, setPast] = useState<HistoryEntry[]>(() => {
+    if (!undoPersistKey || typeof window === "undefined") return [];
+    try {
+      const raw = window.localStorage.getItem(undoPersistKey);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw) as unknown[];
+      if (!Array.isArray(parsed)) return [];
+      // Only rehydrate entries whose shape we recognise.
+      const valid = parsed.filter(
+        (e): e is HistoryEntry =>
+          e !== null &&
+          typeof e === "object" &&
+          "kind" in (e as object) &&
+          (
+            (e as { kind: string }).kind === "composition" ||
+            (e as { kind: string }).kind === "builderTree" ||
+            (e as { kind: string }).kind === "field"
+          ),
+      );
+      return valid.slice(-UNDO_PERSIST_CAP);
+    } catch {
+      return [];
+    }
+  });
+
   const [future, setFuture] = useState<HistoryEntry[]>([]);
   const HISTORY_CAP = 50;
   const capHistory = useCallback(
@@ -1948,6 +1982,21 @@ export function EditProvider({
       next.length > HISTORY_CAP ? next.slice(-HISTORY_CAP) : next,
     [],
   );
+
+  // #18 — Persist `past` to localStorage on every change. We write only
+  // the tail (UNDO_PERSIST_CAP entries) so the serialised size stays small
+  // even for large builder-tree snapshots. The write is fire-and-forget —
+  // a synchronous write on every mutation is acceptable since `past` changes
+  // at most on every user action (not on every render).
+  useEffect(() => {
+    if (!undoPersistKey || typeof window === "undefined") return;
+    try {
+      const tail = past.slice(-UNDO_PERSIST_CAP);
+      window.localStorage.setItem(undoPersistKey, JSON.stringify(tail));
+    } catch {
+      // Quota exceeded or private-browsing block — silently skip.
+    }
+  }, [past, undoPersistKey]);
 
   // library overlay target
   const [libraryTarget, setLibraryTarget] = useState<LibraryTarget | null>(

@@ -178,6 +178,13 @@ export interface RevisionsDiffPanelProps {
   revA: RevisionListRow;
   revB: RevisionListRow;
   onClose: () => void;
+  /**
+   * #19 — when `embedded` is true the panel is rendered inline (e.g. inside
+   * the publish-drawer's card body) rather than as a full replacement for the
+   * revisions list. Hides the back-button row and the explanatory banner so
+   * the diff fills its card container cleanly.
+   */
+  embedded?: boolean;
 }
 
 export function RevisionsDiffPanel({
@@ -185,6 +192,7 @@ export function RevisionsDiffPanel({
   revA,
   revB,
   onClose,
+  embedded = false,
 }: RevisionsDiffPanelProps): ReactElement {
   type DiffState =
     | { status: "idle" }
@@ -214,48 +222,52 @@ export function RevisionsDiffPanel({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* back + header */}
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={onClose}
-          style={{
-            height: 24,
-            padding: "0 8px",
-            fontSize: 10.5,
-            fontWeight: 500,
-            color: CHROME.muted,
-            background: "transparent",
-            border: `1px solid ${CHROME.line}`,
-            borderRadius: 6,
-            cursor: "pointer",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-          }}
-          aria-label="Back to revision list"
-        >
-          <BackIcon /> Back
-        </button>
-        <span style={{ fontSize: 12, fontWeight: 600, color: CHROME.ink }}>
-          Comparing v{revA.version} ↔ v{revB.version}
-        </span>
-      </div>
+      {/* back + header — hidden in embedded mode */}
+      {!embedded ? (
+        <>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                height: 24,
+                padding: "0 8px",
+                fontSize: 10.5,
+                fontWeight: 500,
+                color: CHROME.muted,
+                background: "transparent",
+                border: `1px solid ${CHROME.line}`,
+                borderRadius: 6,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+              aria-label="Back to revision list"
+            >
+              <BackIcon /> Back
+            </button>
+            <span style={{ fontSize: 12, fontWeight: 600, color: CHROME.ink }}>
+              Comparing v{revA.version} ↔ v{revB.version}
+            </span>
+          </div>
 
-      <div
-        className="rounded-md px-3 py-2 text-[11px] leading-relaxed"
-        style={{
-          background: CHROME.surface2,
-          border: `1px solid ${CHROME.line}`,
-          color: CHROME.muted,
-        }}
-      >
-        Side-by-side structural diff — shows which top-level sections or
-        blocks were added or removed between the two snapshots. Content
-        edits within a block are not shown here. Click{" "}
-        <strong style={{ color: CHROME.text }}>Back</strong> then{" "}
-        <strong style={{ color: CHROME.text }}>Restore</strong> to roll back.
-      </div>
+          <div
+            className="rounded-md px-3 py-2 text-[11px] leading-relaxed"
+            style={{
+              background: CHROME.surface2,
+              border: `1px solid ${CHROME.line}`,
+              color: CHROME.muted,
+            }}
+          >
+            Side-by-side structural diff — shows which top-level sections or
+            blocks were added or removed between the two snapshots. Content
+            edits within a block are not shown here. Click{" "}
+            <strong style={{ color: CHROME.text }}>Back</strong> then{" "}
+            <strong style={{ color: CHROME.text }}>Restore</strong> to roll back.
+          </div>
+        </>
+      ) : null}
 
       {diffState.status === "loading" && (
         <div className="flex flex-col gap-1.5" aria-busy="true" aria-label="Loading diff">
@@ -286,10 +298,14 @@ export function RevisionsDiffPanel({
 
       {diffState.status === "loaded" && (() => {
         const { aRows, bRows } = computeDiff(diffState.a.items, diffState.b.items);
+        // In embedded mode (publish drawer) revA=published, revB=draft so
+        // use more descriptive labels than "older"/"newer".
+        const labelA = embedded ? "Published" : "older";
+        const labelB = embedded ? "Draft (going live)" : "newer";
         return (
           <div className="flex gap-2 items-start">
-            <DiffColumn summary={diffState.a} rows={aRows} label="older" />
-            <DiffColumn summary={diffState.b} rows={bRows} label="newer" />
+            <DiffColumn summary={diffState.a} rows={aRows} label={labelA} />
+            <DiffColumn summary={diffState.b} rows={bRows} label={labelB} />
           </div>
         );
       })()}

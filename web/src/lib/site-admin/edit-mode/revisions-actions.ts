@@ -490,6 +490,72 @@ export async function restorePageRevisionAction(input: {
   }
 }
 
+// ── Named-version labels (no-migration, localStorage-backed on the client) ────
+
+/**
+ * Add a `labelRevisionAction` stub — labels are stored client-side (localStorage)
+ * by the RevisionCard. This export type is used by the drawer for the
+ * saved-label map shape. No server action is needed.
+ *
+ * The map persisted under `builder_revision_labels_v1` is:
+ *   `{ [revisionId: string]: string }` — operator-authored freeform labels.
+ */
+export const REVISION_LABELS_STORAGE_KEY = "builder_revision_labels_v1";
+
+// ── Publish diff: load the two revision IDs the diff panel needs ──────────────
+
+export type PublishDiffRevisionIdsResult =
+  | { ok: true; draftRevisionId: string; publishedRevisionId: string | null }
+  | { ok: false; error: string };
+
+/**
+ * #19 — Return the most recent draft revision id and the most recent published
+ * revision id for a given page so the publish-drawer can show a builder-tree
+ * diff (via RevisionsDiffPanel) before the operator commits to publishing.
+ *
+ * Only the two revision ids are returned — the heavy diff payload is loaded
+ * lazily by RevisionsDiffPanel via `loadRevisionDiffAction`.
+ *
+ * If there is no published revision yet (first publish), `publishedRevisionId`
+ * is null and the diff panel should show "Nothing published yet" rather than
+ * attempting to load an empty diff.
+ */
+export async function loadPublishDiffRevisionIdsAction(input: {
+  pageId: string;
+}): Promise<PublishDiffRevisionIdsResult> {
+  const auth = await requireStaff();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const scope = await requireTenantScope().catch(() => null);
+  if (!scope) return { ok: false, error: "Select an agency workspace first." };
+
+  try {
+    const { data: rows, error } = await auth.supabase
+      .from("cms_page_revisions")
+      .select("id, kind")
+      .eq("tenant_id", scope.tenantId)
+      .eq("page_id", input.pageId)
+      .in("kind", ["draft", "published"])
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    if (error) return { ok: false, error: "Failed to load revision ids." };
+
+    const typed = (rows ?? []) as Array<{ id: string; kind: "draft" | "published" | "rollback" }>;
+    const draftRow = typed.find((r) => r.kind === "draft");
+    const publishedRow = typed.find((r) => r.kind === "published");
+    if (!draftRow) return { ok: false, error: "No draft revision found for this page." };
+
+    return {
+      ok: true,
+      draftRevisionId: draftRow.id,
+      publishedRevisionId: publishedRow?.id ?? null,
+    };
+  } catch (error) {
+    logServerError("edit-mode/publish-diff-revision-ids", error);
+    return { ok: false, error: "Failed to load revision ids." };
+  }
+}
+
 /**
  * Load the snapshot summaries for two revisions so the diff panel can render
  * a side-by-side structural comparison. Accepts a pair of revision ids; both

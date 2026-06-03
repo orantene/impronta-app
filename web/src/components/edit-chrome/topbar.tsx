@@ -796,20 +796,53 @@ function LiveSitePublishedChip({
   );
 }
 
-function SaveStatus({ dirty, saving }: { dirty: boolean; saving: boolean }) {
-  const [justSaved, setJustSaved] = useState(false);
-  const wasSavingRef = useRef(false);
+// ── #18 — relative "Saved Xs ago" formatter ─────────────────────────────────
 
+function formatSavedAgo(isoOrEpoch: string): string {
+  const ms = Date.now() - new Date(isoOrEpoch).getTime();
+  if (ms < 5_000) return "just now";
+  if (ms < 60_000) return `${Math.floor(ms / 1_000)}s ago`;
+  if (ms < 3_600_000) return `${Math.floor(ms / 60_000)}m ago`;
+  return `${Math.floor(ms / 3_600_000)}h ago`;
+}
+
+/**
+ * #18 — SaveStatus: surfaces the autosave state with a relative "Saved Xs ago"
+ * timestamp (from `lastDraftSavedAt`) so operators always know when the last
+ * checkpoint was written, and shows an amber "Unpublished changes" pill when
+ * the draft was saved AFTER the last publish (or when the page has never been
+ * published), signalling the live site doesn't yet reflect current work.
+ */
+function SaveStatus({
+  dirty,
+  saving,
+  lastDraftSavedAt,
+  liveSitePublishedAt,
+}: {
+  dirty: boolean;
+  saving: boolean;
+  /** ISO timestamp of the last successful draft save (from edit-context). */
+  lastDraftSavedAt?: string | null;
+  /** ISO timestamp when the page was last published, or null if never. */
+  liveSitePublishedAt?: string | null;
+}) {
+  // Tick every 15 s so relative "Xs ago" stays reasonably fresh without
+  // hammering re-renders. The display is informational, not realtime.
+  const [, setTick] = useState(0);
   useEffect(() => {
-    if (wasSavingRef.current && !saving && !dirty) {
-      setJustSaved(true);
-      const t = setTimeout(() => setJustSaved(false), 1600);
-      wasSavingRef.current = saving;
-      return () => clearTimeout(t);
-    }
-    wasSavingRef.current = saving;
-    return undefined;
-  }, [saving, dirty]);
+    if (!lastDraftSavedAt) return;
+    const id = setInterval(() => setTick((n) => n + 1), 15_000);
+    return () => clearInterval(id);
+  }, [lastDraftSavedAt]);
+
+  // "Unpublished changes" = draft was saved at or after the last publish,
+  // OR the page has never been published. Detect by comparing ISO strings.
+  const hasUnpublishedChanges = Boolean(
+    lastDraftSavedAt &&
+      (!liveSitePublishedAt ||
+        new Date(lastDraftSavedAt).getTime() >=
+          new Date(liveSitePublishedAt).getTime()),
+  );
 
   const dot = "inline-block shrink-0 rounded-full";
 
@@ -832,7 +865,7 @@ function SaveStatus({ dirty, saving }: { dirty: boolean; saving: boolean }) {
           style={{ width: 6, height: 6, background: CHROME.blue, boxShadow: "0 0 8px rgba(58,123,255,0.6)" }}
           aria-hidden
         />
-        Saving draft…
+        Saving…
       </span>
     );
   }
@@ -861,8 +894,14 @@ function SaveStatus({ dirty, saving }: { dirty: boolean; saving: boolean }) {
       </span>
     );
   }
-  if (justSaved) {
-    return (
+
+  // Saved state — show relative timestamp + optional "Unpublished changes" pill.
+  const savedAgoText = lastDraftSavedAt
+    ? `Saved ${formatSavedAgo(lastDraftSavedAt)}`
+    : "Draft up to date";
+
+  return (
+    <>
       <span
         role="status"
         aria-live="polite"
@@ -874,40 +913,46 @@ function SaveStatus({ dirty, saving }: { dirty: boolean; saving: boolean }) {
           color: CHROME.green,
           borderColor: CHROME.greenLine,
         }}
-        title="Draft saved on the server. Visitors still see the last published version until you Publish. If the canvas looks one step behind, wait a moment for the preview refresh."
+        title={
+          lastDraftSavedAt
+            ? `Draft last saved at ${new Date(lastDraftSavedAt).toLocaleString()} — visitors see the last published version until you publish.`
+            : "Draft is saved on our servers — visitors still see the published site until you click Publish."
+        }
+        aria-label={savedAgoText}
       >
         <span
           className={dot}
-          style={{ width: 6, height: 6, background: CHROME.green, boxShadow: "0 0 8px rgba(20,115,46,0.6)" }}
+          style={{ width: 6, height: 6, background: CHROME.green }}
           aria-hidden
         />
-        Draft saved
+        {savedAgoText}
       </span>
-    );
-  }
-  return (
-    <span
-      role="status"
-      aria-live="polite"
-      aria-atomic="true"
-      className="inline-flex shrink-0 items-center gap-[6px] rounded-full border text-[11px] font-semibold"
-      style={{
-        padding: "4px 11px 4px 9px",
-        background: CHROME.greenBg,
-        color: CHROME.green,
-        borderColor: CHROME.greenLine,
-        opacity: 0.7,
-      }}
-      title="Draft is saved on our servers — visitors still see the published site until you click Publish. The editor preview can take a few seconds to match after inserts; try toggling device width or waiting briefly if something looks off."
-      aria-label="Draft up to date on the server. The live site still shows the last published version until you publish. Preview may briefly lag after layout changes."
-    >
-      <span
-        className={dot}
-        style={{ width: 6, height: 6, background: CHROME.green }}
-        aria-hidden
-      />
-      Draft up to date
-    </span>
+      {/* #18 — "Unpublished changes" amber pill: visible whenever there are
+          draft saves that haven't been published to the live site yet. This
+          gives operators an at-a-glance signal that the live site differs
+          from what they see in the canvas. Click Publish to close the gap. */}
+      {hasUnpublishedChanges ? (
+        <span
+          role="note"
+          aria-label="You have unpublished changes. The live site still shows the previous published version."
+          className="inline-flex shrink-0 items-center gap-[5px] rounded-full border text-[10.5px] font-semibold"
+          style={{
+            padding: "3px 9px 3px 8px",
+            background: CHROME.amberBg,
+            color: CHROME.amber,
+            borderColor: CHROME.amberLine,
+          }}
+          title="The live site visitors see does not yet reflect your saved draft. Click Publish to push these changes live."
+        >
+          <span
+            className={dot}
+            style={{ width: 5, height: 5, background: CHROME.amber }}
+            aria-hidden
+          />
+          Unpublished changes
+        </span>
+      ) : null}
+    </>
   );
 }
 
@@ -2294,6 +2339,13 @@ export interface TopBarProps {
    * Null/undefined = never published for this row.
    */
   liveSitePublishedAt?: string | null;
+  /**
+   * #18 — ISO timestamp of the most recent successful draft save (from edit-context
+   * `lastDraftSavedAt`). Drives the "Saved Xs ago" display and the "Unpublished
+   * changes" pill (compare against `liveSitePublishedAt` to determine if the draft
+   * is ahead of the live site).
+   */
+  lastDraftSavedAt?: string | null;
 }
 
 /**
@@ -2339,6 +2391,7 @@ export function TopBar({
   defaultLocale = DEFAULT_PLATFORM_LOCALE,
   availableLocales = [],
   liveSitePublishedAt = null,
+  lastDraftSavedAt = null,
 }: TopBarProps) {
   const router = useRouter();
   const editCtx = useMaybeEditContext();
@@ -2415,7 +2468,12 @@ export function TopBar({
         />
       ) : null}
       <span className="inline-flex min-w-0 shrink items-center gap-[6px]">
-        <SaveStatus dirty={dirty} saving={saving} />
+        <SaveStatus
+          dirty={dirty}
+          saving={saving}
+          lastDraftSavedAt={lastDraftSavedAt}
+          liveSitePublishedAt={liveSitePublishedAt}
+        />
         {/* Hide on <lg to claw horizontal space toward Publish (BUG-010). */}
         <span className="hidden lg:contents">
           <LiveSitePublishedChip publishedAt={liveSitePublishedAt} />
