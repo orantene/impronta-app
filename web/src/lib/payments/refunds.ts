@@ -49,7 +49,7 @@ import {
   computeTalentProtectiveClawback,
   reversalLegKey,
 } from "@/lib/payments/booking-payouts-ledger";
-import { notifyBookingPayoutReversal } from "@/lib/payments/payout-reversal-notify";
+import { notifyBookingPayoutReversal, notifyClientPartialRefund } from "@/lib/payments/payout-reversal-notify";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -120,8 +120,8 @@ async function recordPartialRefund(
   transactionId: string,
   refundedCents: number,
   chargeId: string,
-): Promise<void> {
-  if (refundedCents <= 0) return;
+): Promise<boolean> {
+  if (refundedCents <= 0) return false;
   const { data: parentData, error: parentErr } = await sb
     .from("booking_transactions")
     .select(
@@ -131,7 +131,7 @@ async function recordPartialRefund(
     .maybeSingle();
   if (parentErr || !parentData) {
     logServerError("refunds.recordPartialRefund.parent", parentErr ?? new Error("parent transaction not found"));
-    return;
+    return false;
   }
   const parent = parentData as Record<string, unknown>;
 
@@ -143,7 +143,7 @@ async function recordPartialRefund(
     .eq("gross_amount_cents", refundedCents)
     .eq("status", "refunded")
     .maybeSingle();
-  if (existing) return;
+  if (existing) return false;
 
   const { error: insertErr } = await sb.from("booking_transactions").insert({
     booking_id: parent.booking_id,
@@ -167,7 +167,11 @@ async function recordPartialRefund(
     failure_reason: "Stripe charge.refunded (partial)",
     created_by_profile_id: parent.created_by_profile_id,
   });
-  if (insertErr) logServerError("refunds.recordPartialRefund.insert", insertErr);
+  if (insertErr) {
+    logServerError("refunds.recordPartialRefund.insert", insertErr);
+    return false;
+  }
+  return true;
 }
 
 /**
@@ -189,7 +193,9 @@ async function reconcilePartialRefund(
   }
 
   // Record the partial refund on the books regardless of payout state.
-  await recordPartialRefund(sb, ref.transactionId, refundedCents, chargeId);
+  // `isNew` gates the client notification so a webhook re-delivery (same amount)
+  // doesn't re-notify — recordPartialRefund dedups on (parent, amount, refunded).
+  const isNew = await recordPartialRefund(sb, ref.transactionId, refundedCents, chargeId);
 
   if (!ref.bookingId) {
     logServerError(
@@ -236,6 +242,13 @@ async function reconcilePartialRefund(
   void improntaLog("stripe_webhook.info", {
     message: `[refund.partial] booking=${ref.bookingId} refunded=${refundedCents} platformAbsorbed=${clawback.platformAbsorbedCents} workspaceClawed=${clawback.workspaceClawbackTotalCents} talentResidual=${clawback.talentResidualCents}`,
   });
+
+  // Tell the client their (partial) money is on the way back — only on a newly
+  // recorded refund so a re-delivered webhook doesn't re-notify. The talent is
+  // protected from a partial clawback, so they're intentionally not notified.
+  if (isNew) {
+    await notifyClientPartialRefund(sb, ref.bookingId, refundedCents);
+  }
 }
 
 /**
