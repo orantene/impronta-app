@@ -12,7 +12,12 @@
  * server-side repository + resolver for now.
  */
 
-export type IntegrationCategory = "website" | "analytics" | "captcha" | "email";
+export type IntegrationCategory =
+  | "website"
+  | "analytics"
+  | "social"
+  | "captcha"
+  | "email";
 
 export type IntegrationConnection = "inherit" | "manual" | "oauth";
 
@@ -116,12 +121,30 @@ function testLinkedInPartnerId(value: string): IntegrationFieldTestResult {
   return { ok: true };
 }
 
+function testYouTubeProfileUrl(value: string): IntegrationFieldTestResult {
+  const v = value.trim();
+  if (!v) return { ok: false, reason: "empty" };
+  const handle = v.replace(/^@/, "");
+  if (/^[A-Za-z0-9._-]{2,80}$/.test(handle)) return { ok: true };
+  try {
+    const url = new URL(/^https?:\/\//i.test(v) ? v : `https://${v}`);
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    if (host === "youtube.com" || host.endsWith(".youtube.com") || host === "youtu.be") {
+      return { ok: true };
+    }
+  } catch {
+    // Fall through to the shape error below.
+  }
+  return { ok: false, reason: "expected_youtube_url_or_handle" };
+}
+
 export const GOOGLE_MAPS_INTEGRATION_KEY = "google_maps" as const;
 export const GA4_INTEGRATION_KEY = "ga4" as const;
 export const META_PIXEL_INTEGRATION_KEY = "meta_pixel" as const;
 export const TIKTOK_PIXEL_INTEGRATION_KEY = "tiktok_pixel" as const;
 export const LINKEDIN_INSIGHT_INTEGRATION_KEY = "linkedin_insight" as const;
 export const GTM_INTEGRATION_KEY = "gtm" as const;
+export const YOUTUBE_INTEGRATION_KEY = "youtube" as const;
 
 export const INTEGRATION_CATALOG: Record<string, IntegrationDef> = {
   [GOOGLE_MAPS_INTEGRATION_KEY]: {
@@ -278,6 +301,30 @@ export const INTEGRATION_CATALOG: Record<string, IntegrationDef> = {
         secret: false,
         public: true,
         test: testGtmContainerId,
+      },
+    ],
+  },
+
+  [YOUTUBE_INTEGRATION_KEY]: {
+    key: YOUTUBE_INTEGRATION_KEY,
+    label: "YouTube",
+    category: "social",
+    connection: "oauth",
+    inheritable: false,
+    description:
+      "Connect the workspace YouTube channel, verify ownership with Google, and show the verified channel on the public site header and footer.",
+    instructions: [
+      "Use one-click connect to sign in with the Google account that owns the channel.",
+      "Tulala stores the public channel label and encrypted OAuth tokens so the connection can stay verified.",
+      "Manual fallback is available: paste a YouTube channel URL or @handle if one-click OAuth is not configured yet.",
+    ],
+    fields: [
+      {
+        name: "profile_url",
+        label: "YouTube channel URL or @handle",
+        secret: false,
+        public: true,
+        test: testYouTubeProfileUrl,
       },
     ],
   },

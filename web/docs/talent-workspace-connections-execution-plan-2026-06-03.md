@@ -1,6 +1,6 @@
 # Talent + Workspace + Client Connections — Autonomous Execution Plan
 
-**Status:** execution plan, ready to build in slices
+**Status:** in execution. Workspace, talent, and client foundations are now started; first one-click provider is YouTube.
 **Date:** 2026-06-03
 **Scope:** one shared connection product spine with three ownership lanes:
 
@@ -35,6 +35,7 @@ Primary home: `/{tenantSlug}/admin/settings/integrations`
 Purpose:
 
 - Site/runtime services: Maps, GA4, pixels, GTM, Search Console, captcha, email domain.
+- Workspace social verification: YouTube can connect with Google OAuth, store verified channel metadata, and sync the public site `social_youtube` identity field.
 - Link-through cards for existing Stripe Connect, AI provider, custom domain flows.
 - Tenant-owned service credentials and public IDs.
 
@@ -333,10 +334,14 @@ Acceptance:
 2. Add `web/src/lib/integrations/catalog.ts`, `repository.ts`, `resolve.ts`.
 3. Start with `google_maps` only, then analytics IDs.
 4. Add Admin Settings → Integrations route and hub cards.
+5. Add workspace YouTube as the first OAuth social integration.
+6. Sync connected workspace YouTube profile URL into the canonical site identity social field, with disconnect/manual fallback clearing only the matching integration-owned value.
 
 Acceptance:
 
 - Maps can resolve platform default or tenant custom value.
+- Workspace YouTube can connect through Google OAuth and store encrypted tokens in `tenant_integration_secrets`.
+- Verified workspace YouTube can appear on the public site through existing header/footer identity reads.
 - Secrets never reach the client.
 - `npm run typecheck && npm run lint && npm run ci`.
 - `npm run test:tenant-isolation`.

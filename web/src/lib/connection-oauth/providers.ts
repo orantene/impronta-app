@@ -10,6 +10,7 @@ export type ConnectionOAuthProvider = {
   scopes: string[];
   talentProviderKey: string;
   clientProviderKey: string;
+  workspaceIntegrationKey: string;
 };
 
 export type GoogleConnectionOAuthConfig = {
@@ -29,6 +30,7 @@ export const CONNECTION_OAUTH_PROVIDERS: Record<
     scopes: ["https://www.googleapis.com/auth/youtube.readonly"],
     talentProviderKey: "youtube",
     clientProviderKey: "youtube",
+    workspaceIntegrationKey: "youtube",
   },
 };
 

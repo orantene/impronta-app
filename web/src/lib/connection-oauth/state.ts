@@ -5,7 +5,7 @@ import { randomBytes } from "node:crypto";
 import { signToken, verifyToken } from "@/lib/crypto/signed-token";
 import { getConnectionOAuthStateSecret } from "./providers";
 
-export type ConnectionOAuthOwner = "talent" | "client";
+export type ConnectionOAuthOwner = "talent" | "client" | "workspace";
 
 export type ConnectionOAuthState = {
   v: 1;
@@ -85,7 +85,9 @@ export async function verifyConnectionOAuthState(
   if (
     state.v !== 1 ||
     state.provider !== "youtube" ||
-    (state.owner !== "talent" && state.owner !== "client") ||
+    (state.owner !== "talent" &&
+      state.owner !== "client" &&
+      state.owner !== "workspace") ||
     typeof state.actorUserId !== "string" ||
     typeof state.subjectId !== "string" ||
     typeof state.returnTo !== "string" ||

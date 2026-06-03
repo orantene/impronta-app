@@ -299,3 +299,18 @@ export async function deleteSecret(
     .eq("secret_field", secretField);
   return !error;
 }
+
+/** Delete every stored secret for a tenant integration. Returns false on failure. */
+export async function deleteIntegrationSecrets(
+  tenantId: string,
+  key: string,
+): Promise<boolean> {
+  const supabase = service();
+  if (!supabase) return false;
+  const { error } = await supabase
+    .from("tenant_integration_secrets")
+    .delete()
+    .eq("tenant_id", tenantId)
+    .eq("integration_key", key);
+  return !error;
+}

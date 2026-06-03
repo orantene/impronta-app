@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { getAppUrl } from "@/lib/auth-flow";
+import { userHasCapability } from "@/lib/access";
 import { resolveClientConnectionTenant } from "@/lib/connection-oauth/ownership";
 import { getConnectionOAuthProvider } from "@/lib/connection-oauth/providers";
 import { createConnectionOAuthState } from "@/lib/connection-oauth/state";
 import { buildGoogleConnectionAuthorizationUrl } from "@/lib/connection-oauth/youtube";
-import { requireClient } from "@/lib/server/action-guards";
+import { getTenantScopeBySlug } from "@/lib/saas/scope";
+import { requireClient, requireSession } from "@/lib/server/action-guards";
 import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 
 export const dynamic = "force-dynamic";
@@ -80,6 +82,45 @@ export async function GET(request: NextRequest) {
       actorUserId: guard.user.id,
       subjectId: guard.user.id,
       tenantSlug: tenant?.tenantSlug ?? null,
+      returnTo,
+      fallbackReturnTo: fallback,
+    });
+    if (!state.ok) return failureRedirect(returnTo, "oauth_setup");
+
+    const redirectUri = `${getAppUrl()}/api/connections/oauth/callback/google`;
+    const auth = buildGoogleConnectionAuthorizationUrl({
+      state: state.token,
+      redirectUri,
+    });
+    if (!auth.ok) return failureRedirect(returnTo, "oauth_setup");
+    return NextResponse.redirect(auth.url);
+  }
+
+  if (owner === "workspace") {
+    const slug = tenantSlug?.trim() ?? "";
+    const fallback = slug ? `/${slug}/admin/settings` : "/admin/settings";
+    const returnTo = normalizeReturnTo(searchParams.get("returnTo"), fallback);
+    const guard = await requireSession();
+    if (!guard.ok || !slug) {
+      return failureRedirect(returnTo, "not_authorized");
+    }
+    const scope = await getTenantScopeBySlug(slug);
+    if (!scope) {
+      return failureRedirect(returnTo, "not_authorized");
+    }
+    const canManage = await userHasCapability(
+      "manage_agency_settings",
+      scope.tenantId,
+    );
+    if (!canManage) {
+      return failureRedirect(returnTo, "not_authorized");
+    }
+    const state = await createConnectionOAuthState({
+      owner,
+      provider: provider.key,
+      actorUserId: guard.user.id,
+      subjectId: scope.tenantId,
+      tenantSlug: slug,
       returnTo,
       fallbackReturnTo: fallback,
     });

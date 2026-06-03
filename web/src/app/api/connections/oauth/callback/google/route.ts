@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { getAppUrl } from "@/lib/auth-flow";
+import { userHasCapability } from "@/lib/access";
 import { resolveClientConnectionTenant } from "@/lib/connection-oauth/ownership";
+import { getConnectionOAuthProvider } from "@/lib/connection-oauth/providers";
 import { verifyConnectionOAuthState } from "@/lib/connection-oauth/state";
 import {
   exchangeGoogleConnectionCode,
@@ -13,6 +15,13 @@ import {
   syncClientIntegrationTrustSignalForTenant,
   upsertClientIntegration,
 } from "@/lib/client-integrations/repository";
+import {
+  setCredentialMode,
+  setIntegrationConfig,
+  setSecret,
+} from "@/lib/integrations/repository";
+import { syncWorkspaceYouTubeIdentity } from "@/lib/integrations/workspace-social-sync";
+import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { requireSession } from "@/lib/server/action-guards";
 import { logServerError } from "@/lib/server/safe-error";
 import {
@@ -149,6 +158,55 @@ async function storeClientYouTubeConnection(input: {
   return row;
 }
 
+async function storeWorkspaceYouTubeConnection(input: {
+  tenantId: string;
+  actorUserId: string;
+  token: { access_token: string; refresh_token?: string; scope?: string };
+  expiresAt: string | null;
+  proof: YouTubeChannelProof;
+}) {
+  const provider = getConnectionOAuthProvider("youtube");
+  const key = provider?.workspaceIntegrationKey ?? "youtube";
+  const now = new Date().toISOString();
+
+  await setSecret(input.tenantId, key, "access_token", input.token.access_token);
+  if (input.token.refresh_token) {
+    await setSecret(input.tenantId, key, "refresh_token", input.token.refresh_token);
+  }
+
+  const row = await setIntegrationConfig(
+    input.tenantId,
+    key,
+    {
+      profile_url: input.proof.profileUrl,
+      channel_id: input.proof.channelId,
+      channel_title: input.proof.title,
+      custom_url: input.proof.customUrl,
+      thumbnail_url: input.proof.thumbnailUrl,
+      token_expires_at: input.expiresAt,
+      token_scope: input.token.scope ?? null,
+      verification_status: "oauth_verified",
+      show_on_site: true,
+    },
+    {
+      status: "connected",
+      connectionMethod: "oauth",
+      lastVerifiedAt: now,
+      lastError: null,
+      actorId: input.actorUserId,
+    },
+  );
+  if (!row) return null;
+
+  await setCredentialMode(input.tenantId, key, "custom", input.actorUserId);
+  await syncWorkspaceYouTubeIdentity({
+    tenantId: input.tenantId,
+    profileUrl: input.proof.profileUrl,
+    actorUserId: input.actorUserId,
+  });
+  return row;
+}
+
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
   const error = request.nextUrl.searchParams.get("error");
@@ -192,11 +250,35 @@ export async function GET(request: NextRequest) {
         proof: proofResult.proof,
       });
       if (!row) return redirectBack(returnTo, { connection_error: "save_failed" });
-    } else {
+    } else if (stateResult.state.owner === "client") {
       const row = await storeClientYouTubeConnection({
         userId: stateResult.state.subjectId,
         actorUserId: session.user.id,
         tenantSlug: stateResult.state.tenantSlug,
+        token: tokenResult.token,
+        expiresAt: tokenResult.expiresAt,
+        proof: proofResult.proof,
+      });
+      if (!row) return redirectBack(returnTo, { connection_error: "save_failed" });
+    } else {
+      const tenantSlug = stateResult.state.tenantSlug;
+      if (!tenantSlug) {
+        return redirectBack(returnTo, { connection_error: "not_authorized" });
+      }
+      const scope = await getTenantScopeBySlug(tenantSlug);
+      if (!scope || scope.tenantId !== stateResult.state.subjectId) {
+        return redirectBack(returnTo, { connection_error: "not_authorized" });
+      }
+      const canManage = await userHasCapability(
+        "manage_agency_settings",
+        scope.tenantId,
+      );
+      if (!canManage) {
+        return redirectBack(returnTo, { connection_error: "not_authorized" });
+      }
+      const row = await storeWorkspaceYouTubeConnection({
+        tenantId: scope.tenantId,
+        actorUserId: session.user.id,
         token: tokenResult.token,
         expiresAt: tokenResult.expiresAt,
         proof: proofResult.proof,

@@ -37,6 +37,12 @@ const CATEGORY_GROUPS: { id: IntegrationView["category"]; label: string; blurb: 
     blurb:
       "Drop your own measurement IDs in — tags are injected on your storefront, gated behind visitor consent.",
   },
+  {
+    id: "social",
+    label: "Social channels",
+    blurb:
+      "Connect verified brand channels and decide what appears on the public site.",
+  },
 ];
 
 export function IntegrationsSection() {
