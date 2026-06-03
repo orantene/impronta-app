@@ -5,7 +5,29 @@ import { assignCoordinatorFromSettings } from "./coordinator-assignment";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
 import { logInquiryAction } from "./inquiry-action-log";
 import { assertConsistencyAfterWrite, inquiryWriteClient, runWithEngineLog } from "./inquiry-engine.helpers";
+import { insertSystemMessage } from "./inquiry-system-messages";
 import type { EngineResult } from "./inquiry-engine.types";
+
+/**
+ * Best-effort resolve of `auth user id → display name` for handoff messages.
+ * Returns a map keyed by user id; missing/unknown ids are simply absent.
+ */
+async function resolveCoordinatorNames(
+  supabase: SupabaseClient,
+  userIds: Array<string | null>,
+): Promise<Record<string, string>> {
+  const ids = Array.from(new Set(userIds.filter((v): v is string => !!v)));
+  if (ids.length === 0) return {};
+  const { data } = await supabase
+    .from("profiles")
+    .select("id, display_name")
+    .in("id", ids);
+  const out: Record<string, string> = {};
+  for (const row of (data ?? []) as Array<{ id: string; display_name: string | null }>) {
+    if (row.display_name) out[row.id] = row.display_name;
+  }
+  return out;
+}
 
 // SaaS P1.B STEP A: every inquiry-scoped engine helper takes `tenantId` and
 // applies `.eq("tenant_id", tenantId)` on inquiry + child-table reads/writes.
@@ -15,7 +37,21 @@ import type { EngineResult } from "./inquiry-engine.types";
 
 export async function assignCoordinator(
   supabase: SupabaseClient,
-  ctx: { inquiryId: string; tenantId: string; coordinatorUserId: string; actorUserId: string; expectedVersion: number },
+  ctx: {
+    inquiryId: string;
+    tenantId: string;
+    coordinatorUserId: string;
+    actorUserId: string;
+    expectedVersion: number;
+    /**
+     * Optional free-text context the reassigning admin types into the
+     * ReassignCoordinatorSheet. When present, it is persisted as a
+     * private-thread system message ("[Coordinator reassigned from X to Y.
+     * Handoff note: …]") so BOTH the outgoing and incoming coordinator see
+     * the context. Previously dropped on the floor (TODO S0.8).
+     */
+    handoffNote?: string | null;
+  },
 ): Promise<EngineResult> {
   return runWithEngineLog("assignCoordinator", ctx.inquiryId, ctx.actorUserId, async () => {
     const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "assign_coordinator");
@@ -23,7 +59,7 @@ export async function assignCoordinator(
 
     const { data: inq } = await supabase
       .from("inquiries")
-      .select("version, uses_new_engine, is_frozen, status, source_type, tenant_id")
+      .select("version, uses_new_engine, is_frozen, status, source_type, tenant_id, coordinator_id")
       .eq("id", ctx.inquiryId)
       .eq("tenant_id", ctx.tenantId)
       .maybeSingle();
@@ -69,11 +105,43 @@ export async function assignCoordinator(
 
     await assertConsistencyAfterWrite(supabase, ctx.inquiryId);
 
+    // A6: persist the handoff note (previously dropped on the floor in the
+    // action layer, TODO S0.8). When the reassigning admin typed context, write
+    // a private-thread system message naming the outgoing → incoming
+    // coordinator so both see the handoff. Best-effort: resolving the display
+    // names must never fail the reassign.
+    const outgoingCoordinatorId = (inq.coordinator_id as string | null) ?? null;
+    const note = ctx.handoffNote?.trim() || null;
+    if (note || outgoingCoordinatorId !== ctx.coordinatorUserId) {
+      const names = await resolveCoordinatorNames(supabase, [
+        outgoingCoordinatorId,
+        ctx.coordinatorUserId,
+      ]);
+      const fromLabel = outgoingCoordinatorId
+        ? names[outgoingCoordinatorId] ?? "the previous coordinator"
+        : "unassigned";
+      const toLabel = names[ctx.coordinatorUserId] ?? "the new coordinator";
+      const body = note
+        ? `Coordinator reassigned from ${fromLabel} to ${toLabel}. Handoff note: ${note}`
+        : `Coordinator reassigned from ${fromLabel} to ${toLabel}.`;
+      await insertSystemMessage(supabase, {
+        inquiryId: ctx.inquiryId,
+        threadType: "private",
+        eventType: "coordinator_reassigned",
+        body,
+        metadata: {
+          from_user_id: outgoingCoordinatorId,
+          to_user_id: ctx.coordinatorUserId,
+          handoff_note: note,
+        },
+      });
+    }
+
     await emitStandardEngineEvent(supabase, {
       type: ENGINE_EVENT_TYPES.COORDINATOR_ASSIGNED,
       inquiryId: ctx.inquiryId,
       actorUserId: ctx.actorUserId,
-      data: { coordinatorUserId: ctx.coordinatorUserId },
+      data: { coordinatorUserId: ctx.coordinatorUserId, handoffNote: note },
       notifications: [
         { userId: ctx.coordinatorUserId, title: "New coordinator assignment", body: "You were assigned to an inquiry." },
       ],

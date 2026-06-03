@@ -1933,7 +1933,7 @@ export async function reassignCoordinatorAction(
   _tenantSlug: string,
   inquiryId: string,
   newCoordinatorUserId: string,
-  _handoffNote: string,
+  handoffNote: string,
 ): Promise<PipelineActionResult> {
   try {
     const auth = await requireStaffTenantAction();
@@ -1958,6 +1958,7 @@ export async function reassignCoordinatorAction(
       coordinatorUserId: newCoordinatorUserId,
       actorUserId: user.id,
       expectedVersion: (inq.version as number | null) ?? 1,
+      handoffNote: handoffNote?.trim() || null,
     });
 
     if (!result.success) {
@@ -1971,10 +1972,8 @@ export async function reassignCoordinatorAction(
       return { ok: false, error: friendly };
     }
 
-    // TODO(S0.8): persist the handoff note as a system message on the
-    // talent group thread so the new + outgoing coordinator see context.
-    // For now the engine event captures the assignment fact.
-
+    // Handoff note is persisted by assignCoordinator as a private-thread
+    // system message (S0.8, wired via the handoffNote arg above).
     revalidatePath(`/${auth.tenantSlug}`, "layout");
     return { ok: true };
   } catch (err) {

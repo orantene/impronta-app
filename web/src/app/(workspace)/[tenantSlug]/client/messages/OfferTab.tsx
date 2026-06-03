@@ -93,6 +93,7 @@ export function OfferTab({
         <OfferHeader offer={offer} expired={expired} />
         <Divider />
         <LineItemsTable offer={offer} />
+        <CostBreakdown offer={offer} />
         <Divider />
         <Totals offer={offer} />
         {offer.notes && (
@@ -248,6 +249,145 @@ function Totals({
       <div style={{ fontSize: 13, color: C.inkMuted }}>Total</div>
       <div style={{ fontSize: 18, fontWeight: 700, color: C.ink, fontVariantNumeric: "tabular-nums" }}>
         {formatMoney(offer.total_client_price, offer.currency)}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * D9 — "What you're paying for" breakdown.
+ *
+ * Shows gross composition from the client's perspective ONLY:
+ *   Talent fee(s): sum of all line-item totals
+ *   Service fee: total_client_price − line totals (the booking service cost)
+ *   Total: total_client_price
+ *
+ * The agency margin and platform internals are never exposed. If line
+ * items sum exactly to the total (no service fee component) or there are
+ * no line items, the breakdown is omitted to avoid showing a $0 service
+ * fee (which would look odd / raise questions).
+ *
+ * Currency-aware via formatMoney (Intl.NumberFormat).
+ */
+function CostBreakdown({
+  offer,
+}: {
+  offer: NonNullable<ClientInquiryDetails["offer"]>;
+}) {
+  if (offer.lines.length === 0) return null;
+
+  const talentFeeTotal = offer.lines.reduce((s, ln) => s + (Number(ln.total_price) || 0), 0);
+  const serviceFee = offer.total_client_price - talentFeeTotal;
+
+  // Only show the breakdown when there is a meaningful service-fee component
+  // (≥ 1 currency unit in value) so we don't surface a $0 row.
+  if (serviceFee < 0.5) return null;
+
+  return (
+    <div>
+      <div
+        style={{
+          fontSize: 11,
+          fontWeight: 700,
+          color: C.inkMuted,
+          textTransform: "uppercase",
+          letterSpacing: 0.6,
+          marginBottom: 8,
+        }}
+      >
+        What you&apos;re paying for
+      </div>
+      <div
+        style={{
+          background: "rgba(11,11,13,0.02)",
+          border: `1px solid ${C.borderSoft}`,
+          borderRadius: 10,
+          overflow: "hidden",
+          fontFamily: FONT,
+        }}
+      >
+        <BreakdownRow
+          label="Talent fee"
+          hint={offer.lines.length === 1 ? undefined : `${offer.lines.length} talent`}
+          amount={formatMoney(talentFeeTotal, offer.currency)}
+        />
+        <BreakdownRow
+          label="Service fee"
+          hint="Booking and coordination"
+          amount={formatMoney(serviceFee, offer.currency)}
+        />
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "10px 14px",
+            background: "rgba(11,11,13,0.03)",
+            borderTop: `1px solid ${C.borderSoft}`,
+          }}
+        >
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.ink }}>Total</div>
+          <div
+            style={{
+              fontSize: 15,
+              fontWeight: 700,
+              color: C.ink,
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            {formatMoney(offer.total_client_price, offer.currency)}
+          </div>
+        </div>
+      </div>
+      <div
+        style={{
+          marginTop: 6,
+          fontSize: 11,
+          color: C.inkDim,
+          lineHeight: 1.45,
+        }}
+      >
+        Exact payment terms confirmed in the booking contract after you approve.
+      </div>
+    </div>
+  );
+}
+
+function BreakdownRow({
+  label,
+  hint,
+  amount,
+}: {
+  label: string;
+  hint?: string;
+  amount: string;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "9px 14px",
+        borderBottom: `1px solid ${C.borderSoft}`,
+        fontFamily: FONT,
+      }}
+    >
+      <div>
+        <div style={{ fontSize: 13, color: C.ink, fontWeight: 500 }}>{label}</div>
+        {hint && (
+          <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 1 }}>{hint}</div>
+        )}
+      </div>
+      <div
+        style={{
+          fontSize: 13.5,
+          fontWeight: 600,
+          color: C.ink,
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {amount}
       </div>
     </div>
   );
