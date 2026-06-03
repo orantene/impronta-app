@@ -48,6 +48,7 @@ import {
   Drawer,
   DrawerBody,
   DrawerHead,
+  DrawerSkeleton,
 } from "./kit";
 import { useEditContext } from "./edit-context";
 import {
@@ -436,7 +437,7 @@ export function RevisionsDrawer(): ReactElement | null {
               </div>
             ) : null}
 
-            {loading && revisions === null ? <SkeletonList /> : null}
+            {loading && revisions === null ? <DrawerSkeleton rows={3} /> : null}
 
             {!loading && revisions !== null && revisions.length === 0 ? (
               <EmptyState />
@@ -696,22 +697,5 @@ function EmptyState(): ReactElement {
   );
 }
 
-function SkeletonList(): ReactElement {
-  return (
-    <ul className="m-0 flex list-none flex-col gap-2 p-0">
-      {[0, 1, 2].map((i) => (
-        <li
-          key={i}
-          style={{
-            height: 78,
-            background: CHROME.surface,
-            border: `1px solid ${CHROME.line}`,
-            borderRadius: CHROME_RADII.md,
-            opacity: 0.55 - i * 0.12,
-          }}
-        />
-      ))}
-    </ul>
-  );
-}
+// SkeletonList removed — replaced by shared DrawerSkeleton from "./kit".
 

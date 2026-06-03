@@ -41,6 +41,7 @@ import {
   DrawerBody,
   DrawerFoot,
   DrawerHead,
+  DrawerSkeleton,
   DrawerTab,
   DrawerTabs,
   Field,
@@ -220,8 +221,6 @@ export function PageSettingsDrawer() {
     pageMetadata,
     savePageMetadata,
     saving,
-    compositionLoaded,
-    compositionLoading,
     pageId,
     pageSlug,
     tenantSiteLabel,
@@ -415,51 +414,9 @@ export function PageSettingsDrawer() {
         {!draft ? (
           // Loading / not-yet-loaded state. Without this, the inputs render
           // with empty `?? ""` fallbacks and the drawer reads as broken.
-          // Show a soft skeleton + status line so the operator knows we're
-          // waiting on the composition fetch (or surface the failure if the
-          // fetch is done but returned no metadata).
-          <div
-            className="rounded-[10px] px-4 py-6 text-[12px]"
-            style={{
-              background: CHROME.paper2,
-              border: `1px solid ${CHROME.line}`,
-              color: CHROME.muted,
-            }}
-            aria-busy={compositionLoading || !compositionLoaded || undefined}
-          >
-            <div className="flex items-center gap-2">
-              <span
-                className="inline-block animate-pulse rounded-full"
-                style={{ width: 8, height: 8, background: CHROME.muted2 }}
-                aria-hidden
-              />
-              {compositionLoading || !compositionLoaded
-                ? "Loading page settings…"
-                : "Page settings unavailable for this page."}
-            </div>
-            <div
-              className="mt-3 space-y-2"
-              aria-hidden
-              style={{ opacity: 0.6 }}
-            >
-              <div
-                className="h-3 w-1/3 rounded"
-                style={{ background: CHROME.line }}
-              />
-              <div
-                className="h-9 w-full rounded"
-                style={{ background: CHROME.line }}
-              />
-              <div
-                className="h-3 w-1/4 rounded"
-                style={{ background: CHROME.line }}
-              />
-              <div
-                className="h-16 w-full rounded"
-                style={{ background: CHROME.line }}
-              />
-            </div>
-          </div>
+          // Show the shared DrawerSkeleton so all drawers have a consistent
+          // loading treatment (Wave 1 Item 1C job #12).
+          <DrawerSkeleton rows={4} />
         ) : null}
 
         {draft && (tab === "basics" || tab === "seo") ? (

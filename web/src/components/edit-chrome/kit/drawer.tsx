@@ -550,3 +550,89 @@ function Eyebrow({ children }: { children: ReactNode }) {
     </div>
   );
 }
+
+// ── DrawerSkeleton ───────────────────────────────────────────────────────────
+//
+// Unified loading state for all drawers (Theme, Revisions, Assets,
+// Page Settings). Every drawer that fetch-on-open previously had its own
+// skeleton — usually bespoke height + opacity values. This shared primitive
+// guarantees a visually consistent "loading" moment across the whole builder
+// right panel so the operator never sees four different loading treatments.
+//
+// Wave 1 Item 1C job #12 — unified drawer chrome + preload.
+
+interface DrawerSkeletonProps {
+  /**
+   * Number of placeholder rows. Defaults to 4.
+   * Row height is fixed at 64px to approximate content height.
+   */
+  rows?: number;
+  /** Optional additional className applied to the wrapper div. */
+  className?: string;
+}
+
+/**
+ * A pulsing stack of placeholder rows suitable for any drawer's loading state.
+ * Drop this in place of the bespoke `SkeletonList` / `SkeletonGrid` each drawer
+ * previously defined locally. Import from "./kit".
+ *
+ * Usage:
+ *   {loading && data === null ? <DrawerSkeleton rows={3} /> : <ActualContent />}
+ */
+export function DrawerSkeleton({
+  rows = 4,
+  className,
+}: DrawerSkeletonProps) {
+  return (
+    <div
+      className={`flex flex-col gap-2 ${className ?? ""}`}
+      aria-busy="true"
+      aria-label="Loading"
+    >
+      {Array.from({ length: rows }, (_, i) => (
+        <div
+          key={i}
+          className="animate-pulse rounded-lg"
+          style={{
+            height: 64,
+            background: CHROME.surface,
+            border: `1px solid ${CHROME.line}`,
+            // Fade out progressively so the bottom rows feel like they trail off.
+            opacity: Math.max(0.15, 0.55 - i * 0.1),
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Variant: grid of equal-ratio tiles (for media/asset library).
+ * Automatically fills 2 columns. Rows defaults to 6 (2×3 grid).
+ */
+export function DrawerSkeletonGrid({
+  rows = 6,
+  className,
+}: DrawerSkeletonProps) {
+  return (
+    <div
+      className={`grid gap-2.5 ${className ?? ""}`}
+      aria-busy="true"
+      aria-label="Loading"
+      style={{ gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))" }}
+    >
+      {Array.from({ length: rows }, (_, i) => (
+        <div
+          key={i}
+          className="animate-pulse rounded-lg"
+          style={{
+            aspectRatio: "1 / 1.18",
+            background: CHROME.surface,
+            border: `1px solid ${CHROME.line}`,
+            opacity: 0.55,
+          }}
+        />
+      ))}
+    </div>
+  );
+}

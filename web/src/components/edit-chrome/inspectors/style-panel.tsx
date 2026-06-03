@@ -54,6 +54,7 @@ import { Segmented, type SegmentedOption } from "../kit/segmented";
 import { ShadowBuilder, GradientBuilder } from "./css-value-builders";
 import { StylePresetsBar } from "./style-presets-bar";
 import { InstanceOverridesPanel } from "./instance-overrides-panel";
+import { InspectorGroup } from "./kit";
 import { Swatch } from "../kit/swatch";
 import { CHROME } from "../kit/tokens";
 
@@ -5281,6 +5282,13 @@ export function StylePanel({
               </div>
             ) : null}
 
+            {/* ── Typography group (Wave 1 / Job #11 progressive disclosure) ── */}
+            <InspectorGroup
+              title="Typography"
+              collapsible
+              storageKey={`style-panel:typography:${selectedStandaloneStyleNode.kind}`}
+              defaultOpen={["heading", "paragraph", "button"].includes(selectedStandaloneStyleNode.kind)}
+            >
             <div className="flex flex-col gap-1.5" data-builder-node-style-control="align">
               <span className={FIELD_LABEL}>Align</span>
               <Segmented
@@ -5664,7 +5672,16 @@ export function StylePanel({
                 </details>
               </div>
             ) : null}
+            </InspectorGroup>
+            {/* ── end Typography group ── */}
 
+            {/* ── Dimensions group (Wave 1 / Job #11 progressive disclosure) ── */}
+            <InspectorGroup
+              title="Dimensions"
+              collapsible
+              storageKey={`style-panel:dimensions:${selectedStandaloneStyleNode.kind}`}
+              defaultOpen
+            >
             <div className="flex flex-col gap-1.5" data-builder-node-style-control="maxWidth">
               <span className={FIELD_LABEL}>Max width (preset)</span>
               <Segmented
@@ -5787,7 +5804,16 @@ export function StylePanel({
               </div>
               </div>
             </details>
+            </InspectorGroup>
+            {/* ── end Dimensions group ── */}
 
+            {/* ── Appearance group (Wave 1 / Job #11 progressive disclosure) ── */}
+            <InspectorGroup
+              title="Appearance"
+              collapsible
+              storageKey={`style-panel:appearance:${selectedStandaloneStyleNode.kind}`}
+              defaultOpen
+            >
             {["container", "split", "card", "cta_group"].includes(
               selectedStandaloneStyleNode.kind,
             ) ? (
@@ -6071,7 +6097,16 @@ export function StylePanel({
                 />
               </div>
             ) : null}
+            </InspectorGroup>
+            {/* ── end Appearance group ── */}
 
+            {/* ── Spacing group (Wave 1 / Job #11 progressive disclosure) ── */}
+            <InspectorGroup
+              title="Spacing"
+              collapsible
+              storageKey={`style-panel:spacing:${selectedStandaloneStyleNode.kind}`}
+              defaultOpen
+            >
             <div className="grid grid-cols-2 gap-2">
               <div className="flex flex-col gap-1.5" data-builder-node-style-control="marginTop">
                 <span className={FIELD_LABEL}>Margin top</span>
@@ -6330,7 +6365,17 @@ export function StylePanel({
                 </details>
               </div>
             ) : null}
+            </InspectorGroup>
+            {/* ── end Spacing group ── */}
 
+            {/* ── Position & Layout group — collapsed by default (Wave 1 / Job #11) ── */}
+            <InspectorGroup
+              title="Position & layout"
+              collapsible
+              advanced
+              storageKey={`style-panel:position:${selectedStandaloneStyleNode.kind}`}
+              defaultOpen={false}
+            >
             <div
               className="border-t pt-3"
               data-builder-node-style-control="position"
@@ -6983,7 +7028,17 @@ export function StylePanel({
               </div>
               </details>
             </div>
+            </InspectorGroup>
+            {/* ── end Position & Layout group ── */}
 
+            {/* ── Effects & Motion group — collapsed by default (Wave 1 / Job #11) ── */}
+            <InspectorGroup
+              title="Effects & motion"
+              collapsible
+              advanced
+              storageKey={`style-panel:effects:${selectedStandaloneStyleNode.kind}`}
+              defaultOpen={false}
+            >
             <div
               className="border-t pt-3"
               data-builder-node-style-control="effects-interaction"
@@ -8153,6 +8208,8 @@ export function StylePanel({
               </div>
               </details>
             </div>
+            </InspectorGroup>
+            {/* ── end Effects & Motion group ── */}
 
             {selectedStandaloneStyleNode.kind === "image" ? (
               <>
