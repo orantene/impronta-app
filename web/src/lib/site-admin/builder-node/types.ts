@@ -1,3 +1,5 @@
+import type { BuilderVisibilityCondition } from "./visibility";
+
 export type BuilderNodeKind =
   | "section"
   | "container"
@@ -28,13 +30,10 @@ export type BuilderNodeKind =
 export interface BuilderNodeBase {
   id: string;
   kind: BuilderNodeKind;
-  /**
-   * P3-LOCK — per-node editorial lock. When true the selection-layer skips
-   * click/resize/move/nudge for this node, the inspector shows a locked banner
-   * with an unlock affordance, and the layers-tree row shows a lock icon.
-   * Persisted via the normal `patchBuilderNodeProps` path (patch: { locked: true/undefined }).
-   */
+  /** P3-LOCK — per-node editorial lock (selection-layer + inspector + layers row honor it). Patched via props; carried by validate's base-field allow-list. */
   locked?: boolean;
+  /** Wave 5B (#38) — OPTIONAL conditional visibility (locale / auth / variant), evaluated at `shouldRenderNode`; node omitted when unmatched, undefined → always shown. See visibility.ts. */
+  visibilityCondition?: BuilderVisibilityCondition;
 }
 
 export interface BuilderNodeStyleValue {

@@ -36,6 +36,10 @@ import {
   type BuilderRepeatItem,
   type BuilderFieldBindingProp,
 } from "./data-bindings";
+import {
+  evaluateBuilderNodeVisibility,
+  type BuilderVisibilityContext,
+} from "./visibility";
 import type { BuilderNode, BuilderNodeStyle, BuilderNodeStyleValue } from "./types";
 import type { BuilderImageMediaAsset } from "@/lib/site-admin/media/types";
 
@@ -73,6 +77,12 @@ export interface BuilderNodeRenderOptions {
   // Absent / unknown ref → the node falls through to its own style (a linked
   // block can never blank out). See style-classes.ts.
   styleClasses?: BuilderStyleClassRegistry;
+  // Wave 5B · #38 — CONDITIONAL VISIBILITY context. When provided, a node whose
+  // `visibilityCondition` does not match these signals (locale / auth / named
+  // variant) is OMITTED at the single `shouldRenderNode` choke point. Absent or
+  // a signal left undefined → that rule passes (a node never hides on a missing
+  // signal). No node carries a condition in the flagship → byte-identical.
+  visibilityContext?: BuilderVisibilityContext;
   // `section_embed` (Tulala component) renderer — INJECTED by the server caller
   // (homepage-cms-sections / PublishedShell) so this module never statically
   // imports the section registry (which would pull every section Component +
@@ -84,13 +94,19 @@ export interface BuilderNodeRenderOptions {
 }
 
 type NormalizedBuilderNodeRenderOptions = Required<
-  Omit<BuilderNodeRenderOptions, "renderSectionEmbed" | "styleClasses">
+  Omit<
+    BuilderNodeRenderOptions,
+    "renderSectionEmbed" | "styleClasses" | "visibilityContext"
+  >
 > & {
   renderSectionEmbed: BuilderSectionEmbedRenderer | null;
   // Always present after normalize (defaults to {} so the per-node resolver can
   // index it unconditionally). An empty registry → every node resolves to its
   // own style by identity (byte-identical).
   styleClasses: BuilderStyleClassRegistry;
+  // Wave 5B · #38 — undefined when the caller supplies no signals; the
+  // visibility evaluator treats undefined as "always shown".
+  visibilityContext: BuilderVisibilityContext | undefined;
   repeatItem: BuilderRepeatItem | null;
   repeatDepth: number;
 };
@@ -1783,7 +1799,7 @@ function renderChildren(
   options: NormalizedBuilderNodeRenderOptions,
 ): ReactNode {
   return node.children
-    .filter((child) => shouldRenderNode(child, options.mode))
+    .filter((child) => shouldRenderNode(child, options))
     .map((child) => renderBuilderNode(child, options));
 }
 
@@ -1791,7 +1807,7 @@ function renderRepeatContainerChildren(
   node: Extract<BuilderNode, { kind: "container" }>,
   options: NormalizedBuilderNodeRenderOptions,
 ): ReactNode | null {
-  const template = node.children.find((child) => shouldRenderNode(child, options.mode));
+  const template = node.children.find((child) => shouldRenderNode(child, options));
   if (!template) return renderChildren(node, options);
   const binding = getBuilderNodeDataBinding(node);
   const records = binding
@@ -1888,7 +1904,7 @@ function renderDataBoundContainerChildren(
     const resolved = resolveInstanceChildren(node, options.components);
     if (resolved) {
       return resolved
-        .filter((child) => shouldRenderNode(child, options.mode))
+        .filter((child) => shouldRenderNode(child, options))
         .map((child) => renderBuilderNode(child, options));
     }
   }
@@ -1920,7 +1936,7 @@ function renderFeaturedTalentChildren(
 
   const editableIntroChildren = node.children
     .slice(0, 2)
-    .filter((child) => shouldRenderNode(child, options.mode));
+    .filter((child) => shouldRenderNode(child, options));
 
   return (
     <>
@@ -1956,10 +1972,10 @@ function renderTalentLocationChildren(
 
   const introChildren = node.children
     .slice(0, 2)
-    .filter((child) => shouldRenderNode(child, options.mode));
+    .filter((child) => shouldRenderNode(child, options));
   const mapPlaceholder = node.children
     .slice(3)
-    .filter((child) => shouldRenderNode(child, options.mode));
+    .filter((child) => shouldRenderNode(child, options));
 
   return (
     <>
@@ -1996,7 +2012,7 @@ function renderDirectorySearchChildren(
 
   const introChildren = node.children
     .slice(0, 2)
-    .filter((child) => shouldRenderNode(child, options.mode));
+    .filter((child) => shouldRenderNode(child, options));
 
   return (
     <>
@@ -2031,10 +2047,17 @@ function renderDirectorySearchChildren(
 
 function shouldRenderNode(
   node: BuilderNode,
-  mode: NormalizedBuilderNodeRenderOptions["mode"],
+  options: Pick<NormalizedBuilderNodeRenderOptions, "mode" | "visibilityContext">,
 ): boolean {
   if (node.kind === "section") return false;
-  if (mode === "freeform" && resolveBuilderNodeRole(node.id)) return false;
+  if (options.mode === "freeform" && resolveBuilderNodeRole(node.id)) return false;
+  // Wave 5B · #38 — OPTIONAL conditional visibility. Evaluated server-side at
+  // this single choke point so a hidden node is OMITTED (no DOM, no flash).
+  // No condition → always shown (back-compat); a signal the context lacks
+  // passes (never hides on a missing signal).
+  if (!evaluateBuilderNodeVisibility(node, options.visibilityContext)) {
+    return false;
+  }
   return true;
 }
 
@@ -2393,7 +2416,7 @@ function renderBuilderNode(
       );
     case "carousel": {
       const carouselItems = node.children
-        .filter((child) => shouldRenderNode(child, options.mode))
+        .filter((child) => shouldRenderNode(child, options))
         .map((child, index) => (
           <div
             key={`${node.id}:slide:${child.id}`}
@@ -2933,12 +2956,13 @@ export function renderBuilderNodes(
     includeFontLinks: options.includeFontLinks ?? true,
     components: options.components ?? {},
     styleClasses: options.styleClasses ?? {},
+    visibilityContext: options.visibilityContext,
     renderSectionEmbed: options.renderSectionEmbed ?? null,
     repeatItem: null,
     repeatDepth: 0,
   };
   const renderedNodes = nodes
-    .filter((node) => shouldRenderNode(node, normalizedOptions.mode))
+    .filter((node) => shouldRenderNode(node, normalizedOptions))
     .map((node) => renderBuilderNode(node, normalizedOptions));
   if (renderedNodes.length === 0) return null;
   const fontLinks = normalizedOptions.includeFontLinks ? (
@@ -3008,8 +3032,12 @@ export function hasRenderableBuilderNodes(
   options: Pick<BuilderNodeRenderOptions, "mode"> = {},
 ): boolean {
   const mode = options.mode ?? "freeform";
+  // Structural check only — no per-request visibility context here, so an
+  // undefined context makes the visibility rule a no-op (everything counts).
   return nodes.some((node) => {
-    if (!shouldRenderNode(node, mode)) return false;
+    if (!shouldRenderNode(node, { mode, visibilityContext: undefined })) {
+      return false;
+    }
     if (hasRenderableChildren(node)) {
       return true;
     }

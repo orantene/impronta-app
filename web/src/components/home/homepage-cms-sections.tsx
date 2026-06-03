@@ -19,6 +19,7 @@
  *   - We never render section props inline from free-form JSON: every render
  *     goes through a registry entry with a Zod-parsed payload.
  */
+import { getCachedActorSession } from "@/lib/server/request-cache";
 import { improntaLog } from "@/lib/server/structured-log";
 import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
 import {
@@ -33,6 +34,7 @@ import {
   indexBuilderSectionNodes,
   type BuilderNode,
   type BuilderNodeRenderDataSources,
+  type BuilderVisibilityContext,
   renderBuilderNodes,
   resolveBuilderNodeRole,
   resolveSnapshotBuilderTree,
@@ -183,11 +185,25 @@ export async function HomepageCmsSections({
   includeBuilderNodeRendererStyles = true,
   onlySectionId,
 }: HomepageCmsSectionsProps) {
-  const [editMode, previewActive, publicPathPrefix] = await Promise.all([
-    isEditModeActiveForTenant(tenantId),
-    isPreviewActiveForTenant(tenantId),
-    getPublicPathPrefix(),
-  ]);
+  const [editMode, previewActive, publicPathPrefix, actorSession] =
+    await Promise.all([
+      isEditModeActiveForTenant(tenantId),
+      isPreviewActiveForTenant(tenantId),
+      getPublicPathPrefix(),
+      getCachedActorSession(),
+    ]);
+
+  // Wave 5B · #38 — render-time signals for node-level conditional visibility.
+  // `locale` is always known; `signedIn` comes from the request-cached actor
+  // session (one round-trip shared across every section mount). A node with no
+  // condition is unaffected; a signal we don't set passes (never hides).
+  //
+  // In EDIT mode we pass NO context (undefined) so every node renders and stays
+  // selectable/editable — hiding a conditional block on the canvas would make
+  // it un-editable. Preview + the live storefront DO evaluate the rule.
+  const visibilityContext: BuilderVisibilityContext | undefined = editMode
+    ? undefined
+    : { locale, signedIn: Boolean(actorSession.user) };
 
   // Filter by slot AND/OR section id. The storefront mounts one
   // `<HomepageCmsSections onlySectionId=… />` per non-hero section without
@@ -233,6 +249,7 @@ export async function HomepageCmsSections({
             includeRendererStyles: false,
             dataSources: freeformDataSources,
             components: freeformComponents,
+            visibilityContext,
             renderSectionEmbed: makeSectionEmbedRenderer({
               tenantId,
               locale,
@@ -514,6 +531,7 @@ export async function HomepageCmsSections({
                   includeRendererStyles: false,
                   dataSources: builderDataSources,
                   components: builderComponents,
+                  visibilityContext,
                   renderSectionEmbed: makeSectionEmbedRenderer({
                     tenantId,
                     locale,

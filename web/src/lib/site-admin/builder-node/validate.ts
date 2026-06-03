@@ -1,6 +1,63 @@
 import { BUILDER_NODE_REGISTRY } from "./registry";
 import { builderNodeKindAllowedAtRoot } from "./drop-policy";
+import { normalizeBuilderVisibilityCondition } from "./visibility";
 import type { BuilderNode, BuilderNodeTree } from "./types";
+
+/**
+ * OPTIONAL node-level fields that must survive tree reconstruction. Without
+ * this carry a value is silently dropped on the next `validateBuilderNodeTree`
+ * (which rebuilds each node as `{ id, kind, props, [children] }` and whose
+ * per-kind propsSchema strips any key it does not declare).
+ *
+ * SINGLE SOURCE OF TRUTH = `props[key]` (where the `patchBuilderNodeProps` path
+ * writes, and where change-detection / clear-to-undefined reads). The value is
+ * normalized defensively and written back into `props` so the field round-trips
+ * exactly like a declared prop; it is ALSO mirrored onto the node BASE so the
+ * renderer + typed access can read `node[key]` directly. Both stay in sync
+ * because validate re-derives them from the same raw source on every pass.
+ * A normalized `undefined` (cleared / garbage) leaves the field off BOTH.
+ */
+const BASE_NODE_FIELD_CARRIERS: ReadonlyArray<{
+  key: string;
+  normalize: (value: unknown) => unknown;
+}> = [
+  { key: "locked", normalize: (value) => (value === true ? true : undefined) },
+  {
+    key: "visibilityCondition",
+    normalize: (value) => normalizeBuilderVisibilityCondition(value) ?? undefined,
+  },
+];
+
+/**
+ * Carry normalized optional node fields onto the reconstructed node `out`.
+ * Reads each from the RAW node's `props[key]` (the patch landing zone) first,
+ * then a base-level `node[key]`; writes the normalized result into BOTH
+ * `out.props` (source of truth) and `out` (base mirror). Removes the key from
+ * `out.props` when there is no usable value.
+ */
+function carryBaseNodeFields(
+  raw: RawNode,
+  out: Record<string, unknown>,
+  outProps: Record<string, unknown>,
+): void {
+  const rawProps =
+    raw.props && typeof raw.props === "object" && !Array.isArray(raw.props)
+      ? (raw.props as Record<string, unknown>)
+      : undefined;
+  for (const carrier of BASE_NODE_FIELD_CARRIERS) {
+    const source =
+      rawProps && carrier.key in rawProps
+        ? rawProps[carrier.key]
+        : (raw as Record<string, unknown>)[carrier.key];
+    const normalized = carrier.normalize(source);
+    if (normalized !== undefined) {
+      out[carrier.key] = normalized;
+      outProps[carrier.key] = normalized;
+    } else {
+      delete outProps[carrier.key];
+    }
+  }
+}
 
 export interface BuilderNodeValidationIssue {
   path: string;
@@ -133,11 +190,14 @@ export function validateBuilderNodeTree(
           return null;
         }
       }
-      return {
+      const leafProps = { ...(parsedProps.data as Record<string, unknown>) };
+      const leaf: Record<string, unknown> = {
         id: node.id,
         kind,
-        props: parsedProps.data,
-      } as BuilderNode;
+        props: leafProps,
+      };
+      carryBaseNodeFields(node, leaf, leafProps);
+      return leaf as unknown as BuilderNode;
     }
 
     const rawChildren = node.children ?? [];
@@ -155,12 +215,15 @@ export function validateBuilderNodeTree(
       if (parsed) children.push(parsed);
     });
 
-    return {
+    const parentProps = { ...(parsedProps.data as Record<string, unknown>) };
+    const parent: Record<string, unknown> = {
       id: node.id,
       kind,
-      props: parsedProps.data,
+      props: parentProps,
       children,
-    } as BuilderNode;
+    };
+    carryBaseNodeFields(node, parent, parentProps);
+    return parent as unknown as BuilderNode;
   }
 
   const out: BuilderNode[] = [];

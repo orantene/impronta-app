@@ -24,12 +24,14 @@ import {
   type BuilderFieldBindingProp,
   type BuilderNode,
 } from "@/lib/site-admin/builder-node";
-import {
-  listCollectionsAction,
-} from "@/lib/site-admin/collections/actions";
+import { listCollectionsAction } from "@/lib/site-admin/collections/actions";
 import { collectionSourceKey } from "@/lib/site-admin/collections/types";
 import { useEditContext } from "../edit-context";
 import { Card, CardBody, CardHead, Field, FieldLabel, Helper, Segmented, Toggle } from "../kit";
+import {
+  FieldMapPreview,
+  VisibilityRulesCard,
+} from "./data-panel-conditional";
 import { KIT } from "./kit/tokens";
 
 interface DataPanelProps {
@@ -149,7 +151,16 @@ export function DataPanel({
         />
       );
     }
-    return <UnsupportedDataNodeCard kind={selectedBuilderNode.kind} />;
+    return (
+      <div className="flex flex-col gap-3">
+        <UnsupportedDataNodeCard kind={selectedBuilderNode.kind} />
+        <VisibilityRulesCard
+          selectedBuilderNode={selectedBuilderNode}
+          onPatchBuilderNodeProps={onPatchBuilderNodeProps}
+          onMutationError={onMutationError}
+        />
+      </div>
+    );
   }
 
   const binding = pendingBinding ?? persistedBinding;
@@ -410,6 +421,12 @@ export function DataPanel({
           </div>
         </CardBody>
       </Card>
+
+      <VisibilityRulesCard
+        selectedBuilderNode={selectedBuilderNode}
+        onPatchBuilderNodeProps={onPatchBuilderNodeProps}
+        onMutationError={onMutationError}
+      />
     </div>
   );
 }
@@ -494,6 +511,14 @@ function FieldBindingsPanel({
           </div>
         </CardBody>
       </Card>
+
+      <FieldMapPreview selectedBuilderNode={selectedBuilderNode} />
+
+      <VisibilityRulesCard
+        selectedBuilderNode={selectedBuilderNode}
+        onPatchBuilderNodeProps={onPatchBuilderNodeProps}
+        onMutationError={onMutationError}
+      />
     </div>
   );
 }
