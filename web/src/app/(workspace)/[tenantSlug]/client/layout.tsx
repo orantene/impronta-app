@@ -29,6 +29,7 @@ import { loadClientSelfProfile } from "../_data-bridge";
 import { ClientTopbar } from "./client-topbar";
 import { ClientAccountMenu } from "./_components/ClientAccountMenu";
 import { ClientNotificationBell } from "./_components/ClientNotificationBell";
+import { GlobalSearch } from "./_components/GlobalSearch";
 import { ClientKeyboardShortcuts, type KeyboardShortcutLabels } from "./_keyboard-shortcuts";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
@@ -217,6 +218,7 @@ export default async function ClientLayout({
           .client-hd-divider,
           .client-hd-slash,
           .client-hd-pill,
+          .client-hd-search,
           .client-hd-company { display: none !important; }
         }
         @media (min-width: 641px) {
@@ -347,6 +349,11 @@ export default async function ClientLayout({
             </div>
 
             <div style={{ flex: 1 }} />
+
+            {/* Global search — inquiries, bookings, messages, talent */}
+            <div className="client-hd-search">
+              <GlobalSearch />
+            </div>
 
             {/* D1 — notification bell: unread count badge + popover */}
             <ClientNotificationBell

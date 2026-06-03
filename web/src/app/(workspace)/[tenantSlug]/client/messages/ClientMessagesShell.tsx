@@ -27,6 +27,9 @@ import {
 } from "@/components/chat-cards/ChatCard";
 import { addReaction, removeReaction } from "@/lib/server-actions/message-reactions";
 import { StarButton } from "@/components/chat-interactions/StarButton";
+import { renderMessageMarkdown } from "@/lib/messages/markdown";
+import { LinkPreview, firstHttpUrl, TypingRow } from "@/components/messages/thread-enhancements";
+import { useThreadPresence } from "@/lib/realtime/presence";
 
 const DEFAULT_REACTION_SET = ["👍", "❤️", "🎉", "😂", "😮", "🙏"] as const;
 import { useRouter } from "next/navigation";
@@ -278,12 +281,15 @@ export function ClientMessagesShell({
   }, [activeId, initialActiveId]);
 
   // Viewer user ID — fetched once for is_mine determination in realtime events.
+  // Mirrored into state so child panes (typing presence) can read a stable id.
   const viewerUserIdRef = useRef<string | null>(null);
+  const [viewerUserId, setViewerUserId] = useState<string | null>(null);
   useEffect(() => {
     const supabase = createClient();
     if (!supabase) return;
     supabase.auth.getUser().then(({ data }) => {
       viewerUserIdRef.current = data.user?.id ?? null;
+      setViewerUserId(data.user?.id ?? null);
     });
   }, []);
 
@@ -493,6 +499,7 @@ export function ClientMessagesShell({
               onTabChange={setActiveTab}
               tenantSlug={tenantSlug}
               client={client}
+              viewerUserId={viewerUserId}
               onBack={() => setMobilePane("list")}
               onAfterOfferAction={() => router.refresh()}
             />
@@ -802,6 +809,7 @@ function ThreadPaneWithTabs({
   onTabChange,
   tenantSlug,
   client,
+  viewerUserId,
   onBack,
   onAfterOfferAction,
 }: {
@@ -815,6 +823,7 @@ function ThreadPaneWithTabs({
   onTabChange: (tab: ThreadTab) => void;
   tenantSlug: string;
   client: { displayName: string };
+  viewerUserId: string | null;
   onBack: () => void;
   onAfterOfferAction?: () => void;
 }) {
@@ -836,6 +845,13 @@ function ThreadPaneWithTabs({
     () => buildClientStatusSheetData(inq, details),
     [inq, details],
   );
+  // Ephemeral typing presence (broadcast-only, no DB). Channel keyed per
+  // inquiry; null when no viewer id so the hook safely no-ops.
+  const { typingUsers, setTyping } = useThreadPresence({
+    channelKey: viewerUserId ? `inquiry:${inq.id}:group` : null,
+    userId: viewerUserId ?? "",
+    displayName: client.displayName,
+  });
   return (
     <>
       {/* Thread header — same as before, but tab strip appended below */}
@@ -1072,6 +1088,11 @@ function ThreadPaneWithTabs({
         />
       )}
 
+      {/* Ephemeral typing-presence row — between the message list and the
+          composer. Renders nothing when no peer is typing. */}
+      {activeTab === "chat" && chatMode === "chat" && (
+        <TypingRow users={typingUsers} color={C.accent} />
+      )}
       {/* Inline composer — only on the Chat tab's Chat sub-view. The Activity
           sub-view is a read-only money/booking timeline (audit #15). */}
       {activeTab === "chat" && chatMode === "chat" && (
@@ -1082,6 +1103,7 @@ function ThreadPaneWithTabs({
           inquiryStatus={inq.status}
           hasOffer={!!details?.offer?.exists}
           details={details}
+          onTyping={setTyping}
           onSent={(msg) => onMessagesChange((prev) => [...prev, msg])}
           onReconcileSent={(tempId, realId) =>
             onMessagesChange((prev) =>
@@ -1354,25 +1376,6 @@ function detectMentionPrefix(text: string, caretPos: number): string | null {
   return match[2]; // text after @
 }
 
-/** Highlight @Word tokens in a message body. Returns an array of {text, mention} segments.
- *  Matches @followed-by-non-whitespace so it works with single-word tokens inserted from
- *  the mention picker (e.g. "@Sofia"). The picker inserts "@Name " with a trailing
- *  space so the token is always cleanly delimited. */
-function parseMentions(body: string): Array<{ text: string; isMention: boolean }> {
-  const parts: Array<{ text: string; isMention: boolean }> = [];
-  // Match @Word — one or more non-whitespace chars after the @.
-  const re = /@\S+/g;
-  let last = 0;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(body)) !== null) {
-    if (m.index > last) parts.push({ text: body.slice(last, m.index), isMention: false });
-    parts.push({ text: m[0], isMention: true });
-    last = m.index + m[0].length;
-  }
-  if (last < body.length) parts.push({ text: body.slice(last), isMention: false });
-  return parts.length > 0 ? parts : [{ text: body, isMention: false }];
-}
-
 // ─── Inline composer ─────────────────────────────────────────────────────
 
 function ChatComposer({
@@ -1382,6 +1385,7 @@ function ChatComposer({
   inquiryStatus,
   hasOffer,
   details,
+  onTyping,
   onSent,
   onReconcileSent,
 }: {
@@ -1391,6 +1395,8 @@ function ChatComposer({
   inquiryStatus?: string;
   hasOffer?: boolean;
   details?: ClientInquiryDetails | null;
+  /** Ephemeral typing-presence beat. true on keystroke, false on send/blur. */
+  onTyping?: (isTyping: boolean) => void;
   onSent: (msg: WorkspaceMessage) => void;
   /** Promote an optimistic `tmp-` bubble to its canonical server row id so
    *  the reconcile dedups by id, never body text (audit #15). */
@@ -1441,6 +1447,7 @@ function ChatComposer({
   function handleBodyChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     const val = e.target.value;
     setBody(val);
+    onTyping?.(val.length > 0);
     const caret = e.target.selectionStart ?? val.length;
     const prefix = detectMentionPrefix(val, caret);
     if (prefix !== null) {
@@ -1550,6 +1557,7 @@ function ChatComposer({
     };
     onSent(optimistic);
     setBody("");
+    onTyping?.(false);
 
     startTransition(async () => {
       const res = await sendClientMessageAction(tenantSlug, inquiryId, trimmed);
@@ -1879,6 +1887,7 @@ function ChatComposer({
             ref={textareaRef}
             value={body}
             onChange={handleBodyChange}
+            onBlur={() => onTyping?.(false)}
             onKeyDown={(e) => {
               // Cmd/Ctrl+Enter sends; plain Enter inserts newline on mobile.
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -2925,26 +2934,21 @@ function Bubble({
                 wordBreak: "break-word",
               }}
             >
-              {parseMentions(m.body ?? "").map((seg, idx) =>
-                seg.isMention ? (
-                  <span
-                    key={idx}
-                    style={{
-                      background: mine
-                        ? "rgba(255,255,255,0.18)"
-                        : "rgba(29,78,216,0.12)",
-                      color: mine ? "#fff" : C.accent,
-                      borderRadius: 4,
-                      padding: "1px 3px",
-                      fontWeight: 700,
+              {renderMessageMarkdown(m.body ?? "")}
+              {(() => {
+                const url = firstHttpUrl(m.body);
+                return url ? (
+                  <LinkPreview
+                    url={url}
+                    colors={{
+                      bg: mine ? "rgba(255,255,255,0.10)" : C.surface,
+                      border: mine ? "rgba(255,255,255,0.24)" : C.borderSoft,
+                      title: mine ? "#fff" : C.ink,
+                      muted: mine ? "rgba(255,255,255,0.72)" : C.inkMuted,
                     }}
-                  >
-                    {seg.text}
-                  </span>
-                ) : (
-                  <span key={idx}>{seg.text}</span>
-                )
-              )}
+                  />
+                ) : null;
+              })()}
             </div>
           )}
           {canReact && !editing && (

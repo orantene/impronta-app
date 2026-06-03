@@ -24,6 +24,7 @@ import {
 
 import { signOut } from "@/app/auth/actions";
 import { AdminCommandPalette } from "@/components/admin/admin-command-palette";
+import { AdminGlobalSearch } from "@/components/admin/admin-global-search";
 import {
   AdminShortcutsDrawer,
   useShortcutsDrawerHotkey,
@@ -569,6 +570,11 @@ export function AdminShellTopBar({
             ))}
           </PopoverContent>
         </Popover>
+
+        {/* Global search — self-contained (outside AdminShellProvider). */}
+        <div className="hidden md:block">
+          <AdminGlobalSearch />
+        </div>
 
         {/* Notifications bell — self-contained (outside AdminShellProvider). */}
         <TopBarNotificationBell />
