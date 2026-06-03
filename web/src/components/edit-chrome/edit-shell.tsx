@@ -42,6 +42,7 @@ import { ThemeDrawer } from "./theme-drawer";
 import { AssetsDrawer } from "./assets-drawer";
 import { CollectionsDrawer } from "./collections-drawer";
 import { CommandPalette } from "./command-palette";
+import { MobileEditPanel } from "./mobile-edit-panel";
 import { NavigatorPanel } from "./navigator-panel";
 import { ShortcutOverlay } from "./shortcut-overlay";
 import { TopBar } from "./topbar";
@@ -894,6 +895,9 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         <ThemeDrawer />
         <AssetsDrawer />
         <CollectionsDrawer />
+        {/* Wave 6C — mobile-first editing HUD. Self-guards on mobileEditMode +
+            previewing; renders nothing otherwise (fully back-compat). */}
+        <MobileEditPanel />
         <ScheduleDrawer />
         <CommentsDrawer />
         <StarterTemplateGalleryOverlay />

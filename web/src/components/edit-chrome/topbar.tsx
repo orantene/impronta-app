@@ -1172,6 +1172,8 @@ function ViewportSwitcher({
   previewFrame,
   setPreviewFrameWidth,
   togglePreviewRotated,
+  mobileEditMode,
+  setMobileEditMode,
 }: {
   device: EditDevice;
   setDevice: (d: EditDevice) => void;
@@ -1179,7 +1181,29 @@ function ViewportSwitcher({
   previewFrame: PreviewFrameOverride | null;
   setPreviewFrameWidth?: (widthPx: number | null) => void;
   togglePreviewRotated?: () => void;
+  /**
+   * Wave 6C (job #35) — when present, the Mobile tier becomes a real EDITING
+   * mode (not just a preview frame): picking Mobile enters `mobileEditMode`
+   * (which pins the canvas to mobile + opens the mobile HUD), and picking
+   * Desktop/Tablet exits it first. Optional → no EditProvider falls back to the
+   * plain `setDevice` behaviour.
+   */
+  mobileEditMode?: boolean;
+  setMobileEditMode?: (next: boolean) => void;
 }) {
+  const mobileEditAvailable = typeof setMobileEditMode === "function";
+  // Picking a tier: Mobile enters the editing mode; the others exit it. When no
+  // mode plumbing is present, this is exactly the old `setDevice`.
+  const selectTier = (key: EditDevice) => {
+    if (mobileEditAvailable && setMobileEditMode) {
+      if (key === "mobile") {
+        setMobileEditMode(true);
+        return;
+      }
+      if (mobileEditMode) setMobileEditMode(false);
+    }
+    setDevice(key);
+  };
   // The frame tools (#17) only make sense on a non-desktop device frame, and
   // only when the context setters are present.
   const frameToolsAvailable =
@@ -1201,21 +1225,43 @@ function ViewportSwitcher({
       >
         {VIEWPORT_OPTS.map((opt) => {
           const active = device === opt.key;
+          // Wave 6C — the active Mobile tier in editing mode reads with the
+          // indigo accent (a MODE, not just a frame); the dot flags it's live.
+          const inMobileEditMode =
+            opt.key === "mobile" && active && Boolean(mobileEditMode);
           return (
             <button
               key={opt.key}
               type="button"
-              onClick={() => setDevice(opt.key)}
-              title={viewportPreviewTitle(opt.key, opt.label)}
-              aria-label={opt.label}
+              onClick={() => selectTier(opt.key)}
+              title={
+                opt.key === "mobile" && mobileEditAvailable
+                  ? "Mobile editing — edit the mobile layout: scope style edits to mobile, hide/reorder blocks per-phone, run mobile health checks"
+                  : viewportPreviewTitle(opt.key, opt.label)
+              }
+              aria-label={
+                opt.key === "mobile" && mobileEditAvailable
+                  ? "Mobile editing mode"
+                  : opt.label
+              }
               aria-pressed={active}
               className="inline-flex items-center gap-[5px] rounded-full border-none px-[14px] py-[6px] text-[12px] font-semibold tracking-[-0.005em] transition-all"
               style={{
-                background: active ? CHROME.surface : "transparent",
-                color: active ? CHROME.ink : CHROME.muted,
-                boxShadow: active
-                  ? "0 1px 3px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.04)"
-                  : "none",
+                background: inMobileEditMode
+                  ? "rgba(61, 79, 124, 0.12)"
+                  : active
+                    ? CHROME.surface
+                    : "transparent",
+                color: inMobileEditMode
+                  ? CHROME.accent
+                  : active
+                    ? CHROME.ink
+                    : CHROME.muted,
+                boxShadow: inMobileEditMode
+                  ? "inset 0 0 0 1px rgba(61, 79, 124, 0.28)"
+                  : active
+                    ? "0 1px 3px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.04)"
+                    : "none",
                 minWidth: 80,
                 justifyContent: "center",
                 cursor: "pointer",
@@ -1223,6 +1269,19 @@ function ViewportSwitcher({
             >
               {opt.icon}
               {opt.label}
+              {inMobileEditMode ? (
+                <span
+                  aria-hidden
+                  style={{
+                    width: 5,
+                    height: 5,
+                    marginLeft: 1,
+                    borderRadius: 999,
+                    background: CHROME.accent,
+                    flexShrink: 0,
+                  }}
+                />
+              ) : null}
             </button>
           );
         })}
@@ -2513,6 +2572,8 @@ export function TopBar({
         previewFrame={editCtx?.previewFrame ?? null}
         setPreviewFrameWidth={editCtx?.setPreviewFrameWidth}
         togglePreviewRotated={editCtx?.togglePreviewRotated}
+        mobileEditMode={editCtx?.mobileEditMode}
+        setMobileEditMode={editCtx?.setMobileEditMode}
       />
 
       {/* ── Preview toggle ──

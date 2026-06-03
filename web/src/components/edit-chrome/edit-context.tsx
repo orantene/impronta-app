@@ -116,6 +116,7 @@ import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
 import { normalizeCompositionSlots } from "./composition-slots";
 import {
+  findBuilderNodeById,
   resolveHonestSelectedBuilderNodeId,
   treeContainsBuilderNodeId,
 } from "./inspectors/builder-node-content-utils";
@@ -409,6 +410,37 @@ export interface EditContextValue {
   setPreviewFrameWidth: (widthPx: number | null) => void;
   /** Toggle landscape orientation for the active device frame. */
   togglePreviewRotated: () => void;
+
+  // ── Wave 6C — mobile-first editing mode (job #35) ──────────────────────
+  /**
+   * Mobile-first editing mode. A focused workflow ON TOP of the Wave-2
+   * responsive system — NOT a second editor. When ON it:
+   *   - pins the canvas viewport to `device:"mobile"` (so the Wave-2B
+   *     style-panel viewport sync scopes every style edit to the mobile
+   *     breakpoint + shows its "Editing Mobile" banner), and
+   *   - surfaces the {@link MobileEditPanel} (Wave-2C health checker +
+   *     per-block hide/reorder mobile-structure affordances).
+   * Toggling it OFF returns the canvas to desktop editing. Purely additive:
+   * when `false` everything behaves exactly as before. Entering also clears
+   * preview mode (the two are mutually exclusive — one hides chrome, the
+   * other adds a chrome panel).
+   */
+  mobileEditMode: boolean;
+  setMobileEditMode: (next: boolean) => void;
+  /**
+   * Wave 6C — set or clear a mobile-only STRUCTURE override on a single node,
+   * reusing the Wave-2A `style.responsive.mobile.{visibility,order}` channel
+   * the renderer already emits. A field set to a value writes it; set to
+   * `undefined` (or `null` for `order`) clears just that field, preserving the
+   * rest of `responsive.mobile`, the `tablet` bucket, and the base style
+   * (surgical read-modify-write, NOT the shallow bulk-style patch which would
+   * clobber sibling breakpoints). Runs through the same engine `patch` op +
+   * undo + autosave path as every other structure edit.
+   */
+  setBuilderNodeMobileStructure: (
+    nodeId: string,
+    patch: { visibility?: "visible" | "hidden"; order?: number | null },
+  ) => Promise<{ ok: boolean; error?: string }>;
 
   /** Inspector autosave state. */
   dirty: boolean;
@@ -1832,6 +1864,40 @@ export function EditProvider({
   const togglePreviewRotated = useCallback(() => {
     setPreviewFrame((prev) => ({ ...prev, rotated: !prev.rotated }));
   }, []);
+
+  // ── Wave 6C — mobile-first editing mode (job #35) ──────────────────────
+  // A workflow flag layered on the Wave-2 responsive system, not a new editor.
+  // Entering pins the canvas to the mobile viewport via the SAME `setDevice`
+  // the topbar switcher uses (so the Wave-2B style-panel viewport sync follows
+  // and scopes edits to the mobile breakpoint) and leaves preview mode. Exiting
+  // returns the canvas to desktop editing.
+  const [mobileEditMode, setMobileEditModeRaw] = useState<boolean>(false);
+  const setMobileEditMode = useCallback(
+    (next: boolean) => {
+      setMobileEditModeRaw(next);
+      if (next) {
+        // Reuse Wave-2B viewport sync — do NOT duplicate it.
+        setDeviceRaw((prev) => {
+          if (prev !== "mobile") setPreviewFrame(DEFAULT_PREVIEW_FRAME);
+          return "mobile";
+        });
+        // Mobile editing and visitor-preview are mutually exclusive: preview
+        // hides ALL chrome, mobile-edit ADDS a chrome panel. Leave preview.
+        setPreviewingRaw(false);
+        if (typeof document !== "undefined") {
+          delete document.body.dataset.editPreview;
+        }
+      } else {
+        // Return to desktop editing (the pre-feature default canvas).
+        setDeviceRaw((prev) => {
+          if (prev !== "desktop") setPreviewFrame(DEFAULT_PREVIEW_FRAME);
+          return "desktop";
+        });
+      }
+    },
+    [],
+  );
+
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loadedSection, setLoadedSection] = useState<LoadedSection | null>(
@@ -4605,6 +4671,82 @@ export function EditProvider({
     },
     [executeBuilderNodeOperation, runBuilderNodeOp],
   );
+
+  // ── Wave 6C — surgical mobile-only structure override (job #35) ─────────
+  // Sets/clears `style.responsive.mobile.{visibility,order}` on ONE node while
+  // preserving the rest of `responsive.mobile`, the `tablet` bucket, and the
+  // base style. We read the node, compute the full next `style`, and hand it to
+  // the shared `patch` op (which shallow-merges props, so a complete `style`
+  // replaces it cleanly). Reuses the renderer channel the Wave-2A controls
+  // already emit — no new render surface, no flagship change.
+  const setBuilderNodeMobileStructure = useCallback<
+    EditContextValue["setBuilderNodeMobileStructure"]
+  >(
+    async (nodeId, patch) => {
+      const node = findBuilderNodeById(builderTreeRef.current, nodeId);
+      if (!node || node.kind === "section") {
+        return {
+          ok: false,
+          error:
+            "That block was not found on the page — select it on the canvas and try again.",
+        };
+      }
+      const currentStyle =
+        ("style" in node.props
+          ? (node.props.style as Record<string, unknown> | undefined)
+          : undefined) ?? {};
+      const currentResponsive =
+        (currentStyle.responsive as Record<string, unknown> | undefined) ?? {};
+      const currentMobile = {
+        ...((currentResponsive.mobile as Record<string, unknown> | undefined) ??
+          {}),
+      };
+
+      if ("visibility" in patch) {
+        if (patch.visibility === undefined) delete currentMobile.visibility;
+        else currentMobile.visibility = patch.visibility;
+      }
+      if ("order" in patch) {
+        if (patch.order === undefined || patch.order === null)
+          delete currentMobile.order;
+        else currentMobile.order = patch.order;
+      }
+
+      // Rebuild responsive, dropping an emptied mobile bucket so we never leave
+      // a `responsive: { mobile: {} }` residue (matches cleanBuilderNodeStyle).
+      const nextResponsive: Record<string, unknown> = { ...currentResponsive };
+      if (Object.keys(currentMobile).length > 0) {
+        nextResponsive.mobile = currentMobile;
+      } else {
+        delete nextResponsive.mobile;
+      }
+
+      const nextStyle: Record<string, unknown> = { ...currentStyle };
+      if (Object.keys(nextResponsive).length > 0) {
+        nextStyle.responsive = nextResponsive;
+      } else {
+        delete nextStyle.responsive;
+      }
+
+      const patched = await executeBuilderNodeOperation({
+        operation: "patch",
+        nodeId,
+        run: (tree) =>
+          runBuilderNodeOp({
+            operation: "patch",
+            tree,
+            nodeId,
+            patch: { style: nextStyle },
+          }),
+      });
+      if (!patched.ok) {
+        return { ok: false, error: patched.error };
+      }
+      return { ok: true };
+    },
+    [executeBuilderNodeOperation, runBuilderNodeOp],
+  );
+
   const moveBuilderNodeWithinParent = useCallback<
     EditContextValue["moveBuilderNodeWithinParent"]
   >(
@@ -5469,6 +5611,9 @@ export function EditProvider({
       previewFrame,
       setPreviewFrameWidth,
       togglePreviewRotated,
+      mobileEditMode,
+      setMobileEditMode,
+      setBuilderNodeMobileStructure,
       dirty,
       setDirty,
       saving,
@@ -5653,6 +5798,9 @@ export function EditProvider({
       previewFrame,
       setPreviewFrameWidth,
       togglePreviewRotated,
+      mobileEditMode,
+      setMobileEditMode,
+      setBuilderNodeMobileStructure,
       dirty,
       saving,
       loadedSection,
