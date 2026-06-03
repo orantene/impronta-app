@@ -6,6 +6,7 @@ import {
   COLORS,
   CapsLabel,
   DrawerShell,
+  EmptyState,
   FONTS,
   FieldRow,
   GhostButton,
@@ -207,135 +208,23 @@ export function BrandAssetsDrawer() {
 
 
 export function ApprovalFlowDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "approval-flow";
-
-  type ApprovalItem = { id: string; title: string; requester: string; type: string; status: "pending" | "approved" | "rejected"; daysAgo: number };
-  const [items, setItems] = useState<ApprovalItem[]>([
-    { id: "ap1", title: "Bvlgari SS26 brief",         requester: "Lena Müller (Client)",    type: "Brief",    status: "pending",  daysAgo: 0 },
-    { id: "ap2", title: "Offer v3 — Vogue Italia",    requester: "Sara Mendes (Coord)",     type: "Offer",    status: "pending",  daysAgo: 1 },
-    { id: "ap3", title: "Rate card 2026",              requester: "Alina Popescu (Editor)",  type: "Document", status: "approved", daysAgo: 3 },
-    { id: "ap4", title: "Campaign proposal — Chanel", requester: "Oran Tene (Admin)",       type: "Brief",    status: "rejected", daysAgo: 5 },
-  ]);
-
-  const pending  = items.filter((i) => i.status === "pending");
-  const resolved = items.filter((i) => i.status !== "pending");
-
-  const decide = (id: string, decision: "approved" | "rejected") => {
-    setItems((prev) => prev.map((i) => i.id === id ? { ...i, status: decision } : i));
-    toast(decision === "approved" ? "Approved ✓" : "Rejected");
-  };
-
-  const statusColor = (s: ApprovalItem["status"]) =>
-    s === "approved" ? COLORS.successDeep : s === "rejected" ? COLORS.red : COLORS.amber;
-  const statusBg = (s: ApprovalItem["status"]) =>
-    s === "approved" ? COLORS.successSoft : s === "rejected" ? COLORS.criticalSoft : COLORS.amberSoft;
-
+  // Honest stub — this feature has no backend yet; the previous body showed
+  // hardcoded demo data. Surface a clear "coming soon" instead.
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
       title="Approval queue"
-      description="Briefs, offers, and documents waiting for your sign-off."
+      description="Briefs, offers, and documents waiting for sign-off."
       footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
-      defaultSize="half"
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
-        {/* Summary */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-          {[
-            { label: "Pending",  value: String(pending.length),                                         color: COLORS.amber       },
-            { label: "Approved", value: String(items.filter((i) => i.status === "approved").length),    color: COLORS.successDeep },
-            { label: "Rejected", value: String(items.filter((i) => i.status === "rejected").length),    color: COLORS.red         },
-          ].map((tile) => (
-            <div key={tile.label} style={{
-              background: COLORS.surfaceAlt, borderRadius: RADIUS.lg,
-              padding: "12px 14px", border: `1px solid ${COLORS.border}`, textAlign: "center",
-            }}>
-              <div style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }} className="text-admin-ink-muted">
-                {tile.label}
-              </div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: tile.color }}>{tile.value}</div>
-            </div>
-          ))}
-        </div>
-
-        {pending.length > 0 && (
-          <div>
-            <CapsLabel>Needs your approval</CapsLabel>
-            <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
-              {pending.map((item) => (
-                <div
-                  key={item.id}
-                  style={{
-                    padding: "14px 16px", background: COLORS.surfaceAlt,
-                    borderRadius: RADIUS.lg, border: `1px solid ${COLORS.amberSoft}`,
-                  }}
-                >
-                  <div className="mb-2">
-                    <div className="text-admin-ink text-admin-13 font-semibold">{item.title}</div>
-                    <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
-                      {item.type} · From {item.requester} · {item.daysAgo === 0 ? "Today" : `${item.daysAgo}d ago`}
-                    </div>
-                  </div>
-                  <div className="flex gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => decide(item.id, "approved")}
-                      style={{
-                        flex: 1, padding: "7px", background: COLORS.successSoft,
-                        border: `1px solid rgba(46,125,91,0.3)`, borderRadius: RADIUS.sm,
-                        color: COLORS.successDeep, fontFamily: FONTS.body, fontSize: 12.5,
-                        fontWeight: 600, cursor: "pointer",
-                      }}
-                    >
-                      Approve ✓
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => decide(item.id, "rejected")}
-                      style={{
-                        flex: 1, padding: "7px", background: COLORS.criticalSoft,
-                        border: `1px solid rgba(176,48,58,0.2)`, borderRadius: RADIUS.sm,
-                        color: COLORS.red, fontFamily: FONTS.body, fontSize: 12.5,
-                        fontWeight: 600, cursor: "pointer",
-                      }}
-                    >
-                      Reject ✗
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {resolved.length > 0 && (
-          <div>
-            <CapsLabel>Resolved</CapsLabel>
-            <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 5 }}>
-              {resolved.map((item) => (
-                <div
-                  key={item.id}
-                  style={{
-                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                    padding: "10px 14px", background: COLORS.surfaceAlt,
-                    borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}`,
-                  }}
-                >
-                  <div>
-                    <div className="text-admin-ink-muted text-admin-13 font-semibold">{item.title}</div>
-                    <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-dim">{item.type} · {item.daysAgo}d ago</div>
-                  </div>
-                  <span style={{ fontSize: 10.5, fontWeight: 700, color: statusColor(item.status), background: statusBg(item.status), padding: "2px 8px", textTransform: "capitalize" }} className="rounded-admin-sm">
-                    {item.status}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+      <EmptyState
+        icon="info"
+        title="Coming soon"
+        body="A unified approval queue isn't live yet \u2014 briefs and offers are approved inside each inquiry for now."
+      />
     </DrawerShell>
   );
 }
