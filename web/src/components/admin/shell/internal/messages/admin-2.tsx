@@ -63,10 +63,15 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
   const planTier: "free" | "studio" | "agency" | "hub-network" =
     state.plan === "network" ? "hub-network" : state.plan;
 
-  const stageBucket: "inquiry" | "hold" | "booked" | "past" =
+  // Finding D: a distinct "approved" bucket so an inquiry that's only approved
+  // (all parties signed off, 0 agency_bookings) never reads as "Booked" on the
+  // admin header/next-action — keeping admin aligned with the talent + client
+  // shells (which already show a distinct Approved state).
+  const stageBucket: "inquiry" | "hold" | "approved" | "booked" | "past" =
       inquiry.stage === "draft" || inquiry.stage === "submitted" || inquiry.stage === "coordination" ? "inquiry"
     : inquiry.stage === "offer_pending" ? "hold"
-    : inquiry.stage === "approved" || inquiry.stage === "booked" ? "booked"
+    : inquiry.stage === "approved" ? "approved"
+    : inquiry.stage === "booked" ? "booked"
     : "past";
   const sc = stageStyle(stageBucket);
 
@@ -129,6 +134,12 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
     if (stageBucket === "hold") return {
       hint: "Hold open — send the revised offer.",
       primary: { label: "Open offer", tone: "primary", onClick: () => { setActiveTab("offer"); } },
+    };
+    if (stageBucket === "approved") return {
+      // Finding D: approved ≠ booked. Direct the admin to the convert step
+      // instead of telling them it's already "Booked".
+      hint: "Approved by all parties — ready to book. Use “Move to → Booked” to lock the dates.",
+      primary: { label: "Review offer", tone: "primary", onClick: () => { setActiveTab("offer"); } },
     };
     if (stageBucket === "booked") return {
       hint: "Booked. Open the event details + call sheet.",
@@ -262,7 +273,7 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
                         }}
                         title={`${t.name} · ${t.status}`}
                       >
-                        <Avatar size={22} tone="auto" hashSeed={t.name} initials={initials} />
+                        <Avatar size={22} tone="auto" hashSeed={t.name} initials={initials} photoUrl={t.thumb || undefined} />
                         {isAccepted && (
                           <span aria-hidden style={{
                             position: "absolute", bottom: -1, right: -1,
@@ -348,6 +359,7 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
         {(() => {
           const adminSmartCtx = stageBucket === "inquiry" ? "inquiry"
             : stageBucket === "hold" ? "hold"
+            : stageBucket === "approved" ? "offer"
             : stageBucket === "booked" ? "offer"
             : "default";
           const isOnChat = activeTab === "chat";
@@ -497,13 +509,14 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
  *  shells get their own derivers when wired. */
 export function deriveAdminStatusSheetData(
   inquiry: RichInquiry,
-  stageBucket: "inquiry" | "hold" | "booked" | "past",
+  stageBucket: "inquiry" | "hold" | "approved" | "booked" | "past",
   allTalents: Array<{ name: string; status: string }>,
   offerLabel: string | null,
 ): StatusSheetData {
   const stage: StatusSheetData["stage"] =
       stageBucket === "inquiry" ? "Inquiry"
     : stageBucket === "hold" ? "Offer sent"
+    : stageBucket === "approved" ? "Approved"
     : stageBucket === "booked" ? "Booked"
     : stageBucket === "past" ? "Wrapped"
     : "Inquiry";
@@ -556,6 +569,7 @@ export function deriveAdminStatusSheetData(
     nextStep:
         stage === "Inquiry" ? "Build the shortlist and confirm talent rates."
       : stage === "Offer sent" ? "Client is reviewing the offer."
+      : stage === "Approved" ? "Approved by all parties — Move to Booked to lock it."
       : stage === "Booked" ? "Production planning — open the Event tab."
       : stage === "Wrapped" ? "Booking closed. Settle payouts."
       : undefined,

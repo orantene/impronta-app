@@ -3,6 +3,8 @@
 
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadPlatformSuperAdmins } from "../../platform-data";
+import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
+import { PlatformCurrencyCard } from "./PlatformCurrencyCard";
 
 export const dynamic = "force-dynamic";
 
@@ -104,6 +106,7 @@ export default async function PlatformSettingsPage() {
   const session = await getCachedActorSession();
   const hqTeam = await loadPlatformSuperAdmins();
   const currentUserId = session.user?.id;
+  const operatingCurrency = await loadPlatformOperatingCurrency();
 
   return (
     <>
@@ -140,6 +143,19 @@ export default async function PlatformSettingsPage() {
           gap: 12,
         }}
       >
+        {/* Operating currency — run the platform in one currency (default USD) */}
+        <HqCard
+          title="Operating currency"
+          subtitle="Run the platform in one currency. Talents see a single clean figure unless multi-currency is on."
+        >
+          <PlatformCurrencyCard
+            current={{
+              operatingCurrency: operatingCurrency.operatingCurrency,
+              multiCurrencyDisplayEnabled: operatingCurrency.multiCurrencyDisplayEnabled,
+            }}
+          />
+        </HqCard>
+
         {/* HQ team — all users with platform staff role */}
         <HqCard
           title={`HQ team (${hqTeam.length})`}

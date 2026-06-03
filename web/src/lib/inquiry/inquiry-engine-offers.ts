@@ -240,7 +240,10 @@ export async function createOffer(
         inquiry_id: ctx.inquiryId,
         tenant_id: ctx.tenantId,
         created_by_user_id: ctx.actorUserId,
-        currency_code: ctx.currencyCode ?? "MXN",
+        // USD-first: callers (createOfferAction) resolve the platform operating
+        // currency and pass it; this fallback is a defensive default for any
+        // direct caller that omits it (was a legacy "MXN").
+        currency_code: ctx.currencyCode ?? "USD",
         status: "draft",
       })
       .select("id")
@@ -371,7 +374,7 @@ export async function createOffer(
     await supabase.rpc("inquiry_audit_emit", {
       p_inquiry_id: ctx.inquiryId,
       p_kind: "offer_created",
-      p_payload: { offer_id: offer.id as string, currency: ctx.currencyCode ?? "MXN" },
+      p_payload: { offer_id: offer.id as string, currency: ctx.currencyCode ?? "USD" },
     }).then((r) => { if (r.error) logServerError("audit.emit.offer_created", r.error); });
 
     return { success: true, data: { offerId: offer.id as string } };
@@ -397,11 +400,13 @@ export async function sendOffer(
     // sending — so approval seeding includes them and the offer is bookable.
     await ensureOfferTalentsOnLineup(supabase, ctx.inquiryId, ctx.tenantId, ctx.offerId, ctx.actorUserId);
 
-    // Audit #3 (guard): never send a blank/zero offer to the client. The offer
-    // editor lets the Total be hand-typed independently of the priced line items,
-    // so without this an admin can send an empty or $0 offer. Reject when there are
-    // no priced lines or they sum to <= 0. (Full reconciliation of total_client_price
-    // to the line sum is a follow-up — it depends on the coordinator-fee model.)
+    // Audit #3 (full reconciliation): the offer Total MUST equal the sum of the
+    // priced line items, so the client sees and is charged the same number
+    // (convert books the line-item sum). The editor now auto-sums the Total in
+    // the UI; this is the server-side guarantee. (a) Reject a blank/$0 offer.
+    // (b) Self-heal any drift — stamp total_client_price = line sum before the
+    // client ever sees the offer, so even a draft saved before this guarantee
+    // (hand-typed total) can't ship a shown≠charged number.
     const { data: liRows } = await supabase
       .from("inquiry_offer_line_items")
       .select("total_price")
@@ -414,6 +419,11 @@ export async function sendOffer(
     if (!liRows?.length || lineSum <= 0) {
       return { success: false, error: "empty_offer" };
     }
+    await supabase
+      .from("inquiry_offers")
+      .update({ total_client_price: lineSum })
+      .eq("id", ctx.offerId)
+      .eq("tenant_id", ctx.tenantId);
 
     const { data, error } = await supabase.rpc("engine_send_offer", {
       p_inquiry_id: ctx.inquiryId,
@@ -919,7 +929,9 @@ export async function counterOffer(
     tenantId: ctx.tenantId,
     actorUserId: ctx.actorUserId,
     expectedVersion: ctx.expectedVersion,
-    currencyCode: currency ?? "MXN",
+    // USD-first: a counter inherits the prior offer's currency; absent one,
+    // fall back to USD (the platform operating currency) not a legacy MXN.
+    currencyCode: currency ?? "USD",
   });
 
   // §6 chat-card: emit offer_event card (status=countered) into the

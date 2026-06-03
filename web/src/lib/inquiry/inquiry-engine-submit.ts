@@ -489,6 +489,50 @@ export async function submitInquiry(
       });
     }
 
+    // Hub self-coordination (2026-06-02). When a talent's resolved owning
+    // party is THEMSELVES (`owning.type === 'talent'` — an independent
+    // talent with no exclusive agency / roster owner: the Tulala open-hub
+    // case), the talent runs their own booking. They join the thread as a
+    // `coordinator` (in addition to their `talent` lineup row) so they can
+    // broker the client directly on the private/client thread — the same
+    // access an agency-designated coordinator gets, which the private-thread
+    // RLS already grants to `role IN ('client','coordinator')`. No agency
+    // sits in the money path; the platform's flat take still applies
+    // (commission resolves sellerOfRecord='talent' for a talent-owned job).
+    //
+    // Mechanics mirror the multi-coordinator fan-out above: keyed on
+    // `user_id` only (no talent_profile_id, so the talent/coordinator rows
+    // never collide on the active_talent unique index), deduped against any
+    // coordinator already added, and skipped for talents without a claimed
+    // account (a coordinator row needs a user_id to key the message RLS on).
+    try {
+      const selfCoordSeen = new Set<string>(
+        assignment.coordinator_id ? [assignment.coordinator_id] : [],
+      );
+      for (const tid of input.talent_profile_ids) {
+        if (owningParties.get(tid)?.type !== "talent") continue;
+        const { data: selfTp } = await supabase
+          .from("talent_profiles")
+          .select("user_id")
+          .eq("id", tid)
+          .maybeSingle();
+        const uid = (selfTp as { user_id?: string | null } | null)?.user_id ?? null;
+        if (!uid || selfCoordSeen.has(uid)) continue;
+        selfCoordSeen.add(uid);
+        await supabase.from("inquiry_participants").insert({
+          inquiry_id: inquiryId,
+          tenant_id: input.tenant_id,
+          user_id: uid,
+          role: "coordinator",
+          status: "active",
+        });
+      }
+    } catch (selfCoordErr) {
+      // Best-effort: the inquiry is already persisted; a failure to add the
+      // self-coordinator must never block submission.
+      logServerError("inquiry-engine-submit.talentSelfCoordinator", selfCoordErr);
+    }
+
     await assertConsistencyAfterWrite(supabase, inquiryId);
 
     // In-app bells: workspace admins ("new inquiry") + invited talent ("you're

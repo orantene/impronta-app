@@ -15,7 +15,7 @@ import {
 
 export const dynamic = "force-dynamic";
 
-function fmt(cents: number, currency = "EUR"): string {
+function fmt(cents: number, currency = "USD"): string {
   try {
     return new Intl.NumberFormat("en-US", {
       style: "currency",

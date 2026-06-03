@@ -288,12 +288,30 @@ export async function createBookingTransaction(opts: {
   payerUserId?: string | null;
   payerEmail?: string | null;
   createdByProfileId?: string | null;
+  /**
+   * #4 — the REAL platform fee from the booking's commission snapshot (sum of
+   * the per-lane platform_fee_cents), so the transaction's fee/net match what's
+   * actually split + paid out (transfers.ts reads the snapshot, not this row).
+   * When omitted, falls back to the flat plan-tier % (legacy/no-snapshot path).
+   */
+  platformFeeCentsOverride?: number | null;
 }): Promise<TransactionResult<BookingTransaction>> {
   const sb = createServiceRoleClient();
   if (!sb) return { ok: false, error: "Database not available." };
 
   try {
-    const amounts = calculateTransactionAmounts(opts.grossAmountCents, opts.planTier);
+    // #4: prefer the commission-snapshot platform fee (the true split) over the
+    // flat FEE_TABLE %, so the admin's displayed fee/net agree with the payouts.
+    const override = opts.platformFeeCentsOverride;
+    const amounts =
+      override != null && override >= 0 && override <= opts.grossAmountCents && opts.grossAmountCents > 0
+        ? {
+            grossCents: opts.grossAmountCents,
+            feeCents: override,
+            netCents: opts.grossAmountCents - override,
+            feeBasisPoints: Math.round((override / opts.grossAmountCents) * 10_000),
+          }
+        : calculateTransactionAmounts(opts.grossAmountCents, opts.planTier);
 
     const { data, error } = await sb
       .from("booking_transactions")

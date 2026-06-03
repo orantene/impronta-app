@@ -270,7 +270,7 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
   const stage = STAGE_LABEL[offer.stage];
   const stageLabel = isClient && stage.clientLabel ? stage.clientLabel : stage.label;
   const next = nextActionFor(offer, pov);
-  const currency = offer.clientBudget?.currency ?? "EUR";
+  const currency = offer.clientBudget?.currency ?? "USD";
   const isRealUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id);
   const canRunStickyPrimary = !!next.cta && (
     (isTalent && (next.cta === "Submit my rate" || next.cta === "Review counter"))

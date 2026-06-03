@@ -5,6 +5,7 @@ import { logServerError } from "@/lib/server/safe-error";
 
 import type { TalentInquiryRow } from "./talent";
 import { loadMyOfferApprovalStatus } from "./talent-approvals";
+import { loadCoordinatorInquiriesForUser } from "./talent-coordinator-inquiries";
 
 /**
  * _data-bridge/talent-inquiries-all-agencies.ts — Tulala-canonical unified
@@ -122,7 +123,49 @@ export async function loadTalentInquiriesAllAgencies(
       sourceChannel: r.inquiries!.source_channel ?? null,
       myApprovalStatus: approvalByInquiry.get(r.inquiries!.id) ?? null,
       tenantId: r.inquiries!.tenant_id,
+      // Flipped to true below when the talent ALSO coordinates this inquiry.
+      iAmCoordinator: false,
     }));
+
+    // Hub self-coordination (2026-06-02) — surface the talent's COORDINATOR
+    // role across every tenant (RLS talent-select only returns role='talent').
+    // loadCoordinatorInquiriesForUser resolves it via service-role; we then
+    // (a) flip `iAmCoordinator` on lineup rows they also coordinate and
+    // (b) append coordinator-only inquiries (they run the booking but aren't
+    // performing). No tenant filter — this is the cross-agency unified inbox.
+    if (myUserId) {
+      const coordInquiries = await loadCoordinatorInquiriesForUser(myUserId);
+      const coordIds = new Set(coordInquiries.map((i) => i.id));
+      for (const row of partialRows) {
+        if (coordIds.has(row.id)) row.iAmCoordinator = true;
+      }
+      const seenIds = new Set(partialRows.map((r) => r.id));
+      for (const i of coordInquiries) {
+        if (seenIds.has(i.id)) continue;
+        seenIds.add(i.id);
+        partialRows.push({
+          id: i.id,
+          status: i.status,
+          contact_name: i.contact_name,
+          company: i.company,
+          message: i.message,
+          event_date: i.event_date,
+          event_location: i.event_location,
+          created_at: i.created_at,
+          updated_at: i.updated_at,
+          participantStatus: "active",
+          unreadCount: 0,
+          trustLevel: i.trust_level_at_submission ?? null,
+          sourceChannel: i.source_channel ?? null,
+          myApprovalStatus: null,
+          tenantId: i.tenant_id,
+          iAmCoordinator: true,
+        });
+      }
+      partialRows.sort((a, b) =>
+        a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0,
+      );
+    }
 
     if (partialRows.length === 0) return [];
 

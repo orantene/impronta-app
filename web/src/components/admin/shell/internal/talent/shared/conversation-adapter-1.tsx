@@ -67,6 +67,10 @@ function adaptTalentInquiry(row: InquiryBridgeRow, fallbackAgencyName: string): 
     // Audit #12 — carry the talent's own approval on the current offer through
     // to the thread so it stops re-showing "Approve offer" post-approval.
     myApprovalStatus: row.myApprovalStatus,
+    // Hub self-coordination — when the talent also coordinates this inquiry
+    // (independent / open-hub booking, or agency-added) the shell unlocks the
+    // coordinator surfaces: the client/private sub-thread, lineup edit, offers.
+    iAmCoordinator: row.iAmCoordinator === true,
     lastMessage: {
       sender:  "coordinator" as const,
       preview: stage === "booked" ? "Booking confirmed — check logistics tab." : "Awaiting your response.",

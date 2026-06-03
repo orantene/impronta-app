@@ -1696,23 +1696,30 @@ export async function quickPatchInquiryStatus(formData: FormData): Promise<Admin
 
   const { inquiry_id, status } = parsed.data;
 
-  // Safety: commercial transitions MUST go through the engine, never a raw status
-  // patch. The engine creates the agency_bookings row + commission snapshot
-  // (convert), records the client/talent approvals (submit_approval), emits
-  // events, and bumps the optimistic-lock version. Patching status='booked'
-  // directly here produces an orphan booked inquiry (no booking row → breaks the
-  // consistency invariant + every payment/booking view). Block them.
-  const ENGINE_ONLY_STATUSES = new Set(["approved", "booked", "rejected"]);
-  if (ENGINE_ONLY_STATUSES.has(status)) {
+  // #10 — Safety: a raw status patch is only allowed for the manual,
+  // non-commercial triage states. Default-DENY: every commercial transition MUST
+  // go through the engine (sendOffer → offer_pending; submit_approval → approved/
+  // rejected; convert → booked/converted), which creates the agency_bookings row +
+  // commission snapshot, records approvals, emits events, and bumps the optimistic-
+  // lock version. Patching e.g. status='booked' directly produces an orphan booked
+  // inquiry (no booking row → breaks the consistency invariant + every payment/
+  // booking view). A whitelist (not a blacklist) means a NEW commercial status can
+  // never silently become hand-settable.
+  const MANUAL_SAFE_STATUSES = new Set<string>([
+    "new", "reviewing", "waiting_for_client", "talent_suggested", "in_progress",
+    "qualified", "closed", "closed_lost", "archived", "draft", "submitted",
+    "coordination", "expired",
+  ]);
+  if (!MANUAL_SAFE_STATUSES.has(status)) {
     return {
       error:
-        "That status is set automatically — by the client/talent approving, or by converting to a booking — and can't be set manually here.",
+        "That status is set automatically — by sending an offer, the client/talent approving, or converting to a booking — and can't be set manually here.",
     };
   }
 
   const { data: prior, error: priorErr } = await supabase
     .from("inquiries")
-    .select("status")
+    .select("status, version")
     .eq("id", inquiry_id)
     .eq("tenant_id", tenantId)
     .maybeSingle();
@@ -1722,15 +1729,25 @@ export async function quickPatchInquiryStatus(formData: FormData): Promise<Admin
     return { error: CLIENT_ERROR.loadPage };
   }
 
-  const { error } = await supabase
+  // #10 — bump the optimistic-lock version (was skipped, so a concurrent engine
+  // op couldn't tell this patch happened) AND gate the write on the version we
+  // read, so a racing edit fails closed instead of silently clobbering.
+  const priorVersion = (prior.version as number | null) ?? 1;
+  const { data: updated, error } = await supabase
     .from("inquiries")
-    .update({ status: status as never, updated_at: new Date().toISOString() })
+    .update({ status: status as never, version: (priorVersion + 1) as never, updated_at: new Date().toISOString() })
     .eq("id", inquiry_id)
-    .eq("tenant_id", tenantId);
+    .eq("tenant_id", tenantId)
+    .eq("version", priorVersion as never)
+    .select("id")
+    .maybeSingle();
 
   if (error) {
     logServerError("admin/quickPatchInquiryStatus", error);
     return { error: CLIENT_ERROR.update };
+  }
+  if (!updated) {
+    return { error: "This inquiry changed in another tab — reload and try again." };
   }
 
   if (prior.status !== status) {

@@ -54,6 +54,16 @@ export function ConversationTab({
    *  timestamped cards, read-only. Splits the two so Chat stays a
    *  conversation and every financial/status event lives in Activity. */
   mode = "chat",
+  /** Which real thread to load + post to. Defaults to the talent's GROUP
+   *  thread. The talent shell passes "private" for a talent-COORDINATOR's
+   *  client sub-thread (hub self-coordination) so the same component loads
+   *  the client chat and routes sends there. */
+  realThreadType = "group",
+  /** Explicit send handler for the real-inquiry path. When provided it
+   *  overrides the threadKey-suffix dispatch below — the talent shell uses
+   *  it to post a coordinator's reply to the client (private) thread via
+   *  sendTalentInquiryMessage(..., "private") instead of the client action. */
+  onSendReal,
 }: {
   conv: Conversation;
   placeholder: string;
@@ -67,6 +77,8 @@ export function ConversationTab({
   povCanSeeOffers?: boolean;
   povCanSeeCoordNote?: boolean;
   mode?: "chat" | "activity";
+  realThreadType?: "group" | "private";
+  onSendReal?: (text: string) => Promise<{ ok: boolean; error?: string }>;
 }) {
   const { toast, bridgeTalentSelfProfile } = useAdminShell();
   // S0.3 retirement: TeamStrip tap now nudges user to the Lineup tab
@@ -100,10 +112,10 @@ export function ConversationTab({
     if (!showReal) { setRealThread(null); return; }
     let active = true;
     setRealThread(null);
-    loadTalentInquiryThread(conv.id).then((rows) => { if (active) setRealThread(rows); });
+    loadTalentInquiryThread(conv.id, realThreadType).then((rows) => { if (active) setRealThread(rows); });
     return () => { active = false; };
     // Re-load when switching conv or when a local send appends (stash bump).
-  }, [conv.id, showReal]);
+  }, [conv.id, showReal, realThreadType]);
   // In-thread search — small toggle in the header opens a compact
   // search input that filters visible bubbles to those whose body
   // matches. System events are kept (they often anchor the search
@@ -390,16 +402,19 @@ export function ConversationTab({
             placeholder={placeholder}
             onSend={(text) => {
               appendLocalMessage(stashKey, text);
-              // Dispatch by threadKey suffix:
-              //   ":client" → client thread — sendInquiryMessageAsClient (G-pass)
-              //   ":talent" → talent group thread — sendInquiryMessageAsTalent (F-pass)
               // Synthetic mock conv ids stay local-only for the demo.
               const isRealInquiry = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id);
               if (isRealInquiry) {
-                const isClientThread = /:client$/.test(threadKey);
-                const send = isClientThread
-                  ? sendInquiryMessageAsClient(conv.id, text)
-                  : sendInquiryMessageAsTalent(conv.id, text);
+                // An explicit onSendReal wins (the talent shell passes one for a
+                // COORDINATOR's client sub-thread → sendTalentInquiryMessage(...,
+                // "private")). Otherwise dispatch by threadKey suffix:
+                //   ":client" → client thread — sendInquiryMessageAsClient (G-pass)
+                //   ":talent" → talent group thread — sendInquiryMessageAsTalent (F-pass)
+                const send = onSendReal
+                  ? onSendReal(text)
+                  : /:client$/.test(threadKey)
+                    ? sendInquiryMessageAsClient(conv.id, text)
+                    : sendInquiryMessageAsTalent(conv.id, text);
                 void send.then((r) => { if (!r.ok) toast(`Send failed: ${r.error}`); });
               } else {
                 toast("Message sent");

@@ -22,6 +22,7 @@ import {
   persistBookingCommissionSnapshot,
   loadBookingCommissionSnapshots,
   sumBookingGrossChargedCents,
+  sumBookingPlatformFeeCents,
 } from "@/lib/billing/commission-engine";
 import type {
   PaymentMethod,
@@ -61,6 +62,8 @@ import {
   type OfferLineDraft,
 } from "@/lib/inquiry/inquiry-engine-offers";
 import { clientAcceptOffer } from "@/lib/inquiry/inquiry-engine-approvals";
+import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
+import { loadTalentChipInfo } from "@/lib/talent/talent-chip-info";
 
 export type PipelineActionResult<T = undefined> =
   | { ok: true; data?: T }
@@ -417,6 +420,11 @@ export async function createInquiryTransactionDraft(
     // booking revenue when no snapshot exists yet.
     const grossChargedCents = await sumBookingGrossChargedCents(supabase, booking.id as string);
     const grossAmountCents = grossChargedCents > 0 ? grossChargedCents : baseRevenueCents;
+    // #4: the REAL platform fee from the commission snapshot — so the transaction's
+    // fee/net match the actual split (transfers pay per snapshot, not this row).
+    // Only used when the gross also came from the snapshot; otherwise the flat
+    // plan-tier % applies (legacy/no-snapshot path).
+    const snapshotPlatformFeeCents = await sumBookingPlatformFeeCents(supabase, booking.id as string);
 
     const { data: agency } = await supabase
       .from("agencies")
@@ -431,12 +439,41 @@ export async function createInquiryTransactionDraft(
       sourceInquiryId: inquiryId,
       planTier,
       grossAmountCents,
+      platformFeeCentsOverride:
+        grossChargedCents > 0 && snapshotPlatformFeeCents > 0 ? snapshotPlatformFeeCents : null,
       currency: (booking.currency_code as string | null) ?? "USD",
       payerUserId: (booking.client_user_id as string | null) ?? null,
       payerEmail: (booking.contact_email as string | null) ?? null,
       createdByProfileId: null,
     });
     if (!result.ok) return { ok: false, error: result.error };
+
+    // #28 smoothing: auto-default the payout receiver to the booking's primary
+    // talent. The single payout_receiver_id is vestigial for multi-talent
+    // bookings (executeBookingTransfers fans out per the commission snapshot,
+    // not this field), but the DB trigger requires it before "Request payment".
+    // Defaulting it here makes the admin flow one click (Create draft →
+    // Request payment) instead of forcing a manual receiver pick; the picker
+    // stays available for an explicit override. Non-fatal on failure.
+    try {
+      const { loadPayoutReceiverCandidatesForBooking, setTransactionPayoutReceiver } =
+        await import("@/lib/bookings/transactions");
+      const candidates = await loadPayoutReceiverCandidatesForBooking({
+        tenantId,
+        bookingId: booking.id as string,
+        supabase,
+      });
+      const primary = candidates[0];
+      if (primary && result.data?.id) {
+        await setTransactionPayoutReceiver({
+          transactionId: result.data.id,
+          payoutAccountId: primary.payoutAccountId,
+          sourceTenantId: tenantId,
+        });
+      }
+    } catch (recvErr) {
+      logServerError("admin._pipeline-actions.createInquiryTransactionDraft.autoReceiver", recvErr);
+    }
 
     revalidatePath(`/${auth.tenantSlug}`, "layout");
     return { ok: true };
@@ -886,6 +923,10 @@ export type InquiryParticipant = {
   status: "invited" | "active" | "declined" | "removed";
   talentProfileId: string | null;
   talentDisplayName: string | null;
+  /** Real face for the lineup — directory 'card' crop, or null (→ initials). */
+  talentPhotoUrl: string | null;
+  /** One-line discipline (primary taxonomy term), e.g. "Editorial Model". */
+  talentHeadline: string | null;
   userId: string | null;
   invitedAt: string | null;
 };
@@ -931,17 +972,28 @@ export async function loadInquiryLineup(
       talent_profiles: { display_name: string | null } | null;
     };
     const rows = (data ?? []) as unknown as Row[];
+    // Confidence: resolve a real face + discipline per talent so the lineup
+    // shows people, not initials. Best-effort (missing → nulls → initials).
+    const chips = await loadTalentChipInfo(
+      supabase,
+      rows.map((r) => r.talent_profile_id),
+    );
     return {
       ok: true,
-      data: rows.map((r) => ({
-        id: r.id,
-        role: r.role,
-        status: r.status,
-        talentProfileId: r.talent_profile_id,
-        talentDisplayName: r.talent_profiles?.display_name ?? null,
-        userId: r.user_id,
-        invitedAt: r.invited_at,
-      })),
+      data: rows.map((r) => {
+        const chip = r.talent_profile_id ? chips.get(r.talent_profile_id) : null;
+        return {
+          id: r.id,
+          role: r.role,
+          status: r.status,
+          talentProfileId: r.talent_profile_id,
+          talentDisplayName: r.talent_profiles?.display_name ?? null,
+          talentPhotoUrl: chip?.photoUrl ?? null,
+          talentHeadline: chip?.headline ?? null,
+          userId: r.user_id,
+          invitedAt: r.invited_at,
+        };
+      }),
     };
   } catch (err) {
     logServerError("admin._pipeline-actions.loadInquiryLineup", err);
@@ -1327,7 +1379,7 @@ export async function loadOfferDraft(
         inquiryVersion: (inq.version as number | null) ?? 1,
         totalClientPrice: Number(offer.total_client_price ?? 0),
         coordinatorFee: Number(offer.coordinator_fee ?? 0),
-        currencyCode: (offer.currency_code as string | null) ?? "EUR",
+        currencyCode: (offer.currency_code as string | null) ?? "USD",
         notes: (offer.notes as string | null) ?? null,
         lineItems: rows.map((r) => ({
           id: r.id,
@@ -1698,7 +1750,11 @@ export async function bulkSetInquiryArchived(
 export async function createOfferAction(
   _tenantSlug: string,
   inquiryId: string,
-  currencyCode: string = "EUR",
+  // USD-first: when the caller doesn't pin a currency (the offer-builder
+  // "Start drafting offer" button doesn't), fall back to the PLATFORM operating
+  // currency (default USD) instead of a hard-coded EUR — so the whole
+  // inquiry→offer→booking→payment→payout flow runs in one currency.
+  currencyCode?: string,
 ): Promise<PipelineActionResult<{ offerId: string }>> {
   // Hard timeout — the 2026-05-12 audit reported the button hanging on
   // "Starting…" forever. Wrap the whole flow so any silent block surfaces
@@ -1732,12 +1788,19 @@ export async function createOfferAction(
       }
       if (!inq) return { ok: false, error: "Inquiry not found in this workspace." };
 
+      // USD-first: the offer-builder button doesn't pin a currency, so resolve
+      // the platform operating currency (default USD) rather than defaulting to
+      // EUR. This makes the offer — and the booking/payment/payout that flow
+      // from it — run in the platform's single operating currency.
+      const resolvedCurrency =
+        currencyCode ?? (await loadPlatformOperatingCurrency()).operatingCurrency;
+
       const result = await createOffer(supabase, {
         inquiryId,
         tenantId,
         actorUserId: user.id,
         expectedVersion: (inq.version as number | null) ?? 1,
-        currencyCode,
+        currencyCode: resolvedCurrency,
       });
       if (!result.success) {
         const reason = (result as { reason?: string }).reason;

@@ -179,8 +179,23 @@ export async function executeBookingTransfers(
 
     const stripe = deps.stripe ?? getStripe();
 
+    const settledCurrency = String((txn.currency as string) || "usd").toLowerCase();
     for (const snap of snapshots) {
-      const currency = (snap.currency_code || (txn.currency as string) || "usd").toLowerCase();
+      const currency = (snap.currency_code || settledCurrency || "usd").toLowerCase();
+      // Audit #5: never transfer in a currency the platform did NOT settle. The
+      // client charge settled in the transaction currency; a snapshot lane in a
+      // different currency (a legacy mixed-currency booking) can't be funded from
+      // this settlement — paying it out would fail or misfund the talent. Skip
+      // the lane and flag it for manual reconciliation rather than guessing.
+      if (currency !== settledCurrency) {
+        logServerError(
+          "transfers.currency_mismatch",
+          new Error(
+            `snapshot lane ${currency} != settled ${settledCurrency} (booking ${bookingId}, txn ${transactionId}) — skipped payout to avoid misfunding`,
+          ),
+        );
+        continue;
+      }
       const talentProfileId = await resolveTalentProfileId(sb, snap);
       const isWorkspaceOwned =
         snap.owning_party_type === "agency" || snap.owning_party_type === "workspace";

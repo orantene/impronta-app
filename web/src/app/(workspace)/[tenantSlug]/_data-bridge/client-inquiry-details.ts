@@ -29,6 +29,7 @@ import {
   describeCrossTenantContext,
 } from "@/lib/inquiry/cross-tenant-context";
 import { loadLineupStatusSummary } from "@/lib/inquiry/acceptance-summary";
+import { loadTalentCardThumbs } from "./talent-card-thumbs";
 
 // ─── Output shape ───────────────────────────────────────────────────────────
 
@@ -464,6 +465,14 @@ export async function loadClientInquiryDetails(
       } | null;
     };
     const parts = (participantsRes.data ?? []) as unknown as ParticipantRow[];
+    // Resolve each lineup talent's public card photo so the CLIENT sees a real
+    // face next to who they inquired about / are about to book — not initials.
+    // (Was a `photo_url: null` "Phase D" stub.) Same media pipeline + variant
+    // fallback the roster/discover surfaces use, via the shared resolver.
+    const talentThumbs = await loadTalentCardThumbs(
+      admin ?? readClient,
+      parts.map((p) => p.talent_profile_id),
+    );
     const talentLineup = parts.map((p) => {
       const tp = p.talent_profiles;
       const name =
@@ -475,7 +484,7 @@ export async function loadClientInquiryDetails(
         talent_profile_id: p.talent_profile_id,
         name,
         profile_code: tp?.profile_code ?? null,
-        photo_url: null, // Phase D will pipe through media
+        photo_url: p.talent_profile_id ? talentThumbs.get(p.talent_profile_id) ?? null : null,
         status: p.status,
       };
     });

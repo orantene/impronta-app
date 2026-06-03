@@ -219,7 +219,7 @@ export function PipelineFilterDrawer({ filter }: { filter: "drafts" | "awaiting"
         date: b.event_date ?? "",
         stage: "confirmed",
         amount: b.grossRevenueCents
-          ? new Intl.NumberFormat("en-EU", { style: "currency", currency: b.currencyCode ?? "EUR", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(b.grossRevenueCents / 100)
+          ? new Intl.NumberFormat("en-US", { style: "currency", currency: b.currencyCode ?? "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(b.grossRevenueCents / 100)
           : undefined,
       }))
     : mappedInquiries.filter((i) => meta.stages.includes(i.stage));

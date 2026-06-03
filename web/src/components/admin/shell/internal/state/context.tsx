@@ -516,7 +516,10 @@ function adaptBridgeInquiry(w: WorkspaceInquiryForMessages): RichInquiry {
           approved: w.lineupConfirmed,
           talents: w.lineupTalent.map((talent) => ({
             name: talent.displayName,
-            thumb: "",
+            // Confidence: real face + discipline so the lineup shows people,
+            // not initials (the Avatar falls back to initials when empty).
+            thumb: talent.photoUrl ?? "",
+            headline: talent.headline ?? undefined,
             status: mapParticipantStatus(talent.status),
           })),
         }]

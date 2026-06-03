@@ -24,6 +24,7 @@ type BookingTalentJoinRow = {
     id: string;
     event_date: string | null;
     starts_at: string | null;
+    created_at: string | null;
     title: string;
     client_account_name: string | null;
     client_summary: string | null;
@@ -58,9 +59,16 @@ type ParticipantRow = {
   talent_profile_id: string | null;
 };
 
-function resolveWorkDateIso(booking: BookingTalentJoinRow["agency_bookings"]): string | null {
+export function resolveWorkDateIso(booking: BookingTalentJoinRow["agency_bookings"]): string | null {
   if (booking.event_date) return booking.event_date;
   if (booking.starts_at) return booking.starts_at.slice(0, 10);
+  // Finding E: a booking with no shoot date scheduled yet (TBC — common for a
+  // just-booked job) returned null here, so the row was DROPPED (`continue`) and
+  // a talent who was already PAID for it saw "€0 / No earnings". Fall back to the
+  // booking-created date so the row survives — it's still windowed on shoot-OR-
+  // payout date (audit #14) and "Paid this month" still keys on the real
+  // transfer/payout date, so this only restores otherwise-invisible earnings.
+  if (booking.created_at) return booking.created_at.slice(0, 10);
   return null;
 }
 
@@ -141,6 +149,7 @@ export async function fetchTalentSnapshotAggregateRows(
           id,
           event_date,
           starts_at,
+          created_at,
           title,
           client_account_name,
           client_summary,

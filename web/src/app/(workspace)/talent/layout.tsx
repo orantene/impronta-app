@@ -12,6 +12,7 @@ import {
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent";
 import { loadTalentCalendarEntries } from "@/components/admin/shell/internal/data-bridge";
 import { loadTalentEarningsByCurrency } from "@/lib/talent/earnings-by-currency";
+import { loadPlatformOperatingCurrency, applyOperatingCurrencyToEarnings } from "@/lib/platform/operating-currency";
 import { getTalentConnectedAccountSnapshot } from "@/lib/payments/stripe-connect-talent";
 import { getHeldPayoutTotals } from "@/lib/payments/booking-payouts-ledger";
 import { findTenantMembership } from "@/lib/saas/tenant";
@@ -134,6 +135,12 @@ export default async function PlatformTalentLayout({
     getHeldPayoutTotals({ talentProfileId: talentSelfProfile.id }),
   ]);
 
+  // Platform currency policy: unless a super-admin has turned multi-currency
+  // display ON, collapse the talent's earnings to the single operating currency
+  // (default USD) so the dashboard shows one clean figure, not EUR/USD tabs.
+  const operatingCurrency = await loadPlatformOperatingCurrency();
+  const displayEarnings = applyOperatingCurrencyToEarnings(talentEarnings, operatingCurrency);
+
   const isHybrid = membership != null;
   const workspaceUnread: number | undefined = isHybrid ? workspaceUnreadRaw : undefined;
   const userPrefs: UserPrefs | null = isHybrid ? userPrefsRaw : null;
@@ -174,7 +181,7 @@ export default async function PlatformTalentLayout({
         preferredSurface: userPrefs?.preferredSurface ?? null,
         firstRunToggleTipSeen: userPrefs?.firstRunToggleTipSeen ?? false,
         talentCalendarEntries,
-        talentEarnings,
+        talentEarnings: displayEarnings,
       }}
     >
       {isHybrid && agencyOptions.length > 1 ? (

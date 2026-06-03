@@ -88,7 +88,7 @@ export const loadAgencyFinancials = cache(
 );
 
 const EMPTY_BY_CURRENCY: AgencyFinancialsByCurrency = {
-  defaultCurrency: "EUR",
+  defaultCurrency: "USD",
   byCurrency: [],
   currencies: [],
 };
@@ -129,7 +129,7 @@ export const loadAgencyFinancialsByCurrency = cache(
 
     const defaultCurrency =
       ((agencyRes.data as { default_currency?: string } | null)?.default_currency
-        ?? "EUR")
+        ?? "USD")
         .toUpperCase();
 
     const rows = snapshotRowsRes.map(mapSnapshotRowToFinancialsRow);

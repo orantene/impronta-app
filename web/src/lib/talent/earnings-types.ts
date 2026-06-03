@@ -48,7 +48,9 @@ export const EMPTY_TALENT_EARNINGS: TalentEarnings = {
     ytdNetCents: 0,
     pendingCents: 0,
     confirmedPipelineCents: 0,
-    currency: "EUR",
+    // USD-first default (platform operates in USD); per-currency bundles
+    // overwrite this with their own code.
+    currency: "USD",
   },
   perAgency: [],
   rows: [],
@@ -237,7 +239,7 @@ export function buildTalentEarnings(
       ytdNetCents,
       pendingCents,
       confirmedPipelineCents,
-      currency: opts?.currency ?? "EUR",
+      currency: opts?.currency ?? "USD",
     },
     perAgency,
     rows: rows.map((row) => ({

@@ -183,6 +183,8 @@ export type RequirementGroup = {
   talents: {
     name: string;
     thumb: string;
+    /** One-line discipline (e.g. "Editorial Model") shown under the name. */
+    headline?: string;
     status: LineItemStatus;
     lastSaidTs?: string;
     lastSaidSnippet?: string;

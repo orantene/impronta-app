@@ -9,6 +9,7 @@ import { MobileShellStyles } from "@/components/messages-mobile/MobileShellStyle
 import { PitchOriginCard } from "@/components/pitch-origin/PitchOriginCard";
 import { ReservationThread, type ReservationStage, type PillDescriptor, type PillKind, type SheetDescriptor } from "@/components/reservation-thread";
 import { acceptInquiryInvitation, declineInquiryInvitation, respondToInquiryOffer } from "@/lib/server-actions/talent-pipeline";
+import { sendTalentInquiryMessage } from "@/app/(workspace)/[tenantSlug]/talent/inbox/[id]/actions";
 import { useAdminShell, FONTS, COLORS } from "../state";
 import { MOCK_CONVERSATIONS, MOCK_THREAD, type Conversation } from "../talent";
 import { AdminReservationView } from "./admin-3";
@@ -233,6 +234,15 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
                   povCanEditLineup={isCoordinator}
                   povCanSeeOffers={isCoordinator}
                   povCanSeeCoordNote={true}
+                  // Hub self-coordination: load + post to the CLIENT (private)
+                  // thread AS the talent-coordinator. Without this the shared
+                  // ConversationTab would post via the client action (wrong
+                  // identity) and load the group thread. sendTalentInquiryMessage
+                  // re-checks the coordinator role server-side + the RLS gates it.
+                  realThreadType="private"
+                  onSendReal={(text) =>
+                    sendTalentInquiryMessage(effectiveTenant.slug, conv.id, text, "private")
+                  }
                 />
               )}
               {/* "Activity" sub-tab (repurposed from the retired fake DM):
