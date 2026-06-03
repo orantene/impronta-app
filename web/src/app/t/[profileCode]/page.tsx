@@ -87,6 +87,11 @@ import { isTalentProfilePlatformHost } from "@/lib/talent-site/platform-host";
 import { resolvePlatformTalentSiteForProfile } from "@/lib/talent-site/resolve-platform-talent-site";
 import { TALENT_SITE_TEMPLATES } from "@/lib/talent-site/templates/registry";
 import type { TalentSiteTemplateKey } from "@/lib/talent-site/templates/types";
+import { TalentReviewsSection } from "@/components/reviews/TalentReviewsSection";
+import {
+  loadTalentReviews,
+  loadTalentRatingSummary,
+} from "@/lib/reviews/load-reviews";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -1420,6 +1425,13 @@ export default async function PublicTalentProfilePage({
       ])
     : [[] as TalentLanguageRow[], [] as TalentServiceAreaRow[]];
 
+  // W7 — client→talent reviews. Published-only via public RLS; renders
+  // nothing when the talent has no reviews. Safe on every surface.
+  const [ratingSummary, talentReviews] = await Promise.all([
+    loadTalentRatingSummary(profile.id),
+    loadTalentReviews(profile.id, 12),
+  ]);
+
   const languages: string[] = structuredLanguages.length > 0
     ? structuredLanguages.map(formatLanguageRow)
     : (grouped["language"] ?? []);
@@ -2092,6 +2104,26 @@ export default async function PublicTalentProfilePage({
             </aside>
           </div>
         </div>
+
+        {/* ----------------------------------------------------------------
+            W7 — Client reviews (renders nothing when there are none)
+        ---------------------------------------------------------------- */}
+        {ratingSummary.count > 0 ? (
+          <section
+            aria-label="Client reviews"
+            className="border-t border-[var(--impronta-gold-border)]/30 bg-[var(--impronta-black)] px-4 py-14 sm:px-6 lg:px-8"
+            data-profile-section="reviews"
+          >
+            <div className="mx-auto max-w-5xl">
+              <TalentReviewsSection
+                summary={ratingSummary}
+                reviews={talentReviews}
+                theme="dark"
+                heading={locale === "es" ? "Reseñas" : "Reviews"}
+              />
+            </div>
+          </section>
+        ) : null}
 
         {/* ----------------------------------------------------------------
             CTA section

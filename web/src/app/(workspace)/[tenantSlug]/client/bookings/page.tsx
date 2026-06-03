@@ -19,6 +19,7 @@ import {
 import { ClientPageHeader, HeaderBadge } from "../_components/ClientPageHeader";
 import { NewInquiryButton } from "../_components/NewInquiryButton";
 import { EmptyState } from "../_components/EmptyState";
+import { ReviewableBookingsSection } from "../_components/ReviewableBookingsSection";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
@@ -309,6 +310,8 @@ export default async function ClientBookingsPage({ params }: { params: PageParam
         <div className="flex flex-col gap-7">
           <BookingSection rows={upcoming} label="Upcoming" tenantSlug={tenantSlug} />
           <BookingSection rows={past}     label="Past" tenantSlug={tenantSlug} />
+          {/* W7 — client→talent reviews. Self-hides when nothing is eligible. */}
+          <ReviewableBookingsSection tenantSlug={tenantSlug} />
         </div>
       )}
     </div>

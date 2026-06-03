@@ -18,6 +18,12 @@ import {
   type RefundPolicyKey,
   type TalentBookingTerms,
 } from "@/lib/billing/commercial-terms-types";
+import { TalentReviewsSection } from "@/components/reviews/TalentReviewsSection";
+import {
+  loadTalentReviews,
+  loadTalentRatingSummary,
+} from "@/lib/reviews/load-reviews";
+import type { TalentRatingSummary, TalentReview } from "@/lib/reviews/review-types";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -236,6 +242,13 @@ export default async function TalentSharePage({ params }: PageProps) {
 
   if (!talent) notFound();
 
+  // W7 — client→talent reviews. Published-only; renders nothing when empty.
+  const [ratingSummary, talentReviews]: [TalentRatingSummary, TalentReview[]] =
+    await Promise.all([
+      loadTalentRatingSummary(talent.profile.id),
+      loadTalentReviews(talent.profile.id, 12),
+    ]);
+
   const name =
     talent.profile.display_name ??
     [talent.profile.first_name, talent.profile.last_name].filter(Boolean).join(" ") ??
@@ -397,6 +410,24 @@ export default async function TalentSharePage({ params }: PageProps) {
               Portfolio uploading soon.
             </div>
           )}
+
+          {/* Reviews — renders nothing when the talent has none */}
+          {ratingSummary.count > 0 ? (
+            <div
+              style={{
+                marginTop: 28,
+                paddingTop: 24,
+                borderTop: "1px solid rgba(24,24,27,0.08)",
+              }}
+            >
+              <TalentReviewsSection
+                summary={ratingSummary}
+                reviews={talentReviews}
+                theme="light"
+                heading="Reviews"
+              />
+            </div>
+          ) : null}
 
           {/* CTA */}
           <div
