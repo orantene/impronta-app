@@ -7,7 +7,7 @@ import { loadCurrentTalentPayoutSnapshot, loadMyInquiryTakeHome, type TalentPayo
 import { type TalentTakeHome } from "@/lib/talent/inquiry-take-home";
 import { submitMyCounterRate, submitMyRateForInquiry } from "@/lib/server-actions/talent-pipeline";
 import { clientApproveCurrentOffer, clientRejectCurrentOffer } from "@/lib/server-actions/client-pipeline";
-import { sendOfferAction, counterOfferAction, loadBookingCommissionSnapshotAction, loadInquiryPaymentState, reopenOfferAction } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
+import { sendOfferAction, counterOfferAction, loadBookingCommissionSnapshotAction, loadInquiryPaymentState, reopenOfferAction, loadOfferDraft } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import type { PersistedBookingCommissionSnapshot } from "@/lib/billing/commission";
 import { useAdminShell, COLORS, FONTS } from "../../state";
 import { type Conversation } from "../../talent";
@@ -15,6 +15,8 @@ import { applyRowOverrides, setRowOverride, useRowOverrideSubscription } from ".
 import { STAGE_LABEL, fmtMoney, getOffer, nextActionFor, rowSubtotal } from "./machinery-10";
 import type { OfferPov } from "./machinery-10";
 import { CreateOfferButton, OfferDraftEditor } from "./machinery-11";
+import { OfferTermsSummary } from "./offer-terms-ui";
+import { type OfferCommercialTerms } from "@/lib/billing/commercial-terms-types";
 import { DealSummaryCard, LineupRowCard, ParticipantRow, TimelineRow, dashedBtn, disabledBtn, ghostBtn, primaryBtn } from "./machinery-13";
 import { SubmitRateSheet } from "./machinery-14";
 import type { Offer } from "./machinery-9";
@@ -86,6 +88,35 @@ export function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: Off
     return () => { cancelled = true; };
   }, [isAdmin, bookingId, effectiveTenant.slug]);
 
+  // W6a — negotiated booking terms for the read-only summary. The offer loader
+  // (data-bridge) populates offer.commercialTerms once the new columns are
+  // selected. For ADMIN we additionally fall back to loadOfferDraft (which
+  // returns the saved/defaulted terms + total + currency) so the summary still
+  // renders before the data-bridge is wired. Client/talent rely on
+  // offer.commercialTerms (the staff loadOfferDraft would 403 for them).
+  const [adminTerms, setAdminTerms] = useState<{
+    terms: OfferCommercialTerms;
+    totalUnits: number;
+    currencyCode: string;
+  } | null>(null);
+  useEffect(() => {
+    if (!isAdmin || !offerId || offerId.endsWith("-offer")) { setAdminTerms(null); return; }
+    let cancelled = false;
+    loadOfferDraft(effectiveTenant.slug, offerId).then((r) => {
+      if (cancelled) return;
+      if (r.ok && r.data) {
+        setAdminTerms({
+          terms: r.data.terms,
+          totalUnits: r.data.totalClientPrice,
+          currencyCode: r.data.currencyCode,
+        });
+      } else {
+        setAdminTerms(null);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [isAdmin, offerId, effectiveTenant.slug]);
+
   // Render nothing for synthetic mock-only inquiries — keeps demo data clean.
   if (!offer || !offerId || offerId.endsWith("-offer")) return null;
 
@@ -119,6 +150,19 @@ export function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: Off
       )
     : null;
   const snapCurrency = hasSnapshot ? (snapshots![0].currency_code || "USD") : "USD";
+
+  // Resolve the terms to display. Prefer the loader-populated offer.commercialTerms
+  // (works for every role); for admin fall back to the loadOfferDraft copy.
+  const displayTerms: OfferCommercialTerms | null =
+    offer.commercialTerms ?? adminTerms?.terms ?? null;
+  const termsTotalUnits =
+    (offer.totalCents != null ? offer.totalCents / 100 : undefined) ??
+    adminTerms?.totalUnits ?? 0;
+  const termsCurrency = offer.currencyCode ?? adminTerms?.currencyCode ?? snapCurrency;
+  // The read-only summary is for the non-editing states. In draft, admins edit
+  // the terms via the composer below (OfferDraftEditor), so we don't duplicate
+  // the summary there.
+  const showTermsSummary = !!displayTerms && status !== "draft";
 
   return (
     <div
@@ -219,6 +263,19 @@ export function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: Off
           )}
           </div>
         </div>
+      )}
+
+      {/* W6a — read-only booking terms summary (client + talent + admin once
+          sent). Deposit / balance method / refund policy negotiated on the
+          offer. The "approving = agreeing" line shows only while the viewer can
+          still act on a sent offer. Display only — nothing charges the deposit. */}
+      {showTermsSummary && displayTerms && (
+        <OfferTermsSummary
+          terms={displayTerms}
+          totalUnits={termsTotalUnits}
+          currencyCode={termsCurrency}
+          showApprovalLine={!isAdmin && status === "sent"}
+        />
       )}
 
       {/* Admin-only commission breakdown — from booking_commission_snapshot. */}

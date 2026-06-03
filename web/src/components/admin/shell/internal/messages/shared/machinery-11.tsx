@@ -7,6 +7,7 @@ import { useAdminShell, FONTS, COLORS, RADIUS } from "../../state";
 import { Avatar } from "../../primitives";
 import { initialsOf } from "./inbox-identity-1";
 import { OfferTab } from "./machinery-12";
+import { OfferTermsComposer } from "./offer-terms-ui";
 import { PanelSkeleton, ghostBtn, primaryBtn } from "./machinery-13";
 import type { Offer } from "./machinery-9";
 
@@ -520,7 +521,6 @@ export function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: s
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(p.id),
   );
 
-  void inquiryId; // referenced for potential future use (revalidate scoping)
 
   if (collapsed) {
     return (
@@ -649,6 +649,45 @@ export function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: s
           {pending ? "Saving…" : "Save draft"}
         </button>
       </div>
+
+      {/* W6a — negotiated booking terms (deposit / balance method / refund
+          policy), pre-filled from the offer's saved terms (loadOfferDraft) and
+          persisted through saveOfferDraft alongside the current line items.
+          deposit_amount_cents is derived server-side. Display + snapshot only —
+          nothing charges the deposit this wave. */}
+      <OfferTermsComposer
+        totalUnits={computedTotal}
+        currencyCode={snapshot.currencyCode}
+        initial={{
+          depositPct: snapshot.terms.depositPct,
+          balanceMethod: snapshot.terms.balanceMethod,
+          refundPolicy: snapshot.terms.refundPolicy,
+        }}
+        onSave={async (terms) => {
+          const r = await saveOfferDraft(effectiveTenant.slug, offerId, {
+            inquiryExpectedVersion: snapshot.inquiryVersion,
+            offerExpectedVersion: snapshot.offerVersion,
+            totalClientPrice: computedTotal,
+            coordinatorFee: snapshot.coordinatorFee,
+            currencyCode: snapshot.currencyCode,
+            notes: snapshot.notes,
+            lineItems: snapshot.lineItems.map((li, idx) => ({
+              talent_profile_id: li.talentProfileId,
+              label: li.label,
+              pricing_unit: li.pricingUnit,
+              units: li.units,
+              unit_price: li.unitPrice,
+              total_price: li.totalPrice,
+              talent_cost: li.talentCost,
+              notes: li.notes,
+              sort_order: idx,
+            })),
+            terms,
+          });
+          if (r.ok) reload();
+          return r;
+        }}
+      />
     </div>
   );
 }
