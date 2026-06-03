@@ -147,17 +147,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ];
   }
 
-  // Read the homepage row's noindex flag so the sitemap honours an admin
-  // who flipped "hide from search engines" in the homepage SEO panel.
-  // Default behaviour (row missing or query failure): include "/" — losing
-  // the homepage from the sitemap is worse than over-including it.
+  // Read the homepage row's noindex + sitemap flags so the sitemap honours an
+  // admin who flipped "hide from search engines" or "Show in sitemap" in the
+  // homepage SEO panel. Default behaviour (row missing or query failure):
+  // include "/" — losing the homepage from the sitemap is worse than over-
+  // including it.
   type HomepageSeoRow = {
     noindex: boolean | null;
+    include_in_sitemap: boolean | null;
     updated_at: string | null;
   };
   const { data: homepageRows } = await supabase
     .from("cms_pages")
-    .select("noindex,updated_at")
+    .select("noindex,include_in_sitemap,updated_at")
     .eq("tenant_id", publicScope.tenantId)
     .eq("is_system_owned", true)
     .eq("system_template_key", "homepage");
@@ -177,8 +179,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const anyHomepageNoindex = [...homepageByLocale.values()].some(
     (row) => row.noindex === true,
   );
+  // include_in_sitemap defaults TRUE at the column; only an explicit `false`
+  // removes "/" from the manifest (matches the non-home page gate below).
+  const anyHomepageExcludedFromSitemap = [...homepageByLocale.values()].some(
+    (row) => row.include_in_sitemap === false,
+  );
 
-  const homepageEntries: MetadataRoute.Sitemap = anyHomepageNoindex
+  const homepageEntries: MetadataRoute.Sitemap =
+    anyHomepageNoindex || anyHomepageExcludedFromSitemap
     ? []
     : [
         { url: new URL("/", base).toString(), lastModified: new Date() },

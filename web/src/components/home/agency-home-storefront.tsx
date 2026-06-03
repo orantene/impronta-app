@@ -26,6 +26,7 @@ import {
   loadHomepageForRender,
 } from "@/lib/site-admin/server/homepage-reads";
 import { BuilderNodeRendererStyles } from "@/lib/site-admin/builder-node";
+import { jsonLdDocumentToScript } from "@/lib/site-admin/cms-seo";
 import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
 import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
@@ -163,11 +164,25 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
 
   const year = new Date().getFullYear();
 
+  // P4-SEO — operator-authored schema.org JSON-LD, emitted as a structured-data
+  // script in the page tree (same pattern as the talent profile page). Suppress
+  // in preview/edit so draft structured data is never served to crawlers.
+  const jsonLdScript =
+    !previewActive && !editActive
+      ? jsonLdDocumentToScript(cmsHomepage?.jsonLd ?? null)
+      : "";
+
   return (
     <div
       className="flex min-h-full flex-1 flex-col bg-background"
       data-preview={previewActive ? "draft" : undefined}
     >
+      {jsonLdScript ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: jsonLdScript }}
+        />
+      ) : null}
       {showPreviewBanner ? (
         <div
           role="status"

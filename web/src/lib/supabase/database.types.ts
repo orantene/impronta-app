@@ -3224,6 +3224,7 @@ export type Database = {
           id: string
           include_in_sitemap: boolean
           is_system_owned: boolean
+          json_ld: Json | null
           locale: string
           meta_description: string | null
           meta_title: string | null
@@ -3258,6 +3259,7 @@ export type Database = {
           id?: string
           include_in_sitemap?: boolean
           is_system_owned?: boolean
+          json_ld?: Json | null
           locale?: string
           meta_description?: string | null
           meta_title?: string | null
@@ -3292,6 +3294,7 @@ export type Database = {
           id?: string
           include_in_sitemap?: boolean
           is_system_owned?: boolean
+          json_ld?: Json | null
           locale?: string
           meta_description?: string | null
           meta_title?: string | null
@@ -11014,6 +11017,7 @@ export type Database = {
           id: string
           include_in_sitemap: boolean
           is_system_owned: boolean
+          json_ld: Json | null
           locale: string
           meta_description: string | null
           meta_title: string | null

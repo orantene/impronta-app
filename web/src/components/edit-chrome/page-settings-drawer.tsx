@@ -18,19 +18,19 @@
  *   - Basics  — page title, meta description, tagline (the only fields the
  *               PageMetadata schema currently exposes)
  *   - SEO     — live Google-style search preview synthesised from Basics
- *   - Social  — OG card preview placeholder + replace button (not wired yet)
- *   - URL & robots — slug + index/sitemap toggles (UI only; persisted slug
- *                    + robots flags arrive with the migration in Phase 8)
- *   - Code    — `<head>` injection placeholder (Phase 8)
+ *   - Social  — OG card preview + OpenGraph overrides
+ *   - URL & robots — slug editing (non-home pages), structured-data (JSON-LD)
+ *                    authoring, canonical override, index + sitemap toggles,
+ *                    and a redirect manager. (P4-SEO / T4.3.)
  *
- * The fields beyond Basics are visible but disabled / labelled "Coming
- * soon" so the operator sees the surface and the contract while the data
- * model catches up. This is intentional — the mockup is the design
- * promise; this drawer ships the chrome and the bindings we own today,
- * and lights up the rest as the schema lands.
+ * Basics/Social fields persist through the composition `metadata` save path
+ * (CAS + undo). The URL & robots tab's slug / sitemap / JSON-LD / redirect
+ * controls persist INDEPENDENTLY via `cms-seo-actions.ts` — those are page-row
+ * (and `cms_redirects`) edits the in-canvas composition save doesn't carry, so
+ * they save in place and don't disturb the composition's version CAS.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   Card,
@@ -51,6 +51,21 @@ import {
   Toggle,
 } from "./kit";
 import { useEditContext, type PageMetadata } from "./edit-context";
+import { safeAction } from "@/lib/site-admin/edit-mode/safe-action";
+import {
+  createRedirectAction,
+  deleteRedirectAction,
+  listRedirectsAction,
+  loadPageSeoAction,
+  savePageSeoFlagsAction,
+  savePageSlugAction,
+  setRedirectActiveAction,
+  type CmsRedirectRow,
+} from "@/lib/site-admin/cms-seo-actions";
+import {
+  organizationJsonLdStub,
+  parsePageJsonLd,
+} from "@/lib/site-admin/cms-seo";
 
 // Phase 0 sweep (2026-04-26) — convergence-plan §1:
 // - "Code" tab said "Coming soon"; product debt removed until per-page custom
@@ -207,6 +222,9 @@ export function PageSettingsDrawer() {
     saving,
     compositionLoaded,
     compositionLoading,
+    pageId,
+    pageSlug,
+    tenantSiteLabel,
   } = useEditContext();
 
   const [tab, setTab] = useState<TabKey>("basics");
@@ -639,108 +657,19 @@ export function PageSettingsDrawer() {
         ) : null}
 
         {draft && tab === "url" ? (
-          <>
-            <Card>
-              <CardHead icon={<LinkIcon />} title="URL slug" />
-              <CardBody>
-                <div className="flex items-center gap-1.5">
-                  <span
-                    style={{
-                      fontFamily:
-                        '"JetBrains Mono", "SF Mono", ui-monospace, monospace',
-                      fontSize: 12,
-                      color: CHROME.muted,
-                    }}
-                  >
-                    {host || "—"}/
-                  </span>
-                  <input
-                    type="text"
-                    value=""
-                    placeholder="(homepage)"
-                    disabled
-                    title="Slug editing arrives with multi-page support"
-                    style={{
-                      ...inputStyle(),
-                      flex: 1,
-                      fontFamily:
-                        '"JetBrains Mono", "SF Mono", ui-monospace, monospace',
-                      fontSize: 12,
-                      color: CHROME.muted2,
-                      background: CHROME.paper2,
-                    }}
-                  />
-                </div>
-                <div
-                  style={{
-                    marginTop: 8,
-                    fontSize: 11,
-                    color: CHROME.muted,
-                    lineHeight: 1.4,
-                  }}
-                >
-                  Homepage always lives at <code>/</code>. Custom slugs unlock
-                  with multi-page support.
-                </div>
-              </CardBody>
-            </Card>
-
-            <Card>
-              <CardHead icon={<LinkIcon />} title="Canonical URL" />
-              <CardBody>
-                <Field flush>
-                  <FieldLabel htmlFor="ps-canonical" meta="Optional override">
-                    Canonical link
-                  </FieldLabel>
-                  <input
-                    id="ps-canonical"
-                    type="url"
-                    value={draft?.canonicalUrl ?? ""}
-                    onChange={(e) =>
-                      patch(
-                        "canonicalUrl",
-                        e.target.value === "" ? null : e.target.value,
-                      )
-                    }
-                    style={inputStyle()}
-                    placeholder="Leave blank to use the page's own URL"
-                  />
-                  <Helper>
-                    <span>
-                      Use only when consolidating duplicate URLs to a single
-                      destination. Must be absolute (https://…) or root-relative
-                      (/path).
-                    </span>
-                  </Helper>
-                </Field>
-              </CardBody>
-            </Card>
-
-            <Card>
-              <CardHead icon={<GlobeIcon />} title="Search engines" />
-              <CardBody padding="tight">
-                <div style={{ padding: "8px 4px" }}>
-                  <Toggle
-                    on={!(draft?.noindex ?? false)}
-                    onChange={(next) => patch("noindex", !next)}
-                    label="Allow search engines to index this page"
-                    helper="Disabled emits robots noindex; the page is hidden from Google."
-                  />
-                </div>
-                <div style={{ padding: "8px 4px" }}>
-                  <Toggle
-                    on={false}
-                    onChange={() => {
-                      /* Phase 8 — wire to robots.sitemap */
-                    }}
-                    label="Show in sitemap"
-                    helper="Adds /sitemap.xml entry."
-                    disabled
-                  />
-                </div>
-              </CardBody>
-            </Card>
-          </>
+          <UrlRobotsTab
+            host={host}
+            pageId={pageId}
+            pageSlug={pageSlug}
+            tenantSiteLabel={tenantSiteLabel}
+            open={pageSettingsOpen}
+            canonicalUrl={draft?.canonicalUrl ?? ""}
+            onCanonicalChange={(value) =>
+              patch("canonicalUrl", value === "" ? null : value)
+            }
+            noindex={draft?.noindex ?? false}
+            onNoindexChange={(value) => patch("noindex", value)}
+          />
         ) : null}
 
       </DrawerBody>
@@ -948,5 +877,633 @@ function SocialPreview({
         ) : null}
       </div>
     </div>
+  );
+}
+
+// ── small button helpers (match the footer button language) ──────────────────
+
+function primaryButtonStyle(disabled: boolean): React.CSSProperties {
+  return {
+    height: 28,
+    padding: "0 12px",
+    fontSize: 11.5,
+    fontWeight: 600,
+    color: "#fff",
+    background: disabled ? CHROME.muted2 : CHROME.accent,
+    border: "none",
+    borderRadius: 7,
+    cursor: disabled ? "not-allowed" : "pointer",
+  };
+}
+
+function ghostButtonStyle(disabled?: boolean): React.CSSProperties {
+  return {
+    height: 28,
+    padding: "0 10px",
+    fontSize: 11.5,
+    fontWeight: 500,
+    color: CHROME.text2,
+    background: CHROME.surface,
+    border: `1px solid ${CHROME.lineMid}`,
+    borderRadius: 7,
+    cursor: disabled ? "not-allowed" : "pointer",
+  };
+}
+
+function FieldError({ message }: { message: string | null }) {
+  if (!message) return null;
+  return (
+    <div
+      role="alert"
+      style={{
+        marginTop: 6,
+        fontSize: 11,
+        color: CHROME.rose,
+        lineHeight: 1.4,
+      }}
+    >
+      {message}
+    </div>
+  );
+}
+
+function StatusNote({ tone, text }: { tone: "ok" | "muted"; text: string }) {
+  return (
+    <span
+      style={{
+        fontSize: 11,
+        color: tone === "ok" ? CHROME.green : CHROME.muted,
+      }}
+    >
+      {text}
+    </span>
+  );
+}
+
+// ── UrlRobotsTab — slug · structured data · canonical · indexing · redirects ──
+
+interface UrlRobotsTabProps {
+  host: string;
+  pageId: string | null;
+  pageSlug: string | null;
+  tenantSiteLabel: string | null;
+  open: boolean;
+  canonicalUrl: string;
+  onCanonicalChange: (value: string) => void;
+  noindex: boolean;
+  onNoindexChange: (value: boolean) => void;
+}
+
+function UrlRobotsTab(props: UrlRobotsTabProps) {
+  const {
+    host,
+    pageId,
+    pageSlug,
+    tenantSiteLabel,
+    open,
+    canonicalUrl,
+    onCanonicalChange,
+    noindex,
+    onNoindexChange,
+  } = props;
+
+  const isHomepage = !pageSlug;
+
+  // SEO state loaded from the page row on open (slug / sitemap / json-ld).
+  const [seoLoaded, setSeoLoaded] = useState(false);
+  const [isSystemOwned, setIsSystemOwned] = useState(false);
+  const [slugDraft, setSlugDraft] = useState("");
+  const [savedSlug, setSavedSlug] = useState("");
+  const [slugBusy, setSlugBusy] = useState(false);
+  const [slugError, setSlugError] = useState<string | null>(null);
+  const [slugSavedTick, setSlugSavedTick] = useState(false);
+
+  const [sitemapOn, setSitemapOn] = useState(true);
+  const [sitemapBusy, setSitemapBusy] = useState(false);
+
+  const [jsonLdDraft, setJsonLdDraft] = useState("");
+  const [savedJsonLd, setSavedJsonLd] = useState("");
+  const [jsonLdBusy, setJsonLdBusy] = useState(false);
+  const [jsonLdError, setJsonLdError] = useState<string | null>(null);
+  const [jsonLdSavedTick, setJsonLdSavedTick] = useState(false);
+
+  // Load page SEO once per open.
+  const loadedForOpenRef = useRef(false);
+  useEffect(() => {
+    if (!open) {
+      loadedForOpenRef.current = false;
+      return;
+    }
+    if (loadedForOpenRef.current) return;
+    if (!pageId) return;
+    loadedForOpenRef.current = true;
+    setSeoLoaded(false);
+    let cancelled = false;
+    void safeAction(() => loadPageSeoAction({ pageId }), {
+      name: "loadPageSeoAction",
+      fallback: { ok: false as const, error: "Couldn't load SEO settings." },
+    }).then((res) => {
+      if (cancelled) return;
+      if (res.ok) {
+        setIsSystemOwned(res.seo.isSystemOwned);
+        setSlugDraft(res.seo.slug);
+        setSavedSlug(res.seo.slug);
+        setSitemapOn(res.seo.includeInSitemap);
+        setJsonLdDraft(res.seo.jsonLdText);
+        setSavedJsonLd(res.seo.jsonLdText);
+      }
+      setSeoLoaded(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, pageId]);
+
+  const slugDirty = slugDraft.trim() !== savedSlug;
+  const jsonLdDirty = jsonLdDraft !== savedJsonLd;
+  // Live client-side validation so the operator sees errors before saving.
+  const jsonLdLiveError = useMemo(() => {
+    const parsed = parsePageJsonLd(jsonLdDraft);
+    return parsed.ok ? null : parsed.error;
+  }, [jsonLdDraft]);
+
+  const saveSlug = useCallback(async () => {
+    if (!pageId || !slugDirty || slugBusy) return;
+    setSlugBusy(true);
+    setSlugError(null);
+    setSlugSavedTick(false);
+    const res = await safeAction(
+      () => savePageSlugAction({ pageId, slug: slugDraft.trim() }),
+      {
+        name: "savePageSlugAction",
+        fallback: { ok: false as const, error: "Network error — try again." },
+      },
+    );
+    setSlugBusy(false);
+    if (!res.ok) {
+      setSlugError(res.error);
+      return;
+    }
+    setSavedSlug(res.slug);
+    setSlugDraft(res.slug);
+    setSlugSavedTick(true);
+  }, [pageId, slugDraft, slugDirty, slugBusy]);
+
+  const saveSitemap = useCallback(
+    async (next: boolean) => {
+      if (!pageId || sitemapBusy) return;
+      setSitemapOn(next); // optimistic
+      setSitemapBusy(true);
+      const res = await safeAction(
+        () => savePageSeoFlagsAction({ pageId, includeInSitemap: next }),
+        {
+          name: "savePageSeoFlagsAction.sitemap",
+          fallback: { ok: false as const, error: "Network error — try again." },
+        },
+      );
+      setSitemapBusy(false);
+      if (!res.ok) setSitemapOn(!next); // rollback
+    },
+    [pageId, sitemapBusy],
+  );
+
+  const saveJsonLd = useCallback(async () => {
+    if (!pageId || !jsonLdDirty || jsonLdBusy) return;
+    if (jsonLdLiveError) {
+      setJsonLdError(jsonLdLiveError);
+      return;
+    }
+    setJsonLdBusy(true);
+    setJsonLdError(null);
+    setJsonLdSavedTick(false);
+    const res = await safeAction(
+      () => savePageSeoFlagsAction({ pageId, jsonLdRaw: jsonLdDraft }),
+      {
+        name: "savePageSeoFlagsAction.jsonLd",
+        fallback: { ok: false as const, error: "Network error — try again." },
+      },
+    );
+    setJsonLdBusy(false);
+    if (!res.ok) {
+      setJsonLdError(res.error);
+      return;
+    }
+    setSavedJsonLd(jsonLdDraft);
+    setJsonLdSavedTick(true);
+  }, [pageId, jsonLdDraft, jsonLdDirty, jsonLdBusy, jsonLdLiveError]);
+
+  const slugLocked = isHomepage || isSystemOwned;
+  const monoFont =
+    '"JetBrains Mono", "SF Mono", ui-monospace, monospace';
+
+  return (
+    <>
+      <Card>
+        <CardHead icon={<LinkIcon />} title="URL slug" />
+        <CardBody>
+          <div className="flex items-center gap-1.5">
+            <span style={{ fontFamily: monoFont, fontSize: 12, color: CHROME.muted }}>
+              {host || "—"}/
+            </span>
+            <input
+              type="text"
+              value={slugLocked ? "" : slugDraft}
+              onChange={(e) => {
+                setSlugDraft(e.target.value.toLowerCase().replace(/\s+/g, "-"));
+                setSlugError(null);
+                setSlugSavedTick(false);
+              }}
+              placeholder={slugLocked ? "(homepage)" : "about/team"}
+              disabled={slugLocked || !seoLoaded}
+              spellCheck={false}
+              style={{
+                ...inputStyle(),
+                flex: 1,
+                fontFamily: monoFont,
+                fontSize: 12,
+                color: slugLocked ? CHROME.muted2 : CHROME.ink,
+                background: slugLocked ? CHROME.paper2 : CHROME.surface,
+              }}
+            />
+            {!slugLocked ? (
+              <button
+                type="button"
+                onClick={saveSlug}
+                disabled={!slugDirty || slugBusy || !seoLoaded}
+                style={primaryButtonStyle(!slugDirty || slugBusy || !seoLoaded)}
+              >
+                {slugBusy ? "Saving…" : "Save"}
+              </button>
+            ) : null}
+          </div>
+          <div style={{ marginTop: 8 }}>
+            {slugLocked ? (
+              <span style={{ fontSize: 11, color: CHROME.muted, lineHeight: 1.4 }}>
+                The homepage always lives at <code>/</code>. Other pages can set
+                a custom slug.
+              </span>
+            ) : slugSavedTick && !slugDirty ? (
+              <StatusNote tone="ok" text={`Saved · ${host}/${savedSlug}`} />
+            ) : (
+              <span style={{ fontSize: 11, color: CHROME.muted, lineHeight: 1.4 }}>
+                Lowercase letters, digits, hyphens, and / only. Changing the
+                slug changes this page&rsquo;s public URL.
+              </span>
+            )}
+            <FieldError message={slugError} />
+          </div>
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHead
+          icon={<GlobeIcon />}
+          title="Structured data"
+          sub="schema.org JSON-LD"
+        />
+        <CardBody>
+          <Field flush>
+            <FieldLabel htmlFor="ps-jsonld" meta="Optional · advanced">
+              JSON-LD
+            </FieldLabel>
+            <textarea
+              id="ps-jsonld"
+              value={jsonLdDraft}
+              onChange={(e) => {
+                setJsonLdDraft(e.target.value);
+                setJsonLdError(null);
+              }}
+              disabled={!seoLoaded}
+              spellCheck={false}
+              aria-invalid={Boolean(jsonLdLiveError) || undefined}
+              placeholder={
+                '{\n  "@context": "https://schema.org",\n  "@type": "Organization",\n  "name": "…"\n}'
+              }
+              style={{
+                ...textareaStyle(),
+                fontFamily: monoFont,
+                fontSize: 12,
+                minHeight: 132,
+                ...overLimitStyle(Boolean(jsonLdLiveError)),
+              }}
+            />
+            <Helper>
+              <span>
+                Emitted as a{" "}
+                <code style={{ fontFamily: monoFont, fontSize: 11 }}>
+                  &lt;script type=&quot;application/ld+json&quot;&gt;
+                </code>{" "}
+                for rich results. One object or an array of objects.
+              </span>
+            </Helper>
+            {jsonLdLiveError || jsonLdError ? (
+              <FieldError message={jsonLdLiveError ?? jsonLdError} />
+            ) : jsonLdSavedTick && !jsonLdDirty ? (
+              <div style={{ marginTop: 6 }}>
+                <StatusNote tone="ok" text="Structured data saved." />
+              </div>
+            ) : null}
+            <div
+              style={{
+                marginTop: 10,
+                display: "flex",
+                gap: 8,
+                alignItems: "center",
+              }}
+            >
+              <button
+                type="button"
+                onClick={saveJsonLd}
+                disabled={!jsonLdDirty || jsonLdBusy || !seoLoaded || Boolean(jsonLdLiveError)}
+                style={primaryButtonStyle(
+                  !jsonLdDirty || jsonLdBusy || !seoLoaded || Boolean(jsonLdLiveError),
+                )}
+              >
+                {jsonLdBusy ? "Saving…" : "Save structured data"}
+              </button>
+              {jsonLdDraft.trim().length === 0 ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setJsonLdDraft(
+                      organizationJsonLdStub({
+                        name: tenantSiteLabel ?? "",
+                        url: host ? `https://${host}` : null,
+                      }),
+                    )
+                  }
+                  disabled={!seoLoaded}
+                  style={ghostButtonStyle(!seoLoaded)}
+                >
+                  Insert Organization stub
+                </button>
+              ) : null}
+            </div>
+          </Field>
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHead icon={<LinkIcon />} title="Canonical URL" />
+        <CardBody>
+          <Field flush>
+            <FieldLabel htmlFor="ps-canonical" meta="Optional override">
+              Canonical link
+            </FieldLabel>
+            <input
+              id="ps-canonical"
+              type="url"
+              value={canonicalUrl}
+              onChange={(e) => onCanonicalChange(e.target.value)}
+              style={inputStyle()}
+              placeholder="Leave blank to use the page's own URL"
+            />
+            <Helper>
+              <span>
+                Use only when consolidating duplicate URLs to a single
+                destination. Must be absolute (https://…) or root-relative
+                (/path).
+              </span>
+            </Helper>
+          </Field>
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHead icon={<GlobeIcon />} title="Search engines" />
+        <CardBody padding="tight">
+          <div style={{ padding: "8px 4px" }}>
+            <Toggle
+              on={!noindex}
+              onChange={(next) => onNoindexChange(!next)}
+              label="Allow search engines to index this page"
+              helper="Disabled emits robots noindex; the page is hidden from Google."
+            />
+          </div>
+          <div style={{ padding: "8px 4px" }}>
+            <Toggle
+              on={sitemapOn}
+              onChange={(next) => void saveSitemap(next)}
+              label="Show in sitemap"
+              helper="Adds this page to /sitemap.xml. Saved immediately."
+              disabled={!seoLoaded || sitemapBusy}
+            />
+          </div>
+        </CardBody>
+      </Card>
+
+      <RedirectsCard open={open} host={host} />
+    </>
+  );
+}
+
+// ── RedirectsCard — list / add / enable / delete cms_redirects ───────────────
+
+function RedirectsCard({ open, host }: { open: boolean; host: string }) {
+  const [loaded, setLoaded] = useState(false);
+  const [rows, setRows] = useState<ReadonlyArray<CmsRedirectRow>>([]);
+  const [fromPath, setFromPath] = useState("");
+  const [toPath, setToPath] = useState("");
+  const [permanent, setPermanent] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadedForOpenRef = useRef(false);
+  useEffect(() => {
+    if (!open) {
+      loadedForOpenRef.current = false;
+      return;
+    }
+    if (loadedForOpenRef.current) return;
+    loadedForOpenRef.current = true;
+    setLoaded(false);
+    let cancelled = false;
+    void safeAction(() => listRedirectsAction(), {
+      name: "listRedirectsAction",
+      fallback: { ok: false as const, error: "Couldn't load redirects." },
+    }).then((res) => {
+      if (cancelled) return;
+      if (res.ok) setRows(res.redirects);
+      setLoaded(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
+  const addRedirect = useCallback(async () => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    const res = await safeAction(
+      () =>
+        createRedirectAction({
+          oldPath: fromPath,
+          newPath: toPath,
+          statusCode: permanent ? 301 : 302,
+        }),
+      {
+        name: "createRedirectAction",
+        fallback: { ok: false as const, error: "Network error — try again." },
+      },
+    );
+    setBusy(false);
+    if (!res.ok) {
+      setError(res.error);
+      return;
+    }
+    setRows((prev) => [res.redirect, ...prev]);
+    setFromPath("");
+    setToPath("");
+  }, [busy, fromPath, toPath, permanent]);
+
+  const toggleActive = useCallback(async (row: CmsRedirectRow) => {
+    const next = !row.active;
+    setRows((prev) =>
+      prev.map((r) => (r.id === row.id ? { ...r, active: next } : r)),
+    );
+    const res = await safeAction(
+      () => setRedirectActiveAction({ id: row.id, active: next }),
+      {
+        name: "setRedirectActiveAction",
+        fallback: { ok: false as const, error: "Network error — try again." },
+      },
+    );
+    if (!res.ok) {
+      // rollback + surface
+      setRows((prev) =>
+        prev.map((r) => (r.id === row.id ? { ...r, active: row.active } : r)),
+      );
+      setError(res.error);
+    }
+  }, []);
+
+  const removeRedirect = useCallback(async (id: string) => {
+    const snapshot = id;
+    setRows((prev) => prev.filter((r) => r.id !== snapshot));
+    const res = await safeAction(() => deleteRedirectAction({ id }), {
+      name: "deleteRedirectAction",
+      fallback: { ok: false as const, error: "Network error — try again." },
+    });
+    if (!res.ok) setError(res.error);
+  }, []);
+
+  const monoFont = '"JetBrains Mono", "SF Mono", ui-monospace, monospace';
+
+  return (
+    <Card>
+      <CardHead
+        icon={<LinkIcon />}
+        title="Redirects"
+        sub="301 / 302 path forwarding"
+      />
+      <CardBody>
+        <div className="flex flex-col gap-1.5">
+          <input
+            type="text"
+            value={fromPath}
+            onChange={(e) => setFromPath(e.target.value)}
+            placeholder="/old-page"
+            spellCheck={false}
+            style={{ ...inputStyle(), fontFamily: monoFont, fontSize: 12 }}
+          />
+          <input
+            type="text"
+            value={toPath}
+            onChange={(e) => setToPath(e.target.value)}
+            placeholder="/new-page"
+            spellCheck={false}
+            style={{ ...inputStyle(), fontFamily: monoFont, fontSize: 12 }}
+          />
+          <div className="flex items-center justify-between" style={{ marginTop: 2 }}>
+            <Toggle
+              on={permanent}
+              onChange={setPermanent}
+              label={permanent ? "Permanent (301)" : "Temporary (302)"}
+            />
+            <button
+              type="button"
+              onClick={addRedirect}
+              disabled={busy || fromPath.trim() === "" || toPath.trim() === ""}
+              style={primaryButtonStyle(
+                busy || fromPath.trim() === "" || toPath.trim() === "",
+              )}
+            >
+              {busy ? "Adding…" : "Add redirect"}
+            </button>
+          </div>
+          <FieldError message={error} />
+        </div>
+
+        <div style={{ marginTop: 12 }}>
+          {!loaded ? (
+            <div style={{ fontSize: 11, color: CHROME.muted }}>
+              Loading redirects…
+            </div>
+          ) : rows.length === 0 ? (
+            <div style={{ fontSize: 11, color: CHROME.muted, lineHeight: 1.4 }}>
+              No redirects yet. Add one above to forward an old URL on{" "}
+              {host || "this site"} to a new path.
+            </div>
+          ) : (
+            <ul style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {rows.map((row) => (
+                <li
+                  key={row.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "7px 9px",
+                    background: CHROME.surface,
+                    border: `1px solid ${CHROME.line}`,
+                    borderRadius: 7,
+                    opacity: row.active ? 1 : 0.55,
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontFamily: monoFont,
+                        fontSize: 11.5,
+                        color: CHROME.ink,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {row.oldPath} → {row.newPath}
+                    </div>
+                    <div style={{ fontSize: 10, color: CHROME.muted2, marginTop: 1 }}>
+                      {row.statusCode} · {row.active ? "active" : "disabled"}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void toggleActive(row)}
+                    style={ghostButtonStyle()}
+                    title={row.active ? "Disable" : "Enable"}
+                  >
+                    {row.active ? "Disable" : "Enable"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void removeRedirect(row.id)}
+                    style={{
+                      ...ghostButtonStyle(),
+                      color: CHROME.rose,
+                      borderColor: CHROME.roseLine,
+                    }}
+                    title="Delete"
+                  >
+                    Delete
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </CardBody>
+    </Card>
   );
 }
