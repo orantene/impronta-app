@@ -598,6 +598,10 @@ const markets: BuilderNode = band(
           maxItems: 8,
           showCount: false,
           showMap: true,
+          // The live interactive map with talent-profile photos orbiting each
+          // city pin (sources live roster cities + featured talent; the manual
+          // items above remain as the editorial fallback if no live data).
+          mapStyle: "talent_orbit",
           ctaLabel: "Browse the directory",
           ctaHref: "/directory",
           layout: "grid",
