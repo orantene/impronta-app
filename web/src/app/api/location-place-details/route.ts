@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { fetchGooglePlaceDetailsForCity, isGooglePlacesConfigured } from "@/lib/google-places";
+import { fetchGooglePlaceDetailsForCity } from "@/lib/google-places";
+import { getPublicTenantScope } from "@/lib/saas/scope";
+import { resolveGoogleMapsKey } from "@/lib/integrations/resolve";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -10,12 +12,19 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false as const, error: "bad_request" }, { status: 400 });
   }
 
-  if (!isGooglePlacesConfigured()) {
+  // Tenant-aware Places key: tenant's own Google Maps key (when set) else the
+  // platform env key. getPublicTenantScope resolves the host-routed tenant; on
+  // platform root it returns null and we fall back to the platform key.
+  const scope = await getPublicTenantScope();
+  const apiKey = await resolveGoogleMapsKey(scope?.tenantId ?? null);
+
+  if (!apiKey) {
     return NextResponse.json({ ok: false as const, error: "not_configured" }, { status: 503 });
   }
 
   const details = await fetchGooglePlaceDetailsForCity(placeId.trim(), {
     expectedCountryIso2: countryIso2.trim().toUpperCase(),
+    apiKeyOverride: apiKey,
   });
 
   if (!details) {

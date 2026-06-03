@@ -13,7 +13,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadClientSelfProfile } from "../../../_data-bridge";
 import { logServerError } from "@/lib/server/safe-error";
-import { readGoogleMapsBrowserKey } from "@/lib/env/google-maps-browser-key";
+import { resolveGoogleMapsKey } from "@/lib/integrations/resolve";
 import { DiscoverMapShell, type DiscoverMapTalent } from "./DiscoverMapShell";
 
 export const dynamic = "force-dynamic";
@@ -201,7 +201,9 @@ export default async function ClientDiscoverMapPage({ params }: { params: PagePa
     loadMappableTalents(),
   ]);
 
-  const apiKey = readGoogleMapsBrowserKey() ?? null;
+  // Tenant-aware Maps key: the tenant's own custom Google Maps key (when
+  // credential_mode='custom' + a secret is stored) else the platform env key.
+  const apiKey = await resolveGoogleMapsKey(scope.tenantId);
 
   return (
     <div style={{ fontFamily: FONT, padding: "24px 28px", maxWidth: 1280 }}>

@@ -190,8 +190,9 @@ export type GooglePlaceCountryDetails = {
  */
 export async function fetchGooglePlaceDetailsForCountry(
   placeId: string,
+  options?: { apiKeyOverride?: string | null },
 ): Promise<GooglePlaceCountryDetails | null> {
-  const key = getGooglePlacesApiKey();
+  const key = options?.apiKeyOverride?.trim() || getGooglePlacesApiKey();
   const id = placeId.trim();
   if (!key || !id) return null;
 
@@ -291,9 +292,9 @@ export async function fetchGoogleCityPredictions(
  */
 export async function fetchGooglePlaceDetailsForCity(
   placeId: string,
-  options?: { expectedCountryIso2?: string },
+  options?: { expectedCountryIso2?: string; apiKeyOverride?: string | null },
 ): Promise<GooglePlaceCityDetails | null> {
-  const key = getGooglePlacesApiKey();
+  const key = options?.apiKeyOverride?.trim() || getGooglePlacesApiKey();
   const id = placeId.trim();
   if (!key || !id) return null;
 
