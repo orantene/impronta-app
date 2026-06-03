@@ -679,6 +679,149 @@ export async function updateOfferDraft(
   });
 }
 
+/**
+ * A2 — Reopen a SENT offer back to an editable draft for amendment.
+ *
+ * Flow (per the shared A2 contract):
+ *   1. Guard: only when the inquiry's current SENT offer matches offerId and is
+ *      `status='sent'`. Otherwise return { success:false, error:'not_amendable' }.
+ *   2. Flip the offer `sent` → `draft` and bump its version. This is the
+ *      ordering-critical step: the inquiries status/offer-pair trigger
+ *      (`enforce_inquiry_status_offer_pair`) reads the offer's status when the
+ *      inquiry row updates, so the offer must be `draft` BEFORE we set the
+ *      inquiry back to `coordination` (a `sent` offer requires inquiry
+ *      `offer_pending`).
+ *   3. DELETE this offer's approval rows. engine_send_offer re-seeds approvals
+ *      with ON CONFLICT DO NOTHING, so leaving stale rows would skip re-seeding
+ *      and break the re-approval gate. Deleting them guarantees the existing
+ *      updateOfferDraft + sendOffer flow re-seeds fresh `pending` approvals on
+ *      re-send for exactly the canonical (client + offered talents) set.
+ *   4. Set the inquiry back to `coordination`, keep `current_offer_id` pointing
+ *      at the now-draft offer, next_action_by='coordinator', bump version.
+ *   5. Emit OFFER_REOPENED + a private-thread system message.
+ *
+ * After this, the coordinator edits the draft (updateOfferDraft) and re-sends
+ * (sendOffer → engine_send_offer), which re-seeds approvals so every party must
+ * re-approve the amended offer.
+ */
+export async function reopenOfferForAmendment(
+  supabase: SupabaseClient,
+  ctx: {
+    inquiryId: string;
+    tenantId: string;
+    offerId: string;
+    actorUserId: string;
+    expectedVersion: number;
+  },
+): Promise<EngineResult> {
+  return runWithEngineLog("reopenOfferForAmendment", ctx.inquiryId, ctx.actorUserId, async () => {
+    const rl = await rateLimiter.check(engineRateKey("createOffer", ctx.actorUserId), 10, 60 * 60_000);
+    if (!rl.ok) return { success: false, rateLimited: true, retryAfterMs: rl.retryAfterMs, reason: "rate_limited" };
+
+    if (!(await inquiryInTenant(supabase, ctx.inquiryId, ctx.tenantId))) {
+      return { success: false, forbidden: true, reason: "forbidden" };
+    }
+
+    // Coordinator/staff permission — the same gate that authorizes update_offer.
+    const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "update_offer");
+    if (!perm.ok) return { success: false, forbidden: true, reason: "forbidden" };
+
+    const { data: inq } = await supabase
+      .from("inquiries")
+      .select("version, is_frozen, status, current_offer_id")
+      .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
+      .maybeSingle();
+    if (!inq) return { success: false, forbidden: true, reason: "forbidden" };
+    if (inq.is_frozen) return { success: false, reason: "inquiry_frozen" };
+
+    const { data: offer } = await supabase
+      .from("inquiry_offers")
+      .select("id, inquiry_id, status, version")
+      .eq("id", ctx.offerId)
+      .eq("tenant_id", ctx.tenantId)
+      .maybeSingle();
+    if (!offer || offer.inquiry_id !== ctx.inquiryId) return { success: false, error: "offer_not_found" };
+
+    // Guard: only a currently-SENT offer is amendable. (A draft is already
+    // editable; an accepted/rejected/superseded offer must go through the
+    // counter-offer path, not reopen.)
+    if (offer.status !== "sent") return { success: false, error: "not_amendable" };
+
+    const writeClient = await inquiryWriteClient(supabase);
+
+    // (2) Flip offer sent → draft + bump offer version FIRST (trigger ordering).
+    const { data: offerUp, error: oerr } = await writeClient
+      .from("inquiry_offers")
+      .update({
+        status: "draft" as never,
+        sent_at: null,
+        version: (offer.version as number) + 1,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", ctx.offerId)
+      .eq("tenant_id", ctx.tenantId)
+      .eq("version", offer.version as number)
+      .select("id")
+      .maybeSingle();
+    if (oerr) return { success: false, error: oerr.message };
+    if (!offerUp) return { success: false, conflict: true, reason: "version_conflict" };
+
+    // (3) Void this offer's approvals by deleting them — so a re-send re-seeds
+    // fresh pending approvals (engine_send_offer uses ON CONFLICT DO NOTHING).
+    const { error: delErr } = await writeClient
+      .from("inquiry_approvals")
+      .delete()
+      .eq("inquiry_id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
+      .eq("offer_id", ctx.offerId);
+    if (delErr) logServerError("inquiry-engine-offers.reopenOfferForAmendment.voidApprovals", delErr);
+
+    // (4) Inquiry back to coordination; keep current_offer_id on the draft.
+    const { data: inqUp, error: ierr } = await writeClient
+      .from("inquiries")
+      .update({
+        status: "coordination" as never,
+        next_action_by: "coordinator",
+        current_offer_id: ctx.offerId,
+        version: ctx.expectedVersion + 1,
+        last_edited_by: ctx.actorUserId,
+        last_edited_at: new Date().toISOString(),
+      })
+      .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
+      .eq("version", ctx.expectedVersion)
+      .select("id")
+      .maybeSingle();
+    if (ierr) return { success: false, error: ierr.message };
+    if (!inqUp) return { success: false, conflict: true, reason: "version_conflict" };
+
+    await assertConsistencyAfterWrite(supabase, ctx.inquiryId);
+
+    // (5) Emit event + private-thread system message.
+    await emitStandardEngineEvent(supabase, {
+      type: ENGINE_EVENT_TYPES.OFFER_REOPENED,
+      inquiryId: ctx.inquiryId,
+      actorUserId: ctx.actorUserId,
+      data: { offerId: ctx.offerId },
+      systemMessage: {
+        threadType: "private",
+        body: "Offer reopened for amendment.",
+        eventType: "offer_revised",
+      },
+    });
+
+    // Audit emit — fire-and-forget.
+    await supabase.rpc("inquiry_audit_emit", {
+      p_inquiry_id: ctx.inquiryId,
+      p_kind: "offer_edited",
+      p_payload: { offer_id: ctx.offerId, reopened: true },
+    }).then((r) => { if (r.error) logServerError("audit.emit.offer_reopened", r.error); });
+
+    return { success: true };
+  });
+}
+
 export async function clientRejectOffer(
   supabase: SupabaseClient,
   ctx: {

@@ -31,6 +31,7 @@ export {
   clientRejectOffer,
   submitTalentRate,
   counterOffer,
+  reopenOfferForAmendment,
 } from "./inquiry-engine-offers";
 export type { OfferLineDraft } from "./inquiry-engine-offers";
 export { submitApproval, rejectApproval, clientAcceptOffer, talentRespondToOffer } from "./inquiry-engine-approvals";

@@ -6,6 +6,7 @@ import { inquiryWriteClient, runWithEngineLog } from "./inquiry-engine.helpers";
 import type { EngineResult } from "./inquiry-engine.types";
 import { resolveInquiryRecipients } from "@/lib/notifications/recipients";
 import { emitNotificationToUsers } from "@/lib/notifications/emit";
+import { notifyMentionedParticipants } from "@/lib/notifications/mention-notify";
 import { logServerError } from "@/lib/server/safe-error";
 
 // SaaS P1.B STEP A: tenant-scoped by construction. Every read/write against
@@ -147,6 +148,19 @@ export async function sendMessage(
         await Promise.all(promises);
       })
       .catch((err) => logServerError("inquiry-engine-messages.notifyFanout", err));
+
+    // C3 — @mention notifications. Separate fire-and-forget pass: parses
+    // @Name tokens from the body and notifies the matched thread participants
+    // (falls back to all non-sender participants if a token matches nobody).
+    // Best-effort; never blocks the send.
+    notifyMentionedParticipants(supabase, {
+      inquiryId: ctx.inquiryId,
+      tenantId: ctx.tenantId,
+      actorUserId: ctx.actorUserId,
+      threadType: ctx.threadType,
+      body: ctx.body,
+      messageId: row.id as string,
+    }).catch((err) => logServerError("inquiry-engine-messages.mentionNotify", err));
 
     return { success: true, data: { messageId: row.id as string } };
   });

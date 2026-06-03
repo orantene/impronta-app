@@ -827,9 +827,10 @@ function ThreadPaneWithTabs({
   // on the conversation.
   const [chatMode, setChatMode] = useState<ChatMode>("chat");
   useEffect(() => { setChatMode("chat"); }, [inq.id]);
+  // D7: count both money message cards AND inquiry_events for the Activity badge
   const activityCount = useMemo(
-    () => messages.filter(isClientActivityMessage).length,
-    [messages],
+    () => messages.filter(isClientActivityMessage).length + (details?.activity.length ?? 0),
+    [messages, details],
   );
   const statusSheetData = useMemo<StatusSheetData>(
     () => buildClientStatusSheetData(inq, details),
@@ -1026,6 +1027,7 @@ function ThreadPaneWithTabs({
             loading={loadingMessages}
             tenantSlug={tenantSlug}
             pitch={details?.pitch ?? null}
+            details={details}
             onJumpToOffer={() => onTabChange("offer")}
             onPayNow={(cardAmountLabel) =>
               // #13-2 — open the Pay-now sheet on the REAL charge (the booking
@@ -1079,6 +1081,7 @@ function ThreadPaneWithTabs({
           senderName={client.displayName}
           inquiryStatus={inq.status}
           hasOffer={!!details?.offer?.exists}
+          details={details}
           onSent={(msg) => onMessagesChange((prev) => [...prev, msg])}
           onReconcileSent={(tempId, realId) =>
             onMessagesChange((prev) =>
@@ -1327,6 +1330,49 @@ function CoordinatorChip({
   );
 }
 
+// ─── @mention helpers ─────────────────────────────────────────────────────
+
+/** Extract participant names that can be @-mentioned from the details payload. */
+function getMentionableParticipants(details: ClientInquiryDetails | null): string[] {
+  const names: string[] = [];
+  if (details?.coordinator?.assigned && details.coordinator.name) {
+    names.push(details.coordinator.name);
+  }
+  for (const t of details?.talent.selected ?? []) {
+    names.push(t.name);
+  }
+  return names;
+}
+
+/** Detect the @-mention prefix being typed at the current cursor position.
+ *  Returns the prefix string (without @) when a mention is active, null otherwise. */
+function detectMentionPrefix(text: string, caretPos: number): string | null {
+  // Find the last @ before the caret that isn't preceded by a word char.
+  const sub = text.slice(0, caretPos);
+  const match = sub.match(/(^|[\s\n])@([^\s@]*)$/);
+  if (!match) return null;
+  return match[2]; // text after @
+}
+
+/** Highlight @Word tokens in a message body. Returns an array of {text, mention} segments.
+ *  Matches @followed-by-non-whitespace so it works with single-word tokens inserted from
+ *  the mention picker (e.g. "@Sofia"). The picker inserts "@Name " with a trailing
+ *  space so the token is always cleanly delimited. */
+function parseMentions(body: string): Array<{ text: string; isMention: boolean }> {
+  const parts: Array<{ text: string; isMention: boolean }> = [];
+  // Match @Word — one or more non-whitespace chars after the @.
+  const re = /@\S+/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(body)) !== null) {
+    if (m.index > last) parts.push({ text: body.slice(last, m.index), isMention: false });
+    parts.push({ text: m[0], isMention: true });
+    last = m.index + m[0].length;
+  }
+  if (last < body.length) parts.push({ text: body.slice(last), isMention: false });
+  return parts.length > 0 ? parts : [{ text: body, isMention: false }];
+}
+
 // ─── Inline composer ─────────────────────────────────────────────────────
 
 function ChatComposer({
@@ -1335,6 +1381,7 @@ function ChatComposer({
   senderName,
   inquiryStatus,
   hasOffer,
+  details,
   onSent,
   onReconcileSent,
 }: {
@@ -1343,6 +1390,7 @@ function ChatComposer({
   senderName: string;
   inquiryStatus?: string;
   hasOffer?: boolean;
+  details?: ClientInquiryDetails | null;
   onSent: (msg: WorkspaceMessage) => void;
   /** Promote an optimistic `tmp-` bubble to its canonical server row id so
    *  the reconcile dedups by id, never body text (audit #15). */
@@ -1353,8 +1401,65 @@ function ChatComposer({
   const [pending, startTransition] = useTransition();
   const [uploading, setUploading] = useState(false);
   const [emojiOpen, setEmojiOpen] = useState(false);
+  // @mention picker state
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionStart, setMentionStart] = useState<number>(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Participant list for @-mention popover
+  const mentionableNames = useMemo(() => getMentionableParticipants(details ?? null), [details]);
+  const filteredMentions = useMemo(() => {
+    if (mentionQuery === null) return [];
+    const q = mentionQuery.toLowerCase();
+    return mentionableNames.filter((n) => n.toLowerCase().includes(q));
+  }, [mentionQuery, mentionableNames]);
+
+  /** Called when user selects a name from the mention popover.
+   *  Inserts the first-name token so the @\S+ highlight always covers the whole token. */
+  function insertMention(name: string) {
+    const ta = textareaRef.current;
+    const caret = ta?.selectionStart ?? body.length;
+    // Use the first word of the name as the token so the @\S+ regex
+    // highlights it as a single unbroken span (e.g. @Sofia rather than @Sofia Herrera).
+    const token = name.split(/\s+/)[0] ?? name;
+    // Replace from the @ position to the current caret with the @token
+    const before = body.slice(0, mentionStart);
+    const after = body.slice(caret);
+    const insertion = `@${token} `;
+    const next = before + insertion + after;
+    setBody(next);
+    setMentionQuery(null);
+    requestAnimationFrame(() => {
+      ta?.focus();
+      const pos = mentionStart + insertion.length;
+      ta?.setSelectionRange(pos, pos);
+    });
+  }
+
+  /** Track textarea changes to detect @ prefix. */
+  function handleBodyChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    const val = e.target.value;
+    setBody(val);
+    const caret = e.target.selectionStart ?? val.length;
+    const prefix = detectMentionPrefix(val, caret);
+    if (prefix !== null) {
+      // Record the @ start position: caret - prefix.length - 1 (for @)
+      const atPos = caret - prefix.length - 1;
+      setMentionStart(atPos);
+      setMentionQuery(prefix);
+    } else {
+      setMentionQuery(null);
+    }
+  }
+
+  // Close mention picker on Escape
+  useEffect(() => {
+    if (mentionQuery === null) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMentionQuery(null); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [mentionQuery]);
 
   function insertEmoji(emoji: string) {
     const ta = textareaRef.current;
@@ -1694,37 +1799,118 @@ function ChatComposer({
             </div>
           )}
         </div>
-        <textarea
-          ref={textareaRef}
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          onKeyDown={(e) => {
-            // Cmd/Ctrl+Enter sends; plain Enter inserts newline on mobile.
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-              e.preventDefault();
-              submit();
-            }
-          }}
-          placeholder="Reply to your coordinator…"
-          rows={1}
-          disabled={pending}
-          style={{
-            flex: 1,
-            minHeight: 38,
-            maxHeight: 140,
-            padding: "9px 12px",
-            borderRadius: 10,
-            border: `1px solid ${C.borderSoft}`,
-            background: C.surface,
-            fontFamily: FONT,
-            fontSize: 13.5,
-            lineHeight: 1.45,
-            color: C.ink,
-            resize: "none",
-            outline: "none",
-            boxSizing: "border-box",
-          }}
-        />
+        <div style={{ flex: 1, position: "relative" }}>
+          {/* @mention popover — appears above the textarea when a mention is active */}
+          {mentionQuery !== null && filteredMentions.length > 0 && (
+            <div
+              role="listbox"
+              aria-label="Mention a participant"
+              style={{
+                position: "absolute",
+                bottom: "calc(100% + 6px)",
+                left: 0,
+                minWidth: 180,
+                maxWidth: 280,
+                background: "#fff",
+                border: `1px solid ${C.borderSoft}`,
+                borderRadius: 10,
+                boxShadow: "0 6px 20px rgba(0,0,0,0.10)",
+                padding: 4,
+                display: "flex",
+                flexDirection: "column",
+                gap: 2,
+                zIndex: 65,
+              }}
+            >
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: 0.4, padding: "4px 8px 2px" }}>
+                Mention a participant
+              </div>
+              {filteredMentions.map((name) => (
+                <button
+                  key={name}
+                  type="button"
+                  role="option"
+                  aria-selected={false}
+                  onMouseDown={(e) => {
+                    e.preventDefault(); // prevent textarea blur
+                    insertMention(name);
+                  }}
+                  style={{
+                    textAlign: "left",
+                    padding: "7px 10px",
+                    borderRadius: 7,
+                    background: "transparent",
+                    border: "none",
+                    color: C.ink,
+                    fontFamily: FONT,
+                    fontSize: 13,
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(29,78,216,0.06)"; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
+                >
+                  <span
+                    style={{
+                      width: 26,
+                      height: 26,
+                      borderRadius: "50%",
+                      background: C.accentSoft,
+                      color: C.accent,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 10,
+                      fontWeight: 700,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {name.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("")}
+                  </span>
+                  <span>@{name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          <textarea
+            ref={textareaRef}
+            value={body}
+            onChange={handleBodyChange}
+            onKeyDown={(e) => {
+              // Cmd/Ctrl+Enter sends; plain Enter inserts newline on mobile.
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                submit();
+              }
+              // Tab / ArrowDown — close mention picker without inserting (user can click)
+              if (e.key === "Tab" && mentionQuery !== null) {
+                setMentionQuery(null);
+              }
+            }}
+            placeholder="Reply to your coordinator…"
+            rows={1}
+            disabled={pending}
+            style={{
+              width: "100%",
+              minHeight: 38,
+              maxHeight: 140,
+              padding: "9px 12px",
+              borderRadius: 10,
+              border: `1px solid ${C.borderSoft}`,
+              background: C.surface,
+              fontFamily: FONT,
+              fontSize: 13.5,
+              lineHeight: 1.45,
+              color: C.ink,
+              resize: "none",
+              outline: "none",
+              boxSizing: "border-box",
+            }}
+          />
+        </div>
         <button
           type="button"
           onClick={submit}
@@ -1756,14 +1942,133 @@ function ChatComposer({
         </button>
       </div>
       <div style={{ fontSize: 10.5, color: C.inkDim, paddingLeft: 4 }}>
-        ⌘ + Enter to send
+        ⌘ + Enter to send · type @ to mention a participant
+      </div>
+    </div>
+  );
+}
+
+// ─── Activity event items ────────────────────────────────────────────────────
+//
+// D7 — enrich the Activity sub-tab with structured inquiry_events rows.
+// These come from `details.activity` and show field diffs, money milestones,
+// and booking status changes in a clean read-only timeline.
+
+type ActivityEventItem = ClientInquiryDetails["activity"][number];
+
+/** Human-readable label + icon for each client-visible event type. */
+const ACTIVITY_EVENT_META: Record<string, { icon: string; label: (e: ActivityEventItem) => string }> = {
+  "inquiry.submitted":              { icon: "📝", label: () => "Inquiry submitted" },
+  "inquiry.moved_to_coordination":  { icon: "🎯", label: () => "Moved to coordination" },
+  "inquiry.details_updated":        { icon: "✏️", label: () => "Details updated" },
+  "inquiry.frozen":                 { icon: "🔒", label: () => "Inquiry paused" },
+  "inquiry.unfrozen":               { icon: "🔓", label: () => "Inquiry resumed" },
+  "inquiry.archived":               { icon: "📦", label: () => "Inquiry archived" },
+  "inquiry.cancelled":              { icon: "✖️", label: () => "Inquiry cancelled" },
+  "coordinator.assigned":           { icon: "👤", label: (e) => e.actor_name ? `${e.actor_name} assigned as coordinator` : "Coordinator assigned" },
+  "coordinator.accepted":           { icon: "✅", label: (e) => e.actor_name ? `${e.actor_name} accepted this inquiry` : "Coordinator accepted" },
+  "roster.talent_invited":          { icon: "🌟", label: () => "Talent added to lineup" },
+  "roster.talent_accepted":         { icon: "✅", label: () => "Talent confirmed" },
+  "roster.talent_declined":         { icon: "❌", label: () => "Talent declined" },
+  "offer.created":                  { icon: "💰", label: () => "Offer drafted" },
+  "offer.sent":                     { icon: "📤", label: () => "Offer sent for review" },
+  "offer.client_rejected":          { icon: "↩️", label: () => "Offer returned for revision" },
+  "approval.submitted":             { icon: "👍", label: (e) => e.actor_name ? `${e.actor_name} approved` : "Approval received" },
+  "approval.all_complete":          { icon: "🎉", label: () => "All parties approved — ready to book" },
+  "booking.created":                { icon: "📅", label: () => "Booking confirmed" },
+  "payment_requested":              { icon: "💳", label: () => "Payment requested" },
+  "payment_paid":                   { icon: "✅", label: () => "Payment received" },
+  "booking_confirmed":              { icon: "🎬", label: () => "Booking confirmed — all set!" },
+};
+
+/** Format a field-diff entry from the `changed` payload of inquiry.details_updated. */
+function formatFieldDiff(fieldName: string, from: unknown, to: unknown): string {
+  const label = ({
+    event_date: "Date",
+    event_location: "Location",
+    message: "Brief",
+    quantity: "Quantity",
+  } as Record<string, string>)[fieldName] ?? fieldName.replace(/_/g, " ");
+
+  const fmt = (v: unknown): string => {
+    if (v == null || v === "") return "(none)";
+    if (typeof v === "string") {
+      // Dates: try ISO date formatting
+      if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+        try {
+          return new Date(v + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+        } catch { return v; }
+      }
+      // Truncate long strings (brief)
+      return v.length > 60 ? v.slice(0, 60) + "…" : v;
+    }
+    return String(v);
+  };
+
+  return `${label}: ${fmt(from)} → ${fmt(to)}`;
+}
+
+function ActivityEventRow({ event }: { event: ActivityEventItem }) {
+  const meta = ACTIVITY_EVENT_META[event.event_type];
+  const icon = meta?.icon ?? "•";
+  const label = meta ? meta.label(event) : event.event_type.replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+  // For details_updated: render field diffs inline
+  const changed = event.event_type === "inquiry.details_updated"
+    ? (event.payload?.changed as Record<string, { from: unknown; to: unknown }> | undefined)
+    : undefined;
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 10,
+        padding: "10px 12px",
+        borderRadius: 10,
+        background: "#fff",
+        border: `1px solid ${C.borderSoft}`,
+        fontFamily: FONT,
+      }}
+    >
+      <span style={{ fontSize: 16, flexShrink: 0, marginTop: 1 }}>{icon}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 600, color: C.ink, lineHeight: 1.4 }}>
+          {label}
+        </div>
+        {changed && Object.keys(changed).length > 0 && (
+          <div style={{ marginTop: 4, display: "flex", flexDirection: "column", gap: 3 }}>
+            {Object.entries(changed).map(([field, diff]) => (
+              <div
+                key={field}
+                style={{
+                  fontSize: 11.5,
+                  color: C.inkMuted,
+                  background: "rgba(29,78,216,0.04)",
+                  borderLeft: `2px solid ${C.accent}`,
+                  borderRadius: "0 6px 6px 0",
+                  padding: "3px 8px",
+                  lineHeight: 1.4,
+                }}
+              >
+                {formatFieldDiff(field, diff.from, diff.to)}
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{ fontSize: 10.5, color: C.inkDim, marginTop: 4 }}>
+          {formatTime(event.created_at)}
+          {event.actor_name && event.event_type !== "coordinator.assigned" && event.event_type !== "coordinator.accepted" && (
+            <span style={{ marginLeft: 5 }}>· {event.actor_name}</span>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
 function ChatThreadBody({
-  inq, messages, mode, loading, tenantSlug, pitch, onJumpToOffer, onPayNow, onMessagesChange,
+  inq, messages, mode, loading, tenantSlug, pitch, details, onJumpToOffer, onPayNow, onMessagesChange,
 }: {
   inq: ClientInquiryRow;
   messages: WorkspaceMessage[];
@@ -1771,6 +2076,7 @@ function ChatThreadBody({
   loading: boolean;
   tenantSlug: string;
   pitch: ClientInquiryDetails["pitch"];
+  details: ClientInquiryDetails | null;
   onJumpToOffer?: () => void;
   onPayNow?: (amountLabel: string) => void;
   onMessagesChange?: (next: WorkspaceMessage[] | ((prev: WorkspaceMessage[]) => WorkspaceMessage[])) => void;
@@ -1787,9 +2093,48 @@ function ChatThreadBody({
         : messages.filter((m) => !isClientActivityMessage(m)),
     [messages, mode],
   );
+
+  // D7 — Build a merged activity timeline for the Activity sub-view.
+  // Combine money/booking message cards with inquiry_events rows from `details.activity`.
+  // Sort chronologically (oldest first); deduplicate by semantic overlap where possible.
+  const activityTimeline = useMemo<
+    Array<{ kind: "message"; msg: WorkspaceMessage } | { kind: "event"; event: ActivityEventItem }>
+  >(() => {
+    if (mode !== "activity") return [];
+    const msgItems: Array<{ kind: "message"; msg: WorkspaceMessage; ts: string }> =
+      visible.map((m) => ({ kind: "message" as const, msg: m, ts: m.created_at }));
+
+    // Inquiry events from the loader — these are the structural milestones.
+    // Skip events whose type overlaps semantically with message cards already
+    // shown (offer_event ↔ offer.sent, payment cards ↔ payment_requested/paid)
+    // to avoid showing the same moment twice with different labels.
+    const msgKindTypes = new Set(visible.map((m) => m.message_kind ?? "text"));
+    const skipEventTypes = new Set<string>();
+    if (msgKindTypes.has("offer_event")) skipEventTypes.add("offer.sent").add("offer.created");
+    if (msgKindTypes.has("payment_request")) skipEventTypes.add("payment_requested");
+    if (msgKindTypes.has("payment_paid")) skipEventTypes.add("payment_paid");
+    if (msgKindTypes.has("booking_confirmed")) skipEventTypes.add("booking.created").add("booking_confirmed");
+
+    const eventItems: Array<{ kind: "event"; event: ActivityEventItem; ts: string }> =
+      (details?.activity ?? [])
+        .filter((e) => !skipEventTypes.has(e.event_type))
+        .map((e) => ({ kind: "event" as const, event: e, ts: e.created_at }));
+
+    // Merge and sort by timestamp ascending (oldest first → timeline flows down)
+    return [...msgItems, ...eventItems]
+      .sort((a, b) => a.ts.localeCompare(b.ts))
+      .map(({ kind, ...rest }) => {
+        if (kind === "message") return { kind: "message" as const, msg: (rest as { msg: WorkspaceMessage }).msg };
+        return { kind: "event" as const, event: (rest as { event: ActivityEventItem }).event };
+      });
+  }, [mode, visible, details]);
+
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [visible]);
+  }, [visible, activityTimeline.length]);
+
+  const isEmpty = mode === "activity" ? activityTimeline.length === 0 : visible.length === 0;
+
   return (
     <div
       ref={scrollRef}
@@ -1801,12 +2146,32 @@ function ChatThreadBody({
       {mode === "chat" && pitch && <PitchOriginBlock pitch={pitch} />}
       {loading ? (
         <ChatLoadingSkeleton />
-      ) : visible.length === 0 ? (
+      ) : isEmpty ? (
         <div style={{ color: C.inkDim, fontSize: 12.5, textAlign: "center", padding: 30, fontStyle: "italic" }}>
           {mode === "activity"
             ? "No activity yet. Offers, payments and booking confirmations will appear here as your booking progresses."
             : "No messages yet. Your coordinator will reply here once they pick up your inquiry."}
         </div>
+      ) : mode === "activity" ? (
+        // D7: merged activity timeline — inquiry_events + money message cards
+        <>
+          {activityTimeline.map((item) =>
+            item.kind === "event" ? (
+              <ActivityEventRow key={`ev-${item.event.id}`} event={item.event} />
+            ) : (
+              <Bubble
+                key={item.msg.id}
+                m={item.msg}
+                showSeen={false}
+                tenantSlug={tenantSlug}
+                inquiryId={inq.id}
+                onJumpToOffer={onJumpToOffer}
+                onPayNow={onPayNow}
+                onMessagesChange={undefined}
+              />
+            )
+          )}
+        </>
       ) : (
         (() => {
           // Find the latest is_mine message with a seen_at — only that one
@@ -2560,7 +2925,26 @@ function Bubble({
                 wordBreak: "break-word",
               }}
             >
-              {m.body}
+              {parseMentions(m.body ?? "").map((seg, idx) =>
+                seg.isMention ? (
+                  <span
+                    key={idx}
+                    style={{
+                      background: mine
+                        ? "rgba(255,255,255,0.18)"
+                        : "rgba(29,78,216,0.12)",
+                      color: mine ? "#fff" : C.accent,
+                      borderRadius: 4,
+                      padding: "1px 3px",
+                      fontWeight: 700,
+                    }}
+                  >
+                    {seg.text}
+                  </span>
+                ) : (
+                  <span key={idx}>{seg.text}</span>
+                )
+              )}
             </div>
           )}
           {canReact && !editing && (

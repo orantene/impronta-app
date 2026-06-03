@@ -4,7 +4,7 @@ import React, { useTransition, useState, type CSSProperties } from "react";
 import { MessageReactionMenu, replyTargetFromMessage, ReplyContextBar, type ReplyTarget } from "@/components/chat-interactions";
 import { addReaction as addReactionAction, removeReaction as removeReactionAction } from "@/lib/server-actions/message-reactions";
 import { sendMessage as sendMessageAction } from "@/app/(workspace)/[tenantSlug]/admin/messages/actions";
-import { uploadInquiryAttachment } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
+import { uploadInquiryAttachment, loadInquiryLineup } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import { type ThreadType } from "@/app/(workspace)/[tenantSlug]/_data-bridge";
 import { useAdminShell, TENANT, meetsRole, FONTS, COLORS, type RichInquiry } from "../state";
 import { Avatar } from "../primitives";
@@ -13,7 +13,7 @@ import { renderChatCardForMessage } from "./admin-3";
 import { appendLocalMessage, readLocalMessages, useMessageStashSubscription } from "./conversation-stash";
 import { FirstConvBanner } from "./shared/inbox-identity-1";
 import { DaySeparator, dayKey } from "./shared/machinery-15";
-import { ConversationTab, DraftComposer, SMART_REPLIES_FOR_LAST } from "./shared/machinery-16";
+import { ConversationTab, DraftComposer, SMART_REPLIES_FOR_LAST, type MentionCandidate } from "./shared/machinery-16";
 
 
 export function AdminMessageStream({
@@ -55,6 +55,24 @@ export function AdminMessageStream({
   const [replyTarget, setReplyTarget] = useState<ReplyTarget | null>(null);
   // Subscribe so locally-sent messages re-render the stream.
   useMessageStashSubscription();
+  // C3 — @-mention candidates: load the inquiry lineup once per
+  // inquiryId so the composer can offer @name auto-complete. Non-UUID
+  // ids (mock data) skip the fetch. Candidates are stable until the
+  // inquiry changes — no need to reload on every render.
+  const [mentionCandidates, setMentionCandidates] = useState<MentionCandidate[]>([]);
+  const isUuidInquiry = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inquiryId);
+  React.useEffect(() => {
+    if (!isUuidInquiry) return;
+    let cancelled = false;
+    loadInquiryLineup(effectiveTenant.slug, inquiryId).then((r) => {
+      if (cancelled || !r.ok) return;
+      const candidates: MentionCandidate[] = (r.data ?? [])
+        .filter(p => p.talentDisplayName)
+        .map(p => ({ name: p.talentDisplayName!, role: p.talentHeadline ?? "Talent" }));
+      setMentionCandidates(candidates);
+    });
+    return () => { cancelled = true; };
+  }, [inquiryId, isUuidInquiry, effectiveTenant.slug]);
   const localMessages = readLocalMessages(threadKey);
   // Phase 4 of System User direction — workspace identity available
   // to the composer when the user is coord+ on a paid tier. The
@@ -373,6 +391,7 @@ export function AdminMessageStream({
             threadKey={threadKey}
             placeholder={placeholder}
             smartReplyContext={smartReplyContext}
+            mentionCandidates={mentionCandidates.length > 0 ? mentionCandidates : undefined}
             onSend={(text) => {
               // Items 1-3 final wiring: thread the active reply target
               // through the send so the inserted row gets

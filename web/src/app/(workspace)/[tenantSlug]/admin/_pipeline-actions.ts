@@ -2522,6 +2522,65 @@ export async function rescheduleBookingAction(
   }
 }
 
+// ─── Amend & re-send (A2 CONTRACT) ──────────────────────────────────────────
+
+/**
+ * Flip a SENT offer back to a draft for amendment.
+ * Calls `reopenOfferForAmendment` from inquiry-engine-offers (Agent 3's impl).
+ * On success the offer is back in `draft` state; the coordinator edits it
+ * and re-sends via the existing sendOfferAction / OfferDraftEditor flow.
+ *
+ * Guard: only works when offer.status === 'sent'. Returns {ok:false,error:'not_amendable'}
+ * when the offer is in any other state.
+ */
+export async function reopenOfferAction(
+  _tenantSlug: string,
+  inquiryId: string,
+  offerId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const auth = await requireStaffTenantAction();
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const { supabase, user, tenantId } = auth;
+
+    const { data: inq } = await supabase
+      .from("inquiries")
+      .select("version")
+      .eq("id", inquiryId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (!inq) return { ok: false, error: "Inquiry not found in this workspace." };
+
+    const { reopenOfferForAmendment } = await import("@/lib/inquiry/inquiry-engine-offers");
+    const result = await reopenOfferForAmendment(supabase, {
+      inquiryId,
+      tenantId,
+      offerId,
+      actorUserId: user.id,
+      expectedVersion: (inq.version as number | null) ?? 1,
+    });
+
+    if (!result.success) {
+      const reason = (result as { reason?: string; error?: string }).reason
+        ?? (result as { error?: string }).error
+        ?? "Could not reopen offer.";
+      const friendly =
+        reason === "not_amendable" ? "This offer can only be amended when it is currently sent."
+        : reason === "forbidden" ? "You don't have permission to amend this offer."
+        : reason === "version_conflict" ? "Offer changed since you opened it — refresh and retry."
+        : reason === "inquiry_frozen" ? "Inquiry is frozen — unfreeze first."
+        : reason;
+      return { ok: false, error: friendly };
+    }
+
+    revalidatePath(`/${auth.tenantSlug}`, "layout");
+    return { ok: true };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.reopenOfferAction", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
 // ─── B4 — post-booking close (wrap) flow ────────────────────────────────────
 // Closes B4 from the improvement plan. Transitions an in-progress or
 // confirmed booking to 'completed' — the "wrapped" state in product
