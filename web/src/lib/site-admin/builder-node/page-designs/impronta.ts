@@ -33,19 +33,6 @@ const HAIRLINE = "rgba(201,162,39,0.22)";
 const CARD = "rgba(255,255,255,0.035)";
 const CARD_BORDER = "rgba(244,238,226,0.10)";
 
-const PHOTO = {
-  runway: "/marketing/photos/mk-models-runway.jpg",
-  party: "/marketing/photos/mk-models-party.jpg",
-  hosts: "/marketing/photos/mk-hosts-restaurant.jpg",
-  perform: "/marketing/photos/mk-hero-perform.jpg",
-  service: "/marketing/photos/mk-hero-service.jpg",
-  business: "/marketing/photos/mk-hero-business.jpg",
-  audienceTalent: "/marketing/photos/mk-audience-talent.jpg",
-  audienceHub: "/marketing/photos/mk-audience-hub.jpg",
-  singer: "/marketing/photos/independent-singer-booking.jpg",
-  servicePros: "/marketing/photos/service-pros-lifestyle.jpg",
-} as const;
-
 // Real represented Impronta talent (public media-public bucket) for the hero
 // stage cards — actual roster portraits, not stock. The Featured Talent section
 // below pulls the same roster live.
@@ -57,21 +44,11 @@ const TALENT = {
 
 const dataSources: BuilderNodeRenderDataSources = {
   collections: {
-    impronta_disciplines: [
-      { id: "d1", imageUrl: PHOTO.runway, name: "Models", blurb: "Editorial, runway & commercial" },
-      { id: "d2", imageUrl: PHOTO.hosts, name: "Hosts & Promo", blurb: "Brand ambassadors & activations" },
-      { id: "d3", imageUrl: PHOTO.business, name: "Chefs & Culinary", blurb: "Private chefs & culinary talent" },
-      { id: "d4", imageUrl: PHOTO.perform, name: "Performers", blurb: "Dancers, aerial & live acts" },
-      { id: "d5", imageUrl: PHOTO.service, name: "Wellness & Beauty", blurb: "Stylists, MUA & wellness" },
-      { id: "d6", imageUrl: PHOTO.singer, name: "Music & DJs", blurb: "DJs, vocalists & ensembles" },
-      { id: "d7", imageUrl: PHOTO.servicePros, name: "Photo, Video & Creative", blurb: "Photographers & directors" },
-    ],
-    impronta_featured: [
-      { id: "f1", imageUrl: PHOTO.runway, name: "Sofía R.", role: "Editorial · Tulum" },
-      { id: "f2", imageUrl: PHOTO.business, name: "Marco V.", role: "Host · Mexico City" },
-      { id: "f3", imageUrl: PHOTO.party, name: "Lucía M.", role: "Model · Riviera Maya" },
-      { id: "f4", imageUrl: PHOTO.perform, name: "Diego A.", role: "Performer · Buenos Aires" },
-    ],
+    // impronta_disciplines and impronta_featured were removed: the discipline
+    // rail is now a section_embed of talent_type_grid (uses its own config),
+    // and featured talent is a section_embed of featured_talent (live roster).
+    // impronta_markets was removed: the markets panel is now hand-authored
+    // freeform nodes (mapPin helpers + featured-market card), not a repeater.
     impronta_steps: [
       { id: "s1", num: "01", title: "Tell us the brief", detail: "Market, dates, the look you need." },
       { id: "s2", num: "02", title: "We shortlist options", detail: "A shortlist tailored to your project." },
@@ -82,13 +59,6 @@ const dataSources: BuilderNodeRenderDataSources = {
       { id: "p1", title: "Verified profiles", detail: "Every talent is reviewed and verified before you ever see them." },
       { id: "p2", title: "Local coordination", detail: "A real team on the ground in every market — international reach, local execution." },
       { id: "p3", title: "Booking support", detail: "Contracts, usage and logistics — managed end to end." },
-    ],
-    impronta_markets: [
-      { id: "m1", name: "Riviera Maya", status: "Featured market" },
-      { id: "m2", name: "Mexico City", status: "Active" },
-      { id: "m3", name: "Buenos Aires", status: "Active" },
-      { id: "m4", name: "Los Angeles", status: "Coming soon" },
-      { id: "m5", name: "Madrid", status: "Coming soon" },
     ],
   },
 };
