@@ -266,6 +266,24 @@ const builderNodeStyleValueSchema = z.object({
   pointerEvents: z.enum(["auto", "none"]).optional(),
   scrollSnapType: z.string().max(40).optional(),
   scrollSnapAlign: z.enum(["none", "start", "center", "end"]).optional(),
+  // Layered background system (Wave 3 · 3C). Each entry is one layer (gradient
+  // / image / solid color). Max 8 layers; each value is length-capped to keep
+  // CSS strings safe. The array is OPTIONAL + back-compat (undefined → no extra
+  // emission, existing `backgroundImage` / `backgroundColor` unchanged).
+  backgroundLayers: z
+    .array(
+      z
+        .object({
+          type: z.enum(["gradient", "image", "color"]),
+          value: z.string().max(600),
+        })
+        .strict(),
+    )
+    .max(8)
+    .optional(),
+  // Per-layer blend mode — a single keyword or comma-separated list matching
+  // the backgroundLayers count (CSS background-blend-mode). Length-capped.
+  backgroundBlendMode: z.string().max(120).optional(),
   // Focus / form theming. accentColor / caretColor also accept a `token:color.*`
   // binding (Wave 3 · 3A).
   outline: z.string().max(60).optional(),

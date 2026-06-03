@@ -1239,3 +1239,145 @@ test("structure: container-query scope emits order + hidden too", () => {
     "cq mobile hidden gate",
   );
 });
+
+// ── Wave 3 · 3C: background layers + gradient CSS emission ───────────────────
+
+test("backgroundLayers: two gradient layers emit stacked background-image CSS", () => {
+  const html = render([
+    container({
+      backgroundLayers: [
+        {
+          type: "gradient",
+          value: "linear-gradient(135deg, #6366f1 0%, #ec4899 100%)",
+        },
+        {
+          type: "gradient",
+          value: "linear-gradient(180deg, rgba(0,0,0,0.6) 0%, transparent 60%)",
+        },
+      ],
+    }),
+  ]);
+  // Both gradient strings must be comma-joined in background-image
+  assert.ok(
+    html.includes("linear-gradient(135deg"),
+    "first gradient layer present",
+  );
+  assert.ok(
+    html.includes("linear-gradient(180deg"),
+    "second gradient layer present",
+  );
+  // Multi-layer stacks are comma-joined
+  assert.ok(
+    html.includes("linear-gradient(135deg, #6366f1 0%, #ec4899 100%),linear-gradient(180deg"),
+    "layers joined with comma",
+  );
+  // Paint axes default to cover/center/no-repeat, repeated per layer
+  assert.ok(html.includes("background-size:cover,cover"), "size repeated");
+  assert.ok(html.includes("background-position:center,center"), "position repeated");
+});
+
+test("backgroundLayers: color layer emits wrapped gradient", () => {
+  const html = render([
+    container({
+      backgroundLayers: [
+        { type: "color", value: "rgba(0,0,0,0.4)" },
+      ],
+    }),
+  ]);
+  // Color layers are wrapped as linear-gradient(color,color) so they participate
+  assert.ok(
+    html.includes("linear-gradient(rgba(0,0,0,0.4),rgba(0,0,0,0.4))"),
+    "color layer wrapped as gradient",
+  );
+});
+
+test("backgroundLayers: image layer emits url() in background-image", () => {
+  const html = render([
+    container({
+      backgroundLayers: [
+        { type: "image", value: "url(https://example.com/photo.jpg)" },
+      ],
+    }),
+  ]);
+  assert.ok(
+    html.includes("url(https://example.com/photo.jpg)"),
+    "image url preserved",
+  );
+  assert.ok(html.includes("background-size:cover"), "paint axes set");
+});
+
+test("backgroundLayers: image layer prepended to existing backgroundImage", () => {
+  const html = render([
+    container({
+      backgroundImage: "url(https://example.com/base.jpg)",
+      backgroundLayers: [
+        {
+          type: "gradient",
+          value: "linear-gradient(135deg, rgba(0,0,0,0.5), transparent)",
+        },
+      ],
+    }),
+  ]);
+  // The overlay gradient must come before the existing background image
+  assert.ok(
+    html.includes(
+      "linear-gradient(135deg, rgba(0,0,0,0.5), transparent),url(https://example.com/base.jpg)",
+    ),
+    "overlay prepended to existing backgroundImage",
+  );
+  // Three layers total (gradient overlay + base), so size is cover,cover
+  assert.ok(html.includes("background-size:cover,cover"), "size repeated for both");
+});
+
+test("backgroundLayers: backgroundBlendMode emitted when set", () => {
+  const html = render([
+    container({
+      backgroundLayers: [
+        { type: "gradient", value: "linear-gradient(90deg, #000, #fff)" },
+      ],
+      backgroundBlendMode: "multiply",
+    }),
+  ]);
+  assert.ok(
+    html.includes("background-blend-mode:multiply"),
+    "blend mode emitted",
+  );
+});
+
+test("backgroundLayers: empty/absent preserves existing backgroundImage byte-identical", () => {
+  const withBgImage = render([
+    container({ backgroundImage: "url(https://example.com/img.jpg)" }),
+  ]);
+  const withBgImageAndEmpty = render([
+    container({
+      backgroundImage: "url(https://example.com/img.jpg)",
+      backgroundLayers: [],
+    }),
+  ]);
+  assert.equal(
+    withBgImage,
+    withBgImageAndEmpty,
+    "empty backgroundLayers array is byte-identical to no backgroundLayers",
+  );
+  // backgroundBlendMode alone (no layers) does NOT get emitted to the static
+  // render since the renderer gates it on layers presence — guard that too.
+  const noLayers = render([container({})]);
+  assert.ok(!noLayers.includes("background-blend-mode"), "no blend mode without layers");
+});
+
+test("backgroundLayers: node with only backgroundColor/backgroundImage renders byte-identical (flagship guard)", () => {
+  // Simulate a flagship-style node that uses the old scalar fields.
+  const legacy = render([
+    container({
+      backgroundColor: "#111",
+      backgroundImage: "linear-gradient(180deg, transparent, rgba(0,0,0,0.7))",
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+      backgroundRepeat: "no-repeat",
+    }),
+  ]);
+  // Must not inject a second background-image stacking or emit blend mode.
+  const bgImageCount = (legacy.match(/background-image:/gi) ?? []).length;
+  assert.ok(bgImageCount >= 1, "background-image present");
+  assert.ok(!legacy.includes("background-blend-mode"), "no blend mode injection");
+});

@@ -52,7 +52,7 @@ import {
   type LengthValue,
 } from "../kit/number-unit";
 import { Segmented, type SegmentedOption } from "../kit/segmented";
-import { ShadowBuilder, GradientBuilder } from "./css-value-builders";
+import { ShadowBuilder, GradientBuilder, BackgroundLayersEditor } from "./css-value-builders";
 import { StylePresetsBar } from "./style-presets-bar";
 import { LinkedStyleClassesBar } from "./linked-style-classes-bar";
 import { InstanceOverridesPanel } from "./instance-overrides-panel";
@@ -1141,6 +1141,11 @@ function cleanBuilderNodeStyle(
   if (value.backgroundPosition) out.backgroundPosition = value.backgroundPosition;
   if (value.backgroundRepeat) out.backgroundRepeat = value.backgroundRepeat;
   if (value.backgroundClip) out.backgroundClip = value.backgroundClip;
+  // Wave 3 · 3C — layered background system.
+  if (value.backgroundLayers && value.backgroundLayers.length > 0) {
+    out.backgroundLayers = value.backgroundLayers;
+  }
+  if (value.backgroundBlendMode) out.backgroundBlendMode = value.backgroundBlendMode;
   if (typeof value.opacity === "number") out.opacity = value.opacity;
   if (value.gap) out.gap = value.gap;
   if (value.containerType) out.containerType = value.containerType;
@@ -1281,6 +1286,11 @@ function cleanBuilderNodeStyleValue(
   if (value.backgroundPosition) out.backgroundPosition = value.backgroundPosition;
   if (value.backgroundRepeat) out.backgroundRepeat = value.backgroundRepeat;
   if (value.backgroundClip) out.backgroundClip = value.backgroundClip;
+  // Wave 3 · 3C — layered background system.
+  if (value.backgroundLayers && value.backgroundLayers.length > 0) {
+    out.backgroundLayers = value.backgroundLayers;
+  }
+  if (value.backgroundBlendMode) out.backgroundBlendMode = value.backgroundBlendMode;
   if (typeof value.opacity === "number") out.opacity = value.opacity;
   if (value.gap) out.gap = value.gap;
   if (value.containerType) out.containerType = value.containerType;
@@ -8133,6 +8143,31 @@ export function StylePanel({
                 >
                   Set a gradient or color background to show it through the text.
                 </span>
+              </div>
+              {/* Wave 3 · 3C — layered background editor */}
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="backgroundLayers"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Layered backgrounds
+                </span>
+                <span
+                  className="text-[10px] leading-tight"
+                  style={{ color: CHROME.muted }}
+                >
+                  Stack gradients, images, and color overlays. Layers paint front-to-back (top = frontmost).
+                </span>
+                <BackgroundLayersEditor
+                  layers={selectedStandaloneViewportStyle?.backgroundLayers}
+                  blendMode={selectedStandaloneViewportStyle?.backgroundBlendMode}
+                  onChange={(layers, blend) =>
+                    patchSelectedStandaloneStyle({
+                      backgroundLayers: layers.length > 0 ? layers : undefined,
+                      backgroundBlendMode: blend,
+                    })
+                  }
+                />
               </div>
               <div
                 className="flex flex-col gap-1"

@@ -119,22 +119,16 @@ export interface BuilderNodeStyleValue {
   marginRightFree?: string;
   marginBottomFree?: string;
   marginLeftFree?: string;
-  // Surface & depth escapes. backgroundImage takes a CSS url()/gradient. It is
-  // painted cover/center/no-repeat by default, but backgroundSize /
-  // backgroundPosition / backgroundRepeat each override one axis of that (free
-  // CSS values, e.g. "contain", "top left", "repeat"). opacity is 0–1.
-  // textShadow takes a free CSS text-shadow value (e.g. "0 2px 8px rgba(0,0,0,.4)").
+  // Surface & depth escapes. backgroundImage is painted cover/center/no-repeat
+  // by default; backgroundSize/Position/Repeat each override one paint axis.
   boxShadow?: string;
   textShadow?: string;
   backgroundImage?: string;
   backgroundSize?: string;
   backgroundPosition?: string;
   backgroundRepeat?: "no-repeat" | "repeat" | "repeat-x" | "repeat-y";
-  // Gradient/clipped text — clip the background paint to the text glyphs so a
-  // gradient (or any background) shows *through* the letters. Only "text" is
-  // meaningful; the renderer also emits the -webkit- prefix and a transparent
-  // text fill. Ignored unless a backgroundImage or backgroundColor is set, so
-  // it can never silently blank the text.
+  // Clips background paint to text glyphs (gradient-text effect). Gated on an
+  // actual background paint so it can't silently blank text.
   backgroundClip?: "text";
   opacity?: number;
   // Free gap escape (layout nodes) — overrides the gap token on container /
@@ -253,6 +247,12 @@ export interface BuilderNodeStyleValue {
   pointerEvents?: "auto" | "none";
   scrollSnapType?: string;
   scrollSnapAlign?: "none" | "start" | "center" | "end";
+  // Wave 3 · 3C: Layered backgrounds — stacks gradient / image / color layers
+  // into a comma-joined background-image. Index 0 = frontmost layer. Applied
+  // after the scalar backgroundImage; existing nodes stay byte-identical.
+  backgroundLayers?: Array<{ type: "gradient" | "image" | "color"; value: string }>;
+  /** CSS background-blend-mode for backgroundLayers (single keyword or CSV list). */
+  backgroundBlendMode?: string;
   // Focus / form theming — outline is layout-neutral (unlike border) so it's the
   // right tool for decorative rings; accentColor themes native checkbox/radio/
   // range; caretColor sets the text-input cursor colour.

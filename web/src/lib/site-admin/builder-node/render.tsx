@@ -1544,6 +1544,38 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
     out.backgroundPosition = style.backgroundPosition ?? "center";
     out.backgroundRepeat = style.backgroundRepeat ?? "no-repeat";
   }
+  // Layered background system (Wave 3 · 3C). Stacks multiple gradient / image /
+  // solid-color layers into a comma-joined background-image value with an
+  // optional background-blend-mode. Applied AFTER the scalar backgroundImage
+  // so it composes on top — a node with ONLY backgroundImage (the old path,
+  // used by the flagship) never reaches this branch and renders byte-identical.
+  if (style.backgroundLayers && style.backgroundLayers.length > 0) {
+    const layerCss = style.backgroundLayers.map((layer) => {
+      if (layer.type === "color") {
+        // Wrap a solid color in a gradient so it participates in the stack.
+        return `linear-gradient(${layer.value},${layer.value})`;
+      }
+      return layer.value; // gradient string or url(…) — already valid CSS
+    });
+    // Prepend to any existing backgroundImage so the layers paint on top.
+    const existing = out.backgroundImage as string | undefined;
+    out.backgroundImage = existing
+      ? [...layerCss, existing].join(",")
+      : layerCss.join(",");
+    // Paint axes: size=cover/pos=center/repeat=no-repeat per layer unless the
+    // free overrides are set. Comma-join repeats each value once per layer.
+    const count = layerCss.length + (existing ? 1 : 0);
+    const sizes = Array(count).fill(style.backgroundSize ?? "cover");
+    const positions = Array(count).fill(style.backgroundPosition ?? "center");
+    const repeats = Array(count).fill(style.backgroundRepeat ?? "no-repeat");
+    out.backgroundSize = sizes.join(",");
+    out.backgroundPosition = positions.join(",");
+    out.backgroundRepeat = repeats.join(",") as CSSProperties["backgroundRepeat"];
+  }
+  if (style.backgroundBlendMode) {
+    (out as Record<string, unknown>).backgroundBlendMode =
+      style.backgroundBlendMode;
+  }
   // Gradient/clipped text — paint the background through the text glyphs. Gated
   // on an actual background paint so we never blank the text, and bundled with
   // the -webkit- prefix + transparent text fill the technique requires. Set at
