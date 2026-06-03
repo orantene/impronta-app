@@ -2030,6 +2030,59 @@ function isSafeBuilderImageSrc(value: string | null | undefined): value is strin
   }
 }
 
+// ── P4-IMAGEOPT: responsive image pipeline for the freeform renderer ──────────
+// render.tsx emits static HTML, so we can't drop a next/image React component in.
+// Instead we keep the raw <img src> (validated above, and the universal fallback
+// for old browsers / data URIs) and ADD a srcset that routes through the Next
+// image optimizer (/_next/image) — which serves AVIF/WebP (next.config formats)
+// and downscaled widths. Only same-origin paths + hosts present in next.config
+// images.remotePatterns are optimized; anything else stays a plain <img> so the
+// optimizer never 400s (which would spam the console). Disable with
+// BUILDER_IMAGE_OPT=off.
+const BUILDER_IMAGE_OPT_ENABLED = process.env.BUILDER_IMAGE_OPT !== "off";
+const BUILDER_IMAGE_WIDTHS = [640, 828, 1200, 1920] as const;
+const OPTIMIZABLE_IMAGE_HOSTS: ReadonlySet<string> = new Set(
+  [
+    (() => {
+      try {
+        return process.env.NEXT_PUBLIC_SUPABASE_URL
+          ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname
+          : null;
+      } catch {
+        return null;
+      }
+    })(),
+    "images.unsplash.com",
+    "i.pravatar.cc",
+  ].filter((host): host is string => Boolean(host)),
+);
+
+function builderImageSrcSet(
+  src: string,
+): { srcSet: string; sizes: string } | null {
+  if (!BUILDER_IMAGE_OPT_ENABLED || !src || src.startsWith("data:")) return null;
+  let optimizable = false;
+  if (src.startsWith("/") && !src.startsWith("//")) {
+    optimizable = true; // same-origin / /public asset
+  } else {
+    try {
+      const url = new URL(src);
+      optimizable =
+        (url.protocol === "https:" || url.protocol === "http:") &&
+        OPTIMIZABLE_IMAGE_HOSTS.has(url.hostname);
+    } catch {
+      return null;
+    }
+  }
+  if (!optimizable) return null;
+  const srcSet = BUILDER_IMAGE_WIDTHS.map(
+    (w) => `/_next/image?url=${encodeURIComponent(src)}&w=${w}&q=75 ${w}w`,
+  ).join(", ");
+  // Builder images are width:100% of a variable container; full-width on phones,
+  // ~half on desktop is a safe default that never under-loads.
+  return { srcSet, sizes: "(max-width: 768px) 100vw, 50vw" };
+}
+
 function renderBuilderNode(
   node: BuilderNode,
   options: NormalizedBuilderNodeRenderOptions,
@@ -2364,6 +2417,7 @@ function renderBuilderNode(
         options.repeatItem,
       ).value;
       if (!src || !isSafeBuilderImageSrc(src)) return null;
+      const imageOpt = builderImageSrcSet(src);
       return (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -2374,8 +2428,12 @@ function renderBuilderNode(
           {...builderNodeStyleAttrs(node.props.style)}
           className="site-builder-node site-builder-node--image"
           src={src}
+          {...(imageOpt
+            ? { srcSet: imageOpt.srcSet, sizes: imageOpt.sizes }
+            : {})}
           alt={alt}
           loading="lazy"
+          decoding="async"
           style={{
             display: "block",
             width: "100%",
