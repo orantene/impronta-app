@@ -452,9 +452,15 @@ export async function submitInquiry(
     // For Discover-originated inquiries (D5), exclusive-agency talents
     // route to the agency tenant; independent talents route to the
     // talent's own inbox.
+    // Pass the inquiry's tenant so the resolver is SOURCE-AWARE: a non-exclusive
+    // talent inquired through the open Tulala hub (a tenant they're not rostered
+    // on) self-coordinates; inquired through an agency's own storefront (a tenant
+    // they ARE rostered on) is owned by that workspace. Exclusive talents route
+    // to their agency regardless. Composes with the talent-self-coordinator seed.
     const owningParties = await resolveOwningPartiesForTalents(
       supabase,
       input.talent_profile_ids,
+      input.tenant_id,
     );
 
     let sort = 0;
