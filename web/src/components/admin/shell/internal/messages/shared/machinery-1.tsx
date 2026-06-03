@@ -62,8 +62,14 @@ export function buildInquiryTabs(opts: {
    *  Drives the payment-due glyph on the Offer tab so it isn't hardcoded
    *  to "€" for non-euro deals. Optional — falls back to a neutral dot. */
   currencyCode?: string;
+  /** Surface the admin-only Payment tab. True once payment is relevant —
+   *  i.e. the inquiry is approved/booked/converted (a booking exists or is
+   *  imminent) so admin can request payment / track status / initiate
+   *  payout from the thread instead of leaving to /admin/work. Admin pov
+   *  only; client + talent have their own money surfaces. */
+  paymentRelevant?: boolean;
 }): TabDef[] {
-  const { status, pov, unread = {}, offerNeedsAttention, paymentDue, planTier, currencyCode } = opts;
+  const { status, pov, unread = {}, offerNeedsAttention, paymentDue, planTier, currencyCode, paymentRelevant } = opts;
 
   // Currency-aware payment-due glyph. Never hardcode "€": derive the symbol
   // from the inquiry's currency; if none is supplied, use a neutral dot so a
@@ -102,6 +108,19 @@ export function buildInquiryTabs(opts: {
         label: "Offer",
         state: "active",
         badge: paymentDue ? payDueGlyph : undefined,
+      });
+    }
+    // Admin-only Payment tab — request payment / track status / initiate
+    // payout right inside the thread, no detour to /admin/work. Surfaces
+    // only once payment is relevant (approved/booked/converted). The
+    // PaymentTab body (machinery-6) loads real payment state + renders the
+    // admin money actions.
+    if (paymentRelevant) {
+      adminTabs.push({
+        id: "payment",
+        label: "Payment",
+        state: "active",
+        badge: status === "booked" && paymentDue ? payDueGlyph : undefined,
       });
     }
     adminTabs.push({

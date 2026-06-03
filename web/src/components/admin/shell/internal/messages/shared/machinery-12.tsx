@@ -7,7 +7,7 @@ import { loadCurrentTalentPayoutSnapshot, loadMyInquiryTakeHome, type TalentPayo
 import { type TalentTakeHome } from "@/lib/talent/inquiry-take-home";
 import { submitMyCounterRate, submitMyRateForInquiry } from "@/lib/server-actions/talent-pipeline";
 import { clientApproveCurrentOffer, clientRejectCurrentOffer } from "@/lib/server-actions/client-pipeline";
-import { sendOfferAction, counterOfferAction, loadBookingCommissionSnapshotAction } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
+import { sendOfferAction, counterOfferAction, loadBookingCommissionSnapshotAction, loadInquiryPaymentState } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import type { PersistedBookingCommissionSnapshot } from "@/lib/billing/commission";
 import { useAdminShell, COLORS, FONTS } from "../../state";
 import { type Conversation } from "../../talent";
@@ -53,8 +53,24 @@ export function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: Off
   const real = effectiveMessagesInquiries.find((r) => r.id === inquiryId);
   const offer = real?.offer ?? null;
   const offerId = offer?.id;
-  const bookingId = real?.bookingId ?? null;
   const isAdmin = pov.kind === "admin";
+  const directBookingId = real?.bookingId ?? null;
+
+  // The admin shell's in-memory inquiry stub doesn't carry bookingId (it's set
+  // null in state/context). Resolve it from the inquiry's payment state so the
+  // commission snapshot can load for booked inquiries — without this the
+  // admin-only commission breakdown never renders.
+  const [resolvedBookingId, setResolvedBookingId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isAdmin || directBookingId) { setResolvedBookingId(null); return; }
+    let cancelled = false;
+    loadInquiryPaymentState(effectiveTenant.slug, inquiryId).then((r) => {
+      if (cancelled) return;
+      setResolvedBookingId(r.ok ? (r.data?.bookingId ?? null) : null);
+    });
+    return () => { cancelled = true; };
+  }, [isAdmin, directBookingId, inquiryId, effectiveTenant.slug]);
+  const bookingId = directBookingId ?? resolvedBookingId;
 
   // Admin-only: load the per-participant commission snapshot for the booking
   // (if one exists). One booking → N rows; we aggregate the lanes for the
