@@ -49,6 +49,7 @@ import {
   computeTalentProtectiveClawback,
   reversalLegKey,
 } from "@/lib/payments/booking-payouts-ledger";
+import { notifyBookingPayoutReversal } from "@/lib/payments/payout-reversal-notify";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -270,8 +271,11 @@ export async function handleBookingRefund(
 
   if (ref.bookingId) {
     const sb = createServiceRoleClient();
-    await reverseBookingPayouts(ref.bookingId, { mode: "full", reference: `refund ${input.chargeId}` }, { sb, stripe });
-    if (sb) await markBookingRefunded(sb, ref.bookingId);
+    const outcomes = await reverseBookingPayouts(ref.bookingId, { mode: "full", reference: `refund ${input.chargeId}` }, { sb, stripe });
+    if (sb) {
+      await markBookingRefunded(sb, ref.bookingId);
+      await notifyBookingPayoutReversal(sb, ref.bookingId, outcomes, "refund");
+    }
   }
   return true;
 }
@@ -331,12 +335,15 @@ export async function handleBookingDispute(
     }
     if (ref.bookingId) {
       const sb = createServiceRoleClient();
-      await reverseBookingPayouts(
+      const outcomes = await reverseBookingPayouts(
         ref.bookingId,
         { mode: "full", reference: `dispute_lost ${input.disputeId}` },
         { sb, stripe },
       );
-      if (sb) await markBookingRefunded(sb, ref.bookingId);
+      if (sb) {
+        await markBookingRefunded(sb, ref.bookingId);
+        await notifyBookingPayoutReversal(sb, ref.bookingId, outcomes, "dispute");
+      }
     }
     logServerError(
       `stripe-webhook.dispute.lost[txn=${ref.transactionId}]`,
