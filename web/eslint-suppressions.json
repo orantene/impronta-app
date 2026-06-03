@@ -14,6 +14,11 @@
       "count": 1
     }
   },
+  "src/app/(workspace)/[tenantSlug]/_data-bridge/client-inquiry-details.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
   "src/app/(workspace)/[tenantSlug]/_data-bridge/discover.ts": {
     "max-lines": {
       "count": 1
@@ -54,6 +59,11 @@
       "count": 1
     }
   },
+  "src/app/(workspace)/[tenantSlug]/client/messages/DetailsTab.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
   "src/app/(workspace)/[tenantSlug]/client/messages/OfferTab.tsx": {
     "max-lines": {
       "count": 1
@@ -88,11 +98,6 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 1
-    }
-  },
-  "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-commercial-terms.tsx": {
-    "ratchet/no-new-inline-style": {
-      "count": 18
     }
   },
   "src/components/admin/shell/internal/client.tsx": {
@@ -263,6 +268,11 @@
   "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-coach.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 46
+    }
+  },
+  "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-commercial-terms.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 18
     }
   },
   "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-data-editors.tsx": {
@@ -462,11 +472,11 @@
     }
   },
   "src/components/admin/shell/internal/messages/shared/machinery-12.tsx": {
-    "ratchet/no-new-inline-style": {
-      "count": 59
-    },
     "max-lines": {
       "count": 1
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 59
     }
   },
   "src/components/admin/shell/internal/messages/shared/machinery-13.tsx": {
@@ -488,11 +498,11 @@
     }
   },
   "src/components/admin/shell/internal/messages/shared/machinery-16.tsx": {
-    "ratchet/no-new-inline-style": {
-      "count": 49
-    },
     "max-lines": {
       "count": 1
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 49
     }
   },
   "src/components/admin/shell/internal/messages/shared/machinery-2.tsx": {
@@ -535,6 +545,11 @@
       "count": 15
     }
   },
+  "src/components/admin/shell/internal/messages/shared/offer-terms-ui.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 28
+    }
+  },
   "src/components/admin/shell/internal/messages/talent-1.tsx": {
     "ratchet/no-new-hook-deps-disable": {
       "count": 1
@@ -544,16 +559,11 @@
     }
   },
   "src/components/admin/shell/internal/messages/talent-2.tsx": {
+    "max-lines": {
+      "count": 1
+    },
     "ratchet/no-new-inline-style": {
       "count": 32
-    },
-    "max-lines": {
-      "count": 1
-    }
-  },
-  "src/app/(workspace)/[tenantSlug]/client/messages/DetailsTab.tsx": {
-    "max-lines": {
-      "count": 1
     }
   },
   "src/components/admin/shell/internal/metrics-ribbon.tsx": {
@@ -574,11 +584,6 @@
   "src/components/admin/shell/internal/page-modules/BillingPage.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 33
-    }
-  },
-  "src/components/admin/shell/internal/page-modules/pages-dynamic.tsx": {
-    "ratchet/no-new-inline-style": {
-      "count": 19
     }
   },
   "src/components/admin/shell/internal/page-modules/CalendarPage.tsx": {
@@ -710,6 +715,11 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 76
+    }
+  },
+  "src/components/admin/shell/internal/page-modules/pages-dynamic.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 19
     }
   },
   "src/components/admin/shell/internal/page-modules/pages-shared.tsx": {
@@ -1626,11 +1636,6 @@
       "count": 5
     }
   },
-  "src/lib/server-actions/commercial-terms-tenant.ts": {
-    "ratchet/no-untenanted-from": {
-      "count": 3
-    }
-  },
   "src/lib/server-actions/client-guest-merge.ts": {
     "ratchet/no-untenanted-from": {
       "count": 6
@@ -1644,6 +1649,11 @@
   "src/lib/server-actions/client-pipeline.ts": {
     "ratchet/no-untenanted-from": {
       "count": 5
+    }
+  },
+  "src/lib/server-actions/commercial-terms-tenant.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 3
     }
   },
   "src/lib/server-actions/coord-request-actions.ts": {

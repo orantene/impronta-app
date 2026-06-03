@@ -25,6 +25,13 @@ import {
   counterOfferAction,
   type InquiryOfferActionState,
 } from "../_actions/inquiry-offer-actions";
+import {
+  BALANCE_METHOD_LABELS,
+  BALANCE_METHOD_DESCRIPTIONS,
+  REFUND_POLICY_LABELS,
+  REFUND_POLICY_DESCRIPTIONS,
+  normalizeDepositPct,
+} from "@/lib/billing/commercial-terms-types";
 
 const FONT = '"Inter", system-ui, sans-serif';
 const FONT_DISPLAY =
@@ -96,6 +103,12 @@ export function OfferTab({
         <CostBreakdown offer={offer} />
         <Divider />
         <Totals offer={offer} />
+        {offer.commercialTerms && (
+          <>
+            <Divider />
+            <BookingTerms offer={offer} canDecide={canDecide} />
+          </>
+        )}
         {offer.notes && (
           <>
             <Divider />
@@ -250,6 +263,120 @@ function Totals({
       <div style={{ fontSize: 18, fontWeight: 700, color: C.ink, fontVariantNumeric: "tabular-nums" }}>
         {formatMoney(offer.total_client_price, offer.currency)}
       </div>
+    </div>
+  );
+}
+
+/**
+ * W6a — "Booking terms" block. The deposit / balance-collection-method /
+ * refund-policy are negotiated on the offer; approving = agreeing to them.
+ * Display only — nothing here charges the deposit. Client-safe (no internal
+ * split). Renders only when the offer carries commercialTerms.
+ */
+function BookingTerms({
+  offer,
+  canDecide,
+}: {
+  offer: NonNullable<ClientInquiryDetails["offer"]>;
+  canDecide: boolean;
+}) {
+  const terms = offer.commercialTerms;
+  if (!terms) return null;
+  const pct = normalizeDepositPct(terms.balanceMethod, terms.depositPct);
+  const depositMajor =
+    terms.depositAmountCents > 0
+      ? terms.depositAmountCents / 100
+      : (offer.total_client_price * pct) / 100;
+  const balanceMajor = Math.max(0, offer.total_client_price - depositMajor);
+
+  return (
+    <div>
+      <div
+        style={{
+          fontSize: 11,
+          fontWeight: 700,
+          color: C.inkMuted,
+          textTransform: "uppercase",
+          letterSpacing: 0.6,
+          marginBottom: 8,
+        }}
+      >
+        Booking terms
+      </div>
+      <div
+        style={{
+          background: "rgba(11,11,13,0.02)",
+          border: `1px solid ${C.borderSoft}`,
+          borderRadius: 10,
+          overflow: "hidden",
+          fontFamily: FONT,
+        }}
+      >
+        <TermRow
+          label="Deposit"
+          value={pct === 0 ? "None up front" : `${formatMoney(depositMajor, offer.currency)} (${pct}%)`}
+        />
+        <TermRow
+          label="Balance"
+          value={
+            balanceMajor <= 0
+              ? "Paid in full up front"
+              : `${formatMoney(balanceMajor, offer.currency)} via ${BALANCE_METHOD_LABELS[terms.balanceMethod]}`
+          }
+          hint={BALANCE_METHOD_DESCRIPTIONS[terms.balanceMethod]}
+        />
+        <TermRow
+          label="Refunds"
+          value={REFUND_POLICY_LABELS[terms.refundPolicy]}
+          hint={REFUND_POLICY_DESCRIPTIONS[terms.refundPolicy]}
+          last
+        />
+      </div>
+      {canDecide && (
+        <div style={{ marginTop: 6, fontSize: 11.5, color: C.inkMuted, lineHeight: 1.45 }}>
+          Approving this offer confirms you agree to these booking terms.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TermRow({
+  label,
+  value,
+  hint,
+  last,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  last?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        padding: "9px 14px",
+        borderBottom: last ? "none" : `1px solid ${C.borderSoft}`,
+        fontFamily: FONT,
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
+        <span style={{ fontSize: 13, color: C.inkMuted }}>{label}</span>
+        <span
+          style={{
+            fontSize: 13.5,
+            fontWeight: 600,
+            color: C.ink,
+            textAlign: "right",
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {value}
+        </span>
+      </div>
+      {hint && (
+        <div style={{ fontSize: 11, color: C.inkDim, marginTop: 2, lineHeight: 1.4 }}>{hint}</div>
+      )}
     </div>
   );
 }
@@ -669,9 +796,30 @@ function ApproveDrawer({
           }
         />
         <SummaryRow label="Total" value={formatMoney(offer.total_client_price, offer.currency)} bold />
+        {offer.commercialTerms && (
+          <SummaryRow
+            label="Deposit"
+            value={
+              offer.commercialTerms.depositPct === 0
+                ? "None up front"
+                : `${formatMoney(
+                    offer.commercialTerms.depositAmountCents > 0
+                      ? offer.commercialTerms.depositAmountCents / 100
+                      : (offer.total_client_price * offer.commercialTerms.depositPct) / 100,
+                    offer.currency,
+                  )} (${offer.commercialTerms.depositPct}%)`
+            }
+          />
+        )}
+        {offer.commercialTerms && (
+          <SummaryRow
+            label="Refunds"
+            value={REFUND_POLICY_LABELS[offer.commercialTerms.refundPolicy]}
+          />
+        )}
         <Hint>
-          Approving locks the lineup and starts the booking workflow. Payment
-          terms are summarized in the offer; you can still ask questions in Chat.
+          Approving locks the lineup and confirms you agree to the booking terms
+          above. You can still ask questions in Chat.
         </Hint>
         {state.kind === "error" && (
           <div style={errorBoxStyle}>{state.message}</div>

@@ -30,6 +30,7 @@ import {
 } from "@/lib/inquiry/cross-tenant-context";
 import { loadLineupStatusSummary } from "@/lib/inquiry/acceptance-summary";
 import { loadTalentCardThumbs } from "./talent-card-thumbs";
+import { type BalanceCollectionMethod, type RefundPolicyKey, normalizeDepositPct } from "@/lib/billing/commercial-terms-types";
 
 // ─── Output shape ───────────────────────────────────────────────────────────
 
@@ -192,6 +193,13 @@ export type ClientInquiryDetails = {
      * honest "awaiting the other parties" state instead.
      */
     myApprovalStatus: "pending" | "accepted" | "rejected" | null;
+    /** W6a — negotiated booking terms (deposit/balance/refund). Null if unset. Client-safe. */
+    commercialTerms: {
+      depositPct: number;
+      depositAmountCents: number;
+      balanceMethod: BalanceCollectionMethod;
+      refundPolicy: RefundPolicyKey;
+    } | null;
   } | null;
 
   // ─── Section: Payment (client-facing, NO net/fee split) ──────────────
@@ -362,6 +370,7 @@ export async function loadClientInquiryDetails(
               `id, status, version, total_client_price, currency_code,
                notes, valid_until, sent_at,
                rejection_reason, rejection_reason_text,
+               deposit_pct, deposit_amount_cents, balance_collection_method, refund_policy_key,
                inquiry_offer_line_items (
                  id, label, pricing_unit, units, unit_price, total_price,
                  sort_order,
@@ -528,6 +537,10 @@ export async function loadClientInquiryDetails(
       sent_at: string | null;
       rejection_reason: string | null;
       rejection_reason_text: string | null;
+      deposit_pct: number | null;
+      deposit_amount_cents: number | null;
+      balance_collection_method: BalanceCollectionMethod | null;
+      refund_policy_key: RefundPolicyKey | null;
       inquiry_offer_line_items: OfferLineRow[] | null;
     };
     const offerRow = offerRes.data as OfferRow | null;
@@ -586,6 +599,14 @@ export async function loadClientInquiryDetails(
                 || null,
             })),
           myApprovalStatus: clientApprovalStatus,
+          commercialTerms: offerRow.balance_collection_method
+            ? {
+                depositPct: normalizeDepositPct(offerRow.balance_collection_method, Number(offerRow.deposit_pct ?? 0)),
+                depositAmountCents: Number(offerRow.deposit_amount_cents ?? 0),
+                balanceMethod: offerRow.balance_collection_method,
+                refundPolicy: offerRow.refund_policy_key ?? "tiered",
+              }
+            : null,
         }
       : null;
 

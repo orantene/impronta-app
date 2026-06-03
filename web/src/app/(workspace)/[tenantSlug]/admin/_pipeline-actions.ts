@@ -1300,6 +1300,15 @@ export type OfferDraftSnapshot = {
   coordinatorFee: number;
   currencyCode: string;
   notes: string | null;
+  // W6a — the negotiated commercial terms currently saved on this offer, for
+  // the composer to display + edit. Defaulted (never null) so the composer always
+  // has a coherent starting state; deposit amount is in minor units.
+  terms: {
+    depositPct: number;
+    depositAmountCents: number;
+    balanceMethod: "request_in_messages" | "pay_in_place" | "full_upfront";
+    refundPolicy: "tiered" | "flexible" | "strict" | "manual";
+  };
   lineItems: Array<{
     id: string;
     talentProfileId: string | null;
@@ -1330,10 +1339,26 @@ export async function loadOfferDraft(
 
     const { data: offer, error: offerErr } = await supabase
       .from("inquiry_offers")
-      .select("id, inquiry_id, version, total_client_price, coordinator_fee, currency_code, notes, status")
+      .select(
+        "id, inquiry_id, version, total_client_price, coordinator_fee, currency_code, notes, status, deposit_pct, deposit_amount_cents, balance_collection_method, refund_policy_key",
+      )
       .eq("id", offerId)
       .eq("tenant_id", tenantId)
-      .maybeSingle();
+      .maybeSingle()
+      .returns<{
+        id: string;
+        inquiry_id: string;
+        version: number | null;
+        total_client_price: number | null;
+        coordinator_fee: number | null;
+        currency_code: string | null;
+        notes: string | null;
+        status: string | null;
+        deposit_pct: number | string | null;
+        deposit_amount_cents: number | string | null;
+        balance_collection_method: string | null;
+        refund_policy_key: string | null;
+      }>();
     if (offerErr || !offer) {
       return { ok: false, error: "Offer not found in this workspace." };
     }
@@ -1371,6 +1396,44 @@ export async function loadOfferDraft(
     };
     const rows = (lines ?? []) as unknown as LineRow[];
 
+    // W6a — read the saved negotiated terms (display + snapshot only). When the
+    // offer predates W6a (null terms), fall back to the W5 resolver defaults so
+    // the composer always renders a coherent starting state.
+    const totalCents = Math.round(Number(offer.total_client_price ?? 0) * 100);
+    const { readOfferTermsFromRow, defaultOfferTermsFromResolved, deriveDepositAmountCents } =
+      await import("@/lib/billing/offer-commercial-terms");
+    let terms = readOfferTermsFromRow(
+      {
+        deposit_pct: offer.deposit_pct,
+        deposit_amount_cents: offer.deposit_amount_cents,
+        balance_collection_method: offer.balance_collection_method,
+        refund_policy_key: offer.refund_policy_key,
+      },
+      totalCents,
+    );
+    if (!terms) {
+      const { loadPlatformCommercialDefaults } = await import(
+        "@/lib/platform/commercial-defaults"
+      );
+      const { parseTenantCommercialTerms } = await import("@/lib/billing/commercial-terms");
+      const platform = await loadPlatformCommercialDefaults();
+      const { data: agency } = await supabase
+        .from("agencies")
+        .select("settings")
+        .eq("id", tenantId)
+        .maybeSingle();
+      const tenant = parseTenantCommercialTerms(
+        (agency as { settings?: unknown } | null)?.settings,
+      );
+      const d = defaultOfferTermsFromResolved({ platform, tenant, talent: null });
+      terms = {
+        depositPct: d.depositPct,
+        depositAmountCents: deriveDepositAmountCents(totalCents, d.depositPct),
+        balanceMethod: d.balanceMethod,
+        refundPolicy: d.refundPolicy,
+      };
+    }
+
     return {
       ok: true,
       data: {
@@ -1381,6 +1444,7 @@ export async function loadOfferDraft(
         coordinatorFee: Number(offer.coordinator_fee ?? 0),
         currencyCode: (offer.currency_code as string | null) ?? "USD",
         notes: (offer.notes as string | null) ?? null,
+        terms,
         lineItems: rows.map((r) => ({
           id: r.id,
           talentProfileId: r.talent_profile_id,
@@ -1422,6 +1486,14 @@ export async function saveOfferDraft(
     currencyCode: string;
     notes: string | null;
     lineItems: OfferLineDraft[];
+    // W6a — optional negotiated commercial terms. deposit_amount_cents is derived
+    // server-side; the composer only sends pct + method + policy. Omit to keep
+    // the offer's existing terms (or default them on first save).
+    terms?: {
+      depositPct?: number | null;
+      balanceMethod?: "request_in_messages" | "pay_in_place" | "full_upfront" | null;
+      refundPolicy?: "tiered" | "flexible" | "strict" | "manual" | null;
+    } | null;
   },
 ): Promise<PipelineActionResult> {
   try {
@@ -1449,6 +1521,7 @@ export async function saveOfferDraft(
       currency_code: patch.currencyCode,
       notes: patch.notes,
       lineItems: patch.lineItems,
+      terms: patch.terms ?? null,
     });
 
     if (!result.success) {
