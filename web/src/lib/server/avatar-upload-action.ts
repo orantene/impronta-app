@@ -62,8 +62,8 @@ export async function actionUploadAvatar(
 
   revalidatePath("/client/account");
   revalidatePath("/client/overview");
-  revalidatePath("/talent/account");
-  revalidatePath("/talent/my-profile");
+  revalidatePath("/talent/settings");
+  revalidatePath("/talent/profile");
 
   return { ok: true, avatarUrl };
 }
