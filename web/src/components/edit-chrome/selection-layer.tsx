@@ -77,9 +77,12 @@ import {
 import { CanvasMoveHandle, parseTranslate } from "./canvas-move-handle";
 import { CanvasResizeHandles } from "./canvas-resize-handles";
 import {
+  BoxModelHoverBands,
   CanvasSpacingHandles,
+  type MarginSide,
   type PaddingSide,
 } from "./canvas-spacing-handles";
+import { CanvasGapHandles } from "./canvas-gap-handles";
 import {
   BUILDER_NODE_PALETTE_DRAG_MIME,
   ElementLibraryInsertPicker,
@@ -99,6 +102,18 @@ interface Rect {
   width: number;
   height: number;
 }
+
+// #21 — the layout-container kinds whose gap is set through the `style.gap`
+// escape (→ `--bn-gap`). Mirrors the Style panel's Gap-field gate so the canvas
+// gap handle and the panel field act on the same nodes.
+const BUILDER_GAP_LAYOUT_KINDS = new Set<string>([
+  "container",
+  "split",
+  "card",
+  "cta_group",
+  "carousel",
+  "masonry",
+]);
 
 function isEditableKeyboardTarget(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
@@ -2047,6 +2062,13 @@ export function SelectionLayer() {
   const selectedNodeIsLocked = selectedBuilderNode?.locked === true;
   const canResizeSelectedNode =
     selectedNodeIsEditableBlock && !multiNodeSelectionActive && device === "desktop" && !selectedNodeIsLocked;
+  // #21 — gap handles apply only to the layout-container kinds that honour the
+  // `--bn-gap` escape (same set the Style panel's Gap field gates on). Reuses
+  // the resize gate so locked / multi-select / non-desktop are all excluded.
+  const isSelectedLayoutContainer =
+    canResizeSelectedNode &&
+    !!selectedBuilderNode &&
+    BUILDER_GAP_LAYOUT_KINDS.has(selectedBuilderNode.kind);
   const commitSelectedNodeSize = useCallback(
     (dims: { width?: number | null; height?: number | null }) => {
       if (!selectedBuilderNodeId) return;
@@ -2103,6 +2125,85 @@ export function SelectionLayer() {
       });
     },
     [selectedBuilderNodeId, builderTree, patchBuilderNodeProps],
+  );
+  // #25 — box-model MARGIN drag. Writes the free margin escape (the same
+  // collision-safe `margin*Free` key the Style panel uses), so the canvas drag
+  // and the panel field stay one value. 0 clears the escape back to the token.
+  const commitSelectedNodeMargin = useCallback(
+    (side: MarginSide, px: number) => {
+      if (!selectedBuilderNodeId) return;
+      const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
+      if (!node || node.kind === "section") return;
+      const currentStyle =
+        ((node.props as { style?: Record<string, unknown> } | undefined)
+          ?.style ?? {}) as Record<string, unknown>;
+      const key =
+        side === "top"
+          ? "marginTopFree"
+          : side === "right"
+            ? "marginRightFree"
+            : side === "bottom"
+              ? "marginBottomFree"
+              : "marginLeftFree";
+      const nextStyle: Record<string, unknown> = { ...currentStyle };
+      const liveEl = getSelectedBuilderNodeEl();
+      if (Math.round(px) <= 0) {
+        delete nextStyle[key];
+        if (liveEl) {
+          liveEl.style[
+            side === "top"
+              ? "marginTop"
+              : side === "right"
+                ? "marginRight"
+                : side === "bottom"
+                  ? "marginBottom"
+                  : "marginLeft"
+          ] = "";
+        }
+      } else {
+        nextStyle[key] = `${Math.round(px)}px`;
+      }
+      void patchBuilderNodeProps(selectedBuilderNodeId, { style: nextStyle });
+    },
+    [
+      selectedBuilderNodeId,
+      builderTree,
+      patchBuilderNodeProps,
+      getSelectedBuilderNodeEl,
+    ],
+  );
+  // #21 — visual auto-layout GAP drag (flex/grid containers). Writes the single
+  // `gap` free escape (→ `--bn-gap`), identical to the Style panel's Gap field.
+  // 0 clears the escape back to the gap token; the inline preview is cleared so
+  // the reset is visible immediately.
+  const commitSelectedNodeGap = useCallback(
+    (px: number) => {
+      if (!selectedBuilderNodeId) return;
+      const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
+      if (!node || node.kind === "section") return;
+      const currentStyle =
+        ((node.props as { style?: Record<string, unknown> } | undefined)
+          ?.style ?? {}) as Record<string, unknown>;
+      const nextStyle: Record<string, unknown> = { ...currentStyle };
+      const liveEl = getSelectedBuilderNodeEl();
+      if (Math.round(px) <= 0) {
+        delete nextStyle.gap;
+        if (liveEl) {
+          liveEl.style.gap = "";
+          liveEl.style.columnGap = "";
+          liveEl.style.rowGap = "";
+        }
+      } else {
+        nextStyle.gap = `${Math.round(px)}px`;
+      }
+      void patchBuilderNodeProps(selectedBuilderNodeId, { style: nextStyle });
+    },
+    [
+      selectedBuilderNodeId,
+      builderTree,
+      patchBuilderNodeProps,
+      getSelectedBuilderNodeEl,
+    ],
   );
   const commitSelectedNodeTranslate = useCallback(
     (x: number, y: number) => {
@@ -3096,6 +3197,16 @@ export function SelectionLayer() {
         />
       ) : null}
 
+      {/* #25 — passive devtools box-model bands on the hovered block (padding
+          inside / margin outside). Read-only; never intercepts the pointer.
+          Desktop-only and skipped while any drag is active. */}
+      {showNodeHover && hoveredBuilderNodeId && device === "desktop" ? (
+        <BoxModelHoverBands
+          rect={nodeHoverRect}
+          liveEl={getBuilderNodeEl(hoveredBuilderNodeId)}
+        />
+      ) : null}
+
       {/* 4A #7 — on-hover grab handle. A small draggable grip pinned to the
        *  hovered block's top-left so ANY block can be grabbed + reordered
        *  directly on the canvas (not just via the selection chip). It's the
@@ -3273,12 +3384,24 @@ export function SelectionLayer() {
             />
           ) : null}
 
-          {/* Direct manipulation — drag the inner bars to set padding. */}
+          {/* Direct manipulation — devtools box-model: drag the inner bars to
+              set padding, the outer bars to set margin (#25). */}
           {canResizeSelectedNode && !isDragging ? (
             <CanvasSpacingHandles
               rect={renderSelectedRect}
               liveEl={getSelectedBuilderNodeEl()}
               onCommitPadding={commitSelectedNodePadding}
+              onCommitMargin={commitSelectedNodeMargin}
+            />
+          ) : null}
+
+          {/* #21 — visual auto-layout: drag the pill in a gap between children
+              to set the container's gap (flex/grid containers only). */}
+          {isSelectedLayoutContainer && !isDragging ? (
+            <CanvasGapHandles
+              rect={renderSelectedRect}
+              liveEl={getSelectedBuilderNodeEl()}
+              onCommitGap={commitSelectedNodeGap}
             />
           ) : null}
 
