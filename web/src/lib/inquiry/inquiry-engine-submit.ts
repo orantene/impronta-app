@@ -2,8 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { canTransition, resolveNextActionBy } from "./inquiry-lifecycle";
 import { validateActorPermission } from "./inquiry-permissions";
 import { engineRateKey, rateLimiter } from "./inquiry-rate-limiter";
-import { assignCoordinatorFromSettings } from "./coordinator-assignment";
-import { resolveOwningPartiesForTalents } from "./owning-party-resolver";
+import { assignCoordinatorFromSettings, seedOwningAgencyCoordinators } from "./coordinator-assignment";
+import { resolveOwningPartiesForTalents, isHubSourcedChannel } from "./owning-party-resolver";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
 import { assertConsistencyAfterWrite, inquiryWriteClient, runWithEngineLog } from "./inquiry-engine.helpers";
 import type { EngineResult } from "./inquiry-engine.types";
@@ -452,15 +452,23 @@ export async function submitInquiry(
     // For Discover-originated inquiries (D5), exclusive-agency talents
     // route to the agency tenant; independent talents route to the
     // talent's own inbox.
-    // Pass the inquiry's tenant so the resolver is SOURCE-AWARE: a non-exclusive
-    // talent inquired through the open Tulala hub (a tenant they're not rostered
-    // on) self-coordinates; inquired through an agency's own storefront (a tenant
-    // they ARE rostered on) is owned by that workspace. Exclusive talents route
-    // to their agency regardless. Composes with the talent-self-coordinator seed.
+    // Pass the inquiry's tenant + a hub-source flag so the resolver is
+    // SOURCE-AWARE: a non-exclusive talent inquired through the open Tulala hub
+    // (Discover / public directory / public profile) self-coordinates; inquired
+    // through an agency's own storefront is owned by that workspace. Exclusive
+    // talents route to their agency regardless. Composes with the
+    // talent-self-coordinator seed below.
+    //
+    // The hub flag is REQUIRED (not just tenant matching): the Discover fan-out
+    // route files each inquiry under the talent's PRIMARY ROSTER tenant (the
+    // agency), so `inquiryTenantId` always matches the agency and can never
+    // detect a hub origin on its own. `source_channel` is the reliable signal.
+    const hubSourced = isHubSourcedChannel(input.source_channel);
     const owningParties = await resolveOwningPartiesForTalents(
       supabase,
       input.talent_profile_ids,
       input.tenant_id,
+      hubSourced,
     );
 
     let sort = 0;
@@ -538,6 +546,19 @@ export async function submitInquiry(
       // self-coordinator must never block submission.
       logServerError("inquiry-engine-submit.talentSelfCoordinator", selfCoordErr);
     }
+
+    // Cross-tenant coordinator: when an EXCLUSIVE talent is owned by an agency
+    // different from the inquiry's tenant (e.g. inquired via the open hub, filed
+    // under the hub tenant), seed that owning agency's coordinator so the inquiry
+    // isn't left unmanaged. No-op for the common same-tenant case. Returns the
+    // (possibly newly-promoted) coordinator of record for the engine event below.
+    assignment.coordinator_id = await seedOwningAgencyCoordinators(supabase, {
+      inquiryId,
+      inquiryTenantId: input.tenant_id,
+      talentProfileIds: input.talent_profile_ids,
+      owningParties,
+      existingCoordinatorId: assignment.coordinator_id,
+    });
 
     await assertConsistencyAfterWrite(supabase, inquiryId);
 
