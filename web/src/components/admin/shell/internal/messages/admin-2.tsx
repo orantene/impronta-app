@@ -349,6 +349,10 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
             unread: { client: inquiry.unreadPrivate, talent: inquiry.unreadGroup, files: fileCount },
             offerNeedsAttention: getOffer(inquiry.id)?.stage === "countered",
             paymentDue: inquiry.stage === "booked",
+            // Payment tab is relevant once all parties have approved and a
+            // booking exists or is imminent: approved → booked → wrapped.
+            // (Past/wrapped still needs the payout settle surface.)
+            paymentRelevant: stageBucket === "approved" || stageBucket === "booked" || stageBucket === "past",
             planTier,
           })}
         />
