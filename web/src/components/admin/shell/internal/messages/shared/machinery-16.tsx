@@ -14,6 +14,8 @@ import { DaySeparator, TeamStrip, dayKey, renderWithMentions } from "./machinery
 import { SystemEventBubble } from "./machinery-6";
 import { RealThreadStream } from "@/components/talent/talent-thread-stream";
 import { loadTalentInquiryThread, type TalentThreadMessage } from "@/app/(workspace)/[tenantSlug]/talent/inbox/[id]/actions";
+import { useThreadPresence } from "@/lib/realtime/presence";
+import { TypingRow } from "@/components/messages/thread-enhancements";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -80,7 +82,7 @@ export function ConversationTab({
   realThreadType?: "group" | "private";
   onSendReal?: (text: string) => Promise<{ ok: boolean; error?: string }>;
 }) {
-  const { toast, bridgeTalentSelfProfile } = useAdminShell();
+  const { toast, bridgeTalentSelfProfile, bridgeSessionIdentity } = useAdminShell();
   // S0.3 retirement: TeamStrip tap now nudges user to the Lineup tab
   // (parent shell handles tab switching). The drawer is no longer rendered.
   const openLineupTab = () => toast("Tap the Lineup tab above to manage talent");
@@ -116,6 +118,17 @@ export function ConversationTab({
     return () => { active = false; };
     // Re-load when switching conv or when a local send appends (stash bump).
   }, [conv.id, showReal, realThreadType]);
+  // Ephemeral typing presence — broadcast-only, no DB. One channel per real
+  // inquiry thread (group vs private kept distinct). Null channelKey on mock
+  // convs / when no session identity → the hook is a safe no-op.
+  const presenceChannelKey = showReal && bridgeSessionIdentity?.userId
+    ? `inquiry:${conv.id}:${realThreadType}`
+    : null;
+  const { typingUsers, setTyping } = useThreadPresence({
+    channelKey: presenceChannelKey,
+    userId: bridgeSessionIdentity?.userId ?? "",
+    displayName: bridgeSessionIdentity?.displayName ?? "Someone",
+  });
   // In-thread search — small toggle in the header opens a compact
   // search input that filters visible bubbles to those whose body
   // matches. System events are kept (they often anchor the search
@@ -368,6 +381,9 @@ export function ConversationTab({
         </div>
         </>)}
       </div>
+      {/* Ephemeral typing-presence row — sits between the message list and
+          the composer. Renders nothing when no peer is typing. */}
+      {mode !== "activity" && <TypingRow users={typingUsers} color={COLORS.inkMuted} />}
       {/* Fixed composer — locked at the bottom of the visible area so
           users can always reply without scrolling. Closed convs
           (cancelled / past) replace the composer with a closure
@@ -424,6 +440,7 @@ export function ConversationTab({
             // Sender attribution is a server concern. Keep send-as hidden
             // until persisted sender roles are supported.
             canSendAsWorkspace={false}
+            onTyping={setTyping}
           />
         )}
       </div>
@@ -515,6 +532,9 @@ export function DraftComposer({
   // picker listing these participants. Selecting one inserts "@Name"
   // at the cursor position. renderWithMentions highlights the tags.
   mentionCandidates,
+  // Ephemeral typing-presence beat. Called with `true` on each keystroke and
+  // `false` on send/blur. The host wires this to useThreadPresence().setTyping.
+  onTyping,
 }: {
   threadKey: string;
   placeholder: string;
@@ -525,6 +545,7 @@ export function DraftComposer({
   onSendAsWorkspace?: (text: string) => void;
   onAttach?: (file: File) => void;
   mentionCandidates?: MentionCandidate[];
+  onTyping?: (isTyping: boolean) => void;
 }) {
   const [val, setVal] = useState(() => __draftStore.get(threadKey) ?? "");
   // C3 — @-mention picker state. Opens when the user types "@" anywhere
@@ -610,6 +631,7 @@ export function DraftComposer({
       onSend(text);
     }
     setVal(""); setHasSent(true); setSmartOpen(false);
+    onTyping?.(false);
     // After sending as workspace, snap back to "you" so consecutive
     // sends don't all auto-attribute to the workspace by accident.
     setSendAs("you");
@@ -822,7 +844,9 @@ export function DraftComposer({
             onChange={(e) => {
               setVal(e.target.value);
               updateMentionState(e.target.value, e.target.selectionStart ?? e.target.value.length);
+              onTyping?.(e.target.value.length > 0);
             }}
+            onBlur={() => onTyping?.(false)}
             onKeyDown={(e) => {
               if (e.key === "Escape" && showMentionPicker) {
                 setMentionQuery(null);

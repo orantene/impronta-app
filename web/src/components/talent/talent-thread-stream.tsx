@@ -7,6 +7,8 @@ import { type Conversation } from "@/components/admin/shell/internal/talent";
 import { DaySeparator } from "@/components/admin/shell/internal/messages/shared/machinery-15";
 import { renderChatCardForMessage } from "@/components/admin/shell/internal/messages/admin-3";
 import { type TalentThreadMessage } from "@/app/(workspace)/[tenantSlug]/talent/inbox/[id]/actions";
+import { renderMessageMarkdown } from "@/lib/messages/markdown";
+import { LinkPreview, firstHttpUrl } from "@/components/messages/thread-enhancements";
 
 /** Money/booking/system kinds that render as structured cards (Activity view). */
 export const MONEY_KINDS = new Set([
@@ -130,7 +132,21 @@ export function RealThreadStream({
                     {m.senderName}
                   </div>
                 )}
-                <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{m.body}</div>
+                <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{renderMessageMarkdown(m.body)}</div>
+                {(() => {
+                  const url = firstHttpUrl(m.body);
+                  return url ? (
+                    <LinkPreview
+                      url={url}
+                      colors={{
+                        bg: mine ? "rgba(255,255,255,0.10)" : COLORS.card,
+                        border: mine ? "rgba(255,255,255,0.22)" : COLORS.borderSoft,
+                        title: mine ? "#fff" : COLORS.ink,
+                        muted: mine ? "rgba(255,255,255,0.7)" : COLORS.inkMuted,
+                      }}
+                    />
+                  ) : null;
+                })()}
                 <div style={{ fontSize: 10, color: mine ? "rgba(255,255,255,0.55)" : COLORS.inkDim, marginTop: 4 }}>
                   {realTimeLabel(m.ts)}
                 </div>
