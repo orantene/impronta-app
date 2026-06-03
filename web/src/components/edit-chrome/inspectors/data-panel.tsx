@@ -11,15 +11,23 @@ import {
   getBuilderDataBindingFindings,
   getBuilderDataSourceDefinition,
   getBuilderNodeFieldBindingProps,
+  getCollectionFieldBindingOptions,
   getDefaultBuilderDataBinding,
+  isCollectionDataSourceKey,
   normalizeBuilderFieldBindings,
   normalizeBuilderDataBinding,
+  type BuilderCollectionDataSource,
   type BuilderDataBinding,
   type BuilderDataBindingMode,
+  type BuilderDataSourceFieldDefinition,
   type BuilderDataSourceKey,
   type BuilderFieldBindingProp,
   type BuilderNode,
 } from "@/lib/site-admin/builder-node";
+import {
+  listCollectionsAction,
+} from "@/lib/site-admin/collections/actions";
+import { collectionSourceKey } from "@/lib/site-admin/collections/types";
 import { useEditContext } from "../edit-context";
 import { Card, CardBody, CardHead, Field, FieldLabel, Helper, Segmented, Toggle } from "../kit";
 import { KIT } from "./kit/tokens";
@@ -33,12 +41,78 @@ interface DataPanelProps {
   onMutationError?: (message: string) => void;
 }
 
+/**
+ * Wave 5A — load the workspace's content collections once (per editor session)
+ * so the data inspector can offer them as bindable sources + their fields. A
+ * module-level promise cache means every inspector instance shares one fetch;
+ * the editor's "Collections" drawer bumps {@link bumpCollectionsCache} after a
+ * mutation so the picker refreshes. Failures resolve to an empty list — the
+ * built-in sources always remain available.
+ */
+let collectionsCachePromise: Promise<BuilderCollectionDataSource[]> | null = null;
+// Bumped on every collection mutation so mounted pickers re-read the fresh list.
+const collectionsCacheListeners = new Set<() => void>();
+
+export function bumpCollectionsCache(): void {
+  collectionsCachePromise = null;
+  for (const notify of collectionsCacheListeners) notify();
+}
+
+function loadWorkspaceCollections(): Promise<BuilderCollectionDataSource[]> {
+  if (!collectionsCachePromise) {
+    collectionsCachePromise = listCollectionsAction()
+      .then((result) =>
+        result.ok
+          ? result.data.map<BuilderCollectionDataSource>((collection) => ({
+              sourceKey: collectionSourceKey(collection.id),
+              label: collection.name,
+              itemCount: collection.itemCount,
+              fields: collection.fields.map<BuilderDataSourceFieldDefinition>(
+                (field) => ({
+                  key: field.key,
+                  label: field.label,
+                  kind:
+                    field.type === "image"
+                      ? "image"
+                      : field.type === "url"
+                        ? "href"
+                        : "text",
+                }),
+              ),
+            }))
+          : [],
+      )
+      .catch(() => []);
+  }
+  return collectionsCachePromise;
+}
+
+function useWorkspaceCollections(): BuilderCollectionDataSource[] {
+  const [collections, setCollections] = useState<BuilderCollectionDataSource[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    const subscribe = () => {
+      void loadWorkspaceCollections().then((list) => {
+        if (!cancelled) setCollections(list);
+      });
+    };
+    subscribe();
+    collectionsCacheListeners.add(subscribe);
+    return () => {
+      cancelled = true;
+      collectionsCacheListeners.delete(subscribe);
+    };
+  }, []);
+  return collections;
+}
+
 export function DataPanel({
   selectedBuilderNode,
   onPatchBuilderNodeProps,
   onMutationError,
 }: DataPanelProps) {
   const { workspacePlan } = useEditContext();
+  const collections = useWorkspaceCollections();
   const persistedBinding = useMemo(
     () =>
       selectedBuilderNode
@@ -79,6 +153,9 @@ export function DataPanel({
   }
 
   const binding = pendingBinding ?? persistedBinding;
+  const boundCollection = binding
+    ? collections.find((entry) => entry.sourceKey === binding.sourceKey) ?? null
+    : null;
   const source =
     getBuilderDataSourceDefinition(binding?.sourceKey) ??
     getBuilderDataSourceDefinition("featured_talent_profiles");
@@ -126,7 +203,11 @@ export function DataPanel({
       <Card state={binding ? "active" : "default"}>
         <CardHead
           title="Data binding"
-          sub={binding ? source?.label ?? binding.sourceKey : "Manual by default"}
+          sub={
+            binding
+              ? boundCollection?.label ?? source?.label ?? binding.sourceKey
+              : "Manual by default"
+          }
           iconAccent={binding ? "green" : "blue"}
           action={
             binding ? (
@@ -155,6 +236,18 @@ export function DataPanel({
                     void commitBinding(null);
                     return;
                   }
+                  // A user collection (`collection:<id>`) binds directly and
+                  // repeats by default — it only makes sense on a container, so
+                  // for a collection source we seed `repeat` when applicable.
+                  if (isCollectionDataSourceKey(nextSource)) {
+                    void commitBinding({
+                      sourceKey: nextSource,
+                      ...(selectedBuilderNode?.kind === "container"
+                        ? { repeat: true }
+                        : {}),
+                    });
+                    return;
+                  }
                   const sourceDef = getBuilderDataSourceDefinition(nextSource);
                   if (!sourceDef) return;
                   if (!builderDataSourceAllowedForPlan(sourceDef.key, workspacePlan)) {
@@ -177,6 +270,18 @@ export function DataPanel({
                       : ""}
                   </option>
                 ))}
+                {collections.length > 0 ? (
+                  <optgroup label="Your collections">
+                    {collections.map((entry) => (
+                      <option key={entry.sourceKey} value={entry.sourceKey}>
+                        {entry.label}
+                        {typeof entry.itemCount === "number"
+                          ? ` (${entry.itemCount})`
+                          : ""}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null}
               </select>
               <Helper>
                 {binding && source
@@ -318,11 +423,23 @@ function FieldBindingsPanel({
   onPatchBuilderNodeProps: DataPanelProps["onPatchBuilderNodeProps"];
   onMutationError?: DataPanelProps["onMutationError"];
 }) {
+  const collections = useWorkspaceCollections();
   const propKeys = getBuilderNodeFieldBindingProps(selectedBuilderNode.kind);
   const persisted = normalizeBuilderFieldBindings(
     (selectedBuilderNode.props as Record<string, unknown>).fieldBindings,
     propKeys,
   );
+  // Offer the built-in source fields PLUS every workspace-collection field
+  // (deduped by key), so a node inside a collection-bound repeater can map its
+  // text/image/link to a collection field. Tokens resolve by key at render, so
+  // it works regardless of which collection the parent repeats.
+  const bindingOptions: ReadonlyArray<BuilderDataSourceFieldDefinition> =
+    dedupeFieldOptions([
+      ...BUILDER_FIELD_BINDING_OPTIONS,
+      ...collections.flatMap((collection) =>
+        getCollectionFieldBindingOptions(collection),
+      ),
+    ]);
   async function patchFieldBinding(
     prop: BuilderFieldBindingProp,
     fieldKey: string,
@@ -362,7 +479,7 @@ function FieldBindingsPanel({
                   aria-label={`${fieldBindingPropLabel(prop)} field binding`}
                 >
                   <option value="">Manual fallback</option>
-                  {BUILDER_FIELD_BINDING_OPTIONS.map((field) => (
+                  {bindingOptions.map((field) => (
                     <option key={`${prop}:${field.key}`} value={field.key}>
                       {field.label} ({field.key})
                     </option>
@@ -393,6 +510,16 @@ function SectionDataHintCard() {
       </CardBody>
     </Card>
   );
+}
+
+function dedupeFieldOptions(
+  fields: ReadonlyArray<BuilderDataSourceFieldDefinition>,
+): BuilderDataSourceFieldDefinition[] {
+  const seen = new Map<string, BuilderDataSourceFieldDefinition>();
+  for (const field of fields) {
+    if (!seen.has(field.key)) seen.set(field.key, field);
+  }
+  return [...seen.values()];
 }
 
 function fieldBindingPropLabel(prop: BuilderFieldBindingProp): string {

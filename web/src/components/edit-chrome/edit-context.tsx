@@ -753,6 +753,18 @@ export interface EditContextValue {
   openAssets: () => void;
   closeAssets: () => void;
 
+  // ── collections drawer (Wave 5A, job #36) ──
+  /**
+   * Visibility flag for the CollectionsDrawer — define operator content
+   * collections (Team / Projects / Testimonials) + their rows, then bind a
+   * repeater to one from the data inspector. The drawer owns its own data
+   * fetch (via the collections server actions); EditContext owns only the
+   * open/close mutex so it shares the single right-rail slot.
+   */
+  collectionsOpen: boolean;
+  openCollections: () => void;
+  closeCollections: () => void;
+
   // ── schedule drawer (Phase 12) ──
   /**
    * Visibility flag for the ScheduleDrawer. Lights up on the topbar
@@ -1969,6 +1981,7 @@ export function EditProvider({
 
   // assets drawer state (Phase 7)
   const [assetsOpen, setAssetsOpen] = useState(false);
+  const [collectionsOpen, setCollectionsOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   // comments drawer state (Phase 11)
   const [commentsOpen, setCommentsOpen] = useState(false);
@@ -5122,6 +5135,7 @@ export function EditProvider({
         | "revisions"
         | "theme"
         | "assets"
+        | "collections"
         | "schedule"
         | "comments",
       commentsSectionFocus?: string | null,
@@ -5132,6 +5146,7 @@ export function EditProvider({
       setRevisionsOpen(active === "revisions");
       setThemeOpen(active === "theme");
       setAssetsOpen(active === "assets");
+      setCollectionsOpen(active === "collections");
       setScheduleOpen(active === "schedule");
       setCommentsOpen(active === "comments");
       setCommentsFocusSectionId(
@@ -5171,6 +5186,11 @@ export function EditProvider({
     showExclusiveRightRailDrawer("assets");
   }, [showExclusiveRightRailDrawer]);
   const closeAssets = useCallback(() => setAssetsOpen(false), []);
+
+  const openCollections = useCallback(() => {
+    showExclusiveRightRailDrawer("collections");
+  }, [showExclusiveRightRailDrawer]);
+  const closeCollections = useCallback(() => setCollectionsOpen(false), []);
 
   const openSchedule = useCallback(() => {
     showExclusiveRightRailDrawer("schedule");
@@ -5489,6 +5509,9 @@ export function EditProvider({
       assetsOpen,
       openAssets,
       closeAssets,
+      collectionsOpen,
+      openCollections,
+      closeCollections,
 
       scheduleOpen,
       openSchedule,
@@ -5664,6 +5687,9 @@ export function EditProvider({
       assetsOpen,
       openAssets,
       closeAssets,
+      collectionsOpen,
+      openCollections,
+      closeCollections,
       scheduleOpen,
       openSchedule,
       closeSchedule,

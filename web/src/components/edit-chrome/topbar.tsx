@@ -1757,12 +1757,14 @@ function MoreMenu({
   onRevisions,
   onTheme,
   onAssets,
+  onCollections,
   onTemplates,
   onShare,
 }: {
   onRevisions?: () => void;
   onTheme?: () => void;
   onAssets?: () => void;
+  onCollections?: () => void;
   onTemplates?: () => void;
   onShare?: (opts: {
     label?: string;
@@ -1914,6 +1916,20 @@ function MoreMenu({
                 label="Asset library"
                 hint="Images & uploads"
                 shortcut="⌘L"
+              />
+              <MoreRow
+                disabled={!onCollections}
+                onClick={() => handlePick(onCollections)}
+                icon={
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <rect x="3" y="3" width="7" height="7" rx="1" />
+                    <rect x="14" y="3" width="7" height="7" rx="1" />
+                    <rect x="3" y="14" width="7" height="7" rx="1" />
+                    <rect x="14" y="14" width="7" height="7" rx="1" />
+                  </svg>
+                }
+                label="Collections"
+                hint="Reusable content + binding"
               />
               <MoreRow
                 disabled={!onTemplates}
@@ -2231,6 +2247,8 @@ export interface TopBarProps {
   onTheme?: () => void;
   /** Open the Assets drawer (folder icon in the right cluster). */
   onAssets?: () => void;
+  /** Open the Collections drawer (operator content collections). */
+  onCollections?: () => void;
   /** Open the template gallery overlay. */
   onTemplates?: () => void;
   /** Open the Schedule drawer (Phase 12 — Publish-split-button menu option). */
@@ -2307,6 +2325,7 @@ export function TopBar({
   onRevisions,
   onTheme,
   onAssets,
+  onCollections,
   onTemplates,
   onSchedule,
   onComments,
@@ -2492,6 +2511,7 @@ export function TopBar({
         onRevisions={onRevisions}
         onTheme={onTheme}
         onAssets={onAssets}
+        onCollections={onCollections}
         onTemplates={onTemplates}
         onShare={onShare}
       />

@@ -40,6 +40,7 @@ import { PageSettingsDrawer } from "./page-settings-drawer";
 import { RevisionsDrawer } from "./revisions-drawer";
 import { ThemeDrawer } from "./theme-drawer";
 import { AssetsDrawer } from "./assets-drawer";
+import { CollectionsDrawer } from "./collections-drawer";
 import { CommandPalette } from "./command-palette";
 import { NavigatorPanel } from "./navigator-panel";
 import { ShortcutOverlay } from "./shortcut-overlay";
@@ -275,6 +276,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     openTheme,
     canEditSiteShell,
     openAssets,
+    openCollections,
     openSchedule,
     openComments,
     openStarterTemplateGallery,
@@ -285,6 +287,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     closeRevisions,
     closeTheme,
     closeAssets,
+    closeCollections,
     closeSchedule,
     closeComments,
     publishOpen,
@@ -292,6 +295,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     revisionsOpen,
     themeOpen,
     assetsOpen,
+    collectionsOpen,
     scheduleOpen,
     commentsOpen,
     paletteOpen,
@@ -395,6 +399,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
       revisions: pageSlug ? "noop" : openRevisions,
       theme: openTheme,
       assets: openAssets,
+      collections: openCollections,
       schedule: openSchedule,
       comments: openComments,
       templates: () => openStarterTemplateGallery(templateSlug),
@@ -424,6 +429,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     openRevisions,
     openTheme,
     openAssets,
+    openCollections,
     openSchedule,
     openComments,
     openStarterTemplateGallery,
@@ -548,6 +554,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
           revisionsOpen ||
           themeOpen ||
           assetsOpen ||
+          collectionsOpen ||
           scheduleOpen ||
           commentsOpen)
       ) {
@@ -557,6 +564,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         if (revisionsOpen) closeRevisions();
         if (themeOpen) closeTheme();
         if (assetsOpen) closeAssets();
+        if (collectionsOpen) closeCollections();
         if (scheduleOpen) closeSchedule();
         if (commentsOpen) closeComments();
         return;
@@ -743,6 +751,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     revisionsOpen,
     themeOpen,
     assetsOpen,
+    collectionsOpen,
     scheduleOpen,
     commentsOpen,
     closePublish,
@@ -751,6 +760,8 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     closeTheme,
     openAssets,
     closeAssets,
+    openCollections,
+    closeCollections,
     closeSchedule,
     closeComments,
     paletteOpen,
@@ -836,6 +847,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
           onRevisions={pageSlug ? undefined : openRevisions}
           onTheme={canEditSiteShell ? openTheme : undefined}
           onAssets={openAssets}
+          onCollections={openCollections}
           onTemplates={openStarterTemplateGallery}
           onSchedule={openSchedule}
           onComments={openComments}
@@ -879,6 +891,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         <RevisionsDrawer />
         <ThemeDrawer />
         <AssetsDrawer />
+        <CollectionsDrawer />
         <ScheduleDrawer />
         <CommentsDrawer />
         <StarterTemplateGalleryOverlay />

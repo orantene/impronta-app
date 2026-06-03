@@ -28,6 +28,7 @@ import {
   buildBuilderNodeRoleBindings,
   builderSectionNodeAddressKey,
   BuilderNodeRendererStyles,
+  collectBuilderCollectionSourceKeys,
   collectBuilderImageMediaIds,
   hasRenderableBuilderNodes,
   indexBuilderSectionChildNodeIds,
@@ -41,6 +42,7 @@ import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instan
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { listBuilderImageMediaAssets } from "@/lib/site-admin/media/assets";
+import { resolveCollectionDataSources } from "@/lib/site-admin/collections/server";
 import { getSectionType } from "@/lib/site-admin/sections/registry";
 import { isSiteShellEnabledForTenant } from "@/lib/site-admin/site-shell-flag";
 import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
@@ -256,13 +258,21 @@ async function renderShellSlot(
         }
       : undefined;
   const mediaIds = collectBuilderImageMediaIds(builderSectionChildren);
-  const mediaSupabase = mediaIds.length > 0 ? createServiceRoleClient() : null;
-  const [builderComponents, mediaAssets] = await Promise.all([
+  const collectionSourceKeys = collectBuilderCollectionSourceKeys(builderSectionChildren);
+  const serviceSupabase =
+    mediaIds.length > 0 || collectionSourceKeys.length > 0
+      ? createServiceRoleClient()
+      : null;
+  const mediaSupabase = mediaIds.length > 0 ? serviceSupabase : null;
+  const [builderComponents, mediaAssets, collections] = await Promise.all([
     treeHasInstances(builderSectionChildren)
       ? loadBuilderComponentsForTenant(tenantId)
       : Promise.resolve({}),
     mediaSupabase
       ? listBuilderImageMediaAssets(mediaSupabase, tenantId, mediaIds)
+      : Promise.resolve(undefined),
+    serviceSupabase && collectionSourceKeys.length > 0
+      ? resolveCollectionDataSources(serviceSupabase, tenantId, collectionSourceKeys)
       : Promise.resolve(undefined),
   ]);
   // Phase B.2.B — wrap each shell section in the same `data-cms-section`
@@ -305,7 +315,7 @@ async function renderShellSlot(
             publicPathPrefix,
             mode: "freeform",
             includeRendererStyles: false,
-            dataSources: { mediaAssets },
+            dataSources: { mediaAssets, collections },
             // Phase 3 — resolve live component instances in shell slots too.
             // Gated: the DB query only runs when the slot actually has instances.
             components: builderComponents,

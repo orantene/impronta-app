@@ -25,6 +25,7 @@ import {
   buildBuilderNodeRoleBindings,
   builderSectionNodeAddressKey,
   BuilderNodeRendererStyles,
+  collectBuilderCollectionSourceKeys,
   collectBuilderImageMediaIds,
   hasRenderableBuilderNodes,
   indexBuilderSectionChildNodeIds,
@@ -57,6 +58,7 @@ import {
 } from "@/lib/site-admin/sections/shared/presentation";
 import { fetchFeaturedTalentForSection } from "@/lib/site-admin/sections/featured_talent/fetch";
 import { listBuilderImageMediaAssets } from "@/lib/site-admin/media/assets";
+import { resolveCollectionDataSources } from "@/lib/site-admin/collections/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getPublicPathPrefix } from "@/lib/saas";
 import { prefixPublicHrefsDeep } from "@/lib/saas/public-hrefs";
@@ -568,17 +570,25 @@ async function loadBuilderNodeDataSources(
     "tenant_directory_search",
   );
   const mediaIds = collectBuilderImageMediaIds(nodes);
+  const collectionSourceKeys = collectBuilderCollectionSourceKeys(nodes);
   if (
     featuredLimit == null &&
     !needsLocations &&
     !needsDirectoryShortcuts &&
-    mediaIds.length === 0
+    mediaIds.length === 0 &&
+    collectionSourceKeys.length === 0
   ) {
     return {};
   }
-  const mediaSupabase = mediaIds.length > 0 ? createServiceRoleClient() : null;
+  // The storefront read bypasses RLS (service role) for media + collections.
+  const serviceSupabase =
+    mediaIds.length > 0 || collectionSourceKeys.length > 0
+      ? createServiceRoleClient()
+      : null;
+  const mediaSupabase = mediaIds.length > 0 ? serviceSupabase : null;
 
-  const [featuredTalentProfiles, homepageData, mediaAssets] = await Promise.all([
+  const [featuredTalentProfiles, homepageData, mediaAssets, collections] =
+    await Promise.all([
     featuredLimit == null
       ? Promise.resolve(undefined)
       : fetchFeaturedTalentForSection(
@@ -598,6 +608,9 @@ async function loadBuilderNodeDataSources(
     mediaSupabase
       ? listBuilderImageMediaAssets(mediaSupabase, tenantId, mediaIds)
       : Promise.resolve(undefined),
+    serviceSupabase && collectionSourceKeys.length > 0
+      ? resolveCollectionDataSources(serviceSupabase, tenantId, collectionSourceKeys)
+      : Promise.resolve(undefined),
   ]);
 
   return {
@@ -605,5 +618,6 @@ async function loadBuilderNodeDataSources(
     talentLocations: homepageData?.locations,
     directoryShortcuts: homepageData?.talentTypes,
     mediaAssets,
+    collections,
   };
 }
