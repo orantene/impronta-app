@@ -172,7 +172,7 @@ test("isPlatformAuthPath: only root (auth) routes, never tenant/external/scheme"
 });
 
 test("FINDING-B FIX: prefixPublicHref never tenant-prefixes root auth routes", () => {
-  // The actual live impronta-home recipe Talent CTAs:
+  // Root auth CTAs as used by agency homepage Talent/Login CTAs:
   assert.equal(prefixPublicHref("/login", "/impronta"), "/login"); // was /impronta/login → 404
   assert.equal(prefixPublicHref("/register", "/impronta"), "/register");
   assert.equal(
