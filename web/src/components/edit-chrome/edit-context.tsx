@@ -123,6 +123,7 @@ import {
   addTranslateDeltaToTree,
   computeAlignDeltas,
   computeDistributeDeltas,
+  mergeStylePatchIntoTree,
   type MultiNodeAlignMode,
   type MultiNodeDistributeMode,
   type MultiNodeRect,
@@ -336,6 +337,18 @@ export interface EditContextValue {
   distributeSelectedBuilderNodes: (
     mode: MultiNodeDistributeMode,
     rects: ReadonlyArray<MultiNodeRect>,
+  ) => Promise<{ ok: boolean; error?: string }>;
+  /**
+   * Job #28 (bulk edit) — merge one top-level `style` patch into EVERY
+   * currently-selected freeform node at once (primary + additional). A key set
+   * to `undefined` clears that prop for the whole selection. Runs through the
+   * same atomic patch/undo path as align/distribute (no parallel system); a
+   * section in the set is skipped. Pass a JSON string so the React Compiler
+   * can't read a mutable captured object and bail the whole context's memo
+   * (matching insertBuilderComponent / setInstanceOverride).
+   */
+  patchSelectedBuilderNodesStyle: (
+    stylePatchJson: string,
   ) => Promise<{ ok: boolean; error?: string }>;
   copySelectedBuilderNodes: () => { ok: boolean; error?: string; count?: number };
   cutSelectedBuilderNodes: () => Promise<{ ok: boolean; error?: string; count?: number }>;
@@ -4733,6 +4746,43 @@ export function EditProvider({
     [translateSelectedBuilderNodes],
   );
 
+  const patchSelectedBuilderNodesStyle = useCallback<
+    EditContextValue["patchSelectedBuilderNodesStyle"]
+  >(
+    async (stylePatchJson) => {
+      let patch: Record<string, unknown>;
+      try {
+        const parsed = JSON.parse(stylePatchJson) as unknown;
+        if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+          return { ok: false, error: "Invalid style change." };
+        }
+        patch = parsed as Record<string, unknown>;
+      } catch {
+        return { ok: false, error: "Invalid style change." };
+      }
+      if (Object.keys(patch).length === 0) return { ok: true };
+      const nodeIds = getAllSelectedBuilderNodeIds();
+      if (nodeIds.length === 0) return { ok: true };
+      const guarded = guardSelectedBuilderNodes(nodeIds);
+      if (guarded) return { ok: false, error: guarded };
+      const patched = await executeBuilderNodeOperation({
+        operation: "patch",
+        nodeId: nodeIds[0],
+        run: (tree) => ({
+          ok: true,
+          tree: mergeStylePatchIntoTree(tree, nodeIds, patch),
+        }),
+      });
+      if (!patched.ok) return { ok: false, error: patched.error };
+      return { ok: true };
+    },
+    [
+      executeBuilderNodeOperation,
+      getAllSelectedBuilderNodeIds,
+      guardSelectedBuilderNodes,
+    ],
+  );
+
   const copySelectedBuilderNodes = useCallback<
     EditContextValue["copySelectedBuilderNodes"]
   >(() => {
@@ -5327,6 +5377,7 @@ export function EditProvider({
 	      translateSelectedBuilderNodes,
 	      alignSelectedBuilderNodes,
 	      distributeSelectedBuilderNodes,
+	      patchSelectedBuilderNodesStyle,
 	      copySelectedBuilderNodes,
 	      cutSelectedBuilderNodes,
 	      pasteBuilderNodeClipboard,
@@ -5515,6 +5566,7 @@ export function EditProvider({
 	      translateSelectedBuilderNodes,
 	      alignSelectedBuilderNodes,
 	      distributeSelectedBuilderNodes,
+	      patchSelectedBuilderNodesStyle,
 	      copySelectedBuilderNodes,
 	      cutSelectedBuilderNodes,
 	      pasteBuilderNodeClipboard,

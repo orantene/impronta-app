@@ -556,6 +556,7 @@ export function SelectionLayer() {
     translateSelectedBuilderNodes,
     alignSelectedBuilderNodes,
     distributeSelectedBuilderNodes,
+    patchSelectedBuilderNodesStyle,
     copySelectedBuilderNodes,
     cutSelectedBuilderNodes,
     pasteBuilderNodeClipboard,
@@ -577,6 +578,7 @@ export function SelectionLayer() {
     duplicateBuilderNode,
     getCopiedBuilderNodePastePreview,
     pasteCopiedBuilderNode,
+    saveSelectedNodeAsComponent,
     setSectionVisibility,
     openPickerPopover,
     saving,
@@ -1058,30 +1060,45 @@ export function SelectionLayer() {
       if (e.target instanceof Element) {
         if (
           e.target.closest("[data-edit-topbar]") ||
+          // The Layers rail (data-edit-overlay="navigator-panel") is the ONE
+          // chrome surface that may host a right-click target: #30 wants a
+          // layer-row context menu. We still bail for the rest of the rail's
+          // own buttons/inputs below via the row-id resolution. Other drawers +
+          // the open menu itself never own a canvas-style context menu.
           e.target.closest("[data-edit-drawer]") ||
           e.target.closest("[data-selection-context-menu]")
         ) {
           return;
         }
       }
+      // #30 — three entry points resolve to the same menu:
+      //   1. a section element on the canvas (curated/section node),
+      //   2. a bare freeform builder node on the canvas (no section wrapper),
+      //   3. a LAYER ROW in the navigator (carries data-builder-node-id too).
+      // A freeform full-page design has no [data-cms-section]; the old
+      // `if (!el) return` swallowed both the freeform-canvas and layer-row
+      // right-clicks (P3-LOCK noted this gap). Accept a bare node id.
       const el = findSectionEl(e.target);
-      if (!el) return;
-      const id = el.getAttribute("data-section-id");
-      if (!id) return;
+      const sectionId = el?.getAttribute("data-section-id") ?? null;
       const builderNodeId =
         findBuilderNodeEl(e.target)?.getAttribute("data-builder-node-id") ??
-        el.getAttribute("data-builder-node-id");
+        el?.getAttribute("data-builder-node-id") ??
+        null;
+      if (!sectionId && !builderNodeId) return;
       e.preventDefault();
       e.stopPropagation();
       if (builderNodeId) {
         callbacksRef.current.selectBuilderNode(builderNodeId);
-      } else {
-        callbacksRef.current.focusSectionForEdit(id);
+      } else if (sectionId) {
+        callbacksRef.current.focusSectionForEdit(sectionId);
       }
       setContextMenu({
         x: e.clientX,
         y: e.clientY,
-        sectionId: id,
+        // Section-scoped actions (move/hide/delete/eject) key off this; for a
+        // bare freeform block it's "" and those actions don't render (the menu
+        // shows BLOCK actions instead, gated on builderNodeId ≠ section node).
+        sectionId: sectionId ?? "",
         builderNodeId,
       });
     }
@@ -2106,10 +2123,11 @@ export function SelectionLayer() {
     },
     [selectedBuilderNodeId, builderTree, patchBuilderNodeProps],
   );
-  // Keyboard nudge — arrow keys move the selected freeform block/set by
-  // translate (1px, or 10px with Shift). Complements the centre move grip for
-  // precise positioning. Gated so it never hijacks typing or panel/tree
-  // navigation.
+  // #32 — keyboard nudge moves the selected freeform block/set by translate
+  // (Alt+arrow = 1px, Alt+Shift+arrow = 10px). It now lives under ALT so PLAIN
+  // arrows are free to NAVIGATE the selection through the tree (the tree-nav
+  // effect below). Complements the centre move grip for precise positioning;
+  // gated so it never hijacks typing or panel/tree navigation.
   useEffect(() => {
     if (!canResizeSelectedNode && !multiNodeSelectionActive) return;
     const DELTAS: Record<string, [number, number]> = {
@@ -2121,7 +2139,8 @@ export function SelectionLayer() {
     function onNudge(e: KeyboardEvent) {
       const delta = DELTAS[e.key];
       if (!delta) return;
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      // Alt = nudge; plain arrows are tree navigation; meta/ctrl reserved.
+      if (!e.altKey || e.metaKey || e.ctrlKey) return;
       if (isEditableKeyboardTarget(e.target) || !keyboardFocusIsOnCanvas()) return;
       e.preventDefault();
       const step = e.shiftKey ? 10 : 1;
@@ -2175,6 +2194,75 @@ export function SelectionLayer() {
     () => findBuilderNodePath(builderTree, selectedCanvasNodeId),
     [builderTree, selectedCanvasNodeId],
   );
+
+  // #32 — KEYBOARD NAV through the tree. Plain arrows move the SELECTION
+  // (not the block): Up/Down = previous/next sibling, Left = parent,
+  // Right = first child. Esc deselects (handled in the global onKey above).
+  // Nudge now lives on Alt+arrow, so plain arrows are unambiguous here.
+  // Gated identically to the clipboard shortcuts (no typing target, focus on
+  // canvas, no open context menu) and to a single canvas selection.
+  useEffect(() => {
+    if (!selectedCanvasNodeId || selectedNodePath.length === 0) return;
+    function onArrowNav(e: KeyboardEvent) {
+      if (
+        e.key !== "ArrowUp" &&
+        e.key !== "ArrowDown" &&
+        e.key !== "ArrowLeft" &&
+        e.key !== "ArrowRight"
+      ) {
+        return;
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+      if (isEditableKeyboardTarget(e.target) || !keyboardFocusIsOnCanvas()) return;
+      if (contextMenu) return;
+      const path = selectedNodePath;
+      const current = path[path.length - 1];
+      if (!current) return;
+      const parent = path.length >= 2 ? path[path.length - 2] : null;
+      const siblings =
+        parent && "children" in parent && Array.isArray(parent.children)
+          ? parent.children
+          : null;
+      const index = siblings
+        ? siblings.findIndex((node) => node.id === current.id)
+        : -1;
+
+      if (e.key === "ArrowUp") {
+        if (siblings && index > 0) {
+          e.preventDefault();
+          callbacksRef.current.selectBuilderNode(siblings[index - 1]!.id);
+        }
+        return;
+      }
+      if (e.key === "ArrowDown") {
+        if (siblings && index >= 0 && index < siblings.length - 1) {
+          e.preventDefault();
+          callbacksRef.current.selectBuilderNode(siblings[index + 1]!.id);
+        }
+        return;
+      }
+      if (e.key === "ArrowLeft") {
+        // Walk up to the parent. Don't climb past the section root onto the
+        // page (selecting "nothing"); the section node itself is the ceiling.
+        if (parent) {
+          e.preventDefault();
+          callbacksRef.current.selectBuilderNode(parent.id);
+        }
+        return;
+      }
+      // ArrowRight → first child.
+      const firstChild =
+        "children" in current && Array.isArray(current.children)
+          ? current.children[0] ?? null
+          : null;
+      if (firstChild) {
+        e.preventDefault();
+        callbacksRef.current.selectBuilderNode(firstChild.id);
+      }
+    }
+    window.addEventListener("keydown", onArrowNav);
+    return () => window.removeEventListener("keydown", onArrowNav);
+  }, [contextMenu, selectedCanvasNodeId, selectedNodePath]);
 
   // #13 — canvas selection breadcrumb crumbs.
   // Mirrors the inspector-dock's `inspectorBreadcrumbCrumbs` but lives
@@ -2512,6 +2600,51 @@ export function SelectionLayer() {
   const contextMenuPastePreview = getCopiedBuilderNodePastePreview(
     contextMenu?.builderNodeId ?? null,
   );
+  // #30 — the freeform-block node this context menu targets + its capabilities.
+  // Lock/Unlock, Wrap-in-container, Convert-to-component, and block Move up/down
+  // are block-only actions; we resolve them here so the menu component stays
+  // presentational. A role-bound (curated-slot) node owns its structure, so it's
+  // wrap/convert-ineligible even when it reads as a "child" node. Plain consts
+  // (not useMemo) — cheap tree walks that only matter while the menu is open;
+  // the React Compiler memoizes them and there's no optional-chained dep for the
+  // manual-memoization rule to trip on (matches contextMenuSectionNode below).
+  const contextMenuBuilderNodeId = contextMenu?.builderNodeId ?? null;
+  const contextMenuNode =
+    contextMenuIsChildNode && contextMenuBuilderNodeId
+      ? findBuilderNodeById(builderTree, contextMenuBuilderNodeId)
+      : null;
+  const contextMenuNodePath = contextMenuBuilderNodeId
+    ? findBuilderNodePath(builderTree, contextMenuBuilderNodeId)
+    : [];
+  const contextMenuNodeLocked = contextMenuNode?.locked === true;
+  const contextMenuNodeIsRoleBound =
+    !!contextMenuNode && resolveBuilderNodeRole(contextMenuNode.id) !== null;
+  // Wrap / Convert only make sense for a genuinely editable freeform block.
+  const contextMenuCanWrapOrConvert =
+    !!contextMenuNode &&
+    contextMenuNode.kind !== "section" &&
+    !contextMenuNodeIsRoleBound &&
+    !contextMenuNodeLocked;
+  const contextMenuMoveContext = ((): {
+    canMoveUp: boolean;
+    canMoveDown: boolean;
+  } => {
+    if (!contextMenuNode || contextMenuNodePath.length < 2) {
+      return { canMoveUp: false, canMoveDown: false };
+    }
+    const parentNode = contextMenuNodePath[contextMenuNodePath.length - 2];
+    if (!parentNode || !("children" in parentNode) || !Array.isArray(parentNode.children)) {
+      return { canMoveUp: false, canMoveDown: false };
+    }
+    const index = parentNode.children.findIndex(
+      (child) => child.id === contextMenuNode.id,
+    );
+    if (index < 0) return { canMoveUp: false, canMoveDown: false };
+    return {
+      canMoveUp: index > 0,
+      canMoveDown: index < parentNode.children.length - 1,
+    };
+  })();
   // "2018 bye-bye" — the section node for this context menu (when on a section),
   // for the eject/restore affordance. Eject-able = a curated section (not the
   // already-freeform blank_section), not already ejected.
@@ -3335,6 +3468,10 @@ export function SelectionLayer() {
             canAddInside={canInsertIntoSelectedNode}
             isSectionHidden={isHidden}
             saving={saving}
+            nodeLocked={contextMenuNodeLocked}
+            canWrapOrConvert={contextMenuCanWrapOrConvert}
+            nodeCanMoveUp={contextMenuMoveContext.canMoveUp}
+            nodeCanMoveDown={contextMenuMoveContext.canMoveDown}
             onClose={closeContextMenu}
             onEdit={() => {
               requestInlineEdit(contextMenu?.builderNodeId ?? null);
@@ -3434,7 +3571,67 @@ export function SelectionLayer() {
                   reportMutationError(removed.error);
                   return;
                 }
-                focusSectionForEdit(contextMenu.sectionId);
+                if (contextMenu.sectionId) focusSectionForEdit(contextMenu.sectionId);
+              });
+              closeContextMenu();
+            }}
+            onToggleLock={() => {
+              const id = contextMenu?.builderNodeId;
+              if (!id) return;
+              // P3-LOCK — `locked` is a node-base prop; toggle through the same
+              // patch/undo path the layers-tree lock glyph uses. undefined clears.
+              void patchBuilderNodeProps(id, {
+                locked: contextMenuNodeLocked ? undefined : true,
+              }).then((result) => {
+                if (!result.ok && result.error) reportMutationError(result.error);
+              });
+              closeContextMenu();
+            }}
+            onWrap={() => {
+              // The right-click already promoted this node to the selection, so
+              // grouping the selection wraps exactly this block in a container
+              // (single-node group is allowed) — reuses the multi-select engine
+              // fn, no parallel wrap path.
+              void groupSelectedBuilderNodes().then((result) => {
+                if (!result.ok && result.error) reportMutationError(result.error);
+              });
+              closeContextMenu();
+            }}
+            onConvertToComponent={() => {
+              const id = contextMenu?.builderNodeId;
+              if (!id) return;
+              const suggested =
+                contextMenuNode &&
+                BUILDER_NODE_REGISTRY[contextMenuNode.kind]?.label
+                  ? `${BUILDER_NODE_REGISTRY[contextMenuNode.kind].label} component`
+                  : "Saved component";
+              const name =
+                typeof window !== "undefined"
+                  ? window.prompt("Name this reusable component", suggested)
+                  : suggested;
+              if (name === null) {
+                closeContextMenu();
+                return;
+              }
+              const trimmed = name.trim() || suggested;
+              void saveSelectedNodeAsComponent(trimmed).then((result) => {
+                if (!result.ok && result.error) reportMutationError(result.error);
+              });
+              closeContextMenu();
+            }}
+            onMoveNodeUp={() => {
+              const id = contextMenu?.builderNodeId;
+              if (!id) return;
+              void moveBuilderNodeWithinParent(id, "up").then((result) => {
+                if (!result.ok && result.error) reportMutationError(result.error);
+              });
+              closeContextMenu();
+            }}
+            onMoveNodeDown={() => {
+              const id = contextMenu?.builderNodeId;
+              if (!id) return;
+              void moveBuilderNodeWithinParent(id, "down").then((result) => {
+                if (!result.ok && result.error) reportMutationError(result.error);
               });
               closeContextMenu();
             }}
@@ -3448,6 +3645,7 @@ export function SelectionLayer() {
 		              canGroup={multiNodeSelectionActive}
 		              canUngroup={canUngroupSelectedNode}
 		              canDistribute={selectedBuilderNodeRects.length >= 3}
+		              canBulkStyle={selectedBuilderNodeRects.length >= 1}
 		              onAlign={(mode) => {
 		                void alignSelectedBuilderNodes(
 		                  mode,
@@ -3483,6 +3681,15 @@ export function SelectionLayer() {
 	                void removeSelectedBuilderNodes().then((result) => {
 	                  if (!result.ok && result.error) reportMutationError(result.error);
 	                });
+	              }}
+	              onBulkStyle={(stylePatchJson) => {
+	                void patchSelectedBuilderNodesStyle(stylePatchJson).then(
+	                  (result) => {
+	                    if (!result.ok && result.error) {
+	                      reportMutationError(result.error);
+	                    }
+	                  },
+	                );
 	              }}
 	            />
 	          ) : null}
@@ -4295,6 +4502,10 @@ function SelectionContextMenu({
   canAddInside,
   isSectionHidden,
   saving,
+  nodeLocked = false,
+  canWrapOrConvert = false,
+  nodeCanMoveUp = false,
+  nodeCanMoveDown = false,
   onClose,
   onEdit,
   onAddInside,
@@ -4311,6 +4522,11 @@ function SelectionContextMenu({
   onDuplicate,
   onDeleteSection,
   onRemoveNode,
+  onToggleLock,
+  onWrap,
+  onConvertToComponent,
+  onMoveNodeUp,
+  onMoveNodeDown,
 }: {
   state: SelectionContextMenuState | null;
   targetLabel: string;
@@ -4318,6 +4534,12 @@ function SelectionContextMenu({
   canAddInside: boolean;
   isSectionHidden: boolean;
   saving: boolean;
+  /** #30 — the targeted freeform block is locked → only Unlock + Copy are live. */
+  nodeLocked?: boolean;
+  /** #30 — block is a genuinely editable freeform node (wrap/convert eligible). */
+  canWrapOrConvert?: boolean;
+  nodeCanMoveUp?: boolean;
+  nodeCanMoveDown?: boolean;
   onClose: () => void;
   onEdit: () => void;
   onAddInside: () => void;
@@ -4334,6 +4556,11 @@ function SelectionContextMenu({
   onDuplicate: () => void;
   onDeleteSection: () => void;
   onRemoveNode: () => void;
+  onToggleLock: () => void;
+  onWrap: () => void;
+  onConvertToComponent: () => void;
+  onMoveNodeUp: () => void;
+  onMoveNodeDown: () => void;
 }) {
   if (!state) return null;
   const canPasteBlock = !!pastePreview;
@@ -4423,10 +4650,14 @@ function SelectionContextMenu({
           </div>
         ) : null}
       </div>
-      <ContextMenuButton disabled={saving} onClick={onEdit}>
-        Edit content
-      </ContextMenuButton>
-      {canAddInside ? (
+      {/* #30 — a LOCKED block is inert to structure edits: only Unlock + Copy
+       *  stay live (mirrors the canvas click-guard that absorbs locked nodes). */}
+      {!nodeLocked ? (
+        <ContextMenuButton disabled={saving} onClick={onEdit}>
+          Edit content
+        </ContextMenuButton>
+      ) : null}
+      {canAddInside && !nodeLocked ? (
         <ContextMenuButton disabled={saving} onClick={onAddInside}>
           Add block inside
         </ContextMenuButton>
@@ -4436,17 +4667,52 @@ function SelectionContextMenu({
           <ContextMenuButton disabled={saving} onClick={onCopyNode}>
             Copy block
           </ContextMenuButton>
-          <ContextMenuButton disabled={saving} onClick={onDuplicate}>
-            Duplicate block
+          {!nodeLocked ? (
+            <>
+              <ContextMenuButton disabled={saving} onClick={onDuplicate}>
+                Duplicate block
+              </ContextMenuButton>
+              {canPasteBlock ? (
+                <ContextMenuButton disabled={pasteDisabled} onClick={onPasteNode}>
+                  {pasteLabel}
+                </ContextMenuButton>
+              ) : null}
+              {nodeCanMoveUp || nodeCanMoveDown ? <ContextMenuSeparator /> : null}
+              {nodeCanMoveUp ? (
+                <ContextMenuButton disabled={saving} onClick={onMoveNodeUp}>
+                  Move block up
+                </ContextMenuButton>
+              ) : null}
+              {nodeCanMoveDown ? (
+                <ContextMenuButton disabled={saving} onClick={onMoveNodeDown}>
+                  Move block down
+                </ContextMenuButton>
+              ) : null}
+              {canWrapOrConvert ? (
+                <>
+                  <ContextMenuSeparator />
+                  <ContextMenuButton disabled={saving} onClick={onWrap}>
+                    Wrap in container
+                  </ContextMenuButton>
+                  <ContextMenuButton
+                    disabled={saving}
+                    onClick={onConvertToComponent}
+                  >
+                    Convert to component
+                  </ContextMenuButton>
+                </>
+              ) : null}
+            </>
+          ) : null}
+          <ContextMenuSeparator />
+          <ContextMenuButton disabled={saving} onClick={onToggleLock}>
+            {nodeLocked ? "Unlock block" : "Lock block"}
           </ContextMenuButton>
-          {canPasteBlock ? (
-            <ContextMenuButton disabled={pasteDisabled} onClick={onPasteNode}>
-              {pasteLabel}
+          {!nodeLocked ? (
+            <ContextMenuButton disabled={saving} danger onClick={onRemoveNode}>
+              Remove block
             </ContextMenuButton>
           ) : null}
-          <ContextMenuButton disabled={saving} danger onClick={onRemoveNode}>
-            Remove block
-          </ContextMenuButton>
         </>
       ) : (
         <>

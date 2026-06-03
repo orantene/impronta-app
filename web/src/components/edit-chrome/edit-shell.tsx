@@ -823,9 +823,17 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
           availableLocales={availableLocales}
           liveSitePublishedAt={liveSitePublishedAt}
         />
+        {/* z-[83]: above the Layers/Structure navigator (z-80) so canvas
+         *  chrome — selection rings, chips, and especially the #30 right-click
+         *  context menu opened FROM a layer row — paints over the rail instead
+         *  of being occluded by it. Still below the inspector dock (z-85),
+         *  right-rail drawers (z-88), and the topbar (z-90), which stay the
+         *  topmost interactive panels. The layer itself is pointer-events:none;
+         *  only its explicitly interactive children (chip/menu) capture pointer,
+         *  and those only render over the canvas or the (intended) menu. */}
         <div
           id="edit-overlay-portal"
-          className="pointer-events-none fixed inset-0 top-[54px] z-[70]"
+          className="pointer-events-none fixed inset-0 top-[54px] z-[83]"
           aria-hidden
         />
         {/* Preview toggle suppression — when the operator clicks the

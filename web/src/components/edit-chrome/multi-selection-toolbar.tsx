@@ -11,10 +11,11 @@ import {
   AlignVerticalDistributeCenter,
   CopyPlus,
   Group,
+  Paintbrush,
   Trash2,
   Ungroup,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import type {
   MultiNodeAlignMode,
@@ -96,12 +97,14 @@ export function MultiSelectionToolbar({
   canGroup,
   canUngroup,
   canDistribute,
+  canBulkStyle,
   onAlign,
   onDistribute,
   onGroup,
   onUngroup,
   onDuplicate,
   onRemove,
+  onBulkStyle,
 }: {
   rect: Rect;
   count: number;
@@ -109,20 +112,31 @@ export function MultiSelectionToolbar({
   canGroup: boolean;
   canUngroup: boolean;
   canDistribute: boolean;
+  /** Job #28 — at least one freeform block selected → shared-style editing is offered. */
+  canBulkStyle: boolean;
   onAlign: (mode: MultiNodeAlignMode) => void;
   onDistribute: (mode: MultiNodeDistributeMode) => void;
   onGroup: () => void;
   onUngroup: () => void;
   onDuplicate: () => void;
   onRemove: () => void;
+  /** Job #28 — apply a top-level style patch (JSON) to EVERY selected block. */
+  onBulkStyle: (stylePatchJson: string) => void;
 }) {
+  // Job #28 — the shared-style editor is a small disclosure off the toolbar so
+  // the common bulk action (align/distribute) stays one click away and the
+  // heavier style editing is opt-in. State is local: it only governs the
+  // panel's open/closed; every committed change fans out via onBulkStyle.
+  const [styleOpen, setStyleOpen] = useState(false);
+  const toolbarTop = Math.max(rect.top - 38, 58);
   return (
+    <>
     <div
       data-multi-selection-toolbar=""
       data-edit-overlay="multi-selection-toolbar"
       style={{
         position: "fixed",
-        top: Math.max(rect.top - 38, 58),
+        top: toolbarTop,
         left: rect.left,
         height: 32,
         display: "inline-flex",
@@ -222,6 +236,21 @@ export function MultiSelectionToolbar({
       >
         <AlignVerticalDistributeCenter size={14} aria-hidden />
       </IconButton>
+      {canBulkStyle ? (
+        <>
+          <Divider />
+          <IconButton
+            disabled={disabled}
+            label={
+              styleOpen ? "Hide shared style" : "Edit shared style for all"
+            }
+            action="bulk-style"
+            onClick={() => setStyleOpen((open) => !open)}
+          >
+            <Paintbrush size={14} aria-hidden />
+          </IconButton>
+        </>
+      ) : null}
       <Divider />
       <IconButton
         disabled={disabled || !canGroup}
@@ -257,5 +286,241 @@ export function MultiSelectionToolbar({
         <Trash2 size={14} aria-hidden />
       </IconButton>
     </div>
+    {/* Rendered as a SIBLING of the toolbar (not a child) so the toolbar's
+     *  overflow:hidden scroll-row can't clip it; anchored just below the
+     *  toolbar via the same viewport rect. */}
+    {canBulkStyle && styleOpen ? (
+      <BulkStylePanel
+        top={toolbarTop + 32 + 6}
+        left={rect.left}
+        disabled={disabled}
+        onBulkStyle={onBulkStyle}
+      />
+    ) : null}
+    </>
+  );
+}
+
+/**
+ * Job #28 — compact shared-style editor for a multi-selection. Renders the
+ * scalar style props every freeform block has in common (text colour,
+ * background, corner radius, opacity) and fans each committed change out to the
+ * WHOLE selection via `onBulkStyle` — which routes through the same atomic
+ * patch/undo op as align/distribute. Style keys (`color` / `backgroundColor` /
+ * `borderRadius` / `opacity`) and the "trim → undefined to clear" convention
+ * match the single-block style-panel so bulk + single edits stay consistent.
+ *
+ * The panel does NOT pre-fill from the selection (the blocks may differ); it's
+ * an "apply this to all" surface, so an empty control = "leave as-is" and the
+ * per-field × clears that prop across the selection.
+ */
+function BulkStylePanel({
+  top,
+  left,
+  disabled,
+  onBulkStyle,
+}: {
+  top: number;
+  left: number;
+  disabled: boolean;
+  onBulkStyle: (stylePatchJson: string) => void;
+}) {
+  const emit = (patch: Record<string, unknown>) =>
+    onBulkStyle(JSON.stringify(patch));
+  return (
+    <div
+      data-multi-selection-bulk-style=""
+      data-edit-overlay="multi-selection-bulk-style"
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        position: "fixed",
+        top,
+        left: Math.min(left, typeof window === "undefined" ? left : window.innerWidth - 244),
+        width: 232,
+        padding: 10,
+        borderRadius: 8,
+        background: TOOLBAR_BG,
+        color: "white",
+        boxShadow:
+          "0 14px 36px -10px rgba(0,0,0,0.42), 0 2px 6px -2px rgba(0,0,0,0.2), inset 0 0 0 1px rgba(255,255,255,0.08)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        zIndex: 101,
+        pointerEvents: "auto",
+        display: "grid",
+        gap: 9,
+      }}
+    >
+      <div
+        style={{
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          color: "rgba(255,255,255,0.6)",
+        }}
+      >
+        Apply to all selected
+      </div>
+      <BulkStyleRow
+        label="Text colour"
+        styleKey="textColor"
+        kind="color"
+        disabled={disabled}
+        onEmit={emit}
+      />
+      <BulkStyleRow
+        label="Background"
+        styleKey="backgroundColor"
+        kind="color"
+        disabled={disabled}
+        onEmit={emit}
+      />
+      <BulkStyleRow
+        label="Corner radius"
+        styleKey="borderRadius"
+        kind="px"
+        disabled={disabled}
+        onEmit={emit}
+      />
+      <BulkStyleRow
+        label="Opacity"
+        styleKey="opacity"
+        kind="opacity"
+        disabled={disabled}
+        onEmit={emit}
+      />
+    </div>
+  );
+}
+
+function BulkStyleRow({
+  label,
+  styleKey,
+  kind,
+  disabled,
+  onEmit,
+}: {
+  label: string;
+  styleKey: string;
+  kind: "color" | "px" | "opacity";
+  disabled: boolean;
+  onEmit: (patch: Record<string, unknown>) => void;
+}) {
+  const [value, setValue] = useState("");
+  const commit = (raw: string) => {
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      onEmit({ [styleKey]: undefined });
+      return;
+    }
+    if (kind === "px") {
+      const n = Number.parseFloat(trimmed);
+      onEmit({ [styleKey]: Number.isFinite(n) ? `${Math.max(0, n)}px` : undefined });
+      return;
+    }
+    if (kind === "opacity") {
+      const n = Number.parseFloat(trimmed);
+      // BuilderNodeStyle.opacity is a unitless NUMBER (0–1), not a string.
+      onEmit({
+        [styleKey]: Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : undefined,
+      });
+      return;
+    }
+    onEmit({ [styleKey]: trimmed });
+  };
+  return (
+    <label
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 8,
+        fontSize: 11.5,
+        fontWeight: 600,
+        color: "rgba(255,255,255,0.82)",
+      }}
+    >
+      <span style={{ flex: "1 1 auto", minWidth: 0 }}>{label}</span>
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 5, flex: "0 0 auto" }}>
+        {kind === "color" ? (
+          <input
+            type="color"
+            disabled={disabled}
+            aria-label={`${label} for all selected`}
+            value={value || "#000000"}
+            onChange={(e) => {
+              setValue(e.target.value);
+              commit(e.target.value);
+            }}
+            style={{
+              width: 28,
+              height: 22,
+              padding: 0,
+              border: "1px solid rgba(255,255,255,0.16)",
+              borderRadius: 5,
+              background: "transparent",
+              cursor: disabled ? "not-allowed" : "pointer",
+            }}
+          />
+        ) : (
+          <input
+            type="number"
+            disabled={disabled}
+            aria-label={`${label} for all selected`}
+            value={value}
+            min={0}
+            max={kind === "opacity" ? 1 : undefined}
+            step={kind === "opacity" ? 0.1 : 1}
+            placeholder="—"
+            onChange={(e) => setValue(e.target.value)}
+            onBlur={(e) => commit(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                commit((e.target as HTMLInputElement).value);
+              }
+            }}
+            style={{
+              width: 56,
+              height: 22,
+              padding: "0 6px",
+              border: "1px solid rgba(255,255,255,0.16)",
+              borderRadius: 5,
+              background: "rgba(255,255,255,0.06)",
+              color: "white",
+              fontSize: 11.5,
+              fontWeight: 600,
+            }}
+          />
+        )}
+        <button
+          type="button"
+          disabled={disabled}
+          aria-label={`Clear ${label} on all selected`}
+          title={`Clear ${label}`}
+          onClick={() => {
+            setValue("");
+            onEmit({ [styleKey]: undefined });
+          }}
+          style={{
+            width: 18,
+            height: 18,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            border: "none",
+            borderRadius: 4,
+            background: "transparent",
+            color: "rgba(255,255,255,0.6)",
+            cursor: disabled ? "not-allowed" : "pointer",
+            fontSize: 13,
+            lineHeight: 1,
+          }}
+        >
+          ×
+        </button>
+      </span>
+    </label>
   );
 }
