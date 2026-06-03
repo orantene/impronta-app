@@ -342,6 +342,126 @@ test("animation: all keyframes + reduced-motion guard ship in the static sheet",
   assert.ok(html.includes("prefers-reduced-motion"), "reduced-motion guard");
 });
 
+// ── Wave 6B (#27) — interaction timeline: custom easing + scroll parallax ──────
+
+test("animation: a custom easing curve wins over the named easing enum", () => {
+  const html = render([
+    container({
+      animationPreset: "rise",
+      animationDuration: "0.5s",
+      animationEasing: "back", // would normally resolve to cubic-bezier(0.34,1.56,…)
+      animationEasingCustom: "cubic-bezier(0.2, 0.8, 0.2, 1)",
+    }),
+  ]);
+  assert.match(
+    html,
+    /animation:bn-anim-rise 0\.5s cubic-bezier\(0\.2, ?0\.8, ?0\.2, ?1\)/,
+    "custom curve replaces the named easing in the animation shorthand",
+  );
+  // The "back" spring curve must NOT appear — custom fully overrides it.
+  assert.ok(
+    !html.includes("cubic-bezier(0.34, 1.56"),
+    "named easing suppressed when custom set",
+  );
+});
+
+test("animation: scroll parallax emits a baked keyframe on a view() timeline", () => {
+  const html = render([container({ parallax: "medium" })]);
+  assert.ok(
+    /animation:bn-parallax-medium linear both/.test(html),
+    "medium parallax animation shorthand",
+  );
+  assert.ok(html.includes("view()"), "parallax drives a scroll-driven timeline");
+  // Parallax keyframes ship in the static sheet, reduced-motion-guarded.
+  for (const kf of [
+    "@keyframes bn-parallax-subtle",
+    "@keyframes bn-parallax-medium",
+    "@keyframes bn-parallax-strong",
+  ]) {
+    assert.ok(html.includes(kf), `expected ${kf}`);
+  }
+});
+
+test("animation: parallax wins the single animation slot over the entrance preset", () => {
+  const html = render([
+    container({ animationPreset: "fade-in", parallax: "strong" }),
+  ]);
+  // Only the parallax animation should occupy the `animation` shorthand.
+  assert.ok(
+    html.includes("animation:bn-parallax-strong linear both"),
+    "parallax animation present",
+  );
+  assert.ok(
+    !html.includes("animation:bn-anim-fade-in"),
+    "entrance preset does not also claim the animation slot",
+  );
+});
+
+test("animation: parallax 'none' / undefined emits no parallax motion (back-compat)", () => {
+  // The @keyframes definitions are always baked into the static sheet (like the
+  // entrance keyframes); back-compat is about the NODE not getting an
+  // `animation:bn-parallax-*` declaration when parallax is off/absent.
+  const off = render([container({ parallax: "none" })]);
+  assert.ok(
+    !/animation:bn-parallax/.test(off),
+    "parallax:none emits no animation declaration",
+  );
+  const bare = render([container({})]);
+  assert.ok(
+    !/animation:bn-parallax/.test(bare),
+    "no parallax animation on an unstyled node",
+  );
+});
+
+// ── Wave 6B (#23) — sticky pinning convenience ────────────────────────────────
+
+test("sticky: stickyAnchor 'top' emits position:sticky + top offset", () => {
+  const html = render([
+    container({ stickyAnchor: "top", stickyOffset: "16px" }),
+  ]);
+  assert.ok(html.includes("position:sticky"), "position:sticky emitted");
+  assert.ok(html.includes("top:16px"), "top inset from stickyOffset");
+});
+
+test("sticky: stickyAnchor 'bottom' pins to the bottom edge", () => {
+  const html = render([
+    container({ stickyAnchor: "bottom", stickyOffset: "1rem" }),
+  ]);
+  assert.ok(html.includes("position:sticky"), "position:sticky emitted");
+  assert.ok(html.includes("bottom:1rem"), "bottom inset from stickyOffset");
+});
+
+test("sticky: anchor with no offset defaults the inset to 0px", () => {
+  const html = render([container({ stickyAnchor: "top" })]);
+  assert.ok(html.includes("position:sticky"), "position:sticky emitted");
+  assert.ok(html.includes("top:0px"), "default 0px inset");
+});
+
+test("sticky: an explicit position / top always wins over the convenience", () => {
+  // Explicit position:relative must not be overridden to sticky; an explicit
+  // top must not be overwritten by the offset. Raw escapes are authoritative.
+  const html = render([
+    container({
+      stickyAnchor: "top",
+      stickyOffset: "20px",
+      position: "relative",
+      top: "5px",
+    }),
+  ]);
+  assert.ok(html.includes("position:relative"), "explicit position preserved");
+  assert.ok(!html.includes("position:sticky"), "convenience did not force sticky");
+  assert.ok(html.includes("top:5px"), "explicit top preserved");
+  assert.ok(!html.includes("top:20px"), "offset did not clobber explicit top");
+});
+
+test("sticky: undefined sticky fields emit nothing (back-compat)", () => {
+  const html = render([container({ position: "sticky", top: "0" })]);
+  // The pre-existing position:sticky + top path is byte-stable; the new
+  // convenience contributes no extra output when its fields are absent.
+  assert.ok(html.includes("position:sticky"), "existing sticky path intact");
+  assert.ok(html.includes("top:0"), "existing top intact");
+});
+
 // ── Renderer stylesheet de-duplication ───────────────────────────────────────
 
 test("renderer css: standalone render remains self-contained", () => {

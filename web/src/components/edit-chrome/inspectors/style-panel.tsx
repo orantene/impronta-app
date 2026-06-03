@@ -341,6 +341,14 @@ const BUILDER_NODE_POSITION_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "sticky", label: "Sticky" },
 ];
 
+// Wave 6B (#23) — sticky-pin self-anchor: which edge the node pins to as the
+// page scrolls. "" clears the convenience back to a plain (un-pinned) sticky.
+const BUILDER_NODE_STICKY_ANCHOR_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "None" },
+  { value: "top", label: "Pin top" },
+  { value: "bottom", label: "Pin bottom" },
+];
+
 const BUILDER_NODE_OVERFLOW_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "", label: "Default" },
   { value: "visible", label: "Visible" },
@@ -452,6 +460,14 @@ const BUILDER_NODE_ANIMATION_EASING_OPTIONS: ReadonlyArray<SegmentedOption<strin
   { value: "ease-in-out", label: "In-out" },
   { value: "back", label: "Back" },
   { value: "smooth", label: "Smooth" },
+];
+
+// Wave 6B (#27) — scroll parallax intensity. "" / "none" = off.
+const BUILDER_NODE_PARALLAX_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Off" },
+  { value: "subtle", label: "Subtle" },
+  { value: "medium", label: "Medium" },
+  { value: "strong", label: "Strong" },
 ];
 
 const BUILDER_NODE_BORDER_STYLE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
@@ -1304,6 +1320,8 @@ function cleanBuilderNodeStyle(
   if (value.right) out.right = value.right;
   if (value.bottom) out.bottom = value.bottom;
   if (value.left) out.left = value.left;
+  if (value.stickyAnchor) out.stickyAnchor = value.stickyAnchor;
+  if (value.stickyOffset) out.stickyOffset = value.stickyOffset;
   if (typeof value.zIndex === "number") out.zIndex = value.zIndex;
   if (value.overflow) out.overflow = value.overflow;
   if (value.rotate) out.rotate = value.rotate;
@@ -1350,6 +1368,10 @@ function cleanBuilderNodeStyle(
   if (value.animationDelay) out.animationDelay = value.animationDelay;
   if (value.animationTrigger) out.animationTrigger = value.animationTrigger;
   if (value.animationEasing) out.animationEasing = value.animationEasing;
+  if (value.animationEasingCustom) {
+    out.animationEasingCustom = value.animationEasingCustom;
+  }
+  if (value.parallax) out.parallax = value.parallax;
   const tablet = cleanBuilderNodeStyleValue(value.responsive?.tablet);
   const mobile = cleanBuilderNodeStyleValue(value.responsive?.mobile);
   if (tablet || mobile) {
@@ -1457,6 +1479,8 @@ function cleanBuilderNodeStyleValue(
   if (value.right) out.right = value.right;
   if (value.bottom) out.bottom = value.bottom;
   if (value.left) out.left = value.left;
+  if (value.stickyAnchor) out.stickyAnchor = value.stickyAnchor;
+  if (value.stickyOffset) out.stickyOffset = value.stickyOffset;
   if (typeof value.zIndex === "number") out.zIndex = value.zIndex;
   if (value.overflow) out.overflow = value.overflow;
   if (value.rotate) out.rotate = value.rotate;
@@ -1503,6 +1527,10 @@ function cleanBuilderNodeStyleValue(
   if (value.animationDelay) out.animationDelay = value.animationDelay;
   if (value.animationTrigger) out.animationTrigger = value.animationTrigger;
   if (value.animationEasing) out.animationEasing = value.animationEasing;
+  if (value.animationEasingCustom) {
+    out.animationEasingCustom = value.animationEasingCustom;
+  }
+  if (value.parallax) out.parallax = value.parallax;
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -6874,6 +6902,59 @@ export function StylePanel({
                 }
                 options={BUILDER_NODE_POSITION_OPTIONS}
               />
+              {/* Wave 6B (#23) — sticky pinning convenience. Visible when the node
+                  is sticky (explicit position OR the anchor itself). Picks the
+                  edge to pin to + the offset; the renderer writes position:sticky
+                  + the inset for you (raw Top/Bottom below still win). */}
+              {selectedStandaloneViewportStyle?.position === "sticky" ||
+              selectedStandaloneViewportStyle?.stickyAnchor ? (
+                <div
+                  className="flex flex-col gap-2 rounded-md p-2"
+                  data-builder-node-style-control="stickyAnchor"
+                  style={{ background: CHROME.surface2, border: `1px solid ${CHROME.line}` }}
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Pin to edge
+                  </span>
+                  <Segmented
+                    fullWidth
+                    compact
+                    value={selectedStandaloneViewportStyle?.stickyAnchor ?? ""}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        stickyAnchor: (next || undefined) as BuilderNodeStyleValue["stickyAnchor"],
+                      })
+                    }
+                    options={BUILDER_NODE_STICKY_ANCHOR_OPTIONS}
+                  />
+                  {selectedStandaloneViewportStyle?.stickyAnchor ? (
+                    <div
+                      className="flex flex-col gap-1"
+                      data-builder-node-style-control="stickyOffset"
+                    >
+                      <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                        Offset from edge
+                      </span>
+                      <NumberUnit
+                        units={["px", "%", "rem", "vh", "vw"]}
+                        defaultUnit="px"
+                        placeholder="0"
+                        value={parseCssLength(selectedStandaloneViewportStyle?.stickyOffset)}
+                        onChange={(next) =>
+                          patchSelectedStandaloneStyle({
+                            stickyOffset: next ? formatLength(next) : undefined,
+                          })
+                        }
+                      />
+                    </div>
+                  ) : null}
+                  <span className="text-[10px] leading-snug" style={{ color: CHROME.muted }}>
+                    The block scrolls normally, then sticks to the{" "}
+                    {selectedStandaloneViewportStyle?.stickyAnchor ?? "chosen"} edge
+                    of its scroll area. Great for a sticky sub-nav or sidebar.
+                  </span>
+                </div>
+              ) : null}
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex flex-col gap-1">
                   <span className="text-[11px]" style={{ color: CHROME.muted }}>
@@ -8135,6 +8216,92 @@ export function StylePanel({
                   }
                   options={BUILDER_NODE_ANIMATION_EASING_OPTIONS}
                 />
+              </div>
+              {/* Wave 6B (#27) — custom easing curve. A raw cubic-bezier / steps /
+                  linear() that overrides the named easing above for exact timing. */}
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="animationEasingCustom"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Custom curve
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="cubic-bezier(.2,.8,.2,1)"
+                  value={selectedStandaloneViewportStyle?.animationEasingCustom ?? ""}
+                  onChange={(e) =>
+                    patchSelectedStandaloneStyle({
+                      animationEasingCustom: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+                <span className="text-[10px] leading-snug" style={{ color: CHROME.muted }}>
+                  Overrides the named easing. Any CSS timing function —
+                  cubic-bezier(), steps(), linear().
+                </span>
+              </div>
+              </div>
+              </details>
+            </div>
+
+            {/* ── Interactions (Wave 6B / #27) — scroll parallax. Hover micro-
+                interactions live in the States block below; this surfaces the
+                ongoing scroll-driven motion alongside the entrance animation. ── */}
+            <div
+              className="border-t pt-3"
+              data-builder-node-style-control="interactions"
+              style={{ borderColor: CHROME.line }}
+            >
+              <details>
+                <summary className="flex items-center justify-between select-none" style={{ cursor: "pointer", outline: "none", listStyle: "none" }}>
+                  <span className={FIELD_LABEL}>Interactions</span>
+                  <span style={{ color: CHROME.muted, fontSize: 9 }}>›</span>
+                </summary>
+              <div className="flex flex-col gap-2 mt-2">
+              <p className="text-[10px] leading-snug" style={{ color: CHROME.muted }}>
+                Scroll parallax drifts the block as the visitor scrolls past
+                (published page only). Pair it with a hover effect in{" "}
+                <strong>States</strong> below for full motion. Respects
+                reduced-motion.
+              </p>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="parallax"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Scroll parallax
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.parallax ?? ""}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      parallax: (next || undefined) as BuilderNodeStyleValue["parallax"],
+                    })
+                  }
+                  options={BUILDER_NODE_PARALLAX_OPTIONS}
+                />
+                {selectedStandaloneViewportStyle?.parallax &&
+                selectedStandaloneViewportStyle.parallax !== "none" ? (
+                  <span className="text-[10px] leading-snug" style={{ color: CHROME.muted }}>
+                    The block glides vertically over its on-screen pass. Drives
+                    the entrance slot when both are set — entrance plays once,
+                    parallax is what keeps moving.
+                  </span>
+                ) : null}
               </div>
               </div>
               </details>

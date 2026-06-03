@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- hand-authored BuilderNode type + schema definitions (discriminated union + the full style-value model); inherently large, like the other builder-node data files. */
 import type { BuilderVisibilityCondition } from "./visibility";
 
 export type BuilderNodeKind =
@@ -145,6 +146,20 @@ export interface BuilderNodeStyleValue {
   right?: string;
   bottom?: string;
   left?: string;
+  // Wave 6B (#23) — STICKY PINNING convenience. This flow/flex/grid builder has
+  // no absolute canvas, so "constraints/pinning" = position:sticky with a
+  // self-anchor: `stickyAnchor` picks which edge of the scroll container the
+  // node sticks to ("top" → it pins as you scroll DOWN past it; "bottom" → pins
+  // to the bottom of the viewport), and `stickyOffset` is the gap from that edge
+  // (CSS length, e.g. "16px", "1rem"; default 0 when only the anchor is set).
+  // Setting stickyAnchor MAKES the node sticky: the renderer emits
+  // `position:sticky` UNLESS an explicit `position` is already set, and emits the
+  // inset on the anchored edge UNLESS an explicit `top`/`bottom` already exists
+  // (so the raw escapes always win — back-compat). The headline use is a sticky
+  // sub-nav / sidebar rail. Optional + back-compat: undefined → nothing emitted,
+  // and existing `position:sticky`+`top` trees render byte-identical.
+  stickyAnchor?: "top" | "bottom";
+  stickyOffset?: string;
   // Stacking & clipping escapes — z-index orders overlapping/absolute nodes
   // (integer, negatives allowed to send behind); overflow controls whether
   // content is clipped or scrolls within the node's box.
@@ -283,10 +298,29 @@ export interface BuilderNodeStyleValue {
     | "ease-in-out"
     | "back"
     | "smooth";
+  // Wave 6B (#27) — INTERACTION TIMELINE: a free CSS easing curve that WINS over
+  // the `animationEasing` named enum when set, so an author can dial in an exact
+  // cubic-bezier()/steps()/linear() curve for the entrance animation's timing.
+  // Length-capped + validated by the CSSOM at render; undefined → the named
+  // easing (or its default) is used, so existing trees are byte-identical.
+  animationEasingCustom?: string;
   // Trigger: "load" plays once on page load; "scroll" drives the animation by
   // scroll position via CSS scroll-driven animations (animation-timeline:view()).
   // Pure CSS — unsupported browsers fall back to playing it on load.
   animationTrigger?: "load" | "scroll";
+  // Wave 6B (#27) — SCROLL PARALLAX: a tasteful, opt-in scroll-driven vertical
+  // parallax independent of the entrance `animationPreset` (a node can have both
+  // — an entrance fade AND an ongoing parallax drift). Maps a named intensity to
+  // a baked `bn-parallax-{subtle,medium,strong}` @keyframe driven by
+  // `animation-timeline:view()` over the node's whole on-screen pass, so the node
+  // glides ± a few percent of its height as the visitor scrolls. Pure CSS:
+  // browsers without scroll-driven-animation support and visitors who prefer
+  // reduced motion get no motion (the same `[style*="animation"]` reduced-motion
+  // guard already in the sheet covers it). Optional + back-compat: "none"/
+  // undefined emits nothing. When BOTH an entrance animation and parallax are
+  // set, the parallax wins the single `animation` slot (entrance is the one-shot
+  // intro; parallax is the persistent behaviour the visitor actually sees).
+  parallax?: "none" | "subtle" | "medium" | "strong";
 }
 
 // Hover-state overrides — a curated subset of style props that re-apply only

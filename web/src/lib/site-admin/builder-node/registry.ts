@@ -178,6 +178,12 @@ const builderNodeStyleValueSchema = z.object({
   right: z.string().max(16).optional(),
   bottom: z.string().max(16).optional(),
   left: z.string().max(16).optional(),
+  // Wave 6B (#23) — sticky pinning convenience. stickyAnchor picks the edge to
+  // pin to (top/bottom) and MAKES the node sticky; stickyOffset is the gap from
+  // that edge (CSS length, short-capped). Back-compat: undefined → no emission;
+  // an explicit position/top/bottom always wins over the convenience.
+  stickyAnchor: z.enum(["top", "bottom"]).optional(),
+  stickyOffset: z.string().max(16).optional(),
   // Stacking & clipping escapes — z-index (integer, negatives allowed) +
   // overflow control.
   zIndex: z.number().int().min(-999).max(999).optional(),
@@ -312,6 +318,11 @@ const builderNodeStyleValueSchema = z.object({
   animationEasing: z
     .enum(["ease", "linear", "ease-in", "ease-out", "ease-in-out", "back", "smooth"])
     .optional(),
+  // Wave 6B (#27) — interaction timeline. A free easing curve (cubic-bezier /
+  // steps / linear()) that wins over animationEasing; a named scroll parallax
+  // intensity. Both optional + back-compat (undefined → no change in render).
+  animationEasingCustom: z.string().max(64).optional(),
+  parallax: z.enum(["none", "subtle", "medium", "strong"]).optional(),
 });
 
 // Hover-state overrides — a curated subset of animatable props re-applied while

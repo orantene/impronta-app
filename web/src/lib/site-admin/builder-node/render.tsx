@@ -331,6 +331,9 @@ const BUILDER_NODE_RENDERER_CSS = `
 @keyframes bn-anim-blur-in{from{opacity:0;filter:blur(12px)}to{opacity:1;filter:blur(0)}}
 @keyframes bn-anim-flip-in{from{opacity:0;transform:perspective(800px) rotateX(35deg)}to{opacity:1;transform:perspective(800px) rotateX(0)}}
 @keyframes bn-anim-bounce-in{0%{opacity:0;transform:scale(0.8)}60%{opacity:1;transform:scale(1.04)}100%{opacity:1;transform:scale(1)}}
+@keyframes bn-parallax-subtle{from{transform:translateY(4%)}to{transform:translateY(-4%)}}
+@keyframes bn-parallax-medium{from{transform:translateY(8%)}to{transform:translateY(-8%)}}
+@keyframes bn-parallax-strong{from{transform:translateY(14%)}to{transform:translateY(-14%)}}
 @media (prefers-reduced-motion:reduce){.site-builder-node[style*="animation"]{animation:none!important}}
 .site-builder-node{box-sizing:border-box}
 .site-builder-node[data-builder-style-container-type]{container-type:var(--bn-container-type)}
@@ -1505,9 +1508,15 @@ function responsiveStyleVars(
 
 // Map a friendly easing key to a CSS timing-function. "back" overshoots
 // slightly (a tasteful spring feel); "smooth" is the Material standard curve.
+// Wave 6B (#27): a free `custom` curve (cubic-bezier/steps/linear()) WINS over
+// the named enum when set, so an author can dial in an exact timing curve. The
+// custom string lands in an inline `animation` shorthand and is validated by the
+// CSSOM; undefined → the named easing path (byte-identical to before).
 function resolveAnimationEasing(
   easing: BuilderNodeStyle["animationEasing"],
+  custom?: string,
 ): string {
+  if (custom && custom.trim()) return custom.trim();
   switch (easing) {
     case "linear":
     case "ease-in":
@@ -1523,6 +1532,18 @@ function resolveAnimationEasing(
       return "ease";
   }
 }
+
+// Wave 6B (#27) — named parallax intensity → the baked keyframe + drift amount.
+// The keyframe glides the node ±`amount` of the viewport as it passes through,
+// driven by `animation-timeline:view()` (the whole on-screen pass).
+const BUILDER_PARALLAX_KEYFRAME: Record<
+  Exclude<NonNullable<BuilderNodeStyle["parallax"]>, "none">,
+  string
+> = {
+  subtle: "bn-parallax-subtle",
+  medium: "bn-parallax-medium",
+  strong: "bn-parallax-strong",
+};
 
 function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   if (!style) return {};
@@ -1682,6 +1703,19 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   if (style.right) out.right = style.right;
   if (style.bottom) out.bottom = style.bottom;
   if (style.left) out.left = style.left;
+  // Wave 6B (#23) — sticky pinning convenience. Setting stickyAnchor makes the
+  // node sticky and writes the inset on the anchored edge, but ONLY where the
+  // raw escapes above didn't already set a value (explicit position/top/bottom
+  // always win — so existing position:sticky+top trees are byte-identical, and
+  // a free escape can override the convenience). stickyOffset defaults to 0.
+  if (style.stickyAnchor) {
+    if (!style.position) out.position = "sticky";
+    const offset = style.stickyOffset && style.stickyOffset.trim()
+      ? style.stickyOffset.trim()
+      : "0px";
+    if (style.stickyAnchor === "top" && !style.top) out.top = offset;
+    if (style.stickyAnchor === "bottom" && !style.bottom) out.bottom = offset;
+  }
   // Stacking & clipping escapes — z-index orders overlapping nodes (0 is a
   // valid value, so test the type); overflow clips/scrolls the node's box.
   if (typeof style.zIndex === "number") out.zIndex = style.zIndex;
@@ -1763,7 +1797,10 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   if (style.animationPreset && style.animationPreset !== "none") {
     const duration = style.animationDuration || "0.6s";
     const delay = style.animationDelay || "0s";
-    const easing = resolveAnimationEasing(style.animationEasing);
+    const easing = resolveAnimationEasing(
+      style.animationEasing,
+      style.animationEasingCustom,
+    );
     out.animation = `bn-anim-${style.animationPreset} ${duration} ${easing} ${delay} both`;
     if (style.animationTrigger === "scroll") {
       // CSS scroll-driven animation — progress maps to the node entering the
@@ -1773,6 +1810,19 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
       record.animationTimeline = "view()";
       record.animationRange = "entry 0% cover 35%";
     }
+  }
+  // Wave 6B (#27) — scroll parallax. Persistent scroll-driven drift, independent
+  // of the entrance preset. When BOTH are set, parallax wins the single
+  // `animation` slot (entrance is the one-shot intro; parallax is what the
+  // visitor keeps seeing as they scroll). Driven by `animation-timeline:view()`
+  // over the node's full on-screen pass, linear so the drift tracks scroll 1:1.
+  // The baked keyframe lives in the static sheet; the reduced-motion guard there
+  // ([style*="animation"]) disables it for visitors who asked for less motion.
+  if (style.parallax && style.parallax !== "none") {
+    const record = out as Record<string, unknown>;
+    record.animation = `${BUILDER_PARALLAX_KEYFRAME[style.parallax]} linear both`;
+    record.animationTimeline = "view()";
+    record.animationRange = "cover 0% cover 100%";
   }
   // Visibility — a desktop-level "hidden" removes the node everywhere (the
   // breakpoint layers inherit it). Per-breakpoint hides are handled by the
