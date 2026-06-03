@@ -600,6 +600,7 @@ export const SETTINGS_SECTIONS = [
   { id: "account",      label: "Account",          desc: "Workspace name, slug, contact email.",                                supportLink: "/help/settings/account" },
   { id: "plan",         label: "Plan & billing",   desc: "Your current plan, usage, and invoices.",                              supportLink: "/help/settings/billing" },
   { id: "workspace",    label: "Workspace",        desc: "Timezone, locale, currency, custom fields, and taxonomy.",             supportLink: "/help/settings/workspace" },
+  { id: "commercial-terms", label: "Booking terms", desc: "Default deposit, refund policy, and instant booking for new offers.", supportLink: "/help/settings/booking-terms" },
   { id: "domain",       label: "Domain",           desc: "Run your storefront at your own domain.",                              supportLink: "/help/settings/domain" },
   { id: "branding",     label: "Branding",         desc: "Logo, colors, email identity — what clients see.",                     supportLink: "/help/settings/branding" },
   { id: "team",         label: "Team",             desc: "Invite teammates and assign roles.",                                   supportLink: "/help/settings/team" },

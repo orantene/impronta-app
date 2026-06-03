@@ -13,6 +13,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
+import {
+  REFUND_POLICY_LABELS,
+  type RefundPolicyKey,
+  type TalentBookingTerms,
+} from "@/lib/billing/commercial-terms-types";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -32,6 +37,34 @@ type ProfileRow = {
   height_cm: number | null;
   is_publicly_hidden: boolean | null;
 };
+
+/**
+ * Coerce the talent's stored `booking_terms` jsonb into a safe, DISPLAY-ONLY
+ * subset. Configuration layer — no money flow here; the chip is informational.
+ */
+function normalizePublicBookingTerms(raw: unknown): TalentBookingTerms | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  const refundKeys: RefundPolicyKey[] = ["tiered", "flexible", "strict", "manual"];
+  const depositPct =
+    typeof o.depositPct === "number" && Number.isFinite(o.depositPct)
+      ? Math.min(100, Math.max(0, Math.round(o.depositPct)))
+      : null;
+  const refundPolicy =
+    typeof o.refundPolicy === "string" && (refundKeys as string[]).includes(o.refundPolicy)
+      ? (o.refundPolicy as RefundPolicyKey)
+      : null;
+  const fixedRateCents =
+    typeof o.fixedRateCents === "number" && Number.isFinite(o.fixedRateCents) && o.fixedRateCents >= 0
+      ? Math.round(o.fixedRateCents)
+      : null;
+  return {
+    depositPct,
+    refundPolicy,
+    instantBookOptIn: o.instantBookOptIn === true,
+    fixedRateCents,
+  };
+}
 
 type MediaRow = {
   storage_path: string;
@@ -56,6 +89,7 @@ type LoadedTalent = {
   agencyName: string;
   agencySlug: string;
   cityLabel: string | null;
+  bookingTerms: TalentBookingTerms | null;
 };
 
 function unwrapAgency(value: RosterRow["agencies"]): { display_name: string | null; slug: string } | null {
@@ -81,18 +115,23 @@ async function loadTalent(slug: string): Promise<LoadedTalent | null> {
   const normalized = slug.trim().toUpperCase();
   if (!normalized) return null;
 
+  // `.returns<T>()` asserts the row shape because `booking_terms` is unknown to
+  // the generated database types this wave (not regenerated) — without it the
+  // unknown column widens the row to GenericStringError.
   const { data: profile, error: profileErr } = await supabase
     .from("talent_profiles")
     .select(
-      "id, profile_code, display_name, first_name, last_name, short_bio, height_cm, is_publicly_hidden, location_id",
+      "id, profile_code, display_name, first_name, last_name, short_bio, height_cm, is_publicly_hidden, location_id, booking_terms",
     )
     .eq("profile_code", normalized)
     .eq("is_publicly_hidden", false)
+    .returns<(ProfileRow & { location_id: string | null; booking_terms: unknown })[]>()
     .maybeSingle();
 
   if (profileErr || !profile) return null;
 
-  const typedProfile = profile as ProfileRow & { location_id: string | null };
+  const typedProfile = profile;
+  const bookingTerms = normalizePublicBookingTerms(typedProfile.booking_terms);
 
   // Load agency representation via the roster.
   const { data: rosterRows } = await supabase
@@ -152,6 +191,7 @@ async function loadTalent(slug: string): Promise<LoadedTalent | null> {
     agencyName,
     agencySlug,
     cityLabel,
+    bookingTerms,
   };
 }
 
@@ -309,6 +349,10 @@ export default async function TalentSharePage({ params }: PageProps) {
             <Stat label="Agency" value={talent.agencyName} />
           </div>
 
+          {/* Booking-terms chips — DISPLAY-ONLY informational signals from the
+              talent's commercial preferences. No booking action here. */}
+          <BookingTermsChips terms={talent.bookingTerms} />
+
           {/* Gallery */}
           {talent.galleryUrls.length > 0 ? (
             <div
@@ -437,6 +481,60 @@ export default async function TalentSharePage({ params }: PageProps) {
           </Link>
         </div>
       </main>
+    </div>
+  );
+}
+
+/**
+ * Display-only commercial-terms chips. Informational signals only — there is
+ * deliberately NO booking action on this public share card. Renders nothing
+ * when the talent has no meaningful preferences set.
+ */
+function BookingTermsChips({ terms }: { terms: TalentBookingTerms | null }) {
+  if (!terms) return null;
+
+  const chips: string[] = [];
+  if (terms.fixedRateCents !== null) {
+    // Currency-agnostic minor units (no FX / symbol in the config layer) —
+    // show a plain "From N" so we never imply a specific currency or charge.
+    const amount = (terms.fixedRateCents / 100).toLocaleString(undefined, {
+      maximumFractionDigits: 2,
+    });
+    chips.push(`From ${amount}`);
+  }
+  if (terms.instantBookOptIn) chips.push("Instant booking available");
+  if (terms.depositPct !== null) chips.push(`Prefers ${terms.depositPct}% deposit`);
+  if (terms.refundPolicy) chips.push(`${REFUND_POLICY_LABELS[terms.refundPolicy]} refunds`);
+
+  if (chips.length === 0) return null;
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 8,
+        marginTop: 18,
+      }}
+    >
+      {chips.map((label) => (
+        <span
+          key={label}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            padding: "5px 11px",
+            borderRadius: 999,
+            background: "rgba(15,79,62,0.06)",
+            border: "1px solid rgba(9,51,40,0.14)",
+            color: "#093328",
+            fontSize: 12,
+            fontWeight: 500,
+          }}
+        >
+          {label}
+        </span>
+      ))}
     </div>
   );
 }

@@ -162,7 +162,7 @@ export const LANGUAGE_PRESETS: { id: string; label: string; langs: string[] }[] 
 export const PROFILE_SECTIONS = [
   "identity", "services", "location", "logistics", "media", "albums", "polaroids",
   "about", "profile_fields",
-  "physical", "wardrobe", "details", "rates", "availability",
+  "physical", "wardrobe", "details", "rates", "commercial_terms", "availability",
   "refinement", "credits", "limits", "files",
   "social_proof", "verifications", "agency_fields", "admin",
 ] as const;
@@ -184,6 +184,7 @@ export const SECTION_META: Record<Exclude<ProfileSectionId, "">, { label: string
   wardrobe:      { label: "Wardrobe",      emoji: "👗" },
   details:       { label: "Details",       emoji: "📋" },
   rates:         { label: "Rates",         emoji: "💶" },
+  commercial_terms: { label: "Booking terms", emoji: "◷" },
   availability:  { label: "Availability",  emoji: "📅" },
   refinement:    { label: "Extra details",  emoji: "✦" },
   credits:       { label: "Credits",       emoji: "🏆" },

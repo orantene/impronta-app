@@ -9,6 +9,7 @@ import { COLORS, FONTS, PLAN_META, RADIUS, TRANSITION, meetsPlan, meetsRole, use
 import type { Plan, Role } from "../state";
 import { AutoAckSettingsRow, LockedPill, SETTINGS_SECTIONS } from "./BillingPage";
 import { DefaultCurrencySettingsRow } from "@/components/admin/account/DefaultCurrencySettingsRow";
+import { CommercialTermsSettingsCard } from "@/components/admin/account/CommercialTermsSettingsCard";
 import { PageHeader } from "./pages-shared";
 import {
   SETTINGS_SECTION_EVENT,
@@ -182,7 +183,7 @@ export function WorkspacePageView() {
   type SettingsTab = "workspace" | "roster" | "team" | "billing" | "advanced";
   const [activeTab, setActiveTab] = useState<SettingsTab>("workspace");
   const TABS: { id: SettingsTab; label: string; emoji: string; sections: string[] }[] = [
-    { id: "workspace", label: "Workspace",     emoji: "🏛", sections: ["account", "workspace", "domain", "branding", "media-watermark"] },
+    { id: "workspace", label: "Workspace",     emoji: "🏛", sections: ["account", "workspace", "commercial-terms", "domain", "branding", "media-watermark"] },
     { id: "roster",    label: "Roster",        emoji: "🎯", sections: ["talent-types", "roster-review", "registration", "discover"] },
     { id: "team",      label: "Team & legal",  emoji: "👥", sections: ["team", "compliance"] },
     { id: "billing",   label: "Plan & integrations", emoji: "💳", sections: ["plan", "integrations", "brand", "growth", "email"] },
@@ -405,6 +406,13 @@ export function WorkspacePageView() {
             })}
             {/* L49 — Default currency inline picker (display-only, no FX). */}
             <DefaultCurrencySettingsRow />
+          </AccordionItem>
+          )}
+
+          {visibleSections.has("commercial-terms") && tenantSlug && (
+          <AccordionItem id="commercial-terms" label="Booking terms" desc="Default deposit, refund policy, and instant booking for new offers." supportLink="/help/settings/booking-terms" open={isOpen("commercial-terms")} onToggle={() => toggleSection("commercial-terms")}>
+            {/* Commercial terms — workspace defaults; an offer can override. */}
+            <CommercialTermsSettingsCard tenantSlug={tenantSlug} />
           </AccordionItem>
           )}
 

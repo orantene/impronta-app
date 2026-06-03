@@ -90,6 +90,11 @@
       "count": 1
     }
   },
+  "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-commercial-terms.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 18
+    }
+  },
   "src/components/admin/shell/internal/client.tsx": {
     "max-lines": {
       "count": 1
@@ -1619,6 +1624,11 @@
   "src/lib/server-actions/cancel-subscription.ts": {
     "ratchet/no-untenanted-from": {
       "count": 5
+    }
+  },
+  "src/lib/server-actions/commercial-terms-tenant.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 3
     }
   },
   "src/lib/server-actions/client-guest-merge.ts": {
