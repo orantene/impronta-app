@@ -1,8 +1,16 @@
 "use client";
 
+import { useMemo } from "react";
 import { CapsLabel } from "../../primitives";
 import { COLORS, FONTS, useAdminShell } from "../../state";
+import type { TalentCalendarEntry } from "../../data-bridge";
 import { parseMayDay } from "./calendar-2";
+
+// Real "today" — module helper so the argless `new Date()` stays out of the
+// component body (react-hooks/purity). Pinned once at mount via useMemo.
+function calNow(): Date {
+  return new Date();
+}
 
 
 
@@ -20,53 +28,80 @@ import { parseMayDay } from "./calendar-2";
  * month and reads from the same data sources. For prototype purposes the
  * one-month view is enough to show the layout and visual language.
  */
-export function CalendarMonthGrid() {
+export function CalendarMonthGrid({
+  entries,
+  onOpen,
+}: {
+  /** Real calendar entries (bridge mode). When provided, the grid renders the
+   *  REAL current month from these instead of the May-2026 demo fixtures. */
+  entries?: TalentCalendarEntry[];
+  /** Click handler for a real booking/hold mark (routes to talent-hub-detail). */
+  onOpen?: (entry: TalentCalendarEntry) => void;
+} = {}) {
   const { openDrawer } = useAdminShell();
+  const live = entries != null;
 
-  // May 2026 starts on a Friday (verified). Map cells: empty for the
-  // first 4 days (Mon–Thu), then 1..31 for the days of the month.
-  // Layout is Mon-first, 6 weeks max.
-  const firstWeekday = 4; // 0=Mon, 4=Fri
-  const daysInMonth = 31;
-
-  // Define what's on each day. Dates are loosely aligned with fixtures.
-  // bk1 = May 6, bk2 = May 14-15, av1 = Apr 28 → May 2, av2 = May 22-26.
-  // A7: pending + inquiry mark kinds added — coral for pending, indigo
-  // for inquiry, ghosted opacity to differentiate from confirmed.
   type DayMark =
-    | { kind: "booking"; id: string; label: string; client: string }
-    | { kind: "block"; id: string; label: string; type: "travel" | "personal" | "blocked" }
-    | { kind: "pending"; id: string; label: string }
-    | { kind: "inquiry"; id: string; label: string };
+    | { kind: "booking"; id: string; label: string; client: string; entry?: TalentCalendarEntry }
+    | { kind: "block"; id: string; label: string; type: "travel" | "personal" | "blocked"; entry?: TalentCalendarEntry }
+    | { kind: "pending"; id: string; label: string; entry?: TalentCalendarEntry }
+    | { kind: "inquiry"; id: string; label: string; entry?: TalentCalendarEntry };
 
-  const marksByDay: Record<number, DayMark[]> = {};
-  const addMark = (day: number, mark: DayMark) => {
-    marksByDay[day] = marksByDay[day] ? [...marksByDay[day], mark] : [mark];
-  };
+  // Displayed month: the REAL current month in live mode, the fixed May-2026
+  // demo month otherwise. `today` is pinned once at mount (calNow keeps the
+  // argless new Date() out of the render body for react-hooks/purity).
+  const today = useMemo(() => calNow(), []);
+  const viewYear = today.getFullYear();
+  const viewMonth = today.getMonth();
+  const firstWeekday = live ? (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7 : 4; // 0=Mon
+  const daysInMonth = live ? new Date(viewYear, viewMonth + 1, 0).getDate() : 31;
+  const monthLabel = live ? today.toLocaleString("en-US", { month: "long", year: "numeric" }) : "May 2026";
 
-  // Block: Apr 28 → May 2 (travel) — only May 1, 2 fall in this view
-  addMark(1, { kind: "block", id: "av1", label: "Travel · Lisbon", type: "travel" });
-  addMark(2, { kind: "block", id: "av1", label: "Travel · Lisbon", type: "travel" });
-
-  // Booking bk1 — May 6 · 08:30 call (A6 time-of-day on grid)
-  addMark(6, { kind: "booking", id: "bk1", label: "08:30 · Mango", client: "Mango" });
-
-  // Booking bk2 — May 14, 15 · 07:00 call
-  addMark(14, { kind: "booking", id: "bk2", label: "07:00 · Vogue", client: "Vogue Italia" });
-  addMark(15, { kind: "booking", id: "bk2", label: "07:00 · Vogue", client: "Vogue Italia" });
-
-  // A7: Pending hold rq5 — Stella McCartney May 14 (CONFLICTS with bk2)
-  addMark(14, { kind: "pending", id: "rq5", label: "Hold · Stella McCartney" });
-
-  // A7: Pending hold rq2 — Bvlgari May 18-20
-  for (let d = 18; d <= 20; d++) {
-    addMark(d, { kind: "pending", id: "rq2", label: "Hold · Bvlgari" });
-  }
-
-  // Block av2 — May 22-26 (personal)
-  for (let d = 22; d <= 26; d++) {
-    addMark(d, { kind: "block", id: "av2", label: "Personal", type: "personal" });
-  }
+  const marksByDay = useMemo<Record<number, DayMark[]>>(() => {
+    const byDay: Record<number, DayMark[]> = {};
+    const addMark = (day: number, mark: DayMark) => {
+      byDay[day] = byDay[day] ? [...byDay[day], mark] : [mark];
+    };
+    if (!live) {
+      // Demo fixtures (standalone preview). bk1 = May 6, bk2 = May 14-15,
+      // av1 = Apr 28 → May 2, av2 = May 22-26.
+      addMark(1, { kind: "block", id: "av1", label: "Travel · Lisbon", type: "travel" });
+      addMark(2, { kind: "block", id: "av1", label: "Travel · Lisbon", type: "travel" });
+      addMark(6, { kind: "booking", id: "bk1", label: "08:30 · Mango", client: "Mango" });
+      addMark(14, { kind: "booking", id: "bk2", label: "07:00 · Vogue", client: "Vogue Italia" });
+      addMark(15, { kind: "booking", id: "bk2", label: "07:00 · Vogue", client: "Vogue Italia" });
+      addMark(14, { kind: "pending", id: "rq5", label: "Hold · Stella McCartney" });
+      for (let d = 18; d <= 20; d++) addMark(d, { kind: "pending", id: "rq2", label: "Hold · Bvlgari" });
+      for (let d = 22; d <= 26; d++) addMark(d, { kind: "block", id: "av2", label: "Personal", type: "personal" });
+      return byDay;
+    }
+    // Real entries → day cells of the current month. Multi-day spans paint
+    // every covered day; a half-open [start, end) midnight end doesn't bleed
+    // into the following day.
+    for (const e of entries!) {
+      const start = new Date(e.startsAt);
+      const end = new Date(e.endsAt);
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) continue;
+      const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+      const lastInclusive = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+      const endsAtMidnight = end.getHours() === 0 && end.getMinutes() === 0 && end.getSeconds() === 0;
+      if (endsAtMidnight && lastInclusive.getTime() > cursor.getTime()) lastInclusive.setDate(lastInclusive.getDate() - 1);
+      const label = e.title || e.subLabel || (e.kind === "block" ? "Unavailable" : "Booking");
+      const travel = /travel|flight|trip|tour/iu.test(`${e.title} ${e.subLabel ?? ""}`);
+      let guard = 0;
+      while (cursor.getTime() <= lastInclusive.getTime() && guard < 400) {
+        guard++;
+        if (cursor.getFullYear() === viewYear && cursor.getMonth() === viewMonth) {
+          const day = cursor.getDate();
+          if (e.kind === "booking") addMark(day, { kind: "booking", id: e.inquiryId ?? e.id, label, client: e.subLabel ?? label, entry: e });
+          else if (e.kind === "hold") addMark(day, { kind: "pending", id: e.inquiryId ?? e.id, label, entry: e });
+          else addMark(day, { kind: "block", id: e.id, label, type: travel ? "travel" : "personal", entry: e });
+        }
+        cursor.setDate(cursor.getDate() + 1);
+      }
+    }
+    return byDay;
+  }, [live, entries, viewYear, viewMonth]);
 
   const totalCells = Math.ceil((firstWeekday + daysInMonth) / 7) * 7;
   const weekdayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -74,7 +109,7 @@ export function CalendarMonthGrid() {
   return (
     <section className="mb-6">
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-        <CapsLabel>May 2026</CapsLabel>
+        <CapsLabel>{monthLabel}</CapsLabel>
         <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
           <CalendarLegendDot tone="green" label="Booked" />
           <CalendarLegendDot tone="coral" label="Pending" />
@@ -188,7 +223,11 @@ export function CalendarMonthGrid() {
                     <button
                       key={`${idx}-${mi}`}
                       onClick={() => {
-                        if (mark.kind === "booking") {
+                        // Live mode: route real bookings/holds to the same
+                        // detail surface the week/day/list views use.
+                        if (mark.entry && onOpen && (mark.kind === "booking" || mark.kind === "pending")) {
+                          onOpen(mark.entry);
+                        } else if (mark.kind === "booking") {
                           openDrawer("talent-booking-detail", { id: mark.id });
                         } else if (mark.kind === "pending") {
                           openDrawer("talent-offer-detail", { id: mark.id });

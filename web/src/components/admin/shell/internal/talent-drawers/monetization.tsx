@@ -11,10 +11,9 @@
 import { useState } from "react";
 import { COLORS, EARNINGS_ROWS, FONTS, useAdminShell } from "../state";
 import {
-  Avatar,
   Divider,
   DrawerShell,
-  FieldRow,
+  EmptyState,
   Icon,
   PrimaryButton,
   SecondaryButton,
@@ -165,18 +164,12 @@ export function TalentVerificationDrawer() {
 
 // ─── Friend referrals (D7) ──────────────────────────────────────
 
-const REFERRAL_LIST = [
-  { id: "r1", name: "Sara Mendez", status: "joined" as const, joinedAt: "2 weeks ago", earned: 0 },
-  { id: "r2", name: "Marco Vasquez", status: "earning" as const, joinedAt: "5 weeks ago", earned: 50 },
-  { id: "r3", name: "Lia Torres", status: "invited" as const, joinedAt: "Sent 3 days ago", earned: 0 },
-];
-
 export function TalentReferralsDrawer() {
   const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-referrals";
-  const link = "tulala.digital/r/marta-reyes";
-  const earnedTotal = REFERRAL_LIST.reduce((sum, r) => sum + r.earned, 0);
-  const joinedCount = REFERRAL_LIST.filter((r) => r.status !== "invited").length;
+  // Honest stub — referral tracking has no backend yet, so we don't show a
+  // fabricated invite link / referral list / earnings. The €50 promise stays
+  // in the description as the product intent.
   return (
     <DrawerShell
       open={open}
@@ -186,84 +179,11 @@ export function TalentReferralsDrawer() {
       width={560}
       footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, 1fr)",
-          gap: 8,
-          marginBottom: 16,
-        }}
-      >
-        <SummaryStat label="Sent" value={String(REFERRAL_LIST.length)} accent="ink" />
-        <SummaryStat label="Joined" value={String(joinedCount)} accent="green" />
-        <SummaryStat label="Earned" value={`€${earnedTotal}`} accent="green" />
-      </div>
-
-      <FieldRow label="Your invite link" hint="Click to copy. Anyone who signs up via this link is yours.">
-        <button
-          type="button"
-          onClick={() => void navigator.clipboard.writeText(`https://${link}`)}
-          style={{
-            width: "100%",
-            padding: "10px 12px",
-            background: "#fff",
-            border: `1px solid ${COLORS.borderSoft}`,
-            borderRadius: 8,
-            fontFamily: FONTS.body,
-            fontSize: 13,
-            color: COLORS.ink,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            textAlign: "left",
-          }}
-        >
-          <Icon name="external" size={13} color={COLORS.inkMuted} />
-          <span style={{ flex: 1, fontFamily: "monospace" }}>{link}</span>
-          <span className="text-admin-accent-deep text-admin-11h font-semibold">Copy</span>
-        </button>
-      </FieldRow>
-
-      <Divider label="Referrals" />
-
-      <div className="flex flex-col gap-2">
-        {REFERRAL_LIST.map((r) => (
-          <div
-            key={r.id}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              padding: "10px 12px",
-              background: "#fff",
-              border: `1px solid ${COLORS.borderSoft}`,
-              borderRadius: 9,
-              fontFamily: FONTS.body,
-            }}
-          >
-            <Avatar initials={r.name.split(" ").map((n) => n[0]).join("")} size={28} tone="ink" />
-            <div className="flex-1 min-w-0">
-              <div className="text-admin-ink text-admin-13 font-medium">{r.name}</div>
-              <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
-                {r.status === "earning"
-                  ? `Earned · joined ${r.joinedAt}`
-                  : r.status === "joined"
-                    ? `Joined ${r.joinedAt} · waiting on first booking`
-                    : r.joinedAt}
-              </div>
-            </div>
-            {r.earned > 0 && (
-              <span style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600 }} className="text-admin-green">
-                +€{r.earned}
-              </span>
-            )}
-            {r.status === "invited" && (
-              <span style={{ fontFamily: FONTS.body, fontSize: 11 }} className="text-admin-ink-dim">Invited</span>
-            )}
-          </div>
-        ))}
-      </div>
+      <EmptyState
+        icon="sparkle"
+        title="Coming soon"
+        body="Referral invites and €50 payout credit aren't live yet. We'll add your personal invite link here when they launch."
+      />
     </DrawerShell>
   );
 }
