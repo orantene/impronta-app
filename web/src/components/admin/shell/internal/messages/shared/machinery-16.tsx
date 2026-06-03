@@ -478,7 +478,8 @@ export function TypingIndicator({ who }: { who: string }) {
 
 // Composer that persists drafts per (inquiry, thread) so switching tabs
 // doesn't lose typed text. Uses an in-memory map keyed by `threadKey`.
-// Includes: voice note button, AI smart-reply chip, draft persistence.
+// Includes: attachment button, AI smart-reply chips (shown by default),
+// draft persistence.
 export const __draftStore: Map<string, string> = new Map();
 
 export const SMART_REPLIES_FOR_LAST: Record<string, string[]> = {
@@ -499,6 +500,10 @@ export function DraftComposer({
   workspaceName,
   canSendAsWorkspace = false,
   onSendAsWorkspace,
+  // C1: optional attachment handler. When provided, the paperclip
+  // button is enabled and opens a file picker. The caller handles
+  // the actual upload (admin passes uploadInquiryAttachment).
+  onAttach,
 }: {
   threadKey: string;
   placeholder: string;
@@ -507,6 +512,7 @@ export function DraftComposer({
   workspaceName?: string;
   canSendAsWorkspace?: boolean;
   onSendAsWorkspace?: (text: string) => void;
+  onAttach?: (file: File) => void;
 }) {
   const [val, setVal] = useState(() => __draftStore.get(threadKey) ?? "");
   const [hasSent, setHasSent] = useState(false);
@@ -514,10 +520,14 @@ export function DraftComposer({
   // attribute to the workspace.
   const [sendAs, setSendAs] = useState<"you" | "workspace">("you");
   const wsAvailable = canSendAsWorkspace && !!workspaceName && !!onSendAsWorkspace;
-  // Smart replies are now hidden by default — they were eating
-  // composer real-estate every thread. A small sparkle button toggles
-  // them. Auto-collapse when the user starts typing or sends.
-  const [smartOpen, setSmartOpen] = useState(false);
+  // C4 — smart replies shown by DEFAULT above the composer.
+  // Top 2-3 chips surface immediately on fresh/empty threads so the
+  // user always sees them without having to hit a sparkle toggle.
+  // They auto-collapse: (a) when the user starts typing, (b) when
+  // switching threads (tab-switch), (c) after the first send.
+  // "Smart open" starts true and collapses on first keystroke; the
+  // sparkle toggle can re-open them at any time.
+  const [smartOpen, setSmartOpen] = useState(true);
   useEffect(() => {
     if (val) __draftStore.set(threadKey, val); else __draftStore.delete(threadKey);
     if (val) setSmartOpen(false); // typing closes the suggestions
@@ -528,6 +538,8 @@ export function DraftComposer({
     setSmartOpen(false); // switching threads collapses the panel
   }, [threadKey]);
   const replies = SMART_REPLIES_FOR_LAST[smartReplyContext] ?? SMART_REPLIES_FOR_LAST.default;
+  // Show top 2-3 chips only so the row stays compact.
+  const visibleReplies = (replies ?? []).slice(0, 3);
   const handleSend = (text: string) => {
     if (sendAs === "workspace" && wsAvailable) {
       onSendAsWorkspace!(text);
@@ -539,14 +551,17 @@ export function DraftComposer({
     // sends don't all auto-attribute to the workspace by accident.
     setSendAs("you");
   };
-  const canShowSmart = !val && !hasSent && (replies?.length ?? 0) > 0;
+  const canShowSmart = !val && !hasSent && visibleReplies.length > 0;
 
   return (
     <div data-tulala-composer-wrap style={{ marginTop: 8 }}>
-      {/* Smart-reply chips row — opt-in. Click the sparkle button next
-          to the composer to expand. Auto-collapses when the user types
-          or sends. Saves ~36px of vertical chrome on every thread. */}
-      {smartOpen && canShowSmart && (
+      {/* Smart-reply chips row — shown by default on fresh threads.
+          Top 2-3 chips displayed above the composer so users don't
+          have to look for them. Auto-collapses on first keystroke,
+          tab-switch, or send. The sparkle button re-opens them when
+          collapsed. canShowSmart gates the whole block (typing /
+          sending / no-replies all suppress this). */}
+      {canShowSmart && smartOpen && (
         <div data-tulala-smart-replies style={{
           display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap",
           alignItems: "center",
@@ -555,7 +570,7 @@ export function DraftComposer({
           <style dangerouslySetInnerHTML={{ __html:
             "@keyframes tulala-smart-fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}"
           }} />
-          {(replies ?? []).map((r, i) => (
+          {visibleReplies.map((r, i) => (
             <button key={i} type="button" onClick={() => { setVal(r); setSmartOpen(false); }} style={{
               padding: "5px 11px", borderRadius: 999,
               background: COLORS.royalSoft,
@@ -630,31 +645,58 @@ export function DraftComposer({
         </div>
       )}
       <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-        <button type="button" aria-label="Attach file" title="File attachments coming soon" disabled style={{
-          width: 36, height: 36, borderRadius: "50%", border: "none",
-          background: "transparent", color: COLORS.inkMuted, cursor: "not-allowed", opacity: 0.45,
-          display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-        }}>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M11 4.5v6a3 3 0 11-6 0V4a2 2 0 014 0v6a1 1 0 11-2 0V5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-          </svg>
-        </button>
-        {/* Sparkle toggle — opens the smart-reply panel above. Only
-            renders before the user has sent / started typing in this
-            thread (post-send, suggestions stop being relevant). */}
-        {canShowSmart && (
+        {/* C1 — attachment button. Enabled when the caller passes onAttach.
+            Hidden file input triggers the OS picker; selected file is
+            forwarded to onAttach for upload. Voice/mic stays stubbed. */}
+        {onAttach ? (
+          <label
+            title="Attach a file"
+            aria-label="Attach file"
+            style={{
+              width: 36, height: 36, borderRadius: "50%", border: "none",
+              background: "transparent", color: COLORS.inkMuted, cursor: "pointer",
+              display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+            }}
+          >
+            <input
+              type="file"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) { onAttach(f); e.target.value = ""; }
+              }}
+            />
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M11 4.5v6a3 3 0 11-6 0V4a2 2 0 014 0v6a1 1 0 11-2 0V5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+          </label>
+        ) : (
+          <button type="button" aria-label="Attach file" title="File attachments coming soon" disabled style={{
+            width: 36, height: 36, borderRadius: "50%", border: "none",
+            background: "transparent", color: COLORS.inkMuted, cursor: "not-allowed", opacity: 0.45,
+            display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+          }}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M11 4.5v6a3 3 0 11-6 0V4a2 2 0 014 0v6a1 1 0 11-2 0V5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+          </button>
+        )}
+        {/* Sparkle toggle — re-opens the smart-reply chips when they've
+            been dismissed. Only renders before the user has sent /
+            started typing. */}
+        {canShowSmart && !smartOpen && (
           <button
             type="button"
-            onClick={() => setSmartOpen((v) => !v)}
-            aria-expanded={smartOpen}
-            aria-label={smartOpen ? "Hide smart replies" : "Show smart replies"}
+            onClick={() => setSmartOpen(true)}
+            aria-label="Show smart replies"
             title="Smart replies"
             style={{
               width: 36, height: 36, borderRadius: "50%", border: "none",
-              background: smartOpen ? COLORS.royalSoft : "transparent",
+              background: "transparent",
               color: COLORS.royal, cursor: "pointer", flexShrink: 0,
               display: "inline-flex", alignItems: "center", justifyContent: "center",
               transition: "background .12s",
+              opacity: 0.65,
             }}
           >
             <svg width="15" height="15" viewBox="0 0 12 12" fill="none">

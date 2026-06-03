@@ -33,6 +33,85 @@ import type { Offer } from "./shared/machinery-9";
 import { ShellHeader } from "./talent-1";
 import type { ShellHeaderInput } from "./talent-1";
 
+// ── WhosTurnBanner (D4) ─────────────────────────────────────────────
+// A slim contextual banner shown at the top of the thread content area
+// that tells every viewer whose turn it is in the inquiry flow.
+// Derives a human-readable phrase from nextActionBy + the current stage.
+// Returns null for terminal stages (booked/past) to avoid noise.
+function WhosTurnBanner({
+  nextActionBy,
+  stage,
+  talentPending,
+}: {
+  nextActionBy: "client" | "coordinator" | "talent" | "ops" | null;
+  stage: "inquiry" | "hold" | "approved" | "booked" | "past";
+  /** Number of talents who haven't responded yet. Used to show "(N of M)". */
+  talentPending?: number;
+}) {
+  if (!nextActionBy || stage === "booked" || stage === "past") return null;
+
+  const { text, tone } = ((): { text: string; tone: "amber" | "blue" | "green" | "muted" } => {
+    if (nextActionBy === "client") return {
+      text: stage === "hold"
+        ? "Waiting on client to approve the offer."
+        : "Waiting on client to respond.",
+      tone: "amber",
+    };
+    if (nextActionBy === "coordinator") return {
+      text: stage === "inquiry"
+        ? "Your turn — reply to the client to move this forward."
+        : stage === "hold"
+        ? "Your turn — finalize the offer and send it."
+        : stage === "approved"
+        ? "Ready to book — use 'Move to → Booked' to lock it."
+        : "Your turn.",
+      tone: "blue",
+    };
+    if (nextActionBy === "talent") {
+      const pendingNote = talentPending && talentPending > 0
+        ? ` (${talentPending} pending)`
+        : "";
+      return {
+        text: `Waiting on talent to respond${pendingNote}.`,
+        tone: "muted",
+      };
+    }
+    if (nextActionBy === "ops") return {
+      text: "Waiting on internal review (ops).",
+      tone: "muted",
+    };
+    return { text: "Waiting for next action.", tone: "muted" };
+  })();
+
+  const styles: Record<typeof tone, { bg: string; color: string; border: string }> = {
+    amber: { bg: "rgba(245,158,11,0.08)", color: "#92400E", border: "rgba(245,158,11,0.20)" },
+    blue:  { bg: "rgba(29,78,216,0.07)", color: "#1D4ED8", border: "rgba(29,78,216,0.18)" },
+    green: { bg: "rgba(15,79,62,0.07)",  color: "#0F4F3E", border: "rgba(15,79,62,0.18)" },
+    muted: { bg: "rgba(11,11,13,0.04)",  color: "rgba(11,11,13,0.60)", border: "rgba(11,11,13,0.10)" },
+  };
+  const s = styles[tone];
+
+  return (
+    <div style={{
+      margin: "0 14px 6px",
+      padding: "6px 12px",
+      borderRadius: 8,
+      background: s.bg,
+      border: `1px solid ${s.border}`,
+      display: "inline-flex", alignItems: "center", gap: 7,
+      fontSize: 11.5, fontWeight: 600, color: s.color,
+      fontFamily: FONTS.body,
+      flexShrink: 0,
+    }}>
+      <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden style={{ flexShrink: 0 }}>
+        <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.4"/>
+        <path d="M7 4.5v3l1.5 1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+      </svg>
+      {text}
+    </div>
+  );
+}
+
 // Hero: status pill + project + brief + funnel
 // Operational block: lineup status + offer state + needs-me action card
 // Tab bar: Client thread · Talent group · Files · Details (admin sees ALL — no locks)
@@ -385,6 +464,18 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
                   onSelect={(s) => setChatSubThread(s)}
                   clientUnread={inquiry.unreadPrivate}
                   groupUnread={inquiry.unreadGroup}
+                />
+              )}
+              {/* D4 — Whose-turn banner. Shows once, above the message
+                  stream (not repeated in every bubble). Admin sees a
+                  "your turn" nudge when nextActionBy=coordinator; other
+                  values surface the waiting party so admin knows the
+                  ball is in someone else's court. */}
+              {isOnChat && (
+                <WhosTurnBanner
+                  nextActionBy={inquiry.nextActionBy}
+                  stage={stageBucket}
+                  talentPending={lineupPending}
                 />
               )}
               {/* Slice M wiring (item #6): originating pitch context.

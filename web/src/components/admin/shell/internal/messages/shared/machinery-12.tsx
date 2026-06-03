@@ -125,70 +125,76 @@ export function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: Off
       style={{
         background: "#fff",
         border: `1px solid ${COLORS.borderSoft}`,
-        padding: 16,
+        borderRadius: 14,
+        padding: "16px 18px",
         display: "flex",
         flexDirection: "column",
-        gap: 12,
+        gap: 14,
         fontFamily: FONTS.body,
+        boxShadow: "0 2px 8px rgba(11,11,13,0.06)",
       }}
-      className="rounded-admin-md"
     >
-      {/* Header — status pill + total */}
+      {/* Header — status pill + total. The pill leads so the viewer
+          instantly knows the offer state before reading the amount. */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6 }} className="text-admin-ink-muted">
-            Offer
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+            <span
+              style={{
+                padding: "3px 9px",
+                borderRadius: 999,
+                background: statusInfo.bg,
+                color: statusInfo.tone,
+                fontSize: 10.5,
+                fontWeight: 700,
+                letterSpacing: 0.4,
+                textTransform: "uppercase",
+                whiteSpace: "nowrap",
+                flexShrink: 0,
+              }}
+            >
+              {statusInfo.label}
+            </span>
+            {offer.sentAt && (
+              <span className="text-admin-ink-muted" style={{ fontSize: 11 }}>sent {offer.sentAt}</span>
+            )}
           </div>
           {offer.total && (
-            <div style={{ fontFamily: FONTS.display, fontSize: 22, fontWeight: 700, marginTop: 3 }} className="text-admin-ink">
+            <div style={{ fontFamily: FONTS.display, fontSize: 26, fontWeight: 700, letterSpacing: -0.5, lineHeight: 1.1 }} className="text-admin-ink">
               {offer.total}
             </div>
           )}
-          {offer.sentAt && (
-            <div className="text-admin-ink-muted text-admin-11" style={{ marginTop: 3 }}>Sent {offer.sentAt}</div>
+          {!offer.total && (
+            <div style={{ fontSize: 13 }} className="text-admin-ink-muted">No total set yet</div>
           )}
         </div>
-        <span
-          style={{
-            padding: "4px 10px",
-            borderRadius: 999,
-            background: statusInfo.bg,
-            color: statusInfo.tone,
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: 0.3,
-            textTransform: "uppercase",
-            whiteSpace: "nowrap",
-            flexShrink: 0,
-          }}
-        >
-          {statusInfo.label}
-        </span>
       </div>
 
       {/* Line items */}
       {offer.lineItems.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 6 }} className="text-admin-ink-muted">
+          <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }} className="text-admin-ink-muted">
             Line items
           </div>
+          <div style={{ border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, overflow: "hidden" }}>
           {offer.lineItems.map((ln, i) => (
             <div
               key={`${ln.talentName}-${i}`}
               style={{
                 display: "flex",
-                alignItems: "baseline",
+                alignItems: "center",
                 justifyContent: "space-between",
                 gap: 10,
-                padding: "6px 0",
+                padding: "9px 12px",
                 borderTop: i === 0 ? "none" : `1px solid ${COLORS.borderSoft}`,
+                background: i % 2 === 1 ? "rgba(11,11,13,0.015)" : "#fff",
               }}
             >
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{ln.talentName}</div>
-                <div className="text-admin-ink-muted text-admin-11">{ln.role}</div>
+                {ln.role && <div className="text-admin-ink-muted" style={{ fontSize: 11 }}>{ln.role}</div>}
               </div>
-              <div style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }} className="text-admin-ink">
+              <div style={{ fontSize: 13, fontWeight: 700, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }} className="text-admin-ink">
                 {ln.fee}
               </div>
             </div>
@@ -197,12 +203,12 @@ export function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: Off
             <div
               style={{
                 display: "flex",
-                alignItems: "baseline",
+                alignItems: "center",
                 justifyContent: "space-between",
                 gap: 10,
-                paddingTop: 8,
-                marginTop: 4,
-                borderTop: `1px solid ${COLORS.borderSoft}`,
+                padding: "9px 12px",
+                borderTop: `2px solid ${COLORS.borderSoft}`,
+                background: "rgba(11,11,13,0.025)",
               }}
             >
               <span style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">Total</span>
@@ -211,13 +217,14 @@ export function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: Off
               </span>
             </div>
           )}
+          </div>
         </div>
       )}
 
       {/* Admin-only commission breakdown — from booking_commission_snapshot. */}
       {isAdmin && hasSnapshot && agg && (
-        <div style={{ padding: "12px 14px", borderRadius: 10, display: "flex", flexDirection: "column", gap: 6 }} className="bg-admin-surface-alt">
-          <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 2 }} className="text-admin-ink-muted">
+        <div style={{ padding: "12px 14px", borderRadius: 10, display: "flex", flexDirection: "column", gap: 7, border: `1px solid ${COLORS.borderSoft}` }} className="bg-admin-surface-alt">
+          <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 2 }} className="text-admin-ink-muted">
             Commission breakdown
           </div>
           <CommissionRow label="Client pays (gross)" value={fmtMoney(agg.grossCharged / 100, snapCurrency)} strong />

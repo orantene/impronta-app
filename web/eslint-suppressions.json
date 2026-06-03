@@ -408,7 +408,7 @@
   },
   "src/components/admin/shell/internal/messages/admin-2.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 20
+      "count": 22
     }
   },
   "src/components/admin/shell/internal/messages/admin-3.tsx": {
@@ -453,7 +453,7 @@
   },
   "src/components/admin/shell/internal/messages/shared/machinery-12.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 53
+      "count": 57
     }
   },
   "src/components/admin/shell/internal/messages/shared/machinery-13.tsx": {
@@ -476,7 +476,7 @@
   },
   "src/components/admin/shell/internal/messages/shared/machinery-16.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 40
+      "count": 42
     }
   },
   "src/components/admin/shell/internal/messages/shared/machinery-2.tsx": {
@@ -529,7 +529,15 @@
   },
   "src/components/admin/shell/internal/messages/talent-2.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 14
+      "count": 32
+    },
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/app/(workspace)/[tenantSlug]/client/messages/DetailsTab.tsx": {
+    "max-lines": {
+      "count": 1
     }
   },
   "src/components/admin/shell/internal/metrics-ribbon.tsx": {

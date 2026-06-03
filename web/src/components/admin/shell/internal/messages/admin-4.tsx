@@ -4,6 +4,7 @@ import React, { useTransition, useState, type CSSProperties } from "react";
 import { MessageReactionMenu, replyTargetFromMessage, ReplyContextBar, type ReplyTarget } from "@/components/chat-interactions";
 import { addReaction as addReactionAction, removeReaction as removeReactionAction } from "@/lib/server-actions/message-reactions";
 import { sendMessage as sendMessageAction } from "@/app/(workspace)/[tenantSlug]/admin/messages/actions";
+import { uploadInquiryAttachment } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import { type ThreadType } from "@/app/(workspace)/[tenantSlug]/_data-bridge";
 import { useAdminShell, TENANT, meetsRole, FONTS, COLORS, type RichInquiry } from "../state";
 import { Avatar } from "../primitives";
@@ -402,6 +403,20 @@ export function AdminMessageStream({
               startTransition(async () => {
                 const result = await sendMessageAction(tenantSlug, inquiryId, threadType, text, replyId);
                 if ("error" in result) toast(`Send failed: ${result.error}`);
+              });
+            }}
+            // C1 — attach files to the inquiry. Uses the existing
+            // uploadInquiryAttachment server action (admin-only). The
+            // attachment is uploaded into inquiry_attachments and a
+            // system message is posted to signal the upload.
+            onAttach={(file) => {
+              startTransition(async () => {
+                const fd = new FormData();
+                fd.append("inquiryId", inquiryId);
+                fd.append("file", file);
+                const r = await uploadInquiryAttachment(fd);
+                if (!r.ok) toast(`Attach failed: ${r.error}`);
+                else toast(`File attached — ${file.name}`);
               });
             }}
           />
