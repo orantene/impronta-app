@@ -244,17 +244,28 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  /** Common typo: inqueries → inquiries */
+  /** Common typo: inqueries → the talent inbox (the talent inquiry surface is
+   *  /talent/inbox; there is no /talent/inquiries route — it 404s). */
   async redirects() {
     return [
       {
         source: "/talent/inqueries",
-        destination: "/talent/inquiries",
+        destination: "/talent/inbox",
         permanent: false,
       },
       {
         source: "/talent/inqueries/:path*",
-        destination: "/talent/inquiries/:path*",
+        destination: "/talent/inbox/:path*",
+        permanent: false,
+      },
+      {
+        source: "/talent/inquiries",
+        destination: "/talent/inbox",
+        permanent: false,
+      },
+      {
+        source: "/talent/inquiries/:path*",
+        destination: "/talent/inbox/:path*",
         permanent: false,
       },
     ];
