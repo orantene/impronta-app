@@ -28,9 +28,11 @@ import { MergeGuestFavorites } from "@/components/client/merge-guest-favorites";
 import { loadClientSelfProfile } from "../_data-bridge";
 import { ClientTopbar } from "./client-topbar";
 import { ClientAccountMenu } from "./_components/ClientAccountMenu";
+import { ClientNotificationBell } from "./_components/ClientNotificationBell";
 import { ClientKeyboardShortcuts, type KeyboardShortcutLabels } from "./_keyboard-shortcuts";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
+import { loadMyNotifications } from "@/lib/server-actions/notifications-self";
 
 type LayoutParams = Promise<{ tenantSlug: string }>;
 
@@ -169,9 +171,12 @@ export default async function ClientLayout({
   // useFavorites work on every client-dashboard surface, exactly as the
   // public layout does. favoriteIds ← client_favorites, savedIds ←
   // saved_talent cart. Both are global / cross-tenant.
-  const [favoriteIds, savedIds] = await Promise.all([
+  //
+  // D1 — seed initial notifications for the bell (zero client waterfalls).
+  const [favoriteIds, savedIds, initialNotifications] = await Promise.all([
     getFavoriteTalentIds(),
     getSavedTalentIds(),
+    loadMyNotifications(50),
   ]);
 
   const userInitials = initials(clientProfile.displayName);
@@ -342,6 +347,12 @@ export default async function ClientLayout({
             </div>
 
             <div style={{ flex: 1 }} />
+
+            {/* D1 — notification bell: unread count badge + popover */}
+            <ClientNotificationBell
+              initialNotifications={initialNotifications}
+              tenantSlug={tenantSlug}
+            />
           </div>
         </header>
 

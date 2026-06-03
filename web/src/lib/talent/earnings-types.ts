@@ -1,5 +1,7 @@
 export type TalentEarningsRow = {
   id: string;
+  /** The `agency_bookings.id` for this row — used by the payout-statement PDF route. */
+  bookingId: string;
   workDate: string;
   payoutDate: string | null;
   agencyName: string;
@@ -244,6 +246,7 @@ export function buildTalentEarnings(
     perAgency,
     rows: rows.map((row) => ({
       id: row.bookingTalentId,
+      bookingId: row.bookingId,
       workDate: row.workDate,
       payoutDate: row.payoutDate,
       agencyName: row.agencyName,
