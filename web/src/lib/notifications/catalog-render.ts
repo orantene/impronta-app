@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { EmailBrand } from "@/lib/brand/resolve-tenant-brand";
+import type { RecipientRole } from "./types";
 
 /**
  * Render-only helpers for the notification catalog — URL + date formatting
@@ -16,6 +17,29 @@ import type { EmailBrand } from "@/lib/brand/resolve-tenant-brand";
  */
 export function pageUrl(brand: EmailBrand, path: string): string {
   return `${brand.homeHref.replace(/\/$/, "")}${path}`;
+}
+
+/**
+ * Map a recipient role → the inquiry/thread route that role can actually open.
+ * Each role's inquiry surface lives at a DIFFERENT path; getting this wrong
+ * yields a 404 deep-link (talent has NO `/talent/inquiries/{id}` route — theirs
+ * is `/talent/inbox/{id}`; staff use `/admin/work/{id}`). Use this everywhere a
+ * notification builds an inquiry CTA so the per-role paths stay correct in one
+ * place instead of re-deriving (and re-breaking) them per call site.
+ */
+export function inquiryPathForRole(
+  role: RecipientRole | undefined,
+  inquiryId: string | null | undefined,
+): string {
+  // Each role's inquiry surface lives at a different base; a missing id falls
+  // back to that role's list rather than building a `/.../null` deep-link.
+  const base =
+    role === "talent"
+      ? "/talent/inbox"
+      : role === "workspace_member" || role === "platform_admin"
+        ? "/admin/work"
+        : "/client/inquiries";
+  return inquiryId ? `${base}/${inquiryId}` : base;
 }
 
 /**

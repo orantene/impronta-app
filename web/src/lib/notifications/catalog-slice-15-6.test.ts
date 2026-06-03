@@ -55,7 +55,7 @@ const DAY_OF_REMINDER = [
     id: "booking.day_of_reminder.talent",
     surface: "talent",
     role: "talent",
-    urlRe: /\/talent\/inquiries\/inq-9$/,
+    urlRe: /\/talent\/inbox\/inq-9$/,
   },
 ] as const;
 
@@ -180,7 +180,7 @@ test("catalog: message.new CTA points at the recipient's own surface", () => {
       }>
     ).props.ctaUrl;
   assert.match(link("client"), /\/client\/inquiries\/inq-5$/);
-  assert.match(link("talent"), /\/talent\/inquiries\/inq-5$/);
+  assert.match(link("talent"), /\/talent\/inbox\/inq-5$/);
   assert.match(link("workspace_member"), /\/admin\/work\/inq-5$/);
 });
 
