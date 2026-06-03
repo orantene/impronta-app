@@ -21,6 +21,7 @@ import {
   collectBuilderNodeFontFamilies,
 } from "./fonts-registry";
 import { getBuilderIconDefinition } from "./icon-registry";
+import { resolveStyleTokenRef } from "./style-token-bindings";
 import {
   getBuilderNodeDataBinding,
   isBuilderDataBindingRepeater,
@@ -1006,6 +1007,15 @@ function styleBackground(
   return undefined;
 }
 
+// Token-binding resolution (Wave 3 · 3A). A color / font-family style value may
+// be a `token:<key>` sentinel that binds to a Theme design token; this maps it
+// to `var(--token-…, fallback)` so a live theme change cascades. A raw value
+// (hex / rgb / keyword / literal var()) is returned UNCHANGED, so existing trees
+// + the flagship are byte-identical. Applied at every color / font emit site.
+function styleToken(value: string | undefined): string | undefined {
+  return resolveStyleTokenRef(value) as string | undefined;
+}
+
 function containerQueryStyleVars(
   breakpoint: "tablet" | "mobile",
   style: BuilderNodeStyleValue | undefined,
@@ -1038,7 +1048,7 @@ function containerQueryStyleVars(
       ? NODE_ASPECT_RATIO[style.aspectRatio]
       : undefined,
     [`${prefix}-aspect-free`]: style?.aspectRatioFree,
-    [`${prefix}-font-family`]: style?.fontFamily,
+    [`${prefix}-font-family`]: styleToken(style?.fontFamily),
     [`${prefix}-font-size`]: style?.fontSize,
     [`${prefix}-font-weight`]: style?.fontWeight,
     [`${prefix}-line-height`]: style?.lineHeight,
@@ -1046,9 +1056,9 @@ function containerQueryStyleVars(
     [`${prefix}-text-transform`]: style?.textTransform,
     [`${prefix}-font-style`]: style?.fontStyle,
     [`${prefix}-text-decoration`]: style?.textDecoration,
-    [`${prefix}-text-color`]: style?.textColor,
-    [`${prefix}-bg-color`]: style?.backgroundColor,
-    [`${prefix}-border-color`]: style?.borderColor,
+    [`${prefix}-text-color`]: styleToken(style?.textColor),
+    [`${prefix}-bg-color`]: styleToken(style?.backgroundColor),
+    [`${prefix}-border-color`]: styleToken(style?.borderColor),
     [`${prefix}-border-width`]:
       style?.borderColor || style?.borderWidth || style?.borderStyle
         ? style?.borderWidth ?? base?.borderWidth ?? "1px"
@@ -1120,8 +1130,8 @@ function containerQueryStyleVars(
     [`${prefix}-scroll-snap-align`]: style?.scrollSnapAlign,
     [`${prefix}-outline`]: style?.outline,
     [`${prefix}-outline-offset`]: style?.outlineOffset,
-    [`${prefix}-accent-color`]: style?.accentColor,
-    [`${prefix}-caret-color`]: style?.caretColor,
+    [`${prefix}-accent-color`]: styleToken(style?.accentColor),
+    [`${prefix}-caret-color`]: styleToken(style?.caretColor),
   };
 }
 
@@ -1205,7 +1215,7 @@ function responsiveStyleVars(
     // in sharedNodeStyle; these vars only render when the breakpoint value is set,
     // gated by the matching data-attr so an unset var never clobbers the desktop
     // value (an ungated !important rule would reset inherited props to the parent).
-    "--bn-tablet-font-family": style?.responsive?.tablet?.fontFamily,
+    "--bn-tablet-font-family": styleToken(style?.responsive?.tablet?.fontFamily),
     "--bn-tablet-font-size": style?.responsive?.tablet?.fontSize,
     "--bn-tablet-font-weight": style?.responsive?.tablet?.fontWeight,
     "--bn-tablet-line-height": style?.responsive?.tablet?.lineHeight,
@@ -1213,9 +1223,9 @@ function responsiveStyleVars(
     "--bn-tablet-text-transform": style?.responsive?.tablet?.textTransform,
     "--bn-tablet-font-style": style?.responsive?.tablet?.fontStyle,
     "--bn-tablet-text-decoration": style?.responsive?.tablet?.textDecoration,
-    "--bn-tablet-text-color": style?.responsive?.tablet?.textColor,
-    "--bn-tablet-bg-color": style?.responsive?.tablet?.backgroundColor,
-    "--bn-tablet-border-color": style?.responsive?.tablet?.borderColor,
+    "--bn-tablet-text-color": styleToken(style?.responsive?.tablet?.textColor),
+    "--bn-tablet-bg-color": styleToken(style?.responsive?.tablet?.backgroundColor),
+    "--bn-tablet-border-color": styleToken(style?.responsive?.tablet?.borderColor),
     "--bn-tablet-border-width":
       style?.responsive?.tablet?.borderColor ||
       style?.responsive?.tablet?.borderWidth ||
@@ -1228,7 +1238,7 @@ function responsiveStyleVars(
       style?.responsive?.tablet?.borderStyle
         ? style?.responsive?.tablet?.borderStyle ?? style?.borderStyle ?? "solid"
         : undefined,
-    "--bn-mobile-font-family": style?.responsive?.mobile?.fontFamily,
+    "--bn-mobile-font-family": styleToken(style?.responsive?.mobile?.fontFamily),
     "--bn-mobile-font-size": style?.responsive?.mobile?.fontSize,
     "--bn-mobile-font-weight": style?.responsive?.mobile?.fontWeight,
     "--bn-mobile-line-height": style?.responsive?.mobile?.lineHeight,
@@ -1236,9 +1246,9 @@ function responsiveStyleVars(
     "--bn-mobile-text-transform": style?.responsive?.mobile?.textTransform,
     "--bn-mobile-font-style": style?.responsive?.mobile?.fontStyle,
     "--bn-mobile-text-decoration": style?.responsive?.mobile?.textDecoration,
-    "--bn-mobile-text-color": style?.responsive?.mobile?.textColor,
-    "--bn-mobile-bg-color": style?.responsive?.mobile?.backgroundColor,
-    "--bn-mobile-border-color": style?.responsive?.mobile?.borderColor,
+    "--bn-mobile-text-color": styleToken(style?.responsive?.mobile?.textColor),
+    "--bn-mobile-bg-color": styleToken(style?.responsive?.mobile?.backgroundColor),
+    "--bn-mobile-border-color": styleToken(style?.responsive?.mobile?.borderColor),
     "--bn-mobile-border-width":
       style?.responsive?.mobile?.borderColor ||
       style?.responsive?.mobile?.borderWidth ||
@@ -1355,8 +1365,8 @@ function responsiveStyleVars(
     "--bn-tablet-scroll-snap-align": style?.responsive?.tablet?.scrollSnapAlign,
     "--bn-tablet-outline": style?.responsive?.tablet?.outline,
     "--bn-tablet-outline-offset": style?.responsive?.tablet?.outlineOffset,
-    "--bn-tablet-accent-color": style?.responsive?.tablet?.accentColor,
-    "--bn-tablet-caret-color": style?.responsive?.tablet?.caretColor,
+    "--bn-tablet-accent-color": styleToken(style?.responsive?.tablet?.accentColor),
+    "--bn-tablet-caret-color": styleToken(style?.responsive?.tablet?.caretColor),
     "--bn-tablet-transition-property":
       style?.responsive?.tablet?.transitionProperty,
     "--bn-tablet-transition-duration":
@@ -1374,8 +1384,8 @@ function responsiveStyleVars(
     "--bn-mobile-scroll-snap-align": style?.responsive?.mobile?.scrollSnapAlign,
     "--bn-mobile-outline": style?.responsive?.mobile?.outline,
     "--bn-mobile-outline-offset": style?.responsive?.mobile?.outlineOffset,
-    "--bn-mobile-accent-color": style?.responsive?.mobile?.accentColor,
-    "--bn-mobile-caret-color": style?.responsive?.mobile?.caretColor,
+    "--bn-mobile-accent-color": styleToken(style?.responsive?.mobile?.accentColor),
+    "--bn-mobile-caret-color": styleToken(style?.responsive?.mobile?.caretColor),
     "--bn-mobile-transition-property":
       style?.responsive?.mobile?.transitionProperty,
     "--bn-mobile-transition-duration":
@@ -1387,9 +1397,9 @@ function responsiveStyleVars(
     // when set; the matching data-builder-style-hover-* attr gates a :hover rule in
     // the static sheet so the override applies only while hovered/focused, and an
     // unset var never clobbers the resting value.
-    "--bn-hover-bg": style?.hover?.backgroundColor,
-    "--bn-hover-color": style?.hover?.color,
-    "--bn-hover-border-color": style?.hover?.borderColor,
+    "--bn-hover-bg": styleToken(style?.hover?.backgroundColor),
+    "--bn-hover-color": styleToken(style?.hover?.color),
+    "--bn-hover-border-color": styleToken(style?.hover?.borderColor),
     "--bn-hover-shadow": style?.hover?.boxShadow,
     "--bn-hover-scale": style?.hover?.scale,
     "--bn-hover-translate": style?.hover?.translate,
@@ -1444,7 +1454,9 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   if (style.tone === "muted") out.color = "rgba(18, 18, 18, 0.62)";
   if (style.tone === "strong") out.color = "var(--token-color-ink,#111)";
   // Free-value escapes — applied last so they override the token presets above.
-  if (style.fontFamily) out.fontFamily = style.fontFamily;
+  // fontFamily may be a `token:typography.*-font-family` binding → resolved to
+  // the theme font var; a raw stack is emitted unchanged.
+  if (style.fontFamily) out.fontFamily = styleToken(style.fontFamily);
   if (style.fontSize) out.fontSize = style.fontSize;
   if (typeof style.fontWeight === "number") out.fontWeight = style.fontWeight;
   if (style.lineHeight) out.lineHeight = style.lineHeight;
@@ -1465,12 +1477,14 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
     out.WebkitBoxOrient = "vertical";
     out.overflow = "hidden";
   }
-  if (style.textColor) out.color = style.textColor;
-  if (style.backgroundColor) out.backgroundColor = style.backgroundColor;
+  // Color emits — a `token:<key>` value binds to a Theme token (resolved to its
+  // CSS var); a raw hex/rgb/keyword is emitted unchanged (flagship-identical).
+  if (style.textColor) out.color = styleToken(style.textColor);
+  if (style.backgroundColor) out.backgroundColor = styleToken(style.backgroundColor);
   if (style.borderColor || style.borderWidth || style.borderStyle) {
     out.borderStyle = style.borderStyle ?? "solid";
     out.borderWidth = style.borderWidth ?? "1px";
-    if (style.borderColor) out.borderColor = style.borderColor;
+    if (style.borderColor) out.borderColor = styleToken(style.borderColor);
   }
   // Free border-radius escape — applied after the radius token so an exact value
   // (or per-corner shorthand) wins over the preset.
@@ -1612,8 +1626,8 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   if (style.scrollSnapAlign) out.scrollSnapAlign = style.scrollSnapAlign;
   if (style.outline) out.outline = style.outline;
   if (style.outlineOffset) out.outlineOffset = style.outlineOffset;
-  if (style.accentColor) out.accentColor = style.accentColor;
-  if (style.caretColor) out.caretColor = style.caretColor;
+  if (style.accentColor) out.accentColor = styleToken(style.accentColor);
+  if (style.caretColor) out.caretColor = styleToken(style.caretColor);
   // Entrance animation — fires on the PUBLISHED page only (the edit canvas uses
   // a separate renderer, so the inspector won't re-animate on every keystroke).
   // Maps a friendly preset to a named @keyframe in the static sheet; `both`

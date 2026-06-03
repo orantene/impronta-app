@@ -41,7 +41,8 @@ import { resolveStandaloneBuilderNodeForContent } from "./builder-node-content-u
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { ColorPickerPopover } from "../kit/color-picker";
+import { ColorPickerPopover, type ColorTokenSwatch } from "../kit/color-picker";
+import { STYLE_BINDABLE_COLOR_TOKENS } from "@/lib/site-admin/builder-node/style-token-bindings";
 import { useEditContext } from "../edit-context";
 import { GoogleFontPicker } from "../GoogleFontPicker";
 import {
@@ -619,18 +620,35 @@ const VIEWPORT_TRACKED_KEYS: ReadonlyArray<keyof NodePresentationValue> = [
   "borderStyle",
 ];
 // Theme-token swatches offered in the freeform node color pickers so a node's
-// text / fill / border can bind to the global theme (emits `var(--token-…)`)
-// instead of freezing a one-off hex. Fallbacks mirror token-presets.css defaults.
-const BUILDER_NODE_THEME_COLOR_TOKENS = [
-  { label: "Primary", cssVar: "--token-color-primary", fallback: "#111111" },
-  { label: "Secondary", cssVar: "--token-color-secondary", fallback: "#6b7280" },
-  { label: "Accent", cssVar: "--token-color-accent", fallback: "#0ea5e9" },
-  { label: "Neutral", cssVar: "--token-color-neutral", fallback: "#737373" },
-  { label: "Ink", cssVar: "--token-color-ink", fallback: "#111111" },
-  { label: "Muted", cssVar: "--token-color-muted", fallback: "#737373" },
-  { label: "Line", cssVar: "--token-color-line", fallback: "#e5e5e5" },
-  { label: "Surface", cssVar: "--token-color-surface-raised", fallback: "#ffffff" },
-];
+// text / fill / border can BIND to a Theme token (Wave 3 · 3A — emits the
+// first-class `token:<key>` sentinel the renderer resolves to `var(--token-…)`,
+// so the bound prop tracks the global theme instead of freezing a one-off hex).
+// DERIVED from the token registry (STYLE_BINDABLE_COLOR_TOKENS) — adding a color
+// token to the registry makes it bindable here automatically; no hardcoding.
+const BUILDER_NODE_THEME_COLOR_TOKENS: ColorTokenSwatch[] =
+  STYLE_BINDABLE_COLOR_TOKENS.map((t) => ({
+    label: t.label,
+    cssVar: t.cssVar,
+    fallback: t.fallback,
+    tokenKey: t.key,
+  }));
+
+// Map a stored color value to a CSS-DISPLAYABLE string for the inspector swatch
+// preview. A `token:<key>` binding resolves to `var(--token-…, fallback)` so the
+// swatch shows the live theme color; a raw value (hex / rgb / keyword) is shown
+// as-is. Mirrors the renderer's resolveStyleTokenRef without importing it (this
+// stays a pure presentation helper). Returns undefined for an empty value so the
+// caller's checkerboard fallback shows.
+function colorSwatchDisplay(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  if (value.startsWith("token:")) {
+    const token = STYLE_BINDABLE_COLOR_TOKENS.find(
+      (t) => t.key === value.slice("token:".length),
+    );
+    return token ? `var(${token.cssVar}, ${token.fallback})` : undefined;
+  }
+  return value;
+}
 const TEXT_ROLES: ReadonlySet<EditableNodeRole> = new Set([
   "headline",
   "subheadline",
@@ -5109,8 +5127,9 @@ export function StylePanel({
                         borderRadius: 6,
                         border: `1px solid ${CHROME.lineMid}`,
                         background:
-                          selectedNodeViewportPresentation?.textColor ||
-                          "transparent",
+                          colorSwatchDisplay(
+                            selectedNodeViewportPresentation?.textColor,
+                          ) || "transparent",
                         backgroundImage: selectedNodeViewportPresentation?.textColor
                           ? undefined
                           : "repeating-conic-gradient(#e5e0d8 0% 25%, #ffffff 0% 50%) 50% / 8px 8px",
@@ -5164,8 +5183,9 @@ export function StylePanel({
                         borderRadius: 6,
                         border: `1px solid ${CHROME.lineMid}`,
                         background:
-                          selectedNodeViewportPresentation?.backgroundColor ||
-                          "transparent",
+                          colorSwatchDisplay(
+                            selectedNodeViewportPresentation?.backgroundColor,
+                          ) || "transparent",
                         backgroundImage: selectedNodeViewportPresentation?.backgroundColor
                           ? undefined
                           : "repeating-conic-gradient(#e5e0d8 0% 25%, #ffffff 0% 50%) 50% / 8px 8px",
@@ -5220,8 +5240,9 @@ export function StylePanel({
                           borderRadius: 6,
                           border: `1px solid ${CHROME.lineMid}`,
                           background:
-                            selectedNodeViewportPresentation?.borderColor ||
-                            "transparent",
+                            colorSwatchDisplay(
+                              selectedNodeViewportPresentation?.borderColor,
+                            ) || "transparent",
                           backgroundImage: selectedNodeViewportPresentation?.borderColor
                             ? undefined
                             : "repeating-conic-gradient(#e5e0d8 0% 25%, #ffffff 0% 50%) 50% / 8px 8px",
@@ -6145,8 +6166,9 @@ export function StylePanel({
                           borderRadius: 6,
                           border: `1px solid ${CHROME.lineMid}`,
                           background:
-                            selectedStandaloneViewportStyle?.textColor ||
-                            "transparent",
+                            colorSwatchDisplay(
+                              selectedStandaloneViewportStyle?.textColor,
+                            ) || "transparent",
                           backgroundImage: selectedStandaloneViewportStyle?.textColor
                             ? undefined
                             : "repeating-conic-gradient(#e5e0d8 0% 25%, #ffffff 0% 50%) 50% / 8px 8px",
@@ -6204,8 +6226,9 @@ export function StylePanel({
                           borderRadius: 6,
                           border: `1px solid ${CHROME.lineMid}`,
                           background:
-                            selectedStandaloneViewportStyle?.backgroundColor ||
-                            "transparent",
+                            colorSwatchDisplay(
+                              selectedStandaloneViewportStyle?.backgroundColor,
+                            ) || "transparent",
                           backgroundImage: selectedStandaloneViewportStyle?.backgroundColor
                             ? undefined
                             : "repeating-conic-gradient(#e5e0d8 0% 25%, #ffffff 0% 50%) 50% / 8px 8px",
@@ -6264,8 +6287,9 @@ export function StylePanel({
                             borderRadius: 6,
                             border: `1px solid ${CHROME.lineMid}`,
                             background:
-                              selectedStandaloneViewportStyle?.borderColor ||
-                              "transparent",
+                              colorSwatchDisplay(
+                                selectedStandaloneViewportStyle?.borderColor,
+                              ) || "transparent",
                             backgroundImage: selectedStandaloneViewportStyle?.borderColor
                               ? undefined
                               : "repeating-conic-gradient(#e5e0d8 0% 25%, #ffffff 0% 50%) 50% / 8px 8px",

@@ -1,5 +1,10 @@
 import { z } from "zod";
 import { BUILDER_ICON_NAMES } from "./icon-registry";
+import {
+  isBindableTokenKey,
+  isStyleTokenRef,
+  STYLE_TOKEN_REF_PREFIX,
+} from "./style-token-bindings";
 import type { BuilderNodeKind } from "./types";
 
 /** Kinds allowed inside composable shells (section body, container, card, CTA group, …). */
@@ -59,6 +64,24 @@ const dataBindingPropsSchema = z.object({
 
 const fieldBindingPropsSchema = z.object({ text: z.string().max(160).optional(), label: z.string().max(160).optional(), href: z.string().max(160).optional(), src: z.string().max(160).optional(), alt: z.string().max(160).optional() }).strict();
 
+// Token-binding-aware string (Wave 3 · 3A). A color / font-family style value
+// may be a raw CSS string OR a `token:<key>` reference that binds the prop to a
+// Theme design token (see builder-node/style-token-bindings.ts). This validator
+// accepts any raw string (back-compat — hex / rgb / keyword / literal var()) but
+// REJECTS a malformed `token:` sentinel whose key is not a known bindable token,
+// so a typo'd binding is caught at authoring time instead of silently rendering
+// nothing. `undefined` stays optional → identical render when unset.
+function tokenAwareStyleString(max: number) {
+  return z
+    .string()
+    .max(max)
+    .refine((v) => !isStyleTokenRef(v) || isBindableTokenKey(v.slice(STYLE_TOKEN_REF_PREFIX.length)), {
+      message:
+        "Unknown theme token reference. Use token:<color.* | typography.*-font-family> for a bindable token, or a raw CSS value.",
+    })
+    .optional();
+}
+
 const sectionPropsSchema = z.object({
   sectionId: z.string().uuid().nullable().optional(),
   sectionTypeKey: z.string().min(1),
@@ -88,7 +111,8 @@ const builderNodeStyleValueSchema = z.object({
   // Free-value escapes (mirror of BuilderNodeStyleValue). Length-capped so a
   // hand-crafted tree can't smuggle an oversized declaration; values land in
   // React inline styles, which the CSSOM validates (no injection surface).
-  fontFamily: z.string().max(160).optional(),
+  // fontFamily also accepts a `token:typography.*-font-family` binding.
+  fontFamily: tokenAwareStyleString(160),
   fontSize: z.string().max(32).optional(),
   fontWeight: z.number().int().min(100).max(900).optional(),
   lineHeight: z.string().max(16).optional(),
@@ -102,10 +126,11 @@ const builderNodeStyleValueSchema = z.object({
   lineClamp: z.number().int().min(1).max(20).optional(),
   // max 64 (not 32) so a theme-token binding like
   // `var(--token-color-surface-raised, #ffffff)` (and rgba()/hsl() free values)
-  // survives the schema instead of being silently stripped on save.
-  textColor: z.string().max(64).optional(),
-  backgroundColor: z.string().max(64).optional(),
-  borderColor: z.string().max(64).optional(),
+  // survives the schema instead of being silently stripped on save. These also
+  // accept a `token:color.*` reference (Wave 3 · 3A) — bound to a Theme token.
+  textColor: tokenAwareStyleString(64),
+  backgroundColor: tokenAwareStyleString(64),
+  borderColor: tokenAwareStyleString(64),
   borderWidth: z.string().max(16).optional(),
   borderStyle: z.enum(["solid", "dashed", "dotted"]).optional(),
   // Free border-radius escape — raw CSS (supports per-corner shorthand). Layers
@@ -241,11 +266,12 @@ const builderNodeStyleValueSchema = z.object({
   pointerEvents: z.enum(["auto", "none"]).optional(),
   scrollSnapType: z.string().max(40).optional(),
   scrollSnapAlign: z.enum(["none", "start", "center", "end"]).optional(),
-  // Focus / form theming.
+  // Focus / form theming. accentColor / caretColor also accept a `token:color.*`
+  // binding (Wave 3 · 3A).
   outline: z.string().max(60).optional(),
   outlineOffset: z.string().max(16).optional(),
-  accentColor: z.string().max(64).optional(),
-  caretColor: z.string().max(64).optional(),
+  accentColor: tokenAwareStyleString(64),
+  caretColor: tokenAwareStyleString(64),
   // Entrance animation — preset maps to a baked @keyframe; duration/delay are
   // CSS time strings (short-capped).
   animationPreset: z
@@ -273,9 +299,10 @@ const builderNodeStyleValueSchema = z.object({
 // Hover-state overrides — a curated subset of animatable props re-applied while
 // hovered/focused. Single layer (hover is a pointer interaction, not a viewport).
 const builderNodeHoverStyleSchema = z.object({
-  backgroundColor: z.string().max(80).optional(),
-  color: z.string().max(80).optional(),
-  borderColor: z.string().max(80).optional(),
+  // Hover colors also accept a `token:color.*` binding (Wave 3 · 3A).
+  backgroundColor: tokenAwareStyleString(80),
+  color: tokenAwareStyleString(80),
+  borderColor: tokenAwareStyleString(80),
   boxShadow: z.string().max(200).optional(),
   scale: z.string().max(16).optional(),
   translate: z.string().max(24).optional(),

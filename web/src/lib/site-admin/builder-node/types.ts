@@ -62,6 +62,17 @@ export interface BuilderNodeStyleValue {
   // Free-value escapes — override the token presets above with raw CSS so any
   // design can be matched. Stored as CSS strings (lengths keep their unit) and
   // layered after the tokens in the renderer, so a free value always wins.
+  //
+  // TOKEN BINDING (Wave 3 · 3A): the color fields (textColor, backgroundColor,
+  // borderColor, accentColor, caretColor — plus the hover equivalents) AND
+  // fontFamily additionally accept a `token:<key>` SENTINEL that BINDS the prop
+  // to a Theme design token instead of freezing a raw value, e.g.
+  // `"token:color.primary"` or `"token:typography.heading-font-family"`. The
+  // renderer resolves the sentinel to `var(--token-…, fallback)` via
+  // resolveStyleTokenRef (style-token-bindings.ts), so a live theme change
+  // cascades. Any value WITHOUT the `token:` prefix is a raw value and renders
+  // unchanged (back-compat; the flagship uses only raw values). See
+  // style-token-bindings.ts for the full encoding + bindable-token catalog.
   fontFamily?: string;
   fontSize?: string;
   fontWeight?: number;
