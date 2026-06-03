@@ -152,15 +152,17 @@ export const INTEGRATION_CATALOG: Record<string, IntegrationDef> = {
   // ─── Analytics — PUBLIC identifiers only (stored in config_json) ──────────
   // None of these need a secret or the tenant_integration_secrets table: GA4
   // measurement IDs, pixel IDs, and GTM container IDs are all public values that
-  // ship to the browser in <script> tags anyway. They are NOT inheritable —
-  // there is no platform-level analytics identity to fall back to; a tenant
-  // either supplies its own or analytics stays off for that tenant.
+  // ship to the browser in <script> tags anyway. ONLY GA4 is inheritable — it
+  // falls back to the platform GA id (NEXT_PUBLIC_GA_MEASUREMENT_ID) so platform
+  // analytics keep working when a tenant supplies none. The other four (GTM,
+  // Meta, TikTok, LinkedIn) are tenant-only: there is no platform identity to
+  // fall back to; a tenant either supplies its own or that network stays off.
   [GA4_INTEGRATION_KEY]: {
     key: GA4_INTEGRATION_KEY,
     label: "Google Analytics 4",
     category: "analytics",
     connection: "manual",
-    inheritable: false,
+    inheritable: true,
     description:
       "Track visits to your public site with Google Analytics 4. Paste your GA4 Measurement ID and the gtag.js snippet is injected on your storefront (consent-gated).",
     instructions: [

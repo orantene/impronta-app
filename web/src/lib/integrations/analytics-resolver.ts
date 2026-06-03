@@ -7,6 +7,7 @@ import {
   META_PIXEL_INTEGRATION_KEY,
   TIKTOK_PIXEL_INTEGRATION_KEY,
 } from "@/lib/integrations/catalog";
+import { sanitizeAnalyticsId } from "@/lib/integrations/analytics-id-guard";
 import { getTenantIntegration } from "@/lib/integrations/repository";
 
 /**
@@ -57,9 +58,15 @@ function isConnected(
  * rows with status='connected' and a non-empty config_json field are returned;
  * all others resolve to null (analytics off for that integration).
  *
- * Analytics integrations are NOT inheritable — there is no platform-level
- * fallback for GA4, GTM, Meta, TikTok, or LinkedIn. A tenant without a row
- * simply has no analytics injection for that network.
+ * Inheritance: GA4 IS inheritable — when a tenant has no GA4 measurement id the
+ * component falls back to the platform GA id (NEXT_PUBLIC_GA_MEASUREMENT_ID) so
+ * platform analytics keep working. The other four networks (GTM, Meta, TikTok,
+ * LinkedIn) are tenant-only — there is no platform-level fallback; a tenant
+ * without a row simply has no injection for that network.
+ *
+ * Every returned id is run through {@link sanitizeAnalyticsId} (whitelist +
+ * catalog test) before it leaves here, so even a future unvalidated writer to
+ * config_json can never inject a character into the script body downstream.
  *
  * This is the ONLY place that reads from the analytics integration rows for
  * injection purposes. Do not call getTenantIntegration() for analytics directly
@@ -76,21 +83,45 @@ export async function resolveTenantAnalytics(
     getTenantIntegration(tenantId, LINKEDIN_INSIGHT_INTEGRATION_KEY),
   ]);
 
+  // Re-validate every id at the resolver boundary (whitelist + catalog test) so
+  // an unvalidated config_json writer can never reach the raw script-string
+  // interpolation in AnalyticsScripts. GA4's platform fallback is applied (and
+  // re-sanitized) inside the component, where the env value lives.
   return {
     gaId: isConnected(ga4Row)
-      ? configField(ga4Row?.config_json, "measurement_id")
+      ? sanitizeAnalyticsId(
+          configField(ga4Row?.config_json, "measurement_id"),
+          GA4_INTEGRATION_KEY,
+          "measurement_id",
+        )
       : null,
     gtmId: isConnected(gtmRow)
-      ? configField(gtmRow?.config_json, "container_id")
+      ? sanitizeAnalyticsId(
+          configField(gtmRow?.config_json, "container_id"),
+          GTM_INTEGRATION_KEY,
+          "container_id",
+        )
       : null,
     metaPixelId: isConnected(metaRow)
-      ? configField(metaRow?.config_json, "pixel_id")
+      ? sanitizeAnalyticsId(
+          configField(metaRow?.config_json, "pixel_id"),
+          META_PIXEL_INTEGRATION_KEY,
+          "pixel_id",
+        )
       : null,
     tiktokPixelId: isConnected(tiktokRow)
-      ? configField(tiktokRow?.config_json, "pixel_id")
+      ? sanitizeAnalyticsId(
+          configField(tiktokRow?.config_json, "pixel_id"),
+          TIKTOK_PIXEL_INTEGRATION_KEY,
+          "pixel_id",
+        )
       : null,
     linkedInPartnerId: isConnected(linkedinRow)
-      ? configField(linkedinRow?.config_json, "partner_id")
+      ? sanitizeAnalyticsId(
+          configField(linkedinRow?.config_json, "partner_id"),
+          LINKEDIN_INSIGHT_INTEGRATION_KEY,
+          "partner_id",
+        )
       : null,
   };
 }

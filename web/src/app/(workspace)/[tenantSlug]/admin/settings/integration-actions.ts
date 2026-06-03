@@ -193,9 +193,14 @@ export async function loadTenantIntegrations(
 
 /**
  * Save PUBLIC identifier(s) into config_json for an integration. Validates each
- * supplied value against the catalog field's offline test() before writing.
- * A field that is blank/whitespace is removed from config_json (a "clear"). Sets
+ * supplied value against the catalog field's offline test() before writing — a
+ * value that fails the format check is REJECTED and nothing persists. A field
+ * that is blank/whitespace is removed from config_json (a "clear"). Sets
  * status='connected' when at least one value remains, else 'not_configured'.
+ *
+ * Because every written value has already passed its format test() here, the
+ * same upsert stamps last_verified_at=now() (the format check IS the offline
+ * verification) — no separate post-save testIntegration round-trip is needed.
  */
 export async function saveIntegrationConfig(
   tenantSlug: string,
@@ -252,6 +257,9 @@ export async function saveIntegrationConfig(
   const row = await setIntegrationConfig(guard.tenantId, key, patch, {
     status: anyValuePresent ? "connected" : "not_configured",
     connectionMethod: "manual",
+    // Every persisted value passed its catalog test() above, so this save IS the
+    // offline verification — stamp it now (and clear it when nothing remains).
+    lastVerifiedAt: anyValuePresent ? new Date().toISOString() : null,
     lastError: null,
     actorId: guard.actorId,
   });
@@ -271,7 +279,9 @@ export async function saveIntegrationConfig(
  * key). The plaintext is validated against the catalog test() then handed to
  * the repository, which encrypts it and persists only ciphertext + last4. The
  * plaintext is never returned. Storing a secret also flips the integration into
- * custom mode + connected status.
+ * custom mode + connected status, and — since the value passed its format
+ * test() above — stamps last_verified_at=now() in the same write (no separate
+ * post-save testIntegration round-trip).
  */
 export async function saveIntegrationSecret(
   tenantSlug: string,
@@ -305,10 +315,12 @@ export async function saveIntegrationSecret(
     return { ok: false, error: "Couldn't save the key. Please try again." };
   }
 
-  // Storing a custom secret implies custom mode + connected.
+  // Storing a custom secret implies custom mode + connected. The plaintext
+  // passed its catalog test() above, so stamp last_verified_at here too.
   await setIntegrationConfig(guard.tenantId, key, {}, {
     status: "connected",
     connectionMethod: "manual",
+    lastVerifiedAt: new Date().toISOString(),
     lastError: null,
     actorId: guard.actorId,
   });

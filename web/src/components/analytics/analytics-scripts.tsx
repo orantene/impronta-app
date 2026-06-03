@@ -1,6 +1,7 @@
-"use client";
-
 import Script from "next/script";
+
+import { sanitizeAnalyticsId } from "@/lib/integrations/analytics-id-guard";
+import { GA4_INTEGRATION_KEY } from "@/lib/integrations/catalog";
 
 /**
  * Per-tenant analytics injection props.
@@ -37,10 +38,17 @@ const PLATFORM_GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() || null
  *
  * All per-tenant analytics are injected here: GA4 (gtag), GTM, Meta Pixel,
  * TikTok Pixel, and LinkedIn Insight Tag. Each is only injected when its ID is
- * present. All consent-dependent snippets call `gtag('consent',...)` — the
- * shared consent localStorage key `impronta_analytics_consent` gates them all.
+ * present. Consent gating: GA4 + GTM run under Consent Mode (default-denied via
+ * the ga-consent-default snippet), while Meta, TikTok, and LinkedIn read the
+ * shared consent localStorage key `impronta_analytics_consent` at init time and
+ * only load/fire when it is 'granted'.
  *
- * This component is a pure client component (no server-only imports). The
+ * This is a pure SERVER component — it renders only injected <Script> tags and
+ * holds NO React hooks or browser APIs at the React level. All runtime / consent
+ * / browser logic lives INSIDE the injected `dangerouslySetInnerHTML` strings,
+ * which execute in the browser regardless. The `beforeInteractive` strategy on
+ * the consent-default snippet requires a Server Component (App Router forbids it
+ * in a client component), which is why there is no 'use client' directive. The
  * server resolves all IDs and passes them as plain string props from layout.tsx.
  */
 export function AnalyticsScripts({
@@ -50,8 +58,13 @@ export function AnalyticsScripts({
   tiktokPixelId,
   linkedInPartnerId,
 }: AnalyticsScriptsProps) {
-  // Tenant GA4 wins; platform GA4 is the inherit fallback; null = no GA4.
-  const gaId = tenantGaId?.trim() || PLATFORM_GA_ID;
+  // Tenant GA4 wins; platform GA4 is the inherit fallback; null = no GA4. The
+  // platform env value is re-sanitized here (the same whitelist + catalog test
+  // the resolver applies to tenant ids) so nothing unsafe reaches the raw
+  // script-string interpolation below — defense in depth at the boundary.
+  const gaId =
+    sanitizeAnalyticsId(tenantGaId, GA4_INTEGRATION_KEY, "measurement_id") ||
+    sanitizeAnalyticsId(PLATFORM_GA_ID, GA4_INTEGRATION_KEY, "measurement_id");
   const gtm = gtmId?.trim() || null;
   const meta = metaPixelId?.trim() || null;
   const tiktok = tiktokPixelId?.trim() || null;
@@ -169,17 +182,22 @@ fbq('track','PageView');`,
           strategy="afterInteractive"
           dangerouslySetInnerHTML={{
             __html: `
-!function(w,d,t){
-  w.TiktokAnalyticsObject=t;
-  var ttq=w[t]=w[t]||[];
-  ttq.methods=['page','track','identify','instances','debug','on','off','once','ready','alias','group','enableCookie','disableCookie'];
-  ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};
-  for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);
-  ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e};
-  ttq.load=function(e,n){var i='https://analytics.tiktok.com/i18n/pixel/events.js';ttq._i=ttq._i||{};ttq._i[e]=[];ttq._i[e]._u=i;ttq._t=ttq._t||{};ttq._t[e]=+new Date;ttq._o=ttq._o||{};ttq._o[e]=n||{};var o=document.createElement('script');o.type='text/javascript';o.async=!0;o.src=i+'?sdkid='+e+'&lib='+t;var a=document.getElementsByTagName('script')[0];a.parentNode.insertBefore(o,a)};
-  ttq.load('${tiktok}');
-  ttq.page();
-}(window,document,'ttq');`,
+(function(){
+  var granted=false;
+  try{granted=localStorage.getItem('impronta_analytics_consent')==='granted';}catch(e){}
+  if(!granted) return;
+  !function(w,d,t){
+    w.TiktokAnalyticsObject=t;
+    var ttq=w[t]=w[t]||[];
+    ttq.methods=['page','track','identify','instances','debug','on','off','once','ready','alias','group','enableCookie','disableCookie'];
+    ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};
+    for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);
+    ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e};
+    ttq.load=function(e,n){var i='https://analytics.tiktok.com/i18n/pixel/events.js';ttq._i=ttq._i||{};ttq._i[e]=[];ttq._i[e]._u=i;ttq._t=ttq._t||{};ttq._t[e]=+new Date;ttq._o=ttq._o||{};ttq._o[e]=n||{};var o=document.createElement('script');o.type='text/javascript';o.async=!0;o.src=i+'?sdkid='+e+'&lib='+t;var a=document.getElementsByTagName('script')[0];a.parentNode.insertBefore(o,a)};
+    ttq.load('${tiktok}');
+    ttq.page();
+  }(window,document,'ttq');
+})();`,
           }}
         />
       )}
@@ -191,15 +209,20 @@ fbq('track','PageView');`,
           strategy="afterInteractive"
           dangerouslySetInnerHTML={{
             __html: `
-_linkedin_partner_id='${linkedin}';
-window._linkedin_data_partner_ids=window._linkedin_data_partner_ids||[];
-window._linkedin_data_partner_ids.push(_linkedin_partner_id);
-(function(l){if(!l){window.lintrk=function(a,b){window.lintrk.q.push([a,b])};window.lintrk.q=[]}
-var s=document.getElementsByTagName('script')[0];
-var b=document.createElement('script');
-b.type='text/javascript';b.async=true;
-b.src='https://snap.licdn.com/li.lms-analytics/insight.min.js';
-s.parentNode.insertBefore(b,s)})(window.lintrk);`,
+(function(){
+  var granted=false;
+  try{granted=localStorage.getItem('impronta_analytics_consent')==='granted';}catch(e){}
+  if(!granted) return;
+  window._linkedin_partner_id='${linkedin}';
+  window._linkedin_data_partner_ids=window._linkedin_data_partner_ids||[];
+  window._linkedin_data_partner_ids.push(window._linkedin_partner_id);
+  (function(l){if(!l){window.lintrk=function(a,b){window.lintrk.q.push([a,b])};window.lintrk.q=[]}
+  var s=document.getElementsByTagName('script')[0];
+  var b=document.createElement('script');
+  b.type='text/javascript';b.async=true;
+  b.src='https://snap.licdn.com/li.lms-analytics/insight.min.js';
+  s.parentNode.insertBefore(b,s)})(window.lintrk);
+})();`,
           }}
         />
       )}

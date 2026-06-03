@@ -10,7 +10,6 @@ import {
   saveIntegrationConfig,
   saveIntegrationSecret,
   setIntegrationMode,
-  testIntegration,
   type IntegrationView,
 } from "@/app/(workspace)/[tenantSlug]/admin/settings/integration-actions";
 
@@ -22,10 +21,12 @@ type Feedback = { tone: "success" | "error"; message: string } | null;
 /**
  * Per-integration config drawer. Renders the catalog setup instructions as
  * numbered steps, an input per catalog field (secret fields show ····last4 once
- * stored), and a "Test & Save" action that runs testIntegration FIRST and will
- * not persist a value that fails the format check. Feedback is explicit +
- * persistent (no toast-and-vanish). Inheritable integrations get a "Use platform
- * default" toggle.
+ * stored), and a "Save" action. The save actions validate each value against
+ * the catalog format test() server-side and REFUSE to persist anything that
+ * fails — and a successful save stamps last_verified_at in the same write, so
+ * there is no separate verify round-trip. Feedback is explicit + persistent (no
+ * toast-and-vanish). Inheritable integrations get a "Use platform default"
+ * toggle.
  */
 export function IntegrationConfigDrawer({
   tenantSlug,
@@ -65,10 +66,11 @@ export function IntegrationConfigDrawer({
     setFeedback(null);
   };
 
-  // ── Test & Save ────────────────────────────────────────────────────────────
-  // Persist first, then run the offline test so the row reflects the new value.
-  // A save that fails the format check (validated inside the save action) never
-  // lands; the test result drives the explicit feedback line.
+  // ── Save ─────────────────────────────────────────────────────────────────
+  // The save actions validate every value against the catalog format test()
+  // server-side and REFUSE to persist anything that fails — so a returned ok
+  // means the value both passed the format check AND landed (with
+  // last_verified_at stamped in the same write). No separate verify round-trip.
   const handleSave = async () => {
     setFeedback(null);
 
@@ -103,22 +105,7 @@ export function IntegrationConfigDrawer({
       }
     }
 
-    // 3. Verify (offline format check) so the persisted row carries an accurate
-    //    status / last_verified_at.
-    const test = await testIntegration(tenantSlug, integration.key);
-    if (!test.ok) {
-      setFeedback({ tone: "error", message: test.error });
-      throw new Error(test.error);
-    }
-    if (!test.verified) {
-      setFeedback({
-        tone: "error",
-        message:
-          "Saved, but the value didn't pass the format check. Double-check the ID/key and try again.",
-      });
-    } else {
-      setFeedback({ tone: "success", message: "Connected. Format check passed." });
-    }
+    setFeedback({ tone: "success", message: "Connected. Format check passed." });
 
     // Clear the typed secret from memory after a successful round-trip.
     if (secretField) setValue(secretField.name, "");
@@ -183,8 +170,8 @@ export function IntegrationConfigDrawer({
                 Disconnect
               </AsyncButton>
             )}
-            <AsyncButton onClick={handleSave} pendingLabel="Testing…">
-              Test &amp; Save
+            <AsyncButton onClick={handleSave} pendingLabel="Saving…">
+              Save
             </AsyncButton>
           </>
         ) : (
