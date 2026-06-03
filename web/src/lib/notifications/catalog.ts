@@ -31,6 +31,7 @@ import {
 import { formatDateLabel, pageUrl, redeemHref } from "./catalog-render";
 import { INQUIRY_CATALOG_ENTRIES } from "./catalog-entries-inquiry";
 import { BILLING_CATALOG_ENTRIES } from "./catalog-entries-billing";
+import { FORMS_CATALOG_ENTRIES } from "./catalog-entries-forms";
 
 /**
  * The notification catalog — a code-driven registry, one entry per
@@ -732,6 +733,7 @@ const SELF_TEST: CatalogEntry = {
 export const NOTIFICATION_CATALOG: CatalogEntry[] = [
   ...INQUIRY_CATALOG_ENTRIES,
   ...BILLING_CATALOG_ENTRIES,
+  ...FORMS_CATALOG_ENTRIES,
   PLATFORM_NEW_WORKSPACE,
   PLATFORM_WORKSPACE_OVER_QUOTA,
   PLATFORM_SIGNUP_FAILED,
