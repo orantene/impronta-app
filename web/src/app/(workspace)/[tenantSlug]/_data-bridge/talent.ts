@@ -12,6 +12,7 @@ import {
   type TalentOfferApprovalStatus,
 } from "./talent-approvals";
 import { loadCoordinatorInquiriesForUser } from "./talent-coordinator-inquiries";
+import { loadTalentCardThumbs } from "./talent-card-thumbs";
 
 /**
  * _data-bridge/talent.ts — talent-side dashboard loaders.
@@ -136,32 +137,13 @@ export async function loadTalentSelfProfile(
 
     if (rosterErr || !rosterRow) return null;
 
-    // Step 3: Fetch the talent's headshot. Prefer "card" variant; fall back
-    // through public_watermarked → gallery → portfolio → original so the
-    // talent's own dashboard never goes blank if their photo only landed in
-    // a different variant kind.
+    // Step 3: the talent's headshot — via the shared resolver so the dashboard
+    // shows the SAME media-public crop every other surface does (card > hero >
+    // public_watermarked > gallery > original). Fixes the prior inline list
+    // that missed the valid `hero` variant + carried a non-existent `portfolio`.
     const admin = createServiceRoleClient();
     const mediaClient = admin ?? supabase;
-    const { data: mediaRows } = await mediaClient
-      .from("media_assets")
-      .select("storage_path, variant_kind")
-      .eq("owner_talent_profile_id", p.id)
-      .in("variant_kind", ["card", "public_watermarked", "gallery", "portfolio", "original"])
-      .is("deleted_at", null)
-      .order("sort_order", { ascending: true })
-      .order("id", { ascending: true });
-    const variantOrder = ["card", "public_watermarked", "gallery", "portfolio", "original"];
-    const mediaRow = (mediaRows ?? [])
-      .slice()
-      .sort(
-        (a, b) =>
-          variantOrder.indexOf((a as { variant_kind: string }).variant_kind) -
-          variantOrder.indexOf((b as { variant_kind: string }).variant_kind),
-      )[0] as { storage_path: string; variant_kind: string } | undefined ?? null;
-    const BUCKET = "media-public";
-    const headshotUrl = mediaRow?.storage_path
-      ? mediaClient.storage.from(BUCKET).getPublicUrl(mediaRow.storage_path).data.publicUrl
-      : null;
+    const headshotUrl = (await loadTalentCardThumbs(mediaClient, [p.id])).get(p.id) ?? null;
 
     type RosterRaw = {
       status: string;
@@ -274,26 +256,9 @@ export async function loadTalentSelfProfileByUser(
 
     const p = profileRow as unknown as ProfileRaw;
 
-    const { data: mediaRows } = await trusted
-      .from("media_assets")
-      .select("storage_path, variant_kind")
-      .eq("owner_talent_profile_id", p.id)
-      .in("variant_kind", ["card", "public_watermarked", "gallery", "portfolio", "original"])
-      .is("deleted_at", null)
-      .order("sort_order", { ascending: true })
-      .order("id", { ascending: true });
-    const variantOrder = ["card", "public_watermarked", "gallery", "portfolio", "original"];
-    const mediaRow = (mediaRows ?? [])
-      .slice()
-      .sort(
-        (a, b) =>
-          variantOrder.indexOf((a as { variant_kind: string }).variant_kind) -
-          variantOrder.indexOf((b as { variant_kind: string }).variant_kind),
-      )[0] as { storage_path: string; variant_kind: string } | undefined ?? null;
-    const BUCKET = "media-public";
-    const headshotUrl = mediaRow?.storage_path
-      ? trusted.storage.from(BUCKET).getPublicUrl(mediaRow.storage_path).data.publicUrl
-      : null;
+    // Headshot via the shared resolver (card > hero > … — see the sibling
+    // loader above), so this surface matches every other and picks up `hero`.
+    const headshotUrl = (await loadTalentCardThumbs(trusted, [p.id])).get(p.id) ?? null;
 
     const displayName =
       p.display_name?.trim() ||
