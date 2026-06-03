@@ -51,6 +51,16 @@ import { findBuilderNodeById } from "./inspectors/builder-node-content-utils";
 import { copySharePreviewLinkToClipboard } from "./copy-share-preview-link";
 import { createShareLinkAction } from "@/lib/site-admin/share-link/share-actions";
 import { defaultSectionAddSlot } from "./default-section-add-slot";
+import {
+  CanvasViewportProvider,
+  CanvasZoomStyle,
+  CanvasSpacePan,
+  CanvasKeyboardZoom,
+  CanvasZoomControls,
+  CanvasRulers,
+  CanvasGuides,
+  useCanvasViewport,
+} from "./canvas-viewport";
 
 const ScheduleDrawer = dynamic(
   () =>
@@ -182,9 +192,25 @@ export function EditShell({
         workspaceMembershipSlug={workspaceMembershipSlug}
         canInsertRawHtmlElements={canInsertRawHtmlElements}
       >
-        <EditShellInner>{children}</EditShellInner>
+        {/* 4C — wrap in the canvas viewport provider so zoom/pan/rulers/guides
+            are available to all chrome components inside the editor. The
+            provider must nest inside EditProvider so CanvasKeyboardZoom /
+            CanvasZoomControls can read pageId from EditContext. */}
+        <CanvasViewportProviderWrapper>
+          <EditShellInner>{children}</EditShellInner>
+        </CanvasViewportProviderWrapper>
       </EditProvider>
     </EditErrorBoundary>
+  );
+}
+
+/** Thin bridge — reads `pageId` from EditContext to seed guide persistence. */
+function CanvasViewportProviderWrapper({ children }: { children: React.ReactNode }) {
+  const { pageId } = useEditContext();
+  return (
+    <CanvasViewportProvider pageId={pageId}>
+      {children}
+    </CanvasViewportProvider>
   );
 }
 
@@ -868,6 +894,15 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         {!previewing ? <CanvasLinkInterceptor /> : null}
         <FirstPaintTip />
         <IframeBridgeParent />
+        {/* 4C — canvas viewport tools: zoom transform, space-drag pan, keyboard
+            zoom, rulers, guides, and the HUD. All suppressed in preview mode
+            so the operator sees the real page without chrome. */}
+        <CanvasViewportComponents
+          previewing={previewing}
+          navigatorOpen={navigatorOpen}
+          navigatorWidth={navigatorWidth}
+          inspectorOpen={!!selectedSectionId}
+        />
       </div>
       {children}
         <DeviceFrameSurface
@@ -879,6 +914,51 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
           navigatorWidth={navigatorWidth}
           inspectorOpen={!!selectedSectionId}
         />
+    </>
+  );
+}
+
+/**
+ * 4C — all canvas viewport components bundled into one sub-component so
+ * we can call `useCanvasViewport()` once and destructure cleanly, keeping
+ * `EditShellInner` focused on composition/drawer orchestration.
+ *
+ * Hidden entirely in preview mode so the operator sees the real page.
+ */
+function CanvasViewportComponents({
+  previewing,
+  navigatorOpen,
+  navigatorWidth,
+  inspectorOpen,
+}: {
+  previewing: boolean;
+  navigatorOpen: boolean;
+  navigatorWidth: number;
+  inspectorOpen: boolean;
+}) {
+  const { zoom } = useCanvasViewport();
+  if (previewing) return null;
+
+  return (
+    <>
+      {/* Injects transform:scale on the storefront DOM (outside [data-edit-chrome]).
+          getBoundingClientRect() returns visual post-transform coords, so
+          selection-layer rings + hit-testing remain correct at every zoom level. */}
+      <CanvasZoomStyle zoom={zoom} />
+      {/* Space+drag pan — no rendered DOM, only window listeners. */}
+      <CanvasSpacePan />
+      {/* ⌘+/−/0/⇧F/R keyboard bindings for zoom and rulers. */}
+      <CanvasKeyboardZoom />
+      {/* Floating zoom HUD — bottom-left, accounts for rail widths. */}
+      <CanvasZoomControls
+        navigatorOpen={navigatorOpen}
+        navigatorWidth={navigatorWidth}
+        inspectorOpen={inspectorOpen}
+      />
+      {/* Rulers — rendered only when showRulers is true. */}
+      <CanvasRulers navigatorOpen={navigatorOpen} navigatorWidth={navigatorWidth} />
+      {/* Draggable guide lines. */}
+      <CanvasGuides navigatorOpen={navigatorOpen} navigatorWidth={navigatorWidth} />
     </>
   );
 }
