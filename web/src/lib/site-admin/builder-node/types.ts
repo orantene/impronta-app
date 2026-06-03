@@ -375,15 +375,56 @@ export interface BuilderContainerNode extends BuilderNodeBase {
     // an instance swap text / image / link on specific child nodes while staying
     // structurally linked to the master.
     instanceOverrides?: Record<string, BuilderNodeInstanceOverride>;
+    // Phase 4 (T4.4) — the currently-applied named variant on this instance.
+    // A variant is an author-time PRESET set of overrides (see
+    // BuilderComponentVariant). Storing the id lets the editor show which preset
+    // is active and re-apply it; the resolved overrides still live in
+    // instanceOverrides, so the live render path is unchanged.
+    instanceVariant?: string;
   };
   children: BuilderNode[];
 }
 
+/**
+ * A per-instance override on ONE master child node. Phase 3 shipped the four
+ * scalar fields (text/imageSrc/imageAlt/href). Phase 4 (T4.4) adds:
+ *
+ *  - `style`  — a curated breakpoint-less {@link BuilderNodeStyleValue} layered
+ *               OVER the master child's own base style (the override wins). Lets
+ *               an instance restyle a slot — colour, spacing, radius, etc. —
+ *               without forking the master.
+ *  - `slots`  — NESTED overrides keyed by a DEEPER master descendant id, so an
+ *               instance can swap content/style on grandchildren without the
+ *               override map going flat. (The top-level map is keyed by direct
+ *               override targets; `slots` lets one entry carry its own children.)
+ *
+ * All fields stay optional and additive — an empty override is still "not
+ * overridden", so a blank value never wipes master content.
+ */
 export interface BuilderNodeInstanceOverride {
   text?: string;
   imageSrc?: string;
   imageAlt?: string;
   href?: string;
+  /** Curated style layer applied over the master child's base style. */
+  style?: BuilderNodeStyleValue;
+  /** Nested overrides keyed by a deeper master descendant id. */
+  slots?: Record<string, BuilderNodeInstanceOverride>;
+}
+
+/**
+ * A named, reusable PRESET of per-instance overrides — the "variant" concept
+ * (Webflow/Framer component variants). Authored against a master component, a
+ * variant carries a set of overrides keyed by master child id; applying it to an
+ * instance writes those overrides onto the instance's `instanceOverrides` map
+ * and records the variant id in `instanceVariant`. This keeps the live render
+ * path (resolveInstanceChildren) entirely unchanged — variants are an editor-time
+ * convenience that compiles down to the same override map.
+ */
+export interface BuilderComponentVariant {
+  id: string;
+  name: string;
+  overrides: Record<string, BuilderNodeInstanceOverride>;
 }
 
 export interface BuilderSplitNode extends BuilderNodeBase {
@@ -610,6 +651,14 @@ export interface BuilderCardNode extends BuilderNodeBase {
   props: {
     variant?: "elevated" | "outline" | "ghost";
     style?: BuilderNodeStyle;
+    // Phase 4 (T4.4) — a `card` may ALSO be a linked-component instance, not
+    // just a `container`. A card has children, so resolveInstanceChildren works
+    // on it unchanged; the live render path treats it the same way. This is the
+    // "non-container component root where sensible" widening: cards are the most
+    // common reusable editorial unit (pricing card, feature card, testimonial).
+    instanceOf?: string;
+    instanceOverrides?: Record<string, BuilderNodeInstanceOverride>;
+    instanceVariant?: string;
   };
   children: BuilderNode[];
 }

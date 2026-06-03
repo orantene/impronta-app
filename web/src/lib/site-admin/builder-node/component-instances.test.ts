@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import type { BuilderNode } from "./types";
+import type { BuilderNode, BuilderNodeInstanceOverride } from "./types";
 import {
   syncComponentInstances,
   countComponentInstances,
@@ -217,15 +217,29 @@ test("resolveInstanceChildren: master + instance are not mutated (pure)", () => 
   assert.equal((inst as { children: BuilderNode[] }).children.length, 0);
 });
 
-import { collectOverridableSlots, setInstanceOverride } from "./component-instances";
+import {
+  collectOverridableSlots,
+  setInstanceOverride,
+  applyVariantToInstance,
+  clearInstanceVariant,
+  readInstanceVariant,
+} from "./component-instances";
 
-test("collectOverridableSlots: collects text/button/image slots depth-first", () => {
+test("collectOverridableSlots: collects style(root)+text/button/image slots depth-first [T4.4]", () => {
+  // Phase 4: the container root surfaces as a STYLE-only slot, then the content
+  // slots follow depth-first.
   const slots = collectOverridableSlots(MASTER);
-  assert.deepEqual(slots.map((s) => s.masterId), ["m-h", "m-b", "m-img"]);
-  assert.deepEqual(slots.map((s) => s.field), ["text", "text", "imageSrc"]);
+  assert.deepEqual(slots.map((s) => s.masterId), ["master-root", "m-h", "m-b", "m-img"]);
+  assert.deepEqual(slots.map((s) => s.field), ["style", "text", "text", "imageSrc"]);
+  // The container slot is style-only (no editable value) and supportsStyle.
+  assert.equal(slots[0].kind, "container");
+  assert.equal(slots[0].supportsStyle, true);
+  // Content slots keep their behavior + ALL now supportsStyle.
   const btn = slots.find((s) => s.kind === "button")!;
   assert.equal(btn.supportsHref, true);
-  assert.equal(slots[0].defaultValue, "Master heading");
+  assert.ok(slots.every((s) => s.supportsStyle));
+  const headingSlot = slots.find((s) => s.kind === "heading")!;
+  assert.equal(headingSlot.defaultValue, "Master heading");
 });
 
 test("setInstanceOverride: sets, then clears (prunes empty) an override", () => {
@@ -572,7 +586,7 @@ test("treeHasInstances: returns false for empty tree", () => {
 
 // ── collectOverridableSlots: deeper tree coverage ────────────────────────────
 
-test("collectOverridableSlots: nested slots collected depth-first (container wraps overridable nodes)", () => {
+test("collectOverridableSlots: nested slots collected depth-first incl. container style slots [T4.4]", () => {
   const nestedMaster = container("nm-root", [
     container("nm-inner", [
       heading("nm-h", "Deep heading"),
@@ -581,12 +595,193 @@ test("collectOverridableSlots: nested slots collected depth-first (container wra
     image("nm-img", "/deep.jpg"),
   ]);
   const slots = collectOverridableSlots(nestedMaster);
-  // Depth-first: inner heading → inner button → outer image
-  assert.deepEqual(slots.map((s) => s.masterId), ["nm-h", "nm-b", "nm-img"]);
+  // Depth-first incl. style-only container wrappers:
+  // root(style) → inner(style) → inner heading → inner button → outer image
+  assert.deepEqual(slots.map((s) => s.masterId), ["nm-root", "nm-inner", "nm-h", "nm-b", "nm-img"]);
+  assert.deepEqual(slots.map((s) => s.field), ["style", "style", "text", "text", "imageSrc"]);
 });
 
-test("collectOverridableSlots: container with no overridable children returns []", () => {
+test("collectOverridableSlots: container with no content children yields style-only wrapper slots [T4.4]", () => {
+  // Phase 4: bare containers are now STYLE-only slots (not skipped), so an
+  // instance can restyle a wrapper. Two containers → two style slots.
   const emptyMaster = container("empty", [container("inner-plain")]);
   const slots = collectOverridableSlots(emptyMaster);
-  assert.equal(slots.length, 0);
+  assert.deepEqual(slots.map((s) => s.masterId), ["empty", "inner-plain"]);
+  assert.ok(slots.every((s) => s.field === "style"));
+});
+
+// ── Phase 4 (T4.4): STYLE overrides ──────────────────────────────────────────
+
+test("resolveInstanceChildren: a style override layers OVER the master child base style [T4.4]", () => {
+  // Master heading has a base style; the instance recolors it.
+  const styledHeading = {
+    id: "sh", kind: "heading",
+    props: { text: "Title", level: 2, style: { textColor: "#000", marginTop: "m" } },
+  } as unknown as BuilderNode;
+  const master = container("sm-root", [styledHeading]);
+  const defs = { "cmp-style": master };
+
+  const ov = { sh: { style: { textColor: "#c00" } } };
+  const r = resolveInstanceChildren(instance("inst-s", "cmp-style", ov), defs)!;
+  const headingProps = r[0].props as { style: Record<string, string> };
+  // override wins on textColor; the master's marginTop is preserved.
+  assert.equal(headingProps.style.textColor, "#c00");
+  assert.equal(headingProps.style.marginTop, "m");
+});
+
+test("resolveInstanceChildren: an empty style override is a no-op (master style untouched) [T4.4]", () => {
+  const styledHeading = {
+    id: "sh", kind: "heading",
+    props: { text: "Title", level: 2, style: { textColor: "#000" } },
+  } as unknown as BuilderNode;
+  const master = container("sm2", [styledHeading]);
+  const defs = { "cmp-style2": master };
+
+  const r = resolveInstanceChildren(instance("inst-s2", "cmp-style2", { sh: { style: {} } }), defs)!;
+  const headingProps = r[0].props as { style: Record<string, string> };
+  assert.equal(headingProps.style.textColor, "#000");
+});
+
+test("resolveInstanceChildren: a style override on a master with NO base style creates the style [T4.4]", () => {
+  const master = container("sm3", [heading("h3", "Title")]); // heading has no style
+  const defs = { "cmp-style3": master };
+  const r = resolveInstanceChildren(instance("inst-s3", "cmp-style3", { h3: { style: { textColor: "#fff" } } }), defs)!;
+  assert.equal((r[0].props as { style: { textColor: string } }).style.textColor, "#fff");
+});
+
+// ── Phase 4 (T4.4): NESTED slots ─────────────────────────────────────────────
+
+test("resolveInstanceChildren: nested `slots` override targets a grandchild [T4.4]", () => {
+  // master: root → inner(container) → heading(deep)
+  const inner = container("nsl-inner", [heading("nsl-deep", "Deep master")]);
+  const master = container("nsl-root", [inner]);
+  const defs = { "cmp-slots": master };
+
+  // Override the inner container, and through its `slots`, the deep heading.
+  const ov = { "nsl-inner": { slots: { "nsl-deep": { text: "Deep override" } } } };
+  const r = resolveInstanceChildren(instance("inst-sl", "cmp-slots", ov), defs)!;
+  const innerResolved = r[0] as { children: BuilderNode[] };
+  const deep = innerResolved.children[0];
+  assert.equal(deep.id, "inst-sl__nsl-deep");
+  assert.equal((deep.props as { text: string }).text, "Deep override");
+});
+
+test("resolveInstanceChildren: a parent's nested slot refines (wins over) a flat entry for the same descendant [T4.4]", () => {
+  const inner = container("ow-inner", [heading("ow-deep", "Master")]);
+  const master = container("ow-root", [inner]);
+  const defs = { "cmp-ow": master };
+  // Both a nested slot AND a flat entry target ow-deep. The nested slot is more
+  // specific (scoped under its parent), so it refines the flat base and wins.
+  const ov = {
+    "ow-inner": { slots: { "ow-deep": { text: "From slot" } } },
+    "ow-deep": { text: "From flat" },
+  };
+  const r = resolveInstanceChildren(instance("inst-ow", "cmp-ow", ov), defs)!;
+  const deep = (r[0] as { children: BuilderNode[] }).children[0];
+  assert.equal((deep.props as { text: string }).text, "From slot");
+});
+
+// ── Phase 4 (T4.4): CARD instance roots (non-container) ───────────────────────
+
+function card(id: string, children: BuilderNode[] = [], instanceOf?: string): BuilderNode {
+  return {
+    id, kind: "card",
+    props: { variant: "elevated", ...(instanceOf ? { instanceOf } : {}) },
+    children,
+  } as unknown as BuilderNode;
+}
+
+test("resolveInstanceChildren: a CARD instance root resolves master children [T4.4]", () => {
+  const master = card("card-master", [heading("cm-h", "Card title"), button("cm-b", "Go")]);
+  const defs = { "cmp-card": master };
+  const inst = card("card-inst", [], "cmp-card");
+  const r = resolveInstanceChildren(inst, defs)!;
+  assert.equal(r.length, 2);
+  assert.deepEqual(r.map((n) => n.id), ["card-inst__cm-h", "card-inst__cm-b"]);
+});
+
+test("tagAsInstance / detach / count / treeHasInstances work on CARD roots [T4.4]", () => {
+  const tagged = tagAsInstance(card("c"), "cmp-9") as BuilderNode & { props: { instanceOf?: string } };
+  assert.equal(tagged.props.instanceOf, "cmp-9");
+
+  const tree = [container("root", [card("ci", [heading("k", "x")], "cmp-9")])];
+  assert.equal(countComponentInstances(tree, "cmp-9"), 1);
+  assert.equal(treeHasInstances(tree), true);
+
+  const { tree: next, detached } = detachComponentInstance(tree, "ci");
+  assert.equal(detached, true);
+  assert.equal(countComponentInstances(next, "cmp-9"), 0);
+});
+
+test("setInstanceOverride: works on a CARD instance root [T4.4]", () => {
+  const tree = [card("ci", [], "cmp-1")];
+  const withOv = setInstanceOverride(tree, "ci", "m-h", { text: "Hi" });
+  assert.equal((withOv[0].props as { instanceOverrides: Record<string, { text: string }> }).instanceOverrides["m-h"].text, "Hi");
+});
+
+// ── Phase 4 (T4.4): VARIANTS ─────────────────────────────────────────────────
+
+test("applyVariantToInstance: writes the variant overrides + records the variant id [T4.4]", () => {
+  const tree = [instance("vi", "cmp-1")];
+  const variant = {
+    id: "v-dark", name: "Dark",
+    overrides: { "m-h": { text: "Dark heading" }, "m-root": { style: { backgroundColor: "#111" } } },
+  };
+  const next = applyVariantToInstance(tree, "vi", variant);
+  const props = next[0].props as {
+    instanceOverrides: Record<string, BuilderNodeInstanceOverride>;
+    instanceVariant: string;
+  };
+  assert.equal(props.instanceVariant, "v-dark");
+  assert.equal(props.instanceOverrides["m-h"].text, "Dark heading");
+  assert.equal(props.instanceOverrides["m-root"].style!.backgroundColor, "#111");
+});
+
+test("applyVariantToInstance: prunes empty overrides + replaces a prior variant's map [T4.4]", () => {
+  const tree = [instance("vi", "cmp-1", { "stale": { text: "old" } })];
+  const variant = {
+    id: "v-min", name: "Minimal",
+    overrides: { "m-h": { text: "Only this" }, "ignored": { text: "" }, "ignored2": { style: {} } },
+  };
+  const next = applyVariantToInstance(tree, "vi", variant);
+  const ov = (next[0].props as { instanceOverrides: Record<string, unknown> }).instanceOverrides;
+  // The stale override is gone (variant replaces wholesale); empties pruned.
+  assert.deepEqual(Object.keys(ov), ["m-h"]);
+});
+
+test("applyVariantToInstance: a variant with only-empty overrides clears the map but tags the variant [T4.4]", () => {
+  const tree = [instance("vi", "cmp-1", { "x": { text: "y" } })];
+  const variant = { id: "v-empty", name: "Empty", overrides: { "a": { text: "" } } };
+  const next = applyVariantToInstance(tree, "vi", variant);
+  const props = next[0].props as { instanceOverrides?: unknown; instanceVariant: string };
+  assert.equal(props.instanceOverrides, undefined);
+  assert.equal(props.instanceVariant, "v-empty");
+});
+
+test("applyVariantToInstance: no-op on a non-instance / non-matching id [T4.4]", () => {
+  const tree = [container("plain")];
+  const next = applyVariantToInstance(tree, "plain", { id: "v", name: "V", overrides: {} });
+  assert.deepEqual(next, tree);
+});
+
+test("clearInstanceVariant: drops the variant tag, keeps the overrides [T4.4]", () => {
+  const seeded = applyVariantToInstance([instance("vi", "cmp-1")], "vi", {
+    id: "v1", name: "V1", overrides: { "m-h": { text: "Kept" } },
+  });
+  const cleared = clearInstanceVariant(seeded, "vi");
+  const props = cleared[0].props as {
+    instanceVariant?: string;
+    instanceOverrides: Record<string, { text: string }>;
+  };
+  assert.equal(props.instanceVariant, undefined);
+  assert.equal(props.instanceOverrides["m-h"].text, "Kept");
+});
+
+test("readInstanceVariant: reads the active variant id (or null) [T4.4]", () => {
+  const tagged = applyVariantToInstance([instance("vi", "cmp-1")], "vi", {
+    id: "v9", name: "V9", overrides: {},
+  });
+  assert.equal(readInstanceVariant(tagged[0]), "v9");
+  assert.equal(readInstanceVariant(instance("plain-i", "cmp-1")), null);
+  assert.equal(readInstanceVariant(container("plain")), null);
 });

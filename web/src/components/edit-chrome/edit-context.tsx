@@ -69,6 +69,8 @@ import {
   syncComponentInstances as syncComponentInstancesInTree,
   detachComponentInstance as detachComponentInstanceInTree,
   setInstanceOverride as setInstanceOverrideInTree,
+  applyVariantToInstance as applyVariantToInstanceInTree,
+  clearInstanceVariant as clearInstanceVariantInTree,
   countComponentInstances,
   tagAsInstance,
 } from "@/lib/site-admin/builder-node/component-instances";
@@ -102,6 +104,7 @@ import {
   type BuilderNodeCompositionPresetId,
   type BuilderNodeOperationKind,
   type BuilderNodeTree,
+  type BuilderComponentVariant,
   type LegacySnapshotSlot,
 } from "@/lib/site-admin/builder-node";
 import {
@@ -527,6 +530,22 @@ export interface EditContextValue {
     nodeId: string,
     masterChildId: string,
     overrideJson: string | null,
+  ) => Promise<{ ok: boolean; error?: string }>;
+  /**
+   * Phase 4 (T4.4) — apply a named component VARIANT to a linked instance. The
+   * variant is a preset set of overrides; applying it writes them onto the
+   * instance's override map and records the variant id. variantJson is a JSON
+   * string of {id,name,overrides} (kept a string to dodge a React-Compiler
+   * object-param memo bail, matching setInstanceOverride).
+   */
+  applyInstanceVariant: (
+    nodeId: string,
+    variantJson: string,
+  ) => Promise<{ ok: boolean; error?: string }>;
+  /** Phase 4 (T4.4) — clear the active variant tag on an instance (keeps its
+   * current overrides). */
+  clearInstanceVariant: (
+    nodeId: string,
   ) => Promise<{ ok: boolean; error?: string }>;
   /**
    * Living components — snapshot the currently selected freeform block as a
@@ -4043,6 +4062,52 @@ export function EditProvider({
     },
     [executeBuilderNodeOperation],
   );
+  // Phase 4 (T4.4) — apply a named variant to a linked instance (preset
+  // override-set + variant tag). Pure transform + shared commit path.
+  const applyInstanceVariant = useCallback<
+    EditContextValue["applyInstanceVariant"]
+  >(
+    async (nodeId, variantJson) => {
+      let variant: BuilderComponentVariant;
+      try {
+        variant = JSON.parse(variantJson) as BuilderComponentVariant;
+      } catch {
+        return { ok: false, error: "That variant could not be read." };
+      }
+      const result = await executeBuilderNodeOperation({
+        operation: "patch",
+        nodeId,
+        run: (tree) => ({
+          ok: true,
+          tree: applyVariantToInstanceInTree(tree, nodeId, variant),
+        }),
+      });
+      if (!result.ok) {
+        return { ok: false, error: result.error };
+      }
+      return { ok: true };
+    },
+    [executeBuilderNodeOperation],
+  );
+  const clearInstanceVariant = useCallback<
+    EditContextValue["clearInstanceVariant"]
+  >(
+    async (nodeId) => {
+      const result = await executeBuilderNodeOperation({
+        operation: "patch",
+        nodeId,
+        run: (tree) => ({
+          ok: true,
+          tree: clearInstanceVariantInTree(tree, nodeId),
+        }),
+      });
+      if (!result.ok) {
+        return { ok: false, error: result.error };
+      }
+      return { ok: true };
+    },
+    [executeBuilderNodeOperation],
+  );
   const saveSelectedNodeAsComponent = useCallback<
     EditContextValue["saveSelectedNodeAsComponent"]
   >(
@@ -5255,6 +5320,8 @@ export function EditProvider({
       ejectSection,
       unejectSection,
       setInstanceOverride,
+      applyInstanceVariant,
+      clearInstanceVariant,
       saveSelectedNodeAsComponent,
       updateSelectedNodeAsComponent,
       duplicateBuilderNode,
@@ -5423,6 +5490,8 @@ export function EditProvider({
       ejectSection,
       unejectSection,
       setInstanceOverride,
+      applyInstanceVariant,
+      clearInstanceVariant,
       saveSelectedNodeAsComponent,
       updateSelectedNodeAsComponent,
       duplicateBuilderNode,

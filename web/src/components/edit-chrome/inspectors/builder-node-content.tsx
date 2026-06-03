@@ -32,6 +32,7 @@ import { Card, CardBody, CardHead, Field, FieldLabel, Helper, Segmented, Toggle 
 import { KIT } from "./kit/tokens";
 import { MediaPickerButton } from "./kit";
 import { MyBlocksPanel } from "./my-blocks-panel";
+import { ComponentLibraryPanel } from "./component-library-panel";
 import { GenericContent } from "./generic-content";
 
 interface BuilderNodeContentInspectorProps {
@@ -2116,6 +2117,7 @@ function NestedBlocksCard({
             </details>
           ) : null}
           <MyBlocksPanel parentNodeId={parentNodeId} />
+          <ComponentLibraryPanel parentNodeId={parentNodeId} />
           {presets.length > 0 ? (
             <details className="rounded-lg border border-stone-200 bg-white px-3 py-2">
               <summary className="cursor-pointer text-[11px] font-semibold text-stone-700">
