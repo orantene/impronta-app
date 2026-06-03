@@ -177,6 +177,14 @@ export interface BuilderNodeStyleValue {
   // (e.g. "span 2", "1 / 3"). No-op outside a grid container.
   gridColumn?: string;
   gridRow?: string;
+  // Flex/grid child ORDER — repositions this node among its siblings WITHOUT
+  // moving it in the tree/DOM (CSS `order`, lower paints first; negatives allowed
+  // to pull ahead of order:0 siblings). The headline use is per-breakpoint reorder
+  // — set it under responsive.{tablet,mobile} to e.g. float a CTA above the media
+  // on mobile while the desktop DOM order is untouched. ONLY affects children of a
+  // flex or grid parent (a `container` row/grid, `split`, `cta_group`, …); a no-op
+  // in normal flow. Optional + back-compat: undefined leaves the natural order.
+  order?: number;
   // Filter effects — free CSS filter strings. filter applies to the node itself
   // (blur/grayscale/brightness/…); backdropFilter frosts whatever sits behind it
   // (glassmorphism). e.g. "blur(8px)", "grayscale(1) contrast(1.2)".

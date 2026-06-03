@@ -1084,6 +1084,7 @@ function cleanBuilderNodeStyle(
   if (value.flexBasis) out.flexBasis = value.flexBasis;
   if (value.gridColumn) out.gridColumn = value.gridColumn;
   if (value.gridRow) out.gridRow = value.gridRow;
+  if (typeof value.order === "number") out.order = value.order;
   if (value.filter) out.filter = value.filter;
   if (value.backdropFilter) out.backdropFilter = value.backdropFilter;
   if (value.mixBlendMode) out.mixBlendMode = value.mixBlendMode;
@@ -1219,6 +1220,7 @@ function cleanBuilderNodeStyleValue(
   if (value.flexBasis) out.flexBasis = value.flexBasis;
   if (value.gridColumn) out.gridColumn = value.gridColumn;
   if (value.gridRow) out.gridRow = value.gridRow;
+  if (typeof value.order === "number") out.order = value.order;
   if (value.filter) out.filter = value.filter;
   if (value.backdropFilter) out.backdropFilter = value.backdropFilter;
   if (value.mixBlendMode) out.mixBlendMode = value.mixBlendMode;
@@ -6871,6 +6873,53 @@ export function StylePanel({
                     }
                   />
                 </div>
+              </div>
+              <div
+                className="flex flex-col gap-1"
+                data-builder-node-style-control="order"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Order
+                </span>
+                <input
+                  type="number"
+                  step={1}
+                  min={-999}
+                  max={999}
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    fontVariantNumeric: "tabular-nums",
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="Auto"
+                  value={
+                    typeof selectedStandaloneViewportStyle?.order === "number"
+                      ? selectedStandaloneViewportStyle.order
+                      : ""
+                  }
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    const n = Number(raw);
+                    patchSelectedStandaloneStyle({
+                      order:
+                        raw === "" || !Number.isFinite(n)
+                          ? undefined
+                          : Math.max(-999, Math.min(999, Math.round(n))),
+                    });
+                  }}
+                />
+                <span className="text-[10.5px]" style={{ color: CHROME.muted }}>
+                  {selectedViewport === "desktop"
+                    ? "Reorders among siblings (lower first). Only inside a flex/grid parent."
+                    : `Reorders on ${selectedViewport} without moving in the layout. Flex/grid parent only.`}
+                </span>
               </div>
               </div>
               </details>

@@ -1127,3 +1127,115 @@ test("nav: re-render is byte-identical (determinism)", () => {
   const node = navNode();
   assert.equal(render([node]), render([node]));
 });
+
+// Wave 2 · Item 2A — per-breakpoint STRUCTURE: visibility (#3) + order (#4).
+// Both are optional BuilderNodeStyleValue fields, so they ride the SAME
+// per-breakpoint CSS path as every other escape (gated data-attr → static
+// @media rule reading a --bn-{bp}-* var). These tests lock the emitted CSS at
+// desktop / tablet / mobile / container-query so a future refactor can't
+// silently regress the responsive hide-or-reorder.
+test("structure: the static sheet ships the hidden + order rules at both breakpoints", () => {
+  const html = render([container({})]);
+  for (const rule of [
+    ".site-builder-node[data-builder-style-tablet-hidden]{display:none!important}",
+    ".site-builder-node[data-builder-style-mobile-hidden]{display:none!important}",
+    ".site-builder-node[data-builder-style-tablet-order]{order:var(--bn-tablet-order)!important}",
+    ".site-builder-node[data-builder-style-mobile-order]{order:var(--bn-mobile-order)!important}",
+  ]) {
+    assert.ok(html.includes(rule), `static sheet ships: ${rule}`);
+  }
+});
+
+test("structure: per-breakpoint order emits the gate + the var (incl. order:0)", () => {
+  const html = render([
+    container({
+      order: 1, // desktop base — inline
+      responsive: {
+        tablet: { order: -1 }, // negative pulls ahead of order:0 siblings
+        mobile: { order: 0 }, // edge case: 0 is meaningful, must still emit
+      },
+    }),
+  ]);
+
+  // Desktop base order is applied inline (not gated behind a media rule).
+  assert.ok(html.includes("order:1"), "desktop base order inline");
+
+  // Tablet override: gating attr + var.
+  assert.ok(
+    html.includes('data-builder-style-tablet-order=""'),
+    "tablet order gate",
+  );
+  assert.ok(html.includes("--bn-tablet-order:-1"), "tablet order var (negative)");
+
+  // Mobile override with order:0 — the numeric gate must NOT treat 0 as unset.
+  assert.ok(
+    html.includes('data-builder-style-mobile-order=""'),
+    "mobile order gate fires for order:0",
+  );
+  assert.ok(html.includes("--bn-mobile-order:0"), "mobile order var is 0");
+});
+
+test("structure: per-breakpoint visibility hides only at that breakpoint", () => {
+  const html = render([
+    container({
+      responsive: {
+        tablet: { visibility: "hidden" },
+        mobile: { visibility: "hidden" },
+      },
+    }),
+  ]);
+
+  // The gate is the presence attr; the static sheet's media rule supplies the
+  // display:none. No INLINE desktop display:none — desktop stays shown. (The
+  // substring "display:none" DOES appear in the static @media sheet, so we
+  // assert specifically that the node's own inline style="…" doesn't carry it.)
+  assert.ok(
+    html.includes('data-builder-style-tablet-hidden=""'),
+    "tablet hidden gate",
+  );
+  assert.ok(
+    html.includes('data-builder-style-mobile-hidden=""'),
+    "mobile hidden gate",
+  );
+  const inlineStyles = [...html.matchAll(/style="([^"]*)"/g)].map((m) => m[1]);
+  assert.ok(
+    inlineStyles.every((s) => !s.includes("display:none")),
+    "no inline desktop display:none when only breakpoints hide",
+  );
+});
+
+test("structure: desktop-level visibility:hidden removes the node inline everywhere", () => {
+  const html = render([container({ visibility: "hidden" })]);
+  // sharedNodeStyle emits display:none inline at the base layer, so the node is
+  // gone on every screen (the breakpoint layers inherit it). Assert the inline
+  // style="…" carries it (not merely the static sheet's media rules).
+  const inlineStyles = [...html.matchAll(/style="([^"]*)"/g)].map((m) => m[1]);
+  assert.ok(
+    inlineStyles.some((s) => s.includes("display:none")),
+    "desktop hidden emits inline display:none",
+  );
+});
+
+test("structure: container-query scope emits order + hidden too", () => {
+  const html = render([
+    container({
+      containerType: "inline-size",
+      containerQueries: {
+        mobile: { order: 2, visibility: "hidden" },
+      },
+    }),
+  ]);
+
+  assert.ok(
+    html.includes('data-builder-style-cq-mobile-order=""'),
+    "cq mobile order gate",
+  );
+  assert.ok(
+    html.includes("--bn-cq-mobile-order:2"),
+    "cq mobile order var",
+  );
+  assert.ok(
+    html.includes('data-builder-style-cq-mobile-hidden=""'),
+    "cq mobile hidden gate",
+  );
+});

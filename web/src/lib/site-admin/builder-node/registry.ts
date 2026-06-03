@@ -179,6 +179,10 @@ const builderNodeStyleValueSchema = z.object({
   // Grid child placement — grid-column / grid-row span/line specs.
   gridColumn: z.string().max(24).optional(),
   gridRow: z.string().max(24).optional(),
+  // Flex/grid child order — CSS `order` (lower paints first; negatives pull a
+  // child ahead of order:0 siblings). Capped to a sane integer band like zIndex.
+  // Per-breakpoint reorder without touching the DOM. No-op outside flex/grid.
+  order: z.number().int().min(-999).max(999).optional(),
   // Filter effects — CSS filter (self) + backdrop-filter (behind, glassmorphism).
   filter: z.string().max(120).optional(),
   backdropFilter: z.string().max(120).optional(),

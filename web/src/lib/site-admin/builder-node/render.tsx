@@ -203,6 +203,7 @@ const CONTAINER_QUERY_STYLE_RULES: ReadonlyArray<{
   { attr: "flex-basis", css: (p) => `flex-basis:var(--bn-${p}-flex-basis)!important` },
   { attr: "grid-column", css: (p) => `grid-column:var(--bn-${p}-grid-column)!important` },
   { attr: "grid-row", css: (p) => `grid-row:var(--bn-${p}-grid-row)!important` },
+  { attr: "order", css: (p) => `order:var(--bn-${p}-order)!important` },
   { attr: "filter", css: (p) => `filter:var(--bn-${p}-filter)!important` },
   { attr: "backdrop-filter", css: (p) => `backdrop-filter:var(--bn-${p}-backdrop-filter)!important;-webkit-backdrop-filter:var(--bn-${p}-backdrop-filter)!important` },
   { attr: "mix-blend-mode", css: (p) => `mix-blend-mode:var(--bn-${p}-mix-blend-mode)!important` },
@@ -450,6 +451,7 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-tablet-flex-basis]{flex-basis:var(--bn-tablet-flex-basis)!important}
   .site-builder-node[data-builder-style-tablet-grid-column]{grid-column:var(--bn-tablet-grid-column)!important}
   .site-builder-node[data-builder-style-tablet-grid-row]{grid-row:var(--bn-tablet-grid-row)!important}
+  .site-builder-node[data-builder-style-tablet-order]{order:var(--bn-tablet-order)!important}
   .site-builder-node[data-builder-style-tablet-filter]{filter:var(--bn-tablet-filter)!important}
   .site-builder-node[data-builder-style-tablet-backdrop-filter]{backdrop-filter:var(--bn-tablet-backdrop-filter)!important;-webkit-backdrop-filter:var(--bn-tablet-backdrop-filter)!important}
   .site-builder-node[data-builder-style-tablet-mix-blend-mode]{mix-blend-mode:var(--bn-tablet-mix-blend-mode)!important}
@@ -550,6 +552,7 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-flex-basis]{flex-basis:var(--bn-mobile-flex-basis)!important}
   .site-builder-node[data-builder-style-mobile-grid-column]{grid-column:var(--bn-mobile-grid-column)!important}
   .site-builder-node[data-builder-style-mobile-grid-row]{grid-row:var(--bn-mobile-grid-row)!important}
+  .site-builder-node[data-builder-style-mobile-order]{order:var(--bn-mobile-order)!important}
   .site-builder-node[data-builder-style-mobile-filter]{filter:var(--bn-mobile-filter)!important}
   .site-builder-node[data-builder-style-mobile-backdrop-filter]{backdrop-filter:var(--bn-mobile-backdrop-filter)!important;-webkit-backdrop-filter:var(--bn-mobile-backdrop-filter)!important}
   .site-builder-node[data-builder-style-mobile-mix-blend-mode]{mix-blend-mode:var(--bn-mobile-mix-blend-mode)!important}
@@ -701,6 +704,7 @@ const CONTAINER_QUERY_STYLE_ATTR_KEYS: ReadonlyArray<[
   ["flexBasis", "flex-basis"],
   ["gridColumn", "grid-column"],
   ["gridRow", "grid-row"],
+  ["order", "order"],
   ["filter", "filter"],
   ["backdropFilter", "backdrop-filter"],
   ["mixBlendMode", "mix-blend-mode"],
@@ -843,6 +847,8 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-tablet-flex-basis": tablet?.flexBasis ? "" : undefined,
     "data-builder-style-tablet-grid-column": tablet?.gridColumn ? "" : undefined,
     "data-builder-style-tablet-grid-row": tablet?.gridRow ? "" : undefined,
+    "data-builder-style-tablet-order":
+      typeof tablet?.order === "number" ? "" : undefined,
     "data-builder-style-tablet-filter": tablet?.filter ? "" : undefined,
     "data-builder-style-tablet-backdrop-filter":
       tablet?.backdropFilter ? "" : undefined,
@@ -943,6 +949,8 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-mobile-flex-basis": mobile?.flexBasis ? "" : undefined,
     "data-builder-style-mobile-grid-column": mobile?.gridColumn ? "" : undefined,
     "data-builder-style-mobile-grid-row": mobile?.gridRow ? "" : undefined,
+    "data-builder-style-mobile-order":
+      typeof mobile?.order === "number" ? "" : undefined,
     "data-builder-style-mobile-filter": mobile?.filter ? "" : undefined,
     "data-builder-style-mobile-backdrop-filter":
       mobile?.backdropFilter ? "" : undefined,
@@ -1092,6 +1100,7 @@ function containerQueryStyleVars(
     [`${prefix}-flex-basis`]: style?.flexBasis,
     [`${prefix}-grid-column`]: style?.gridColumn,
     [`${prefix}-grid-row`]: style?.gridRow,
+    [`${prefix}-order`]: style?.order,
     [`${prefix}-filter`]: style?.filter,
     [`${prefix}-backdrop-filter`]: style?.backdropFilter,
     [`${prefix}-mix-blend-mode`]: style?.mixBlendMode,
@@ -1314,8 +1323,10 @@ function responsiveStyleVars(
     "--bn-mobile-flex-basis": style?.responsive?.mobile?.flexBasis,
     "--bn-tablet-grid-column": style?.responsive?.tablet?.gridColumn,
     "--bn-tablet-grid-row": style?.responsive?.tablet?.gridRow,
+    "--bn-tablet-order": style?.responsive?.tablet?.order,
     "--bn-mobile-grid-column": style?.responsive?.mobile?.gridColumn,
     "--bn-mobile-grid-row": style?.responsive?.mobile?.gridRow,
+    "--bn-mobile-order": style?.responsive?.mobile?.order,
     "--bn-tablet-filter": style?.responsive?.tablet?.filter,
     "--bn-tablet-backdrop-filter": style?.responsive?.tablet?.backdropFilter,
     "--bn-tablet-mix-blend-mode": style?.responsive?.tablet?.mixBlendMode,
@@ -1552,6 +1563,9 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   // Grid child placement — span/line position in a grid parent. No-op elsewhere.
   if (style.gridColumn) out.gridColumn = style.gridColumn;
   if (style.gridRow) out.gridRow = style.gridRow;
+  // Flex/grid child order — reposition among siblings without moving in the DOM
+  // (0 is a valid order, so test the type). No-op outside a flex/grid parent.
+  if (typeof style.order === "number") out.order = style.order;
   // Flex/grid container layout — distribute this node's OWN children on the main
   // axis (justifyContent) / cross axis (alignItems) and control row wrapping.
   // Applied inline so a free value wins over the container's structured align /
