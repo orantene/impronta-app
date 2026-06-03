@@ -54,6 +54,7 @@ import {
 import { Segmented, type SegmentedOption } from "../kit/segmented";
 import { ShadowBuilder, GradientBuilder } from "./css-value-builders";
 import { StylePresetsBar } from "./style-presets-bar";
+import { LinkedStyleClassesBar } from "./linked-style-classes-bar";
 import { InstanceOverridesPanel } from "./instance-overrides-panel";
 import { InspectorGroup } from "./kit";
 import { Swatch } from "../kit/swatch";
@@ -1215,6 +1216,10 @@ function cleanBuilderNodeStyle(
   }
   const hover = cleanHoverStyle(value.hover);
   if (hover) out.hover = hover;
+  // Wave 3 · 3B — preserve the linked style-class reference through every style
+  // patch (the allowlist above intentionally drops unknown keys; classRef must
+  // survive or "Apply class" would be wiped on the next inspector edit).
+  if (value.classRef) out.classRef = value.classRef;
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -1759,6 +1764,7 @@ export function StylePanel({
 }: StylePanelProps) {
   const {
     builderTree,
+    pageId,
     canUndo,
     canRedo,
     patchBuilderNodeProps,
@@ -3363,6 +3369,20 @@ export function StylePanel({
       ...currentStyle,
       ...patch,
     });
+    standaloneStyleDraftRef.current = {
+      nodeId: selectedStandaloneStyleNode.id,
+      style: nextStyle ? { ...nextStyle } : undefined,
+    };
+    patchSelectedStandaloneNodeProps({ style: nextStyle });
+  }
+
+  // Wave 3 · 3B — REPLACE the selected block's whole style object (not merge).
+  // Used by the linked-style-classes bar to write/clear `classRef` and to
+  // flatten a class on unlink. Keeps the draft ref in sync so a following field
+  // edit merges onto the new style, mirroring patchSelectedBaseStyle.
+  function setSelectedStandaloneStyleObject(style: BuilderNodeStyle | undefined) {
+    if (!selectedStandaloneStyleNode) return;
+    const nextStyle = cleanBuilderNodeStyle(style);
     standaloneStyleDraftRef.current = {
       nodeId: selectedStandaloneStyleNode.id,
       style: nextStyle ? { ...nextStyle } : undefined,
@@ -5476,6 +5496,12 @@ export function StylePanel({
             <StylePresetsBar
               currentStyle={selectedStandaloneFullStyle ?? undefined}
               onApply={(style) => patchSelectedBaseStyle(style)}
+            />
+
+            <LinkedStyleClassesBar
+              pageId={pageId}
+              currentStyle={selectedStandaloneFullStyle ?? undefined}
+              onSetStyle={(style) => setSelectedStandaloneStyleObject(style)}
             />
 
             {selectedStandaloneStylePresets.length > 0 ? (

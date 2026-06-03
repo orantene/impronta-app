@@ -324,6 +324,11 @@ const builderNodeStyleSchema = builderNodeStyleValueSchema
       })
       .optional(),
     hover: builderNodeHoverStyleSchema.optional(),
+    // Linked style class reference (Wave 3 · 3B) — a page-scoped class id
+    // (slug). Optional + back-compat; the renderer merges the class style as
+    // the base with this node's own props on top. Length-capped to the id
+    // normalizer's 48-char ceiling (styleClassIdFromName).
+    classRef: z.string().min(1).max(48).optional(),
   })
   .optional();
 

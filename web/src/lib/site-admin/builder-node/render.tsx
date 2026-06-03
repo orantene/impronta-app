@@ -23,6 +23,10 @@ import {
 import { getBuilderIconDefinition } from "./icon-registry";
 import { resolveStyleTokenRef } from "./style-token-bindings";
 import {
+  resolveNodeStyleWithClass,
+  type BuilderStyleClassRegistry,
+} from "./style-classes";
+import {
   getBuilderNodeDataBinding,
   isBuilderDataBindingRepeater,
   isSafeBuilderBoundImageSrc,
@@ -63,6 +67,12 @@ export interface BuilderNodeRenderOptions {
   // the master subtree LIVE with per-instance overrides. When absent or the
   // component is missing, instances fall back to their own stored children.
   components?: ComponentDefinitions;
+  // Wave 3 · 3B — page-scoped LINKED STYLE CLASSES (classId → { id, name,
+  // style }). When provided, a node whose `style.classRef` names a class in
+  // this registry renders with the class style merged BENEATH its own props.
+  // Absent / unknown ref → the node falls through to its own style (a linked
+  // block can never blank out). See style-classes.ts.
+  styleClasses?: BuilderStyleClassRegistry;
   // `section_embed` (Tulala component) renderer — INJECTED by the server caller
   // (homepage-cms-sections / PublishedShell) so this module never statically
   // imports the section registry (which would pull every section Component +
@@ -74,9 +84,13 @@ export interface BuilderNodeRenderOptions {
 }
 
 type NormalizedBuilderNodeRenderOptions = Required<
-  Omit<BuilderNodeRenderOptions, "renderSectionEmbed">
+  Omit<BuilderNodeRenderOptions, "renderSectionEmbed" | "styleClasses">
 > & {
   renderSectionEmbed: BuilderSectionEmbedRenderer | null;
+  // Always present after normalize (defaults to {} so the per-node resolver can
+  // index it unconditionally). An empty registry → every node resolves to its
+  // own style by identity (byte-identical).
+  styleClasses: BuilderStyleClassRegistry;
   repeatItem: BuilderRepeatItem | null;
   repeatDepth: number;
 };
@@ -2111,10 +2125,35 @@ function builderImageSrcSet(
   return { srcSet, sizes: "(max-width: 768px) 100vw, 50vw" };
 }
 
-function renderBuilderNode(
+/**
+ * Wave 3 · 3B — resolve a node's LINKED STYLE CLASS before rendering. When the
+ * node's `style.classRef` names a class in the registry, return a shallow copy
+ * whose `props.style` is the class style merged BENEATH the node's own props
+ * (classRef stripped). No classRef / unknown class / no registry → the node is
+ * returned by IDENTITY, so existing trees + the flagship stay byte-identical.
+ * Applied at the single per-node entry so every downstream `node.props.style`
+ * read (~80 emit sites) transparently sees the merged style.
+ */
+function applyStyleClass(
   node: BuilderNode,
+  classes: BuilderStyleClassRegistry,
+): BuilderNode {
+  if (!("props" in node)) return node;
+  const style = (node.props as { style?: BuilderNodeStyle }).style;
+  if (!style?.classRef) return node;
+  const resolved = resolveNodeStyleWithClass(style, classes);
+  if (resolved === style) return node;
+  return {
+    ...node,
+    props: { ...(node.props as Record<string, unknown>), style: resolved },
+  } as BuilderNode;
+}
+
+function renderBuilderNode(
+  rawNode: BuilderNode,
   options: NormalizedBuilderNodeRenderOptions,
 ): ReactNode {
+  const node = applyStyleClass(rawNode, options.styleClasses);
   switch (node.kind) {
     case "section":
       return null;
@@ -2795,6 +2834,7 @@ export function renderBuilderNodes(
     includeRendererStyles: options.includeRendererStyles ?? true,
     includeFontLinks: options.includeFontLinks ?? true,
     components: options.components ?? {},
+    styleClasses: options.styleClasses ?? {},
     renderSectionEmbed: options.renderSectionEmbed ?? null,
     repeatItem: null,
     repeatDepth: 0,
