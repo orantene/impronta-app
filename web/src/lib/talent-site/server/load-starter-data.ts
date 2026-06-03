@@ -87,7 +87,9 @@ export async function loadTalentStarterProfileData(
     .from("media_assets")
     .select("storage_path, variant_kind")
     .eq("owner_talent_profile_id", talentProfileId)
-    .in("variant_kind", ["public_watermarked", "gallery", "portfolio", "card"])
+    // Real media_variant_kind values only — `portfolio` is not an enum member
+    // (it errors the whole .in query); `hero` is the valid 4:5 cover variant.
+    .in("variant_kind", ["public_watermarked", "gallery", "card", "hero"])
     .eq("approval_state", "approved")
     .is("deleted_at", null)
     .order("sort_order", { ascending: true })
@@ -131,7 +133,9 @@ export async function buildStarterSnapshotForTalent(
     .from("media_assets")
     .select("storage_path")
     .eq("owner_talent_profile_id", talentProfileId)
-    .in("variant_kind", ["public_watermarked", "gallery", "portfolio"])
+    // Real media_variant_kind values only — `portfolio` is not an enum member
+    // (it errors the whole .in query); `hero` is the valid 4:5 cover variant.
+    .in("variant_kind", ["public_watermarked", "gallery", "hero"])
     .eq("approval_state", "approved")
     .is("deleted_at", null)
     .order("sort_order", { ascending: true })

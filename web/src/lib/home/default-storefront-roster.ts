@@ -17,6 +17,7 @@
  */
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { loadTalentCardThumbs } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent-card-thumbs";
 
 export type DefaultStorefrontTalent = {
   id: string;
@@ -28,14 +29,6 @@ export type DefaultStorefrontTalent = {
 
 /** Talent that may surface on a public default storefront. */
 const PUBLISHED_STATUSES = new Set(["approved", "published"]);
-
-const THUMB_VARIANT_RANK: Record<string, number> = {
-  card: 0,
-  public_watermarked: 1,
-  gallery: 2,
-  portfolio: 3,
-  original: 4,
-};
 
 export async function loadDefaultStorefrontRoster(
   tenantId: string,
@@ -109,31 +102,12 @@ export async function loadDefaultStorefrontRoster(
       talentIds.push(p.id);
     }
 
-    // Batch-load card thumbnails — one query for all eligible talent.
-    const thumbMap = new Map<string, string>();
-    if (talentIds.length > 0) {
-      const { data: mediaRows } = await sb
-        .from("media_assets")
-        .select("owner_talent_profile_id, storage_path, variant_kind")
-        .in("owner_talent_profile_id", talentIds)
-        .in("variant_kind", ["card", "public_watermarked", "gallery", "portfolio", "original"])
-        .is("deleted_at", null);
-
-      const bestRank = new Map<string, number>();
-      for (const m of ((mediaRows ?? []) as Array<{
-        owner_talent_profile_id: string;
-        storage_path: string;
-        variant_kind: string;
-      }>)) {
-        const rank = THUMB_VARIANT_RANK[m.variant_kind] ?? 99;
-        const cur = bestRank.get(m.owner_talent_profile_id) ?? 99;
-        if (rank < cur) {
-          const { data: url } = sb.storage.from("media-public").getPublicUrl(m.storage_path);
-          thumbMap.set(m.owner_talent_profile_id, url.publicUrl);
-          bestRank.set(m.owner_talent_profile_id, rank);
-        }
-      }
-    }
+    // Batch-load card thumbnails via the shared resolver so this default
+    // storefront shows the SAME face as roster/discover (ranks card > hero >
+    // public_watermarked > gallery > original). The old inline copy here listed
+    // a non-existent `portfolio` variant — which made PostgREST reject the whole
+    // query, so every card fell back to initials — and omitted the real `hero`.
+    const thumbMap = await loadTalentCardThumbs(sb, talentIds);
 
     return eligible.map((row) => {
       const p = row.talent_profiles!;
