@@ -996,6 +996,14 @@ export interface EditContextValue {
    * confirmation chip.
    */
   saveDraft: () => Promise<{ ok: boolean; error?: string; savedAt?: string }>;
+  /**
+   * Flush any debounced/coalesced builder-tree draft save immediately and wait
+   * for it (and any save already in flight) to settle. Call this before any
+   * action that reads the persisted draft from the server — chiefly Publish — so
+   * an edit sitting in the debounce window is committed first. Safe to call with
+   * nothing pending (resolves once the save queue is idle).
+   */
+  flushBuilderTreeSave: () => Promise<unknown>;
   /** ISO timestamp of the most recent successful Save draft press; null when clear. */
   lastDraftSavedAt: string | null;
   clearDraftSavedToast: () => void;
@@ -2048,6 +2056,35 @@ export function EditProvider({
   const slotsRef = useRef<Record<string, CompositionSectionRef[]>>(slots);
   const builderTreeRef = useRef<BuilderNodeTree>(builderTree);
   const builderTreeSaveQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+  // ── Debounced/coalesced builder-tree draft saves ──────────────────────
+  // Rapid node edits (typing, slider drags, repeated nudges) each used to fire
+  // their own blocking `saveDraftHomepageAction`, serializing a burst into N
+  // round-trips. We now apply the optimistic local tree immediately (UI never
+  // blocks) and coalesce the SERVER persist: only the latest tree of a burst is
+  // saved, ~DEBOUNCE_MS after the last edit. `pendingTreeRef` holds the tree
+  // owed to the server but not yet flushed; the timer fires `flushBuilderTreeSave`.
+  // CRITICAL: every flush still routes through `builderTreeSaveQueueRef` (ordering
+  // preserved) and `persistBuilderTree` (CAS-version conflict handling + rollback
+  // preserved). We flush eagerly on unmount, before publish, and on
+  // pagehide / visibilitychange→hidden so an in-flight debounce never loses an edit.
+  const BUILDER_SAVE_DEBOUNCE_MS = 750;
+  const pendingTreeRef = useRef<BuilderNodeTree | null>(null);
+  const builderSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // How many optimistic builderTree history entries have been pushed since the
+  // last successful (or attempted) coalesced flush. On flush failure we pop this
+  // many so undo depth matches the reverted (last-confirmed) tree.
+  const pendingHistoryCountRef = useRef(0);
+  // Last tree the SERVER has confirmed (or the tree at load). Because a burst
+  // applies several optimistic local trees before a single coalesced save, the
+  // correct rollback target on save failure is this last-confirmed tree, NOT the
+  // immediately-preceding optimistic tree. Seeded in `applyComposition` and on
+  // every successful persist.
+  const lastConfirmedTreeRef = useRef<BuilderNodeTree>(builderTree);
+  // Stable ref to the flush fn so effects/teardown can call the latest
+  // implementation without re-subscribing (persistBuilderTree is defined later).
+  const flushBuilderTreeSaveRef = useRef<() => Promise<unknown>>(() =>
+    Promise.resolve(),
+  );
 
   useEffect(() => {
     pageVersionRef.current = pageVersion;
@@ -2540,6 +2577,35 @@ export function EditProvider({
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [dirty, saving]);
 
+  // ── Flush coalesced builder saves on teardown / tab hide ──────────────
+  // A debounced save can be sitting in `pendingTreeRef` when the tab is hidden,
+  // navigated away, or the provider unmounts. Flush it eagerly so no edit is
+  // ever lost. pagehide / visibilitychange→hidden are the reliable mobile +
+  // bfcache-safe signals (beforeunload alone is unreliable on mobile Safari);
+  // we flush on both. The flush routes through the normal save queue so a save
+  // already in flight is respected. Empty deps: handlers read the latest flush
+  // via `flushBuilderTreeSaveRef`, and the cleanup also flushes on unmount.
+  useEffect(() => {
+    const flushIfPending = () => {
+      if (pendingTreeRef.current !== null) {
+        void flushBuilderTreeSaveRef.current();
+      }
+    };
+    const onPageHide = () => flushIfPending();
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flushIfPending();
+    };
+    window.addEventListener("pagehide", onPageHide);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("pagehide", onPageHide);
+      document.removeEventListener("visibilitychange", onVisibility);
+      // Unmount: flush any pending coalesced save so the last edit survives a
+      // route change / provider teardown.
+      flushIfPending();
+    };
+  }, []);
+
   const setSlotsAndBuilderTree = useCallback(
     (
       updater:
@@ -2849,6 +2915,7 @@ export function EditProvider({
       seedTree,
       normalizedSlots,
     );
+    lastConfirmedTreeRef.current = builderTreeRef.current;
     setPageId(data.pageId);
     setPageVersion(data.pageVersion);
     setLiveSitePublishedAt(data.liveSitePublishedAt);
@@ -3837,7 +3904,16 @@ export function EditProvider({
   );
 
   const persistBuilderTree = useCallback(
-    async (nextTree: BuilderNodeTree) => {
+    async (
+      nextTree: BuilderNodeTree,
+      // Optional explicit rollback target. The debounced commit path passes the
+      // last server-confirmed tree because several optimistic local trees may
+      // have been applied during the burst — rolling back to `builderTreeRef`
+      // (the latest optimistic tree) would NOT undo the failed change. Direct
+      // callers (undo/redo/restore) omit it and keep the original semantics of
+      // reverting to whatever tree was current when the save started.
+      rollbackTarget?: BuilderNodeTree,
+    ) => {
       const activePageVersion = pageVersionRef.current;
       if (activePageVersion === null) {
         return {
@@ -3846,7 +3922,7 @@ export function EditProvider({
           error: "This page is still loading — try again in a moment.",
         };
       }
-      const prevTree = builderTreeRef.current;
+      const prevTree = rollbackTarget ?? builderTreeRef.current;
       builderTreeRef.current = nextTree;
       setBuilderTree(nextTree);
       setSaving(true);
@@ -3912,6 +3988,7 @@ export function EditProvider({
       }
       pageVersionRef.current = save.pageVersion;
       setPageVersion(save.pageVersion);
+      lastConfirmedTreeRef.current = nextTree;
       void queueRouterRefresh();
       return { ok: true as const };
     },
@@ -3925,12 +4002,70 @@ export function EditProvider({
     ],
   );
 
+  // ── flush: persist the coalesced pending builder tree NOW ──────────────
+  // Cancels any scheduled debounce and enqueues a single `persistBuilderTree`
+  // for the latest pending tree onto `builderTreeSaveQueueRef` so ordering and
+  // CAS-version conflict handling are preserved. Idempotent: with nothing
+  // pending it just returns the current queue tail so callers (publish, unmount,
+  // pagehide) can still await any save already in flight. On failure it reverts
+  // the optimistic history entries pushed during this burst.
+  const flushBuilderTreeSave = useCallback(() => {
+    if (builderSaveTimerRef.current !== null) {
+      clearTimeout(builderSaveTimerRef.current);
+      builderSaveTimerRef.current = null;
+    }
+    const pending = pendingTreeRef.current;
+    if (pending === null) {
+      // Nothing owed to the server — return whatever is already queued so
+      // awaiting callers still wait out an in-flight save.
+      return builderTreeSaveQueueRef.current;
+    }
+    pendingTreeRef.current = null;
+    const rollbackTarget = lastConfirmedTreeRef.current;
+    const burstHistoryCount = pendingHistoryCountRef.current;
+    pendingHistoryCountRef.current = 0;
+    const resultPromise = builderTreeSaveQueueRef.current.then(() =>
+      persistBuilderTree(pending, rollbackTarget),
+    );
+    builderTreeSaveQueueRef.current = resultPromise.catch(() => undefined);
+    void resultPromise.then((result) => {
+      // persistBuilderTree clears `saving`; mirror dirty so the unsaved-changes
+      // guard + UI clear once the coalesced save lands (or stays set on failure
+      // because the reverted history still differs from the server is moot —
+      // we revert local tree to last-confirmed too).
+      if (result && !result.ok) {
+        // Roll back every optimistic history entry queued during this burst.
+        if (burstHistoryCount > 0) {
+          setPast((p) => p.slice(0, -burstHistoryCount));
+        }
+      }
+      // No more pending work → clear dirty (a later edit re-sets it).
+      if (pendingTreeRef.current === null) {
+        setDirty(false);
+      }
+    });
+    return resultPromise;
+  }, [persistBuilderTree]);
+
+  // Keep the stable flush ref pointed at the latest flush closure. Assigned in
+  // an effect (not during render) because every caller invokes it
+  // asynchronously — from a debounce timer, an event handler, or after an
+  // await — so it never needs to be read synchronously within the same render.
+  useEffect(() => {
+    flushBuilderTreeSaveRef.current = flushBuilderTreeSave;
+  }, [flushBuilderTreeSave]);
+
   const commitBuilderTreeMutation = useCallback(
     async (nextTree: BuilderNodeTree) => {
       const prevTree = builderTreeRef.current;
       if (JSON.stringify(prevTree) === JSON.stringify(nextTree)) {
         return { ok: true as const };
       }
+      // Optimistic local update — apply immediately so the canvas reflects the
+      // edit without waiting for the (debounced) server round-trip. The UI never
+      // blocks on a save.
+      builderTreeRef.current = nextTree;
+      setBuilderTree(nextTree);
       setPast((p) =>
         capHistory([
           ...p,
@@ -3942,17 +4077,25 @@ export function EditProvider({
         ]),
       );
       setFuture([]);
-      const resultPromise = builderTreeSaveQueueRef.current.then(() =>
-        persistBuilderTree(nextTree),
-      );
-      builderTreeSaveQueueRef.current = resultPromise.catch(() => undefined);
-      const result = await resultPromise;
-      if (!result.ok) {
-        setPast((p) => p.slice(0, -1));
+      // Coalesce the SERVER persist: remember the latest tree and (re)arm the
+      // debounce. Only the final tree of a burst is sent. `dirty` flags the
+      // unsaved-changes guard so a tab close mid-debounce still prompts/flushes.
+      pendingTreeRef.current = nextTree;
+      pendingHistoryCountRef.current += 1;
+      setDirty(true);
+      if (builderSaveTimerRef.current !== null) {
+        clearTimeout(builderSaveTimerRef.current);
       }
-      return result;
+      builderSaveTimerRef.current = setTimeout(() => {
+        builderSaveTimerRef.current = null;
+        void flushBuilderTreeSaveRef.current();
+      }, BUILDER_SAVE_DEBOUNCE_MS);
+      // Return optimistic success — the save is fire-and-forget from the
+      // caller's perspective; failures surface via reportMutationError + a tree
+      // rollback inside persistBuilderTree.
+      return { ok: true as const };
     },
-    [capHistory, persistBuilderTree],
+    [capHistory],
   );
 
   const executeBuilderNodeOperation = useCallback(
@@ -4006,14 +4149,10 @@ export function EditProvider({
         return { ...operationResult, error };
       }
 
-      const persisted = await commitBuilderTreeMutation(operationResult.tree);
-      if (!persisted.ok) {
-        return {
-          ok: false,
-          code: persisted.code ?? "SAVE_FAILED",
-          error: persisted.error,
-        };
-      }
+      // Optimistic: the commit applies the tree + records undo synchronously; the
+      // server save is deferred/coalesced, and a rejected save surfaces async via
+      // reportMutationError + rollback — so there is no sync failure to return here.
+      await commitBuilderTreeMutation(operationResult.tree);
       recordBuilderMutationAuditEvent(
         createBuilderMutationAuditEvent({
           operation: input.operation,
@@ -5405,6 +5544,11 @@ export function EditProvider({
   const undo = useCallback(async () => {
     if (saving) return;
     if (past.length === 0) return;
+    // Commit any pending coalesced builder save first so its version bump lands
+    // BEFORE this undo's own persist — preserves save-queue ordering + CAS.
+    if (pendingTreeRef.current !== null) {
+      await flushBuilderTreeSaveRef.current();
+    }
     const entry = past[past.length - 1]!;
     setPast((p) => p.slice(0, -1));
     if (entry.kind === "composition") {
@@ -5448,6 +5592,11 @@ export function EditProvider({
   const redo = useCallback(async () => {
     if (saving) return;
     if (future.length === 0) return;
+    // Commit any pending coalesced builder save first so its version bump lands
+    // BEFORE this redo's own persist — preserves save-queue ordering + CAS.
+    if (pendingTreeRef.current !== null) {
+      await flushBuilderTreeSaveRef.current();
+    }
     const entry = future[future.length - 1]!;
     setFuture((f) => f.slice(0, -1));
     if (entry.kind === "composition") {
@@ -5725,6 +5874,11 @@ export function EditProvider({
    * conflict we reload authoritative state so the operator can re-press.
    */
   const saveDraft = useCallback<EditContextValue["saveDraft"]>(async () => {
+    // Commit any pending coalesced builder save first so this explicit draft
+    // save serializes after it (same CAS version would otherwise conflict).
+    if (pendingTreeRef.current !== null) {
+      await flushBuilderTreeSaveRef.current();
+    }
     const casVersion = pageVersionRef.current;
     if (casVersion === null) {
       return { ok: false, error: "This page is still loading — try again in a moment." };
@@ -5974,6 +6128,7 @@ export function EditProvider({
       setSectionVisibility,
 
       saveDraft,
+      flushBuilderTreeSave,
       lastDraftSavedAt,
       clearDraftSavedToast,
 
@@ -6156,6 +6311,7 @@ export function EditProvider({
       clearNavigatorRecentAdditions,
       setSectionVisibility,
       saveDraft,
+      flushBuilderTreeSave,
       lastDraftSavedAt,
       clearDraftSavedToast,
       mutationError,

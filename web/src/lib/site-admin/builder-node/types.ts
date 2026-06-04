@@ -26,6 +26,7 @@ export type BuilderNodeKind =
   | "card"
   | "cta_group"
   | "nav"
+  | "form"
   | "section_embed";
 
 export interface BuilderNodeBase {
@@ -786,6 +787,53 @@ export interface BuilderSectionEmbedNode extends BuilderNodeBase {
   };
 }
 
+/**
+ * A single field inside a `form` node. Fields are PROPS (not child nodes) so the
+ * renderer can emit them as one coherent `<form>` from a single source of truth —
+ * the same modelling choice as `nav` links and `pricing_table` tiers.
+ *
+ * `type` maps to the rendered control: text/email/tel → `<input>`, textarea →
+ * `<textarea>`. `name` is the submission key (becomes a property on the
+ * `payload_jsonb` recorded by /api/cms/forms/submit — `email`/`name` are also
+ * projected onto contact columns). `submit` is the action button (no `name`).
+ */
+export interface BuilderFormField {
+  id: string;
+  /** Submission key (form-data field name). Lowercase/no-spaces recommended. */
+  name: string;
+  type: "text" | "email" | "tel" | "textarea" | "submit";
+  /** Visible label (also the submit button caption for type:"submit"). */
+  label: string;
+  placeholder?: string;
+  required?: boolean;
+}
+
+/**
+ * MVP lead/contact form. Renders a native `<form>` of field controls plus a
+ * submit button, with a honeypot + hidden `__tulala_section` so it can POST to
+ * the existing internal submission endpoint (`/api/cms/forms/submit`) — that
+ * route validates the section, drops honeypot trips, rate-limits, records the
+ * row, and emails workspace admins. Set `action` to "internal" (default; uses
+ * the endpoint above and requires `sectionId` to be a real `cms_sections` row
+ * id) or to a full external URL (Formspree, your own handler, …).
+ *
+ * DEFERRED (clearly noted): select / radio / checkbox controls, multi-step,
+ * client-side validation beyond the native `required`/`type` constraints.
+ */
+export interface BuilderFormNode extends BuilderNodeBase {
+  kind: "form";
+  props: {
+    /** Where the form POSTs. "internal" → /api/cms/forms/submit; or a full URL. */
+    action?: string;
+    /** Required when action is "internal": the cms_sections row id to record under. */
+    sectionId?: string | null;
+    fields: BuilderFormField[];
+    /** Honeypot field name (a hidden input bots fill — submissions with it set are flagged spam). */
+    honeypotName?: string;
+    style?: BuilderNodeStyle;
+  };
+}
+
 export interface BuilderNavNode extends BuilderNodeBase {
   kind: "nav";
   props: {
@@ -831,6 +879,7 @@ export type BuilderNode =
   | BuilderCardNode
   | BuilderCtaGroupNode
   | BuilderNavNode
+  | BuilderFormNode
   | BuilderSectionEmbedNode;
 
 export type BuilderNodeTree = BuilderNode[];

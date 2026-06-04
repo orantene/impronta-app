@@ -30,6 +30,8 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "code",
   "divider",
   "spacer",
+  // Lead/contact form — droppable inside layout shells as well as at the root.
+  "form",
   // Tulala components (curated dynamic sections) are droppable inside generic
   // layout shells as well as at the page root.
   "section_embed",
@@ -655,6 +657,29 @@ const sectionEmbedPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+// Lead/contact form (MVP). Fields are an ordered array (text/email/tel/
+// textarea inputs + one submit button). `action` is "internal" (POST to
+// /api/cms/forms/submit, gated by a real `sectionId`) OR a full https/http URL
+// (Formspree, a custom handler, …). Field `name`s become submission keys; the
+// renderer adds a honeypot + hidden section marker. DEFERRED: select / radio /
+// checkbox, multi-step, and validation beyond native required/type.
+const formFieldSchema = z.object({
+  id: z.string().min(1).max(120),
+  name: z.string().min(1).max(80),
+  type: z.enum(["text", "email", "tel", "textarea", "submit"]),
+  label: z.string().min(1).max(120),
+  placeholder: z.string().max(160).optional(),
+  required: z.boolean().optional(),
+});
+
+const formPropsSchema = z.object({
+  action: z.string().max(2048).optional(),
+  sectionId: z.string().uuid().nullable().optional(),
+  fields: z.array(formFieldSchema).min(1).max(24),
+  honeypotName: z.string().max(80).optional(),
+  style: builderNodeStyleSchema,
+});
+
 const navPropsSchema = z.object({
   brand: z.string().max(120).optional(),
   brandHref: z.string().max(500).optional(),
@@ -918,6 +943,14 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         "Header navigation bar — inline links on desktop, hamburger menu on mobile. Links stay reachable at every width.",
       children: { type: "none" },
       propsSchema: navPropsSchema,
+    },
+    form: {
+      kind: "form",
+      label: "Form",
+      description:
+        "Lead/contact form — text, email, phone, and message fields plus a submit button. Submissions land in your workspace inbox.",
+      children: { type: "none" },
+      propsSchema: formPropsSchema,
     },
     section_embed: {
       kind: "section_embed",

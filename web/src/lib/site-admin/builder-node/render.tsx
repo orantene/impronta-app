@@ -2934,6 +2934,100 @@ function renderBuilderNode(
           style={{ height: SPACER_BY_SIZE[node.props.size], ...sharedNodeStyle(node.props.style) }}
         />
       );
+    case "form": {
+      const formProps = node.props;
+      const fields = formProps.fields ?? [];
+      const honeypotName = formProps.honeypotName?.trim() || "website";
+      const isInternal =
+        !formProps.action || formProps.action.trim().toLowerCase() === "internal";
+      // Internal submissions hit the existing endpoint, which reads FormData and
+      // requires `__tulala_section` to be a real cms_sections row id. When that
+      // id is missing we still render the form, but point the action at the
+      // endpoint so authoring stays unblocked (the endpoint 400s a blank section
+      // — the inspector warns the operator to set one).
+      const action = isInternal
+        ? prefixPublicHref("/api/cms/forms/submit", options.publicPathPrefix)
+        : formProps.action!.trim();
+      return (
+        <form
+          key={node.id}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          {...builderNodeStyleAttrs(formProps.style)}
+          className="site-builder-node site-builder-node--form"
+          method="post"
+          action={action}
+          style={{
+            display: "grid",
+            gap: GAP_BY_SIZE.m,
+            ...sharedNodeStyle(formProps.style),
+            ...alignSelfStyle(formProps.style),
+          }}
+        >
+          {isInternal && formProps.sectionId ? (
+            <input type="hidden" name="__tulala_section" value={formProps.sectionId} />
+          ) : null}
+          {isInternal ? (
+            <input type="hidden" name="__tulala_honeypot" value={honeypotName} />
+          ) : null}
+          {/* Honeypot — visually hidden, off the tab order. A real visitor never
+              fills it; a bot that does gets the submission flagged as spam. */}
+          <div
+            aria-hidden="true"
+            style={{ position: "absolute", left: "-9999px", width: 1, height: 1, overflow: "hidden" }}
+          >
+            <label>
+              Leave this field empty
+              <input
+                type="text"
+                name={honeypotName}
+                tabIndex={-1}
+                autoComplete="off"
+              />
+            </label>
+          </div>
+          {fields.map((field) => {
+            const fieldId = `${node.id}-${field.id}`;
+            if (field.type === "submit") {
+              return (
+                <button
+                  key={field.id}
+                  type="submit"
+                  className="site-builder-node site-builder-node--button site-builder-node--button-primary"
+                >
+                  {field.label}
+                </button>
+              );
+            }
+            return (
+              <div key={field.id} style={{ display: "grid", gap: "0.35rem" }}>
+                <label htmlFor={fieldId} style={{ fontWeight: 600, fontSize: "0.9rem" }}>
+                  {field.label}
+                  {field.required ? <span aria-hidden="true"> *</span> : null}
+                </label>
+                {field.type === "textarea" ? (
+                  <textarea
+                    id={fieldId}
+                    name={field.name}
+                    placeholder={field.placeholder}
+                    required={field.required ?? false}
+                    rows={4}
+                  />
+                ) : (
+                  <input
+                    id={fieldId}
+                    name={field.name}
+                    type={field.type}
+                    placeholder={field.placeholder}
+                    required={field.required ?? false}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </form>
+      );
+    }
     case "nav": {
       const navProps = node.props;
       const collapseAt = navProps.collapseAt ?? "mobile";
