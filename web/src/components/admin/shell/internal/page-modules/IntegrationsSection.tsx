@@ -24,18 +24,38 @@ import {
 } from "@/app/(workspace)/[tenantSlug]/admin/settings/integration-actions";
 import { IntegrationCard } from "@/components/admin/integrations/IntegrationCard";
 import { IntegrationConfigDrawer } from "@/components/admin/integrations/IntegrationConfigDrawer";
+import { CustomCodeDrawer } from "@/components/admin/integrations/CustomCodeDrawer";
+import { CaptchaDrawer } from "@/components/admin/integrations/CaptchaDrawer";
+import { EmailDomainDrawer } from "@/components/admin/integrations/EmailDomainDrawer";
 
 const CATEGORY_GROUPS: { id: IntegrationView["category"]; label: string; blurb: string }[] = [
   {
     id: "website",
     label: "Website",
-    blurb: "Power your public storefront with your own provider keys.",
+    blurb: "Power your public storefront with your own provider keys and code.",
   },
   {
     id: "analytics",
     label: "Analytics & marketing",
     blurb:
       "Drop your own measurement IDs in — tags are injected on your storefront, gated behind visitor consent.",
+  },
+  {
+    id: "security",
+    label: "Security",
+    blurb:
+      "Keep bots and spam off your storefront forms with your own captcha keys.",
+  },
+  {
+    id: "comms",
+    label: "Email",
+    blurb:
+      "Send client email from your own verified domain instead of the platform default.",
+  },
+  {
+    id: "money",
+    label: "Payments",
+    blurb: "Connect the accounts that move money in and out of your workspace.",
   },
 ];
 
@@ -94,19 +114,25 @@ export function IntegrationsSection() {
                 {group.blurb}
               </div>
             </div>
-            {items.map((intg) => (
-              <IntegrationCard
-                key={intg.key}
-                integration={intg}
-                onOpen={() => setOpenKey(intg.key)}
-              />
-            ))}
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              {items.map((intg) => (
+                <IntegrationCard
+                  key={intg.key}
+                  integration={intg}
+                  onOpen={() => {
+                    // Link (surfaced) cards navigate via their anchor; only
+                    // credential integrations open a drawer.
+                    if (intg.connection !== "link") setOpenKey(intg.key);
+                  }}
+                />
+              ))}
+            </div>
           </div>
         );
       })}
 
-      {openIntegration && tenantSlug && (
-        <IntegrationConfigDrawer
+      {openIntegration && tenantSlug && openIntegration.key === "custom_code" && (
+        <CustomCodeDrawer
           tenantSlug={tenantSlug}
           integration={openIntegration}
           canManage={canManage}
@@ -114,6 +140,38 @@ export function IntegrationsSection() {
           onChanged={reload}
         />
       )}
+      {openIntegration && tenantSlug && openIntegration.key === "captcha" && (
+        <CaptchaDrawer
+          tenantSlug={tenantSlug}
+          integration={openIntegration}
+          canManage={canManage}
+          onClose={() => setOpenKey(null)}
+          onChanged={reload}
+        />
+      )}
+      {openIntegration && tenantSlug && openIntegration.key === "email_domain" && (
+        <EmailDomainDrawer
+          tenantSlug={tenantSlug}
+          integration={openIntegration}
+          canManage={canManage}
+          onClose={() => setOpenKey(null)}
+          onChanged={reload}
+        />
+      )}
+      {openIntegration &&
+        tenantSlug &&
+        openIntegration.connection !== "link" &&
+        openIntegration.key !== "custom_code" &&
+        openIntegration.key !== "captcha" &&
+        openIntegration.key !== "email_domain" && (
+          <IntegrationConfigDrawer
+            tenantSlug={tenantSlug}
+            integration={openIntegration}
+            canManage={canManage}
+            onClose={() => setOpenKey(null)}
+            onChanged={reload}
+          />
+        )}
     </div>
   );
 }

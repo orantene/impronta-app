@@ -1,13 +1,9 @@
 import { improntaLog } from "@/lib/server/structured-log";
 import type { Metadata } from "next";
-import Image from "next/image";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  Images,
-  MapPin,
-  User,
-} from "lucide-react";
+
+import { LightProfileLayout } from "./_light/LightProfileLayout";
+import type { ResolvedSkill } from "@/lib/server-actions/admin-talent-skills.types";
 
 import { ProfileViewAnalytics } from "@/components/analytics/profile-view-analytics";
 import {
@@ -18,21 +14,14 @@ import { DirectoryInquiryModalProvider } from "@/components/directory/directory-
 import { DirectoryInquirySheet } from "@/components/directory/directory-inquiry-sheet";
 import { FavoritesDrawer } from "@/components/directory/favorites-drawer";
 import { FavoritesDrawerProvider } from "@/components/directory/favorites-drawer-context";
-import { ProfileAiStrip } from "@/components/directory/profile-ai-strip";
 import { ProfileDiscoveryCta } from "@/components/directory/profile-discovery-cta";
 import { ShareProfileMenu } from "@/components/directory/share-profile-menu";
-import { PortfolioGalleryLightbox } from "@/components/directory/portfolio-gallery-lightbox";
 import { PublicHeader } from "@/components/public-header";
-import { PublicCmsFooterNav } from "@/components/public-cms-footer";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/empty-state";
 import { getFavoriteTalentIds, getSavedTalentIds } from "@/lib/public-discovery";
 import {
   isResolvedFieldVisibleInPublicProfileSidebar,
   type PublicSurfaceContext,
 } from "@/lib/field-engine/public-surface-visibility";
-import { getOrderedPublicProfileSections } from "@/lib/public-profile-field-order";
 import { createTranslator } from "@/i18n/messages";
 import { buildDirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 import { PublicFlashHost } from "@/components/directory/public-flash-host";
@@ -64,10 +53,6 @@ import {
   loadPublicIdentity,
   loadPublicBranding,
 } from "@/lib/site-admin/server/reads";
-import {
-  EditorialBridalProfileBlocks,
-  type EmbeddedMediaProvider,
-} from "./editorial-bridal-profile-blocks";
 import { canonicalTalentUrl } from "@/lib/saas/canonical-hosts";
 import { buildTalentProfileJsonLd, jsonLdToString } from "@/lib/seo/talent-json-ld";
 import {
@@ -82,13 +67,11 @@ import {
 } from "@/lib/talent/agency-overlay";
 import { TalentProfileInquireButton } from "./talent-profile-inquire-button";
 import { TalentProfileChatLauncherMount } from "./_chat/TalentProfileChatLauncherMount";
-import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 import { PlatformTalentMaxSiteView } from "@/components/talent/site/PlatformTalentMaxSiteView";
 import { isTalentProfilePlatformHost } from "@/lib/talent-site/platform-host";
 import { resolvePlatformTalentSiteForProfile } from "@/lib/talent-site/resolve-platform-talent-site";
 import { TALENT_SITE_TEMPLATES } from "@/lib/talent-site/templates/registry";
 import type { TalentSiteTemplateKey } from "@/lib/talent-site/templates/types";
-import { TalentReviewsSection } from "@/components/reviews/TalentReviewsSection";
 import {
   loadTalentReviews,
   loadTalentRatingSummary,
@@ -132,6 +115,7 @@ type TalentProfile = {
   is_publicly_hidden: boolean | null;
   is_featured: boolean | null;
   height_cm: number | null;
+  talent_plan_key?: string | null;
   residence_city: CanonicalLocationEmbed | CanonicalLocationEmbed[] | null;
   legacy_location: CanonicalLocationEmbed | CanonicalLocationEmbed[] | null;
   origin_city: CanonicalLocationEmbed | CanonicalLocationEmbed[] | null;
@@ -265,6 +249,7 @@ async function fetchTalentProfile(profileCode: string, preview: boolean) {
             is_publicly_hidden,
             is_featured,
             height_cm,
+            talent_plan_key,
             residence_city:locations!residence_city_id ( display_name_en, display_name_es, country_code ),
             legacy_location:locations!location_id ( display_name_en, display_name_es, country_code ),
             origin_city:locations!origin_city_id ( display_name_en, display_name_es, country_code ),
@@ -325,6 +310,7 @@ async function fetchTalentProfile(profileCode: string, preview: boolean) {
       is_publicly_hidden,
       is_featured,
       height_cm,
+      talent_plan_key,
       residence_city:locations!residence_city_id ( display_name_en, display_name_es, country_code ),
       legacy_location:locations!location_id ( display_name_en, display_name_es, country_code ),
       origin_city:locations!origin_city_id ( display_name_en, display_name_es, country_code ),
@@ -791,6 +777,71 @@ async function fetchTalentServiceAreas(
   return data as unknown as TalentServiceAreaRow[];
 }
 
+// ── Public talent skills (for experience line + skills block) ────────────────
+// Reads from talent_skills_resolved view via the anon client. Only primary +
+// secondary skills with proficiency_level or years_experience are useful here;
+// generic fallback rows add noise. Returns [] on any error.
+
+async function fetchPublicTalentSkills(
+  supabase: SupabaseClient,
+  talentProfileId: string,
+): Promise<ResolvedSkill[]> {
+  const { data, error } = await supabase
+    .from("talent_skills_resolved")
+    .select(
+      `skill_term_id, skill_slug, skill_name_en, skill_name_es,
+       is_generic_fallback, parent_category_id, parent_category_slug,
+       parent_category_name_en, relationship_type, proficiency_level,
+       years_experience, display_order, is_verified, verified_at,
+       verified_by_tenant_id, verification_note, created_at,
+       booking_count, last_booked_at`,
+    )
+    .eq("talent_profile_id", talentProfileId)
+    .eq("is_generic_fallback", false)
+    .order("relationship_type", { ascending: true })
+    .order("display_order", { ascending: true });
+
+  if (error || !data) return [];
+  return data as ResolvedSkill[];
+}
+
+// ── Availability from talent_discover_index ─────────────────────────────────
+// Read-only. The matview is public (anon-readable) — RLS is on the base
+// tables only. Returns nulls on any error so the page degrades gracefully.
+
+type PublicAvailabilityData = {
+  nextAvailableDate: string | null;
+  availableDaysInNext30: number | null;
+  availabilityDots14d: string | null;
+};
+
+async function fetchPublicAvailability(
+  supabase: SupabaseClient,
+  talentProfileId: string,
+): Promise<PublicAvailabilityData> {
+  const { data, error } = await supabase
+    .from("talent_discover_index")
+    .select("next_available_date, available_days_in_next_30, availability_dots_14d")
+    .eq("id", talentProfileId)
+    .maybeSingle();
+
+  if (error || !data) {
+    return { nextAvailableDate: null, availableDaysInNext30: null, availabilityDots14d: null };
+  }
+
+  const row = data as {
+    next_available_date: string | null;
+    available_days_in_next_30: number | null;
+    availability_dots_14d: string | null;
+  };
+
+  return {
+    nextAvailableDate: row.next_available_date,
+    availableDaysInNext30: row.available_days_in_next_30,
+    availabilityDots14d: row.availability_dots_14d,
+  };
+}
+
 /**
  * "English (fluent · host, sell)" — compact label suitable for the
  * existing languages list rendering. Only shows the role flags that
@@ -812,26 +863,6 @@ function pickFieldLabel(locale: string, en: string, es?: string | null): string 
   return en.trim();
 }
 
-/** Height: governed value in field_values wins; column is a directory mirror kept in sync on save. */
-function resolveHeaderHeightCm(
-  profile: Pick<TalentProfile, "height_cm">,
-  fieldValues: PublicFieldValueRow[],
-): number | null {
-  for (const row of fieldValues) {
-    const fd = row.field_definitions
-      ? Array.isArray(row.field_definitions)
-        ? (row.field_definitions[0] ?? null)
-        : row.field_definitions
-      : null;
-    if (fd?.key !== "height_cm") continue;
-    if (row.value_number !== null && row.value_number !== undefined) {
-      const n = Number(row.value_number);
-      if (Number.isFinite(n)) return n;
-    }
-  }
-  const c = profile.height_cm;
-  return typeof c === "number" && Number.isFinite(c) ? c : null;
-}
 
 function formatFieldValue(row: PublicFieldValueRow): string | null {
   const fd = row.field_definitions
@@ -1165,12 +1196,6 @@ export default async function PublicTalentProfilePage({
       : Promise.resolve(null),
   ]);
   const tenantBrand = tenantBrandIdentity?.public_name ?? null;
-  // Resolve the profile layout family token (template.profile-layout-family)
-  // — drives whether the editorial-bridal extensions render below.
-  const profileLayoutFamily =
-    ((tenantBranding?.theme_json ?? null) as Record<string, unknown> | null)?.[
-      "template.profile-layout-family"
-    ] as string | null | undefined;
   const ui = buildDirectoryUiCopy(t, tenantBrand);
   const surface: TalentSurface =
     hostCtx.kind === "agency" ? "agency" : "freelancer";
@@ -1240,6 +1265,24 @@ export default async function PublicTalentProfilePage({
     return typeof slug === "string" && slug.trim() ? slug.trim() : null;
   }
 
+  // FREE-TIER CONTACT GATE: on the free default profile, the ONLY contact path
+  // is the in-Tulala inquiry — so any field VALUE that is a social handle,
+  // external link, or direct contact channel is suppressed (clients must not be
+  // able to bypass Tulala). Pro/Max surface these. Matched by key token so new
+  // social/link fields are caught by default.
+  const isFreePlanProfile =
+    !profile.talent_plan_key || profile.talent_plan_key === "talent_basic";
+  const EXTERNAL_CONTACT_FIELD_TOKENS = [
+    "instagram", "tiktok", "youtube", "twitter", "facebook", "linkedin",
+    "snapchat", "pinterest", "threads", "vimeo", "spotify", "soundcloud",
+    "behance", "imdb", "social", "website", "portfolio", "showreel", "reel",
+    "url", "link", "whatsapp", "phone", "mobile", "email", "telegram", "wechat",
+  ];
+  const isExternalContactFieldKey = (key: string): boolean => {
+    const k = key.toLowerCase();
+    return EXTERNAL_CONTACT_FIELD_TOKENS.some((t) => k.includes(t));
+  };
+
   const { basicInfoDetailRows, otherDetailRows } = fieldValues.reduce<{
     basicInfoDetailRows: DetailEntry[];
     otherDetailRows: DetailEntry[];
@@ -1259,6 +1302,7 @@ export default async function PublicTalentProfilePage({
       if (def.key === "height_cm") {
         return acc;
       }
+      if (isFreePlanProfile && isExternalContactFieldKey(def.key)) return acc;
       if (def.internal_only) return acc;
       if (def.profile_visible === false) return acc;
       if (def.public_visible === false) return acc;
@@ -1290,7 +1334,7 @@ export default async function PublicTalentProfilePage({
   ]);
 
   // D3 — similar talent strip (agency surface only; free-tier / no roster = []).
-  const similarTalent: SimilarTalentMini[] =
+  const similarTalentRaw: SimilarTalentMini[] =
     surface === "agency" && hostCtx.kind === "agency" && pub && !resolvedPreview
       ? await fetchSimilarTalent(pub, hostCtx.tenantId, profile.id, 4)
       : [];
@@ -1310,6 +1354,15 @@ export default async function PublicTalentProfilePage({
     `/t/${encodeURIComponent(profile.profile_code)}`,
     publicPathPrefix,
   );
+
+  // Enrich similar talent with pre-built hrefs for LightProfileLayout
+  const similarTalent = similarTalentRaw.map((st) => ({
+    ...st,
+    href: prefixPublicHref(
+      `/t/${encodeURIComponent(st.profileCode)}`,
+      publicPathPrefix,
+    ),
+  }));
 
   // Fetch media. In preview mode, the profile owner should see pending assets too.
   const media: MediaAsset[] = pub
@@ -1524,7 +1577,31 @@ export default async function PublicTalentProfilePage({
       showTags: true,
     };
   }
-  const orderedSections = await getOrderedPublicProfileSections(locale);
+  // ── New data: talent skills + availability ─────────────────────────────────
+  const [resolvedSkills, publicAvailability] = pub
+    ? await Promise.all([
+        fetchPublicTalentSkills(pub, profile.id),
+        fetchPublicAvailability(pub, profile.id),
+      ])
+    : [[] as ResolvedSkill[], { nextAvailableDate: null, availableDaysInNext30: null, availabilityDots14d: null }];
+
+  // All talent type labels (primary first for DisciplineChips)
+  const allTalentTypes: string[] = [];
+  for (const row of (profile.talent_profile_taxonomy ?? [])) {
+    const terms = row.taxonomy_terms
+      ? Array.isArray(row.taxonomy_terms) ? row.taxonomy_terms : [row.taxonomy_terms]
+      : [];
+    for (const term of terms) {
+      if (term.kind !== "talent_type") continue;
+      const label = pickTaxonomyLabel(locale, term);
+      if (row.is_primary) {
+        // Insert primary at the front
+        if (!allTalentTypes.includes(label)) allTalentTypes.unshift(label);
+      } else {
+        if (!allTalentTypes.includes(label)) allTalentTypes.push(label);
+      }
+    }
+  }
 
   const canonicalName = displayName(profile as TalentProfile);
   const canonicalAboutText = publicBioForLocale(
@@ -1537,9 +1614,6 @@ export default async function PublicTalentProfilePage({
   // to the existing residenceLabel() helper otherwise.
   const livesIn = homeBaseLabel ?? residenceLabel(locale, profile as TalentProfile);
   const originallyFrom = originLabel(locale, profile as TalentProfile);
-  const headerHeightCm = resolveHeaderHeightCm(profile as TalentProfile, fieldValues);
-  const talentType =
-    primaryTalentType(locale, profile.talent_profile_taxonomy ?? []) ?? ui.card.footerTalent;
 
   // Phase 5/6 M3 — compose final presentation. On the freelancer/hub/admin
   // surface the overlay is ignored regardless of what agencyOverlay holds
@@ -1564,8 +1638,6 @@ export default async function PublicTalentProfilePage({
   const name = presentation.name;
   const aboutText = presentation.bio;
   const bannerUrl = presentation.bannerUrl;
-  const hasCover = Boolean(bannerUrl);
-
   // Phase 5/6 M5 — share URL must be the app-host canonical, so recipients
   // land on the global view even when sharing happens from an agency overlay.
   const siteBase =
@@ -1583,8 +1655,6 @@ export default async function PublicTalentProfilePage({
     whatsappTemplate: t("public.profile.share.whatsappTemplate"),
   };
 
-  // Language summary line from taxonomy
-  const langLine = languages.length > 0 ? languages.join(" · ") : null;
   const firstName = name.split(" ")[0] ?? name;
 
   // Phase G PR 1 — schema.org ProfilePage + Person JSON-LD. Emitted as a
@@ -1625,669 +1695,167 @@ export default async function PublicTalentProfilePage({
       <PublicHeader />
       <DiscoveryStateBridge savedIds={initialSavedIds} favoriteIds={initialFavoriteIds} />
 
-      <main className="flex-1 bg-[var(--impronta-black)]" data-profile-shell>
-        {resolvedPreview ? (
-          <div className="border-b border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)] px-4 py-3 text-center text-sm uppercase tracking-[0.2em] text-[var(--impronta-gold)] sm:px-6 lg:px-8">
-            {t("public.profile.previewModeBanner")}
-          </div>
-        ) : null}
-        {/* ----------------------------------------------------------------
-            Cover banner (hidden when not uploaded)
-        ---------------------------------------------------------------- */}
-        {hasCover ? (
-          <div className="relative h-[38vh] min-h-[260px] w-full overflow-hidden sm:h-[46vh]">
-            <Image
-              src={bannerUrl!}
-              alt={`${name} banner`}
-              fill
-              className="object-cover"
-              sizes="100vw"
-              priority
-            />
-            {/* Subtle grain texture overlay */}
-            <div
-              className="absolute inset-0 opacity-[0.035]"
-              style={{
-                backgroundImage:
-                  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E\")",
-              }}
-            />
-            {/* Bottom fade into page (keeps text readable) */}
-            <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-[var(--impronta-black)] via-[rgba(0,0,0,0.35)] to-transparent" />
-            {/* Profile code — top-left watermark */}
-            <div className="absolute left-5 top-5">
-              <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--impronta-gold-dim)] opacity-60">
-                {profile.profile_code}
-              </span>
-            </div>
-            {/* Featured badge */}
-            {profile.is_featured ? (
-              <div className="absolute right-5 top-5">
-                <span className="rounded-full border border-[var(--impronta-gold-border)] bg-black/50 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--impronta-gold)] backdrop-blur-sm">
-                  {ui.card.featuredLabel}
-                </span>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
+      {/* ── LIGHT REDESIGN — classic dark render replaced ── */}
+      <LightProfileLayout
+        name={name}
+        firstName={firstName}
+        profileCode={profile.profile_code}
+        profileImageUrl={profileImageUrl}
+        bannerUrl={bannerUrl}
+        isFeatured={Boolean(profile.is_featured)}
+        aboutText={aboutText}
+        allTalentTypes={allTalentTypes}
+        primaryType={primaryTalentType(locale, profile.talent_profile_taxonomy ?? [])}
+        livesIn={livesIn}
+        originallyFrom={originallyFrom}
+        languages={languages}
+        locale={locale}
+        talentPlanKey={profile.talent_plan_key ?? "talent_basic"}
+        galleryItems={galleryItems}
+        watermarkPreset={watermarkPreset}
+        watermarkLogoUrl={watermarkLogoUrl}
+        resolvedSkills={resolvedSkills}
+        availableDaysInNext30={publicAvailability.availableDaysInNext30}
+        availabilityDots14d={publicAvailability.availabilityDots14d}
+        nextAvailableDate={publicAvailability.nextAvailableDate}
+        packageTeasers={(() => {
+          const raw = profile.package_teasers;
+          if (!Array.isArray(raw)) return [];
+          return (raw as unknown[]).flatMap((p) => {
+            if (typeof p !== "object" || p === null) return [];
+            const label = (p as { label?: unknown }).label;
+            if (typeof label !== "string" || !label.trim()) return [];
+            const detail = (p as { detail?: unknown }).detail;
+            return [{ label: label.trim(), detail: typeof detail === "string" ? detail : null }];
+          });
+        })()}
+        serviceAreas={structuredServiceAreas}
+        startingFrom={profile.starting_from ?? null}
+        bookingNote={profile.booking_note ?? null}
+        fitLabels={fitLabels}
+        skills={skills}
+        industries={industries}
+        eventTypes={eventTypes}
+        tags={tags}
+        fieldVisibility={fieldVisibility}
+        basicInfoDetailRows={basicInfoDetailRows}
+        otherDetailRows={otherDetailRows}
+        ratingSummary={ratingSummary}
+        talentReviews={talentReviews}
+        agencyName={tenantBrand}
+        agencyDisplayName={tenantBrand}
+        similarTalent={similarTalent}
+        ui={ui}
+        t={t}
+        shareLabels={shareLabels}
+        canonicalShareUrl={canonicalShareUrl}
+        profileSourcePage={profileSourcePage}
+        portalInquiryHref={portalInquiryHref}
+        resolvedPreview={resolvedPreview}
+        hostCtxKind={hostCtx.kind as "agency" | "app" | "hub" | "platform"}
+        tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
+        tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
+        inquireButtonHeader={
+          <TalentProfileInquireButton
+            talentId={profile.id}
+            talentProfileCode={profile.profile_code}
+            displayName={name}
+            tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
+            tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
+            agencyName={tenantBrand ?? "the agency"}
+            sourcePage={profileSourcePage}
+            className="rounded-full bg-[#1A1A1A] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#2A2A2A]"
+          />
+        }
+        inquireButtonSidebar={
+          <TalentProfileInquireButton
+            talentId={profile.id}
+            talentProfileCode={profile.profile_code}
+            displayName={name}
+            tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
+            tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
+            agencyName={tenantBrand ?? "the agency"}
+            sourcePage={profileSourcePage}
+            className="w-full rounded-full bg-[#1A1A1A] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#2A2A2A]"
+          />
+        }
+        inquireButtonFooter={
+          <TalentProfileInquireButton
+            talentId={profile.id}
+            talentProfileCode={profile.profile_code}
+            displayName={name}
+            tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
+            tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
+            agencyName={tenantBrand ?? "the agency"}
+            sourcePage={profileSourcePage}
+            className="rounded-full bg-[#1A1A1A] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#2A2A2A]"
+          />
+        }
+        shareMenuHeader={
+          <ShareProfileMenu
+            talentId={profile.id}
+            profileCode={profile.profile_code}
+            displayName={name}
+            canonicalUrl={canonicalShareUrl}
+            sourcePage={profileSourcePage}
+            labels={shareLabels}
+          />
+        }
+        shareMenuSidebar={
+          <ShareProfileMenu
+            talentId={profile.id}
+            profileCode={profile.profile_code}
+            displayName={name}
+            canonicalUrl={canonicalShareUrl}
+            sourcePage={profileSourcePage}
+            labels={shareLabels}
+          />
+        }
+        discoveryCta={null}
+        discoveryCta2={
+          <ProfileDiscoveryCta
+            talentId={profile.id}
+            profileCode={profile.profile_code}
+            displayName={name}
+            sourcePage={profileSourcePage}
+            initialSaved={initialSavedIds.includes(profile.id)}
+            portalInquiryHref={portalInquiryHref}
+            mode="sidebar"
+            profileCta={ui.profileCta}
+            inquiry={ui.inquiry}
+          />
+        }
+        discoveryCta3={
+          <ProfileDiscoveryCta
+            talentId={profile.id}
+            profileCode={profile.profile_code}
+            displayName={name}
+            sourcePage={profileSourcePage}
+            initialSaved={initialSavedIds.includes(profile.id)}
+            portalInquiryHref={portalInquiryHref}
+            mode="footer"
+            profileCta={ui.profileCta}
+            inquiry={ui.inquiry}
+          />
+        }
+      />
+      {/* ── END LIGHT REDESIGN ── */}
 
-        {/* ----------------------------------------------------------------
-            Profile header — overlaps cover
-        ---------------------------------------------------------------- */}
-        <div
-          className={[
-            "relative z-10 px-4 sm:px-6 lg:px-8",
-            hasCover ? "-mt-16" : "mt-10",
-          ].join(" ")}
-          data-profile-hero
-        >
-          <div className="mx-auto max-w-5xl">
-            <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:gap-8">
-              {profileImageUrl ? (
-                <div
-                  className="relative h-32 w-24 shrink-0 overflow-hidden rounded-lg border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)] sm:h-40 sm:w-28"
-                  data-profile-portrait
-                >
-                  <Image
-                    src={profileImageUrl}
-                    alt={t("public.profile.profileImageAlt").replace("{name}", name)}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 640px) 6rem, 7rem"
-                  />
-                </div>
-              ) : null}
-              {/* Text block */}
-              <div className="flex-1 space-y-3">
-                {/* Talent type pill */}
-                <p
-                  className="font-mono text-[11px] uppercase tracking-[0.22em] text-[var(--impronta-gold)]"
-                  data-profile-kicker
-                >
-                  {talentType}
-                </p>
-                {/* Name */}
-                <h1
-                  className="font-[family-name:var(--font-cinzel)] text-4xl font-medium leading-tight tracking-wide text-[var(--impronta-foreground)] sm:text-5xl lg:text-6xl"
-                  data-profile-name
-                >
-                  {name}
-                </h1>
-                {/* Lives in / Originally from + languages */}
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-m text-[var(--impronta-muted)]">
-                  {livesIn ? (
-                    <span className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
-                      <MapPin className="size-3.5 shrink-0 translate-y-0.5 text-[var(--impronta-gold-dim)]" />
-                      <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--impronta-gold-dim)]">
-                        {t("public.profile.livesInLabel")}
-                      </span>
-                      <span className="min-w-0">{livesIn}</span>
-                    </span>
-                  ) : null}
-                  {originallyFrom ? (
-                    <span className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
-                      <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--impronta-gold-dim)]">
-                        {ui.preview.originallyFrom}
-                      </span>
-                      <span className="min-w-0">{originallyFrom}</span>
-                    </span>
-                  ) : null}
-                  {langLine ? (
-                    <span className="flex items-center gap-1.5">
-                      <span className="text-[var(--impronta-gold-dim)]">·</span>
-                      {langLine}
-                    </span>
-                  ) : null}
-                  {headerHeightCm !== null ? (
-                    <span className="flex items-center gap-1.5">
-                      <span className="text-[var(--impronta-gold-dim)]">·</span>
-                      <User className="size-3.5 shrink-0 text-[var(--impronta-gold-dim)]" />
-                      {t("public.profile.heightCm").replace("{height}", String(headerHeightCm))}
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-
-              {/* CTA buttons */}
-              <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:pb-1">
-                <TalentProfileInquireButton
-                  talentId={profile.id}
-                  talentProfileCode={profile.profile_code}
-                  displayName={name}
-                  tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
-                  tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
-                  agencyName={tenantBrand ?? "the agency"}
-                  sourcePage={profileSourcePage}
-                  className="bg-[var(--impronta-gold)] text-black hover:bg-[var(--impronta-gold-bright)]"
-                />
-                {/* Conversational-inquiry launcher — floating brand-skinned
-                    "Message {Name}" chat (Lane D). Sibling of the inquire CTA;
-                    renders only on the agency surface (guarded inside on
-                    tenantSlug). Self-positions fixed bottom-right. */}
-                <TalentProfileChatLauncherMount
-                  talentProfileId={profile.id}
-                  talentProfileCode={profile.profile_code}
-                  talentDisplayName={name}
-                  tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
-                  agencyName={tenantBrand ?? "the agency"}
-                  accentColor={chatAccentColor}
-                  logoUrl={watermarkLogoUrl}
-                  sourcePage={profileSourcePage}
-                />
-                <ProfileDiscoveryCta
-                  talentId={profile.id}
-                  profileCode={profile.profile_code}
-                  displayName={name}
-                  sourcePage={profileSourcePage}
-                  initialSaved={initialSavedIds.includes(profile.id)}
-                  portalInquiryHref={portalInquiryHref}
-                  mode="header"
-                  profileCta={ui.profileCta}
-                  inquiry={ui.inquiry}
-                />
-              </div>
-            </div>
-
-            {/* Divider */}
-            <div className="mt-10 border-t border-[var(--impronta-gold-border)]" />
-            <div data-profile-section="ai-strip">
-              <ProfileAiStrip
-                title={t("public.profile.aiPanelTitle")}
-                body={t("public.profile.aiPanelBody")}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* ----------------------------------------------------------------
-            Main body
-        ---------------------------------------------------------------- */}
-        <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 gap-14 lg:grid-cols-[1fr_320px] lg:gap-16">
-
-            {/* ── Left column ─────────────────────────────────────── */}
-            <div className="space-y-14">
-
-              {/* Editorial-bridal extensions. No-op on other families. */}
-              <EditorialBridalProfileBlocks
-                layoutFamily={profileLayoutFamily ?? null}
-                introItalic={profile.intro_italic ?? null}
-                eventStyles={Array.isArray(profile.event_styles)
-                  ? (profile.event_styles as string[]).filter(Boolean)
-                  : []}
-                destinations={travelToCities.length > 0
-                  ? travelToCities
-                  : (Array.isArray(profile.destinations)
-                    ? (profile.destinations as string[]).filter(Boolean)
-                    : [])}
-                travelsGlobally={Boolean(profile.travels_globally)}
-                teamSize={profile.team_size ?? null}
-                leadTimeWeeks={profile.lead_time_weeks ?? null}
-                startingFrom={profile.starting_from ?? null}
-                bookingNote={profile.booking_note ?? null}
-                packageTeasers={(() => {
-                  const raw = profile.package_teasers;
-                  if (!Array.isArray(raw)) return [];
-                  return (raw as unknown[]).flatMap((p) => {
-                    if (typeof p !== "object" || p === null) return [];
-                    const label = (p as { label?: unknown }).label;
-                    if (typeof label !== "string" || !label.trim()) return [];
-                    const detail = (p as { detail?: unknown }).detail;
-                    return [{
-                      label: label.trim(),
-                      detail: typeof detail === "string" ? detail : null,
-                    }];
-                  });
-                })()}
-                socialLinks={(() => {
-                  const raw = profile.social_links;
-                  if (!Array.isArray(raw)) return [];
-                  return (raw as unknown[]).flatMap((p) => {
-                    if (typeof p !== "object" || p === null) return [];
-                    const label = (p as { label?: unknown }).label;
-                    const href = (p as { href?: unknown }).href;
-                    if (typeof label !== "string" || typeof href !== "string") return [];
-                    return [{ label: label.trim(), href: href.trim() }];
-                  });
-                })()}
-                embeddedMedia={(() => {
-                  const raw = profile.embedded_media;
-                  if (!Array.isArray(raw)) return [];
-                  const allowed: EmbeddedMediaProvider[] = ["spotify", "soundcloud", "vimeo", "youtube"];
-                  return (raw as unknown[]).flatMap((p) => {
-                    if (typeof p !== "object" || p === null) return [];
-                    const provider = (p as { provider?: unknown }).provider;
-                    const url = (p as { url?: unknown }).url;
-                    if (typeof url !== "string" || typeof provider !== "string") return [];
-                    if (!allowed.includes(provider as EmbeddedMediaProvider)) return [];
-                    const label = (p as { label?: unknown }).label;
-                    return [{
-                      provider: provider as EmbeddedMediaProvider,
-                      url,
-                      label: typeof label === "string" ? label : null,
-                    }];
-                  });
-                })()}
-                copy={{
-                  specialties: t("public.profile.editorial.specialties"),
-                  destinations: t("public.profile.editorial.destinations"),
-                  destinationReady: t("public.profile.editorial.destinationReady"),
-                  packages: t("public.profile.editorial.packages"),
-                  bookingDetails: t("public.profile.editorial.bookingDetails"),
-                  bookingNote: t("public.profile.editorial.bookingNote"),
-                  social: t("public.profile.editorial.social"),
-                  watchListen: t("public.profile.editorial.watchListen"),
-                  teamSize: t("public.profile.editorial.teamSize"),
-                  leadTime: t("public.profile.editorial.leadTime"),
-                  startingFrom: t("public.profile.editorial.startingFrom"),
-                }}
-              />
-
-              {/* Portfolio gallery */}
-              <section aria-labelledby="portfolio-heading" data-profile-section="portfolio">
-                <SectionLabel id="portfolio-heading">{t("public.profile.portfolio")}</SectionLabel>
-                {galleryItems.length > 0 ? (
-                  <PortfolioGalleryLightbox
-                    name={name}
-                    items={galleryItems}
-                    lightbox={ui.lightbox}
-                    closeLabel={ui.preview.close}
-                    watermarkPreset={watermarkPreset}
-                    watermarkLogoUrl={watermarkLogoUrl}
-                  />
-                ) : (
-                  <EmptyState
-                    icon={Images}
-                    title={t("public.profile.portfolioEmptyTitle")}
-                    description={t("public.profile.portfolioEmptyDescription")}
-                    className="mt-6 border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)]/30"
-                  />
-                )}
-              </section>
-
-              {/* About — overlaid by agency local_bio when on agency surface */}
-              {aboutText.trim() ? (
-                <section aria-labelledby="about-heading" data-profile-section="about">
-                  <SectionLabel id="about-heading">{t("public.profile.about")}</SectionLabel>
-                  <p className="mt-4 max-w-2xl text-base leading-[1.8] text-[var(--impronta-muted)]">
-                    {aboutText}
-                  </p>
-                </section>
-              ) : null}
-
-              {/* Basic Information — extra dynamic fields in basic_info group (canonical bio is About above) */}
-              {basicInfoDetailRows.length > 0 ? (
-                <section aria-labelledby="basic-info-heading">
-                  <SectionLabel id="basic-info-heading">
-                    {t("public.profile.basicInfo")}
-                  </SectionLabel>
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    {basicInfoDetailRows.map((r) => (
-                      <Card
-                        key={r.key}
-                        className="border-border/60 bg-[var(--impronta-surface)] shadow-none"
-                      >
-                        <CardContent className="px-4 py-3">
-                          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--impronta-muted)]">
-                            {r.label}
-                          </p>
-                          <p className="mt-1 text-sm text-foreground">{r.value}</p>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </section>
-              ) : null}
-
-              {/* Details — other dynamic scalar fields */}
-              {otherDetailRows.length > 0 ? (
-                <section aria-labelledby="details-heading">
-                  <SectionLabel id="details-heading">{t("public.profile.details")}</SectionLabel>
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    {otherDetailRows.map((r) => (
-                      <Card
-                        key={r.key}
-                        className="border-border/60 bg-[var(--impronta-surface)] shadow-none"
-                      >
-                        <CardContent className="px-4 py-3">
-                          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--impronta-muted)]">
-                            {r.label}
-                          </p>
-                          <p className="mt-1 text-sm text-foreground">{r.value}</p>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </section>
-              ) : null}
-
-            </div>
-
-            {/* ── Right column (sidebar) ───────────────────────────── */}
-            <aside className="space-y-10">
-
-              {orderedSections.map((section) => {
-                if (section.key === "fit_labels") {
-                  if (!fieldVisibility.showFitLabels || fitLabels.length === 0) return null;
-                  return (
-                    <section key={section.key} aria-labelledby="best-for-heading">
-                      <SectionLabel id="best-for-heading">{section.label}</SectionLabel>
-                      <ul className="mt-4 flex flex-wrap gap-2">
-                        {fitLabels.map((label) => (
-                          <li key={label}>
-                            <span className="inline-flex items-center rounded-full border border-[var(--impronta-gold-border)] bg-[rgba(201,162,39,0.06)] px-3 py-1 text-sm font-medium uppercase tracking-wider text-[var(--impronta-gold)]">
-                              {label}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </section>
-                  );
-                }
-                if (section.key === "skills") {
-                  if (!fieldVisibility.showSkills || skills.length === 0) return null;
-                  return (
-                    <section key={section.key} aria-labelledby="skills-heading">
-                      <SectionLabel id="skills-heading">{section.label}</SectionLabel>
-                      <ul className="mt-4 flex flex-wrap gap-2">
-                        {skills.map((s) => (
-                          <li key={s}>
-                            <Badge variant="muted" className="text-sm">
-                              {s}
-                            </Badge>
-                          </li>
-                        ))}
-                      </ul>
-                    </section>
-                  );
-                }
-                if (section.key === "languages") {
-                  if (!fieldVisibility.showLanguages || languages.length === 0) return null;
-                  return (
-                    <section key={section.key} aria-labelledby="languages-heading">
-                      <SectionLabel id="languages-heading">{section.label}</SectionLabel>
-                      <ul className="mt-4 space-y-2">
-                        {languages.map((lang) => (
-                          <li
-                            key={lang}
-                            className="flex items-center gap-2 text-m text-[var(--impronta-muted)]"
-                          >
-                            <span className="size-1.5 shrink-0 rounded-full bg-[var(--impronta-gold-dim)]" />
-                            {lang}
-                          </li>
-                        ))}
-                      </ul>
-                    </section>
-                  );
-                }
-                if (section.key === "industries") {
-                  if (!fieldVisibility.showIndustries || industries.length === 0) return null;
-                  return (
-                    <section key={section.key} aria-labelledby="industries-heading">
-                      <SectionLabel id="industries-heading">{section.label}</SectionLabel>
-                      <ul className="mt-4 flex flex-wrap gap-2">
-                        {industries.map((s) => (
-                          <li key={s}>
-                            <Badge variant="muted" className="text-sm">
-                              {s}
-                            </Badge>
-                          </li>
-                        ))}
-                      </ul>
-                    </section>
-                  );
-                }
-                if (section.key === "event_types") {
-                  if (!fieldVisibility.showEventTypes || eventTypes.length === 0) return null;
-                  return (
-                    <section key={section.key} aria-labelledby="event-types-heading">
-                      <SectionLabel id="event-types-heading">{section.label}</SectionLabel>
-                      <ul className="mt-4 flex flex-wrap gap-2">
-                        {eventTypes.map((s) => (
-                          <li key={s}>
-                            <Badge variant="muted" className="text-sm">
-                              {s}
-                            </Badge>
-                          </li>
-                        ))}
-                      </ul>
-                    </section>
-                  );
-                }
-                if (section.key === "tags") {
-                  if (!fieldVisibility.showTags || tags.length === 0) return null;
-                  return (
-                    <section key={section.key} aria-labelledby="tags-heading">
-                      <SectionLabel id="tags-heading">{section.label}</SectionLabel>
-                      <ul className="mt-4 flex flex-wrap gap-2">
-                        {tags.map((s) => (
-                          <li key={s}>
-                            <Badge variant="muted" className="text-sm">
-                              {s}
-                            </Badge>
-                          </li>
-                        ))}
-                      </ul>
-                    </section>
-                  );
-                }
-                return null;
-              })}
-
-              {/* Inquiry card */}
-              <div className="rounded-lg border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)] p-6">
-                <p className="font-[family-name:var(--font-cinzel)] text-m font-medium tracking-wide text-[var(--impronta-foreground)]">
-                  {t("public.profile.sidebarAgencyTitle")}
-                </p>
-                <p className="mt-2 text-sm leading-relaxed text-[var(--impronta-muted)]">
-                  {t("public.profile.sidebarAgencyBody")}
-                </p>
-                <div className="mt-5 flex flex-col gap-2.5">
-                  <TalentProfileInquireButton
-                    talentId={profile.id}
-                    talentProfileCode={profile.profile_code}
-                    displayName={name}
-                    tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
-                    tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
-                    agencyName={tenantBrand ?? "the agency"}
-                    sourcePage={profileSourcePage}
-                    className="w-full bg-[var(--impronta-gold)] text-black hover:bg-[var(--impronta-gold-bright)]"
-                  />
-                  <ProfileDiscoveryCta
-                    talentId={profile.id}
-                    profileCode={profile.profile_code}
-                    displayName={name}
-                    sourcePage={profileSourcePage}
-                    initialSaved={initialSavedIds.includes(profile.id)}
-                    portalInquiryHref={portalInquiryHref}
-                    mode="sidebar"
-                    profileCta={ui.profileCta}
-                    inquiry={ui.inquiry}
-                  />
-                </div>
-                <div className="mt-5 border-t border-[var(--impronta-gold-border)] pt-4">
-                  <ShareProfileMenu
-                    talentId={profile.id}
-                    profileCode={profile.profile_code}
-                    displayName={name}
-                    canonicalUrl={canonicalShareUrl}
-                    sourcePage={profileSourcePage}
-                    labels={shareLabels}
-                  />
-                </div>
-              </div>
-
-              {/* Profile code */}
-              <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--impronta-gold-dim)] opacity-50">
-                {t("public.profile.refCodePrefix")} {profile.profile_code}
-              </p>
-            </aside>
-          </div>
-        </div>
-
-        {/* ----------------------------------------------------------------
-            W7 — Client reviews (renders nothing when there are none)
-        ---------------------------------------------------------------- */}
-        {ratingSummary.count > 0 ? (
-          <section
-            aria-label="Client reviews"
-            className="border-t border-[var(--impronta-gold-border)]/30 bg-[var(--impronta-black)] px-4 py-14 sm:px-6 lg:px-8"
-            data-profile-section="reviews"
-          >
-            <div className="mx-auto max-w-5xl">
-              <TalentReviewsSection
-                summary={ratingSummary}
-                reviews={talentReviews}
-                theme="dark"
-                heading={locale === "es" ? "Reseñas" : "Reviews"}
-              />
-            </div>
-          </section>
-        ) : null}
-
-        {/* ----------------------------------------------------------------
-            CTA section
-        ---------------------------------------------------------------- */}
-        <section
-          aria-label={t("public.profile.ctaSectionAria")}
-          className="border-t border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)]"
-        >
-          <div className="mx-auto flex max-w-5xl flex-col items-center gap-6 px-4 py-16 text-center sm:px-6 lg:px-8">
-            <p className="font-[family-name:var(--font-cinzel)] text-sm uppercase tracking-[0.28em] text-[var(--impronta-gold)]">
-              {ui.common.brand}
-            </p>
-            <h2 className="font-[family-name:var(--font-cinzel)] text-2xl font-medium tracking-wide text-[var(--impronta-foreground)] sm:text-3xl">
-              {t("public.profile.footerCtaTitle").replace("{firstName}", firstName)}
-            </h2>
-            <p className="max-w-md text-m leading-relaxed text-[var(--impronta-muted)]">
-              {t("public.profile.footerCtaBody")}
-            </p>
-            <div className="flex flex-col items-center gap-3 sm:flex-row">
-              <TalentProfileInquireButton
-                talentId={profile.id}
-                talentProfileCode={profile.profile_code}
-                displayName={name}
-                tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
-                tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
-                agencyName={tenantBrand ?? "the agency"}
-                sourcePage={profileSourcePage}
-                className="bg-[var(--impronta-gold)] text-black hover:bg-[var(--impronta-gold-bright)]"
-              />
-              <ProfileDiscoveryCta
-                talentId={profile.id}
-                profileCode={profile.profile_code}
-                displayName={name}
-                sourcePage={profileSourcePage}
-                initialSaved={initialSavedIds.includes(profile.id)}
-                portalInquiryHref={portalInquiryHref}
-                mode="footer"
-                profileCta={ui.profileCta}
-                inquiry={ui.inquiry}
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* ----------------------------------------------------------------
-            D3 — "More from this roster" similar-talent strip
-            Only rendered on agency surfaces when ≥1 sibling profile exists.
-        ---------------------------------------------------------------- */}
-        {similarTalent.length > 0 ? (
-          <section
-            aria-label="More talent from this roster"
-            className="border-t border-[var(--impronta-gold-border)]/30 bg-[var(--impronta-black)] px-4 py-12 sm:px-6 lg:px-8"
-          >
-            <div className="mx-auto max-w-5xl">
-              <p className="mb-6 font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-[var(--impronta-gold)]">
-                More from this roster
-              </p>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {similarTalent.map((st) => {
-                  const href = prefixPublicHref(
-                    `/t/${encodeURIComponent(st.profileCode)}`,
-                    publicPathPrefix,
-                  );
-                  return (
-                    <div key={st.id} className="group/similartile relative">
-                      <Link
-                        href={href}
-                        className="block overflow-hidden rounded-xl bg-zinc-900"
-                      >
-                        <div className="relative aspect-[3/4] w-full">
-                          {st.thumbnailUrl ? (
-                            <Image
-                              src={st.thumbnailUrl}
-                              alt=""
-                              fill
-                              className="object-cover transition-transform duration-300 group-hover/similartile:scale-[1.02]"
-                              sizes="(min-width: 640px) 25vw, 50vw"
-                            />
-                          ) : (
-                            <div className="flex h-full items-center justify-center font-[family-name:var(--font-cinzel)] text-[10px] tracking-widest text-[var(--impronta-muted)]">
-                              {ui.common.brand}
-                            </div>
-                          )}
-                          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3">
-                            <p className="truncate font-[family-name:var(--font-cinzel)] text-sm font-semibold text-white">
-                              {st.displayName}
-                            </p>
-                            {st.primaryType ? (
-                              <p className="truncate text-[10px] uppercase tracking-[0.14em] text-[var(--impronta-muted)]">
-                                {st.primaryType}
-                              </p>
-                            ) : null}
-                          </div>
-                        </div>
-                      </Link>
-                      {/* Canonical favorite + inquiry affordances */}
-                      <TalentCardActions
-                        talentProfileId={st.id}
-                        profileCode={st.profileCode}
-                        displayName={st.displayName}
-                        sourcePage={profileSourcePage}
-                        variant="compact"
-                        className="absolute right-2.5 top-2.5 z-[2]"
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </section>
-        ) : null}
-      </main>
-
-      {/* M8 — Sticky inquiry bar (only visible when the tenant has
-        * `profile.sticky-inquiry-bar = on` in their theme). Always rendered
-        * to keep payload stable; CSS hides/shows based on data-token. */}
-      <div
-        data-profile-sticky-bar="visible"
-        className="fixed inset-x-0 bottom-0 z-50"
-        style={{ display: "none" }}
-      >
-        <div className="mx-auto flex max-w-4xl items-center gap-4 rounded-full border border-[var(--token-color-line,#e5dcce)] bg-[var(--token-color-surface-raised,#fff)] px-6 py-2.5 shadow-[0_26px_60px_-26px_rgba(74,64,58,0.32)] m-3">
-          <div className="flex min-w-0 flex-1 items-baseline gap-3">
-            <span className="font-[family-name:var(--font-fraunces,var(--font-cinzel))] text-lg text-[var(--token-color-ink,#2a221e)] truncate">
-              {name}
-            </span>
-            <span className="text-[11px] uppercase tracking-[0.22em] text-[var(--token-color-muted,#8c7f75)]">
-              {talentType}
-            </span>
-          </div>
-          <a
-            href={`/contact?pro=${encodeURIComponent(name)}`}
-            className="inline-flex h-9 items-center rounded-full bg-[var(--token-color-primary,#4a403a)] px-5 text-xs font-medium uppercase tracking-[0.08em] text-[var(--token-color-surface-raised,#f6f1ea)]"
-          >
-            Inquire
-          </a>
-        </div>
-      </div>
-
-      <footer className="border-t border-[var(--impronta-gold-border)]/40 bg-[var(--impronta-black)] px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mx-auto flex max-w-4xl flex-col items-center gap-3 text-center text-sm text-[var(--impronta-muted)]">
-          <PublicCmsFooterNav locale={locale} />
-        </div>
-      </footer>
+      {/* Conversational-inquiry launcher — floating brand-skinned
+          "Message {Name}" chat (Lane D / guest-chat MVP). Sibling of the
+          LightProfileLayout's inquire CTA; renders only on the agency surface
+          (guarded inside on tenantSlug). Self-positions fixed bottom-right, so
+          DOM placement here is purely logical. */}
+      <TalentProfileChatLauncherMount
+        talentProfileId={profile.id}
+        talentProfileCode={profile.profile_code}
+        talentDisplayName={name}
+        tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
+        agencyName={tenantBrand ?? "the agency"}
+        accentColor={chatAccentColor}
+        logoUrl={watermarkLogoUrl}
+        sourcePage={profileSourcePage}
+      />
           <DirectoryInquirySheet ui={ui} locale={locale} />
           <FavoritesDrawer signupHref="/login" />
         </FavoritesDrawerProvider>
@@ -2296,23 +1864,3 @@ export default async function PublicTalentProfilePage({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-
-function SectionLabel({
-  id,
-  children,
-}: {
-  id?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <h2
-      id={id}
-      className="font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-[var(--impronta-gold)]"
-    >
-      {children}
-    </h2>
-  );
-}

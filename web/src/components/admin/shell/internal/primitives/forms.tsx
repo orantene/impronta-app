@@ -541,7 +541,7 @@ export function Toggle({
   );
 }
 
-export function Divider({ label }: { label?: string }) {
+export function Divider({ label, icon }: { label?: string; icon?: ReactNode }) {
   if (!label) {
     return (
       <div
@@ -562,11 +562,14 @@ export function Divider({ label }: { label?: string }) {
       data-tulala-divider-labelled
       style={{
         display: "flex",
-        alignItems: "baseline",
+        // Centre the row when a leading icon tile is present; otherwise keep
+        // the original baseline alignment of the bare label + hairline.
+        alignItems: icon ? "center" : "baseline",
         gap: 8,
         margin: "16px 0 8px",
       }}
     >
+      {icon ? <span aria-hidden className="inline-flex flex-shrink-0 items-center">{icon}</span> : null}
       <h2 style={{ margin: 0, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, letterSpacing: -0.05 }} className="text-admin-ink">{label}</h2>
       <div aria-hidden style={{ flex: 1, height: 1, background: COLORS.borderSoft }} />
       <style>{`

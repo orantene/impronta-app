@@ -6,9 +6,8 @@
  * NOTHING when there are no reviews (count === 0 / empty list).
  *
  * Server component — no interactivity. Self-contained inline styles driven by
- * a small theme token set so it drops cleanly into both public surfaces:
- *   - "dark"  → app /t/[code] (Impronta gold-on-black)
- *   - "light" → /share/talent/[slug] (cream card)
+ * a small theme token set ("dark"/"light") so it drops cleanly into the public
+ * talent page /t/[profileCode] under either branding.
  *
  * NOT under components/admin/shell, so inline styles are fine here.
  */

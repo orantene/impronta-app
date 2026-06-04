@@ -64,6 +64,11 @@ export async function sendEmailNotification(
     subject: cfg.subject(event, recipient),
     html,
     headers,
+    // Tenant-scoped notification: a tenant with white_label_email + a VERIFIED
+    // sending domain sends from its own branded address (resolveTenantEmailFrom),
+    // otherwise the platform default.
+    tenantId: event.tenantId,
+    tenantName: brand.accountName ?? null,
   });
   // Surface a real provider failure so the dispatcher records THIS dispatch_log
   // row as `failed` (its try/catch calls markDispatchLogFailed) instead of
