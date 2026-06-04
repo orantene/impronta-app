@@ -2191,19 +2191,49 @@ export function SelectionLayer() {
       if (!selectedBuilderNodeId) return;
       const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
       if (!node || node.kind === "section") return;
+      // CLAMP — a block can never be flung fully off its parent. Previously an
+      // unbounded translate stranded an element off the (narrower) mobile canvas
+      // with no grabbable handle to recover it. Keep ≥40px of the block inside
+      // its parent on every edge, exactly like the floating-panel keep-on-screen.
+      let cx = x;
+      let cy = y;
+      const el = getSelectedBuilderNodeEl();
+      const parent = el?.parentElement ?? null;
+      if (el && parent) {
+        const KEEP = 40;
+        const er = el.getBoundingClientRect();
+        const pr = parent.getBoundingClientRect();
+        // er currently reflects the live translate (set during the drag), so the
+        // natural (untranslated) origin is the current rect minus the offset.
+        const naturalLeft = er.left - x;
+        const naturalTop = er.top - y;
+        const minX = pr.left + KEEP - er.width - naturalLeft;
+        const maxX = pr.right - KEEP - naturalLeft;
+        const minY = pr.top + KEEP - er.height - naturalTop;
+        const maxY = pr.bottom - KEEP - naturalTop;
+        if (minX <= maxX) cx = Math.max(minX, Math.min(maxX, x));
+        if (minY <= maxY) cy = Math.max(minY, Math.min(maxY, y));
+      }
+      const rx = Math.round(cx);
+      const ry = Math.round(cy);
       const currentStyle =
         ((node.props as { style?: Record<string, unknown> } | undefined)
           ?.style ?? {}) as Record<string, unknown>;
       const nextStyle: Record<string, unknown> = { ...currentStyle };
       // 0,0 → drop the escape entirely (back to natural position).
-      if (Math.round(x) === 0 && Math.round(y) === 0) {
+      if (rx === 0 && ry === 0) {
         delete nextStyle.translate;
       } else {
-        nextStyle.translate = `${Math.round(x)}px ${Math.round(y)}px`;
+        nextStyle.translate = `${rx}px ${ry}px`;
       }
       void patchBuilderNodeProps(selectedBuilderNodeId, { style: nextStyle });
     },
-    [selectedBuilderNodeId, builderTree, patchBuilderNodeProps],
+    [
+      selectedBuilderNodeId,
+      builderTree,
+      patchBuilderNodeProps,
+      getSelectedBuilderNodeEl,
+    ],
   );
   // #32 — keyboard nudge moves the selected freeform block/set by translate
   // (Alt+arrow = 1px, Alt+Shift+arrow = 10px). It now lives under ALT so PLAIN

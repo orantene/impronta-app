@@ -400,10 +400,18 @@ export function CanvasMoveHandle({
     >
       <button
         type="button"
-        aria-label="Drag to move"
-        title="Drag to move"
+        aria-label="Drag to move (double-click to reset position)"
+        title="Drag to move · double-click to snap back to natural position"
         data-canvas-move-handle=""
         onPointerDown={begin}
+        onDoubleClick={(e) => {
+          // Recover a strayed block: reset its translate to 0,0 (natural
+          // position). The commit path drops the translate entirely at 0,0,
+          // restoring the block on every breakpoint.
+          e.preventDefault();
+          e.stopPropagation();
+          onCommitTranslate(0, 0);
+        }}
         style={{
           position: "absolute",
           top: "50%",
