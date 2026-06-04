@@ -96,6 +96,14 @@ const CODE = (
     <path d="m15.5 8 4 4-4 4" />
   </g>
 );
+// YouTube — the rounded red badge with a white play triangle. Rendered on a red
+// tile (bg below), so the badge is the white "card" + the brand-red triangle.
+const PLAY = (
+  <g>
+    <rect x="2.4" y="5.6" width="19.2" height="12.8" rx="3.6" fill="#fff" />
+    <path d="M10 9.1v5.8l5-2.9-5-2.9Z" fill="#FF0000" />
+  </g>
+);
 
 const BRANDS: Record<string, Brand> = {
   google_maps: { bg: "#1A73E8", fg: "#fff", glyph: PIN },
@@ -110,6 +118,7 @@ const BRANDS: Record<string, Brand> = {
   custom_domain: { bg: "#475569", fg: "#fff", glyph: GLOBE },
   ai_provider: { bg: "#7C3AED", fg: "#fff", glyph: SPARKLE },
   custom_code: { bg: "#0F172A", fg: "#fff", glyph: CODE },
+  youtube: { bg: "#FF0000", fg: "#fff", glyph: PLAY },
 };
 
 // Neutral fallback for any unmapped integration key (a plug icon).

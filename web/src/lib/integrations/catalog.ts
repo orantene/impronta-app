@@ -15,6 +15,7 @@
 export type IntegrationCategory =
   | "website"
   | "analytics"
+  | "social"
   | "captcha"
   | "email"
   | "security"
@@ -192,6 +193,29 @@ function testEmailDomain(value: string): IntegrationFieldTestResult {
   return { ok: true };
 }
 
+/**
+ * YouTube channel URL or @handle — plausibility gate for the manual fallback
+ * field. Accepts a bare @handle / handle (2-80 chars) or any youtube.com /
+ * youtu.be URL. The one-click OAuth path supplies the verified channel; this
+ * gate only guards the manual paste.
+ */
+function testYouTubeProfileUrl(value: string): IntegrationFieldTestResult {
+  const v = value.trim();
+  if (!v) return { ok: false, reason: "empty" };
+  const handle = v.replace(/^@/, "");
+  if (/^[A-Za-z0-9._-]{2,80}$/.test(handle)) return { ok: true };
+  try {
+    const url = new URL(/^https?:\/\//i.test(v) ? v : `https://${v}`);
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    if (host === "youtube.com" || host.endsWith(".youtube.com") || host === "youtu.be") {
+      return { ok: true };
+    }
+  } catch {
+    // Fall through to the shape error below.
+  }
+  return { ok: false, reason: "expected_youtube_url_or_handle" };
+}
+
 export const GOOGLE_MAPS_INTEGRATION_KEY = "google_maps" as const;
 export const GA4_INTEGRATION_KEY = "ga4" as const;
 export const META_PIXEL_INTEGRATION_KEY = "meta_pixel" as const;
@@ -201,6 +225,7 @@ export const GTM_INTEGRATION_KEY = "gtm" as const;
 export const CUSTOM_CODE_INTEGRATION_KEY = "custom_code" as const;
 export const CAPTCHA_INTEGRATION_KEY = "captcha" as const;
 export const EMAIL_DOMAIN_INTEGRATION_KEY = "email_domain" as const;
+export const YOUTUBE_INTEGRATION_KEY = "youtube" as const;
 
 // Surfaced (link-only) integrations — no drawer, no credential here; the hub
 // renders them as cards that navigate to an existing in-app settings route.
@@ -473,6 +498,37 @@ export const INTEGRATION_CATALOG: Record<string, IntegrationDef> = {
         secret: false,
         public: true,
         test: testEmailDomain,
+      },
+    ],
+  },
+
+  // ─── Social — workspace YouTube (OAuth, verified channel on the public site) ─
+  // OAuth-connected: the one-click "Connect with Google" flow verifies channel
+  // ownership and stores the public channel label (config_json) + encrypted
+  // OAuth tokens (vault). A manual paste of a channel URL / @handle is the
+  // fallback when OAuth is not configured. On connect/disconnect the verified
+  // channel is mirrored into agency_business_identity.social_youtube so the
+  // public site header/footer can render it.
+  [YOUTUBE_INTEGRATION_KEY]: {
+    key: YOUTUBE_INTEGRATION_KEY,
+    label: "YouTube",
+    category: "social",
+    connection: "oauth",
+    inheritable: false,
+    description:
+      "Connect the workspace YouTube channel, verify ownership with Google, and show the verified channel on the public site header and footer.",
+    instructions: [
+      "Use one-click connect to sign in with the Google account that owns the channel.",
+      "Tulala stores the public channel label and encrypted OAuth tokens so the connection can stay verified.",
+      "Manual fallback is available: paste a YouTube channel URL or @handle if one-click OAuth is not configured yet.",
+    ],
+    fields: [
+      {
+        name: "profile_url",
+        label: "YouTube channel URL or @handle",
+        secret: false,
+        public: true,
+        test: testYouTubeProfileUrl,
       },
     ],
   },

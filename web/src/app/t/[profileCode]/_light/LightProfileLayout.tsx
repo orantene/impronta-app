@@ -26,6 +26,10 @@ import { SkillsExperienceBlock } from "./SkillsExperienceBlock";
 import { BookingCard } from "./BookingCard";
 import { AvailabilityWidget } from "./AvailabilityWidget";
 import { PortfolioGalleryLightbox } from "@/components/directory/portfolio-gallery-lightbox";
+import {
+  PublicFeaturedMedia,
+  type PublicFeaturedMediaItem,
+} from "@/components/talent/connections/PublicFeaturedMedia";
 import { TalentReviewsSection } from "@/components/reviews/TalentReviewsSection";
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 import { PublicCmsFooterNav } from "@/components/public-cms-footer";
@@ -87,6 +91,8 @@ type LightProfileLayoutProps = {
   galleryItems: GalleryItem[];
   watermarkPreset: WatermarkPreset | null;
   watermarkLogoUrl: string | null;
+  /** Talent-selected manual featured-media embeds (showcase only, NOT verified). */
+  featuredMediaItems: PublicFeaturedMediaItem[];
 
   // ── Skills + availability ────────────────────────────────────────────────
   resolvedSkills: ResolvedSkill[];
@@ -196,6 +202,7 @@ export function LightProfileLayout({
   galleryItems,
   watermarkPreset,
   watermarkLogoUrl,
+  featuredMediaItems,
   resolvedSkills,
   availableDaysInNext30,
   availabilityDots14d,
@@ -324,6 +331,12 @@ export function LightProfileLayout({
                 </p>
               </section>
             ) : null}
+
+            {/* Featured media — talent-selected manual showcase embeds */}
+            <PublicFeaturedMedia
+              items={featuredMediaItems}
+              heading={t("public.profile.editorial.watchListen")}
+            />
 
             {/* Mobile availability (shown only on small screens, above services) */}
             <div className="lg:hidden">

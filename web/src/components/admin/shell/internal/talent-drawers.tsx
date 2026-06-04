@@ -18,6 +18,7 @@
 //   • profile-essentials.tsx  — Photo / Polaroids / Credits / Skills / Limits / Rate / Travel
 //   • profile-extras.tsx      — Links / Reviews / Showreel / Measurements / Documents / Emergency / Public preview
 //   • premium-pages.tsx       — Tier compare / Personal page / Template / Embeds / Press / Media kit / Custom domain
+//   • connections.tsx         — Talent-owned social/calendar/media connections
 //
 // This file is now a pure re-export barrel so every historical importer
 // keeps working untouched (drawers.tsx, drawer-shared.tsx, et al.).
@@ -106,3 +107,7 @@ export {
   TalentMediaKitDrawer,
   TalentCustomDomainDrawer,
 } from "./talent-drawers/premium-pages";
+
+export {
+  TalentConnectionsDrawer,
+} from "@/components/talent/connections/TalentConnectionsDrawer";
