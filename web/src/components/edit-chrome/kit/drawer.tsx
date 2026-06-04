@@ -52,7 +52,7 @@
  * doesn't manage state — that lives in the consumer (or in EditContext).
  */
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, type ComponentType, type ReactNode } from "react";
 
 import {
   CHROME,
@@ -525,6 +525,92 @@ export function DrawerTab({
         }}
       />
     </button>
+  );
+}
+
+// ── DrawerIconTabs ──────────────────────────────────────────────────────────
+//
+// 2026-06-03 — Vertical icon-rail variant of the tab strip, used by the
+// floating inspector dock. Instead of a horizontal text-pill bar across the
+// top, the tabs become a slim ~46px column of icon buttons down the left
+// inner edge; the tab content renders to its right. The active icon fills
+// with the editor `accent` (the same indigo the tokens designate for "active
+// tab"), so the rail reads as a premium tool selector. Each button's tooltip
+// is `hint` (falls back to `label`) and its aria-label is `label`, so the
+// icon-only rail stays fully accessible. A hairline right border divides the
+// rail from the content panel.
+
+export interface DrawerIconTabItem<K extends string = string> {
+  key: K;
+  /** Plain-language label — the aria-label, and the tooltip when no `hint`. */
+  label: string;
+  /** Optional longer hover tooltip (an icon target is less self-evident). */
+  hint?: string;
+  /** Lucide icon component (e.g. `FileText`). Rendered at 17px. */
+  icon: ComponentType<{ size?: number | string; strokeWidth?: number | string; "aria-hidden"?: boolean }>;
+}
+
+interface DrawerIconTabsProps<K extends string> {
+  items: ReadonlyArray<DrawerIconTabItem<K>>;
+  /** Currently active tab key. */
+  active: K;
+  onSelect: (key: K) => void;
+  /** Accessible label for the rail's tablist. */
+  ariaLabel?: string;
+  className?: string;
+}
+
+export function DrawerIconTabs<K extends string>({
+  items,
+  active,
+  onSelect,
+  ariaLabel = "Inspector sections",
+  className,
+}: DrawerIconTabsProps<K>) {
+  return (
+    <div
+      role="tablist"
+      aria-orientation="vertical"
+      aria-label={ariaLabel}
+      className={`flex shrink-0 flex-col items-center gap-1 overflow-y-auto py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${className ?? ""}`}
+      style={{ width: 46, background: CHROME.paper2, borderRight: `1px solid ${CHROME.line}` }}
+    >
+      {items.map((item) => {
+        const isActive = item.key === active;
+        const Icon = item.icon;
+        return (
+          <button
+            key={item.key}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            title={item.hint ?? item.label}
+            aria-label={item.label}
+            onClick={() => onSelect(item.key)}
+            className="inline-flex size-9 cursor-pointer items-center justify-center rounded-[9px] border-none transition-colors"
+            style={{
+              background: isActive ? CHROME.accent : "transparent",
+              color: isActive ? "#ffffff" : CHROME.muted,
+              boxShadow: isActive
+                ? "0 1px 2px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.14)"
+                : "none",
+            }}
+            onMouseEnter={(e) => {
+              if (isActive) return;
+              e.currentTarget.style.background = CHROME.paper;
+              e.currentTarget.style.color = CHROME.ink;
+            }}
+            onMouseLeave={(e) => {
+              if (isActive) return;
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.color = CHROME.muted;
+            }}
+          >
+            <Icon size={17} strokeWidth={1.85} aria-hidden />
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

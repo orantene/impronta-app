@@ -58,11 +58,19 @@ import {
   CHROME,
   Drawer,
   DrawerHead,
-  DrawerTabs,
-  DrawerTab,
   DrawerBody,
   SectionTypeIcon,
 } from "./kit";
+import { DrawerIconTabs, type DrawerIconTabItem } from "./kit/drawer";
+import {
+  FileText,
+  LayoutGrid,
+  Palette,
+  Database,
+  Monitor,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
 import { cleanSectionName as _cleanSectionName } from "@/lib/site-admin/clean-section-name";
 import { sectionDisplayName } from "@/lib/site-admin/section-display-name";
 import {
@@ -84,7 +92,28 @@ const TABS: ReadonlyArray<{ key: TabKey; label: string }> = [
   { key: "motion", label: "Motion" },
 ];
 
-/** Short hover hints — non-technical language (Phase 2 trust). */
+/**
+ * Lucide glyph for each inspector tab. The tab strip is now a slim VERTICAL
+ * ICON RAIL down the left inner edge of the floating dock (2026-06-03) rather
+ * than a horizontal text-pill bar — icons + tooltips read as a premium tool
+ * selector and reclaim the horizontal room a narrow floating panel can't
+ * spare. Labels still drive the tooltip + aria-label so the rail is fully
+ * accessible.
+ */
+const TAB_ICON: Record<TabKey, LucideIcon> = {
+  content: FileText,
+  layout: LayoutGrid,
+  style: Palette,
+  data: Database,
+  responsive: Monitor,
+  motion: Zap,
+};
+
+/**
+ * Short hover hints — non-technical language (Phase 2 trust). On the icon
+ * rail these become the tooltip so an icon-only target stays discoverable;
+ * the short tab label remains the aria-label for assistive tech.
+ */
 const INSPECTOR_TAB_HINT: Record<TabKey, string> = {
   content: "Edit text, images, and controls for this block",
   layout: "Spacing, width, and how the block sits on the page",
@@ -874,6 +903,20 @@ export function InspectorDock() {
     return TABS.filter((t) => set.has(t.key)).map((t) => t.key);
   }, [currentLoadedSection, selectedStandaloneBuilderNode, skeletonHint]);
 
+  // Vertical icon-rail items for the visible tabs, in canonical TABS order.
+  // Each carries its lucide glyph + plain-language label; the label is the
+  // rail button's tooltip + aria-label (see DrawerIconTabs).
+  const iconTabItems = useMemo<ReadonlyArray<DrawerIconTabItem<TabKey>>>(
+    () =>
+      TABS.filter((t) => visibleTabs.includes(t.key)).map((t) => ({
+        key: t.key,
+        label: t.label,
+        hint: INSPECTOR_TAB_HINT[t.key],
+        icon: TAB_ICON[t.key],
+      })),
+    [visibleTabs],
+  );
+
   // If the active tab disappears for the new section type (e.g. operator
   // had Motion open for Hero, then selects Trust Strip which doesn't
   // surface Motion), fall back to Content so we never render an
@@ -961,28 +1004,20 @@ export function InspectorDock() {
       ) : !selectedStandaloneBuilderNode && (!currentLoadedSection || !registryEntry) ? (
         <InspectorSkeleton />
       ) : (
-        <>
+        <div className="flex min-h-0 flex-1">
           {visibleTabs.length > 1 ? (
-            <div
-              className="flex min-w-0 items-end"
-              style={{ borderBottom: `1px solid ${CHROME.line}` }}
-            >
-              <DrawerTabs>
-                {TABS.filter((t) => visibleTabs.includes(t.key)).map((t) => (
-                  <DrawerTab
-                    key={t.key}
-                    active={tab === t.key}
-                    onClick={() => setTab(t.key)}
-                    title={INSPECTOR_TAB_HINT[t.key]}
-                  >
-                    {t.label}
-                  </DrawerTab>
-                ))}
-              </DrawerTabs>
-            </div>
+            <DrawerIconTabs
+              items={iconTabItems}
+              active={tab}
+              onSelect={setTab}
+              ariaLabel="Inspector sections"
+            />
           ) : null}
 
-          <DrawerBody padding="14px 14px 32px" className="overflow-x-hidden">
+          <DrawerBody
+            padding="14px 14px 32px"
+            className="min-w-0 overflow-x-hidden"
+          >
             {saveError ? (
               <div
                 role="status"
@@ -1100,7 +1135,7 @@ export function InspectorDock() {
               />
             ) : null}
           </DrawerBody>
-        </>
+        </div>
       )}
     </Drawer>
   );

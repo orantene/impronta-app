@@ -92,6 +92,7 @@ import {
 import { CHROME } from "./kit/tokens";
 import { MultiSelectionMoveHandle } from "./multi-selection-move-handle";
 import { MultiSelectionToolbar } from "./multi-selection-toolbar";
+import { SelectedElementFloatToolbar } from "./selected-element-float-toolbar";
 import { SectionTypeIcon } from "./kit/section-type-icon";
 import type { MultiNodeRect } from "./multi-node-layout";
 import { CanvasBetweenBlocksInsert } from "./canvas-between-blocks-insert";
@@ -3822,6 +3823,40 @@ export function SelectionLayer() {
 	                    }
 	                  },
 	                );
+	              }}
+	            />
+	          ) : null}
+
+	          {/* ── Middle float control ──────────────────────────────────
+	              A thin premium pill above a single selected FREEFORM block
+	              (not a section, not role-bound, not multi-select). The
+	              `selectedNodeIsEditableBlock` gate already encodes exactly
+	              that population. Hide is intentionally omitted: builder nodes
+	              have only CONDITIONAL visibility (locale/auth/variant — see
+	              builder-node/visibility.ts), no clean unconditional show/hide
+	              flag, and `setSectionVisibility` acts on sections only. */}
+	          {selectedNodeIsEditableBlock && !multiNodeSelectionActive && !isDragging ? (
+	            <SelectedElementFloatToolbar
+	              rect={renderSelectedRect}
+	              onResetPosition={() => commitSelectedNodeTranslate(0, 0)}
+	              onLayerUp={() => {
+	                const id = selectedBuilderNodeId;
+	                if (!id) return;
+	                void moveBuilderNodeWithinParent(id, "up").then((result) => {
+	                  if (!result.ok && result.error) reportMutationError(result.error);
+	                });
+	              }}
+	              onLayerDown={() => {
+	                const id = selectedBuilderNodeId;
+	                if (!id) return;
+	                void moveBuilderNodeWithinParent(id, "down").then((result) => {
+	                  if (!result.ok && result.error) reportMutationError(result.error);
+	                });
+	              }}
+	              onEdit={() => {
+	                const id = selectedBuilderNodeId;
+	                if (!id) return;
+	                selectBuilderNode(id);
 	              }}
 	            />
 	          ) : null}

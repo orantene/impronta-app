@@ -49,10 +49,13 @@ import {
 import {
   ArrowDown,
   ArrowUp,
+  Bookmark,
   ClipboardPaste,
   Copy,
   Files,
+  PanelLeftOpen,
   Plus,
+  SquarePen,
   X,
 } from "lucide-react";
 
@@ -62,6 +65,7 @@ import {
   CHROME_SHADOWS,
   SectionTypeIcon,
 } from "./kit";
+import { RailAvatar, RailIconButton } from "./chrome-icon-rail";
 import { useFloatingDrag, FloatingDragHandle } from "./floating-panel";
 
 import type {
@@ -1072,10 +1076,13 @@ export function NavigatorPanel() {
   );
 
   if (!navigatorOpen) {
-    // Collapsed state — a small FLOATING, DRAGGABLE mini-rail (not a fixed
-    // full-height tab pinned to the left edge). It shares the SAME floating
-    // offset as the expanded panel, so it stays wherever you parked the panel
-    // and you can keep dragging it around like a Paint tool window.
+    // Collapsed state — a tall FLOATING, DRAGGABLE white rail (Google-app
+    // style), not a fixed full-height tab pinned to the left edge. It shares
+    // the SAME floating offset as the expanded panel, so it stays wherever you
+    // parked the panel and you can keep dragging it around like a Paint tool
+    // window. Layout: a drag grip at the very top, a clean column of round
+    // icon buttons (expand is primary), and a single collaborator avatar
+    // pinned to the BOTTOM via margin-top:auto.
     return (
       <div
         data-edit-overlay="navigator-rail-handle"
@@ -1083,14 +1090,15 @@ export function NavigatorPanel() {
           position: "fixed",
           left: 14,
           top: 66,
-          width: 44,
+          width: 52,
+          minHeight: 232,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          padding: "0 0 6px",
+          padding: "6px 0 10px",
           background: CHROME.surface,
           border: `1px solid ${CHROME.line}`,
-          borderRadius: 14,
+          borderRadius: 18,
           boxShadow: floatingDrag.dragging
             ? "0 30px 70px -20px rgba(17,24,39,0.45), 0 10px 26px -10px rgba(17,24,39,0.26)"
             : "0 16px 44px -20px rgba(17,24,39,0.26), 0 4px 12px -8px rgba(17,24,39,0.14)",
@@ -1100,6 +1108,7 @@ export function NavigatorPanel() {
           userSelect: floatingDrag.dragging ? "none" : undefined,
         }}
       >
+        {/* Drag grip — the whole strip moves the rail. */}
         <div
           onPointerDown={floatingDrag.onHandlePointerDown}
           title="Drag to move"
@@ -1107,10 +1116,10 @@ export function NavigatorPanel() {
             width: "100%",
             display: "flex",
             justifyContent: "center",
-            padding: "7px 0 5px",
+            padding: "4px 0 8px",
             cursor: floatingDrag.dragging ? "grabbing" : "grab",
             touchAction: "none",
-            color: CHROME.muted,
+            color: CHROME.muted2,
           }}
         >
           <span
@@ -1120,7 +1129,7 @@ export function NavigatorPanel() {
               gridTemplateColumns: "repeat(2, 3px)",
               gridAutoRows: "3px",
               gap: 2.5,
-              opacity: floatingDrag.dragging ? 0.85 : 0.5,
+              opacity: floatingDrag.dragging ? 0.85 : 0.45,
             }}
           >
             {Array.from({ length: 6 }).map((_, i) => (
@@ -1131,40 +1140,33 @@ export function NavigatorPanel() {
             ))}
           </span>
         </div>
-        <button
-          type="button"
-          data-no-drag
-          onClick={toggleNavigator}
-          title="Open Layers (⌘\\)"
-          aria-label="Open Layers panel"
+        {/* Icon column — generous vertical rhythm, subtle hover, tooltips. */}
+        <div
           style={{
-            width: 34,
-            height: 34,
-            borderRadius: 10,
-            border: "none",
-            background: "transparent",
-            color: CHROME.muted,
-            cursor: "pointer",
             display: "flex",
+            flexDirection: "column",
             alignItems: "center",
-            justifyContent: "center",
+            gap: 8,
           }}
         >
-          <svg
-            width="17"
-            height="17"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.9"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
+          <RailIconButton
+            title="Open Layers (⌘\\)"
+            onClick={toggleNavigator}
+            primary
           >
-            <rect x="3" y="3" width="18" height="18" rx="2" />
-            <path d="M9 3v18" />
-          </svg>
-        </button>
+            <PanelLeftOpen size={20} strokeWidth={1.9} aria-hidden />
+          </RailIconButton>
+          <RailIconButton title="Open Layers (⌘\\)" onClick={toggleNavigator}>
+            <SquarePen size={20} strokeWidth={1.8} aria-hidden />
+          </RailIconButton>
+          <RailIconButton title="Saved" onClick={toggleNavigator}>
+            <Bookmark size={20} strokeWidth={1.8} aria-hidden />
+          </RailIconButton>
+        </div>
+        {/* Collaborator avatar — pinned to the bottom of the rail. */}
+        <div style={{ marginTop: "auto", paddingTop: 10 }}>
+          <RailAvatar initials="You" title="You" />
+        </div>
       </div>
     );
   }
@@ -1217,7 +1219,20 @@ export function NavigatorPanel() {
         label="Layers"
         moved={floatingMoved}
         onReset={floatingDrag.reset}
-        style={{ color: CHROME.muted, background: CHROME.surface }}
+        style={{
+          // Clean grip strip flush under the rounded top corners. The row
+          // spans the full width and carries the SAME top radius as the
+          // <aside>, so the panel's overflow:hidden has nothing to clip at the
+          // corners (no white-on-white background seam / bleed). The header
+          // band directly below already supplies the divider — no border here.
+          color: CHROME.muted,
+          background: CHROME.surface,
+          width: "100%",
+          boxSizing: "border-box",
+          borderTopLeftRadius: 16,
+          borderTopRightRadius: 16,
+          height: 32,
+        }}
       />
       <div
         role="separator"
@@ -1297,8 +1312,11 @@ export function NavigatorPanel() {
           style={{
             position: "absolute",
             left: "50%",
-            top: 0,
-            bottom: 0,
+            // Inset top + bottom by the card's corner radius so the resize
+            // line never pokes a hairline across the rounded top-right /
+            // bottom-right corners (a source of the top-edge "bleed").
+            top: 14,
+            bottom: 14,
             width: 2,
             transform: "translateX(-50%)",
             background:
