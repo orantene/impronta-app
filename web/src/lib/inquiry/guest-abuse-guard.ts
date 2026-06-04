@@ -8,10 +8,12 @@
  * ## Layers (in evaluation order)
  *
  *   L0 — Honeypot check (synchronous, zero cost)
- *       A hidden form field named differently from real fields. Populated value
- *       ⇒ silent reject (bot). The UI renders an off-screen, aria-hidden input
- *       per the contract; its value flows through StartGuestChatInput.honeypot
- *       and SendGuestMessageInput.honeypot.
+ *       A hidden form field named differently from real fields. A populated
+ *       value ⇒ hard reject (generic 'forbidden' code so a bot can't fingerprint
+ *       the honeypot from any other failure). The guard is the source of truth.
+ *       The UI renders an off-screen, aria-hidden input per the contract; its
+ *       value flows through StartGuestChatInput.honeypot and
+ *       SendGuestMessageInput.honeypot.
  *
  *   L1 — Disposable email block (synchronous, set membership, S2)
  *       Only applies to startGuestChatInquiry (email collected on first send).
@@ -174,11 +176,14 @@ export interface GuestInquiryAbuseArgs {
 export async function checkGuestInquiryAbuse(
   args: GuestInquiryAbuseArgs,
 ): Promise<{ ok: true } | GuestChatFailure> {
-  // L0 — Honeypot
+  // L0 — Honeypot. The guard is the SOURCE OF TRUTH for L0: a tripped honeypot
+  // returns a hard reject (generic 'forbidden' so a bot can't distinguish it
+  // from any other failure). Previously this returned {ok:true} and relied on a
+  // duplicate check in the action — if that action check were ever removed,
+  // trusting the guard, bots would sail through. The action keeps its own check
+  // too (belt + suspenders), but the guard no longer green-lights a honeypot hit.
   if (honeypotTripped(args.honeypot)) {
-    // Silent reject — return a success-shaped response to avoid fingerprinting.
-    // Bots must not discover they've been blocked.
-    return { ok: true };
+    return { ok: false, code: "forbidden", message: "Unable to send your message." };
   }
 
   // L1 — Disposable email
@@ -275,9 +280,10 @@ export interface GuestMessageAbuseArgs {
 export async function checkGuestMessageAbuse(
   args: GuestMessageAbuseArgs,
 ): Promise<{ ok: true } | GuestChatFailure> {
-  // L0 — Honeypot
+  // L0 — Honeypot. Hard reject (the guard is the source of truth; see the
+  // inquiry-create guard note). Generic 'forbidden' to avoid fingerprinting.
   if (honeypotTripped(args.honeypot)) {
-    return { ok: true }; // Silent reject
+    return { ok: false, code: "forbidden", message: "Unable to send your message." };
   }
 
   // Message-send is already bounded by the inquiry ownership gate (a guest can

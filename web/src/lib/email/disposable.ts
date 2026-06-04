@@ -8,9 +8,10 @@
  *
  * ## Design decisions
  *   - Static compiled list: fast (no network), zero dependency, auditable diff.
- *   - Normalized to lowercase ASCII domain. Subdomains are NOT checked — only
- *     the registrable domain (e.g. "mailinator.com", not "m.mailinator.com").
- *     If a subdomain-abusive pattern appears in the wild, add it explicitly.
+ *   - Normalized to lowercase ASCII domain. EVERY subdomain level is checked
+ *     against the list (the lookup walks each suffix down to name.tld), so a
+ *     listed `mailinator.com` also catches `m.mailinator.com` and
+ *     `a.b.mailinator.com` without needing each variant in the list.
  *   - The list is starter-quality (~150 well-known throwaway services). It is
  *     NOT exhaustive — new disposable providers appear weekly. For a harder
  *     gate, integrate a commercial API (Abstract API, Kickbox, ZeroBounce) on
@@ -643,7 +644,9 @@ const DISPOSABLE_DOMAINS = new Set<string>([
   "xoxy.net",
   "xyzfree.net",
   // --- Y ---
-  "yandex.com",  // NOTE: not free provider — yandex.com is separate from yandex.ru; .com version widely abused for throwaway
+  // NOTE: yandex.com intentionally NOT listed — it is a mainstream consumer
+  // mailbox provider (real clients use it); blocking it rejected legitimate
+  // senders with "disposable_email".
   "yeah.net",
   "yep.it",
   "youmail.ga",
@@ -679,11 +682,14 @@ function extractDomain(email: string): string | null {
 }
 
 /**
- * Returns true when the email's domain is on the disposable-service denylist.
+ * Returns true when the email's domain — at ANY subdomain level — is on the
+ * disposable-service denylist.
  *
- * Checks the full domain (e.g. "mailinator.com") and, when the domain has
- * more than two labels, also the registered domain (strips the leftmost
- * subdomain). This catches patterns like `user@spam.mailinator.com`.
+ * Walks every progressively-shorter suffix of the domain, not just one strip:
+ * `user@a.b.mailinator.com` is checked as `a.b.mailinator.com`,
+ * `b.mailinator.com`, then `mailinator.com` (match). This catches multi-level
+ * subdomain throwaways that a single leftmost-strip would miss. The walk stops
+ * at two labels (a registrable domain is at least `name.tld`).
  *
  * Does NOT do network I/O — purely set membership.
  */
@@ -691,13 +697,12 @@ export function isDisposableEmail(email: string): boolean {
   const domain = extractDomain(email);
   if (!domain) return false;
 
-  if (DISPOSABLE_DOMAINS.has(domain)) return true;
-
-  // Check registered domain (strip one subdomain level).
   const parts = domain.split(".");
-  if (parts.length > 2) {
-    const registered = parts.slice(-2).join(".");
-    if (DISPOSABLE_DOMAINS.has(registered)) return true;
+  // Check the full domain and every shorter suffix down to the 2-label
+  // registrable domain (i < parts.length - 1 keeps at least name.tld).
+  for (let i = 0; i <= parts.length - 2; i++) {
+    const candidate = parts.slice(i).join(".");
+    if (DISPOSABLE_DOMAINS.has(candidate)) return true;
   }
 
   return false;
