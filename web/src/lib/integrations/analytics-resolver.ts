@@ -9,6 +9,7 @@ import {
 } from "@/lib/integrations/catalog";
 import { sanitizeAnalyticsId } from "@/lib/integrations/analytics-id-guard";
 import { getTenantIntegration } from "@/lib/integrations/repository";
+import { platformConfigField } from "@/lib/integrations/platform-defaults";
 
 /**
  * Resolved analytics identifiers for a tenant, all safe to pass to the browser.
@@ -83,18 +84,33 @@ export async function resolveTenantAnalytics(
     getTenantIntegration(tenantId, LINKEDIN_INSIGHT_INTEGRATION_KEY),
   ]);
 
+  // GA4 platform-DB default: when the tenant has no connected GA4 of its own,
+  // inherit the super-admin's stored platform GA4 measurement id (if any). This
+  // is ADDITIVE — when no platform-DB default is set this resolves to null and
+  // the component's existing NEXT_PUBLIC_GA_MEASUREMENT_ID env fallback applies
+  // unchanged (zero regression). Re-sanitized at this boundary like every id.
+  const tenantGaId = isConnected(ga4Row)
+    ? sanitizeAnalyticsId(
+        configField(ga4Row?.config_json, "measurement_id"),
+        GA4_INTEGRATION_KEY,
+        "measurement_id",
+      )
+    : null;
+  const platformGaDefault = tenantGaId
+    ? null
+    : sanitizeAnalyticsId(
+        await platformConfigField(GA4_INTEGRATION_KEY, "measurement_id"),
+        GA4_INTEGRATION_KEY,
+        "measurement_id",
+      );
+
   // Re-validate every id at the resolver boundary (whitelist + catalog test) so
   // an unvalidated config_json writer can never reach the raw script-string
-  // interpolation in AnalyticsScripts. GA4's platform fallback is applied (and
-  // re-sanitized) inside the component, where the env value lives.
+  // interpolation in AnalyticsScripts. The GA4 env fallback (when neither the
+  // tenant NOR the platform DB has an id) is applied + re-sanitized inside the
+  // component, where the env value lives.
   return {
-    gaId: isConnected(ga4Row)
-      ? sanitizeAnalyticsId(
-          configField(ga4Row?.config_json, "measurement_id"),
-          GA4_INTEGRATION_KEY,
-          "measurement_id",
-        )
-      : null,
+    gaId: tenantGaId ?? platformGaDefault,
     gtmId: isConnected(gtmRow)
       ? sanitizeAnalyticsId(
           configField(gtmRow?.config_json, "container_id"),

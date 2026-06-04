@@ -3,6 +3,7 @@ import "server-only";
 import {
   CAPTCHA_INTEGRATION_KEY,
   CUSTOM_CODE_INTEGRATION_KEY,
+  GOOGLE_MAPS_INTEGRATION_KEY,
   getIntegrationDef,
   primarySecretField,
 } from "@/lib/integrations/catalog";
@@ -12,6 +13,10 @@ import {
   getTenantIntegration,
   type TenantIntegrationRow,
 } from "@/lib/integrations/repository";
+import {
+  platformConfigField,
+  platformSecret,
+} from "@/lib/integrations/platform-defaults";
 
 /**
  * Tenant Integrations — runtime credential resolution.
@@ -72,21 +77,34 @@ export async function resolveIntegration(
 
 /**
  * Platform-level Google Maps key destined for the BROWSER (serialized into
- * client HTML / passed as a client component prop). This MUST use only the
- * public NEXT_PUBLIC_ var — the server-only GOOGLE_PLACES_API_KEY must never be
- * shipped to the client.
+ * client HTML / passed as a client component prop).
+ *
+ * Fallback order: platform-DB default (the super-admin's stored google_maps
+ * api_key — a referer-restricted BROWSER key the platform owns, so it's safe to
+ * ship to the client, same class of value as NEXT_PUBLIC_GOOGLE_MAPS_API_KEY)
+ * → NEXT_PUBLIC_GOOGLE_MAPS_API_KEY. The server-only GOOGLE_PLACES_API_KEY is
+ * NEVER used on this path. When no platform-DB default is set the result is
+ * identical to today's env-only behavior.
  */
-function platformGoogleMapsKeyForClient(): string | null {
+async function platformGoogleMapsKeyForClient(): Promise<string | null> {
+  const dbDefault = await platformSecret(GOOGLE_MAPS_INTEGRATION_KEY, "api_key");
+  if (dbDefault) return dbDefault;
   return process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim() || null;
 }
 
 /**
  * Platform-level Google Places key for SERVER-side Places API calls (route
  * handlers that fetch from Google directly and never serialize the key to the
- * browser). Prefer the server-only GOOGLE_PLACES_API_KEY, falling back to the
- * public var if only that is set.
+ * browser).
+ *
+ * Fallback order: platform-DB default (the super-admin's stored google_maps
+ * api_key) → server-only GOOGLE_PLACES_API_KEY → public
+ * NEXT_PUBLIC_GOOGLE_MAPS_API_KEY. When no platform-DB default is set the result
+ * is identical to today's env-only behavior.
  */
-function platformGoogleMapsKeyForServer(): string | null {
+async function platformGoogleMapsKeyForServer(): Promise<string | null> {
+  const dbDefault = await platformSecret(GOOGLE_MAPS_INTEGRATION_KEY, "api_key");
+  if (dbDefault) return dbDefault;
   return (
     process.env.GOOGLE_PLACES_API_KEY?.trim() ||
     process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim() ||
@@ -114,8 +132,8 @@ export async function resolveGoogleMapsKey(
   forClient = true,
 ): Promise<string | null> {
   const env = forClient
-    ? platformGoogleMapsKeyForClient()
-    : platformGoogleMapsKeyForServer();
+    ? await platformGoogleMapsKeyForClient()
+    : await platformGoogleMapsKeyForServer();
   if (!tenantId) return env;
   const { getSecret } = await resolveIntegration(tenantId, "google_maps", env);
   return getSecret();
@@ -191,11 +209,26 @@ export type TenantCaptchaConfig = {
   getSecret: () => Promise<string | null>;
 };
 
-function platformCaptcha(): {
+async function platformCaptcha(): Promise<{
   provider: "hcaptcha" | "turnstile" | "none";
   siteKey: string | null;
   secret: string | null;
-} {
+}> {
+  // Platform-DB default FIRST: the super-admin's stored captcha (provider +
+  // PUBLIC site_key in config_json + SECRET secret_key in the vault). When a
+  // usable provider+siteKey pair is stored, it becomes the platform default
+  // every tenant inherits. The secret is decrypted server-side only.
+  const dbProvider = await platformConfigField(CAPTCHA_INTEGRATION_KEY, "provider");
+  const dbSiteKey = await platformConfigField(CAPTCHA_INTEGRATION_KEY, "site_key");
+  if (
+    (dbProvider === "hcaptcha" || dbProvider === "turnstile") &&
+    dbSiteKey
+  ) {
+    const dbSecret = await platformSecret(CAPTCHA_INTEGRATION_KEY, "secret_key");
+    return { provider: dbProvider, siteKey: dbSiteKey, secret: dbSecret };
+  }
+
+  // No platform-DB default → EXACT current env behavior (zero regression).
   const hSite = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY?.trim() || null;
   const hSecret = process.env.HCAPTCHA_SECRET?.trim() || null;
   const tSite = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() || null;
@@ -241,7 +274,7 @@ export async function resolveTenantCaptcha(
   }
 
   // No tenant captcha → fall back to the platform widget/secret.
-  const plat = platformCaptcha();
+  const plat = await platformCaptcha();
   return {
     provider: plat.provider,
     siteKey: plat.siteKey,
