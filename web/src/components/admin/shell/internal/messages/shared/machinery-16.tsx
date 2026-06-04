@@ -228,7 +228,7 @@ export function ConversationTab({
             loaded. Block/Report affordances are injected only when a subject is
             resolvable (registered client OR guest session on the inquiry). */}
         {mode === "chat" && trustChip && (
-          <div style={{ marginBottom: 8 }}>
+          <div className="mb-2">
             <GuestTrustChip
               identity={trustChip.identity}
               tier={trustChip.tier}
