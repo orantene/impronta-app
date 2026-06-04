@@ -44,6 +44,10 @@ import {
 } from "@/lib/server/request-cache";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import {
+  GUEST_CHAT_DEFAULTS,
+  loadGuestChatSettings,
+} from "@/lib/inquiry/guest-chat-settings";
 import { listPublicTalentIntegrationItems } from "@/lib/talent-integrations/repository";
 import {
   PublicFeaturedMedia,
@@ -1584,6 +1588,12 @@ export default async function PublicTalentProfilePage({
   // gold/rust is hard-coded (house rule).
   const chatAccentColor =
     tenantBranding?.primary_color ?? tenantBranding?.accent_color ?? null;
+  // Per-tenant guest-chat config (enable + placement + greeting). Defaults-on
+  // for non-agency / unconfigured tenants so the launcher keeps working.
+  const guestChatSettings =
+    hostCtx.kind === "agency"
+      ? await loadGuestChatSettings(hostCtx.tenantId)
+      : GUEST_CHAT_DEFAULTS;
   const canonicalBannerUrl = mediaUrl(pub, bannerMedia);
   const profileImageUrl = mediaUrl(pub, profileImageMedia);
 
@@ -2047,20 +2057,23 @@ export default async function PublicTalentProfilePage({
       />
 
       {/* Conversational-inquiry launcher — floating brand-skinned
-          "Message {Name}" chat (Lane D / guest-chat MVP). Sibling of the
-          LightProfileLayout's inquire CTA; renders only on the agency surface
-          (guarded inside on tenantSlug). Self-positions fixed bottom-right, so
-          DOM placement here is purely logical. */}
-      <TalentProfileChatLauncherMount
-        talentProfileId={profile.id}
-        talentProfileCode={profile.profile_code}
-        talentDisplayName={name}
-        tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
-        agencyName={tenantBrand ?? "the agency"}
-        accentColor={chatAccentColor}
-        logoUrl={watermarkLogoUrl}
-        sourcePage={profileSourcePage}
-      />
+          "Message {Name}" chat. Sibling of the LightProfileLayout's inquire
+          CTA; renders only on the agency surface AND when the tenant has guest
+          chat enabled + shown on talent profiles (tenant_guest_chat_settings).
+          Self-positions fixed bottom-right, so DOM placement here is logical. */}
+      {guestChatSettings.enabled && guestChatSettings.showOnTalent && (
+        <TalentProfileChatLauncherMount
+          talentProfileId={profile.id}
+          talentProfileCode={profile.profile_code}
+          talentDisplayName={name}
+          tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
+          agencyName={tenantBrand ?? "the agency"}
+          accentColor={chatAccentColor}
+          logoUrl={watermarkLogoUrl}
+          sourcePage={profileSourcePage}
+          greeting={guestChatSettings.greeting}
+        />
+      )}
     </>
   );
 

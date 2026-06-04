@@ -55,6 +55,8 @@ type TalentProfileChatLauncherMountProps = {
   sourcePage: string;
   /** "Open full conversation ↗" target (inert/link-only for MVP). Null hides it. */
   openFullHref?: string | null;
+  /** Optional custom opener from tenant_guest_chat_settings.greeting. */
+  greeting?: string | null;
 };
 
 export function TalentProfileChatLauncherMount({
@@ -67,6 +69,7 @@ export function TalentProfileChatLauncherMount({
   logoUrl = null,
   sourcePage,
   openFullHref = null,
+  greeting = null,
 }: TalentProfileChatLauncherMountProps) {
   // Guest chat only makes sense on an agency surface (the thread is tenant-owned).
   if (!tenantSlug) return null;
@@ -82,6 +85,7 @@ export function TalentProfileChatLauncherMount({
         talentDisplayName,
         accentColor,
         logoUrl,
+        greeting,
       }}
       // MVP stub: returning-guest reopen + prefill resolved by Lane A later.
       existingInquiryId={null}

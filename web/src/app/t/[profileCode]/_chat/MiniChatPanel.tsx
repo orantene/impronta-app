@@ -515,8 +515,14 @@ export function MiniChatPanel({
             lineHeight: 1.5,
           }}
         >
-          Hi — I&rsquo;m {talentFirst}&rsquo;s booking assistant. What&rsquo;s the event?
-          Tell me a little and I&rsquo;ll get the right person to reply.
+          {brand.greeting?.trim() ? (
+            brand.greeting.trim()
+          ) : (
+            <>
+              Hi — I&rsquo;m {talentFirst}&rsquo;s booking assistant. What&rsquo;s the event?
+              Tell me a little and I&rsquo;ll get the right person to reply.
+            </>
+          )}
         </div>
 
         {rows.map((m) => (

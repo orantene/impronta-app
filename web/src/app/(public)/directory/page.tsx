@@ -16,6 +16,7 @@ import { createTranslator } from "@/i18n/messages";
 import { getRequestLocale } from "@/i18n/request-locale";
 import type { Locale } from "@/i18n/config";
 import { buildPublicPageMetadata } from "@/lib/seo/public-metadata";
+import { AgencyChatLauncherMount } from "@/app/(public)/_chat/AgencyChatLauncherMount";
 import { DirectoryComponent } from "@/lib/site-admin/sections/directory/Component";
 import { fashionDirectoryPreset } from "@/lib/site-admin/sections/directory/presets";
 
@@ -126,6 +127,9 @@ export default async function DirectoryPage() {
           <PublicCmsFooterNav locale={locale} />
         </div>
       </footer>
+      {/* Floating "Message {agency}" guest-chat launcher — self-gates on the
+          tenant's guest-chat settings (enabled + show-on-directory). */}
+      <AgencyChatLauncherMount sourcePage="/directory" />
     </>
   );
 }

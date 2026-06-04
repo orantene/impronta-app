@@ -49,6 +49,7 @@ export type DrawerId =
   | "talent-payment-verify"
   | "taxonomy"
   | "workspace-settings"
+  | "guest-chat-settings"
   | "client-profile"
   | "site-health"
   | "team-activity"
