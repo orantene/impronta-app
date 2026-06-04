@@ -49,13 +49,11 @@ import {
 import {
   ArrowDown,
   ArrowUp,
-  Bookmark,
   ClipboardPaste,
   Copy,
   Files,
   PanelLeftOpen,
   Plus,
-  SquarePen,
   X,
 } from "lucide-react";
 
@@ -1200,12 +1198,6 @@ export function NavigatorPanel() {
             primary
           >
             <PanelLeftOpen size={20} strokeWidth={1.9} aria-hidden />
-          </RailIconButton>
-          <RailIconButton title="Open Layers (⌘\\)" onClick={toggleNavigator}>
-            <SquarePen size={20} strokeWidth={1.8} aria-hidden />
-          </RailIconButton>
-          <RailIconButton title="Saved" onClick={toggleNavigator}>
-            <Bookmark size={20} strokeWidth={1.8} aria-hidden />
           </RailIconButton>
         </div>
         {/* Collaborator avatar — pinned to the bottom of the rail. */}
