@@ -23,16 +23,20 @@
 --                        columns below + recipient-safety.ts.
 --
 -- Both tables are tenant-scoped (REFERENCES public.agencies(id), the tenant
--- root) and RLS-protected. RLS posture matches the surrounding inquiry
--- migrations:
+-- root) and RLS-protected. RLS posture:
 --   • Tenant staff get full access to rows in their own tenant
 --     (public.is_staff_of_tenant(tenant_id) — same helper as
---      inquiry_user_flags / inquiry_messages staff policies).
---   • A user can additionally read+manage the rows THEY authored
---     (blocker_user_id / reporter_user_id = auth.uid()), mirroring the
---     inquiry_user_flags "self" policy — so a talent who is staff of a tenant
---     can manage their own blocks even via a self-scoped query, and the row is
---     never visible cross-tenant.
+--      inquiry_user_flags / inquiry_messages staff policies). This is the ONLY
+--      write path: these are ENFORCEMENT / abuse-signal tables, so writes must
+--      be authorised by tenant staff membership, never by a bare "I authored it"
+--      self check (that would let any authenticated user plant a block/report in
+--      any tenant against any subject — a cross-tenant griefing primitive).
+--   • A user can additionally READ the rows THEY authored
+--     (blocker_user_id / reporter_user_id = auth.uid()) via a SELECT-only self
+--     policy — so a talent who is staff can see their own blocks even via a
+--     self-scoped query, and the row is never visible cross-tenant.
+--   • The default authenticated INSERT/UPDATE/DELETE grant is REVOKEd on both
+--     tables as defence-in-depth behind the staff write policy.
 -- Writes/reads from the guest-chat enforcement path go through the service-role
 -- client (which bypasses RLS) behind the app-layer ownership gate, exactly as
 -- the guest message engine does — RLS here is the defence-in-depth backstop for
@@ -96,15 +100,24 @@ CREATE POLICY user_blocks_staff ON public.user_blocks
   USING (public.is_staff_of_tenant(tenant_id))
   WITH CHECK (public.is_staff_of_tenant(tenant_id));
 
--- Self: a user can read+manage the blocks THEY created. Mirrors
--- inquiry_user_flags_self. (A staff recipient managing their own blocks is
--- covered by either policy; this keeps self-scoped queries working and the
--- row owner explicit.)
+-- Self: a user can READ the blocks THEY created (self-scoped queries). This is
+-- SELECT-ONLY by design — WRITES are authorised exclusively by the staff policy
+-- above (is_staff_of_tenant in WITH CHECK). A pure self WITH CHECK would let any
+-- authenticated user INSERT a block row into ANY tenant against ANY subject
+-- (their own blocker_user_id satisfies the check while tenant_id/subject are
+-- unconstrained) — a cross-tenant denial-of-conversation write primitive. The
+-- enforcement guard isBlocked() reads under the service-role client, so a forged
+-- row would silently refuse a victim's messages. Restrict writes to staff.
 DROP POLICY IF EXISTS user_blocks_self ON public.user_blocks;
 CREATE POLICY user_blocks_self ON public.user_blocks
-  FOR ALL
-  USING (blocker_user_id = auth.uid())
-  WITH CHECK (blocker_user_id = auth.uid());
+  FOR SELECT
+  USING (blocker_user_id = auth.uid());
+
+-- Defence-in-depth: revoke the default authenticated DML grant so a direct
+-- PostgREST write can't reach the table even if a future PERMISSIVE policy were
+-- added by mistake. SELECT stays (gated by the policies above). Writes flow
+-- through the staff policy via the service-role enforcement path / a staff JWT.
+REVOKE INSERT, UPDATE, DELETE ON public.user_blocks FROM authenticated;
 
 -- ───────────────────────────────────────────────────────────────────────────
 -- inquiry_reports — a staff recipient reports a sender on an inquiry.
@@ -158,11 +171,21 @@ CREATE POLICY inquiry_reports_staff ON public.inquiry_reports
   USING (public.is_staff_of_tenant(tenant_id))
   WITH CHECK (public.is_staff_of_tenant(tenant_id));
 
--- Self: a reporter can read+manage the reports THEY filed.
+-- Self: a reporter can READ the reports THEY filed. SELECT-ONLY by design —
+-- same root cause as user_blocks: a self WITH CHECK lets any authenticated user
+-- file a report in ANY tenant against ANY subject on ANY inquiry (only
+-- reporter_user_id is constrained), which would feed the "repeated reports ->
+-- trust-down + suspend" rollup with sockpuppet spam. Writes are staff-only via
+-- inquiry_reports_staff. (MVP scope: the reportInquiry() action that backs the
+-- trust-chip is already staff-only. If client self-report is ever a product
+-- need, add a TIGHT policy asserting the reporter is a participant of inquiry_id
+-- AND inquiry_id belongs to tenant_id — not a bare reporter_user_id check.)
 DROP POLICY IF EXISTS inquiry_reports_self ON public.inquiry_reports;
 CREATE POLICY inquiry_reports_self ON public.inquiry_reports
-  FOR ALL
-  USING (reporter_user_id = auth.uid())
-  WITH CHECK (reporter_user_id = auth.uid());
+  FOR SELECT
+  USING (reporter_user_id = auth.uid());
+
+-- Defence-in-depth: revoke the default authenticated DML grant (see user_blocks).
+REVOKE INSERT, UPDATE, DELETE ON public.inquiry_reports FROM authenticated;
 
 COMMIT;
