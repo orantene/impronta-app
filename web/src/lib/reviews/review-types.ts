@@ -32,3 +32,46 @@ export type ReviewableBooking = {
   eventDate: string | null;
   existingReview: { rating: number; body: string | null } | null;
 };
+
+// ---------------------------------------------------------------------------
+// Two-sided reviews (W8): talent → client direction + shared helpers.
+// ---------------------------------------------------------------------------
+
+/** Which side a review is ABOUT. */
+export type ReviewSubjectKind = "talent" | "client";
+
+/**
+ * A talent → client review. NOT public (clients have no public page). Visible to
+ * the author (talent), the subject (client), tenant staff, platform admin.
+ */
+export type ClientReview = {
+  id: string;
+  tenantId: string;
+  bookingId: string | null;
+  authorUserId: string;
+  authorName: string | null;
+  clientUserId: string;
+  rating: number;
+  body: string | null;
+  status: "published" | "hidden";
+  createdAt: string;
+};
+
+/** Generic average + count, used for client-side aggregates computed on read. */
+export type RatingSummary = {
+  average: number;
+  count: number;
+};
+
+/**
+ * A booking a talent can leave a CLIENT review on — the counterparty client +
+ * any existing client review by this talent.
+ */
+export type ReviewableCounterparty = {
+  bookingId: string;
+  clientUserId: string;
+  clientName: string | null;
+  eventTitle: string | null;
+  eventDate: string | null;
+  existingReview: { rating: number; body: string | null } | null;
+};

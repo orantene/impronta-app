@@ -202,6 +202,7 @@ import {
 } from "./profile-shell-internal";
 import { shouldShowPolaroidsSection } from "./profile-polaroids-policy";
 import { CommercialTermsEditor } from "./profile-shell-modules/profile-commercial-terms";
+import { ProfileReviewsEditor } from "./profile-shell-modules/profile-reviews";
 
 function detailsGroupHelperText(label: string): string {
   const normalized = label.toLowerCase();
@@ -1667,6 +1668,10 @@ export function TalentProfileShellDrawer() {
     limits:        state.limits.length > 0,
     files:         state.files.length > 0,
     social_proof:  state.pastClients.length > 0,
+    // Reviews are an independently-moderated read surface (loaded by
+    // ProfileReviewsEditor); not derived from the profile reducer, so it
+    // never gates publish — treat as non-gating like `admin`.
+    reviews:       true,
     verifications: state.verifications.idSubmitted && state.verifications.payoutConnected,
     admin:         true,
     // Back-office diagnostic, not a publish gate (mirrors `admin`).
@@ -1698,6 +1703,7 @@ export function TalentProfileShellDrawer() {
     limits:        false,
     files:         false,
     social_proof:  false,
+    reviews:       false,
     verifications: !sectionComplete.verifications && (state.verifications.idSubmitted || state.verifications.payoutConnected),
     admin:         false,
     agency_fields: false,
@@ -3730,6 +3736,22 @@ export function TalentProfileShellDrawer() {
                 onToggle={() => setActiveSection(activeSection === "commercial_terms" ? "" : "commercial_terms")}
               >
                 <CommercialTermsEditor talentId={payload.talentId} />
+              </ProfileAccordionSection>
+            )}
+
+            {/* REVIEWS — the talent's RECEIVED (client→talent) reviews, with
+                the public average. Self-loading via ProfileReviewsEditor;
+                admins get Hide/Unhide, the talent (isSelf) gets Report. Needs
+                a real talentId, so hidden in create mode until the row exists. */}
+            {payload.talentId && mode !== "create" && (
+              <ProfileAccordionSection
+                id="reviews" title="Reviews"
+                sub="Reviews clients left after working with this talent."
+                complete={sectionComplete.reviews} started={sectionStarted.reviews}
+                open={activeSection === "reviews"}
+                onToggle={() => setActiveSection(activeSection === "reviews" ? "" : "reviews")}
+              >
+                <ProfileReviewsEditor talentId={payload.talentId} isSelf={isSelf} />
               </ProfileAccordionSection>
             )}
 

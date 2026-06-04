@@ -20,7 +20,13 @@
 
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import type { TalentRatingSummary, TalentReview } from "./review-types";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
+import type {
+  ClientReview,
+  RatingSummary,
+  TalentRatingSummary,
+  TalentReview,
+} from "./review-types";
 
 type ReviewRow = {
   id: string;
@@ -44,11 +50,11 @@ function publicFirstName(raw: string | null | undefined): string | null {
   return first || null;
 }
 
-async function resolveClientFirstNames(
-  clientUserIds: string[],
+async function resolveFirstNames(
+  userIds: string[],
 ): Promise<Map<string, string | null>> {
   const out = new Map<string, string | null>();
-  const ids = Array.from(new Set(clientUserIds.filter(Boolean)));
+  const ids = Array.from(new Set(userIds.filter(Boolean)));
   if (ids.length === 0) return out;
 
   const svc = createServiceRoleClient();
@@ -67,6 +73,13 @@ async function resolveClientFirstNames(
     // Degrade silently — names just render as null.
   }
   return out;
+}
+
+/** Back-compat alias kept for the W7 talent-review read path. */
+async function resolveClientFirstNames(
+  clientUserIds: string[],
+): Promise<Map<string, string | null>> {
+  return resolveFirstNames(clientUserIds);
 }
 
 /**
@@ -153,4 +166,181 @@ export async function loadTalentRatingSummary(
   const sum = data.reduce((acc, r) => acc + (r.rating || 0), 0);
   const average = Math.round((sum / data.length) * 10) / 10;
   return { average, count: data.length };
+}
+
+// ---------------------------------------------------------------------------
+// Two-sided reviews (W8) read helpers.
+//
+// These read the NON-public client_reviews table (talent → client) + owner/admin
+// views of talent_reviews. They use the authed server client so RLS scopes rows
+// to the caller (subject client / author talent / staff). NEW tables/columns are
+// read with .returns<T>().
+// ---------------------------------------------------------------------------
+
+type ClientReviewRow = {
+  id: string;
+  tenant_id: string;
+  booking_id: string | null;
+  author_user_id: string;
+  author_talent_profile_id: string | null;
+  client_user_id: string;
+  rating: number;
+  body: string | null;
+  status: "published" | "hidden";
+  created_at: string;
+};
+
+type TalentReviewOwnerRow = ReviewRow & { reported_at: string | null };
+
+function mapClientReviewRow(
+  r: ClientReviewRow,
+  authorNames: Map<string, string | null>,
+): ClientReview {
+  return {
+    id: r.id,
+    tenantId: r.tenant_id,
+    bookingId: r.booking_id,
+    authorUserId: r.author_user_id,
+    authorName: authorNames.get(r.author_user_id) ?? null,
+    clientUserId: r.client_user_id,
+    rating: r.rating,
+    body: r.body,
+    status: r.status,
+    createdAt: r.created_at,
+  };
+}
+
+/**
+ * PUBLISHED talent → client reviews ABOUT a client (received reviews), newest
+ * first. RLS exposes these rows only to the subject client, the author, or
+ * tenant staff/platform — pass the relevant authed session implicitly via the
+ * cached server client.
+ */
+export async function loadClientReviews(
+  clientUserId: string,
+  limit = 20,
+): Promise<ClientReview[]> {
+  if (!clientUserId) return [];
+  const supabase = await getCachedServerSupabase();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from("client_reviews")
+    .select(
+      "id, tenant_id, booking_id, author_user_id, author_talent_profile_id, client_user_id, rating, body, status, created_at",
+    )
+    .eq("client_user_id", clientUserId)
+    .eq("status", "published")
+    .order("created_at", { ascending: false })
+    .limit(limit)
+    .returns<ClientReviewRow[]>();
+
+  if (error || !data || data.length === 0) return [];
+
+  const authorNames = await resolveFirstNames(data.map((r) => r.author_user_id));
+  return data.map((r) => mapClientReviewRow(r, authorNames));
+}
+
+/**
+ * Average + count of PUBLISHED talent → client reviews about a client. Computed
+ * on read (no denormalized cache for clients). Returns { average: 0, count: 0 }
+ * when none are visible.
+ */
+export async function loadClientRatingSummary(
+  clientUserId: string,
+): Promise<RatingSummary> {
+  const empty: RatingSummary = { average: 0, count: 0 };
+  if (!clientUserId) return empty;
+  const supabase = await getCachedServerSupabase();
+  if (!supabase) return empty;
+
+  const { data, error } = await supabase
+    .from("client_reviews")
+    .select("rating")
+    .eq("client_user_id", clientUserId)
+    .eq("status", "published")
+    .returns<{ rating: number }[]>();
+
+  if (error || !data || data.length === 0) return empty;
+  const sum = data.reduce((acc, r) => acc + (r.rating || 0), 0);
+  const average = Math.round((sum / data.length) * 10) / 10;
+  return { average, count: data.length };
+}
+
+/**
+ * Client → talent reviews AUTHORED by a user ("reviews I gave"). Reads the
+ * caller's own rows (RLS: client_user_id = auth.uid()) regardless of status, so
+ * the author still sees an edited/hidden review they wrote.
+ */
+export async function loadReviewsAuthoredByUser(
+  userId: string,
+  limit = 50,
+): Promise<TalentReview[]> {
+  if (!userId) return [];
+  const supabase = await getCachedServerSupabase();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from("talent_reviews")
+    .select(
+      "id, talent_profile_id, booking_id, client_user_id, rating, body, status, created_at",
+    )
+    .eq("client_user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(limit)
+    .returns<ReviewRow[]>();
+
+  if (error || !data || data.length === 0) return [];
+
+  const names = await resolveFirstNames(data.map((r) => r.client_user_id));
+  return data.map((r) => ({
+    id: r.id,
+    talentProfileId: r.talent_profile_id,
+    bookingId: r.booking_id,
+    clientUserId: r.client_user_id,
+    clientName: names.get(r.client_user_id) ?? null,
+    rating: r.rating,
+    body: r.body,
+    status: r.status,
+    createdAt: r.created_at,
+  }));
+}
+
+/**
+ * ALL client → talent reviews for a talent profile INCLUDING hidden rows — for
+ * the talent owner / admin to see their full received-reviews list with status.
+ * RLS gates this to the profile owner or tenant staff/platform.
+ */
+export async function loadTalentReviewsForOwner(
+  talentProfileId: string,
+  limit = 100,
+): Promise<TalentReview[]> {
+  if (!talentProfileId) return [];
+  const supabase = await getCachedServerSupabase();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from("talent_reviews")
+    .select(
+      "id, talent_profile_id, booking_id, client_user_id, rating, body, status, created_at, reported_at",
+    )
+    .eq("talent_profile_id", talentProfileId)
+    .order("created_at", { ascending: false })
+    .limit(limit)
+    .returns<TalentReviewOwnerRow[]>();
+
+  if (error || !data || data.length === 0) return [];
+
+  const names = await resolveClientFirstNames(data.map((r) => r.client_user_id));
+  return data.map((r) => ({
+    id: r.id,
+    talentProfileId: r.talent_profile_id,
+    bookingId: r.booking_id,
+    clientUserId: r.client_user_id,
+    clientName: names.get(r.client_user_id) ?? null,
+    rating: r.rating,
+    body: r.body,
+    status: r.status,
+    createdAt: r.created_at,
+  }));
 }

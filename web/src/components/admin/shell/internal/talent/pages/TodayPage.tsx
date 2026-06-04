@@ -13,6 +13,7 @@ import { SectionHeader, TalentTodayHero } from "../shared/today-2";
 import { ConversationCalendarRow, NeedsReplySection } from "../shared/today-3";
 import { WeekRhythmStrip } from "../shared/week-rhythm-1";
 import { TalentAgencyFilterChips } from "../shared/TalentAgencyFilterChips";
+import { TalentReviewsCard } from "../shared/reviews-card-1";
 
 const CURRENCY_SYMBOL: Record<string, string> = { EUR: "€", USD: "$", GBP: "£", MXN: "MX$" };
 
@@ -445,6 +446,11 @@ export function TalentTodayPage() {
         onSeeAll={() => openDrawer("talent-career-analytics")}
         onLogWork={() => openDrawer("talent-add-event", { mode: "work" })}
       />
+
+      {/* W8 — two-sided reviews. The talent's received (client→talent) rating
+          summary + recent reviews, and a "Rate your clients" list for the
+          talent→client direction. Self-suppresses when there's nothing yet. */}
+      <TalentReviewsCard />
 
       {/* WS-8.14 Agency analytics quick-access */}
       <div className="flex gap-2">

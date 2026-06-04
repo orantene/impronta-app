@@ -73,3 +73,55 @@ export function computeRatingSummary(ratings: number[]): {
 export function isValidRating(rating: number): boolean {
   return Number.isInteger(rating) && rating >= 1 && rating <= 5;
 }
+
+// ---------------------------------------------------------------------------
+// Two-sided reviews (W8) — pure authorization predicates.
+// ---------------------------------------------------------------------------
+
+/**
+ * A talent may leave a CLIENT review on a booking when:
+ *   - they are a talent ON that booking, AND
+ *   - the booking is reviewable under the default policy (completed, or paid +
+ *     event end passed).
+ * `callerTalentProfileIds` are the caller's own talent_profiles ids;
+ * `bookingTalentProfileIds` are the talent_profiles on the booking.
+ */
+export function canTalentReviewClient(input: {
+  callerTalentProfileIds: string[];
+  bookingTalentProfileIds: string[];
+  eligibility: ReviewEligibilityInput;
+}): boolean {
+  const onBooking = input.bookingTalentProfileIds.some((id) =>
+    input.callerTalentProfileIds.includes(id),
+  );
+  if (!onBooking) return false;
+  return isBookingReviewable(input.eligibility);
+}
+
+/**
+ * Who may REPORT (flag) a review: only the SUBJECT of the review.
+ *   - talent-subject review (client→talent): the talent who owns the reviewed
+ *     profile, i.e. callerUserId === subjectTalentUserId.
+ *   - client-subject review (talent→client): the reviewed client,
+ *     i.e. callerUserId === subjectClientUserId.
+ */
+export function canReportReview(input: {
+  kind: "talent" | "client";
+  callerUserId: string;
+  /** owner user of the reviewed talent profile (for kind='talent'). */
+  subjectTalentUserId?: string | null;
+  /** the reviewed client's user id (for kind='client'). */
+  subjectClientUserId?: string | null;
+}): boolean {
+  if (!input.callerUserId) return false;
+  if (input.kind === "talent") {
+    return (
+      !!input.subjectTalentUserId &&
+      input.subjectTalentUserId === input.callerUserId
+    );
+  }
+  return (
+    !!input.subjectClientUserId &&
+    input.subjectClientUserId === input.callerUserId
+  );
+}

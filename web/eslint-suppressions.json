@@ -100,6 +100,16 @@
       "count": 1
     }
   },
+  "src/components/admin/shell/internal/talent/shared/reviews-card-1.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 35
+    }
+  },
+  "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-reviews.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 20
+    }
+  },
   "src/components/admin/shell/internal/client.tsx": {
     "max-lines": {
       "count": 1
