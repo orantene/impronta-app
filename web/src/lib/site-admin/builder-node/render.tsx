@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
+import { memo } from "react";
 
 import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 import { FeaturedTalentCard } from "@/lib/site-admin/sections/featured_talent/FeaturedTalentCard";
@@ -3163,6 +3164,35 @@ function renderBuilderNode(
   }
 }
 
+/**
+ * Memoized per-node boundary (Sub-step A of the client-render refactor).
+ *
+ * This is a PURE restructure for memoization — it renders EXACTLY what
+ * `renderBuilderNode(node, options)` returns, with no wrapper element, so the
+ * emitted DOM (`data-*` attributes, nesting, React keys) is byte-identical to
+ * the un-memoized path. A component's returned root element keeps its own
+ * `key={node.id}`; the `key` placed on `<BuilderNodeView>` drives React list
+ * reconciliation, which `node.id` already did before. SSR output is unchanged
+ * because `memo` is transparent to `renderToStaticMarkup`.
+ *
+ * The comparator skips re-render only when BOTH the node reference and the
+ * single shared `options` reference are unchanged — so any edit that produces a
+ * new node (immutable tree updates) repaints exactly that node's subtree.
+ */
+const BuilderNodeView = memo(
+  function BuilderNodeView({
+    node,
+    options,
+  }: {
+    node: BuilderNode;
+    options: NormalizedBuilderNodeRenderOptions;
+  }): ReactNode {
+    return renderBuilderNode(node, options);
+  },
+  (prev, next) =>
+    Object.is(prev.node, next.node) && Object.is(prev.options, next.options),
+);
+
 export function renderBuilderNodes(
   nodes: ReadonlyArray<BuilderNode>,
   options: BuilderNodeRenderOptions = {},
@@ -3182,7 +3212,9 @@ export function renderBuilderNodes(
   };
   const renderedNodes = nodes
     .filter((node) => shouldRenderNode(node, normalizedOptions))
-    .map((node) => renderBuilderNode(node, normalizedOptions));
+    .map((node) => (
+      <BuilderNodeView key={node.id} node={node} options={normalizedOptions} />
+    ));
   if (renderedNodes.length === 0) return null;
   const fontLinks = normalizedOptions.includeFontLinks ? (
     <BuilderNodeFontLinks
