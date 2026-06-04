@@ -223,6 +223,32 @@ export type SendGuestMessageResult =
   | GuestChatFailure;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// 3b-bis. sendGuestClaimToEmail — send the claim/sign-in magic-link to a
+//     DIFFERENT or ADDITIONAL email and register it as a claim CANDIDATE on the
+//     guest-owned inquiry. Whichever candidate confirms FIRST claims the
+//     conversation (first-confirm-wins; relink lives in /auth/confirm).
+//
+//     SECURITY: like the other guest actions, the guest session is read
+//     server-side from x-impronta-guest and MUST own `inquiryId`. The email is
+//     a plain client input; an "unlinked" (staff/talent) email is refused.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type AddGuestClaimEmailInput = {
+  /** inquiries.id the guest is adding a claim recipient to. Ownership re-checked server-side. */
+  inquiryId: string;
+  /** The different/additional email to send the sign-in link to. */
+  email: string;
+};
+
+export type AddGuestClaimEmailResult =
+  | {
+      ok: true;
+      /** Echo of the email the link was sent to (for the tiny confirmation line). */
+      email: string;
+    }
+  | GuestChatFailure;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // 3c. getGuestThreadMessages — initial load + poll source for the popup.
 //     Returns the messages this guest session is entitled to see, oldest→newest.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -288,6 +314,10 @@ export type FetchMessagesCallback = (
   input: GetGuestThreadInput,
 ) => Promise<GetGuestThreadResult>;
 
+export type AddClaimEmailCallback = (
+  input: AddGuestClaimEmailInput,
+) => Promise<AddGuestClaimEmailResult>;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 5. MiniChatPanel props — the only substantial new frontend (Lane D / F2).
 //    Server actions arrive as the three callbacks above. Branding arrives as
@@ -344,6 +374,12 @@ export type MiniChatPanelProps = {
   onStartInquiry: OnStartInquiryCallback;
   onSendMessage: OnSendMessageCallback;
   fetchMessages: FetchMessagesCallback;
+  /**
+   * Optional: send the claim/sign-in link to a different/additional email and
+   * register it as a claim candidate (first-confirm-wins). When null the
+   * "Use a different email" affordance is hidden.
+   */
+  onAddClaimEmail?: AddClaimEmailCallback | null;
 
   /**
    * Poll cadence in ms while the panel is focused/open (MVP liveness path).
@@ -377,6 +413,8 @@ export type TalentChatLauncherProps = {
   onStartInquiry: OnStartInquiryCallback;
   onSendMessage: OnSendMessageCallback;
   fetchMessages: FetchMessagesCallback;
+  /** Optional add-a-claim-email action, forwarded to the panel. Null hides the control. */
+  onAddClaimEmail?: AddClaimEmailCallback | null;
 
   /**
    * Launcher label override. Default "Message {talentDisplayName}".

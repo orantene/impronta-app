@@ -41,6 +41,7 @@ import type {
   MiniChatPanelProps,
 } from "@/lib/inquiry/guest-chat-contract";
 
+import { ClaimEmailRecap } from "./ClaimEmailRecap";
 import {
   MiniChatMessageBubble,
   SendIcon,
@@ -76,6 +77,7 @@ export function MiniChatPanel({
   prefill = null,
   onStartInquiry,
   onSendMessage,
+  onAddClaimEmail = null,
   fetchMessages,
   pollIntervalMs = 4000,
   openFullHref = null,
@@ -521,22 +523,15 @@ export function MiniChatPanel({
           <MiniChatMessageBubble key={m.id} m={m} accent={accent} />
         ))}
 
-        {/* "We emailed you a link" — graceful async recovery copy. */}
+        {/* "Link sent" recap + "Use a different email" (first-confirm-wins). */}
         {emailedTo && (
-          <div
-            style={{
-              alignSelf: "center",
-              textAlign: "center",
-              fontSize: 11,
-              color: C.systemInk,
-              padding: "2px 8px",
-              maxWidth: "92%",
-            }}
-          >
-            We emailed{" "}
-            <strong style={{ color: C.inkMuted }}>{emailedTo}</strong> a link to sign in and
-            continue this conversation from any device.
-          </div>
+          <ClaimEmailRecap
+            emailedTo={emailedTo}
+            inquiryId={inquiryId}
+            accent={accent}
+            accentInk={accentInk}
+            onAddClaimEmail={onAddClaimEmail}
+          />
         )}
       </div>
 
