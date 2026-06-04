@@ -39,6 +39,7 @@ import {
   checkGuestMessageAbuse,
 } from "@/lib/inquiry/guest-abuse-guard";
 import { isBlocked } from "@/lib/inquiry/recipient-safety";
+import { resolveInquiryRecipients } from "@/lib/notifications/recipients";
 import { emitGuestAutoAck } from "@/lib/inquiry/guest-auto-ack";
 import type {
   GetGuestThreadInput,
@@ -204,6 +205,36 @@ async function resolveTenantIdBySlug(
   if (!data) return null;
   if (data.status === "cancelled" || data.status === "archived") return null;
   return data.id as string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Recipient resolution for the block check on INQUIRY CREATE (no inquiry row
+// exists yet, so we can't use resolveInquiryRecipients). The recipients that may
+// legitimately have blocked this sender are: the targeted talent's owning user +
+// every active tenant staff member. isBlocked() honors only blocks authored by
+// one of these, so a forged/unrelated block in the tenant can't deny the chat.
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function resolveCreateRecipientUserIds(
+  admin: SupabaseClient,
+  tenantId: string,
+  talentProfileId: string,
+): Promise<string[]> {
+  const ids = new Set<string>();
+  const [talentRes, staffRes] = await Promise.all([
+    admin.from("talent_profiles").select("user_id").eq("id", talentProfileId).maybeSingle(),
+    admin
+      .from("agency_memberships")
+      .select("profile_id")
+      .eq("tenant_id", tenantId)
+      .eq("status", "active"),
+  ]);
+  const talentUserId = (talentRes.data?.user_id as string | null) ?? null;
+  if (talentUserId) ids.add(talentUserId);
+  for (const m of (staffRes.data ?? []) as Array<{ profile_id: string | null }>) {
+    if (m.profile_id) ids.add(m.profile_id);
+  }
+  return Array.from(ids);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -496,12 +527,20 @@ export async function startGuestChatInquiry(
 
   // ── Recipient safety (Lane C): refuse to create the inquiry when this sender
   // (guest session and/or the just-provisioned client user) is blocked by a
-  // recipient in this tenant. Fail-open on infra error (see isBlocked docs).
+  // RECIPIENT of this conversation — the targeted talent or tenant staff. Scoped
+  // so a forged/unrelated block in the tenant can't deny the chat. Fail-open on
+  // infra error (see isBlocked docs).
+  const createRecipientIds = await resolveCreateRecipientUserIds(
+    admin,
+    tenantId,
+    input.talentProfileId,
+  );
   const block = await isBlocked(
     {
       tenantId,
       guestSessionId,
       clientUserId: provisioned.clientUserId,
+      recipientUserIds: createRecipientIds,
     },
     admin,
   );
@@ -684,12 +723,20 @@ export async function sendGuestMessageAction(
   if (!abuse.ok) return abuse;
 
   // ── Recipient safety (Lane C): refuse the send when this sender is blocked
-  // by a recipient in the inquiry's tenant. Fail-open on infra error.
+  // by an actual RECIPIENT of this inquiry (its talent participants + tenant
+  // staff). Scoped so a forged/unrelated block can't deny the thread. Fail-open
+  // on infra error.
+  const recipients = await resolveInquiryRecipients(
+    admin,
+    owned.inquiry.id,
+    owned.inquiry.tenantId,
+  );
   const block = await isBlocked(
     {
       tenantId: owned.inquiry.tenantId,
       guestSessionId,
       clientUserId: owned.inquiry.clientUserId,
+      recipientUserIds: [...recipients.talentUserIds, ...recipients.workspaceUserIds],
     },
     admin,
   );

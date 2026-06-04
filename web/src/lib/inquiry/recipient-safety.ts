@@ -72,6 +72,20 @@ const REPORT_REASONS: ReadonlySet<InquiryReportReason> = new Set([
 ]);
 
 // ─────────────────────────────────────────────────────────────────────────────
+// UUID guard. The subject ids and recipient ids flow into PostgREST filters; a
+// non-UUID value (comma, PostgREST operator) could alter an `.or()` / `.in()`
+// filter (filter injection). Callers pass server-resolved UUIDs today, but the
+// guard is documented as reusable, so we validate at the boundary regardless.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isUuid(value: string | null | undefined): value is string {
+  return typeof value === "string" && UUID_RE.test(value);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // isBlocked() — the reusable enforcement guard.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -89,6 +103,19 @@ export type BlockCheckSubject = {
   guestSessionId?: string | null;
   /** The registered client user id (inquiries.client_user_id). */
   clientUserId?: string | null;
+  /**
+   * The user ids that are RECIPIENTS of this conversation — the talent's owning
+   * user(s) + the tenant's coordinator/staff. When provided (non-empty), ONLY
+   * blocks authored by one of these users count: a forged/stray user_blocks row
+   * authored by an unrelated user in the same tenant cannot deny this
+   * conversation. Resolve server-side from the inquiry's participants (existing
+   * inquiry) or the targeted talent + tenant staff (inquiry-create, pre-insert).
+   *
+   * Omit/null preserves the legacy tenant-wide match (any block row in the
+   * tenant against the subject) — kept only as a defensive default; the
+   * guest-chat call sites SHOULD pass the scoped recipient set.
+   */
+  recipientUserIds?: string[] | null;
 };
 
 export type BlockCheckResult = {
@@ -131,11 +158,26 @@ export async function isBlocked(
   subject: BlockCheckSubject,
   client?: SupabaseClient,
 ): Promise<BlockCheckResult> {
-  const guestSessionId = subject.guestSessionId ?? null;
-  const clientUserId = subject.clientUserId ?? null;
+  // UUID-validate the subject ids before they reach a PostgREST filter. A
+  // non-UUID value is treated as "no such subject" (it can't have a block row)
+  // and is dropped rather than concatenated into the filter string.
+  const guestSessionId = isUuid(subject.guestSessionId) ? subject.guestSessionId : null;
+  const clientUserId = isUuid(subject.clientUserId) ? subject.clientUserId : null;
 
   // No resolvable subject ⇒ nothing to block on.
-  if (!subject.tenantId || (!guestSessionId && !clientUserId)) {
+  if (!isUuid(subject.tenantId) || (!guestSessionId && !clientUserId)) {
+    return NOT_BLOCKED;
+  }
+
+  // Scope to recipient-authored blocks when the caller resolved them. Non-UUID
+  // entries are dropped. An EMPTY scoped list (caller passed [] — e.g. the
+  // inquiry has no resolvable recipient yet) means there is nobody whose block
+  // could legitimately apply, so we report not-blocked.
+  const scopedRecipients =
+    subject.recipientUserIds == null
+      ? null
+      : subject.recipientUserIds.filter(isUuid);
+  if (scopedRecipients != null && scopedRecipients.length === 0) {
     return NOT_BLOCKED;
   }
 
@@ -157,9 +199,16 @@ export async function isBlocked(
       .eq("tenant_id", subject.tenantId)
       .limit(1);
 
+    // Only honor blocks authored by an actual recipient of this conversation,
+    // when the caller scoped them. Without this, a forged/unrelated user_blocks
+    // row in the tenant could deny a conversation it has nothing to do with.
+    if (scopedRecipients != null) {
+      query = query.in("blocker_user_id", scopedRecipients);
+    }
+
     // Match a block on EITHER subject identity. PostgREST `.or()` with the two
     // partial-indexed columns; null ids are excluded by being absent from the
-    // OR clause.
+    // OR clause. Both ids are UUID-validated above, so the filter is safe.
     const orParts: string[] = [];
     if (guestSessionId) orParts.push(`blocked_guest_session_id.eq.${guestSessionId}`);
     if (clientUserId) orParts.push(`blocked_client_user_id.eq.${clientUserId}`);
@@ -280,6 +329,9 @@ export type BlockSubjectResult = { ok: boolean };
  */
 export async function blockSubject(input: BlockSubjectInput): Promise<BlockSubjectResult> {
   if (!input.inquiryId || !input.subjectId) return { ok: false };
+  // The subject id is written into a UUID column and (via isBlocked) read back
+  // into a PostgREST filter — reject anything that isn't a UUID at the boundary.
+  if (!isUuid(input.subjectId)) return { ok: false };
   if (input.subjectType !== "guest_session" && input.subjectType !== "client_user") {
     return { ok: false };
   }
