@@ -46,6 +46,8 @@ import { sendGuestClaimEmail } from "@/lib/inquiry/guest-claim-link";
 import { getTypicalReplyLabel } from "@/lib/inquiry/guest-reply-latency";
 import { getAppUrl } from "@/lib/auth-flow";
 import type {
+  AddGuestClaimEmailInput,
+  AddGuestClaimEmailResult,
   GetGuestThreadInput,
   GetGuestThreadResult,
   GuestChatErrorCode,
@@ -636,6 +638,21 @@ export async function startGuestChatInquiry(
 
   const inquiryId = created.inquiryId;
 
+  // Seed the FIRST provisioned account as the initial claim candidate so the
+  // "use a different/additional email" path (sendGuestClaimToEmail) and the
+  // first-confirm-wins relink in /auth/confirm share one candidate set. Only the
+  // matched/created account is a candidate; an "unlinked" (staff/talent) email
+  // has no client account to claim. Best-effort — never block inquiry creation.
+  if (provisioned.clientUserId) {
+    const { error: seedErr } = await admin
+      .from("inquiries")
+      .update({ claim_candidate_user_ids: [provisioned.clientUserId] })
+      .eq("id", inquiryId);
+    if (seedErr) {
+      logServerError("guest-chat-actions.startGuestChatInquiry/seedCandidate", seedErr);
+    }
+  }
+
   // Append the first message as a GROUP-thread guest message so it shows in the
   // popup AND fires the talent/coordinator realtime + notification fanout. The
   // brief.summary above seeds the inquiry record; this is the visible bubble.
@@ -855,6 +872,116 @@ export async function sendGuestMessageAction(
 
   // Fallback synthetic echo (insert succeeded but read-back failed).
   return { ok: true, message: synthOpeningMessage(owned.inquiry.id, messageId, body) };
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 3b-bis. sendGuestClaimToEmail — send the claim/sign-in link to a different OR
+// additional email and register that account as a claim CANDIDATE on the
+// guest-owned inquiry. Whichever candidate confirms their magic-link FIRST claims
+// the conversation (first-confirm-wins; the relink lives in /auth/confirm).
+// ═════════════════════════════════════════════════════════════════════════════
+
+export async function sendGuestClaimToEmail(
+  input: AddGuestClaimEmailInput,
+): Promise<AddGuestClaimEmailResult> {
+  const email = input.email?.trim() ?? "";
+  if (!email) {
+    return fail("validation_failed", "Enter an email address.", { missingFields: ["email"] });
+  }
+  if (!input.inquiryId) {
+    return fail("validation_failed", "Missing conversation.", { missingFields: ["inquiryId"] });
+  }
+
+  const guest = await resolveGuestContext();
+  if (!guest.ok) return guest.failure;
+  const { admin, guestSessionId } = guest.ctx;
+
+  // OWNERSHIP GATE — the cookie session MUST own this inquiry. Never trust a
+  // client-supplied session; this is the same gate the other guest actions use.
+  const owned = await loadOwnedInquiry(admin, input.inquiryId, guestSessionId);
+  if (!owned.ok) return owned.failure;
+
+  // Provision (or match) a client account for this email. "unlinked" means the
+  // email belongs to a privileged (staff/talent) account — there is no client
+  // account to claim, so we refuse politely and never email a sign-in link there.
+  const provisioned = await ensureGuestClientByEmail({
+    email,
+    name: "",
+    company: "",
+    phone: "",
+  });
+  if (provisioned.status === "unlinked" || !provisioned.clientUserId) {
+    return fail(
+      "forbidden",
+      "That email is already tied to a team account — try a personal email instead.",
+    );
+  }
+
+  // Register the account as a claim candidate (deduped) so the first-confirm-wins
+  // relink in /auth/confirm recognizes it. Read-modify-write the uuid[] array.
+  const { data: row, error: readErr } = await admin
+    .from("inquiries")
+    .select("claim_candidate_user_ids")
+    .eq("id", owned.inquiry.id)
+    .maybeSingle();
+  if (readErr) {
+    logServerError("guest-chat-actions.sendGuestClaimToEmail/readCandidates", readErr);
+    return fail("engine_error", "Couldn't send the link. Please try again.");
+  }
+  const existing = ((row?.claim_candidate_user_ids as string[] | null) ?? []).filter(Boolean);
+  if (!existing.includes(provisioned.clientUserId)) {
+    const next = [...existing, provisioned.clientUserId];
+    const { error: writeErr } = await admin
+      .from("inquiries")
+      .update({ claim_candidate_user_ids: next })
+      .eq("id", owned.inquiry.id);
+    if (writeErr) {
+      logServerError("guest-chat-actions.sendGuestClaimToEmail/writeCandidates", writeErr);
+      return fail("engine_error", "Couldn't send the link. Please try again.");
+    }
+  }
+
+  // Talent display name for the email copy — best-effort, falls back to agency.
+  let talentName = "";
+  const { data: talentRow } = await admin
+    .from("inquiry_participants")
+    .select("talent_profile_id")
+    .eq("inquiry_id", owned.inquiry.id)
+    .eq("role", "talent")
+    .not("talent_profile_id", "is", null)
+    .limit(1)
+    .maybeSingle();
+  const talentProfileId = (talentRow?.talent_profile_id as string | null) ?? null;
+  if (talentProfileId) {
+    const { data: t } = await admin
+      .from("talent_profiles")
+      .select("display_name")
+      .eq("id", talentProfileId)
+      .maybeSingle();
+    talentName = (t?.display_name as string | null)?.trim() || "";
+  }
+  if (!talentName) {
+    talentName = (await loadAgencyName(admin, owned.inquiry.tenantId)) ?? "the team";
+  }
+
+  // Resolve the tenant slug for the post-auth destination + branded email.
+  const { data: tenantRow } = await admin
+    .from("agencies")
+    .select("slug")
+    .eq("id", owned.inquiry.tenantId)
+    .maybeSingle();
+  const tenantSlug = (tenantRow?.slug as string | null) ?? "";
+
+  // Send the magic-link. Reuses the existing module (swallows all failures).
+  await sendGuestClaimEmail({
+    email,
+    tenantSlug,
+    talentName,
+    appUrl: getAppUrl(),
+    tenantId: owned.inquiry.tenantId,
+  });
+
+  return { ok: true, email };
 }
 
 // ═════════════════════════════════════════════════════════════════════════════

@@ -34,6 +34,7 @@ export function TalentProfileChatLauncher({
   onStartInquiry,
   onSendMessage,
   fetchMessages,
+  onAddClaimEmail = null,
   label,
   className,
   openFullHref = null,
@@ -100,6 +101,7 @@ export function TalentProfileChatLauncher({
         onStartInquiry={onStartInquiry}
         onSendMessage={onSendMessage}
         fetchMessages={fetchMessages}
+        onAddClaimEmail={onAddClaimEmail}
         openFullHref={openFullHref}
       />
     </>

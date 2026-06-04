@@ -31,6 +31,7 @@ import { TalentProfileChatLauncher } from "./TalentProfileChatLauncher";
 // match the contract callbacks 1:1, so they pass straight into the launcher.
 import {
   getGuestThreadMessages,
+  sendGuestClaimToEmail,
   sendGuestMessageAction,
   startGuestChatInquiry,
 } from "@/app/t/[profileCode]/_actions/guest-chat-actions";
@@ -88,6 +89,7 @@ export function TalentProfileChatLauncherMount({
       onStartInquiry={startGuestChatInquiry}
       onSendMessage={sendGuestMessageAction}
       fetchMessages={getGuestThreadMessages}
+      onAddClaimEmail={sendGuestClaimToEmail}
       openFullHref={openFullHref}
     />
   );
