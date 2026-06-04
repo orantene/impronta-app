@@ -87,6 +87,28 @@ async function iso2FromCountryId(
 }
 
 /**
+ * Resolve a country's ISO-2 from a free-text country name (e.g. the profile's
+ * `home_country_text` = "Mexico"), or pass through a value that's already an
+ * ISO-2. Lets the payout flow honour a country the talent set on their profile
+ * even when the structured `residence_country_id` FK was never populated.
+ */
+async function iso2FromCountryText(
+  admin: AdminClient,
+  text: string | null,
+): Promise<string | null> {
+  const t = (text ?? "").trim();
+  if (!t) return null;
+  if (/^[A-Za-z]{2}$/.test(t)) return t.toUpperCase();
+  const { data } = await admin
+    .from("countries")
+    .select("iso2")
+    .ilike("name_en", t)
+    .limit(1)
+    .maybeSingle();
+  return (data?.iso2 as string | null) ?? null;
+}
+
+/**
  * Create-or-get the talent's Stripe Connect Express account.
  *
  * On first call: creates a new Express account, persists its id to
@@ -111,7 +133,7 @@ export async function createOrGetTalentConnectedAccount(
   //    match the payee — never the platform's default.
   const { data: tp, error: readErr } = await admin
     .from("talent_profiles")
-    .select("id, display_name, stripe_account_id, profile_code, residence_country_id")
+    .select("id, display_name, stripe_account_id, profile_code, residence_country_id, home_country_text")
     .eq("id", talentProfileId)
     .maybeSingle();
   if (readErr || !tp) {
@@ -126,10 +148,34 @@ export async function createOrGetTalentConnectedAccount(
   // 2. Resolve the payout country: an explicit override (the talent picked it
   //    on the payouts page) wins, else their residence country. If neither is
   //    known we can't create the account yet — the UI shows a country picker.
-  const residenceIso2 = await iso2FromCountryId(admin, tp.residence_country_id as string | null);
+  // Structured residence FK first; if unset, fall back to the profile's
+  // free-text country ("home_country_text") so a country the talent already
+  // set on their profile is honoured instead of falsely asking again.
+  const residenceIso2 =
+    (await iso2FromCountryId(admin, tp.residence_country_id as string | null)) ??
+    (await iso2FromCountryText(admin, tp.home_country_text as string | null));
   const country = normalizePayoutCountry(opts.country) ?? normalizePayoutCountry(residenceIso2);
   if (!country) {
     return { ok: false, error: "country_required" };
+  }
+
+  // If the talent had no country on file and just picked one for payouts, sync
+  // it back to their profile so it shows up there too (single source of truth).
+  if (!residenceIso2 && opts.country) {
+    const { data: matchedCountry } = await admin
+      .from("countries")
+      .select("id")
+      .eq("iso2", country)
+      .maybeSingle();
+    if (matchedCountry?.id) {
+      await admin
+        .from("talent_profiles")
+        .update({
+          residence_country_id: matchedCountry.id as string,
+          home_country_text: payoutCountryLabel(country),
+        })
+        .eq("id", talentProfileId);
+    }
   }
 
   // 3. Prefill the connected account's business website with the talent's
@@ -186,10 +232,12 @@ export async function resolveTalentPayoutCountry(
   if (!admin) return null;
   const { data } = await admin
     .from("talent_profiles")
-    .select("residence_country_id")
+    .select("residence_country_id, home_country_text")
     .eq("id", talentProfileId)
     .maybeSingle();
-  const iso2 = await iso2FromCountryId(admin, (data?.residence_country_id as string | null) ?? null);
+  const iso2 =
+    (await iso2FromCountryId(admin, (data?.residence_country_id as string | null) ?? null)) ??
+    (await iso2FromCountryText(admin, (data?.home_country_text as string | null) ?? null));
   return normalizePayoutCountry(iso2);
 }
 

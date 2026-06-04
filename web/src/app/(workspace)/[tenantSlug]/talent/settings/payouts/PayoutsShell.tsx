@@ -213,9 +213,13 @@ export function PayoutsShell({
             </div>
           ) : needCountry ? (
             <div style={card}>
-              <label htmlFor="payout-country" style={{ display: "block", fontSize: 13, fontWeight: 600, color: C.ink, marginBottom: 8 }}>
-                Where will you receive payouts?
+              <div style={sectionLabel}>One quick thing</div>
+              <label htmlFor="payout-country" style={{ display: "block", fontSize: 15, fontWeight: 600, color: C.ink, margin: "10px 0 6px", letterSpacing: -0.1 }}>
+                Please select your country of residence
               </label>
+              <p style={{ margin: "0 0 12px", fontSize: 12.5, lineHeight: 1.5, color: C.inkMuted }}>
+                This is where you bank and get paid. We&apos;ll save it to your profile for tax and payout routing.
+              </p>
               <select
                 id="payout-country"
                 data-testid="talent-payout-country"
