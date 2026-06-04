@@ -82,7 +82,16 @@ export async function createRecipientBankPayoutMethod(opts: {
   );
 }
 
-export type PayoutMethod = { id: string; object: string; type?: string };
+export type PayoutMethod = {
+  id: string;
+  object: string;
+  type?: string;
+  bank_account?: {
+    country?: string;
+    last4?: string;
+    supported_currencies?: string[];
+  } | null;
+};
 
 /** List a recipient's payout methods (Stripe-Context scoped). */
 export async function listRecipientPayoutMethods(

@@ -116,9 +116,20 @@ async function workspaceTransferAccount(tenantId: string): Promise<string | null
     : null;
 }
 
-/** GP recipient (v2 core account id) for a talent — their connected account id
- *  doubles as their v2 recipient account, so the Global Payouts rail reuses it. */
+/** GP recipient (v2 core account id) for a talent — prefer their dedicated
+ *  Global Payouts recipient (gp_recipient_account_id, which has a bank payout
+ *  method); fall back to the Connect account id (which doubles as a v2 recipient). */
 async function talentRecipientAccount(talentProfileId: string): Promise<string | null> {
+  const sb = createServiceRoleClient();
+  if (sb) {
+    const { data } = await sb
+      .from("talent_profiles")
+      .select("gp_recipient_account_id")
+      .eq("id", talentProfileId)
+      .maybeSingle();
+    const gp = (data?.gp_recipient_account_id as string | null) ?? null;
+    if (gp) return gp;
+  }
   const res = await getTalentConnectedAccountSnapshot(talentProfileId);
   return res.ok ? res.data.stripeAccountId : null;
 }

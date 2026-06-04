@@ -77,3 +77,15 @@ export function isStablecoinPayoutCountry(iso2: string | null | undefined): bool
   if (!iso2) return false;
   return STABLECOIN_PAYOUT_COUNTRIES.has(iso2.trim().toUpperCase());
 }
+
+/** Default local payout currency (ISO-4217, lowercase) for a payout country —
+ *  prefills the Global Payouts bank-payout-method currency. Falls back to USD. */
+export function defaultPayoutCurrency(iso2: string | null | undefined): string {
+  const c = (iso2 ?? "").trim().toUpperCase();
+  const map: Record<string, string> = {
+    US: "usd", CA: "cad", MX: "mxn", AR: "ars", BR: "brl", CL: "clp", CO: "cop",
+    PE: "pen", UY: "uyu", GB: "gbp", AU: "aud",
+    ES: "eur", PT: "eur", FR: "eur", DE: "eur", IT: "eur", NL: "eur",
+  };
+  return map[c] ?? "usd";
+}

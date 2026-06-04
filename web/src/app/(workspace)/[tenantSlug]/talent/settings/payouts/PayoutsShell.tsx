@@ -12,6 +12,7 @@ import {
 import { ConnectEmbeddedOnboarding } from "@/components/payments/ConnectEmbeddedOnboarding";
 import { PAYOUT_COUNTRIES } from "@/lib/payments/payout-countries";
 import { HeldPayoutsBanner } from "@/components/payments/HeldPayoutsBanner";
+import { GlobalPayoutsBankCard } from "./GlobalPayoutsBankCard";
 import type { TalentConnectedAccountSnapshot } from "@/lib/payments/stripe-connect-talent";
 
 type HeldTotal = { currency: string; amountCents: number; count: number };
@@ -394,6 +395,8 @@ export function PayoutsShell({
           </button>
         </div>
       )}
+
+      <GlobalPayoutsBankCard />
 
       <div style={{
         padding: 14,

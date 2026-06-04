@@ -27,6 +27,7 @@ import {
   type TalentConnectedAccountSnapshot,
 } from "@/lib/payments/stripe-connect-talent";
 import { payoutCountryLabel } from "@/lib/payments/payout-countries";
+import { getTalentGpStatus, setupTalentGpBank, type TalentGpStatus } from "@/lib/payments/talent-global-payouts";
 
 export type StartOnboardingResult =
   | { ok: true; url: string }
@@ -245,4 +246,47 @@ export async function loadTalentStablecoinEligibility(): Promise<
     eligible: r.eligible,
     countryLabel: r.country ? payoutCountryLabel(r.country) : null,
   };
+}
+
+/**
+ * Current Global Payouts (local-bank) setup status for the signed-in talent.
+ * Drives the "Get paid globally" card.
+ */
+export async function loadTalentGpStatus(): Promise<
+  { ok: true; status: TalentGpStatus } | { ok: false; error: string }
+> {
+  const tp = await resolveOwnTalentProfileId();
+  if (!tp.ok) return { ok: false, error: tp.error };
+  return { ok: true, status: await getTalentGpStatus(tp.id) };
+}
+
+/**
+ * Set up (or update) the talent's local-bank Global Payouts: creates their v2
+ * recipient account if needed + attaches a bank payout method.
+ */
+export async function setupTalentGpBankAction(input: {
+  country: string;
+  currency: string;
+  accountNumber: string;
+  routingNumber: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const session = await getCachedActorSession();
+    if (!session.user) return { ok: false, error: "Sign in required." };
+    const tp = await resolveOwnTalentProfileId();
+    if (!tp.ok) return { ok: false, error: tp.error };
+    const email = session.user.email ?? `talent-${tp.id}@payouts.invalid`;
+    const r = await setupTalentGpBank(tp.id, {
+      country: input.country,
+      currency: input.currency,
+      accountNumber: input.accountNumber.trim(),
+      routingNumber: input.routingNumber.trim(),
+      email,
+    });
+    if (!r.ok) return { ok: false, error: r.error };
+    return { ok: true };
+  } catch (err) {
+    logServerError("talent-payouts.setupGp", err);
+    return { ok: false, error: "Could not set up global payouts. Please try again." };
+  }
 }
