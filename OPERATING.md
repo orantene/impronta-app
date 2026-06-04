@@ -2,19 +2,19 @@
 
 The operating contract for this repo. Every contributor — human or agent — reads this before changing anything. If a rule isn't here, it doesn't exist.
 
+> **⚠️ §1 (Trunk) was rewritten 2026-06-04 — the old `stable-work` / "don't push to main" model is HISTORICAL and no longer correct.** The authoritative deploy/branch contract is the repo-root **`CLAUDE.md`**: `main` is canonical (GitHub default + Vercel production branch); push feature branches → open a PR → merge to `main` → Vercel auto-deploys production. If anything below conflicts with `CLAUDE.md`, `CLAUDE.md` wins.
+
 **Status:** pre-launch. No real traffic yet. Ground rules in [`feedback_pre_launch_shipping.md`](.claude/projects/-Users-oranpersonal-Desktop-impronta-app/memory/feedback_pre_launch_shipping.md) override anything below until the user explicitly says **"we are live"**.
 
 ---
 
 ## 1. Trunk
 
-- Trunk is `stable-work`. Every change lands here.
-- `main` is retained only because Vercel's `link.productionBranch` is stuck on it (Hobby plan). Don't push to `main`. Don't merge into `main`. It is a frozen pointer.
-- `phase-1` is historical and no longer the active trunk. Do not land new work there unless the user explicitly asks for a branch reconciliation.
-- Feature branches only when the work is risky enough to want to throw away. Default: commit straight to `stable-work`.
-- No long-lived branches. >7 days = land it or delete it.
-- Linear history. Rebase or fast-forward. No merge commits to `stable-work`.
-- No `--amend` of pushed commits. No `--force` to `stable-work`. No `--no-verify`.
+- **Trunk is `main`** — the canonical branch (GitHub default + Vercel production branch + single source of truth). Production runs whatever is on `main`.
+- **Workflow:** branch off the latest `main` (`<type>/<topic>`), commit locally, push the feature branch, open a PR to `main`, merge → Vercel auto-builds a production deployment. After a prod deploy, re-alias `tulala.digital` + `app.tulala.digital` and run `cd web && npm run deploy:smoke`.
+- **If your work includes a new migration**, `npm run db:push` (or the Mgmt-API applier) is mandatory **before** the merge, or the prod deploy 500s on the feature that needs the new schema.
+- `stable-work` and `phase-1` are **retired/historical** — do not land new work there.
+- No long-lived branches (>7 days = land it or delete it). Never force-push `main`. No `--no-verify`. TS + lint gate before every commit.
 
 ## 2. Environments
 

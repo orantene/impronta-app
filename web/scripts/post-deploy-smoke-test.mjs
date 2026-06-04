@@ -305,6 +305,37 @@ async function check_resend_domain() {
   }
 }
 
+// 11) Guest-chat anti-spam floor — the cross-instance KV rate limiter (Upstash)
+//     is the HARD ceiling for guest inquiry-create + message-send. When the
+//     UPSTASH_REDIS_REST_URL/TOKEN env vars are absent the limiter degrades to a
+//     no-op (rate-limit-kv.ts) — the in-memory velocity layer is best-effort
+//     only, so the hard floor is DISABLED. Env-gated like the Resend check: this
+//     WARNS (never fails) so a deploy without the Upstash vars isn't blocked, but
+//     the disabled floor is surfaced. Reads the shell env (the same env the
+//     check runs under) — provision the vars in the Vercel project to enable it.
+async function check_guest_chat_antispam() {
+  console.log("\nGuest-chat anti-spam floor (Upstash KV)");
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (url && token) {
+    pass("UPSTASH_REDIS_REST_URL + TOKEN present (guest-chat rate-limit floor enabled)");
+  } else {
+    const missing = [
+      !url ? "UPSTASH_REDIS_REST_URL" : null,
+      !token ? "UPSTASH_REDIS_REST_TOKEN" : null,
+    ]
+      .filter(Boolean)
+      .join(" + ");
+    warn(
+      "guest-chat anti-spam",
+      `${missing} absent — the cross-instance KV rate-limit floor is DISABLED (no-op). ` +
+        "Guest inquiry-create / message-send hard ceilings are not enforced (only the " +
+        "best-effort in-memory velocity layer). Provision the Upstash env vars in the " +
+        "Vercel project to restore the floor.",
+    );
+  }
+}
+
 console.log(`Smoke-testing ${HOST} (and ${PUBLIC_HOST})…`);
 for (const check of [
   check_root_reachable,
@@ -317,6 +348,7 @@ for (const check of [
   check_notification_routes,
   check_notification_crons,
   check_resend_domain,
+  check_guest_chat_antispam,
 ]) {
   await check();
 }
