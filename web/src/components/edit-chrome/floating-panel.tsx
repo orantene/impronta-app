@@ -51,33 +51,29 @@ export interface UseFloatingDragResult {
 
 /**
  * Track a session-only translate offset for a floating panel. Pointer-drag from
- * a handle moves it; the offset is clamped to keep the panel on-screen.
- *
- * @param homeWidth  approximate panel width (px) — used only to clamp so the
- *                   panel can't be pushed entirely off either horizontal edge.
+ * a handle moves it; the offset is clamped to always keep a graspable strip of
+ * the panel on-screen, whether the panel is anchored to the left or right edge.
  */
-export function useFloatingDrag(homeWidth = 320): UseFloatingDragResult {
+export function useFloatingDrag(): UseFloatingDragResult {
   const [offset, setOffset] = useState<FloatingOffset>({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
 
-  const clamp = useCallback(
-    (next: FloatingOffset): FloatingOffset => {
-      if (typeof window === "undefined") return next;
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      // Generous travel, but never let the panel leave a graspable strip
-      // on-screen (its handle must always stay reachable).
-      const maxX = vw - KEEP_ON_SCREEN;
-      const minX = -(homeWidth - KEEP_ON_SCREEN);
-      const maxY = vh - KEEP_ON_SCREEN;
-      const minY = -KEEP_ON_SCREEN;
-      return {
-        x: Math.max(minX, Math.min(maxX, next.x)),
-        y: Math.max(minY, Math.min(maxY, next.y)),
-      };
-    },
-    [homeWidth],
-  );
+  const clamp = useCallback((next: FloatingOffset): FloatingOffset => {
+    if (typeof window === "undefined") return next;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    // Generous travel in every direction, but always keep a graspable strip on
+    // screen so the handle stays reachable — symmetric so it works for a
+    // left-anchored (navigator) OR right-anchored (inspector) panel.
+    const maxX = vw - KEEP_ON_SCREEN;
+    const minX = -(vw - KEEP_ON_SCREEN);
+    const maxY = vh - KEEP_ON_SCREEN;
+    const minY = -KEEP_ON_SCREEN;
+    return {
+      x: Math.max(minX, Math.min(maxX, next.x)),
+      y: Math.max(minY, Math.min(maxY, next.y)),
+    };
+  }, []);
 
   const onHandlePointerDown = useCallback(
     (event: ReactPointerEvent) => {

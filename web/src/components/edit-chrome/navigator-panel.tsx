@@ -300,9 +300,8 @@ export function NavigatorPanel() {
   const resizeStartRef = useRef<{ x: number; width: number } | null>(null);
   // Floating-panel drag (Paint-style movable Layers card). The offset lives in
   // local state, so it snaps back to the home position on every page refresh
-  // but stays where you drop it for the rest of the session. navigatorWidth is
-  // passed so the panel can never be dragged fully off either side.
-  const floatingDrag = useFloatingDrag(navigatorWidth);
+  // but stays where you drop it for the rest of the session.
+  const floatingDrag = useFloatingDrag();
   const floatingMoved = floatingDrag.offset.x !== 0 || floatingDrag.offset.y !== 0;
 
   const handleResizeMove = useCallback(

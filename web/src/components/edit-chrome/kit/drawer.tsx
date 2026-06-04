@@ -60,6 +60,7 @@ import {
   DRAWER_WIDTHS,
   type DrawerKind,
 } from "./tokens";
+import { useFloatingDrag, FloatingDragHandle } from "../floating-panel";
 
 // ── Drawer ──────────────────────────────────────────────────────────────────
 
@@ -90,6 +91,15 @@ interface DrawerProps {
    * focus inside the drawer — see DRAWER-MUTEX.md.
    */
   restoreFocusOnClose?: boolean;
+  /**
+   * Render as a Paint-style FLOATING, DRAGGABLE card (detached from the right
+   * edge, rounded, with a grip handle) instead of the default edge-anchored
+   * slide-in rail. Opt-in — every existing drawer stays edge-anchored. The drag
+   * offset is session-only (snaps back home on refresh).
+   */
+  floating?: boolean;
+  /** Label shown on the floating drag handle (e.g. "Inspector"). */
+  floatLabel?: string;
   className?: string;
   children: ReactNode;
 }
@@ -103,10 +113,14 @@ export function Drawer({
   zIndex = 80,
   topPx = 52,
   restoreFocusOnClose = true,
+  floating = false,
+  floatLabel,
   className,
   children,
 }: DrawerProps) {
   const priorFocusRef = useRef<HTMLElement | null>(null);
+  const float = useFloatingDrag();
+  const floatingMoved = float.offset.x !== 0 || float.offset.y !== 0;
 
   useEffect(() => {
     if (!restoreFocusOnClose) return;
@@ -146,6 +160,54 @@ export function Drawer({
       : typeof width === "number"
         ? `${width}px`
         : `${DRAWER_WIDTHS[kind]}px`;
+
+  // Floating, draggable variant (opt-in) — a detached rounded card with a grip
+  // handle, instead of the edge-anchored slide rail. Fullscreen ignores floating
+  // (it takes over the whole canvas, where a movable card makes no sense).
+  if (floating && width !== "fullscreen") {
+    return (
+      <aside
+        data-edit-drawer={kind}
+        data-edit-drawer-floating=""
+        data-testid={testId}
+        aria-labelledby={ariaLabelledBy}
+        aria-hidden={!open}
+        className={`fixed flex flex-col font-sans ${className ?? ""}`}
+        style={{
+          top: 66,
+          right: 14,
+          maxHeight: "calc(100vh - 84px)",
+          width: resolvedWidth,
+          background: CHROME.paper2,
+          border: `1px solid ${CHROME.line}`,
+          borderRadius: 16,
+          boxShadow: float.dragging
+            ? "0 30px 70px -20px rgba(17,24,39,0.45), 0 10px 26px -10px rgba(17,24,39,0.26)"
+            : "0 18px 50px -20px rgba(17,24,39,0.26), 0 4px 14px -8px rgba(17,24,39,0.14)",
+          zIndex,
+          overflow: "hidden",
+          pointerEvents: open ? "auto" : "none",
+          opacity: open ? 1 : 0,
+          transform: float.transform,
+          transition: float.dragging
+            ? "none"
+            : "box-shadow 180ms ease, opacity 160ms ease",
+          userSelect: float.dragging ? "none" : undefined,
+        }}
+      >
+        <FloatingDragHandle
+          onPointerDown={float.onHandlePointerDown}
+          dragging={float.dragging}
+          label={floatLabel}
+          moved={floatingMoved}
+          onReset={float.reset}
+          style={{ color: CHROME.muted, background: CHROME.paper2 }}
+        />
+        {children}
+      </aside>
+    );
+  }
+
   return (
     <aside
       data-edit-drawer={kind}

@@ -897,6 +897,8 @@ export function InspectorDock() {
       className="max-lg:hidden"
       testId="inspector-dock"
       ariaLabelledBy="inspector-drawer-title"
+      floating
+      floatLabel="Inspector"
     >
       <DrawerHead
         titleId="inspector-drawer-title"
