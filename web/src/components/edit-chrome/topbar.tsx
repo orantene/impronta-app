@@ -2323,6 +2323,128 @@ function ExitForm({ dirty, saving }: { dirty: boolean; saving: boolean }) {
   );
 }
 
+/**
+ * WorkspaceLayoutControls — Photoshop-style "pin / reset workspace" pair.
+ *
+ * Pin (📌) saves where the operator has dragged the floating panels (today:
+ * the Inspector dock) so the layout PERSISTS across refresh instead of
+ * snapping home. Reset (⟲) clears the saved layout and returns the panels to
+ * their default home positions immediately. Calm, icon-only, grouped in the
+ * same subtle pill the other topbar tool groups use; the pin fills with the
+ * accent once a layout is saved so the operator can see it's "stuck". Renders
+ * nothing outside an `EditProvider`.
+ */
+function WorkspaceLayoutControls() {
+  const editCtx = useMaybeEditContext();
+  if (!editCtx) return null;
+  const {
+    hasSavedWorkspaceLayout,
+    pinWorkspaceLayout,
+    resetWorkspaceLayout,
+  } = editCtx;
+
+  return (
+    <div
+      role="group"
+      aria-label="Panel workspace"
+      className="inline-flex shrink-0 items-center gap-0.5 rounded-full p-[3px]"
+      style={{
+        background: "rgba(0,0,0,0.05)",
+        boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.04)",
+      }}
+    >
+      <button
+        type="button"
+        onClick={pinWorkspaceLayout}
+        title={
+          hasSavedWorkspaceLayout
+            ? "Workspace pinned — panel positions are saved and restore on refresh. Click to re-pin to the current layout."
+            : "Pin workspace — save where you've placed the panels so they stay put after a refresh"
+        }
+        aria-label="Pin workspace layout"
+        aria-pressed={hasSavedWorkspaceLayout}
+        className="inline-flex size-[30px] cursor-pointer items-center justify-center rounded-full border-none transition-colors"
+        style={{
+          background: hasSavedWorkspaceLayout ? CHROME.surface : "transparent",
+          color: hasSavedWorkspaceLayout ? CHROME.accent : CHROME.muted,
+          boxShadow: hasSavedWorkspaceLayout
+            ? "0 1px 3px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.04)"
+            : "none",
+        }}
+        onMouseEnter={(e) => {
+          if (hasSavedWorkspaceLayout) return;
+          e.currentTarget.style.background = CHROME.surface;
+          e.currentTarget.style.color = CHROME.ink;
+        }}
+        onMouseLeave={(e) => {
+          if (hasSavedWorkspaceLayout) return;
+          e.currentTarget.style.background = "transparent";
+          e.currentTarget.style.color = CHROME.muted;
+        }}
+      >
+        {/* pin glyph (lucide "pin") */}
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill={hasSavedWorkspaceLayout ? "currentColor" : "none"}
+          stroke="currentColor"
+          strokeWidth="1.9"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="M12 17v5" />
+          <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        onClick={resetWorkspaceLayout}
+        disabled={!hasSavedWorkspaceLayout}
+        title={
+          hasSavedWorkspaceLayout
+            ? "Reset workspace — clear the saved layout and return panels to their default positions"
+            : "Workspace is already at its default layout"
+        }
+        aria-label="Reset workspace layout to default"
+        className="inline-flex size-[30px] items-center justify-center rounded-full border-none transition-colors disabled:cursor-not-allowed"
+        style={{
+          background: "transparent",
+          color: hasSavedWorkspaceLayout ? CHROME.muted : CHROME.muted3,
+          cursor: hasSavedWorkspaceLayout ? "pointer" : "not-allowed",
+        }}
+        onMouseEnter={(e) => {
+          if (!hasSavedWorkspaceLayout) return;
+          e.currentTarget.style.background = CHROME.surface;
+          e.currentTarget.style.color = CHROME.ink;
+        }}
+        onMouseLeave={(e) => {
+          if (!hasSavedWorkspaceLayout) return;
+          e.currentTarget.style.background = "transparent";
+          e.currentTarget.style.color = CHROME.muted;
+        }}
+      >
+        {/* reset / restore glyph (lucide "rotate-ccw") */}
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+          <path d="M3 3v5h5" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
 // ── Main TopBar ───────────────────────────────────────────────────────────────
 
 export interface TopBarProps {
@@ -2583,6 +2705,11 @@ export function TopBar({
        * stays accessible — flip back to test → tweak → test in seconds.
        */}
       <PreviewToggle previewing={previewing} setPreviewing={setPreviewing} />
+
+      {/* ── Workspace pin / reset (Photoshop-style dockable panels) ──
+       * Pin saves where the operator dragged the floating panels so the layout
+       * persists across refresh; Reset returns them to their default home. */}
+      <WorkspaceLayoutControls />
 
       {/* ── Spacer ── */}
       <span className="flex-1" />

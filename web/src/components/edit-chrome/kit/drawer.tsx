@@ -100,6 +100,16 @@ interface DrawerProps {
   floating?: boolean;
   /** Label shown on the floating drag handle (e.g. "Inspector"). */
   floatLabel?: string;
+  /**
+   * Opt this floating drawer into the Photoshop-style dockable workspace under
+   * a stable panel id ("inspector"). When set (and an `EditProvider` is
+   * mounted), the drawer's position is captured by the topbar Pin control,
+   * restores from the pinned layout on refresh, returns home on Reset, and
+   * magnet-snaps to screen edges + sibling panels while dragging. Omit it and
+   * the floating drawer stays session-only (unchanged) — every drawer except
+   * the inspector leaves this unset.
+   */
+  floatPanelId?: string;
   className?: string;
   children: ReactNode;
 }
@@ -115,11 +125,12 @@ export function Drawer({
   restoreFocusOnClose = true,
   floating = false,
   floatLabel,
+  floatPanelId,
   className,
   children,
 }: DrawerProps) {
   const priorFocusRef = useRef<HTMLElement | null>(null);
-  const float = useFloatingDrag();
+  const float = useFloatingDrag({ panelId: floatPanelId });
   const floatingMoved = float.offset.x !== 0 || float.offset.y !== 0;
 
   useEffect(() => {
@@ -167,8 +178,10 @@ export function Drawer({
   if (floating && width !== "fullscreen") {
     return (
       <aside
+        ref={(node) => float.setPanelNode(node)}
         data-edit-drawer={kind}
         data-edit-drawer-floating=""
+        data-edit-float-panel-id={floatPanelId}
         data-testid={testId}
         aria-labelledby={ariaLabelledBy}
         aria-hidden={!open}

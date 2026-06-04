@@ -23,11 +23,15 @@
 import {
   useCallback,
   useEffect,
+  useRef,
   useState,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
+
+import { useMaybeEditContext } from "./edit-context";
+import { computeMagnetSnap } from "./workspace-layout";
 
 export interface FloatingOffset {
   x: number;
@@ -36,6 +40,23 @@ export interface FloatingOffset {
 
 /** Keep at least this many px of the panel on each axis inside the viewport. */
 const KEEP_ON_SCREEN = 64;
+
+export interface UseFloatingDragOptions {
+  /**
+   * Stable id ("navigator" | "inspector" | …) that ties this panel into the
+   * Photoshop-style dockable workspace. When provided AND an `EditProvider` is
+   * mounted, the hook:
+   *   - seeds its initial offset from the PINNED workspace layout (so a saved
+   *     layout restores on refresh instead of snapping home),
+   *   - registers a live offset + rect getter so the topbar Pin can snapshot
+   *     it and the magnet can edge-align other panels against it,
+   *   - snaps to screen edges / sibling-panel edges while dragging (magnet),
+   *   - snaps home when the operator clicks Reset (watches `workspaceResetNonce`).
+   * Omit it (or render outside `EditProvider`) and the hook behaves exactly as
+   * before: session-only offset, no persistence, no magnet.
+   */
+  panelId?: string;
+}
 
 export interface UseFloatingDragResult {
   offset: FloatingOffset;
@@ -47,6 +68,12 @@ export interface UseFloatingDragResult {
   reset: () => void;
   /** `transform` string for the panel element. */
   transform: string;
+  /**
+   * Ref callback for the panel's root element. Required for magnet snapping +
+   * Pin (the hook measures the live bounding box through it). Harmless to
+   * attach even when no `panelId` is set.
+   */
+  setPanelNode: (node: HTMLElement | null) => void;
 }
 
 /**
@@ -54,9 +81,38 @@ export interface UseFloatingDragResult {
  * a handle moves it; the offset is clamped to always keep a graspable strip of
  * the panel on-screen, whether the panel is anchored to the left or right edge.
  */
-export function useFloatingDrag(): UseFloatingDragResult {
-  const [offset, setOffset] = useState<FloatingOffset>({ x: 0, y: 0 });
+export function useFloatingDrag(
+  options: UseFloatingDragOptions = {},
+): UseFloatingDragResult {
+  const { panelId } = options;
+  const ctx = useMaybeEditContext();
+
+  // Seed from the pinned workspace layout (if any) so a saved layout restores
+  // on refresh. With no panelId / no provider / no saved layout this is {0,0}
+  // — the unchanged session-only default. Computed once on first render.
+  const [offset, setOffset] = useState<FloatingOffset>(() => {
+    if (!panelId || !ctx) return { x: 0, y: 0 };
+    const saved = ctx.getSavedPanelOffset(panelId);
+    return saved ?? { x: 0, y: 0 };
+  });
   const [dragging, setDragging] = useState(false);
+
+  // Live element ref — the magnet measures the panel's on-screen rect through
+  // it. A ref callback (not just useRef) so we can also keep the registry's
+  // rect getter pointed at the current node.
+  const nodeRef = useRef<HTMLElement | null>(null);
+  const setPanelNode = useCallback((node: HTMLElement | null) => {
+    nodeRef.current = node;
+  }, []);
+
+  // Keep the latest offset in a ref so the registry's getOffset() (read by Pin)
+  // always sees the current value without re-registering on every drag tick.
+  // Synced in an effect (never written during render) to satisfy the
+  // ref-discipline lint.
+  const offsetRef = useRef(offset);
+  useEffect(() => {
+    offsetRef.current = offset;
+  }, [offset]);
 
   const clamp = useCallback((next: FloatingOffset): FloatingOffset => {
     if (typeof window === "undefined") return next;
@@ -75,6 +131,22 @@ export function useFloatingDrag(): UseFloatingDragResult {
     };
   }, []);
 
+  // Register this panel into the dockable-workspace registry so Pin can read
+  // its live offset and the magnet can edge-align siblings against its rect.
+  const register = ctx?.registerWorkspacePanel;
+  useEffect(() => {
+    if (!panelId || !register) return undefined;
+    return register(panelId, {
+      getOffset: () => offsetRef.current,
+      getRect: () => {
+        const node = nodeRef.current;
+        if (!node) return null;
+        const r = node.getBoundingClientRect();
+        return { left: r.left, top: r.top, width: r.width, height: r.height };
+      },
+    });
+  }, [panelId, register]);
+
   const onHandlePointerDown = useCallback(
     (event: ReactPointerEvent) => {
       // Ignore non-primary buttons + clicks on an interactive control inside
@@ -91,6 +163,11 @@ export function useFloatingDrag(): UseFloatingDragResult {
       const startY = event.clientY;
       const baseX = offset.x;
       const baseY = offset.y;
+      // Capture the panel's on-screen rect at drag start. The magnet works in
+      // absolute viewport coords (anchor-agnostic: same math for a left- or
+      // right-anchored panel) and converts the snap back into an offset delta.
+      const startRect = nodeRef.current?.getBoundingClientRect() ?? null;
+      const magnetEnabled = Boolean(panelId && ctx && startRect);
       setDragging(true);
       const prevCursor = document.body.style.cursor;
       const prevSelect = document.body.style.userSelect;
@@ -98,12 +175,28 @@ export function useFloatingDrag(): UseFloatingDragResult {
       document.body.style.userSelect = "none";
 
       const onMove = (ev: PointerEvent) => {
-        setOffset(
-          clamp({
-            x: baseX + (ev.clientX - startX),
-            y: baseY + (ev.clientY - startY),
-          }),
-        );
+        const rawDx = ev.clientX - startX;
+        const rawDy = ev.clientY - startY;
+        let nextX = baseX + rawDx;
+        let nextY = baseY + rawDy;
+
+        if (magnetEnabled && startRect && ctx) {
+          // Proposed top-left = where the panel WOULD render with the raw drag
+          // delta. Snap it, then fold the snap correction back into the offset.
+          const snap = computeMagnetSnap({
+            proposed: {
+              left: startRect.left + rawDx,
+              top: startRect.top + rawDy,
+            },
+            size: { width: startRect.width, height: startRect.height },
+            viewport: { width: window.innerWidth, height: window.innerHeight },
+            others: ctx.getOtherWorkspacePanelRects(panelId!),
+          });
+          nextX = baseX + (snap.left - startRect.left);
+          nextY = baseY + (snap.top - startRect.top);
+        }
+
+        setOffset(clamp({ x: nextX, y: nextY }));
       };
       const onUp = () => {
         window.removeEventListener("pointermove", onMove);
@@ -117,7 +210,7 @@ export function useFloatingDrag(): UseFloatingDragResult {
       window.addEventListener("pointerup", onUp);
       window.addEventListener("pointercancel", onUp);
     },
-    [offset.x, offset.y, clamp],
+    [offset.x, offset.y, clamp, panelId, ctx],
   );
 
   // Re-clamp if the viewport shrinks under a dragged-out panel.
@@ -130,12 +223,26 @@ export function useFloatingDrag(): UseFloatingDragResult {
 
   const reset = useCallback(() => setOffset({ x: 0, y: 0 }), []);
 
+  // Reset-to-default from the topbar bumps `workspaceResetNonce`; snap this
+  // panel home when it changes (skip the initial mount value).
+  const resetNonce = ctx?.workspaceResetNonce ?? 0;
+  const didMountResetRef = useRef(false);
+  useEffect(() => {
+    if (!didMountResetRef.current) {
+      didMountResetRef.current = true;
+      return;
+    }
+    if (!panelId) return;
+    setOffset({ x: 0, y: 0 });
+  }, [resetNonce, panelId]);
+
   return {
     offset,
     dragging,
     onHandlePointerDown,
     reset,
     transform: `translate(${Math.round(offset.x)}px, ${Math.round(offset.y)}px)`,
+    setPanelNode,
   };
 }
 

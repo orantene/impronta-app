@@ -942,6 +942,7 @@ export function InspectorDock() {
       ariaLabelledBy="inspector-drawer-title"
       floating
       floatLabel="Inspector"
+      floatPanelId="inspector"
     >
       <DrawerHead
         titleId="inspector-drawer-title"

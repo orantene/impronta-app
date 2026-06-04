@@ -116,6 +116,15 @@ import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
 import { normalizeCompositionSlots } from "./composition-slots";
 import {
+  loadWorkspaceLayout,
+  saveWorkspaceLayout,
+  clearWorkspaceLayout,
+  savedOffsetForPanel,
+  type LayoutStorage,
+  type PanelOffset,
+  type WorkspaceLayoutV1,
+} from "./workspace-layout";
+import {
   findBuilderNodeById,
   resolveHonestSelectedBuilderNodeId,
   treeContainsBuilderNodeId,
@@ -891,6 +900,63 @@ export interface EditContextValue {
   toggleNavigator: () => void;
   navigatorWidth: number;
   setNavigatorWidth: (width: number) => void;
+
+  // ── Photoshop-style dockable workspace (floating-panel layout) ──────────
+  /**
+   * Pinned-workspace state for the floating edit-chrome panels (navigator +
+   * inspector dock). By default each panel's drag offset is SESSION-ONLY and
+   * snaps back to its home anchor on refresh. When the operator clicks Pin in
+   * the topbar, every floating panel's current offset is captured to a single
+   * versioned localStorage key ({@link WORKSPACE_LAYOUT_STORAGE_KEY}) and the
+   * panels restore to it on the next load instead of snapping home. Reset
+   * clears the saved layout and returns the panels to their home positions.
+   *
+   * `hasSavedWorkspaceLayout` reflects whether a pinned layout currently
+   * exists (drives the Reset control's enabled state + the Pin button's
+   * "saved" affordance).
+   */
+  hasSavedWorkspaceLayout: boolean;
+  /**
+   * Capture every registered floating panel's CURRENT offset and persist it as
+   * the pinned workspace. Idempotent; safe to call repeatedly (re-pins to the
+   * latest positions).
+   */
+  pinWorkspaceLayout: () => void;
+  /**
+   * Clear the pinned workspace and snap every floating panel home immediately
+   * (bumps `workspaceResetNonce`, which the panels watch).
+   */
+  resetWorkspaceLayout: () => void;
+  /**
+   * Monotonic counter bumped on Reset. Floating panels watch this to snap
+   * their session offset back to {0,0} the instant the operator resets.
+   */
+  workspaceResetNonce: number;
+  /**
+   * Seed offset for a floating panel on mount — the panel's saved offset from
+   * the pinned layout, or null when no layout is pinned (→ default home).
+   */
+  getSavedPanelOffset: (panelId: string) => { x: number; y: number } | null;
+  /**
+   * Register a floating panel so Pin can read its live offset and magnet
+   * snapping can read its on-screen rect. Returns an unregister fn for cleanup.
+   * `getOffset` returns the panel's current translate; `getRect` returns its
+   * viewport bounding box (or null if unmounted).
+   */
+  registerWorkspacePanel: (
+    panelId: string,
+    handles: {
+      getOffset: () => { x: number; y: number };
+      getRect: () => { left: number; top: number; width: number; height: number } | null;
+    },
+  ) => () => void;
+  /**
+   * Rects of every OTHER registered floating panel (excludes `panelId`) — the
+   * magnet snap edge-aligns the dragged panel against these.
+   */
+  getOtherWorkspacePanelRects: (
+    panelId: string,
+  ) => ReadonlyArray<{ left: number; top: number; width: number; height: number }>;
   /**
    * Short-lived selection feedback for freshly inserted/duplicated content.
    * The navigator uses this to open, scroll, expand, and tier-highlight the
@@ -2250,6 +2316,99 @@ export function EditProvider({
     () => setNavigatorOpen((prev) => !prev),
     [],
   );
+
+  // ── Photoshop-style dockable workspace ─────────────────────────────────
+  // The pinned layout is read ONCE on mount (so panels can seed their initial
+  // offset synchronously via getSavedPanelOffset) and held in a ref. Pin
+  // rewrites it from the live panel offsets; Reset clears it + bumps a nonce
+  // the panels watch to snap home. Each floating panel registers a pair of
+  // getters (live offset + live rect) so Pin can snapshot every panel and the
+  // magnet can edge-align against the others.
+  const layoutStorage = useMemo<LayoutStorage | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      // Touch it once so a SecurityError (disabled storage) degrades to null
+      // here rather than throwing on every save.
+      return window.localStorage;
+    } catch {
+      return null;
+    }
+  }, []);
+  // The pinned layout is read ONCE via a lazy useState initializer so the
+  // panels' own initial `useState(seed)` reads it through getSavedPanelOffset
+  // on their first render (before paint) — no flash of the home position, and
+  // no ref-access-during-render. Pin rewrites it; Reset clears it + bumps a
+  // nonce the panels watch to snap home.
+  const [savedWorkspaceLayout, setSavedWorkspaceLayout] =
+    useState<WorkspaceLayoutV1 | null>(() => loadWorkspaceLayout(layoutStorage));
+  const hasSavedWorkspaceLayout = savedWorkspaceLayout != null;
+  const [workspaceResetNonce, setWorkspaceResetNonce] = useState(0);
+  // Live panel registry (getOffset + getRect per panel). A ref because it is
+  // only ever read/written from event handlers (Pin) + the magnet move loop,
+  // never during render.
+  const workspacePanelsRef = useRef<
+    Map<
+      string,
+      {
+        getOffset: () => PanelOffset;
+        getRect: () => { left: number; top: number; width: number; height: number } | null;
+      }
+    >
+  >(new Map());
+
+  const getSavedPanelOffset = useCallback<
+    EditContextValue["getSavedPanelOffset"]
+  >(
+    (panelId) => savedOffsetForPanel(savedWorkspaceLayout, panelId),
+    [savedWorkspaceLayout],
+  );
+
+  const registerWorkspacePanel = useCallback<
+    EditContextValue["registerWorkspacePanel"]
+  >((panelId, handles) => {
+    workspacePanelsRef.current.set(panelId, handles);
+    return () => {
+      // Only delete if this exact registration is still current (a remount can
+      // register the replacement before the old cleanup runs).
+      if (workspacePanelsRef.current.get(panelId) === handles) {
+        workspacePanelsRef.current.delete(panelId);
+      }
+    };
+  }, []);
+
+  const getOtherWorkspacePanelRects = useCallback<
+    EditContextValue["getOtherWorkspacePanelRects"]
+  >((panelId) => {
+    const rects: Array<{ left: number; top: number; width: number; height: number }> = [];
+    for (const [id, handles] of workspacePanelsRef.current) {
+      if (id === panelId) continue;
+      const rect = handles.getRect();
+      if (rect) rects.push(rect);
+    }
+    return rects;
+  }, []);
+
+  const pinWorkspaceLayout = useCallback<
+    EditContextValue["pinWorkspaceLayout"]
+  >(() => {
+    const panels: Record<string, PanelOffset> = {};
+    for (const [id, handles] of workspacePanelsRef.current) {
+      panels[id] = handles.getOffset();
+    }
+    const saved = saveWorkspaceLayout(layoutStorage, panels);
+    if (saved) {
+      setSavedWorkspaceLayout({ version: 1, panels });
+    }
+  }, [layoutStorage]);
+
+  const resetWorkspaceLayout = useCallback<
+    EditContextValue["resetWorkspaceLayout"]
+  >(() => {
+    clearWorkspaceLayout(layoutStorage);
+    setSavedWorkspaceLayout(null);
+    // Bump the nonce so every floating panel snaps its session offset home.
+    setWorkspaceResetNonce((n) => n + 1);
+  }, [layoutStorage]);
 
   // Most recent mutation error. Auto-clears after 5s — the operator
   // probably already undid or retried, and we'd rather err toward quiet
@@ -5746,6 +5905,13 @@ export function EditProvider({
       toggleNavigator,
       navigatorWidth,
       setNavigatorWidth,
+      hasSavedWorkspaceLayout,
+      pinWorkspaceLayout,
+      resetWorkspaceLayout,
+      workspaceResetNonce,
+      getSavedPanelOffset,
+      registerWorkspacePanel,
+      getOtherWorkspacePanelRects,
       recentNavigatorAdditions,
       clearNavigatorRecentAdditions,
       setSectionVisibility,
@@ -5922,6 +6088,13 @@ export function EditProvider({
       toggleNavigator,
       navigatorWidth,
       setNavigatorWidth,
+      hasSavedWorkspaceLayout,
+      pinWorkspaceLayout,
+      resetWorkspaceLayout,
+      workspaceResetNonce,
+      getSavedPanelOffset,
+      registerWorkspacePanel,
+      getOtherWorkspacePanelRects,
       recentNavigatorAdditions,
       clearNavigatorRecentAdditions,
       setSectionVisibility,
