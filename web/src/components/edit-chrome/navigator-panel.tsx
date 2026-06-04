@@ -49,10 +49,13 @@ import {
 import {
   ArrowDown,
   ArrowUp,
+  Bookmark,
   ClipboardPaste,
   Copy,
   Files,
+  PanelLeftOpen,
   Plus,
+  SquarePen,
   X,
 } from "lucide-react";
 
@@ -62,6 +65,12 @@ import {
   CHROME_SHADOWS,
   SectionTypeIcon,
 } from "./kit";
+import { RailAvatar, RailIconButton } from "./chrome-icon-rail";
+import { useFloatingDrag, FloatingDragHandle } from "./floating-panel";
+import {
+  computeNavigatorDisclosure,
+  navigatorSelectedAncestors,
+} from "./navigator-collapse";
 
 import type {
   CompositionSectionRef,
@@ -73,6 +82,7 @@ import { sectionDisplayName } from "@/lib/site-admin/section-display-name";
 import type { SectionVisibility as SectionVisibilityT } from "@/lib/site-admin/edit-mode/section-actions";
 
 import { useEditContext } from "./edit-context";
+import { FreeformLayersTree } from "./freeform-layers-tree";
 import {
   builderSectionNodeAddressKey,
   BUILDER_NODE_REGISTRY,
@@ -98,6 +108,8 @@ import {
 
 const EXPANDED_SECTIONS_STORAGE_KEY =
   "impronta.editChrome.navigator.expandedSections.v2";
+const EXPANDED_NODES_STORAGE_KEY =
+  "impronta.editChrome.navigator.expandedNodes.v1";
 const RESIZE_HANDLE_WIDTH = 8;
 const NAVIGATOR_MIN_WIDTH = 280;
 const NAVIGATOR_MAX_WIDTH = 520;
@@ -233,6 +245,7 @@ export function NavigatorPanel() {
     moveBuilderNodeWithinParent,
     moveBuilderNodeToParentIndex,
     insertBuilderNode,
+    insertBuilderSectionEmbed,
     duplicateBuilderNode,
     copyBuilderNode,
     pasteCopiedBuilderNode,
@@ -288,6 +301,12 @@ export function NavigatorPanel() {
     () => new Set(),
   );
   const [expandedHydrated, setExpandedHydrated] = useState(false);
+  // Progressive disclosure (per-node): which intermediate nodes are drilled
+  // into. Default empty = only depth-1 rows show. Own versioned storage key.
+  const [expandedNodeIds, setExpandedNodeIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [expandedNodesHydrated, setExpandedNodesHydrated] = useState(false);
   const [hoveredSectionId, setHoveredSectionId] = useState<string | null>(null);
   const [hoveredChildNodeId, setHoveredChildNodeId] = useState<string | null>(null);
   const [focusedSectionId, setFocusedSectionId] = useState<string | null>(null);
@@ -295,6 +314,11 @@ export function NavigatorPanel() {
   const [resizing, setResizing] = useState(false);
   const [resizeHandleHovered, setResizeHandleHovered] = useState(false);
   const resizeStartRef = useRef<{ x: number; width: number } | null>(null);
+  // Floating-panel drag (Paint-style movable Layers card). The offset lives in
+  // local state, so it snaps back to the home position on every page refresh
+  // but stays where you drop it for the rest of the session.
+  const floatingDrag = useFloatingDrag({ panelId: "navigator" });
+  const floatingMoved = floatingDrag.offset.x !== 0 || floatingDrag.offset.y !== 0;
 
   const handleResizeMove = useCallback(
     (event: PointerEvent) => {
@@ -362,6 +386,38 @@ export function NavigatorPanel() {
       // in private browsing or restricted storage contexts.
     }
   }, [expandedHydrated, expandedSectionIds]);
+
+  // Per-node disclosure — hydrate + persist under its own versioned key, kept
+  // entirely separate from the section-level payload above.
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(EXPANDED_NODES_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(parsed)) {
+        setExpandedNodeIds(
+          new Set(
+            parsed.filter((value): value is string => typeof value === "string"),
+          ),
+        );
+      }
+    } catch {
+      setExpandedNodeIds(new Set());
+    } finally {
+      setExpandedNodesHydrated(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!expandedNodesHydrated) return;
+    try {
+      window.localStorage.setItem(
+        EXPANDED_NODES_STORAGE_KEY,
+        JSON.stringify([...expandedNodeIds]),
+      );
+    } catch {
+      // Local persistence is a convenience only.
+    }
+  }, [expandedNodesHydrated, expandedNodeIds]);
 
   // Phase B.2.C — shell sections (header / footer) live on a different
   // page row than the homepage, so they're not in the EditProvider's
@@ -838,6 +894,22 @@ export function NavigatorPanel() {
     },
     [insertBuilderNode, nodeInsertTarget, reportMutationError],
   );
+  const commitNodeInsertSectionEmbed = useCallback(
+    async (sectionTypeKey: string) => {
+      if (!nodeInsertTarget) return;
+      const target = nodeInsertTarget;
+      setNodeInsertTarget(null);
+      const inserted = await insertBuilderSectionEmbed(
+        target.parentId,
+        sectionTypeKey,
+        target.index,
+      );
+      if (!inserted.ok && inserted.error) {
+        reportMutationError(inserted.error);
+      }
+    },
+    [insertBuilderSectionEmbed, nodeInsertTarget, reportMutationError],
+  );
   const commitSectionDuplicate = useCallback(
     async (sectionId: string) => {
       const duplicated = await duplicateSection(sectionId);
@@ -1048,66 +1120,131 @@ export function NavigatorPanel() {
   );
 
   if (!navigatorOpen) {
-    // Collapsed "rail handle" — a 24px-wide tab on the left edge that
-    // restores the panel. Mirrors how the inspector's drawer-tools
-    // close button works on the right side.
+    // Collapsed state — a tall FLOATING, DRAGGABLE white rail (Google-app
+    // style), not a fixed full-height tab pinned to the left edge. It shares
+    // the SAME floating offset as the expanded panel, so it stays wherever you
+    // parked the panel and you can keep dragging it around like a Paint tool
+    // window. Layout: a drag grip at the very top, a clean column of round
+    // icon buttons (expand is primary), and a single collaborator avatar
+    // pinned to the BOTTOM via margin-top:auto.
     return (
-      <button
-        type="button"
+      <div
+        ref={(node) => floatingDrag.setPanelNode(node)}
         data-edit-overlay="navigator-rail-handle"
-        onClick={toggleNavigator}
-        title="Show Structure Navigator (⌘\\)"
-        aria-label="Show Structure Navigator"
         style={{
           position: "fixed",
-          left: 0,
-          top: 54,
-          bottom: 0,
-          width: 22,
-          borderRight: `1px solid ${CHROME.line}`,
-          background: CHROME.paper,
-          color: CHROME.muted,
+          left: 14,
+          top: 66,
+          width: 52,
+          minHeight: 232,
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
-          justifyContent: "center",
+          padding: "6px 0 10px",
+          background: CHROME.surface,
+          border: `1px solid ${CHROME.line}`,
+          borderRadius: 18,
+          boxShadow: floatingDrag.dragging
+            ? "0 30px 70px -20px rgba(17,24,39,0.45), 0 10px 26px -10px rgba(17,24,39,0.26)"
+            : "0 16px 44px -20px rgba(17,24,39,0.26), 0 4px 12px -8px rgba(17,24,39,0.14)",
           zIndex: 80,
-          cursor: "pointer",
+          transform: floatingDrag.transform,
+          transition: floatingDrag.dragging ? "none" : "box-shadow 180ms ease",
+          userSelect: floatingDrag.dragging ? "none" : undefined,
         }}
       >
-        <svg
-          width="11"
-          height="11"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
+        {/* Drag grip — the whole strip moves the rail. */}
+        <div
+          onPointerDown={floatingDrag.onHandlePointerDown}
+          title="Drag to move"
+          style={{
+            width: "100%",
+            display: "flex",
+            justifyContent: "center",
+            padding: "4px 0 8px",
+            cursor: floatingDrag.dragging ? "grabbing" : "grab",
+            touchAction: "none",
+            color: CHROME.muted2,
+          }}
         >
-          <polyline points="9 18 15 12 9 6" />
-        </svg>
-      </button>
+          <span
+            aria-hidden
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(2, 3px)",
+              gridAutoRows: "3px",
+              gap: 2.5,
+              opacity: floatingDrag.dragging ? 0.85 : 0.45,
+            }}
+          >
+            {Array.from({ length: 6 }).map((_, i) => (
+              <span
+                key={i}
+                style={{ width: 3, height: 3, borderRadius: 9999, background: "currentColor" }}
+              />
+            ))}
+          </span>
+        </div>
+        {/* Icon column — generous vertical rhythm, subtle hover, tooltips. */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <RailIconButton
+            title="Open Layers (⌘\\)"
+            onClick={toggleNavigator}
+            primary
+          >
+            <PanelLeftOpen size={20} strokeWidth={1.9} aria-hidden />
+          </RailIconButton>
+          <RailIconButton title="Open Layers (⌘\\)" onClick={toggleNavigator}>
+            <SquarePen size={20} strokeWidth={1.8} aria-hidden />
+          </RailIconButton>
+          <RailIconButton title="Saved" onClick={toggleNavigator}>
+            <Bookmark size={20} strokeWidth={1.8} aria-hidden />
+          </RailIconButton>
+        </div>
+        {/* Collaborator avatar — pinned to the bottom of the rail. */}
+        <div style={{ marginTop: "auto", paddingTop: 10 }}>
+          <RailAvatar initials="You" title="You" />
+        </div>
+      </div>
     );
   }
 
   return (
     <aside
+      ref={(node) => floatingDrag.setPanelNode(node)}
       data-edit-overlay="navigator-panel"
       aria-labelledby="structure-navigator-label"
       style={{
+        // Floating control-panel card (Paint-style). Detached from the screen
+        // edges, rounded + shadowed, height-capped so it reads as a movable
+        // tool window rather than a wall-to-wall rail. `transform` carries the
+        // session drag offset; `overflow:hidden` clips the rounded corners (the
+        // inner layers list scrolls on its own — flex:1 + overflowY:auto).
         position: "fixed",
-        left: 0,
-        top: 54,
-        bottom: 0,
+        left: 14,
+        top: 66,
         width: navigatorWidth,
+        maxHeight: "calc(100vh - 84px)",
         background: CHROME.surface,
-        borderRight: `1px solid ${CHROME.line}`,
-        boxShadow: `1px 0 0 ${CHROME.line}, 16px 0 32px -16px rgba(0,0,0,0.10)`,
+        border: `1px solid ${CHROME.line}`,
+        borderRadius: 16,
+        boxShadow: floatingDrag.dragging
+          ? "0 30px 70px -20px rgba(17,24,39,0.45), 0 10px 26px -10px rgba(17,24,39,0.26)"
+          : "0 18px 50px -20px rgba(17,24,39,0.26), 0 4px 14px -8px rgba(17,24,39,0.14)",
         display: "flex",
         flexDirection: "column",
+        overflow: "hidden",
         zIndex: 80,
-        userSelect: resizing ? "none" : undefined,
+        transform: floatingDrag.transform,
+        transition: floatingDrag.dragging ? "none" : "box-shadow 180ms ease",
+        userSelect: resizing || floatingDrag.dragging ? "none" : undefined,
       }}
       onDragLeave={(e) => {
         // Only clear when leaving the panel as a whole, not when moving
@@ -1122,6 +1259,27 @@ export function NavigatorPanel() {
         if (draggingId) e.preventDefault();
       }}
     >
+      <FloatingDragHandle
+        onPointerDown={floatingDrag.onHandlePointerDown}
+        dragging={floatingDrag.dragging}
+        label="Layers"
+        moved={floatingMoved}
+        onReset={floatingDrag.reset}
+        style={{
+          // Clean grip strip flush under the rounded top corners. The row
+          // spans the full width and carries the SAME top radius as the
+          // <aside>, so the panel's overflow:hidden has nothing to clip at the
+          // corners (no white-on-white background seam / bleed). The header
+          // band directly below already supplies the divider — no border here.
+          color: CHROME.muted,
+          background: CHROME.surface,
+          width: "100%",
+          boxSizing: "border-box",
+          borderTopLeftRadius: 16,
+          borderTopRightRadius: 16,
+          height: 32,
+        }}
+      />
       <div
         role="separator"
         aria-label="Resize navigator"
@@ -1160,7 +1318,9 @@ export function NavigatorPanel() {
         style={{
           position: "absolute",
           top: 0,
-          right: -Math.floor(RESIZE_HANDLE_WIDTH / 2),
+          // At the inner right edge (was straddling at -4) so the rounded
+          // card's overflow:hidden doesn't clip the resize grab zone.
+          right: 0,
           bottom: 0,
           width: RESIZE_HANDLE_WIDTH,
           cursor: "col-resize",
@@ -1198,8 +1358,11 @@ export function NavigatorPanel() {
           style={{
             position: "absolute",
             left: "50%",
-            top: 0,
-            bottom: 0,
+            // Inset top + bottom by the card's corner radius so the resize
+            // line never pokes a hairline across the rounded top-right /
+            // bottom-right corners (a source of the top-edge "bleed").
+            top: 14,
+            bottom: 14,
             width: 2,
             transform: "translateX(-50%)",
             background:
@@ -1252,27 +1415,63 @@ export function NavigatorPanel() {
             />
             <span id="structure-navigator-label">Navigator</span>
             {builderPerformanceIssues.length > 0 ? (
-              <span
-                title={builderPerformanceIssues.map((issue) => issue.message).join("\n")}
-                style={{
-                  marginLeft: 6,
-                  padding: "1px 6px",
-                  borderRadius: 999,
-                  border: hasBlockingPerformanceIssue
-                    ? "1px solid rgba(180, 35, 35, 0.35)"
-                    : "1px solid rgba(209, 87, 0, 0.35)",
-                  background: hasBlockingPerformanceIssue
-                    ? "rgba(180, 35, 35, 0.14)"
-                    : "rgba(209, 87, 0, 0.12)",
-                  color: hasBlockingPerformanceIssue ? "#9f1239" : "#8f4300",
-                  fontSize: 9,
-                  fontWeight: 700,
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
-                }}
-              >
-                Perf
-              </span>
+              hasBlockingPerformanceIssue ? (
+                /* Genuine blocking problems keep a visible (rose) pill. */
+                <span
+                  title={
+                    "Performance issues detected:\n" +
+                    builderPerformanceIssues
+                      .map((issue) => `• ${issue.message}`)
+                      .join("\n")
+                  }
+                  aria-label={`${builderPerformanceIssues.length} performance ${builderPerformanceIssues.length === 1 ? "issue" : "issues"} detected — hover for details`}
+                  style={{
+                    marginLeft: 6,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 3,
+                    padding: "1px 6px",
+                    borderRadius: 999,
+                    border: "1px solid rgba(180, 35, 35, 0.35)",
+                    background: "rgba(180, 35, 35, 0.14)",
+                    color: "#9f1239",
+                    fontSize: 9,
+                    fontWeight: 700,
+                    letterSpacing: "0.04em",
+                    cursor: "default",
+                  }}
+                >
+                  <svg width="8" height="8" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
+                    <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm-.75 3.5h1.5v4.5h-1.5V4.5zm0 5.5h1.5v1.5h-1.5V10z"/>
+                  </svg>
+                  Slow
+                </span>
+              ) : (
+                /* Hint-level signals (e.g. deep nesting) are NOT an alarm — a
+                   muted, neutral info glyph that reveals the full list on hover.
+                   No warning color, no "Perf" label greeting the operator. */
+                <span
+                  title={
+                    "Performance hints:\n" +
+                    builderPerformanceIssues
+                      .map((issue) => `• ${issue.message}`)
+                      .join("\n")
+                  }
+                  aria-label={`${builderPerformanceIssues.length} builder ${builderPerformanceIssues.length === 1 ? "hint" : "hints"} — hover for details`}
+                  style={{
+                    marginLeft: 6,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    color: "#9ca3af",
+                    opacity: 0.6,
+                    cursor: "default",
+                  }}
+                >
+                  <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
+                    <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm-.75 3.5h1.5v4.5h-1.5V4.5zm0 5.5h1.5v1.5h-1.5V10z"/>
+                  </svg>
+                </span>
+              )
             ) : null}
           </div>
           <button
@@ -1323,8 +1522,11 @@ export function NavigatorPanel() {
             marginBottom: 6,
           }}
         >
+          {/* #15 — renamed "sections" view label to "Layers" (operator
+              language, not dev taxonomy). "Outline" stays as-is. */}
           {(["sections", "outline"] as const).map((mode) => {
             const active = viewMode === mode;
+            const displayLabel = mode === "sections" ? "Layers" : "Outline";
             return (
               <button
                 key={mode}
@@ -1350,7 +1552,7 @@ export function NavigatorPanel() {
                   transition: "background 100ms, color 100ms",
                 }}
               >
-                {mode}
+                {displayLabel}
               </button>
             );
           })}
@@ -1382,7 +1584,7 @@ export function NavigatorPanel() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={viewMode === "outline" ? "Search headings…" : "Search sections…"}
+            placeholder={viewMode === "outline" ? "Search headings…" : "Search layers…"}
             style={{
               width: "100%",
               padding: "6px 8px 6px 28px",
@@ -1598,16 +1800,20 @@ export function NavigatorPanel() {
             <polyline points="6 9 12 15 18 9" />
           </svg>
           <span>{pageMetadata?.title ?? "Page"}</span>
-          <span
-            style={{
-              color: CHROME.muted2,
-              fontWeight: 500,
-              letterSpacing: 0,
-              textTransform: "none",
-            }}
-          >
-            · {flat.length} section{flat.length === 1 ? "" : "s"}
-          </span>
+          {/* #15 — suppress "· 0 sections" when the page is empty; show
+              "· N blocks" instead of "· N sections" for plain language. */}
+          {flat.length > 0 ? (
+            <span
+              style={{
+                color: CHROME.muted2,
+                fontWeight: 500,
+                letterSpacing: 0,
+                textTransform: "none",
+              }}
+            >
+              · {flat.length} {flat.length === 1 ? "block" : "blocks"}
+            </span>
+          ) : null}
           {hasLayeredSections ? (
             <span
               style={{
@@ -1811,10 +2017,17 @@ export function NavigatorPanel() {
               role="status"
               aria-live="polite"
             >
-              No sections match &ldquo;{search}&rdquo;. Clear the search or add a block that matches.
+              No layers match &ldquo;{search}&rdquo;. Clear the search or add a block that matches.
             </div>
           )}
-          {visible.length === 0 && !search.trim() && (
+          {/* Freeform full-page design: zero curated sections but a non-empty
+              builderTree of containers + blocks. Show the Layers tree so the
+              block hierarchy is visible + navigable from the left rail
+              (the section list / FlatRow model is empty for freeform). */}
+          {visible.length === 0 && !search.trim() && builderTree.length > 0 && (
+            <FreeformLayersTree />
+          )}
+          {visible.length === 0 && !search.trim() && builderTree.length === 0 && (
             <div
               style={{
                 padding: "12px 8px",
@@ -1882,12 +2095,34 @@ export function NavigatorPanel() {
             const rowMatchesSearch = searchQuery
               ? sectionMatchesNavigatorSearch(row, searchQuery, displayNameById)
               : true;
+            // Progressive disclosure: when NOT searching, collapse the subtree
+            // to a navigable outline (depth-1 by default; drill in via the
+            // per-row chevron). The selected node's ancestor path is always
+            // force-revealed so a deep selection is never hidden. Searching
+            // bypasses collapse entirely so matches are never hidden.
+            const navSelectedAncestors = searchQuery
+              ? null
+              : navigatorSelectedAncestors(
+                  row.childNodes,
+                  selectedBuilderNodeId,
+                );
+            const navDisclosure = searchQuery
+              ? null
+              : computeNavigatorDisclosure(
+                  row.childNodes,
+                  (id) =>
+                    expandedNodeIds.has(id) ||
+                    (navSelectedAncestors?.has(id) ?? false),
+                );
+            const navNodeIdsWithChildren = navDisclosure?.withChildren ?? null;
             const visibleChildNodes =
               searchQuery && !rowMatchesSearch
                 ? row.childNodes.filter((child) =>
                     builderChildMatchesNavigatorSearch(child, searchQuery),
                   )
-                : row.childNodes;
+                : navDisclosure
+                  ? navDisclosure.visible
+                  : row.childNodes;
             const hasSelectedChild = row.childNodes.some(
               (child) => child.id === selectedBuilderNodeId,
             );
@@ -2401,6 +2636,7 @@ export function NavigatorPanel() {
                   targetKey={row.builderNodeId ? `section:${row.builderNodeId}` : null}
                   target={nodeInsertTarget}
                   onInsert={commitNodeInsert}
+                  onInsertSectionEmbed={commitNodeInsertSectionEmbed}
                   onDismiss={() => setNodeInsertTarget(null)}
                 />
                 {visibleChildNodes.length > 0 && childListExpanded ? (
@@ -2435,6 +2671,11 @@ export function NavigatorPanel() {
                       const childSelected = selectedBuilderNodeId === child.id;
                       const childHovered = hoveredChildNodeId === child.id;
                       const childFocused = focusedChildNodeId === child.id;
+                      const childHasKids =
+                        navNodeIdsWithChildren?.has(child.id) ?? false;
+                      const childOpen =
+                        expandedNodeIds.has(child.id) ||
+                        (navSelectedAncestors?.has(child.id) ?? false);
                       const childActionsVisible =
                         childSelected ||
                         childHovered ||
@@ -2649,6 +2890,60 @@ export function NavigatorPanel() {
                               }
                             }}
                           >
+                            {childHasKids ? (
+                              <button
+                                type="button"
+                                data-navigator-node-disclosure=""
+                                aria-label={`${childOpen ? "Collapse" : "Expand"} ${child.label}`}
+                                aria-expanded={childOpen}
+                                title={childOpen ? "Collapse" : "Expand"}
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setExpandedNodeIds((prev) => {
+                                    const next = new Set(prev);
+                                    if (next.has(child.id)) next.delete(child.id);
+                                    else next.add(child.id);
+                                    return next;
+                                  });
+                                }}
+                                onKeyDown={(e) => e.stopPropagation()}
+                                style={{
+                                  position: "absolute",
+                                  left: Math.max(
+                                    2,
+                                    8 + (child.depth - 1) * 13 - 12,
+                                  ),
+                                  top: "50%",
+                                  transform: "translateY(-50%)",
+                                  width: 13,
+                                  height: 18,
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  padding: 0,
+                                  border: "none",
+                                  background: "transparent",
+                                  color: CHROME.muted,
+                                  cursor: "pointer",
+                                  lineHeight: 1,
+                                  fontSize: 9,
+                                }}
+                              >
+                                <span
+                                  aria-hidden
+                                  style={{
+                                    display: "inline-block",
+                                    transform: childOpen
+                                      ? "rotate(90deg)"
+                                      : "rotate(0deg)",
+                                    transition: "transform 120ms ease",
+                                  }}
+                                >
+                                  ▸
+                                </span>
+                              </button>
+                            ) : null}
                             <span
                               data-navigator-drag-handle=""
                               aria-hidden
@@ -2918,6 +3213,7 @@ export function NavigatorPanel() {
                             targetKey={`child:${child.id}`}
                             target={nodeInsertTarget}
                             onInsert={commitNodeInsert}
+                            onInsertSectionEmbed={commitNodeInsertSectionEmbed}
                             onDismiss={() => setNodeInsertTarget(null)}
                           />
                           {showChildDropTail ? <DropLine /> : null}
@@ -3336,11 +3632,13 @@ function NodeInsertMenu({
   targetKey,
   target,
   onInsert,
+  onInsertSectionEmbed,
   onDismiss,
 }: {
   targetKey: string | null;
   target: NodeInsertTarget | null;
   onInsert: (kind: BuilderNodeKind) => Promise<void>;
+  onInsertSectionEmbed: (sectionTypeKey: string) => Promise<void>;
   onDismiss: () => void;
 }) {
   if (!targetKey || !target || target.key !== targetKey) {
@@ -3419,6 +3717,9 @@ function NodeInsertMenu({
         variant="navigator"
         allowedKinds={target.allowedKinds}
         onPick={(kind) => void onInsert(kind)}
+        onPickSectionEmbed={(sectionTypeKey) =>
+          void onInsertSectionEmbed(sectionTypeKey)
+        }
       />
     </div>
   );

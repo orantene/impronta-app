@@ -21,6 +21,7 @@ import { NextResponse } from "next/server";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
 
 export const runtime = "nodejs";
@@ -101,7 +102,7 @@ export async function POST(req: Request) {
   // and be active.
   const { data: section } = await admin
     .from("cms_sections")
-    .select("id, tenant_id, section_type_key, archived_at")
+    .select("id, tenant_id, name, section_type_key, archived_at")
     .eq("id", sectionId)
     .maybeSingle();
   if (!section || section.archived_at) {
@@ -212,19 +213,24 @@ export async function POST(req: Request) {
       ? payload.name.slice(0, 200)
       : null;
 
+  let submissionId: string | null = null;
   try {
-    const { error } = await admin.from("cms_form_submissions").insert({
-      tenant_id: section.tenant_id,
-      section_id: section.id,
-      payload_jsonb: payload,
-      contact_email: contactEmail,
-      contact_name: contactName,
-      source_url: req.headers.get("referer") ?? null,
-      user_agent: req.headers.get("user-agent")?.slice(0, 400) ?? null,
-      ip_address: ip === "unknown" ? null : ip,
-      honeypot_tripped: tripped,
-      status: tripped ? "spam" : "new",
-    });
+    const { data: insertedRow, error } = await admin
+      .from("cms_form_submissions")
+      .insert({
+        tenant_id: section.tenant_id,
+        section_id: section.id,
+        payload_jsonb: payload,
+        contact_email: contactEmail,
+        contact_name: contactName,
+        source_url: req.headers.get("referer") ?? null,
+        user_agent: req.headers.get("user-agent")?.slice(0, 400) ?? null,
+        ip_address: ip === "unknown" ? null : ip,
+        honeypot_tripped: tripped,
+        status: tripped ? "spam" : "new",
+      })
+      .select("id")
+      .single();
     if (error) {
       logServerError("cms-forms/submit", error);
       return NextResponse.json(
@@ -232,12 +238,54 @@ export async function POST(req: Request) {
         { status: 500 },
       );
     }
+    submissionId = (insertedRow as { id: string } | null)?.id ?? null;
   } catch (err) {
     logServerError("cms-forms/submit", err);
     return NextResponse.json(
       { ok: false, error: "Couldn't record submission." },
       { status: 500 },
     );
+  }
+
+  // Email-on-submit: fire-and-forget to workspace admins.
+  // Only for genuine submissions (honeypot_tripped = false).
+  // We need the tenant slug for the inbox URL — fetch it from agencies.
+  if (!tripped && submissionId) {
+    try {
+      const { data: agencyRow } = await admin
+        .from("agencies")
+        .select("slug")
+        .eq("id", section.tenant_id)
+        .maybeSingle();
+      const tenantSlug = (agencyRow as { slug: string } | null)?.slug ?? "admin";
+
+      // Project the payload as label→value pairs (cap at 8, exclude reserved keys).
+      const RESERVED_KEYS = new Set(["email", "name", "phone"]);
+      const payloadFields: Array<{ label: string; value: string }> = Object.entries(payload)
+        .filter(([k]) => !RESERVED_KEYS.has(k))
+        .slice(0, 8)
+        .map(([k, v]) => ({ label: k, value: String(v).slice(0, 500) }));
+
+      const submittedAt = new Date().toISOString();
+      void dispatchEventNotifications({
+        type: "cms_form.submitted",
+        tenantId: section.tenant_id,
+        eventId: submissionId, // stable idempotency anchor = the row id
+        payload: {
+          formName: (section as { name: string }).name,
+          sectionId: section.id,
+          submissionId,
+          contactName: contactName ?? null,
+          contactEmail: contactEmail ?? null,
+          submittedAt,
+          tenantSlug,
+          payloadFields,
+        },
+      });
+    } catch (err) {
+      // Notification dispatch is best-effort; never block the response.
+      logServerError("cms-forms/notify", err);
+    }
   }
 
   // Native HTML form submissions expect a redirect; programmatic

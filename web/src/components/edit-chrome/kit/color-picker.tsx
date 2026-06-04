@@ -131,9 +131,14 @@ function resolveCssVarColor(cssVar: string, fallback: string): string {
  * Best-effort hex for the preview tile + native `<input type="color">`. A token
  * value (`var(--token-…, #hex)`) resolves through the live custom property,
  * falling back to the declared literal; plain values go through normaliseHex.
+ * A `token:<key>` sentinel resolves via its matching swatch's cssVar/fallback.
  */
-function previewHex(value: string): string {
+function previewHex(value: string, bound?: ColorTokenSwatch | null): string {
   const v = value.trim();
+  if (bound && v.startsWith(TOKEN_REF_PREFIX)) {
+    const live = resolveCssVarColor(bound.cssVar, bound.fallback);
+    return normaliseHex(live) ?? normaliseHex(bound.fallback) ?? "#000000";
+  }
   if (v.startsWith("var(")) {
     const m = /^var\(\s*(--[a-z0-9-]+)\s*(?:,\s*([^)]+))?\)$/i.exec(v);
     if (m) {
@@ -145,11 +150,57 @@ function previewHex(value: string): string {
   return normaliseHex(v) ?? "#000000";
 }
 
-/** A theme-token swatch the field can bind to (emits `var(--token-…, fallback)`). */
+/**
+ * A theme-token swatch the field can bind to. When `tokenKey` is set the field
+ * binds via the FIRST-CLASS `token:<key>` sentinel (Wave 3 · 3A — the renderer
+ * resolves it to `var(--token-…)` so a theme change cascades, and the inspector
+ * can show the bound token name + unbind). When `tokenKey` is absent the field
+ * binds with a literal `var(--token-…, fallback)` string (legacy behaviour for
+ * any other caller).
+ */
 export interface ColorTokenSwatch {
   label: string;
   cssVar: string;
   fallback: string;
+  /** Registry key (e.g. "color.primary"). Present → emit the `token:` sentinel. */
+  tokenKey?: string;
+}
+
+const TOKEN_REF_PREFIX = "token:";
+
+/** The value a swatch emits — the sentinel when keyed, else a literal var(). */
+function emittedValueFor(token: ColorTokenSwatch): string {
+  return token.tokenKey
+    ? `${TOKEN_REF_PREFIX}${token.tokenKey}`
+    : `var(${token.cssVar}, ${token.fallback})`;
+}
+
+/**
+ * Identify the bound token for the current value, matching BOTH the first-class
+ * `token:<key>` sentinel and a literal `var(--token-…)` string (so previously
+ * saved literal-var bindings still read as "bound"). Returns the swatch or null.
+ */
+function boundTokenFor(
+  value: string,
+  themeTokens: ColorTokenSwatch[] | undefined,
+): ColorTokenSwatch | null {
+  if (!themeTokens) return null;
+  const v = value.trim();
+  if (v.startsWith(TOKEN_REF_PREFIX)) {
+    const key = v.slice(TOKEN_REF_PREFIX.length);
+    return themeTokens.find((t) => t.tokenKey === key) ?? null;
+  }
+  if (v.startsWith("var(")) {
+    return (
+      themeTokens.find(
+        (t) =>
+          v === `var(${t.cssVar}, ${t.fallback})` ||
+          v === `var(${t.cssVar})` ||
+          v.startsWith(`var(${t.cssVar}`),
+      ) ?? null
+    );
+  }
+  return null;
 }
 
 interface ColorPickerPopoverProps {
@@ -279,7 +330,8 @@ export function ColorPickerPopover({
 
   if (!open || typeof document === "undefined") return null;
 
-  const normalised = previewHex(value);
+  const bound = boundTokenFor(value, themeTokens);
+  const normalised = previewHex(value, bound);
 
   return createPortal(
     <div
@@ -316,6 +368,62 @@ export function ColorPickerPopover({
       >
         Pick a color
       </label>
+
+      {/* Bound-to-token banner (Wave 3 · 3A). When the value is bound to a Theme
+          token, surface the token name + an "Unbind" action that converts the
+          binding to its current resolved hex so the user keeps the color as an
+          editable raw value. */}
+      {bound ? (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 8,
+            marginBottom: 8,
+            padding: "6px 8px",
+            borderRadius: 6,
+            border: `1px solid ${CHROME.lineMid}`,
+            background: CHROME.surface2,
+          }}
+        >
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 11,
+              fontWeight: 600,
+              color: CHROME.text2,
+              minWidth: 0,
+            }}
+          >
+            <Swatch color={normalised} size={14} title={bound.label} />
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              Bound to {bound.label}
+            </span>
+          </span>
+          <button
+            type="button"
+            onClick={() => commit(normalised)}
+            title="Unbind — keep this color as an editable value"
+            style={{
+              flexShrink: 0,
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              color: CHROME.muted,
+              background: "transparent",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+            }}
+          >
+            Unbind
+          </button>
+        </div>
+      ) : null}
       {/* Native HSL surface. The control itself is a 1-px transparent input
           stretched over a swatch tile so we get the full OS picker on click
           while keeping our own visual style. */}
@@ -461,17 +569,20 @@ export function ColorPickerPopover({
           </div>
           <div className="flex flex-wrap gap-1.5">
             {themeTokens.map((token) => {
-              const emitted = `var(${token.cssVar}, ${token.fallback})`;
+              const emitted = emittedValueFor(token);
               const swatchHex =
                 normaliseHex(resolveCssVarColor(token.cssVar, token.fallback)) ??
                 token.fallback;
+              const isActive =
+                value.trim() === emitted ||
+                (bound != null && bound.tokenKey === token.tokenKey && bound.cssVar === token.cssVar);
               return (
                 <Swatch
-                  key={token.cssVar}
+                  key={token.tokenKey ?? token.cssVar}
                   color={swatchHex}
                   size={20}
-                  title={`${token.label} — binds to ${token.cssVar}`}
-                  active={value.trim() === emitted}
+                  title={`${token.label} — bind to the theme token (updates with the theme)`}
+                  active={isActive}
                   onClick={() => onChange(emitted)}
                 />
               );

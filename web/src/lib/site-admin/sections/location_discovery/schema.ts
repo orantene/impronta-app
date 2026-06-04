@@ -48,6 +48,16 @@ export const locationDiscoverySchemaV1 = z.object({
   showCount: z.boolean().optional(),
   /** Map/pin visual. Off renders the simpler card grid. */
   showMap: z.boolean().optional(),
+  /**
+   * Map rendering style:
+   *   - editorial    : the token-driven flat dotted map (default; no external dep).
+   *   - talent_orbit : the live interactive Google map with talent-profile photos
+   *                    orbiting each city pin (LocationSection); sources live
+   *                    roster cities + featured talent regardless of `source`.
+   *     Requires NEXT_PUBLIC_GOOGLE_MAPS_API_KEY; falls back to editorial if no
+   *     live locations resolve for the tenant.
+   */
+  mapStyle: z.enum(["editorial", "talent_orbit"]).default("editorial").optional(),
 
   ctaLabel: z.string().max(40).optional(),
   /** Section-level CTA link (e.g. browse all). 6C — structured LinkRef. */

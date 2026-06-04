@@ -55,6 +55,7 @@ import {
 import {
   collectFreePlanPublishNestedViolations,
 } from "@/lib/site-admin/builder-node/free-plan-builder-tree-guard";
+import { isAdvancedElementLibraryEnabledForPlan } from "@/lib/site-admin/builder-node/element-library-policy";
 import { resolveSnapshotBuilderTree } from "@/lib/site-admin/builder-node/snapshot-tree";
 import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
@@ -470,7 +471,11 @@ export async function runPublishPreflight(input?: {
         }
 
         if (
-          workspacePlan === "free" &&
+          // Pre-launch: the freeform builder is open to all plans, so the
+          // nested-composition publish guard only applies where advanced
+          // composition is gated. Mirrors the single source flag the client
+          // EditContext + server save guard use (currently open for everyone).
+          !isAdvancedElementLibraryEnabledForPlan(workspacePlan) &&
           preflightPage?.publishedCompositionSnapshot &&
           Array.isArray(preflightPage.publishedCompositionSnapshot.slots)
         ) {

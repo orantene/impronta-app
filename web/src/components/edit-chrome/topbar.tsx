@@ -41,7 +41,11 @@ import {
   type PagePickerItem,
   type PagePickerAvailability,
 } from "@/lib/server-actions/admin-site-pages";
-import { useMaybeEditContext, type EditDevice } from "./edit-context";
+import {
+  useMaybeEditContext,
+  type EditDevice,
+  type PreviewFrameOverride,
+} from "./edit-context";
 import { CHROME } from "./kit";
 
 /** Minimal `LanguageSettings` for `withLocalePath` / strip-prefix helpers. */
@@ -115,6 +119,13 @@ interface TbIconBtnProps {
   onClick?: () => void;
   disabled?: boolean;
   badge?: number;
+  /**
+   * #14 — optional short text label shown below the icon (10px, muted).
+   * Pass a 1–2 word label for right-cluster action buttons where the glyph
+   * alone is ambiguous. Omit for undo/redo and other utility buttons where
+   * the tooltip is sufficient and horizontal space is tight.
+   */
+  label?: string;
   children: React.ReactNode;
 }
 
@@ -128,6 +139,7 @@ function TbIconBtn({
   onClick,
   disabled,
   badge,
+  label,
   children,
 }: TbIconBtnProps) {
   return (
@@ -141,10 +153,13 @@ function TbIconBtn({
       aria-expanded={ariaExpanded}
       aria-haspopup={ariaHaspopup}
       aria-controls={ariaControls}
-      className="relative inline-flex shrink-0 cursor-pointer items-center justify-center rounded-[8px] border border-transparent transition-colors disabled:cursor-not-allowed"
+      className="relative inline-flex shrink-0 cursor-pointer items-center rounded-[8px] border border-transparent transition-colors disabled:cursor-not-allowed"
       style={{
-        width: 36,
+        width: label ? 44 : 36,
         height: 36,
+        flexDirection: label ? "column" : "row",
+        justifyContent: "center",
+        gap: label ? 1 : undefined,
         background: "transparent",
         color: CHROME.muted,
       }}
@@ -160,6 +175,21 @@ function TbIconBtn({
       }}
     >
       {children}
+      {label ? (
+        <span
+          aria-hidden
+          style={{
+            fontSize: 9,
+            fontWeight: 600,
+            letterSpacing: "0.02em",
+            lineHeight: 1,
+            color: "inherit",
+            pointerEvents: "none",
+          }}
+        >
+          {label}
+        </span>
+      ) : null}
       {badge != null && badge > 0 ? (
         <span
           aria-hidden
@@ -766,20 +796,53 @@ function LiveSitePublishedChip({
   );
 }
 
-function SaveStatus({ dirty, saving }: { dirty: boolean; saving: boolean }) {
-  const [justSaved, setJustSaved] = useState(false);
-  const wasSavingRef = useRef(false);
+// ── #18 — relative "Saved Xs ago" formatter ─────────────────────────────────
 
+function formatSavedAgo(isoOrEpoch: string): string {
+  const ms = Date.now() - new Date(isoOrEpoch).getTime();
+  if (ms < 5_000) return "just now";
+  if (ms < 60_000) return `${Math.floor(ms / 1_000)}s ago`;
+  if (ms < 3_600_000) return `${Math.floor(ms / 60_000)}m ago`;
+  return `${Math.floor(ms / 3_600_000)}h ago`;
+}
+
+/**
+ * #18 — SaveStatus: surfaces the autosave state with a relative "Saved Xs ago"
+ * timestamp (from `lastDraftSavedAt`) so operators always know when the last
+ * checkpoint was written, and shows an amber "Unpublished changes" pill when
+ * the draft was saved AFTER the last publish (or when the page has never been
+ * published), signalling the live site doesn't yet reflect current work.
+ */
+function SaveStatus({
+  dirty,
+  saving,
+  lastDraftSavedAt,
+  liveSitePublishedAt,
+}: {
+  dirty: boolean;
+  saving: boolean;
+  /** ISO timestamp of the last successful draft save (from edit-context). */
+  lastDraftSavedAt?: string | null;
+  /** ISO timestamp when the page was last published, or null if never. */
+  liveSitePublishedAt?: string | null;
+}) {
+  // Tick every 15 s so relative "Xs ago" stays reasonably fresh without
+  // hammering re-renders. The display is informational, not realtime.
+  const [, setTick] = useState(0);
   useEffect(() => {
-    if (wasSavingRef.current && !saving && !dirty) {
-      setJustSaved(true);
-      const t = setTimeout(() => setJustSaved(false), 1600);
-      wasSavingRef.current = saving;
-      return () => clearTimeout(t);
-    }
-    wasSavingRef.current = saving;
-    return undefined;
-  }, [saving, dirty]);
+    if (!lastDraftSavedAt) return;
+    const id = setInterval(() => setTick((n) => n + 1), 15_000);
+    return () => clearInterval(id);
+  }, [lastDraftSavedAt]);
+
+  // "Unpublished changes" = draft was saved at or after the last publish,
+  // OR the page has never been published. Detect by comparing ISO strings.
+  const hasUnpublishedChanges = Boolean(
+    lastDraftSavedAt &&
+      (!liveSitePublishedAt ||
+        new Date(lastDraftSavedAt).getTime() >=
+          new Date(liveSitePublishedAt).getTime()),
+  );
 
   const dot = "inline-block shrink-0 rounded-full";
 
@@ -802,7 +865,7 @@ function SaveStatus({ dirty, saving }: { dirty: boolean; saving: boolean }) {
           style={{ width: 6, height: 6, background: CHROME.blue, boxShadow: "0 0 8px rgba(58,123,255,0.6)" }}
           aria-hidden
         />
-        Saving draft…
+        Saving…
       </span>
     );
   }
@@ -831,8 +894,14 @@ function SaveStatus({ dirty, saving }: { dirty: boolean; saving: boolean }) {
       </span>
     );
   }
-  if (justSaved) {
-    return (
+
+  // Saved state — show relative timestamp + optional "Unpublished changes" pill.
+  const savedAgoText = lastDraftSavedAt
+    ? `Saved ${formatSavedAgo(lastDraftSavedAt)}`
+    : "Draft up to date";
+
+  return (
+    <>
       <span
         role="status"
         aria-live="polite"
@@ -844,40 +913,46 @@ function SaveStatus({ dirty, saving }: { dirty: boolean; saving: boolean }) {
           color: CHROME.green,
           borderColor: CHROME.greenLine,
         }}
-        title="Draft saved on the server. Visitors still see the last published version until you Publish. If the canvas looks one step behind, wait a moment for the preview refresh."
+        title={
+          lastDraftSavedAt
+            ? `Draft last saved at ${new Date(lastDraftSavedAt).toLocaleString()} — visitors see the last published version until you publish.`
+            : "Draft is saved on our servers — visitors still see the published site until you click Publish."
+        }
+        aria-label={savedAgoText}
       >
         <span
           className={dot}
-          style={{ width: 6, height: 6, background: CHROME.green, boxShadow: "0 0 8px rgba(20,115,46,0.6)" }}
+          style={{ width: 6, height: 6, background: CHROME.green }}
           aria-hidden
         />
-        Draft saved
+        {savedAgoText}
       </span>
-    );
-  }
-  return (
-    <span
-      role="status"
-      aria-live="polite"
-      aria-atomic="true"
-      className="inline-flex shrink-0 items-center gap-[6px] rounded-full border text-[11px] font-semibold"
-      style={{
-        padding: "4px 11px 4px 9px",
-        background: CHROME.greenBg,
-        color: CHROME.green,
-        borderColor: CHROME.greenLine,
-        opacity: 0.7,
-      }}
-      title="Draft is saved on our servers — visitors still see the published site until you click Publish. The editor preview can take a few seconds to match after inserts; try toggling device width or waiting briefly if something looks off."
-      aria-label="Draft up to date on the server. The live site still shows the last published version until you publish. Preview may briefly lag after layout changes."
-    >
-      <span
-        className={dot}
-        style={{ width: 6, height: 6, background: CHROME.green }}
-        aria-hidden
-      />
-      Draft up to date
-    </span>
+      {/* #18 — "Unpublished changes" amber pill: visible whenever there are
+          draft saves that haven't been published to the live site yet. This
+          gives operators an at-a-glance signal that the live site differs
+          from what they see in the canvas. Click Publish to close the gap. */}
+      {hasUnpublishedChanges ? (
+        <span
+          role="note"
+          aria-label="You have unpublished changes. The live site still shows the previous published version."
+          className="inline-flex shrink-0 items-center gap-[5px] rounded-full border text-[10.5px] font-semibold"
+          style={{
+            padding: "3px 9px 3px 8px",
+            background: CHROME.amberBg,
+            color: CHROME.amber,
+            borderColor: CHROME.amberLine,
+          }}
+          title="The live site visitors see does not yet reflect your saved draft. Click Publish to push these changes live."
+        >
+          <span
+            className={dot}
+            style={{ width: 5, height: 5, background: CHROME.amber }}
+            aria-hidden
+          />
+          Unpublished changes
+        </span>
+      ) : null}
+    </>
   );
 }
 
@@ -1079,50 +1154,337 @@ function LocaleSwitcher({
   );
 }
 
+// Job #17 — custom-width bounds (mirrors edit-shell's PREVIEW_WIDTH_MIN/MAX so
+// the input clamps before the override even reaches the frame resolver).
+const PREVIEW_WIDTH_MIN = 280;
+const PREVIEW_WIDTH_MAX = 1920;
+// Natural portrait widths per tier — seed the custom-width input when blank so
+// the operator nudges from the real frame width, not an empty field.
+const VIEWPORT_NATURAL_WIDTHS: Record<EditDevice, number> = {
+  desktop: 1280,
+  tablet: 834,
+  mobile: 390,
+};
+
 function ViewportSwitcher({
   device,
   setDevice,
+  previewFrame,
+  setPreviewFrameWidth,
+  togglePreviewRotated,
+  mobileEditMode,
+  setMobileEditMode,
 }: {
   device: EditDevice;
   setDevice: (d: EditDevice) => void;
+  /** Job #17 — current frame override; null when no EditProvider is mounted. */
+  previewFrame: PreviewFrameOverride | null;
+  setPreviewFrameWidth?: (widthPx: number | null) => void;
+  togglePreviewRotated?: () => void;
+  /**
+   * Wave 6C (job #35) — when present, the Mobile tier becomes a real EDITING
+   * mode (not just a preview frame): picking Mobile enters `mobileEditMode`
+   * (which pins the canvas to mobile + opens the mobile HUD), and picking
+   * Desktop/Tablet exits it first. Optional → no EditProvider falls back to the
+   * plain `setDevice` behaviour.
+   */
+  mobileEditMode?: boolean;
+  setMobileEditMode?: (next: boolean) => void;
 }) {
+  const mobileEditAvailable = typeof setMobileEditMode === "function";
+  // Picking a tier: Mobile enters the editing mode; the others exit it. When no
+  // mode plumbing is present, this is exactly the old `setDevice`.
+  const selectTier = (key: EditDevice) => {
+    if (mobileEditAvailable && setMobileEditMode) {
+      if (key === "mobile") {
+        setMobileEditMode(true);
+        return;
+      }
+      if (mobileEditMode) setMobileEditMode(false);
+    }
+    setDevice(key);
+  };
+  // The frame tools (#17) only make sense on a non-desktop device frame, and
+  // only when the context setters are present.
+  const frameToolsAvailable =
+    device !== "desktop" &&
+    previewFrame != null &&
+    typeof setPreviewFrameWidth === "function" &&
+    typeof togglePreviewRotated === "function";
+
+  return (
+    <div className="inline-flex shrink-0 items-center gap-2">
+      <div
+        role="group"
+        aria-label="Canvas preview width"
+        className="inline-flex shrink-0 items-center rounded-full p-[3px]"
+        style={{
+          background: "rgba(0,0,0,0.05)",
+          boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.04)",
+        }}
+      >
+        {VIEWPORT_OPTS.map((opt) => {
+          const active = device === opt.key;
+          // Wave 6C — the active Mobile tier in editing mode reads with the
+          // indigo accent (a MODE, not just a frame); the dot flags it's live.
+          const inMobileEditMode =
+            opt.key === "mobile" && active && Boolean(mobileEditMode);
+          return (
+            <button
+              key={opt.key}
+              type="button"
+              onClick={() => selectTier(opt.key)}
+              title={
+                opt.key === "mobile" && mobileEditAvailable
+                  ? "Mobile editing — edit the mobile layout: scope style edits to mobile, hide/reorder blocks per-phone, run mobile health checks"
+                  : viewportPreviewTitle(opt.key, opt.label)
+              }
+              aria-label={
+                opt.key === "mobile" && mobileEditAvailable
+                  ? "Mobile editing mode"
+                  : opt.label
+              }
+              aria-pressed={active}
+              className="inline-flex items-center gap-[5px] rounded-full border-none px-[14px] py-[6px] text-[12px] font-semibold tracking-[-0.005em] transition-all"
+              style={{
+                background: inMobileEditMode
+                  ? "rgba(61, 79, 124, 0.12)"
+                  : active
+                    ? CHROME.surface
+                    : "transparent",
+                color: inMobileEditMode
+                  ? CHROME.accent
+                  : active
+                    ? CHROME.ink
+                    : CHROME.muted,
+                boxShadow: inMobileEditMode
+                  ? "inset 0 0 0 1px rgba(61, 79, 124, 0.28)"
+                  : active
+                    ? "0 1px 3px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.04)"
+                    : "none",
+                minWidth: 80,
+                justifyContent: "center",
+                cursor: "pointer",
+              }}
+            >
+              {opt.icon}
+              {opt.label}
+              {inMobileEditMode ? (
+                <span
+                  aria-hidden
+                  style={{
+                    width: 5,
+                    height: 5,
+                    marginLeft: 1,
+                    borderRadius: 999,
+                    background: CHROME.accent,
+                    flexShrink: 0,
+                  }}
+                />
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
+      {frameToolsAvailable && previewFrame ? (
+        <ViewportFrameTools
+          device={device}
+          previewFrame={previewFrame}
+          // Non-null asserted via frameToolsAvailable.
+          setPreviewFrameWidth={setPreviewFrameWidth!}
+          togglePreviewRotated={togglePreviewRotated!}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Job #17 — responsive-preview frame tools shown beside the device switcher
+ * when a non-desktop frame is active: a custom-width input, a one-click
+ * Landscape (rotate) toggle, and a Reset back to the device's natural portrait
+ * width. Reuses the existing `previewFrame` context override — landscape just
+ * sets `rotated`, custom width sets `widthPx` (clamped), reset clears both.
+ */
+function ViewportFrameTools({
+  device,
+  previewFrame,
+  setPreviewFrameWidth,
+  togglePreviewRotated,
+}: {
+  device: EditDevice;
+  previewFrame: PreviewFrameOverride;
+  setPreviewFrameWidth: (widthPx: number | null) => void;
+  togglePreviewRotated: () => void;
+}) {
+  const isCustom = previewFrame.widthPx != null;
+  const isRotated = previewFrame.rotated;
+  // Draft text so an in-progress entry ("8") isn't clamped mid-keystroke.
+  const [draft, setDraft] = useState<string | null>(null);
+  const naturalWidth = VIEWPORT_NATURAL_WIDTHS[device];
+  const displayWidth = previewFrame.widthPx ?? naturalWidth;
+  const inputValue = draft ?? String(displayWidth);
+
+  const commitWidth = useCallback(
+    (raw: string) => {
+      setDraft(null);
+      const trimmed = raw.trim();
+      if (trimmed === "") {
+        setPreviewFrameWidth(null);
+        return;
+      }
+      const parsed = Number.parseInt(trimmed, 10);
+      if (!Number.isFinite(parsed)) {
+        setPreviewFrameWidth(null);
+        return;
+      }
+      const clamped = Math.min(
+        PREVIEW_WIDTH_MAX,
+        Math.max(PREVIEW_WIDTH_MIN, parsed),
+      );
+      setPreviewFrameWidth(clamped);
+    },
+    [setPreviewFrameWidth],
+  );
+
   return (
     <div
-      role="group"
-      aria-label="Canvas preview width"
-      className="inline-flex shrink-0 items-center rounded-full p-[3px]"
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-full px-1.5 py-[3px]"
       style={{
         background: "rgba(0,0,0,0.05)",
         boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.04)",
       }}
     >
-      {VIEWPORT_OPTS.map((opt) => {
-        const active = device === opt.key;
-        return (
-          <button
-            key={opt.key}
-            type="button"
-            onClick={() => setDevice(opt.key)}
-            title={viewportPreviewTitle(opt.key, opt.label)}
-            aria-label={opt.label}
-            aria-pressed={active}
-            className="inline-flex items-center gap-[5px] rounded-full border-none px-[14px] py-[6px] text-[12px] font-semibold tracking-[-0.005em] transition-all"
-            style={{
-              background: active ? CHROME.surface : "transparent",
-              color: active ? CHROME.ink : CHROME.muted,
-              boxShadow: active
-                ? "0 1px 3px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.04)"
-                : "none",
-              minWidth: 80,
-              justifyContent: "center",
-              cursor: "pointer",
-            }}
+      {/* Custom-width input */}
+      <label
+        className="inline-flex items-center gap-1"
+        title="Custom preview width (px). The frame resizes and storefront breakpoints re-fire at this width."
+        style={{ color: CHROME.muted, fontSize: 11, fontWeight: 600 }}
+      >
+        <span aria-hidden>W</span>
+        <input
+          type="number"
+          inputMode="numeric"
+          min={PREVIEW_WIDTH_MIN}
+          max={PREVIEW_WIDTH_MAX}
+          step={1}
+          aria-label="Custom preview width in pixels"
+          value={inputValue}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={(e) => commitWidth(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              commitWidth((e.target as HTMLInputElement).value);
+              (e.target as HTMLInputElement).blur();
+            } else if (e.key === "Escape") {
+              setDraft(null);
+              (e.target as HTMLInputElement).blur();
+            }
+          }}
+          style={{
+            width: 52,
+            height: 24,
+            textAlign: "right",
+            borderRadius: 6,
+            border: `1px solid ${isCustom ? CHROME.blueLine : "rgba(0,0,0,0.10)"}`,
+            background: CHROME.surface,
+            color: isCustom ? CHROME.blue : CHROME.ink,
+            fontSize: 11.5,
+            fontWeight: 600,
+            padding: "0 5px",
+            outline: "none",
+            MozAppearance: "textfield",
+          }}
+        />
+        <span aria-hidden style={{ color: CHROME.muted2 }}>
+          px
+        </span>
+      </label>
+      {/* Landscape / rotate toggle */}
+      <button
+        type="button"
+        onClick={togglePreviewRotated}
+        disabled={isCustom}
+        aria-pressed={isRotated}
+        title={
+          isCustom
+            ? "Clear the custom width to rotate the device frame"
+            : isRotated
+              ? "Portrait — rotate the frame back"
+              : "Landscape — rotate the device frame (breakpoints re-fire at the wider width)"
+        }
+        className="inline-flex items-center gap-[5px] rounded-full border-none px-[10px] py-[5px] text-[11px] font-semibold tracking-[-0.005em] transition-all"
+        style={{
+          background: isRotated && !isCustom ? CHROME.surface : "transparent",
+          color: isCustom
+            ? CHROME.muted2
+            : isRotated
+              ? CHROME.ink
+              : CHROME.muted,
+          boxShadow:
+            isRotated && !isCustom
+              ? "0 1px 3px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.04)"
+              : "none",
+          cursor: isCustom ? "not-allowed" : "pointer",
+        }}
+      >
+        <svg
+          width="13"
+          height="13"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          {/* rotate-cw glyph */}
+          <path d="M21 2v6h-6" />
+          <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+          <path d="M3 22v-6h6" />
+          <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+        </svg>
+        Landscape
+      </button>
+      {/* Reset to natural portrait width */}
+      {isCustom || isRotated ? (
+        <button
+          type="button"
+          onClick={() => {
+            setDraft(null);
+            // Clearing width AND rotation: width→null, then ensure rotation off.
+            setPreviewFrameWidth(null);
+            if (isRotated) togglePreviewRotated();
+          }}
+          title="Reset the frame to this device's natural width"
+          aria-label="Reset preview frame"
+          className="inline-flex items-center justify-center rounded-full border-none transition-all"
+          style={{
+            width: 22,
+            height: 22,
+            background: "transparent",
+            color: CHROME.muted,
+            cursor: "pointer",
+          }}
+        >
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
           >
-            {opt.icon}
-            {opt.label}
-          </button>
-        );
-      })}
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -1499,12 +1861,14 @@ function MoreMenu({
   onRevisions,
   onTheme,
   onAssets,
+  onCollections,
   onTemplates,
   onShare,
 }: {
   onRevisions?: () => void;
   onTheme?: () => void;
   onAssets?: () => void;
+  onCollections?: () => void;
   onTemplates?: () => void;
   onShare?: (opts: {
     label?: string;
@@ -1593,12 +1957,13 @@ function MoreMenu({
         id={moreMenuTriggerId}
         title="More actions"
         ariaLabel="More actions"
+        label="More"
         ariaExpanded={open}
         ariaHaspopup="menu"
         ariaControls={moreMenuId}
         onClick={() => setOpen((o) => !o)}
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none" />
           <circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none" />
           <circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none" />
@@ -1655,6 +2020,20 @@ function MoreMenu({
                 label="Asset library"
                 hint="Images & uploads"
                 shortcut="⌘L"
+              />
+              <MoreRow
+                disabled={!onCollections}
+                onClick={() => handlePick(onCollections)}
+                icon={
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <rect x="3" y="3" width="7" height="7" rx="1" />
+                    <rect x="14" y="3" width="7" height="7" rx="1" />
+                    <rect x="3" y="14" width="7" height="7" rx="1" />
+                    <rect x="14" y="14" width="7" height="7" rx="1" />
+                  </svg>
+                }
+                label="Collections"
+                hint="Reusable content + binding"
               />
               <MoreRow
                 disabled={!onTemplates}
@@ -1944,6 +2323,128 @@ function ExitForm({ dirty, saving }: { dirty: boolean; saving: boolean }) {
   );
 }
 
+/**
+ * WorkspaceLayoutControls — Photoshop-style "pin / reset workspace" pair.
+ *
+ * Pin (📌) saves where the operator has dragged the floating panels (today:
+ * the Inspector dock) so the layout PERSISTS across refresh instead of
+ * snapping home. Reset (⟲) clears the saved layout and returns the panels to
+ * their default home positions immediately. Calm, icon-only, grouped in the
+ * same subtle pill the other topbar tool groups use; the pin fills with the
+ * accent once a layout is saved so the operator can see it's "stuck". Renders
+ * nothing outside an `EditProvider`.
+ */
+function WorkspaceLayoutControls() {
+  const editCtx = useMaybeEditContext();
+  if (!editCtx) return null;
+  const {
+    hasSavedWorkspaceLayout,
+    pinWorkspaceLayout,
+    resetWorkspaceLayout,
+  } = editCtx;
+
+  return (
+    <div
+      role="group"
+      aria-label="Panel workspace"
+      className="inline-flex shrink-0 items-center gap-0.5 rounded-full p-[3px]"
+      style={{
+        background: "rgba(0,0,0,0.05)",
+        boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.04)",
+      }}
+    >
+      <button
+        type="button"
+        onClick={pinWorkspaceLayout}
+        title={
+          hasSavedWorkspaceLayout
+            ? "Workspace pinned — panel positions are saved and restore on refresh. Click to re-pin to the current layout."
+            : "Pin workspace — save where you've placed the panels so they stay put after a refresh"
+        }
+        aria-label="Pin workspace layout"
+        aria-pressed={hasSavedWorkspaceLayout}
+        className="inline-flex size-[30px] cursor-pointer items-center justify-center rounded-full border-none transition-colors"
+        style={{
+          background: hasSavedWorkspaceLayout ? CHROME.surface : "transparent",
+          color: hasSavedWorkspaceLayout ? CHROME.accent : CHROME.muted,
+          boxShadow: hasSavedWorkspaceLayout
+            ? "0 1px 3px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.04)"
+            : "none",
+        }}
+        onMouseEnter={(e) => {
+          if (hasSavedWorkspaceLayout) return;
+          e.currentTarget.style.background = CHROME.surface;
+          e.currentTarget.style.color = CHROME.ink;
+        }}
+        onMouseLeave={(e) => {
+          if (hasSavedWorkspaceLayout) return;
+          e.currentTarget.style.background = "transparent";
+          e.currentTarget.style.color = CHROME.muted;
+        }}
+      >
+        {/* pin glyph (lucide "pin") */}
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill={hasSavedWorkspaceLayout ? "currentColor" : "none"}
+          stroke="currentColor"
+          strokeWidth="1.9"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="M12 17v5" />
+          <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        onClick={resetWorkspaceLayout}
+        disabled={!hasSavedWorkspaceLayout}
+        title={
+          hasSavedWorkspaceLayout
+            ? "Reset workspace — clear the saved layout and return panels to their default positions"
+            : "Workspace is already at its default layout"
+        }
+        aria-label="Reset workspace layout to default"
+        className="inline-flex size-[30px] items-center justify-center rounded-full border-none transition-colors disabled:cursor-not-allowed"
+        style={{
+          background: "transparent",
+          color: hasSavedWorkspaceLayout ? CHROME.muted : CHROME.muted3,
+          cursor: hasSavedWorkspaceLayout ? "pointer" : "not-allowed",
+        }}
+        onMouseEnter={(e) => {
+          if (!hasSavedWorkspaceLayout) return;
+          e.currentTarget.style.background = CHROME.surface;
+          e.currentTarget.style.color = CHROME.ink;
+        }}
+        onMouseLeave={(e) => {
+          if (!hasSavedWorkspaceLayout) return;
+          e.currentTarget.style.background = "transparent";
+          e.currentTarget.style.color = CHROME.muted;
+        }}
+      >
+        {/* reset / restore glyph (lucide "rotate-ccw") */}
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+          <path d="M3 3v5h5" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
 // ── Main TopBar ───────────────────────────────────────────────────────────────
 
 export interface TopBarProps {
@@ -1972,6 +2473,8 @@ export interface TopBarProps {
   onTheme?: () => void;
   /** Open the Assets drawer (folder icon in the right cluster). */
   onAssets?: () => void;
+  /** Open the Collections drawer (operator content collections). */
+  onCollections?: () => void;
   /** Open the template gallery overlay. */
   onTemplates?: () => void;
   /** Open the Schedule drawer (Phase 12 — Publish-split-button menu option). */
@@ -2017,6 +2520,13 @@ export interface TopBarProps {
    * Null/undefined = never published for this row.
    */
   liveSitePublishedAt?: string | null;
+  /**
+   * #18 — ISO timestamp of the most recent successful draft save (from edit-context
+   * `lastDraftSavedAt`). Drives the "Saved Xs ago" display and the "Unpublished
+   * changes" pill (compare against `liveSitePublishedAt` to determine if the draft
+   * is ahead of the live site).
+   */
+  lastDraftSavedAt?: string | null;
 }
 
 /**
@@ -2048,6 +2558,7 @@ export function TopBar({
   onRevisions,
   onTheme,
   onAssets,
+  onCollections,
   onTemplates,
   onSchedule,
   onComments,
@@ -2061,6 +2572,7 @@ export function TopBar({
   defaultLocale = DEFAULT_PLATFORM_LOCALE,
   availableLocales = [],
   liveSitePublishedAt = null,
+  lastDraftSavedAt = null,
 }: TopBarProps) {
   const router = useRouter();
   const editCtx = useMaybeEditContext();
@@ -2137,7 +2649,12 @@ export function TopBar({
         />
       ) : null}
       <span className="inline-flex min-w-0 shrink items-center gap-[6px]">
-        <SaveStatus dirty={dirty} saving={saving} />
+        <SaveStatus
+          dirty={dirty}
+          saving={saving}
+          lastDraftSavedAt={lastDraftSavedAt}
+          liveSitePublishedAt={liveSitePublishedAt}
+        />
         {/* Hide on <lg to claw horizontal space toward Publish (BUG-010). */}
         <span className="hidden lg:contents">
           <LiveSitePublishedChip publishedAt={liveSitePublishedAt} />
@@ -2171,7 +2688,15 @@ export function TopBar({
       <span className="flex-1" />
 
       {/* ── Viewport switcher ── */}
-      <ViewportSwitcher device={device} setDevice={setDevice} />
+      <ViewportSwitcher
+        device={device}
+        setDevice={setDevice}
+        previewFrame={editCtx?.previewFrame ?? null}
+        setPreviewFrameWidth={editCtx?.setPreviewFrameWidth}
+        togglePreviewRotated={editCtx?.togglePreviewRotated}
+        mobileEditMode={editCtx?.mobileEditMode}
+        setMobileEditMode={editCtx?.setMobileEditMode}
+      />
 
       {/* ── Preview toggle ──
        * Suppresses canvas editing chrome (selection rings, hover pills,
@@ -2180,6 +2705,11 @@ export function TopBar({
        * stays accessible — flip back to test → tweak → test in seconds.
        */}
       <PreviewToggle previewing={previewing} setPreviewing={setPreviewing} />
+
+      {/* ── Workspace pin / reset (Photoshop-style dockable panels) ──
+       * Pin saves where the operator dragged the floating panels so the layout
+       * persists across refresh; Reset returns them to their default home. */}
+      <WorkspaceLayoutControls />
 
       {/* ── Spacer ── */}
       <span className="flex-1" />
@@ -2192,17 +2722,21 @@ export function TopBar({
        * operators hit this constantly on new pages). Revisions · Theme ·
        * Assets · Share stay under More (⋯).
        */}
+      {/* #14 — added short visible text labels to bare-glyph right-cluster
+          buttons so operators can understand each action without hovering.
+          aria-label is already set via TbIconBtn (title fallback). */}
       <TbIconBtn
         title="Comments"
+        label="Comments"
         onClick={onComments}
         badge={commentsBadge}
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
         </svg>
       </TbIconBtn>
-      <TbIconBtn title="Preview as visitor (⌘P)" onClick={handlePreview}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <TbIconBtn title="Preview as visitor (⌘P)" label="Preview" onClick={handlePreview}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
           <circle cx="12" cy="12" r="3" />
         </svg>
@@ -2210,10 +2744,11 @@ export function TopBar({
       <TbIconBtn
         title="Page settings (,)"
         ariaLabel="Page settings"
+        label="Settings"
         disabled={!onPageSettings}
         onClick={onPageSettings}
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <circle cx="12" cy="12" r="3" />
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
         </svg>
@@ -2222,6 +2757,7 @@ export function TopBar({
         onRevisions={onRevisions}
         onTheme={onTheme}
         onAssets={onAssets}
+        onCollections={onCollections}
         onTemplates={onTemplates}
         onShare={onShare}
       />

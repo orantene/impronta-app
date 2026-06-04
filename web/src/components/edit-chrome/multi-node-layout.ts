@@ -160,3 +160,63 @@ export function addTranslateDeltaToTree(
   const nextTree = tree.map(visit);
   return changed ? nextTree : tree;
 }
+
+/**
+ * Job #28 (bulk edit) — merge one top-level `style` patch into EVERY node in
+ * `nodeIds`, returning a new tree (immutable, like {@link addTranslateDeltaToTree}).
+ *
+ * Twin of the translate helper so multi-select "edit shared style for all at
+ * once" rides the SAME atomic `patch` op + undo path as align/distribute, with
+ * no parallel mutation system. Semantics, matched to `cleanBuilderNodeStyle`'s
+ * explicit-undefined convention used across the style system:
+ *   - a key set to a non-undefined value  → written onto the node's style
+ *   - a key set to `undefined`            → DELETED from the node's style
+ *     (so a "clear" control resets the prop for the whole selection)
+ * Section nodes + nodes not in the set are left byte-identical; an empty
+ * resulting `style` object is dropped from props entirely (no `style: {}`
+ * residue), exactly as the translate helper does.
+ */
+export function mergeStylePatchIntoTree(
+  tree: BuilderNodeTree,
+  nodeIds: ReadonlyArray<string>,
+  patch: Readonly<Record<string, unknown>>,
+): BuilderNodeTree {
+  const idSet = new Set(nodeIds);
+  const patchKeys = Object.keys(patch);
+  if (idSet.size === 0 || patchKeys.length === 0) return tree;
+  let changed = false;
+  const visit = (node: BuilderNode): BuilderNode => {
+    let nextNode = node;
+    if (idSet.has(node.id) && node.kind !== "section") {
+      const props = { ...(node.props as Record<string, unknown>) };
+      const style = {
+        ...((props.style as Record<string, unknown> | undefined) ?? {}),
+      };
+      for (const key of patchKeys) {
+        const value = patch[key];
+        if (value === undefined) {
+          delete style[key];
+        } else {
+          style[key] = value;
+        }
+      }
+      if (Object.keys(style).length > 0) {
+        props.style = style;
+      } else {
+        delete props.style;
+      }
+      nextNode = { ...node, props } as BuilderNode;
+      changed = true;
+    }
+    if ("children" in nextNode && Array.isArray(nextNode.children)) {
+      const nextChildren = nextNode.children.map(visit);
+      if (nextChildren.some((child, index) => child !== nextNode.children![index])) {
+        changed = true;
+        return { ...nextNode, children: nextChildren } as BuilderNode;
+      }
+    }
+    return nextNode;
+  };
+  const nextTree = tree.map(visit);
+  return changed ? nextTree : tree;
+}

@@ -9,11 +9,11 @@ import {
   resolveAdvancedElementLibraryEnabled,
 } from "./element-library-policy";
 
-test("free plan disables advanced element library", () => {
-  assert.equal(isAdvancedElementLibraryEnabledForPlan("free"), false);
-});
-
-test("paid plans enable advanced element library", () => {
+test("pre-launch: advanced element library is open to all plans", () => {
+  // Pre-launch the freeform builder ships free for every tenant — the plan
+  // rule no longer paywalls composition. The owner-only `code`/raw-HTML gate
+  // is enforced separately and is unaffected.
+  assert.equal(isAdvancedElementLibraryEnabledForPlan("free"), true);
   assert.equal(isAdvancedElementLibraryEnabledForPlan("studio"), true);
   assert.equal(isAdvancedElementLibraryEnabledForPlan("agency"), true);
 });
@@ -55,8 +55,8 @@ test("gateNestedInsertKinds applies shipped catalog then plan gate", () => {
 
 // ─── P7A-5 tenant override resolver ────────────────────────────────────────
 
-test("resolveAdvancedElementLibraryEnabled: null override falls back to plan rule", () => {
-  assert.equal(resolveAdvancedElementLibraryEnabled("free", null), false);
+test("resolveAdvancedElementLibraryEnabled: null override falls back to plan rule (open for all pre-launch)", () => {
+  assert.equal(resolveAdvancedElementLibraryEnabled("free", null), true);
   assert.equal(resolveAdvancedElementLibraryEnabled("agency", null), true);
   assert.equal(resolveAdvancedElementLibraryEnabled("studio", undefined), true);
 });

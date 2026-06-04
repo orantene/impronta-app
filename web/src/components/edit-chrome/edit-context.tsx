@@ -52,7 +52,10 @@ import {
   setSectionVisibilityAction,
   type SectionVisibility,
 } from "@/lib/site-admin/edit-mode/section-actions";
-import { restoreHomepageRevisionAction } from "@/lib/site-admin/edit-mode/revisions-actions";
+import {
+  restoreHomepageRevisionAction,
+  restorePageRevisionAction,
+} from "@/lib/site-admin/edit-mode/revisions-actions";
 import type {
   DispatchResult,
   EditorMutation,
@@ -66,6 +69,8 @@ import {
   syncComponentInstances as syncComponentInstancesInTree,
   detachComponentInstance as detachComponentInstanceInTree,
   setInstanceOverride as setInstanceOverrideInTree,
+  applyVariantToInstance as applyVariantToInstanceInTree,
+  clearInstanceVariant as clearInstanceVariantInTree,
   countComponentInstances,
   tagAsInstance,
 } from "@/lib/site-admin/builder-node/component-instances";
@@ -79,6 +84,7 @@ import {
   buildLegacySectionBuilderTree,
   BUILDER_NODE_REGISTRY,
   createBuilderNodeCompositionPreset,
+  createBuilderSectionEmbed,
   builderNodeKindAllowedAtRoot,
   cloneNodeWithFreshIds,
   createBuilderMutationAuditEvent,
@@ -98,6 +104,7 @@ import {
   type BuilderNodeCompositionPresetId,
   type BuilderNodeOperationKind,
   type BuilderNodeTree,
+  type BuilderComponentVariant,
   type LegacySnapshotSlot,
 } from "@/lib/site-admin/builder-node";
 import {
@@ -109,6 +116,16 @@ import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
 import { normalizeCompositionSlots } from "./composition-slots";
 import {
+  loadWorkspaceLayout,
+  saveWorkspaceLayout,
+  clearWorkspaceLayout,
+  savedOffsetForPanel,
+  type LayoutStorage,
+  type PanelOffset,
+  type WorkspaceLayoutV1,
+} from "./workspace-layout";
+import {
+  findBuilderNodeById,
   resolveHonestSelectedBuilderNodeId,
   treeContainsBuilderNodeId,
 } from "./inspectors/builder-node-content-utils";
@@ -116,6 +133,7 @@ import {
   addTranslateDeltaToTree,
   computeAlignDeltas,
   computeDistributeDeltas,
+  mergeStylePatchIntoTree,
   type MultiNodeAlignMode,
   type MultiNodeDistributeMode,
   type MultiNodeRect,
@@ -142,6 +160,25 @@ import {
 export const IMPRONTA_OPEN_TEMPLATE_GALLERY_EVENT = "impronta:open-template-gallery";
 
 export type EditDevice = "desktop" | "tablet" | "mobile";
+
+/**
+ * Responsive-preview frame override (job #17) — see {@link EditContextValue.previewFrame}.
+ * Kept separate from {@link EditDevice} on purpose: `device` is the breakpoint
+ * semantic (drives `@media` + which override bucket the inspectors edit) and is
+ * consumed pervasively, so widening it would ripple everywhere; the frame's
+ * pixel width + orientation are a pure presentation concern that lives here.
+ */
+export interface PreviewFrameOverride {
+  /** Explicit frame width in px; `null` = use the active device's natural width. */
+  widthPx: number | null;
+  /** Landscape orientation — swaps the portrait device frame to read wide. */
+  rotated: boolean;
+}
+
+export const DEFAULT_PREVIEW_FRAME: PreviewFrameOverride = {
+  widthPx: null,
+  rotated: false,
+};
 
 export interface LoadedSection {
   id: string;
@@ -311,6 +348,18 @@ export interface EditContextValue {
     mode: MultiNodeDistributeMode,
     rects: ReadonlyArray<MultiNodeRect>,
   ) => Promise<{ ok: boolean; error?: string }>;
+  /**
+   * Job #28 (bulk edit) — merge one top-level `style` patch into EVERY
+   * currently-selected freeform node at once (primary + additional). A key set
+   * to `undefined` clears that prop for the whole selection. Runs through the
+   * same atomic patch/undo path as align/distribute (no parallel system); a
+   * section in the set is skipped. Pass a JSON string so the React Compiler
+   * can't read a mutable captured object and bail the whole context's memo
+   * (matching insertBuilderComponent / setInstanceOverride).
+   */
+  patchSelectedBuilderNodesStyle: (
+    stylePatchJson: string,
+  ) => Promise<{ ok: boolean; error?: string }>;
   copySelectedBuilderNodes: () => { ok: boolean; error?: string; count?: number };
   cutSelectedBuilderNodes: () => Promise<{ ok: boolean; error?: string; count?: number }>;
   pasteBuilderNodeClipboard: (
@@ -343,8 +392,64 @@ export interface EditContextValue {
   hoveredSectionId: string | null;
   setHoveredSectionId: (id: string | null) => void;
 
+  /**
+   * Freeform builder node under the cursor (canvas OR layers row), for the
+   * bidirectional canvas↔layers highlight. Freeform full-page designs have no
+   * `[data-cms-section]` wrapper, so `hoveredSectionId` never fires for them;
+   * this is the section-less analog. Hovering a layer row sets it (→ canvas
+   * hover ring); hovering a canvas block sets it (→ layer row tint).
+   */
+  hoveredBuilderNodeId: string | null;
+  setHoveredBuilderNodeId: (id: string | null) => void;
+
   device: EditDevice;
   setDevice: (d: EditDevice) => void;
+  /**
+   * Responsive-preview frame override (job #17). Layers ON TOP of `device`
+   * WITHOUT changing the breakpoint semantics: `device` still decides which
+   * `@media` query the storefront iframe fires at (and which override bucket the
+   * inspectors edit), while this only resizes/rotates the visual frame. So
+   * "tablet landscape" = `device:"tablet"` + `rotated:true` (breakpoints stay
+   * tablet, frame goes wide), and a custom width sets `widthPx` directly.
+   * `widthPx:null` + `rotated:false` = the device's natural portrait frame, the
+   * pre-#17 behaviour. Picking a device tier from the switcher resets both.
+   */
+  previewFrame: PreviewFrameOverride;
+  /** Set an explicit frame width (px), or null to fall back to the device width. */
+  setPreviewFrameWidth: (widthPx: number | null) => void;
+  /** Toggle landscape orientation for the active device frame. */
+  togglePreviewRotated: () => void;
+
+  // ── Wave 6C — mobile-first editing mode (job #35) ──────────────────────
+  /**
+   * Mobile-first editing mode. A focused workflow ON TOP of the Wave-2
+   * responsive system — NOT a second editor. When ON it:
+   *   - pins the canvas viewport to `device:"mobile"` (so the Wave-2B
+   *     style-panel viewport sync scopes every style edit to the mobile
+   *     breakpoint + shows its "Editing Mobile" banner), and
+   *   - surfaces the {@link MobileEditPanel} (Wave-2C health checker +
+   *     per-block hide/reorder mobile-structure affordances).
+   * Toggling it OFF returns the canvas to desktop editing. Purely additive:
+   * when `false` everything behaves exactly as before. Entering also clears
+   * preview mode (the two are mutually exclusive — one hides chrome, the
+   * other adds a chrome panel).
+   */
+  mobileEditMode: boolean;
+  setMobileEditMode: (next: boolean) => void;
+  /**
+   * Wave 6C — set or clear a mobile-only STRUCTURE override on a single node,
+   * reusing the Wave-2A `style.responsive.mobile.{visibility,order}` channel
+   * the renderer already emits. A field set to a value writes it; set to
+   * `undefined` (or `null` for `order`) clears just that field, preserving the
+   * rest of `responsive.mobile`, the `tablet` bucket, and the base style
+   * (surgical read-modify-write, NOT the shallow bulk-style patch which would
+   * clobber sibling breakpoints). Runs through the same engine `patch` op +
+   * undo + autosave path as every other structure edit.
+   */
+  setBuilderNodeMobileStructure: (
+    nodeId: string,
+    patch: { visibility?: "visible" | "hidden"; order?: number | null },
+  ) => Promise<{ ok: boolean; error?: string }>;
 
   /** Inspector autosave state. */
   dirty: boolean;
@@ -456,6 +561,16 @@ export interface EditContextValue {
     index?: number,
   ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
   /**
+   * Insert a curated Tulala component (`section_embed` node) — Directory,
+   * Featured talent, Booking, or CTA — seeded with that section's default
+   * config, at the target. Mirrors the composition-preset insert.
+   */
+  insertBuilderSectionEmbed: (
+    parentId: string | null,
+    sectionTypeKey: string,
+    index?: number,
+  ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
+  /**
    * Living components — insert a saved block subtree (ids re-minted to copies)
    * at the target. The subtree is passed as a JSON string (a primitive param,
    * so the React Compiler can't read it as a mutable captured object and bail
@@ -513,6 +628,22 @@ export interface EditContextValue {
     nodeId: string,
     masterChildId: string,
     overrideJson: string | null,
+  ) => Promise<{ ok: boolean; error?: string }>;
+  /**
+   * Phase 4 (T4.4) — apply a named component VARIANT to a linked instance. The
+   * variant is a preset set of overrides; applying it writes them onto the
+   * instance's override map and records the variant id. variantJson is a JSON
+   * string of {id,name,overrides} (kept a string to dodge a React-Compiler
+   * object-param memo bail, matching setInstanceOverride).
+   */
+  applyInstanceVariant: (
+    nodeId: string,
+    variantJson: string,
+  ) => Promise<{ ok: boolean; error?: string }>;
+  /** Phase 4 (T4.4) — clear the active variant tag on an instance (keeps its
+   * current overrides). */
+  clearInstanceVariant: (
+    nodeId: string,
   ) => Promise<{ ok: boolean; error?: string }>;
   /**
    * Living components — snapshot the currently selected freeform block as a
@@ -663,6 +794,18 @@ export interface EditContextValue {
   openAssets: () => void;
   closeAssets: () => void;
 
+  // ── collections drawer (Wave 5A, job #36) ──
+  /**
+   * Visibility flag for the CollectionsDrawer — define operator content
+   * collections (Team / Projects / Testimonials) + their rows, then bind a
+   * repeater to one from the data inspector. The drawer owns its own data
+   * fetch (via the collections server actions); EditContext owns only the
+   * open/close mutex so it shares the single right-rail slot.
+   */
+  collectionsOpen: boolean;
+  openCollections: () => void;
+  closeCollections: () => void;
+
   // ── schedule drawer (Phase 12) ──
   /**
    * Visibility flag for the ScheduleDrawer. Lights up on the topbar
@@ -757,6 +900,63 @@ export interface EditContextValue {
   toggleNavigator: () => void;
   navigatorWidth: number;
   setNavigatorWidth: (width: number) => void;
+
+  // ── Photoshop-style dockable workspace (floating-panel layout) ──────────
+  /**
+   * Pinned-workspace state for the floating edit-chrome panels (navigator +
+   * inspector dock). By default each panel's drag offset is SESSION-ONLY and
+   * snaps back to its home anchor on refresh. When the operator clicks Pin in
+   * the topbar, every floating panel's current offset is captured to a single
+   * versioned localStorage key ({@link WORKSPACE_LAYOUT_STORAGE_KEY}) and the
+   * panels restore to it on the next load instead of snapping home. Reset
+   * clears the saved layout and returns the panels to their home positions.
+   *
+   * `hasSavedWorkspaceLayout` reflects whether a pinned layout currently
+   * exists (drives the Reset control's enabled state + the Pin button's
+   * "saved" affordance).
+   */
+  hasSavedWorkspaceLayout: boolean;
+  /**
+   * Capture every registered floating panel's CURRENT offset and persist it as
+   * the pinned workspace. Idempotent; safe to call repeatedly (re-pins to the
+   * latest positions).
+   */
+  pinWorkspaceLayout: () => void;
+  /**
+   * Clear the pinned workspace and snap every floating panel home immediately
+   * (bumps `workspaceResetNonce`, which the panels watch).
+   */
+  resetWorkspaceLayout: () => void;
+  /**
+   * Monotonic counter bumped on Reset. Floating panels watch this to snap
+   * their session offset back to {0,0} the instant the operator resets.
+   */
+  workspaceResetNonce: number;
+  /**
+   * Seed offset for a floating panel on mount — the panel's saved offset from
+   * the pinned layout, or null when no layout is pinned (→ default home).
+   */
+  getSavedPanelOffset: (panelId: string) => { x: number; y: number } | null;
+  /**
+   * Register a floating panel so Pin can read its live offset and magnet
+   * snapping can read its on-screen rect. Returns an unregister fn for cleanup.
+   * `getOffset` returns the panel's current translate; `getRect` returns its
+   * viewport bounding box (or null if unmounted).
+   */
+  registerWorkspacePanel: (
+    panelId: string,
+    handles: {
+      getOffset: () => { x: number; y: number };
+      getRect: () => { left: number; top: number; width: number; height: number } | null;
+    },
+  ) => () => void;
+  /**
+   * Rects of every OTHER registered floating panel (excludes `panelId`) — the
+   * magnet snap edge-aligns the dragged panel against these.
+   */
+  getOtherWorkspacePanelRects: (
+    panelId: string,
+  ) => ReadonlyArray<{ left: number; top: number; width: number; height: number }>;
   /**
    * Short-lived selection feedback for freshly inserted/duplicated content.
    * The navigator uses this to open, scroll, expand, and tier-highlight the
@@ -1124,6 +1324,13 @@ function reconcileBuilderTreeFromSlots(
   previousTree: BuilderNodeTree,
   slots: Record<string, CompositionSectionRef[]>,
 ): BuilderNodeTree {
+  // A freeform full-page design (one-click starter design) has a builderTree
+  // with NO curated slots. Reconciling it against zero slots strips the whole
+  // tree (no section maps to any slot), leaving the editor with an empty tree
+  // and an unselectable canvas — the root cause of "clicking a freeform block
+  // does nothing". There is nothing to reconcile when there are no slots, so
+  // keep the freeform tree intact.
+  if (Object.keys(slots).length === 0) return previousTree;
   return reconcileBuilderTreeWithLegacySlots(
     previousTree,
     toLegacySnapshotSlots(slots),
@@ -1701,7 +1908,62 @@ export function EditProvider({
   }, [selectedSectionId, additionalSelectedIds]);
 
   const [hoveredSectionId, setHoveredSectionId] = useState<string | null>(null);
-  const [device, setDevice] = useState<EditDevice>("desktop");
+  const [hoveredBuilderNodeId, setHoveredBuilderNodeId] = useState<string | null>(
+    null,
+  );
+  const [device, setDeviceRaw] = useState<EditDevice>("desktop");
+  // Responsive-preview frame override (job #17). Reset whenever the operator
+  // picks a device tier so a custom width / rotation from a previous tier never
+  // silently carries over to the next.
+  const [previewFrame, setPreviewFrame] = useState<PreviewFrameOverride>(
+    DEFAULT_PREVIEW_FRAME,
+  );
+  const setDevice = useCallback((next: EditDevice) => {
+    setDeviceRaw((prev) => {
+      if (prev !== next) setPreviewFrame(DEFAULT_PREVIEW_FRAME);
+      return next;
+    });
+  }, []);
+  const setPreviewFrameWidth = useCallback((widthPx: number | null) => {
+    setPreviewFrame((prev) => ({ ...prev, widthPx }));
+  }, []);
+  const togglePreviewRotated = useCallback(() => {
+    setPreviewFrame((prev) => ({ ...prev, rotated: !prev.rotated }));
+  }, []);
+
+  // ── Wave 6C — mobile-first editing mode (job #35) ──────────────────────
+  // A workflow flag layered on the Wave-2 responsive system, not a new editor.
+  // Entering pins the canvas to the mobile viewport via the SAME `setDevice`
+  // the topbar switcher uses (so the Wave-2B style-panel viewport sync follows
+  // and scopes edits to the mobile breakpoint) and leaves preview mode. Exiting
+  // returns the canvas to desktop editing.
+  const [mobileEditMode, setMobileEditModeRaw] = useState<boolean>(false);
+  const setMobileEditMode = useCallback(
+    (next: boolean) => {
+      setMobileEditModeRaw(next);
+      if (next) {
+        // Reuse Wave-2B viewport sync — do NOT duplicate it.
+        setDeviceRaw((prev) => {
+          if (prev !== "mobile") setPreviewFrame(DEFAULT_PREVIEW_FRAME);
+          return "mobile";
+        });
+        // Mobile editing and visitor-preview are mutually exclusive: preview
+        // hides ALL chrome, mobile-edit ADDS a chrome panel. Leave preview.
+        setPreviewingRaw(false);
+        if (typeof document !== "undefined") {
+          delete document.body.dataset.editPreview;
+        }
+      } else {
+        // Return to desktop editing (the pre-feature default canvas).
+        setDeviceRaw((prev) => {
+          if (prev !== "desktop") setPreviewFrame(DEFAULT_PREVIEW_FRAME);
+          return "desktop";
+        });
+      }
+    },
+    [],
+  );
+
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loadedSection, setLoadedSection] = useState<LoadedSection | null>(
@@ -1810,7 +2072,41 @@ export function EditProvider({
   // metadata for structural moves; `field` captures a single section's
   // pre/post props for inline text / image / URL edits. A single LIFO
   // timeline so ⌘Z honours the most recent change regardless of kind.
-  const [past, setPast] = useState<HistoryEntry[]>([]);
+  //
+  // #18 UNDO-SURVIVES-RELOAD: we persist the last UNDO_PERSIST_CAP entries of
+  // the `past` stack to localStorage keyed by pageId. On mount we attempt to
+  // rehydrate from that key so an accidental F5 doesn't wipe undo depth. The
+  // persisted stack is capped at 10 entries (smaller than the in-memory cap)
+  // because serialized snapshots are heavier. We guard with try/catch at every
+  // boundary — a storage failure must never break the editor.
+  const UNDO_PERSIST_CAP = 10;
+  const undoPersistKey = pageId ? `builder_undo_stack_v1:${pageId}` : null;
+
+  const [past, setPast] = useState<HistoryEntry[]>(() => {
+    if (!undoPersistKey || typeof window === "undefined") return [];
+    try {
+      const raw = window.localStorage.getItem(undoPersistKey);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw) as unknown[];
+      if (!Array.isArray(parsed)) return [];
+      // Only rehydrate entries whose shape we recognise.
+      const valid = parsed.filter(
+        (e): e is HistoryEntry =>
+          e !== null &&
+          typeof e === "object" &&
+          "kind" in (e as object) &&
+          (
+            (e as { kind: string }).kind === "composition" ||
+            (e as { kind: string }).kind === "builderTree" ||
+            (e as { kind: string }).kind === "field"
+          ),
+      );
+      return valid.slice(-UNDO_PERSIST_CAP);
+    } catch {
+      return [];
+    }
+  });
+
   const [future, setFuture] = useState<HistoryEntry[]>([]);
   const HISTORY_CAP = 50;
   const capHistory = useCallback(
@@ -1818,6 +2114,21 @@ export function EditProvider({
       next.length > HISTORY_CAP ? next.slice(-HISTORY_CAP) : next,
     [],
   );
+
+  // #18 — Persist `past` to localStorage on every change. We write only
+  // the tail (UNDO_PERSIST_CAP entries) so the serialised size stays small
+  // even for large builder-tree snapshots. The write is fire-and-forget —
+  // a synchronous write on every mutation is acceptable since `past` changes
+  // at most on every user action (not on every render).
+  useEffect(() => {
+    if (!undoPersistKey || typeof window === "undefined") return;
+    try {
+      const tail = past.slice(-UNDO_PERSIST_CAP);
+      window.localStorage.setItem(undoPersistKey, JSON.stringify(tail));
+    } catch {
+      // Quota exceeded or private-browsing block — silently skip.
+    }
+  }, [past, undoPersistKey]);
 
   // library overlay target
   const [libraryTarget, setLibraryTarget] = useState<LibraryTarget | null>(
@@ -1851,6 +2162,7 @@ export function EditProvider({
 
   // assets drawer state (Phase 7)
   const [assetsOpen, setAssetsOpen] = useState(false);
+  const [collectionsOpen, setCollectionsOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   // comments drawer state (Phase 11)
   const [commentsOpen, setCommentsOpen] = useState(false);
@@ -2005,6 +2317,99 @@ export function EditProvider({
     [],
   );
 
+  // ── Photoshop-style dockable workspace ─────────────────────────────────
+  // The pinned layout is read ONCE on mount (so panels can seed their initial
+  // offset synchronously via getSavedPanelOffset) and held in a ref. Pin
+  // rewrites it from the live panel offsets; Reset clears it + bumps a nonce
+  // the panels watch to snap home. Each floating panel registers a pair of
+  // getters (live offset + live rect) so Pin can snapshot every panel and the
+  // magnet can edge-align against the others.
+  const layoutStorage = useMemo<LayoutStorage | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      // Touch it once so a SecurityError (disabled storage) degrades to null
+      // here rather than throwing on every save.
+      return window.localStorage;
+    } catch {
+      return null;
+    }
+  }, []);
+  // The pinned layout is read ONCE via a lazy useState initializer so the
+  // panels' own initial `useState(seed)` reads it through getSavedPanelOffset
+  // on their first render (before paint) — no flash of the home position, and
+  // no ref-access-during-render. Pin rewrites it; Reset clears it + bumps a
+  // nonce the panels watch to snap home.
+  const [savedWorkspaceLayout, setSavedWorkspaceLayout] =
+    useState<WorkspaceLayoutV1 | null>(() => loadWorkspaceLayout(layoutStorage));
+  const hasSavedWorkspaceLayout = savedWorkspaceLayout != null;
+  const [workspaceResetNonce, setWorkspaceResetNonce] = useState(0);
+  // Live panel registry (getOffset + getRect per panel). A ref because it is
+  // only ever read/written from event handlers (Pin) + the magnet move loop,
+  // never during render.
+  const workspacePanelsRef = useRef<
+    Map<
+      string,
+      {
+        getOffset: () => PanelOffset;
+        getRect: () => { left: number; top: number; width: number; height: number } | null;
+      }
+    >
+  >(new Map());
+
+  const getSavedPanelOffset = useCallback<
+    EditContextValue["getSavedPanelOffset"]
+  >(
+    (panelId) => savedOffsetForPanel(savedWorkspaceLayout, panelId),
+    [savedWorkspaceLayout],
+  );
+
+  const registerWorkspacePanel = useCallback<
+    EditContextValue["registerWorkspacePanel"]
+  >((panelId, handles) => {
+    workspacePanelsRef.current.set(panelId, handles);
+    return () => {
+      // Only delete if this exact registration is still current (a remount can
+      // register the replacement before the old cleanup runs).
+      if (workspacePanelsRef.current.get(panelId) === handles) {
+        workspacePanelsRef.current.delete(panelId);
+      }
+    };
+  }, []);
+
+  const getOtherWorkspacePanelRects = useCallback<
+    EditContextValue["getOtherWorkspacePanelRects"]
+  >((panelId) => {
+    const rects: Array<{ left: number; top: number; width: number; height: number }> = [];
+    for (const [id, handles] of workspacePanelsRef.current) {
+      if (id === panelId) continue;
+      const rect = handles.getRect();
+      if (rect) rects.push(rect);
+    }
+    return rects;
+  }, []);
+
+  const pinWorkspaceLayout = useCallback<
+    EditContextValue["pinWorkspaceLayout"]
+  >(() => {
+    const panels: Record<string, PanelOffset> = {};
+    for (const [id, handles] of workspacePanelsRef.current) {
+      panels[id] = handles.getOffset();
+    }
+    const saved = saveWorkspaceLayout(layoutStorage, panels);
+    if (saved) {
+      setSavedWorkspaceLayout({ version: 1, panels });
+    }
+  }, [layoutStorage]);
+
+  const resetWorkspaceLayout = useCallback<
+    EditContextValue["resetWorkspaceLayout"]
+  >(() => {
+    clearWorkspaceLayout(layoutStorage);
+    setSavedWorkspaceLayout(null);
+    // Bump the nonce so every floating panel snaps its session offset home.
+    setWorkspaceResetNonce((n) => n + 1);
+  }, [layoutStorage]);
+
   // Most recent mutation error. Auto-clears after 5s — the operator
   // probably already undid or retried, and we'd rather err toward quiet
   // than keep a stale error chip up.
@@ -2018,6 +2423,14 @@ export function EditProvider({
   const reportMutationError = useCallback(
     (message: string | EditMutationError) => {
       const normalized = normalizeMutationError(message);
+      // Benign no-op edits (re-applying identical props, or a UI gesture that
+      // re-sends current values) are NOT failures — never surface a toast.
+      if (
+        normalized.code === "NO_CHANGE" ||
+        /no changes to apply/i.test(normalized.message ?? "")
+      ) {
+        return;
+      }
       const fingerprint = mutationErrorFingerprint(normalized);
       const now = Date.now();
       const previous = lastMutationErrorRef.current;
@@ -2186,7 +2599,12 @@ export function EditProvider({
     // Selection-sync hardening: if the selected child node disappeared from
     // the tree (delete/move/refresh) or now belongs to another section, clear
     // the override so inspector/navigator fall back to the section root.
-    if (!ownerSectionId || ownerSectionId !== selectedSectionId) {
+    // NOTE: freeform full-page-design nodes legitimately have NO owner section
+    // (ownerSectionId === null), and selectBuilderNode sets selectedSectionId
+    // to null for them — so they MATCH and must NOT be cleared. Only clear on a
+    // real mismatch; the old `!ownerSectionId ||` clause wrongly cleared every
+    // freeform selection the instant it was made.
+    if (ownerSectionId !== selectedSectionId) {
       setSelectedBuilderNodeIdOverride(null);
     }
   }, [
@@ -2215,8 +2633,13 @@ export function EditProvider({
   const selectBuilderNode = useCallback(
     (nodeId: string) => {
       if (!treeContainsBuilderNodeId(builderTree, nodeId)) return;
-      const sectionId = sectionIdByBuilderNodeId.get(nodeId);
-      if (!sectionId) return;
+      // Freeform full-page designs (one-click starter designs) have builder
+      // nodes with NO parent CMS section, so `sectionIdByBuilderNodeId` has no
+      // entry. The old `if (!sectionId) return` bailed on every freeform block —
+      // making the whole design unselectable. Select the node directly; the
+      // section id is only selection *context* (null is fine), and the inspector
+      // + canvas overlay both key off the selected builder-node id.
+      const sectionId = sectionIdByBuilderNodeId.get(nodeId) ?? null;
       setSelectedSectionId(sectionId);
       setSelectedBuilderNodeIdOverride(nodeId);
     },
@@ -3744,6 +4167,46 @@ export function EditProvider({
       markNavigatorAddition,
     ],
   );
+  const insertBuilderSectionEmbed = useCallback<
+    EditContextValue["insertBuilderSectionEmbed"]
+  >(
+    async (parentId, sectionTypeKey, index) => {
+      const node = createBuilderSectionEmbed(sectionTypeKey);
+      const inserted = await executeBuilderNodeOperation({
+        operation: "insert",
+        nodeId: node.id,
+        parentId,
+        run: (tree) =>
+          runBuilderNodeOp({
+            operation: "insert",
+            tree,
+            node,
+            parentId,
+            index,
+          }),
+      });
+      if (!inserted.ok) {
+        return { ok: false, error: inserted.error };
+      }
+      const ownerSectionId = findOwnerSectionIdForBuilderNode(
+        inserted.tree,
+        node.id,
+      );
+      if (ownerSectionId) {
+        setSelectedSectionId(ownerSectionId);
+        setSelectedBuilderNodeIdOverride(node.id);
+        markNavigatorAddition(ownerSectionId, node.id, "block");
+      }
+      return { ok: true, nodeId: node.id };
+    },
+    [
+      executeBuilderNodeOperation,
+      runBuilderNodeOp,
+      setSelectedSectionId,
+      setSelectedBuilderNodeIdOverride,
+      markNavigatorAddition,
+    ],
+  );
   const insertBuilderComponent = useCallback<
     EditContextValue["insertBuilderComponent"]
   >(
@@ -3963,6 +4426,52 @@ export function EditProvider({
         run: (tree) => ({
           ok: true,
           tree: setInstanceOverrideInTree(tree, nodeId, masterChildId, override),
+        }),
+      });
+      if (!result.ok) {
+        return { ok: false, error: result.error };
+      }
+      return { ok: true };
+    },
+    [executeBuilderNodeOperation],
+  );
+  // Phase 4 (T4.4) — apply a named variant to a linked instance (preset
+  // override-set + variant tag). Pure transform + shared commit path.
+  const applyInstanceVariant = useCallback<
+    EditContextValue["applyInstanceVariant"]
+  >(
+    async (nodeId, variantJson) => {
+      let variant: BuilderComponentVariant;
+      try {
+        variant = JSON.parse(variantJson) as BuilderComponentVariant;
+      } catch {
+        return { ok: false, error: "That variant could not be read." };
+      }
+      const result = await executeBuilderNodeOperation({
+        operation: "patch",
+        nodeId,
+        run: (tree) => ({
+          ok: true,
+          tree: applyVariantToInstanceInTree(tree, nodeId, variant),
+        }),
+      });
+      if (!result.ok) {
+        return { ok: false, error: result.error };
+      }
+      return { ok: true };
+    },
+    [executeBuilderNodeOperation],
+  );
+  const clearInstanceVariant = useCallback<
+    EditContextValue["clearInstanceVariant"]
+  >(
+    async (nodeId) => {
+      const result = await executeBuilderNodeOperation({
+        operation: "patch",
+        nodeId,
+        run: (tree) => ({
+          ok: true,
+          tree: clearInstanceVariantInTree(tree, nodeId),
         }),
       });
       if (!result.ok) {
@@ -4329,6 +4838,82 @@ export function EditProvider({
     },
     [executeBuilderNodeOperation, runBuilderNodeOp],
   );
+
+  // ── Wave 6C — surgical mobile-only structure override (job #35) ─────────
+  // Sets/clears `style.responsive.mobile.{visibility,order}` on ONE node while
+  // preserving the rest of `responsive.mobile`, the `tablet` bucket, and the
+  // base style. We read the node, compute the full next `style`, and hand it to
+  // the shared `patch` op (which shallow-merges props, so a complete `style`
+  // replaces it cleanly). Reuses the renderer channel the Wave-2A controls
+  // already emit — no new render surface, no flagship change.
+  const setBuilderNodeMobileStructure = useCallback<
+    EditContextValue["setBuilderNodeMobileStructure"]
+  >(
+    async (nodeId, patch) => {
+      const node = findBuilderNodeById(builderTreeRef.current, nodeId);
+      if (!node || node.kind === "section") {
+        return {
+          ok: false,
+          error:
+            "That block was not found on the page — select it on the canvas and try again.",
+        };
+      }
+      const currentStyle =
+        ("style" in node.props
+          ? (node.props.style as Record<string, unknown> | undefined)
+          : undefined) ?? {};
+      const currentResponsive =
+        (currentStyle.responsive as Record<string, unknown> | undefined) ?? {};
+      const currentMobile = {
+        ...((currentResponsive.mobile as Record<string, unknown> | undefined) ??
+          {}),
+      };
+
+      if ("visibility" in patch) {
+        if (patch.visibility === undefined) delete currentMobile.visibility;
+        else currentMobile.visibility = patch.visibility;
+      }
+      if ("order" in patch) {
+        if (patch.order === undefined || patch.order === null)
+          delete currentMobile.order;
+        else currentMobile.order = patch.order;
+      }
+
+      // Rebuild responsive, dropping an emptied mobile bucket so we never leave
+      // a `responsive: { mobile: {} }` residue (matches cleanBuilderNodeStyle).
+      const nextResponsive: Record<string, unknown> = { ...currentResponsive };
+      if (Object.keys(currentMobile).length > 0) {
+        nextResponsive.mobile = currentMobile;
+      } else {
+        delete nextResponsive.mobile;
+      }
+
+      const nextStyle: Record<string, unknown> = { ...currentStyle };
+      if (Object.keys(nextResponsive).length > 0) {
+        nextStyle.responsive = nextResponsive;
+      } else {
+        delete nextStyle.responsive;
+      }
+
+      const patched = await executeBuilderNodeOperation({
+        operation: "patch",
+        nodeId,
+        run: (tree) =>
+          runBuilderNodeOp({
+            operation: "patch",
+            tree,
+            nodeId,
+            patch: { style: nextStyle },
+          }),
+      });
+      if (!patched.ok) {
+        return { ok: false, error: patched.error };
+      }
+      return { ok: true };
+    },
+    [executeBuilderNodeOperation, runBuilderNodeOp],
+  );
+
   const moveBuilderNodeWithinParent = useCallback<
     EditContextValue["moveBuilderNodeWithinParent"]
   >(
@@ -4530,6 +5115,43 @@ export function EditProvider({
       return translateSelectedBuilderNodes(computeDistributeDeltas(rects, mode));
     },
     [translateSelectedBuilderNodes],
+  );
+
+  const patchSelectedBuilderNodesStyle = useCallback<
+    EditContextValue["patchSelectedBuilderNodesStyle"]
+  >(
+    async (stylePatchJson) => {
+      let patch: Record<string, unknown>;
+      try {
+        const parsed = JSON.parse(stylePatchJson) as unknown;
+        if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+          return { ok: false, error: "Invalid style change." };
+        }
+        patch = parsed as Record<string, unknown>;
+      } catch {
+        return { ok: false, error: "Invalid style change." };
+      }
+      if (Object.keys(patch).length === 0) return { ok: true };
+      const nodeIds = getAllSelectedBuilderNodeIds();
+      if (nodeIds.length === 0) return { ok: true };
+      const guarded = guardSelectedBuilderNodes(nodeIds);
+      if (guarded) return { ok: false, error: guarded };
+      const patched = await executeBuilderNodeOperation({
+        operation: "patch",
+        nodeId: nodeIds[0],
+        run: (tree) => ({
+          ok: true,
+          tree: mergeStylePatchIntoTree(tree, nodeIds, patch),
+        }),
+      });
+      if (!patched.ok) return { ok: false, error: patched.error };
+      return { ok: true };
+    },
+    [
+      executeBuilderNodeOperation,
+      getAllSelectedBuilderNodeIds,
+      guardSelectedBuilderNodes,
+    ],
   );
 
   const copySelectedBuilderNodes = useCallback<
@@ -4871,6 +5493,7 @@ export function EditProvider({
         | "revisions"
         | "theme"
         | "assets"
+        | "collections"
         | "schedule"
         | "comments",
       commentsSectionFocus?: string | null,
@@ -4881,6 +5504,7 @@ export function EditProvider({
       setRevisionsOpen(active === "revisions");
       setThemeOpen(active === "theme");
       setAssetsOpen(active === "assets");
+      setCollectionsOpen(active === "collections");
       setScheduleOpen(active === "schedule");
       setCommentsOpen(active === "comments");
       setCommentsFocusSectionId(
@@ -4921,6 +5545,11 @@ export function EditProvider({
   }, [showExclusiveRightRailDrawer]);
   const closeAssets = useCallback(() => setAssetsOpen(false), []);
 
+  const openCollections = useCallback(() => {
+    showExclusiveRightRailDrawer("collections");
+  }, [showExclusiveRightRailDrawer]);
+  const closeCollections = useCallback(() => setCollectionsOpen(false), []);
+
   const openSchedule = useCallback(() => {
     showExclusiveRightRailDrawer("schedule");
   }, [showExclusiveRightRailDrawer]);
@@ -4954,11 +5583,21 @@ export function EditProvider({
         return { ok: false, error: "This page is still loading — try again in a moment." };
       }
       setSaving(true);
-      const res = await restoreHomepageRevisionAction({
-        revisionId,
-        locale,
-        expectedVersion: pageVersionRef.current ?? pageVersion,
-      });
+      // T4.5: Branch on homepage vs non-homepage page. The homepage is keyed
+      // by locale (no pageId needed in the action); non-homepage pages use
+      // the pageId directly so the right cms_page row is targeted.
+      const casVersion = pageVersionRef.current ?? pageVersion;
+      const res = pageSlug && pageId
+        ? await restorePageRevisionAction({
+            revisionId,
+            pageId,
+            expectedVersion: casVersion,
+          })
+        : await restoreHomepageRevisionAction({
+            revisionId,
+            locale,
+            expectedVersion: casVersion,
+          });
       setSaving(false);
       if (!res.ok) {
         if (res.code === "VERSION_CONFLICT") {
@@ -4975,7 +5614,7 @@ export function EditProvider({
       void queueRouterRefresh();
       return { ok: true };
     },
-    [pageVersion, locale, refreshComposition, queueRouterRefresh, reportMutationError],
+    [pageVersion, pageSlug, pageId, locale, refreshComposition, queueRouterRefresh, reportMutationError],
   );
 
   // Sprint 5 — public setSectionVisibility now routes through the
@@ -5116,6 +5755,7 @@ export function EditProvider({
 	      translateSelectedBuilderNodes,
 	      alignSelectedBuilderNodes,
 	      distributeSelectedBuilderNodes,
+	      patchSelectedBuilderNodesStyle,
 	      copySelectedBuilderNodes,
 	      cutSelectedBuilderNodes,
 	      pasteBuilderNodeClipboard,
@@ -5131,8 +5771,16 @@ export function EditProvider({
 	      pasteCopiedBuilderNode,
       hoveredSectionId,
       setHoveredSectionId,
+      hoveredBuilderNodeId,
+      setHoveredBuilderNodeId,
       device,
       setDevice,
+      previewFrame,
+      setPreviewFrameWidth,
+      togglePreviewRotated,
+      mobileEditMode,
+      setMobileEditMode,
+      setBuilderNodeMobileStructure,
       dirty,
       setDirty,
       saving,
@@ -5166,6 +5814,7 @@ export function EditProvider({
       moveBuilderNodeToParentIndex,
       insertBuilderNode,
       insertBuilderNodeCompositionPreset,
+      insertBuilderSectionEmbed,
       insertBuilderComponent,
       insertLinkedComponent,
       syncComponentInstances,
@@ -5173,6 +5822,8 @@ export function EditProvider({
       ejectSection,
       unejectSection,
       setInstanceOverride,
+      applyInstanceVariant,
+      clearInstanceVariant,
       saveSelectedNodeAsComponent,
       updateSelectedNodeAsComponent,
       duplicateBuilderNode,
@@ -5219,6 +5870,9 @@ export function EditProvider({
       assetsOpen,
       openAssets,
       closeAssets,
+      collectionsOpen,
+      openCollections,
+      closeCollections,
 
       scheduleOpen,
       openSchedule,
@@ -5251,6 +5905,13 @@ export function EditProvider({
       toggleNavigator,
       navigatorWidth,
       setNavigatorWidth,
+      hasSavedWorkspaceLayout,
+      pinWorkspaceLayout,
+      resetWorkspaceLayout,
+      workspaceResetNonce,
+      getSavedPanelOffset,
+      registerWorkspacePanel,
+      getOtherWorkspacePanelRects,
       recentNavigatorAdditions,
       clearNavigatorRecentAdditions,
       setSectionVisibility,
@@ -5296,6 +5957,7 @@ export function EditProvider({
 	      translateSelectedBuilderNodes,
 	      alignSelectedBuilderNodes,
 	      distributeSelectedBuilderNodes,
+	      patchSelectedBuilderNodesStyle,
 	      copySelectedBuilderNodes,
 	      cutSelectedBuilderNodes,
 	      pasteBuilderNodeClipboard,
@@ -5304,7 +5966,15 @@ export function EditProvider({
 	      copiedBuilderNodeClipboard,
 	      setSelectedSectionId,
       hoveredSectionId,
+      hoveredBuilderNodeId,
       device,
+      setDevice,
+      previewFrame,
+      setPreviewFrameWidth,
+      togglePreviewRotated,
+      mobileEditMode,
+      setMobileEditMode,
+      setBuilderNodeMobileStructure,
       dirty,
       saving,
       loadedSection,
@@ -5333,6 +6003,7 @@ export function EditProvider({
       moveBuilderNodeToParentIndex,
       insertBuilderNode,
       insertBuilderNodeCompositionPreset,
+      insertBuilderSectionEmbed,
       insertBuilderComponent,
       insertLinkedComponent,
       syncComponentInstances,
@@ -5340,6 +6011,8 @@ export function EditProvider({
       ejectSection,
       unejectSection,
       setInstanceOverride,
+      applyInstanceVariant,
+      clearInstanceVariant,
       saveSelectedNodeAsComponent,
       updateSelectedNodeAsComponent,
       duplicateBuilderNode,
@@ -5385,6 +6058,9 @@ export function EditProvider({
       assetsOpen,
       openAssets,
       closeAssets,
+      collectionsOpen,
+      openCollections,
+      closeCollections,
       scheduleOpen,
       openSchedule,
       closeSchedule,
@@ -5412,6 +6088,13 @@ export function EditProvider({
       toggleNavigator,
       navigatorWidth,
       setNavigatorWidth,
+      hasSavedWorkspaceLayout,
+      pinWorkspaceLayout,
+      resetWorkspaceLayout,
+      workspaceResetNonce,
+      getSavedPanelOffset,
+      registerWorkspacePanel,
+      getOtherWorkspacePanelRects,
       recentNavigatorAdditions,
       clearNavigatorRecentAdditions,
       setSectionVisibility,

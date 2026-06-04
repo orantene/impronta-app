@@ -66,11 +66,19 @@ export function lexicalNodesToMarkerString(nodes: LexicalNode[]): string {
       const isBold = (fmt & IS_BOLD) !== 0;
       const isItalic = (fmt & IS_ITALIC) !== 0;
       if (isBold && isItalic) {
-        // Historical / paste input. Emit as outer bold, inner italic for
-        // a deterministic output — actual Lexical model has both flags
-        // on a single TextNode, so we split into two tokens that nest.
-        // This is the rare path; toolbar never produces both.
-        tokens.push({ kind: "bold", text: `{i}${text}{/i}` });
+        // The marker grammar is deliberately NON-NESTING (see
+        // sections/shared/rich-text.tsx + tokens.ts) and has no combined
+        // bold+italic token, so one run cannot carry both flags. The old code
+        // emitted nested `{b}{i}…{/i}{/b}`, but the tokenizer's `[^{]*` content
+        // rule CANNOT re-parse a marker that contains another `{` — so on the
+        // next load that leaked the literal "{b}{i}" wrappers into the
+        // operator's copy. Reproduced live: clicking Bold then Italic on one
+        // selection, then saving, corrupted the stored text.
+        //
+        // Degrade to bold (the stronger visual weight) so the run ALWAYS
+        // round-trips cleanly. A future combined `{bi}` token — added to both
+        // this editor grammar AND the public renderer — could preserve both.
+        tokens.push({ kind: "bold", text });
         continue;
       }
       if (isBold) {

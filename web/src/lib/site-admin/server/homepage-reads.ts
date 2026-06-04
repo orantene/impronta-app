@@ -23,6 +23,7 @@ import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { tagFor } from "@/lib/site-admin";
 import type { Locale } from "@/lib/site-admin/locales";
+import type { JsonLdDocument } from "@/lib/site-admin/cms-seo";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import { previewCookieNameFor } from "@/lib/site-admin/preview/cookie";
 import { verifyPreviewJwt } from "@/lib/site-admin/preview/jwt";
@@ -53,6 +54,7 @@ const PUBLIC_HOMEPAGE_SELECT = `
   og_image_media_asset_id,
   noindex,
   canonical_url,
+  json_ld,
   published_at,
   published_homepage_snapshot,
   template_schema_version,
@@ -86,6 +88,8 @@ export interface PublicHomepage {
   ogImageMediaAssetId: string | null;
   noindex: boolean;
   canonicalUrl: string | null;
+  /** Operator-authored schema.org JSON-LD (object or array of objects), or null. */
+  jsonLd: JsonLdDocument | null;
   publishedAt: string;
   version: number;
   templateSchemaVersion: number;
@@ -118,6 +122,7 @@ type PublicRow = {
   og_image_media_asset_id: string | null;
   noindex: boolean;
   canonical_url: string | null;
+  json_ld: JsonLdDocument | null;
   published_at: string | null;
   published_homepage_snapshot: HomepageSnapshot | null;
   template_schema_version: number;
@@ -138,6 +143,7 @@ function toPublicHomepage(row: PublicRow): PublicHomepage {
     ogImageMediaAssetId: row.og_image_media_asset_id,
     noindex: row.noindex,
     canonicalUrl: row.canonical_url,
+    jsonLd: row.json_ld ?? null,
     publishedAt: row.published_at ?? "",
     version: row.version,
     templateSchemaVersion: row.template_schema_version,
@@ -324,6 +330,7 @@ export async function loadDraftHomepage(
       og_image_media_asset_id,
       noindex,
       canonical_url,
+      json_ld,
       hero,
       published_at,
       template_schema_version,
@@ -350,6 +357,7 @@ export async function loadDraftHomepage(
     og_image_media_asset_id: string | null;
     noindex: boolean;
     canonical_url: string | null;
+    json_ld: JsonLdDocument | null;
     hero: { introTagline?: string } | null;
     published_at: string | null;
     template_schema_version: number;
@@ -484,6 +492,7 @@ export async function loadDraftHomepage(
     // Preview is never indexable even if the admin set noindex=false.
     noindex: true,
     canonicalUrl: page.canonical_url,
+    jsonLd: page.json_ld ?? null,
     publishedAt: page.published_at ?? "",
     version: page.version,
     templateSchemaVersion: page.template_schema_version,

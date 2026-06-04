@@ -186,6 +186,8 @@ export const DRAWER_WIDTHS = {
   picker: 720,
   assets: 720,
   assetsExpanded: 960,
+  collections: 520,
+  collectionsExpanded: 760,
   schedule: 460,
   comments: 480,
 } as const;

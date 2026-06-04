@@ -36,6 +36,11 @@ import {
   type PublishedSnapshotRow,
 } from "@/lib/site-admin/edit-mode/publish-diff-action";
 import {
+  loadPublishDiffRevisionIdsAction,
+  type PublishDiffRevisionIdsResult,
+} from "@/lib/site-admin/edit-mode/revisions-actions";
+import { RevisionsDiffPanel } from "./revisions-diff-panel";
+import {
   diffPublishedRows,
   type PublishDiffRow,
   type SectionChangeKind,
@@ -57,6 +62,7 @@ import {
 } from "./kit";
 import { useEditContext } from "./edit-context";
 import { PublishPreflight } from "./PublishPreflight";
+import { MobileHealthPanel } from "./MobileHealthPanel";
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
 
 const TITLE_MAX = 60;
@@ -229,6 +235,7 @@ export function PublishDrawer() {
     refreshComposition,
     savePageMetadata,
     saveDraft,
+    builderTree,
   } = useEditContext();
 
   const [state, setState] = useState<PublishState>({ kind: "idle" });
@@ -242,6 +249,12 @@ export function PublishDrawer() {
   const [lastPublishedAt, setLastPublishedAt] = useState<string | null>(null);
   const [publishedRowsLoading, setPublishedRowsLoading] = useState(false);
   const [reloadCompositionBusy, setReloadCompositionBusy] = useState(false);
+  // #19 — builder-tree diff: revision IDs for the draft vs published snapshot.
+  const [builderDiffIds, setBuilderDiffIds] = useState<{
+    draftRevisionId: string;
+    publishedRevisionId: string | null;
+  } | null>(null);
+  const [builderDiffLoading, setBuilderDiffLoading] = useState(false);
 
   // Local mini-edit working copy for the page-settings card. Resyncs from
   // upstream metadata on open; commits via savePageMetadata on blur.
@@ -270,6 +283,8 @@ export function PublishDrawer() {
       setPublishedRowsLoading(false);
       setMiniTitle(pageMetadata?.title ?? "");
       setMiniDesc(pageMetadata?.metaDescription ?? "");
+      setBuilderDiffIds(null);
+      setBuilderDiffLoading(false);
     }
   }, [publishOpen, pageMetadata]);
 
@@ -293,6 +308,31 @@ export function PublishDrawer() {
       cancelled = true;
     };
   }, [publishOpen, pageId]);
+
+  // #19 — Load draft + published revision IDs when the drawer opens and the
+  // builder tree is non-empty. We only do this for builder-tree pages (those
+  // with actual builderTree nodes) because the section-slot diff in
+  // `publishDiff` already covers legacy-slot pages adequately.
+  useEffect(() => {
+    let cancelled = false;
+    if (!publishOpen || !pageId || builderTree.length === 0) return;
+    setBuilderDiffLoading(true);
+    void (async () => {
+      const result: PublishDiffRevisionIdsResult =
+        await loadPublishDiffRevisionIdsAction({ pageId });
+      if (cancelled) return;
+      if (result.ok) {
+        setBuilderDiffIds({
+          draftRevisionId: result.draftRevisionId,
+          publishedRevisionId: result.publishedRevisionId,
+        });
+      }
+      setBuilderDiffLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [publishOpen, pageId, builderTree.length]);
 
   const summary = useMemo(() => {
     type Row = {
@@ -596,6 +636,14 @@ export function PublishDrawer() {
                 onFocusSection={focusSectionForEdit}
               />
             </div>
+            {/* Wave-2 2C — mobile health advisory checklist (advisory only,
+                never blocks publish). Only shown when the builder tree is
+                non-empty so the panel doesn't appear for legacy-only pages. */}
+            {builderTree.length > 0 ? (
+              <div className="mb-3">
+                <MobileHealthPanel builderTree={builderTree} />
+              </div>
+            ) : null}
             {/* ── Preview thumbnail + stats ───────────────────────── */}
             <Card>
               <CardBody>
@@ -1100,6 +1148,63 @@ export function PublishDrawer() {
                 ) : null}
               </CardBody>
             </Card>
+
+            {/* ── #19 Builder-tree diff preview ─────────────────
+                 Visible only when the page has a builder tree. Shows a
+                 structural diff of the draft vs published snapshot so
+                 operators can see exactly which blocks will change before
+                 committing to publish. Reuses RevisionsDiffPanel. */}
+            {builderTree.length > 0 && (
+              <Card>
+                <CardHead
+                  icon={<ChangesIcon />}
+                  title="Builder changes"
+                  sub="Draft vs published"
+                />
+                <CardBody>
+                  {builderDiffLoading && !builderDiffIds ? (
+                    <div
+                      style={{ fontSize: 11.5, color: CHROME.muted, padding: "6px 0" }}
+                      aria-busy="true"
+                    >
+                      Loading diff…
+                    </div>
+                  ) : builderDiffIds?.publishedRevisionId == null ? (
+                    <div
+                      style={{ fontSize: 11.5, color: CHROME.muted, padding: "4px 0" }}
+                    >
+                      {builderDiffIds
+                        ? "Nothing published yet — this will be the first published version."
+                        : "Builder diff unavailable."}
+                    </div>
+                  ) : builderDiffIds ? (
+                    <RevisionsDiffPanel
+                      pageId={pageId ?? ""}
+                      revA={{
+                        id: builderDiffIds.publishedRevisionId,
+                        kind: "published",
+                        version: 0,
+                        createdAt: "",
+                        createdBy: null,
+                        sectionCount: 0,
+                        titleAtRevision: null,
+                      }}
+                      revB={{
+                        id: builderDiffIds.draftRevisionId,
+                        kind: "draft",
+                        version: 0,
+                        createdAt: "",
+                        createdBy: null,
+                        sectionCount: 0,
+                        titleAtRevision: null,
+                      }}
+                      onClose={() => setBuilderDiffIds(null)}
+                      embedded
+                    />
+                  ) : null}
+                </CardBody>
+              </Card>
+            )}
 
             {/* ── Inline status / error banners ───────────────── */}
             {summary.missing.length > 0 ? (

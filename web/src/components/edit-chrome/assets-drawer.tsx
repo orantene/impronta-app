@@ -69,6 +69,7 @@ import {
   DrawerBody,
   DrawerFoot,
   DrawerHead,
+  DrawerSkeletonGrid,
   DrawerTab,
   DrawerTabs,
 } from "./kit";
@@ -540,7 +541,7 @@ export function AssetsDrawer(): ReactElement | null {
         {loadError ? (
           <ErrorBanner>{loadError}</ErrorBanner>
         ) : busy === "loading" && items === null ? (
-          <SkeletonGrid />
+          <DrawerSkeletonGrid />
         ) : filtered.length === 0 ? (
           <EmptyState
             tab={tab}
@@ -1010,32 +1011,7 @@ function Calm({ title, body }: { title: string; body: string }) {
   );
 }
 
-// ── skeleton ──────────────────────────────────────────────────────────────
-
-function SkeletonGrid() {
-  return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
-        gap: 10,
-      }}
-    >
-      {[0, 1, 2, 3, 4, 5].map((i) => (
-        <div
-          key={i}
-          style={{
-            aspectRatio: "1 / 1.18",
-            background: CHROME.surface,
-            border: `1px solid ${CHROME.line}`,
-            borderRadius: 10,
-            opacity: 0.55,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
+// SkeletonGrid removed — replaced by shared DrawerSkeletonGrid from "./kit".
 
 // ── error banner ──────────────────────────────────────────────────────────
 

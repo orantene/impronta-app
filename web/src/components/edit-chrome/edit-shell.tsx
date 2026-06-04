@@ -22,8 +22,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
+import { createClient } from "@/lib/supabase/client";
 import { EditErrorBoundary } from "./edit-error-boundary";
-import { EditProvider, useEditContext, type EditDevice } from "./edit-context";
+import {
+  EditProvider,
+  useEditContext,
+  type EditDevice,
+  type PreviewFrameOverride,
+} from "./edit-context";
+import { PresenceProvider } from "./presence-provider";
 import { CHROME_SHADOWS } from "./kit";
 import { SelectionLayer } from "./selection-layer";
 import { InspectorDock } from "./inspector-dock";
@@ -35,7 +42,9 @@ import { PageSettingsDrawer } from "./page-settings-drawer";
 import { RevisionsDrawer } from "./revisions-drawer";
 import { ThemeDrawer } from "./theme-drawer";
 import { AssetsDrawer } from "./assets-drawer";
+import { CollectionsDrawer } from "./collections-drawer";
 import { CommandPalette } from "./command-palette";
+import { MobileEditPanel } from "./mobile-edit-panel";
 import { NavigatorPanel } from "./navigator-panel";
 import { ShortcutOverlay } from "./shortcut-overlay";
 import { TopBar } from "./topbar";
@@ -46,6 +55,16 @@ import { findBuilderNodeById } from "./inspectors/builder-node-content-utils";
 import { copySharePreviewLinkToClipboard } from "./copy-share-preview-link";
 import { createShareLinkAction } from "@/lib/site-admin/share-link/share-actions";
 import { defaultSectionAddSlot } from "./default-section-add-slot";
+import {
+  CanvasViewportProvider,
+  CanvasZoomStyle,
+  CanvasSpacePan,
+  CanvasKeyboardZoom,
+  CanvasZoomControls,
+  CanvasRulers,
+  CanvasGuides,
+  useCanvasViewport,
+} from "./canvas-viewport";
 
 const ScheduleDrawer = dynamic(
   () =>
@@ -70,6 +89,49 @@ const DEVICE_WIDTHS: Record<EditDevice, number | null> = {
   tablet: 834,
   mobile: 390,
 };
+
+// Job #17 — landscape (rotated) frame widths. A rotated frame swaps to the
+// device's "long" edge so the iframe's internal viewport (and therefore the
+// storefront `@media` queries) fire at the wider width: tablet portrait 834 →
+// landscape 1112, mobile portrait 390 → landscape 844. Desktop has no rotation.
+const DEVICE_LANDSCAPE_WIDTHS: Record<EditDevice, number | null> = {
+  desktop: null,
+  tablet: 1112,
+  mobile: 844,
+};
+
+// Job #17 — bounds for the custom-width input. Floor keeps a usable frame;
+// ceiling is a generous large-desktop preview. Clamped on entry so a stray
+// value never produces a 0-width or runaway frame.
+const PREVIEW_WIDTH_MIN = 280;
+const PREVIEW_WIDTH_MAX = 1920;
+
+/**
+ * Effective internal viewport width for one device tier's frame (job #17). The
+ * `previewFrame` override only applies to the ACTIVE tier — warm-kept inactive
+ * iframes keep their own natural width so flipping back is unchanged. A custom
+ * width wins over rotation; otherwise a rotated active frame uses the landscape
+ * width; otherwise the natural portrait width. Falls back to the tablet width
+ * for desktop (which renders only for warm-keep, display:none).
+ */
+function frameWidthForTier(
+  tier: EditDevice,
+  activeDevice: EditDevice,
+  previewFrame: PreviewFrameOverride,
+): number {
+  const natural = DEVICE_WIDTHS[tier] ?? DEVICE_WIDTHS.tablet ?? 834;
+  if (tier !== activeDevice) return natural;
+  if (previewFrame.widthPx != null) {
+    return Math.min(
+      PREVIEW_WIDTH_MAX,
+      Math.max(PREVIEW_WIDTH_MIN, Math.round(previewFrame.widthPx)),
+    );
+  }
+  if (previewFrame.rotated) {
+    return DEVICE_LANDSCAPE_WIDTHS[tier] ?? natural;
+  }
+  return natural;
+}
 
 interface EditShellProps {
   tenantId: string;
@@ -134,9 +196,66 @@ export function EditShell({
         workspaceMembershipSlug={workspaceMembershipSlug}
         canInsertRawHtmlElements={canInsertRawHtmlElements}
       >
-        <EditShellInner>{children}</EditShellInner>
+        {/* 4C — wrap in the canvas viewport provider so zoom/pan/rulers/guides
+            are available to all chrome components inside the editor. The
+            provider must nest inside EditProvider so CanvasKeyboardZoom /
+            CanvasZoomControls can read pageId from EditContext. */}
+        <CanvasViewportProviderWrapper>
+          <EditShellInner>{children}</EditShellInner>
+        </CanvasViewportProviderWrapper>
       </EditProvider>
     </EditErrorBoundary>
+  );
+}
+
+/**
+ * Thin bridge — reads `pageId` from EditContext to seed guide persistence and
+ * presence. Also resolves the logged-in user's id + name for presence tracking
+ * (graceful: falls back to a generic "You" / per-session id if unavailable).
+ */
+function CanvasViewportProviderWrapper({ children }: { children: React.ReactNode }) {
+  const { pageId } = useEditContext();
+
+  // Resolve the Supabase user for presence identity. We do this once per
+  // mount (the EditProvider already manages the auth session; we just read it).
+  const [presenceMeta, setPresenceMeta] = useState<{
+    selfId?: string;
+    selfName?: string;
+  }>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    try {
+      const supa = createClient();
+      if (!supa) return;
+      void supa.auth.getUser().then(({ data }) => {
+        if (cancelled) return;
+        const user = data.user;
+        if (!user) return;
+        const name =
+          (user.user_metadata as { full_name?: string } | undefined)?.full_name ??
+          user.email?.split("@")[0] ??
+          "You";
+        setPresenceMeta({ selfId: user.id, selfName: name });
+      });
+    } catch {
+      // ignore — presence is non-critical
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return (
+    <PresenceProvider
+      pageId={pageId}
+      selfId={presenceMeta.selfId}
+      selfName={presenceMeta.selfName}
+    >
+      <CanvasViewportProvider pageId={pageId}>
+        {children}
+      </CanvasViewportProvider>
+    </PresenceProvider>
   );
 }
 
@@ -188,6 +307,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
   const {
     device,
     setDevice,
+    previewFrame,
     dirty,
     saving,
     canUndo,
@@ -200,6 +320,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     openTheme,
     canEditSiteShell,
     openAssets,
+    openCollections,
     openSchedule,
     openComments,
     openStarterTemplateGallery,
@@ -210,6 +331,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     closeRevisions,
     closeTheme,
     closeAssets,
+    closeCollections,
     closeSchedule,
     closeComments,
     publishOpen,
@@ -217,6 +339,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     revisionsOpen,
     themeOpen,
     assetsOpen,
+    collectionsOpen,
     scheduleOpen,
     commentsOpen,
     paletteOpen,
@@ -227,6 +350,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     openShortcutOverlay,
     closeShortcutOverlay,
     saveDraft,
+    lastDraftSavedAt,
     pagesPickerOpenNonce,
     requestPagesPickerOpen,
     pageMetadata,
@@ -320,6 +444,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
       revisions: pageSlug ? "noop" : openRevisions,
       theme: openTheme,
       assets: openAssets,
+      collections: openCollections,
       schedule: openSchedule,
       comments: openComments,
       templates: () => openStarterTemplateGallery(templateSlug),
@@ -349,6 +474,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     openRevisions,
     openTheme,
     openAssets,
+    openCollections,
     openSchedule,
     openComments,
     openStarterTemplateGallery,
@@ -473,6 +599,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
           revisionsOpen ||
           themeOpen ||
           assetsOpen ||
+          collectionsOpen ||
           scheduleOpen ||
           commentsOpen)
       ) {
@@ -482,6 +609,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         if (revisionsOpen) closeRevisions();
         if (themeOpen) closeTheme();
         if (assetsOpen) closeAssets();
+        if (collectionsOpen) closeCollections();
         if (scheduleOpen) closeSchedule();
         if (commentsOpen) closeComments();
         return;
@@ -668,6 +796,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     revisionsOpen,
     themeOpen,
     assetsOpen,
+    collectionsOpen,
     scheduleOpen,
     commentsOpen,
     closePublish,
@@ -676,6 +805,8 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     closeTheme,
     openAssets,
     closeAssets,
+    openCollections,
+    closeCollections,
     closeSchedule,
     closeComments,
     paletteOpen,
@@ -761,6 +892,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
           onRevisions={pageSlug ? undefined : openRevisions}
           onTheme={canEditSiteShell ? openTheme : undefined}
           onAssets={openAssets}
+          onCollections={openCollections}
           onTemplates={openStarterTemplateGallery}
           onSchedule={openSchedule}
           onComments={openComments}
@@ -773,10 +905,19 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
           defaultLocale={defaultLocale}
           availableLocales={availableLocales}
           liveSitePublishedAt={liveSitePublishedAt}
+          lastDraftSavedAt={lastDraftSavedAt}
         />
+        {/* z-[83]: above the Layers/Structure navigator (z-80) so canvas
+         *  chrome — selection rings, chips, and especially the #30 right-click
+         *  context menu opened FROM a layer row — paints over the rail instead
+         *  of being occluded by it. Still below the inspector dock (z-85),
+         *  right-rail drawers (z-88), and the topbar (z-90), which stay the
+         *  topmost interactive panels. The layer itself is pointer-events:none;
+         *  only its explicitly interactive children (chip/menu) capture pointer,
+         *  and those only render over the canvas or the (intended) menu. */}
         <div
           id="edit-overlay-portal"
-          className="pointer-events-none fixed inset-0 top-[54px] z-[70]"
+          className="pointer-events-none fixed inset-0 top-[54px] z-[83]"
           aria-hidden
         />
         {/* Preview toggle suppression — when the operator clicks the
@@ -796,6 +937,10 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         <RevisionsDrawer />
         <ThemeDrawer />
         <AssetsDrawer />
+        <CollectionsDrawer />
+        {/* Wave 6C — mobile-first editing HUD. Self-guards on mobileEditMode +
+            previewing; renders nothing otherwise (fully back-compat). */}
+        <MobileEditPanel />
         <ScheduleDrawer />
         <CommentsDrawer />
         <StarterTemplateGalleryOverlay />
@@ -811,16 +956,71 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         {!previewing ? <CanvasLinkInterceptor /> : null}
         <FirstPaintTip />
         <IframeBridgeParent />
+        {/* 4C — canvas viewport tools: zoom transform, space-drag pan, keyboard
+            zoom, rulers, guides, and the HUD. All suppressed in preview mode
+            so the operator sees the real page without chrome. */}
+        <CanvasViewportComponents
+          previewing={previewing}
+          navigatorOpen={navigatorOpen}
+          navigatorWidth={navigatorWidth}
+          inspectorOpen={!!selectedSectionId}
+        />
       </div>
       {children}
         <DeviceFrameSurface
           device={device}
+          previewFrame={previewFrame}
           pageSlug={pageSlug}
           pageVersion={pageVersion}
           navigatorOpen={navigatorOpen}
           navigatorWidth={navigatorWidth}
           inspectorOpen={!!selectedSectionId}
         />
+    </>
+  );
+}
+
+/**
+ * 4C — all canvas viewport components bundled into one sub-component so
+ * we can call `useCanvasViewport()` once and destructure cleanly, keeping
+ * `EditShellInner` focused on composition/drawer orchestration.
+ *
+ * Hidden entirely in preview mode so the operator sees the real page.
+ */
+function CanvasViewportComponents({
+  previewing,
+  navigatorOpen,
+  navigatorWidth,
+  inspectorOpen,
+}: {
+  previewing: boolean;
+  navigatorOpen: boolean;
+  navigatorWidth: number;
+  inspectorOpen: boolean;
+}) {
+  const { zoom } = useCanvasViewport();
+  if (previewing) return null;
+
+  return (
+    <>
+      {/* Injects transform:scale on the storefront DOM (outside [data-edit-chrome]).
+          getBoundingClientRect() returns visual post-transform coords, so
+          selection-layer rings + hit-testing remain correct at every zoom level. */}
+      <CanvasZoomStyle zoom={zoom} />
+      {/* Space+drag pan — no rendered DOM, only window listeners. */}
+      <CanvasSpacePan />
+      {/* ⌘+/−/0/⇧F/R keyboard bindings for zoom and rulers. */}
+      <CanvasKeyboardZoom />
+      {/* Floating zoom HUD — bottom-left, accounts for rail widths. */}
+      <CanvasZoomControls
+        navigatorOpen={navigatorOpen}
+        navigatorWidth={navigatorWidth}
+        inspectorOpen={inspectorOpen}
+      />
+      {/* Rulers — rendered only when showRulers is true. */}
+      <CanvasRulers navigatorOpen={navigatorOpen} navigatorWidth={navigatorWidth} />
+      {/* Draggable guide lines. */}
+      <CanvasGuides navigatorOpen={navigatorOpen} navigatorWidth={navigatorWidth} />
     </>
   );
 }
@@ -1187,8 +1387,18 @@ function mutationCodeSuggestion(code: string): string | null {
  * boundary — that is Sprint 4+ work. The chip's drag handle still
  * works inside the iframe (intra-frame reorder).
  */
+// Breakpoint lock thresholds for the canvas drag-resize (Job #18).
+// When the live drag width crosses these bounds, the active device tier
+// snaps to the matching breakpoint so the topbar buttons stay in sync.
+const DRAG_TABLET_THRESHOLD = 900;
+const DRAG_MOBILE_THRESHOLD = 480;
+// Snap margin: if the pointer-up width is within this distance of a device's
+// natural width, snap to that exact width for a clean lock-in.
+const DRAG_SNAP_MARGIN = 40;
+
 function DeviceFrameSurface({
   device,
+  previewFrame,
   pageSlug,
   pageVersion,
   navigatorOpen,
@@ -1196,6 +1406,8 @@ function DeviceFrameSurface({
   inspectorOpen,
 }: {
   device: EditDevice;
+  /** Job #17 — custom width / landscape override layered over the device width. */
+  previewFrame: PreviewFrameOverride;
   pageSlug?: string | null;
   /** Draft CAS version — bumps on successful mutations; included in iframe `key` so device preview reloads. */
   pageVersion: number | null;
@@ -1203,6 +1415,19 @@ function DeviceFrameSurface({
   navigatorWidth: number;
   inspectorOpen: boolean;
 }) {
+  // Job #18 — canvas drag-resize setters. DeviceFrameSurface is rendered
+  // inside EditProvider so useEditContext is valid here.
+  const { setDevice: ctxSetDevice, setPreviewFrameWidth } = useEditContext();
+
+  // Drag state — live width while dragging (null = not dragging).
+  const [dragging, setDragging] = useState<boolean>(false);
+  const [dragReadout, setDragReadout] = useState<number | null>(null);
+  // Ref to the start-of-drag data so pointermove doesn't close over stale state.
+  const dragStartRef = useRef<{
+    startX: number;
+    startWidth: number;
+    currentDevice: EditDevice;
+  } | null>(null);
   // Sprint 3.x — scale-fit logic. The iframe's INTERNAL viewport must
   // be the device width (390/834 px) so the storefront's `@media`
   // queries fire at the right breakpoint. But when the editor itself
@@ -1257,19 +1482,118 @@ function DeviceFrameSurface({
     });
   }, [device]);
 
+  // Job #18 — pointer-drag resize for the canvas frame.
+  // All mutable values accessed inside the window-level pointermove/pointerup
+  // callbacks are read from refs (dragStartRef, settersRef) so we never close
+  // over stale React state. The pointerdown handler itself is a plain callback
+  // (no useCallback) because it's only used as a React synthetic event handler
+  // and is re-created on every render — that's fine for event handlers.
+  const settersRef = useRef({ ctxSetDevice, setPreviewFrameWidth });
+  useEffect(() => {
+    settersRef.current = { ctxSetDevice, setPreviewFrameWidth };
+  });
+  // QA fix — teardown for an IN-PROGRESS resize drag. onUp nulls it on a normal
+  // release; this cleanup removes the window listeners if the canvas unmounts
+  // MID-drag (otherwise they leaked + could fire setState on an unmounted node).
+  const dragTeardownRef = useRef<(() => void) | null>(null);
+  useEffect(() => () => dragTeardownRef.current?.(), []);
+
+  const handleResizePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+    const startWidth = frameWidthForTier(device, device, previewFrame);
+    dragStartRef.current = {
+      startX: e.clientX,
+      startWidth,
+      currentDevice: device,
+    };
+    setDragging(true);
+    setDragReadout(startWidth);
+
+    function onMove(ev: PointerEvent) {
+      const ref = dragStartRef.current;
+      if (!ref) return;
+      const delta = ev.clientX - ref.startX;
+      // Dragging the RIGHT handle outward (positive delta) = wider.
+      const raw = ref.startWidth + delta * 2; // ×2: symmetric feel
+      const clamped = Math.min(PREVIEW_WIDTH_MAX, Math.max(320, raw));
+      settersRef.current.setPreviewFrameWidth(Math.round(clamped));
+      setDragReadout(Math.round(clamped));
+
+      // Breakpoint lock — update device tier as width crosses thresholds.
+      let nextTier: EditDevice;
+      if (clamped <= DRAG_MOBILE_THRESHOLD) {
+        nextTier = "mobile";
+      } else if (clamped <= DRAG_TABLET_THRESHOLD) {
+        nextTier = "tablet";
+      } else {
+        nextTier = "desktop";
+      }
+      if (nextTier !== ref.currentDevice) {
+        ref.currentDevice = nextTier;
+        settersRef.current.ctxSetDevice(nextTier);
+      }
+    }
+
+    function onUp(ev: PointerEvent) {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      dragTeardownRef.current = null;
+      setDragging(false);
+      setDragReadout(null);
+
+      const ref = dragStartRef.current;
+      dragStartRef.current = null;
+      if (!ref) return;
+
+      const delta = ev.clientX - ref.startX;
+      const raw = ref.startWidth + delta * 2;
+      const clamped = Math.min(PREVIEW_WIDTH_MAX, Math.max(320, raw));
+      const finalWidth = Math.round(clamped);
+
+      // Snap to natural device widths on pointer-up if within margin.
+      const snapTargets: Array<{ tier: EditDevice; w: number }> = [
+        { tier: "mobile", w: DEVICE_WIDTHS.mobile! },
+        { tier: "tablet", w: DEVICE_WIDTHS.tablet! },
+      ];
+      for (const { tier, w } of snapTargets) {
+        if (Math.abs(finalWidth - w) <= DRAG_SNAP_MARGIN) {
+          settersRef.current.setPreviewFrameWidth(w);
+          settersRef.current.ctxSetDevice(tier);
+          return;
+        }
+      }
+      // Desktop snap: any width PAST the tablet lock goes full-bleed desktop —
+      // matches the tier set during the drag and closes the 901-940px dead-zone
+      // where device became "desktop" but the width stayed pinned.
+      if (finalWidth > DRAG_TABLET_THRESHOLD) {
+        settersRef.current.setPreviewFrameWidth(null);
+        settersRef.current.ctxSetDevice("desktop");
+        return;
+      }
+      settersRef.current.setPreviewFrameWidth(finalWidth);
+    }
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    dragTeardownRef.current = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+  };
+
   // Nothing to mount until at least one non-desktop tier has been
   // visited. Once the operator clicks Tablet or Mobile, the host
   // stays in the DOM for the rest of the session.
   if (everVisited.size === 0) return null;
 
-  // `width` is the active device's width; null only when device is
-  // desktop AND we're rendering only-for-warm-keep (no visible frame).
-  const activeWidth = DEVICE_WIDTHS[device];
   const isDesktop = device === "desktop";
-  // Use the active width when we have one (tablet/mobile active),
-  // otherwise fall back to ANY warmed device's width for layout math
-  // — doesn't matter since we display:none the host on desktop.
-  const width = activeWidth ?? DEVICE_WIDTHS.tablet ?? 834;
+  // `width` is the active device's effective frame width (job #17: honours a
+  // custom width / landscape override for the active tier), used for the
+  // host-side layout math. Desktop renders only for warm-keep (display:none),
+  // so the value is irrelevant there — frameWidthForTier falls back to tablet.
+  const width = frameWidthForTier(device, device, previewFrame);
 
   // Padding rules — large gutters on desktop where the navigator + inspector
   // can be open; tight on phone where neither is mounted (their wrappers
@@ -1351,46 +1675,119 @@ function DeviceFrameSurface({
             sized at the true device width and scaled down via
             transform — preserving the internal viewport so storefront
             @media queries fire at the device width. */}
-        <div
-          style={{
-            width: displayedW,
-            height: displayedH,
-            position: "relative",
-          }}
-        >
-          {orderedVisited.map((d) => {
-            const dWidth = DEVICE_WIDTHS[d] ?? width;
-            const dScale = Math.min(1, containerWidth / dWidth);
-            const dDisplayedW = dWidth * dScale;
-            const isActive = d === device;
-            return (
-              <iframe
-                key={`${d}:${pageSlug ?? "/"}:${pageVersion ?? "pending"}`}
-                src={iframeSrc}
-                title={`${d} preview`}
-                data-active={isActive ? "true" : undefined}
-                data-device-tier={d}
-                hidden={!isActive}
+        {/* Job #18 — outer relative wrapper so the resize handle can be
+            positioned absolutely outside the frame without affecting flex flow. */}
+        <div style={{ position: "relative", display: "inline-flex" }}>
+          <div
+            style={{
+              width: displayedW,
+              height: displayedH,
+              position: "relative",
+            }}
+          >
+            {orderedVisited.map((d) => {
+              // Job #17 — the active tier's frame honours the custom-width /
+              // landscape override; inactive (warm-kept) frames keep their
+              // natural width so flipping back stays a CSS display change.
+              const dWidth = frameWidthForTier(d, device, previewFrame);
+              const dScale = Math.min(1, containerWidth / dWidth);
+              const dDisplayedW = dWidth * dScale;
+              const isActive = d === device;
+              return (
+                <iframe
+                  key={`${d}:${pageSlug ?? "/"}:${pageVersion ?? "pending"}`}
+                  src={iframeSrc}
+                  title={`${d} preview`}
+                  data-active={isActive ? "true" : undefined}
+                  data-device-tier={d}
+                  hidden={!isActive}
+                  style={{
+                    // Absolute layering so the inactive iframes stack
+                    // beneath the active one without affecting flex flow.
+                    position: "absolute",
+                    top: 0,
+                    left: (displayedW - dDisplayedW) / 2,
+                    width: dWidth,
+                    height: displayedH / dScale,
+                    border: 0,
+                    borderRadius: 16,
+                    boxShadow:
+                      "0 24px 64px -16px rgba(0,0,0,0.30), 0 4px 12px rgba(0,0,0,0.10), 0 0 0 1px rgba(24,24,27,0.08)",
+                    background: "white",
+                    display: isActive ? "block" : "none",
+                    transform: `scale(${dScale})`,
+                    transformOrigin: "top left",
+                    // Suppress iframe pointer events during drag so the
+                    // iframe doesn't steal the pointer from window.
+                    pointerEvents: dragging ? "none" : undefined,
+                  }}
+                />
+              );
+            })}
+          </div>
+          {/* Job #18 — resize grabber on the right edge of the active frame.
+              Thin vertical strip; cursor:ew-resize. onPointerDown starts the
+              drag: the handler is bound on the element itself so pointer
+              capture works correctly (setPointerCapture on the target). */}
+          {!isDesktop ? (
+            <div
+              aria-hidden
+              data-canvas-resize-handle="right"
+              onPointerDown={handleResizePointerDown}
+              style={{
+                position: "absolute",
+                top: 0,
+                right: -18,
+                width: 18,
+                height: displayedH,
+                cursor: "ew-resize",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 10,
+              }}
+            >
+              {/* Pill-shaped visual indicator — visible on hover and while dragging */}
+              <div
                 style={{
-                  // Absolute layering so the inactive iframes stack
-                  // beneath the active one without affecting flex flow.
-                  position: "absolute",
-                  top: 0,
-                  left: (displayedW - dDisplayedW) / 2,
-                  width: dWidth,
-                  height: displayedH / dScale,
-                  border: 0,
-                  borderRadius: 16,
-                  boxShadow:
-                    "0 24px 64px -16px rgba(0,0,0,0.30), 0 4px 12px rgba(0,0,0,0.10), 0 0 0 1px rgba(24,24,27,0.08)",
-                  background: "white",
-                  display: isActive ? "block" : "none",
-                  transform: `scale(${dScale})`,
-                  transformOrigin: "top left",
+                  width: 4,
+                  height: 48,
+                  borderRadius: 999,
+                  background: dragging
+                    ? "rgba(58, 123, 255, 0.80)"
+                    : "rgba(24,24,27,0.18)",
+                  transition: dragging ? "none" : "background 150ms ease, transform 150ms ease",
+                  transform: dragging ? "scaleX(1.5)" : "scaleX(1)",
                 }}
               />
-            );
-          })}
+              {/* Px readout shown while dragging */}
+              {dragging && dragReadout != null ? (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "50%",
+                    left: "calc(100% + 6px)",
+                    transform: "translateY(-50%)",
+                    background: "rgba(18,18,22,0.88)",
+                    color: "rgba(255,255,255,0.92)",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    lineHeight: 1,
+                    letterSpacing: "-0.01em",
+                    padding: "4px 7px",
+                    borderRadius: 6,
+                    whiteSpace: "nowrap",
+                    pointerEvents: "none",
+                    backdropFilter: "blur(8px)",
+                    WebkitBackdropFilter: "blur(8px)",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
+                  }}
+                >
+                  {dragReadout}px
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
     </>

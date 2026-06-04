@@ -58,6 +58,16 @@ remotePatterns.push({
   pathname: "/**",
 });
 
+// Editorial placeholder imagery for the freeform builder designs (e.g. the
+// Impronta discipline rail) until first-party agency photography is licensed.
+// Allow-listed so the freeform renderer's P4-IMAGEOPT srcset can route these
+// through the Next image optimizer instead of shipping full-size originals.
+remotePatterns.push({
+  protocol: "https",
+  hostname: "images.unsplash.com",
+  pathname: "/**",
+});
+
 const isProd = process.env.NODE_ENV === "production";
 
 /**

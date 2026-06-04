@@ -13,8 +13,43 @@ import { getPublicTenantScope } from "@/lib/saas/scope";
 import { loadPageForRender } from "@/lib/site-admin/server/page-reads";
 import { BlocksRenderer } from "@/components/page-builder/blocks";
 import type { PageBlock, PageTheme } from "@/components/page-builder/blocks";
+import {
+  jsonLdDocumentToScript,
+  type JsonLdDocument,
+} from "@/lib/site-admin/cms-seo";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * P4-SEO — operator-authored schema.org JSON-LD for a published CMS page.
+ * Read once (scoped to tenant/locale/slug) and emitted as a structured-data
+ * script in whichever render branch matches. Returns null when none is set.
+ */
+async function loadPageJsonLdScript(
+  supabase: SupabaseClient,
+  tenantId: string,
+  locale: string,
+  slugPath: string,
+): Promise<string> {
+  const { data } = await supabase
+    .rpc("cms_public_pages_for_tenant", { p_tenant_id: tenantId })
+    .select("json_ld")
+    .eq("locale", locale)
+    .eq("slug", slugPath)
+    .maybeSingle<{ json_ld: JsonLdDocument | null }>();
+  return jsonLdDocumentToScript(data?.json_ld ?? null);
+}
+
+function JsonLdScript({ script }: { script: string }) {
+  if (!script) return null;
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: script }}
+    />
+  );
+}
 
 type CmsPagePublic = {
   title: string;
@@ -100,6 +135,14 @@ export default async function CmsPublicPage({
   const publicScope = await getPublicTenantScope();
   if (!publicScope) notFound();
 
+  // P4-SEO — one structured-data read shared by every render branch below.
+  const jsonLdScript = await loadPageJsonLdScript(
+    supabase,
+    publicScope.tenantId,
+    locale,
+    slugPath,
+  );
+
   // Phase C — workspace_pages check. Agency hosts can publish pages via the
   // page builder. Check workspace_pages first when on an agency host.
   if (publicScope && slugPath) {
@@ -121,6 +164,7 @@ export default async function CmsPublicPage({
             fontFamily: theme.fontFamily ?? "inherit",
           }}
         >
+          <JsonLdScript script={jsonLdScript} />
           <BlocksRenderer
             blocks={(wpPage.blocks ?? []) as PageBlock[]}
             tenantId={publicScope.tenantId}
@@ -137,6 +181,7 @@ export default async function CmsPublicPage({
   if (sectionPage?.snapshot) {
     return (
       <>
+        <JsonLdScript script={jsonLdScript} />
         <PublicHeader />
         <main className="w-full flex-1">
           <HomepageCmsSections
@@ -165,6 +210,7 @@ export default async function CmsPublicPage({
 
   return (
     <>
+      <JsonLdScript script={jsonLdScript} />
       <PublicHeader />
       <main className="w-full flex-1 px-4 py-16 sm:px-6 lg:px-8">
         <article className="mx-auto max-w-3xl">

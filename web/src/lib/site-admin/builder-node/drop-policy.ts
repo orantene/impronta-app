@@ -22,6 +22,9 @@ const ROOT_ALLOWED_KINDS: ReadonlySet<BuilderNodeKind> = new Set([
   "tabs",
   "carousel",
   "masonry",
+  // A Tulala component (directory/featured-talent/booking/cta) is a top-level
+  // page block, so it may be dropped directly at the page root.
+  "section_embed",
 ]);
 
 export function builderNodeKindAllowedAtRoot(kind: BuilderNodeKind): boolean {

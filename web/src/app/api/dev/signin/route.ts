@@ -9,7 +9,12 @@
  *   - VERCEL_ENV=preview (Vercel preview deploys — already SSO-gated behind
  *     the Vercel team-auth wall, so the relaxation doesn't expose anything
  *     to anonymous internet visitors)
- * Blocked in production (NODE_ENV=production AND VERCEL_ENV=production).
+ * Blocked in production (NODE_ENV=production AND VERCEL_ENV=production) — the
+ * handler returns HTTP 403 in that path (see the !isDev && !isPreview guard).
+ *
+ * ⚠ PRE-MERGE GATE (P5-SHIP): this file MUST be dropped or verified still
+ * 403-guarded before the feat/builder-2027-fullpage branch is merged to main.
+ * Search for this comment in the P5-SHIP checklist.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";

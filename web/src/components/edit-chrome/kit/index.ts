@@ -25,6 +25,8 @@ export {
   DrawerTab,
   DrawerBody,
   DrawerFoot,
+  DrawerSkeleton,
+  DrawerSkeletonGrid,
 } from "./drawer";
 
 export { Card, CardHead, CardBody, CardAction } from "./card";

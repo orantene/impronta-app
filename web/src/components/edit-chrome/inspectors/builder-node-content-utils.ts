@@ -31,15 +31,21 @@ export function resolveHonestSelectedBuilderNodeId(input: {
     sectionIdByBuilderNodeId,
     builderNodeIdBySectionId,
   } = input;
-  if (!selectedSectionId) return null;
   const override = selectedBuilderNodeIdOverride;
+  // Freeform full-page designs have builder nodes with NO owner section, so
+  // both the override's mapped section and `selectedSectionId` are null. Check
+  // the override FIRST (works for section-owned AND section-less nodes) — the
+  // old `if (!selectedSectionId) return null` bailed before this, so every
+  // freeform block resolved to "nothing selected" even after selectBuilderNode.
+  // (`?? null` so a missing map entry compares equal to a null section.)
   if (
     override &&
     treeContainsBuilderNodeId(builderTree, override) &&
-    sectionIdByBuilderNodeId.get(override) === selectedSectionId
+    (sectionIdByBuilderNodeId.get(override) ?? null) === selectedSectionId
   ) {
     return override;
   }
+  if (!selectedSectionId) return null;
   return builderNodeIdBySectionId.get(selectedSectionId) ?? null;
 }
 
@@ -67,6 +73,12 @@ export function resolveStandaloneBuilderNodeForContent(
   if (!selectedBuilderNodeId) return null;
   if (resolveBuilderNodeRole(selectedBuilderNodeId)) return null;
   const node = findBuilderNodeById(tree, selectedBuilderNodeId);
-  if (!node || node.kind === "section") return null;
+  // `section` (legacy slot) carries no free-form props — skip it. A
+  // `section_embed` (Tulala component) DOES carry an editable `config` (the
+  // curated section payload, e.g. featured-talent's manual picks), so we now
+  // surface it for content editing — its own registry editor opens in the dock.
+  if (!node || node.kind === "section") {
+    return null;
+  }
   return node;
 }

@@ -1,3 +1,6 @@
+/* eslint-disable max-lines -- hand-authored BuilderNode type + schema definitions (discriminated union + the full style-value model); inherently large, like the other builder-node data files. */
+import type { BuilderVisibilityCondition } from "./visibility";
+
 export type BuilderNodeKind =
   | "section"
   | "container"
@@ -22,11 +25,16 @@ export type BuilderNodeKind =
   | "spacer"
   | "card"
   | "cta_group"
-  | "nav";
+  | "nav"
+  | "section_embed";
 
 export interface BuilderNodeBase {
   id: string;
   kind: BuilderNodeKind;
+  /** P3-LOCK — per-node editorial lock (selection-layer + inspector + layers row honor it). Patched via props; carried by validate's base-field allow-list. */
+  locked?: boolean;
+  /** Wave 5B (#38) — OPTIONAL conditional visibility (locale / auth / variant), evaluated at `shouldRenderNode`; node omitted when unmatched, undefined → always shown. See visibility.ts. */
+  visibilityCondition?: BuilderVisibilityCondition;
 }
 
 export interface BuilderNodeStyleValue {
@@ -54,6 +62,17 @@ export interface BuilderNodeStyleValue {
   // Free-value escapes — override the token presets above with raw CSS so any
   // design can be matched. Stored as CSS strings (lengths keep their unit) and
   // layered after the tokens in the renderer, so a free value always wins.
+  //
+  // TOKEN BINDING (Wave 3 · 3A): the color fields (textColor, backgroundColor,
+  // borderColor, accentColor, caretColor — plus the hover equivalents) AND
+  // fontFamily additionally accept a `token:<key>` SENTINEL that BINDS the prop
+  // to a Theme design token instead of freezing a raw value, e.g.
+  // `"token:color.primary"` or `"token:typography.heading-font-family"`. The
+  // renderer resolves the sentinel to `var(--token-…, fallback)` via
+  // resolveStyleTokenRef (style-token-bindings.ts), so a live theme change
+  // cascades. Any value WITHOUT the `token:` prefix is a raw value and renders
+  // unchanged (back-compat; the flagship uses only raw values). See
+  // style-token-bindings.ts for the full encoding + bindable-token catalog.
   fontFamily?: string;
   fontSize?: string;
   fontWeight?: number;
@@ -100,22 +119,16 @@ export interface BuilderNodeStyleValue {
   marginRightFree?: string;
   marginBottomFree?: string;
   marginLeftFree?: string;
-  // Surface & depth escapes. backgroundImage takes a CSS url()/gradient. It is
-  // painted cover/center/no-repeat by default, but backgroundSize /
-  // backgroundPosition / backgroundRepeat each override one axis of that (free
-  // CSS values, e.g. "contain", "top left", "repeat"). opacity is 0–1.
-  // textShadow takes a free CSS text-shadow value (e.g. "0 2px 8px rgba(0,0,0,.4)").
+  // Surface & depth escapes. backgroundImage is painted cover/center/no-repeat
+  // by default; backgroundSize/Position/Repeat each override one paint axis.
   boxShadow?: string;
   textShadow?: string;
   backgroundImage?: string;
   backgroundSize?: string;
   backgroundPosition?: string;
   backgroundRepeat?: "no-repeat" | "repeat" | "repeat-x" | "repeat-y";
-  // Gradient/clipped text — clip the background paint to the text glyphs so a
-  // gradient (or any background) shows *through* the letters. Only "text" is
-  // meaningful; the renderer also emits the -webkit- prefix and a transparent
-  // text fill. Ignored unless a backgroundImage or backgroundColor is set, so
-  // it can never silently blank the text.
+  // Clips background paint to text glyphs (gradient-text effect). Gated on an
+  // actual background paint so it can't silently blank text.
   backgroundClip?: "text";
   opacity?: number;
   // Free gap escape (layout nodes) — overrides the gap token on container /
@@ -133,6 +146,20 @@ export interface BuilderNodeStyleValue {
   right?: string;
   bottom?: string;
   left?: string;
+  // Wave 6B (#23) — STICKY PINNING convenience. This flow/flex/grid builder has
+  // no absolute canvas, so "constraints/pinning" = position:sticky with a
+  // self-anchor: `stickyAnchor` picks which edge of the scroll container the
+  // node sticks to ("top" → it pins as you scroll DOWN past it; "bottom" → pins
+  // to the bottom of the viewport), and `stickyOffset` is the gap from that edge
+  // (CSS length, e.g. "16px", "1rem"; default 0 when only the anchor is set).
+  // Setting stickyAnchor MAKES the node sticky: the renderer emits
+  // `position:sticky` UNLESS an explicit `position` is already set, and emits the
+  // inset on the anchored edge UNLESS an explicit `top`/`bottom` already exists
+  // (so the raw escapes always win — back-compat). The headline use is a sticky
+  // sub-nav / sidebar rail. Optional + back-compat: undefined → nothing emitted,
+  // and existing `position:sticky`+`top` trees render byte-identical.
+  stickyAnchor?: "top" | "bottom";
+  stickyOffset?: string;
   // Stacking & clipping escapes — z-index orders overlapping/absolute nodes
   // (integer, negatives allowed to send behind); overflow controls whether
   // content is clipped or scrolls within the node's box.
@@ -169,6 +196,14 @@ export interface BuilderNodeStyleValue {
   // (e.g. "span 2", "1 / 3"). No-op outside a grid container.
   gridColumn?: string;
   gridRow?: string;
+  // Flex/grid child ORDER — repositions this node among its siblings WITHOUT
+  // moving it in the tree/DOM (CSS `order`, lower paints first; negatives allowed
+  // to pull ahead of order:0 siblings). The headline use is per-breakpoint reorder
+  // — set it under responsive.{tablet,mobile} to e.g. float a CTA above the media
+  // on mobile while the desktop DOM order is untouched. ONLY affects children of a
+  // flex or grid parent (a `container` row/grid, `split`, `cta_group`, …); a no-op
+  // in normal flow. Optional + back-compat: undefined leaves the natural order.
+  order?: number;
   // Filter effects — free CSS filter strings. filter applies to the node itself
   // (blur/grayscale/brightness/…); backdropFilter frosts whatever sits behind it
   // (glassmorphism). e.g. "blur(8px)", "grayscale(1) contrast(1.2)".
@@ -226,6 +261,12 @@ export interface BuilderNodeStyleValue {
   pointerEvents?: "auto" | "none";
   scrollSnapType?: string;
   scrollSnapAlign?: "none" | "start" | "center" | "end";
+  // Wave 3 · 3C: Layered backgrounds — stacks gradient / image / color layers
+  // into a comma-joined background-image. Index 0 = frontmost layer. Applied
+  // after the scalar backgroundImage; existing nodes stay byte-identical.
+  backgroundLayers?: Array<{ type: "gradient" | "image" | "color"; value: string }>;
+  /** CSS background-blend-mode for backgroundLayers (single keyword or CSV list). */
+  backgroundBlendMode?: string;
   // Focus / form theming — outline is layout-neutral (unlike border) so it's the
   // right tool for decorative rings; accentColor themes native checkbox/radio/
   // range; caretColor sets the text-input cursor colour.
@@ -257,10 +298,29 @@ export interface BuilderNodeStyleValue {
     | "ease-in-out"
     | "back"
     | "smooth";
+  // Wave 6B (#27) — INTERACTION TIMELINE: a free CSS easing curve that WINS over
+  // the `animationEasing` named enum when set, so an author can dial in an exact
+  // cubic-bezier()/steps()/linear() curve for the entrance animation's timing.
+  // Length-capped + validated by the CSSOM at render; undefined → the named
+  // easing (or its default) is used, so existing trees are byte-identical.
+  animationEasingCustom?: string;
   // Trigger: "load" plays once on page load; "scroll" drives the animation by
   // scroll position via CSS scroll-driven animations (animation-timeline:view()).
   // Pure CSS — unsupported browsers fall back to playing it on load.
   animationTrigger?: "load" | "scroll";
+  // Wave 6B (#27) — SCROLL PARALLAX: a tasteful, opt-in scroll-driven vertical
+  // parallax independent of the entrance `animationPreset` (a node can have both
+  // — an entrance fade AND an ongoing parallax drift). Maps a named intensity to
+  // a baked `bn-parallax-{subtle,medium,strong}` @keyframe driven by
+  // `animation-timeline:view()` over the node's whole on-screen pass, so the node
+  // glides ± a few percent of its height as the visitor scrolls. Pure CSS:
+  // browsers without scroll-driven-animation support and visitors who prefer
+  // reduced motion get no motion (the same `[style*="animation"]` reduced-motion
+  // guard already in the sheet covers it). Optional + back-compat: "none"/
+  // undefined emits nothing. When BOTH an entrance animation and parallax are
+  // set, the parallax wins the single `animation` slot (entrance is the one-shot
+  // intro; parallax is the persistent behaviour the visitor actually sees).
+  parallax?: "none" | "subtle" | "medium" | "strong";
 }
 
 // Hover-state overrides — a curated subset of style props that re-apply only
@@ -289,6 +349,11 @@ export interface BuilderNodeStyle extends BuilderNodeStyleValue {
     mobile?: BuilderNodeStyleValue;
   };
   hover?: BuilderNodeHoverStyle;
+  // Wave 3 · 3D: focus-visible + active overrides (same subset as hover). Optional.
+  stateStyles?: { focus?: BuilderNodeHoverStyle; active?: BuilderNodeHoverStyle };
+  // Wave 3 · 3B: page-scoped linked style-class id. Optional + back-compat.
+  // Node props win over the class base. See style-classes.ts.
+  classRef?: string;
 }
 
 export interface BuilderDataBindingProps {
@@ -367,15 +432,56 @@ export interface BuilderContainerNode extends BuilderNodeBase {
     // an instance swap text / image / link on specific child nodes while staying
     // structurally linked to the master.
     instanceOverrides?: Record<string, BuilderNodeInstanceOverride>;
+    // Phase 4 (T4.4) — the currently-applied named variant on this instance.
+    // A variant is an author-time PRESET set of overrides (see
+    // BuilderComponentVariant). Storing the id lets the editor show which preset
+    // is active and re-apply it; the resolved overrides still live in
+    // instanceOverrides, so the live render path is unchanged.
+    instanceVariant?: string;
   };
   children: BuilderNode[];
 }
 
+/**
+ * A per-instance override on ONE master child node. Phase 3 shipped the four
+ * scalar fields (text/imageSrc/imageAlt/href). Phase 4 (T4.4) adds:
+ *
+ *  - `style`  — a curated breakpoint-less {@link BuilderNodeStyleValue} layered
+ *               OVER the master child's own base style (the override wins). Lets
+ *               an instance restyle a slot — colour, spacing, radius, etc. —
+ *               without forking the master.
+ *  - `slots`  — NESTED overrides keyed by a DEEPER master descendant id, so an
+ *               instance can swap content/style on grandchildren without the
+ *               override map going flat. (The top-level map is keyed by direct
+ *               override targets; `slots` lets one entry carry its own children.)
+ *
+ * All fields stay optional and additive — an empty override is still "not
+ * overridden", so a blank value never wipes master content.
+ */
 export interface BuilderNodeInstanceOverride {
   text?: string;
   imageSrc?: string;
   imageAlt?: string;
   href?: string;
+  /** Curated style layer applied over the master child's base style. */
+  style?: BuilderNodeStyleValue;
+  /** Nested overrides keyed by a deeper master descendant id. */
+  slots?: Record<string, BuilderNodeInstanceOverride>;
+}
+
+/**
+ * A named, reusable PRESET of per-instance overrides — the "variant" concept
+ * (Webflow/Framer component variants). Authored against a master component, a
+ * variant carries a set of overrides keyed by master child id; applying it to an
+ * instance writes those overrides onto the instance's `instanceOverrides` map
+ * and records the variant id in `instanceVariant`. This keeps the live render
+ * path (resolveInstanceChildren) entirely unchanged — variants are an editor-time
+ * convenience that compiles down to the same override map.
+ */
+export interface BuilderComponentVariant {
+  id: string;
+  name: string;
+  overrides: Record<string, BuilderNodeInstanceOverride>;
 }
 
 export interface BuilderSplitNode extends BuilderNodeBase {
@@ -602,6 +708,14 @@ export interface BuilderCardNode extends BuilderNodeBase {
   props: {
     variant?: "elevated" | "outline" | "ghost";
     style?: BuilderNodeStyle;
+    // Phase 4 (T4.4) — a `card` may ALSO be a linked-component instance, not
+    // just a `container`. A card has children, so resolveInstanceChildren works
+    // on it unchanged; the live render path treats it the same way. This is the
+    // "non-container component root where sensible" widening: cards are the most
+    // common reusable editorial unit (pricing card, feature card, testimonial).
+    instanceOf?: string;
+    instanceOverrides?: Record<string, BuilderNodeInstanceOverride>;
+    instanceVariant?: string;
   };
   children: BuilderNode[];
 }
@@ -635,6 +749,43 @@ export interface BuilderNavLink {
  * mobile via the disclosure menu; the toggle is keyboard-operable and exposes
  * its expanded/collapsed state natively (see render.tsx for the a11y notes).
  */
+/**
+ * Tulala component embed — drops a CURATED dynamic section (Directory,
+ * Featured talent, Booking, CTA, …) into the freeform canvas, keyed by its
+ * `sectionTypeKey` (a `SECTION_REGISTRY` key). The freeform renderer reuses the
+ * SAME curated React component + server-fetch path the storefront uses for
+ * CMS-composed sections (see `homepage-cms-sections.tsx`); it does NOT
+ * reimplement the section.
+ *
+ * `config` carries the section's own props payload (the same shape the section
+ * Editor writes for a CMS instance). At render time it is migrated + Zod-parsed
+ * through the registry exactly like a CMS section; if it is empty / invalid /
+ * the key is unknown, the renderer falls back to a labeled placeholder instead
+ * of throwing, so a freeform page can never blank out.
+ *
+ * `sectionId` is an optional stable handle (form-submission routing,
+ * section-scoped analytics). `dataBinding` is accepted for parity with other
+ * data-aware nodes; curated sections fetch their own data from tenant context,
+ * so it is currently advisory.
+ */
+export interface BuilderSectionEmbedNode extends BuilderNodeBase {
+  kind: "section_embed";
+  props: {
+    sectionTypeKey: string;
+    sectionId?: string | null;
+    dataBinding?: BuilderDataBindingProps;
+    config?: Record<string, unknown>;
+    /**
+     * Wrapper-level style overrides applied to the section_embed's wrapper
+     * <div> (background, padding, margin, border, radius, max-width, shadow…).
+     * Lets a curated "Tulala component" be restyled at the OUTER box without
+     * touching its internal `config` presentation. Optional — absent on every
+     * historical embed, so they render unchanged.
+     */
+    style?: BuilderNodeStyle;
+  };
+}
+
 export interface BuilderNavNode extends BuilderNodeBase {
   kind: "nav";
   props: {
@@ -679,6 +830,7 @@ export type BuilderNode =
   | BuilderSpacerNode
   | BuilderCardNode
   | BuilderCtaGroupNode
-  | BuilderNavNode;
+  | BuilderNavNode
+  | BuilderSectionEmbedNode;
 
 export type BuilderNodeTree = BuilderNode[];

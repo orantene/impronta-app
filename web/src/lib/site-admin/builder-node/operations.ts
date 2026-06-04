@@ -11,7 +11,8 @@ export type BuilderNodeOpCode =
   | "ROOT_KIND_NOT_ALLOWED"
   | "CHILD_KIND_NOT_ALLOWED"
   | "INVALID_MOVE_TARGET"
-  | "VALIDATION_FAILED";
+  | "VALIDATION_FAILED"
+  | "NO_CHANGE";
 
 export type BuilderNodeOpResult =
   | { ok: true; tree: BuilderNodeTree }
@@ -829,16 +830,17 @@ export function patchBuilderNodeProps(input: {
     return !valuesEqual(currentProps[key], value);
   });
   if (!hasRealChange) {
+    // No-op patch — the node already holds these exact values (e.g. re-applying
+    // the same style, or a UI gesture that re-sends current props). Benign: a
+    // dedicated NO_CHANGE code the UI SUPPRESSES, not the alarming
+    // INVALID_MOVE_TARGET ("Choose another destination / move the parent group")
+    // toast it used to throw on every no-op edit. ok:false keeps the tree
+    // untouched (no redundant save / no re-render loop).
     return {
       ok: false,
-      code: "INVALID_MOVE_TARGET",
+      code: "NO_CHANGE",
       message: "No changes to apply.",
-      issues: [
-        {
-          path: "target.patch",
-          message: "Adjust at least one field before saving this update.",
-        },
-      ],
+      issues: [],
     };
   }
   const mergedProps = {

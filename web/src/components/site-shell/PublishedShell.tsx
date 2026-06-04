@@ -22,12 +22,14 @@
  * identically to body sections.
  */
 
+import { getCachedActorSession } from "@/lib/server/request-cache";
 import { improntaLog } from "@/lib/server/structured-log";
 import { loadPublishedShell } from "@/lib/site-admin/server/shell-reads";
 import {
   buildBuilderNodeRoleBindings,
   builderSectionNodeAddressKey,
   BuilderNodeRendererStyles,
+  collectBuilderCollectionSourceKeys,
   collectBuilderImageMediaIds,
   hasRenderableBuilderNodes,
   indexBuilderSectionChildNodeIds,
@@ -38,8 +40,11 @@ import {
   resolveSnapshotBuilderTree,
 } from "@/lib/site-admin/builder-node";
 import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
+import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
+import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import { listBuilderImageMediaAssets } from "@/lib/site-admin/media/assets";
+import { resolveCollectionDataSources } from "@/lib/site-admin/collections/server";
 import { getSectionType } from "@/lib/site-admin/sections/registry";
 import { isSiteShellEnabledForTenant } from "@/lib/site-admin/site-shell-flag";
 import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
@@ -255,15 +260,33 @@ async function renderShellSlot(
         }
       : undefined;
   const mediaIds = collectBuilderImageMediaIds(builderSectionChildren);
-  const mediaSupabase = mediaIds.length > 0 ? createServiceRoleClient() : null;
-  const [builderComponents, mediaAssets] = await Promise.all([
-    treeHasInstances(builderSectionChildren)
-      ? loadBuilderComponentsForTenant(tenantId)
-      : Promise.resolve({}),
-    mediaSupabase
-      ? listBuilderImageMediaAssets(mediaSupabase, tenantId, mediaIds)
-      : Promise.resolve(undefined),
-  ]);
+  const collectionSourceKeys = collectBuilderCollectionSourceKeys(builderSectionChildren);
+  const serviceSupabase =
+    mediaIds.length > 0 || collectionSourceKeys.length > 0
+      ? createServiceRoleClient()
+      : null;
+  const mediaSupabase = mediaIds.length > 0 ? serviceSupabase : null;
+  const [builderComponents, mediaAssets, collections, actorSession, editModeActive] =
+    await Promise.all([
+      treeHasInstances(builderSectionChildren)
+        ? loadBuilderComponentsForTenant(tenantId)
+        : Promise.resolve({}),
+      mediaSupabase
+        ? listBuilderImageMediaAssets(mediaSupabase, tenantId, mediaIds)
+        : Promise.resolve(undefined),
+      serviceSupabase && collectionSourceKeys.length > 0
+        ? resolveCollectionDataSources(serviceSupabase, tenantId, collectionSourceKeys)
+        : Promise.resolve(undefined),
+      getCachedActorSession(),
+      isEditModeActiveForTenant(tenantId),
+    ]);
+  // Wave 5B · #38 — shell blocks honor node-level conditional visibility too
+  // (e.g. a "Sign in" CTA shown only to signed-out visitors). Request-cached
+  // session = no extra round-trip. In EDIT mode pass NO context so every block
+  // stays selectable on the canvas; the live storefront evaluates the rule.
+  const visibilityContext = editModeActive
+    ? undefined
+    : { locale, signedIn: Boolean(actorSession.user) };
   // Phase B.2.B — wrap each shell section in the same `data-cms-section`
   // outer the homepage composer uses (see homepage-cms-sections.tsx). The
   // EditShell selection layer queries `[data-cms-section]` to detect
@@ -304,10 +327,16 @@ async function renderShellSlot(
             publicPathPrefix,
             mode: "freeform",
             includeRendererStyles: false,
-            dataSources: { mediaAssets },
+            dataSources: { mediaAssets, collections },
             // Phase 3 — resolve live component instances in shell slots too.
             // Gated: the DB query only runs when the slot actually has instances.
             components: builderComponents,
+            visibilityContext,
+            renderSectionEmbed: makeSectionEmbedRenderer({
+              tenantId,
+              locale,
+              publicPathPrefix,
+            }),
           })
         : null}
     </div>
