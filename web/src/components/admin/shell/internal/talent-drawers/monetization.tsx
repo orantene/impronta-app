@@ -1,7 +1,7 @@
 "use client";
 
 // ════════════════════════════════════════════════════════════════════
-// talent-drawers/monetization — Phase 1d body chunk.
+// talent-drawers/monetization, Phase 1d body chunk.
 // Owns: TalentPayoutsDrawer, TalentVerificationDrawer,
 // TalentReferralsDrawer, TalentHubCompareDrawer, TalentTaxDocsDrawer,
 // TalentConflictResolveDrawer.
@@ -44,14 +44,14 @@ export function TalentPayoutsDrawer() {
 // ─── Trust verification (D1) ────────────────────────────────────
 
 /**
- * Identity verification scaffold. Multi-step ID upload flow that — once
- * approved by an admin — lifts the talent's trust tier from Basic to
+ * Identity verification scaffold. Multi-step ID upload flow that, once
+ * approved by an admin, lifts the talent's trust tier from Basic to
  * Verified, unlocking the Verified badge on roster cards and inquiry
  * workspaces.
  *
  * This is a scaffold. The real flow uses a vendor (Stripe Identity, Onfido,
  * Persona) that returns a verification result via webhook; the prototype
- * stops at "submitted — under review" so the admin queue is implied but
+ * stops at "submitted, under review" so the admin queue is implied but
  * not modeled here.
  */
 export function TalentVerificationDrawer() {
@@ -63,7 +63,7 @@ export function TalentVerificationDrawer() {
       open={open}
       onClose={closeDrawer}
       title="Verify your identity"
-      description="Upload a government ID + a quick selfie. Once approved you get the Verified badge — clients see it on every inquiry."
+      description="Upload a government ID + a quick selfie. Once approved you get the Verified badge, clients see it on every inquiry."
       width={560}
       footer={
         <>
@@ -102,7 +102,7 @@ export function TalentVerificationDrawer() {
           {[
             { label: "Verified badge on every inquiry", body: "Clients filter on it. Verified profiles get ~3× more replies in our data." },
             { label: "Higher trust tier", body: "Eligible for Silver and Gold tiers as your booking history grows." },
-            { label: "Required for payouts > €1k", body: "Compliance — Stripe needs the same KYC anyway." },
+            { label: "Required for payouts > €1k", body: "Compliance, Stripe needs the same KYC anyway." },
           ].map((item, idx) => (
             <li
               key={idx}
@@ -144,7 +144,7 @@ export function TalentVerificationDrawer() {
 export function TalentReferralsDrawer() {
   const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-referrals";
-  // Honest stub — referral tracking has no backend yet, so we don't show a
+  // Honest stub, referral tracking has no backend yet, so we don't show a
   // fabricated invite link / referral list / earnings. The €50 promise stays
   // in the description as the product intent.
   return (
@@ -304,7 +304,7 @@ export function TalentTaxDocsDrawer() {
       <div className="flex flex-col gap-2">
         {[
           { label: `${new Date().getUTCFullYear()} income summary`, body: "Platform-reported earnings only · PDF download", action: "Download", href: `/api/talent/tax-summary?year=${new Date().getUTCFullYear()}` },
-          { label: "W-8BEN form", body: "Official IRS form — opens irs.gov in a new tab", action: "Open", href: "https://www.irs.gov/pub/irs-pdf/fw8ben.pdf" },
+          { label: "W-8BEN form", body: "Official IRS form, opens irs.gov in a new tab", action: "Open", href: "https://www.irs.gov/pub/irs-pdf/fw8ben.pdf" },
           { label: "2025 income summary", body: "Platform-reported earnings only · PDF download", action: "Download", href: "/api/talent/tax-summary?year=2025" },
         ].map((doc, idx) => (
           <button
@@ -342,7 +342,7 @@ export function TalentTaxDocsDrawer() {
         <strong className="font-semibold">About off-platform & in-kind:</strong>{" "}
         Off-platform earnings you log via &quot;Log work&quot; appear in your year-end summary
         as self-declared income. In-kind / gift work shows separately and isn&apos;t
-        included in the cash total — useful for your records, not reported to tax
+        included in the cash total, useful for your records, not reported to tax
         authorities. Talk to a local advisor for your jurisdiction.
       </div>
     </DrawerShell>
@@ -363,7 +363,7 @@ export function TalentConflictResolveDrawer() {
   const open = state.drawer.drawerId === "talent-conflict-resolve";
   const [choice, setChoice] = useState<"a" | "b" | "alt" | null>(null);
 
-  // Mock conflict — in production resolved from inquiry.dates × booking.dates
+  // Mock conflict, in production resolved from inquiry.dates × booking.dates
   const conflict = {
     a: { client: "Mango", date: "May 14", brief: "Spring campaign · Madrid", rate: "€1,200/day", trust: "Verified", recommended: true },
     b: { client: "Atelier Paris", date: "May 14", brief: "Editorial wrap · Paris", rate: "€800/day", trust: "Basic", recommended: false },

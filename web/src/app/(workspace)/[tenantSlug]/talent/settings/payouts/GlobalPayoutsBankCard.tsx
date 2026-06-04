@@ -19,7 +19,7 @@ const C = {
 const FONT = '"Inter", system-ui, sans-serif';
 
 /**
- * Talent "get paid globally" card — set up local-bank Global Payouts (the v2
+ * Talent "get paid globally" card, set up local-bank Global Payouts (the v2
  * OutboundPayments rail) as an alternative to Connect/Express. Renders on the
  * talent payouts page.
  */

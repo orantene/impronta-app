@@ -1,9 +1,9 @@
 "use server";
 
 /**
- * Talent payouts — server actions for Stripe Connect Express onboarding.
+ * Talent payouts, server actions for Stripe Connect Express onboarding.
  *
- * Messages Consolidation Plan v2 — Item #13.
+ * Messages Consolidation Plan v2, Item #13.
  *
  * Wraps the engine helpers in lib/payments/stripe-connect-talent.ts
  * with auth + path-aware return URLs. The talent settings page calls
@@ -45,7 +45,7 @@ export type EnsurePayoutAccountResult =
 /**
  * Ensure the talent's Connect account exists in the right country BEFORE we
  * mount the embedded onboarding. Returns `country_required` when we don't yet
- * know the talent's payout country (residence unset + no override) — the
+ * know the talent's payout country (residence unset + no override), the
  * payouts page then shows a country picker. The account's country is
  * immutable, so this must be settled up front.
  */
@@ -90,7 +90,7 @@ async function resolveOwnTalentProfileId(): Promise<
  * talent's Connect Express account, scoped to the embedded
  * `account_onboarding` component. Lazily creates the Express account on
  * first call (so no account exists until the talent actually starts
- * onboarding). Powers the in-app, Tulala-branded embedded onboarding —
+ * onboarding). Powers the in-app, Tulala-branded embedded onboarding -
  * the talent never leaves for stripe.com.
  *
  * `external_account_collection` is enabled so the talent can attach
@@ -148,7 +148,7 @@ export async function refreshTalentPayoutStatus(): Promise<
 /**
  * Kick off Stripe Connect Express onboarding for the current talent.
  * Lazy-creates the account on first call. Returns the hosted Stripe
- * URL — client redirects via window.location.href.
+ * URL, client redirects via window.location.href.
  */
 export async function startTalentOnboarding(
   tenantSlug: string,
@@ -211,7 +211,7 @@ export async function loadTalentPayoutSnapshot(): Promise<
 
 /**
  * Mint an Express Dashboard login link for the current talent so they can link
- * a crypto wallet + set USDC as default — i.e. switch their payouts to
+ * a crypto wallet + set USDC as default, i.e. switch their payouts to
  * stablecoin (Global Payouts). Opened in a new tab by the payouts UI.
  */
 export async function createTalentDashboardLinkAction(): Promise<
@@ -231,7 +231,7 @@ export async function createTalentDashboardLinkAction(): Promise<
 
 /**
  * Whether the current talent's country supports stablecoin (USDC) Global
- * Payouts — drives whether the payouts UI shows the "link a crypto wallet"
+ * Payouts, drives whether the payouts UI shows the "link a crypto wallet"
  * path. Returns a human country label for the badge.
  */
 export async function loadTalentStablecoinEligibility(): Promise<

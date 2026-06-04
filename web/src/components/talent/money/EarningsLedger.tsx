@@ -129,7 +129,7 @@ export function EarningsLedger() {
         icon="credit"
         iconTone="indigo"
         title="Earnings ledger"
-        subtitle="Every closed booking — filter by where it came from and where it is in the cycle."
+        subtitle="Every closed booking, filter by where it came from and where it is in the cycle."
       />
 
       <div
