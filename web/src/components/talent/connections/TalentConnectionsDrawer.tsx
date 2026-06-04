@@ -11,6 +11,10 @@ import {
 } from "@/lib/talent-integrations/actions";
 import { getTalentIntegrationCatalogList } from "@/lib/talent-integrations/catalog";
 import {
+  clearConnectionFeedbackParams,
+  readConnectionFeedback,
+} from "@/lib/connection-oauth/connection-feedback";
+import {
   CapsLabel,
   Divider,
   DrawerShell,
@@ -196,6 +200,18 @@ export function TalentConnectionsDrawer() {
       setProviders(result.providers);
       if (!result.ok) setMessage(result.error);
     });
+  }, [open]);
+
+  // Surface the OAuth round-trip result the callback redirected back with
+  // (?connection_error=... / ?connection=...). Without this the connect button
+  // looks dead — especially in the OAuth-dormant state (oauth_setup).
+  useEffect(() => {
+    if (!open) return;
+    const feedback = readConnectionFeedback(window.location.search);
+    if (feedback) {
+      setMessage(feedback.message);
+      clearConnectionFeedbackParams();
+    }
   }, [open]);
 
   const selected = useMemo(

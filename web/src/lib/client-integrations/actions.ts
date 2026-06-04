@@ -15,10 +15,12 @@ import {
 import {
   deleteClientIntegrationSecrets,
   listClientIntegrations,
+  revokeClientIntegrationTrustSignalForTenant,
   setClientIntegrationControls,
   upsertClientIntegration,
   type ClientIntegrationRow,
 } from "./repository";
+import { resolveClientConnectionTenant } from "@/lib/connection-oauth/ownership";
 
 export type ClientConnectionProviderState = {
   key: string;
@@ -68,7 +70,11 @@ const saveControlsSchema = z.object({
 const connectManualSchema = z.object({
   tenantSlug: tenantSlugSchema,
   providerKey: providerKeySchema,
-  profileUrl: z.string().url().max(500),
+  profileUrl: z
+    .string()
+    .url()
+    .max(500)
+    .refine((v) => /^https?:\/\//i.test(v), "Must be an http(s) URL"),
   accountLabel: z.string().trim().max(120).optional(),
   controls: controlsSchema.optional(),
 });
@@ -249,6 +255,10 @@ export async function disconnectClientIntegrationAction(
   }
 
   try {
+    // Purge the encrypted Google tokens at rest — symmetric with the talent
+    // disconnect path. Without this, a disconnected integration left the
+    // access/refresh tokens sitting encrypted in client_integration_secrets.
+    await deleteClientIntegrationSecrets(guard.user.id, parsed.data.providerKey);
     const row = await upsertClientIntegration({
       userId: guard.user.id,
       providerKey: parsed.data.providerKey,
@@ -264,6 +274,20 @@ export async function disconnectClientIntegrationAction(
       lastError: null,
     });
     if (!row) return { ok: false, error: CLIENT_ERROR.generic };
+    // Lower the verified trust signal that the OAuth connection granted — it
+    // must not persist past disconnect. Symmetric with the connect path, which
+    // raised it via syncClientIntegrationTrustSignalForTenant. A Stripe-paid
+    // verification is preserved (see the repository helper).
+    const tenant = await resolveClientConnectionTenant({
+      userId: guard.user.id,
+      tenantSlug: parsed.data.tenantSlug,
+    });
+    if (tenant) {
+      await revokeClientIntegrationTrustSignalForTenant(
+        guard.user.id,
+        tenant.tenantId,
+      );
+    }
     revalidatePath(`/${parsed.data.tenantSlug}/client/settings`);
     return { ok: true, provider: providerState([row])[0] ?? null };
   } catch (error) {

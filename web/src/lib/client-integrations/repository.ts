@@ -338,3 +338,63 @@ export async function syncClientIntegrationTrustSignalForTenant(
   );
   return Boolean(result);
 }
+
+/**
+ * Reverse of {@link syncClientIntegrationTrustSignalForTenant}.
+ *
+ * When a client disconnects a verified OAuth integration, the verified trust
+ * signal that the connection granted must NOT persist. We recompute
+ * `client_trust_state` for the (user, tenant) pair with the OAuth-granted
+ * verification removed.
+ *
+ * IMPORTANT: `verified_at` is a shared signal — the $5 Stripe verification fee
+ * also sets it. A Stripe-paid verification ALWAYS leaves a
+ * `client_stripe_customers` row (the customer is created during that checkout),
+ * whereas an OAuth-only verification never does. So we only clear `verified_at`
+ * when the client has no Stripe customer record; otherwise we preserve the
+ * paid verification and just re-derive the level from the remaining signals.
+ */
+export async function revokeClientIntegrationTrustSignalForTenant(
+  userId: string,
+  tenantId: string,
+): Promise<boolean> {
+  const supabase = service();
+  if (!supabase) return false;
+
+  const { data: existing } = await supabase
+    .from("client_trust_state")
+    .select("verified_at, funded_balance_cents, manual_override")
+    .eq("user_id", userId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+
+  type TrustSignalRow = {
+    verified_at: string | null;
+    funded_balance_cents: number | null;
+    manual_override: "basic" | "verified" | "silver" | "gold" | null;
+  };
+  const trust = existing as TrustSignalRow | null;
+  // No trust row → nothing to reverse.
+  if (!trust) return false;
+
+  // Preserve a Stripe-paid verification: its checkout always created a
+  // client_stripe_customers row. An OAuth-only verification never did.
+  const { data: stripeCustomer } = await supabase
+    .from("client_stripe_customers")
+    .select("user_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+  const hasStripeCustomer = Boolean(stripeCustomer);
+
+  const result = await writeClientTrustLevel(
+    userId,
+    tenantId,
+    {
+      verifiedAt: hasStripeCustomer ? trust.verified_at : null,
+      fundedBalanceCents: Number(trust.funded_balance_cents ?? 0),
+      manualOverride: trust.manual_override ?? null,
+    },
+    supabase,
+  );
+  return Boolean(result);
+}

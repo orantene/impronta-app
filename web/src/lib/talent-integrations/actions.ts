@@ -73,7 +73,11 @@ const saveControlsSchema = z.object({
 
 const connectManualSchema = z.object({
   providerKey: providerKeySchema,
-  profileUrl: z.string().url().max(500),
+  profileUrl: z
+    .string()
+    .url()
+    .max(500)
+    .refine((v) => /^https?:\/\//i.test(v), "Must be an http(s) URL"),
   accountLabel: z.string().trim().max(120).optional(),
   controls: controlsSchema.optional(),
 });

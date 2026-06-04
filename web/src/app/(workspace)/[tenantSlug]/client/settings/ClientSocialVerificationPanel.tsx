@@ -10,6 +10,10 @@ import {
   type ClientConnectionProviderState,
 } from "@/lib/client-integrations/actions";
 import { getClientIntegrationCatalogList } from "@/lib/client-integrations/catalog";
+import {
+  clearConnectionFeedbackParams,
+  readConnectionFeedback,
+} from "@/lib/connection-oauth/connection-feedback";
 
 const C = {
   ink: "#0B0B0D",
@@ -274,6 +278,17 @@ export function ClientSocialVerificationPanel({ tenantSlug }: { tenantSlug: stri
       setProviders(result.providers);
       if (!result.ok) setMessage(result.error);
     });
+  }, []);
+
+  // Surface the OAuth round-trip result the callback redirected back with
+  // (?connection_error=... / ?connection=...). Without this the connect button
+  // looks dead — especially in the OAuth-dormant state (oauth_setup).
+  React.useEffect(() => {
+    const feedback = readConnectionFeedback(window.location.search);
+    if (feedback) {
+      setMessage(feedback.message);
+      clearConnectionFeedbackParams();
+    }
   }, []);
 
   const selected = React.useMemo(

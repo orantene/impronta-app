@@ -1,8 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { DrawerShell, AsyncButton } from "@/components/admin/shell/internal/primitives";
+import {
+  clearConnectionFeedbackParams,
+  readConnectionFeedback,
+} from "@/lib/connection-oauth/connection-feedback";
 import { COLORS, FONTS, RADIUS } from "@/components/admin/shell/internal/state";
 import {
   clearIntegrationSecret,
@@ -62,6 +66,20 @@ export function IntegrationConfigDrawer({
     integration.inheritable && integration.credentialMode === "inherit";
   const canOAuthConnect =
     canManage && integration.connection === "oauth" && integration.key === "youtube";
+
+  // Surface the OAuth round-trip result the callback redirected back with
+  // (?connection_error=... / ?connection=...). Without this the "Connect with
+  // Google" button looks dead — especially in the OAuth-dormant state where
+  // missing creds redirect back with ?connection_error=oauth_setup. Only the
+  // OAuth integration drawer consumes the param.
+  useEffect(() => {
+    if (!canOAuthConnect) return;
+    const result = readConnectionFeedback(window.location.search);
+    if (result) {
+      setFeedback(result);
+      clearConnectionFeedbackParams();
+    }
+  }, [canOAuthConnect]);
 
   const setValue = (name: string, v: string) => {
     setValues((prev) => ({ ...prev, [name]: v }));
