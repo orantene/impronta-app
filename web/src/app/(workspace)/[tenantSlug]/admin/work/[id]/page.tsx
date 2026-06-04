@@ -30,6 +30,9 @@ import {
 } from "./actions";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
+import { loadInquiryAlternates, loadGroupShortfalls } from "@/lib/inquiry/load-alternates";
+import { listAdminRosterTalentIds } from "@/lib/saas/talent-roster";
+import { AlternatesPanel, type AlternateTalentOption } from "@/components/admin/alternates-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -173,7 +176,7 @@ export default async function WorkspaceWorkDetailPage({
     .from("inquiries")
     // `inquiries.source` doesn't exist — use `source_channel` (canonical) +
     // `source_pitch_id` for pitch-attribution lookups.
-    .select("id, status, contact_name, company, event_date, event_location, quantity, created_at, next_action_by, source_channel, source_pitch_id")
+    .select("id, status, version, contact_name, company, event_date, event_location, quantity, created_at, next_action_by, source_channel, source_pitch_id")
     .eq("tenant_id", scope.tenantId)
     .eq("id", inquiryId)
     .maybeSingle();
@@ -201,6 +204,46 @@ export default async function WorkspaceWorkDetailPage({
     loadInquiryActivity(scope.tenantId, inquiryId, 15),
     booking ? loadBookingCommissionSnapshots(supabase, booking.id as string) : Promise.resolve([]),
   ]);
+
+  // ── Alternates (waitlist) data ─────────────────────────────────────────
+  // Coordination tool: ranked backup talents + per-group shortfalls + the
+  // tenant's pickable talent + who's already on the live roster (so the picker
+  // excludes them). All read at request time; the panel is a client island.
+  const [alternates, groupShortfalls, rosterTalentIds, rosterParticipants] = await Promise.all([
+    loadInquiryAlternates(inquiryId),
+    loadGroupShortfalls(inquiryId),
+    listAdminRosterTalentIds(supabase, scope.tenantId),
+    supabase
+      .from("inquiry_participants")
+      .select("talent_profile_id")
+      .eq("inquiry_id", inquiryId)
+      .eq("role", "talent")
+      .in("status", ["invited", "active"])
+      .returns<{ talent_profile_id: string | null }[]>(),
+  ]);
+
+  const talentOptions: AlternateTalentOption[] = rosterTalentIds.length
+    ? (
+        (
+          await supabase
+            .from("talent_profiles")
+            .select("id, profile_code, display_name")
+            .in("id", rosterTalentIds)
+            .order("display_name", { ascending: true })
+            .returns<{ id: string; profile_code: string | null; display_name: string | null }[]>()
+        ).data ?? []
+      ).map((row) => ({
+        id: row.id,
+        profileCode: row.profile_code ?? "",
+        displayName: row.display_name,
+      }))
+    : [];
+
+  const rosterTalentProfileIds = (rosterParticipants.data ?? [])
+    .map((r) => r.talent_profile_id)
+    .filter((id): id is string => Boolean(id));
+
+  const inquiryVersion = Number((inquiry as { version?: number | null }).version ?? 1);
 
   // Age of this inquiry in days
   const ageDays = ageDaysSince(inquiry.created_at as string);
@@ -874,6 +917,16 @@ export default async function WorkspaceWorkDetailPage({
           </div>
         )}
       </section>
+
+      {/* ── Alternates / waitlist ── */}
+      <AlternatesPanel
+        inquiryId={inquiryId}
+        inquiryVersion={inquiryVersion}
+        initialAlternates={alternates}
+        shortfalls={groupShortfalls}
+        talentOptions={talentOptions}
+        rosterTalentProfileIds={rosterTalentProfileIds}
+      />
 
       {/* ── Activity feed ── */}
       {activityItems.length > 0 && (
