@@ -19,6 +19,7 @@ import type Stripe from "stripe";
 import { logServerError } from "@/lib/server/safe-error";
 import {
   createOutboundPayment as defaultCreateOutboundPayment,
+  assertLivePayoutSafe as defaultAssertLivePayoutSafe,
   type OutboundPayment,
 } from "./global-payouts";
 import { isStripeV2Configured, type StripeV2Result } from "./stripe-v2";
@@ -29,6 +30,7 @@ export type DisburseStatus =
   | "transferred"
   | "skipped_no_account"
   | "skipped_zero"
+  | "skipped_live_disabled"
   | "mock"
   | "failed";
 
@@ -70,6 +72,8 @@ export type DisburseDeps = {
   createOutboundPaymentFn?: typeof defaultCreateOutboundPayment;
   /** Override the "v2 configured" check (tests). */
   isV2Configured?: () => boolean;
+  /** Injectable live-payout safety gate (tests). Defaults to the real env-backed guard. */
+  assertLivePayoutSafe?: typeof defaultAssertLivePayoutSafe;
 };
 
 /** Stable idempotency key for a Connect transfer leg (unchanged from payParty). */
@@ -94,6 +98,15 @@ async function connectTransfer(input: DisburseInput, deps: DisburseDeps): Promis
     };
   }
   if (!deps.stripe) return { ...base, status: "mock", destination: accountId };
+
+  // Single master switch: on a LIVE key, refuse to move real money unless
+  // STRIPE_ALLOW_LIVE_PAYOUTS=true. Same gate the Global Payouts rail uses, so
+  // the flag governs BOTH rails. Blocked legs HOLD on the platform (not failed)
+  // and settle on the next run once the flag is flipped.
+  const liveGuard = (deps.assertLivePayoutSafe ?? defaultAssertLivePayoutSafe)();
+  if (!liveGuard.ok) {
+    return { ...base, status: "skipped_live_disabled", destination: accountId, detail: liveGuard.error };
+  }
 
   try {
     const transfer = await deps.stripe.transfers.create(
@@ -158,6 +171,11 @@ async function globalPayout(input: DisburseInput, deps: DisburseDeps): Promise<D
 
   if (r.ok) {
     return { ...base, status: "transferred", destination: recipientAccountId, transferId: r.data.id };
+  }
+  // Live-payouts kill-switch tripped inside createOutboundPayment: HOLD on the
+  // platform (same as the Connect rail), don't record it as a failure.
+  if (r.error.code === "live_payouts_disabled") {
+    return { ...base, status: "skipped_live_disabled", destination: recipientAccountId, detail: r.error.message };
   }
   logServerError(
     `disburse.gp[${party}][booking=${bookingId}]`,

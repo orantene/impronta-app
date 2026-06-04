@@ -181,3 +181,49 @@ test("global_payouts rail: executor error → failed", async () => {
   assert.equal(o.status, "failed");
   assert.match(o.detail ?? "", /no funds/);
 });
+
+// ─── Live-payout master switch (governs BOTH rails) ──────────────────────────
+
+test("connect rail: live payouts disabled → skipped_live_disabled (held), no Stripe call", async () => {
+  const { calls, stripe } = fakeStripe();
+  const o = await disburse(connectInput(), {
+    stripe,
+    assertLivePayoutSafe: () => ({ ok: false, error: "Live payouts disabled" }),
+  });
+  assert.equal(o.status, "skipped_live_disabled");
+  assert.equal(o.destination, "acct_1");
+  assert.equal(o.transferId, undefined);
+  assert.equal(calls.length, 0); // never touched Stripe
+  assert.match(o.detail ?? "", /disabled/i);
+});
+
+test("connect rail: live payouts allowed → transfers as normal", async () => {
+  const { calls, stripe } = fakeStripe();
+  const o = await disburse(connectInput(), {
+    stripe,
+    assertLivePayoutSafe: () => ({ ok: true }),
+  });
+  assert.equal(o.status, "transferred");
+  assert.equal(calls.length, 1);
+});
+
+test("global_payouts rail: live_payouts_disabled error → skipped_live_disabled (held), not failed", async () => {
+  const createOutboundPaymentFn: DisburseDeps["createOutboundPaymentFn"] = async () => ({
+    ok: false,
+    status: 0,
+    error: { code: "live_payouts_disabled", message: "Live payouts disabled" },
+  });
+  const o = await disburse(
+    {
+      party: "talent",
+      participantId: "p1",
+      bookingId: BK,
+      amountCents: 80000,
+      currency: "usd",
+      route: { rail: "global_payouts", financialAccountId: "fa_1", recipientAccountId: "acct_r" },
+    },
+    { createOutboundPaymentFn, isV2Configured: () => true },
+  );
+  assert.equal(o.status, "skipped_live_disabled");
+  assert.equal(o.destination, "acct_r");
+});

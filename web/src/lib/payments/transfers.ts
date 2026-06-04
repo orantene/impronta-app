@@ -82,7 +82,7 @@ export type TransferDeps = {
 function ledgerStatus(s: TransferOutcome["status"]): "transferred" | "held" | "failed" {
   if (s === "transferred") return "transferred";
   if (s === "failed") return "failed";
-  return "held"; // skipped_no_account (and mock, defensively) → held
+  return "held"; // skipped_no_account / skipped_live_disabled (and mock, defensively) → held
 }
 
 /** Resolve the talent_profiles.id this snapshot row pays out to. */
@@ -293,7 +293,10 @@ export async function executeBookingTransfers(
     // Surface anything that didn't transfer (failed, or held pending an
     // onboarded account) so it can be reconciled / retried later.
     const pending = outcomes.filter(
-      (o) => o.status === "failed" || o.status === "skipped_no_account",
+      (o) =>
+        o.status === "failed" ||
+        o.status === "skipped_no_account" ||
+        o.status === "skipped_live_disabled",
     );
     if (pending.length) {
       logServerError(
