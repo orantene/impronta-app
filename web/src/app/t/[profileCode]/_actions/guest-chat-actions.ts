@@ -72,19 +72,28 @@ function fail(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Client IP — the leftmost x-forwarded-for hop (the platform-proxied value on
-// Vercel is reliable). Used as one dimension of the anti-abuse KV key. Returns
-// null when unavailable (the guard then rate-limits on session+email+tenant).
+// Client IP — the TRUSTED hop. Vercel appends the real client IP to the RIGHT
+// of x-forwarded-for at the edge, so the rightmost entry is the platform-set,
+// non-spoofable value; the leftmost is attacker-controllable (a client can send
+// its own x-forwarded-for). Using split(',')[0] would key the rate-limit on a
+// value the abuser can rotate per request — defeating the IP dimension. Prefer
+// x-real-ip (single value, also platform-set) and fall back to the rightmost
+// x-forwarded-for hop. Returns null when unavailable.
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function resolveClientIp(): Promise<string | null> {
   const h = await headers();
+  // x-real-ip is set by Vercel to the true client IP (not a chain) — trust it.
+  const real = h.get("x-real-ip")?.trim();
+  if (real) return real;
   const fwd = h.get("x-forwarded-for");
   if (fwd) {
-    const first = fwd.split(",")[0]?.trim();
-    if (first) return first;
+    const hops = fwd.split(",").map((s) => s.trim()).filter(Boolean);
+    // Rightmost = the IP the platform appended (trusted); leftmost = spoofable.
+    const trusted = hops[hops.length - 1];
+    if (trusted) return trusted;
   }
-  return h.get("x-real-ip");
+  return null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

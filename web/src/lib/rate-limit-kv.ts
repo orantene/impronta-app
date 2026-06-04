@@ -71,6 +71,13 @@ export type KvRateLimitResult =
  *   - tenant scoping prevents cross-tenant count pollution.
  *
  * Any null/undefined segment is replaced with "x" to keep keys stable.
+ *
+ * ⚠️ This composite is only as strong as its WEAKEST segment for an attacker
+ * who can rotate one dimension. The guest session id is a client-rotatable
+ * cookie, so a per-request fresh session yields a brand-new composite key every
+ * time and the window never accumulates. Do NOT rely on this key alone for the
+ * inquiry-create ceiling — evaluate the IP- and email-keyed limits below IN
+ * ADDITION (they bind to dimensions the client can't cheaply rotate).
  */
 export function guestRateLimitKey(segments: {
   guestSessionId: string | null | undefined;
@@ -80,6 +87,53 @@ export function guestRateLimitKey(segments: {
 }): string {
   const s = (v: string | null | undefined) => (v?.trim() || "x").toLowerCase();
   return `guest:${s(segments.tenantId)}:${s(segments.guestSessionId)}:${s(segments.ip)}:${s(segments.email)}`;
+}
+
+/**
+ * Normalize an email for rate-limit keying so trivially-distinct addresses that
+ * deliver to the SAME inbox share one bucket:
+ *   - lowercased + trimmed
+ *   - the +tag (everything from the first '+' in the local part) is stripped
+ *   - for Gmail / Googlemail, dots in the local part are removed (Gmail ignores
+ *     them), so a.b.c@gmail.com and abc@gmail.com key identically
+ * Returns null for a malformed/empty address (no email dimension to key on).
+ */
+export function normalizeEmailForKey(email: string | null | undefined): string | null {
+  const trimmed = (email ?? "").trim().toLowerCase();
+  if (!trimmed) return null;
+  const at = trimmed.lastIndexOf("@");
+  if (at <= 0 || at === trimmed.length - 1) return null;
+  let local = trimmed.slice(0, at);
+  const domain = trimmed.slice(at + 1);
+  // Strip +tag.
+  const plus = local.indexOf("+");
+  if (plus >= 0) local = local.slice(0, plus);
+  // Gmail ignores dots in the local part.
+  if (domain === "gmail.com" || domain === "googlemail.com") {
+    local = local.replace(/\./g, "");
+  }
+  if (!local) return null;
+  return `${local}@${domain}`;
+}
+
+/**
+ * Per-IP inquiry-create key — bound to the TRUSTED client IP (resolved
+ * server-side from the platform-appended x-forwarded-for hop). A guest can't
+ * rotate this without a new network path, so it survives cookie rotation.
+ */
+export function guestCreateIpKey(tenantId: string | null | undefined, ip: string | null | undefined): string {
+  const s = (v: string | null | undefined) => (v?.trim() || "x").toLowerCase();
+  return `guest_create_ip:${s(tenantId)}:${s(ip)}`;
+}
+
+/**
+ * Per-email inquiry-create key — bound to the NORMALIZED email. Survives cookie
+ * rotation (the abuser would have to burn a fresh, non-aliased mailbox per 3
+ * inquiries).
+ */
+export function guestCreateEmailKey(tenantId: string | null | undefined, normalizedEmail: string | null | undefined): string {
+  const s = (v: string | null | undefined) => (v?.trim() || "x").toLowerCase();
+  return `guest_create_email:${s(tenantId)}:${s(normalizedEmail)}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -105,6 +159,10 @@ let _limiter: KvLimiter | null = null;
 
 interface KvLimiter {
   checkInquiryCreate(key: string): Promise<KvRateLimitResult>;
+  /** Per-IP inquiry-create ceiling (looser, survives cookie rotation). */
+  checkInquiryCreateByIp(key: string): Promise<KvRateLimitResult>;
+  /** Per-email inquiry-create ceiling (tight, survives cookie rotation). */
+  checkInquiryCreateByEmail(key: string): Promise<KvRateLimitResult>;
   checkMessageSend(key: string): Promise<KvRateLimitResult>;
 }
 
@@ -113,10 +171,39 @@ const noopLimiter: KvLimiter = {
   async checkInquiryCreate() {
     return { ok: true };
   },
+  async checkInquiryCreateByIp() {
+    return { ok: true };
+  },
+  async checkInquiryCreateByEmail() {
+    return { ok: true };
+  },
   async checkMessageSend() {
     return { ok: true };
   },
 };
+
+/**
+ * One-time loud warning when the limiter falls back to noop in production. The
+ * Upstash KV is the cross-instance "hard ceiling" for the guest-chat floor; if
+ * its env is unset on prod the floor is effectively down (only the per-instance
+ * in-memory engine limiter + honeypot + disposable-email list remain). We log
+ * once (not per request) so a missing-env regression is visible, and never
+ * crash — a hard-fail would take the whole guest path down.
+ */
+let _warnedNoopInProd = false;
+function warnNoopInProductionOnce(): void {
+  if (_warnedNoopInProd) return;
+  _warnedNoopInProd = true;
+  if (process.env.NODE_ENV === "production") {
+    // eslint-disable-next-line no-console
+    console.error(
+      "[rate-limit-kv] UPSTASH_REDIS_REST_URL/TOKEN are UNSET in production — " +
+        "the guest-chat cross-instance rate-limit floor is DISABLED (no-op). " +
+        "The inquiry-create hard ceiling is not enforced. Provision the Upstash " +
+        "env vars in the Vercel project to restore the floor.",
+    );
+  }
+}
 
 /**
  * Attempt to construct the Upstash-backed limiter on first call.
@@ -130,7 +217,9 @@ async function getLimiter(): Promise<KvLimiter> {
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
 
   if (!url || !token) {
-    // Env vars absent — no-op for local dev / CI.
+    // Env vars absent — no-op for local dev / CI. In production this means the
+    // hard ceiling is down: warn loudly (once) so it isn't silently disabled.
+    warnNoopInProductionOnce();
     _limiter = noopLimiter;
     return _limiter;
   }
@@ -173,6 +262,27 @@ async function getLimiter(): Promise<KvLimiter> {
       analytics: false,
     });
 
+    // Per-IP inquiry-create: 12 per 60-minute sliding window. Looser than the
+    // per-email/per-session limit because an IP can legitimately be shared (NAT,
+    // office, household), but still kills a single-source flood that rotates the
+    // session cookie. Bound to the platform-trusted client IP.
+    const inquiryCreateIpLimiter = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(12, "60 m"),
+      prefix: "rl:guest_create_ip",
+      analytics: false,
+    });
+
+    // Per-email inquiry-create: 3 per 60-minute sliding window. The email is a
+    // precise identity; this survives cookie rotation (a fresh non-aliased
+    // mailbox is required per 3 inquiries).
+    const inquiryCreateEmailLimiter = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(3, "60 m"),
+      prefix: "rl:guest_create_email",
+      analytics: false,
+    });
+
     // Guest message-send: 30 messages per 60-second sliding window.
     // Generous enough for a real back-and-forth but kills message flooding.
     const messageSendLimiter = new Ratelimit({
@@ -191,6 +301,28 @@ async function getLimiter(): Promise<KvLimiter> {
           return { ok: false, code: "rate_limited", retryAfterMs };
         } catch {
           // Fail open on Redis error.
+          return { ok: true };
+        }
+      },
+
+      async checkInquiryCreateByIp(key: string): Promise<KvRateLimitResult> {
+        try {
+          const r = await inquiryCreateIpLimiter.limit(key);
+          if (r.success) return { ok: true };
+          const retryAfterMs = Math.max(0, r.reset - Date.now());
+          return { ok: false, code: "rate_limited", retryAfterMs };
+        } catch {
+          return { ok: true };
+        }
+      },
+
+      async checkInquiryCreateByEmail(key: string): Promise<KvRateLimitResult> {
+        try {
+          const r = await inquiryCreateEmailLimiter.limit(key);
+          if (r.success) return { ok: true };
+          const retryAfterMs = Math.max(0, r.reset - Date.now());
+          return { ok: false, code: "rate_limited", retryAfterMs };
+        } catch {
           return { ok: true };
         }
       },
@@ -230,6 +362,28 @@ async function getLimiter(): Promise<KvLimiter> {
 export async function checkGuestInquiryCreate(key: string): Promise<KvRateLimitResult> {
   const limiter = await getLimiter();
   return limiter.checkInquiryCreate(key);
+}
+
+/**
+ * Per-IP inquiry-create ceiling. Evaluated IN ADDITION to the composite/session
+ * limit so cookie rotation can't grant unlimited creation. Limit: 12 / 60 min.
+ *
+ * @param key Key from `guestCreateIpKey(tenantId, ip)`.
+ */
+export async function checkGuestInquiryCreateByIp(key: string): Promise<KvRateLimitResult> {
+  const limiter = await getLimiter();
+  return limiter.checkInquiryCreateByIp(key);
+}
+
+/**
+ * Per-email inquiry-create ceiling. Evaluated IN ADDITION to the session limit.
+ * Limit: 3 / 60 min on the NORMALIZED email.
+ *
+ * @param key Key from `guestCreateEmailKey(tenantId, normalizedEmail)`.
+ */
+export async function checkGuestInquiryCreateByEmail(key: string): Promise<KvRateLimitResult> {
+  const limiter = await getLimiter();
+  return limiter.checkInquiryCreateByEmail(key);
 }
 
 /**

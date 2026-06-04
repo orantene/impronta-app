@@ -29,12 +29,12 @@
  *       On the next call the client includes the token; we verify it and allow
  *       through (or return "captcha_failed" mapped to "validation_failed").
  *
- * ## IP extraction helper
- * Provide the `x-forwarded-for` header value from the Next.js request. The
- * guard uses the first IP in the chain (the leftmost — least trusted in
- * general, but the platform-proxied value on Vercel is reliable). Pass `null`
- * when not available (IP is treated as "x" in the KV key — still rate-limited
- * per session+email+tenant, just without the IP dimension).
+ * ## IP dimension
+ * The caller (guest-chat-actions.resolveClientIp) resolves the TRUSTED client
+ * IP server-side — the platform-set x-real-ip / the rightmost (Vercel-appended)
+ * x-forwarded-for hop, NOT the spoofable leftmost hop. Pass `null` when
+ * unavailable (the IP dimension is then absent from the keys; session+email
+ * limits still apply).
  *
  * ## Usage (Lane A — guest-chat-actions.ts)
  * ```ts
@@ -64,8 +64,13 @@
 import { isDisposableEmail } from "@/lib/email/disposable";
 import {
   checkGuestInquiryCreate,
+  checkGuestInquiryCreateByIp,
+  checkGuestInquiryCreateByEmail,
   checkGuestMessageSend,
   guestRateLimitKey,
+  guestCreateIpKey,
+  guestCreateEmailKey,
+  normalizeEmailForKey,
 } from "@/lib/rate-limit-kv";
 import { verifyCaptchaToken } from "@/lib/captcha/verify";
 import type { GuestChatFailure } from "@/lib/inquiry/guest-chat-contract";
@@ -180,21 +185,35 @@ export async function checkGuestInquiryAbuse(
     };
   }
 
+  // Normalize the email once: it feeds both the composite key's email segment
+  // and the dedicated per-email ceiling (so +tag / gmail-dot variants collide).
+  const normalizedEmail = normalizeEmailForKey(args.email);
+
   const kvKey = guestRateLimitKey({
     guestSessionId: args.guestSessionId,
     ip: args.ip,
-    email: args.email,
+    email: normalizedEmail,
     tenantId: args.tenantId,
   });
 
-  // L2 — KV rate-limit (hard ceiling)
-  const rlResult = await checkGuestInquiryCreate(kvKey);
-  if (!rlResult.ok) {
+  // L2 — KV rate-limit (hard ceiling). The composite/session key is rotatable
+  // (the guest cookie is client-controlled), so we ALSO evaluate IP- and
+  // email-keyed ceilings that bind to dimensions the client can't cheaply
+  // rotate. ANY of the three tripping rejects the create. The composite key is
+  // kept for its tighter (tenant+session+ip+email) granularity when the cookie
+  // is stable.
+  const rlChecks = await Promise.all([
+    checkGuestInquiryCreate(kvKey),
+    checkGuestInquiryCreateByIp(guestCreateIpKey(args.tenantId, args.ip)),
+    checkGuestInquiryCreateByEmail(guestCreateEmailKey(args.tenantId, normalizedEmail)),
+  ]);
+  const tripped = rlChecks.find((r) => !r.ok);
+  if (tripped && !tripped.ok) {
     return {
       ok: false,
       code: "rate_limited",
       message: "You've sent too many inquiries recently. Please wait before trying again.",
-      retryAfterMs: rlResult.retryAfterMs,
+      retryAfterMs: tripped.retryAfterMs,
     };
   }
 
@@ -252,10 +271,14 @@ export async function checkGuestMessageAbuse(
     return { ok: true }; // Silent reject
   }
 
+  // Message-send is already bounded by the inquiry ownership gate (a guest can
+  // only send to an inquiry their cookie owns; rotating the cookie loses that
+  // ownership), so the composite key is sufficient here — no separate IP/email
+  // create-ceiling. We still normalize the email for key consistency.
   const kvKey = guestRateLimitKey({
     guestSessionId: args.guestSessionId,
     ip: args.ip,
-    email: args.email,
+    email: normalizeEmailForKey(args.email),
     tenantId: args.tenantId,
   });
 
