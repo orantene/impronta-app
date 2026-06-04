@@ -114,6 +114,8 @@ import {
 import { checkSlotTypeCompatibility } from "@/lib/site-admin/edit-mode/slot-type-compatibility";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
+import { isBuilderClientCanvasEnabled } from "@/lib/site-admin/edit-mode/client-canvas-flag";
+import { publishBuilderCanvasTree } from "./client-builder-canvas-bridge";
 import { normalizeCompositionSlots } from "./composition-slots";
 import {
   loadWorkspaceLayout,
@@ -2097,6 +2099,19 @@ export function EditProvider({
   }, [slots]);
   useEffect(() => {
     builderTreeRef.current = builderTree;
+  }, [builderTree]);
+
+  // W3 Sub-step B — publish the live tree to the cross-subtree bridge so the
+  // client canvas (mounted in the storefront body, OUTSIDE this provider) can
+  // read it. Flag-gated: with NEXT_PUBLIC_BUILDER_CLIENT_CANVAS off this is a
+  // no-op and the legacy server-render path is untouched. Cleared on unmount so
+  // a stale tree can't outlive the editor.
+  useEffect(() => {
+    if (!isBuilderClientCanvasEnabled()) return;
+    publishBuilderCanvasTree(builderTree);
+    return () => {
+      publishBuilderCanvasTree(null);
+    };
   }, [builderTree]);
 
   // history stacks. Capped so a long session doesn't leak memory — 50 deep
