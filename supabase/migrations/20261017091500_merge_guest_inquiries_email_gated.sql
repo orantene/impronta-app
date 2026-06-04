@@ -19,18 +19,31 @@
 --      relinked. This is the claim path the guest-chat contract specifies.
 --
 -- WHY EMAIL-GATING IS THE SHARED-DEVICE DEFENSE:
---   The relink requires lower(inquiries.contact_email) = lower(p_verified_email).
---   p_verified_email MUST be an email the caller controls — the application
---   passes the AUTHENTICATED account's own email (auth user the caller signed
---   into). A different person signing in (different account email) therefore
---   cannot match, and never inherits the original guest's inquiries. This is
---   strictly stronger than cookie-alone and is the guard the deep-dive
+--   The relink requires lower(inquiries.contact_email) = lower(p_verified_email)
+--   AND client_user_id IS NULL. The application passes the AUTHENTICATED
+--   account's own email. A different person signing in (different account email)
+--   therefore cannot match, and never inherits the original guest's inquiries.
+--   This is strictly stronger than cookie-alone and is the guard the deep-dive
 --   (conversational-inquiry-deep-dives-2026-06-03.md, Part A Gap 3) requires:
 --   "never merge on cookie alone; scope to this session AND the verified email."
 --
---   NOTE for callers: pass ONLY a verified email. Supabase auto-confirms today,
---   so the *account* email is the proven-controlled address to use here; do NOT
---   pass a guest-typed, unverified email as p_verified_email.
+--   SECURITY INVARIANT (read carefully — the earlier rationale was WRONG):
+--   Under supabase/config.toml enable_confirmations=false, signup AUTO-confirms,
+--   so the account email is NOT proof of inbox control — auto-confirm makes the
+--   account email LESS trustworthy, not more. The relink is safe TODAY for a
+--   different reason: the ONLY claimable rows are client_user_id IS NULL, and
+--   every guest inquiry-creation path provisions a confirmed account for the
+--   contact_email (ensureGuestClientByEmail sets client_user_id NON-NULL) UNLESS
+--   the email is a privileged (staff/talent) account already registered — so a
+--   claimable NULL-client inquiry only ever has a contact_email that already owns
+--   an account an attacker can't register. That joint invariant (NOT the account
+--   email being "verified") is what closes the hole.
+--
+--   CALLERS: pass p_verified_email ONLY when the account email is actually
+--   confirmed. mergeGuestActivity reads auth email_confirmed_at (service-role)
+--   and passes '' when unconfirmed, so the relink falls through to the
+--   favorites-only path — future-proofing for when confirmations get enabled.
+--   Do NOT pass a guest-typed, unverified email as p_verified_email.
 --
 -- The existing `IF p_client_profile_id IS DISTINCT FROM auth.uid()` guard is
 -- preserved on BOTH variants (a caller can only merge into THEIR OWN account).

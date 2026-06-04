@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { requireClient } from "@/lib/server/action-guards";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import type { ServerActionResult } from "@/lib/server-actions/result";
 
 const GUEST_COOKIE = "impronta_guest";
@@ -110,15 +111,27 @@ export async function mergeGuestActivity(
   ]);
 
   // SECURITY (guest→account claim): relink inquiries ONLY when the inquiry's
-  // contact_email matches the AUTHENTICATED account's own email. Passing
-  // `user.email` as p_verified_email is the shared-device defense — a different
-  // person signing in (different account email) cannot inherit this guest's
-  // conversations. saved_talent favorites still merge on the cookie alone. See
-  // migration 20261017091500_merge_guest_inquiries_email_gated.sql.
+  // contact_email matches the AUTHENTICATED account's CONFIRMED email. We pass
+  // p_verified_email only when auth.email_confirmed_at is set; otherwise we pass
+  // '' so the RPC falls through to favorites-only (no inquiry relink). Under
+  // enable_confirmations=false signup auto-confirms, so this is a no-op today —
+  // but it future-proofs the gate for when confirmations get enabled, instead of
+  // trusting an unconfirmed account email. See migration
+  // 20261017091500_merge_guest_inquiries_email_gated.sql.
+  let verifiedEmail = "";
+  const admin = createServiceRoleClient();
+  if (admin && user.email) {
+    const { data: authUser, error: authErr } = await admin.auth.admin.getUserById(user.id);
+    if (authErr) {
+      logServerError("client/mergeGuestActivity/emailConfirm", authErr);
+    } else if (authUser?.user?.email_confirmed_at) {
+      verifiedEmail = user.email;
+    }
+  }
   await supabase.rpc("merge_guest_session_to_client", {
     p_session_key: sessionKey,
     p_client_profile_id: user.id,
-    p_verified_email: user.email ?? "",
+    p_verified_email: verifiedEmail,
   });
 
   revalidatePath("/client");
