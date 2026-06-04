@@ -175,14 +175,21 @@ export async function sendMessage(
     // @Name tokens from the body and notifies the matched thread participants
     // (falls back to all non-sender participants if a token matches nobody).
     // Best-effort; never blocks the send.
-    notifyMentionedParticipants(supabase, {
-      inquiryId: ctx.inquiryId,
-      tenantId: ctx.tenantId,
-      actorUserId: ctx.actorUserId,
-      threadType: ctx.threadType,
-      body: ctx.body,
-      messageId: row.id as string,
-    }).catch((err) => logServerError("inquiry-engine-messages.mentionNotify", err));
+    //
+    // Guests (actorUserId null) are skipped: the mention pass keys off the
+    // sender's auth user id for "exclude self" + attribution, which a guest
+    // doesn't have. A guest's message still reaches staff/talent via the normal
+    // fanout above; @mention routing is an authenticated-sender feature.
+    if (!isGuestSender && ctx.actorUserId) {
+      notifyMentionedParticipants(supabase, {
+        inquiryId: ctx.inquiryId,
+        tenantId: ctx.tenantId,
+        actorUserId: ctx.actorUserId,
+        threadType: ctx.threadType,
+        body: ctx.body,
+        messageId: row.id as string,
+      }).catch((err) => logServerError("inquiry-engine-messages.mentionNotify", err));
+    }
 
     return { success: true, data: { messageId: row.id as string } };
   });
