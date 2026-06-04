@@ -13,6 +13,7 @@ import { LiveLineupPanel } from "./machinery-11";
 import { DaySeparator, TeamStrip, dayKey, renderWithMentions } from "./machinery-15";
 import { SystemEventBubble } from "./machinery-6";
 import { RealThreadStream } from "@/components/talent/talent-thread-stream";
+import { VoiceRecorderButton } from "@/components/chat-interactions/VoiceRecorderButton";
 import { loadTalentInquiryThread, type TalentThreadMessage } from "@/app/(workspace)/[tenantSlug]/talent/inbox/[id]/actions";
 import { useThreadPresence } from "@/lib/realtime/presence";
 import { TypingRow } from "@/components/messages/thread-enhancements";
@@ -120,6 +121,12 @@ export function ConversationTab({
     return () => { active = false; };
     // Re-load when switching conv or when a local send appends (stash bump).
   }, [conv.id, showReal, realThreadType]);
+  // Re-pull the real thread after an out-of-band send (e.g. a voice note that
+  // goes straight to the server, bypassing the optimistic text path).
+  const refreshRealThread = useCallback(() => {
+    if (!showReal) return;
+    loadTalentInquiryThread(conv.id, realThreadType).then(setRealThread);
+  }, [showReal, conv.id, realThreadType]);
   // Ephemeral typing presence — broadcast-only, no DB. One channel per real
   // inquiry thread (group vs private kept distinct). Null channelKey on mock
   // convs / when no session identity → the hook is a safe no-op.
@@ -484,6 +491,8 @@ export function ConversationTab({
             // until persisted sender roles are supported.
             canSendAsWorkspace={false}
             onTyping={setTyping}
+            voiceContext={showReal ? { inquiryId: conv.id, threadType: realThreadType } : undefined}
+            onVoiceSent={refreshRealThread}
           />
         )}
       </div>
@@ -578,6 +587,12 @@ export function DraftComposer({
   // Ephemeral typing-presence beat. Called with `true` on each keystroke and
   // `false` on send/blur. The host wires this to useThreadPresence().setTyping.
   onTyping,
+  // Voice notes (Deep-plan W11). When a real inquiry context is supplied, the
+  // disabled "coming soon" mic is replaced by a live recorder that uploads +
+  // sends a voice message. onVoiceSent fires after a successful send so the
+  // host refreshes the thread.
+  voiceContext,
+  onVoiceSent,
 }: {
   threadKey: string;
   placeholder: string;
@@ -589,7 +604,10 @@ export function DraftComposer({
   onAttach?: (file: File) => void;
   mentionCandidates?: MentionCandidate[];
   onTyping?: (isTyping: boolean) => void;
+  voiceContext?: { inquiryId: string; threadType: "private" | "group" };
+  onVoiceSent?: () => void;
 }) {
+  const { toast: __composerToast } = useAdminShell();
   const [val, setVal] = useState(() => __draftStore.get(threadKey) ?? "");
   // C3 — @-mention picker state. Opens when the user types "@" anywhere
   // in the input. Stores the partial query after "@" for filtering.
@@ -911,16 +929,27 @@ export function DraftComposer({
           />
         </div>
         {!val && (
-          <button type="button" aria-label="Voice note" title="Voice notes coming soon" disabled style={{
-            width: 36, height: 36, borderRadius: "50%", border: "none",
-            background: "transparent", color: COLORS.inkMuted, cursor: "not-allowed", opacity: 0.45,
-            display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-          }}>
-            <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-              <rect x="6" y="2" width="4" height="8" rx="2" stroke="currentColor" strokeWidth="1.5"/>
-              <path d="M3 8a5 5 0 0010 0M8 13v2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
-          </button>
+          voiceContext ? (
+            <VoiceRecorderButton
+              inquiryId={voiceContext.inquiryId}
+              threadType={voiceContext.threadType}
+              accent={COLORS.accentDeep}
+              idleColor={COLORS.inkMuted}
+              onSent={() => onVoiceSent?.()}
+              onError={(msg) => __composerToast(msg)}
+            />
+          ) : (
+            <button type="button" aria-label="Voice note" title="Voice notes coming soon" disabled style={{
+              width: 36, height: 36, borderRadius: "50%", border: "none",
+              background: "transparent", color: COLORS.inkMuted, cursor: "not-allowed", opacity: 0.45,
+              display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+            }}>
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                <rect x="6" y="2" width="4" height="8" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+                <path d="M3 8a5 5 0 0010 0M8 13v2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            </button>
+          )
         )}
         <button type="button" disabled={!val.trim()} onClick={() => { if (val.trim()) handleSend(val); }}
           aria-label="Send"
