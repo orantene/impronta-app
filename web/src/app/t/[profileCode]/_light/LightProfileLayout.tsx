@@ -536,11 +536,15 @@ export function LightProfileLayout({
         </div>
       </footer>
 
-      {/* Sticky inquiry bar (mobile — always rendered, CSS shows/hides) */}
+      {/* Spacer so the fixed mobile bar never covers the footer content. */}
+      <div className="h-20 lg:hidden" aria-hidden="true" />
+
+      {/* Sticky inquiry bar — mobile/tablet only (desktop has the sticky booking
+          card rail, so it's hidden at lg+). Keeps Inquire reachable without
+          scrolling to the bottom-stacked booking card on small screens. */}
       <div
         data-profile-sticky-bar="visible"
-        className="fixed inset-x-0 bottom-0 z-50"
-        style={{ display: "none" }}
+        className="fixed inset-x-0 bottom-0 z-50 lg:hidden"
       >
         <div className="m-3 mx-auto flex max-w-4xl items-center gap-4 rounded-full border border-[#ECECEC] bg-white px-6 py-2.5 shadow-[0_8px_30px_rgba(0,0,0,0.08)]">
           <div className="flex min-w-0 flex-1 items-baseline gap-3">
