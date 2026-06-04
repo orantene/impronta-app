@@ -14,7 +14,15 @@ import { DaySeparator, TeamStrip, dayKey, renderWithMentions } from "./machinery
 import { SystemEventBubble } from "./machinery-6";
 import { RealThreadStream } from "@/components/talent/talent-thread-stream";
 import { VoiceRecorderButton } from "@/components/chat-interactions/VoiceRecorderButton";
-import { loadTalentInquiryThread, type TalentThreadMessage } from "@/app/(workspace)/[tenantSlug]/talent/inbox/[id]/actions";
+import {
+  loadTalentInquiryThread,
+  loadTalentInquiryGuestTrust,
+  blockInquirySenderAsTalent,
+  reportInquirySenderAsTalent,
+  type TalentThreadMessage,
+  type TalentGuestTrustChipData,
+} from "@/app/(workspace)/[tenantSlug]/talent/inbox/[id]/actions";
+import { GuestTrustChip } from "@/components/inquiry/GuestTrustChip";
 import { useThreadPresence } from "@/lib/realtime/presence";
 import { TypingRow } from "@/components/messages/thread-enhancements";
 import { PinnedStrip } from "@/components/chat-interactions/PinnedStrip";
@@ -127,6 +135,21 @@ export function ConversationTab({
     if (!showReal) return;
     loadTalentInquiryThread(conv.id, realThreadType).then(setRealThread);
   }, [showReal, conv.id, realThreadType]);
+  // Guest/client trust chip — the talent-facing identity + trust summary for
+  // the inquiry's sender (tier badge, per-signal ticks, booking count, one-line
+  // risk read). Loaded once per real inquiry; renders atop the thread header on
+  // the talent's GROUP thread (the lineup-talent view). Suppressed on the
+  // private/coordinator sub-thread (the coordinator already has the client
+  // surface) and on mock convs. Null until loaded / when not authorised.
+  const showTrustChip = showReal && realThreadType === "group";
+  const [trustChip, setTrustChip] = useState<TalentGuestTrustChipData | null>(null);
+  useEffect(() => {
+    if (!showTrustChip) { setTrustChip(null); return; }
+    let active = true;
+    setTrustChip(null);
+    loadTalentInquiryGuestTrust(conv.id).then((data) => { if (active) setTrustChip(data); });
+    return () => { active = false; };
+  }, [conv.id, showTrustChip]);
   // Ephemeral typing presence — broadcast-only, no DB. One channel per real
   // inquiry thread (group vs private kept distinct). Null channelKey on mock
   // convs / when no session identity → the hook is a safe no-op.
@@ -200,6 +223,39 @@ export function ConversationTab({
         padding: "10px 14px 0",
         background: "#fff",
       }}>
+        {/* Guest/client trust chip — talent-facing identity + trust summary for
+            the inquiry sender. Renders atop the thread header (chat view) once
+            loaded. Block/Report affordances are injected only when a subject is
+            resolvable (registered client OR guest session on the inquiry). */}
+        {mode === "chat" && trustChip && (
+          <div style={{ marginBottom: 8 }}>
+            <GuestTrustChip
+              identity={trustChip.identity}
+              tier={trustChip.tier}
+              displayName={trustChip.displayName}
+              signals={trustChip.signals}
+              completedBookings={trustChip.completedBookings}
+              riskLine={trustChip.riskLine}
+              isBlocked={trustChip.isBlocked}
+              onBlock={
+                trustChip.blockTarget
+                  ? async () => {
+                      const t = trustChip.blockTarget!;
+                      const r = await blockInquirySenderAsTalent(t.inquiryId, t.subjectType, t.subjectId);
+                      if (r.ok) setTrustChip((prev) => (prev ? { ...prev, isBlocked: true } : prev));
+                      else toast("Could not block sender. Try again.");
+                      return r;
+                    }
+                  : null
+              }
+              onReport={
+                trustChip.blockTarget
+                  ? async (reason) => reportInquirySenderAsTalent(trustChip.blockTarget!.inquiryId, reason)
+                  : null
+              }
+            />
+          </div>
+        )}
         <div className="flex items-center gap-1.5">
           <div className="flex-1 min-w-0">
             <TeamStrip
