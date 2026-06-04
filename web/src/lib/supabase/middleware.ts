@@ -202,15 +202,32 @@ export async function updateSession(
   const shouldClearStaleAuth = !user && isAuthEntryRoute && hasStaleAuthCookie;
   const clearStaleAuthCookies = (res: NextResponse): NextResponse => {
     if (!shouldClearStaleAuth) return res;
+    const names = new Set<string>();
     for (const c of request.cookies.getAll()) {
-      if (!isSupabaseAuthCookie(c.name)) continue;
-      res.cookies.set(c.name, "", { maxAge: 0, path: "/" });
+      if (isSupabaseAuthCookie(c.name)) names.add(c.name);
+    }
+    for (const name of names) {
+      // Expire BOTH the parent-domain AND the host-only scope. A stale cookie
+      // can live at EITHER scope: orphan/expired cookies written by the app are
+      // parent-domain (`.tulala.digital`); a LEGACY cookie from before
+      // parent-domain scoping is HOST-ONLY. The browser may read either, so both
+      // must be swept or the survivor keeps poisoning the read.
+      //
+      // `NextResponse.cookies` is keyed by NAME (a 2nd set() for the same name
+      // REPLACES the 1st), so the cookies API can only carry one scope per name.
+      // Use it for the parent-domain deletion (it round-trips through proxy.ts's
+      // `sessionRes.cookies` copy on rewrite paths), and append the host-only
+      // deletion as a separate raw Set-Cookie header.
       if (authCookieDomain) {
-        res.cookies.set(c.name, "", {
+        res.cookies.set(name, "", {
           maxAge: 0,
           path: "/",
           domain: authCookieDomain,
         });
+        res.headers.append("set-cookie", `${name}=; Path=/; Max-Age=0`);
+      } else {
+        // Host-only hosts (custom domains, localhost): one host-only deletion.
+        res.cookies.set(name, "", { maxAge: 0, path: "/" });
       }
     }
     return res;
