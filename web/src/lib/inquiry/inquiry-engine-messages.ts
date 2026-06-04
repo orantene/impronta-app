@@ -149,7 +149,19 @@ export async function sendMessage(
               }),
             );
           }
-          if (recipients.clientUserId && recipients.clientUserId !== ctx.actorUserId) {
+          // Skip the client notification when the sender IS a guest: for a
+          // guest inquiry, recipients.clientUserId is inquiries.client_user_id,
+          // which is the guest's OWN freshly-provisioned/matched client account
+          // (ensureGuestClientByEmail). The de-self filter above keys on
+          // ctx.actorUserId, which is null for a guest, so without this guard the
+          // guest's own account accrues a "New message" bell for every message
+          // they send (visible the moment they claim the account). The guest is
+          // watching the popup live; the real recipients are workspace + talent.
+          if (
+            !isGuestSender &&
+            recipients.clientUserId &&
+            recipients.clientUserId !== ctx.actorUserId
+          ) {
             promises.push(
               emitNotificationToUsers([recipients.clientUserId], {
                 tenantId: ctx.tenantId,
