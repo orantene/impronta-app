@@ -132,7 +132,7 @@ export function GlobalPayoutsBankCard() {
         <>
           <p style={{ margin: "0 0 12px", fontSize: 12.5, lineHeight: 1.55, color: C.inkMuted }}>
             Receive your booking payouts straight to your <strong style={{ color: C.ink }}>local bank account</strong>,
-            in your own currency — no Stripe account or app required. Works across ~50 countries.
+            in your own currency. No Stripe account or app required, and it works across 50+ countries.
           </p>
           <button
             type="button"
@@ -201,7 +201,7 @@ export function GlobalPayoutsBankCard() {
           </div>
           {country && (
             <p style={{ margin: "6px 0 12px", fontSize: 11.5, color: C.inkMuted }}>
-              You&apos;ll be paid in {defaultPayoutCurrency(country).toUpperCase()}. Stripe verifies + holds your bank details — we never see them.
+              You&apos;ll be paid in {defaultPayoutCurrency(country).toUpperCase()}. Stripe verifies and holds your bank details, and we never see them.
             </p>
           )}
 

@@ -182,14 +182,14 @@ export function PayoutsShell({
     <div data-msg-shell style={{ maxWidth: 540, margin: "0 auto", padding: "24px 24px 48px", fontFamily: FONT }}>
       <h1 style={{ margin: 0, fontSize: 21, fontWeight: 700, color: C.ink, letterSpacing: -0.3 }}>Payouts</h1>
       <p style={{ margin: "6px 0 20px", fontSize: 13, lineHeight: 1.55, color: C.inkMuted }}>
-        Get paid for your bookings — straight to your bank. Stripe handles the bank details and ID check; we never see them.
+        Get paid for your bookings, straight to your bank. Stripe handles the bank details and ID check, and we never see them.
       </p>
 
       {!isEnabled && <HeldPayoutsBanner held={heldPayouts} audience="talent" />}
 
       {justReturned && isEnabled && (
         <div role="status" style={{ marginBottom: 14, padding: "10px 12px", background: C.greenSoft, color: C.green, borderRadius: 10, fontSize: 12.5 }}>
-          ✓ All set — your bank is connected and ready for payouts.
+          ✓ All set. Your bank is connected and ready for payouts.
         </div>
       )}
       {justRefreshed && (
@@ -267,7 +267,7 @@ export function PayoutsShell({
         <div style={card}>
           <div style={sectionLabel}>Set up payouts</div>
           <p style={{ margin: "10px 0 14px", fontSize: 13, lineHeight: 1.55, color: C.inkMuted }}>
-            Connect your bank to receive booking payouts. It takes a few minutes — Stripe verifies your identity and bank securely.
+            Connect your bank to receive booking payouts. It takes a few minutes, and Stripe verifies your identity and bank securely.
           </p>
           {error && <div role="alert" style={{ fontSize: 12, color: C.coral, marginBottom: 10 }}>{error}</div>}
           <button type="button" data-testid="talent-connect-cta" onClick={onConnect} disabled={pending} style={primaryBtn(pending)}>
@@ -300,7 +300,7 @@ export function PayoutsShell({
               ) : (
                 <>
                   <p style={{ margin: "10px 0 12px", fontSize: 12.5, lineHeight: 1.55, color: C.inkMuted }}>
-                    Get paid in <strong style={{ color: C.ink }}>USDC</strong> to your own crypto wallet — across borders, no
+                    Get paid in <strong style={{ color: C.ink }}>USDC</strong> to your own crypto wallet, across borders, with no
                     local-bank wait. Open your Stripe dashboard, link a wallet, and set USDC as your default.
                   </p>
                   <button type="button" data-testid="talent-stablecoin-cta" onClick={openCryptoDashboard} disabled={cryptoPending} style={primaryBtn(cryptoPending)}>
@@ -319,8 +319,8 @@ export function PayoutsShell({
       )}
 
       <div style={{ marginTop: 24, fontSize: 11.5, lineHeight: 1.55, color: C.inkDim }}>
-        When a client pays for a booking you&apos;re on, your share transfers to you automatically — on Stripe&apos;s standard
-        schedule (typically ~2 business days). You file your own taxes; we hand you the year-end summary.
+        When a client pays for a booking you&apos;re on, your share transfers to you automatically, on Stripe&apos;s standard
+        schedule (typically 2 business days). You file your own taxes, and we hand you the year-end summary.
       </div>
     </div>
   );
