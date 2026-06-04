@@ -7,6 +7,8 @@ import {
   getPrimaryFinancialAccountId,
   createOutboundPayment,
   outboundPaymentLedgerStatus,
+  assertLivePayoutSafe,
+  isLiveStripeKey,
   _resetFinancialAccountCache,
 } from "@/lib/payments/global-payouts";
 
@@ -92,4 +94,43 @@ test("createOutboundPayment posts the correct v2 body + idempotency key", async 
   assert.equal(headers["Idempotency-Key"], "op_x");
   assert.match(fx.calls[0].url, /\/v2\/money_management\/outbound_payments$/);
   fx.restore();
+});
+
+test("isLiveStripeKey detects sk_live_", () => {
+  assert.equal(isLiveStripeKey("sk_live_abc"), true);
+  assert.equal(isLiveStripeKey("sk_test_abc"), false);
+  assert.equal(isLiveStripeKey(undefined), false);
+});
+
+test("assertLivePayoutSafe: test key ok; live key blocked unless allow flag", () => {
+  const prev = process.env.STRIPE_ALLOW_LIVE_PAYOUTS;
+  delete process.env.STRIPE_ALLOW_LIVE_PAYOUTS;
+  assert.equal(assertLivePayoutSafe("sk_test_x").ok, true);
+  assert.equal(assertLivePayoutSafe("sk_live_x").ok, false);
+  process.env.STRIPE_ALLOW_LIVE_PAYOUTS = "true";
+  assert.equal(assertLivePayoutSafe("sk_live_x").ok, true);
+  if (prev === undefined) delete process.env.STRIPE_ALLOW_LIVE_PAYOUTS;
+  else process.env.STRIPE_ALLOW_LIVE_PAYOUTS = prev;
+});
+
+test("createOutboundPayment refuses a live key without the allow flag (no fetch)", async () => {
+  const prevKey = process.env.STRIPE_SECRET_KEY;
+  const prevAllow = process.env.STRIPE_ALLOW_LIVE_PAYOUTS;
+  const prevFetch = globalThis.fetch;
+  process.env.STRIPE_SECRET_KEY = "sk_live_x";
+  delete process.env.STRIPE_ALLOW_LIVE_PAYOUTS;
+  let fetched = false;
+  globalThis.fetch = (async () => {
+    fetched = true;
+    return { ok: true, status: 200, json: async () => ({}) };
+  }) as unknown as typeof fetch;
+  const r = await createOutboundPayment({ financialAccountId: "fa_1", recipientAccountId: "acct_r", amountCents: 100, currency: "usd" });
+  assert.equal(r.ok, false);
+  if (!r.ok) assert.equal(r.error.code, "live_payouts_disabled");
+  assert.equal(fetched, false, "no money-moving call on a guarded live key");
+  globalThis.fetch = prevFetch;
+  if (prevKey === undefined) delete process.env.STRIPE_SECRET_KEY;
+  else process.env.STRIPE_SECRET_KEY = prevKey;
+  if (prevAllow === undefined) delete process.env.STRIPE_ALLOW_LIVE_PAYOUTS;
+  else process.env.STRIPE_ALLOW_LIVE_PAYOUTS = prevAllow;
 });

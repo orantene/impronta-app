@@ -15,7 +15,7 @@
 
 import "server-only";
 import { stripeV2, type StripeV2Result } from "./stripe-v2";
-import { getPrimaryFinancialAccountId } from "./global-payouts";
+import { assertLivePayoutSafe, getPrimaryFinancialAccountId } from "./global-payouts";
 import { logServerError } from "@/lib/server/safe-error";
 
 export type V2Account = {
@@ -126,6 +126,8 @@ export async function fundFinancialAccountFromBalance(opts: {
 }): Promise<{ ok: true; payoutId: string } | { ok: false; error: string }> {
   const key = opts.secretKey ?? process.env.STRIPE_SECRET_KEY;
   if (!key) return { ok: false, error: "Stripe not configured" };
+  const guard = assertLivePayoutSafe(key);
+  if (!guard.ok) return { ok: false, error: guard.error };
   const faId = opts.financialAccountId ?? (await getPrimaryFinancialAccountId());
   if (!faId) return { ok: false, error: "no FinancialAccount (Global Payouts not active)" };
 

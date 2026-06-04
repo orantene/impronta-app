@@ -87,10 +87,32 @@ export async function isGlobalPayoutsActive(): Promise<boolean> {
   return (await getPrimaryFinancialAccountId()) != null;
 }
 
+/** True when the active secret key is a LIVE key (sk_live_…). */
+export function isLiveStripeKey(key = process.env.STRIPE_SECRET_KEY): boolean {
+  return !!key && key.startsWith("sk_live_");
+}
+
+/**
+ * Safety gate for real-money moves. On a LIVE key, money-moving calls
+ * (OutboundPayment, fund-from-balance) are REFUSED unless
+ * STRIPE_ALLOW_LIVE_PAYOUTS=true. This lets us point the app at the live account
+ * for read/verify (is GP active? which recipients?) with ZERO risk of moving
+ * funds; flip the flag only at prod go-live (or for one deliberate live payout).
+ */
+export function assertLivePayoutSafe(
+  key = process.env.STRIPE_SECRET_KEY,
+): { ok: true } | { ok: false; error: string } {
+  if (isLiveStripeKey(key) && process.env.STRIPE_ALLOW_LIVE_PAYOUTS !== "true") {
+    return { ok: false, error: "Live payouts disabled — set STRIPE_ALLOW_LIVE_PAYOUTS=true to move real money." };
+  }
+  return { ok: true };
+}
+
 /**
  * Create a v2 OutboundPayment from the platform FinancialAccount to a recipient.
  * `payoutMethodId` is optional — omit to use the recipient's default method.
  * Idempotent via `idempotencyKey` (mirror the Connect rail's per-leg key).
+ * Blocked on a LIVE key unless STRIPE_ALLOW_LIVE_PAYOUTS=true (see assertLivePayoutSafe).
  */
 export async function createOutboundPayment(opts: {
   financialAccountId: string;
@@ -102,6 +124,10 @@ export async function createOutboundPayment(opts: {
   metadata?: Record<string, string>;
   idempotencyKey?: string;
 }): Promise<StripeV2Result<OutboundPayment>> {
+  const guard = assertLivePayoutSafe();
+  if (!guard.ok) {
+    return { ok: false, status: 0, error: { code: "live_payouts_disabled", message: guard.error } };
+  }
   const currency = opts.currency.toLowerCase();
   const body: Record<string, unknown> = {
     from: { financial_account: opts.financialAccountId, currency },
