@@ -67,6 +67,14 @@ export function ProfileHeader({
   isFeatured,
 }: ProfileHeaderProps) {
   const expLine = primarySkill ? experienceLine(primarySkill) : null;
+  const initials =
+    name
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((w) => w.charAt(0))
+      .join("")
+      .toUpperCase() || "·";
   const compactLangLine =
     languages.length > 0
       ? languages
@@ -90,26 +98,33 @@ export function ProfileHeader({
       <div className="mx-auto max-w-5xl">
         {/* Avatar + info row */}
         <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:gap-8">
-          {/* Avatar */}
-          {profileImageUrl ? (
-            <div
-              className={[
-                "relative shrink-0 overflow-hidden rounded-2xl shadow-lg",
-                hasCover
-                  ? "h-28 w-20 border-2 border-white bg-[#F0EDE8] sm:h-36 sm:w-28"
-                  : "h-24 w-16 border border-[#ECECEC] bg-[#F0EDE8] sm:h-32 sm:w-24",
-              ].join(" ")}
-              data-profile-portrait
+          {/* Avatar — initials sit behind the photo so a missing/slow image
+              never shows as an empty box. */}
+          <div
+            className={[
+              "relative shrink-0 overflow-hidden rounded-2xl shadow-lg",
+              hasCover
+                ? "h-28 w-20 border-2 border-white sm:h-36 sm:w-28"
+                : "h-24 w-16 border border-[#ECECEC] sm:h-32 sm:w-24",
+            ].join(" ")}
+            data-profile-portrait
+          >
+            <span
+              className="absolute inset-0 flex items-center justify-center bg-[#EFEBE4] font-[family-name:var(--font-cinzel)] text-2xl text-[#B7AE9F] sm:text-3xl"
+              aria-hidden="true"
             >
+              {initials}
+            </span>
+            {profileImageUrl ? (
               <Image
                 src={profileImageUrl}
                 alt={`${name} profile photo`}
                 fill
                 className="object-cover"
-                sizes="(max-width: 640px) 80px, 104px"
+                sizes="(max-width: 640px) 80px, 112px"
               />
-            </div>
-          ) : null}
+            ) : null}
+          </div>
 
           {/* Name + meta */}
           <div className="flex-1 min-w-0 space-y-3 pb-1">

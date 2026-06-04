@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { LightProfileLayout } from "./_light/LightProfileLayout";
+import { LightProfileTopBar } from "./_light/LightProfileTopBar";
 import type { ResolvedSkill } from "@/lib/server-actions/admin-talent-skills.types";
 
 import { ProfileViewAnalytics } from "@/components/analytics/profile-view-analytics";
@@ -1686,7 +1687,7 @@ export default async function PublicTalentProfilePage({
       <PublicFlashHost dismissAria={ui.flash.dismissAria} />
       <ProfileViewAnalytics talentId={profile.id} locale={locale} />
 
-      <PublicHeader />
+      <LightProfileTopBar brand={tenantBrand ?? "Tulala"} />
       <DiscoveryStateBridge savedIds={initialSavedIds} favoriteIds={initialFavoriteIds} />
 
       {/* ── LIGHT REDESIGN — classic dark render replaced ── */}
