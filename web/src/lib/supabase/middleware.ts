@@ -186,11 +186,26 @@ export async function updateSession(
   // cookie is never removed, so the user gets STUCK — every request fails and
   // even re-login bounces straight back to /login. Expire the Supabase auth
   // cookies so the browser returns to a clean logged-out state and login works
-  // again. A SPECIFIC error check (never on a transient/network error) keeps
-  // this from logging anyone out spuriously. Applied to BOTH the redirect and
-  // the passthrough response below so it isn't dropped by a response rebuild.
+  // again.
+  //
+  // CRITICAL — only self-heal on the auth-ENTRY routes (/login, /register),
+  // where there is by definition no in-use session to protect. Clearing on a
+  // normal app route was catastrophic: a single request that transiently read
+  // a STALE DUPLICATE auth cookie (a legacy host-only `sb-…-auth-token`
+  // coexisting with the canonical parent-domain one — the browser sends both
+  // and the server may read the stale one) made getUser fail, and this then
+  // nuked BOTH cookie scopes — destroying the *valid* fresh session and
+  // bouncing the user to /login mid-use (the ~40s-after-login death). Gating to
+  // the login page keeps the recovery — a genuinely-stuck browser lands on
+  // /login, the stale cookie is expired there, and the next sign-in writes one
+  // clean cookie — without ever logging an active session out on an app route.
+  // The SPECIFIC error check (never a transient/network blip) is an extra guard.
+  // Applied to BOTH the redirect and the passthrough response below.
+  const isAuthEntryRoute = /\/(login|register)\/?$/.test(pathnameForAuth);
   const shouldClearStaleAuth =
-    !user && isUnrecoverableRefreshTokenError(authResult.error);
+    !user &&
+    isAuthEntryRoute &&
+    isUnrecoverableRefreshTokenError(authResult.error);
   const clearStaleAuthCookies = (res: NextResponse): NextResponse => {
     if (!shouldClearStaleAuth) return res;
     for (const c of request.cookies.getAll()) {
