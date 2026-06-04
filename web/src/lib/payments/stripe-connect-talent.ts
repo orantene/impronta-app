@@ -26,7 +26,11 @@ import type Stripe from "stripe";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { normalizePayoutCountry, payoutCountryLabel } from "@/lib/payments/payout-countries";
+import {
+  normalizePayoutCountry,
+  payoutCountryLabel,
+  isStablecoinPayoutCountry,
+} from "@/lib/payments/payout-countries";
 
 export type TalentConnectStatus =
   | "none"
@@ -341,4 +345,53 @@ export async function findTalentByStripeAccountId(
  *  payout pipeline to gate transfer attempts. */
 export function canRouteTransfersToTalent(snap: TalentConnectedAccountSnapshot): boolean {
   return snap.status === "enabled" && snap.payoutsEnabled && !!snap.stripeAccountId;
+}
+
+/**
+ * Mint an Express Dashboard LOGIN link for the talent's connected account.
+ *
+ * Unlike the account-onboarding link (KYC), this drops an already-onboarded
+ * talent straight into their Stripe Express Dashboard — where, for stablecoin
+ * (Global Payouts) markets, they link a crypto wallet and set USDC as their
+ * default currency to receive payouts as USDC instead of to a local bank.
+ *
+ * Login links require the account to exist; Stripe errors for not-yet-onboarded
+ * accounts, which we surface as a clean "finish onboarding first" message.
+ */
+export async function createTalentDashboardLink(
+  talentProfileId: string,
+): Promise<TalentConnectResult<{ url: string }>> {
+  const stripe = getStripe();
+  if (!stripe) return { ok: false, error: "Stripe client unavailable." };
+
+  const snap = await getTalentConnectedAccountSnapshot(talentProfileId);
+  if (!snap.ok) return { ok: false, error: snap.error };
+  if (!snap.data.stripeAccountId) {
+    return { ok: false, error: "Connect your Stripe account first." };
+  }
+
+  try {
+    const link = await stripe.accounts.createLoginLink(snap.data.stripeAccountId);
+    return { ok: true, data: { url: link.url } };
+  } catch (err) {
+    logServerError("stripe-connect-talent.dashboardLink", err);
+    return {
+      ok: false,
+      error: "Could not open your Stripe dashboard — finish onboarding first.",
+    };
+  }
+}
+
+/**
+ * Is the talent in a country where we can pay them via stablecoin (USDC)
+ * Global Payouts? Cheap residence/override-based read for the payouts UI to
+ * decide whether to surface the "link a crypto wallet" path. Falls back to the
+ * talent's residence country (the same source the Connect account is created
+ * with), so for an existing account this matches its immutable country.
+ */
+export async function getTalentStablecoinEligibility(
+  talentProfileId: string,
+): Promise<{ eligible: boolean; country: string | null }> {
+  const country = await resolveTalentPayoutCountry(talentProfileId);
+  return { eligible: isStablecoinPayoutCountry(country), country };
 }

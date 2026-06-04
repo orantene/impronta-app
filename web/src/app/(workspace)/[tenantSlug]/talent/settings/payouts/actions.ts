@@ -20,10 +20,13 @@ import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import {
   createOrGetTalentConnectedAccount,
   createTalentOnboardingLink,
+  createTalentDashboardLink,
   getTalentConnectedAccountSnapshot,
+  getTalentStablecoinEligibility,
   refreshTalentAccountStatus,
   type TalentConnectedAccountSnapshot,
 } from "@/lib/payments/stripe-connect-talent";
+import { payoutCountryLabel } from "@/lib/payments/payout-countries";
 
 export type StartOnboardingResult =
   | { ok: true; url: string }
@@ -203,4 +206,43 @@ export async function loadTalentPayoutSnapshot(): Promise<
   const r = await getTalentConnectedAccountSnapshot(tp.id as string);
   if (!r.ok) return { ok: false, error: r.error };
   return { ok: true, snapshot: r.data };
+}
+
+/**
+ * Mint an Express Dashboard login link for the current talent so they can link
+ * a crypto wallet + set USDC as default — i.e. switch their payouts to
+ * stablecoin (Global Payouts). Opened in a new tab by the payouts UI.
+ */
+export async function createTalentDashboardLinkAction(): Promise<
+  { ok: true; url: string } | { ok: false; error: string }
+> {
+  try {
+    const tp = await resolveOwnTalentProfileId();
+    if (!tp.ok) return { ok: false, error: tp.error };
+    const r = await createTalentDashboardLink(tp.id);
+    if (!r.ok) return { ok: false, error: r.error };
+    return { ok: true, url: r.data.url };
+  } catch (err) {
+    logServerError("talent-payouts.dashboardLink", err);
+    return { ok: false, error: "Could not open your Stripe dashboard. Please try again." };
+  }
+}
+
+/**
+ * Whether the current talent's country supports stablecoin (USDC) Global
+ * Payouts — drives whether the payouts UI shows the "link a crypto wallet"
+ * path. Returns a human country label for the badge.
+ */
+export async function loadTalentStablecoinEligibility(): Promise<
+  | { ok: true; eligible: boolean; countryLabel: string | null }
+  | { ok: false; error: string }
+> {
+  const tp = await resolveOwnTalentProfileId();
+  if (!tp.ok) return { ok: false, error: tp.error };
+  const r = await getTalentStablecoinEligibility(tp.id);
+  return {
+    ok: true,
+    eligible: r.eligible,
+    countryLabel: r.country ? payoutCountryLabel(r.country) : null,
+  };
 }

@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   createTalentAccountSession,
+  createTalentDashboardLinkAction,
   ensureTalentPayoutAccount,
+  loadTalentStablecoinEligibility,
   refreshTalentPayoutStatus,
 } from "./actions";
 import { ConnectEmbeddedOnboarding } from "@/components/payments/ConnectEmbeddedOnboarding";
@@ -53,6 +55,10 @@ export function PayoutsShell({
   const [country, setCountry] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [stablecoinEligible, setStablecoinEligible] = useState(false);
+  const [stablecoinCountry, setStablecoinCountry] = useState<string | null>(null);
+  const [cryptoPending, setCryptoPending] = useState(false);
+  const [cryptoError, setCryptoError] = useState<string | null>(null);
 
   const status = snapshot?.status ?? "none";
   const tone =
@@ -78,6 +84,30 @@ export function PayoutsShell({
   const ctaLabel = status === "none" ? "Connect Stripe to receive payouts"
     : status === "enabled" ? "Update payout details"
     : "Continue Stripe onboarding";
+
+  // Once the Connect account is enabled, check whether this talent's country
+  // supports stablecoin (USDC) Global Payouts — if so, surface the "link a
+  // crypto wallet" path so they can be paid worldwide, not only to a local bank.
+  useEffect(() => {
+    if (status !== "enabled") { setStablecoinEligible(false); return; }
+    let cancelled = false;
+    loadTalentStablecoinEligibility().then((r) => {
+      if (cancelled || !r.ok) return;
+      setStablecoinEligible(r.eligible);
+      setStablecoinCountry(r.countryLabel);
+    });
+    return () => { cancelled = true; };
+  }, [status]);
+
+  const openCryptoDashboard = () => {
+    setCryptoError(null);
+    setCryptoPending(true);
+    createTalentDashboardLinkAction().then((r) => {
+      setCryptoPending(false);
+      if (!r.ok) { setCryptoError(r.error); return; }
+      window.open(r.url, "_blank", "noopener,noreferrer");
+    });
+  };
 
   // Start: ensure the Connect account exists in the right country, then mount
   // the embedded onboarding. If we don't know the talent's country yet, ask.
@@ -310,6 +340,60 @@ export function PayoutsShell({
           </button>
         )}
       </div>
+
+      {status === "enabled" && stablecoinEligible && (
+        <div style={{
+          padding: "16px 18px",
+          background: C.surface,
+          border: `1px solid ${C.borderSoft}`,
+          borderRadius: 14,
+          marginBottom: 16,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
+            <span style={{
+              fontSize: 11, fontWeight: 700, letterSpacing: 0.4,
+              color: C.accent, textTransform: "uppercase",
+            }}>
+              Global payouts · USDC
+            </span>
+            <span style={{
+              fontSize: 10.5, fontWeight: 700, color: C.green,
+              background: C.greenSoft, padding: "2px 7px", borderRadius: 999,
+            }}>
+              Available in {stablecoinCountry ?? "your country"}
+            </span>
+          </div>
+          <p style={{ margin: "0 0 12px", fontSize: 12.5, lineHeight: 1.55, color: C.inkMuted }}>
+            Get paid in <strong style={{ color: C.ink }}>USDC</strong> (digital dollars) to your own
+            crypto wallet — works across borders, with no local-bank wait. Open your Stripe
+            dashboard, link a wallet, and set USDC as your default to switch your payouts over.
+          </p>
+          {cryptoError && (
+            <div role="alert" style={{
+              padding: "8px 10px", marginBottom: 10,
+              background: C.coralSoft, color: C.coral,
+              borderRadius: 8, fontSize: 12,
+            }}>
+              {cryptoError}
+            </div>
+          )}
+          <button
+            type="button"
+            data-testid="talent-stablecoin-cta"
+            onClick={openCryptoDashboard}
+            disabled={cryptoPending}
+            style={{
+              padding: "11px 18px", borderRadius: 10,
+              background: cryptoPending ? "rgba(31,74,58,0.6)" : C.accent,
+              color: "#fff", border: "none",
+              fontFamily: FONT, fontSize: 13, fontWeight: 700,
+              cursor: cryptoPending ? "wait" : "pointer", minHeight: 44,
+            }}
+          >
+            {cryptoPending ? "Opening…" : "Link a crypto wallet for USDC payouts"}
+          </button>
+        </div>
+      )}
 
       <div style={{
         padding: 14,
