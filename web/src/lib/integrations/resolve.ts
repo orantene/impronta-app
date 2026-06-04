@@ -224,9 +224,19 @@ export async function resolveTenantCaptcha(
       provider,
       siteKey,
       tenantOwned: true,
-      getSecret: async () =>
-        (await getDecryptedSecret(tenantId, CAPTCHA_INTEGRATION_KEY, "secret_key"))?.trim() ||
-        null,
+      // Fail CLOSED: a decrypt error (corrupt ciphertext) resolves to null
+      // rather than throwing — the caller treats a null secret on an active
+      // provider as a hard reject, NOT a fall-through to the platform secret.
+      getSecret: async () => {
+        try {
+          return (
+            (await getDecryptedSecret(tenantId, CAPTCHA_INTEGRATION_KEY, "secret_key"))?.trim() ||
+            null
+          );
+        } catch {
+          return null;
+        }
+      },
     };
   }
 

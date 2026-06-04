@@ -313,7 +313,9 @@ export async function verifyEmailDomain(
       status: verified ? "connected" : "not_configured",
       connectionMethod: "manual",
       lastVerifiedAt: verified ? new Date().toISOString() : null,
-      lastError: verified ? null : null,
+      lastError: verified
+        ? null
+        : "Domain not yet verified — DNS records may still be propagating.",
       actorId: guard.actorId,
     },
   );
