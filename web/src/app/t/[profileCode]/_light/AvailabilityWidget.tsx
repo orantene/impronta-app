@@ -1,6 +1,7 @@
 /**
  * AvailabilityWidget — renders an availability pill + 14-day dot strip.
  * Renders nothing when no availability data is available.
+ * --plt tokens only. Status colors stay semantic (green/amber/red).
  *
  * Server component — pure presentational, no interactivity.
  */
@@ -30,25 +31,30 @@ export function AvailabilityWidget({
       : null;
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       {/* Availability pill */}
       {availableDaysInNext30 !== null && (
-        <div className="inline-flex items-center gap-1.5 rounded-full border border-[#ECECEC] bg-[#FAFAF8] px-3 py-1">
+        <div
+          className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1"
+          style={{
+            borderColor: "var(--plt-hairline-strong)",
+            background: "var(--plt-bg-raised)",
+          }}
+        >
           <span
             className="size-2 shrink-0 rounded-full"
             style={{
               backgroundColor:
                 availableDaysInNext30 > 15
-                  ? "#22C55E"
+                  ? "var(--plt-forest-bright)"
                   : availableDaysInNext30 > 5
                   ? "#F59E0B"
                   : "#EF4444",
             }}
           />
-          <span className="text-[11px] font-medium text-[#1A1A1A]">
+          <span className="text-[0.6875rem] font-medium" style={{ color: "var(--plt-ink)" }}>
             Available{" "}
-            <span className="font-semibold">{availableDaysInNext30}</span>
-            {" "}of next 30 days
+            <span className="font-semibold">{availableDaysInNext30}</span> of next 30 days
           </span>
         </div>
       )}
@@ -57,26 +63,28 @@ export function AvailabilityWidget({
       {dots && dots.length > 0 && (
         <div className="flex items-center gap-[3px]" aria-label="14-day availability strip">
           {dots.map((dot, i) => {
-            // '·' = free, '×' = blocked; anything else = unknown
-            const isFree = dot === "·" || dot === "·";
-            const isBlocked = dot === "×" || dot === "×";
+            const isFree = dot === "·";
+            const isBlocked = dot === "×";
             return (
               <span
                 key={i}
                 className="block h-2 w-2 rounded-sm"
                 style={{
                   backgroundColor: isFree
-                    ? "#22C55E"
+                    ? "var(--plt-forest-bright)"
                     : isBlocked
-                    ? "#D1D5DB"
-                    : "#E5E7EB",
-                  opacity: isFree ? 0.8 : 0.5,
+                    ? "var(--plt-hairline-strong)"
+                    : "var(--plt-hairline)",
+                  opacity: isFree ? 0.85 : 0.6,
                 }}
                 aria-hidden="true"
               />
             );
           })}
-          <span className="ml-1 text-[10px] uppercase tracking-[0.12em] text-[#6B6B6B]">
+          <span
+            className="plt-mono ml-1 text-[0.625rem] uppercase tracking-[0.12em]"
+            style={{ color: "var(--plt-muted)" }}
+          >
             14 days
           </span>
         </div>
@@ -84,9 +92,9 @@ export function AvailabilityWidget({
 
       {/* Next available date */}
       {nextAvailableDate && !availableDaysInNext30 && (
-        <p className="text-[11px] text-[#6B6B6B]">
+        <p className="text-[0.6875rem]" style={{ color: "var(--plt-muted)" }}>
           Next available:{" "}
-          <span className="font-medium text-[#1A1A1A]">
+          <span className="font-medium" style={{ color: "var(--plt-ink)" }}>
             {new Date(nextAvailableDate).toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",

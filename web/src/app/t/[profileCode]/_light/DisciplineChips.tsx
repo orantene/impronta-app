@@ -1,5 +1,6 @@
 /**
- * DisciplineChips — talent type chips (primary emphasized, secondaries muted).
+ * DisciplineChips — talent type chips (primary in forest, secondaries muted).
+ * --plt tokens only.
  */
 
 type DisciplineChipsProps = {
@@ -18,12 +19,16 @@ export function DisciplineChips({ primaryType, allTypes }: DisciplineChipsProps)
         return (
           <span
             key={type}
-            className={[
-              "inline-flex items-center rounded-full px-3 py-1 text-[11px] font-medium uppercase tracking-[0.14em]",
+            className="inline-flex items-center rounded-full px-3 py-1 text-[0.6875rem] font-semibold uppercase tracking-[0.12em]"
+            style={
               isPrimary
-                ? "bg-[#1A1A1A] text-white"
-                : "border border-[#ECECEC] bg-transparent text-[#6B6B6B]",
-            ].join(" ")}
+                ? { background: "var(--plt-forest)", color: "var(--plt-forest-on)" }
+                : {
+                    border: "1px solid var(--plt-hairline-strong)",
+                    background: "var(--plt-bg-raised)",
+                    color: "var(--plt-ink-soft)",
+                  }
+            }
           >
             {type}
           </span>

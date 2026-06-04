@@ -1,7 +1,7 @@
 /**
- * Monogram — renders the talent's initials in an elegant circular badge.
- * Used as the cover-less empty-state: a soft neutral gradient band with a
- * large monogram centered. NO emoji, NO placeholder box.
+ * Monogram — renders the talent's initials in an elegant cover band.
+ * Used as the cover-less empty-state: a soft forest-tinted gradient band with
+ * a large monogram centered. NO emoji, NO placeholder box. --plt tokens only.
  */
 
 type MonogramProps = {
@@ -26,15 +26,19 @@ export function Monogram({ name, className = "" }: MonogramProps) {
     <div
       className={[
         "relative flex h-[32vh] min-h-[200px] w-full items-center justify-center",
-        "bg-gradient-to-br from-[#F5F3EF] via-[#EDEAE4] to-[#E4E0D8]",
         className,
       ].join(" ")}
+      style={{
+        background:
+          "linear-gradient(135deg, var(--plt-bg-raised) 0%, var(--plt-bg-deep) 55%, var(--plt-bg-elevated) 100%)",
+      }}
       aria-hidden="true"
     >
       {/* Subtle radial highlight */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_60%_at_50%_40%,rgba(255,255,255,0.55),transparent)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_60%_at_50%_40%,rgba(255,255,255,0.5),transparent)]" />
       <span
-        className="relative select-none font-[family-name:var(--font-cinzel)] text-[min(18vw,9rem)] font-medium leading-none tracking-[0.08em] text-[#C2BAB0]/60"
+        className="plt-display relative select-none text-[min(18vw,9rem)] font-semibold leading-none tracking-[-0.04em]"
+        style={{ color: "color-mix(in srgb, var(--plt-forest) 30%, var(--plt-muted-soft))" }}
         aria-label={`${name} initials`}
       >
         {initials}

@@ -3,9 +3,11 @@
  * Renders on the left column (main body). Combines:
  *   - Taxonomy chips: fit_labels / skills / industries / event_types / tags
  *   - talent_skills rows with proficiency + years for the primary skill section.
+ * --plt tokens only.
  */
 
 import type { ResolvedSkill } from "@/lib/server-actions/admin-talent-skills.types";
+import { LightSectionLabel } from "./section-label";
 
 type SkillsExperienceBlockProps = {
   resolvedSkills: ResolvedSkill[];
@@ -65,11 +67,9 @@ export function SkillsExperienceBlock({
         <div className="mt-5 space-y-3">
           {resolvedSkills.map((s) => {
             const label =
-              locale === "es" && s.skill_name_es
-                ? s.skill_name_es
-                : s.skill_name_en;
+              locale === "es" && s.skill_name_es ? s.skill_name_es : s.skill_name_en;
             const profLabel = s.proficiency_level
-              ? (PROF_LABELS[s.proficiency_level] ?? s.proficiency_level)
+              ? PROF_LABELS[s.proficiency_level] ?? s.proficiency_level
               : null;
             const yrs =
               s.years_experience !== null && s.years_experience > 0
@@ -79,28 +79,37 @@ export function SkillsExperienceBlock({
             return (
               <div
                 key={s.skill_term_id}
-                className="flex items-center justify-between gap-4 border-b border-[#F0F0EE] pb-3 last:border-0 last:pb-0"
+                className="flex items-center justify-between gap-4 border-b pb-3 last:border-0 last:pb-0"
+                style={{ borderColor: "var(--plt-hairline)" }}
               >
                 <div className="flex items-center gap-2">
                   <span
-                    className={[
-                      "size-2 shrink-0 rounded-full",
-                      s.relationship_type === "primary_role"
-                        ? "bg-[#1A1A1A]"
-                        : "bg-[#D1D5DB]",
-                    ].join(" ")}
+                    className="size-2 shrink-0 rounded-full"
+                    style={{
+                      background:
+                        s.relationship_type === "primary_role"
+                          ? "var(--plt-forest)"
+                          : "var(--plt-hairline-strong)",
+                    }}
                   />
-                  <span className="text-sm font-medium text-[#1A1A1A]">
+                  <span className="text-sm font-medium" style={{ color: "var(--plt-ink)" }}>
                     {label}
                   </span>
                   {s.is_verified ? (
-                    <span className="text-[10px] text-[#9CA3AF]" aria-label="Verified skill">
+                    <span
+                      className="text-[0.625rem]"
+                      style={{ color: "var(--plt-forest)" }}
+                      aria-label="Verified skill"
+                    >
                       ✓
                     </span>
                   ) : null}
                 </div>
-                {(yrs || profLabel) ? (
-                  <span className="shrink-0 text-[11px] uppercase tracking-[0.12em] text-[#9CA3AF]">
+                {yrs || profLabel ? (
+                  <span
+                    className="plt-mono shrink-0 text-[0.6875rem] uppercase tracking-[0.12em]"
+                    style={{ color: "var(--plt-muted)" }}
+                  >
                     {[yrs, profLabel].filter(Boolean).join(" · ")}
                   </span>
                 ) : null}
@@ -125,9 +134,7 @@ export function SkillsExperienceBlock({
           {showEventTypes && eventTypes.length > 0 ? (
             <ChipGroup label="Events" chips={eventTypes} />
           ) : null}
-          {showTags && tags.length > 0 ? (
-            <ChipGroup label="Tags" chips={tags} />
-          ) : null}
+          {showTags && tags.length > 0 ? <ChipGroup label="Tags" chips={tags} /> : null}
         </div>
       ) : null}
     </section>
@@ -145,19 +152,31 @@ function ChipGroup({
 }) {
   return (
     <div className="space-y-2">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#C4C4C4]">
+      <p
+        className="plt-mono text-[0.625rem] font-semibold uppercase tracking-[0.18em]"
+        style={{ color: "var(--plt-muted-soft)" }}
+      >
         {label}
       </p>
       <ul className="flex flex-wrap gap-2">
         {chips.map((chip) => (
           <li key={chip}>
             <span
-              className={[
-                "inline-flex items-center rounded-full px-3 py-1 text-xs",
+              className="inline-flex items-center rounded-full px-3 py-1 text-xs"
+              style={
                 variant === "accent"
-                  ? "border border-[#1A1A1A]/12 bg-[#1A1A1A]/6 font-medium text-[#1A1A1A]"
-                  : "border border-[#ECECEC] bg-white text-[#6B6B6B]",
-              ].join(" ")}
+                  ? {
+                      border: "1px solid color-mix(in srgb, var(--plt-forest) 22%, transparent)",
+                      background: "var(--plt-forest-soft)",
+                      color: "var(--plt-forest-deep)",
+                      fontWeight: 500,
+                    }
+                  : {
+                      border: "1px solid var(--plt-hairline-strong)",
+                      background: "var(--plt-bg-raised)",
+                      color: "var(--plt-ink-soft)",
+                    }
+              }
             >
               {chip}
             </span>
@@ -165,22 +184,5 @@ function ChipGroup({
         ))}
       </ul>
     </div>
-  );
-}
-
-function LightSectionLabel({
-  id,
-  children,
-}: {
-  id?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <h2
-      id={id}
-      className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#9CA3AF]"
-    >
-      {children}
-    </h2>
   );
 }
