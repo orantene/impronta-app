@@ -115,6 +115,7 @@ import { checkSlotTypeCompatibility } from "@/lib/site-admin/edit-mode/slot-type
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
 import { isBuilderClientCanvasEnabled } from "@/lib/site-admin/edit-mode/client-canvas-flag";
+import { collectBuilderSectionEmbedNodes } from "@/lib/site-admin/builder-node/section-embed-renderer";
 import { publishBuilderCanvasTree } from "./client-builder-canvas-bridge";
 import { normalizeCompositionSlots } from "./composition-slots";
 import {
@@ -1727,6 +1728,39 @@ interface EditProviderProps {
   /** True only for platform owners (super_admin) — gates raw-HTML `code` insertion. */
   canInsertRawHtmlElements?: boolean;
   children: ReactNode;
+}
+
+/**
+ * W3 Sub-step C — section_embed reconcile detector.
+ *
+ * `section_embed` nodes are server-rendered islands: the client canvas
+ * (`ClientBuilderCanvas`) renders each one from a `sectionEmbedIslands` map the
+ * SERVER pre-rendered, keyed by node id. A purely client-side repaint can paint
+ * regular nodes instantly, but it CANNOT conjure an island for a section_embed
+ * id the server never rendered (i.e. one created by an add/duplicate). A move
+ * keeps the same id, so the cached island repaints client-side — no server
+ * round-trip needed. Only a CHANGE TO THE SET of section_embed ids (an id that
+ * appears or disappears) requires the server to re-render the storefront RSC
+ * tree so the new island exists.
+ *
+ * Returns true when the section_embed id sets differ between two trees — the
+ * signal to eagerly `router.refresh()` (scoped reconcile) so the new island is
+ * server-rendered promptly, rather than waiting for the debounced save's
+ * trailing refresh. Cheap: O(embed nodes), and embeds are a small minority.
+ */
+function mutationTouchesSectionEmbedIslandSet(
+  prevTree: BuilderNodeTree,
+  nextTree: BuilderNodeTree,
+): boolean {
+  const prevIds = collectBuilderSectionEmbedNodes(prevTree).map((n) => n.id);
+  const nextIds = collectBuilderSectionEmbedNodes(nextTree).map((n) => n.id);
+  if (prevIds.length !== nextIds.length) return true;
+  if (nextIds.length === 0) return false;
+  const prevSet = new Set(prevIds);
+  for (const id of nextIds) {
+    if (!prevSet.has(id)) return true;
+  }
+  return false;
 }
 
 export function EditProvider({
@@ -4078,9 +4112,26 @@ export function EditProvider({
       }
       // Optimistic local update — apply immediately so the canvas reflects the
       // edit without waiting for the (debounced) server round-trip. The UI never
-      // blocks on a save.
+      // blocks on a save. Under the client-canvas flag this `setBuilderTree`
+      // publishes the new tree to the bridge (the publish effect deps on
+      // `builderTree`), so the client canvas repaints REGULAR nodes instantly —
+      // no network on the keystroke/commit.
       builderTreeRef.current = nextTree;
       setBuilderTree(nextTree);
+      // W3 Sub-step C — section_embed scoped reconcile. The client canvas can't
+      // paint an island the server never rendered (a section_embed added /
+      // duplicated this commit gets a fresh id with no cached island). When the
+      // set of section_embed ids changes, eagerly refresh the server RSC tree so
+      // the new island is rendered promptly instead of waiting for the debounced
+      // save's trailing refresh. Flag-gated: with the client canvas OFF, the
+      // server-rendered canvas already repaints on the save refresh — this extra
+      // eager refresh would be redundant, so it stays scoped to the flag-on path.
+      if (
+        isBuilderClientCanvasEnabled() &&
+        mutationTouchesSectionEmbedIslandSet(prevTree, nextTree)
+      ) {
+        void queueRouterRefresh();
+      }
       setPast((p) =>
         capHistory([
           ...p,
@@ -4110,7 +4161,7 @@ export function EditProvider({
       // rollback inside persistBuilderTree.
       return { ok: true as const };
     },
-    [capHistory],
+    [capHistory, queueRouterRefresh],
   );
 
   const executeBuilderNodeOperation = useCallback(
