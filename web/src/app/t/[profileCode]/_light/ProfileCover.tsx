@@ -24,12 +24,13 @@ export function ProfileCover({
   }
 
   return (
-    <div className="relative h-[42vh] min-h-[280px] w-full overflow-hidden sm:h-[50vh]">
+    <div className="relative h-[38vh] min-h-[240px] w-full overflow-hidden sm:h-[46vh]">
       <Image
         src={bannerUrl}
         alt={`${name} cover`}
         fill
-        className="object-cover object-top"
+        /* favor the upper-centre so faces aren't cropped at the top edge */
+        className="object-cover [object-position:50%_28%]"
         sizes="100vw"
         priority
       />

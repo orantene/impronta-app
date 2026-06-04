@@ -297,7 +297,7 @@ export function LightProfileLayout({
             <div className="mt-5">
               <PortfolioGalleryLightbox
                 name={name}
-                items={galleryItems}
+                items={galleryItems.slice(0, 9)}
                 lightbox={ui.lightbox}
                 closeLabel={ui.preview.close}
                 watermarkPreset={watermarkPreset}
