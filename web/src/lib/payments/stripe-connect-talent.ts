@@ -202,10 +202,12 @@ export async function createOrGetTalentConnectedAccount(
     });
   } catch (err) {
     logServerError("stripe-connect-talent.createAccount", err);
-    // Most commonly: Stripe doesn't support Connect payouts in `country` yet.
+    // Most commonly: Stripe Connect (a US-based platform) can't open a connected
+    // account in `country` (e.g. Mexico, Argentina). That's exactly what the
+    // Global Payouts "local bank" rail below is for, so point the talent there.
     return {
       ok: false,
-      error: `Payouts aren't available in ${payoutCountryLabel(country)} yet — we're expanding coverage.`,
+      error: `${payoutCountryLabel(country)} isn't supported for direct Stripe payouts. Use "Get paid to your local bank" below, it covers ${payoutCountryLabel(country)}.`,
     };
   }
 

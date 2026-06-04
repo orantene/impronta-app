@@ -104,16 +104,25 @@ export function PayoutsShell({
   const isEnabled = status === "enabled";
 
   // When embedded in a drawer there's no server prop, so pull the snapshot here.
+  // The drawer must NEVER hang on "Loading": clear the loading state on success,
+  // failure, OR a short timeout, so the talent always reaches an actionable view.
   useEffect(() => {
     if (!selfLoad) return;
     let cancelled = false;
-    loadTalentPayoutSnapshot().then((r) => {
-      if (cancelled) return;
-      if (r.ok) setSnapshot(r.snapshot);
-      setSelfLoaded(true);
-    });
+    const reveal = () => {
+      if (!cancelled) setSelfLoaded(true);
+    };
+    loadTalentPayoutSnapshot()
+      .then((r) => {
+        if (cancelled) return;
+        if (r.ok) setSnapshot(r.snapshot);
+        reveal();
+      })
+      .catch(reveal);
+    const fallback = setTimeout(reveal, 6000);
     return () => {
       cancelled = true;
+      clearTimeout(fallback);
     };
   }, [selfLoad]);
 
