@@ -1072,46 +1072,100 @@ export function NavigatorPanel() {
   );
 
   if (!navigatorOpen) {
-    // Collapsed "rail handle" — a 24px-wide tab on the left edge that
-    // restores the panel. Mirrors how the inspector's drawer-tools
-    // close button works on the right side.
+    // Collapsed state — a small FLOATING, DRAGGABLE mini-rail (not a fixed
+    // full-height tab pinned to the left edge). It shares the SAME floating
+    // offset as the expanded panel, so it stays wherever you parked the panel
+    // and you can keep dragging it around like a Paint tool window.
     return (
-      <button
-        type="button"
+      <div
         data-edit-overlay="navigator-rail-handle"
-        onClick={toggleNavigator}
-        title="Show Structure Navigator (⌘\\)"
-        aria-label="Show Structure Navigator"
         style={{
           position: "fixed",
-          left: 0,
-          top: 54,
-          bottom: 0,
-          width: 22,
-          borderRight: `1px solid ${CHROME.line}`,
-          background: CHROME.paper,
-          color: CHROME.muted,
+          left: 14,
+          top: 66,
+          width: 44,
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
-          justifyContent: "center",
+          padding: "0 0 6px",
+          background: CHROME.surface,
+          border: `1px solid ${CHROME.line}`,
+          borderRadius: 14,
+          boxShadow: floatingDrag.dragging
+            ? "0 30px 70px -20px rgba(17,24,39,0.45), 0 10px 26px -10px rgba(17,24,39,0.26)"
+            : "0 16px 44px -20px rgba(17,24,39,0.26), 0 4px 12px -8px rgba(17,24,39,0.14)",
           zIndex: 80,
-          cursor: "pointer",
+          transform: floatingDrag.transform,
+          transition: floatingDrag.dragging ? "none" : "box-shadow 180ms ease",
+          userSelect: floatingDrag.dragging ? "none" : undefined,
         }}
       >
-        <svg
-          width="11"
-          height="11"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
+        <div
+          onPointerDown={floatingDrag.onHandlePointerDown}
+          title="Drag to move"
+          style={{
+            width: "100%",
+            display: "flex",
+            justifyContent: "center",
+            padding: "7px 0 5px",
+            cursor: floatingDrag.dragging ? "grabbing" : "grab",
+            touchAction: "none",
+            color: CHROME.muted,
+          }}
         >
-          <polyline points="9 18 15 12 9 6" />
-        </svg>
-      </button>
+          <span
+            aria-hidden
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(2, 3px)",
+              gridAutoRows: "3px",
+              gap: 2.5,
+              opacity: floatingDrag.dragging ? 0.85 : 0.5,
+            }}
+          >
+            {Array.from({ length: 6 }).map((_, i) => (
+              <span
+                key={i}
+                style={{ width: 3, height: 3, borderRadius: 9999, background: "currentColor" }}
+              />
+            ))}
+          </span>
+        </div>
+        <button
+          type="button"
+          data-no-drag
+          onClick={toggleNavigator}
+          title="Open Layers (⌘\\)"
+          aria-label="Open Layers panel"
+          style={{
+            width: 34,
+            height: 34,
+            borderRadius: 10,
+            border: "none",
+            background: "transparent",
+            color: CHROME.muted,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <svg
+            width="17"
+            height="17"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.9"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <path d="M9 3v18" />
+          </svg>
+        </button>
+      </div>
     );
   }
 
