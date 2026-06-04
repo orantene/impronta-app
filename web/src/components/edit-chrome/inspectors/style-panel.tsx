@@ -5778,7 +5778,7 @@ export function StylePanel({
               title="Typography"
               collapsible
               storageKey={`style-panel:typography:${selectedStandaloneStyleNode.kind}`}
-              defaultOpen={["heading", "paragraph", "button"].includes(selectedStandaloneStyleNode.kind)}
+              defaultOpen={["heading", "paragraph", "button", "rich_text"].includes(selectedStandaloneStyleNode.kind)}
               accessory={
                 typographyHasResponsiveOverride ? (
                   <StyleGroupOverrideDot label="Typography has tablet/mobile overrides" />

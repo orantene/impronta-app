@@ -219,10 +219,6 @@ export function InlineEditor() {
 
     function onDblClick(e: MouseEvent) {
       if (!(e.target instanceof HTMLElement)) return;
-      const sectionEl = e.target.closest<HTMLElement>("[data-cms-section]");
-      if (!sectionEl) return;
-      const sectionId = sectionEl.getAttribute("data-section-id");
-      if (!sectionId || sectionId !== selectedIdRef.current) return;
 
       // Don't re-engage an already-editing element.
       if (e.target.closest('[data-edit-overlay="canvas-edit"]')) return;
@@ -235,32 +231,36 @@ export function InlineEditor() {
 
       // #16: prefer the stored prop value for builder nodes — it carries rich
       // marker syntax (bold/italic/links) that the RichEditor understands,
-      // while textContent would strip all markers to plain text. Fall back to
-      // textContent for legacy section text (no builder node resolved).
+      // while textContent would strip all markers to plain text.
       const builderNodeTarget = resolveEditableBuilderNodeTextTarget(
         builderTreeRef.current,
         editable,
       );
-      // Resolve the stored value BEFORE the original-text check so an empty
-      // DOM text (e.g. a heading that contains only styled spans) doesn't block.
-      const storedValue = builderNodeTarget
-        ? resolveBuilderNodeTextValue(
-            builderTreeRef.current,
-            builderNodeTarget.id,
-            builderNodeTarget.propKey,
-          )
-        : null;
-      const original =
-        storedValue !== null ? storedValue : (editable.textContent ?? "").trim();
-      if (!original) return;
 
-      e.preventDefault();
-      e.stopPropagation();
-
-      const variant: "single" | "multi" = SINGLE_LINE_TAGS.has(editable.tagName)
-        ? "single"
-        : "multi";
+      // ── Freeform builder-node text — the primary path for 2026 full-page
+      // designs. These patch DIRECTLY via patchBuilderNodeProps (keyed by node
+      // id), so they need NEITHER a wrapping `[data-cms-section]` element NOR
+      // section-selection alignment. Full-page freeform designs have builder
+      // nodes with no parent CMS section (`sectionIdByBuilderNodeId` is empty →
+      // `selectedSectionId` stays null), so the legacy section gate below would
+      // reject EVERY freeform text node and the canvas WYSIWYG (bold / italic /
+      // colour / link toolbar) would never appear on double-click. Resolve and
+      // open the overlay here, before that gate. ──
       if (builderNodeTarget) {
+        // Resolve the stored value BEFORE the empty check so a heading that
+        // contains only styled spans (empty DOM text) doesn't block.
+        const storedValue = resolveBuilderNodeTextValue(
+          builderTreeRef.current,
+          builderNodeTarget.id,
+          builderNodeTarget.propKey,
+        );
+        const original =
+          storedValue !== null
+            ? storedValue
+            : (editable.textContent ?? "").trim();
+        if (!original) return;
+        e.preventDefault();
+        e.stopPropagation();
         selectBuilderNode(builderNodeTarget.id);
         setActiveEdit({
           el: editable,
@@ -273,10 +273,24 @@ export function InlineEditor() {
         });
         return;
       }
-      // Legacy section text still writes through draftProps, so wait until
-      // the inspector has loaded that payload. Freeform nodes patch directly
-      // above and do not need this section-prop payload.
+
+      // ── Legacy CMS-section text — writes go through `draftProps` keyed by the
+      // currently-loaded section, so the double-clicked text must live inside
+      // the section that's actually selected. ──
+      const sectionEl = e.target.closest<HTMLElement>("[data-cms-section]");
+      if (!sectionEl) return;
+      const sectionId = sectionEl.getAttribute("data-section-id");
+      if (!sectionId || sectionId !== selectedIdRef.current) return;
+      const original = (editable.textContent ?? "").trim();
+      if (!original) return;
+      // Legacy section text still writes through draftProps, so wait until the
+      // inspector has loaded that payload.
       if (!draftPropsRef.current) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const variant: "single" | "multi" = SINGLE_LINE_TAGS.has(editable.tagName)
+        ? "single"
+        : "multi";
       setActiveEdit({ el: editable, original, variant });
     }
 
