@@ -34,3 +34,7 @@ export {
 } from "./ReplyToMessage";
 
 export { StarButton } from "./StarButton";
+
+export { PinButton } from "./PinButton";
+
+export { PinnedStrip } from "./PinnedStrip";
