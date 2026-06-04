@@ -52,24 +52,6 @@ const ACTOR_HEADERS_TO_STRIP = [
   ACTOR_ONBOARDED_HEADER,
 ];
 
-/**
- * True only for an UNRECOVERABLE Supabase refresh-token failure — the token is
- * gone / already-rotated, so no retry can succeed and the cookie must be
- * cleared. Deliberately narrow: a transient network/5xx error to the auth
- * server must NOT match (we don't want to log a valid session out on a blip).
- */
-function isUnrecoverableRefreshTokenError(err: unknown): boolean {
-  if (!err || typeof err !== "object") return false;
-  const e = err as { code?: unknown; message?: unknown };
-  const code = typeof e.code === "string" ? e.code.toLowerCase() : "";
-  const msg = typeof e.message === "string" ? e.message.toLowerCase() : "";
-  return (
-    code === "refresh_token_not_found" ||
-    code === "refresh_token_already_used" ||
-    msg.includes("refresh token not found") ||
-    msg.includes("invalid refresh token")
-  );
-}
 
 export async function updateSession(
   request: NextRequest,
@@ -190,22 +172,34 @@ export async function updateSession(
   //
   // CRITICAL — only self-heal on the auth-ENTRY routes (/login, /register),
   // where there is by definition no in-use session to protect. Clearing on a
-  // normal app route was catastrophic: a single request that transiently read
-  // a STALE DUPLICATE auth cookie (a legacy host-only `sb-…-auth-token`
-  // coexisting with the canonical parent-domain one — the browser sends both
-  // and the server may read the stale one) made getUser fail, and this then
-  // nuked BOTH cookie scopes — destroying the *valid* fresh session and
-  // bouncing the user to /login mid-use (the ~40s-after-login death). Gating to
-  // the login page keeps the recovery — a genuinely-stuck browser lands on
-  // /login, the stale cookie is expired there, and the next sign-in writes one
-  // clean cookie — without ever logging an active session out on an app route.
-  // The SPECIFIC error check (never a transient/network blip) is an extra guard.
-  // Applied to BOTH the redirect and the passthrough response below.
+  // normal app route is catastrophic: a single request that transiently reads a
+  // STALE/ORPHAN auth cookie makes getUser fail, and clearing then nukes the
+  // *valid* fresh session too — bouncing the user to /login mid-use (the
+  // ~40s-after-login death). Gating to the login page keeps the recovery
+  // without ever logging an active session out on an app route.
+  //
+  // The trigger is "an `sb-…-auth-token` cookie is present but produced NO
+  // user". On /login that is an unambiguous signal of a BROKEN cookie that must
+  // be swept so the next sign-in starts clean. It covers every way the cookie
+  // can rot, not just one error string:
+  //   - ORPHAN EMPTY CHUNKS: a session that shrank from chunked→unchunked leaves
+  //     `…-auth-token.0`/`.1` = "" beside a valid base cookie; @supabase/ssr
+  //     reconstructs the session from the empty chunks → invalid (the bug proven
+  //     live: chunks="" while base held a real JWT).
+  //   - CROSS-SCOPE DUPLICATES: a legacy host-only cookie shadowing the
+  //     canonical `.tulala.digital` one (browser sends both, server reads the
+  //     stale/expired one — proven live: an 8h-expired session from a different
+  //     account read instead of the fresh login).
+  //   - plainly expired / malformed cookies.
+  // A brand-new visitor (no cookie) → no-op. A validly logged-in visitor →
+  // `user` is set → not cleared, just routed to their dashboard.
+  // clearStaleAuthCookies expires BOTH cookie scopes (host-only + parent-domain)
+  // and every chunk name, applied to the redirect AND the passthrough below.
   const isAuthEntryRoute = /\/(login|register)\/?$/.test(pathnameForAuth);
-  const shouldClearStaleAuth =
-    !user &&
-    isAuthEntryRoute &&
-    isUnrecoverableRefreshTokenError(authResult.error);
+  const hasStaleAuthCookie = request.cookies
+    .getAll()
+    .some((c) => isSupabaseAuthCookie(c.name));
+  const shouldClearStaleAuth = !user && isAuthEntryRoute && hasStaleAuthCookie;
   const clearStaleAuthCookies = (res: NextResponse): NextResponse => {
     if (!shouldClearStaleAuth) return res;
     for (const c of request.cookies.getAll()) {
