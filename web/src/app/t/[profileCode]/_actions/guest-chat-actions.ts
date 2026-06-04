@@ -233,18 +233,23 @@ async function resolveTenantIdBySlug(
 async function resolveCreateRecipientUserIds(
   admin: SupabaseClient,
   tenantId: string,
-  talentProfileId: string,
+  talentProfileId: string | null | undefined,
 ): Promise<string[]> {
   const ids = new Set<string>();
-  const [talentRes, staffRes] = await Promise.all([
-    admin.from("talent_profiles").select("user_id").eq("id", talentProfileId).maybeSingle(),
-    admin
-      .from("agency_memberships")
-      .select("profile_id")
-      .eq("tenant_id", tenantId)
-      .eq("status", "active"),
-  ]);
-  const talentUserId = (talentRes.data?.user_id as string | null) ?? null;
+  // Agency-level (talent-less) chats have no talent recipient — only staff.
+  const talentRes = talentProfileId
+    ? await admin
+        .from("talent_profiles")
+        .select("user_id")
+        .eq("id", talentProfileId)
+        .maybeSingle()
+    : null;
+  const staffRes = await admin
+    .from("agency_memberships")
+    .select("profile_id")
+    .eq("tenant_id", tenantId)
+    .eq("status", "active");
+  const talentUserId = (talentRes?.data?.user_id as string | null) ?? null;
   if (talentUserId) ids.add(talentUserId);
   for (const m of (staffRes.data ?? []) as Array<{ profile_id: string | null }>) {
     if (m.profile_id) ids.add(m.profile_id);
@@ -500,9 +505,11 @@ export async function startGuestChatInquiry(
       missingFields: missing,
     });
   }
-  if (!input.talentProfileId) {
-    return fail("validation_failed", "Missing talent.", { missingFields: ["talent.selected_ids"] });
-  }
+  // talentProfileId is OPTIONAL: present on a talent profile page (source
+  // `public_talent_profile`), absent on the agency directory/home launcher,
+  // which starts a talent-less "message the agency" inquiry (source `agency_site`).
+  const talentProfileId = input.talentProfileId?.trim() || null;
+  const hasTalent = talentProfileId !== null;
 
   const guest = await resolveGuestContext();
   if (!guest.ok) return guest.failure;
@@ -548,7 +555,7 @@ export async function startGuestChatInquiry(
   const createRecipientIds = await resolveCreateRecipientUserIds(
     admin,
     tenantId,
-    input.talentProfileId,
+    talentProfileId,
   );
   const block = await isBlocked(
     {
@@ -582,10 +589,32 @@ export async function startGuestChatInquiry(
   // always carries its own status, so the validator stays satisfied). Other
   // captured fragments (talent count/types, budget, event_type) only ADD signal.
   const talentTypesNeeded = capture.talent?.types_needed;
+  // Talent block: a pre-selected single talent on a profile page, or — on the
+  // agency directory/home launcher — a talent-less "agency recommends" intent.
+  // validateIntentForSubmit is satisfied either way: brief.summary is always set,
+  // and it requires `brief.summary OR talent.selected_ids`.
+  const talentIntent = hasTalent
+    ? {
+        selected_ids: [talentProfileId as string],
+        selection_mode: "i_know_who" as const,
+        ...(capture.talent?.count_needed ? { count_needed: capture.talent.count_needed } : {}),
+        ...(talentTypesNeeded && talentTypesNeeded.length > 0
+          ? { types_needed: talentTypesNeeded }
+          : {}),
+      }
+    : {
+        selection_mode: "agency_recommends" as const,
+        ...(capture.talent?.count_needed ? { count_needed: capture.talent.count_needed } : {}),
+        ...(talentTypesNeeded && talentTypesNeeded.length > 0
+          ? { types_needed: talentTypesNeeded }
+          : {}),
+      };
   const intent: InquiryIntent = {
-    source: "public_talent_profile",
+    source: hasTalent ? "public_talent_profile" : "agency_site",
     source_context: {
-      public_profile_code: input.talentProfileCode,
+      ...(hasTalent && input.talentProfileCode
+        ? { public_profile_code: input.talentProfileCode }
+        : {}),
       referrer_page: input.sourcePage,
       tenant_id: tenantId,
       ...(capture.eventType ? { ai_event_type: capture.eventType } : {}),
@@ -596,14 +625,7 @@ export async function startGuestChatInquiry(
       phone: input.contactPhone?.trim() || undefined,
       trust_level: "basic",
     },
-    talent: {
-      selected_ids: [input.talentProfileId],
-      selection_mode: "i_know_who",
-      ...(capture.talent?.count_needed ? { count_needed: capture.talent.count_needed } : {}),
-      ...(talentTypesNeeded && talentTypesNeeded.length > 0
-        ? { types_needed: talentTypesNeeded }
-        : {}),
-    },
+    talent: talentIntent,
     // Default to "not_sure"; an AI-derived fragment (which carries its own
     // exact/flexible/online/unconfirmed status) replaces it when present.
     location: capture.location ?? { status: "not_sure" },
@@ -674,7 +696,7 @@ export async function startGuestChatInquiry(
   const emittedAutoAck = await emitGuestAutoAck({
     inquiryId,
     tenantId,
-    talentProfileId: input.talentProfileId,
+    talentProfileId,
   });
 
   // GUEST → CLIENT CLAIM (best-effort, non-blocking): email the guest a
@@ -689,12 +711,14 @@ export async function startGuestChatInquiry(
     // Talent display name for the subject/body — best-effort; fall back to the
     // agency name so the copy is never empty.
     let talentName = "";
-    const { data: talentRow } = await admin
-      .from("talent_profiles")
-      .select("display_name")
-      .eq("id", input.talentProfileId)
-      .maybeSingle();
-    talentName = (talentRow?.display_name as string | null)?.trim() || "";
+    if (talentProfileId) {
+      const { data: talentRow } = await admin
+        .from("talent_profiles")
+        .select("display_name")
+        .eq("id", talentProfileId)
+        .maybeSingle();
+      talentName = (talentRow?.display_name as string | null)?.trim() || "";
+    }
     if (!talentName) {
       talentName = (await loadAgencyName(admin, tenantId)) ?? "the team";
     }

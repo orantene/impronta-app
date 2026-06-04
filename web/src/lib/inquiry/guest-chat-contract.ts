@@ -155,10 +155,15 @@ export type GuestChatFailure = {
 export type StartGuestChatInput = {
   /** Tenant slug from the talent-profile page (hostCtx.tenantSlug). Required. */
   tenantSlug: string;
-  /** The talent the guest is messaging (talent_profiles.id). Required, single talent for MVP. */
-  talentProfileId: string;
-  /** Public profile code, for source_context provenance (profile_code). */
-  talentProfileCode: string;
+  /**
+   * The talent the guest is messaging (talent_profiles.id). OPTIONAL: omitted
+   * (or empty) on the agency directory/home launcher, which starts a talent-less
+   * "message the agency" inquiry (source `agency_site`). Present on a talent
+   * profile page (source `public_talent_profile`).
+   */
+  talentProfileId?: string | null;
+  /** Public profile code, for source_context provenance. Omitted on agency-level chats. */
+  talentProfileCode?: string | null;
   /** Guest's name from the inline gate. Required (engine requires requester.name). */
   contactName: string;
   /** Guest's email from the inline gate. Required to persist + route + claim. */
@@ -337,6 +342,11 @@ export type MiniChatBrand = {
   accentColor?: string | null;
   /** Optional agency logo URL for the panel header. */
   logoUrl?: string | null;
+  /**
+   * Optional custom opener line (tenant_guest_chat_settings.greeting). When set,
+   * replaces the default "Hi — I'm {talent}'s booking assistant…" opener.
+   */
+  greeting?: string | null;
 };
 
 export type MiniChatPanelProps = {

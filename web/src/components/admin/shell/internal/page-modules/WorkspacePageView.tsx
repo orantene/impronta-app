@@ -388,6 +388,7 @@ export function WorkspacePageView() {
           <AccordionItem id="workspace" label="Workspace" desc="Timezone, locale, currency, and workspace defaults." supportLink="/help/settings/workspace" open={isOpen("workspace")} onToggle={() => toggleSection("workspace")}>
             {[
               { title: "General",     desc: "Timezone · Locale · Workspace defaults",  drawer: "workspace-settings" as const },
+              { title: "Guest chat", desc: "Show a “Message” button on your public pages — on/off + where it appears", drawer: "guest-chat-settings" as const },
               { title: "Profile fields", desc: "Enable, require, rename talent profile fields", drawer: "field-catalog" as const, plan: "agency" as const },
               { title: "Field settings", desc: "Workspace overrides for the resolved profile engine", drawer: "workspace-field-settings" as const, plan: "agency" as const },
               { title: "Talent categories", desc: "Tenant-enabled categories for roster and registration",  drawer: "talent-types" as const, plan: "agency" as const },

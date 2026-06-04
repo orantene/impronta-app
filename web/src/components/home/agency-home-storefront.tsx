@@ -1,3 +1,4 @@
+import { AgencyChatLauncherMount } from "@/app/(public)/_chat/AgencyChatLauncherMount";
 import { MergeGuestFavorites } from "@/components/client/merge-guest-favorites";
 import { DirectoryInquiryModalProvider } from "@/components/directory/directory-inquiry-modal-context";
 import { DirectoryInquirySheet } from "@/components/directory/directory-inquiry-sheet";
@@ -310,6 +311,9 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
           </FavoritesDrawerProvider>
         </DirectoryInquiryModalProvider>
       </PublicDiscoveryStateProvider>
+      {/* Floating "Message {agency}" guest-chat launcher — self-gates on the
+          tenant's guest-chat settings (enabled + show-on-directory). */}
+      <AgencyChatLauncherMount sourcePage="/" />
     </div>
   );
 }

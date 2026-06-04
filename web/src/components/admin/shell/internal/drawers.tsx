@@ -26,6 +26,7 @@ import { TeamDrawer, TalentTypesDrawer } from "./drawers/light-02";
 import { TalentRegistrationDrawer } from "./drawers/light-03";
 import { TalentApprovalsDrawer, BrandingDrawer, WatermarkEditorDrawer } from "./drawers/light-04";
 import { DomainDrawer, IdentityDrawer, WorkspaceSettingsDrawer, TalentProfileDrawer, MyProfileDrawer } from "./drawers/light-05";
+import { GuestChatSettingsDrawer } from "./drawers/guest-chat-settings";
 import { InquiryPeekDrawer, NewInquiryDrawer, DayDetailDrawer, NewBookingDrawer, ClientProfileDrawer } from "./drawers/light-06";
 import { TodayPulseDrawer, PipelineDrawer, PipelineFilterDrawer, NotificationsDrawer, ActivityFeedDrawer, MyActivityDrawer } from "./drawers/light-07";
 import { PagesDrawer, PostsDrawer, NavigationDrawer, MediaDrawer, TranslationsDrawer, SeoDrawer } from "./drawers/light-08";
@@ -92,6 +93,8 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <IdentityDrawer />;
     case "workspace-settings":
       return <WorkspaceSettingsDrawer />;
+    case "guest-chat-settings":
+      return <GuestChatSettingsDrawer />;
     case "talent-profile":
       return <TalentProfileDrawer />;
     case "new-talent":
