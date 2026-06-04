@@ -65,11 +65,22 @@ export function CanvasMoveHandle({
   liveEl,
   onCommitTranslate,
   accent = "#3d4f7c",
+  overlayRef,
 }: {
   rect: Rect;
   liveEl: HTMLElement | null;
   onCommitTranslate: (x: number, y: number) => void;
   accent?: string;
+  /**
+   * When provided, the parent owns the move-grip overlay box's
+   * top/left/width/height and writes them imperatively each frame (rAF) so the
+   * grip tracks scroll / drag with no React re-render. The centre grip is
+   * positioned RELATIVE to this box (50% + translate), so it rides along. The
+   * alignment guides / spacing pills below are drawn in viewport coords and are
+   * only present DURING a drag (their own local state), so they don't track
+   * scroll and need no ref.
+   */
+  overlayRef?: React.Ref<HTMLDivElement>;
 }) {
   const [dragging, setDragging] = useState(false);
   const [live, setLive] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -386,14 +397,23 @@ export function CanvasMoveHandle({
       }),
     )}
     <div
+      ref={overlayRef}
       aria-hidden
       data-canvas-move-overlay=""
       style={{
         position: "fixed",
-        top: rect.top,
-        left: rect.left,
-        width: rect.width,
-        height: rect.height,
+        // When overlayRef is wired the parent's rAF loop OWNS
+        // top/left/width/height (written directly each frame, seeded before
+        // first paint), so the grip box tracks scroll/drag without a React
+        // re-render. Without overlayRef, position from the rect prop.
+        ...(overlayRef
+          ? null
+          : {
+              top: rect.top,
+              left: rect.left,
+              width: rect.width,
+              height: rect.height,
+            }),
         pointerEvents: "none",
         zIndex: 96,
       }}

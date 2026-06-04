@@ -82,6 +82,7 @@ export function CanvasSpacingHandles({
   onCommitPadding,
   onCommitMargin,
   accent = "#7a6f57",
+  overlayRef,
 }: {
   rect: Rect;
   liveEl: HTMLElement | null;
@@ -93,6 +94,13 @@ export function CanvasSpacingHandles({
    */
   onCommitMargin?: (side: MarginSide, px: number) => void;
   accent?: string;
+  /**
+   * When provided, the parent owns the overlay box's top/left/width/height and
+   * writes them imperatively each frame (rAF) so the box-model controls track
+   * scroll / drag with no React re-render. The bands + grab bars are positioned
+   * RELATIVE to this box, so they ride along automatically.
+   */
+  overlayRef?: React.Ref<HTMLDivElement>;
 }) {
   const [active, setActive] = useState<ActiveDrag | null>(null);
   const [liveVal, setLiveVal] = useState<number>(0);
@@ -245,14 +253,23 @@ export function CanvasSpacingHandles({
 
   return (
     <div
+      ref={overlayRef}
       aria-hidden
       data-canvas-spacing-overlay=""
       style={{
         position: "fixed",
-        top: rect.top,
-        left: rect.left,
-        width: rect.width,
-        height: rect.height,
+        // When overlayRef is wired the parent's rAF loop OWNS
+        // top/left/width/height (written directly each frame, seeded before
+        // first paint), so the box-model overlay tracks scroll/drag without a
+        // React re-render. Without overlayRef, position from the rect prop.
+        ...(overlayRef
+          ? null
+          : {
+              top: rect.top,
+              left: rect.left,
+              width: rect.width,
+              height: rect.height,
+            }),
         pointerEvents: "none",
         zIndex: 94,
       }}

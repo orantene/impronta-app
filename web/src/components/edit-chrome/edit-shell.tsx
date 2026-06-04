@@ -1344,6 +1344,15 @@ function mutationCodeSuggestion(code: string): string | null {
  * boundary — that is Sprint 4+ work. The chip's drag handle still
  * works inside the iframe (intra-frame reorder).
  */
+// Breakpoint lock thresholds for the canvas drag-resize (Job #18).
+// When the live drag width crosses these bounds, the active device tier
+// snaps to the matching breakpoint so the topbar buttons stay in sync.
+const DRAG_TABLET_THRESHOLD = 900;
+const DRAG_MOBILE_THRESHOLD = 480;
+// Snap margin: if the pointer-up width is within this distance of a device's
+// natural width, snap to that exact width for a clean lock-in.
+const DRAG_SNAP_MARGIN = 40;
+
 function DeviceFrameSurface({
   device,
   previewFrame,
@@ -1363,6 +1372,19 @@ function DeviceFrameSurface({
   navigatorWidth: number;
   inspectorOpen: boolean;
 }) {
+  // Job #18 — canvas drag-resize setters. DeviceFrameSurface is rendered
+  // inside EditProvider so useEditContext is valid here.
+  const { setDevice: ctxSetDevice, setPreviewFrameWidth } = useEditContext();
+
+  // Drag state — live width while dragging (null = not dragging).
+  const [dragging, setDragging] = useState<boolean>(false);
+  const [dragReadout, setDragReadout] = useState<number | null>(null);
+  // Ref to the start-of-drag data so pointermove doesn't close over stale state.
+  const dragStartRef = useRef<{
+    startX: number;
+    startWidth: number;
+    currentDevice: EditDevice;
+  } | null>(null);
   // Sprint 3.x — scale-fit logic. The iframe's INTERNAL viewport must
   // be the device width (390/834 px) so the storefront's `@media`
   // queries fire at the right breakpoint. But when the editor itself
@@ -1416,6 +1438,95 @@ function DeviceFrameSurface({
       return next;
     });
   }, [device]);
+
+  // Job #18 — pointer-drag resize for the canvas frame.
+  // All mutable values accessed inside the window-level pointermove/pointerup
+  // callbacks are read from refs (dragStartRef, settersRef) so we never close
+  // over stale React state. The pointerdown handler itself is a plain callback
+  // (no useCallback) because it's only used as a React synthetic event handler
+  // and is re-created on every render — that's fine for event handlers.
+  const settersRef = useRef({ ctxSetDevice, setPreviewFrameWidth });
+  useEffect(() => {
+    settersRef.current = { ctxSetDevice, setPreviewFrameWidth };
+  });
+
+  const handleResizePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+    const startWidth = frameWidthForTier(device, device, previewFrame);
+    dragStartRef.current = {
+      startX: e.clientX,
+      startWidth,
+      currentDevice: device,
+    };
+    setDragging(true);
+    setDragReadout(startWidth);
+
+    function onMove(ev: PointerEvent) {
+      const ref = dragStartRef.current;
+      if (!ref) return;
+      const delta = ev.clientX - ref.startX;
+      // Dragging the RIGHT handle outward (positive delta) = wider.
+      const raw = ref.startWidth + delta * 2; // ×2: symmetric feel
+      const clamped = Math.min(PREVIEW_WIDTH_MAX, Math.max(320, raw));
+      settersRef.current.setPreviewFrameWidth(Math.round(clamped));
+      setDragReadout(Math.round(clamped));
+
+      // Breakpoint lock — update device tier as width crosses thresholds.
+      let nextTier: EditDevice;
+      if (clamped <= DRAG_MOBILE_THRESHOLD) {
+        nextTier = "mobile";
+      } else if (clamped <= DRAG_TABLET_THRESHOLD) {
+        nextTier = "tablet";
+      } else {
+        nextTier = "desktop";
+      }
+      if (nextTier !== ref.currentDevice) {
+        ref.currentDevice = nextTier;
+        settersRef.current.ctxSetDevice(nextTier);
+      }
+    }
+
+    function onUp(ev: PointerEvent) {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      setDragging(false);
+      setDragReadout(null);
+
+      const ref = dragStartRef.current;
+      dragStartRef.current = null;
+      if (!ref) return;
+
+      const delta = ev.clientX - ref.startX;
+      const raw = ref.startWidth + delta * 2;
+      const clamped = Math.min(PREVIEW_WIDTH_MAX, Math.max(320, raw));
+      const finalWidth = Math.round(clamped);
+
+      // Snap to natural device widths on pointer-up if within margin.
+      const snapTargets: Array<{ tier: EditDevice; w: number }> = [
+        { tier: "mobile", w: DEVICE_WIDTHS.mobile! },
+        { tier: "tablet", w: DEVICE_WIDTHS.tablet! },
+      ];
+      for (const { tier, w } of snapTargets) {
+        if (Math.abs(finalWidth - w) <= DRAG_SNAP_MARGIN) {
+          settersRef.current.setPreviewFrameWidth(w);
+          settersRef.current.ctxSetDevice(tier);
+          return;
+        }
+      }
+      // Desktop snap: if well above tablet threshold, go full-bleed.
+      if (finalWidth > DRAG_TABLET_THRESHOLD + DRAG_SNAP_MARGIN) {
+        settersRef.current.setPreviewFrameWidth(null);
+        settersRef.current.ctxSetDevice("desktop");
+        return;
+      }
+      settersRef.current.setPreviewFrameWidth(finalWidth);
+    }
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  };
 
   // Nothing to mount until at least one non-desktop tier has been
   // visited. Once the operator clicks Tablet or Mobile, the host
@@ -1509,49 +1620,119 @@ function DeviceFrameSurface({
             sized at the true device width and scaled down via
             transform — preserving the internal viewport so storefront
             @media queries fire at the device width. */}
-        <div
-          style={{
-            width: displayedW,
-            height: displayedH,
-            position: "relative",
-          }}
-        >
-          {orderedVisited.map((d) => {
-            // Job #17 — the active tier's frame honours the custom-width /
-            // landscape override; inactive (warm-kept) frames keep their
-            // natural width so flipping back stays a CSS display change.
-            const dWidth = frameWidthForTier(d, device, previewFrame);
-            const dScale = Math.min(1, containerWidth / dWidth);
-            const dDisplayedW = dWidth * dScale;
-            const isActive = d === device;
-            return (
-              <iframe
-                key={`${d}:${pageSlug ?? "/"}:${pageVersion ?? "pending"}`}
-                src={iframeSrc}
-                title={`${d} preview`}
-                data-active={isActive ? "true" : undefined}
-                data-device-tier={d}
-                hidden={!isActive}
+        {/* Job #18 — outer relative wrapper so the resize handle can be
+            positioned absolutely outside the frame without affecting flex flow. */}
+        <div style={{ position: "relative", display: "inline-flex" }}>
+          <div
+            style={{
+              width: displayedW,
+              height: displayedH,
+              position: "relative",
+            }}
+          >
+            {orderedVisited.map((d) => {
+              // Job #17 — the active tier's frame honours the custom-width /
+              // landscape override; inactive (warm-kept) frames keep their
+              // natural width so flipping back stays a CSS display change.
+              const dWidth = frameWidthForTier(d, device, previewFrame);
+              const dScale = Math.min(1, containerWidth / dWidth);
+              const dDisplayedW = dWidth * dScale;
+              const isActive = d === device;
+              return (
+                <iframe
+                  key={`${d}:${pageSlug ?? "/"}:${pageVersion ?? "pending"}`}
+                  src={iframeSrc}
+                  title={`${d} preview`}
+                  data-active={isActive ? "true" : undefined}
+                  data-device-tier={d}
+                  hidden={!isActive}
+                  style={{
+                    // Absolute layering so the inactive iframes stack
+                    // beneath the active one without affecting flex flow.
+                    position: "absolute",
+                    top: 0,
+                    left: (displayedW - dDisplayedW) / 2,
+                    width: dWidth,
+                    height: displayedH / dScale,
+                    border: 0,
+                    borderRadius: 16,
+                    boxShadow:
+                      "0 24px 64px -16px rgba(0,0,0,0.30), 0 4px 12px rgba(0,0,0,0.10), 0 0 0 1px rgba(24,24,27,0.08)",
+                    background: "white",
+                    display: isActive ? "block" : "none",
+                    transform: `scale(${dScale})`,
+                    transformOrigin: "top left",
+                    // Suppress iframe pointer events during drag so the
+                    // iframe doesn't steal the pointer from window.
+                    pointerEvents: dragging ? "none" : undefined,
+                  }}
+                />
+              );
+            })}
+          </div>
+          {/* Job #18 — resize grabber on the right edge of the active frame.
+              Thin vertical strip; cursor:ew-resize. onPointerDown starts the
+              drag: the handler is bound on the element itself so pointer
+              capture works correctly (setPointerCapture on the target). */}
+          {!isDesktop ? (
+            <div
+              aria-hidden
+              data-canvas-resize-handle="right"
+              onPointerDown={handleResizePointerDown}
+              style={{
+                position: "absolute",
+                top: 0,
+                right: -18,
+                width: 18,
+                height: displayedH,
+                cursor: "ew-resize",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 10,
+              }}
+            >
+              {/* Pill-shaped visual indicator — visible on hover and while dragging */}
+              <div
                 style={{
-                  // Absolute layering so the inactive iframes stack
-                  // beneath the active one without affecting flex flow.
-                  position: "absolute",
-                  top: 0,
-                  left: (displayedW - dDisplayedW) / 2,
-                  width: dWidth,
-                  height: displayedH / dScale,
-                  border: 0,
-                  borderRadius: 16,
-                  boxShadow:
-                    "0 24px 64px -16px rgba(0,0,0,0.30), 0 4px 12px rgba(0,0,0,0.10), 0 0 0 1px rgba(24,24,27,0.08)",
-                  background: "white",
-                  display: isActive ? "block" : "none",
-                  transform: `scale(${dScale})`,
-                  transformOrigin: "top left",
+                  width: 4,
+                  height: 48,
+                  borderRadius: 999,
+                  background: dragging
+                    ? "rgba(58, 123, 255, 0.80)"
+                    : "rgba(24,24,27,0.18)",
+                  transition: dragging ? "none" : "background 150ms ease, transform 150ms ease",
+                  transform: dragging ? "scaleX(1.5)" : "scaleX(1)",
                 }}
               />
-            );
-          })}
+              {/* Px readout shown while dragging */}
+              {dragging && dragReadout != null ? (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "50%",
+                    left: "calc(100% + 6px)",
+                    transform: "translateY(-50%)",
+                    background: "rgba(18,18,22,0.88)",
+                    color: "rgba(255,255,255,0.92)",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    lineHeight: 1,
+                    letterSpacing: "-0.01em",
+                    padding: "4px 7px",
+                    borderRadius: 6,
+                    whiteSpace: "nowrap",
+                    pointerEvents: "none",
+                    backdropFilter: "blur(8px)",
+                    WebkitBackdropFilter: "blur(8px)",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
+                  }}
+                >
+                  {dragReadout}px
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
     </>

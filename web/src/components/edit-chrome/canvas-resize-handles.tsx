@@ -78,6 +78,7 @@ export function CanvasResizeHandles({
   liveEl,
   onCommit,
   accent = "#3d4f7c",
+  overlayRef,
 }: {
   /** Selected element's viewport rect (fixed-position coordinates). */
   rect: Rect;
@@ -86,6 +87,14 @@ export function CanvasResizeHandles({
   /** Persist the final size through the patch flow, on release. */
   onCommit: (dims: ResizeCommit) => void;
   accent?: string;
+  /**
+   * When provided, the parent owns the overlay box's top/left/width/height and
+   * writes them imperatively every frame (rAF) so the controls track scroll /
+   * drag with no React re-render. This component then stops positioning the
+   * overlay from `rect`; it still uses `rect` only as the first-paint fallback
+   * size + for the readout's live width/height seed.
+   */
+  overlayRef?: React.Ref<HTMLDivElement>;
 }) {
   // Which handle is being dragged (null = idle). Held in state so the readout
   // badge + active-handle styling re-render; refs can't be read during render.
@@ -315,14 +324,26 @@ export function CanvasResizeHandles({
         />
       ) : null}
       <div
+        ref={overlayRef}
         aria-hidden
         data-canvas-resize-overlay=""
         style={{
           position: "fixed",
-          top: rect.top,
-          left: rect.left,
-          width: rect.width,
-          height: rect.height,
+          // When overlayRef is wired the parent's rAF loop OWNS
+          // top/left/width/height (written directly each frame, seeded
+          // synchronously before first paint via useLayoutEffect) so the box
+          // tracks scroll/drag with no React re-render and never trails. Without
+          // overlayRef, fall back to positioning from the rect prop. Either way
+          // the box always has width/height so the inner handles' 50% /
+          // right:-6 / bottom:-6 offsets resolve.
+          ...(overlayRef
+            ? null
+            : {
+                top: rect.top,
+                left: rect.left,
+                width: rect.width,
+                height: rect.height,
+              }),
           pointerEvents: "none",
           zIndex: 95,
         }}

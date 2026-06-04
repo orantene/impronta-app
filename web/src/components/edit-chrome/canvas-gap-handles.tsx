@@ -120,10 +120,21 @@ export function CanvasGapHandles({
   rect,
   liveEl,
   onCommitGap,
+  overlayRef,
 }: {
   rect: Rect;
   liveEl: HTMLElement | null;
   onCommitGap: (px: number) => void;
+  /**
+   * When provided, the gap pills + readout are wrapped in ONE fixed container
+   * anchored at the element box, and the parent's rAF loop OWNS that container's
+   * top/left/width/height (written directly each frame) so the pills track
+   * scroll / drag with no React re-render. Each pill is then positioned RELATIVE
+   * to the container (its measured viewport coord minus the box origin), so it
+   * rides along. Without overlayRef the pills fall back to absolute viewport
+   * (`position:fixed`) coordinates.
+   */
+  overlayRef?: React.Ref<HTMLDivElement>;
 }) {
   const [pills, setPills] = useState<GapPill[]>([]);
   const [dragging, setDragging] = useState(false);
@@ -193,8 +204,44 @@ export function CanvasGapHandles({
     setDragging(true);
   }
 
+  // Pills + readout live inside ONE fixed container anchored at the element box.
+  // Positions inside are RELATIVE to that box origin (measured viewport coord −
+  // box top/left), so when the parent's rAF loop moves the container the pills
+  // ride along with no React re-render. `rect` seeds the container's first paint;
+  // the rAF loop owns top/left/width/height thereafter.
+  const originLeft = rect.left;
+  const originTop = rect.top;
+  // Readout y in container space (clamped to stay below the topbar in viewport).
+  const readoutTop = Math.max(rect.top + 6, 60) - originTop;
+
   return (
-    <>
+    <div
+      ref={overlayRef}
+      aria-hidden
+      data-canvas-gap-overlay=""
+      style={{
+        position: "fixed",
+        // When overlayRef is wired the parent's rAF loop OWNS
+        // top/left/width/height (written each frame, seeded before first paint);
+        // the container is placed exactly at the element box origin so the
+        // pills' box-relative offsets (pill.cx − rect.left etc.) resolve to the
+        // live viewport positions as it tracks scroll/drag — no React re-render.
+        // Without overlayRef, position from the rect prop.
+        ...(overlayRef
+          ? null
+          : {
+              top: rect.top,
+              left: rect.left,
+              width: rect.width,
+              height: rect.height,
+            }),
+        pointerEvents: "none",
+        // The pills carry their own zIndex via stacking inside this box; keep the
+        // container at the same layer the pills used before (95) so it sits with
+        // the other handle overlays.
+        zIndex: 95,
+      }}
+    >
       {pills.map((pill, i) => {
         const horizontal = pill.axis === "x";
         // Pill fills the gap span (capped) with a comfortable cross thickness.
@@ -209,9 +256,9 @@ export function CanvasGapHandles({
             data-canvas-gap-handle={pill.axis}
             onPointerDown={(e) => begin(pill.axis, e)}
             style={{
-              position: "fixed",
-              left: pill.cx,
-              top: pill.cy,
+              position: "absolute",
+              left: pill.cx - originLeft,
+              top: pill.cy - originTop,
               transform: "translate(-50%, -50%)",
               width: horizontal ? thickness : length,
               height: horizontal ? length : thickness,
@@ -224,7 +271,6 @@ export function CanvasGapHandles({
               cursor: horizontal ? "ew-resize" : "ns-resize",
               pointerEvents: "auto",
               padding: 0,
-              zIndex: 95,
               touchAction: "none",
             }}
           />
@@ -235,9 +281,9 @@ export function CanvasGapHandles({
           aria-hidden
           data-canvas-gap-readout=""
           style={{
-            position: "fixed",
-            top: Math.max(rect.top + 6, 60),
-            left: rect.left + rect.width / 2,
+            position: "absolute",
+            top: readoutTop,
+            left: rect.width / 2,
             transform: "translateX(-50%)",
             padding: "2px 7px",
             borderRadius: 5,
@@ -248,7 +294,7 @@ export function CanvasGapHandles({
             lineHeight: 1.4,
             whiteSpace: "nowrap",
             pointerEvents: "none",
-            zIndex: 98,
+            zIndex: 4,
             fontFamily:
               'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
           }}
@@ -256,6 +302,6 @@ export function CanvasGapHandles({
           {`gap ${liveGap}px`}
         </span>
       ) : null}
-    </>
+    </div>
   );
 }

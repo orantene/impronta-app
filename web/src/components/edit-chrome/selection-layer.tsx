@@ -645,6 +645,22 @@ export function SelectionLayer() {
 
   const rafRef = useRef<number | null>(null);
 
+  // ── Imperative overlay positioning (Figma-smooth selection tracking) ───────
+  // The selection ring, selection chip, and the move/resize/spacing/gap handle
+  // overlay boxes are positioned by writing element.style.top/left/width/height
+  // DIRECTLY from a standalone rAF loop (see effect below) — NOT from React
+  // state. That keeps this ~6000-line layer from re-rendering on every scroll /
+  // drag frame and stops the overlays trailing the element by a frame or two.
+  // React state (selectedRect/hoverRect) still decides WHICH overlays mount and
+  // seeds first paint; the rAF loop owns position once mounted.
+  const ringRef = useRef<HTMLDivElement | null>(null);
+  const chipRef = useRef<HTMLDivElement | null>(null);
+  const moveOverlayRef = useRef<HTMLDivElement | null>(null);
+  const resizeOverlayRef = useRef<HTMLDivElement | null>(null);
+  const spacingOverlayRef = useRef<HTMLDivElement | null>(null);
+  const gapOverlayRef = useRef<HTMLDivElement | null>(null);
+  const overlayTrackRafRef = useRef<number | null>(null);
+
   const getSelectedSectionEl = useCallback((): HTMLElement | null => {
     if (!selectedSectionId) return null;
     return document.querySelector<HTMLElement>(
@@ -2000,6 +2016,94 @@ export function SelectionLayer() {
     ? "Block"
     : chipType;
 
+  // ── Figma-smooth overlay tracking (imperative rAF positioning) ─────────────
+  // For a SINGLE selected element, drive the selection ring, the selection chip,
+  // and the move/resize/spacing/gap handle overlay boxes by writing their
+  // style.top/left/width/height DIRECTLY from a standalone rAF loop — never via
+  // React state. Reading the live getBoundingClientRect() and writing the boxes
+  // each frame means the overlays stay glued to the element during scroll AND
+  // during a handle drag (which mutates the element's inline size/translate)
+  // with ZERO re-render of this ~6000-line layer, so they no longer trail by a
+  // frame or two. State (renderSelectedRect via scheduleRectRecompute) still
+  // seeds first paint, owns the MULTI-select bounding box, and feeds the float
+  // toolbar / rails / menus.
+  //
+  // useLayoutEffect for the initial write so the boxes (whose top/left/width/
+  // height are otherwise unset while overlayRef is wired) land in the right spot
+  // before the browser paints — no first-frame flash at the origin.
+  useLayoutEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    // Multi-select uses a union bounding box computed in React (state); section
+    // drag hides the handles + desaturates the ring. In both cases leave the
+    // overlays to the state-driven path and don't fight it.
+    if (multiNodeSelectionActive || isDragging) return undefined;
+    if (!selectedBuilderNodeId && !selectedSectionId) return undefined;
+
+    const sync = () => {
+      const el = getSelectedBuilderNodeEl() ?? getSelectedSectionEl();
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const top = r.top;
+      const left = r.left;
+      const width = r.width;
+      const height = r.height;
+
+      const ring = ringRef.current;
+      if (ring) {
+        ring.style.top = `${top}px`;
+        ring.style.left = `${left}px`;
+        ring.style.width = `${width}px`;
+        ring.style.height = `${height}px`;
+      }
+      const chip = chipRef.current;
+      if (chip) {
+        // Mirrors the seed math: sit just above the element, clamped under the
+        // top bar.
+        chip.style.top = `${Math.max(top - 38, 58)}px`;
+        chip.style.left = `${left}px`;
+      }
+      // Each handle overlay box shares the element's exact viewport rect; its
+      // inner controls are positioned relative to the box, so moving the box is
+      // enough. Any ref may be null (its handle isn't mounted for this node).
+      for (const ref of [
+        moveOverlayRef,
+        resizeOverlayRef,
+        spacingOverlayRef,
+        gapOverlayRef,
+      ]) {
+        const box = ref.current;
+        if (!box) continue;
+        box.style.top = `${top}px`;
+        box.style.left = `${left}px`;
+        box.style.width = `${width}px`;
+        box.style.height = `${height}px`;
+      }
+    };
+
+    // Write once synchronously (pre-paint) so the overlays never flash at the
+    // origin, then track every frame.
+    sync();
+    const tick = () => {
+      sync();
+      overlayTrackRafRef.current = requestAnimationFrame(tick);
+    };
+    overlayTrackRafRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      if (overlayTrackRafRef.current !== null) {
+        cancelAnimationFrame(overlayTrackRafRef.current);
+        overlayTrackRafRef.current = null;
+      }
+    };
+  }, [
+    selectedBuilderNodeId,
+    selectedSectionId,
+    multiNodeSelectionActive,
+    isDragging,
+    getSelectedBuilderNodeEl,
+    getSelectedSectionEl,
+  ]);
+
   // 4A #7 — the HOVERED freeform block, when it's a directly-movable block (a
   // real element, not a section / role-bound slot / locked node). Drives the
   // on-hover grab handle so ANY block can be grabbed + reordered, not only the
@@ -3354,9 +3458,15 @@ export function SelectionLayer() {
       {renderSelectedRect ? (
         <>
           <div
+            ref={ringRef}
             data-selection-ring=""
             style={{
               position: "fixed",
+              // For a SINGLE selection the rAF loop below owns these four every
+              // frame (Figma-smooth, no trailing); renderSelectedRect still seeds
+              // first paint AND is the sole source for the MULTI-select bounding
+              // box (the loop is single-selection only). Both sources read the
+              // same live geometry, so they never visibly fight.
               top: renderSelectedRect.top,
               left: renderSelectedRect.left,
               width: renderSelectedRect.width,
@@ -3391,6 +3501,7 @@ export function SelectionLayer() {
               rect={renderSelectedRect}
               liveEl={getSelectedBuilderNodeEl()}
               onCommit={commitSelectedNodeSize}
+              overlayRef={resizeOverlayRef}
             />
           ) : null}
 
@@ -3402,6 +3513,7 @@ export function SelectionLayer() {
               liveEl={getSelectedBuilderNodeEl()}
               onCommitPadding={commitSelectedNodePadding}
               onCommitMargin={commitSelectedNodeMargin}
+              overlayRef={spacingOverlayRef}
             />
           ) : null}
 
@@ -3412,6 +3524,7 @@ export function SelectionLayer() {
               rect={renderSelectedRect}
               liveEl={getSelectedBuilderNodeEl()}
               onCommitGap={commitSelectedNodeGap}
+              overlayRef={gapOverlayRef}
             />
           ) : null}
 
@@ -3421,6 +3534,7 @@ export function SelectionLayer() {
 	              rect={renderSelectedRect}
 	              liveEl={getSelectedBuilderNodeEl()}
 	              onCommitTranslate={commitSelectedNodeTranslate}
+	              overlayRef={moveOverlayRef}
 	            />
 	          ) : null}
 
@@ -3864,6 +3978,7 @@ export function SelectionLayer() {
 	          {/* ── Premium selection chip ────────────────────────────── */}
 	          {!multiNodeSelectionActive ? (
 	          <div
+            ref={chipRef}
             data-selection-chip=""
             data-selection-chip-scope={selectedNodeIsEditableBlock ? "block" : "section"}
             style={{
@@ -3872,6 +3987,10 @@ export function SelectionLayer() {
               // +28 breadcrumb-clearance is gone now that the breadcrumb bar is
               // removed, so the toolbar floats closer to the element and covers
               // less of the content above it.
+              //
+              // The rAF loop below owns top/left every frame for Figma-smooth
+              // tracking; these seed first paint and stay correct on any React
+              // re-render (same live-geometry source), so the two never fight.
               top: Math.max(renderSelectedRect.top - 38, 58),
               left: renderSelectedRect.left,
               height: 34,
