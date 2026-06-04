@@ -643,16 +643,6 @@ export function SelectionLayer() {
   const selectionScrollRetryRef = useRef<number | null>(null);
 
   const rafRef = useRef<number | null>(null);
-  // Scroll-lag fix: suppress the hover-ring's position CSS transition while
-  // the window is actively scrolling. Without this, the 80ms linear transition
-  // on `top`/`left` makes the ring visually lag behind the element because the
-  // transition animates from the pre-scroll position to the post-scroll one.
-  // We use a ref (not state) so the transition is disabled synchronously in
-  // the rAF callback that already fires on each scroll event — no extra render
-  // is needed. The flag is cleared 150 ms after the last scroll event; the
-  // transition re-arms naturally on the next pointer-move re-render.
-  const isScrollingRef = useRef(false);
-  const scrollEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const getSelectedSectionEl = useCallback((): HTMLElement | null => {
     if (!selectedSectionId) return null;
@@ -1118,13 +1108,8 @@ export function SelectionLayer() {
       });
     }
     function onScrollOrResize() {
-      // Mark scrolling active — suppresses hover-ring position transition.
-      isScrollingRef.current = true;
-      if (scrollEndTimerRef.current !== null) clearTimeout(scrollEndTimerRef.current);
-      scrollEndTimerRef.current = setTimeout(() => {
-        isScrollingRef.current = false;
-        scrollEndTimerRef.current = null;
-      }, 150);
+      // Rings track the scroll via the rAF rect recompute; no position
+      // transition fights it now, so they snap frame-for-frame.
       scheduleRectRecompute();
     }
     function onKey(e: KeyboardEvent) {
@@ -1165,10 +1150,6 @@ export function SelectionLayer() {
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
-      }
-      if (scrollEndTimerRef.current !== null) {
-        clearTimeout(scrollEndTimerRef.current);
-        scrollEndTimerRef.current = null;
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- EditContext callbacks are mirrored into callbacksRef above; re-registering on every selection change would thrash listeners
@@ -2996,11 +2977,11 @@ export function SelectionLayer() {
               borderRadius: CANVAS_SELECTION_RADIUS,
               boxShadow: `inset 0 0 0 1px ${HOVER_INSET}, 0 0 0 1px ${HOVER_STROKE}`,
               pointerEvents: "none",
-              transition: isScrollingRef.current
-                ? "none"
-                : reduceMotion
-                  ? "none"
-                  : "top 80ms linear, left 80ms linear, width 80ms linear, height 80ms linear",
+              // Snap instantly — NO position transition. An 80ms slide between
+              // elements read as "hover lag" and trailed the block on scroll.
+              // Design tools move the ring frame-for-frame (the rect is already
+              // recomputed on every rAF), so top/left must never animate.
+              transition: "none",
             }}
           />
           {/* Per-section left-corner control rail. Uses RAIL_BG/SHADOW
@@ -3028,11 +3009,10 @@ export function SelectionLayer() {
                 fontFamily:
                   'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
                 userSelect: "none",
-                transition: isScrollingRef.current
-                  ? "opacity 80ms"
-                  : reduceMotion
-                    ? "opacity 80ms"
-                    : "top 80ms linear, left 80ms linear, opacity 80ms",
+                // Position snaps with the section; only opacity fades. A
+                // top/left animation trailed the rail on scroll + slid it on
+                // every hover change.
+                transition: "opacity 80ms",
               }}
             >
               <button
@@ -3186,13 +3166,12 @@ export function SelectionLayer() {
             borderRadius: CANVAS_SELECTION_RADIUS,
             boxShadow: `inset 0 0 0 1px ${HOVER_INSET}, 0 0 0 1px ${HOVER_STROKE}, 0 0 0 4px rgba(47,70,120,0.10)`,
             pointerEvents: "none",
-            // No isScrollingRef read here (render-safe): use the reduce-motion
-            // STATE only. The rect itself is recomputed on scroll via the rAF
-            // path, so the ring still tracks; we just don't gate the transition
-            // on the scroll ref (which can't be read during render).
-            transition: reduceMotion
-              ? "none"
-              : "top 80ms linear, left 80ms linear, width 80ms linear, height 80ms linear",
+            // Snap instantly. This ring previously KEPT its 80ms position
+            // transition during scroll (it can't read isScrollingRef in render),
+            // so it visibly trailed the block while scrolling and slid on every
+            // hover change. The rect already tracks via the rAF recompute, so
+            // top/left must never animate.
+            transition: "none",
           }}
         />
       ) : null}
