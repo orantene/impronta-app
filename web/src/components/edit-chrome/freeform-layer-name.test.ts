@@ -139,17 +139,107 @@ test("section_embed humanizes the key when no friendly label resolves", () => {
   );
 });
 
-test("a bare layout container falls back to its registry kind label", () => {
-  const node: BuilderNode = {
+test("a bare layout container reads a structural name keyed off its layout", () => {
+  const stack: BuilderNode = {
     id: "c1",
     kind: "container",
     props: { layout: "stack" },
     children: [],
   };
-  // Whatever the registry label is, it must be a non-empty human string, not "container".
-  const name = resolveLayerDisplayName(node);
-  assert.ok(name.length > 0);
-  assert.notEqual(name, "");
+  const row: BuilderNode = {
+    id: "c2",
+    kind: "container",
+    props: { layout: "row" },
+    children: [],
+  };
+  const grid: BuilderNode = {
+    id: "c3",
+    kind: "container",
+    props: { layout: "grid" },
+    children: [],
+  };
+  assert.equal(resolveLayerDisplayName(stack), "Stack");
+  assert.equal(resolveLayerDisplayName(row), "Row");
+  assert.equal(resolveLayerDisplayName(grid), "Grid");
+});
+
+test("a container borrows the heading it directly wraps", () => {
+  const node: BuilderNode = {
+    id: "hero",
+    kind: "container",
+    props: { layout: "stack" },
+    children: [
+      {
+        id: "h",
+        kind: "heading",
+        props: { text: "Find the right talent", level: 1 },
+      },
+      { id: "p", kind: "paragraph", props: { text: "Search the directory." } },
+    ],
+  };
+  assert.equal(resolveLayerDisplayName(node), "Find the right talent");
+});
+
+test("a container borrows a heading one wrapper-level down", () => {
+  const node: BuilderNode = {
+    id: "section",
+    kind: "container",
+    props: { layout: "row" },
+    children: [
+      {
+        id: "col",
+        kind: "container",
+        props: { layout: "stack" },
+        children: [
+          { id: "h", kind: "heading", props: { text: "How it works", level: 2 } },
+        ],
+      },
+    ],
+  };
+  assert.equal(resolveLayerDisplayName(node), "How it works");
+});
+
+test("a heading buried below the scan depth does not hijack a top wrapper", () => {
+  const node: BuilderNode = {
+    id: "root",
+    kind: "container",
+    props: { layout: "stack" },
+    children: [
+      {
+        id: "l1",
+        kind: "container",
+        props: { layout: "stack" },
+        children: [
+          {
+            id: "l2",
+            kind: "container",
+            props: { layout: "stack" },
+            children: [
+              { id: "h", kind: "heading", props: { text: "Too deep", level: 3 } },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+  // heading sits 3 container-levels down (> HEADING_SCAN_DEPTH) → structural name.
+  assert.equal(resolveLayerDisplayName(node), "Stack");
+});
+
+test("a borrowed container heading is stripped of inline-rich markers", () => {
+  const node: BuilderNode = {
+    id: "c",
+    kind: "container",
+    props: { layout: "stack" },
+    children: [
+      {
+        id: "h",
+        kind: "heading",
+        props: { text: "{accent}Premium{/accent} talent", level: 2 },
+      },
+    ],
+  };
+  assert.equal(resolveLayerDisplayName(node), "Premium talent");
 });
 
 test("divider and spacer carry a descriptive suffix", () => {

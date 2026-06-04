@@ -155,6 +155,43 @@ function humanizeKey(key: string): string {
 }
 
 /**
+ * How many container levels we scan below a wrapper for a heading to borrow its
+ * name. 1 = the wrapper's direct children and grandchildren — enough to catch a
+ * "section wrapper → text column → heading" shape (the common case) without a
+ * top-of-page wrapper hijacking a heading buried 4+ levels down (those keep a
+ * structural Row/Stack/Grid name instead). Display only.
+ */
+const HEADING_SCAN_DEPTH = 1;
+
+/**
+ * The first heading text within `depth` container-levels of `nodes`, breadth
+ * first (a closer heading wins over a deeper one). Lets a generic layout
+ * container ("Container") read as the section it wraps — "Find the right
+ * talent", "How it works" — instead of a wall of identical rows. Tolerant of any
+ * node shape (reads `children` via a loose cast); never mutates node data.
+ */
+function findFirstHeadingText(
+  nodes: readonly BuilderNode[],
+  depth: number,
+): string | undefined {
+  for (const child of nodes) {
+    if (child.kind === "heading") {
+      const text = stripInlineMarkers(child.props.text).trim();
+      if (text) return text;
+    }
+  }
+  if (depth <= 0) return undefined;
+  for (const child of nodes) {
+    const grandchildren = (child as { children?: BuilderNode[] }).children;
+    if (grandchildren && grandchildren.length > 0) {
+      const found = findFirstHeadingText(grandchildren, depth - 1);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}
+
+/**
  * The semantic display name for a freeform layer row.
  *
  * `sectionEmbedLabel` resolves a `section_embed`'s `sectionTypeKey` to a
@@ -199,6 +236,18 @@ export function resolveLayerDisplayName(
       const key = node.props.sectionTypeKey;
       const friendly = sectionEmbedLabel?.(key) ?? humanizeKey(key);
       return friendly || kindLabel(node.kind);
+    }
+    case "container": {
+      // Borrow the heading the container wraps so the row reads as its section
+      // ("Find the right talent") instead of the generic "Container"; else fall
+      // back to a structural name keyed off the layout so siblings still differ.
+      const heading = findFirstHeadingText(node.children, HEADING_SCAN_DEPTH);
+      if (heading) return truncate(heading, LAYER_NAME_MAX);
+      return node.props.layout === "row"
+        ? "Row"
+        : node.props.layout === "grid"
+          ? "Grid"
+          : "Stack";
     }
     default:
       return kindLabel(node.kind);
