@@ -25,13 +25,17 @@ export const C = {
   surfaceCool: "#eef1f5",
   border: "rgba(20,24,31,0.12)",
   borderSoft: "rgba(20,24,31,0.08)",
-  guestBubble: "#16181d",
+  guestBubble: "#33507a",
   guestBubbleInk: "#ffffff",
   systemInk: "#6b7280",
   danger: "#a13a3a",
 } as const;
 
-export const DEFAULT_ACCENT = "#16181d";
+// Default accent (used for the launcher, send button, and the guest's own
+// message bubble when a tenant has NOT set a brand color). House rule: NEVER
+// black or gold/rust on small components — a cool, premium slate-blue stands in
+// for the brand color so nothing falls back to a near-black fill.
+export const DEFAULT_ACCENT = "#33507a";
 
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
