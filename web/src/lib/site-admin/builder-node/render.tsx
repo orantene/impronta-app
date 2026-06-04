@@ -1912,9 +1912,9 @@ function collectionRecordsForSource(
 
 function profileHrefForRepeat(card: FeaturedTalentCardDTO): string {
   const code = encodeURIComponent(card.profileCode);
-  return card.slugPart
-    ? `/t/${code}-${encodeURIComponent(card.slugPart)}`
-    : `/t/${code}`;
+  // The /t/ route resolves by EXACT profile_code; a `-<slug>` suffix 404s
+  // (and slugPart can equal the code, doubling it). Link by code only.
+  return `/t/${code}`;
 }
 
 function materializeRepeatTemplateIds(node: BuilderNode, namespace: string): BuilderNode {
