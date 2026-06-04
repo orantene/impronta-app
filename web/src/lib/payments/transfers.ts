@@ -37,6 +37,7 @@ import {
   type PayoutRail,
 } from "@/lib/payments/disburse";
 import { getPrimaryFinancialAccountId } from "@/lib/payments/global-payouts";
+import { resolveTalentPayoutRail } from "@/lib/payments/payout-rail-policy";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type Stripe from "stripe";
 
@@ -137,7 +138,10 @@ export async function executeBookingTransfers(
   }
   const resolveTalentAccount = deps.resolveTalentAccount ?? talentTransferAccount;
   const resolveWorkspaceAccount = deps.resolveWorkspaceAccount ?? workspaceTransferAccount;
-  const resolvePayoutRail = deps.resolvePayoutRail ?? ((): PayoutRail => "connect_transfer");
+  const resolvePayoutRail =
+    deps.resolvePayoutRail ??
+    ((_party: Party, tpId: string | null): Promise<PayoutRail> =>
+      tpId ? resolveTalentPayoutRail(tpId, { sb }) : Promise.resolve<PayoutRail>("connect_transfer"));
   const resolveTalentRecipientAccount =
     deps.resolveTalentRecipientAccount ?? talentRecipientAccount;
   const getFinancialAccountId = deps.getFinancialAccountId ?? getPrimaryFinancialAccountId;
