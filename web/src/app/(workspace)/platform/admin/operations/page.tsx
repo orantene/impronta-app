@@ -1,6 +1,11 @@
-// Phase 3.11 — Platform HQ · Operations
-// Feature flags, system jobs, incidents.
-// Real data is Phase 4+ work. Page structure matches prototype now.
+// Platform HQ · Operations
+// Real settings-backed feature flags (FlagsPanel), system jobs (preview),
+// and incidents. The flag values are live from `public.settings`; each is
+// editable via the saveFlag server action (re-checks isPlatformAdmin).
+
+import { FlagsPanel } from "./FlagsPanel";
+import { FLAG_GROUPS } from "./flags-registry";
+import { readFlagValues } from "./flags-read";
 
 const HQ = {
   card: "#16161A",
@@ -21,11 +26,11 @@ const FM = '"JetBrains Mono", "Fira Code", ui-monospace, monospace';
 
 function HqCard({
   title,
-  subtitle,
+  badge,
   children,
 }: {
   title: string;
-  subtitle?: string;
+  badge?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -38,7 +43,10 @@ function HqCard({
         fontFamily: F,
       }}
     >
-      <div className="mb-2.5">
+      <div
+        className="mb-2.5"
+        style={{ display: "flex", alignItems: "center", gap: 8 }}
+      >
         <span
           style={{
             fontSize: 10.5,
@@ -50,10 +58,21 @@ function HqCard({
         >
           {title}
         </span>
-        {subtitle && (
-          <p style={{ margin: "3px 0 0", fontSize: 12.5, color: HQ.inkMuted }}>
-            {subtitle}
-          </p>
+        {badge && (
+          <span
+            style={{
+              fontSize: 9.5,
+              color: HQ.inkDim,
+              fontWeight: 600,
+              letterSpacing: 0.6,
+              textTransform: "uppercase",
+              border: `1px solid ${HQ.borderSoft}`,
+              borderRadius: 999,
+              padding: "1px 6px",
+            }}
+          >
+            {badge}
+          </span>
         )}
       </div>
       {children}
@@ -61,62 +80,9 @@ function HqCard({
   );
 }
 
-// ─── Static feature flag list (hardcoded Phase 0 state) ──────────────────────
-// Real flag management is Phase 4+ work. Flags listed here match the
-// prototype's FEATURE_FLAGS mock as a starting reference.
-
-type FlagState = "on" | "off" | "rollout";
-
-const FLAGS: Array<{
-  name: string;
-  description: string;
-  state: FlagState;
-  rollout?: string;
-  owner: string;
-}> = [
-  {
-    name: "hub_discovery",
-    description: "Public Tulala discovery hub surface",
-    state: "off",
-    owner: "platform",
-  },
-  {
-    name: "talent_subscriptions",
-    description: "Pro/Portfolio tier upsell and billing hooks",
-    state: "off",
-    owner: "billing",
-  },
-  {
-    name: "client_trust_badges",
-    description: "Verified / Silver / Gold client trust tier display",
-    state: "off",
-    owner: "trust",
-  },
-  {
-    name: "workspace_slug_routes",
-    description: "/<tenantSlug>/admin multi-tenant workspace URL pattern",
-    state: "on",
-    owner: "platform",
-  },
-  {
-    name: "platform_admin_console",
-    description: "This super_admin HQ console (/platform/admin/*)",
-    state: "on",
-    owner: "platform",
-  },
-  {
-    name: "realtime_messages",
-    description: "Supabase Realtime messaging between parties",
-    state: "off",
-    owner: "messaging",
-  },
-];
-
-const FLAG_COLORS: Record<FlagState, string> = {
-  on:      HQ.green,
-  off:     HQ.inkDim,
-  rollout: HQ.amber,
-};
+// ── System jobs (preview) ────────────────────────────────────────────────────
+// NOTE: this list is a static preview — there is no jobs backend yet. Kept as a
+// structural placeholder; the "preview" badge marks it as not-live data.
 
 type SystemJobState = "succeeded" | "failed" | "running" | "idle";
 
@@ -148,12 +114,14 @@ const SYSTEM_JOBS: Array<{
 
 const JOB_COLORS: Record<SystemJobState, string> = {
   succeeded: HQ.green,
-  failed:    HQ.red,
-  running:   HQ.amber,
-  idle:      HQ.inkDim,
+  failed: HQ.red,
+  running: HQ.amber,
+  idle: HQ.inkDim,
 };
 
-export default function PlatformOperationsPage() {
+export default async function PlatformOperationsPage() {
+  const flagValues = await readFlagValues();
+
   return (
     <>
       {/* Page header */}
@@ -183,79 +151,21 @@ export default function PlatformOperationsPage() {
         </p>
       </div>
 
-      {/* Two-col: flags + jobs */}
+      {/* Real feature flags (settings-backed, editable) */}
+      <div className="mb-3">
+        <FlagsPanel groups={FLAG_GROUPS} values={flagValues} />
+      </div>
+
+      {/* System jobs (preview) + incidents */}
       <div
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(2, 1fr)",
           gap: 12,
-          marginBottom: 12,
         }}
       >
-        {/* Feature flags */}
-        <HqCard title="Feature flags">
-          {FLAGS.map((flag) => {
-            const stateColor = FLAG_COLORS[flag.state];
-            return (
-              <div
-                key={flag.name}
-                style={{
-                  display: "flex",
-                  gap: 12,
-                  alignItems: "center",
-                  padding: "10px 0",
-                  borderTop: `1px solid ${HQ.borderSoft}`,
-                  fontFamily: F,
-                  color: HQ.ink,
-                }}
-              >
-                <span
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    background: stateColor,
-                    flexShrink: 0,
-                    marginTop: 2,
-                  }}
-                />
-                <div className="flex-1 min-w-0">
-                  <div
-                    style={{
-                      fontFamily: FM,
-                      fontSize: 12,
-                      fontWeight: 500,
-                      color: HQ.ink,
-                    }}
-                  >
-                    {flag.name}
-                  </div>
-                  <div style={{ fontSize: 11.5, color: HQ.inkMuted, marginTop: 2 }}>
-                    {flag.description} · {flag.owner}
-                    {flag.rollout && ` · ${flag.rollout}`}
-                  </div>
-                </div>
-                <span
-                  style={{
-                    padding: "2px 7px",
-                    background: HQ.cardSoft,
-                    color: stateColor,
-                    fontSize: 10.5,
-                    fontWeight: 600,
-                    letterSpacing: 0.4,
-                    textTransform: "uppercase",
-                    borderRadius: 999,
-                  }}
-                >
-                  {flag.state}
-                </span>
-              </div>
-            );
-          })}
-        </HqCard>
-
         {/* System jobs */}
-        <HqCard title="System jobs">
+        <HqCard title="System jobs" badge="Preview">
           {SYSTEM_JOBS.map((job) => {
             const stateColor = JOB_COLORS[job.state];
             return (
@@ -314,34 +224,34 @@ export default function PlatformOperationsPage() {
             );
           })}
         </HqCard>
-      </div>
 
-      {/* Incidents (all-clear) */}
-      <HqCard title="Incidents">
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "14px 0",
-            borderTop: `1px solid ${HQ.borderSoft}`,
-            fontFamily: F,
-          }}
-        >
-          <span
+        {/* Incidents (all-clear) */}
+        <HqCard title="Incidents">
+          <div
             style={{
-              width: 8,
-              height: 8,
-              borderRadius: "50%",
-              background: HQ.green,
-              flexShrink: 0,
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "14px 0",
+              borderTop: `1px solid ${HQ.borderSoft}`,
+              fontFamily: F,
             }}
-          />
-          <span style={{ fontSize: 13, color: HQ.inkMuted }}>
-            No active incidents. All systems operational.
-          </span>
-        </div>
-      </HqCard>
+          >
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: HQ.green,
+                flexShrink: 0,
+              }}
+            />
+            <span style={{ fontSize: 13, color: HQ.inkMuted }}>
+              No active incidents. All systems operational.
+            </span>
+          </div>
+        </HqCard>
+      </div>
     </>
   );
 }
