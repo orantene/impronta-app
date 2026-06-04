@@ -483,7 +483,7 @@ export function FeaturedTalentContentInspector({
           secondary={null}
           onChangePrimary={(next) => update({ requestCta: next ?? undefined })}
           onChangeSecondary={() => {}}
-          secondaryAddLabel="(not used on this section)"
+          allowSecondary={false}
         />
       </InspectorGroup>
 
@@ -499,7 +499,7 @@ export function FeaturedTalentContentInspector({
           secondary={null}
           onChangePrimary={(next) => update({ footerCta: next ?? undefined })}
           onChangeSecondary={() => {}}
-          secondaryAddLabel="(not used on this section)"
+          allowSecondary={false}
           primaryNodeRole="footerCta"
         />
       </InspectorGroup>

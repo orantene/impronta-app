@@ -1759,17 +1759,11 @@ function PublishSplitButton({
             shortcut="⌘S"
             onClick={() => { onMenuSelect("save-draft"); setMenuOpen(false); }}
           />
-          <MenuItem
-            icon={
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <line x1="18" y1="2" x2="22" y2="6" />
-                <path d="M7.5 20.5 19 9l-4-4L3.5 16.5z" />
-              </svg>
-            }
-            title="Discard draft"
-            description="Revert to the live version"
-            onClick={() => { onMenuSelect("discard"); setMenuOpen(false); }}
-          />
+          {/* Discard draft — hidden until implemented. The handler is a
+              logging-only stub ("not yet implemented") that does nothing, so
+              surfacing it reads as a live, dangerous action that silently no-ops.
+              Restore this MenuItem once `handleMenuSelect`'s "discard" branch
+              actually reverts the draft to the live snapshot. */}
         </div>
       ) : null}
     </div>
@@ -1843,6 +1837,65 @@ function MenuItem({
         </span>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * CommandPaletteLauncher — discoverable on-screen affordance for the ⌘K
+ * command palette. The palette was previously summonable only via the
+ * keyboard, so mouse-first operators never found it. This pill mirrors the
+ * familiar "search box with a ⌘K keycap" pattern, carrying the keycap hint
+ * so the shortcut is teachable. Clicking it fires the exact handler the
+ * keyboard shortcut runs in EditShell.
+ */
+function CommandPaletteLauncher({ onOpen }: { onOpen: () => void }) {
+  const isMac =
+    typeof navigator !== "undefined" &&
+    /mac|iphone|ipad|ipod/i.test(navigator.platform || navigator.userAgent);
+  const modLabel = isMac ? "⌘" : "Ctrl";
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      title="Command palette (⌘K)"
+      aria-label="Open command palette"
+      aria-haspopup="dialog"
+      className="inline-flex shrink-0 cursor-pointer items-center gap-[7px] rounded-[8px] border transition-colors"
+      style={{
+        height: 36,
+        padding: "0 8px 0 10px",
+        background: "transparent",
+        borderColor: CHROME.line,
+        color: CHROME.muted,
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = CHROME.paper2;
+        e.currentTarget.style.color = CHROME.ink;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = "transparent";
+        e.currentTarget.style.color = CHROME.muted;
+      }}
+    >
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <circle cx="11" cy="11" r="8" />
+        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      </svg>
+      <span
+        aria-hidden
+        className="shrink-0 rounded-[4px] border px-[5px] py-[2px] font-mono"
+        style={{
+          fontSize: 10.5,
+          fontWeight: 600,
+          lineHeight: 1,
+          color: CHROME.muted2,
+          background: CHROME.paper2,
+          borderColor: CHROME.line,
+        }}
+      >
+        {modLabel}K
+      </span>
+    </button>
   );
 }
 
@@ -2484,6 +2537,18 @@ export interface TopBarProps {
   /** Live count of unresolved threads, surfaced as a badge on the icon. */
   commentsBadge?: number;
   /**
+   * Open (toggle) the ⌘K command palette. Wired to the same handler the
+   * keyboard shortcut fires in EditShell, surfaced as a discoverable pill so
+   * the palette isn't keyboard-only. Omit → the pill is not rendered.
+   */
+  onOpenPalette?: () => void;
+  /**
+   * Open the keyboard-shortcuts reference overlay (the `?` shortcut). Surfaced
+   * as a discoverable `?` glyph so the overlay isn't keyboard-only. Omit →
+   * the glyph is not rendered.
+   */
+  onOpenShortcuts?: () => void;
+  /**
    * Save an explicit draft checkpoint. Resolves with the server timestamp
    * the surrounding chrome surfaces in its transient confirmation toast.
    * The button is disabled while a save is in flight.
@@ -2563,6 +2628,8 @@ export function TopBar({
   onSchedule,
   onComments,
   commentsBadge,
+  onOpenPalette,
+  onOpenShortcuts,
   onSaveDraft,
   onShare,
   pageTitle,
@@ -2753,6 +2820,25 @@ export function TopBar({
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
         </svg>
       </TbIconBtn>
+      {/* Command palette launcher — the ⌘K palette was previously keyboard-only
+          with no on-screen affordance. This pill makes it discoverable and
+          carries the keycap hint. Wired to the same handler the shortcut fires. */}
+      {onOpenPalette ? <CommandPaletteLauncher onOpen={onOpenPalette} /> : null}
+      {/* Keyboard-shortcuts overlay launcher — the `?` overlay was likewise
+          keyboard-only. This glyph surfaces it for mouse users. */}
+      {onOpenShortcuts ? (
+        <TbIconBtn
+          title="Keyboard shortcuts (?)"
+          ariaLabel="Keyboard shortcuts"
+          onClick={onOpenShortcuts}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <circle cx="12" cy="12" r="10" />
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+        </TbIconBtn>
+      ) : null}
       <MoreMenu
         onRevisions={onRevisions}
         onTheme={onTheme}

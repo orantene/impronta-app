@@ -2009,6 +2009,36 @@ export function SelectionLayer() {
     !!selectedBuilderNodeId &&
     selectedCanvasNodeId === selectedBuilderNodeId &&
     !resolveBuilderNodeRole(selectedBuilderNode.id);
+  // Does the selected block actually expose an inline-editable TEXT target?
+  // The toolbar pencil fires `requestInlineEdit`, which only does something
+  // when the node renders an element the inline editor can open
+  // (h1-h6/p/a/button/summary/[data-editable-text]). That set maps to a fixed
+  // list of node kinds — mirrored from inline-editor.tsx's
+  // `resolveEditableBuilderNodeTextTarget`: heading/paragraph/rich_text always
+  // carry copy, button a label, accordion_item/tab_panel a title; icon is
+  // editable only when it has a label, nav only via its (brand) wordmark. Every
+  // other kind (image/video/embed/icon-without-label/divider/spacer/code/
+  // section_embed and the bare layout containers) has NO text target, so the
+  // pencil would be a no-op there → hide it. Derived from the node itself so it
+  // recomputes on every render rather than racing the live DOM.
+  const selectedNodeHasInlineTextTarget = (() => {
+    if (!selectedNodeIsEditableBlock || !selectedBuilderNode) return false;
+    switch (selectedBuilderNode.kind) {
+      case "heading":
+      case "paragraph":
+      case "rich_text":
+      case "button":
+      case "accordion_item":
+      case "tab_panel":
+        return true;
+      case "icon":
+        return !!selectedBuilderNode.props.label;
+      case "nav":
+        return !!selectedBuilderNode.props.brand;
+      default:
+        return false;
+    }
+  })();
   const chipPrimaryLabel = selectedNodeIsEditableBlock
     ? builderNodeCrumbLabel(selectedBuilderNode, chipLabel)
     : chipLabel;
@@ -4148,6 +4178,7 @@ export function SelectionLayer() {
               <BlockChipToolBar
                 disabled={saving}
                 confirmRemove={confirmRemove}
+                canEditText={selectedNodeHasInlineTextTarget}
                 onResetPosition={() => commitSelectedNodeTranslate(0, 0)}
                 onEdit={() => requestInlineEdit(selectedBuilderNodeId)}
                 onMoveUp={
@@ -5898,6 +5929,7 @@ function ChipToolBar({
 function BlockChipToolBar({
   disabled,
   confirmRemove,
+  canEditText,
   onResetPosition,
   onEdit,
   onMoveUp,
@@ -5912,6 +5944,11 @@ function BlockChipToolBar({
 }: {
   disabled: boolean;
   confirmRemove: boolean;
+  // Whether the selected block has an inline-editable text target. When false
+  // the Edit (pencil) button is hidden — firing the inline editor on a block
+  // with no text element (image, divider, spacer, embed, empty container, …)
+  // is a no-op, so we omit the affordance instead of showing a dead button.
+  canEditText: boolean;
   onResetPosition: () => void;
   onEdit: () => void;
   onMoveUp: (() => void) | null;
@@ -5999,16 +6036,18 @@ function BlockChipToolBar({
         {/* Crosshair / reset-position icon */}
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><line x1="12" y1="2" x2="12" y2="5" /><line x1="12" y1="19" x2="12" y2="22" /><line x1="2" y1="12" x2="5" y2="12" /><line x1="19" y1="12" x2="22" y2="12" /></svg>
       </ChipBtn>
-      <ChipBtn
-        style={btnStyle}
-        disabled={disabled}
-        onClick={onEdit}
-        aria-label="Edit block content"
-        data-selection-block-action="edit"
-        title="Edit"
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>
-      </ChipBtn>
+      {canEditText ? (
+        <ChipBtn
+          style={btnStyle}
+          disabled={disabled}
+          onClick={onEdit}
+          aria-label="Edit block content"
+          data-selection-block-action="edit"
+          title="Edit"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>
+        </ChipBtn>
+      ) : null}
       <ChipBtn
         style={btnStyle}
         disabled={disabled || !onMoveUp}

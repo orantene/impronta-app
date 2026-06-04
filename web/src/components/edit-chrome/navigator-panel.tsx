@@ -1405,7 +1405,7 @@ export function NavigatorPanel() {
               }}
               aria-hidden
             />
-            <span id="structure-navigator-label">Navigator</span>
+            <span id="structure-navigator-label">Layers</span>
             {builderPerformanceIssues.length > 0 ? (
               hasBlockingPerformanceIssue ? (
                 /* Genuine blocking problems keep a visible (rose) pill. */
@@ -1469,8 +1469,8 @@ export function NavigatorPanel() {
           <button
             type="button"
             onClick={toggleNavigator}
-            title="Hide Structure Navigator (⌘\\)"
-            aria-label="Hide Structure Navigator"
+            title="Hide Layers (⌘\\)"
+            aria-label="Hide Layers"
             style={{
               width: 22,
               height: 22,
@@ -1503,7 +1503,7 @@ export function NavigatorPanel() {
          *  Search remains scoped to the current view. */}
         <div
           role="radiogroup"
-          aria-label="Navigator view mode"
+          aria-label="Layers view mode"
           style={{
             display: "inline-flex",
             alignSelf: "stretch",

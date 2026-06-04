@@ -216,6 +216,12 @@ export function RevisionsDiffPanel({
       } else {
         setDiffState({ status: "error", message: res.error });
       }
+    }).catch((err: unknown) => {
+      if (cancelled) return;
+      setDiffState({
+        status: "error",
+        message: err instanceof Error ? err.message : "Failed to load diff.",
+      });
     });
     return () => { cancelled = true; };
   }, [pageId, revA.id, revB.id]);

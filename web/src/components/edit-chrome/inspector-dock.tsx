@@ -1177,7 +1177,7 @@ function EmptyState() {
         className="mt-1.5 max-w-[220px] text-[11.5px] leading-relaxed"
         style={{ color: CHROME.muted2 }}
       >
-        Click a section on the canvas or a row in the left Structure list. Your draft edits stay private until you publish.
+        Click a section on the canvas or a row in the left Layers panel. Your draft edits stay private until you publish.
       </p>
     </div>
   );

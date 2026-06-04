@@ -896,6 +896,8 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
           onTemplates={openStarterTemplateGallery}
           onSchedule={openSchedule}
           onComments={openComments}
+          onOpenPalette={togglePalette}
+          onOpenShortcuts={openShortcutOverlay}
           onSaveDraft={() => void saveDraft()}
           onShare={(opts) => handleShareClick(opts, reportMutationError)}
           pageTitle={pageMetadata?.title ?? undefined}

@@ -248,7 +248,7 @@ export function CategoryGridContentInspector({
             secondary={null}
             onChangePrimary={(next) => update({ footerCta: next ?? undefined })}
             onChangeSecondary={() => {}}
-            secondaryAddLabel="(not used on this section)"
+            allowSecondary={false}
           />
         </div>
       </InspectorGroup>
