@@ -2264,6 +2264,14 @@ export function EditProvider({
   const reportMutationError = useCallback(
     (message: string | EditMutationError) => {
       const normalized = normalizeMutationError(message);
+      // Benign no-op edits (re-applying identical props, or a UI gesture that
+      // re-sends current values) are NOT failures — never surface a toast.
+      if (
+        normalized.code === "NO_CHANGE" ||
+        /no changes to apply/i.test(normalized.message ?? "")
+      ) {
+        return;
+      }
       const fingerprint = mutationErrorFingerprint(normalized);
       const now = Date.now();
       const previous = lastMutationErrorRef.current;
