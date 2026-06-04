@@ -34,6 +34,9 @@ import {
 } from "@/lib/site-admin/sections/types";
 
 import type { BuilderSectionEmbedNode } from "./types";
+// Wrapper-style helpers (section_embed restyle support). render.tsx imports
+// only this module's TYPE, so importing its values here is not a runtime cycle.
+import { builderNodeStyleAttrs, sharedNodeStyle } from "./render";
 
 /**
  * Tenant render context for curated sections. Present on the storefront /
@@ -193,6 +196,8 @@ export function renderSectionEmbed(
       data-builder-node-kind="section_embed"
       data-section-embed-type-key={sectionTypeKey}
       className="site-builder-node site-builder-node--section-embed"
+      {...builderNodeStyleAttrs(node.props.style)}
+      style={sharedNodeStyle(node.props.style)}
     >
       <Component
         props={payloadForRender as never}

@@ -775,6 +775,14 @@ export interface BuilderSectionEmbedNode extends BuilderNodeBase {
     sectionId?: string | null;
     dataBinding?: BuilderDataBindingProps;
     config?: Record<string, unknown>;
+    /**
+     * Wrapper-level style overrides applied to the section_embed's wrapper
+     * <div> (background, padding, margin, border, radius, max-width, shadow…).
+     * Lets a curated "Tulala component" be restyled at the OUTER box without
+     * touching its internal `config` presentation. Optional — absent on every
+     * historical embed, so they render unchanged.
+     */
+    style?: BuilderNodeStyle;
   };
 }
 

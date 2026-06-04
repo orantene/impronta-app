@@ -1194,14 +1194,11 @@ function resolveViewportPresentationForValue(
   return value.breakpoints?.[viewport] ?? buildDesktopNodePresentationBase(value);
 }
 
-// `section_embed` carries no free-form `style` prop (its presentation lives in
-// the embedded section payload, edited via its own registry editor in the
-// Content tab), so it is not a standalone STYLE node even though it IS a
-// standalone CONTENT node.
-type StandaloneStyleNode = Exclude<
-  BuilderNode,
-  { kind: "section" | "section_embed" }
->;
+// `section_embed` now carries a wrapper-level `style` prop (restyle its OUTER
+// box — background, padding, margin, border, radius, max-width, shadow…; the
+// section's internal presentation still lives in `config`/its Content editor).
+// So it IS a standalone STYLE node; only the structural `section` shell is not.
+type StandaloneStyleNode = Exclude<BuilderNode, { kind: "section" }>;
 type StandaloneStylePreset = {
   id: string;
   label: string;
@@ -2031,9 +2028,9 @@ export function StylePanel({
       builderTree,
       selectedBuilderNodeId,
     );
-    // Resolver now also returns `section_embed` (for Content editing); it is not
-    // a STYLE node, so drop it here.
-    return node && node.kind !== "section_embed" ? node : null;
+    // section_embed IS a style node now (wrapper-level `style`); the resolver
+    // already excludes the structural `section` shell, so just return it.
+    return node ?? null;
   }, [builderTree, selectedBuilderNodeId]);
   // Linked-component instance marker (Living Components Phase 2) — present only
   // on a container tagged instanceOf. Drives the Detach affordance.

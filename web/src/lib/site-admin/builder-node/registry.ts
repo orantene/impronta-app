@@ -647,6 +647,12 @@ const sectionEmbedPropsSchema = z.object({
   sectionId: z.string().uuid().nullable().optional(),
   dataBinding: dataBindingPropsSchema.optional(),
   config: z.record(z.string(), z.unknown()).optional(),
+  // Wrapper-level style overrides (background, padding, margin, border, radius,
+  // max-width, shadow…). Applied to the section_embed's wrapper <div> in the
+  // renderer — lets operators restyle the OUTER box of an otherwise-curated
+  // "Tulala component" (the section's own internal presentation still lives in
+  // `config`). Optional → existing embeds are unchanged.
+  style: builderNodeStyleSchema,
 });
 
 const navPropsSchema = z.object({

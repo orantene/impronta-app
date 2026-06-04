@@ -796,7 +796,11 @@ function builderNodeContainerQueryStyleAttrs(
   return attrs;
 }
 
-function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
+// Exported so the injected section_embed renderer can apply the SAME wrapper
+// style attrs/inline style to its wrapper <div> (section_embed restyle support).
+// render.tsx only imports the section-embed renderer's TYPE, so this value
+// export creates no runtime import cycle.
+export function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
   const tablet = style?.responsive?.tablet;
   const mobile = style?.responsive?.mobile;
   const hasBaseTransition =
@@ -1545,7 +1549,7 @@ const BUILDER_PARALLAX_KEYFRAME: Record<
   strong: "bn-parallax-strong",
 };
 
-function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
+export function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   if (!style) return {};
   const out: CSSProperties = {
     ...responsiveStyleVars(style),
