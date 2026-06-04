@@ -168,3 +168,20 @@ export async function verifyCaptchaToken(opts: {
 export function isCaptchaConfigured(): boolean {
   return !!(process.env.TURNSTILE_SECRET || process.env.HCAPTCHA_SECRET);
 }
+
+/**
+ * Returns true only when a captcha provider is configured AND a real client-side
+ * widget is actually mounted to produce a token. The MVP guest-chat captcha slot
+ * is an inert stub (no Turnstile/hCaptcha widget), so a velocity-tripped guest
+ * that receives `captcha_required` has NO way to produce a token and would be
+ * permanently soft-bricked. The velocity escalation must therefore stay OFF
+ * until the widget exists; flip GUEST_CHAT_CAPTCHA_WIDGET_READY=1 in the same
+ * change that mounts the real widget + round-trips the token.
+ *
+ * This is intentionally separate from isCaptchaConfigured(): a secret can be set
+ * (so verifyCaptchaToken would enforce a SUPPLIED token) without the client
+ * widget being wired (so we must not REQUIRE one yet).
+ */
+export function isGuestCaptchaWidgetReady(): boolean {
+  return isCaptchaConfigured() && process.env.GUEST_CHAT_CAPTCHA_WIDGET_READY === "1";
+}

@@ -301,6 +301,10 @@ export function MiniChatPanel({
       setRows((cur) =>
         cur.map((r) => (r.id === tmpId ? { ...r, pending: false, failed: true } : r)),
       );
+      // Restore the typed text so a transient failure doesn't destroy it. The
+      // draft was cleared optimistically before the await; put it back so the
+      // guest can retry from the composer (the failed bubble copy points here).
+      setDraft(body);
       applyFailure(res.code, res.message, res.retryAfterMs);
       return;
     }
@@ -353,6 +357,9 @@ export function MiniChatPanel({
       setRows((cur) =>
         cur.map((r) => (r.id === tmpId ? { ...r, pending: false, failed: true } : r)),
       );
+      // Restore the typed text (cleared optimistically before the await) so a
+      // transient failure doesn't lose the reply.
+      setDraft(body);
       applyFailure(res.code, res.message, res.retryAfterMs);
       return;
     }
@@ -447,12 +454,15 @@ export function MiniChatPanel({
           >
             {brand.agencyName}
           </div>
-          {/* HONEST presence: only ever the real reply-time, never "online now". */}
+          {/* HONEST presence: only ever the real reply-time, never "online now".
+              typicalReply is a bare fragment ("in ~2 hours", "within a day") —
+              the "Typically replies" prefix is owned here, so the producer must
+              NOT also include it (avoids the double-prefix). */}
           <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 1 }}>
             {inquiryId
               ? STATUS_COPY[threadStatus]
               : typicalReply
-                ? `Typically replies in ${typicalReply}`
+                ? `Typically replies ${typicalReply}`
                 : "Leave a message — the team replies by email"}
           </div>
         </div>

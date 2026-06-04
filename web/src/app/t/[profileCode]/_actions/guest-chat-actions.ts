@@ -41,6 +41,7 @@ import {
 import { isBlocked } from "@/lib/inquiry/recipient-safety";
 import { resolveInquiryRecipients } from "@/lib/notifications/recipients";
 import { emitGuestAutoAck } from "@/lib/inquiry/guest-auto-ack";
+import { getTypicalReplyLabel } from "@/lib/inquiry/guest-reply-latency";
 import type {
   GetGuestThreadInput,
   GetGuestThreadResult,
@@ -821,12 +822,32 @@ export async function getGuestThreadMessages(
     input.afterIso ?? null,
   );
 
+  // Lane E / P1: the honest "Typically replies …" presence fragment, scoped to
+  // this inquiry's talent when resolvable (falls back to tenant-wide inside the
+  // helper). Returns a bare fragment ("in ~2 hours") or null when there isn't
+  // enough data — the panel prepends "Typically replies " and shows nothing on
+  // null. Only computed on the FULL load (afterIso null) to avoid re-querying
+  // the median on every incremental poll.
+  let typicalReplyLabel: string | null = null;
+  if (!input.afterIso) {
+    const { data: talentRow } = await admin
+      .from("inquiry_participants")
+      .select("talent_profile_id")
+      .eq("inquiry_id", owned.inquiry.id)
+      .eq("role", "talent")
+      .not("talent_profile_id", "is", null)
+      .limit(1)
+      .maybeSingle();
+    typicalReplyLabel = await getTypicalReplyLabel({
+      tenantId: owned.inquiry.tenantId,
+      talentProfileId: (talentRow?.talent_profile_id as string | null) ?? null,
+    });
+  }
+
   return {
     ok: true,
     messages,
     threadStatus: toThreadStatus(owned.inquiry.status),
-    // Lane E / P1 owns the honest "typically replies in ~X" median. Null until
-    // wired so the UI shows no dishonest presence claim.
-    typicalReplyLabel: null,
+    typicalReplyLabel,
   };
 }

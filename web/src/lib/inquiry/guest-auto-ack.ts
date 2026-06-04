@@ -9,7 +9,8 @@ import "server-only";
  *    Posts a system_event bubble into the GROUP thread after a guest's
  *    first message. The body is built dynamically from:
  *      a. The agency's custom auto_ack_message (if set).
- *      b. Otherwise: the honest P1 latency label (e.g. "~2h") woven in.
+ *      b. Otherwise: the honest P1 latency fragment (e.g. "in ~2 hours") woven
+ *         into "We typically reply …".
  *      c. Final fallback: a generic "we'll be in touch" if P1 returns null.
  *    Returns the created GuestThreadMessage (for StartGuestChatResult.autoAckMessage)
  *    or null when the ack is disabled or the insert fails.
@@ -80,15 +81,17 @@ export async function emitGuestAutoAck(
     if (args.customAckMessage?.trim()) {
       body = args.customAckMessage.trim();
     } else {
-      // Try P1 for an honest latency label.
-      const replyLabel = await getTypicalReplyLabel({
+      // Try P1 for an honest latency fragment (e.g. "in ~2 hours", "within a
+      // day"). getTypicalReplyLabel now returns a bare fragment, so we weave the
+      // "we typically reply" prefix here (it owns the sentence).
+      const replyFragment = await getTypicalReplyLabel({
         tenantId: args.tenantId,
         talentProfileId: args.talentProfileId,
       });
 
-      if (replyLabel) {
-        // e.g. "Got it — we'll get back to you. Typically replies in ~2h."
-        body = `Got it — we've received your message. ${replyLabel}.`;
+      if (replyFragment) {
+        // e.g. "Got it — we've received your message. We typically reply in ~2 hours."
+        body = `Got it — we've received your message. We typically reply ${replyFragment}.`;
       } else {
         // Fallback: honest but no specific timeframe.
         body = "Got it — we've received your message and will be in touch shortly.";
@@ -158,8 +161,9 @@ export type SendGuestCopyEmailArgs = {
   /** The agency/talent name used in the copy. */
   agencyName: string;
   /**
-   * Optional typical reply label from P1 (e.g. "Typically replies in ~2h").
-   * When null the email omits the SLA line.
+   * Optional typical-reply FRAGMENT from P1 (e.g. "in ~2 hours", "within a
+   * day"). The email prepends "Typically replies " to it. When null the email
+   * omits the SLA line.
    */
   typicalReplyLabel?: string | null;
   /**
@@ -207,7 +211,7 @@ function _buildGuestCopyEmailHtml(
   const ctaLabel = args.claimUrl ? "View your conversation →" : "Return to profile →";
 
   const replyLine = args.typicalReplyLabel
-    ? `<p style="margin:0 0 8px;font-size:14px;color:#555555;">${args.typicalReplyLabel}.</p>`
+    ? `<p style="margin:0 0 8px;font-size:14px;color:#555555;">Typically replies ${args.typicalReplyLabel}.</p>`
     : "";
 
   const claimNote = args.claimUrl

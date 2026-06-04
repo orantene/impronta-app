@@ -8,10 +8,13 @@ import "server-only";
  * non-guest, non-system message in the GROUP thread after the guest's opening
  * message, scoped to a given talent_profile_id and/or tenant_id.
  *
- * The result is surfaced as a human-readable label for the MiniChatPanel
- * header and for GetGuestThreadResult.typicalReplyLabel. The query is
- * intentionally READ-ONLY and uses the service-role client so it can run from
- * any server action without depending on the session user's RLS grants.
+ * The result is a bare FRAGMENT (e.g. "in ~2 hours", "within a day") surfaced
+ * by the MiniChatPanel header as `Typically replies {fragment}` and woven into
+ * the auto-ack sentence — the "Typically replies"/"we typically reply" prefix is
+ * owned by the render site, not this module (returning a full sentence here
+ * double-prefixed the header). The query is intentionally READ-ONLY and uses the
+ * service-role client so it can run from any server action without depending on
+ * the session user's RLS grants.
  *
  * CACHING:
  *   - Results are cached in-process for CACHE_TTL_MS (5 minutes) per
@@ -66,8 +69,8 @@ function cacheKey(tenantId: string, talentProfileId: string | null): string {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Returns a human-readable reply-latency label for the given talent/tenant,
- * e.g. "Typically replies in ~2h" or "Usually replies within a day".
+ * Returns a bare reply-latency FRAGMENT for the given talent/tenant, e.g.
+ * "in ~2 hours" or "within a day" — the caller prepends "Typically replies ".
  *
  * Returns null when:
  *   - The service-role client is unavailable (env not configured).
@@ -75,7 +78,8 @@ function cacheKey(tenantId: string, talentProfileId: string | null): string {
  *     fallback.
  *   - A DB error occurs (always logged, never thrown).
  *
- * The label is safe to surface directly to the guest in the panel header.
+ * The fragment is safe to surface to the guest once the caller prepends the
+ * "Typically replies " prefix (panel header) or weaves it into a sentence.
  */
 export async function getTypicalReplyLabel(args: {
   tenantId: string;
@@ -252,27 +256,34 @@ function _median(values: number[]): number {
 }
 
 /**
- * Formats a latency in milliseconds to a human-readable reply-time label
- * suitable for the MiniChatPanel header.
+ * Formats a latency in milliseconds to a bare reply-time FRAGMENT (no
+ * "Typically replies in" prefix). The single consumer that needs a sentence —
+ * the MiniChatPanel header — renders `Typically replies {fragment}`, and the
+ * auto-ack weaves the same fragment into its own sentence. Returning a full
+ * sentence here double-prefixed the header ("Typically replies in Typically
+ * replies in ~2 hours"), so the prefix is owned by the render site, not here.
+ *
+ * Each fragment is written to read correctly after "Typically replies " AND
+ * after "we typically reply " (the auto-ack template).
  *
  * Buckets (intentionally imprecise — rounded for trustworthiness):
- *   < 30 min  → "Typically replies in minutes"
- *   < 2 h     → "Typically replies in ~1 hour"
- *   < 5 h     → "Typically replies in ~X hours"
- *   < 12 h    → "Typically replies within a few hours"
- *   < 24 h    → "Typically replies same day"
- *   < 48 h    → "Usually replies within a day"
- *   >= 48 h   → "Usually replies within 2–3 days"
+ *   < 30 min  → "in minutes"
+ *   < 2 h     → "in ~1 hour"
+ *   < 5 h     → "in ~X hours"
+ *   < 12 h    → "within a few hours"
+ *   < 24 h    → "the same day"
+ *   < 48 h    → "within a day"
+ *   >= 48 h   → "within 2–3 days"
  */
 export function _formatLatency(ms: number): string {
   const minutes = ms / 60_000;
   const hours = ms / 3_600_000;
 
-  if (minutes < 30) return "Typically replies in minutes";
-  if (hours < 2) return "Typically replies in ~1 hour";
-  if (hours < 5) return `Typically replies in ~${Math.round(hours)} hours`;
-  if (hours < 12) return "Typically replies within a few hours";
-  if (hours < 24) return "Typically replies same day";
-  if (hours < 48) return "Usually replies within a day";
-  return "Usually replies within 2–3 days";
+  if (minutes < 30) return "in minutes";
+  if (hours < 2) return "in ~1 hour";
+  if (hours < 5) return `in ~${Math.round(hours)} hours`;
+  if (hours < 12) return "within a few hours";
+  if (hours < 24) return "the same day";
+  if (hours < 48) return "within a day";
+  return "within 2–3 days";
 }

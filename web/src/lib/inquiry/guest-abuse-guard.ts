@@ -23,11 +23,16 @@
  *
  *   L3 — Velocity-triggered captcha (S3)
  *       Applied after KV limit is NOT tripped but velocity is elevated.
- *       The KV "velocity" counter increments every send; if it exceeds the
- *       `VELOCITY_THRESHOLD` without a valid captchaToken, the guard returns
- *       code "captcha_required" so the UI surfaces a Turnstile/hCaptcha widget.
- *       On the next call the client includes the token; we verify it and allow
- *       through (or return "captcha_failed" mapped to "validation_failed").
+ *       The velocity counter increments every send; if it exceeds the
+ *       `VELOCITY_THRESHOLD` the guard requires a captcha ONLY when a real client
+ *       widget is wired (isGuestCaptchaWidgetReady — a configured provider secret
+ *       AND GUEST_CHAT_CAPTCHA_WIDGET_READY=1). Until then the escalation is a
+ *       no-op: the MVP captcha slot is an inert stub, so returning
+ *       "captcha_required" would permanently soft-brick a tripped guest (no token
+ *       can be produced). When the widget IS ready, on the next call the client
+ *       includes the token; we verify it and allow through (or return
+ *       "captcha_failed" mapped to "validation_failed"). The IP/email/session KV
+ *       ceilings are the actual hard floor.
  *
  * ## IP dimension
  * The caller (guest-chat-actions.resolveClientIp) resolves the TRUSTED client
@@ -72,7 +77,7 @@ import {
   guestCreateEmailKey,
   normalizeEmailForKey,
 } from "@/lib/rate-limit-kv";
-import { verifyCaptchaToken } from "@/lib/captcha/verify";
+import { verifyCaptchaToken, isGuestCaptchaWidgetReady } from "@/lib/captcha/verify";
 import type { GuestChatFailure } from "@/lib/inquiry/guest-chat-contract";
 
 // ---------------------------------------------------------------------------
@@ -217,9 +222,13 @@ export async function checkGuestInquiryAbuse(
     };
   }
 
-  // L3 — Velocity-triggered captcha (soft escalation)
+  // L3 — Velocity-triggered captcha (soft escalation). ONLY escalate when a real
+  // client widget is wired (isGuestCaptchaWidgetReady) — otherwise a tripped
+  // guest receives captcha_required with no way to produce a token and is
+  // permanently soft-bricked. While the widget is a stub this is a no-op; the
+  // IP/email/session KV ceilings above remain the hard floor.
   const velocityCount = incrementVelocity(kvKey);
-  if (velocityCount > VELOCITY_THRESHOLD) {
+  if (velocityCount > VELOCITY_THRESHOLD && isGuestCaptchaWidgetReady()) {
     const captchaResult = await verifyCaptchaToken({
       token: args.captchaToken,
       ip: args.ip,
@@ -293,12 +302,12 @@ export async function checkGuestMessageAbuse(
     };
   }
 
-  // L3 — Velocity-triggered captcha (soft escalation)
+  // L3 — Velocity-triggered captcha (soft escalation). Gated on a real wired
+  // widget (isGuestCaptchaWidgetReady) so we never return captcha_required to a
+  // guest who can't produce a token (permanent soft-brick). No-op while the
+  // widget is a stub.
   const velocityCount = incrementVelocity(kvKey);
-  if (velocityCount > VELOCITY_THRESHOLD) {
-    // Only trigger the captcha gate if a provider is configured; if neither
-    // TURNSTILE_SECRET nor HCAPTCHA_SECRET is set, verifyCaptchaToken returns
-    // ok:true for missing tokens too, so this block becomes a no-op.
+  if (velocityCount > VELOCITY_THRESHOLD && isGuestCaptchaWidgetReady()) {
     const captchaResult = await verifyCaptchaToken({
       token: args.captchaToken,
       ip: args.ip,

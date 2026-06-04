@@ -249,7 +249,9 @@ export type GetGuestThreadResult =
        */
       threadStatus: GuestThreadStatus;
       /**
-       * Honest presence/SLA hint for the header ("Typically replies in ~4h").
+       * Honest presence/SLA hint for the header, as a bare FRAGMENT ("in ~4
+       * hours", "within a day"). The panel renders `Typically replies {fragment}`
+       * — the producer must NOT include the prefix (avoids a double-prefix).
        * Null when not computable. Comes from Lane E / P1.
        */
       typicalReplyLabel: string | null;

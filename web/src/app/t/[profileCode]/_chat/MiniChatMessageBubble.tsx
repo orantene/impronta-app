@@ -115,7 +115,7 @@ export function MiniChatMessageBubble({ m, accent }: { m: StreamRow; accent: str
         }}
       >
         {m.failed
-          ? "Not sent — tap to retry"
+          ? "Not sent — restored to the box"
           : m.pending
             ? "Sending…"
             : formatTime(m.createdAt)}
