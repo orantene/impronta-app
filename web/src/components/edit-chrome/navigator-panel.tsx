@@ -62,6 +62,7 @@ import {
   CHROME_SHADOWS,
   SectionTypeIcon,
 } from "./kit";
+import { useFloatingDrag, FloatingDragHandle } from "./floating-panel";
 
 import type {
   CompositionSectionRef,
@@ -297,6 +298,12 @@ export function NavigatorPanel() {
   const [resizing, setResizing] = useState(false);
   const [resizeHandleHovered, setResizeHandleHovered] = useState(false);
   const resizeStartRef = useRef<{ x: number; width: number } | null>(null);
+  // Floating-panel drag (Paint-style movable Layers card). The offset lives in
+  // local state, so it snaps back to the home position on every page refresh
+  // but stays where you drop it for the rest of the session. navigatorWidth is
+  // passed so the panel can never be dragged fully off either side.
+  const floatingDrag = useFloatingDrag(navigatorWidth);
+  const floatingMoved = floatingDrag.offset.x !== 0 || floatingDrag.offset.y !== 0;
 
   const handleResizeMove = useCallback(
     (event: PointerEvent) => {
@@ -1114,18 +1121,29 @@ export function NavigatorPanel() {
       data-edit-overlay="navigator-panel"
       aria-labelledby="structure-navigator-label"
       style={{
+        // Floating control-panel card (Paint-style). Detached from the screen
+        // edges, rounded + shadowed, height-capped so it reads as a movable
+        // tool window rather than a wall-to-wall rail. `transform` carries the
+        // session drag offset; `overflow:hidden` clips the rounded corners (the
+        // inner layers list scrolls on its own — flex:1 + overflowY:auto).
         position: "fixed",
-        left: 0,
-        top: 54,
-        bottom: 0,
+        left: 14,
+        top: 66,
         width: navigatorWidth,
+        maxHeight: "calc(100vh - 84px)",
         background: CHROME.surface,
-        borderRight: `1px solid ${CHROME.line}`,
-        boxShadow: `1px 0 0 ${CHROME.line}, 16px 0 32px -16px rgba(0,0,0,0.10)`,
+        border: `1px solid ${CHROME.line}`,
+        borderRadius: 16,
+        boxShadow: floatingDrag.dragging
+          ? "0 30px 70px -20px rgba(17,24,39,0.45), 0 10px 26px -10px rgba(17,24,39,0.26)"
+          : "0 18px 50px -20px rgba(17,24,39,0.26), 0 4px 14px -8px rgba(17,24,39,0.14)",
         display: "flex",
         flexDirection: "column",
+        overflow: "hidden",
         zIndex: 80,
-        userSelect: resizing ? "none" : undefined,
+        transform: floatingDrag.transform,
+        transition: floatingDrag.dragging ? "none" : "box-shadow 180ms ease",
+        userSelect: resizing || floatingDrag.dragging ? "none" : undefined,
       }}
       onDragLeave={(e) => {
         // Only clear when leaving the panel as a whole, not when moving
@@ -1140,6 +1158,14 @@ export function NavigatorPanel() {
         if (draggingId) e.preventDefault();
       }}
     >
+      <FloatingDragHandle
+        onPointerDown={floatingDrag.onHandlePointerDown}
+        dragging={floatingDrag.dragging}
+        label="Layers"
+        moved={floatingMoved}
+        onReset={floatingDrag.reset}
+        style={{ color: CHROME.muted, background: CHROME.surface }}
+      />
       <div
         role="separator"
         aria-label="Resize navigator"
@@ -1178,7 +1204,9 @@ export function NavigatorPanel() {
         style={{
           position: "absolute",
           top: 0,
-          right: -Math.floor(RESIZE_HANDLE_WIDTH / 2),
+          // At the inner right edge (was straddling at -4) so the rounded
+          // card's overflow:hidden doesn't clip the resize grab zone.
+          right: 0,
           bottom: 0,
           width: RESIZE_HANDLE_WIDTH,
           cursor: "col-resize",
