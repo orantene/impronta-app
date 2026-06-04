@@ -47,7 +47,13 @@ export async function createGlobalPayoutsRecipient(opts: {
   });
 }
 
-export type OutboundSetupIntent = { id: string; object: string; payout_method?: string | null };
+export type OutboundSetupIntent = {
+  id: string;
+  object: string;
+  status?: string;
+  /** The created payout method (an object with its own id), or null. */
+  payout_method?: { id: string; type?: string } | null;
+};
 
 /**
  * Attach a bank-account PayoutMethod to a recipient via an OutboundSetupIntent
@@ -55,7 +61,7 @@ export type OutboundSetupIntent = { id: string; object: string; payout_method?: 
  */
 export async function createRecipientBankPayoutMethod(opts: {
   recipientAccountId: string;
-  bank: { country: string; accountNumber: string; routingNumber: string };
+  bank: { country: string; currency: string; accountNumber: string; routingNumber: string };
 }): Promise<StripeV2Result<OutboundSetupIntent>> {
   return stripeV2.post<OutboundSetupIntent>(
     "/v2/money_management/outbound_setup_intents",
@@ -64,6 +70,9 @@ export async function createRecipientBankPayoutMethod(opts: {
         type: "bank_account",
         bank_account: {
           country: opts.bank.country.toUpperCase(),
+          // REQUIRED by the v2 API — validated live against the sandbox: omitting
+          // currency → HTTP 400 "payout_method_data.bank_account.currency: Required".
+          currency: opts.bank.currency.toLowerCase(),
           account_number: opts.bank.accountNumber,
           routing_number: opts.bank.routingNumber,
         },

@@ -63,7 +63,7 @@ test("createRecipientBankPayoutMethod uses outbound_setup_intents + Stripe-Conte
   ]);
   const res = await createRecipientBankPayoutMethod({
     recipientAccountId: "acct_r",
-    bank: { country: "us", accountNumber: "000123456789", routingNumber: "110000000" },
+    bank: { country: "us", currency: "usd", accountNumber: "000123456789", routingNumber: "110000000" },
   });
   assert.equal(res.ok, true);
   const headers = r.calls[0].init.headers as Record<string, string>;
@@ -71,6 +71,7 @@ test("createRecipientBankPayoutMethod uses outbound_setup_intents + Stripe-Conte
   const body = JSON.parse(String(r.calls[0].init.body));
   assert.equal(body.payout_method_data.type, "bank_account");
   assert.equal(body.payout_method_data.bank_account.country, "US");
+  assert.equal(body.payout_method_data.bank_account.currency, "usd"); // live-validated required field
   assert.equal(body.payout_method_data.bank_account.routing_number, "110000000");
   r.restore();
 });
