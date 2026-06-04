@@ -79,13 +79,44 @@ async function loadTalentProfileIdForUser(
 
 /**
  * App-layer permission gate (RLS is secondary). Staff can do all staff actions.
+ *
+ * Guest-in-thread branch (conversational-inquiry MVP, 2026-06-03):
+ * when `actorUserId` is null AND `opts.guestSessionId` is provided AND the
+ * action is one a guest is allowed to take ({send_message, mark_thread_read}),
+ * authorization is proven SOLELY by ownership of the inquiry —
+ * `inquiries.guest_session_id === opts.guestSessionId`. RLS stays
+ * auth.uid()-based; guests write via the service-role path gated by THIS
+ * check, so the ownership match below is the security boundary. The
+ * guestSessionId itself must be resolved server-side from the x-impronta-guest
+ * header by the caller — it is NEVER a client-supplied argument.
  */
 export async function validateActorPermission(
   supabase: SupabaseClient,
   inquiryId: string,
-  actorUserId: string,
+  actorUserId: string | null,
   action: EngineAction,
+  opts?: { guestSessionId?: string | null },
 ): Promise<PermissionResult> {
+  // ── Guest-sender branch ─────────────────────────────────────────────────
+  // No auth user, but a resolved guest session that owns the inquiry. The
+  // guest may only send a message / mark read in their own thread.
+  if (!actorUserId) {
+    const guestSessionId = opts?.guestSessionId ?? null;
+    const guestActions: EngineAction[] = ["send_message", "mark_thread_read"];
+    if (!guestSessionId || !guestActions.includes(action) || !inquiryId) {
+      return { ok: false, reason: "forbidden" };
+    }
+    const { data: inq } = await supabase
+      .from("inquiries")
+      .select("guest_session_id")
+      .eq("id", inquiryId)
+      .maybeSingle();
+    if (inq && (inq.guest_session_id as string | null) === guestSessionId) {
+      return { ok: true, isStaff: false, talentProfileId: null };
+    }
+    return { ok: false, reason: "forbidden" };
+  }
+
   const profile = await loadActorProfile(supabase, actorUserId);
   const staff = isStaffRole(profile?.app_role ?? null);
   if (staff) {

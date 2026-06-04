@@ -32,17 +32,31 @@ export async function sendMessage(
   ctx: {
     inquiryId: string;
     tenantId: string;
-    actorUserId: string;
+    /**
+     * Authenticated sender's auth.users.id, OR null for a guest sender.
+     * When null, `guestSessionId` MUST be supplied (the guest-in-thread path).
+     */
+    actorUserId: string | null;
+    /**
+     * Guest sender only (conversational-inquiry MVP): the guest_sessions.id
+     * resolved server-side from the x-impronta-guest cookie. When set with a
+     * null actorUserId the message is written as { sender_user_id: NULL,
+     * guest_session_id: <gid> } and permission is proven via ownership of
+     * inquiries.guest_session_id. Ignored when actorUserId is set.
+     */
+    guestSessionId?: string | null;
     threadType: "private" | "group";
     body: string;
   },
 ): Promise<EngineResult<{ messageId: string }>> {
-  return runWithEngineLog("sendMessage", ctx.inquiryId, ctx.actorUserId, async () => {
-    const rl = await rateLimiter.check(
-      engineRateKey("sendMessage", ctx.actorUserId, ctx.inquiryId),
-      30,
-      60_000,
-    );
+  const isGuestSender = !ctx.actorUserId && !!ctx.guestSessionId;
+  return runWithEngineLog("sendMessage", ctx.inquiryId, ctx.actorUserId ?? undefined, async () => {
+    // Rate-limit key: per-user for authed senders, per-guest-session for
+    // guests, so a guest cannot ride an authed user's bucket (or vice versa).
+    const rlKey = ctx.actorUserId
+      ? engineRateKey("sendMessage", ctx.actorUserId, ctx.inquiryId)
+      : `sendMessage:guest:${ctx.guestSessionId ?? "anon"}:${ctx.inquiryId}`;
+    const rl = await rateLimiter.check(rlKey, 30, 60_000);
     if (!rl.ok) {
       return { success: false, rateLimited: true, retryAfterMs: rl.retryAfterMs, reason: "rate_limited" };
     }
@@ -51,7 +65,13 @@ export async function sendMessage(
       return { success: false, forbidden: true, reason: "forbidden" };
     }
 
-    const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "send_message");
+    const perm = await validateActorPermission(
+      supabase,
+      ctx.inquiryId,
+      ctx.actorUserId,
+      "send_message",
+      { guestSessionId: ctx.guestSessionId ?? null },
+    );
     if (!perm.ok) return { success: false, forbidden: true, reason: "forbidden" };
 
     // 2026-05-14 — self-elevate INSERT to service-role after permission
@@ -59,6 +79,7 @@ export async function sendMessage(
     // get "new row violates row-level security policy" on inquiry_messages
     // even when they're a participant. validateActorPermission above is
     // the security gate. See qa-evidence/2026-05-14/step-06.
+    // Guests (anon, no JWT) likewise cannot pass RLS — same gate, same path.
     const writeMsg = await inquiryWriteClient(supabase);
     const { data: row, error } = await writeMsg
       .from("inquiry_messages")
@@ -66,7 +87,8 @@ export async function sendMessage(
         inquiry_id: ctx.inquiryId,
         tenant_id: ctx.tenantId,
         thread_type: ctx.threadType,
-        sender_user_id: ctx.actorUserId,
+        sender_user_id: isGuestSender ? null : ctx.actorUserId,
+        guest_session_id: isGuestSender ? ctx.guestSessionId : null,
         body: ctx.body,
         metadata: {},
       })

@@ -81,6 +81,7 @@ import {
   type AgencyTalentOverlayRow,
 } from "@/lib/talent/agency-overlay";
 import { TalentProfileInquireButton } from "./talent-profile-inquire-button";
+import { TalentProfileChatLauncherMount } from "./_chat/TalentProfileChatLauncherMount";
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 import { PlatformTalentMaxSiteView } from "@/components/talent/site/PlatformTalentMaxSiteView";
 import { isTalentProfilePlatformHost } from "@/lib/talent-site/platform-host";
@@ -1378,6 +1379,11 @@ export default async function PublicTalentProfilePage({
       }
     : null);
   const watermarkLogoUrl = typeof brandingTheme.logo_url === "string" ? brandingTheme.logo_url : null;
+  // Guest-chat launcher accent — the tenant's own brand color (primary, then
+  // accent fallback); null lets the launcher use its neutral ink token. No
+  // gold/rust is hard-coded (house rule).
+  const chatAccentColor =
+    tenantBranding?.primary_color ?? tenantBranding?.accent_color ?? null;
   const canonicalBannerUrl = mediaUrl(pub, bannerMedia);
   const profileImageUrl = mediaUrl(pub, profileImageMedia);
 
@@ -1753,6 +1759,20 @@ export default async function PublicTalentProfilePage({
                   agencyName={tenantBrand ?? "the agency"}
                   sourcePage={profileSourcePage}
                   className="bg-[var(--impronta-gold)] text-black hover:bg-[var(--impronta-gold-bright)]"
+                />
+                {/* Conversational-inquiry launcher — floating brand-skinned
+                    "Message {Name}" chat (Lane D). Sibling of the inquire CTA;
+                    renders only on the agency surface (guarded inside on
+                    tenantSlug). Self-positions fixed bottom-right. */}
+                <TalentProfileChatLauncherMount
+                  talentProfileId={profile.id}
+                  talentProfileCode={profile.profile_code}
+                  talentDisplayName={name}
+                  tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
+                  agencyName={tenantBrand ?? "the agency"}
+                  accentColor={chatAccentColor}
+                  logoUrl={watermarkLogoUrl}
+                  sourcePage={profileSourcePage}
                 />
                 <ProfileDiscoveryCta
                   talentId={profile.id}

@@ -109,9 +109,16 @@ export async function mergeGuestActivity(
       .is("client_user_id", null),
   ]);
 
+  // SECURITY (guest→account claim): relink inquiries ONLY when the inquiry's
+  // contact_email matches the AUTHENTICATED account's own email. Passing
+  // `user.email` as p_verified_email is the shared-device defense — a different
+  // person signing in (different account email) cannot inherit this guest's
+  // conversations. saved_talent favorites still merge on the cookie alone. See
+  // migration 20261017091500_merge_guest_inquiries_email_gated.sql.
   await supabase.rpc("merge_guest_session_to_client", {
     p_session_key: sessionKey,
     p_client_profile_id: user.id,
+    p_verified_email: user.email ?? "",
   });
 
   revalidatePath("/client");
