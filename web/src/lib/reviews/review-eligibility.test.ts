@@ -14,6 +14,8 @@ import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
 import {
   bookingEndPassed,
+  canReportReview,
+  canTalentReviewClient,
   computeRatingSummary,
   isBookingReviewable,
   isValidRating,
@@ -162,5 +164,146 @@ describe("computeRatingSummary", () => {
   });
   it("handles a single review", () => {
     assert.deepEqual(computeRatingSummary([5]), { average: 5, count: 1 });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Two-sided reviews (W8)
+// ---------------------------------------------------------------------------
+
+describe("canTalentReviewClient — talent → client eligibility", () => {
+  const now = T("2026-06-03T12:00:00Z");
+  const completed = {
+    status: "completed",
+    paymentStatus: "unpaid",
+    endsAt: null,
+    eventDate: "2026-06-01",
+    now,
+  };
+
+  it("allows a talent ON the booking when the booking is reviewable", () => {
+    assert.equal(
+      canTalentReviewClient({
+        callerTalentProfileIds: ["tp-1", "tp-2"],
+        bookingTalentProfileIds: ["tp-9", "tp-1"],
+        eligibility: completed,
+      }),
+      true,
+    );
+  });
+
+  it("rejects a talent NOT on the booking even when reviewable", () => {
+    assert.equal(
+      canTalentReviewClient({
+        callerTalentProfileIds: ["tp-1"],
+        bookingTalentProfileIds: ["tp-9", "tp-8"],
+        eligibility: completed,
+      }),
+      false,
+    );
+  });
+
+  it("rejects a talent on the booking when the booking is NOT reviewable", () => {
+    assert.equal(
+      canTalentReviewClient({
+        callerTalentProfileIds: ["tp-1"],
+        bookingTalentProfileIds: ["tp-1"],
+        eligibility: {
+          status: "confirmed",
+          paymentStatus: "paid",
+          endsAt: "2026-06-10T20:00:00Z", // future
+          eventDate: null,
+          now,
+        },
+      }),
+      false,
+    );
+  });
+
+  it("rejects when the caller has no talent profiles", () => {
+    assert.equal(
+      canTalentReviewClient({
+        callerTalentProfileIds: [],
+        bookingTalentProfileIds: ["tp-1"],
+        eligibility: completed,
+      }),
+      false,
+    );
+  });
+});
+
+describe("canReportReview — only the SUBJECT may report", () => {
+  it("talent-subject: the reviewed talent's user can report", () => {
+    assert.equal(
+      canReportReview({
+        kind: "talent",
+        callerUserId: "u-talent",
+        subjectTalentUserId: "u-talent",
+      }),
+      true,
+    );
+  });
+
+  it("talent-subject: a different user cannot report", () => {
+    assert.equal(
+      canReportReview({
+        kind: "talent",
+        callerUserId: "u-other",
+        subjectTalentUserId: "u-talent",
+      }),
+      false,
+    );
+  });
+
+  it("talent-subject: missing subject owner → cannot report", () => {
+    assert.equal(
+      canReportReview({
+        kind: "talent",
+        callerUserId: "u-talent",
+        subjectTalentUserId: null,
+      }),
+      false,
+    );
+  });
+
+  it("client-subject: the reviewed client can report", () => {
+    assert.equal(
+      canReportReview({
+        kind: "client",
+        callerUserId: "u-client",
+        subjectClientUserId: "u-client",
+      }),
+      true,
+    );
+  });
+
+  it("client-subject: a different user cannot report", () => {
+    assert.equal(
+      canReportReview({
+        kind: "client",
+        callerUserId: "u-talent",
+        subjectClientUserId: "u-client",
+      }),
+      false,
+    );
+  });
+
+  it("empty caller id → cannot report either kind", () => {
+    assert.equal(
+      canReportReview({
+        kind: "client",
+        callerUserId: "",
+        subjectClientUserId: "u-client",
+      }),
+      false,
+    );
+    assert.equal(
+      canReportReview({
+        kind: "talent",
+        callerUserId: "",
+        subjectTalentUserId: "u-talent",
+      }),
+      false,
+    );
   });
 });

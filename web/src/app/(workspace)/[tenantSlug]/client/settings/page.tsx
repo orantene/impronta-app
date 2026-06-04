@@ -13,6 +13,14 @@ import { NotificationPrefsPanel, type UiCategory, type UiChannel } from "./Notif
 import { ORDERED_CATEGORIES } from "@/lib/notifications/categories";
 import { LIVE_CHANNELS } from "@/lib/notifications/types";
 import { ProfileFields, AccountFields } from "./_components/AccountFormsClient";
+import {
+  loadClientReviews,
+  loadClientRatingSummary,
+  loadReviewsAuthoredByUser,
+} from "@/lib/reviews/load-reviews";
+import type { TalentReview } from "@/lib/reviews/review-types";
+import { ClientReviewsPanel, type GivenReview } from "../_components/ClientReviewsPanel";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
@@ -46,6 +54,35 @@ function Card({ title, subtitle, children }: { title: string; subtitle?: string;
   );
 }
 
+/**
+ * Resolve talent profile display names by id for the "reviews you've written"
+ * list. talent_profiles SELECT is RLS-scoped, so we use the service-role client
+ * (read-only, name only) — same proven pattern as load-reviews.ts. Degrades to
+ * null names on any failure; never throws.
+ */
+async function resolveTalentNames(
+  talentProfileIds: string[],
+): Promise<Map<string, string | null>> {
+  const out = new Map<string, string | null>();
+  const ids = Array.from(new Set(talentProfileIds.filter(Boolean)));
+  if (ids.length === 0) return out;
+  const svc = createServiceRoleClient();
+  if (!svc) return out;
+  try {
+    const { data } = await svc
+      .from("talent_profiles")
+      .select("id, display_name")
+      .in("id", ids)
+      .returns<{ id: string; display_name: string | null }[]>();
+    for (const row of data ?? []) {
+      out.set(row.id, row.display_name?.trim() || null);
+    }
+  } catch {
+    // Degrade silently — talent names render as null.
+  }
+  return out;
+}
+
 export default async function ClientSettingsPage({ params }: { params: PageParams }) {
   const { tenantSlug } = await params;
   const session = await getCachedActorSession();
@@ -61,6 +98,27 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
   ]);
   if (!clientProfile) notFound();
   const stripeEnabled = isStripeConfigured();
+
+  // W8 — two-sided reviews. Received (talent→client) + given (client→talent).
+  // Read with Agent 1's helpers; resolve talent names for the "given" list.
+  const [receivedReviews, receivedSummary, authoredReviews] = await Promise.all([
+    loadClientReviews(session.user.id),
+    loadClientRatingSummary(session.user.id),
+    loadReviewsAuthoredByUser(session.user.id) as Promise<TalentReview[]>,
+  ]);
+  const talentNames = await resolveTalentNames(
+    authoredReviews.map((r) => r.talentProfileId),
+  );
+  const givenReviews: GivenReview[] = authoredReviews.map((r) => ({
+    id: r.id,
+    talentName: talentNames.get(r.talentProfileId) ?? null,
+    rating: r.rating,
+    body: r.body,
+    status: r.status,
+    createdAt: r.createdAt,
+  }));
+  const hasAnyReviews =
+    receivedReviews.length > 0 || givenReviews.length > 0;
   const notificationPrefs = userPrefs?.notificationPrefs ?? {};
 
   // Category list for the prefs panel. categories.ts is server-only, so we map
@@ -143,6 +201,23 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
           <NotificationPrefsPanel
             categories={notificationCategories}
             initialPrefs={notificationPrefs}
+          />
+        </Card>
+
+        {/* W8 — two-sided reviews. Reviews received from talent + reviews this
+            client has written. Reporting a received review flags it for staff. */}
+        <Card
+          title="Reviews"
+          subtitle={
+            hasAnyReviews
+              ? "Reviews talent left about you, and the reviews you've written."
+              : "Reviews appear here after your bookings are completed."
+          }
+        >
+          <ClientReviewsPanel
+            received={receivedReviews}
+            receivedSummary={receivedSummary}
+            given={givenReviews}
           />
         </Card>
 
