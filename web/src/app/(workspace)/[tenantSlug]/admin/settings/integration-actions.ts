@@ -23,6 +23,7 @@ import { requireSession } from "@/lib/server/action-guards";
 import { userHasCapability } from "@/lib/access";
 import { logServerError } from "@/lib/server/safe-error";
 import {
+  YOUTUBE_INTEGRATION_KEY,
   getIntegrationDef,
   listIntegrationDefs,
   listSurfacedIntegrations,
@@ -30,6 +31,7 @@ import {
   type IntegrationEntitlement,
 } from "@/lib/integrations/catalog";
 import {
+  deleteIntegrationSecrets,
   deleteSecret,
   getIntegrationEntitlements,
   getSecretStatus,
@@ -42,6 +44,10 @@ import {
   tenantHasCustomDomain,
   type TenantIntegrationRow,
 } from "@/lib/integrations/repository";
+import {
+  clearWorkspaceYouTubeIdentity,
+  syncWorkspaceYouTubeIdentity,
+} from "@/lib/integrations/workspace-social-sync";
 
 // ── Shared types ────────────────────────────────────────────────────────────
 
@@ -356,6 +362,27 @@ export async function saveIntegrationConfig(
     return { ok: false, error: "Couldn't save. Please try again." };
   }
 
+  if (key === YOUTUBE_INTEGRATION_KEY) {
+    const profileUrl = (row.config_json as Record<string, unknown>).profile_url;
+    if (typeof profileUrl === "string" && profileUrl.trim()) {
+      await syncWorkspaceYouTubeIdentity({
+        tenantId: guard.tenantId,
+        profileUrl,
+        actorUserId: guard.actorId,
+      });
+    } else {
+      const previousProfileUrl =
+        typeof existing?.config_json?.profile_url === "string"
+          ? existing.config_json.profile_url
+          : null;
+      await clearWorkspaceYouTubeIdentity({
+        tenantId: guard.tenantId,
+        expectedProfileUrl: previousProfileUrl,
+        actorUserId: guard.actorId,
+      });
+    }
+  }
+
   revalidatePath(`/${tenantSlug}/admin/settings`);
   return { ok: true };
 }
@@ -592,6 +619,10 @@ export async function removeIntegration(
   const def = getIntegrationDef(key);
   if (!def) return { ok: false, error: "Unknown integration." };
 
+  const existing = await getTenantIntegration(guard.tenantId, key);
+
+  await deleteIntegrationSecrets(guard.tenantId, key);
+
   // Clear every secret field.
   for (const field of def.fields) {
     if (field.secret) {
@@ -600,7 +631,6 @@ export async function removeIntegration(
   }
 
   // Build a null-patch over every existing public config key (null deletes).
-  const existing = await getTenantIntegration(guard.tenantId, key);
   const clearPatch: Record<string, unknown> = {};
   for (const k of Object.keys(existing?.config_json ?? {})) {
     clearPatch[k] = null;
@@ -619,6 +649,18 @@ export async function removeIntegration(
   if (!row) {
     logServerError("integrations/remove", { key, tenantId: guard.tenantId });
     return { ok: false, error: "Couldn't remove. Please try again." };
+  }
+
+  if (key === YOUTUBE_INTEGRATION_KEY) {
+    const previousProfileUrl =
+      typeof existing?.config_json?.profile_url === "string"
+        ? existing.config_json.profile_url
+        : null;
+    await clearWorkspaceYouTubeIdentity({
+      tenantId: guard.tenantId,
+      expectedProfileUrl: previousProfileUrl,
+      actorUserId: guard.actorId,
+    });
   }
 
   revalidatePath(`/${tenantSlug}/admin/settings`);

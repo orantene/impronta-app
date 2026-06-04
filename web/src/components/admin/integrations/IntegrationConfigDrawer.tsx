@@ -60,6 +60,8 @@ export function IntegrationConfigDrawer({
   );
   const usingInheritedDefault =
     integration.inheritable && integration.credentialMode === "inherit";
+  const canOAuthConnect =
+    canManage && integration.connection === "oauth" && integration.key === "youtube";
 
   const setValue = (name: string, v: string) => {
     setValues((prev) => ({ ...prev, [name]: v }));
@@ -149,6 +151,15 @@ export function IntegrationConfigDrawer({
     }
     setFeedback({ tone: "success", message: "Disconnected." });
     onChanged();
+  };
+
+  const handleOAuthConnect = async () => {
+    const url = new URL("/api/connections/oauth/start", window.location.origin);
+    url.searchParams.set("owner", "workspace");
+    url.searchParams.set("provider", "youtube");
+    url.searchParams.set("tenantSlug", tenantSlug);
+    url.searchParams.set("returnTo", window.location.pathname + window.location.search);
+    window.location.assign(url.toString());
   };
 
   const hasAnyConfigured = integration.fields.some(
@@ -242,6 +253,40 @@ export function IntegrationConfigDrawer({
                 </li>
               ))}
             </ol>
+          </div>
+        )}
+
+        {integration.connection === "oauth" && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 14,
+              padding: "14px",
+              borderRadius: RADIUS.md,
+              border: `1px solid ${COLORS.borderSoft}`,
+              background: "#fff",
+            }}
+          >
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: COLORS.ink }}>
+                Verify ownership
+              </div>
+              <div style={{ marginTop: 3, fontSize: 12, lineHeight: 1.45, color: COLORS.inkMuted }}>
+                We store the public channel label and encrypted OAuth tokens. The verified
+                channel is used for workspace trust and public-site social links.
+              </div>
+            </div>
+            <AsyncButton
+              variant="secondary"
+              disabled={!canOAuthConnect}
+              onClick={handleOAuthConnect}
+              pendingLabel="Opening…"
+              style={{ flexShrink: 0 }}
+            >
+              Connect with Google
+            </AsyncButton>
           </div>
         )}
 
