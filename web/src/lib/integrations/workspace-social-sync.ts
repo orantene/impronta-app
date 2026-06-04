@@ -12,6 +12,39 @@ type IdentitySnapshot = Record<string, unknown> & {
   version: number;
 };
 
+/**
+ * The config_json key that gates whether a verified/connected workspace YouTube
+ * channel is mirrored into `agency_business_identity.social_youtube` (and thus
+ * rendered on the public site header/footer).
+ *
+ * Privacy-first default: when the key is absent or not strictly `true`, the
+ * channel is NOT published. Connecting/verifying a channel and publishing it on
+ * the public site are deliberately decoupled — a tenant can verify ownership
+ * (workspace trust) without exposing the channel publicly. The OAuth connect
+ * flow and the manual-URL save both seed this OFF; the workspace toggles it on
+ * explicitly from the integration drawer.
+ */
+export const YOUTUBE_SHOW_ON_PUBLIC_SITE_KEY = "show_on_public_site" as const;
+
+/**
+ * Pure publish-decision helper (no IO) so the sync behaviour is unit-testable.
+ * Returns the URL that should land in `social_youtube` for the given integration
+ * config, or `null` when nothing should be published.
+ *
+ * Publishes ONLY when:
+ *   - a non-empty `profile_url` is configured, AND
+ *   - `show_on_public_site === true` (strict; absent/false → do not publish).
+ */
+export function resolveYouTubePublishUrl(
+  config: Record<string, unknown> | null | undefined,
+): string | null {
+  if (!config) return null;
+  if (config[YOUTUBE_SHOW_ON_PUBLIC_SITE_KEY] !== true) return null;
+  const raw = config.profile_url;
+  const url = typeof raw === "string" ? raw.trim() : "";
+  return url || null;
+}
+
 const IDENTITY_SELECT = `
   tenant_id,
   public_name,
@@ -138,5 +171,46 @@ export async function clearWorkspaceYouTubeIdentity(input: {
     tenantId: input.tenantId,
     actorUserId: input.actorUserId,
     nextValue: null,
+  });
+}
+
+/**
+ * Single reconciliation entry point that respects the "Show on public site"
+ * toggle. Given the integration's current config + the profile URL it had
+ * BEFORE this save (so we never clobber a hand-edited identity value), it:
+ *   - publishes the channel URL into `social_youtube` when the toggle is ON, or
+ *   - clears `social_youtube` (only when it still matches the integration-owned
+ *     value) when the toggle is OFF / the URL is empty.
+ *
+ * This is the one path the OAuth callback, the manual-URL save, and disconnect
+ * should call so the publish behaviour is identical and toggle-aware everywhere.
+ */
+export async function applyWorkspaceYouTubePublishState(input: {
+  tenantId: string;
+  config: Record<string, unknown> | null | undefined;
+  previousProfileUrl?: string | null;
+  actorUserId: string | null;
+}): Promise<boolean> {
+  const publishUrl = resolveYouTubePublishUrl(input.config);
+  if (publishUrl) {
+    return syncWorkspaceYouTubeIdentity({
+      tenantId: input.tenantId,
+      profileUrl: publishUrl,
+      actorUserId: input.actorUserId,
+    });
+  }
+  // Toggle OFF or no URL → clear, but only if the live identity value is still
+  // the one this integration last published (guard against clobbering a value a
+  // tenant typed directly into Business identity). We accept either the new
+  // profile_url or the prior one as a "matches us" signal.
+  const currentProfileUrl =
+    typeof input.config?.profile_url === "string"
+      ? (input.config.profile_url as string).trim() || null
+      : null;
+  const expected = currentProfileUrl ?? input.previousProfileUrl ?? null;
+  return clearWorkspaceYouTubeIdentity({
+    tenantId: input.tenantId,
+    expectedProfileUrl: expected,
+    actorUserId: input.actorUserId,
   });
 }

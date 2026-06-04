@@ -45,8 +45,8 @@ import {
   type TenantIntegrationRow,
 } from "@/lib/integrations/repository";
 import {
+  applyWorkspaceYouTubePublishState,
   clearWorkspaceYouTubeIdentity,
-  syncWorkspaceYouTubeIdentity,
 } from "@/lib/integrations/workspace-social-sync";
 
 // ── Shared types ────────────────────────────────────────────────────────────
@@ -363,25 +363,72 @@ export async function saveIntegrationConfig(
   }
 
   if (key === YOUTUBE_INTEGRATION_KEY) {
-    const profileUrl = (row.config_json as Record<string, unknown>).profile_url;
-    if (typeof profileUrl === "string" && profileUrl.trim()) {
-      await syncWorkspaceYouTubeIdentity({
-        tenantId: guard.tenantId,
-        profileUrl,
-        actorUserId: guard.actorId,
-      });
-    } else {
-      const previousProfileUrl =
-        typeof existing?.config_json?.profile_url === "string"
-          ? existing.config_json.profile_url
-          : null;
-      await clearWorkspaceYouTubeIdentity({
-        tenantId: guard.tenantId,
-        expectedProfileUrl: previousProfileUrl,
-        actorUserId: guard.actorId,
-      });
-    }
+    // Reconcile the public-site identity through the single toggle-aware path:
+    // the channel only publishes into social_youtube when show_on_public_site
+    // is ON (privacy-first). Editing the URL never changes the publish choice.
+    const previousProfileUrl =
+      typeof existing?.config_json?.profile_url === "string"
+        ? existing.config_json.profile_url
+        : null;
+    await applyWorkspaceYouTubePublishState({
+      tenantId: guard.tenantId,
+      config: row.config_json as Record<string, unknown>,
+      previousProfileUrl,
+      actorUserId: guard.actorId,
+    });
   }
+
+  revalidatePath(`/${tenantSlug}/admin/settings`);
+  return { ok: true };
+}
+
+// ── Write: workspace YouTube "Show on public site" toggle ────────────────────
+
+/**
+ * Flip the "Show on public site" control for the workspace YouTube integration.
+ *
+ * Connecting/verifying a channel and publishing it to the public site are
+ * deliberately decoupled (privacy-first): the connection + OAuth verification
+ * persist regardless of this toggle. When ON, the verified channel URL is
+ * mirrored into agency_business_identity.social_youtube (public header/footer);
+ * when OFF, that mirror is cleared — but only if it still matches the
+ * integration-owned value, so a hand-edited Business-identity value is never
+ * clobbered.
+ *
+ * The toggle is stored in tenant_integrations.config_json.show_on_public_site.
+ */
+export async function setWorkspaceYouTubePublic(
+  tenantSlug: string,
+  showOnPublicSite: boolean,
+): Promise<IntegrationActionResult> {
+  const guard = await requireSettingsManager(tenantSlug);
+  if (!guard.ok) return guard;
+
+  const existing = await getTenantIntegration(guard.tenantId, YOUTUBE_INTEGRATION_KEY);
+  const previousProfileUrl =
+    typeof existing?.config_json?.profile_url === "string"
+      ? existing.config_json.profile_url
+      : null;
+
+  const row = await setIntegrationConfig(
+    guard.tenantId,
+    YOUTUBE_INTEGRATION_KEY,
+    { show_on_public_site: showOnPublicSite },
+    { actorId: guard.actorId },
+  );
+  if (!row) {
+    logServerError("integrations/setYouTubePublic", {
+      tenantId: guard.tenantId,
+    });
+    return { ok: false, error: "Couldn't save. Please try again." };
+  }
+
+  await applyWorkspaceYouTubePublishState({
+    tenantId: guard.tenantId,
+    config: row.config_json as Record<string, unknown>,
+    previousProfileUrl,
+    actorUserId: guard.actorId,
+  });
 
   revalidatePath(`/${tenantSlug}/admin/settings`);
   return { ok: true };
