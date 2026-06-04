@@ -35,6 +35,9 @@ export type WorkspaceMessage = {
   message_kind?: string | null;
   /** Per-kind JSON payload for the structured card. */
   card_payload?: Record<string, unknown> | null;
+  /** Raw message metadata jsonb — carries the voice-note descriptor for
+   *  message_kind='voice' (parsed bubble-side via readVoiceMetaFromMessageMetadata). */
+  metadata?: Record<string, unknown> | null;
   /** Aggregated emoji reactions on this message. */
   reactions?: Array<{ emoji: string; count: number; mine: boolean }>;
   /** ISO timestamp when the most-recent counterparty (anyone other than

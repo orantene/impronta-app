@@ -178,6 +178,9 @@ export type TalentThreadMessage = {
   ts: string;
   messageKind: string;
   cardPayload: Record<string, unknown> | null;
+  /** Raw message metadata jsonb — carries the voice-note descriptor for
+   *  message_kind='voice' (parsed bubble-side via readVoiceMetaFromMessageMetadata). */
+  metadata: Record<string, unknown> | null;
 };
 
 /**
@@ -262,7 +265,7 @@ export async function loadTalentInquiryThread(
 
     const { data, error } = await readClient
       .from("inquiry_messages")
-      .select("id, sender_user_id, body, created_at, message_kind, card_payload, profiles:sender_user_id(display_name)")
+      .select("id, sender_user_id, body, created_at, message_kind, card_payload, metadata, profiles:sender_user_id(display_name)")
       .eq("inquiry_id", inquiryId)
       .eq("thread_type", threadType)
       .eq("tenant_id", tenantId)
@@ -281,6 +284,7 @@ export async function loadTalentInquiryThread(
       created_at: string;
       message_kind: string | null;
       card_payload: Record<string, unknown> | null;
+      metadata: Record<string, unknown> | null;
       profiles: { display_name: string | null } | { display_name: string | null }[] | null;
     };
     return ((data ?? []) as unknown as Row[]).map((row) => {
@@ -300,6 +304,7 @@ export async function loadTalentInquiryThread(
         ts: row.created_at,
         messageKind: row.message_kind ?? "text",
         cardPayload: row.card_payload ?? null,
+        metadata: row.metadata ?? null,
       };
     });
   } catch (err) {

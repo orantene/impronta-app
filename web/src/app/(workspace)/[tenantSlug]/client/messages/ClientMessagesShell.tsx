@@ -30,6 +30,9 @@ import { StarButton } from "@/components/chat-interactions/StarButton";
 import { PinButton } from "@/components/chat-interactions/PinButton";
 import { PinnedStrip } from "@/components/chat-interactions/PinnedStrip";
 import { usePinnedMessages } from "@/components/chat-interactions/usePinnedMessages";
+import { VoiceRecorderButton } from "@/components/chat-interactions/VoiceRecorderButton";
+import { VoiceNotePlayer } from "@/components/chat-interactions/VoiceNotePlayer";
+import { readVoiceMetaFromMessageMetadata } from "@/lib/messages/voice-meta";
 import { renderMessageMarkdown } from "@/lib/messages/markdown";
 import { LinkPreview, firstHttpUrl, TypingRow } from "@/components/messages/thread-enhancements";
 import { useThreadPresence } from "@/lib/realtime/presence";
@@ -1852,6 +1855,22 @@ function ChatComposer({
             </div>
           )}
         </div>
+        {/* Voice note — record + send straight to the private thread. After a
+            successful send we fire the same `client-message-send-ok` event the
+            text path uses so the thread refetches (loadInquiryMessages now
+            carries metadata.voice → the bubble renders the player). */}
+        <VoiceRecorderButton
+          inquiryId={inquiryId}
+          threadType="private"
+          accent={C.accent}
+          idleColor={C.inkMuted}
+          onSent={() => {
+            window.dispatchEvent(
+              new CustomEvent("client-message-send-ok", { detail: { inquiryId } }),
+            );
+          }}
+          onError={(msg) => setError(msg)}
+        />
         <div style={{ flex: 1, position: "relative" }}>
           {/* @mention popover — appears above the textarea when a mention is active */}
           {mentionQuery !== null && filteredMentions.length > 0 && (
@@ -2790,7 +2809,10 @@ function Bubble({
 }) {
   const mine = m.is_mine;
   const kind = m.message_kind ?? "text";
-  const card = kind !== "text" ? renderClientChatCard(kind, m.card_payload ?? {}, { onJumpToOffer, onPayNow }) : null;
+  // Voice notes render as an inline player bubble (handled below), never a
+  // money/booking card. Detect from metadata so a tolerant parse wins.
+  const voiceMeta = kind === "voice" ? readVoiceMetaFromMessageMetadata(m.metadata) : null;
+  const card = kind !== "text" && kind !== "voice" ? renderClientChatCard(kind, m.card_payload ?? {}, { onJumpToOffer, onPayNow }) : null;
 
   const isOptimistic = m.id.startsWith("tmp-");
   const canEditOrDelete = mine && !isOptimistic && kind === "text" && tenantSlug && onMessagesChange;
@@ -2899,6 +2921,36 @@ function Bubble({
         );
       }
     });
+  }
+
+  // Voice note — inline audio player in a normal bubble (no edit/delete).
+  if (voiceMeta) {
+    return (
+      <div data-message-id={m.id} style={{ display: "flex", justifyContent: mine ? "flex-end" : "flex-start" }}>
+        <div style={{ maxWidth: "78%" }}>
+          {!mine && (
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: C.inkMuted, marginBottom: 3, letterSpacing: 0.3 }}>
+              {m.sender_name}
+            </div>
+          )}
+          <div
+            style={{
+              padding: "8px 12px",
+              borderRadius: 14,
+              borderBottomRightRadius: mine ? 4 : 14,
+              borderBottomLeftRadius: mine ? 14 : 4,
+              background: mine ? C.ink : "#fff",
+              border: mine ? "none" : `1px solid ${C.borderSoft}`,
+            }}
+          >
+            <VoiceNotePlayer meta={voiceMeta} accent={C.accent} onDark={mine} />
+          </div>
+          <div style={{ fontSize: 10, color: C.inkDim, marginTop: 3, textAlign: mine ? "right" : "left", paddingRight: 2 }}>
+            {formatTime(m.created_at)}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   // Structured card — full-width, no chat-bubble chrome. No edit/delete for cards.
