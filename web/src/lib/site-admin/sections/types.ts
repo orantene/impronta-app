@@ -100,6 +100,19 @@ export interface SectionComponentProps<TShape> {
    */
   mapsApiKey?: string | null;
   /**
+   * Server-resolved captcha widget config for this tenant's storefront forms
+   * (the contact_form section reads it to render the right widget + site key).
+   * The tenant's own provider+site_key when configured, else the platform
+   * fallback, else provider 'none'. Resolved once at the render seam via
+   * `resolveTenantCaptcha(tenantId)` and threaded down (mirrors `mapsApiKey`),
+   * so a form section never imports a server-only module. The server-side
+   * SECRET used to verify a token lives only in the submit route, never here.
+   */
+  captcha?: {
+    provider: "hcaptcha" | "turnstile" | "none";
+    siteKey: string | null;
+  } | null;
+  /**
    * Optional BuilderNode identity hints for componentized sections.
    * `sectionNodeId` is the wrapper's section node; `nodeIdsByRole` maps
    * semantic child roles (e.g. headline, subheadline, primaryCta) to

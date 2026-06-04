@@ -27,6 +27,10 @@ import {
 } from "@/lib/site-admin";
 import { loadPublicBranding } from "@/lib/site-admin/server/reads";
 import { resolveTenantAnalytics } from "@/lib/integrations/analytics-resolver";
+import {
+  TenantCustomCodeBody,
+  TenantCustomCodeHead,
+} from "@/components/integrations/tenant-custom-code";
 import { GoogleFontsLink } from "./google-fonts-link";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { TenantRegisterMount } from "@/components/marketing/tenant-register-mount";
@@ -176,6 +180,9 @@ export default async function RootLayout({
         suppressHydrationWarning
         className={`site-theme-${siteTheme}${publicScope ? " site-theme-tenant-override" : ""} flex min-h-full flex-col text-foreground`}
       >
+        {/* Tenant custom code — head snippet. Storefront-only (publicScope),
+            entitlement + status gated inside the resolver. */}
+        {publicScope && <TenantCustomCodeHead tenantId={publicScope.tenantId} />}
         {/* Phase 13 — load tenant Google Fonts when picker tokens set. */}
         <GoogleFontsLink tokens={designTokens} />
         {/* Phase 5 — global scroll-reveal observer (no-op when no targets). */}
@@ -190,6 +197,8 @@ export default async function RootLayout({
         <WebVitalsReporter />
         <CspViolationReporter />
         {children}
+        {/* Tenant custom code — body snippet (end of <body>). Storefront-only. */}
+        {publicScope && <TenantCustomCodeBody tenantId={publicScope.tenantId} />}
         <TenantRegisterMount />
         <EditChromeMount />
         <Analytics />

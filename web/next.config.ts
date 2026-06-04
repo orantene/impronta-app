@@ -129,6 +129,12 @@ const builderEmbedCsp = {
 
 function contentSecurityPolicy(): string {
   const googleTag = "https://www.googletagmanager.com https://www.google-analytics.com";
+  // Tenant captcha integrations (hCaptcha + Cloudflare Turnstile). The widget
+  // script + iframe + the browser-side siteverify XHR must be allow-listed or
+  // the storefront contact-form captcha is silently blocked.
+  const captchaScript = "https://js.hcaptcha.com https://challenges.cloudflare.com";
+  const captchaFrame = "https://newassets.hcaptcha.com https://challenges.cloudflare.com";
+  const captchaConnect = "https://hcaptcha.com https://*.hcaptcha.com https://challenges.cloudflare.com";
   // @vercel/analytics + @vercel/speed-insights load scripts from va.vercel-scripts.com
   // and beacon to vitals.vercel-insights.com. Without these directives the
   // packages are silently blocked by CSP and never report — the Vercel dashboard
@@ -137,13 +143,13 @@ function contentSecurityPolicy(): string {
   const directives = [
     "default-src 'self'",
     isProd
-      ? `script-src 'self' 'unsafe-inline' ${googleMapsCsp.script} ${stripeCsp.script} ${googleTag} ${vercelInsights}`
-      : `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${googleMapsCsp.script} ${stripeCsp.script} ${googleTag} ${vercelInsights}`,
+      ? `script-src 'self' 'unsafe-inline' ${googleMapsCsp.script} ${stripeCsp.script} ${googleTag} ${captchaScript} ${vercelInsights}`
+      : `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${googleMapsCsp.script} ${stripeCsp.script} ${googleTag} ${captchaScript} ${vercelInsights}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' data: https://fonts.gstatic.com",
     `img-src 'self' data: blob: https: https://www.google-analytics.com`,
-    `connect-src ${connectSrcDirectives().join(" ")} ${googleMapsCsp.connect} ${stripeCsp.connect} ${googleTag} https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com ${vercelInsights} https://*.sentry.io`,
-    `frame-src ${googleMapsCsp.frameSrc} ${stripeCsp.frame} ${builderEmbedCsp.frame}`,
+    `connect-src ${connectSrcDirectives().join(" ")} ${googleMapsCsp.connect} ${stripeCsp.connect} ${googleTag} ${captchaConnect} https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com ${vercelInsights} https://*.sentry.io`,
+    `frame-src ${googleMapsCsp.frameSrc} ${stripeCsp.frame} ${builderEmbedCsp.frame} ${captchaFrame}`,
     /** Maps workers use blob: URLs */
     "worker-src blob:",
     "frame-ancestors 'self'",

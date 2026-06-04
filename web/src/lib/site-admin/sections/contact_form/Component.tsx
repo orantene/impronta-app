@@ -250,6 +250,7 @@ function sectionHeadAlignDecls(align?: "left" | "center" | "right"): string[] {
 export function ContactFormComponent({
   props,
   sectionId,
+  captcha: resolvedCaptcha,
   builderNodeBindings,
 }: SectionComponentProps<ContactFormV1>) {
   const {
@@ -320,9 +321,22 @@ export function ContactFormComponent({
     ],
   });
 
-  // Phase 8 — captcha widget (env-driven site keys; absent env = no widget).
-  const hcaptchaKey = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY;
-  const turnstileKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+  // Captcha widget. The operator opts into a provider on the section
+  // (`captcha`); the actual provider + PUBLIC site key are server-resolved per
+  // tenant (their own captcha integration first, else the platform fallback)
+  // and threaded in via `resolvedCaptcha`. Env vars are a last-resort fallback
+  // for legacy/standalone renders where the resolver didn't run.
+  const tenantProvider =
+    resolvedCaptcha && resolvedCaptcha.provider !== "none"
+      ? resolvedCaptcha.provider
+      : null;
+  const tenantSiteKey = resolvedCaptcha?.siteKey ?? null;
+  const hcaptchaKey =
+    (tenantProvider === "hcaptcha" ? tenantSiteKey : null) ??
+    process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY;
+  const turnstileKey =
+    (tenantProvider === "turnstile" ? tenantSiteKey : null) ??
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   const captchaActive =
     (captcha === "hcaptcha" && hcaptchaKey) ||
     (captcha === "turnstile" && turnstileKey);

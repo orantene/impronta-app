@@ -283,6 +283,75 @@ export async function setSecret(
   return !error;
 }
 
+/**
+ * Read the two plan-entitlement flags the integrations hub gates on
+ * (custom_css_allowed → custom_code; white_label_email → email_domain). Missing
+ * row / failure → both false (fail closed). Service-role read.
+ */
+export async function getIntegrationEntitlements(
+  tenantId: string,
+): Promise<{ custom_css_allowed: boolean; white_label_email: boolean }> {
+  const supabase = service();
+  if (!supabase) return { custom_css_allowed: false, white_label_email: false };
+  const { data, error } = await supabase
+    .from("agency_entitlements")
+    .select("custom_css_allowed, white_label_email")
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  if (error || !data) {
+    return { custom_css_allowed: false, white_label_email: false };
+  }
+  const row = data as {
+    custom_css_allowed: boolean | null;
+    white_label_email: boolean | null;
+  };
+  return {
+    custom_css_allowed: row.custom_css_allowed === true,
+    white_label_email: row.white_label_email === true,
+  };
+}
+
+/**
+ * True when the tenant (workspace/agency) has a connected Stripe payout
+ * account. Read-only; service role. Used to give the surfaced "Stripe payouts"
+ * link card a live connected/not-set status.
+ */
+export async function tenantHasConnectedPayoutAccount(
+  tenantId: string,
+): Promise<boolean> {
+  const supabase = service();
+  if (!supabase) return false;
+  const { data, error } = await supabase
+    .from("payout_accounts")
+    .select("status")
+    .eq("tenant_id", tenantId)
+    .eq("owner_type", "agency")
+    .is("disconnected_at", null)
+    .limit(1);
+  if (error || !data || data.length === 0) return false;
+  const status = (data[0] as { status: string | null }).status ?? "";
+  return status === "connected" || status === "enabled";
+}
+
+/**
+ * True when the tenant has an active/verified custom domain row. Read-only;
+ * service role. Used for the surfaced "Custom domain" link card status.
+ */
+export async function tenantHasCustomDomain(tenantId: string): Promise<boolean> {
+  const supabase = service();
+  if (!supabase) return false;
+  const { data, error } = await supabase
+    .from("agency_domains")
+    .select("status")
+    .eq("tenant_id", tenantId)
+    .limit(5);
+  if (error || !data || data.length === 0) return false;
+  return data.some((r) => {
+    const status = (r as { status: string | null }).status ?? "";
+    return status === "verified" || status === "active" || status === "connected";
+  });
+}
+
 /** Delete a stored secret. Returns false on failure. */
 export async function deleteSecret(
   tenantId: string,
