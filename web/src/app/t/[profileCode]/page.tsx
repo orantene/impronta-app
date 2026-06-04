@@ -1264,6 +1264,24 @@ export default async function PublicTalentProfilePage({
     return typeof slug === "string" && slug.trim() ? slug.trim() : null;
   }
 
+  // FREE-TIER CONTACT GATE: on the free default profile, the ONLY contact path
+  // is the in-Tulala inquiry — so any field VALUE that is a social handle,
+  // external link, or direct contact channel is suppressed (clients must not be
+  // able to bypass Tulala). Pro/Max surface these. Matched by key token so new
+  // social/link fields are caught by default.
+  const isFreePlanProfile =
+    !profile.talent_plan_key || profile.talent_plan_key === "talent_basic";
+  const EXTERNAL_CONTACT_FIELD_TOKENS = [
+    "instagram", "tiktok", "youtube", "twitter", "facebook", "linkedin",
+    "snapchat", "pinterest", "threads", "vimeo", "spotify", "soundcloud",
+    "behance", "imdb", "social", "website", "portfolio", "showreel", "reel",
+    "url", "link", "whatsapp", "phone", "mobile", "email", "telegram", "wechat",
+  ];
+  const isExternalContactFieldKey = (key: string): boolean => {
+    const k = key.toLowerCase();
+    return EXTERNAL_CONTACT_FIELD_TOKENS.some((t) => k.includes(t));
+  };
+
   const { basicInfoDetailRows, otherDetailRows } = fieldValues.reduce<{
     basicInfoDetailRows: DetailEntry[];
     otherDetailRows: DetailEntry[];
@@ -1283,6 +1301,7 @@ export default async function PublicTalentProfilePage({
       if (def.key === "height_cm") {
         return acc;
       }
+      if (isFreePlanProfile && isExternalContactFieldKey(def.key)) return acc;
       if (def.internal_only) return acc;
       if (def.profile_visible === false) return acc;
       if (def.public_visible === false) return acc;
@@ -1786,19 +1805,7 @@ export default async function PublicTalentProfilePage({
             labels={shareLabels}
           />
         }
-        discoveryCta={
-          <ProfileDiscoveryCta
-            talentId={profile.id}
-            profileCode={profile.profile_code}
-            displayName={name}
-            sourcePage={profileSourcePage}
-            initialSaved={initialSavedIds.includes(profile.id)}
-            portalInquiryHref={portalInquiryHref}
-            mode="header"
-            profileCta={ui.profileCta}
-            inquiry={ui.inquiry}
-          />
-        }
+        discoveryCta={null}
         discoveryCta2={
           <ProfileDiscoveryCta
             talentId={profile.id}
