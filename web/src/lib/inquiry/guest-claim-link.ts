@@ -65,7 +65,7 @@ export async function sendGuestClaimEmail(args: SendGuestClaimEmailArgs): Promis
 
     const appUrl = args.appUrl.replace(/\/$/, "");
     const next = `/${args.tenantSlug}/client/messages`;
-    const redirectTo = `${appUrl}/auth/callback?next=${encodeURIComponent(next)}`;
+    const redirectTo = `${appUrl}/auth/confirm?next=${encodeURIComponent(next)}`;
 
     const { data, error } = await admin.auth.admin.generateLink({
       type: "magiclink",
@@ -73,14 +73,22 @@ export async function sendGuestClaimEmail(args: SendGuestClaimEmailArgs): Promis
       options: { redirectTo },
     });
 
-    const actionLink = data?.properties?.action_link;
-    if (error || !actionLink) {
+    // Use the token_hash (server-side verifyOtp flow), NOT properties.action_link.
+    // action_link uses Supabase's implicit/hash flow (#access_token=…) which the
+    // app's PKCE-only /auth/callback can't consume — the URL fragment never reaches
+    // the server, so it bounces to /login?error=auth. Our /auth/confirm route calls
+    // supabase.auth.verifyOtp({ token_hash, type }) and sets the SSR session cookies.
+    const tokenHash = data?.properties?.hashed_token;
+    if (error || !tokenHash) {
       if (error) logServerError("guest-claim-link/generateLink", error);
       return;
     }
+    const claimLink = `${appUrl}/auth/confirm?token_hash=${encodeURIComponent(
+      tokenHash,
+    )}&type=magiclink&next=${encodeURIComponent(next)}`;
 
     const brand = await resolveTenantBrand(args.tenantId ?? "");
-    const { subject, html } = _buildClaimEmail(actionLink, args.talentName, brand);
+    const { subject, html } = _buildClaimEmail(claimLink, args.talentName, brand);
 
     await sendEmail({
       to: email,
