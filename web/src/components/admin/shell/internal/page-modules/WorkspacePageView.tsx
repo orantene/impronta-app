@@ -18,6 +18,7 @@ import {
 } from "./settings-deeplink";
 import { RegistrationSection } from "./RegistrationSection";
 import { IntegrationsSection } from "./IntegrationsSection";
+import { SettingsSectionIcon } from "@/components/admin/settings/settings-section-icons";
 
 
 /** Settings list row — white card with flex-row layout + hover lift.
@@ -112,6 +113,7 @@ function AccordionItem({
         onMouseEnter={(e) => { if (!open) e.currentTarget.style.background = "rgba(11,11,13,0.02)"; }}
         onMouseLeave={(e) => { if (!open) e.currentTarget.style.background = "transparent"; }}
       >
+        <SettingsSectionIcon sectionId={id} danger={danger} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{
