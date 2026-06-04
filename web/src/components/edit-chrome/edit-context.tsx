@@ -2115,20 +2115,77 @@ export function EditProvider({
     [],
   );
 
-  // #18 — Persist `past` to localStorage on every change. We write only
-  // the tail (UNDO_PERSIST_CAP entries) so the serialised size stays small
-  // even for large builder-tree snapshots. The write is fire-and-forget —
-  // a synchronous write on every mutation is acceptable since `past` changes
-  // at most on every user action (not on every render).
-  useEffect(() => {
-    if (!undoPersistKey || typeof window === "undefined") return;
+  // #18 — Persist `past` to localStorage. We write only the tail
+  // (UNDO_PERSIST_CAP entries) so the serialised size stays small even for
+  // large builder-tree snapshots.
+  //
+  // PERF: the serialize+write used to run SYNCHRONOUSLY on the commit path of
+  // every mutation, blocking the main thread mid-interaction. We now DEBOUNCE
+  // it off the hot path (~500ms after the last change) so a burst of rapid
+  // edits coalesces into a single write. Correctness is preserved by always
+  // serialising the LATEST `past` (read from a ref at flush time) and by
+  // FLUSHING any pending write synchronously on unmount and when the page is
+  // being hidden/unloaded (pagehide + visibilitychange→hidden) — so a reload
+  // immediately after an edit never loses the persisted undo tail.
+  const undoPersistDataRef = useRef<{ key: string | null; past: HistoryEntry[] }>(
+    { key: undoPersistKey, past },
+  );
+  undoPersistDataRef.current = { key: undoPersistKey, past };
+  const undoPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flushUndoPersist = useCallback(() => {
+    if (undoPersistTimerRef.current !== null) {
+      clearTimeout(undoPersistTimerRef.current);
+      undoPersistTimerRef.current = null;
+    }
+    if (typeof window === "undefined") return;
+    const { key, past: latestPast } = undoPersistDataRef.current;
+    if (!key) return;
     try {
-      const tail = past.slice(-UNDO_PERSIST_CAP);
-      window.localStorage.setItem(undoPersistKey, JSON.stringify(tail));
+      const tail = latestPast.slice(-UNDO_PERSIST_CAP);
+      window.localStorage.setItem(key, JSON.stringify(tail));
     } catch {
       // Quota exceeded or private-browsing block — silently skip.
     }
-  }, [past, undoPersistKey]);
+  }, []);
+
+  // Debounced write — reschedules on every `past` change; the serialize+write
+  // runs ~500ms after the last edit, off the interaction hot path.
+  useEffect(() => {
+    if (!undoPersistKey || typeof window === "undefined") return;
+    if (undoPersistTimerRef.current !== null) {
+      clearTimeout(undoPersistTimerRef.current);
+    }
+    undoPersistTimerRef.current = setTimeout(() => {
+      undoPersistTimerRef.current = null;
+      flushUndoPersist();
+    }, 500);
+    return () => {
+      if (undoPersistTimerRef.current !== null) {
+        clearTimeout(undoPersistTimerRef.current);
+        undoPersistTimerRef.current = null;
+      }
+    };
+  }, [past, undoPersistKey, flushUndoPersist]);
+
+  // Flush on unmount and when the page is hidden/unloaded so a reload right
+  // after an edit never loses the persisted undo tail. visibilitychange→hidden
+  // is the reliable signal on mobile/bfcache; pagehide covers desktop unload.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onPageHide = () => flushUndoPersist();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") flushUndoPersist();
+    };
+    window.addEventListener("pagehide", onPageHide);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.removeEventListener("pagehide", onPageHide);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      // Component unmount — write whatever is pending synchronously.
+      flushUndoPersist();
+    };
+  }, [flushUndoPersist]);
 
   // library overlay target
   const [libraryTarget, setLibraryTarget] = useState<LibraryTarget | null>(

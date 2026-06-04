@@ -643,6 +643,15 @@ export function SelectionLayer() {
   const autoscrollRafRef = useRef<number | null>(null);
   const selectionScrollRetryRef = useRef<number | null>(null);
 
+  // P3-PERF (marquee): candidate index cached for the marquee gesture, the
+  // rAF handle that coalesces pointermove state updates, and the latest pointer
+  // position recorded synchronously so pointer-up reads the true final point.
+  const marqueeIndexRef = useRef<
+    Array<{ id: string; el: HTMLElement; box: Rect }> | null
+  >(null);
+  const marqueeRafRef = useRef<number | null>(null);
+  const latestMarqueePointRef = useRef<{ x: number; y: number } | null>(null);
+
   const rafRef = useRef<number | null>(null);
 
   // ── Imperative overlay positioning (Figma-smooth selection tracking) ───────
@@ -1195,8 +1204,13 @@ export function SelectionLayer() {
       );
     }
 
-    function selectedNodeIdsForRect(rect: Rect) {
-      const candidates = Array.from(
+    // P3-PERF: cached marquee candidate index, built once at marquee-start and
+    // refreshed on scroll/resize (the only inputs that move the snapshotted
+    // viewport rects vs. the live marquee rect). Mirrors the drag cache. The
+    // shape carries the live element so the O(N²) containment filter still works.
+    type MarqueeCandidate = { id: string; el: HTMLElement; box: Rect };
+    function buildMarqueeIndex(): MarqueeCandidate[] {
+      return Array.from(
         document.querySelectorAll<HTMLElement>("[data-builder-node-id]"),
       ).flatMap((el) => {
         const id = el.getAttribute("data-builder-node-id");
@@ -1206,9 +1220,17 @@ export function SelectionLayer() {
         if (!node || node.kind === "section" || resolveBuilderNodeRole(node.id) || node.locked) {
           return [];
         }
-        const box = rectOf(el);
-        return rectsIntersect(rect, box) ? [{ id, el }] : [];
+        return [{ id, el, box: rectOf(el) }];
       });
+    }
+
+    function selectedNodeIdsForRect(rect: Rect) {
+      // Reuse the gesture's cached index when warm; fall back to a fresh scan
+      // (byte-identical) if the cache was never seeded for this gesture.
+      const index = marqueeIndexRef.current ?? buildMarqueeIndex();
+      const candidates = index.filter((candidate) =>
+        rectsIntersect(rect, candidate.box),
+      );
       return candidates
         .filter(
           (candidate) =>
@@ -1219,10 +1241,31 @@ export function SelectionLayer() {
         .map((candidate) => candidate.id);
     }
 
+    function flushMarqueePoint() {
+      marqueeRafRef.current = null;
+      const point = latestMarqueePointRef.current;
+      if (!point) return;
+      setMarquee((current) =>
+        current.phase === "dragging"
+          ? { ...current, currentX: point.x, currentY: point.y }
+          : current,
+      );
+    }
+
+    function refreshMarqueeIndex() {
+      if (marqueeIndexRef.current !== null) {
+        marqueeIndexRef.current = buildMarqueeIndex();
+      }
+    }
+
     function onPointerDown(event: PointerEvent) {
       if (event.button !== 0) return;
       if (previewing()) return;
       if (shouldIgnoreMarqueeTarget(event.target)) return;
+      // Seed the candidate index for the whole gesture (refreshed on
+      // scroll/resize below); flushed on pointer-up / pointer-cancel.
+      marqueeIndexRef.current = buildMarqueeIndex();
+      latestMarqueePointRef.current = { x: event.clientX, y: event.clientY };
       setMarquee({
         phase: "dragging",
         startX: event.clientX,
@@ -1233,21 +1276,34 @@ export function SelectionLayer() {
     }
 
     function onPointerMove(event: PointerEvent) {
-      setMarquee((current) =>
-        current.phase === "dragging"
-          ? { ...current, currentX: event.clientX, currentY: event.clientY }
-          : current,
-      );
+      // Always record the latest point synchronously so pointer-up reads the
+      // true final position even if a throttled frame is still pending; the
+      // state update itself is rAF-coalesced to avoid a re-render per move.
+      latestMarqueePointRef.current = { x: event.clientX, y: event.clientY };
+      if (marqueeRafRef.current === null) {
+        marqueeRafRef.current = requestAnimationFrame(flushMarqueePoint);
+      }
     }
 
     function onPointerUp(event: PointerEvent) {
+      // Drop any pending throttled frame; we apply the final point inline.
+      if (marqueeRafRef.current !== null) {
+        cancelAnimationFrame(marqueeRafRef.current);
+        marqueeRafRef.current = null;
+      }
+      const point = latestMarqueePointRef.current;
       setMarquee((current) => {
-        if (current.phase !== "dragging") return current;
+        if (current.phase !== "dragging") {
+          marqueeIndexRef.current = null;
+          return current;
+        }
+        const endX = point?.x ?? current.currentX;
+        const endY = point?.y ?? current.currentY;
         const rect = {
-          left: Math.min(current.startX, current.currentX),
-          top: Math.min(current.startY, current.currentY),
-          width: Math.abs(current.currentX - current.startX),
-          height: Math.abs(current.currentY - current.startY),
+          left: Math.min(current.startX, endX),
+          top: Math.min(current.startY, endY),
+          width: Math.abs(endX - current.startX),
+          height: Math.abs(endY - current.startY),
         };
         if (rect.width >= 8 && rect.height >= 8) {
           suppressNextClickRef.current = true;
@@ -1259,6 +1315,7 @@ export function SelectionLayer() {
             replaceBuilderNodeSelection(nextIds);
           }
         }
+        marqueeIndexRef.current = null;
         return { phase: "idle" };
       });
     }
@@ -1271,11 +1328,25 @@ export function SelectionLayer() {
     document.addEventListener("pointermove", onPointerMove);
     document.addEventListener("pointerup", onPointerUp);
     document.addEventListener("pointercancel", onPointerUp);
+    window.addEventListener("scroll", refreshMarqueeIndex, {
+      passive: true,
+      capture: true,
+    });
+    window.addEventListener("resize", refreshMarqueeIndex);
     return () => {
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("pointermove", onPointerMove);
       document.removeEventListener("pointerup", onPointerUp);
       document.removeEventListener("pointercancel", onPointerUp);
+      window.removeEventListener("scroll", refreshMarqueeIndex, {
+        capture: true,
+      } as EventListenerOptions);
+      window.removeEventListener("resize", refreshMarqueeIndex);
+      if (marqueeRafRef.current !== null) {
+        cancelAnimationFrame(marqueeRafRef.current);
+        marqueeRafRef.current = null;
+      }
+      marqueeIndexRef.current = null;
     };
   }, [
     builderTree,
@@ -1314,10 +1385,41 @@ export function SelectionLayer() {
     selectBuilderNode,
   ]);
 
+  // ── P3-PERF: drag-candidate index cached for the WHOLE gesture ──────────────
+  //
+  // `collectCanvasDropCandidates` is expensive: it queries every
+  // `[data-builder-node-id]`, forces a sync `getBoundingClientRect` per node, and
+  // (historically) ran an O(N²) `.contains()` depth scan. It used to run on EVERY
+  // `onDragOver` frame (60+/s) → layout thrash + main-thread stalls on a large
+  // page. The candidate SET (which containers exist, their kinds/locked flags,
+  // their child ordering, their depth) is invariant for the duration of a single
+  // drag — only their VIEWPORT rects move, and only when the canvas scrolls or
+  // the window resizes. So we snapshot the candidate list ONCE at drag-start and
+  // reuse it across the gesture; per frame we just hit-test the cached bands.
+  //
+  // Byte-identical guarantee: the cache stores the EXACT output of
+  // `collectCanvasDropCandidates`, and we recompute that output on every canvas
+  // scroll + window resize during the drag (the only inputs that change the
+  // snapshot). `resolveCanvasNodeDrop` is pure over the candidate list, so its
+  // drop-target + depth decisions are identical to calling collect() every frame.
+  const canvasDropIndexRef = useRef<CanvasDropCandidate[] | null>(null);
+
+  const rebuildCanvasDropIndex = useCallback(() => {
+    canvasDropIndexRef.current = collectCanvasDropCandidates(
+      canvasDropDepsRef.current.builderTree,
+    );
+  }, []);
+
   // Resolve the canvas drop target under the cursor for the dragged kind. The
   // DOM walk + index math live in `canvas-node-drop.ts` (pure + unit-tested);
   // this only feeds it the live candidate boxes. For an existing-node move the
   // dragged node is excluded so it can't parent itself or skew its own index.
+  //
+  // P3-PERF: read the cached candidate index built at drag-start (and refreshed
+  // on scroll/resize). If — for any unforeseen reason — the cache is empty when
+  // we're asked to resolve (e.g. a `drop`/`dragover` fired before the cache was
+  // seeded), fall back to a fresh scan so correctness never depends on the cache
+  // being warm.
   const computeCanvasNodeDrop = useCallback(
     (
       cursorX: number,
@@ -1325,9 +1427,9 @@ export function SelectionLayer() {
       draggedKind: BuilderNodeKind,
       excludeNodeId: string | null,
     ): CanvasDropResult | null => {
-      const candidates = collectCanvasDropCandidates(
-        canvasDropDepsRef.current.builderTree,
-      );
+      const candidates =
+        canvasDropIndexRef.current ??
+        collectCanvasDropCandidates(canvasDropDepsRef.current.builderTree);
       return resolveCanvasNodeDrop({
         cursorX,
         cursorY,
@@ -1612,6 +1714,46 @@ export function SelectionLayer() {
       window.removeEventListener("keydown", onKey);
     };
   }, [canvasNodeDrag, computeCanvasNodeDrop]);
+
+  // ── P3-PERF: maintain the cached drop-candidate index for the active drag ───
+  //
+  // Seed the index the moment a canvas drag becomes active (palette or move),
+  // then keep it fresh on the ONLY two inputs that move the snapshotted viewport
+  // rects: the canvas scroll-container scrolling (caught capture-phase on window,
+  // same as the selection-ring tracker — `scroll` doesn't bubble, so capture
+  // catches a nested scroller) and the window resizing. We clear the cache when
+  // the drag ends so a later resolve falls back to a fresh scan rather than
+  // reading a stale gesture's geometry.
+  // A STABLE key for the active gesture: the candidate SET is invariant for the
+  // life of one drag, so we must NOT re-seed on the per-frame cursor/drop state
+  // churn (`onDragOver` updates `canvasNodeDrag` every move). Keying on
+  // phase + dragged-node identity re-runs this effect only on arm/disarm.
+  const canvasDragGestureKey =
+    canvasNodeDrag.phase === "idle"
+      ? "idle"
+      : canvasNodeDrag.phase === "move"
+        ? `move:${canvasNodeDrag.nodeId}`
+        : "palette";
+  useEffect(() => {
+    if (canvasDragGestureKey === "idle") {
+      canvasDropIndexRef.current = null;
+      return undefined;
+    }
+    rebuildCanvasDropIndex();
+    const onScrollOrResize = () => rebuildCanvasDropIndex();
+    window.addEventListener("scroll", onScrollOrResize, {
+      passive: true,
+      capture: true,
+    });
+    window.addEventListener("resize", onScrollOrResize);
+    return () => {
+      window.removeEventListener("scroll", onScrollOrResize, {
+        capture: true,
+      } as EventListenerOptions);
+      window.removeEventListener("resize", onScrollOrResize);
+      canvasDropIndexRef.current = null;
+    };
+  }, [canvasDragGestureKey, rebuildCanvasDropIndex]);
 
   // ── drag-to-reorder ──────────────────────────────────────────────
   // Drop target under the cursor given the current section layout.
