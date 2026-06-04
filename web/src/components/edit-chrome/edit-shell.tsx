@@ -22,6 +22,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
+import { createClient } from "@/lib/supabase/client";
 import { EditErrorBoundary } from "./edit-error-boundary";
 import {
   EditProvider,
@@ -29,6 +30,7 @@ import {
   type EditDevice,
   type PreviewFrameOverride,
 } from "./edit-context";
+import { PresenceProvider } from "./presence-provider";
 import { CHROME_SHADOWS } from "./kit";
 import { SelectionLayer } from "./selection-layer";
 import { InspectorDock } from "./inspector-dock";
@@ -206,13 +208,54 @@ export function EditShell({
   );
 }
 
-/** Thin bridge — reads `pageId` from EditContext to seed guide persistence. */
+/**
+ * Thin bridge — reads `pageId` from EditContext to seed guide persistence and
+ * presence. Also resolves the logged-in user's id + name for presence tracking
+ * (graceful: falls back to a generic "You" / per-session id if unavailable).
+ */
 function CanvasViewportProviderWrapper({ children }: { children: React.ReactNode }) {
   const { pageId } = useEditContext();
+
+  // Resolve the Supabase user for presence identity. We do this once per
+  // mount (the EditProvider already manages the auth session; we just read it).
+  const [presenceMeta, setPresenceMeta] = useState<{
+    selfId?: string;
+    selfName?: string;
+  }>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    try {
+      const supa = createClient();
+      if (!supa) return;
+      void supa.auth.getUser().then(({ data }) => {
+        if (cancelled) return;
+        const user = data.user;
+        if (!user) return;
+        const name =
+          (user.user_metadata as { full_name?: string } | undefined)?.full_name ??
+          user.email?.split("@")[0] ??
+          "You";
+        setPresenceMeta({ selfId: user.id, selfName: name });
+      });
+    } catch {
+      // ignore — presence is non-critical
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
-    <CanvasViewportProvider pageId={pageId}>
-      {children}
-    </CanvasViewportProvider>
+    <PresenceProvider
+      pageId={pageId}
+      selfId={presenceMeta.selfId}
+      selfName={presenceMeta.selfName}
+    >
+      <CanvasViewportProvider pageId={pageId}>
+        {children}
+      </CanvasViewportProvider>
+    </PresenceProvider>
   );
 }
 
