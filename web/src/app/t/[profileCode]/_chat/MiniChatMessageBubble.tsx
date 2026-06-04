@@ -9,7 +9,7 @@
 
 import type { GuestThreadMessage } from "@/lib/inquiry/guest-chat-contract";
 
-import { C, formatTime, labelForKind } from "./mini-chat-styles";
+import { C, formatTime, labelForKind, readableOn } from "./mini-chat-styles";
 
 /**
  * A row in the visible stream — either a server/persisted message or a local
@@ -72,8 +72,12 @@ export function MiniChatMessageBubble({ m, accent }: { m: StreamRow; accent: str
           maxWidth: "82%",
           padding: isCard ? "11px 13px" : "9px 13px",
           borderRadius: mine ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
-          background: isCard ? C.surfaceFaint : mine ? C.guestBubble : C.surfaceCool,
-          color: mine && !isCard ? C.guestBubbleInk : C.ink,
+          // The guest's own bubble follows the tenant accent (brand color), not
+          // a hard-coded near-black fill — house rule: no black on small
+          // components. `accent` already resolves to the cool DEFAULT_ACCENT
+          // when the tenant has no brand color.
+          background: isCard ? C.surfaceFaint : mine ? accent : C.surfaceCool,
+          color: mine && !isCard ? readableOn(accent) : C.ink,
           border: isCard ? `1px solid ${C.borderSoft}` : "none",
           fontSize: 13.5,
           lineHeight: 1.5,
