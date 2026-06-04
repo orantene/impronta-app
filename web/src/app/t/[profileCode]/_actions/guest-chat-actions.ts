@@ -33,6 +33,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { ensureGuestClientByEmail } from "@/lib/inquiry/guest-client";
 import { createInquiryFromIntent } from "@/lib/inquiry/inquiry-intent-engine";
 import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
+import { captureGuestMessageDetails } from "@/lib/inquiry/guest-message-extract";
 import { sendMessage } from "@/lib/inquiry/inquiry-engine-messages";
 import {
   checkGuestInquiryAbuse,
@@ -558,15 +559,32 @@ export async function startGuestChatInquiry(
     return fail("blocked", "This conversation can't be started right now.");
   }
 
+  // ── AI conversational capture (Lane D): parse the first message into
+  // structured InquiryIntent fragments (location / date / event_type / headcount
+  // / budget / service hints) so the coordinator sees real details rather than a
+  // raw blob + `not_sure` everywhere. BEST-EFFORT + NON-BLOCKING — the extractor
+  // never throws and returns {} on ANY failure (AI off, no key, rate-limited,
+  // timeout, bad JSON), in which case we keep the `not_sure` defaults below so
+  // validateIntentForSubmit still passes and the inquiry is always created. The
+  // extractor honors the existing AI master/draft toggles + usage gate.
+  const capture = await captureGuestMessageDetails(firstMessage, tenantId);
+
   // Assemble the full InquiryIntent server-side. firstMessage → brief.summary
   // so validateIntentForSubmit passes (it requires brief.summary OR a selected
   // talent — here BOTH are satisfied), and the talent is pre-selected.
+  //
+  // location/date hard-require .(city|status) / .(event_date|status); we seed
+  // "not_sure" and let any AI-derived fragment OVERRIDE it (a derived fragment
+  // always carries its own status, so the validator stays satisfied). Other
+  // captured fragments (talent count/types, budget, event_type) only ADD signal.
+  const talentTypesNeeded = capture.talent?.types_needed;
   const intent: InquiryIntent = {
     source: "public_talent_profile",
     source_context: {
       public_profile_code: input.talentProfileCode,
       referrer_page: input.sourcePage,
       tenant_id: tenantId,
+      ...(capture.eventType ? { ai_event_type: capture.eventType } : {}),
     },
     requester: {
       name: contactName,
@@ -577,14 +595,16 @@ export async function startGuestChatInquiry(
     talent: {
       selected_ids: [input.talentProfileId],
       selection_mode: "i_know_who",
+      ...(capture.talent?.count_needed ? { count_needed: capture.talent.count_needed } : {}),
+      ...(talentTypesNeeded && talentTypesNeeded.length > 0
+        ? { types_needed: talentTypesNeeded }
+        : {}),
     },
-    // A guest opening a chat hasn't told us when/where yet — those details are
-    // gathered conversationally in the thread. validateIntentForSubmit hard-
-    // requires location.(city|status) AND date.(event_date|status), so seed the
-    // "not_sure" status on both; otherwise the first send fails validation_failed
-    // ("Add the missing details and try again.").
-    location: { status: "not_sure" },
-    date: { status: "not_sure" },
+    // Default to "not_sure"; an AI-derived fragment (which carries its own
+    // exact/flexible/online/unconfirmed status) replaces it when present.
+    location: capture.location ?? { status: "not_sure" },
+    date: capture.date ?? { status: "not_sure" },
+    ...(capture.budget ? { budget: capture.budget } : {}),
     brief: {
       summary: firstMessage,
     },

@@ -52,6 +52,13 @@ export function mapToGuestTrustChipProps({
   isBlocked,
   onBlock,
   onReport,
+  // Explicit signal overrides loaded server-side from real verification sources.
+  // When provided they take precedence over the trustSummary.badges fallback so
+  // callers that have already read the DB signals can pass them directly without
+  // building a TrustSummary.  "undefined" means "fall back to badge lookup".
+  phoneSignalOverride,
+  socialSignalOverride,
+  paymentSignalOverride,
 }: {
   trustSummary: TrustSummary | null;
   contactName: string;
@@ -63,6 +70,9 @@ export function mapToGuestTrustChipProps({
   isBlocked: boolean;
   onBlock?: GuestTrustChipProps["onBlock"];
   onReport?: GuestTrustChipProps["onReport"];
+  phoneSignalOverride?: TrustSignalState;
+  socialSignalOverride?: TrustSignalState;
+  paymentSignalOverride?: TrustSignalState;
 }): GuestTrustChipProps {
   // ─── identity ────────────────────────────────────────────────────────────
   const identity: GuestTrustChipProps["identity"] = !contactEmail
@@ -92,14 +102,32 @@ export function mapToGuestTrustChipProps({
       : "present_unverified"
     : "absent";
 
-  const phoneSignal: TrustSignalState = contactPhone
-    ? signalFromBadges("phone_verified") !== "absent"
-      ? "verified"
-      : "present_unverified"
-    : "absent";
+  // Phone: use the explicit override when the caller resolved it server-side.
+  // Fallback: check trustSummary badges; if a phone_verified badge is active →
+  // verified; if the phone number itself is present (but no badge) →
+  // present_unverified; otherwise absent.
+  const phoneSignal: TrustSignalState =
+    phoneSignalOverride !== undefined
+      ? phoneSignalOverride
+      : contactPhone
+        ? signalFromBadges("phone_verified") !== "absent"
+          ? "verified"
+          : "present_unverified"
+        : "absent";
 
-  const socialSignal: TrustSignalState = signalFromBadges("instagram_verified");
-  const paymentSignal: TrustSignalState = signalFromBadges("payment_verified");
+  // Social: use the explicit override when resolved server-side (e.g. from
+  // client_integrations).  Fallback to the legacy instagram_verified badge.
+  const socialSignal: TrustSignalState =
+    socialSignalOverride !== undefined
+      ? socialSignalOverride
+      : signalFromBadges("instagram_verified");
+
+  // Payment: use the explicit override when resolved server-side (e.g. from
+  // client_trust_state.verified_at).  Fallback to the legacy badge.
+  const paymentSignal: TrustSignalState =
+    paymentSignalOverride !== undefined
+      ? paymentSignalOverride
+      : signalFromBadges("payment_verified");
 
   // ─── risk line ───────────────────────────────────────────────────────────
   let riskLine: string;

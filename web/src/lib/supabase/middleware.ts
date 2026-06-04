@@ -7,6 +7,7 @@ import {
   shouldAttachAuthDebug,
 } from "@/lib/auth-routing";
 import { IMPERSONATION_COOKIE_NAME } from "@/lib/impersonation/constants";
+import { signGuestCookie, verifyGuestCookie } from "@/lib/guest-cookie";
 import { clearImpersonationCookieOnResponse } from "@/lib/impersonation/cookie";
 import { resolveImpersonationRoutingForMiddleware } from "@/lib/impersonation/dashboard-identity";
 import { NextRequest, NextResponse } from "next/server";
@@ -58,9 +59,19 @@ export async function updateSession(
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  const cookieGuest = request.cookies.get(GUEST_COOKIE)?.value;
-  const guestKey = cookieGuest ?? crypto.randomUUID();
-  const needsGuestCookie = !cookieGuest;
+  // The `impronta_guest` cookie is an HMAC-signed bearer token
+  // (`${id}.${sig}`). Verify the inbound value before trusting it: a valid
+  // signature yields the PLAIN id (forwarded downstream); an invalid OR
+  // legacy-unsigned value is treated as absent so we mint a fresh signed
+  // cookie + new id. When GUEST_COOKIE_SECRET is unset, verify/sign degrade
+  // to the legacy raw-UUID behavior (see @/lib/guest-cookie).
+  const rawGuestCookie = request.cookies.get(GUEST_COOKIE)?.value;
+  const verifiedGuestId = verifyGuestCookie(rawGuestCookie);
+  const guestKey = verifiedGuestId ?? crypto.randomUUID();
+  // Re-mint the cookie whenever the inbound value didn't verify to the exact
+  // plain id we'll forward (absent, forged, or legacy-unsigned). When the
+  // signature is valid we leave the existing signed cookie in place.
+  const needsGuestCookie = verifiedGuestId === null || rawGuestCookie !== signGuestCookie(guestKey);
 
   const pathnameForAuth = options?.pathnameForAuth ?? request.nextUrl.pathname;
   const lang = options?.languageSettings ?? FALLBACK_LANGUAGE_SETTINGS;
@@ -88,9 +99,12 @@ export async function updateSession(
 
   const authDebugEnabled = shouldAttachAuthDebug(request.nextUrl.searchParams);
 
+  // Store the SIGNED token in the cookie; the PLAIN id travels downstream via
+  // the x-impronta-guest header (set on forwardedHeaders above).
+  const signedGuestCookie = signGuestCookie(guestKey);
   const attachGuestCookie = (res: NextResponse) => {
     if (needsGuestCookie) {
-      res.cookies.set(GUEST_COOKIE, guestKey, guestCookieOptions);
+      res.cookies.set(GUEST_COOKIE, signedGuestCookie, guestCookieOptions);
     }
     return res;
   };

@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { requireClient } from "@/lib/server/action-guards";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { verifyGuestCookie } from "@/lib/guest-cookie";
 import type { ServerActionResult } from "@/lib/server-actions/result";
 
 const GUEST_COOKIE = "impronta_guest";
@@ -69,7 +70,10 @@ export async function mergeGuestActivity(
   }
 
   const cookieStore = await cookies();
-  const sessionKey = cookieStore.get(GUEST_COOKIE)?.value;
+  // The cookie holds the HMAC-signed token; unwrap it to the plain id that
+  // matches `guest_sessions.session_key` (null when unsigned/forged). Degrades
+  // to the raw value when GUEST_COOKIE_SECRET is unset (legacy behavior).
+  const sessionKey = verifyGuestCookie(cookieStore.get(GUEST_COOKIE)?.value);
   if (!sessionKey) {
     return {
       ok: true,

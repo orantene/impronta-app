@@ -9,6 +9,7 @@ import { getAppUrl, normalizeOptionalNextPath } from "@/lib/auth-flow";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { applyRegistrationPolicy } from "@/lib/saas/registration-policy";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { verifyGuestCookie } from "@/lib/guest-cookie";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -163,7 +164,9 @@ export async function chooseClientRole(formData?: FormData): Promise<void> {
     logServerError("onboarding/complete_client_onboarding", error);
     redirect("/onboarding/role?error=failed");
   }
-  const guestKey = (await cookies()).get("impronta_guest")?.value;
+  // Unwrap the HMAC-signed cookie to the plain id (matches
+  // guest_sessions.session_key); degrades to raw when no secret is set.
+  const guestKey = verifyGuestCookie((await cookies()).get("impronta_guest")?.value);
   if (guestKey) {
     // Use the 3-arg EMAIL-GATED overload (matching mergeGuestActivity). The
     // 2-arg form no longer relinks inquiries post-migration 20261017091500, so
