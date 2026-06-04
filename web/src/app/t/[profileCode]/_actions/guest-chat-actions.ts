@@ -578,6 +578,13 @@ export async function startGuestChatInquiry(
       selected_ids: [input.talentProfileId],
       selection_mode: "i_know_who",
     },
+    // A guest opening a chat hasn't told us when/where yet — those details are
+    // gathered conversationally in the thread. validateIntentForSubmit hard-
+    // requires location.(city|status) AND date.(event_date|status), so seed the
+    // "not_sure" status on both; otherwise the first send fails validation_failed
+    // ("Add the missing details and try again.").
+    location: { status: "not_sure" },
+    date: { status: "not_sure" },
     brief: {
       summary: firstMessage,
     },
