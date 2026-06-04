@@ -99,13 +99,51 @@ import type { GuestChatFailure } from "@/lib/inquiry/guest-chat-contract";
 const VELOCITY_THRESHOLD = 8; // sends within the window that trigger a captcha prompt
 const VELOCITY_WINDOW_MS = 60_000; // 1 minute
 
+// Hard cap on the in-memory bucket Map. The map is keyed on the composite
+// rate-limit key, whose session segment comes from the client-controlled guest
+// cookie — a caller that rotates the cookie every request would otherwise grow
+// this map without bound (a slow memory leak on a long-lived instance). The cap
+// bounds it: expired buckets are swept first (they already read as count=0), and
+// if still over cap the oldest entries (Map preserves insertion order) are
+// evicted. Eviction only ever drops stale/older velocity counters — the KV
+// ceilings remain the hard floor, so a dropped bucket can't bypass enforcement.
+const VELOCITY_MAX_ENTRIES = 5_000;
+
 const velocityBuckets = new Map<string, { count: number; windowStart: number }>();
+
+/**
+ * Keep velocityBuckets bounded. Called on each increment:
+ *   1. Sweep entries whose window has elapsed (cheap; they're already inert).
+ *   2. If still above the cap, evict oldest-inserted entries until under it.
+ */
+function pruneVelocityBuckets(now: number): void {
+  // Only sweep when there's pressure — avoids walking the whole map every call.
+  if (velocityBuckets.size <= VELOCITY_MAX_ENTRIES) return;
+  for (const [k, v] of velocityBuckets) {
+    if (now - v.windowStart > VELOCITY_WINDOW_MS) velocityBuckets.delete(k);
+  }
+  // Still over cap after dropping expired buckets (a genuine burst of distinct
+  // live keys) → evict oldest-inserted until under the cap. Map iteration is
+  // insertion-ordered, so the first keys are the oldest.
+  if (velocityBuckets.size > VELOCITY_MAX_ENTRIES) {
+    const overflow = velocityBuckets.size - VELOCITY_MAX_ENTRIES;
+    let dropped = 0;
+    for (const k of velocityBuckets.keys()) {
+      velocityBuckets.delete(k);
+      if (++dropped >= overflow) break;
+    }
+  }
+}
 
 function incrementVelocity(key: string): number {
   const now = Date.now();
   const b = velocityBuckets.get(key);
   if (!b || now - b.windowStart > VELOCITY_WINDOW_MS) {
+    // Re-insert (delete first) so the key moves to the end of the insertion
+    // order — keeps the oldest-eviction in pruneVelocityBuckets recency-aware.
+    velocityBuckets.delete(key);
     velocityBuckets.set(key, { count: 1, windowStart: now });
+    pruneVelocityBuckets(now);
     return 1;
   }
   b.count += 1;

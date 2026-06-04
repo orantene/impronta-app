@@ -552,7 +552,6 @@ const DISPOSABLE_DOMAINS = new Set<string>([
   "thisisnotmyrealemail.com",
   "throwam.com",
   "throwaway.email",
-  "throwam.com",
   "throwamailaway.com",
   "throya.com",
   "tilien.com",
@@ -650,7 +649,6 @@ const DISPOSABLE_DOMAINS = new Set<string>([
   "yeah.net",
   "yep.it",
   "youmail.ga",
-  "yourdomain.com",
   "yuurok.com",
   "y7mail.com",
   // --- Z ---
