@@ -1492,6 +1492,11 @@ function DeviceFrameSurface({
   useEffect(() => {
     settersRef.current = { ctxSetDevice, setPreviewFrameWidth };
   });
+  // QA fix — teardown for an IN-PROGRESS resize drag. onUp nulls it on a normal
+  // release; this cleanup removes the window listeners if the canvas unmounts
+  // MID-drag (otherwise they leaked + could fire setState on an unmounted node).
+  const dragTeardownRef = useRef<(() => void) | null>(null);
+  useEffect(() => () => dragTeardownRef.current?.(), []);
 
   const handleResizePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -1534,6 +1539,7 @@ function DeviceFrameSurface({
     function onUp(ev: PointerEvent) {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
+      dragTeardownRef.current = null;
       setDragging(false);
       setDragReadout(null);
 
@@ -1558,8 +1564,10 @@ function DeviceFrameSurface({
           return;
         }
       }
-      // Desktop snap: if well above tablet threshold, go full-bleed.
-      if (finalWidth > DRAG_TABLET_THRESHOLD + DRAG_SNAP_MARGIN) {
+      // Desktop snap: any width PAST the tablet lock goes full-bleed desktop —
+      // matches the tier set during the drag and closes the 901-940px dead-zone
+      // where device became "desktop" but the width stayed pinned.
+      if (finalWidth > DRAG_TABLET_THRESHOLD) {
         settersRef.current.setPreviewFrameWidth(null);
         settersRef.current.ctxSetDevice("desktop");
         return;
@@ -1569,6 +1577,10 @@ function DeviceFrameSurface({
 
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
+    dragTeardownRef.current = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
   };
 
   // Nothing to mount until at least one non-desktop tier has been
