@@ -46,6 +46,11 @@ import {
 } from "@/lib/server/request-cache";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { listPublicTalentIntegrationItems } from "@/lib/talent-integrations/repository";
+import {
+  PublicFeaturedMedia,
+  type PublicFeaturedMediaItem,
+} from "@/components/talent/connections/PublicFeaturedMedia";
 import { effectiveFieldVisibility } from "@/lib/field-engine/effective-visibility";
 import {
   resolveTalentFields,
@@ -1431,6 +1436,17 @@ export default async function PublicTalentProfilePage({
     .map(s => s.locations?.[locale === "es" ? "display_name_es" : "display_name_en"])
     .filter((x): x is string => !!x);
 
+  // Talent-selected manual featured media (showcase only, NOT verified). Only
+  // items the talent flagged public_profile_enabled are returned.
+  const featuredMediaItems: PublicFeaturedMediaItem[] = (
+    await listPublicTalentIntegrationItems(profile.id)
+  ).map((row) => ({
+    id: row.id,
+    provider: row.provider_key,
+    externalItemId: row.external_item_id,
+    title: row.title,
+  }));
+
   // Phase 1.4 (Lane B) — sidebar section visibility via unified resolver helper.
   // Fetches the six taxonomy section keys from field_definitions, then routes
   // each through isResolvedFieldVisibleInPublicProfileSidebar (C2 synthetic
@@ -1872,6 +1888,12 @@ export default async function PublicTalentProfilePage({
                   />
                 )}
               </section>
+
+              {/* Featured media — talent-selected manual showcase embeds */}
+              <PublicFeaturedMedia
+                items={featuredMediaItems}
+                heading={t("public.profile.editorial.watchListen")}
+              />
 
               {/* About — overlaid by agency local_bio when on agency surface */}
               {aboutText.trim() ? (

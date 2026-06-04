@@ -21,6 +21,7 @@ import {
   Toggle,
 } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS, useAdminShell } from "@/components/admin/shell/internal/state";
+import { TalentFeaturedMediaSection } from "./TalentFeaturedMediaSection";
 
 const fallbackProviders: TalentConnectionProviderState[] =
   getTalentIntegrationCatalogList().map((def) => ({
@@ -477,6 +478,10 @@ export function TalentConnectionsDrawer() {
           </div>
         ) : null}
       </div>
+
+      {bridgeTalentSelfProfile ? (
+        <TalentFeaturedMediaSection active={open} />
+      ) : null}
 
       {message ? (
         <div style={{ marginTop: 14, fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted }}>

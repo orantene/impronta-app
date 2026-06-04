@@ -308,6 +308,144 @@ export async function deleteTalentIntegrationSecrets(
   return !error;
 }
 
+// ---------------------------------------------------------------------------
+// talent_integration_items — manual featured-media items selected for display
+// ---------------------------------------------------------------------------
+
+export type TalentIntegrationItemRow = {
+  id: string;
+  talent_integration_id: string;
+  talent_profile_id: string;
+  provider_key: string;
+  external_item_id: string;
+  item_kind: string;
+  title: string | null;
+  url: string | null;
+  thumbnail_url: string | null;
+  embed_url: string | null;
+  captured_at: string | null;
+  item_metadata: Record<string, unknown>;
+  public_profile_enabled: boolean;
+  personal_site_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CreateTalentIntegrationItemInput = {
+  talentProfileId: string;
+  talentIntegrationId: string;
+  providerKey: string;
+  externalItemId: string;
+  itemKind: string;
+  title?: string | null;
+  url?: string | null;
+  embedUrl?: string | null;
+  publicProfileEnabled?: boolean;
+  itemMetadata?: Record<string, unknown>;
+};
+
+export async function listTalentIntegrationItems(
+  talentProfileId: string,
+): Promise<TalentIntegrationItemRow[]> {
+  const supabase = service();
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("talent_integration_items")
+    .select("*")
+    .eq("talent_profile_id", talentProfileId)
+    .order("created_at", { ascending: true });
+  if (error || !data) return [];
+  return data as TalentIntegrationItemRow[];
+}
+
+/** Public-surface read — only items the talent flagged for the public profile. */
+export async function listPublicTalentIntegrationItems(
+  talentProfileId: string,
+): Promise<TalentIntegrationItemRow[]> {
+  const supabase = service();
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("talent_integration_items")
+    .select("*")
+    .eq("talent_profile_id", talentProfileId)
+    .eq("public_profile_enabled", true)
+    .order("created_at", { ascending: true });
+  if (error || !data) return [];
+  return data as TalentIntegrationItemRow[];
+}
+
+export async function createTalentIntegrationItem(
+  input: CreateTalentIntegrationItemInput,
+): Promise<TalentIntegrationItemRow | null> {
+  const supabase = service();
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from("talent_integration_items")
+    .upsert(
+      {
+        talent_integration_id: input.talentIntegrationId,
+        talent_profile_id: input.talentProfileId,
+        provider_key: input.providerKey,
+        external_item_id: input.externalItemId,
+        item_kind: input.itemKind,
+        title: input.title ?? null,
+        url: input.url ?? null,
+        embed_url: input.embedUrl ?? null,
+        item_metadata: input.itemMetadata ?? {},
+        public_profile_enabled: input.publicProfileEnabled ?? false,
+      },
+      { onConflict: "talent_integration_id,external_item_id" },
+    )
+    .select("*")
+    .maybeSingle();
+  if (error || !data) return null;
+  return data as TalentIntegrationItemRow;
+}
+
+/**
+ * Owner-scoped update. The `.eq("talent_profile_id", ...)` clause is the
+ * ownership guard — a talent can only mutate their own items even though the
+ * service-role client bypasses RLS.
+ */
+export async function updateTalentIntegrationItem(
+  talentProfileId: string,
+  itemId: string,
+  patch: { title?: string | null; publicProfileEnabled?: boolean },
+): Promise<TalentIntegrationItemRow | null> {
+  const supabase = service();
+  if (!supabase) return null;
+  const update: Record<string, unknown> = {};
+  if (patch.title !== undefined) update.title = patch.title;
+  if (patch.publicProfileEnabled !== undefined) {
+    update.public_profile_enabled = patch.publicProfileEnabled;
+  }
+  if (Object.keys(update).length === 0) return null;
+  const { data, error } = await supabase
+    .from("talent_integration_items")
+    .update(update)
+    .eq("id", itemId)
+    .eq("talent_profile_id", talentProfileId)
+    .select("*")
+    .maybeSingle();
+  if (error || !data) return null;
+  return data as TalentIntegrationItemRow;
+}
+
+/** Owner-scoped delete (talent_profile_id clause enforces ownership). */
+export async function deleteTalentIntegrationItem(
+  talentProfileId: string,
+  itemId: string,
+): Promise<boolean> {
+  const supabase = service();
+  if (!supabase) return false;
+  const { error } = await supabase
+    .from("talent_integration_items")
+    .delete()
+    .eq("id", itemId)
+    .eq("talent_profile_id", talentProfileId);
+  return !error;
+}
+
 export async function syncTalentIntegrationTrustBadge(
   row: TalentIntegrationRow,
   actorId?: string | null,
