@@ -73,6 +73,22 @@ function truncate(value: string, max: number): string {
 }
 
 /**
+ * Strip the inline-rich marker grammar (see rich-editor/transformers/tokens.ts
+ * + sections/shared/rich-text.tsx) so the layers tree, canvas chip, and
+ * inspector show clean prose: a heading stored as "{b}Bold lead{/b}" or
+ * "{accent}Impronta{/accent}" reads as "Bold lead" / "Impronta", not the raw
+ * wrapper. A `[label](url)` link collapses to its label. Display-only — never
+ * mutates stored node data.
+ */
+export function stripInlineMarkers(value: string): string {
+  return value
+    .replace(/\{\/?(?:b|i|accent)\}/g, "")
+    .replace(/\{color:#[0-9a-fA-F]{3,8}\}/g, "")
+    .replace(/\{\/color\}/g, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+}
+
+/**
  * Job #33 — which responsive breakpoints a freeform node actually overrides.
  * Drives the "behaves differently on mobile" dot on the layers tree (and could
  * back any other at-a-glance indicator). A breakpoint counts as overridden when
@@ -151,19 +167,25 @@ export function resolveLayerDisplayName(
 ): string {
   switch (node.kind) {
     case "heading":
-      return truncate(node.props.text, LAYER_NAME_MAX) || "Heading";
+      return truncate(stripInlineMarkers(node.props.text), LAYER_NAME_MAX) || "Heading";
     case "paragraph":
     case "rich_text":
-      return truncate(node.props.text, LAYER_NAME_MAX) || kindLabel(node.kind);
+      return (
+        truncate(stripInlineMarkers(node.props.text), LAYER_NAME_MAX) ||
+        kindLabel(node.kind)
+      );
     case "button":
-      return truncate(node.props.label, LAYER_NAME_MAX) || "Button";
+      return truncate(stripInlineMarkers(node.props.label), LAYER_NAME_MAX) || "Button";
     case "image":
       return truncate(node.props.alt ?? "", LAYER_NAME_MAX) || "Image";
     case "icon":
       return truncate(node.props.label ?? "", LAYER_NAME_MAX) || kindLabel(node.kind);
     case "accordion_item":
     case "tab_panel":
-      return truncate(node.props.title, LAYER_NAME_MAX) || kindLabel(node.kind);
+      return (
+        truncate(stripInlineMarkers(node.props.title), LAYER_NAME_MAX) ||
+        kindLabel(node.kind)
+      );
     case "divider":
       return node.props.tone === "muted" ? "Divider · muted" : "Divider";
     case "spacer":

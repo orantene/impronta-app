@@ -29,6 +29,34 @@ test("blank heading text falls back to the kind label", () => {
   assert.equal(resolveLayerDisplayName(node), "Heading");
 });
 
+test("inline-rich markers are stripped from the label (display-only)", () => {
+  const bold: BuilderNode = {
+    id: "h3",
+    kind: "heading",
+    props: { text: "{b}Bold lead{/b}", level: 2 },
+  };
+  assert.equal(resolveLayerDisplayName(bold), "Bold lead");
+
+  const mixed: BuilderNode = {
+    id: "p1",
+    kind: "paragraph",
+    props: {
+      text: "Welcome to {accent}Impronta{/accent} — see [our work](/work).",
+    },
+  };
+  assert.equal(
+    resolveLayerDisplayName(mixed),
+    "Welcome to Impronta — see our work.",
+  );
+
+  const colored: BuilderNode = {
+    id: "b1",
+    kind: "button",
+    props: { label: "{color:#dc2626}Get started{/color}", href: "/x" },
+  };
+  assert.equal(resolveLayerDisplayName(colored), "Get started");
+});
+
 test("long text is truncated with an ellipsis at the max", () => {
   const long = "A".repeat(LAYER_NAME_MAX + 30);
   const node: BuilderNode = {
