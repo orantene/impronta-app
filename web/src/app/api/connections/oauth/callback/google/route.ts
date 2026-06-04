@@ -16,11 +16,12 @@ import {
   upsertClientIntegration,
 } from "@/lib/client-integrations/repository";
 import {
+  getTenantIntegration,
   setCredentialMode,
   setIntegrationConfig,
   setSecret,
 } from "@/lib/integrations/repository";
-import { syncWorkspaceYouTubeIdentity } from "@/lib/integrations/workspace-social-sync";
+import { applyWorkspaceYouTubePublishState } from "@/lib/integrations/workspace-social-sync";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { requireSession } from "@/lib/server/action-guards";
 import { logServerError } from "@/lib/server/safe-error";
@@ -174,6 +175,16 @@ async function storeWorkspaceYouTubeConnection(input: {
     await setSecret(input.tenantId, key, "refresh_token", input.token.refresh_token);
   }
 
+  // Preserve a prior public-site opt-in across a re-connect; a fresh connect
+  // defaults OFF (privacy-first — verification ≠ publishing).
+  const existing = await getTenantIntegration(input.tenantId, key);
+  const previousProfileUrl =
+    typeof existing?.config_json?.profile_url === "string"
+      ? (existing.config_json.profile_url as string)
+      : null;
+  const showOnPublicSite =
+    existing?.config_json?.show_on_public_site === true;
+
   const row = await setIntegrationConfig(
     input.tenantId,
     key,
@@ -186,7 +197,10 @@ async function storeWorkspaceYouTubeConnection(input: {
       token_expires_at: input.expiresAt,
       token_scope: input.token.scope ?? null,
       verification_status: "oauth_verified",
-      show_on_site: true,
+      // Privacy-first: verifying ownership does NOT auto-publish the channel to
+      // the public site. The workspace opts in via the "Show on public site"
+      // toggle in the integration drawer.
+      show_on_public_site: showOnPublicSite,
     },
     {
       status: "connected",
@@ -199,9 +213,12 @@ async function storeWorkspaceYouTubeConnection(input: {
   if (!row) return null;
 
   await setCredentialMode(input.tenantId, key, "custom", input.actorUserId);
-  await syncWorkspaceYouTubeIdentity({
+  // Reconcile the public-site identity through the single toggle-aware path:
+  // publish only when the workspace has opted in.
+  await applyWorkspaceYouTubePublishState({
     tenantId: input.tenantId,
-    profileUrl: input.proof.profileUrl,
+    config: row.config_json as Record<string, unknown>,
+    previousProfileUrl,
     actorUserId: input.actorUserId,
   });
   return row;
