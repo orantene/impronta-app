@@ -310,11 +310,12 @@ export function PayoutsShell({
             </div>
           )}
 
-          {/* MORE WAYS TO GET PAID (secondary) */}
-          {isEnabled && !showOnboarding && (
+          {/* MORE WAYS TO GET PAID — always available in the drawer (no Stripe
+              popup, reaches ~50 countries incl. Argentina). Not gated on Connect. */}
+          {!showOnboarding && (
             <div style={{ marginTop: 26 }}>
               <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: 0.3, textTransform: "uppercase", color: C.inkDim, marginBottom: 10 }}>
-                More ways to get paid
+                {isEnabled ? "More ways to get paid" : "Get paid to your local bank, anywhere"}
               </div>
 
               <GlobalPayoutsBankCard />

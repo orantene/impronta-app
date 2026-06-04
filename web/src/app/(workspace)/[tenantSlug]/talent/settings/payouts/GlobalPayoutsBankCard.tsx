@@ -102,7 +102,7 @@ export function GlobalPayoutsBankCard() {
         </span>
       </div>
 
-      {hasBank ? (
+      {hasBank && !open ? (
         <div style={{ fontSize: 13, color: C.ink }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
             <span aria-hidden style={{ color: C.green }}>✓</span>
