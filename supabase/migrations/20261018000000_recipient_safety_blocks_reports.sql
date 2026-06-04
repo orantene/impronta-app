@@ -26,21 +26,28 @@
 -- root) and RLS-protected. RLS posture:
 --   • Tenant staff get full access to rows in their own tenant
 --     (public.is_staff_of_tenant(tenant_id) — same helper as
---      inquiry_user_flags / inquiry_messages staff policies). This is the ONLY
---      write path: these are ENFORCEMENT / abuse-signal tables, so writes must
---      be authorised by tenant staff membership, never by a bare "I authored it"
---      self check (that would let any authenticated user plant a block/report in
---      any tenant against any subject — a cross-tenant griefing primitive).
+--      inquiry_user_flags / inquiry_messages staff policies). This is the RLS
+--      authorization model: these are ENFORCEMENT / abuse-signal tables, so any
+--      write must be authorised by tenant staff membership, never by a bare "I
+--      authored it" self check (that would let any authenticated user plant a
+--      block/report in any tenant against any subject — a cross-tenant griefing
+--      primitive).
 --   • A user can additionally READ the rows THEY authored
 --     (blocker_user_id / reporter_user_id = auth.uid()) via a SELECT-only self
 --     policy — so a talent who is staff can see their own blocks even via a
 --     self-scoped query, and the row is never visible cross-tenant.
---   • The default authenticated INSERT/UPDATE/DELETE grant is REVOKEd on both
---     tables as defence-in-depth behind the staff write policy.
--- Writes/reads from the guest-chat enforcement path go through the service-role
--- client (which bypasses RLS) behind the app-layer ownership gate, exactly as
--- the guest message engine does — RLS here is the defence-in-depth backstop for
--- any authenticated (staff) access.
+--   • The default INSERT/UPDATE/DELETE grant is REVOKEd from BOTH authenticated
+--     and anon on both tables. Net effect: these tables are SERVICE-ROLE-WRITE-
+--     ONLY. The staff WITH CHECK policy above is the documented authorization
+--     intent, but because the table-level DML grant is gone, that policy is never
+--     actually reached on the authenticated role — every write in practice flows
+--     through the service-role client below. The staff policy + REVOKE are
+--     belt-and-suspenders: a future PERMISSIVE policy added by mistake still can't
+--     write without the grant.
+-- Writes/reads from the guest-chat enforcement + trust-chip paths go through the
+-- service-role client (recipient-safety.ts — bypasses both the grant and RLS)
+-- behind the app-layer staff / ownership gate, exactly as the guest message
+-- engine does — RLS here is the defence-in-depth backstop, not the live gate.
 
 BEGIN;
 
@@ -113,11 +120,18 @@ CREATE POLICY user_blocks_self ON public.user_blocks
   FOR SELECT
   USING (blocker_user_id = auth.uid());
 
--- Defence-in-depth: revoke the default authenticated DML grant so a direct
--- PostgREST write can't reach the table even if a future PERMISSIVE policy were
--- added by mistake. SELECT stays (gated by the policies above). Writes flow
--- through the staff policy via the service-role enforcement path / a staff JWT.
+-- Defence-in-depth: revoke the default DML grant so a direct PostgREST write
+-- can't reach the table even if a future PERMISSIVE policy were added by mistake.
+-- SELECT stays (gated by the policies above). With the grant revoked these tables
+-- are SERVICE-ROLE-WRITE-ONLY: every block/report write flows through the
+-- service-role enforcement path (recipient-safety.ts, behind its app-layer staff
+-- gate), which bypasses both the grant and RLS. A staff JWT can no longer INSERT/
+-- UPDATE/DELETE directly via PostgREST — the table-level grant is gone, so the
+-- is_staff_of_tenant WITH CHECK policy is never even reached on the authenticated
+-- role. anon is revoked too for symmetry (RLS already denies it; this is clarity
+-- + defence-in-depth). REVOKE is idempotent — re-running drops an absent grant.
 REVOKE INSERT, UPDATE, DELETE ON public.user_blocks FROM authenticated;
+REVOKE INSERT, UPDATE, DELETE ON public.user_blocks FROM anon;
 
 -- ───────────────────────────────────────────────────────────────────────────
 -- inquiry_reports — a staff recipient reports a sender on an inquiry.
@@ -185,7 +199,10 @@ CREATE POLICY inquiry_reports_self ON public.inquiry_reports
   FOR SELECT
   USING (reporter_user_id = auth.uid());
 
--- Defence-in-depth: revoke the default authenticated DML grant (see user_blocks).
+-- Defence-in-depth: revoke the default DML grant from both roles (see
+-- user_blocks). Service-role-write-only — reportInquiry() writes via the
+-- service-role path; no direct authenticated/anon PostgREST DML. Idempotent.
 REVOKE INSERT, UPDATE, DELETE ON public.inquiry_reports FROM authenticated;
+REVOKE INSERT, UPDATE, DELETE ON public.inquiry_reports FROM anon;
 
 COMMIT;
