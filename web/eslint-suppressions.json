@@ -74,6 +74,11 @@
       "count": 1
     }
   },
+  "src/app/t/[profileCode]/_actions/guest-chat-actions.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
   "src/app/t/[profileCode]/page.tsx": {
     "max-lines": {
       "count": 1
@@ -98,16 +103,6 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 1
-    }
-  },
-  "src/components/admin/shell/internal/talent/shared/reviews-card-1.tsx": {
-    "ratchet/no-new-inline-style": {
-      "count": 35
-    }
-  },
-  "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-reviews.tsx": {
-    "ratchet/no-new-inline-style": {
-      "count": 20
     }
   },
   "src/components/admin/shell/internal/client.tsx": {
@@ -324,6 +319,11 @@
   "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-photos.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 31
+    }
+  },
+  "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-reviews.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 20
     }
   },
   "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/talent-type-picker.tsx": {
@@ -1160,6 +1160,11 @@
       "count": 7
     }
   },
+  "src/components/admin/shell/internal/talent/shared/reviews-card-1.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 35
+    }
+  },
   "src/components/admin/shell/internal/talent/shared/settings-1.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 7
@@ -1686,14 +1691,14 @@
       "count": 2
     }
   },
-  "src/lib/server-actions/message-reactions.ts": {
-    "ratchet/no-untenanted-from": {
-      "count": 2
-    }
-  },
   "src/lib/server-actions/message-pins.ts": {
     "ratchet/no-untenanted-from": {
       "count": 4
+    }
+  },
+  "src/lib/server-actions/message-reactions.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 2
     }
   },
   "src/lib/server-actions/message-stars.ts": {

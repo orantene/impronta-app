@@ -72,6 +72,7 @@ import {
   type AgencyTalentOverlayRow,
 } from "@/lib/talent/agency-overlay";
 import { TalentProfileInquireButton } from "./talent-profile-inquire-button";
+import { TalentProfileChatLauncherMount } from "./_chat/TalentProfileChatLauncherMount";
 import { PlatformTalentMaxSiteView } from "@/components/talent/site/PlatformTalentMaxSiteView";
 import { isTalentProfilePlatformHost } from "@/lib/talent-site/platform-host";
 import { resolvePlatformTalentSiteForProfile } from "@/lib/talent-site/resolve-platform-talent-site";
@@ -1437,6 +1438,11 @@ export default async function PublicTalentProfilePage({
       }
     : null);
   const watermarkLogoUrl = typeof brandingTheme.logo_url === "string" ? brandingTheme.logo_url : null;
+  // Guest-chat launcher accent — the tenant's own brand color (primary, then
+  // accent fallback); null lets the launcher use its neutral ink token. No
+  // gold/rust is hard-coded (house rule).
+  const chatAccentColor =
+    tenantBranding?.primary_color ?? tenantBranding?.accent_color ?? null;
   const canonicalBannerUrl = mediaUrl(pub, bannerMedia);
   const profileImageUrl = mediaUrl(pub, profileImageMedia);
 
@@ -1853,6 +1859,21 @@ export default async function PublicTalentProfilePage({
       />
       {/* ── END LIGHT REDESIGN ── */}
 
+      {/* Conversational-inquiry launcher — floating brand-skinned
+          "Message {Name}" chat (Lane D / guest-chat MVP). Sibling of the
+          LightProfileLayout's inquire CTA; renders only on the agency surface
+          (guarded inside on tenantSlug). Self-positions fixed bottom-right, so
+          DOM placement here is purely logical. */}
+      <TalentProfileChatLauncherMount
+        talentProfileId={profile.id}
+        talentProfileCode={profile.profile_code}
+        talentDisplayName={name}
+        tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
+        agencyName={tenantBrand ?? "the agency"}
+        accentColor={chatAccentColor}
+        logoUrl={watermarkLogoUrl}
+        sourcePage={profileSourcePage}
+      />
           <DirectoryInquirySheet ui={ui} locale={locale} />
           <FavoritesDrawer signupHref="/login" />
         </FavoritesDrawerProvider>
