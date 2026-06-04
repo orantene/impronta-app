@@ -52,6 +52,25 @@ const ACTOR_HEADERS_TO_STRIP = [
   ACTOR_ONBOARDED_HEADER,
 ];
 
+/**
+ * True only for an UNRECOVERABLE Supabase refresh-token failure — the token is
+ * gone / already-rotated, so no retry can succeed and the cookie must be
+ * cleared. Deliberately narrow: a transient network/5xx error to the auth
+ * server must NOT match (we don't want to log a valid session out on a blip).
+ */
+function isUnrecoverableRefreshTokenError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const e = err as { code?: unknown; message?: unknown };
+  const code = typeof e.code === "string" ? e.code.toLowerCase() : "";
+  const msg = typeof e.message === "string" ? e.message.toLowerCase() : "";
+  return (
+    code === "refresh_token_not_found" ||
+    code === "refresh_token_already_used" ||
+    msg.includes("refresh token not found") ||
+    msg.includes("invalid refresh token")
+  );
+}
+
 export async function updateSession(
   request: NextRequest,
   options?: { pathnameForAuth?: string; languageSettings?: LanguageSettings },
@@ -152,9 +171,41 @@ export async function updateSession(
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // A stale/invalid refresh token makes `getUser()` FAIL (and sometimes throw)
+  // on every request; `.catch` normalizes a throw into the same logged-out
+  // `{ data, error }` shape so the code below treats it as "no user".
+  const authResult = await supabase.auth
+    .getUser()
+    .catch((authThrow: unknown) => ({
+      data: { user: null },
+      error: authThrow,
+    }));
+  const user = authResult.data.user;
+
+  // Auth resilience: when the refresh token is UNRECOVERABLE, the stale auth
+  // cookie is never removed, so the user gets STUCK — every request fails and
+  // even re-login bounces straight back to /login. Expire the Supabase auth
+  // cookies so the browser returns to a clean logged-out state and login works
+  // again. A SPECIFIC error check (never on a transient/network error) keeps
+  // this from logging anyone out spuriously. Applied to BOTH the redirect and
+  // the passthrough response below so it isn't dropped by a response rebuild.
+  const shouldClearStaleAuth =
+    !user && isUnrecoverableRefreshTokenError(authResult.error);
+  const clearStaleAuthCookies = (res: NextResponse): NextResponse => {
+    if (!shouldClearStaleAuth) return res;
+    for (const c of request.cookies.getAll()) {
+      if (!isSupabaseAuthCookie(c.name)) continue;
+      res.cookies.set(c.name, "", { maxAge: 0, path: "/" });
+      if (authCookieDomain) {
+        res.cookies.set(c.name, "", {
+          maxAge: 0,
+          path: "/",
+          domain: authCookieDomain,
+        });
+      }
+    }
+    return res;
+  };
 
   const pathname = pathnameForAuth;
 
@@ -288,10 +339,14 @@ export async function updateSession(
       redirectUrl.searchParams.set("next", decision.loginNext);
     }
 
-    return applyImpersonationCookieClear(
-      attachAuthDebug(attachGuestCookie(NextResponse.redirect(redirectUrl))),
+    return clearStaleAuthCookies(
+      applyImpersonationCookieClear(
+        attachAuthDebug(attachGuestCookie(NextResponse.redirect(redirectUrl))),
+      ),
     );
   }
 
-  return applyImpersonationCookieClear(attachAuthDebug(supabaseResponse));
+  return clearStaleAuthCookies(
+    applyImpersonationCookieClear(attachAuthDebug(supabaseResponse)),
+  );
 }
