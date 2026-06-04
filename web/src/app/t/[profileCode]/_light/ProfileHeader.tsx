@@ -1,9 +1,9 @@
 /**
- * ProfileHeader — avatar · name (serif) · discipline chips · experience line
- * · location · languages · availability pill · CTAs.
+ * ProfileHeader — avatar · name (plt-display) · discipline chips · experience
+ * line · location · languages · CTAs · hubs indicator.
  *
  * Overlaps the cover section (negative margin when cover is present).
- * Server component — CTAs are passed as RSC slots.
+ * Server component — CTAs/hubs are passed as RSC slots. --plt tokens only.
  */
 
 import Image from "next/image";
@@ -29,6 +29,8 @@ type ProfileHeaderProps = {
   shareMenu: React.ReactNode;
   /** Slot: ProfileDiscoveryCta (passed from page) */
   discoveryCta: React.ReactNode;
+  /** Slot: ProfileHubsIndicator — "Also represented on" (passed from page) */
+  hubsIndicator: React.ReactNode;
   isFeatured: boolean;
 };
 
@@ -64,6 +66,7 @@ export function ProfileHeader({
   inquireButton,
   shareMenu,
   discoveryCta,
+  hubsIndicator,
   isFeatured,
 }: ProfileHeaderProps) {
   const expLine = primarySkill ? experienceLine(primarySkill) : null;
@@ -80,7 +83,6 @@ export function ProfileHeader({
       ? languages
           .slice(0, 3)
           .map((l) => {
-            // Shorten "English (native)" → "English"
             const paren = l.indexOf("(");
             return paren > 0 ? l.slice(0, paren).trim() : l;
           })
@@ -101,43 +103,58 @@ export function ProfileHeader({
           {/* Avatar — initials sit behind the photo so a missing/slow image
               never shows as an empty box. */}
           <div
-            className={[
-              "relative shrink-0 overflow-hidden rounded-2xl shadow-lg",
-              hasCover
-                ? "h-28 w-20 border-2 border-white sm:h-36 sm:w-28"
-                : "h-24 w-16 border border-[#ECECEC] sm:h-32 sm:w-24",
-            ].join(" ")}
+            className="relative shrink-0 overflow-hidden rounded-[var(--plt-radius-lg)]"
+            style={{
+              boxShadow: "var(--plt-shadow-lg)",
+              border: hasCover
+                ? "2px solid var(--plt-bg)"
+                : "1px solid var(--plt-hairline-strong)",
+            }}
             data-profile-portrait
           >
-            <span
-              className="absolute inset-0 flex items-center justify-center bg-[#EFEBE4] font-[family-name:var(--font-cinzel)] text-2xl text-[#B7AE9F] sm:text-3xl"
-              aria-hidden="true"
-            >
-              {initials}
-            </span>
-            {profileImageUrl ? (
-              <Image
-                src={profileImageUrl}
-                alt={`${name} profile photo`}
-                fill
-                className="object-cover"
-                sizes="(max-width: 640px) 80px, 112px"
-              />
-            ) : null}
+            <div className={hasCover ? "h-28 w-20 sm:h-36 sm:w-28" : "h-24 w-16 sm:h-32 sm:w-24"}>
+              <span
+                className="plt-display absolute inset-0 flex items-center justify-center text-2xl font-semibold sm:text-3xl"
+                style={{
+                  background: "var(--plt-bg-deep)",
+                  color: "color-mix(in srgb, var(--plt-forest) 32%, var(--plt-muted-soft))",
+                }}
+                aria-hidden="true"
+              >
+                {initials}
+              </span>
+              {profileImageUrl ? (
+                <Image
+                  src={profileImageUrl}
+                  alt={`${name} profile photo`}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 640px) 80px, 112px"
+                />
+              ) : null}
+            </div>
           </div>
 
           {/* Name + meta */}
-          <div className="flex-1 min-w-0 space-y-3 pb-1">
+          <div className="min-w-0 flex-1 space-y-3 pb-1">
             {/* Featured badge (inline when no cover) */}
             {isFeatured && !hasCover ? (
-              <span className="inline-flex items-center rounded-full border border-[#ECECEC] bg-[#FAFAF8] px-3 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-[#6B6B6B]">
+              <span
+                className="plt-mono inline-flex items-center rounded-full border px-3 py-1 text-[0.625rem] font-medium uppercase tracking-[0.18em]"
+                style={{
+                  borderColor: "var(--plt-hairline-strong)",
+                  background: "var(--plt-bg-raised)",
+                  color: "var(--plt-ink-soft)",
+                }}
+              >
                 Featured
               </span>
             ) : null}
 
             {/* Name */}
             <h1
-              className="font-[family-name:var(--font-cinzel)] text-3xl font-medium leading-tight tracking-wide text-[#1A1A1A] sm:text-4xl lg:text-5xl"
+              className="plt-display text-3xl font-semibold leading-[1.02] tracking-[-0.035em] sm:text-4xl lg:text-5xl"
+              style={{ color: "var(--plt-ink-strong)" }}
               data-profile-name
             >
               {name}
@@ -148,34 +165,42 @@ export function ProfileHeader({
 
             {/* Experience line */}
             {expLine ? (
-              <p className="text-[12px] font-medium uppercase tracking-[0.16em] text-[#6B6B6B]">
+              <p
+                className="plt-mono text-[0.75rem] font-medium uppercase tracking-[0.16em]"
+                style={{ color: "var(--plt-ink-soft)" }}
+              >
                 {expLine}
               </p>
             ) : null}
 
             {/* Location + languages */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-[#6B6B6B]">
+            <div
+              className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm"
+              style={{ color: "var(--plt-muted)" }}
+            >
               {livesIn ? (
                 <span className="flex items-center gap-1.5">
-                  <MapPin className="size-3.5 shrink-0 text-[#9CA3AF]" />
-                  <span>{livesIn}</span>
-                  {originallyFrom ? (
-                    <span className="text-[#9CA3AF]">
-                      · from {originallyFrom}
-                    </span>
-                  ) : null}
+                  <MapPin className="size-3.5 shrink-0" style={{ color: "var(--plt-forest)" }} />
+                  <span style={{ color: "var(--plt-ink-soft)" }}>{livesIn}</span>
+                  {originallyFrom ? <span>· from {originallyFrom}</span> : null}
                 </span>
               ) : null}
               {compactLangLine ? (
-                <span className="text-[12px] uppercase tracking-[0.1em] text-[#9CA3AF]">
+                <span className="plt-mono text-[0.75rem] uppercase tracking-[0.1em]">
                   {compactLangLine}
                 </span>
               ) : null}
               {/* Ref code */}
-              <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-[#C4C4C4]">
+              <span
+                className="plt-mono text-[0.625rem] uppercase tracking-[0.18em]"
+                style={{ color: "var(--plt-muted-soft)" }}
+              >
                 {profileCode}
               </span>
             </div>
+
+            {/* Multi-workspace hubs — "Also represented on" */}
+            {hubsIndicator ? <div className="pt-1">{hubsIndicator}</div> : null}
           </div>
 
           {/* CTA block (top-right on desktop) */}
@@ -185,13 +210,11 @@ export function ProfileHeader({
           </div>
         </div>
 
-        {/* Share menu row */}
-        <div className="mt-4 flex items-center gap-3">
-          {shareMenu}
-        </div>
+        {/* Share row */}
+        <div className="mt-5 flex items-center gap-3">{shareMenu}</div>
 
         {/* Hairline divider */}
-        <div className="mt-8 border-t border-[#ECECEC]" />
+        <div className="mt-8 border-t" style={{ borderColor: "var(--plt-hairline)" }} />
       </div>
     </div>
   );

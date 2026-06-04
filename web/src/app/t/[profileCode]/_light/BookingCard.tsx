@@ -4,7 +4,8 @@
  *   - "Request to book" CTA (passed as slot)
  *   - availability widget
  *   - reassurance line
- *   - share button (passed as slot)
+ *   - share row (passed as slot)
+ * --plt tokens only.
  */
 
 import { AvailabilityWidget } from "./AvailabilityWidget";
@@ -33,14 +34,26 @@ export function BookingCard({
   nextAvailableDate,
 }: BookingCardProps) {
   return (
-    <div className="rounded-2xl border border-[#ECECEC] bg-white p-6 shadow-sm">
+    <div
+      className="rounded-[var(--plt-radius-lg)] border p-6"
+      style={{
+        borderColor: "var(--plt-hairline-strong)",
+        background: "var(--plt-bg-elevated)",
+        boxShadow: "var(--plt-shadow-md)",
+      }}
+    >
       {/* Represented by */}
       {agencyName ? (
-        <div className="mb-4 pb-4 border-b border-[#F0F0EE]">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#C4C4C4]">
+        <div className="mb-4 border-b pb-4" style={{ borderColor: "var(--plt-hairline)" }}>
+          <p
+            className="plt-mono text-[0.625rem] font-semibold uppercase tracking-[0.2em]"
+            style={{ color: "var(--plt-muted-soft)" }}
+          >
             Represented by
           </p>
-          <p className="mt-1 text-sm font-medium text-[#1A1A1A]">{agencyName}</p>
+          <p className="mt-1 text-sm font-medium" style={{ color: "var(--plt-ink)" }}>
+            {agencyName}
+          </p>
         </div>
       ) : null}
 
@@ -51,10 +64,10 @@ export function BookingCard({
       </div>
 
       {/* Availability */}
-      {(availableDaysInNext30 !== null ||
-        availabilityDots14d !== null ||
-        nextAvailableDate !== null) ? (
-        <div className="mt-5 border-t border-[#F0F0EE] pt-4">
+      {availableDaysInNext30 !== null ||
+      availabilityDots14d !== null ||
+      nextAvailableDate !== null ? (
+        <div className="mt-5 border-t pt-4" style={{ borderColor: "var(--plt-hairline)" }}>
           <AvailabilityWidget
             availableDaysInNext30={availableDaysInNext30}
             availabilityDots14d={availabilityDots14d}
@@ -64,15 +77,18 @@ export function BookingCard({
       ) : null}
 
       {/* Reassurance */}
-      <div className="mt-5 flex items-start gap-2 border-t border-[#F0F0EE] pt-4">
-        <Shield className="mt-0.5 size-3.5 shrink-0 text-[#9CA3AF]" />
-        <p className="text-[11px] leading-relaxed text-[#9CA3AF]">
+      <div
+        className="mt-5 flex items-start gap-2 border-t pt-4"
+        style={{ borderColor: "var(--plt-hairline)" }}
+      >
+        <Shield className="mt-0.5 size-3.5 shrink-0" style={{ color: "var(--plt-forest)" }} />
+        <p className="text-[0.6875rem] leading-relaxed" style={{ color: "var(--plt-muted)" }}>
           All inquiries are handled securely through Tulala
         </p>
       </div>
 
       {/* Share */}
-      <div className="mt-4 border-t border-[#F0F0EE] pt-4">
+      <div className="mt-4 border-t pt-4" style={{ borderColor: "var(--plt-hairline)" }}>
         {shareMenu}
       </div>
     </div>
