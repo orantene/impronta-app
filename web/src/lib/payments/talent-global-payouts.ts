@@ -89,7 +89,7 @@ export async function setupTalentGpBank(
     country: string;
     currency: string;
     accountNumber: string;
-    routingNumber: string;
+    routingNumber?: string | null;
     email: string;
     displayName?: string | null;
   },

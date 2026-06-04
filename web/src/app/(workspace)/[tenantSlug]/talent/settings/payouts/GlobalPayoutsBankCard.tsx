@@ -18,6 +18,20 @@ const C = {
 } as const;
 const FONT = '"Inter", system-ui, sans-serif';
 
+/** Per-country bank-field shape: what to label the account field, and whether a
+ *  routing/branch number applies. Mexico (CLABE) and Argentina (CBU) and IBAN
+ *  countries have NO routing number; US/UK/AU/etc. do. */
+type BankFields = { accountLabel: string; accountPlaceholder: string; showRouting: boolean; routingLabel: string };
+function bankFields(iso2: string): BankFields {
+  const IBAN = ["ES", "PT", "FR", "DE", "IT", "NL"];
+  if (iso2 === "MX") return { accountLabel: "CLABE", accountPlaceholder: "18-digit CLABE", showRouting: false, routingLabel: "" };
+  if (iso2 === "AR") return { accountLabel: "CBU or CVU", accountPlaceholder: "22-digit CBU", showRouting: false, routingLabel: "" };
+  if (IBAN.includes(iso2)) return { accountLabel: "IBAN", accountPlaceholder: "Your IBAN", showRouting: false, routingLabel: "" };
+  if (iso2 === "GB") return { accountLabel: "Account number", accountPlaceholder: "00012345", showRouting: true, routingLabel: "Sort code" };
+  if (iso2 === "AU") return { accountLabel: "Account number", accountPlaceholder: "12345678", showRouting: true, routingLabel: "BSB" };
+  return { accountLabel: "Account number", accountPlaceholder: "000123456789", showRouting: true, routingLabel: "Routing / branch number" };
+}
+
 /**
  * Talent "get paid globally" card, set up local-bank Global Payouts (the v2
  * OutboundPayments rail) as an alternative to Connect/Express. Renders on the
@@ -56,8 +70,13 @@ export function GlobalPayoutsBankCard() {
       setError("Choose the country where you bank.");
       return;
     }
-    if (!accountNumber.trim() || !routingNumber.trim()) {
-      setError("Enter your account number and routing number.");
+    const fields = bankFields(country);
+    if (!accountNumber.trim()) {
+      setError(`Enter your ${fields.accountLabel}.`);
+      return;
+    }
+    if (fields.showRouting && !routingNumber.trim()) {
+      setError(`Enter your ${fields.routingLabel}.`);
       return;
     }
     setError(null);
@@ -170,9 +189,9 @@ export function GlobalPayoutsBankCard() {
           </select>
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 4 }}>
-            <div style={{ flex: "1 1 180px", minWidth: 0 }}>
+            <div style={{ flex: "1 1 200px", minWidth: 0 }}>
               <label htmlFor="gp-account" style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.ink, marginBottom: 4 }}>
-                Account number
+                {bankFields(country).accountLabel}
               </label>
               <input
                 id="gp-account"
@@ -180,24 +199,26 @@ export function GlobalPayoutsBankCard() {
                 value={accountNumber}
                 onChange={(e) => setAccountNumber(e.target.value)}
                 inputMode="numeric"
-                placeholder="000123456789"
+                placeholder={bankFields(country).accountPlaceholder}
                 style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: `1px solid ${C.border}`, fontFamily: FONT, fontSize: 13, color: C.ink }}
               />
             </div>
-            <div style={{ flex: "1 1 160px", minWidth: 0 }}>
-              <label htmlFor="gp-routing" style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.ink, marginBottom: 4 }}>
-                Routing / branch number
-              </label>
-              <input
-                id="gp-routing"
-                data-testid="talent-gp-routing"
-                value={routingNumber}
-                onChange={(e) => setRoutingNumber(e.target.value)}
-                inputMode="numeric"
-                placeholder="110000000"
-                style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: `1px solid ${C.border}`, fontFamily: FONT, fontSize: 13, color: C.ink }}
-              />
-            </div>
+            {bankFields(country).showRouting && (
+              <div style={{ flex: "1 1 160px", minWidth: 0 }}>
+                <label htmlFor="gp-routing" style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.ink, marginBottom: 4 }}>
+                  {bankFields(country).routingLabel}
+                </label>
+                <input
+                  id="gp-routing"
+                  data-testid="talent-gp-routing"
+                  value={routingNumber}
+                  onChange={(e) => setRoutingNumber(e.target.value)}
+                  inputMode="numeric"
+                  placeholder="110000000"
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: `1px solid ${C.border}`, fontFamily: FONT, fontSize: 13, color: C.ink }}
+                />
+              </div>
+            )}
           </div>
           {country && (
             <p style={{ margin: "6px 0 12px", fontSize: 11.5, color: C.inkMuted }}>

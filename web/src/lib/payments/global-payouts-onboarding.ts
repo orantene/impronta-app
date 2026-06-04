@@ -61,8 +61,9 @@ export type OutboundSetupIntent = {
  */
 export async function createRecipientBankPayoutMethod(opts: {
   recipientAccountId: string;
-  bank: { country: string; currency: string; accountNumber: string; routingNumber: string };
+  bank: { country: string; currency: string; accountNumber: string; routingNumber?: string | null };
 }): Promise<StripeV2Result<OutboundSetupIntent>> {
+  const routing = (opts.bank.routingNumber ?? "").trim();
   return stripeV2.post<OutboundSetupIntent>(
     "/v2/money_management/outbound_setup_intents",
     {
@@ -74,7 +75,11 @@ export async function createRecipientBankPayoutMethod(opts: {
           // currency → HTTP 400 "payout_method_data.bank_account.currency: Required".
           currency: opts.bank.currency.toLowerCase(),
           account_number: opts.bank.accountNumber,
-          routing_number: opts.bank.routingNumber,
+          // Routing/branch number is only used by some countries (US, CA, …).
+          // Mexico banks via an 18-digit CLABE and Argentina via a CBU, with NO
+          // routing number — sending one there is rejected ("routing number is
+          // not allowed for this bank account"). Only include it when provided.
+          ...(routing ? { routing_number: routing } : {}),
         },
       },
     },

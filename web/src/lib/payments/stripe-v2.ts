@@ -46,8 +46,19 @@ export type StripeV2List<T> = {
   previous_page_url: string | null;
 };
 
+/**
+ * The key used for v2 Money Management (Global Payouts) calls. In LIVE mode the
+ * v2 API requires a RESTRICTED key (rk_live_…) with money-management permissions
+ * — the standard sk_live_ secret key returns 403 there. So prefer an explicit
+ * STRIPE_V2_SECRET_KEY (the restricted key) and fall back to STRIPE_SECRET_KEY
+ * (fine in test mode, where the normal secret key works for v2).
+ */
+export function stripeV2Key(): string | undefined {
+  return process.env.STRIPE_V2_SECRET_KEY || process.env.STRIPE_SECRET_KEY;
+}
+
 export function isStripeV2Configured(): boolean {
-  return !!process.env.STRIPE_SECRET_KEY;
+  return !!stripeV2Key();
 }
 
 export type StripeV2RequestOpts = {
@@ -71,7 +82,7 @@ export async function stripeV2Request<T = unknown>(
   path: string,
   opts: StripeV2RequestOpts = {},
 ): Promise<StripeV2Result<T>> {
-  const key = opts.secretKey ?? process.env.STRIPE_SECRET_KEY;
+  const key = opts.secretKey ?? stripeV2Key();
   if (!key) {
     return {
       ok: false,

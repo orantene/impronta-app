@@ -268,7 +268,7 @@ export async function setupTalentGpBankAction(input: {
   country: string;
   currency: string;
   accountNumber: string;
-  routingNumber: string;
+  routingNumber?: string | null;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     const session = await getCachedActorSession();
@@ -280,7 +280,7 @@ export async function setupTalentGpBankAction(input: {
       country: input.country,
       currency: input.currency,
       accountNumber: input.accountNumber.trim(),
-      routingNumber: input.routingNumber.trim(),
+      routingNumber: (input.routingNumber ?? "").trim(),
       email,
     });
     if (!r.ok) return { ok: false, error: r.error };
