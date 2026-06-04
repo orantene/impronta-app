@@ -21,6 +21,7 @@ import { NextResponse } from "next/server";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
 
 export const runtime = "nodejs";
 
@@ -129,8 +130,23 @@ export async function POST(req: Request) {
   delete payload["h-captcha-response"];
   delete payload["cf-turnstile-response"];
 
-  const hcaptchaSecret = process.env.HCAPTCHA_SECRET;
-  const turnstileSecret = process.env.TURNSTILE_SECRET;
+  // Resolve the tenant's captcha config: their own secret (when they configured
+  // a custom captcha integration) takes precedence; the platform env secret is
+  // the fallback. The provider chosen by the tenant decides which token to
+  // verify against which secret.
+  const tenantCaptcha = await resolveTenantCaptcha(section.tenant_id);
+  const tenantSecret =
+    tenantCaptcha.tenantOwned && tenantCaptcha.provider !== "none"
+      ? await tenantCaptcha.getSecret()
+      : null;
+  const hcaptchaSecret =
+    tenantCaptcha.tenantOwned && tenantCaptcha.provider === "hcaptcha"
+      ? tenantSecret
+      : process.env.HCAPTCHA_SECRET;
+  const turnstileSecret =
+    tenantCaptcha.tenantOwned && tenantCaptcha.provider === "turnstile"
+      ? tenantSecret
+      : process.env.TURNSTILE_SECRET;
   let captchaOk = true;
   if (hcaptchaSecret && hcaptchaToken) {
     try {

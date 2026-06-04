@@ -10,9 +10,18 @@ import { IntegrationLogo } from "./integration-logos";
 
 /**
  * One integration tile in the hub gallery. Leads with the brand logo so the
- * catalog scans like an integration directory. Clicking opens the config
- * drawer. Shows the name, a one-line summary (the configured value — masked
- * last4 for secrets — or the purpose blurb), and the resolved status pill.
+ * catalog scans like an integration directory.
+ *
+ * Two behaviours:
+ *   - Credential-bearing integrations (manual/inherit/oauth) open the config
+ *     drawer on click (`onOpen`).
+ *   - Surfaced (`connection: 'link'`) integrations navigate to an existing
+ *     in-app settings route (`integration.href`) — rendered as an <a>, no
+ *     drawer.
+ *
+ * Shows the name, a one-line summary (the configured value — masked last4 for
+ * secrets — or the purpose blurb), and the resolved status pill. Locked
+ * (entitlement-gated) integrations show the locked pill.
  */
 export function IntegrationCard({
   integration,
@@ -21,23 +30,27 @@ export function IntegrationCard({
   integration: IntegrationView;
   onOpen: () => void;
 }) {
-  const visual = resolveIntegrationStatus(integration);
+  const isLink = integration.connection === "link";
+  const visual = resolveIntegrationStatus(integration, {
+    locked: integration.locked,
+  });
 
   // A compact one-line summary of what's configured (no full secrets — last4
   // only). Falls back to the purpose description when nothing is set yet.
   const configuredField = integration.fields.find(
     (f) => (f.secret && f.secretPresent) || (!f.secret && f.value),
   );
-  const summary = configuredField
-    ? configuredField.secret
-      ? `${configuredField.label} ····${configuredField.secretLast4 ?? ""}`
-      : `${configuredField.label}: ${configuredField.value}`
-    : integration.description;
+  const summary =
+    isLink || !configuredField
+      ? integration.description
+      : configuredField.secret
+        ? `${configuredField.label} ····${configuredField.secretLast4 ?? ""}`
+        : `${configuredField.label}: ${configuredField.value}`;
 
-  return (
+  const cardInner = (
     <Card
       interactive
-      onClick={onOpen}
+      onClick={isLink ? undefined : onOpen}
       style={{
         display: "flex",
         alignItems: "flex-start",
@@ -102,4 +115,18 @@ export function IntegrationCard({
       </div>
     </Card>
   );
+
+  // Surfaced (link) integrations navigate to an existing in-app route; wrap the
+  // card body in an anchor. Credential integrations open the drawer via onClick.
+  if (isLink && integration.href) {
+    return (
+      <a
+        href={integration.href}
+        style={{ textDecoration: "none", color: "inherit", display: "block", height: "100%" }}
+      >
+        {cardInner}
+      </a>
+    );
+  }
+  return cardInner;
 }

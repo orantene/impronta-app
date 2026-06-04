@@ -60,7 +60,10 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getPublicPathPrefix } from "@/lib/saas";
 import { prefixPublicHrefsDeep } from "@/lib/saas/public-hrefs";
 import { getHomepageData } from "@/lib/home-data";
-import { resolveGoogleMapsKeyForClient } from "@/lib/integrations/resolve";
+import {
+  resolveGoogleMapsKeyForClient,
+  resolveTenantCaptcha,
+} from "@/lib/integrations/resolve";
 
 function resolveBuilderSectionBindingForSlotEntry(
   entry: HomepageSnapshot["slots"][number],
@@ -187,8 +190,11 @@ export async function HomepageCmsSections({
   const needsMapsKey = snapshot.slots.some(
     (s) => s.sectionTypeKey === "location_discovery",
   );
+  const needsCaptcha = snapshot.slots.some(
+    (s) => s.sectionTypeKey === "contact_form",
+  );
 
-  const [editMode, previewActive, publicPathPrefix, mapsApiKey] =
+  const [editMode, previewActive, publicPathPrefix, mapsApiKey, resolvedCaptcha] =
     await Promise.all([
       isEditModeActiveForTenant(tenantId),
       isPreviewActiveForTenant(tenantId),
@@ -196,7 +202,15 @@ export async function HomepageCmsSections({
       needsMapsKey
         ? resolveGoogleMapsKeyForClient(tenantId)
         : Promise.resolve(null),
+      needsCaptcha
+        ? resolveTenantCaptcha(tenantId)
+        : Promise.resolve(null),
     ]);
+  // Thread only the PUBLIC widget config to components; the verify secret never
+  // leaves the submit route.
+  const captchaConfig = resolvedCaptcha
+    ? { provider: resolvedCaptcha.provider, siteKey: resolvedCaptcha.siteKey }
+    : null;
 
   // Filter by slot AND/OR section id. The storefront mounts one
   // `<HomepageCmsSections onlySectionId=… />` per non-hero section without
@@ -431,6 +445,7 @@ export async function HomepageCmsSections({
             sectionId={entry.sectionId}
             publicPathPrefix={publicPathPrefix}
             mapsApiKey={mapsApiKey}
+            captcha={captchaConfig}
             builderNodeBindings={builderNodeBindings}
           />
         );

@@ -1,11 +1,14 @@
 import "server-only";
 
 import {
+  CAPTCHA_INTEGRATION_KEY,
+  CUSTOM_CODE_INTEGRATION_KEY,
   getIntegrationDef,
   primarySecretField,
 } from "@/lib/integrations/catalog";
 import {
   getDecryptedSecret,
+  getIntegrationEntitlements,
   getTenantIntegration,
   type TenantIntegrationRow,
 } from "@/lib/integrations/repository";
@@ -137,4 +140,102 @@ export async function resolveGoogleMapsKeyForServer(
   tenantId: string | null,
 ): Promise<string | null> {
   return resolveGoogleMapsKey(tenantId, false);
+}
+
+/**
+ * Resolved custom-code snippets for a tenant's OWN storefront. Both blobs are
+ * PUBLIC HTML the tenant authored; they are injected verbatim into the
+ * storefront's <head> / end of <body>. Gated TWICE: the row must be 'connected'
+ * AND the tenant must currently hold the custom_css_allowed entitlement — so a
+ * plan downgrade silently stops injecting without losing the saved code.
+ */
+export type TenantCustomCode = {
+  headHtml: string | null;
+  bodyHtml: string | null;
+};
+
+export async function resolveTenantCustomCode(
+  tenantId: string,
+): Promise<TenantCustomCode> {
+  const [row, ent] = await Promise.all([
+    getTenantIntegration(tenantId, CUSTOM_CODE_INTEGRATION_KEY),
+    getIntegrationEntitlements(tenantId),
+  ]);
+  if (!ent.custom_css_allowed) return { headHtml: null, bodyHtml: null };
+  if (row?.status !== "connected") return { headHtml: null, bodyHtml: null };
+  const config = (row.config_json ?? {}) as Record<string, unknown>;
+  const head = typeof config.head_html === "string" ? config.head_html.trim() : "";
+  const body = typeof config.body_html === "string" ? config.body_html.trim() : "";
+  return {
+    headHtml: head || null,
+    bodyHtml: body || null,
+  };
+}
+
+/**
+ * Resolved captcha widget config for a tenant's storefront contact form.
+ *
+ * `siteKey`/`provider` are PUBLIC and used to render the client widget; the
+ * platform env keys are the fallback so a tenant with no captcha still gets the
+ * platform widget. `getSecret()` lazily decrypts the tenant's secret_key for
+ * SERVER-side verification (falls back to the platform env secret when the
+ * tenant configured none). Returns provider 'none' when neither tenant nor
+ * platform has a usable key for the requested provider.
+ */
+export type TenantCaptchaConfig = {
+  provider: "hcaptcha" | "turnstile" | "none";
+  siteKey: string | null;
+  /** True when the resolved key is the tenant's own (vs the platform fallback). */
+  tenantOwned: boolean;
+  /** Lazily resolves the server-side secret to verify a token with. */
+  getSecret: () => Promise<string | null>;
+};
+
+function platformCaptcha(): {
+  provider: "hcaptcha" | "turnstile" | "none";
+  siteKey: string | null;
+  secret: string | null;
+} {
+  const hSite = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY?.trim() || null;
+  const hSecret = process.env.HCAPTCHA_SECRET?.trim() || null;
+  const tSite = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() || null;
+  const tSecret = process.env.TURNSTILE_SECRET?.trim() || null;
+  if (hSite) return { provider: "hcaptcha", siteKey: hSite, secret: hSecret };
+  if (tSite) return { provider: "turnstile", siteKey: tSite, secret: tSecret };
+  return { provider: "none", siteKey: null, secret: null };
+}
+
+export async function resolveTenantCaptcha(
+  tenantId: string,
+): Promise<TenantCaptchaConfig> {
+  const row = await getTenantIntegration(tenantId, CAPTCHA_INTEGRATION_KEY);
+  const config = (row?.config_json ?? {}) as Record<string, unknown>;
+  const provider =
+    config.provider === "hcaptcha" || config.provider === "turnstile"
+      ? config.provider
+      : null;
+  const siteKey =
+    typeof config.site_key === "string" && config.site_key.trim()
+      ? config.site_key.trim()
+      : null;
+
+  if (provider && siteKey) {
+    return {
+      provider,
+      siteKey,
+      tenantOwned: true,
+      getSecret: async () =>
+        (await getDecryptedSecret(tenantId, CAPTCHA_INTEGRATION_KEY, "secret_key"))?.trim() ||
+        null,
+    };
+  }
+
+  // No tenant captcha → fall back to the platform widget/secret.
+  const plat = platformCaptcha();
+  return {
+    provider: plat.provider,
+    siteKey: plat.siteKey,
+    tenantOwned: false,
+    getSecret: async () => plat.secret,
+  };
 }

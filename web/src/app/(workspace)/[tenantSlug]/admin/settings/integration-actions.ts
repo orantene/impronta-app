@@ -25,16 +25,21 @@ import { logServerError } from "@/lib/server/safe-error";
 import {
   getIntegrationDef,
   listIntegrationDefs,
+  listSurfacedIntegrations,
   type IntegrationDef,
+  type IntegrationEntitlement,
 } from "@/lib/integrations/catalog";
 import {
   deleteSecret,
+  getIntegrationEntitlements,
   getSecretStatus,
   getTenantIntegration,
   listTenantIntegrations,
   setCredentialMode,
   setIntegrationConfig,
   setSecret,
+  tenantHasConnectedPayoutAccount,
+  tenantHasCustomDomain,
   type TenantIntegrationRow,
 } from "@/lib/integrations/repository";
 
@@ -66,6 +71,24 @@ export type IntegrationView = {
   status: TenantIntegrationRow["status"];
   lastVerifiedAt: string | null;
   lastError: string | null;
+  /**
+   * The plan-entitlement gate (if any) and whether the tenant currently meets
+   * it. `locked: true` → the drawer renders read-only with an upgrade prompt
+   * and the write actions refuse.
+   */
+  entitlement: IntegrationEntitlement | null;
+  locked: boolean;
+  /**
+   * For `connection: 'link'` (surfaced) integrations only: the in-app href the
+   * card navigates to. Null for credential-bearing integrations.
+   */
+  href: string | null;
+  /**
+   * Raw config_json snapshot (PUBLIC values only) — lets specialised drawers
+   * (custom code, captcha, email domain) read multi-field state without a
+   * second round-trip. Never contains secrets.
+   */
+  config: Record<string, unknown>;
 };
 
 export type LoadIntegrationsResult =
@@ -132,7 +155,10 @@ export async function loadTenantIntegrations(
     scope.tenantId,
   );
 
-  const rows = await listTenantIntegrations(scope.tenantId);
+  const [rows, entitlements] = await Promise.all([
+    listTenantIntegrations(scope.tenantId),
+    getIntegrationEntitlements(scope.tenantId),
+  ]);
   const rowByKey = new Map(rows.map((r) => [r.integration_key, r]));
 
   // Iterate the catalog so unconfigured integrations still appear.
@@ -142,6 +168,7 @@ export async function loadTenantIntegrations(
   for (const def of defs) {
     const row = rowByKey.get(def.key) ?? null;
     const config = (row?.config_json ?? {}) as Record<string, unknown>;
+    const locked = def.entitlement ? !entitlements[def.entitlement] : false;
 
     const fields: IntegrationView["fields"] = [];
     for (const f of def.fields) {
@@ -183,10 +210,71 @@ export async function loadTenantIntegrations(
       status: row?.status ?? "not_configured",
       lastVerifiedAt: row?.last_verified_at ?? null,
       lastError: row?.last_error ?? null,
+      entitlement: def.entitlement ?? null,
+      locked,
+      href: null,
+      config,
+    });
+  }
+
+  // Surfaced (link-only) integrations: no drawer, no credential — a card that
+  // navigates to the existing in-app settings route. Status is best-effort live
+  // (Stripe payout-account connected; otherwise a neutral "Set up" state).
+  for (const surfaced of listSurfacedIntegrations()) {
+    const liveStatus = await resolveSurfacedStatus(scope.tenantId, surfaced.key);
+    integrations.push({
+      key: surfaced.key,
+      label: surfaced.label,
+      category: surfaced.category,
+      connection: "link",
+      inheritable: false,
+      description: surfaced.description,
+      instructions: [],
+      fields: [],
+      credentialMode: "inherit",
+      status: liveStatus,
+      lastVerifiedAt: null,
+      lastError: null,
+      entitlement: null,
+      locked: false,
+      href: `/${tenantSlug}${surfaced.hrefPath}`,
+      config: {},
     });
   }
 
   return { ok: true, canManage, integrations };
+}
+
+/**
+ * Best-effort live status for a surfaced (link-only) integration. Read-only;
+ * never throws. Stripe is 'connected' when the tenant has a connected payout
+ * account; custom domain is 'connected' when an active agency_domains row
+ * exists; AI provider is 'connected' when the entitlement is on. Anything we
+ * can't positively confirm resolves to 'not_configured' (the card shows
+ * "Set up").
+ */
+async function resolveSurfacedStatus(
+  tenantId: string,
+  key: string,
+): Promise<TenantIntegrationRow["status"]> {
+  try {
+    if (key === "stripe_connect") {
+      const connected = await tenantHasConnectedPayoutAccount(tenantId);
+      return connected ? "connected" : "not_configured";
+    }
+    if (key === "custom_domain") {
+      const connected = await tenantHasCustomDomain(tenantId);
+      return connected ? "connected" : "not_configured";
+    }
+    if (key === "ai_provider") {
+      // No tenant route resolves a per-tenant key today; surface a neutral
+      // "Set up" so the card is a navigation entry point, not a false-positive.
+      return "not_configured";
+    }
+  } catch {
+    // fall through
+  }
+  return "not_configured";
 }
 
 // ── Write: PUBLIC config (GA4 / pixel / GTM identifiers) ─────────────────────
