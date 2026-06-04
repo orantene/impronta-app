@@ -4038,7 +4038,27 @@ export function EditProvider({
       pageVersionRef.current = save.pageVersion;
       setPageVersion(save.pageVersion);
       lastConfirmedTreeRef.current = nextTree;
-      void queueRouterRefresh();
+      // W3 Sub-step D — skip the per-edit server refresh on the builder-tree
+      // happy path WHEN THE CLIENT CANVAS IS ACTIVE. `setBuilderTree(nextTree)`
+      // above already published the new tree to the bridge, so the client
+      // canvas has already repainted the REGULAR nodes — the server round-trip
+      // is pure lag. Flag OFF keeps the refresh EXACTLY as before (the
+      // server-rendered canvas is the only thing that paints, so it MUST
+      // re-render).
+      //
+      // The ONE flag-on exception: a builder-tree mutation that adds/removes a
+      // `section_embed` island. The client canvas can't conjure a server island
+      // the server never rendered (and can't drop one cleanly), so when the
+      // embed id set changes we still refresh to fetch/retire the island. This
+      // also covers undo/redo of `builderTree` entries that route straight
+      // through `persistBuilderTree` (bypassing `commitBuilderTreeMutation`'s
+      // eager reconcile) and could flip an embed in/out.
+      if (
+        !isBuilderClientCanvasEnabled() ||
+        mutationTouchesSectionEmbedIslandSet(prevTree, nextTree)
+      ) {
+        void queueRouterRefresh();
+      }
       return { ok: true as const };
     },
     [
