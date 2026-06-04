@@ -42,6 +42,10 @@ import {
   type ResponsiveOverrideSummary,
 } from "./freeform-layer-name";
 import {
+  useNavigatorDisclosure,
+  NavigatorDisclosureChevron,
+} from "./use-navigator-disclosure";
+import {
   layerIcon,
   LayerKindPill,
   ResponsiveOverrideDot,
@@ -293,6 +297,10 @@ export function FreeformLayersTree() {
   const [pending, setPending] = useState(false);
   const [insertTarget, setInsertTarget] = useState<InsertTarget | null>(null);
 
+  // Progressive disclosure — collapse to an outline; logic + persistence in hook.
+  const { visibleRows, rowsWithChildren, isNodeOpen, toggleNode } =
+    useNavigatorDisclosure(rows, selectedBuilderNodeId);
+
   /** Plan + owner gate over a kind's raw registry allow-list (mirrors navigator). */
   const gateChildKinds = useCallback(
     (kinds: ReadonlyArray<BuilderNodeKind>): BuilderNodeKind[] =>
@@ -494,7 +502,7 @@ export function FreeformLayersTree() {
         />
       ) : null}
 
-      {rows.map((row) => {
+      {visibleRows.map((row) => {
         const selected = row.id === selectedBuilderNodeId;
         const hovered = hoveredId === row.id;
         // Job #5 — the canvas block under the cursor lights up its layer row.
@@ -581,6 +589,16 @@ export function FreeformLayersTree() {
               transition: "background 140ms ease, box-shadow 140ms ease, color 80ms ease",
             }}
           >
+            <NavigatorDisclosureChevron
+              hasChildren={rowsWithChildren.has(row.id)}
+              open={isNodeOpen(row.id)}
+              label={row.label}
+              indentLeft={Math.max(
+                2,
+                ROOT_PADDING + row.depth * DEPTH_INDENT - 12,
+              )}
+              onToggle={() => toggleNode(row.id)}
+            />
             <LayerKindPill kind={row.kind} Icon={row.Icon} selected={selected} />
             <span
               style={{
