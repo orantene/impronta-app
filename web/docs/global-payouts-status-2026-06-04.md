@@ -89,19 +89,24 @@ Commit `593c46e68` on `feat/talent-global-payouts`. **tsc 0 · test:billing 362 
   (proven by the unchanged `transfers.test.ts`).
 - Tests: `disburse.test.ts`, `stripe-v2.test.ts`, `global-payouts.test.ts`.
 
-## Remaining work to fully adopt Global Payouts v2
-1. **Unblock activation** (owner/Stripe): fix the sandbox GP ToS task → FinancialAccount appears.
-   Then drive fund → payout method → OutboundPayment → settle and flip the ledger.
-2. **Rail-selection policy**: decide when a talent uses `global_payouts` (e.g. a
-   `crypto_payouts_enabled` / payout-method flag + GP active). Wire `resolvePayoutRail` to it.
-   Default stays Connect.
-3. **Recipient + payout-method onboarding** for GP recipients (bank/wire/crypto) via
-   `/v2/core/accounts` + `/v2/money_management/payout_methods` (or Stripe-hosted forms / AccountLink v2).
-4. **FinancialAccount funding** helper (move platform balance → FA before OutboundPayments).
-5. **v2 thin-event webhook** (`outbound_payment.*`) on a separate event destination to flip the
-   `booking_payouts` ledger legs (today `payout.*` are log-only). Needs the v2 webhook secret.
-6. **USD/USDC normalization** + the country→rail table.
-7. **Re-onboard talent** under the chosen account when going live (connected accounts don't migrate).
+Commit `7aa41cec9` (gated tsc 0 / test:billing 385 / test:notifications 81 / lint 0; pushed to PR #241):
+- migration `20261018000000` — `talent_profiles.crypto_payouts_enabled` (default false; applied + registered to remote Supabase).
+- `payout-rail-policy.ts` — `decidePayoutRail` (pure) + `resolveTalentPayoutRail` (DB-backed; short-circuits to Connect before any Stripe call); wired as the default talent-leg resolver in `transfers.ts` (still Connect for everyone until opt-in + GP active + eligible country).
+- `webhook-v2.ts` + `app/api/webhooks/stripe-v2/route.ts` — verify v2 thin-event signature (HMAC) + reconcile `booking_payouts` on `outbound_payment.*` (flip leg + resync `payout_lifecycle`); returns 503 until `STRIPE_V2_WEBHOOK_SECRET` is set.
+- `global-payouts-onboarding.ts` — `createGlobalPayoutsRecipient`, bank `PayoutMethod` via `outbound_setup_intents`, financial-address get-or-create, `fundFinancialAccountFromBalance` (v1 payout → FA).
+
+## Remaining work to GO LIVE on Global Payouts v2
+The rail is now code-complete + gated; what's left is activation, a small UI write, config, and the live proof:
+1. **Unblock activation** (owner/Stripe): fix the sandbox GP-ToS task → FinancialAccount provisions.
+   Then drive fund → payout method → OutboundPayment → settle and confirm the webhook flips the ledger.
+   Every step's code now exists (`global-payouts.ts`, `disburse.ts`, `global-payouts-onboarding.ts`, `webhook-v2.ts`).
+2. **Talent opt-in UI write** to set `crypto_payouts_enabled` (resolver + rail are ready; PR #241 already has the talent card).
+3. **Wire the v2 webhook destination** for `outbound_payment.*` + set `STRIPE_V2_WEBHOOK_SECRET`.
+4. **Not-yet-coded (endpoints undocumented at build time):** sandbox `test_helpers` inbound-credit simulation; the v2 AccountLink for Stripe-hosted recipient collection. `fundFinancialAccountFromBalance` covers sandbox funding via a bypass-pending charge.
+5. **USD/USDC**: OutboundPayments are created in USD; Stripe converts to USDC at the recipient once they've linked a USDC wallet (Stripe private preview).
+6. **Cutover**: point the app at the US account + re-onboard talent (connected accounts don't migrate). Real-money payouts are run by the owner.
+
+DONE this session (was "remaining"): rail-selection policy + `crypto_payouts_enabled` flag; recipient + bank payout-method onboarding; FinancialAccount funding-from-balance; the v2 `outbound_payment.*` webhook; country gating via `isStablecoinPayoutCountry` in the policy.
 
 ## Owner / Stripe dependencies (cannot be done by the agent)
 - **Stripe support**: fix the sandbox "Accept ToS for Global Payouts" task so GP can activate.
