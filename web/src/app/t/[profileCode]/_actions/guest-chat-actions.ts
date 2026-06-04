@@ -42,7 +42,9 @@ import {
 import { isBlocked } from "@/lib/inquiry/recipient-safety";
 import { resolveInquiryRecipients } from "@/lib/notifications/recipients";
 import { emitGuestAutoAck } from "@/lib/inquiry/guest-auto-ack";
+import { sendGuestClaimEmail } from "@/lib/inquiry/guest-claim-link";
 import { getTypicalReplyLabel } from "@/lib/inquiry/guest-reply-latency";
+import { getAppUrl } from "@/lib/auth-flow";
 import type {
   GetGuestThreadInput,
   GetGuestThreadResult,
@@ -657,6 +659,37 @@ export async function startGuestChatInquiry(
     tenantId,
     talentProfileId: input.talentProfileId,
   });
+
+  // GUEST → CLIENT CLAIM (best-effort, non-blocking): email the guest a
+  // magic-link so they can sign in (passwordless, proves email ownership now
+  // that confirmations are ON) and continue THIS conversation from the client
+  // Messages surface. Only when a real client account was provisioned/matched —
+  // an "unlinked" guest (the email belongs to staff/talent) has no account to
+  // claim, so we never email a sign-in link there. sendGuestClaimEmail swallows
+  // all failures (the inquiry is already created); we await it but the function
+  // contract is void/never-throws.
+  if (provisioned.clientUserId) {
+    // Talent display name for the subject/body — best-effort; fall back to the
+    // agency name so the copy is never empty.
+    let talentName = "";
+    const { data: talentRow } = await admin
+      .from("talent_profiles")
+      .select("display_name")
+      .eq("id", input.talentProfileId)
+      .maybeSingle();
+    talentName = (talentRow?.display_name as string | null)?.trim() || "";
+    if (!talentName) {
+      talentName = (await loadAgencyName(admin, tenantId)) ?? "the team";
+    }
+
+    await sendGuestClaimEmail({
+      email: contactEmail,
+      tenantSlug: input.tenantSlug,
+      talentName,
+      appUrl: getAppUrl(),
+      tenantId,
+    });
+  }
 
   // Load the inquiry as an OwnedInquiry to read back the opening + auto-ack.
   const owned = await loadOwnedInquiry(admin, inquiryId, guestSessionId);

@@ -533,9 +533,9 @@ export function MiniChatPanel({
               maxWidth: "92%",
             }}
           >
-            We emailed a copy to{" "}
-            <strong style={{ color: C.inkMuted }}>{emailedTo}</strong> so you can pick this up
-            anywhere.
+            We emailed{" "}
+            <strong style={{ color: C.inkMuted }}>{emailedTo}</strong> a link to sign in and
+            continue this conversation from any device.
           </div>
         )}
       </div>
