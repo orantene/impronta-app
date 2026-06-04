@@ -7,6 +7,7 @@ import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency
 import { loadPlatformCommercialDefaults } from "@/lib/platform/commercial-defaults";
 import { PlatformCurrencyCard } from "./PlatformCurrencyCard";
 import { PlatformCommercialDefaultsCard } from "./PlatformCommercialDefaultsCard";
+import { SettingsSectionIcon } from "@/components/admin/settings/settings-section-icons";
 
 export const dynamic = "force-dynamic";
 
@@ -28,10 +29,12 @@ const FD = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-seri
 function HqCard({
   title,
   subtitle,
+  iconId,
   children,
 }: {
   title: string;
   subtitle?: string;
+  iconId?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -44,23 +47,26 @@ function HqCard({
         fontFamily: F,
       }}
     >
-      <div className="mb-2.5">
-        <span
-          style={{
-            fontSize: 10.5,
-            color: HQ.inkMuted,
-            fontWeight: 600,
-            letterSpacing: 1.2,
-            textTransform: "uppercase",
-          }}
-        >
-          {title}
-        </span>
-        {subtitle && (
-          <p style={{ margin: "3px 0 0", fontSize: 12.5, color: HQ.inkMuted }}>
-            {subtitle}
-          </p>
-        )}
+      <div className="mb-2.5" style={{ display: "flex", alignItems: "flex-start", gap: 11 }}>
+        {iconId && <SettingsSectionIcon sectionId={iconId} tone="dark" size={28} />}
+        <div style={{ minWidth: 0 }}>
+          <span
+            style={{
+              fontSize: 10.5,
+              color: HQ.inkMuted,
+              fontWeight: 600,
+              letterSpacing: 1.2,
+              textTransform: "uppercase",
+            }}
+          >
+            {title}
+          </span>
+          {subtitle && (
+            <p style={{ margin: "3px 0 0", fontSize: 12.5, color: HQ.inkMuted }}>
+              {subtitle}
+            </p>
+          )}
+        </div>
       </div>
       {children}
     </section>
@@ -150,6 +156,7 @@ export default async function PlatformSettingsPage() {
         <HqCard
           title="Operating currency"
           subtitle="Run the platform in one currency. Talents see a single clean figure unless multi-currency is on."
+          iconId="plan"
         >
           <PlatformCurrencyCard
             current={{
@@ -163,6 +170,7 @@ export default async function PlatformSettingsPage() {
         <HqCard
           title="Commercial defaults"
           subtitle="Base deposit, refund policy, and instant-book the platform falls back to when a workspace or talent hasn't set their own."
+          iconId="commercial-terms"
         >
           <PlatformCommercialDefaultsCard
             current={{
@@ -177,6 +185,7 @@ export default async function PlatformSettingsPage() {
         <HqCard
           title={`HQ team (${hqTeam.length})`}
           subtitle="Users with platform super_admin or agency_staff access"
+          iconId="team"
         >
           {hqTeam.length === 0 ? (
             <div style={{ padding: "16px 0", color: HQ.inkMuted, fontSize: 13, fontFamily: F }}>
@@ -275,7 +284,7 @@ export default async function PlatformSettingsPage() {
         </HqCard>
 
         {/* Platform config */}
-        <HqCard title="Platform config" subtitle="Read-only overview of system settings">
+        <HqCard title="Platform config" subtitle="Read-only overview of system settings" iconId="features">
           <SettingRow label="Platform" value="Tulala" />
           <SettingRow label="Environment" value={process.env.NODE_ENV ?? "unknown"} />
           <SettingRow label="Auth provider" value="Supabase" />
@@ -290,6 +299,7 @@ export default async function PlatformSettingsPage() {
       <HqCard
         title="Audit trail"
         subtitle="All platform-level actions by HQ users. Full audit log ships in Phase 4."
+        iconId="audit"
       >
         <div
           style={{

@@ -1,5 +1,6 @@
 "use client";
 
+import { SettingsSectionIcon } from "@/components/admin/settings/settings-section-icons";
 import { CommercialBookingTermsCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/CommercialBookingTermsCard";
 import { DefaultCurrencyCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/DefaultCurrencyCard";
 import { ProfileVisibilityCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/ProfileVisibilityCard";
@@ -142,7 +143,7 @@ export function SettingsPage() {
         </span>
       </button>
 
-      <Divider label="My Circle" />
+      <Divider label="My Circle" icon={<SettingsSectionIcon sectionId="circle" />} />
       <button
         type="button"
         onClick={() => openDrawer("circle-manage")}
@@ -165,7 +166,7 @@ export function SettingsPage() {
         <span className="text-admin-royal-deep text-admin-11h font-semibold">Manage →</span>
       </button>
 
-      <Divider label="Agencies" />
+      <Divider label="Agencies" icon={<SettingsSectionIcon sectionId="agencies" />} />
       <Grid cols="auto">
         {settingsAgencies.map((a) => (
           <SecondaryCard
@@ -195,7 +196,7 @@ export function SettingsPage() {
           here automatically via the shared trial engine. Gated on a real
           bridged profile (the mock prototype has no talent_profiles row, so the
           self-scoped summary loader would fail) — same idiom as the cards above. */}
-      <Divider label="Personal page" />
+      <Divider label="Personal page" icon={<SettingsSectionIcon sectionId="personal-page" />} />
       {bridgeTalentSelfProfile ? (
         <TalentPlanCard
           onCompare={() => openDrawer("talent-tier-compare")}
@@ -219,7 +220,7 @@ export function SettingsPage() {
         />
       </Grid>
 
-      <Divider label="Account" />
+      <Divider label="Account" icon={<SettingsSectionIcon sectionId="account" />} />
       <Grid cols="2">
         <SecondaryCard
           title="Contact preferences"

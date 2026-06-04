@@ -21,6 +21,7 @@ import {
 import type { TalentReview } from "@/lib/reviews/review-types";
 import { ClientReviewsPanel, type GivenReview } from "../_components/ClientReviewsPanel";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { SettingsSectionIcon } from "@/components/admin/settings/settings-section-icons";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
@@ -34,7 +35,17 @@ const C = {
 
 const FONT = '"Inter", system-ui, sans-serif';
 
-function Card({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
+function Card({
+  title,
+  subtitle,
+  icon,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <section
       style={{
@@ -45,9 +56,12 @@ function Card({ title, subtitle, children }: { title: string; subtitle?: string;
         fontFamily: FONT,
       }}
     >
-      <div className="mb-3.5">
-        <div style={{ fontSize: 15, fontWeight: 600, color: C.ink, letterSpacing: -0.1 }}>{title}</div>
-        {subtitle && <div style={{ fontSize: 12.5, color: C.inkMuted, marginTop: 3 }}>{subtitle}</div>}
+      <div className="mb-3.5" style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+        {icon && <span style={{ flexShrink: 0, marginTop: 1 }}>{icon}</span>}
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: C.ink, letterSpacing: -0.1 }}>{title}</div>
+          {subtitle && <div style={{ fontSize: 12.5, color: C.inkMuted, marginTop: 3 }}>{subtitle}</div>}
+        </div>
       </div>
       {children}
     </section>
@@ -171,6 +185,7 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
         <Card
           title="Profile"
           subtitle="Your display name and company shown on inquiries and bookings."
+          icon={<SettingsSectionIcon sectionId="profile" />}
         >
           <ProfileFields
             tenantSlug={tenantSlug}
@@ -186,6 +201,7 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
         <Card
           title="Account"
           subtitle="Your sign-in credentials."
+          icon={<SettingsSectionIcon sectionId="account" />}
         >
           <AccountFields
             initialEmail={userEmail}
@@ -197,6 +213,7 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
         <Card
           title="Notifications"
           subtitle="Choose how you hear about each kind of update. Account & billing notices are always sent. Changes auto-save."
+          icon={<SettingsSectionIcon sectionId="notifications" />}
         >
           <NotificationPrefsPanel
             categories={notificationCategories}
@@ -213,6 +230,7 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
               ? "Reviews talent left about you, and the reviews you've written."
               : "Reviews appear here after your bookings are completed."
           }
+          icon={<SettingsSectionIcon sectionId="brand" />}
         >
           <ClientReviewsPanel
             received={receivedReviews}
