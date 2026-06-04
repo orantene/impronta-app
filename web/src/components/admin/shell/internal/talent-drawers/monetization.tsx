@@ -19,47 +19,24 @@ import {
   SecondaryButton,
 } from "../primitives";
 import { KvRow, SummaryStat } from "./shared";
+import { PayoutsShell } from "@/app/(workspace)/[tenantSlug]/talent/settings/payouts/PayoutsShell";
 
 // ─── Payouts ────────────────────────────────────────────────────
 
 export function TalentPayoutsDrawer() {
-  const { state, closeDrawer, setTalentPage } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-payouts";
-  const goToPayouts = () => { closeDrawer(); setTalentPage("payouts"); };
 
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Set up payouts"
-      description="Stripe Connect handles KYC + banking. Tulala never sees your bank details."
+      title="Payouts"
+      description="Get paid for your bookings. Stripe handles your bank details and ID check, and we never see them."
       width={560}
-      footer={
-        <>
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
-          <PrimaryButton onClick={goToPayouts}>Set up payouts</PrimaryButton>
-        </>
-      }
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
-      <div className="flex flex-col gap-4">
-        <div style={{ padding: "12px 14px", border: `1px solid rgba(15,79,62,0.18)`, borderRadius: 10, fontFamily: FONTS.body, fontSize: 12, lineHeight: 1.5 }} className="bg-admin-accent-soft text-admin-ink">
-          <strong className="text-admin-accent-deep">Encrypted via Stripe.</strong>{" "}
-          Bank details and ID never touch Tulala servers.
-        </div>
-        <div style={{ padding: "20px 16px", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 12, fontFamily: FONTS.body, textAlign: "center" }} className="bg-admin-surface-alt">
-          <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 6 }} className="text-admin-ink">
-            Connect your bank in a few minutes
-          </div>
-          <div style={{ fontSize: 12.5, lineHeight: 1.55, maxWidth: 360, margin: "0 auto 14px" }} className="text-admin-ink-muted">
-            Complete Stripe&apos;s secure identity + bank setup right inside Tulala. Once
-            connected, your share of every confirmed booking transfers to you automatically.
-          </div>
-          <PrimaryButton onClick={goToPayouts}>Set up payouts →</PrimaryButton>
-        </div>
-        <KvRow label="Payout schedule" value="Per-booking · on Stripe's standard schedule" />
-        <KvRow label="Currency" value="Set during Stripe onboarding" />
-        <KvRow label="Tax form" value="W-8BEN / W-9 depending on residency" />
-      </div>
+      <PayoutsShell embedded selfLoad snapshot={null} loadError={null} heldPayouts={null} justReturned={false} justRefreshed={false} />
     </DrawerShell>
   );
 }

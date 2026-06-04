@@ -6,6 +6,7 @@ import {
   createTalentAccountSession,
   createTalentDashboardLinkAction,
   ensureTalentPayoutAccount,
+  loadTalentPayoutSnapshot,
   loadTalentStablecoinEligibility,
   refreshTalentPayoutStatus,
 } from "./actions";
@@ -79,12 +80,18 @@ export function PayoutsShell({
   heldPayouts = null,
   justReturned,
   justRefreshed,
+  embedded = false,
+  selfLoad = false,
 }: {
   snapshot: TalentConnectedAccountSnapshot | null;
   loadError: string | null;
   heldPayouts?: HeldTotal[] | null;
   justReturned: boolean;
   justRefreshed: boolean;
+  /** Render without the page header + outer container (for use inside a drawer). */
+  embedded?: boolean;
+  /** Load the payout snapshot client-side on mount (when no server prop is passed). */
+  selfLoad?: boolean;
 }) {
   const router = useRouter();
   const [snapshot, setSnapshot] = useState(initialSnapshot);
@@ -98,9 +105,24 @@ export function PayoutsShell({
   const [cryptoPending, setCryptoPending] = useState(false);
   const [cryptoError, setCryptoError] = useState<string | null>(null);
   const [showUsdc, setShowUsdc] = useState(false);
+  const [selfLoaded, setSelfLoaded] = useState(!selfLoad);
 
   const status = snapshot?.status ?? "none";
   const isEnabled = status === "enabled";
+
+  // When embedded in a drawer there's no server prop, so pull the snapshot here.
+  useEffect(() => {
+    if (!selfLoad) return;
+    let cancelled = false;
+    loadTalentPayoutSnapshot().then((r) => {
+      if (cancelled) return;
+      if (r.ok) setSnapshot(r.snapshot);
+      setSelfLoaded(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [selfLoad]);
 
   // Once the Connect account is enabled, check stablecoin (USDC) eligibility.
   useEffect(() => {
@@ -178,150 +200,164 @@ export function PayoutsShell({
     });
   };
 
+  const outerStyle: CSSProperties = embedded
+    ? { fontFamily: FONT }
+    : { maxWidth: 540, margin: "0 auto", padding: "24px 24px 48px", fontFamily: FONT };
+
   return (
-    <div data-msg-shell style={{ maxWidth: 540, margin: "0 auto", padding: "24px 24px 48px", fontFamily: FONT }}>
-      <h1 style={{ margin: 0, fontSize: 21, fontWeight: 700, color: C.ink, letterSpacing: -0.3 }}>Payouts</h1>
-      <p style={{ margin: "6px 0 20px", fontSize: 13, lineHeight: 1.55, color: C.inkMuted }}>
-        Get paid for your bookings, straight to your bank. Stripe handles the bank details and ID check, and we never see them.
-      </p>
-
-      {!isEnabled && <HeldPayoutsBanner held={heldPayouts} audience="talent" />}
-
-      {justReturned && isEnabled && (
-        <div role="status" style={{ marginBottom: 14, padding: "10px 12px", background: C.greenSoft, color: C.green, borderRadius: 10, fontSize: 12.5 }}>
-          ✓ All set. Your bank is connected and ready for payouts.
-        </div>
-      )}
-      {justRefreshed && (
-        <div role="status" style={{ marginBottom: 14, padding: "10px 12px", background: C.surfaceAlt, color: C.inkMuted, borderRadius: 10, fontSize: 12.5 }}>
-          Status refreshed.
-        </div>
-      )}
-      {loadError && (
-        <div role="alert" style={{ marginBottom: 14, padding: "10px 12px", background: C.coralSoft, color: C.coral, borderRadius: 10, fontSize: 12.5 }}>
-          {loadError}
-        </div>
+    <div data-msg-shell style={outerStyle}>
+      {!embedded && (
+        <>
+          <h1 style={{ margin: 0, fontSize: 21, fontWeight: 700, color: C.ink, letterSpacing: -0.3 }}>Payouts</h1>
+          <p style={{ margin: "6px 0 20px", fontSize: 13, lineHeight: 1.55, color: C.inkMuted }}>
+            Get paid for your bookings, straight to your bank. Stripe handles the bank details and ID check, and we never see them.
+          </p>
+        </>
       )}
 
-      {/* ── PRIMARY: your bank ── */}
-      {showOnboarding ? (
-        <div style={card}>
-          <div style={sectionLabel}>Connect your bank</div>
-          <div style={{ marginTop: 12, border: `1px solid ${C.borderSoft}`, borderRadius: 12, overflow: "hidden" }}>
-            <ConnectEmbeddedOnboarding fetchClientSecret={() => createTalentAccountSession(country ? { country } : {})} onExit={handleExit} />
-          </div>
-          <button type="button" onClick={handleExit} style={{ ...ghostBtn, marginTop: 12 }}>
-            Done for now
-          </button>
-        </div>
-      ) : needCountry ? (
-        <div style={card}>
-          <label htmlFor="payout-country" style={{ display: "block", fontSize: 13, fontWeight: 600, color: C.ink, marginBottom: 8 }}>
-            Where will you receive payouts?
-          </label>
-          <select
-            id="payout-country"
-            data-testid="talent-payout-country"
-            value={country}
-            onChange={(e) => setCountry(e.target.value)}
-            style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: `1px solid ${C.border}`, fontFamily: FONT, fontSize: 13, color: C.ink, background: "#fff", marginBottom: 12 }}
-          >
-            <option value="">Select your country…</option>
-            {PAYOUT_COUNTRIES.map((c) => (
-              <option key={c.iso2} value={c.iso2}>
-                {c.flag} {c.label}
-              </option>
-            ))}
-          </select>
-          {error && <div role="alert" style={{ fontSize: 12, color: C.coral, marginBottom: 10 }}>{error}</div>}
-          <div style={{ display: "flex", gap: 8 }}>
-            <button type="button" onClick={onSubmitCountry} disabled={pending} style={primaryBtn(pending)}>
-              {pending ? "Setting up…" : "Continue"}
-            </button>
-            <button type="button" onClick={() => { setNeedCountry(false); setError(null); }} style={ghostBtn}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : isEnabled ? (
-        <div style={card}>
-          <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-            <span aria-hidden style={{ width: 34, height: 34, borderRadius: 9, background: C.greenSoft, color: C.green, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 16 }}>
-              ✓
-            </span>
-            <div style={{ minWidth: 0 }}>
-              <div data-testid="talent-payout-status" style={{ fontSize: 14.5, fontWeight: 600, color: C.ink }}>
-                You&apos;re set up to get paid
+      {selfLoad && !selfLoaded ? (
+        <div style={{ fontSize: 13, color: C.inkMuted, padding: "8px 2px" }}>Loading your payout status…</div>
+      ) : (
+        <>
+          {!isEnabled && <HeldPayoutsBanner held={heldPayouts} audience="talent" />}
+
+          {justReturned && isEnabled && (
+            <div role="status" style={{ marginBottom: 14, padding: "10px 12px", background: C.greenSoft, color: C.green, borderRadius: 10, fontSize: 12.5 }}>
+              ✓ All set. Your bank is connected and ready for payouts.
+            </div>
+          )}
+          {justRefreshed && (
+            <div role="status" style={{ marginBottom: 14, padding: "10px 12px", background: C.surfaceAlt, color: C.inkMuted, borderRadius: 10, fontSize: 12.5 }}>
+              Status refreshed.
+            </div>
+          )}
+          {loadError && (
+            <div role="alert" style={{ marginBottom: 14, padding: "10px 12px", background: C.coralSoft, color: C.coral, borderRadius: 10, fontSize: 12.5 }}>
+              {loadError}
+            </div>
+          )}
+
+          {/* PRIMARY: your bank */}
+          {showOnboarding ? (
+            <div style={card}>
+              <div style={sectionLabel}>Connect your bank</div>
+              <div style={{ marginTop: 12, border: `1px solid ${C.borderSoft}`, borderRadius: 12, overflow: "hidden" }}>
+                <ConnectEmbeddedOnboarding fetchClientSecret={() => createTalentAccountSession(country ? { country } : {})} onExit={handleExit} />
               </div>
-              <div style={{ fontSize: 12.5, color: C.inkMuted, marginTop: 1 }}>
-                Your share of each booking lands in your bank automatically.
+              <button type="button" onClick={handleExit} style={{ ...ghostBtn, marginTop: 12 }}>
+                Done for now
+              </button>
+            </div>
+          ) : needCountry ? (
+            <div style={card}>
+              <label htmlFor="payout-country" style={{ display: "block", fontSize: 13, fontWeight: 600, color: C.ink, marginBottom: 8 }}>
+                Where will you receive payouts?
+              </label>
+              <select
+                id="payout-country"
+                data-testid="talent-payout-country"
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: `1px solid ${C.border}`, fontFamily: FONT, fontSize: 13, color: C.ink, background: "#fff", marginBottom: 12 }}
+              >
+                <option value="">Select your country…</option>
+                {PAYOUT_COUNTRIES.map((c) => (
+                  <option key={c.iso2} value={c.iso2}>
+                    {c.flag} {c.label}
+                  </option>
+                ))}
+              </select>
+              {error && <div role="alert" style={{ fontSize: 12, color: C.coral, marginBottom: 10 }}>{error}</div>}
+              <div style={{ display: "flex", gap: 8 }}>
+                <button type="button" onClick={onSubmitCountry} disabled={pending} style={primaryBtn(pending)}>
+                  {pending ? "Setting up…" : "Continue"}
+                </button>
+                <button type="button" onClick={() => { setNeedCountry(false); setError(null); }} style={ghostBtn}>
+                  Cancel
+                </button>
               </div>
             </div>
-          </div>
-          {error && <div role="alert" style={{ fontSize: 12, color: C.coral, marginTop: 12 }}>{error}</div>}
-          <button type="button" data-testid="talent-connect-cta" onClick={onConnect} disabled={pending} style={{ ...ghostBtn, marginTop: 14 }}>
-            {pending ? "Opening…" : "Update bank or payout details"}
-          </button>
-        </div>
-      ) : (
-        <div style={card}>
-          <div style={sectionLabel}>Set up payouts</div>
-          <p style={{ margin: "10px 0 14px", fontSize: 13, lineHeight: 1.55, color: C.inkMuted }}>
-            Connect your bank to receive booking payouts. It takes a few minutes, and Stripe verifies your identity and bank securely.
-          </p>
-          {error && <div role="alert" style={{ fontSize: 12, color: C.coral, marginBottom: 10 }}>{error}</div>}
-          <button type="button" data-testid="talent-connect-cta" onClick={onConnect} disabled={pending} style={primaryBtn(pending)}>
-            {pending ? "Opening…" : "Set up payouts"}
-          </button>
-        </div>
-      )}
-
-      {/* ── MORE WAYS TO GET PAID (secondary) ── */}
-      {isEnabled && !showOnboarding && (
-        <div style={{ marginTop: 26 }}>
-          <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: 0.3, textTransform: "uppercase", color: C.inkDim, marginBottom: 10 }}>
-            More ways to get paid
-          </div>
-
-          <GlobalPayoutsBankCard />
-
-          {stablecoinEligible && (
-            <div style={{ ...card, marginTop: 12 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <span style={sectionLabel}>USDC · digital dollars</span>
-                <span style={{ fontSize: 10.5, fontWeight: 700, color: C.green, background: C.greenSoft, padding: "2px 7px", borderRadius: 999 }}>
-                  Available in {stablecoinCountry ?? "your country"}
+          ) : isEnabled ? (
+            <div style={card}>
+              <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+                <span aria-hidden style={{ width: 34, height: 34, borderRadius: 9, background: C.greenSoft, color: C.green, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 16 }}>
+                  ✓
                 </span>
+                <div style={{ minWidth: 0 }}>
+                  <div data-testid="talent-payout-status" style={{ fontSize: 14.5, fontWeight: 600, color: C.ink }}>
+                    You&apos;re set up to get paid
+                  </div>
+                  <div style={{ fontSize: 12.5, color: C.inkMuted, marginTop: 1 }}>
+                    Your share of each booking lands in your bank automatically.
+                  </div>
+                </div>
               </div>
-              {!showUsdc ? (
-                <button type="button" onClick={() => setShowUsdc(true)} style={{ ...ghostBtn, marginTop: 12 }}>
-                  Learn about USDC payouts
-                </button>
-              ) : (
-                <>
-                  <p style={{ margin: "10px 0 12px", fontSize: 12.5, lineHeight: 1.55, color: C.inkMuted }}>
-                    Get paid in <strong style={{ color: C.ink }}>USDC</strong> to your own crypto wallet, across borders, with no
-                    local-bank wait. Open your Stripe dashboard, link a wallet, and set USDC as your default.
-                  </p>
-                  <button type="button" data-testid="talent-stablecoin-cta" onClick={openCryptoDashboard} disabled={cryptoPending} style={primaryBtn(cryptoPending)}>
-                    {cryptoPending ? "Opening…" : "Link a crypto wallet"}
-                  </button>
-                  {cryptoError && (
-                    <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 8 }}>
-                      {cryptoError}
-                    </div>
+              {error && <div role="alert" style={{ fontSize: 12, color: C.coral, marginTop: 12 }}>{error}</div>}
+              <button type="button" data-testid="talent-connect-cta" onClick={onConnect} disabled={pending} style={{ ...ghostBtn, marginTop: 14 }}>
+                {pending ? "Opening…" : "Update bank or payout details"}
+              </button>
+            </div>
+          ) : (
+            <div style={card}>
+              <div style={sectionLabel}>Set up payouts</div>
+              <p style={{ margin: "10px 0 14px", fontSize: 13, lineHeight: 1.55, color: C.inkMuted }}>
+                Connect your bank to receive booking payouts. It takes a few minutes, and Stripe verifies your identity and bank securely.
+              </p>
+              {error && <div role="alert" style={{ fontSize: 12, color: C.coral, marginBottom: 10 }}>{error}</div>}
+              <button type="button" data-testid="talent-connect-cta" onClick={onConnect} disabled={pending} style={primaryBtn(pending)}>
+                {pending ? "Opening…" : "Set up payouts"}
+              </button>
+            </div>
+          )}
+
+          {/* MORE WAYS TO GET PAID (secondary) */}
+          {isEnabled && !showOnboarding && (
+            <div style={{ marginTop: 26 }}>
+              <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: 0.3, textTransform: "uppercase", color: C.inkDim, marginBottom: 10 }}>
+                More ways to get paid
+              </div>
+
+              <GlobalPayoutsBankCard />
+
+              {stablecoinEligible && (
+                <div style={{ ...card, marginTop: 12 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <span style={sectionLabel}>USDC · digital dollars</span>
+                    <span style={{ fontSize: 10.5, fontWeight: 700, color: C.green, background: C.greenSoft, padding: "2px 7px", borderRadius: 999 }}>
+                      Available in {stablecoinCountry ?? "your country"}
+                    </span>
+                  </div>
+                  {!showUsdc ? (
+                    <button type="button" onClick={() => setShowUsdc(true)} style={{ ...ghostBtn, marginTop: 12 }}>
+                      Learn about USDC payouts
+                    </button>
+                  ) : (
+                    <>
+                      <p style={{ margin: "10px 0 12px", fontSize: 12.5, lineHeight: 1.55, color: C.inkMuted }}>
+                        Get paid in <strong style={{ color: C.ink }}>USDC</strong> to your own crypto wallet, across borders, with no
+                        local-bank wait. Open your Stripe dashboard, link a wallet, and set USDC as your default.
+                      </p>
+                      <button type="button" data-testid="talent-stablecoin-cta" onClick={openCryptoDashboard} disabled={cryptoPending} style={primaryBtn(cryptoPending)}>
+                        {cryptoPending ? "Opening…" : "Link a crypto wallet"}
+                      </button>
+                      {cryptoError && (
+                        <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 8 }}>
+                          {cryptoError}
+                        </div>
+                      )}
+                    </>
                   )}
-                </>
+                </div>
               )}
             </div>
           )}
-        </div>
-      )}
 
-      <div style={{ marginTop: 24, fontSize: 11.5, lineHeight: 1.55, color: C.inkDim }}>
-        When a client pays for a booking you&apos;re on, your share transfers to you automatically, on Stripe&apos;s standard
-        schedule (typically 2 business days). You file your own taxes, and we hand you the year-end summary.
-      </div>
+          <div style={{ marginTop: 24, fontSize: 11.5, lineHeight: 1.55, color: C.inkDim }}>
+            When a client pays for a booking you&apos;re on, your share transfers to you automatically, on Stripe&apos;s standard
+            schedule (typically 2 business days). You file your own taxes, and we hand you the year-end summary.
+          </div>
+        </>
+      )}
     </div>
   );
 }
