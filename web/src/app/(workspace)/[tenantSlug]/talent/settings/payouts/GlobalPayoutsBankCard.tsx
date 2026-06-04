@@ -201,7 +201,7 @@ export function GlobalPayoutsBankCard() {
           </div>
           {country && (
             <p style={{ margin: "6px 0 12px", fontSize: 11.5, color: C.inkMuted }}>
-              You&apos;ll be paid in {defaultPayoutCurrency(country).toUpperCase()}. Stripe verifies and holds your bank details, and we never see them.
+              You&apos;ll be paid in {defaultPayoutCurrency(country).toUpperCase()}. Your bank details are sent securely to Stripe to register your payouts.
             </p>
           )}
 

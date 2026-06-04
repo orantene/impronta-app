@@ -377,7 +377,7 @@ export async function createTalentDashboardLink(
     logServerError("stripe-connect-talent.dashboardLink", err);
     return {
       ok: false,
-      error: "Could not open your Stripe dashboard — finish onboarding first.",
+      error: "Your Stripe dashboard isn't available for this account type.",
     };
   }
 }

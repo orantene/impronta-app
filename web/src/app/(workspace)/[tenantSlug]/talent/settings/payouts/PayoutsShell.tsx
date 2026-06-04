@@ -4,10 +4,8 @@ import { useState, useEffect, useTransition, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import {
   createTalentAccountSession,
-  createTalentDashboardLinkAction,
   ensureTalentPayoutAccount,
   loadTalentPayoutSnapshot,
-  loadTalentStablecoinEligibility,
   refreshTalentPayoutStatus,
 } from "./actions";
 import { ConnectEmbeddedOnboarding } from "@/components/payments/ConnectEmbeddedOnboarding";
@@ -100,11 +98,6 @@ export function PayoutsShell({
   const [country, setCountry] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const [stablecoinEligible, setStablecoinEligible] = useState(false);
-  const [stablecoinCountry, setStablecoinCountry] = useState<string | null>(null);
-  const [cryptoPending, setCryptoPending] = useState(false);
-  const [cryptoError, setCryptoError] = useState<string | null>(null);
-  const [showUsdc, setShowUsdc] = useState(false);
   const [selfLoaded, setSelfLoaded] = useState(!selfLoad);
 
   const status = snapshot?.status ?? "none";
@@ -123,36 +116,6 @@ export function PayoutsShell({
       cancelled = true;
     };
   }, [selfLoad]);
-
-  // Once the Connect account is enabled, check stablecoin (USDC) eligibility.
-  useEffect(() => {
-    if (!isEnabled) {
-      setStablecoinEligible(false);
-      return;
-    }
-    let cancelled = false;
-    loadTalentStablecoinEligibility().then((r) => {
-      if (cancelled || !r.ok) return;
-      setStablecoinEligible(r.eligible);
-      setStablecoinCountry(r.countryLabel);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [isEnabled]);
-
-  const openCryptoDashboard = () => {
-    setCryptoError(null);
-    setCryptoPending(true);
-    createTalentDashboardLinkAction().then((r) => {
-      setCryptoPending(false);
-      if (!r.ok) {
-        setCryptoError(r.error);
-        return;
-      }
-      window.open(r.url, "_blank", "noopener,noreferrer");
-    });
-  };
 
   const onConnect = () => {
     setError(null);
@@ -319,37 +282,6 @@ export function PayoutsShell({
               </div>
 
               <GlobalPayoutsBankCard />
-
-              {stablecoinEligible && (
-                <div style={{ ...card, marginTop: 12 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                    <span style={sectionLabel}>USDC · digital dollars</span>
-                    <span style={{ fontSize: 10.5, fontWeight: 700, color: C.green, background: C.greenSoft, padding: "2px 7px", borderRadius: 999 }}>
-                      Available in {stablecoinCountry ?? "your country"}
-                    </span>
-                  </div>
-                  {!showUsdc ? (
-                    <button type="button" onClick={() => setShowUsdc(true)} style={{ ...ghostBtn, marginTop: 12 }}>
-                      Learn about USDC payouts
-                    </button>
-                  ) : (
-                    <>
-                      <p style={{ margin: "10px 0 12px", fontSize: 12.5, lineHeight: 1.55, color: C.inkMuted }}>
-                        Get paid in <strong style={{ color: C.ink }}>USDC</strong> to your own crypto wallet, across borders, with no
-                        local-bank wait. Open your Stripe dashboard, link a wallet, and set USDC as your default.
-                      </p>
-                      <button type="button" data-testid="talent-stablecoin-cta" onClick={openCryptoDashboard} disabled={cryptoPending} style={primaryBtn(cryptoPending)}>
-                        {cryptoPending ? "Opening…" : "Link a crypto wallet"}
-                      </button>
-                      {cryptoError && (
-                        <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 8 }}>
-                          {cryptoError}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              )}
             </div>
           )}
 
