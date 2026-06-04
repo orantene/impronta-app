@@ -6,11 +6,13 @@ import type { IntegrationView } from "@/app/(workspace)/[tenantSlug]/admin/setti
 
 import { resolveIntegrationStatus } from "./integration-status";
 import { IntegrationStatusPill } from "./IntegrationStatusPill";
+import { IntegrationLogo } from "./integration-logos";
 
 /**
- * One integration row in the hub. Clicking opens the config drawer. Shows the
- * label, a one-line description, the resolved status pill, and a configured
- * summary (masked secret last4 or the public id value) when present.
+ * One integration tile in the hub gallery. Leads with the brand logo so the
+ * catalog scans like an integration directory. Clicking opens the config
+ * drawer. Shows the name, a one-line summary (the configured value — masked
+ * last4 for secrets — or the purpose blurb), and the resolved status pill.
  */
 export function IntegrationCard({
   integration,
@@ -22,7 +24,7 @@ export function IntegrationCard({
   const visual = resolveIntegrationStatus(integration);
 
   // A compact one-line summary of what's configured (no full secrets — last4
-  // only). Falls back to the description when nothing is set yet.
+  // only). Falls back to the purpose description when nothing is set yet.
   const configuredField = integration.fields.find(
     (f) => (f.secret && f.secretPresent) || (!f.secret && f.value),
   );
@@ -38,23 +40,53 @@ export function IntegrationCard({
       onClick={onOpen}
       style={{
         display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
+        alignItems: "flex-start",
         gap: 12,
-        padding: "14px 16px",
-        marginBottom: 8,
+        padding: 14,
+        height: "100%",
         fontFamily: FONTS.body,
       }}
     >
-      <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
-          {integration.label}
+      <IntegrationLogo integrationKey={integration.key} size={38} style={{ marginTop: 1 }} />
+
+      <div style={{ minWidth: 0, flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 8,
+          }}
+        >
+          <span
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: COLORS.ink,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {integration.label}
+          </span>
+          <span aria-hidden style={{ color: COLORS.inkDim, display: "inline-flex", flexShrink: 0 }}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <path
+                d="M6 4l4 4-4 4"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
         </div>
+
         <div
           style={{
             fontSize: 12,
             color: COLORS.inkMuted,
-            marginTop: 2,
             lineHeight: 1.4,
             overflow: "hidden",
             textOverflow: "ellipsis",
@@ -63,14 +95,10 @@ export function IntegrationCard({
         >
           {summary}
         </div>
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-        <IntegrationStatusPill visual={visual} />
-        <span aria-hidden style={{ color: COLORS.inkDim, display: "inline-flex" }}>
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-            <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </span>
+
+        <div style={{ marginTop: 2 }}>
+          <IntegrationStatusPill visual={visual} />
+        </div>
       </div>
     </Card>
   );

@@ -94,13 +94,15 @@ export function IntegrationsSection() {
                 {group.blurb}
               </div>
             </div>
-            {items.map((intg) => (
-              <IntegrationCard
-                key={intg.key}
-                integration={intg}
-                onOpen={() => setOpenKey(intg.key)}
-              />
-            ))}
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              {items.map((intg) => (
+                <IntegrationCard
+                  key={intg.key}
+                  integration={intg}
+                  onOpen={() => setOpenKey(intg.key)}
+                />
+              ))}
+            </div>
           </div>
         );
       })}
