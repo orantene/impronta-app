@@ -164,6 +164,13 @@ export type ThreadMessage = {
   requiresAction?: boolean;
   requiresActionLabel?: string; // e.g. "Review offer before it expires" — defaults to body
   requiresActionCta?: string;   // e.g. "Review offer" — defaults to "Resolve →"
+  // Structured-card / voice discriminators carried from the persisted row.
+  // Optional so mock rows (which omit them) still satisfy the type.
+  messageKind?: string;
+  cardPayload?: Record<string, unknown> | null;
+  /** Raw message metadata jsonb — carries the voice-note descriptor for
+   *  messageKind='voice' (parsed via readVoiceMetaFromMessageMetadata). */
+  metadata?: Record<string, unknown> | null;
 };
 
 export type CoordinatorAssignment = {

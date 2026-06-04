@@ -1766,6 +1766,11 @@
       "count": 8
     }
   },
+  "src/lib/server-actions/voice-notes.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 6
+    }
+  },
   "src/lib/server-actions/workspace-lifecycle.ts": {
     "ratchet/no-untenanted-from": {
       "count": 6

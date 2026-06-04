@@ -1,7 +1,10 @@
 "use client";
 
 import React, { useTransition, useState, type CSSProperties } from "react";
+import { useRouter } from "next/navigation";
 import { MessageReactionMenu, replyTargetFromMessage, ReplyContextBar, type ReplyTarget } from "@/components/chat-interactions";
+import { VoiceNotePlayer } from "@/components/chat-interactions/VoiceNotePlayer";
+import { readVoiceMetaFromMessageMetadata } from "@/lib/messages/voice-meta";
 import { addReaction as addReactionAction, removeReaction as removeReactionAction } from "@/lib/server-actions/message-reactions";
 import { sendMessage as sendMessageAction } from "@/app/(workspace)/[tenantSlug]/admin/messages/actions";
 import { uploadInquiryAttachment, loadInquiryLineup } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
@@ -49,6 +52,7 @@ export function AdminMessageStream({
   topInset?: number;
 }) {
   const { toast, state, effectiveTenant } = useAdminShell();
+  const router = useRouter();
   const [, startTransition] = useTransition();
   // Items 1-3 wiring (Messages consolidation v2): reply target for the
   // composer's quoted-reply context bar. Cleared on send or × dismiss.
@@ -92,6 +96,7 @@ export function AdminMessageStream({
      *  appropriate ChatCard via renderChatCardForMessage. */
     messageKind?: string;
     cardPayload?: Record<string, unknown> | null;
+    metadata?: Record<string, unknown> | null;
   }> = [
     ...messages.map(m => ({
       id: m.id, body: m.body, ts: m.ts, isYou: !!m.isYou,
@@ -109,6 +114,7 @@ export function AdminMessageStream({
       // cast below.
       messageKind: (m as { messageKind?: string }).messageKind,
       cardPayload: (m as { cardPayload?: Record<string, unknown> | null }).cardPayload ?? null,
+      metadata: (m as { metadata?: Record<string, unknown> | null }).metadata ?? null,
     })),
     // Stashed sends honor the per-message sender so workspace-attributed
     // posts render as System User bubbles (not "you" bubbles). When
@@ -309,8 +315,10 @@ export function AdminMessageStream({
                   />
                 )}
                 {/* Item #4 wiring: typed message → ChatCard render.
-                    Plain text rows fall through to the bubble below. */}
-                {m.messageKind && m.messageKind !== "text" ? (
+                    Plain text rows fall through to the bubble below. Voice
+                    notes (messageKind='voice') reuse the text bubble chrome and
+                    swap the body for the inline audio player. */}
+                {m.messageKind && m.messageKind !== "text" && m.messageKind !== "voice" ? (
                   <div data-msg-card-wrap style={{ maxWidth: "78%", flex: 1 }}>
                     {renderChatCardForMessage(m.messageKind, m.cardPayload ?? {}, toast, { inquiryId, messageId: m.id })}
                   </div>
@@ -343,7 +351,14 @@ export function AdminMessageStream({
                     </div>
                   )}
                   <div style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-                    {m.body}
+                    {m.messageKind === "voice"
+                      ? (() => {
+                          const voiceMeta = readVoiceMetaFromMessageMetadata(m.metadata);
+                          return voiceMeta
+                            ? <VoiceNotePlayer meta={voiceMeta} accent={COLORS.accentDeep} onDark={mine} />
+                            : "Voice note unavailable";
+                        })()
+                      : m.body}
                   </div>
                   <div style={{ fontSize: 10, color: mine ? "rgba(255,255,255,0.55)" : COLORS.inkDim, marginTop: 5, display: "flex", alignItems: "center", gap: 4 }}>
                     {m.ts}
@@ -438,6 +453,13 @@ export function AdminMessageStream({
                 else toast(`File attached — ${file.name}`);
               });
             }}
+            // Voice notes — record + send straight to the inquiry thread.
+            // A real DB UUID inquiry is required (the recorder uploads to
+            // storage + inserts a message_kind='voice' row). After a send we
+            // refresh the route so the server-rendered thread picks up the
+            // new voice message (metadata.voice → inline player).
+            voiceContext={isUuidInquiry ? { inquiryId, threadType } : undefined}
+            onVoiceSent={() => { router.refresh(); }}
           />
         )}
       </div>

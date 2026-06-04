@@ -10,6 +10,8 @@ import { type TalentThreadMessage } from "@/app/(workspace)/[tenantSlug]/talent/
 import { renderMessageMarkdown } from "@/lib/messages/markdown";
 import { LinkPreview, firstHttpUrl } from "@/components/messages/thread-enhancements";
 import { PinButton } from "@/components/chat-interactions/PinButton";
+import { VoiceNotePlayer } from "@/components/chat-interactions/VoiceNotePlayer";
+import { readVoiceMetaFromMessageMetadata } from "@/lib/messages/voice-meta";
 
 /** Money/booking/system kinds that render as structured cards (Activity view). */
 export const MONEY_KINDS = new Set([
@@ -100,8 +102,9 @@ export function RealThreadStream({
     );
   }
   // CHAT view: human conversation only — every money/system event is moved to
-  // the Activity tab, so the thread stays a clean conversation.
-  const chatMessages = messages.filter((m) => m.messageKind === "text");
+  // the Activity tab, so the thread stays a clean conversation. Voice notes are
+  // part of the conversation, so they live here alongside text bubbles.
+  const chatMessages = messages.filter((m) => m.messageKind === "text" || m.messageKind === "voice");
   if (chatMessages.length === 0) {
     return (
       <EmptyState
@@ -137,7 +140,17 @@ export function RealThreadStream({
                     {m.senderName}
                   </div>
                 )}
-                <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{renderMessageMarkdown(m.body)}</div>
+                {(() => {
+                  const voiceMeta = m.messageKind === "voice"
+                    ? readVoiceMetaFromMessageMetadata(m.metadata)
+                    : null;
+                  if (voiceMeta) {
+                    return <VoiceNotePlayer meta={voiceMeta} accent={COLORS.accentDeep} onDark={mine} />;
+                  }
+                  return (
+                    <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{renderMessageMarkdown(m.body)}</div>
+                  );
+                })()}
                 {(() => {
                   const url = firstHttpUrl(m.body);
                   return url ? (
