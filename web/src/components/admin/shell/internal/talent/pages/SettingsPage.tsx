@@ -1,5 +1,7 @@
 "use client";
 
+import { SettingsSectionIcon } from "@/components/admin/settings/settings-section-icons";
+import { CommercialBookingTermsCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/CommercialBookingTermsCard";
 import { DefaultCurrencyCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/DefaultCurrencyCard";
 import { ProfileVisibilityCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/ProfileVisibilityCard";
 import { TalentPlanCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/TalentPlanCard";
@@ -7,7 +9,7 @@ import { PasskeysCard } from "../../modern-features";
 import { Divider, Icon, SecondaryButton, SecondaryCard, StatDot } from "../../primitives";
 import { COLORS, FONTS, MY_AGENCIES, MY_TALENT_PROFILE, useAdminShell } from "../../state";
 import { Grid, PageHeader } from "../shared/page-chrome-1";
-import { ContactPolicySummary, MOCK_CIRCLE_PREVIEW_COUNT, TalentTrustCard } from "../shared/settings-1";
+import { ContactPolicySummary, TalentTrustCard } from "../shared/settings-1";
 
 
 
@@ -71,6 +73,16 @@ export function SettingsPage() {
         <DefaultCurrencyCard />
       )}
 
+      {/* Commercial booking terms — talent's preferred deposit / refund /
+          instant-book / fixed-rate DEFAULTS. Gated on a real bridged profile
+          (same idiom as DefaultCurrencyCard — the mock prototype user has no
+          talent_profiles row, so the focused load/save actions would fail).
+          Configuration only: the binding per-offer terms are set in the
+          booking flow, not here. */}
+      {bridgeTalentSelfProfile && (
+        <CommercialBookingTermsCard talentId={bridgeTalentSelfProfile.id} />
+      )}
+
       {/* Trust & Verification — talent's view of their own trust state */}
       <TalentTrustCard onOpenDetail={() => openDrawer("talent-trust-detail")} primaryAgencyName={primaryAgencyName} />
 
@@ -131,7 +143,7 @@ export function SettingsPage() {
         </span>
       </button>
 
-      <Divider label="My Circle" />
+      <Divider label="My Circle" icon={<SettingsSectionIcon sectionId="circle" />} />
       <button
         type="button"
         onClick={() => openDrawer("circle-manage")}
@@ -148,13 +160,13 @@ export function SettingsPage() {
         <div className="flex-1 min-w-0">
           <div className="text-admin-royal-deep text-admin-13 font-semibold">My Circle</div>
           <div style={{ fontSize: 11.5, opacity: 0.78, marginTop: 2 }} className="text-admin-royal">
-            Trusted collaborators you can recommend into bookings in one tap. {MOCK_CIRCLE_PREVIEW_COUNT} people in your circle.
+            Trusted collaborators you can recommend into bookings in one tap.
           </div>
         </div>
         <span className="text-admin-royal-deep text-admin-11h font-semibold">Manage →</span>
       </button>
 
-      <Divider label="Agencies" />
+      <Divider label="Agencies" icon={<SettingsSectionIcon sectionId="agencies" />} />
       <Grid cols="auto">
         {settingsAgencies.map((a) => (
           <SecondaryCard
@@ -184,7 +196,7 @@ export function SettingsPage() {
           here automatically via the shared trial engine. Gated on a real
           bridged profile (the mock prototype has no talent_profiles row, so the
           self-scoped summary loader would fail) — same idiom as the cards above. */}
-      <Divider label="Personal page" />
+      <Divider label="Personal page" icon={<SettingsSectionIcon sectionId="personal-page" />} />
       {bridgeTalentSelfProfile ? (
         <TalentPlanCard
           onCompare={() => openDrawer("talent-tier-compare")}
@@ -203,13 +215,12 @@ export function SettingsPage() {
         <SecondaryCard
           title="Personal page builder"
           description="Templates, sections, embeds and a Max custom domain. Coexists with all your agency rosters."
-          meta={<><StatDot tone="dim" /> Coming soon</>}
-          affordance="Choose template"
-          onClick={() => openDrawer("talent-page-template")}
+          affordance="Open page builder"
+          onClick={() => setTalentPage("public-page")}
         />
       </Grid>
 
-      <Divider label="Account" />
+      <Divider label="Account" icon={<SettingsSectionIcon sectionId="account" />} />
       <Grid cols="2">
         <SecondaryCard
           title="Contact preferences"
@@ -238,15 +249,14 @@ export function SettingsPage() {
         />
         <SecondaryCard
           title="Identity verification"
-          description="Get the Verified badge on every inquiry. ID + selfie · reviewed by our trust team within 24h."
+          description="ID review plus connected-account badges. Social badges only turn on after ownership is verified."
           meta={<><StatDot tone="amber" /> Not yet verified</>}
-          affordance="Verify identity"
-          onClick={() => openDrawer("talent-verification")}
+          affordance="Open verification"
+          onClick={() => openDrawer("talent-connections")}
         />
         <SecondaryCard
           title="Refer a friend"
           description="When a talent you invite closes their first booking, you both earn €50 in payout credit."
-          meta={<><StatDot tone="green" /> 1 active</>}
           affordance="Open referrals"
           onClick={() => openDrawer("talent-referrals")}
         />
@@ -259,14 +269,12 @@ export function SettingsPage() {
         <SecondaryCard
           title="Talent network"
           description="Follow other talents, see who's working where, hand off briefs you can't take."
-          meta={<><StatDot tone="green" /> 2 following</>}
           affordance="Open network"
           onClick={() => openDrawer("talent-network")}
         />
         <SecondaryCard
           title="Workspace · multi-agency"
-          description="On the Network plan? Switch between agencies you own. Studio Reyes + Bumble live · Acme primary."
-          meta={<><StatDot tone="green" /> 3 workspaces</>}
+          description="On the Network plan? Switch between agencies you own from one account."
           affordance="Switch workspace"
           onClick={() => openDrawer("talent-multi-agency-picker")}
         />

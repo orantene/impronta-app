@@ -25,13 +25,93 @@ import { OfferTab } from "./shared/machinery-12";
 import { LiveBookingActions, resolveFileKey } from "./shared/machinery-14";
 import { FilesTab } from "./shared/machinery-15";
 import { AdminBookingTab } from "./shared/machinery-5";
-import { LogisticsTab, ShellNextActionBar } from "./shared/machinery-6";
+import { LogisticsTab, PaymentTab, ShellNextActionBar } from "./shared/machinery-6";
 import type { ShellAction } from "./shared/machinery-6";
 import type { ChatSubThreadId, ThreadTabId } from "./shared/machinery-8";
 import { ChatSubToggleDropdown, MOCK_FILES_FOR_CONV, ThreadSearchTrigger, ThreadTabBar } from "./shared/machinery-9";
 import type { Offer } from "./shared/machinery-9";
 import { ShellHeader } from "./talent-1";
 import type { ShellHeaderInput } from "./talent-1";
+import { AdminActivityStream } from "./admin-4b";
+
+// ── WhosTurnBanner (D4) ─────────────────────────────────────────────
+// A slim contextual banner shown at the top of the thread content area
+// that tells every viewer whose turn it is in the inquiry flow.
+// Derives a human-readable phrase from nextActionBy + the current stage.
+// Returns null for terminal stages (booked/past) to avoid noise.
+function WhosTurnBanner({
+  nextActionBy,
+  stage,
+  talentPending,
+}: {
+  nextActionBy: "client" | "coordinator" | "talent" | "ops" | null;
+  stage: "inquiry" | "hold" | "approved" | "booked" | "past";
+  /** Number of talents who haven't responded yet. Used to show "(N of M)". */
+  talentPending?: number;
+}) {
+  if (!nextActionBy || stage === "booked" || stage === "past") return null;
+
+  const { text, tone } = ((): { text: string; tone: "amber" | "blue" | "green" | "muted" } => {
+    if (nextActionBy === "client") return {
+      text: stage === "hold"
+        ? "Waiting on client to approve the offer."
+        : "Waiting on client to respond.",
+      tone: "amber",
+    };
+    if (nextActionBy === "coordinator") return {
+      text: stage === "inquiry"
+        ? "Your turn — reply to the client to move this forward."
+        : stage === "hold"
+        ? "Your turn — finalize the offer and send it."
+        : stage === "approved"
+        ? "Ready to book — use 'Move to → Booked' to lock it."
+        : "Your turn.",
+      tone: "blue",
+    };
+    if (nextActionBy === "talent") {
+      const pendingNote = talentPending && talentPending > 0
+        ? ` (${talentPending} pending)`
+        : "";
+      return {
+        text: `Waiting on talent to respond${pendingNote}.`,
+        tone: "muted",
+      };
+    }
+    if (nextActionBy === "ops") return {
+      text: "Waiting on internal review (ops).",
+      tone: "muted",
+    };
+    return { text: "Waiting for next action.", tone: "muted" };
+  })();
+
+  const styles: Record<typeof tone, { bg: string; color: string; border: string }> = {
+    amber: { bg: "rgba(245,158,11,0.08)", color: "#92400E", border: "rgba(245,158,11,0.20)" },
+    blue:  { bg: "rgba(29,78,216,0.07)", color: "#1D4ED8", border: "rgba(29,78,216,0.18)" },
+    green: { bg: "rgba(15,79,62,0.07)",  color: "#0F4F3E", border: "rgba(15,79,62,0.18)" },
+    muted: { bg: "rgba(11,11,13,0.04)",  color: "rgba(11,11,13,0.60)", border: "rgba(11,11,13,0.10)" },
+  };
+  const s = styles[tone];
+
+  return (
+    <div style={{
+      margin: "0 14px 6px",
+      padding: "6px 12px",
+      borderRadius: 8,
+      background: s.bg,
+      border: `1px solid ${s.border}`,
+      display: "inline-flex", alignItems: "center", gap: 7,
+      fontSize: 11.5, fontWeight: 600, color: s.color,
+      fontFamily: FONTS.body,
+      flexShrink: 0,
+    }}>
+      <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden style={{ flexShrink: 0 }}>
+        <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.4"/>
+        <path d="M7 4.5v3l1.5 1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+      </svg>
+      {text}
+    </div>
+  );
+}
 
 // Hero: status pill + project + brief + funnel
 // Operational block: lineup status + offer state + needs-me action card
@@ -63,10 +143,15 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
   const planTier: "free" | "studio" | "agency" | "hub-network" =
     state.plan === "network" ? "hub-network" : state.plan;
 
-  const stageBucket: "inquiry" | "hold" | "booked" | "past" =
+  // Finding D: a distinct "approved" bucket so an inquiry that's only approved
+  // (all parties signed off, 0 agency_bookings) never reads as "Booked" on the
+  // admin header/next-action — keeping admin aligned with the talent + client
+  // shells (which already show a distinct Approved state).
+  const stageBucket: "inquiry" | "hold" | "approved" | "booked" | "past" =
       inquiry.stage === "draft" || inquiry.stage === "submitted" || inquiry.stage === "coordination" ? "inquiry"
     : inquiry.stage === "offer_pending" ? "hold"
-    : inquiry.stage === "approved" || inquiry.stage === "booked" ? "booked"
+    : inquiry.stage === "approved" ? "approved"
+    : inquiry.stage === "booked" ? "booked"
     : "past";
   const sc = stageStyle(stageBucket);
 
@@ -129,6 +214,12 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
     if (stageBucket === "hold") return {
       hint: "Hold open — send the revised offer.",
       primary: { label: "Open offer", tone: "primary", onClick: () => { setActiveTab("offer"); } },
+    };
+    if (stageBucket === "approved") return {
+      // Finding D: approved ≠ booked. Direct the admin to the convert step
+      // instead of telling them it's already "Booked".
+      hint: "Approved by all parties — ready to book. Use “Move to → Booked” to lock the dates.",
+      primary: { label: "Review offer", tone: "primary", onClick: () => { setActiveTab("offer"); } },
     };
     if (stageBucket === "booked") return {
       hint: "Booked. Open the event details + call sheet.",
@@ -262,7 +353,7 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
                         }}
                         title={`${t.name} · ${t.status}`}
                       >
-                        <Avatar size={22} tone="auto" hashSeed={t.name} initials={initials} />
+                        <Avatar size={22} tone="auto" hashSeed={t.name} initials={initials} photoUrl={t.thumb || undefined} />
                         {isAccepted && (
                           <span aria-hidden style={{
                             position: "absolute", bottom: -1, right: -1,
@@ -338,6 +429,10 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
             unread: { client: inquiry.unreadPrivate, talent: inquiry.unreadGroup, files: fileCount },
             offerNeedsAttention: getOffer(inquiry.id)?.stage === "countered",
             paymentDue: inquiry.stage === "booked",
+            // Payment tab is relevant once all parties have approved and a
+            // booking exists or is imminent: approved → booked → wrapped.
+            // (Past/wrapped still needs the payout settle surface.)
+            paymentRelevant: stageBucket === "approved" || stageBucket === "booked" || stageBucket === "past",
             planTier,
           })}
         />
@@ -348,6 +443,7 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
         {(() => {
           const adminSmartCtx = stageBucket === "inquiry" ? "inquiry"
             : stageBucket === "hold" ? "hold"
+            : stageBucket === "approved" ? "offer"
             : stageBucket === "booked" ? "offer"
             : "default";
           const isOnChat = activeTab === "chat";
@@ -369,6 +465,18 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
                   onSelect={(s) => setChatSubThread(s)}
                   clientUnread={inquiry.unreadPrivate}
                   groupUnread={inquiry.unreadGroup}
+                />
+              )}
+              {/* D4 — Whose-turn banner. Shows once, above the message
+                  stream (not repeated in every bubble). Admin sees a
+                  "your turn" nudge when nextActionBy=coordinator; other
+                  values surface the waiting party so admin knows the
+                  ball is in someone else's court. */}
+              {isOnChat && (
+                <WhosTurnBanner
+                  nextActionBy={inquiry.nextActionBy}
+                  stage={stageBucket}
+                  talentPending={lineupPending}
                 />
               )}
               {/* Slice M wiring (item #6): originating pitch context.
@@ -420,10 +528,21 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
                   topInset={42}
                 />
               )}
+              {/* D7 — Activity sub-thread: real DB-backed money/offer timeline.
+                  Replaces the prior "DM threads coming soon" stub with the same
+                  enriched activity view that the client and talent shells have.
+                  Shows: offer events, payment requests, booking confirmations,
+                  payout status, and any detail-update diffs stored as system cards.
+                  Read-only (no composer). Admin sees the full commercial picture
+                  (both talent and client sides); group thread is the right source
+                  since it receives all engine-emitted cards. */}
               {showDmStream && (
-                <div style={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: 28, textAlign: "center", fontFamily: FONTS.body, fontSize: 13 }} className="text-admin-ink-muted">
-                  DM threads land here in a later slice. Pick a participant from
-                  the Lineup tab to start a 1:1 conversation.
+                <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+                  <AdminActivityStream
+                    inquiryId={inquiry.id}
+                    tenantSlug={effectiveTenant.slug}
+                    threadType="group"
+                  />
                 </div>
               )}
             </>
@@ -440,10 +559,14 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
             <OfferTab conv={{ id: inquiry.id } as Conversation} pov={{ kind: "admin" }} />
           </div>
         )}
-        {/* Slice B: legacy "logistics" + "payment" route to Event tab */}
-        {(activeTab === "logistics" || activeTab === "payment") && (
+        {activeTab === "logistics" && (
           <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
             <LogisticsTab inquiry={toInquiry(inquiry)} pov="admin" />
+          </div>
+        )}
+        {activeTab === "payment" && (
+          <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+            <PaymentTab inquiry={toInquiry(inquiry)} pov="admin" />
           </div>
         )}
         {activeTab === "files" && (
@@ -497,13 +620,14 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
  *  shells get their own derivers when wired. */
 export function deriveAdminStatusSheetData(
   inquiry: RichInquiry,
-  stageBucket: "inquiry" | "hold" | "booked" | "past",
+  stageBucket: "inquiry" | "hold" | "approved" | "booked" | "past",
   allTalents: Array<{ name: string; status: string }>,
   offerLabel: string | null,
 ): StatusSheetData {
   const stage: StatusSheetData["stage"] =
       stageBucket === "inquiry" ? "Inquiry"
     : stageBucket === "hold" ? "Offer sent"
+    : stageBucket === "approved" ? "Approved"
     : stageBucket === "booked" ? "Booked"
     : stageBucket === "past" ? "Wrapped"
     : "Inquiry";
@@ -556,6 +680,7 @@ export function deriveAdminStatusSheetData(
     nextStep:
         stage === "Inquiry" ? "Build the shortlist and confirm talent rates."
       : stage === "Offer sent" ? "Client is reviewing the offer."
+      : stage === "Approved" ? "Approved by all parties — Move to Booked to lock it."
       : stage === "Booked" ? "Production planning — open the Event tab."
       : stage === "Wrapped" ? "Booking closed. Settle payouts."
       : undefined,

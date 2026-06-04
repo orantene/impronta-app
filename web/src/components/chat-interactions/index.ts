@@ -34,3 +34,11 @@ export {
 } from "./ReplyToMessage";
 
 export { StarButton } from "./StarButton";
+
+export { PinButton } from "./PinButton";
+
+export { PinnedStrip } from "./PinnedStrip";
+
+export { VoiceRecorderButton } from "./VoiceRecorderButton";
+
+export { VoiceNotePlayer } from "./VoiceNotePlayer";

@@ -90,6 +90,29 @@ export interface SectionComponentProps<TShape> {
    */
   publicPathPrefix?: string;
   /**
+   * Server-resolved Google Maps JS API key for this tenant (BYO custom key
+   * when the tenant chose `credential_mode='custom'`, otherwise the inherited
+   * platform key; `null`/absent when nothing resolves). Resolved on the server
+   * via `resolveGoogleMapsKeyForClient(tenantId)` and threaded down so map
+   * sections (e.g. `location_discovery` orbit map) render with the right key
+   * without a client component importing a server-only module. When this is
+   * null the section keeps its graceful non-map fallback.
+   */
+  mapsApiKey?: string | null;
+  /**
+   * Server-resolved captcha widget config for this tenant's storefront forms
+   * (the contact_form section reads it to render the right widget + site key).
+   * The tenant's own provider+site_key when configured, else the platform
+   * fallback, else provider 'none'. Resolved once at the render seam via
+   * `resolveTenantCaptcha(tenantId)` and threaded down (mirrors `mapsApiKey`),
+   * so a form section never imports a server-only module. The server-side
+   * SECRET used to verify a token lives only in the submit route, never here.
+   */
+  captcha?: {
+    provider: "hcaptcha" | "turnstile" | "none";
+    siteKey: string | null;
+  } | null;
+  /**
    * Optional BuilderNode identity hints for componentized sections.
    * `sectionNodeId` is the wrapper's section node; `nodeIdsByRole` maps
    * semantic child roles (e.g. headline, subheadline, primaryCta) to

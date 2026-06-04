@@ -144,6 +144,16 @@ describe("message-reactions/stars: auth gate fires; empty args NOT validated", (
       "Not authenticated.",
     );
   });
+
+  it("toggleMessagePin('','') → 'Not authenticated.' (inquiry-wide pin, same auth-first ordering as stars)", async () => {
+    const { toggleMessagePin } = await import("./message-pins");
+    assert.equal(
+      await assertResolvesToPreDbError("toggleMessagePin('','')", () =>
+        toggleMessagePin("", ""),
+      ),
+      "Not authenticated.",
+    );
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────

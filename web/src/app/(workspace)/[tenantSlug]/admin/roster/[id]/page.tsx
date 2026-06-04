@@ -34,6 +34,8 @@ import {
 } from "./EditorSections";
 import { CompletenessCard } from "./CompletenessDial";
 import { WorkflowPipe } from "./WorkflowPipe";
+import { loadTalentProofHealth } from "@/lib/talent-integrations/proof-health";
+import { ProofHealthCard } from "@/components/admin/integrations/ProofHealthCard";
 
 export const dynamic = "force-dynamic";
 
@@ -210,7 +212,7 @@ export default async function WorkspaceRosterTalentPage({
     }
   };
 
-  const [talent, talentTypes, allTerms, talentTaxonomy, languages, areas, portfolio] = await Promise.all([
+  const [talent, talentTypes, allTerms, talentTaxonomy, languages, areas, portfolio, proofHealth] = await Promise.all([
     safe("loadTalentForEdit", () => loadTalentForEdit(scope.tenantId, talentId), null),
     safe("loadTalentTypes", () => loadTalentTypes(), [] as Awaited<ReturnType<typeof loadTalentTypes>>),
     safe("loadAllTaxonomyTerms", () => loadAllTaxonomyTerms(), [] as Awaited<ReturnType<typeof loadAllTaxonomyTerms>>),
@@ -218,6 +220,11 @@ export default async function WorkspaceRosterTalentPage({
     safe("loadTalentLanguages", () => loadTalentLanguages(scope.tenantId, talentId), [] as Awaited<ReturnType<typeof loadTalentLanguages>>),
     safe("loadTalentServiceAreas", () => loadTalentServiceAreas(scope.tenantId, talentId), [] as Awaited<ReturnType<typeof loadTalentServiceAreas>>),
     safe("loadTalentPortfolio", () => loadTalentPortfolio(talentId), [] as Awaited<ReturnType<typeof loadTalentPortfolio>>),
+    safe(
+      "loadTalentProofHealth",
+      () => loadTalentProofHealth({ talentProfileId: talentId, tenantId: scope.tenantId }),
+      null as Awaited<ReturnType<typeof loadTalentProofHealth>> | null,
+    ),
   ]);
 
   if (!talent) notFound();
@@ -350,6 +357,8 @@ export default async function WorkspaceRosterTalentPage({
 
       {/* Extended sections — taxonomy + languages + service areas + gallery */}
       <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 24 }}>
+        {/* Coordinator proof-health (Slice 3) — read-only counts + statuses. */}
+        {proofHealth ? <ProofHealthCard health={proofHealth} /> : null}
         <TaxonomySection
           tenantSlug={tenantSlug}
           talentId={talentId}

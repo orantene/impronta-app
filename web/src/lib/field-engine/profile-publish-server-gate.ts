@@ -65,7 +65,11 @@ async function loadCorePublishSnapshot(input: {
       .select("id", { count: "exact", head: true })
       .eq("owner_talent_profile_id", talentProfileId)
       .is("deleted_at", null)
-      .in("variant_kind", ["card", "public_watermarked", "gallery", "portfolio"]),
+      // Real media_variant_kind values only — `portfolio` is NOT an enum member,
+      // so listing it made PostgREST reject the whole query (this gate then threw
+      // on `photoRows.error`, breaking every publish/status transition). `hero`
+      // is the valid 4:5 cover and counts as a public photo.
+      .in("variant_kind", ["card", "public_watermarked", "gallery", "hero"]),
     supabase
       .from("talent_languages")
       .select("id", { count: "exact", head: true })

@@ -1,14 +1,20 @@
 "use client";
 
+import { useMemo } from "react";
 import { pinNextConversation as pinNextConversationT, pinNextThreadTab as pinNextThreadTabT } from "../../messages";
 import { COLORS, FONTS, RADIUS, TRANSITION, useAdminShell } from "../../state";
 import { useTalentConversations } from "./conversation-adapter-1";
 
-
+// Real "today", isolated in a module helper so the argless `new Date()` call
+// stays out of the component body (react-hooks/purity). Pinned once at mount
+// via useMemo so the strip doesn't drift across re-renders.
+function todayLocal(): Date {
+  return new Date();
+}
 
 // ════════════════════════════════════════════════════════════════════
-// WS-8.4 This-week rhythm strip — driven from MOCK_CONVERSATIONS so the
-// booked/hold cells map to real conversations the talent can click into.
+// WS-8.4 This-week rhythm strip — booked/hold cells map to real (bridge)
+// conversations the talent can click into, anchored to the real current week.
 // ════════════════════════════════════════════════════════════════════
 
 const DAY_COLORS: Record<string, { bg: string; label: string; border: string }> = {
@@ -35,14 +41,11 @@ function convFirstDay(label?: string): { month: string; day: number } | null {
 export function WeekRhythmStrip() {
   const { setTalentPage } = useAdminShell();
   const conversations = useTalentConversations();
-  // "Today" in the prototype's mock world is May 6 (anchored to align
-  // with TALENT_BOOKINGS[0] / dashboard demo). Production reads the
-  // actual Date.now(). Build a Mon-Sun strip starting from the most
-  // recent Monday on or before "today".
-  // Compute the 7 days of the current week (Mon → Sun). Mock today =
-  // May 6 (Tue) → strip is May 5 (Mon) → May 11 (Sun). Real prod would
-  // pull from Date.now(); here we keep it deterministic for demos.
-  const todayDate = new Date(2026, 4, 6); // May 6, 2026 (year matches mock)
+  // Build a Mon–Sun strip for the REAL current week. `todayDate` is pinned
+  // once at mount (module helper keeps the argless new Date() out of the
+  // render body for react-hooks/purity); the strip then runs from the most
+  // recent Monday on/before today through the following Sunday.
+  const todayDate = useMemo(() => todayLocal(), []);
   const todayDow = todayDate.getDay(); // 0=Sun..6=Sat
   const offsetToMon = todayDow === 0 ? -6 : 1 - todayDow;
   const weekStart = new Date(todayDate);

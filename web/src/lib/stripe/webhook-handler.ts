@@ -368,20 +368,22 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
       return;
 
     case "charge_dispute": {
-      // Booking dispute? Mark the transaction disputed + raise an ops alert.
-      // Transfers are NOT reversed — a dispute may be won and Stripe debits the
-      // platform on its own. If it's not a booking charge, just log it.
+      // Booking dispute? On OPEN (created) we flag the transaction + alert but do
+      // NOT reverse — a dispute may be won and Stripe debits the platform on its
+      // own. On CLOSE/LOST (audit #14) we reverse the payouts + refund the
+      // booking; on CLOSE/WON we restore it to paid. Non-booking charges: log.
       const wasBookingDispute = await handleBookingDispute(stripe, {
         paymentIntentId: action.paymentIntentId,
         disputeId: action.disputeId,
         amount: action.amount,
         reason: action.reason,
         status: action.status,
+        closed: action.closed,
       });
       if (!wasBookingDispute) {
         logServerError(
-          "stripe-webhook.dispute.created",
-          `dispute ${action.disputeId} amount=${action.amount} reason=${action.reason} status=${action.status} (event ${event.id})`,
+          action.closed ? "stripe-webhook.dispute.closed" : "stripe-webhook.dispute.created",
+          `dispute ${action.disputeId} amount=${action.amount} reason=${action.reason} status=${action.status} closed=${action.closed} (event ${event.id})`,
         );
       }
       return;

@@ -392,9 +392,12 @@ export function LocationMap({
   apiKey?: string;
   publicPathPrefix?: string;
 }) {
-  const apiKey =
-    normalizeGoogleApiKeyInput(apiKeyProp) ??
-    normalizeGoogleApiKeyInput(process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY);
+  // Tenant-aware: the key is resolved server-side (resolveGoogleMapsKey) and
+  // passed via apiKeyProp. We no longer read NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+  // here — that build-time env value is platform-wide and would shadow a
+  // tenant that has deliberately not configured a key. When no key resolves,
+  // apiKey is undefined and the existing graceful fallback box renders.
+  const apiKey = normalizeGoogleApiKeyInput(apiKeyProp);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
 

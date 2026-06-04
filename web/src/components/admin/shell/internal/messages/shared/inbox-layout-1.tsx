@@ -40,7 +40,7 @@ export const TALENT_RATE_FOR_CONV: Record<string, string> = new Proxy({}, {
     const myRow = offer.rows.find(r => r.talentId === currentTalentId());
     if (!myRow || !myRow.costRate) return "—";
     const gross = myRow.costRate * myRow.units;
-    const currency = offer.clientBudget?.currency ?? "EUR";
+    const currency = offer.clientBudget?.currency ?? "USD";
     return new Intl.NumberFormat("en-US", {
       style: "currency", currency, maximumFractionDigits: 0,
     }).format(gross);

@@ -8,6 +8,15 @@ import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { logServerError } from "@/lib/server/safe-error";
 import type { ServerActionResult } from "@/lib/server-actions/result";
 import { loadTalentSelfProfile } from "../../../_data-bridge";
+import { loadClientTrustState } from "@/lib/client-trust/evaluator";
+import { mapToGuestTrustChipProps } from "@/lib/inquiry/guest-trust-chip-mapper";
+import type { GuestTrustChipProps, InquiryReportReason, TrustSignalState } from "@/lib/inquiry/guest-chat-contract";
+import { blockSubject, reportInquiry } from "@/lib/inquiry/recipient-safety";
+import {
+  listClientIntegrations,
+  isClientIntegrationVerifiedTrustSignal,
+} from "@/lib/client-integrations/repository";
+import { getClientIntegrationDef } from "@/lib/client-integrations/catalog";
 
 export type SendTalentInquiryMessageResult = ServerActionResult<{
   id: string;
@@ -26,6 +35,11 @@ export async function sendTalentInquiryMessage(
   tenantSlug: string,
   inquiryId: string,
   body: string,
+  // Hub hybrid: a talent who is ALSO the inquiry's coordinator (auto-assigned
+  // for a Tulala-hub booking, or added by an agency) can post to the CLIENT
+  // (private) thread — the same client chat any coordinator gets. Plain talents
+  // stay on the group thread. Defaults to group for the normal talent path.
+  threadType: "group" | "private" = "group",
 ): Promise<SendTalentInquiryMessageResult> {
   const trimmed = body.trim();
 
@@ -65,22 +79,34 @@ export async function sendTalentInquiryMessage(
     return { ok: false, error: "Inquiry not found in this workspace." };
   }
 
-  const { data: participant } = await supabase
+  // Pull the role on EVERY participant row this user holds on the inquiry.
+  // A self-coordinating talent has TWO rows: their lineup row (keyed on
+  // talent_profile_id) AND a coordinator row (keyed on user_id, no
+  // talent_profile_id — same shape as the agency multi-coordinator fan-out).
+  // Match on either key so the coordinator role is visible here. (RLS now
+  // exposes a user's own coordinator row via
+  // inquiry_participants_own_coordinator_select.)
+  const { data: participantRows } = await supabase
     .from("inquiry_participants")
-    .select("inquiry_id")
+    .select("role")
     .eq("inquiry_id", inquiryId)
-    .eq("talent_profile_id", talent.id)
-    .in("status", ["invited", "active"])
-    .maybeSingle();
-  if (!participant) {
+    .or(`user_id.eq.${user.id},talent_profile_id.eq.${talent.id}`)
+    .in("status", ["invited", "active"]);
+  const roles = new Set((participantRows ?? []).map((p) => (p as { role: string }).role));
+  if (roles.size === 0) {
     return { ok: false, error: "You cannot message on this inquiry." };
+  }
+  // Only a coordinator may post to the client (private) thread. (The DB RLS
+  // enforces this too; this is the friendly app-layer guard.)
+  if (threadType === "private" && !roles.has("coordinator")) {
+    return { ok: false, error: "Only the job coordinator can message the client directly." };
   }
 
   const { data, error: insertError } = await supabase
     .from("inquiry_messages")
     .insert({
       inquiry_id: inquiryId,
-      thread_type: "group",
+      thread_type: threadType,
       sender_user_id: user.id,
       body: trimmed,
       tenant_id: scope.tenantId,
@@ -95,7 +121,7 @@ export async function sendTalentInquiryMessage(
 
   const { error: readErr } = await supabase.rpc("inquiry_mark_thread_read", {
     p_inquiry_id: inquiryId,
-    p_thread_type: "group",
+    p_thread_type: threadType,
   });
   if (readErr) {
     logServerError("talent.thread.markRead", readErr);
@@ -161,6 +187,9 @@ export type TalentThreadMessage = {
   ts: string;
   messageKind: string;
   cardPayload: Record<string, unknown> | null;
+  /** Raw message metadata jsonb — carries the voice-note descriptor for
+   *  message_kind='voice' (parsed bubble-side via readVoiceMetaFromMessageMetadata). */
+  metadata: Record<string, unknown> | null;
 };
 
 /**
@@ -177,6 +206,12 @@ export type TalentThreadMessage = {
  */
 export async function loadTalentInquiryThread(
   inquiryId: string,
+  // Hub hybrid: a talent who is ALSO the inquiry's coordinator can load the
+  // CLIENT (private) thread — the client chat they broker. Defaults to the
+  // talent's own GROUP thread (the normal lineup-talent view). The private
+  // branch is authorized on a coordinator participant row, never on the
+  // lineup-talent row, so a plain talent can't read the client thread.
+  threadType: "group" | "private" = "group",
 ): Promise<TalentThreadMessage[]> {
   try {
     const supabase = await createSupabaseServerClient();
@@ -200,33 +235,48 @@ export async function loadTalentInquiryThread(
     if (!inquiry?.tenant_id) return [];
     const tenantId = inquiry.tenant_id as string;
 
-    // Resolve the signed-in user's talent profile by user_id (NOT the
-    // tenant/roster-scoped loadTalentSelfProfile — a platform talent whose
-    // agency roster row is inactive still legitimately participates in the
-    // inquiry, and must see their own thread).
-    const { data: tp } = await readClient
-      .from("talent_profiles")
-      .select("id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-    const talentProfileId = (tp as { id: string } | null)?.id;
-    if (!talentProfileId) return [];
-
-    // Authorization: that talent profile must be a participant on this inquiry.
-    const { data: participant } = await readClient
-      .from("inquiry_participants")
-      .select("inquiry_id")
-      .eq("inquiry_id", inquiryId)
-      .eq("talent_profile_id", talentProfileId)
-      .in("status", ["invited", "active"])
-      .maybeSingle();
-    if (!participant) return [];
+    if (threadType === "private") {
+      // Private/client thread is coordinator-only. Authorize on a COORDINATOR
+      // participant row keyed on the user (the self-coordinator's role row
+      // carries user_id, no talent_profile_id) — mirrors the private-thread
+      // RLS + the sendTalentInquiryMessage guard. A plain lineup talent has no
+      // coordinator row, so they get [] here and never see the client chat.
+      const { data: coordPart } = await readClient
+        .from("inquiry_participants")
+        .select("inquiry_id")
+        .eq("inquiry_id", inquiryId)
+        .eq("user_id", user.id)
+        .eq("role", "coordinator")
+        .in("status", ["invited", "active"])
+        .maybeSingle();
+      if (!coordPart) return [];
+    } else {
+      // Group thread — authorize on the signed-in user's talent profile being
+      // a participant. Resolve by user_id (NOT the tenant/roster-scoped
+      // loadTalentSelfProfile — a platform talent whose agency roster row is
+      // inactive still legitimately participates and must see their thread).
+      const { data: tp } = await readClient
+        .from("talent_profiles")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      const talentProfileId = (tp as { id: string } | null)?.id;
+      if (!talentProfileId) return [];
+      const { data: participant } = await readClient
+        .from("inquiry_participants")
+        .select("inquiry_id")
+        .eq("inquiry_id", inquiryId)
+        .eq("talent_profile_id", talentProfileId)
+        .in("status", ["invited", "active"])
+        .maybeSingle();
+      if (!participant) return [];
+    }
 
     const { data, error } = await readClient
       .from("inquiry_messages")
-      .select("id, sender_user_id, body, created_at, message_kind, card_payload, profiles:sender_user_id(display_name)")
+      .select("id, sender_user_id, body, created_at, message_kind, card_payload, metadata, profiles:sender_user_id(display_name)")
       .eq("inquiry_id", inquiryId)
-      .eq("thread_type", "group")
+      .eq("thread_type", threadType)
       .eq("tenant_id", tenantId)
       .is("deleted_at", null)
       .order("created_at", { ascending: true })
@@ -243,6 +293,7 @@ export async function loadTalentInquiryThread(
       created_at: string;
       message_kind: string | null;
       card_payload: Record<string, unknown> | null;
+      metadata: Record<string, unknown> | null;
       profiles: { display_name: string | null } | { display_name: string | null }[] | null;
     };
     return ((data ?? []) as unknown as Row[]).map((row) => {
@@ -262,12 +313,254 @@ export async function loadTalentInquiryThread(
         ts: row.created_at,
         messageKind: row.message_kind ?? "text",
         cardPayload: row.card_payload ?? null,
+        metadata: row.metadata ?? null,
       };
     });
   } catch (err) {
     logServerError("talent.thread.load", err);
     return [];
   }
+}
+
+// ─── Guest / client trust chip (talent thread header) ────────────────────────
+
+/** Serialisable trust-chip data for the talent thread header (no callbacks). */
+export type TalentGuestTrustChipData = Omit<GuestTrustChipProps, "onBlock" | "onReport"> & {
+  /**
+   * Subject identity for the recipient-safety actions, resolved server-side
+   * from the inquiry sender. `null` when neither a client user nor a guest
+   * session is on the inquiry (block/report unavailable — older inquiry rows).
+   */
+  blockTarget:
+    | { inquiryId: string; subjectType: "client_user" | "guest_session"; subjectId: string }
+    | null;
+};
+
+/**
+ * Load the talent-facing trust chip for an inquiry the signed-in talent
+ * participates in. Mirrors loadTalentInquiryThread's authorization (the talent
+ * must be an active/invited participant on the inquiry) and runs the reads via
+ * the service-role client AFTER that gate, since client-trust + auth-email
+ * signals aren't RLS-readable by a lineup talent.
+ *
+ * Returns null when the caller isn't a participant or on any error — the chip
+ * simply doesn't render. Data is built with sensible defaults: when there is no
+ * registered client (pure guest inquiry) the tier is null + identity collapses
+ * to "guest"/"identified" off the captured contact fields.
+ */
+export async function loadTalentInquiryGuestTrust(
+  inquiryId: string,
+): Promise<TalentGuestTrustChipData | null> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return null;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const admin = createServiceRoleClient();
+    const readClient = admin ?? supabase;
+
+    const { data: inquiry } = await readClient
+      .from("inquiries")
+      .select("id, tenant_id, contact_name, contact_email, contact_phone, client_user_id, guest_session_id")
+      .eq("id", inquiryId)
+      .maybeSingle();
+    if (!inquiry?.tenant_id) return null;
+    const inq = inquiry as {
+      tenant_id: string;
+      contact_name: string | null;
+      contact_email: string | null;
+      contact_phone: string | null;
+      client_user_id: string | null;
+      guest_session_id: string | null;
+    };
+    const tenantId = inq.tenant_id;
+
+    // Authorize: the signed-in user's talent profile must be a participant on
+    // this inquiry. Resolve by user_id (not the roster-scoped self profile) so a
+    // platform talent with an inactive agency-roster row still passes.
+    const { data: tp } = await readClient
+      .from("talent_profiles")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    const talentProfileId = (tp as { id: string } | null)?.id;
+    if (!talentProfileId) return null;
+    const { data: participant } = await readClient
+      .from("inquiry_participants")
+      .select("inquiry_id")
+      .eq("inquiry_id", inquiryId)
+      .eq("talent_profile_id", talentProfileId)
+      .in("status", ["invited", "active"])
+      .maybeSingle();
+    if (!participant) return null;
+
+    // ── Trust tier + payment verification — from client_trust_state.
+    // verified_at being non-null means the client completed the $5 Stripe
+    // payment verification (or an OAuth-sync wrote it). That is the payment
+    // signal source — there is no separate "payment badge" table.
+    let clientTrustLevel: GuestTrustChipProps["tier"] = null;
+    let paymentSignalOverride: TrustSignalState = "absent";
+    if (inq.client_user_id) {
+      const state = await loadClientTrustState(inq.client_user_id, tenantId, readClient);
+      clientTrustLevel = state?.trustLevel ?? null;
+      paymentSignalOverride = state?.verifiedAt ? "verified" : "absent";
+    }
+
+    // ── Email verification — the client user's auth email_confirmed_at.
+    let isEmailVerified = false;
+    if (inq.client_user_id && admin) {
+      try {
+        const { data: authUser } = await admin.auth.admin.getUserById(inq.client_user_id);
+        isEmailVerified = Boolean(authUser?.user?.email_confirmed_at);
+      } catch (err) {
+        logServerError("talent.trustChip.emailVerify", err);
+      }
+    }
+
+    // ── Phone signal — client_profiles.phone.
+    // There is no dedicated verified-phone flag in the schema; a stored phone
+    // number means it was captured but we cannot assert it was verified via SMS.
+    // We report present_unverified when a phone exists, absent otherwise.
+    let phoneSignalOverride: TrustSignalState = "absent";
+    if (inq.client_user_id) {
+      try {
+        const { data: clientProfile } = await readClient
+          .from("client_profiles")
+          .select("phone")
+          .eq("user_id", inq.client_user_id)
+          .maybeSingle();
+        const phone = (clientProfile as { phone?: string | null } | null)?.phone;
+        phoneSignalOverride = phone ? "present_unverified" : "absent";
+      } catch (err) {
+        logServerError("talent.trustChip.phone", err);
+      }
+    }
+    // If no registered client but the inquiry captured a phone at submission
+    // time, surface that as present_unverified too.
+    if (inq.client_user_id === null && inq.contact_phone?.trim()) {
+      phoneSignalOverride = "present_unverified";
+    }
+
+    // ── Social signal — client_integrations (OAuth-verified social accounts).
+    // "verified"          = at least one social integration is OAuth-verified,
+    //                       trust_signal_enabled, and talent_visible.
+    // "present_unverified"= at least one social integration row exists in the
+    //                       social category but none are fully verified.
+    // "absent"            = no social integrations at all.
+    let socialSignalOverride: TrustSignalState = "absent";
+    if (inq.client_user_id) {
+      try {
+        const integrations = await listClientIntegrations(inq.client_user_id);
+        let hasSocialRow = false;
+        let hasVerifiedSocial = false;
+        for (const row of integrations) {
+          const def = getClientIntegrationDef(row.provider_key);
+          if (def?.category !== "social") continue;
+          hasSocialRow = true;
+          if (isClientIntegrationVerifiedTrustSignal(row) && row.talent_visible) {
+            hasVerifiedSocial = true;
+            break;
+          }
+        }
+        if (hasVerifiedSocial) {
+          socialSignalOverride = "verified";
+        } else if (hasSocialRow) {
+          socialSignalOverride = "present_unverified";
+        }
+      } catch (err) {
+        logServerError("talent.trustChip.social", err);
+      }
+    }
+
+    // ── Completed bookings — confirmed/completed agency_bookings for the client.
+    let completedBookings = 0;
+    if (inq.client_user_id) {
+      const { count } = await readClient
+        .from("agency_bookings")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
+        .eq("client_user_id", inq.client_user_id)
+        .in("status", ["confirmed", "completed"]);
+      completedBookings = count ?? 0;
+    }
+
+    // ── Block state — has THIS talent (recipient) already blocked the sender?
+    let isBlocked = false;
+    {
+      const orParts: string[] = [];
+      if (inq.guest_session_id) orParts.push(`blocked_guest_session_id.eq.${inq.guest_session_id}`);
+      if (inq.client_user_id) orParts.push(`blocked_client_user_id.eq.${inq.client_user_id}`);
+      if (orParts.length > 0) {
+        const { data: blockRow } = await readClient
+          .from("user_blocks")
+          .select("id")
+          .eq("tenant_id", tenantId)
+          .eq("blocker_user_id", user.id)
+          .or(orParts.join(","))
+          .limit(1)
+          .maybeSingle();
+        isBlocked = !!blockRow;
+      }
+    }
+
+    const props = mapToGuestTrustChipProps({
+      trustSummary: null,
+      contactName: inq.contact_name?.trim() || "Guest",
+      contactEmail: inq.contact_email?.trim() || null,
+      contactPhone: inq.contact_phone?.trim() || null,
+      clientTrustLevel,
+      completedBookings,
+      isEmailVerified,
+      isBlocked,
+      phoneSignalOverride,
+      socialSignalOverride,
+      paymentSignalOverride,
+    });
+
+    // Resolve the subject for block/report. Prefer the registered client user;
+    // fall back to the guest session. Null when neither is present.
+    const blockTarget = inq.client_user_id
+      ? { inquiryId, subjectType: "client_user" as const, subjectId: inq.client_user_id }
+      : inq.guest_session_id
+        ? { inquiryId, subjectType: "guest_session" as const, subjectId: inq.guest_session_id }
+        : null;
+
+    const { onBlock: _onBlock, onReport: _onReport, ...serialisable } = props;
+    void _onBlock;
+    void _onReport;
+    return { ...serialisable, blockTarget };
+  } catch (err) {
+    logServerError("talent.trustChip.load", err);
+    return null;
+  }
+}
+
+/**
+ * Block the sender on an inquiry (talent thread Block affordance). Thin
+ * "use server" wrapper around recipient-safety.blockSubject — the staff/tenant
+ * authorization + idempotency live there. Subject resolved server-side in
+ * loadTalentInquiryGuestTrust and round-tripped via the chip; never user-typed.
+ */
+export async function blockInquirySenderAsTalent(
+  inquiryId: string,
+  subjectType: "client_user" | "guest_session",
+  subjectId: string,
+): Promise<{ ok: boolean }> {
+  return blockSubject({ inquiryId, subjectType, subjectId });
+}
+
+/**
+ * Report the sender on an inquiry (talent thread Report affordance). Thin
+ * "use server" wrapper around recipient-safety.reportInquiry. The reported
+ * subject is denormalised from the inquiry server-side.
+ */
+export async function reportInquirySenderAsTalent(
+  inquiryId: string,
+  reason: InquiryReportReason,
+): Promise<{ ok: boolean }> {
+  return reportInquiry({ inquiryId, reason });
 }
 
 // ─── Accept / decline invitation ────────────────────────────────────────────

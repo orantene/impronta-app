@@ -20,6 +20,7 @@
 
 import { improntaLog } from "@/lib/server/structured-log";
 import { logServerError } from "@/lib/server/safe-error";
+import { resolveSelectValue, matchLabelOption } from "@/lib/fields/coerce-select-value";
 
 // Reverse map of the migration's KEY_BRIDGE (new field_key → old key).
 // Only includes keys whose old equivalent existed; new-only keys have no
@@ -64,7 +65,7 @@ export async function mirrorWriteToLegacy(
 
   const { data: oldDef } = await supabase
     .from("field_definitions")
-    .select("id, value_type")
+    .select("id, value_type, config")
     .eq("key", oldKey)
     .maybeSingle();
   if (!oldDef) return;
@@ -89,7 +90,13 @@ export async function mirrorWriteToLegacy(
   };
   const ot = oldDef.value_type as string;
   if (ot === "text" || ot === "textarea") {
-    row.value_text = typeof value === "string" ? value : String(value);
+    const text = typeof value === "string" ? value : String(value);
+    // Translate the canonical (System B) label into the legacy (System A)
+    // option *value* slug so legacy `field_values` stays in its own
+    // vocabulary (and passes the legacy select validators). Non-select or
+    // unmatchable values pass through unchanged.
+    const res = ot === "text" ? resolveSelectValue(oldDef.config, text) : { kind: "passthrough" as const };
+    row.value_text = res.kind === "matched" ? res.value : text;
   } else if (ot === "number") {
     row.value_number = typeof value === "number" ? value : Number(value);
   } else if (ot === "boolean") {
@@ -157,6 +164,11 @@ export type MirrorCanonicalContext = {
    *  the upsert proceeds with tenant_id = NULL (canonical column is
    *  nullable). */
   tenantId: string | null;
+  /** Canonical (System B) select option labels per new field key, used to
+   *  translate the incoming legacy slug into B's label vocabulary. Absent /
+   *  empty for non-select keys. Hoisted here so the batch path needs no extra
+   *  per-write lookup. */
+  labelsByNewKey: Map<string, string[]>;
 };
 
 /** Prefetch the def-id lookup + tenant resolution that
@@ -175,6 +187,7 @@ export async function prefetchMirrorCanonicalContext(
   const empty: MirrorCanonicalContext = {
     defIdByNewKey: new Map(),
     tenantId: null,
+    labelsByNewKey: new Map(),
   };
   try {
     // Translate the legacy keys the caller cares about to canonical keys
@@ -191,7 +204,7 @@ export async function prefetchMirrorCanonicalContext(
       newKeys.length > 0
         ? supabase
             .from("profile_field_definitions")
-            .select("id, field_key")
+            .select("id, field_key, kind, options")
             .in("field_key", newKeys)
         : Promise.resolve({ data: [] as Array<{ id: string; field_key: string }>, error: null }),
       supabase
@@ -205,13 +218,24 @@ export async function prefetchMirrorCanonicalContext(
     ]);
 
     const defIdByNewKey = new Map<string, string>();
-    for (const row of (defsR.data ?? []) as Array<{ id: string; field_key: string }>) {
-      if (row?.id && row?.field_key) defIdByNewKey.set(row.field_key, row.id);
+    const labelsByNewKey = new Map<string, string[]>();
+    for (const row of (defsR.data ?? []) as Array<{
+      id: string;
+      field_key: string;
+      kind?: string;
+      options?: unknown;
+    }>) {
+      if (row?.id && row?.field_key) {
+        defIdByNewKey.set(row.field_key, row.id);
+        if (row.kind === "select" && Array.isArray(row.options)) {
+          labelsByNewKey.set(row.field_key, (row.options as unknown[]).map((o) => String(o)));
+        }
+      }
     }
     const tenantId = ((rosterR as { data?: { tenant_id?: string | null } | null })?.data?.tenant_id ?? null) as
       | string
       | null;
-    return { defIdByNewKey, tenantId };
+    return { defIdByNewKey, tenantId, labelsByNewKey };
   } catch (err) {
     void improntaLog("legacy_mirror.prefetch_failed", {
       talentProfileId,
@@ -255,6 +279,33 @@ export async function mirrorWriteToCanonical(
       fieldDefinitionId = newDef.id as string;
     }
 
+    // Translate the incoming legacy (System A) slug into the canonical
+    // (System B) option *label* so the catalog editor's select chip
+    // highlights correctly. The two catalogs use different vocabularies
+    // (A = slug, B = label); copying the slug verbatim leaves the chip
+    // un-highlighted. Resolve case/slug drift against B's option labels;
+    // pass through unchanged when the field isn't a select or nothing matches
+    // (never worse than the verbatim copy this replaced).
+    let outValue = value;
+    if (typeof value === "string" && value.length > 0) {
+      let labels = context?.labelsByNewKey.get(newKey) ?? null;
+      if (!labels && !context) {
+        const { data: catDef } = await supabase
+          .from("profile_field_definitions")
+          .select("kind, options")
+          .eq("id", fieldDefinitionId)
+          .maybeSingle();
+        labels =
+          catDef && catDef.kind === "select" && Array.isArray(catDef.options)
+            ? (catDef.options as unknown[]).map((o) => String(o))
+            : null;
+      }
+      if (labels) {
+        const matched = matchLabelOption(labels, value);
+        if (matched) outValue = matched;
+      }
+    }
+
     if (value === null || value === undefined) {
       const { error: delErr } = await supabase
         .from("talent_profile_field_values")
@@ -295,7 +346,7 @@ export async function mirrorWriteToCanonical(
           tenant_id: tenantId,
           talent_profile_id: talentProfileId,
           field_definition_id: fieldDefinitionId,
-          value,
+          value: outValue,
           workflow_state: "live",
           last_edited_role: "platform",
         },

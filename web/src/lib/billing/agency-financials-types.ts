@@ -127,7 +127,7 @@ export function buildAgencyFinancialsByCurrency(
 
   const byCurrencyRows = new Map<string, AgencyFinancialsRow[]>();
   for (const r of rows) {
-    const code = (r.currencyCode ?? "EUR").toUpperCase();
+    const code = (r.currencyCode ?? "USD").toUpperCase();
     const list = byCurrencyRows.get(code) ?? [];
     list.push(r);
     byCurrencyRows.set(code, list);
@@ -158,7 +158,7 @@ export const EMPTY_AGENCY_FINANCIALS: AgencyFinancials = {
     ytdTalentNetCents: 0,
     pendingPayoutCents: 0,
     confirmedBookingsCount: 0,
-    currency: "EUR",
+    currency: "USD",
   },
   mtd: {
     grossCents: 0,
@@ -195,7 +195,7 @@ export function buildAgencyFinancials(
   rows: AgencyFinancialsRow[],
   opts?: { mtdSinceIso?: string; currency?: string },
 ): AgencyFinancials {
-  const totals = { ...EMPTY_AGENCY_FINANCIALS.totals, currency: opts?.currency ?? "EUR" };
+  const totals = { ...EMPTY_AGENCY_FINANCIALS.totals, currency: opts?.currency ?? "USD" };
   const mtd = { ...EMPTY_AGENCY_FINANCIALS.mtd };
   const byPaymentStatus: AgencyFinancialsByPaymentStatus = {
     paid: { bookings: 0, grossCents: 0 },

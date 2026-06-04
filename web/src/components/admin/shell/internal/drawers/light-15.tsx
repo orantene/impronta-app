@@ -474,14 +474,24 @@ export function WorkspaceRevenueDrawer() {
 
 
 export function ConversionFunnelDrawer() {
-  const { state, closeDrawer } = useAdminShell();
+  const { state, closeDrawer, effectiveMessagesInquiries } = useAdminShell();
   const open = state.drawer.drawerId === "conversion-funnel";
 
+  // Real funnel derived from the workspace's actual inquiries (bridge). Each
+  // stage counts inquiries that reached at least that point in the pipeline.
+  const inqs = effectiveMessagesInquiries;
+  const received = inqs.filter((i) => i.stage !== "draft").length;
+  const offerSent = inqs.filter((i) => i.stage === "offer_pending" || i.stage === "approved" || i.stage === "booked").length;
+  const approvedN = inqs.filter((i) => i.stage === "approved" || i.stage === "booked").length;
+  const bookedN = inqs.filter((i) => i.stage === "booked").length;
+  const lostN = inqs.filter((i) => i.stage === "rejected" || i.stage === "expired").length;
+  const activeN = inqs.filter((i) => i.stage === "submitted" || i.stage === "coordination" || i.stage === "offer_pending" || i.stage === "approved").length;
+  const pctOf = (n: number) => (received > 0 ? Math.round((n / received) * 100) : 0);
   const STAGES = [
-    { label: "Inquiries received", count: 48, pct: 100, dropPct: null  as number | null },
-    { label: "Offer sent",         count: 31, pct: 65,  dropPct: 35   as number | null },
-    { label: "Client approved",    count: 22, pct: 46,  dropPct: 29   as number | null },
-    { label: "Booking confirmed",  count: 17, pct: 35,  dropPct: 23   as number | null },
+    { label: "Inquiries received", count: received,  pct: 100,              dropPct: null as number | null },
+    { label: "Offer sent",         count: offerSent, pct: pctOf(offerSent), dropPct: (100 - pctOf(offerSent)) as number | null },
+    { label: "Client approved",    count: approvedN, pct: pctOf(approvedN), dropPct: (pctOf(offerSent) - pctOf(approvedN)) as number | null },
+    { label: "Booking confirmed",  count: bookedN,   pct: pctOf(bookedN),   dropPct: (pctOf(approvedN) - pctOf(bookedN)) as number | null },
   ];
   const FUNNEL_W = 280;
   const STAGE_H = 48;
@@ -493,7 +503,7 @@ export function ConversionFunnelDrawer() {
       open={open}
       onClose={closeDrawer}
       title="Conversion funnel"
-      description="Inquiry-to-booking conversion — last 90 days. Drop-off shows where deals are lost."
+      description="Inquiry-to-booking conversion across your workspace. Drop-off shows where deals are lost."
       footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
       defaultSize="half"
     >
@@ -501,9 +511,9 @@ export function ConversionFunnelDrawer() {
         {/* Summary KPIs */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
           {[
-            { label: "Overall conversion", value: "35%",  sub: "inquiry → booking" },
-            { label: "Avg time to close",  value: "8.2d", sub: "inquiry → confirmed" },
-            { label: "Lost deals",         value: "31",   sub: "last 90 days", warn: true },
+            { label: "Overall conversion", value: `${pctOf(bookedN)}%`, sub: "inquiry → booking" },
+            { label: "Active pipeline",    value: String(activeN),      sub: "in progress" },
+            { label: "Lost deals",         value: String(lostN),        sub: "declined or expired", warn: true },
           ].map((tile) => (
             <div
               key={tile.label}
@@ -525,7 +535,7 @@ export function ConversionFunnelDrawer() {
 
         {/* SVG funnel */}
         <div style={{ padding: "16px", border: `1px solid ${COLORS.border}` }} className="bg-admin-surface-alt rounded-admin-lg">
-          <CapsLabel>Pipeline funnel · last 90 days</CapsLabel>
+          <CapsLabel>Pipeline funnel</CapsLabel>
           <div style={{ marginTop: 14 }}>
             <svg
               width={FUNNEL_W}

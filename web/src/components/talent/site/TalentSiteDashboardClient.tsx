@@ -275,10 +275,41 @@ export function TalentSiteDashboardClient({ initialState, onReload, locale = "en
             onChanged={reloadDashboard}
           />
 
+          <ConnectedContentPanel />
+
           <FuturePlaceholders />
         </div>
       ) : null}
     </section>
+  );
+}
+
+function ConnectedContentPanel() {
+  const { openDrawer } = useAdminShell();
+  return (
+    <div
+      style={{
+        background: "#fff",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 14,
+        padding: "14px 16px",
+        fontFamily: FONTS.body,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+        <div>
+          <div style={{ fontFamily: FONTS.display, fontSize: 15, fontWeight: 700, color: COLORS.ink }}>
+            Connected content
+          </div>
+          <p style={{ margin: "4px 0 0", fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+            Pull approved YouTube, Spotify, SoundCloud, Vimeo or social links into your page builder only when each provider switch is on.
+          </p>
+        </div>
+        <PrimaryButton onClick={() => openDrawer("talent-connections")}>
+          Manage
+        </PrimaryButton>
+      </div>
+    </div>
   );
 }
 

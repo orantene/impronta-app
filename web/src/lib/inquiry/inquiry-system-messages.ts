@@ -2,6 +2,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type SystemEventType =
   | "inquiry_created"
+  | "inquiry_details_updated"
+  | "coordinator_reassigned"
+  | "roster_talent_swapped"
   | "coordinator_assigned"
   | "coordinator_accepted"
   | "coordinator_declined"

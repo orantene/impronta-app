@@ -2490,8 +2490,14 @@ export function TalentShareCardDrawer() {
   const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "talent-share-card";
   const talentName = (state.drawer.payload?.name as string) ?? "your talent";
-  const slug = (state.drawer.payload?.slug as string) ?? "talent-slug";
-  const url = `${TENANT.domain}/share/talent/${slug}`;
+  // Canonical public talent page is /t/[profileCode] (multi-workspace aware — it
+  // renders the talent under the current tenant's domain/overlay). Accept
+  // `profileCode`; fall back to the legacy `slug` payload key for compatibility.
+  const profileCode =
+    (state.drawer.payload?.profileCode as string) ??
+    (state.drawer.payload?.slug as string) ??
+    "talent-code";
+  const url = `${TENANT.domain}/t/${profileCode}`;
 
   return (
     <DrawerShell

@@ -28,7 +28,7 @@ import {
   workspaceAdmins,
   workspaceManagersPlus,
 } from "./catalog-audiences";
-import { formatDateLabel, pageUrl, redeemHref } from "./catalog-render";
+import { formatDateLabel, pageUrl, redeemHref, inquiryPathForRole } from "./catalog-render";
 import { INQUIRY_CATALOG_ENTRIES } from "./catalog-entries-inquiry";
 import { BILLING_CATALOG_ENTRIES } from "./catalog-entries-billing";
 import { FORMS_CATALOG_ENTRIES } from "./catalog-entries-forms";
@@ -499,7 +499,7 @@ const BOOKING_CANCELLED_TALENT: CatalogEntry = {
         recipientName: recipient.displayName ?? str(event.payload.contactName),
         contactName: str(event.payload.contactName),
         eventDate: str(event.payload.eventDate),
-        inquiryUrl: pageUrl(brand, `/talent/inquiries/${event.inquiryId}`),
+        inquiryUrl: pageUrl(brand, inquiryPathForRole("talent", event.inquiryId)),
         brand,
         unsubscribeUrl,
         categoryLabel: "booking",
@@ -626,7 +626,7 @@ const BOOKING_DAY_OF_REMINDER_TALENT: CatalogEntry = {
         recipientName: recipient.displayName,
         eventDate: formatDateLabel(str(event.payload.eventDate)) ?? null,
         eventLocation: str(event.payload.eventLocation),
-        inquiryUrl: pageUrl(brand, `/talent/inquiries/${event.inquiryId}`),
+        inquiryUrl: pageUrl(brand, inquiryPathForRole("talent", event.inquiryId)),
         brand,
         unsubscribeUrl,
         categoryLabel: "booking",

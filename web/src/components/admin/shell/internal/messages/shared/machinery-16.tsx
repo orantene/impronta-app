@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { sendInquiryMessageAsTalent } from "@/lib/server-actions/talent-pipeline";
 import { sendInquiryMessageAsClient } from "@/lib/server-actions/client-pipeline";
 import { COLORS, FONTS, useAdminShell } from "../../state";
@@ -13,7 +13,20 @@ import { LiveLineupPanel } from "./machinery-11";
 import { DaySeparator, TeamStrip, dayKey, renderWithMentions } from "./machinery-15";
 import { SystemEventBubble } from "./machinery-6";
 import { RealThreadStream } from "@/components/talent/talent-thread-stream";
-import { loadTalentInquiryThread, type TalentThreadMessage } from "@/app/(workspace)/[tenantSlug]/talent/inbox/[id]/actions";
+import { VoiceRecorderButton } from "@/components/chat-interactions/VoiceRecorderButton";
+import {
+  loadTalentInquiryThread,
+  loadTalentInquiryGuestTrust,
+  blockInquirySenderAsTalent,
+  reportInquirySenderAsTalent,
+  type TalentThreadMessage,
+  type TalentGuestTrustChipData,
+} from "@/app/(workspace)/[tenantSlug]/talent/inbox/[id]/actions";
+import { GuestTrustChip } from "@/components/inquiry/GuestTrustChip";
+import { useThreadPresence } from "@/lib/realtime/presence";
+import { TypingRow } from "@/components/messages/thread-enhancements";
+import { PinnedStrip } from "@/components/chat-interactions/PinnedStrip";
+import { usePinnedMessages } from "@/components/chat-interactions/usePinnedMessages";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -54,6 +67,16 @@ export function ConversationTab({
    *  timestamped cards, read-only. Splits the two so Chat stays a
    *  conversation and every financial/status event lives in Activity. */
   mode = "chat",
+  /** Which real thread to load + post to. Defaults to the talent's GROUP
+   *  thread. The talent shell passes "private" for a talent-COORDINATOR's
+   *  client sub-thread (hub self-coordination) so the same component loads
+   *  the client chat and routes sends there. */
+  realThreadType = "group",
+  /** Explicit send handler for the real-inquiry path. When provided it
+   *  overrides the threadKey-suffix dispatch below — the talent shell uses
+   *  it to post a coordinator's reply to the client (private) thread via
+   *  sendTalentInquiryMessage(..., "private") instead of the client action. */
+  onSendReal,
 }: {
   conv: Conversation;
   placeholder: string;
@@ -67,8 +90,10 @@ export function ConversationTab({
   povCanSeeOffers?: boolean;
   povCanSeeCoordNote?: boolean;
   mode?: "chat" | "activity";
+  realThreadType?: "group" | "private";
+  onSendReal?: (text: string) => Promise<{ ok: boolean; error?: string }>;
 }) {
-  const { toast, bridgeTalentSelfProfile } = useAdminShell();
+  const { toast, bridgeTalentSelfProfile, bridgeSessionIdentity } = useAdminShell();
   // S0.3 retirement: TeamStrip tap now nudges user to the Lineup tab
   // (parent shell handles tab switching). The drawer is no longer rendered.
   const openLineupTab = () => toast("Tap the Lineup tab above to manage talent");
@@ -100,10 +125,62 @@ export function ConversationTab({
     if (!showReal) { setRealThread(null); return; }
     let active = true;
     setRealThread(null);
-    loadTalentInquiryThread(conv.id).then((rows) => { if (active) setRealThread(rows); });
+    loadTalentInquiryThread(conv.id, realThreadType).then((rows) => { if (active) setRealThread(rows); });
     return () => { active = false; };
     // Re-load when switching conv or when a local send appends (stash bump).
-  }, [conv.id, showReal]);
+  }, [conv.id, showReal, realThreadType]);
+  // Re-pull the real thread after an out-of-band send (e.g. a voice note that
+  // goes straight to the server, bypassing the optimistic text path).
+  const refreshRealThread = useCallback(() => {
+    if (!showReal) return;
+    loadTalentInquiryThread(conv.id, realThreadType).then(setRealThread);
+  }, [showReal, conv.id, realThreadType]);
+  // Guest/client trust chip — the talent-facing identity + trust summary for
+  // the inquiry's sender (tier badge, per-signal ticks, booking count, one-line
+  // risk read). Loaded once per real inquiry; renders atop the thread header on
+  // the talent's GROUP thread (the lineup-talent view). Suppressed on the
+  // private/coordinator sub-thread (the coordinator already has the client
+  // surface) and on mock convs. Null until loaded / when not authorised.
+  const showTrustChip = showReal && realThreadType === "group";
+  const [trustChip, setTrustChip] = useState<TalentGuestTrustChipData | null>(null);
+  useEffect(() => {
+    if (!showTrustChip) { setTrustChip(null); return; }
+    let active = true;
+    setTrustChip(null);
+    loadTalentInquiryGuestTrust(conv.id).then((data) => { if (active) setTrustChip(data); });
+    return () => { active = false; };
+  }, [conv.id, showTrustChip]);
+  // Ephemeral typing presence — broadcast-only, no DB. One channel per real
+  // inquiry thread (group vs private kept distinct). Null channelKey on mock
+  // convs / when no session identity → the hook is a safe no-op.
+  const presenceChannelKey = showReal && bridgeSessionIdentity?.userId
+    ? `inquiry:${conv.id}:${realThreadType}`
+    : null;
+  const { typingUsers, setTyping } = useThreadPresence({
+    channelKey: presenceChannelKey,
+    userId: bridgeSessionIdentity?.userId ?? "",
+    displayName: bridgeSessionIdentity?.displayName ?? "Someone",
+  });
+  // Inquiry-wide pinned messages (shared — everyone on the thread sees the
+  // same set). Only real inquiries have a backing thread; mock convs no-op.
+  const { pins, pinnedIds, refresh: refreshPins, removeLocal: removePinLocal } =
+    usePinnedMessages(showReal ? conv.id : null, realThreadType);
+  // Jump to a pinned message: scroll its bubble into view + pulse-highlight.
+  const jumpToMessage = useCallback((messageId: string) => {
+    const el = document.querySelector<HTMLElement>(`[data-message-id="${messageId}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.style.transition = "background 600ms";
+    const prevBg = el.style.background;
+    el.style.background = COLORS.accentSoft;
+    window.setTimeout(() => { el.style.background = prevBg; }, 900);
+  }, []);
+  const unpinMessage = useCallback(async (messageId: string) => {
+    removePinLocal(messageId);
+    const { toggleMessagePin } = await import("@/lib/server-actions/message-pins");
+    await toggleMessagePin(messageId, conv.id);
+    void refreshPins();
+  }, [conv.id, removePinLocal, refreshPins]);
   // In-thread search — small toggle in the header opens a compact
   // search input that filters visible bubbles to those whose body
   // matches. System events are kept (they often anchor the search
@@ -146,6 +223,39 @@ export function ConversationTab({
         padding: "10px 14px 0",
         background: "#fff",
       }}>
+        {/* Guest/client trust chip — talent-facing identity + trust summary for
+            the inquiry sender. Renders atop the thread header (chat view) once
+            loaded. Block/Report affordances are injected only when a subject is
+            resolvable (registered client OR guest session on the inquiry). */}
+        {mode === "chat" && trustChip && (
+          <div className="mb-2">
+            <GuestTrustChip
+              identity={trustChip.identity}
+              tier={trustChip.tier}
+              displayName={trustChip.displayName}
+              signals={trustChip.signals}
+              completedBookings={trustChip.completedBookings}
+              riskLine={trustChip.riskLine}
+              isBlocked={trustChip.isBlocked}
+              onBlock={
+                trustChip.blockTarget
+                  ? async () => {
+                      const t = trustChip.blockTarget!;
+                      const r = await blockInquirySenderAsTalent(t.inquiryId, t.subjectType, t.subjectId);
+                      if (r.ok) setTrustChip((prev) => (prev ? { ...prev, isBlocked: true } : prev));
+                      else toast("Could not block sender. Try again.");
+                      return r;
+                    }
+                  : null
+              }
+              onReport={
+                trustChip.blockTarget
+                  ? async (reason) => reportInquirySenderAsTalent(trustChip.blockTarget!.inquiryId, reason)
+                  : null
+              }
+            />
+          </div>
+        )}
         <div className="flex items-center gap-1.5">
           <div className="flex-1 min-w-0">
             <TeamStrip
@@ -214,6 +324,25 @@ export function ConversationTab({
             <FirstConvBanner clientName={conv.client} audience="talent" />
           </div>
         )}
+        {/* Pinned strip — inquiry-wide pinned messages, shared across the
+            thread. Renders nothing when empty. Chat view only. */}
+        {mode === "chat" && pins.length > 0 && (
+          <div style={{ marginTop: 8, marginBottom: 2 }}>
+            <PinnedStrip
+              pins={pins}
+              onJump={jumpToMessage}
+              onUnpin={unpinMessage}
+              palette={{
+                accent: COLORS.accentDeep,
+                accentSoft: COLORS.accentSoft,
+                ink: COLORS.ink,
+                inkMuted: COLORS.inkMuted,
+                border: COLORS.borderSoft,
+                surface: "#fff",
+              }}
+            />
+          </div>
+        )}
       </div>
       {/* Scrollable middle — message stream + system events. Only THIS
           area scrolls; the pins and composer stay locked in view. */}
@@ -228,6 +357,8 @@ export function ConversationTab({
             conv={conv}
             toast={toast}
             mode={mode}
+            pinnedIds={pinnedIds}
+            onPinChanged={() => { void refreshPins(); }}
           />
         ) : (<>
         {systemEvents.length > 0 && (
@@ -356,6 +487,9 @@ export function ConversationTab({
         </div>
         </>)}
       </div>
+      {/* Ephemeral typing-presence row — sits between the message list and
+          the composer. Renders nothing when no peer is typing. */}
+      {mode !== "activity" && <TypingRow users={typingUsers} color={COLORS.inkMuted} />}
       {/* Fixed composer — locked at the bottom of the visible area so
           users can always reply without scrolling. Closed convs
           (cancelled / past) replace the composer with a closure
@@ -390,16 +524,19 @@ export function ConversationTab({
             placeholder={placeholder}
             onSend={(text) => {
               appendLocalMessage(stashKey, text);
-              // Dispatch by threadKey suffix:
-              //   ":client" → client thread — sendInquiryMessageAsClient (G-pass)
-              //   ":talent" → talent group thread — sendInquiryMessageAsTalent (F-pass)
               // Synthetic mock conv ids stay local-only for the demo.
               const isRealInquiry = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id);
               if (isRealInquiry) {
-                const isClientThread = /:client$/.test(threadKey);
-                const send = isClientThread
-                  ? sendInquiryMessageAsClient(conv.id, text)
-                  : sendInquiryMessageAsTalent(conv.id, text);
+                // An explicit onSendReal wins (the talent shell passes one for a
+                // COORDINATOR's client sub-thread → sendTalentInquiryMessage(...,
+                // "private")). Otherwise dispatch by threadKey suffix:
+                //   ":client" → client thread — sendInquiryMessageAsClient (G-pass)
+                //   ":talent" → talent group thread — sendInquiryMessageAsTalent (F-pass)
+                const send = onSendReal
+                  ? onSendReal(text)
+                  : /:client$/.test(threadKey)
+                    ? sendInquiryMessageAsClient(conv.id, text)
+                    : sendInquiryMessageAsTalent(conv.id, text);
                 void send.then((r) => { if (!r.ok) toast(`Send failed: ${r.error}`); });
               } else {
                 toast("Message sent");
@@ -409,6 +546,9 @@ export function ConversationTab({
             // Sender attribution is a server concern. Keep send-as hidden
             // until persisted sender roles are supported.
             canSendAsWorkspace={false}
+            onTyping={setTyping}
+            voiceContext={showReal ? { inquiryId: conv.id, threadType: realThreadType } : undefined}
+            onVoiceSent={refreshRealThread}
           />
         )}
       </div>
@@ -463,7 +603,8 @@ export function TypingIndicator({ who }: { who: string }) {
 
 // Composer that persists drafts per (inquiry, thread) so switching tabs
 // doesn't lose typed text. Uses an in-memory map keyed by `threadKey`.
-// Includes: voice note button, AI smart-reply chip, draft persistence.
+// Includes: attachment button, AI smart-reply chips (shown by default),
+// draft persistence.
 export const __draftStore: Map<string, string> = new Map();
 
 export const SMART_REPLIES_FOR_LAST: Record<string, string[]> = {
@@ -471,6 +612,13 @@ export const SMART_REPLIES_FOR_LAST: Record<string, string[]> = {
   hold:    ["Confirming with talent", "Sending revised offer", "Will update by EOD"],
   offer:   ["Approved — proceeding", "Can we adjust dates?", "Need budget breakdown"],
   default: ["Sounds good", "Let me check", "Confirming shortly"],
+};
+
+/** A single mention candidate — a participant in the inquiry conversation. */
+export type MentionCandidate = {
+  /** Slash-safe name — no spaces guaranteed, but we handle it. */
+  name: string;
+  role?: string;
 };
 
 export function DraftComposer({
@@ -484,6 +632,23 @@ export function DraftComposer({
   workspaceName,
   canSendAsWorkspace = false,
   onSendAsWorkspace,
+  // C1: optional attachment handler. When provided, the paperclip
+  // button is enabled and opens a file picker. The caller handles
+  // the actual upload (admin passes uploadInquiryAttachment).
+  onAttach,
+  // C3: optional mention candidates. When set, typing "@" opens a
+  // picker listing these participants. Selecting one inserts "@Name"
+  // at the cursor position. renderWithMentions highlights the tags.
+  mentionCandidates,
+  // Ephemeral typing-presence beat. Called with `true` on each keystroke and
+  // `false` on send/blur. The host wires this to useThreadPresence().setTyping.
+  onTyping,
+  // Voice notes (Deep-plan W11). When a real inquiry context is supplied, the
+  // disabled "coming soon" mic is replaced by a live recorder that uploads +
+  // sends a voice message. onVoiceSent fires after a successful send so the
+  // host refreshes the thread.
+  voiceContext,
+  onVoiceSent,
 }: {
   threadKey: string;
   placeholder: string;
@@ -492,17 +657,78 @@ export function DraftComposer({
   workspaceName?: string;
   canSendAsWorkspace?: boolean;
   onSendAsWorkspace?: (text: string) => void;
+  onAttach?: (file: File) => void;
+  mentionCandidates?: MentionCandidate[];
+  onTyping?: (isTyping: boolean) => void;
+  voiceContext?: { inquiryId: string; threadType: "private" | "group" };
+  onVoiceSent?: () => void;
 }) {
+  const { toast: __composerToast } = useAdminShell();
   const [val, setVal] = useState(() => __draftStore.get(threadKey) ?? "");
+  // C3 — @-mention picker state. Opens when the user types "@" anywhere
+  // in the input. Stores the partial query after "@" for filtering.
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Detect "@" trigger: find the last "@" before the cursor and derive
+  // the query string (text typed after the "@"). If the user has typed
+  // a space or deleted the "@", close the picker.
+  const updateMentionState = useCallback((text: string, cursorPos: number) => {
+    if (!mentionCandidates?.length) { setMentionQuery(null); return; }
+    const textBefore = text.slice(0, cursorPos);
+    const atIdx = textBefore.lastIndexOf("@");
+    if (atIdx < 0) { setMentionQuery(null); return; }
+    const fragment = textBefore.slice(atIdx + 1);
+    // Close the picker if the fragment contains a space (mention ended).
+    if (fragment.includes(" ")) { setMentionQuery(null); return; }
+    setMentionQuery(fragment);
+  }, [mentionCandidates]);
+
+  // Filter candidates by the current query (case-insensitive prefix match).
+  const filteredMentions = mentionQuery !== null && mentionCandidates?.length
+    ? mentionCandidates.filter(c =>
+        c.name.toLowerCase().startsWith(mentionQuery.toLowerCase())
+      ).slice(0, 6)
+    : [];
+
+  const showMentionPicker = mentionQuery !== null && filteredMentions.length > 0;
+
+  // When the user selects a candidate, replace "@<query>" in the input
+  // with "@FirstName" (first word of name, no spaces — cleaner tag).
+  const selectMention = useCallback((candidate: MentionCandidate) => {
+    const input = inputRef.current;
+    const cursorPos = input?.selectionStart ?? val.length;
+    const textBefore = val.slice(0, cursorPos);
+    const textAfter = val.slice(cursorPos);
+    const atIdx = textBefore.lastIndexOf("@");
+    if (atIdx < 0) { setMentionQuery(null); return; }
+    // Use first name only so tags don't create long spans.
+    const tag = `@${candidate.name.split(" ")[0]}`;
+    const newVal = textBefore.slice(0, atIdx) + tag + " " + textAfter;
+    setVal(newVal);
+    setMentionQuery(null);
+    // Restore focus + move cursor after the inserted tag.
+    requestAnimationFrame(() => {
+      if (!input) return;
+      input.focus();
+      const newCursor = atIdx + tag.length + 1;
+      input.setSelectionRange(newCursor, newCursor);
+    });
+  }, [val]);
+
   const [hasSent, setHasSent] = useState(false);
   // Send-as state — defaults to "you" so accidental posts don't
   // attribute to the workspace.
   const [sendAs, setSendAs] = useState<"you" | "workspace">("you");
   const wsAvailable = canSendAsWorkspace && !!workspaceName && !!onSendAsWorkspace;
-  // Smart replies are now hidden by default — they were eating
-  // composer real-estate every thread. A small sparkle button toggles
-  // them. Auto-collapse when the user starts typing or sends.
-  const [smartOpen, setSmartOpen] = useState(false);
+  // C4 — smart replies shown by DEFAULT above the composer.
+  // Top 2-3 chips surface immediately on fresh/empty threads so the
+  // user always sees them without having to hit a sparkle toggle.
+  // They auto-collapse: (a) when the user starts typing, (b) when
+  // switching threads (tab-switch), (c) after the first send.
+  // "Smart open" starts true and collapses on first keystroke; the
+  // sparkle toggle can re-open them at any time.
+  const [smartOpen, setSmartOpen] = useState(true);
   useEffect(() => {
     if (val) __draftStore.set(threadKey, val); else __draftStore.delete(threadKey);
     if (val) setSmartOpen(false); // typing closes the suggestions
@@ -513,6 +739,8 @@ export function DraftComposer({
     setSmartOpen(false); // switching threads collapses the panel
   }, [threadKey]);
   const replies = SMART_REPLIES_FOR_LAST[smartReplyContext] ?? SMART_REPLIES_FOR_LAST.default;
+  // Show top 2-3 chips only so the row stays compact.
+  const visibleReplies = (replies ?? []).slice(0, 3);
   const handleSend = (text: string) => {
     if (sendAs === "workspace" && wsAvailable) {
       onSendAsWorkspace!(text);
@@ -520,18 +748,22 @@ export function DraftComposer({
       onSend(text);
     }
     setVal(""); setHasSent(true); setSmartOpen(false);
+    onTyping?.(false);
     // After sending as workspace, snap back to "you" so consecutive
     // sends don't all auto-attribute to the workspace by accident.
     setSendAs("you");
   };
-  const canShowSmart = !val && !hasSent && (replies?.length ?? 0) > 0;
+  const canShowSmart = !val && !hasSent && visibleReplies.length > 0;
 
   return (
     <div data-tulala-composer-wrap style={{ marginTop: 8 }}>
-      {/* Smart-reply chips row — opt-in. Click the sparkle button next
-          to the composer to expand. Auto-collapses when the user types
-          or sends. Saves ~36px of vertical chrome on every thread. */}
-      {smartOpen && canShowSmart && (
+      {/* Smart-reply chips row — shown by default on fresh threads.
+          Top 2-3 chips displayed above the composer so users don't
+          have to look for them. Auto-collapses on first keystroke,
+          tab-switch, or send. The sparkle button re-opens them when
+          collapsed. canShowSmart gates the whole block (typing /
+          sending / no-replies all suppress this). */}
+      {canShowSmart && smartOpen && (
         <div data-tulala-smart-replies style={{
           display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap",
           alignItems: "center",
@@ -540,7 +772,7 @@ export function DraftComposer({
           <style dangerouslySetInnerHTML={{ __html:
             "@keyframes tulala-smart-fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}"
           }} />
-          {(replies ?? []).map((r, i) => (
+          {visibleReplies.map((r, i) => (
             <button key={i} type="button" onClick={() => { setVal(r); setSmartOpen(false); }} style={{
               padding: "5px 11px", borderRadius: 999,
               background: COLORS.royalSoft,
@@ -615,31 +847,58 @@ export function DraftComposer({
         </div>
       )}
       <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-        <button type="button" aria-label="Attach file" title="File attachments coming soon" disabled style={{
-          width: 36, height: 36, borderRadius: "50%", border: "none",
-          background: "transparent", color: COLORS.inkMuted, cursor: "not-allowed", opacity: 0.45,
-          display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-        }}>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M11 4.5v6a3 3 0 11-6 0V4a2 2 0 014 0v6a1 1 0 11-2 0V5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-          </svg>
-        </button>
-        {/* Sparkle toggle — opens the smart-reply panel above. Only
-            renders before the user has sent / started typing in this
-            thread (post-send, suggestions stop being relevant). */}
-        {canShowSmart && (
+        {/* C1 — attachment button. Enabled when the caller passes onAttach.
+            Hidden file input triggers the OS picker; selected file is
+            forwarded to onAttach for upload. Voice/mic stays stubbed. */}
+        {onAttach ? (
+          <label
+            title="Attach a file"
+            aria-label="Attach file"
+            style={{
+              width: 36, height: 36, borderRadius: "50%", border: "none",
+              background: "transparent", color: COLORS.inkMuted, cursor: "pointer",
+              display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+            }}
+          >
+            <input
+              type="file"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) { onAttach(f); e.target.value = ""; }
+              }}
+            />
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M11 4.5v6a3 3 0 11-6 0V4a2 2 0 014 0v6a1 1 0 11-2 0V5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+          </label>
+        ) : (
+          <button type="button" aria-label="Attach file" title="File attachments coming soon" disabled style={{
+            width: 36, height: 36, borderRadius: "50%", border: "none",
+            background: "transparent", color: COLORS.inkMuted, cursor: "not-allowed", opacity: 0.45,
+            display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+          }}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M11 4.5v6a3 3 0 11-6 0V4a2 2 0 014 0v6a1 1 0 11-2 0V5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+          </button>
+        )}
+        {/* Sparkle toggle — re-opens the smart-reply chips when they've
+            been dismissed. Only renders before the user has sent /
+            started typing. */}
+        {canShowSmart && !smartOpen && (
           <button
             type="button"
-            onClick={() => setSmartOpen((v) => !v)}
-            aria-expanded={smartOpen}
-            aria-label={smartOpen ? "Hide smart replies" : "Show smart replies"}
+            onClick={() => setSmartOpen(true)}
+            aria-label="Show smart replies"
             title="Smart replies"
             style={{
               width: 36, height: 36, borderRadius: "50%", border: "none",
-              background: smartOpen ? COLORS.royalSoft : "transparent",
+              background: "transparent",
               color: COLORS.royal, cursor: "pointer", flexShrink: 0,
               display: "inline-flex", alignItems: "center", justifyContent: "center",
               transition: "background .12s",
+              opacity: 0.65,
             }}
           >
             <svg width="15" height="15" viewBox="0 0 12 12" fill="none">
@@ -647,29 +906,106 @@ export function DraftComposer({
             </svg>
           </button>
         )}
-        <input
-          type="text"
-          value={val}
-          onChange={(e) => setVal(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && val.trim()) handleSend(val); }}
-          placeholder={placeholder}
-          style={{
-            flex: 1, padding: "10px 14px", borderRadius: 24,
-            background: "rgba(11,11,13,0.04)", border: `1.5px solid ${val ? COLORS.accent : "transparent"}`,
-            fontFamily: FONTS.body, fontSize: 13.5, color: COLORS.ink, outline: "none",
-          }}
-        />
+        {/* C3 — @-mention picker floats above the input when active.
+            Rendered inside the flex row via absolute positioning from
+            the relative wrapper below. */}
+        <div style={{ flex: 1, position: "relative" }}>
+          {showMentionPicker && (
+            <div style={{
+              position: "absolute", bottom: "calc(100% + 4px)", left: 0, right: 0,
+              background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 10,
+              boxShadow: "0 4px 16px rgba(11,11,13,0.12)",
+              zIndex: 20,
+              overflow: "hidden",
+              fontFamily: FONTS.body,
+            }}>
+              <div style={{ padding: "5px 10px 3px", fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-muted">
+                Mention someone
+              </div>
+              {filteredMentions.map((c, i) => (
+                <button
+                  key={`${c.name}-${i}`}
+                  type="button"
+                  onMouseDown={(e) => { e.preventDefault(); selectMention(c); }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    width: "100%", padding: "7px 12px",
+                    background: "transparent", border: "none",
+                    cursor: "pointer", textAlign: "left",
+                    fontFamily: FONTS.body,
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = COLORS.surfaceAlt; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                >
+                  <span style={{
+                    width: 24, height: 24, borderRadius: "50%", flexShrink: 0,
+                    background: COLORS.accentSoft, color: COLORS.accentDeep,
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 10, fontWeight: 700,
+                  }}>
+                    {c.name.split(" ").slice(0, 2).map(w => w[0]?.toUpperCase() ?? "").join("") || "@"}
+                  </span>
+                  <div>
+                    <div style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">{c.name}</div>
+                    {c.role && <div style={{ fontSize: 10.5 }} className="text-admin-ink-muted">{c.role}</div>}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+          <input
+            ref={inputRef}
+            type="text"
+            value={val}
+            onChange={(e) => {
+              setVal(e.target.value);
+              updateMentionState(e.target.value, e.target.selectionStart ?? e.target.value.length);
+              onTyping?.(e.target.value.length > 0);
+            }}
+            onBlur={() => onTyping?.(false)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape" && showMentionPicker) {
+                setMentionQuery(null);
+                e.preventDefault();
+                return;
+              }
+              if (e.key === "Enter" && !showMentionPicker && val.trim()) handleSend(val);
+            }}
+            onClick={(e) => {
+              updateMentionState(val, (e.target as HTMLInputElement).selectionStart ?? val.length);
+            }}
+            placeholder={placeholder}
+            style={{
+              width: "100%", padding: "10px 14px", borderRadius: 24,
+              background: "rgba(11,11,13,0.04)", border: `1.5px solid ${val ? COLORS.accent : "transparent"}`,
+              fontFamily: FONTS.body, fontSize: 13.5, color: COLORS.ink, outline: "none",
+              boxSizing: "border-box",
+            }}
+          />
+        </div>
         {!val && (
-          <button type="button" aria-label="Voice note" title="Voice notes coming soon" disabled style={{
-            width: 36, height: 36, borderRadius: "50%", border: "none",
-            background: "transparent", color: COLORS.inkMuted, cursor: "not-allowed", opacity: 0.45,
-            display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-          }}>
-            <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-              <rect x="6" y="2" width="4" height="8" rx="2" stroke="currentColor" strokeWidth="1.5"/>
-              <path d="M3 8a5 5 0 0010 0M8 13v2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
-          </button>
+          voiceContext ? (
+            <VoiceRecorderButton
+              inquiryId={voiceContext.inquiryId}
+              threadType={voiceContext.threadType}
+              accent={COLORS.accentDeep}
+              idleColor={COLORS.inkMuted}
+              onSent={() => onVoiceSent?.()}
+              onError={(msg) => __composerToast(msg)}
+            />
+          ) : (
+            <button type="button" aria-label="Voice note" title="Voice notes coming soon" disabled style={{
+              width: 36, height: 36, borderRadius: "50%", border: "none",
+              background: "transparent", color: COLORS.inkMuted, cursor: "not-allowed", opacity: 0.45,
+              display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+            }}>
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                <rect x="6" y="2" width="4" height="8" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+                <path d="M3 8a5 5 0 0010 0M8 13v2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            </button>
+          )
         )}
         <button type="button" disabled={!val.trim()} onClick={() => { if (val.trim()) handleSend(val); }}
           aria-label="Send"

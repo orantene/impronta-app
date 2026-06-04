@@ -3,6 +3,7 @@ import "server-only";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 import { guardedQuery } from "@/lib/server/guarded-query";
+import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
 
 /**
  * _data-bridge/overview-metrics.ts — workspace KPI loader.
@@ -55,6 +56,29 @@ export type WorkspaceOverviewMetrics = {
    * `('confirmed','completed')` for this tenant.
    */
   confirmedBookingCount: number | null;
+  /**
+   * ISO-4217 the workspace KPI cents are denominated in — the platform
+   * operating currency (default USD). The identity bar formats
+   * `pendingPayoutCents` with this so it never shows a hardcoded €.
+   */
+  kpiCurrency: string | null;
+  /**
+   * Bookings whose `currency_code` differs from the platform operating
+   * currency. These are NOT included in `pendingPayoutCents` /
+   * `confirmedYtdWorkspaceCents` (no live FX conversion). Each entry holds
+   * the currency code plus the summed workspace_fee_cents for pending and
+   * YTD-confirmed rows in that currency so the UI can surface them rather
+   * than silently hiding them.
+   *
+   * Empty array (not null) when every booking matches the operating currency.
+   * Null only when the financial KPI loader itself errored.
+   */
+  offCurrencySubtotals: Array<{
+    currency: string;
+    pendingCents: number;
+    confirmedYtdCents: number;
+    confirmedCount: number;
+  }> | null;
 };
 
 export async function loadWorkspaceOverviewMetrics(
@@ -191,6 +215,8 @@ export async function loadWorkspaceOverviewMetrics(
       pendingPayoutCents: financialKpisRes?.pendingPayoutCents ?? null,
       confirmedYtdWorkspaceCents: financialKpisRes?.confirmedYtdWorkspaceCents ?? null,
       confirmedBookingCount: financialKpisRes?.confirmedBookingCount ?? null,
+      kpiCurrency: financialKpisRes?.currency ?? null,
+      offCurrencySubtotals: financialKpisRes?.offCurrencySubtotals ?? null,
     };
   } catch (err) {
     logServerError("workspace.loadOverviewMetrics", err);
@@ -258,8 +284,9 @@ export async function loadStorefrontViews7d(
  * Workspace financial KPIs surfaced in the identity bar and Overview.
  *
  * Reads `booking_commission_snapshot` joined to `agency_bookings` for the
- * tenant. EUR-only — non-EUR rows are excluded with a server log (multi-
- * currency display is deferred; see transaction-architecture §10). Per
+ * tenant. Single-currency — rows not in the platform operating currency
+ * (default USD) are excluded with a server log (no FX; multi-currency
+ * aggregation is deferred; see transaction-architecture §10). Per
  * decision-log L43 the workspace's earned commission lane is
  * `workspace_fee_cents`. Talent Money reads `talent_net_cents` from the
  * same snapshot rows — the two surfaces must agree to the cent on the
@@ -269,6 +296,15 @@ type WorkspaceFinancialKpis = {
   pendingPayoutCents: number;
   confirmedYtdWorkspaceCents: number;
   confirmedBookingCount: number;
+  /** The currency these cents are denominated in (the platform operating currency). */
+  currency: string;
+  /** Per-currency aggregates for bookings not in the operating currency. */
+  offCurrencySubtotals: Array<{
+    currency: string;
+    pendingCents: number;
+    confirmedYtdCents: number;
+    confirmedCount: number;
+  }>;
 };
 
 async function loadWorkspaceFinancialKpis(
@@ -277,6 +313,12 @@ async function loadWorkspaceFinancialKpis(
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return null;
+
+    // USD-first: KPIs sum within a single currency (no FX). Sum the platform
+    // operating currency (default USD), not a hard-coded EUR — otherwise every
+    // USD booking is excluded and the Overview financials read zero.
+    const { operatingCurrency } = await loadPlatformOperatingCurrency();
+    const kpiCurrency = operatingCurrency.toUpperCase();
 
     const year = new Date().getUTCFullYear();
     const ytdSince = `${year}-01-01T00:00:00.000Z`;
@@ -329,20 +371,48 @@ async function loadWorkspaceFinancialKpis(
     const confirmedBookings = new Set<string>();
     const ytdMs = Date.parse(ytdSince);
 
+    // Accumulator for off-currency rows — keyed by uppercase ISO-4217 code.
+    const offCurrencyMap = new Map<string, {
+      pendingCents: number;
+      confirmedYtdCents: number;
+      confirmedBookingIds: Set<string>;
+    }>();
+
     for (const raw of (data ?? []) as unknown as Row[]) {
-      if (raw.currency_code !== "EUR") {
-        logServerError(
-          "workspace.loadFinancialKpis.non_eur",
-          new Error(
-            `Excluded non-EUR snapshot for booking ${raw.booking_id}: ${raw.currency_code}`,
-          ),
-        );
-        continue;
-      }
+      const rowCurrency = (raw.currency_code ?? "").toUpperCase();
       const b = raw.agency_bookings;
       // Belt-and-braces — RLS already scopes to this tenant.
       if (b.tenant_id !== tenantId) continue;
       if (b.status === "cancelled") continue;
+
+      if (rowCurrency !== kpiCurrency) {
+        // Off-currency booking: aggregate into per-currency subtotals rather
+        // than silently dropping. No FX conversion — the caller surfaces these
+        // as a separate figure so no money is hidden. Downgraded from error to
+        // info because mixed-currency workspaces are expected, not anomalous.
+        // eslint-disable-next-line no-console
+        console.info(
+          `[workspace.loadFinancialKpis.off_currency] ${rowCurrency} snapshot (operating ${kpiCurrency}) for booking ${raw.booking_id} — aggregated separately`,
+        );
+        const bucket = offCurrencyMap.get(rowCurrency) ?? {
+          pendingCents: 0,
+          confirmedYtdCents: 0,
+          confirmedBookingIds: new Set<string>(),
+        };
+        if (b.payout_lifecycle !== "paid") {
+          bucket.pendingCents += raw.workspace_fee_cents;
+        }
+        if (b.status === "confirmed" || b.status === "completed") {
+          const dateIso = b.event_date ?? b.starts_at ?? b.created_at;
+          const ts = dateIso ? Date.parse(dateIso) : NaN;
+          if (!Number.isNaN(ts) && ts >= ytdMs) {
+            bucket.confirmedYtdCents += raw.workspace_fee_cents;
+            bucket.confirmedBookingIds.add(b.id);
+          }
+        }
+        offCurrencyMap.set(rowCurrency, bucket);
+        continue;
+      }
 
       // Pending payout: workspace lane that hasn't been paid yet.
       if (b.payout_lifecycle !== "paid") {
@@ -360,10 +430,21 @@ async function loadWorkspaceFinancialKpis(
       }
     }
 
+    const offCurrencySubtotals = Array.from(offCurrencyMap.entries()).map(
+      ([currency, bucket]) => ({
+        currency,
+        pendingCents: bucket.pendingCents,
+        confirmedYtdCents: bucket.confirmedYtdCents,
+        confirmedCount: bucket.confirmedBookingIds.size,
+      }),
+    );
+
     return {
       pendingPayoutCents: pending,
       confirmedYtdWorkspaceCents: confirmedYtd,
       confirmedBookingCount: confirmedBookings.size,
+      currency: kpiCurrency,
+      offCurrencySubtotals,
     };
   } catch (err) {
     logServerError("workspace.loadFinancialKpis", err);

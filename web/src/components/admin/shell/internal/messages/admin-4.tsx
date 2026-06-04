@@ -1,9 +1,13 @@
 "use client";
 
 import React, { useTransition, useState, type CSSProperties } from "react";
+import { useRouter } from "next/navigation";
 import { MessageReactionMenu, replyTargetFromMessage, ReplyContextBar, type ReplyTarget } from "@/components/chat-interactions";
+import { VoiceNotePlayer } from "@/components/chat-interactions/VoiceNotePlayer";
+import { readVoiceMetaFromMessageMetadata } from "@/lib/messages/voice-meta";
 import { addReaction as addReactionAction, removeReaction as removeReactionAction } from "@/lib/server-actions/message-reactions";
 import { sendMessage as sendMessageAction } from "@/app/(workspace)/[tenantSlug]/admin/messages/actions";
+import { uploadInquiryAttachment, loadInquiryLineup } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import { type ThreadType } from "@/app/(workspace)/[tenantSlug]/_data-bridge";
 import { useAdminShell, TENANT, meetsRole, FONTS, COLORS, type RichInquiry } from "../state";
 import { Avatar } from "../primitives";
@@ -12,7 +16,7 @@ import { renderChatCardForMessage } from "./admin-3";
 import { appendLocalMessage, readLocalMessages, useMessageStashSubscription } from "./conversation-stash";
 import { FirstConvBanner } from "./shared/inbox-identity-1";
 import { DaySeparator, dayKey } from "./shared/machinery-15";
-import { ConversationTab, DraftComposer, SMART_REPLIES_FOR_LAST } from "./shared/machinery-16";
+import { ConversationTab, DraftComposer, SMART_REPLIES_FOR_LAST, type MentionCandidate } from "./shared/machinery-16";
 
 
 export function AdminMessageStream({
@@ -48,12 +52,31 @@ export function AdminMessageStream({
   topInset?: number;
 }) {
   const { toast, state, effectiveTenant } = useAdminShell();
+  const router = useRouter();
   const [, startTransition] = useTransition();
   // Items 1-3 wiring (Messages consolidation v2): reply target for the
   // composer's quoted-reply context bar. Cleared on send or × dismiss.
   const [replyTarget, setReplyTarget] = useState<ReplyTarget | null>(null);
   // Subscribe so locally-sent messages re-render the stream.
   useMessageStashSubscription();
+  // C3 — @-mention candidates: load the inquiry lineup once per
+  // inquiryId so the composer can offer @name auto-complete. Non-UUID
+  // ids (mock data) skip the fetch. Candidates are stable until the
+  // inquiry changes — no need to reload on every render.
+  const [mentionCandidates, setMentionCandidates] = useState<MentionCandidate[]>([]);
+  const isUuidInquiry = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inquiryId);
+  React.useEffect(() => {
+    if (!isUuidInquiry) return;
+    let cancelled = false;
+    loadInquiryLineup(effectiveTenant.slug, inquiryId).then((r) => {
+      if (cancelled || !r.ok) return;
+      const candidates: MentionCandidate[] = (r.data ?? [])
+        .filter(p => p.talentDisplayName)
+        .map(p => ({ name: p.talentDisplayName!, role: p.talentHeadline ?? "Talent" }));
+      setMentionCandidates(candidates);
+    });
+    return () => { cancelled = true; };
+  }, [inquiryId, isUuidInquiry, effectiveTenant.slug]);
   const localMessages = readLocalMessages(threadKey);
   // Phase 4 of System User direction — workspace identity available
   // to the composer when the user is coord+ on a paid tier. The
@@ -73,6 +96,7 @@ export function AdminMessageStream({
      *  appropriate ChatCard via renderChatCardForMessage. */
     messageKind?: string;
     cardPayload?: Record<string, unknown> | null;
+    metadata?: Record<string, unknown> | null;
   }> = [
     ...messages.map(m => ({
       id: m.id, body: m.body, ts: m.ts, isYou: !!m.isYou,
@@ -90,6 +114,7 @@ export function AdminMessageStream({
       // cast below.
       messageKind: (m as { messageKind?: string }).messageKind,
       cardPayload: (m as { cardPayload?: Record<string, unknown> | null }).cardPayload ?? null,
+      metadata: (m as { metadata?: Record<string, unknown> | null }).metadata ?? null,
     })),
     // Stashed sends honor the per-message sender so workspace-attributed
     // posts render as System User bubbles (not "you" bubbles). When
@@ -290,8 +315,10 @@ export function AdminMessageStream({
                   />
                 )}
                 {/* Item #4 wiring: typed message → ChatCard render.
-                    Plain text rows fall through to the bubble below. */}
-                {m.messageKind && m.messageKind !== "text" ? (
+                    Plain text rows fall through to the bubble below. Voice
+                    notes (messageKind='voice') reuse the text bubble chrome and
+                    swap the body for the inline audio player. */}
+                {m.messageKind && m.messageKind !== "text" && m.messageKind !== "voice" ? (
                   <div data-msg-card-wrap style={{ maxWidth: "78%", flex: 1 }}>
                     {renderChatCardForMessage(m.messageKind, m.cardPayload ?? {}, toast, { inquiryId, messageId: m.id })}
                   </div>
@@ -324,7 +351,14 @@ export function AdminMessageStream({
                     </div>
                   )}
                   <div style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-                    {m.body}
+                    {m.messageKind === "voice"
+                      ? (() => {
+                          const voiceMeta = readVoiceMetaFromMessageMetadata(m.metadata);
+                          return voiceMeta
+                            ? <VoiceNotePlayer meta={voiceMeta} accent={COLORS.accentDeep} onDark={mine} />
+                            : "Voice note unavailable";
+                        })()
+                      : m.body}
                   </div>
                   <div style={{ fontSize: 10, color: mine ? "rgba(255,255,255,0.55)" : COLORS.inkDim, marginTop: 5, display: "flex", alignItems: "center", gap: 4 }}>
                     {m.ts}
@@ -372,6 +406,7 @@ export function AdminMessageStream({
             threadKey={threadKey}
             placeholder={placeholder}
             smartReplyContext={smartReplyContext}
+            mentionCandidates={mentionCandidates.length > 0 ? mentionCandidates : undefined}
             onSend={(text) => {
               // Items 1-3 final wiring: thread the active reply target
               // through the send so the inserted row gets
@@ -404,6 +439,27 @@ export function AdminMessageStream({
                 if ("error" in result) toast(`Send failed: ${result.error}`);
               });
             }}
+            // C1 — attach files to the inquiry. Uses the existing
+            // uploadInquiryAttachment server action (admin-only). The
+            // attachment is uploaded into inquiry_attachments and a
+            // system message is posted to signal the upload.
+            onAttach={(file) => {
+              startTransition(async () => {
+                const fd = new FormData();
+                fd.append("inquiryId", inquiryId);
+                fd.append("file", file);
+                const r = await uploadInquiryAttachment(fd);
+                if (!r.ok) toast(`Attach failed: ${r.error}`);
+                else toast(`File attached — ${file.name}`);
+              });
+            }}
+            // Voice notes — record + send straight to the inquiry thread.
+            // A real DB UUID inquiry is required (the recorder uploads to
+            // storage + inserts a message_kind='voice' row). After a send we
+            // refresh the route so the server-rendered thread picks up the
+            // new voice message (metadata.voice → inline player).
+            voiceContext={isUuidInquiry ? { inquiryId, threadType } : undefined}
+            onVoiceSent={() => { router.refresh(); }}
           />
         )}
       </div>

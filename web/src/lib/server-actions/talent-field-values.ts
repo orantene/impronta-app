@@ -5,6 +5,7 @@ import { requireTalent } from "@/lib/server/action-guards";
 import { isReservedTalentProfileFieldKey } from "@/lib/field-canonical";
 import { readBooleanFromFormData } from "@/lib/field-form-boolean";
 import { mirrorHeightCmToTalentProfile } from "@/lib/field-values-height-mirror";
+import { resolveSelectValue } from "@/lib/fields/coerce-select-value";
 import { scheduleRebuildAiSearchDocument } from "@/lib/ai/schedule-rebuild-ai-search-document";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 
@@ -18,21 +19,6 @@ const SUPPORTED_VALUE_TYPES = ["text", "textarea", "number", "boolean", "date"] 
 
 function isSupportedValueType(v: string): v is (typeof SUPPORTED_VALUE_TYPES)[number] {
   return (SUPPORTED_VALUE_TYPES as readonly string[]).includes(v);
-}
-
-function readSelectAllowedValues(config: unknown): Set<string> | null {
-  if (!config || typeof config !== "object" || Array.isArray(config)) return null;
-  const input = (config as Record<string, unknown>).input;
-  if (input !== "select") return null;
-  const options = (config as Record<string, unknown>).options;
-  if (!Array.isArray(options)) return null;
-  const values = new Set<string>();
-  for (const o of options) {
-    if (!o || typeof o !== "object" || Array.isArray(o)) continue;
-    const v = String((o as Record<string, unknown>).value ?? "").trim();
-    if (v) values.add(v);
-  }
-  return values.size ? values : null;
 }
 
 export async function saveTalentScalarFieldValues(
@@ -97,11 +83,15 @@ export async function saveTalentScalarFieldValues(
     let patch: Record<string, unknown> | null = null;
 
     if (def.value_type === "text" || def.value_type === "textarea") {
-      const allowed = def.value_type === "text" ? readSelectAllowedValues(def.config) : null;
-      if (allowed && value_text.length > 0 && !allowed.has(value_text)) {
-        return { error: `Invalid value for ${def.label_en}.` };
+      let textToWrite = value_text;
+      if (def.value_type === "text" && value_text.length > 0) {
+        const res = resolveSelectValue(def.config, value_text);
+        // Don't let an orphaned legacy value on an untouched select brick the
+        // whole save — skip it. Self-heal label/case drift on a match.
+        if (res.kind === "unmatchable") continue;
+        if (res.kind === "matched") textToWrite = res.value;
       }
-      patch = value_text.length > 0 ? { value_text } : null;
+      patch = textToWrite.length > 0 ? { value_text: textToWrite } : null;
     } else if (def.value_type === "number") {
       const raw = value_text;
       const n = raw ? Number(raw) : NaN;

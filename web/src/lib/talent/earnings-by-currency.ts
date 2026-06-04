@@ -65,18 +65,18 @@ export async function loadTalentEarningsByCurrencyWithSupabase(
     ]);
 
     const defaultCurrency = (
-      (profileRes.data as { default_currency?: string } | null)?.default_currency ?? "EUR"
+      (profileRes.data as { default_currency?: string } | null)?.default_currency ?? "USD"
     ).toUpperCase();
 
     if (snapshotRows.length === 0) {
       return { defaultCurrency, byCurrency: [], currencies: [] };
     }
 
-    // Group rows by currency code. Rows without a code (EUR-only path)
-    // fall back to "EUR" so single-currency tenants are unaffected.
+    // Group rows by currency code. Rows without a code fall back to "USD"
+    // (USD-first: the platform operates in USD).
     const byCurrencyRows = new Map<string, TalentSnapshotAggregateRow[]>();
     for (const snap of snapshotRows) {
-      const code = (snap.currencyCode ?? "EUR").toUpperCase();
+      const code = (snap.currencyCode ?? "USD").toUpperCase();
       const list = byCurrencyRows.get(code) ?? [];
       list.push(snap);
       byCurrencyRows.set(code, list);

@@ -65,6 +65,10 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getPublicPathPrefix } from "@/lib/saas";
 import { prefixPublicHrefsDeep } from "@/lib/saas/public-hrefs";
 import { getHomepageData } from "@/lib/home-data";
+import {
+  resolveGoogleMapsKeyForClient,
+  resolveTenantCaptcha,
+} from "@/lib/integrations/resolve";
 
 function resolveBuilderSectionBindingForSlotEntry(
   entry: HomepageSnapshot["slots"][number],
@@ -185,12 +189,35 @@ export async function HomepageCmsSections({
   includeBuilderNodeRendererStyles = true,
   onlySectionId,
 }: HomepageCmsSectionsProps) {
-  const [editMode, previewActive, publicPathPrefix, actorSession] =
+  // Only pay for the tenant Maps-key resolution when a map-bearing section is
+  // actually in the snapshot (today: location_discovery's orbit map). Avoids a
+  // service-role round-trip on every storefront render.
+  const needsMapsKey = snapshot.slots.some(
+    (s) => s.sectionTypeKey === "location_discovery",
+  );
+  const needsCaptcha = snapshot.slots.some(
+    (s) => s.sectionTypeKey === "contact_form",
+  );
+
+  const [
+    editMode,
+    previewActive,
+    publicPathPrefix,
+    actorSession,
+    mapsApiKey,
+    resolvedCaptcha,
+  ] =
     await Promise.all([
       isEditModeActiveForTenant(tenantId),
       isPreviewActiveForTenant(tenantId),
       getPublicPathPrefix(),
       getCachedActorSession(),
+      needsMapsKey
+        ? resolveGoogleMapsKeyForClient(tenantId)
+        : Promise.resolve(null),
+      needsCaptcha
+        ? resolveTenantCaptcha(tenantId)
+        : Promise.resolve(null),
     ]);
 
   // Wave 5B · #38 — render-time signals for node-level conditional visibility.
@@ -204,6 +231,12 @@ export async function HomepageCmsSections({
   const visibilityContext: BuilderVisibilityContext | undefined = editMode
     ? undefined
     : { locale, signedIn: Boolean(actorSession.user) };
+
+  // Thread only the PUBLIC widget config to components; the verify secret never
+  // leaves the submit route.
+  const captchaConfig = resolvedCaptcha
+    ? { provider: resolvedCaptcha.provider, siteKey: resolvedCaptcha.siteKey }
+    : null;
 
   // Filter by slot AND/OR section id. The storefront mounts one
   // `<HomepageCmsSections onlySectionId=… />` per non-hero section without
@@ -443,6 +476,8 @@ export async function HomepageCmsSections({
             preview={false}
             sectionId={entry.sectionId}
             publicPathPrefix={publicPathPrefix}
+            mapsApiKey={mapsApiKey}
+            captcha={captchaConfig}
             builderNodeBindings={builderNodeBindings}
           />
         );

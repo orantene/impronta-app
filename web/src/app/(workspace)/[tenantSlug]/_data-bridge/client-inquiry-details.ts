@@ -29,6 +29,8 @@ import {
   describeCrossTenantContext,
 } from "@/lib/inquiry/cross-tenant-context";
 import { loadLineupStatusSummary } from "@/lib/inquiry/acceptance-summary";
+import { loadTalentCardThumbs } from "./talent-card-thumbs";
+import { type BalanceCollectionMethod, type RefundPolicyKey, normalizeDepositPct } from "@/lib/billing/commercial-terms-types";
 
 // ─── Output shape ───────────────────────────────────────────────────────────
 
@@ -182,6 +184,22 @@ export type ClientInquiryDetails = {
       total_price: number;
       talent_name: string | null;
     }>;
+    /**
+     * Audit #12-A (client side): the CLIENT's own approval status on THIS offer.
+     * The multi-party gate keeps the offer `sent` until every party (client +
+     * each talent) approves, so without this the client's OfferTab kept
+     * re-showing Approve/Counter/Decline + "Awaiting your decision" after they
+     * had already approved. `accepted` ⇒ suppress the decision CTAs and show an
+     * honest "awaiting the other parties" state instead.
+     */
+    myApprovalStatus: "pending" | "accepted" | "rejected" | null;
+    /** W6a — negotiated booking terms (deposit/balance/refund). Null if unset. Client-safe. */
+    commercialTerms: {
+      depositPct: number;
+      depositAmountCents: number;
+      balanceMethod: BalanceCollectionMethod;
+      refundPolicy: RefundPolicyKey;
+    } | null;
   } | null;
 
   // ─── Section: Payment (client-facing, NO net/fee split) ──────────────
@@ -204,6 +222,13 @@ export type ClientInquiryDetails = {
     actor_name: string | null;
     actor_role: string | null;
     created_at: string;
+    /**
+     * Raw engine payload for this event. Callers may read:
+     *   - `changed` (Record<fieldName, {from, to}>) for inquiry.details_updated
+     *   - `amount_label` / `total_label` for money events
+     * Null for events that carry no structured payload.
+     */
+    payload: Record<string, unknown> | null;
   }>;
 
   /**
@@ -228,25 +253,31 @@ export type ClientInquiryDetails = {
 // ─── Client-visible activity event allow-list ───────────────────────────────
 // Spec §13 — client should see real progress, not internal noise.
 // Anything not in this list is filtered out.
+// IMPORTANT: these strings must match the DB values in ENGINE_EVENT_TYPES
+// (inquiry-events.ts), NOT the TypeScript const names.
 const CLIENT_VISIBLE_EVENT_TYPES = new Set<string>([
-  "INQUIRY_SUBMITTED",
-  "INQUIRY_MOVED_TO_COORDINATION",
-  "COORDINATOR_ASSIGNED",
-  "COORDINATOR_ACCEPTED",
-  "ROSTER_TALENT_INVITED",
-  "ROSTER_TALENT_ACCEPTED",
-  "ROSTER_TALENT_DECLINED",
-  "OFFER_CREATED",
-  "OFFER_SENT",
-  "OFFER_CLIENT_REJECTED",
-  "OFFER_CLIENT_ACCEPTED",
-  "APPROVAL_SUBMITTED",
-  "APPROVALS_COMPLETED",
-  "INQUIRY_CONVERTED_TO_BOOKING",
-  "BOOKING_CONFIRMED",
-  "INQUIRY_FROZEN",
-  "INQUIRY_UNFROZEN",
-  "INQUIRY_ARCHIVED",
+  "inquiry.submitted",
+  "inquiry.moved_to_coordination",
+  "inquiry.details_updated",
+  "inquiry.frozen",
+  "inquiry.unfrozen",
+  "inquiry.archived",
+  "inquiry.cancelled",
+  "coordinator.assigned",
+  "coordinator.accepted",
+  "roster.talent_invited",
+  "roster.talent_accepted",
+  "roster.talent_declined",
+  "offer.created",
+  "offer.sent",
+  "offer.client_rejected",
+  "approval.submitted",
+  "approval.all_complete",
+  "booking.created",
+  // Commercial audit events written by commercial-audit.ts / transactions.ts
+  "payment_requested",
+  "payment_paid",
+  "booking_confirmed",
 ]);
 
 // ─── Loader ─────────────────────────────────────────────────────────────────
@@ -339,6 +370,7 @@ export async function loadClientInquiryDetails(
               `id, status, version, total_client_price, currency_code,
                notes, valid_until, sent_at,
                rejection_reason, rejection_reason_text,
+               deposit_pct, deposit_amount_cents, balance_collection_method, refund_policy_key,
                inquiry_offer_line_items (
                  id, label, pricing_unit, units, unit_price, total_price,
                  sort_order,
@@ -357,10 +389,10 @@ export async function loadClientInquiryDetails(
             .eq("id", inq.coordinator_id)
             .maybeSingle()
         : Promise.resolve({ data: null, error: null }),
-      // Recent activity
+      // Recent activity — include payload for field-diff + money event rendering
       readClient
         .from("inquiry_events")
-        .select("id, event_type, actor_user_id, actor_role, created_at")
+        .select("id, event_type, actor_user_id, actor_role, created_at, payload")
         .eq("inquiry_id", inquiryId)
         .order("created_at", { ascending: false })
         .limit(50),
@@ -409,6 +441,7 @@ export async function loadClientInquiryDetails(
       actor_user_id: string | null;
       actor_role: string | null;
       created_at: string;
+      payload: Record<string, unknown> | null;
     };
     const allEvents = (eventsRes.data ?? []) as EventRow[];
     const visibleEvents = allEvents
@@ -455,6 +488,14 @@ export async function loadClientInquiryDetails(
       } | null;
     };
     const parts = (participantsRes.data ?? []) as unknown as ParticipantRow[];
+    // Resolve each lineup talent's public card photo so the CLIENT sees a real
+    // face next to who they inquired about / are about to book — not initials.
+    // (Was a `photo_url: null` "Phase D" stub.) Same media pipeline + variant
+    // fallback the roster/discover surfaces use, via the shared resolver.
+    const talentThumbs = await loadTalentCardThumbs(
+      admin ?? readClient,
+      parts.map((p) => p.talent_profile_id),
+    );
     const talentLineup = parts.map((p) => {
       const tp = p.talent_profiles;
       const name =
@@ -466,7 +507,7 @@ export async function loadClientInquiryDetails(
         talent_profile_id: p.talent_profile_id,
         name,
         profile_code: tp?.profile_code ?? null,
-        photo_url: null, // Phase D will pipe through media
+        photo_url: p.talent_profile_id ? talentThumbs.get(p.talent_profile_id) ?? null : null,
         status: p.status,
       };
     });
@@ -496,9 +537,38 @@ export async function loadClientInquiryDetails(
       sent_at: string | null;
       rejection_reason: string | null;
       rejection_reason_text: string | null;
+      deposit_pct: number | null;
+      deposit_amount_cents: number | null;
+      balance_collection_method: BalanceCollectionMethod | null;
+      refund_policy_key: RefundPolicyKey | null;
       inquiry_offer_line_items: OfferLineRow[] | null;
     };
     const offerRow = offerRes.data as OfferRow | null;
+    // Audit #12-A (client side): read the CLIENT's own approval on this offer so
+    // the OfferTab stops re-showing Approve/Counter/Decline after they approve
+    // (the multi-party gate keeps the offer `sent` until everyone is in). Read
+    // via service-role keyed on the inquiry's client participant + this offer —
+    // scoped to this one inquiry, so no cross-client leak.
+    let clientApprovalStatus: "pending" | "accepted" | "rejected" | null = null;
+    if (admin && offerRow?.id) {
+      const { data: cp } = await admin
+        .from("inquiry_participants")
+        .select("id")
+        .eq("inquiry_id", inq.id)
+        .eq("role", "client")
+        .limit(1)
+        .maybeSingle();
+      if (cp?.id) {
+        const { data: appr } = await admin
+          .from("inquiry_approvals")
+          .select("status")
+          .eq("offer_id", offerRow.id)
+          .eq("participant_id", cp.id as string)
+          .maybeSingle();
+        clientApprovalStatus =
+          (appr?.status as "pending" | "accepted" | "rejected" | null) ?? null;
+      }
+    }
     const offer = offerRow
       ? {
           exists: true,
@@ -528,6 +598,15 @@ export async function loadClientInquiryDetails(
                 || `${ln.talent_profiles?.first_name ?? ""} ${ln.talent_profiles?.last_name ?? ""}`.trim()
                 || null,
             })),
+          myApprovalStatus: clientApprovalStatus,
+          commercialTerms: offerRow.balance_collection_method
+            ? {
+                depositPct: normalizeDepositPct(offerRow.balance_collection_method, Number(offerRow.deposit_pct ?? 0)),
+                depositAmountCents: Number(offerRow.deposit_amount_cents ?? 0),
+                balanceMethod: offerRow.balance_collection_method,
+                refundPolicy: offerRow.refund_policy_key ?? "tiered",
+              }
+            : null,
         }
       : null;
 
@@ -709,6 +788,7 @@ export async function loadClientInquiryDetails(
         actor_name: e.actor_user_id ? (actorNameMap.get(e.actor_user_id) ?? null) : null,
         actor_role: e.actor_role,
         created_at: e.created_at,
+        payload: e.payload ?? null,
       })),
 
       // D5.4 / D5.5 — rollup labels for the Lineup tab. Two extra

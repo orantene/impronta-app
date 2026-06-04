@@ -59,9 +59,9 @@ export function CalendarPage() {
       });
   }, [bridgeTalentCalendarEntries]);
   const [filter, setFilter] = useState<"booked" | "pending" | "inquiry" | "past" | "cancelled" | "all">("booked");
-  // F7: Month / Week / Day view toggle.
-  // Bridge mode defaults to "week" — the month grid is static mock-only;
-  // week view renders real events from the bridge.
+  // F7: Month / Week / Day view toggle. Bridge mode defaults to "week"
+  // (a focused near-term view); all three views — including the now real,
+  // date-aware month grid — render live bridge data.
   const [viewMode, setViewMode] = useState<"month" | "week" | "day">(isBridgeMode ? "week" : "month");
 
   // T3 — "Block dates" form state for talent_availability_blocks creation.
@@ -442,7 +442,7 @@ export function CalendarPage() {
             fontFamily: FONTS.body,
           }}
         >
-          {(isBridgeMode ? ["week", "day"] as const : ["month", "week", "day"] as const).map((m) => {
+          {(["month", "week", "day"] as const).map((m) => {
             const active = viewMode === m;
             return (
               <button
@@ -600,9 +600,20 @@ export function CalendarPage() {
         </div>
       )}
 
-      {/* Month grid — only in prototype mode; bridge mode uses week/day list views
-          since CalendarMonthGrid is built from static May 2026 fixture data. */}
-      {viewMode === "month" && !isBridgeMode && <CalendarMonthGrid />}
+      {/* Month grid. Bridge mode renders the real, date-aware grid from
+          bridgeTalentCalendarEntries (bookings/holds/blocks on the actual
+          current month, clicks → talent-hub-detail). Prototype/standalone
+          mode keeps the static May-2026 fixture grid. */}
+      {viewMode === "month" && (
+        isBridgeMode ? (
+          <CalendarMonthGrid
+            entries={bridgeTalentCalendarEntries ?? []}
+            onOpen={(e) => openDrawer("talent-hub-detail", { id: e.inquiryId ?? e.id })}
+          />
+        ) : (
+          <CalendarMonthGrid />
+        )
+      )}
 
       {/* Week view — 7-row stack with day labels. Same row format as
           the list below but explicitly grouped by day. */}

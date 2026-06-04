@@ -5,6 +5,7 @@
 // the barrel + the "public export surface" proof.
 // ─────────────────────────────────────────────────────────────────────
 import type { DrawerId } from "./drawer-ids";
+import type { OfferCommercialTerms } from "@/lib/billing/commercial-terms-types";
 
 // ─── Surface dimensions ──────────────────────────────────────────────
 
@@ -163,6 +164,13 @@ export type ThreadMessage = {
   requiresAction?: boolean;
   requiresActionLabel?: string; // e.g. "Review offer before it expires" — defaults to body
   requiresActionCta?: string;   // e.g. "Review offer" — defaults to "Resolve →"
+  // Structured-card / voice discriminators carried from the persisted row.
+  // Optional so mock rows (which omit them) still satisfy the type.
+  messageKind?: string;
+  cardPayload?: Record<string, unknown> | null;
+  /** Raw message metadata jsonb — carries the voice-note descriptor for
+   *  messageKind='voice' (parsed via readVoiceMetaFromMessageMetadata). */
+  metadata?: Record<string, unknown> | null;
 };
 
 export type CoordinatorAssignment = {
@@ -183,6 +191,8 @@ export type RequirementGroup = {
   talents: {
     name: string;
     thumb: string;
+    /** One-line discipline (e.g. "Editorial Model") shown under the name. */
+    headline?: string;
     status: LineItemStatus;
     lastSaidTs?: string;
     lastSaidSnippet?: string;
@@ -199,6 +209,17 @@ export type Offer = {
   clientApproval: "pending" | "accepted" | "rejected";
   /** Superseded offer versions — oldest first. Used for version history trail (C19). */
   history?: Array<{ version: number; total: string; sentAt: string; note: string }>;
+  /**
+   * W6a — negotiated commercial terms on this offer (deposit / balance method /
+   * refund policy). Populated by the offer loader once the data-bridge selects
+   * the new inquiry_offers columns. Optional so the type stays valid before the
+   * loader is wired; the read-only summary renders only when present.
+   */
+  commercialTerms?: OfferCommercialTerms | null;
+  /** Offer total in MINOR units (cents) — for computing deposit/balance amounts. */
+  totalCents?: number;
+  /** ISO 4217 currency for the offer total. */
+  currencyCode?: string;
 };
 
 /**

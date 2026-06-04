@@ -74,7 +74,7 @@ export async function GET(
   // Not signed in → register, carrying the app-host invite landing as `next`.
   // Signed in + no profile → onboarding role picker; redemption will fire on
   //   the next callback/session bounce once a profile exists.
-  // Signed in + profile → inline redemption then /talent/representations.
+  // Signed in + profile → inline redemption then /talent/agencies.
   if (!sessionUserId) {
     const nextPath = encodeURIComponent(`/invite/${token}`);
     const response = NextResponse.redirect(
@@ -87,7 +87,7 @@ export async function GET(
   // Signed in — try immediate redemption. The redeem module returns
   // `no_profile` cleanly when the user hasn't finished onboarding yet.
   const redemptionResponse = NextResponse.redirect(
-    `${origin}/talent/representations`,
+    `${origin}/talent/agencies`,
   );
   setInviteCookieOnResponse(redemptionResponse, payload);
 

@@ -1,5 +1,7 @@
 export type TalentEarningsRow = {
   id: string;
+  /** The `agency_bookings.id` for this row — used by the payout-statement PDF route. */
+  bookingId: string;
   workDate: string;
   payoutDate: string | null;
   agencyName: string;
@@ -48,7 +50,9 @@ export const EMPTY_TALENT_EARNINGS: TalentEarnings = {
     ytdNetCents: 0,
     pendingCents: 0,
     confirmedPipelineCents: 0,
-    currency: "EUR",
+    // USD-first default (platform operates in USD); per-currency bundles
+    // overwrite this with their own code.
+    currency: "USD",
   },
   perAgency: [],
   rows: [],
@@ -97,6 +101,62 @@ export function mapBookingPayoutStatus(
     return "pending";
   }
   return "confirmed";
+}
+
+/**
+ * The date a talent's money for a booking actually LANDED — used to window the
+ * Money dashboard ("Paid this month") on the PAY date, not the shoot date.
+ *
+ * Audit #14: the loader historically stamped `payoutDate = shoot date` whenever
+ * a booking was paid out, so a job shot in May but paid in June counted under
+ * May — and "Paid this month" missed it entirely. The true payout date is when
+ * the talent's transfer settled (`booking_payouts.transferred_at`, talent leg).
+ *
+ * Precedence:
+ *   1. `transferredAtIso` — the real Stripe transfer settlement date (preferred).
+ *   2. legacy fallback — a `paid` booking with no ledger transfer date (predates
+ *      the payout ledger) keeps its old behaviour (shoot date) so it still
+ *      counts as paid somewhere rather than vanishing.
+ *   3. otherwise null (not yet paid out → no payout date).
+ *
+ * Returns a `YYYY-MM-DD` date string (or null). `transferredAtIso` may be a full
+ * timestamp; it is truncated to the calendar date.
+ */
+export function resolveEarningsPayoutDate(args: {
+  transferredAtIso: string | null;
+  workDateIso: string;
+  payoutLifecycle: string;
+}): string | null {
+  if (args.transferredAtIso) {
+    const d = args.transferredAtIso.slice(0, 10);
+    if (d) return d;
+  }
+  if (args.payoutLifecycle === "paid") return args.workDateIso;
+  return null;
+}
+
+/**
+ * Whether a booking row belongs in the talent's earnings window (since → now).
+ *
+ * Audit #14: a booking is kept when EITHER its shoot date OR its payout date
+ * falls in the window. Keeping the shoot-date arm preserves the unpaid pipeline
+ * (confirmed/pending jobs this year that haven't paid out yet); adding the
+ * payout-date arm fixes the cross-year hole where a job shot last December but
+ * PAID this January would otherwise be filtered out before "Paid this month"
+ * ever saw it.
+ */
+export function isWithinEarningsWindow(
+  workDateIso: string,
+  payoutDateIso: string | null,
+  sinceMs: number,
+): boolean {
+  const workMs = Date.parse(workDateIso);
+  if (Number.isFinite(workMs) && workMs >= sinceMs) return true;
+  if (payoutDateIso) {
+    const payMs = Date.parse(payoutDateIso);
+    if (Number.isFinite(payMs) && payMs >= sinceMs) return true;
+  }
+  return false;
 }
 
 function averageCommissionBps(rows: TalentSnapshotAggregateRow[]): number {
@@ -181,11 +241,12 @@ export function buildTalentEarnings(
       ytdNetCents,
       pendingCents,
       confirmedPipelineCents,
-      currency: opts?.currency ?? "EUR",
+      currency: opts?.currency ?? "USD",
     },
     perAgency,
     rows: rows.map((row) => ({
       id: row.bookingTalentId,
+      bookingId: row.bookingId,
       workDate: row.workDate,
       payoutDate: row.payoutDate,
       agencyName: row.agencyName,

@@ -500,7 +500,7 @@ export function PackageRatesEditor({ packages, onChange }: {
   onChange: (p: PackageRate[]) => void;
 }) {
   const add = () => onChange([...packages, {
-    id: `pkg-${Date.now()}`, name: "", description: "", amount: 0, currency: "EUR",
+    id: `pkg-${Date.now()}`, name: "", description: "", amount: 0, currency: "USD",
   }]);
   const update = (id: string, p: Partial<PackageRate>) =>
     onChange(packages.map(x => x.id === id ? { ...x, ...p } : x));

@@ -508,7 +508,7 @@ export const RatesEditor = React.memo(function RatesEditor({ rates, selectedType
     const cur = rates.find(r => r.typeId === tid);
     if (cur) return { ...cur, parent: child.parent, child: child.child };
     const unit = TYPE_RATE_UNIT[child.parent.id];
-    return { typeId: tid, amount: 0, currency: "EUR", unit, parent: child.parent, child: child.child };
+    return { typeId: tid, amount: 0, currency: "USD", unit, parent: child.parent, child: child.child };
   }).filter(Boolean) as (ProfileRate & { parent: TaxonomyParent; child: TaxonomyChild })[];
 
   const updateRow = (typeId: string, patch: Partial<ProfileRate>) => {
@@ -519,7 +519,7 @@ export const RatesEditor = React.memo(function RatesEditor({ rates, selectedType
       const child = findChild(typeId);
       if (!child) return;
       const unit = TYPE_RATE_UNIT[child.parent.id];
-      onChange([...rates, { typeId, amount: 0, currency: "EUR", unit, ...patch } as ProfileRate]);
+      onChange([...rates, { typeId, amount: 0, currency: "USD", unit, ...patch } as ProfileRate]);
     }
   };
 

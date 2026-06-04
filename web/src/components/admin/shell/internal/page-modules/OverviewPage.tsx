@@ -4,8 +4,8 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ActivityFeedItem, Affordance, Bullet, CompactLockedCard, GhostButton, Icon, MoreWithSection, PrimaryButton, PrimaryCard, SecondaryCard, StarterCard, StatDot, StatusCard } from "../primitives";
-import { ACTIVATION_TASKS, COLORS, FONTS, MY_TALENT_PROFILE, RADIUS, RICH_INQUIRIES, TRANSITION, getInquiries, getRoster, getTeam, meetsRole, pluralize, relativeTime, useAdminShell } from "../state";
+import { ActivityFeedItem, Affordance, Bullet, CompactLockedCard, GhostButton, Icon, MoreWithSection, PrimaryButton, PrimaryCard, SecondaryButton, SecondaryCard, StarterCard, StatDot, StatusCard } from "../primitives";
+import { ACTIVATION_TASKS, COLORS, FONTS, MY_TALENT_PROFILE, RADIUS, RICH_INQUIRIES, TRANSITION, formatRecentActivity, getInquiries, getRoster, getTeam, meetsRole, pluralize, relativeTime, useAdminShell } from "../state";
 
 // Q5: demo activity feed builder hoisted to module scope so the Date.now()
 // call isn't inside a render-time / useMemo body (react-hooks/purity flags
@@ -38,6 +38,7 @@ export function OverviewPage() {
     effectiveRoster,
     bridgeSessionIdentity,
     bridgeTenantIdentity,
+    bridgeRecentActivity,
     effectiveTenant,
     tenantSlug,
   } = useAdminShell();
@@ -54,6 +55,17 @@ export function OverviewPage() {
 
   // Q5: timestamps pinned to mount time (see module-level mkDemoActivityFeed).
   const demoActivityFeed = useMemo(() => mkDemoActivityFeed(), []);
+
+  // Real workspace activity from inquiry_events (via the bridge). `null` means
+  // standalone/mock mode → fall back to the demo feed. An empty array means
+  // live mode with no events yet → render the honest empty state, NOT demo.
+  // formatRecentActivity owns the new Date() call (kept out of this body to
+  // satisfy react-hooks/purity, same reason mkDemoActivityFeed is hoisted).
+  const isLiveActivity = bridgeRecentActivity != null;
+  const realActivity = useMemo(
+    () => (bridgeRecentActivity ?? []).map((it) => formatRecentActivity(it)),
+    [bridgeRecentActivity],
+  );
 
   if (isFree) {
     return <OverviewFree />;
@@ -95,11 +107,17 @@ export function OverviewPage() {
         })()}
         subtitle={new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
         actions={
-          canEdit && (
-            <PrimaryButton onClick={() => openDrawer("new-inquiry")}>
-              New inquiry
-            </PrimaryButton>
-          )
+          <>
+            {/* Read-only — every workspace role can review the activity log. */}
+            <SecondaryButton onClick={() => openDrawer("team-activity")}>
+              Recent activity
+            </SecondaryButton>
+            {canEdit && (
+              <PrimaryButton onClick={() => openDrawer("new-inquiry")}>
+                New inquiry
+              </PrimaryButton>
+            )}
+          </>
         }
       />
 
@@ -152,6 +170,7 @@ export function OverviewPage() {
         nextBookingLabel={confirmedThisWeek[0]?.clientName ? `${confirmedThisWeek[0].clientName} starts soon` : null}
         oldestWaitDays={awaiting.length > 0 ? Math.max(...awaiting.map((i) => i.ageDays)) : 0}
         onOpen={() => openDrawer("today-pulse")}
+        onOpenDrafts={() => openDrawer("drafts-holds")}
       />
 
       {/* Stat strip — replaces the old 4-up StatusCard grid that ate
@@ -481,11 +500,23 @@ export function OverviewPage() {
             padding: "0 18px",
           }}
         >
-          {demoActivityFeed.map((ev, i, arr) => (
-            <div key={i} style={{ borderTop: i > 0 ? `1px solid ${COLORS.borderSoft}` : "none" }}>
-              <ActivityFeedItem {...ev} />
+          {isLiveActivity && realActivity.length === 0 ? (
+            <div style={{ padding: "18px 2px", fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink-muted">
+              No activity yet. Offers, approvals, roster changes, and bookings show up here as your team works.
             </div>
-          ))}
+          ) : (
+            (isLiveActivity ? realActivity : demoActivityFeed).slice(0, 6).map((ev, i) => (
+              <div key={"id" in ev ? ev.id : i} style={{ borderTop: i > 0 ? `1px solid ${COLORS.borderSoft}` : "none" }}>
+                <ActivityFeedItem
+                  actor={ev.actor}
+                  action={ev.action}
+                  target={ev.target}
+                  timestamp={ev.timestamp}
+                  iconName={ev.iconName}
+                />
+              </div>
+            ))
+          )}
         </div>
       </div>
     </>

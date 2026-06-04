@@ -46,7 +46,8 @@ const SAMPLE_ROWS: TalentSnapshotAggregateRow[] = [
 test("buildTalentEarnings aggregates totals and per-agency cards", () => {
   const earnings = buildTalentEarnings(SAMPLE_ROWS);
 
-  assert.equal(earnings.totals.currency, "EUR");
+  // USD-first: buildTalentEarnings defaults to USD when no currency opt is given.
+  assert.equal(earnings.totals.currency, "USD");
   assert.equal(earnings.totals.ytdGrossCents, 440_000);
   assert.equal(earnings.totals.ytdNetCents, 354_000);
   assert.equal(earnings.totals.pendingCents, 0);

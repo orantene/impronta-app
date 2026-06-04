@@ -13,6 +13,9 @@ import {
   releaseHeldPayouts,
   payoutIdempotencyKey,
   syncBookingPayoutLifecycle,
+  reverseBookingPayouts,
+  computeTalentProtectiveClawback,
+  reversalLegKey,
 } from "@/lib/payments/booking-payouts-ledger";
 
 type Row = {
@@ -231,4 +234,232 @@ test("lifecycle: no talent legs recorded → no-op (never blocks, never falsely 
   const updates: Array<Record<string, unknown>> = [];
   await syncBookingPayoutLifecycle(makeLifecycleSupabase([], updates), "bk_1");
   assert.equal(updates.length, 0);
+});
+
+// ── Audit #14: reverseBookingPayouts + computeTalentProtectiveClawback ───────
+
+type PayoutLegRow = {
+  id: string;
+  booking_id: string;
+  participant_id: string;
+  party: "talent" | "workspace";
+  amount_cents: number;
+  currency: string;
+  status: string;
+  stripe_transfer_id: string | null;
+  attempts: number;
+};
+
+/** Fake sb over booking_payouts: select-by-booking returns legs; update-by-id mutates in place. */
+function makeReversalSupabase(legs: PayoutLegRow[]): SupabaseClient {
+  const make = () => {
+    let pendingPatch: Record<string, unknown> | null = null;
+    const filters: Array<[string, unknown]> = [];
+    const chain: Record<string, unknown> = {
+      select: () => chain,
+      update: (patch: Record<string, unknown>) => {
+        pendingPatch = patch;
+        return chain;
+      },
+      eq: (col: string, val: unknown) => {
+        if (pendingPatch) {
+          const target = legs.find((l) => l.id === val);
+          if (target) Object.assign(target, pendingPatch);
+          pendingPatch = null;
+          return Promise.resolve({ data: null, error: null });
+        }
+        filters.push([col, val]);
+        return chain;
+      },
+      then: (resolve: (v: unknown) => void) => {
+        const filtered = legs.filter((l) =>
+          filters.every(([c, v]) => (l as unknown as Record<string, unknown>)[c] === v),
+        );
+        resolve({ data: filtered, error: null });
+      },
+    };
+    return chain;
+  };
+  return { from: () => make() } as unknown as SupabaseClient;
+}
+
+type FakeTransfer = { id: string; amount: number; amount_reversed: number };
+function makeReversalStripe(transfers: FakeTransfer[]) {
+  const reversals: Array<{ transferId: string; amount: number; key?: string }> = [];
+  const seen = new Map<string, { id: string }>();
+  const stripe = {
+    transfers: {
+      list: async () => ({ data: transfers }),
+      createReversal: async (transferId: string, params: { amount: number }, opts?: { idempotencyKey?: string }) => {
+        const key = opts?.idempotencyKey;
+        if (key && seen.has(key)) return seen.get(key);
+        const r = { id: `trr_${reversals.length + 1}` };
+        reversals.push({ transferId, amount: params.amount, key });
+        if (key) seen.set(key, r);
+        return r;
+      },
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
+  return { reversals, stripe };
+}
+
+const legRow = (over: Partial<PayoutLegRow> & Pick<PayoutLegRow, "id" | "party">): PayoutLegRow => ({
+  booking_id: "bk_1",
+  participant_id: "p1",
+  amount_cents: 100000,
+  currency: "usd",
+  status: "transferred",
+  stripe_transfer_id: over.party === "talent" ? "tr_t" : "tr_w",
+  attempts: 1,
+  ...over,
+});
+
+test("full reversal: every transferred leg is reversed for its remaining + marked reversed", async () => {
+  const legs = [
+    legRow({ id: "L1", party: "talent", amount_cents: 80000, stripe_transfer_id: "tr_t" }),
+    legRow({ id: "L2", party: "workspace", amount_cents: 20000, stripe_transfer_id: "tr_w" }),
+  ];
+  const { reversals, stripe } = makeReversalStripe([
+    { id: "tr_t", amount: 80000, amount_reversed: 0 },
+    { id: "tr_w", amount: 20000, amount_reversed: 0 },
+  ]);
+  const out = await reverseBookingPayouts(
+    "bk_1",
+    { mode: "full", reference: "dispute_lost dp_1" },
+    { sb: makeReversalSupabase(legs), stripe },
+  );
+  assert.equal(reversals.length, 2, "both legs reversed at Stripe");
+  assert.deepEqual(reversals.map((r) => r.amount).sort((a, b) => a - b), [20000, 80000]);
+  assert.ok(reversals.every((r) => r.key?.startsWith("reverse_tr")), "stable full-reversal key");
+  assert.ok(legs.every((l) => l.status === "reversed"), "both legs marked reversed");
+  assert.equal(out.filter((o) => o.result === "reversed").length, 2);
+});
+
+test("full reversal: held leg is cancelled (no Stripe call); already-reversed is a noop", async () => {
+  const legs = [
+    legRow({ id: "L1", party: "talent", status: "held", stripe_transfer_id: null }),
+    legRow({ id: "L2", party: "workspace", status: "reversed", stripe_transfer_id: "tr_w" }),
+  ];
+  const { reversals, stripe } = makeReversalStripe([]);
+  const out = await reverseBookingPayouts(
+    "bk_1",
+    { mode: "full", reference: "refund ch_1" },
+    { sb: makeReversalSupabase(legs), stripe },
+  );
+  assert.equal(reversals.length, 0, "no Stripe reversal for held/already-reversed");
+  assert.equal(legs.find((l) => l.id === "L1")!.status, "reversed", "held leg cancelled so it can never release");
+  assert.equal(out.find((o) => o.legId === "L1")?.result, "cancelled_held");
+  assert.equal(out.find((o) => o.legId === "L2")?.result, "noop");
+});
+
+test("full reversal: reverses ONLY the remaining un-reversed amount", async () => {
+  const legs = [legRow({ id: "L1", party: "workspace", amount_cents: 30000, stripe_transfer_id: "tr_w" })];
+  const { reversals, stripe } = makeReversalStripe([{ id: "tr_w", amount: 30000, amount_reversed: 12000 }]);
+  await reverseBookingPayouts(
+    "bk_1",
+    { mode: "full", reference: "dispute_lost dp_1" },
+    { sb: makeReversalSupabase(legs), stripe },
+  );
+  assert.equal(reversals.length, 1);
+  assert.equal(reversals[0].amount, 18000, "30000 transferred − 12000 already reversed");
+});
+
+test("full reversal is idempotent: a second run reverses nothing more", async () => {
+  const legs = [legRow({ id: "L1", party: "talent", amount_cents: 50000, stripe_transfer_id: "tr_t" })];
+  const sb = makeReversalSupabase(legs);
+  const { reversals, stripe } = makeReversalStripe([{ id: "tr_t", amount: 50000, amount_reversed: 0 }]);
+  await reverseBookingPayouts("bk_1", { mode: "full", reference: "dispute_lost dp_1" }, { sb, stripe });
+  await reverseBookingPayouts("bk_1", { mode: "full", reference: "dispute_lost dp_1" }, { sb, stripe });
+  assert.equal(reversals.length, 1, "leg already reversed on the 2nd run → no new reversal");
+});
+
+test("partial reversal: only the workspace leg is clawed; talent leg untouched", async () => {
+  const legs = [
+    legRow({ id: "L1", party: "talent", amount_cents: 80000, stripe_transfer_id: "tr_t" }),
+    legRow({ id: "L2", party: "workspace", participant_id: "p1", amount_cents: 20000, stripe_transfer_id: "tr_w" }),
+  ];
+  const { reversals, stripe } = makeReversalStripe([]);
+  const out = await reverseBookingPayouts(
+    "bk_1",
+    {
+      mode: "partial",
+      reference: "partial_refund ch_1",
+      workspaceClawbackByLeg: new Map([[reversalLegKey("p1", "workspace"), 5000]]),
+    },
+    { sb: makeReversalSupabase(legs), stripe },
+  );
+  assert.equal(reversals.length, 1, "only the workspace leg reversed");
+  assert.equal(reversals[0].transferId, "tr_w");
+  assert.equal(reversals[0].amount, 5000);
+  assert.equal(reversals[0].key, "reverse_partial_tr_w");
+  assert.equal(legs.find((l) => l.id === "L1")!.status, "transferred", "talent leg untouched");
+  assert.equal(legs.find((l) => l.id === "L2")!.status, "transferred", "workspace leg stays transferred (partial)");
+  assert.equal(out.find((o) => o.legId === "L2")?.result, "reversed_partial");
+});
+
+test("clawback: refund within the platform fee → platform absorbs all, nobody clawed", () => {
+  const r = computeTalentProtectiveClawback({
+    platformFeeCents: 10000,
+    workspaceLegs: [{ key: "p1:workspace", amountCents: 20000 }],
+    talentTotalCents: 80000,
+    refundedCents: 6000,
+  });
+  assert.equal(r.platformAbsorbedCents, 6000);
+  assert.equal(r.workspaceClawbackTotalCents, 0);
+  assert.equal(r.talentResidualCents, 0);
+});
+
+test("clawback: refund within platform+workspace → workspace clawed for the excess, talent safe", () => {
+  const r = computeTalentProtectiveClawback({
+    platformFeeCents: 10000,
+    workspaceLegs: [{ key: "p1:workspace", amountCents: 20000 }],
+    talentTotalCents: 80000,
+    refundedCents: 25000,
+  });
+  assert.equal(r.platformAbsorbedCents, 10000);
+  assert.equal(r.workspaceClawbackTotalCents, 15000);
+  assert.equal(r.workspaceClawbackByLeg.get("p1:workspace"), 15000);
+  assert.equal(r.talentResidualCents, 0, "talent protected");
+});
+
+test("clawback: refund exceeding platform+workspace → talent residual escalated (capped)", () => {
+  const r = computeTalentProtectiveClawback({
+    platformFeeCents: 10000,
+    workspaceLegs: [{ key: "p1:workspace", amountCents: 20000 }],
+    talentTotalCents: 80000,
+    refundedCents: 40000,
+  });
+  assert.equal(r.platformAbsorbedCents, 10000);
+  assert.equal(r.workspaceClawbackTotalCents, 20000, "all workspace margin clawed");
+  assert.equal(r.talentResidualCents, 10000, "40000 − 10000 − 20000 = 10000 left for the talent (escalated)");
+});
+
+test("clawback: talent residual never exceeds what the talent actually got", () => {
+  const r = computeTalentProtectiveClawback({
+    platformFeeCents: 0,
+    workspaceLegs: [],
+    talentTotalCents: 5000,
+    refundedCents: 999999,
+  });
+  assert.equal(r.talentResidualCents, 5000);
+});
+
+test("clawback: multi workspace-leg split sums EXACTLY to the workspace clawback (no drift)", () => {
+  const r = computeTalentProtectiveClawback({
+    platformFeeCents: 0,
+    workspaceLegs: [
+      { key: "a:workspace", amountCents: 10000 },
+      { key: "b:workspace", amountCents: 20000 },
+      { key: "c:workspace", amountCents: 3333 },
+    ],
+    talentTotalCents: 0,
+    refundedCents: 10001, // not evenly divisible → exercises the rounding remainder
+  });
+  const sum = [...r.workspaceClawbackByLeg.values()].reduce((a, b) => a + b, 0);
+  assert.equal(sum, r.workspaceClawbackTotalCents);
+  assert.equal(sum, 10001);
+  assert.ok(r.workspaceClawbackByLeg.get("a:workspace")! <= 10000);
+  assert.ok(r.workspaceClawbackByLeg.get("b:workspace")! <= 20000);
+  assert.ok(r.workspaceClawbackByLeg.get("c:workspace")! <= 3333);
 });

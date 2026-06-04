@@ -44,6 +44,88 @@ async function onBookingCreated(
   });
 }
 
+/**
+ * W6a — POST-COMMIT snapshot of the approved offer's negotiated commercial terms
+ * onto the just-created booking. Runs in TypeScript next to the commission
+ * snapshot — NOT in the RPC. Display + snapshot only: records the agreed deposit
+ * %, the derived deposit amount + currency, the balance-collection method, and
+ * the refund policy onto agency_bookings. Nothing here charges the deposit.
+ *
+ * The converted offer is the inquiry's current_offer_id (the RPC sets it to
+ * status 'booked' but leaves current_offer_id pointing at it). New columns are
+ * read/written via .returns<T>() because database.types.ts is not regenerated.
+ */
+async function snapshotOfferTermsOntoBooking(
+  supabase: SupabaseClient,
+  inquiryId: string,
+  tenantId: string,
+  bookingId: string,
+): Promise<void> {
+  const { data: inq } = await supabase
+    .from("inquiries")
+    .select("current_offer_id")
+    .eq("id", inquiryId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle()
+    .returns<{ current_offer_id: string | null }>();
+  const offerId = inq?.current_offer_id ?? null;
+  if (!offerId) return;
+
+  const { data: offer } = await supabase
+    .from("inquiry_offers")
+    .select(
+      "total_client_price, currency_code, deposit_pct, deposit_amount_cents, balance_collection_method, refund_policy_key",
+    )
+    .eq("id", offerId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle()
+    .returns<{
+      total_client_price: number | string | null;
+      currency_code: string | null;
+      deposit_pct: number | string | null;
+      deposit_amount_cents: number | string | null;
+      balance_collection_method: string | null;
+      refund_policy_key: string | null;
+    }>();
+  if (!offer) return;
+
+  const { readOfferTermsFromRow } = await import("@/lib/billing/offer-commercial-terms");
+  const totalCents = Math.round(Number(offer.total_client_price ?? 0) * 100);
+  const terms = readOfferTermsFromRow(
+    {
+      deposit_pct: offer.deposit_pct,
+      deposit_amount_cents: offer.deposit_amount_cents,
+      balance_collection_method: offer.balance_collection_method,
+      refund_policy_key: offer.refund_policy_key,
+    },
+    totalCents,
+  );
+  // No negotiated terms on the offer (drafted before W6a) → nothing to snapshot;
+  // leave the booking's term columns null.
+  if (!terms) return;
+
+  const currency = (offer.currency_code ?? "").toUpperCase() || null;
+  const { error } = await supabase
+    .from("agency_bookings")
+    .update({
+      deposit_pct: terms.depositPct,
+      deposit_amount_cents: terms.depositAmountCents,
+      // Only set deposit_currency from the offer when present — never clobber an
+      // existing value with null.
+      ...(currency ? { deposit_currency: currency } : {}),
+      balance_collection_method: terms.balanceMethod,
+      refund_policy_key: terms.refundPolicy,
+    })
+    .eq("id", bookingId)
+    .eq("tenant_id", tenantId);
+  if (error) {
+    await improntaLog("convertToBooking.offer_terms_snapshot_write_failed", {
+      bookingId,
+      detail: error.message,
+    });
+  }
+}
+
 export async function convertToBooking(
   supabase: SupabaseClient,
   ctx: {
@@ -194,11 +276,20 @@ export async function convertToBooking(
     }
 
     // Best-effort post-commit effects (kept outside transaction wrapper).
+    // Read the real figures off the just-committed booking so the structured
+    // log records the actual amount / currency / client instead of zeros
+    // (audit #15). The RPC above already wrote the row; a read failure here
+    // degrades to the prior zero/empty values rather than throwing.
+    const { data: bookingFigures } = await supabase
+      .from("agency_bookings")
+      .select("total_client_revenue, currency_code, client_account_id")
+      .eq("id", bookingId)
+      .maybeSingle();
     await onBookingCreated(bookingId, {
       inquiryId: ctx.inquiryId,
-      totalClientPrice: 0,
-      currencyCode: "",
-      clientAccountId: null,
+      totalClientPrice: Number(bookingFigures?.total_client_revenue ?? 0),
+      currencyCode: bookingFigures?.currency_code ?? "",
+      clientAccountId: bookingFigures?.client_account_id ?? null,
     });
 
     // Phase B PR 2 — persist commission snapshot. Non-fatal: a failure
@@ -216,6 +307,20 @@ export async function convertToBooking(
       // Continue — booking is real even without the snapshot. UI will
       // show a "Commission not yet computed" hint for the rare case
       // until a backfill action fixes it.
+    }
+
+    // W6a — snapshot the approved offer's NEGOTIATED commercial terms onto the
+    // booking. Display + snapshot only: this records the agreed deposit %, the
+    // derived deposit amount, the balance-collection method, and the refund
+    // policy — it does NOT charge anything. Non-fatal: a read/write failure here
+    // is logged but never rolls back the booking.
+    try {
+      await snapshotOfferTermsOntoBooking(supabase, ctx.inquiryId, ctx.tenantId, bookingId);
+    } catch (termErr) {
+      await improntaLog("convertToBooking.offer_terms_snapshot_failed", {
+        bookingId,
+        detail: termErr instanceof Error ? termErr.message : String(termErr),
+      });
     }
 
     await assertConsistencyAfterWrite(supabase, ctx.inquiryId);

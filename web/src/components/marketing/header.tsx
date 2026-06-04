@@ -8,7 +8,6 @@ import { getAppUrl } from "@/lib/auth-flow";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { getMarketingCopy, type MarketingCopy } from "@/lib/marketing/copy";
 import { MarketingCta } from "./cta-link";
-import { OpenTalentModalButton } from "./open-talent-modal-button";
 import { MarketingLanguageToggle } from "./marketing-language-toggle";
 import {
   DesktopAccount,
@@ -201,13 +200,6 @@ export function MarketingHeader({
             />
           ) : (
             <>
-              <OpenTalentModalButton
-                eventSource="header"
-                className="rounded-md px-3 py-2 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors hover:text-[var(--plt-ink)]"
-                style={{ color: "var(--plt-muted)" }}
-              >
-                {copy.nav.joinAsTalent}
-              </OpenTalentModalButton>
               <a
                 href={APP_LOGIN_URL}
                 className="rounded-md px-3 py-2 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors hover:text-[var(--plt-ink)]"
@@ -215,15 +207,29 @@ export function MarketingHeader({
               >
                 {copy.nav.signIn}
               </a>
-              <MarketingCta
-                href="/get-started"
-                variant="primary"
-                size="md"
-                eventSource="header"
-                eventIntent="get-started"
-              >
-                {copy.nav.startFree}
-              </MarketingCta>
+              <span className="relative inline-flex">
+                <MarketingCta
+                  href="/get-started"
+                  variant="primary"
+                  size="md"
+                  eventSource="header"
+                  eventIntent="get-started"
+                >
+                  {copy.nav.startFree}
+                </MarketingCta>
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute -right-2 -top-2 inline-flex items-center rounded-full px-1.5 py-[3px] text-[0.5625rem] font-bold uppercase leading-none tracking-[0.04em]"
+                  style={{
+                    background: "var(--plt-accent)",
+                    color: "#fff",
+                    boxShadow:
+                      "0 2px 6px -1px rgba(255,131,50,0.55), 0 0 0 2px var(--plt-bg)",
+                  }}
+                >
+                  {copy.nav.freeBadge}
+                </span>
+              </span>
             </>
           )}
         </div>
@@ -340,14 +346,6 @@ export function MarketingHeader({
                 </>
               ) : (
                 <>
-                  <OpenTalentModalButton
-                    eventSource="mobile-header"
-                    className="flex w-full items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
-                    style={{ color: "var(--plt-ink-soft)" }}
-                  >
-                    {copy.nav.joinAsTalent}
-                    <ChevronGlyph />
-                  </OpenTalentModalButton>
                   <a
                     href={APP_LOGIN_URL}
                     className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
@@ -356,16 +354,30 @@ export function MarketingHeader({
                     {copy.nav.signIn}
                     <ChevronGlyph />
                   </a>
-                  <MarketingCta
-                    href="/get-started"
-                    variant="primary"
-                    size="lg"
-                    eventSource="mobile-header"
-                    eventIntent="get-started"
-                    className="w-full"
-                  >
-                    {copy.nav.startFree}
-                  </MarketingCta>
+                  <span className="relative block w-full">
+                    <MarketingCta
+                      href="/get-started"
+                      variant="primary"
+                      size="lg"
+                      eventSource="mobile-header"
+                      eventIntent="get-started"
+                      className="w-full"
+                    >
+                      {copy.nav.startFree}
+                    </MarketingCta>
+                    <span
+                      aria-hidden
+                      className="pointer-events-none absolute -right-1.5 -top-1.5 inline-flex items-center rounded-full px-1.5 py-[3px] text-[0.5625rem] font-bold uppercase leading-none tracking-[0.04em]"
+                      style={{
+                        background: "var(--plt-accent)",
+                        color: "#fff",
+                        boxShadow:
+                          "0 2px 6px -1px rgba(255,131,50,0.55), 0 0 0 2px var(--plt-bg)",
+                      }}
+                    >
+                      {copy.nav.freeBadge}
+                    </span>
+                  </span>
                   <p
                     className="mt-2 text-center text-[0.75rem]"
                     style={{ color: "var(--plt-muted)" }}
@@ -568,12 +580,12 @@ function TulalaWordmark() {
         fontWeight: 700,
         letterSpacing: "-0.045em",
         fontSize: "1.5rem",
-        color: "var(--plt-ink)",
+        color: "var(--plt-accent)",
       }}
     >
       tulala
-      <span style={{ color: "var(--plt-forest)" }}>.</span>
-      <span style={{ fontWeight: 500, color: "var(--plt-ink-soft)" }}>digital</span>
+      <span style={{ color: "var(--plt-forest)", fontSize: "14px" }}>.</span>
+      <span style={{ fontWeight: 500, fontSize: "20px", color: "var(--plt-ink-soft)" }}>digital</span>
     </span>
   );
 }

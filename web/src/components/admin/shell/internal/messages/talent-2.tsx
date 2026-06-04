@@ -9,6 +9,7 @@ import { MobileShellStyles } from "@/components/messages-mobile/MobileShellStyle
 import { PitchOriginCard } from "@/components/pitch-origin/PitchOriginCard";
 import { ReservationThread, type ReservationStage, type PillDescriptor, type PillKind, type SheetDescriptor } from "@/components/reservation-thread";
 import { acceptInquiryInvitation, declineInquiryInvitation, respondToInquiryOffer } from "@/lib/server-actions/talent-pipeline";
+import { sendTalentInquiryMessage } from "@/app/(workspace)/[tenantSlug]/talent/inbox/[id]/actions";
 import { useAdminShell, FONTS, COLORS } from "../state";
 import { MOCK_CONVERSATIONS, MOCK_THREAD, type Conversation } from "../talent";
 import { AdminReservationView } from "./admin-3";
@@ -32,6 +33,172 @@ import type { ChatSubThreadId, ThreadTabId } from "./shared/machinery-8";
 import { ChatSubToggleDropdown, MOCK_FILES_FOR_CONV, ThreadTabBar, isTalentCoordOnOffer, talentCoordCombinedTotal } from "./shared/machinery-9";
 import type { Offer } from "./shared/machinery-9";
 import { LineupTabPanel, TalentJobShellHeader } from "./talent-1";
+
+// ── TalentWhosTurnBanner (D4) ────────────────────────────────────────
+// A slim status-aware banner shown at the top of the Chat tab that tells
+// the talent whose turn it is — "Your turn to approve", "Waiting on
+// other parties", etc. Derives purely from conv.stage + approval status.
+// Returns null for terminal stages (booked/past/cancelled).
+function TalentWhosTurnBanner({
+  conv,
+  isCoordinator,
+}: {
+  conv: Conversation;
+  isCoordinator: boolean;
+}) {
+  const { stage, myApprovalStatus } = conv;
+  if (stage === "booked" || stage === "past" || stage === "cancelled") return null;
+
+  const { text, tone } = ((): {
+    text: string;
+    tone: "blue" | "amber" | "green" | "muted";
+  } => {
+    if (stage === "inquiry") {
+      return {
+        text: isCoordinator
+          ? "Your turn — brief the client and confirm the shortlist."
+          : "Waiting for the coordinator to set up your offer.",
+        tone: isCoordinator ? "blue" : "muted",
+      };
+    }
+    if (stage === "hold") {
+      // Offer round is open — talent needs to approve.
+      if (myApprovalStatus === "accepted") {
+        return {
+          text: "You approved — waiting on the other parties before this converts.",
+          tone: "green",
+        };
+      }
+      if (myApprovalStatus === "rejected") {
+        return {
+          text: "You declined this offer.",
+          tone: "muted",
+        };
+      }
+      // null / pending → talent's turn
+      return {
+        text: "Your turn — review the offer in the Offer tab and approve or decline.",
+        tone: "blue",
+      };
+    }
+    return { text: "", tone: "muted" };
+  })();
+
+  if (!text) return null;
+
+  const styles: Record<typeof tone, { bg: string; color: string; border: string }> = {
+    blue:  { bg: "rgba(29,78,216,0.07)",  color: "#1D4ED8", border: "rgba(29,78,216,0.18)" },
+    amber: { bg: "rgba(245,158,11,0.08)", color: "#92400E", border: "rgba(245,158,11,0.20)" },
+    green: { bg: "rgba(15,79,62,0.07)",   color: "#0F4F3E", border: "rgba(15,79,62,0.18)" },
+    muted: { bg: "rgba(11,11,13,0.04)",   color: "rgba(11,11,13,0.55)", border: "rgba(11,11,13,0.10)" },
+  };
+  const s = styles[tone];
+
+  return (
+    <div style={{
+      margin: "4px 14px 4px",
+      padding: "6px 12px",
+      borderRadius: 8,
+      background: s.bg,
+      border: `1px solid ${s.border}`,
+      display: "inline-flex", alignItems: "center", gap: 7,
+      fontSize: 11.5, fontWeight: 600, color: s.color,
+      fontFamily: FONTS.body,
+      flexShrink: 0,
+    }}>
+      <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden style={{ flexShrink: 0 }}>
+        <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.4"/>
+        <path d="M7 4.5v3l1.5 1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+      </svg>
+      {text}
+    </div>
+  );
+}
+
+// ── TalentReadOnlyLineup (D5) ───────────────────────────────────────
+// Talent-facing read-only view of who else is on the booking lineup.
+// Uses conv.participants (names + roles) since the talent can't see
+// acceptance-state of others. Rendered in the Lineup tab.
+function TalentReadOnlyLineup({ conv }: { conv: Conversation }) {
+  const participants = (conv.participants ?? []).filter(p => p.isTalent);
+  const crew = (conv.participants ?? []).filter(p => !p.isTalent);
+
+  if (participants.length === 0 && crew.length === 0) {
+    return (
+      <div style={{ padding: "16px 14px", fontFamily: FONTS.body, fontSize: 12.5 }} className="text-admin-ink-muted">
+        Lineup not yet set — the coordinator will add talent and crew as the booking takes shape.
+      </div>
+    );
+  }
+
+  const initials = (name: string) => name.trim().split(/\s+/).slice(0, 2).map(s => s[0]?.toUpperCase() ?? "").join("");
+
+  return (
+    <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
+      {participants.length > 0 && (
+        <div>
+          <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }} className="text-admin-ink-muted">
+            Talent on this job
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {participants.map((p, i) => (
+              <div key={i} style={{
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "8px 12px", borderRadius: 10,
+                background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+              }}>
+                <div style={{
+                  width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
+                  background: COLORS.fill, color: "#fff",
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 12, fontWeight: 700,
+                }}>
+                  {initials(p.name)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div style={{ fontWeight: 600, fontSize: 13 }} className="text-admin-ink">{p.name}</div>
+                  <div style={{ fontSize: 11 }} className="text-admin-ink-muted">{p.role}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {crew.length > 0 && (
+        <div>
+          <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }} className="text-admin-ink-muted">
+            Crew
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {crew.map((p, i) => (
+              <div key={i} style={{
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "8px 12px", borderRadius: 10,
+                background: COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`,
+              }}>
+                <div style={{
+                  width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
+                  background: "rgba(11,11,13,0.12)", color: "rgba(11,11,13,0.60)",
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 12, fontWeight: 700,
+                }}>
+                  {initials(p.name)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div style={{ fontWeight: 500, fontSize: 13 }} className="text-admin-ink">{p.name}</div>
+                  <div style={{ fontSize: 11 }} className="text-admin-ink-muted">{p.role}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      <div style={{ fontSize: 11, lineHeight: 1.5, padding: "8px 0 0" }} className="text-admin-ink-dim">
+        This is a read-only view. Only the coordinator can add or remove talent.
+      </div>
+    </div>
+  );
+}
 // ── Talent JOB DETAIL — the heart of the talent shell ──
 // Layout (top-down): unified header → tabs → conversation
 export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => void }) {
@@ -174,6 +341,13 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
             paymentDue: conv.stage === "booked",
           })}
         />
+        {/* D4 — Whose-turn banner. Shows above the sub-toggle and chat
+            stream so the talent sees their current action at a glance
+            without scrolling to the bottom action bar. Only renders on
+            the Chat tab (not on Offer/Details/etc). */}
+        {(activeTab === "chat" || activeTab === "talent" || activeTab === "client") && (
+          <TalentWhosTurnBanner conv={conv} isCoordinator={isCoordinator} />
+        )}
         {/* Slice C (Messages consolidation v2): unified Chat tab with
             [Client | Group | DM] sub-toggle. Plain talent: Client is
             locked (Slice G adds the request-to-join flow); Group is
@@ -233,6 +407,15 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
                   povCanEditLineup={isCoordinator}
                   povCanSeeOffers={isCoordinator}
                   povCanSeeCoordNote={true}
+                  // Hub self-coordination: load + post to the CLIENT (private)
+                  // thread AS the talent-coordinator. Without this the shared
+                  // ConversationTab would post via the client action (wrong
+                  // identity) and load the group thread. sendTalentInquiryMessage
+                  // re-checks the coordinator role server-side + the RLS gates it.
+                  realThreadType="private"
+                  onSendReal={(text) =>
+                    sendTalentInquiryMessage(effectiveTenant.slug, conv.id, text, "private")
+                  }
                 />
               )}
               {/* "Activity" sub-tab (repurposed from the retired fake DM):
@@ -253,15 +436,21 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
             </>
           );
         })()}
-        {/* Slice C: universal Lineup tab. The original implementation
-            rendered a misleading "Tap a teammate below" copy with a
-            standalone "Open lineup drawer" button — the teammates
-            lived in a separate modal, not "below". Now the tab auto-
-            opens the lineup surface as the user lands on it, and the
-            tab body is a thin fallback in case the drawer didn't open
-            (e.g. legacy mock conv where the drawer effect is gated). */}
+        {/* Slice C + D5: Lineup tab.
+            - Coordinators: see the full admin lineup management UI
+              (LiveLineupPanel) via the openLineupTab / LineupTabPanel flow.
+            - Plain talent (D5): see a read-only list of who else is on
+              the booking — names + roles, no acceptance states, no
+              admin affordances. Closes the awareness gap that left
+              talent blind to their colleagues until the day of the shoot. */}
         {activeTab === "lineup" && (
-          <LineupTabPanel onOpen={openLineupTab} />
+          isCoordinator ? (
+            <LineupTabPanel onOpen={openLineupTab} />
+          ) : (
+            <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+              <TalentReadOnlyLineup conv={conv} />
+            </div>
+          )
         )}
         {/* Non-conversation tabs — each gets its own scrollable
             wrapper so the parent shell stays fixed (header + tab bar
@@ -361,6 +550,32 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
         const inviteStage = !isCoordinator && conv.stage === "inquiry" && !isMockConv;
         if (!isRealUuid || (!offerStage && !inviteStage)) return baseAction;
         if (offerStage) {
+          // Audit #12 — the talent has already approved THIS offer. The
+          // multi-party gate keeps the inquiry open (offer_pending/approved)
+          // until every party approves, which previously left the "Approve
+          // offer" button re-showing — a confusing idempotent re-click.
+          // Suppress it and show an awaiting state; keep Decline so the
+          // talent can still withdraw before the coordinator converts.
+          if (conv.myApprovalStatus === "accepted") {
+            return {
+              ...baseAction,
+              hint: "You approved this offer — awaiting the other parties.",
+              primary: undefined,
+              secondary: {
+                label: "Decline",
+                tone: "ghost",
+                disabled: invitePending,
+                onClick: () => {
+                  if (invitePending) return;
+                  startTalentInviteTransition(async () => {
+                    const r = await respondToInquiryOffer(conv.id, "rejected");
+                    if (!r.ok) toast(`Decline failed: ${r.error}`);
+                    else { toast("Offer declined"); router.refresh(); }
+                  });
+                },
+              },
+            };
+          }
           return {
             ...baseAction,
             hint: "You've received an offer. Approve to lock your booking, or decline.",

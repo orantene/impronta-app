@@ -13,12 +13,15 @@ export {
   autoAssignCoordinatorFromSettings,
 } from "./inquiry-engine-coordinator";
 export { sendMessage, markThreadRead, editMessage, deleteMessage } from "./inquiry-engine-messages";
+export { updateInquiryDetails } from "./inquiry-engine-details";
+export type { InquiryDetailsPatch } from "./inquiry-engine-details";
 export {
   addTalentToRoster,
   removeTalentFromRoster,
   reorderRoster,
   acceptTalentInvitation,
   declineTalentInvitation,
+  swapTalent,
   rosterMatchesOffer,
 } from "./inquiry-engine-roster";
 export {
@@ -28,6 +31,7 @@ export {
   clientRejectOffer,
   submitTalentRate,
   counterOffer,
+  reopenOfferForAmendment,
 } from "./inquiry-engine-offers";
 export type { OfferLineDraft } from "./inquiry-engine-offers";
 export { submitApproval, rejectApproval, clientAcceptOffer, talentRespondToOffer } from "./inquiry-engine-approvals";

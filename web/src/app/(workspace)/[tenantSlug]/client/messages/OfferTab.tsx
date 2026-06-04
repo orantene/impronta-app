@@ -22,8 +22,16 @@ import type { ClientInquiryDetails } from "../../_data-bridge/client-inquiry-det
 import {
   approveOfferAction,
   rejectOfferAction,
+  counterOfferAction,
   type InquiryOfferActionState,
 } from "../_actions/inquiry-offer-actions";
+import {
+  BALANCE_METHOD_LABELS,
+  BALANCE_METHOD_DESCRIPTIONS,
+  REFUND_POLICY_LABELS,
+  REFUND_POLICY_DESCRIPTIONS,
+  normalizeDepositPct,
+} from "@/lib/billing/commercial-terms-types";
 
 const FONT = '"Inter", system-ui, sans-serif';
 const FONT_DISPLAY =
@@ -80,7 +88,11 @@ export function OfferTab({
 
   const offer = details.offer;
   const expired = isExpired(offer.expires_at);
-  const canDecide = offer.status === "sent" && !expired;
+  // Audit #12-A (client side): once the client has approved, the offer stays
+  // `sent` while the multi-party gate waits on the talents — so suppress the
+  // re-decide CTAs and show an honest "awaiting the other parties" state.
+  const clientApproved = offer.myApprovalStatus === "accepted";
+  const canDecide = offer.status === "sent" && !expired && !clientApproved;
 
   return (
     <div style={{ padding: "16px 22px 32px", fontFamily: FONT }}>
@@ -88,8 +100,15 @@ export function OfferTab({
         <OfferHeader offer={offer} expired={expired} />
         <Divider />
         <LineItemsTable offer={offer} />
+        <CostBreakdown offer={offer} />
         <Divider />
         <Totals offer={offer} />
+        {offer.commercialTerms && (
+          <>
+            <Divider />
+            <BookingTerms offer={offer} canDecide={canDecide} />
+          </>
+        )}
         {offer.notes && (
           <>
             <Divider />
@@ -110,6 +129,17 @@ export function OfferTab({
               tenantSlug={tenantSlug}
               onAfterAction={onAfterAction}
             />
+          </>
+        )}
+        {clientApproved && offer.status === "sent" && !expired && (
+          <>
+            <Divider />
+            <div style={{ padding: "12px 0 2px", fontFamily: FONT }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.ink }}>You approved this offer</div>
+              <p style={{ marginTop: 4, fontSize: 12.5, color: C.inkMuted, lineHeight: 1.5 }}>
+                Locked in on your side — we&apos;re just waiting on the other parties before it becomes a confirmed booking.
+              </p>
+            </div>
           </>
         )}
         {offer.status === "accepted" && (
@@ -134,7 +164,12 @@ function OfferHeader({
   offer: NonNullable<ClientInquiryDetails["offer"]>;
   expired: boolean;
 }) {
-  const statusInfo = statusBadgeInfo(offer.status, expired);
+  // Audit #12-A (client side): once the client has approved, don't keep
+  // badging "Awaiting your decision" — the decision is theirs and it's made.
+  const statusInfo =
+    offer.myApprovalStatus === "accepted" && offer.status === "sent" && !expired
+      ? { tone: "success" as const, label: "You approved · awaiting others" }
+      : statusBadgeInfo(offer.status, expired);
   return (
     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
       <div>
@@ -232,6 +267,259 @@ function Totals({
   );
 }
 
+/**
+ * W6a — "Booking terms" block. The deposit / balance-collection-method /
+ * refund-policy are negotiated on the offer; approving = agreeing to them.
+ * Display only — nothing here charges the deposit. Client-safe (no internal
+ * split). Renders only when the offer carries commercialTerms.
+ */
+function BookingTerms({
+  offer,
+  canDecide,
+}: {
+  offer: NonNullable<ClientInquiryDetails["offer"]>;
+  canDecide: boolean;
+}) {
+  const terms = offer.commercialTerms;
+  if (!terms) return null;
+  const pct = normalizeDepositPct(terms.balanceMethod, terms.depositPct);
+  const depositMajor =
+    terms.depositAmountCents > 0
+      ? terms.depositAmountCents / 100
+      : (offer.total_client_price * pct) / 100;
+  const balanceMajor = Math.max(0, offer.total_client_price - depositMajor);
+
+  return (
+    <div>
+      <div
+        style={{
+          fontSize: 11,
+          fontWeight: 700,
+          color: C.inkMuted,
+          textTransform: "uppercase",
+          letterSpacing: 0.6,
+          marginBottom: 8,
+        }}
+      >
+        Booking terms
+      </div>
+      <div
+        style={{
+          background: "rgba(11,11,13,0.02)",
+          border: `1px solid ${C.borderSoft}`,
+          borderRadius: 10,
+          overflow: "hidden",
+          fontFamily: FONT,
+        }}
+      >
+        <TermRow
+          label="Deposit"
+          value={pct === 0 ? "None up front" : `${formatMoney(depositMajor, offer.currency)} (${pct}%)`}
+        />
+        <TermRow
+          label="Balance"
+          value={
+            balanceMajor <= 0
+              ? "Paid in full up front"
+              : `${formatMoney(balanceMajor, offer.currency)} via ${BALANCE_METHOD_LABELS[terms.balanceMethod]}`
+          }
+          hint={BALANCE_METHOD_DESCRIPTIONS[terms.balanceMethod]}
+        />
+        <TermRow
+          label="Refunds"
+          value={REFUND_POLICY_LABELS[terms.refundPolicy]}
+          hint={REFUND_POLICY_DESCRIPTIONS[terms.refundPolicy]}
+          last
+        />
+      </div>
+      {canDecide && (
+        <div style={{ marginTop: 6, fontSize: 11.5, color: C.inkMuted, lineHeight: 1.45 }}>
+          Approving this offer confirms you agree to these booking terms.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TermRow({
+  label,
+  value,
+  hint,
+  last,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  last?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        padding: "9px 14px",
+        borderBottom: last ? "none" : `1px solid ${C.borderSoft}`,
+        fontFamily: FONT,
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
+        <span style={{ fontSize: 13, color: C.inkMuted }}>{label}</span>
+        <span
+          style={{
+            fontSize: 13.5,
+            fontWeight: 600,
+            color: C.ink,
+            textAlign: "right",
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {value}
+        </span>
+      </div>
+      {hint && (
+        <div style={{ fontSize: 11, color: C.inkDim, marginTop: 2, lineHeight: 1.4 }}>{hint}</div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * D9 — "What you're paying for" breakdown.
+ *
+ * Shows gross composition from the client's perspective ONLY:
+ *   Talent fee(s): sum of all line-item totals
+ *   Service fee: total_client_price − line totals (the booking service cost)
+ *   Total: total_client_price
+ *
+ * The agency margin and platform internals are never exposed. If line
+ * items sum exactly to the total (no service fee component) or there are
+ * no line items, the breakdown is omitted to avoid showing a $0 service
+ * fee (which would look odd / raise questions).
+ *
+ * Currency-aware via formatMoney (Intl.NumberFormat).
+ */
+function CostBreakdown({
+  offer,
+}: {
+  offer: NonNullable<ClientInquiryDetails["offer"]>;
+}) {
+  if (offer.lines.length === 0) return null;
+
+  const talentFeeTotal = offer.lines.reduce((s, ln) => s + (Number(ln.total_price) || 0), 0);
+  const serviceFee = offer.total_client_price - talentFeeTotal;
+
+  // Only show the breakdown when there is a meaningful service-fee component
+  // (≥ 1 currency unit in value) so we don't surface a $0 row.
+  if (serviceFee < 0.5) return null;
+
+  return (
+    <div>
+      <div
+        style={{
+          fontSize: 11,
+          fontWeight: 700,
+          color: C.inkMuted,
+          textTransform: "uppercase",
+          letterSpacing: 0.6,
+          marginBottom: 8,
+        }}
+      >
+        What you&apos;re paying for
+      </div>
+      <div
+        style={{
+          background: "rgba(11,11,13,0.02)",
+          border: `1px solid ${C.borderSoft}`,
+          borderRadius: 10,
+          overflow: "hidden",
+          fontFamily: FONT,
+        }}
+      >
+        <BreakdownRow
+          label="Talent fee"
+          hint={offer.lines.length === 1 ? undefined : `${offer.lines.length} talent`}
+          amount={formatMoney(talentFeeTotal, offer.currency)}
+        />
+        <BreakdownRow
+          label="Service fee"
+          hint="Booking and coordination"
+          amount={formatMoney(serviceFee, offer.currency)}
+        />
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "10px 14px",
+            background: "rgba(11,11,13,0.03)",
+            borderTop: `1px solid ${C.borderSoft}`,
+          }}
+        >
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.ink }}>Total</div>
+          <div
+            style={{
+              fontSize: 15,
+              fontWeight: 700,
+              color: C.ink,
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            {formatMoney(offer.total_client_price, offer.currency)}
+          </div>
+        </div>
+      </div>
+      <div
+        style={{
+          marginTop: 6,
+          fontSize: 11,
+          color: C.inkDim,
+          lineHeight: 1.45,
+        }}
+      >
+        Exact payment terms confirmed in the booking contract after you approve.
+      </div>
+    </div>
+  );
+}
+
+function BreakdownRow({
+  label,
+  hint,
+  amount,
+}: {
+  label: string;
+  hint?: string;
+  amount: string;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "9px 14px",
+        borderBottom: `1px solid ${C.borderSoft}`,
+        fontFamily: FONT,
+      }}
+    >
+      <div>
+        <div style={{ fontSize: 13, color: C.ink, fontWeight: 500 }}>{label}</div>
+        {hint && (
+          <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 1 }}>{hint}</div>
+        )}
+      </div>
+      <div
+        style={{
+          fontSize: 13.5,
+          fontWeight: 600,
+          color: C.ink,
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {amount}
+      </div>
+    </div>
+  );
+}
+
 function Notes({ notes }: { notes: string }) {
   return (
     <div>
@@ -298,7 +586,7 @@ function DecisionRibbon({
   tenantSlug: string;
   onAfterAction?: () => void;
 }) {
-  const [confirming, setConfirming] = useState<"approve" | "decline" | null>(null);
+  const [confirming, setConfirming] = useState<"approve" | "counter" | "decline" | null>(null);
   return (
     <>
       <div className="flex gap-2 flex-wrap">
@@ -311,6 +599,13 @@ function DecisionRibbon({
         </button>
         <button
           type="button"
+          onClick={() => setConfirming("counter")}
+          style={ghostBtn}
+        >
+          Counter
+        </button>
+        <button
+          type="button"
           onClick={() => setConfirming("decline")}
           style={ghostBtn}
         >
@@ -318,7 +613,7 @@ function DecisionRibbon({
         </button>
         <div style={{ flex: 1 }} />
         <a
-          href={`/${tenantSlug}/client/inquiries/${details.id}`}
+          href={`/${tenantSlug}/client/messages?inquiry=${details.id}&tab=chat`}
           style={{
             ...ghostBtn,
             textDecoration: "none",
@@ -339,6 +634,14 @@ function DecisionRibbon({
           onAfterAction={onAfterAction}
         />
       )}
+      {confirming === "counter" && (
+        <CounterDrawer
+          details={details}
+          tenantSlug={tenantSlug}
+          onClose={() => setConfirming(null)}
+          onAfterAction={onAfterAction}
+        />
+      )}
       {confirming === "decline" && (
         <DeclineDrawer
           details={details}
@@ -348,6 +651,91 @@ function DecisionRibbon({
         />
       )}
     </>
+  );
+}
+
+// ─── Counter drawer ──────────────────────────────────────────────────────────
+// A counter is a "[Counter request]" message to the coordinator — it does not
+// change the offer state; the coordinator re-drafts. Lighter than Decline (no
+// reason taxonomy): just the proposed change.
+
+function CounterDrawer({
+  details,
+  tenantSlug,
+  onClose,
+  onAfterAction,
+}: {
+  details: ClientInquiryDetails;
+  tenantSlug: string;
+  onClose: () => void;
+  onAfterAction?: () => void;
+}) {
+  const [note, setNote] = useState("");
+  const [state, formAction, pending] = useActionState<InquiryOfferActionState, FormData>(
+    counterOfferAction,
+    { kind: "idle" },
+  );
+  const [, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (state.kind === "countered") {
+      onAfterAction?.();
+      onClose();
+    }
+  }, [state, onClose, onAfterAction]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const submit = () => {
+    const fd = new FormData();
+    fd.set("tenantSlug", tenantSlug);
+    fd.set("inquiryId", details.id);
+    fd.set("note", note.trim());
+    startTransition(() => formAction(fd));
+  };
+
+  const canSend = note.trim().length > 0 && !pending;
+
+  return (
+    <DrawerShell title="Propose a change" subtitle="Keep the project — ask the coordinator to adjust the offer." onClose={onClose}>
+      <div className="flex flex-col gap-3.5">
+        <label className="flex flex-col gap-1.5">
+          <span style={{ fontSize: 11.5, color: C.inkMuted, fontWeight: 600 }}>What would you like to change?</span>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={4}
+            placeholder="e.g. budget closer to $3k, swap one talent, shift the date a week…"
+            style={{ ...inputStyle, resize: "vertical", minHeight: 80, lineHeight: 1.45 }}
+          />
+        </label>
+        <Hint>
+          This sends your request to the coordinator without declining — they&apos;ll
+          rework the offer and send an updated version. The current offer stays open
+          until you approve or decline.
+        </Hint>
+        {state.kind === "error" && (
+          <div style={errorBoxStyle}>{state.message}</div>
+        )}
+      </div>
+      <DrawerFooter>
+        <button type="button" style={ghostBtn} onClick={onClose}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          style={canSend ? primaryBtn : { ...primaryBtn, opacity: 0.6, cursor: "not-allowed" }}
+          onClick={submit}
+          disabled={!canSend}
+        >
+          {pending ? "Sending…" : "Send counter"}
+        </button>
+      </DrawerFooter>
+    </DrawerShell>
   );
 }
 
@@ -408,9 +796,30 @@ function ApproveDrawer({
           }
         />
         <SummaryRow label="Total" value={formatMoney(offer.total_client_price, offer.currency)} bold />
+        {offer.commercialTerms && (
+          <SummaryRow
+            label="Deposit"
+            value={
+              offer.commercialTerms.depositPct === 0
+                ? "None up front"
+                : `${formatMoney(
+                    offer.commercialTerms.depositAmountCents > 0
+                      ? offer.commercialTerms.depositAmountCents / 100
+                      : (offer.total_client_price * offer.commercialTerms.depositPct) / 100,
+                    offer.currency,
+                  )} (${offer.commercialTerms.depositPct}%)`
+            }
+          />
+        )}
+        {offer.commercialTerms && (
+          <SummaryRow
+            label="Refunds"
+            value={REFUND_POLICY_LABELS[offer.commercialTerms.refundPolicy]}
+          />
+        )}
         <Hint>
-          Approving locks the lineup and starts the booking workflow. Payment
-          terms are summarized in the offer; you can still ask questions in Chat.
+          Approving locks the lineup and confirms you agree to the booking terms
+          above. You can still ask questions in Chat.
         </Hint>
         {state.kind === "error" && (
           <div style={errorBoxStyle}>{state.message}</div>

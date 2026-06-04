@@ -1,47 +1,99 @@
+import { getRequestLocale } from "@/i18n/request-locale";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
 
-const WHATSAPP_PAINS = [
-  "Profiles shared one at a time, nothing structured",
-  "Rates and availability re-typed, every inquiry",
-  "No way to browse — only what you copy-paste",
-  "Vanishes into the chat archive by next week",
-  "Your brand looks like a contact, not a business",
-];
+function getWhatsappPains(locale: string) {
+  return locale === "es"
+    ? [
+        "Mandas perfiles de uno en uno, sin ningún orden",
+        "Vuelves a teclear tarifas y disponibilidad en cada solicitud",
+        "Nadie puede explorar — solo ven lo que copias y pegas",
+        "Para la otra semana ya se perdió en el archivo del chat",
+        "Tu marca se ve como un contacto más, no como un negocio",
+      ]
+    : [
+        "Profiles shared one at a time, nothing structured",
+        "Rates and availability re-typed, every inquiry",
+        "No way to browse — only what you copy-paste",
+        "Vanishes into the chat archive by next week",
+        "Your brand looks like a contact, not a business",
+      ];
+}
 
-const LINK_WINS = [
-  "One professional link with your full roster",
-  "Rates, availability, and specs in one place",
-  "Clients browse, filter, and compare themselves",
-  "Traceable inquiries that become bookings",
-  "Editorial presentation that earns premium rates",
-];
+function getLinkWins(locale: string) {
+  return locale === "es"
+    ? [
+        "Un solo link profesional con todo tu roster",
+        "Tarifas, disponibilidad y specs en un mismo lugar",
+        "Los clientes exploran, filtran y comparan por su cuenta",
+        "Solicitudes rastreables que se vuelven reservaciones",
+        "Una presentación editorial que cobra mejores tarifas",
+      ]
+    : [
+        "One professional link with your full roster",
+        "Rates, availability, and specs in one place",
+        "Clients browse, filter, and compare themselves",
+        "Traceable inquiries that become bookings",
+        "Editorial presentation that earns premium rates",
+      ];
+}
 
-export function ContrastSection() {
+export async function ContrastSection() {
+  const locale = await getRequestLocale();
+  const c =
+    locale === "es"
+      ? {
+          eyebrow: "El cambio",
+          heading: "El relajo del WhatsApp no es un flujo de trabajo.",
+          paragraph:
+            "El trabajo es el mismo. La presentación no. Mismo roster, mismos clientes — una se siente como mandar una captura de pantalla; la otra, como mandar un negocio.",
+          oldWayTitle: "La forma de antes",
+          oldWaySubtitle: "WhatsApp + capturas de pantalla",
+          newWayTitle: "La nueva forma",
+          newWaySubtitle: "El link de tu roster",
+          everyoneElse: "Todos los demás",
+        }
+      : {
+          eyebrow: "The shift",
+          heading: "The WhatsApp shuffle is not a workflow.",
+          paragraph:
+            "The work is the same. The presentation is not. Same roster, same clients — one feels like sending a screenshot, the other feels like sending a business.",
+          oldWayTitle: "The old way",
+          oldWaySubtitle: "WhatsApp + screenshots",
+          newWayTitle: "The new way",
+          newWaySubtitle: "Your roster link",
+          everyoneElse: "Everyone else",
+        };
+  const whatsappPains = getWhatsappPains(locale);
+  const linkWins = getLinkWins(locale);
   return (
     <MarketingSection className="relative">
       <MarketingContainer size="wide">
         <div className="mx-auto max-w-2xl text-center">
-          <MarketingEyebrow>The shift</MarketingEyebrow>
+          <MarketingEyebrow>{c.eyebrow}</MarketingEyebrow>
           <h2
             className="mkt-display mt-5 text-[2rem] font-medium tracking-[-0.02em] sm:text-[2.75rem] md:text-[3rem]"
             style={{ color: "var(--mkt-ink)" }}
           >
-            The WhatsApp shuffle is not a workflow.
+            {c.heading}
           </h2>
           <p
             className="mx-auto mt-5 max-w-xl text-[1rem] leading-[1.6] sm:text-[1.0625rem]"
             style={{ color: "var(--mkt-muted)" }}
           >
-            The work is the same. The presentation is not. Same roster, same clients — one
-            feels like sending a screenshot, the other feels like sending a business.
+            {c.paragraph}
           </p>
         </div>
 
         <div className="mt-16 grid gap-6 md:grid-cols-2 md:gap-8">
-          <ContrastCard tone="before" title="The old way" subtitle="WhatsApp + screenshots">
+          <ContrastCard
+            tone="before"
+            title={c.oldWayTitle}
+            subtitle={c.oldWaySubtitle}
+            everyoneElse={c.everyoneElse}
+          >
             <ul className="space-y-3.5">
-              {WHATSAPP_PAINS.map((pain) => (
+              {whatsappPains.map((pain) => (
                 <li
                   key={pain}
                   className="flex items-start gap-3 text-[0.9375rem] leading-[1.55]"
@@ -53,9 +105,14 @@ export function ContrastSection() {
             </ul>
           </ContrastCard>
 
-          <ContrastCard tone="after" title="The new way" subtitle="Your roster link">
+          <ContrastCard
+            tone="after"
+            title={c.newWayTitle}
+            subtitle={c.newWaySubtitle}
+            everyoneElse={c.everyoneElse}
+          >
             <ul className="space-y-3.5">
-              {LINK_WINS.map((win) => (
+              {linkWins.map((win) => (
                 <li
                   key={win}
                   className="flex items-start gap-3 text-[0.9375rem] leading-[1.55]"
@@ -76,11 +133,13 @@ function ContrastCard({
   tone,
   title,
   subtitle,
+  everyoneElse,
   children,
 }: {
   tone: "before" | "after";
   title: string;
   subtitle: string;
+  everyoneElse: string;
   children: React.ReactNode;
 }) {
   const isAfter = tone === "after";
@@ -140,7 +199,7 @@ function ContrastCard({
               background: "rgba(255,255,255,0.4)",
             }}
           >
-            Everyone else
+            {everyoneElse}
           </span>
         )}
       </div>

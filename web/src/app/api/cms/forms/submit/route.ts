@@ -22,6 +22,7 @@ import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
+import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
 
 export const runtime = "nodejs";
 
@@ -121,48 +122,85 @@ export async function POST(req: Request) {
   }
 
   // Phase 8 — captcha validation. Caller can include `h-captcha-response`
-  // (hCaptcha) or `cf-turnstile-response` (Cloudflare Turnstile). When the
-  // matching server-side secret is configured, validate the token; when
-  // absent, treat the captcha as a no-op so a misconfigured tenant still
-  // gets submissions through (honeypot + rate-limit are the floor).
+  // (hCaptcha) or `cf-turnstile-response` (Cloudflare Turnstile). We resolve
+  // the SINGLE provider that is active for this tenant and verify against it,
+  // failing CLOSED on a missing/empty token or a vault error. A captcha that
+  // resolves to provider 'none' (no tenant config AND no platform secret) is
+  // simply not enforced — honeypot + rate-limit remain the floor.
   const hcaptchaToken = typeof payload["h-captcha-response"] === "string" ? (payload["h-captcha-response"] as string) : "";
   const turnstileToken = typeof payload["cf-turnstile-response"] === "string" ? (payload["cf-turnstile-response"] as string) : "";
   delete payload["h-captcha-response"];
   delete payload["cf-turnstile-response"];
 
-  const hcaptchaSecret = process.env.HCAPTCHA_SECRET;
-  const turnstileSecret = process.env.TURNSTILE_SECRET;
-  let captchaOk = true;
-  if (hcaptchaSecret && hcaptchaToken) {
+  // Resolve the RESOLVED provider + secret for this tenant. Tenant-owned
+  // (their chosen provider + their secret) takes precedence; otherwise the
+  // platform provider from env. When the tenant owns the captcha we ONLY honor
+  // their chosen provider — the other provider's secret is nulled so an
+  // attacker can't pass by solving the platform's other widget.
+  const tenantCaptcha = await resolveTenantCaptcha(section.tenant_id);
+
+  const captchaRejection = NextResponse.json(
+    { ok: false, error: "Captcha failed — please try again." },
+    { status: 400 },
+  );
+
+  if (tenantCaptcha.provider === "none") {
+    // No tenant config AND no platform secret → captcha not enforced.
+  } else {
+    // Resolve the secret for the chosen provider.
+    let secret: string | null = null;
+    if (tenantCaptcha.tenantOwned) {
+      // FAIL CLOSED on a vault decrypt error / missing secret — do NOT fall
+      // through to the platform env secret (that would defeat tenant isolation
+      // and let an attacker pass by solving a different secret's challenge).
+      secret = await tenantCaptcha.getSecret();
+    } else {
+      secret =
+        tenantCaptcha.provider === "hcaptcha"
+          ? process.env.HCAPTCHA_SECRET?.trim() || null
+          : process.env.TURNSTILE_SECRET?.trim() || null;
+    }
+
+    if (!secret) {
+      // An active provider with no resolvable secret = misconfiguration; fail
+      // closed rather than silently letting bots through.
+      return captchaRejection;
+    }
+
+    // The token that matches the resolved provider. A missing/empty token for
+    // an ACTIVE provider is a HARD REJECT — never skip verification.
+    const token =
+      tenantCaptcha.provider === "hcaptcha" ? hcaptchaToken : turnstileToken;
+    if (!token) {
+      return captchaRejection;
+    }
+
+    let captchaOk = false;
     try {
-      const r = await fetch("https://api.hcaptcha.com/siteverify", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ secret: hcaptchaSecret, response: hcaptchaToken }),
-      });
-      const j = (await r.json()) as { success?: boolean };
-      captchaOk = j.success === true;
+      if (tenantCaptcha.provider === "hcaptcha") {
+        const r = await fetch("https://api.hcaptcha.com/siteverify", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({ secret, response: token }),
+        });
+        const j = (await r.json()) as { success?: boolean };
+        captchaOk = j.success === true;
+      } else {
+        const r = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({ secret, response: token, remoteip: ip === "unknown" ? "" : ip }),
+        });
+        const j = (await r.json()) as { success?: boolean };
+        captchaOk = j.success === true;
+      }
     } catch {
       captchaOk = false;
     }
-  } else if (turnstileSecret && turnstileToken) {
-    try {
-      const r = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ secret: turnstileSecret, response: turnstileToken, remoteip: ip === "unknown" ? "" : ip }),
-      });
-      const j = (await r.json()) as { success?: boolean };
-      captchaOk = j.success === true;
-    } catch {
-      captchaOk = false;
+
+    if (!captchaOk) {
+      return captchaRejection;
     }
-  }
-  if (!captchaOk) {
-    return NextResponse.json(
-      { ok: false, error: "Captcha failed — please try again." },
-      { status: 400 },
-    );
   }
 
   // Project email + name when present (cheap admin-list field).

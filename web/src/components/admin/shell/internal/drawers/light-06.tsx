@@ -363,7 +363,7 @@ export function NewBookingDrawer() {
       const fd = new FormData();
       fd.set("title", title.trim() || clientName.trim() || "Booking");
       fd.set("booking_status", "confirmed");
-      fd.set("currency_code", "EUR");
+      fd.set("currency_code", "USD");
       fd.set("client_account_id", "");
       fd.set("client_contact_id", "");
       fd.set("owner_staff_id", "");

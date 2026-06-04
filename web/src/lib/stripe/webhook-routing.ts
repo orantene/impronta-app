@@ -35,7 +35,7 @@ import type Stripe from "stripe";
  *   invoice_payment_failed                      — dunning; re-sync the subscription
  *   invoice_payment_succeeded                   — renewal billed; audit log
  *   charge_refunded                             — reverse a tracked balance top-up
- *   charge_dispute                              — log today (B3 will notify)
+ *   charge_dispute                              — created: flag+alert; closed/lost: reverse payouts
  *   trial_will_end                              — log today (B3 will notify)
  *   payment_intent_failed                       — best-effort log
  *   connect_account_updated / capability_updated — refresh Connect account snapshot
@@ -64,7 +64,7 @@ export type StripeAction =
       refundedCents: number;
       chargeId: string;
     }
-  | { kind: "charge_dispute"; disputeId: string; paymentIntentId: string | null; amount: number; reason: string; status: string }
+  | { kind: "charge_dispute"; disputeId: string; paymentIntentId: string | null; amount: number; reason: string; status: string; closed: boolean }
   | { kind: "trial_will_end"; subscriptionId: string; trialEnd: number | null }
   | {
       kind: "booking_deposit";
@@ -232,8 +232,12 @@ export function classifyStripeEvent(event: Stripe.Event): StripeAction {
       return { kind: "charge_refunded", paymentIntentId, refundedCents, chargeId: charge.id };
     }
 
-    case "charge.dispute.created": {
+    case "charge.dispute.created":
+    case "charge.dispute.closed": {
       const dispute = event.data.object as Stripe.Dispute;
+      // `.closed` carries the terminal `status` ('lost' / 'won' / 'warning_closed');
+      // `.created` is the opened alert. The handler reverses payouts only on a
+      // LOST closed dispute.
       return {
         kind: "charge_dispute",
         disputeId: dispute.id,
@@ -241,6 +245,7 @@ export function classifyStripeEvent(event: Stripe.Event): StripeAction {
         amount: dispute.amount ?? 0,
         reason: dispute.reason ?? "unknown",
         status: dispute.status ?? "unknown",
+        closed: event.type === "charge.dispute.closed",
       };
     }
 

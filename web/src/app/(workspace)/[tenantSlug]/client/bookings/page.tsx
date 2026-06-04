@@ -19,6 +19,7 @@ import {
 import { ClientPageHeader, HeaderBadge } from "../_components/ClientPageHeader";
 import { NewInquiryButton } from "../_components/NewInquiryButton";
 import { EmptyState } from "../_components/EmptyState";
+import { ReviewableBookingsSection } from "../_components/ReviewableBookingsSection";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
@@ -46,6 +47,22 @@ function isPast(iso: string | null): boolean {
   return isPastClientDate(iso);
 }
 
+function fmtMoney(cents: number | null, currency: string | null): string | null {
+  if (cents == null) return null;
+  return `${currency ?? "USD"} ${(cents / 100).toLocaleString()}`;
+}
+
+// Client-facing payment label + tone from agency_bookings.payment_status.
+function paymentChip(status: string | null): { label: string; paid: boolean } | null {
+  switch (status) {
+    case "paid":      return { label: "Paid", paid: true };
+    case "partial":   return { label: "Partially paid", paid: false };
+    case "unpaid":    return { label: "Payment due", paid: false };
+    case "cancelled": return { label: "Cancelled", paid: false };
+    default:          return null;
+  }
+}
+
 function BookingRow({
   booking,
   idx,
@@ -59,16 +76,26 @@ function BookingRow({
 }) {
   const future = !isPast(booking.event_date);
   const dateParts = getClientDateParts(booking.event_date);
+  const money = fmtMoney(booking.amountCents, booking.currencyCode);
+  const chip = paymentChip(booking.paymentStatus);
+  // D2 — show receipt download only when paid and a booking record exists.
+  const showReceipt =
+    booking.paymentStatus === "paid" &&
+    booking.agencyBookingId !== null;
   return (
+    <div
+      style={{
+        borderBottom: idx < total - 1 ? `1px solid ${C.borderSoft}` : "none",
+      }}
+    >
     <Link
-      href={`/${tenantSlug}/client/inquiries/${booking.id}`}
+      href={`/${tenantSlug}/client/messages?inquiry=${booking.id}`}
       style={{
         display: "grid",
         gridTemplateColumns: "48px 1fr auto",
         gap: 16,
         alignItems: "center",
-        padding: "16px 18px",
-        borderBottom: idx < total - 1 ? `1px solid ${C.borderSoft}` : "none",
+        padding: showReceipt ? "16px 18px 8px" : "16px 18px",
         fontFamily: FONT,
         textDecoration: "none",
       }}
@@ -133,6 +160,29 @@ function BookingRow({
             <span style={{ fontSize: 12, color: C.inkMuted }}>· {booking.quantity} talent</span>
           )}
         </div>
+        {(money || chip) && (
+          <div style={{ display: "flex", gap: 8, marginTop: 5, alignItems: "center" }}>
+            {money && (
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: C.ink, fontVariantNumeric: "tabular-nums" }}>{money}</span>
+            )}
+            {chip && (
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: 0.3,
+                  textTransform: "uppercase" as const,
+                  padding: "2px 7px",
+                  borderRadius: 999,
+                  background: chip.paid ? C.greenSoft : "rgba(11,11,13,0.05)",
+                  color: chip.paid ? C.greenDeep : C.inkMuted,
+                }}
+              >
+                {chip.label}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Status */}
@@ -155,6 +205,42 @@ function BookingRow({
         {future ? "Confirmed" : "Past"}
       </div>
     </Link>
+
+    {/* D2 — Receipt download strip, shown only when payment_status = paid */}
+    {showReceipt && (
+      <div
+        style={{
+          padding: "0 18px 12px",
+          display: "flex",
+          justifyContent: "flex-end",
+        }}
+      >
+        <a
+          href={`/api/receipt/${booking.agencyBookingId}`}
+          download
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            fontSize: 11.5,
+            fontWeight: 600,
+            color: C.accent,
+            textDecoration: "none",
+            padding: "4px 10px",
+            borderRadius: 7,
+            border: `1px solid rgba(29,78,216,0.18)`,
+            background: "rgba(29,78,216,0.04)",
+            fontFamily: FONT,
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M12 17V3" /><path d="M5 10l7 7 7-7" /><path d="M5 21h14" />
+          </svg>
+          Download receipt
+        </a>
+      </div>
+    )}
+    </div>
   );
 }
 
@@ -224,6 +310,8 @@ export default async function ClientBookingsPage({ params }: { params: PageParam
         <div className="flex flex-col gap-7">
           <BookingSection rows={upcoming} label="Upcoming" tenantSlug={tenantSlug} />
           <BookingSection rows={past}     label="Past" tenantSlug={tenantSlug} />
+          {/* W7 — client→talent reviews. Self-hides when nothing is eligible. */}
+          <ReviewableBookingsSection tenantSlug={tenantSlug} />
         </div>
       )}
     </div>

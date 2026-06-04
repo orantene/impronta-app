@@ -15,12 +15,18 @@ import { BadgeChip, ProfileChip, TierPill } from "./profile-sections-2";
 // keyed off MY_TALENT_PROFILE so the talent sees what's complete vs
 // outstanding without opening each section.
 export function AllSectionsGrid({ openSection }: { openSection: (s: string) => void }) {
-  const { tenantSlug } = useAdminShell();
+  const { tenantSlug, bridgeTalentSelfProfile } = useAdminShell();
   const hidePolaroids = tenantSlug === "impronta";
   // Subscribe + read merged profile so completion chips refresh when
   // the talent edits anything in the shell.
   useProfileOverrideSubscription();
-  const baseAS = applyProfileOverride("t1", getProfileById("t1"));
+  // Use the REAL talent's profile for completion state — a real talent must
+  // see their own filled/empty sections, not the demo "t1" (Marta) profile.
+  // Falls back to the mock override store only in standalone preview mode.
+  const selfTalentId = bridgeTalentSelfProfile?.id ?? "t1";
+  const baseAS = bridgeTalentSelfProfile && !TALENT_PROFILES_BY_ID[selfTalentId]
+    ? buildFreshTalentProfile(bridgeTalentSelfProfile)
+    : applyProfileOverride("t1", getProfileById("t1"));
   // Catalog-driven completeness — same calc as MyProfilePage so the
   // header percent and the section grid agree.
   const compAS = computeProfileCompleteness(baseAS, [baseAS.primaryType, ...baseAS.secondaryTypes]);

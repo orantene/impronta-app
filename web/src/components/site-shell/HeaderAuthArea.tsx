@@ -1,3 +1,5 @@
+import "server-only";
+
 /**
  * Phase B.2 — auth widgets re-mounted inside the snapshot-shell header.
  *

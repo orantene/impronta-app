@@ -7,6 +7,7 @@ import { useAdminShell, FONTS, COLORS, RADIUS } from "../../state";
 import { Avatar } from "../../primitives";
 import { initialsOf } from "./inbox-identity-1";
 import { OfferTab } from "./machinery-12";
+import { OfferTermsComposer } from "./offer-terms-ui";
 import { PanelSkeleton, ghostBtn, primaryBtn } from "./machinery-13";
 import type { Offer } from "./machinery-9";
 
@@ -166,6 +167,7 @@ export function LiveLineupPanel({
               >
                 <Avatar
                   size={22}
+                  photoUrl={p.talentPhotoUrl ?? undefined}
                   initials={initialsOf(p.talentDisplayName)}
                   tone="auto"
                   hashSeed={p.talentDisplayName ?? p.id}
@@ -259,10 +261,22 @@ export function LiveLineupPanel({
                 color: COLORS.inkDim, fontSize: 12, fontWeight: 700,
                 cursor: "grab", userSelect: "none",
               }}>⋮⋮</span>
+              <Avatar
+                size={32}
+                photoUrl={p.talentPhotoUrl ?? undefined}
+                initials={initialsOf(p.talentDisplayName)}
+                tone="auto"
+                hashSeed={p.talentDisplayName ?? p.id}
+              />
               <div className="flex-1 min-w-0">
                 <div style={{ fontWeight: 600 }} className="text-admin-ink">
                   {p.talentDisplayName ?? "(unnamed talent)"}
                 </div>
+                {p.talentHeadline && (
+                  <div className="text-admin-ink-muted text-admin-11">
+                    {p.talentHeadline}
+                  </div>
+                )}
                 <div className="text-admin-ink-muted text-admin-11" style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                   <span
                     style={{
@@ -423,6 +437,15 @@ export function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: s
   }
   if (!snapshot) return null;
 
+  // #3 alignment: the offer Total is the SUM of the priced line items — never
+  // hand-typed — so the client sees and is charged exactly the same number
+  // (convert already books the line-item sum). This removes the shown≠charged
+  // drift that was the third structural root cause of the workflow audit.
+  const computedTotal = snapshot.lineItems.reduce(
+    (sum, li) => sum + (Number(li.totalPrice) || 0),
+    0,
+  );
+
   const addLineItem = () => {
     setSnapshot((s) => s == null ? s : {
       ...s,
@@ -481,7 +504,7 @@ export function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: s
       const r = await saveOfferDraft(effectiveTenant.slug, offerId, {
         inquiryExpectedVersion: snapshot.inquiryVersion,
         offerExpectedVersion: snapshot.offerVersion,
-        totalClientPrice: snapshot.totalClientPrice,
+        totalClientPrice: computedTotal,
         coordinatorFee: snapshot.coordinatorFee,
         currencyCode: snapshot.currencyCode,
         notes: snapshot.notes,
@@ -498,7 +521,6 @@ export function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: s
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(p.id),
   );
 
-  void inquiryId; // referenced for potential future use (revalidate scoping)
 
   if (collapsed) {
     return (
@@ -507,7 +529,7 @@ export function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: s
         <span className="text-admin-ink-muted">
           {snapshot.lineItems.length} line item{snapshot.lineItems.length === 1 ? "" : "s"}
           {" · "}
-          total {new Intl.NumberFormat("en-US", { style: "currency", currency: snapshot.currencyCode, maximumFractionDigits: 0 }).format(snapshot.totalClientPrice)}
+          total {new Intl.NumberFormat("en-US", { style: "currency", currency: snapshot.currencyCode, maximumFractionDigits: 0 }).format(computedTotal)}
         </span>
         <span style={{ flex: 1 }} />
         <button type="button" onClick={() => setCollapsed(false)} style={ghostBtn()}>Edit</button>
@@ -611,10 +633,13 @@ export function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: s
         <button type="button" disabled={pending} onClick={addLineItem} style={ghostBtn()}>+ Add line item</button>
         <span style={{ flex: 1 }} />
         <label className="text-admin-ink-muted text-admin-11">Total</label>
-        <input type="number" min={0} step="100" value={snapshot.totalClientPrice}
-          onChange={(e) => setSnapshot((s) => s == null ? s : { ...s, totalClientPrice: parseFloat(e.target.value) || 0 })}
-          style={{ width: 90, padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
-        />
+        <span
+          title="Auto-summed from the line items above — this is exactly what the client sees on the offer and is charged at booking."
+          style={{ minWidth: 90, padding: "5px 6px", fontSize: 13, fontWeight: 700, textAlign: "right", whiteSpace: "nowrap", fontFamily: FONTS.body }}
+          className="text-admin-ink"
+        >
+          {new Intl.NumberFormat("en-US", { style: "currency", currency: snapshot.currencyCode, maximumFractionDigits: 0 }).format(computedTotal)}
+        </span>
         <label className="text-admin-ink-muted text-admin-11">Fee</label>
         <input type="number" min={0} step="100" value={snapshot.coordinatorFee}
           onChange={(e) => setSnapshot((s) => s == null ? s : { ...s, coordinatorFee: parseFloat(e.target.value) || 0 })}
@@ -624,6 +649,45 @@ export function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: s
           {pending ? "Saving…" : "Save draft"}
         </button>
       </div>
+
+      {/* W6a — negotiated booking terms (deposit / balance method / refund
+          policy), pre-filled from the offer's saved terms (loadOfferDraft) and
+          persisted through saveOfferDraft alongside the current line items.
+          deposit_amount_cents is derived server-side. Display + snapshot only —
+          nothing charges the deposit this wave. */}
+      <OfferTermsComposer
+        totalUnits={computedTotal}
+        currencyCode={snapshot.currencyCode}
+        initial={{
+          depositPct: snapshot.terms.depositPct,
+          balanceMethod: snapshot.terms.balanceMethod,
+          refundPolicy: snapshot.terms.refundPolicy,
+        }}
+        onSave={async (terms) => {
+          const r = await saveOfferDraft(effectiveTenant.slug, offerId, {
+            inquiryExpectedVersion: snapshot.inquiryVersion,
+            offerExpectedVersion: snapshot.offerVersion,
+            totalClientPrice: computedTotal,
+            coordinatorFee: snapshot.coordinatorFee,
+            currencyCode: snapshot.currencyCode,
+            notes: snapshot.notes,
+            lineItems: snapshot.lineItems.map((li, idx) => ({
+              talent_profile_id: li.talentProfileId,
+              label: li.label,
+              pricing_unit: li.pricingUnit,
+              units: li.units,
+              unit_price: li.unitPrice,
+              total_price: li.totalPrice,
+              talent_cost: li.talentCost,
+              notes: li.notes,
+              sort_order: idx,
+            })),
+            terms,
+          });
+          if (r.ok) reload();
+          return r;
+        }}
+      />
     </div>
   );
 }

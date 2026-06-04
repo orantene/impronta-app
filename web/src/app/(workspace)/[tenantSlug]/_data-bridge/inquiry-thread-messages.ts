@@ -90,7 +90,7 @@ export async function loadInquiryMessages(
     const readClient = admin ?? supabase;
     const { data, error } = await readClient
       .from("inquiry_messages")
-      .select("id, sender_user_id, body, created_at, message_kind, card_payload, profiles:sender_user_id(display_name)")
+      .select("id, sender_user_id, body, created_at, message_kind, card_payload, metadata, profiles:sender_user_id(display_name)")
       .eq("inquiry_id", inquiryId)
       .eq("thread_type", threadType)
       .eq("tenant_id", tenantId)
@@ -110,6 +110,7 @@ export async function loadInquiryMessages(
       created_at: string;
       message_kind: string | null;
       card_payload: Record<string, unknown> | null;
+      metadata: Record<string, unknown> | null;
       profiles: { display_name: string | null } | { display_name: string | null }[] | null;
     };
     const rows = (data ?? []) as unknown as MsgRow[];
@@ -172,6 +173,7 @@ export async function loadInquiryMessages(
         is_mine,
         message_kind: row.message_kind ?? "text",
         card_payload: row.card_payload ?? null,
+        metadata: row.metadata ?? null,
         reactions: reactionAgg
           ? [...reactionAgg.entries()].map(([emoji, v]) => ({ emoji, count: v.count, mine: v.mine }))
           : [],

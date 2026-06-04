@@ -137,8 +137,21 @@ const builderEmbedCsp = {
     "https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://calendly.com https://*.calendly.com",
 };
 
+// Talent featured-media safe embeds (lib/talent-integrations/media-embed.ts).
+// YouTube/Vimeo are already covered by builderEmbedCsp; Spotify + SoundCloud
+// players need their own frame-src hosts.
+const talentMediaEmbedCsp = {
+  frame: "https://open.spotify.com https://w.soundcloud.com",
+};
+
 function contentSecurityPolicy(): string {
   const googleTag = "https://www.googletagmanager.com https://www.google-analytics.com";
+  // Tenant captcha integrations (hCaptcha + Cloudflare Turnstile). The widget
+  // script + iframe + the browser-side siteverify XHR must be allow-listed or
+  // the storefront contact-form captcha is silently blocked.
+  const captchaScript = "https://js.hcaptcha.com https://challenges.cloudflare.com";
+  const captchaFrame = "https://newassets.hcaptcha.com https://challenges.cloudflare.com";
+  const captchaConnect = "https://hcaptcha.com https://*.hcaptcha.com https://challenges.cloudflare.com";
   // @vercel/analytics + @vercel/speed-insights load scripts from va.vercel-scripts.com
   // and beacon to vitals.vercel-insights.com. Without these directives the
   // packages are silently blocked by CSP and never report — the Vercel dashboard
@@ -147,13 +160,13 @@ function contentSecurityPolicy(): string {
   const directives = [
     "default-src 'self'",
     isProd
-      ? `script-src 'self' 'unsafe-inline' ${googleMapsCsp.script} ${stripeCsp.script} ${googleTag} ${vercelInsights}`
-      : `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${googleMapsCsp.script} ${stripeCsp.script} ${googleTag} ${vercelInsights}`,
+      ? `script-src 'self' 'unsafe-inline' ${googleMapsCsp.script} ${stripeCsp.script} ${googleTag} ${captchaScript} ${vercelInsights}`
+      : `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${googleMapsCsp.script} ${stripeCsp.script} ${googleTag} ${captchaScript} ${vercelInsights}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' data: https://fonts.gstatic.com",
     `img-src 'self' data: blob: https: https://www.google-analytics.com`,
-    `connect-src ${connectSrcDirectives().join(" ")} ${googleMapsCsp.connect} ${stripeCsp.connect} ${googleTag} https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com ${vercelInsights} https://*.sentry.io`,
-    `frame-src ${googleMapsCsp.frameSrc} ${stripeCsp.frame} ${builderEmbedCsp.frame}`,
+    `connect-src ${connectSrcDirectives().join(" ")} ${googleMapsCsp.connect} ${stripeCsp.connect} ${googleTag} ${captchaConnect} https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com ${vercelInsights} https://*.sentry.io`,
+    `frame-src ${googleMapsCsp.frameSrc} ${stripeCsp.frame} ${builderEmbedCsp.frame} ${captchaFrame} ${talentMediaEmbedCsp.frame}`,
     /** Maps workers use blob: URLs */
     "worker-src blob:",
     "frame-ancestors 'self'",
@@ -254,17 +267,28 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  /** Common typo: inqueries → inquiries */
+  /** Common typo: inqueries → the talent inbox (the talent inquiry surface is
+   *  /talent/inbox; there is no /talent/inquiries route — it 404s). */
   async redirects() {
     return [
       {
         source: "/talent/inqueries",
-        destination: "/talent/inquiries",
+        destination: "/talent/inbox",
         permanent: false,
       },
       {
         source: "/talent/inqueries/:path*",
-        destination: "/talent/inquiries/:path*",
+        destination: "/talent/inbox/:path*",
+        permanent: false,
+      },
+      {
+        source: "/talent/inquiries",
+        destination: "/talent/inbox",
+        permanent: false,
+      },
+      {
+        source: "/talent/inquiries/:path*",
+        destination: "/talent/inbox/:path*",
         permanent: false,
       },
     ];

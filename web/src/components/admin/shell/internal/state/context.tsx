@@ -13,7 +13,7 @@ import { devSetTalentPlanTierForSelfAction } from "@/lib/talent-site/server/dev-
 import { createTranslator } from "@/i18n/messages";
 import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
 import type { ToastTone } from "../primitives";
-import type { BridgeData, WorkspaceInquiryForMessages, WorkspaceClientRow, CalendarEvent as BridgeCalendarEvent, WorkspaceOverviewMetrics, WorkspaceBookingRow, WorkspacePitchRow, WorkspaceTeamMember as BridgeTeamMember, TalentSelfProfile as BridgeTalentSelfProfile, TalentInquiryRow, TalentAgencyRow, WorkspaceMediaPhoto as BridgeMediaPhoto, WorkspaceMediaFolder as BridgeMediaFolder } from "../data-bridge";
+import type { BridgeData, WorkspaceInquiryForMessages, WorkspaceClientRow, CalendarEvent as BridgeCalendarEvent, WorkspaceOverviewMetrics, WorkspaceBookingRow, WorkspacePitchRow, WorkspaceTeamMember as BridgeTeamMember, TalentSelfProfile as BridgeTalentSelfProfile, TalentInquiryRow, TalentAgencyRow, WorkspaceMediaPhoto as BridgeMediaPhoto, WorkspaceMediaFolder as BridgeMediaFolder, RecentActivityItem } from "../data-bridge";
 // Type-only — erased at compile time, so importing from the `"use server"`
 // payouts actions module pulls no server runtime into this client bundle.
 import type { PayoutsSurfaceResult } from "@/app/(workspace)/[tenantSlug]/admin/payouts/payouts-surface-actions";
@@ -271,6 +271,12 @@ type Ctx = {
    * to computing from effectiveRoster / effectiveMessagesInquiries when null.
    */
   overviewMetrics: WorkspaceOverviewMetrics | null;
+  /**
+   * Real workspace activity rows (inquiry_events) for the Overview feed +
+   * Recent-activity drawer. null = mock/standalone mode (use the demo feed);
+   * empty array = live mode, no events yet (render the empty state).
+   */
+  bridgeRecentActivity: RecentActivityItem[] | null;
   /** Live booking rows. Falls back to empty array in mock mode. */
   effectiveBookings: WorkspaceBookingRow[];
   /** Phase 9 — live pitch rows for the Pitches surface. Empty array in mock mode. */
@@ -510,7 +516,10 @@ function adaptBridgeInquiry(w: WorkspaceInquiryForMessages): RichInquiry {
           approved: w.lineupConfirmed,
           talents: w.lineupTalent.map((talent) => ({
             name: talent.displayName,
-            thumb: "",
+            // Confidence: real face + discipline so the lineup shows people,
+            // not initials (the Avatar falls back to initials when empty).
+            thumb: talent.photoUrl ?? "",
+            headline: talent.headline ?? undefined,
             status: mapParticipantStatus(talent.status),
           })),
         }]
@@ -561,7 +570,8 @@ function adaptBridgeInquiry(w: WorkspaceInquiryForMessages): RichInquiry {
           isYou: message.is_mine,
           messageKind: message.message_kind ?? "text",
           cardPayload: message.card_payload ?? null,
-        } as ThreadMessage & { messageKind?: string; cardPayload?: Record<string, unknown> | null };
+          metadata: message.metadata ?? null,
+        } as ThreadMessage;
       })
     : w.lastMessagePreview
       ? [{
@@ -1725,6 +1735,7 @@ export function AdminShellProvider({
 
   const effectiveCalendarEvents = initialBridgeData?.calendarEvents ?? null;
   const overviewMetrics = initialBridgeData?.overviewMetrics ?? null;
+  const bridgeRecentActivity = initialBridgeData?.recentActivity ?? null;
 
   const bridgeBookings = initialBridgeData?.bookings ?? null;
   const effectiveBookings = useMemo<WorkspaceBookingRow[]>(
@@ -1953,6 +1964,7 @@ export function AdminShellProvider({
       effectiveClients,
       effectiveCalendarEvents,
       overviewMetrics,
+      bridgeRecentActivity,
       effectiveBookings,
       effectivePitches,
       effectiveTeamMembers,
@@ -2063,6 +2075,7 @@ export function AdminShellProvider({
       effectiveClients,
       effectiveCalendarEvents,
       overviewMetrics,
+      bridgeRecentActivity,
       effectiveBookings,
       effectivePitches,
       effectiveTeamMembers,

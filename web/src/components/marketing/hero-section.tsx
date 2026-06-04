@@ -160,7 +160,7 @@ export function HeroSection({ locale }: { locale: string }) {
       </MarketingContainer>
 
       {/* Floating booking card — synced to the active slide */}
-      <BookingAccent index={active} />
+      <BookingAccent index={active} locale={locale} />
 
       {/* Slide indicators */}
       <div className="absolute inset-x-0 bottom-4 z-10 flex items-center justify-center gap-0.5">
@@ -198,15 +198,28 @@ type BookingCard = {
 };
 
 /** One booking per slide — the card mirrors the talent on screen (same order as SLIDES). */
-const BOOKING_CARDS: BookingCard[] = [
-  { label: "Booking paid", status: "Paid", tone: "paid", amount: "$1,400", who: "Mateo · Private chef", when: "Saturday · 8 guests" },
-  { label: "Booking paid", status: "Paid", tone: "paid", amount: "$2,500", who: "Léa & Marco · Runway", when: "Fashion week · Sat" },
-  { label: "New booking", status: "New", tone: "new", amount: "$900", who: "Daniela · DJ set", when: "Friday · 9pm–1am" },
-  { label: "New booking", status: "New", tone: "new", amount: "$1,800", who: "Brand launch · 3 models", when: "Friday night" },
-  { label: "Offer sent", status: "Sent", tone: "sent", amount: "$1,600", who: "Casa Rizo · Event bar", when: "Awaiting reply" },
-  { label: "Booking paid", status: "Paid", tone: "paid", amount: "$640", who: "Tomás · Event host", when: "Dinner · 6 hrs" },
-  { label: "Booking paid", status: "Paid", tone: "paid", amount: "$140", who: "Renata · Massage", when: "Today · 4pm" },
-];
+function getBookingCards(locale: string): BookingCard[] {
+  if (locale === "es") {
+    return [
+      { label: "Reserva pagada", status: "Pagado", tone: "paid", amount: "$1,400", who: "Mateo · Chef privado", when: "Sábado · 8 invitados" },
+      { label: "Reserva pagada", status: "Pagado", tone: "paid", amount: "$2,500", who: "Léa y Marco · Pasarela", when: "Fashion week · Sáb" },
+      { label: "Nueva reserva", status: "Nueva", tone: "new", amount: "$900", who: "Daniela · Set de DJ", when: "Viernes · 9pm–1am" },
+      { label: "Nueva reserva", status: "Nueva", tone: "new", amount: "$1,800", who: "Lanzamiento de marca · 3 modelos", when: "Viernes en la noche" },
+      { label: "Oferta enviada", status: "Enviada", tone: "sent", amount: "$1,600", who: "Casa Rizo · Bar de evento", when: "Esperando respuesta" },
+      { label: "Reserva pagada", status: "Pagado", tone: "paid", amount: "$640", who: "Tomás · Anfitrión", when: "Cena · 6 h" },
+      { label: "Reserva pagada", status: "Pagado", tone: "paid", amount: "$140", who: "Renata · Masaje", when: "Hoy · 4pm" },
+    ];
+  }
+  return [
+    { label: "Booking paid", status: "Paid", tone: "paid", amount: "$1,400", who: "Mateo · Private chef", when: "Saturday · 8 guests" },
+    { label: "Booking paid", status: "Paid", tone: "paid", amount: "$2,500", who: "Léa & Marco · Runway", when: "Fashion week · Sat" },
+    { label: "New booking", status: "New", tone: "new", amount: "$900", who: "Daniela · DJ set", when: "Friday · 9pm–1am" },
+    { label: "New booking", status: "New", tone: "new", amount: "$1,800", who: "Brand launch · 3 models", when: "Friday night" },
+    { label: "Offer sent", status: "Sent", tone: "sent", amount: "$1,600", who: "Casa Rizo · Event bar", when: "Awaiting reply" },
+    { label: "Booking paid", status: "Paid", tone: "paid", amount: "$640", who: "Tomás · Event host", when: "Dinner · 6 hrs" },
+    { label: "Booking paid", status: "Paid", tone: "paid", amount: "$140", who: "Renata · Massage", when: "Today · 4pm" },
+  ];
+}
 
 const STATUS_TONES: Record<BookingTone, { bg: string; fg: string }> = {
   paid: { bg: "rgba(52,193,110,0.16)", fg: "#1F7B3E" },
@@ -214,8 +227,9 @@ const STATUS_TONES: Record<BookingTone, { bg: string; fg: string }> = {
   sent: { bg: "rgba(15,23,20,0.07)", fg: "var(--plt-ink-soft)" },
 };
 
-function BookingAccent({ index }: { index: number }) {
-  const card = BOOKING_CARDS[index % BOOKING_CARDS.length];
+function BookingAccent({ index, locale }: { index: number; locale: string }) {
+  const cards = getBookingCards(locale);
+  const card = cards[index % cards.length];
   const tone = STATUS_TONES[card.tone];
   return (
     <div
