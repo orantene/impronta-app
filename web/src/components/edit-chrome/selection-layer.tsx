@@ -90,6 +90,7 @@ import {
   type BuilderNodePaletteDragPayload,
 } from "./element-library-insert-picker";
 import { CHROME } from "./kit/tokens";
+import { resolveLayerDisplayName } from "./freeform-layer-name";
 import { MultiSelectionMoveHandle } from "./multi-selection-move-handle";
 import { MultiSelectionToolbar } from "./multi-selection-toolbar";
 import { SectionTypeIcon } from "./kit/section-type-icon";
@@ -5676,6 +5677,11 @@ function canvasChildPrimaryLabel(node: BuilderNode): string {
     case "accordion_item":
     case "tab_panel":
       return node.props.title;
+    case "container":
+      // Unified with the layers tree (resolveLayerDisplayName): borrow the
+      // wrapped section heading, else a structural Row/Stack/Grid name — so the
+      // canvas chip + breadcrumb + a11y labels never disagree with the navigator.
+      return resolveLayerDisplayName(node);
     default:
       return BUILDER_NODE_REGISTRY[node.kind].label;
   }
