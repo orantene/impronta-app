@@ -10,8 +10,13 @@ import type { ServerActionResult } from "@/lib/server-actions/result";
 import { loadTalentSelfProfile } from "../../../_data-bridge";
 import { loadClientTrustState } from "@/lib/client-trust/evaluator";
 import { mapToGuestTrustChipProps } from "@/lib/inquiry/guest-trust-chip-mapper";
-import type { GuestTrustChipProps, InquiryReportReason } from "@/lib/inquiry/guest-chat-contract";
+import type { GuestTrustChipProps, InquiryReportReason, TrustSignalState } from "@/lib/inquiry/guest-chat-contract";
 import { blockSubject, reportInquiry } from "@/lib/inquiry/recipient-safety";
+import {
+  listClientIntegrations,
+  isClientIntegrationVerifiedTrustSignal,
+} from "@/lib/client-integrations/repository";
+import { getClientIntegrationDef } from "@/lib/client-integrations/catalog";
 
 export type SendTalentInquiryMessageResult = ServerActionResult<{
   id: string;
@@ -391,11 +396,16 @@ export async function loadTalentInquiryGuestTrust(
       .maybeSingle();
     if (!participant) return null;
 
-    // ── Trust tier — from client_trust_state when a registered client exists.
+    // ── Trust tier + payment verification — from client_trust_state.
+    // verified_at being non-null means the client completed the $5 Stripe
+    // payment verification (or an OAuth-sync wrote it). That is the payment
+    // signal source — there is no separate "payment badge" table.
     let clientTrustLevel: GuestTrustChipProps["tier"] = null;
+    let paymentSignalOverride: TrustSignalState = "absent";
     if (inq.client_user_id) {
       const state = await loadClientTrustState(inq.client_user_id, tenantId, readClient);
       clientTrustLevel = state?.trustLevel ?? null;
+      paymentSignalOverride = state?.verifiedAt ? "verified" : "absent";
     }
 
     // ── Email verification — the client user's auth email_confirmed_at.
@@ -406,6 +416,61 @@ export async function loadTalentInquiryGuestTrust(
         isEmailVerified = Boolean(authUser?.user?.email_confirmed_at);
       } catch (err) {
         logServerError("talent.trustChip.emailVerify", err);
+      }
+    }
+
+    // ── Phone signal — client_profiles.phone.
+    // There is no dedicated verified-phone flag in the schema; a stored phone
+    // number means it was captured but we cannot assert it was verified via SMS.
+    // We report present_unverified when a phone exists, absent otherwise.
+    let phoneSignalOverride: TrustSignalState = "absent";
+    if (inq.client_user_id) {
+      try {
+        const { data: clientProfile } = await readClient
+          .from("client_profiles")
+          .select("phone")
+          .eq("user_id", inq.client_user_id)
+          .maybeSingle();
+        const phone = (clientProfile as { phone?: string | null } | null)?.phone;
+        phoneSignalOverride = phone ? "present_unverified" : "absent";
+      } catch (err) {
+        logServerError("talent.trustChip.phone", err);
+      }
+    }
+    // If no registered client but the inquiry captured a phone at submission
+    // time, surface that as present_unverified too.
+    if (inq.client_user_id === null && inq.contact_phone?.trim()) {
+      phoneSignalOverride = "present_unverified";
+    }
+
+    // ── Social signal — client_integrations (OAuth-verified social accounts).
+    // "verified"          = at least one social integration is OAuth-verified,
+    //                       trust_signal_enabled, and talent_visible.
+    // "present_unverified"= at least one social integration row exists in the
+    //                       social category but none are fully verified.
+    // "absent"            = no social integrations at all.
+    let socialSignalOverride: TrustSignalState = "absent";
+    if (inq.client_user_id) {
+      try {
+        const integrations = await listClientIntegrations(inq.client_user_id);
+        let hasSocialRow = false;
+        let hasVerifiedSocial = false;
+        for (const row of integrations) {
+          const def = getClientIntegrationDef(row.provider_key);
+          if (def?.category !== "social") continue;
+          hasSocialRow = true;
+          if (isClientIntegrationVerifiedTrustSignal(row) && row.talent_visible) {
+            hasVerifiedSocial = true;
+            break;
+          }
+        }
+        if (hasVerifiedSocial) {
+          socialSignalOverride = "verified";
+        } else if (hasSocialRow) {
+          socialSignalOverride = "present_unverified";
+        }
+      } catch (err) {
+        logServerError("talent.trustChip.social", err);
       }
     }
 
@@ -449,6 +514,9 @@ export async function loadTalentInquiryGuestTrust(
       completedBookings,
       isEmailVerified,
       isBlocked,
+      phoneSignalOverride,
+      socialSignalOverride,
+      paymentSignalOverride,
     });
 
     // Resolve the subject for block/report. Prefer the registered client user;
