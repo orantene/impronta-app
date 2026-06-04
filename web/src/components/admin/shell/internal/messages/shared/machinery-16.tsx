@@ -16,6 +16,8 @@ import { RealThreadStream } from "@/components/talent/talent-thread-stream";
 import { loadTalentInquiryThread, type TalentThreadMessage } from "@/app/(workspace)/[tenantSlug]/talent/inbox/[id]/actions";
 import { useThreadPresence } from "@/lib/realtime/presence";
 import { TypingRow } from "@/components/messages/thread-enhancements";
+import { PinnedStrip } from "@/components/chat-interactions/PinnedStrip";
+import { usePinnedMessages } from "@/components/chat-interactions/usePinnedMessages";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -129,6 +131,26 @@ export function ConversationTab({
     userId: bridgeSessionIdentity?.userId ?? "",
     displayName: bridgeSessionIdentity?.displayName ?? "Someone",
   });
+  // Inquiry-wide pinned messages (shared — everyone on the thread sees the
+  // same set). Only real inquiries have a backing thread; mock convs no-op.
+  const { pins, pinnedIds, refresh: refreshPins, removeLocal: removePinLocal } =
+    usePinnedMessages(showReal ? conv.id : null, realThreadType);
+  // Jump to a pinned message: scroll its bubble into view + pulse-highlight.
+  const jumpToMessage = useCallback((messageId: string) => {
+    const el = document.querySelector<HTMLElement>(`[data-message-id="${messageId}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.style.transition = "background 600ms";
+    const prevBg = el.style.background;
+    el.style.background = COLORS.accentSoft;
+    window.setTimeout(() => { el.style.background = prevBg; }, 900);
+  }, []);
+  const unpinMessage = useCallback(async (messageId: string) => {
+    removePinLocal(messageId);
+    const { toggleMessagePin } = await import("@/lib/server-actions/message-pins");
+    await toggleMessagePin(messageId, conv.id);
+    void refreshPins();
+  }, [conv.id, removePinLocal, refreshPins]);
   // In-thread search — small toggle in the header opens a compact
   // search input that filters visible bubbles to those whose body
   // matches. System events are kept (they often anchor the search
@@ -239,6 +261,25 @@ export function ConversationTab({
             <FirstConvBanner clientName={conv.client} audience="talent" />
           </div>
         )}
+        {/* Pinned strip — inquiry-wide pinned messages, shared across the
+            thread. Renders nothing when empty. Chat view only. */}
+        {mode === "chat" && pins.length > 0 && (
+          <div style={{ marginTop: 8, marginBottom: 2 }}>
+            <PinnedStrip
+              pins={pins}
+              onJump={jumpToMessage}
+              onUnpin={unpinMessage}
+              palette={{
+                accent: COLORS.accentDeep,
+                accentSoft: COLORS.accentSoft,
+                ink: COLORS.ink,
+                inkMuted: COLORS.inkMuted,
+                border: COLORS.borderSoft,
+                surface: "#fff",
+              }}
+            />
+          </div>
+        )}
       </div>
       {/* Scrollable middle — message stream + system events. Only THIS
           area scrolls; the pins and composer stay locked in view. */}
@@ -253,6 +294,8 @@ export function ConversationTab({
             conv={conv}
             toast={toast}
             mode={mode}
+            pinnedIds={pinnedIds}
+            onPinChanged={() => { void refreshPins(); }}
           />
         ) : (<>
         {systemEvents.length > 0 && (

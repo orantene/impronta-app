@@ -512,7 +512,7 @@
       "count": 1
     },
     "ratchet/no-new-inline-style": {
-      "count": 49
+      "count": 50
     }
   },
   "src/components/admin/shell/internal/messages/shared/machinery-2.tsx": {
@@ -1689,6 +1689,11 @@
   "src/lib/server-actions/message-reactions.ts": {
     "ratchet/no-untenanted-from": {
       "count": 2
+    }
+  },
+  "src/lib/server-actions/message-pins.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 4
     }
   },
   "src/lib/server-actions/message-stars.ts": {

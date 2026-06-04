@@ -13,7 +13,7 @@
  * shell is purely presentational + drawer state.
  */
 
-import { useState, useRef, useEffect, useMemo, useTransition } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { ThreadSearch, type ThreadSearchMessage, type JumpTarget } from "@/components/thread-search/ThreadSearch";
 import { StatusSheet, type StatusSheetData, type StageStatus, type OfferStatus, type PaymentStatus, type TalentParticipationRow } from "@/components/messages-status-sheet/StatusSheet";
@@ -27,6 +27,9 @@ import {
 } from "@/components/chat-cards/ChatCard";
 import { addReaction, removeReaction } from "@/lib/server-actions/message-reactions";
 import { StarButton } from "@/components/chat-interactions/StarButton";
+import { PinButton } from "@/components/chat-interactions/PinButton";
+import { PinnedStrip } from "@/components/chat-interactions/PinnedStrip";
+import { usePinnedMessages } from "@/components/chat-interactions/usePinnedMessages";
 import { renderMessageMarkdown } from "@/lib/messages/markdown";
 import { LinkPreview, firstHttpUrl, TypingRow } from "@/components/messages/thread-enhancements";
 import { useThreadPresence } from "@/lib/realtime/presence";
@@ -836,6 +839,21 @@ function ThreadPaneWithTabs({
   // on the conversation.
   const [chatMode, setChatMode] = useState<ChatMode>("chat");
   useEffect(() => { setChatMode("chat"); }, [inq.id]);
+  // Inquiry-wide pinned messages (shared — everyone on the thread sees the
+  // same set). Loaded client-side; refreshed after a pin toggle reconciles.
+  // Client thread is the GROUP thread.
+  const { pins, pinnedIds, refresh: refreshPins, removeLocal: removePinLocal } =
+    usePinnedMessages(inq.id, "group");
+  // Jump to a pinned message: scroll its bubble into view and pulse-highlight.
+  const jumpToMessage = useCallback((messageId: string) => {
+    const el = document.querySelector<HTMLElement>(`[data-message-id="${messageId}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.style.transition = "background 600ms";
+    const prevBg = el.style.background;
+    el.style.background = C.accentSoft;
+    window.setTimeout(() => { el.style.background = prevBg; }, 900);
+  }, []);
   // D7: count both money message cards AND inquiry_events for the Activity badge
   const activityCount = useMemo(
     () => messages.filter(isClientActivityMessage).length + (details?.activity.length ?? 0),
@@ -1031,6 +1049,31 @@ function ThreadPaneWithTabs({
             })}
           </div>
         )}
+
+        {/* Pinned strip — inquiry-wide pinned messages, shared across the
+            thread. Renders nothing when empty. Chat sub-view only. */}
+        {activeTab === "chat" && chatMode === "chat" && pins.length > 0 && (
+          <div style={{ marginBottom: 10 }}>
+            <PinnedStrip
+              pins={pins}
+              onJump={jumpToMessage}
+              onUnpin={async (messageId) => {
+                removePinLocal(messageId);
+                const { toggleMessagePin } = await import("@/lib/server-actions/message-pins");
+                await toggleMessagePin(messageId, inq.id);
+                void refreshPins();
+              }}
+              palette={{
+                accent: C.accent,
+                accentSoft: C.accentSoft,
+                ink: C.ink,
+                inkMuted: C.inkMuted,
+                border: C.border,
+                surface: "#fff",
+              }}
+            />
+          </div>
+        )}
       </div>
 
       {/* Tab body */}
@@ -1053,6 +1096,8 @@ function ThreadPaneWithTabs({
               setPayNowSheet({ amountLabel: clientChargeLabel(details) ?? cardAmountLabel })
             }
             onMessagesChange={onMessagesChange}
+            pinnedIds={pinnedIds}
+            onPinChanged={() => { void refreshPins(); }}
           />
         )}
         {activeTab === "details" && (
@@ -2078,6 +2123,7 @@ function ActivityEventRow({ event }: { event: ActivityEventItem }) {
 
 function ChatThreadBody({
   inq, messages, mode, loading, tenantSlug, pitch, details, onJumpToOffer, onPayNow, onMessagesChange,
+  pinnedIds, onPinChanged,
 }: {
   inq: ClientInquiryRow;
   messages: WorkspaceMessage[];
@@ -2089,6 +2135,8 @@ function ChatThreadBody({
   onJumpToOffer?: () => void;
   onPayNow?: (amountLabel: string) => void;
   onMessagesChange?: (next: WorkspaceMessage[] | ((prev: WorkspaceMessage[]) => WorkspaceMessage[])) => void;
+  pinnedIds?: Set<string>;
+  onPinChanged?: () => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   // "Chat" shows the human conversation (text bubbles + any staff-only kinds
@@ -2177,6 +2225,8 @@ function ChatThreadBody({
                 onJumpToOffer={onJumpToOffer}
                 onPayNow={onPayNow}
                 onMessagesChange={undefined}
+                pinnedIds={pinnedIds}
+                onPinChanged={onPinChanged}
               />
             )
           )}
@@ -2201,6 +2251,8 @@ function ChatThreadBody({
               onJumpToOffer={onJumpToOffer}
               onPayNow={onPayNow}
               onMessagesChange={onMessagesChange}
+              pinnedIds={pinnedIds}
+              onPinChanged={onPinChanged}
             />
           ));
         })()
@@ -2723,6 +2775,8 @@ function Bubble({
   onJumpToOffer,
   onPayNow,
   onMessagesChange,
+  pinnedIds,
+  onPinChanged,
 }: {
   m: WorkspaceMessage;
   showSeen?: boolean;
@@ -2731,6 +2785,8 @@ function Bubble({
   onJumpToOffer?: () => void;
   onPayNow?: (amountLabel: string) => void;
   onMessagesChange?: (next: WorkspaceMessage[] | ((prev: WorkspaceMessage[]) => WorkspaceMessage[])) => void;
+  pinnedIds?: Set<string>;
+  onPinChanged?: () => void;
 }) {
   const mine = m.is_mine;
   const kind = m.message_kind ?? "text";
@@ -2848,7 +2904,7 @@ function Bubble({
   // Structured card — full-width, no chat-bubble chrome. No edit/delete for cards.
   if (card) {
     return (
-      <div style={{ display: "flex", justifyContent: "stretch", flexDirection: "column", gap: 4, maxWidth: "92%", margin: mine ? "0 0 0 auto" : "0 auto 0 0" }}>
+      <div data-message-id={m.id} style={{ display: "flex", justifyContent: "stretch", flexDirection: "column", gap: 4, maxWidth: "92%", margin: mine ? "0 0 0 auto" : "0 auto 0 0" }}>
         {!mine && (
           <div style={{ fontSize: 10.5, fontWeight: 700, color: C.inkMuted, letterSpacing: 0.3, paddingLeft: 2 }}>
             {m.sender_name}
@@ -2864,7 +2920,7 @@ function Bubble({
 
   // Plain text bubble.
   return (
-    <div style={{ display: "flex", justifyContent: mine ? "flex-end" : "flex-start" }}>
+    <div data-message-id={m.id} style={{ display: "flex", justifyContent: mine ? "flex-end" : "flex-start" }}>
       <div style={{ maxWidth: "78%", position: "relative" }}>
         {!mine && (
           <div style={{ fontSize: 10.5, fontWeight: 700, color: C.inkMuted, marginBottom: 3, letterSpacing: 0.3 }}>
@@ -3025,6 +3081,17 @@ function Bubble({
               starred={m.starred ?? false}
               compact
               onError={setActionError}
+            />
+          )}
+          {!isOptimistic && inquiryId && !editing && (
+            <PinButton
+              messageId={m.id}
+              inquiryId={inquiryId}
+              pinned={pinnedIds?.has(m.id) ?? false}
+              compact
+              accent={C.accent}
+              onError={setActionError}
+              onChanged={() => onPinChanged?.()}
             />
           )}
           {canEditOrDelete && !editing && (
