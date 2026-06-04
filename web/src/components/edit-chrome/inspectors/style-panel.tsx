@@ -470,6 +470,18 @@ const BUILDER_NODE_PARALLAX_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "strong", label: "Strong" },
 ];
 
+// Reveal-on-view (2026-06-04) — IntersectionObserver-driven entry trajectory.
+// "" = off. Direction variants travel `revealDistance`; fade/zoom don't.
+const BUILDER_NODE_REVEAL_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Off" },
+  { value: "fade", label: "Fade" },
+  { value: "fade-up", label: "Up" },
+  { value: "fade-down", label: "Down" },
+  { value: "fade-left", label: "Left" },
+  { value: "fade-right", label: "Right" },
+  { value: "zoom", label: "Zoom" },
+];
+
 const BUILDER_NODE_BORDER_STYLE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "", label: "None" },
   { value: "solid", label: "Solid" },
@@ -1369,6 +1381,11 @@ function cleanBuilderNodeStyle(
     out.animationEasingCustom = value.animationEasingCustom;
   }
   if (value.parallax) out.parallax = value.parallax;
+  if (value.revealOnView) out.revealOnView = value.revealOnView;
+  if (value.revealDistance) out.revealDistance = value.revealDistance;
+  if (value.revealDuration) out.revealDuration = value.revealDuration;
+  if (value.revealDelay) out.revealDelay = value.revealDelay;
+  if (value.revealEasing) out.revealEasing = value.revealEasing;
   const tablet = cleanBuilderNodeStyleValue(value.responsive?.tablet);
   const mobile = cleanBuilderNodeStyleValue(value.responsive?.mobile);
   if (tablet || mobile) {
@@ -1528,6 +1545,11 @@ function cleanBuilderNodeStyleValue(
     out.animationEasingCustom = value.animationEasingCustom;
   }
   if (value.parallax) out.parallax = value.parallax;
+  if (value.revealOnView) out.revealOnView = value.revealOnView;
+  if (value.revealDistance) out.revealDistance = value.revealDistance;
+  if (value.revealDuration) out.revealDuration = value.revealDuration;
+  if (value.revealDelay) out.revealDelay = value.revealDelay;
+  if (value.revealEasing) out.revealEasing = value.revealEasing;
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -8298,6 +8320,149 @@ export function StylePanel({
                     the entrance slot when both are set — entrance plays once,
                     parallax is what keeps moving.
                   </span>
+                ) : null}
+              </div>
+              {/* Reveal on scroll (2026-06-04) — IntersectionObserver entry.
+                  Unlike the entrance preset (plays on load) this fires the first
+                  time the block scrolls into view, with a direction + travel
+                  distance + easing. Published page only; respects reduced-motion. */}
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="revealOnView"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Reveal on scroll
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.revealOnView ?? ""}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      revealOnView: (next || undefined) as BuilderNodeStyleValue["revealOnView"],
+                    })
+                  }
+                  options={BUILDER_NODE_REVEAL_OPTIONS}
+                />
+                {selectedStandaloneViewportStyle?.revealOnView &&
+                selectedStandaloneViewportStyle.revealOnView !== "none" ? (
+                  <>
+                    <span className="text-[10px] leading-snug" style={{ color: CHROME.muted }}>
+                      Eases in the first time the block scrolls into view, then
+                      stays. Direction variants travel by the distance below.
+                    </span>
+                    {selectedStandaloneViewportStyle.revealOnView !== "fade" &&
+                    selectedStandaloneViewportStyle.revealOnView !== "zoom" ? (
+                      <div
+                        className="flex flex-col gap-1.5"
+                        data-builder-node-style-control="revealDistance"
+                      >
+                        <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                          Distance
+                        </span>
+                        <input
+                          type="text"
+                          className="px-2"
+                          style={{
+                            height: 30,
+                            width: "100%",
+                            fontSize: 12,
+                            background: CHROME.surface2,
+                            border: `1px solid ${CHROME.controlBorder}`,
+                            borderRadius: 7,
+                            color: CHROME.ink,
+                            outline: "none",
+                          }}
+                          placeholder="24px"
+                          value={selectedStandaloneViewportStyle?.revealDistance ?? ""}
+                          onChange={(e) =>
+                            patchSelectedStandaloneStyle({
+                              revealDistance: e.target.value.trim() || undefined,
+                            })
+                          }
+                        />
+                      </div>
+                    ) : null}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div
+                        className="flex flex-col gap-1.5"
+                        data-builder-node-style-control="revealDuration"
+                      >
+                        <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                          Duration
+                        </span>
+                        <input
+                          type="text"
+                          className="px-2"
+                          style={{
+                            height: 30,
+                            width: "100%",
+                            fontSize: 12,
+                            background: CHROME.surface2,
+                            border: `1px solid ${CHROME.controlBorder}`,
+                            borderRadius: 7,
+                            color: CHROME.ink,
+                            outline: "none",
+                          }}
+                          placeholder="0.6s"
+                          value={selectedStandaloneViewportStyle?.revealDuration ?? ""}
+                          onChange={(e) =>
+                            patchSelectedStandaloneStyle({
+                              revealDuration: e.target.value.trim() || undefined,
+                            })
+                          }
+                        />
+                      </div>
+                      <div
+                        className="flex flex-col gap-1.5"
+                        data-builder-node-style-control="revealDelay"
+                      >
+                        <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                          Delay
+                        </span>
+                        <input
+                          type="text"
+                          className="px-2"
+                          style={{
+                            height: 30,
+                            width: "100%",
+                            fontSize: 12,
+                            background: CHROME.surface2,
+                            border: `1px solid ${CHROME.controlBorder}`,
+                            borderRadius: 7,
+                            color: CHROME.ink,
+                            outline: "none",
+                          }}
+                          placeholder="0s"
+                          value={selectedStandaloneViewportStyle?.revealDelay ?? ""}
+                          onChange={(e) =>
+                            patchSelectedStandaloneStyle({
+                              revealDelay: e.target.value.trim() || undefined,
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
+                    <div
+                      className="flex flex-col gap-1.5"
+                      data-builder-node-style-control="revealEasing"
+                    >
+                      <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                        Easing
+                      </span>
+                      <Segmented
+                        fullWidth
+                        compact
+                        value={selectedStandaloneViewportStyle?.revealEasing ?? ""}
+                        onChange={(next) =>
+                          patchSelectedStandaloneStyle({
+                            revealEasing: (next || undefined) as BuilderNodeStyleValue["revealEasing"],
+                          })
+                        }
+                        options={BUILDER_NODE_ANIMATION_EASING_OPTIONS}
+                      />
+                    </div>
+                  </>
                 ) : null}
               </div>
               </div>

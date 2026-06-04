@@ -335,6 +335,19 @@ const BUILDER_NODE_RENDERER_CSS = `
 @keyframes bn-parallax-medium{from{transform:translateY(8%)}to{transform:translateY(-8%)}}
 @keyframes bn-parallax-strong{from{transform:translateY(14%)}to{transform:translateY(-14%)}}
 @media (prefers-reduced-motion:reduce){.site-builder-node[style*="animation"]{animation:none!important}}
+/* Reveal-on-view (2026-06-04) — IntersectionObserver-driven entry interaction.
+   The node starts at its hidden/offset pose and eases to rest the first time it
+   scrolls into view. The inline IO script toggles [data-bn-revealed]; before the
+   script runs (or with no IO / reduced motion) the node is shown at rest. */
+.site-builder-node[data-bn-reveal]{transition:opacity var(--bn-reveal-duration,0.6s) var(--bn-reveal-easing,cubic-bezier(0.4,0,0.2,1)) var(--bn-reveal-delay,0s),transform var(--bn-reveal-duration,0.6s) var(--bn-reveal-easing,cubic-bezier(0.4,0,0.2,1)) var(--bn-reveal-delay,0s);will-change:opacity,transform}
+.site-builder-node[data-bn-reveal][data-bn-reveal-armed]:not([data-bn-revealed]){opacity:0}
+.site-builder-node[data-bn-reveal="fade-up"][data-bn-reveal-armed]:not([data-bn-revealed]){transform:translateY(var(--bn-reveal-distance,24px))}
+.site-builder-node[data-bn-reveal="fade-down"][data-bn-reveal-armed]:not([data-bn-revealed]){transform:translateY(calc(-1 * var(--bn-reveal-distance,24px)))}
+.site-builder-node[data-bn-reveal="fade-left"][data-bn-reveal-armed]:not([data-bn-revealed]){transform:translateX(var(--bn-reveal-distance,24px))}
+.site-builder-node[data-bn-reveal="fade-right"][data-bn-reveal-armed]:not([data-bn-revealed]){transform:translateX(calc(-1 * var(--bn-reveal-distance,24px)))}
+.site-builder-node[data-bn-reveal="zoom"][data-bn-reveal-armed]:not([data-bn-revealed]){transform:scale(0.92)}
+.site-builder-node[data-bn-reveal][data-bn-revealed]{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.site-builder-node[data-bn-reveal]{opacity:1!important;transform:none!important;transition:none!important}}
 .site-builder-node{box-sizing:border-box}
 .site-builder-node[data-builder-style-container-type]{container-type:var(--bn-container-type)}
 .site-builder-node[data-builder-style-container-name]{container-name:var(--bn-container-name)}
@@ -638,6 +651,44 @@ ${BUILDER_NODE_CONTAINER_QUERY_CSS}
 ${BUILDER_NODE_NAV_CSS}
 `;
 
+/**
+ * Reveal-on-view runtime (2026-06-04). A tiny inline IntersectionObserver the
+ * published page injects ONCE when any node opts into `revealOnView`. It:
+ *   1. ARMS every `[data-bn-reveal]` node (`data-bn-reveal-armed`) — only after
+ *      arming does the sheet apply the hidden/offset pose, so a no-JS / no-IO
+ *      render shows the node at rest (no flash of hidden content, SEO-safe).
+ *   2. Observes each node and sets `data-bn-revealed` the first time ≥12% of it
+ *      enters the viewport, then unobserves it (reveal once, never replays).
+ * Skips entirely when IntersectionObserver is unavailable (leaves nodes at rest)
+ * and respects prefers-reduced-motion (reveals immediately, no transition — the
+ * sheet's reduced-motion guard forces the rest pose). Self-contained, no deps.
+ */
+const BUILDER_NODE_REVEAL_SCRIPT = `(function(){
+  try{
+    var nodes=document.querySelectorAll('[data-bn-reveal]');
+    if(!nodes.length)return;
+    var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if(reduce||typeof IntersectionObserver==='undefined'){
+      for(var i=0;i<nodes.length;i++)nodes[i].setAttribute('data-bn-revealed','');
+      return;
+    }
+    for(var j=0;j<nodes.length;j++)nodes[j].setAttribute('data-bn-reveal-armed','');
+    var io=new IntersectionObserver(function(entries){
+      for(var k=0;k<entries.length;k++){
+        var e=entries[k];
+        if(e.isIntersecting){
+          e.target.setAttribute('data-bn-revealed','');
+          io.unobserve(e.target);
+        }
+      }
+    },{threshold:0.12,rootMargin:'0px 0px -8% 0px'});
+    for(var m=0;m<nodes.length;m++)io.observe(nodes[m]);
+  }catch(err){
+    var f=document.querySelectorAll('[data-bn-reveal]');
+    for(var n=0;n<f.length;n++)f[n].setAttribute('data-bn-revealed','');
+  }
+})();`;
+
 function builderNodeStyleVars(
   vars: Record<string, string | number | undefined>,
 ): CSSProperties {
@@ -821,6 +872,12 @@ export function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-container-type": style?.containerType ? "" : undefined,
     "data-builder-style-container-name": style?.containerName ? "" : undefined,
     "data-builder-style-transition": hasBaseTransition ? "" : undefined,
+    // Reveal-on-view — the published-page IntersectionObserver targets this attr;
+    // the per-direction CSS + the distance/duration/delay/easing vars do the rest.
+    "data-bn-reveal":
+      style?.revealOnView && style.revealOnView !== "none"
+        ? style.revealOnView
+        : undefined,
     ...builderNodeContainerQueryStyleAttrs(
       "tablet",
       style?.containerQueries?.tablet,
@@ -1827,6 +1884,20 @@ export function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSPropert
     record.animation = `${BUILDER_PARALLAX_KEYFRAME[style.parallax]} linear both`;
     record.animationTimeline = "view()";
     record.animationRange = "cover 0% cover 100%";
+  }
+  // Reveal-on-view (2026-06-04) — IntersectionObserver-driven entry. The
+  // direction is carried by the `data-bn-reveal` attribute (see
+  // builderNodeStyleAttrs); here we publish the tuning vars the sheet reads. The
+  // hidden/offset pose only applies once the inline script arms the node, so a
+  // no-JS render shows it at rest (no flash of hidden content).
+  if (style.revealOnView && style.revealOnView !== "none") {
+    const record = out as Record<string, unknown>;
+    if (style.revealDistance) record["--bn-reveal-distance"] = style.revealDistance;
+    if (style.revealDuration) record["--bn-reveal-duration"] = style.revealDuration;
+    if (style.revealDelay) record["--bn-reveal-delay"] = style.revealDelay;
+    if (style.revealEasing) {
+      record["--bn-reveal-easing"] = resolveAnimationEasing(style.revealEasing);
+    }
   }
   // Visibility — a desktop-level "hidden" removes the node everywhere (the
   // breakpoint layers inherit it). Per-breakpoint hides are handled by the
@@ -3125,9 +3196,53 @@ export function renderBuilderNodes(
     normalizedOptions.includeRendererStyles ? (
       <BuilderNodeRendererStyles key="site-builder-node-styles" />
     ) : null,
+    // Reveal-on-view runtime — only when the sheet is included AND some node
+    // opts in, so pages without a reveal interaction stay byte-identical.
+    normalizedOptions.includeRendererStyles && hasRevealOnViewNode(nodes) ? (
+      <BuilderNodeRevealRuntime key="site-builder-node-reveal" />
+    ) : null,
   ].filter(Boolean);
   if (headNodes.length === 0) return renderedNodes;
   return [...headNodes, ...renderedNodes];
+}
+
+/**
+ * True when any node in the tree opts into the reveal-on-view interaction. Used
+ * to gate the inline IntersectionObserver runtime so non-reveal pages emit no
+ * extra script (back-compat / byte-stability). Walks every node-style carrier —
+ * the node's own `style` plus the breakpoint layers — since a reveal can be set
+ * per-viewport.
+ */
+function hasRevealOnViewNode(nodes: ReadonlyArray<BuilderNode>): boolean {
+  const styleReveals = (style: BuilderNodeStyle | undefined): boolean => {
+    if (!style) return false;
+    if (style.revealOnView && style.revealOnView !== "none") return true;
+    const t = style.responsive?.tablet?.revealOnView;
+    const m = style.responsive?.mobile?.revealOnView;
+    return (
+      (t !== undefined && t !== "none") || (m !== undefined && m !== "none")
+    );
+  };
+  const visit = (node: BuilderNode): boolean => {
+    const style = "props" in node ? (node.props as { style?: BuilderNodeStyle }).style : undefined;
+    if (styleReveals(style)) return true;
+    if ("children" in node && Array.isArray(node.children)) {
+      for (const child of node.children) {
+        if (visit(child)) return true;
+      }
+    }
+    return false;
+  };
+  return nodes.some(visit);
+}
+
+export function BuilderNodeRevealRuntime(): ReactNode {
+  return (
+    <script
+      data-builder-node-reveal-runtime=""
+      dangerouslySetInnerHTML={{ __html: BUILDER_NODE_REVEAL_SCRIPT }}
+    />
+  );
 }
 
 export function collectBuilderImageMediaIds(

@@ -322,6 +322,44 @@ export interface BuilderNodeStyleValue {
   // set, the parallax wins the single `animation` slot (entrance is the one-shot
   // intro; parallax is the persistent behaviour the visitor actually sees).
   parallax?: "none" | "subtle" | "medium" | "strong";
+  // Reveal-on-view (#1 of the "motion beyond entrance" work, 2026-06-04) — an
+  // IntersectionObserver-driven entry interaction, distinct from the CSS
+  // `animationPreset` (which plays unconditionally on load) and from `parallax`
+  // (ongoing scroll drift). The node starts hidden/offset and transitions to its
+  // resting state the FIRST time it scrolls into view, then stays (no replay).
+  //
+  // Unlike the `animationPreset` "scroll" trigger — which leans on CSS
+  // scroll-driven animations (`animation-timeline:view()`, still patchy browser
+  // support) — this uses a tiny inline IntersectionObserver the published
+  // renderer injects once, so it works everywhere IO is supported (effectively
+  // universal) and degrades to "already visible" where it isn't.
+  //
+  // `revealOnView` picks the trajectory; `revealDistance` is the CSS travel
+  // length for the directional variants (default 24px); `revealDuration` /
+  // `revealDelay` are CSS time strings (defaults 0.6s / 0s); `revealEasing`
+  // reuses the same friendly easing vocabulary as the entrance animation.
+  // All optional + back-compat — undefined emits nothing and the node renders
+  // byte-identical. Honours prefers-reduced-motion (the inline guard reveals the
+  // node immediately, with no transition, for those visitors).
+  revealOnView?:
+    | "none"
+    | "fade"
+    | "fade-up"
+    | "fade-down"
+    | "fade-left"
+    | "fade-right"
+    | "zoom";
+  revealDistance?: string;
+  revealDuration?: string;
+  revealDelay?: string;
+  revealEasing?:
+    | "ease"
+    | "linear"
+    | "ease-in"
+    | "ease-out"
+    | "ease-in-out"
+    | "back"
+    | "smooth";
 }
 
 // Hover-state overrides — a curated subset of style props that re-apply only

@@ -413,6 +413,59 @@ test("animation: parallax 'none' / undefined emits no parallax motion (back-comp
   );
 });
 
+// ── Reveal-on-view (2026-06-04) — IntersectionObserver entry interaction ──────
+
+test("reveal: revealOnView emits the data-bn-reveal attr + tuning vars + runtime", () => {
+  const html = render([
+    container({
+      revealOnView: "fade-up",
+      revealDistance: "48px",
+      revealDuration: "0.8s",
+      revealDelay: "120ms",
+      revealEasing: "back",
+    }),
+  ]);
+  assert.ok(html.includes('data-bn-reveal="fade-up"'), "direction attr emitted");
+  assert.ok(html.includes("--bn-reveal-distance:48px"), "distance var emitted");
+  assert.ok(html.includes("--bn-reveal-duration:0.8s"), "duration var emitted");
+  assert.ok(html.includes("--bn-reveal-delay:120ms"), "delay var emitted");
+  // `back` resolves to the named overshoot curve.
+  assert.ok(
+    html.includes("--bn-reveal-easing:cubic-bezier(0.34, 1.56, 0.64, 1)"),
+    "easing var resolved from the named curve",
+  );
+  // The inline IntersectionObserver runtime ships once when a reveal is present.
+  assert.ok(
+    html.includes("data-builder-node-reveal-runtime"),
+    "reveal runtime script emitted",
+  );
+  assert.ok(html.includes("IntersectionObserver"), "runtime uses IntersectionObserver");
+  // The per-direction hidden-pose + reduced-motion guard live in the static sheet.
+  assert.ok(html.includes("data-bn-reveal-armed"), "armed-state CSS present");
+  assert.ok(html.includes("data-bn-revealed"), "revealed-state CSS present");
+});
+
+test("reveal: 'none' / undefined emits no reveal attr and no runtime (back-compat)", () => {
+  const off = render([container({ revealOnView: "none" })]);
+  // The per-direction selectors live in the static <style>; the back-compat
+  // contract is that the NODE carries no reveal attr and no runtime ships. Strip
+  // the stylesheet, then assert the rendered markup is reveal-free.
+  const offMarkup = off.replace(/<style[\s\S]*?<\/style>/g, "");
+  assert.ok(
+    !offMarkup.includes("data-bn-reveal"),
+    "reveal:none puts no reveal attr on the node",
+  );
+  assert.ok(
+    !off.includes("data-builder-node-reveal-runtime"),
+    "reveal:none emits no runtime",
+  );
+  const bare = render([container({})]);
+  assert.ok(
+    !bare.includes("data-builder-node-reveal-runtime"),
+    "unstyled tree emits no reveal runtime (byte-stable)",
+  );
+});
+
 // ── Wave 6B (#23) — sticky pinning convenience ────────────────────────────────
 
 test("sticky: stickyAnchor 'top' emits position:sticky + top offset", () => {

@@ -325,6 +325,18 @@ const builderNodeStyleValueSchema = z.object({
   // intensity. Both optional + back-compat (undefined → no change in render).
   animationEasingCustom: z.string().max(64).optional(),
   parallax: z.enum(["none", "subtle", "medium", "strong"]).optional(),
+  // Reveal-on-view (2026-06-04) — IntersectionObserver-driven entry interaction.
+  // Direction + travel distance + duration/delay + named easing. All optional +
+  // back-compat. revealDistance/Duration/Delay are short-capped CSS strings.
+  revealOnView: z
+    .enum(["none", "fade", "fade-up", "fade-down", "fade-left", "fade-right", "zoom"])
+    .optional(),
+  revealDistance: z.string().max(16).optional(),
+  revealDuration: z.string().max(16).optional(),
+  revealDelay: z.string().max(16).optional(),
+  revealEasing: z
+    .enum(["ease", "linear", "ease-in", "ease-out", "ease-in-out", "back", "smooth"])
+    .optional(),
 });
 
 // Hover-state overrides — a curated subset of animatable props re-applied while
