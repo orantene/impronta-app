@@ -67,6 +67,10 @@ import {
 } from "./kit";
 import { RailAvatar, RailIconButton } from "./chrome-icon-rail";
 import { useFloatingDrag, FloatingDragHandle } from "./floating-panel";
+import {
+  computeNavigatorDisclosure,
+  navigatorSelectedAncestors,
+} from "./navigator-collapse";
 
 import type {
   CompositionSectionRef,
@@ -104,6 +108,8 @@ import {
 
 const EXPANDED_SECTIONS_STORAGE_KEY =
   "impronta.editChrome.navigator.expandedSections.v2";
+const EXPANDED_NODES_STORAGE_KEY =
+  "impronta.editChrome.navigator.expandedNodes.v1";
 const RESIZE_HANDLE_WIDTH = 8;
 const NAVIGATOR_MIN_WIDTH = 280;
 const NAVIGATOR_MAX_WIDTH = 520;
@@ -295,6 +301,12 @@ export function NavigatorPanel() {
     () => new Set(),
   );
   const [expandedHydrated, setExpandedHydrated] = useState(false);
+  // Progressive disclosure (per-node): which intermediate nodes are drilled
+  // into. Default empty = only depth-1 rows show. Own versioned storage key.
+  const [expandedNodeIds, setExpandedNodeIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [expandedNodesHydrated, setExpandedNodesHydrated] = useState(false);
   const [hoveredSectionId, setHoveredSectionId] = useState<string | null>(null);
   const [hoveredChildNodeId, setHoveredChildNodeId] = useState<string | null>(null);
   const [focusedSectionId, setFocusedSectionId] = useState<string | null>(null);
@@ -374,6 +386,38 @@ export function NavigatorPanel() {
       // in private browsing or restricted storage contexts.
     }
   }, [expandedHydrated, expandedSectionIds]);
+
+  // Per-node disclosure — hydrate + persist under its own versioned key, kept
+  // entirely separate from the section-level payload above.
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(EXPANDED_NODES_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(parsed)) {
+        setExpandedNodeIds(
+          new Set(
+            parsed.filter((value): value is string => typeof value === "string"),
+          ),
+        );
+      }
+    } catch {
+      setExpandedNodeIds(new Set());
+    } finally {
+      setExpandedNodesHydrated(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!expandedNodesHydrated) return;
+    try {
+      window.localStorage.setItem(
+        EXPANDED_NODES_STORAGE_KEY,
+        JSON.stringify([...expandedNodeIds]),
+      );
+    } catch {
+      // Local persistence is a convenience only.
+    }
+  }, [expandedNodesHydrated, expandedNodeIds]);
 
   // Phase B.2.C — shell sections (header / footer) live on a different
   // page row than the homepage, so they're not in the EditProvider's
@@ -2051,12 +2095,34 @@ export function NavigatorPanel() {
             const rowMatchesSearch = searchQuery
               ? sectionMatchesNavigatorSearch(row, searchQuery, displayNameById)
               : true;
+            // Progressive disclosure: when NOT searching, collapse the subtree
+            // to a navigable outline (depth-1 by default; drill in via the
+            // per-row chevron). The selected node's ancestor path is always
+            // force-revealed so a deep selection is never hidden. Searching
+            // bypasses collapse entirely so matches are never hidden.
+            const navSelectedAncestors = searchQuery
+              ? null
+              : navigatorSelectedAncestors(
+                  row.childNodes,
+                  selectedBuilderNodeId,
+                );
+            const navDisclosure = searchQuery
+              ? null
+              : computeNavigatorDisclosure(
+                  row.childNodes,
+                  (id) =>
+                    expandedNodeIds.has(id) ||
+                    (navSelectedAncestors?.has(id) ?? false),
+                );
+            const navNodeIdsWithChildren = navDisclosure?.withChildren ?? null;
             const visibleChildNodes =
               searchQuery && !rowMatchesSearch
                 ? row.childNodes.filter((child) =>
                     builderChildMatchesNavigatorSearch(child, searchQuery),
                   )
-                : row.childNodes;
+                : navDisclosure
+                  ? navDisclosure.visible
+                  : row.childNodes;
             const hasSelectedChild = row.childNodes.some(
               (child) => child.id === selectedBuilderNodeId,
             );
@@ -2605,6 +2671,11 @@ export function NavigatorPanel() {
                       const childSelected = selectedBuilderNodeId === child.id;
                       const childHovered = hoveredChildNodeId === child.id;
                       const childFocused = focusedChildNodeId === child.id;
+                      const childHasKids =
+                        navNodeIdsWithChildren?.has(child.id) ?? false;
+                      const childOpen =
+                        expandedNodeIds.has(child.id) ||
+                        (navSelectedAncestors?.has(child.id) ?? false);
                       const childActionsVisible =
                         childSelected ||
                         childHovered ||
@@ -2819,6 +2890,60 @@ export function NavigatorPanel() {
                               }
                             }}
                           >
+                            {childHasKids ? (
+                              <button
+                                type="button"
+                                data-navigator-node-disclosure=""
+                                aria-label={`${childOpen ? "Collapse" : "Expand"} ${child.label}`}
+                                aria-expanded={childOpen}
+                                title={childOpen ? "Collapse" : "Expand"}
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setExpandedNodeIds((prev) => {
+                                    const next = new Set(prev);
+                                    if (next.has(child.id)) next.delete(child.id);
+                                    else next.add(child.id);
+                                    return next;
+                                  });
+                                }}
+                                onKeyDown={(e) => e.stopPropagation()}
+                                style={{
+                                  position: "absolute",
+                                  left: Math.max(
+                                    2,
+                                    8 + (child.depth - 1) * 13 - 12,
+                                  ),
+                                  top: "50%",
+                                  transform: "translateY(-50%)",
+                                  width: 13,
+                                  height: 18,
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  padding: 0,
+                                  border: "none",
+                                  background: "transparent",
+                                  color: CHROME.muted,
+                                  cursor: "pointer",
+                                  lineHeight: 1,
+                                  fontSize: 9,
+                                }}
+                              >
+                                <span
+                                  aria-hidden
+                                  style={{
+                                    display: "inline-block",
+                                    transform: childOpen
+                                      ? "rotate(90deg)"
+                                      : "rotate(0deg)",
+                                    transition: "transform 120ms ease",
+                                  }}
+                                >
+                                  ▸
+                                </span>
+                              </button>
+                            ) : null}
                             <span
                               data-navigator-drag-handle=""
                               aria-hidden
