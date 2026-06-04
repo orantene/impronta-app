@@ -387,6 +387,9 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
   /** Opens Page settings once per cms page id for default draft titles (workspace Add page). */
   const autoPageSettingsForUntitledRef = useRef<Set<string>>(new Set());
 
+  /** Compact-mode hint — shown once on mobile, dismissible. */
+  const [mobileHintDismissed, setMobileHintDismissed] = useState(false);
+
   useEffect(() => {
     if (!compositionLoaded || !pageId || !pageMetadata) return;
     if (pageSlug == null) return;
@@ -867,15 +870,40 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
           ["--primary-foreground" as string]: "#fafafa",
         }}
       >
-        {/* P8-2 — inspector dock is `max-lg:hidden`; help operators on phones/tablets. */}
-        <p
-          className="fixed left-0 right-0 z-[79] border-b border-amber-200/90 bg-amber-50 px-3 py-1.5 text-center text-[11px] leading-snug text-amber-950 lg:hidden"
-          style={{ top: 52 }}
-          role="note"
-        >
-          On small screens, use Structure and the canvas — the full inspector opens on wider
-          breakpoints.
-        </p>
+        {/* P8-2 — inspector dock is `max-lg:hidden`; orient operators on phones/tablets. */}
+        {!mobileHintDismissed && (
+          <div
+            className="fixed left-0 right-0 z-[79] flex items-center justify-between gap-2 border-b border-zinc-200/80 bg-white/95 px-3 py-1.5 backdrop-blur-sm lg:hidden"
+            style={{ top: 52 }}
+            role="note"
+          >
+            <p className="flex-1 text-center text-[11px] leading-snug text-zinc-500">
+              Compact editing mode — use Layers and the canvas. Widen the window for the full
+              inspector.
+            </p>
+            <button
+              type="button"
+              aria-label="Dismiss"
+              onClick={() => setMobileHintDismissed(true)}
+              className="shrink-0 rounded p-0.5 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600"
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 12 12"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M1 1l10 10M11 1L1 11"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          </div>
+        )}
         <TopBar
           device={device}
           setDevice={setDevice}

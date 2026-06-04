@@ -99,6 +99,10 @@ export function InlineEditor() {
     img: HTMLImageElement;
     rect: DOMRect;
   } | null>(null);
+  const [textHover, setTextHover] = useState<{
+    el: HTMLElement;
+    rect: DOMRect;
+  } | null>(null);
   const [banner, setBanner] = useState<Banner>({ kind: "none" });
   // Phase C.1 — active canvas-edit overlay. The overlay (RichEditor +
   // floating toolbar) is rendered when this is non-null.
@@ -324,33 +328,62 @@ export function InlineEditor() {
     [activeEdit, commitBuilderNodeText, commitText],
   );
 
-  // ── image hover + replace driver ─────────────────────────────────────
+  // ── image hover + replace driver + text hover hint driver ────────────
   useEffect(() => {
     function onPointerMove(e: PointerEvent) {
       if (!(e.target instanceof HTMLElement)) return;
+
+      // ── image hover (existing) — scoped to selected CMS sections ─────
       const sectionEl = e.target.closest<HTMLElement>("[data-cms-section]");
-      if (!sectionEl) {
+      const sectionId = sectionEl?.getAttribute("data-section-id") ?? null;
+      const inSelectedSection =
+        sectionEl !== null &&
+        sectionId !== null &&
+        sectionId === selectedIdRef.current;
+
+      if (!inSelectedSection) {
         setImgHover(null);
-        return;
-      }
-      const sectionId = sectionEl.getAttribute("data-section-id");
-      if (!sectionId || sectionId !== selectedIdRef.current) {
+      } else {
+        const img =
+          e.target instanceof HTMLImageElement
+            ? e.target
+            : (e.target.closest("img") as HTMLImageElement | null);
+        if (img && sectionEl!.contains(img)) {
+          setImgHover({ img, rect: img.getBoundingClientRect() });
+          // Image takes priority — suppress text hint while on an image.
+          setTextHover(null);
+          return;
+        }
         setImgHover(null);
-        return;
       }
-      const img =
-        e.target instanceof HTMLImageElement
-          ? e.target
-          : (e.target.closest("img") as HTMLImageElement | null);
-      if (!img || !sectionEl.contains(img)) {
-        setImgHover(null);
-        return;
+
+      // ── text hover hint (new) ─────────────────────────────────────────
+      // Resolve the nearest editable text target using the same helper the
+      // dblclick handler uses. This covers BOTH freeform builder nodes (no
+      // `[data-cms-section]` wrapper — the primary 2026 full-page path) and
+      // legacy CMS-section text. The hint is purely informational; clicking
+      // or double-clicking the element below is unaffected.
+      const textTarget = resolveEditableBuilderNodeTextTarget(
+        builderTreeRef.current,
+        e.target,
+      );
+      if (textTarget) {
+        // Anchor to the builder-node container for a stable bounding rect,
+        // falling back to the hovered element itself.
+        const nodeEl =
+          e.target.closest<HTMLElement>("[data-builder-node-id]") ??
+          e.target;
+        setTextHover({ el: nodeEl, rect: nodeEl.getBoundingClientRect() });
+      } else {
+        setTextHover(null);
       }
-      setImgHover({ img, rect: img.getBoundingClientRect() });
     }
     function onScrollOrResize() {
       setImgHover((cur) =>
         cur ? { img: cur.img, rect: cur.img.getBoundingClientRect() } : cur,
+      );
+      setTextHover((cur) =>
+        cur ? { el: cur.el, rect: cur.el.getBoundingClientRect() } : cur,
       );
     }
     document.addEventListener("pointermove", onPointerMove);
@@ -437,8 +470,45 @@ export function InlineEditor() {
   const showImgHint =
     selectedSectionId !== null && imgHover !== null && !mediaOpen;
 
+  // Show the text hint when hovering an editable text node, but not while an
+  // edit overlay is already open (that would be distracting).
+  const showTextHint =
+    textHover !== null && activeEdit === null && !mediaOpen;
+
   return (
     <>
+      {showTextHint && textHover ? (
+        <div
+          data-edit-overlay="inline-text-hint"
+          style={{
+            position: "fixed",
+            top: Math.max(textHover.rect.top + 6, 60),
+            left: textHover.rect.right - 132,
+            zIndex: 114,
+            pointerEvents: "none",
+          }}
+          className="inline-flex items-center gap-1.5 rounded-full bg-[#242942]/80 px-3 py-1.5 text-[11px] font-medium text-white/80 shadow-md backdrop-blur"
+        >
+          {/* Text-cursor icon */}
+          <svg
+            width="11"
+            height="11"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <path d="M17 6H7M17 18H7M12 6v12" />
+            <path d="M10 6 Q12 4 14 6" />
+            <path d="M10 18 Q12 20 14 18" />
+          </svg>
+          Double-click to edit
+        </div>
+      ) : null}
+
       {showImgHint && imgHover ? (
         <button
           type="button"

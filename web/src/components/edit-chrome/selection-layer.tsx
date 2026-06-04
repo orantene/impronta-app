@@ -6025,17 +6025,10 @@ function BlockChipToolBar({
       data-selection-block-toolbar=""
       style={{ display: "inline-flex", height: "100%", alignItems: "stretch" }}
     >
-      <ChipBtn
-        style={btnStyle}
-        disabled={disabled}
-        onClick={onResetPosition}
-        aria-label="Reset block position"
-        data-selection-block-action="reset-position"
-        title="Reset position"
-      >
-        {/* Crosshair / reset-position icon */}
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><line x1="12" y1="2" x2="12" y2="5" /><line x1="12" y1="19" x2="12" y2="22" /><line x1="2" y1="12" x2="5" y2="12" /><line x1="19" y1="12" x2="22" y2="12" /></svg>
-      </ChipBtn>
+      {/* PRIMARY actions — kept on the chip. Secondary actions
+          (reset-position, add-before, move-up, move-down, copy) live in the
+          overflow menu opened by the "More" button below, so the chip stays
+          to ~4 high-frequency affordances. */}
       {canEditText ? (
         <ChipBtn
           style={btnStyle}
@@ -6050,53 +6043,13 @@ function BlockChipToolBar({
       ) : null}
       <ChipBtn
         style={btnStyle}
-        disabled={disabled || !onMoveUp}
-        onClick={() => onMoveUp?.()}
-        aria-label="Move block up"
-        data-selection-block-action="move-up"
-        title="Move up"
-      >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>
-      </ChipBtn>
-      <ChipBtn
-        style={btnStyle}
-        disabled={disabled || !onMoveDown}
-        onClick={() => onMoveDown?.()}
-        aria-label="Move block down"
-        data-selection-block-action="move-down"
-        title="Move down"
-      >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
-      </ChipBtn>
-      <ChipBtn
-        style={btnStyle}
-        disabled={disabled || !onAddBefore}
-        onClick={() => onAddBefore?.()}
-        aria-label="Add block before"
-        data-selection-block-action="add-before"
-        title="Add before"
-      >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /><path d="M7 4h10" /></svg>
-      </ChipBtn>
-      <ChipBtn
-        style={btnStyle}
         disabled={disabled || !onAddAfter}
         onClick={() => onAddAfter?.()}
         aria-label="Add block after"
         data-selection-block-action="add-after"
-        title="Add after"
+        title="Add block"
       >
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /><path d="M7 20h10" /></svg>
-      </ChipBtn>
-      <ChipBtn
-        style={btnStyle}
-        disabled={disabled}
-        onClick={onCopy}
-        aria-label="Copy block"
-        data-selection-block-action="copy"
-        title="Copy"
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
       </ChipBtn>
       <ChipBtn
         style={btnStyle}
@@ -6108,17 +6061,152 @@ function BlockChipToolBar({
       >
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 8h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2z" /><path d="M4 16H3a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v1" /></svg>
       </ChipBtn>
+      <BlockChipOverflowMenu
+        btnStyle={btnStyle}
+        disabled={disabled}
+        onResetPosition={onResetPosition}
+        onAddBefore={onAddBefore}
+        onMoveUp={onMoveUp}
+        onMoveDown={onMoveDown}
+        onCopy={onCopy}
+      />
+      {/* Hairline divider separating the destructive Delete from the
+          non-destructive primary actions. */}
+      <div
+        aria-hidden
+        style={{
+          alignSelf: "center",
+          width: 1,
+          height: 18,
+          margin: "0 3px",
+          background: "rgba(255,255,255,0.14)",
+        }}
+      />
       <ChipBtn
         style={btnStyle}
         disabled={disabled}
         onClick={onRemoveTrigger}
         aria-label="Remove block"
         data-selection-block-action="remove"
-        title="Remove"
+        title="Delete"
         danger
       >
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg>
       </ChipBtn>
+    </div>
+  );
+}
+
+/**
+ * Overflow ("More") menu for the block chip toolbar. Houses the secondary,
+ * lower-frequency actions that used to crowd the chip as undifferentiated
+ * icons: reset position, add-before, move up/down, copy. Opens a small popover
+ * anchored under the kebab button; dismisses on outside-click / Escape.
+ */
+function BlockChipOverflowMenu({
+  btnStyle,
+  disabled,
+  onResetPosition,
+  onAddBefore,
+  onMoveUp,
+  onMoveDown,
+  onCopy,
+}: {
+  btnStyle: React.CSSProperties;
+  disabled: boolean;
+  onResetPosition: () => void;
+  onAddBefore: (() => void) | null;
+  onMoveUp: (() => void) | null;
+  onMoveDown: (() => void) | null;
+  onCopy: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!wrapRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  const run = (action: () => void) => {
+    action();
+    setOpen(false);
+  };
+
+  return (
+    <div
+      ref={wrapRef}
+      style={{ position: "relative", display: "inline-flex", alignItems: "stretch" }}
+    >
+      <ChipBtn
+        style={btnStyle}
+        disabled={disabled}
+        onClick={() => setOpen((prev) => !prev)}
+        aria-label="More block actions"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        data-selection-block-action="more"
+        title="More"
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></svg>
+      </ChipBtn>
+      {open ? (
+        <div
+          role="menu"
+          data-selection-block-overflow-menu=""
+          style={{
+            position: "absolute",
+            top: "calc(100% + 6px)",
+            right: 0,
+            zIndex: 10,
+            minWidth: 168,
+            padding: 5,
+            borderRadius: CANVAS_CHROME_RADIUS,
+            background: "rgba(24,24,27,0.97)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            boxShadow: "0 12px 32px rgba(0,0,0,0.42)",
+            display: "flex",
+            flexDirection: "column",
+            gap: 1,
+          }}
+        >
+          <ContextMenuButton disabled={disabled} onClick={() => run(onResetPosition)}>
+            Reset position
+          </ContextMenuButton>
+          <ContextMenuButton
+            disabled={disabled || !onAddBefore}
+            onClick={() => onAddBefore && run(onAddBefore)}
+          >
+            Add before
+          </ContextMenuButton>
+          <ContextMenuButton
+            disabled={disabled || !onMoveUp}
+            onClick={() => onMoveUp && run(onMoveUp)}
+          >
+            Move up
+          </ContextMenuButton>
+          <ContextMenuButton
+            disabled={disabled || !onMoveDown}
+            onClick={() => onMoveDown && run(onMoveDown)}
+          >
+            Move down
+          </ContextMenuButton>
+          <ContextMenuButton disabled={disabled} onClick={() => run(onCopy)}>
+            Copy
+          </ContextMenuButton>
+        </div>
+      ) : null}
     </div>
   );
 }
