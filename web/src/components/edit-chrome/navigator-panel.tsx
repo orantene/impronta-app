@@ -305,7 +305,7 @@ export function NavigatorPanel() {
   // Floating-panel drag (Paint-style movable Layers card). The offset lives in
   // local state, so it snaps back to the home position on every page refresh
   // but stays where you drop it for the rest of the session.
-  const floatingDrag = useFloatingDrag();
+  const floatingDrag = useFloatingDrag({ panelId: "navigator" });
   const floatingMoved = floatingDrag.offset.x !== 0 || floatingDrag.offset.y !== 0;
 
   const handleResizeMove = useCallback(
@@ -1085,6 +1085,7 @@ export function NavigatorPanel() {
     // pinned to the BOTTOM via margin-top:auto.
     return (
       <div
+        ref={(node) => floatingDrag.setPanelNode(node)}
         data-edit-overlay="navigator-rail-handle"
         style={{
           position: "fixed",
@@ -1173,6 +1174,7 @@ export function NavigatorPanel() {
 
   return (
     <aside
+      ref={(node) => floatingDrag.setPanelNode(node)}
       data-edit-overlay="navigator-panel"
       aria-labelledby="structure-navigator-label"
       style={{
@@ -1369,41 +1371,63 @@ export function NavigatorPanel() {
             />
             <span id="structure-navigator-label">Navigator</span>
             {builderPerformanceIssues.length > 0 ? (
-              /* #15 — replaced raw "PERF" badge with a human-readable label
-                 hidden behind an info affordance (title tooltip). The
-                 underlying signal is preserved; operators who hover get the
-                 full issue list. Plain "!" icon keeps it compact. */
-              <span
-                title={
-                  `${hasBlockingPerformanceIssue ? "Performance issues detected:\n" : "Performance hints:\n"}` +
-                  builderPerformanceIssues.map((issue) => `• ${issue.message}`).join("\n")
-                }
-                aria-label={`${builderPerformanceIssues.length} performance ${builderPerformanceIssues.length === 1 ? "issue" : "issues"} detected — hover for details`}
-                style={{
-                  marginLeft: 6,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 3,
-                  padding: "1px 6px",
-                  borderRadius: 999,
-                  border: hasBlockingPerformanceIssue
-                    ? "1px solid rgba(180, 35, 35, 0.35)"
-                    : "1px solid rgba(209, 87, 0, 0.35)",
-                  background: hasBlockingPerformanceIssue
-                    ? "rgba(180, 35, 35, 0.14)"
-                    : "rgba(209, 87, 0, 0.12)",
-                  color: hasBlockingPerformanceIssue ? "#9f1239" : "#8f4300",
-                  fontSize: 9,
-                  fontWeight: 700,
-                  letterSpacing: "0.04em",
-                  cursor: "default",
-                }}
-              >
-                <svg width="8" height="8" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
-                  <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm-.75 3.5h1.5v4.5h-1.5V4.5zm0 5.5h1.5v1.5h-1.5V10z"/>
-                </svg>
-                {hasBlockingPerformanceIssue ? "Slow" : "Perf"}
-              </span>
+              hasBlockingPerformanceIssue ? (
+                /* Genuine blocking problems keep a visible (rose) pill. */
+                <span
+                  title={
+                    "Performance issues detected:\n" +
+                    builderPerformanceIssues
+                      .map((issue) => `• ${issue.message}`)
+                      .join("\n")
+                  }
+                  aria-label={`${builderPerformanceIssues.length} performance ${builderPerformanceIssues.length === 1 ? "issue" : "issues"} detected — hover for details`}
+                  style={{
+                    marginLeft: 6,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 3,
+                    padding: "1px 6px",
+                    borderRadius: 999,
+                    border: "1px solid rgba(180, 35, 35, 0.35)",
+                    background: "rgba(180, 35, 35, 0.14)",
+                    color: "#9f1239",
+                    fontSize: 9,
+                    fontWeight: 700,
+                    letterSpacing: "0.04em",
+                    cursor: "default",
+                  }}
+                >
+                  <svg width="8" height="8" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
+                    <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm-.75 3.5h1.5v4.5h-1.5V4.5zm0 5.5h1.5v1.5h-1.5V10z"/>
+                  </svg>
+                  Slow
+                </span>
+              ) : (
+                /* Hint-level signals (e.g. deep nesting) are NOT an alarm — a
+                   muted, neutral info glyph that reveals the full list on hover.
+                   No warning color, no "Perf" label greeting the operator. */
+                <span
+                  title={
+                    "Performance hints:\n" +
+                    builderPerformanceIssues
+                      .map((issue) => `• ${issue.message}`)
+                      .join("\n")
+                  }
+                  aria-label={`${builderPerformanceIssues.length} builder ${builderPerformanceIssues.length === 1 ? "hint" : "hints"} — hover for details`}
+                  style={{
+                    marginLeft: 6,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    color: "#9ca3af",
+                    opacity: 0.6,
+                    cursor: "default",
+                  }}
+                >
+                  <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
+                    <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm-.75 3.5h1.5v4.5h-1.5V4.5zm0 5.5h1.5v1.5h-1.5V10z"/>
+                  </svg>
+                </span>
+              )
             ) : null}
           </div>
           <button
