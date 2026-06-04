@@ -37,6 +37,18 @@ const GLYPH: Record<string, ReactElement> = {
   email: <g {...S}><rect x="3.2" y="5.4" width="17.6" height="13.2" rx="2.2" /><path d="m4 7 8 6 8-6" /></g>,
   features: <g {...S}><circle cx="8" cy="8" r="2.6" /><path d="M3 8h2.4M10.6 8H21" /><circle cx="16" cy="16" r="2.6" /><path d="M3 16h10.4M18.6 16H21" /></g>,
   danger: <g {...S}><path d="M12 3.5 21 19H3L12 3.5Z" /><path d="M12 10v4M12 16.6h0" /></g>,
+  // Talent settings — "My Circle" (a tight ring of trusted collaborators).
+  circle: <g {...S}><circle cx="12" cy="9" r="2.6" /><path d="M7 19c0-2.6 2.2-4.4 5-4.4s5 1.8 5 4.4" /><circle cx="5.2" cy="11.2" r="1.6" /><circle cx="18.8" cy="11.2" r="1.6" /><path d="M2.6 18c0-1.8 1.3-3 3-3M21.4 18c0-1.8-1.3-3-3-3" /></g>,
+  // Talent settings — "Agencies" (the studios/agencies a talent belongs to).
+  agencies: <g {...S}><path d="M4 20V8l5-3 5 3v12" /><path d="M14 20V11h6v9" /><path d="M3 20h18" /><path d="M7 9h0M7 12h0M11 9h0M11 12h0M17 14h0M17 17h0" /></g>,
+  // Talent / client — "Personal page" (a published page with a person on it).
+  "personal-page": <g {...S}><rect x="3.5" y="4.5" width="17" height="15" rx="2.2" /><path d="M3.5 8.5h17" /><circle cx="12" cy="13" r="1.9" /><path d="M8.8 17.6c.4-1.5 1.7-2.4 3.2-2.4s2.8.9 3.2 2.4" /></g>,
+  // Client settings — "Profile" (the client's own person record).
+  profile: <g {...S}><circle cx="12" cy="8.5" r="3.4" /><path d="M5 19.5c0-3.4 3.1-5.6 7-5.6s7 2.2 7 5.6" /></g>,
+  // Client settings — "Notifications" (a bell).
+  notifications: <g {...S}><path d="M6.5 16V10a5.5 5.5 0 0 1 11 0v6" /><path d="M4.5 16h15" /><path d="M10 19.2a2.2 2.2 0 0 0 4 0" /></g>,
+  // Platform HQ — "Audit trail" (a time-stamped log / history).
+  audit: <g {...S}><circle cx="12" cy="12" r="8.4" /><path d="M12 7.2V12l3.2 2" /></g>,
 };
 
 const FALLBACK: ReactElement = (
@@ -47,13 +59,36 @@ export function SettingsSectionIcon({
   sectionId,
   danger,
   size = 30,
+  tone = "light",
 }: {
   sectionId: string;
   danger?: boolean;
   size?: number;
+  /**
+   * Visual ground for the tile. `light` is the default neutral tile used on the
+   * agency / talent / client (white-ground) settings surfaces. `dark` swaps in
+   * a translucent tile + dimmed glyph so it sits calmly on the Platform HQ dark
+   * theme (bg #0F0F11 / cards #16161A) instead of glaring as a light chip.
+   */
+  tone?: "light" | "dark";
 }) {
   const glyph = GLYPH[sectionId] ?? FALLBACK;
   const glyphSize = Math.round(size * 0.62);
+  const isDark = tone === "dark";
+  const background = danger
+    ? isDark
+      ? "rgba(220,38,38,0.14)"
+      : "#FEF2F2"
+    : isDark
+      ? "rgba(255,255,255,0.06)"
+      : "#F1F4F8";
+  const color = danger
+    ? isDark
+      ? "#F4A8A8"
+      : "#DC2626"
+    : isDark
+      ? "rgba(245,242,235,0.62)"
+      : "#5B6473";
   return (
     <span
       aria-hidden
@@ -64,10 +99,12 @@ export function SettingsSectionIcon({
         width: size,
         height: size,
         borderRadius: Math.round(size * 0.3),
-        background: danger ? "#FEF2F2" : "#F1F4F8",
-        color: danger ? "#DC2626" : "#5B6473",
+        background,
+        color,
         flexShrink: 0,
-        boxShadow: "inset 0 0 0 1px rgba(15,23,42,0.05)",
+        boxShadow: isDark
+          ? "inset 0 0 0 1px rgba(255,255,255,0.08)"
+          : "inset 0 0 0 1px rgba(15,23,42,0.05)",
       }}
     >
       <svg width={glyphSize} height={glyphSize} viewBox="0 0 24 24">
