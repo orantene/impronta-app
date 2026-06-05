@@ -92,8 +92,21 @@ export function GlobalPayoutsBankCard() {
         setStartError(r.error);
         return;
       }
-      // Hand off to Stripe's hosted form; it returns to the drawer when done.
-      window.location.href = r.url;
+      // Open Stripe's hosted form in a popup so the app stays put. When the
+      // talent closes it (after finishing), refresh the status. If the popup is
+      // blocked, fall back to a same-tab redirect.
+      const popup = window.open(r.url, "tulala-payout-setup", "width=480,height=760");
+      if (!popup) {
+        window.location.href = r.url;
+        return;
+      }
+      setStarting(false);
+      const timer = window.setInterval(() => {
+        if (popup.closed) {
+          window.clearInterval(timer);
+          refresh();
+        }
+      }, 1000);
     });
   };
 

@@ -353,7 +353,12 @@ export async function startTalentGpHostedSetupAction(): Promise<
     const hdrs = await headers();
     const host = hdrs.get("host") ?? "localhost";
     const proto = hdrs.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
-    const origin = process.env.NEXT_PUBLIC_BASE_URL ?? `${proto}://${host}`;
+    let origin = process.env.NEXT_PUBLIC_BASE_URL ?? `${proto}://${host}`;
+    // Stripe LIVE AccountLinks reject http://localhost ("only allowed in testmode").
+    // On a localhost dev box running live keys, return to the real app domain.
+    if (/^https?:\/\/(localhost|127\.0\.0\.1)/.test(origin)) {
+      origin = "https://app.tulala.digital";
+    }
     const back = `${origin}/talent/money?surface=talent&talentPage=money&drawer=talent-payouts`;
     return await getTalentGpAccountLink(tp.id, {
       email,
