@@ -113,14 +113,20 @@ export function BrandKitImport({ onApply }: Props): ReactElement {
     setError(null);
     setAppliedCount(null);
     startExtract(async () => {
-      const result = await extractBrandKitFromUrl({ url });
-      if (!result.ok) {
-        setError(result.error);
-        return;
+      try {
+        const result = await extractBrandKitFromUrl({ url });
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
+        // Pre-fill the textarea with the extracted JSON so the operator
+        // can review + tweak before clicking Apply.
+        setRaw(JSON.stringify(result.tokens, null, 2));
+      } catch (err: unknown) {
+        setError(
+          err instanceof Error ? err.message : "Failed to extract brand kit.",
+        );
       }
-      // Pre-fill the textarea with the extracted JSON so the operator
-      // can review + tweak before clicking Apply.
-      setRaw(JSON.stringify(result.tokens, null, 2));
     });
   }
 

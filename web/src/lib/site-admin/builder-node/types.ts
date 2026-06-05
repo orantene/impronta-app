@@ -26,6 +26,7 @@ export type BuilderNodeKind =
   | "card"
   | "cta_group"
   | "nav"
+  | "form"
   | "section_embed";
 
 export interface BuilderNodeBase {
@@ -321,6 +322,44 @@ export interface BuilderNodeStyleValue {
   // set, the parallax wins the single `animation` slot (entrance is the one-shot
   // intro; parallax is the persistent behaviour the visitor actually sees).
   parallax?: "none" | "subtle" | "medium" | "strong";
+  // Reveal-on-view (#1 of the "motion beyond entrance" work, 2026-06-04) — an
+  // IntersectionObserver-driven entry interaction, distinct from the CSS
+  // `animationPreset` (which plays unconditionally on load) and from `parallax`
+  // (ongoing scroll drift). The node starts hidden/offset and transitions to its
+  // resting state the FIRST time it scrolls into view, then stays (no replay).
+  //
+  // Unlike the `animationPreset` "scroll" trigger — which leans on CSS
+  // scroll-driven animations (`animation-timeline:view()`, still patchy browser
+  // support) — this uses a tiny inline IntersectionObserver the published
+  // renderer injects once, so it works everywhere IO is supported (effectively
+  // universal) and degrades to "already visible" where it isn't.
+  //
+  // `revealOnView` picks the trajectory; `revealDistance` is the CSS travel
+  // length for the directional variants (default 24px); `revealDuration` /
+  // `revealDelay` are CSS time strings (defaults 0.6s / 0s); `revealEasing`
+  // reuses the same friendly easing vocabulary as the entrance animation.
+  // All optional + back-compat — undefined emits nothing and the node renders
+  // byte-identical. Honours prefers-reduced-motion (the inline guard reveals the
+  // node immediately, with no transition, for those visitors).
+  revealOnView?:
+    | "none"
+    | "fade"
+    | "fade-up"
+    | "fade-down"
+    | "fade-left"
+    | "fade-right"
+    | "zoom";
+  revealDistance?: string;
+  revealDuration?: string;
+  revealDelay?: string;
+  revealEasing?:
+    | "ease"
+    | "linear"
+    | "ease-in"
+    | "ease-out"
+    | "ease-in-out"
+    | "back"
+    | "smooth";
 }
 
 // Hover-state overrides — a curated subset of style props that re-apply only
@@ -786,6 +825,53 @@ export interface BuilderSectionEmbedNode extends BuilderNodeBase {
   };
 }
 
+/**
+ * A single field inside a `form` node. Fields are PROPS (not child nodes) so the
+ * renderer can emit them as one coherent `<form>` from a single source of truth —
+ * the same modelling choice as `nav` links and `pricing_table` tiers.
+ *
+ * `type` maps to the rendered control: text/email/tel → `<input>`, textarea →
+ * `<textarea>`. `name` is the submission key (becomes a property on the
+ * `payload_jsonb` recorded by /api/cms/forms/submit — `email`/`name` are also
+ * projected onto contact columns). `submit` is the action button (no `name`).
+ */
+export interface BuilderFormField {
+  id: string;
+  /** Submission key (form-data field name). Lowercase/no-spaces recommended. */
+  name: string;
+  type: "text" | "email" | "tel" | "textarea" | "submit";
+  /** Visible label (also the submit button caption for type:"submit"). */
+  label: string;
+  placeholder?: string;
+  required?: boolean;
+}
+
+/**
+ * MVP lead/contact form. Renders a native `<form>` of field controls plus a
+ * submit button, with a honeypot + hidden `__tulala_section` so it can POST to
+ * the existing internal submission endpoint (`/api/cms/forms/submit`) — that
+ * route validates the section, drops honeypot trips, rate-limits, records the
+ * row, and emails workspace admins. Set `action` to "internal" (default; uses
+ * the endpoint above and requires `sectionId` to be a real `cms_sections` row
+ * id) or to a full external URL (Formspree, your own handler, …).
+ *
+ * DEFERRED (clearly noted): select / radio / checkbox controls, multi-step,
+ * client-side validation beyond the native `required`/`type` constraints.
+ */
+export interface BuilderFormNode extends BuilderNodeBase {
+  kind: "form";
+  props: {
+    /** Where the form POSTs. "internal" → /api/cms/forms/submit; or a full URL. */
+    action?: string;
+    /** Required when action is "internal": the cms_sections row id to record under. */
+    sectionId?: string | null;
+    fields: BuilderFormField[];
+    /** Honeypot field name (a hidden input bots fill — submissions with it set are flagged spam). */
+    honeypotName?: string;
+    style?: BuilderNodeStyle;
+  };
+}
+
 export interface BuilderNavNode extends BuilderNodeBase {
   kind: "nav";
   props: {
@@ -831,6 +917,7 @@ export type BuilderNode =
   | BuilderCardNode
   | BuilderCtaGroupNode
   | BuilderNavNode
+  | BuilderFormNode
   | BuilderSectionEmbedNode;
 
 export type BuilderNodeTree = BuilderNode[];

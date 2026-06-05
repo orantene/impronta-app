@@ -49,13 +49,11 @@ import {
 import {
   ArrowDown,
   ArrowUp,
-  Bookmark,
   ClipboardPaste,
   Copy,
   Files,
   PanelLeftOpen,
   Plus,
-  SquarePen,
   X,
 } from "lucide-react";
 
@@ -93,6 +91,7 @@ import {
   indexBuilderSectionNodeIds,
   type BuilderSectionChildNode,
   type BuilderNodeKind,
+  type BuilderNodeTree,
 } from "@/lib/site-admin/builder-node";
 import { checkSlotTypeCompatibility } from "@/lib/site-admin/edit-mode/slot-type-compatibility";
 import { siblingDropGapToMoveIndex } from "@/lib/site-admin/builder-node/sibling-drop-gap";
@@ -105,6 +104,10 @@ import {
   lintHeadingOutline,
   type HeadingNode,
 } from "@/lib/site-admin/a11y/heading-hierarchy";
+import {
+  countNodesLinkedToClass,
+  type BuilderStyleClass,
+} from "@/lib/site-admin/builder-node/style-classes";
 
 const EXPANDED_SECTIONS_STORAGE_KEY =
   "impronta.editChrome.navigator.expandedSections.v2";
@@ -266,6 +269,7 @@ export function NavigatorPanel() {
     openLibrary,
     reportMutationError,
     builderTree,
+    pageId,
     advancedElementLibraryEnabled,
     canInsertRawHtmlElements,
   } = useEditContext();
@@ -282,7 +286,7 @@ export function NavigatorPanel() {
   // indented by level), reusing the headingProbe data the navigator
   // already loads for the lint badge. Toggling is local to the navigator —
   // it doesn't change selection or any persisted state.
-  const [viewMode, setViewMode] = useState<"sections" | "outline">("sections");
+  const [viewMode, setViewMode] = useState<"sections" | "outline" | "classes">("sections");
   const [draggingChildNode, setDraggingChildNode] = useState<{
     nodeId: string;
     kind: BuilderNodeKind;
@@ -1201,12 +1205,6 @@ export function NavigatorPanel() {
           >
             <PanelLeftOpen size={20} strokeWidth={1.9} aria-hidden />
           </RailIconButton>
-          <RailIconButton title="Open Layers (⌘\\)" onClick={toggleNavigator}>
-            <SquarePen size={20} strokeWidth={1.8} aria-hidden />
-          </RailIconButton>
-          <RailIconButton title="Saved" onClick={toggleNavigator}>
-            <Bookmark size={20} strokeWidth={1.8} aria-hidden />
-          </RailIconButton>
         </div>
         {/* Collaborator avatar — pinned to the bottom of the rail. */}
         <div style={{ marginTop: "auto", paddingTop: 10 }}>
@@ -1413,7 +1411,7 @@ export function NavigatorPanel() {
               }}
               aria-hidden
             />
-            <span id="structure-navigator-label">Navigator</span>
+            <span id="structure-navigator-label">Layers</span>
             {builderPerformanceIssues.length > 0 ? (
               hasBlockingPerformanceIssue ? (
                 /* Genuine blocking problems keep a visible (rose) pill. */
@@ -1477,8 +1475,8 @@ export function NavigatorPanel() {
           <button
             type="button"
             onClick={toggleNavigator}
-            title="Hide Structure Navigator (⌘\\)"
-            aria-label="Hide Structure Navigator"
+            title="Hide Layers (⌘\\)"
+            aria-label="Hide Layers"
             style={{
               width: 22,
               height: 22,
@@ -1511,7 +1509,7 @@ export function NavigatorPanel() {
          *  Search remains scoped to the current view. */}
         <div
           role="radiogroup"
-          aria-label="Navigator view mode"
+          aria-label="Layers view mode"
           style={{
             display: "inline-flex",
             alignSelf: "stretch",
@@ -1523,10 +1521,12 @@ export function NavigatorPanel() {
           }}
         >
           {/* #15 — renamed "sections" view label to "Layers" (operator
-              language, not dev taxonomy). "Outline" stays as-is. */}
-          {(["sections", "outline"] as const).map((mode) => {
+              language, not dev taxonomy). "Outline" stays as-is.
+              Wave 5.8 — added "Classes" tab for the Class Manager. */}
+          {(["sections", "outline", "classes"] as const).map((mode) => {
             const active = viewMode === mode;
-            const displayLabel = mode === "sections" ? "Layers" : "Outline";
+            const displayLabel =
+              mode === "sections" ? "Layers" : mode === "outline" ? "Outline" : "Classes";
             return (
               <button
                 key={mode}
@@ -1584,7 +1584,7 @@ export function NavigatorPanel() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={viewMode === "outline" ? "Search headings…" : "Search layers…"}
+            placeholder={viewMode === "outline" ? "Search headings…" : viewMode === "classes" ? "Search classes…" : "Search layers…"}
             style={{
               width: "100%",
               padding: "6px 8px 6px 28px",
@@ -1622,6 +1622,17 @@ export function NavigatorPanel() {
             nodes={outlineNodes}
             selectedSectionId={selectedSectionId}
             onSelect={setSelectedSectionId}
+            search={search}
+          />
+        ) : null}
+        {/* Wave 5.8 — Class Manager. Lists all style classes defined on
+         *  this page, how many nodes reference each one, and lets the
+         *  operator rename a class (name-only; the stable id is unchanged
+         *  so no node tree patches are required). */}
+        {viewMode === "classes" ? (
+          <ClassManagerPanel
+            pageId={pageId}
+            builderTree={builderTree}
             search={search}
           />
         ) : null}
@@ -4023,5 +4034,439 @@ function RenameInput({
         letterSpacing: "-0.005em",
       }}
     />
+  );
+}
+
+// ── Wave 5.8 — Class Manager ──────────────────────────────────────────────────
+
+const CLASS_STORAGE_PREFIX = "tulala:builder:style-classes:v1";
+
+function classStorageKey(pageId: string | null): string {
+  return `${CLASS_STORAGE_PREFIX}:${pageId ?? "home"}`;
+}
+
+function readStoredClasses(pageId: string | null): BuilderStyleClass[] {
+  try {
+    const raw = window.localStorage.getItem(classStorageKey(pageId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return (parsed as unknown[]).filter(
+      (c): c is BuilderStyleClass =>
+        Boolean(c) &&
+        typeof (c as BuilderStyleClass).id === "string" &&
+        typeof (c as BuilderStyleClass).name === "string" &&
+        Boolean((c as BuilderStyleClass).style),
+    );
+  } catch {
+    return [];
+  }
+}
+
+function writeStoredClasses(pageId: string | null, classes: ReadonlyArray<BuilderStyleClass>) {
+  try {
+    window.localStorage.setItem(classStorageKey(pageId), JSON.stringify(classes));
+  } catch {
+    /* quota / private-mode — non-fatal */
+  }
+}
+
+/**
+ * Wave 5.8 — Class Manager panel.
+ *
+ * Lists every named style class defined on this page (stored in localStorage
+ * by the LinkedStyleClassesBar), shows how many nodes reference each one, and
+ * lets the operator rename a class in-place.
+ *
+ * Rename strategy: the class NAME is a human label — it changes freely. The
+ * class ID (slug) is the stable reference stored on each node as `classRef` and
+ * is NEVER changed here. Therefore no node-tree patches are needed on rename —
+ * only the localStorage registry entry is updated.
+ *
+ * Deferred: delete, full Webflow-style inheritance editing, cross-page class
+ * sharing, and syncing the class registry into the persisted page snapshot
+ * (the NOTE in linked-style-classes-bar.tsx covers this gap).
+ */
+function ClassManagerPanel({
+  pageId,
+  builderTree,
+  search,
+}: {
+  pageId: string | null;
+  builderTree: BuilderNodeTree;
+  search: string;
+}) {
+  const [classes, setClasses] = useState<ReadonlyArray<BuilderStyleClass>>([]);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const renameInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Hydrate from localStorage on mount / when pageId changes.
+  useEffect(() => {
+    setClasses(readStoredClasses(pageId));
+  }, [pageId]);
+
+  const persist = useCallback(
+    (next: ReadonlyArray<BuilderStyleClass>) => {
+      setClasses(next);
+      writeStoredClasses(pageId, next);
+    },
+    [pageId],
+  );
+
+  // Per-class node usage counts.
+  const usageCounts = useMemo<Record<string, number>>(() => {
+    const counts: Record<string, number> = {};
+    for (const klass of classes) {
+      counts[klass.id] = countNodesLinkedToClass(builderTree, klass.id);
+    }
+    return counts;
+  }, [classes, builderTree]);
+
+  // Filter by search (case-insensitive on the class name).
+  const q = search.trim().toLowerCase();
+  const filtered = q
+    ? classes.filter((c) => c.name.toLowerCase().includes(q))
+    : classes;
+
+  // ── Rename helpers ────────────────────────────────────────────────────────
+
+  const startRename = (klass: BuilderStyleClass) => {
+    setRenamingId(klass.id);
+    setRenameValue(klass.name);
+  };
+
+  const commitRename = useCallback(
+    (classId: string, next: string) => {
+      const trimmed = next.trim();
+      setRenamingId(null);
+      setRenameValue("");
+      if (!trimmed) return; // empty → cancel
+      persist(
+        classes.map((c) =>
+          c.id === classId ? { ...c, name: trimmed } : c,
+        ),
+      );
+    },
+    [classes, persist],
+  );
+
+  const cancelRename = () => {
+    setRenamingId(null);
+    setRenameValue("");
+  };
+
+  // Auto-focus the rename input when it mounts.
+  useEffect(() => {
+    if (renamingId && renameInputRef.current) {
+      renameInputRef.current.focus();
+      renameInputRef.current.select();
+    }
+  }, [renamingId]);
+
+  // ── Empty states ──────────────────────────────────────────────────────────
+
+  if (classes.length === 0) {
+    return (
+      <div
+        style={{
+          padding: "16px 8px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 6,
+        }}
+      >
+        <span
+          style={{
+            fontSize: 12,
+            fontWeight: 600,
+            color: CHROME.ink,
+          }}
+        >
+          No style classes yet
+        </span>
+        <span
+          style={{
+            fontSize: 11.5,
+            lineHeight: 1.5,
+            color: CHROME.muted,
+          }}
+        >
+          Select a block in the Layers view, open the Style tab, and choose
+          &ldquo;Create class from this block&rdquo; to define a reusable style.
+        </span>
+      </div>
+    );
+  }
+
+  if (filtered.length === 0 && q) {
+    return (
+      <div
+        style={{
+          padding: "10px 8px",
+          fontSize: 11.5,
+          color: CHROME.muted2,
+          fontStyle: "italic",
+        }}
+      >
+        No classes match &ldquo;{search}&rdquo;.
+      </div>
+    );
+  }
+
+  // ── Class list ────────────────────────────────────────────────────────────
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 2,
+      }}
+      data-builder-class-manager=""
+    >
+      {/* Section header */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "4px 8px 8px",
+        }}
+      >
+        <span
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: "0.10em",
+            textTransform: "uppercase",
+            color: CHROME.muted,
+          }}
+        >
+          {classes.length} {classes.length === 1 ? "class" : "classes"}
+        </span>
+      </div>
+
+      {filtered.map((klass) => {
+        const count = usageCounts[klass.id] ?? 0;
+        const isRenaming = renamingId === klass.id;
+
+        return (
+          <div
+            key={klass.id}
+            data-builder-class-row={klass.id}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "6px 8px",
+              borderRadius: CHROME_RADII.sm,
+              background: isRenaming ? CHROME.surface2 : "transparent",
+              border: `1px solid ${isRenaming ? CHROME.controlBorder : "transparent"}`,
+              transition: "background 80ms",
+            }}
+            onMouseEnter={(e) => {
+              if (!isRenaming) {
+                (e.currentTarget as HTMLElement).style.background = CHROME.surface;
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isRenaming) {
+                (e.currentTarget as HTMLElement).style.background = "transparent";
+              }
+            }}
+          >
+            {/* Class colour dot — accent colour as a visual anchor */}
+            <span
+              aria-hidden
+              style={{
+                flexShrink: 0,
+                width: 8,
+                height: 8,
+                borderRadius: 999,
+                background: CHROME.accent,
+                opacity: count === 0 ? 0.35 : 1,
+              }}
+            />
+
+            {/* Name (read or edit) */}
+            {isRenaming ? (
+              <input
+                ref={renameInputRef}
+                type="text"
+                value={renameValue}
+                aria-label={`Rename class ${klass.name}`}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    commitRename(klass.id, renameValue);
+                  } else if (e.key === "Escape") {
+                    e.preventDefault();
+                    cancelRename();
+                  }
+                }}
+                onBlur={() => commitRename(klass.id, renameValue)}
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  padding: "2px 6px",
+                  fontSize: 12,
+                  fontFamily: "inherit",
+                  fontWeight: 600,
+                  color: CHROME.ink,
+                  background: CHROME.paper,
+                  border: `1px solid ${CHROME.blue}`,
+                  borderRadius: CHROME_RADII.xs ?? 4,
+                  outline: "none",
+                  boxShadow: CHROME_SHADOWS.inputFocus,
+                  letterSpacing: "-0.005em",
+                }}
+              />
+            ) : (
+              <span
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: CHROME.ink,
+                  letterSpacing: "-0.005em",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+                title={`${klass.name} (id: ${klass.id})`}
+              >
+                {klass.name}
+              </span>
+            )}
+
+            {/* Usage badge */}
+            <span
+              title={`${count} node${count === 1 ? "" : "s"} use this class`}
+              style={{
+                flexShrink: 0,
+                fontSize: 10,
+                fontWeight: 700,
+                lineHeight: 1,
+                padding: "2px 5px",
+                borderRadius: 999,
+                background: count === 0 ? CHROME.surface2 : "rgba(42,49,71,0.07)",
+                border: `1px solid ${count === 0 ? CHROME.line : CHROME.lineMid}`,
+                color: count === 0 ? CHROME.muted2 : CHROME.muted,
+                minWidth: 18,
+                textAlign: "center",
+              }}
+            >
+              {count}
+            </span>
+
+            {/* Rename / cancel action */}
+            {isRenaming ? (
+              <button
+                type="button"
+                title="Cancel rename"
+                aria-label="Cancel rename"
+                onClick={cancelRename}
+                style={{
+                  flexShrink: 0,
+                  width: 22,
+                  height: 22,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "transparent",
+                  border: "none",
+                  borderRadius: CHROME_RADII.xs ?? 4,
+                  color: CHROME.muted,
+                  cursor: "pointer",
+                  fontSize: 14,
+                  lineHeight: 1,
+                }}
+              >
+                ×
+              </button>
+            ) : (
+              <button
+                type="button"
+                title={`Rename "${klass.name}"`}
+                aria-label={`Rename class ${klass.name}`}
+                data-builder-class-rename={klass.id}
+                onClick={() => startRename(klass)}
+                style={{
+                  flexShrink: 0,
+                  width: 22,
+                  height: 22,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "transparent",
+                  border: "none",
+                  borderRadius: CHROME_RADII.xs ?? 4,
+                  color: CHROME.muted,
+                  cursor: "pointer",
+                  opacity: 0,
+                  transition: "opacity 80ms",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.opacity = "1";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.opacity = "0";
+                }}
+                onFocus={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.opacity = "1";
+                }}
+                onBlur={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.opacity = "0";
+                }}
+              >
+                {/* Pencil icon (inline SVG, no extra import) */}
+                <svg
+                  width="11"
+                  height="11"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+              </button>
+            )}
+          </div>
+        );
+      })}
+
+      {/* Unused classes callout */}
+      {classes.some((c) => (usageCounts[c.id] ?? 0) === 0) ? (
+        <div
+          style={{
+            marginTop: 8,
+            padding: "6px 8px",
+            borderRadius: CHROME_RADII.sm,
+            background: CHROME.paper,
+            border: `1px solid ${CHROME.line}`,
+            fontSize: 11,
+            color: CHROME.muted,
+            lineHeight: 1.5,
+          }}
+        >
+          {classes.filter((c) => (usageCounts[c.id] ?? 0) === 0).length} unused{" "}
+          {classes.filter((c) => (usageCounts[c.id] ?? 0) === 0).length === 1
+            ? "class"
+            : "classes"}{" "}
+          (not linked to any block on this page).
+        </div>
+      ) : null}
+    </div>
   );
 }

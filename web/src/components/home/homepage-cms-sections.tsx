@@ -19,6 +19,7 @@
  *   - We never render section props inline from free-form JSON: every render
  *     goes through a registry entry with a Zod-parsed payload.
  */
+import type { ReactNode } from "react";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { improntaLog } from "@/lib/server/structured-log";
 import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
@@ -40,7 +41,12 @@ import {
   resolveSnapshotBuilderTree,
 } from "@/lib/site-admin/builder-node";
 import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
-import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
+import {
+  collectBuilderSectionEmbedNodes,
+  makeSectionEmbedRenderer,
+} from "@/lib/site-admin/builder-node/section-embed-renderer";
+import { isBuilderClientCanvasEnabled } from "@/lib/site-admin/edit-mode/client-canvas-flag";
+import { ClientBuilderCanvas } from "@/components/edit-chrome/client-builder-canvas";
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import { isPreviewActiveForTenant } from "@/lib/site-admin/server/homepage-reads";
@@ -270,12 +276,48 @@ export async function HomepageCmsSections({
         !editMode && treeHasInstances(freeform.tree)
           ? await loadBuilderComponentsForTenant(tenantId)
           : {};
+      const freeformSectionEmbedRenderer = makeSectionEmbedRenderer({
+        tenantId,
+        locale,
+        publicPathPrefix,
+      });
+      const freeformStyles =
+        includeBuilderNodeRendererStyles &&
+        hasRenderableBuilderNodes(freeform.tree, { mode: "freeform" }) ? (
+          <BuilderNodeRendererStyles />
+        ) : null;
+
+      // W3 Sub-step B — CLIENT-RENDERED CANVAS (default OFF; flag-gated).
+      // Only when edit mode is active AND NEXT_PUBLIC_BUILDER_CLIENT_CANVAS is
+      // on do we paint the freeform tree client-side. The `section_embed`
+      // server islands are pre-rendered here (same renderer, same wrapper +
+      // `data-*`) and handed to the client canvas by node id; everything else
+      // renders client-side against the SERIALIZED `freeformDataSources`. The
+      // head styles still emit server-side so the head matches the server path.
+      if (editMode && isBuilderClientCanvasEnabled()) {
+        const sectionEmbedIslands: Record<string, ReactNode> = {};
+        for (const embed of collectBuilderSectionEmbedNodes(freeform.tree)) {
+          sectionEmbedIslands[embed.id] = freeformSectionEmbedRenderer(embed);
+        }
+        return (
+          <>
+            {freeformStyles}
+            <ClientBuilderCanvas
+              initialTree={freeform.tree}
+              dataSources={freeformDataSources}
+              sectionEmbedIslands={sectionEmbedIslands}
+              publicPathPrefix={publicPathPrefix}
+              components={freeformComponents}
+              visibilityContext={visibilityContext}
+            />
+          </>
+        );
+      }
+
+      // DEFAULT (flag off) — server-rendered canvas, byte-identical to today.
       return (
         <>
-          {includeBuilderNodeRendererStyles &&
-          hasRenderableBuilderNodes(freeform.tree, { mode: "freeform" }) ? (
-            <BuilderNodeRendererStyles />
-          ) : null}
+          {freeformStyles}
           {renderBuilderNodes(freeform.tree, {
             publicPathPrefix,
             mode: "freeform",
@@ -283,11 +325,7 @@ export async function HomepageCmsSections({
             dataSources: freeformDataSources,
             components: freeformComponents,
             visibilityContext,
-            renderSectionEmbed: makeSectionEmbedRenderer({
-              tenantId,
-              locale,
-              publicPathPrefix,
-            }),
+            renderSectionEmbed: freeformSectionEmbedRenderer,
           })}
         </>
       );

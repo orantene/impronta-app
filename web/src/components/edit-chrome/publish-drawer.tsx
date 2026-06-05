@@ -235,6 +235,7 @@ export function PublishDrawer() {
     refreshComposition,
     savePageMetadata,
     saveDraft,
+    flushBuilderTreeSave,
     builderTree,
   } = useEditContext();
 
@@ -425,9 +426,17 @@ export function PublishDrawer() {
   }, [publishDiff.removedSectionIds, publishedRows]);
 
   async function handlePublish() {
-    const casVersion = getCompositionCasVersion();
-    if (casVersion === null) return;
     setState({ kind: "publishing" });
+    // Flush any debounced builder-tree draft save BEFORE reading the CAS version
+    // and publishing — otherwise an edit still sitting in the debounce window
+    // would not be in the draft the publish snapshots, and would bump the
+    // version under us. After the flush the CAS version reflects the latest save.
+    await flushBuilderTreeSave();
+    const casVersion = getCompositionCasVersion();
+    if (casVersion === null) {
+      setState({ kind: "idle" });
+      return;
+    }
     // safeAction wrapper: if the dev server restarts mid-publish or the
     // network drops, we get a graceful "Network error" toast instead of
     // a stuck "Publishing…" pending state and a leaked Next.js overlay.

@@ -382,6 +382,46 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
       };
     case "nav":
       return createNav();
+    case "form":
+      return {
+        id: makeId("form"),
+        kind: "form",
+        props: {
+          action: "internal",
+          honeypotName: "website",
+          fields: [
+            {
+              id: crypto.randomUUID(),
+              name: "name",
+              type: "text",
+              label: "Name",
+              placeholder: "Your name",
+              required: true,
+            },
+            {
+              id: crypto.randomUUID(),
+              name: "email",
+              type: "email",
+              label: "Email",
+              placeholder: "you@example.com",
+              required: true,
+            },
+            {
+              id: crypto.randomUUID(),
+              name: "message",
+              type: "textarea",
+              label: "Message",
+              placeholder: "How can we help?",
+            },
+            {
+              id: crypto.randomUUID(),
+              name: "submit",
+              type: "submit",
+              label: "Send",
+            },
+          ],
+        },
+      };
     case "section_embed":
       // A bare "section_embed" insert has no chosen section. Default to the
       // Directory component (seeded with its preset config). The picker inserts

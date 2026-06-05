@@ -270,6 +270,28 @@ export function countNodesLinkedToClass(
   return count;
 }
 
+/**
+ * Collect the ids of all nodes in the tree that are linked to the given
+ * class id. Used by the Class Manager to show usage counts and to propagate
+ * a classRef rename across the tree.
+ */
+export function collectNodeIdsLinkedToClass(
+  tree: BuilderNodeTree,
+  classId: string,
+): string[] {
+  const ids: string[] = [];
+  const visit = (node: BuilderNode) => {
+    if (getNodeClassRef(node) === classId) {
+      ids.push(node.id);
+    }
+    if ("children" in node && Array.isArray(node.children)) {
+      for (const child of node.children) visit(child);
+    }
+  };
+  for (const node of tree) visit(node);
+  return ids;
+}
+
 /** Normalize a free-typed class name into a stable, collision-resistant id. */
 export function styleClassIdFromName(name: string, existingIds: ReadonlyArray<string>): string {
   const base =

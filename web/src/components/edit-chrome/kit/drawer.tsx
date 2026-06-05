@@ -580,6 +580,7 @@ export function DrawerIconTabs<K extends string>({
   ariaLabel = "Inspector sections",
   className,
 }: DrawerIconTabsProps<K>) {
+  const activeItem = items.find((i) => i.key === active);
   return (
     <div
       role="tablist"
@@ -623,6 +624,29 @@ export function DrawerIconTabs<K extends string>({
           </button>
         );
       })}
+      {/* Active-tab label — surfaced at the bottom of the rail so the user
+          always sees which tab they're on without hover. Rotated 90° to
+          read vertically along the rail, matching the slim-column budget.
+          Transitions smoothly when the active key changes. */}
+      {activeItem ? (
+        <div
+          aria-hidden
+          className="mt-auto shrink-0 pb-3 pt-1"
+          style={{
+            writingMode: "vertical-rl",
+            transform: "rotate(180deg)",
+            fontSize: 9.5,
+            fontWeight: 600,
+            letterSpacing: "0.07em",
+            textTransform: "uppercase",
+            color: CHROME.accent,
+            userSelect: "none",
+            lineHeight: 1,
+          }}
+        >
+          {activeItem.label}
+        </div>
+      ) : null}
     </div>
   );
 }

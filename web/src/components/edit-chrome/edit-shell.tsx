@@ -37,13 +37,6 @@ import { InspectorDock } from "./inspector-dock";
 import { CompositionInserters } from "./composition-inserter";
 import { CompositionLibraryOverlay } from "./composition-library";
 import { InlineEditor } from "./inline-editor";
-import { PublishDrawer } from "./publish-drawer";
-import { PageSettingsDrawer } from "./page-settings-drawer";
-import { RevisionsDrawer } from "./revisions-drawer";
-import { ThemeDrawer } from "./theme-drawer";
-import { AssetsDrawer } from "./assets-drawer";
-import { CollectionsDrawer } from "./collections-drawer";
-import { CommandPalette } from "./command-palette";
 import { MobileEditPanel } from "./mobile-edit-panel";
 import { NavigatorPanel } from "./navigator-panel";
 import { ShortcutOverlay } from "./shortcut-overlay";
@@ -66,6 +59,51 @@ import {
   useCanvasViewport,
 } from "./canvas-viewport";
 
+// ---------------------------------------------------------------------------
+// Heavy drawers — lazy-loaded via next/dynamic so their JS chunks are
+// deferred until the drawer is first opened, reducing initial editor TTI.
+// Each is gated in EditShellInner by an "ever opened" boolean so the
+// component does not mount (and the chunk does not download) until the
+// operator first opens it. After that first mount the component stays in
+// the tree across open/close cycles so the drawer's own internal state
+// (scroll position, form state, etc.) is preserved.
+// ---------------------------------------------------------------------------
+const PublishDrawer = dynamic(
+  () => import("./publish-drawer").then((m) => ({ default: m.PublishDrawer })),
+  { ssr: false, loading: () => null },
+);
+const PageSettingsDrawer = dynamic(
+  () =>
+    import("./page-settings-drawer").then((m) => ({
+      default: m.PageSettingsDrawer,
+    })),
+  { ssr: false, loading: () => null },
+);
+const RevisionsDrawer = dynamic(
+  () =>
+    import("./revisions-drawer").then((m) => ({ default: m.RevisionsDrawer })),
+  { ssr: false, loading: () => null },
+);
+const ThemeDrawer = dynamic(
+  () => import("./theme-drawer").then((m) => ({ default: m.ThemeDrawer })),
+  { ssr: false, loading: () => null },
+);
+const AssetsDrawer = dynamic(
+  () => import("./assets-drawer").then((m) => ({ default: m.AssetsDrawer })),
+  { ssr: false, loading: () => null },
+);
+const CollectionsDrawer = dynamic(
+  () =>
+    import("./collections-drawer").then((m) => ({
+      default: m.CollectionsDrawer,
+    })),
+  { ssr: false, loading: () => null },
+);
+const CommandPalette = dynamic(
+  () =>
+    import("./command-palette").then((m) => ({ default: m.CommandPalette })),
+  { ssr: false, loading: () => null },
+);
 const ScheduleDrawer = dynamic(
   () =>
     import("./schedule-drawer").then((m) => ({ default: m.ScheduleDrawer })),
@@ -342,6 +380,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     collectionsOpen,
     scheduleOpen,
     commentsOpen,
+    starterTemplateGalleryOpen,
     paletteOpen,
     togglePalette,
     closePalette,
@@ -386,6 +425,57 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
 
   /** Opens Page settings once per cms page id for default draft titles (workspace Add page). */
   const autoPageSettingsForUntitledRef = useRef<Set<string>>(new Set());
+
+  /** Compact-mode hint — shown once on mobile, dismissible. */
+  const [mobileHintDismissed, setMobileHintDismissed] = useState(false);
+
+  // Lazy-mount guards for heavy drawers. Each flag starts false and flips
+  // to true the first time its corresponding open-flag becomes true. Once
+  // flipped, the component stays in the tree (the drawer itself returns
+  // null when closed) so its internal state is preserved across open/close
+  // cycles. This ensures the next/dynamic chunk is not downloaded until
+  // the operator actually opens the drawer, reducing initial editor TTI.
+  const [everOpenedPublish, setEverOpenedPublish] = useState(false);
+  const [everOpenedPageSettings, setEverOpenedPageSettings] = useState(false);
+  const [everOpenedRevisions, setEverOpenedRevisions] = useState(false);
+  const [everOpenedTheme, setEverOpenedTheme] = useState(false);
+  const [everOpenedAssets, setEverOpenedAssets] = useState(false);
+  const [everOpenedCollections, setEverOpenedCollections] = useState(false);
+  const [everOpenedPalette, setEverOpenedPalette] = useState(false);
+  const [everOpenedSchedule, setEverOpenedSchedule] = useState(false);
+  const [everOpenedComments, setEverOpenedComments] = useState(false);
+  const [everOpenedTemplateGallery, setEverOpenedTemplateGallery] = useState(false);
+
+  useEffect(() => {
+    if (publishOpen) setEverOpenedPublish(true);
+  }, [publishOpen]);
+  useEffect(() => {
+    if (pageSettingsOpen) setEverOpenedPageSettings(true);
+  }, [pageSettingsOpen]);
+  useEffect(() => {
+    if (revisionsOpen) setEverOpenedRevisions(true);
+  }, [revisionsOpen]);
+  useEffect(() => {
+    if (themeOpen) setEverOpenedTheme(true);
+  }, [themeOpen]);
+  useEffect(() => {
+    if (assetsOpen) setEverOpenedAssets(true);
+  }, [assetsOpen]);
+  useEffect(() => {
+    if (collectionsOpen) setEverOpenedCollections(true);
+  }, [collectionsOpen]);
+  useEffect(() => {
+    if (paletteOpen) setEverOpenedPalette(true);
+  }, [paletteOpen]);
+  useEffect(() => {
+    if (scheduleOpen) setEverOpenedSchedule(true);
+  }, [scheduleOpen]);
+  useEffect(() => {
+    if (commentsOpen) setEverOpenedComments(true);
+  }, [commentsOpen]);
+  useEffect(() => {
+    if (starterTemplateGalleryOpen) setEverOpenedTemplateGallery(true);
+  }, [starterTemplateGalleryOpen]);
 
   useEffect(() => {
     if (!compositionLoaded || !pageId || !pageMetadata) return;
@@ -867,15 +957,40 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
           ["--primary-foreground" as string]: "#fafafa",
         }}
       >
-        {/* P8-2 — inspector dock is `max-lg:hidden`; help operators on phones/tablets. */}
-        <p
-          className="fixed left-0 right-0 z-[79] border-b border-amber-200/90 bg-amber-50 px-3 py-1.5 text-center text-[11px] leading-snug text-amber-950 lg:hidden"
-          style={{ top: 52 }}
-          role="note"
-        >
-          On small screens, use Structure and the canvas — the full inspector opens on wider
-          breakpoints.
-        </p>
+        {/* P8-2 — inspector dock is `max-lg:hidden`; orient operators on phones/tablets. */}
+        {!mobileHintDismissed && (
+          <div
+            className="fixed left-0 right-0 z-[79] flex items-center justify-between gap-2 border-b border-zinc-200/80 bg-white/95 px-3 py-1.5 backdrop-blur-sm lg:hidden"
+            style={{ top: 52 }}
+            role="note"
+          >
+            <p className="flex-1 text-center text-[11px] leading-snug text-zinc-500">
+              Compact editing mode — use Layers and the canvas. Widen the window for the full
+              inspector.
+            </p>
+            <button
+              type="button"
+              aria-label="Dismiss"
+              onClick={() => setMobileHintDismissed(true)}
+              className="shrink-0 rounded p-0.5 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600"
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 12 12"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M1 1l10 10M11 1L1 11"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          </div>
+        )}
         <TopBar
           device={device}
           setDevice={setDevice}
@@ -896,6 +1011,8 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
           onTemplates={openStarterTemplateGallery}
           onSchedule={openSchedule}
           onComments={openComments}
+          onOpenPalette={togglePalette}
+          onOpenShortcuts={openShortcutOverlay}
           onSaveDraft={() => void saveDraft()}
           onShare={(opts) => handleShareClick(opts, reportMutationError)}
           pageTitle={pageMetadata?.title ?? undefined}
@@ -932,19 +1049,25 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         <InspectorDock />
         <CompositionLibraryOverlay />
         <SectionPickerPopover />
-        <PublishDrawer />
-        <PageSettingsDrawer />
-        <RevisionsDrawer />
-        <ThemeDrawer />
-        <AssetsDrawer />
-        <CollectionsDrawer />
+        {/* Heavy drawers — each is gated by an "ever opened" flag so the
+            next/dynamic chunk is not downloaded until first open. After the
+            first open the component stays mounted so its internal state
+            (form values, scroll position, etc.) is preserved. */}
+        {everOpenedPublish && <PublishDrawer />}
+        {everOpenedPageSettings && <PageSettingsDrawer />}
+        {everOpenedRevisions && <RevisionsDrawer />}
+        {everOpenedTheme && <ThemeDrawer />}
+        {everOpenedAssets && <AssetsDrawer />}
+        {everOpenedCollections && <CollectionsDrawer />}
         {/* Wave 6C — mobile-first editing HUD. Self-guards on mobileEditMode +
             previewing; renders nothing otherwise (fully back-compat). */}
         <MobileEditPanel />
-        <ScheduleDrawer />
-        <CommentsDrawer />
-        <StarterTemplateGalleryOverlay />
-        <CommandPalette open={paletteOpen} onClose={closePalette} />
+        {everOpenedSchedule && <ScheduleDrawer />}
+        {everOpenedComments && <CommentsDrawer />}
+        {everOpenedTemplateGallery && <StarterTemplateGalleryOverlay />}
+        {everOpenedPalette && (
+          <CommandPalette open={paletteOpen} onClose={closePalette} />
+        )}
         <ShortcutOverlay
           open={shortcutOverlayOpen}
           onClose={closeShortcutOverlay}

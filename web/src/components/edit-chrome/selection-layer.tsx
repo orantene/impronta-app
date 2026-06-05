@@ -643,6 +643,15 @@ export function SelectionLayer() {
   const autoscrollRafRef = useRef<number | null>(null);
   const selectionScrollRetryRef = useRef<number | null>(null);
 
+  // P3-PERF (marquee): candidate index cached for the marquee gesture, the
+  // rAF handle that coalesces pointermove state updates, and the latest pointer
+  // position recorded synchronously so pointer-up reads the true final point.
+  const marqueeIndexRef = useRef<
+    Array<{ id: string; el: HTMLElement; box: Rect }> | null
+  >(null);
+  const marqueeRafRef = useRef<number | null>(null);
+  const latestMarqueePointRef = useRef<{ x: number; y: number } | null>(null);
+
   const rafRef = useRef<number | null>(null);
 
   // ── Imperative overlay positioning (Figma-smooth selection tracking) ───────
@@ -1195,8 +1204,13 @@ export function SelectionLayer() {
       );
     }
 
-    function selectedNodeIdsForRect(rect: Rect) {
-      const candidates = Array.from(
+    // P3-PERF: cached marquee candidate index, built once at marquee-start and
+    // refreshed on scroll/resize (the only inputs that move the snapshotted
+    // viewport rects vs. the live marquee rect). Mirrors the drag cache. The
+    // shape carries the live element so the O(N²) containment filter still works.
+    type MarqueeCandidate = { id: string; el: HTMLElement; box: Rect };
+    function buildMarqueeIndex(): MarqueeCandidate[] {
+      return Array.from(
         document.querySelectorAll<HTMLElement>("[data-builder-node-id]"),
       ).flatMap((el) => {
         const id = el.getAttribute("data-builder-node-id");
@@ -1206,9 +1220,17 @@ export function SelectionLayer() {
         if (!node || node.kind === "section" || resolveBuilderNodeRole(node.id) || node.locked) {
           return [];
         }
-        const box = rectOf(el);
-        return rectsIntersect(rect, box) ? [{ id, el }] : [];
+        return [{ id, el, box: rectOf(el) }];
       });
+    }
+
+    function selectedNodeIdsForRect(rect: Rect) {
+      // Reuse the gesture's cached index when warm; fall back to a fresh scan
+      // (byte-identical) if the cache was never seeded for this gesture.
+      const index = marqueeIndexRef.current ?? buildMarqueeIndex();
+      const candidates = index.filter((candidate) =>
+        rectsIntersect(rect, candidate.box),
+      );
       return candidates
         .filter(
           (candidate) =>
@@ -1219,10 +1241,31 @@ export function SelectionLayer() {
         .map((candidate) => candidate.id);
     }
 
+    function flushMarqueePoint() {
+      marqueeRafRef.current = null;
+      const point = latestMarqueePointRef.current;
+      if (!point) return;
+      setMarquee((current) =>
+        current.phase === "dragging"
+          ? { ...current, currentX: point.x, currentY: point.y }
+          : current,
+      );
+    }
+
+    function refreshMarqueeIndex() {
+      if (marqueeIndexRef.current !== null) {
+        marqueeIndexRef.current = buildMarqueeIndex();
+      }
+    }
+
     function onPointerDown(event: PointerEvent) {
       if (event.button !== 0) return;
       if (previewing()) return;
       if (shouldIgnoreMarqueeTarget(event.target)) return;
+      // Seed the candidate index for the whole gesture (refreshed on
+      // scroll/resize below); flushed on pointer-up / pointer-cancel.
+      marqueeIndexRef.current = buildMarqueeIndex();
+      latestMarqueePointRef.current = { x: event.clientX, y: event.clientY };
       setMarquee({
         phase: "dragging",
         startX: event.clientX,
@@ -1233,21 +1276,34 @@ export function SelectionLayer() {
     }
 
     function onPointerMove(event: PointerEvent) {
-      setMarquee((current) =>
-        current.phase === "dragging"
-          ? { ...current, currentX: event.clientX, currentY: event.clientY }
-          : current,
-      );
+      // Always record the latest point synchronously so pointer-up reads the
+      // true final position even if a throttled frame is still pending; the
+      // state update itself is rAF-coalesced to avoid a re-render per move.
+      latestMarqueePointRef.current = { x: event.clientX, y: event.clientY };
+      if (marqueeRafRef.current === null) {
+        marqueeRafRef.current = requestAnimationFrame(flushMarqueePoint);
+      }
     }
 
     function onPointerUp(event: PointerEvent) {
+      // Drop any pending throttled frame; we apply the final point inline.
+      if (marqueeRafRef.current !== null) {
+        cancelAnimationFrame(marqueeRafRef.current);
+        marqueeRafRef.current = null;
+      }
+      const point = latestMarqueePointRef.current;
       setMarquee((current) => {
-        if (current.phase !== "dragging") return current;
+        if (current.phase !== "dragging") {
+          marqueeIndexRef.current = null;
+          return current;
+        }
+        const endX = point?.x ?? current.currentX;
+        const endY = point?.y ?? current.currentY;
         const rect = {
-          left: Math.min(current.startX, current.currentX),
-          top: Math.min(current.startY, current.currentY),
-          width: Math.abs(current.currentX - current.startX),
-          height: Math.abs(current.currentY - current.startY),
+          left: Math.min(current.startX, endX),
+          top: Math.min(current.startY, endY),
+          width: Math.abs(endX - current.startX),
+          height: Math.abs(endY - current.startY),
         };
         if (rect.width >= 8 && rect.height >= 8) {
           suppressNextClickRef.current = true;
@@ -1259,6 +1315,7 @@ export function SelectionLayer() {
             replaceBuilderNodeSelection(nextIds);
           }
         }
+        marqueeIndexRef.current = null;
         return { phase: "idle" };
       });
     }
@@ -1271,11 +1328,25 @@ export function SelectionLayer() {
     document.addEventListener("pointermove", onPointerMove);
     document.addEventListener("pointerup", onPointerUp);
     document.addEventListener("pointercancel", onPointerUp);
+    window.addEventListener("scroll", refreshMarqueeIndex, {
+      passive: true,
+      capture: true,
+    });
+    window.addEventListener("resize", refreshMarqueeIndex);
     return () => {
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("pointermove", onPointerMove);
       document.removeEventListener("pointerup", onPointerUp);
       document.removeEventListener("pointercancel", onPointerUp);
+      window.removeEventListener("scroll", refreshMarqueeIndex, {
+        capture: true,
+      } as EventListenerOptions);
+      window.removeEventListener("resize", refreshMarqueeIndex);
+      if (marqueeRafRef.current !== null) {
+        cancelAnimationFrame(marqueeRafRef.current);
+        marqueeRafRef.current = null;
+      }
+      marqueeIndexRef.current = null;
     };
   }, [
     builderTree,
@@ -1314,10 +1385,41 @@ export function SelectionLayer() {
     selectBuilderNode,
   ]);
 
+  // ── P3-PERF: drag-candidate index cached for the WHOLE gesture ──────────────
+  //
+  // `collectCanvasDropCandidates` is expensive: it queries every
+  // `[data-builder-node-id]`, forces a sync `getBoundingClientRect` per node, and
+  // (historically) ran an O(N²) `.contains()` depth scan. It used to run on EVERY
+  // `onDragOver` frame (60+/s) → layout thrash + main-thread stalls on a large
+  // page. The candidate SET (which containers exist, their kinds/locked flags,
+  // their child ordering, their depth) is invariant for the duration of a single
+  // drag — only their VIEWPORT rects move, and only when the canvas scrolls or
+  // the window resizes. So we snapshot the candidate list ONCE at drag-start and
+  // reuse it across the gesture; per frame we just hit-test the cached bands.
+  //
+  // Byte-identical guarantee: the cache stores the EXACT output of
+  // `collectCanvasDropCandidates`, and we recompute that output on every canvas
+  // scroll + window resize during the drag (the only inputs that change the
+  // snapshot). `resolveCanvasNodeDrop` is pure over the candidate list, so its
+  // drop-target + depth decisions are identical to calling collect() every frame.
+  const canvasDropIndexRef = useRef<CanvasDropCandidate[] | null>(null);
+
+  const rebuildCanvasDropIndex = useCallback(() => {
+    canvasDropIndexRef.current = collectCanvasDropCandidates(
+      canvasDropDepsRef.current.builderTree,
+    );
+  }, []);
+
   // Resolve the canvas drop target under the cursor for the dragged kind. The
   // DOM walk + index math live in `canvas-node-drop.ts` (pure + unit-tested);
   // this only feeds it the live candidate boxes. For an existing-node move the
   // dragged node is excluded so it can't parent itself or skew its own index.
+  //
+  // P3-PERF: read the cached candidate index built at drag-start (and refreshed
+  // on scroll/resize). If — for any unforeseen reason — the cache is empty when
+  // we're asked to resolve (e.g. a `drop`/`dragover` fired before the cache was
+  // seeded), fall back to a fresh scan so correctness never depends on the cache
+  // being warm.
   const computeCanvasNodeDrop = useCallback(
     (
       cursorX: number,
@@ -1325,9 +1427,9 @@ export function SelectionLayer() {
       draggedKind: BuilderNodeKind,
       excludeNodeId: string | null,
     ): CanvasDropResult | null => {
-      const candidates = collectCanvasDropCandidates(
-        canvasDropDepsRef.current.builderTree,
-      );
+      const candidates =
+        canvasDropIndexRef.current ??
+        collectCanvasDropCandidates(canvasDropDepsRef.current.builderTree);
       return resolveCanvasNodeDrop({
         cursorX,
         cursorY,
@@ -1612,6 +1714,46 @@ export function SelectionLayer() {
       window.removeEventListener("keydown", onKey);
     };
   }, [canvasNodeDrag, computeCanvasNodeDrop]);
+
+  // ── P3-PERF: maintain the cached drop-candidate index for the active drag ───
+  //
+  // Seed the index the moment a canvas drag becomes active (palette or move),
+  // then keep it fresh on the ONLY two inputs that move the snapshotted viewport
+  // rects: the canvas scroll-container scrolling (caught capture-phase on window,
+  // same as the selection-ring tracker — `scroll` doesn't bubble, so capture
+  // catches a nested scroller) and the window resizing. We clear the cache when
+  // the drag ends so a later resolve falls back to a fresh scan rather than
+  // reading a stale gesture's geometry.
+  // A STABLE key for the active gesture: the candidate SET is invariant for the
+  // life of one drag, so we must NOT re-seed on the per-frame cursor/drop state
+  // churn (`onDragOver` updates `canvasNodeDrag` every move). Keying on
+  // phase + dragged-node identity re-runs this effect only on arm/disarm.
+  const canvasDragGestureKey =
+    canvasNodeDrag.phase === "idle"
+      ? "idle"
+      : canvasNodeDrag.phase === "move"
+        ? `move:${canvasNodeDrag.nodeId}`
+        : "palette";
+  useEffect(() => {
+    if (canvasDragGestureKey === "idle") {
+      canvasDropIndexRef.current = null;
+      return undefined;
+    }
+    rebuildCanvasDropIndex();
+    const onScrollOrResize = () => rebuildCanvasDropIndex();
+    window.addEventListener("scroll", onScrollOrResize, {
+      passive: true,
+      capture: true,
+    });
+    window.addEventListener("resize", onScrollOrResize);
+    return () => {
+      window.removeEventListener("scroll", onScrollOrResize, {
+        capture: true,
+      } as EventListenerOptions);
+      window.removeEventListener("resize", onScrollOrResize);
+      canvasDropIndexRef.current = null;
+    };
+  }, [canvasDragGestureKey, rebuildCanvasDropIndex]);
 
   // ── drag-to-reorder ──────────────────────────────────────────────
   // Drop target under the cursor given the current section layout.
@@ -2009,6 +2151,36 @@ export function SelectionLayer() {
     !!selectedBuilderNodeId &&
     selectedCanvasNodeId === selectedBuilderNodeId &&
     !resolveBuilderNodeRole(selectedBuilderNode.id);
+  // Does the selected block actually expose an inline-editable TEXT target?
+  // The toolbar pencil fires `requestInlineEdit`, which only does something
+  // when the node renders an element the inline editor can open
+  // (h1-h6/p/a/button/summary/[data-editable-text]). That set maps to a fixed
+  // list of node kinds — mirrored from inline-editor.tsx's
+  // `resolveEditableBuilderNodeTextTarget`: heading/paragraph/rich_text always
+  // carry copy, button a label, accordion_item/tab_panel a title; icon is
+  // editable only when it has a label, nav only via its (brand) wordmark. Every
+  // other kind (image/video/embed/icon-without-label/divider/spacer/code/
+  // section_embed and the bare layout containers) has NO text target, so the
+  // pencil would be a no-op there → hide it. Derived from the node itself so it
+  // recomputes on every render rather than racing the live DOM.
+  const selectedNodeHasInlineTextTarget = (() => {
+    if (!selectedNodeIsEditableBlock || !selectedBuilderNode) return false;
+    switch (selectedBuilderNode.kind) {
+      case "heading":
+      case "paragraph":
+      case "rich_text":
+      case "button":
+      case "accordion_item":
+      case "tab_panel":
+        return true;
+      case "icon":
+        return !!selectedBuilderNode.props.label;
+      case "nav":
+        return !!selectedBuilderNode.props.brand;
+      default:
+        return false;
+    }
+  })();
   const chipPrimaryLabel = selectedNodeIsEditableBlock
     ? builderNodeCrumbLabel(selectedBuilderNode, chipLabel)
     : chipLabel;
@@ -4148,6 +4320,7 @@ export function SelectionLayer() {
               <BlockChipToolBar
                 disabled={saving}
                 confirmRemove={confirmRemove}
+                canEditText={selectedNodeHasInlineTextTarget}
                 onResetPosition={() => commitSelectedNodeTranslate(0, 0)}
                 onEdit={() => requestInlineEdit(selectedBuilderNodeId)}
                 onMoveUp={
@@ -5727,6 +5900,8 @@ function canvasChildSecondaryLabel(node: BuilderNode): string {
       return `Spacer · ${node.props.size.toUpperCase()}`;
     case "nav":
       return `Navigation · ${node.props.links.length} link${node.props.links.length === 1 ? "" : "s"}`;
+    case "form":
+      return `Form · ${node.props.fields.length} field${node.props.fields.length === 1 ? "" : "s"}`;
     case "section":
       return BUILDER_NODE_REGISTRY[node.kind].description;
     case "section_embed":
@@ -5898,6 +6073,7 @@ function ChipToolBar({
 function BlockChipToolBar({
   disabled,
   confirmRemove,
+  canEditText,
   onResetPosition,
   onEdit,
   onMoveUp,
@@ -5912,6 +6088,11 @@ function BlockChipToolBar({
 }: {
   disabled: boolean;
   confirmRemove: boolean;
+  // Whether the selected block has an inline-editable text target. When false
+  // the Edit (pencil) button is hidden — firing the inline editor on a block
+  // with no text element (image, divider, spacer, embed, empty container, …)
+  // is a no-op, so we omit the affordance instead of showing a dead button.
+  canEditText: boolean;
   onResetPosition: () => void;
   onEdit: () => void;
   onMoveUp: (() => void) | null;
@@ -5988,76 +6169,31 @@ function BlockChipToolBar({
       data-selection-block-toolbar=""
       style={{ display: "inline-flex", height: "100%", alignItems: "stretch" }}
     >
-      <ChipBtn
-        style={btnStyle}
-        disabled={disabled}
-        onClick={onResetPosition}
-        aria-label="Reset block position"
-        data-selection-block-action="reset-position"
-        title="Reset position"
-      >
-        {/* Crosshair / reset-position icon */}
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><line x1="12" y1="2" x2="12" y2="5" /><line x1="12" y1="19" x2="12" y2="22" /><line x1="2" y1="12" x2="5" y2="12" /><line x1="19" y1="12" x2="22" y2="12" /></svg>
-      </ChipBtn>
-      <ChipBtn
-        style={btnStyle}
-        disabled={disabled}
-        onClick={onEdit}
-        aria-label="Edit block content"
-        data-selection-block-action="edit"
-        title="Edit"
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>
-      </ChipBtn>
-      <ChipBtn
-        style={btnStyle}
-        disabled={disabled || !onMoveUp}
-        onClick={() => onMoveUp?.()}
-        aria-label="Move block up"
-        data-selection-block-action="move-up"
-        title="Move up"
-      >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>
-      </ChipBtn>
-      <ChipBtn
-        style={btnStyle}
-        disabled={disabled || !onMoveDown}
-        onClick={() => onMoveDown?.()}
-        aria-label="Move block down"
-        data-selection-block-action="move-down"
-        title="Move down"
-      >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
-      </ChipBtn>
-      <ChipBtn
-        style={btnStyle}
-        disabled={disabled || !onAddBefore}
-        onClick={() => onAddBefore?.()}
-        aria-label="Add block before"
-        data-selection-block-action="add-before"
-        title="Add before"
-      >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /><path d="M7 4h10" /></svg>
-      </ChipBtn>
+      {/* PRIMARY actions — kept on the chip. Secondary actions
+          (reset-position, add-before, move-up, move-down, copy) live in the
+          overflow menu opened by the "More" button below, so the chip stays
+          to ~4 high-frequency affordances. */}
+      {canEditText ? (
+        <ChipBtn
+          style={btnStyle}
+          disabled={disabled}
+          onClick={onEdit}
+          aria-label="Edit block content"
+          data-selection-block-action="edit"
+          title="Edit"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>
+        </ChipBtn>
+      ) : null}
       <ChipBtn
         style={btnStyle}
         disabled={disabled || !onAddAfter}
         onClick={() => onAddAfter?.()}
         aria-label="Add block after"
         data-selection-block-action="add-after"
-        title="Add after"
+        title="Add block"
       >
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /><path d="M7 20h10" /></svg>
-      </ChipBtn>
-      <ChipBtn
-        style={btnStyle}
-        disabled={disabled}
-        onClick={onCopy}
-        aria-label="Copy block"
-        data-selection-block-action="copy"
-        title="Copy"
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
       </ChipBtn>
       <ChipBtn
         style={btnStyle}
@@ -6069,17 +6205,152 @@ function BlockChipToolBar({
       >
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 8h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2z" /><path d="M4 16H3a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v1" /></svg>
       </ChipBtn>
+      <BlockChipOverflowMenu
+        btnStyle={btnStyle}
+        disabled={disabled}
+        onResetPosition={onResetPosition}
+        onAddBefore={onAddBefore}
+        onMoveUp={onMoveUp}
+        onMoveDown={onMoveDown}
+        onCopy={onCopy}
+      />
+      {/* Hairline divider separating the destructive Delete from the
+          non-destructive primary actions. */}
+      <div
+        aria-hidden
+        style={{
+          alignSelf: "center",
+          width: 1,
+          height: 18,
+          margin: "0 3px",
+          background: "rgba(255,255,255,0.14)",
+        }}
+      />
       <ChipBtn
         style={btnStyle}
         disabled={disabled}
         onClick={onRemoveTrigger}
         aria-label="Remove block"
         data-selection-block-action="remove"
-        title="Remove"
+        title="Delete"
         danger
       >
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg>
       </ChipBtn>
+    </div>
+  );
+}
+
+/**
+ * Overflow ("More") menu for the block chip toolbar. Houses the secondary,
+ * lower-frequency actions that used to crowd the chip as undifferentiated
+ * icons: reset position, add-before, move up/down, copy. Opens a small popover
+ * anchored under the kebab button; dismisses on outside-click / Escape.
+ */
+function BlockChipOverflowMenu({
+  btnStyle,
+  disabled,
+  onResetPosition,
+  onAddBefore,
+  onMoveUp,
+  onMoveDown,
+  onCopy,
+}: {
+  btnStyle: React.CSSProperties;
+  disabled: boolean;
+  onResetPosition: () => void;
+  onAddBefore: (() => void) | null;
+  onMoveUp: (() => void) | null;
+  onMoveDown: (() => void) | null;
+  onCopy: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!wrapRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  const run = (action: () => void) => {
+    action();
+    setOpen(false);
+  };
+
+  return (
+    <div
+      ref={wrapRef}
+      style={{ position: "relative", display: "inline-flex", alignItems: "stretch" }}
+    >
+      <ChipBtn
+        style={btnStyle}
+        disabled={disabled}
+        onClick={() => setOpen((prev) => !prev)}
+        aria-label="More block actions"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        data-selection-block-action="more"
+        title="More"
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></svg>
+      </ChipBtn>
+      {open ? (
+        <div
+          role="menu"
+          data-selection-block-overflow-menu=""
+          style={{
+            position: "absolute",
+            top: "calc(100% + 6px)",
+            right: 0,
+            zIndex: 10,
+            minWidth: 168,
+            padding: 5,
+            borderRadius: CANVAS_CHROME_RADIUS,
+            background: "rgba(24,24,27,0.97)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            boxShadow: "0 12px 32px rgba(0,0,0,0.42)",
+            display: "flex",
+            flexDirection: "column",
+            gap: 1,
+          }}
+        >
+          <ContextMenuButton disabled={disabled} onClick={() => run(onResetPosition)}>
+            Reset position
+          </ContextMenuButton>
+          <ContextMenuButton
+            disabled={disabled || !onAddBefore}
+            onClick={() => onAddBefore && run(onAddBefore)}
+          >
+            Add before
+          </ContextMenuButton>
+          <ContextMenuButton
+            disabled={disabled || !onMoveUp}
+            onClick={() => onMoveUp && run(onMoveUp)}
+          >
+            Move up
+          </ContextMenuButton>
+          <ContextMenuButton
+            disabled={disabled || !onMoveDown}
+            onClick={() => onMoveDown && run(onMoveDown)}
+          >
+            Move down
+          </ContextMenuButton>
+          <ContextMenuButton disabled={disabled} onClick={() => run(onCopy)}>
+            Copy
+          </ContextMenuButton>
+        </div>
+      ) : null}
     </div>
   );
 }

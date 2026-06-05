@@ -33,7 +33,7 @@ import {
   type SectionRegistryEntry,
 } from "@/lib/site-admin/sections/types";
 
-import type { BuilderSectionEmbedNode } from "./types";
+import type { BuilderNode, BuilderSectionEmbedNode } from "./types";
 // Wrapper-style helpers (section_embed restyle support). render.tsx imports
 // only this module's TYPE, so importing its values here is not a runtime cycle.
 import { builderNodeStyleAttrs, sharedNodeStyle } from "./render";
@@ -69,6 +69,28 @@ export function makeSectionEmbedRenderer(
   context: SectionEmbedRenderContext,
 ): BuilderSectionEmbedRenderer {
   return (node) => renderSectionEmbed(node, context);
+}
+
+/**
+ * Depth-first collect every `section_embed` node in a tree. Used by the
+ * client-canvas path (W3 Sub-step B) so the server can pre-render each embed
+ * island once and hand the canvas an id→ReactNode map; `section_embed` stays a
+ * server-rendered island while the rest of the tree paints client-side.
+ */
+export function collectBuilderSectionEmbedNodes(
+  nodes: ReadonlyArray<BuilderNode>,
+): BuilderSectionEmbedNode[] {
+  const out: BuilderSectionEmbedNode[] = [];
+  const visit = (node: BuilderNode) => {
+    if (node.kind === "section_embed") {
+      out.push(node);
+    }
+    if ("children" in node && Array.isArray(node.children)) {
+      for (const child of node.children) visit(child);
+    }
+  };
+  for (const node of nodes) visit(node);
+  return out;
 }
 
 /** Human-facing label for a curated section key (falls back to the key). */
