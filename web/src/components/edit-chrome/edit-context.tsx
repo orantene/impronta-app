@@ -115,7 +115,6 @@ import { checkSlotTypeCompatibility } from "@/lib/site-admin/edit-mode/slot-type
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
 import { isBuilderClientCanvasEnabled } from "@/lib/site-admin/edit-mode/client-canvas-flag";
-import { collectBuilderSectionEmbedNodes } from "@/lib/site-admin/builder-node/section-embed-renderer";
 import { publishBuilderCanvasTree } from "./client-builder-canvas-bridge";
 import { normalizeCompositionSlots } from "./composition-slots";
 import {
@@ -1748,12 +1747,27 @@ interface EditProviderProps {
  * server-rendered promptly, rather than waiting for the debounced save's
  * trailing refresh. Cheap: O(embed nodes), and embeds are a small minority.
  */
+/** Pure, client-safe section_embed id collector. MUST stay inline / dependency-free:
+ *  importing it from section-embed-renderer (server module) leaks "server-only" into
+ *  this "use client" file and breaks the production build. */
+function collectSectionEmbedIds(tree: BuilderNodeTree): string[] {
+  const ids: string[] = [];
+  const visit = (node: BuilderNode) => {
+    if (node.kind === "section_embed") ids.push(node.id);
+    if ("children" in node && Array.isArray(node.children)) {
+      for (const child of node.children) visit(child);
+    }
+  };
+  for (const node of tree) visit(node);
+  return ids;
+}
+
 function mutationTouchesSectionEmbedIslandSet(
   prevTree: BuilderNodeTree,
   nextTree: BuilderNodeTree,
 ): boolean {
-  const prevIds = collectBuilderSectionEmbedNodes(prevTree).map((n) => n.id);
-  const nextIds = collectBuilderSectionEmbedNodes(nextTree).map((n) => n.id);
+  const prevIds = collectSectionEmbedIds(prevTree);
+  const nextIds = collectSectionEmbedIds(nextTree);
   if (prevIds.length !== nextIds.length) return true;
   if (nextIds.length === 0) return false;
   const prevSet = new Set(prevIds);
