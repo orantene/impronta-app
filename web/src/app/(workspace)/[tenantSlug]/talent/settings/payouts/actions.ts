@@ -31,11 +31,13 @@ import {
   getTalentGpAccountLink,
   getTalentGpStatus,
   listTalentGpPayoutMethods,
+  loadTalentGpRecipientPrefill,
   removeTalentGpPayoutMethod,
   setTalentGpDefault,
   setupTalentGpBank,
   syncTalentGpRecipient,
   type TalentGpMethod,
+  type TalentGpRecipientPrefill,
   type TalentGpStatus,
   type TalentGpStatusKind,
 } from "@/lib/payments/talent-global-payouts";
@@ -272,15 +274,40 @@ export async function loadTalentGpStatus(): Promise<
 }
 
 /**
- * Set up (or update) the talent's local-bank Global Payouts: creates their v2
- * recipient account if needed + attaches a bank payout method.
+ * Profile-derived prefill for the custom in-app recipient form (Step 1). The
+ * email comes from the session; country/name/phone from the talent profile.
+ */
+export async function loadTalentGpPrefillAction(): Promise<
+  { ok: true; prefill: TalentGpRecipientPrefill } | { ok: false; error: string }
+> {
+  const session = await getCachedActorSession();
+  if (!session.user) return { ok: false, error: "Sign in required." };
+  const tp = await resolveOwnTalentProfileId();
+  if (!tp.ok) return { ok: false, error: tp.error };
+  const email = session.user.email ?? `talent-${tp.id}@payouts.invalid`;
+  return { ok: true, prefill: await loadTalentGpRecipientPrefill(tp.id, { email }) };
+}
+
+/**
+ * Set up (or update) the talent's local-bank Global Payouts from the custom
+ * in-app stepper: creates/updates their v2 recipient (with the reviewed legal
+ * name + phone + full metadata incl. workspace_id/agency_id) and attaches a bank
+ * payout method, then returns the FRESH methods + status read back from Stripe.
  */
 export async function setupTalentGpBankAction(input: {
   country: string;
   currency: string;
   accountNumber: string;
   routingNumber?: string | null;
-}): Promise<{ ok: true } | { ok: false; error: string }> {
+  givenName?: string | null;
+  surname?: string | null;
+  displayName?: string | null;
+  phone?: string | null;
+  recipientType?: "individual" | "company";
+}): Promise<
+  | { ok: true; methods: TalentGpMethod[]; status: TalentGpStatusKind; profileCountry: string | null }
+  | { ok: false; error: string }
+> {
   try {
     const session = await getCachedActorSession();
     if (!session.user) return { ok: false, error: "Sign in required." };
@@ -293,9 +320,18 @@ export async function setupTalentGpBankAction(input: {
       accountNumber: input.accountNumber.trim(),
       routingNumber: (input.routingNumber ?? "").trim(),
       email,
+      displayName: (input.displayName ?? "").trim() || undefined,
+      givenName: (input.givenName ?? "").trim() || undefined,
+      surname: (input.surname ?? "").trim() || undefined,
+      phone: (input.phone ?? "").trim() || undefined,
+      recipientType: input.recipientType ?? "individual",
+      userId: session.user.id,
     });
     if (!r.ok) return { ok: false, error: r.error };
-    return { ok: true };
+    // Read fresh state back from Stripe so the UI reflects reality immediately.
+    const fresh = await listTalentGpPayoutMethods(tp.id);
+    if (!fresh.ok) return { ok: true, methods: [], status: "pending", profileCountry: null };
+    return { ok: true, methods: fresh.methods, status: fresh.status, profileCountry: fresh.profileCountry };
   } catch (err) {
     logServerError("talent-payouts.setupGp", err);
     return { ok: false, error: "Could not set up global payouts. Please try again." };

@@ -9,6 +9,7 @@ import {
   setTalentGpDefaultAction,
   startTalentGpHostedSetupAction,
 } from "./actions";
+import { GlobalPayoutsCustomForm } from "./GlobalPayoutsCustomForm";
 
 const C = {
   ink: "#0B0B0D",
@@ -69,10 +70,15 @@ export function GlobalPayoutsBankCard() {
   const [rowError, setRowError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
+  // The custom in-app stepper: null = closed, "full" = first-time (Step 1+2),
+  // "add-bank" = add another account (Step 2 only).
+  const [formMode, setFormMode] = useState<null | "full" | "add-bank">(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const refresh = () => {
     loadTalentGpMethods().then((r) => {
       setLoading(false);
+      setRefreshing(false);
       if (r.ok) {
         setMethods(r.methods);
         setStatus(r.status);
@@ -82,6 +88,18 @@ export function GlobalPayoutsBankCard() {
   useEffect(() => {
     refresh();
   }, []);
+
+  const doRefresh = () => {
+    setRowError(null);
+    setRefreshing(true);
+    refresh();
+  };
+
+  const onFormDone = (m: TalentGpMethod[], s: TalentGpStatusKind) => {
+    setMethods(m);
+    setStatus(s);
+    setFormMode(null);
+  };
 
   const startSetup = () => {
     // Open the popup SYNCHRONOUSLY, while the click's user-gesture is still
@@ -227,29 +245,58 @@ export function GlobalPayoutsBankCard() {
 
       {startError && <div role="alert" style={{ marginBottom: 10, fontSize: 12, color: C.coral }}>{startError}</div>}
 
-      <button
-        type="button"
-        data-testid="talent-gp-hosted-setup"
-        onClick={startSetup}
-        disabled={starting}
-        style={{
-          padding: "11px 18px", borderRadius: 10, background: starting ? "rgba(31,74,58,0.6)" : C.accent, color: "#fff",
-          border: "none", fontFamily: FONT, fontSize: 13, fontWeight: 700, cursor: starting ? "wait" : "pointer", minHeight: 44,
-        }}
-      >
-        {starting
-          ? "Opening Stripe…"
-          : status === "info_needed"
-            ? "Continue setup"
-            : hasMethods
-              ? "Add or update account"
-              : "Set up payouts"}
-      </button>
+      {formMode ? (
+        // The custom in-app stepper. On save it returns the fresh methods + status
+        // read back from Stripe, which we hand to onFormDone to close + update.
+        <GlobalPayoutsCustomForm
+          mode={formMode}
+          onDone={onFormDone}
+          onCancel={() => setFormMode(null)}
+        />
+      ) : (
+        <>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              data-testid="talent-gp-custom-setup"
+              onClick={() => setFormMode(hasMethods ? "add-bank" : "full")}
+              style={{
+                padding: "11px 18px", borderRadius: 10, background: C.accent, color: "#fff",
+                border: "none", fontFamily: FONT, fontSize: 13, fontWeight: 700, cursor: "pointer", minHeight: 44,
+              }}
+            >
+              {hasMethods ? "Add another account" : "Set up payouts"}
+            </button>
 
-      <p style={{ margin: "10px 0 0", fontSize: 11, lineHeight: 1.5, color: C.inkDim }}>
-        Your email and country can&apos;t be changed once your payout profile is created. Your bank account must be in
-        your own legal name.
-      </p>
+            {hasMethods && (
+              <button type="button" data-testid="talent-gp-refresh" onClick={doRefresh} disabled={refreshing} style={ghostBtn(refreshing)}>
+                {refreshing ? "Refreshing…" : "Refresh status"}
+              </button>
+            )}
+
+            {/* Secondary: Stripe's co-branded HOSTED form, still available. Doubles
+                as "Continue setup" when Stripe needs more info. */}
+            <button
+              type="button"
+              data-testid="talent-gp-hosted-setup"
+              onClick={startSetup}
+              disabled={starting}
+              style={ghostBtn(starting)}
+            >
+              {starting
+                ? "Opening Stripe…"
+                : status === "info_needed"
+                  ? "Continue setup"
+                  : "Use Stripe's secure form"}
+            </button>
+          </div>
+
+          <p style={{ margin: "10px 0 0", fontSize: 11, lineHeight: 1.5, color: C.inkDim }}>
+            Your email and country can&apos;t be changed once your payout profile is created. Your bank account must be in
+            your own legal name.
+          </p>
+        </>
+      )}
     </div>
   );
 }

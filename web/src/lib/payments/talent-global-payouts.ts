@@ -41,29 +41,74 @@ export type TalentGpStatusKind = "not_started" | "info_needed" | "pending" | "re
 
 /** Build the Stripe recipient metadata from a talent profile: the TAL- code as
  *  talent_id, the profile uuid, contact, and traceability (source/environment/
- *  user). Shared by recipient creation, sync, and the hosted setup link. */
+ *  user/workspace/agency). Shared by recipient creation, sync, and the hosted
+ *  setup link. `phoneOverride` lets the custom in-app form push an edited phone
+ *  (the user can revise the prefilled number before saving); it falls back to
+ *  the profile's `phone_e164`. */
 function recipientMetadata(
   talentProfileId: string,
   tp: { profile_code: string | null; display_name: string | null; phone_e164: string | null },
-  opts: { email: string; userId?: string | null; workspaceId?: string | null },
+  opts: {
+    email: string;
+    userId?: string | null;
+    workspaceId?: string | null;
+    agencyId?: string | null;
+    phoneOverride?: string | null;
+    talentNameOverride?: string | null;
+  },
 ): Record<string, string> {
   const code = (tp.profile_code ?? "").trim();
+  const phone = (opts.phoneOverride ?? tp.phone_e164 ?? "").trim();
   const meta: Record<string, string> = {
     talent_profile_id: talentProfileId,
     source: "tulala_payout_setup",
     environment: (process.env.STRIPE_SECRET_KEY ?? "").startsWith("sk_live") ? "live" : "sandbox",
-    talent_name: (tp.display_name ?? "").trim(),
+    talent_name: (opts.talentNameOverride ?? tp.display_name ?? "").trim(),
     talent_email: opts.email,
   };
   if (code) {
     meta.talent_id = code; // the human TAL-xxxxx code
     meta.profile_code = code;
   }
-  if (tp.phone_e164) meta.whatsapp_number = tp.phone_e164;
+  if (phone) {
+    meta.whatsapp_number = phone;
+    meta.phone_number = phone;
+  }
   if (opts.userId) meta.user_id = opts.userId;
   if (opts.workspaceId) meta.workspace_id = opts.workspaceId;
+  if (opts.agencyId) meta.agency_id = opts.agencyId;
   for (const k of Object.keys(meta)) if (!meta[k]) delete meta[k];
   return meta;
+}
+
+/**
+ * Resolve the talent's workspace + agency ids for recipient metadata. `agency_id`
+ * is the agency that owns the profile (`talent_profiles.created_by_agency_id`);
+ * `workspace_id` is the talent's active workspace (the primary/active
+ * `agency_talent_roster` tenant), falling back to the owning agency. Both are best
+ * effort — a missing one is simply omitted from metadata. */
+async function resolveWorkspaceAgency(
+  sb: Admin,
+  talentProfileId: string,
+): Promise<{ workspaceId: string | null; agencyId: string | null }> {
+  const { data: prof } = await sb
+    .from("talent_profiles")
+    .select("created_by_agency_id")
+    .eq("id", talentProfileId)
+    .maybeSingle();
+  const agencyId = (prof?.created_by_agency_id as string | null) ?? null;
+
+  const { data: roster } = await sb
+    .from("agency_talent_roster")
+    .select("tenant_id, is_primary, status")
+    .eq("talent_profile_id", talentProfileId)
+    .in("status", ["active", "pending"])
+    .order("is_primary", { ascending: false })
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  const workspaceId = (roster?.tenant_id as string | null) ?? agencyId;
+  return { workspaceId, agencyId };
 }
 
 /** Split a display name into legal given/surname for Stripe identity. */
@@ -107,10 +152,23 @@ async function readProfile(sb: Admin, talentProfileId: string) {
     | null;
 }
 
-/** Create-or-get the talent's GP recipient (v2 core account), persisting its id. */
+/** Create-or-get the talent's GP recipient (v2 core account), persisting its id.
+ *  The custom in-app form can pass edited identity (`givenName`/`surname`/`phone`/
+ *  `displayName`) and `recipientType`; all default to the stored profile. */
 export async function getOrCreateTalentGpRecipient(
   talentProfileId: string,
-  opts: { country: string; email: string; displayName?: string | null; userId?: string | null; workspaceId?: string | null },
+  opts: {
+    country: string;
+    email: string;
+    displayName?: string | null;
+    givenName?: string | null;
+    surname?: string | null;
+    phone?: string | null;
+    recipientType?: "individual" | "company";
+    userId?: string | null;
+    workspaceId?: string | null;
+    agencyId?: string | null;
+  },
 ): Promise<{ ok: true; recipientAccountId: string } | { ok: false; error: string }> {
   const sb = createServiceRoleClient();
   if (!sb) return { ok: false, error: "Database unavailable." };
@@ -119,13 +177,31 @@ export async function getOrCreateTalentGpRecipient(
 
   // Split the profile display name into legal given/surname so the recipient is
   // created "Ready" (Stripe requires the legal name before payouts settle), and
-  // attach traceable metadata (TAL- code, ids, contact).
+  // attach traceable metadata (TAL- code, ids, contact). Prefer explicit legal
+  // names supplied by the custom form over the split display name.
   const fullName = (opts.displayName ?? tp.display_name ?? "Talent").trim();
-  const { givenName, surname } = splitName(fullName);
+  const split = splitName(fullName);
+  const givenName = (opts.givenName ?? split.givenName) || split.givenName;
+  const surname = (opts.surname ?? split.surname) || split.surname;
+
+  // Workspace + agency ids: prefer explicit overrides, else resolve from the
+  // profile's owning agency + active roster so EVERY path (custom form, hosted,
+  // sync) carries them in metadata.
+  let workspaceId = opts.workspaceId ?? null;
+  let agencyId = opts.agencyId ?? null;
+  if (!workspaceId || !agencyId) {
+    const resolved = await resolveWorkspaceAgency(sb, talentProfileId);
+    workspaceId = workspaceId ?? resolved.workspaceId;
+    agencyId = agencyId ?? resolved.agencyId;
+  }
+
   const metadata = recipientMetadata(talentProfileId, tp, {
     email: opts.email,
     userId: opts.userId,
-    workspaceId: opts.workspaceId,
+    workspaceId,
+    agencyId,
+    phoneOverride: opts.phone,
+    talentNameOverride: opts.displayName,
   });
 
   // Existing recipient: keep its identity + metadata in sync with the current
@@ -163,6 +239,7 @@ export async function getOrCreateTalentGpRecipient(
     country: opts.country,
     givenName,
     surname,
+    entityType: opts.recipientType ?? "individual",
     metadata,
   });
   if (!r.ok) {
@@ -200,11 +277,12 @@ export async function syncTalentGpRecipient(
   }
   const fullName = (tp.display_name ?? "Talent").trim();
   const { givenName, surname } = splitName(fullName);
+  const { workspaceId, agencyId } = await resolveWorkspaceAgency(sb, talentProfileId);
   const r = await updateRecipientIdentity({
     recipientAccountId: tp.gp_recipient_account_id,
     givenName,
     surname,
-    metadata: recipientMetadata(talentProfileId, tp, { email: opts.email }),
+    metadata: recipientMetadata(talentProfileId, tp, { email: opts.email, workspaceId, agencyId }),
   });
   if (!r.ok) {
     logServerError("talent-gp.sync", new Error(r.error.message ?? "sync failed"));
@@ -224,12 +302,22 @@ export async function setupTalentGpBank(
     routingNumber?: string | null;
     email: string;
     displayName?: string | null;
+    givenName?: string | null;
+    surname?: string | null;
+    phone?: string | null;
+    recipientType?: "individual" | "company";
+    userId?: string | null;
   },
 ): Promise<{ ok: true; recipientAccountId: string } | { ok: false; error: string }> {
   const rec = await getOrCreateTalentGpRecipient(talentProfileId, {
     country: opts.country,
     email: opts.email,
     displayName: opts.displayName,
+    givenName: opts.givenName,
+    surname: opts.surname,
+    phone: opts.phone,
+    recipientType: opts.recipientType,
+    userId: opts.userId,
   });
   if (!rec.ok) return rec;
 
@@ -377,6 +465,39 @@ export async function removeTalentGpPayoutMethod(
   const r = await archiveRecipientPayoutMethod(tp.gp_recipient_account_id, payoutMethodId);
   if (!r.ok) return { ok: false, error: r.error.message ?? "Could not remove the account." };
   return { ok: true };
+}
+
+/** Profile-derived prefill for the custom in-app recipient form. `recipientExists`
+ *  is true once a Stripe recipient has been created — the UI then locks email +
+ *  country (both immutable on a v2 recipient). */
+export type TalentGpRecipientPrefill = {
+  email: string;
+  country: string | null;
+  displayName: string;
+  legalFirstName: string;
+  legalLastName: string;
+  phone: string;
+  recipientExists: boolean;
+};
+
+export async function loadTalentGpRecipientPrefill(
+  talentProfileId: string,
+  opts: { email: string },
+): Promise<TalentGpRecipientPrefill> {
+  const sb = createServiceRoleClient();
+  const tp = sb ? await readProfile(sb, talentProfileId) : null;
+  const country = await resolveTalentPayoutCountry(talentProfileId);
+  const fullName = (tp?.display_name ?? "").trim();
+  const { givenName, surname } = splitName(fullName);
+  return {
+    email: opts.email,
+    country,
+    displayName: fullName,
+    legalFirstName: givenName,
+    legalLastName: surname,
+    phone: (tp?.phone_e164 ?? "").trim(),
+    recipientExists: !!tp?.gp_recipient_account_id,
+  };
 }
 
 /** Current GP setup status for the talent (recipient + first bank method). */
