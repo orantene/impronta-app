@@ -8,7 +8,6 @@ import {
   removeTalentGpMethodAction,
   setTalentGpDefaultAction,
   setupTalentGpBankAction,
-  syncTalentGpProfileAction,
 } from "./actions";
 
 const C = {
@@ -70,27 +69,29 @@ export function GlobalPayoutsBankCard() {
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [rowError, setRowError] = useState<string | null>(null);
-  const [syncing, setSyncing] = useState(false);
-  const [syncMsg, setSyncMsg] = useState<string | null>(null);
+  const [profileCountry, setProfileCountry] = useState<string | null>(null);
 
   const refresh = () => {
     loadTalentGpMethods().then((r) => {
       setLoading(false);
-      if (r.ok) setMethods(r.methods);
+      if (r.ok) {
+        setMethods(r.methods);
+        setProfileCountry(r.profileCountry);
+      }
     });
   };
   useEffect(() => {
     refresh();
   }, []);
 
-  const syncFromProfile = () => {
-    setSyncMsg(null);
-    setSyncing(true);
-    syncTalentGpProfileAction().then((r) => {
-      setSyncing(false);
-      setSyncMsg(r.ok ? "Synced from your profile." : r.error);
-      if (r.ok) refresh();
-    });
+  // Open the add-account form, prefilling the country from the talent's profile
+  // (the "take data from profile" bit; the bank number is always entered by hand).
+  const openAdd = () => {
+    setError(null);
+    setCountry(profileCountry ?? "");
+    setAccountNumber("");
+    setRoutingNumber("");
+    setOpen(true);
   };
 
   const setDefault = (id: string) => {
@@ -314,21 +315,10 @@ export function GlobalPayoutsBankCard() {
           )}
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
-            <button type="button" data-testid="talent-gp-add" onClick={() => { setOpen(true); setError(null); }} style={ghostBtn()}>
+            <button type="button" data-testid="talent-gp-add" onClick={openAdd} style={ghostBtn()}>
               + Add account
             </button>
-            <button
-              type="button"
-              data-testid="talent-gp-sync"
-              onClick={syncFromProfile}
-              disabled={syncing}
-              title="Push your latest name and contact details from your profile to Stripe"
-              style={ghostBtn(syncing)}
-            >
-              {syncing ? "Syncing…" : "Sync from profile"}
-            </button>
           </div>
-          {syncMsg && <div style={{ marginTop: 8, fontSize: 11.5, color: C.inkMuted }}>{syncMsg}</div>}
         </div>
       ) : (
         <>
@@ -339,7 +329,7 @@ export function GlobalPayoutsBankCard() {
           <button
             type="button"
             data-testid="talent-gp-cta"
-            onClick={() => setOpen(true)}
+            onClick={openAdd}
             style={{
               padding: "11px 18px", borderRadius: 10, background: C.accent, color: "#fff", border: "none",
               fontFamily: FONT, fontSize: 13, fontWeight: 700, cursor: "pointer", minHeight: 44,

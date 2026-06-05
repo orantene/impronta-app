@@ -22,6 +22,7 @@ import {
   setRecipientDefaultPayoutMethod,
   updateRecipientIdentity,
 } from "./global-payouts-onboarding";
+import { resolveTalentPayoutCountry } from "./stripe-connect-talent";
 
 /** A talent's payout destination, flattened for the UI. */
 export type TalentGpMethod = {
@@ -101,7 +102,6 @@ export async function getOrCreateTalentGpRecipient(
   if (!sb) return { ok: false, error: "Database unavailable." };
   const tp = await readProfile(sb, talentProfileId);
   if (!tp) return { ok: false, error: "Talent profile not found." };
-  if (tp.gp_recipient_account_id) return { ok: true, recipientAccountId: tp.gp_recipient_account_id };
 
   // Split the profile display name into legal given/surname so the recipient is
   // created "Ready" (Stripe requires the legal name before payouts settle), and
@@ -109,6 +109,14 @@ export async function getOrCreateTalentGpRecipient(
   const fullName = (opts.displayName ?? tp.display_name ?? "Talent").trim();
   const { givenName, surname } = splitName(fullName);
   const metadata = recipientMetadata(talentProfileId, tp, opts.email);
+
+  // Existing recipient: keep its identity + metadata in sync with the current
+  // profile (folds "sync from profile" into the add-account flow, no separate
+  // button). Best-effort; never blocks adding a bank.
+  if (tp.gp_recipient_account_id) {
+    await updateRecipientIdentity({ recipientAccountId: tp.gp_recipient_account_id, givenName, surname, metadata });
+    return { ok: true, recipientAccountId: tp.gp_recipient_account_id };
+  }
 
   const r = await createGlobalPayoutsRecipient({
     email: opts.email,
@@ -211,17 +219,20 @@ export async function setupTalentGpBank(
   return { ok: true, recipientAccountId: rec.recipientAccountId };
 }
 
-/** List the talent's payout methods (bank accounts) with the default flagged. */
+/** List the talent's payout methods (bank accounts) with the default flagged,
+ *  plus the talent's profile country so the add-account form can prefill it. */
 export async function listTalentGpPayoutMethods(
   talentProfileId: string,
 ): Promise<
-  { ok: true; methods: TalentGpMethod[]; defaultId: string | null } | { ok: false; error: string }
+  | { ok: true; methods: TalentGpMethod[]; defaultId: string | null; profileCountry: string | null }
+  | { ok: false; error: string }
 > {
   const sb = createServiceRoleClient();
   if (!sb) return { ok: false, error: "Database unavailable." };
   const tp = await readProfile(sb, talentProfileId);
   const rid = tp?.gp_recipient_account_id ?? null;
-  if (!rid) return { ok: true, methods: [], defaultId: null };
+  const profileCountry = await resolveTalentPayoutCountry(talentProfileId);
+  if (!rid) return { ok: true, methods: [], defaultId: null, profileCountry };
 
   const [list, defaultId] = await Promise.all([
     listRecipientPayoutMethods(rid),
@@ -239,7 +250,7 @@ export async function listTalentGpPayoutMethods(
       currency: m.bank_account?.supported_currencies?.[0] ?? null,
       isDefault: m.id === defaultId,
     }));
-  return { ok: true, methods, defaultId };
+  return { ok: true, methods, defaultId, profileCountry };
 }
 
 /** Set one of the talent's payout methods as the default destination. */

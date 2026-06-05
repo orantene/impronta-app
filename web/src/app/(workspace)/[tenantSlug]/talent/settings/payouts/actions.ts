@@ -321,15 +321,16 @@ export async function syncTalentGpProfileAction(): Promise<
   }
 }
 
-/** List the talent's Global Payouts destinations (banks), default flagged. */
+/** List the talent's Global Payouts destinations (banks), default flagged, plus
+ *  their profile country so the add-account form can prefill it. */
 export async function loadTalentGpMethods(): Promise<
-  { ok: true; methods: TalentGpMethod[] } | { ok: false; error: string }
+  { ok: true; methods: TalentGpMethod[]; profileCountry: string | null } | { ok: false; error: string }
 > {
   const tp = await resolveOwnTalentProfileId();
   if (!tp.ok) return { ok: false, error: tp.error };
   const r = await listTalentGpPayoutMethods(tp.id);
   if (!r.ok) return { ok: false, error: r.error };
-  return { ok: true, methods: r.methods };
+  return { ok: true, methods: r.methods, profileCountry: r.profileCountry };
 }
 
 /** Make one of the talent's accounts the default payout destination. */
