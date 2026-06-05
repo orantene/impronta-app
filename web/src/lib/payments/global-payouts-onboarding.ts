@@ -34,13 +34,25 @@ export async function createGlobalPayoutsRecipient(opts: {
   email: string;
   displayName: string;
   country: string;
+  givenName?: string | null;
+  surname?: string | null;
   entityType?: "individual" | "company";
   metadata?: Record<string, string>;
 }): Promise<StripeV2Result<V2Account>> {
+  // Stripe requires the recipient's legal name before payouts can settle (the
+  // `identity.individual.given_name`/`surname` requirement). Pass it up front so
+  // the recipient lands "Ready" instead of stuck on "Information needed".
+  const individual: Record<string, string> = {};
+  if (opts.givenName?.trim()) individual.given_name = opts.givenName.trim();
+  if (opts.surname?.trim()) individual.surname = opts.surname.trim();
   return stripeV2.post<V2Account>("/v2/core/accounts", {
     contact_email: opts.email,
     display_name: opts.displayName,
-    identity: { country: opts.country.toLowerCase(), entity_type: opts.entityType ?? "individual" },
+    identity: {
+      country: opts.country.toLowerCase(),
+      entity_type: opts.entityType ?? "individual",
+      ...(Object.keys(individual).length ? { individual } : {}),
+    },
     configuration: { recipient: { capabilities: { bank_accounts: { local: { requested: true } } } } },
     ...(opts.metadata ? { metadata: opts.metadata } : {}),
     include: ["identity", "configuration.recipient", "requirements"],

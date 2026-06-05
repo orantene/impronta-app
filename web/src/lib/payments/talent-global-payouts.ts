@@ -59,10 +59,19 @@ export async function getOrCreateTalentGpRecipient(
   if (!tp) return { ok: false, error: "Talent profile not found." };
   if (tp.gp_recipient_account_id) return { ok: true, recipientAccountId: tp.gp_recipient_account_id };
 
+  // Split the profile display name into legal given/surname so the recipient is
+  // created "Ready" (Stripe requires the legal name before payouts settle).
+  const fullName = (opts.displayName ?? tp.display_name ?? "Talent").trim();
+  const nameParts = fullName.split(/\s+/);
+  const givenName = nameParts[0] ?? "";
+  const surname = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
+
   const r = await createGlobalPayoutsRecipient({
     email: opts.email,
-    displayName: opts.displayName ?? tp.display_name ?? "Talent",
+    displayName: fullName,
     country: opts.country,
+    givenName,
+    surname,
     metadata: { talent_profile_id: talentProfileId },
   });
   if (!r.ok) {
