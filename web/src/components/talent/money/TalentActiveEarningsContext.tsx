@@ -29,7 +29,7 @@ export function TalentActiveEarningsProvider({
   );
 }
 
-/** Hook — returns the active-tab earnings bundle, or null if outside a tab context. */
+/** Hook, returns the active-tab earnings bundle, or null if outside a tab context. */
 export function useActiveTabEarnings(): TalentEarnings | null {
   return useContext(TalentActiveEarningsContext);
 }

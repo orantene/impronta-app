@@ -1,0 +1,298 @@
+/**
+ * lib/payments/global-payouts-onboarding.ts
+ *
+ * Recipient + funding helpers for the Global Payouts (v2) rail. All endpoints
+ * here are confirmed against docs.stripe.com/global-payouts (recipient creation,
+ * payout methods, financial addresses, fund-from-balance).
+ *
+ * NOT YET INCLUDED (endpoints not in the public docs at build time — add when
+ * confirmed): the v2 AccountLink for Stripe-hosted recipient collection, and the
+ * sandbox `test_helpers` inbound-credit simulation. For sandbox funding use
+ * `fundFinancialAccountFromBalance` after a bypass-pending test charge.
+ *
+ * Server-only.
+ */
+
+import "server-only";
+import { stripeV2, type StripeV2Result } from "./stripe-v2";
+import { assertLivePayoutSafe, getPrimaryFinancialAccountId } from "./global-payouts";
+import { logServerError } from "@/lib/server/safe-error";
+
+export type V2Account = {
+  id: string;
+  object: string;
+  configuration?: unknown;
+  requirements?: unknown;
+  identity?: unknown;
+};
+
+/**
+ * Create a Global Payouts recipient (v2 core account) able to receive a local
+ * bank payout. `country` is the recipient's ISO-2 (lowercased for v2).
+ */
+export async function createGlobalPayoutsRecipient(opts: {
+  email: string;
+  displayName: string;
+  country: string;
+  givenName?: string | null;
+  surname?: string | null;
+  entityType?: "individual" | "company";
+  metadata?: Record<string, string>;
+}): Promise<StripeV2Result<V2Account>> {
+  // Stripe requires the recipient's legal name before payouts can settle (the
+  // `identity.individual.given_name`/`surname` requirement). Pass it up front so
+  // the recipient lands "Ready" instead of stuck on "Information needed".
+  const individual: Record<string, string> = {};
+  if (opts.givenName?.trim()) individual.given_name = opts.givenName.trim();
+  if (opts.surname?.trim()) individual.surname = opts.surname.trim();
+  return stripeV2.post<V2Account>("/v2/core/accounts", {
+    contact_email: opts.email,
+    display_name: opts.displayName,
+    identity: {
+      country: opts.country.toLowerCase(),
+      entity_type: opts.entityType ?? "individual",
+      ...(Object.keys(individual).length ? { individual } : {}),
+    },
+    configuration: { recipient: { capabilities: { bank_accounts: { local: { requested: true } } } } },
+    ...(opts.metadata ? { metadata: opts.metadata } : {}),
+    include: ["identity", "configuration.recipient", "requirements"],
+  });
+}
+
+/**
+ * Update an EXISTING recipient's identity (legal name) + metadata. Used by the
+ * "Sync from profile" action to push the talent's current profile up to Stripe
+ * (e.g. to clear an "Information needed" name requirement, or refresh the TAL-
+ * code/contact metadata). Email + country are immutable and never sent here.
+ */
+export async function updateRecipientIdentity(opts: {
+  recipientAccountId: string;
+  givenName?: string | null;
+  surname?: string | null;
+  metadata?: Record<string, string>;
+}): Promise<StripeV2Result<V2Account>> {
+  const individual: Record<string, string> = {};
+  if (opts.givenName?.trim()) individual.given_name = opts.givenName.trim();
+  if (opts.surname?.trim()) individual.surname = opts.surname.trim();
+  const body: Record<string, unknown> = { include: ["identity", "requirements"] };
+  if (Object.keys(individual).length) body.identity = { individual };
+  if (opts.metadata && Object.keys(opts.metadata).length) body.metadata = opts.metadata;
+  return stripeV2.post<V2Account>(`/v2/core/accounts/${opts.recipientAccountId}`, body);
+}
+
+export type OutboundSetupIntent = {
+  id: string;
+  object: string;
+  status?: string;
+  /** The created payout method (an object with its own id), or null. */
+  payout_method?: { id: string; type?: string } | null;
+};
+
+/**
+ * Attach a bank-account PayoutMethod to a recipient via an OutboundSetupIntent
+ * (Stripe-Context = the recipient account id).
+ */
+export async function createRecipientBankPayoutMethod(opts: {
+  recipientAccountId: string;
+  bank: { country: string; currency: string; accountNumber: string; routingNumber?: string | null };
+}): Promise<StripeV2Result<OutboundSetupIntent>> {
+  const routing = (opts.bank.routingNumber ?? "").trim();
+  return stripeV2.post<OutboundSetupIntent>(
+    "/v2/money_management/outbound_setup_intents",
+    {
+      payout_method_data: {
+        type: "bank_account",
+        bank_account: {
+          country: opts.bank.country.toUpperCase(),
+          // REQUIRED by the v2 API — validated live against the sandbox: omitting
+          // currency → HTTP 400 "payout_method_data.bank_account.currency: Required".
+          currency: opts.bank.currency.toLowerCase(),
+          account_number: opts.bank.accountNumber,
+          // Routing/branch number is only used by some countries (US, CA, …).
+          // Mexico banks via an 18-digit CLABE and Argentina via a CBU, with NO
+          // routing number — sending one there is rejected ("routing number is
+          // not allowed for this bank account"). Only include it when provided.
+          ...(routing ? { routing_number: routing } : {}),
+        },
+      },
+    },
+    { stripeContext: opts.recipientAccountId },
+  );
+}
+
+export type PayoutMethod = {
+  id: string;
+  object: string;
+  type?: string;
+  bank_account?: {
+    country?: string;
+    last4?: string;
+    bank_name?: string | null;
+    archived?: boolean;
+    supported_currencies?: string[];
+  } | null;
+};
+
+/** List a recipient's payout methods (Stripe-Context scoped). */
+export async function listRecipientPayoutMethods(
+  recipientAccountId: string,
+): Promise<StripeV2Result<{ data: PayoutMethod[] }>> {
+  return stripeV2.get<{ data: PayoutMethod[] }>("/v2/money_management/payout_methods", {
+    stripeContext: recipientAccountId,
+  });
+}
+
+/**
+ * Set the recipient's DEFAULT payout destination (used when an OutboundPayment
+ * doesn't name one). v2 takes the payout-method id as a bare string (validated
+ * live: the object form is rejected).
+ */
+export async function setRecipientDefaultPayoutMethod(
+  recipientAccountId: string,
+  payoutMethodId: string,
+): Promise<StripeV2Result<V2Account>> {
+  return stripeV2.post<V2Account>(`/v2/core/accounts/${recipientAccountId}`, {
+    configuration: { recipient: { default_outbound_destination: payoutMethodId } },
+    include: ["configuration.recipient"],
+  });
+}
+
+/** Read the recipient's current default payout-method id (or null). */
+export async function getRecipientDefaultPayoutMethodId(
+  recipientAccountId: string,
+): Promise<string | null> {
+  const r = await stripeV2.get<{
+    configuration?: { recipient?: { default_outbound_destination?: { id?: string } | null } };
+  }>(`/v2/core/accounts/${recipientAccountId}?include=configuration.recipient`);
+  if (!r.ok) return null;
+  return r.data.configuration?.recipient?.default_outbound_destination?.id ?? null;
+}
+
+/** Archive (remove) a payout method so it can no longer receive payouts. */
+export async function archiveRecipientPayoutMethod(
+  recipientAccountId: string,
+  payoutMethodId: string,
+): Promise<StripeV2Result<PayoutMethod>> {
+  return stripeV2.post<PayoutMethod>(
+    `/v2/money_management/payout_methods/${payoutMethodId}/archive`,
+    {},
+    { stripeContext: recipientAccountId },
+  );
+}
+
+/** Whether the recipient's local-bank capability is active, and whether Stripe
+ *  is still waiting on info from the recipient. Drives the real status pill. */
+export async function getRecipientOnboardingState(
+  recipientAccountId: string,
+): Promise<{ bankActive: boolean; needsUserAction: boolean }> {
+  const r = await stripeV2.get<{
+    configuration?: { recipient?: { capabilities?: { bank_accounts?: { local?: { status?: string } | null } } } };
+    requirements?: { entries?: Array<{ awaiting_action_from?: string }> };
+  }>(`/v2/core/accounts/${recipientAccountId}?include=configuration.recipient,requirements`);
+  if (!r.ok) return { bankActive: false, needsUserAction: false };
+  const bankActive =
+    r.data.configuration?.recipient?.capabilities?.bank_accounts?.local?.status === "active";
+  const needsUserAction = (r.data.requirements?.entries ?? []).some((e) => e.awaiting_action_from === "user");
+  return { bankActive, needsUserAction };
+}
+
+export type V2AccountLink = { object?: string; url: string; created?: string };
+
+/**
+ * Create a Stripe-HOSTED recipient onboarding/update link (AccountLink v2). The
+ * talent completes bank + KYC collection on Stripe's own co-branded form, in the
+ * real supported countries with the correct per-country fields, so raw bank/KYC
+ * details never touch our server.
+ *
+ * Use `onboarding` for a fresh recipient, `update` to add/edit on one that's
+ * already onboarded. IMPORTANT: AccountLinks authenticate with the STANDARD
+ * secret key (sk_live), NOT the restricted money-management key — verified live
+ * (the restricted key returns 403 here, the standard key returns the hosted url).
+ */
+export async function createRecipientAccountLink(opts: {
+  recipientAccountId: string;
+  returnUrl: string;
+  refreshUrl: string;
+  mode: "onboarding" | "update";
+}): Promise<StripeV2Result<V2AccountLink>> {
+  const type = opts.mode === "update" ? "account_update" : "account_onboarding";
+  return stripeV2.post<V2AccountLink>(
+    "/v2/core/account_links",
+    {
+      account: opts.recipientAccountId,
+      use_case: {
+        type,
+        [type]: { configurations: ["recipient"], return_url: opts.returnUrl, refresh_url: opts.refreshUrl },
+      },
+    },
+    { secretKey: process.env.STRIPE_SECRET_KEY },
+  );
+}
+
+export type FinancialAddress = { id: string; object: string; type?: string };
+
+/**
+ * Get an existing FinancialAddress for the FA, or create a `us_bank_account` one.
+ * Returns an error when Global Payouts isn't active (no FinancialAccount yet).
+ */
+export async function getOrCreateFinancialAddress(
+  financialAccountId?: string | null,
+): Promise<StripeV2Result<FinancialAddress>> {
+  const faId = financialAccountId ?? (await getPrimaryFinancialAccountId());
+  if (!faId) {
+    return {
+      ok: false,
+      status: 0,
+      error: { code: "no_financial_account", message: "Global Payouts not active (no FinancialAccount)." },
+    };
+  }
+
+  const existing = await stripeV2.get<{ data: FinancialAddress[] }>("/v2/money_management/financial_addresses");
+  if (existing.ok && existing.data.data?.length) return { ok: true, data: existing.data.data[0] };
+
+  return stripeV2.post<FinancialAddress>("/v2/money_management/financial_addresses", {
+    financial_account: faId,
+    type: "us_bank_account",
+  });
+}
+
+/**
+ * Fund the FinancialAccount from the platform's v1 Stripe balance — a v1 payout
+ * routed to the FA (`POST /v1/payouts` with `payout_method=<fa>`). Form-encoded
+ * v1 call (the app's v1 SDK doesn't type the FA payout_method). In a sandbox,
+ * first add available balance with a bypass-pending test charge (4000000000000077).
+ */
+export async function fundFinancialAccountFromBalance(opts: {
+  financialAccountId?: string | null;
+  amountCents: number;
+  currency: string;
+  secretKey?: string;
+  fetchImpl?: typeof fetch;
+}): Promise<{ ok: true; payoutId: string } | { ok: false; error: string }> {
+  const key = opts.secretKey ?? process.env.STRIPE_SECRET_KEY;
+  if (!key) return { ok: false, error: "Stripe not configured" };
+  const guard = assertLivePayoutSafe(key);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const faId = opts.financialAccountId ?? (await getPrimaryFinancialAccountId());
+  if (!faId) return { ok: false, error: "no FinancialAccount (Global Payouts not active)" };
+
+  const form = new URLSearchParams({
+    payout_method: faId,
+    amount: String(opts.amountCents),
+    currency: opts.currency.toLowerCase(),
+  });
+  const doFetch = opts.fetchImpl ?? fetch;
+  try {
+    const res = await doFetch("https://api.stripe.com/v1/payouts", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/x-www-form-urlencoded" },
+      body: form.toString(),
+    });
+    const json = (await res.json().catch(() => ({}))) as { id?: string; error?: { message?: string } };
+    if (!res.ok) return { ok: false, error: json.error?.message ?? `HTTP ${res.status}` };
+    return { ok: true, payoutId: json.id ?? "" };
+  } catch (err) {
+    logServerError("global-payouts.fundFromBalance", err);
+    return { ok: false, error: err instanceof Error ? err.message : "fund failed" };
+  }
+}

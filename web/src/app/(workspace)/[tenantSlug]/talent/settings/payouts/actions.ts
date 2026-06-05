@@ -1,9 +1,9 @@
 "use server";
 
 /**
- * Talent payouts — server actions for Stripe Connect Express onboarding.
+ * Talent payouts, server actions for Stripe Connect Express onboarding.
  *
- * Messages Consolidation Plan v2 — Item #13.
+ * Messages Consolidation Plan v2, Item #13.
  *
  * Wraps the engine helpers in lib/payments/stripe-connect-talent.ts
  * with auth + path-aware return URLs. The talent settings page calls
@@ -20,10 +20,27 @@ import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import {
   createOrGetTalentConnectedAccount,
   createTalentOnboardingLink,
+  createTalentDashboardLink,
   getTalentConnectedAccountSnapshot,
+  getTalentStablecoinEligibility,
   refreshTalentAccountStatus,
   type TalentConnectedAccountSnapshot,
 } from "@/lib/payments/stripe-connect-talent";
+import { payoutCountryLabel } from "@/lib/payments/payout-countries";
+import {
+  getTalentGpAccountLink,
+  getTalentGpStatus,
+  listTalentGpPayoutMethods,
+  loadTalentGpRecipientPrefill,
+  removeTalentGpPayoutMethod,
+  setTalentGpDefault,
+  setupTalentGpBank,
+  syncTalentGpRecipient,
+  type TalentGpMethod,
+  type TalentGpRecipientPrefill,
+  type TalentGpStatus,
+  type TalentGpStatusKind,
+} from "@/lib/payments/talent-global-payouts";
 
 export type StartOnboardingResult =
   | { ok: true; url: string }
@@ -41,7 +58,7 @@ export type EnsurePayoutAccountResult =
 /**
  * Ensure the talent's Connect account exists in the right country BEFORE we
  * mount the embedded onboarding. Returns `country_required` when we don't yet
- * know the talent's payout country (residence unset + no override) — the
+ * know the talent's payout country (residence unset + no override), the
  * payouts page then shows a country picker. The account's country is
  * immutable, so this must be settled up front.
  */
@@ -86,7 +103,7 @@ async function resolveOwnTalentProfileId(): Promise<
  * talent's Connect Express account, scoped to the embedded
  * `account_onboarding` component. Lazily creates the Express account on
  * first call (so no account exists until the talent actually starts
- * onboarding). Powers the in-app, Tulala-branded embedded onboarding —
+ * onboarding). Powers the in-app, Tulala-branded embedded onboarding -
  * the talent never leaves for stripe.com.
  *
  * `external_account_collection` is enabled so the talent can attach
@@ -144,7 +161,7 @@ export async function refreshTalentPayoutStatus(): Promise<
 /**
  * Kick off Stripe Connect Express onboarding for the current talent.
  * Lazy-creates the account on first call. Returns the hosted Stripe
- * URL — client redirects via window.location.href.
+ * URL, client redirects via window.location.href.
  */
 export async function startTalentOnboarding(
   tenantSlug: string,
@@ -203,4 +220,218 @@ export async function loadTalentPayoutSnapshot(): Promise<
   const r = await getTalentConnectedAccountSnapshot(tp.id as string);
   if (!r.ok) return { ok: false, error: r.error };
   return { ok: true, snapshot: r.data };
+}
+
+/**
+ * Mint an Express Dashboard login link for the current talent so they can link
+ * a crypto wallet + set USDC as default, i.e. switch their payouts to
+ * stablecoin (Global Payouts). Opened in a new tab by the payouts UI.
+ */
+export async function createTalentDashboardLinkAction(): Promise<
+  { ok: true; url: string } | { ok: false; error: string }
+> {
+  try {
+    const tp = await resolveOwnTalentProfileId();
+    if (!tp.ok) return { ok: false, error: tp.error };
+    const r = await createTalentDashboardLink(tp.id);
+    if (!r.ok) return { ok: false, error: r.error };
+    return { ok: true, url: r.data.url };
+  } catch (err) {
+    logServerError("talent-payouts.dashboardLink", err);
+    return { ok: false, error: "Could not open your Stripe dashboard. Please try again." };
+  }
+}
+
+/**
+ * Whether the current talent's country supports stablecoin (USDC) Global
+ * Payouts, drives whether the payouts UI shows the "link a crypto wallet"
+ * path. Returns a human country label for the badge.
+ */
+export async function loadTalentStablecoinEligibility(): Promise<
+  | { ok: true; eligible: boolean; countryLabel: string | null }
+  | { ok: false; error: string }
+> {
+  const tp = await resolveOwnTalentProfileId();
+  if (!tp.ok) return { ok: false, error: tp.error };
+  const r = await getTalentStablecoinEligibility(tp.id);
+  return {
+    ok: true,
+    eligible: r.eligible,
+    countryLabel: r.country ? payoutCountryLabel(r.country) : null,
+  };
+}
+
+/**
+ * Current Global Payouts (local-bank) setup status for the signed-in talent.
+ * Drives the "Get paid globally" card.
+ */
+export async function loadTalentGpStatus(): Promise<
+  { ok: true; status: TalentGpStatus } | { ok: false; error: string }
+> {
+  const tp = await resolveOwnTalentProfileId();
+  if (!tp.ok) return { ok: false, error: tp.error };
+  return { ok: true, status: await getTalentGpStatus(tp.id) };
+}
+
+/**
+ * Profile-derived prefill for the custom in-app recipient form (Step 1). The
+ * email comes from the session; country/name/phone from the talent profile.
+ */
+export async function loadTalentGpPrefillAction(): Promise<
+  { ok: true; prefill: TalentGpRecipientPrefill } | { ok: false; error: string }
+> {
+  const session = await getCachedActorSession();
+  if (!session.user) return { ok: false, error: "Sign in required." };
+  const tp = await resolveOwnTalentProfileId();
+  if (!tp.ok) return { ok: false, error: tp.error };
+  const email = session.user.email ?? `talent-${tp.id}@payouts.invalid`;
+  return { ok: true, prefill: await loadTalentGpRecipientPrefill(tp.id, { email }) };
+}
+
+/**
+ * Set up (or update) the talent's local-bank Global Payouts from the custom
+ * in-app stepper: creates/updates their v2 recipient (with the reviewed legal
+ * name + phone + full metadata incl. workspace_id/agency_id) and attaches a bank
+ * payout method, then returns the FRESH methods + status read back from Stripe.
+ */
+export async function setupTalentGpBankAction(input: {
+  country: string;
+  currency: string;
+  accountNumber: string;
+  routingNumber?: string | null;
+  givenName?: string | null;
+  surname?: string | null;
+  displayName?: string | null;
+  phone?: string | null;
+  recipientType?: "individual" | "company";
+}): Promise<
+  | { ok: true; methods: TalentGpMethod[]; status: TalentGpStatusKind; profileCountry: string | null }
+  | { ok: false; error: string }
+> {
+  try {
+    const session = await getCachedActorSession();
+    if (!session.user) return { ok: false, error: "Sign in required." };
+    const tp = await resolveOwnTalentProfileId();
+    if (!tp.ok) return { ok: false, error: tp.error };
+    const email = session.user.email ?? `talent-${tp.id}@payouts.invalid`;
+    const r = await setupTalentGpBank(tp.id, {
+      country: input.country,
+      currency: input.currency,
+      accountNumber: input.accountNumber.trim(),
+      routingNumber: (input.routingNumber ?? "").trim(),
+      email,
+      displayName: (input.displayName ?? "").trim() || undefined,
+      givenName: (input.givenName ?? "").trim() || undefined,
+      surname: (input.surname ?? "").trim() || undefined,
+      phone: (input.phone ?? "").trim() || undefined,
+      recipientType: input.recipientType ?? "individual",
+      userId: session.user.id,
+    });
+    if (!r.ok) return { ok: false, error: r.error };
+    // Read fresh state back from Stripe so the UI reflects reality immediately.
+    const fresh = await listTalentGpPayoutMethods(tp.id);
+    if (!fresh.ok) return { ok: true, methods: [], status: "pending", profileCountry: null };
+    return { ok: true, methods: fresh.methods, status: fresh.status, profileCountry: fresh.profileCountry };
+  } catch (err) {
+    logServerError("talent-payouts.setupGp", err);
+    return { ok: false, error: "Could not set up global payouts. Please try again." };
+  }
+}
+
+/**
+ * Manual "Sync from profile": push the talent's current name + contact metadata
+ * to their Stripe recipient (fixes a recipient stuck on missing info, refreshes
+ * the TAL- code/phone). Email + country stay immutable.
+ */
+export async function syncTalentGpProfileAction(): Promise<
+  { ok: true } | { ok: false; error: string }
+> {
+  try {
+    const session = await getCachedActorSession();
+    if (!session.user) return { ok: false, error: "Sign in required." };
+    const tp = await resolveOwnTalentProfileId();
+    if (!tp.ok) return { ok: false, error: tp.error };
+    const email = session.user.email ?? `talent-${tp.id}@payouts.invalid`;
+    return await syncTalentGpRecipient(tp.id, { email });
+  } catch (err) {
+    logServerError("talent-payouts.syncGp", err);
+    return { ok: false, error: "Could not sync your details. Please try again." };
+  }
+}
+
+/** List the talent's Global Payouts destinations + the real recipient status. */
+export async function loadTalentGpMethods(): Promise<
+  | { ok: true; methods: TalentGpMethod[]; profileCountry: string | null; status: TalentGpStatusKind }
+  | { ok: false; error: string }
+> {
+  const tp = await resolveOwnTalentProfileId();
+  if (!tp.ok) return { ok: false, error: tp.error };
+  const r = await listTalentGpPayoutMethods(tp.id);
+  if (!r.ok) return { ok: false, error: r.error };
+  return { ok: true, methods: r.methods, profileCountry: r.profileCountry, status: r.status };
+}
+
+/**
+ * Start Stripe-HOSTED payout setup: ensures the recipient (with metadata,
+ * prefilled from profile), then returns the co-branded Stripe onboarding URL the
+ * client redirects to. The talent completes bank + KYC on Stripe's own form, so
+ * raw details never touch us. Returning to the drawer refreshes the status.
+ */
+export async function startTalentGpHostedSetupAction(): Promise<
+  { ok: true; url: string } | { ok: false; error: string }
+> {
+  try {
+    const session = await getCachedActorSession();
+    if (!session.user) return { ok: false, error: "Sign in required." };
+    const tp = await resolveOwnTalentProfileId();
+    if (!tp.ok) return { ok: false, error: tp.error };
+    const email = session.user.email ?? `talent-${tp.id}@payouts.invalid`;
+    const hdrs = await headers();
+    const host = hdrs.get("host") ?? "localhost";
+    const proto = hdrs.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+    let origin = process.env.NEXT_PUBLIC_BASE_URL ?? `${proto}://${host}`;
+    // Stripe LIVE AccountLinks reject http://localhost ("only allowed in testmode").
+    // On a localhost dev box running live keys, return to the real app domain.
+    if (/^https?:\/\/(localhost|127\.0\.0\.1)/.test(origin)) {
+      origin = "https://app.tulala.digital";
+    }
+    const back = `${origin}/talent/money?surface=talent&talentPage=money&drawer=talent-payouts`;
+    return await getTalentGpAccountLink(tp.id, {
+      email,
+      userId: session.user.id,
+      returnUrl: back,
+      refreshUrl: back,
+    });
+  } catch (err) {
+    logServerError("talent-payouts.gpHostedSetup", err);
+    return { ok: false, error: "Could not start payout setup. Please try again." };
+  }
+}
+
+/** Make one of the talent's accounts the default payout destination. */
+export async function setTalentGpDefaultAction(
+  payoutMethodId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const tp = await resolveOwnTalentProfileId();
+    if (!tp.ok) return { ok: false, error: tp.error };
+    return await setTalentGpDefault(tp.id, payoutMethodId);
+  } catch (err) {
+    logServerError("talent-payouts.setDefault", err);
+    return { ok: false, error: "Could not set the default account. Please try again." };
+  }
+}
+
+/** Remove (archive) one of the talent's payout accounts. */
+export async function removeTalentGpMethodAction(
+  payoutMethodId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const tp = await resolveOwnTalentProfileId();
+    if (!tp.ok) return { ok: false, error: tp.error };
+    return await removeTalentGpPayoutMethod(tp.id, payoutMethodId);
+  } catch (err) {
+    logServerError("talent-payouts.removeMethod", err);
+    return { ok: false, error: "Could not remove the account. Please try again." };
+  }
 }

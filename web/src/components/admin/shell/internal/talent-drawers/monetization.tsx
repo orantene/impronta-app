@@ -1,7 +1,7 @@
 "use client";
 
 // ════════════════════════════════════════════════════════════════════
-// talent-drawers/monetization — Phase 1d body chunk.
+// talent-drawers/monetization, Phase 1d body chunk.
 // Owns: TalentPayoutsDrawer, TalentVerificationDrawer,
 // TalentReferralsDrawer, TalentHubCompareDrawer, TalentTaxDocsDrawer,
 // TalentConflictResolveDrawer.
@@ -19,47 +19,24 @@ import {
   SecondaryButton,
 } from "../primitives";
 import { KvRow, SummaryStat } from "./shared";
+import { PayoutsShell } from "@/app/(workspace)/[tenantSlug]/talent/settings/payouts/PayoutsShell";
 
 // ─── Payouts ────────────────────────────────────────────────────
 
 export function TalentPayoutsDrawer() {
-  const { state, closeDrawer, setTalentPage } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-payouts";
-  const goToPayouts = () => { closeDrawer(); setTalentPage("payouts"); };
 
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Set up payouts"
-      description="Stripe Connect handles KYC + banking. Tulala never sees your bank details."
+      title="Payouts"
+      description="Get paid for your bookings. Stripe handles your bank details and ID check, and we never see them."
       width={560}
-      footer={
-        <>
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
-          <PrimaryButton onClick={goToPayouts}>Set up payouts</PrimaryButton>
-        </>
-      }
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
-      <div className="flex flex-col gap-4">
-        <div style={{ padding: "12px 14px", border: `1px solid rgba(15,79,62,0.18)`, borderRadius: 10, fontFamily: FONTS.body, fontSize: 12, lineHeight: 1.5 }} className="bg-admin-accent-soft text-admin-ink">
-          <strong className="text-admin-accent-deep">Encrypted via Stripe.</strong>{" "}
-          Bank details and ID never touch Tulala servers.
-        </div>
-        <div style={{ padding: "20px 16px", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 12, fontFamily: FONTS.body, textAlign: "center" }} className="bg-admin-surface-alt">
-          <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 6 }} className="text-admin-ink">
-            Connect your bank in a few minutes
-          </div>
-          <div style={{ fontSize: 12.5, lineHeight: 1.55, maxWidth: 360, margin: "0 auto 14px" }} className="text-admin-ink-muted">
-            Complete Stripe&apos;s secure identity + bank setup right inside Tulala. Once
-            connected, your share of every confirmed booking transfers to you automatically.
-          </div>
-          <PrimaryButton onClick={goToPayouts}>Set up payouts →</PrimaryButton>
-        </div>
-        <KvRow label="Payout schedule" value="Per-booking · on Stripe's standard schedule" />
-        <KvRow label="Currency" value="Set during Stripe onboarding" />
-        <KvRow label="Tax form" value="W-8BEN / W-9 depending on residency" />
-      </div>
+      <PayoutsShell embedded selfLoad snapshot={null} loadError={null} heldPayouts={null} justReturned={false} justRefreshed={false} />
     </DrawerShell>
   );
 }
@@ -67,14 +44,14 @@ export function TalentPayoutsDrawer() {
 // ─── Trust verification (D1) ────────────────────────────────────
 
 /**
- * Identity verification scaffold. Multi-step ID upload flow that — once
- * approved by an admin — lifts the talent's trust tier from Basic to
+ * Identity verification scaffold. Multi-step ID upload flow that, once
+ * approved by an admin, lifts the talent's trust tier from Basic to
  * Verified, unlocking the Verified badge on roster cards and inquiry
  * workspaces.
  *
  * This is a scaffold. The real flow uses a vendor (Stripe Identity, Onfido,
  * Persona) that returns a verification result via webhook; the prototype
- * stops at "submitted — under review" so the admin queue is implied but
+ * stops at "submitted, under review" so the admin queue is implied but
  * not modeled here.
  */
 export function TalentVerificationDrawer() {
@@ -86,7 +63,7 @@ export function TalentVerificationDrawer() {
       open={open}
       onClose={closeDrawer}
       title="Verify your identity"
-      description="Upload a government ID + a quick selfie. Once approved you get the Verified badge — clients see it on every inquiry."
+      description="Upload a government ID + a quick selfie. Once approved you get the Verified badge, clients see it on every inquiry."
       width={560}
       footer={
         <>
@@ -125,7 +102,7 @@ export function TalentVerificationDrawer() {
           {[
             { label: "Verified badge on every inquiry", body: "Clients filter on it. Verified profiles get ~3× more replies in our data." },
             { label: "Higher trust tier", body: "Eligible for Silver and Gold tiers as your booking history grows." },
-            { label: "Required for payouts > €1k", body: "Compliance — Stripe needs the same KYC anyway." },
+            { label: "Required for payouts > €1k", body: "Compliance, Stripe needs the same KYC anyway." },
           ].map((item, idx) => (
             <li
               key={idx}
@@ -167,7 +144,7 @@ export function TalentVerificationDrawer() {
 export function TalentReferralsDrawer() {
   const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-referrals";
-  // Honest stub — referral tracking has no backend yet, so we don't show a
+  // Honest stub, referral tracking has no backend yet, so we don't show a
   // fabricated invite link / referral list / earnings. The €50 promise stays
   // in the description as the product intent.
   return (
@@ -327,7 +304,7 @@ export function TalentTaxDocsDrawer() {
       <div className="flex flex-col gap-2">
         {[
           { label: `${new Date().getUTCFullYear()} income summary`, body: "Platform-reported earnings only · PDF download", action: "Download", href: `/api/talent/tax-summary?year=${new Date().getUTCFullYear()}` },
-          { label: "W-8BEN form", body: "Official IRS form — opens irs.gov in a new tab", action: "Open", href: "https://www.irs.gov/pub/irs-pdf/fw8ben.pdf" },
+          { label: "W-8BEN form", body: "Official IRS form, opens irs.gov in a new tab", action: "Open", href: "https://www.irs.gov/pub/irs-pdf/fw8ben.pdf" },
           { label: "2025 income summary", body: "Platform-reported earnings only · PDF download", action: "Download", href: "/api/talent/tax-summary?year=2025" },
         ].map((doc, idx) => (
           <button
@@ -365,7 +342,7 @@ export function TalentTaxDocsDrawer() {
         <strong className="font-semibold">About off-platform & in-kind:</strong>{" "}
         Off-platform earnings you log via &quot;Log work&quot; appear in your year-end summary
         as self-declared income. In-kind / gift work shows separately and isn&apos;t
-        included in the cash total — useful for your records, not reported to tax
+        included in the cash total, useful for your records, not reported to tax
         authorities. Talk to a local advisor for your jurisdiction.
       </div>
     </DrawerShell>
@@ -386,7 +363,7 @@ export function TalentConflictResolveDrawer() {
   const open = state.drawer.drawerId === "talent-conflict-resolve";
   const [choice, setChoice] = useState<"a" | "b" | "alt" | null>(null);
 
-  // Mock conflict — in production resolved from inquiry.dates × booking.dates
+  // Mock conflict, in production resolved from inquiry.dates × booking.dates
   const conflict = {
     a: { client: "Mango", date: "May 14", brief: "Spring campaign · Madrid", rate: "€1,200/day", trust: "Verified", recommended: true },
     b: { client: "Atelier Paris", date: "May 14", brief: "Editorial wrap · Paris", rate: "€800/day", trust: "Basic", recommended: false },

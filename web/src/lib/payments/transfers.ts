@@ -30,21 +30,25 @@ import {
   canRouteTransfersToTalent,
 } from "@/lib/payments/stripe-connect-talent";
 import { recordPayoutLeg, syncBookingPayoutLifecycle } from "@/lib/payments/booking-payouts-ledger";
+import {
+  disburse,
+  type DisburseOutcome,
+  type DisburseRoute,
+  type PayoutRail,
+} from "@/lib/payments/disburse";
+import { getPrimaryFinancialAccountId } from "@/lib/payments/global-payouts";
+import { resolveTalentPayoutRail } from "@/lib/payments/payout-rail-policy";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type Stripe from "stripe";
 
 type Party = "talent" | "workspace";
 
-export type TransferOutcome = {
-  party: Party;
-  participantId: string;
-  amountCents: number;
-  currency: string;
-  status: "transferred" | "skipped_no_account" | "skipped_zero" | "mock" | "failed";
-  destination?: string | null;
-  transferId?: string | null;
-  detail?: string;
-};
+/**
+ * Outcome of one payout leg — now a re-export of the rail-agnostic
+ * DisburseOutcome (which adds `rail`). Back-compat for callers that import
+ * TransferOutcome from this module.
+ */
+export type TransferOutcome = DisburseOutcome;
 
 /**
  * Optional dependency injection seam — production passes nothing (real
@@ -57,6 +61,19 @@ export type TransferDeps = {
   stripe?: Stripe | null;
   resolveTalentAccount?: (talentProfileId: string) => Promise<string | null>;
   resolveWorkspaceAccount?: (tenantId: string) => Promise<string | null>;
+  /**
+   * Which rail to pay a talent leg on. Defaults to "connect_transfer" — the
+   * Global Payouts rail is OPT-IN and off until a talent is provisioned for it,
+   * so existing behaviour is unchanged.
+   */
+  resolvePayoutRail?: (
+    party: Party,
+    talentProfileId: string | null,
+  ) => Promise<PayoutRail> | PayoutRail;
+  /** GP recipient (v2 core account id) for a talent — defaults to their stripe_account_id. */
+  resolveTalentRecipientAccount?: (talentProfileId: string) => Promise<string | null>;
+  /** Source FinancialAccount id for the GP rail — defaults to the platform's primary FA. */
+  getFinancialAccountId?: () => Promise<string | null>;
 };
 
 /** Map a transfer outcome status to the ledger's persisted status.
@@ -65,7 +82,7 @@ export type TransferDeps = {
 function ledgerStatus(s: TransferOutcome["status"]): "transferred" | "held" | "failed" {
   if (s === "transferred") return "transferred";
   if (s === "failed") return "failed";
-  return "held"; // skipped_no_account (and mock, defensively) → held
+  return "held"; // skipped_no_account / skipped_live_disabled (and mock, defensively) → held
 }
 
 /** Resolve the talent_profiles.id this snapshot row pays out to. */
@@ -99,51 +116,22 @@ async function workspaceTransferAccount(tenantId: string): Promise<string | null
     : null;
 }
 
-async function payParty(
-  stripe: Stripe | null,
-  opts: {
-    party: Party;
-    participantId: string;
-    bookingId: string;
-    amountCents: number;
-    currency: string;
-    accountId: string | null;
-  },
-): Promise<TransferOutcome> {
-  const { party, participantId, bookingId, amountCents, currency, accountId } = opts;
-  const base = { party, participantId, amountCents, currency } as const;
-
-  if (amountCents <= 0) return { ...base, status: "skipped_zero" };
-  if (!accountId) {
-    return {
-      ...base,
-      status: "skipped_no_account",
-      detail: "no enabled connected account — payout pending onboarding (funds held on platform)",
-    };
+/** GP recipient (v2 core account id) for a talent — prefer their dedicated
+ *  Global Payouts recipient (gp_recipient_account_id, which has a bank payout
+ *  method); fall back to the Connect account id (which doubles as a v2 recipient). */
+async function talentRecipientAccount(talentProfileId: string): Promise<string | null> {
+  const sb = createServiceRoleClient();
+  if (sb) {
+    const { data } = await sb
+      .from("talent_profiles")
+      .select("gp_recipient_account_id")
+      .eq("id", talentProfileId)
+      .maybeSingle();
+    const gp = (data?.gp_recipient_account_id as string | null) ?? null;
+    if (gp) return gp;
   }
-  if (!stripe) return { ...base, status: "mock", destination: accountId };
-
-  try {
-    const transfer = await stripe.transfers.create(
-      {
-        amount: amountCents,
-        currency,
-        destination: accountId,
-        transfer_group: `booking_${bookingId}`,
-        metadata: { booking_id: bookingId, participant_id: participantId, party },
-      },
-      { idempotencyKey: `transfer_${bookingId}_${participantId}_${party}` },
-    );
-    return { ...base, status: "transferred", destination: accountId, transferId: transfer.id };
-  } catch (err) {
-    logServerError(`transfers.create[${party}][booking=${bookingId}]`, err);
-    return {
-      ...base,
-      status: "failed",
-      destination: accountId,
-      detail: err instanceof Error ? err.message : "transfer failed",
-    };
-  }
+  const res = await getTalentConnectedAccountSnapshot(talentProfileId);
+  return res.ok ? res.data.stripeAccountId : null;
 }
 
 /**
@@ -161,6 +149,13 @@ export async function executeBookingTransfers(
   }
   const resolveTalentAccount = deps.resolveTalentAccount ?? talentTransferAccount;
   const resolveWorkspaceAccount = deps.resolveWorkspaceAccount ?? workspaceTransferAccount;
+  const resolvePayoutRail =
+    deps.resolvePayoutRail ??
+    ((_party: Party, tpId: string | null): Promise<PayoutRail> =>
+      tpId ? resolveTalentPayoutRail(tpId, { sb }) : Promise.resolve<PayoutRail>("connect_transfer"));
+  const resolveTalentRecipientAccount =
+    deps.resolveTalentRecipientAccount ?? talentRecipientAccount;
+  const getFinancialAccountId = deps.getFinancialAccountId ?? getPrimaryFinancialAccountId;
   const outcomes: TransferOutcome[] = [];
 
   try {
@@ -201,17 +196,40 @@ export async function executeBookingTransfers(
         snap.owning_party_type === "agency" || snap.owning_party_type === "workspace";
       const tenantId = isWorkspaceOwned ? snap.owning_party_id : null;
 
-      // 1) Talent — full protected quote.
+      // 1) Talent — full protected quote. Routed via the resolved rail: a
+      //    Connect transfer by default, or a Global Payouts OutboundPayment when
+      //    the talent is provisioned for it (opt-in, off until then).
       if (snap.talent_net_cents > 0) {
-        const accountId = talentProfileId ? await resolveTalentAccount(talentProfileId) : null;
-        const outcome = await payParty(stripe, {
-          party: "talent",
-          participantId: snap.participant_id,
-          bookingId,
-          amountCents: snap.talent_net_cents,
-          currency,
-          accountId,
-        });
+        const rail: PayoutRail = talentProfileId
+          ? await resolvePayoutRail("talent", talentProfileId)
+          : "connect_transfer";
+        let route: DisburseRoute;
+        if (rail === "global_payouts" && talentProfileId) {
+          const [financialAccountId, recipientAccountId] = await Promise.all([
+            getFinancialAccountId(),
+            resolveTalentRecipientAccount(talentProfileId),
+          ]);
+          route = {
+            rail: "global_payouts",
+            financialAccountId,
+            recipientAccountId,
+            payoutMethodId: null,
+          };
+        } else {
+          const accountId = talentProfileId ? await resolveTalentAccount(talentProfileId) : null;
+          route = { rail: "connect_transfer", connectAccountId: accountId };
+        }
+        const outcome = await disburse(
+          {
+            party: "talent",
+            participantId: snap.participant_id,
+            bookingId,
+            amountCents: snap.talent_net_cents,
+            currency,
+            route,
+          },
+          { stripe },
+        );
         outcomes.push(outcome);
         await recordPayoutLeg(sb, {
           bookingId,
@@ -222,7 +240,7 @@ export async function executeBookingTransfers(
           owningPartyId: snap.owning_party_id,
           talentProfileId,
           tenantId,
-          destinationAccountId: outcome.destination ?? accountId,
+          destinationAccountId: outcome.destination ?? null,
           amountCents: snap.talent_net_cents,
           currency,
           status: ledgerStatus(outcome.status),
@@ -231,17 +249,21 @@ export async function executeBookingTransfers(
         });
       }
 
-      // 2) Workspace — margin net of the platform's seller share.
+      // 2) Workspace — margin net of the platform's seller share. Agency payouts
+      //    stay on the Connect rail (the GP rail is talent-only for now).
       if (isWorkspaceOwned && snap.workspace_fee_cents > 0) {
         const accountId = await resolveWorkspaceAccount(snap.owning_party_id);
-        const outcome = await payParty(stripe, {
-          party: "workspace",
-          participantId: snap.participant_id,
-          bookingId,
-          amountCents: snap.workspace_fee_cents,
-          currency,
-          accountId,
-        });
+        const outcome = await disburse(
+          {
+            party: "workspace",
+            participantId: snap.participant_id,
+            bookingId,
+            amountCents: snap.workspace_fee_cents,
+            currency,
+            route: { rail: "connect_transfer", connectAccountId: accountId },
+          },
+          { stripe },
+        );
         outcomes.push(outcome);
         await recordPayoutLeg(sb, {
           bookingId,
@@ -252,7 +274,7 @@ export async function executeBookingTransfers(
           owningPartyId: snap.owning_party_id,
           talentProfileId: null,
           tenantId,
-          destinationAccountId: outcome.destination ?? accountId,
+          destinationAccountId: outcome.destination ?? null,
           amountCents: snap.workspace_fee_cents,
           currency,
           status: ledgerStatus(outcome.status),
@@ -271,7 +293,10 @@ export async function executeBookingTransfers(
     // Surface anything that didn't transfer (failed, or held pending an
     // onboarded account) so it can be reconciled / retried later.
     const pending = outcomes.filter(
-      (o) => o.status === "failed" || o.status === "skipped_no_account",
+      (o) =>
+        o.status === "failed" ||
+        o.status === "skipped_no_account" ||
+        o.status === "skipped_live_disabled",
     );
     if (pending.length) {
       logServerError(
