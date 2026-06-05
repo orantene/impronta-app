@@ -163,7 +163,6 @@ export function GlobalPayoutsCustomForm({
 
   // Step 1 — recipient identity (prefilled, reviewable).
   const [email, setEmail] = useState("");
-  const [country, setCountry] = useState("MX");
   const [displayName, setDisplayName] = useState("");
   const [phone, setPhone] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -186,7 +185,6 @@ export function GlobalPayoutsCustomForm({
       }
       const p = r.prefill;
       setEmail(p.email);
-      setCountry(p.country ?? "MX");
       setDisplayName(p.displayName);
       setFirstName(p.legalFirstName);
       setLastName(p.legalLastName);
