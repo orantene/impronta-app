@@ -138,13 +138,16 @@ type Admin = NonNullable<ReturnType<typeof createServiceRoleClient>>;
 async function readProfile(sb: Admin, talentProfileId: string) {
   const { data } = await sb
     .from("talent_profiles")
-    .select("id, display_name, gp_recipient_account_id, profile_code, phone_e164")
+    .select("id, display_name, legal_name, first_name, last_name, gp_recipient_account_id, profile_code, phone_e164")
     .eq("id", talentProfileId)
     .maybeSingle();
   return data as
     | {
         id: string;
         display_name: string | null;
+        legal_name: string | null;
+        first_name: string | null;
+        last_name: string | null;
         gp_recipient_account_id: string | null;
         profile_code: string | null;
         phone_e164: string | null;
@@ -487,14 +490,22 @@ export async function loadTalentGpRecipientPrefill(
   const sb = createServiceRoleClient();
   const tp = sb ? await readProfile(sb, talentProfileId) : null;
   const country = await resolveTalentPayoutCountry(talentProfileId);
-  const fullName = (tp?.display_name ?? "").trim();
-  const { givenName, surname } = splitName(fullName);
+  const displayName = (tp?.display_name ?? "").trim();
+  // A recipient's legal name must match their BANK ACCOUNT holder name, so
+  // prefer the explicit first/last name, then the legal name, and only fall
+  // back to the display (stage) name as a last resort. Previously this always
+  // derived from the stage name, which mismatched the bank for anyone whose
+  // stage name differs from their legal name (e.g. "Orlando" vs "Oran Tene").
+  const explicitFirst = (tp?.first_name ?? "").trim();
+  const explicitLast = (tp?.last_name ?? "").trim();
+  const legalSplit = splitName((tp?.legal_name ?? "").trim());
+  const displaySplit = splitName(displayName);
   return {
     email: opts.email,
     country,
-    displayName: fullName,
-    legalFirstName: givenName,
-    legalLastName: surname,
+    displayName,
+    legalFirstName: explicitFirst || legalSplit.givenName || displaySplit.givenName,
+    legalLastName: explicitLast || legalSplit.surname || displaySplit.surname,
     phone: (tp?.phone_e164 ?? "").trim(),
     recipientExists: !!tp?.gp_recipient_account_id,
   };
