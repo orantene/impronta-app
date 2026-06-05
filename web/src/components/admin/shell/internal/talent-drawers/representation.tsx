@@ -145,6 +145,41 @@ function RepresentationRow({
           fontFamily: FONTS.body,
         }}
       >
+        {entry.logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={entry.logoUrl}
+            alt=""
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 8,
+              objectFit: "cover",
+              flexShrink: 0,
+              border: `1px solid ${COLORS.borderSoft}`,
+            }}
+          />
+        ) : (
+          <div
+            aria-hidden
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 8,
+              flexShrink: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: COLORS.surfaceAlt,
+              color: COLORS.inkMuted,
+              fontSize: 14,
+              fontWeight: 700,
+              fontFamily: FONTS.body,
+            }}
+          >
+            {(entry.name || "?").trim().charAt(0).toUpperCase()}
+          </div>
+        )}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{entry.name}</span>

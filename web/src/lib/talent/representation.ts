@@ -30,6 +30,8 @@ export type RepresentationEntry = {
   takeRatePct: number | null;
   joinedAt: string | null;
   publicUrl: string;
+  /** Workspace/agency logo (agency_branding.theme_json.logo_url); null → initial-square fallback. */
+  logoUrl: string | null;
   effective: EffectiveVisibility;
 };
 
