@@ -47,65 +47,20 @@ import { headers } from "next/headers";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
-import type { GuestChatErrorCode, GuestChatFailure } from "@/lib/inquiry/guest-chat-contract";
+import type {
+  GuestChatErrorCode,
+  GuestChatFailure,
+  GuestChipInput,
+  GuestChipKind,
+  GuestChipResult,
+  GuestChipValue,
+} from "@/lib/inquiry/guest-chat-contract";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Local type definitions (promoted to guest-chat-contract.ts by the integration
-// agent verbatim; kept local so this file compiles standalone without waiting
-// for the contract edit).
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * The five deterministic chip kinds — each maps 1:1 to an InquiryIntent field.
- * Promoted to guest-chat-contract.ts as GuestChipKind by the integration agent.
- */
-export type GuestChipKind = "date" | "location" | "headcount" | "event_type" | "budget";
-
-/**
- * Union of all possible chip values (one chip populates a subset of these
- * fields based on its kind). Promoted to GuestChipValue in the contract.
- */
-export type GuestChipValue = {
-  // 'date' chip fields
-  dateStatus?: "exact" | "flexible" | "not_sure";
-  eventDate?: string | null; // YYYY-MM-DD
-  // 'location' chip fields
-  city?: string | null;
-  locationStatus?: "confirmed" | "unconfirmed" | "online" | "not_sure";
-  // 'headcount' chip field
-  headcount?: number | null;
-  // 'event_type' chip field
-  eventType?: string | null;
-  // 'budget' chip fields — mirrors InquiryBudget.preference union
-  budgetPreference?:
-    | "agency_recommends"
-    | "total_budget"
-    | "per_hour"
-    | "per_day"
-    | "per_week"
-    | "per_contract"
-    | "per_talent"
-    | "not_sure";
-  budgetAmount?: number | null;
-  currency?: string | null;
-};
-
-/**
- * Input to captureGuestChip. Promoted to GuestChipInput in the contract.
- */
-export type GuestChipInput = {
-  inquiryId: string;
-  kind: GuestChipKind;
-  value: GuestChipValue;
-};
-
-/**
- * Result from captureGuestChip. Promoted to GuestChipResult in the contract.
- */
-export type GuestChipResult =
-  | { ok: true; appliedSummary: string }
-  | GuestChatFailure;
+// Chip types are the canonical ones from the shared contract (consolidated at
+// integration). Re-export the local bindings for any caller that still imports
+// them from here.
+export type { GuestChipKind, GuestChipValue, GuestChipInput, GuestChipResult };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Internal helpers — mirrors the pattern in guest-chat-actions.ts so this file

@@ -35,30 +35,14 @@ import { loadTalentCardThumbs } from "@/app/(workspace)/[tenantSlug]/_data-bridg
 import type {
   GuestChatErrorCode,
   GuestChatFailure,
+  GuestInquirySummary,
   GuestThreadStatus,
 } from "@/lib/inquiry/guest-chat-contract";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Local types (integration promotes to guest-chat-contract.ts verbatim)
-// ─────────────────────────────────────────────────────────────────────────────
-
-export type GuestInquirySummary = {
-  inquiryId: string;
-  talentProfileId: string | null;
-  talentName: string;
-  talentPortraitUrl: string | null;
-  agencyName: string;
-  lastMessagePreview: string | null;
-  lastMessageAt: string | null;
-  /**
-   * Always false from the server — the action has no per-client lastSeen
-   * timestamp. The panel computes the 'new' dot client-side from lastMessageAt
-   * vs seenAtByInquiry. Kept for forward-compat.
-   */
-  unreadHint: boolean;
-  threadStatus: GuestThreadStatus;
-  typicalReplyLabel: string | null;
-};
+// GuestInquirySummary is now the canonical contract type (consolidated at
+// integration). Re-export the local binding for callers that import it from
+// here (GuestThreadSwitcher).
+export type { GuestInquirySummary };
 
 export type ListGuestInquiriesResult =
   | { ok: true; inquiries: GuestInquirySummary[] }

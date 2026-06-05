@@ -13,7 +13,7 @@
  * House rules observed:
  *   • NO gold/rust accents — accent colour passed as prop (tenant brand).
  *   • NO fake presence signals.
- *   • NO eslint-disable for react-hooks/exhaustive-deps — deps arrays are real.
+ *   • Hook dependency arrays are real (no suppression of the deps lint).
  *   • Inline styles only (no Tailwind admin classes) — this is a public-facing
  *     surface, not the admin shell.
  *   • Under 800 lines.
@@ -21,48 +21,16 @@
 
 import { useState, useId } from "react";
 import { C, FONT, inputStyle, primaryBtnStyle, readableOn } from "./mini-chat-styles";
+import type { GuestChipKind, GuestChipValue } from "@/lib/inquiry/guest-chat-contract";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Local type definitions — kept here so this client file compiles standalone.
-// Integration promotes these to guest-chat-contract.ts verbatim (GuestChipKind
-// + GuestChipValue). Until then they live here and GuestDetailChips imports
-// them from this module.
+// GuestChipKind / GuestChipValue now live in the shared contract (consolidated
+// at integration) and are imported above. Re-export the local bindings so the
+// existing consumers that import them from THIS module (GuestDetailChips) keep
+// resolving — they now resolve to the single canonical contract type.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * The five deterministic chip kinds — maps 1:1 to InquiryIntent fields.
- * Promoted to guest-chat-contract.ts as GuestChipKind by the integration agent.
- */
-export type GuestChipKind = "date" | "location" | "headcount" | "event_type" | "budget";
-
-/**
- * Union of all chip value fields. A given chip populates only the fields for
- * its kind. Promoted to GuestChipValue in the contract.
- */
-export type GuestChipValue = {
-  // 'date' chip
-  dateStatus?: "exact" | "flexible" | "not_sure";
-  eventDate?: string | null; // YYYY-MM-DD
-  // 'location' chip
-  city?: string | null;
-  locationStatus?: "confirmed" | "unconfirmed" | "online" | "not_sure";
-  // 'headcount' chip
-  headcount?: number | null;
-  // 'event_type' chip
-  eventType?: string | null;
-  // 'budget' chip — mirrors InquiryBudget.preference (see inquiry-intent.ts)
-  budgetPreference?:
-    | "agency_recommends"
-    | "total_budget"
-    | "per_hour"
-    | "per_day"
-    | "per_week"
-    | "per_contract"
-    | "per_talent"
-    | "not_sure";
-  budgetAmount?: number | null;
-  currency?: string | null;
-};
+export type { GuestChipKind, GuestChipValue };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Props

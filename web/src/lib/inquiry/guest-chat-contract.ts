@@ -126,6 +126,7 @@ export type GuestChatErrorCode =
   | "captcha_required"    // velocity gate wants a Turnstile token (Lane B)
   | "tenant_unavailable"  // tenant scope could not be resolved
   | "db_unavailable"      // service-role client missing
+  | "limit_reached"       // active-conversation trust gate tripped (U3)
   | "engine_error";       // catch-all engine/insert failure
 
 export type GuestChatFailure = {
@@ -351,6 +352,66 @@ export type AddClaimEmailCallback = (
 ) => Promise<AddGuestClaimEmailResult>;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// 4b. U2 thread-switcher — list ALL live inquiries this guest session owns on a
+//     tenant, so the panel can show an avatar-rail when a guest has messaged
+//     several talents. Server-resolved by guest cookie; the panel computes the
+//     'new' dot client-side (the server always returns unreadHint:false).
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type GuestInquirySummary = {
+  inquiryId: string;
+  talentProfileId: string | null;
+  talentName: string;
+  talentPortraitUrl: string | null;
+  agencyName: string;
+  lastMessagePreview: string | null;
+  lastMessageAt: string | null;
+  unreadHint: boolean;
+  threadStatus: GuestThreadStatus;
+  typicalReplyLabel: string | null;
+};
+
+export type ListGuestInquiriesCallback = (input: {
+  tenantSlug: string;
+}) => Promise<{ ok: true; inquiries: GuestInquirySummary[] } | GuestChatFailure>;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 4c. U4 guided detail chips — five deterministic chips (Date / Location /
+//     Headcount / Type / Budget) that each map 1:1 to an InquiryIntent field.
+//     captureGuestChip writes interpreted_query + the relevant flat column(s);
+//     it NEVER creates an offer (coordinator-driven). The panel renders the chip
+//     rail above the composer once an inquiry exists (progressive disclosure).
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type GuestChipKind = "date" | "location" | "headcount" | "event_type" | "budget";
+
+export type GuestChipValue = {
+  dateStatus?: "exact" | "flexible" | "not_sure";
+  eventDate?: string | null;
+  city?: string | null;
+  locationStatus?: "confirmed" | "unconfirmed" | "online" | "not_sure";
+  headcount?: number | null;
+  eventType?: string | null;
+  budgetPreference?:
+    | "agency_recommends"
+    | "total_budget"
+    | "per_hour"
+    | "per_day"
+    | "per_week"
+    | "per_contract"
+    | "per_talent"
+    | "not_sure";
+  budgetAmount?: number | null;
+  currency?: string | null;
+};
+
+export type GuestChipInput = { inquiryId: string; kind: GuestChipKind; value: GuestChipValue };
+
+export type GuestChipResult = { ok: true; appliedSummary: string } | GuestChatFailure;
+
+export type CaptureGuestChipCallback = (input: GuestChipInput) => Promise<GuestChipResult>;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // 5. MiniChatPanel props — the only substantial new frontend (Lane D / F2).
 //    Server actions arrive as the three callbacks above. Branding arrives as
 //    plain values so the panel imports nothing server-side.
@@ -426,9 +487,36 @@ export type MiniChatPanelProps = {
 
   /**
    * "Open full conversation ↗" target. Inert/link-only for MVP (points at the
-   * claim/login path). Null hides the affordance.
+   * claim/login path). Null hides the affordance. NOTE (U1): the panel now
+   * self-computes /c/{inquiryId} from its own inquiryId, so this prop is
+   * optional/back-compat only — it is not required for the full-conversation link.
    */
   openFullHref?: string | null;
+
+  /**
+   * U2: list ALL live inquiries this guest owns on the tenant (drives the
+   * thread-switcher avatar-rail). Null hides the switcher entirely.
+   */
+  onListGuestInquiries?: ListGuestInquiriesCallback | null;
+
+  /**
+   * U4: capture a single deterministic detail chip into the inquiry's
+   * structured spine. Null hides the chip rail.
+   */
+  onCaptureChip?: CaptureGuestChipCallback | null;
+
+  /**
+   * U2: enable the soft inbound-message chime. Gated by a user gesture inside
+   * the hook (only fires once the guest has sent ≥1 message). Default true.
+   */
+  soundOnReply?: boolean;
+
+  /**
+   * U3: the guest↔account identity tier, resolved by the server component that
+   * mounts the panel (same source as the trust chip). Drives the proactive
+   * account toolkit + trust-gate nudge. Defaults to "guest" when unknown.
+   */
+  identity?: GuestIdentityTier;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -461,6 +549,15 @@ export type TalentChatLauncherProps = {
   /** className passthrough for placement (mirrors TalentProfileInquireButton). */
   className?: string;
   openFullHref?: string | null;
+
+  /** U2: forwarded to the panel — list all live inquiries for the switcher. */
+  onListGuestInquiries?: ListGuestInquiriesCallback | null;
+  /** U4: forwarded to the panel — capture a detail chip. */
+  onCaptureChip?: CaptureGuestChipCallback | null;
+  /** U2: forwarded to the panel — enable the inbound chime. Default true. */
+  soundOnReply?: boolean;
+  /** U3: forwarded to the panel — the guest↔account identity tier. */
+  identity?: GuestIdentityTier;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -472,6 +569,17 @@ export type TalentChatLauncherProps = {
 
 /** The live trust tier (matches ClientTrustLevel in components/trust-badge.tsx). */
 export type GuestTrustTier = "basic" | "verified" | "silver" | "gold";
+
+/**
+ * The guest↔account spectrum (U3 / strategy §5 trust ladder). This is the
+ * IDENTITY axis (how known the person is), distinct from the trust-BADGE tier
+ * GuestTrustTier above (basic/verified/silver/gold). Mirrors
+ * GuestTrustChipProps.identity. The U3 toolkit + nudge components consume this
+ * union; the server-side gate (guest-trust-gate.ts) keeps its OWN local
+ * GuestTrustTier of the same spelling for its return value (it is never
+ * promoted here to avoid the name collision with the badge tier).
+ */
+export type GuestIdentityTier = "guest" | "identified" | "email_verified" | "account";
 
 /** Per-signal tri-state for the chip's tick row. */
 export type TrustSignalState = "verified" | "present_unverified" | "absent";

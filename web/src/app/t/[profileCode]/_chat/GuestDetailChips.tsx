@@ -24,7 +24,7 @@
  * House rules:
  *   • NO gold/rust accents — tenant accent passed as prop.
  *   • NO fake presence signals.
- *   • NO eslint-disable for react-hooks/exhaustive-deps.
+ *   • Hook dependency arrays are real (no suppression of the deps lint).
  *   • Inline styles only (no admin-shell Tailwind classes).
  *   • Under 800 lines total (this file + GuestDetailChipEditor.tsx).
  *

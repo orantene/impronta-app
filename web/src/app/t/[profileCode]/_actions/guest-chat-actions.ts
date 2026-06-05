@@ -31,6 +31,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { ensureGuestClientByEmail } from "@/lib/inquiry/guest-client";
+import { evaluateGuestConversationGate } from "@/lib/inquiry/guest-trust-gate";
 import { createInquiryFromIntent } from "@/lib/inquiry/inquiry-intent-engine";
 import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
 import { captureGuestMessageDetails } from "@/lib/inquiry/guest-message-extract";
@@ -146,6 +147,17 @@ async function resolveGuestContext(): Promise<
   }
 
   return { ok: true, ctx: { admin, guestSessionId } };
+}
+
+/**
+ * Public session-id-only resolver so sibling guest server actions (U2 thread
+ * switcher, U4 detail chips) reuse the SAME cookie→guest_sessions.id path
+ * without copy-pasting it. Returns the guest_sessions.id, or null when there is
+ * no usable session (first-time visitor / missing header / db unavailable).
+ */
+export async function resolveGuestSessionId(): Promise<string | null> {
+  const guest = await resolveGuestContext();
+  return guest.ok ? guest.ctx.guestSessionId : null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -547,6 +559,30 @@ export async function startGuestChatInquiry(
     company: "",
     phone: input.contactPhone?.trim() ?? "",
   });
+
+  // ── Trust gate (U3): per-tenant active-conversation cap by identity tier. The
+  // unlock currency is VERIFICATION, never money — a guest at their cap is
+  // nudged to verify their email / create a free account, never to pay. Runs
+  // ONLY on the inquiry-CREATE path (here); continuing an already-owned thread
+  // (sendGuestMessageAction) is NEVER gated. The gate FAILS OPEN internally, so a
+  // config/DB blip can never block a real buyer from reaching the agency.
+  const gate = await evaluateGuestConversationGate({
+    admin,
+    tenantId,
+    guestSessionId,
+    clientUserId: provisioned.clientUserId,
+    contactEmail,
+  });
+  if (!gate.allowed) {
+    return fail(
+      "limit_reached",
+      gate.tier === "account"
+        ? "You've reached your open-conversation limit. Wrap up or close one to start another."
+        : gate.tier === "email_verified"
+          ? "You have a few conversations going — create a free account to start more."
+          : "You have a conversation going — verify your email to start more.",
+    );
+  }
 
   // ── Recipient safety (Lane C): refuse to create the inquiry when this sender
   // (guest session and/or the just-provisioned client user) is blocked by a
