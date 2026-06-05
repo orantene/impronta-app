@@ -8,7 +8,9 @@
 
 import { revalidatePath } from "next/cache";
 import { requireTalentSelfAction } from "@/lib/saas/admin-scope";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { revalidateDirectoryListing } from "@/lib/revalidate-public";
 import { mergeShellSocialAndEmbedded } from "@/lib/talent/profile-shell-drawer-persist";
 import { syncProfileShellDynFieldValues } from "@/lib/talent/profile-shell-dyn-field-values";
 import { syncTalentTypeTaxonomyFromShellSlugs } from "@/lib/talent/profile-shell-taxonomy-sync";
@@ -667,29 +669,154 @@ export async function updateSelfContactPolicy(input: {
   return { ok: true };
 }
 
-// ─── Leave agency ─────────────────────────────────────────────────────────────
-//
-// Talent sends a 14-day end-relationship notice. Sets roster status to
-// "inactive" so they lose distribution but retain profile access during
-// the wind-down period.
+// ─── Representation visibility + roster lifecycle ───────────────────────────
 
-export async function selfLeaveAgency(input: {
+export async function selfSetGlobalHidden(input: {
   talent_profile_id: string;
+  hidden: boolean;
 }): Promise<Result> {
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase, tenantId } = auth;
+  const { supabase, profileCode } = auth;
+
+  const { error } = await supabase
+    .from("talent_profiles")
+    .update({
+      is_publicly_hidden: input.hidden,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.talent_profile_id);
+
+  if (error) {
+    logServerError("self-sections.global-hidden", error);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+
+  revalidatePath(`/t/${profileCode}`, "page");
+  revalidateDirectoryListing();
+  return { ok: true };
+}
+
+export async function selfSetRosterVisibility(input: {
+  talent_profile_id: string;
+  agency_id: string;
+  hidden: boolean;
+}): Promise<Result> {
+  const auth = await requireTalentSelfAction(input.talent_profile_id);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { profileCode } = auth;
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error" };
+
+  const { error } = await admin
+    .from("agency_talent_roster")
+    .update({ talent_site_hidden: input.hidden })
+    .eq("tenant_id", input.agency_id)
+    .eq("talent_profile_id", input.talent_profile_id)
+    .neq("status", "removed");
+
+  if (error) {
+    logServerError("self-sections.roster-visibility", error);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+
+  revalidatePath(`/t/${profileCode}`, "page");
+  revalidateDirectoryListing();
+  return { ok: true };
+}
+
+export async function selfPauseAgency(input: {
+  talent_profile_id: string;
+  agency_id: string;
+}): Promise<Result> {
+  const auth = await requireTalentSelfAction(input.talent_profile_id);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, profileCode } = auth;
 
   const { error } = await supabase
     .from("agency_talent_roster")
     .update({ status: "inactive" })
     .eq("talent_profile_id", input.talent_profile_id)
-    .eq("tenant_id", tenantId)
+    .eq("tenant_id", input.agency_id)
     .in("status", ["active", "pending"]);
 
-  if (error) { logServerError("self-sections.leave-agency", error); return { ok: false, error: CLIENT_ERROR.update }; }
+  if (error) {
+    logServerError("self-sections.pause-agency", error);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
 
+  revalidatePath(`/t/${profileCode}`, "page");
+  revalidateDirectoryListing();
   return { ok: true };
+}
+
+export async function selfResumeAgency(input: {
+  talent_profile_id: string;
+  agency_id: string;
+}): Promise<Result> {
+  const auth = await requireTalentSelfAction(input.talent_profile_id);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, profileCode } = auth;
+
+  const { error } = await supabase
+    .from("agency_talent_roster")
+    .update({ status: "active" })
+    .eq("talent_profile_id", input.talent_profile_id)
+    .eq("tenant_id", input.agency_id)
+    .eq("status", "inactive");
+
+  if (error) {
+    logServerError("self-sections.resume-agency", error);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+
+  revalidatePath(`/t/${profileCode}`, "page");
+  revalidateDirectoryListing();
+  return { ok: true };
+}
+
+export async function selfRemoveAgency(input: {
+  talent_profile_id: string;
+  agency_id: string;
+}): Promise<Result> {
+  const auth = await requireTalentSelfAction(input.talent_profile_id);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, profileCode } = auth;
+
+  const { error } = await supabase
+    .from("agency_talent_roster")
+    .update({
+      status: "removed",
+      removed_at: new Date().toISOString(),
+    })
+    .eq("talent_profile_id", input.talent_profile_id)
+    .eq("tenant_id", input.agency_id)
+    .neq("status", "removed");
+
+  if (error) {
+    logServerError("self-sections.remove-agency", error);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+
+  revalidatePath(`/t/${profileCode}`, "page");
+  revalidateDirectoryListing();
+  return { ok: true };
+}
+
+/** @deprecated Use selfPauseAgency with agency_id. Kept for legacy drawer paths. */
+export async function selfLeaveAgency(input: {
+  talent_profile_id: string;
+  agency_id?: string;
+}): Promise<Result> {
+  const auth = await requireTalentSelfAction(input.talent_profile_id);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const agencyId = input.agency_id ?? auth.tenantId;
+  if (!agencyId) return { ok: false, error: "No agency specified." };
+  return selfPauseAgency({
+    talent_profile_id: input.talent_profile_id,
+    agency_id: agencyId,
+  });
 }
 
 // ─── Set primary agency ───────────────────────────────────────────────────────

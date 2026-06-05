@@ -16,6 +16,7 @@ import { MediaGalleryDrawer } from "@/components/talent/media-gallery-drawer";
 import type { MediaAsset } from "@/components/talent/media-gallery-drawer";
 import { setTalentAvatar, setTalentHero } from "./extended-actions";
 import { actionUploadAndAssignMedia, actionDeleteMediaAssets, actionLoadTalentMediaBundle, actionImportFromGoogleDrive, actionReorderMediaAssets, actionRevertCropToSource } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
+import { useAdminShell } from "@/components/admin/shell/internal/state";
 
 // ─── Design tokens (match workspace shell) ────────────────────────────────────
 
@@ -653,6 +654,7 @@ function WorkflowSidebar({
 }) {
   const t = createTranslator(locale);
   const router = useRouter();
+  const { openDrawer } = useAdminShell();
 
   const [visible, setVisible] = useState(
     agencyVisibility === "site_visible" || agencyVisibility === "featured",
@@ -697,8 +699,30 @@ function WorkflowSidebar({
           padding: "16px 18px",
         }}
       >
-        <div style={{ fontSize: 11, fontWeight: 600, color: C.inkMuted, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 12 }}>
-          {t("admin.talent.edit.workflow.visibilityLabel")}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: C.inkMuted, letterSpacing: 0.8, textTransform: "uppercase" }}>
+            {t("admin.talent.edit.workflow.visibilityLabel")}
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              openDrawer("representation", {
+                actor: "agency",
+                talentProfileId: talentId,
+              })
+            }
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: C.accent,
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontFamily: F,
+            }}
+          >
+            Full representation →
+          </button>
         </div>
 
         {talentHidden && (

@@ -314,6 +314,9 @@ type Ctx = {
    * render an empty state, NOT Marta's MY_AGENCIES mocks.
    */
   bridgeTalentAgencies: TalentAgencyRow[] | null;
+  bridgeTalentRepresentation:
+    | import("@/lib/talent/load-representation").RepresentationLoadResult
+    | null;
   /**
    * Phase E / D — talent earnings from commission snapshots. `null` means mock
    * mode (Money page falls back to EARNINGS_ROWS fixtures).
@@ -1811,6 +1814,7 @@ export function AdminShellProvider({
   // them (workspace-only entry); empty array means "real bridge, no
   // agency relationships yet" — render empty state, not Marta's mocks.
   const bridgeTalentAgencies = initialBridgeData?.talentAgencies ?? null;
+  const bridgeTalentRepresentation = initialBridgeData?.talentRepresentation ?? null;
   const bridgeTalentEarningsByCurrency: TalentEarningsByCurrency | null =
     initialBridgeData?.talentEarnings ?? null;
   // Backward-compat: extract the primary bundle so IdentityBar + single-currency
@@ -1962,6 +1966,7 @@ export function AdminShellProvider({
       bridgeTalentPayoutSnapshot,
       bridgeTalentHeldPayouts,
       bridgeTalentAgencies,
+      bridgeTalentRepresentation,
       bridgeUserNotifications,
       bridgeTalentCalendarEntries,
       bridgeTalentEarnings,
@@ -2072,6 +2077,7 @@ export function AdminShellProvider({
       bridgeTalentPayoutSnapshot,
       bridgeTalentHeldPayouts,
       bridgeTalentAgencies,
+      bridgeTalentRepresentation,
       bridgeUserNotifications,
       bridgeTalentCalendarEntries,
       bridgeTalentEarnings,

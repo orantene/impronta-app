@@ -34,7 +34,6 @@ import {
 import {
   confirmAgencyExclusivity,
   declineAgencyExclusivity,
-  selfLeaveAgency,
   selfSetPrimaryAgency,
   updateSelfContactPolicy,
   updateSelfPrivacy,
@@ -156,7 +155,7 @@ export function TalentAgencyRelationshipDrawer() {
         <StandardFooter
           onSave={() => closeDrawer()}
           saveLabel="Done"
-          destructive={{ label: "End relationship", onClick: () => openDrawer("talent-leave-agency", { agencyId: payloadAgencyId }) }}
+          destructive={{ label: "Pause or leave", onClick: () => openDrawer("representation", { focusAgencyId: payloadAgencyId }) }}
         />
       }
     >
@@ -306,63 +305,36 @@ export function TalentAgencyRelationshipDrawer() {
 // ─── Leave agency ───────────────────────────────────────────────
 
 export function TalentLeaveAgencyDrawer() {
-  const { state, closeDrawer, toast, bridgeTalentSelfProfile } = useAdminShell();
+  const { state, closeDrawer, openDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-leave-agency";
-  const [sending, setSending] = useState(false);
-  const [sendError, setSendError] = useState<string | null>(null);
-
-  const handleSendNotice = async () => {
-    const talentProfileId = bridgeTalentSelfProfile?.id;
-    if (!talentProfileId) { setSendError("No talent profile — reload and try again."); return; }
-    setSending(true);
-    setSendError(null);
-    const result = await selfLeaveAgency({ talent_profile_id: talentProfileId });
-    setSending(false);
-    if (!result.ok) { setSendError(result.error); return; }
-    toast("Notice sent — agency informed. Active bookings continue through the wind-down period.");
-    closeDrawer();
-  };
+  const agencyId = state.drawer.payload?.agencyId as string | undefined;
 
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="End relationship"
-      description="This is a serious step. Your agency is notified and has 14 days to wind down active bookings."
+      title="Pause or leave"
+      description="Relationship changes are managed in your representation settings."
       width={520}
       footer={
         <>
-          <SecondaryButton onClick={closeDrawer} disabled={sending}>Keep working with them</SecondaryButton>
-          <button
-            onClick={handleSendNotice}
-            disabled={sending}
-            style={{
-              background: sending ? COLORS.inkDim : COLORS.red,
-              color: "#fff",
-              border: "none",
-              padding: "9px 16px",
-              fontFamily: FONTS.body,
-              fontSize: 13,
-              fontWeight: 500,
-              borderRadius: 8,
-              cursor: sending ? "not-allowed" : "pointer",
-              opacity: sending ? 0.7 : 1,
+          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <PrimaryButton
+            onClick={() => {
+              closeDrawer();
+              openDrawer("representation", { focusAgencyId: agencyId });
             }}
           >
-            {sending ? "Sending…" : "Send 14-day notice"}
-          </button>
+            Open representation
+          </PrimaryButton>
         </>
       }
     >
-      {sendError && (
-        <div style={{ padding: "10px 14px", background: "rgba(220,38,38,0.07)", border: "1px solid rgba(220,38,38,0.2)", borderRadius: 8, marginBottom: 14, fontFamily: FONTS.body, fontSize: 12.5, color: "#b91c1c" }}>
-          {sendError}
-        </div>
-      )}
       <div style={{ fontFamily: FONTS.body, fontSize: 13.5, lineHeight: 1.6 }} className="text-admin-ink">
-        Active bookings stay confirmed and get paid out. New pitches stop immediately. Past
-        earnings remain in your activity log. Your agency can&apos;t see your inbox or calendar
-        once the 14 days are up.
+        <strong>Pause distribution</strong> stops new pitches and listings immediately — you can resume anytime.
+        Active bookings already confirmed still pay out.
+        <br /><br />
+        <strong>Leave permanently</strong> removes you from the agency roster. They would have to re-invite you.
       </div>
     </DrawerShell>
   );

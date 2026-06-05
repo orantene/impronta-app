@@ -7,6 +7,10 @@ import {
   buildTalentMembershipState,
   type TalentMembershipState,
 } from "@/lib/access/talent-membership";
+import {
+  loadRepresentation,
+  type RepresentationLoadResult,
+} from "@/lib/talent/load-representation";
 
 /**
  * _data-bridge/talent.ts — talent-side dashboard loaders.
@@ -579,6 +583,16 @@ export type TalentAgencyRow = {
   /** ISO when admin auto-flagged (null otherwise). Drives the prompt countdown. */
   exclusivityAutoAssignedAt: string | null;
 };
+
+/**
+ * Unified representation model for the Representation drawer.
+ */
+export async function loadTalentRepresentation(
+  talentProfileId: string,
+  profileCode: string | null,
+): Promise<RepresentationLoadResult> {
+  return loadRepresentation(talentProfileId, profileCode);
+}
 
 /**
  * Load all agency relationships for a talent (across all tenants).

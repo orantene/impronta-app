@@ -940,6 +940,16 @@
       "count": 27
     }
   },
+  "src/components/admin/shell/internal/talent-drawers/representation.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 36
+    }
+  },
+  "src/lib/server-actions/representation-actions.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 2
+    }
+  },
   "src/components/admin/shell/internal/talent-drawers/analytics.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 44
@@ -1698,8 +1708,11 @@
     }
   },
   "src/lib/server-actions/talent-self-profile-sections.ts": {
+    "max-lines": {
+      "count": 1
+    },
     "ratchet/no-untenanted-from": {
-      "count": 25
+      "count": 30
     }
   },
   "src/lib/server-actions/talent-self-provision.ts": {

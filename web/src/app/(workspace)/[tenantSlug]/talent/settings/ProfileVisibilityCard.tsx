@@ -34,11 +34,14 @@ export function ProfileVisibilityCard({
   talentId,
   initialHidden,
   agencies,
+  onOpenRepresentation,
 }: {
   tenantSlug: string;
   talentId: string;
   initialHidden: boolean;
   agencies: AgencySite[];
+  /** When set (admin shell), opens the unified Representation drawer. */
+  onOpenRepresentation?: () => void;
 }) {
   const [hidden, setHidden] = useState(initialHidden);
   const [siteHidden, setSiteHidden] = useState<Record<string, boolean>>(() =>
@@ -48,6 +51,14 @@ export function ProfileVisibilityCard({
   const [sitePendingId, setSitePendingId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const openVisibility = () => {
+    if (onOpenRepresentation) {
+      onOpenRepresentation();
+      return;
+    }
+    setDrawerOpen(true);
+  };
 
   const toggleGlobal = async (nextVisible: boolean) => {
     if (globalPending) return;
@@ -89,7 +100,7 @@ export function ProfileVisibilityCard({
     <>
       <button
         type="button"
-        onClick={() => setDrawerOpen(true)}
+        onClick={openVisibility}
         style={{
           display: "flex",
           alignItems: "center",

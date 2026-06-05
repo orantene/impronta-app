@@ -171,6 +171,7 @@ export {
   loadTalentInquiriesAllAgencies,
   type TalentAgencyRow,
   loadTalentAgencies,
+  loadTalentRepresentation,
   type TalentContactPrefs,
   loadTalentContactPrefs,
 } from "./_data-bridge/talent";

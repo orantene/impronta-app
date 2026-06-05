@@ -6,7 +6,6 @@ import { useAdminShell } from "@/components/admin/shell/internal/state";
 import {
   COLORS,
   FONTS,
-  MY_AGENCIES,
   buildFreshTalentProfile,
   TALENT_PROFILES_BY_ID,
 } from "@/components/admin/shell/internal/state";
@@ -500,7 +499,7 @@ function WorkspaceAppearanceCard({
  * Renders below the Tulala personal-site section in PublicPageEditor.
  */
 export function TalentSiteAppearancesPanel({ locale = "en" }: { locale?: TalentSiteLocale }) {
-  const { state, setTalentPage, bridgeTalentSelfProfile, bridgeTalentAgencies } = useAdminShell();
+  const { state, openDrawer, bridgeTalentSelfProfile, bridgeTalentAgencies } = useAdminShell();
 
   const selfTalentId = bridgeTalentSelfProfile?.id ?? "t1";
   const profile =
@@ -542,17 +541,7 @@ export function TalentSiteAppearancesPanel({ locale = "en" }: { locale?: TalentS
           rosterProfileUrl: agencyRosterProfileUrl(a.agencySlug, profileCode),
           rosterProfileShareUrl: agencyRosterProfileUrl(a.agencySlug, profileCode),
         }))
-      : MY_AGENCIES.map((a) => ({
-          id: a.id,
-          name: a.name,
-          slug: a.slug,
-          status: a.status,
-          isPrimary: a.isPrimary,
-          visibility: "roster_only",
-          planTier: a.planTier,
-          rosterProfileUrl: agencyRosterProfileUrl(a.slug, profileCode),
-          rosterProfileShareUrl: agencyRosterProfileUrl(a.slug, profileCode),
-        }));
+      : [];
 
   const showTulalaCard = Boolean(profileCode);
   const totalCount = workspaces.length + (showTulalaCard ? 1 : 0);
@@ -598,7 +587,7 @@ export function TalentSiteAppearancesPanel({ locale = "en" }: { locale?: TalentS
             <WorkspaceAppearanceCard
               key={w.id}
               workspace={w}
-              onManage={() => setTalentPage("agencies")}
+              onManage={() => openDrawer("representation", { focusAgencyId: w.id })}
               locale={locale}
             />
           ))}

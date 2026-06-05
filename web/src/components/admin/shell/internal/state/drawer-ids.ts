@@ -111,6 +111,7 @@ export type DrawerId =
   | "talent-custom-domain"
   | "talent-agency-switcher"
   | "talent-agency-relationship"
+  | "representation"
   | "talent-leave-agency"
   | "talent-notifications"
   | "talent-privacy"
