@@ -5,9 +5,22 @@ import { useRouter } from "next/navigation";
 import {
   createTalentAccountSession,
   ensureTalentPayoutAccount,
+  loadTalentGpMethods,
   loadTalentPayoutSnapshot,
   refreshTalentPayoutStatus,
 } from "./actions";
+
+// Countries Stripe Connect (US platform) can open a connected account in. Talents
+// elsewhere (Mexico, Argentina, most of LatAm/Asia/Africa) can ONLY be paid via
+// Global Payouts, so for them we hide the Connect rail entirely.
+const CONNECT_PAYOUT_COUNTRIES = new Set([
+  "US", "GB", "CA", "CH",
+  "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU", "IE",
+  "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK", "SI", "ES", "SE", "IS", "LI", "NO",
+]);
+function isConnectPayoutCountry(iso2: string | null): boolean {
+  return !!iso2 && CONNECT_PAYOUT_COUNTRIES.has(iso2.toUpperCase());
+}
 import { ConnectEmbeddedOnboarding } from "@/components/payments/ConnectEmbeddedOnboarding";
 import { PAYOUT_COUNTRIES } from "@/lib/payments/payout-countries";
 import { HeldPayoutsBanner } from "@/components/payments/HeldPayoutsBanner";
@@ -99,9 +112,26 @@ export function PayoutsShell({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [selfLoaded, setSelfLoaded] = useState(!selfLoad);
+  // True when Global Payouts is the talent's payout path (they have a GP
+  // recipient, or their country can't use Connect). Then we hide the Connect
+  // rail and show only the Global Payouts card, so the status is never
+  // contradictory (e.g. a stale Connect "enabled" next to GP "pending").
+  const [gpPrimary, setGpPrimary] = useState(false);
 
   const status = snapshot?.status ?? "none";
   const isEnabled = status === "enabled";
+
+  useEffect(() => {
+    let cancelled = false;
+    loadTalentGpMethods().then((r) => {
+      if (cancelled || !r.ok) return;
+      const onGp = r.status !== "not_started" || r.methods.length > 0;
+      setGpPrimary(onGp || !isConnectPayoutCountry(r.profileCountry));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // When embedded in a drawer there's no server prop, so pull the snapshot here.
   // The drawer must NEVER hang on "Loading": clear the loading state on success,
@@ -209,6 +239,11 @@ export function PayoutsShell({
             </div>
           )}
 
+          {gpPrimary ? (
+            // Non-Connect country / already on Global Payouts: GP is the only path.
+            <GlobalPayoutsBankCard />
+          ) : (
+            <>
           {/* PRIMARY: your bank */}
           {showOnboarding ? (
             <div style={card}>
@@ -296,6 +331,8 @@ export function PayoutsShell({
 
               <GlobalPayoutsBankCard />
             </div>
+          )}
+            </>
           )}
 
           <div style={{ marginTop: 24, fontSize: 11.5, lineHeight: 1.55, color: C.inkDim }}>
