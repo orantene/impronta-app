@@ -214,6 +214,17 @@ const nextConfig: NextConfig = {
    */
   experimental: {
     viewTransition: true,
+    /**
+     * Talent/agency photo uploads POST the image to a Server Action. Next's
+     * default Server Action body limit is 1 MB, which silently rejected real
+     * profile photos with "Body exceeded 1 MB limit" — surfaced on the client
+     * as the opaque "An unexpected response was received from the server."
+     * Raise to 4 MB, kept just under Vercel's ~4.5 MB serverless body cap so
+     * the boundary is the platform's, not an arbitrarily-lower app default.
+     */
+    serverActions: {
+      bodySizeLimit: "4mb",
+    },
   },
   images: {
     remotePatterns,
