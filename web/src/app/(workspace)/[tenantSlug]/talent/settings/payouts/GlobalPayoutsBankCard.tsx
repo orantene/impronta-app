@@ -2,7 +2,14 @@
 
 import { useEffect, useState, type CSSProperties } from "react";
 import { PAYOUT_COUNTRIES, defaultPayoutCurrency, payoutCountryLabel } from "@/lib/payments/payout-countries";
-import { loadTalentGpStatus, setupTalentGpBankAction, syncTalentGpProfileAction } from "./actions";
+import type { TalentGpMethod } from "@/lib/payments/talent-global-payouts";
+import {
+  loadTalentGpMethods,
+  removeTalentGpMethodAction,
+  setTalentGpDefaultAction,
+  setupTalentGpBankAction,
+  syncTalentGpProfileAction,
+} from "./actions";
 
 const C = {
   ink: "#0B0B0D",
@@ -10,6 +17,7 @@ const C = {
   borderSoft: "rgba(24,24,27,0.08)",
   border: "rgba(24,24,27,0.12)",
   surface: "#ffffff",
+  surfaceAlt: "rgba(11,11,13,0.02)",
   accent: "#1f4a3a",
   green: "#1A7348",
   greenSoft: "rgba(26,115,72,0.10)",
@@ -32,17 +40,27 @@ function bankFields(iso2: string): BankFields {
   return { accountLabel: "Account number", accountPlaceholder: "000123456789", showRouting: true, routingLabel: "Routing / branch number" };
 }
 
+const ghostBtn = (busy = false): CSSProperties => ({
+  padding: "8px 12px",
+  borderRadius: 9,
+  background: "transparent",
+  color: C.inkMuted,
+  border: `1px solid ${C.border}`,
+  fontFamily: FONT,
+  fontSize: 12,
+  fontWeight: 600,
+  cursor: busy ? "wait" : "pointer",
+  whiteSpace: "nowrap",
+});
+
 /**
- * Talent "get paid globally" card, set up local-bank Global Payouts (the v2
- * OutboundPayments rail) as an alternative to Connect/Express. Renders on the
- * talent payouts page.
+ * Talent "get paid globally" manager: one or more local-bank destinations on the
+ * Global Payouts (v2 OutboundPayments) rail, with a default. Add / set-default /
+ * remove, plus "Sync from profile". Renders inside the payouts drawer.
  */
 export function GlobalPayoutsBankCard() {
   const [loading, setLoading] = useState(true);
-  const [hasBank, setHasBank] = useState(false);
-  const [savedCountry, setSavedCountry] = useState<string | null>(null);
-  const [savedCurrency, setSavedCurrency] = useState<string | null>(null);
-  const [last4, setLast4] = useState<string | null>(null);
+  const [methods, setMethods] = useState<TalentGpMethod[]>([]);
 
   const [open, setOpen] = useState(false);
   const [country, setCountry] = useState("");
@@ -50,17 +68,15 @@ export function GlobalPayoutsBankCard() {
   const [routingNumber, setRoutingNumber] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [rowError, setRowError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
 
   const refresh = () => {
-    loadTalentGpStatus().then((r) => {
+    loadTalentGpMethods().then((r) => {
       setLoading(false);
-      if (!r.ok) return;
-      setHasBank(r.status.hasBank);
-      setSavedCountry(r.status.country);
-      setSavedCurrency(r.status.currency);
-      setLast4(r.status.bankLast4);
+      if (r.ok) setMethods(r.methods);
     });
   };
   useEffect(() => {
@@ -74,6 +90,26 @@ export function GlobalPayoutsBankCard() {
       setSyncing(false);
       setSyncMsg(r.ok ? "Synced from your profile." : r.error);
       if (r.ok) refresh();
+    });
+  };
+
+  const setDefault = (id: string) => {
+    setRowError(null);
+    setBusyId(id);
+    setTalentGpDefaultAction(id).then((r) => {
+      setBusyId(null);
+      if (!r.ok) setRowError(r.error);
+      else refresh();
+    });
+  };
+
+  const remove = (id: string) => {
+    setRowError(null);
+    setBusyId(id);
+    removeTalentGpMethodAction(id).then((r) => {
+      setBusyId(null);
+      if (!r.ok) setRowError(r.error);
+      else refresh();
     });
   };
 
@@ -105,6 +141,7 @@ export function GlobalPayoutsBankCard() {
         return;
       }
       setOpen(false);
+      setCountry("");
       setAccountNumber("");
       setRoutingNumber("");
       refresh();
@@ -122,9 +159,11 @@ export function GlobalPayoutsBankCard() {
     fontFamily: FONT,
   };
 
+  const hasMethods = methods.length > 0;
+
   return (
     <div data-testid="talent-gp-bank-card" style={card}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
         <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, color: C.accent, textTransform: "uppercase" }}>
           Global payouts · Bank
         </span>
@@ -133,71 +172,11 @@ export function GlobalPayoutsBankCard() {
         </span>
       </div>
 
-      {hasBank && !open ? (
-        <div style={{ fontSize: 13, color: C.ink }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-            <span aria-hidden style={{ color: C.green }}>✓</span>
-            <strong>You&apos;re set to receive global payouts.</strong>
-          </div>
-          <div style={{ fontSize: 12.5, color: C.inkMuted }}>
-            {payoutCountryLabel(savedCountry)} · bank ····{last4 ?? "----"}
-            {savedCurrency ? ` · ${savedCurrency.toUpperCase()}` : ""}
-          </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
-            <button
-              type="button"
-              data-testid="talent-gp-update"
-              onClick={() => {
-                setOpen(true);
-                setCountry(savedCountry ?? "");
-              }}
-              style={{
-                padding: "9px 14px", borderRadius: 9,
-                background: "transparent", color: C.inkMuted, border: `1px solid ${C.border}`,
-                fontFamily: FONT, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
-              }}
-            >
-              Update bank
-            </button>
-            <button
-              type="button"
-              data-testid="talent-gp-sync"
-              onClick={syncFromProfile}
-              disabled={syncing}
-              title="Push your latest name and contact details from your profile to Stripe"
-              style={{
-                padding: "9px 14px", borderRadius: 9,
-                background: "transparent", color: C.inkMuted, border: `1px solid ${C.border}`,
-                fontFamily: FONT, fontSize: 12.5, fontWeight: 600, cursor: syncing ? "wait" : "pointer",
-              }}
-            >
-              {syncing ? "Syncing…" : "Sync from profile"}
-            </button>
-          </div>
-          {syncMsg && (
-            <div style={{ marginTop: 8, fontSize: 11.5, color: C.inkMuted }}>{syncMsg}</div>
-          )}
-        </div>
-      ) : !open ? (
-        <>
-          <p style={{ margin: "0 0 12px", fontSize: 12.5, lineHeight: 1.55, color: C.inkMuted }}>
-            Receive your booking payouts straight to your <strong style={{ color: C.ink }}>local bank account</strong>,
-            in your own currency. No Stripe account or app required, and it works across 50+ countries.
-          </p>
-          <button
-            type="button"
-            data-testid="talent-gp-cta"
-            onClick={() => setOpen(true)}
-            style={{
-              padding: "11px 18px", borderRadius: 10, background: C.accent, color: "#fff", border: "none",
-              fontFamily: FONT, fontSize: 13, fontWeight: 700, cursor: "pointer", minHeight: 44,
-            }}
-          >
-            Set up bank payouts
-          </button>
-        </>
-      ) : (
+      {open ? (
         <div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: C.ink, marginBottom: 8 }}>
+            {hasMethods ? "Add another account" : "Add your bank"}
+          </div>
           <label htmlFor="gp-country" style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.ink, marginBottom: 6 }}>
             Where do you bank?
           </label>
@@ -253,7 +232,8 @@ export function GlobalPayoutsBankCard() {
           </div>
           {country && (
             <p style={{ margin: "6px 0 12px", fontSize: 11.5, color: C.inkMuted }}>
-              You&apos;ll be paid in {defaultPayoutCurrency(country).toUpperCase()}. Your bank details are sent securely to Stripe to register your payouts.
+              You&apos;ll be paid in {defaultPayoutCurrency(country).toUpperCase()}. The account holder name must match your
+              legal name. Your bank details are sent securely to Stripe.
             </p>
           )}
 
@@ -289,6 +269,85 @@ export function GlobalPayoutsBankCard() {
             </button>
           </div>
         </div>
+      ) : hasMethods ? (
+        <div>
+          <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+            {methods.map((m) => (
+              <li
+                key={m.id}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap",
+                  padding: "10px 12px", background: C.surfaceAlt, border: `1px solid ${C.borderSoft}`, borderRadius: 10,
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.ink, display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
+                    <span>{m.bankName ?? "Bank account"} ····{m.last4 ?? "----"}</span>
+                    {m.isDefault && (
+                      <span style={{ fontSize: 10, fontWeight: 700, color: C.green, background: C.greenSoft, padding: "1px 6px", borderRadius: 999, textTransform: "uppercase", letterSpacing: 0.3 }}>
+                        Default
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 1 }}>
+                    {payoutCountryLabel(m.country)}{m.currency ? ` · ${m.currency.toUpperCase()}` : ""}
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                  {!m.isDefault && (
+                    <button type="button" data-testid="talent-gp-set-default" onClick={() => setDefault(m.id)} disabled={busyId === m.id} style={ghostBtn(busyId === m.id)}>
+                      {busyId === m.id ? "…" : "Set default"}
+                    </button>
+                  )}
+                  {!m.isDefault && (
+                    <button type="button" data-testid="talent-gp-remove" onClick={() => remove(m.id)} disabled={busyId === m.id} style={ghostBtn(busyId === m.id)}>
+                      Remove
+                    </button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          {rowError && (
+            <div role="alert" style={{ marginTop: 8, fontSize: 11.5, color: C.coral }}>{rowError}</div>
+          )}
+
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+            <button type="button" data-testid="talent-gp-add" onClick={() => { setOpen(true); setError(null); }} style={ghostBtn()}>
+              + Add account
+            </button>
+            <button
+              type="button"
+              data-testid="talent-gp-sync"
+              onClick={syncFromProfile}
+              disabled={syncing}
+              title="Push your latest name and contact details from your profile to Stripe"
+              style={ghostBtn(syncing)}
+            >
+              {syncing ? "Syncing…" : "Sync from profile"}
+            </button>
+          </div>
+          {syncMsg && <div style={{ marginTop: 8, fontSize: 11.5, color: C.inkMuted }}>{syncMsg}</div>}
+        </div>
+      ) : (
+        <>
+          <p style={{ margin: "0 0 12px", fontSize: 12.5, lineHeight: 1.55, color: C.inkMuted }}>
+            Receive your booking payouts straight to your <strong style={{ color: C.ink }}>local bank account</strong>,
+            in your own currency. No Stripe account or app required, and it works across 50+ countries.
+          </p>
+          <button
+            type="button"
+            data-testid="talent-gp-cta"
+            onClick={() => setOpen(true)}
+            style={{
+              padding: "11px 18px", borderRadius: 10, background: C.accent, color: "#fff", border: "none",
+              fontFamily: FONT, fontSize: 13, fontWeight: 700, cursor: "pointer", minHeight: 44,
+            }}
+          >
+            Set up bank payouts
+          </button>
+        </>
       )}
     </div>
   );

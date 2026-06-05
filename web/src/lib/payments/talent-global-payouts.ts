@@ -14,11 +14,24 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import {
+  archiveRecipientPayoutMethod,
   createGlobalPayoutsRecipient,
   createRecipientBankPayoutMethod,
+  getRecipientDefaultPayoutMethodId,
   listRecipientPayoutMethods,
+  setRecipientDefaultPayoutMethod,
   updateRecipientIdentity,
 } from "./global-payouts-onboarding";
+
+/** A talent's payout destination, flattened for the UI. */
+export type TalentGpMethod = {
+  id: string;
+  last4: string | null;
+  bankName: string | null;
+  country: string | null;
+  currency: string | null;
+  isDefault: boolean;
+};
 
 /** Build the Stripe recipient metadata from a talent profile (TAL- code, ids,
  *  contact). Shared by recipient creation and the "Sync from profile" action. */
@@ -184,9 +197,82 @@ export async function setupTalentGpBank(
   });
   if (!pm.ok) {
     logServerError("talent-gp.addBank", new Error(pm.error.message ?? "bank add failed"));
-    return { ok: false, error: pm.error.message ?? "Could not add your bank — check the details." };
+    return { ok: false, error: pm.error.message ?? "Could not add your bank. Check the details." };
   }
+
+  // Make the new method the default destination when none is set yet (the first
+  // bank), so an OutboundPayment always has somewhere to land.
+  const newPmId = pm.data.payout_method?.id;
+  if (newPmId) {
+    const currentDefault = await getRecipientDefaultPayoutMethodId(rec.recipientAccountId);
+    if (!currentDefault) await setRecipientDefaultPayoutMethod(rec.recipientAccountId, newPmId);
+  }
+
   return { ok: true, recipientAccountId: rec.recipientAccountId };
+}
+
+/** List the talent's payout methods (bank accounts) with the default flagged. */
+export async function listTalentGpPayoutMethods(
+  talentProfileId: string,
+): Promise<
+  { ok: true; methods: TalentGpMethod[]; defaultId: string | null } | { ok: false; error: string }
+> {
+  const sb = createServiceRoleClient();
+  if (!sb) return { ok: false, error: "Database unavailable." };
+  const tp = await readProfile(sb, talentProfileId);
+  const rid = tp?.gp_recipient_account_id ?? null;
+  if (!rid) return { ok: true, methods: [], defaultId: null };
+
+  const [list, defaultId] = await Promise.all([
+    listRecipientPayoutMethods(rid),
+    getRecipientDefaultPayoutMethodId(rid),
+  ]);
+  if (!list.ok) return { ok: false, error: list.error.message ?? "Could not load your accounts." };
+
+  const methods: TalentGpMethod[] = (list.data.data ?? [])
+    .filter((m) => !m.bank_account?.archived)
+    .map((m) => ({
+      id: m.id,
+      last4: m.bank_account?.last4 ?? null,
+      bankName: m.bank_account?.bank_name ?? null,
+      country: m.bank_account?.country ?? null,
+      currency: m.bank_account?.supported_currencies?.[0] ?? null,
+      isDefault: m.id === defaultId,
+    }));
+  return { ok: true, methods, defaultId };
+}
+
+/** Set one of the talent's payout methods as the default destination. */
+export async function setTalentGpDefault(
+  talentProfileId: string,
+  payoutMethodId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const sb = createServiceRoleClient();
+  if (!sb) return { ok: false, error: "Database unavailable." };
+  const tp = await readProfile(sb, talentProfileId);
+  if (!tp?.gp_recipient_account_id) return { ok: false, error: "No payout profile yet." };
+  const r = await setRecipientDefaultPayoutMethod(tp.gp_recipient_account_id, payoutMethodId);
+  if (!r.ok) return { ok: false, error: r.error.message ?? "Could not set the default account." };
+  return { ok: true };
+}
+
+/** Remove (archive) one of the talent's payout methods. Refuses to remove the
+ *  default (set another default first) so payouts never lose their destination. */
+export async function removeTalentGpPayoutMethod(
+  talentProfileId: string,
+  payoutMethodId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const sb = createServiceRoleClient();
+  if (!sb) return { ok: false, error: "Database unavailable." };
+  const tp = await readProfile(sb, talentProfileId);
+  if (!tp?.gp_recipient_account_id) return { ok: false, error: "No payout profile yet." };
+  const defaultId = await getRecipientDefaultPayoutMethodId(tp.gp_recipient_account_id);
+  if (payoutMethodId === defaultId) {
+    return { ok: false, error: "Set another account as default before removing this one." };
+  }
+  const r = await archiveRecipientPayoutMethod(tp.gp_recipient_account_id, payoutMethodId);
+  if (!r.ok) return { ok: false, error: r.error.message ?? "Could not remove the account." };
+  return { ok: true };
 }
 
 /** Current GP setup status for the talent (recipient + first bank method). */

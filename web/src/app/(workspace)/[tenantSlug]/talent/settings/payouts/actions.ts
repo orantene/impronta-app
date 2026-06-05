@@ -27,7 +27,16 @@ import {
   type TalentConnectedAccountSnapshot,
 } from "@/lib/payments/stripe-connect-talent";
 import { payoutCountryLabel } from "@/lib/payments/payout-countries";
-import { getTalentGpStatus, setupTalentGpBank, syncTalentGpRecipient, type TalentGpStatus } from "@/lib/payments/talent-global-payouts";
+import {
+  getTalentGpStatus,
+  listTalentGpPayoutMethods,
+  removeTalentGpPayoutMethod,
+  setTalentGpDefault,
+  setupTalentGpBank,
+  syncTalentGpRecipient,
+  type TalentGpMethod,
+  type TalentGpStatus,
+} from "@/lib/payments/talent-global-payouts";
 
 export type StartOnboardingResult =
   | { ok: true; url: string }
@@ -309,5 +318,44 @@ export async function syncTalentGpProfileAction(): Promise<
   } catch (err) {
     logServerError("talent-payouts.syncGp", err);
     return { ok: false, error: "Could not sync your details. Please try again." };
+  }
+}
+
+/** List the talent's Global Payouts destinations (banks), default flagged. */
+export async function loadTalentGpMethods(): Promise<
+  { ok: true; methods: TalentGpMethod[] } | { ok: false; error: string }
+> {
+  const tp = await resolveOwnTalentProfileId();
+  if (!tp.ok) return { ok: false, error: tp.error };
+  const r = await listTalentGpPayoutMethods(tp.id);
+  if (!r.ok) return { ok: false, error: r.error };
+  return { ok: true, methods: r.methods };
+}
+
+/** Make one of the talent's accounts the default payout destination. */
+export async function setTalentGpDefaultAction(
+  payoutMethodId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const tp = await resolveOwnTalentProfileId();
+    if (!tp.ok) return { ok: false, error: tp.error };
+    return await setTalentGpDefault(tp.id, payoutMethodId);
+  } catch (err) {
+    logServerError("talent-payouts.setDefault", err);
+    return { ok: false, error: "Could not set the default account. Please try again." };
+  }
+}
+
+/** Remove (archive) one of the talent's payout accounts. */
+export async function removeTalentGpMethodAction(
+  payoutMethodId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const tp = await resolveOwnTalentProfileId();
+    if (!tp.ok) return { ok: false, error: tp.error };
+    return await removeTalentGpPayoutMethod(tp.id, payoutMethodId);
+  } catch (err) {
+    logServerError("talent-payouts.removeMethod", err);
+    return { ok: false, error: "Could not remove the account. Please try again." };
   }
 }

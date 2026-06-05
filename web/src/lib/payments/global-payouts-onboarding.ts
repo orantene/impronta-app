@@ -127,6 +127,8 @@ export type PayoutMethod = {
   bank_account?: {
     country?: string;
     last4?: string;
+    bank_name?: string | null;
+    archived?: boolean;
     supported_currencies?: string[];
   } | null;
 };
@@ -138,6 +140,44 @@ export async function listRecipientPayoutMethods(
   return stripeV2.get<{ data: PayoutMethod[] }>("/v2/money_management/payout_methods", {
     stripeContext: recipientAccountId,
   });
+}
+
+/**
+ * Set the recipient's DEFAULT payout destination (used when an OutboundPayment
+ * doesn't name one). v2 takes the payout-method id as a bare string (validated
+ * live: the object form is rejected).
+ */
+export async function setRecipientDefaultPayoutMethod(
+  recipientAccountId: string,
+  payoutMethodId: string,
+): Promise<StripeV2Result<V2Account>> {
+  return stripeV2.post<V2Account>(`/v2/core/accounts/${recipientAccountId}`, {
+    configuration: { recipient: { default_outbound_destination: payoutMethodId } },
+    include: ["configuration.recipient"],
+  });
+}
+
+/** Read the recipient's current default payout-method id (or null). */
+export async function getRecipientDefaultPayoutMethodId(
+  recipientAccountId: string,
+): Promise<string | null> {
+  const r = await stripeV2.get<{
+    configuration?: { recipient?: { default_outbound_destination?: { id?: string } | null } };
+  }>(`/v2/core/accounts/${recipientAccountId}?include=configuration.recipient`);
+  if (!r.ok) return null;
+  return r.data.configuration?.recipient?.default_outbound_destination?.id ?? null;
+}
+
+/** Archive (remove) a payout method so it can no longer receive payouts. */
+export async function archiveRecipientPayoutMethod(
+  recipientAccountId: string,
+  payoutMethodId: string,
+): Promise<StripeV2Result<PayoutMethod>> {
+  return stripeV2.post<PayoutMethod>(
+    `/v2/money_management/payout_methods/${payoutMethodId}/archive`,
+    {},
+    { stripeContext: recipientAccountId },
+  );
 }
 
 export type FinancialAddress = { id: string; object: string; type?: string };
