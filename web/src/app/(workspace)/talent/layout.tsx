@@ -9,6 +9,7 @@ import {
   loadTalentSelfProfileByUser,
   loadTalentInquiriesAllAgencies,
   loadTalentAgencies,
+  loadTalentRepresentation,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent";
 import { loadTalentCalendarEntries } from "@/components/admin/shell/internal/data-bridge";
 import { loadTalentEarningsByCurrency } from "@/lib/talent/earnings-by-currency";
@@ -107,6 +108,7 @@ export default async function PlatformTalentLayout({
   const [
     talentInquiries,
     talentAgencies,
+    talentRepresentation,
     membership,
     workspaceUnreadRaw,
     userPrefsRaw,
@@ -120,6 +122,7 @@ export default async function PlatformTalentLayout({
   ] = await Promise.all([
     loadTalentInquiriesAllAgencies(baseProfile.id),
     loadTalentAgencies(talentSelfProfile.id),
+    loadTalentRepresentation(talentSelfProfile.id, talentSelfProfile.profileCode),
     tenantId ? findTenantMembership(tenantId) : Promise.resolve(null),
     tenantId ? loadWorkspaceUnreadCount(tenantId) : Promise.resolve(0),
     loadUserPrefs(session.user.id),
@@ -176,6 +179,7 @@ export default async function PlatformTalentLayout({
         talentHeldPayouts,
         talentInquiries,
         talentAgencies,
+        talentRepresentation,
         isHybrid,
         workspaceUnread: workspaceUnread ?? 0,
         preferredSurface: userPrefs?.preferredSurface ?? null,

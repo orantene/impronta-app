@@ -22,12 +22,26 @@ const AGENCY_PUBLIC_ORIGINS: Record<string, string> = {
 
 const TULALA_MARKETING_ORIGIN = "https://tulala.digital";
 
-export function agencyRosterProfileUrl(
-  agencySlug: string,
+/** Platform hub + self page — always the marketing apex, never a subdomain. */
+export function platformSelfProfileUrl(
   profileCode: string | null | undefined,
 ): string | null {
   const code = profileCode?.trim();
   if (!code) return null;
+  return `${TULALA_MARKETING_ORIGIN}/t/${encodeURIComponent(code)}`;
+}
+
+export function agencyRosterProfileUrl(
+  agencySlug: string,
+  profileCode: string | null | undefined,
+  isHub = false,
+): string | null {
+  const code = profileCode?.trim();
+  if (!code) return null;
+
+  if (isHub) {
+    return platformSelfProfileUrl(code);
+  }
 
   const path = `/t/${encodeURIComponent(code)}`;
 

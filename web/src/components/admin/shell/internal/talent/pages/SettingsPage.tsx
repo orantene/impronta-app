@@ -56,6 +56,7 @@ export function SettingsPage() {
           tenantSlug={tenantSlug}
           talentId={bridgeTalentSelfProfile.id}
           initialHidden={bridgeTalentSelfProfile.isPubliclyHidden}
+          onOpenRepresentation={() => openDrawer("representation")}
           agencies={(bridgeTalentAgencies ?? []).map((a) => ({
             id: a.id,
             agencyName: a.agencyName,
@@ -180,14 +181,14 @@ export function SettingsPage() {
               </>
             }
             affordance="Open relationship"
-            onClick={() => openDrawer("talent-agency-relationship", { id: a.id })}
+            onClick={() => openDrawer("representation", { focusAgencyId: a.id })}
           />
         ))}
         <SecondaryCard
           title="Add another agency"
           description="Get invited via email — agencies onboard talent, not the other way around."
           affordance="Learn more"
-          onClick={() => openDrawer("talent-agency-relationship", { mode: "add" })}
+          onClick={() => openDrawer("representation")}
         />
       </Grid>
 

@@ -55,6 +55,8 @@ export {
   TalentContactPreferencesDrawer,
 } from "./talent-drawers/agency";
 
+export { RepresentationDrawer } from "./talent-drawers/representation";
+
 export {
   TalentPayoutsDrawer,
   TalentVerificationDrawer,

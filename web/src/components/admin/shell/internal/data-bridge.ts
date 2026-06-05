@@ -218,6 +218,8 @@ export type BridgeData = {
    * should fall back to MY_AGENCIES mocks in standalone prototype mode.
    */
   talentAgencies?: TalentAgencyRow[] | null;
+  /** Representation-drawer entries (self page + hub + agencies w/ effective visibility); null = not loaded. */
+  talentRepresentation?: import("@/lib/talent/load-representation").RepresentationLoadResult | null;
 
   // ── Phase 5 — cross-mode unread counts for hybrid users ───────────────────
   /**

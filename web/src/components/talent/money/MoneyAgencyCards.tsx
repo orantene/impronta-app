@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { MY_AGENCIES, useAdminShell } from "@/components/admin/shell/internal/state";
+import { useAdminShell } from "@/components/admin/shell/internal/state";
 import { COLORS, FONTS } from "@/components/admin/shell/internal/state";
 import { PrimaryButton } from "@/components/admin/shell/internal/primitives";
 import { SectionHeader } from "@/components/admin/shell/internal/talent/shared/today-2";
@@ -69,17 +69,7 @@ export function MoneyAgencyCards() {
             commissionBps: stats?.commissionBps ?? 0,
           };
         })
-      : MY_AGENCIES.map((agency) => ({
-          id: agency.id,
-          name: agency.name,
-          slug: agency.slug,
-          plan: agency.planTier,
-          rosterStatus: agency.status,
-          isPrimary: agency.isPrimary,
-          ytdNetCents: 0,
-          bookingsCount: agency.bookingsYTD,
-          commissionBps: Math.round(agency.commissionRate * 10000),
-        }));
+      : [];
 
   const profileCode = bridgeTalentSelfProfile?.profileCode ?? null;
 
@@ -316,7 +306,7 @@ export function MoneyAgencyCards() {
                   <div style={{ flex: "1 1 130px" }}>
                     <PrimaryButton
                       size="sm"
-                      onClick={() => openDrawer("talent-agency-relationship", { agencyId: agency.id })}
+                      onClick={() => openDrawer("representation", { focusAgencyId: agency.id })}
                     >
                       Manage relationship
                     </PrimaryButton>
@@ -354,7 +344,7 @@ export function MoneyAgencyCards() {
         >
           On Tulala, agencies invite talent, not the other way around. Share your public profile and they can request you onto their roster.
         </p>
-        <PrimaryButton size="sm" onClick={() => openDrawer("talent-agency-relationship", { mode: "add" })}>
+        <PrimaryButton size="sm" onClick={() => openDrawer("representation")}>
           Share my profile →
         </PrimaryButton>
       </div>

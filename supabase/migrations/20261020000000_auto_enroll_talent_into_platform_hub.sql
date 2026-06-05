@@ -1,17 +1,6 @@
 -- Auto-enroll talents into the platform network hub (Tulala) so every
 -- approved/published talent is publicly live on tulala.digital/t/<code> and
 -- discoverable, with no manual roster step.
---
--- Why: the public-visibility gate (public.talent_has_public_roster) requires an
--- active, site_visible/featured roster row. Before this, a newly-created talent
--- had no hub row and silently 404'd on /t/<code> and was absent from the
--- directory until someone manually rostered them.
---
--- Design: a fail-safe AFTER trigger. Enrollment can NEVER block a
--- talent_profiles write (the body is wrapped so any error is swallowed). The
--- hub is resolved by kind='hub' + plan_tier='network' (not a hardcoded id), so
--- it tracks whatever the canonical platform hub is. Idempotent via NOT EXISTS
--- against the existing partial-unique live-roster constraint.
 
 create or replace function public.ensure_talent_in_platform_hub()
 returns trigger
@@ -57,7 +46,6 @@ begin
          'site_visible', false, false);
     end if;
   exception when others then
-    -- Fail-safe: never propagate enrollment errors to the talent write.
     null;
   end;
 
@@ -71,8 +59,6 @@ create trigger trg_talent_auto_enroll_hub
   for each row
   execute function public.ensure_talent_in_platform_hub();
 
--- One-time idempotent backfill for existing approved/published, non-deleted
--- talents not already on the hub.
 insert into public.agency_talent_roster
   (tenant_id, talent_profile_id, source_type, status,
    agency_visibility, talent_site_hidden, is_primary)

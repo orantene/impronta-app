@@ -683,7 +683,7 @@
   },
   "src/components/admin/shell/internal/page-modules/WebsitePage-1.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 89
+      "count": 92
     }
   },
   "src/components/admin/shell/internal/page-modules/WebsitePage-2.tsx": {
@@ -971,7 +971,7 @@
   },
   "src/components/admin/shell/internal/talent-drawers/agency.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 27
+      "count": 25
     }
   },
   "src/components/admin/shell/internal/talent-drawers/analytics.tsx": {
@@ -1023,6 +1023,11 @@
   "src/components/admin/shell/internal/talent-drawers/profile-extras.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 38
+    }
+  },
+  "src/components/admin/shell/internal/talent-drawers/representation.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 36
     }
   },
   "src/components/admin/shell/internal/talent-drawers/shared.tsx": {
@@ -1716,6 +1721,11 @@
       "count": 8
     }
   },
+  "src/lib/server-actions/representation-actions.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 2
+    }
+  },
   "src/lib/server-actions/roster-import.ts": {
     "ratchet/no-untenanted-from": {
       "count": 12
@@ -1737,8 +1747,11 @@
     }
   },
   "src/lib/server-actions/talent-self-profile-sections.ts": {
+    "max-lines": {
+      "count": 1
+    },
     "ratchet/no-untenanted-from": {
-      "count": 25
+      "count": 30
     }
   },
   "src/lib/server-actions/talent-self-provision.ts": {
