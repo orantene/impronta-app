@@ -129,11 +129,32 @@ export async function getOrCreateTalentGpRecipient(
   });
 
   // Existing recipient: keep its identity + metadata in sync with the current
-  // profile (folds "sync from profile" into the add-account flow, no separate
-  // button). Best-effort; never blocks adding a bank.
+  // profile (folds "sync from profile" into the flow). If that fails with a
+  // permission/not-found error, the stored recipient was created in a different
+  // Stripe mode/platform (e.g. a leftover sandbox id) and is unusable here, so
+  // we clear it and create a fresh one below. This self-heals across env switches
+  // instead of erroring forever on a stale recipient.
   if (tp.gp_recipient_account_id) {
-    await updateRecipientIdentity({ recipientAccountId: tp.gp_recipient_account_id, givenName, surname, metadata });
-    return { ok: true, recipientAccountId: tp.gp_recipient_account_id };
+    const upd = await updateRecipientIdentity({
+      recipientAccountId: tp.gp_recipient_account_id,
+      givenName,
+      surname,
+      metadata,
+    });
+    if (upd.ok) return { ok: true, recipientAccountId: tp.gp_recipient_account_id };
+    const stale =
+      upd.status === 403 ||
+      upd.status === 404 ||
+      /permission|no such|does not exist|cannot find/i.test(upd.error.message ?? "");
+    if (!stale) {
+      // Transient error: the recipient still exists, keep using it.
+      return { ok: true, recipientAccountId: tp.gp_recipient_account_id };
+    }
+    logServerError(
+      "talent-gp.staleRecipient",
+      new Error(`clearing unusable recipient ${tp.gp_recipient_account_id}: ${upd.error.message ?? upd.status}`),
+    );
+    await sb.from("talent_profiles").update({ gp_recipient_account_id: null }).eq("id", talentProfileId);
   }
 
   const r = await createGlobalPayoutsRecipient({
