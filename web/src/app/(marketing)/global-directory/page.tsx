@@ -19,6 +19,7 @@ import { readGoogleMapsBrowserKey } from "@/lib/env/google-maps-browser-key";
 import { MarketingContainer, MarketingEyebrow } from "@/components/marketing/container";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { MarketingDirectoryShell } from "@/components/marketing/directory/MarketingDirectoryShell";
+import { AgencyChatLauncherMount } from "@/app/(public)/_chat/AgencyChatLauncherMount";
 import {
   DIRECTORY_PAGE_SIZE,
   cleanParam,
@@ -141,6 +142,13 @@ export default async function MarketingDirectoryPage({
           mapApiKey={mapApiKey}
         />
       </div>
+
+      {/* Floating "Message {hub}" guest-chat launcher. On the marketing apex
+          this self-resolves the platform hub (getPlatformHubTenant) and gates
+          on the hub's guest-chat settings (enabled + show-on-directory). This
+          is the directory served at tulala.digital/directory (the /directory →
+          /global-directory rewrite), so the launcher belongs here. */}
+      <AgencyChatLauncherMount sourcePage="/directory" />
     </>
   );
 }
