@@ -291,3 +291,89 @@ This patch is the prerequisite for the "Fast" score to move from an estimate to 
 
 All predictions above are derived strictly from the cited files/lines and must be confirmed or
 refuted by the authenticated run before any surgery (profile-before-you-cut).
+
+---
+
+## W0-T7 READY — run protocol (the human authenticated-Chrome step)
+
+**Status: READY.** Wave 0 landed the instrumentation (W0-T6) this run needs; the only remaining
+piece of W0-T7 is the human/authenticated capture, which an automated agent cannot do (it needs a
+logged-in operator session on a registered host + a real React Profiler / Performance trace). The
+§2 procedure above is the full runbook; this section is the **exact checklist** for the operator,
+plus what's already wired so no code step is needed first.
+
+### What is already in place (no setup code required)
+- **In-app profiler (W0-T6, shipped on `builder/marathon-2026-06-05`).** Gated behind
+  `NEXT_PUBLIC_BUILDER_PROFILE=1`. Two `<React.Profiler>` mounts are live:
+  - `id="edit-chrome"` — wraps the chrome consumer tree (in `edit-shell.tsx`).
+  - `id="builder-canvas"` — wraps `ClientBuilderCanvas` (in `homepage-cms-sections.tsx`).
+  - With the flag OFF (normal prod) there are **zero** Profiler mounts — verified no-op.
+  - Console handle: **`window.__builderProfile`** with `.dump()` (CSV:
+    `id,phase,actualDuration,baseDuration,startTime,commitTime`), `.summary()`
+    (`{ [id]: { commits, totalMs, medianMs, worstMs } }`), and `.clear()`.
+  - It deliberately touches **neither** `edit-context.tsx` nor `render.tsx` (the shared-core
+    files), so it can stay on during the whole marathon without rebase friction.
+- **No DevTools extension required.** The in-app Profiler emits the per-commit numbers; the
+  Performance tab is only needed for INP + the I6 network waterfall.
+
+### Exactly what the human must capture (do this and paste numbers into THIS file)
+
+**0. Build + host.** Use a **production build** with the flag on:
+`NEXT_PUBLIC_BUILDER_PROFILE=1 NEXT_PUBLIC_BUILDER_CLIENT_CANVAS=1 npm run build && npm start`
+locally, served on a **registered host** (`improntamodels.lvh.me:3000` after `/api/dev/signin`, or
+deploy + QA on `improntamodels.com`). Raw `*.vercel.app` 404s (middleware — not in
+`agency_domains`). Sign in as an operator with site-edit rights (the `orantene` super_admin works).
+
+**1. Enter the working state.** Open the Impronta homepage → enter edit mode → wait for the
+composition to load (Layers shows the real node count) → **open the Layers panel AND an inspector
+for a selected node** (profiling with panels closed understates the H1 tax).
+
+**2. For EACH interaction I1–I7, run this loop:** `window.__builderProfile.clear()` →
+perform the interaction once → `copy(window.__builderProfile.dump())` → paste the CSV here, and
+also record `window.__builderProfile.summary()`. Interactions (full detail in §2.2):
+- **I1** — type ~10 chars into a text prop (hero headline / generic-content). *Capture:* commits,
+  per-commit `actualDuration` (worst + median), and **# `builder-canvas` commits**.
+- **I2** — drag-drop a block to a new position; release.
+- **I3** — Alt+Arrow nudge ×5 on a selected node (watch for dropped frames).
+- **I4** — hover sweep across ~8 distinct blocks WITHOUT clicking. *This is the H1 hover-churn
+  test:* record how many `edit-chrome` commits the sweep produces and the worst commit ms.
+- **I5** — change a color/spacing in the Style panel.
+- **I6** — edit a field on a **curated `section_embed` hero** (the network-bound path). Use the
+  **Performance + Network** tabs, not the Profiler: capture end-to-end paint latency +
+  `saveDraftHomepageAction` + RSC-refresh waterfall.
+- **I7** — insert a regular block from the element library.
+
+**3. The direct H2 test (per-section rendered-vs-not).** During I1, in the React DevTools Profiler
+"Ranked"/"what rendered" view (or by reading the `builder-canvas` commit count), record whether
+**unchanged top-level sections render on a single-node edit**. Any unchanged section showing as
+RENDERED confirms the `options`-identity defect (H2) → W2-T1 is justified. (The W0-T3 seatbelt
+already pins this at the unit level; the live run confirms it on the real page.)
+
+**4. INP (Performance tab).** Capture INP for I1–I5 (`<100ms` good, `>200ms` laggy) and the frame
+chart during I3 (dropped frames = jank).
+
+**5. ⚠️ THE FLAG-OFF/ON DELTA — DO NOT SKIP (it is the point-of-no-return baseline for W4-T4b).**
+Rebuild with the client canvas **OFF**: `NEXT_PUBLIC_BUILDER_PROFILE=1
+NEXT_PUBLIC_BUILDER_CLIENT_CANVAS=0 npm run build && npm start`. Re-run **I1, I2, I5** and record
+paint-latency. **Delta (flag-on minus flag-off) = the W3 instant-paint win in ms.** W4-T4(b)
+deletes the flag-OFF server-canvas fallback branch — it must **not** be deleted until this delta is
+captured on disk here, or the baseline is lost forever.
+
+### What these numbers decide (close the loop)
+- They feed the **§3 GATE A** thresholds (canvas nodes rendered on a 1-char edit ≤ edited subtree;
+  chrome consumers on a hover ≤ ~6; worst hover commit < 4ms; INP < 100ms). The Wave-0 baseline
+  values here are the numbers **Wave 2 must beat**.
+- The two W0-stage unit baselines already captured by the seatbelts (so the live run has a target):
+  - **W0-T3:** a parent re-render with identical props **re-renders `ClientBuilderCanvas`** today
+    (no `React.memo`); a 1-node edit repaints the **whole** 3-node canvas. → W2-T1 drives the
+    parent-rerender delta to 0 and lets unchanged subtrees bail.
+  - **W0-T2:** a hover-setter call **re-renders a context consumer** today (`hoveredBuilderNodeId`
+    is in the value-memo deps at `edit-context.tsx:6281`). → W2-T3 drives a hover-agnostic
+    consumer's delta to 0.
+- I6's result decides whether the H3 curated-island work is worth it; the flag-off/on delta is the
+  single most persuasive "Fast" artifact and gates the W4-T4(b) fallback deletion.
+
+**Blockers:** none code-side — the profiler is shipped and no-op-safe. The only prerequisite is an
+authenticated operator session on a registered host (the agent harness has no such session), so the
+capture itself is a human step. Once the CSVs + INP + flag-delta are pasted above, W0-T7 is
+complete and the §3 GO/NO-GO gate can be evaluated.
