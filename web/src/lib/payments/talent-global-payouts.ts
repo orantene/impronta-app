@@ -40,11 +40,17 @@ type Admin = NonNullable<ReturnType<typeof createServiceRoleClient>>;
 async function readProfile(sb: Admin, talentProfileId: string) {
   const { data } = await sb
     .from("talent_profiles")
-    .select("id, display_name, gp_recipient_account_id")
+    .select("id, display_name, gp_recipient_account_id, profile_code, phone_e164")
     .eq("id", talentProfileId)
     .maybeSingle();
   return data as
-    | { id: string; display_name: string | null; gp_recipient_account_id: string | null }
+    | {
+        id: string;
+        display_name: string | null;
+        gp_recipient_account_id: string | null;
+        profile_code: string | null;
+        phone_e164: string | null;
+      }
     | null;
 }
 
@@ -66,13 +72,26 @@ export async function getOrCreateTalentGpRecipient(
   const givenName = nameParts[0] ?? "";
   const surname = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
 
+  // Rich, queryable metadata on the Stripe recipient so a payout can be traced
+  // back to the talent from the Stripe dashboard: the human TAL- code, the
+  // internal id, name, and contact. (Stripe metadata: string values, <=40-char keys.)
+  const metadata: Record<string, string> = {
+    talent_code: tp.profile_code ?? "",
+    talent_profile_id: talentProfileId,
+    talent_name: fullName,
+    talent_email: opts.email,
+  };
+  if (tp.phone_e164) metadata.talent_phone = tp.phone_e164;
+  // Drop empty values (Stripe rejects empty-string metadata on some keys).
+  for (const k of Object.keys(metadata)) if (!metadata[k]) delete metadata[k];
+
   const r = await createGlobalPayoutsRecipient({
     email: opts.email,
     displayName: fullName,
     country: opts.country,
     givenName,
     surname,
-    metadata: { talent_profile_id: talentProfileId },
+    metadata,
   });
   if (!r.ok) {
     logServerError("talent-gp.createRecipient", new Error(r.error.message ?? "recipient create failed"));
