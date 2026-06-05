@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
+import { memo } from "react";
 
 import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 import { FeaturedTalentCard } from "@/lib/site-admin/sections/featured_talent/FeaturedTalentCard";
@@ -10,6 +11,7 @@ import {
 
 import { BuilderNodeCarouselTrack } from "./carousel";
 import { BuilderNodeCodeFrame } from "./code-frame";
+import type { BuilderSectionEmbedRenderer } from "./section-embed-renderer";
 import { resolveBuilderNodeRole } from "./role-bindings";
 import {
   resolveInstanceChildren,
@@ -20,6 +22,11 @@ import {
   collectBuilderNodeFontFamilies,
 } from "./fonts-registry";
 import { getBuilderIconDefinition } from "./icon-registry";
+import { resolveStyleTokenRef } from "./style-token-bindings";
+import {
+  resolveNodeStyleWithClass,
+  type BuilderStyleClassRegistry,
+} from "./style-classes";
 import {
   getBuilderNodeDataBinding,
   isBuilderDataBindingRepeater,
@@ -30,6 +37,10 @@ import {
   type BuilderRepeatItem,
   type BuilderFieldBindingProp,
 } from "./data-bindings";
+import {
+  evaluateBuilderNodeVisibility,
+  type BuilderVisibilityContext,
+} from "./visibility";
 import type { BuilderNode, BuilderNodeStyle, BuilderNodeStyleValue } from "./types";
 import type { BuilderImageMediaAsset } from "@/lib/site-admin/media/types";
 
@@ -61,9 +72,42 @@ export interface BuilderNodeRenderOptions {
   // the master subtree LIVE with per-instance overrides. When absent or the
   // component is missing, instances fall back to their own stored children.
   components?: ComponentDefinitions;
+  // Wave 3 · 3B — page-scoped LINKED STYLE CLASSES (classId → { id, name,
+  // style }). When provided, a node whose `style.classRef` names a class in
+  // this registry renders with the class style merged BENEATH its own props.
+  // Absent / unknown ref → the node falls through to its own style (a linked
+  // block can never blank out). See style-classes.ts.
+  styleClasses?: BuilderStyleClassRegistry;
+  // Wave 5B · #38 — CONDITIONAL VISIBILITY context. When provided, a node whose
+  // `visibilityCondition` does not match these signals (locale / auth / named
+  // variant) is OMITTED at the single `shouldRenderNode` choke point. Absent or
+  // a signal left undefined → that rule passes (a node never hides on a missing
+  // signal). No node carries a condition in the flagship → byte-identical.
+  visibilityContext?: BuilderVisibilityContext;
+  // `section_embed` (Tulala component) renderer — INJECTED by the server caller
+  // (homepage-cms-sections / PublishedShell) so this module never statically
+  // imports the section registry (which would pull every section Component +
+  // its server deps into the client edit-chrome bundle that imports this file).
+  // Given a section_embed node, it returns the live curated section (with
+  // tenant-scoped data) or a labeled placeholder. Absent in lighter render
+  // contexts (tests, tenant-less previews) → the case renders nothing.
+  renderSectionEmbed?: BuilderSectionEmbedRenderer | null;
 }
 
-type NormalizedBuilderNodeRenderOptions = Required<BuilderNodeRenderOptions> & {
+type NormalizedBuilderNodeRenderOptions = Required<
+  Omit<
+    BuilderNodeRenderOptions,
+    "renderSectionEmbed" | "styleClasses" | "visibilityContext"
+  >
+> & {
+  renderSectionEmbed: BuilderSectionEmbedRenderer | null;
+  // Always present after normalize (defaults to {} so the per-node resolver can
+  // index it unconditionally). An empty registry → every node resolves to its
+  // own style by identity (byte-identical).
+  styleClasses: BuilderStyleClassRegistry;
+  // Wave 5B · #38 — undefined when the caller supplies no signals; the
+  // visibility evaluator treats undefined as "always shown".
+  visibilityContext: BuilderVisibilityContext | undefined;
   repeatItem: BuilderRepeatItem | null;
   repeatDepth: number;
 };
@@ -191,6 +235,7 @@ const CONTAINER_QUERY_STYLE_RULES: ReadonlyArray<{
   { attr: "flex-basis", css: (p) => `flex-basis:var(--bn-${p}-flex-basis)!important` },
   { attr: "grid-column", css: (p) => `grid-column:var(--bn-${p}-grid-column)!important` },
   { attr: "grid-row", css: (p) => `grid-row:var(--bn-${p}-grid-row)!important` },
+  { attr: "order", css: (p) => `order:var(--bn-${p}-order)!important` },
   { attr: "filter", css: (p) => `filter:var(--bn-${p}-filter)!important` },
   { attr: "backdrop-filter", css: (p) => `backdrop-filter:var(--bn-${p}-backdrop-filter)!important;-webkit-backdrop-filter:var(--bn-${p}-backdrop-filter)!important` },
   { attr: "mix-blend-mode", css: (p) => `mix-blend-mode:var(--bn-${p}-mix-blend-mode)!important` },
@@ -287,7 +332,23 @@ const BUILDER_NODE_RENDERER_CSS = `
 @keyframes bn-anim-blur-in{from{opacity:0;filter:blur(12px)}to{opacity:1;filter:blur(0)}}
 @keyframes bn-anim-flip-in{from{opacity:0;transform:perspective(800px) rotateX(35deg)}to{opacity:1;transform:perspective(800px) rotateX(0)}}
 @keyframes bn-anim-bounce-in{0%{opacity:0;transform:scale(0.8)}60%{opacity:1;transform:scale(1.04)}100%{opacity:1;transform:scale(1)}}
+@keyframes bn-parallax-subtle{from{transform:translateY(4%)}to{transform:translateY(-4%)}}
+@keyframes bn-parallax-medium{from{transform:translateY(8%)}to{transform:translateY(-8%)}}
+@keyframes bn-parallax-strong{from{transform:translateY(14%)}to{transform:translateY(-14%)}}
 @media (prefers-reduced-motion:reduce){.site-builder-node[style*="animation"]{animation:none!important}}
+/* Reveal-on-view (2026-06-04) — IntersectionObserver-driven entry interaction.
+   The node starts at its hidden/offset pose and eases to rest the first time it
+   scrolls into view. The inline IO script toggles [data-bn-revealed]; before the
+   script runs (or with no IO / reduced motion) the node is shown at rest. */
+.site-builder-node[data-bn-reveal]{transition:opacity var(--bn-reveal-duration,0.6s) var(--bn-reveal-easing,cubic-bezier(0.4,0,0.2,1)) var(--bn-reveal-delay,0s),transform var(--bn-reveal-duration,0.6s) var(--bn-reveal-easing,cubic-bezier(0.4,0,0.2,1)) var(--bn-reveal-delay,0s);will-change:opacity,transform}
+.site-builder-node[data-bn-reveal][data-bn-reveal-armed]:not([data-bn-revealed]){opacity:0}
+.site-builder-node[data-bn-reveal="fade-up"][data-bn-reveal-armed]:not([data-bn-revealed]){transform:translateY(var(--bn-reveal-distance,24px))}
+.site-builder-node[data-bn-reveal="fade-down"][data-bn-reveal-armed]:not([data-bn-revealed]){transform:translateY(calc(-1 * var(--bn-reveal-distance,24px)))}
+.site-builder-node[data-bn-reveal="fade-left"][data-bn-reveal-armed]:not([data-bn-revealed]){transform:translateX(var(--bn-reveal-distance,24px))}
+.site-builder-node[data-bn-reveal="fade-right"][data-bn-reveal-armed]:not([data-bn-revealed]){transform:translateX(calc(-1 * var(--bn-reveal-distance,24px)))}
+.site-builder-node[data-bn-reveal="zoom"][data-bn-reveal-armed]:not([data-bn-revealed]){transform:scale(0.92)}
+.site-builder-node[data-bn-reveal][data-bn-revealed]{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.site-builder-node[data-bn-reveal]{opacity:1!important;transform:none!important;transition:none!important}}
 .site-builder-node{box-sizing:border-box}
 .site-builder-node[data-builder-style-container-type]{container-type:var(--bn-container-type)}
 .site-builder-node[data-builder-style-container-name]{container-name:var(--bn-container-name)}
@@ -312,6 +373,10 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--card[data-builder-card-variant="ghost"]{background:rgba(246,241,232,0.55)}
 .site-builder-node--cta-group{width:100%;max-width:1120px;margin:0 auto;display:flex;flex-wrap:wrap;gap:var(--bn-gap,1rem);box-sizing:border-box}
 .site-builder-node--cta-group[data-builder-cta-layout="stack"]{flex-direction:column;align-items:stretch}
+.site-builder-node--section-embed{display:block;width:100%}
+.site-builder-node--section-embed-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.4rem;width:100%;max-width:1120px;margin:0 auto;min-height:160px;padding:2rem 1.5rem;text-align:center;border:1px dashed rgba(18,18,18,0.22);border-radius:14px;background:rgba(246,241,232,0.4);box-sizing:border-box}
+.site-builder-node--section-embed-placeholder-label{font:700 0.95rem/1.2 var(--site-heading-font,inherit);letter-spacing:0.01em;color:var(--token-color-ink,#111)}
+.site-builder-node--section-embed-placeholder-note{font:500 0.82rem/1.4 var(--site-body-font,inherit);color:rgba(18,18,18,0.58)}
 .site-builder-node--live-talent-grid{display:grid;grid-template-columns:repeat(var(--bn-live-columns,4),minmax(0,1fr));gap:var(--bn-gap,1.25rem);width:100%}
 .site-builder-node--live-chip-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:0.75rem;width:100%}
 .site-builder-node--live-chip{display:inline-flex;align-items:center;gap:0.5rem;border:1px solid rgba(18,18,18,0.16);background:#fff;color:#111;padding:0.75rem 1rem;text-decoration:none}
@@ -363,6 +428,20 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node[data-builder-style-hover-scale]:hover,.site-builder-node[data-builder-style-hover-scale]:focus-visible{scale:var(--bn-hover-scale)!important}
 .site-builder-node[data-builder-style-hover-translate]:hover,.site-builder-node[data-builder-style-hover-translate]:focus-visible{translate:var(--bn-hover-translate)!important}
 .site-builder-node[data-builder-style-hover-opacity]:hover,.site-builder-node[data-builder-style-hover-opacity]:focus-visible{opacity:var(--bn-hover-opacity)!important}
+.site-builder-node[data-builder-style-focus-bg]:focus-visible{background-color:var(--bn-focus-bg)!important}
+.site-builder-node[data-builder-style-focus-color]:focus-visible{color:var(--bn-focus-color)!important}
+.site-builder-node[data-builder-style-focus-border-color]:focus-visible{border-color:var(--bn-focus-border-color)!important}
+.site-builder-node[data-builder-style-focus-shadow]:focus-visible{box-shadow:var(--bn-focus-shadow)!important}
+.site-builder-node[data-builder-style-focus-scale]:focus-visible{scale:var(--bn-focus-scale)!important}
+.site-builder-node[data-builder-style-focus-translate]:focus-visible{translate:var(--bn-focus-translate)!important}
+.site-builder-node[data-builder-style-focus-opacity]:focus-visible{opacity:var(--bn-focus-opacity)!important}
+.site-builder-node[data-builder-style-active-bg]:active{background-color:var(--bn-active-bg)!important}
+.site-builder-node[data-builder-style-active-color]:active{color:var(--bn-active-color)!important}
+.site-builder-node[data-builder-style-active-border-color]:active{border-color:var(--bn-active-border-color)!important}
+.site-builder-node[data-builder-style-active-shadow]:active{box-shadow:var(--bn-active-shadow)!important}
+.site-builder-node[data-builder-style-active-scale]:active{scale:var(--bn-active-scale)!important}
+.site-builder-node[data-builder-style-active-translate]:active{translate:var(--bn-active-translate)!important}
+.site-builder-node[data-builder-style-active-opacity]:active{opacity:var(--bn-active-opacity)!important}
 @media (max-width:900px){
   .site-builder-node[data-builder-style-tablet-align]{text-align:var(--bn-tablet-align)!important}
   .site-builder-node[data-builder-style-tablet-size="sm"]{font-size:clamp(0.9rem,1vw,1rem)!important}
@@ -434,6 +513,7 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-tablet-flex-basis]{flex-basis:var(--bn-tablet-flex-basis)!important}
   .site-builder-node[data-builder-style-tablet-grid-column]{grid-column:var(--bn-tablet-grid-column)!important}
   .site-builder-node[data-builder-style-tablet-grid-row]{grid-row:var(--bn-tablet-grid-row)!important}
+  .site-builder-node[data-builder-style-tablet-order]{order:var(--bn-tablet-order)!important}
   .site-builder-node[data-builder-style-tablet-filter]{filter:var(--bn-tablet-filter)!important}
   .site-builder-node[data-builder-style-tablet-backdrop-filter]{backdrop-filter:var(--bn-tablet-backdrop-filter)!important;-webkit-backdrop-filter:var(--bn-tablet-backdrop-filter)!important}
   .site-builder-node[data-builder-style-tablet-mix-blend-mode]{mix-blend-mode:var(--bn-tablet-mix-blend-mode)!important}
@@ -534,6 +614,7 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-flex-basis]{flex-basis:var(--bn-mobile-flex-basis)!important}
   .site-builder-node[data-builder-style-mobile-grid-column]{grid-column:var(--bn-mobile-grid-column)!important}
   .site-builder-node[data-builder-style-mobile-grid-row]{grid-row:var(--bn-mobile-grid-row)!important}
+  .site-builder-node[data-builder-style-mobile-order]{order:var(--bn-mobile-order)!important}
   .site-builder-node[data-builder-style-mobile-filter]{filter:var(--bn-mobile-filter)!important}
   .site-builder-node[data-builder-style-mobile-backdrop-filter]{backdrop-filter:var(--bn-mobile-backdrop-filter)!important;-webkit-backdrop-filter:var(--bn-mobile-backdrop-filter)!important}
   .site-builder-node[data-builder-style-mobile-mix-blend-mode]{mix-blend-mode:var(--bn-mobile-mix-blend-mode)!important}
@@ -570,6 +651,44 @@ const BUILDER_NODE_RENDERER_CSS = `
 ${BUILDER_NODE_CONTAINER_QUERY_CSS}
 ${BUILDER_NODE_NAV_CSS}
 `;
+
+/**
+ * Reveal-on-view runtime (2026-06-04). A tiny inline IntersectionObserver the
+ * published page injects ONCE when any node opts into `revealOnView`. It:
+ *   1. ARMS every `[data-bn-reveal]` node (`data-bn-reveal-armed`) — only after
+ *      arming does the sheet apply the hidden/offset pose, so a no-JS / no-IO
+ *      render shows the node at rest (no flash of hidden content, SEO-safe).
+ *   2. Observes each node and sets `data-bn-revealed` the first time ≥12% of it
+ *      enters the viewport, then unobserves it (reveal once, never replays).
+ * Skips entirely when IntersectionObserver is unavailable (leaves nodes at rest)
+ * and respects prefers-reduced-motion (reveals immediately, no transition — the
+ * sheet's reduced-motion guard forces the rest pose). Self-contained, no deps.
+ */
+const BUILDER_NODE_REVEAL_SCRIPT = `(function(){
+  try{
+    var nodes=document.querySelectorAll('[data-bn-reveal]');
+    if(!nodes.length)return;
+    var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if(reduce||typeof IntersectionObserver==='undefined'){
+      for(var i=0;i<nodes.length;i++)nodes[i].setAttribute('data-bn-revealed','');
+      return;
+    }
+    for(var j=0;j<nodes.length;j++)nodes[j].setAttribute('data-bn-reveal-armed','');
+    var io=new IntersectionObserver(function(entries){
+      for(var k=0;k<entries.length;k++){
+        var e=entries[k];
+        if(e.isIntersecting){
+          e.target.setAttribute('data-bn-revealed','');
+          io.unobserve(e.target);
+        }
+      }
+    },{threshold:0.12,rootMargin:'0px 0px -8% 0px'});
+    for(var m=0;m<nodes.length;m++)io.observe(nodes[m]);
+  }catch(err){
+    var f=document.querySelectorAll('[data-bn-reveal]');
+    for(var n=0;n<f.length;n++)f[n].setAttribute('data-bn-revealed','');
+  }
+})();`;
 
 function builderNodeStyleVars(
   vars: Record<string, string | number | undefined>,
@@ -685,6 +804,7 @@ const CONTAINER_QUERY_STYLE_ATTR_KEYS: ReadonlyArray<[
   ["flexBasis", "flex-basis"],
   ["gridColumn", "grid-column"],
   ["gridRow", "grid-row"],
+  ["order", "order"],
   ["filter", "filter"],
   ["backdropFilter", "backdrop-filter"],
   ["mixBlendMode", "mix-blend-mode"],
@@ -728,10 +848,18 @@ function builderNodeContainerQueryStyleAttrs(
   return attrs;
 }
 
-function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
+// Exported so the injected section_embed renderer can apply the SAME wrapper
+// style attrs/inline style to its wrapper <div> (section_embed restyle support).
+// render.tsx only imports the section-embed renderer's TYPE, so this value
+// export creates no runtime import cycle.
+export function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
   const tablet = style?.responsive?.tablet;
   const mobile = style?.responsive?.mobile;
-  const hasBaseTransition = Boolean(style?.hover) || hasTransitionLonghands(style);
+  const hasBaseTransition =
+    Boolean(style?.hover) ||
+    Boolean(style?.stateStyles?.focus) ||
+    Boolean(style?.stateStyles?.active) ||
+    hasTransitionLonghands(style);
   return {
     "data-builder-style-align": style?.align,
     "data-builder-style-size": style?.size,
@@ -745,6 +873,12 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-container-type": style?.containerType ? "" : undefined,
     "data-builder-style-container-name": style?.containerName ? "" : undefined,
     "data-builder-style-transition": hasBaseTransition ? "" : undefined,
+    // Reveal-on-view — the published-page IntersectionObserver targets this attr;
+    // the per-direction CSS + the distance/duration/delay/easing vars do the rest.
+    "data-bn-reveal":
+      style?.revealOnView && style.revealOnView !== "none"
+        ? style.revealOnView
+        : undefined,
     ...builderNodeContainerQueryStyleAttrs(
       "tablet",
       style?.containerQueries?.tablet,
@@ -827,6 +961,8 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-tablet-flex-basis": tablet?.flexBasis ? "" : undefined,
     "data-builder-style-tablet-grid-column": tablet?.gridColumn ? "" : undefined,
     "data-builder-style-tablet-grid-row": tablet?.gridRow ? "" : undefined,
+    "data-builder-style-tablet-order":
+      typeof tablet?.order === "number" ? "" : undefined,
     "data-builder-style-tablet-filter": tablet?.filter ? "" : undefined,
     "data-builder-style-tablet-backdrop-filter":
       tablet?.backdropFilter ? "" : undefined,
@@ -927,6 +1063,8 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-mobile-flex-basis": mobile?.flexBasis ? "" : undefined,
     "data-builder-style-mobile-grid-column": mobile?.gridColumn ? "" : undefined,
     "data-builder-style-mobile-grid-row": mobile?.gridRow ? "" : undefined,
+    "data-builder-style-mobile-order":
+      typeof mobile?.order === "number" ? "" : undefined,
     "data-builder-style-mobile-filter": mobile?.filter ? "" : undefined,
     "data-builder-style-mobile-backdrop-filter":
       mobile?.backdropFilter ? "" : undefined,
@@ -964,6 +1102,36 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-hover-translate": style?.hover?.translate ? "" : undefined,
     "data-builder-style-hover-opacity":
       typeof style?.hover?.opacity === "number" ? "" : undefined,
+    // Focus-visible state gates (Wave 3 · 3D — universal state editor).
+    "data-builder-style-focus-bg":
+      style?.stateStyles?.focus?.backgroundColor ? "" : undefined,
+    "data-builder-style-focus-color":
+      style?.stateStyles?.focus?.color ? "" : undefined,
+    "data-builder-style-focus-border-color":
+      style?.stateStyles?.focus?.borderColor ? "" : undefined,
+    "data-builder-style-focus-shadow":
+      style?.stateStyles?.focus?.boxShadow ? "" : undefined,
+    "data-builder-style-focus-scale":
+      style?.stateStyles?.focus?.scale ? "" : undefined,
+    "data-builder-style-focus-translate":
+      style?.stateStyles?.focus?.translate ? "" : undefined,
+    "data-builder-style-focus-opacity":
+      typeof style?.stateStyles?.focus?.opacity === "number" ? "" : undefined,
+    // Active state gates.
+    "data-builder-style-active-bg":
+      style?.stateStyles?.active?.backgroundColor ? "" : undefined,
+    "data-builder-style-active-color":
+      style?.stateStyles?.active?.color ? "" : undefined,
+    "data-builder-style-active-border-color":
+      style?.stateStyles?.active?.borderColor ? "" : undefined,
+    "data-builder-style-active-shadow":
+      style?.stateStyles?.active?.boxShadow ? "" : undefined,
+    "data-builder-style-active-scale":
+      style?.stateStyles?.active?.scale ? "" : undefined,
+    "data-builder-style-active-translate":
+      style?.stateStyles?.active?.translate ? "" : undefined,
+    "data-builder-style-active-opacity":
+      typeof style?.stateStyles?.active?.opacity === "number" ? "" : undefined,
   };
 }
 
@@ -980,6 +1148,15 @@ function styleBackground(
   if (background === "surface") return "rgba(246, 241, 232, 0.92)";
   if (background === "contrast") return "#111";
   return undefined;
+}
+
+// Token-binding resolution (Wave 3 · 3A). A color / font-family style value may
+// be a `token:<key>` sentinel that binds to a Theme design token; this maps it
+// to `var(--token-…, fallback)` so a live theme change cascades. A raw value
+// (hex / rgb / keyword / literal var()) is returned UNCHANGED, so existing trees
+// + the flagship are byte-identical. Applied at every color / font emit site.
+function styleToken(value: string | undefined): string | undefined {
+  return resolveStyleTokenRef(value) as string | undefined;
 }
 
 function containerQueryStyleVars(
@@ -1014,7 +1191,7 @@ function containerQueryStyleVars(
       ? NODE_ASPECT_RATIO[style.aspectRatio]
       : undefined,
     [`${prefix}-aspect-free`]: style?.aspectRatioFree,
-    [`${prefix}-font-family`]: style?.fontFamily,
+    [`${prefix}-font-family`]: styleToken(style?.fontFamily),
     [`${prefix}-font-size`]: style?.fontSize,
     [`${prefix}-font-weight`]: style?.fontWeight,
     [`${prefix}-line-height`]: style?.lineHeight,
@@ -1022,9 +1199,9 @@ function containerQueryStyleVars(
     [`${prefix}-text-transform`]: style?.textTransform,
     [`${prefix}-font-style`]: style?.fontStyle,
     [`${prefix}-text-decoration`]: style?.textDecoration,
-    [`${prefix}-text-color`]: style?.textColor,
-    [`${prefix}-bg-color`]: style?.backgroundColor,
-    [`${prefix}-border-color`]: style?.borderColor,
+    [`${prefix}-text-color`]: styleToken(style?.textColor),
+    [`${prefix}-bg-color`]: styleToken(style?.backgroundColor),
+    [`${prefix}-border-color`]: styleToken(style?.borderColor),
     [`${prefix}-border-width`]:
       style?.borderColor || style?.borderWidth || style?.borderStyle
         ? style?.borderWidth ?? base?.borderWidth ?? "1px"
@@ -1076,6 +1253,7 @@ function containerQueryStyleVars(
     [`${prefix}-flex-basis`]: style?.flexBasis,
     [`${prefix}-grid-column`]: style?.gridColumn,
     [`${prefix}-grid-row`]: style?.gridRow,
+    [`${prefix}-order`]: style?.order,
     [`${prefix}-filter`]: style?.filter,
     [`${prefix}-backdrop-filter`]: style?.backdropFilter,
     [`${prefix}-mix-blend-mode`]: style?.mixBlendMode,
@@ -1095,8 +1273,8 @@ function containerQueryStyleVars(
     [`${prefix}-scroll-snap-align`]: style?.scrollSnapAlign,
     [`${prefix}-outline`]: style?.outline,
     [`${prefix}-outline-offset`]: style?.outlineOffset,
-    [`${prefix}-accent-color`]: style?.accentColor,
-    [`${prefix}-caret-color`]: style?.caretColor,
+    [`${prefix}-accent-color`]: styleToken(style?.accentColor),
+    [`${prefix}-caret-color`]: styleToken(style?.caretColor),
   };
 }
 
@@ -1104,7 +1282,10 @@ function responsiveStyleVars(
   style: BuilderNodeStyle | undefined,
 ): CSSProperties {
   const hasBaseTransition =
-    Boolean(style?.hover) || hasTransitionLonghands(style);
+    Boolean(style?.hover) ||
+    Boolean(style?.stateStyles?.focus) ||
+    Boolean(style?.stateStyles?.active) ||
+    hasTransitionLonghands(style);
   return builderNodeStyleVars({
     "--bn-container-type": style?.containerType,
     "--bn-container-name": style?.containerName,
@@ -1180,7 +1361,7 @@ function responsiveStyleVars(
     // in sharedNodeStyle; these vars only render when the breakpoint value is set,
     // gated by the matching data-attr so an unset var never clobbers the desktop
     // value (an ungated !important rule would reset inherited props to the parent).
-    "--bn-tablet-font-family": style?.responsive?.tablet?.fontFamily,
+    "--bn-tablet-font-family": styleToken(style?.responsive?.tablet?.fontFamily),
     "--bn-tablet-font-size": style?.responsive?.tablet?.fontSize,
     "--bn-tablet-font-weight": style?.responsive?.tablet?.fontWeight,
     "--bn-tablet-line-height": style?.responsive?.tablet?.lineHeight,
@@ -1188,9 +1369,9 @@ function responsiveStyleVars(
     "--bn-tablet-text-transform": style?.responsive?.tablet?.textTransform,
     "--bn-tablet-font-style": style?.responsive?.tablet?.fontStyle,
     "--bn-tablet-text-decoration": style?.responsive?.tablet?.textDecoration,
-    "--bn-tablet-text-color": style?.responsive?.tablet?.textColor,
-    "--bn-tablet-bg-color": style?.responsive?.tablet?.backgroundColor,
-    "--bn-tablet-border-color": style?.responsive?.tablet?.borderColor,
+    "--bn-tablet-text-color": styleToken(style?.responsive?.tablet?.textColor),
+    "--bn-tablet-bg-color": styleToken(style?.responsive?.tablet?.backgroundColor),
+    "--bn-tablet-border-color": styleToken(style?.responsive?.tablet?.borderColor),
     "--bn-tablet-border-width":
       style?.responsive?.tablet?.borderColor ||
       style?.responsive?.tablet?.borderWidth ||
@@ -1203,7 +1384,7 @@ function responsiveStyleVars(
       style?.responsive?.tablet?.borderStyle
         ? style?.responsive?.tablet?.borderStyle ?? style?.borderStyle ?? "solid"
         : undefined,
-    "--bn-mobile-font-family": style?.responsive?.mobile?.fontFamily,
+    "--bn-mobile-font-family": styleToken(style?.responsive?.mobile?.fontFamily),
     "--bn-mobile-font-size": style?.responsive?.mobile?.fontSize,
     "--bn-mobile-font-weight": style?.responsive?.mobile?.fontWeight,
     "--bn-mobile-line-height": style?.responsive?.mobile?.lineHeight,
@@ -1211,9 +1392,9 @@ function responsiveStyleVars(
     "--bn-mobile-text-transform": style?.responsive?.mobile?.textTransform,
     "--bn-mobile-font-style": style?.responsive?.mobile?.fontStyle,
     "--bn-mobile-text-decoration": style?.responsive?.mobile?.textDecoration,
-    "--bn-mobile-text-color": style?.responsive?.mobile?.textColor,
-    "--bn-mobile-bg-color": style?.responsive?.mobile?.backgroundColor,
-    "--bn-mobile-border-color": style?.responsive?.mobile?.borderColor,
+    "--bn-mobile-text-color": styleToken(style?.responsive?.mobile?.textColor),
+    "--bn-mobile-bg-color": styleToken(style?.responsive?.mobile?.backgroundColor),
+    "--bn-mobile-border-color": styleToken(style?.responsive?.mobile?.borderColor),
     "--bn-mobile-border-width":
       style?.responsive?.mobile?.borderColor ||
       style?.responsive?.mobile?.borderWidth ||
@@ -1298,8 +1479,10 @@ function responsiveStyleVars(
     "--bn-mobile-flex-basis": style?.responsive?.mobile?.flexBasis,
     "--bn-tablet-grid-column": style?.responsive?.tablet?.gridColumn,
     "--bn-tablet-grid-row": style?.responsive?.tablet?.gridRow,
+    "--bn-tablet-order": style?.responsive?.tablet?.order,
     "--bn-mobile-grid-column": style?.responsive?.mobile?.gridColumn,
     "--bn-mobile-grid-row": style?.responsive?.mobile?.gridRow,
+    "--bn-mobile-order": style?.responsive?.mobile?.order,
     "--bn-tablet-filter": style?.responsive?.tablet?.filter,
     "--bn-tablet-backdrop-filter": style?.responsive?.tablet?.backdropFilter,
     "--bn-tablet-mix-blend-mode": style?.responsive?.tablet?.mixBlendMode,
@@ -1328,8 +1511,8 @@ function responsiveStyleVars(
     "--bn-tablet-scroll-snap-align": style?.responsive?.tablet?.scrollSnapAlign,
     "--bn-tablet-outline": style?.responsive?.tablet?.outline,
     "--bn-tablet-outline-offset": style?.responsive?.tablet?.outlineOffset,
-    "--bn-tablet-accent-color": style?.responsive?.tablet?.accentColor,
-    "--bn-tablet-caret-color": style?.responsive?.tablet?.caretColor,
+    "--bn-tablet-accent-color": styleToken(style?.responsive?.tablet?.accentColor),
+    "--bn-tablet-caret-color": styleToken(style?.responsive?.tablet?.caretColor),
     "--bn-tablet-transition-property":
       style?.responsive?.tablet?.transitionProperty,
     "--bn-tablet-transition-duration":
@@ -1347,8 +1530,8 @@ function responsiveStyleVars(
     "--bn-mobile-scroll-snap-align": style?.responsive?.mobile?.scrollSnapAlign,
     "--bn-mobile-outline": style?.responsive?.mobile?.outline,
     "--bn-mobile-outline-offset": style?.responsive?.mobile?.outlineOffset,
-    "--bn-mobile-accent-color": style?.responsive?.mobile?.accentColor,
-    "--bn-mobile-caret-color": style?.responsive?.mobile?.caretColor,
+    "--bn-mobile-accent-color": styleToken(style?.responsive?.mobile?.accentColor),
+    "--bn-mobile-caret-color": styleToken(style?.responsive?.mobile?.caretColor),
     "--bn-mobile-transition-property":
       style?.responsive?.mobile?.transitionProperty,
     "--bn-mobile-transition-duration":
@@ -1360,21 +1543,42 @@ function responsiveStyleVars(
     // when set; the matching data-builder-style-hover-* attr gates a :hover rule in
     // the static sheet so the override applies only while hovered/focused, and an
     // unset var never clobbers the resting value.
-    "--bn-hover-bg": style?.hover?.backgroundColor,
-    "--bn-hover-color": style?.hover?.color,
-    "--bn-hover-border-color": style?.hover?.borderColor,
+    "--bn-hover-bg": styleToken(style?.hover?.backgroundColor),
+    "--bn-hover-color": styleToken(style?.hover?.color),
+    "--bn-hover-border-color": styleToken(style?.hover?.borderColor),
     "--bn-hover-shadow": style?.hover?.boxShadow,
     "--bn-hover-scale": style?.hover?.scale,
     "--bn-hover-translate": style?.hover?.translate,
     "--bn-hover-opacity": style?.hover?.opacity,
+    // Wave 3 · 3D — universal state editor: focus-visible + active.
+    "--bn-focus-bg": styleToken(style?.stateStyles?.focus?.backgroundColor),
+    "--bn-focus-color": styleToken(style?.stateStyles?.focus?.color),
+    "--bn-focus-border-color": styleToken(style?.stateStyles?.focus?.borderColor),
+    "--bn-focus-shadow": style?.stateStyles?.focus?.boxShadow,
+    "--bn-focus-scale": style?.stateStyles?.focus?.scale,
+    "--bn-focus-translate": style?.stateStyles?.focus?.translate,
+    "--bn-focus-opacity": style?.stateStyles?.focus?.opacity,
+    "--bn-active-bg": styleToken(style?.stateStyles?.active?.backgroundColor),
+    "--bn-active-color": styleToken(style?.stateStyles?.active?.color),
+    "--bn-active-border-color": styleToken(style?.stateStyles?.active?.borderColor),
+    "--bn-active-shadow": style?.stateStyles?.active?.boxShadow,
+    "--bn-active-scale": style?.stateStyles?.active?.scale,
+    "--bn-active-translate": style?.stateStyles?.active?.translate,
+    "--bn-active-opacity": style?.stateStyles?.active?.opacity,
   });
 }
 
 // Map a friendly easing key to a CSS timing-function. "back" overshoots
 // slightly (a tasteful spring feel); "smooth" is the Material standard curve.
+// Wave 6B (#27): a free `custom` curve (cubic-bezier/steps/linear()) WINS over
+// the named enum when set, so an author can dial in an exact timing curve. The
+// custom string lands in an inline `animation` shorthand and is validated by the
+// CSSOM; undefined → the named easing path (byte-identical to before).
 function resolveAnimationEasing(
   easing: BuilderNodeStyle["animationEasing"],
+  custom?: string,
 ): string {
+  if (custom && custom.trim()) return custom.trim();
   switch (easing) {
     case "linear":
     case "ease-in":
@@ -1391,7 +1595,19 @@ function resolveAnimationEasing(
   }
 }
 
-function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
+// Wave 6B (#27) — named parallax intensity → the baked keyframe + drift amount.
+// The keyframe glides the node ±`amount` of the viewport as it passes through,
+// driven by `animation-timeline:view()` (the whole on-screen pass).
+const BUILDER_PARALLAX_KEYFRAME: Record<
+  Exclude<NonNullable<BuilderNodeStyle["parallax"]>, "none">,
+  string
+> = {
+  subtle: "bn-parallax-subtle",
+  medium: "bn-parallax-medium",
+  strong: "bn-parallax-strong",
+};
+
+export function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   if (!style) return {};
   const out: CSSProperties = {
     ...responsiveStyleVars(style),
@@ -1417,7 +1633,9 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   if (style.tone === "muted") out.color = "rgba(18, 18, 18, 0.62)";
   if (style.tone === "strong") out.color = "var(--token-color-ink,#111)";
   // Free-value escapes — applied last so they override the token presets above.
-  if (style.fontFamily) out.fontFamily = style.fontFamily;
+  // fontFamily may be a `token:typography.*-font-family` binding → resolved to
+  // the theme font var; a raw stack is emitted unchanged.
+  if (style.fontFamily) out.fontFamily = styleToken(style.fontFamily);
   if (style.fontSize) out.fontSize = style.fontSize;
   if (typeof style.fontWeight === "number") out.fontWeight = style.fontWeight;
   if (style.lineHeight) out.lineHeight = style.lineHeight;
@@ -1438,12 +1656,14 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
     out.WebkitBoxOrient = "vertical";
     out.overflow = "hidden";
   }
-  if (style.textColor) out.color = style.textColor;
-  if (style.backgroundColor) out.backgroundColor = style.backgroundColor;
+  // Color emits — a `token:<key>` value binds to a Theme token (resolved to its
+  // CSS var); a raw hex/rgb/keyword is emitted unchanged (flagship-identical).
+  if (style.textColor) out.color = styleToken(style.textColor);
+  if (style.backgroundColor) out.backgroundColor = styleToken(style.backgroundColor);
   if (style.borderColor || style.borderWidth || style.borderStyle) {
     out.borderStyle = style.borderStyle ?? "solid";
     out.borderWidth = style.borderWidth ?? "1px";
-    if (style.borderColor) out.borderColor = style.borderColor;
+    if (style.borderColor) out.borderColor = styleToken(style.borderColor);
   }
   // Free border-radius escape — applied after the radius token so an exact value
   // (or per-corner shorthand) wins over the preset.
@@ -1489,6 +1709,38 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
     out.backgroundPosition = style.backgroundPosition ?? "center";
     out.backgroundRepeat = style.backgroundRepeat ?? "no-repeat";
   }
+  // Layered background system (Wave 3 · 3C). Stacks multiple gradient / image /
+  // solid-color layers into a comma-joined background-image value with an
+  // optional background-blend-mode. Applied AFTER the scalar backgroundImage
+  // so it composes on top — a node with ONLY backgroundImage (the old path,
+  // used by the flagship) never reaches this branch and renders byte-identical.
+  if (style.backgroundLayers && style.backgroundLayers.length > 0) {
+    const layerCss = style.backgroundLayers.map((layer) => {
+      if (layer.type === "color") {
+        // Wrap a solid color in a gradient so it participates in the stack.
+        return `linear-gradient(${layer.value},${layer.value})`;
+      }
+      return layer.value; // gradient string or url(…) — already valid CSS
+    });
+    // Prepend to any existing backgroundImage so the layers paint on top.
+    const existing = out.backgroundImage as string | undefined;
+    out.backgroundImage = existing
+      ? [...layerCss, existing].join(",")
+      : layerCss.join(",");
+    // Paint axes: size=cover/pos=center/repeat=no-repeat per layer unless the
+    // free overrides are set. Comma-join repeats each value once per layer.
+    const count = layerCss.length + (existing ? 1 : 0);
+    const sizes = Array(count).fill(style.backgroundSize ?? "cover");
+    const positions = Array(count).fill(style.backgroundPosition ?? "center");
+    const repeats = Array(count).fill(style.backgroundRepeat ?? "no-repeat");
+    out.backgroundSize = sizes.join(",");
+    out.backgroundPosition = positions.join(",");
+    out.backgroundRepeat = repeats.join(",") as CSSProperties["backgroundRepeat"];
+  }
+  if (style.backgroundBlendMode) {
+    (out as Record<string, unknown>).backgroundBlendMode =
+      style.backgroundBlendMode;
+  }
   // Gradient/clipped text — paint the background through the text glyphs. Gated
   // on an actual background paint so we never blank the text, and bundled with
   // the -webkit- prefix + transparent text fill the technique requires. Set at
@@ -1513,6 +1765,19 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   if (style.right) out.right = style.right;
   if (style.bottom) out.bottom = style.bottom;
   if (style.left) out.left = style.left;
+  // Wave 6B (#23) — sticky pinning convenience. Setting stickyAnchor makes the
+  // node sticky and writes the inset on the anchored edge, but ONLY where the
+  // raw escapes above didn't already set a value (explicit position/top/bottom
+  // always win — so existing position:sticky+top trees are byte-identical, and
+  // a free escape can override the convenience). stickyOffset defaults to 0.
+  if (style.stickyAnchor) {
+    if (!style.position) out.position = "sticky";
+    const offset = style.stickyOffset && style.stickyOffset.trim()
+      ? style.stickyOffset.trim()
+      : "0px";
+    if (style.stickyAnchor === "top" && !style.top) out.top = offset;
+    if (style.stickyAnchor === "bottom" && !style.bottom) out.bottom = offset;
+  }
   // Stacking & clipping escapes — z-index orders overlapping nodes (0 is a
   // valid value, so test the type); overflow clips/scrolls the node's box.
   if (typeof style.zIndex === "number") out.zIndex = style.zIndex;
@@ -1536,6 +1801,9 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   // Grid child placement — span/line position in a grid parent. No-op elsewhere.
   if (style.gridColumn) out.gridColumn = style.gridColumn;
   if (style.gridRow) out.gridRow = style.gridRow;
+  // Flex/grid child order — reposition among siblings without moving in the DOM
+  // (0 is a valid order, so test the type). No-op outside a flex/grid parent.
+  if (typeof style.order === "number") out.order = style.order;
   // Flex/grid container layout — distribute this node's OWN children on the main
   // axis (justifyContent) / cross axis (alignItems) and control row wrapping.
   // Applied inline so a free value wins over the container's structured align /
@@ -1582,8 +1850,8 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   if (style.scrollSnapAlign) out.scrollSnapAlign = style.scrollSnapAlign;
   if (style.outline) out.outline = style.outline;
   if (style.outlineOffset) out.outlineOffset = style.outlineOffset;
-  if (style.accentColor) out.accentColor = style.accentColor;
-  if (style.caretColor) out.caretColor = style.caretColor;
+  if (style.accentColor) out.accentColor = styleToken(style.accentColor);
+  if (style.caretColor) out.caretColor = styleToken(style.caretColor);
   // Entrance animation — fires on the PUBLISHED page only (the edit canvas uses
   // a separate renderer, so the inspector won't re-animate on every keystroke).
   // Maps a friendly preset to a named @keyframe in the static sheet; `both`
@@ -1591,7 +1859,10 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   if (style.animationPreset && style.animationPreset !== "none") {
     const duration = style.animationDuration || "0.6s";
     const delay = style.animationDelay || "0s";
-    const easing = resolveAnimationEasing(style.animationEasing);
+    const easing = resolveAnimationEasing(
+      style.animationEasing,
+      style.animationEasingCustom,
+    );
     out.animation = `bn-anim-${style.animationPreset} ${duration} ${easing} ${delay} both`;
     if (style.animationTrigger === "scroll") {
       // CSS scroll-driven animation — progress maps to the node entering the
@@ -1600,6 +1871,33 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
       const record = out as Record<string, unknown>;
       record.animationTimeline = "view()";
       record.animationRange = "entry 0% cover 35%";
+    }
+  }
+  // Wave 6B (#27) — scroll parallax. Persistent scroll-driven drift, independent
+  // of the entrance preset. When BOTH are set, parallax wins the single
+  // `animation` slot (entrance is the one-shot intro; parallax is what the
+  // visitor keeps seeing as they scroll). Driven by `animation-timeline:view()`
+  // over the node's full on-screen pass, linear so the drift tracks scroll 1:1.
+  // The baked keyframe lives in the static sheet; the reduced-motion guard there
+  // ([style*="animation"]) disables it for visitors who asked for less motion.
+  if (style.parallax && style.parallax !== "none") {
+    const record = out as Record<string, unknown>;
+    record.animation = `${BUILDER_PARALLAX_KEYFRAME[style.parallax]} linear both`;
+    record.animationTimeline = "view()";
+    record.animationRange = "cover 0% cover 100%";
+  }
+  // Reveal-on-view (2026-06-04) — IntersectionObserver-driven entry. The
+  // direction is carried by the `data-bn-reveal` attribute (see
+  // builderNodeStyleAttrs); here we publish the tuning vars the sheet reads. The
+  // hidden/offset pose only applies once the inline script arms the node, so a
+  // no-JS render shows it at rest (no flash of hidden content).
+  if (style.revealOnView && style.revealOnView !== "none") {
+    const record = out as Record<string, unknown>;
+    if (style.revealDistance) record["--bn-reveal-distance"] = style.revealDistance;
+    if (style.revealDuration) record["--bn-reveal-duration"] = style.revealDuration;
+    if (style.revealDelay) record["--bn-reveal-delay"] = style.revealDelay;
+    if (style.revealEasing) {
+      record["--bn-reveal-easing"] = resolveAnimationEasing(style.revealEasing);
     }
   }
   // Visibility — a desktop-level "hidden" removes the node everywhere (the
@@ -1627,7 +1925,7 @@ function renderChildren(
   options: NormalizedBuilderNodeRenderOptions,
 ): ReactNode {
   return node.children
-    .filter((child) => shouldRenderNode(child, options.mode))
+    .filter((child) => shouldRenderNode(child, options))
     .map((child) => renderBuilderNode(child, options));
 }
 
@@ -1635,7 +1933,7 @@ function renderRepeatContainerChildren(
   node: Extract<BuilderNode, { kind: "container" }>,
   options: NormalizedBuilderNodeRenderOptions,
 ): ReactNode | null {
-  const template = node.children.find((child) => shouldRenderNode(child, options.mode));
+  const template = node.children.find((child) => shouldRenderNode(child, options));
   if (!template) return renderChildren(node, options);
   const binding = getBuilderNodeDataBinding(node);
   const records = binding
@@ -1686,9 +1984,9 @@ function collectionRecordsForSource(
 
 function profileHrefForRepeat(card: FeaturedTalentCardDTO): string {
   const code = encodeURIComponent(card.profileCode);
-  return card.slugPart
-    ? `/t/${code}-${encodeURIComponent(card.slugPart)}`
-    : `/t/${code}`;
+  // The /t/ route resolves by EXACT profile_code; a `-<slug>` suffix 404s
+  // (and slugPart can equal the code, doubling it). Link by code only.
+  return `/t/${code}`;
 }
 
 function materializeRepeatTemplateIds(node: BuilderNode, namespace: string): BuilderNode {
@@ -1732,7 +2030,7 @@ function renderDataBoundContainerChildren(
     const resolved = resolveInstanceChildren(node, options.components);
     if (resolved) {
       return resolved
-        .filter((child) => shouldRenderNode(child, options.mode))
+        .filter((child) => shouldRenderNode(child, options))
         .map((child) => renderBuilderNode(child, options));
     }
   }
@@ -1764,7 +2062,7 @@ function renderFeaturedTalentChildren(
 
   const editableIntroChildren = node.children
     .slice(0, 2)
-    .filter((child) => shouldRenderNode(child, options.mode));
+    .filter((child) => shouldRenderNode(child, options));
 
   return (
     <>
@@ -1800,10 +2098,10 @@ function renderTalentLocationChildren(
 
   const introChildren = node.children
     .slice(0, 2)
-    .filter((child) => shouldRenderNode(child, options.mode));
+    .filter((child) => shouldRenderNode(child, options));
   const mapPlaceholder = node.children
     .slice(3)
-    .filter((child) => shouldRenderNode(child, options.mode));
+    .filter((child) => shouldRenderNode(child, options));
 
   return (
     <>
@@ -1840,7 +2138,7 @@ function renderDirectorySearchChildren(
 
   const introChildren = node.children
     .slice(0, 2)
-    .filter((child) => shouldRenderNode(child, options.mode));
+    .filter((child) => shouldRenderNode(child, options));
 
   return (
     <>
@@ -1875,10 +2173,17 @@ function renderDirectorySearchChildren(
 
 function shouldRenderNode(
   node: BuilderNode,
-  mode: NormalizedBuilderNodeRenderOptions["mode"],
+  options: Pick<NormalizedBuilderNodeRenderOptions, "mode" | "visibilityContext">,
 ): boolean {
   if (node.kind === "section") return false;
-  if (mode === "freeform" && resolveBuilderNodeRole(node.id)) return false;
+  if (options.mode === "freeform" && resolveBuilderNodeRole(node.id)) return false;
+  // Wave 5B · #38 — OPTIONAL conditional visibility. Evaluated server-side at
+  // this single choke point so a hidden node is OMITTED (no DOM, no flash).
+  // No condition → always shown (back-compat); a signal the context lacks
+  // passes (never hides on a missing signal).
+  if (!evaluateBuilderNodeVisibility(node, options.visibilityContext)) {
+    return false;
+  }
   return true;
 }
 
@@ -2014,13 +2319,99 @@ function isSafeBuilderImageSrc(value: string | null | undefined): value is strin
   }
 }
 
-function renderBuilderNode(
+// ── P4-IMAGEOPT: responsive image pipeline for the freeform renderer ──────────
+// render.tsx emits static HTML, so we can't drop a next/image React component in.
+// Instead we keep the raw <img src> (validated above, and the universal fallback
+// for old browsers / data URIs) and ADD a srcset that routes through the Next
+// image optimizer (/_next/image) — which serves AVIF/WebP (next.config formats)
+// and downscaled widths. Only same-origin paths + hosts present in next.config
+// images.remotePatterns are optimized; anything else stays a plain <img> so the
+// optimizer never 400s (which would spam the console). Disable with
+// BUILDER_IMAGE_OPT=off.
+const BUILDER_IMAGE_OPT_ENABLED = process.env.BUILDER_IMAGE_OPT !== "off";
+const BUILDER_IMAGE_WIDTHS = [640, 828, 1200, 1920] as const;
+const OPTIMIZABLE_IMAGE_HOSTS: ReadonlySet<string> = new Set(
+  [
+    (() => {
+      try {
+        return process.env.NEXT_PUBLIC_SUPABASE_URL
+          ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname
+          : null;
+      } catch {
+        return null;
+      }
+    })(),
+    "images.unsplash.com",
+    "i.pravatar.cc",
+  ].filter((host): host is string => Boolean(host)),
+);
+
+function builderImageSrcSet(
+  src: string,
+): { srcSet: string; sizes: string } | null {
+  if (!BUILDER_IMAGE_OPT_ENABLED || !src || src.startsWith("data:")) return null;
+  let optimizable = false;
+  if (src.startsWith("/") && !src.startsWith("//")) {
+    optimizable = true; // same-origin / /public asset
+  } else {
+    try {
+      const url = new URL(src);
+      optimizable =
+        (url.protocol === "https:" || url.protocol === "http:") &&
+        OPTIMIZABLE_IMAGE_HOSTS.has(url.hostname);
+    } catch {
+      return null;
+    }
+  }
+  if (!optimizable) return null;
+  const srcSet = BUILDER_IMAGE_WIDTHS.map(
+    (w) => `/_next/image?url=${encodeURIComponent(src)}&w=${w}&q=75 ${w}w`,
+  ).join(", ");
+  // Builder images are width:100% of a variable container; full-width on phones,
+  // ~half on desktop is a safe default that never under-loads.
+  return { srcSet, sizes: "(max-width: 768px) 100vw, 50vw" };
+}
+
+/**
+ * Wave 3 · 3B — resolve a node's LINKED STYLE CLASS before rendering. When the
+ * node's `style.classRef` names a class in the registry, return a shallow copy
+ * whose `props.style` is the class style merged BENEATH the node's own props
+ * (classRef stripped). No classRef / unknown class / no registry → the node is
+ * returned by IDENTITY, so existing trees + the flagship stay byte-identical.
+ * Applied at the single per-node entry so every downstream `node.props.style`
+ * read (~80 emit sites) transparently sees the merged style.
+ */
+function applyStyleClass(
   node: BuilderNode,
+  classes: BuilderStyleClassRegistry,
+): BuilderNode {
+  if (!("props" in node)) return node;
+  const style = (node.props as { style?: BuilderNodeStyle }).style;
+  if (!style?.classRef) return node;
+  const resolved = resolveNodeStyleWithClass(style, classes);
+  if (resolved === style) return node;
+  return {
+    ...node,
+    props: { ...(node.props as Record<string, unknown>), style: resolved },
+  } as BuilderNode;
+}
+
+function renderBuilderNode(
+  rawNode: BuilderNode,
   options: NormalizedBuilderNodeRenderOptions,
 ): ReactNode {
+  const node = applyStyleClass(rawNode, options.styleClasses);
   switch (node.kind) {
     case "section":
       return null;
+    case "section_embed":
+      // Tulala component — delegate to the injected renderer (supplied by the
+      // server caller, which owns the section registry + tenant context). When
+      // no renderer is injected (lighter contexts), render nothing rather than
+      // pulling the section registry into this module's bundle.
+      return options.renderSectionEmbed
+        ? options.renderSectionEmbed(node)
+        : null;
     case "container":
       return (
         <div
@@ -2151,7 +2542,7 @@ function renderBuilderNode(
       );
     case "carousel": {
       const carouselItems = node.children
-        .filter((child) => shouldRenderNode(child, options.mode))
+        .filter((child) => shouldRenderNode(child, options))
         .map((child, index) => (
           <div
             key={`${node.id}:slide:${child.id}`}
@@ -2340,6 +2731,7 @@ function renderBuilderNode(
         options.repeatItem,
       ).value;
       if (!src || !isSafeBuilderImageSrc(src)) return null;
+      const imageOpt = builderImageSrcSet(src);
       return (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -2350,8 +2742,12 @@ function renderBuilderNode(
           {...builderNodeStyleAttrs(node.props.style)}
           className="site-builder-node site-builder-node--image"
           src={src}
+          {...(imageOpt
+            ? { srcSet: imageOpt.srcSet, sizes: imageOpt.sizes }
+            : {})}
           alt={alt}
           loading="lazy"
+          decoding="async"
           style={{
             display: "block",
             width: "100%",
@@ -2610,6 +3006,100 @@ function renderBuilderNode(
           style={{ height: SPACER_BY_SIZE[node.props.size], ...sharedNodeStyle(node.props.style) }}
         />
       );
+    case "form": {
+      const formProps = node.props;
+      const fields = formProps.fields ?? [];
+      const honeypotName = formProps.honeypotName?.trim() || "website";
+      const isInternal =
+        !formProps.action || formProps.action.trim().toLowerCase() === "internal";
+      // Internal submissions hit the existing endpoint, which reads FormData and
+      // requires `__tulala_section` to be a real cms_sections row id. When that
+      // id is missing we still render the form, but point the action at the
+      // endpoint so authoring stays unblocked (the endpoint 400s a blank section
+      // — the inspector warns the operator to set one).
+      const action = isInternal
+        ? prefixPublicHref("/api/cms/forms/submit", options.publicPathPrefix)
+        : formProps.action!.trim();
+      return (
+        <form
+          key={node.id}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          {...builderNodeStyleAttrs(formProps.style)}
+          className="site-builder-node site-builder-node--form"
+          method="post"
+          action={action}
+          style={{
+            display: "grid",
+            gap: GAP_BY_SIZE.m,
+            ...sharedNodeStyle(formProps.style),
+            ...alignSelfStyle(formProps.style),
+          }}
+        >
+          {isInternal && formProps.sectionId ? (
+            <input type="hidden" name="__tulala_section" value={formProps.sectionId} />
+          ) : null}
+          {isInternal ? (
+            <input type="hidden" name="__tulala_honeypot" value={honeypotName} />
+          ) : null}
+          {/* Honeypot — visually hidden, off the tab order. A real visitor never
+              fills it; a bot that does gets the submission flagged as spam. */}
+          <div
+            aria-hidden="true"
+            style={{ position: "absolute", left: "-9999px", width: 1, height: 1, overflow: "hidden" }}
+          >
+            <label>
+              Leave this field empty
+              <input
+                type="text"
+                name={honeypotName}
+                tabIndex={-1}
+                autoComplete="off"
+              />
+            </label>
+          </div>
+          {fields.map((field) => {
+            const fieldId = `${node.id}-${field.id}`;
+            if (field.type === "submit") {
+              return (
+                <button
+                  key={field.id}
+                  type="submit"
+                  className="site-builder-node site-builder-node--button site-builder-node--button-primary"
+                >
+                  {field.label}
+                </button>
+              );
+            }
+            return (
+              <div key={field.id} style={{ display: "grid", gap: "0.35rem" }}>
+                <label htmlFor={fieldId} style={{ fontWeight: 600, fontSize: "0.9rem" }}>
+                  {field.label}
+                  {field.required ? <span aria-hidden="true"> *</span> : null}
+                </label>
+                {field.type === "textarea" ? (
+                  <textarea
+                    id={fieldId}
+                    name={field.name}
+                    placeholder={field.placeholder}
+                    required={field.required ?? false}
+                    rows={4}
+                  />
+                ) : (
+                  <input
+                    id={fieldId}
+                    name={field.name}
+                    type={field.type}
+                    placeholder={field.placeholder}
+                    required={field.required ?? false}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </form>
+      );
+    }
     case "nav": {
       const navProps = node.props;
       const collapseAt = navProps.collapseAt ?? "mobile";
@@ -2674,6 +3164,35 @@ function renderBuilderNode(
   }
 }
 
+/**
+ * Memoized per-node boundary (Sub-step A of the client-render refactor).
+ *
+ * This is a PURE restructure for memoization — it renders EXACTLY what
+ * `renderBuilderNode(node, options)` returns, with no wrapper element, so the
+ * emitted DOM (`data-*` attributes, nesting, React keys) is byte-identical to
+ * the un-memoized path. A component's returned root element keeps its own
+ * `key={node.id}`; the `key` placed on `<BuilderNodeView>` drives React list
+ * reconciliation, which `node.id` already did before. SSR output is unchanged
+ * because `memo` is transparent to `renderToStaticMarkup`.
+ *
+ * The comparator skips re-render only when BOTH the node reference and the
+ * single shared `options` reference are unchanged — so any edit that produces a
+ * new node (immutable tree updates) repaints exactly that node's subtree.
+ */
+const BuilderNodeView = memo(
+  function BuilderNodeView({
+    node,
+    options,
+  }: {
+    node: BuilderNode;
+    options: NormalizedBuilderNodeRenderOptions;
+  }): ReactNode {
+    return renderBuilderNode(node, options);
+  },
+  (prev, next) =>
+    Object.is(prev.node, next.node) && Object.is(prev.options, next.options),
+);
+
 export function renderBuilderNodes(
   nodes: ReadonlyArray<BuilderNode>,
   options: BuilderNodeRenderOptions = {},
@@ -2685,12 +3204,17 @@ export function renderBuilderNodes(
     includeRendererStyles: options.includeRendererStyles ?? true,
     includeFontLinks: options.includeFontLinks ?? true,
     components: options.components ?? {},
+    styleClasses: options.styleClasses ?? {},
+    visibilityContext: options.visibilityContext,
+    renderSectionEmbed: options.renderSectionEmbed ?? null,
     repeatItem: null,
     repeatDepth: 0,
   };
   const renderedNodes = nodes
-    .filter((node) => shouldRenderNode(node, normalizedOptions.mode))
-    .map((node) => renderBuilderNode(node, normalizedOptions));
+    .filter((node) => shouldRenderNode(node, normalizedOptions))
+    .map((node) => (
+      <BuilderNodeView key={node.id} node={node} options={normalizedOptions} />
+    ));
   if (renderedNodes.length === 0) return null;
   const fontLinks = normalizedOptions.includeFontLinks ? (
     <BuilderNodeFontLinks
@@ -2704,9 +3228,53 @@ export function renderBuilderNodes(
     normalizedOptions.includeRendererStyles ? (
       <BuilderNodeRendererStyles key="site-builder-node-styles" />
     ) : null,
+    // Reveal-on-view runtime — only when the sheet is included AND some node
+    // opts in, so pages without a reveal interaction stay byte-identical.
+    normalizedOptions.includeRendererStyles && hasRevealOnViewNode(nodes) ? (
+      <BuilderNodeRevealRuntime key="site-builder-node-reveal" />
+    ) : null,
   ].filter(Boolean);
   if (headNodes.length === 0) return renderedNodes;
   return [...headNodes, ...renderedNodes];
+}
+
+/**
+ * True when any node in the tree opts into the reveal-on-view interaction. Used
+ * to gate the inline IntersectionObserver runtime so non-reveal pages emit no
+ * extra script (back-compat / byte-stability). Walks every node-style carrier —
+ * the node's own `style` plus the breakpoint layers — since a reveal can be set
+ * per-viewport.
+ */
+function hasRevealOnViewNode(nodes: ReadonlyArray<BuilderNode>): boolean {
+  const styleReveals = (style: BuilderNodeStyle | undefined): boolean => {
+    if (!style) return false;
+    if (style.revealOnView && style.revealOnView !== "none") return true;
+    const t = style.responsive?.tablet?.revealOnView;
+    const m = style.responsive?.mobile?.revealOnView;
+    return (
+      (t !== undefined && t !== "none") || (m !== undefined && m !== "none")
+    );
+  };
+  const visit = (node: BuilderNode): boolean => {
+    const style = "props" in node ? (node.props as { style?: BuilderNodeStyle }).style : undefined;
+    if (styleReveals(style)) return true;
+    if ("children" in node && Array.isArray(node.children)) {
+      for (const child of node.children) {
+        if (visit(child)) return true;
+      }
+    }
+    return false;
+  };
+  return nodes.some(visit);
+}
+
+export function BuilderNodeRevealRuntime(): ReactNode {
+  return (
+    <script
+      data-builder-node-reveal-runtime=""
+      dangerouslySetInnerHTML={{ __html: BUILDER_NODE_REVEAL_SCRIPT }}
+    />
+  );
 }
 
 export function collectBuilderImageMediaIds(
@@ -2759,8 +3327,12 @@ export function hasRenderableBuilderNodes(
   options: Pick<BuilderNodeRenderOptions, "mode"> = {},
 ): boolean {
   const mode = options.mode ?? "freeform";
+  // Structural check only — no per-request visibility context here, so an
+  // undefined context makes the visibility rule a no-op (everything counts).
   return nodes.some((node) => {
-    if (!shouldRenderNode(node, mode)) return false;
+    if (!shouldRenderNode(node, { mode, visibilityContext: undefined })) {
+      return false;
+    }
     if (hasRenderableChildren(node)) {
       return true;
     }

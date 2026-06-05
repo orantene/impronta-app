@@ -232,8 +232,79 @@ export function getBuilderDataSourceDefinition(
   sourceKey: string | null | undefined,
 ): BuilderDataSourceDefinition | null {
   if (!sourceKey) return null;
+  if (isCollectionDataSourceKey(sourceKey)) {
+    return collectionDataSourceDefinition(sourceKey);
+  }
   const normalizedSourceKey = normalizeDataSourceKey(sourceKey);
   return BUILDER_DATA_SOURCE_REGISTRY.find((source) => source.key === normalizedSourceKey) ?? null;
+}
+
+// ── operator-defined collections as a bindable source (Wave 5A, #36) ─────────
+// A user collection is addressed by the opaque sourceKey `collection:<id>`. The
+// renderer already resolves `dataSources.collections[sourceKey]` FIRST in
+// `collectionRecordsForSource`, so a collection source flows through the repeat
+// path with no renderer change — this layer just makes the binding model +
+// inspector + findings RECOGNIZE the `collection:` form (so it is not flagged
+// "unknown source") and lets the inspector surface friendly labels + fields for
+// the workspace's actual collections via {@link BuilderCollectionDataSource}.
+
+export const BUILDER_COLLECTION_SOURCE_PREFIX = "collection:";
+
+/** A workspace collection projected into the data-source picker. */
+export interface BuilderCollectionDataSource {
+  /** The opaque sourceKey, e.g. "collection:9f3…". */
+  sourceKey: string;
+  /** Collection display name, e.g. "Team". */
+  label: string;
+  /** The collection's field schema, surfaced as bindable fields. */
+  fields: ReadonlyArray<BuilderDataSourceFieldDefinition>;
+  /** Number of content rows (for the inspector summary). */
+  itemCount?: number;
+}
+
+export function isCollectionDataSourceKey(
+  sourceKey: string | null | undefined,
+): boolean {
+  return (
+    typeof sourceKey === "string" &&
+    sourceKey.startsWith(BUILDER_COLLECTION_SOURCE_PREFIX) &&
+    sourceKey.length > BUILDER_COLLECTION_SOURCE_PREFIX.length
+  );
+}
+
+/**
+ * Synthetic data-source definition for a `collection:<id>` sourceKey. When the
+ * matching {@link BuilderCollectionDataSource} is supplied (the inspector has
+ * the workspace's collections loaded) its name + fields are used; otherwise a
+ * generic, still-valid definition is returned so a saved binding to a
+ * not-yet-loaded collection never reads as an error.
+ */
+export function collectionDataSourceDefinition(
+  sourceKey: string,
+  collection?: BuilderCollectionDataSource | null,
+): BuilderDataSourceDefinition {
+  return {
+    key: sourceKey as BuilderDataSourceKey,
+    label: collection?.label ?? "Collection",
+    description: collection
+      ? `Your "${collection.label}" collection (${collection.itemCount ?? 0} item${
+          (collection.itemCount ?? 0) === 1 ? "" : "s"
+        }).`
+      : "An operator-defined content collection.",
+    examples: [],
+    fields: collection?.fields?.length ? collection.fields : GENERIC_FIELDS,
+    recommendedMaxItems: undefined,
+    supportsManualSelection: false,
+    supportsFiltering: true,
+    requiredPlan: "free",
+  };
+}
+
+/** Field-binding options for a specific collection source (its own fields). */
+export function getCollectionFieldBindingOptions(
+  collection: BuilderCollectionDataSource | null | undefined,
+): ReadonlyArray<BuilderDataSourceFieldDefinition> {
+  return collection?.fields?.length ? collection.fields : GENERIC_FIELDS;
 }
 
 function normalizeDataSourceKey(sourceKey: string): string {
@@ -580,6 +651,28 @@ function normalizeBindingMode(raw: unknown): BuilderDataBindingMode | undefined 
   // Backward compatibility: old snapshots used "auto".
   if (raw === "auto") return "bound";
   return undefined;
+}
+
+/**
+ * Collect every distinct `collection:<id>` sourceKey referenced by a
+ * repeater binding anywhere in a tree. The render data-source loader uses this
+ * to fetch only the collections a page actually binds (Wave 5A, #36).
+ */
+export function collectBuilderCollectionSourceKeys(
+  tree: ReadonlyArray<BuilderNode>,
+): string[] {
+  const keys = new Set<string>();
+  const visit = (node: BuilderNode) => {
+    const binding = getBuilderNodeDataBinding(node);
+    if (binding && isCollectionDataSourceKey(binding.sourceKey)) {
+      keys.add(binding.sourceKey);
+    }
+    if ("children" in node && Array.isArray(node.children)) {
+      for (const child of node.children) visit(child);
+    }
+  };
+  for (const node of tree) visit(node);
+  return [...keys];
 }
 
 export function collectBuilderDataBindingTreeFindings(

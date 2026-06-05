@@ -1,8 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { DrawerShell, AsyncButton } from "@/components/admin/shell/internal/primitives";
+import {
+  clearConnectionFeedbackParams,
+  readConnectionFeedback,
+} from "@/lib/connection-oauth/connection-feedback";
 import { COLORS, FONTS, RADIUS } from "@/components/admin/shell/internal/state";
 import {
   clearIntegrationSecret,
@@ -10,6 +14,7 @@ import {
   saveIntegrationConfig,
   saveIntegrationSecret,
   setIntegrationMode,
+  setWorkspaceYouTubePublic,
   type IntegrationView,
 } from "@/app/(workspace)/[tenantSlug]/admin/settings/integration-actions";
 
@@ -60,6 +65,31 @@ export function IntegrationConfigDrawer({
   );
   const usingInheritedDefault =
     integration.inheritable && integration.credentialMode === "inherit";
+  const isYouTube = integration.key === "youtube";
+  const canOAuthConnect =
+    canManage && integration.connection === "oauth" && isYouTube;
+
+  // Privacy control: whether the verified/connected workspace YouTube channel is
+  // mirrored onto the public site (header/footer). DEFAULT OFF — connecting and
+  // publishing are decoupled. Reflects config_json.show_on_public_site.
+  const youtubeShowOnSite = integration.config.show_on_public_site === true;
+  const youtubeHasProfileUrl =
+    typeof integration.config.profile_url === "string" &&
+    (integration.config.profile_url as string).trim().length > 0;
+
+  // Surface the OAuth round-trip result the callback redirected back with
+  // (?connection_error=... / ?connection=...). Without this the "Connect with
+  // Google" button looks dead — especially in the OAuth-dormant state where
+  // missing creds redirect back with ?connection_error=oauth_setup. Only the
+  // OAuth integration drawer consumes the param.
+  useEffect(() => {
+    if (!canOAuthConnect) return;
+    const result = readConnectionFeedback(window.location.search);
+    if (result) {
+      setFeedback(result);
+      clearConnectionFeedbackParams();
+    }
+  }, [canOAuthConnect]);
 
   const setValue = (name: string, v: string) => {
     setValues((prev) => ({ ...prev, [name]: v }));
@@ -148,6 +178,31 @@ export function IntegrationConfigDrawer({
       throw new Error(res.error);
     }
     setFeedback({ tone: "success", message: "Disconnected." });
+    onChanged();
+  };
+
+  const handleOAuthConnect = async () => {
+    const url = new URL("/api/connections/oauth/start", window.location.origin);
+    url.searchParams.set("owner", "workspace");
+    url.searchParams.set("provider", "youtube");
+    url.searchParams.set("tenantSlug", tenantSlug);
+    url.searchParams.set("returnTo", window.location.pathname + window.location.search);
+    window.location.assign(url.toString());
+  };
+
+  const handleToggleYouTubePublic = async (next: boolean) => {
+    setFeedback(null);
+    const res = await setWorkspaceYouTubePublic(tenantSlug, next);
+    if (!res.ok) {
+      setFeedback({ tone: "error", message: res.error });
+      throw new Error(res.error);
+    }
+    setFeedback({
+      tone: "success",
+      message: next
+        ? "The verified channel now shows on your public site."
+        : "Hidden from your public site. The connection stays verified.",
+    });
     onChanged();
   };
 
@@ -242,6 +297,84 @@ export function IntegrationConfigDrawer({
                 </li>
               ))}
             </ol>
+          </div>
+        )}
+
+        {integration.connection === "oauth" && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 14,
+              padding: "14px",
+              borderRadius: RADIUS.md,
+              border: `1px solid ${COLORS.borderSoft}`,
+              background: "#fff",
+            }}
+          >
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: COLORS.ink }}>
+                Verify ownership
+              </div>
+              <div style={{ marginTop: 3, fontSize: 12, lineHeight: 1.45, color: COLORS.inkMuted }}>
+                We store the public channel label and encrypted OAuth tokens. The verified
+                channel is used for workspace trust and public-site social links.
+              </div>
+            </div>
+            <AsyncButton
+              variant="secondary"
+              disabled={!canOAuthConnect}
+              onClick={handleOAuthConnect}
+              pendingLabel="Opening…"
+              style={{ flexShrink: 0 }}
+            >
+              Connect with Google
+            </AsyncButton>
+          </div>
+        )}
+
+        {/* Show on public site — privacy control. Only the workspace YouTube
+            integration mirrors into the public-site identity, so the toggle is
+            scoped to it. Connecting/verifying is separate from publishing. */}
+        {isYouTube && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 14,
+              padding: "14px",
+              borderRadius: RADIUS.md,
+              border: `1px solid ${COLORS.borderSoft}`,
+              background: "#fff",
+            }}
+          >
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: COLORS.ink }}>
+                Show on public site
+              </div>
+              <div style={{ marginTop: 3, fontSize: 12, lineHeight: 1.45, color: COLORS.inkMuted }}>
+                {youtubeShowOnSite
+                  ? "Your verified channel link appears in the public site header and footer."
+                  : "Off by default. The connection stays verified; turn this on to display the channel publicly."}
+              </div>
+            </div>
+            {canManage ? (
+              <AsyncButton
+                variant="secondary"
+                disabled={!youtubeHasProfileUrl && !youtubeShowOnSite}
+                onClick={() => handleToggleYouTubePublic(!youtubeShowOnSite)}
+                pendingLabel="Saving…"
+                style={{ flexShrink: 0 }}
+              >
+                {youtubeShowOnSite ? "Hide" : "Show"}
+              </AsyncButton>
+            ) : (
+              <span style={{ fontSize: 12, color: COLORS.inkMuted, flexShrink: 0 }}>
+                {youtubeShowOnSite ? "Shown" : "Hidden"}
+              </span>
+            )}
           </div>
         )}
 

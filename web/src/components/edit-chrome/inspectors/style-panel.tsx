@@ -39,9 +39,10 @@ import type {
 } from "@/lib/site-admin/sections/shared/node-presentation";
 import { resolveStandaloneBuilderNodeForContent } from "./builder-node-content-utils";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 
-import { ColorPickerPopover } from "../kit/color-picker";
+import { ColorPickerPopover, type ColorTokenSwatch } from "../kit/color-picker";
+import { STYLE_BINDABLE_COLOR_TOKENS } from "@/lib/site-admin/builder-node/style-token-bindings";
 import { useEditContext } from "../edit-context";
 import { GoogleFontPicker } from "../GoogleFontPicker";
 import {
@@ -51,9 +52,11 @@ import {
   type LengthValue,
 } from "../kit/number-unit";
 import { Segmented, type SegmentedOption } from "../kit/segmented";
-import { ShadowBuilder, GradientBuilder } from "./css-value-builders";
+import { ShadowBuilder, GradientBuilder, BackgroundLayersEditor } from "./css-value-builders";
 import { StylePresetsBar } from "./style-presets-bar";
+import { LinkedStyleClassesBar } from "./linked-style-classes-bar";
 import { InstanceOverridesPanel } from "./instance-overrides-panel";
+import { InspectorGroup } from "./kit";
 import { Swatch } from "../kit/swatch";
 import { CHROME } from "../kit/tokens";
 
@@ -338,6 +341,14 @@ const BUILDER_NODE_POSITION_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "sticky", label: "Sticky" },
 ];
 
+// Wave 6B (#23) — sticky-pin self-anchor: which edge the node pins to as the
+// page scrolls. "" clears the convenience back to a plain (un-pinned) sticky.
+const BUILDER_NODE_STICKY_ANCHOR_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "None" },
+  { value: "top", label: "Pin top" },
+  { value: "bottom", label: "Pin bottom" },
+];
+
 const BUILDER_NODE_OVERFLOW_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "", label: "Default" },
   { value: "visible", label: "Visible" },
@@ -449,6 +460,26 @@ const BUILDER_NODE_ANIMATION_EASING_OPTIONS: ReadonlyArray<SegmentedOption<strin
   { value: "ease-in-out", label: "In-out" },
   { value: "back", label: "Back" },
   { value: "smooth", label: "Smooth" },
+];
+
+// Wave 6B (#27) — scroll parallax intensity. "" / "none" = off.
+const BUILDER_NODE_PARALLAX_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Off" },
+  { value: "subtle", label: "Subtle" },
+  { value: "medium", label: "Medium" },
+  { value: "strong", label: "Strong" },
+];
+
+// Reveal-on-view (2026-06-04) — IntersectionObserver-driven entry trajectory.
+// "" = off. Direction variants travel `revealDistance`; fade/zoom don't.
+const BUILDER_NODE_REVEAL_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Off" },
+  { value: "fade", label: "Fade" },
+  { value: "fade-up", label: "Up" },
+  { value: "fade-down", label: "Down" },
+  { value: "fade-left", label: "Left" },
+  { value: "fade-right", label: "Right" },
+  { value: "zoom", label: "Zoom" },
 ];
 
 const BUILDER_NODE_BORDER_STYLE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
@@ -618,18 +649,184 @@ const VIEWPORT_TRACKED_KEYS: ReadonlyArray<keyof NodePresentationValue> = [
   "borderStyle",
 ];
 // Theme-token swatches offered in the freeform node color pickers so a node's
-// text / fill / border can bind to the global theme (emits `var(--token-…)`)
-// instead of freezing a one-off hex. Fallbacks mirror token-presets.css defaults.
-const BUILDER_NODE_THEME_COLOR_TOKENS = [
-  { label: "Primary", cssVar: "--token-color-primary", fallback: "#111111" },
-  { label: "Secondary", cssVar: "--token-color-secondary", fallback: "#6b7280" },
-  { label: "Accent", cssVar: "--token-color-accent", fallback: "#0ea5e9" },
-  { label: "Neutral", cssVar: "--token-color-neutral", fallback: "#737373" },
-  { label: "Ink", cssVar: "--token-color-ink", fallback: "#111111" },
-  { label: "Muted", cssVar: "--token-color-muted", fallback: "#737373" },
-  { label: "Line", cssVar: "--token-color-line", fallback: "#e5e5e5" },
-  { label: "Surface", cssVar: "--token-color-surface-raised", fallback: "#ffffff" },
-];
+// text / fill / border can BIND to a Theme token (Wave 3 · 3A — emits the
+// first-class `token:<key>` sentinel the renderer resolves to `var(--token-…)`,
+// so the bound prop tracks the global theme instead of freezing a one-off hex).
+// DERIVED from the token registry (STYLE_BINDABLE_COLOR_TOKENS) — adding a color
+// token to the registry makes it bindable here automatically; no hardcoding.
+const BUILDER_NODE_THEME_COLOR_TOKENS: ColorTokenSwatch[] =
+  STYLE_BINDABLE_COLOR_TOKENS.map((t) => ({
+    label: t.label,
+    cssVar: t.cssVar,
+    fallback: t.fallback,
+    tokenKey: t.key,
+  }));
+
+// Map a stored color value to a CSS-DISPLAYABLE string for the inspector swatch
+// preview. A `token:<key>` binding resolves to `var(--token-…, fallback)` so the
+// swatch shows the live theme color; a raw value (hex / rgb / keyword) is shown
+// as-is. Mirrors the renderer's resolveStyleTokenRef without importing it (this
+// stays a pure presentation helper). Returns undefined for an empty value so the
+// caller's checkerboard fallback shows.
+function colorSwatchDisplay(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  if (value.startsWith("token:")) {
+    const token = STYLE_BINDABLE_COLOR_TOKENS.find(
+      (t) => t.key === value.slice("token:".length),
+    );
+    return token ? `var(${token.cssVar}, ${token.fallback})` : undefined;
+  }
+  return value;
+}
+/**
+ * Wave 3 · 3D — state-style fields component.
+ *
+ * Renders the same six fields (background, text color, border color, shadow,
+ * scale, translate, opacity) for whichever interaction state is active
+ * (hover / focus-visible / active). Extracted so the markup isn't triplicated
+ * inline in the `<details>` block.
+ */
+interface StateStyleFieldsProps {
+  state: "default" | "focus" | "active";
+  hoverStyle: BuilderNodeHoverStyle | undefined;
+  focusStyle: BuilderNodeHoverStyle | undefined;
+  activeStyle: BuilderNodeHoverStyle | undefined;
+  onPatchHover: (patch: Partial<BuilderNodeHoverStyle>) => void;
+  onPatchFocus: (patch: Partial<BuilderNodeHoverStyle>) => void;
+  onPatchActive: (patch: Partial<BuilderNodeHoverStyle>) => void;
+  chromeMuted: string;
+  chromeSurface2: string;
+  chromeControlBorder: string;
+  chromeInk: string;
+}
+
+function StateStyleFields({
+  state,
+  hoverStyle,
+  focusStyle,
+  activeStyle,
+  onPatchHover,
+  onPatchFocus,
+  onPatchActive,
+  chromeMuted,
+  chromeSurface2,
+  chromeControlBorder,
+  chromeInk,
+}: StateStyleFieldsProps) {
+  const stateStyle =
+    state === "default" ? hoverStyle : state === "focus" ? focusStyle : activeStyle;
+  const onPatch =
+    state === "default" ? onPatchHover : state === "focus" ? onPatchFocus : onPatchActive;
+  const hint =
+    state === "default"
+      ? "Applies while hovered or keyboard-focused."
+      : state === "focus"
+        ? "Applies while keyboard-focused (:focus-visible)."
+        : "Applies while actively pressed (:active).";
+
+  const inputStyle: CSSProperties = {
+    height: 30,
+    width: "100%",
+    fontSize: 12,
+    background: chromeSurface2,
+    border: `1px solid ${chromeControlBorder}`,
+    borderRadius: 7,
+    color: chromeInk,
+    outline: "none",
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="text-[11px]" style={{ color: chromeMuted }}>
+        {hint} Colors accept token (var(--token-color-primary)), hex, or rgb.
+      </span>
+      <div className="flex flex-col gap-1.5">
+        <span className="text-[11px]" style={{ color: chromeMuted }}>Background</span>
+        <input
+          type="text"
+          className="px-2"
+          style={inputStyle}
+          placeholder="var(--token-color-primary) / #111"
+          value={stateStyle?.backgroundColor ?? ""}
+          onChange={(e) => onPatch({ backgroundColor: e.target.value.trim() || undefined })}
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <span className="text-[11px]" style={{ color: chromeMuted }}>Text color</span>
+        <input
+          type="text"
+          className="px-2"
+          style={inputStyle}
+          placeholder="var(--token-color-surface) / #fff"
+          value={stateStyle?.color ?? ""}
+          onChange={(e) => onPatch({ color: e.target.value.trim() || undefined })}
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <span className="text-[11px]" style={{ color: chromeMuted }}>Border color</span>
+        <input
+          type="text"
+          className="px-2"
+          style={inputStyle}
+          placeholder="var(--token-color-primary) / #111"
+          value={stateStyle?.borderColor ?? ""}
+          onChange={(e) => onPatch({ borderColor: e.target.value.trim() || undefined })}
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <span className="text-[11px]" style={{ color: chromeMuted }}>Shadow</span>
+        <input
+          type="text"
+          className="px-2"
+          style={inputStyle}
+          placeholder="0 12px 32px rgba(0,0,0,.18)"
+          value={stateStyle?.boxShadow ?? ""}
+          onChange={(e) => onPatch({ boxShadow: e.target.value.trim() || undefined })}
+        />
+      </div>
+      <div className="flex gap-2">
+        <div className="flex flex-1 flex-col gap-1.5">
+          <span className="text-[11px]" style={{ color: chromeMuted }}>Scale</span>
+          <input
+            type="text"
+            className="px-2"
+            style={inputStyle}
+            placeholder="1.04"
+            value={stateStyle?.scale ?? ""}
+            onChange={(e) => onPatch({ scale: e.target.value.trim() || undefined })}
+          />
+        </div>
+        <div className="flex flex-1 flex-col gap-1.5">
+          <span className="text-[11px]" style={{ color: chromeMuted }}>Translate</span>
+          <input
+            type="text"
+            className="px-2"
+            style={inputStyle}
+            placeholder="0 -4px"
+            value={stateStyle?.translate ?? ""}
+            onChange={(e) => onPatch({ translate: e.target.value.trim() || undefined })}
+          />
+        </div>
+        <div className="flex flex-1 flex-col gap-1.5">
+          <span className="text-[11px]" style={{ color: chromeMuted }}>Opacity</span>
+          <input
+            type="text"
+            className="px-2"
+            style={inputStyle}
+            placeholder="0.85"
+            value={typeof stateStyle?.opacity === "number" ? String(stateStyle.opacity) : ""}
+            onChange={(e) => {
+              const raw = e.target.value.trim();
+              const parsed = Number.parseFloat(raw);
+              onPatch({ opacity: raw && Number.isFinite(parsed) ? parsed : undefined });
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const TEXT_ROLES: ReadonlySet<EditableNodeRole> = new Set([
   "headline",
   "subheadline",
@@ -900,6 +1097,72 @@ function hasSubsetValue(value: Partial<NodePresentationValue>): boolean {
   return Object.values(value).some((entry) => entry !== undefined);
 }
 
+// Job #33 — freeform-node group→key maps for the per-group "has overrides" dot.
+// These mirror the controls actually rendered inside the standalone Typography
+// and Spacing InspectorGroups, so a dot only lights when THAT group carries a
+// non-active-breakpoint override. Kept as the canonical key list (BuilderNode
+// style keys) rather than re-deriving from the DOM.
+const FREEFORM_TYPOGRAPHY_STYLE_KEYS = [
+  "align",
+  "size",
+  "tone",
+  "fontFamily",
+  "fontSize",
+  "fontWeight",
+  "lineHeight",
+  "letterSpacing",
+  "textTransform",
+  "fontStyle",
+  "textDecoration",
+  "textWrap",
+  "whiteSpace",
+  "lineClamp",
+  "textColor",
+] as const satisfies ReadonlyArray<keyof BuilderNodeStyleValue>;
+
+const FREEFORM_SPACING_STYLE_KEYS = [
+  "marginTop",
+  "marginBottom",
+  "paddingX",
+  "paddingY",
+  "marginTopFree",
+  "marginRightFree",
+  "marginBottomFree",
+  "marginLeftFree",
+  "paddingTop",
+  "paddingRight",
+  "paddingBottom",
+  "paddingLeft",
+  "gap",
+] as const satisfies ReadonlyArray<keyof BuilderNodeStyleValue>;
+
+function styleValueHasAnyKey(
+  value: BuilderNodeStyleValue | undefined,
+  keys: ReadonlyArray<keyof BuilderNodeStyleValue>,
+): boolean {
+  if (!value) return false;
+  return keys.some((key) => value[key] !== undefined);
+}
+
+/**
+ * Job #33 — does this freeform style carry a typography/spacing override on
+ * EITHER non-desktop breakpoint (responsive OR container-query channel)? Drives
+ * the per-group override dot so an operator on Desktop still sees which groups
+ * behave differently on tablet/mobile.
+ */
+function styleGroupHasResponsiveOverride(
+  style: BuilderNodeStyle | null | undefined,
+  keys: ReadonlyArray<keyof BuilderNodeStyleValue>,
+): boolean {
+  if (!style) return false;
+  return (
+    styleValueHasAnyKey(style.responsive?.tablet, keys) ||
+    styleValueHasAnyKey(style.responsive?.mobile, keys) ||
+    styleValueHasAnyKey(style.containerQueries?.tablet, keys) ||
+    styleValueHasAnyKey(style.containerQueries?.mobile, keys)
+  );
+}
+
 function countDefinedViewportKeys(
   value: NodePresentationValue | null | undefined,
 ): number {
@@ -943,6 +1206,10 @@ function resolveViewportPresentationForValue(
   return value.breakpoints?.[viewport] ?? buildDesktopNodePresentationBase(value);
 }
 
+// `section_embed` now carries a wrapper-level `style` prop (restyle its OUTER
+// box — background, padding, margin, border, radius, max-width, shadow…; the
+// section's internal presentation still lives in `config`/its Content editor).
+// So it IS a standalone STYLE node; only the structural `section` shell is not.
 type StandaloneStyleNode = Exclude<BuilderNode, { kind: "section" }>;
 type StandaloneStylePreset = {
   id: string;
@@ -1048,6 +1315,11 @@ function cleanBuilderNodeStyle(
   if (value.backgroundPosition) out.backgroundPosition = value.backgroundPosition;
   if (value.backgroundRepeat) out.backgroundRepeat = value.backgroundRepeat;
   if (value.backgroundClip) out.backgroundClip = value.backgroundClip;
+  // Wave 3 · 3C — layered background system.
+  if (value.backgroundLayers && value.backgroundLayers.length > 0) {
+    out.backgroundLayers = value.backgroundLayers;
+  }
+  if (value.backgroundBlendMode) out.backgroundBlendMode = value.backgroundBlendMode;
   if (typeof value.opacity === "number") out.opacity = value.opacity;
   if (value.gap) out.gap = value.gap;
   if (value.containerType) out.containerType = value.containerType;
@@ -1057,6 +1329,8 @@ function cleanBuilderNodeStyle(
   if (value.right) out.right = value.right;
   if (value.bottom) out.bottom = value.bottom;
   if (value.left) out.left = value.left;
+  if (value.stickyAnchor) out.stickyAnchor = value.stickyAnchor;
+  if (value.stickyOffset) out.stickyOffset = value.stickyOffset;
   if (typeof value.zIndex === "number") out.zIndex = value.zIndex;
   if (value.overflow) out.overflow = value.overflow;
   if (value.rotate) out.rotate = value.rotate;
@@ -1076,6 +1350,7 @@ function cleanBuilderNodeStyle(
   if (value.flexBasis) out.flexBasis = value.flexBasis;
   if (value.gridColumn) out.gridColumn = value.gridColumn;
   if (value.gridRow) out.gridRow = value.gridRow;
+  if (typeof value.order === "number") out.order = value.order;
   if (value.filter) out.filter = value.filter;
   if (value.backdropFilter) out.backdropFilter = value.backdropFilter;
   if (value.mixBlendMode) out.mixBlendMode = value.mixBlendMode;
@@ -1102,6 +1377,15 @@ function cleanBuilderNodeStyle(
   if (value.animationDelay) out.animationDelay = value.animationDelay;
   if (value.animationTrigger) out.animationTrigger = value.animationTrigger;
   if (value.animationEasing) out.animationEasing = value.animationEasing;
+  if (value.animationEasingCustom) {
+    out.animationEasingCustom = value.animationEasingCustom;
+  }
+  if (value.parallax) out.parallax = value.parallax;
+  if (value.revealOnView) out.revealOnView = value.revealOnView;
+  if (value.revealDistance) out.revealDistance = value.revealDistance;
+  if (value.revealDuration) out.revealDuration = value.revealDuration;
+  if (value.revealDelay) out.revealDelay = value.revealDelay;
+  if (value.revealEasing) out.revealEasing = value.revealEasing;
   const tablet = cleanBuilderNodeStyleValue(value.responsive?.tablet);
   const mobile = cleanBuilderNodeStyleValue(value.responsive?.mobile);
   if (tablet || mobile) {
@@ -1122,6 +1406,18 @@ function cleanBuilderNodeStyle(
   }
   const hover = cleanHoverStyle(value.hover);
   if (hover) out.hover = hover;
+  // Wave 3 · 3D — preserve per-state style overrides (focus/active).
+  const focusStyle = cleanHoverStyle(value.stateStyles?.focus);
+  const activeStyle = cleanHoverStyle(value.stateStyles?.active);
+  if (focusStyle || activeStyle) {
+    out.stateStyles = {};
+    if (focusStyle) out.stateStyles.focus = focusStyle;
+    if (activeStyle) out.stateStyles.active = activeStyle;
+  }
+  // Wave 3 · 3B — preserve the linked style-class reference through every style
+  // patch (the allowlist above intentionally drops unknown keys; classRef must
+  // survive or "Apply class" would be wiped on the next inspector edit).
+  if (value.classRef) out.classRef = value.classRef;
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -1183,6 +1479,11 @@ function cleanBuilderNodeStyleValue(
   if (value.backgroundPosition) out.backgroundPosition = value.backgroundPosition;
   if (value.backgroundRepeat) out.backgroundRepeat = value.backgroundRepeat;
   if (value.backgroundClip) out.backgroundClip = value.backgroundClip;
+  // Wave 3 · 3C — layered background system.
+  if (value.backgroundLayers && value.backgroundLayers.length > 0) {
+    out.backgroundLayers = value.backgroundLayers;
+  }
+  if (value.backgroundBlendMode) out.backgroundBlendMode = value.backgroundBlendMode;
   if (typeof value.opacity === "number") out.opacity = value.opacity;
   if (value.gap) out.gap = value.gap;
   if (value.containerType) out.containerType = value.containerType;
@@ -1192,6 +1493,8 @@ function cleanBuilderNodeStyleValue(
   if (value.right) out.right = value.right;
   if (value.bottom) out.bottom = value.bottom;
   if (value.left) out.left = value.left;
+  if (value.stickyAnchor) out.stickyAnchor = value.stickyAnchor;
+  if (value.stickyOffset) out.stickyOffset = value.stickyOffset;
   if (typeof value.zIndex === "number") out.zIndex = value.zIndex;
   if (value.overflow) out.overflow = value.overflow;
   if (value.rotate) out.rotate = value.rotate;
@@ -1211,6 +1514,7 @@ function cleanBuilderNodeStyleValue(
   if (value.flexBasis) out.flexBasis = value.flexBasis;
   if (value.gridColumn) out.gridColumn = value.gridColumn;
   if (value.gridRow) out.gridRow = value.gridRow;
+  if (typeof value.order === "number") out.order = value.order;
   if (value.filter) out.filter = value.filter;
   if (value.backdropFilter) out.backdropFilter = value.backdropFilter;
   if (value.mixBlendMode) out.mixBlendMode = value.mixBlendMode;
@@ -1237,6 +1541,15 @@ function cleanBuilderNodeStyleValue(
   if (value.animationDelay) out.animationDelay = value.animationDelay;
   if (value.animationTrigger) out.animationTrigger = value.animationTrigger;
   if (value.animationEasing) out.animationEasing = value.animationEasing;
+  if (value.animationEasingCustom) {
+    out.animationEasingCustom = value.animationEasingCustom;
+  }
+  if (value.parallax) out.parallax = value.parallax;
+  if (value.revealOnView) out.revealOnView = value.revealOnView;
+  if (value.revealDistance) out.revealDistance = value.revealDistance;
+  if (value.revealDuration) out.revealDuration = value.revealDuration;
+  if (value.revealDelay) out.revealDelay = value.revealDelay;
+  if (value.revealEasing) out.revealEasing = value.revealEasing;
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -1551,6 +1864,112 @@ function buttonStateTone(
   return node.props.stateStyles?.[state]?.tone ?? "";
 }
 
+const VIEWPORT_SCOPE_LABEL: Record<NodeViewport, string> = {
+  desktop: "Desktop",
+  tablet: "Tablet",
+  mobile: "Mobile",
+};
+
+/**
+ * Job #33 — per-group "has responsive overrides" dot. Rendered as an
+ * InspectorGroup accessory on the Typography + Spacing groups so an operator
+ * (even while scoped to Desktop) can see at a glance that the group behaves
+ * differently on a smaller breakpoint. Blue to match the viewport-scope banner +
+ * the layer-row dot.
+ */
+function StyleGroupOverrideDot({ label }: { label: string }) {
+  return (
+    <span
+      data-style-group-override-dot=""
+      title={label}
+      aria-label={label}
+      role="img"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        fontSize: 9.5,
+        fontWeight: 700,
+        letterSpacing: "0.06em",
+        textTransform: "uppercase",
+        color: CHROME.blue,
+      }}
+    >
+      <span
+        aria-hidden
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: 999,
+          background: CHROME.blue,
+          boxShadow: "0 0 0 2px rgba(58,123,255,0.18)",
+        }}
+      />
+      Responsive
+    </span>
+  );
+}
+
+/**
+ * Job #2 — persistent banner shown at the top of the Style panel whenever the
+ * scope is a non-desktop breakpoint (kept in sync with the canvas viewport).
+ * Reuses the blue "editing overrides" treatment from ResponsivePanel so the two
+ * inspectors read identically. The "Desktop base" button is the explicit escape
+ * back to editing the base values.
+ */
+function ViewportScopeBanner({
+  viewport,
+  onBackToDesktop,
+}: {
+  viewport: NodeViewport;
+  onBackToDesktop: () => void;
+}) {
+  return (
+    <div
+      data-style-panel-viewport-banner={viewport}
+      className="flex items-center justify-between gap-2 rounded-md px-3 py-2"
+      style={{
+        background: CHROME.blueBg,
+        border: `1px solid ${CHROME.blueLine}`,
+        color: CHROME.blue,
+      }}
+    >
+      <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold leading-snug">
+        <svg
+          width="13"
+          height="13"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          {/* pencil glyph */}
+          <path d="M12 20h9" />
+          <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+        </svg>
+        Editing {VIEWPORT_SCOPE_LABEL[viewport]} styles — desktop stays the base.
+      </span>
+      <button
+        type="button"
+        onClick={onBackToDesktop}
+        className="shrink-0 text-[10.5px] font-semibold uppercase tracking-[0.08em]"
+        style={{
+          background: "transparent",
+          border: "none",
+          color: CHROME.blue,
+          cursor: "pointer",
+          padding: 0,
+        }}
+      >
+        Desktop base
+      </button>
+    </div>
+  );
+}
+
 export function StylePanel({
   sectionTypeKey,
   draftProps,
@@ -1559,12 +1978,19 @@ export function StylePanel({
 }: StylePanelProps) {
   const {
     builderTree,
+    pageId,
     canUndo,
     canRedo,
     patchBuilderNodeProps,
     detachComponentInstance,
     undo,
     redo,
+    // Job #2 — the canvas device switcher is the single source of truth for the
+    // active breakpoint. The Style panel's viewport scope follows it (and the
+    // in-panel switcher pushes back), so the operator can never preview Mobile
+    // while silently editing Desktop rules.
+    device,
+    setDevice,
   } = useEditContext();
   const [nodeStyleClipboard, setNodeStyleClipboard] =
     useState<NodeStyleClipboard | null>(null);
@@ -1619,19 +2045,42 @@ export function StylePanel({
     () => resolveNodeRole(sectionTypeKey, selectedBuilderNodeId),
     [sectionTypeKey, selectedBuilderNodeId],
   );
-  const selectedStandaloneStyleNode = useMemo(
-    () => resolveStandaloneBuilderNodeForContent(builderTree, selectedBuilderNodeId),
-    [builderTree, selectedBuilderNodeId],
-  );
+  const selectedStandaloneStyleNode: StandaloneStyleNode | null = useMemo(() => {
+    const node = resolveStandaloneBuilderNodeForContent(
+      builderTree,
+      selectedBuilderNodeId,
+    );
+    // section_embed IS a style node now (wrapper-level `style`); the resolver
+    // already excludes the structural `section` shell, so just return it.
+    return node ?? null;
+  }, [builderTree, selectedBuilderNodeId]);
   // Linked-component instance marker (Living Components Phase 2) — present only
   // on a container tagged instanceOf. Drives the Detach affordance.
   const selectedInstanceComponentId =
     selectedStandaloneStyleNode?.kind === "container"
       ? (selectedStandaloneStyleNode.props.instanceOf ?? null)
       : null;
-  const [selectedViewport, setSelectedViewport] = useState<NodeViewport>("desktop");
+  // Job #2 — viewport scope SYNCED to the canvas device. We seed the local
+  // state from `device` and keep it mirrored via an effect, so opening the panel
+  // (or switching the canvas viewport) lands the inspector on the matching
+  // breakpoint. The in-panel switcher (`selectViewport`) writes BOTH this state
+  // and `setDevice`, so the canvas frame follows the inspector too. The local
+  // state is retained (rather than reading `device` directly) so the dozens of
+  // existing `selectedViewport` reads keep working and a future "decouple"
+  // affordance can diverge them without a wide refactor.
+  const [selectedViewport, setSelectedViewport] =
+    useState<NodeViewport>(device);
+  useEffect(() => {
+    setSelectedViewport((prev) => (prev === device ? prev : device));
+  }, [device]);
   const [selectedStandaloneStyleScope, setSelectedStandaloneStyleScope] =
     useState<StandaloneStyleScope>("viewport");
+  // Wave 3 · 3D — which interaction state the hover/state editor is targeting.
+  // "default" = the existing hover style (legacy); "focus" / "active" = the new
+  // stateStyles.focus / stateStyles.active buckets.
+  const [selectedInteractionState, setSelectedInteractionState] = useState<
+    "default" | "focus" | "active"
+  >("default");
   const effectiveStandaloneStyleScope: StandaloneStyleScope =
     selectedViewport === "desktop" ? "viewport" : selectedStandaloneStyleScope;
   const selectedNodeLabel = nodeRoleLabel(selectedNodeRole);
@@ -1773,6 +2222,17 @@ export function StylePanel({
   );
   const selectedStandaloneFullStyle =
     selectedStandaloneStyleNode?.props.style;
+  // Job #33 — does the Typography / Spacing group carry a tablet/mobile override
+  // (any responsive or container-query bucket)? Drives the per-group "Responsive"
+  // dot so the difference is visible even while editing the desktop base.
+  const typographyHasResponsiveOverride = styleGroupHasResponsiveOverride(
+    selectedStandaloneFullStyle,
+    FREEFORM_TYPOGRAPHY_STYLE_KEYS,
+  );
+  const spacingHasResponsiveOverride = styleGroupHasResponsiveOverride(
+    selectedStandaloneFullStyle,
+    FREEFORM_SPACING_STYLE_KEYS,
+  );
   const selectedStandaloneViewportStyle = resolveBuilderNodeViewportStyle(
     selectedStandaloneFullStyle,
     selectedViewport,
@@ -3061,12 +3521,19 @@ export function StylePanel({
   function selectViewport(next: NodeViewport) {
     setSelectedViewport(next);
     if (next === "desktop") setSelectedStandaloneStyleScope("viewport");
+    // Job #2 — push the choice to the canvas device so the preview frame +
+    // ResponsivePanel + this panel all read the same breakpoint. The effect
+    // above keeps `selectedViewport` mirrored on the way back.
+    if (device !== next) setDevice(next);
   }
 
   function selectStandaloneStyleScope(next: StandaloneStyleScope) {
     setSelectedStandaloneStyleScope(next);
     if (next === "container" && selectedViewport === "desktop") {
       setSelectedViewport("tablet");
+      // Keep the canvas in sync when switching to a container-query scope flips
+      // the active viewport off desktop.
+      if (device !== "tablet") setDevice("tablet");
     }
   }
 
@@ -3129,6 +3596,20 @@ export function StylePanel({
     patchSelectedStandaloneNodeProps({ style: nextStyle });
   }
 
+  // Wave 3 · 3B — REPLACE the selected block's whole style object (not merge).
+  // Used by the linked-style-classes bar to write/clear `classRef` and to
+  // flatten a class on unlink. Keeps the draft ref in sync so a following field
+  // edit merges onto the new style, mirroring patchSelectedBaseStyle.
+  function setSelectedStandaloneStyleObject(style: BuilderNodeStyle | undefined) {
+    if (!selectedStandaloneStyleNode) return;
+    const nextStyle = cleanBuilderNodeStyle(style);
+    standaloneStyleDraftRef.current = {
+      nodeId: selectedStandaloneStyleNode.id,
+      style: nextStyle ? { ...nextStyle } : undefined,
+    };
+    patchSelectedStandaloneNodeProps({ style: nextStyle });
+  }
+
   // Merge a partial hover override into the single hover layer (base, not nested
   // under a viewport — hover is a pointer interaction, not a breakpoint).
   function patchSelectedHoverStyle(patch: Partial<BuilderNodeHoverStyle>) {
@@ -3141,6 +3622,28 @@ export function StylePanel({
       hover: {
         ...(currentStyle?.hover ?? {}),
         ...patch,
+      },
+    });
+  }
+
+  // Wave 3 · 3D — patch a focus-visible or active state override. Merges onto
+  // the existing stateStyles object (same pattern as patchSelectedHoverStyle).
+  function patchSelectedStateStyle(
+    stateKey: "focus" | "active",
+    patch: Partial<BuilderNodeHoverStyle>,
+  ) {
+    if (!selectedStandaloneStyleNode) return;
+    const currentStyle =
+      standaloneStyleDraftRef.current.nodeId === selectedStandaloneStyleNode.id
+        ? standaloneStyleDraftRef.current.style
+        : selectedStandaloneStyleNode.props.style;
+    patchSelectedBaseStyle({
+      stateStyles: {
+        ...(currentStyle?.stateStyles ?? {}),
+        [stateKey]: {
+          ...(currentStyle?.stateStyles?.[stateKey] ?? {}),
+          ...patch,
+        },
       },
     });
   }
@@ -3476,6 +3979,17 @@ export function StylePanel({
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Job #2 — persistent breakpoint-scope banner. Synced to the canvas
+          viewport: when the operator is previewing Tablet/Mobile, every style
+          they change here lands on THAT breakpoint's override bucket (desktop
+          stays the base). The banner makes that unmistakable + offers a
+          one-click route back to the Desktop base. */}
+      {selectedViewport !== "desktop" ? (
+        <ViewportScopeBanner
+          viewport={selectedViewport}
+          onBackToDesktop={() => selectViewport("desktop")}
+        />
+      ) : null}
       {selectedNodeRole && selectedNodeLabel ? (
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
@@ -4875,8 +5389,9 @@ export function StylePanel({
                         borderRadius: 6,
                         border: `1px solid ${CHROME.lineMid}`,
                         background:
-                          selectedNodeViewportPresentation?.textColor ||
-                          "transparent",
+                          colorSwatchDisplay(
+                            selectedNodeViewportPresentation?.textColor,
+                          ) || "transparent",
                         backgroundImage: selectedNodeViewportPresentation?.textColor
                           ? undefined
                           : "repeating-conic-gradient(#e5e0d8 0% 25%, #ffffff 0% 50%) 50% / 8px 8px",
@@ -4930,8 +5445,9 @@ export function StylePanel({
                         borderRadius: 6,
                         border: `1px solid ${CHROME.lineMid}`,
                         background:
-                          selectedNodeViewportPresentation?.backgroundColor ||
-                          "transparent",
+                          colorSwatchDisplay(
+                            selectedNodeViewportPresentation?.backgroundColor,
+                          ) || "transparent",
                         backgroundImage: selectedNodeViewportPresentation?.backgroundColor
                           ? undefined
                           : "repeating-conic-gradient(#e5e0d8 0% 25%, #ffffff 0% 50%) 50% / 8px 8px",
@@ -4986,8 +5502,9 @@ export function StylePanel({
                           borderRadius: 6,
                           border: `1px solid ${CHROME.lineMid}`,
                           background:
-                            selectedNodeViewportPresentation?.borderColor ||
-                            "transparent",
+                            colorSwatchDisplay(
+                              selectedNodeViewportPresentation?.borderColor,
+                            ) || "transparent",
                           backgroundImage: selectedNodeViewportPresentation?.borderColor
                             ? undefined
                             : "repeating-conic-gradient(#e5e0d8 0% 25%, #ffffff 0% 50%) 50% / 8px 8px",
@@ -5223,6 +5740,12 @@ export function StylePanel({
               onApply={(style) => patchSelectedBaseStyle(style)}
             />
 
+            <LinkedStyleClassesBar
+              pageId={pageId}
+              currentStyle={selectedStandaloneFullStyle ?? undefined}
+              onSetStyle={(style) => setSelectedStandaloneStyleObject(style)}
+            />
+
             {selectedStandaloneStylePresets.length > 0 ? (
               <div
                 className="flex flex-col gap-2"
@@ -5269,6 +5792,18 @@ export function StylePanel({
               </div>
             ) : null}
 
+            {/* ── Typography group (Wave 1 / Job #11 progressive disclosure) ── */}
+            <InspectorGroup
+              title="Typography"
+              collapsible
+              storageKey={`style-panel:typography:${selectedStandaloneStyleNode.kind}`}
+              defaultOpen={["heading", "paragraph", "button", "rich_text"].includes(selectedStandaloneStyleNode.kind)}
+              accessory={
+                typographyHasResponsiveOverride ? (
+                  <StyleGroupOverrideDot label="Typography has tablet/mobile overrides" />
+                ) : null
+              }
+            >
             <div className="flex flex-col gap-1.5" data-builder-node-style-control="align">
               <span className={FIELD_LABEL}>Align</span>
               <Segmented
@@ -5652,7 +6187,16 @@ export function StylePanel({
                 </details>
               </div>
             ) : null}
+            </InspectorGroup>
+            {/* ── end Typography group ── */}
 
+            {/* ── Dimensions group (Wave 1 / Job #11 progressive disclosure) ── */}
+            <InspectorGroup
+              title="Dimensions"
+              collapsible
+              storageKey={`style-panel:dimensions:${selectedStandaloneStyleNode.kind}`}
+              defaultOpen
+            >
             <div className="flex flex-col gap-1.5" data-builder-node-style-control="maxWidth">
               <span className={FIELD_LABEL}>Max width (preset)</span>
               <Segmented
@@ -5775,7 +6319,16 @@ export function StylePanel({
               </div>
               </div>
             </details>
+            </InspectorGroup>
+            {/* ── end Dimensions group ── */}
 
+            {/* ── Appearance group (Wave 1 / Job #11 progressive disclosure) ── */}
+            <InspectorGroup
+              title="Appearance"
+              collapsible
+              storageKey={`style-panel:appearance:${selectedStandaloneStyleNode.kind}`}
+              defaultOpen
+            >
             {["container", "split", "card", "cta_group"].includes(
               selectedStandaloneStyleNode.kind,
             ) ? (
@@ -5881,8 +6434,9 @@ export function StylePanel({
                           borderRadius: 6,
                           border: `1px solid ${CHROME.lineMid}`,
                           background:
-                            selectedStandaloneViewportStyle?.textColor ||
-                            "transparent",
+                            colorSwatchDisplay(
+                              selectedStandaloneViewportStyle?.textColor,
+                            ) || "transparent",
                           backgroundImage: selectedStandaloneViewportStyle?.textColor
                             ? undefined
                             : "repeating-conic-gradient(#e5e0d8 0% 25%, #ffffff 0% 50%) 50% / 8px 8px",
@@ -5940,8 +6494,9 @@ export function StylePanel({
                           borderRadius: 6,
                           border: `1px solid ${CHROME.lineMid}`,
                           background:
-                            selectedStandaloneViewportStyle?.backgroundColor ||
-                            "transparent",
+                            colorSwatchDisplay(
+                              selectedStandaloneViewportStyle?.backgroundColor,
+                            ) || "transparent",
                           backgroundImage: selectedStandaloneViewportStyle?.backgroundColor
                             ? undefined
                             : "repeating-conic-gradient(#e5e0d8 0% 25%, #ffffff 0% 50%) 50% / 8px 8px",
@@ -6000,8 +6555,9 @@ export function StylePanel({
                             borderRadius: 6,
                             border: `1px solid ${CHROME.lineMid}`,
                             background:
-                              selectedStandaloneViewportStyle?.borderColor ||
-                              "transparent",
+                              colorSwatchDisplay(
+                                selectedStandaloneViewportStyle?.borderColor,
+                              ) || "transparent",
                             backgroundImage: selectedStandaloneViewportStyle?.borderColor
                               ? undefined
                               : "repeating-conic-gradient(#e5e0d8 0% 25%, #ffffff 0% 50%) 50% / 8px 8px",
@@ -6059,7 +6615,21 @@ export function StylePanel({
                 />
               </div>
             ) : null}
+            </InspectorGroup>
+            {/* ── end Appearance group ── */}
 
+            {/* ── Spacing group (Wave 1 / Job #11 progressive disclosure) ── */}
+            <InspectorGroup
+              title="Spacing"
+              collapsible
+              storageKey={`style-panel:spacing:${selectedStandaloneStyleNode.kind}`}
+              defaultOpen
+              accessory={
+                spacingHasResponsiveOverride ? (
+                  <StyleGroupOverrideDot label="Spacing has tablet/mobile overrides" />
+                ) : null
+              }
+            >
             <div className="grid grid-cols-2 gap-2">
               <div className="flex flex-col gap-1.5" data-builder-node-style-control="marginTop">
                 <span className={FIELD_LABEL}>Margin top</span>
@@ -6318,7 +6888,17 @@ export function StylePanel({
                 </details>
               </div>
             ) : null}
+            </InspectorGroup>
+            {/* ── end Spacing group ── */}
 
+            {/* ── Position & Layout group — collapsed by default (Wave 1 / Job #11) ── */}
+            <InspectorGroup
+              title="Position & layout"
+              collapsible
+              advanced
+              storageKey={`style-panel:position:${selectedStandaloneStyleNode.kind}`}
+              defaultOpen={false}
+            >
             <div
               className="border-t pt-3"
               data-builder-node-style-control="position"
@@ -6341,6 +6921,59 @@ export function StylePanel({
                 }
                 options={BUILDER_NODE_POSITION_OPTIONS}
               />
+              {/* Wave 6B (#23) — sticky pinning convenience. Visible when the node
+                  is sticky (explicit position OR the anchor itself). Picks the
+                  edge to pin to + the offset; the renderer writes position:sticky
+                  + the inset for you (raw Top/Bottom below still win). */}
+              {selectedStandaloneViewportStyle?.position === "sticky" ||
+              selectedStandaloneViewportStyle?.stickyAnchor ? (
+                <div
+                  className="flex flex-col gap-2 rounded-md p-2"
+                  data-builder-node-style-control="stickyAnchor"
+                  style={{ background: CHROME.surface2, border: `1px solid ${CHROME.line}` }}
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Pin to edge
+                  </span>
+                  <Segmented
+                    fullWidth
+                    compact
+                    value={selectedStandaloneViewportStyle?.stickyAnchor ?? ""}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        stickyAnchor: (next || undefined) as BuilderNodeStyleValue["stickyAnchor"],
+                      })
+                    }
+                    options={BUILDER_NODE_STICKY_ANCHOR_OPTIONS}
+                  />
+                  {selectedStandaloneViewportStyle?.stickyAnchor ? (
+                    <div
+                      className="flex flex-col gap-1"
+                      data-builder-node-style-control="stickyOffset"
+                    >
+                      <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                        Offset from edge
+                      </span>
+                      <NumberUnit
+                        units={["px", "%", "rem", "vh", "vw"]}
+                        defaultUnit="px"
+                        placeholder="0"
+                        value={parseCssLength(selectedStandaloneViewportStyle?.stickyOffset)}
+                        onChange={(next) =>
+                          patchSelectedStandaloneStyle({
+                            stickyOffset: next ? formatLength(next) : undefined,
+                          })
+                        }
+                      />
+                    </div>
+                  ) : null}
+                  <span className="text-[10px] leading-snug" style={{ color: CHROME.muted }}>
+                    The block scrolls normally, then sticks to the{" "}
+                    {selectedStandaloneViewportStyle?.stickyAnchor ?? "chosen"} edge
+                    of its scroll area. Great for a sticky sub-nav or sidebar.
+                  </span>
+                </div>
+              ) : null}
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex flex-col gap-1">
                   <span className="text-[11px]" style={{ color: CHROME.muted }}>
@@ -6815,6 +7448,53 @@ export function StylePanel({
                   />
                 </div>
               </div>
+              <div
+                className="flex flex-col gap-1"
+                data-builder-node-style-control="order"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Order
+                </span>
+                <input
+                  type="number"
+                  step={1}
+                  min={-999}
+                  max={999}
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    fontVariantNumeric: "tabular-nums",
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="Auto"
+                  value={
+                    typeof selectedStandaloneViewportStyle?.order === "number"
+                      ? selectedStandaloneViewportStyle.order
+                      : ""
+                  }
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    const n = Number(raw);
+                    patchSelectedStandaloneStyle({
+                      order:
+                        raw === "" || !Number.isFinite(n)
+                          ? undefined
+                          : Math.max(-999, Math.min(999, Math.round(n))),
+                    });
+                  }}
+                />
+                <span className="text-[10.5px]" style={{ color: CHROME.muted }}>
+                  {selectedViewport === "desktop"
+                    ? "Reorders among siblings (lower first). Only inside a flex/grid parent."
+                    : `Reorders on ${selectedViewport} without moving in the layout. Flex/grid parent only.`}
+                </span>
+              </div>
               </div>
               </details>
             </div>
@@ -6971,7 +7651,17 @@ export function StylePanel({
               </div>
               </details>
             </div>
+            </InspectorGroup>
+            {/* ── end Position & Layout group ── */}
 
+            {/* ── Effects & Motion group — collapsed by default (Wave 1 / Job #11) ── */}
+            <InspectorGroup
+              title="Effects & motion"
+              collapsible
+              advanced
+              storageKey={`style-panel:effects:${selectedStandaloneStyleNode.kind}`}
+              defaultOpen={false}
+            >
             <div
               className="border-t pt-3"
               data-builder-node-style-control="effects-interaction"
@@ -7546,6 +8236,235 @@ export function StylePanel({
                   options={BUILDER_NODE_ANIMATION_EASING_OPTIONS}
                 />
               </div>
+              {/* Wave 6B (#27) — custom easing curve. A raw cubic-bezier / steps /
+                  linear() that overrides the named easing above for exact timing. */}
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="animationEasingCustom"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Custom curve
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="cubic-bezier(.2,.8,.2,1)"
+                  value={selectedStandaloneViewportStyle?.animationEasingCustom ?? ""}
+                  onChange={(e) =>
+                    patchSelectedStandaloneStyle({
+                      animationEasingCustom: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+                <span className="text-[10px] leading-snug" style={{ color: CHROME.muted }}>
+                  Overrides the named easing. Any CSS timing function —
+                  cubic-bezier(), steps(), linear().
+                </span>
+              </div>
+              </div>
+              </details>
+            </div>
+
+            {/* ── Interactions (Wave 6B / #27) — scroll parallax. Hover micro-
+                interactions live in the States block below; this surfaces the
+                ongoing scroll-driven motion alongside the entrance animation. ── */}
+            <div
+              className="border-t pt-3"
+              data-builder-node-style-control="interactions"
+              style={{ borderColor: CHROME.line }}
+            >
+              <details>
+                <summary className="flex items-center justify-between select-none" style={{ cursor: "pointer", outline: "none", listStyle: "none" }}>
+                  <span className={FIELD_LABEL}>Interactions</span>
+                  <span style={{ color: CHROME.muted, fontSize: 9 }}>›</span>
+                </summary>
+              <div className="flex flex-col gap-2 mt-2">
+              <p className="text-[10px] leading-snug" style={{ color: CHROME.muted }}>
+                Scroll parallax drifts the block as the visitor scrolls past
+                (published page only). Pair it with a hover effect in{" "}
+                <strong>States</strong> below for full motion. Respects
+                reduced-motion.
+              </p>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="parallax"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Scroll parallax
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.parallax ?? ""}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      parallax: (next || undefined) as BuilderNodeStyleValue["parallax"],
+                    })
+                  }
+                  options={BUILDER_NODE_PARALLAX_OPTIONS}
+                />
+                {selectedStandaloneViewportStyle?.parallax &&
+                selectedStandaloneViewportStyle.parallax !== "none" ? (
+                  <span className="text-[10px] leading-snug" style={{ color: CHROME.muted }}>
+                    The block glides vertically over its on-screen pass. Drives
+                    the entrance slot when both are set — entrance plays once,
+                    parallax is what keeps moving.
+                  </span>
+                ) : null}
+              </div>
+              {/* Reveal on scroll (2026-06-04) — IntersectionObserver entry.
+                  Unlike the entrance preset (plays on load) this fires the first
+                  time the block scrolls into view, with a direction + travel
+                  distance + easing. Published page only; respects reduced-motion. */}
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="revealOnView"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Reveal on scroll
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.revealOnView ?? ""}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      revealOnView: (next || undefined) as BuilderNodeStyleValue["revealOnView"],
+                    })
+                  }
+                  options={BUILDER_NODE_REVEAL_OPTIONS}
+                />
+                {selectedStandaloneViewportStyle?.revealOnView &&
+                selectedStandaloneViewportStyle.revealOnView !== "none" ? (
+                  <>
+                    <span className="text-[10px] leading-snug" style={{ color: CHROME.muted }}>
+                      Eases in the first time the block scrolls into view, then
+                      stays. Direction variants travel by the distance below.
+                    </span>
+                    {selectedStandaloneViewportStyle.revealOnView !== "fade" &&
+                    selectedStandaloneViewportStyle.revealOnView !== "zoom" ? (
+                      <div
+                        className="flex flex-col gap-1.5"
+                        data-builder-node-style-control="revealDistance"
+                      >
+                        <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                          Distance
+                        </span>
+                        <input
+                          type="text"
+                          className="px-2"
+                          style={{
+                            height: 30,
+                            width: "100%",
+                            fontSize: 12,
+                            background: CHROME.surface2,
+                            border: `1px solid ${CHROME.controlBorder}`,
+                            borderRadius: 7,
+                            color: CHROME.ink,
+                            outline: "none",
+                          }}
+                          placeholder="24px"
+                          value={selectedStandaloneViewportStyle?.revealDistance ?? ""}
+                          onChange={(e) =>
+                            patchSelectedStandaloneStyle({
+                              revealDistance: e.target.value.trim() || undefined,
+                            })
+                          }
+                        />
+                      </div>
+                    ) : null}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div
+                        className="flex flex-col gap-1.5"
+                        data-builder-node-style-control="revealDuration"
+                      >
+                        <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                          Duration
+                        </span>
+                        <input
+                          type="text"
+                          className="px-2"
+                          style={{
+                            height: 30,
+                            width: "100%",
+                            fontSize: 12,
+                            background: CHROME.surface2,
+                            border: `1px solid ${CHROME.controlBorder}`,
+                            borderRadius: 7,
+                            color: CHROME.ink,
+                            outline: "none",
+                          }}
+                          placeholder="0.6s"
+                          value={selectedStandaloneViewportStyle?.revealDuration ?? ""}
+                          onChange={(e) =>
+                            patchSelectedStandaloneStyle({
+                              revealDuration: e.target.value.trim() || undefined,
+                            })
+                          }
+                        />
+                      </div>
+                      <div
+                        className="flex flex-col gap-1.5"
+                        data-builder-node-style-control="revealDelay"
+                      >
+                        <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                          Delay
+                        </span>
+                        <input
+                          type="text"
+                          className="px-2"
+                          style={{
+                            height: 30,
+                            width: "100%",
+                            fontSize: 12,
+                            background: CHROME.surface2,
+                            border: `1px solid ${CHROME.controlBorder}`,
+                            borderRadius: 7,
+                            color: CHROME.ink,
+                            outline: "none",
+                          }}
+                          placeholder="0s"
+                          value={selectedStandaloneViewportStyle?.revealDelay ?? ""}
+                          onChange={(e) =>
+                            patchSelectedStandaloneStyle({
+                              revealDelay: e.target.value.trim() || undefined,
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
+                    <div
+                      className="flex flex-col gap-1.5"
+                      data-builder-node-style-control="revealEasing"
+                    >
+                      <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                        Easing
+                      </span>
+                      <Segmented
+                        fullWidth
+                        compact
+                        value={selectedStandaloneViewportStyle?.revealEasing ?? ""}
+                        onChange={(next) =>
+                          patchSelectedStandaloneStyle({
+                            revealEasing: (next || undefined) as BuilderNodeStyleValue["revealEasing"],
+                          })
+                        }
+                        options={BUILDER_NODE_ANIMATION_EASING_OPTIONS}
+                      />
+                    </div>
+                  </>
+                ) : null}
+              </div>
               </div>
               </details>
             </div>
@@ -7739,6 +8658,31 @@ export function StylePanel({
                   Set a gradient or color background to show it through the text.
                 </span>
               </div>
+              {/* Wave 3 · 3C — layered background editor */}
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="backgroundLayers"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Layered backgrounds
+                </span>
+                <span
+                  className="text-[10px] leading-tight"
+                  style={{ color: CHROME.muted }}
+                >
+                  Stack gradients, images, and color overlays. Layers paint front-to-back (top = frontmost).
+                </span>
+                <BackgroundLayersEditor
+                  layers={selectedStandaloneViewportStyle?.backgroundLayers}
+                  blendMode={selectedStandaloneViewportStyle?.backgroundBlendMode}
+                  onChange={(layers, blend) =>
+                    patchSelectedStandaloneStyle({
+                      backgroundLayers: layers.length > 0 ? layers : undefined,
+                      backgroundBlendMode: blend,
+                    })
+                  }
+                />
+              </div>
               <div
                 className="flex flex-col gap-1"
                 data-builder-node-style-control="opacity"
@@ -7881,21 +8825,19 @@ export function StylePanel({
               </details>
             </div>
 
+            {/* ── Wave 3 · 3D Universal State Editor ── */}
             <div
               className="border-t pt-3"
-              data-builder-node-style-control="hover"
+              data-builder-node-style-control="stateStyles"
               style={{ borderColor: CHROME.line }}
             >
               <details>
                 <summary className="flex items-center justify-between select-none" style={{ cursor: "pointer", outline: "none", listStyle: "none" }}>
-                  <span className={FIELD_LABEL}>Hover state</span>
+                  <span className={FIELD_LABEL}>States</span>
                   <span style={{ color: CHROME.muted, fontSize: 9 }}>›</span>
                 </summary>
               <div className="flex flex-col gap-2 mt-2">
-              <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                Applies on the live site while hovered or keyboard-focused.
-                Colors accept a token (var(--token-color-primary)), hex, or rgb.
-              </span>
+              {/* Transition (shared across all states) */}
               <div
                 className="flex flex-col gap-1.5"
                 data-builder-node-style-control="transition"
@@ -7916,7 +8858,7 @@ export function StylePanel({
                     color: CHROME.ink,
                     outline: "none",
                   }}
-                  placeholder="all .2s ease (auto when hover set)"
+                  placeholder="all .2s ease (auto when state set)"
                   value={selectedStandaloneFullStyle?.transition ?? ""}
                   onChange={(e) =>
                     patchSelectedBaseStyle({
@@ -7925,222 +8867,63 @@ export function StylePanel({
                   }
                 />
               </div>
-              <div
-                className="flex flex-col gap-1.5"
-                data-builder-node-style-control="hoverBackgroundColor"
-              >
-                <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                  Background
-                </span>
-                <input
-                  type="text"
-                  className="px-2"
-                  style={{
-                    height: 30,
-                    width: "100%",
-                    fontSize: 12,
-                    background: CHROME.surface2,
-                    border: `1px solid ${CHROME.controlBorder}`,
-                    borderRadius: 7,
-                    color: CHROME.ink,
-                    outline: "none",
-                  }}
-                  placeholder="var(--token-color-primary) / #111"
-                  value={selectedStandaloneFullStyle?.hover?.backgroundColor ?? ""}
-                  onChange={(e) =>
-                    patchSelectedHoverStyle({
-                      backgroundColor: e.target.value.trim() || undefined,
-                    })
-                  }
-                />
+              {/* State switcher — Hover / Focus / Active */}
+              <div className="flex gap-1 rounded-md overflow-hidden" style={{ border: `1px solid ${CHROME.line}` }}>
+                {(["default", "focus", "active"] as const).map((state) => {
+                  const label = state === "default" ? "Hover" : state === "focus" ? "Focus" : "Active";
+                  const hasValue =
+                    state === "default"
+                      ? Boolean(selectedStandaloneFullStyle?.hover && Object.values(selectedStandaloneFullStyle.hover).some(Boolean))
+                      : state === "focus"
+                        ? Boolean(selectedStandaloneFullStyle?.stateStyles?.focus && Object.values(selectedStandaloneFullStyle.stateStyles.focus).some(Boolean))
+                        : Boolean(selectedStandaloneFullStyle?.stateStyles?.active && Object.values(selectedStandaloneFullStyle.stateStyles.active).some(Boolean));
+                  return (
+                    <button
+                      key={state}
+                      type="button"
+                      onClick={() => setSelectedInteractionState(state)}
+                      style={{
+                        flex: 1,
+                        height: 26,
+                        fontSize: 10,
+                        fontWeight: 600,
+                        letterSpacing: "0.06em",
+                        textTransform: "uppercase",
+                        border: "none",
+                        borderRadius: 0,
+                        cursor: "pointer",
+                        background: selectedInteractionState === state ? CHROME.ink : "transparent",
+                        color: selectedInteractionState === state ? "#fff" : hasValue ? CHROME.accent : CHROME.muted,
+                        position: "relative",
+                      }}
+                    >
+                      {label}
+                      {hasValue && selectedInteractionState !== state ? (
+                        <span style={{ position: "absolute", top: 4, right: 4, width: 4, height: 4, borderRadius: "50%", background: CHROME.accent }} />
+                      ) : null}
+                    </button>
+                  );
+                })}
               </div>
-              <div
-                className="flex flex-col gap-1.5"
-                data-builder-node-style-control="hoverColor"
-              >
-                <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                  Text color
-                </span>
-                <input
-                  type="text"
-                  className="px-2"
-                  style={{
-                    height: 30,
-                    width: "100%",
-                    fontSize: 12,
-                    background: CHROME.surface2,
-                    border: `1px solid ${CHROME.controlBorder}`,
-                    borderRadius: 7,
-                    color: CHROME.ink,
-                    outline: "none",
-                  }}
-                  placeholder="var(--token-color-surface) / #fff"
-                  value={selectedStandaloneFullStyle?.hover?.color ?? ""}
-                  onChange={(e) =>
-                    patchSelectedHoverStyle({
-                      color: e.target.value.trim() || undefined,
-                    })
-                  }
-                />
-              </div>
-              <div
-                className="flex flex-col gap-1.5"
-                data-builder-node-style-control="hoverBorderColor"
-              >
-                <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                  Border color
-                </span>
-                <input
-                  type="text"
-                  className="px-2"
-                  style={{
-                    height: 30,
-                    width: "100%",
-                    fontSize: 12,
-                    background: CHROME.surface2,
-                    border: `1px solid ${CHROME.controlBorder}`,
-                    borderRadius: 7,
-                    color: CHROME.ink,
-                    outline: "none",
-                  }}
-                  placeholder="var(--token-color-primary) / #111"
-                  value={selectedStandaloneFullStyle?.hover?.borderColor ?? ""}
-                  onChange={(e) =>
-                    patchSelectedHoverStyle({
-                      borderColor: e.target.value.trim() || undefined,
-                    })
-                  }
-                />
-              </div>
-              <div
-                className="flex flex-col gap-1.5"
-                data-builder-node-style-control="hoverBoxShadow"
-              >
-                <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                  Shadow
-                </span>
-                <input
-                  type="text"
-                  className="px-2"
-                  style={{
-                    height: 30,
-                    width: "100%",
-                    fontSize: 12,
-                    background: CHROME.surface2,
-                    border: `1px solid ${CHROME.controlBorder}`,
-                    borderRadius: 7,
-                    color: CHROME.ink,
-                    outline: "none",
-                  }}
-                  placeholder="0 12px 32px rgba(0,0,0,.18)"
-                  value={selectedStandaloneFullStyle?.hover?.boxShadow ?? ""}
-                  onChange={(e) =>
-                    patchSelectedHoverStyle({
-                      boxShadow: e.target.value.trim() || undefined,
-                    })
-                  }
-                />
-              </div>
-              <div className="flex gap-2">
-                <div
-                  className="flex flex-1 flex-col gap-1.5"
-                  data-builder-node-style-control="hoverScale"
-                >
-                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                    Scale
-                  </span>
-                  <input
-                    type="text"
-                    className="px-2"
-                    style={{
-                      height: 30,
-                      width: "100%",
-                      fontSize: 12,
-                      background: CHROME.surface2,
-                      border: `1px solid ${CHROME.controlBorder}`,
-                      borderRadius: 7,
-                      color: CHROME.ink,
-                      outline: "none",
-                    }}
-                    placeholder="1.04"
-                    value={selectedStandaloneFullStyle?.hover?.scale ?? ""}
-                    onChange={(e) =>
-                      patchSelectedHoverStyle({
-                        scale: e.target.value.trim() || undefined,
-                      })
-                    }
-                  />
-                </div>
-                <div
-                  className="flex flex-1 flex-col gap-1.5"
-                  data-builder-node-style-control="hoverTranslate"
-                >
-                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                    Translate
-                  </span>
-                  <input
-                    type="text"
-                    className="px-2"
-                    style={{
-                      height: 30,
-                      width: "100%",
-                      fontSize: 12,
-                      background: CHROME.surface2,
-                      border: `1px solid ${CHROME.controlBorder}`,
-                      borderRadius: 7,
-                      color: CHROME.ink,
-                      outline: "none",
-                    }}
-                    placeholder="0 -4px"
-                    value={selectedStandaloneFullStyle?.hover?.translate ?? ""}
-                    onChange={(e) =>
-                      patchSelectedHoverStyle({
-                        translate: e.target.value.trim() || undefined,
-                      })
-                    }
-                  />
-                </div>
-                <div
-                  className="flex flex-1 flex-col gap-1.5"
-                  data-builder-node-style-control="hoverOpacity"
-                >
-                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                    Opacity
-                  </span>
-                  <input
-                    type="text"
-                    className="px-2"
-                    style={{
-                      height: 30,
-                      width: "100%",
-                      fontSize: 12,
-                      background: CHROME.surface2,
-                      border: `1px solid ${CHROME.controlBorder}`,
-                      borderRadius: 7,
-                      color: CHROME.ink,
-                      outline: "none",
-                    }}
-                    placeholder="0.85"
-                    value={
-                      typeof selectedStandaloneFullStyle?.hover?.opacity ===
-                      "number"
-                        ? String(selectedStandaloneFullStyle.hover.opacity)
-                        : ""
-                    }
-                    onChange={(e) => {
-                      const raw = e.target.value.trim();
-                      const parsed = Number.parseFloat(raw);
-                      patchSelectedHoverStyle({
-                        opacity:
-                          raw && Number.isFinite(parsed) ? parsed : undefined,
-                      });
-                    }}
-                  />
-                </div>
-              </div>
+              {/* State-specific fields — same controls for all three states */}
+              <StateStyleFields
+                state={selectedInteractionState}
+                hoverStyle={selectedStandaloneFullStyle?.hover}
+                focusStyle={selectedStandaloneFullStyle?.stateStyles?.focus}
+                activeStyle={selectedStandaloneFullStyle?.stateStyles?.active}
+                onPatchHover={(patch) => patchSelectedHoverStyle(patch)}
+                onPatchFocus={(patch) => patchSelectedStateStyle("focus", patch)}
+                onPatchActive={(patch) => patchSelectedStateStyle("active", patch)}
+                chromeMuted={CHROME.muted}
+                chromeSurface2={CHROME.surface2}
+                chromeControlBorder={CHROME.controlBorder}
+                chromeInk={CHROME.ink}
+              />
               </div>
               </details>
             </div>
+            </InspectorGroup>
+            {/* ── end Effects & Motion group ── */}
 
             {selectedStandaloneStyleNode.kind === "image" ? (
               <>

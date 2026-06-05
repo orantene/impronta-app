@@ -45,12 +45,12 @@ export function TalentTrustCard({ onOpenDetail, primaryAgencyName }: { onOpenDet
       emoji: "👤",
     },
     {
-      label: "Instagram",
-      status: igActive ? "Verified · public badge"
+      label: "Connected accounts",
+      status: igActive ? "Verified social badge"
         : igPending ? "Pending review"
-        : "Not verified",
+        : "Not connected",
       tone: igActive ? "good" : igPending ? "pending" : "muted",
-      emoji: "📸",
+      emoji: "↗",
     },
     {
       label: "Tulala Review",

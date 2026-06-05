@@ -7,8 +7,10 @@ import type { CSSProperties } from "react";
 import type { SectionComponentProps } from "../types";
 import type { LocationDiscoveryV1 } from "./schema";
 import { fetchTenantRosterCities } from "./fetch";
-import { getHomepageData } from "@/lib/home-data";
 import { LocationSection } from "@/components/home/location-section";
+import { getHomepageData } from "@/lib/home-data";
+import { readGoogleMapsBrowserKey } from "@/lib/env/google-maps-browser-key";
+import type { Locale } from "@/i18n/config";
 import { createTranslator } from "@/i18n/messages";
 
 type Loc = {
@@ -212,7 +214,56 @@ export async function LocationDiscoveryComponent({
     emptyStateText,
     nodePresentation,
     presentation,
+    mapStyle,
   } = props;
+
+  // talent_orbit — the live, interactive Google map with talent-profile photos
+  // orbiting each city pin (LocationSection / LocationMapPinPreview). Sources
+  // live roster cities + featured talent for the tenant, regardless of `source`.
+  if (mapStyle === "talent_orbit") {
+    const mapsApiKey = readGoogleMapsBrowserKey();
+    const { locations } = mapsApiKey
+      ? await getHomepageData({ tenantId })
+      : { locations: [] as Awaited<ReturnType<typeof getHomepageData>>["locations"] };
+    // Render the live orbit map only when a Maps key exists AND the tenant has
+    // mapped roster cities; otherwise fall through to the always-renders
+    // editorial map below (no bare "map unavailable" state on key-less tenants).
+    if (mapsApiKey && locations.length > 0) {
+      const es = locale === "es";
+      return (
+        <LocationSection
+          locations={locations}
+          locale={locale as Locale}
+          mapsApiKey={mapsApiKey}
+          publicPathPrefix={publicPathPrefix}
+          copy={{
+            sectionKicker: eyebrow ?? (es ? "Red de talento" : "Talent network"),
+            sectionTitle:
+              headline ??
+              (es
+                ? "Rostros locales, alcance internacional."
+                : "Local faces, international reach."),
+            talentCountOne: es ? "1 talento" : "1 talent",
+            talentCountMany: es ? "{count} talentos" : "{count} talent",
+            viewTalents: es ? "Ver talentos" : "View talents",
+            mapLoadErrorTitle: es ? "Mapa no disponible" : "Map unavailable",
+            mapLoadErrorBody: es
+              ? "No se pudo cargar el mapa interactivo."
+              : "The interactive map could not load.",
+            mapLoadErrorOpenConsole: es
+              ? "Abre la consola del navegador para más detalles."
+              : "Open the browser console for details.",
+            mapPinPreviewAria: es
+              ? "Talento destacado en {city}"
+              : "Featured talent in {city}",
+            mapPinPreviewPhotoAlt: es ? "Talento destacado" : "Featured talent",
+          }}
+        />
+      );
+    }
+    // No live locations resolved for this tenant → fall through to editorial.
+  }
+
   const nodeIdsByRole = builderNodeBindings?.nodeIdsByRole;
 
   // 6C — single-source link resolution (handles LinkRef object or

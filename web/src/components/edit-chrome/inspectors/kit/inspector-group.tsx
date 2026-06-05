@@ -30,6 +30,12 @@ interface InspectorGroupProps {
   storageKey?: string;
   /** Default-open when no stored state exists. Defaults to !advanced. */
   defaultOpen?: boolean;
+  /**
+   * Optional trailing accessory rendered at the END of the title row (e.g. the
+   * job #33 "has tablet/mobile overrides" dot). Right-aligned via the existing
+   * justify-between layout; omitted → no change to the header.
+   */
+  accessory?: ReactNode;
   children: ReactNode;
 }
 
@@ -52,6 +58,7 @@ export function InspectorGroup({
   collapsible = false,
   storageKey,
   defaultOpen,
+  accessory,
   children,
 }: InspectorGroupProps) {
   const initialOpen = defaultOpen ?? !advanced;
@@ -73,9 +80,12 @@ export function InspectorGroup({
   if (!collapsible) {
     return (
       <section className="flex flex-col gap-2.5">
-        <div className="flex items-center gap-1.5">
-          <span className={titleCls}>{title}</span>
-          {info ? <InfoTip label={info} /> : null}
+        <div className="flex w-full items-center justify-between gap-1.5">
+          <div className="flex items-center gap-1.5">
+            <span className={titleCls}>{title}</span>
+            {info ? <InfoTip label={info} /> : null}
+          </div>
+          {accessory ?? null}
         </div>
         {children}
       </section>
@@ -116,6 +126,7 @@ export function InspectorGroup({
           </button>
           {info ? <InfoTip label={info} /> : null}
         </div>
+        {accessory ?? null}
       </div>
       {open ? children : null}
     </section>

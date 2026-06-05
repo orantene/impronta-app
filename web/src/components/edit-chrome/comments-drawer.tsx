@@ -357,53 +357,72 @@ export function CommentsDrawer() {
     if (!trimmed) return;
     setSubmitting(true);
     setErrorMessage(null);
-    const res = await addCommentAction({
-      locale,
-      pageId: pageId ?? undefined,
-      sectionId: targetSectionId,
-      body: trimmed,
-    });
-    setSubmitting(false);
-    if (!res.ok) {
-      setErrorMessage(res.error);
-      return;
-    }
-    setComposerBody("");
-    // Optimistic insert in case Realtime is laggy or unavailable in dev.
-    setRows((prev) => {
-      if (prev.some((r) => r.id === res.comment.id)) return prev;
-      return [...prev, res.comment];
-    });
-  }, [composerBody, composerSectionId, locale, pageId]);
-
-  const handleResolveToggle = useCallback(
-    async (commentId: string, currentlyResolved: boolean) => {
-      const res = await resolveCommentAction({
-        commentId,
-        resolved: !currentlyResolved,
+    try {
+      const res = await addCommentAction({
+        locale,
+        pageId: pageId ?? undefined,
+        sectionId: targetSectionId,
+        body: trimmed,
       });
       if (!res.ok) {
         setErrorMessage(res.error);
         return;
       }
+      setComposerBody("");
+      // Optimistic insert in case Realtime is laggy or unavailable in dev.
       setRows((prev) => {
-        const idx = prev.findIndex((r) => r.id === commentId);
-        if (idx === -1) return prev;
-        const next = prev.slice();
-        next[idx] = res.comment;
-        return next;
+        if (prev.some((r) => r.id === res.comment.id)) return prev;
+        return [...prev, res.comment];
       });
+    } catch (err: unknown) {
+      setErrorMessage(
+        err instanceof Error ? err.message : "Failed to post comment.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }, [composerBody, composerSectionId, locale, pageId]);
+
+  const handleResolveToggle = useCallback(
+    async (commentId: string, currentlyResolved: boolean) => {
+      try {
+        const res = await resolveCommentAction({
+          commentId,
+          resolved: !currentlyResolved,
+        });
+        if (!res.ok) {
+          setErrorMessage(res.error);
+          return;
+        }
+        setRows((prev) => {
+          const idx = prev.findIndex((r) => r.id === commentId);
+          if (idx === -1) return prev;
+          const next = prev.slice();
+          next[idx] = res.comment;
+          return next;
+        });
+      } catch (err: unknown) {
+        setErrorMessage(
+          err instanceof Error ? err.message : "Failed to update comment.",
+        );
+      }
     },
     [],
   );
 
   const handleDelete = useCallback(async (commentId: string) => {
-    const res = await deleteCommentAction({ commentId });
-    if (!res.ok) {
-      setErrorMessage(res.error);
-      return;
+    try {
+      const res = await deleteCommentAction({ commentId });
+      if (!res.ok) {
+        setErrorMessage(res.error);
+        return;
+      }
+      setRows((prev) => prev.filter((r) => r.id !== commentId));
+    } catch (err: unknown) {
+      setErrorMessage(
+        err instanceof Error ? err.message : "Failed to delete comment.",
+      );
     }
-    setRows((prev) => prev.filter((r) => r.id !== commentId));
   }, []);
 
   if (!open) return null;

@@ -1,10 +1,11 @@
 /**
  * ServicesBlock — "Services / What I offer" section.
  * Renders package teasers (if any), service areas, and a "starting from"
- * rate hint. All optional; renders nothing when all are empty.
+ * rate hint. All optional; renders nothing when all are empty. --plt tokens.
  */
 
 import type { TalentServiceAreaRow } from "../page";
+import { LightSectionLabel } from "./section-label";
 
 type PackageTeaser = { label: string; detail: string | null };
 
@@ -45,18 +46,29 @@ export function ServicesBlock({
       {/* Package teasers */}
       {hasPackages ? (
         <div className="mt-5 space-y-3">
-          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[#9CA3AF]">
+          <p
+            className="plt-mono text-[0.625rem] font-medium uppercase tracking-[0.18em]"
+            style={{ color: "var(--plt-muted-soft)" }}
+          >
             {packagesLabel}
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             {packageTeasers.map((pkg, i) => (
               <div
                 key={i}
-                className="rounded-2xl border border-[#ECECEC] bg-[#FAFAF8] p-4"
+                className="rounded-[var(--plt-radius-md)] border p-4"
+                style={{
+                  borderColor: "var(--plt-hairline)",
+                  background: "var(--plt-bg-raised)",
+                }}
               >
-                <p className="font-medium text-[#1A1A1A]">{pkg.label}</p>
+                <p className="font-medium" style={{ color: "var(--plt-ink)" }}>
+                  {pkg.label}
+                </p>
                 {pkg.detail ? (
-                  <p className="mt-1 text-sm text-[#6B6B6B]">{pkg.detail}</p>
+                  <p className="mt-1 text-sm" style={{ color: "var(--plt-muted)" }}>
+                    {pkg.detail}
+                  </p>
                 ) : null}
               </div>
             ))}
@@ -78,17 +90,23 @@ export function ServicesBlock({
                 : area.service_kind === "remote_only"
                 ? "Remote"
                 : "Travels to";
-            const label = locationName
-              ? `${kindLabel}: ${locationName}`
-              : kindLabel;
+            const label = locationName ? `${kindLabel}: ${locationName}` : kindLabel;
             return (
               <span
                 key={area.id}
-                className="inline-flex items-center rounded-full border border-[#ECECEC] bg-white px-3 py-1 text-sm text-[#6B6B6B]"
+                className="inline-flex items-center rounded-full border px-3 py-1 text-sm"
+                style={{
+                  borderColor: "var(--plt-hairline-strong)",
+                  background: "var(--plt-bg-raised)",
+                  color: "var(--plt-ink-soft)",
+                }}
               >
                 {label}
                 {area.travel_fee_required ? (
-                  <span className="ml-1.5 text-[10px] uppercase tracking-[0.1em] text-[#9CA3AF]">
+                  <span
+                    className="plt-mono ml-1.5 text-[0.625rem] uppercase tracking-[0.1em]"
+                    style={{ color: "var(--plt-muted-soft)" }}
+                  >
                     · fee
                   </span>
                 ) : null}
@@ -99,17 +117,22 @@ export function ServicesBlock({
       ) : null}
 
       {/* Starting from + booking note */}
-      {(hasStartingFrom || hasBookingNote) ? (
+      {hasStartingFrom || hasBookingNote ? (
         <div className="mt-5 space-y-2">
           {hasStartingFrom ? (
-            <p className="text-sm text-[#6B6B6B]">
-              <span className="font-medium text-[#1A1A1A]">Starting from:</span>{" "}
+            <p className="text-sm" style={{ color: "var(--plt-ink-soft)" }}>
+              <span className="font-medium" style={{ color: "var(--plt-ink)" }}>
+                Starting from:
+              </span>{" "}
               {startingFrom}
             </p>
           ) : null}
           {hasBookingNote ? (
-            <p className="text-sm text-[#6B6B6B]">
-              <span className="text-[11px] uppercase tracking-[0.14em] text-[#9CA3AF]">
+            <p className="text-sm" style={{ color: "var(--plt-ink-soft)" }}>
+              <span
+                className="plt-mono text-[0.6875rem] uppercase tracking-[0.14em]"
+                style={{ color: "var(--plt-muted-soft)" }}
+              >
                 {bookingDetailsLabel}:{" "}
               </span>
               {bookingNote}
@@ -118,23 +141,5 @@ export function ServicesBlock({
         </div>
       ) : null}
     </section>
-  );
-}
-
-// Local section label (light theme)
-function LightSectionLabel({
-  id,
-  children,
-}: {
-  id?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <h2
-      id={id}
-      className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#9CA3AF]"
-    >
-      {children}
-    </h2>
   );
 }

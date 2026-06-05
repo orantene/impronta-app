@@ -129,13 +129,16 @@ export const getCachedActorSession = cache(
     const fastPath = await tryActorFromForwardedHeaders(supabase);
     if (fastPath) return fastPath;
 
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser();
-    if (error || !user) {
+    // A stale/invalid refresh token can make `getUser()` THROW (AuthApiError:
+    // "Invalid Refresh Token") rather than return `{ error }`. `.catch(() => null)`
+    // turns that into a clean logged-out result, so server actions return a
+    // graceful "Please sign in again." instead of an uncaught throw — which
+    // previously surfaced to the user as a bare "Retry" with no explanation.
+    const authResult = await supabase.auth.getUser().catch(() => null);
+    if (!authResult || authResult.error || !authResult.data.user) {
       return { supabase, user: null, profile: null };
     }
+    const user = authResult.data.user;
 
     const profile = await loadAccessProfile(supabase, user.id);
     return { supabase, user, profile };

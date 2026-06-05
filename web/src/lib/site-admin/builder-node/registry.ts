@@ -1,5 +1,10 @@
 import { z } from "zod";
 import { BUILDER_ICON_NAMES } from "./icon-registry";
+import {
+  isBindableTokenKey,
+  isStyleTokenRef,
+  STYLE_TOKEN_REF_PREFIX,
+} from "./style-token-bindings";
 import type { BuilderNodeKind } from "./types";
 
 /** Kinds allowed inside composable shells (section body, container, card, CTA group, …). */
@@ -25,6 +30,11 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "code",
   "divider",
   "spacer",
+  // Lead/contact form — droppable inside layout shells as well as at the root.
+  "form",
+  // Tulala components (curated dynamic sections) are droppable inside generic
+  // layout shells as well as at the page root.
+  "section_embed",
 ];
 
 /** §7A parent/child governance — Card (typography + media + actions; no layout shells inside). */
@@ -56,6 +66,24 @@ const dataBindingPropsSchema = z.object({
 
 const fieldBindingPropsSchema = z.object({ text: z.string().max(160).optional(), label: z.string().max(160).optional(), href: z.string().max(160).optional(), src: z.string().max(160).optional(), alt: z.string().max(160).optional() }).strict();
 
+// Token-binding-aware string (Wave 3 · 3A). A color / font-family style value
+// may be a raw CSS string OR a `token:<key>` reference that binds the prop to a
+// Theme design token (see builder-node/style-token-bindings.ts). This validator
+// accepts any raw string (back-compat — hex / rgb / keyword / literal var()) but
+// REJECTS a malformed `token:` sentinel whose key is not a known bindable token,
+// so a typo'd binding is caught at authoring time instead of silently rendering
+// nothing. `undefined` stays optional → identical render when unset.
+function tokenAwareStyleString(max: number) {
+  return z
+    .string()
+    .max(max)
+    .refine((v) => !isStyleTokenRef(v) || isBindableTokenKey(v.slice(STYLE_TOKEN_REF_PREFIX.length)), {
+      message:
+        "Unknown theme token reference. Use token:<color.* | typography.*-font-family> for a bindable token, or a raw CSS value.",
+    })
+    .optional();
+}
+
 const sectionPropsSchema = z.object({
   sectionId: z.string().uuid().nullable().optional(),
   sectionTypeKey: z.string().min(1),
@@ -85,7 +113,8 @@ const builderNodeStyleValueSchema = z.object({
   // Free-value escapes (mirror of BuilderNodeStyleValue). Length-capped so a
   // hand-crafted tree can't smuggle an oversized declaration; values land in
   // React inline styles, which the CSSOM validates (no injection surface).
-  fontFamily: z.string().max(160).optional(),
+  // fontFamily also accepts a `token:typography.*-font-family` binding.
+  fontFamily: tokenAwareStyleString(160),
   fontSize: z.string().max(32).optional(),
   fontWeight: z.number().int().min(100).max(900).optional(),
   lineHeight: z.string().max(16).optional(),
@@ -99,10 +128,11 @@ const builderNodeStyleValueSchema = z.object({
   lineClamp: z.number().int().min(1).max(20).optional(),
   // max 64 (not 32) so a theme-token binding like
   // `var(--token-color-surface-raised, #ffffff)` (and rgba()/hsl() free values)
-  // survives the schema instead of being silently stripped on save.
-  textColor: z.string().max(64).optional(),
-  backgroundColor: z.string().max(64).optional(),
-  borderColor: z.string().max(64).optional(),
+  // survives the schema instead of being silently stripped on save. These also
+  // accept a `token:color.*` reference (Wave 3 · 3A) — bound to a Theme token.
+  textColor: tokenAwareStyleString(64),
+  backgroundColor: tokenAwareStyleString(64),
+  borderColor: tokenAwareStyleString(64),
   borderWidth: z.string().max(16).optional(),
   borderStyle: z.enum(["solid", "dashed", "dotted"]).optional(),
   // Free border-radius escape — raw CSS (supports per-corner shorthand). Layers
@@ -150,6 +180,12 @@ const builderNodeStyleValueSchema = z.object({
   right: z.string().max(16).optional(),
   bottom: z.string().max(16).optional(),
   left: z.string().max(16).optional(),
+  // Wave 6B (#23) — sticky pinning convenience. stickyAnchor picks the edge to
+  // pin to (top/bottom) and MAKES the node sticky; stickyOffset is the gap from
+  // that edge (CSS length, short-capped). Back-compat: undefined → no emission;
+  // an explicit position/top/bottom always wins over the convenience.
+  stickyAnchor: z.enum(["top", "bottom"]).optional(),
+  stickyOffset: z.string().max(16).optional(),
   // Stacking & clipping escapes — z-index (integer, negatives allowed) +
   // overflow control.
   zIndex: z.number().int().min(-999).max(999).optional(),
@@ -176,6 +212,10 @@ const builderNodeStyleValueSchema = z.object({
   // Grid child placement — grid-column / grid-row span/line specs.
   gridColumn: z.string().max(24).optional(),
   gridRow: z.string().max(24).optional(),
+  // Flex/grid child order — CSS `order` (lower paints first; negatives pull a
+  // child ahead of order:0 siblings). Capped to a sane integer band like zIndex.
+  // Per-breakpoint reorder without touching the DOM. No-op outside flex/grid.
+  order: z.number().int().min(-999).max(999).optional(),
   // Filter effects — CSS filter (self) + backdrop-filter (behind, glassmorphism).
   filter: z.string().max(120).optional(),
   backdropFilter: z.string().max(120).optional(),
@@ -234,11 +274,30 @@ const builderNodeStyleValueSchema = z.object({
   pointerEvents: z.enum(["auto", "none"]).optional(),
   scrollSnapType: z.string().max(40).optional(),
   scrollSnapAlign: z.enum(["none", "start", "center", "end"]).optional(),
-  // Focus / form theming.
+  // Layered background system (Wave 3 · 3C). Each entry is one layer (gradient
+  // / image / solid color). Max 8 layers; each value is length-capped to keep
+  // CSS strings safe. The array is OPTIONAL + back-compat (undefined → no extra
+  // emission, existing `backgroundImage` / `backgroundColor` unchanged).
+  backgroundLayers: z
+    .array(
+      z
+        .object({
+          type: z.enum(["gradient", "image", "color"]),
+          value: z.string().max(600),
+        })
+        .strict(),
+    )
+    .max(8)
+    .optional(),
+  // Per-layer blend mode — a single keyword or comma-separated list matching
+  // the backgroundLayers count (CSS background-blend-mode). Length-capped.
+  backgroundBlendMode: z.string().max(120).optional(),
+  // Focus / form theming. accentColor / caretColor also accept a `token:color.*`
+  // binding (Wave 3 · 3A).
   outline: z.string().max(60).optional(),
   outlineOffset: z.string().max(16).optional(),
-  accentColor: z.string().max(64).optional(),
-  caretColor: z.string().max(64).optional(),
+  accentColor: tokenAwareStyleString(64),
+  caretColor: tokenAwareStyleString(64),
   // Entrance animation — preset maps to a baked @keyframe; duration/delay are
   // CSS time strings (short-capped).
   animationPreset: z
@@ -261,14 +320,32 @@ const builderNodeStyleValueSchema = z.object({
   animationEasing: z
     .enum(["ease", "linear", "ease-in", "ease-out", "ease-in-out", "back", "smooth"])
     .optional(),
+  // Wave 6B (#27) — interaction timeline. A free easing curve (cubic-bezier /
+  // steps / linear()) that wins over animationEasing; a named scroll parallax
+  // intensity. Both optional + back-compat (undefined → no change in render).
+  animationEasingCustom: z.string().max(64).optional(),
+  parallax: z.enum(["none", "subtle", "medium", "strong"]).optional(),
+  // Reveal-on-view (2026-06-04) — IntersectionObserver-driven entry interaction.
+  // Direction + travel distance + duration/delay + named easing. All optional +
+  // back-compat. revealDistance/Duration/Delay are short-capped CSS strings.
+  revealOnView: z
+    .enum(["none", "fade", "fade-up", "fade-down", "fade-left", "fade-right", "zoom"])
+    .optional(),
+  revealDistance: z.string().max(16).optional(),
+  revealDuration: z.string().max(16).optional(),
+  revealDelay: z.string().max(16).optional(),
+  revealEasing: z
+    .enum(["ease", "linear", "ease-in", "ease-out", "ease-in-out", "back", "smooth"])
+    .optional(),
 });
 
 // Hover-state overrides — a curated subset of animatable props re-applied while
 // hovered/focused. Single layer (hover is a pointer interaction, not a viewport).
 const builderNodeHoverStyleSchema = z.object({
-  backgroundColor: z.string().max(80).optional(),
-  color: z.string().max(80).optional(),
-  borderColor: z.string().max(80).optional(),
+  // Hover colors also accept a `token:color.*` binding (Wave 3 · 3A).
+  backgroundColor: tokenAwareStyleString(80),
+  color: tokenAwareStyleString(80),
+  borderColor: tokenAwareStyleString(80),
   boxShadow: z.string().max(200).optional(),
   scale: z.string().max(16).optional(),
   translate: z.string().max(24).optional(),
@@ -290,6 +367,19 @@ const builderNodeStyleSchema = builderNodeStyleValueSchema
       })
       .optional(),
     hover: builderNodeHoverStyleSchema.optional(),
+    // UNIVERSAL STATE STYLES (Wave 3 · 3D) — focus-visible + active overrides.
+    // Reuses the hover-style schema (same curated subset). Optional + back-compat.
+    stateStyles: z
+      .object({
+        focus: builderNodeHoverStyleSchema.optional(),
+        active: builderNodeHoverStyleSchema.optional(),
+      })
+      .optional(),
+    // Linked style class reference (Wave 3 · 3B) — a page-scoped class id
+    // (slug). Optional + back-compat; the renderer merges the class style as
+    // the base with this node's own props on top. Length-capped to the id
+    // normalizer's 48-char ceiling (styleClassIdFromName).
+    classRef: z.string().min(1).max(48).optional(),
   })
   .optional();
 
@@ -558,6 +648,50 @@ const ctaGroupPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+// Tulala component embed — wraps a curated dynamic section by key. `config`
+// is the section's own props payload; it is deliberately a loose passthrough
+// record here (capped) because each section type owns its own Zod schema, which
+// the RENDERER applies (migrate + parse via SECTION_REGISTRY). Validating the
+// full per-type shape here would duplicate ~50 section schemas and couple the
+// node registry to every section. The loose object still bounds payload size
+// and rejects non-objects; an invalid config degrades to a placeholder at
+// render time rather than failing tree validation.
+const sectionEmbedPropsSchema = z.object({
+  sectionTypeKey: z.string().min(1).max(80),
+  sectionId: z.string().uuid().nullable().optional(),
+  dataBinding: dataBindingPropsSchema.optional(),
+  config: z.record(z.string(), z.unknown()).optional(),
+  // Wrapper-level style overrides (background, padding, margin, border, radius,
+  // max-width, shadow…). Applied to the section_embed's wrapper <div> in the
+  // renderer — lets operators restyle the OUTER box of an otherwise-curated
+  // "Tulala component" (the section's own internal presentation still lives in
+  // `config`). Optional → existing embeds are unchanged.
+  style: builderNodeStyleSchema,
+});
+
+// Lead/contact form (MVP). Fields are an ordered array (text/email/tel/
+// textarea inputs + one submit button). `action` is "internal" (POST to
+// /api/cms/forms/submit, gated by a real `sectionId`) OR a full https/http URL
+// (Formspree, a custom handler, …). Field `name`s become submission keys; the
+// renderer adds a honeypot + hidden section marker. DEFERRED: select / radio /
+// checkbox, multi-step, and validation beyond native required/type.
+const formFieldSchema = z.object({
+  id: z.string().min(1).max(120),
+  name: z.string().min(1).max(80),
+  type: z.enum(["text", "email", "tel", "textarea", "submit"]),
+  label: z.string().min(1).max(120),
+  placeholder: z.string().max(160).optional(),
+  required: z.boolean().optional(),
+});
+
+const formPropsSchema = z.object({
+  action: z.string().max(2048).optional(),
+  sectionId: z.string().uuid().nullable().optional(),
+  fields: z.array(formFieldSchema).min(1).max(24),
+  honeypotName: z.string().max(80).optional(),
+  style: builderNodeStyleSchema,
+});
+
 const navPropsSchema = z.object({
   brand: z.string().max(120).optional(),
   brandHref: z.string().max(500).optional(),
@@ -821,5 +955,21 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         "Header navigation bar — inline links on desktop, hamburger menu on mobile. Links stay reachable at every width.",
       children: { type: "none" },
       propsSchema: navPropsSchema,
+    },
+    form: {
+      kind: "form",
+      label: "Form",
+      description:
+        "Lead/contact form — text, email, phone, and message fields plus a submit button. Submissions land in your workspace inbox.",
+      children: { type: "none" },
+      propsSchema: formPropsSchema,
+    },
+    section_embed: {
+      kind: "section_embed",
+      label: "Tulala component",
+      description:
+        "Embed a live Tulala component — directory, featured talent, booking, or CTA — anywhere on the canvas. Connects to real workspace data on publish.",
+      children: { type: "none" },
+      propsSchema: sectionEmbedPropsSchema,
     },
   };

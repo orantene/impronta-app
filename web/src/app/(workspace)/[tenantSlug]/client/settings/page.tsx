@@ -6,6 +6,7 @@ import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientSelfProfile, loadClientTrustBillingState } from "../../_data-bridge";
 import { ClientTrustShell } from "./ClientTrustShell";
+import { ClientSocialVerificationPanel } from "./ClientSocialVerificationPanel";
 import { isStripeConfigured } from "@/lib/stripe/client";
 import { ClientPageHeader } from "../_components/ClientPageHeader";
 import { loadUserPrefs } from "@/lib/server-actions/user-prefs";
@@ -247,6 +248,13 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
           fundedBalanceCents={trustState.fundedBalanceCents}
           stripeEnabled={stripeEnabled}
         />
+
+        <Card
+          title="Social verification"
+          subtitle="Connect social or professional accounts as optional trust proof for agencies and talent."
+        >
+          <ClientSocialVerificationPanel tenantSlug={tenantSlug} />
+        </Card>
       </div>
     </div>
   );

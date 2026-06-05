@@ -52,6 +52,7 @@ import {
   ClipboardPaste,
   Copy,
   Files,
+  PanelLeftOpen,
   Plus,
   X,
 } from "lucide-react";
@@ -62,6 +63,12 @@ import {
   CHROME_SHADOWS,
   SectionTypeIcon,
 } from "./kit";
+import { RailAvatar, RailIconButton } from "./chrome-icon-rail";
+import { useFloatingDrag, FloatingDragHandle } from "./floating-panel";
+import {
+  computeNavigatorDisclosure,
+  navigatorSelectedAncestors,
+} from "./navigator-collapse";
 
 import type {
   CompositionSectionRef,
@@ -73,6 +80,7 @@ import { sectionDisplayName } from "@/lib/site-admin/section-display-name";
 import type { SectionVisibility as SectionVisibilityT } from "@/lib/site-admin/edit-mode/section-actions";
 
 import { useEditContext } from "./edit-context";
+import { FreeformLayersTree } from "./freeform-layers-tree";
 import {
   builderSectionNodeAddressKey,
   BUILDER_NODE_REGISTRY,
@@ -83,6 +91,7 @@ import {
   indexBuilderSectionNodeIds,
   type BuilderSectionChildNode,
   type BuilderNodeKind,
+  type BuilderNodeTree,
 } from "@/lib/site-admin/builder-node";
 import { checkSlotTypeCompatibility } from "@/lib/site-admin/edit-mode/slot-type-compatibility";
 import { siblingDropGapToMoveIndex } from "@/lib/site-admin/builder-node/sibling-drop-gap";
@@ -95,9 +104,15 @@ import {
   lintHeadingOutline,
   type HeadingNode,
 } from "@/lib/site-admin/a11y/heading-hierarchy";
+import {
+  countNodesLinkedToClass,
+  type BuilderStyleClass,
+} from "@/lib/site-admin/builder-node/style-classes";
 
 const EXPANDED_SECTIONS_STORAGE_KEY =
   "impronta.editChrome.navigator.expandedSections.v2";
+const EXPANDED_NODES_STORAGE_KEY =
+  "impronta.editChrome.navigator.expandedNodes.v1";
 const RESIZE_HANDLE_WIDTH = 8;
 const NAVIGATOR_MIN_WIDTH = 280;
 const NAVIGATOR_MAX_WIDTH = 520;
@@ -233,6 +248,7 @@ export function NavigatorPanel() {
     moveBuilderNodeWithinParent,
     moveBuilderNodeToParentIndex,
     insertBuilderNode,
+    insertBuilderSectionEmbed,
     duplicateBuilderNode,
     copyBuilderNode,
     pasteCopiedBuilderNode,
@@ -253,6 +269,7 @@ export function NavigatorPanel() {
     openLibrary,
     reportMutationError,
     builderTree,
+    pageId,
     advancedElementLibraryEnabled,
     canInsertRawHtmlElements,
   } = useEditContext();
@@ -269,7 +286,7 @@ export function NavigatorPanel() {
   // indented by level), reusing the headingProbe data the navigator
   // already loads for the lint badge. Toggling is local to the navigator —
   // it doesn't change selection or any persisted state.
-  const [viewMode, setViewMode] = useState<"sections" | "outline">("sections");
+  const [viewMode, setViewMode] = useState<"sections" | "outline" | "classes">("sections");
   const [draggingChildNode, setDraggingChildNode] = useState<{
     nodeId: string;
     kind: BuilderNodeKind;
@@ -288,6 +305,12 @@ export function NavigatorPanel() {
     () => new Set(),
   );
   const [expandedHydrated, setExpandedHydrated] = useState(false);
+  // Progressive disclosure (per-node): which intermediate nodes are drilled
+  // into. Default empty = only depth-1 rows show. Own versioned storage key.
+  const [expandedNodeIds, setExpandedNodeIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [expandedNodesHydrated, setExpandedNodesHydrated] = useState(false);
   const [hoveredSectionId, setHoveredSectionId] = useState<string | null>(null);
   const [hoveredChildNodeId, setHoveredChildNodeId] = useState<string | null>(null);
   const [focusedSectionId, setFocusedSectionId] = useState<string | null>(null);
@@ -295,6 +318,11 @@ export function NavigatorPanel() {
   const [resizing, setResizing] = useState(false);
   const [resizeHandleHovered, setResizeHandleHovered] = useState(false);
   const resizeStartRef = useRef<{ x: number; width: number } | null>(null);
+  // Floating-panel drag (Paint-style movable Layers card). The offset lives in
+  // local state, so it snaps back to the home position on every page refresh
+  // but stays where you drop it for the rest of the session.
+  const floatingDrag = useFloatingDrag({ panelId: "navigator" });
+  const floatingMoved = floatingDrag.offset.x !== 0 || floatingDrag.offset.y !== 0;
 
   const handleResizeMove = useCallback(
     (event: PointerEvent) => {
@@ -362,6 +390,38 @@ export function NavigatorPanel() {
       // in private browsing or restricted storage contexts.
     }
   }, [expandedHydrated, expandedSectionIds]);
+
+  // Per-node disclosure — hydrate + persist under its own versioned key, kept
+  // entirely separate from the section-level payload above.
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(EXPANDED_NODES_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(parsed)) {
+        setExpandedNodeIds(
+          new Set(
+            parsed.filter((value): value is string => typeof value === "string"),
+          ),
+        );
+      }
+    } catch {
+      setExpandedNodeIds(new Set());
+    } finally {
+      setExpandedNodesHydrated(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!expandedNodesHydrated) return;
+    try {
+      window.localStorage.setItem(
+        EXPANDED_NODES_STORAGE_KEY,
+        JSON.stringify([...expandedNodeIds]),
+      );
+    } catch {
+      // Local persistence is a convenience only.
+    }
+  }, [expandedNodesHydrated, expandedNodeIds]);
 
   // Phase B.2.C — shell sections (header / footer) live on a different
   // page row than the homepage, so they're not in the EditProvider's
@@ -838,6 +898,22 @@ export function NavigatorPanel() {
     },
     [insertBuilderNode, nodeInsertTarget, reportMutationError],
   );
+  const commitNodeInsertSectionEmbed = useCallback(
+    async (sectionTypeKey: string) => {
+      if (!nodeInsertTarget) return;
+      const target = nodeInsertTarget;
+      setNodeInsertTarget(null);
+      const inserted = await insertBuilderSectionEmbed(
+        target.parentId,
+        sectionTypeKey,
+        target.index,
+      );
+      if (!inserted.ok && inserted.error) {
+        reportMutationError(inserted.error);
+      }
+    },
+    [insertBuilderSectionEmbed, nodeInsertTarget, reportMutationError],
+  );
   const commitSectionDuplicate = useCallback(
     async (sectionId: string) => {
       const duplicated = await duplicateSection(sectionId);
@@ -1048,66 +1124,125 @@ export function NavigatorPanel() {
   );
 
   if (!navigatorOpen) {
-    // Collapsed "rail handle" — a 24px-wide tab on the left edge that
-    // restores the panel. Mirrors how the inspector's drawer-tools
-    // close button works on the right side.
+    // Collapsed state — a tall FLOATING, DRAGGABLE white rail (Google-app
+    // style), not a fixed full-height tab pinned to the left edge. It shares
+    // the SAME floating offset as the expanded panel, so it stays wherever you
+    // parked the panel and you can keep dragging it around like a Paint tool
+    // window. Layout: a drag grip at the very top, a clean column of round
+    // icon buttons (expand is primary), and a single collaborator avatar
+    // pinned to the BOTTOM via margin-top:auto.
     return (
-      <button
-        type="button"
+      <div
+        ref={(node) => floatingDrag.setPanelNode(node)}
         data-edit-overlay="navigator-rail-handle"
-        onClick={toggleNavigator}
-        title="Show Structure Navigator (⌘\\)"
-        aria-label="Show Structure Navigator"
         style={{
           position: "fixed",
-          left: 0,
-          top: 54,
-          bottom: 0,
-          width: 22,
-          borderRight: `1px solid ${CHROME.line}`,
-          background: CHROME.paper,
-          color: CHROME.muted,
+          left: 14,
+          top: 66,
+          width: 52,
+          minHeight: 232,
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
-          justifyContent: "center",
+          padding: "6px 0 10px",
+          background: CHROME.surface,
+          border: `1px solid ${CHROME.line}`,
+          borderRadius: 18,
+          boxShadow: floatingDrag.dragging
+            ? "0 30px 70px -20px rgba(17,24,39,0.45), 0 10px 26px -10px rgba(17,24,39,0.26)"
+            : "0 16px 44px -20px rgba(17,24,39,0.26), 0 4px 12px -8px rgba(17,24,39,0.14)",
           zIndex: 80,
-          cursor: "pointer",
+          transform: floatingDrag.transform,
+          transition: floatingDrag.dragging ? "none" : "box-shadow 180ms ease",
+          userSelect: floatingDrag.dragging ? "none" : undefined,
         }}
       >
-        <svg
-          width="11"
-          height="11"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
+        {/* Drag grip — the whole strip moves the rail. */}
+        <div
+          onPointerDown={floatingDrag.onHandlePointerDown}
+          title="Drag to move"
+          style={{
+            width: "100%",
+            display: "flex",
+            justifyContent: "center",
+            padding: "4px 0 8px",
+            cursor: floatingDrag.dragging ? "grabbing" : "grab",
+            touchAction: "none",
+            color: CHROME.muted2,
+          }}
         >
-          <polyline points="9 18 15 12 9 6" />
-        </svg>
-      </button>
+          <span
+            aria-hidden
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(2, 3px)",
+              gridAutoRows: "3px",
+              gap: 2.5,
+              opacity: floatingDrag.dragging ? 0.85 : 0.45,
+            }}
+          >
+            {Array.from({ length: 6 }).map((_, i) => (
+              <span
+                key={i}
+                style={{ width: 3, height: 3, borderRadius: 9999, background: "currentColor" }}
+              />
+            ))}
+          </span>
+        </div>
+        {/* Icon column — generous vertical rhythm, subtle hover, tooltips. */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <RailIconButton
+            title="Open Layers (⌘\\)"
+            onClick={toggleNavigator}
+            primary
+          >
+            <PanelLeftOpen size={20} strokeWidth={1.9} aria-hidden />
+          </RailIconButton>
+        </div>
+        {/* Collaborator avatar — pinned to the bottom of the rail. */}
+        <div style={{ marginTop: "auto", paddingTop: 10 }}>
+          <RailAvatar initials="You" title="You" />
+        </div>
+      </div>
     );
   }
 
   return (
     <aside
+      ref={(node) => floatingDrag.setPanelNode(node)}
       data-edit-overlay="navigator-panel"
       aria-labelledby="structure-navigator-label"
       style={{
+        // Floating control-panel card (Paint-style). Detached from the screen
+        // edges, rounded + shadowed, height-capped so it reads as a movable
+        // tool window rather than a wall-to-wall rail. `transform` carries the
+        // session drag offset; `overflow:hidden` clips the rounded corners (the
+        // inner layers list scrolls on its own — flex:1 + overflowY:auto).
         position: "fixed",
-        left: 0,
-        top: 54,
-        bottom: 0,
+        left: 14,
+        top: 66,
         width: navigatorWidth,
+        maxHeight: "calc(100vh - 84px)",
         background: CHROME.surface,
-        borderRight: `1px solid ${CHROME.line}`,
-        boxShadow: `1px 0 0 ${CHROME.line}, 16px 0 32px -16px rgba(0,0,0,0.10)`,
+        border: `1px solid ${CHROME.line}`,
+        borderRadius: 16,
+        boxShadow: floatingDrag.dragging
+          ? "0 30px 70px -20px rgba(17,24,39,0.45), 0 10px 26px -10px rgba(17,24,39,0.26)"
+          : "0 18px 50px -20px rgba(17,24,39,0.26), 0 4px 14px -8px rgba(17,24,39,0.14)",
         display: "flex",
         flexDirection: "column",
+        overflow: "hidden",
         zIndex: 80,
-        userSelect: resizing ? "none" : undefined,
+        transform: floatingDrag.transform,
+        transition: floatingDrag.dragging ? "none" : "box-shadow 180ms ease",
+        userSelect: resizing || floatingDrag.dragging ? "none" : undefined,
       }}
       onDragLeave={(e) => {
         // Only clear when leaving the panel as a whole, not when moving
@@ -1122,6 +1257,27 @@ export function NavigatorPanel() {
         if (draggingId) e.preventDefault();
       }}
     >
+      <FloatingDragHandle
+        onPointerDown={floatingDrag.onHandlePointerDown}
+        dragging={floatingDrag.dragging}
+        label="Layers"
+        moved={floatingMoved}
+        onReset={floatingDrag.reset}
+        style={{
+          // Clean grip strip flush under the rounded top corners. The row
+          // spans the full width and carries the SAME top radius as the
+          // <aside>, so the panel's overflow:hidden has nothing to clip at the
+          // corners (no white-on-white background seam / bleed). The header
+          // band directly below already supplies the divider — no border here.
+          color: CHROME.muted,
+          background: CHROME.surface,
+          width: "100%",
+          boxSizing: "border-box",
+          borderTopLeftRadius: 16,
+          borderTopRightRadius: 16,
+          height: 32,
+        }}
+      />
       <div
         role="separator"
         aria-label="Resize navigator"
@@ -1160,7 +1316,9 @@ export function NavigatorPanel() {
         style={{
           position: "absolute",
           top: 0,
-          right: -Math.floor(RESIZE_HANDLE_WIDTH / 2),
+          // At the inner right edge (was straddling at -4) so the rounded
+          // card's overflow:hidden doesn't clip the resize grab zone.
+          right: 0,
           bottom: 0,
           width: RESIZE_HANDLE_WIDTH,
           cursor: "col-resize",
@@ -1198,8 +1356,11 @@ export function NavigatorPanel() {
           style={{
             position: "absolute",
             left: "50%",
-            top: 0,
-            bottom: 0,
+            // Inset top + bottom by the card's corner radius so the resize
+            // line never pokes a hairline across the rounded top-right /
+            // bottom-right corners (a source of the top-edge "bleed").
+            top: 14,
+            bottom: 14,
             width: 2,
             transform: "translateX(-50%)",
             background:
@@ -1250,36 +1411,72 @@ export function NavigatorPanel() {
               }}
               aria-hidden
             />
-            <span id="structure-navigator-label">Navigator</span>
+            <span id="structure-navigator-label">Layers</span>
             {builderPerformanceIssues.length > 0 ? (
-              <span
-                title={builderPerformanceIssues.map((issue) => issue.message).join("\n")}
-                style={{
-                  marginLeft: 6,
-                  padding: "1px 6px",
-                  borderRadius: 999,
-                  border: hasBlockingPerformanceIssue
-                    ? "1px solid rgba(180, 35, 35, 0.35)"
-                    : "1px solid rgba(209, 87, 0, 0.35)",
-                  background: hasBlockingPerformanceIssue
-                    ? "rgba(180, 35, 35, 0.14)"
-                    : "rgba(209, 87, 0, 0.12)",
-                  color: hasBlockingPerformanceIssue ? "#9f1239" : "#8f4300",
-                  fontSize: 9,
-                  fontWeight: 700,
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
-                }}
-              >
-                Perf
-              </span>
+              hasBlockingPerformanceIssue ? (
+                /* Genuine blocking problems keep a visible (rose) pill. */
+                <span
+                  title={
+                    "Performance issues detected:\n" +
+                    builderPerformanceIssues
+                      .map((issue) => `• ${issue.message}`)
+                      .join("\n")
+                  }
+                  aria-label={`${builderPerformanceIssues.length} performance ${builderPerformanceIssues.length === 1 ? "issue" : "issues"} detected — hover for details`}
+                  style={{
+                    marginLeft: 6,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 3,
+                    padding: "1px 6px",
+                    borderRadius: 999,
+                    border: "1px solid rgba(180, 35, 35, 0.35)",
+                    background: "rgba(180, 35, 35, 0.14)",
+                    color: "#9f1239",
+                    fontSize: 9,
+                    fontWeight: 700,
+                    letterSpacing: "0.04em",
+                    cursor: "default",
+                  }}
+                >
+                  <svg width="8" height="8" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
+                    <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm-.75 3.5h1.5v4.5h-1.5V4.5zm0 5.5h1.5v1.5h-1.5V10z"/>
+                  </svg>
+                  Slow
+                </span>
+              ) : (
+                /* Hint-level signals (e.g. deep nesting) are NOT an alarm — a
+                   muted, neutral info glyph that reveals the full list on hover.
+                   No warning color, no "Perf" label greeting the operator. */
+                <span
+                  title={
+                    "Performance hints:\n" +
+                    builderPerformanceIssues
+                      .map((issue) => `• ${issue.message}`)
+                      .join("\n")
+                  }
+                  aria-label={`${builderPerformanceIssues.length} builder ${builderPerformanceIssues.length === 1 ? "hint" : "hints"} — hover for details`}
+                  style={{
+                    marginLeft: 6,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    color: "#9ca3af",
+                    opacity: 0.6,
+                    cursor: "default",
+                  }}
+                >
+                  <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
+                    <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm-.75 3.5h1.5v4.5h-1.5V4.5zm0 5.5h1.5v1.5h-1.5V10z"/>
+                  </svg>
+                </span>
+              )
             ) : null}
           </div>
           <button
             type="button"
             onClick={toggleNavigator}
-            title="Hide Structure Navigator (⌘\\)"
-            aria-label="Hide Structure Navigator"
+            title="Hide Layers (⌘\\)"
+            aria-label="Hide Layers"
             style={{
               width: 22,
               height: 22,
@@ -1312,7 +1509,7 @@ export function NavigatorPanel() {
          *  Search remains scoped to the current view. */}
         <div
           role="radiogroup"
-          aria-label="Navigator view mode"
+          aria-label="Layers view mode"
           style={{
             display: "inline-flex",
             alignSelf: "stretch",
@@ -1323,8 +1520,13 @@ export function NavigatorPanel() {
             marginBottom: 6,
           }}
         >
-          {(["sections", "outline"] as const).map((mode) => {
+          {/* #15 — renamed "sections" view label to "Layers" (operator
+              language, not dev taxonomy). "Outline" stays as-is.
+              Wave 5.8 — added "Classes" tab for the Class Manager. */}
+          {(["sections", "outline", "classes"] as const).map((mode) => {
             const active = viewMode === mode;
+            const displayLabel =
+              mode === "sections" ? "Layers" : mode === "outline" ? "Outline" : "Classes";
             return (
               <button
                 key={mode}
@@ -1350,7 +1552,7 @@ export function NavigatorPanel() {
                   transition: "background 100ms, color 100ms",
                 }}
               >
-                {mode}
+                {displayLabel}
               </button>
             );
           })}
@@ -1382,7 +1584,7 @@ export function NavigatorPanel() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={viewMode === "outline" ? "Search headings…" : "Search sections…"}
+            placeholder={viewMode === "outline" ? "Search headings…" : viewMode === "classes" ? "Search classes…" : "Search layers…"}
             style={{
               width: "100%",
               padding: "6px 8px 6px 28px",
@@ -1420,6 +1622,17 @@ export function NavigatorPanel() {
             nodes={outlineNodes}
             selectedSectionId={selectedSectionId}
             onSelect={setSelectedSectionId}
+            search={search}
+          />
+        ) : null}
+        {/* Wave 5.8 — Class Manager. Lists all style classes defined on
+         *  this page, how many nodes reference each one, and lets the
+         *  operator rename a class (name-only; the stable id is unchanged
+         *  so no node tree patches are required). */}
+        {viewMode === "classes" ? (
+          <ClassManagerPanel
+            pageId={pageId}
+            builderTree={builderTree}
             search={search}
           />
         ) : null}
@@ -1598,16 +1811,20 @@ export function NavigatorPanel() {
             <polyline points="6 9 12 15 18 9" />
           </svg>
           <span>{pageMetadata?.title ?? "Page"}</span>
-          <span
-            style={{
-              color: CHROME.muted2,
-              fontWeight: 500,
-              letterSpacing: 0,
-              textTransform: "none",
-            }}
-          >
-            · {flat.length} section{flat.length === 1 ? "" : "s"}
-          </span>
+          {/* #15 — suppress "· 0 sections" when the page is empty; show
+              "· N blocks" instead of "· N sections" for plain language. */}
+          {flat.length > 0 ? (
+            <span
+              style={{
+                color: CHROME.muted2,
+                fontWeight: 500,
+                letterSpacing: 0,
+                textTransform: "none",
+              }}
+            >
+              · {flat.length} {flat.length === 1 ? "block" : "blocks"}
+            </span>
+          ) : null}
           {hasLayeredSections ? (
             <span
               style={{
@@ -1811,10 +2028,17 @@ export function NavigatorPanel() {
               role="status"
               aria-live="polite"
             >
-              No sections match &ldquo;{search}&rdquo;. Clear the search or add a block that matches.
+              No layers match &ldquo;{search}&rdquo;. Clear the search or add a block that matches.
             </div>
           )}
-          {visible.length === 0 && !search.trim() && (
+          {/* Freeform full-page design: zero curated sections but a non-empty
+              builderTree of containers + blocks. Show the Layers tree so the
+              block hierarchy is visible + navigable from the left rail
+              (the section list / FlatRow model is empty for freeform). */}
+          {visible.length === 0 && !search.trim() && builderTree.length > 0 && (
+            <FreeformLayersTree />
+          )}
+          {visible.length === 0 && !search.trim() && builderTree.length === 0 && (
             <div
               style={{
                 padding: "12px 8px",
@@ -1882,12 +2106,34 @@ export function NavigatorPanel() {
             const rowMatchesSearch = searchQuery
               ? sectionMatchesNavigatorSearch(row, searchQuery, displayNameById)
               : true;
+            // Progressive disclosure: when NOT searching, collapse the subtree
+            // to a navigable outline (depth-1 by default; drill in via the
+            // per-row chevron). The selected node's ancestor path is always
+            // force-revealed so a deep selection is never hidden. Searching
+            // bypasses collapse entirely so matches are never hidden.
+            const navSelectedAncestors = searchQuery
+              ? null
+              : navigatorSelectedAncestors(
+                  row.childNodes,
+                  selectedBuilderNodeId,
+                );
+            const navDisclosure = searchQuery
+              ? null
+              : computeNavigatorDisclosure(
+                  row.childNodes,
+                  (id) =>
+                    expandedNodeIds.has(id) ||
+                    (navSelectedAncestors?.has(id) ?? false),
+                );
+            const navNodeIdsWithChildren = navDisclosure?.withChildren ?? null;
             const visibleChildNodes =
               searchQuery && !rowMatchesSearch
                 ? row.childNodes.filter((child) =>
                     builderChildMatchesNavigatorSearch(child, searchQuery),
                   )
-                : row.childNodes;
+                : navDisclosure
+                  ? navDisclosure.visible
+                  : row.childNodes;
             const hasSelectedChild = row.childNodes.some(
               (child) => child.id === selectedBuilderNodeId,
             );
@@ -2401,6 +2647,7 @@ export function NavigatorPanel() {
                   targetKey={row.builderNodeId ? `section:${row.builderNodeId}` : null}
                   target={nodeInsertTarget}
                   onInsert={commitNodeInsert}
+                  onInsertSectionEmbed={commitNodeInsertSectionEmbed}
                   onDismiss={() => setNodeInsertTarget(null)}
                 />
                 {visibleChildNodes.length > 0 && childListExpanded ? (
@@ -2435,6 +2682,11 @@ export function NavigatorPanel() {
                       const childSelected = selectedBuilderNodeId === child.id;
                       const childHovered = hoveredChildNodeId === child.id;
                       const childFocused = focusedChildNodeId === child.id;
+                      const childHasKids =
+                        navNodeIdsWithChildren?.has(child.id) ?? false;
+                      const childOpen =
+                        expandedNodeIds.has(child.id) ||
+                        (navSelectedAncestors?.has(child.id) ?? false);
                       const childActionsVisible =
                         childSelected ||
                         childHovered ||
@@ -2649,6 +2901,60 @@ export function NavigatorPanel() {
                               }
                             }}
                           >
+                            {childHasKids ? (
+                              <button
+                                type="button"
+                                data-navigator-node-disclosure=""
+                                aria-label={`${childOpen ? "Collapse" : "Expand"} ${child.label}`}
+                                aria-expanded={childOpen}
+                                title={childOpen ? "Collapse" : "Expand"}
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setExpandedNodeIds((prev) => {
+                                    const next = new Set(prev);
+                                    if (next.has(child.id)) next.delete(child.id);
+                                    else next.add(child.id);
+                                    return next;
+                                  });
+                                }}
+                                onKeyDown={(e) => e.stopPropagation()}
+                                style={{
+                                  position: "absolute",
+                                  left: Math.max(
+                                    2,
+                                    8 + (child.depth - 1) * 13 - 12,
+                                  ),
+                                  top: "50%",
+                                  transform: "translateY(-50%)",
+                                  width: 13,
+                                  height: 18,
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  padding: 0,
+                                  border: "none",
+                                  background: "transparent",
+                                  color: CHROME.muted,
+                                  cursor: "pointer",
+                                  lineHeight: 1,
+                                  fontSize: 9,
+                                }}
+                              >
+                                <span
+                                  aria-hidden
+                                  style={{
+                                    display: "inline-block",
+                                    transform: childOpen
+                                      ? "rotate(90deg)"
+                                      : "rotate(0deg)",
+                                    transition: "transform 120ms ease",
+                                  }}
+                                >
+                                  ▸
+                                </span>
+                              </button>
+                            ) : null}
                             <span
                               data-navigator-drag-handle=""
                               aria-hidden
@@ -2918,6 +3224,7 @@ export function NavigatorPanel() {
                             targetKey={`child:${child.id}`}
                             target={nodeInsertTarget}
                             onInsert={commitNodeInsert}
+                            onInsertSectionEmbed={commitNodeInsertSectionEmbed}
                             onDismiss={() => setNodeInsertTarget(null)}
                           />
                           {showChildDropTail ? <DropLine /> : null}
@@ -3336,11 +3643,13 @@ function NodeInsertMenu({
   targetKey,
   target,
   onInsert,
+  onInsertSectionEmbed,
   onDismiss,
 }: {
   targetKey: string | null;
   target: NodeInsertTarget | null;
   onInsert: (kind: BuilderNodeKind) => Promise<void>;
+  onInsertSectionEmbed: (sectionTypeKey: string) => Promise<void>;
   onDismiss: () => void;
 }) {
   if (!targetKey || !target || target.key !== targetKey) {
@@ -3419,6 +3728,9 @@ function NodeInsertMenu({
         variant="navigator"
         allowedKinds={target.allowedKinds}
         onPick={(kind) => void onInsert(kind)}
+        onPickSectionEmbed={(sectionTypeKey) =>
+          void onInsertSectionEmbed(sectionTypeKey)
+        }
       />
     </div>
   );
@@ -3722,5 +4034,439 @@ function RenameInput({
         letterSpacing: "-0.005em",
       }}
     />
+  );
+}
+
+// ── Wave 5.8 — Class Manager ──────────────────────────────────────────────────
+
+const CLASS_STORAGE_PREFIX = "tulala:builder:style-classes:v1";
+
+function classStorageKey(pageId: string | null): string {
+  return `${CLASS_STORAGE_PREFIX}:${pageId ?? "home"}`;
+}
+
+function readStoredClasses(pageId: string | null): BuilderStyleClass[] {
+  try {
+    const raw = window.localStorage.getItem(classStorageKey(pageId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return (parsed as unknown[]).filter(
+      (c): c is BuilderStyleClass =>
+        Boolean(c) &&
+        typeof (c as BuilderStyleClass).id === "string" &&
+        typeof (c as BuilderStyleClass).name === "string" &&
+        Boolean((c as BuilderStyleClass).style),
+    );
+  } catch {
+    return [];
+  }
+}
+
+function writeStoredClasses(pageId: string | null, classes: ReadonlyArray<BuilderStyleClass>) {
+  try {
+    window.localStorage.setItem(classStorageKey(pageId), JSON.stringify(classes));
+  } catch {
+    /* quota / private-mode — non-fatal */
+  }
+}
+
+/**
+ * Wave 5.8 — Class Manager panel.
+ *
+ * Lists every named style class defined on this page (stored in localStorage
+ * by the LinkedStyleClassesBar), shows how many nodes reference each one, and
+ * lets the operator rename a class in-place.
+ *
+ * Rename strategy: the class NAME is a human label — it changes freely. The
+ * class ID (slug) is the stable reference stored on each node as `classRef` and
+ * is NEVER changed here. Therefore no node-tree patches are needed on rename —
+ * only the localStorage registry entry is updated.
+ *
+ * Deferred: delete, full Webflow-style inheritance editing, cross-page class
+ * sharing, and syncing the class registry into the persisted page snapshot
+ * (the NOTE in linked-style-classes-bar.tsx covers this gap).
+ */
+function ClassManagerPanel({
+  pageId,
+  builderTree,
+  search,
+}: {
+  pageId: string | null;
+  builderTree: BuilderNodeTree;
+  search: string;
+}) {
+  const [classes, setClasses] = useState<ReadonlyArray<BuilderStyleClass>>([]);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const renameInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Hydrate from localStorage on mount / when pageId changes.
+  useEffect(() => {
+    setClasses(readStoredClasses(pageId));
+  }, [pageId]);
+
+  const persist = useCallback(
+    (next: ReadonlyArray<BuilderStyleClass>) => {
+      setClasses(next);
+      writeStoredClasses(pageId, next);
+    },
+    [pageId],
+  );
+
+  // Per-class node usage counts.
+  const usageCounts = useMemo<Record<string, number>>(() => {
+    const counts: Record<string, number> = {};
+    for (const klass of classes) {
+      counts[klass.id] = countNodesLinkedToClass(builderTree, klass.id);
+    }
+    return counts;
+  }, [classes, builderTree]);
+
+  // Filter by search (case-insensitive on the class name).
+  const q = search.trim().toLowerCase();
+  const filtered = q
+    ? classes.filter((c) => c.name.toLowerCase().includes(q))
+    : classes;
+
+  // ── Rename helpers ────────────────────────────────────────────────────────
+
+  const startRename = (klass: BuilderStyleClass) => {
+    setRenamingId(klass.id);
+    setRenameValue(klass.name);
+  };
+
+  const commitRename = useCallback(
+    (classId: string, next: string) => {
+      const trimmed = next.trim();
+      setRenamingId(null);
+      setRenameValue("");
+      if (!trimmed) return; // empty → cancel
+      persist(
+        classes.map((c) =>
+          c.id === classId ? { ...c, name: trimmed } : c,
+        ),
+      );
+    },
+    [classes, persist],
+  );
+
+  const cancelRename = () => {
+    setRenamingId(null);
+    setRenameValue("");
+  };
+
+  // Auto-focus the rename input when it mounts.
+  useEffect(() => {
+    if (renamingId && renameInputRef.current) {
+      renameInputRef.current.focus();
+      renameInputRef.current.select();
+    }
+  }, [renamingId]);
+
+  // ── Empty states ──────────────────────────────────────────────────────────
+
+  if (classes.length === 0) {
+    return (
+      <div
+        style={{
+          padding: "16px 8px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 6,
+        }}
+      >
+        <span
+          style={{
+            fontSize: 12,
+            fontWeight: 600,
+            color: CHROME.ink,
+          }}
+        >
+          No style classes yet
+        </span>
+        <span
+          style={{
+            fontSize: 11.5,
+            lineHeight: 1.5,
+            color: CHROME.muted,
+          }}
+        >
+          Select a block in the Layers view, open the Style tab, and choose
+          &ldquo;Create class from this block&rdquo; to define a reusable style.
+        </span>
+      </div>
+    );
+  }
+
+  if (filtered.length === 0 && q) {
+    return (
+      <div
+        style={{
+          padding: "10px 8px",
+          fontSize: 11.5,
+          color: CHROME.muted2,
+          fontStyle: "italic",
+        }}
+      >
+        No classes match &ldquo;{search}&rdquo;.
+      </div>
+    );
+  }
+
+  // ── Class list ────────────────────────────────────────────────────────────
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 2,
+      }}
+      data-builder-class-manager=""
+    >
+      {/* Section header */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "4px 8px 8px",
+        }}
+      >
+        <span
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: "0.10em",
+            textTransform: "uppercase",
+            color: CHROME.muted,
+          }}
+        >
+          {classes.length} {classes.length === 1 ? "class" : "classes"}
+        </span>
+      </div>
+
+      {filtered.map((klass) => {
+        const count = usageCounts[klass.id] ?? 0;
+        const isRenaming = renamingId === klass.id;
+
+        return (
+          <div
+            key={klass.id}
+            data-builder-class-row={klass.id}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "6px 8px",
+              borderRadius: CHROME_RADII.sm,
+              background: isRenaming ? CHROME.surface2 : "transparent",
+              border: `1px solid ${isRenaming ? CHROME.controlBorder : "transparent"}`,
+              transition: "background 80ms",
+            }}
+            onMouseEnter={(e) => {
+              if (!isRenaming) {
+                (e.currentTarget as HTMLElement).style.background = CHROME.surface;
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isRenaming) {
+                (e.currentTarget as HTMLElement).style.background = "transparent";
+              }
+            }}
+          >
+            {/* Class colour dot — accent colour as a visual anchor */}
+            <span
+              aria-hidden
+              style={{
+                flexShrink: 0,
+                width: 8,
+                height: 8,
+                borderRadius: 999,
+                background: CHROME.accent,
+                opacity: count === 0 ? 0.35 : 1,
+              }}
+            />
+
+            {/* Name (read or edit) */}
+            {isRenaming ? (
+              <input
+                ref={renameInputRef}
+                type="text"
+                value={renameValue}
+                aria-label={`Rename class ${klass.name}`}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    commitRename(klass.id, renameValue);
+                  } else if (e.key === "Escape") {
+                    e.preventDefault();
+                    cancelRename();
+                  }
+                }}
+                onBlur={() => commitRename(klass.id, renameValue)}
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  padding: "2px 6px",
+                  fontSize: 12,
+                  fontFamily: "inherit",
+                  fontWeight: 600,
+                  color: CHROME.ink,
+                  background: CHROME.paper,
+                  border: `1px solid ${CHROME.blue}`,
+                  borderRadius: CHROME_RADII.xs ?? 4,
+                  outline: "none",
+                  boxShadow: CHROME_SHADOWS.inputFocus,
+                  letterSpacing: "-0.005em",
+                }}
+              />
+            ) : (
+              <span
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: CHROME.ink,
+                  letterSpacing: "-0.005em",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+                title={`${klass.name} (id: ${klass.id})`}
+              >
+                {klass.name}
+              </span>
+            )}
+
+            {/* Usage badge */}
+            <span
+              title={`${count} node${count === 1 ? "" : "s"} use this class`}
+              style={{
+                flexShrink: 0,
+                fontSize: 10,
+                fontWeight: 700,
+                lineHeight: 1,
+                padding: "2px 5px",
+                borderRadius: 999,
+                background: count === 0 ? CHROME.surface2 : "rgba(42,49,71,0.07)",
+                border: `1px solid ${count === 0 ? CHROME.line : CHROME.lineMid}`,
+                color: count === 0 ? CHROME.muted2 : CHROME.muted,
+                minWidth: 18,
+                textAlign: "center",
+              }}
+            >
+              {count}
+            </span>
+
+            {/* Rename / cancel action */}
+            {isRenaming ? (
+              <button
+                type="button"
+                title="Cancel rename"
+                aria-label="Cancel rename"
+                onClick={cancelRename}
+                style={{
+                  flexShrink: 0,
+                  width: 22,
+                  height: 22,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "transparent",
+                  border: "none",
+                  borderRadius: CHROME_RADII.xs ?? 4,
+                  color: CHROME.muted,
+                  cursor: "pointer",
+                  fontSize: 14,
+                  lineHeight: 1,
+                }}
+              >
+                ×
+              </button>
+            ) : (
+              <button
+                type="button"
+                title={`Rename "${klass.name}"`}
+                aria-label={`Rename class ${klass.name}`}
+                data-builder-class-rename={klass.id}
+                onClick={() => startRename(klass)}
+                style={{
+                  flexShrink: 0,
+                  width: 22,
+                  height: 22,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "transparent",
+                  border: "none",
+                  borderRadius: CHROME_RADII.xs ?? 4,
+                  color: CHROME.muted,
+                  cursor: "pointer",
+                  opacity: 0,
+                  transition: "opacity 80ms",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.opacity = "1";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.opacity = "0";
+                }}
+                onFocus={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.opacity = "1";
+                }}
+                onBlur={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.opacity = "0";
+                }}
+              >
+                {/* Pencil icon (inline SVG, no extra import) */}
+                <svg
+                  width="11"
+                  height="11"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+              </button>
+            )}
+          </div>
+        );
+      })}
+
+      {/* Unused classes callout */}
+      {classes.some((c) => (usageCounts[c.id] ?? 0) === 0) ? (
+        <div
+          style={{
+            marginTop: 8,
+            padding: "6px 8px",
+            borderRadius: CHROME_RADII.sm,
+            background: CHROME.paper,
+            border: `1px solid ${CHROME.line}`,
+            fontSize: 11,
+            color: CHROME.muted,
+            lineHeight: 1.5,
+          }}
+        >
+          {classes.filter((c) => (usageCounts[c.id] ?? 0) === 0).length} unused{" "}
+          {classes.filter((c) => (usageCounts[c.id] ?? 0) === 0).length === 1
+            ? "class"
+            : "classes"}{" "}
+          (not linked to any block on this page).
+        </div>
+      ) : null}
+    </div>
   );
 }

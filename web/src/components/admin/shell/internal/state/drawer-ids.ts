@@ -49,6 +49,7 @@ export type DrawerId =
   | "talent-payment-verify"
   | "taxonomy"
   | "workspace-settings"
+  | "guest-chat-settings"
   | "client-profile"
   | "site-health"
   | "team-activity"
@@ -117,6 +118,7 @@ export type DrawerId =
   | "talent-payouts"
   | "talent-contact-preferences"
   | "talent-earnings-detail"
+  | "talent-connections"
   // — Phase D scaffolds (verification, referrals, hub compare) —
   | "talent-verification"
   | "talent-referrals"

@@ -19,12 +19,15 @@
  *   - We never render section props inline from free-form JSON: every render
  *     goes through a registry entry with a Zod-parsed payload.
  */
+import type { ReactNode } from "react";
+import { getCachedActorSession } from "@/lib/server/request-cache";
 import { improntaLog } from "@/lib/server/structured-log";
 import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
 import {
   buildBuilderNodeRoleBindings,
   builderSectionNodeAddressKey,
   BuilderNodeRendererStyles,
+  collectBuilderCollectionSourceKeys,
   collectBuilderImageMediaIds,
   hasRenderableBuilderNodes,
   indexBuilderSectionChildNodeIds,
@@ -32,11 +35,18 @@ import {
   indexBuilderSectionNodes,
   type BuilderNode,
   type BuilderNodeRenderDataSources,
+  type BuilderVisibilityContext,
   renderBuilderNodes,
   resolveBuilderNodeRole,
   resolveSnapshotBuilderTree,
 } from "@/lib/site-admin/builder-node";
 import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
+import {
+  collectBuilderSectionEmbedNodes,
+  makeSectionEmbedRenderer,
+} from "@/lib/site-admin/builder-node/section-embed-renderer";
+import { isBuilderClientCanvasEnabled } from "@/lib/site-admin/edit-mode/client-canvas-flag";
+import { ClientBuilderCanvas } from "@/components/edit-chrome/client-builder-canvas";
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import { isPreviewActiveForTenant } from "@/lib/site-admin/server/homepage-reads";
@@ -56,6 +66,7 @@ import {
 } from "@/lib/site-admin/sections/shared/presentation";
 import { fetchFeaturedTalentForSection } from "@/lib/site-admin/sections/featured_talent/fetch";
 import { listBuilderImageMediaAssets } from "@/lib/site-admin/media/assets";
+import { resolveCollectionDataSources } from "@/lib/site-admin/collections/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getPublicPathPrefix } from "@/lib/saas";
 import { prefixPublicHrefsDeep } from "@/lib/saas/public-hrefs";
@@ -194,11 +205,19 @@ export async function HomepageCmsSections({
     (s) => s.sectionTypeKey === "contact_form",
   );
 
-  const [editMode, previewActive, publicPathPrefix, mapsApiKey, resolvedCaptcha] =
+  const [
+    editMode,
+    previewActive,
+    publicPathPrefix,
+    actorSession,
+    mapsApiKey,
+    resolvedCaptcha,
+  ] =
     await Promise.all([
       isEditModeActiveForTenant(tenantId),
       isPreviewActiveForTenant(tenantId),
       getPublicPathPrefix(),
+      getCachedActorSession(),
       needsMapsKey
         ? resolveGoogleMapsKeyForClient(tenantId)
         : Promise.resolve(null),
@@ -206,6 +225,19 @@ export async function HomepageCmsSections({
         ? resolveTenantCaptcha(tenantId)
         : Promise.resolve(null),
     ]);
+
+  // Wave 5B · #38 — render-time signals for node-level conditional visibility.
+  // `locale` is always known; `signedIn` comes from the request-cached actor
+  // session (one round-trip shared across every section mount). A node with no
+  // condition is unaffected; a signal we don't set passes (never hides).
+  //
+  // In EDIT mode we pass NO context (undefined) so every node renders and stays
+  // selectable/editable — hiding a conditional block on the canvas would make
+  // it un-editable. Preview + the live storefront DO evaluate the rule.
+  const visibilityContext: BuilderVisibilityContext | undefined = editMode
+    ? undefined
+    : { locale, signedIn: Boolean(actorSession.user) };
+
   // Thread only the PUBLIC widget config to components; the verify secret never
   // leaves the submit route.
   const captchaConfig = resolvedCaptcha
@@ -244,18 +276,56 @@ export async function HomepageCmsSections({
         !editMode && treeHasInstances(freeform.tree)
           ? await loadBuilderComponentsForTenant(tenantId)
           : {};
+      const freeformSectionEmbedRenderer = makeSectionEmbedRenderer({
+        tenantId,
+        locale,
+        publicPathPrefix,
+      });
+      const freeformStyles =
+        includeBuilderNodeRendererStyles &&
+        hasRenderableBuilderNodes(freeform.tree, { mode: "freeform" }) ? (
+          <BuilderNodeRendererStyles />
+        ) : null;
+
+      // W3 Sub-step B — CLIENT-RENDERED CANVAS (default OFF; flag-gated).
+      // Only when edit mode is active AND NEXT_PUBLIC_BUILDER_CLIENT_CANVAS is
+      // on do we paint the freeform tree client-side. The `section_embed`
+      // server islands are pre-rendered here (same renderer, same wrapper +
+      // `data-*`) and handed to the client canvas by node id; everything else
+      // renders client-side against the SERIALIZED `freeformDataSources`. The
+      // head styles still emit server-side so the head matches the server path.
+      if (editMode && isBuilderClientCanvasEnabled()) {
+        const sectionEmbedIslands: Record<string, ReactNode> = {};
+        for (const embed of collectBuilderSectionEmbedNodes(freeform.tree)) {
+          sectionEmbedIslands[embed.id] = freeformSectionEmbedRenderer(embed);
+        }
+        return (
+          <>
+            {freeformStyles}
+            <ClientBuilderCanvas
+              initialTree={freeform.tree}
+              dataSources={freeformDataSources}
+              sectionEmbedIslands={sectionEmbedIslands}
+              publicPathPrefix={publicPathPrefix}
+              components={freeformComponents}
+              visibilityContext={visibilityContext}
+            />
+          </>
+        );
+      }
+
+      // DEFAULT (flag off) — server-rendered canvas, byte-identical to today.
       return (
         <>
-          {includeBuilderNodeRendererStyles &&
-          hasRenderableBuilderNodes(freeform.tree, { mode: "freeform" }) ? (
-            <BuilderNodeRendererStyles />
-          ) : null}
+          {freeformStyles}
           {renderBuilderNodes(freeform.tree, {
             publicPathPrefix,
             mode: "freeform",
             includeRendererStyles: false,
             dataSources: freeformDataSources,
             components: freeformComponents,
+            visibilityContext,
+            renderSectionEmbed: freeformSectionEmbedRenderer,
           })}
         </>
       );
@@ -534,6 +604,12 @@ export async function HomepageCmsSections({
                   includeRendererStyles: false,
                   dataSources: builderDataSources,
                   components: builderComponents,
+                  visibilityContext,
+                  renderSectionEmbed: makeSectionEmbedRenderer({
+                    tenantId,
+                    locale,
+                    publicPathPrefix,
+                  }),
                 })
               : null}
           </div>
@@ -585,17 +661,25 @@ async function loadBuilderNodeDataSources(
     "tenant_directory_search",
   );
   const mediaIds = collectBuilderImageMediaIds(nodes);
+  const collectionSourceKeys = collectBuilderCollectionSourceKeys(nodes);
   if (
     featuredLimit == null &&
     !needsLocations &&
     !needsDirectoryShortcuts &&
-    mediaIds.length === 0
+    mediaIds.length === 0 &&
+    collectionSourceKeys.length === 0
   ) {
     return {};
   }
-  const mediaSupabase = mediaIds.length > 0 ? createServiceRoleClient() : null;
+  // The storefront read bypasses RLS (service role) for media + collections.
+  const serviceSupabase =
+    mediaIds.length > 0 || collectionSourceKeys.length > 0
+      ? createServiceRoleClient()
+      : null;
+  const mediaSupabase = mediaIds.length > 0 ? serviceSupabase : null;
 
-  const [featuredTalentProfiles, homepageData, mediaAssets] = await Promise.all([
+  const [featuredTalentProfiles, homepageData, mediaAssets, collections] =
+    await Promise.all([
     featuredLimit == null
       ? Promise.resolve(undefined)
       : fetchFeaturedTalentForSection(
@@ -615,6 +699,9 @@ async function loadBuilderNodeDataSources(
     mediaSupabase
       ? listBuilderImageMediaAssets(mediaSupabase, tenantId, mediaIds)
       : Promise.resolve(undefined),
+    serviceSupabase && collectionSourceKeys.length > 0
+      ? resolveCollectionDataSources(serviceSupabase, tenantId, collectionSourceKeys)
+      : Promise.resolve(undefined),
   ]);
 
   return {
@@ -622,5 +709,6 @@ async function loadBuilderNodeDataSources(
     talentLocations: homepageData?.locations,
     directoryShortcuts: homepageData?.talentTypes,
     mediaAssets,
+    collections,
   };
 }

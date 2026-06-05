@@ -42,6 +42,11 @@ import { createPortal } from "react-dom";
 
 import { siblingDropGapToMoveIndex } from "@/lib/site-admin/builder-node/sibling-drop-gap";
 import {
+  resolveCanvasNodeDrop,
+  type CanvasDropCandidate,
+  type CanvasDropResult,
+} from "@/lib/site-admin/builder-node/canvas-node-drop";
+import {
   ArrowDown,
   ArrowUp,
   ClipboardPaste,
@@ -72,15 +77,25 @@ import {
 import { CanvasMoveHandle, parseTranslate } from "./canvas-move-handle";
 import { CanvasResizeHandles } from "./canvas-resize-handles";
 import {
+  BoxModelHoverBands,
   CanvasSpacingHandles,
+  type MarginSide,
   type PaddingSide,
 } from "./canvas-spacing-handles";
-import { ElementLibraryInsertPicker } from "./element-library-insert-picker";
+import { CanvasGapHandles } from "./canvas-gap-handles";
+import {
+  BUILDER_NODE_PALETTE_DRAG_MIME,
+  ElementLibraryInsertPicker,
+  getActiveBuilderNodePaletteDrag,
+  type BuilderNodePaletteDragPayload,
+} from "./element-library-insert-picker";
 import { CHROME } from "./kit/tokens";
+import { resolveLayerDisplayName } from "./freeform-layer-name";
 import { MultiSelectionMoveHandle } from "./multi-selection-move-handle";
 import { MultiSelectionToolbar } from "./multi-selection-toolbar";
 import { SectionTypeIcon } from "./kit/section-type-icon";
 import type { MultiNodeRect } from "./multi-node-layout";
+import { CanvasBetweenBlocksInsert } from "./canvas-between-blocks-insert";
 
 interface Rect {
   top: number;
@@ -88,6 +103,18 @@ interface Rect {
   width: number;
   height: number;
 }
+
+// #21 — the layout-container kinds whose gap is set through the `style.gap`
+// escape (→ `--bn-gap`). Mirrors the Style panel's Gap-field gate so the canvas
+// gap handle and the panel field act on the same nodes.
+const BUILDER_GAP_LAYOUT_KINDS = new Set<string>([
+  "container",
+  "split",
+  "card",
+  "cta_group",
+  "carousel",
+  "masonry",
+]);
 
 function isEditableKeyboardTarget(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
@@ -150,6 +177,18 @@ function humanizeTypeKey(key: string | null | undefined): string {
     .join(" ");
 }
 
+/**
+ * 4A #6 — the human label shown on the floating drag-ghost during a
+ * palette-onto-canvas drag. A plain element reuses the registry's `label`
+ * ("Heading", "Container"…); a Tulala-component embed humanizes its type key.
+ */
+function paletteDragLabel(payload: BuilderNodePaletteDragPayload): string {
+  return payload.kind === "section_embed"
+    ? humanizeTypeKey(payload.sectionTypeKey)
+    : (BUILDER_NODE_REGISTRY[payload.elementKind]?.label ??
+        humanizeTypeKey(payload.elementKind));
+}
+
 // ── Design tokens (from mockup --select-* variables) ──────────────────────
 // White inset + ink outset + soft halo. Same values as the spec's
 // `.ring-selected` and `.ring-hover` CSS classes.
@@ -168,6 +207,13 @@ const DISALLOW_LINE = "rgba(220, 38, 38, 0.92)";
 const DISALLOW_RGB = "220, 38, 38";
 const DROP_LINE_HEIGHT = 4;
 const DROP_LINE_RADIUS = 2;
+
+// 4A #9 — when a drag would land the block in a DIFFERENT parent than its
+// current one, the would-be parent is outlined in this violet so "this will
+// nest here" reads distinctly from a same-parent reorder (which stays blue).
+// (The alignment/equal-spacing guide hues live with the move/resize handle
+// components that draw them — magenta for edge line-ups, teal for even gaps.)
+const REPARENT_RGB = "124, 92, 255"; // violet
 
 // P3-2 polish — keyframes injected once via <style> at the portal root.
 // `kit/savechip.tsx` uses the same pattern. Both animations are skipped
@@ -264,6 +310,132 @@ type MarqueeState =
       currentY: number;
     };
 
+/**
+ * P3-DRAG — a drag whose drop lands inside a freeform builder container,
+ * computing parent + index from the cursor (T3.1 palette insert + T3.2 existing
+ * block reorder/nest). Distinct from the section-level `DragState` above (which
+ * reorders whole sections within slots). Uses native HTML5 DnD (like the
+ * navigator/composition-library) so the OS drives the gesture; React only
+ * tracks the live drop target for the indicator.
+ */
+type CanvasNodeDragState =
+  | { phase: "idle" }
+  | {
+      /** Dragging a NEW element from the palette → insert on drop. */
+      phase: "palette";
+      payload: BuilderNodePaletteDragPayload;
+      draggedKind: BuilderNodeKind;
+      drop: CanvasDropResult | null;
+      /** Human label for the floating drag-ghost (e.g. "Heading"). */
+      label: string;
+      /** Live cursor (viewport px) so the labeled ghost follows the pointer. */
+      cursorX: number;
+      cursorY: number;
+    }
+  | {
+      /** Dragging an EXISTING canvas block → move (reorder/nest) on drop. */
+      phase: "move";
+      nodeId: string;
+      draggedKind: BuilderNodeKind;
+      drop: CanvasDropResult | null;
+      /** Human label for the floating drag-ghost. */
+      label: string;
+      /**
+       * The dragged node's CURRENT parent id, captured at drag-start. When the
+       * resolved drop parent differs from this, the drag is a REPARENT and the
+       * chrome shows a stronger nesting preview (4A #9).
+       */
+      sourceParentNodeId: string | null;
+      /** Live cursor (viewport px) so the labeled ghost follows the pointer. */
+      cursorX: number;
+      cursorY: number;
+    };
+
+/**
+ * P3-DRAG — walk the live DOM to build the drop-candidate list for
+ * `resolveCanvasNodeDrop`. Every rendered `[data-builder-node-id]` whose node
+ * accepts children becomes a candidate; depth = ancestor-candidate count;
+ * `locked` covers role-bound / curated nodes (which own their structure) and
+ * the explicit `node.locked` flag. Child rows are the candidate's DIRECT
+ * builder-node children (by id), in document order, with their vertical bands.
+ */
+function collectCanvasDropCandidates(
+  tree: BuilderNodeTree,
+): CanvasDropCandidate[] {
+  if (typeof document === "undefined") return [];
+  const elements = Array.from(
+    document.querySelectorAll<HTMLElement>("[data-builder-node-id]"),
+  );
+  const idToEl = new Map<string, HTMLElement>();
+  for (const el of elements) {
+    const id = el.getAttribute("data-builder-node-id");
+    if (id && !idToEl.has(id)) idToEl.set(id, el);
+  }
+
+  const candidates: CanvasDropCandidate[] = [];
+  for (const el of elements) {
+    const id = el.getAttribute("data-builder-node-id");
+    if (!id) continue;
+    const node = findBuilderNodeById(tree, id);
+    if (!node) continue;
+    // Only containers (children policy ≠ "none") can be a drop parent.
+    if (BUILDER_NODE_REGISTRY[node.kind].children.type === "none") continue;
+    const rect = el.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) continue;
+
+    // Depth = how many OTHER candidate elements contain this one. Cheap O(n²)
+    // over the (small) candidate set; mirrors the marquee containment filter.
+    let depth = 0;
+    for (const other of elements) {
+      if (other === el) continue;
+      const otherId = other.getAttribute("data-builder-node-id");
+      if (!otherId) continue;
+      const otherNode = findBuilderNodeById(tree, otherId);
+      if (
+        otherNode &&
+        BUILDER_NODE_REGISTRY[otherNode.kind].children.type !== "none" &&
+        other.contains(el)
+      ) {
+        depth += 1;
+      }
+    }
+
+    const locked =
+      node.locked === true ||
+      // Role-bound nodes (curated section slots) own their structure — never a
+      // freeform drop parent. A `section` node is also structural shell.
+      node.kind === "section" ||
+      resolveBuilderNodeRole(node.id) !== null;
+
+    const childRows =
+      "children" in node && Array.isArray(node.children)
+        ? node.children.flatMap((child) => {
+            const childEl = idToEl.get(child.id);
+            if (!childEl) return [];
+            const childRect = childEl.getBoundingClientRect();
+            return [
+              { nodeId: child.id, top: childRect.top, bottom: childRect.bottom },
+            ];
+          })
+        : [];
+
+    candidates.push({
+      nodeId: id,
+      kind: node.kind,
+      rect: {
+        top: rect.top,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+      },
+      depth,
+      locked,
+      children: childRows,
+    });
+  }
+  return candidates;
+}
+
 const DRAG_THRESHOLD = 4; // px before an armed drag actually begins
 const AUTOSCROLL_BAND = 80; // px edge band that triggers auto-scroll
 const AUTOSCROLL_MAX = 14; // px per frame at the edge
@@ -300,6 +472,20 @@ function findBuilderNodeById(
   return null;
 }
 
+/**
+ * P3-LOCK — returns true when the given builder node (or its DOM element) has
+ * the `locked` flag set. Checked in click, resize, move, and nudge paths so
+ * locked nodes are entirely inert to direct manipulation.
+ */
+function isBuilderNodeLocked(
+  tree: BuilderNodeTree,
+  nodeId: string | null,
+): boolean {
+  if (!nodeId) return false;
+  const node = findBuilderNodeById(tree, nodeId);
+  return node?.locked === true;
+}
+
 function findBuilderNodePath(
   tree: BuilderNodeTree,
   nodeId: string | null,
@@ -325,6 +511,37 @@ function findBuilderNodePath(
 function builderNodeCrumbLabel(node: BuilderNode, sectionLabel: string): string {
   if (node.kind === "section") return sectionLabel;
   return truncateNodeLabel(canvasChildPrimaryLabel(node), 42);
+}
+
+/**
+ * P3-DRAG — locate a node's direct parent (the container holding it) and its
+ * index among that parent's children. Used by the canvas-block move drop to
+ * decide same-parent vs cross-parent and to apply the gap→index removal
+ * adjustment. Returns null for a root node (no builder-node parent).
+ */
+function findCanvasNodeParentContext(
+  tree: BuilderNodeTree,
+  nodeId: string,
+): { parentNodeId: string; sourceSiblingIndex: number } | null {
+  const visit = (
+    nodes: ReadonlyArray<BuilderNode>,
+    parentId: string | null,
+  ): { parentNodeId: string; sourceSiblingIndex: number } | null => {
+    for (let i = 0; i < nodes.length; i += 1) {
+      const node = nodes[i]!;
+      if (node.id === nodeId) {
+        return parentId === null
+          ? null
+          : { parentNodeId: parentId, sourceSiblingIndex: i };
+      }
+      if ("children" in node && Array.isArray(node.children)) {
+        const found = visit(node.children, node.id);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+  return visit(tree, null);
 }
 
 // Section types that may NOT be ejected to freeform: the already-freeform
@@ -355,6 +572,7 @@ export function SelectionLayer() {
     translateSelectedBuilderNodes,
     alignSelectedBuilderNodes,
     distributeSelectedBuilderNodes,
+    patchSelectedBuilderNodesStyle,
     copySelectedBuilderNodes,
     cutSelectedBuilderNodes,
     pasteBuilderNodeClipboard,
@@ -364,6 +582,8 @@ export function SelectionLayer() {
     getAllSelectedIds,
     hoveredSectionId,
     setHoveredSectionId,
+    hoveredBuilderNodeId,
+    setHoveredBuilderNodeId,
     device,
     moveSection,
     moveSectionTo,
@@ -374,6 +594,7 @@ export function SelectionLayer() {
     duplicateBuilderNode,
     getCopiedBuilderNodePastePreview,
     pasteCopiedBuilderNode,
+    saveSelectedNodeAsComponent,
     setSectionVisibility,
     openPickerPopover,
     saving,
@@ -384,6 +605,7 @@ export function SelectionLayer() {
     slotDefs,
     builderTree,
     insertBuilderNode,
+    insertBuilderSectionEmbed,
     moveBuilderNodeWithinParent,
     moveBuilderNodeToParentIndex,
     removeBuilderNode,
@@ -393,10 +615,17 @@ export function SelectionLayer() {
     reportMutationError,
     advancedElementLibraryEnabled,
     canInsertRawHtmlElements,
+    navigatorWidth,
+    navigatorOpen,
+    previewing: isEditModePreviewing,
   } = useEditContext();
 
   const [portalEl, setPortalEl] = useState<HTMLElement | null>(null);
   const [hoverRect, setHoverRect] = useState<Rect | null>(null);
+  // Job #5 — rect of the freeform node under the cursor (canvas OR a layers
+  // row), tracked the same way as `hoverRect` so the bidirectional highlight
+  // ring follows scroll/resize/layout changes.
+  const [nodeHoverRect, setNodeHoverRect] = useState<Rect | null>(null);
   const [selectedRect, setSelectedRect] = useState<Rect | null>(null);
   const [selectedTypeKey, setSelectedTypeKey] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState(false);
@@ -406,22 +635,40 @@ export function SelectionLayer() {
     null,
   );
   const [drag, setDrag] = useState<DragState>({ phase: "idle" });
+  const [canvasNodeDrag, setCanvasNodeDrag] = useState<CanvasNodeDragState>({
+    phase: "idle",
+  });
   const [marquee, setMarquee] = useState<MarqueeState>({ phase: "idle" });
   const suppressNextClickRef = useRef(false);
   const autoscrollRafRef = useRef<number | null>(null);
   const selectionScrollRetryRef = useRef<number | null>(null);
 
+  // P3-PERF (marquee): candidate index cached for the marquee gesture, the
+  // rAF handle that coalesces pointermove state updates, and the latest pointer
+  // position recorded synchronously so pointer-up reads the true final point.
+  const marqueeIndexRef = useRef<
+    Array<{ id: string; el: HTMLElement; box: Rect }> | null
+  >(null);
+  const marqueeRafRef = useRef<number | null>(null);
+  const latestMarqueePointRef = useRef<{ x: number; y: number } | null>(null);
+
   const rafRef = useRef<number | null>(null);
-  // Scroll-lag fix: suppress the hover-ring's position CSS transition while
-  // the window is actively scrolling. Without this, the 80ms linear transition
-  // on `top`/`left` makes the ring visually lag behind the element because the
-  // transition animates from the pre-scroll position to the post-scroll one.
-  // We use a ref (not state) so the transition is disabled synchronously in
-  // the rAF callback that already fires on each scroll event — no extra render
-  // is needed. The flag is cleared 150 ms after the last scroll event; the
-  // transition re-arms naturally on the next pointer-move re-render.
-  const isScrollingRef = useRef(false);
-  const scrollEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Imperative overlay positioning (Figma-smooth selection tracking) ───────
+  // The selection ring, selection chip, and the move/resize/spacing/gap handle
+  // overlay boxes are positioned by writing element.style.top/left/width/height
+  // DIRECTLY from a standalone rAF loop (see effect below) — NOT from React
+  // state. That keeps this ~6000-line layer from re-rendering on every scroll /
+  // drag frame and stops the overlays trailing the element by a frame or two.
+  // React state (selectedRect/hoverRect) still decides WHICH overlays mount and
+  // seeds first paint; the rAF loop owns position once mounted.
+  const ringRef = useRef<HTMLDivElement | null>(null);
+  const chipRef = useRef<HTMLDivElement | null>(null);
+  const moveOverlayRef = useRef<HTMLDivElement | null>(null);
+  const resizeOverlayRef = useRef<HTMLDivElement | null>(null);
+  const spacingOverlayRef = useRef<HTMLDivElement | null>(null);
+  const gapOverlayRef = useRef<HTMLDivElement | null>(null);
+  const overlayTrackRafRef = useRef<number | null>(null);
 
   const getSelectedSectionEl = useCallback((): HTMLElement | null => {
     if (!selectedSectionId) return null;
@@ -470,19 +717,28 @@ export function SelectionLayer() {
     if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(() => {
       rafRef.current = null;
-      if (selectedSectionId) {
-        const sectionEl = getSelectedSectionEl();
-        if (sectionEl) {
-          const nodeEl = getSelectedBuilderNodeEl();
-          const selectedEl =
-            nodeEl && sectionEl.contains(nodeEl) ? nodeEl : sectionEl;
-          setSelectedRect(rectOf(selectedEl));
-          const typeKey = sectionEl.getAttribute("data-section-type-key");
-          setSelectedTypeKey(typeKey);
-        } else {
-          setSelectedRect(null);
-          setSelectedTypeKey(null);
-        }
+      // Freeform full-page-design blocks have NO parent section, so the old
+      // `if (selectedSectionId)` gate left selectedRect null for them — meaning
+      // no selection box and no resize/move/spacing handles ever appeared on
+      // the canvas (clicking "selected" only the inspector). Measure the
+      // selected BUILDER NODE element first: that works for a section-less
+      // freeform block AND for a section's child node, then fall back to the
+      // section wrapper. This is what makes the on-canvas selection + the whole
+      // direct-manipulation handle set appear for freeform designs.
+      const nodeEl = getSelectedBuilderNodeEl();
+      const sectionEl = selectedSectionId ? getSelectedSectionEl() : null;
+      if (selectedSectionId && !sectionEl) {
+        // Section selected but its server DOM hasn't mounted yet — wait.
+        setSelectedRect(null);
+        setSelectedTypeKey(null);
+      } else if (nodeEl && (!sectionEl || sectionEl.contains(nodeEl))) {
+        setSelectedRect(rectOf(nodeEl));
+        setSelectedTypeKey(
+          sectionEl?.getAttribute("data-section-type-key") ?? null,
+        );
+      } else if (sectionEl) {
+        setSelectedRect(rectOf(sectionEl));
+        setSelectedTypeKey(sectionEl.getAttribute("data-section-type-key"));
       } else {
         setSelectedRect(null);
         setSelectedTypeKey(null);
@@ -495,8 +751,34 @@ export function SelectionLayer() {
       } else {
         setHoverRect(null);
       }
+      // Job #5 — the hovered freeform node's CANVAS rect. Skip when it's the
+      // current selection (the selection ring already marks it) and prefer the
+      // first ON-CANVAS match: a layer row also carries data-builder-node-id, so
+      // exclude any element inside the edit chrome.
+      if (hoveredBuilderNodeId && hoveredBuilderNodeId !== selectedBuilderNodeId) {
+        const matches = Array.from(
+          document.querySelectorAll<HTMLElement>(
+            `[data-builder-node-id="${CSS.escape(hoveredBuilderNodeId)}"]`,
+          ),
+        );
+        const canvasEl =
+          matches.find(
+            (el) =>
+              !el.closest(
+                "[data-edit-topbar], [data-edit-drawer], [data-edit-overlay]",
+              ),
+          ) ?? null;
+        setNodeHoverRect(canvasEl ? rectOf(canvasEl) : null);
+      } else {
+        setNodeHoverRect(null);
+      }
     });
   };
+  // Latest-value ref so observers can call the freshest recompute without
+  // listing the unstable inline fn in their deps (which would re-subscribe
+  // every render) — and without a frozen hook-deps eslint-disable.
+  const scheduleRectRecomputeRef = useRef(scheduleRectRecompute);
+  scheduleRectRecomputeRef.current = scheduleRectRecompute;
 
   useEffect(() => {
     scheduleRectRecompute();
@@ -506,10 +788,38 @@ export function SelectionLayer() {
     selectedSectionId,
     selectedBuilderNodeId,
     hoveredSectionId,
+    hoveredBuilderNodeId,
     pageVersion,
     getSelectedSectionEl,
     getSelectedBuilderNodeEl,
   ]);
+
+  // 2026 direct-manipulation: glue the selection outline + handles to the
+  // element WHILE it is dragged/resized. The resize/move/padding handles write
+  // style.width/height/transform/padding inline for an instant element preview,
+  // but the overlay box was positioned from a cached rect that only refreshed
+  // on selection/scroll/commit — so the border visibly trailed the cursor and
+  // only "caught up" after the save round-trip. Observe the live element's box
+  // (ResizeObserver) and its inline-style mutations (MutationObserver) and
+  // re-measure on the spot, so the outline tracks frame-by-frame like a design
+  // app instead of lagging behind the drag.
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const el = getSelectedBuilderNodeEl() ?? getSelectedSectionEl();
+    if (!el) return undefined;
+    const recompute = () => scheduleRectRecomputeRef.current();
+    const ro =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(recompute)
+        : null;
+    ro?.observe(el);
+    const mo = new MutationObserver(recompute);
+    mo.observe(el, { attributes: true, attributeFilter: ["style", "class"] });
+    return () => {
+      ro?.disconnect();
+      mo.disconnect();
+    };
+  }, [getSelectedSectionEl, getSelectedBuilderNodeEl]);
 
   useEffect(() => {
     setConfirmRemove(false);
@@ -527,6 +837,46 @@ export function SelectionLayer() {
       }
     },
     [insertBuilderNode, nodeInsertTarget, reportMutationError],
+  );
+
+  const commitNodeInsertSectionEmbed = useCallback(
+    async (sectionTypeKey: string) => {
+      if (!nodeInsertTarget) return;
+      const target = nodeInsertTarget;
+      setNodeInsertTarget(null);
+      const inserted = await insertBuilderSectionEmbed(
+        target.nodeId,
+        sectionTypeKey,
+        target.index,
+      );
+      if (!inserted.ok && inserted.error) {
+        reportMutationError(inserted.error);
+      }
+    },
+    [insertBuilderSectionEmbed, nodeInsertTarget, reportMutationError],
+  );
+
+  // #20 — between-blocks insert callbacks (root-level, index-targeted).
+  // These route through the same insertBuilderNode / insertBuilderSectionEmbed
+  // mutations as the chip toolbar's "Add" button, giving full undo/redo parity.
+  const commitBetweenBlocksInsert = useCallback(
+    async (kind: BuilderNodeKind, index: number) => {
+      const inserted = await insertBuilderNode(null, kind, index);
+      if (!inserted.ok && inserted.error) {
+        reportMutationError(inserted.error);
+      }
+    },
+    [insertBuilderNode, reportMutationError],
+  );
+
+  const commitBetweenBlocksSectionEmbed = useCallback(
+    async (sectionTypeKey: string, index: number) => {
+      const inserted = await insertBuilderSectionEmbed(null, sectionTypeKey, index);
+      if (!inserted.ok && inserted.error) {
+        reportMutationError(inserted.error);
+      }
+    },
+    [insertBuilderSectionEmbed, reportMutationError],
   );
 
   // Sprint 4 — auto-scroll the canvas to the selected section when it's
@@ -621,6 +971,7 @@ export function SelectionLayer() {
 	    extendSelection,
 	    toggleSelection,
 	    setHoveredSectionId,
+	    setHoveredBuilderNodeId,
 	  });
   useEffect(() => {
     callbacksRef.current = {
@@ -632,6 +983,7 @@ export function SelectionLayer() {
 	      extendSelection,
 	      toggleSelection,
 	      setHoveredSectionId,
+	      setHoveredBuilderNodeId,
 	    };
 	  }, [
 	    setSelectedSectionId,
@@ -642,6 +994,7 @@ export function SelectionLayer() {
 	    extendSelection,
 	    toggleSelection,
 	    setHoveredSectionId,
+	    setHoveredBuilderNodeId,
 	  ]);
 
   useEffect(() => {
@@ -649,9 +1002,26 @@ export function SelectionLayer() {
       const el = findSectionEl(e.target);
       const id = el?.getAttribute("data-section-id") ?? null;
       if (id !== hoveredSectionId) callbacksRef.current.setHoveredSectionId(id);
+      // Job #5 — track the freeform builder node under the cursor for the
+      // bidirectional canvas↔layers highlight. Ignore the edit chrome (the
+      // layers rail's rows ALSO carry data-builder-node-id; an inspector/topbar
+      // hover must not light a canvas block). Off-canvas → clear.
+      const source = eventTargetElement(e.target);
+      const overChrome =
+        source?.closest(
+          "[data-edit-topbar], [data-edit-drawer], [data-edit-overlay]",
+        ) ?? null;
+      const nodeId = overChrome
+        ? null
+        : (findBuilderNodeEl(e.target)?.getAttribute("data-builder-node-id") ??
+          null);
+      if (nodeId !== hoveredBuilderNodeId) {
+        callbacksRef.current.setHoveredBuilderNodeId(nodeId);
+      }
     }
     function onPointerLeave() {
       callbacksRef.current.setHoveredSectionId(null);
+      callbacksRef.current.setHoveredBuilderNodeId(null);
     }
     function onClickCapture(e: MouseEvent) {
       if (suppressNextClickRef.current) {
@@ -673,12 +1043,28 @@ export function SelectionLayer() {
         }
       }
       const el = findSectionEl(e.target);
-      if (!el) return;
-      const id = el.getAttribute("data-section-id");
-      if (!id) return;
+      const builderNodeEl = findBuilderNodeEl(e.target);
+      // Freeform full-page designs (one-click starter designs) render builder
+      // nodes with NO [data-cms-section] wrapper. The old `if (!el) return`
+      // bailed before the builder-node path, so freeform blocks were never
+      // selectable — accept a bare builder node when there's no section.
+      if (!el && !builderNodeEl) return;
+      const id = el?.getAttribute("data-section-id") ?? null;
       const builderNodeId =
-        findBuilderNodeEl(e.target)?.getAttribute("data-builder-node-id") ??
-        el.getAttribute("data-builder-node-id");
+        builderNodeEl?.getAttribute("data-builder-node-id") ??
+        el?.getAttribute("data-builder-node-id") ??
+        null;
+      if (!id && !builderNodeId) return;
+
+      // P3-LOCK — locked nodes absorb the click (prevent link nav) but do not
+      // become the primary selection, so the inspector won't show stale controls
+      // for a locked element. The click is still stopped so navigation links
+      // inside the locked node don't fire.
+      if (builderNodeId && isBuilderNodeLocked(builderTree, builderNodeId)) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
 
       // Intercept link/button navigation so editors don't accidentally leave.
       e.preventDefault();
@@ -688,14 +1074,14 @@ export function SelectionLayer() {
       // plain click sets primary and clears multi.
       if (e.shiftKey) {
         if (builderNodeId) callbacksRef.current.extendBuilderNodeSelection(builderNodeId);
-        else callbacksRef.current.extendSelection(id);
+        else if (id) callbacksRef.current.extendSelection(id);
       } else if (e.metaKey || e.ctrlKey) {
         if (builderNodeId) callbacksRef.current.toggleBuilderNodeSelection(builderNodeId);
-        else callbacksRef.current.toggleSelection(id);
+        else if (id) callbacksRef.current.toggleSelection(id);
       } else {
         if (builderNodeId) {
           callbacksRef.current.selectBuilderNode(builderNodeId);
-        } else {
+        } else if (id) {
           callbacksRef.current.focusSectionForEdit(id);
         }
       }
@@ -705,41 +1091,51 @@ export function SelectionLayer() {
       if (e.target instanceof Element) {
         if (
           e.target.closest("[data-edit-topbar]") ||
+          // The Layers rail (data-edit-overlay="navigator-panel") is the ONE
+          // chrome surface that may host a right-click target: #30 wants a
+          // layer-row context menu. We still bail for the rest of the rail's
+          // own buttons/inputs below via the row-id resolution. Other drawers +
+          // the open menu itself never own a canvas-style context menu.
           e.target.closest("[data-edit-drawer]") ||
           e.target.closest("[data-selection-context-menu]")
         ) {
           return;
         }
       }
+      // #30 — three entry points resolve to the same menu:
+      //   1. a section element on the canvas (curated/section node),
+      //   2. a bare freeform builder node on the canvas (no section wrapper),
+      //   3. a LAYER ROW in the navigator (carries data-builder-node-id too).
+      // A freeform full-page design has no [data-cms-section]; the old
+      // `if (!el) return` swallowed both the freeform-canvas and layer-row
+      // right-clicks (P3-LOCK noted this gap). Accept a bare node id.
       const el = findSectionEl(e.target);
-      if (!el) return;
-      const id = el.getAttribute("data-section-id");
-      if (!id) return;
+      const sectionId = el?.getAttribute("data-section-id") ?? null;
       const builderNodeId =
         findBuilderNodeEl(e.target)?.getAttribute("data-builder-node-id") ??
-        el.getAttribute("data-builder-node-id");
+        el?.getAttribute("data-builder-node-id") ??
+        null;
+      if (!sectionId && !builderNodeId) return;
       e.preventDefault();
       e.stopPropagation();
       if (builderNodeId) {
         callbacksRef.current.selectBuilderNode(builderNodeId);
-      } else {
-        callbacksRef.current.focusSectionForEdit(id);
+      } else if (sectionId) {
+        callbacksRef.current.focusSectionForEdit(sectionId);
       }
       setContextMenu({
         x: e.clientX,
         y: e.clientY,
-        sectionId: id,
+        // Section-scoped actions (move/hide/delete/eject) key off this; for a
+        // bare freeform block it's "" and those actions don't render (the menu
+        // shows BLOCK actions instead, gated on builderNodeId ≠ section node).
+        sectionId: sectionId ?? "",
         builderNodeId,
       });
     }
     function onScrollOrResize() {
-      // Mark scrolling active — suppresses hover-ring position transition.
-      isScrollingRef.current = true;
-      if (scrollEndTimerRef.current !== null) clearTimeout(scrollEndTimerRef.current);
-      scrollEndTimerRef.current = setTimeout(() => {
-        isScrollingRef.current = false;
-        scrollEndTimerRef.current = null;
-      }, 150);
+      // Rings track the scroll via the rAF rect recompute; no position
+      // transition fights it now, so they snap frame-for-frame.
       scheduleRectRecompute();
     }
     function onKey(e: KeyboardEvent) {
@@ -781,13 +1177,9 @@ export function SelectionLayer() {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
       }
-      if (scrollEndTimerRef.current !== null) {
-        clearTimeout(scrollEndTimerRef.current);
-        scrollEndTimerRef.current = null;
-      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- EditContext callbacks are mirrored into callbacksRef above; re-registering on every selection change would thrash listeners
-	  }, [contextMenu, hoveredSectionId]);
+	  }, [contextMenu, hoveredSectionId, hoveredBuilderNodeId]);
 
   useEffect(() => {
     function shouldIgnoreMarqueeTarget(target: EventTarget | null) {
@@ -812,19 +1204,33 @@ export function SelectionLayer() {
       );
     }
 
-    function selectedNodeIdsForRect(rect: Rect) {
-      const candidates = Array.from(
+    // P3-PERF: cached marquee candidate index, built once at marquee-start and
+    // refreshed on scroll/resize (the only inputs that move the snapshotted
+    // viewport rects vs. the live marquee rect). Mirrors the drag cache. The
+    // shape carries the live element so the O(N²) containment filter still works.
+    type MarqueeCandidate = { id: string; el: HTMLElement; box: Rect };
+    function buildMarqueeIndex(): MarqueeCandidate[] {
+      return Array.from(
         document.querySelectorAll<HTMLElement>("[data-builder-node-id]"),
       ).flatMap((el) => {
         const id = el.getAttribute("data-builder-node-id");
         if (!id) return [];
         const node = findBuilderNodeById(builderTree, id);
-        if (!node || node.kind === "section" || resolveBuilderNodeRole(node.id)) {
+        // P3-LOCK: skip locked nodes and section/role nodes from marquee selection.
+        if (!node || node.kind === "section" || resolveBuilderNodeRole(node.id) || node.locked) {
           return [];
         }
-        const box = rectOf(el);
-        return rectsIntersect(rect, box) ? [{ id, el }] : [];
+        return [{ id, el, box: rectOf(el) }];
       });
+    }
+
+    function selectedNodeIdsForRect(rect: Rect) {
+      // Reuse the gesture's cached index when warm; fall back to a fresh scan
+      // (byte-identical) if the cache was never seeded for this gesture.
+      const index = marqueeIndexRef.current ?? buildMarqueeIndex();
+      const candidates = index.filter((candidate) =>
+        rectsIntersect(rect, candidate.box),
+      );
       return candidates
         .filter(
           (candidate) =>
@@ -835,10 +1241,31 @@ export function SelectionLayer() {
         .map((candidate) => candidate.id);
     }
 
+    function flushMarqueePoint() {
+      marqueeRafRef.current = null;
+      const point = latestMarqueePointRef.current;
+      if (!point) return;
+      setMarquee((current) =>
+        current.phase === "dragging"
+          ? { ...current, currentX: point.x, currentY: point.y }
+          : current,
+      );
+    }
+
+    function refreshMarqueeIndex() {
+      if (marqueeIndexRef.current !== null) {
+        marqueeIndexRef.current = buildMarqueeIndex();
+      }
+    }
+
     function onPointerDown(event: PointerEvent) {
       if (event.button !== 0) return;
       if (previewing()) return;
       if (shouldIgnoreMarqueeTarget(event.target)) return;
+      // Seed the candidate index for the whole gesture (refreshed on
+      // scroll/resize below); flushed on pointer-up / pointer-cancel.
+      marqueeIndexRef.current = buildMarqueeIndex();
+      latestMarqueePointRef.current = { x: event.clientX, y: event.clientY };
       setMarquee({
         phase: "dragging",
         startX: event.clientX,
@@ -849,21 +1276,34 @@ export function SelectionLayer() {
     }
 
     function onPointerMove(event: PointerEvent) {
-      setMarquee((current) =>
-        current.phase === "dragging"
-          ? { ...current, currentX: event.clientX, currentY: event.clientY }
-          : current,
-      );
+      // Always record the latest point synchronously so pointer-up reads the
+      // true final position even if a throttled frame is still pending; the
+      // state update itself is rAF-coalesced to avoid a re-render per move.
+      latestMarqueePointRef.current = { x: event.clientX, y: event.clientY };
+      if (marqueeRafRef.current === null) {
+        marqueeRafRef.current = requestAnimationFrame(flushMarqueePoint);
+      }
     }
 
     function onPointerUp(event: PointerEvent) {
+      // Drop any pending throttled frame; we apply the final point inline.
+      if (marqueeRafRef.current !== null) {
+        cancelAnimationFrame(marqueeRafRef.current);
+        marqueeRafRef.current = null;
+      }
+      const point = latestMarqueePointRef.current;
       setMarquee((current) => {
-        if (current.phase !== "dragging") return current;
+        if (current.phase !== "dragging") {
+          marqueeIndexRef.current = null;
+          return current;
+        }
+        const endX = point?.x ?? current.currentX;
+        const endY = point?.y ?? current.currentY;
         const rect = {
-          left: Math.min(current.startX, current.currentX),
-          top: Math.min(current.startY, current.currentY),
-          width: Math.abs(current.currentX - current.startX),
-          height: Math.abs(current.currentY - current.startY),
+          left: Math.min(current.startX, endX),
+          top: Math.min(current.startY, endY),
+          width: Math.abs(endX - current.startX),
+          height: Math.abs(endY - current.startY),
         };
         if (rect.width >= 8 && rect.height >= 8) {
           suppressNextClickRef.current = true;
@@ -875,6 +1315,7 @@ export function SelectionLayer() {
             replaceBuilderNodeSelection(nextIds);
           }
         }
+        marqueeIndexRef.current = null;
         return { phase: "idle" };
       });
     }
@@ -887,17 +1328,432 @@ export function SelectionLayer() {
     document.addEventListener("pointermove", onPointerMove);
     document.addEventListener("pointerup", onPointerUp);
     document.addEventListener("pointercancel", onPointerUp);
+    window.addEventListener("scroll", refreshMarqueeIndex, {
+      passive: true,
+      capture: true,
+    });
+    window.addEventListener("resize", refreshMarqueeIndex);
     return () => {
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("pointermove", onPointerMove);
       document.removeEventListener("pointerup", onPointerUp);
       document.removeEventListener("pointercancel", onPointerUp);
+      window.removeEventListener("scroll", refreshMarqueeIndex, {
+        capture: true,
+      } as EventListenerOptions);
+      window.removeEventListener("resize", refreshMarqueeIndex);
+      if (marqueeRafRef.current !== null) {
+        cancelAnimationFrame(marqueeRafRef.current);
+        marqueeRafRef.current = null;
+      }
+      marqueeIndexRef.current = null;
     };
   }, [
     builderTree,
     getAllSelectedBuilderNodeIds,
     replaceBuilderNodeSelection,
   ]);
+
+  // ── P3-DRAG: palette-onto-canvas insert + canvas-block reorder/nest ──
+  //
+  // Fresh-value ref so the window-level native-DnD listeners (registered once
+  // per active drag) call today's tree + mutation fns without re-subscribing on
+  // every render. Same shape as `callbacksRef` above.
+  const canvasDropDepsRef = useRef({
+    builderTree,
+    insertBuilderNode,
+    insertBuilderSectionEmbed,
+    moveBuilderNodeToParentIndex,
+    reportMutationError,
+    selectBuilderNode,
+  });
+  useEffect(() => {
+    canvasDropDepsRef.current = {
+      builderTree,
+      insertBuilderNode,
+      insertBuilderSectionEmbed,
+      moveBuilderNodeToParentIndex,
+      reportMutationError,
+      selectBuilderNode,
+    };
+  }, [
+    builderTree,
+    insertBuilderNode,
+    insertBuilderSectionEmbed,
+    moveBuilderNodeToParentIndex,
+    reportMutationError,
+    selectBuilderNode,
+  ]);
+
+  // ── P3-PERF: drag-candidate index cached for the WHOLE gesture ──────────────
+  //
+  // `collectCanvasDropCandidates` is expensive: it queries every
+  // `[data-builder-node-id]`, forces a sync `getBoundingClientRect` per node, and
+  // (historically) ran an O(N²) `.contains()` depth scan. It used to run on EVERY
+  // `onDragOver` frame (60+/s) → layout thrash + main-thread stalls on a large
+  // page. The candidate SET (which containers exist, their kinds/locked flags,
+  // their child ordering, their depth) is invariant for the duration of a single
+  // drag — only their VIEWPORT rects move, and only when the canvas scrolls or
+  // the window resizes. So we snapshot the candidate list ONCE at drag-start and
+  // reuse it across the gesture; per frame we just hit-test the cached bands.
+  //
+  // Byte-identical guarantee: the cache stores the EXACT output of
+  // `collectCanvasDropCandidates`, and we recompute that output on every canvas
+  // scroll + window resize during the drag (the only inputs that change the
+  // snapshot). `resolveCanvasNodeDrop` is pure over the candidate list, so its
+  // drop-target + depth decisions are identical to calling collect() every frame.
+  const canvasDropIndexRef = useRef<CanvasDropCandidate[] | null>(null);
+
+  const rebuildCanvasDropIndex = useCallback(() => {
+    canvasDropIndexRef.current = collectCanvasDropCandidates(
+      canvasDropDepsRef.current.builderTree,
+    );
+  }, []);
+
+  // Resolve the canvas drop target under the cursor for the dragged kind. The
+  // DOM walk + index math live in `canvas-node-drop.ts` (pure + unit-tested);
+  // this only feeds it the live candidate boxes. For an existing-node move the
+  // dragged node is excluded so it can't parent itself or skew its own index.
+  //
+  // P3-PERF: read the cached candidate index built at drag-start (and refreshed
+  // on scroll/resize). If — for any unforeseen reason — the cache is empty when
+  // we're asked to resolve (e.g. a `drop`/`dragover` fired before the cache was
+  // seeded), fall back to a fresh scan so correctness never depends on the cache
+  // being warm.
+  const computeCanvasNodeDrop = useCallback(
+    (
+      cursorX: number,
+      cursorY: number,
+      draggedKind: BuilderNodeKind,
+      excludeNodeId: string | null,
+    ): CanvasDropResult | null => {
+      const candidates =
+        canvasDropIndexRef.current ??
+        collectCanvasDropCandidates(canvasDropDepsRef.current.builderTree);
+      return resolveCanvasNodeDrop({
+        cursorX,
+        cursorY,
+        draggedKind,
+        candidates,
+        excludeNodeId,
+      });
+    },
+    [],
+  );
+
+  // 4A #7 — arm an EXISTING-block move from a native HTML5 drag source. Shared
+  // by the selection-chip grip AND the on-hover grab handle so ANY block is
+  // directly reorderable, not just the selected one. Captures the block's
+  // current parent for the reparent/nesting preview (#9) and seeds the labeled
+  // drag-ghost (#6). The commit path is the same `moveBuilderNodeToParentIndex`
+  // the existing chip-grip drag already routes through (undo/redo for free).
+  const armCanvasNodeMove = useCallback(
+    (
+      event: DragEvent,
+      nodeId: string,
+      draggedKind: BuilderNodeKind,
+      label: string,
+    ) => {
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", label);
+      // Suppress the OS drag-image (a snapshot of the grip / handle) so our own
+      // labeled ghost is the only thing the operator sees follow the cursor.
+      // A 1×1 transparent image is the cross-browser way to hide it.
+      if (typeof document !== "undefined") {
+        const blank = document.createElement("canvas");
+        blank.width = 1;
+        blank.height = 1;
+        try {
+          event.dataTransfer.setDragImage(blank, 0, 0);
+        } catch {
+          // Some browsers reject a detached canvas — harmless; fall back to the
+          // default OS image rather than crashing the drag.
+        }
+      }
+      const sourceParentNodeId =
+        findCanvasNodeParentContext(
+          canvasDropDepsRef.current.builderTree,
+          nodeId,
+        )?.parentNodeId ?? null;
+      setCanvasNodeDrag({
+        phase: "move",
+        nodeId,
+        draggedKind,
+        drop: null,
+        label,
+        sourceParentNodeId,
+        cursorX: event.clientX,
+        cursorY: event.clientY,
+      });
+    },
+    [],
+  );
+
+  // Always-on detector: a palette drag STARTS on a pill in a different React
+  // tree, so we can't arm `canvasNodeDrag` at its source. When a drag carrying
+  // the palette MIME enters the window, flip into the "palette" phase (the main
+  // DnD effect below then drives the indicator + drop). Existing-canvas-block
+  // moves are armed directly by the chip grip's `onDragStart`, so they don't go
+  // through here.
+  useEffect(() => {
+    function onDragEnter(event: globalThis.DragEvent) {
+      if (!event.dataTransfer) return;
+      if (!event.dataTransfer.types.includes(BUILDER_NODE_PALETTE_DRAG_MIME)) {
+        return;
+      }
+      const payload = getActiveBuilderNodePaletteDrag();
+      if (!payload) return;
+      const cursorX = event.clientX;
+      const cursorY = event.clientY;
+      setCanvasNodeDrag((current) => {
+        if (current.phase !== "idle") return current;
+        return {
+          phase: "palette",
+          payload,
+          draggedKind:
+            payload.kind === "section_embed" ? "section_embed" : payload.elementKind,
+          drop: null,
+          label: paletteDragLabel(payload),
+          cursorX,
+          cursorY,
+        };
+      });
+    }
+    window.addEventListener("dragenter", onDragEnter);
+    return () => window.removeEventListener("dragenter", onDragEnter);
+  }, []);
+
+  // Window-level native-DnD bridge. Active while a palette item OR an existing
+  // canvas block is being dragged. `dragover` previews the drop indicator;
+  // `drop` commits through the normal mutation/undo path (insert for palette,
+  // move for an existing block). The drag-image + `effectAllowed` are set by the
+  // drag source (palette pill / chip grip).
+  useEffect(() => {
+    if (canvasNodeDrag.phase === "idle") return;
+
+    function paletteKind(
+      payload: BuilderNodePaletteDragPayload,
+    ): BuilderNodeKind {
+      return payload.kind === "section_embed" ? "section_embed" : payload.elementKind;
+    }
+
+    function onDragOver(event: globalThis.DragEvent) {
+      // Read the live drag descriptor from the closed-over state. The effect
+      // re-subscribes whenever `canvasNodeDrag` changes, so phase/payload/nodeId
+      // are current (they only change on arm/disarm). Only `drop` changes per
+      // move, and it's computed purely from the event + DOM here.
+      const active = canvasNodeDrag;
+      if (active.phase === "idle") return;
+      // Inside the edit chrome (palette/inspector/topbar) → no canvas drop.
+      const overChrome =
+        event.target instanceof Element &&
+        (event.target.closest("[data-edit-topbar]") ||
+          event.target.closest("[data-edit-drawer]") ||
+          event.target.closest("[data-edit-overlay]"));
+      const draggedKind =
+        active.phase === "palette"
+          ? paletteKind(active.payload)
+          : active.draggedKind;
+      const excludeNodeId = active.phase === "move" ? active.nodeId : null;
+      const drop = overChrome
+        ? null
+        : computeCanvasNodeDrop(
+            event.clientX,
+            event.clientY,
+            draggedKind,
+            excludeNodeId,
+          );
+      // preventDefault on a valid target so the browser fires `drop`. Done
+      // synchronously here (NOT inside the state updater, which must stay pure).
+      if (drop && drop.allowed) {
+        event.preventDefault();
+        if (event.dataTransfer) {
+          event.dataTransfer.dropEffect =
+            active.phase === "palette" ? "copy" : "move";
+        }
+      } else if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = "none";
+      }
+      // Capture the cursor so the labeled drag-ghost (4A #6) follows the
+      // pointer. `dragover` fires continuously; the drop target only changes at
+      // band boundaries, so we update position every move but keep the drop
+      // short-circuit to avoid re-deriving the (deep-equal) drop object.
+      const cursorX = event.clientX;
+      const cursorY = event.clientY;
+      setCanvasNodeDrag((current) => {
+        if (current.phase === "idle") return current;
+        const dropUnchanged =
+          drop?.parentNodeId === current.drop?.parentNodeId &&
+          drop?.index === current.drop?.index &&
+          drop?.allowed === current.drop?.allowed &&
+          drop?.indicatorY === current.drop?.indicatorY;
+        if (
+          dropUnchanged &&
+          current.cursorX === cursorX &&
+          current.cursorY === cursorY
+        ) {
+          return current;
+        }
+        return {
+          ...current,
+          drop: dropUnchanged ? current.drop : drop,
+          cursorX,
+          cursorY,
+        };
+      });
+    }
+
+    function onDrop(event: globalThis.DragEvent) {
+      const state = canvasNodeDrag;
+      const deps = canvasDropDepsRef.current;
+      const overChrome =
+        event.target instanceof Element &&
+        (event.target.closest("[data-edit-topbar]") ||
+          event.target.closest("[data-edit-drawer]") ||
+          event.target.closest("[data-edit-overlay]"));
+      const draggedKind =
+        state.phase === "palette"
+          ? paletteKind(state.payload)
+          : state.phase === "move"
+            ? state.draggedKind
+            : null;
+      const excludeNodeId = state.phase === "move" ? state.nodeId : null;
+      const drop =
+        overChrome || draggedKind === null
+          ? null
+          : computeCanvasNodeDrop(
+              event.clientX,
+              event.clientY,
+              draggedKind,
+              excludeNodeId,
+            );
+      setCanvasNodeDrag({ phase: "idle" });
+      if (!drop || !drop.allowed) return;
+      event.preventDefault();
+
+      if (state.phase === "palette") {
+        if (state.payload.kind === "section_embed") {
+          void deps
+            .insertBuilderSectionEmbed(
+              drop.parentNodeId,
+              state.payload.sectionTypeKey,
+              drop.index,
+            )
+            .then((result) => {
+              if (!result.ok && result.error) deps.reportMutationError(result.error);
+            });
+        } else {
+          void deps
+            .insertBuilderNode(
+              drop.parentNodeId,
+              state.payload.elementKind,
+              drop.index,
+            )
+            .then((result) => {
+              if (!result.ok && result.error) deps.reportMutationError(result.error);
+            });
+        }
+        return;
+      }
+
+      if (state.phase === "move") {
+        // The resolver returns a GAP index over the post-exclusion sibling
+        // list. For a same-parent move, apply the −1 removal adjustment via the
+        // shared gap→index helper (cross-parent passes through unchanged).
+        const location = findCanvasNodeParentContext(
+          deps.builderTree,
+          state.nodeId,
+        );
+        const sameParent = location?.parentNodeId === drop.parentNodeId;
+        const resolvedIndex = sameParent
+          ? (() => {
+              const gap = siblingDropGapToMoveIndex({
+                dropGapIndex:
+                  // Re-expand the gap to the FULL sibling list: the resolver
+                  // measured against siblings WITHOUT the dragged node, so any
+                  // gap at/after the source slot is shifted up by one.
+                  location && drop.index >= location.sourceSiblingIndex
+                    ? drop.index + 1
+                    : drop.index,
+                sourceSiblingIndex: location?.sourceSiblingIndex ?? 0,
+                sameParent: true,
+              });
+              return gap.kind === "noop" ? null : gap.targetSiblingIndex;
+            })()
+          : drop.index;
+        if (resolvedIndex === null) return;
+        void deps
+          .moveBuilderNodeToParentIndex(
+            state.nodeId,
+            drop.parentNodeId,
+            resolvedIndex,
+          )
+          .then((result) => {
+            if (!result.ok && result.error) deps.reportMutationError(result.error);
+            else deps.selectBuilderNode(state.nodeId);
+          });
+      }
+    }
+
+    function onDragEnd() {
+      setCanvasNodeDrag({ phase: "idle" });
+    }
+
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setCanvasNodeDrag({ phase: "idle" });
+    }
+
+    window.addEventListener("dragover", onDragOver);
+    window.addEventListener("drop", onDrop);
+    window.addEventListener("dragend", onDragEnd);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("dragover", onDragOver);
+      window.removeEventListener("drop", onDrop);
+      window.removeEventListener("dragend", onDragEnd);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [canvasNodeDrag, computeCanvasNodeDrop]);
+
+  // ── P3-PERF: maintain the cached drop-candidate index for the active drag ───
+  //
+  // Seed the index the moment a canvas drag becomes active (palette or move),
+  // then keep it fresh on the ONLY two inputs that move the snapshotted viewport
+  // rects: the canvas scroll-container scrolling (caught capture-phase on window,
+  // same as the selection-ring tracker — `scroll` doesn't bubble, so capture
+  // catches a nested scroller) and the window resizing. We clear the cache when
+  // the drag ends so a later resolve falls back to a fresh scan rather than
+  // reading a stale gesture's geometry.
+  // A STABLE key for the active gesture: the candidate SET is invariant for the
+  // life of one drag, so we must NOT re-seed on the per-frame cursor/drop state
+  // churn (`onDragOver` updates `canvasNodeDrag` every move). Keying on
+  // phase + dragged-node identity re-runs this effect only on arm/disarm.
+  const canvasDragGestureKey =
+    canvasNodeDrag.phase === "idle"
+      ? "idle"
+      : canvasNodeDrag.phase === "move"
+        ? `move:${canvasNodeDrag.nodeId}`
+        : "palette";
+  useEffect(() => {
+    if (canvasDragGestureKey === "idle") {
+      canvasDropIndexRef.current = null;
+      return undefined;
+    }
+    rebuildCanvasDropIndex();
+    const onScrollOrResize = () => rebuildCanvasDropIndex();
+    window.addEventListener("scroll", onScrollOrResize, {
+      passive: true,
+      capture: true,
+    });
+    window.addEventListener("resize", onScrollOrResize);
+    return () => {
+      window.removeEventListener("scroll", onScrollOrResize, {
+        capture: true,
+      } as EventListenerOptions);
+      window.removeEventListener("resize", onScrollOrResize);
+      canvasDropIndexRef.current = null;
+    };
+  }, [canvasDragGestureKey, rebuildCanvasDropIndex]);
 
   // ── drag-to-reorder ──────────────────────────────────────────────
   // Drop target under the cursor given the current section layout.
@@ -1165,6 +2021,17 @@ export function SelectionLayer() {
   const showHover =
     hoverRect && hoveredSectionId && hoveredSectionId !== selectedSectionId;
 
+  // Job #5 — show the freeform node hover ring when we have a rect for the
+  // hovered node and it isn't the current selection (the selection ring wins).
+  // Suppressed while dragging anything (the drop indicator / ghost take over).
+  const showNodeHover =
+    nodeHoverRect &&
+    hoveredBuilderNodeId !== null &&
+    hoveredBuilderNodeId !== selectedBuilderNodeId &&
+    drag.phase === "idle" &&
+    canvasNodeDrag.phase === "idle" &&
+    marquee.phase === "idle";
+
   const isDragging =
     drag.phase === "dragging" && drag.id === selectedSectionId;
 
@@ -1284,12 +2151,155 @@ export function SelectionLayer() {
     !!selectedBuilderNodeId &&
     selectedCanvasNodeId === selectedBuilderNodeId &&
     !resolveBuilderNodeRole(selectedBuilderNode.id);
+  // Does the selected block actually expose an inline-editable TEXT target?
+  // The toolbar pencil fires `requestInlineEdit`, which only does something
+  // when the node renders an element the inline editor can open
+  // (h1-h6/p/a/button/summary/[data-editable-text]). That set maps to a fixed
+  // list of node kinds — mirrored from inline-editor.tsx's
+  // `resolveEditableBuilderNodeTextTarget`: heading/paragraph/rich_text always
+  // carry copy, button a label, accordion_item/tab_panel a title; icon is
+  // editable only when it has a label, nav only via its (brand) wordmark. Every
+  // other kind (image/video/embed/icon-without-label/divider/spacer/code/
+  // section_embed and the bare layout containers) has NO text target, so the
+  // pencil would be a no-op there → hide it. Derived from the node itself so it
+  // recomputes on every render rather than racing the live DOM.
+  const selectedNodeHasInlineTextTarget = (() => {
+    if (!selectedNodeIsEditableBlock || !selectedBuilderNode) return false;
+    switch (selectedBuilderNode.kind) {
+      case "heading":
+      case "paragraph":
+      case "rich_text":
+      case "button":
+      case "accordion_item":
+      case "tab_panel":
+        return true;
+      case "icon":
+        return !!selectedBuilderNode.props.label;
+      case "nav":
+        return !!selectedBuilderNode.props.brand;
+      default:
+        return false;
+    }
+  })();
   const chipPrimaryLabel = selectedNodeIsEditableBlock
     ? builderNodeCrumbLabel(selectedBuilderNode, chipLabel)
     : chipLabel;
   const chipPrimaryType = selectedNodeIsEditableBlock
     ? "Block"
     : chipType;
+
+  // ── Figma-smooth overlay tracking (imperative rAF positioning) ─────────────
+  // For a SINGLE selected element, drive the selection ring, the selection chip,
+  // and the move/resize/spacing/gap handle overlay boxes by writing their
+  // style.top/left/width/height DIRECTLY from a standalone rAF loop — never via
+  // React state. Reading the live getBoundingClientRect() and writing the boxes
+  // each frame means the overlays stay glued to the element during scroll AND
+  // during a handle drag (which mutates the element's inline size/translate)
+  // with ZERO re-render of this ~6000-line layer, so they no longer trail by a
+  // frame or two. State (renderSelectedRect via scheduleRectRecompute) still
+  // seeds first paint, owns the MULTI-select bounding box, and feeds the float
+  // toolbar / rails / menus.
+  //
+  // useLayoutEffect for the initial write so the boxes (whose top/left/width/
+  // height are otherwise unset while overlayRef is wired) land in the right spot
+  // before the browser paints — no first-frame flash at the origin.
+  useLayoutEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    // Multi-select uses a union bounding box computed in React (state); section
+    // drag hides the handles + desaturates the ring. In both cases leave the
+    // overlays to the state-driven path and don't fight it.
+    if (multiNodeSelectionActive || isDragging) return undefined;
+    if (!selectedBuilderNodeId && !selectedSectionId) return undefined;
+
+    const sync = () => {
+      const el = getSelectedBuilderNodeEl() ?? getSelectedSectionEl();
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const top = r.top;
+      const left = r.left;
+      const width = r.width;
+      const height = r.height;
+
+      const ring = ringRef.current;
+      if (ring) {
+        ring.style.top = `${top}px`;
+        ring.style.left = `${left}px`;
+        ring.style.width = `${width}px`;
+        ring.style.height = `${height}px`;
+      }
+      const chip = chipRef.current;
+      if (chip) {
+        // Mirrors the seed math: sit just above the element, clamped under the
+        // top bar.
+        chip.style.top = `${Math.max(top - 38, 58)}px`;
+        chip.style.left = `${left}px`;
+      }
+      // Each handle overlay box shares the element's exact viewport rect; its
+      // inner controls are positioned relative to the box, so moving the box is
+      // enough. Any ref may be null (its handle isn't mounted for this node).
+      for (const ref of [
+        moveOverlayRef,
+        resizeOverlayRef,
+        spacingOverlayRef,
+        gapOverlayRef,
+      ]) {
+        const box = ref.current;
+        if (!box) continue;
+        box.style.top = `${top}px`;
+        box.style.left = `${left}px`;
+        box.style.width = `${width}px`;
+        box.style.height = `${height}px`;
+      }
+    };
+
+    // Write once synchronously (pre-paint) so the overlays never flash at the
+    // origin, then track every frame.
+    sync();
+    const tick = () => {
+      sync();
+      overlayTrackRafRef.current = requestAnimationFrame(tick);
+    };
+    overlayTrackRafRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      if (overlayTrackRafRef.current !== null) {
+        cancelAnimationFrame(overlayTrackRafRef.current);
+        overlayTrackRafRef.current = null;
+      }
+    };
+  }, [
+    selectedBuilderNodeId,
+    selectedSectionId,
+    multiNodeSelectionActive,
+    isDragging,
+    getSelectedBuilderNodeEl,
+    getSelectedSectionEl,
+  ]);
+
+  // 4A #7 — the HOVERED freeform block, when it's a directly-movable block (a
+  // real element, not a section / role-bound slot / locked node). Drives the
+  // on-hover grab handle so ANY block can be grabbed + reordered, not only the
+  // selected one. Same movability gate the chip grip's drag source uses.
+  const hoveredBuilderNode = useMemo(
+    () =>
+      hoveredBuilderNodeId
+        ? findBuilderNodeById(builderTree, hoveredBuilderNodeId)
+        : null,
+    [builderTree, hoveredBuilderNodeId],
+  );
+  const hoveredNodeIsMovableBlock =
+    !!hoveredBuilderNode &&
+    !!hoveredBuilderNodeId &&
+    hoveredBuilderNode.kind !== "section" &&
+    hoveredBuilderNode.locked !== true &&
+    !resolveBuilderNodeRole(hoveredBuilderNode.id);
+  const hoveredBlockLabel = hoveredBuilderNode
+    ? builderNodeCrumbLabel(
+        hoveredBuilderNode,
+        BUILDER_NODE_REGISTRY[hoveredBuilderNode.kind]?.label ??
+          humanizeTypeKey(hoveredBuilderNode.kind),
+      )
+    : "";
   // Show the type label only when it adds information — most sections derive
   // a name equal to their humanized type ("Featured Talent"), which made the
   // chip print the same words twice. Hoisted (not inline in JSX) to keep the
@@ -1306,8 +2316,17 @@ export function SelectionLayer() {
   // responsive-style nesting); editable freeform blocks only (curated-role
   // nodes own their width). Commits once on release through the normal
   // patch flow, so undo/redo and persistence come for free.
+  // P3-LOCK: locked nodes suppress all direct-manipulation handles.
+  const selectedNodeIsLocked = selectedBuilderNode?.locked === true;
   const canResizeSelectedNode =
-    selectedNodeIsEditableBlock && !multiNodeSelectionActive && device === "desktop";
+    selectedNodeIsEditableBlock && !multiNodeSelectionActive && device === "desktop" && !selectedNodeIsLocked;
+  // #21 — gap handles apply only to the layout-container kinds that honour the
+  // `--bn-gap` escape (same set the Style panel's Gap field gates on). Reuses
+  // the resize gate so locked / multi-select / non-desktop are all excluded.
+  const isSelectedLayoutContainer =
+    canResizeSelectedNode &&
+    !!selectedBuilderNode &&
+    BUILDER_GAP_LAYOUT_KINDS.has(selectedBuilderNode.kind);
   const commitSelectedNodeSize = useCallback(
     (dims: { width?: number | null; height?: number | null }) => {
       if (!selectedBuilderNodeId) return;
@@ -1365,8 +2384,58 @@ export function SelectionLayer() {
     },
     [selectedBuilderNodeId, builderTree, patchBuilderNodeProps],
   );
-  const commitSelectedNodeTranslate = useCallback(
-    (x: number, y: number) => {
+  // #25 — box-model MARGIN drag. Writes the free margin escape (the same
+  // collision-safe `margin*Free` key the Style panel uses), so the canvas drag
+  // and the panel field stay one value. 0 clears the escape back to the token.
+  const commitSelectedNodeMargin = useCallback(
+    (side: MarginSide, px: number) => {
+      if (!selectedBuilderNodeId) return;
+      const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
+      if (!node || node.kind === "section") return;
+      const currentStyle =
+        ((node.props as { style?: Record<string, unknown> } | undefined)
+          ?.style ?? {}) as Record<string, unknown>;
+      const key =
+        side === "top"
+          ? "marginTopFree"
+          : side === "right"
+            ? "marginRightFree"
+            : side === "bottom"
+              ? "marginBottomFree"
+              : "marginLeftFree";
+      const nextStyle: Record<string, unknown> = { ...currentStyle };
+      const liveEl = getSelectedBuilderNodeEl();
+      if (Math.round(px) <= 0) {
+        delete nextStyle[key];
+        if (liveEl) {
+          liveEl.style[
+            side === "top"
+              ? "marginTop"
+              : side === "right"
+                ? "marginRight"
+                : side === "bottom"
+                  ? "marginBottom"
+                  : "marginLeft"
+          ] = "";
+        }
+      } else {
+        nextStyle[key] = `${Math.round(px)}px`;
+      }
+      void patchBuilderNodeProps(selectedBuilderNodeId, { style: nextStyle });
+    },
+    [
+      selectedBuilderNodeId,
+      builderTree,
+      patchBuilderNodeProps,
+      getSelectedBuilderNodeEl,
+    ],
+  );
+  // #21 — visual auto-layout GAP drag (flex/grid containers). Writes the single
+  // `gap` free escape (→ `--bn-gap`), identical to the Style panel's Gap field.
+  // 0 clears the escape back to the gap token; the inline preview is cleared so
+  // the reset is visible immediately.
+  const commitSelectedNodeGap = useCallback(
+    (px: number) => {
       if (!selectedBuilderNodeId) return;
       const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
       if (!node || node.kind === "section") return;
@@ -1374,20 +2443,80 @@ export function SelectionLayer() {
         ((node.props as { style?: Record<string, unknown> } | undefined)
           ?.style ?? {}) as Record<string, unknown>;
       const nextStyle: Record<string, unknown> = { ...currentStyle };
-      // 0,0 → drop the escape entirely (back to natural position).
-      if (Math.round(x) === 0 && Math.round(y) === 0) {
-        delete nextStyle.translate;
+      const liveEl = getSelectedBuilderNodeEl();
+      if (Math.round(px) <= 0) {
+        delete nextStyle.gap;
+        if (liveEl) {
+          liveEl.style.gap = "";
+          liveEl.style.columnGap = "";
+          liveEl.style.rowGap = "";
+        }
       } else {
-        nextStyle.translate = `${Math.round(x)}px ${Math.round(y)}px`;
+        nextStyle.gap = `${Math.round(px)}px`;
       }
       void patchBuilderNodeProps(selectedBuilderNodeId, { style: nextStyle });
     },
-    [selectedBuilderNodeId, builderTree, patchBuilderNodeProps],
+    [
+      selectedBuilderNodeId,
+      builderTree,
+      patchBuilderNodeProps,
+      getSelectedBuilderNodeEl,
+    ],
   );
-  // Keyboard nudge — arrow keys move the selected freeform block/set by
-  // translate (1px, or 10px with Shift). Complements the centre move grip for
-  // precise positioning. Gated so it never hijacks typing or panel/tree
-  // navigation.
+  const commitSelectedNodeTranslate = useCallback(
+    (x: number, y: number) => {
+      if (!selectedBuilderNodeId) return;
+      const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
+      if (!node || node.kind === "section") return;
+      // CLAMP — a block can never be flung fully off its parent. Previously an
+      // unbounded translate stranded an element off the (narrower) mobile canvas
+      // with no grabbable handle to recover it. Keep ≥40px of the block inside
+      // its parent on every edge, exactly like the floating-panel keep-on-screen.
+      let cx = x;
+      let cy = y;
+      const el = getSelectedBuilderNodeEl();
+      const parent = el?.parentElement ?? null;
+      if (el && parent) {
+        const KEEP = 40;
+        const er = el.getBoundingClientRect();
+        const pr = parent.getBoundingClientRect();
+        // er currently reflects the live translate (set during the drag), so the
+        // natural (untranslated) origin is the current rect minus the offset.
+        const naturalLeft = er.left - x;
+        const naturalTop = er.top - y;
+        const minX = pr.left + KEEP - er.width - naturalLeft;
+        const maxX = pr.right - KEEP - naturalLeft;
+        const minY = pr.top + KEEP - er.height - naturalTop;
+        const maxY = pr.bottom - KEEP - naturalTop;
+        if (minX <= maxX) cx = Math.max(minX, Math.min(maxX, x));
+        if (minY <= maxY) cy = Math.max(minY, Math.min(maxY, y));
+      }
+      const rx = Math.round(cx);
+      const ry = Math.round(cy);
+      const currentStyle =
+        ((node.props as { style?: Record<string, unknown> } | undefined)
+          ?.style ?? {}) as Record<string, unknown>;
+      const nextStyle: Record<string, unknown> = { ...currentStyle };
+      // 0,0 → drop the escape entirely (back to natural position).
+      if (rx === 0 && ry === 0) {
+        delete nextStyle.translate;
+      } else {
+        nextStyle.translate = `${rx}px ${ry}px`;
+      }
+      void patchBuilderNodeProps(selectedBuilderNodeId, { style: nextStyle });
+    },
+    [
+      selectedBuilderNodeId,
+      builderTree,
+      patchBuilderNodeProps,
+      getSelectedBuilderNodeEl,
+    ],
+  );
+  // #32 — keyboard nudge moves the selected freeform block/set by translate
+  // (Alt+arrow = 1px, Alt+Shift+arrow = 10px). It now lives under ALT so PLAIN
+  // arrows are free to NAVIGATE the selection through the tree (the tree-nav
+  // effect below). Complements the centre move grip for precise positioning;
+  // gated so it never hijacks typing or panel/tree navigation.
   useEffect(() => {
     if (!canResizeSelectedNode && !multiNodeSelectionActive) return;
     const DELTAS: Record<string, [number, number]> = {
@@ -1399,14 +2528,19 @@ export function SelectionLayer() {
     function onNudge(e: KeyboardEvent) {
       const delta = DELTAS[e.key];
       if (!delta) return;
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      // Alt = nudge; plain arrows are tree navigation; meta/ctrl reserved.
+      if (!e.altKey || e.metaKey || e.ctrlKey) return;
       if (isEditableKeyboardTarget(e.target) || !keyboardFocusIsOnCanvas()) return;
       e.preventDefault();
       const step = e.shiftKey ? 10 : 1;
       const dx = delta[0] * step;
       const dy = delta[1] * step;
       if (multiNodeSelectionActive) {
-        const nodeIds = selectedBuilderNodeRects.map((rect) => rect.id);
+        // P3-LOCK: skip locked nodes from multi-nudge.
+        const nodeIds = selectedBuilderNodeRects
+          .map((rect) => rect.id)
+          .filter((nodeId) => !isBuilderNodeLocked(builderTree, nodeId));
+        if (nodeIds.length === 0) return;
         for (const nodeId of nodeIds) {
           const el = getBuilderNodeEl(nodeId);
           if (!el) continue;
@@ -1435,6 +2569,7 @@ export function SelectionLayer() {
     window.addEventListener("keydown", onNudge);
     return () => window.removeEventListener("keydown", onNudge);
   }, [
+    builderTree,
     canResizeSelectedNode,
     getBuilderNodeEl,
     getSelectedBuilderNodeEl,
@@ -1448,6 +2583,122 @@ export function SelectionLayer() {
     () => findBuilderNodePath(builderTree, selectedCanvasNodeId),
     [builderTree, selectedCanvasNodeId],
   );
+
+  // #32 — KEYBOARD NAV through the tree. Plain arrows move the SELECTION
+  // (not the block): Up/Down = previous/next sibling, Left = parent,
+  // Right = first child. Esc deselects (handled in the global onKey above).
+  // Nudge now lives on Alt+arrow, so plain arrows are unambiguous here.
+  // Gated identically to the clipboard shortcuts (no typing target, focus on
+  // canvas, no open context menu) and to a single canvas selection.
+  useEffect(() => {
+    if (!selectedCanvasNodeId || selectedNodePath.length === 0) return;
+    function onArrowNav(e: KeyboardEvent) {
+      if (
+        e.key !== "ArrowUp" &&
+        e.key !== "ArrowDown" &&
+        e.key !== "ArrowLeft" &&
+        e.key !== "ArrowRight"
+      ) {
+        return;
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+      if (isEditableKeyboardTarget(e.target) || !keyboardFocusIsOnCanvas()) return;
+      if (contextMenu) return;
+      const path = selectedNodePath;
+      const current = path[path.length - 1];
+      if (!current) return;
+      const parent = path.length >= 2 ? path[path.length - 2] : null;
+      const siblings =
+        parent && "children" in parent && Array.isArray(parent.children)
+          ? parent.children
+          : null;
+      const index = siblings
+        ? siblings.findIndex((node) => node.id === current.id)
+        : -1;
+
+      if (e.key === "ArrowUp") {
+        if (siblings && index > 0) {
+          e.preventDefault();
+          callbacksRef.current.selectBuilderNode(siblings[index - 1]!.id);
+        }
+        return;
+      }
+      if (e.key === "ArrowDown") {
+        if (siblings && index >= 0 && index < siblings.length - 1) {
+          e.preventDefault();
+          callbacksRef.current.selectBuilderNode(siblings[index + 1]!.id);
+        }
+        return;
+      }
+      if (e.key === "ArrowLeft") {
+        // Walk up to the parent. Don't climb past the section root onto the
+        // page (selecting "nothing"); the section node itself is the ceiling.
+        if (parent) {
+          e.preventDefault();
+          callbacksRef.current.selectBuilderNode(parent.id);
+        }
+        return;
+      }
+      // ArrowRight → first child.
+      const firstChild =
+        "children" in current && Array.isArray(current.children)
+          ? current.children[0] ?? null
+          : null;
+      if (firstChild) {
+        e.preventDefault();
+        callbacksRef.current.selectBuilderNode(firstChild.id);
+      }
+    }
+    window.addEventListener("keydown", onArrowNav);
+    return () => window.removeEventListener("keydown", onArrowNav);
+  }, [contextMenu, selectedCanvasNodeId, selectedNodePath]);
+
+  // #13 — canvas selection breadcrumb crumbs.
+  // Mirrors the inspector-dock's `inspectorBreadcrumbCrumbs` but lives
+  // in the selection-layer so the breadcrumb bar is always on the canvas
+  // rather than buried inside the right rail. Each crumb carries its
+  // id + label + a kind ("page"|"section"|node-kind) for the
+  // data-selection-breadcrumb-item attribute the smoke tests assert on.
+  const canvasBreadcrumbCrumbs = useMemo(() => {
+    type Crumb = {
+      id: string;
+      label: string;
+      kind: "page" | "section" | string;
+      selectable: boolean;
+    };
+    if (!selectedSectionId) return [] as Crumb[];
+    const crumbs: Crumb[] = [
+      { id: "page", label: "Page", kind: "page", selectable: false },
+    ];
+    const sectionLabel = chipLabel;
+    if (sectionLabel) {
+      crumbs.push({
+        id: selectedSectionId,
+        label: sectionLabel,
+        kind: "section",
+        selectable: true,
+      });
+    }
+    // Walk the node path (skip the root "section" node itself — already added)
+    if (selectedNodePath.length > 1 && selectedBuilderNodeId) {
+      for (const node of selectedNodePath) {
+        if (node.kind === "section") continue;
+        crumbs.push({
+          id: node.id,
+          label: truncateNodeLabel(canvasChildPrimaryLabel(node), 32),
+          kind: node.kind,
+          selectable: true,
+        });
+      }
+    }
+    return crumbs;
+  }, [
+    selectedSectionId,
+    chipLabel,
+    selectedNodePath,
+    selectedBuilderNodeId,
+  ]);
+
   const selectedSiblingContext = useMemo(() => {
     if (
       !selectedNodeIsEditableBlock ||
@@ -1738,6 +2989,51 @@ export function SelectionLayer() {
   const contextMenuPastePreview = getCopiedBuilderNodePastePreview(
     contextMenu?.builderNodeId ?? null,
   );
+  // #30 — the freeform-block node this context menu targets + its capabilities.
+  // Lock/Unlock, Wrap-in-container, Convert-to-component, and block Move up/down
+  // are block-only actions; we resolve them here so the menu component stays
+  // presentational. A role-bound (curated-slot) node owns its structure, so it's
+  // wrap/convert-ineligible even when it reads as a "child" node. Plain consts
+  // (not useMemo) — cheap tree walks that only matter while the menu is open;
+  // the React Compiler memoizes them and there's no optional-chained dep for the
+  // manual-memoization rule to trip on (matches contextMenuSectionNode below).
+  const contextMenuBuilderNodeId = contextMenu?.builderNodeId ?? null;
+  const contextMenuNode =
+    contextMenuIsChildNode && contextMenuBuilderNodeId
+      ? findBuilderNodeById(builderTree, contextMenuBuilderNodeId)
+      : null;
+  const contextMenuNodePath = contextMenuBuilderNodeId
+    ? findBuilderNodePath(builderTree, contextMenuBuilderNodeId)
+    : [];
+  const contextMenuNodeLocked = contextMenuNode?.locked === true;
+  const contextMenuNodeIsRoleBound =
+    !!contextMenuNode && resolveBuilderNodeRole(contextMenuNode.id) !== null;
+  // Wrap / Convert only make sense for a genuinely editable freeform block.
+  const contextMenuCanWrapOrConvert =
+    !!contextMenuNode &&
+    contextMenuNode.kind !== "section" &&
+    !contextMenuNodeIsRoleBound &&
+    !contextMenuNodeLocked;
+  const contextMenuMoveContext = ((): {
+    canMoveUp: boolean;
+    canMoveDown: boolean;
+  } => {
+    if (!contextMenuNode || contextMenuNodePath.length < 2) {
+      return { canMoveUp: false, canMoveDown: false };
+    }
+    const parentNode = contextMenuNodePath[contextMenuNodePath.length - 2];
+    if (!parentNode || !("children" in parentNode) || !Array.isArray(parentNode.children)) {
+      return { canMoveUp: false, canMoveDown: false };
+    }
+    const index = parentNode.children.findIndex(
+      (child) => child.id === contextMenuNode.id,
+    );
+    if (index < 0) return { canMoveUp: false, canMoveDown: false };
+    return {
+      canMoveUp: index > 0,
+      canMoveDown: index < parentNode.children.length - 1,
+    };
+  })();
   // "2018 bye-bye" — the section node for this context menu (when on a section),
   // for the eject/restore affordance. Eject-able = a curated section (not the
   // already-freeform blank_section), not already ejected.
@@ -1803,6 +3099,141 @@ export function SelectionLayer() {
 	      <style id={SELECTION_LAYER_KEYFRAMES_ID}>
 	        {SELECTION_LAYER_KEYFRAMES}
 	      </style>
+
+      {/* #13 — always-visible canvas selection breadcrumb bar.
+       *  Pinned just below the topbar (top: 54px), spanning from the
+       *  right edge of the navigator to the right edge of the viewport
+       *  (the inspector dock overlaps but has its own stacking context).
+       *  Visible whenever a section is selected; shows the ancestor path
+       *  as clickable crumbs — Page › Section › Container › Heading.
+       *  Each crumb carries `data-selection-breadcrumb-item` so smoke
+       *  tests and a11y tooling can locate them.
+       *
+       *  Analog: inspector-dock.tsx `inspectorBreadcrumbCrumbs` (same
+       *  computation — reused via canvasBreadcrumbCrumbs above). */}
+      {canvasBreadcrumbCrumbs.length > 0 && !isDragging ? (
+        <div
+          data-selection-breadcrumb=""
+          data-edit-overlay=""
+          style={{
+            position: "fixed",
+            top: 54,
+            left: navigatorOpen ? navigatorWidth : 22,
+            right: 0,
+            height: 28,
+            zIndex: 82,
+            pointerEvents: "auto",
+            display: "flex",
+            alignItems: "center",
+            paddingLeft: 12,
+            paddingRight: 12,
+            gap: 2,
+            background: "rgba(255,255,255,0.92)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
+            borderBottom: "1px solid rgba(24,24,27,0.08)",
+            fontFamily:
+              'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
+            fontSize: 11,
+            fontWeight: 500,
+            color: CHROME.muted,
+            userSelect: "none",
+            overflow: "hidden",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {canvasBreadcrumbCrumbs.map((crumb, index) => (
+            <span
+              key={`${crumb.id}:${index}`}
+              style={{ display: "inline-flex", alignItems: "center", gap: 2 }}
+            >
+              {crumb.selectable ? (
+                <button
+                  type="button"
+                  data-selection-breadcrumb-item={crumb.kind}
+                  onClick={() => {
+                    if (crumb.kind === "section") {
+                      focusSectionForEdit(crumb.id);
+                    } else {
+                      selectBuilderNode(crumb.id);
+                    }
+                  }}
+                  title={crumb.label}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    padding: "1px 5px",
+                    borderRadius: 4,
+                    border: "none",
+                    background: "transparent",
+                    fontSize: 11,
+                    fontWeight:
+                      index === canvasBreadcrumbCrumbs.length - 1 ? 600 : 500,
+                    color:
+                      index === canvasBreadcrumbCrumbs.length - 1
+                        ? CHROME.ink
+                        : CHROME.muted,
+                    cursor: "pointer",
+                    transition: "background 80ms, color 80ms",
+                    maxWidth: 160,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = CHROME.paper2;
+                    e.currentTarget.style.color = CHROME.ink;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "transparent";
+                    e.currentTarget.style.color =
+                      index === canvasBreadcrumbCrumbs.length - 1
+                        ? CHROME.ink
+                        : CHROME.muted;
+                  }}
+                >
+                  {crumb.label}
+                </button>
+              ) : (
+                <span
+                  data-selection-breadcrumb-item={crumb.kind}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    padding: "1px 5px",
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: CHROME.muted2,
+                    maxWidth: 120,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {crumb.label}
+                </span>
+              )}
+              {index < canvasBreadcrumbCrumbs.length - 1 ? (
+                <span
+                  aria-hidden
+                  style={{
+                    fontSize: 10,
+                    color: CHROME.muted3,
+                    lineHeight: 1,
+                    flexShrink: 0,
+                  }}
+                >
+                  {/* chevron › */}
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </span>
+              ) : null}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
 	      {marquee.phase === "dragging" ? (
 	        <div
 	          data-builder-node-marquee=""
@@ -1853,11 +3284,11 @@ export function SelectionLayer() {
               borderRadius: CANVAS_SELECTION_RADIUS,
               boxShadow: `inset 0 0 0 1px ${HOVER_INSET}, 0 0 0 1px ${HOVER_STROKE}`,
               pointerEvents: "none",
-              transition: isScrollingRef.current
-                ? "none"
-                : reduceMotion
-                  ? "none"
-                  : "top 80ms linear, left 80ms linear, width 80ms linear, height 80ms linear",
+              // Snap instantly — NO position transition. An 80ms slide between
+              // elements read as "hover lag" and trailed the block on scroll.
+              // Design tools move the ring frame-for-frame (the rect is already
+              // recomputed on every rAF), so top/left must never animate.
+              transition: "none",
             }}
           />
           {/* Per-section left-corner control rail. Uses RAIL_BG/SHADOW
@@ -1885,11 +3316,10 @@ export function SelectionLayer() {
                 fontFamily:
                   'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
                 userSelect: "none",
-                transition: isScrollingRef.current
-                  ? "opacity 80ms"
-                  : reduceMotion
-                    ? "opacity 80ms"
-                    : "top 80ms linear, left 80ms linear, opacity 80ms",
+                // Position snaps with the section; only opacity fades. A
+                // top/left animation trailed the rail on scroll + slid it on
+                // every hover change.
+                transition: "opacity 80ms",
               }}
             >
               <button
@@ -2026,6 +3456,117 @@ export function SelectionLayer() {
 	        </>
 	      ) : null}
 
+      {/* Job #5 — freeform node hover ring. Mirrors the section hover ring's
+       *  dual-tone treatment so a hovered LAYER ROW lights the matching canvas
+       *  block (and a hovered canvas block lights its row). Lighter than the
+       *  selection ring; suppressed for the current selection + during drags. */}
+      {showNodeHover ? (
+        <div
+          data-builder-node-hover-ring=""
+          data-builder-node-id={hoveredBuilderNodeId ?? undefined}
+          style={{
+            position: "fixed",
+            top: nodeHoverRect.top,
+            left: nodeHoverRect.left,
+            width: nodeHoverRect.width,
+            height: nodeHoverRect.height,
+            borderRadius: CANVAS_SELECTION_RADIUS,
+            boxShadow: `inset 0 0 0 1px ${HOVER_INSET}, 0 0 0 1px ${HOVER_STROKE}, 0 0 0 4px rgba(47,70,120,0.10)`,
+            pointerEvents: "none",
+            // Snap instantly. This ring previously KEPT its 80ms position
+            // transition during scroll (it can't read isScrollingRef in render),
+            // so it visibly trailed the block while scrolling and slid on every
+            // hover change. The rect already tracks via the rAF recompute, so
+            // top/left must never animate.
+            transition: "none",
+          }}
+        />
+      ) : null}
+
+      {/* #25 — passive devtools box-model bands on the hovered block (padding
+          inside / margin outside). Read-only; never intercepts the pointer.
+          Desktop-only and skipped while any drag is active. */}
+      {showNodeHover && hoveredBuilderNodeId && device === "desktop" ? (
+        <BoxModelHoverBands
+          rect={nodeHoverRect}
+          liveEl={getBuilderNodeEl(hoveredBuilderNodeId)}
+        />
+      ) : null}
+
+      {/* 4A #7 — on-hover grab handle. A small draggable grip pinned to the
+       *  hovered block's top-left so ANY block can be grabbed + reordered
+       *  directly on the canvas (not just via the selection chip). It's the
+       *  only interactive piece of the hover affordance (the ring stays
+       *  pointer-transparent). The drag arms the SAME "move" canvas drag the
+       *  chip grip uses → identical drop math + `moveBuilderNodeToParentIndex`
+       *  commit, so reordering is discoverable without changing the engine. */}
+      {showNodeHover &&
+      hoveredNodeIsMovableBlock &&
+      hoveredBuilderNodeId &&
+      hoveredBuilderNode &&
+      device === "desktop" ? (
+        <button
+          type="button"
+          data-builder-node-hover-grip=""
+          data-builder-node-id={hoveredBuilderNodeId}
+          aria-label={`Drag to move ${hoveredBlockLabel}`}
+          title="Drag to move / nest this block"
+          draggable
+          onDragStart={(event) => {
+            armCanvasNodeMove(
+              event,
+              hoveredBuilderNodeId,
+              hoveredBuilderNode.kind,
+              hoveredBlockLabel,
+            );
+          }}
+          onDragEnd={() => setCanvasNodeDrag({ phase: "idle" })}
+          // Selecting on pointer-down makes the grabbed block the active
+          // selection too, matching the chip-grip path (which drags the
+          // selected block). Doesn't block the drag — dragstart still fires.
+          onPointerDown={() => selectBuilderNode(hoveredBuilderNodeId)}
+          style={{
+            position: "fixed",
+            // Sit just inside the ring's top-left corner; clamp to the
+            // viewport top so it never hides under the topbar.
+            top: Math.max(nodeHoverRect.top + 4, 60),
+            left: nodeHoverRect.left + 4,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 22,
+            height: 22,
+            padding: 0,
+            borderRadius: 6,
+            border: "none",
+            background: RAIL_BG,
+            color: "rgba(255,255,255,0.82)",
+            boxShadow: RAIL_SHADOW,
+            backdropFilter: "blur(10px)",
+            WebkitBackdropFilter: "blur(10px)",
+            cursor: "grab",
+            pointerEvents: "auto",
+            zIndex: 94,
+            touchAction: "none",
+          }}
+        >
+          <svg
+            width="9"
+            height="14"
+            viewBox="0 0 9 14"
+            fill="currentColor"
+            aria-hidden
+          >
+            <circle cx="2" cy="2" r="1" />
+            <circle cx="7" cy="2" r="1" />
+            <circle cx="2" cy="7" r="1" />
+            <circle cx="7" cy="7" r="1" />
+            <circle cx="2" cy="12" r="1" />
+            <circle cx="7" cy="12" r="1" />
+          </svg>
+        </button>
+      ) : null}
+
       {/* Sprint 4 — additional-selection rings. Render a quieter ring
        *  on every section in the multi-set (the primary keeps the full
        *  dual-tone ring + chip below). We compute rects synchronously
@@ -2089,9 +3630,15 @@ export function SelectionLayer() {
       {renderSelectedRect ? (
         <>
           <div
+            ref={ringRef}
             data-selection-ring=""
             style={{
               position: "fixed",
+              // For a SINGLE selection the rAF loop below owns these four every
+              // frame (Figma-smooth, no trailing); renderSelectedRect still seeds
+              // first paint AND is the sole source for the MULTI-select bounding
+              // box (the loop is single-selection only). Both sources read the
+              // same live geometry, so they never visibly fight.
               top: renderSelectedRect.top,
               left: renderSelectedRect.left,
               width: renderSelectedRect.width,
@@ -2126,15 +3673,30 @@ export function SelectionLayer() {
               rect={renderSelectedRect}
               liveEl={getSelectedBuilderNodeEl()}
               onCommit={commitSelectedNodeSize}
+              overlayRef={resizeOverlayRef}
             />
           ) : null}
 
-          {/* Direct manipulation — drag the inner bars to set padding. */}
+          {/* Direct manipulation — devtools box-model: drag the inner bars to
+              set padding, the outer bars to set margin (#25). */}
           {canResizeSelectedNode && !isDragging ? (
             <CanvasSpacingHandles
               rect={renderSelectedRect}
               liveEl={getSelectedBuilderNodeEl()}
               onCommitPadding={commitSelectedNodePadding}
+              onCommitMargin={commitSelectedNodeMargin}
+              overlayRef={spacingOverlayRef}
+            />
+          ) : null}
+
+          {/* #21 — visual auto-layout: drag the pill in a gap between children
+              to set the container's gap (flex/grid containers only). */}
+          {isSelectedLayoutContainer && !isDragging ? (
+            <CanvasGapHandles
+              rect={renderSelectedRect}
+              liveEl={getSelectedBuilderNodeEl()}
+              onCommitGap={commitSelectedNodeGap}
+              overlayRef={gapOverlayRef}
             />
           ) : null}
 
@@ -2144,6 +3706,7 @@ export function SelectionLayer() {
 	              rect={renderSelectedRect}
 	              liveEl={getSelectedBuilderNodeEl()}
 	              onCommitTranslate={commitSelectedNodeTranslate}
+	              overlayRef={moveOverlayRef}
 	            />
 	          ) : null}
 
@@ -2294,6 +3857,7 @@ export function SelectionLayer() {
             selectedRect={renderSelectedRect}
             target={nodeInsertTarget}
             onInsert={commitNodeInsert}
+            onInsertSectionEmbed={commitNodeInsertSectionEmbed}
             onDismiss={() => setNodeInsertTarget(null)}
           />
           {canManageSelectedNodeChildren ? (
@@ -2323,6 +3887,10 @@ export function SelectionLayer() {
             canAddInside={canInsertIntoSelectedNode}
             isSectionHidden={isHidden}
             saving={saving}
+            nodeLocked={contextMenuNodeLocked}
+            canWrapOrConvert={contextMenuCanWrapOrConvert}
+            nodeCanMoveUp={contextMenuMoveContext.canMoveUp}
+            nodeCanMoveDown={contextMenuMoveContext.canMoveDown}
             onClose={closeContextMenu}
             onEdit={() => {
               requestInlineEdit(contextMenu?.builderNodeId ?? null);
@@ -2422,7 +3990,67 @@ export function SelectionLayer() {
                   reportMutationError(removed.error);
                   return;
                 }
-                focusSectionForEdit(contextMenu.sectionId);
+                if (contextMenu.sectionId) focusSectionForEdit(contextMenu.sectionId);
+              });
+              closeContextMenu();
+            }}
+            onToggleLock={() => {
+              const id = contextMenu?.builderNodeId;
+              if (!id) return;
+              // P3-LOCK — `locked` is a node-base prop; toggle through the same
+              // patch/undo path the layers-tree lock glyph uses. undefined clears.
+              void patchBuilderNodeProps(id, {
+                locked: contextMenuNodeLocked ? undefined : true,
+              }).then((result) => {
+                if (!result.ok && result.error) reportMutationError(result.error);
+              });
+              closeContextMenu();
+            }}
+            onWrap={() => {
+              // The right-click already promoted this node to the selection, so
+              // grouping the selection wraps exactly this block in a container
+              // (single-node group is allowed) — reuses the multi-select engine
+              // fn, no parallel wrap path.
+              void groupSelectedBuilderNodes().then((result) => {
+                if (!result.ok && result.error) reportMutationError(result.error);
+              });
+              closeContextMenu();
+            }}
+            onConvertToComponent={() => {
+              const id = contextMenu?.builderNodeId;
+              if (!id) return;
+              const suggested =
+                contextMenuNode &&
+                BUILDER_NODE_REGISTRY[contextMenuNode.kind]?.label
+                  ? `${BUILDER_NODE_REGISTRY[contextMenuNode.kind].label} component`
+                  : "Saved component";
+              const name =
+                typeof window !== "undefined"
+                  ? window.prompt("Name this reusable component", suggested)
+                  : suggested;
+              if (name === null) {
+                closeContextMenu();
+                return;
+              }
+              const trimmed = name.trim() || suggested;
+              void saveSelectedNodeAsComponent(trimmed).then((result) => {
+                if (!result.ok && result.error) reportMutationError(result.error);
+              });
+              closeContextMenu();
+            }}
+            onMoveNodeUp={() => {
+              const id = contextMenu?.builderNodeId;
+              if (!id) return;
+              void moveBuilderNodeWithinParent(id, "up").then((result) => {
+                if (!result.ok && result.error) reportMutationError(result.error);
+              });
+              closeContextMenu();
+            }}
+            onMoveNodeDown={() => {
+              const id = contextMenu?.builderNodeId;
+              if (!id) return;
+              void moveBuilderNodeWithinParent(id, "down").then((result) => {
+                if (!result.ok && result.error) reportMutationError(result.error);
               });
               closeContextMenu();
             }}
@@ -2436,6 +4064,7 @@ export function SelectionLayer() {
 		              canGroup={multiNodeSelectionActive}
 		              canUngroup={canUngroupSelectedNode}
 		              canDistribute={selectedBuilderNodeRects.length >= 3}
+		              canBulkStyle={selectedBuilderNodeRects.length >= 1}
 		              onAlign={(mode) => {
 		                void alignSelectedBuilderNodes(
 		                  mode,
@@ -2472,12 +4101,21 @@ export function SelectionLayer() {
 	                  if (!result.ok && result.error) reportMutationError(result.error);
 	                });
 	              }}
+	              onBulkStyle={(stylePatchJson) => {
+	                void patchSelectedBuilderNodesStyle(stylePatchJson).then(
+	                  (result) => {
+	                    if (!result.ok && result.error) {
+	                      reportMutationError(result.error);
+	                    }
+	                  },
+	                );
+	              }}
 	            />
 	          ) : null}
-
 	          {/* ── Premium selection chip ────────────────────────────── */}
 	          {!multiNodeSelectionActive ? (
 	          <div
+            ref={chipRef}
             data-selection-chip=""
             data-selection-chip-scope={selectedNodeIsEditableBlock ? "block" : "section"}
             style={{
@@ -2486,6 +4124,10 @@ export function SelectionLayer() {
               // +28 breadcrumb-clearance is gone now that the breadcrumb bar is
               // removed, so the toolbar floats closer to the element and covers
               // less of the content above it.
+              //
+              // The rAF loop below owns top/left every frame for Figma-smooth
+              // tracking; these seed first paint and stay correct on any React
+              // re-render (same live-geometry source), so the two never fight.
               top: Math.max(renderSelectedRect.top - 38, 58),
               left: renderSelectedRect.left,
               height: 34,
@@ -2507,12 +4149,37 @@ export function SelectionLayer() {
               userSelect: "none",
             }}
           >
-            {/* Grip area — drag handle */}
+            {/* Grip area — drag handle.
+             *  Sections: pointer-driven reorder (existing `startDrag`).
+             *  Editable blocks (P3-DRAG T3.2): native HTML5 drag source that
+             *  arms a "move" canvas drag → reorder/nest via the canvas drop
+             *  target. The grip (not the whole element) is the source so inline
+             *  text-edit + selection on the element itself stay intact. */}
             <div
+              data-selection-chip-grip=""
+              draggable={selectedNodeIsEditableBlock ? true : undefined}
               onPointerDown={selectedNodeIsEditableBlock ? undefined : startDrag}
+              onDragStart={
+                selectedNodeIsEditableBlock && selectedBuilderNode
+                  ? (event) => {
+                      if (!selectedBuilderNodeId) return;
+                      armCanvasNodeMove(
+                        event,
+                        selectedBuilderNodeId,
+                        selectedBuilderNode.kind,
+                        chipPrimaryLabel,
+                      );
+                    }
+                  : undefined
+              }
+              onDragEnd={
+                selectedNodeIsEditableBlock
+                  ? () => setCanvasNodeDrag({ phase: "idle" })
+                  : undefined
+              }
               title={
                 selectedNodeIsEditableBlock
-                  ? "Selected block"
+                  ? "Drag to move / nest this block"
                   : "Drag to reorder"
               }
               style={{
@@ -2520,11 +4187,14 @@ export function SelectionLayer() {
                 alignItems: "center",
                 padding: "0 14px 0 10px",
                 gap: 9,
-                cursor: selectedNodeIsEditableBlock
-                  ? "default"
-                  : drag.phase === "idle"
-                    ? "grab"
-                    : "grabbing",
+                cursor:
+                  canvasNodeDrag.phase === "move"
+                    ? "grabbing"
+                    : selectedNodeIsEditableBlock
+                      ? "grab"
+                      : drag.phase === "idle"
+                        ? "grab"
+                        : "grabbing",
                 touchAction: "none",
               }}
             >
@@ -2650,6 +4320,8 @@ export function SelectionLayer() {
               <BlockChipToolBar
                 disabled={saving}
                 confirmRemove={confirmRemove}
+                canEditText={selectedNodeHasInlineTextTarget}
+                onResetPosition={() => commitSelectedNodeTranslate(0, 0)}
                 onEdit={() => requestInlineEdit(selectedBuilderNodeId)}
                 onMoveUp={
                   selectedSiblingContext?.canMoveUp && selectedBuilderNodeId
@@ -2824,6 +4496,318 @@ export function SelectionLayer() {
         </div>
       ) : null}
 
+      {/* ── 4A #6/#9 — drop-target PARENT highlight + reparent preview ───
+       *  Outlines the container the element will land inside, so the operator
+       *  sees WHERE it nests, not just the insertion line. A same-parent
+       *  reorder gets a quiet blue tint; a drop into a DIFFERENT parent (a
+       *  reparent) gets a stronger violet outline + a "Nest in <Parent>"
+       *  badge so the structural change is unmistakable before release.
+       *  Disallowed drops show a red wash. Hidden over edit chrome. */}
+      {canvasNodeDrag.phase !== "idle" &&
+      canvasNodeDrag.drop &&
+      canvasNodeDrag.drop.parentRect.width > 0 ? (
+        (() => {
+          const drop = canvasNodeDrag.drop;
+          const isReparent =
+            canvasNodeDrag.phase === "move" &&
+            canvasNodeDrag.sourceParentNodeId !== null &&
+            canvasNodeDrag.sourceParentNodeId !== drop.parentNodeId;
+          const accentRgb = !drop.allowed
+            ? DISALLOW_RGB
+            : isReparent
+              ? REPARENT_RGB
+              : BLUE_RGB;
+          return (
+            <div
+              aria-hidden
+              data-edit-overlay="canvas-node-drop-parent"
+              data-canvas-node-reparent={isReparent ? "1" : "0"}
+              style={{
+                position: "fixed",
+                top: drop.parentRect.top,
+                left: drop.parentRect.left,
+                width: drop.parentRect.width,
+                height: drop.parentRect.height,
+                borderRadius: CANVAS_SELECTION_RADIUS,
+                boxShadow: `inset 0 0 0 ${isReparent ? 2 : 1.5}px rgba(${accentRgb},${
+                  drop.allowed ? (isReparent ? 0.9 : 0.55) : 0.6
+                })`,
+                background: `rgba(${accentRgb},${
+                  drop.allowed ? (isReparent ? 0.08 : 0.045) : 0.06
+                })`,
+                transition: reduceMotion
+                  ? "none"
+                  : "top 80ms linear, left 80ms linear, width 80ms linear, height 80ms linear",
+                pointerEvents: "none",
+                zIndex: 96,
+              }}
+            >
+              {/* Reparent badge — names the would-be parent so the nesting is
+               *  explicit. Only on an allowed cross-parent drop. */}
+              {isReparent && drop.allowed ? (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: -11,
+                    left: 8,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    height: 22,
+                    padding: "0 9px",
+                    borderRadius: 6,
+                    background: `rgba(${REPARENT_RGB},0.96)`,
+                    color: "#ffffff",
+                    fontSize: 10.5,
+                    fontWeight: 700,
+                    letterSpacing: "0.01em",
+                    whiteSpace: "nowrap",
+                    boxShadow: `0 4px 14px rgba(${REPARENT_RGB},0.4), inset 0 1px 0 rgba(255,255,255,0.22)`,
+                    fontFamily:
+                      'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
+                  }}
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" aria-hidden>
+                    {/* nested-box glyph */}
+                    <rect
+                      x="3"
+                      y="3"
+                      width="18"
+                      height="18"
+                      rx="3"
+                      fill="none"
+                      stroke="#ffffff"
+                      strokeWidth="2"
+                      opacity="0.55"
+                    />
+                    <rect
+                      x="8"
+                      y="8"
+                      width="8"
+                      height="8"
+                      rx="1.5"
+                      fill="#ffffff"
+                    />
+                  </svg>
+                  {`Nest in ${BUILDER_NODE_REGISTRY[drop.parentKind]?.label ?? humanizeTypeKey(drop.parentKind)}`}
+                </span>
+              ) : null}
+            </div>
+          );
+        })()
+      ) : null}
+
+      {/* ── P3-DRAG canvas drop indicator ─────────────────────────────
+       *  The horizontal line where a palette element / dragged block will
+       *  land inside the resolved parent container. Blue = a legal drop;
+       *  red = the dragged kind isn't allowed under that parent. Mirrors the
+       *  section-level drop line's visual language. */}
+      {canvasNodeDrag.phase !== "idle" && canvasNodeDrag.drop ? (
+        <div
+          data-edit-overlay="canvas-node-drop-line"
+          data-canvas-node-drop-allowed={
+            canvasNodeDrag.drop.allowed ? "1" : "0"
+          }
+          style={{
+            position: "fixed",
+            top: canvasNodeDrag.drop.indicatorY - DROP_LINE_HEIGHT / 2,
+            left: canvasNodeDrag.drop.indicatorLeft,
+            width: canvasNodeDrag.drop.indicatorWidth,
+            height: DROP_LINE_HEIGHT,
+            borderRadius: DROP_LINE_RADIUS,
+            background: canvasNodeDrag.drop.allowed
+              ? `linear-gradient(90deg, rgba(${BLUE_RGB},0) 0%, rgba(${BLUE_RGB},0.45) 12%, ${BLUE} 50%, rgba(${BLUE_RGB},0.45) 88%, rgba(${BLUE_RGB},0) 100%)`
+              : `linear-gradient(90deg, rgba(${DISALLOW_RGB},0) 0%, rgba(${DISALLOW_RGB},0.5) 12%, ${DISALLOW_LINE} 50%, rgba(${DISALLOW_RGB},0.5) 88%, rgba(${DISALLOW_RGB},0) 100%)`,
+            boxShadow: canvasNodeDrag.drop.allowed
+              ? `inset 0 1px 0 rgba(255,255,255,0.42), 0 0 0 1px rgba(${BLUE_RGB},0.28), 0 4px 22px rgba(${BLUE_RGB},0.38)`
+              : `inset 0 1px 0 rgba(255,255,255,0.22), 0 0 0 1px rgba(${DISALLOW_RGB},0.35), 0 4px 18px rgba(${DISALLOW_RGB},0.28)`,
+            transition: reduceMotion
+              ? "none"
+              : "top 80ms linear, left 80ms linear, width 80ms linear",
+            pointerEvents: "none",
+            zIndex: 97,
+          }}
+        >
+          <span
+            aria-hidden
+            style={{
+              position: "absolute",
+              top: (DROP_LINE_HEIGHT - 12) / 2,
+              left: -6,
+              width: 12,
+              height: 12,
+              borderRadius: "50%",
+              background: canvasNodeDrag.drop.allowed ? BLUE : DISALLOW_LINE,
+              boxShadow: canvasNodeDrag.drop.allowed
+                ? `0 0 0 2px rgba(255,255,255,0.88), 0 0 0 4px rgba(${BLUE_RGB},0.22), 0 0 14px rgba(${BLUE_RGB},0.55)`
+                : `0 0 0 2px rgba(255,255,255,0.88), 0 0 0 4px rgba(${DISALLOW_RGB},0.22), 0 0 12px rgba(${DISALLOW_RGB},0.45)`,
+              animation:
+                canvasNodeDrag.drop.allowed && !reduceMotion
+                  ? `${DROP_CAP_PULSE} 1.4s ease-in-out infinite`
+                  : undefined,
+            }}
+          />
+          <span
+            aria-hidden
+            style={{
+              position: "absolute",
+              top: (DROP_LINE_HEIGHT - 12) / 2,
+              right: -6,
+              width: 12,
+              height: 12,
+              borderRadius: "50%",
+              background: canvasNodeDrag.drop.allowed ? BLUE : DISALLOW_LINE,
+              boxShadow: canvasNodeDrag.drop.allowed
+                ? `0 0 0 2px rgba(255,255,255,0.88), 0 0 0 4px rgba(${BLUE_RGB},0.22), 0 0 14px rgba(${BLUE_RGB},0.55)`
+                : `0 0 0 2px rgba(255,255,255,0.88), 0 0 0 4px rgba(${DISALLOW_RGB},0.22), 0 0 12px rgba(${DISALLOW_RGB},0.45)`,
+              animation:
+                canvasNodeDrag.drop.allowed && !reduceMotion
+                  ? `${DROP_CAP_PULSE} 1.4s ease-in-out infinite`
+                  : undefined,
+            }}
+          />
+        </div>
+      ) : null}
+
+      {/* ── 4A #6 — labeled drag-ghost for a CANVAS-NODE drag ─────────────
+       *  A floating chip that follows the cursor naming what's being placed
+       *  (palette element name, or the dragged block's label) with a live
+       *  status sub-line: "Drop to place" / "Nest in <Parent>" / "Not allowed
+       *  here" / "Drag to place". The native HTML5 drag-image is suppressed at
+       *  the source, so this is the only thing the operator sees move — and it
+       *  now actually says what it is. Mirrors the section-level ghost's look. */}
+      {canvasNodeDrag.phase !== "idle" ? (
+        (() => {
+          const drop = canvasNodeDrag.drop;
+          const isReparent =
+            canvasNodeDrag.phase === "move" &&
+            drop !== null &&
+            drop.allowed &&
+            canvasNodeDrag.sourceParentNodeId !== null &&
+            canvasNodeDrag.sourceParentNodeId !== drop.parentNodeId;
+          const status = !drop
+            ? canvasNodeDrag.phase === "palette"
+              ? "Drag onto the page"
+              : "Drag to place"
+            : !drop.allowed
+              ? "Not allowed here"
+              : isReparent
+                ? `Nest in ${BUILDER_NODE_REGISTRY[drop.parentKind]?.label ?? humanizeTypeKey(drop.parentKind)}`
+                : canvasNodeDrag.phase === "palette"
+                  ? "Drop to place"
+                  : "Drop to move";
+          const statusColor = drop && !drop.allowed ? "#ff9a9a" : undefined;
+          return (
+            <div
+              data-edit-overlay="canvas-node-drag-ghost"
+              style={{
+                position: "fixed",
+                top: canvasNodeDrag.cursorY + 16,
+                left: canvasNodeDrag.cursorX + 18,
+                pointerEvents: "none",
+                zIndex: 100,
+                transform: reduceMotion
+                  ? "translateZ(0)"
+                  : "rotate(-1deg) translateZ(0)",
+                willChange: reduceMotion ? undefined : "transform",
+                background: CHIP_BG,
+                color: "white",
+                padding: "10px 14px",
+                borderRadius: CANVAS_CHROME_RADIUS,
+                boxShadow:
+                  "0 28px 64px -14px rgba(0,0,0,0.44), 0 6px 16px -4px rgba(0,0,0,0.26), inset 0 0 0 1px rgba(255,255,255,0.09), inset 0 1px 0 rgba(255,255,255,0.16)",
+                display: "flex",
+                alignItems: "center",
+                gap: 11,
+                maxWidth: 320,
+                fontFamily:
+                  'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
+                backdropFilter: "blur(14px)",
+                WebkitBackdropFilter: "blur(14px)",
+                animation: reduceMotion
+                  ? undefined
+                  : `${GHOST_SPAWN} 110ms ease-out`,
+              }}
+            >
+              <span
+                aria-hidden
+                style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: CANVAS_CHROME_RADIUS,
+                  background:
+                    canvasNodeDrag.phase === "palette"
+                      ? "rgba(58,123,255,0.20)"
+                      : "rgba(255,255,255,0.10)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                  color: "rgba(255,255,255,0.92)",
+                }}
+              >
+                {/* "+" for an insert from the palette, grip-dots for a move. */}
+                {canvasNodeDrag.phase === "palette" ? (
+                  <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden>
+                    <path
+                      d="M12 5v14M5 12h14"
+                      stroke="#ffffff"
+                      strokeWidth="2.4"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    width="9"
+                    height="14"
+                    viewBox="0 0 9 14"
+                    fill="currentColor"
+                    aria-hidden
+                  >
+                    <circle cx="2" cy="2" r="1" />
+                    <circle cx="7" cy="2" r="1" />
+                    <circle cx="2" cy="7" r="1" />
+                    <circle cx="7" cy="7" r="1" />
+                    <circle cx="2" cy="12" r="1" />
+                    <circle cx="7" cy="12" r="1" />
+                  </svg>
+                )}
+              </span>
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: 13.5,
+                    fontWeight: 600,
+                    letterSpacing: "-0.005em",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {canvasNodeDrag.label}
+                </div>
+                <div
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 600,
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
+                    opacity: 0.6,
+                    marginTop: 2,
+                    color: statusColor,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {status}
+                </div>
+              </div>
+            </div>
+          );
+        })()
+      ) : null}
+
       {/* ── Drag ghost ────────────────────────────────────────────── */}
       {drag.phase === "dragging" ? (
         <div
@@ -2917,6 +4901,20 @@ export function SelectionLayer() {
           </div>
         </div>
       ) : null}
+
+      {/* #20 — Between-blocks inline insert affordance.
+       *  Shows a thin "+  Add block" line in the gap between top-level sections
+       *  when the operator hovers near a section boundary. Routes through the
+       *  same insertBuilderNode / insertBuilderSectionEmbed paths as the chip
+       *  toolbar so undo/redo and persistence come for free. */}
+      <CanvasBetweenBlocksInsert
+        advancedElementLibraryEnabled={advancedElementLibraryEnabled}
+        canInsertRawHtmlElements={canInsertRawHtmlElements}
+        isDragging={drag.phase !== "idle" || canvasNodeDrag.phase !== "idle"}
+        isPreviewing={isEditModePreviewing}
+        onInsert={commitBetweenBlocksInsert}
+        onInsertSectionEmbed={commitBetweenBlocksSectionEmbed}
+      />
     </div>,
     portalEl,
   );
@@ -2929,6 +4927,10 @@ function SelectionContextMenu({
   canAddInside,
   isSectionHidden,
   saving,
+  nodeLocked = false,
+  canWrapOrConvert = false,
+  nodeCanMoveUp = false,
+  nodeCanMoveDown = false,
   onClose,
   onEdit,
   onAddInside,
@@ -2945,6 +4947,11 @@ function SelectionContextMenu({
   onDuplicate,
   onDeleteSection,
   onRemoveNode,
+  onToggleLock,
+  onWrap,
+  onConvertToComponent,
+  onMoveNodeUp,
+  onMoveNodeDown,
 }: {
   state: SelectionContextMenuState | null;
   targetLabel: string;
@@ -2952,6 +4959,12 @@ function SelectionContextMenu({
   canAddInside: boolean;
   isSectionHidden: boolean;
   saving: boolean;
+  /** #30 — the targeted freeform block is locked → only Unlock + Copy are live. */
+  nodeLocked?: boolean;
+  /** #30 — block is a genuinely editable freeform node (wrap/convert eligible). */
+  canWrapOrConvert?: boolean;
+  nodeCanMoveUp?: boolean;
+  nodeCanMoveDown?: boolean;
   onClose: () => void;
   onEdit: () => void;
   onAddInside: () => void;
@@ -2968,6 +4981,11 @@ function SelectionContextMenu({
   onDuplicate: () => void;
   onDeleteSection: () => void;
   onRemoveNode: () => void;
+  onToggleLock: () => void;
+  onWrap: () => void;
+  onConvertToComponent: () => void;
+  onMoveNodeUp: () => void;
+  onMoveNodeDown: () => void;
 }) {
   if (!state) return null;
   const canPasteBlock = !!pastePreview;
@@ -3057,10 +5075,14 @@ function SelectionContextMenu({
           </div>
         ) : null}
       </div>
-      <ContextMenuButton disabled={saving} onClick={onEdit}>
-        Edit content
-      </ContextMenuButton>
-      {canAddInside ? (
+      {/* #30 — a LOCKED block is inert to structure edits: only Unlock + Copy
+       *  stay live (mirrors the canvas click-guard that absorbs locked nodes). */}
+      {!nodeLocked ? (
+        <ContextMenuButton disabled={saving} onClick={onEdit}>
+          Edit content
+        </ContextMenuButton>
+      ) : null}
+      {canAddInside && !nodeLocked ? (
         <ContextMenuButton disabled={saving} onClick={onAddInside}>
           Add block inside
         </ContextMenuButton>
@@ -3070,17 +5092,52 @@ function SelectionContextMenu({
           <ContextMenuButton disabled={saving} onClick={onCopyNode}>
             Copy block
           </ContextMenuButton>
-          <ContextMenuButton disabled={saving} onClick={onDuplicate}>
-            Duplicate block
+          {!nodeLocked ? (
+            <>
+              <ContextMenuButton disabled={saving} onClick={onDuplicate}>
+                Duplicate block
+              </ContextMenuButton>
+              {canPasteBlock ? (
+                <ContextMenuButton disabled={pasteDisabled} onClick={onPasteNode}>
+                  {pasteLabel}
+                </ContextMenuButton>
+              ) : null}
+              {nodeCanMoveUp || nodeCanMoveDown ? <ContextMenuSeparator /> : null}
+              {nodeCanMoveUp ? (
+                <ContextMenuButton disabled={saving} onClick={onMoveNodeUp}>
+                  Move block up
+                </ContextMenuButton>
+              ) : null}
+              {nodeCanMoveDown ? (
+                <ContextMenuButton disabled={saving} onClick={onMoveNodeDown}>
+                  Move block down
+                </ContextMenuButton>
+              ) : null}
+              {canWrapOrConvert ? (
+                <>
+                  <ContextMenuSeparator />
+                  <ContextMenuButton disabled={saving} onClick={onWrap}>
+                    Wrap in container
+                  </ContextMenuButton>
+                  <ContextMenuButton
+                    disabled={saving}
+                    onClick={onConvertToComponent}
+                  >
+                    Convert to component
+                  </ContextMenuButton>
+                </>
+              ) : null}
+            </>
+          ) : null}
+          <ContextMenuSeparator />
+          <ContextMenuButton disabled={saving} onClick={onToggleLock}>
+            {nodeLocked ? "Unlock block" : "Lock block"}
           </ContextMenuButton>
-          {canPasteBlock ? (
-            <ContextMenuButton disabled={pasteDisabled} onClick={onPasteNode}>
-              {pasteLabel}
+          {!nodeLocked ? (
+            <ContextMenuButton disabled={saving} danger onClick={onRemoveNode}>
+              Remove block
             </ContextMenuButton>
           ) : null}
-          <ContextMenuButton disabled={saving} danger onClick={onRemoveNode}>
-            Remove block
-          </ContextMenuButton>
         </>
       ) : (
         <>
@@ -3189,11 +5246,13 @@ function CanvasNodeInsertMenu({
   selectedRect,
   target,
   onInsert,
+  onInsertSectionEmbed,
   onDismiss,
 }: {
   selectedRect: Rect;
   target: NodeInsertTarget | null;
   onInsert: (kind: BuilderNodeKind) => Promise<void>;
+  onInsertSectionEmbed: (sectionTypeKey: string) => Promise<void>;
   onDismiss: () => void;
 }) {
   if (!target) return null;
@@ -3289,6 +5348,9 @@ function CanvasNodeInsertMenu({
         variant="canvas"
         allowedKinds={target.allowedKinds}
         onPick={(kind) => void onInsert(kind)}
+        onPickSectionEmbed={(sectionTypeKey) =>
+          void onInsertSectionEmbed(sectionTypeKey)
+        }
       />
     </div>
   );
@@ -3788,6 +5850,11 @@ function canvasChildPrimaryLabel(node: BuilderNode): string {
     case "accordion_item":
     case "tab_panel":
       return node.props.title;
+    case "container":
+      // Unified with the layers tree (resolveLayerDisplayName): borrow the
+      // wrapped section heading, else a structural Row/Stack/Grid name — so the
+      // canvas chip + breadcrumb + a11y labels never disagree with the navigator.
+      return resolveLayerDisplayName(node);
     default:
       return BUILDER_NODE_REGISTRY[node.kind].label;
   }
@@ -3833,8 +5900,12 @@ function canvasChildSecondaryLabel(node: BuilderNode): string {
       return `Spacer · ${node.props.size.toUpperCase()}`;
     case "nav":
       return `Navigation · ${node.props.links.length} link${node.props.links.length === 1 ? "" : "s"}`;
+    case "form":
+      return `Form · ${node.props.fields.length} field${node.props.fields.length === 1 ? "" : "s"}`;
     case "section":
       return BUILDER_NODE_REGISTRY[node.kind].description;
+    case "section_embed":
+      return `Tulala component · ${node.props.sectionTypeKey}`;
   }
 }
 
@@ -4002,6 +6073,8 @@ function ChipToolBar({
 function BlockChipToolBar({
   disabled,
   confirmRemove,
+  canEditText,
+  onResetPosition,
   onEdit,
   onMoveUp,
   onMoveDown,
@@ -4015,6 +6088,12 @@ function BlockChipToolBar({
 }: {
   disabled: boolean;
   confirmRemove: boolean;
+  // Whether the selected block has an inline-editable text target. When false
+  // the Edit (pencil) button is hidden — firing the inline editor on a block
+  // with no text element (image, divider, spacer, embed, empty container, …)
+  // is a no-op, so we omit the affordance instead of showing a dead button.
+  canEditText: boolean;
+  onResetPosition: () => void;
   onEdit: () => void;
   onMoveUp: (() => void) | null;
   onMoveDown: (() => void) | null;
@@ -4090,65 +6169,31 @@ function BlockChipToolBar({
       data-selection-block-toolbar=""
       style={{ display: "inline-flex", height: "100%", alignItems: "stretch" }}
     >
-      <ChipBtn
-        style={btnStyle}
-        disabled={disabled}
-        onClick={onEdit}
-        aria-label="Edit block content"
-        data-selection-block-action="edit"
-        title="Edit"
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>
-      </ChipBtn>
-      <ChipBtn
-        style={btnStyle}
-        disabled={disabled || !onMoveUp}
-        onClick={() => onMoveUp?.()}
-        aria-label="Move block up"
-        data-selection-block-action="move-up"
-        title="Move up"
-      >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>
-      </ChipBtn>
-      <ChipBtn
-        style={btnStyle}
-        disabled={disabled || !onMoveDown}
-        onClick={() => onMoveDown?.()}
-        aria-label="Move block down"
-        data-selection-block-action="move-down"
-        title="Move down"
-      >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
-      </ChipBtn>
-      <ChipBtn
-        style={btnStyle}
-        disabled={disabled || !onAddBefore}
-        onClick={() => onAddBefore?.()}
-        aria-label="Add block before"
-        data-selection-block-action="add-before"
-        title="Add before"
-      >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /><path d="M7 4h10" /></svg>
-      </ChipBtn>
+      {/* PRIMARY actions — kept on the chip. Secondary actions
+          (reset-position, add-before, move-up, move-down, copy) live in the
+          overflow menu opened by the "More" button below, so the chip stays
+          to ~4 high-frequency affordances. */}
+      {canEditText ? (
+        <ChipBtn
+          style={btnStyle}
+          disabled={disabled}
+          onClick={onEdit}
+          aria-label="Edit block content"
+          data-selection-block-action="edit"
+          title="Edit"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>
+        </ChipBtn>
+      ) : null}
       <ChipBtn
         style={btnStyle}
         disabled={disabled || !onAddAfter}
         onClick={() => onAddAfter?.()}
         aria-label="Add block after"
         data-selection-block-action="add-after"
-        title="Add after"
+        title="Add block"
       >
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /><path d="M7 20h10" /></svg>
-      </ChipBtn>
-      <ChipBtn
-        style={btnStyle}
-        disabled={disabled}
-        onClick={onCopy}
-        aria-label="Copy block"
-        data-selection-block-action="copy"
-        title="Copy"
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
       </ChipBtn>
       <ChipBtn
         style={btnStyle}
@@ -4160,17 +6205,152 @@ function BlockChipToolBar({
       >
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 8h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2z" /><path d="M4 16H3a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v1" /></svg>
       </ChipBtn>
+      <BlockChipOverflowMenu
+        btnStyle={btnStyle}
+        disabled={disabled}
+        onResetPosition={onResetPosition}
+        onAddBefore={onAddBefore}
+        onMoveUp={onMoveUp}
+        onMoveDown={onMoveDown}
+        onCopy={onCopy}
+      />
+      {/* Hairline divider separating the destructive Delete from the
+          non-destructive primary actions. */}
+      <div
+        aria-hidden
+        style={{
+          alignSelf: "center",
+          width: 1,
+          height: 18,
+          margin: "0 3px",
+          background: "rgba(255,255,255,0.14)",
+        }}
+      />
       <ChipBtn
         style={btnStyle}
         disabled={disabled}
         onClick={onRemoveTrigger}
         aria-label="Remove block"
         data-selection-block-action="remove"
-        title="Remove"
+        title="Delete"
         danger
       >
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg>
       </ChipBtn>
+    </div>
+  );
+}
+
+/**
+ * Overflow ("More") menu for the block chip toolbar. Houses the secondary,
+ * lower-frequency actions that used to crowd the chip as undifferentiated
+ * icons: reset position, add-before, move up/down, copy. Opens a small popover
+ * anchored under the kebab button; dismisses on outside-click / Escape.
+ */
+function BlockChipOverflowMenu({
+  btnStyle,
+  disabled,
+  onResetPosition,
+  onAddBefore,
+  onMoveUp,
+  onMoveDown,
+  onCopy,
+}: {
+  btnStyle: React.CSSProperties;
+  disabled: boolean;
+  onResetPosition: () => void;
+  onAddBefore: (() => void) | null;
+  onMoveUp: (() => void) | null;
+  onMoveDown: (() => void) | null;
+  onCopy: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!wrapRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  const run = (action: () => void) => {
+    action();
+    setOpen(false);
+  };
+
+  return (
+    <div
+      ref={wrapRef}
+      style={{ position: "relative", display: "inline-flex", alignItems: "stretch" }}
+    >
+      <ChipBtn
+        style={btnStyle}
+        disabled={disabled}
+        onClick={() => setOpen((prev) => !prev)}
+        aria-label="More block actions"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        data-selection-block-action="more"
+        title="More"
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></svg>
+      </ChipBtn>
+      {open ? (
+        <div
+          role="menu"
+          data-selection-block-overflow-menu=""
+          style={{
+            position: "absolute",
+            top: "calc(100% + 6px)",
+            right: 0,
+            zIndex: 10,
+            minWidth: 168,
+            padding: 5,
+            borderRadius: CANVAS_CHROME_RADIUS,
+            background: "rgba(24,24,27,0.97)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            boxShadow: "0 12px 32px rgba(0,0,0,0.42)",
+            display: "flex",
+            flexDirection: "column",
+            gap: 1,
+          }}
+        >
+          <ContextMenuButton disabled={disabled} onClick={() => run(onResetPosition)}>
+            Reset position
+          </ContextMenuButton>
+          <ContextMenuButton
+            disabled={disabled || !onAddBefore}
+            onClick={() => onAddBefore && run(onAddBefore)}
+          >
+            Add before
+          </ContextMenuButton>
+          <ContextMenuButton
+            disabled={disabled || !onMoveUp}
+            onClick={() => onMoveUp && run(onMoveUp)}
+          >
+            Move up
+          </ContextMenuButton>
+          <ContextMenuButton
+            disabled={disabled || !onMoveDown}
+            onClick={() => onMoveDown && run(onMoveDown)}
+          >
+            Move down
+          </ContextMenuButton>
+          <ContextMenuButton disabled={disabled} onClick={() => run(onCopy)}>
+            Copy
+          </ContextMenuButton>
+        </div>
+      ) : null}
     </div>
   );
 }

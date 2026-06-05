@@ -21,6 +21,7 @@ export const MVP_ELEMENT_LIBRARY_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "icon",
   "pricing_table",
   "rich_text",
+  "form",
   "divider",
   "spacer",
 ];
@@ -49,6 +50,7 @@ export const MVP_ROADMAP_LABEL_BY_KIND: Readonly<
   icon: "Icon",
   pricing_table: "Pricing table",
   rich_text: "Rich text",
+  form: "Form",
   code: "Code / HTML",
   divider: "Divider",
   spacer: "Spacer",
@@ -99,10 +101,14 @@ const KIND_ELEMENT_CATEGORY: Readonly<Record<BuilderNodeKind, ElementLibraryCate
     icon: "utility",
     pricing_table: "actions",
     rich_text: "typography",
+    form: "actions",
     code: "utility",
     button: "actions",
     divider: "utility",
     spacer: "utility",
+    // Surfaced via the picker's dedicated "Tulala" group, not this generic
+    // category map; "layout" is a sensible fallback for any non-grouped path.
+    section_embed: "layout",
   };
 
 export function elementLibraryCategoryForKind(
@@ -138,6 +144,7 @@ export function elementLibrarySearchExtraTerms(kind: BuilderNodeKind): string {
     icon: "svg symbol pictogram check star heart arrow sparkle",
     pricing_table: "pricing plans tiers packages features check marks conversion",
     rich_text: "body copy rich text bold italic inline links markdown",
+    form: "form contact lead newsletter signup input email field submit message inquiry capture",
     code: "code html css raw markup snippet iframe embed sandbox custom widget",
     divider: "rule separator hr",
     spacer: "whitespace gap rhythm",
@@ -190,6 +197,12 @@ export const SHIPPED_ELEMENT_INSERT_KINDS: ReadonlyArray<BuilderNodeKind> = [
     // from ordinary editors and is surfaced only through the owner-only gate
     // (see OWNER_ONLY_ELEMENT_INSERT_KINDS + gateNestedInsertKinds).
     "code",
+    // `section_embed` (Tulala component) is shipped + droppable, but the picker
+    // surfaces it ONLY through the curated "Tulala" entries (Directory /
+    // Featured talent / Booking / CTA) — never as a bare generic pill. Keeping
+    // it in the shipped catalog lets it survive the allow-list filter so those
+    // curated entries reach the picker's `allowedKinds` gate.
+    "section_embed",
   ]),
 ];
 

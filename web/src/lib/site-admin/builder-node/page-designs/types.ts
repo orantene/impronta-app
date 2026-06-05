@@ -8,7 +8,10 @@ export type PageDesignArchetype =
   | "store"
   | "festival"
   | "studio"
-  | "noir";
+  | "noir"
+  | "restaurant"
+  | "conference"
+  | "coach";
 
 /**
  * A productised full-page design template.

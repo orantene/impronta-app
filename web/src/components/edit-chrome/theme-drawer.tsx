@@ -53,6 +53,7 @@ import {
   DrawerBody,
   DrawerFoot,
   DrawerHead,
+  DrawerSkeleton,
   DrawerTab,
   DrawerTabs,
   Field,
@@ -670,7 +671,7 @@ export function ThemeDrawer(): ReactElement | null {
         {loadError ? (
           <ErrorBanner>{loadError}</ErrorBanner>
         ) : !snapshot || !draft ? (
-          <ThemeSkeleton />
+          <DrawerSkeleton rows={3} />
         ) : (
           <>
             {error ? <ErrorBanner>{error}</ErrorBanner> : null}
@@ -1328,24 +1329,7 @@ function ErrorBanner({ children }: { children: React.ReactNode }) {
   );
 }
 
-function ThemeSkeleton() {
-  return (
-    <div className="space-y-2.5">
-      {[0, 1, 2].map((i) => (
-        <div
-          key={i}
-          style={{
-            height: 96,
-            background: CHROME.surface,
-            border: `1px solid ${CHROME.line}`,
-            borderRadius: 10,
-            opacity: 0.55,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
+// ThemeSkeleton removed — replaced by shared DrawerSkeleton from "./kit".
 
 function btnGhostStyle(disabled: boolean) {
   return {

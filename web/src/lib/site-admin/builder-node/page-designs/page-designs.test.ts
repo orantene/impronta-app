@@ -51,8 +51,8 @@ function collectIds(nodes: BuilderNode[]): string[] {
   return ids;
 }
 
-test("page-designs: seven single-root container designs with copy", () => {
-  assert.equal(PAGE_DESIGNS.length, 7);
+test("page-designs: eleven single-root container designs with copy", () => {
+  assert.equal(PAGE_DESIGNS.length, 11);
   for (const design of PAGE_DESIGNS) {
     assert.equal(design.tree.length, 1, `${design.id} must be a single root`);
     assert.equal(design.tree[0]?.kind, "container", `${design.id} root kind`);

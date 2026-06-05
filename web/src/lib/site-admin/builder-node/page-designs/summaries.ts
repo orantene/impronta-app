@@ -19,6 +19,13 @@ export interface PageDesignSummary {
 
 export const PAGE_DESIGN_SUMMARIES: ReadonlyArray<PageDesignSummary> = [
   {
+    id: "impronta",
+    label: "Impronta agency",
+    description:
+      "The Impronta Models flagship home, freeform: a dark editorial models-&-image agency site with a warm-gold accent, a directory-search hero, a discipline roster, featured talent, markets, process, and inquiry CTAs.",
+    archetype: "agency",
+  },
+  {
     id: "editorial",
     label: "Editorial portfolio",
     description:
@@ -66,5 +73,26 @@ export const PAGE_DESIGN_SUMMARIES: ReadonlyArray<PageDesignSummary> = [
     description:
       "A dark, dramatic creative studio: a near-black canvas with a warm-gold accent, a huge Fraunces statement hero, a cinematic band, a glowing work grid, and a bold on-the-record statement.",
     archetype: "noir",
+  },
+  {
+    id: "restaurant",
+    label: "Restaurant & menu",
+    description:
+      "A contemporary restaurant landing page: a Playfair Display name over a full-bleed food hero, a two-column kitchen-story split, a hand-set menu with live pricing, and a reservation CTA.",
+    archetype: "restaurant",
+  },
+  {
+    id: "conference",
+    label: "Event & conference",
+    description:
+      "A modern conference homepage: a cobalt/indigo canvas with lime accents, a bold Geist display hero, a speaker grid, a programme schedule, and dual ticket CTAs.",
+    archetype: "conference",
+  },
+  {
+    id: "coach",
+    label: "Personal brand / coach",
+    description:
+      "A personal-brand page for a coach or consultant: a Fraunces portrait-first hero, a three-up services grid, a testimonial repeater, and a book-a-call CTA.",
+    archetype: "coach",
   },
 ];

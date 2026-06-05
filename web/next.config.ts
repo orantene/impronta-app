@@ -58,6 +58,16 @@ remotePatterns.push({
   pathname: "/**",
 });
 
+// Editorial placeholder imagery for the freeform builder designs (e.g. the
+// Impronta discipline rail) until first-party agency photography is licensed.
+// Allow-listed so the freeform renderer's P4-IMAGEOPT srcset can route these
+// through the Next image optimizer instead of shipping full-size originals.
+remotePatterns.push({
+  protocol: "https",
+  hostname: "images.unsplash.com",
+  pathname: "/**",
+});
+
 const isProd = process.env.NODE_ENV === "production";
 
 /**
@@ -127,6 +137,13 @@ const builderEmbedCsp = {
     "https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://calendly.com https://*.calendly.com",
 };
 
+// Talent featured-media safe embeds (lib/talent-integrations/media-embed.ts).
+// YouTube/Vimeo are already covered by builderEmbedCsp; Spotify + SoundCloud
+// players need their own frame-src hosts.
+const talentMediaEmbedCsp = {
+  frame: "https://open.spotify.com https://w.soundcloud.com",
+};
+
 function contentSecurityPolicy(): string {
   const googleTag = "https://www.googletagmanager.com https://www.google-analytics.com";
   // Tenant captcha integrations (hCaptcha + Cloudflare Turnstile). The widget
@@ -149,7 +166,7 @@ function contentSecurityPolicy(): string {
     "font-src 'self' data: https://fonts.gstatic.com",
     `img-src 'self' data: blob: https: https://www.google-analytics.com`,
     `connect-src ${connectSrcDirectives().join(" ")} ${googleMapsCsp.connect} ${stripeCsp.connect} ${googleTag} ${captchaConnect} https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com ${vercelInsights} https://*.sentry.io`,
-    `frame-src ${googleMapsCsp.frameSrc} ${stripeCsp.frame} ${builderEmbedCsp.frame} ${captchaFrame}`,
+    `frame-src ${googleMapsCsp.frameSrc} ${stripeCsp.frame} ${builderEmbedCsp.frame} ${captchaFrame} ${talentMediaEmbedCsp.frame}`,
     /** Maps workers use blob: URLs */
     "worker-src blob:",
     "frame-ancestors 'self'",

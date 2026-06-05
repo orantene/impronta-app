@@ -5,9 +5,10 @@ import {
   addTranslateDeltaToTree,
   computeAlignDeltas,
   computeDistributeDeltas,
+  mergeStylePatchIntoTree,
   type MultiNodeRect,
 } from "./multi-node-layout";
-import type { BuilderNodeTree } from "@/lib/site-admin/builder-node";
+import type { BuilderNode, BuilderNodeTree } from "@/lib/site-admin/builder-node";
 
 const rects: MultiNodeRect[] = [
   { id: "a", left: 10, top: 20, width: 20, height: 10 },
@@ -91,4 +92,94 @@ test("addTranslateDeltaToTree accumulates existing translate style", () => {
   assert.equal(heading?.kind, "heading");
   if (!heading || heading.kind !== "heading") return;
   assert.deepEqual(heading.props.style, { translate: "10px 3px" });
+});
+
+function bulkEditTree(): BuilderNodeTree {
+  return [
+    {
+      id: "section",
+      kind: "section",
+      props: {
+        sectionId: "22222222-2222-4222-8222-222222222222",
+        sectionTypeKey: "custom",
+      },
+      children: [
+        {
+          id: "a",
+          kind: "heading",
+          props: { text: "A", level: 2, style: { textColor: "#111", opacity: 0.5 } },
+        },
+        {
+          id: "b",
+          kind: "paragraph",
+          props: { text: "B" },
+        },
+        {
+          id: "c",
+          kind: "paragraph",
+          props: { text: "C", style: { textColor: "#abc" } },
+        },
+      ],
+    },
+  ];
+}
+
+/** Narrow a BuilderNode down to its `props.style` record for the assertions. */
+function styleOf(node: BuilderNode | undefined): Record<string, unknown> | undefined {
+  if (!node || node.kind === "section") return undefined;
+  return (node.props as { style?: Record<string, unknown> }).style;
+}
+
+function hasStyleKey(node: BuilderNode | undefined): boolean {
+  if (!node || node.kind === "section") return false;
+  return "style" in node.props;
+}
+
+test("mergeStylePatchIntoTree merges a shared style onto every selected node", () => {
+  const tree = bulkEditTree();
+  const next = mergeStylePatchIntoTree(tree, ["a", "b"], { textColor: "#fff" });
+  const section = next[0];
+  if (!section || section.kind !== "section") {
+    assert.fail("expected section");
+    return;
+  }
+  const [a, b, c] = section.children ?? [];
+  // 'a' keeps its other props, textColor overwritten.
+  assert.deepEqual(styleOf(a), { textColor: "#fff", opacity: 0.5 });
+  // 'b' gains a style object where there was none.
+  assert.deepEqual(styleOf(b), { textColor: "#fff" });
+  // 'c' is untouched (not in the selection) — same object identity.
+  assert.equal(c, tree[0] && "children" in tree[0] ? tree[0].children?.[2] : undefined);
+});
+
+test("mergeStylePatchIntoTree deletes a key when the patch value is undefined", () => {
+  const tree = bulkEditTree();
+  const next = mergeStylePatchIntoTree(tree, ["a"], { textColor: undefined });
+  const section = next[0];
+  if (!section || section.kind !== "section") {
+    assert.fail("expected section");
+    return;
+  }
+  // textColor removed, opacity retained.
+  assert.deepEqual(styleOf(section.children?.[0]), { opacity: 0.5 });
+});
+
+test("mergeStylePatchIntoTree drops an emptied style object from props", () => {
+  const tree = bulkEditTree();
+  const next = mergeStylePatchIntoTree(tree, ["c"], { textColor: undefined });
+  const section = next[0];
+  if (!section || section.kind !== "section") {
+    assert.fail("expected section");
+    return;
+  }
+  assert.equal(hasStyleKey(section.children?.[2]), false);
+});
+
+test("mergeStylePatchIntoTree never mutates a section node and no-ops on empty inputs", () => {
+  const tree = bulkEditTree();
+  // section id in the set is ignored (sections own their structure).
+  assert.equal(mergeStylePatchIntoTree(tree, ["section"], { textColor: "#000" }), tree);
+  // empty selection / empty patch return the SAME tree reference.
+  assert.equal(mergeStylePatchIntoTree(tree, [], { textColor: "#000" }), tree);
+  assert.equal(mergeStylePatchIntoTree(tree, ["a"], {}), tree);
 });

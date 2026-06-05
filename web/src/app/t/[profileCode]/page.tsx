@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { LightProfileLayout } from "./_light/LightProfileLayout";
+import { ProfileShareRow } from "./_light/ProfileShareRow";
+import { ProfileHubsIndicator } from "./_light/ProfileHubsIndicator";
 import type { ResolvedSkill } from "@/lib/server-actions/admin-talent-skills.types";
 
 import { ProfileViewAnalytics } from "@/components/analytics/profile-view-analytics";
@@ -15,8 +17,15 @@ import { DirectoryInquirySheet } from "@/components/directory/directory-inquiry-
 import { FavoritesDrawer } from "@/components/directory/favorites-drawer";
 import { FavoritesDrawerProvider } from "@/components/directory/favorites-drawer-context";
 import { ProfileDiscoveryCta } from "@/components/directory/profile-discovery-cta";
-import { ShareProfileMenu } from "@/components/directory/share-profile-menu";
 import { PublicHeader } from "@/components/public-header";
+import { MarketingHeader } from "@/components/marketing/header";
+import { MarketingFooter } from "@/components/marketing/footer";
+import type { MarketingAccount } from "@/components/marketing/marketing-account-menu";
+import { resolveAccountHref, getAppUrl } from "@/lib/auth-flow";
+import { signOut } from "@/app/auth/actions";
+import { stripLocaleFromPathname } from "@/i18n/pathnames";
+import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
+import { headers } from "next/headers";
 import { getFavoriteTalentIds, getSavedTalentIds } from "@/lib/public-discovery";
 import {
   isResolvedFieldVisibleInPublicProfileSidebar,
@@ -35,6 +44,15 @@ import {
 } from "@/lib/server/request-cache";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import {
+  GUEST_CHAT_DEFAULTS,
+  loadGuestChatSettings,
+} from "@/lib/inquiry/guest-chat-settings";
+import { listPublicTalentIntegrationItems } from "@/lib/talent-integrations/repository";
+import {
+  PublicFeaturedMedia,
+  type PublicFeaturedMediaItem,
+} from "@/components/talent/connections/PublicFeaturedMedia";
 import { effectiveFieldVisibility } from "@/lib/field-engine/effective-visibility";
 import {
   resolveTalentFields,
@@ -66,6 +84,7 @@ import {
   type AgencyTalentOverlayRow,
 } from "@/lib/talent/agency-overlay";
 import { TalentProfileInquireButton } from "./talent-profile-inquire-button";
+import { TalentProfileChatLauncherMount } from "./_chat/TalentProfileChatLauncherMount";
 import { PlatformTalentMaxSiteView } from "@/components/talent/site/PlatformTalentMaxSiteView";
 import { isTalentProfilePlatformHost } from "@/lib/talent-site/platform-host";
 import { resolvePlatformTalentSiteForProfile } from "@/lib/talent-site/resolve-platform-talent-site";
@@ -1006,6 +1025,106 @@ async function fetchSimilarTalent(
 }
 
 // ---------------------------------------------------------------------------
+// Multi-workspace / hubs indicator — "Also represented on …"
+// ---------------------------------------------------------------------------
+
+type OtherHub = { tenantId: string; name: string; href: string };
+
+/**
+ * Resolve the OTHER active + publicly-visible Tulala workspaces/hubs this
+ * talent is represented on, excluding `currentTenantId` (null on the platform
+ * host = show all). Each hub links to this talent's profile on that hub's
+ * primary public host (`/t/<code>`). RLS on agency_talent_roster already
+ * limits anon reads to status='active' AND agency_visibility IN
+ * ('site_visible','featured'), so this is a safe public read. Returns [] on
+ * any error or when there are no other hubs.
+ */
+async function fetchOtherHubsForTalent(
+  supabase: SupabaseClient | null,
+  talentProfileId: string,
+  profileCode: string,
+  currentTenantId: string | null,
+): Promise<OtherHub[]> {
+  if (!supabase) return [];
+
+  const { data: rosterRows, error } = await supabase
+    .from("agency_talent_roster")
+    .select("tenant_id, agencies ( id, display_name, slug )")
+    .eq("talent_profile_id", talentProfileId)
+    .eq("status", "active")
+    .in("agency_visibility", ["site_visible", "featured"]);
+  if (error || !rosterRows) return [];
+
+  type RosterHubRow = {
+    tenant_id: string;
+    agencies:
+      | { id: string; display_name: string | null; slug: string | null }
+      | { id: string; display_name: string | null; slug: string | null }[]
+      | null;
+  };
+
+  // De-dup by tenant; drop the current tenant.
+  const tenantIds = Array.from(
+    new Set(
+      (rosterRows as RosterHubRow[])
+        .map((r) => r.tenant_id)
+        .filter((id): id is string => Boolean(id) && id !== currentTenantId),
+    ),
+  );
+  if (tenantIds.length === 0) return [];
+
+  const agencyById = new Map<string, { display_name: string | null; slug: string | null }>();
+  for (const r of rosterRows as RosterHubRow[]) {
+    const ag = Array.isArray(r.agencies) ? r.agencies[0] ?? null : r.agencies;
+    if (ag && !agencyById.has(r.tenant_id)) {
+      agencyById.set(r.tenant_id, { display_name: ag.display_name, slug: ag.slug });
+    }
+  }
+
+  // Primary public host per tenant (subdomain/custom). Anon-readable.
+  const { data: domainRows } = await supabase
+    .from("agency_domains")
+    .select("tenant_id, hostname, kind, status, is_primary")
+    .in("tenant_id", tenantIds)
+    .in("kind", ["custom", "subdomain"]);
+
+  type DomainRow = {
+    tenant_id: string;
+    hostname: string | null;
+    kind: string;
+    status: string;
+    is_primary: boolean | null;
+  };
+  const READY = new Set(["active", "ssl_provisioned", "verified"]);
+  const hostByTenant = new Map<string, string>();
+  for (const tid of tenantIds) {
+    const rows = ((domainRows ?? []) as DomainRow[]).filter(
+      (d) => d.tenant_id === tid && d.hostname && READY.has(d.status),
+    );
+    const pick =
+      rows.find((d) => d.is_primary && d.kind === "custom") ??
+      rows.find((d) => d.is_primary) ??
+      rows.find((d) => d.kind === "custom") ??
+      rows[0] ??
+      null;
+    if (pick?.hostname) hostByTenant.set(tid, pick.hostname);
+  }
+
+  const hubs: OtherHub[] = [];
+  for (const tid of tenantIds) {
+    const agency = agencyById.get(tid);
+    const name = agency?.display_name?.trim();
+    if (!name) continue;
+    const host = hostByTenant.get(tid);
+    const href = host
+      ? `https://${host}/t/${encodeURIComponent(profileCode)}`
+      : `/t/${encodeURIComponent(profileCode)}`;
+    hubs.push({ tenantId: tid, name, href });
+  }
+  return hubs.slice(0, 4);
+}
+
+// ---------------------------------------------------------------------------
 // Route segment config — a public talent profile MUST reflect the agency's
 // latest edits. Without this, Next's Data Cache memoises the supabase-js
 // fetches (and persists across Vercel deploys), so newly-public fields
@@ -1256,13 +1375,44 @@ export default async function PublicTalentProfilePage({
     if (!withinCap) notFound();
   }
   const fieldValues = await fetchPublicFieldValues(fieldValuesClient, profile.id);
-  type DetailEntry = { key: string; label: string; value: string; groupSort: number; sort: number };
+  type DetailEntry = {
+    key: string;
+    label: string;
+    value: string;
+    /** Human group label for premium card grouping (e.g. "Logistics"). */
+    group: string;
+    groupSort: number;
+    sort: number;
+  };
 
   function groupSlugFromDef(def: PublicFieldDefinitionEmbed): string | null {
     const fg = def.field_groups;
     const slug = Array.isArray(fg) ? fg[0]?.slug : fg?.slug;
     return typeof slug === "string" && slug.trim() ? slug.trim() : null;
   }
+
+  // Humanize a field-group slug into a card heading. The new catalog stores
+  // group identity as a slug only (no per-locale label on the public embed),
+  // so we title-case the slug and apply a few curated labels. Ungrouped rows
+  // fall back to a generic "Details" bucket.
+  const groupLabelFromSlug = (slug: string | null): string => {
+    if (!slug) return locale === "es" ? "Detalles" : "Details";
+    const curated: Record<string, { en: string; es: string }> = {
+      measurements: { en: "Measurements", es: "Medidas" },
+      physical: { en: "Physical", es: "Físico" },
+      logistics: { en: "Logistics", es: "Logística" },
+      availability: { en: "Availability", es: "Disponibilidad" },
+      experience: { en: "Experience", es: "Experiencia" },
+      rates: { en: "Rates", es: "Tarifas" },
+      preferences: { en: "Preferences", es: "Preferencias" },
+    };
+    const hit = curated[slug];
+    if (hit) return locale === "es" ? hit.es : hit.en;
+    return slug
+      .replace(/[_-]+/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase())
+      .trim();
+  };
 
   // FREE-TIER CONTACT GATE: on the free default profile, the ONLY contact path
   // is the in-Tulala inquiry — so any field VALUE that is a social handle,
@@ -1309,14 +1459,16 @@ export default async function PublicTalentProfilePage({
       if (!value) return acc;
       const fg = def.field_groups;
       const groupSort = Array.isArray(fg) ? fg[0]?.sort_order ?? 0 : fg?.sort_order ?? 0;
+      const slug = groupSlugFromDef(def);
       const entry: DetailEntry = {
         key: def.key,
         label: pickFieldLabel(locale, def.label_en, def.label_es),
         value,
+        group: groupLabelFromSlug(slug),
         groupSort,
         sort: def.sort_order ?? 0,
       };
-      if (groupSlugFromDef(def) === "basic_info") acc.basicInfoDetailRows.push(entry);
+      if (slug === "basic_info") acc.basicInfoDetailRows.push(entry);
       else acc.otherDetailRows.push(entry);
       return acc;
     },
@@ -1431,6 +1583,17 @@ export default async function PublicTalentProfilePage({
       }
     : null);
   const watermarkLogoUrl = typeof brandingTheme.logo_url === "string" ? brandingTheme.logo_url : null;
+  // Guest-chat launcher accent — the tenant's own brand color (primary, then
+  // accent fallback); null lets the launcher use its neutral ink token. No
+  // gold/rust is hard-coded (house rule).
+  const chatAccentColor =
+    tenantBranding?.primary_color ?? tenantBranding?.accent_color ?? null;
+  // Per-tenant guest-chat config (enable + placement + greeting). Defaults-on
+  // for non-agency / unconfigured tenants so the launcher keeps working.
+  const guestChatSettings =
+    hostCtx.kind === "agency"
+      ? await loadGuestChatSettings(hostCtx.tenantId)
+      : GUEST_CHAT_DEFAULTS;
   const canonicalBannerUrl = mediaUrl(pub, bannerMedia);
   const profileImageUrl = mediaUrl(pub, profileImageMedia);
 
@@ -1495,6 +1658,17 @@ export default async function PublicTalentProfilePage({
     .filter(s => s.service_kind === "travel_to")
     .map(s => s.locations?.[locale === "es" ? "display_name_es" : "display_name_en"])
     .filter((x): x is string => !!x);
+
+  // Talent-selected manual featured media (showcase only, NOT verified). Only
+  // items the talent flagged public_profile_enabled are returned.
+  const featuredMediaItems: PublicFeaturedMediaItem[] = (
+    await listPublicTalentIntegrationItems(profile.id)
+  ).map((row) => ({
+    id: row.id,
+    provider: row.provider_key,
+    externalItemId: row.external_item_id,
+    title: row.title,
+  }));
 
   // Phase 1.4 (Lane B) — sidebar section visibility via unified resolver helper.
   // Fetches the six taxonomy section keys from field_definitions, then routes
@@ -1644,12 +1818,64 @@ export default async function PublicTalentProfilePage({
     heading: t("public.profile.share.heading"),
     copyLink: t("public.profile.share.copyLink"),
     copyLinkDone: t("public.profile.share.copyLinkDone"),
-    shareWhatsapp: t("public.profile.share.shareWhatsapp"),
-    shareSystem: t("public.profile.share.shareSystem"),
     whatsappTemplate: t("public.profile.share.whatsappTemplate"),
   };
 
+  const detailsLabels = {
+    measurements: locale === "es" ? "Información básica" : "Basic info",
+    logistics: locale === "es" ? "Logística" : "Logistics",
+    experience: locale === "es" ? "Experiencia" : "Experience",
+    details: t("public.profile.details"),
+  };
+
+  // ── Multi-workspace / hubs indicator ──────────────────────────────────
+  // Other active + publicly-visible workspaces this talent appears on. On the
+  // platform host "current" tenant is null → show all of them.
+  const currentTenantId = hostCtx.kind === "agency" ? hostCtx.tenantId : null;
+  const otherHubs = await fetchOtherHubsForTalent(
+    pub,
+    profile.id,
+    profile.profile_code,
+    currentTenantId,
+  );
+  const alsoOnLabel = locale === "es" ? "También en" : "Also on";
+
   const firstName = name.split(" ")[0] ?? name;
+
+  // ── Platform-host marketing chrome props ──────────────────────────────
+  // On the platform host (app / marketing) the profile is wrapped in the real
+  // tulala.digital chrome (MarketingHeader + MarketingFooter). Agency hosts
+  // keep their own white-label chrome (no chrome forced here).
+  const platformChrome = isTalentProfilePlatformHost(hostCtx.kind);
+  let marketingAccount: MarketingAccount | undefined;
+  let marketingPathnameWithoutLocale = "/";
+  if (platformChrome) {
+    const h = await headers();
+    const originalPath = h.get("x-impronta-original-pathname") ?? "/";
+    marketingPathnameWithoutLocale = stripLocaleFromPathname(
+      originalPath,
+      FALLBACK_LANGUAGE_SETTINGS,
+    ).pathnameWithoutLocale;
+    const actor = await getCachedActorSession();
+    if (actor.user) {
+      const link = resolveAccountHref(true, actor.profile);
+      marketingAccount = {
+        displayName:
+          actor.profile?.display_name?.trim() ||
+          actor.user.email?.split("@")[0] ||
+          "Account",
+        email: actor.user.email ?? "",
+        dashboardHref: link.href.startsWith("http")
+          ? link.href
+          : `${getAppUrl()}${link.href}`,
+      };
+    }
+  }
+
+  // Inquire button styling — forest primary on the marketing system.
+  const inquireBtnClass =
+    "inline-flex items-center justify-center rounded-full bg-[var(--plt-forest)] px-5 py-2.5 text-sm font-medium text-[var(--plt-forest-on)] shadow-[var(--plt-shadow-forest)] transition-[background,transform] hover:bg-[var(--plt-forest-deep)] hover:-translate-y-[1px]";
+  const inquireBtnClassFull = `${inquireBtnClass} w-full`;
 
   // Phase G PR 1 — schema.org ProfilePage + Person JSON-LD. Emitted as a
   // <script type="application/ld+json"> inside the page tree so Google
@@ -1672,24 +1898,11 @@ export default async function PublicTalentProfilePage({
     affiliationName: hostCtx.kind === "agency" ? tenantBrand : null,
   });
 
-  return (
-    <PublicDiscoveryStateProvider>
-      <DirectoryInquiryModalProvider>
-        <FavoritesDrawerProvider>
-      {jsonLd ? (
-        <script
-          type="application/ld+json"
-          // Pre-stringified — React must NOT escape JSON-LD content.
-          dangerouslySetInnerHTML={{ __html: jsonLdToString(jsonLd) }}
-        />
-      ) : null}
-      <PublicFlashHost dismissAria={ui.flash.dismissAria} />
-      <ProfileViewAnalytics talentId={profile.id} locale={locale} />
-
-      <PublicHeader />
+  const profileBody = (
+    <>
       <DiscoveryStateBridge savedIds={initialSavedIds} favoriteIds={initialFavoriteIds} />
 
-      {/* ── LIGHT REDESIGN — classic dark render replaced ── */}
+      {/* ── Profile body — rebuilt on the tulala.digital marketing system ── */}
       <LightProfileLayout
         name={name}
         firstName={firstName}
@@ -1708,6 +1921,7 @@ export default async function PublicTalentProfilePage({
         galleryItems={galleryItems}
         watermarkPreset={watermarkPreset}
         watermarkLogoUrl={watermarkLogoUrl}
+        featuredMediaItems={featuredMediaItems}
         resolvedSkills={resolvedSkills}
         availableDaysInNext30={publicAvailability.availableDaysInNext30}
         availabilityDots14d={publicAvailability.availabilityDots14d}
@@ -1741,14 +1955,20 @@ export default async function PublicTalentProfilePage({
         similarTalent={similarTalent}
         ui={ui}
         t={t}
-        shareLabels={shareLabels}
+        detailsLabels={detailsLabels}
         canonicalShareUrl={canonicalShareUrl}
         profileSourcePage={profileSourcePage}
         portalInquiryHref={portalInquiryHref}
         resolvedPreview={resolvedPreview}
+        showFooter={!platformChrome}
         hostCtxKind={hostCtx.kind as "agency" | "app" | "hub" | "platform"}
         tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
         tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
+        hubsIndicator={
+          otherHubs.length > 0 ? (
+            <ProfileHubsIndicator hubs={otherHubs} label={alsoOnLabel} />
+          ) : null
+        }
         inquireButtonHeader={
           <TalentProfileInquireButton
             talentId={profile.id}
@@ -1758,7 +1978,7 @@ export default async function PublicTalentProfilePage({
             tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
             agencyName={tenantBrand ?? "the agency"}
             sourcePage={profileSourcePage}
-            className="rounded-full bg-[#1A1A1A] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#2A2A2A]"
+            className={inquireBtnClass}
           />
         }
         inquireButtonSidebar={
@@ -1770,7 +1990,7 @@ export default async function PublicTalentProfilePage({
             tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
             agencyName={tenantBrand ?? "the agency"}
             sourcePage={profileSourcePage}
-            className="w-full rounded-full bg-[#1A1A1A] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#2A2A2A]"
+            className={inquireBtnClassFull}
           />
         }
         inquireButtonFooter={
@@ -1782,27 +2002,29 @@ export default async function PublicTalentProfilePage({
             tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
             agencyName={tenantBrand ?? "the agency"}
             sourcePage={profileSourcePage}
-            className="rounded-full bg-[#1A1A1A] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#2A2A2A]"
+            className={inquireBtnClass}
           />
         }
         shareMenuHeader={
-          <ShareProfileMenu
+          <ProfileShareRow
             talentId={profile.id}
             profileCode={profile.profile_code}
             displayName={name}
             canonicalUrl={canonicalShareUrl}
             sourcePage={profileSourcePage}
             labels={shareLabels}
+            variant="row"
           />
         }
         shareMenuSidebar={
-          <ShareProfileMenu
+          <ProfileShareRow
             talentId={profile.id}
             profileCode={profile.profile_code}
             displayName={name}
             canonicalUrl={canonicalShareUrl}
             sourcePage={profileSourcePage}
             labels={shareLabels}
+            variant="compact"
           />
         }
         discoveryCta={null}
@@ -1833,7 +2055,70 @@ export default async function PublicTalentProfilePage({
           />
         }
       />
-      {/* ── END LIGHT REDESIGN ── */}
+
+      {/* Conversational-inquiry launcher — floating brand-skinned
+          "Message {Name}" chat. Sibling of the LightProfileLayout's inquire
+          CTA; renders only on the agency surface AND when the tenant has guest
+          chat enabled + shown on talent profiles (tenant_guest_chat_settings).
+          Self-positions fixed bottom-right, so DOM placement here is logical. */}
+      {guestChatSettings.enabled && guestChatSettings.showOnTalent && (
+        <TalentProfileChatLauncherMount
+          talentProfileId={profile.id}
+          talentProfileCode={profile.profile_code}
+          talentDisplayName={name}
+          tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
+          agencyName={tenantBrand ?? "the agency"}
+          accentColor={chatAccentColor}
+          logoUrl={watermarkLogoUrl}
+          sourcePage={profileSourcePage}
+          greeting={guestChatSettings.greeting}
+        />
+      )}
+    </>
+  );
+
+  return (
+    <PublicDiscoveryStateProvider>
+      <DirectoryInquiryModalProvider>
+        <FavoritesDrawerProvider>
+          {jsonLd ? (
+            <script
+              type="application/ld+json"
+              // Pre-stringified — React must NOT escape JSON-LD content.
+              dangerouslySetInnerHTML={{ __html: jsonLdToString(jsonLd) }}
+            />
+          ) : null}
+          <PublicFlashHost dismissAria={ui.flash.dismissAria} />
+          <ProfileViewAnalytics talentId={profile.id} locale={locale} />
+
+          {platformChrome ? (
+            // PLATFORM HOST — wrap in the real tulala.digital marketing chrome
+            // so the page reads as a native part of the marketing site.
+            <div
+              data-platform-surface="marketing"
+              className="flex min-h-screen flex-col"
+              style={{ background: "var(--plt-bg)", color: "var(--plt-ink)" }}
+            >
+              <MarketingHeader
+                locale={locale}
+                pathnameWithoutLocale={marketingPathnameWithoutLocale}
+                account={marketingAccount}
+                signOutAction={signOut}
+              />
+              <main className="flex-1 pt-[var(--plt-header-h,64px)] sm:pt-[72px]">
+                {profileBody}
+              </main>
+              <MarketingFooter />
+            </div>
+          ) : (
+            // AGENCY HOST — keep the white-label agency chrome: the platform
+            // PublicHeader (tenant-branded) on top + the in-layout CMS footer.
+            // Do NOT force tulala marketing chrome onto a white-label domain.
+            <>
+              <PublicHeader />
+              {profileBody}
+            </>
+          )}
 
           <DirectoryInquirySheet ui={ui} locale={locale} />
           <FavoritesDrawer signupHref="/login" />

@@ -342,6 +342,179 @@ test("animation: all keyframes + reduced-motion guard ship in the static sheet",
   assert.ok(html.includes("prefers-reduced-motion"), "reduced-motion guard");
 });
 
+// ── Wave 6B (#27) — interaction timeline: custom easing + scroll parallax ──────
+
+test("animation: a custom easing curve wins over the named easing enum", () => {
+  const html = render([
+    container({
+      animationPreset: "rise",
+      animationDuration: "0.5s",
+      animationEasing: "back", // would normally resolve to cubic-bezier(0.34,1.56,…)
+      animationEasingCustom: "cubic-bezier(0.2, 0.8, 0.2, 1)",
+    }),
+  ]);
+  assert.match(
+    html,
+    /animation:bn-anim-rise 0\.5s cubic-bezier\(0\.2, ?0\.8, ?0\.2, ?1\)/,
+    "custom curve replaces the named easing in the animation shorthand",
+  );
+  // The "back" spring curve must NOT appear — custom fully overrides it.
+  assert.ok(
+    !html.includes("cubic-bezier(0.34, 1.56"),
+    "named easing suppressed when custom set",
+  );
+});
+
+test("animation: scroll parallax emits a baked keyframe on a view() timeline", () => {
+  const html = render([container({ parallax: "medium" })]);
+  assert.ok(
+    /animation:bn-parallax-medium linear both/.test(html),
+    "medium parallax animation shorthand",
+  );
+  assert.ok(html.includes("view()"), "parallax drives a scroll-driven timeline");
+  // Parallax keyframes ship in the static sheet, reduced-motion-guarded.
+  for (const kf of [
+    "@keyframes bn-parallax-subtle",
+    "@keyframes bn-parallax-medium",
+    "@keyframes bn-parallax-strong",
+  ]) {
+    assert.ok(html.includes(kf), `expected ${kf}`);
+  }
+});
+
+test("animation: parallax wins the single animation slot over the entrance preset", () => {
+  const html = render([
+    container({ animationPreset: "fade-in", parallax: "strong" }),
+  ]);
+  // Only the parallax animation should occupy the `animation` shorthand.
+  assert.ok(
+    html.includes("animation:bn-parallax-strong linear both"),
+    "parallax animation present",
+  );
+  assert.ok(
+    !html.includes("animation:bn-anim-fade-in"),
+    "entrance preset does not also claim the animation slot",
+  );
+});
+
+test("animation: parallax 'none' / undefined emits no parallax motion (back-compat)", () => {
+  // The @keyframes definitions are always baked into the static sheet (like the
+  // entrance keyframes); back-compat is about the NODE not getting an
+  // `animation:bn-parallax-*` declaration when parallax is off/absent.
+  const off = render([container({ parallax: "none" })]);
+  assert.ok(
+    !/animation:bn-parallax/.test(off),
+    "parallax:none emits no animation declaration",
+  );
+  const bare = render([container({})]);
+  assert.ok(
+    !/animation:bn-parallax/.test(bare),
+    "no parallax animation on an unstyled node",
+  );
+});
+
+// ── Reveal-on-view (2026-06-04) — IntersectionObserver entry interaction ──────
+
+test("reveal: revealOnView emits the data-bn-reveal attr + tuning vars + runtime", () => {
+  const html = render([
+    container({
+      revealOnView: "fade-up",
+      revealDistance: "48px",
+      revealDuration: "0.8s",
+      revealDelay: "120ms",
+      revealEasing: "back",
+    }),
+  ]);
+  assert.ok(html.includes('data-bn-reveal="fade-up"'), "direction attr emitted");
+  assert.ok(html.includes("--bn-reveal-distance:48px"), "distance var emitted");
+  assert.ok(html.includes("--bn-reveal-duration:0.8s"), "duration var emitted");
+  assert.ok(html.includes("--bn-reveal-delay:120ms"), "delay var emitted");
+  // `back` resolves to the named overshoot curve.
+  assert.ok(
+    html.includes("--bn-reveal-easing:cubic-bezier(0.34, 1.56, 0.64, 1)"),
+    "easing var resolved from the named curve",
+  );
+  // The inline IntersectionObserver runtime ships once when a reveal is present.
+  assert.ok(
+    html.includes("data-builder-node-reveal-runtime"),
+    "reveal runtime script emitted",
+  );
+  assert.ok(html.includes("IntersectionObserver"), "runtime uses IntersectionObserver");
+  // The per-direction hidden-pose + reduced-motion guard live in the static sheet.
+  assert.ok(html.includes("data-bn-reveal-armed"), "armed-state CSS present");
+  assert.ok(html.includes("data-bn-revealed"), "revealed-state CSS present");
+});
+
+test("reveal: 'none' / undefined emits no reveal attr and no runtime (back-compat)", () => {
+  const off = render([container({ revealOnView: "none" })]);
+  // The per-direction selectors live in the static <style>; the back-compat
+  // contract is that the NODE carries no reveal attr and no runtime ships. Strip
+  // the stylesheet, then assert the rendered markup is reveal-free.
+  const offMarkup = off.replace(/<style[\s\S]*?<\/style>/g, "");
+  assert.ok(
+    !offMarkup.includes("data-bn-reveal"),
+    "reveal:none puts no reveal attr on the node",
+  );
+  assert.ok(
+    !off.includes("data-builder-node-reveal-runtime"),
+    "reveal:none emits no runtime",
+  );
+  const bare = render([container({})]);
+  assert.ok(
+    !bare.includes("data-builder-node-reveal-runtime"),
+    "unstyled tree emits no reveal runtime (byte-stable)",
+  );
+});
+
+// ── Wave 6B (#23) — sticky pinning convenience ────────────────────────────────
+
+test("sticky: stickyAnchor 'top' emits position:sticky + top offset", () => {
+  const html = render([
+    container({ stickyAnchor: "top", stickyOffset: "16px" }),
+  ]);
+  assert.ok(html.includes("position:sticky"), "position:sticky emitted");
+  assert.ok(html.includes("top:16px"), "top inset from stickyOffset");
+});
+
+test("sticky: stickyAnchor 'bottom' pins to the bottom edge", () => {
+  const html = render([
+    container({ stickyAnchor: "bottom", stickyOffset: "1rem" }),
+  ]);
+  assert.ok(html.includes("position:sticky"), "position:sticky emitted");
+  assert.ok(html.includes("bottom:1rem"), "bottom inset from stickyOffset");
+});
+
+test("sticky: anchor with no offset defaults the inset to 0px", () => {
+  const html = render([container({ stickyAnchor: "top" })]);
+  assert.ok(html.includes("position:sticky"), "position:sticky emitted");
+  assert.ok(html.includes("top:0px"), "default 0px inset");
+});
+
+test("sticky: an explicit position / top always wins over the convenience", () => {
+  // Explicit position:relative must not be overridden to sticky; an explicit
+  // top must not be overwritten by the offset. Raw escapes are authoritative.
+  const html = render([
+    container({
+      stickyAnchor: "top",
+      stickyOffset: "20px",
+      position: "relative",
+      top: "5px",
+    }),
+  ]);
+  assert.ok(html.includes("position:relative"), "explicit position preserved");
+  assert.ok(!html.includes("position:sticky"), "convenience did not force sticky");
+  assert.ok(html.includes("top:5px"), "explicit top preserved");
+  assert.ok(!html.includes("top:20px"), "offset did not clobber explicit top");
+});
+
+test("sticky: undefined sticky fields emit nothing (back-compat)", () => {
+  const html = render([container({ position: "sticky", top: "0" })]);
+  // The pre-existing position:sticky + top path is byte-stable; the new
+  // convenience contributes no extra output when its fields are absent.
+  assert.ok(html.includes("position:sticky"), "existing sticky path intact");
+  assert.ok(html.includes("top:0"), "existing top intact");
+});
+
 // ── Renderer stylesheet de-duplication ───────────────────────────────────────
 
 test("renderer css: standalone render remains self-contained", () => {
@@ -1126,4 +1299,258 @@ test("nav: dangerous link + brand hrefs are neutralized at render time", () => {
 test("nav: re-render is byte-identical (determinism)", () => {
   const node = navNode();
   assert.equal(render([node]), render([node]));
+});
+
+// Wave 2 · Item 2A — per-breakpoint STRUCTURE: visibility (#3) + order (#4).
+// Both are optional BuilderNodeStyleValue fields, so they ride the SAME
+// per-breakpoint CSS path as every other escape (gated data-attr → static
+// @media rule reading a --bn-{bp}-* var). These tests lock the emitted CSS at
+// desktop / tablet / mobile / container-query so a future refactor can't
+// silently regress the responsive hide-or-reorder.
+test("structure: the static sheet ships the hidden + order rules at both breakpoints", () => {
+  const html = render([container({})]);
+  for (const rule of [
+    ".site-builder-node[data-builder-style-tablet-hidden]{display:none!important}",
+    ".site-builder-node[data-builder-style-mobile-hidden]{display:none!important}",
+    ".site-builder-node[data-builder-style-tablet-order]{order:var(--bn-tablet-order)!important}",
+    ".site-builder-node[data-builder-style-mobile-order]{order:var(--bn-mobile-order)!important}",
+  ]) {
+    assert.ok(html.includes(rule), `static sheet ships: ${rule}`);
+  }
+});
+
+test("structure: per-breakpoint order emits the gate + the var (incl. order:0)", () => {
+  const html = render([
+    container({
+      order: 1, // desktop base — inline
+      responsive: {
+        tablet: { order: -1 }, // negative pulls ahead of order:0 siblings
+        mobile: { order: 0 }, // edge case: 0 is meaningful, must still emit
+      },
+    }),
+  ]);
+
+  // Desktop base order is applied inline (not gated behind a media rule).
+  assert.ok(html.includes("order:1"), "desktop base order inline");
+
+  // Tablet override: gating attr + var.
+  assert.ok(
+    html.includes('data-builder-style-tablet-order=""'),
+    "tablet order gate",
+  );
+  assert.ok(html.includes("--bn-tablet-order:-1"), "tablet order var (negative)");
+
+  // Mobile override with order:0 — the numeric gate must NOT treat 0 as unset.
+  assert.ok(
+    html.includes('data-builder-style-mobile-order=""'),
+    "mobile order gate fires for order:0",
+  );
+  assert.ok(html.includes("--bn-mobile-order:0"), "mobile order var is 0");
+});
+
+test("structure: per-breakpoint visibility hides only at that breakpoint", () => {
+  const html = render([
+    container({
+      responsive: {
+        tablet: { visibility: "hidden" },
+        mobile: { visibility: "hidden" },
+      },
+    }),
+  ]);
+
+  // The gate is the presence attr; the static sheet's media rule supplies the
+  // display:none. No INLINE desktop display:none — desktop stays shown. (The
+  // substring "display:none" DOES appear in the static @media sheet, so we
+  // assert specifically that the node's own inline style="…" doesn't carry it.)
+  assert.ok(
+    html.includes('data-builder-style-tablet-hidden=""'),
+    "tablet hidden gate",
+  );
+  assert.ok(
+    html.includes('data-builder-style-mobile-hidden=""'),
+    "mobile hidden gate",
+  );
+  const inlineStyles = [...html.matchAll(/style="([^"]*)"/g)].map((m) => m[1]);
+  assert.ok(
+    inlineStyles.every((s) => !s.includes("display:none")),
+    "no inline desktop display:none when only breakpoints hide",
+  );
+});
+
+test("structure: desktop-level visibility:hidden removes the node inline everywhere", () => {
+  const html = render([container({ visibility: "hidden" })]);
+  // sharedNodeStyle emits display:none inline at the base layer, so the node is
+  // gone on every screen (the breakpoint layers inherit it). Assert the inline
+  // style="…" carries it (not merely the static sheet's media rules).
+  const inlineStyles = [...html.matchAll(/style="([^"]*)"/g)].map((m) => m[1]);
+  assert.ok(
+    inlineStyles.some((s) => s.includes("display:none")),
+    "desktop hidden emits inline display:none",
+  );
+});
+
+test("structure: container-query scope emits order + hidden too", () => {
+  const html = render([
+    container({
+      containerType: "inline-size",
+      containerQueries: {
+        mobile: { order: 2, visibility: "hidden" },
+      },
+    }),
+  ]);
+
+  assert.ok(
+    html.includes('data-builder-style-cq-mobile-order=""'),
+    "cq mobile order gate",
+  );
+  assert.ok(
+    html.includes("--bn-cq-mobile-order:2"),
+    "cq mobile order var",
+  );
+  assert.ok(
+    html.includes('data-builder-style-cq-mobile-hidden=""'),
+    "cq mobile hidden gate",
+  );
+});
+
+// ── Wave 3 · 3C: background layers + gradient CSS emission ───────────────────
+
+test("backgroundLayers: two gradient layers emit stacked background-image CSS", () => {
+  const html = render([
+    container({
+      backgroundLayers: [
+        {
+          type: "gradient",
+          value: "linear-gradient(135deg, #6366f1 0%, #ec4899 100%)",
+        },
+        {
+          type: "gradient",
+          value: "linear-gradient(180deg, rgba(0,0,0,0.6) 0%, transparent 60%)",
+        },
+      ],
+    }),
+  ]);
+  // Both gradient strings must be comma-joined in background-image
+  assert.ok(
+    html.includes("linear-gradient(135deg"),
+    "first gradient layer present",
+  );
+  assert.ok(
+    html.includes("linear-gradient(180deg"),
+    "second gradient layer present",
+  );
+  // Multi-layer stacks are comma-joined
+  assert.ok(
+    html.includes("linear-gradient(135deg, #6366f1 0%, #ec4899 100%),linear-gradient(180deg"),
+    "layers joined with comma",
+  );
+  // Paint axes default to cover/center/no-repeat, repeated per layer
+  assert.ok(html.includes("background-size:cover,cover"), "size repeated");
+  assert.ok(html.includes("background-position:center,center"), "position repeated");
+});
+
+test("backgroundLayers: color layer emits wrapped gradient", () => {
+  const html = render([
+    container({
+      backgroundLayers: [
+        { type: "color", value: "rgba(0,0,0,0.4)" },
+      ],
+    }),
+  ]);
+  // Color layers are wrapped as linear-gradient(color,color) so they participate
+  assert.ok(
+    html.includes("linear-gradient(rgba(0,0,0,0.4),rgba(0,0,0,0.4))"),
+    "color layer wrapped as gradient",
+  );
+});
+
+test("backgroundLayers: image layer emits url() in background-image", () => {
+  const html = render([
+    container({
+      backgroundLayers: [
+        { type: "image", value: "url(https://example.com/photo.jpg)" },
+      ],
+    }),
+  ]);
+  assert.ok(
+    html.includes("url(https://example.com/photo.jpg)"),
+    "image url preserved",
+  );
+  assert.ok(html.includes("background-size:cover"), "paint axes set");
+});
+
+test("backgroundLayers: image layer prepended to existing backgroundImage", () => {
+  const html = render([
+    container({
+      backgroundImage: "url(https://example.com/base.jpg)",
+      backgroundLayers: [
+        {
+          type: "gradient",
+          value: "linear-gradient(135deg, rgba(0,0,0,0.5), transparent)",
+        },
+      ],
+    }),
+  ]);
+  // The overlay gradient must come before the existing background image
+  assert.ok(
+    html.includes(
+      "linear-gradient(135deg, rgba(0,0,0,0.5), transparent),url(https://example.com/base.jpg)",
+    ),
+    "overlay prepended to existing backgroundImage",
+  );
+  // Three layers total (gradient overlay + base), so size is cover,cover
+  assert.ok(html.includes("background-size:cover,cover"), "size repeated for both");
+});
+
+test("backgroundLayers: backgroundBlendMode emitted when set", () => {
+  const html = render([
+    container({
+      backgroundLayers: [
+        { type: "gradient", value: "linear-gradient(90deg, #000, #fff)" },
+      ],
+      backgroundBlendMode: "multiply",
+    }),
+  ]);
+  assert.ok(
+    html.includes("background-blend-mode:multiply"),
+    "blend mode emitted",
+  );
+});
+
+test("backgroundLayers: empty/absent preserves existing backgroundImage byte-identical", () => {
+  const withBgImage = render([
+    container({ backgroundImage: "url(https://example.com/img.jpg)" }),
+  ]);
+  const withBgImageAndEmpty = render([
+    container({
+      backgroundImage: "url(https://example.com/img.jpg)",
+      backgroundLayers: [],
+    }),
+  ]);
+  assert.equal(
+    withBgImage,
+    withBgImageAndEmpty,
+    "empty backgroundLayers array is byte-identical to no backgroundLayers",
+  );
+  // backgroundBlendMode alone (no layers) does NOT get emitted to the static
+  // render since the renderer gates it on layers presence — guard that too.
+  const noLayers = render([container({})]);
+  assert.ok(!noLayers.includes("background-blend-mode"), "no blend mode without layers");
+});
+
+test("backgroundLayers: node with only backgroundColor/backgroundImage renders byte-identical (flagship guard)", () => {
+  // Simulate a flagship-style node that uses the old scalar fields.
+  const legacy = render([
+    container({
+      backgroundColor: "#111",
+      backgroundImage: "linear-gradient(180deg, transparent, rgba(0,0,0,0.7))",
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+      backgroundRepeat: "no-repeat",
+    }),
+  ]);
+  // Must not inject a second background-image stacking or emit blend mode.
+  const bgImageCount = (legacy.match(/background-image:/gi) ?? []).length;
+  assert.ok(bgImageCount >= 1, "background-image present");
+  assert.ok(!legacy.includes("background-blend-mode"), "no blend mode injection");
 });

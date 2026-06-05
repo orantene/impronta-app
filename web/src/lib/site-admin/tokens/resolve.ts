@@ -80,8 +80,13 @@ export function resolveDesignTokens(
  * future stylesheet change can map them into (or bypass) shadcn's
  * `--primary` / `--background` / etc. without either path silently
  * stomping the other.
+ *
+ * Exported (read-only) so the freeform builder's token-binding layer
+ * (`builder-node/style-token-bindings.ts`) can derive the bindable-token
+ * catalog from the SAME projection map, instead of hardcoding (and drifting
+ * from) the var names.
  */
-const COLOR_VAR_NAMES: Readonly<Record<string, string>> = {
+export const COLOR_VAR_NAMES: Readonly<Record<string, string>> = {
   "color.primary": "--token-color-primary",
   "color.secondary": "--token-color-secondary",
   "color.accent": "--token-color-accent",
