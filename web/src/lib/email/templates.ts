@@ -128,7 +128,7 @@ export function bookingConfirmedEmail(data: {
   const href =
     data.role === "client"
       ? `${siteUrl()}/client/bookings/${data.bookingId}`
-      : `${siteUrl()}/talent/inquiries`;
+      : `${siteUrl()}/talent/inbox`;
 
   const details = [data.eventDate, data.eventLocation].filter(Boolean);
 
@@ -344,7 +344,7 @@ export function talentInvitedEmail(data: {
 }): { subject: string; html: string } {
   const name = data.talentName ?? "there";
   const event = data.contactName ?? "a new inquiry";
-  const href = `${siteUrl()}/talent/inquiries/${data.inquiryId}`;
+  const href = `${siteUrl()}/talent/inbox/${data.inquiryId}`;
   const details = [data.eventDate, data.eventLocation].filter(Boolean);
 
   return {

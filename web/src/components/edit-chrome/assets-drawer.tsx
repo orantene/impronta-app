@@ -69,6 +69,7 @@ import {
   DrawerBody,
   DrawerFoot,
   DrawerHead,
+  DrawerSkeletonGrid,
   DrawerTab,
   DrawerTabs,
 } from "./kit";
@@ -81,6 +82,7 @@ import {
 } from "@/lib/site-admin/edit-mode/assets-actions";
 import type { MediaLibraryItem } from "@/lib/site-admin/media/types";
 import { uploadCmsMedia } from "@/lib/client/signed-upload";
+import { ImageCropModal } from "./image-crop";
 
 // ── tabs ─────────────────────────────────────────────────────────────────
 
@@ -220,6 +222,15 @@ function UploadIcon(): ReactElement {
   );
 }
 
+function CropIcon(): ReactElement {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M6 2v14a2 2 0 0 0 2 2h14" />
+      <path d="M2 6h14a2 2 0 0 1 2 2v14" />
+    </svg>
+  );
+}
+
 function ClockIcon(): ReactElement {
   return (
     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -250,6 +261,13 @@ export function AssetsDrawer(): ReactElement | null {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  // In-editor crop: the image asset currently open in the crop modal, plus
+  // a busy flag while its cropped variant uploads. Crop produces a NEW asset
+  // through the existing upload pipeline (handleFileChosen below).
+  const [cropTarget, setCropTarget] = useState<MediaLibraryItem | null>(null);
+  const [cropSaving, setCropSaving] = useState(false);
+  const [cropError, setCropError] = useState<string | null>(null);
+
   // Lazy-fetch on open. Re-fetch every open so a publish from another
   // surface (or an upload from the section media picker) shows up here
   // without a hard refresh.
@@ -260,6 +278,9 @@ export function AssetsDrawer(): ReactElement | null {
       setQuery("");
       setUploadError(null);
       setCopiedToast(null);
+      setCropTarget(null);
+      setCropSaving(false);
+      setCropError(null);
       return;
     }
     let cancelled = false;
@@ -340,10 +361,12 @@ export function AssetsDrawer(): ReactElement | null {
   }, []);
 
   const handleFileChosen = useCallback(
-    async (file: File) => {
+    async (file: File, kindOverride?: "image" | "video" | "document"): Promise<boolean> => {
       setUploading(true);
       setUploadError(null);
-      const uploadKind = tab === "videos" ? "video" : tab === "documents" ? "document" : "image";
+      const uploadKind =
+        kindOverride ??
+        (tab === "videos" ? "video" : tab === "documents" ? "document" : "image");
       // Client-side size + MIME validation. Server also validates, but
       // a pre-check saves a round-trip and gives the operator an
       // instant error. The `accept` attribute on the hidden file input
@@ -371,7 +394,7 @@ export function AssetsDrawer(): ReactElement | null {
         );
         setUploading(false);
         if (fileInputRef.current) fileInputRef.current.value = "";
-        return;
+        return false;
       }
       const allowedPrefixes = MIME_PREFIX_BY_KIND[uploadKind] ?? ["image/"];
       if (!allowedPrefixes.some((prefix) => file.type.startsWith(prefix))) {
@@ -380,8 +403,9 @@ export function AssetsDrawer(): ReactElement | null {
         );
         setUploading(false);
         if (fileInputRef.current) fileInputRef.current.value = "";
-        return;
+        return false;
       }
+      let uploadOk = false;
       try {
         // Signed-upload pipeline first (compress in browser → PUT direct
         // to Supabase → register endpoint inserts the row). Legacy
@@ -418,7 +442,10 @@ export function AssetsDrawer(): ReactElement | null {
           // never falls through with NaN cells.
           raw = body.item as typeof raw;
         }
-        if (!raw.id || !raw.publicUrl || !raw.storagePath) return;
+        if (!raw.id || !raw.publicUrl || !raw.storagePath) {
+          setUploadError("Upload didn't return a usable asset — try again.");
+          return false;
+        }
         const item: MediaLibraryItem = {
           id: raw.id,
           tenantId,
@@ -443,6 +470,7 @@ export function AssetsDrawer(): ReactElement | null {
           ...prev,
           [item.id]: { assetId: item.id, refCount: 0, sectionIds: [] },
         }));
+        uploadOk = true;
       } catch (e) {
         setUploadError(
           e instanceof Error ? e.message.slice(0, 200) : "Couldn't upload — try again.",
@@ -451,8 +479,30 @@ export function AssetsDrawer(): ReactElement | null {
         setUploading(false);
         if (fileInputRef.current) fileInputRef.current.value = "";
       }
+      return uploadOk;
     },
     [tenantId, tab],
+  );
+
+  // Crop save: the modal hands back a freshly-cropped File. Route it through
+  // the same upload pipeline (always "image" kind) so it lands as a new asset
+  // and optimistically prepends to the grid. Keep the modal open on failure
+  // so the operator can retry; close it on success.
+  const handleCropSave = useCallback(
+    async (file: File) => {
+      setCropSaving(true);
+      setCropError(null);
+      const ok = await handleFileChosen(file, "image");
+      setCropSaving(false);
+      if (ok) {
+        setCropTarget(null);
+      } else {
+        // handleFileChosen wrote the reason into uploadError; mirror it into
+        // the modal-scoped error so it shows inside the crop dialog.
+        setCropError("Couldn't save the cropped image — try again.");
+      }
+    },
+    [handleFileChosen],
   );
 
   // Counts for tab badges. We compute against the full library regardless of
@@ -540,7 +590,7 @@ export function AssetsDrawer(): ReactElement | null {
         {loadError ? (
           <ErrorBanner>{loadError}</ErrorBanner>
         ) : busy === "loading" && items === null ? (
-          <SkeletonGrid />
+          <DrawerSkeletonGrid />
         ) : filtered.length === 0 ? (
           <EmptyState
             tab={tab}
@@ -554,6 +604,10 @@ export function AssetsDrawer(): ReactElement | null {
             selecting={selecting}
             selected={selected}
             onToggleSelect={toggleSelect}
+            onCrop={(item) => {
+              setCropError(null);
+              setCropTarget(item);
+            }}
           />
         )}
         {uploadError ? (
@@ -655,6 +709,21 @@ export function AssetsDrawer(): ReactElement | null {
           )
         }
       />
+
+      {cropTarget ? (
+        <ImageCropModal
+          src={cropTarget.publicUrl}
+          name={fileNameOf(cropTarget)}
+          saving={cropSaving}
+          error={cropError}
+          onSave={(file) => void handleCropSave(file)}
+          onClose={() => {
+            if (cropSaving) return;
+            setCropTarget(null);
+            setCropError(null);
+          }}
+        />
+      ) : null}
     </Drawer>
   );
 }
@@ -728,12 +797,14 @@ function AssetGrid({
   selecting,
   selected,
   onToggleSelect,
+  onCrop,
 }: {
   items: MediaLibraryItem[];
   usage: Record<string, AssetUsage>;
   selecting: boolean;
   selected: Set<string>;
   onToggleSelect: (id: string) => void;
+  onCrop: (item: MediaLibraryItem) => void;
 }) {
   return (
     <div
@@ -751,6 +822,7 @@ function AssetGrid({
           selecting={selecting}
           selected={selected.has(item.id)}
           onToggle={() => onToggleSelect(item.id)}
+          onCrop={() => onCrop(item)}
         />
       ))}
     </div>
@@ -763,17 +835,23 @@ function AssetTile({
   selecting,
   selected,
   onToggle,
+  onCrop,
 }: {
   item: MediaLibraryItem;
   usage: AssetUsage | undefined;
   selecting: boolean;
   selected: boolean;
   onToggle: () => void;
+  onCrop: () => void;
 }) {
   const refCount = usage?.refCount ?? 0;
   const dim = dimensionsLabel(item);
   const bytes = bytesLabel(item.fileSize);
   const name = fileNameOf(item);
+  // Only raster images are crop-able — SVGs are vector and a canvas crop
+  // would rasterize them, which isn't what the operator wants.
+  const ext = extensionOf(item.storagePath);
+  const canCrop = !selecting && isImageItem(item) && ext !== "svg";
 
   return (
     <div
@@ -825,6 +903,50 @@ function AssetTile({
           }}
         />
       </div>
+
+      {/* Crop affordance — raster images only, hidden during multi-select.
+          Launches the in-editor crop modal; the cropped result lands as a
+          new asset via the existing upload pipeline. */}
+      {canCrop ? (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onCrop();
+          }}
+          title="Crop this image"
+          aria-label="Crop image"
+          style={{
+            position: "absolute",
+            bottom: 6,
+            right: 6,
+            height: 24,
+            padding: "0 8px",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            fontSize: 10.5,
+            fontWeight: 600,
+            color: CHROME.text2,
+            background: "rgba(255,255,255,0.92)",
+            border: `1px solid ${CHROME.line}`,
+            borderRadius: 6,
+            cursor: "pointer",
+            backdropFilter: "blur(8px)",
+            boxShadow: "0 1px 2px rgba(0,0,0,0.10)",
+            transition: "background 120ms ease",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "#ffffff";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "rgba(255,255,255,0.92)";
+          }}
+        >
+          <CropIcon />
+          Crop
+        </button>
+      ) : null}
 
       {/* Top-right usage badge — surfaces the scanner's signal so the
           operator can spot stale assets at a glance. */}
@@ -1010,32 +1132,7 @@ function Calm({ title, body }: { title: string; body: string }) {
   );
 }
 
-// ── skeleton ──────────────────────────────────────────────────────────────
-
-function SkeletonGrid() {
-  return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
-        gap: 10,
-      }}
-    >
-      {[0, 1, 2, 3, 4, 5].map((i) => (
-        <div
-          key={i}
-          style={{
-            aspectRatio: "1 / 1.18",
-            background: CHROME.surface,
-            border: `1px solid ${CHROME.line}`,
-            borderRadius: 10,
-            opacity: 0.55,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
+// SkeletonGrid removed — replaced by shared DrawerSkeletonGrid from "./kit".
 
 // ── error banner ──────────────────────────────────────────────────────────
 

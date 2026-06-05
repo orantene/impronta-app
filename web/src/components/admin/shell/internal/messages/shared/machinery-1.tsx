@@ -11,6 +11,34 @@ import type { Offer } from "./machinery-9";
 // ════════════════════════════════════════════════════════════════════
 
 /**
+ * Map an ISO currency code to its symbol for the compact tab badge glyph.
+ * Falls back to a neutral dot when the code is unknown or absent — so a
+ * USD/GBP offer never renders a hardcoded "€". Uses Intl when available,
+ * with a small explicit map for the common cases.
+ */
+function currencySymbol(code: string | undefined): string {
+  if (!code) return "•";
+  const explicit: Record<string, string> = {
+    USD: "$", EUR: "€", GBP: "£", JPY: "¥", AUD: "$",
+    CAD: "$", CHF: "CHF", MXN: "$", BRL: "R$", INR: "₹",
+  };
+  const upper = code.toUpperCase();
+  if (explicit[upper]) return explicit[upper];
+  try {
+    // Derive the symbol by formatting 0 and stripping digits/spaces.
+    const parts = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: upper,
+      maximumFractionDigits: 0,
+    }).formatToParts(0);
+    const sym = parts.find((p) => p.type === "currency")?.value;
+    return sym && sym.length <= 3 ? sym : "•";
+  } catch {
+    return "•";
+  }
+}
+
+/**
  * Build the tab config for the inquiry shell.
  *
  * Same shell, evolved tabs as the record moves through its lifecycle:
@@ -30,8 +58,23 @@ export function buildInquiryTabs(opts: {
   /** Workspace plan tier — hides team-only surfaces on Free
    *  (no team to coordinate with). Admin-only. */
   planTier?: "free" | "studio" | "agency" | "hub-network" | "network";
+  /** ISO currency code of the inquiry/offer (e.g. "USD", "EUR", "GBP").
+   *  Drives the payment-due glyph on the Offer tab so it isn't hardcoded
+   *  to "€" for non-euro deals. Optional — falls back to a neutral dot. */
+  currencyCode?: string;
+  /** Surface the admin-only Payment tab. True once payment is relevant —
+   *  i.e. the inquiry is approved/booked/converted (a booking exists or is
+   *  imminent) so admin can request payment / track status / initiate
+   *  payout from the thread instead of leaving to /admin/work. Admin pov
+   *  only; client + talent have their own money surfaces. */
+  paymentRelevant?: boolean;
 }): TabDef[] {
-  const { status, pov, unread = {}, offerNeedsAttention, paymentDue, planTier } = opts;
+  const { status, pov, unread = {}, offerNeedsAttention, paymentDue, planTier, currencyCode, paymentRelevant } = opts;
+
+  // Currency-aware payment-due glyph. Never hardcode "€": derive the symbol
+  // from the inquiry's currency; if none is supplied, use a neutral dot so a
+  // USD/GBP offer never shows a euro sign.
+  const payDueGlyph = currencySymbol(currencyCode);
 
   // Slice B (Messages consolidation v2): admin pov gets the new
   // universal tab set per plan §3. Talent + client keep legacy tabs
@@ -64,7 +107,20 @@ export function buildInquiryTabs(opts: {
         id: "offer",
         label: "Offer",
         state: "active",
-        badge: paymentDue ? "€" : undefined,
+        badge: paymentDue ? payDueGlyph : undefined,
+      });
+    }
+    // Admin-only Payment tab — request payment / track status / initiate
+    // payout right inside the thread, no detour to /admin/work. Surfaces
+    // only once payment is relevant (approved/booked/converted). The
+    // PaymentTab body (machinery-6) loads real payment state + renders the
+    // admin money actions.
+    if (paymentRelevant) {
+      adminTabs.push({
+        id: "payment",
+        label: "Payment",
+        state: "active",
+        badge: status === "booked" && paymentDue ? payDueGlyph : undefined,
       });
     }
     adminTabs.push({
@@ -108,7 +164,7 @@ export function buildInquiryTabs(opts: {
         id: "offer",
         label: "Offer",
         state: "active",
-        badge: offerNeedsAttention ? "!" : (status === "booked" && paymentDue ? "€" : undefined),
+        badge: offerNeedsAttention ? "!" : (status === "booked" && paymentDue ? payDueGlyph : undefined),
       },
       {
         id: "event",
@@ -143,7 +199,7 @@ export function buildInquiryTabs(opts: {
       id: "offer",
       label: "Offer",
       state: "active",
-      badge: offerNeedsAttention ? "!" : (status === "booked" && paymentDue ? "€" : undefined),
+      badge: offerNeedsAttention ? "!" : (status === "booked" && paymentDue ? payDueGlyph : undefined),
     },
     { id: "event", label: "Details", state: "active" },
     {

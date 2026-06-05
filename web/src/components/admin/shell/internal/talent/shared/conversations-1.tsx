@@ -79,6 +79,12 @@ export type Conversation = {
   date?: string;
   /** Talent's take-home — only set when booked. Hides full offer per spec. */
   amountToYou?: string;
+  /** Audit #12 — THIS talent's own approval status on the current offer
+   *  (from `inquiry_approvals`). When "accepted", the thread shows a
+   *  "you approved — awaiting the others" state instead of re-offering the
+   *  "Approve offer" button (the multi-party gate keeps the offer open until
+   *  every party approves). Undefined for mock/standalone conversations. */
+  myApprovalStatus?: "pending" | "accepted" | "rejected" | null;
   /** Last message preview line — for the conversation list rail. */
   lastMessage: { sender: "you" | "client" | "coordinator" | "agency" | "system" | "workspace"; preview: string; ageHrs: number };
   unreadCount: number;

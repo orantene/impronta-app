@@ -191,7 +191,7 @@ export function InquiryComposer({
     locationCity: "", locationVenue: "",
     talent: [],
     briefSummary: "", briefNotes: "",
-    budgetAmount: "", budgetUnit: "day", budgetCurrency: "EUR", budgetPerPerson: false,
+    budgetAmount: "", budgetUnit: "day", budgetCurrency: "USD", budgetPerPerson: false,
     sourceChannel: mode === "client" ? "form" : "phone",
     mixedRows: undefined,
   }));

@@ -5,13 +5,14 @@
  * shell. Reads from loadClientInquiryDetails (server-side) and renders
  * the 10 sections defined in spec §6.4.
  *
- * Read-only in Phase C. Editable fields (brief, date, location, etc.)
- * land in a follow-up commit using the per-field server actions.
+ * A1 — editable fields: date, location, brief/message, quantity.
+ * Locked when the inquiry is booked/converted/archived/rejected/expired.
  */
 
-import { useState, useTransition } from "react";
+import { useState, useCallback, useTransition } from "react";
 import type { ClientInquiryDetails } from "../../_data-bridge/client-inquiry-details";
 import { cancelInquiryAsClient } from "../_actions/inquiry-cancel-actions";
+import { updateClientInquiryDetailsAction } from "../_actions/inquiry-details-actions";
 
 const FONT = '"Inter", system-ui, sans-serif';
 const FONT_DISPLAY =
@@ -72,6 +73,11 @@ function inquiryStatusLabel(status: string): string {
   return INQUIRY_STATUS_LABELS[status] ?? humanize(status);
 }
 
+// Statuses where no edits are allowed.
+const LOCKED_STATUSES = new Set([
+  "booked", "converted", "archived", "rejected", "expired", "cancelled",
+]);
+
 export function DetailsTab({
   details,
   tenantSlug,
@@ -79,6 +85,63 @@ export function DetailsTab({
   details: ClientInquiryDetails | null;
   tenantSlug?: string;
 }) {
+  // A1 — edit state. All hooks unconditional per rules.
+  const [editSection, setEditSection] = useState<"brief" | "schedule" | "location" | null>(null);
+  const [saving, startSave] = useTransition();
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Draft state for each editable field.
+  const [draftDate, setDraftDate] = useState("");
+  const [draftLocation, setDraftLocation] = useState("");
+  const [draftBrief, setDraftBrief] = useState("");
+  const [draftQuantity, setDraftQuantity] = useState("");
+
+  const openEdit = useCallback(
+    (section: "brief" | "schedule" | "location") => {
+      if (!details) return;
+      setSaveError(null);
+      setSaveSuccess(false);
+      setEditSection(section);
+      if (section === "schedule") {
+        setDraftDate(details.schedule.event_date ?? "");
+        setDraftQuantity(String(details.talent.count_needed ?? ""));
+      }
+      if (section === "location") {
+        setDraftLocation(details.location.city ?? "");
+      }
+      if (section === "brief") {
+        setDraftBrief(details.brief.summary ?? "");
+      }
+    },
+    [details],
+  );
+
+  const cancelEdit = useCallback(() => {
+    setEditSection(null);
+    setSaveError(null);
+  }, []);
+
+  const save = useCallback(
+    (patch: Parameters<typeof updateClientInquiryDetailsAction>[2]) => {
+      if (!details || !tenantSlug) return;
+      setSaveError(null);
+      setSaveSuccess(false);
+      startSave(async () => {
+        const res = await updateClientInquiryDetailsAction(tenantSlug, details.id, patch);
+        if (!res.ok) {
+          setSaveError(res.error ?? "Save failed.");
+        } else {
+          setSaveSuccess(true);
+          setEditSection(null);
+          // Brief flash then clear success state.
+          setTimeout(() => setSaveSuccess(false), 2500);
+        }
+      });
+    },
+    [details, tenantSlug],
+  );
+
   if (!details) {
     return (
       <div style={{ padding: 24, color: C.inkMuted, fontFamily: FONT, fontSize: 13 }}>
@@ -87,12 +150,57 @@ export function DetailsTab({
     );
   }
 
+  const isLocked = LOCKED_STATUSES.has(details.status);
+
   return (
     <div style={{ padding: "16px 22px 32px", display: "flex", flexDirection: "column", gap: 14, fontFamily: FONT }}>
       <JobHeader details={details} />
 
-      <Section title="Project brief">
-        {details.brief.summary ? (
+      {saveSuccess && (
+        <div
+          role="status"
+          style={{
+            padding: "8px 14px",
+            borderRadius: 8,
+            background: "rgba(15,81,50,0.08)",
+            color: "#0F5132",
+            fontSize: 12.5,
+            fontWeight: 600,
+          }}
+        >
+          Changes saved.
+        </div>
+      )}
+
+      {/* Project brief — editable */}
+      <Section
+        title="Project brief"
+        editable={!isLocked}
+        onEdit={() => openEdit("brief")}
+        editing={editSection === "brief"}
+      >
+        {editSection === "brief" ? (
+          <EditBlock onCancel={cancelEdit} saving={saving} error={saveError}>
+            <label className="flex flex-col gap-1.5">
+              <span style={fieldLabelStyle}>Brief / message</span>
+              <textarea
+                value={draftBrief}
+                onChange={(e) => setDraftBrief(e.target.value)}
+                rows={5}
+                placeholder="Describe the project, event, and what you need…"
+                style={{ ...editInputStyle, resize: "vertical", minHeight: 80, lineHeight: 1.45 }}
+              />
+            </label>
+            <button
+              type="button"
+              style={saving ? { ...saveBtn, opacity: 0.6, cursor: "wait" } : saveBtn}
+              disabled={saving}
+              onClick={() => save({ message: draftBrief.trim() || null })}
+            >
+              {saving ? "Saving…" : "Save brief"}
+            </button>
+          </EditBlock>
+        ) : details.brief.summary ? (
           <p style={paragraphStyle}>{details.brief.summary}</p>
         ) : (
           <EmptyPrompt label="Add a brief" hint="Help the coordinator triage and match the right talent." />
@@ -100,29 +208,108 @@ export function DetailsTab({
       </Section>
 
       <SectionGrid>
-        <Section title="Schedule" inline>
-          <KV label="Date" value={formatDate(details.schedule.event_date)} fallback="Not set" />
-          <KV label="Time" value={details.schedule.start_time} fallback="—" />
-          <KV label="Duration" value={details.schedule.duration} fallback="—" />
-          <KV
-            label="Status"
-            value={statusLabel(details.schedule.date_status)}
-            fallback="Exact"
-          />
+        {/* Schedule — date + quantity editable */}
+        <Section
+          title="Schedule"
+          inline
+          editable={!isLocked}
+          onEdit={() => openEdit("schedule")}
+          editing={editSection === "schedule"}
+        >
+          {editSection === "schedule" ? (
+            <EditBlock onCancel={cancelEdit} saving={saving} error={saveError}>
+              <label className="flex flex-col gap-1.5">
+                <span style={fieldLabelStyle}>Event date</span>
+                <input
+                  type="date"
+                  value={draftDate}
+                  onChange={(e) => setDraftDate(e.target.value)}
+                  style={editInputStyle}
+                />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span style={fieldLabelStyle}>Talent needed (qty)</span>
+                <input
+                  type="number"
+                  min={1}
+                  value={draftQuantity}
+                  onChange={(e) => setDraftQuantity(e.target.value)}
+                  placeholder="e.g. 2"
+                  style={editInputStyle}
+                />
+              </label>
+              <button
+                type="button"
+                style={saving ? { ...saveBtn, opacity: 0.6, cursor: "wait" } : saveBtn}
+                disabled={saving}
+                onClick={() =>
+                  save({
+                    event_date: draftDate.trim() || null,
+                    quantity: draftQuantity.trim() ? Number(draftQuantity) : null,
+                  })
+                }
+              >
+                {saving ? "Saving…" : "Save schedule"}
+              </button>
+            </EditBlock>
+          ) : (
+            <>
+              <KV label="Date" value={formatDate(details.schedule.event_date)} fallback="Not set" />
+              <KV label="Time" value={details.schedule.start_time} fallback="—" />
+              <KV label="Duration" value={details.schedule.duration} fallback="—" />
+              <KV
+                label="Status"
+                value={statusLabel(details.schedule.date_status)}
+                fallback="Exact"
+              />
+            </>
+          )}
         </Section>
 
-        <Section title="Location" inline>
-          <KV label="Venue" value={details.location.venue_name} fallback="—" />
-          <KV label="City" value={details.location.city} fallback="—" />
-          <KV label="Country" value={details.location.country} fallback="—" />
-          <KV
-            label="Status"
-            value={statusLabel(details.location.status)}
-            fallback="Unconfirmed"
-            badge={details.location.status === "confirmed" ? "success" : details.location.status === "unconfirmed" ? "warn" : undefined}
-          />
-          {details.location.notes && (
-            <KV label="Notes" value={details.location.notes} multiline />
+        {/* Location — city editable */}
+        <Section
+          title="Location"
+          inline
+          editable={!isLocked}
+          onEdit={() => openEdit("location")}
+          editing={editSection === "location"}
+        >
+          {editSection === "location" ? (
+            <EditBlock onCancel={cancelEdit} saving={saving} error={saveError}>
+              <label className="flex flex-col gap-1.5">
+                <span style={fieldLabelStyle}>City / venue</span>
+                <input
+                  type="text"
+                  value={draftLocation}
+                  onChange={(e) => setDraftLocation(e.target.value)}
+                  placeholder="e.g. Mexico City, MX"
+                  style={editInputStyle}
+                />
+              </label>
+              <button
+                type="button"
+                style={saving ? { ...saveBtn, opacity: 0.6, cursor: "wait" } : saveBtn}
+                disabled={saving}
+                onClick={() => save({ event_location: draftLocation.trim() || null })}
+              >
+                {saving ? "Saving…" : "Save location"}
+              </button>
+            </EditBlock>
+          ) : (
+            <>
+              <KV label="Venue" value={details.location.venue_name} fallback="—" />
+              <KV label="City" value={details.location.city} fallback="—" />
+              <KV label="Country" value={details.location.country} fallback="—" />
+              <KV
+                label="Status"
+                value={statusLabel(details.location.status)}
+                fallback="Unconfirmed"
+                badge={details.location.status === "confirmed" ? "success" : details.location.status === "unconfirmed" ? "warn" : undefined}
+              />
+              {details.location.notes && (
+                <KV label="Notes" value={details.location.notes} multiline />
+              )}
+            </>
           )}
         </Section>
       </SectionGrid>
@@ -443,10 +630,16 @@ function Section({
   title,
   children,
   inline,
+  editable,
+  onEdit,
+  editing,
 }: {
   title: string;
   children: React.ReactNode;
   inline?: boolean;
+  editable?: boolean;
+  onEdit?: () => void;
+  editing?: boolean;
 }) {
   return (
     <section
@@ -459,15 +652,43 @@ function Section({
     >
       <div
         style={{
-          fontSize: 11,
-          fontWeight: 700,
-          color: C.inkMuted,
-          textTransform: "uppercase",
-          letterSpacing: 0.6,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
           marginBottom: 8,
         }}
       >
-        {title}
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            color: C.inkMuted,
+            textTransform: "uppercase",
+            letterSpacing: 0.6,
+          }}
+        >
+          {title}
+        </div>
+        {editable && !editing && onEdit && (
+          <button
+            type="button"
+            onClick={onEdit}
+            style={{
+              background: "transparent",
+              border: `1px solid ${C.border}`,
+              borderRadius: 7,
+              padding: "2px 9px",
+              fontFamily: FONT,
+              fontSize: 11,
+              fontWeight: 600,
+              color: C.inkMuted,
+              cursor: "pointer",
+              letterSpacing: 0.2,
+            }}
+          >
+            Edit
+          </button>
+        )}
       </div>
       <div
         style={{
@@ -479,6 +700,50 @@ function Section({
         {children}
       </div>
     </section>
+  );
+}
+
+// ─── Edit helpers ────────────────────────────────────────────────────────────
+
+function EditBlock({
+  onCancel,
+  saving,
+  error,
+  children,
+}: {
+  onCancel: () => void;
+  saving: boolean;
+  error: string | null;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      {children}
+      {error && (
+        <div style={{ fontSize: 12, color: "#991B1B", padding: "6px 10px", background: "rgba(239,68,68,0.06)", borderRadius: 6 }}>
+          {error}
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={onCancel}
+        disabled={saving}
+        style={{
+          background: "transparent",
+          border: `1px solid ${C.border}`,
+          borderRadius: 7,
+          padding: "5px 12px",
+          fontFamily: FONT,
+          fontSize: 12,
+          fontWeight: 600,
+          color: C.inkMuted,
+          cursor: saving ? "not-allowed" : "pointer",
+          alignSelf: "flex-start",
+        }}
+      >
+        Cancel
+      </button>
+    </div>
   );
 }
 
@@ -714,4 +979,39 @@ const fileRowStyle: React.CSSProperties = {
   textDecoration: "none",
   fontSize: 12.5,
   fontWeight: 500,
+};
+
+// ─── Edit UI styles ──────────────────────────────────────────────────────────
+
+const editInputStyle: React.CSSProperties = {
+  width: "100%",
+  boxSizing: "border-box",
+  padding: "8px 11px",
+  borderRadius: 8,
+  border: `1px solid ${C.border}`,
+  fontFamily: FONT,
+  fontSize: 13,
+  color: C.ink,
+  background: "#fff",
+  outline: "none",
+};
+
+const fieldLabelStyle: React.CSSProperties = {
+  fontSize: 11.5,
+  color: C.inkMuted,
+  fontWeight: 600,
+};
+
+const saveBtn: React.CSSProperties = {
+  height: 34,
+  padding: "0 14px",
+  borderRadius: 8,
+  background: C.accent,
+  color: "#fff",
+  border: "none",
+  cursor: "pointer",
+  fontFamily: FONT,
+  fontSize: 12.5,
+  fontWeight: 600,
+  alignSelf: "flex-start",
 };

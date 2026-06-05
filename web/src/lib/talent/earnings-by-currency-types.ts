@@ -30,7 +30,7 @@ export type TalentEarningsByCurrency = {
 };
 
 export const EMPTY_TALENT_EARNINGS_BY_CURRENCY: TalentEarningsByCurrency = {
-  defaultCurrency: "EUR",
+  defaultCurrency: "USD",
   byCurrency: [],
   currencies: [],
 };
@@ -54,7 +54,7 @@ export function primaryBundleOrEmpty(
     ...EMPTY_TALENT_EARNINGS,
     totals: {
       ...EMPTY_TALENT_EARNINGS.totals,
-      currency: (earningsByCurrency.defaultCurrency || "EUR").toUpperCase(),
+      currency: (earningsByCurrency.defaultCurrency || "USD").toUpperCase(),
     },
   };
 }

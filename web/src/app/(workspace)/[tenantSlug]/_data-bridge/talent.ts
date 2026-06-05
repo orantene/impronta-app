@@ -11,6 +11,12 @@ import {
   loadRepresentation,
   type RepresentationLoadResult,
 } from "@/lib/talent/load-representation";
+import {
+  loadMyOfferApprovalStatus,
+  type TalentOfferApprovalStatus,
+} from "./talent-approvals";
+import { loadCoordinatorInquiriesForUser } from "./talent-coordinator-inquiries";
+import { loadTalentCardThumbs } from "./talent-card-thumbs";
 
 /**
  * _data-bridge/talent.ts — talent-side dashboard loaders.
@@ -135,32 +141,13 @@ export async function loadTalentSelfProfile(
 
     if (rosterErr || !rosterRow) return null;
 
-    // Step 3: Fetch the talent's headshot. Prefer "card" variant; fall back
-    // through public_watermarked → gallery → portfolio → original so the
-    // talent's own dashboard never goes blank if their photo only landed in
-    // a different variant kind.
+    // Step 3: the talent's headshot — via the shared resolver so the dashboard
+    // shows the SAME media-public crop every other surface does (card > hero >
+    // public_watermarked > gallery > original). Fixes the prior inline list
+    // that missed the valid `hero` variant + carried a non-existent `portfolio`.
     const admin = createServiceRoleClient();
     const mediaClient = admin ?? supabase;
-    const { data: mediaRows } = await mediaClient
-      .from("media_assets")
-      .select("storage_path, variant_kind")
-      .eq("owner_talent_profile_id", p.id)
-      .in("variant_kind", ["card", "public_watermarked", "gallery", "portfolio", "original"])
-      .is("deleted_at", null)
-      .order("sort_order", { ascending: true })
-      .order("id", { ascending: true });
-    const variantOrder = ["card", "public_watermarked", "gallery", "portfolio", "original"];
-    const mediaRow = (mediaRows ?? [])
-      .slice()
-      .sort(
-        (a, b) =>
-          variantOrder.indexOf((a as { variant_kind: string }).variant_kind) -
-          variantOrder.indexOf((b as { variant_kind: string }).variant_kind),
-      )[0] as { storage_path: string; variant_kind: string } | undefined ?? null;
-    const BUCKET = "media-public";
-    const headshotUrl = mediaRow?.storage_path
-      ? mediaClient.storage.from(BUCKET).getPublicUrl(mediaRow.storage_path).data.publicUrl
-      : null;
+    const headshotUrl = (await loadTalentCardThumbs(mediaClient, [p.id])).get(p.id) ?? null;
 
     type RosterRaw = {
       status: string;
@@ -273,26 +260,9 @@ export async function loadTalentSelfProfileByUser(
 
     const p = profileRow as unknown as ProfileRaw;
 
-    const { data: mediaRows } = await trusted
-      .from("media_assets")
-      .select("storage_path, variant_kind")
-      .eq("owner_talent_profile_id", p.id)
-      .in("variant_kind", ["card", "public_watermarked", "gallery", "portfolio", "original"])
-      .is("deleted_at", null)
-      .order("sort_order", { ascending: true })
-      .order("id", { ascending: true });
-    const variantOrder = ["card", "public_watermarked", "gallery", "portfolio", "original"];
-    const mediaRow = (mediaRows ?? [])
-      .slice()
-      .sort(
-        (a, b) =>
-          variantOrder.indexOf((a as { variant_kind: string }).variant_kind) -
-          variantOrder.indexOf((b as { variant_kind: string }).variant_kind),
-      )[0] as { storage_path: string; variant_kind: string } | undefined ?? null;
-    const BUCKET = "media-public";
-    const headshotUrl = mediaRow?.storage_path
-      ? trusted.storage.from(BUCKET).getPublicUrl(mediaRow.storage_path).data.publicUrl
-      : null;
+    // Headshot via the shared resolver (card > hero > … — see the sibling
+    // loader above), so this surface matches every other and picks up `hero`.
+    const headshotUrl = (await loadTalentCardThumbs(trusted, [p.id])).get(p.id) ?? null;
 
     const displayName =
       p.display_name?.trim() ||
@@ -360,6 +330,24 @@ export type TalentInquiryRow = {
    * the agency's existing direct funnel.
    */
   sourceChannel: string | null;
+  /**
+   * Audit #12 — THIS talent's own approval status on the inquiry's CURRENT
+   * offer (from `inquiry_approvals`, the corrected audit-#1 set). `accepted`
+   * means the talent has already approved the live offer, so the thread must
+   * stop re-showing "Approve offer" while the multi-party gate keeps the
+   * inquiry open. Null when there is no live offer / no approval row yet.
+   */
+  myApprovalStatus: TalentOfferApprovalStatus | null;
+  /**
+   * Hub self-coordination (2026-06-02) — true when this talent ALSO holds a
+   * `role='coordinator'` participant row on the inquiry (an independent /
+   * open-hub booking they run themselves, or one an agency added them to as
+   * a coordinator). Drives the talent shell's coordinator surfaces (the
+   * client/private sub-thread, lineup edit, offers) via `conv.iAmCoordinator`.
+   * The RLS `inquiry_participants_talent_select` only returns `role='talent'`
+   * rows, so the coordinator role is resolved with a service-role lookup.
+   */
+  iAmCoordinator: boolean;
 };
 
 // Cross-agency unified inbox loader (and its row type) moved to
@@ -429,6 +417,7 @@ export async function loadTalentInquiries(
     const { data, error } = await supabase
       .from("inquiry_participants")
       .select(`
+        id,
         status,
         inquiries!inner (
           id,
@@ -442,7 +431,8 @@ export async function loadTalentInquiries(
           updated_at,
           tenant_id,
           trust_level_at_submission,
-          source_channel
+          source_channel,
+          current_offer_id
         )
       `)
       .eq("talent_profile_id", talentProfileId)
@@ -458,6 +448,8 @@ export async function loadTalentInquiries(
     }
 
     type PartRow = {
+      /** inquiry_participants.id — this talent's participant row (audit #12). */
+      id: string;
       status: string;
       inquiries: {
         id: string;
@@ -471,26 +463,85 @@ export async function loadTalentInquiries(
         updated_at: string;
         trust_level_at_submission: "basic" | "verified" | "silver" | "gold" | null;
         source_channel: string | null;
+        current_offer_id: string | null;
       } | null;
     };
 
-    const rows = ((data ?? []) as unknown as PartRow[])
-      .filter((r) => r.inquiries)
-      .map((r) => ({
-        id: r.inquiries!.id,
-        status: r.inquiries!.status,
-        contact_name: r.inquiries!.contact_name,
-        company: r.inquiries!.company,
-        message: r.inquiries!.message,
-        event_date: r.inquiries!.event_date,
-        event_location: r.inquiries!.event_location,
-        created_at: r.inquiries!.created_at,
-        updated_at: r.inquiries!.updated_at,
-        participantStatus: r.status,
-        unreadCount: 0,
-        trustLevel: r.inquiries!.trust_level_at_submission ?? null,
-        sourceChannel: r.inquiries!.source_channel ?? null,
-      }));
+    const partRows = ((data ?? []) as unknown as PartRow[]).filter((r) => r.inquiries);
+
+    // Audit #12 — read THIS talent's own approval status on each inquiry's
+    // current offer (keyed on the participant + current offer, the corrected
+    // audit-#1 set) so the thread can stop re-showing "Approve offer" after
+    // the talent has already approved while the multi-party gate keeps the
+    // inquiry open.
+    const approvalByInquiry = await loadMyOfferApprovalStatus(
+      supabase,
+      partRows.map((r) => ({
+        inquiryId: r.inquiries!.id,
+        participantId: r.id,
+        currentOfferId: r.inquiries!.current_offer_id,
+      })),
+    );
+
+    const rows = partRows.map((r) => ({
+      id: r.inquiries!.id,
+      status: r.inquiries!.status,
+      contact_name: r.inquiries!.contact_name,
+      company: r.inquiries!.company,
+      message: r.inquiries!.message,
+      event_date: r.inquiries!.event_date,
+      event_location: r.inquiries!.event_location,
+      created_at: r.inquiries!.created_at,
+      updated_at: r.inquiries!.updated_at,
+      participantStatus: r.status,
+      unreadCount: 0,
+      trustLevel: r.inquiries!.trust_level_at_submission ?? null,
+      sourceChannel: r.inquiries!.source_channel ?? null,
+      myApprovalStatus: approvalByInquiry.get(r.inquiries!.id) ?? null,
+      // Flipped to true below when the talent ALSO coordinates this inquiry.
+      iAmCoordinator: false,
+    }));
+
+    // Hub self-coordination (2026-06-02) — surface the talent's COORDINATOR
+    // role. A talent who also runs a booking as its coordinator (an
+    // independent / open-hub inquiry the engine auto-promotes them on, or one
+    // an agency adds them to) would otherwise never get coordinator
+    // capabilities here, because RLS talent-select only returns `role='talent'`
+    // rows. loadCoordinatorInquiriesForUser resolves it via service-role; we
+    // then (a) flip `iAmCoordinator` on lineup rows the talent also
+    // coordinates and (b) append coordinator-only inquiries they don't perform.
+    if (myUserId) {
+      const coordInquiries = await loadCoordinatorInquiriesForUser(myUserId, tenantId);
+      const coordIds = new Set(coordInquiries.map((i) => i.id));
+      for (const row of rows) {
+        if (coordIds.has(row.id)) row.iAmCoordinator = true;
+      }
+      const seenIds = new Set(rows.map((r) => r.id));
+      for (const i of coordInquiries) {
+        if (seenIds.has(i.id)) continue;
+        seenIds.add(i.id);
+        rows.push({
+          id: i.id,
+          status: i.status,
+          contact_name: i.contact_name,
+          company: i.company,
+          message: i.message,
+          event_date: i.event_date,
+          event_location: i.event_location,
+          created_at: i.created_at,
+          updated_at: i.updated_at,
+          participantStatus: "active",
+          unreadCount: 0,
+          trustLevel: i.trust_level_at_submission ?? null,
+          sourceChannel: i.source_channel ?? null,
+          myApprovalStatus: null,
+          iAmCoordinator: true,
+        });
+      }
+      rows.sort((a, b) =>
+        a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0,
+      );
+    }
 
     if (!myUserId || rows.length === 0) return rows;
 

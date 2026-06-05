@@ -64,6 +64,61 @@ export type OwningParty = {
 const EXCLUSIVE_PLAN_TIERS = new Set<string>(["studio", "agency", "network", "hub-network"]);
 
 /**
+ * Roster exclusivity_status values that mean the talent is NOT (or no longer)
+ * exclusively bound, even on an exclusive-tier agency: they declined the
+ * auto-assigned exclusivity, or they're serving notice to leave. Such a row is
+ * treated as non-exclusive so a hub inquiry can self-coordinate.
+ */
+const NON_EXCLUSIVE_STATUSES = new Set<string>(["declined", "notice_period"]);
+
+/**
+ * Open-marketplace source channels: the inquiry was brokered by the Tulala hub
+ * (Discover, public directory, a talent's public hub profile), NOT through a
+ * specific agency's own storefront/admin. A non-exclusive rostered talent
+ * self-coordinates these (owning_party = talent); an exclusive talent still
+ * routes to their agency. Agency-brokered channels (agency_site, admin_*, pitch,
+ * form, phone) are NOT hub-sourced — they keep the workspace as owner.
+ *
+ * Prefix matches (`discover_`, `directory_`) catch current + future variants;
+ * the explicit set covers the rest. New hub channels should match a prefix or be
+ * added here, else a non-exclusive talent inquired via that channel will wrongly
+ * route to the workspace instead of self-coordinating.
+ */
+export function isHubSourcedChannel(sourceChannel: string | null | undefined): boolean {
+  if (!sourceChannel) return false;
+  const c = sourceChannel.toLowerCase();
+  return (
+    c.startsWith("discover_") ||
+    c.startsWith("directory_") ||
+    c === "public_directory" ||
+    c === "public_talent_profile" ||
+    c === "hub"
+  );
+}
+
+type AgencyEmbed =
+  | { id?: string; plan_tier: string | null }
+  | { id?: string; plan_tier: string | null }[]
+  | null;
+
+/**
+ * A roster row confers exclusivity when the talent is the agency's PRIMARY
+ * roster member, the agency is on an exclusive-tier plan, and the exclusivity
+ * relationship hasn't been declined / isn't in its notice period.
+ */
+function rowIsExclusive(
+  isPrimary: boolean,
+  exclusivityStatus: string | null | undefined,
+  agencies: AgencyEmbed,
+): boolean {
+  if (!isPrimary) return false;
+  if (exclusivityStatus && NON_EXCLUSIVE_STATUSES.has(exclusivityStatus)) return false;
+  const agency = Array.isArray(agencies) ? agencies[0] : agencies;
+  const planTier = agency?.plan_tier ?? null;
+  return !!planTier && EXCLUSIVE_PLAN_TIERS.has(planTier);
+}
+
+/**
  * Resolve the owning party for a single talent.
  *
  * Returns null only on infrastructure failure (DB error). Callers
@@ -75,11 +130,24 @@ const EXCLUSIVE_PLAN_TIERS = new Set<string>(["studio", "agency", "network", "hu
 export async function resolveOwningPartyForTalent(
   supabase: SupabaseClient,
   talentProfileId: string,
+  /**
+   * The inquiry's tenant (`inquiries.tenant_id`). When provided, the resolver
+   * is SOURCE-AWARE for non-exclusive talents: an inquiry that arrived through
+   * a tenant the talent is rostered on (an agency's own storefront) is owned by
+   * that workspace; an inquiry that arrived through any other tenant — the open
+   * Tulala hub — is owned by the talent (self-coordinate). Omit for the legacy
+   * source-blind behavior (first active roster row wins).
+   */
+  inquiryTenantId?: string | null,
+  /** See {@link resolveOwningPartiesForTalents}. Open-hub source → non-exclusive
+   *  talents self-coordinate regardless of tenant. Takes precedence over
+   *  inquiryTenantId. */
+  hubSourced?: boolean,
 ): Promise<OwningParty | null> {
   // 1 + 2: any active roster row for this talent.
   const { data: rosterRows, error } = await supabase
     .from("agency_talent_roster")
-    .select("tenant_id, is_primary, status, agencies:tenant_id ( id, plan_tier )")
+    .select("tenant_id, is_primary, status, exclusivity_status, agencies:tenant_id ( id, plan_tier )")
     .eq("talent_profile_id", talentProfileId)
     .in("status", ["active", "pending"]);
 
@@ -92,12 +160,8 @@ export async function resolveOwningPartyForTalent(
     tenant_id: string;
     is_primary: boolean;
     status: string;
-    // Supabase typed-select returns either a single row or an array
-    // depending on the FK direction. We accept both.
-    agencies:
-      | { id: string; plan_tier: string | null }
-      | { id: string; plan_tier: string | null }[]
-      | null;
+    exclusivity_status: string | null;
+    agencies: AgencyEmbed;
   };
   const rows = (rosterRows ?? []) as Row[];
 
@@ -106,20 +170,33 @@ export async function resolveOwningPartyForTalent(
     return { type: "talent", id: talentProfileId };
   }
 
-  // Look for a primary on an exclusive-tier plan.
+  // 1. Exclusive agency — source-independent (the VIP manager always owns it).
   for (const row of rows) {
-    if (!row.is_primary) continue;
-    const agency = Array.isArray(row.agencies) ? row.agencies[0] : row.agencies;
-    const planTier = agency?.plan_tier ?? null;
-    if (planTier && EXCLUSIVE_PLAN_TIERS.has(planTier)) {
+    if (rowIsExclusive(row.is_primary, row.exclusivity_status, row.agencies)) {
       return { type: "agency", id: row.tenant_id };
     }
   }
 
-  // No primary on an exclusive tier. Pick the first active row as the
-  // workspace owner. This matches the single-tenant "friend link" case
-  // where a Free workspace operationally owns the relationship without
-  // exclusivity.
+  // 2. Hub-sourced: non-exclusive talent self-coordinates regardless of which
+  // workspace they're rostered on (single-tenant setups share tenant_id between
+  // hub + agency, so source_channel is the only reliable signal).
+  if (hubSourced) {
+    return { type: "talent", id: talentProfileId };
+  }
+
+  // 3. Non-exclusive. When the inquiry source (its tenant) is known, route by
+  // it: an agency's own storefront (a tenant the talent is rostered on) owns
+  // the relationship; the open hub (any other tenant) hands it to the talent.
+  if (inquiryTenantId) {
+    if (rows.some((r) => r.tenant_id === inquiryTenantId)) {
+      return { type: "workspace", id: inquiryTenantId };
+    }
+    return { type: "talent", id: talentProfileId };
+  }
+
+  // Legacy (no source context). Pick the first active row as the workspace
+  // owner — the single-tenant "friend link" case where a Free workspace
+  // operationally owns the relationship without exclusivity.
   const firstActive = rows.find((r) => r.status === "active") ?? rows[0];
   return { type: "workspace", id: firstActive.tenant_id };
 }
@@ -135,13 +212,25 @@ export async function resolveOwningPartyForTalent(
 export async function resolveOwningPartiesForTalents(
   supabase: SupabaseClient,
   talentProfileIds: string[],
+  /** The inquiry's tenant — see `resolveOwningPartyForTalent`. When provided,
+   *  the resolver is source-aware for non-exclusive talents. */
+  inquiryTenantId?: string | null,
+  /**
+   * When true the inquiry arrived via the open Tulala hub (Discover / shortlist /
+   * direct-hub link), NOT through any specific agency's own storefront. Non-exclusive
+   * rostered talents self-coordinate on hub-sourced inquiries regardless of which
+   * workspace they're rostered on — the same as if they had no roster at all.
+   * Exclusive agency talents are unaffected (the agency always owns them).
+   * Takes precedence over inquiryTenantId for non-exclusive resolution.
+   */
+  hubSourced?: boolean,
 ): Promise<Map<string, OwningParty>> {
   const out = new Map<string, OwningParty>();
   if (talentProfileIds.length === 0) return out;
 
   const { data, error } = await supabase
     .from("agency_talent_roster")
-    .select("tenant_id, talent_profile_id, is_primary, status, agencies:tenant_id ( id, plan_tier )")
+    .select("tenant_id, talent_profile_id, is_primary, status, exclusivity_status, agencies:tenant_id ( id, plan_tier )")
     .in("talent_profile_id", talentProfileIds)
     .in("status", ["active", "pending"]);
 
@@ -159,10 +248,8 @@ export async function resolveOwningPartiesForTalents(
     talent_profile_id: string;
     is_primary: boolean;
     status: string;
-    agencies:
-      | { id: string; plan_tier: string | null }
-      | { id: string; plan_tier: string | null }[]
-      | null;
+    exclusivity_status: string | null;
+    agencies: AgencyEmbed;
   };
   const rows = (data ?? []) as Row[];
 
@@ -180,21 +267,34 @@ export async function resolveOwningPartiesForTalents(
       out.set(talentId, { type: "talent", id: talentId });
       continue;
     }
-    // Primary on exclusive tier?
-    let placed = false;
-    for (const row of myRows) {
-      if (!row.is_primary) continue;
-      const agency = Array.isArray(row.agencies) ? row.agencies[0] : row.agencies;
-      const planTier = agency?.plan_tier ?? null;
-      if (planTier && EXCLUSIVE_PLAN_TIERS.has(planTier)) {
-        out.set(talentId, { type: "agency", id: row.tenant_id });
-        placed = true;
-        break;
-      }
+    // 1. Exclusive agency — source-independent.
+    const exclusive = myRows.find((row) =>
+      rowIsExclusive(row.is_primary, row.exclusivity_status, row.agencies),
+    );
+    if (exclusive) {
+      out.set(talentId, { type: "agency", id: exclusive.tenant_id });
+      continue;
     }
-    if (placed) continue;
-
-    // Fall back to workspace = first active row.
+    // 2. Hub-sourced: non-exclusive talent self-coordinates regardless of which
+    // workspace they're rostered on. In single-tenant setups the hub shares the
+    // same tenant_id as the agency, so source_channel is the only reliable
+    // signal — which the caller translates into this flag.
+    if (hubSourced) {
+      out.set(talentId, { type: "talent", id: talentId });
+      continue;
+    }
+    // 3. Non-exclusive — source-aware when the inquiry's tenant is known:
+    // rostered on it (agency storefront) → workspace; else (open hub) → talent.
+    if (inquiryTenantId) {
+      out.set(
+        talentId,
+        myRows.some((r) => r.tenant_id === inquiryTenantId)
+          ? { type: "workspace", id: inquiryTenantId }
+          : { type: "talent", id: talentId },
+      );
+      continue;
+    }
+    // Legacy (no source context) — first active row.
     const firstActive = myRows.find((r) => r.status === "active") ?? myRows[0];
     out.set(talentId, { type: "workspace", id: firstActive.tenant_id });
   }

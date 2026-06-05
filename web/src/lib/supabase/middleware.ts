@@ -7,6 +7,7 @@ import {
   shouldAttachAuthDebug,
 } from "@/lib/auth-routing";
 import { IMPERSONATION_COOKIE_NAME } from "@/lib/impersonation/constants";
+import { signGuestCookie, verifyGuestCookie } from "@/lib/guest-cookie";
 import { clearImpersonationCookieOnResponse } from "@/lib/impersonation/cookie";
 import { resolveImpersonationRoutingForMiddleware } from "@/lib/impersonation/dashboard-identity";
 import { NextRequest, NextResponse } from "next/server";
@@ -51,6 +52,7 @@ const ACTOR_HEADERS_TO_STRIP = [
   ACTOR_ONBOARDED_HEADER,
 ];
 
+
 export async function updateSession(
   request: NextRequest,
   options?: { pathnameForAuth?: string; languageSettings?: LanguageSettings },
@@ -58,9 +60,19 @@ export async function updateSession(
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  const cookieGuest = request.cookies.get(GUEST_COOKIE)?.value;
-  const guestKey = cookieGuest ?? crypto.randomUUID();
-  const needsGuestCookie = !cookieGuest;
+  // The `impronta_guest` cookie is an HMAC-signed bearer token
+  // (`${id}.${sig}`). Verify the inbound value before trusting it: a valid
+  // signature yields the PLAIN id (forwarded downstream); an invalid OR
+  // legacy-unsigned value is treated as absent so we mint a fresh signed
+  // cookie + new id. When GUEST_COOKIE_SECRET is unset, verify/sign degrade
+  // to the legacy raw-UUID behavior (see @/lib/guest-cookie).
+  const rawGuestCookie = request.cookies.get(GUEST_COOKIE)?.value;
+  const verifiedGuestId = verifyGuestCookie(rawGuestCookie);
+  const guestKey = verifiedGuestId ?? crypto.randomUUID();
+  // Re-mint the cookie whenever the inbound value didn't verify to the exact
+  // plain id we'll forward (absent, forged, or legacy-unsigned). When the
+  // signature is valid we leave the existing signed cookie in place.
+  const needsGuestCookie = verifiedGuestId === null || rawGuestCookie !== signGuestCookie(guestKey);
 
   const pathnameForAuth = options?.pathnameForAuth ?? request.nextUrl.pathname;
   const lang = options?.languageSettings ?? FALLBACK_LANGUAGE_SETTINGS;
@@ -88,9 +100,12 @@ export async function updateSession(
 
   const authDebugEnabled = shouldAttachAuthDebug(request.nextUrl.searchParams);
 
+  // Store the SIGNED token in the cookie; the PLAIN id travels downstream via
+  // the x-impronta-guest header (set on forwardedHeaders above).
+  const signedGuestCookie = signGuestCookie(guestKey);
   const attachGuestCookie = (res: NextResponse) => {
     if (needsGuestCookie) {
-      res.cookies.set(GUEST_COOKIE, guestKey, guestCookieOptions);
+      res.cookies.set(GUEST_COOKIE, signedGuestCookie, guestCookieOptions);
     }
     return res;
   };
@@ -138,9 +153,85 @@ export async function updateSession(
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // A stale/invalid refresh token makes `getUser()` FAIL (and sometimes throw)
+  // on every request; `.catch` normalizes a throw into the same logged-out
+  // `{ data, error }` shape so the code below treats it as "no user".
+  const authResult = await supabase.auth
+    .getUser()
+    .catch((authThrow: unknown) => ({
+      data: { user: null },
+      error: authThrow,
+    }));
+  const user = authResult.data.user;
+
+  // Auth resilience: when the refresh token is UNRECOVERABLE, the stale auth
+  // cookie is never removed, so the user gets STUCK — every request fails and
+  // even re-login bounces straight back to /login. Expire the Supabase auth
+  // cookies so the browser returns to a clean logged-out state and login works
+  // again.
+  //
+  // CRITICAL — only self-heal on the auth-ENTRY routes (/login, /register),
+  // where there is by definition no in-use session to protect. Clearing on a
+  // normal app route is catastrophic: a single request that transiently reads a
+  // STALE/ORPHAN auth cookie makes getUser fail, and clearing then nukes the
+  // *valid* fresh session too — bouncing the user to /login mid-use (the
+  // ~40s-after-login death). Gating to the login page keeps the recovery
+  // without ever logging an active session out on an app route.
+  //
+  // The trigger is "an `sb-…-auth-token` cookie is present but produced NO
+  // user". On /login that is an unambiguous signal of a BROKEN cookie that must
+  // be swept so the next sign-in starts clean. It covers every way the cookie
+  // can rot, not just one error string:
+  //   - ORPHAN EMPTY CHUNKS: a session that shrank from chunked→unchunked leaves
+  //     `…-auth-token.0`/`.1` = "" beside a valid base cookie; @supabase/ssr
+  //     reconstructs the session from the empty chunks → invalid (the bug proven
+  //     live: chunks="" while base held a real JWT).
+  //   - CROSS-SCOPE DUPLICATES: a legacy host-only cookie shadowing the
+  //     canonical `.tulala.digital` one (browser sends both, server reads the
+  //     stale/expired one — proven live: an 8h-expired session from a different
+  //     account read instead of the fresh login).
+  //   - plainly expired / malformed cookies.
+  // A brand-new visitor (no cookie) → no-op. A validly logged-in visitor →
+  // `user` is set → not cleared, just routed to their dashboard.
+  // clearStaleAuthCookies expires BOTH cookie scopes (host-only + parent-domain)
+  // and every chunk name, applied to the redirect AND the passthrough below.
+  const isAuthEntryRoute = /\/(login|register)\/?$/.test(pathnameForAuth);
+  const hasStaleAuthCookie = request.cookies
+    .getAll()
+    .some((c) => isSupabaseAuthCookie(c.name));
+  const shouldClearStaleAuth = !user && isAuthEntryRoute && hasStaleAuthCookie;
+  const clearStaleAuthCookies = (res: NextResponse): NextResponse => {
+    if (!shouldClearStaleAuth) return res;
+    const names = new Set<string>();
+    for (const c of request.cookies.getAll()) {
+      if (isSupabaseAuthCookie(c.name)) names.add(c.name);
+    }
+    for (const name of names) {
+      // Expire BOTH the parent-domain AND the host-only scope. A stale cookie
+      // can live at EITHER scope: orphan/expired cookies written by the app are
+      // parent-domain (`.tulala.digital`); a LEGACY cookie from before
+      // parent-domain scoping is HOST-ONLY. The browser may read either, so both
+      // must be swept or the survivor keeps poisoning the read.
+      //
+      // `NextResponse.cookies` is keyed by NAME (a 2nd set() for the same name
+      // REPLACES the 1st), so the cookies API can only carry one scope per name.
+      // Use it for the parent-domain deletion (it round-trips through proxy.ts's
+      // `sessionRes.cookies` copy on rewrite paths), and append the host-only
+      // deletion as a separate raw Set-Cookie header.
+      if (authCookieDomain) {
+        res.cookies.set(name, "", {
+          maxAge: 0,
+          path: "/",
+          domain: authCookieDomain,
+        });
+        res.headers.append("set-cookie", `${name}=; Path=/; Max-Age=0`);
+      } else {
+        // Host-only hosts (custom domains, localhost): one host-only deletion.
+        res.cookies.set(name, "", { maxAge: 0, path: "/" });
+      }
+    }
+    return res;
+  };
 
   const pathname = pathnameForAuth;
 
@@ -274,10 +365,14 @@ export async function updateSession(
       redirectUrl.searchParams.set("next", decision.loginNext);
     }
 
-    return applyImpersonationCookieClear(
-      attachAuthDebug(attachGuestCookie(NextResponse.redirect(redirectUrl))),
+    return clearStaleAuthCookies(
+      applyImpersonationCookieClear(
+        attachAuthDebug(attachGuestCookie(NextResponse.redirect(redirectUrl))),
+      ),
     );
   }
 
-  return applyImpersonationCookieClear(attachAuthDebug(supabaseResponse));
+  return clearStaleAuthCookies(
+    applyImpersonationCookieClear(attachAuthDebug(supabaseResponse)),
+  );
 }

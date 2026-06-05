@@ -21,6 +21,8 @@ import { NextResponse } from "next/server";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
+import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
 
 export const runtime = "nodejs";
 
@@ -100,7 +102,7 @@ export async function POST(req: Request) {
   // and be active.
   const { data: section } = await admin
     .from("cms_sections")
-    .select("id, tenant_id, section_type_key, archived_at")
+    .select("id, tenant_id, name, section_type_key, archived_at")
     .eq("id", sectionId)
     .maybeSingle();
   if (!section || section.archived_at) {
@@ -120,48 +122,85 @@ export async function POST(req: Request) {
   }
 
   // Phase 8 — captcha validation. Caller can include `h-captcha-response`
-  // (hCaptcha) or `cf-turnstile-response` (Cloudflare Turnstile). When the
-  // matching server-side secret is configured, validate the token; when
-  // absent, treat the captcha as a no-op so a misconfigured tenant still
-  // gets submissions through (honeypot + rate-limit are the floor).
+  // (hCaptcha) or `cf-turnstile-response` (Cloudflare Turnstile). We resolve
+  // the SINGLE provider that is active for this tenant and verify against it,
+  // failing CLOSED on a missing/empty token or a vault error. A captcha that
+  // resolves to provider 'none' (no tenant config AND no platform secret) is
+  // simply not enforced — honeypot + rate-limit remain the floor.
   const hcaptchaToken = typeof payload["h-captcha-response"] === "string" ? (payload["h-captcha-response"] as string) : "";
   const turnstileToken = typeof payload["cf-turnstile-response"] === "string" ? (payload["cf-turnstile-response"] as string) : "";
   delete payload["h-captcha-response"];
   delete payload["cf-turnstile-response"];
 
-  const hcaptchaSecret = process.env.HCAPTCHA_SECRET;
-  const turnstileSecret = process.env.TURNSTILE_SECRET;
-  let captchaOk = true;
-  if (hcaptchaSecret && hcaptchaToken) {
+  // Resolve the RESOLVED provider + secret for this tenant. Tenant-owned
+  // (their chosen provider + their secret) takes precedence; otherwise the
+  // platform provider from env. When the tenant owns the captcha we ONLY honor
+  // their chosen provider — the other provider's secret is nulled so an
+  // attacker can't pass by solving the platform's other widget.
+  const tenantCaptcha = await resolveTenantCaptcha(section.tenant_id);
+
+  const captchaRejection = NextResponse.json(
+    { ok: false, error: "Captcha failed — please try again." },
+    { status: 400 },
+  );
+
+  if (tenantCaptcha.provider === "none") {
+    // No tenant config AND no platform secret → captcha not enforced.
+  } else {
+    // Resolve the secret for the chosen provider.
+    let secret: string | null = null;
+    if (tenantCaptcha.tenantOwned) {
+      // FAIL CLOSED on a vault decrypt error / missing secret — do NOT fall
+      // through to the platform env secret (that would defeat tenant isolation
+      // and let an attacker pass by solving a different secret's challenge).
+      secret = await tenantCaptcha.getSecret();
+    } else {
+      secret =
+        tenantCaptcha.provider === "hcaptcha"
+          ? process.env.HCAPTCHA_SECRET?.trim() || null
+          : process.env.TURNSTILE_SECRET?.trim() || null;
+    }
+
+    if (!secret) {
+      // An active provider with no resolvable secret = misconfiguration; fail
+      // closed rather than silently letting bots through.
+      return captchaRejection;
+    }
+
+    // The token that matches the resolved provider. A missing/empty token for
+    // an ACTIVE provider is a HARD REJECT — never skip verification.
+    const token =
+      tenantCaptcha.provider === "hcaptcha" ? hcaptchaToken : turnstileToken;
+    if (!token) {
+      return captchaRejection;
+    }
+
+    let captchaOk = false;
     try {
-      const r = await fetch("https://api.hcaptcha.com/siteverify", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ secret: hcaptchaSecret, response: hcaptchaToken }),
-      });
-      const j = (await r.json()) as { success?: boolean };
-      captchaOk = j.success === true;
+      if (tenantCaptcha.provider === "hcaptcha") {
+        const r = await fetch("https://api.hcaptcha.com/siteverify", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({ secret, response: token }),
+        });
+        const j = (await r.json()) as { success?: boolean };
+        captchaOk = j.success === true;
+      } else {
+        const r = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({ secret, response: token, remoteip: ip === "unknown" ? "" : ip }),
+        });
+        const j = (await r.json()) as { success?: boolean };
+        captchaOk = j.success === true;
+      }
     } catch {
       captchaOk = false;
     }
-  } else if (turnstileSecret && turnstileToken) {
-    try {
-      const r = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ secret: turnstileSecret, response: turnstileToken, remoteip: ip === "unknown" ? "" : ip }),
-      });
-      const j = (await r.json()) as { success?: boolean };
-      captchaOk = j.success === true;
-    } catch {
-      captchaOk = false;
+
+    if (!captchaOk) {
+      return captchaRejection;
     }
-  }
-  if (!captchaOk) {
-    return NextResponse.json(
-      { ok: false, error: "Captcha failed — please try again." },
-      { status: 400 },
-    );
   }
 
   // Project email + name when present (cheap admin-list field).
@@ -174,19 +213,24 @@ export async function POST(req: Request) {
       ? payload.name.slice(0, 200)
       : null;
 
+  let submissionId: string | null = null;
   try {
-    const { error } = await admin.from("cms_form_submissions").insert({
-      tenant_id: section.tenant_id,
-      section_id: section.id,
-      payload_jsonb: payload,
-      contact_email: contactEmail,
-      contact_name: contactName,
-      source_url: req.headers.get("referer") ?? null,
-      user_agent: req.headers.get("user-agent")?.slice(0, 400) ?? null,
-      ip_address: ip === "unknown" ? null : ip,
-      honeypot_tripped: tripped,
-      status: tripped ? "spam" : "new",
-    });
+    const { data: insertedRow, error } = await admin
+      .from("cms_form_submissions")
+      .insert({
+        tenant_id: section.tenant_id,
+        section_id: section.id,
+        payload_jsonb: payload,
+        contact_email: contactEmail,
+        contact_name: contactName,
+        source_url: req.headers.get("referer") ?? null,
+        user_agent: req.headers.get("user-agent")?.slice(0, 400) ?? null,
+        ip_address: ip === "unknown" ? null : ip,
+        honeypot_tripped: tripped,
+        status: tripped ? "spam" : "new",
+      })
+      .select("id")
+      .single();
     if (error) {
       logServerError("cms-forms/submit", error);
       return NextResponse.json(
@@ -194,12 +238,54 @@ export async function POST(req: Request) {
         { status: 500 },
       );
     }
+    submissionId = (insertedRow as { id: string } | null)?.id ?? null;
   } catch (err) {
     logServerError("cms-forms/submit", err);
     return NextResponse.json(
       { ok: false, error: "Couldn't record submission." },
       { status: 500 },
     );
+  }
+
+  // Email-on-submit: fire-and-forget to workspace admins.
+  // Only for genuine submissions (honeypot_tripped = false).
+  // We need the tenant slug for the inbox URL — fetch it from agencies.
+  if (!tripped && submissionId) {
+    try {
+      const { data: agencyRow } = await admin
+        .from("agencies")
+        .select("slug")
+        .eq("id", section.tenant_id)
+        .maybeSingle();
+      const tenantSlug = (agencyRow as { slug: string } | null)?.slug ?? "admin";
+
+      // Project the payload as label→value pairs (cap at 8, exclude reserved keys).
+      const RESERVED_KEYS = new Set(["email", "name", "phone"]);
+      const payloadFields: Array<{ label: string; value: string }> = Object.entries(payload)
+        .filter(([k]) => !RESERVED_KEYS.has(k))
+        .slice(0, 8)
+        .map(([k, v]) => ({ label: k, value: String(v).slice(0, 500) }));
+
+      const submittedAt = new Date().toISOString();
+      void dispatchEventNotifications({
+        type: "cms_form.submitted",
+        tenantId: section.tenant_id,
+        eventId: submissionId, // stable idempotency anchor = the row id
+        payload: {
+          formName: (section as { name: string }).name,
+          sectionId: section.id,
+          submissionId,
+          contactName: contactName ?? null,
+          contactEmail: contactEmail ?? null,
+          submittedAt,
+          tenantSlug,
+          payloadFields,
+        },
+      });
+    } catch (err) {
+      // Notification dispatch is best-effort; never block the response.
+      logServerError("cms-forms/notify", err);
+    }
   }
 
   // Native HTML form submissions expect a redirect; programmatic

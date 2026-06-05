@@ -52,7 +52,7 @@
  * doesn't manage state — that lives in the consumer (or in EditContext).
  */
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, type ComponentType, type ReactNode } from "react";
 
 import {
   CHROME,
@@ -60,6 +60,7 @@ import {
   DRAWER_WIDTHS,
   type DrawerKind,
 } from "./tokens";
+import { useFloatingDrag, FloatingDragHandle } from "../floating-panel";
 
 // ── Drawer ──────────────────────────────────────────────────────────────────
 
@@ -90,6 +91,25 @@ interface DrawerProps {
    * focus inside the drawer — see DRAWER-MUTEX.md.
    */
   restoreFocusOnClose?: boolean;
+  /**
+   * Render as a Paint-style FLOATING, DRAGGABLE card (detached from the right
+   * edge, rounded, with a grip handle) instead of the default edge-anchored
+   * slide-in rail. Opt-in — every existing drawer stays edge-anchored. The drag
+   * offset is session-only (snaps back home on refresh).
+   */
+  floating?: boolean;
+  /** Label shown on the floating drag handle (e.g. "Inspector"). */
+  floatLabel?: string;
+  /**
+   * Opt this floating drawer into the Photoshop-style dockable workspace under
+   * a stable panel id ("inspector"). When set (and an `EditProvider` is
+   * mounted), the drawer's position is captured by the topbar Pin control,
+   * restores from the pinned layout on refresh, returns home on Reset, and
+   * magnet-snaps to screen edges + sibling panels while dragging. Omit it and
+   * the floating drawer stays session-only (unchanged) — every drawer except
+   * the inspector leaves this unset.
+   */
+  floatPanelId?: string;
   className?: string;
   children: ReactNode;
 }
@@ -103,10 +123,15 @@ export function Drawer({
   zIndex = 80,
   topPx = 52,
   restoreFocusOnClose = true,
+  floating = false,
+  floatLabel,
+  floatPanelId,
   className,
   children,
 }: DrawerProps) {
   const priorFocusRef = useRef<HTMLElement | null>(null);
+  const float = useFloatingDrag({ panelId: floatPanelId });
+  const floatingMoved = float.offset.x !== 0 || float.offset.y !== 0;
 
   useEffect(() => {
     if (!restoreFocusOnClose) return;
@@ -146,6 +171,56 @@ export function Drawer({
       : typeof width === "number"
         ? `${width}px`
         : `${DRAWER_WIDTHS[kind]}px`;
+
+  // Floating, draggable variant (opt-in) — a detached rounded card with a grip
+  // handle, instead of the edge-anchored slide rail. Fullscreen ignores floating
+  // (it takes over the whole canvas, where a movable card makes no sense).
+  if (floating && width !== "fullscreen") {
+    return (
+      <aside
+        ref={(node) => float.setPanelNode(node)}
+        data-edit-drawer={kind}
+        data-edit-drawer-floating=""
+        data-edit-float-panel-id={floatPanelId}
+        data-testid={testId}
+        aria-labelledby={ariaLabelledBy}
+        aria-hidden={!open}
+        className={`fixed flex flex-col font-sans ${className ?? ""}`}
+        style={{
+          top: 66,
+          right: 14,
+          maxHeight: "calc(100vh - 84px)",
+          width: resolvedWidth,
+          background: CHROME.paper2,
+          border: `1px solid ${CHROME.line}`,
+          borderRadius: 16,
+          boxShadow: float.dragging
+            ? "0 30px 70px -20px rgba(17,24,39,0.45), 0 10px 26px -10px rgba(17,24,39,0.26)"
+            : "0 18px 50px -20px rgba(17,24,39,0.26), 0 4px 14px -8px rgba(17,24,39,0.14)",
+          zIndex,
+          overflow: "hidden",
+          pointerEvents: open ? "auto" : "none",
+          opacity: open ? 1 : 0,
+          transform: float.transform,
+          transition: float.dragging
+            ? "none"
+            : "box-shadow 180ms ease, opacity 160ms ease",
+          userSelect: float.dragging ? "none" : undefined,
+        }}
+      >
+        <FloatingDragHandle
+          onPointerDown={float.onHandlePointerDown}
+          dragging={float.dragging}
+          label={floatLabel}
+          moved={floatingMoved}
+          onReset={float.reset}
+          style={{ color: CHROME.muted, background: CHROME.paper2 }}
+        />
+        {children}
+      </aside>
+    );
+  }
+
   return (
     <aside
       data-edit-drawer={kind}
@@ -466,6 +541,116 @@ export function DrawerTab({
   );
 }
 
+// ── DrawerIconTabs ──────────────────────────────────────────────────────────
+//
+// 2026-06-03 — Vertical icon-rail variant of the tab strip, used by the
+// floating inspector dock. Instead of a horizontal text-pill bar across the
+// top, the tabs become a slim ~46px column of icon buttons down the left
+// inner edge; the tab content renders to its right. The active icon fills
+// with the editor `accent` (the same indigo the tokens designate for "active
+// tab"), so the rail reads as a premium tool selector. Each button's tooltip
+// is `hint` (falls back to `label`) and its aria-label is `label`, so the
+// icon-only rail stays fully accessible. A hairline right border divides the
+// rail from the content panel.
+
+export interface DrawerIconTabItem<K extends string = string> {
+  key: K;
+  /** Plain-language label — the aria-label, and the tooltip when no `hint`. */
+  label: string;
+  /** Optional longer hover tooltip (an icon target is less self-evident). */
+  hint?: string;
+  /** Lucide icon component (e.g. `FileText`). Rendered at 17px. */
+  icon: ComponentType<{ size?: number | string; strokeWidth?: number | string; "aria-hidden"?: boolean }>;
+}
+
+interface DrawerIconTabsProps<K extends string> {
+  items: ReadonlyArray<DrawerIconTabItem<K>>;
+  /** Currently active tab key. */
+  active: K;
+  onSelect: (key: K) => void;
+  /** Accessible label for the rail's tablist. */
+  ariaLabel?: string;
+  className?: string;
+}
+
+export function DrawerIconTabs<K extends string>({
+  items,
+  active,
+  onSelect,
+  ariaLabel = "Inspector sections",
+  className,
+}: DrawerIconTabsProps<K>) {
+  const activeItem = items.find((i) => i.key === active);
+  return (
+    <div
+      role="tablist"
+      aria-orientation="vertical"
+      aria-label={ariaLabel}
+      className={`flex shrink-0 flex-col items-center gap-1 overflow-y-auto py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${className ?? ""}`}
+      style={{ width: 46, background: CHROME.paper2, borderRight: `1px solid ${CHROME.line}` }}
+    >
+      {items.map((item) => {
+        const isActive = item.key === active;
+        const Icon = item.icon;
+        return (
+          <button
+            key={item.key}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            title={item.hint ?? item.label}
+            aria-label={item.label}
+            onClick={() => onSelect(item.key)}
+            className="inline-flex size-9 cursor-pointer items-center justify-center rounded-[9px] border-none transition-colors"
+            style={{
+              background: isActive ? CHROME.accent : "transparent",
+              color: isActive ? "#ffffff" : CHROME.muted,
+              boxShadow: isActive
+                ? "0 1px 2px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.14)"
+                : "none",
+            }}
+            onMouseEnter={(e) => {
+              if (isActive) return;
+              e.currentTarget.style.background = CHROME.paper;
+              e.currentTarget.style.color = CHROME.ink;
+            }}
+            onMouseLeave={(e) => {
+              if (isActive) return;
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.color = CHROME.muted;
+            }}
+          >
+            <Icon size={17} strokeWidth={1.85} aria-hidden />
+          </button>
+        );
+      })}
+      {/* Active-tab label — surfaced at the bottom of the rail so the user
+          always sees which tab they're on without hover. Rotated 90° to
+          read vertically along the rail, matching the slim-column budget.
+          Transitions smoothly when the active key changes. */}
+      {activeItem ? (
+        <div
+          aria-hidden
+          className="mt-auto shrink-0 pb-3 pt-1"
+          style={{
+            writingMode: "vertical-rl",
+            transform: "rotate(180deg)",
+            fontSize: 9.5,
+            fontWeight: 600,
+            letterSpacing: "0.07em",
+            textTransform: "uppercase",
+            color: CHROME.accent,
+            userSelect: "none",
+            lineHeight: 1,
+          }}
+        >
+          {activeItem.label}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 // ── DrawerBody / DrawerFoot ─────────────────────────────────────────────────
 
 interface DrawerBodyProps {
@@ -547,6 +732,92 @@ function Eyebrow({ children }: { children: ReactNode }) {
         style={{ background: CHROME.muted2 }}
       />
       {children}
+    </div>
+  );
+}
+
+// ── DrawerSkeleton ───────────────────────────────────────────────────────────
+//
+// Unified loading state for all drawers (Theme, Revisions, Assets,
+// Page Settings). Every drawer that fetch-on-open previously had its own
+// skeleton — usually bespoke height + opacity values. This shared primitive
+// guarantees a visually consistent "loading" moment across the whole builder
+// right panel so the operator never sees four different loading treatments.
+//
+// Wave 1 Item 1C job #12 — unified drawer chrome + preload.
+
+interface DrawerSkeletonProps {
+  /**
+   * Number of placeholder rows. Defaults to 4.
+   * Row height is fixed at 64px to approximate content height.
+   */
+  rows?: number;
+  /** Optional additional className applied to the wrapper div. */
+  className?: string;
+}
+
+/**
+ * A pulsing stack of placeholder rows suitable for any drawer's loading state.
+ * Drop this in place of the bespoke `SkeletonList` / `SkeletonGrid` each drawer
+ * previously defined locally. Import from "./kit".
+ *
+ * Usage:
+ *   {loading && data === null ? <DrawerSkeleton rows={3} /> : <ActualContent />}
+ */
+export function DrawerSkeleton({
+  rows = 4,
+  className,
+}: DrawerSkeletonProps) {
+  return (
+    <div
+      className={`flex flex-col gap-2 ${className ?? ""}`}
+      aria-busy="true"
+      aria-label="Loading"
+    >
+      {Array.from({ length: rows }, (_, i) => (
+        <div
+          key={i}
+          className="animate-pulse rounded-lg"
+          style={{
+            height: 64,
+            background: CHROME.surface,
+            border: `1px solid ${CHROME.line}`,
+            // Fade out progressively so the bottom rows feel like they trail off.
+            opacity: Math.max(0.15, 0.55 - i * 0.1),
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Variant: grid of equal-ratio tiles (for media/asset library).
+ * Automatically fills 2 columns. Rows defaults to 6 (2×3 grid).
+ */
+export function DrawerSkeletonGrid({
+  rows = 6,
+  className,
+}: DrawerSkeletonProps) {
+  return (
+    <div
+      className={`grid gap-2.5 ${className ?? ""}`}
+      aria-busy="true"
+      aria-label="Loading"
+      style={{ gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))" }}
+    >
+      {Array.from({ length: rows }, (_, i) => (
+        <div
+          key={i}
+          className="animate-pulse rounded-lg"
+          style={{
+            aspectRatio: "1 / 1.18",
+            background: CHROME.surface,
+            border: `1px solid ${CHROME.line}`,
+            opacity: 0.55,
+          }}
+        />
+      ))}
     </div>
   );
 }

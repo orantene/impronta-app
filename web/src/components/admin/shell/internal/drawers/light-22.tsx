@@ -6,6 +6,7 @@ import {
   COLORS,
   CapsLabel,
   DrawerShell,
+  EmptyState,
   FONTS,
   FieldRow,
   GhostButton,
@@ -22,84 +23,22 @@ import {
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
 
 export function OnsetCheckinDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "onset-checkin";
-  const [checkedIn, setCheckedIn] = React.useState<Set<string>>(new Set(["Lucas Ferreira", "Nia Clarkson"]));
-
-  const crew = [
-    { name: "Amara Osei", role: "Lead talent", callTime: "07:30" },
-    { name: "Chiara Bianchi", role: "Supporting talent", callTime: "07:30" },
-    { name: "Lucas Ferreira", role: "Photographer", callTime: "06:30" },
-    { name: "Nia Clarkson", role: "HMU artist", callTime: "06:30" },
-  ];
-
-  const toggle = (name: string) => {
-    setCheckedIn(prev => {
-      const next = new Set(prev);
-      if (next.has(name)) next.delete(name); else next.add(name);
-      return next;
-    });
-  };
-
-  const footer = (
-    <div className="flex gap-2">
-      <GhostButton onClick={closeDrawer}>Close</GhostButton>
-      <SecondaryButton onClick={() => { toast(`Check-in saved — ${checkedIn.size} confirmed`); closeDrawer(); }}>Save check-ins</SecondaryButton>
-    </div>
-  );
-
+  // Honest stub — no backend yet; the previous body was hardcoded demo data.
   return (
-    <DrawerShell open={open} onClose={closeDrawer} title="On-set check-in" description="Mark talent and crew as arrived on set." footer={footer} defaultSize="half">
-      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
-
-        <div style={{ display: "flex", gap: 12, alignItems: "center", padding: "12px 14px", border: `1px solid ${COLORS.accent}` }} className="bg-admin-accent-soft rounded-admin-md">
-          <div className="flex-1">
-            <div className="text-admin-accent text-xs font-bold">Spring Campaign 2026</div>
-            <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">Tue 20 May · Studio One</div>
-          </div>
-          <div className="text-right">
-            <div className="text-admin-accent text-2xl font-extrabold">{checkedIn.size}/{crew.length}</div>
-            <div className="text-admin-ink-muted text-admin-10">checked in</div>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          {crew.map((c, i) => {
-            const isIn = checkedIn.has(c.name);
-            return (
-              <div
-                key={i}
-                onClick={() => toggle(c.name)}
-                style={{
-                  display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: RADIUS.sm, cursor: "pointer",
-                  background: isIn ? COLORS.successSoft : COLORS.surface,
-                  border: `1.5px solid ${isIn ? COLORS.success : COLORS.border}`,
-                  transition: TRANSITION.sm,
-                }}
-              >
-                <div style={{
-                  width: 22, height: 22, borderRadius: "50%", border: `2px solid ${isIn ? COLORS.success : COLORS.border}`,
-                  background: isIn ? COLORS.success : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                }}>
-                  {isIn && <span style={{ fontSize: 11, color: "#fff" }}>✓</span>}
-                </div>
-                <div className="flex-1">
-                  <div className="text-admin-ink text-admin-13 font-semibold">{c.name}</div>
-                  <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{c.role} · Call: {c.callTime}</div>
-                </div>
-                {isIn && <span className="text-admin-success text-admin-11 font-bold">Checked in</span>}
-              </div>
-            );
-          })}
-        </div>
-
-        {checkedIn.size === crew.length && (
-          <div style={{ border: `1px solid ${COLORS.success}`, padding: 14, textAlign: "center" }} className="bg-admin-success-soft rounded-admin-md">
-            <div className="text-admin-success text-admin-13 font-bold">Full crew on set ✓</div>
-            <div style={{ fontSize: 11, marginTop: 3 }} className="text-admin-ink-muted">All {crew.length} members checked in</div>
-          </div>
-        )}
-      </div>
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="On-set check-in"
+      description="Confirm who's arrived on set."
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+    >
+      <EmptyState
+        icon="team"
+        title="Coming soon"
+        body="On-set check-in isn't available yet."
+      />
     </DrawerShell>
   );
 }
@@ -110,227 +49,44 @@ export function OnsetCheckinDrawer() {
 
 
 export function IncidentReportDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "incident-report";
-  const [incidentType, setIncidentType] = React.useState<string>("safety");
-  const [severity, setSeverity] = React.useState<"low" | "medium" | "high">("medium");
-  const [description, setDescription] = React.useState("");
-  const [anonymous, setAnonymous] = React.useState(false);
-  // Q5: track the submitted reference number directly in state. Previously
-  // `submitted` was a boolean and the reference INC-NNNNNN was computed
-  // from Date.now() in render — which tripped react-hooks/purity and also
-  // changed on every parent re-render. Generating once at submit time is
-  // both rule-clean and the correct semantic.
-  const [submittedRef, setSubmittedRef] = React.useState<string | null>(null);
-  const submitted = submittedRef !== null;
-
-  const incidentTypes = [
-    { key: "safety", label: "On-set safety", icon: "⚠" },
-    { key: "conduct", label: "Unprofessional conduct", icon: "🚫" },
-    { key: "payment", label: "Payment dispute", icon: "💸" },
-    { key: "other", label: "Other", icon: "📝" },
-  ];
-
-  const footer = (
-    <div className="flex gap-2">
-      <GhostButton onClick={closeDrawer}>Cancel</GhostButton>
-      <SecondaryButton onClick={() => {
-        setSubmittedRef("INC-" + Date.now().toString().slice(-6));
-        toast("Incident report submitted");
-      }}>Submit report</SecondaryButton>
-    </div>
-  );
-
-  if (submitted) {
-    return (
-      <DrawerShell open={open} onClose={closeDrawer} title="Incident report" description="" footer={<GhostButton onClick={closeDrawer}>Close</GhostButton>} defaultSize="half">
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, padding: "40px 24px", fontFamily: FONTS.body, textAlign: "center" }}>
-          <div style={{ width: 56, height: 56, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }} className="bg-admin-success-soft">✓</div>
-          <div className="text-admin-ink text-base font-bold">Report submitted</div>
-          <div style={{ fontSize: 12, maxWidth: 280 }} className="text-admin-ink-muted">
-            Your report has been logged securely. {anonymous ? "Submitted anonymously. " : ""}An admin will review within 24 hours and may reach out if further information is needed.
-          </div>
-          <div style={{ border: `1px solid ${COLORS.border}`, padding: "8px 14px" }} className="bg-admin-surface rounded-admin-sm">
-            <div className="text-admin-ink-muted text-admin-11">Reference</div>
-            <div style={{ fontSize: 13, fontWeight: 700, fontFamily: "monospace" }} className="text-admin-ink">{submittedRef}</div>
-          </div>
-        </div>
-      </DrawerShell>
-    );
-  }
-
+  // Honest stub — no backend yet; the previous body was hardcoded demo data.
   return (
-    <DrawerShell open={open} onClose={closeDrawer} title="Report an incident" description="All reports are treated confidentially. You may submit anonymously." footer={footer} defaultSize="half">
-      <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }}>
-
-        <div>
-          <CapsLabel>Incident type</CapsLabel>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
-            {incidentTypes.map(t => (
-              <div
-                key={t.key}
-                onClick={() => setIncidentType(t.key)}
-                style={{
-                  padding: "10px 12px", borderRadius: RADIUS.sm, cursor: "pointer", textAlign: "center",
-                  border: `1.5px solid ${incidentType === t.key ? COLORS.coral : COLORS.border}`,
-                  background: incidentType === t.key ? `${COLORS.coral}10` : COLORS.surface,
-                }}
-              >
-                <div style={{ fontSize: 18, marginBottom: 4 }}>{t.icon}</div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: incidentType === t.key ? COLORS.coral : COLORS.ink }}>{t.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <CapsLabel>Severity</CapsLabel>
-          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-            {(["low", "medium", "high"] as const).map(s => {
-              const color = s === "low" ? COLORS.success : s === "medium" ? COLORS.amber : COLORS.coral;
-              return (
-                <div
-                  key={s}
-                  onClick={() => setSeverity(s)}
-                  style={{
-                    flex: 1, padding: "8px 12px", borderRadius: RADIUS.sm, cursor: "pointer", textAlign: "center",
-                    border: `1.5px solid ${severity === s ? color : COLORS.border}`,
-                    background: severity === s ? `${color}14` : COLORS.surface,
-                  }}
-                >
-                  <div style={{ fontSize: 12, fontWeight: 700, textTransform: "capitalize", color: severity === s ? color : COLORS.inkMuted }}>{s}</div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <FieldRow label="Description">
-          <TextArea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe what happened, when, and who was involved (optional)." rows={4} />
-        </FieldRow>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", border: `1px solid ${COLORS.border}`, cursor: "pointer" }} onClick={() => setAnonymous(a => !a)}>
-          <Toggle on={anonymous} onChange={() => setAnonymous(a => !a)} />
-          <span className="bg-admin-surface rounded-admin-sm text-admin-ink text-xs">Submit anonymously</span>
-        </div>
-      </div>
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Incident report"
+      description="Report an on-set or platform incident."
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+    >
+      <EmptyState
+        icon="info"
+        title="Coming soon"
+        body="Incident reporting isn't available yet."
+      />
     </DrawerShell>
   );
 }
 
 
 export function DisputeResolutionDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "dispute-resolution";
-  const [selectedDispute, setSelectedDispute] = React.useState<string | null>(null);
-
-  const disputes = [
-    { id: "D-001", parties: "Amara Osei vs. Brand Co.", type: "Late payment", stage: "Mediation", opened: "12 Apr", amount: "£1,200" },
-    { id: "D-002", parties: "Lucas Ferreira vs. Agency", type: "Usage overreach", stage: "Filed", opened: "20 Apr", amount: "£800" },
-    { id: "D-003", parties: "Yuki Tanaka vs. Client X", type: "Contract breach", stage: "Decision", opened: "5 Mar", amount: "£3,400" },
-  ];
-
-  const stageColor = (s: string) => s === "Filed" ? COLORS.coral : s === "Mediation" ? COLORS.amber : s === "Decision" ? COLORS.indigo : COLORS.success;
-  const stages = ["Filed", "Mediation", "Decision", "Resolved"];
-
-  const selected = disputes.find(d => d.id === selectedDispute);
-
-  const footer = (
-    <div className="flex gap-2">
-      <GhostButton onClick={() => { if (selectedDispute) setSelectedDispute(null); else closeDrawer(); }}>
-        {selectedDispute ? "Back" : "Close"}
-      </GhostButton>
-      {selectedDispute && (
-        <SecondaryButton onClick={() => { toast("Stage advanced"); setSelectedDispute(null); }}>Advance stage</SecondaryButton>
-      )}
-    </div>
-  );
-
+  // Honest stub — no backend yet; the previous body was hardcoded demo data.
   return (
-    <DrawerShell open={open} onClose={closeDrawer} title="Dispute resolution" description="Track and manage disputes through staged resolution." footer={footer} defaultSize="half">
-      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
-
-        {!selectedDispute && (
-          <>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-              {["Filed", "Mediation", "Decision"].map(s => {
-                const n = disputes.filter(d => d.stage === s).length;
-                return (
-                  <div key={s} style={{ textAlign: "center", padding: "10px 8px", background: `${stageColor(s)}12`, borderRadius: RADIUS.sm, border: `1px solid ${stageColor(s)}30` }}>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: stageColor(s) }}>{n}</div>
-                    <div style={{ fontSize: 10, color: stageColor(s), fontWeight: 600, marginTop: 2 }}>{s}</div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              {disputes.map(d => (
-                <div
-                  key={d.id}
-                  onClick={() => setSelectedDispute(d.id)}
-                  style={{ padding: "12px 14px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}`, cursor: "pointer" }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                    <div style={{ fontSize: 12, fontFamily: "monospace" }} className="text-admin-ink-muted">{d.id}</div>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: stageColor(d.stage), background: `${stageColor(d.stage)}18`, padding: "2px 7px" }} className="rounded-admin-sm">{d.stage}</span>
-                  </div>
-                  <div className="text-admin-ink text-admin-13 font-semibold">{d.parties}</div>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
-                    <span className="text-admin-ink-muted text-admin-11">{d.type} · {d.opened}</span>
-                    <span className="text-admin-ink text-xs font-bold">{d.amount}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-
-        {selectedDispute && selected && (
-          <>
-            <div style={{ border: `1px solid ${COLORS.border}`, padding: 14 }} className="bg-admin-surface rounded-admin-md">
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-                <div>
-                  <div style={{ fontSize: 13, fontFamily: "monospace" }} className="text-admin-ink-muted">{selected.id}</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, marginTop: 2 }} className="text-admin-ink">{selected.parties}</div>
-                </div>
-                <div className="text-admin-ink text-base font-extrabold">{selected.amount}</div>
-              </div>
-              <div className="text-admin-ink-muted text-xs">{selected.type} · Opened {selected.opened}</div>
-            </div>
-
-            <div>
-              <CapsLabel>Stage pipeline</CapsLabel>
-              <div style={{ display: "flex", marginTop: 12, alignItems: "center" }}>
-                {stages.map((s, i) => {
-                  const active = s === selected.stage;
-                  const past = stages.indexOf(selected.stage) > i;
-                  const color = past ? COLORS.success : active ? stageColor(s) : COLORS.border;
-                  return (
-                    <React.Fragment key={s}>
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                        <div style={{ width: 24, height: 24, borderRadius: "50%", background: past ? COLORS.success : active ? stageColor(s) : COLORS.borderSoft, border: `2px solid ${color}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          {past && <span style={{ fontSize: 10, color: "#fff" }}>✓</span>}
-                          {!past && active && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#fff" }} />}
-                        </div>
-                        <div style={{ fontSize: 9, color: active ? stageColor(s) : COLORS.inkDim, fontWeight: active ? 700 : 400, textAlign: "center" }}>{s}</div>
-                      </div>
-                      {i < stages.length - 1 && <div style={{ flex: 1, height: 2, background: past ? COLORS.success : COLORS.borderSoft, marginBottom: 14 }} />}
-                    </React.Fragment>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.md, padding: 14 }}>
-              <CapsLabel>Advance to next stage</CapsLabel>
-              <div style={{ marginTop: 8, fontSize: 12 }} className="text-admin-ink-muted">
-                Moving from <strong>{selected.stage}</strong> to <strong>{stages[stages.indexOf(selected.stage) + 1] || "Resolved"}</strong> will notify both parties and update the dispute record.
-              </div>
-            </div>
-          </>
-        )}
-      </div>
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Dispute resolution"
+      description="Track and resolve booking disputes."
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+    >
+      <EmptyState
+        icon="info"
+        title="Coming soon"
+        body="Dispute resolution isn't available yet."
+      />
     </DrawerShell>
   );
 }

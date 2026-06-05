@@ -26,7 +26,11 @@ import type Stripe from "stripe";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { normalizePayoutCountry, payoutCountryLabel } from "@/lib/payments/payout-countries";
+import {
+  normalizePayoutCountry,
+  payoutCountryLabel,
+  isStablecoinPayoutCountry,
+} from "@/lib/payments/payout-countries";
 
 export type TalentConnectStatus =
   | "none"
@@ -83,6 +87,28 @@ async function iso2FromCountryId(
 }
 
 /**
+ * Resolve a country's ISO-2 from a free-text country name (e.g. the profile's
+ * `home_country_text` = "Mexico"), or pass through a value that's already an
+ * ISO-2. Lets the payout flow honour a country the talent set on their profile
+ * even when the structured `residence_country_id` FK was never populated.
+ */
+async function iso2FromCountryText(
+  admin: AdminClient,
+  text: string | null,
+): Promise<string | null> {
+  const t = (text ?? "").trim();
+  if (!t) return null;
+  if (/^[A-Za-z]{2}$/.test(t)) return t.toUpperCase();
+  const { data } = await admin
+    .from("countries")
+    .select("iso2")
+    .ilike("name_en", t)
+    .limit(1)
+    .maybeSingle();
+  return (data?.iso2 as string | null) ?? null;
+}
+
+/**
  * Create-or-get the talent's Stripe Connect Express account.
  *
  * On first call: creates a new Express account, persists its id to
@@ -107,7 +133,7 @@ export async function createOrGetTalentConnectedAccount(
   //    match the payee — never the platform's default.
   const { data: tp, error: readErr } = await admin
     .from("talent_profiles")
-    .select("id, display_name, stripe_account_id, profile_code, residence_country_id")
+    .select("id, display_name, stripe_account_id, profile_code, residence_country_id, home_country_text")
     .eq("id", talentProfileId)
     .maybeSingle();
   if (readErr || !tp) {
@@ -122,10 +148,34 @@ export async function createOrGetTalentConnectedAccount(
   // 2. Resolve the payout country: an explicit override (the talent picked it
   //    on the payouts page) wins, else their residence country. If neither is
   //    known we can't create the account yet — the UI shows a country picker.
-  const residenceIso2 = await iso2FromCountryId(admin, tp.residence_country_id as string | null);
+  // Structured residence FK first; if unset, fall back to the profile's
+  // free-text country ("home_country_text") so a country the talent already
+  // set on their profile is honoured instead of falsely asking again.
+  const residenceIso2 =
+    (await iso2FromCountryId(admin, tp.residence_country_id as string | null)) ??
+    (await iso2FromCountryText(admin, tp.home_country_text as string | null));
   const country = normalizePayoutCountry(opts.country) ?? normalizePayoutCountry(residenceIso2);
   if (!country) {
     return { ok: false, error: "country_required" };
+  }
+
+  // If the talent had no country on file and just picked one for payouts, sync
+  // it back to their profile so it shows up there too (single source of truth).
+  if (!residenceIso2 && opts.country) {
+    const { data: matchedCountry } = await admin
+      .from("countries")
+      .select("id")
+      .eq("iso2", country)
+      .maybeSingle();
+    if (matchedCountry?.id) {
+      await admin
+        .from("talent_profiles")
+        .update({
+          residence_country_id: matchedCountry.id as string,
+          home_country_text: payoutCountryLabel(country),
+        })
+        .eq("id", talentProfileId);
+    }
   }
 
   // 3. Prefill the connected account's business website with the talent's
@@ -152,10 +202,12 @@ export async function createOrGetTalentConnectedAccount(
     });
   } catch (err) {
     logServerError("stripe-connect-talent.createAccount", err);
-    // Most commonly: Stripe doesn't support Connect payouts in `country` yet.
+    // Most commonly: Stripe Connect (a US-based platform) can't open a connected
+    // account in `country` (e.g. Mexico, Argentina). That's exactly what the
+    // Global Payouts "local bank" rail below is for, so point the talent there.
     return {
       ok: false,
-      error: `Payouts aren't available in ${payoutCountryLabel(country)} yet — we're expanding coverage.`,
+      error: `${payoutCountryLabel(country)} isn't supported for direct Stripe payouts. Use "Get paid to your local bank" below, it covers ${payoutCountryLabel(country)}.`,
     };
   }
 
@@ -182,10 +234,12 @@ export async function resolveTalentPayoutCountry(
   if (!admin) return null;
   const { data } = await admin
     .from("talent_profiles")
-    .select("residence_country_id")
+    .select("residence_country_id, home_country_text")
     .eq("id", talentProfileId)
     .maybeSingle();
-  const iso2 = await iso2FromCountryId(admin, (data?.residence_country_id as string | null) ?? null);
+  const iso2 =
+    (await iso2FromCountryId(admin, (data?.residence_country_id as string | null) ?? null)) ??
+    (await iso2FromCountryText(admin, (data?.home_country_text as string | null) ?? null));
   return normalizePayoutCountry(iso2);
 }
 
@@ -341,4 +395,53 @@ export async function findTalentByStripeAccountId(
  *  payout pipeline to gate transfer attempts. */
 export function canRouteTransfersToTalent(snap: TalentConnectedAccountSnapshot): boolean {
   return snap.status === "enabled" && snap.payoutsEnabled && !!snap.stripeAccountId;
+}
+
+/**
+ * Mint an Express Dashboard LOGIN link for the talent's connected account.
+ *
+ * Unlike the account-onboarding link (KYC), this drops an already-onboarded
+ * talent straight into their Stripe Express Dashboard — where, for stablecoin
+ * (Global Payouts) markets, they link a crypto wallet and set USDC as their
+ * default currency to receive payouts as USDC instead of to a local bank.
+ *
+ * Login links require the account to exist; Stripe errors for not-yet-onboarded
+ * accounts, which we surface as a clean "finish onboarding first" message.
+ */
+export async function createTalentDashboardLink(
+  talentProfileId: string,
+): Promise<TalentConnectResult<{ url: string }>> {
+  const stripe = getStripe();
+  if (!stripe) return { ok: false, error: "Stripe client unavailable." };
+
+  const snap = await getTalentConnectedAccountSnapshot(talentProfileId);
+  if (!snap.ok) return { ok: false, error: snap.error };
+  if (!snap.data.stripeAccountId) {
+    return { ok: false, error: "Connect your Stripe account first." };
+  }
+
+  try {
+    const link = await stripe.accounts.createLoginLink(snap.data.stripeAccountId);
+    return { ok: true, data: { url: link.url } };
+  } catch (err) {
+    logServerError("stripe-connect-talent.dashboardLink", err);
+    return {
+      ok: false,
+      error: "Your Stripe dashboard isn't available for this account type.",
+    };
+  }
+}
+
+/**
+ * Is the talent in a country where we can pay them via stablecoin (USDC)
+ * Global Payouts? Cheap residence/override-based read for the payouts UI to
+ * decide whether to surface the "link a crypto wallet" path. Falls back to the
+ * talent's residence country (the same source the Connect account is created
+ * with), so for an existing account this matches its immutable country.
+ */
+export async function getTalentStablecoinEligibility(
+  talentProfileId: string,
+): Promise<{ eligible: boolean; country: string | null }> {
+  const country = await resolveTalentPayoutCountry(talentProfileId);
+  return { eligible: isStablecoinPayoutCountry(country), country };
 }

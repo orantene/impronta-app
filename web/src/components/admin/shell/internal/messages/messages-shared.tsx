@@ -23,6 +23,9 @@ export const stageStyle = (stage: string): { bg: string; fg: string } => {
     case "inquiry":  return { bg: `${COLORS.coral}18`,   fg: COLORS.coral };
     case "hold":
     case "offered": return { bg: `${COLORS.amber}18`,   fg: COLORS.amber };
+    // Finding D: "Approved" gets its own indigo "ready to book" tone — distinct
+    // from the green "Booked" so the two states never read the same.
+    case "approved": return { bg: "rgba(43,63,163,0.12)", fg: "#2B3FA3" };
     case "booked":   return { bg: COLORS.successSoft,    fg: COLORS.success };
     default:         return { bg: "rgba(11,11,13,0.06)", fg: COLORS.inkMuted };
   }

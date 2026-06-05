@@ -201,6 +201,8 @@ import {
   profileReducer
 } from "./profile-shell-internal";
 import { shouldShowPolaroidsSection } from "./profile-polaroids-policy";
+import { CommercialTermsEditor } from "./profile-shell-modules/profile-commercial-terms";
+import { ProfileReviewsEditor } from "./profile-shell-modules/profile-reviews";
 
 function detailsGroupHelperText(label: string): string {
   const normalized = label.toLowerCase();
@@ -1595,7 +1597,7 @@ export function TalentProfileShellDrawer() {
       const child = findChild(state.primaryType);
       if (child) {
         const unit = TYPE_RATE_UNIT[child.parent.id] ?? "day";
-        updates.rates = [...state.rates, { typeId: state.primaryType, amount: 0, currency: "EUR", unit }];
+        updates.rates = [...state.rates, { typeId: state.primaryType, amount: 0, currency: "USD", unit }];
       }
     }
     if (Object.keys(updates).length > 0) patch(updates);
@@ -1655,6 +1657,10 @@ export function TalentProfileShellDrawer() {
     ),
     details:       Object.keys(state.dynFields).length > 0,
     rates:         state.rates.some(r => r.amount > 0),
+    // Booking-terms preferences persist independently (CommercialTermsEditor
+    // self-saves talent_profiles.booking_terms) so completion isn't derived
+    // from the profile reducer — treat as non-gating like `admin`.
+    commercial_terms: true,
     availability:  state.availability.length > 0,
     identity:      !!state.identity.pronouns || !!state.identity.gender,
     refinement:    state.skillEntries.length + state.contexts.length > 0,
@@ -1662,6 +1668,10 @@ export function TalentProfileShellDrawer() {
     limits:        state.limits.length > 0,
     files:         state.files.length > 0,
     social_proof:  state.pastClients.length > 0,
+    // Reviews are an independently-moderated read surface (loaded by
+    // ProfileReviewsEditor); not derived from the profile reducer, so it
+    // never gates publish — treat as non-gating like `admin`.
+    reviews:       true,
     verifications: state.verifications.idSubmitted && state.verifications.payoutConnected,
     admin:         true,
     // Back-office diagnostic, not a publish gate (mirrors `admin`).
@@ -1685,6 +1695,7 @@ export function TalentProfileShellDrawer() {
     wardrobe:      false,
     details:       false,
     rates:         !sectionComplete.rates && (state.askForQuote || state.packageRates.length > 0),
+    commercial_terms: false,
     availability:  false,
     identity:      !sectionComplete.identity && (!!state.identity.legalName || !!state.identity.dob || !!state.identity.nationality),
     refinement:    false,
@@ -1692,6 +1703,7 @@ export function TalentProfileShellDrawer() {
     limits:        false,
     files:         false,
     social_proof:  false,
+    reviews:       false,
     verifications: !sectionComplete.verifications && (state.verifications.idSubmitted || state.verifications.payoutConnected),
     admin:         false,
     agency_fields: false,
@@ -3709,6 +3721,39 @@ export function TalentProfileShellDrawer() {
                 </div>
               )}
             </ProfileAccordionSection>
+
+            {/* BOOKING TERMS — talent commercial preferences (deposit % /
+                refund policy / instant-book / fixed rate). Self-saving via
+                CommercialTermsEditor (talent_profiles.booking_terms); not
+                threaded through the batched profile save. Needs a real
+                talentId, so it's hidden in create mode until the row exists. */}
+            {payload.talentId && mode !== "create" && (
+              <ProfileAccordionSection
+                id="commercial_terms" title="Booking terms"
+                sub="Default deposit, refund policy and instant-book preferences."
+                complete={sectionComplete.commercial_terms} started={sectionStarted.commercial_terms}
+                open={activeSection === "commercial_terms"}
+                onToggle={() => setActiveSection(activeSection === "commercial_terms" ? "" : "commercial_terms")}
+              >
+                <CommercialTermsEditor talentId={payload.talentId} />
+              </ProfileAccordionSection>
+            )}
+
+            {/* REVIEWS — the talent's RECEIVED (client→talent) reviews, with
+                the public average. Self-loading via ProfileReviewsEditor;
+                admins get Hide/Unhide, the talent (isSelf) gets Report. Needs
+                a real talentId, so hidden in create mode until the row exists. */}
+            {payload.talentId && mode !== "create" && (
+              <ProfileAccordionSection
+                id="reviews" title="Reviews"
+                sub="Reviews clients left after working with this talent."
+                complete={sectionComplete.reviews} started={sectionStarted.reviews}
+                open={activeSection === "reviews"}
+                onToggle={() => setActiveSection(activeSection === "reviews" ? "" : "reviews")}
+              >
+                <ProfileReviewsEditor talentId={payload.talentId} isSelf={isSelf} />
+              </ProfileAccordionSection>
+            )}
 
             {/* REFINEMENT — prototype SkillsProEditor is not batch-saved; hide when DB-backed SkillSlotPanel is active. */}
             {!hasResolvedEngineContext && (

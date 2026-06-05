@@ -33,6 +33,7 @@ export {
   loadUserNotifications,
   // B.3 — talent calendar (bookings + holds + availability_blocks)
   loadTalentCalendarEntries,
+  loadRecentActivity,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge";
 
 // Media gallery + watermark bridge (Agency tier feature)
@@ -63,6 +64,7 @@ export type {
   // B.3 — talent calendar
   TalentCalendarEntry,
   TalentCalendarEntryKind,
+  RecentActivityItem,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge";
 
 // Type-only import. `_state.tsx` is a client module ("use client") and
@@ -90,6 +92,7 @@ import type {
   UserNotification,
   TalentCalendarEntry,
   TalentCalendarEntryKind,
+  RecentActivityItem,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge";
 
 /**
@@ -167,6 +170,8 @@ export type BridgeData = {
   teamMembers: WorkspaceTeamMember[] | null;
   /** Unread message count for the nav badge. */
   totalUnread: number;
+  /** Recent workspace activity (real inquiry_events). null = mock mode; [] = live with no events yet. */
+  recentActivity?: RecentActivityItem[] | null;
   /** B.2 — user notifications feed for the workspace surface drawer. */
   userNotifications?: UserNotification[] | null;
   /** B.3 — talent calendar entries (bookings + holds + blocks). null = mock mode. */

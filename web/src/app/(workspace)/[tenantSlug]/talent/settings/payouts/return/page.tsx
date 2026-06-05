@@ -6,7 +6,7 @@
  * back to the Payouts settings page.
  *
  * Mirrors the workspace return route (/admin/payouts/return). Arriving here
- * does not necessarily mean onboarding succeeded — Stripe redirects on both
+ * does not necessarily mean onboarding succeeded, Stripe redirects on both
  * completion and abandonment; the refreshed status surfaces the right state.
  */
 

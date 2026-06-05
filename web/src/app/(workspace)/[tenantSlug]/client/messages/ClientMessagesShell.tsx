@@ -13,13 +13,29 @@
  * shell is purely presentational + drawer state.
  */
 
-import { useState, useRef, useEffect, useMemo, useTransition } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { ThreadSearch, type ThreadSearchMessage, type JumpTarget } from "@/components/thread-search/ThreadSearch";
 import { StatusSheet, type StatusSheetData, type StageStatus, type OfferStatus, type PaymentStatus, type TalentParticipationRow } from "@/components/messages-status-sheet/StatusSheet";
 import { PayNowSheet } from "@/components/chat-cards/PayNowSheet";
+import {
+  OfferCard,
+  PaymentRequestCard,
+  BookingConfirmedCard,
+  CallSheetUpdateCard,
+  SystemEventCard,
+} from "@/components/chat-cards/ChatCard";
 import { addReaction, removeReaction } from "@/lib/server-actions/message-reactions";
 import { StarButton } from "@/components/chat-interactions/StarButton";
+import { PinButton } from "@/components/chat-interactions/PinButton";
+import { PinnedStrip } from "@/components/chat-interactions/PinnedStrip";
+import { usePinnedMessages } from "@/components/chat-interactions/usePinnedMessages";
+import { VoiceRecorderButton } from "@/components/chat-interactions/VoiceRecorderButton";
+import { VoiceNotePlayer } from "@/components/chat-interactions/VoiceNotePlayer";
+import { readVoiceMetaFromMessageMetadata } from "@/lib/messages/voice-meta";
+import { renderMessageMarkdown } from "@/lib/messages/markdown";
+import { LinkPreview, firstHttpUrl, TypingRow } from "@/components/messages/thread-enhancements";
+import { useThreadPresence } from "@/lib/realtime/presence";
 
 const DEFAULT_REACTION_SET = ["👍", "❤️", "🎉", "😂", "😮", "🙏"] as const;
 import { useRouter } from "next/navigation";
@@ -165,17 +181,22 @@ export function ClientMessagesShell({
 
   // Reconcile optimistic bubbles with server messages on send success.
   //
-  // MERGE, don't replace. Three guarantees:
-  //   1. Optimistic tmp- bubble whose body matches a server message gets
-  //      replaced by the canonical row (real id, real sender_user_id).
-  //   2. Optimistic tmp- bubble with no server match stays visible —
-  //      protects against the user-reported "1-second vanish" if the
-  //      server returns 0 (RLS misconfig, transient error, auth blip).
-  //   3. New server messages we didn't have locally (e.g. coordinator
-  //      auto-ack) get added in chronological order.
+  // Reconcile by ROW ID, never body text. The composer swaps each
+  // optimistic `tmp-` bubble's id to the canonical row id (returned by the
+  // send action) the instant the server accepts it, so by the time this
+  // refetch lands every sent bubble already carries its real id. That makes
+  // the merge a pure by-id operation — two messages with identical bodies
+  // (e.g. "ok" sent twice) can no longer collide and drop/duplicate, which
+  // was the body-match bug (audit #15). Three guarantees:
+  //   1. A locally-held row is replaced by its canonical server version
+  //      (real created_at / sender_user_id / seen_at / reactions).
+  //   2. A still-optimistic tmp- bubble with no server row yet stays visible
+  //      — protects against the "1-second vanish" on a transient empty read.
+  //   3. Server rows we didn't have locally (coordinator auto-ack, the other
+  //      party's messages) are appended in chronological order, deduped by id.
   useEffect(() => {
     function onOk(e: Event) {
-      const detail = (e as CustomEvent<{ tempId: string; inquiryId: string }>).detail;
+      const detail = (e as CustomEvent<{ inquiryId: string }>).detail;
       if (!detail?.inquiryId || detail.inquiryId !== activeId) return;
       fetch(`/api/client/messages?inquiry=${encodeURIComponent(detail.inquiryId)}`)
         .then((r) => (r.ok ? r.json() : { messages: null }))
@@ -183,15 +204,14 @@ export function ClientMessagesShell({
           if (!j.messages) return;
           const serverMsgs = j.messages;
           setMessages((prev) => {
-            const prevIds = new Set(prev.map((m) => m.id));
-            // Server rows we don't already have locally.
-            const incoming = serverMsgs.filter((m) => !prevIds.has(m.id));
-            // Drop tmp- bubbles whose body matches an incoming server row.
-            const cleaned = prev.filter((m) => {
-              if (!m.id.startsWith("tmp-")) return true;
-              return !incoming.some((s) => s.body === m.body);
-            });
-            return [...cleaned, ...incoming].sort((a, b) =>
+            const serverById = new Map(serverMsgs.map((m) => [m.id, m]));
+            // Replace each locally-held row with its canonical server version;
+            // leave still-optimistic tmp- bubbles (no server row yet) as-is.
+            const merged = prev.map((m) => serverById.get(m.id) ?? m);
+            const haveIds = new Set(merged.map((m) => m.id));
+            // Append server rows we don't have yet — by id, never body text.
+            const incoming = serverMsgs.filter((m) => !haveIds.has(m.id));
+            return [...merged, ...incoming].sort((a, b) =>
               a.created_at.localeCompare(b.created_at),
             );
           });
@@ -267,12 +287,15 @@ export function ClientMessagesShell({
   }, [activeId, initialActiveId]);
 
   // Viewer user ID — fetched once for is_mine determination in realtime events.
+  // Mirrored into state so child panes (typing presence) can read a stable id.
   const viewerUserIdRef = useRef<string | null>(null);
+  const [viewerUserId, setViewerUserId] = useState<string | null>(null);
   useEffect(() => {
     const supabase = createClient();
     if (!supabase) return;
     supabase.auth.getUser().then(({ data }) => {
       viewerUserIdRef.current = data.user?.id ?? null;
+      setViewerUserId(data.user?.id ?? null);
     });
   }, []);
 
@@ -482,6 +505,7 @@ export function ClientMessagesShell({
               onTabChange={setActiveTab}
               tenantSlug={tenantSlug}
               client={client}
+              viewerUserId={viewerUserId}
               onBack={() => setMobilePane("list")}
               onAfterOfferAction={() => router.refresh()}
             />
@@ -602,6 +626,16 @@ export function ClientMessagesShell({
 
 // ─── Inquiry row ─────────────────────────────────────────────────────────
 
+type RowChip = {
+  label: string;
+  bg: string;
+  color: string;
+  title?: string;
+  uppercase?: boolean;
+  fontSize?: number;
+  padding?: string;
+};
+
 function InquiryRow({ inq, active, onClick }: { inq: ClientInquiryRow; active: boolean; onClick: () => void }) {
   const stage = stageStyle(inq.status);
   const company = inq.company || "Unnamed inquiry";
@@ -609,6 +643,38 @@ function InquiryRow({ inq, active, onClick }: { inq: ClientInquiryRow; active: b
   const location = inq.event_location;
   const needsMe = inq.next_action_by === "client";
   const unread = inq.unreadCount > 0;
+  const isDiscover =
+    inq.source_channel === "discover_single_talent" ||
+    inq.source_channel === "discover_shortlist";
+
+  // Status + state chip stack — same metadata/status treatment as the polished
+  // talent inbox (audit #15): an uppercase status pill, an amber "Your turn"
+  // when the client owes the next move, a blue "N new" unread count, and
+  // Discover provenance. The status pill carries the default 10.5/"2px 8px"
+  // metric; secondary state chips are 10/"1px 7px" (mirrors talent toThreadItem).
+  const chips: RowChip[] = [
+    { label: stage.label, bg: stage.bg, color: stage.fg, uppercase: true },
+  ];
+  if (needsMe) {
+    chips.push({ label: "Your turn", bg: "rgba(245,158,11,0.12)", color: "#92400E", fontSize: 10, padding: "1px 7px" });
+  }
+  if (unread) {
+    chips.push({ label: `${inq.unreadCount} new`, bg: C.accentSoft, color: C.accent, fontSize: 10, padding: "1px 7px" });
+  }
+  if (isDiscover) {
+    chips.push({
+      label: `◎ via ${inq.source_channel === "discover_shortlist" ? "Shortlist" : "Discover"}`,
+      bg: C.accentSoft,
+      color: C.accent,
+      fontSize: 10,
+      padding: "1px 7px",
+      uppercase: true,
+      title:
+        inq.source_channel === "discover_shortlist"
+          ? "You added talent from a Discover shortlist."
+          : "This inquiry started from Discover.",
+    });
+  }
 
   // Build the last-message preview line. "You: …" when the client sent
   // the newest message, plain body otherwise. Truncated to ~70 chars so
@@ -637,24 +703,43 @@ function InquiryRow({ inq, active, onClick }: { inq: ClientInquiryRow; active: b
       }}
     >
       {unread && (
-        <span style={{ position: "absolute", left: 4, top: "50%", transform: "translateY(-50%)", width: 6, height: 6, borderRadius: "50%", background: C.accent }} />
+        <span style={{ position: "absolute", left: 4, top: 16, width: 6, height: 6, borderRadius: "50%", background: C.accent }} />
       )}
-      {/* Row 1 — Company + stage pill */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between" }}>
-        <div style={{ fontSize: 13, fontWeight: unread ? 700 : 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
-          {company}
-        </div>
-        <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: stage.bg, color: stage.fg, whiteSpace: "nowrap" }}>
-          {stage.label}
-        </span>
+      {/* Row 1 — status + state chip stack (status · Your turn · N new · via Discover) */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+        {chips.map((c, i) => (
+          <span
+            key={`${inq.id}-chip-${i}`}
+            title={c.title}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              padding: c.padding ?? "2px 8px",
+              borderRadius: 999,
+              background: c.bg,
+              color: c.color,
+              fontSize: c.fontSize ?? 10.5,
+              fontWeight: 700,
+              letterSpacing: c.uppercase ? 0.3 : undefined,
+              textTransform: c.uppercase ? "uppercase" : undefined,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {c.label}
+          </span>
+        ))}
       </div>
-      {/* Row 2 — Event date + location (only when set) */}
+      {/* Row 2 — Company / project title */}
+      <div style={{ fontSize: 13, fontWeight: unread ? 700 : 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        {company}
+      </div>
+      {/* Row 3 — Event date + location (only when set) */}
       {(dateLabel || location) && (
         <div style={{ fontSize: 11.5, color: C.inkMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {[dateLabel, location].filter(Boolean).join(" · ")}
         </div>
       )}
-      {/* Row 3 — Last-message preview + relative time. This is what
+      {/* Row 4 — Last-message preview + relative time. This is what
           makes the row feel like a real conversation list (familiar
           WhatsApp / iMessage pattern): user sees the last thing said
           and roughly when it happened without opening the thread. */}
@@ -669,7 +754,6 @@ function InquiryRow({ inq, active, onClick }: { inq: ClientInquiryRow; active: b
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
-            fontStyle: inq.last_message_from_me ? "normal" : "normal",
           }}>
             {preview}
           </span>
@@ -678,13 +762,6 @@ function InquiryRow({ inq, active, onClick }: { inq: ClientInquiryRow; active: b
               {previewTime}
             </span>
           )}
-        </div>
-      )}
-      {needsMe && !preview && (
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 2 }}>
-          <span style={{ fontSize: 10.5, fontWeight: 700, color: C.accent, textTransform: "uppercase", letterSpacing: 0.3 }}>
-            Action needed
-          </span>
         </div>
       )}
     </button>
@@ -701,6 +778,32 @@ const TAB_CONFIG: Array<{ id: ThreadTab; label: string }> = [
   { id: "files", label: "Files" },
 ];
 
+/** Within-Chat sub-view (audit #15) — mirrors the talent shell's Chat/Activity
+ *  split. "Chat" is the human conversation; "Activity" is the read-only
+ *  money/booking timeline. */
+type ChatMode = "chat" | "activity";
+
+/** Message kinds that render as structured cards — the money/booking/system
+ *  timeline shown in the thread's "Activity" sub-view. Mirrors the talent
+ *  shell's MONEY_KINDS, limited to the kinds the client card renderer actually
+ *  draws (renderClientChatCard). Everything else — plain text, plus staff-only
+ *  kinds that fall through to a text bubble — stays in "Chat", so no message is
+ *  ever hidden from both views. */
+const CLIENT_ACTIVITY_KINDS = new Set<string>([
+  "offer_event",
+  "payment_request",
+  "payment_paid",
+  "booking_confirmed",
+  "call_sheet_update",
+  "booking_status",
+  "system_event",
+]);
+
+function isClientActivityMessage(m: WorkspaceMessage): boolean {
+  const kind = m.message_kind ?? "text";
+  return kind !== "text" && CLIENT_ACTIVITY_KINDS.has(kind);
+}
+
 function ThreadPaneWithTabs({
   inq,
   messages,
@@ -712,6 +815,7 @@ function ThreadPaneWithTabs({
   onTabChange,
   tenantSlug,
   client,
+  viewerUserId,
   onBack,
   onAfterOfferAction,
 }: {
@@ -725,6 +829,7 @@ function ThreadPaneWithTabs({
   onTabChange: (tab: ThreadTab) => void;
   tenantSlug: string;
   client: { displayName: string };
+  viewerUserId: string | null;
   onBack: () => void;
   onAfterOfferAction?: () => void;
 }) {
@@ -732,10 +837,42 @@ function ThreadPaneWithTabs({
   const router = useRouter();
   const [statusSheetOpen, setStatusSheetOpen] = useState(false);
   const [payNowSheet, setPayNowSheet] = useState<{ amountLabel: string } | null>(null);
+  // Chat/Activity sub-view (audit #15) — mirrors the talent shell. Resets to
+  // "chat" whenever the selected inquiry changes so a new thread always opens
+  // on the conversation.
+  const [chatMode, setChatMode] = useState<ChatMode>("chat");
+  useEffect(() => { setChatMode("chat"); }, [inq.id]);
+  // Inquiry-wide pinned messages (shared — everyone on the thread sees the
+  // same set). Loaded client-side; refreshed after a pin toggle reconciles.
+  // Client thread is the GROUP thread.
+  const { pins, pinnedIds, refresh: refreshPins, removeLocal: removePinLocal } =
+    usePinnedMessages(inq.id, "group");
+  // Jump to a pinned message: scroll its bubble into view and pulse-highlight.
+  const jumpToMessage = useCallback((messageId: string) => {
+    const el = document.querySelector<HTMLElement>(`[data-message-id="${messageId}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.style.transition = "background 600ms";
+    const prevBg = el.style.background;
+    el.style.background = C.accentSoft;
+    window.setTimeout(() => { el.style.background = prevBg; }, 900);
+  }, []);
+  // D7: count both money message cards AND inquiry_events for the Activity badge
+  const activityCount = useMemo(
+    () => messages.filter(isClientActivityMessage).length + (details?.activity.length ?? 0),
+    [messages, details],
+  );
   const statusSheetData = useMemo<StatusSheetData>(
     () => buildClientStatusSheetData(inq, details),
     [inq, details],
   );
+  // Ephemeral typing presence (broadcast-only, no DB). Channel keyed per
+  // inquiry; null when no viewer id so the hook safely no-ops.
+  const { typingUsers, setTyping } = useThreadPresence({
+    channelKey: viewerUserId ? `inquiry:${inq.id}:group` : null,
+    userId: viewerUserId ?? "",
+    displayName: client.displayName,
+  });
   return (
     <>
       {/* Thread header — same as before, but tab strip appended below */}
@@ -854,6 +991,92 @@ function ThreadPaneWithTabs({
             );
           })}
         </div>
+
+        {/* Chat / Activity sub-toggle — mirrors the talent shell (audit #15).
+            "Chat" is the human conversation; "Activity" is the read-only
+            money/booking timeline (offer → payment → booking). Only shown on
+            the Chat tab; lives in the fixed header so it stays pinned. */}
+        {activeTab === "chat" && (
+          <div role="tablist" aria-label="Chat or activity" style={{ display: "flex", gap: 4, marginTop: 8, marginBottom: 10 }}>
+            {([
+              { id: "chat" as ChatMode, label: "Chat" },
+              { id: "activity" as ChatMode, label: "Activity" },
+            ]).map(({ id, label }) => {
+              const isActive = chatMode === id;
+              const count = id === "activity" ? activityCount : 0;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => setChatMode(id)}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "4px 12px",
+                    borderRadius: 999,
+                    border: `1px solid ${isActive ? C.ink : C.borderSoft}`,
+                    background: isActive ? C.ink : "transparent",
+                    color: isActive ? "#fff" : C.inkMuted,
+                    fontFamily: FONT,
+                    fontSize: 11.5,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {label}
+                  {count > 0 && (
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        minWidth: 16,
+                        height: 16,
+                        padding: "0 4px",
+                        borderRadius: 999,
+                        background: isActive ? "rgba(255,255,255,0.22)" : C.accentSoft,
+                        color: isActive ? "#fff" : C.accent,
+                        fontSize: 10,
+                        fontWeight: 700,
+                      }}
+                    >
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Pinned strip — inquiry-wide pinned messages, shared across the
+            thread. Renders nothing when empty. Chat sub-view only. */}
+        {activeTab === "chat" && chatMode === "chat" && pins.length > 0 && (
+          <div style={{ marginBottom: 10 }}>
+            <PinnedStrip
+              pins={pins}
+              onJump={jumpToMessage}
+              onUnpin={async (messageId) => {
+                removePinLocal(messageId);
+                const { toggleMessagePin } = await import("@/lib/server-actions/message-pins");
+                await toggleMessagePin(messageId, inq.id);
+                void refreshPins();
+              }}
+              palette={{
+                accent: C.accent,
+                accentSoft: C.accentSoft,
+                ink: C.ink,
+                inkMuted: C.inkMuted,
+                border: C.border,
+                surface: "#fff",
+              }}
+            />
+          </div>
+        )}
       </div>
 
       {/* Tab body */}
@@ -862,12 +1085,22 @@ function ThreadPaneWithTabs({
           <ChatThreadBody
             inq={inq}
             messages={messages}
+            mode={chatMode}
             loading={loadingMessages}
             tenantSlug={tenantSlug}
             pitch={details?.pitch ?? null}
+            details={details}
             onJumpToOffer={() => onTabChange("offer")}
-            onPayNow={(amountLabel) => setPayNowSheet({ amountLabel })}
+            onPayNow={(cardAmountLabel) =>
+              // #13-2 — open the Pay-now sheet on the REAL charge (the booking
+              // transaction's gross from the loader's `payment` section), not
+              // the offer total / stale card label. Falls back to the card's
+              // own amount pre-charge (no transaction row yet).
+              setPayNowSheet({ amountLabel: clientChargeLabel(details) ?? cardAmountLabel })
+            }
             onMessagesChange={onMessagesChange}
+            pinnedIds={pinnedIds}
+            onPinChanged={() => { void refreshPins(); }}
           />
         )}
         {activeTab === "details" && (
@@ -903,15 +1136,28 @@ function ThreadPaneWithTabs({
         />
       )}
 
-      {/* Inline composer — only on Chat tab */}
-      {activeTab === "chat" && (
+      {/* Ephemeral typing-presence row — between the message list and the
+          composer. Renders nothing when no peer is typing. */}
+      {activeTab === "chat" && chatMode === "chat" && (
+        <TypingRow users={typingUsers} color={C.accent} />
+      )}
+      {/* Inline composer — only on the Chat tab's Chat sub-view. The Activity
+          sub-view is a read-only money/booking timeline (audit #15). */}
+      {activeTab === "chat" && chatMode === "chat" && (
         <ChatComposer
           inquiryId={inq.id}
           tenantSlug={tenantSlug}
           senderName={client.displayName}
           inquiryStatus={inq.status}
           hasOffer={!!details?.offer?.exists}
+          details={details}
+          onTyping={setTyping}
           onSent={(msg) => onMessagesChange((prev) => [...prev, msg])}
+          onReconcileSent={(tempId, realId) =>
+            onMessagesChange((prev) =>
+              prev.map((m) => (m.id === tempId ? { ...m, id: realId } : m)),
+            )
+          }
         />
       )}
     </>
@@ -962,6 +1208,19 @@ const NEXT_STEP_FROM_STATUS: Record<string, string> = {
   cancelled: "This project has been cancelled.",
 };
 
+/**
+ * #13-2 — format the client's REAL charge (booking-transaction gross, GROSS
+ * only) from the loader's `payment` section, for the Pay-now sheet + status.
+ * Returns null when no transaction exists yet (pre-charge) so callers can fall
+ * back to the triggering card's own amount. Mirrors the label format used in
+ * buildClientStatusSheetData so the sheet and the status row read identically.
+ */
+function clientChargeLabel(details: ClientInquiryDetails | null): string | null {
+  const p = details?.payment;
+  if (!p || p.amount_major == null) return null;
+  return `${p.currency ?? "USD"} ${Number(p.amount_major).toLocaleString()}`;
+}
+
 function buildClientStatusSheetData(
   inq: ClientInquiryRow,
   details: ClientInquiryDetails | null,
@@ -986,10 +1245,7 @@ function buildClientStatusSheetData(
   // when the charge amount isn't recorded yet.
   const payment: { status: PaymentStatus; amountLabel?: string; nextAction?: string } = (() => {
     const p = details?.payment ?? null;
-    const amountLabel =
-      p?.amount_major != null
-        ? `${p.currency ?? "USD"} ${Number(p.amount_major).toLocaleString()}`
-        : offerTotal;
+    const amountLabel = clientChargeLabel(details) ?? offerTotal;
     switch (p?.state) {
       case "requested":      return { status: "Requested", amountLabel, nextAction: "Open the Offer tab to pay and confirm your booking." };
       case "partially_paid": return { status: "Partially paid", amountLabel, nextAction: "A balance remains — open the Offer tab to pay the rest." };
@@ -1144,6 +1400,30 @@ function CoordinatorChip({
   );
 }
 
+// ─── @mention helpers ─────────────────────────────────────────────────────
+
+/** Extract participant names that can be @-mentioned from the details payload. */
+function getMentionableParticipants(details: ClientInquiryDetails | null): string[] {
+  const names: string[] = [];
+  if (details?.coordinator?.assigned && details.coordinator.name) {
+    names.push(details.coordinator.name);
+  }
+  for (const t of details?.talent.selected ?? []) {
+    names.push(t.name);
+  }
+  return names;
+}
+
+/** Detect the @-mention prefix being typed at the current cursor position.
+ *  Returns the prefix string (without @) when a mention is active, null otherwise. */
+function detectMentionPrefix(text: string, caretPos: number): string | null {
+  // Find the last @ before the caret that isn't preceded by a word char.
+  const sub = text.slice(0, caretPos);
+  const match = sub.match(/(^|[\s\n])@([^\s@]*)$/);
+  if (!match) return null;
+  return match[2]; // text after @
+}
+
 // ─── Inline composer ─────────────────────────────────────────────────────
 
 function ChatComposer({
@@ -1152,22 +1432,89 @@ function ChatComposer({
   senderName,
   inquiryStatus,
   hasOffer,
+  details,
+  onTyping,
   onSent,
+  onReconcileSent,
 }: {
   inquiryId: string;
   tenantSlug: string;
   senderName: string;
   inquiryStatus?: string;
   hasOffer?: boolean;
+  details?: ClientInquiryDetails | null;
+  /** Ephemeral typing-presence beat. true on keystroke, false on send/blur. */
+  onTyping?: (isTyping: boolean) => void;
   onSent: (msg: WorkspaceMessage) => void;
+  /** Promote an optimistic `tmp-` bubble to its canonical server row id so
+   *  the reconcile dedups by id, never body text (audit #15). */
+  onReconcileSent: (tempId: string, realId: string) => void;
 }) {
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [uploading, setUploading] = useState(false);
   const [emojiOpen, setEmojiOpen] = useState(false);
+  // @mention picker state
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionStart, setMentionStart] = useState<number>(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Participant list for @-mention popover
+  const mentionableNames = useMemo(() => getMentionableParticipants(details ?? null), [details]);
+  const filteredMentions = useMemo(() => {
+    if (mentionQuery === null) return [];
+    const q = mentionQuery.toLowerCase();
+    return mentionableNames.filter((n) => n.toLowerCase().includes(q));
+  }, [mentionQuery, mentionableNames]);
+
+  /** Called when user selects a name from the mention popover.
+   *  Inserts the first-name token so the @\S+ highlight always covers the whole token. */
+  function insertMention(name: string) {
+    const ta = textareaRef.current;
+    const caret = ta?.selectionStart ?? body.length;
+    // Use the first word of the name as the token so the @\S+ regex
+    // highlights it as a single unbroken span (e.g. @Sofia rather than @Sofia Herrera).
+    const token = name.split(/\s+/)[0] ?? name;
+    // Replace from the @ position to the current caret with the @token
+    const before = body.slice(0, mentionStart);
+    const after = body.slice(caret);
+    const insertion = `@${token} `;
+    const next = before + insertion + after;
+    setBody(next);
+    setMentionQuery(null);
+    requestAnimationFrame(() => {
+      ta?.focus();
+      const pos = mentionStart + insertion.length;
+      ta?.setSelectionRange(pos, pos);
+    });
+  }
+
+  /** Track textarea changes to detect @ prefix. */
+  function handleBodyChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    const val = e.target.value;
+    setBody(val);
+    onTyping?.(val.length > 0);
+    const caret = e.target.selectionStart ?? val.length;
+    const prefix = detectMentionPrefix(val, caret);
+    if (prefix !== null) {
+      // Record the @ start position: caret - prefix.length - 1 (for @)
+      const atPos = caret - prefix.length - 1;
+      setMentionStart(atPos);
+      setMentionQuery(prefix);
+    } else {
+      setMentionQuery(null);
+    }
+  }
+
+  // Close mention picker on Escape
+  useEffect(() => {
+    if (mentionQuery === null) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMentionQuery(null); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [mentionQuery]);
 
   function insertEmoji(emoji: string) {
     const ta = textareaRef.current;
@@ -1258,6 +1605,7 @@ function ChatComposer({
     };
     onSent(optimistic);
     setBody("");
+    onTyping?.(false);
 
     startTransition(async () => {
       const res = await sendClientMessageAction(tenantSlug, inquiryId, trimmed);
@@ -1269,12 +1617,14 @@ function ChatComposer({
         window.dispatchEvent(new CustomEvent("client-message-send-failed", { detail: { tempId } }));
         return;
       }
-      // Server accepted — refetch the thread to reconcile the optimistic
-      // bubble with the canonical row (real id, real sender_user_id, real
-      // created_at). Fire-and-forget; failure just leaves the optimistic
-      // bubble in place.
+      // Server accepted — promote the optimistic bubble to its canonical row
+      // id immediately so the refetch reconciles by id, never body text
+      // (audit #15: identical bodies used to collide). The refetch then swaps
+      // in the canonical row data (created_at / seen_at). Fire-and-forget;
+      // failure just leaves the (now real-id) bubble in place.
+      if (res.messageId) onReconcileSent(tempId, res.messageId);
       window.dispatchEvent(
-        new CustomEvent("client-message-send-ok", { detail: { tempId, inquiryId } }),
+        new CustomEvent("client-message-send-ok", { detail: { inquiryId } }),
       );
     });
   }
@@ -1329,10 +1679,12 @@ function ChatComposer({
         setError(`Uploaded, but message failed: ${sendRes.error}`);
         return;
       }
-      // Add the canonical announce bubble.
-      const announceTempId = `tmp-up-msg-${Date.now()}`;
+      // The announce send already succeeded — add the bubble with its
+      // canonical row id directly so the refetch reconciles by id, never body
+      // text (audit #15). Falls back to a tmp id only if the action somehow
+      // returned no id (defensive; the engine always returns one).
       onSent({
-        id: announceTempId,
+        id: sendRes.messageId || `tmp-up-msg-${Date.now()}`,
         sender_user_id: "",
         sender_name: senderName,
         body: announceBody,
@@ -1340,7 +1692,7 @@ function ChatComposer({
         is_mine: true,
       });
       window.dispatchEvent(
-        new CustomEvent("client-message-send-ok", { detail: { tempId: announceTempId, inquiryId } }),
+        new CustomEvent("client-message-send-ok", { detail: { inquiryId } }),
       );
     });
   }
@@ -1503,37 +1855,135 @@ function ChatComposer({
             </div>
           )}
         </div>
-        <textarea
-          ref={textareaRef}
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          onKeyDown={(e) => {
-            // Cmd/Ctrl+Enter sends; plain Enter inserts newline on mobile.
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-              e.preventDefault();
-              submit();
-            }
+        {/* Voice note — record + send straight to the private thread. After a
+            successful send we fire the same `client-message-send-ok` event the
+            text path uses so the thread refetches (loadInquiryMessages now
+            carries metadata.voice → the bubble renders the player). */}
+        <VoiceRecorderButton
+          inquiryId={inquiryId}
+          threadType="private"
+          accent={C.accent}
+          idleColor={C.inkMuted}
+          onSent={() => {
+            window.dispatchEvent(
+              new CustomEvent("client-message-send-ok", { detail: { inquiryId } }),
+            );
           }}
-          placeholder="Reply to your coordinator…"
-          rows={1}
-          disabled={pending}
-          style={{
-            flex: 1,
-            minHeight: 38,
-            maxHeight: 140,
-            padding: "9px 12px",
-            borderRadius: 10,
-            border: `1px solid ${C.borderSoft}`,
-            background: C.surface,
-            fontFamily: FONT,
-            fontSize: 13.5,
-            lineHeight: 1.45,
-            color: C.ink,
-            resize: "none",
-            outline: "none",
-            boxSizing: "border-box",
-          }}
+          onError={(msg) => setError(msg)}
         />
+        <div style={{ flex: 1, position: "relative" }}>
+          {/* @mention popover — appears above the textarea when a mention is active */}
+          {mentionQuery !== null && filteredMentions.length > 0 && (
+            <div
+              role="listbox"
+              aria-label="Mention a participant"
+              style={{
+                position: "absolute",
+                bottom: "calc(100% + 6px)",
+                left: 0,
+                minWidth: 180,
+                maxWidth: 280,
+                background: "#fff",
+                border: `1px solid ${C.borderSoft}`,
+                borderRadius: 10,
+                boxShadow: "0 6px 20px rgba(0,0,0,0.10)",
+                padding: 4,
+                display: "flex",
+                flexDirection: "column",
+                gap: 2,
+                zIndex: 65,
+              }}
+            >
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: 0.4, padding: "4px 8px 2px" }}>
+                Mention a participant
+              </div>
+              {filteredMentions.map((name) => (
+                <button
+                  key={name}
+                  type="button"
+                  role="option"
+                  aria-selected={false}
+                  onMouseDown={(e) => {
+                    e.preventDefault(); // prevent textarea blur
+                    insertMention(name);
+                  }}
+                  style={{
+                    textAlign: "left",
+                    padding: "7px 10px",
+                    borderRadius: 7,
+                    background: "transparent",
+                    border: "none",
+                    color: C.ink,
+                    fontFamily: FONT,
+                    fontSize: 13,
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(29,78,216,0.06)"; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
+                >
+                  <span
+                    style={{
+                      width: 26,
+                      height: 26,
+                      borderRadius: "50%",
+                      background: C.accentSoft,
+                      color: C.accent,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 10,
+                      fontWeight: 700,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {name.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("")}
+                  </span>
+                  <span>@{name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          <textarea
+            ref={textareaRef}
+            value={body}
+            onChange={handleBodyChange}
+            onBlur={() => onTyping?.(false)}
+            onKeyDown={(e) => {
+              // Cmd/Ctrl+Enter sends; plain Enter inserts newline on mobile.
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                submit();
+              }
+              // Tab / ArrowDown — close mention picker without inserting (user can click)
+              if (e.key === "Tab" && mentionQuery !== null) {
+                setMentionQuery(null);
+              }
+            }}
+            placeholder="Reply to your coordinator…"
+            rows={1}
+            disabled={pending}
+            style={{
+              width: "100%",
+              minHeight: 38,
+              maxHeight: 140,
+              padding: "9px 12px",
+              borderRadius: 10,
+              border: `1px solid ${C.borderSoft}`,
+              background: C.surface,
+              fontFamily: FONT,
+              fontSize: 13.5,
+              lineHeight: 1.45,
+              color: C.ink,
+              resize: "none",
+              outline: "none",
+              boxSizing: "border-box",
+            }}
+          />
+        </div>
         <button
           type="button"
           onClick={submit}
@@ -1565,56 +2015,252 @@ function ChatComposer({
         </button>
       </div>
       <div style={{ fontSize: 10.5, color: C.inkDim, paddingLeft: 4 }}>
-        ⌘ + Enter to send
+        ⌘ + Enter to send · type @ to mention a participant
+      </div>
+    </div>
+  );
+}
+
+// ─── Activity event items ────────────────────────────────────────────────────
+//
+// D7 — enrich the Activity sub-tab with structured inquiry_events rows.
+// These come from `details.activity` and show field diffs, money milestones,
+// and booking status changes in a clean read-only timeline.
+
+type ActivityEventItem = ClientInquiryDetails["activity"][number];
+
+/** Human-readable label + icon for each client-visible event type. */
+const ACTIVITY_EVENT_META: Record<string, { icon: string; label: (e: ActivityEventItem) => string }> = {
+  "inquiry.submitted":              { icon: "📝", label: () => "Inquiry submitted" },
+  "inquiry.moved_to_coordination":  { icon: "🎯", label: () => "Moved to coordination" },
+  "inquiry.details_updated":        { icon: "✏️", label: () => "Details updated" },
+  "inquiry.frozen":                 { icon: "🔒", label: () => "Inquiry paused" },
+  "inquiry.unfrozen":               { icon: "🔓", label: () => "Inquiry resumed" },
+  "inquiry.archived":               { icon: "📦", label: () => "Inquiry archived" },
+  "inquiry.cancelled":              { icon: "✖️", label: () => "Inquiry cancelled" },
+  "coordinator.assigned":           { icon: "👤", label: (e) => e.actor_name ? `${e.actor_name} assigned as coordinator` : "Coordinator assigned" },
+  "coordinator.accepted":           { icon: "✅", label: (e) => e.actor_name ? `${e.actor_name} accepted this inquiry` : "Coordinator accepted" },
+  "roster.talent_invited":          { icon: "🌟", label: () => "Talent added to lineup" },
+  "roster.talent_accepted":         { icon: "✅", label: () => "Talent confirmed" },
+  "roster.talent_declined":         { icon: "❌", label: () => "Talent declined" },
+  "offer.created":                  { icon: "💰", label: () => "Offer drafted" },
+  "offer.sent":                     { icon: "📤", label: () => "Offer sent for review" },
+  "offer.client_rejected":          { icon: "↩️", label: () => "Offer returned for revision" },
+  "approval.submitted":             { icon: "👍", label: (e) => e.actor_name ? `${e.actor_name} approved` : "Approval received" },
+  "approval.all_complete":          { icon: "🎉", label: () => "All parties approved — ready to book" },
+  "booking.created":                { icon: "📅", label: () => "Booking confirmed" },
+  "payment_requested":              { icon: "💳", label: () => "Payment requested" },
+  "payment_paid":                   { icon: "✅", label: () => "Payment received" },
+  "booking_confirmed":              { icon: "🎬", label: () => "Booking confirmed — all set!" },
+};
+
+/** Format a field-diff entry from the `changed` payload of inquiry.details_updated. */
+function formatFieldDiff(fieldName: string, from: unknown, to: unknown): string {
+  const label = ({
+    event_date: "Date",
+    event_location: "Location",
+    message: "Brief",
+    quantity: "Quantity",
+  } as Record<string, string>)[fieldName] ?? fieldName.replace(/_/g, " ");
+
+  const fmt = (v: unknown): string => {
+    if (v == null || v === "") return "(none)";
+    if (typeof v === "string") {
+      // Dates: try ISO date formatting
+      if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+        try {
+          return new Date(v + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+        } catch { return v; }
+      }
+      // Truncate long strings (brief)
+      return v.length > 60 ? v.slice(0, 60) + "…" : v;
+    }
+    return String(v);
+  };
+
+  return `${label}: ${fmt(from)} → ${fmt(to)}`;
+}
+
+function ActivityEventRow({ event }: { event: ActivityEventItem }) {
+  const meta = ACTIVITY_EVENT_META[event.event_type];
+  const icon = meta?.icon ?? "•";
+  const label = meta ? meta.label(event) : event.event_type.replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+  // For details_updated: render field diffs inline
+  const changed = event.event_type === "inquiry.details_updated"
+    ? (event.payload?.changed as Record<string, { from: unknown; to: unknown }> | undefined)
+    : undefined;
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 10,
+        padding: "10px 12px",
+        borderRadius: 10,
+        background: "#fff",
+        border: `1px solid ${C.borderSoft}`,
+        fontFamily: FONT,
+      }}
+    >
+      <span style={{ fontSize: 16, flexShrink: 0, marginTop: 1 }}>{icon}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 600, color: C.ink, lineHeight: 1.4 }}>
+          {label}
+        </div>
+        {changed && Object.keys(changed).length > 0 && (
+          <div style={{ marginTop: 4, display: "flex", flexDirection: "column", gap: 3 }}>
+            {Object.entries(changed).map(([field, diff]) => (
+              <div
+                key={field}
+                style={{
+                  fontSize: 11.5,
+                  color: C.inkMuted,
+                  background: "rgba(29,78,216,0.04)",
+                  borderLeft: `2px solid ${C.accent}`,
+                  borderRadius: "0 6px 6px 0",
+                  padding: "3px 8px",
+                  lineHeight: 1.4,
+                }}
+              >
+                {formatFieldDiff(field, diff.from, diff.to)}
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{ fontSize: 10.5, color: C.inkDim, marginTop: 4 }}>
+          {formatTime(event.created_at)}
+          {event.actor_name && event.event_type !== "coordinator.assigned" && event.event_type !== "coordinator.accepted" && (
+            <span style={{ marginLeft: 5 }}>· {event.actor_name}</span>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
 function ChatThreadBody({
-  inq, messages, loading, tenantSlug, pitch, onJumpToOffer, onPayNow, onMessagesChange,
+  inq, messages, mode, loading, tenantSlug, pitch, details, onJumpToOffer, onPayNow, onMessagesChange,
+  pinnedIds, onPinChanged,
 }: {
   inq: ClientInquiryRow;
   messages: WorkspaceMessage[];
+  mode: ChatMode;
   loading: boolean;
   tenantSlug: string;
   pitch: ClientInquiryDetails["pitch"];
+  details: ClientInquiryDetails | null;
   onJumpToOffer?: () => void;
   onPayNow?: (amountLabel: string) => void;
   onMessagesChange?: (next: WorkspaceMessage[] | ((prev: WorkspaceMessage[]) => WorkspaceMessage[])) => void;
+  pinnedIds?: Set<string>;
+  onPinChanged?: () => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  // "Chat" shows the human conversation (text bubbles + any staff-only kinds
+  // that fall through to a plain bubble); "Activity" shows only the
+  // money/booking/system cards as a read-only timeline. The two are a strict
+  // partition so no message is hidden from both views (audit #15).
+  const visible = useMemo(
+    () =>
+      mode === "activity"
+        ? messages.filter(isClientActivityMessage)
+        : messages.filter((m) => !isClientActivityMessage(m)),
+    [messages, mode],
+  );
+
+  // D7 — Build a merged activity timeline for the Activity sub-view.
+  // Combine money/booking message cards with inquiry_events rows from `details.activity`.
+  // Sort chronologically (oldest first); deduplicate by semantic overlap where possible.
+  const activityTimeline = useMemo<
+    Array<{ kind: "message"; msg: WorkspaceMessage } | { kind: "event"; event: ActivityEventItem }>
+  >(() => {
+    if (mode !== "activity") return [];
+    const msgItems: Array<{ kind: "message"; msg: WorkspaceMessage; ts: string }> =
+      visible.map((m) => ({ kind: "message" as const, msg: m, ts: m.created_at }));
+
+    // Inquiry events from the loader — these are the structural milestones.
+    // Skip events whose type overlaps semantically with message cards already
+    // shown (offer_event ↔ offer.sent, payment cards ↔ payment_requested/paid)
+    // to avoid showing the same moment twice with different labels.
+    const msgKindTypes = new Set(visible.map((m) => m.message_kind ?? "text"));
+    const skipEventTypes = new Set<string>();
+    if (msgKindTypes.has("offer_event")) skipEventTypes.add("offer.sent").add("offer.created");
+    if (msgKindTypes.has("payment_request")) skipEventTypes.add("payment_requested");
+    if (msgKindTypes.has("payment_paid")) skipEventTypes.add("payment_paid");
+    if (msgKindTypes.has("booking_confirmed")) skipEventTypes.add("booking.created").add("booking_confirmed");
+
+    const eventItems: Array<{ kind: "event"; event: ActivityEventItem; ts: string }> =
+      (details?.activity ?? [])
+        .filter((e) => !skipEventTypes.has(e.event_type))
+        .map((e) => ({ kind: "event" as const, event: e, ts: e.created_at }));
+
+    // Merge and sort by timestamp ascending (oldest first → timeline flows down)
+    return [...msgItems, ...eventItems]
+      .sort((a, b) => a.ts.localeCompare(b.ts))
+      .map(({ kind, ...rest }) => {
+        if (kind === "message") return { kind: "message" as const, msg: (rest as { msg: WorkspaceMessage }).msg };
+        return { kind: "event" as const, event: (rest as { event: ActivityEventItem }).event };
+      });
+  }, [mode, visible, details]);
+
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [messages]);
-  void inq;
+  }, [visible, activityTimeline.length]);
+
+  const isEmpty = mode === "activity" ? activityTimeline.length === 0 : visible.length === 0;
+
   return (
     <div
       ref={scrollRef}
       role="log"
       aria-live="polite"
-      aria-label="Conversation messages"
+      aria-label={mode === "activity" ? "Booking activity timeline" : "Conversation messages"}
       style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 10 }}
     >
-      {pitch && <PitchOriginBlock pitch={pitch} />}
+      {mode === "chat" && pitch && <PitchOriginBlock pitch={pitch} />}
       {loading ? (
         <ChatLoadingSkeleton />
-      ) : messages.length === 0 ? (
+      ) : isEmpty ? (
         <div style={{ color: C.inkDim, fontSize: 12.5, textAlign: "center", padding: 30, fontStyle: "italic" }}>
-          No messages yet. Your coordinator will reply here once they pick up your inquiry.
+          {mode === "activity"
+            ? "No activity yet. Offers, payments and booking confirmations will appear here as your booking progresses."
+            : "No messages yet. Your coordinator will reply here once they pick up your inquiry."}
         </div>
+      ) : mode === "activity" ? (
+        // D7: merged activity timeline — inquiry_events + money message cards
+        <>
+          {activityTimeline.map((item) =>
+            item.kind === "event" ? (
+              <ActivityEventRow key={`ev-${item.event.id}`} event={item.event} />
+            ) : (
+              <Bubble
+                key={item.msg.id}
+                m={item.msg}
+                showSeen={false}
+                tenantSlug={tenantSlug}
+                inquiryId={inq.id}
+                onJumpToOffer={onJumpToOffer}
+                onPayNow={onPayNow}
+                onMessagesChange={undefined}
+                pinnedIds={pinnedIds}
+                onPinChanged={onPinChanged}
+              />
+            )
+          )}
+        </>
       ) : (
         (() => {
           // Find the latest is_mine message with a seen_at — only that one
           // gets the "Seen" pill so the indicator doesn't repeat down the
-          // thread. Reading from the loader's seen_at field which already
-          // compares per-message created_at against the counterparty's
-          // last_read_at on this thread.
+          // thread. Computed over the visible (filtered) list so the pill
+          // tracks the sub-view the user is looking at.
           let lastSeenMineIdx = -1;
-          for (let i = messages.length - 1; i >= 0; i--) {
-            if (messages[i].is_mine && messages[i].seen_at) { lastSeenMineIdx = i; break; }
+          for (let i = visible.length - 1; i >= 0; i--) {
+            if (visible[i].is_mine && visible[i].seen_at) { lastSeenMineIdx = i; break; }
           }
-          return messages.map((m, i) => (
+          return visible.map((m, i) => (
             <Bubble
               key={m.id}
               m={m}
@@ -1624,6 +2270,8 @@ function ChatThreadBody({
               onJumpToOffer={onJumpToOffer}
               onPayNow={onPayNow}
               onMessagesChange={onMessagesChange}
+              pinnedIds={pinnedIds}
+              onPinChanged={onPinChanged}
             />
           ));
         })()
@@ -2146,6 +2794,8 @@ function Bubble({
   onJumpToOffer,
   onPayNow,
   onMessagesChange,
+  pinnedIds,
+  onPinChanged,
 }: {
   m: WorkspaceMessage;
   showSeen?: boolean;
@@ -2154,10 +2804,15 @@ function Bubble({
   onJumpToOffer?: () => void;
   onPayNow?: (amountLabel: string) => void;
   onMessagesChange?: (next: WorkspaceMessage[] | ((prev: WorkspaceMessage[]) => WorkspaceMessage[])) => void;
+  pinnedIds?: Set<string>;
+  onPinChanged?: () => void;
 }) {
   const mine = m.is_mine;
   const kind = m.message_kind ?? "text";
-  const card = kind !== "text" ? renderClientChatCard(kind, m.card_payload ?? {}, { onJumpToOffer, onPayNow }) : null;
+  // Voice notes render as an inline player bubble (handled below), never a
+  // money/booking card. Detect from metadata so a tolerant parse wins.
+  const voiceMeta = kind === "voice" ? readVoiceMetaFromMessageMetadata(m.metadata) : null;
+  const card = kind !== "text" && kind !== "voice" ? renderClientChatCard(kind, m.card_payload ?? {}, { onJumpToOffer, onPayNow }) : null;
 
   const isOptimistic = m.id.startsWith("tmp-");
   const canEditOrDelete = mine && !isOptimistic && kind === "text" && tenantSlug && onMessagesChange;
@@ -2268,10 +2923,40 @@ function Bubble({
     });
   }
 
+  // Voice note — inline audio player in a normal bubble (no edit/delete).
+  if (voiceMeta) {
+    return (
+      <div data-message-id={m.id} style={{ display: "flex", justifyContent: mine ? "flex-end" : "flex-start" }}>
+        <div style={{ maxWidth: "78%" }}>
+          {!mine && (
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: C.inkMuted, marginBottom: 3, letterSpacing: 0.3 }}>
+              {m.sender_name}
+            </div>
+          )}
+          <div
+            style={{
+              padding: "8px 12px",
+              borderRadius: 14,
+              borderBottomRightRadius: mine ? 4 : 14,
+              borderBottomLeftRadius: mine ? 14 : 4,
+              background: mine ? C.ink : "#fff",
+              border: mine ? "none" : `1px solid ${C.borderSoft}`,
+            }}
+          >
+            <VoiceNotePlayer meta={voiceMeta} accent={C.accent} onDark={mine} />
+          </div>
+          <div style={{ fontSize: 10, color: C.inkDim, marginTop: 3, textAlign: mine ? "right" : "left", paddingRight: 2 }}>
+            {formatTime(m.created_at)}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Structured card — full-width, no chat-bubble chrome. No edit/delete for cards.
   if (card) {
     return (
-      <div style={{ display: "flex", justifyContent: "stretch", flexDirection: "column", gap: 4, maxWidth: "92%", margin: mine ? "0 0 0 auto" : "0 auto 0 0" }}>
+      <div data-message-id={m.id} style={{ display: "flex", justifyContent: "stretch", flexDirection: "column", gap: 4, maxWidth: "92%", margin: mine ? "0 0 0 auto" : "0 auto 0 0" }}>
         {!mine && (
           <div style={{ fontSize: 10.5, fontWeight: 700, color: C.inkMuted, letterSpacing: 0.3, paddingLeft: 2 }}>
             {m.sender_name}
@@ -2287,7 +2972,7 @@ function Bubble({
 
   // Plain text bubble.
   return (
-    <div style={{ display: "flex", justifyContent: mine ? "flex-end" : "flex-start" }}>
+    <div data-message-id={m.id} style={{ display: "flex", justifyContent: mine ? "flex-end" : "flex-start" }}>
       <div style={{ maxWidth: "78%", position: "relative" }}>
         {!mine && (
           <div style={{ fontSize: 10.5, fontWeight: 700, color: C.inkMuted, marginBottom: 3, letterSpacing: 0.3 }}>
@@ -2357,7 +3042,21 @@ function Bubble({
                 wordBreak: "break-word",
               }}
             >
-              {m.body}
+              {renderMessageMarkdown(m.body ?? "")}
+              {(() => {
+                const url = firstHttpUrl(m.body);
+                return url ? (
+                  <LinkPreview
+                    url={url}
+                    colors={{
+                      bg: mine ? "rgba(255,255,255,0.10)" : C.surface,
+                      border: mine ? "rgba(255,255,255,0.24)" : C.borderSoft,
+                      title: mine ? "#fff" : C.ink,
+                      muted: mine ? "rgba(255,255,255,0.72)" : C.inkMuted,
+                    }}
+                  />
+                ) : null;
+              })()}
             </div>
           )}
           {canReact && !editing && (
@@ -2434,6 +3133,17 @@ function Bubble({
               starred={m.starred ?? false}
               compact
               onError={setActionError}
+            />
+          )}
+          {!isOptimistic && inquiryId && !editing && (
+            <PinButton
+              messageId={m.id}
+              inquiryId={inquiryId}
+              pinned={pinnedIds?.has(m.id) ?? false}
+              compact
+              accent={C.accent}
+              onError={setActionError}
+              onChanged={() => onPinChanged?.()}
             />
           )}
           {canEditOrDelete && !editing && (
@@ -2545,10 +3255,15 @@ function Bubble({
 }
 
 /**
- * Client-side chat-card dispatcher — mirrors the admin shell's
- * renderChatCardForMessage but with client-appropriate actions only.
- * Returns null for kinds the client surface doesn't render (admin-only
- * cards like admin_suggested_talent, coordinator_request).
+ * Client-side chat-card dispatcher. Maps a message `kind` + payload to the
+ * SHARED `@/components/chat-cards/ChatCard` components — the same green card
+ * primitives the admin shell uses (admin-3 `renderChatCardForMessage`) — with
+ * client-appropriate actions only. Audit #11 removed the forked blue
+ * client-only card JSX that used to live here so there is one card renderer.
+ *
+ * Returns null for kinds the client surface doesn't render (staff-only cards
+ * like admin_suggested_talent / coordinator_request / talent_rate) so the
+ * caller falls back to the plain message body.
  */
 function renderClientChatCard(
   kind: string,
@@ -2558,168 +3273,50 @@ function renderClientChatCard(
   const get = <T,>(k: string, fallback: T): T => (payload[k] as T) ?? fallback;
 
   switch (kind) {
-    case "offer_event": {
-      const status = get<"draft" | "sent" | "accepted" | "declined" | "countered">("status", "sent");
-      const totalLabel = get<string>("total_label", "—");
-      const hint = get<string>("hint", "Tap to review");
+    case "offer_event":
+      // Whole-card deep-link to the Offer tab. The client decides on the offer
+      // there (Approve / Counter / Decline) — never inline on the card.
       return (
-        <button
-          type="button"
-          onClick={ctx.onJumpToOffer}
-          style={{
-            textAlign: "left",
-            background: "#fff",
-            border: `1px solid ${C.border}`,
-            borderRadius: 12,
-            padding: "12px 14px",
-            cursor: ctx.onJumpToOffer ? "pointer" : "default",
-            fontFamily: FONT,
-            display: "flex",
-            flexDirection: "column",
-            gap: 4,
-            width: "100%",
-          }}
-        >
-          <div style={{ fontSize: 10, fontWeight: 700, color: C.accent, textTransform: "uppercase", letterSpacing: 0.5 }}>
-            Offer · {status}
-          </div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: C.ink, fontFamily: FONT_DISPLAY }}>
-            {totalLabel}
-          </div>
-          <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 2 }}>
-            {hint}
-          </div>
-        </button>
+        <OfferCard
+          status={get<"draft" | "sent" | "accepted" | "declined" | "countered">("status", "sent")}
+          totalLabel={get<string>("total_label", "—")}
+          hint={get<string>("hint", "Tap to review")}
+          onOpen={ctx.onJumpToOffer}
+        />
       );
-    }
-    case "payment_request":
-    case "payment_paid": {
+    case "payment_request": {
       const amountLabel = get<string>("amount_label", "—");
-      const paid = kind === "payment_paid";
+      // The client IS the payer — surface the Pay-now CTA. onPayNow opens the
+      // checkout sheet on the REAL charge (see the onPayNow wiring / #13-2).
       return (
-        <div
-          style={{
-            background: paid ? "rgba(16,185,129,0.06)" : "#fff",
-            border: `1px solid ${paid ? "rgba(16,185,129,0.20)" : C.border}`,
-            borderRadius: 12,
-            padding: "12px 14px",
-            fontFamily: FONT,
-            display: "flex",
-            flexDirection: "column",
-            gap: 6,
-          }}
-        >
-          <div style={{ fontSize: 10, fontWeight: 700, color: paid ? "#047857" : C.accent, textTransform: "uppercase", letterSpacing: 0.5 }}>
-            Payment {paid ? "received" : "requested"}
-          </div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: C.ink, fontFamily: FONT_DISPLAY }}>
-            {amountLabel}
-          </div>
-          {!paid && (
-            <>
-              {get<string>("hint", "") && (
-                <div style={{ fontSize: 12, color: C.inkMuted }}>
-                  {get<string>("hint", "")}
-                </div>
-              )}
-              {ctx.onPayNow && (
-                <button
-                  type="button"
-                  onClick={() => ctx.onPayNow!(amountLabel)}
-                  style={{
-                    marginTop: 6,
-                    padding: "8px 14px",
-                    borderRadius: 8,
-                    background: "#0F4F3E",
-                    color: "#fff",
-                    border: "none",
-                    fontFamily: FONT,
-                    fontSize: 12.5,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    alignSelf: "flex-start",
-                  }}
-                >
-                  Pay {amountLabel}
-                </button>
-              )}
-            </>
-          )}
-        </div>
+        <PaymentRequestCard
+          amountLabel={amountLabel}
+          status="requested"
+          hint={get<string>("hint", "")}
+          onPayNow={ctx.onPayNow ? () => ctx.onPayNow!(amountLabel) : undefined}
+        />
       );
     }
-    case "booking_confirmed": {
-      const totalLabel = get<string>("total_label", "");
-      const summary = get<string>("summary", "Payment received — your booking is confirmed.");
+    case "payment_paid":
+      return <PaymentRequestCard amountLabel={get<string>("amount_label", "—")} status="paid" />;
+    case "booking_confirmed":
       return (
-        <div
-          style={{
-            background: "rgba(16,185,129,0.06)",
-            border: `1px solid rgba(16,185,129,0.20)`,
-            borderRadius: 12,
-            padding: "12px 14px",
-            fontFamily: FONT,
-            display: "flex",
-            flexDirection: "column",
-            gap: 4,
-          }}
-        >
-          <div style={{ fontSize: 10, fontWeight: 700, color: "#047857", textTransform: "uppercase", letterSpacing: 0.5 }}>
-            Booking confirmed
-          </div>
-          {totalLabel && (
-            <div style={{ fontSize: 16, fontWeight: 600, color: C.ink, fontFamily: FONT_DISPLAY }}>
-              {totalLabel}
-            </div>
-          )}
-          <div style={{ fontSize: 12, color: C.inkMuted }}>{summary}</div>
-        </div>
+        <BookingConfirmedCard
+          totalLabel={get<string>("total_label", "")}
+          summary={get<string>("summary", "Payment received — your booking is confirmed.")}
+        />
       );
-    }
-    case "call_sheet_update": {
-      const changedField = get<string>("changed_field", "");
-      const byName = get<string>("by_name", "");
+    case "call_sheet_update":
       return (
-        <div
-          style={{
-            background: "rgba(15,81,50,0.05)",
-            border: `1px solid rgba(15,81,50,0.15)`,
-            borderRadius: 12,
-            padding: "10px 14px",
-            fontFamily: FONT,
-          }}
-        >
-          <div style={{ fontSize: 10, fontWeight: 700, color: "#0F5132", textTransform: "uppercase", letterSpacing: 0.5 }}>
-            Call sheet updated
-          </div>
-          <div style={{ fontSize: 13, color: C.ink, marginTop: 3 }}>
-            {byName ? `${byName} updated` : "Updated"} <strong>{changedField}</strong>.
-          </div>
-        </div>
+        <CallSheetUpdateCard
+          changedField={get<string>("changed_field", "")}
+          byName={get<string>("by_name", "")}
+        />
       );
-    }
     case "booking_status":
-    case "system_event": {
-      const text = get<string>("text", "Status updated");
-      return (
-        <div
-          style={{
-            fontSize: 11.5,
-            color: C.inkMuted,
-            textAlign: "center",
-            padding: "6px 12px",
-            background: "rgba(11,11,13,0.03)",
-            borderRadius: 999,
-            display: "inline-block",
-            margin: "0 auto",
-            fontFamily: FONT,
-          }}
-        >
-          {text}
-        </div>
-      );
-    }
-    // Admin/staff-only cards — fall through to plain body render.
+    case "system_event":
+      return <SystemEventCard text={get<string>("text", "Status updated")} />;
+    // Staff-only cards — the client surface never renders these.
     case "coordinator_request":
     case "talent_rate":
     case "admin_suggested_talent":

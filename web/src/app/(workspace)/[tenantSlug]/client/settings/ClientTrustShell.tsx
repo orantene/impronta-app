@@ -14,6 +14,7 @@
 import * as React from "react";
 import { startClientVerification, startClientBalanceTopup } from "./stripe-client-trust-actions";
 import type { ClientTrustLevel } from "@/lib/client-trust/evaluator";
+import { SettingsSectionIcon } from "@/components/admin/settings/settings-section-icons";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
@@ -263,17 +264,20 @@ export function ClientTrustShell({
   return (
     <section className="flex flex-col gap-3">
       {/* Section header */}
-      <div
-        style={{
-          fontSize: 10.5,
-          fontWeight: 700,
-          letterSpacing: 0.7,
-          textTransform: "uppercase",
-          color: C.inkDim,
-          fontFamily: FONT,
-        }}
-      >
-        Trust level
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <SettingsSectionIcon sectionId="compliance" />
+        <div
+          style={{
+            fontSize: 10.5,
+            fontWeight: 700,
+            letterSpacing: 0.7,
+            textTransform: "uppercase",
+            color: C.inkDim,
+            fontFamily: FONT,
+          }}
+        >
+          Trust level
+        </div>
       </div>
 
       {/* Current tier card */}

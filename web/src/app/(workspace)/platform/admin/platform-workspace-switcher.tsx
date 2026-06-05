@@ -86,6 +86,10 @@ export function PlatformWorkspaceSwitcher() {
         window.location.hostname === "127.0.0.1");
     if (isLocalhost) {
       window.location.assign(`/${w.slug}/admin`);
+    } else if (w.kind === "hub" && w.tier === "network") {
+      // The platform network-hub's public face is the marketing apex
+      // (tulala.digital), which doesn't serve /admin — route to the app host.
+      window.location.assign(`https://app.tulala.digital/${w.slug}/admin`);
     } else {
       const host = w.domain ?? `${w.slug}.tulala.digital`;
       window.location.assign(`https://${host}/admin`);

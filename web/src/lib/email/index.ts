@@ -20,6 +20,29 @@ function getFrom(): string {
   return process.env.EMAIL_FROM ?? "Tulala <noreply@tulala.digital>";
 }
 
+/**
+ * Resolve the effective `from` for a send. When a caller passes a `tenantId`,
+ * a tenant with white_label_email + a VERIFIED custom sending domain gets a
+ * branded `from` (via resolveTenantEmailFrom); otherwise the platform default.
+ * Server-only (resolveTenantEmailFrom reads the integrations repository) — this
+ * module is only imported server-side, and the resolver itself short-circuits
+ * to the platform default for a missing tenantId, so the dynamic import is the
+ * one server-only dependency and stays lazy.
+ */
+async function resolveFrom(
+  tenantId?: string | null,
+  tenantName?: string | null,
+): Promise<string> {
+  if (!tenantId) return getFrom();
+  try {
+    const { resolveTenantEmailFrom } = await import("@/lib/email/resend-client");
+    return await resolveTenantEmailFrom(tenantId, tenantName ?? null);
+  } catch {
+    // Never let a white-label lookup failure block the send.
+    return getFrom();
+  }
+}
+
 export type SendEmailInput = {
   to: string | string[];
   subject: string;
@@ -27,6 +50,17 @@ export type SendEmailInput = {
   replyTo?: string;
   /** Extra MIME headers, e.g. List-Unsubscribe / List-Unsubscribe-Post. */
   headers?: Record<string, string>;
+  /**
+   * Optional tenant context. When set, a tenant with white_label_email + a
+   * VERIFIED sending domain sends from its own branded address instead of the
+   * platform EMAIL_FROM. Omit (the default for most callers) for platform mail.
+   * Callers that send tenant-scoped mail (roster/team invites, tenant booking
+   * notifications, tenant signup) SHOULD pass these so verified domains take
+   * effect.
+   */
+  tenantId?: string | null;
+  /** Optional sender display name (e.g. the agency name) for the branded `from`. */
+  tenantName?: string | null;
 };
 
 /**
@@ -59,8 +93,9 @@ export async function sendEmailResult(input: SendEmailInput): Promise<SendEmailR
     return { status: "skipped" };
   }
 
+  const from = await resolveFrom(input.tenantId, input.tenantName);
   const { data, error } = await client.emails.send({
-    from: getFrom(),
+    from,
     to: Array.isArray(input.to) ? input.to : [input.to],
     subject: input.subject,
     html: input.html,

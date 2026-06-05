@@ -11,6 +11,7 @@ import {
   prefetchMirrorCanonicalContext,
 } from "@/lib/fields/legacy-mirror";
 import { mirrorHeightCmToTalentProfile } from "@/lib/field-values-height-mirror";
+import { resolveSelectValue } from "@/lib/fields/coerce-select-value";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 
 export type ShellDynFieldEditor = "staff" | "talent";
@@ -20,21 +21,6 @@ type Result = { ok: true } | { ok: false; error: string };
 const SUPPORTED_DYN_FV_TYPES = ["text", "textarea", "number", "boolean", "date"] as const;
 function isSupportedDynFvType(v: string): v is (typeof SUPPORTED_DYN_FV_TYPES)[number] {
   return (SUPPORTED_DYN_FV_TYPES as readonly string[]).includes(v);
-}
-
-function readSelectAllowedValuesDyn(config: unknown): Set<string> | null {
-  if (!config || typeof config !== "object" || Array.isArray(config)) return null;
-  const input = (config as Record<string, unknown>).input;
-  if (input !== "select") return null;
-  const options = (config as Record<string, unknown>).options;
-  if (!Array.isArray(options)) return null;
-  const values = new Set<string>();
-  for (const o of options) {
-    if (!o || typeof o !== "object" || Array.isArray(o)) continue;
-    const v = String((o as Record<string, unknown>).value ?? "").trim();
-    if (v) values.add(v);
-  }
-  return values.size ? values : null;
 }
 
 function parseBooleanRaw(raw: string): boolean | null {
@@ -114,11 +100,19 @@ export async function syncProfileShellDynFieldValues(
     let patch: Record<string, unknown> | null = null;
 
     if (def.value_type === "text" || def.value_type === "textarea") {
-      const allowed = def.value_type === "text" ? readSelectAllowedValuesDyn(def.config) : null;
-      if (allowed && raw.length > 0 && !allowed.has(raw)) {
-        return { ok: false, error: `Invalid value for ${def.label_en ?? "field"}.` };
+      let textToWrite = raw;
+      if (def.value_type === "text" && raw.length > 0) {
+        const res = resolveSelectValue(def.config, raw);
+        // Orphaned/legacy value on a select field — never abort the whole batch
+        // save for a value the user can't even see; leave the row untouched and
+        // move on. (Select inputs only ever emit valid option values, so an
+        // unmatchable raw is always pre-existing data echoed back, never fresh
+        // user input.)
+        if (res.kind === "unmatchable") continue;
+        // Self-heal label/case drift to the canonical option value.
+        if (res.kind === "matched") textToWrite = res.value;
       }
-      patch = raw.length > 0 ? { value_text: raw } : null;
+      patch = textToWrite.length > 0 ? { value_text: textToWrite } : null;
     } else if (def.value_type === "number") {
       const n = raw ? Number(raw) : NaN;
       patch = Number.isFinite(n) ? { value_number: n } : null;

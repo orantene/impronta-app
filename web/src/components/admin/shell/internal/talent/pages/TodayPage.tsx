@@ -5,15 +5,15 @@ import { computePaidThisMonth } from "@/lib/talent/paid-this-month";
 import { pinNextConversation as pinNextConversationT, pinNextThreadTab as pinNextThreadTabT } from "../../messages";
 import { EmptyState, Icon, PrimaryButton } from "../../primitives";
 import { COLORS, EARNINGS_ROWS, FONTS, MY_TALENT_PROFILE, RADIUS, TALENT_PROFILES_BY_ID, buildFreshTalentProfile, computeProfileCompleteness, useAdminShell } from "../../state";
-import { TalentAnalyticsCard, TalentFirstRunBanner, TalentFunnelCard } from "../../wave2";
+import { TalentFirstRunBanner, TalentFunnelCard } from "../../wave2";
 import { useTalentConversations } from "../shared/conversation-adapter-1";
 import { EarningsTile } from "../shared/earnings-tile-1";
-import { Grid } from "../shared/page-chrome-1";
 import { FirstSessionChecklist, ProfileCompletenessBanner } from "../shared/today-1";
 import { SectionHeader, TalentTodayHero } from "../shared/today-2";
 import { ConversationCalendarRow, NeedsReplySection } from "../shared/today-3";
 import { WeekRhythmStrip } from "../shared/week-rhythm-1";
 import { TalentAgencyFilterChips } from "../shared/TalentAgencyFilterChips";
+import { TalentReviewsCard } from "../shared/reviews-card-1";
 
 const CURRENCY_SYMBOL: Record<string, string> = { EUR: "€", USD: "$", GBP: "£", MXN: "MX$" };
 
@@ -434,18 +434,23 @@ export function TalentTodayPage() {
       {/* 4 — WS-8.4 This-week rhythm strip */}
       <WeekRhythmStrip />
 
-      {/* 5 + 6 — Looking back: earnings tile (WS-8.3) + analytics, paired 2-up. */}
-      <Grid cols="2">
-        {/* WS-8.3 Earnings tile with cycle selector + sparkline */}
-        <EarningsTile
-          currency={paidThisMonthCurrency}
-          monthTotal={paidThisMonthTotal}
-          earnings={bridgeTalentEarnings}
-          onSeeAll={() => openDrawer("talent-career-analytics")}
-          onLogWork={() => openDrawer("talent-add-event", { mode: "work" })}
-        />
-        <TalentAnalyticsCard />
-      </Grid>
+      {/* 5 — Looking back: earnings tile (WS-8.3), full width. The old
+          "Profile views · last 7 days" analytics card was removed — it showed
+          a fabricated 48 views / "from Mango site" / 3 inquiries with no real
+          per-talent view metric behind it. Re-add it here once a real
+          profile-view signal exists in the bridge. */}
+      <EarningsTile
+        currency={paidThisMonthCurrency}
+        monthTotal={paidThisMonthTotal}
+        earnings={bridgeTalentEarnings}
+        onSeeAll={() => openDrawer("talent-career-analytics")}
+        onLogWork={() => openDrawer("talent-add-event", { mode: "work" })}
+      />
+
+      {/* W8 — two-sided reviews. The talent's received (client→talent) rating
+          summary + recent reviews, and a "Rate your clients" list for the
+          talent→client direction. Self-suppresses when there's nothing yet. */}
+      <TalentReviewsCard />
 
       {/* WS-8.14 Agency analytics quick-access */}
       <div className="flex gap-2">

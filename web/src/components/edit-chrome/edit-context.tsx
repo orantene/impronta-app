@@ -52,7 +52,10 @@ import {
   setSectionVisibilityAction,
   type SectionVisibility,
 } from "@/lib/site-admin/edit-mode/section-actions";
-import { restoreHomepageRevisionAction } from "@/lib/site-admin/edit-mode/revisions-actions";
+import {
+  restoreHomepageRevisionAction,
+  restorePageRevisionAction,
+} from "@/lib/site-admin/edit-mode/revisions-actions";
 import type {
   DispatchResult,
   EditorMutation,
@@ -66,6 +69,8 @@ import {
   syncComponentInstances as syncComponentInstancesInTree,
   detachComponentInstance as detachComponentInstanceInTree,
   setInstanceOverride as setInstanceOverrideInTree,
+  applyVariantToInstance as applyVariantToInstanceInTree,
+  clearInstanceVariant as clearInstanceVariantInTree,
   countComponentInstances,
   tagAsInstance,
 } from "@/lib/site-admin/builder-node/component-instances";
@@ -79,6 +84,7 @@ import {
   buildLegacySectionBuilderTree,
   BUILDER_NODE_REGISTRY,
   createBuilderNodeCompositionPreset,
+  createBuilderSectionEmbed,
   builderNodeKindAllowedAtRoot,
   cloneNodeWithFreshIds,
   createBuilderMutationAuditEvent,
@@ -98,6 +104,7 @@ import {
   type BuilderNodeCompositionPresetId,
   type BuilderNodeOperationKind,
   type BuilderNodeTree,
+  type BuilderComponentVariant,
   type LegacySnapshotSlot,
 } from "@/lib/site-admin/builder-node";
 import {
@@ -107,8 +114,20 @@ import {
 import { checkSlotTypeCompatibility } from "@/lib/site-admin/edit-mode/slot-type-compatibility";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
+import { isBuilderClientCanvasEnabled } from "@/lib/site-admin/edit-mode/client-canvas-flag";
+import { publishBuilderCanvasTree } from "./client-builder-canvas-bridge";
 import { normalizeCompositionSlots } from "./composition-slots";
 import {
+  loadWorkspaceLayout,
+  saveWorkspaceLayout,
+  clearWorkspaceLayout,
+  savedOffsetForPanel,
+  type LayoutStorage,
+  type PanelOffset,
+  type WorkspaceLayoutV1,
+} from "./workspace-layout";
+import {
+  findBuilderNodeById,
   resolveHonestSelectedBuilderNodeId,
   treeContainsBuilderNodeId,
 } from "./inspectors/builder-node-content-utils";
@@ -116,6 +135,7 @@ import {
   addTranslateDeltaToTree,
   computeAlignDeltas,
   computeDistributeDeltas,
+  mergeStylePatchIntoTree,
   type MultiNodeAlignMode,
   type MultiNodeDistributeMode,
   type MultiNodeRect,
@@ -142,6 +162,25 @@ import {
 export const IMPRONTA_OPEN_TEMPLATE_GALLERY_EVENT = "impronta:open-template-gallery";
 
 export type EditDevice = "desktop" | "tablet" | "mobile";
+
+/**
+ * Responsive-preview frame override (job #17) — see {@link EditContextValue.previewFrame}.
+ * Kept separate from {@link EditDevice} on purpose: `device` is the breakpoint
+ * semantic (drives `@media` + which override bucket the inspectors edit) and is
+ * consumed pervasively, so widening it would ripple everywhere; the frame's
+ * pixel width + orientation are a pure presentation concern that lives here.
+ */
+export interface PreviewFrameOverride {
+  /** Explicit frame width in px; `null` = use the active device's natural width. */
+  widthPx: number | null;
+  /** Landscape orientation — swaps the portrait device frame to read wide. */
+  rotated: boolean;
+}
+
+export const DEFAULT_PREVIEW_FRAME: PreviewFrameOverride = {
+  widthPx: null,
+  rotated: false,
+};
 
 export interface LoadedSection {
   id: string;
@@ -311,6 +350,18 @@ export interface EditContextValue {
     mode: MultiNodeDistributeMode,
     rects: ReadonlyArray<MultiNodeRect>,
   ) => Promise<{ ok: boolean; error?: string }>;
+  /**
+   * Job #28 (bulk edit) — merge one top-level `style` patch into EVERY
+   * currently-selected freeform node at once (primary + additional). A key set
+   * to `undefined` clears that prop for the whole selection. Runs through the
+   * same atomic patch/undo path as align/distribute (no parallel system); a
+   * section in the set is skipped. Pass a JSON string so the React Compiler
+   * can't read a mutable captured object and bail the whole context's memo
+   * (matching insertBuilderComponent / setInstanceOverride).
+   */
+  patchSelectedBuilderNodesStyle: (
+    stylePatchJson: string,
+  ) => Promise<{ ok: boolean; error?: string }>;
   copySelectedBuilderNodes: () => { ok: boolean; error?: string; count?: number };
   cutSelectedBuilderNodes: () => Promise<{ ok: boolean; error?: string; count?: number }>;
   pasteBuilderNodeClipboard: (
@@ -343,8 +394,64 @@ export interface EditContextValue {
   hoveredSectionId: string | null;
   setHoveredSectionId: (id: string | null) => void;
 
+  /**
+   * Freeform builder node under the cursor (canvas OR layers row), for the
+   * bidirectional canvas↔layers highlight. Freeform full-page designs have no
+   * `[data-cms-section]` wrapper, so `hoveredSectionId` never fires for them;
+   * this is the section-less analog. Hovering a layer row sets it (→ canvas
+   * hover ring); hovering a canvas block sets it (→ layer row tint).
+   */
+  hoveredBuilderNodeId: string | null;
+  setHoveredBuilderNodeId: (id: string | null) => void;
+
   device: EditDevice;
   setDevice: (d: EditDevice) => void;
+  /**
+   * Responsive-preview frame override (job #17). Layers ON TOP of `device`
+   * WITHOUT changing the breakpoint semantics: `device` still decides which
+   * `@media` query the storefront iframe fires at (and which override bucket the
+   * inspectors edit), while this only resizes/rotates the visual frame. So
+   * "tablet landscape" = `device:"tablet"` + `rotated:true` (breakpoints stay
+   * tablet, frame goes wide), and a custom width sets `widthPx` directly.
+   * `widthPx:null` + `rotated:false` = the device's natural portrait frame, the
+   * pre-#17 behaviour. Picking a device tier from the switcher resets both.
+   */
+  previewFrame: PreviewFrameOverride;
+  /** Set an explicit frame width (px), or null to fall back to the device width. */
+  setPreviewFrameWidth: (widthPx: number | null) => void;
+  /** Toggle landscape orientation for the active device frame. */
+  togglePreviewRotated: () => void;
+
+  // ── Wave 6C — mobile-first editing mode (job #35) ──────────────────────
+  /**
+   * Mobile-first editing mode. A focused workflow ON TOP of the Wave-2
+   * responsive system — NOT a second editor. When ON it:
+   *   - pins the canvas viewport to `device:"mobile"` (so the Wave-2B
+   *     style-panel viewport sync scopes every style edit to the mobile
+   *     breakpoint + shows its "Editing Mobile" banner), and
+   *   - surfaces the {@link MobileEditPanel} (Wave-2C health checker +
+   *     per-block hide/reorder mobile-structure affordances).
+   * Toggling it OFF returns the canvas to desktop editing. Purely additive:
+   * when `false` everything behaves exactly as before. Entering also clears
+   * preview mode (the two are mutually exclusive — one hides chrome, the
+   * other adds a chrome panel).
+   */
+  mobileEditMode: boolean;
+  setMobileEditMode: (next: boolean) => void;
+  /**
+   * Wave 6C — set or clear a mobile-only STRUCTURE override on a single node,
+   * reusing the Wave-2A `style.responsive.mobile.{visibility,order}` channel
+   * the renderer already emits. A field set to a value writes it; set to
+   * `undefined` (or `null` for `order`) clears just that field, preserving the
+   * rest of `responsive.mobile`, the `tablet` bucket, and the base style
+   * (surgical read-modify-write, NOT the shallow bulk-style patch which would
+   * clobber sibling breakpoints). Runs through the same engine `patch` op +
+   * undo + autosave path as every other structure edit.
+   */
+  setBuilderNodeMobileStructure: (
+    nodeId: string,
+    patch: { visibility?: "visible" | "hidden"; order?: number | null },
+  ) => Promise<{ ok: boolean; error?: string }>;
 
   /** Inspector autosave state. */
   dirty: boolean;
@@ -456,6 +563,16 @@ export interface EditContextValue {
     index?: number,
   ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
   /**
+   * Insert a curated Tulala component (`section_embed` node) — Directory,
+   * Featured talent, Booking, or CTA — seeded with that section's default
+   * config, at the target. Mirrors the composition-preset insert.
+   */
+  insertBuilderSectionEmbed: (
+    parentId: string | null,
+    sectionTypeKey: string,
+    index?: number,
+  ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
+  /**
    * Living components — insert a saved block subtree (ids re-minted to copies)
    * at the target. The subtree is passed as a JSON string (a primitive param,
    * so the React Compiler can't read it as a mutable captured object and bail
@@ -513,6 +630,22 @@ export interface EditContextValue {
     nodeId: string,
     masterChildId: string,
     overrideJson: string | null,
+  ) => Promise<{ ok: boolean; error?: string }>;
+  /**
+   * Phase 4 (T4.4) — apply a named component VARIANT to a linked instance. The
+   * variant is a preset set of overrides; applying it writes them onto the
+   * instance's override map and records the variant id. variantJson is a JSON
+   * string of {id,name,overrides} (kept a string to dodge a React-Compiler
+   * object-param memo bail, matching setInstanceOverride).
+   */
+  applyInstanceVariant: (
+    nodeId: string,
+    variantJson: string,
+  ) => Promise<{ ok: boolean; error?: string }>;
+  /** Phase 4 (T4.4) — clear the active variant tag on an instance (keeps its
+   * current overrides). */
+  clearInstanceVariant: (
+    nodeId: string,
   ) => Promise<{ ok: boolean; error?: string }>;
   /**
    * Living components — snapshot the currently selected freeform block as a
@@ -663,6 +796,18 @@ export interface EditContextValue {
   openAssets: () => void;
   closeAssets: () => void;
 
+  // ── collections drawer (Wave 5A, job #36) ──
+  /**
+   * Visibility flag for the CollectionsDrawer — define operator content
+   * collections (Team / Projects / Testimonials) + their rows, then bind a
+   * repeater to one from the data inspector. The drawer owns its own data
+   * fetch (via the collections server actions); EditContext owns only the
+   * open/close mutex so it shares the single right-rail slot.
+   */
+  collectionsOpen: boolean;
+  openCollections: () => void;
+  closeCollections: () => void;
+
   // ── schedule drawer (Phase 12) ──
   /**
    * Visibility flag for the ScheduleDrawer. Lights up on the topbar
@@ -757,6 +902,63 @@ export interface EditContextValue {
   toggleNavigator: () => void;
   navigatorWidth: number;
   setNavigatorWidth: (width: number) => void;
+
+  // ── Photoshop-style dockable workspace (floating-panel layout) ──────────
+  /**
+   * Pinned-workspace state for the floating edit-chrome panels (navigator +
+   * inspector dock). By default each panel's drag offset is SESSION-ONLY and
+   * snaps back to its home anchor on refresh. When the operator clicks Pin in
+   * the topbar, every floating panel's current offset is captured to a single
+   * versioned localStorage key ({@link WORKSPACE_LAYOUT_STORAGE_KEY}) and the
+   * panels restore to it on the next load instead of snapping home. Reset
+   * clears the saved layout and returns the panels to their home positions.
+   *
+   * `hasSavedWorkspaceLayout` reflects whether a pinned layout currently
+   * exists (drives the Reset control's enabled state + the Pin button's
+   * "saved" affordance).
+   */
+  hasSavedWorkspaceLayout: boolean;
+  /**
+   * Capture every registered floating panel's CURRENT offset and persist it as
+   * the pinned workspace. Idempotent; safe to call repeatedly (re-pins to the
+   * latest positions).
+   */
+  pinWorkspaceLayout: () => void;
+  /**
+   * Clear the pinned workspace and snap every floating panel home immediately
+   * (bumps `workspaceResetNonce`, which the panels watch).
+   */
+  resetWorkspaceLayout: () => void;
+  /**
+   * Monotonic counter bumped on Reset. Floating panels watch this to snap
+   * their session offset back to {0,0} the instant the operator resets.
+   */
+  workspaceResetNonce: number;
+  /**
+   * Seed offset for a floating panel on mount — the panel's saved offset from
+   * the pinned layout, or null when no layout is pinned (→ default home).
+   */
+  getSavedPanelOffset: (panelId: string) => { x: number; y: number } | null;
+  /**
+   * Register a floating panel so Pin can read its live offset and magnet
+   * snapping can read its on-screen rect. Returns an unregister fn for cleanup.
+   * `getOffset` returns the panel's current translate; `getRect` returns its
+   * viewport bounding box (or null if unmounted).
+   */
+  registerWorkspacePanel: (
+    panelId: string,
+    handles: {
+      getOffset: () => { x: number; y: number };
+      getRect: () => { left: number; top: number; width: number; height: number } | null;
+    },
+  ) => () => void;
+  /**
+   * Rects of every OTHER registered floating panel (excludes `panelId`) — the
+   * magnet snap edge-aligns the dragged panel against these.
+   */
+  getOtherWorkspacePanelRects: (
+    panelId: string,
+  ) => ReadonlyArray<{ left: number; top: number; width: number; height: number }>;
   /**
    * Short-lived selection feedback for freshly inserted/duplicated content.
    * The navigator uses this to open, scroll, expand, and tier-highlight the
@@ -796,6 +998,14 @@ export interface EditContextValue {
    * confirmation chip.
    */
   saveDraft: () => Promise<{ ok: boolean; error?: string; savedAt?: string }>;
+  /**
+   * Flush any debounced/coalesced builder-tree draft save immediately and wait
+   * for it (and any save already in flight) to settle. Call this before any
+   * action that reads the persisted draft from the server — chiefly Publish — so
+   * an edit sitting in the debounce window is committed first. Safe to call with
+   * nothing pending (resolves once the save queue is idle).
+   */
+  flushBuilderTreeSave: () => Promise<unknown>;
   /** ISO timestamp of the most recent successful Save draft press; null when clear. */
   lastDraftSavedAt: string | null;
   clearDraftSavedToast: () => void;
@@ -1124,6 +1334,13 @@ function reconcileBuilderTreeFromSlots(
   previousTree: BuilderNodeTree,
   slots: Record<string, CompositionSectionRef[]>,
 ): BuilderNodeTree {
+  // A freeform full-page design (one-click starter design) has a builderTree
+  // with NO curated slots. Reconciling it against zero slots strips the whole
+  // tree (no section maps to any slot), leaving the editor with an empty tree
+  // and an unselectable canvas — the root cause of "clicking a freeform block
+  // does nothing". There is nothing to reconcile when there are no slots, so
+  // keep the freeform tree intact.
+  if (Object.keys(slots).length === 0) return previousTree;
   return reconcileBuilderTreeWithLegacySlots(
     previousTree,
     toLegacySnapshotSlots(slots),
@@ -1512,6 +1729,54 @@ interface EditProviderProps {
   children: ReactNode;
 }
 
+/**
+ * W3 Sub-step C — section_embed reconcile detector.
+ *
+ * `section_embed` nodes are server-rendered islands: the client canvas
+ * (`ClientBuilderCanvas`) renders each one from a `sectionEmbedIslands` map the
+ * SERVER pre-rendered, keyed by node id. A purely client-side repaint can paint
+ * regular nodes instantly, but it CANNOT conjure an island for a section_embed
+ * id the server never rendered (i.e. one created by an add/duplicate). A move
+ * keeps the same id, so the cached island repaints client-side — no server
+ * round-trip needed. Only a CHANGE TO THE SET of section_embed ids (an id that
+ * appears or disappears) requires the server to re-render the storefront RSC
+ * tree so the new island exists.
+ *
+ * Returns true when the section_embed id sets differ between two trees — the
+ * signal to eagerly `router.refresh()` (scoped reconcile) so the new island is
+ * server-rendered promptly, rather than waiting for the debounced save's
+ * trailing refresh. Cheap: O(embed nodes), and embeds are a small minority.
+ */
+/** Pure, client-safe section_embed id collector. MUST stay inline / dependency-free:
+ *  importing it from section-embed-renderer (server module) leaks "server-only" into
+ *  this "use client" file and breaks the production build. */
+function collectSectionEmbedIds(tree: BuilderNodeTree): string[] {
+  const ids: string[] = [];
+  const visit = (node: BuilderNode) => {
+    if (node.kind === "section_embed") ids.push(node.id);
+    if ("children" in node && Array.isArray(node.children)) {
+      for (const child of node.children) visit(child);
+    }
+  };
+  for (const node of tree) visit(node);
+  return ids;
+}
+
+function mutationTouchesSectionEmbedIslandSet(
+  prevTree: BuilderNodeTree,
+  nextTree: BuilderNodeTree,
+): boolean {
+  const prevIds = collectSectionEmbedIds(prevTree);
+  const nextIds = collectSectionEmbedIds(nextTree);
+  if (prevIds.length !== nextIds.length) return true;
+  if (nextIds.length === 0) return false;
+  const prevSet = new Set(prevIds);
+  for (const id of nextIds) {
+    if (!prevSet.has(id)) return true;
+  }
+  return false;
+}
+
 export function EditProvider({
   tenantId,
   workspacePlan = null,
@@ -1701,7 +1966,62 @@ export function EditProvider({
   }, [selectedSectionId, additionalSelectedIds]);
 
   const [hoveredSectionId, setHoveredSectionId] = useState<string | null>(null);
-  const [device, setDevice] = useState<EditDevice>("desktop");
+  const [hoveredBuilderNodeId, setHoveredBuilderNodeId] = useState<string | null>(
+    null,
+  );
+  const [device, setDeviceRaw] = useState<EditDevice>("desktop");
+  // Responsive-preview frame override (job #17). Reset whenever the operator
+  // picks a device tier so a custom width / rotation from a previous tier never
+  // silently carries over to the next.
+  const [previewFrame, setPreviewFrame] = useState<PreviewFrameOverride>(
+    DEFAULT_PREVIEW_FRAME,
+  );
+  const setDevice = useCallback((next: EditDevice) => {
+    setDeviceRaw((prev) => {
+      if (prev !== next) setPreviewFrame(DEFAULT_PREVIEW_FRAME);
+      return next;
+    });
+  }, []);
+  const setPreviewFrameWidth = useCallback((widthPx: number | null) => {
+    setPreviewFrame((prev) => ({ ...prev, widthPx }));
+  }, []);
+  const togglePreviewRotated = useCallback(() => {
+    setPreviewFrame((prev) => ({ ...prev, rotated: !prev.rotated }));
+  }, []);
+
+  // ── Wave 6C — mobile-first editing mode (job #35) ──────────────────────
+  // A workflow flag layered on the Wave-2 responsive system, not a new editor.
+  // Entering pins the canvas to the mobile viewport via the SAME `setDevice`
+  // the topbar switcher uses (so the Wave-2B style-panel viewport sync follows
+  // and scopes edits to the mobile breakpoint) and leaves preview mode. Exiting
+  // returns the canvas to desktop editing.
+  const [mobileEditMode, setMobileEditModeRaw] = useState<boolean>(false);
+  const setMobileEditMode = useCallback(
+    (next: boolean) => {
+      setMobileEditModeRaw(next);
+      if (next) {
+        // Reuse Wave-2B viewport sync — do NOT duplicate it.
+        setDeviceRaw((prev) => {
+          if (prev !== "mobile") setPreviewFrame(DEFAULT_PREVIEW_FRAME);
+          return "mobile";
+        });
+        // Mobile editing and visitor-preview are mutually exclusive: preview
+        // hides ALL chrome, mobile-edit ADDS a chrome panel. Leave preview.
+        setPreviewingRaw(false);
+        if (typeof document !== "undefined") {
+          delete document.body.dataset.editPreview;
+        }
+      } else {
+        // Return to desktop editing (the pre-feature default canvas).
+        setDeviceRaw((prev) => {
+          if (prev !== "desktop") setPreviewFrame(DEFAULT_PREVIEW_FRAME);
+          return "desktop";
+        });
+      }
+    },
+    [],
+  );
+
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loadedSection, setLoadedSection] = useState<LoadedSection | null>(
@@ -1786,6 +2106,35 @@ export function EditProvider({
   const slotsRef = useRef<Record<string, CompositionSectionRef[]>>(slots);
   const builderTreeRef = useRef<BuilderNodeTree>(builderTree);
   const builderTreeSaveQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+  // ── Debounced/coalesced builder-tree draft saves ──────────────────────
+  // Rapid node edits (typing, slider drags, repeated nudges) each used to fire
+  // their own blocking `saveDraftHomepageAction`, serializing a burst into N
+  // round-trips. We now apply the optimistic local tree immediately (UI never
+  // blocks) and coalesce the SERVER persist: only the latest tree of a burst is
+  // saved, ~DEBOUNCE_MS after the last edit. `pendingTreeRef` holds the tree
+  // owed to the server but not yet flushed; the timer fires `flushBuilderTreeSave`.
+  // CRITICAL: every flush still routes through `builderTreeSaveQueueRef` (ordering
+  // preserved) and `persistBuilderTree` (CAS-version conflict handling + rollback
+  // preserved). We flush eagerly on unmount, before publish, and on
+  // pagehide / visibilitychange→hidden so an in-flight debounce never loses an edit.
+  const BUILDER_SAVE_DEBOUNCE_MS = 750;
+  const pendingTreeRef = useRef<BuilderNodeTree | null>(null);
+  const builderSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // How many optimistic builderTree history entries have been pushed since the
+  // last successful (or attempted) coalesced flush. On flush failure we pop this
+  // many so undo depth matches the reverted (last-confirmed) tree.
+  const pendingHistoryCountRef = useRef(0);
+  // Last tree the SERVER has confirmed (or the tree at load). Because a burst
+  // applies several optimistic local trees before a single coalesced save, the
+  // correct rollback target on save failure is this last-confirmed tree, NOT the
+  // immediately-preceding optimistic tree. Seeded in `applyComposition` and on
+  // every successful persist.
+  const lastConfirmedTreeRef = useRef<BuilderNodeTree>(builderTree);
+  // Stable ref to the flush fn so effects/teardown can call the latest
+  // implementation without re-subscribing (persistBuilderTree is defined later).
+  const flushBuilderTreeSaveRef = useRef<() => Promise<unknown>>(() =>
+    Promise.resolve(),
+  );
 
   useEffect(() => {
     pageVersionRef.current = pageVersion;
@@ -1800,6 +2149,19 @@ export function EditProvider({
     builderTreeRef.current = builderTree;
   }, [builderTree]);
 
+  // W3 Sub-step B — publish the live tree to the cross-subtree bridge so the
+  // client canvas (mounted in the storefront body, OUTSIDE this provider) can
+  // read it. Flag-gated: with NEXT_PUBLIC_BUILDER_CLIENT_CANVAS off this is a
+  // no-op and the legacy server-render path is untouched. Cleared on unmount so
+  // a stale tree can't outlive the editor.
+  useEffect(() => {
+    if (!isBuilderClientCanvasEnabled()) return;
+    publishBuilderCanvasTree(builderTree);
+    return () => {
+      publishBuilderCanvasTree(null);
+    };
+  }, [builderTree]);
+
   // history stacks. Capped so a long session doesn't leak memory — 50 deep
   // is Figma-ish and well past what any realistic undo chain needs for a
   // page-composition tool (the tool has ~12 slots total; 50 states of
@@ -1810,7 +2172,41 @@ export function EditProvider({
   // metadata for structural moves; `field` captures a single section's
   // pre/post props for inline text / image / URL edits. A single LIFO
   // timeline so ⌘Z honours the most recent change regardless of kind.
-  const [past, setPast] = useState<HistoryEntry[]>([]);
+  //
+  // #18 UNDO-SURVIVES-RELOAD: we persist the last UNDO_PERSIST_CAP entries of
+  // the `past` stack to localStorage keyed by pageId. On mount we attempt to
+  // rehydrate from that key so an accidental F5 doesn't wipe undo depth. The
+  // persisted stack is capped at 10 entries (smaller than the in-memory cap)
+  // because serialized snapshots are heavier. We guard with try/catch at every
+  // boundary — a storage failure must never break the editor.
+  const UNDO_PERSIST_CAP = 10;
+  const undoPersistKey = pageId ? `builder_undo_stack_v1:${pageId}` : null;
+
+  const [past, setPast] = useState<HistoryEntry[]>(() => {
+    if (!undoPersistKey || typeof window === "undefined") return [];
+    try {
+      const raw = window.localStorage.getItem(undoPersistKey);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw) as unknown[];
+      if (!Array.isArray(parsed)) return [];
+      // Only rehydrate entries whose shape we recognise.
+      const valid = parsed.filter(
+        (e): e is HistoryEntry =>
+          e !== null &&
+          typeof e === "object" &&
+          "kind" in (e as object) &&
+          (
+            (e as { kind: string }).kind === "composition" ||
+            (e as { kind: string }).kind === "builderTree" ||
+            (e as { kind: string }).kind === "field"
+          ),
+      );
+      return valid.slice(-UNDO_PERSIST_CAP);
+    } catch {
+      return [];
+    }
+  });
+
   const [future, setFuture] = useState<HistoryEntry[]>([]);
   const HISTORY_CAP = 50;
   const capHistory = useCallback(
@@ -1818,6 +2214,78 @@ export function EditProvider({
       next.length > HISTORY_CAP ? next.slice(-HISTORY_CAP) : next,
     [],
   );
+
+  // #18 — Persist `past` to localStorage. We write only the tail
+  // (UNDO_PERSIST_CAP entries) so the serialised size stays small even for
+  // large builder-tree snapshots.
+  //
+  // PERF: the serialize+write used to run SYNCHRONOUSLY on the commit path of
+  // every mutation, blocking the main thread mid-interaction. We now DEBOUNCE
+  // it off the hot path (~500ms after the last change) so a burst of rapid
+  // edits coalesces into a single write. Correctness is preserved by always
+  // serialising the LATEST `past` (read from a ref at flush time) and by
+  // FLUSHING any pending write synchronously on unmount and when the page is
+  // being hidden/unloaded (pagehide + visibilitychange→hidden) — so a reload
+  // immediately after an edit never loses the persisted undo tail.
+  const undoPersistDataRef = useRef<{ key: string | null; past: HistoryEntry[] }>(
+    { key: undoPersistKey, past },
+  );
+  undoPersistDataRef.current = { key: undoPersistKey, past };
+  const undoPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flushUndoPersist = useCallback(() => {
+    if (undoPersistTimerRef.current !== null) {
+      clearTimeout(undoPersistTimerRef.current);
+      undoPersistTimerRef.current = null;
+    }
+    if (typeof window === "undefined") return;
+    const { key, past: latestPast } = undoPersistDataRef.current;
+    if (!key) return;
+    try {
+      const tail = latestPast.slice(-UNDO_PERSIST_CAP);
+      window.localStorage.setItem(key, JSON.stringify(tail));
+    } catch {
+      // Quota exceeded or private-browsing block — silently skip.
+    }
+  }, []);
+
+  // Debounced write — reschedules on every `past` change; the serialize+write
+  // runs ~500ms after the last edit, off the interaction hot path.
+  useEffect(() => {
+    if (!undoPersistKey || typeof window === "undefined") return;
+    if (undoPersistTimerRef.current !== null) {
+      clearTimeout(undoPersistTimerRef.current);
+    }
+    undoPersistTimerRef.current = setTimeout(() => {
+      undoPersistTimerRef.current = null;
+      flushUndoPersist();
+    }, 500);
+    return () => {
+      if (undoPersistTimerRef.current !== null) {
+        clearTimeout(undoPersistTimerRef.current);
+        undoPersistTimerRef.current = null;
+      }
+    };
+  }, [past, undoPersistKey, flushUndoPersist]);
+
+  // Flush on unmount and when the page is hidden/unloaded so a reload right
+  // after an edit never loses the persisted undo tail. visibilitychange→hidden
+  // is the reliable signal on mobile/bfcache; pagehide covers desktop unload.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onPageHide = () => flushUndoPersist();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") flushUndoPersist();
+    };
+    window.addEventListener("pagehide", onPageHide);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.removeEventListener("pagehide", onPageHide);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      // Component unmount — write whatever is pending synchronously.
+      flushUndoPersist();
+    };
+  }, [flushUndoPersist]);
 
   // library overlay target
   const [libraryTarget, setLibraryTarget] = useState<LibraryTarget | null>(
@@ -1851,6 +2319,7 @@ export function EditProvider({
 
   // assets drawer state (Phase 7)
   const [assetsOpen, setAssetsOpen] = useState(false);
+  const [collectionsOpen, setCollectionsOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   // comments drawer state (Phase 11)
   const [commentsOpen, setCommentsOpen] = useState(false);
@@ -2005,6 +2474,99 @@ export function EditProvider({
     [],
   );
 
+  // ── Photoshop-style dockable workspace ─────────────────────────────────
+  // The pinned layout is read ONCE on mount (so panels can seed their initial
+  // offset synchronously via getSavedPanelOffset) and held in a ref. Pin
+  // rewrites it from the live panel offsets; Reset clears it + bumps a nonce
+  // the panels watch to snap home. Each floating panel registers a pair of
+  // getters (live offset + live rect) so Pin can snapshot every panel and the
+  // magnet can edge-align against the others.
+  const layoutStorage = useMemo<LayoutStorage | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      // Touch it once so a SecurityError (disabled storage) degrades to null
+      // here rather than throwing on every save.
+      return window.localStorage;
+    } catch {
+      return null;
+    }
+  }, []);
+  // The pinned layout is read ONCE via a lazy useState initializer so the
+  // panels' own initial `useState(seed)` reads it through getSavedPanelOffset
+  // on their first render (before paint) — no flash of the home position, and
+  // no ref-access-during-render. Pin rewrites it; Reset clears it + bumps a
+  // nonce the panels watch to snap home.
+  const [savedWorkspaceLayout, setSavedWorkspaceLayout] =
+    useState<WorkspaceLayoutV1 | null>(() => loadWorkspaceLayout(layoutStorage));
+  const hasSavedWorkspaceLayout = savedWorkspaceLayout != null;
+  const [workspaceResetNonce, setWorkspaceResetNonce] = useState(0);
+  // Live panel registry (getOffset + getRect per panel). A ref because it is
+  // only ever read/written from event handlers (Pin) + the magnet move loop,
+  // never during render.
+  const workspacePanelsRef = useRef<
+    Map<
+      string,
+      {
+        getOffset: () => PanelOffset;
+        getRect: () => { left: number; top: number; width: number; height: number } | null;
+      }
+    >
+  >(new Map());
+
+  const getSavedPanelOffset = useCallback<
+    EditContextValue["getSavedPanelOffset"]
+  >(
+    (panelId) => savedOffsetForPanel(savedWorkspaceLayout, panelId),
+    [savedWorkspaceLayout],
+  );
+
+  const registerWorkspacePanel = useCallback<
+    EditContextValue["registerWorkspacePanel"]
+  >((panelId, handles) => {
+    workspacePanelsRef.current.set(panelId, handles);
+    return () => {
+      // Only delete if this exact registration is still current (a remount can
+      // register the replacement before the old cleanup runs).
+      if (workspacePanelsRef.current.get(panelId) === handles) {
+        workspacePanelsRef.current.delete(panelId);
+      }
+    };
+  }, []);
+
+  const getOtherWorkspacePanelRects = useCallback<
+    EditContextValue["getOtherWorkspacePanelRects"]
+  >((panelId) => {
+    const rects: Array<{ left: number; top: number; width: number; height: number }> = [];
+    for (const [id, handles] of workspacePanelsRef.current) {
+      if (id === panelId) continue;
+      const rect = handles.getRect();
+      if (rect) rects.push(rect);
+    }
+    return rects;
+  }, []);
+
+  const pinWorkspaceLayout = useCallback<
+    EditContextValue["pinWorkspaceLayout"]
+  >(() => {
+    const panels: Record<string, PanelOffset> = {};
+    for (const [id, handles] of workspacePanelsRef.current) {
+      panels[id] = handles.getOffset();
+    }
+    const saved = saveWorkspaceLayout(layoutStorage, panels);
+    if (saved) {
+      setSavedWorkspaceLayout({ version: 1, panels });
+    }
+  }, [layoutStorage]);
+
+  const resetWorkspaceLayout = useCallback<
+    EditContextValue["resetWorkspaceLayout"]
+  >(() => {
+    clearWorkspaceLayout(layoutStorage);
+    setSavedWorkspaceLayout(null);
+    // Bump the nonce so every floating panel snaps its session offset home.
+    setWorkspaceResetNonce((n) => n + 1);
+  }, [layoutStorage]);
+
   // Most recent mutation error. Auto-clears after 5s — the operator
   // probably already undid or retried, and we'd rather err toward quiet
   // than keep a stale error chip up.
@@ -2018,6 +2580,14 @@ export function EditProvider({
   const reportMutationError = useCallback(
     (message: string | EditMutationError) => {
       const normalized = normalizeMutationError(message);
+      // Benign no-op edits (re-applying identical props, or a UI gesture that
+      // re-sends current values) are NOT failures — never surface a toast.
+      if (
+        normalized.code === "NO_CHANGE" ||
+        /no changes to apply/i.test(normalized.message ?? "")
+      ) {
+        return;
+      }
       const fingerprint = mutationErrorFingerprint(normalized);
       const now = Date.now();
       const previous = lastMutationErrorRef.current;
@@ -2069,6 +2639,35 @@ export function EditProvider({
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [dirty, saving]);
+
+  // ── Flush coalesced builder saves on teardown / tab hide ──────────────
+  // A debounced save can be sitting in `pendingTreeRef` when the tab is hidden,
+  // navigated away, or the provider unmounts. Flush it eagerly so no edit is
+  // ever lost. pagehide / visibilitychange→hidden are the reliable mobile +
+  // bfcache-safe signals (beforeunload alone is unreliable on mobile Safari);
+  // we flush on both. The flush routes through the normal save queue so a save
+  // already in flight is respected. Empty deps: handlers read the latest flush
+  // via `flushBuilderTreeSaveRef`, and the cleanup also flushes on unmount.
+  useEffect(() => {
+    const flushIfPending = () => {
+      if (pendingTreeRef.current !== null) {
+        void flushBuilderTreeSaveRef.current();
+      }
+    };
+    const onPageHide = () => flushIfPending();
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flushIfPending();
+    };
+    window.addEventListener("pagehide", onPageHide);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("pagehide", onPageHide);
+      document.removeEventListener("visibilitychange", onVisibility);
+      // Unmount: flush any pending coalesced save so the last edit survives a
+      // route change / provider teardown.
+      flushIfPending();
+    };
+  }, []);
 
   const setSlotsAndBuilderTree = useCallback(
     (
@@ -2186,7 +2785,12 @@ export function EditProvider({
     // Selection-sync hardening: if the selected child node disappeared from
     // the tree (delete/move/refresh) or now belongs to another section, clear
     // the override so inspector/navigator fall back to the section root.
-    if (!ownerSectionId || ownerSectionId !== selectedSectionId) {
+    // NOTE: freeform full-page-design nodes legitimately have NO owner section
+    // (ownerSectionId === null), and selectBuilderNode sets selectedSectionId
+    // to null for them — so they MATCH and must NOT be cleared. Only clear on a
+    // real mismatch; the old `!ownerSectionId ||` clause wrongly cleared every
+    // freeform selection the instant it was made.
+    if (ownerSectionId !== selectedSectionId) {
       setSelectedBuilderNodeIdOverride(null);
     }
   }, [
@@ -2215,8 +2819,13 @@ export function EditProvider({
   const selectBuilderNode = useCallback(
     (nodeId: string) => {
       if (!treeContainsBuilderNodeId(builderTree, nodeId)) return;
-      const sectionId = sectionIdByBuilderNodeId.get(nodeId);
-      if (!sectionId) return;
+      // Freeform full-page designs (one-click starter designs) have builder
+      // nodes with NO parent CMS section, so `sectionIdByBuilderNodeId` has no
+      // entry. The old `if (!sectionId) return` bailed on every freeform block —
+      // making the whole design unselectable. Select the node directly; the
+      // section id is only selection *context* (null is fine), and the inspector
+      // + canvas overlay both key off the selected builder-node id.
+      const sectionId = sectionIdByBuilderNodeId.get(nodeId) ?? null;
       setSelectedSectionId(sectionId);
       setSelectedBuilderNodeIdOverride(nodeId);
     },
@@ -2369,6 +2978,7 @@ export function EditProvider({
       seedTree,
       normalizedSlots,
     );
+    lastConfirmedTreeRef.current = builderTreeRef.current;
     setPageId(data.pageId);
     setPageVersion(data.pageVersion);
     setLiveSitePublishedAt(data.liveSitePublishedAt);
@@ -3357,7 +3967,16 @@ export function EditProvider({
   );
 
   const persistBuilderTree = useCallback(
-    async (nextTree: BuilderNodeTree) => {
+    async (
+      nextTree: BuilderNodeTree,
+      // Optional explicit rollback target. The debounced commit path passes the
+      // last server-confirmed tree because several optimistic local trees may
+      // have been applied during the burst — rolling back to `builderTreeRef`
+      // (the latest optimistic tree) would NOT undo the failed change. Direct
+      // callers (undo/redo/restore) omit it and keep the original semantics of
+      // reverting to whatever tree was current when the save started.
+      rollbackTarget?: BuilderNodeTree,
+    ) => {
       const activePageVersion = pageVersionRef.current;
       if (activePageVersion === null) {
         return {
@@ -3366,7 +3985,7 @@ export function EditProvider({
           error: "This page is still loading — try again in a moment.",
         };
       }
-      const prevTree = builderTreeRef.current;
+      const prevTree = rollbackTarget ?? builderTreeRef.current;
       builderTreeRef.current = nextTree;
       setBuilderTree(nextTree);
       setSaving(true);
@@ -3432,7 +4051,28 @@ export function EditProvider({
       }
       pageVersionRef.current = save.pageVersion;
       setPageVersion(save.pageVersion);
-      void queueRouterRefresh();
+      lastConfirmedTreeRef.current = nextTree;
+      // W3 Sub-step D — skip the per-edit server refresh on the builder-tree
+      // happy path WHEN THE CLIENT CANVAS IS ACTIVE. `setBuilderTree(nextTree)`
+      // above already published the new tree to the bridge, so the client
+      // canvas has already repainted the REGULAR nodes — the server round-trip
+      // is pure lag. Flag OFF keeps the refresh EXACTLY as before (the
+      // server-rendered canvas is the only thing that paints, so it MUST
+      // re-render).
+      //
+      // The ONE flag-on exception: a builder-tree mutation that adds/removes a
+      // `section_embed` island. The client canvas can't conjure a server island
+      // the server never rendered (and can't drop one cleanly), so when the
+      // embed id set changes we still refresh to fetch/retire the island. This
+      // also covers undo/redo of `builderTree` entries that route straight
+      // through `persistBuilderTree` (bypassing `commitBuilderTreeMutation`'s
+      // eager reconcile) and could flip an embed in/out.
+      if (
+        !isBuilderClientCanvasEnabled() ||
+        mutationTouchesSectionEmbedIslandSet(prevTree, nextTree)
+      ) {
+        void queueRouterRefresh();
+      }
       return { ok: true as const };
     },
     [
@@ -3445,11 +4085,86 @@ export function EditProvider({
     ],
   );
 
+  // ── flush: persist the coalesced pending builder tree NOW ──────────────
+  // Cancels any scheduled debounce and enqueues a single `persistBuilderTree`
+  // for the latest pending tree onto `builderTreeSaveQueueRef` so ordering and
+  // CAS-version conflict handling are preserved. Idempotent: with nothing
+  // pending it just returns the current queue tail so callers (publish, unmount,
+  // pagehide) can still await any save already in flight. On failure it reverts
+  // the optimistic history entries pushed during this burst.
+  const flushBuilderTreeSave = useCallback(() => {
+    if (builderSaveTimerRef.current !== null) {
+      clearTimeout(builderSaveTimerRef.current);
+      builderSaveTimerRef.current = null;
+    }
+    const pending = pendingTreeRef.current;
+    if (pending === null) {
+      // Nothing owed to the server — return whatever is already queued so
+      // awaiting callers still wait out an in-flight save.
+      return builderTreeSaveQueueRef.current;
+    }
+    pendingTreeRef.current = null;
+    const rollbackTarget = lastConfirmedTreeRef.current;
+    const burstHistoryCount = pendingHistoryCountRef.current;
+    pendingHistoryCountRef.current = 0;
+    const resultPromise = builderTreeSaveQueueRef.current.then(() =>
+      persistBuilderTree(pending, rollbackTarget),
+    );
+    builderTreeSaveQueueRef.current = resultPromise.catch(() => undefined);
+    void resultPromise.then((result) => {
+      // persistBuilderTree clears `saving`; mirror dirty so the unsaved-changes
+      // guard + UI clear once the coalesced save lands (or stays set on failure
+      // because the reverted history still differs from the server is moot —
+      // we revert local tree to last-confirmed too).
+      if (result && !result.ok) {
+        // Roll back every optimistic history entry queued during this burst.
+        if (burstHistoryCount > 0) {
+          setPast((p) => p.slice(0, -burstHistoryCount));
+        }
+      }
+      // No more pending work → clear dirty (a later edit re-sets it).
+      if (pendingTreeRef.current === null) {
+        setDirty(false);
+      }
+    });
+    return resultPromise;
+  }, [persistBuilderTree]);
+
+  // Keep the stable flush ref pointed at the latest flush closure. Assigned in
+  // an effect (not during render) because every caller invokes it
+  // asynchronously — from a debounce timer, an event handler, or after an
+  // await — so it never needs to be read synchronously within the same render.
+  useEffect(() => {
+    flushBuilderTreeSaveRef.current = flushBuilderTreeSave;
+  }, [flushBuilderTreeSave]);
+
   const commitBuilderTreeMutation = useCallback(
     async (nextTree: BuilderNodeTree) => {
       const prevTree = builderTreeRef.current;
       if (JSON.stringify(prevTree) === JSON.stringify(nextTree)) {
         return { ok: true as const };
+      }
+      // Optimistic local update — apply immediately so the canvas reflects the
+      // edit without waiting for the (debounced) server round-trip. The UI never
+      // blocks on a save. Under the client-canvas flag this `setBuilderTree`
+      // publishes the new tree to the bridge (the publish effect deps on
+      // `builderTree`), so the client canvas repaints REGULAR nodes instantly —
+      // no network on the keystroke/commit.
+      builderTreeRef.current = nextTree;
+      setBuilderTree(nextTree);
+      // W3 Sub-step C — section_embed scoped reconcile. The client canvas can't
+      // paint an island the server never rendered (a section_embed added /
+      // duplicated this commit gets a fresh id with no cached island). When the
+      // set of section_embed ids changes, eagerly refresh the server RSC tree so
+      // the new island is rendered promptly instead of waiting for the debounced
+      // save's trailing refresh. Flag-gated: with the client canvas OFF, the
+      // server-rendered canvas already repaints on the save refresh — this extra
+      // eager refresh would be redundant, so it stays scoped to the flag-on path.
+      if (
+        isBuilderClientCanvasEnabled() &&
+        mutationTouchesSectionEmbedIslandSet(prevTree, nextTree)
+      ) {
+        void queueRouterRefresh();
       }
       setPast((p) =>
         capHistory([
@@ -3462,17 +4177,25 @@ export function EditProvider({
         ]),
       );
       setFuture([]);
-      const resultPromise = builderTreeSaveQueueRef.current.then(() =>
-        persistBuilderTree(nextTree),
-      );
-      builderTreeSaveQueueRef.current = resultPromise.catch(() => undefined);
-      const result = await resultPromise;
-      if (!result.ok) {
-        setPast((p) => p.slice(0, -1));
+      // Coalesce the SERVER persist: remember the latest tree and (re)arm the
+      // debounce. Only the final tree of a burst is sent. `dirty` flags the
+      // unsaved-changes guard so a tab close mid-debounce still prompts/flushes.
+      pendingTreeRef.current = nextTree;
+      pendingHistoryCountRef.current += 1;
+      setDirty(true);
+      if (builderSaveTimerRef.current !== null) {
+        clearTimeout(builderSaveTimerRef.current);
       }
-      return result;
+      builderSaveTimerRef.current = setTimeout(() => {
+        builderSaveTimerRef.current = null;
+        void flushBuilderTreeSaveRef.current();
+      }, BUILDER_SAVE_DEBOUNCE_MS);
+      // Return optimistic success — the save is fire-and-forget from the
+      // caller's perspective; failures surface via reportMutationError + a tree
+      // rollback inside persistBuilderTree.
+      return { ok: true as const };
     },
-    [capHistory, persistBuilderTree],
+    [capHistory, queueRouterRefresh],
   );
 
   const executeBuilderNodeOperation = useCallback(
@@ -3526,14 +4249,10 @@ export function EditProvider({
         return { ...operationResult, error };
       }
 
-      const persisted = await commitBuilderTreeMutation(operationResult.tree);
-      if (!persisted.ok) {
-        return {
-          ok: false,
-          code: persisted.code ?? "SAVE_FAILED",
-          error: persisted.error,
-        };
-      }
+      // Optimistic: the commit applies the tree + records undo synchronously; the
+      // server save is deferred/coalesced, and a rejected save surfaces async via
+      // reportMutationError + rollback — so there is no sync failure to return here.
+      await commitBuilderTreeMutation(operationResult.tree);
       recordBuilderMutationAuditEvent(
         createBuilderMutationAuditEvent({
           operation: input.operation,
@@ -3709,6 +4428,46 @@ export function EditProvider({
   >(
     async (parentId, presetId, index) => {
       const node = createBuilderNodeCompositionPreset(presetId);
+      const inserted = await executeBuilderNodeOperation({
+        operation: "insert",
+        nodeId: node.id,
+        parentId,
+        run: (tree) =>
+          runBuilderNodeOp({
+            operation: "insert",
+            tree,
+            node,
+            parentId,
+            index,
+          }),
+      });
+      if (!inserted.ok) {
+        return { ok: false, error: inserted.error };
+      }
+      const ownerSectionId = findOwnerSectionIdForBuilderNode(
+        inserted.tree,
+        node.id,
+      );
+      if (ownerSectionId) {
+        setSelectedSectionId(ownerSectionId);
+        setSelectedBuilderNodeIdOverride(node.id);
+        markNavigatorAddition(ownerSectionId, node.id, "block");
+      }
+      return { ok: true, nodeId: node.id };
+    },
+    [
+      executeBuilderNodeOperation,
+      runBuilderNodeOp,
+      setSelectedSectionId,
+      setSelectedBuilderNodeIdOverride,
+      markNavigatorAddition,
+    ],
+  );
+  const insertBuilderSectionEmbed = useCallback<
+    EditContextValue["insertBuilderSectionEmbed"]
+  >(
+    async (parentId, sectionTypeKey, index) => {
+      const node = createBuilderSectionEmbed(sectionTypeKey);
       const inserted = await executeBuilderNodeOperation({
         operation: "insert",
         nodeId: node.id,
@@ -3963,6 +4722,52 @@ export function EditProvider({
         run: (tree) => ({
           ok: true,
           tree: setInstanceOverrideInTree(tree, nodeId, masterChildId, override),
+        }),
+      });
+      if (!result.ok) {
+        return { ok: false, error: result.error };
+      }
+      return { ok: true };
+    },
+    [executeBuilderNodeOperation],
+  );
+  // Phase 4 (T4.4) — apply a named variant to a linked instance (preset
+  // override-set + variant tag). Pure transform + shared commit path.
+  const applyInstanceVariant = useCallback<
+    EditContextValue["applyInstanceVariant"]
+  >(
+    async (nodeId, variantJson) => {
+      let variant: BuilderComponentVariant;
+      try {
+        variant = JSON.parse(variantJson) as BuilderComponentVariant;
+      } catch {
+        return { ok: false, error: "That variant could not be read." };
+      }
+      const result = await executeBuilderNodeOperation({
+        operation: "patch",
+        nodeId,
+        run: (tree) => ({
+          ok: true,
+          tree: applyVariantToInstanceInTree(tree, nodeId, variant),
+        }),
+      });
+      if (!result.ok) {
+        return { ok: false, error: result.error };
+      }
+      return { ok: true };
+    },
+    [executeBuilderNodeOperation],
+  );
+  const clearInstanceVariant = useCallback<
+    EditContextValue["clearInstanceVariant"]
+  >(
+    async (nodeId) => {
+      const result = await executeBuilderNodeOperation({
+        operation: "patch",
+        nodeId,
+        run: (tree) => ({
+          ok: true,
+          tree: clearInstanceVariantInTree(tree, nodeId),
         }),
       });
       if (!result.ok) {
@@ -4329,6 +5134,82 @@ export function EditProvider({
     },
     [executeBuilderNodeOperation, runBuilderNodeOp],
   );
+
+  // ── Wave 6C — surgical mobile-only structure override (job #35) ─────────
+  // Sets/clears `style.responsive.mobile.{visibility,order}` on ONE node while
+  // preserving the rest of `responsive.mobile`, the `tablet` bucket, and the
+  // base style. We read the node, compute the full next `style`, and hand it to
+  // the shared `patch` op (which shallow-merges props, so a complete `style`
+  // replaces it cleanly). Reuses the renderer channel the Wave-2A controls
+  // already emit — no new render surface, no flagship change.
+  const setBuilderNodeMobileStructure = useCallback<
+    EditContextValue["setBuilderNodeMobileStructure"]
+  >(
+    async (nodeId, patch) => {
+      const node = findBuilderNodeById(builderTreeRef.current, nodeId);
+      if (!node || node.kind === "section") {
+        return {
+          ok: false,
+          error:
+            "That block was not found on the page — select it on the canvas and try again.",
+        };
+      }
+      const currentStyle =
+        ("style" in node.props
+          ? (node.props.style as Record<string, unknown> | undefined)
+          : undefined) ?? {};
+      const currentResponsive =
+        (currentStyle.responsive as Record<string, unknown> | undefined) ?? {};
+      const currentMobile = {
+        ...((currentResponsive.mobile as Record<string, unknown> | undefined) ??
+          {}),
+      };
+
+      if ("visibility" in patch) {
+        if (patch.visibility === undefined) delete currentMobile.visibility;
+        else currentMobile.visibility = patch.visibility;
+      }
+      if ("order" in patch) {
+        if (patch.order === undefined || patch.order === null)
+          delete currentMobile.order;
+        else currentMobile.order = patch.order;
+      }
+
+      // Rebuild responsive, dropping an emptied mobile bucket so we never leave
+      // a `responsive: { mobile: {} }` residue (matches cleanBuilderNodeStyle).
+      const nextResponsive: Record<string, unknown> = { ...currentResponsive };
+      if (Object.keys(currentMobile).length > 0) {
+        nextResponsive.mobile = currentMobile;
+      } else {
+        delete nextResponsive.mobile;
+      }
+
+      const nextStyle: Record<string, unknown> = { ...currentStyle };
+      if (Object.keys(nextResponsive).length > 0) {
+        nextStyle.responsive = nextResponsive;
+      } else {
+        delete nextStyle.responsive;
+      }
+
+      const patched = await executeBuilderNodeOperation({
+        operation: "patch",
+        nodeId,
+        run: (tree) =>
+          runBuilderNodeOp({
+            operation: "patch",
+            tree,
+            nodeId,
+            patch: { style: nextStyle },
+          }),
+      });
+      if (!patched.ok) {
+        return { ok: false, error: patched.error };
+      }
+      return { ok: true };
+    },
+    [executeBuilderNodeOperation, runBuilderNodeOp],
+  );
+
   const moveBuilderNodeWithinParent = useCallback<
     EditContextValue["moveBuilderNodeWithinParent"]
   >(
@@ -4532,6 +5413,43 @@ export function EditProvider({
     [translateSelectedBuilderNodes],
   );
 
+  const patchSelectedBuilderNodesStyle = useCallback<
+    EditContextValue["patchSelectedBuilderNodesStyle"]
+  >(
+    async (stylePatchJson) => {
+      let patch: Record<string, unknown>;
+      try {
+        const parsed = JSON.parse(stylePatchJson) as unknown;
+        if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+          return { ok: false, error: "Invalid style change." };
+        }
+        patch = parsed as Record<string, unknown>;
+      } catch {
+        return { ok: false, error: "Invalid style change." };
+      }
+      if (Object.keys(patch).length === 0) return { ok: true };
+      const nodeIds = getAllSelectedBuilderNodeIds();
+      if (nodeIds.length === 0) return { ok: true };
+      const guarded = guardSelectedBuilderNodes(nodeIds);
+      if (guarded) return { ok: false, error: guarded };
+      const patched = await executeBuilderNodeOperation({
+        operation: "patch",
+        nodeId: nodeIds[0],
+        run: (tree) => ({
+          ok: true,
+          tree: mergeStylePatchIntoTree(tree, nodeIds, patch),
+        }),
+      });
+      if (!patched.ok) return { ok: false, error: patched.error };
+      return { ok: true };
+    },
+    [
+      executeBuilderNodeOperation,
+      getAllSelectedBuilderNodeIds,
+      guardSelectedBuilderNodes,
+    ],
+  );
+
   const copySelectedBuilderNodes = useCallback<
     EditContextValue["copySelectedBuilderNodes"]
   >(() => {
@@ -4726,6 +5644,11 @@ export function EditProvider({
   const undo = useCallback(async () => {
     if (saving) return;
     if (past.length === 0) return;
+    // Commit any pending coalesced builder save first so its version bump lands
+    // BEFORE this undo's own persist — preserves save-queue ordering + CAS.
+    if (pendingTreeRef.current !== null) {
+      await flushBuilderTreeSaveRef.current();
+    }
     const entry = past[past.length - 1]!;
     setPast((p) => p.slice(0, -1));
     if (entry.kind === "composition") {
@@ -4769,6 +5692,11 @@ export function EditProvider({
   const redo = useCallback(async () => {
     if (saving) return;
     if (future.length === 0) return;
+    // Commit any pending coalesced builder save first so its version bump lands
+    // BEFORE this redo's own persist — preserves save-queue ordering + CAS.
+    if (pendingTreeRef.current !== null) {
+      await flushBuilderTreeSaveRef.current();
+    }
     const entry = future[future.length - 1]!;
     setFuture((f) => f.slice(0, -1));
     if (entry.kind === "composition") {
@@ -4871,6 +5799,7 @@ export function EditProvider({
         | "revisions"
         | "theme"
         | "assets"
+        | "collections"
         | "schedule"
         | "comments",
       commentsSectionFocus?: string | null,
@@ -4881,6 +5810,7 @@ export function EditProvider({
       setRevisionsOpen(active === "revisions");
       setThemeOpen(active === "theme");
       setAssetsOpen(active === "assets");
+      setCollectionsOpen(active === "collections");
       setScheduleOpen(active === "schedule");
       setCommentsOpen(active === "comments");
       setCommentsFocusSectionId(
@@ -4921,6 +5851,11 @@ export function EditProvider({
   }, [showExclusiveRightRailDrawer]);
   const closeAssets = useCallback(() => setAssetsOpen(false), []);
 
+  const openCollections = useCallback(() => {
+    showExclusiveRightRailDrawer("collections");
+  }, [showExclusiveRightRailDrawer]);
+  const closeCollections = useCallback(() => setCollectionsOpen(false), []);
+
   const openSchedule = useCallback(() => {
     showExclusiveRightRailDrawer("schedule");
   }, [showExclusiveRightRailDrawer]);
@@ -4954,11 +5889,21 @@ export function EditProvider({
         return { ok: false, error: "This page is still loading — try again in a moment." };
       }
       setSaving(true);
-      const res = await restoreHomepageRevisionAction({
-        revisionId,
-        locale,
-        expectedVersion: pageVersionRef.current ?? pageVersion,
-      });
+      // T4.5: Branch on homepage vs non-homepage page. The homepage is keyed
+      // by locale (no pageId needed in the action); non-homepage pages use
+      // the pageId directly so the right cms_page row is targeted.
+      const casVersion = pageVersionRef.current ?? pageVersion;
+      const res = pageSlug && pageId
+        ? await restorePageRevisionAction({
+            revisionId,
+            pageId,
+            expectedVersion: casVersion,
+          })
+        : await restoreHomepageRevisionAction({
+            revisionId,
+            locale,
+            expectedVersion: casVersion,
+          });
       setSaving(false);
       if (!res.ok) {
         if (res.code === "VERSION_CONFLICT") {
@@ -4975,7 +5920,7 @@ export function EditProvider({
       void queueRouterRefresh();
       return { ok: true };
     },
-    [pageVersion, locale, refreshComposition, queueRouterRefresh, reportMutationError],
+    [pageVersion, pageSlug, pageId, locale, refreshComposition, queueRouterRefresh, reportMutationError],
   );
 
   // Sprint 5 — public setSectionVisibility now routes through the
@@ -5029,6 +5974,11 @@ export function EditProvider({
    * conflict we reload authoritative state so the operator can re-press.
    */
   const saveDraft = useCallback<EditContextValue["saveDraft"]>(async () => {
+    // Commit any pending coalesced builder save first so this explicit draft
+    // save serializes after it (same CAS version would otherwise conflict).
+    if (pendingTreeRef.current !== null) {
+      await flushBuilderTreeSaveRef.current();
+    }
     const casVersion = pageVersionRef.current;
     if (casVersion === null) {
       return { ok: false, error: "This page is still loading — try again in a moment." };
@@ -5116,6 +6066,7 @@ export function EditProvider({
 	      translateSelectedBuilderNodes,
 	      alignSelectedBuilderNodes,
 	      distributeSelectedBuilderNodes,
+	      patchSelectedBuilderNodesStyle,
 	      copySelectedBuilderNodes,
 	      cutSelectedBuilderNodes,
 	      pasteBuilderNodeClipboard,
@@ -5131,8 +6082,16 @@ export function EditProvider({
 	      pasteCopiedBuilderNode,
       hoveredSectionId,
       setHoveredSectionId,
+      hoveredBuilderNodeId,
+      setHoveredBuilderNodeId,
       device,
       setDevice,
+      previewFrame,
+      setPreviewFrameWidth,
+      togglePreviewRotated,
+      mobileEditMode,
+      setMobileEditMode,
+      setBuilderNodeMobileStructure,
       dirty,
       setDirty,
       saving,
@@ -5166,6 +6125,7 @@ export function EditProvider({
       moveBuilderNodeToParentIndex,
       insertBuilderNode,
       insertBuilderNodeCompositionPreset,
+      insertBuilderSectionEmbed,
       insertBuilderComponent,
       insertLinkedComponent,
       syncComponentInstances,
@@ -5173,6 +6133,8 @@ export function EditProvider({
       ejectSection,
       unejectSection,
       setInstanceOverride,
+      applyInstanceVariant,
+      clearInstanceVariant,
       saveSelectedNodeAsComponent,
       updateSelectedNodeAsComponent,
       duplicateBuilderNode,
@@ -5219,6 +6181,9 @@ export function EditProvider({
       assetsOpen,
       openAssets,
       closeAssets,
+      collectionsOpen,
+      openCollections,
+      closeCollections,
 
       scheduleOpen,
       openSchedule,
@@ -5251,11 +6216,19 @@ export function EditProvider({
       toggleNavigator,
       navigatorWidth,
       setNavigatorWidth,
+      hasSavedWorkspaceLayout,
+      pinWorkspaceLayout,
+      resetWorkspaceLayout,
+      workspaceResetNonce,
+      getSavedPanelOffset,
+      registerWorkspacePanel,
+      getOtherWorkspacePanelRects,
       recentNavigatorAdditions,
       clearNavigatorRecentAdditions,
       setSectionVisibility,
 
       saveDraft,
+      flushBuilderTreeSave,
       lastDraftSavedAt,
       clearDraftSavedToast,
 
@@ -5296,6 +6269,7 @@ export function EditProvider({
 	      translateSelectedBuilderNodes,
 	      alignSelectedBuilderNodes,
 	      distributeSelectedBuilderNodes,
+	      patchSelectedBuilderNodesStyle,
 	      copySelectedBuilderNodes,
 	      cutSelectedBuilderNodes,
 	      pasteBuilderNodeClipboard,
@@ -5304,7 +6278,15 @@ export function EditProvider({
 	      copiedBuilderNodeClipboard,
 	      setSelectedSectionId,
       hoveredSectionId,
+      hoveredBuilderNodeId,
       device,
+      setDevice,
+      previewFrame,
+      setPreviewFrameWidth,
+      togglePreviewRotated,
+      mobileEditMode,
+      setMobileEditMode,
+      setBuilderNodeMobileStructure,
       dirty,
       saving,
       loadedSection,
@@ -5333,6 +6315,7 @@ export function EditProvider({
       moveBuilderNodeToParentIndex,
       insertBuilderNode,
       insertBuilderNodeCompositionPreset,
+      insertBuilderSectionEmbed,
       insertBuilderComponent,
       insertLinkedComponent,
       syncComponentInstances,
@@ -5340,6 +6323,8 @@ export function EditProvider({
       ejectSection,
       unejectSection,
       setInstanceOverride,
+      applyInstanceVariant,
+      clearInstanceVariant,
       saveSelectedNodeAsComponent,
       updateSelectedNodeAsComponent,
       duplicateBuilderNode,
@@ -5385,6 +6370,9 @@ export function EditProvider({
       assetsOpen,
       openAssets,
       closeAssets,
+      collectionsOpen,
+      openCollections,
+      closeCollections,
       scheduleOpen,
       openSchedule,
       closeSchedule,
@@ -5412,10 +6400,18 @@ export function EditProvider({
       toggleNavigator,
       navigatorWidth,
       setNavigatorWidth,
+      hasSavedWorkspaceLayout,
+      pinWorkspaceLayout,
+      resetWorkspaceLayout,
+      workspaceResetNonce,
+      getSavedPanelOffset,
+      registerWorkspacePanel,
+      getOtherWorkspacePanelRects,
       recentNavigatorAdditions,
       clearNavigatorRecentAdditions,
       setSectionVisibility,
       saveDraft,
+      flushBuilderTreeSave,
       lastDraftSavedAt,
       clearDraftSavedToast,
       mutationError,

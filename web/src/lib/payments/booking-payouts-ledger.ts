@@ -290,6 +290,38 @@ export type HeldLedgerRow = {
 };
 
 /**
+ * Count one talent's HELD payout legs — bookings where the client paid but the
+ * transfer couldn't route because the talent has no enabled connected account
+ * yet (executeBookingTransfers records the leg as 'held', funds stay on the
+ * platform). Drives the talent PayoutNudgeCard count ("you have N accepted
+ * bookings ready to pay out — connect Stripe"). Service-role read so the count
+ * is accurate regardless of the caller's RLS; best-effort, returns 0 on error.
+ */
+export async function countHeldTalentPayoutLegs(
+  talentProfileId: string,
+  sbIn?: SupabaseClient | null,
+): Promise<number> {
+  const sb = sbIn ?? createServiceRoleClient();
+  if (!sb || !talentProfileId) return 0;
+  try {
+    const { count, error } = await sb
+      .from("booking_payouts")
+      .select("id", { count: "exact", head: true })
+      .eq("talent_profile_id", talentProfileId)
+      .eq("party", "talent")
+      .eq("status", "held");
+    if (error) {
+      logServerError("booking-payouts-ledger.countHeldTalentPayoutLegs", error);
+      return 0;
+    }
+    return count ?? 0;
+  } catch (err) {
+    logServerError("booking-payouts-ledger.countHeldTalentPayoutLegs", err);
+    return 0;
+  }
+}
+
+/**
  * All currently-held (and failed) payout legs across the platform — for the
  * platform-admin reconciliation list. Service-role read; newest first.
  */
@@ -355,4 +387,268 @@ export async function getHeldPayoutTotals(
     logServerError("booking-payouts.heldTotals", err);
     return [];
   }
+}
+
+// ─── Reversals (audit #14: dispute lost + refund clawback) ──────────────────
+
+export type PayoutReversalMode = "full" | "partial";
+
+export type PayoutReversalOutcome = {
+  legId: string;
+  participantId: string;
+  party: PayoutParty;
+  /** Cents reversed (full) / clawed (partial) / 0 for held-cancel + noop. */
+  amountCents: number;
+  result: "reversed" | "reversed_partial" | "cancelled_held" | "failed" | "noop";
+  reversalId?: string | null;
+  detail?: string;
+};
+
+export type ReverseDeps = {
+  sb?: SupabaseClient | null;
+  stripe?: Stripe | null;
+};
+
+type LedgerLegRow = {
+  id: string;
+  participant_id: string;
+  party: PayoutParty;
+  amount_cents: number;
+  currency: string;
+  status: string;
+  stripe_transfer_id: string | null;
+  attempts: number;
+};
+
+/** Key a partial clawback amount is mapped onto a specific ledger leg. */
+export function reversalLegKey(participantId: string, party: PayoutParty): string {
+  return `${participantId}:${party}`;
+}
+
+/**
+ * Talent-protective partial-refund clawback split.
+ *
+ * Audit #14 — "don't over-claw the talent": a partial refund is absorbed FIRST
+ * by the platform fee the platform retained, THEN by the workspace margin, and
+ * only a residual beyond both would reach the talent's protected quote. The
+ * talent is never auto-clawed here — `talentResidualCents` is returned so the
+ * caller can escalate it to manual ops instead of silently reducing a payout
+ * the talent already received.
+ *
+ * The workspace clawback is split across the (possibly several) workspace legs
+ * in proportion to each leg's transferred amount; the rounding remainder is
+ * assigned to the largest leg first (and never beyond that leg's own amount) so
+ * the per-leg cents sum EXACTLY to the workspace clawback total — no drift, no
+ * over-reversal.
+ */
+export function computeTalentProtectiveClawback(input: {
+  platformFeeCents: number;
+  workspaceLegs: Array<{ key: string; amountCents: number }>;
+  talentTotalCents: number;
+  refundedCents: number;
+}): {
+  platformAbsorbedCents: number;
+  workspaceClawbackByLeg: Map<string, number>;
+  workspaceClawbackTotalCents: number;
+  talentResidualCents: number;
+} {
+  const refunded = Math.max(0, Math.round(input.refundedCents));
+  const platformAbsorbedCents = Math.min(refunded, Math.max(0, input.platformFeeCents));
+  const afterPlatform = refunded - platformAbsorbedCents;
+
+  const wsLegs = input.workspaceLegs.filter((l) => l.amountCents > 0);
+  const workspaceTotal = wsLegs.reduce((s, l) => s + l.amountCents, 0);
+  const workspaceClawbackTotalCents = Math.min(afterPlatform, workspaceTotal);
+
+  const workspaceClawbackByLeg = new Map<string, number>();
+  if (workspaceClawbackTotalCents > 0 && workspaceTotal > 0) {
+    const sorted = [...wsLegs].sort((a, b) => b.amountCents - a.amountCents);
+    let allocated = 0;
+    for (const leg of sorted) {
+      const share = Math.floor((workspaceClawbackTotalCents * leg.amountCents) / workspaceTotal);
+      workspaceClawbackByLeg.set(leg.key, share);
+      allocated += share;
+    }
+    let remainder = workspaceClawbackTotalCents - allocated;
+    for (const leg of sorted) {
+      if (remainder <= 0) break;
+      const cur = workspaceClawbackByLeg.get(leg.key) ?? 0;
+      const room = leg.amountCents - cur;
+      const add = Math.min(room, remainder);
+      workspaceClawbackByLeg.set(leg.key, cur + add);
+      remainder -= add;
+    }
+  }
+
+  const afterWorkspace = afterPlatform - workspaceClawbackTotalCents;
+  const talentResidualCents = Math.min(Math.max(0, afterWorkspace), Math.max(0, input.talentTotalCents));
+
+  return { platformAbsorbedCents, workspaceClawbackByLeg, workspaceClawbackTotalCents, talentResidualCents };
+}
+
+async function markLegReversed(
+  sb: SupabaseClient,
+  leg: { id: string; attempts: number },
+  note: string,
+): Promise<void> {
+  await sb
+    .from("booking_payouts")
+    .update({
+      status: "reversed",
+      attempts: (leg.attempts ?? 0) + 1,
+      last_error: note,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", leg.id);
+}
+
+/** Partial workspace-leg reversal (talent untouched). Idempotent per transfer. */
+async function partialReverseLeg(
+  sb: SupabaseClient,
+  stripe: Stripe | null,
+  leg: LedgerLegRow,
+  clawbackCents: number,
+  reference: string,
+): Promise<PayoutReversalOutcome> {
+  const base = { legId: leg.id, participantId: leg.participant_id, party: leg.party } as const;
+  const amount = Math.min(Math.max(0, Math.round(clawbackCents)), leg.amount_cents);
+  if (amount <= 0) return { ...base, amountCents: 0, result: "noop" };
+
+  if (!leg.stripe_transfer_id || !stripe) {
+    await sb
+      .from("booking_payouts")
+      .update({ last_error: `${reference} partial_reversal ${amount} (mock)`, updated_at: new Date().toISOString() })
+      .eq("id", leg.id);
+    return { ...base, amountCents: amount, result: "reversed_partial" };
+  }
+
+  try {
+    // `reverse_partial_<transferId>` is stable per transfer: a re-delivered
+    // refund replays the SAME reversal (no double-claw). A genuinely DIFFERENT
+    // later partial refund would reuse the key with a different amount → Stripe
+    // rejects it, which we log + escalate rather than risk a stacked reversal.
+    const reversal = await stripe.transfers.createReversal(
+      leg.stripe_transfer_id,
+      { amount },
+      { idempotencyKey: `reverse_partial_${leg.stripe_transfer_id}` },
+    );
+    await sb
+      .from("booking_payouts")
+      .update({
+        last_error: `${reference} partial_reversal ${amount} -> ${reversal.id}`,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", leg.id);
+    return { ...base, amountCents: amount, result: "reversed_partial", reversalId: reversal.id };
+  } catch (err) {
+    logServerError(`booking-payouts.partialReverse[leg=${leg.id}]`, err);
+    return { ...base, amountCents: 0, result: "failed", detail: err instanceof Error ? err.message : "reversal failed" };
+  }
+}
+
+/**
+ * Reverse a booking's payouts after a LOST dispute / refund, syncing the ledger.
+ *
+ *   mode 'full'  — dispute lost or full refund. Every transferred leg's Stripe
+ *     transfer is reversed for its remaining (un-reversed) amount and the leg is
+ *     marked 'reversed'. Held/failed legs (money never sent) are ALSO marked
+ *     'reversed' so they can never be released later — the booking was clawed
+ *     back in full.
+ *   mode 'partial' — partial refund. ONLY the workspace legs named in
+ *     `workspaceClawbackByLeg` are reversed, each by its clawback amount (a
+ *     partial Stripe reversal). Talent legs and held legs are left intact (the
+ *     talent keeps their protected quote).
+ *
+ * Idempotent + best-effort; never throws (the refund/chargeback already settled
+ * at Stripe). Full reversals reuse `reverse_<transferId>` and reverse only the
+ * remaining amount read live from the transfer, so a re-delivery — or a
+ * partial-then-full sequence — never double-reverses.
+ */
+export async function reverseBookingPayouts(
+  bookingId: string,
+  plan: { mode: PayoutReversalMode; reference: string; workspaceClawbackByLeg?: Map<string, number> },
+  deps: ReverseDeps = {},
+): Promise<PayoutReversalOutcome[]> {
+  const sb = deps.sb ?? createServiceRoleClient();
+  if (!sb) return [];
+  const stripe = deps.stripe ?? getStripe();
+  const outcomes: PayoutReversalOutcome[] = [];
+
+  try {
+    const { data, error } = await sb
+      .from("booking_payouts")
+      .select("id, participant_id, party, amount_cents, currency, status, stripe_transfer_id, attempts")
+      .eq("booking_id", bookingId);
+    if (error || !data?.length) return [];
+    const legs = data as LedgerLegRow[];
+
+    // For 'full', read each live transfer's already-reversed amount once so we
+    // reverse only the remaining (correct after a prior partial reversal).
+    const reversedAlready = new Map<string, number>();
+    if (plan.mode === "full" && stripe) {
+      try {
+        const list = await stripe.transfers.list({ transfer_group: `booking_${bookingId}`, limit: 100 });
+        for (const t of list.data) reversedAlready.set(t.id, t.amount_reversed ?? 0);
+      } catch (err) {
+        logServerError(`booking-payouts.reverse.list[booking=${bookingId}]`, err);
+      }
+    }
+
+    for (const leg of legs) {
+      const base = { legId: leg.id, participantId: leg.participant_id, party: leg.party } as const;
+
+      if (leg.status === "reversed") {
+        outcomes.push({ ...base, amountCents: 0, result: "noop" });
+        continue;
+      }
+
+      if (plan.mode === "partial") {
+        const clawback = plan.workspaceClawbackByLeg?.get(reversalLegKey(leg.participant_id, leg.party)) ?? 0;
+        if (leg.party !== "workspace" || leg.status !== "transferred" || clawback <= 0) continue;
+        outcomes.push(await partialReverseLeg(sb, stripe, leg, clawback, plan.reference));
+        continue;
+      }
+
+      // ── mode 'full' ──
+      if (leg.status === "transferred" && leg.stripe_transfer_id && stripe) {
+        const already = reversedAlready.get(leg.stripe_transfer_id) ?? 0;
+        const remaining = Math.max(0, leg.amount_cents - already);
+        let reversalId: string | null = null;
+        if (remaining > 0) {
+          try {
+            const reversal = await stripe.transfers.createReversal(
+              leg.stripe_transfer_id,
+              { amount: remaining },
+              { idempotencyKey: `reverse_${leg.stripe_transfer_id}` },
+            );
+            reversalId = reversal.id;
+          } catch (err) {
+            logServerError(`booking-payouts.reverse[leg=${leg.id}]`, err);
+            await sb
+              .from("booking_payouts")
+              .update({
+                attempts: (leg.attempts ?? 0) + 1,
+                last_error: `${plan.reference}: reversal failed`,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", leg.id);
+            outcomes.push({ ...base, amountCents: remaining, result: "failed", detail: err instanceof Error ? err.message : "reversal failed" });
+            continue;
+          }
+        }
+        await markLegReversed(sb, leg, `${plan.reference}${reversalId ? ` ${reversalId}` : ""}`);
+        outcomes.push({ ...base, amountCents: remaining, result: "reversed", reversalId });
+        continue;
+      }
+
+      // Transferred-but-mock (no transfer id / no Stripe), or held/failed →
+      // cancel in the ledger so it can never be released after a full clawback.
+      const cancelled = leg.status === "held" || leg.status === "failed";
+      await markLegReversed(sb, leg, `${plan.reference}${cancelled ? " (cancelled before transfer)" : " (mock)"}`);
+      outcomes.push({ ...base, amountCents: 0, result: cancelled ? "cancelled_held" : "reversed" });
+    }
+  } catch (err) {
+    logServerError(`booking-payouts.reverse[booking=${bookingId}]`, err);
+  }
+  return outcomes;
 }

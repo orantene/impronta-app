@@ -7,6 +7,11 @@ import type { CSSProperties } from "react";
 import type { SectionComponentProps } from "../types";
 import type { LocationDiscoveryV1 } from "./schema";
 import { fetchTenantRosterCities } from "./fetch";
+import { LocationSection } from "@/components/home/location-section";
+import { getHomepageData } from "@/lib/home-data";
+import { readGoogleMapsBrowserKey } from "@/lib/env/google-maps-browser-key";
+import type { Locale } from "@/i18n/config";
+import { createTranslator } from "@/i18n/messages";
 
 type Loc = {
   key: string;
@@ -165,11 +170,33 @@ function MarketMap({ locs, showCount }: { locs: Loc[]; showCount?: boolean }) {
   );
 }
 
+/**
+ * Builds the LocationSection copy bundle (orbit map labels + error states)
+ * from the i18n catalog for the given locale. Shared shape with the homepage
+ * `LocationSection`.
+ */
+function buildLocationSectionCopy(locale: string) {
+  const t = createTranslator(locale);
+  return {
+    sectionKicker: t("home.location.sectionKicker"),
+    sectionTitle: t("home.location.sectionTitle"),
+    talentCountOne: t("home.location.talentCountOne"),
+    talentCountMany: t("home.location.talentCountMany"),
+    viewTalents: t("home.location.viewTalents"),
+    mapLoadErrorTitle: t("home.location.mapLoadErrorTitle"),
+    mapLoadErrorBody: t("home.location.mapLoadErrorBody"),
+    mapLoadErrorOpenConsole: t("home.location.mapLoadErrorOpenConsole"),
+    mapPinPreviewAria: t("home.location.mapPinPreviewAria"),
+    mapPinPreviewPhotoAlt: t("home.location.mapPinPreviewPhotoAlt"),
+  };
+}
+
 export async function LocationDiscoveryComponent({
   props,
   tenantId,
   locale,
   publicPathPrefix = "",
+  mapsApiKey,
   builderNodeBindings,
 }: SectionComponentProps<LocationDiscoveryV1>) {
   const {
@@ -187,7 +214,56 @@ export async function LocationDiscoveryComponent({
     emptyStateText,
     nodePresentation,
     presentation,
+    mapStyle,
   } = props;
+
+  // talent_orbit — the live, interactive Google map with talent-profile photos
+  // orbiting each city pin (LocationSection / LocationMapPinPreview). Sources
+  // live roster cities + featured talent for the tenant, regardless of `source`.
+  if (mapStyle === "talent_orbit") {
+    const mapsApiKey = readGoogleMapsBrowserKey();
+    const { locations } = mapsApiKey
+      ? await getHomepageData({ tenantId })
+      : { locations: [] as Awaited<ReturnType<typeof getHomepageData>>["locations"] };
+    // Render the live orbit map only when a Maps key exists AND the tenant has
+    // mapped roster cities; otherwise fall through to the always-renders
+    // editorial map below (no bare "map unavailable" state on key-less tenants).
+    if (mapsApiKey && locations.length > 0) {
+      const es = locale === "es";
+      return (
+        <LocationSection
+          locations={locations}
+          locale={locale as Locale}
+          mapsApiKey={mapsApiKey}
+          publicPathPrefix={publicPathPrefix}
+          copy={{
+            sectionKicker: eyebrow ?? (es ? "Red de talento" : "Talent network"),
+            sectionTitle:
+              headline ??
+              (es
+                ? "Rostros locales, alcance internacional."
+                : "Local faces, international reach."),
+            talentCountOne: es ? "1 talento" : "1 talent",
+            talentCountMany: es ? "{count} talentos" : "{count} talent",
+            viewTalents: es ? "Ver talentos" : "View talents",
+            mapLoadErrorTitle: es ? "Mapa no disponible" : "Map unavailable",
+            mapLoadErrorBody: es
+              ? "No se pudo cargar el mapa interactivo."
+              : "The interactive map could not load.",
+            mapLoadErrorOpenConsole: es
+              ? "Abre la consola del navegador para más detalles."
+              : "Open the browser console for details.",
+            mapPinPreviewAria: es
+              ? "Talento destacado en {city}"
+              : "Featured talent in {city}",
+            mapPinPreviewPhotoAlt: es ? "Talento destacado" : "Featured talent",
+          }}
+        />
+      );
+    }
+    // No live locations resolved for this tenant → fall through to editorial.
+  }
+
   const nodeIdsByRole = builderNodeBindings?.nodeIdsByRole;
 
   // 6C — single-source link resolution (handles LinkRef object or
@@ -230,6 +306,91 @@ export async function LocationDiscoveryComponent({
   } else {
     // manual (and service_areas → safe manual interim, documented).
     locs = manualLocs();
+  }
+
+  // Orbit map (interactive Google Maps embed with animated pin previews).
+  // Only attempted when the operator turned the map on AND a tenant Maps key
+  // resolved server-side (custom BYO key, or inherited platform key). The key
+  // is resolved upstream in HomepageCmsSections via
+  // resolveGoogleMapsKeyForClient(tenantId) and passed as a plain string prop —
+  // no server-only module crosses into the "use client" map. We load the
+  // tenant's geo-located roster cities (lat/lng + featured talent thumbs) to
+  // feed the orbit; when none have coordinates the LocationSection renders
+  // nothing and we fall through to the decorative SVG MarketMap below.
+  let orbitLocations:
+    | Awaited<ReturnType<typeof getHomepageData>>["locations"]
+    | null = null;
+  const key = mapsApiKey?.trim() || null;
+  if (showMap && key) {
+    try {
+      const homeData = await getHomepageData({ tenantId });
+      const withCoords = homeData.locations.filter(
+        (l) => l.latitude != null && l.longitude != null,
+      );
+      if (withCoords.length > 0) orbitLocations = withCoords;
+    } catch {
+      // Swallow — fall back to the SVG MarketMap (graceful "no orbit" path).
+      orbitLocations = null;
+    }
+  }
+
+  // When the orbit map can render, mount the real LocationSection in place of
+  // the SVG map. It keeps its own kicker/title from the i18n catalog; the
+  // section head (eyebrow/headline) above still renders the operator's copy.
+  if (orbitLocations && orbitLocations.length > 0 && key) {
+    return (
+      <section
+        className="site-locdisc"
+        data-ld-layout={layout ?? "grid"}
+        data-ld-map="true"
+        data-ld-orbit="true"
+        {...presentationDataAttrs(presentation)}
+      >
+        <Container width="standard">
+          <div className="site-locdisc__head">
+            <SectionHead
+              eyebrow={eyebrow ? renderInlineRich(eyebrow) : undefined}
+              headline={headline ? renderInlineRich(headline) : undefined}
+              intro={subheadline ? renderInlineRich(subheadline) : undefined}
+              eyebrowBuilderNodeId={nodeIdsByRole?.subheadline}
+              headlineBuilderNodeId={nodeIdsByRole?.headline}
+              introBuilderNodeId={nodeIdsByRole?.copy}
+              eyebrowStyle={nodePresentationInlineStyle(
+                nodePresentation?.subheadline,
+                eyebrowSize,
+              )}
+              headlineStyle={nodePresentationInlineStyle(
+                nodePresentation?.headline,
+                headingSize,
+              )}
+              introStyle={nodePresentationInlineStyle(
+                nodePresentation?.copy,
+                paragraphSize,
+              )}
+            />
+            {ctaLabel && ctaHref ? (
+              <Cta href={resolve(ctaHref)} variant="text" size="sm">
+                {ctaLabel}
+              </Cta>
+            ) : null}
+          </div>
+          <LocationSection
+            locations={orbitLocations}
+            locale={locale}
+            copy={{
+              ...buildLocationSectionCopy(locale),
+              // The operator's SectionHead above is the section title; blank the
+              // LocationSection's built-in kicker/title so the heading isn't
+              // doubled. The orbit map + location chips render unchanged.
+              sectionKicker: "",
+              sectionTitle: "",
+            }}
+            mapsApiKey={key}
+            publicPathPrefix={publicPathPrefix}
+          />
+        </Container>
+      </section>
+    );
   }
 
   return (

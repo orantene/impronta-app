@@ -4,7 +4,6 @@ import { useRef, type ReactNode } from "react";
 import { EmptyState, Icon, useRovingTabindex } from "./primitives";
 import { COLORS, FONTS, MY_TALENT_PROFILE, TALENT_PAGES, TALENT_PAGE_META, TALENT_TIER_META, TRANSITION, useAdminShell } from "./state";
 import { CalendarPage } from "./talent/pages/CalendarPage";
-import { InboxPage } from "./talent/pages/InboxPage";
 import { MyProfilePage } from "./talent/pages/MyProfilePage";
 import { PublicPageEditor } from "./talent/pages/PublicPageEditor";
 import { SettingsPage } from "./talent/pages/SettingsPage";
@@ -271,7 +270,10 @@ function TalentRouter() {
       page = <MyProfilePage />;
       break;
     case "inbox":
-      page = <InboxPage />;
+      // Legacy alias → the real Messages shell. The old InboxPage rendered a
+      // hardcoded TALENT_REQUESTS fixture (Mango/Bvlgari/Vogue); messages is
+      // the canonical, bridge-backed surface.
+      page = <TalentMessagesPage />;
       break;
     case "calendar":
       page = <CalendarPage />;

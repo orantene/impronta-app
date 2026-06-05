@@ -42,6 +42,31 @@ const inputStyle = {
   outline: "none",
 } as const;
 
+/** Drop empty-string / null / undefined values from a flat record (so an
+ * emptied style field never persists as `""`). */
+function prune(
+  obj: Record<string, unknown>,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (typeof v === "string" && v.trim()) out[k] = v;
+  }
+  return out;
+}
+
+/** The small curated set of per-instance STYLE props surfaced in the override
+ * panel — the highest-value subset (the full Style panel covers the rest). */
+const STYLE_FIELDS: ReadonlyArray<{
+  key: "textColor" | "backgroundColor" | "borderRadius" | "paddingY";
+  label: string;
+  placeholder: string;
+}> = [
+  { key: "textColor", label: "Text color", placeholder: "#111 / token" },
+  { key: "backgroundColor", label: "Background", placeholder: "#fff / token" },
+  { key: "borderRadius", label: "Radius", placeholder: "12px" },
+  { key: "paddingY", label: "Pad Y", placeholder: "none / s / m / l" },
+];
+
 export function InstanceOverridesPanel({
   instanceNodeId,
   componentId,
@@ -109,7 +134,20 @@ export function InstanceOverridesPanel({
   const apply = (slot: OverridableSlot, patch: BuilderNodeInstanceOverride) => {
     const base = overrides?.[slot.masterId] ?? {};
     const current = { ...base, ...drafts[slot.masterId] };
-    const next = { ...current, ...patch };
+    // Deep-merge the `style` sub-object so two style edits compose instead of
+    // the second clobbering the first; an empty-string style value is dropped
+    // (treated as "reset that property").
+    const nextStyle = patch.style
+      ? prune({ ...(current.style ?? {}), ...patch.style })
+      : current.style;
+    const next: BuilderNodeInstanceOverride = { ...current, ...patch };
+    if (patch.style) {
+      if (nextStyle && Object.keys(nextStyle).length > 0) {
+        next.style = nextStyle as BuilderNodeInstanceOverride["style"];
+      } else {
+        delete next.style;
+      }
+    }
     setDrafts((d) => ({ ...d, [slot.masterId]: next }));
     if (timers.current[slot.masterId]) clearTimeout(timers.current[slot.masterId]);
     timers.current[slot.masterId] = setTimeout(() => {
@@ -160,13 +198,21 @@ export function InstanceOverridesPanel({
         </span>
       ) : slots.length === 0 ? (
         <span className="text-[11px]" style={{ color: CHROME.muted }}>
-          The master has no text or image slots to override.
+          The master has no slots to override.
         </span>
       ) : (
         slots.map((slot) => {
           const ov = drafts[slot.masterId] ?? overrides?.[slot.masterId];
+          const isStyleOnly = slot.field === "style";
           const textVal = (slot.field === "text" ? ov?.text : ov?.imageSrc) ?? "";
-          const hasOverride = Boolean(ov && (ov.text || ov.imageSrc || ov.href));
+          const styleVal = (ov?.style ?? {}) as Record<string, string>;
+          const hasOverride = Boolean(
+            ov &&
+              (ov.text ||
+                ov.imageSrc ||
+                ov.href ||
+                (ov.style && Object.keys(ov.style).length > 0)),
+          );
           return (
             <div
               key={slot.masterId}
@@ -175,7 +221,13 @@ export function InstanceOverridesPanel({
             >
               <div className="flex items-center justify-between">
                 <span className="text-[10px]" style={{ color: CHROME.muted }}>
-                  {slot.kind === "image" ? "Image src" : slot.kind === "button" ? "Button label" : "Text"}
+                  {slot.kind === "image"
+                    ? "Image src"
+                    : slot.kind === "button"
+                      ? "Button label"
+                      : isStyleOnly
+                        ? `${slot.kind === "card" ? "Card" : "Group"} style`
+                        : "Text"}
                 </span>
                 {hasOverride ? (
                   <button
@@ -189,20 +241,22 @@ export function InstanceOverridesPanel({
                   </button>
                 ) : null}
               </div>
-              <input
-                type="text"
-                style={inputStyle}
-                placeholder={slot.defaultValue || "(master default)"}
-                value={textVal}
-                onChange={(e) =>
-                  apply(
-                    slot,
-                    slot.field === "text"
-                      ? { text: e.target.value }
-                      : { imageSrc: e.target.value },
-                  )
-                }
-              />
+              {!isStyleOnly ? (
+                <input
+                  type="text"
+                  style={inputStyle}
+                  placeholder={slot.defaultValue || "(master default)"}
+                  value={textVal}
+                  onChange={(e) =>
+                    apply(
+                      slot,
+                      slot.field === "text"
+                        ? { text: e.target.value }
+                        : { imageSrc: e.target.value },
+                    )
+                  }
+                />
+              ) : null}
               {slot.supportsHref ? (
                 <input
                   type="text"
@@ -211,6 +265,31 @@ export function InstanceOverridesPanel({
                   value={ov?.href ?? ""}
                   onChange={(e) => apply(slot, { href: e.target.value })}
                 />
+              ) : null}
+              {slot.supportsStyle ? (
+                <div
+                  className="grid grid-cols-2 gap-1"
+                  data-builder-instance-override-style={slot.masterId}
+                >
+                  {STYLE_FIELDS.map((f) => (
+                    <input
+                      key={f.key}
+                      type="text"
+                      style={inputStyle}
+                      aria-label={`${f.label} override`}
+                      placeholder={f.label}
+                      title={f.placeholder}
+                      value={styleVal[f.key] ?? ""}
+                      onChange={(e) =>
+                        apply(slot, {
+                          style: {
+                            [f.key]: e.target.value,
+                          } as BuilderNodeInstanceOverride["style"],
+                        })
+                      }
+                    />
+                  ))}
+                </div>
               ) : null}
             </div>
           );

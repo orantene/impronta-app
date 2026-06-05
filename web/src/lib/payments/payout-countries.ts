@@ -50,3 +50,42 @@ export function payoutCountryLabel(iso2: string | null | undefined): string {
   const c = BY_ISO2.get(iso2.trim().toUpperCase());
   return c ? `${c.flag} ${c.label}` : iso2;
 }
+
+/**
+ * Countries where talent can receive STABLECOIN (USDC) payouts via Stripe
+ * Global Payouts from our US platform — verbatim from
+ * docs.stripe.com/connect/stablecoin-payouts#supported-countries (2026-06).
+ *
+ * This is far wider than bank-payout Connect cross-border (US/UK/EEA/CA/CH
+ * only), so it's how we reach LatAm + worldwide talent. Recipients link a
+ * crypto wallet in their Express Dashboard and are paid in USDC (a transfer
+ * created in USD auto-converts). Notable: includes MX/AR/CO/CL/PE/UY/PA;
+ * EXCLUDES Brazil (BR).
+ */
+export const STABLECOIN_PAYOUT_COUNTRIES: ReadonlySet<string> = new Set([
+  "AE", "AM", "AR", "AT", "AU", "AZ", "BE", "BG", "BH", "BJ", "CA", "CH",
+  "CL", "CO", "CR", "CY", "CZ", "DK", "DO", "EC", "EE", "FI", "FR", "GH",
+  "GR", "HR", "HU", "IE", "IL", "JM", "JO", "KE", "KR", "KW", "KZ", "LI",
+  "LK", "LT", "LU", "LV", "MN", "MT", "MU", "MX", "MY", "NL", "NO", "NZ",
+  "PA", "PE", "PH", "PL", "PT", "PY", "RO", "SA", "SE", "SG", "SI", "SK",
+  "SV", "TH", "TN", "US", "UY", "UZ", "ZA",
+]);
+
+/** Can talent in this ISO-2 country be paid via stablecoin (USDC) Global
+ *  Payouts? Independent of the bank-payout allow-list above. */
+export function isStablecoinPayoutCountry(iso2: string | null | undefined): boolean {
+  if (!iso2) return false;
+  return STABLECOIN_PAYOUT_COUNTRIES.has(iso2.trim().toUpperCase());
+}
+
+/** Default local payout currency (ISO-4217, lowercase) for a payout country —
+ *  prefills the Global Payouts bank-payout-method currency. Falls back to USD. */
+export function defaultPayoutCurrency(iso2: string | null | undefined): string {
+  const c = (iso2 ?? "").trim().toUpperCase();
+  const map: Record<string, string> = {
+    US: "usd", CA: "cad", MX: "mxn", AR: "ars", BR: "brl", CL: "clp", CO: "cop",
+    PE: "pen", UY: "uyu", GB: "gbp", AU: "aud",
+    ES: "eur", PT: "eur", FR: "eur", DE: "eur", IT: "eur", NL: "eur",
+  };
+  return map[c] ?? "usd";
+}

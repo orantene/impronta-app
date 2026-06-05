@@ -7,6 +7,11 @@ import { type Conversation } from "@/components/admin/shell/internal/talent";
 import { DaySeparator } from "@/components/admin/shell/internal/messages/shared/machinery-15";
 import { renderChatCardForMessage } from "@/components/admin/shell/internal/messages/admin-3";
 import { type TalentThreadMessage } from "@/app/(workspace)/[tenantSlug]/talent/inbox/[id]/actions";
+import { renderMessageMarkdown } from "@/lib/messages/markdown";
+import { LinkPreview, firstHttpUrl } from "@/components/messages/thread-enhancements";
+import { PinButton } from "@/components/chat-interactions/PinButton";
+import { VoiceNotePlayer } from "@/components/chat-interactions/VoiceNotePlayer";
+import { readVoiceMetaFromMessageMetadata } from "@/lib/messages/voice-meta";
 
 /** Money/booking/system kinds that render as structured cards (Activity view). */
 export const MONEY_KINDS = new Set([
@@ -48,12 +53,16 @@ function EmptyState({ title, body }: { title: string; body: string }) {
 }
 
 export function RealThreadStream({
-  messages, conv, toast, mode = "chat",
+  messages, conv, toast, mode = "chat", pinnedIds, onPinChanged,
 }: {
   messages: TalentThreadMessage[] | null;
   conv: Conversation;
   toast: (s: string) => void;
   mode?: "chat" | "activity";
+  /** Inquiry-wide pinned message ids (shared). Drives the per-bubble pin. */
+  pinnedIds?: Set<string>;
+  /** Called after a pin toggle reconciles so the host refreshes the strip. */
+  onPinChanged?: () => void;
 }) {
   if (messages === null) {
     return (
@@ -93,8 +102,9 @@ export function RealThreadStream({
     );
   }
   // CHAT view: human conversation only — every money/system event is moved to
-  // the Activity tab, so the thread stays a clean conversation.
-  const chatMessages = messages.filter((m) => m.messageKind === "text");
+  // the Activity tab, so the thread stays a clean conversation. Voice notes are
+  // part of the conversation, so they live here alongside text bubbles.
+  const chatMessages = messages.filter((m) => m.messageKind === "text" || m.messageKind === "voice");
   if (chatMessages.length === 0) {
     return (
       <EmptyState
@@ -113,7 +123,7 @@ export function RealThreadStream({
         return (
           <React.Fragment key={m.id}>
             {showDay && <DaySeparator label={thisDay} />}
-            <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexDirection: mine ? "row-reverse" : "row" }}>
+            <div data-message-id={m.id} style={{ display: "flex", gap: 8, alignItems: "flex-end", flexDirection: mine ? "row-reverse" : "row" }}>
               {!mine && (
                 <Avatar size={26} tone="ink" hashSeed={m.senderName} initials={realInitials(m.senderName)} />
               )}
@@ -130,11 +140,46 @@ export function RealThreadStream({
                     {m.senderName}
                   </div>
                 )}
-                <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{m.body}</div>
+                {(() => {
+                  const voiceMeta = m.messageKind === "voice"
+                    ? readVoiceMetaFromMessageMetadata(m.metadata)
+                    : null;
+                  if (voiceMeta) {
+                    return <VoiceNotePlayer meta={voiceMeta} accent={COLORS.accentDeep} onDark={mine} />;
+                  }
+                  return (
+                    <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{renderMessageMarkdown(m.body)}</div>
+                  );
+                })()}
+                {(() => {
+                  const url = firstHttpUrl(m.body);
+                  return url ? (
+                    <LinkPreview
+                      url={url}
+                      colors={{
+                        bg: mine ? "rgba(255,255,255,0.10)" : COLORS.card,
+                        border: mine ? "rgba(255,255,255,0.22)" : COLORS.borderSoft,
+                        title: mine ? "#fff" : COLORS.ink,
+                        muted: mine ? "rgba(255,255,255,0.7)" : COLORS.inkMuted,
+                      }}
+                    />
+                  ) : null;
+                })()}
                 <div style={{ fontSize: 10, color: mine ? "rgba(255,255,255,0.55)" : COLORS.inkDim, marginTop: 4 }}>
                   {realTimeLabel(m.ts)}
                 </div>
               </div>
+              {/* Pin control — inquiry-wide (shared). Sits on the outer edge of
+                  the bubble row so it reads as an affordance, not chrome. */}
+              <PinButton
+                messageId={m.id}
+                inquiryId={conv.id}
+                pinned={pinnedIds?.has(m.id) ?? false}
+                compact
+                accent={COLORS.accentDeep}
+                onError={toast}
+                onChanged={() => onPinChanged?.()}
+              />
             </div>
           </React.Fragment>
         );

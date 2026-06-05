@@ -16,7 +16,7 @@ import { DrawerShell } from "./primitives";
 import { useAdminShell, type DrawerId } from "./state";
 import { InquiryWorkspaceDrawer } from "./workspace";
 import { InboxSnippetsDrawer, NotificationsPrefsDrawer, DataExportDrawer, AuditLogDrawer, TenantSwitcherDrawer, TalentAgencySwitcherDrawer, WorkspaceProfileDrawer, TalentShareCardDrawer, InquiryTemplatesPicker, DoubleBookingWarning, WhatsNewDrawer, HelpDrawer, TalentNotificationsDrawer, downloadCsv } from "./wave2";
-import { TalentTodayPulseDrawer, TalentOfferDetailDrawer, TalentAddEventDrawer, TalentBookingDetailDrawer, TalentClosedBookingDrawer, TalentHubDetailDrawer, TalentProfileSectionDrawer, TalentAvailabilityDrawer, TalentBlockDatesDrawer, TalentPortfolioDrawer, TalentAgencyRelationshipDrawer, TalentLeaveAgencyDrawer, TalentPrivacyDrawer, TalentPayoutsDrawer, TalentContactPreferencesDrawer, TalentEarningsDetailDrawer, TalentPhotoEditDrawer, TalentPolaroidsDrawer, TalentCreditsDrawer, TalentSkillsDrawer, TalentLimitsDrawer, TalentRateCardDrawer, TalentTravelDrawer, TalentLinksDrawer, TalentReviewsDrawer, TalentShowreelDrawer, TalentMeasurementsDrawer, TalentDocumentsDrawer, TalentEmergencyContactDrawer, TalentPublicPreviewDrawer, TalentTierCompareDrawer, TalentPersonalPageDrawer, TalentPageTemplateDrawer, TalentMediaEmbedsDrawer, TalentPressDrawer, TalentMediaKitDrawer, TalentCustomDomainDrawer, TalentVerificationDrawer, TalentReferralsDrawer, TalentHubCompareDrawer, TalentTaxDocsDrawer, TalentConflictResolveDrawer, TalentNetworkDrawer, TalentVoiceReplyDrawer, TalentMultiAgencyPickerDrawer, TalentChatArchiveDrawer, ReplyTemplatesDrawer, TalentCareerAnalyticsDrawer, TalentReceiveReviewDrawer, TalentAgencyAnalyticsDrawer, RepresentationDrawer } from "./talent-drawers";
+import { TalentTodayPulseDrawer, TalentOfferDetailDrawer, TalentAddEventDrawer, TalentBookingDetailDrawer, TalentClosedBookingDrawer, TalentHubDetailDrawer, TalentProfileSectionDrawer, TalentAvailabilityDrawer, TalentBlockDatesDrawer, TalentPortfolioDrawer, TalentAgencyRelationshipDrawer, TalentLeaveAgencyDrawer, TalentPrivacyDrawer, TalentPayoutsDrawer, TalentContactPreferencesDrawer, TalentEarningsDetailDrawer, TalentPhotoEditDrawer, TalentPolaroidsDrawer, TalentCreditsDrawer, TalentSkillsDrawer, TalentLimitsDrawer, TalentRateCardDrawer, TalentTravelDrawer, TalentLinksDrawer, TalentReviewsDrawer, TalentShowreelDrawer, TalentMeasurementsDrawer, TalentDocumentsDrawer, TalentEmergencyContactDrawer, TalentPublicPreviewDrawer, TalentTierCompareDrawer, TalentPersonalPageDrawer, TalentPageTemplateDrawer, TalentMediaEmbedsDrawer, TalentPressDrawer, TalentMediaKitDrawer, TalentCustomDomainDrawer, TalentConnectionsDrawer, TalentVerificationDrawer, TalentReferralsDrawer, TalentHubCompareDrawer, TalentTaxDocsDrawer, TalentConflictResolveDrawer, TalentNetworkDrawer, TalentVoiceReplyDrawer, TalentMultiAgencyPickerDrawer, TalentChatArchiveDrawer, ReplyTemplatesDrawer, TalentCareerAnalyticsDrawer, TalentReceiveReviewDrawer, TalentAgencyAnalyticsDrawer, RepresentationDrawer } from "./talent-drawers";
 import { ClientTodayPulseDrawer, ClientTalentCardDrawer, ClientShortlistDetailDrawer, ClientNewShortlistDrawer, ClientShareShortlistDrawer, ClientSendInquiryDrawer, ClientInquiryDetailDrawer, ClientCounterOfferDrawer, ClientReviewDrawer, ClientBookingDetailDrawer, ClientContractsDrawer, ClientTeamDrawer, ClientBillingDrawer, ClientBrandSwitcherDrawer, ClientSavedSearchDrawer, ClientSettingsDrawer, ClientQuickQuestionDrawer, ClientMyTalentDrawer, ClientSpendReportDrawer, ClientBudgetDrawer } from "./client";
 import { PlatformTodayPulseDrawer, PlatformTenantDetailDrawer, PlatformTenantImpersonateDrawer, PlatformTenantSuspendDrawer, PlatformTenantPlanOverrideDrawer, PlatformUserDetailDrawer, PlatformUserMergeDrawer, PlatformUserResetDrawer, PlatformHubSubmissionDrawer, PlatformHubRulesDrawer, PlatformBillingInvoiceDrawer, PlatformRefundDrawer, PlatformDunningDrawer, PlatformFeatureFlagDrawer, PlatformModerationItemDrawer, PlatformSystemJobDrawer, PlatformIncidentDrawer, PlatformSupportTicketDrawer, PlatformAuditExportDrawer, PlatformHqTeamDrawer, PlatformRegionConfigDrawer } from "./platform";
 import { PaymentDetailDrawer, PaymentsSetupDrawer, PayoutReceiverPickerDrawer } from "./drawers/drawer-shared";
@@ -26,6 +26,7 @@ import { TeamDrawer, TalentTypesDrawer } from "./drawers/light-02";
 import { TalentRegistrationDrawer } from "./drawers/light-03";
 import { TalentApprovalsDrawer, BrandingDrawer, WatermarkEditorDrawer } from "./drawers/light-04";
 import { DomainDrawer, IdentityDrawer, WorkspaceSettingsDrawer, TalentProfileDrawer, MyProfileDrawer } from "./drawers/light-05";
+import { GuestChatSettingsDrawer } from "./drawers/guest-chat-settings";
 import { InquiryPeekDrawer, NewInquiryDrawer, DayDetailDrawer, NewBookingDrawer, ClientProfileDrawer } from "./drawers/light-06";
 import { TodayPulseDrawer, PipelineDrawer, PipelineFilterDrawer, NotificationsDrawer, ActivityFeedDrawer, MyActivityDrawer } from "./drawers/light-07";
 import { PagesDrawer, PostsDrawer, NavigationDrawer, MediaDrawer, TranslationsDrawer, SeoDrawer } from "./drawers/light-08";
@@ -92,6 +93,8 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <IdentityDrawer />;
     case "workspace-settings":
       return <WorkspaceSettingsDrawer />;
+    case "guest-chat-settings":
+      return <GuestChatSettingsDrawer />;
     case "talent-profile":
       return <TalentProfileDrawer />;
     case "new-talent":
@@ -251,6 +254,8 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <TalentContactPreferencesDrawer />;
     case "talent-earnings-detail":
       return <TalentEarningsDetailDrawer />;
+    case "talent-connections":
+      return <TalentConnectionsDrawer />;
     case "talent-photo-edit":
       return <TalentPhotoEditDrawer />;
     case "talent-polaroids":

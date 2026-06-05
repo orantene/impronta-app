@@ -1,0 +1,322 @@
+"use client";
+
+/**
+ * Phase 4 (T4.4) — Component library panel.
+ *
+ * A first-class library of saved "living components" (masters), distinct from
+ * the "My blocks" inserter: it foregrounds each master's LIVE USAGE COUNT on the
+ * current page (how many linked instances reference it) and gives an "Edit
+ * master" affordance — insert an editable copy of the master, tweak it on the
+ * canvas, then push it back with "Update master" so every linked instance
+ * reflects the change.
+ *
+ * Reuses the same server actions + edit-context mutations as MyBlocksPanel
+ * (no new persistence): listBuilderComponents / insertLinkedComponent /
+ * insertBuilderComponent / updateSelectedNodeAsComponent / syncComponentInstances.
+ * Usage counts come from countComponentInstances against the live builder tree
+ * (pure read — no DB round-trip).
+ */
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+import {
+  listBuilderComponents,
+  type BuilderComponentRow,
+} from "@/lib/site-admin/edit-mode/builder-components-action";
+import { countComponentInstances } from "@/lib/site-admin/builder-node/component-instances";
+import { useEditContext } from "../edit-context";
+import { KIT } from "./kit/tokens";
+
+export function ComponentLibraryPanel({
+  parentNodeId,
+}: {
+  /** Container an inserted master/instance becomes a child of. */
+  parentNodeId: string;
+}) {
+  const {
+    builderTree,
+    insertBuilderComponent,
+    insertLinkedComponent,
+    syncComponentInstances,
+    updateSelectedNodeAsComponent,
+    selectBuilderNode,
+    selectedBuilderNodeId,
+  } = useEditContext();
+
+  const [components, setComponents] = useState<
+    ReadonlyArray<BuilderComponentRow>
+  >([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    const result = await listBuilderComponents();
+    if (result.ok) {
+      setComponents(result.components);
+      setError(null);
+    } else {
+      setError(result.error);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  // Live usage count per component (linked instances on the current page).
+  const usageById = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const c of components) {
+      map[c.id] = countComponentInstances(builderTree, c.id);
+    }
+    return map;
+  }, [components, builderTree]);
+
+  const linkableTotal = components.filter(
+    (c) => c.rootKind === "container" || c.rootKind === "card",
+  ).length;
+
+  async function onInsertLinked(component: BuilderComponentRow) {
+    setBusy(true);
+    setError(null);
+    setNote(null);
+    const result = await insertLinkedComponent(
+      parentNodeId,
+      JSON.stringify(component.subtree),
+      component.id,
+    );
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.error ?? "Couldn't insert the linked instance.");
+      return;
+    }
+    setNote(`Added a linked instance of "${component.name}".`);
+  }
+
+  async function onEditMaster(component: BuilderComponentRow) {
+    // Insert an editable COPY of the master, select it, and prompt the operator
+    // to tweak then "Update master". This is the self-contained edit-master flow:
+    // there is no separate master canvas — the master is authored as a normal
+    // block and pushed back with updateSelectedNodeAsComponent.
+    setBusy(true);
+    setError(null);
+    setNote(null);
+    const result = await insertBuilderComponent(
+      parentNodeId,
+      JSON.stringify(component.subtree),
+    );
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.error ?? "Couldn't open the master for editing.");
+      return;
+    }
+    if (result.nodeId) selectBuilderNode(result.nodeId);
+    setNote(
+      `Editing a copy of "${component.name}". Tweak it, then use "Update master" below to push your changes to all ${usageById[component.id] ?? 0} instance(s).`,
+    );
+  }
+
+  async function onUpdateMaster(component: BuilderComponentRow) {
+    setBusy(true);
+    setError(null);
+    setNote(null);
+    const result = await updateSelectedNodeAsComponent(component.id);
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.error ?? "Couldn't update the master.");
+      return;
+    }
+    // Live instances reflect the master after publish; sync refreshes in-editor.
+    const sync = await syncComponentInstances(
+      component.id,
+      JSON.stringify(component.subtree),
+    );
+    setNote(
+      sync.ok && sync.synced
+        ? `Updated "${component.name}" and re-synced ${sync.synced} instance(s).`
+        : `Updated "${component.name}" master. Published instances reflect it live.`,
+    );
+    void refresh();
+  }
+
+  function onShowUsage(component: BuilderComponentRow) {
+    // Select the FIRST linked instance of this component so the operator can see
+    // where it's used. Pure tree walk — no mutation.
+    const firstInstanceId = findFirstInstanceId(
+      builderTree as Parameters<typeof findFirstInstanceId>[0],
+      component.id,
+    );
+    if (firstInstanceId) {
+      selectBuilderNode(firstInstanceId);
+      setNote(`Selected an instance of "${component.name}".`);
+    } else {
+      setNote(`"${component.name}" has no instances on this page yet.`);
+    }
+  }
+
+  return (
+    <details
+      data-builder-node-component-library=""
+      className="rounded-lg border border-stone-200 bg-white px-3 py-2"
+    >
+      <summary className="cursor-pointer text-[11px] font-semibold text-stone-700">
+        Component library{components.length > 0 ? ` (${components.length})` : ""}
+      </summary>
+      <div className="mt-2 flex flex-col gap-2">
+        <p className="text-[10.5px] leading-snug text-stone-500">
+          Saved components and where they’re used on this page. Insert a linked
+          instance, or edit a master to update every instance at once.
+        </p>
+
+        {error ? (
+          <div className="rounded-md border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-[10.5px] text-rose-700">
+            {error}
+          </div>
+        ) : null}
+        {note ? (
+          <div className="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[10.5px] text-emerald-700">
+            {note}
+          </div>
+        ) : null}
+
+        {loading ? (
+          <div className="rounded-md border border-dashed border-stone-300 bg-white px-3 py-3 text-[11px] text-stone-500">
+            Loading components…
+          </div>
+        ) : components.length === 0 ? (
+          <div className="rounded-md border border-dashed border-stone-300 bg-white px-3 py-3 text-[11px] text-stone-500">
+            No saved components yet. Select a block, save it to “My blocks”, then
+            insert it linked to build a component.
+          </div>
+        ) : (
+          <>
+            {linkableTotal === 0 ? (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[10.5px] text-amber-800">
+                Only container/card components can be linked instances. Save a
+                container or card block to use the library.
+              </div>
+            ) : null}
+            {components.map((component) => {
+              const usage = usageById[component.id] ?? 0;
+              const linkable =
+                component.rootKind === "container" ||
+                component.rootKind === "card";
+              return (
+                <div
+                  key={component.id}
+                  data-builder-node-component={component.id}
+                  className="flex flex-col gap-2 rounded-md border border-stone-200 bg-[#faf9f6] px-3 py-2"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[11px] font-semibold text-stone-800">
+                        {component.name}
+                      </span>
+                      <span className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                        <span className="inline-flex text-[10px] font-semibold uppercase tracking-[0.10em] text-stone-500">
+                          {component.rootKind} · {component.nodeCount} nodes
+                        </span>
+                        <span
+                          data-builder-node-component-usage={component.id}
+                          className={
+                            usage > 0
+                              ? "inline-flex items-center rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700"
+                              : "inline-flex items-center rounded-full bg-stone-200 px-1.5 py-0.5 text-[10px] font-semibold text-stone-600"
+                          }
+                          title="Linked instances on this page"
+                        >
+                          {usage} {usage === 1 ? "instance" : "instances"}
+                        </span>
+                      </span>
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {linkable ? (
+                      <button
+                        type="button"
+                        data-builder-node-component-insert-linked={component.id}
+                        className={KIT.subtleButton}
+                        disabled={busy}
+                        onClick={() => void onInsertLinked(component)}
+                      >
+                        Insert linked
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      data-builder-node-component-edit-master={component.id}
+                      title="Insert an editable copy of the master to modify it"
+                      className={KIT.subtleButton}
+                      disabled={busy}
+                      onClick={() => void onEditMaster(component)}
+                    >
+                      Edit master
+                    </button>
+                    {selectedBuilderNodeId ? (
+                      <button
+                        type="button"
+                        data-builder-node-component-update-master={component.id}
+                        title="Push the selected block into this master — instances update live"
+                        className={KIT.ghostButton}
+                        disabled={busy}
+                        onClick={() => void onUpdateMaster(component)}
+                      >
+                        ↑ Update master
+                      </button>
+                    ) : null}
+                    {usage > 0 ? (
+                      <button
+                        type="button"
+                        data-builder-node-component-show-usage={component.id}
+                        title="Select an instance of this component on the page"
+                        className={KIT.ghostButton}
+                        disabled={busy}
+                        onClick={() => onShowUsage(component)}
+                      >
+                        Find instance
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </>
+        )}
+      </div>
+    </details>
+  );
+}
+
+/** Find the id of the first linked instance of `componentId` in the tree (the
+ * marker lives on container | card nodes), depth-first, or null. Local pure walk
+ * mirroring countComponentInstances' traversal. */
+function findFirstInstanceId(
+  tree: ReadonlyArray<{
+    id: string;
+    kind: string;
+    props?: { instanceOf?: string };
+    children?: ReadonlyArray<unknown>;
+  }>,
+  componentId: string,
+): string | null {
+  for (const node of tree) {
+    if (
+      (node.kind === "container" || node.kind === "card") &&
+      node.props?.instanceOf === componentId
+    ) {
+      return node.id;
+    }
+    if (Array.isArray(node.children) && node.children.length > 0) {
+      const found = findFirstInstanceId(
+        node.children as Parameters<typeof findFirstInstanceId>[0],
+        componentId,
+      );
+      if (found) return found;
+    }
+  }
+  return null;
+}

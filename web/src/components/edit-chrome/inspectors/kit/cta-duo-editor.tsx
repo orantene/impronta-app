@@ -32,6 +32,13 @@ interface CtaDuoEditorProps {
   primaryRequired?: boolean;
   /** Label for the secondary add button. */
   secondaryAddLabel?: string;
+  /**
+   * When false, the secondary CTA slot (add button + editor) is completely
+   * suppressed. Use this for sections where secondary is not in the schema so
+   * operators never see a button that silently discards their input.
+   * Defaults to true.
+   */
+  allowSecondary?: boolean;
   /** Optional DOM role marker for focus delegation from node selection. */
   primaryNodeRole?: string;
   /** Optional DOM role marker for focus delegation from node selection. */
@@ -45,6 +52,7 @@ export function CtaDuoEditor({
   onChangeSecondary,
   primaryRequired = false,
   secondaryAddLabel = "Add secondary button",
+  allowSecondary = true,
   primaryNodeRole,
   secondaryNodeRole,
 }: CtaDuoEditorProps) {
@@ -119,7 +127,7 @@ export function CtaDuoEditor({
         ) : null}
       </div>
 
-      {showSecondary || secondary ? (
+      {allowSecondary && (showSecondary || secondary) ? (
         <div
           className="rounded-lg border border-dashed border-[#e5e0d5] bg-[#faf9f6]/60 p-2.5"
           data-hero-node-role={secondaryNodeRole}
@@ -166,7 +174,7 @@ export function CtaDuoEditor({
             </div>
           ) : null}
         </div>
-      ) : (
+      ) : allowSecondary ? (
         <button
           type="button"
           onClick={() => setShowSecondary(true)}
@@ -174,7 +182,7 @@ export function CtaDuoEditor({
         >
           + {secondaryAddLabel}
         </button>
-      )}
+      ) : null}
     </div>
   );
 }

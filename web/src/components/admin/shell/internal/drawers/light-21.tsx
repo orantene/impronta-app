@@ -6,6 +6,7 @@ import {
   COLORS,
   CapsLabel,
   DrawerShell,
+  EmptyState,
   FONTS,
   FieldRow,
   GhostButton,
@@ -23,83 +24,22 @@ import {
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
 
 export function CrewBookingDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "crew-booking";
-  const [projectName, setProjectName] = React.useState("Spring Campaign 2026");
-  const [shootDate, setShootDate] = React.useState("2026-05-20");
-
-  const resources = [
-    { role: "Lead talent", name: "Amara Osei", fee: "£2,400", status: "confirmed" },
-    { role: "Photographer", name: "Lucas Ferreira", fee: "£800", status: "confirmed" },
-    { role: "HMU artist", name: "Nia Clarkson", fee: "£350", status: "pending" },
-    { role: "Stylist", name: "TBD", fee: "£400", status: "unfilled" },
-    { role: "Studio hire", name: "Studio One, Shoreditch", fee: "£600", status: "confirmed" },
-  ];
-
-  const total = resources.reduce((acc, r) => {
-    const num = parseInt(r.fee.replace(/[^0-9]/g, ""), 10);
-    return acc + (isNaN(num) ? 0 : num);
-  }, 0);
-
-  const statusColor = (s: string) => s === "confirmed" ? COLORS.success : s === "unfilled" ? COLORS.coral : COLORS.amber;
-  const statusBg = (s: string) => s === "confirmed" ? COLORS.successSoft : s === "unfilled" ? `${COLORS.coral}18` : `${COLORS.amber}18`;
-
-  const footer = (
-    <div className="flex gap-2">
-      <GhostButton onClick={closeDrawer}>Cancel</GhostButton>
-      <SecondaryButton onClick={() => { toast("Crew booking saved"); closeDrawer(); }}>Save booking</SecondaryButton>
-    </div>
-  );
-
+  // Honest stub — no backend yet; the previous body was hardcoded demo data.
   return (
-    <DrawerShell open={open} onClose={closeDrawer} title="Crew booking" description="Book talent, crew, and resources for a production day." footer={footer} defaultSize="half">
-      <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }}>
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <FieldRow label="Project">
-            <TextInput value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder="Project name" />
-          </FieldRow>
-          <FieldRow label="Shoot date">
-            <TextInput value={shootDate} onChange={(e) => setShootDate(e.target.value)} placeholder="YYYY-MM-DD" />
-          </FieldRow>
-        </div>
-
-        <div>
-          <CapsLabel>Resources</CapsLabel>
-          <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
-            {resources.map((r, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}` }}>
-                <div className="flex-1 min-w-0">
-                  <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em", fontWeight: 600 }} className="text-admin-ink-muted">{r.role}</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: r.status === "unfilled" ? COLORS.inkDim : COLORS.ink, marginTop: 2 }}>{r.name}</div>
-                </div>
-                <div style={{ fontSize: 13, fontWeight: 700, minWidth: 50, textAlign: "right" }} className="text-admin-ink">{r.fee}</div>
-                <span style={{ fontSize: 10, fontWeight: 700, textTransform: "capitalize", color: statusColor(r.status), background: statusBg(r.status), padding: "2px 8px" }} className="rounded-admin-sm">
-                  {r.status}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div style={{ border: `1px solid ${COLORS.border}`, padding: 14 }} className="bg-admin-surface rounded-admin-md">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span className="text-admin-ink-muted text-admin-13 font-semibold">Estimated total</span>
-            <span className="text-admin-accent text-admin-22 font-extrabold">£{total.toLocaleString()}</span>
-          </div>
-          <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
-            {["confirmed", "pending", "unfilled"].map(s => {
-              const n = resources.filter(r => r.status === s).length;
-              return (
-                <div key={s} style={{ flex: 1, textAlign: "center", padding: "6px 4px", background: statusBg(s), borderRadius: RADIUS.sm }}>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: statusColor(s) }}>{n}</div>
-                  <div style={{ fontSize: 10, color: statusColor(s), textTransform: "capitalize" }}>{s}</div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Crew booking"
+      description="Book crew and freelancers for a project."
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+    >
+      <EmptyState
+        icon="team"
+        title="Coming soon"
+        body="Crew booking isn't available yet."
+      />
     </DrawerShell>
   );
 }
@@ -166,197 +106,44 @@ export function ProductionTimelineDrawer() {
 
 
 export function UsageTrackerDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "usage-tracker";
-  const [filter, setFilter] = React.useState<"all" | "active" | "expiring" | "expired">("all");
-
-  const usages = [
-    { talent: "Amara Osei", campaign: "Spring 2025", regions: "UK, EU", media: "Digital, OOH", expires: "2026-06-30", daysLeft: 63, status: "active" },
-    { talent: "Lena Voss", campaign: "Winter 2024", regions: "Global", media: "Digital", expires: "2026-05-15", daysLeft: 17, status: "expiring" },
-    { talent: "Marco Dias", campaign: "SS24 editorial", regions: "UK", media: "Print", expires: "2026-04-01", daysLeft: -27, status: "expired" },
-    { talent: "Yuki Tanaka", campaign: "Awards 2025", regions: "UK, APAC", media: "Social, Digital", expires: "2027-01-01", daysLeft: 248, status: "active" },
-  ];
-
-  const filtered = filter === "all" ? usages : usages.filter(u => u.status === filter);
-
-  const statusColor = (s: string) => s === "active" ? COLORS.success : s === "expiring" ? COLORS.amber : COLORS.coral;
-  const statusBg = (s: string) => s === "active" ? COLORS.successSoft : s === "expiring" ? `${COLORS.amber}18` : `${COLORS.coral}18`;
-
-  const footer = (
-    <div className="flex gap-2">
-      <GhostButton onClick={closeDrawer}>Close</GhostButton>
-      <SecondaryButton
-        onClick={() => {
-          downloadCsv("usage-rights-report.csv", filtered);
-          toast("Downloaded usage report CSV");
-        }}
-      >
-        Export report
-      </SecondaryButton>
-    </div>
-  );
-
+  // Honest stub — no backend yet; the previous body was hardcoded demo data.
   return (
-    <DrawerShell open={open} onClose={closeDrawer} title="Usage tracker" description="Monitor image rights and usage licence expiry across bookings." footer={footer} defaultSize="half">
-      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-          {[{ label: "Active", key: "active" as const }, { label: "Expiring soon", key: "expiring" as const }, { label: "Expired", key: "expired" as const }].map(tab => {
-            const count = usages.filter(u => u.status === tab.key).length;
-            return (
-              <div
-                key={tab.key}
-                onClick={() => setFilter(f => f === tab.key ? "all" : tab.key)}
-                style={{
-                  padding: "10px 12px", borderRadius: RADIUS.md, cursor: "pointer", textAlign: "center",
-                  border: `1.5px solid ${filter === tab.key ? statusColor(tab.key) : COLORS.border}`,
-                  background: filter === tab.key ? statusBg(tab.key) : COLORS.surface,
-                }}
-              >
-                <div style={{ fontSize: 20, fontWeight: 800, color: statusColor(tab.key) }}>{count}</div>
-                <div style={{ fontSize: 10.5, marginTop: 2 }} className="text-admin-ink-muted">{tab.label}</div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          {filtered.map((u, i) => (
-            <div key={i} style={{ padding: "12px 14px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}` }}>
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
-                <div>
-                  <div className="text-admin-ink text-admin-13 font-bold">{u.talent}</div>
-                  <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{u.campaign}</div>
-                </div>
-                <span style={{ fontSize: 10, fontWeight: 700, textTransform: "capitalize", color: statusColor(u.status), background: statusBg(u.status), padding: "2px 8px", flexShrink: 0 }} className="rounded-admin-sm">
-                  {u.status}
-                </span>
-              </div>
-              <div style={{ marginTop: 8, display: "flex", gap: 16 }}>
-                {[{ k: "Regions", v: u.regions }, { k: "Media", v: u.media }, { k: "Expires", v: u.expires }].map(f => (
-                  <div key={f.k}>
-                    <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.04em" }} className="text-admin-ink-dim">{f.k}</div>
-                    <div style={{ fontSize: 11, fontWeight: 600, marginTop: 1 }} className="text-admin-ink">{f.v}</div>
-                  </div>
-                ))}
-              </div>
-              {u.status === "expiring" && (
-                <div style={{ marginTop: 8, fontSize: 11, fontWeight: 600 }} className="text-admin-amber">
-                  ⚠ Expires in {u.daysLeft} days — renew now
-                </div>
-              )}
-              {u.status === "expired" && (
-                <div style={{ marginTop: 8, fontSize: 11, fontWeight: 600 }} className="text-admin-coral">
-                  ✕ Expired {Math.abs(u.daysLeft)} days ago — rights no longer valid
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Usage rights"
+      description="Track usage-rights windows and expiry."
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+    >
+      <EmptyState
+        icon="calendar"
+        title="Coming soon"
+        body="Usage-rights tracking isn't available yet."
+      />
     </DrawerShell>
   );
 }
 
 
 export function RelicenseFlowDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "relicense-flow";
-  const [step, setStep] = React.useState<1 | 2 | 3>(1);
-  const [regions, setRegions] = React.useState("UK, EU");
-  const [media, setMedia] = React.useState("Digital, Social");
-  const [duration, setDuration] = React.useState("12");
-  const [fee, setFee] = React.useState("800");
-
-  const steps = ["Select scope", "Set terms", "Send offer"];
-
-  const footer = (
-    <div className="flex gap-2">
-      <GhostButton onClick={() => { if (step > 1) setStep(s => (s - 1) as 1 | 2 | 3); else closeDrawer(); }}>
-        {step > 1 ? "Back" : "Cancel"}
-      </GhostButton>
-      <SecondaryButton onClick={() => {
-        if (step < 3) setStep(s => (s + 1) as 1 | 2 | 3);
-        else { toast("Relicence offer sent"); closeDrawer(); }
-      }}>
-        {step === 3 ? "Send offer" : "Next"}
-      </SecondaryButton>
-    </div>
-  );
-
+  // Honest stub — no backend yet; the previous body was hardcoded demo data.
   return (
-    <DrawerShell open={open} onClose={closeDrawer} title="Relicence flow" description="Extend or expand usage rights for an existing booking." footer={footer} defaultSize="half">
-      <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }}>
-
-        <div style={{ display: "flex", gap: 0 }}>
-          {steps.map((s, i) => (
-            <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-              <div style={{
-                width: 28, height: 28, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
-                background: step > i + 1 ? COLORS.success : step === i + 1 ? COLORS.accent : COLORS.border,
-                color: step >= i + 1 ? "#fff" : COLORS.inkMuted,
-                fontSize: 12, fontWeight: 700,
-              }}>
-                {step > i + 1 ? "✓" : i + 1}
-              </div>
-              <div style={{ fontSize: 10, color: step === i + 1 ? COLORS.accent : COLORS.inkDim, fontWeight: step === i + 1 ? 700 : 400 }}>{s}</div>
-            </div>
-          ))}
-        </div>
-
-        {step === 1 && (
-          <div className="flex flex-col gap-3.5">
-            <div style={{ border: `1px solid ${COLORS.accent}`, padding: 14 }} className="bg-admin-accent-soft rounded-admin-md">
-              <div className="text-admin-accent text-admin-13 font-bold">Lena Voss — Winter 2024</div>
-              <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">Current: Digital · UK only · Expires 15 May 2026</div>
-            </div>
-            <div className="text-admin-ink text-xs">You are extending the licence for this talent and campaign. Select the new scope below.</div>
-          </div>
-        )}
-
-        {step === 2 && (
-          <div className="flex flex-col gap-3.5">
-            <FieldRow label="Regions">
-              <TextInput value={regions} onChange={(e) => setRegions(e.target.value)} placeholder="e.g. UK, EU, Global" />
-            </FieldRow>
-            <FieldRow label="Media types">
-              <TextInput value={media} onChange={(e) => setMedia(e.target.value)} placeholder="e.g. Digital, Print, OOH" />
-            </FieldRow>
-            <FieldRow label="Duration (months)">
-              <TextInput value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="e.g. 12" />
-            </FieldRow>
-            <FieldRow label="Relicence fee (£)">
-              <TextInput value={fee} onChange={(e) => setFee(e.target.value)} placeholder="e.g. 800" />
-            </FieldRow>
-          </div>
-        )}
-
-        {step === 3 && (
-          <div className="flex flex-col gap-3.5">
-            <div style={{ border: `1px solid ${COLORS.border}`, padding: 16 }} className="bg-admin-surface rounded-admin-md">
-              <CapsLabel>Offer summary</CapsLabel>
-              <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
-                {[
-                  { k: "Talent", v: "Lena Voss" },
-                  { k: "Campaign", v: "Winter 2024" },
-                  { k: "New regions", v: regions },
-                  { k: "Media", v: media },
-                  { k: "Duration", v: `${duration} months` },
-                  { k: "Fee", v: `£${fee}` },
-                ].map(row => (
-                  <div key={row.k} style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span className="text-admin-ink-muted text-xs">{row.k}</span>
-                    <span className="text-admin-ink text-xs font-semibold">{row.v}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="text-admin-ink-muted text-xs">
-              An offer will be sent to Lena Voss for acceptance. Once accepted, the new usage terms will be recorded automatically.
-            </div>
-          </div>
-        )}
-      </div>
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Re-license"
+      description="Extend or renew usage rights."
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+    >
+      <EmptyState
+        icon="info"
+        title="Coming soon"
+        body="Re-licensing isn't available yet."
+      />
     </DrawerShell>
   );
 }
@@ -367,151 +154,44 @@ export function RelicenseFlowDrawer() {
 
 
 export function OwnershipTransferDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "ownership-transfer";
-  const [newOwnerEmail, setNewOwnerEmail] = React.useState("");
-  const [confirmed, setConfirmed] = React.useState(false);
-  const [step, setStep] = React.useState<1 | 2>(1);
-  const emailTransferRequest = () => {
-    openSupportEmail(
-      "Tulala ownership transfer request",
-      `Please review this workspace ownership transfer request.\n\nNew owner email: ${newOwnerEmail}`,
-    );
-    toast("Opening ownership support email");
-  };
-
-  const footer = (
-    <div className="flex gap-2">
-      <GhostButton onClick={() => { if (step === 2) setStep(1); else closeDrawer(); }}>
-        {step === 2 ? "Back" : "Cancel"}
-      </GhostButton>
-      <SecondaryButton
-        onClick={() => {
-          if (step === 1 && newOwnerEmail) setStep(2);
-          else if (step === 2 && confirmed) emailTransferRequest();
-        }}
-      >
-        {step === 1 ? "Review transfer" : "Email transfer request"}
-      </SecondaryButton>
-    </div>
-  );
-
+  // Honest stub — no backend yet; the previous body was hardcoded demo data.
   return (
-    <DrawerShell open={open} onClose={closeDrawer} title="Ownership transfer" description="Email support to start a reviewed ownership transfer." footer={footer} defaultSize="half">
-      <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }}>
-
-        <div style={{ background: `${COLORS.coral}12`, border: `1px solid ${COLORS.coral}40`, padding: 14 }} className="rounded-admin-md">
-          <div className="text-admin-coral text-xs font-bold">⚠ Irreversible action</div>
-          <div style={{ fontSize: 11, marginTop: 4 }} className="text-admin-ink-muted">
-            Ownership transfers require support review. This drawer does not change account access automatically.
-          </div>
-        </div>
-
-        {step === 1 && (
-          <div className="flex flex-col gap-3.5">
-            <div style={{ border: `1px solid ${COLORS.border}`, padding: 14 }} className="bg-admin-surface rounded-admin-md">
-              <CapsLabel>Current workspace</CapsLabel>
-              <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
-                {[{ k: "Workspace", v: "Tulala Agency" }, { k: "Current owner", v: "orantene@gmail.com" }, { k: "Plan", v: "Studio" }, { k: "Members", v: "7" }].map(row => (
-                  <div key={row.k} style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span className="text-admin-ink-muted text-xs">{row.k}</span>
-                    <span className="text-admin-ink text-xs font-semibold">{row.v}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <FieldRow label="New owner email">
-              <TextInput value={newOwnerEmail} onChange={(e) => setNewOwnerEmail(e.target.value)} placeholder="newowner@example.com" />
-            </FieldRow>
-          </div>
-        )}
-
-        {step === 2 && (
-          <div className="flex flex-col gap-3.5">
-            <div style={{ border: `1px solid ${COLORS.border}`, padding: 14 }} className="bg-admin-surface rounded-admin-md">
-              <CapsLabel>Transfer summary</CapsLabel>
-              <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
-                {[{ k: "From", v: "orantene@gmail.com" }, { k: "To", v: newOwnerEmail }, { k: "Workspace", v: "Tulala Agency" }].map(row => (
-                  <div key={row.k} style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span className="text-admin-ink-muted text-xs">{row.k}</span>
-                    <span className="text-admin-ink text-xs font-semibold">{row.v}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", border: `1px solid ${COLORS.border}`, cursor: "pointer" }} onClick={() => setConfirmed(c => !c)}>
-              <Toggle on={confirmed} onChange={() => setConfirmed(c => !c)} />
-              <span className="bg-admin-surface rounded-admin-sm text-admin-ink text-xs">I understand this action is permanent and cannot be undone</span>
-            </div>
-          </div>
-        )}
-      </div>
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Ownership transfer"
+      description="Transfer workspace ownership."
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+    >
+      <EmptyState
+        icon="info"
+        title="Coming soon"
+        body="Self-serve ownership transfer isn't available yet — contact support to transfer a workspace."
+      />
     </DrawerShell>
   );
 }
 
 
 export function MinorAccountDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "minor-account";
-  const [guardianName, setGuardianName] = React.useState("");
-  const [guardianEmail, setGuardianEmail] = React.useState("");
-  const [guardianPhone, setGuardianPhone] = React.useState("");
-  const [consentGiven, setConsentGiven] = React.useState(false);
-  const [marketingConsent, setMarketingConsent] = React.useState(false);
-
-  const footer = (
-    <div className="flex gap-2">
-      <GhostButton onClick={closeDrawer}>Cancel</GhostButton>
-      <SecondaryButton onClick={() => { toast("Guardian record saved — verification email sent"); closeDrawer(); }}>Save guardian record</SecondaryButton>
-    </div>
-  );
-
+  // Honest stub — no backend yet; the previous body was hardcoded demo data.
   return (
-    <DrawerShell open={open} onClose={closeDrawer} title="Minor account setup" description="Attach a parent or guardian co-pilot to this talent account." footer={footer} defaultSize="half">
-      <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }}>
-
-        <div style={{ background: `${COLORS.indigo}12`, border: `1px solid ${COLORS.indigo}40`, padding: 14 }} className="rounded-admin-md">
-          <div className="text-admin-indigo text-xs font-bold">ℹ Under-18 account</div>
-          <div style={{ fontSize: 11, marginTop: 4 }} className="text-admin-ink-muted">
-            A parent or legal guardian must be registered as co-pilot. They will receive booking notifications and must approve all paid engagements.
-          </div>
-        </div>
-
-        <div style={{ border: `1px solid ${COLORS.border}`, padding: 14 }} className="bg-admin-surface rounded-admin-md">
-          <CapsLabel>Talent (minor)</CapsLabel>
-          <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
-            <div className="text-admin-ink text-admin-13 font-semibold">Sofia Chen</div>
-            <div className="text-admin-ink-muted text-admin-11">sofia.chen@example.com · Age: 16</div>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-3.5">
-          <CapsLabel>Guardian details</CapsLabel>
-          <FieldRow label="Full name">
-            <TextInput value={guardianName} onChange={(e) => setGuardianName(e.target.value)} placeholder="Parent / legal guardian name" />
-          </FieldRow>
-          <FieldRow label="Email">
-            <TextInput value={guardianEmail} onChange={(e) => setGuardianEmail(e.target.value)} placeholder="guardian@example.com" />
-          </FieldRow>
-          <FieldRow label="Phone">
-            <TextInput value={guardianPhone} onChange={(e) => setGuardianPhone(e.target.value)} placeholder="+44 7700 000000" />
-          </FieldRow>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <CapsLabel>Consent</CapsLabel>
-          {[
-            { key: "legal", label: "I confirm I am the legal parent or guardian and have authority to consent", value: consentGiven, setter: () => setConsentGiven(c => !c) },
-            { key: "marketing", label: "Receive email updates about new opportunities (optional)", value: marketingConsent, setter: () => setMarketingConsent(c => !c) },
-          ].map(item => (
-            <div key={item.key} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}`, cursor: "pointer" }} onClick={item.setter}>
-              <Toggle on={item.value} onChange={item.setter} />
-              <span style={{ fontSize: 12, lineHeight: "1.4" }} className="text-admin-ink">{item.label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Minor account"
+      description="Guardian consent for under-18 talent."
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+    >
+      <EmptyState
+        icon="user"
+        title="Coming soon"
+        body="Guardian / minor-account records aren't available yet."
+      />
     </DrawerShell>
   );
 }
@@ -686,73 +366,22 @@ export function AvailSearchDrawer() {
 
 
 export function CallSheetDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "call-sheet";
-
-  const crew = [
-    { name: "Amara Osei", role: "Lead talent", callTime: "07:30", status: "on-set" },
-    { name: "Chiara Bianchi", role: "Supporting talent", callTime: "07:30", status: "in-transit" },
-    { name: "Lucas Ferreira", role: "Photographer", callTime: "06:30", status: "on-set" },
-    { name: "Nia Clarkson", role: "HMU artist", callTime: "06:30", status: "on-set" },
-    { name: "TBD (Stylist)", role: "Stylist", callTime: "07:00", status: "unfilled" },
-    { name: "Studio One", role: "Studio (Shoreditch)", callTime: "07:00", status: "confirmed" },
-  ];
-
-  const statusColor = (s: string) => s === "on-set" ? COLORS.success : s === "unfilled" ? COLORS.coral : s === "in-transit" ? COLORS.amber : COLORS.indigo;
-  const statusBg = (s: string) => s === "on-set" ? COLORS.successSoft : s === "unfilled" ? `${COLORS.coral}18` : s === "in-transit" ? `${COLORS.amber}18` : `${COLORS.indigo}18`;
-  const statusLabel = (s: string) => s === "on-set" ? "On set" : s === "unfilled" ? "Unfilled" : s === "in-transit" ? "In transit" : "Confirmed";
-
-  const footer = (
-    <div className="flex gap-2">
-      <GhostButton onClick={closeDrawer}>Close</GhostButton>
-      <SecondaryButton onClick={() => { toast("Call sheet shared"); closeDrawer(); }}>Share call sheet</SecondaryButton>
-    </div>
-  );
-
+  // Honest stub — no backend yet; the previous body was hardcoded demo data.
   return (
-    <DrawerShell open={open} onClose={closeDrawer} title="Call sheet" description="Live production day roster with real-time check-in status." footer={footer} defaultSize="half">
-      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
-
-        <div style={{ border: `1px solid ${COLORS.accent}`, padding: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }} className="bg-admin-accent-soft rounded-admin-md">
-          <div>
-            <div className="text-admin-accent text-admin-13 font-bold">Spring Campaign 2026</div>
-            <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">Studio One, Shoreditch · Tue 20 May 2026</div>
-          </div>
-          <div className="text-right">
-            <div className="text-admin-success text-admin-22 font-extrabold">{crew.filter(c => c.status === "on-set").length}</div>
-            <div className="text-admin-ink-muted text-admin-10">on set now</div>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          {crew.map((c, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}` }}>
-              <div style={{ textAlign: "center", minWidth: 36, flexShrink: 0 }}>
-                <div className="text-admin-ink-muted text-admin-11 font-bold">{c.callTime}</div>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-admin-ink text-admin-13 font-semibold">{c.name}</div>
-                <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{c.role}</div>
-              </div>
-              <span style={{ fontSize: 10, fontWeight: 700, textTransform: "capitalize", color: statusColor(c.status), background: statusBg(c.status), padding: "2px 8px", flexShrink: 0 }} className="rounded-admin-sm">
-                {statusLabel(c.status)}
-              </span>
-            </div>
-          ))}
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
-          {["on-set", "in-transit", "confirmed", "unfilled"].map(s => {
-            const n = crew.filter(c => c.status === s).length;
-            return (
-              <div key={s} style={{ textAlign: "center", padding: "8px 4px", background: statusBg(s), borderRadius: RADIUS.sm }}>
-                <div style={{ fontSize: 18, fontWeight: 800, color: statusColor(s) }}>{n}</div>
-                <div style={{ fontSize: 9.5, color: statusColor(s), marginTop: 1 }}>{statusLabel(s)}</div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Call sheet"
+      description="On-the-day crew, call times and status."
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+    >
+      <EmptyState
+        icon="calendar"
+        title="Coming soon"
+        body="Call sheets aren't available yet."
+      />
     </DrawerShell>
   );
 }

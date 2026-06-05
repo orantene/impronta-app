@@ -22,6 +22,7 @@ import {
   persistBookingCommissionSnapshot,
   loadBookingCommissionSnapshots,
   sumBookingGrossChargedCents,
+  sumBookingPlatformFeeCents,
 } from "@/lib/billing/commission-engine";
 import type {
   PaymentMethod,
@@ -61,6 +62,8 @@ import {
   type OfferLineDraft,
 } from "@/lib/inquiry/inquiry-engine-offers";
 import { clientAcceptOffer } from "@/lib/inquiry/inquiry-engine-approvals";
+import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
+import { loadTalentChipInfo } from "@/lib/talent/talent-chip-info";
 
 export type PipelineActionResult<T = undefined> =
   | { ok: true; data?: T }
@@ -417,6 +420,11 @@ export async function createInquiryTransactionDraft(
     // booking revenue when no snapshot exists yet.
     const grossChargedCents = await sumBookingGrossChargedCents(supabase, booking.id as string);
     const grossAmountCents = grossChargedCents > 0 ? grossChargedCents : baseRevenueCents;
+    // #4: the REAL platform fee from the commission snapshot — so the transaction's
+    // fee/net match the actual split (transfers pay per snapshot, not this row).
+    // Only used when the gross also came from the snapshot; otherwise the flat
+    // plan-tier % applies (legacy/no-snapshot path).
+    const snapshotPlatformFeeCents = await sumBookingPlatformFeeCents(supabase, booking.id as string);
 
     const { data: agency } = await supabase
       .from("agencies")
@@ -431,12 +439,41 @@ export async function createInquiryTransactionDraft(
       sourceInquiryId: inquiryId,
       planTier,
       grossAmountCents,
+      platformFeeCentsOverride:
+        grossChargedCents > 0 && snapshotPlatformFeeCents > 0 ? snapshotPlatformFeeCents : null,
       currency: (booking.currency_code as string | null) ?? "USD",
       payerUserId: (booking.client_user_id as string | null) ?? null,
       payerEmail: (booking.contact_email as string | null) ?? null,
       createdByProfileId: null,
     });
     if (!result.ok) return { ok: false, error: result.error };
+
+    // #28 smoothing: auto-default the payout receiver to the booking's primary
+    // talent. The single payout_receiver_id is vestigial for multi-talent
+    // bookings (executeBookingTransfers fans out per the commission snapshot,
+    // not this field), but the DB trigger requires it before "Request payment".
+    // Defaulting it here makes the admin flow one click (Create draft →
+    // Request payment) instead of forcing a manual receiver pick; the picker
+    // stays available for an explicit override. Non-fatal on failure.
+    try {
+      const { loadPayoutReceiverCandidatesForBooking, setTransactionPayoutReceiver } =
+        await import("@/lib/bookings/transactions");
+      const candidates = await loadPayoutReceiverCandidatesForBooking({
+        tenantId,
+        bookingId: booking.id as string,
+        supabase,
+      });
+      const primary = candidates[0];
+      if (primary && result.data?.id) {
+        await setTransactionPayoutReceiver({
+          transactionId: result.data.id,
+          payoutAccountId: primary.payoutAccountId,
+          sourceTenantId: tenantId,
+        });
+      }
+    } catch (recvErr) {
+      logServerError("admin._pipeline-actions.createInquiryTransactionDraft.autoReceiver", recvErr);
+    }
 
     revalidatePath(`/${auth.tenantSlug}`, "layout");
     return { ok: true };
@@ -886,6 +923,10 @@ export type InquiryParticipant = {
   status: "invited" | "active" | "declined" | "removed";
   talentProfileId: string | null;
   talentDisplayName: string | null;
+  /** Real face for the lineup — directory 'card' crop, or null (→ initials). */
+  talentPhotoUrl: string | null;
+  /** One-line discipline (primary taxonomy term), e.g. "Editorial Model". */
+  talentHeadline: string | null;
   userId: string | null;
   invitedAt: string | null;
 };
@@ -931,17 +972,28 @@ export async function loadInquiryLineup(
       talent_profiles: { display_name: string | null } | null;
     };
     const rows = (data ?? []) as unknown as Row[];
+    // Confidence: resolve a real face + discipline per talent so the lineup
+    // shows people, not initials. Best-effort (missing → nulls → initials).
+    const chips = await loadTalentChipInfo(
+      supabase,
+      rows.map((r) => r.talent_profile_id),
+    );
     return {
       ok: true,
-      data: rows.map((r) => ({
-        id: r.id,
-        role: r.role,
-        status: r.status,
-        talentProfileId: r.talent_profile_id,
-        talentDisplayName: r.talent_profiles?.display_name ?? null,
-        userId: r.user_id,
-        invitedAt: r.invited_at,
-      })),
+      data: rows.map((r) => {
+        const chip = r.talent_profile_id ? chips.get(r.talent_profile_id) : null;
+        return {
+          id: r.id,
+          role: r.role,
+          status: r.status,
+          talentProfileId: r.talent_profile_id,
+          talentDisplayName: r.talent_profiles?.display_name ?? null,
+          talentPhotoUrl: chip?.photoUrl ?? null,
+          talentHeadline: chip?.headline ?? null,
+          userId: r.user_id,
+          invitedAt: r.invited_at,
+        };
+      }),
     };
   } catch (err) {
     logServerError("admin._pipeline-actions.loadInquiryLineup", err);
@@ -1248,6 +1300,15 @@ export type OfferDraftSnapshot = {
   coordinatorFee: number;
   currencyCode: string;
   notes: string | null;
+  // W6a — the negotiated commercial terms currently saved on this offer, for
+  // the composer to display + edit. Defaulted (never null) so the composer always
+  // has a coherent starting state; deposit amount is in minor units.
+  terms: {
+    depositPct: number;
+    depositAmountCents: number;
+    balanceMethod: "request_in_messages" | "pay_in_place" | "full_upfront";
+    refundPolicy: "tiered" | "flexible" | "strict" | "manual";
+  };
   lineItems: Array<{
     id: string;
     talentProfileId: string | null;
@@ -1278,10 +1339,26 @@ export async function loadOfferDraft(
 
     const { data: offer, error: offerErr } = await supabase
       .from("inquiry_offers")
-      .select("id, inquiry_id, version, total_client_price, coordinator_fee, currency_code, notes, status")
+      .select(
+        "id, inquiry_id, version, total_client_price, coordinator_fee, currency_code, notes, status, deposit_pct, deposit_amount_cents, balance_collection_method, refund_policy_key",
+      )
       .eq("id", offerId)
       .eq("tenant_id", tenantId)
-      .maybeSingle();
+      .maybeSingle()
+      .returns<{
+        id: string;
+        inquiry_id: string;
+        version: number | null;
+        total_client_price: number | null;
+        coordinator_fee: number | null;
+        currency_code: string | null;
+        notes: string | null;
+        status: string | null;
+        deposit_pct: number | string | null;
+        deposit_amount_cents: number | string | null;
+        balance_collection_method: string | null;
+        refund_policy_key: string | null;
+      }>();
     if (offerErr || !offer) {
       return { ok: false, error: "Offer not found in this workspace." };
     }
@@ -1319,6 +1396,44 @@ export async function loadOfferDraft(
     };
     const rows = (lines ?? []) as unknown as LineRow[];
 
+    // W6a — read the saved negotiated terms (display + snapshot only). When the
+    // offer predates W6a (null terms), fall back to the W5 resolver defaults so
+    // the composer always renders a coherent starting state.
+    const totalCents = Math.round(Number(offer.total_client_price ?? 0) * 100);
+    const { readOfferTermsFromRow, defaultOfferTermsFromResolved, deriveDepositAmountCents } =
+      await import("@/lib/billing/offer-commercial-terms");
+    let terms = readOfferTermsFromRow(
+      {
+        deposit_pct: offer.deposit_pct,
+        deposit_amount_cents: offer.deposit_amount_cents,
+        balance_collection_method: offer.balance_collection_method,
+        refund_policy_key: offer.refund_policy_key,
+      },
+      totalCents,
+    );
+    if (!terms) {
+      const { loadPlatformCommercialDefaults } = await import(
+        "@/lib/platform/commercial-defaults"
+      );
+      const { parseTenantCommercialTerms } = await import("@/lib/billing/commercial-terms");
+      const platform = await loadPlatformCommercialDefaults();
+      const { data: agency } = await supabase
+        .from("agencies")
+        .select("settings")
+        .eq("id", tenantId)
+        .maybeSingle();
+      const tenant = parseTenantCommercialTerms(
+        (agency as { settings?: unknown } | null)?.settings,
+      );
+      const d = defaultOfferTermsFromResolved({ platform, tenant, talent: null });
+      terms = {
+        depositPct: d.depositPct,
+        depositAmountCents: deriveDepositAmountCents(totalCents, d.depositPct),
+        balanceMethod: d.balanceMethod,
+        refundPolicy: d.refundPolicy,
+      };
+    }
+
     return {
       ok: true,
       data: {
@@ -1327,8 +1442,9 @@ export async function loadOfferDraft(
         inquiryVersion: (inq.version as number | null) ?? 1,
         totalClientPrice: Number(offer.total_client_price ?? 0),
         coordinatorFee: Number(offer.coordinator_fee ?? 0),
-        currencyCode: (offer.currency_code as string | null) ?? "EUR",
+        currencyCode: (offer.currency_code as string | null) ?? "USD",
         notes: (offer.notes as string | null) ?? null,
+        terms,
         lineItems: rows.map((r) => ({
           id: r.id,
           talentProfileId: r.talent_profile_id,
@@ -1370,6 +1486,14 @@ export async function saveOfferDraft(
     currencyCode: string;
     notes: string | null;
     lineItems: OfferLineDraft[];
+    // W6a — optional negotiated commercial terms. deposit_amount_cents is derived
+    // server-side; the composer only sends pct + method + policy. Omit to keep
+    // the offer's existing terms (or default them on first save).
+    terms?: {
+      depositPct?: number | null;
+      balanceMethod?: "request_in_messages" | "pay_in_place" | "full_upfront" | null;
+      refundPolicy?: "tiered" | "flexible" | "strict" | "manual" | null;
+    } | null;
   },
 ): Promise<PipelineActionResult> {
   try {
@@ -1397,6 +1521,7 @@ export async function saveOfferDraft(
       currency_code: patch.currencyCode,
       notes: patch.notes,
       lineItems: patch.lineItems,
+      terms: patch.terms ?? null,
     });
 
     if (!result.success) {
@@ -1698,7 +1823,11 @@ export async function bulkSetInquiryArchived(
 export async function createOfferAction(
   _tenantSlug: string,
   inquiryId: string,
-  currencyCode: string = "EUR",
+  // USD-first: when the caller doesn't pin a currency (the offer-builder
+  // "Start drafting offer" button doesn't), fall back to the PLATFORM operating
+  // currency (default USD) instead of a hard-coded EUR — so the whole
+  // inquiry→offer→booking→payment→payout flow runs in one currency.
+  currencyCode?: string,
 ): Promise<PipelineActionResult<{ offerId: string }>> {
   // Hard timeout — the 2026-05-12 audit reported the button hanging on
   // "Starting…" forever. Wrap the whole flow so any silent block surfaces
@@ -1732,12 +1861,19 @@ export async function createOfferAction(
       }
       if (!inq) return { ok: false, error: "Inquiry not found in this workspace." };
 
+      // USD-first: the offer-builder button doesn't pin a currency, so resolve
+      // the platform operating currency (default USD) rather than defaulting to
+      // EUR. This makes the offer — and the booking/payment/payout that flow
+      // from it — run in the platform's single operating currency.
+      const resolvedCurrency =
+        currencyCode ?? (await loadPlatformOperatingCurrency()).operatingCurrency;
+
       const result = await createOffer(supabase, {
         inquiryId,
         tenantId,
         actorUserId: user.id,
         expectedVersion: (inq.version as number | null) ?? 1,
-        currencyCode,
+        currencyCode: resolvedCurrency,
       });
       if (!result.success) {
         const reason = (result as { reason?: string }).reason;
@@ -1870,7 +2006,7 @@ export async function reassignCoordinatorAction(
   _tenantSlug: string,
   inquiryId: string,
   newCoordinatorUserId: string,
-  _handoffNote: string,
+  handoffNote: string,
 ): Promise<PipelineActionResult> {
   try {
     const auth = await requireStaffTenantAction();
@@ -1895,6 +2031,7 @@ export async function reassignCoordinatorAction(
       coordinatorUserId: newCoordinatorUserId,
       actorUserId: user.id,
       expectedVersion: (inq.version as number | null) ?? 1,
+      handoffNote: handoffNote?.trim() || null,
     });
 
     if (!result.success) {
@@ -1908,10 +2045,8 @@ export async function reassignCoordinatorAction(
       return { ok: false, error: friendly };
     }
 
-    // TODO(S0.8): persist the handoff note as a system message on the
-    // talent group thread so the new + outgoing coordinator see context.
-    // For now the engine event captures the assignment fact.
-
+    // Handoff note is persisted by assignCoordinator as a private-thread
+    // system message (S0.8, wired via the handoffNote arg above).
     revalidatePath(`/${auth.tenantSlug}`, "layout");
     return { ok: true };
   } catch (err) {
@@ -2456,6 +2591,65 @@ export async function rescheduleBookingAction(
     return { ok: true };
   } catch (err) {
     logServerError("admin._pipeline-actions.rescheduleBookingAction", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+// ─── Amend & re-send (A2 CONTRACT) ──────────────────────────────────────────
+
+/**
+ * Flip a SENT offer back to a draft for amendment.
+ * Calls `reopenOfferForAmendment` from inquiry-engine-offers (Agent 3's impl).
+ * On success the offer is back in `draft` state; the coordinator edits it
+ * and re-sends via the existing sendOfferAction / OfferDraftEditor flow.
+ *
+ * Guard: only works when offer.status === 'sent'. Returns {ok:false,error:'not_amendable'}
+ * when the offer is in any other state.
+ */
+export async function reopenOfferAction(
+  _tenantSlug: string,
+  inquiryId: string,
+  offerId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const auth = await requireStaffTenantAction();
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const { supabase, user, tenantId } = auth;
+
+    const { data: inq } = await supabase
+      .from("inquiries")
+      .select("version")
+      .eq("id", inquiryId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (!inq) return { ok: false, error: "Inquiry not found in this workspace." };
+
+    const { reopenOfferForAmendment } = await import("@/lib/inquiry/inquiry-engine-offers");
+    const result = await reopenOfferForAmendment(supabase, {
+      inquiryId,
+      tenantId,
+      offerId,
+      actorUserId: user.id,
+      expectedVersion: (inq.version as number | null) ?? 1,
+    });
+
+    if (!result.success) {
+      const reason = (result as { reason?: string; error?: string }).reason
+        ?? (result as { error?: string }).error
+        ?? "Could not reopen offer.";
+      const friendly =
+        reason === "not_amendable" ? "This offer can only be amended when it is currently sent."
+        : reason === "forbidden" ? "You don't have permission to amend this offer."
+        : reason === "version_conflict" ? "Offer changed since you opened it — refresh and retry."
+        : reason === "inquiry_frozen" ? "Inquiry is frozen — unfreeze first."
+        : reason;
+      return { ok: false, error: friendly };
+    }
+
+    revalidatePath(`/${auth.tenantSlug}`, "layout");
+    return { ok: true };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.reopenOfferAction", err);
     return { ok: false, error: "Unexpected error." };
   }
 }

@@ -3,6 +3,7 @@ import type {
   BuilderNodeKind,
   BuilderNodeStyle,
 } from "./types";
+import { createBuilderSectionEmbed } from "./section-embed-presets";
 
 export function makeId(kind: BuilderNodeKind): string {
   return `builder-${kind}-${crypto.randomUUID()}`;
@@ -381,6 +382,51 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
       };
     case "nav":
       return createNav();
+    case "form":
+      return {
+        id: makeId("form"),
+        kind: "form",
+        props: {
+          action: "internal",
+          honeypotName: "website",
+          fields: [
+            {
+              id: crypto.randomUUID(),
+              name: "name",
+              type: "text",
+              label: "Name",
+              placeholder: "Your name",
+              required: true,
+            },
+            {
+              id: crypto.randomUUID(),
+              name: "email",
+              type: "email",
+              label: "Email",
+              placeholder: "you@example.com",
+              required: true,
+            },
+            {
+              id: crypto.randomUUID(),
+              name: "message",
+              type: "textarea",
+              label: "Message",
+              placeholder: "How can we help?",
+            },
+            {
+              id: crypto.randomUUID(),
+              name: "submit",
+              type: "submit",
+              label: "Send",
+            },
+          ],
+        },
+      };
+    case "section_embed":
+      // A bare "section_embed" insert has no chosen section. Default to the
+      // Directory component (seeded with its preset config). The picker inserts
+      // a specific Tulala component via createBuilderSectionEmbed(typeKey).
+      return createBuilderSectionEmbed("directory");
   }
 }
 
@@ -396,3 +442,14 @@ export type {
   BuilderNodeCompositionPresetId,
   BuilderNodeCompositionPreset,
 } from "./composition-presets";
+
+// Curated Tulala-component embeds (Directory / Featured talent / Booking / CTA)
+// — presets + factory live in ./section-embed-presets; re-exported here so the
+// element-library picker and insert plumbing import them from one place.
+export {
+  SECTION_EMBED_PRESETS,
+  getSectionEmbedPreset,
+  sectionEmbedTypeLabel,
+  createBuilderSectionEmbed,
+} from "./section-embed-presets";
+export type { SectionEmbedPreset } from "./section-embed-presets";

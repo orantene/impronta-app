@@ -14,7 +14,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { resolveOwningPartiesForTalents } from "./owning-party-resolver";
+import { resolveOwningPartiesForTalents, isHubSourcedChannel } from "./owning-party-resolver";
 
 type RosterRow = {
   tenant_id: string;
@@ -168,4 +168,89 @@ test("empty input → empty Map (no DB roundtrip)", async () => {
   const supabase = makeMockSupabase([]);
   const result = await resolveOwningPartiesForTalents(supabase, []);
   assert.equal(result.size, 0);
+});
+
+// ─── Source-aware (hub) routing — Scenarios D vs E + C ────────────────────────
+
+test("Scenario E — non-exclusive talent via HUB (hubSourced=true) → ('talent', id), NOT the workspace", async () => {
+  // Non-exclusive: Free-plan primary roster. Inquiry filed under the agency
+  // tenant (the Discover fan-out groups by primary roster), so tenant matching
+  // alone would wrongly say 'workspace'. The hub flag overrides → talent-self.
+  const fixture: RosterRow[] = [
+    {
+      tenant_id: "agency-free-1",
+      talent_profile_id: "talent-1",
+      is_primary: true,
+      status: "active",
+      agencies: { id: "agency-free-1", plan_tier: "free" },
+    },
+  ];
+  const supabase = makeMockSupabase(fixture);
+  const result = await resolveOwningPartiesForTalents(
+    supabase,
+    ["talent-1"],
+    "agency-free-1", // inquiry filed under the roster tenant
+    true, // hubSourced
+  );
+  assert.deepEqual(result.get("talent-1"), { type: "talent", id: "talent-1" });
+});
+
+test("Scenario D — same non-exclusive talent via AGENCY SITE (hubSourced=false) → ('workspace', tenant)", async () => {
+  const fixture: RosterRow[] = [
+    {
+      tenant_id: "agency-free-1",
+      talent_profile_id: "talent-1",
+      is_primary: true,
+      status: "active",
+      agencies: { id: "agency-free-1", plan_tier: "free" },
+    },
+  ];
+  const supabase = makeMockSupabase(fixture);
+  const result = await resolveOwningPartiesForTalents(
+    supabase,
+    ["talent-1"],
+    "agency-free-1",
+    false, // agency-sourced
+  );
+  assert.deepEqual(result.get("talent-1"), { type: "workspace", id: "agency-free-1" });
+});
+
+test("Scenario C — EXCLUSIVE talent via HUB still routes to the agency (hub never overrides exclusivity)", async () => {
+  const fixture: RosterRow[] = [
+    {
+      tenant_id: "agency-studio-1",
+      talent_profile_id: "talent-1",
+      is_primary: true,
+      status: "active",
+      agencies: { id: "agency-studio-1", plan_tier: "studio" },
+    },
+  ];
+  const supabase = makeMockSupabase(fixture);
+  const result = await resolveOwningPartiesForTalents(
+    supabase,
+    ["talent-1"],
+    "hub-tenant",
+    true, // hubSourced — must NOT override the exclusive agency
+  );
+  assert.deepEqual(result.get("talent-1"), { type: "agency", id: "agency-studio-1" });
+});
+
+test("isHubSourcedChannel — open-marketplace channels are hub-sourced", () => {
+  for (const c of [
+    "discover_single_talent",
+    "discover_shortlist",
+    "directory_client",
+    "directory_guest",
+    "public_directory",
+    "public_talent_profile",
+    "hub",
+  ]) {
+    assert.equal(isHubSourcedChannel(c), true, `${c} should be hub-sourced`);
+  }
+});
+
+test("isHubSourcedChannel — agency-brokered channels are NOT hub-sourced", () => {
+  for (const c of ["agency_site", "admin_created", "admin_manual", "pitch", "form", "phone", null, undefined, ""]) {
+    assert.equal(isHubSourcedChannel(c), false, `${c} should not be hub-sourced`);
+  }
 });

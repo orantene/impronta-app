@@ -6,6 +6,8 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { requireClient } from "@/lib/server/action-guards";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { verifyGuestCookie } from "@/lib/guest-cookie";
 import type { ServerActionResult } from "@/lib/server-actions/result";
 
 const GUEST_COOKIE = "impronta_guest";
@@ -68,7 +70,10 @@ export async function mergeGuestActivity(
   }
 
   const cookieStore = await cookies();
-  const sessionKey = cookieStore.get(GUEST_COOKIE)?.value;
+  // The cookie holds the HMAC-signed token; unwrap it to the plain id that
+  // matches `guest_sessions.session_key` (null when unsigned/forged). Degrades
+  // to the raw value when GUEST_COOKIE_SECRET is unset (legacy behavior).
+  const sessionKey = verifyGuestCookie(cookieStore.get(GUEST_COOKIE)?.value);
   if (!sessionKey) {
     return {
       ok: true,
@@ -109,9 +114,28 @@ export async function mergeGuestActivity(
       .is("client_user_id", null),
   ]);
 
+  // SECURITY (guest→account claim): relink inquiries ONLY when the inquiry's
+  // contact_email matches the AUTHENTICATED account's CONFIRMED email. We pass
+  // p_verified_email only when auth.email_confirmed_at is set; otherwise we pass
+  // '' so the RPC falls through to favorites-only (no inquiry relink). Under
+  // enable_confirmations=false signup auto-confirms, so this is a no-op today —
+  // but it future-proofs the gate for when confirmations get enabled, instead of
+  // trusting an unconfirmed account email. See migration
+  // 20261017091500_merge_guest_inquiries_email_gated.sql.
+  let verifiedEmail = "";
+  const admin = createServiceRoleClient();
+  if (admin && user.email) {
+    const { data: authUser, error: authErr } = await admin.auth.admin.getUserById(user.id);
+    if (authErr) {
+      logServerError("client/mergeGuestActivity/emailConfirm", authErr);
+    } else if (authUser?.user?.email_confirmed_at) {
+      verifiedEmail = user.email;
+    }
+  }
   await supabase.rpc("merge_guest_session_to_client", {
     p_session_key: sessionKey,
     p_client_profile_id: user.id,
+    p_verified_email: verifiedEmail,
   });
 
   revalidatePath("/client");

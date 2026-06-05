@@ -13,6 +13,7 @@ import { getAppUrl } from "@/lib/auth-flow";
 import { MARKETING_PHOTOS } from "@/lib/marketing/photography";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { getCachedActorSession } from "@/lib/server/request-cache";
+import { getRequestLocale } from "@/i18n/request-locale";
 import {
   reservedBrandedSubdomainHost,
   workspacePathHost,
@@ -57,8 +58,43 @@ function studioEyebrow(studioTier: MarketingTier | undefined): string {
 
 function buildHeadlineByTier(
   workspaceTiers: MarketingTier[],
+  locale: string,
 ): Record<string, TierHeadline> {
   const studio = workspaceTiers.find((t) => t.key === "studio");
+  if (locale === "es") {
+    return {
+      free: {
+        eyebrow: "Empieza gratis",
+        title: "Tu negocio, en línea en diez minutos.",
+        subtitle:
+          "Un sitio y un link gratis, tu trabajo o tu equipo ahí, y reservas + pagos integrados. Sin código, sin tarjeta.",
+      },
+      studio: {
+        eyebrow: studioEyebrow(studio),
+        title: "El pipeline, más WhatsApp.",
+        subtitle:
+          "Hasta cincuenta perfiles, tres lugares y avisos de consultas que llegan a WhatsApp — donde tus clientes de verdad te escriben.",
+      },
+      agency: {
+        eyebrow: "Agency · prueba de 14 días",
+        title: "Una superficie de negocio con tu marca.",
+        subtitle:
+          "Tu propio dominio, un sitio con CMS, perfiles ilimitados y ocho lugares con roles y permisos. Plan Agency completo, gratis 14 días.",
+      },
+      network: {
+        eyebrow: "Network · Agenda una demo",
+        title: "Para equipos que colocan gente a escala.",
+        subtitle:
+          "Staffing, casting y las operaciones de colocación más grandes obtienen SSO, roles avanzados, acceso a API y opciones white-label. Empieza con una demo.",
+      },
+      default: {
+        eyebrow: "Empieza gratis",
+        title: "Empieza tu negocio. <span style=\"color: var(--plt-forest)\">Gratis.</span>",
+        subtitle:
+          "Crea tu propio sitio web en un clic, comparte tu link y empieza a recibir reservas y pagos. Lleva una agencia, una red, una banda, un estudio, un equipo — o simplemente vende tu propio trabajo.",
+      },
+    };
+  }
   return {
     free: {
       eyebrow: "Start free",
@@ -109,9 +145,10 @@ export default async function GetStartedPage({
 
   // L50 Phase 2: read live pricing from the catalog with currency
   // resolved from URL param > cookie > IP > USD fallback.
+  const locale = await getRequestLocale();
   const { currency } = await resolveCurrency(resolved);
   const workspaceTiers = await loadMarketingTiers("workspace", currency);
-  const HEADLINE_BY_TIER = buildHeadlineByTier(workspaceTiers);
+  const HEADLINE_BY_TIER = buildHeadlineByTier(workspaceTiers, locale);
 
   // L50 Phase 3: ?promo=CODE → validate against `product_discounts`.
   // Invalid / expired / out-of-window codes silently fall back to
@@ -152,6 +189,7 @@ export default async function GetStartedPage({
   return (
     <>
       <HeroSection
+        locale={locale}
         appLoginUrl={appLoginUrl}
         copy={copy}
         initialAudience={initialAudience}
@@ -171,13 +209,13 @@ export default async function GetStartedPage({
         }}
         appliedDiscountLabel={appliedDiscountLabel}
       />
-      <WhoItsForSection />
-      <HowItWorksSection />
-      <PlanLadderSection tiers={workspaceTiers} />
-      <ProductPreviewSection />
-      <ContrastSection />
-      <FaqSection />
-      <FinalCtaSection />
+      <WhoItsForSection locale={locale} />
+      <HowItWorksSection locale={locale} />
+      <PlanLadderSection tiers={workspaceTiers} locale={locale} />
+      <ProductPreviewSection locale={locale} />
+      <ContrastSection locale={locale} />
+      <FaqSection locale={locale} />
+      <FinalCtaSection locale={locale} />
     </>
   );
 }
@@ -192,6 +230,7 @@ function mapAudience(raw: string | null): AudienceKey {
 // ────────────────────────────────────────────────────────────────────────────
 
 function HeroSection({
+  locale,
   appLoginUrl,
   copy,
   initialAudience,
@@ -201,6 +240,7 @@ function HeroSection({
   tierNames,
   appliedDiscountLabel,
 }: {
+  locale: string;
   appLoginUrl: string;
   copy: { eyebrow: string; title: string; subtitle: string };
   initialAudience: AudienceKey;
@@ -217,6 +257,40 @@ function HeroSection({
    *  when no ?promo=CODE is applied. Phase 3. */
   appliedDiscountLabel?: string | null;
 }) {
+  const c =
+    locale === "es"
+      ? {
+          bullets: [
+            "Sitio + link gratis, sin tarjeta",
+            "Editor de páginas incluido",
+            "Recibe reservas y pagos",
+          ],
+          imageEyebrow: "Hecho para que ganes dinero",
+          imageCaption:
+            "Agencias, bandas, estudios y profesionales independientes llevan su negocio aquí.",
+          founderNote:
+            "Los workspaces gratis están disponibles al instante — reserva tu link, crea tu cuenta y entra a tu panel en minutos. Los planes Agency y Network incluyen configuración guiada. Sin pruebas sociales falsas, sin embudos de growth-hacking — solo un producto que construimos con quienes lo usan.",
+          founderSign: `— Oran, fundador · ${PLATFORM_BRAND.name}`,
+          promoApplied: "Promo aplicada:",
+          alreadyAccount: "¿Ya tienes cuenta?",
+          signIn: "Entrar",
+        }
+      : {
+          bullets: [
+            "Free site + link, no card",
+            "Page builder included",
+            "Take bookings & payments",
+          ],
+          imageEyebrow: "Built to make you money",
+          imageCaption:
+            "Agencies, bands, studios, and solo pros run their business here.",
+          founderNote:
+            "Free workspaces are available immediately — claim your link, create your account, and land in your dashboard in minutes. Agency and Network plans include guided setup. No fake social proof, no growth-hack funnel — just a product we’re building with the people who use it.",
+          founderSign: `— Oran, founder · ${PLATFORM_BRAND.name}`,
+          promoApplied: "Promo applied:",
+          alreadyAccount: "Already have an account?",
+          signIn: "Sign in",
+        };
   return (
     <MarketingSection spacing="tight" className="relative">
       <span
@@ -246,15 +320,11 @@ function HeroSection({
               className="mt-8 flex flex-wrap gap-x-5 gap-y-2 text-[0.875rem]"
               style={{ color: "var(--plt-ink-soft)" }}
             >
-              <li className="inline-flex items-center gap-2">
-                <Dot /> Free site + link, no card
-              </li>
-              <li className="inline-flex items-center gap-2">
-                <Dot /> Page builder included
-              </li>
-              <li className="inline-flex items-center gap-2">
-                <Dot /> Take bookings & payments
-              </li>
+              {c.bullets.map((b) => (
+                <li key={b} className="inline-flex items-center gap-2">
+                  <Dot /> {b}
+                </li>
+              ))}
             </ul>
 
             <EditorialFrame
@@ -263,8 +333,8 @@ function HeroSection({
               size="md"
               tone="cream"
               className="mt-10 w-full"
-              eyebrow="Built to make you money"
-              caption="Agencies, bands, studios, and solo pros run their business here."
+              eyebrow={c.imageEyebrow}
+              caption={c.imageCaption}
             />
 
             <div
@@ -291,16 +361,13 @@ function HeroSection({
                 className="mt-4 text-[0.9375rem] leading-[1.6]"
                 style={{ color: "var(--plt-ink-soft)" }}
               >
-                Free workspaces are available immediately — claim your link, create your
-                account, and land in your dashboard in minutes. Agency and Network plans include
-                guided setup. No fake social proof, no growth-hack funnel — just a product we&rsquo;re
-                building with the people who use it.
+                {c.founderNote}
               </p>
               <p
                 className="mt-3 text-[0.8125rem]"
                 style={{ color: "var(--plt-muted)" }}
               >
-                — Oran, founder · {PLATFORM_BRAND.name}
+                {c.founderSign}
               </p>
             </div>
           </div>
@@ -323,10 +390,11 @@ function HeroSection({
                   className="mr-2 inline-block h-1.5 w-1.5 rounded-full align-middle"
                   style={{ background: "var(--plt-forest)" }}
                 />
-                Promo applied: <strong>{appliedDiscountLabel}</strong>
+                {c.promoApplied} <strong>{appliedDiscountLabel}</strong>
               </div>
             )}
             <GetStartedForm
+              locale={locale}
               initialAudience={initialAudience}
               tier={tier}
               initialSignedIn={initialSignedIn}
@@ -339,13 +407,13 @@ function HeroSection({
               className="mt-4 text-center text-[0.8125rem]"
               style={{ color: "var(--plt-muted)" }}
             >
-              Already have an account?{" "}
+              {c.alreadyAccount}{" "}
               <a
                 href={appLoginUrl}
                 className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
                 style={{ color: "var(--plt-ink)" }}
               >
-                Sign in
+                {c.signIn}
               </a>
             </p>
           </div>
@@ -367,38 +435,85 @@ type Audience = {
   examples: string;
 };
 
-const AUDIENCES: Audience[] = [
-  {
-    key: "solo",
-    eyebrow: "Solo & talent",
-    title: "Sell your own work.",
-    body: `You're the talent and the business. Get a site, share your link, and take bookings and payments — without building anything or paying someone to do it for you.`,
-    examples: "Singers, stylists, coaches, chefs, photographers, performers",
-  },
-  {
-    key: "agencies",
-    eyebrow: "Agencies & studios",
-    title: "Run a branded business.",
-    body: "A branded site on your own domain, your whole roster on it, multi-user roles, and a real booking pipeline. Built for agencies and studios that represent other people.",
-    examples: "Model & talent agencies, studios, reps, speaker bureaus",
-  },
-  {
-    key: "teams",
-    eyebrow: "Bands & teams",
-    title: "One workspace for the crew.",
-    body: "Run the bookings, the calendar, and the money for your whole group in one place. Everyone sees the same schedule — you split the work, not the chaos.",
-    examples: "Bands, DJ crews, event teams, production units, collectives",
-  },
-  {
-    key: "networks",
-    eyebrow: "Networks & hubs",
-    title: "Many pros, one roof.",
-    body: "Bring dozens or hundreds of independents under one branded hub — filterable discovery, role-scoped access, and inquiries that route to the right person.",
-    examples: "Local hubs, marketplaces, staffing networks, communities",
-  },
-];
+function getAudiences(locale: string): Audience[] {
+  if (locale === "es") {
+    return [
+      {
+        key: "solo",
+        eyebrow: "Solo y talento",
+        title: "Vende tu propio trabajo.",
+        body: "Eres el talento y el negocio. Ten un sitio, comparte tu link y recibe reservas y pagos — sin construir nada ni pagarle a alguien para que lo haga por ti.",
+        examples: "Cantantes, estilistas, coaches, chefs, fotógrafos, performers",
+      },
+      {
+        key: "agencies",
+        eyebrow: "Agencias y estudios",
+        title: "Lleva un negocio con tu marca.",
+        body: "Un sitio con tu marca en tu propio dominio, todo tu roster ahí, roles para varios usuarios y un pipeline de reservas real. Hecho para agencias y estudios que representan a otras personas.",
+        examples: "Agencias de modelos y talento, estudios, representantes, speaker bureaus",
+      },
+      {
+        key: "teams",
+        eyebrow: "Bandas y equipos",
+        title: "Un workspace para todo el crew.",
+        body: "Lleva las reservas, el calendario y el dinero de todo tu grupo en un solo lugar. Todos ven la misma agenda — reparten el trabajo, no el caos.",
+        examples: "Bandas, crews de DJ, equipos de eventos, unidades de producción, colectivos",
+      },
+      {
+        key: "networks",
+        eyebrow: "Redes y hubs",
+        title: "Muchos profesionales, un solo techo.",
+        body: "Reúne a decenas o cientos de independientes bajo un hub con tu marca — directorio con filtros, accesos por rol y consultas que llegan a la persona correcta.",
+        examples: "Hubs locales, marketplaces, redes de staffing, comunidades",
+      },
+    ];
+  }
+  return [
+    {
+      key: "solo",
+      eyebrow: "Solo & talent",
+      title: "Sell your own work.",
+      body: `You're the talent and the business. Get a site, share your link, and take bookings and payments — without building anything or paying someone to do it for you.`,
+      examples: "Singers, stylists, coaches, chefs, photographers, performers",
+    },
+    {
+      key: "agencies",
+      eyebrow: "Agencies & studios",
+      title: "Run a branded business.",
+      body: "A branded site on your own domain, your whole roster on it, multi-user roles, and a real booking pipeline. Built for agencies and studios that represent other people.",
+      examples: "Model & talent agencies, studios, reps, speaker bureaus",
+    },
+    {
+      key: "teams",
+      eyebrow: "Bands & teams",
+      title: "One workspace for the crew.",
+      body: "Run the bookings, the calendar, and the money for your whole group in one place. Everyone sees the same schedule — you split the work, not the chaos.",
+      examples: "Bands, DJ crews, event teams, production units, collectives",
+    },
+    {
+      key: "networks",
+      eyebrow: "Networks & hubs",
+      title: "Many pros, one roof.",
+      body: "Bring dozens or hundreds of independents under one branded hub — filterable discovery, role-scoped access, and inquiries that route to the right person.",
+      examples: "Local hubs, marketplaces, staffing networks, communities",
+    },
+  ];
+}
 
-function WhoItsForSection() {
+function WhoItsForSection({ locale }: { locale: string }) {
+  const audiences = getAudiences(locale);
+  const c =
+    locale === "es"
+      ? {
+          eyebrow: "Para quién es",
+          heading: "Sea lo que sea que estés construyendo, empiézalo aquí.",
+          subhead: `${PLATFORM_BRAND.name} es la plataforma para vender servicios y llevar un negocio de gente — ya seas solo tú, una agencia completa, una banda, un equipo o toda una red. Un motor, todas las formas.`,
+        }
+      : {
+          eyebrow: "Who it’s for",
+          heading: "Whatever you’re building, start it here.",
+          subhead: `${PLATFORM_BRAND.name} is the platform for selling services and running a people business — whether that’s just you, a full agency, a band, a team, or a whole network. One engine, every shape.`,
+        };
   return (
     <MarketingSection spacing="tight" style={{ background: "var(--plt-bg-elevated)" }}>
       <span
@@ -408,26 +523,24 @@ function WhoItsForSection() {
       />
       <MarketingContainer size="wide">
         <div className="max-w-2xl">
-          <MarketingEyebrow>Who it&rsquo;s for</MarketingEyebrow>
+          <MarketingEyebrow>{c.eyebrow}</MarketingEyebrow>
           <h2
             className="plt-display mt-4 text-[1.875rem] font-medium leading-[1.1] tracking-[-0.02em] sm:text-[2.5rem]"
             style={{ color: "var(--plt-ink)" }}
           >
-            Whatever you&rsquo;re building, start it here.
+            {c.heading}
           </h2>
           <p
             className="mt-5 text-[1rem] leading-[1.6]"
             style={{ color: "var(--plt-muted)" }}
           >
-            {PLATFORM_BRAND.name} is the platform for selling services and running a people
-            business — whether that&rsquo;s just you, a full agency, a band, a team, or a whole
-            network. One engine, every shape.
+            {c.subhead}
           </p>
         </div>
 
         <div className="mt-12 grid gap-4 md:grid-cols-2 md:gap-6">
-          {AUDIENCES.map((a) => (
-            <AudienceCard key={a.key} audience={a} />
+          {audiences.map((a) => (
+            <AudienceCard key={a.key} audience={a} locale={locale} />
           ))}
         </div>
       </MarketingContainer>
@@ -435,7 +548,7 @@ function WhoItsForSection() {
   );
 }
 
-function AudienceCard({ audience }: { audience: Audience }) {
+function AudienceCard({ audience, locale }: { audience: Audience; locale: string }) {
   return (
     <article
       className="group relative flex h-full flex-col overflow-hidden rounded-[24px] p-7 transition-all duration-300 hover:-translate-y-0.5 sm:p-8"
@@ -478,7 +591,7 @@ function AudienceCard({ audience }: { audience: Audience }) {
             color: "var(--plt-ink-soft)",
           }}
         >
-          Examples
+          {locale === "es" ? "Ejemplos" : "Examples"}
         </span>
         {audience.examples}
       </p>
@@ -490,56 +603,100 @@ function AudienceCard({ audience }: { audience: Audience }) {
 // 3. How it works — 4 steps
 // ────────────────────────────────────────────────────────────────────────────
 
-const STEPS = [
-  {
-    numeral: "01",
-    title: "Build your site in one click.",
-    body: `Pick your link and the page builder spins up a real website for your business in minutes — ${FREE_LINK_EXAMPLE}. No code, no credit card.`,
-    caption: FREE_LINK_EXAMPLE,
-  },
-  {
-    numeral: "02",
-    title: "Add your work, services, or team.",
-    body: "Your services, your prices, your roster or band — structured the same way every time, so clients can browse exactly what you offer and what it costs.",
-    caption: "Services · team · prices",
-  },
-  {
-    numeral: "03",
-    title: "Share your link. Get booked.",
-    body: "Drop your link in a bio, a DM, or a pitch. Clients browse, send an inquiry, and you turn it into a confirmed booking — right inside your messages.",
-    caption: "One link. Everywhere.",
-  },
-  {
-    numeral: "04",
-    title: "Get paid — and grow when you're ready.",
-    body: "Take payments in chat, add your own domain, bring on your team, open up to the discovery hub. Upgrade only when it starts paying for itself.",
-    caption: "Payments · domain · team",
-  },
-];
+function getSteps(locale: string) {
+  if (locale === "es") {
+    return [
+      {
+        numeral: "01",
+        title: "Crea tu sitio en un clic.",
+        body: `Elige tu link y el editor de páginas levanta un sitio web real para tu negocio en minutos — ${FREE_LINK_EXAMPLE}. Sin código, sin tarjeta.`,
+        caption: FREE_LINK_EXAMPLE,
+      },
+      {
+        numeral: "02",
+        title: "Agrega tu trabajo, servicios o equipo.",
+        body: "Tus servicios, tus precios, tu roster o tu banda — estructurados igual cada vez, para que los clientes vean justo lo que ofreces y cuánto cuesta.",
+        caption: "Servicios · equipo · precios",
+      },
+      {
+        numeral: "03",
+        title: "Comparte tu link. Que te reserven.",
+        body: "Pon tu link en una bio, un DM o una propuesta. Los clientes ven, mandan una consulta y tú la conviertes en una reserva confirmada — dentro de tus mensajes.",
+        caption: "Un link. En todos lados.",
+      },
+      {
+        numeral: "04",
+        title: "Cobra — y crece cuando estés listo.",
+        body: "Recibe pagos en el chat, agrega tu propio dominio, suma a tu equipo, ábrete al hub de descubrimiento. Sube de plan solo cuando empiece a pagarse solo.",
+        caption: "Pagos · dominio · equipo",
+      },
+    ];
+  }
+  return [
+    {
+      numeral: "01",
+      title: "Build your site in one click.",
+      body: `Pick your link and the page builder spins up a real website for your business in minutes — ${FREE_LINK_EXAMPLE}. No code, no credit card.`,
+      caption: FREE_LINK_EXAMPLE,
+    },
+    {
+      numeral: "02",
+      title: "Add your work, services, or team.",
+      body: "Your services, your prices, your roster or band — structured the same way every time, so clients can browse exactly what you offer and what it costs.",
+      caption: "Services · team · prices",
+    },
+    {
+      numeral: "03",
+      title: "Share your link. Get booked.",
+      body: "Drop your link in a bio, a DM, or a pitch. Clients browse, send an inquiry, and you turn it into a confirmed booking — right inside your messages.",
+      caption: "One link. Everywhere.",
+    },
+    {
+      numeral: "04",
+      title: "Get paid — and grow when you're ready.",
+      body: "Take payments in chat, add your own domain, bring on your team, open up to the discovery hub. Upgrade only when it starts paying for itself.",
+      caption: "Payments · domain · team",
+    },
+  ];
+}
 
-function HowItWorksSection() {
+function HowItWorksSection({ locale }: { locale: string }) {
+  const steps = getSteps(locale);
+  const c =
+    locale === "es"
+      ? {
+          eyebrow: "Cómo funciona",
+          heading: "Cuatro pasos hasta tu primera reserva.",
+          subhead:
+            "La mayoría tiene un sitio real y un link para compartir antes del mediodía — y empieza a recibir reservas esa misma semana. Sube de plan solo cuando se pague solo.",
+        }
+      : {
+          eyebrow: "How it works",
+          heading: "Four steps to your first booking.",
+          subhead:
+            "Most people have a real site and a shareable link before lunch — and start taking bookings the same week. Upgrade only when it pays for itself.",
+        };
   return (
     <MarketingSection spacing="tight">
       <MarketingContainer size="wide">
         <div className="max-w-2xl">
-          <MarketingEyebrow>How it works</MarketingEyebrow>
+          <MarketingEyebrow>{c.eyebrow}</MarketingEyebrow>
           <h2
             className="plt-display mt-4 text-[1.875rem] font-medium leading-[1.1] tracking-[-0.02em] sm:text-[2.5rem]"
             style={{ color: "var(--plt-ink)" }}
           >
-            Four steps to your first booking.
+            {c.heading}
           </h2>
           <p
             className="mt-5 text-[1rem] leading-[1.6]"
             style={{ color: "var(--plt-muted)" }}
           >
-            Most people have a real site and a shareable link before lunch — and start
-            taking bookings the same week. Upgrade only when it pays for itself.
+            {c.subhead}
           </p>
         </div>
 
         <ol className="mt-12 grid gap-4 md:grid-cols-2 md:gap-5 lg:grid-cols-4">
-          {STEPS.map((step) => (
+          {steps.map((step) => (
             <li
               key={step.numeral}
               className="group relative flex h-full flex-col rounded-[22px] border p-6 transition-all duration-300 hover:-translate-y-0.5"
@@ -651,7 +808,25 @@ function ladderHighlights(slug: string): string[] {
   }
 }
 
-function PlanLadderSection({ tiers }: { tiers: MarketingTier[] }) {
+function PlanLadderSection({ tiers, locale }: { tiers: MarketingTier[]; locale: string }) {
+  const c =
+    locale === "es"
+      ? {
+          eyebrow: "El pipeline está en todos los planes.",
+          heading: "Un producto. Cuatro tamaños.",
+          subhead:
+            "Cada plan convierte consultas en reservas — el pipeline completo viene en Free. Lo que crece en cada paso es el tamaño del roster, los canales de avisos y qué tan personalizada está la marca.",
+          startFree: "Empieza gratis",
+          fullComparison: "Comparación completa de planes",
+        }
+      : {
+          eyebrow: "The pipeline is on every plan.",
+          heading: "One product. Four sizes.",
+          subhead:
+            "Every tier turns inquiries into bookings — the full pipeline ships on Free. What grows with each step is roster size, notification channels, and how branded the surface is.",
+          startFree: "Start free",
+          fullComparison: "Full plan comparison",
+        };
   return (
     <MarketingSection spacing="tight" style={{ background: "var(--plt-bg-elevated)" }}>
       <span
@@ -662,21 +837,19 @@ function PlanLadderSection({ tiers }: { tiers: MarketingTier[] }) {
       <MarketingContainer size="wide">
         <div className="grid items-end gap-8 md:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
           <div>
-            <MarketingEyebrow>The pipeline is on every plan.</MarketingEyebrow>
+            <MarketingEyebrow>{c.eyebrow}</MarketingEyebrow>
             <h2
               className="plt-display mt-4 text-[1.875rem] font-medium leading-[1.1] tracking-[-0.02em] sm:text-[2.5rem]"
               style={{ color: "var(--plt-ink)" }}
             >
-              One product. Four sizes.
+              {c.heading}
             </h2>
           </div>
           <p
             className="text-[1rem] leading-[1.6]"
             style={{ color: "var(--plt-muted)" }}
           >
-            Every tier turns inquiries into bookings — the full pipeline ships on Free.
-            What grows with each step is roster size, notification channels, and how
-            branded the surface is.
+            {c.subhead}
           </p>
         </div>
 
@@ -690,6 +863,7 @@ function PlanLadderSection({ tiers }: { tiers: MarketingTier[] }) {
               tagline={t.tagline || planLadderFallbackTagline(t.key)}
               highlights={ladderHighlights(t.key)}
               featured={t.featured}
+              locale={locale}
             />
           ))}
         </div>
@@ -702,7 +876,7 @@ function PlanLadderSection({ tiers }: { tiers: MarketingTier[] }) {
             eventSource="get-started-plans"
             eventIntent="start-free"
           >
-            Start free
+            {c.startFree}
           </MarketingCta>
           <MarketingCta
             href="/pricing"
@@ -711,7 +885,7 @@ function PlanLadderSection({ tiers }: { tiers: MarketingTier[] }) {
             eventSource="get-started-plans"
             eventIntent="compare-plans"
           >
-            Full plan comparison
+            {c.fullComparison}
           </MarketingCta>
         </div>
       </MarketingContainer>
@@ -726,6 +900,7 @@ function PlanCard({
   tagline,
   highlights,
   featured = false,
+  locale,
 }: {
   tier: string;
   price: string;
@@ -733,6 +908,7 @@ function PlanCard({
   tagline: string;
   highlights: string[];
   featured?: boolean;
+  locale: string;
 }) {
   return (
     <article
@@ -759,7 +935,7 @@ function PlanCard({
             border: "1px solid rgba(241,237,227,0.18)",
           }}
         >
-          Most popular
+          {locale === "es" ? "Más popular" : "Most popular"}
         </span>
       ) : null}
       <div
@@ -849,43 +1025,60 @@ const PREVIEW_PROFILES = [
   },
 ];
 
-function ProductPreviewSection() {
+function ProductPreviewSection({ locale }: { locale: string }) {
+  const c =
+    locale === "es"
+      ? {
+          eyebrow: "Lo que obtienes",
+          heading: "Un sitio web de verdad, no un link en la bio.",
+          subhead:
+            "Cada cuenta obtiene un sitio con tu marca, perfiles estructurados, navegación con filtros y un buzón de reservas — ya sea que vendas tus propios servicios, lleves una agencia o coordines a todo un equipo.",
+          bullets: [
+            "Perfiles estructurados con portafolio, medidas y disponibilidad",
+            "Directorio navegable y con filtros — los clientes se atienden solos",
+            "Cada consulta llega como un registro estructurado, no como un mensaje de chat",
+            "Una presentación editorial que se ve como un negocio de verdad",
+          ],
+        }
+      : {
+          eyebrow: "What you get",
+          heading: "A real website, not a link in bio.",
+          subhead:
+            "Every account gets a branded site with structured profiles, filterable browsing, and a booking inbox — whether you’re selling your own services, running an agency, or coordinating a whole team.",
+          bullets: [
+            "Structured people profiles with portfolios, specs & availability",
+            "Browsable, filterable directory — clients self-serve",
+            "Every inquiry lands as a structured record, not a chat message",
+            "Editorial presentation that reads as a real business",
+          ],
+        };
   return (
     <MarketingSection spacing="tight">
       <MarketingContainer size="wide">
         <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-16">
           <div>
-            <MarketingEyebrow>What you get</MarketingEyebrow>
+            <MarketingEyebrow>{c.eyebrow}</MarketingEyebrow>
             <h2
               className="plt-display mt-4 text-[1.875rem] font-medium leading-[1.1] tracking-[-0.02em] sm:text-[2.5rem]"
               style={{ color: "var(--plt-ink)" }}
             >
-              A real website, not a link in bio.
+              {c.heading}
             </h2>
             <p
               className="mt-5 text-[1rem] leading-[1.6]"
               style={{ color: "var(--plt-muted)" }}
             >
-              Every account gets a branded site with structured profiles, filterable
-              browsing, and a booking inbox — whether you&rsquo;re selling your own services,
-              running an agency, or coordinating a whole team.
+              {c.subhead}
             </p>
             <ul
               className="mt-6 space-y-2.5 text-[0.9375rem] leading-[1.55]"
               style={{ color: "var(--plt-ink-soft)" }}
             >
-              <li className="flex items-start gap-2.5">
-                <CheckTick /> Structured people profiles with portfolios, specs & availability
-              </li>
-              <li className="flex items-start gap-2.5">
-                <CheckTick /> Browsable, filterable directory — clients self-serve
-              </li>
-              <li className="flex items-start gap-2.5">
-                <CheckTick /> Every inquiry lands as a structured record, not a chat message
-              </li>
-              <li className="flex items-start gap-2.5">
-                <CheckTick /> Editorial presentation that reads as a real business
-              </li>
+              {c.bullets.map((b) => (
+                <li key={b} className="flex items-start gap-2.5">
+                  <CheckTick /> {b}
+                </li>
+              ))}
             </ul>
           </div>
 
@@ -1030,7 +1223,57 @@ function ProductPreviewSection() {
 // 6. Why it's better than manual / WhatsApp workflows
 // ────────────────────────────────────────────────────────────────────────────
 
-function ContrastSection() {
+function ContrastSection({ locale }: { locale: string }) {
+  const c =
+    locale === "es"
+      ? {
+          eyebrow: "El cambio",
+          heading: "Las hojas de cálculo y los chats no son un producto.",
+          subhead:
+            "El trabajo es el mismo, representes a dos personas o a doscientas. Lo que cambia es qué tan creíble se ve, qué tan rápido cierran las consultas y cuánto del día pasas reenviando lo que ya enviaste.",
+          manualLabel: "A mano",
+          manualTitle: "Copiar y pegar, cada vez.",
+          manualRows: [
+            "Perfiles enviados de uno en uno, en chats que se pierden",
+            "Tarifas y disponibilidad re-escritas en cada consulta",
+            "Sin buzón estructurado — &ldquo;¿alguna vez respondieron?&rdquo;",
+            "Tu marca parece un contacto, no un negocio",
+            "Hojas de cálculo que solo tú entiendes",
+          ],
+          withLabel: `Con ${PLATFORM_BRAND.name}`,
+          withTitle: "Un link. Estructurado. Tuyo.",
+          withRows: [
+            "Un solo link de directorio pulido — bios, medidas, portafolios",
+            "Tarifas y disponibilidad publicadas una vez, siempre al día",
+            "Cada consulta llega como un registro rastreable",
+            "Una presentación editorial que gana respuestas premium",
+            "Exporta todo tu roster y tu historial cuando quieras",
+          ],
+        }
+      : {
+          eyebrow: "The shift",
+          heading: "Spreadsheets and chat threads are not a product.",
+          subhead:
+            "The work is the same whether you represent two people or two hundred. What changes is how credible it looks, how fast inquiries close, and how much of the day you spend re-sending what you already sent.",
+          manualLabel: "The manual way",
+          manualTitle: "Copy-paste, every time.",
+          manualRows: [
+            "Profiles sent one at a time, in chats that scroll away",
+            "Rates and availability re-typed for every inquiry",
+            "No structured inbox — &ldquo;did they ever reply?&rdquo;",
+            "Your brand looks like a contact, not a business",
+            "Spreadsheets that only you can read",
+          ],
+          withLabel: `With ${PLATFORM_BRAND.name}`,
+          withTitle: "One link. Structured. Yours.",
+          withRows: [
+            "One polished directory URL — bios, specs, portfolios",
+            "Rates &amp; availability surfaced once, always fresh",
+            "Every inquiry lands as a traceable record",
+            "Editorial presentation that earns premium replies",
+            "Full export of your roster and history on demand",
+          ],
+        };
   return (
     <MarketingSection spacing="tight" style={{ background: "var(--plt-bg-elevated)" }}>
       <span
@@ -1040,46 +1283,32 @@ function ContrastSection() {
       />
       <MarketingContainer size="wide">
         <div className="max-w-2xl">
-          <MarketingEyebrow>The shift</MarketingEyebrow>
+          <MarketingEyebrow>{c.eyebrow}</MarketingEyebrow>
           <h2
             className="plt-display mt-4 text-[1.875rem] font-medium leading-[1.1] tracking-[-0.02em] sm:text-[2.5rem]"
             style={{ color: "var(--plt-ink)" }}
           >
-            Spreadsheets and chat threads are not a product.
+            {c.heading}
           </h2>
           <p
             className="mt-5 text-[1rem] leading-[1.6]"
             style={{ color: "var(--plt-muted)" }}
           >
-            The work is the same whether you represent two people or two hundred. What
-            changes is how credible it looks, how fast inquiries close, and how much of the
-            day you spend re-sending what you already sent.
+            {c.subhead}
           </p>
         </div>
 
         <div className="mt-10 grid gap-4 md:grid-cols-2 md:gap-6">
           <ContrastColumn
-            label="The manual way"
-            title="Copy-paste, every time."
-            rows={[
-              "Profiles sent one at a time, in chats that scroll away",
-              "Rates and availability re-typed for every inquiry",
-              "No structured inbox — &ldquo;did they ever reply?&rdquo;",
-              "Your brand looks like a contact, not a business",
-              "Spreadsheets that only you can read",
-            ]}
+            label={c.manualLabel}
+            title={c.manualTitle}
+            rows={c.manualRows}
             tone="muted"
           />
           <ContrastColumn
-            label={`With ${PLATFORM_BRAND.name}`}
-            title="One link. Structured. Yours."
-            rows={[
-              "One polished directory URL — bios, specs, portfolios",
-              "Rates &amp; availability surfaced once, always fresh",
-              "Every inquiry lands as a traceable record",
-              "Editorial presentation that earns premium replies",
-              "Full export of your roster and history on demand",
-            ]}
+            label={c.withLabel}
+            title={c.withTitle}
+            rows={c.withRows}
             tone="primary"
           />
         </div>
@@ -1145,7 +1374,27 @@ function ContrastColumn({
 // 8. Final CTA — anchor back to the form
 // ────────────────────────────────────────────────────────────────────────────
 
-function FinalCtaSection() {
+function FinalCtaSection({ locale }: { locale: string }) {
+  const c =
+    locale === "es"
+      ? {
+          eyebrow: "Cuando estés listo",
+          titleA: "Empieza tu negocio.",
+          titleB: "Gratis, en minutos.",
+          subhead:
+            "Gratis para siempre. Agrega tu propio dominio, recibe pagos y suma a tu equipo cuando el trabajo lo pida.",
+          startFree: "Empieza gratis",
+          seeHow: "Mira cómo funciona",
+        }
+      : {
+          eyebrow: "Ready when you are",
+          titleA: "Start your business.",
+          titleB: "Free, in minutes.",
+          subhead:
+            "Free forever. Add your own domain, take payments, and bring on your team whenever the work calls for it.",
+          startFree: "Start free",
+          seeHow: "See how it works",
+        };
   return (
     <MarketingSection spacing="tight" className="relative overflow-hidden">
       <span
@@ -1158,12 +1407,12 @@ function FinalCtaSection() {
       />
       <MarketingContainer size="default">
         <div className="mx-auto max-w-2xl text-center">
-          <MarketingEyebrow>Ready when you are</MarketingEyebrow>
+          <MarketingEyebrow>{c.eyebrow}</MarketingEyebrow>
           <h2
             className="plt-display mt-5 text-[2rem] font-medium leading-[1.05] tracking-[-0.02em] sm:text-[2.75rem]"
             style={{ color: "var(--plt-ink)" }}
           >
-            Start your business.{" "}
+            {c.titleA}{" "}
             <span
               style={{
                 background:
@@ -1172,15 +1421,14 @@ function FinalCtaSection() {
                 WebkitTextFillColor: "transparent",
               }}
             >
-              Free, in minutes.
+              {c.titleB}
             </span>
           </h2>
           <p
             className="mx-auto mt-5 max-w-xl text-[1rem] leading-[1.6]"
             style={{ color: "var(--plt-muted)" }}
           >
-            Free forever. Add your own domain, take payments, and bring on your team
-            whenever the work calls for it.
+            {c.subhead}
           </p>
 
           <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
@@ -1191,7 +1439,7 @@ function FinalCtaSection() {
               eventSource="get-started-final"
               eventIntent="start-free"
             >
-              Start free
+              {c.startFree}
             </MarketingCta>
             <MarketingCta
               href="/how-it-works"
@@ -1200,7 +1448,7 @@ function FinalCtaSection() {
               eventSource="get-started-final"
               eventIntent="learn-more"
             >
-              See how it works
+              {c.seeHow}
             </MarketingCta>
           </div>
         </div>

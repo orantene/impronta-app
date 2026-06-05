@@ -11,6 +11,7 @@ export type EngineEventPriority = "high" | "medium" | "low";
 export const ENGINE_EVENT_TYPES = {
   // Inquiry lifecycle / workflow
   INQUIRY_SUBMITTED: "inquiry.submitted",
+  INQUIRY_DETAILS_UPDATED: "inquiry.details_updated",
   INQUIRY_MOVED_TO_COORDINATION: "inquiry.moved_to_coordination",
   INQUIRY_PRIORITY_SET: "inquiry.priority_set",
   INQUIRY_FROZEN: "inquiry.frozen",
@@ -52,6 +53,7 @@ export const ENGINE_EVENT_TYPES = {
   ROSTER_REORDERED: "roster.reordered",
   ROSTER_TALENT_ACCEPTED: "roster.talent_accepted",
   ROSTER_TALENT_DECLINED: "roster.talent_declined",
+  ROSTER_TALENT_SWAPPED: "roster.talent_swapped",
   OFFER_INVALIDATED_BY_ROSTER_CHANGE: "offer.invalidated_by_roster_change",
 
   // Offers + approvals
@@ -59,6 +61,10 @@ export const ENGINE_EVENT_TYPES = {
   OFFER_DRAFT_UPDATED: "offer.draft_updated",
   OFFER_SENT: "offer.sent",
   OFFER_CLIENT_REJECTED: "offer.client_rejected",
+  // A2: coordinator reopens a SENT offer back to an editable draft so it can be
+  // amended and re-sent (re-seeding fresh approvals). Emitted by
+  // reopenOfferForAmendment in inquiry-engine-offers.ts.
+  OFFER_REOPENED: "offer.reopened",
 
   APPROVAL_SUBMITTED: "approval.submitted",
   APPROVAL_REJECTED: "approval.rejected",
@@ -234,6 +240,7 @@ export function registerEngineEventListener(listener: Listener): void {
 
 const DEFAULT_PRIORITY: Record<EngineEventType, EngineEventPriority> = {
   [ENGINE_EVENT_TYPES.INQUIRY_SUBMITTED]: "high",
+  [ENGINE_EVENT_TYPES.INQUIRY_DETAILS_UPDATED]: "low",
   [ENGINE_EVENT_TYPES.INQUIRY_MOVED_TO_COORDINATION]: "medium",
   [ENGINE_EVENT_TYPES.INQUIRY_PRIORITY_SET]: "low",
   [ENGINE_EVENT_TYPES.INQUIRY_FROZEN]: "high",
@@ -258,11 +265,13 @@ const DEFAULT_PRIORITY: Record<EngineEventType, EngineEventPriority> = {
   [ENGINE_EVENT_TYPES.ROSTER_REORDERED]: "low",
   [ENGINE_EVENT_TYPES.ROSTER_TALENT_ACCEPTED]: "medium",
   [ENGINE_EVENT_TYPES.ROSTER_TALENT_DECLINED]: "medium",
+  [ENGINE_EVENT_TYPES.ROSTER_TALENT_SWAPPED]: "medium",
   [ENGINE_EVENT_TYPES.OFFER_INVALIDATED_BY_ROSTER_CHANGE]: "high",
   [ENGINE_EVENT_TYPES.OFFER_CREATED]: "medium",
   [ENGINE_EVENT_TYPES.OFFER_DRAFT_UPDATED]: "low",
   [ENGINE_EVENT_TYPES.OFFER_SENT]: "high",
   [ENGINE_EVENT_TYPES.OFFER_CLIENT_REJECTED]: "high",
+  [ENGINE_EVENT_TYPES.OFFER_REOPENED]: "high",
   [ENGINE_EVENT_TYPES.APPROVAL_SUBMITTED]: "medium",
   [ENGINE_EVENT_TYPES.APPROVAL_REJECTED]: "high",
   [ENGINE_EVENT_TYPES.APPROVALS_COMPLETED]: "high",

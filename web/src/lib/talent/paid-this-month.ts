@@ -28,5 +28,5 @@ export function computePaidThisMonth(
       count += 1;
     }
   }
-  return { totalCents, count, currency: earnings.totals.currency || "EUR" };
+  return { totalCents, count, currency: earnings.totals.currency || "USD" };
 }

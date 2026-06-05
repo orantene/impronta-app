@@ -106,7 +106,7 @@ export const TALENT_DASHBOARD_GROUPS: DashboardNavGroup[] = [
     items: [
       {
         id: "talent-inquiries-link",
-        href: "/talent/inquiries",
+        href: "/talent/inbox",
         label: "Inquiries",
         match: "prefix",
         icon: "inquiries",

@@ -22,6 +22,7 @@
  */
 
 import {
+  startTransition,
   useActionState,
   useCallback,
   useEffect,
@@ -140,39 +141,6 @@ export const STARTER_TEMPLATE_TILES: RecipeTile[] = [
     sequence: ["Search hero", "Browse by type", "Featured talent", "Location map"],
     sectionTypeKeys: ["hero", "category_grid", "featured_talent", "map_overlay"],
     Wire: WireStudioMinimal,
-  },
-  {
-    slug: "impronta-home",
-    label: "Impronta Homepage",
-    summary:
-      "Production reference — search hero, editorial split hero, talent by discipline, featured talent, location discovery, process, agency trust, talent CTA, client CTA.",
-    info: "The Page Builder 2.0 reference composition. Search-first hero + editorial split hero, live featured roster, tenant-scoped talent count, editorial-noir preset. Reusable and theme-driven.",
-    sections: 9,
-    category: "agency",
-    bestFor: "Agency directory storefronts",
-    sequence: [
-      "Search hero",
-      "Editorial hero",
-      "Talent by discipline",
-      "Featured talent",
-      "Location discovery",
-      "Process",
-      "Agency trust",
-      "Talent CTA",
-      "Client CTA",
-    ],
-    sectionTypeKeys: [
-      "hero_search",
-      "editorial_split_hero",
-      "talent_type_grid",
-      "featured_talent",
-      "location_discovery",
-      "process_steps",
-      "values_trio",
-      "cta_banner",
-      "cta_banner",
-    ],
-    Wire: WireEditorial,
   },
   {
     slug: "editorial-bridal",
@@ -391,6 +359,10 @@ function archetypeGradient(archetype: PageDesignSummary["archetype"]): string {
       return "from-stone-100 to-amber-200";
     case "festival":
       return "from-fuchsia-100 to-purple-300";
+    case "studio":
+      return "from-orange-50 to-amber-200";
+    case "noir":
+      return "from-stone-700 to-neutral-950";
     default:
       return "from-stone-50 to-stone-200";
   }
@@ -588,7 +560,9 @@ export function EmptyCanvasStarter({
                   setPendingDesignId(summary.id);
                   const fd = new FormData();
                   fd.set("designId", summary.id);
-                  designDispatch(fd);
+                  startTransition(() => {
+                    designDispatch(fd);
+                  });
                 }}
                 className="group relative flex flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-stone-300 hover:shadow-[0_18px_44px_-26px_rgba(15,23,20,0.5)] focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900/25 disabled:cursor-not-allowed disabled:opacity-60"
               >
@@ -708,33 +682,82 @@ export function EmptyCanvasStarter({
             );
           })}
         </div>
-        <div className="mt-7 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs">
-          <button
-            type="button"
-            data-empty-canvas-quick-add="hero"
-            disabled={pending || quickInsertPending}
-            onClick={handleQuickHeroInsert}
-            className="font-medium text-stone-500 underline-offset-4 transition hover:text-stone-900 hover:underline disabled:opacity-50"
-          >
-            {quickInsertPending ? "Adding…" : "Start from scratch"}
-          </button>
+        {/* Scratch / blank-canvas path — coaching callout (#20a) */}
+        <div className="mt-8 rounded-xl border border-stone-100 bg-stone-50 px-5 py-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-[13px] font-semibold text-stone-800">
+                Prefer to build block by block?
+              </p>
+              <p className="mt-0.5 text-xs leading-relaxed text-stone-500">
+                Start with a hero and add blocks one at a time using the{" "}
+                <span className="inline-flex items-center gap-0.5 rounded-sm bg-stone-200 px-1 py-0.5 font-mono text-[10px] font-semibold text-stone-700">
+                  + Add block
+                </span>{" "}
+                line that appears between sections as you hover, or the Layers panel on the left.
+              </p>
+            </div>
+            <button
+              type="button"
+              data-empty-canvas-quick-add="hero"
+              disabled={pending || quickInsertPending}
+              onClick={handleQuickHeroInsert}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-3.5 py-2 text-xs font-semibold text-stone-700 shadow-sm transition hover:border-stone-300 hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {quickInsertPending ? (
+                <>
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                    className="animate-spin"
+                  >
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                  </svg>
+                  Adding…
+                </>
+              ) : (
+                <>
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                  Start from scratch
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs">
           {showTemplateGallery ? (
-            <>
-              <span className="text-stone-300" aria-hidden>
-                ·
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  window.dispatchEvent(
-                    new CustomEvent(IMPRONTA_OPEN_TEMPLATE_GALLERY_EVENT),
-                  );
-                }}
-                className="font-medium text-stone-500 underline-offset-4 transition hover:text-stone-900 hover:underline"
-              >
-                Browse all templates
-              </button>
-            </>
+            <button
+              type="button"
+              onClick={() => {
+                window.dispatchEvent(
+                  new CustomEvent(IMPRONTA_OPEN_TEMPLATE_GALLERY_EVENT),
+                );
+              }}
+              className="font-medium text-stone-500 underline-offset-4 transition hover:text-stone-900 hover:underline"
+            >
+              Browse all templates
+            </button>
           ) : null}
         </div>
 

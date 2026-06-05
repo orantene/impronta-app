@@ -27,6 +27,7 @@ import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { isReservedTalentProfileFieldKey } from "@/lib/field-canonical";
 import { readBooleanFromFormData } from "@/lib/field-form-boolean";
 import { mirrorHeightCmToTalentProfile } from "@/lib/field-values-height-mirror";
+import { resolveSelectValue } from "@/lib/fields/coerce-select-value";
 import {
   assignTaxonomyTermToProfile,
   removeTaxonomyTermFromProfile,
@@ -57,21 +58,6 @@ export type AdminTalentFieldValuesState =
 const SUPPORTED_VALUE_TYPES = ["text", "textarea", "number", "boolean", "date"] as const;
 function isSupportedValueType(v: string): v is (typeof SUPPORTED_VALUE_TYPES)[number] {
   return (SUPPORTED_VALUE_TYPES as readonly string[]).includes(v);
-}
-
-function readSelectAllowedValues(config: unknown): Set<string> | null {
-  if (!config || typeof config !== "object" || Array.isArray(config)) return null;
-  const input = (config as Record<string, unknown>).input;
-  if (input !== "select") return null;
-  const options = (config as Record<string, unknown>).options;
-  if (!Array.isArray(options)) return null;
-  const values = new Set<string>();
-  for (const o of options) {
-    if (!o || typeof o !== "object" || Array.isArray(o)) continue;
-    const v = String((o as Record<string, unknown>).value ?? "").trim();
-    if (v) values.add(v);
-  }
-  return values.size ? values : null;
 }
 
 const talentProfileUpdateSchema = z.object({
@@ -473,11 +459,15 @@ export async function saveAdminTalentScalarFieldValues(
 
     let patch: Record<string, unknown> | null = null;
     if (def.value_type === "text" || def.value_type === "textarea") {
-      const allowed = def.value_type === "text" ? readSelectAllowedValues(def.config) : null;
-      if (allowed && raw.length > 0 && !allowed.has(raw)) {
-        return { error: `Invalid value for ${def.label_en ?? "field"}.` };
+      let textToWrite = raw;
+      if (def.value_type === "text" && raw.length > 0) {
+        const res = resolveSelectValue(def.config, raw);
+        // Don't let an orphaned legacy value on an untouched select brick the
+        // whole save — skip it. Self-heal label/case drift on a match.
+        if (res.kind === "unmatchable") continue;
+        if (res.kind === "matched") textToWrite = res.value;
       }
-      patch = raw.length > 0 ? { value_text: raw } : null;
+      patch = textToWrite.length > 0 ? { value_text: textToWrite } : null;
     } else if (def.value_type === "number") {
       const n = raw ? Number(raw) : NaN;
       patch = Number.isFinite(n) ? { value_number: n } : null;

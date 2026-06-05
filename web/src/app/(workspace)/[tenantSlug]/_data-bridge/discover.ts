@@ -3,6 +3,7 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { deterministicSeedPhoto } from "@/lib/discover/seed-photo";
+import { loadTalentCardThumbs } from "./talent-card-thumbs";
 
 /**
  * _data-bridge/discover.ts — cross-tenant Discover catalog reads.
@@ -15,13 +16,10 @@ import { deterministicSeedPhoto } from "@/lib/discover/seed-photo";
  * without remapping types.
  */
 
-// Order = best-first. Enum values per media_variant_kind:
-//   original, card, gallery, banner, lightbox, public_watermarked, watermarked, hero
-// "hero" is the talent-side 4:5 cover (project_talent_surface_launch.md);
-// "card" is the curated thumbnail. Both work as primary; we prefer hero.
-// "original" is intentionally excluded — see talents-by-ids/route.ts for
-// the egress-hygiene rationale (raw camera files dominate storage egress).
-const PHOTO_VARIANT_PRIORITY = ["hero", "card", "public_watermarked", "watermarked", "gallery"];
+// Card/face photo resolution is centralized in `loadTalentCardThumbs`
+// (./talent-card-thumbs) so Discover renders the same face as the agency
+// roster and the talent's own dashboard. Priority there is
+// card → hero → public_watermarked → gallery → original.
 
 // ---------------------------------------------------------------------------
 // Free-text location data-quality helpers.
@@ -261,36 +259,10 @@ export async function loadDiscoverTalents(
   //   - geo coords: live on locations.{latitude,longitude} via the
   //     residence_city_id FK; can be added to the view later if map-view
   //     callers become hot. For now we batch-fetch them in one go.
-  const photoByTalent = new Map<string, string>();
+  const photoByTalent = await loadTalentCardThumbs(admin, ids);
   const coordsByCityId = new Map<string, { lat: number | null; lng: number | null }>();
 
   if (ids.length > 0) {
-    // Photos.
-    const { data: photos } = await admin
-      .from("media_assets")
-      .select("owner_talent_profile_id, storage_path, variant_kind")
-      .in("owner_talent_profile_id", ids)
-      .in("variant_kind", PHOTO_VARIANT_PRIORITY)
-      .is("deleted_at", null);
-
-    const bestRank = new Map<string, number>();
-    for (const m of (photos ?? []) as Array<{
-      owner_talent_profile_id: string;
-      storage_path: string;
-      variant_kind: string;
-    }>) {
-      const rank = PHOTO_VARIANT_PRIORITY.indexOf(m.variant_kind);
-      if (rank < 0) continue;
-      const current = bestRank.get(m.owner_talent_profile_id);
-      if (current === undefined || rank < current) {
-        bestRank.set(m.owner_talent_profile_id, rank);
-        const url = m.storage_path.startsWith("http")
-          ? m.storage_path
-          : admin.storage.from("media-public").getPublicUrl(m.storage_path).data.publicUrl;
-        photoByTalent.set(m.owner_talent_profile_id, url);
-      }
-    }
-
     // Geo coords (batch-by-city-id to dedupe shared cities).
     const cityIds = Array.from(
       new Set(rows.map((r) => r.residence_city_id).filter((x): x is string => !!x)),
@@ -516,35 +488,10 @@ export async function loadDiscoverMapPoints(
   const rows = (data ?? []) as unknown as Row[];
   const ids = rows.map((r) => r.id);
 
-  const photoByTalent = new Map<string, string>();
+  const photoByTalent = await loadTalentCardThumbs(admin, ids);
   const coordsByCityId = new Map<string, { lat: number | null; lng: number | null }>();
 
   if (ids.length > 0) {
-    const { data: photos } = await admin
-      .from("media_assets")
-      .select("owner_talent_profile_id, storage_path, variant_kind")
-      .in("owner_talent_profile_id", ids)
-      .in("variant_kind", PHOTO_VARIANT_PRIORITY)
-      .is("deleted_at", null);
-
-    const bestRank = new Map<string, number>();
-    for (const m of (photos ?? []) as Array<{
-      owner_talent_profile_id: string;
-      storage_path: string;
-      variant_kind: string;
-    }>) {
-      const rank = PHOTO_VARIANT_PRIORITY.indexOf(m.variant_kind);
-      if (rank < 0) continue;
-      const current = bestRank.get(m.owner_talent_profile_id);
-      if (current === undefined || rank < current) {
-        bestRank.set(m.owner_talent_profile_id, rank);
-        const url = m.storage_path.startsWith("http")
-          ? m.storage_path
-          : admin.storage.from("media-public").getPublicUrl(m.storage_path).data.publicUrl;
-        photoByTalent.set(m.owner_talent_profile_id, url);
-      }
-    }
-
     const cityIds = Array.from(
       new Set(rows.map((r) => r.residence_city_id).filter((x): x is string => !!x)),
     );
@@ -757,33 +704,7 @@ export async function loadClientShortlistsForUser(
     }
   }
 
-  const photoByTalent = new Map<string, string>();
-  if (allTalentIds.size > 0) {
-    const { data: photos } = await admin
-      .from("media_assets")
-      .select("owner_talent_profile_id, storage_path, variant_kind")
-      .in("owner_talent_profile_id", Array.from(allTalentIds))
-      .in("variant_kind", PHOTO_VARIANT_PRIORITY)
-      .is("deleted_at", null);
-
-    const bestRank = new Map<string, number>();
-    for (const m of (photos ?? []) as Array<{
-      owner_talent_profile_id: string;
-      storage_path: string;
-      variant_kind: string;
-    }>) {
-      const rank = PHOTO_VARIANT_PRIORITY.indexOf(m.variant_kind);
-      if (rank < 0) continue;
-      const current = bestRank.get(m.owner_talent_profile_id);
-      if (current === undefined || rank < current) {
-        bestRank.set(m.owner_talent_profile_id, rank);
-        photoByTalent.set(
-          m.owner_talent_profile_id,
-          admin.storage.from("media-public").getPublicUrl(m.storage_path).data.publicUrl,
-        );
-      }
-    }
-  }
+  const photoByTalent = await loadTalentCardThumbs(admin, Array.from(allTalentIds));
 
   return rows.map((r) => ({
     id: r.id,
@@ -953,32 +874,7 @@ export async function loadAdminDiscoverInquiries(
     }
   }
 
-  const photoByTalent = new Map<string, string>();
-  if (talentIds.size > 0) {
-    const { data: photos } = await admin
-      .from("media_assets")
-      .select("owner_talent_profile_id, storage_path, variant_kind")
-      .in("owner_talent_profile_id", Array.from(talentIds))
-      .in("variant_kind", PHOTO_VARIANT_PRIORITY)
-      .is("deleted_at", null);
-    const bestRank = new Map<string, number>();
-    for (const m of (photos ?? []) as Array<{
-      owner_talent_profile_id: string;
-      storage_path: string;
-      variant_kind: string;
-    }>) {
-      const rank = PHOTO_VARIANT_PRIORITY.indexOf(m.variant_kind);
-      if (rank < 0) continue;
-      const current = bestRank.get(m.owner_talent_profile_id);
-      if (current === undefined || rank < current) {
-        bestRank.set(m.owner_talent_profile_id, rank);
-        const url = m.storage_path.startsWith("http")
-          ? m.storage_path
-          : admin.storage.from("media-public").getPublicUrl(m.storage_path).data.publicUrl;
-        photoByTalent.set(m.owner_talent_profile_id, url);
-      }
-    }
-  }
+  const photoByTalent = await loadTalentCardThumbs(admin, Array.from(talentIds));
 
   return rows.map((r) => {
     const talents = (r.inquiry_participants ?? [])
@@ -1089,33 +985,7 @@ export async function loadClientFavoritesForUser(
 
   // Batch-fetch photos.
   const ids = rows.map((r) => r.talent_profile_id);
-  const photoByTalent = new Map<string, string>();
-  if (ids.length > 0) {
-    const { data: photos } = await admin
-      .from("media_assets")
-      .select("owner_talent_profile_id, storage_path, variant_kind")
-      .in("owner_talent_profile_id", ids)
-      .in("variant_kind", PHOTO_VARIANT_PRIORITY)
-      .is("deleted_at", null);
-
-    const bestRank = new Map<string, number>();
-    for (const m of (photos ?? []) as Array<{
-      owner_talent_profile_id: string;
-      storage_path: string;
-      variant_kind: string;
-    }>) {
-      const rank = PHOTO_VARIANT_PRIORITY.indexOf(m.variant_kind);
-      if (rank < 0) continue;
-      const current = bestRank.get(m.owner_talent_profile_id);
-      if (current === undefined || rank < current) {
-        bestRank.set(m.owner_talent_profile_id, rank);
-        const url = m.storage_path.startsWith("http")
-          ? m.storage_path
-          : admin.storage.from("media-public").getPublicUrl(m.storage_path).data.publicUrl;
-        photoByTalent.set(m.owner_talent_profile_id, url);
-      }
-    }
-  }
+  const photoByTalent = await loadTalentCardThumbs(admin, ids);
 
   return rows
     .map((row): DiscoverShortlistTalent | null => {

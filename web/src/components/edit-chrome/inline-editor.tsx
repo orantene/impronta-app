@@ -57,7 +57,7 @@ interface ActiveTextEdit {
   variant: "single" | "multi";
   builderNode?: {
     id: string;
-    propKey: "text" | "label" | "title";
+    propKey: "text" | "label" | "title" | "brand";
   };
 }
 
@@ -97,6 +97,10 @@ export function InlineEditor() {
   const targetImgRef = useRef<TargetImageEdit | null>(null);
   const [imgHover, setImgHover] = useState<{
     img: HTMLImageElement;
+    rect: DOMRect;
+  } | null>(null);
+  const [textHover, setTextHover] = useState<{
+    el: HTMLElement;
     rect: DOMRect;
   } | null>(null);
   const [banner, setBanner] = useState<Banner>({ kind: "none" });
@@ -219,10 +223,6 @@ export function InlineEditor() {
 
     function onDblClick(e: MouseEvent) {
       if (!(e.target instanceof HTMLElement)) return;
-      const sectionEl = e.target.closest<HTMLElement>("[data-cms-section]");
-      if (!sectionEl) return;
-      const sectionId = sectionEl.getAttribute("data-section-id");
-      if (!sectionId || sectionId !== selectedIdRef.current) return;
 
       // Don't re-engage an already-editing element.
       if (e.target.closest('[data-edit-overlay="canvas-edit"]')) return;
@@ -233,20 +233,38 @@ export function InlineEditor() {
       const editable = findEditableTextEl(e.target);
       if (!editable) return;
 
-      const original = (editable.textContent ?? "").trim();
-      if (!original) return;
-
-      e.preventDefault();
-      e.stopPropagation();
-
-      const variant: "single" | "multi" = SINGLE_LINE_TAGS.has(editable.tagName)
-        ? "single"
-        : "multi";
+      // #16: prefer the stored prop value for builder nodes — it carries rich
+      // marker syntax (bold/italic/links) that the RichEditor understands,
+      // while textContent would strip all markers to plain text.
       const builderNodeTarget = resolveEditableBuilderNodeTextTarget(
         builderTreeRef.current,
         editable,
       );
+
+      // ── Freeform builder-node text — the primary path for 2026 full-page
+      // designs. These patch DIRECTLY via patchBuilderNodeProps (keyed by node
+      // id), so they need NEITHER a wrapping `[data-cms-section]` element NOR
+      // section-selection alignment. Full-page freeform designs have builder
+      // nodes with no parent CMS section (`sectionIdByBuilderNodeId` is empty →
+      // `selectedSectionId` stays null), so the legacy section gate below would
+      // reject EVERY freeform text node and the canvas WYSIWYG (bold / italic /
+      // colour / link toolbar) would never appear on double-click. Resolve and
+      // open the overlay here, before that gate. ──
       if (builderNodeTarget) {
+        // Resolve the stored value BEFORE the empty check so a heading that
+        // contains only styled spans (empty DOM text) doesn't block.
+        const storedValue = resolveBuilderNodeTextValue(
+          builderTreeRef.current,
+          builderNodeTarget.id,
+          builderNodeTarget.propKey,
+        );
+        const original =
+          storedValue !== null
+            ? storedValue
+            : (editable.textContent ?? "").trim();
+        if (!original) return;
+        e.preventDefault();
+        e.stopPropagation();
         selectBuilderNode(builderNodeTarget.id);
         setActiveEdit({
           el: editable,
@@ -259,10 +277,24 @@ export function InlineEditor() {
         });
         return;
       }
-      // Legacy section text still writes through draftProps, so wait until
-      // the inspector has loaded that payload. Freeform nodes patch directly
-      // above and do not need this section-prop payload.
+
+      // ── Legacy CMS-section text — writes go through `draftProps` keyed by the
+      // currently-loaded section, so the double-clicked text must live inside
+      // the section that's actually selected. ──
+      const sectionEl = e.target.closest<HTMLElement>("[data-cms-section]");
+      if (!sectionEl) return;
+      const sectionId = sectionEl.getAttribute("data-section-id");
+      if (!sectionId || sectionId !== selectedIdRef.current) return;
+      const original = (editable.textContent ?? "").trim();
+      if (!original) return;
+      // Legacy section text still writes through draftProps, so wait until the
+      // inspector has loaded that payload.
       if (!draftPropsRef.current) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const variant: "single" | "multi" = SINGLE_LINE_TAGS.has(editable.tagName)
+        ? "single"
+        : "multi";
       setActiveEdit({ el: editable, original, variant });
     }
 
@@ -296,33 +328,62 @@ export function InlineEditor() {
     [activeEdit, commitBuilderNodeText, commitText],
   );
 
-  // ── image hover + replace driver ─────────────────────────────────────
+  // ── image hover + replace driver + text hover hint driver ────────────
   useEffect(() => {
     function onPointerMove(e: PointerEvent) {
       if (!(e.target instanceof HTMLElement)) return;
+
+      // ── image hover (existing) — scoped to selected CMS sections ─────
       const sectionEl = e.target.closest<HTMLElement>("[data-cms-section]");
-      if (!sectionEl) {
+      const sectionId = sectionEl?.getAttribute("data-section-id") ?? null;
+      const inSelectedSection =
+        sectionEl !== null &&
+        sectionId !== null &&
+        sectionId === selectedIdRef.current;
+
+      if (!inSelectedSection) {
         setImgHover(null);
-        return;
-      }
-      const sectionId = sectionEl.getAttribute("data-section-id");
-      if (!sectionId || sectionId !== selectedIdRef.current) {
+      } else {
+        const img =
+          e.target instanceof HTMLImageElement
+            ? e.target
+            : (e.target.closest("img") as HTMLImageElement | null);
+        if (img && sectionEl!.contains(img)) {
+          setImgHover({ img, rect: img.getBoundingClientRect() });
+          // Image takes priority — suppress text hint while on an image.
+          setTextHover(null);
+          return;
+        }
         setImgHover(null);
-        return;
       }
-      const img =
-        e.target instanceof HTMLImageElement
-          ? e.target
-          : (e.target.closest("img") as HTMLImageElement | null);
-      if (!img || !sectionEl.contains(img)) {
-        setImgHover(null);
-        return;
+
+      // ── text hover hint (new) ─────────────────────────────────────────
+      // Resolve the nearest editable text target using the same helper the
+      // dblclick handler uses. This covers BOTH freeform builder nodes (no
+      // `[data-cms-section]` wrapper — the primary 2026 full-page path) and
+      // legacy CMS-section text. The hint is purely informational; clicking
+      // or double-clicking the element below is unaffected.
+      const textTarget = resolveEditableBuilderNodeTextTarget(
+        builderTreeRef.current,
+        e.target,
+      );
+      if (textTarget) {
+        // Anchor to the builder-node container for a stable bounding rect,
+        // falling back to the hovered element itself.
+        const nodeEl =
+          e.target.closest<HTMLElement>("[data-builder-node-id]") ??
+          e.target;
+        setTextHover({ el: nodeEl, rect: nodeEl.getBoundingClientRect() });
+      } else {
+        setTextHover(null);
       }
-      setImgHover({ img, rect: img.getBoundingClientRect() });
     }
     function onScrollOrResize() {
       setImgHover((cur) =>
         cur ? { img: cur.img, rect: cur.img.getBoundingClientRect() } : cur,
+      );
+      setTextHover((cur) =>
+        cur ? { el: cur.el, rect: cur.el.getBoundingClientRect() } : cur,
       );
     }
     document.addEventListener("pointermove", onPointerMove);
@@ -409,8 +470,45 @@ export function InlineEditor() {
   const showImgHint =
     selectedSectionId !== null && imgHover !== null && !mediaOpen;
 
+  // Show the text hint when hovering an editable text node, but not while an
+  // edit overlay is already open (that would be distracting).
+  const showTextHint =
+    textHover !== null && activeEdit === null && !mediaOpen;
+
   return (
     <>
+      {showTextHint && textHover ? (
+        <div
+          data-edit-overlay="inline-text-hint"
+          style={{
+            position: "fixed",
+            top: Math.max(textHover.rect.top + 6, 60),
+            left: textHover.rect.right - 132,
+            zIndex: 114,
+            pointerEvents: "none",
+          }}
+          className="inline-flex items-center gap-1.5 rounded-full bg-[#242942]/80 px-3 py-1.5 text-[11px] font-medium text-white/80 shadow-md backdrop-blur"
+        >
+          {/* Text-cursor icon */}
+          <svg
+            width="11"
+            height="11"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <path d="M17 6H7M17 18H7M12 6v12" />
+            <path d="M10 6 Q12 4 14 6" />
+            <path d="M10 18 Q12 20 14 18" />
+          </svg>
+          Double-click to edit
+        </div>
+      ) : null}
+
       {showImgHint && imgHover ? (
         <button
           type="button"
@@ -535,22 +633,35 @@ function findBuilderNodeById(
   return null;
 }
 
+/**
+ * #16 Inline-edit everywhere — resolve the prop key and editing variant for any
+ * text-bearing builder node. Fast-path: reads `data-builder-node-kind` from the
+ * DOM attr set by render.tsx. Slow-path: tree lookup for nodes whose kind was
+ * not yet in the original DOM-attr fast-path list.
+ *
+ * Extended in Wave 3 · 3D to cover `nav` (brand), `icon` (label), and
+ * `accordion_item` / `tab_panel` titles already covered by the data-attr path.
+ */
 function resolveEditableBuilderNodeTextTarget(
   tree: BuilderNodeTree,
   el: HTMLElement,
 ): {
   id: string;
-  propKey: "text" | "label" | "title";
+  propKey: "text" | "label" | "title" | "brand";
   variant: "single" | "multi";
 } | null {
   const nodeEl = el.closest<HTMLElement>("[data-builder-node-id]");
   const nodeId = nodeEl?.getAttribute("data-builder-node-id") ?? null;
   if (!nodeId || resolveBuilderNodeRole(nodeId)) return null;
   const renderedKind = nodeEl?.getAttribute("data-builder-node-kind");
+  // Fast-path — kind is present on the DOM element (covers all builder-node render cases).
   if (renderedKind === "heading") {
     return { id: nodeId, propKey: "text", variant: "single" };
   }
   if (renderedKind === "paragraph") {
+    return { id: nodeId, propKey: "text", variant: "multi" };
+  }
+  if (renderedKind === "rich_text") {
     return { id: nodeId, propKey: "text", variant: "multi" };
   }
   if (renderedKind === "button") {
@@ -559,19 +670,64 @@ function resolveEditableBuilderNodeTextTarget(
   if (renderedKind === "accordion_item" || renderedKind === "tab_panel") {
     return { id: nodeId, propKey: "title", variant: "single" };
   }
+  if (renderedKind === "icon") {
+    // Only editable if it has a label (decorative icons have none).
+    const node = findBuilderNodeById(tree, nodeId);
+    if (node?.kind === "icon" && node.props.label) {
+      return { id: node.id, propKey: "label", variant: "single" };
+    }
+    return null;
+  }
+  if (renderedKind === "nav") {
+    // Only the brand name (wordmark) is inline-editable; link labels are in
+    // the inspector table. Check whether the click landed on the brand element.
+    const brandEl = nodeEl?.querySelector(".site-builder-node--nav-brand");
+    if (brandEl && (brandEl === el || brandEl.contains(el))) {
+      const node = findBuilderNodeById(tree, nodeId);
+      if (node?.kind === "nav" && node.props.brand) {
+        return { id: node.id, propKey: "brand", variant: "single" };
+      }
+    }
+    return null;
+  }
+  // Slow-path — tree lookup for any remaining text-bearing kinds.
   const node = findBuilderNodeById(tree, nodeId);
   if (!node || node.kind === "section") return null;
-  if (node.kind === "heading") {
-    return { id: node.id, propKey: "text", variant: "single" };
-  }
-  if (node.kind === "paragraph") {
-    return { id: node.id, propKey: "text", variant: "multi" };
-  }
-  if (node.kind === "button") {
-    return { id: node.id, propKey: "label", variant: "single" };
-  }
+  if (node.kind === "heading") return { id: node.id, propKey: "text", variant: "single" };
+  if (node.kind === "paragraph") return { id: node.id, propKey: "text", variant: "multi" };
+  if (node.kind === "rich_text") return { id: node.id, propKey: "text", variant: "multi" };
+  if (node.kind === "button") return { id: node.id, propKey: "label", variant: "single" };
   if (node.kind === "accordion_item" || node.kind === "tab_panel") {
     return { id: node.id, propKey: "title", variant: "single" };
+  }
+  if (node.kind === "icon" && node.props.label) {
+    return { id: node.id, propKey: "label", variant: "single" };
+  }
+  if (node.kind === "nav" && node.props.brand) {
+    const brandEl = nodeEl?.querySelector(".site-builder-node--nav-brand");
+    if (brandEl && (brandEl === el || brandEl.contains(el))) {
+      return { id: node.id, propKey: "brand", variant: "single" };
+    }
+  }
+  return null;
+}
+
+/**
+ * #16 Retrieve the STORED prop value for a builder node's text field so the
+ * inline editor gets the full marker syntax (e.g. `**bold**`) rather than the
+ * plain-text DOM rendering. Returns null if the node / prop is not found.
+ */
+function resolveBuilderNodeTextValue(
+  tree: BuilderNodeTree,
+  nodeId: string,
+  propKey: "text" | "label" | "title" | "brand",
+): string | null {
+  const node = findBuilderNodeById(tree, nodeId);
+  if (!node) return null;
+  if ("props" in node) {
+    const props = node.props as Record<string, unknown>;
+    const value = props[propKey];
+    if (typeof value === "string") return value;
   }
   return null;
 }

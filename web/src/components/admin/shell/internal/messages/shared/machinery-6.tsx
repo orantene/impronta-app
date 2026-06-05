@@ -235,7 +235,7 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
   const isClient = pov === "client";
   const isAdmin = pov === "admin";
   const fallbackTotal = inquiry.budget?.amount ?? 0;
-  const fallbackCurrency = inquiry.budget?.currency ?? "EUR";
+  const fallbackCurrency = inquiry.budget?.currency ?? "USD";
 
   const [state, setState] = useState<InquiryPaymentState | null>(null);
   const [loading, setLoading] = useState(true);

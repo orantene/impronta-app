@@ -16,7 +16,7 @@ import { TalentActiveEarningsProvider } from "./TalentActiveEarningsContext";
 import { useResolvedTalentEarningsByCurrency } from "./use-resolved-talent-earnings-by-currency";
 
 /**
- * Single currency pane — wraps sub-components in TalentActiveEarningsProvider
+ * Single currency pane, wraps sub-components in TalentActiveEarningsProvider
  * so `useResolvedTalentEarnings()` inside them returns this bundle instead of
  * the bridge primary. Used for both single-currency and per-tab rendering.
  */
@@ -58,10 +58,10 @@ export function MoneyPage() {
       </AdminFinancialsCurrencyTabs>
     );
   } else if (hasBridgeData) {
-    // Exactly one currency — no tab strip, single inline layout (no regression).
+    // Exactly one currency, no tab strip, single inline layout (no regression).
     earningsContent = <MoneyPane earnings={byCurrency[0]!} />;
   } else {
-    // Mock mode — bridge absent; sub-components fall back to EARNINGS_ROWS
+    // Mock mode, bridge absent; sub-components fall back to EARNINGS_ROWS
     // fixtures via useResolvedTalentEarnings() → mockTalentEarningsFromFixtures.
     earningsContent = (
       <>
@@ -78,7 +78,7 @@ export function MoneyPage() {
     <>
       <PageHeader
         title="Money"
-        subtitle="Your earnings, agency relationships and payout history — one place, every workspace."
+        subtitle="Your earnings, agency relationships and payout history, one place, every workspace."
         actions={
           <>
             <SecondaryButton size="sm" onClick={() => openDrawer("talent-add-event", { mode: "work" })}>

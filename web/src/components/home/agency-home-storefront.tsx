@@ -1,3 +1,4 @@
+import { AgencyChatLauncherMount } from "@/app/(public)/_chat/AgencyChatLauncherMount";
 import { MergeGuestFavorites } from "@/components/client/merge-guest-favorites";
 import { DirectoryInquiryModalProvider } from "@/components/directory/directory-inquiry-modal-context";
 import { DirectoryInquirySheet } from "@/components/directory/directory-inquiry-sheet";
@@ -26,6 +27,7 @@ import {
   loadHomepageForRender,
 } from "@/lib/site-admin/server/homepage-reads";
 import { BuilderNodeRendererStyles } from "@/lib/site-admin/builder-node";
+import { jsonLdDocumentToScript } from "@/lib/site-admin/cms-seo";
 import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
 import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
@@ -141,18 +143,47 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
   const cmsHeroSlot = cmsSlots.some((s) => s.slotKey === "hero");
   /** Draft/edit canvases use whatever slot keys the builder assigned — never infer emptiness from a legacy whitelist. */
   const cmsSectionCount = cmsSlots.length;
+  /**
+   * Freeform full-page designs (one-click starter designs) persist a
+   * `builderTree` with NO curated slots. The slot-count emptiness check below
+   * would otherwise treat such a page as empty — showing the first-run picker
+   * on top of a page that actually has a design — so detect the tree here.
+   */
+  const cmsBuilderTreeLen = cmsHomepage?.snapshot?.builderTree?.length ?? 0;
+  // ONLY treat the page as freeform when there are NO curated slots — a curated
+  // composition keeps its hero-first per-slot render path untouched.
+  const hasFreeformBuilderTree =
+    cmsBuilderTreeLen > 0 &&
+    cmsSectionCount === 0 &&
+    Boolean(cmsHomepage?.snapshot);
   /** Non-hero slots render below the full-bleed hero in snapshot order. */
   const hasRenderableNonHeroSlots = cmsSlots.some((s) => s.slotKey !== "hero");
   const shouldRenderBuilderNodeStyles =
-    snapshotShellActive || (cmsSectionCount > 0 && Boolean(cmsHomepage?.snapshot));
+    snapshotShellActive ||
+    ((cmsSectionCount > 0 || hasFreeformBuilderTree) &&
+      Boolean(cmsHomepage?.snapshot));
 
   const year = new Date().getFullYear();
+
+  // P4-SEO — operator-authored schema.org JSON-LD, emitted as a structured-data
+  // script in the page tree (same pattern as the talent profile page). Suppress
+  // in preview/edit so draft structured data is never served to crawlers.
+  const jsonLdScript =
+    !previewActive && !editActive
+      ? jsonLdDocumentToScript(cmsHomepage?.jsonLd ?? null)
+      : "";
 
   return (
     <div
       className="flex min-h-full flex-1 flex-col bg-background"
       data-preview={previewActive ? "draft" : undefined}
     >
+      {jsonLdScript ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: jsonLdScript }}
+        />
+      ) : null}
       {showPreviewBanner ? (
         <div
           role="status"
@@ -182,11 +213,24 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
           <PublicHeader />
         )}
         <main className="flex flex-1 flex-col">
-          {editActive && cmsSectionCount === 0 ? (
+          {editActive && cmsSectionCount === 0 && !hasFreeformBuilderTree ? (
             // Edit mode, no composition yet → starter picker. Dispatches the
             // same `applyStarterComposition` the admin composer uses, so the
             // two paths converge on one seeded-draft state.
             <EmptyCanvasStarter locale={locale} />
+          ) : hasFreeformBuilderTree ? (
+            // Freeform full-page design: a builderTree with no curated slots
+            // (e.g. a one-click starter design). Render the whole snapshot once
+            // — HomepageCmsSections resolves + renders the builderTree directly
+            // (and stays editable in edit mode). Without this branch a freeform
+            // design fell through to the slot-count emptiness check and the
+            // first-run picker kept covering it.
+            <HomepageCmsSections
+              snapshot={cmsHomepage!.snapshot!}
+              tenantId={tenantId}
+              locale={locale}
+              includeBuilderNodeRendererStyles={false}
+            />
           ) : cmsSectionCount > 0 && cmsHomepage?.snapshot ? (
             // Canonical (and only) body path: the CMS / Page Builder
             // composition, rendered through the shared renderer. Hero slot
@@ -267,6 +311,9 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
           </FavoritesDrawerProvider>
         </DirectoryInquiryModalProvider>
       </PublicDiscoveryStateProvider>
+      {/* Floating "Message {agency}" guest-chat launcher — self-gates on the
+          tenant's guest-chat settings (enabled + show-on-directory). */}
+      <AgencyChatLauncherMount sourcePage="/" />
     </div>
   );
 }

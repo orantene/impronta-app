@@ -117,7 +117,7 @@ function InquiryTable({
           return (
             <Link
               key={inq.id}
-              href={`/${tenantSlug}/client/inquiries/${inq.id}`}
+              href={`/${tenantSlug}/client/messages?inquiry=${inq.id}`}
               style={{
                 display: "grid",
                 gridTemplateColumns: "1fr auto",

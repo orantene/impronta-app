@@ -9,6 +9,7 @@ import { COLORS, FONTS, PLAN_META, RADIUS, TRANSITION, meetsPlan, meetsRole, use
 import type { Plan, Role } from "../state";
 import { AutoAckSettingsRow, LockedPill, SETTINGS_SECTIONS } from "./BillingPage";
 import { DefaultCurrencySettingsRow } from "@/components/admin/account/DefaultCurrencySettingsRow";
+import { CommercialTermsSettingsCard } from "@/components/admin/account/CommercialTermsSettingsCard";
 import { PageHeader } from "./pages-shared";
 import {
   SETTINGS_SECTION_EVENT,
@@ -16,6 +17,8 @@ import {
   type SettingsSectionTarget,
 } from "./settings-deeplink";
 import { RegistrationSection } from "./RegistrationSection";
+import { IntegrationsSection } from "./IntegrationsSection";
+import { SettingsSectionIcon } from "@/components/admin/settings/settings-section-icons";
 
 
 /** Settings list row — white card with flex-row layout + hover lift.
@@ -110,6 +113,7 @@ function AccordionItem({
         onMouseEnter={(e) => { if (!open) e.currentTarget.style.background = "rgba(11,11,13,0.02)"; }}
         onMouseLeave={(e) => { if (!open) e.currentTarget.style.background = "transparent"; }}
       >
+        <SettingsSectionIcon sectionId={id} danger={danger} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{
@@ -182,7 +186,7 @@ export function WorkspacePageView() {
   type SettingsTab = "workspace" | "roster" | "team" | "billing" | "advanced";
   const [activeTab, setActiveTab] = useState<SettingsTab>("workspace");
   const TABS: { id: SettingsTab; label: string; emoji: string; sections: string[] }[] = [
-    { id: "workspace", label: "Workspace",     emoji: "🏛", sections: ["account", "workspace", "domain", "branding", "media-watermark"] },
+    { id: "workspace", label: "Workspace",     emoji: "🏛", sections: ["account", "workspace", "commercial-terms", "domain", "branding", "media-watermark"] },
     { id: "roster",    label: "Roster",        emoji: "🎯", sections: ["talent-types", "roster-review", "registration", "discover"] },
     { id: "team",      label: "Team & legal",  emoji: "👥", sections: ["team", "compliance"] },
     { id: "billing",   label: "Plan & integrations", emoji: "💳", sections: ["plan", "integrations", "brand", "growth", "email"] },
@@ -384,6 +388,7 @@ export function WorkspacePageView() {
           <AccordionItem id="workspace" label="Workspace" desc="Timezone, locale, currency, and workspace defaults." supportLink="/help/settings/workspace" open={isOpen("workspace")} onToggle={() => toggleSection("workspace")}>
             {[
               { title: "General",     desc: "Timezone · Locale · Workspace defaults",  drawer: "workspace-settings" as const },
+              { title: "Guest chat", desc: "Show a “Message” button on your public pages — on/off + where it appears", drawer: "guest-chat-settings" as const },
               { title: "Profile fields", desc: "Enable, require, rename talent profile fields", drawer: "field-catalog" as const, plan: "agency" as const },
               { title: "Field settings", desc: "Workspace overrides for the resolved profile engine", drawer: "workspace-field-settings" as const, plan: "agency" as const },
               { title: "Talent categories", desc: "Tenant-enabled categories for roster and registration",  drawer: "talent-types" as const, plan: "agency" as const },
@@ -405,6 +410,13 @@ export function WorkspacePageView() {
             })}
             {/* L49 — Default currency inline picker (display-only, no FX). */}
             <DefaultCurrencySettingsRow />
+          </AccordionItem>
+          )}
+
+          {visibleSections.has("commercial-terms") && tenantSlug && (
+          <AccordionItem id="commercial-terms" label="Booking terms" desc="Default deposit, refund policy, and instant booking for new offers." supportLink="/help/settings/booking-terms" open={isOpen("commercial-terms")} onToggle={() => toggleSection("commercial-terms")}>
+            {/* Commercial terms — workspace defaults; an offer can override. */}
+            <CommercialTermsSettingsCard tenantSlug={tenantSlug} />
           </AccordionItem>
           )}
 
@@ -704,21 +716,8 @@ export function WorkspacePageView() {
           )}
 
           {visibleSections.has("integrations") && (
-          <AccordionItem id="integrations" label="Integrations" desc="Connect calendars, CRMs, and other tools." supportLink="/help/settings/integrations" open={isOpen("integrations")} onToggle={() => toggleSection("integrations")}>
-            {[
-              { name: "Google Calendar sync", status: "Connected",  connected: true  },
-              { name: "Slack notifications",   status: "Not set up", connected: false },
-              { name: "Xero / QuickBooks",      status: "Not set up", connected: false },
-            ].map((intg) => (
-              <SettingsRow key={intg.name}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{intg.name}</div>
-                  <div style={{ fontSize: 12, marginTop: 2, color: intg.connected ? COLORS.successDeep : COLORS.inkMuted }}>
-                    {intg.status}
-                  </div>
-                </div>
-              </SettingsRow>
-            ))}
+          <AccordionItem id="integrations" label="Integrations" desc="Bring your own keys — maps, analytics, and marketing tags for your storefront." supportLink="/help/settings/integrations" open={isOpen("integrations")} onToggle={() => toggleSection("integrations")}>
+            <IntegrationsSection />
           </AccordionItem>
           )}
 

@@ -16,6 +16,13 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import {
+  equalSpacingSnapDelta,
+  findEqualSpacing,
+  type GuideBox,
+  type SpacingGuide,
+} from "./canvas-align-guides";
+
 interface Rect {
   top: number;
   left: number;
@@ -27,9 +34,16 @@ const GRID = 8;
 // Pointer distance within which the dragged block snaps its centre to the
 // parent's centre (and shows an alignment guide), Figma/Webflow-style.
 const ALIGN = 6;
+// Pointer distance within which the move softly snaps to an EQUAL-SPACING
+// (distribution) position between the nearest siblings on an axis.
+const SPACING_SNAP = 6;
 // Only show the grip when the box is roomy enough that a centre control won't
 // swamp the content or fight the resize/spacing handles.
 const MIN_BOX = 64;
+// 4A #8 — teal for equal-spacing (distribution) pills; magenta-ish accent for
+// edge/centre alignment stays the caller-supplied `accent`. Matches the
+// Figma/Webflow distribution-cue colour family.
+const SPACING_TEAL = "#00b8a9";
 
 interface Box {
   top: number;
@@ -51,20 +65,33 @@ export function CanvasMoveHandle({
   liveEl,
   onCommitTranslate,
   accent = "#3d4f7c",
+  overlayRef,
 }: {
   rect: Rect;
   liveEl: HTMLElement | null;
   onCommitTranslate: (x: number, y: number) => void;
   accent?: string;
+  /**
+   * When provided, the parent owns the move-grip overlay box's
+   * top/left/width/height and writes them imperatively each frame (rAF) so the
+   * grip tracks scroll / drag with no React re-render. The centre grip is
+   * positioned RELATIVE to this box (50% + translate), so it rides along. The
+   * alignment guides / spacing pills below are drawn in viewport coords and are
+   * only present DURING a drag (their own local state), so they don't track
+   * scroll and need no ref.
+   */
+  overlayRef?: React.Ref<HTMLDivElement>;
 }) {
   const [dragging, setDragging] = useState(false);
   const [live, setLive] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  // Alignment-guide lines (viewport coords) shown while the centre is snapped.
+  // Alignment-guide lines + equal-spacing pills (viewport coords) shown while
+  // the dragged block is snapped to a sibling/parent edge or an even gap.
   const [guides, setGuides] = useState<{
     v: number | null;
     h: number | null;
     parent: Box | null;
-  }>({ v: null, h: null, parent: null });
+    spacing: ReadonlyArray<SpacingGuide>;
+  }>({ v: null, h: null, parent: null, spacing: [] });
   const startRef = useRef<{
     px: number;
     py: number;
@@ -72,6 +99,12 @@ export function CanvasMoveHandle({
     y: number;
     natCx: number;
     natCy: number;
+    // Natural (untranslated) top-left, so a candidate translate maps to a full
+    // box for the equal-spacing geometry.
+    natLeft: number;
+    natTop: number;
+    width: number;
+    height: number;
     halfW: number;
     halfH: number;
     parent: Box | null;
@@ -80,6 +113,9 @@ export function CanvasMoveHandle({
     // align an edge to.
     snapX: number[];
     snapY: number[];
+    // Full sibling boxes (captured once on grab — siblings don't move) for the
+    // equal-spacing distribution maths.
+    sibBoxes: GuideBox[];
   } | null>(null);
   const latestRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
@@ -136,15 +172,58 @@ export function CanvasMoveHandle({
           gh = bestY.guide;
         }
       }
+      // 4A #8 — equal-spacing (distribution). On an axis NOT already claimed by
+      // a hard edge alignment, softly pull toward the position where the gaps
+      // to the nearest siblings on each side are equal, and draw teal gap pills
+      // there. Edge alignment (above) takes priority — it's the stronger cue.
+      const spacing: SpacingGuide[] = [];
+      if (!e.shiftKey && start.sibBoxes.length > 0) {
+        const boxAt = (tx: number, ty: number): GuideBox => ({
+          left: start.natLeft + tx,
+          top: start.natTop + ty,
+          width: start.width,
+          height: start.height,
+        });
+        if (gv === null) {
+          const delta = equalSpacingSnapDelta({
+            dragged: boxAt(x, y),
+            siblings: start.sibBoxes,
+            axis: "x",
+            tol: SPACING_SNAP,
+          });
+          if (delta !== null) x = Math.round(x + delta);
+        }
+        if (gh === null) {
+          const delta = equalSpacingSnapDelta({
+            dragged: boxAt(x, y),
+            siblings: start.sibBoxes,
+            axis: "y",
+            tol: SPACING_SNAP,
+          });
+          if (delta !== null) y = Math.round(y + delta);
+        }
+        // After any snap, re-test at the final position to decide which pills
+        // to draw (only when genuinely balanced).
+        const finalBox = boxAt(x, y);
+        for (const axis of ["x", "y"] as const) {
+          const match = findEqualSpacing({
+            dragged: finalBox,
+            siblings: start.sibBoxes,
+            axis,
+            tol: 1,
+          });
+          if (match) spacing.push(match);
+        }
+      }
       latestRef.current = { x, y };
       setLive({ x, y });
-      setGuides({ v: gv, h: gh, parent: start.parent });
+      setGuides({ v: gv, h: gh, parent: start.parent, spacing });
       if (liveEl) liveEl.style.translate = `${x}px ${y}px`;
     };
     const onUp = () => {
       onCommitTranslate(latestRef.current.x, latestRef.current.y);
       setDragging(false);
-      setGuides({ v: null, h: null, parent: null });
+      setGuides({ v: null, h: null, parent: null, spacing: [] });
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp, { once: true });
@@ -167,6 +246,10 @@ export function CanvasMoveHandle({
     const er = liveEl?.getBoundingClientRect();
     const natCx = er ? er.left + er.width / 2 - current.x : 0;
     const natCy = er ? er.top + er.height / 2 - current.y : 0;
+    const natLeft = er ? er.left - current.x : 0;
+    const natTop = er ? er.top - current.y : 0;
+    const width = er ? er.width : 0;
+    const height = er ? er.height : 0;
     const halfW = er ? er.width / 2 : 0;
     const halfH = er ? er.height / 2 : 0;
     const pr = liveEl?.parentElement?.getBoundingClientRect();
@@ -178,6 +261,7 @@ export function CanvasMoveHandle({
     // don't move during the drag, so capturing once on grab is sufficient.
     const snapX: number[] = [];
     const snapY: number[] = [];
+    const sibBoxes: GuideBox[] = [];
     if (pr) {
       snapX.push(pr.left, pr.left + pr.width / 2, pr.left + pr.width);
       snapY.push(pr.top, pr.top + pr.height / 2, pr.top + pr.height);
@@ -190,6 +274,12 @@ export function CanvasMoveHandle({
         if (sr.width === 0 && sr.height === 0) continue;
         snapX.push(sr.left, sr.left + sr.width / 2, sr.left + sr.width);
         snapY.push(sr.top, sr.top + sr.height / 2, sr.top + sr.height);
+        sibBoxes.push({
+          left: sr.left,
+          top: sr.top,
+          width: sr.width,
+          height: sr.height,
+        });
       }
     }
     startRef.current = {
@@ -199,15 +289,20 @@ export function CanvasMoveHandle({
       y: current.y,
       natCx,
       natCy,
+      natLeft,
+      natTop,
+      width,
+      height,
       halfW,
       halfH,
       parent,
       snapX,
       snapY,
+      sibBoxes,
     };
     latestRef.current = current;
     setLive({ x: Math.round(current.x), y: Math.round(current.y) });
-    setGuides({ v: null, h: null, parent: null });
+    setGuides({ v: null, h: null, parent: null, spacing: [] });
     setDragging(true);
   }
 
@@ -246,25 +341,97 @@ export function CanvasMoveHandle({
         }}
       />
     ) : null}
+    {/* 4A #8 — equal-spacing (distribution) pills. Teal bars span each of the
+     *  two equal gaps with an end-tick, the universal "these spaces match"
+     *  cue. Drawn only when the block is genuinely balanced between its
+     *  nearest siblings on the axis. */}
+    {guides.spacing.flatMap((guide) =>
+      guide.bands.map((band, i) => {
+        const horizontal = guide.axis === "x";
+        const length = Math.max(0, band.to - band.from);
+        return (
+          <div
+            key={`sp-${guide.axis}-${i}`}
+            aria-hidden
+            data-canvas-spacing-guide={guide.axis}
+            style={{
+              position: "fixed",
+              ...(horizontal
+                ? {
+                    left: band.from,
+                    top: guide.cross,
+                    width: length,
+                    height: 0,
+                    borderTop: `2px solid ${SPACING_TEAL}`,
+                  }
+                : {
+                    top: band.from,
+                    left: guide.cross,
+                    height: length,
+                    width: 0,
+                    borderLeft: `2px solid ${SPACING_TEAL}`,
+                  }),
+              pointerEvents: "none",
+              zIndex: 97,
+            }}
+          >
+            {/* end ticks at both ends of the gap band */}
+            <span
+              style={{
+                position: "absolute",
+                ...(horizontal
+                  ? { left: -1, top: -4, width: 0, height: 8, borderLeft: `2px solid ${SPACING_TEAL}` }
+                  : { top: -1, left: -4, height: 0, width: 8, borderTop: `2px solid ${SPACING_TEAL}` }),
+              }}
+            />
+            <span
+              style={{
+                position: "absolute",
+                ...(horizontal
+                  ? { right: -1, top: -4, width: 0, height: 8, borderLeft: `2px solid ${SPACING_TEAL}` }
+                  : { bottom: -1, left: -4, height: 0, width: 8, borderTop: `2px solid ${SPACING_TEAL}` }),
+              }}
+            />
+          </div>
+        );
+      }),
+    )}
     <div
+      ref={overlayRef}
       aria-hidden
       data-canvas-move-overlay=""
       style={{
         position: "fixed",
-        top: rect.top,
-        left: rect.left,
-        width: rect.width,
-        height: rect.height,
+        // When overlayRef is wired the parent's rAF loop OWNS
+        // top/left/width/height (written directly each frame, seeded before
+        // first paint), so the grip box tracks scroll/drag without a React
+        // re-render. Without overlayRef, position from the rect prop.
+        ...(overlayRef
+          ? null
+          : {
+              top: rect.top,
+              left: rect.left,
+              width: rect.width,
+              height: rect.height,
+            }),
         pointerEvents: "none",
         zIndex: 96,
       }}
     >
       <button
         type="button"
-        aria-label="Drag to move"
-        title="Drag to move"
+        aria-label="Drag to move (double-click to reset position)"
+        title="Drag to move · double-click to snap back to natural position"
         data-canvas-move-handle=""
         onPointerDown={begin}
+        onDoubleClick={(e) => {
+          // Recover a strayed block: reset its translate to 0,0 (natural
+          // position). The commit path drops the translate entirely at 0,0,
+          // restoring the block on every breakpoint.
+          e.preventDefault();
+          e.stopPropagation();
+          onCommitTranslate(0, 0);
+        }}
         style={{
           position: "absolute",
           top: "50%",

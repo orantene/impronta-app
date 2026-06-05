@@ -6,6 +6,7 @@ import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientSelfProfile, loadClientTrustBillingState } from "../../_data-bridge";
 import { ClientTrustShell } from "./ClientTrustShell";
+import { ClientSocialVerificationPanel } from "./ClientSocialVerificationPanel";
 import { isStripeConfigured } from "@/lib/stripe/client";
 import { ClientPageHeader } from "../_components/ClientPageHeader";
 import { loadUserPrefs } from "@/lib/server-actions/user-prefs";
@@ -13,6 +14,15 @@ import { NotificationPrefsPanel, type UiCategory, type UiChannel } from "./Notif
 import { ORDERED_CATEGORIES } from "@/lib/notifications/categories";
 import { LIVE_CHANNELS } from "@/lib/notifications/types";
 import { ProfileFields, AccountFields } from "./_components/AccountFormsClient";
+import {
+  loadClientReviews,
+  loadClientRatingSummary,
+  loadReviewsAuthoredByUser,
+} from "@/lib/reviews/load-reviews";
+import type { TalentReview } from "@/lib/reviews/review-types";
+import { ClientReviewsPanel, type GivenReview } from "../_components/ClientReviewsPanel";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { SettingsSectionIcon } from "@/components/admin/settings/settings-section-icons";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
@@ -26,7 +36,17 @@ const C = {
 
 const FONT = '"Inter", system-ui, sans-serif';
 
-function Card({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
+function Card({
+  title,
+  subtitle,
+  icon,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <section
       style={{
@@ -37,13 +57,45 @@ function Card({ title, subtitle, children }: { title: string; subtitle?: string;
         fontFamily: FONT,
       }}
     >
-      <div className="mb-3.5">
-        <div style={{ fontSize: 15, fontWeight: 600, color: C.ink, letterSpacing: -0.1 }}>{title}</div>
-        {subtitle && <div style={{ fontSize: 12.5, color: C.inkMuted, marginTop: 3 }}>{subtitle}</div>}
+      <div className="mb-3.5" style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+        {icon && <span style={{ flexShrink: 0, marginTop: 1 }}>{icon}</span>}
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: C.ink, letterSpacing: -0.1 }}>{title}</div>
+          {subtitle && <div style={{ fontSize: 12.5, color: C.inkMuted, marginTop: 3 }}>{subtitle}</div>}
+        </div>
       </div>
       {children}
     </section>
   );
+}
+
+/**
+ * Resolve talent profile display names by id for the "reviews you've written"
+ * list. talent_profiles SELECT is RLS-scoped, so we use the service-role client
+ * (read-only, name only) — same proven pattern as load-reviews.ts. Degrades to
+ * null names on any failure; never throws.
+ */
+async function resolveTalentNames(
+  talentProfileIds: string[],
+): Promise<Map<string, string | null>> {
+  const out = new Map<string, string | null>();
+  const ids = Array.from(new Set(talentProfileIds.filter(Boolean)));
+  if (ids.length === 0) return out;
+  const svc = createServiceRoleClient();
+  if (!svc) return out;
+  try {
+    const { data } = await svc
+      .from("talent_profiles")
+      .select("id, display_name")
+      .in("id", ids)
+      .returns<{ id: string; display_name: string | null }[]>();
+    for (const row of data ?? []) {
+      out.set(row.id, row.display_name?.trim() || null);
+    }
+  } catch {
+    // Degrade silently — talent names render as null.
+  }
+  return out;
 }
 
 export default async function ClientSettingsPage({ params }: { params: PageParams }) {
@@ -61,6 +113,27 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
   ]);
   if (!clientProfile) notFound();
   const stripeEnabled = isStripeConfigured();
+
+  // W8 — two-sided reviews. Received (talent→client) + given (client→talent).
+  // Read with Agent 1's helpers; resolve talent names for the "given" list.
+  const [receivedReviews, receivedSummary, authoredReviews] = await Promise.all([
+    loadClientReviews(session.user.id),
+    loadClientRatingSummary(session.user.id),
+    loadReviewsAuthoredByUser(session.user.id) as Promise<TalentReview[]>,
+  ]);
+  const talentNames = await resolveTalentNames(
+    authoredReviews.map((r) => r.talentProfileId),
+  );
+  const givenReviews: GivenReview[] = authoredReviews.map((r) => ({
+    id: r.id,
+    talentName: talentNames.get(r.talentProfileId) ?? null,
+    rating: r.rating,
+    body: r.body,
+    status: r.status,
+    createdAt: r.createdAt,
+  }));
+  const hasAnyReviews =
+    receivedReviews.length > 0 || givenReviews.length > 0;
   const notificationPrefs = userPrefs?.notificationPrefs ?? {};
 
   // Category list for the prefs panel. categories.ts is server-only, so we map
@@ -113,6 +186,7 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
         <Card
           title="Profile"
           subtitle="Your display name and company shown on inquiries and bookings."
+          icon={<SettingsSectionIcon sectionId="profile" />}
         >
           <ProfileFields
             tenantSlug={tenantSlug}
@@ -128,6 +202,7 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
         <Card
           title="Account"
           subtitle="Your sign-in credentials."
+          icon={<SettingsSectionIcon sectionId="account" />}
         >
           <AccountFields
             initialEmail={userEmail}
@@ -139,10 +214,29 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
         <Card
           title="Notifications"
           subtitle="Choose how you hear about each kind of update. Account & billing notices are always sent. Changes auto-save."
+          icon={<SettingsSectionIcon sectionId="notifications" />}
         >
           <NotificationPrefsPanel
             categories={notificationCategories}
             initialPrefs={notificationPrefs}
+          />
+        </Card>
+
+        {/* W8 — two-sided reviews. Reviews received from talent + reviews this
+            client has written. Reporting a received review flags it for staff. */}
+        <Card
+          title="Reviews"
+          subtitle={
+            hasAnyReviews
+              ? "Reviews talent left about you, and the reviews you've written."
+              : "Reviews appear here after your bookings are completed."
+          }
+          icon={<SettingsSectionIcon sectionId="brand" />}
+        >
+          <ClientReviewsPanel
+            received={receivedReviews}
+            receivedSummary={receivedSummary}
+            given={givenReviews}
           />
         </Card>
 
@@ -154,6 +248,13 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
           fundedBalanceCents={trustState.fundedBalanceCents}
           stripeEnabled={stripeEnabled}
         />
+
+        <Card
+          title="Social verification"
+          subtitle="Connect social or professional accounts as optional trust proof for agencies and talent."
+        >
+          <ClientSocialVerificationPanel tenantSlug={tenantSlug} />
+        </Card>
       </div>
     </div>
   );

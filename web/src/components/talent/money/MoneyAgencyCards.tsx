@@ -79,7 +79,7 @@ export function MoneyAgencyCards() {
         icon="team"
         iconTone="accent"
         title={`Your agencies${agencies.length > 0 ? ` · ${agencies.length}` : ""}`}
-        subtitle="Earnings, commission and roster status — per workspace."
+        subtitle="Earnings, commission and roster status, per workspace."
       />
 
       {agencies.length === 0 ? (
@@ -95,7 +95,7 @@ export function MoneyAgencyCards() {
         >
           <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>No agencies yet</div>
           <p style={{ margin: "4px 0 0", fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.5 }}>
-            Agencies invite talent — keep your profile up to date so the right ones find you.
+            Agencies invite talent, keep your profile up to date so the right ones find you.
           </p>
         </div>
       ) : (
@@ -109,7 +109,7 @@ export function MoneyAgencyCards() {
           {agencies.map((agency) => {
             const rosterUrl = agencyRosterProfileUrl(agency.slug, profileCode);
             const commissionPct =
-              agency.commissionBps > 0 ? `${(agency.commissionBps / 100).toFixed(1)}%` : "—";
+              agency.commissionBps > 0 ? `${(agency.commissionBps / 100).toFixed(1)}%` : "-";
 
             return (
               <article
@@ -342,7 +342,7 @@ export function MoneyAgencyCards() {
             lineHeight: 1.5,
           }}
         >
-          On Tulala, agencies invite talent — not the other way around. Share your public profile and they can request you onto their roster.
+          On Tulala, agencies invite talent, not the other way around. Share your public profile and they can request you onto their roster.
         </p>
         <PrimaryButton size="sm" onClick={() => openDrawer("representation")}>
           Share my profile →

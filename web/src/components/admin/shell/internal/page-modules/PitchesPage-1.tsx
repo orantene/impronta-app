@@ -8,7 +8,7 @@ import type { PitchStatus } from "@/lib/pitch/pitch-types";
 import type { WorkspacePitchRow } from "../data-bridge";
 import { PitchComposeDrawer } from "../pitch-compose";
 import { Card, H3, PrimaryButton, StatusPill } from "../primitives";
-import { COLORS, getClients, meetsRole, useAdminShell } from "../state";
+import { COLORS, meetsRole, useAdminShell } from "../state";
 import { PitchDetailDrawerInline } from "./PitchesPage-2";
 import { PageHeader } from "./pages-shared";
 
@@ -73,7 +73,10 @@ function fmtPitchRelative(iso: string | null): string {
 }
 
 export function PitchesPage() {
-  const { state, effectivePitches, effectiveRoster, tenantSlug, toast, effectiveTenant } = useAdminShell();
+  // Real workspace clients for the pitch recipient autocomplete (the shell
+  // already adapts the bridge rows to the Client shape), replacing the
+  // per-plan getClients() mock.
+  const { state, effectivePitches, effectiveRoster, effectiveClients, tenantSlug, toast, effectiveTenant } = useAdminShell();
   const router = useRouter();
   const canEdit = meetsRole(state.role, "manager");
   const [openDetailId, setOpenDetailId] = useState<string | null>(null);
@@ -206,7 +209,7 @@ export function PitchesPage() {
           open={composeOpen}
           onOpenChange={setComposeOpen}
           selectedTalents={effectiveRoster.slice(0, 0)}
-          clients={getClients(state.plan)}
+          clients={effectiveClients}
           tenantSlug={tenantSlug ?? "impronta"}
           agencyName={effectiveTenant.name}
           onPitchSent={() => {

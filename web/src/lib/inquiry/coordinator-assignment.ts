@@ -1,4 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { OwningParty } from "./owning-party-resolver";
+import { logServerError } from "@/lib/server/safe-error";
 
 export type CoordinatorAssignmentInput = {
   source_type: "agency" | "hub";
@@ -82,4 +84,75 @@ export async function assignCoordinatorFromSettings(
     coordinator_id: id?.trim() || null,
     assignment_reason: id ? "agency_legacy_default_coordinator" : "agency_manual_pickup",
   };
+}
+
+/**
+ * Seed coordinators for talents whose resolved owning party is an AGENCY that
+ * differs from the inquiry's tenant — the cross-tenant case.
+ *
+ * Example: a client inquires about an EXCLUSIVE talent via the open hub, so the
+ * inquiry is filed under the hub tenant but the talent is owned by their agency.
+ * The inquiry-tenant coordinator lookup resolves the wrong (or no) workspace's
+ * coordinator, leaving the inquiry unmanaged. This seeds the OWNING agency's
+ * default coordinator (one per distinct owning agency, deduped against any
+ * already-assigned coordinator) and promotes the first one to the inquiry's
+ * coordinator of record when none was set.
+ *
+ * No-op for same-tenant inquiries (the common case: owning agency ==
+ * inquiry tenant) — the primary assignment already covers those. Best-effort:
+ * never throws (the inquiry is already persisted).
+ *
+ * @returns the inquiry's coordinator id after seeding (existing or newly promoted).
+ */
+export async function seedOwningAgencyCoordinators(
+  supabase: SupabaseClient,
+  opts: {
+    inquiryId: string;
+    inquiryTenantId: string;
+    talentProfileIds: string[];
+    owningParties: Map<string, OwningParty>;
+    existingCoordinatorId: string | null;
+  },
+): Promise<string | null> {
+  let coordinatorOfRecord = opts.existingCoordinatorId;
+  try {
+    const owningAgencyIds = new Set<string>();
+    for (const tid of opts.talentProfileIds) {
+      const op = opts.owningParties.get(tid);
+      if (op?.type === "agency" && op.id && op.id !== opts.inquiryTenantId) {
+        owningAgencyIds.add(op.id);
+      }
+    }
+    if (owningAgencyIds.size === 0) return coordinatorOfRecord;
+
+    const seen = new Set<string>(coordinatorOfRecord ? [coordinatorOfRecord] : []);
+    for (const agencyId of owningAgencyIds) {
+      const agencyAssignment = await assignCoordinatorFromSettings(supabase, {
+        source_type: "agency",
+        tenant_id: agencyId,
+      });
+      const uid = agencyAssignment.coordinator_id;
+      if (!uid || seen.has(uid)) continue;
+      seen.add(uid);
+      await supabase.from("inquiry_participants").insert({
+        inquiry_id: opts.inquiryId,
+        tenant_id: opts.inquiryTenantId,
+        user_id: uid,
+        role: "coordinator",
+        status: "invited",
+      });
+      // Promote to coordinator of record when none was set (e.g. hub-filed).
+      if (!coordinatorOfRecord) {
+        await supabase
+          .from("inquiries")
+          .update({ coordinator_id: uid, coordinator_assigned_at: new Date().toISOString() })
+          .eq("id", opts.inquiryId)
+          .is("coordinator_id", null);
+        coordinatorOfRecord = uid;
+      }
+    }
+  } catch (err) {
+    logServerError("coordinator-assignment.seedOwningAgencyCoordinators", err);
+  }
+  return coordinatorOfRecord;
 }

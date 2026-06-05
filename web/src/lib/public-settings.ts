@@ -20,7 +20,10 @@ export type PublicSettings = {
  *   `PUBLIC_SETTINGS_STRICT_MISSING=1` — then missing keys default to **false**
  *   (stricter production). Otherwise “healthy DB, keys not yet seeded” keeps
  *   surfaces open until admins seed `settings`.
- * - `watermark_enabled` defaults to **false** (safe default).
+ * - `watermark_enabled` defaults to **false** (safe default). NOTE: this key is
+ *   read into the settings object here but not currently consumed by any feature
+ *   — harmless, kept for forward-compat; intentionally NOT exposed in the
+ *   platform feature-flags UI.
  * For stricter behavior (treat missing keys as off), seed explicit `false`
  * rows in `settings` or change those fallbacks to `false` after migration.
  */

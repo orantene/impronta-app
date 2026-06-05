@@ -1,8 +1,17 @@
 import type { BuilderNode } from "../types";
-import { pageDesignPhoto } from "./photos";
-import type { BuilderNodeRenderDataSources } from "../render";
 import type { PageDesign } from "./types";
 import { CINZEL, INTER } from "./tokens";
+import {
+  CLAY,
+  dataSources,
+  HAIR,
+  INK,
+  MUTE,
+  PAPER,
+  PHOTO,
+  sizeChip,
+  trustBadge,
+} from "./store.parts";
 
 /**
  * ARCHETYPE 4 — E-commerce product-detail (fine-art print store).
@@ -32,86 +41,6 @@ import { CINZEL, INTER } from "./tokens";
  * motion frame), a product-card hover-lift (proven by the `hover` frame), and a
  * responsive layout that collapses to a single column on mobile.
  */
-
-const PHOTO = {
-  print: pageDesignPhoto("vocalistPortrait"),
-  altA: pageDesignPhoto("studioScene"),
-  altB: pageDesignPhoto("serviceProsScene"),
-  altC: pageDesignPhoto("directorPortrait"),
-  relA: pageDesignPhoto("studioDesk"),
-  relB: pageDesignPhoto("studioScene"),
-  relC: pageDesignPhoto("serviceProsScene"),
-};
-
-const dataSources: BuilderNodeRenderDataSources = {
-  collections: {
-    // Thumbnail strip under the main print — alternate views/crops of the work.
-    store_gallery: [
-      { id: "g1", imageUrl: PHOTO.print, label: "Full frame" },
-      { id: "g2", imageUrl: PHOTO.altA, label: "In the room" },
-      { id: "g3", imageUrl: PHOTO.altB, label: "Detail" },
-      { id: "g4", imageUrl: PHOTO.altC, label: "Framed" },
-    ],
-    // "You may also like" product grid.
-    store_related: [
-      { id: "r1", imageUrl: PHOTO.relA, title: "Atelier, Morning", price: "$240" },
-      { id: "r2", imageUrl: PHOTO.relB, title: "On Air, CDMX", price: "$260" },
-      { id: "r3", imageUrl: PHOTO.relC, title: "The Service Issue", price: "$220" },
-    ],
-  },
-};
-
-const INK = "#1d1a16";
-const MUTE = "#6c645a";
-const CLAY = "#9a6a4f";
-const PAPER = "#fbfaf6";
-const HAIR = "#e3dccf";
-
-/** A small bordered "size" chip in the variant selector row. */
-function sizeChip(id: string, label: string, selected: boolean): BuilderNode {
-  return {
-    id,
-    kind: "paragraph",
-    props: {
-      text: label,
-      style: {
-        fontFamily: INTER,
-        fontSize: "13px",
-        fontWeight: 600,
-        letterSpacing: "0.02em",
-        textColor: selected ? PAPER : INK,
-        backgroundColor: selected ? INK : "transparent",
-        borderColor: selected ? INK : HAIR,
-        borderWidth: "1px",
-        borderStyle: "solid",
-        borderRadius: "999px",
-        paddingTop: "9px",
-        paddingBottom: "9px",
-        paddingLeft: "16px",
-        paddingRight: "16px",
-      },
-    },
-  };
-}
-
-/** A trust badge (label) in the reassurance row under the CTA. */
-function trustBadge(id: string, text: string): BuilderNode {
-  return {
-    id,
-    kind: "paragraph",
-    props: {
-      text,
-      style: {
-        fontFamily: INTER,
-        fontSize: "12px",
-        fontWeight: 600,
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        textColor: MUTE,
-      },
-    },
-  };
-}
 
 const storeTree: BuilderNode[] = [
   {

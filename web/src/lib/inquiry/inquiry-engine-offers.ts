@@ -7,6 +7,133 @@ import { assertConsistencyAfterWrite, inquiryWriteClient, runWithEngineLog } fro
 import { loadInquiryRoster } from "./inquiry-workspace-data";
 import type { EngineResult } from "./inquiry-engine.types";
 import { logServerError } from "@/lib/server/safe-error";
+import {
+  parseTenantCommercialTerms,
+  parseTalentBookingTerms,
+} from "@/lib/billing/commercial-terms";
+import {
+  defaultOfferTermsFromResolved,
+  normalizeOfferTerms,
+  readOfferTermsFromRow,
+} from "@/lib/billing/offer-commercial-terms";
+import type {
+  BalanceCollectionMethod,
+  RefundPolicyKey,
+  TalentBookingTerms,
+} from "@/lib/billing/commercial-terms-types";
+
+/**
+ * W6a — resolve the DEFAULT offer commercial terms for an inquiry's offer by
+ * layering the W5 config: platform default → tenant override → talent
+ * preference. For multi-talent offers, the line-item talents' booking_terms are
+ * merged conservatively (highest deposit %, first explicit refund policy) so a
+ * single offer carries one coherent default. Returns the bare term fields;
+ * deposit_amount_cents is derived by the caller once the client total is known.
+ *
+ * Best-effort + tolerant: any read failure degrades to the platform/tenant
+ * layer (never throws, never blocks the offer write).
+ */
+async function resolveDefaultOfferTerms(
+  supabase: SupabaseClient,
+  inquiryId: string,
+  tenantId: string,
+  offerId: string | null,
+): Promise<{
+  depositPct: number;
+  balanceMethod: BalanceCollectionMethod;
+  refundPolicy: RefundPolicyKey;
+}> {
+  // Platform base layer (server-only cached loader).
+  const { loadPlatformCommercialDefaults } = await import(
+    "@/lib/platform/commercial-defaults"
+  );
+  const platform = await loadPlatformCommercialDefaults();
+
+  // Tenant override (agencies.settings.commercialTerms).
+  let tenant = null;
+  try {
+    const { data: agency } = await supabase
+      .from("agencies")
+      .select("settings")
+      .eq("id", tenantId)
+      .maybeSingle();
+    tenant = parseTenantCommercialTerms(
+      (agency as { settings?: unknown } | null)?.settings,
+    );
+  } catch (err) {
+    logServerError("inquiry-engine-offers.resolveDefaultOfferTerms.tenant", err);
+  }
+
+  // Talent preference — merge the line-item talents' booking_terms. With no
+  // line items yet (fresh draft), fall back to the platform/tenant layer.
+  let talent: TalentBookingTerms | null = null;
+  try {
+    let talentIds: string[] = [];
+    if (offerId) {
+      const { data: lines } = await supabase
+        .from("inquiry_offer_line_items")
+        .select("talent_profile_id")
+        .eq("offer_id", offerId)
+        .eq("tenant_id", tenantId);
+      talentIds = [
+        ...new Set(
+          ((lines ?? []) as { talent_profile_id: string | null }[])
+            .map((l) => l.talent_profile_id)
+            .filter((x): x is string => !!x),
+        ),
+      ];
+    }
+    if (talentIds.length === 0) {
+      // No line items — use the inquiry's active talent participants.
+      const { data: parts } = await supabase
+        .from("inquiry_participants")
+        .select("talent_profile_id")
+        .eq("inquiry_id", inquiryId)
+        .eq("tenant_id", tenantId)
+        .eq("role", "talent")
+        .in("status", ["invited", "active"])
+        .not("talent_profile_id", "is", null);
+      talentIds = [
+        ...new Set(
+          ((parts ?? []) as { talent_profile_id: string | null }[])
+            .map((p) => p.talent_profile_id)
+            .filter((x): x is string => !!x),
+        ),
+      ];
+    }
+    if (talentIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from("talent_profiles")
+        .select("id, booking_terms")
+        .in("id", talentIds)
+        .returns<{ id: string; booking_terms: unknown }[]>();
+      const parsed = (profiles ?? [])
+        .map((p) => parseTalentBookingTerms(p.booking_terms))
+        .filter((x): x is TalentBookingTerms => x != null);
+      if (parsed.length > 0) {
+        // Conservative merge across talents: take the HIGHEST deposit % (protects
+        // the highest-risk talent) and the FIRST explicit refund policy.
+        const depositPct = parsed.reduce<number | null>(
+          (acc, t) =>
+            t.depositPct == null ? acc : Math.max(acc ?? 0, t.depositPct),
+          null,
+        );
+        const refundPolicy =
+          parsed.find((t) => t.refundPolicy != null)?.refundPolicy ?? null;
+        talent = {
+          depositPct,
+          refundPolicy,
+          instantBookOptIn: false,
+          fixedRateCents: null,
+        };
+      }
+    }
+  } catch (err) {
+    logServerError("inquiry-engine-offers.resolveDefaultOfferTerms.talent", err);
+  }
+
+  return defaultOfferTermsFromResolved({ platform, tenant, talent });
+}
 
 // SaaS P1.B STEP A: tenant-scoped by construction on every inquiry + offers
 // read/write. RPC-backed helpers also pre-flight the inquiry's tenant ownership
@@ -234,14 +361,34 @@ export async function createOffer(
       return { success: true, data: { offerId: existingDraft.id as string } };
     }
 
+    // W6a — default the 4 negotiated commercial-term columns from the W5
+    // resolver (platform → tenant → talent). Best-effort; on failure the offer
+    // is still created with null terms (display falls back to the resolver).
+    const defaults = await resolveDefaultOfferTerms(
+      supabase,
+      ctx.inquiryId,
+      ctx.tenantId,
+      null,
+    );
+
     const { data: offer, error } = await supabase
       .from("inquiry_offers")
       .insert({
         inquiry_id: ctx.inquiryId,
         tenant_id: ctx.tenantId,
         created_by_user_id: ctx.actorUserId,
-        currency_code: ctx.currencyCode ?? "MXN",
+        // USD-first: callers (createOfferAction) resolve the platform operating
+        // currency and pass it; this fallback is a defensive default for any
+        // direct caller that omits it (was a legacy "MXN").
+        currency_code: ctx.currencyCode ?? "USD",
         status: "draft",
+        // W6a — negotiated terms (display + snapshot only this wave). The amount
+        // is 0 at create (no line items priced yet); it is re-derived on every
+        // draft save from the client total.
+        deposit_pct: defaults.depositPct,
+        deposit_amount_cents: 0,
+        balance_collection_method: defaults.balanceMethod,
+        refund_policy_key: defaults.refundPolicy,
       })
       .select("id")
       .single();
@@ -371,7 +518,7 @@ export async function createOffer(
     await supabase.rpc("inquiry_audit_emit", {
       p_inquiry_id: ctx.inquiryId,
       p_kind: "offer_created",
-      p_payload: { offer_id: offer.id as string, currency: ctx.currencyCode ?? "MXN" },
+      p_payload: { offer_id: offer.id as string, currency: ctx.currencyCode ?? "USD" },
     }).then((r) => { if (r.error) logServerError("audit.emit.offer_created", r.error); });
 
     return { success: true, data: { offerId: offer.id as string } };
@@ -397,11 +544,13 @@ export async function sendOffer(
     // sending — so approval seeding includes them and the offer is bookable.
     await ensureOfferTalentsOnLineup(supabase, ctx.inquiryId, ctx.tenantId, ctx.offerId, ctx.actorUserId);
 
-    // Audit #3 (guard): never send a blank/zero offer to the client. The offer
-    // editor lets the Total be hand-typed independently of the priced line items,
-    // so without this an admin can send an empty or $0 offer. Reject when there are
-    // no priced lines or they sum to <= 0. (Full reconciliation of total_client_price
-    // to the line sum is a follow-up — it depends on the coordinator-fee model.)
+    // Audit #3 (full reconciliation): the offer Total MUST equal the sum of the
+    // priced line items, so the client sees and is charged the same number
+    // (convert books the line-item sum). The editor now auto-sums the Total in
+    // the UI; this is the server-side guarantee. (a) Reject a blank/$0 offer.
+    // (b) Self-heal any drift — stamp total_client_price = line sum before the
+    // client ever sees the offer, so even a draft saved before this guarantee
+    // (hand-typed total) can't ship a shown≠charged number.
     const { data: liRows } = await supabase
       .from("inquiry_offer_line_items")
       .select("total_price")
@@ -414,6 +563,11 @@ export async function sendOffer(
     if (!liRows?.length || lineSum <= 0) {
       return { success: false, error: "empty_offer" };
     }
+    await supabase
+      .from("inquiry_offers")
+      .update({ total_client_price: lineSum })
+      .eq("id", ctx.offerId)
+      .eq("tenant_id", ctx.tenantId);
 
     const { data, error } = await supabase.rpc("engine_send_offer", {
       p_inquiry_id: ctx.inquiryId,
@@ -541,6 +695,17 @@ export async function updateOfferDraft(
     currency_code: string;
     notes: string | null;
     lineItems: OfferLineDraft[];
+    /**
+     * W6a — optional negotiated commercial terms. When provided, the 4 offer-
+     * term columns are persisted; deposit_amount_cents is DERIVED server-side =
+     * round(total_client_price_in_cents * depositPct / 100). When omitted, the
+     * existing terms are left untouched (or defaulted on first save).
+     */
+    terms?: {
+      depositPct?: number | null;
+      balanceMethod?: BalanceCollectionMethod | null;
+      refundPolicy?: RefundPolicyKey | null;
+    } | null;
   },
 ): Promise<EngineResult> {
   return runWithEngineLog("updateOfferDraft", ctx.inquiryId, ctx.actorUserId, async () => {
@@ -567,10 +732,21 @@ export async function updateOfferDraft(
 
     const { data: offer } = await supabase
       .from("inquiry_offers")
-      .select("id, inquiry_id, status, version")
+      .select(
+        "id, inquiry_id, status, version, deposit_pct, balance_collection_method, refund_policy_key",
+      )
       .eq("id", ctx.offerId)
       .eq("tenant_id", ctx.tenantId)
-      .maybeSingle();
+      .maybeSingle()
+      .returns<{
+        id: string;
+        inquiry_id: string;
+        status: string;
+        version: number;
+        deposit_pct: number | string | null;
+        balance_collection_method: string | null;
+        refund_policy_key: string | null;
+      }>();
 
     if (!offer || offer.inquiry_id !== ctx.inquiryId) return { success: false, error: "offer_not_found" };
     if (offer.status !== "draft") return { success: false, error: "offer_not_editable" };
@@ -612,6 +788,54 @@ export async function updateOfferDraft(
     // see them (the offer editor otherwise lets you price an off-lineup talent).
     await ensureOfferTalentsOnLineup(supabase, ctx.inquiryId, ctx.tenantId, ctx.offerId, ctx.actorUserId);
 
+    // W6a — resolve the negotiated commercial terms to persist. deposit_amount
+    // is DERIVED from the client total in minor units (round(total*pct/100)) so
+    // it never drifts from the priced line-item sum.
+    //
+    // Fallback precedence for any field NOT supplied in ctx.terms:
+    //   1. the offer's ALREADY-SAVED terms (so a plain draft save — e.g. editing
+    //      line items — never clobbers terms set via the dedicated terms action /
+    //      updateOfferCommercialTermsAction), else
+    //   2. the W5 resolver defaults (first save, when the offer has no terms yet).
+    const totalClientPriceCents = Math.round(ctx.total_client_price * 100);
+    let fallbackTerms: {
+      depositPct: number;
+      balanceMethod: BalanceCollectionMethod;
+      refundPolicy: RefundPolicyKey;
+    };
+    const existing = readOfferTermsFromRow(
+      {
+        deposit_pct: offer.deposit_pct,
+        deposit_amount_cents: null,
+        balance_collection_method: offer.balance_collection_method,
+        refund_policy_key: offer.refund_policy_key,
+      },
+      totalClientPriceCents,
+    );
+    if (existing) {
+      fallbackTerms = {
+        depositPct: existing.depositPct,
+        balanceMethod: existing.balanceMethod,
+        refundPolicy: existing.refundPolicy,
+      };
+    } else {
+      fallbackTerms = await resolveDefaultOfferTerms(
+        supabase,
+        ctx.inquiryId,
+        ctx.tenantId,
+        ctx.offerId,
+      );
+    }
+    const resolvedTerms = normalizeOfferTerms(
+      {
+        depositPct: ctx.terms?.depositPct ?? undefined,
+        balanceMethod: ctx.terms?.balanceMethod ?? undefined,
+        refundPolicy: ctx.terms?.refundPolicy ?? undefined,
+      },
+      totalClientPriceCents,
+      fallbackTerms,
+    );
+
     const writeDraft = await inquiryWriteClient(supabase);
     const { data: offerUp, error: oerr } = await writeDraft
       .from("inquiry_offers")
@@ -620,6 +844,12 @@ export async function updateOfferDraft(
         coordinator_fee: ctx.coordinator_fee,
         currency_code: ctx.currency_code,
         notes: ctx.notes,
+        // W6a — negotiated terms (display + snapshot only). deposit_amount_cents
+        // re-derived from the client total on every save so it never drifts.
+        deposit_pct: resolvedTerms.depositPct,
+        deposit_amount_cents: resolvedTerms.depositAmountCents,
+        balance_collection_method: resolvedTerms.balanceMethod,
+        refund_policy_key: resolvedTerms.refundPolicy,
         version: (offer.version as number) + 1,
         updated_at: new Date().toISOString(),
       })
@@ -664,6 +894,149 @@ export async function updateOfferDraft(
         currency: ctx.currency_code,
       },
     }).then((r) => { if (r.error) logServerError("audit.emit.offer_edited", r.error); });
+
+    return { success: true };
+  });
+}
+
+/**
+ * A2 — Reopen a SENT offer back to an editable draft for amendment.
+ *
+ * Flow (per the shared A2 contract):
+ *   1. Guard: only when the inquiry's current SENT offer matches offerId and is
+ *      `status='sent'`. Otherwise return { success:false, error:'not_amendable' }.
+ *   2. Flip the offer `sent` → `draft` and bump its version. This is the
+ *      ordering-critical step: the inquiries status/offer-pair trigger
+ *      (`enforce_inquiry_status_offer_pair`) reads the offer's status when the
+ *      inquiry row updates, so the offer must be `draft` BEFORE we set the
+ *      inquiry back to `coordination` (a `sent` offer requires inquiry
+ *      `offer_pending`).
+ *   3. DELETE this offer's approval rows. engine_send_offer re-seeds approvals
+ *      with ON CONFLICT DO NOTHING, so leaving stale rows would skip re-seeding
+ *      and break the re-approval gate. Deleting them guarantees the existing
+ *      updateOfferDraft + sendOffer flow re-seeds fresh `pending` approvals on
+ *      re-send for exactly the canonical (client + offered talents) set.
+ *   4. Set the inquiry back to `coordination`, keep `current_offer_id` pointing
+ *      at the now-draft offer, next_action_by='coordinator', bump version.
+ *   5. Emit OFFER_REOPENED + a private-thread system message.
+ *
+ * After this, the coordinator edits the draft (updateOfferDraft) and re-sends
+ * (sendOffer → engine_send_offer), which re-seeds approvals so every party must
+ * re-approve the amended offer.
+ */
+export async function reopenOfferForAmendment(
+  supabase: SupabaseClient,
+  ctx: {
+    inquiryId: string;
+    tenantId: string;
+    offerId: string;
+    actorUserId: string;
+    expectedVersion: number;
+  },
+): Promise<EngineResult> {
+  return runWithEngineLog("reopenOfferForAmendment", ctx.inquiryId, ctx.actorUserId, async () => {
+    const rl = await rateLimiter.check(engineRateKey("createOffer", ctx.actorUserId), 10, 60 * 60_000);
+    if (!rl.ok) return { success: false, rateLimited: true, retryAfterMs: rl.retryAfterMs, reason: "rate_limited" };
+
+    if (!(await inquiryInTenant(supabase, ctx.inquiryId, ctx.tenantId))) {
+      return { success: false, forbidden: true, reason: "forbidden" };
+    }
+
+    // Coordinator/staff permission — the same gate that authorizes update_offer.
+    const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "update_offer");
+    if (!perm.ok) return { success: false, forbidden: true, reason: "forbidden" };
+
+    const { data: inq } = await supabase
+      .from("inquiries")
+      .select("version, is_frozen, status, current_offer_id")
+      .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
+      .maybeSingle();
+    if (!inq) return { success: false, forbidden: true, reason: "forbidden" };
+    if (inq.is_frozen) return { success: false, reason: "inquiry_frozen" };
+
+    const { data: offer } = await supabase
+      .from("inquiry_offers")
+      .select("id, inquiry_id, status, version")
+      .eq("id", ctx.offerId)
+      .eq("tenant_id", ctx.tenantId)
+      .maybeSingle();
+    if (!offer || offer.inquiry_id !== ctx.inquiryId) return { success: false, error: "offer_not_found" };
+
+    // Guard: only a currently-SENT offer is amendable. (A draft is already
+    // editable; an accepted/rejected/superseded offer must go through the
+    // counter-offer path, not reopen.)
+    if (offer.status !== "sent") return { success: false, error: "not_amendable" };
+
+    const writeClient = await inquiryWriteClient(supabase);
+
+    // (2) Flip offer sent → draft + bump offer version FIRST (trigger ordering).
+    const { data: offerUp, error: oerr } = await writeClient
+      .from("inquiry_offers")
+      .update({
+        status: "draft" as never,
+        sent_at: null,
+        version: (offer.version as number) + 1,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", ctx.offerId)
+      .eq("tenant_id", ctx.tenantId)
+      .eq("version", offer.version as number)
+      .select("id")
+      .maybeSingle();
+    if (oerr) return { success: false, error: oerr.message };
+    if (!offerUp) return { success: false, conflict: true, reason: "version_conflict" };
+
+    // (3) Void this offer's approvals by deleting them — so a re-send re-seeds
+    // fresh pending approvals (engine_send_offer uses ON CONFLICT DO NOTHING).
+    const { error: delErr } = await writeClient
+      .from("inquiry_approvals")
+      .delete()
+      .eq("inquiry_id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
+      .eq("offer_id", ctx.offerId);
+    if (delErr) logServerError("inquiry-engine-offers.reopenOfferForAmendment.voidApprovals", delErr);
+
+    // (4) Inquiry back to coordination; keep current_offer_id on the draft.
+    const { data: inqUp, error: ierr } = await writeClient
+      .from("inquiries")
+      .update({
+        status: "coordination" as never,
+        next_action_by: "coordinator",
+        current_offer_id: ctx.offerId,
+        version: ctx.expectedVersion + 1,
+        last_edited_by: ctx.actorUserId,
+        last_edited_at: new Date().toISOString(),
+      })
+      .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
+      .eq("version", ctx.expectedVersion)
+      .select("id")
+      .maybeSingle();
+    if (ierr) return { success: false, error: ierr.message };
+    if (!inqUp) return { success: false, conflict: true, reason: "version_conflict" };
+
+    await assertConsistencyAfterWrite(supabase, ctx.inquiryId);
+
+    // (5) Emit event + private-thread system message.
+    await emitStandardEngineEvent(supabase, {
+      type: ENGINE_EVENT_TYPES.OFFER_REOPENED,
+      inquiryId: ctx.inquiryId,
+      actorUserId: ctx.actorUserId,
+      data: { offerId: ctx.offerId },
+      systemMessage: {
+        threadType: "private",
+        body: "Offer reopened for amendment.",
+        eventType: "offer_revised",
+      },
+    });
+
+    // Audit emit — fire-and-forget.
+    await supabase.rpc("inquiry_audit_emit", {
+      p_inquiry_id: ctx.inquiryId,
+      p_kind: "offer_edited",
+      p_payload: { offer_id: ctx.offerId, reopened: true },
+    }).then((r) => { if (r.error) logServerError("audit.emit.offer_reopened", r.error); });
 
     return { success: true };
   });
@@ -919,7 +1292,9 @@ export async function counterOffer(
     tenantId: ctx.tenantId,
     actorUserId: ctx.actorUserId,
     expectedVersion: ctx.expectedVersion,
-    currencyCode: currency ?? "MXN",
+    // USD-first: a counter inherits the prior offer's currency; absent one,
+    // fall back to USD (the platform operating currency) not a legacy MXN.
+    currencyCode: currency ?? "USD",
   });
 
   // §6 chat-card: emit offer_event card (status=countered) into the

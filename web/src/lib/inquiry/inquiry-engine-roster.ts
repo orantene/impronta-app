@@ -30,7 +30,25 @@ async function invalidateOfferIfRosterChanged(
     .eq("id", inq.current_offer_id)
     .eq("tenant_id", tenantId)
     .maybeSingle();
-  if (!offer || offer.status !== "sent") return;
+  // Revert when a roster change (talent declined / removed / added) lands on a
+  // LIVE offer:
+  //   • `sent`     — awaiting decisions (inquiry offer_pending). Existing behavior.
+  //   • `accepted` AND inquiry still `approved` — all parties signed off but NOT
+  //     yet converted. This case matters for money correctness: convert builds
+  //     booking_talent + the commission snapshot straight from
+  //     inquiry_offer_line_items (engine_convert_to_booking +
+  //     engine_load_commission_context) with NO participant-status filter, and the
+  //     shortfall gate excludes a declined/removed talent — so without this revert
+  //     a talent who backs out AFTER approval would still be snapshotted a payout
+  //     lane at convert (QA playbook §4: "talent cancels after approval → convert
+  //     must be blocked").
+  // A `booked`/`converted` inquiry also carries an `accepted` offer — it must NOT
+  // be reverted (a booking already exists), hence the explicit `approved` gate.
+  if (!offer) return;
+  const offerIsLive =
+    offer.status === "sent" ||
+    (offer.status === "accepted" && inq.status === "approved");
+  if (!offerIsLive) return;
 
   await supabase
     .from("inquiry_offers")
@@ -58,7 +76,7 @@ async function invalidateOfferIfRosterChanged(
     data: { offerId: offer.id as string },
     systemMessage: {
       threadType: "private",
-      body: "Roster changed after offer was sent. A new offer is required.",
+      body: "Roster changed after the offer went out. A new offer is required before this can be booked.",
       eventType: "roster_changed_offer_invalidated",
     },
     notifications: await buildInquiryBells({
@@ -486,6 +504,136 @@ export async function declineTalentInvitation(
         body: "A talent declined their invitation. You may want to line up an alternative.",
         excludeUserId: ctx.actorUserId,
       }),
+    });
+
+    return { success: true };
+  });
+}
+
+/**
+ * A4 — swap one talent for another on a roster in a single coordinator action.
+ *
+ * Marks the outgoing participant `removed` and inserts the incoming talent
+ * (`status='invited'`) in the SAME requirement group + sort slot, under one
+ * optimistic version check, and emits a single `ROSTER_TALENT_SWAPPED` event
+ * (rather than the separate remove + invite events two calls would produce).
+ *
+ * Offer handling: the swap is a roster change, so the existing
+ * `invalidateOfferIfRosterChanged` guard runs once at the end — a live offer
+ * whose line items no longer match the roster is invalidated and the inquiry
+ * routed back to coordination, exactly as remove/add do. If no offer is live
+ * (or it does not reference the swapped talent) the offer is preserved.
+ *
+ * Mirrors the validation/RLS-elevation/version-lock patterns of
+ * `removeTalentFromRoster` + `addTalentToRoster`; gated on BOTH the
+ * `remove_talent` and `add_talent` permissions.
+ */
+export async function swapTalent(
+  supabase: SupabaseClient,
+  ctx: {
+    inquiryId: string;
+    tenantId: string;
+    /** participant row id of the talent being removed */
+    outgoingParticipantId: string;
+    /** talent_profiles.id of the talent being added */
+    incomingTalentProfileId: string;
+    actorUserId: string;
+    expectedVersion: number;
+  },
+): Promise<EngineResult> {
+  return runWithEngineLog("swapTalent", ctx.inquiryId, ctx.actorUserId, async () => {
+    const permRemove = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "remove_talent");
+    if (!permRemove.ok) return { success: false, forbidden: true, reason: "forbidden" };
+    const permAdd = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "add_talent");
+    if (!permAdd.ok) return { success: false, forbidden: true, reason: "forbidden" };
+
+    const { data: inq } = await supabase
+      .from("inquiries")
+      .select("uses_new_engine, status, is_frozen, version")
+      .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
+      .maybeSingle();
+    if (!inq) return { success: false, forbidden: true, reason: "forbidden" };
+    if (!inq.uses_new_engine) return { success: false, error: "use_legacy_roster_actions" };
+    if (!isMutablePhase(inq.status as string, !!inq.is_frozen)) return { success: false, reason: "post_booking_immutable" };
+
+    // Load the outgoing participant so the incoming talent inherits its
+    // requirement group + sort slot (keeps the lineup shape stable).
+    const { data: outgoing } = await supabase
+      .from("inquiry_participants")
+      .select("id, requirement_group_id, sort_order, talent_profile_id")
+      .eq("id", ctx.outgoingParticipantId)
+      .eq("inquiry_id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
+      .eq("role", "talent")
+      .maybeSingle();
+    if (!outgoing) return { success: false, error: "outgoing_not_on_roster" };
+
+    const { data: incomingTp } = await supabase
+      .from("talent_profiles")
+      .select("user_id")
+      .eq("id", ctx.incomingTalentProfileId)
+      .maybeSingle();
+
+    const write = await inquiryWriteClient(supabase);
+
+    // 1) Remove the outgoing talent (mirror removeTalentFromRoster).
+    await write
+      .from("inquiry_participants")
+      .update({ status: "removed", removed_at: new Date().toISOString() })
+      .eq("id", ctx.outgoingParticipantId)
+      .eq("inquiry_id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
+      .eq("role", "talent");
+
+    // 2) Add the incoming talent into the SAME group + slot (mirror
+    //    addTalentToRoster's insert shape).
+    const { error: insErr } = await write.from("inquiry_participants").insert({
+      inquiry_id: ctx.inquiryId,
+      tenant_id: ctx.tenantId,
+      user_id: incomingTp?.user_id ?? null,
+      talent_profile_id: ctx.incomingTalentProfileId,
+      role: "talent",
+      status: "invited",
+      sort_order: (outgoing.sort_order as number | null) ?? 0,
+      added_by_user_id: ctx.actorUserId,
+      requirement_group_id: (outgoing.requirement_group_id as string | null) ?? null,
+    });
+    if (insErr) return { success: false, error: insErr.message };
+
+    // 3) One optimistic version bump for the whole swap.
+    const { error: verr } = await write
+      .from("inquiries")
+      .update({
+        version: (inq.version as number) + 1,
+        last_edited_by: ctx.actorUserId,
+        last_edited_at: new Date().toISOString(),
+      })
+      .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
+      .eq("version", ctx.expectedVersion);
+    if (verr) return { success: false, conflict: true, reason: "version_conflict" };
+
+    await invalidateOfferIfRosterChanged(supabase, ctx.inquiryId, ctx.tenantId, ctx.actorUserId);
+    await assertConsistencyAfterWrite(supabase, ctx.inquiryId);
+
+    await emitStandardEngineEvent(supabase, {
+      type: ENGINE_EVENT_TYPES.ROSTER_TALENT_SWAPPED,
+      inquiryId: ctx.inquiryId,
+      actorUserId: ctx.actorUserId,
+      data: {
+        outgoingParticipantId: ctx.outgoingParticipantId,
+        outgoingTalentProfileId: (outgoing.talent_profile_id as string | null) ?? null,
+        incomingTalentProfileId: ctx.incomingTalentProfileId,
+      },
+      systemMessage: {
+        threadType: "private",
+        eventType: "roster_talent_swapped",
+        body: "A talent on the lineup was swapped for another.",
+      },
+      notifications: incomingTp?.user_id
+        ? [{ userId: incomingTp.user_id as string, title: "Inquiry invitation", body: "You were added to an inquiry." }]
+        : [],
     });
 
     return { success: true };

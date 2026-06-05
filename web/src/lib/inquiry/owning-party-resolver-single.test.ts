@@ -45,6 +45,7 @@ type RosterRow = {
   is_primary: boolean;
   status: string;
   agencies: AgencyEmbed;
+  exclusivity_status?: string | null;
 };
 
 type QueryResult = { data: RosterRow[] | null; error: { message: string } | null };
@@ -353,4 +354,108 @@ test("batch QUIRK: pending-only row → ('workspace', pending_tenant) via the `?
   );
   const res = await resolveOwningPartiesForTalents(sb, ["t1"]);
   assert.deepEqual(res.get("t1"), { type: "workspace", id: "ws-pending" });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SOURCE-AWARE (inquiryTenantId) — the open-hub self-coordinate routing.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const freeRow = (tenant: string, extra: Partial<RosterRow> = {}): RosterRow => ({
+  tenant_id: tenant,
+  talent_profile_id: "t1",
+  is_primary: false,
+  status: "active",
+  agencies: { id: tenant, plan_tier: "free" },
+  ...extra,
+});
+
+test("source-aware: non-exclusive talent inquired via a tenant they're NOT on (the hub) → ('talent', id)", async () => {
+  const sb = makeMockSupabase(ok([freeRow("ws-agencyA")]));
+  // inquiry arrived through the hub tenant, where the talent has no roster row.
+  assert.deepEqual(await resolveOwningPartyForTalent(sb, "t1", "hub-tenant"), {
+    type: "talent",
+    id: "t1",
+  });
+});
+
+test("source-aware: non-exclusive talent inquired via a tenant they ARE on → ('workspace', that tenant)", async () => {
+  const sb = makeMockSupabase(ok([freeRow("ws-agencyA")]));
+  assert.deepEqual(await resolveOwningPartyForTalent(sb, "t1", "ws-agencyA"), {
+    type: "workspace",
+    id: "ws-agencyA",
+  });
+});
+
+test("source-aware: EXCLUSIVE (studio) talent inquired via the hub → still ('agency', id) — exclusivity overrides source", async () => {
+  const sb = makeMockSupabase(
+    ok([
+      {
+        tenant_id: "ag-studio",
+        talent_profile_id: "t1",
+        is_primary: true,
+        status: "active",
+        agencies: { id: "ag-studio", plan_tier: "studio" },
+        exclusivity_status: "confirmed",
+      },
+    ]),
+  );
+  assert.deepEqual(await resolveOwningPartyForTalent(sb, "t1", "hub-tenant"), {
+    type: "agency",
+    id: "ag-studio",
+  });
+});
+
+test("source-aware: exclusivity_status='declined' on a studio + hub source → NOT exclusive → ('talent', id)", async () => {
+  const sb = makeMockSupabase(
+    ok([
+      {
+        tenant_id: "ag-studio",
+        talent_profile_id: "t1",
+        is_primary: true,
+        status: "active",
+        agencies: { id: "ag-studio", plan_tier: "studio" },
+        exclusivity_status: "declined",
+      },
+    ]),
+  );
+  assert.deepEqual(await resolveOwningPartyForTalent(sb, "t1", "hub-tenant"), {
+    type: "talent",
+    id: "t1",
+  });
+});
+
+test("source-aware: 'notice_period' on an agency tier + hub source → NOT exclusive → ('talent', id)", async () => {
+  const sb = makeMockSupabase(
+    ok([
+      {
+        tenant_id: "ag-agency",
+        talent_profile_id: "t1",
+        is_primary: true,
+        status: "active",
+        agencies: { id: "ag-agency", plan_tier: "agency" },
+        exclusivity_status: "notice_period",
+      },
+    ]),
+  );
+  assert.deepEqual(await resolveOwningPartyForTalent(sb, "t1", "hub-tenant"), {
+    type: "talent",
+    id: "t1",
+  });
+});
+
+test("source-aware batch: exclusive→agency, non-exclusive-on-inquiry-tenant→workspace, non-exclusive-off-tenant→talent", async () => {
+  const sb = makeMockSupabase(
+    ok([
+      // tEx — exclusive on a studio (overrides source)
+      { tenant_id: "ag-studio", talent_profile_id: "tEx", is_primary: true, status: "active", agencies: { id: "ag-studio", plan_tier: "studio" }, exclusivity_status: "confirmed" },
+      // tOn — non-exclusive, rostered on the inquiry tenant
+      { tenant_id: "hub-tenant", talent_profile_id: "tOn", is_primary: false, status: "active", agencies: { id: "hub-tenant", plan_tier: "free" } },
+      // tOff — non-exclusive, rostered only elsewhere → self-coordinate
+      { tenant_id: "ws-other", talent_profile_id: "tOff", is_primary: false, status: "active", agencies: { id: "ws-other", plan_tier: "free" } },
+    ]),
+  );
+  const res = await resolveOwningPartiesForTalents(sb, ["tEx", "tOn", "tOff"], "hub-tenant");
+  assert.deepEqual(res.get("tEx"), { type: "agency", id: "ag-studio" });
+  assert.deepEqual(res.get("tOn"), { type: "workspace", id: "hub-tenant" });
+  assert.deepEqual(res.get("tOff"), { type: "talent", id: "tOff" });
 });

@@ -58,11 +58,19 @@ import {
   CHROME,
   Drawer,
   DrawerHead,
-  DrawerTabs,
-  DrawerTab,
   DrawerBody,
   SectionTypeIcon,
 } from "./kit";
+import { DrawerIconTabs, type DrawerIconTabItem } from "./kit/drawer";
+import {
+  FileText,
+  LayoutGrid,
+  Palette,
+  Database,
+  Monitor,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
 import { cleanSectionName as _cleanSectionName } from "@/lib/site-admin/clean-section-name";
 import { sectionDisplayName } from "@/lib/site-admin/section-display-name";
 import {
@@ -84,7 +92,28 @@ const TABS: ReadonlyArray<{ key: TabKey; label: string }> = [
   { key: "motion", label: "Motion" },
 ];
 
-/** Short hover hints — non-technical language (Phase 2 trust). */
+/**
+ * Lucide glyph for each inspector tab. The tab strip is now a slim VERTICAL
+ * ICON RAIL down the left inner edge of the floating dock (2026-06-03) rather
+ * than a horizontal text-pill bar — icons + tooltips read as a premium tool
+ * selector and reclaim the horizontal room a narrow floating panel can't
+ * spare. Labels still drive the tooltip + aria-label so the rail is fully
+ * accessible.
+ */
+const TAB_ICON: Record<TabKey, LucideIcon> = {
+  content: FileText,
+  layout: LayoutGrid,
+  style: Palette,
+  data: Database,
+  responsive: Monitor,
+  motion: Zap,
+};
+
+/**
+ * Short hover hints — non-technical language (Phase 2 trust). On the icon
+ * rail these become the tooltip so an icon-only target stays discoverable;
+ * the short tab label remains the aria-label for assistive tech.
+ */
 const INSPECTOR_TAB_HINT: Record<TabKey, string> = {
   content: "Edit text, images, and controls for this block",
   layout: "Spacing, width, and how the block sits on the page",
@@ -249,6 +278,7 @@ export function InspectorDock() {
     recordFieldEdit,
     syncBuilderNodeChildrenForSection,
     patchBuilderNodeProps,
+    reportMutationError,
     slots,
     builderTree,
     canEditSiteShell,
@@ -703,7 +733,15 @@ export function InspectorDock() {
       currentLoadedSection?.sectionTypeKey === "site_header" ||
       currentLoadedSection?.sectionTypeKey === "site_footer");
 
-  const dockOpen = !!selectedSectionId;
+  /** P3-LOCK — the selected standalone builder node has the lock flag set. */
+  const selectedStandaloneBuilderNodeIsLocked =
+    selectedStandaloneBuilderNode?.locked === true;
+
+  // Freeform full-page-design blocks have NO owner section, so selection lands
+  // a standalone builder node with selectedSectionId === null. Open the dock for
+  // either a section OR a standalone node — otherwise freeform blocks select in
+  // state but the inspector stays collapsed/empty.
+  const dockOpen = !!selectedSectionId || !!selectedStandaloneBuilderNode;
 
   // T2-1 — Use the skeleton hint (name + type known from slots) when the
   // field-draft fetch hasn't resolved yet. Falls back to "Inspector" only
@@ -865,6 +903,20 @@ export function InspectorDock() {
     return TABS.filter((t) => set.has(t.key)).map((t) => t.key);
   }, [currentLoadedSection, selectedStandaloneBuilderNode, skeletonHint]);
 
+  // Vertical icon-rail items for the visible tabs, in canonical TABS order.
+  // Each carries its lucide glyph + plain-language label; the label is the
+  // rail button's tooltip + aria-label (see DrawerIconTabs).
+  const iconTabItems = useMemo<ReadonlyArray<DrawerIconTabItem<TabKey>>>(
+    () =>
+      TABS.filter((t) => visibleTabs.includes(t.key)).map((t) => ({
+        key: t.key,
+        label: t.label,
+        hint: INSPECTOR_TAB_HINT[t.key],
+        icon: TAB_ICON[t.key],
+      })),
+    [visibleTabs],
+  );
+
   // If the active tab disappears for the new section type (e.g. operator
   // had Motion open for Hero, then selects Trust Strip which doesn't
   // surface Motion), fall back to Content so we never render an
@@ -888,6 +940,9 @@ export function InspectorDock() {
       className="max-lg:hidden"
       testId="inspector-dock"
       ariaLabelledBy="inspector-drawer-title"
+      floating
+      floatLabel="Inspector"
+      floatPanelId="inspector"
     >
       <DrawerHead
         titleId="inspector-drawer-title"
@@ -916,10 +971,23 @@ export function InspectorDock() {
         }
       />
 
-      {!selectedSectionId ? (
+      {!selectedSectionId && !selectedStandaloneBuilderNode ? (
         <EmptyState />
       ) : shellSectionLocked ? (
         <ShellLockedState />
+      ) : selectedStandaloneBuilderNodeIsLocked ? (
+        <NodeLockedState
+          nodeId={selectedStandaloneBuilderNode!.id}
+          nodeLabel={builderNodeTitle(selectedStandaloneBuilderNode!)}
+          onUnlock={async () => {
+            if (!selectedStandaloneBuilderNode) return;
+            const result = await patchBuilderNodeProps(
+              selectedStandaloneBuilderNode.id,
+              { locked: undefined },
+            );
+            if (!result.ok && result.error) reportMutationError(result.error);
+          }}
+        />
       ) : isSiteHeaderSelected ? (
         <SiteHeaderInspector tenantId={tenantId} />
       ) : loadError ? (
@@ -937,28 +1005,20 @@ export function InspectorDock() {
       ) : !selectedStandaloneBuilderNode && (!currentLoadedSection || !registryEntry) ? (
         <InspectorSkeleton />
       ) : (
-        <>
+        <div className="flex min-h-0 flex-1">
           {visibleTabs.length > 1 ? (
-            <div
-              className="flex min-w-0 items-end"
-              style={{ borderBottom: `1px solid ${CHROME.line}` }}
-            >
-              <DrawerTabs>
-                {TABS.filter((t) => visibleTabs.includes(t.key)).map((t) => (
-                  <DrawerTab
-                    key={t.key}
-                    active={tab === t.key}
-                    onClick={() => setTab(t.key)}
-                    title={INSPECTOR_TAB_HINT[t.key]}
-                  >
-                    {t.label}
-                  </DrawerTab>
-                ))}
-              </DrawerTabs>
-            </div>
+            <DrawerIconTabs
+              items={iconTabItems}
+              active={tab}
+              onSelect={setTab}
+              ariaLabel="Inspector sections"
+            />
           ) : null}
 
-          <DrawerBody padding="14px 14px 32px" className="overflow-x-hidden">
+          <DrawerBody
+            padding="14px 14px 32px"
+            className="min-w-0 overflow-x-hidden"
+          >
             {saveError ? (
               <div
                 role="status"
@@ -1076,7 +1136,7 @@ export function InspectorDock() {
               />
             ) : null}
           </DrawerBody>
-        </>
+        </div>
       )}
     </Drawer>
   );
@@ -1117,7 +1177,7 @@ function EmptyState() {
         className="mt-1.5 max-w-[220px] text-[11.5px] leading-relaxed"
         style={{ color: CHROME.muted2 }}
       >
-        Click a section on the canvas or a row in the left Structure list. Your draft edits stay private until you publish.
+        Click a section on the canvas or a row in the left Layers panel. Your draft edits stay private until you publish.
       </p>
     </div>
   );
@@ -1137,6 +1197,81 @@ function ShellLockedState() {
           Body sections stay editable. Upgrade to Studio to edit header and footer shell controls.
         </p>
       </div>
+    </div>
+  );
+}
+
+/**
+ * P3-LOCK — shown when the selected standalone builder node has `locked: true`.
+ * Renders a clear locked banner with an "Unlock" affordance that patches
+ * `locked: undefined` via the normal mutation path, then re-opens the inspector.
+ */
+function NodeLockedState({
+  nodeId,
+  nodeLabel,
+  onUnlock,
+}: {
+  nodeId: string;
+  nodeLabel: string;
+  onUnlock: () => Promise<void>;
+}) {
+  const [unlocking, setUnlocking] = useState(false);
+  const handleUnlock = async () => {
+    setUnlocking(true);
+    try {
+      await onUnlock();
+    } finally {
+      setUnlocking(false);
+    }
+  };
+  return (
+    <div
+      className="flex flex-1 flex-col items-center justify-center gap-0 px-6 text-center"
+      style={{ color: CHROME.muted }}
+      data-node-id={nodeId}
+    >
+      <div
+        className="mb-4 flex size-12 items-center justify-center rounded-2xl border"
+        style={{
+          borderColor: CHROME.amberLine,
+          background: CHROME.amberBg,
+          color: CHROME.amber,
+          boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+        }}
+      >
+        {/* Lock icon SVG (no lucide dep in this file) */}
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </svg>
+      </div>
+      <p className="text-[13px] font-semibold tracking-tight" style={{ color: CHROME.text2 }}>
+        {nodeLabel} is locked
+      </p>
+      <p className="mt-1.5 max-w-[220px] text-[11.5px] leading-relaxed" style={{ color: CHROME.muted2 }}>
+        This block is locked and cannot be moved, resized, or edited. Unlock it to resume editing.
+      </p>
+      <button
+        type="button"
+        disabled={unlocking}
+        onClick={() => void handleUnlock()}
+        className="mt-4 inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[12px] font-semibold transition"
+        style={{
+          background: CHROME.amberBg,
+          border: `1px solid ${CHROME.amberLine}`,
+          color: CHROME.amber,
+          cursor: unlocking ? "wait" : "pointer",
+          opacity: unlocking ? 0.65 : 1,
+        }}
+        aria-label={`Unlock ${nodeLabel}`}
+      >
+        {/* Unlock icon SVG */}
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+          <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+        </svg>
+        {unlocking ? "Unlocking…" : "Unlock block"}
+      </button>
     </div>
   );
 }

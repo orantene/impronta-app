@@ -1,3 +1,4 @@
+import { getRequestLocale } from "@/i18n/request-locale";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
 
 type Feature = {
@@ -6,46 +7,58 @@ type Feature = {
   icon: React.ReactNode;
 };
 
-const FEATURES: Feature[] = [
-  {
-    title: "Branded roster site",
-    body:
-      "Your identity, typography, colors, and domain. A real website — not a generic template — managed in a modern CMS.",
-    icon: <SiteIcon />,
-  },
-  {
-    title: "People profiles, done right",
-    body:
-      "Structured taxonomy, media pipeline, multi-locale support, and editorial presentation — the profile your roster deserves.",
-    icon: <ProfileIcon />,
-  },
-  {
-    title: "Inquiry → booking pipeline",
-    body:
-      "Structured inquiries, versioned offers, multi-party approvals, and real bookings. Not another chat thread.",
-    icon: <PipelineIcon />,
-  },
-  {
-    title: "Shared network hub",
-    body:
-      "Opt into a cross-org hub where clients browse talent, casting, and operators across the whole network.",
-    icon: <NetworkIcon />,
-  },
-  {
-    title: "Multi-user with roles",
-    body:
-      "Coordinators, admins, assistants, owners — scope access with permissions. Scale past the one-person bottleneck.",
-    icon: <RolesIcon />,
-  },
-  {
-    title: "Analytics + insights",
-    body:
-      "See who&rsquo;s viewing profiles, where inquiries come from, what converts — and where to spend the next hour.",
-    icon: <AnalyticsIcon />,
-  },
-];
+function getFeatures(locale: string): Feature[] {
+  const es = locale === "es";
+  return [
+    {
+      title: es ? "Sitio con tu marca para tu roster" : "Branded roster site",
+      body: es
+        ? "Tu identidad, tu tipografía, tus colores y tu dominio. Un sitio web de verdad —no una plantilla genérica— que administras desde un CMS moderno."
+        : "Your identity, typography, colors, and domain. A real website — not a generic template — managed in a modern CMS.",
+      icon: <SiteIcon />,
+    },
+    {
+      title: es ? "Perfiles de personas, como debe ser" : "People profiles, done right",
+      body: es
+        ? "Taxonomía estructurada, flujo de medios, soporte multilingüe y una presentación editorial: el perfil que tu roster se merece."
+        : "Structured taxonomy, media pipeline, multi-locale support, and editorial presentation — the profile your roster deserves.",
+      icon: <ProfileIcon />,
+    },
+    {
+      title: es ? "De la consulta a la reserva" : "Inquiry → booking pipeline",
+      body: es
+        ? "Consultas estructuradas, ofertas con versiones, aprobaciones entre varias partes y reservas reales. No otro hilo de chat."
+        : "Structured inquiries, versioned offers, multi-party approvals, and real bookings. Not another chat thread.",
+      icon: <PipelineIcon />,
+    },
+    {
+      title: es ? "Hub de red compartido" : "Shared network hub",
+      body: es
+        ? "Súmate a un hub entre organizaciones donde los clientes exploran talento, casting y operadores de toda la red."
+        : "Opt into a cross-org hub where clients browse talent, casting, and operators across the whole network.",
+      icon: <NetworkIcon />,
+    },
+    {
+      title: es ? "Varios usuarios, con roles" : "Multi-user with roles",
+      body: es
+        ? "Coordinadores, administradores, asistentes, dueños: define el acceso de cada quien con permisos. Crece más allá del cuello de botella de una sola persona."
+        : "Coordinators, admins, assistants, owners — scope access with permissions. Scale past the one-person bottleneck.",
+      icon: <RolesIcon />,
+    },
+    {
+      title: es ? "Analíticas e insights" : "Analytics + insights",
+      body: es
+        ? "Mira quién ve los perfiles, de dónde llegan las consultas, qué convierte —y dónde te conviene invertir la próxima hora."
+        : "See who&rsquo;s viewing profiles, where inquiries come from, what converts — and where to spend the next hour.",
+      icon: <AnalyticsIcon />,
+    },
+  ];
+}
 
-export function FeatureGridSection() {
+export async function FeatureGridSection() {
+  const locale = await getRequestLocale();
+  const es = locale === "es";
+  const features = getFeatures(locale);
   return (
     <MarketingSection id="features" style={{ background: "var(--mkt-surface)" }}>
       <span
@@ -56,22 +69,33 @@ export function FeatureGridSection() {
       <MarketingContainer size="wide">
         <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end md:gap-10">
           <div className="max-w-2xl">
-            <MarketingEyebrow>What&rsquo;s inside</MarketingEyebrow>
+            <MarketingEyebrow>{es ? "Qué incluye" : "What’s inside"}</MarketingEyebrow>
             <h2
               className="mkt-display mt-5 text-[2rem] font-medium tracking-[-0.02em] sm:text-[2.75rem] md:text-[3rem]"
               style={{ color: "var(--mkt-ink)" }}
             >
-              Everything a roster-based
-              <br />
-              business actually needs.
+              {es ? (
+                <>
+                  Todo lo que un negocio
+                  <br />
+                  de roster necesita de verdad.
+                </>
+              ) : (
+                <>
+                  Everything a roster-based
+                  <br />
+                  business actually needs.
+                </>
+              )}
             </h2>
           </div>
           <p
             className="max-w-sm text-[1rem] leading-[1.6]"
             style={{ color: "var(--mkt-muted)" }}
           >
-            A branded site, a proper profile system, a real inquiry pipeline, a shared
-            network, and the permissions to scale past a single phone.
+            {es
+              ? "Un sitio con tu marca, un sistema de perfiles serio, un flujo de consultas de verdad, una red compartida y los permisos para crecer más allá de un solo teléfono."
+              : "A branded site, a proper profile system, a real inquiry pipeline, a shared network, and the permissions to scale past a single phone."}
           </p>
         </div>
 
@@ -81,7 +105,7 @@ export function FeatureGridSection() {
             background: "var(--mkt-hairline-strong)",
           }}
         >
-          {FEATURES.map((f) => (
+          {features.map((f) => (
             <FeatureCell key={f.title} feature={f} />
           ))}
         </div>

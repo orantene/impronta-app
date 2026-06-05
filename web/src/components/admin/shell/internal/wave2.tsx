@@ -1031,17 +1031,31 @@ export function TenantSwitcherDrawer() {
         {!wsLoading && (["Owner", "Admin", "Manager", "Editor", "Talent"] as const).map((roleGroup) => {
           const tenants = realWorkspaces
             .filter(w => w.role === roleGroup.toLowerCase())
-            .map(w => ({
-              id: w.id,
-              slug: w.slug,
-              name: w.name,
-              role: toDisplayRole(w.role),
-              tier: (w.tier || "free") as TenantTier,
-              initials: w.name.charAt(0).toUpperCase() || "?",
-              seatsUsed: null as number | null,
-              seatsCap: w.tier === "network" ? ("∞" as const) : (w.seatCap ?? defaultSeatCap(w.tier)),
-              domain: w.domain ?? `${w.slug}.tulala.digital`,
-            }));
+            .map(w => {
+              // The platform network-hub's public face is the marketing apex
+              // (tulala.digital) — not a `<slug>.tulala.digital` subdomain
+              // (which is never provisioned and 404s). The apex doesn't serve
+              // /admin, so its workspace admin lives on the app host.
+              const isPlatformHub = w.kind === "hub" && w.tier === "network";
+              const domain = isPlatformHub
+                ? "tulala.digital"
+                : (w.domain ?? `${w.slug}.tulala.digital`);
+              const adminUrl = isPlatformHub
+                ? `https://app.tulala.digital/${w.slug}/admin`
+                : `https://${domain}/admin`;
+              return {
+                id: w.id,
+                slug: w.slug,
+                name: w.name,
+                role: toDisplayRole(w.role),
+                tier: (w.tier || "free") as TenantTier,
+                initials: w.name.charAt(0).toUpperCase() || "?",
+                seatsUsed: null as number | null,
+                seatsCap: w.tier === "network" ? ("∞" as const) : (w.seatCap ?? defaultSeatCap(w.tier)),
+                domain,
+                adminUrl,
+              };
+            });
           if (tenants.length === 0) return null;
           const groupHeading = roleGroup === "Owner" ? "Workspaces you own"
             : roleGroup === "Admin" ? "Where you're an admin"
@@ -1089,7 +1103,7 @@ export function TenantSwitcherDrawer() {
                       if (isLocalhost) {
                         window.location.href = `/${t.slug}/admin`;
                       } else {
-                        window.location.href = `https://${t.domain}/admin`;
+                        window.location.href = t.adminUrl;
                       }
                     }}
                     style={{
@@ -1168,8 +1182,8 @@ export function TenantSwitcherDrawer() {
                           tabIndex={0}
                           aria-label={`Open ${t.domain} in a new tab`}
                           title="Open in new tab"
-                          onClick={(e) => { e.stopPropagation(); window.open(`https://${t.domain}/admin`, "_blank"); }}
-                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); window.open(`https://${t.domain}/admin`, "_blank"); } }}
+                          onClick={(e) => { e.stopPropagation(); window.open(t.adminUrl, "_blank"); }}
+                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); window.open(t.adminUrl, "_blank"); } }}
                           style={{
                             flexShrink: 0,
                             width: 18, height: 18, borderRadius: 5,
@@ -2490,8 +2504,14 @@ export function TalentShareCardDrawer() {
   const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "talent-share-card";
   const talentName = (state.drawer.payload?.name as string) ?? "your talent";
-  const slug = (state.drawer.payload?.slug as string) ?? "talent-slug";
-  const url = `${TENANT.domain}/share/talent/${slug}`;
+  // Canonical public talent page is /t/[profileCode] (multi-workspace aware — it
+  // renders the talent under the current tenant's domain/overlay). Accept
+  // `profileCode`; fall back to the legacy `slug` payload key for compatibility.
+  const profileCode =
+    (state.drawer.payload?.profileCode as string) ??
+    (state.drawer.payload?.slug as string) ??
+    "talent-code";
+  const url = `${TENANT.domain}/t/${profileCode}`;
 
   return (
     <DrawerShell

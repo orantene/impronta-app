@@ -29,7 +29,7 @@ import {
   clientAcceptOffer,
   clientRejectOffer,
 } from "@/lib/inquiry/inquiry-engine";
-import { sendClientInquiryMessage } from "../inquiries/[id]/actions";
+import { sendClientMessageAction } from "./inquiry-message-actions";
 import { logServerError } from "@/lib/server/safe-error";
 
 export type InquiryOfferActionState =
@@ -194,7 +194,11 @@ export async function counterOfferAction(
   const session = await getCachedActorSession();
   if (!session.user) return { kind: "error", message: "Sign in to send a counter." };
 
-  const result = await sendClientInquiryMessage(tenantSlug, inquiryId, `[Counter request] ${note}`);
+  // Posts a tagged "[Counter request]" message on the agency↔client private
+  // thread via the canonical engine-backed action. (Previously imported
+  // sendClientInquiryMessage from the now-deleted legacy client/inquiries/[id]
+  // thread surface — audit #11 consolidation.)
+  const result = await sendClientMessageAction(tenantSlug, inquiryId, `[Counter request] ${note}`);
   if (!result.ok) {
     logServerError("client.counterOffer", new Error(result.error ?? "counter failed"));
     return { kind: "error", message: result.error ?? "Could not send your counter. Try again." };

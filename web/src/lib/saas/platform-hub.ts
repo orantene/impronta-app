@@ -1,54 +1,46 @@
 import "server-only";
 
+import { cache } from "react";
+
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { logServerError } from "@/lib/server/safe-error";
 
 export type PlatformHubTenant = {
-  id: string;
+  tenantId: string;
   slug: string;
   displayName: string;
 };
 
-let cachedHub: PlatformHubTenant | null | undefined;
-
 /**
- * Resolve the canonical platform network hub (kind=hub, plan_tier=network).
- * Never hardcode the hub UUID in app code — use this helper.
+ * Resolves the platform's default network hub (kind='hub' + plan_tier='network').
+ *
+ * The marketing apex (tulala.digital) has no tenant of its own, but it IS the
+ * public face of the in-house Tulala hub. Surfaces that need a tenant on the
+ * platform — e.g. the guest-chat launcher routing a "message the platform"
+ * inquiry — resolve it here. Read with the service-role client because the
+ * anon caller can't see another tenant's `agencies` row. Request-cached.
+ *
+ * Returns null when no network hub exists, so callers degrade to rendering
+ * nothing rather than crashing.
  */
-export async function getPlatformHubTenant(): Promise<PlatformHubTenant | null> {
-  if (cachedHub !== undefined) return cachedHub;
-
-  const admin = createServiceRoleClient();
-  if (!admin) {
-    cachedHub = null;
-    return null;
-  }
-
-  const { data, error } = await admin
-    .from("agencies")
-    .select("id, slug, display_name")
-    .eq("kind", "hub")
-    .eq("plan_tier", "network")
-    .eq("status", "active")
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    logServerError("platform-hub.resolve", error);
-    cachedHub = null;
-    return null;
-  }
-
-  if (!data) {
-    cachedHub = null;
-    return null;
-  }
-
-  cachedHub = {
-    id: data.id,
-    slug: data.slug,
-    displayName: data.display_name,
-  };
-  return cachedHub;
-}
+export const getPlatformHubTenant = cache(
+  async (): Promise<PlatformHubTenant | null> => {
+    const admin = createServiceRoleClient();
+    if (!admin) return null;
+    const { data } = await admin
+      .from("agencies")
+      .select("id, slug, display_name")
+      .eq("kind", "hub")
+      .eq("plan_tier", "network")
+      .eq("status", "active")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (!data) return null;
+    const row = data as { id: string; slug: string; display_name: string | null };
+    return {
+      tenantId: row.id,
+      slug: row.slug,
+      displayName: row.display_name?.trim() || "Tulala",
+    };
+  },
+);

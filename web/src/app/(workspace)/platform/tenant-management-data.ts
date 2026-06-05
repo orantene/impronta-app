@@ -8,6 +8,7 @@ import {
   type WorkspacePlanOverride,
   type WorkspacePlanTier,
 } from "@/lib/platform/plan-override";
+import { parseTenantCommercialTerms, type TenantCommercialTerms } from "@/lib/billing/commercial-terms-parse";
 
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return "—";
@@ -397,6 +398,7 @@ export type TenantManagementDetail = {
     trialEnd: string | null;
   };
   commission: { override: { platformTakeBps: number | null; platformTakeFloorCents: number | null; overrideNote: string; setAt: string } | null; openRequest: { requestedPlatformTakeBps: number | null; requestedNote: string | null; requestedAt: string | null; requestStatus: string } | null };
+  commercialTerms: TenantCommercialTerms;
   override: WorkspacePlanOverride | null;
   overrideHistory: WorkspacePlanOverride[];
   urls: { publicSite: string; adminDashboard: string; billing: string; customDomain: string | null };
@@ -774,6 +776,7 @@ export async function loadTenantManagementDetail(
       override: commissionOverride,
       openRequest: commissionOpenRequest,
     },
+    commercialTerms: parseTenantCommercialTerms(settings?.commercialTerms),
     override: activeOverride,
     overrideHistory,
     urls,
