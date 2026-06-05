@@ -24,6 +24,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/client";
 import { EditErrorBoundary } from "./edit-error-boundary";
+import { BuilderProfilerBoundary } from "./builder-profiler-boundary";
 import {
   EditProvider,
   useEditContext,
@@ -238,9 +239,15 @@ export function EditShell({
             are available to all chrome components inside the editor. The
             provider must nest inside EditProvider so CanvasKeyboardZoom /
             CanvasZoomControls can read pageId from EditContext. */}
-        <CanvasViewportProviderWrapper>
-          <EditShellInner>{children}</EditShellInner>
-        </CanvasViewportProviderWrapper>
+        {/* W0-T6 — flag-gated profiler boundary (no-op unless
+            NEXT_PUBLIC_BUILDER_PROFILE=1). Wraps the chrome consumer tree so
+            the W0-T7 run can measure per-commit cost of the ~40
+            useEditContext() consumers. Adds zero nodes when the flag is off. */}
+        <BuilderProfilerBoundary id="edit-chrome">
+          <CanvasViewportProviderWrapper>
+            <EditShellInner>{children}</EditShellInner>
+          </CanvasViewportProviderWrapper>
+        </BuilderProfilerBoundary>
       </EditProvider>
     </EditErrorBoundary>
   );
