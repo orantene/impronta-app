@@ -28,6 +28,7 @@ import {
 } from "@/lib/payments/stripe-connect-talent";
 import { payoutCountryLabel } from "@/lib/payments/payout-countries";
 import {
+  getTalentGpAccountLink,
   getTalentGpStatus,
   listTalentGpPayoutMethods,
   removeTalentGpPayoutMethod,
@@ -36,6 +37,7 @@ import {
   syncTalentGpRecipient,
   type TalentGpMethod,
   type TalentGpStatus,
+  type TalentGpStatusKind,
 } from "@/lib/payments/talent-global-payouts";
 
 export type StartOnboardingResult =
@@ -321,16 +323,48 @@ export async function syncTalentGpProfileAction(): Promise<
   }
 }
 
-/** List the talent's Global Payouts destinations (banks), default flagged, plus
- *  their profile country so the add-account form can prefill it. */
+/** List the talent's Global Payouts destinations + the real recipient status. */
 export async function loadTalentGpMethods(): Promise<
-  { ok: true; methods: TalentGpMethod[]; profileCountry: string | null } | { ok: false; error: string }
+  | { ok: true; methods: TalentGpMethod[]; profileCountry: string | null; status: TalentGpStatusKind }
+  | { ok: false; error: string }
 > {
   const tp = await resolveOwnTalentProfileId();
   if (!tp.ok) return { ok: false, error: tp.error };
   const r = await listTalentGpPayoutMethods(tp.id);
   if (!r.ok) return { ok: false, error: r.error };
-  return { ok: true, methods: r.methods, profileCountry: r.profileCountry };
+  return { ok: true, methods: r.methods, profileCountry: r.profileCountry, status: r.status };
+}
+
+/**
+ * Start Stripe-HOSTED payout setup: ensures the recipient (with metadata,
+ * prefilled from profile), then returns the co-branded Stripe onboarding URL the
+ * client redirects to. The talent completes bank + KYC on Stripe's own form, so
+ * raw details never touch us. Returning to the drawer refreshes the status.
+ */
+export async function startTalentGpHostedSetupAction(): Promise<
+  { ok: true; url: string } | { ok: false; error: string }
+> {
+  try {
+    const session = await getCachedActorSession();
+    if (!session.user) return { ok: false, error: "Sign in required." };
+    const tp = await resolveOwnTalentProfileId();
+    if (!tp.ok) return { ok: false, error: tp.error };
+    const email = session.user.email ?? `talent-${tp.id}@payouts.invalid`;
+    const hdrs = await headers();
+    const host = hdrs.get("host") ?? "localhost";
+    const proto = hdrs.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+    const origin = process.env.NEXT_PUBLIC_BASE_URL ?? `${proto}://${host}`;
+    const back = `${origin}/talent/money?surface=talent&talentPage=money&drawer=talent-payouts`;
+    return await getTalentGpAccountLink(tp.id, {
+      email,
+      userId: session.user.id,
+      returnUrl: back,
+      refreshUrl: back,
+    });
+  } catch (err) {
+    logServerError("talent-payouts.gpHostedSetup", err);
+    return { ok: false, error: "Could not start payout setup. Please try again." };
+  }
 }
 
 /** Make one of the talent's accounts the default payout destination. */

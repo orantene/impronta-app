@@ -180,6 +180,55 @@ export async function archiveRecipientPayoutMethod(
   );
 }
 
+/** Whether the recipient's local-bank capability is active, and whether Stripe
+ *  is still waiting on info from the recipient. Drives the real status pill. */
+export async function getRecipientOnboardingState(
+  recipientAccountId: string,
+): Promise<{ bankActive: boolean; needsUserAction: boolean }> {
+  const r = await stripeV2.get<{
+    configuration?: { recipient?: { capabilities?: { bank_accounts?: { local?: { status?: string } | null } } } };
+    requirements?: { entries?: Array<{ awaiting_action_from?: string }> };
+  }>(`/v2/core/accounts/${recipientAccountId}?include=configuration.recipient,requirements`);
+  if (!r.ok) return { bankActive: false, needsUserAction: false };
+  const bankActive =
+    r.data.configuration?.recipient?.capabilities?.bank_accounts?.local?.status === "active";
+  const needsUserAction = (r.data.requirements?.entries ?? []).some((e) => e.awaiting_action_from === "user");
+  return { bankActive, needsUserAction };
+}
+
+export type V2AccountLink = { object?: string; url: string; created?: string };
+
+/**
+ * Create a Stripe-HOSTED recipient onboarding/update link (AccountLink v2). The
+ * talent completes bank + KYC collection on Stripe's own co-branded form, in the
+ * real supported countries with the correct per-country fields, so raw bank/KYC
+ * details never touch our server.
+ *
+ * Use `onboarding` for a fresh recipient, `update` to add/edit on one that's
+ * already onboarded. IMPORTANT: AccountLinks authenticate with the STANDARD
+ * secret key (sk_live), NOT the restricted money-management key — verified live
+ * (the restricted key returns 403 here, the standard key returns the hosted url).
+ */
+export async function createRecipientAccountLink(opts: {
+  recipientAccountId: string;
+  returnUrl: string;
+  refreshUrl: string;
+  mode: "onboarding" | "update";
+}): Promise<StripeV2Result<V2AccountLink>> {
+  const type = opts.mode === "update" ? "account_update" : "account_onboarding";
+  return stripeV2.post<V2AccountLink>(
+    "/v2/core/account_links",
+    {
+      account: opts.recipientAccountId,
+      use_case: {
+        type,
+        [type]: { configurations: ["recipient"], return_url: opts.returnUrl, refresh_url: opts.refreshUrl },
+      },
+    },
+    { secretKey: process.env.STRIPE_SECRET_KEY },
+  );
+}
+
 export type FinancialAddress = { id: string; object: string; type?: string };
 
 /**

@@ -16,8 +16,10 @@ import { logServerError } from "@/lib/server/safe-error";
 import {
   archiveRecipientPayoutMethod,
   createGlobalPayoutsRecipient,
+  createRecipientAccountLink,
   createRecipientBankPayoutMethod,
   getRecipientDefaultPayoutMethodId,
+  getRecipientOnboardingState,
   listRecipientPayoutMethods,
   setRecipientDefaultPayoutMethod,
   updateRecipientIdentity,
@@ -34,20 +36,32 @@ export type TalentGpMethod = {
   isDefault: boolean;
 };
 
-/** Build the Stripe recipient metadata from a talent profile (TAL- code, ids,
- *  contact). Shared by recipient creation and the "Sync from profile" action. */
+/** Real recipient status, surfaced as a pill in the UI. */
+export type TalentGpStatusKind = "not_started" | "info_needed" | "pending" | "ready";
+
+/** Build the Stripe recipient metadata from a talent profile: the TAL- code as
+ *  talent_id, the profile uuid, contact, and traceability (source/environment/
+ *  user). Shared by recipient creation, sync, and the hosted setup link. */
 function recipientMetadata(
   talentProfileId: string,
   tp: { profile_code: string | null; display_name: string | null; phone_e164: string | null },
-  email: string,
+  opts: { email: string; userId?: string | null; workspaceId?: string | null },
 ): Record<string, string> {
+  const code = (tp.profile_code ?? "").trim();
   const meta: Record<string, string> = {
-    talent_code: tp.profile_code ?? "",
     talent_profile_id: talentProfileId,
+    source: "tulala_payout_setup",
+    environment: (process.env.STRIPE_SECRET_KEY ?? "").startsWith("sk_live") ? "live" : "sandbox",
     talent_name: (tp.display_name ?? "").trim(),
-    talent_email: email,
+    talent_email: opts.email,
   };
-  if (tp.phone_e164) meta.talent_phone = tp.phone_e164;
+  if (code) {
+    meta.talent_id = code; // the human TAL-xxxxx code
+    meta.profile_code = code;
+  }
+  if (tp.phone_e164) meta.whatsapp_number = tp.phone_e164;
+  if (opts.userId) meta.user_id = opts.userId;
+  if (opts.workspaceId) meta.workspace_id = opts.workspaceId;
   for (const k of Object.keys(meta)) if (!meta[k]) delete meta[k];
   return meta;
 }
@@ -96,7 +110,7 @@ async function readProfile(sb: Admin, talentProfileId: string) {
 /** Create-or-get the talent's GP recipient (v2 core account), persisting its id. */
 export async function getOrCreateTalentGpRecipient(
   talentProfileId: string,
-  opts: { country: string; email: string; displayName?: string | null },
+  opts: { country: string; email: string; displayName?: string | null; userId?: string | null; workspaceId?: string | null },
 ): Promise<{ ok: true; recipientAccountId: string } | { ok: false; error: string }> {
   const sb = createServiceRoleClient();
   if (!sb) return { ok: false, error: "Database unavailable." };
@@ -108,7 +122,11 @@ export async function getOrCreateTalentGpRecipient(
   // attach traceable metadata (TAL- code, ids, contact).
   const fullName = (opts.displayName ?? tp.display_name ?? "Talent").trim();
   const { givenName, surname } = splitName(fullName);
-  const metadata = recipientMetadata(talentProfileId, tp, opts.email);
+  const metadata = recipientMetadata(talentProfileId, tp, {
+    email: opts.email,
+    userId: opts.userId,
+    workspaceId: opts.workspaceId,
+  });
 
   // Existing recipient: keep its identity + metadata in sync with the current
   // profile (folds "sync from profile" into the add-account flow, no separate
@@ -165,7 +183,7 @@ export async function syncTalentGpRecipient(
     recipientAccountId: tp.gp_recipient_account_id,
     givenName,
     surname,
-    metadata: recipientMetadata(talentProfileId, tp, opts.email),
+    metadata: recipientMetadata(talentProfileId, tp, { email: opts.email }),
   });
   if (!r.ok) {
     logServerError("talent-gp.sync", new Error(r.error.message ?? "sync failed"));
@@ -224,7 +242,13 @@ export async function setupTalentGpBank(
 export async function listTalentGpPayoutMethods(
   talentProfileId: string,
 ): Promise<
-  | { ok: true; methods: TalentGpMethod[]; defaultId: string | null; profileCountry: string | null }
+  | {
+      ok: true;
+      methods: TalentGpMethod[];
+      defaultId: string | null;
+      profileCountry: string | null;
+      status: TalentGpStatusKind;
+    }
   | { ok: false; error: string }
 > {
   const sb = createServiceRoleClient();
@@ -232,11 +256,12 @@ export async function listTalentGpPayoutMethods(
   const tp = await readProfile(sb, talentProfileId);
   const rid = tp?.gp_recipient_account_id ?? null;
   const profileCountry = await resolveTalentPayoutCountry(talentProfileId);
-  if (!rid) return { ok: true, methods: [], defaultId: null, profileCountry };
+  if (!rid) return { ok: true, methods: [], defaultId: null, profileCountry, status: "not_started" };
 
-  const [list, defaultId] = await Promise.all([
+  const [list, defaultId, state] = await Promise.all([
     listRecipientPayoutMethods(rid),
     getRecipientDefaultPayoutMethodId(rid),
+    getRecipientOnboardingState(rid),
   ]);
   if (!list.ok) return { ok: false, error: list.error.message ?? "Could not load your accounts." };
 
@@ -250,7 +275,54 @@ export async function listTalentGpPayoutMethods(
       currency: m.bank_account?.supported_currencies?.[0] ?? null,
       isDefault: m.id === defaultId,
     }));
-  return { ok: true, methods, defaultId, profileCountry };
+
+  const status: TalentGpStatusKind = state.bankActive
+    ? "ready"
+    : state.needsUserAction
+      ? "info_needed"
+      : "pending";
+  return { ok: true, methods, defaultId, profileCountry, status };
+}
+
+/**
+ * Stripe-HOSTED setup link: ensure the recipient exists (prefilled from the
+ * profile, with full metadata), then return the co-branded Stripe onboarding /
+ * update URL where the talent completes bank + KYC. Replaces the custom form.
+ */
+export async function getTalentGpAccountLink(
+  talentProfileId: string,
+  opts: { email: string; userId?: string | null; returnUrl: string; refreshUrl: string },
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const country = await resolveTalentPayoutCountry(talentProfileId);
+  if (!country) {
+    return { ok: false, error: "Set your country of residence on your profile first." };
+  }
+  const rec = await getOrCreateTalentGpRecipient(talentProfileId, {
+    country,
+    email: opts.email,
+    userId: opts.userId,
+  });
+  if (!rec.ok) return rec;
+
+  let link = await createRecipientAccountLink({
+    recipientAccountId: rec.recipientAccountId,
+    returnUrl: opts.returnUrl,
+    refreshUrl: opts.refreshUrl,
+    mode: "onboarding",
+  });
+  if (!link.ok && /already been onboarded/i.test(link.error.message ?? "")) {
+    link = await createRecipientAccountLink({
+      recipientAccountId: rec.recipientAccountId,
+      returnUrl: opts.returnUrl,
+      refreshUrl: opts.refreshUrl,
+      mode: "update",
+    });
+  }
+  if (!link.ok) {
+    logServerError("talent-gp.accountLink", new Error(link.error.message ?? "account link failed"));
+    return { ok: false, error: link.error.message ?? "Could not start payout setup." };
+  }
+  return { ok: true, url: link.data.url };
 }
 
 /** Set one of the talent's payout methods as the default destination. */
