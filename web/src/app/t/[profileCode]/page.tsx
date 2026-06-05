@@ -85,6 +85,7 @@ import {
 } from "@/lib/talent/agency-overlay";
 import { TalentProfileInquireButton } from "./talent-profile-inquire-button";
 import { TalentProfileChatLauncherMount } from "./_chat/TalentProfileChatLauncherMount";
+import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { PlatformTalentMaxSiteView } from "@/components/talent/site/PlatformTalentMaxSiteView";
 import { isTalentProfilePlatformHost } from "@/lib/talent-site/platform-host";
 import { resolvePlatformTalentSiteForProfile } from "@/lib/talent-site/resolve-platform-talent-site";
@@ -1588,12 +1589,29 @@ export default async function PublicTalentProfilePage({
   // gold/rust is hard-coded (house rule).
   const chatAccentColor =
     tenantBranding?.primary_color ?? tenantBranding?.accent_color ?? null;
-  // Per-tenant guest-chat config (enable + placement + greeting). Defaults-on
-  // for non-agency / unconfigured tenants so the launcher keeps working.
-  const guestChatSettings =
+  // Resolve the tenant that owns this profile's guest chat:
+  //  - agency host → the agency
+  //  - platform (marketing/app) host → the in-house Tulala hub (the talent is
+  //    in its roster), so "message {talent}" inquiries land in the hub Messages.
+  // Without this, the platform surface passed an empty tenantSlug and the
+  // launcher rendered nothing (no chat on tulala.digital/t/<code>).
+  const chatHub =
+    hostCtx.kind === "marketing" || hostCtx.kind === "app"
+      ? await getPlatformHubTenant()
+      : null;
+  const chatTenantId =
+    hostCtx.kind === "agency" ? hostCtx.tenantId : chatHub?.tenantId ?? null;
+  const chatTenantSlug =
+    hostCtx.kind === "agency" ? hostCtx.tenantSlug : chatHub?.slug ?? "";
+  const chatBrandName =
     hostCtx.kind === "agency"
-      ? await loadGuestChatSettings(hostCtx.tenantId)
-      : GUEST_CHAT_DEFAULTS;
+      ? tenantBrand ?? "the agency"
+      : chatHub?.displayName ?? "Tulala";
+  // Per-tenant guest-chat config (enable + placement + greeting). Defaults-on
+  // for unconfigured tenants so the launcher keeps working.
+  const guestChatSettings = chatTenantId
+    ? await loadGuestChatSettings(chatTenantId)
+    : GUEST_CHAT_DEFAULTS;
   const canonicalBannerUrl = mediaUrl(pub, bannerMedia);
   const profileImageUrl = mediaUrl(pub, profileImageMedia);
 
@@ -2066,8 +2084,8 @@ export default async function PublicTalentProfilePage({
           talentProfileId={profile.id}
           talentProfileCode={profile.profile_code}
           talentDisplayName={name}
-          tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
-          agencyName={tenantBrand ?? "the agency"}
+          tenantSlug={chatTenantSlug}
+          agencyName={chatBrandName}
           accentColor={chatAccentColor}
           logoUrl={watermarkLogoUrl}
           sourcePage={profileSourcePage}
