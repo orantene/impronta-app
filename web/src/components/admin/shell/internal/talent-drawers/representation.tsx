@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   COLORS,
   FONTS,
@@ -397,6 +398,7 @@ export function RepresentationDrawer() {
     bridgeTenantIdentity,
   } = useAdminShell();
 
+  const router = useRouter();
   const open = state.drawer.drawerId === "representation";
   const payload = state.drawer.payload ?? {};
   const actor: "talent" | "agency" =
@@ -453,6 +455,10 @@ export function RepresentationDrawer() {
   const onMutated = () => {
     setReloadKey((k) => k + 1);
     if (actor === "agency") void loadAgency();
+    // Talent mode reads `bridgeTalentRepresentation` from the server-rendered
+    // shell layout; refresh server components so the chips reflect the new
+    // roster/visibility state instead of going stale until a full reload.
+    else router.refresh();
   };
 
   const toggleGlobal = async (nextVisible: boolean) => {
