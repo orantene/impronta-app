@@ -84,31 +84,40 @@ export function GlobalPayoutsBankCard() {
   }, []);
 
   const startSetup = () => {
+    // Open the popup SYNCHRONOUSLY, while the click's user-gesture is still
+    // active. Browsers block window.open called later (after the async action
+    // resolves), which is why a single click was falling through to a redirect.
+    // We open a tiny loading page now and point it at Stripe once the URL is back.
+    const popup = window.open("", "tulala-payout-setup", "width=480,height=760");
+    if (popup) {
+      popup.document.write(
+        "<!doctype html><meta charset='utf-8'><title>Tulala payouts</title>" +
+          "<body style='margin:0;height:100vh;display:flex;align-items:center;justify-content:center;" +
+          "font-family:Inter,system-ui,sans-serif;color:#1f4a3a;font-size:14px'>Opening secure Stripe setup…</body>",
+      );
+    }
     setStartError(null);
     setStarting(true);
     startTalentGpHostedSetupAction().then((r) => {
-      if (!r.ok) {
-        setStarting(false);
-        setStartError(r.error);
-        return;
-      }
-      // Open Stripe's hosted form in a popup so the app stays put. When the
-      // talent closes it (after finishing), refresh the status. If the popup is
-      // blocked, fall back to a same-tab redirect.
-      // (Kept simple: explicit left/top centering broke the popup on some setups,
-      // so we let the browser place it. Centering can be revisited carefully.)
-      const popup = window.open(r.url, "tulala-payout-setup", "width=480,height=760");
-      if (!popup) {
-        window.location.href = r.url;
-        return;
-      }
       setStarting(false);
-      const timer = window.setInterval(() => {
-        if (popup.closed) {
-          window.clearInterval(timer);
-          refresh();
-        }
-      }, 1000);
+      if (!r.ok) {
+        setStartError(r.error);
+        if (popup && !popup.closed) popup.close();
+        return;
+      }
+      if (popup && !popup.closed) {
+        // Navigate the already-open popup to the hosted form.
+        popup.location.href = r.url;
+        const timer = window.setInterval(() => {
+          if (popup.closed) {
+            window.clearInterval(timer);
+            refresh();
+          }
+        }, 1000);
+      } else {
+        // Popup was blocked entirely; fall back to a same-tab redirect.
+        window.location.href = r.url;
+      }
     });
   };
 
