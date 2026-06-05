@@ -14,10 +14,11 @@
  *
  *  Their signatures match the contract callbacks 1:1.
  *
- *  REMAINING GAP (not blocking): `existingInquiryId` + `prefill` are passed as
- *  null. A future enhancement can resolve them server-side from the
- *  x-impronta-guest cookie so a returning guest reopens their thread (and the
- *  name/email gate is pre-filled) instead of starting fresh.
+ *  Returning-guest resume (B1): `existingInquiryId` + `prefill` are resolved
+ *  server-side from the x-impronta-guest cookie via getActiveGuestInquiry, so a
+ *  refresh (or a fresh tab in the same session) reopens the live thread with the
+ *  name/email gate pre-filled instead of restarting a brand-new chat. A cleared
+ *  cookie / new device still recovers via the emailed magic link.
  * ─────────────────────────────────────────────────────────────────────────
  *
  * Branding is read on the page and passed in as plain props (agencyName +
@@ -30,6 +31,7 @@ import { TalentProfileChatLauncher } from "./TalentProfileChatLauncher";
 // Real Lane A server actions (the build stub was removed at integration). These
 // match the contract callbacks 1:1, so they pass straight into the launcher.
 import {
+  getActiveGuestInquiry,
   getGuestThreadMessages,
   sendGuestClaimToEmail,
   sendGuestMessageAction,
@@ -59,7 +61,7 @@ type TalentProfileChatLauncherMountProps = {
   greeting?: string | null;
 };
 
-export function TalentProfileChatLauncherMount({
+export async function TalentProfileChatLauncherMount({
   talentProfileId,
   talentProfileCode,
   talentDisplayName,
@@ -74,6 +76,11 @@ export function TalentProfileChatLauncherMount({
   // Guest chat only makes sense on an agency surface (the thread is tenant-owned).
   if (!tenantSlug) return null;
 
+  // Returning-guest resume (B1): reopen the live thread from the cookie instead
+  // of starting fresh. Always { active } | failure; any failure → fresh start.
+  const resume = await getActiveGuestInquiry({ tenantSlug, talentProfileId });
+  const active = resume.ok ? resume.active : null;
+
   return (
     <TalentProfileChatLauncher
       tenantSlug={tenantSlug}
@@ -87,9 +94,9 @@ export function TalentProfileChatLauncherMount({
         logoUrl,
         greeting,
       }}
-      // MVP stub: returning-guest reopen + prefill resolved by Lane A later.
-      existingInquiryId={null}
-      prefill={null}
+      // Returning guest → reopen the thread + prefill the gate (B1). null → fresh.
+      existingInquiryId={active?.inquiryId ?? null}
+      prefill={active?.prefill ?? null}
       onStartInquiry={startGuestChatInquiry}
       onSendMessage={sendGuestMessageAction}
       fetchMessages={getGuestThreadMessages}

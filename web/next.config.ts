@@ -244,6 +244,15 @@ const nextConfig: NextConfig = {
     "nova.local",
     "midnight.local",
     "lvh.me",
+    // Local-host-proxy QA harness (scripts/local-host-proxy.mjs): the browser
+    // connects to localhost:<port> while the proxy forwards the real Host. Next
+    // dev's cross-origin guard otherwise blocks the proxied /_next assets + HMR,
+    // so the page renders but never hydrates (every button inert). See
+    // web/docs/dev-qa-3-surfaces.md.
+    "localhost",
+    "127.0.0.1",
+    "tulala.digital",
+    "app.tulala.digital",
   ],
   /**
    * npm often hoists `@radix-ui/react-id` to the app root while other
