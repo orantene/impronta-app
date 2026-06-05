@@ -107,6 +107,11 @@ function galleryActionLabel(t: (key: string) => string, action: PhotoActionKind)
   return t(`admin.talent.edit.mediaGallery.actions.${action}`);
 }
 
+/** True when a drag carries OS files (not an in-app @dnd-kit card reorder). */
+function isFileDrag(e: React.DragEvent): boolean {
+  return Array.from(e.dataTransfer.types).includes("Files");
+}
+
 // ─── Injected styles ─────────────────────────────────────────────────────────
 
 const INJECTED_STYLES = `
@@ -233,6 +238,12 @@ export function MediaGalleryDrawer({
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Native (HTML5) file drag-and-drop. Separate from the @dnd-kit reorder
+  // DndContext below, which is pointer-based and only reorders existing cards.
+  // dragDepth counts enter/leave across child elements so the highlight does
+  // not flicker as the cursor crosses cards inside the drawer.
+  const dragDepth = useRef(0);
+  const [isDragging, setIsDragging] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<
     | { kind: "idle" }
     | { kind: "uploading"; count: number }
@@ -298,9 +309,7 @@ export function MediaGalleryDrawer({
 
   // ── Upload handler ──────────────────────────────────────────────────────────
 
-  const handleFilePick = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    e.target.value = "";
+  const processFiles = useCallback(async (files: File[]) => {
     if (!files.length) return;
 
     setUploadStatus({ kind: "uploading", count: files.length });
@@ -328,6 +337,50 @@ export function MediaGalleryDrawer({
       onAssetsChange([...assets, ...results]);
     }
   }, [assets, onAssetsChange, onUploadFile, t]);
+
+  const handleFilePick = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    void processFiles(files);
+  }, [processFiles]);
+
+  // ── Native file drag-and-drop ───────────────────────────────────────────────
+  // Drop image files anywhere on the drawer to upload them. This is HTML5 DnD,
+  // independent of the @dnd-kit reorder context below (pointer-based). We gate
+  // on dataTransfer carrying "Files" (see module-scope isFileDrag) so dragging a
+  // card to reorder never trips the dropzone highlight.
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    dragDepth.current += 1;
+    setIsDragging(true);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    if (!isFileDrag(e)) return;
+    // preventDefault on dragover is REQUIRED or the browser refuses the drop.
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    dragDepth.current -= 1;
+    if (dragDepth.current <= 0) {
+      dragDepth.current = 0;
+      setIsDragging(false);
+    }
+  }, []);
+
+  const handleFileDrop = useCallback((e: React.DragEvent) => {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    dragDepth.current = 0;
+    setIsDragging(false);
+    const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/"));
+    if (files.length) void processFiles(files);
+  }, [processFiles]);
 
   // ── Per-photo actions ───────────────────────────────────────────────────────
 
@@ -573,7 +626,12 @@ export function MediaGalleryDrawer({
         }}
       >
         <div
+          onDragEnter={handleDragEnter}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleFileDrop}
           style={{
+            position: "relative",
             background: C.surface,
             width: "min(680px, 100vw)",
             height: "100%",
@@ -583,6 +641,34 @@ export function MediaGalleryDrawer({
             overflow: "hidden",
           }}
         >
+          {/* Drag-over drop affordance — purely visual (pointer-events: none) so
+              all drag/drop events flow to the panel handlers above. */}
+          {isDragging && (
+            <div
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                inset: 10,
+                zIndex: 50,
+                pointerEvents: "none",
+                borderRadius: 14,
+                border: `2px dashed ${C.accent}`,
+                background: "rgba(15,79,62,0.10)",
+                backdropFilter: "blur(1px)",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+              }}
+            >
+              <div style={{ fontSize: 34, lineHeight: 1 }}>⬇</div>
+              <div style={{ fontFamily: F, fontSize: 14, fontWeight: 700, color: C.accent }}>
+                {t("admin.talent.edit.mediaGallery.uploadButton")}
+              </div>
+            </div>
+          )}
+
           {/* Header */}
           <div
             style={{
