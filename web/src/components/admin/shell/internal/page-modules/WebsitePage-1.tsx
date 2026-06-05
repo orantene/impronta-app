@@ -227,8 +227,14 @@ export function WebsitePage() {
     locale,
     tenantSlug,
     websiteUsesLiveCms,
+    bridgeTenantIdentity,
   } = useAdminShell();
   const canEdit = meetsRole(state.role, "admin");
+  // The platform network-hub's public site (tulala.digital) is managed in
+  // code, not the page builder — so the builder + create are disabled here.
+  const isPlatformHub =
+    bridgeTenantIdentity?.kind === "hub" &&
+    bridgeTenantIdentity?.planTier === "network";
   const w = effectiveWebsiteState;
   const isCardDesign = pathname?.endsWith("/website/card-design") ?? false;
 
@@ -301,6 +307,10 @@ export function WebsitePage() {
   }, [editorBaseUrl, toast]);
 
   const handleAddPage = useCallback(() => {
+    if (isPlatformHub) {
+      toast("This site is managed in code — the page builder is disabled here.");
+      return;
+    }
     startCreatePageTransition(() => {
       void (async () => {
         const res = await createDraftPageAction();
@@ -329,6 +339,7 @@ export function WebsitePage() {
     });
   }, [
     editorBaseUrl,
+    isPlatformHub,
     locale,
     router,
     startCreatePageTransition,
@@ -440,14 +451,24 @@ export function WebsitePage() {
         </div>
       </section>
 
-      {/* Phase C — Workspace Page Builder (workspace_pages table) */}
+      {/* Phase C — Workspace Page Builder (workspace_pages table).
+          Disabled on the platform hub: tulala.digital is managed in code. */}
       <section style={{ marginBottom: 24 }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 12 }}>
           <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, letterSpacing: -0.2 }} className="text-admin-ink">Page Builder</h2>
-          <span style={{ fontSize: 11.5, fontFamily: FONTS.body }} className="text-admin-ink-muted">Create and publish custom pages</span>
+          <span style={{ fontSize: 11.5, fontFamily: FONTS.body }} className="text-admin-ink-muted">{isPlatformHub ? "Managed in code" : "Create and publish custom pages"}</span>
         </div>
         <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 14, overflow: "hidden", minHeight: 200 }}>
-          <PageBuilderPage />
+          {isPlatformHub ? (
+            <div style={{ padding: "40px 24px", textAlign: "center", display: "flex", flexDirection: "column", gap: 6, minHeight: 200, alignItems: "center", justifyContent: "center" }}>
+              <p style={{ margin: 0, fontFamily: FONTS.display, fontSize: 15, fontWeight: 600 }} className="text-admin-ink">This site is managed in code</p>
+              <p style={{ margin: 0, fontFamily: FONTS.body, fontSize: 13, maxWidth: 420, lineHeight: 1.5 }} className="text-admin-ink-muted">
+                tulala.digital is the platform’s in-house site, built and maintained in code. The page builder is disabled here so its pages stay the source of truth.
+              </p>
+            </div>
+          ) : (
+            <PageBuilderPage />
+          )}
         </div>
       </section>
 
