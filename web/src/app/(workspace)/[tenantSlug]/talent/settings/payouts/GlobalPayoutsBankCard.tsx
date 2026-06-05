@@ -92,18 +92,12 @@ export function GlobalPayoutsBankCard() {
         setStartError(r.error);
         return;
       }
-      // Open Stripe's hosted form in a CENTERED popup so the app stays put. When
-      // the talent closes it (after finishing), refresh the status. If the popup
-      // is blocked, fall back to a same-tab redirect.
-      const w = 480;
-      const h = 760;
-      const left = Math.max(0, window.screenX + (window.outerWidth - w) / 2);
-      const top = Math.max(0, window.screenY + (window.outerHeight - h) / 2);
-      const popup = window.open(
-        r.url,
-        "tulala-payout-setup",
-        `width=${w},height=${h},left=${Math.round(left)},top=${Math.round(top)}`,
-      );
+      // Open Stripe's hosted form in a popup so the app stays put. When the
+      // talent closes it (after finishing), refresh the status. If the popup is
+      // blocked, fall back to a same-tab redirect.
+      // (Kept simple: explicit left/top centering broke the popup on some setups,
+      // so we let the browser place it. Centering can be revisited carefully.)
+      const popup = window.open(r.url, "tulala-payout-setup", "width=480,height=760");
       if (!popup) {
         window.location.href = r.url;
         return;
