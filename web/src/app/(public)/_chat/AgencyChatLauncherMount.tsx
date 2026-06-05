@@ -18,6 +18,7 @@ import {
   startGuestChatInquiry,
 } from "@/app/t/[profileCode]/_actions/guest-chat-actions";
 import { getPublicHostContext } from "@/lib/saas/scope";
+import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { loadGuestChatSettings } from "@/lib/inquiry/guest-chat-settings";
 
@@ -30,17 +31,37 @@ export async function AgencyChatLauncherMount({
   sourcePage = "/",
 }: AgencyChatLauncherMountProps) {
   const ctx = await getPublicHostContext();
-  if (ctx.kind !== "agency" || !ctx.tenantId) return null;
 
-  const settings = await loadGuestChatSettings(ctx.tenantId);
+  // Resolve the tenant that owns this chat:
+  //  - agency / hub host → that tenant
+  //  - marketing / app (the tulala.digital platform apex, which has no tenant
+  //    of its own) → the in-house platform network hub, so visitors can
+  //    "message the platform" and the inquiry lands in the hub's Messages.
+  let tenantId: string;
+  let tenantSlug: string;
+  let fallbackName = "the agency";
+  if ((ctx.kind === "agency" || ctx.kind === "hub") && ctx.tenantId) {
+    tenantId = ctx.tenantId;
+    tenantSlug = ctx.tenantSlug ?? "";
+  } else if (ctx.kind === "marketing" || ctx.kind === "app") {
+    const hub = await getPlatformHubTenant();
+    if (!hub) return null;
+    tenantId = hub.tenantId;
+    tenantSlug = hub.slug;
+    fallbackName = hub.displayName;
+  } else {
+    return null;
+  }
+
+  const settings = await loadGuestChatSettings(tenantId);
   if (!settings.enabled || !settings.showOnDirectory) return null;
 
   const [identity, branding] = await Promise.all([
-    loadPublicIdentity(ctx.tenantId),
-    loadPublicBranding(ctx.tenantId),
+    loadPublicIdentity(tenantId),
+    loadPublicBranding(tenantId),
   ]);
 
-  const agencyName = identity?.public_name?.trim() || "the agency";
+  const agencyName = identity?.public_name?.trim() || fallbackName;
   const accentColor = branding?.primary_color ?? branding?.accent_color ?? null;
   const theme =
     typeof branding?.theme_json === "object" && branding.theme_json !== null
@@ -50,7 +71,7 @@ export async function AgencyChatLauncherMount({
 
   return (
     <TalentProfileChatLauncher
-      tenantSlug={ctx.tenantSlug ?? ""}
+      tenantSlug={tenantSlug}
       // Agency-level: no specific talent — the action builds a talent-less
       // `agency_site` inquiry when these are empty.
       talentProfileId=""
