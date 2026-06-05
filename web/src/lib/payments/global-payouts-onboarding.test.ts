@@ -112,6 +112,66 @@ test("getOrCreateFinancialAddress errors when GP not active (no FA id)", async (
   r.restore();
 });
 
+/** Run `fn` with a live key + a given flag value, patching fetch to FAIL if hit. */
+async function withLiveKey(
+  allowFlag: string | undefined,
+  fn: () => Promise<void>,
+): Promise<{ fetched: boolean }> {
+  const prevFetch = globalThis.fetch;
+  const prevKey = process.env.STRIPE_SECRET_KEY;
+  const prevFlag = process.env.STRIPE_ALLOW_LIVE_PAYOUTS;
+  process.env.STRIPE_SECRET_KEY = "sk_live_x";
+  process.env.STRIPE_V2_SECRET_KEY = "rk_live_x";
+  if (allowFlag === undefined) delete process.env.STRIPE_ALLOW_LIVE_PAYOUTS;
+  else process.env.STRIPE_ALLOW_LIVE_PAYOUTS = allowFlag;
+  let fetched = false;
+  const impl = async () => {
+    fetched = true;
+    return { ok: true, status: 200, json: async () => ({ id: "x", object: "o" }) };
+  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  globalThis.fetch = impl as any;
+  try {
+    await fn();
+  } finally {
+    globalThis.fetch = prevFetch;
+    if (prevKey === undefined) delete process.env.STRIPE_SECRET_KEY;
+    else process.env.STRIPE_SECRET_KEY = prevKey;
+    if (prevFlag === undefined) delete process.env.STRIPE_ALLOW_LIVE_PAYOUTS;
+    else process.env.STRIPE_ALLOW_LIVE_PAYOUTS = prevFlag;
+  }
+  return { fetched };
+}
+
+test("createGlobalPayoutsRecipient REFUSES on a live key when STRIPE_ALLOW_LIVE_PAYOUTS is off (no network)", async () => {
+  const { fetched } = await withLiveKey(undefined, async () => {
+    const res = await createGlobalPayoutsRecipient({ email: "t@example.com", displayName: "T", country: "MX" });
+    assert.equal(res.ok, false);
+    if (!res.ok) assert.equal(res.error.code, "live_payouts_disabled");
+  });
+  assert.equal(fetched, false, "must not call Stripe when the guard blocks");
+});
+
+test("createRecipientBankPayoutMethod REFUSES on a live key when STRIPE_ALLOW_LIVE_PAYOUTS is off (no network)", async () => {
+  const { fetched } = await withLiveKey(undefined, async () => {
+    const res = await createRecipientBankPayoutMethod({
+      recipientAccountId: "acct_r",
+      bank: { country: "mx", currency: "mxn", accountNumber: "002010123456789015" },
+    });
+    assert.equal(res.ok, false);
+    if (!res.ok) assert.equal(res.error.code, "live_payouts_disabled");
+  });
+  assert.equal(fetched, false, "must not attach a live CLABE when the guard blocks");
+});
+
+test("recipient writes are ALLOWED on a live key once STRIPE_ALLOW_LIVE_PAYOUTS=true", async () => {
+  const { fetched } = await withLiveKey("true", async () => {
+    const res = await createGlobalPayoutsRecipient({ email: "t@example.com", displayName: "T", country: "MX" });
+    assert.equal(res.ok, true); // guard passes → request goes out (prod go-live path)
+  });
+  assert.equal(fetched, true, "guard must let the call through when explicitly enabled");
+});
+
 test("fundFinancialAccountFromBalance posts a v1 payout to the FA", async () => {
   const r = withRouter([{ match: "/v1/payouts", method: "POST", body: { id: "po_1" } }]);
   const res = await fundFinancialAccountFromBalance({ financialAccountId: "fa_1", amountCents: 5000, currency: "USD" });

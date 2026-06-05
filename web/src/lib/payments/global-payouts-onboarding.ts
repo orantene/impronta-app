@@ -15,7 +15,7 @@
 
 import "server-only";
 import { stripeV2, type StripeV2Result } from "./stripe-v2";
-import { assertLivePayoutSafe, getPrimaryFinancialAccountId } from "./global-payouts";
+import { assertLivePayoutSafe, assertLiveRecipientWriteSafe, getPrimaryFinancialAccountId } from "./global-payouts";
 import { logServerError } from "@/lib/server/safe-error";
 
 export type V2Account = {
@@ -42,6 +42,10 @@ export async function createGlobalPayoutsRecipient(opts: {
   // Stripe requires the recipient's legal name before payouts can settle (the
   // `identity.individual.given_name`/`surname` requirement). Pass it up front so
   // the recipient lands "Ready" instead of stuck on "Information needed".
+  // Block accidental live-recipient creation from a dev/QA box on live keys.
+  const guard = assertLiveRecipientWriteSafe();
+  if (!guard.ok) return { ok: false, status: 0, error: { code: "live_payouts_disabled", message: guard.error } };
+
   const individual: Record<string, string> = {};
   if (opts.givenName?.trim()) individual.given_name = opts.givenName.trim();
   if (opts.surname?.trim()) individual.surname = opts.surname.trim();
@@ -96,6 +100,10 @@ export async function createRecipientBankPayoutMethod(opts: {
   recipientAccountId: string;
   bank: { country: string; currency: string; accountNumber: string; routingNumber?: string | null };
 }): Promise<StripeV2Result<OutboundSetupIntent>> {
+  // Block accidental live bank-method attachment (real CLABE) from a dev/QA box.
+  const guard = assertLiveRecipientWriteSafe();
+  if (!guard.ok) return { ok: false, status: 0, error: { code: "live_payouts_disabled", message: guard.error } };
+
   const routing = (opts.bank.routingNumber ?? "").trim();
   return stripeV2.post<OutboundSetupIntent>(
     "/v2/money_management/outbound_setup_intents",

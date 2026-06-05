@@ -109,6 +109,28 @@ export function assertLivePayoutSafe(
 }
 
 /**
+ * Safety gate for live RECIPIENT writes — creating a Global Payouts recipient
+ * (v2 core account) or attaching a bank payout method. On a LIVE key these create
+ * real, durable Stripe records (and, for Mexico, a real CLABE), so they're REFUSED
+ * unless STRIPE_ALLOW_LIVE_PAYOUTS=true. Same condition as {@link assertLivePayoutSafe}
+ * (the env's single master switch), so production onboarding — where the flag is
+ * on — is unaffected, while a dev/QA box pointed at live keys can't silently
+ * pollute live Stripe with throwaway recipients/banks. Reads (status/list) stay
+ * open so we can still verify against live with zero writes.
+ */
+export function assertLiveRecipientWriteSafe(
+  key = process.env.STRIPE_SECRET_KEY,
+): { ok: true } | { ok: false; error: string } {
+  if (isLiveStripeKey(key) && process.env.STRIPE_ALLOW_LIVE_PAYOUTS !== "true") {
+    return {
+      ok: false,
+      error: "Live payout setup disabled — set STRIPE_ALLOW_LIVE_PAYOUTS=true to create a live payout recipient.",
+    };
+  }
+  return { ok: true };
+}
+
+/**
  * Create a v2 OutboundPayment from the platform FinancialAccount to a recipient.
  * `payoutMethodId` is optional — omit to use the recipient's default method.
  * Idempotent via `idempotencyKey` (mirror the Connect rail's per-leg key).
