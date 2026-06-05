@@ -17,6 +17,8 @@ export type UserWorkspace = {
   role: string;
   /** Plan tier as stored in DB: "free" | "studio" | "agency" | "network" */
   tier: string;
+  /** Organization kind: "agency" | "hub". */
+  kind: string;
   /** Primary subdomain hostname, e.g. "acme.tulala.digital". Null if not yet provisioned. */
   domain: string | null;
   /** Seat cap from agencies.talent_seat_limit. Null = unlimited (network plan). */
@@ -34,7 +36,7 @@ export async function actionLoadUserWorkspaces(): Promise<LoadUserWorkspacesResu
 
   const { data: memberships, error: membErr } = await supabase
     .from("agency_memberships")
-    .select("role, tenant_id, agencies!inner(id, slug, display_name, plan_tier, talent_seat_limit)")
+    .select("role, tenant_id, agencies!inner(id, slug, display_name, plan_tier, talent_seat_limit, kind)")
     .eq("profile_id", user.id)
     .eq("status", "active");
 
@@ -71,6 +73,7 @@ export async function actionLoadUserWorkspaces(): Promise<LoadUserWorkspacesResu
       display_name: string;
       plan_tier: string | null;
       talent_seat_limit: number | null;
+      kind: string | null;
     } | null;
 
     return {
@@ -79,6 +82,7 @@ export async function actionLoadUserWorkspaces(): Promise<LoadUserWorkspacesResu
       name: ag?.display_name ?? m.tenant_id as string,
       role: m.role as string,
       tier: ag?.plan_tier ?? "free",
+      kind: ag?.kind ?? "agency",
       domain: domainByTenant[m.tenant_id as string] ?? null,
       seatCap: ag?.talent_seat_limit ?? null,
     };
