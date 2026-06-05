@@ -3,7 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireStaffTenantAction, requireTalentSelfAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import {
@@ -39,9 +39,27 @@ export async function actionUploadAndAssignMedia(
   metadata: Record<string, unknown> = {},
   sourceMediaAssetId: string | null = null,
 ): Promise<RegisterMediaResult> {
-  const auth = await requireStaffTenantAction();
-  if (!auth.ok) return { ok: false, error: auth.error };
-  const { tenantId } = auth;
+  // Authorize as EITHER agency staff of the active tenant OR the talent who
+  // OWNS this profile. A talent uploading their own photo on the /talent
+  // surface has no staff-tenant scope, so the staff guard fails there; for the
+  // self path, ownership (talent_profiles.user_id = caller) is the security
+  // boundary (see requireTalentSelfAction). Without this, a talent editing
+  // their own profile got "Not authorized" on every photo upload.
+  const staff = await requireStaffTenantAction();
+  let tenantId: string | null;
+  let isStaff: boolean;
+  let revalidate: { path: string; type: "layout" | "page" };
+  if (staff.ok) {
+    tenantId = staff.tenantId;
+    isStaff = true;
+    revalidate = { path: `/${staff.tenantSlug}`, type: "layout" };
+  } else {
+    const self = await requireTalentSelfAction(talentProfileId);
+    if (!self.ok) return { ok: false, error: self.error };
+    tenantId = self.tenantId;
+    isStaff = false;
+    revalidate = { path: `/t/${self.profileCode}`, type: "page" };
+  }
 
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
@@ -59,14 +77,19 @@ export async function actionUploadAndAssignMedia(
   const maxBytes = isVideo ? 200 * 1024 * 1024 : MAX_UPLOAD_BYTES;
   if (file.size > maxBytes) return { ok: false, error: `File must be under ${Math.round(maxBytes / 1024 / 1024)} MB.` };
 
-  const { data: rosterRow } = await admin
-    .from("agency_talent_roster")
-    .select("id")
-    .eq("tenant_id", tenantId)
-    .eq("talent_profile_id", talentProfileId)
-    .neq("status", "removed")
-    .maybeSingle();
-  if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
+  // Staff may only upload for talents on THEIR tenant's roster. The talent-self
+  // path is authorized by ownership above, so it skips this check (and works
+  // for an independent talent who is on no agency roster).
+  if (isStaff) {
+    const { data: rosterRow } = await admin
+      .from("agency_talent_roster")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("talent_profile_id", talentProfileId)
+      .neq("status", "removed")
+      .maybeSingle();
+    if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
+  }
 
   const inputBytes = await file.arrayBuffer();
   const meta = isImage
@@ -178,7 +201,7 @@ export async function actionUploadAndAssignMedia(
 
   const { data: urlData } = admin.storage.from("media-public").getPublicUrl(storagePath);
 
-  revalidatePath(`/${auth.tenantSlug}`, "layout");
+  revalidatePath(revalidate.path, revalidate.type);
   return {
     ok: true,
     data: {
