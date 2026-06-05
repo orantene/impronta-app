@@ -106,6 +106,28 @@ export async function loadRepresentation(
       return { entries: [], globalHidden };
     }
 
+    // Batch-fetch workspace logos (agency_branding.theme_json.logo_url) for all
+    // tenants in this talent's roster, so each row can show a brand square.
+    const tenantIds = Array.from(
+      new Set(
+        ((data ?? []) as unknown as RosterRow[])
+          .map((r) => (Array.isArray(r.agencies) ? r.agencies[0] : r.agencies)?.id)
+          .filter((id): id is string => !!id),
+      ),
+    );
+    const logoByTenant = new Map<string, string>();
+    if (tenantIds.length > 0) {
+      const { data: brandingRows } = await trusted
+        .from("agency_branding")
+        .select("tenant_id, theme_json")
+        .in("tenant_id", tenantIds);
+      for (const b of (brandingRows ?? []) as Array<{ tenant_id: string; theme_json: unknown }>) {
+        const theme = (b.theme_json ?? {}) as Record<string, unknown>;
+        const url = typeof theme.logo_url === "string" ? theme.logo_url.trim() : "";
+        if (url) logoByTenant.set(b.tenant_id, url);
+      }
+    }
+
     const rosterEntries: RepresentationEntry[] = ((data ?? []) as unknown as RosterRow[]).map(
       (row) => {
         const agency = Array.isArray(row.agencies) ? row.agencies[0] : row.agencies;
@@ -131,6 +153,7 @@ export async function loadRepresentation(
             agencyRosterProfileUrl(slug, profileCode, kind === "hub") ??
             platformSelfProfileUrl(profileCode) ??
             "",
+          logoUrl: agency?.id ? logoByTenant.get(agency.id) ?? null : null,
           effective: resolveEffectiveVisibility({
             status,
             agencyVisibility,
@@ -155,6 +178,7 @@ export async function loadRepresentation(
       takeRatePct: null,
       joinedAt: null,
       publicUrl: selfUrl,
+      logoUrl: null,
       effective: globalHidden ? "global_hidden" : "live",
     };
 

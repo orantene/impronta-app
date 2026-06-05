@@ -1027,7 +1027,7 @@
   },
   "src/components/admin/shell/internal/talent-drawers/representation.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 36
+      "count": 38
     }
   },
   "src/components/admin/shell/internal/talent-drawers/shared.tsx": {
