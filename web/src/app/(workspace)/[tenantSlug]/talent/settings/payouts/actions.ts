@@ -27,7 +27,7 @@ import {
   type TalentConnectedAccountSnapshot,
 } from "@/lib/payments/stripe-connect-talent";
 import { payoutCountryLabel } from "@/lib/payments/payout-countries";
-import { getTalentGpStatus, setupTalentGpBank, type TalentGpStatus } from "@/lib/payments/talent-global-payouts";
+import { getTalentGpStatus, setupTalentGpBank, syncTalentGpRecipient, type TalentGpStatus } from "@/lib/payments/talent-global-payouts";
 
 export type StartOnboardingResult =
   | { ok: true; url: string }
@@ -288,5 +288,26 @@ export async function setupTalentGpBankAction(input: {
   } catch (err) {
     logServerError("talent-payouts.setupGp", err);
     return { ok: false, error: "Could not set up global payouts. Please try again." };
+  }
+}
+
+/**
+ * Manual "Sync from profile": push the talent's current name + contact metadata
+ * to their Stripe recipient (fixes a recipient stuck on missing info, refreshes
+ * the TAL- code/phone). Email + country stay immutable.
+ */
+export async function syncTalentGpProfileAction(): Promise<
+  { ok: true } | { ok: false; error: string }
+> {
+  try {
+    const session = await getCachedActorSession();
+    if (!session.user) return { ok: false, error: "Sign in required." };
+    const tp = await resolveOwnTalentProfileId();
+    if (!tp.ok) return { ok: false, error: tp.error };
+    const email = session.user.email ?? `talent-${tp.id}@payouts.invalid`;
+    return await syncTalentGpRecipient(tp.id, { email });
+  } catch (err) {
+    logServerError("talent-payouts.syncGp", err);
+    return { ok: false, error: "Could not sync your details. Please try again." };
   }
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type CSSProperties } from "react";
 import { PAYOUT_COUNTRIES, defaultPayoutCurrency, payoutCountryLabel } from "@/lib/payments/payout-countries";
-import { loadTalentGpStatus, setupTalentGpBankAction } from "./actions";
+import { loadTalentGpStatus, setupTalentGpBankAction, syncTalentGpProfileAction } from "./actions";
 
 const C = {
   ink: "#0B0B0D",
@@ -50,6 +50,8 @@ export function GlobalPayoutsBankCard() {
   const [routingNumber, setRoutingNumber] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
 
   const refresh = () => {
     loadTalentGpStatus().then((r) => {
@@ -64,6 +66,16 @@ export function GlobalPayoutsBankCard() {
   useEffect(() => {
     refresh();
   }, []);
+
+  const syncFromProfile = () => {
+    setSyncMsg(null);
+    setSyncing(true);
+    syncTalentGpProfileAction().then((r) => {
+      setSyncing(false);
+      setSyncMsg(r.ok ? "Synced from your profile." : r.error);
+      if (r.ok) refresh();
+    });
+  };
 
   const submit = () => {
     if (!country) {
@@ -131,21 +143,40 @@ export function GlobalPayoutsBankCard() {
             {payoutCountryLabel(savedCountry)} · bank ····{last4 ?? "----"}
             {savedCurrency ? ` · ${savedCurrency.toUpperCase()}` : ""}
           </div>
-          <button
-            type="button"
-            data-testid="talent-gp-update"
-            onClick={() => {
-              setOpen(true);
-              setCountry(savedCountry ?? "");
-            }}
-            style={{
-              marginTop: 12, padding: "9px 14px", borderRadius: 9,
-              background: "transparent", color: C.inkMuted, border: `1px solid ${C.border}`,
-              fontFamily: FONT, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
-            }}
-          >
-            Update bank
-          </button>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+            <button
+              type="button"
+              data-testid="talent-gp-update"
+              onClick={() => {
+                setOpen(true);
+                setCountry(savedCountry ?? "");
+              }}
+              style={{
+                padding: "9px 14px", borderRadius: 9,
+                background: "transparent", color: C.inkMuted, border: `1px solid ${C.border}`,
+                fontFamily: FONT, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+              }}
+            >
+              Update bank
+            </button>
+            <button
+              type="button"
+              data-testid="talent-gp-sync"
+              onClick={syncFromProfile}
+              disabled={syncing}
+              title="Push your latest name and contact details from your profile to Stripe"
+              style={{
+                padding: "9px 14px", borderRadius: 9,
+                background: "transparent", color: C.inkMuted, border: `1px solid ${C.border}`,
+                fontFamily: FONT, fontSize: 12.5, fontWeight: 600, cursor: syncing ? "wait" : "pointer",
+              }}
+            >
+              {syncing ? "Syncing…" : "Sync from profile"}
+            </button>
+          </div>
+          {syncMsg && (
+            <div style={{ marginTop: 8, fontSize: 11.5, color: C.inkMuted }}>{syncMsg}</div>
+          )}
         </div>
       ) : !open ? (
         <>

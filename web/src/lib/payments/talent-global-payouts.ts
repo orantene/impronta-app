@@ -17,7 +17,32 @@ import {
   createGlobalPayoutsRecipient,
   createRecipientBankPayoutMethod,
   listRecipientPayoutMethods,
+  updateRecipientIdentity,
 } from "./global-payouts-onboarding";
+
+/** Build the Stripe recipient metadata from a talent profile (TAL- code, ids,
+ *  contact). Shared by recipient creation and the "Sync from profile" action. */
+function recipientMetadata(
+  talentProfileId: string,
+  tp: { profile_code: string | null; display_name: string | null; phone_e164: string | null },
+  email: string,
+): Record<string, string> {
+  const meta: Record<string, string> = {
+    talent_code: tp.profile_code ?? "",
+    talent_profile_id: talentProfileId,
+    talent_name: (tp.display_name ?? "").trim(),
+    talent_email: email,
+  };
+  if (tp.phone_e164) meta.talent_phone = tp.phone_e164;
+  for (const k of Object.keys(meta)) if (!meta[k]) delete meta[k];
+  return meta;
+}
+
+/** Split a display name into legal given/surname for Stripe identity. */
+function splitName(fullName: string): { givenName: string; surname: string } {
+  const parts = fullName.trim().split(/\s+/);
+  return { givenName: parts[0] ?? "", surname: parts.length > 1 ? parts.slice(1).join(" ") : "" };
+}
 
 export type TalentGpStatus = {
   recipientAccountId: string | null;
@@ -66,24 +91,11 @@ export async function getOrCreateTalentGpRecipient(
   if (tp.gp_recipient_account_id) return { ok: true, recipientAccountId: tp.gp_recipient_account_id };
 
   // Split the profile display name into legal given/surname so the recipient is
-  // created "Ready" (Stripe requires the legal name before payouts settle).
+  // created "Ready" (Stripe requires the legal name before payouts settle), and
+  // attach traceable metadata (TAL- code, ids, contact).
   const fullName = (opts.displayName ?? tp.display_name ?? "Talent").trim();
-  const nameParts = fullName.split(/\s+/);
-  const givenName = nameParts[0] ?? "";
-  const surname = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
-
-  // Rich, queryable metadata on the Stripe recipient so a payout can be traced
-  // back to the talent from the Stripe dashboard: the human TAL- code, the
-  // internal id, name, and contact. (Stripe metadata: string values, <=40-char keys.)
-  const metadata: Record<string, string> = {
-    talent_code: tp.profile_code ?? "",
-    talent_profile_id: talentProfileId,
-    talent_name: fullName,
-    talent_email: opts.email,
-  };
-  if (tp.phone_e164) metadata.talent_phone = tp.phone_e164;
-  // Drop empty values (Stripe rejects empty-string metadata on some keys).
-  for (const k of Object.keys(metadata)) if (!metadata[k]) delete metadata[k];
+  const { givenName, surname } = splitName(fullName);
+  const metadata = recipientMetadata(talentProfileId, tp, opts.email);
 
   const r = await createGlobalPayoutsRecipient({
     email: opts.email,
@@ -107,6 +119,38 @@ export async function getOrCreateTalentGpRecipient(
     return { ok: false, error: "Could not save your global payouts profile." };
   }
   return { ok: true, recipientAccountId: r.data.id };
+}
+
+/**
+ * Push the talent's current profile (legal name + metadata) up to their existing
+ * Stripe recipient. Powers the manual "Sync from profile" button: fixes a
+ * recipient stuck on a missing-name requirement and refreshes the TAL-/contact
+ * metadata. Email + country are immutable, so they are never touched here.
+ */
+export async function syncTalentGpRecipient(
+  talentProfileId: string,
+  opts: { email: string },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const sb = createServiceRoleClient();
+  if (!sb) return { ok: false, error: "Database unavailable." };
+  const tp = await readProfile(sb, talentProfileId);
+  if (!tp) return { ok: false, error: "Talent profile not found." };
+  if (!tp.gp_recipient_account_id) {
+    return { ok: false, error: "No global payouts profile yet. Add a bank first." };
+  }
+  const fullName = (tp.display_name ?? "Talent").trim();
+  const { givenName, surname } = splitName(fullName);
+  const r = await updateRecipientIdentity({
+    recipientAccountId: tp.gp_recipient_account_id,
+    givenName,
+    surname,
+    metadata: recipientMetadata(talentProfileId, tp, opts.email),
+  });
+  if (!r.ok) {
+    logServerError("talent-gp.sync", new Error(r.error.message ?? "sync failed"));
+    return { ok: false, error: r.error.message ?? "Could not sync your details." };
+  }
+  return { ok: true };
 }
 
 /** Set up a bank payout method for the talent's GP recipient (creates the

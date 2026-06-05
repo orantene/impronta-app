@@ -59,6 +59,27 @@ export async function createGlobalPayoutsRecipient(opts: {
   });
 }
 
+/**
+ * Update an EXISTING recipient's identity (legal name) + metadata. Used by the
+ * "Sync from profile" action to push the talent's current profile up to Stripe
+ * (e.g. to clear an "Information needed" name requirement, or refresh the TAL-
+ * code/contact metadata). Email + country are immutable and never sent here.
+ */
+export async function updateRecipientIdentity(opts: {
+  recipientAccountId: string;
+  givenName?: string | null;
+  surname?: string | null;
+  metadata?: Record<string, string>;
+}): Promise<StripeV2Result<V2Account>> {
+  const individual: Record<string, string> = {};
+  if (opts.givenName?.trim()) individual.given_name = opts.givenName.trim();
+  if (opts.surname?.trim()) individual.surname = opts.surname.trim();
+  const body: Record<string, unknown> = { include: ["identity", "requirements"] };
+  if (Object.keys(individual).length) body.identity = { individual };
+  if (opts.metadata && Object.keys(opts.metadata).length) body.metadata = opts.metadata;
+  return stripeV2.post<V2Account>(`/v2/core/accounts/${opts.recipientAccountId}`, body);
+}
+
 export type OutboundSetupIntent = {
   id: string;
   object: string;
