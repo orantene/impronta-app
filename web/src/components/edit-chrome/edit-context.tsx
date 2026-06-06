@@ -2121,6 +2121,12 @@ export function EditProvider({
   const pageMetadataRef = useRef<PageMetadata | null>(pageMetadata);
   const slotsRef = useRef<Record<string, CompositionSectionRef[]>>(slots);
   const builderTreeRef = useRef<BuilderNodeTree>(builderTree);
+  // W1-T5(c) — locale + pageId for the pagehide keepalive draft beacon, mirrored
+  // into a ref so the (empty-deps) pagehide handler reads the latest values.
+  const draftBeaconMetaRef = useRef<{ locale: string; pageId: string | null }>({
+    locale,
+    pageId,
+  });
   const builderTreeSaveQueueRef = useRef<Promise<unknown>>(Promise.resolve());
   // ── Debounced/coalesced builder-tree draft saves ──────────────────────
   // Rapid node edits (typing, slider drags, repeated nudges) each used to fire
@@ -2164,6 +2170,9 @@ export function EditProvider({
   useEffect(() => {
     builderTreeRef.current = builderTree;
   }, [builderTree]);
+  useEffect(() => {
+    draftBeaconMetaRef.current = { locale, pageId };
+  }, [locale, pageId]);
 
   // W3 Sub-step B — publish the live tree to the cross-subtree bridge so the
   // client canvas (mounted in the storefront body, OUTSIDE this provider) can
@@ -2214,27 +2223,62 @@ export function EditProvider({
   const UNDO_PERSIST_CAP = 10;
   const undoPersistKey = pageId ? `builder_undo_stack_v1:${pageId}` : null;
 
+  const isKnownHistoryEntry = (e: unknown): e is HistoryEntry =>
+    e !== null &&
+    typeof e === "object" &&
+    "kind" in (e as object) &&
+    ((e as { kind: string }).kind === "composition" ||
+      (e as { kind: string }).kind === "builderTree" ||
+      (e as { kind: string }).kind === "field" ||
+      // W1-T4 — visibility/rename entries survive reload too.
+      (e as { kind: string }).kind === "sectionMeta");
+
   const [past, setPast] = useState<HistoryEntry[]>(() => {
     if (!undoPersistKey || typeof window === "undefined") return [];
     try {
       const raw = window.localStorage.getItem(undoPersistKey);
       if (!raw) return [];
-      const parsed = JSON.parse(raw) as unknown[];
-      if (!Array.isArray(parsed)) return [];
-      // Only rehydrate entries whose shape we recognise.
-      const valid = parsed.filter(
-        (e): e is HistoryEntry =>
-          e !== null &&
-          typeof e === "object" &&
-          "kind" in (e as object) &&
-          (
-            (e as { kind: string }).kind === "composition" ||
-            (e as { kind: string }).kind === "builderTree" ||
-            (e as { kind: string }).kind === "field" ||
-            // W1-T4 — visibility/rename entries survive reload too.
-            (e as { kind: string }).kind === "sectionMeta"
-          ),
-      );
+      const parsed = JSON.parse(raw) as unknown;
+      // W1-T5(a) — the persisted payload is now a VERSIONED envelope
+      // { baseVersion, entries }. A persisted stack's `pre`/`post` trees are
+      // only safe to replay against the page version they were authored on. If
+      // another session (another browser/tab) advanced the page version while
+      // this stack sat in localStorage, replaying it would write a STALE tree
+      // wholesale at the current version — CAS accepts it → silent clobber. So
+      // we DROP the persisted stack whenever its baseVersion ≠ the version we
+      // just loaded. Same-session reloads match (the stack was stamped with the
+      // version current at persist time) and survive.
+      //
+      // Legacy bare-array payloads (pre-W1-T5) have no baseVersion → we cannot
+      // prove they're same-session, so we conservatively drop them once.
+      const loadedVersion = initialComposition?.pageVersion ?? null;
+      let entriesRaw: unknown[] = [];
+      let baseVersion: number | null = null;
+      if (Array.isArray(parsed)) {
+        // Legacy format — unversioned. Drop (can't prove freshness).
+        return [];
+      }
+      if (
+        parsed !== null &&
+        typeof parsed === "object" &&
+        Array.isArray((parsed as { entries?: unknown }).entries)
+      ) {
+        entriesRaw = (parsed as { entries: unknown[] }).entries;
+        const bv = (parsed as { baseVersion?: unknown }).baseVersion;
+        baseVersion = typeof bv === "number" ? bv : null;
+      } else {
+        return [];
+      }
+      // Stale-base guard: only rehydrate when the stamp matches the loaded
+      // version (or we have no loaded version to compare against — first paint).
+      if (
+        loadedVersion !== null &&
+        baseVersion !== null &&
+        baseVersion !== loadedVersion
+      ) {
+        return [];
+      }
+      const valid = entriesRaw.filter(isKnownHistoryEntry);
       return valid.slice(-UNDO_PERSIST_CAP);
     } catch {
       return [];
@@ -2249,6 +2293,14 @@ export function EditProvider({
     [],
   );
 
+  // W1-T5(b) — mirror the live history depth into a ref so refreshComposition's
+  // conflict-wipe can tell whether it is actually DISCARDING work (and should
+  // explain itself with a toast) without taking past/future as deps.
+  const historyDepthRef = useRef(0);
+  useEffect(() => {
+    historyDepthRef.current = past.length + future.length;
+  }, [past, future]);
+
   // #18 — Persist `past` to localStorage. We write only the tail
   // (UNDO_PERSIST_CAP entries) so the serialised size stays small even for
   // large builder-tree snapshots.
@@ -2261,10 +2313,16 @@ export function EditProvider({
   // FLUSHING any pending write synchronously on unmount and when the page is
   // being hidden/unloaded (pagehide + visibilitychange→hidden) — so a reload
   // immediately after an edit never loses the persisted undo tail.
-  const undoPersistDataRef = useRef<{ key: string | null; past: HistoryEntry[] }>(
-    { key: undoPersistKey, past },
-  );
-  undoPersistDataRef.current = { key: undoPersistKey, past };
+  const undoPersistDataRef = useRef<{
+    key: string | null;
+    past: HistoryEntry[];
+    baseVersion: number | null;
+  }>({ key: undoPersistKey, past, baseVersion: pageVersion });
+  undoPersistDataRef.current = {
+    key: undoPersistKey,
+    past,
+    baseVersion: pageVersion,
+  };
   const undoPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const flushUndoPersist = useCallback(() => {
@@ -2273,18 +2331,30 @@ export function EditProvider({
       undoPersistTimerRef.current = null;
     }
     if (typeof window === "undefined") return;
-    const { key, past: latestPast } = undoPersistDataRef.current;
+    const { key, past: latestPast, baseVersion } = undoPersistDataRef.current;
     if (!key) return;
     try {
       const tail = latestPast.slice(-UNDO_PERSIST_CAP);
-      window.localStorage.setItem(key, JSON.stringify(tail));
+      // W1-T5(a) — write a VERSIONED envelope so rehydrate can drop a stack that
+      // a concurrent session has made stale (baseVersion ≠ loaded version).
+      window.localStorage.setItem(
+        key,
+        JSON.stringify({ baseVersion, entries: tail }),
+      );
     } catch {
       // Quota exceeded or private-browsing block — silently skip.
     }
   }, []);
 
-  // Debounced write — reschedules on every `past` change; the serialize+write
-  // runs ~500ms after the last edit, off the interaction hot path.
+  // Debounced write — reschedules on every `past` change OR pageVersion change;
+  // the serialize+write runs ~500ms after the last edit, off the interaction hot
+  // path. W1-T5(a): pageVersion is a dep so that after a draft save bumps the
+  // version (which lands ~after the persist debounce that the edit itself armed)
+  // the stack is RE-STAMPED with the session's latest version. Re-stamping with
+  // a newer version + the same entries is always safe (the entries didn't
+  // change; only our knowledge of the current version improved), and it's what
+  // lets a same-session reload match (baseVersion === loaded version) while a
+  // concurrent session's advance is detected as stale.
   useEffect(() => {
     if (!undoPersistKey || typeof window === "undefined") return;
     if (undoPersistTimerRef.current !== null) {
@@ -2300,7 +2370,7 @@ export function EditProvider({
         undoPersistTimerRef.current = null;
       }
     };
-  }, [past, undoPersistKey, flushUndoPersist]);
+  }, [past, pageVersion, undoPersistKey, flushUndoPersist]);
 
   // Flush on unmount and when the page is hidden/unloaded so a reload right
   // after an edit never loses the persisted undo tail. visibilitychange→hidden
@@ -2688,8 +2758,57 @@ export function EditProvider({
         void flushBuilderTreeSaveRef.current();
       }
     };
-    const onPageHide = () => flushIfPending();
+    // W1-T5(c) — on a hard PAGEHIDE the page may be torn down immediately, and a
+    // server action's underlying fetch is NOT keepalive, so the non-awaited
+    // flush above can be cancelled mid-flight and the last <750ms-debounce edit
+    // is lost. Send the pending draft via a keepalive POST the browser is
+    // required to deliver even as the page unloads. Reuses the same draft-save
+    // path (auth + CAS) server-side. Best-effort: returns void.
+    const sendPagehideBeacon = (): boolean => {
+      const pendingTree = pendingTreeRef.current;
+      const version = pageVersionRef.current;
+      const metadata = pageMetadataRef.current;
+      if (pendingTree === null || version === null || metadata === null) {
+        return false;
+      }
+      const { locale: beaconLocale, pageId: beaconPageId } =
+        draftBeaconMetaRef.current;
+      const slotsForSave = stripSnapshotForSave({
+        slots: slotsRef.current,
+        metadata,
+      }).slots;
+      const payload = JSON.stringify({
+        locale: beaconLocale,
+        pageId: beaconPageId,
+        expectedVersion: version,
+        metadata,
+        slots: slotsForSave,
+        builderTree: pendingTree,
+      });
+      try {
+        // fetch+keepalive carries cookies (auth) and survives unload; sendBeacon
+        // is the fallback but can't set a JSON content-type, so prefer fetch.
+        void fetch("/api/site-admin/homepage-draft-beacon", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: payload,
+          keepalive: true,
+          credentials: "same-origin",
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    const onPageHide = () => {
+      // Prefer the guaranteed-delivery beacon; if there is nothing to beacon
+      // (or it couldn't be built) fall back to the normal flush.
+      if (!sendPagehideBeacon()) flushIfPending();
+    };
     const onVisibility = () => {
+      // visibilitychange→hidden does NOT mean the page is going away (tab
+      // switch / minimize), so the normal queued flush — with full CAS handling
+      // — is correct here; no beacon needed.
       if (document.visibilityState === "hidden") flushIfPending();
     };
     window.addEventListener("pagehide", onPageHide);
@@ -3035,6 +3154,17 @@ export function EditProvider({
         // Reloading authoritative state also clears history — the stack
         // captures only session-local mutations and stale snapshots would
         // confuse undo after a concurrent edit.
+        //
+        // W1-T5(b) — when this wipe actually DISCARDS undo/redo work (the
+        // page changed elsewhere and we reloaded), it used to be silent: the
+        // operator's ⌘Z stack vanished with no explanation. Surface a toast so
+        // the reset is understood, not mysterious. (The wipe itself stays — a
+        // stale stack is dangerous to replay; W0-T4 pins this behavior.)
+        if (historyDepthRef.current > 0) {
+          reportMutationError(
+            "Undo history was reset because this page changed in another tab or session.",
+          );
+        }
         setPast([]);
         setFuture([]);
       } else {
@@ -3047,7 +3177,7 @@ export function EditProvider({
     } finally {
       setCompositionLoading(false);
     }
-  }, [locale, pageSlug, applyComposition]);
+  }, [locale, pageSlug, applyComposition, reportMutationError]);
 
   // Initial load: only once per provider lifetime. Subsequent reloads go
   // through refreshComposition on mutation conflicts or explicit refresh.
@@ -4127,6 +4257,16 @@ export function EditProvider({
       pageVersionRef.current = save.pageVersion;
       setPageVersion(save.pageVersion);
       lastConfirmedTreeRef.current = nextTree;
+      // W1-T5(a) — re-stamp the persisted undo stack with the just-confirmed
+      // version SYNCHRONOUSLY (don't wait for the debounced re-stamp), so a
+      // reload in the window between the save and the next debounce sees the
+      // current version and a same-session undo survives. Mutating the ref then
+      // flushing writes the envelope with save.pageVersion immediately.
+      undoPersistDataRef.current = {
+        ...undoPersistDataRef.current,
+        baseVersion: save.pageVersion,
+      };
+      flushUndoPersist();
       // W3 Sub-step D — skip the per-edit server refresh on the builder-tree
       // happy path WHEN THE CLIENT CANVAS IS ACTIVE. `setBuilderTree(nextTree)`
       // above already published the new tree to the bridge, so the client
@@ -4157,6 +4297,8 @@ export function EditProvider({
       refreshComposition,
       queueRouterRefresh,
       reportMutationError,
+      // W1-T5(a) — synchronous undo-stack re-stamp on save success.
+      flushUndoPersist,
     ],
   );
 

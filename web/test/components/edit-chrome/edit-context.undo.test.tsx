@@ -281,25 +281,53 @@ describe("W0-T4 undo/redo + CAS (REAL EditProvider)", () => {
     const { ctx, utils } = mountProvider(5);
 
     await patchSeededNode(ctx, { textColor: "#ff8800" });
-    // Drain BOTH the save debounce and the ~500ms localStorage persist debounce.
+    // Drain the save debounce + persist debounce + the W1-T5(a) RE-STAMP persist
+    // that fires ~500ms after the save bumps pageVersion to 6.
     await act(async () => {
       await new Promise((r) => setTimeout(r, SAVE_DEBOUNCE_WAIT));
     });
 
     const raw = window.localStorage.getItem(UNDO_LS_KEY);
     expect(raw).not.toBeNull();
-    const persisted = JSON.parse(raw!) as Array<{ kind: string }>;
-    expect(persisted.length).toBeGreaterThanOrEqual(1);
-    expect(persisted[0].kind).toBe("builderTree");
+    // W1-T5(a) — the persisted payload is now a VERSIONED envelope
+    // { baseVersion, entries } (was a bare array). The save success path
+    // re-stamps it synchronously with the server's confirmed version (6).
+    const envelope = JSON.parse(raw!) as {
+      baseVersion: number;
+      entries: Array<{ kind: string }>;
+    };
+    expect(envelope.entries.length).toBeGreaterThanOrEqual(1);
+    expect(envelope.entries[0].kind).toBe("builderTree");
+    expect(envelope.baseVersion).toBe(6);
 
-    // Unmount (simulate closing the tab) and remount at the new version — the
-    // provider should rehydrate the persisted undo entry.
+    // Unmount (simulate closing the tab) and remount at the SAME version the
+    // stack was stamped with — the provider rehydrates the persisted entry
+    // (same-session reload: baseVersion === loaded version).
     utils.unmount();
     const second = mountProvider(6);
     await act(async () => {
       await new Promise((r) => setTimeout(r, 50));
     });
     expect(second.ctx().canUndo).toBe(true);
+  });
+
+  it("W1-T5(a): a STALE persisted stack (baseVersion ≠ loaded version) is DROPPED on rehydrate", async () => {
+    saveDraftMock.mockResolvedValue({ ok: true, pageVersion: 6 });
+    const { ctx, utils } = mountProvider(5);
+    await patchSeededNode(ctx, { textColor: "#112233" });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, SAVE_DEBOUNCE_WAIT));
+    });
+    // The stack persisted at baseVersion 6. Simulate a CONCURRENT session having
+    // advanced the page to 9 while this stack sat in localStorage: remount at 9.
+    utils.unmount();
+    const second = mountProvider(9);
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+    // The stale stack is dropped — replaying its trees at v9 would clobber the
+    // other session's work, so undo is empty rather than dangerous.
+    expect(second.ctx().canUndo).toBe(false);
   });
 });
 
@@ -416,12 +444,19 @@ describe("W1-T4 visibility + rename undo (REAL EditProvider)", () => {
 
     const raw = window.localStorage.getItem(UNDO_LS_KEY);
     expect(raw).not.toBeNull();
-    const persisted = JSON.parse(raw!) as Array<{ kind: string }>;
-    expect(persisted.some((e) => e.kind === "sectionMeta")).toBe(true);
+    const envelope = JSON.parse(raw!) as {
+      baseVersion: number;
+      entries: Array<{ kind: string }>;
+    };
+    expect(envelope.entries.some((e) => e.kind === "sectionMeta")).toBe(true);
+    // A visibility toggle bumps the SECTION version, NOT the page version, so
+    // the stack is stamped at the unchanged page version (5).
+    expect(envelope.baseVersion).toBe(5);
 
-    // Remount — the sectionMeta entry is recognised + rehydrated (not dropped).
+    // Remount at the same page version — the sectionMeta entry is recognised +
+    // rehydrated (not dropped).
     utils.unmount();
-    const second = mountProvider(2);
+    const second = mountProvider(5);
     await act(async () => {
       await new Promise((r) => setTimeout(r, 50));
     });
