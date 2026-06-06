@@ -1,5 +1,12 @@
-import type { BuilderNode, BuilderNodeTree } from "./types";
+import type { BuilderNode, BuilderNodeStyle, BuilderNodeTree } from "./types";
 import { cloneNodeWithFreshIds } from "./operations";
+import {
+  buildBuilderNodeRoleBindings,
+  resolveBuilderNodeRole,
+  type BuilderNodeRole,
+} from "./role-bindings";
+import { nodePresentationToBuilderStyle } from "./node-presentation-bridge";
+import type { NodePresentation } from "../sections/shared/node-presentation";
 
 /**
  * "2018 bye-bye" — eject a curated section to freeform.
@@ -21,9 +28,73 @@ export interface EjectSectionResult {
   ejected: boolean;
 }
 
+/**
+ * Per-role `nodePresentation` for the section being ejected — the curated
+ * "Type & color overrides" keyed by role (`headline`/`subheadline`/…). This
+ * lives in the section's curated CONFIG, not on the tree node, so the caller
+ * must hand it in for a LOSSLESS eject. Optional + back-compat: omitting it
+ * reproduces the old (lossy) behaviour exactly — every existing 2-arg caller is
+ * unchanged.
+ */
+export type EjectRolePresentation = Readonly<
+  Partial<Record<BuilderNodeRole, NodePresentation | null | undefined>>
+>;
+
+/**
+ * Merge a role's translated `nodePresentation` UNDER a child's existing style.
+ * Engine-B base layers first; an explicit Engine-A style prop set on the child
+ * wins (CSS author intent — a directly-edited value beats the curated default).
+ */
+function applyRolePresentationToChild(
+  child: BuilderNode,
+  rolePresentation: EjectRolePresentation,
+): BuilderNode {
+  const role = resolveBuilderNodeRole(child.id);
+  if (!role) return child;
+  const np = rolePresentation[role];
+  if (!np) return child;
+  // `nodePresentation` is the full schema (with a `breakpoints` wrapper); the
+  // desktop layer is the top-level value. Translate it to a BuilderNodeStyle.
+  const baseLayer = nodePresentationToBuilderStyle(np);
+  if (Object.keys(baseLayer).length === 0) return child;
+  // Carry the per-breakpoint overrides onto BuilderNodeStyle.responsive so the
+  // ejected freeform node keeps its tablet/mobile tuning too.
+  const responsive: BuilderNodeStyle["responsive"] = {};
+  if (np.breakpoints?.tablet) {
+    responsive.tablet = nodePresentationToBuilderStyle(np.breakpoints.tablet);
+  }
+  if (np.breakpoints?.mobile) {
+    responsive.mobile = nodePresentationToBuilderStyle(np.breakpoints.mobile);
+  }
+  const translated: BuilderNodeStyle =
+    Object.keys(responsive).length > 0 ? { ...baseLayer, responsive } : baseLayer;
+  const existing = (child.props as { style?: BuilderNodeStyle }).style;
+  const mergedStyle: BuilderNodeStyle = existing
+    ? {
+        ...translated,
+        ...existing,
+        // Deep-merge the responsive layer so a child's explicit per-breakpoint
+        // style does not wholesale-clobber the curated one.
+        ...(translated.responsive || existing.responsive
+          ? {
+              responsive: {
+                ...translated.responsive,
+                ...existing.responsive,
+              },
+            }
+          : {}),
+      }
+    : translated;
+  return {
+    ...child,
+    props: { ...(child.props as Record<string, unknown>), style: mergedStyle },
+  } as BuilderNode;
+}
+
 export function ejectSectionInTree(
   tree: BuilderNodeTree,
   sectionNodeId: string,
+  rolePresentation?: EjectRolePresentation,
 ): EjectSectionResult {
   let ejected = false;
   const next = tree.map((node) => {
@@ -33,9 +104,16 @@ export function ejectSectionInTree(
       !node.props.ejected
     ) {
       ejected = true;
-      const roleless = (node.children ?? []).map((child) =>
-        cloneNodeWithFreshIds(child),
-      );
+      const roleless = (node.children ?? []).map((child) => {
+        // W4-T3: translate the role's curated `nodePresentation` onto the
+        // child's BuilderNodeStyle (via the W4-T1 bridge) BEFORE re-minting, so
+        // the role is still resolvable from its `legacy:…:role` id. Without
+        // this, eject silently drops all per-role align/size/font/color tuning.
+        const styled = rolePresentation
+          ? applyRolePresentationToChild(child, rolePresentation)
+          : child;
+        return cloneNodeWithFreshIds(styled);
+      });
       return {
         ...node,
         props: { ...node.props, ejected: true },
@@ -45,6 +123,30 @@ export function ejectSectionInTree(
     return node;
   });
   return { tree: next, ejected };
+}
+
+/**
+ * Helper for callers: from a section's child node ids + its curated
+ * `nodePresentation` config, build the role→presentation map this function
+ * needs. (The role binding is resolved the same way the renderer resolves it,
+ * via `buildBuilderNodeRoleBindings`.) Pure.
+ */
+export function buildEjectRolePresentation(
+  childNodeIds: ReadonlyArray<string>,
+  nodePresentationByRole:
+    | Readonly<Partial<Record<string, NodePresentation | null | undefined>>>
+    | null
+    | undefined,
+): EjectRolePresentation {
+  if (!nodePresentationByRole) return {};
+  const { nodeIdsByRole } = buildBuilderNodeRoleBindings(childNodeIds);
+  const out: Partial<Record<BuilderNodeRole, NodePresentation | null | undefined>> =
+    {};
+  for (const role of Object.keys(nodeIdsByRole) as BuilderNodeRole[]) {
+    const np = nodePresentationByRole[role];
+    if (np) out[role] = np;
+  }
+  return out;
 }
 
 /**
