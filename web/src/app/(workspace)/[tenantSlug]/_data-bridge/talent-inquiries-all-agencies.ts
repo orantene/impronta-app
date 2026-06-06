@@ -59,8 +59,8 @@ export async function loadTalentInquiriesAllAgencies(
           trust_level_at_submission,
           source_channel,
           current_offer_id,
-          contact_email,
-          client_user_id
+          client_user_id,
+          guest_session_id
         )
       `)
       .eq("talent_profile_id", talentProfileId)
@@ -92,8 +92,8 @@ export async function loadTalentInquiriesAllAgencies(
         trust_level_at_submission: "basic" | "verified" | "silver" | "gold" | null;
         source_channel: string | null;
         current_offer_id: string | null;
-        contact_email: string | null;
         client_user_id: string | null;
+        guest_session_id: string | null;
       } | null;
     };
 
@@ -116,15 +116,19 @@ export async function loadTalentInquiriesAllAgencies(
     // clientIdentity: null without a narrowing mismatch from the map result.
     type PartialRow = TalentInquiryRow & { tenantId: string };
     const partialRows: PartialRow[] = (partRows.map((r) => {
-      const contactEmail = r.inquiries!.contact_email;
       const clientUserId = r.inquiries!.client_user_id;
-      // Mirrors the 4-line ladder in guest-trust-chip-mapper.ts mapToGuestTrustChipProps.
-      // Collapsed: email_verified/account → both map to "email_verified" (pill says "Registered").
-      const clientIdentity: TalentInquiryRow["clientIdentity"] = !contactEmail
-        ? "guest"
-        : clientUserId
-          ? "email_verified"
-          : "identified";
+      const guestSessionId = r.inquiries!.guest_session_id;
+      // Identity ladder — keys off the real anonymity signals.
+      // contact_email is NOT NULL on every inquiry row so "!email → guest"
+      // is a dead branch; use the structural signals instead:
+      //   client_user_id set   → claimed Tulala account  → "registered"
+      //   guest_session_id set → anonymous session        → "guest"
+      //   neither              → email-only legacy row    → "client"
+      const clientIdentity: TalentInquiryRow["clientIdentity"] = clientUserId
+        ? "registered"
+        : guestSessionId
+          ? "guest"
+          : "client";
       return {
         id: r.inquiries!.id,
         status: r.inquiries!.status,
@@ -179,7 +183,7 @@ export async function loadTalentInquiriesAllAgencies(
           sourceChannel: i.source_channel ?? null,
           myApprovalStatus: null,
           // F3 — coordinator-only rows come from a service-role query that
-          // doesn't select contact_email / client_user_id; identity unknown.
+          // doesn't select client_user_id / guest_session_id; identity unknown.
           clientIdentity: null,
           tenantId: i.tenant_id,
           iAmCoordinator: true,

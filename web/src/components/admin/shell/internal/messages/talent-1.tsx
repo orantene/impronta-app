@@ -323,7 +323,7 @@ export type ShellHeaderInput = {
   date?: string;
   clientTrust?: import("../state").ClientTrustLevel;
   /** F3 — identity tier for the client on this inquiry. Optional; renders
-   *  the "Guest" or "Registered" pill next to the client name when set. */
+   *  "Guest" / "Registered" / "Client" pill next to the client name when set. */
   clientIdentity?: Conversation["clientIdentity"];
   source?: Conversation["source"];
   iAmCoordinator?: boolean;
