@@ -57,11 +57,6 @@ import type {
 } from "@/lib/inquiry/guest-chat-contract";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-// Chip types are the canonical ones from the shared contract (consolidated at
-// integration). Re-export the local bindings for any caller that still imports
-// them from here.
-export type { GuestChipKind, GuestChipValue, GuestChipInput, GuestChipResult };
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Internal helpers — mirrors the pattern in guest-chat-actions.ts so this file
 // is self-contained and compile-standalone without importing private helpers.

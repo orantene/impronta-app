@@ -23,7 +23,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { C, DEFAULT_ACCENT, FONT, readableOn } from "./mini-chat-styles";
-import type { GuestInquirySummary } from "../_actions/guest-inquiries-actions";
+import type { GuestInquirySummary } from "@/lib/inquiry/guest-chat-contract";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Local types

@@ -48,27 +48,11 @@
  */
 
 import { useState } from "react";
-import type { GuestChipKind, GuestChipValue } from "./GuestDetailChipEditor";
+import type { GuestChipKind, GuestChipValue, GuestChipInput, GuestChipResult } from "@/lib/inquiry/guest-chat-contract";
 import {
   GuestDetailChipEditor,
 } from "./GuestDetailChipEditor";
 import { C, FONT, DEFAULT_ACCENT, readableOn } from "./mini-chat-styles";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Local type definitions (integration promotes these to guest-chat-contract.ts)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** Input to the captureGuestChip server action (local copy; contract uses same shape). */
-export type GuestChipInput = {
-  inquiryId: string;
-  kind: GuestChipKind;
-  value: GuestChipValue;
-};
-
-/** Result from captureGuestChip (local copy; contract uses same shape). */
-export type GuestChipResult =
-  | { ok: true; appliedSummary: string }
-  | { ok: false; code: string; message: string; retryAfterMs?: number; missingFields?: string[] };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Props

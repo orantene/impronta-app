@@ -387,6 +387,10 @@ export type GuestInquirySummary = {
   typicalReplyLabel: string | null;
 };
 
+export type ListGuestInquiriesResult =
+  | { ok: true; inquiries: GuestInquirySummary[] }
+  | GuestChatFailure;
+
 export type ListGuestInquiriesCallback = (input: {
   tenantSlug: string;
 }) => Promise<{ ok: true; inquiries: GuestInquirySummary[] } | GuestChatFailure>;
@@ -657,3 +661,29 @@ export type BlockSubjectType = "guest_session" | "client_user";
 
 /** user_blocks.scope allowed values (mirror the DB CHECK in S4). */
 export type BlockScope = "messaging" | "all";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 9. U1 full-thread types — used by the /c/[inquiryId] guest reading-room and
+//    the getGuestFullThread server action.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type GuestFullThreadBrand = {
+  agencyName: string;
+  talentDisplayName: string | null;
+  accentColor: string | null;
+  logoUrl: string | null;
+};
+
+export type GetGuestFullThreadResult =
+  | {
+      ok: true;
+      brand: GuestFullThreadBrand;
+      /** agencies.slug for the signed-in-client deep-link redirect. */
+      tenantSlug: string;
+      /** inquiries.client_user_id, so the page can compare to the session. */
+      clientUserId: string | null;
+      messages: GuestThreadMessage[];
+      threadStatus: GuestThreadStatus;
+      typicalReplyLabel: string | null;
+    }
+  | GuestChatFailure;

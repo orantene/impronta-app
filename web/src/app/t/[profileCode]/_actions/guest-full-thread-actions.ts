@@ -28,37 +28,11 @@ import { logServerError } from "@/lib/server/safe-error";
 import { getGuestThreadMessages } from "./guest-chat-actions";
 import type {
   GuestChatFailure,
+  GuestFullThreadBrand,
   GuestThreadMessage,
   GuestThreadStatus,
+  GetGuestFullThreadResult,
 } from "@/lib/inquiry/guest-chat-contract";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Result shape — the page consumes this to render <GuestFullThreadView/> (or to
-// notFound / redirect a signed-in owning client). The success branch carries the
-// resolved brand + tenant slug + the messages/status the gated read returned, so
-// the view never re-fetches on first paint.
-// ─────────────────────────────────────────────────────────────────────────────
-
-export type GuestFullThreadBrand = {
-  agencyName: string;
-  talentDisplayName: string | null;
-  accentColor: string | null;
-  logoUrl: string | null;
-};
-
-export type GetGuestFullThreadResult =
-  | {
-      ok: true;
-      brand: GuestFullThreadBrand;
-      /** agencies.slug for the signed-in-client deep-link redirect. */
-      tenantSlug: string;
-      /** inquiries.client_user_id, so the page can compare to the session. */
-      clientUserId: string | null;
-      messages: GuestThreadMessage[];
-      threadStatus: GuestThreadStatus;
-      typicalReplyLabel: string | null;
-    }
-  | GuestChatFailure;
 
 function fail(code: GuestChatFailure["code"], message: string): GuestChatFailure {
   return { ok: false, code, message };

@@ -37,16 +37,8 @@ import type {
   GuestChatFailure,
   GuestInquirySummary,
   GuestThreadStatus,
+  ListGuestInquiriesResult,
 } from "@/lib/inquiry/guest-chat-contract";
-
-// GuestInquirySummary is now the canonical contract type (consolidated at
-// integration). Re-export the local binding for callers that import it from
-// here (GuestThreadSwitcher).
-export type { GuestInquirySummary };
-
-export type ListGuestInquiriesResult =
-  | { ok: true; inquiries: GuestInquirySummary[] }
-  | GuestChatFailure;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Failure helper
