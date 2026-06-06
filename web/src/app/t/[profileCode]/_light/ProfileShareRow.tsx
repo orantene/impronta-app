@@ -89,7 +89,7 @@ export function ProfileShareRow({
       x: `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodeURIComponent(displayName)}`,
       facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
       linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
-      whatsapp: `https://wa.me/?text=${encodeURIComponent(shareText)}`,
+      whatsapp: `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`,
       instagram: "https://www.instagram.com/",
     }),
     [encodedUrl, displayName, shareText],
