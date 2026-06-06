@@ -11,6 +11,13 @@ import {
 } from "@/components/admin/shell/internal/state";
 import { SectionHeader } from "@/components/admin/shell/internal/talent/shared/today-2";
 import { agencyRosterProfileUrl } from "@/lib/talent/agency-roster-profile-url";
+import {
+  resolveEffectiveVisibility,
+  representationChipCopy,
+  type RosterStatus,
+  type AgencyVisibility,
+  type EffectiveVisibility,
+} from "@/lib/talent/representation";
 import { talentSiteCopy, type TalentSiteLocale } from "@/lib/talent-site/talent-site-i18n";
 
 type WorkspaceAppearance = {
@@ -23,7 +30,66 @@ type WorkspaceAppearance = {
   planTier: string;
   rosterProfileUrl: string | null;
   rosterProfileShareUrl: string | null;
+  /** True effective visibility (matches the Representation drawer). */
+  effective: EffectiveVisibility;
 };
+
+// Normalize raw DB values to the resolver's enums — kept byte-identical to
+// load-representation.ts so the list chip and the drawer chip never disagree.
+function asAgencyVisibility(v: string): AgencyVisibility {
+  if (v === "site_visible" || v === "featured") return v;
+  return "roster_only";
+}
+function asRosterStatus(v: string): RosterStatus {
+  if (v === "active" || v === "pending" || v === "inactive" || v === "removed") {
+    return v;
+  }
+  return "active";
+}
+
+// Chip tone → palette, mirrored from the Representation drawer
+// (talent-drawers/representation.tsx chipStyles) so both surfaces read the same.
+function chipStyles(tone: "live" | "warn" | "muted" | "conflict") {
+  if (tone === "live") {
+    return { bg: "rgba(15,79,62,0.12)", fg: COLORS.accentDeep, prefix: "🟢" };
+  }
+  if (tone === "warn") {
+    return { bg: "rgba(214,158,46,0.12)", fg: "#7C5A14", prefix: "🟡" };
+  }
+  if (tone === "conflict") {
+    return { bg: "rgba(220,38,38,0.08)", fg: "#b91c1c", prefix: "🔴" };
+  }
+  return { bg: "rgba(11,11,13,0.06)", fg: COLORS.inkMuted, prefix: "⚪" };
+}
+
+/**
+ * Effective-visibility chip for the "Where you appear" list. Always the
+ * talent's own point of view (this is the My-pages surface), so it surfaces
+ * the two-way truth — e.g. "Agency isn't showing you" when a roster lists the
+ * talent but hasn't published them.
+ */
+function VisibilityChip({ effective }: { effective: EffectiveVisibility }) {
+  const copy = representationChipCopy(effective, "talent");
+  if (!copy) return null;
+  const styles = chipStyles(copy.tone);
+  return (
+    <span
+      style={{
+        padding: "3px 8px",
+        borderRadius: 999,
+        fontSize: 10,
+        fontWeight: 700,
+        letterSpacing: 0.3,
+        background: styles.bg,
+        color: styles.fg,
+        whiteSpace: "nowrap",
+        fontFamily: FONTS.body,
+      }}
+    >
+      {styles.prefix} {copy.talent}
+    </span>
+  );
+}
 
 function workspaceKindLabel(planTier: string): string {
   return planTier === "free" ? "Free workspace" : "Agency";
@@ -217,11 +283,13 @@ function CopyableProfileLink({ url }: { url: string }) {
 function TulalaPersonalSiteCard({
   profileCode,
   tier,
+  globalHidden,
   onManage,
   locale = "en",
 }: {
   profileCode: string;
   tier: "free" | "pro" | "max";
+  globalHidden: boolean;
   onManage: () => void;
   locale?: TalentSiteLocale;
 }) {
@@ -279,6 +347,7 @@ function TulalaPersonalSiteCard({
             >
               Tulala.digital
             </span>
+            <VisibilityChip effective={globalHidden ? "global_hidden" : "live"} />
             <TulalaPlanBadge tier={tier} />
           </div>
           <div
@@ -414,6 +483,7 @@ function WorkspaceAppearanceCard({
             >
               {workspace.name}
             </span>
+            <VisibilityChip effective={workspace.effective} />
             {workspace.isPrimary && <MetaChip label="Primary" tone="accent" />}
           </div>
           <div
@@ -518,6 +588,10 @@ export function TalentSiteAppearancesPanel({ locale = "en" }: { locale?: TalentS
   const talentTier: "free" | "pro" | "max" =
     bridgeTalentSelfProfile?.talentTier ?? state.talentTier ?? "free";
 
+  // The talent's global kill-switch (talent_profiles.is_publicly_hidden).
+  // When on, it overrides every roster — surfaced as "Hidden everywhere".
+  const globalHidden = bridgeTalentSelfProfile?.isPubliclyHidden ?? false;
+
   // "Manage" on the Tulala card scrolls the user back up to the
   // personal-site editor section above (lives in the same `My pages`
   // surface). Document-level scroll keeps the implementation
@@ -540,6 +614,12 @@ export function TalentSiteAppearancesPanel({ locale = "en" }: { locale?: TalentS
           planTier: a.plan,
           rosterProfileUrl: agencyRosterProfileUrl(a.agencySlug, profileCode),
           rosterProfileShareUrl: agencyRosterProfileUrl(a.agencySlug, profileCode),
+          effective: resolveEffectiveVisibility({
+            status: asRosterStatus(a.rosterStatus),
+            agencyVisibility: asAgencyVisibility(a.agencyVisibility),
+            talentSiteHidden: a.talentSiteHidden,
+            globalHidden,
+          }),
         }))
       : [];
 
@@ -579,6 +659,7 @@ export function TalentSiteAppearancesPanel({ locale = "en" }: { locale?: TalentS
             <TulalaPersonalSiteCard
               profileCode={profileCode}
               tier={talentTier}
+              globalHidden={globalHidden}
               onManage={onManageTulala}
               locale={locale}
             />
