@@ -116,6 +116,11 @@ import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
 import { isBuilderClientCanvasEnabled } from "@/lib/site-admin/edit-mode/client-canvas-flag";
 import { publishBuilderCanvasTree } from "./client-builder-canvas-bridge";
+import {
+  readClasses as readStyleClasses,
+  toRegistry as toStyleClassRegistry,
+  publishStyleClassRegistry,
+} from "@/lib/site-admin/builder-node/style-classes-storage";
 import { normalizeCompositionSlots } from "./composition-slots";
 import {
   loadWorkspaceLayout,
@@ -2161,6 +2166,20 @@ export function EditProvider({
       publishBuilderCanvasTree(null);
     };
   }, [builderTree]);
+
+  // W1-T2(c) — publish the page's linked-style-class registry to the
+  // cross-subtree bridge so the client canvas (a sibling subtree that can't
+  // read this provider's context) can resolve linked blocks. This handles the
+  // INITIAL hydrate (existing classes when the editor opens / pageId changes);
+  // subsequent create/edit/delete republish from writeClasses itself. Cleared
+  // on unmount so a stale registry can't outlive the editor. Reads localStorage
+  // — additive, does not enter the value memo.
+  useEffect(() => {
+    publishStyleClassRegistry(toStyleClassRegistry(readStyleClasses(pageId)));
+    return () => {
+      publishStyleClassRegistry(null);
+    };
+  }, [pageId]);
 
   // history stacks. Capped so a long session doesn't leak memory — 50 deep
   // is Figma-ish and well past what any realistic undo chain needs for a

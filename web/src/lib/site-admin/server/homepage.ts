@@ -83,6 +83,10 @@ import {
   resolveSnapshotBuilderTreeForPublish,
   summarizeBuilderTreeIssues,
 } from "@/lib/site-admin/builder-node/snapshot-tree";
+import {
+  resolveBuilderTreeClassRefs,
+  type BuilderStyleClassRegistry,
+} from "@/lib/site-admin/builder-node/style-classes";
 
 import { enforceFreePlanNestedBuilderDraftGuard } from "./free-plan-draft-save-guard";
 import type { PageRow } from "./pages";
@@ -902,6 +906,18 @@ export async function publishHomepage(
      * human, not a service identity).
      */
     bypassCapabilityCheck?: boolean;
+    /**
+     * Marathon W1-T2 — the operator's PAGE-SCOPED linked-style-class registry
+     * (id → class). Linked blocks store only a `classRef`; the renderer resolves
+     * it against this registry. The published page is served from the snapshot
+     * with NO client registry available, so we BAKE the classes into the tree
+     * here (flatten every `classRef` into the node's resolved style, strip the
+     * dangling ref) before writing the snapshot. Omitted / empty → classRefs are
+     * stripped to a clean tree (linked blocks fall back to their own style, the
+     * pre-W1 behavior). The registry lives in localStorage, so it can only reach
+     * the server through this client-supplied param.
+     */
+    styleClasses?: BuilderStyleClassRegistry;
   },
 ): Promise<
   Phase5Result<{ id: string; version: number; publishedAt: string }>
@@ -1068,7 +1084,16 @@ export async function publishHomepage(
       `Draft builder structure is invalid. Save homepage draft again before publishing. ${summarizeBuilderTreeIssues(publishedBuilderTreeResolved.issues)}`,
     );
   }
-  const publishedBuilderTree = publishedBuilderTreeResolved.tree;
+  // Marathon W1-T2 — bake linked style classes into the published tree. The
+  // public page renders from this snapshot with NO client registry, so a bare
+  // `{ classRef }` would resolve to nothing there. resolveBuilderTreeClassRefs
+  // flattens each linked node's class style into its resolved style and strips
+  // the now-dangling classRef. With no registry it still strips classRefs to a
+  // clean tree (linked blocks fall back to their own style — never blank).
+  const publishedBuilderTree = resolveBuilderTreeClassRefs(
+    publishedBuilderTreeResolved.tree,
+    params.styleClasses,
+  );
 
   const nowIso = new Date().toISOString();
   const nextVersion = beforeRow.version + 1;

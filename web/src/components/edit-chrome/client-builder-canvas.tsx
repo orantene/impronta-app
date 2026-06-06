@@ -46,6 +46,12 @@ import {
 import type { ComponentDefinitions } from "@/lib/site-admin/builder-node/component-instances";
 
 import {
+  getStyleClassRegistrySnapshot,
+  getStyleClassRegistryServerSnapshot,
+  subscribeStyleClassRegistry,
+} from "@/lib/site-admin/builder-node/style-classes-storage";
+
+import {
   getBuilderCanvasTreeSnapshot,
   subscribeBuilderCanvasTree,
 } from "./client-builder-canvas-bridge";
@@ -98,6 +104,17 @@ export function ClientBuilderCanvas({
   );
   const tree = bridgedTree ?? initialTree;
 
+  // W1-T2(c) — subscribe to the live linked-style-class registry the editor
+  // publishes (localStorage-backed). Threading it here makes linked blocks look
+  // right ON the editor canvas, matching what publish now bakes into the live
+  // site. SSR returns the empty registry (no localStorage), keeping first paint
+  // byte-identical to the server markup.
+  const styleClasses = useSyncExternalStore(
+    subscribeStyleClassRegistry,
+    getStyleClassRegistrySnapshot,
+    getStyleClassRegistryServerSnapshot,
+  );
+
   return renderBuilderNodes(tree, {
     publicPathPrefix,
     mode: "freeform",
@@ -105,6 +122,7 @@ export function ClientBuilderCanvas({
     dataSources,
     components,
     visibilityContext,
+    styleClasses,
     // section_embed islands stay server-rendered: return the pre-rendered node.
     // An island we weren't handed (a tree-shape divergence) renders nothing
     // rather than attempting a client-side curated-section render.

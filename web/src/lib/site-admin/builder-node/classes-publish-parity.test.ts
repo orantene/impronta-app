@@ -106,11 +106,12 @@ describe("classes-publish-parity (W0-T5a characterization)", () => {
     assert.doesNotMatch(tag, /font-weight:800/, "class fontWeight also dropped");
   });
 
-  it.skip("W1-T2 TARGET: a classRef DOES reach the published HTML once publish bakes classes (flip this to it() in W1-T2)", () => {
-    // After W1-T2, publishHomepage bakes the registry into the tree via
-    // resolveBuilderTreeClassRefs, so the published snapshot renders the class
-    // styles WITHOUT any registry threaded at render time. When this passes,
-    // classes publish. Un-skip this assertion as the W1-T2 acceptance gate.
+  it("W1-T2 TARGET: a classRef DOES reach the published HTML once publish bakes classes (un-skipped + GREEN in W1-T2)", () => {
+    // W1-T2 landed: publishHomepage bakes the registry into the tree via
+    // resolveBuilderTreeClassRefs (homepage.ts), so the published snapshot
+    // renders the class styles WITHOUT any registry threaded at render time.
+    // `publishedTree(..., bakeClasses=true)` models that exact transform — this
+    // passing is the acceptance gate for "classes publish."
     const snapshot = publishedTree(PROMO_TREE, PROMO_REGISTRY, /* bakeClasses */ true);
     const tag = headingTag(render(snapshot /* no styleClasses, mirrors server */));
     assert.match(tag, /color:#cc0000/i, "baked class textColor reaches published HTML");

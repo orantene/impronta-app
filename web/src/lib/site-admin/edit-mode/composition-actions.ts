@@ -64,6 +64,7 @@ import { requireTenantScope } from "@/lib/saas";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { publishPageSnapshot } from "@/lib/site-admin/edit-mode/page-composer-action";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
+import type { BuilderStyleClassRegistry } from "@/lib/site-admin/builder-node/style-classes";
 import {
   buildLegacySectionBuilderTree,
   type LegacySnapshotSlot,
@@ -1511,6 +1512,14 @@ export async function publishHomepageFromEditModeAction(input: {
    *  should target that page rather than the homepage. */
   pageId?: string | null;
   expectedVersion: number;
+  /**
+   * Marathon W1-T2 — the operator's page-scoped linked-style-class registry
+   * (id → class), read from localStorage on the client. Plain JSON so it
+   * crosses the server-action boundary. `publishHomepage` bakes it into the
+   * published snapshot so linked blocks reach the live site. Omitted → the
+   * publish strips classRefs to a clean tree (pre-W1 fallback).
+   */
+  styleClasses?: BuilderStyleClassRegistry;
 }): Promise<PublishResult> {
   const auth = await requireStaff();
   if (!auth.ok) {
@@ -1619,6 +1628,8 @@ export async function publishHomepageFromEditModeAction(input: {
         expectedVersion: input.expectedVersion,
       },
       actorProfileId: auth.user.id,
+      // W1-T2 — bake the operator's linked style classes into the snapshot.
+      styleClasses: input.styleClasses,
     });
     if (!result.ok) {
       if (result.code === "VERSION_CONFLICT") {
