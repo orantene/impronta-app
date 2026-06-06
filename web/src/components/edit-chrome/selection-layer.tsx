@@ -375,33 +375,39 @@ function collectCanvasDropCandidates(
     const id = el.getAttribute("data-builder-node-id");
     if (id && !idToEl.has(id)) idToEl.set(id, el);
   }
+  // W2-T6(b) — one id→node Map instead of a per-element findBuilderNodeById walk.
+  const nodeById = buildBuilderNodeMap(tree);
 
-  const candidates: CanvasDropCandidate[] = [];
+  // W2-T6(a) — FIRST pass: resolve only the CONTAINER elements (a drop parent
+  // must have children.type ≠ "none" and a non-zero box). The depth loop then
+  // iterates THIS small container set, not every [data-builder-node-id] element
+  // — turning the old O(N²-over-all-nodes) containment scan into
+  // O(containers²), which is what the comment always claimed it was.
+  const containerEls: {
+    el: HTMLElement;
+    id: string;
+    node: BuilderNode;
+    rect: DOMRect;
+  }[] = [];
   for (const el of elements) {
     const id = el.getAttribute("data-builder-node-id");
     if (!id) continue;
-    const node = findBuilderNodeById(tree, id);
+    const node = nodeById.get(id);
     if (!node) continue;
-    // Only containers (children policy ≠ "none") can be a drop parent.
     if (BUILDER_NODE_REGISTRY[node.kind].children.type === "none") continue;
     const rect = el.getBoundingClientRect();
     if (rect.width === 0 && rect.height === 0) continue;
+    containerEls.push({ el, id, node, rect });
+  }
 
-    // Depth = how many OTHER candidate elements contain this one. Cheap O(n²)
-    // over the (small) candidate set; mirrors the marquee containment filter.
+  const candidates: CanvasDropCandidate[] = [];
+  for (const { el, id, node, rect } of containerEls) {
+    // Depth = how many OTHER CONTAINER candidates contain this one. O(containers²)
+    // over the (small) container set; mirrors the marquee containment filter.
     let depth = 0;
-    for (const other of elements) {
-      if (other === el) continue;
-      const otherId = other.getAttribute("data-builder-node-id");
-      if (!otherId) continue;
-      const otherNode = findBuilderNodeById(tree, otherId);
-      if (
-        otherNode &&
-        BUILDER_NODE_REGISTRY[otherNode.kind].children.type !== "none" &&
-        other.contains(el)
-      ) {
-        depth += 1;
-      }
+    for (const other of containerEls) {
+      if (other.el === el) continue;
+      if (other.el.contains(el)) depth += 1;
     }
 
     const locked =
@@ -474,6 +480,27 @@ function findBuilderNodeById(
     }
   }
   return null;
+}
+
+/**
+ * W2-T6 — flatten the tree into an id→node Map ONCE. The hot DOM-measure loops
+ * (collectCanvasDropCandidates, buildMarqueeIndex) used to call
+ * `findBuilderNodeById` (a full tree walk) per element — O(N·tree) per scan, and
+ * collectCanvasDropCandidates did it again per OTHER element in its depth loop
+ * (O(N²·tree)). One Map turns each lookup into O(1).
+ */
+function buildBuilderNodeMap(tree: BuilderNodeTree): Map<string, BuilderNode> {
+  const map = new Map<string, BuilderNode>();
+  const stack = [...tree];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current) continue;
+    map.set(current.id, current);
+    if ("children" in current && Array.isArray(current.children)) {
+      for (const child of current.children) stack.push(child);
+    }
+  }
+  return map;
 }
 
 /**
@@ -678,6 +705,14 @@ export function SelectionLayer() {
   const spacingOverlayRef = useRef<HTMLDivElement | null>(null);
   const gapOverlayRef = useRef<HTMLDivElement | null>(null);
   const overlayTrackRafRef = useRef<number | null>(null);
+  // W2-T6(c) — the overlay-tracking rAF loop re-measured the selected element
+  // (getBoundingClientRect + 6 style writes) EVERY frame, ~60×/s, even when
+  // nothing moved. This flag is set true by the exact geometry-change signals
+  // the React rect-recompute path already trusts (scroll/resize + the selected
+  // element's ResizeObserver/MutationObserver); the rAF loop early-returns when
+  // it's false → ~0 forced reflows while idle. Starts true so the first frame
+  // (and every re-selection) always writes.
+  const geometryDirtyRef = useRef(true);
 
   const getSelectedSectionEl = useCallback((): HTMLElement | null => {
     if (!selectedSectionId) return null;
@@ -816,7 +851,12 @@ export function SelectionLayer() {
     if (typeof window === "undefined") return undefined;
     const el = getSelectedBuilderNodeEl() ?? getSelectedSectionEl();
     if (!el) return undefined;
-    const recompute = () => scheduleRectRecomputeRef.current();
+    const recompute = () => {
+      // W2-T6(c) — the element's own size/inline-style changed → let the rAF
+      // overlay loop re-measure on its next frame.
+      geometryDirtyRef.current = true;
+      scheduleRectRecomputeRef.current();
+    };
     const ro =
       typeof ResizeObserver !== "undefined"
         ? new ResizeObserver(recompute)
@@ -1145,6 +1185,9 @@ export function SelectionLayer() {
     function onScrollOrResize() {
       // Rings track the scroll via the rAF rect recompute; no position
       // transition fights it now, so they snap frame-for-frame.
+      // W2-T6(c) — scroll/resize moves the selected element's viewport rect →
+      // wake the rAF overlay loop for the next frame(s).
+      geometryDirtyRef.current = true;
       scheduleRectRecompute();
     }
     function onKey(e: KeyboardEvent) {
@@ -1219,12 +1262,15 @@ export function SelectionLayer() {
     // shape carries the live element so the O(N²) containment filter still works.
     type MarqueeCandidate = { id: string; el: HTMLElement; box: Rect };
     function buildMarqueeIndex(): MarqueeCandidate[] {
+      // W2-T6(b) — one id→node Map instead of a findBuilderNodeById tree walk
+      // per element.
+      const nodeById = buildBuilderNodeMap(builderTree);
       return Array.from(
         document.querySelectorAll<HTMLElement>("[data-builder-node-id]"),
       ).flatMap((el) => {
         const id = el.getAttribute("data-builder-node-id");
         if (!id) return [];
-        const node = findBuilderNodeById(builderTree, id);
+        const node = nodeById.get(id);
         // P3-LOCK: skip locked nodes and section/role nodes from marquee selection.
         if (!node || node.kind === "section" || resolveBuilderNodeRole(node.id) || node.locked) {
           return [];
@@ -2135,7 +2181,15 @@ export function SelectionLayer() {
       `[data-builder-node-id="${CSS.escape(nodeId)}"]`,
     );
   }, []);
-  const selectedBuilderNodeRects = useMemo<MultiNodeRect[]>(() => {
+  // W2-T6(d) — measure the multi-selected node rects in a LAYOUT EFFECT, not in
+  // a render-phase useMemo. The old useMemo ran getBoundingClientRect per
+  // selected node DURING render, forcing a reflow inside React's reconcile (a
+  // mid-render layout thrash during a multi-select bulk action + scroll). Now
+  // the measurement runs after the DOM is committed (pre-paint) and writes
+  // state; the render phase stays reflow-free. The filter (drop zero-box nodes)
+  // and the resulting `multiNodeSelectionActive = rects.length > 1` semantics
+  // are byte-identical to the previous useMemo.
+  const measureSelectedBuilderNodeRects = useCallback((): MultiNodeRect[] => {
     return getAllSelectedBuilderNodeIds().flatMap((id) => {
       const el = getBuilderNodeEl(id);
       if (!el) return [];
@@ -2151,10 +2205,15 @@ export function SelectionLayer() {
         },
       ];
     });
+  }, [getAllSelectedBuilderNodeIds, getBuilderNodeEl]);
+  const [selectedBuilderNodeRects, setSelectedBuilderNodeRects] = useState<
+    MultiNodeRect[]
+  >([]);
+  useLayoutEffect(() => {
+    setSelectedBuilderNodeRects(measureSelectedBuilderNodeRects());
   }, [
+    measureSelectedBuilderNodeRects,
     additionalSelectedBuilderNodeIds,
-    getAllSelectedBuilderNodeIds,
-    getBuilderNodeEl,
     pageVersion,
     selectedBuilderNodeId,
     selectedSectionNodeId,
@@ -2321,10 +2380,18 @@ export function SelectionLayer() {
     };
 
     // Write once synchronously (pre-paint) so the overlays never flash at the
-    // origin, then track every frame.
+    // origin, then track. W2-T6(c) — re-selection must paint immediately, so
+    // force one write now and prime the dirty flag for the first frame.
+    geometryDirtyRef.current = true;
     sync();
     const tick = () => {
-      sync();
+      // Only re-measure when a geometry-change signal fired (scroll/resize/RO/MO);
+      // otherwise skip the getBoundingClientRect + 6 style writes entirely. This
+      // is the ~60 idle reflows/s W2-T6(c) removes.
+      if (geometryDirtyRef.current) {
+        geometryDirtyRef.current = false;
+        sync();
+      }
       overlayTrackRafRef.current = requestAnimationFrame(tick);
     };
     overlayTrackRafRef.current = requestAnimationFrame(tick);
