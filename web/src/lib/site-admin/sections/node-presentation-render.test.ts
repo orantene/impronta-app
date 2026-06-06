@@ -1,8 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createElement } from "react";
+import { createElement, type CSSProperties } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
+import {
+  nodePresentationInlineStyle,
+  type NodePresentationValue,
+} from "./shared/node-presentation";
+import { sharedNodeStyle } from "../builder-node/render";
+import { nodePresentationToBuilderStyle } from "../builder-node/node-presentation-bridge";
 import { HeroComponent } from "./hero/Component";
 import { CategoryGridComponent } from "./category_grid/Component";
 import { ContactFormComponent } from "./contact_form/Component";
@@ -2263,4 +2269,190 @@ test("site footer renderer applies brand/tagline nodePresentation and child node
   assert.match(html, /site-footer__tagline[^>]*data-builder-node-id="legacy:footer:0:shell:paragraph:copy"/);
   assert.match(html, /site-footer__brand-label[^>]*max-width:320px/);
   assert.match(html, /site-footer__tagline[^>]*max-width:480px/);
+});
+
+// ───────────────────────────────────────────────────────────────────────────
+// W4-T2 — DUAL STYLE-ENGINE COLLAPSE: render-parity proof + seam characterization
+// ───────────────────────────────────────────────────────────────────────────
+//
+// The builder runs two style models (see node-presentation-bridge.ts):
+//  - Engine A — `BuilderNodeStyle` (freeform), emitted by `sharedNodeStyle`.
+//  - Engine B — curated `NodePresentationValue`, emitted by
+//    `nodePresentationInlineStyle`.
+//
+// W4-T2's goal is "one inline emitter". The honest, load-bearing question the
+// collapse turns on is: **does the curated emitter produce the SAME CSS as the
+// freeform emitter for the value a node actually carries?** This block answers
+// it precisely and is the guard the plan calls for ("PROVE curated + freeform
+// render identically").
+//
+// The answer is: **the SAME CSS declarations for the shared-vocabulary fields**
+// (per-side px spacing, max-width, align, the free typography escapes, colors,
+// borders, visibility, line-height ratio) — i.e. everything that has a 1:1
+// Engine-A home. Same property/value pairs, but the two emitters insert them in
+// a DIFFERENT order, so the serialized `style` attribute string differs by key
+// order (declaration-SET parity, not serialized-byte parity). That order
+// difference is itself why the production curated emitter is kept NATIVE rather
+// than collapsed to `sharedNodeStyle∘bridge`: the swap would reorder the inline
+// style of every curated section even where every value is unchanged.
+// Three fields DELIBERATELY diverge and have NO lossless Engine-A emitter home,
+// so the production emitter must keep handling them natively (a naive
+// `sharedNodeStyle(nodePresentationToBuilderStyle(np))` swap would REGRESS them):
+//   1. `size`  — a curated SECTION-SCOPED token; each section maps it to its own
+//      font-size scale via a `sizeMapper` arg (e.g. xl → a section-specific
+//      clamp()). `sharedNodeStyle` has no section context and no size→fontSize
+//      mapping, so it cannot reproduce the curated value.
+//   2. `tone`  — curated `muted`/`strong` resolve to layered token fallbacks
+//      (`var(--token-color-muted, var(--impronta-muted, #…))`); Engine-A's tone
+//      resolves to different literals. Different color string.
+//   3. inline shorthands `marginInlinePx` / `paddingInlinePx` — the curated
+//      emitter writes the `margin-inline` / `padding-inline` SHORTHAND; the
+//      bridge expands them to per-side left+right (visually identical, but a
+//      different serialized declaration).
+//
+// These tests lock BOTH facts: the shared-vocab identity (so the bridge is the
+// proven single conversion seam) AND the three intended divergences (so a future
+// agent cannot collapse the emitter without first giving size/tone/inline a
+// lossless Engine-A home — otherwise this block goes red).
+
+test("W4-T2 seam: curated emitter == freeform emitter (sharedNodeStyle∘bridge) for shared-vocab fields", () => {
+  // Shared-vocabulary NodePresentation values — NO size/tone token enums, and
+  // per-side margins (not the inline shorthand). For these, curated and freeform
+  // MUST emit the identical CSSProperties object (key-for-key, value-for-value).
+  const sharedVocabCases: ReadonlyArray<NodePresentationValue> = [
+    {
+      align: "left",
+      maxWidthPx: 740,
+      marginTopPx: 14,
+      marginBottomPx: 18,
+      marginLeftPx: 12,
+      marginRightPx: 20,
+      paddingTopPx: 6,
+      paddingBottomPx: 8,
+      paddingLeftPx: 10,
+      paddingRightPx: 14,
+    },
+    {
+      fontFamily: "Playfair Display",
+      fontSizePx: 48,
+      fontWeight: 600,
+      letterSpacingPx: 2,
+      lineHeightPct: 120,
+      textTransform: "uppercase",
+      textWrap: "balance",
+      whiteSpace: "nowrap",
+      lineClamp: 2,
+    },
+    {
+      textColor: "#1a1a1a",
+      backgroundColor: "#fafafa",
+      borderColor: "#cccccc",
+      borderWidthPx: 2,
+      borderStyle: "solid",
+    },
+    { borderColor: "var(--token-color-border, #ccc)" },
+    { visibility: "hidden" },
+    { borderWidthPx: 3 },
+    { lineHeightPct: 150 },
+    { align: "center", maxWidthPx: 500 },
+  ];
+
+  for (const np of sharedVocabCases) {
+    const curated = nodePresentationInlineStyle(np) ?? {};
+    const freeform = sharedNodeStyle(nodePresentationToBuilderStyle(np));
+    // `lineHeight` is a React unitless property: the curated emitter stores the
+    // ratio as a number (1.2) and the bridge as the equivalent string ("1.2").
+    // React serializes both to the identical `line-height:1.2` declaration, so
+    // normalize the type before the deep-equal (the rendered CSS is identical).
+    const normalize = (s: Record<string, unknown>): Record<string, unknown> => {
+      const out = { ...s };
+      if (out.lineHeight !== undefined) out.lineHeight = String(out.lineHeight);
+      return out;
+    };
+    assert.deepEqual(
+      normalize(freeform as Record<string, unknown>),
+      normalize(curated as Record<string, unknown>),
+      `shared-vocab curated/freeform emit must match for ${JSON.stringify(np)}`,
+    );
+    // RENDERED-CSS PARITY: render both emitters and assert the SET of CSS
+    // declarations is identical. Note this is declaration-set parity, NOT
+    // serialized-byte parity — the two emitters insert the same declarations in
+    // a DIFFERENT order (curated does margins-before-padding; sharedNodeStyle the
+    // reverse), so the `style` attribute STRING differs by key order even though
+    // every property/value pair is identical. This is itself the proof that
+    // swapping the production curated emitter to `sharedNodeStyle∘bridge` would
+    // change the serialized HTML of every curated section (key reorder) — i.e.
+    // why the emitter is kept native, not collapsed.
+    const declSet = (style: CSSProperties | undefined): string => {
+      const html = renderToStaticMarkup(createElement("span", { style }));
+      const m = /style="([^"]*)"/.exec(html);
+      return (m?.[1] ?? "")
+        .split(";")
+        .map((d) => d.trim())
+        .filter(Boolean)
+        .sort()
+        .join(";");
+    };
+    assert.equal(
+      declSet(sharedNodeStyle(nodePresentationToBuilderStyle(np))),
+      declSet(nodePresentationInlineStyle(np)),
+      `rendered CSS declaration SET must match for ${JSON.stringify(np)}`,
+    );
+  }
+});
+
+test("W4-T2 seam: the three DELIBERATE divergences are pinned (size/tone/inline have no lossless Engine-A home)", () => {
+  // A section-scoped size mapper, exactly as a curated Component passes one.
+  const sizeMapper = (s: NonNullable<NodePresentationValue["size"]>): string =>
+    ({ sm: "0.9rem", md: "1rem", lg: "1.4rem", xl: "clamp(2.25rem, 5.6vw, 4.35rem)" }[s]);
+
+  // (1) size — curated maps it through the section sizeMapper; freeform drops it.
+  {
+    const np: NodePresentationValue = { size: "xl" };
+    const curated = nodePresentationInlineStyle(np, sizeMapper) ?? {};
+    const freeform = sharedNodeStyle(nodePresentationToBuilderStyle(np));
+    assert.equal(
+      (curated as Record<string, unknown>).fontSize,
+      "clamp(2.25rem, 5.6vw, 4.35rem)",
+      "curated resolves a section-scoped font-size from `size`",
+    );
+    assert.equal(
+      (freeform as Record<string, unknown>).fontSize,
+      undefined,
+      "freeform CANNOT reproduce the section size scale (no section context) → emitter must keep size native",
+    );
+  }
+
+  // (2) tone — curated layered token fallback vs Engine-A literal.
+  {
+    const muted: NodePresentationValue = { tone: "muted" };
+    const curated = nodePresentationInlineStyle(muted) ?? {};
+    const freeform = sharedNodeStyle(nodePresentationToBuilderStyle(muted));
+    assert.equal(
+      (curated as Record<string, unknown>).color,
+      "var(--token-color-muted, var(--impronta-muted, #8f877c))",
+    );
+    assert.notEqual(
+      (freeform as Record<string, unknown>).color,
+      (curated as Record<string, unknown>).color,
+      "tone resolves to a different color string across engines → emitter must keep tone native",
+    );
+  }
+
+  // (3) inline shorthands — curated writes `margin-inline`/`padding-inline`; the
+  //     bridge expands to per-side left+right (same pixels, different declaration).
+  {
+    const np: NodePresentationValue = { marginInlinePx: 9, paddingInlinePx: 14 };
+    const curated = nodePresentationInlineStyle(np) ?? {};
+    const freeform = sharedNodeStyle(nodePresentationToBuilderStyle(np));
+    assert.equal((curated as Record<string, unknown>).marginInline, "9px");
+    assert.equal((curated as Record<string, unknown>).paddingInline, "14px");
+    assert.equal(
+      (freeform as Record<string, unknown>).marginInline,
+      undefined,
+      "bridge expands the inline shorthand to per-side → emitter must keep the shorthand native for declaration parity",
+    );
+    assert.equal((freeform as Record<string, unknown>).marginLeft, "9px");
+    assert.equal((freeform as Record<string, unknown>).marginRight, "9px");
+  }
 });
