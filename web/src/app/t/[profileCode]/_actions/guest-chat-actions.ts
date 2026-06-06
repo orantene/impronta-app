@@ -402,10 +402,25 @@ async function loadParticipantIdentities(
     }
   }
 
+  // A self-coordinating hub talent holds TWO rows with the SAME user_id (one
+  // role='talent', one role='coordinator'). The participant query is unordered,
+  // so a naive map.set would let row order decide the guest-visible label. Apply
+  // an explicit precedence instead: 'talent' wins over 'coordinator' wins over
+  // 'client'. Rationale — the guest messaged this person's TALENT profile, so
+  // their reply should read as the talent's own name (Orlando), not the agency
+  // brand ("Booking team"). A separate, coordinator-only user (the hub-owner
+  // agency coordinator) still presents as the brand.
+  const rolePriority: Record<"client" | "coordinator" | "talent", number> = {
+    talent: 3,
+    coordinator: 2,
+    client: 1,
+  };
   for (const p of participants) {
     const userId = p.user_id as string | null;
     if (!userId) continue;
     const role = p.role as "client" | "coordinator" | "talent";
+    const existing = map.get(userId);
+    if (existing && rolePriority[existing.role] >= rolePriority[role]) continue;
     if (role === "talent") {
       const name = p.talent_profile_id ? talentNameById.get(p.talent_profile_id as string) : null;
       map.set(userId, { role, label: name ?? "Talent", avatarUrl: null });

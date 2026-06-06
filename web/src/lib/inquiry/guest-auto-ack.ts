@@ -98,8 +98,12 @@ export async function emitGuestAutoAck(
       }
     }
 
-    // Insert into the GROUP thread as a system_event so it's visible to
-    // the guest popup (unlike the existing private-thread ack).
+    // Insert into the PRIVATE (client) thread as a system_event so it persists
+    // in the guest's polled feed. The guest's readGuestVisibleMessages now
+    // filters thread_type='private' (Messages-v2 flip), so a 'group' ack would
+    // show only on the opening response and then VANISH on the next poll. The
+    // private thread is the guest↔coordinator client conversation — the correct
+    // home for an auto-acknowledgement the guest must keep seeing.
     const admin = createServiceRoleClient();
     if (!admin) return null;
 
@@ -108,7 +112,7 @@ export async function emitGuestAutoAck(
       .insert({
         inquiry_id: args.inquiryId,
         tenant_id: args.tenantId,
-        thread_type: "group",
+        thread_type: "private",
         sender_user_id: null,
         body,
         message_kind: "system_event",

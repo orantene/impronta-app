@@ -8,8 +8,7 @@ import { MobileShellStyles } from "@/components/messages-mobile/MobileShellStyle
 import { PitchOriginCard } from "@/components/pitch-origin/PitchOriginCard";
 import { ReservationThread, type ReservationStage, type PillDescriptor, type PillKind, type SheetDescriptor } from "@/components/reservation-thread";
 import { acceptInquiryInvitation, declineInquiryInvitation, respondToInquiryOffer } from "@/lib/server-actions/talent-pipeline";
-import { sendTalentInquiryMessage } from "@/app/(workspace)/[tenantSlug]/talent/inbox/[id]/actions";
-import { loadInquiryLineup } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
+import { sendTalentInquiryMessage, loadTalentInquiryLineupCount } from "@/app/(workspace)/[tenantSlug]/talent/inbox/[id]/actions";
 import { useAdminShell, FONTS, COLORS } from "../state";
 import { MOCK_CONVERSATIONS, MOCK_THREAD, type Conversation } from "../talent";
 import { AdminReservationView } from "./admin-3";
@@ -257,24 +256,27 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
   })();
   const [activeTab, setActiveTab] = useState<ThreadTabId>(defaultTab);
   // F2 — real role='talent' headcount, gating the Group tab. Loaded for
-  // real-UUID inquiries via loadInquiryLineup (staff-scoped; succeeds for
-  // coordinator-talents). Undefined until resolved / when unavailable
-  // (plain talent / mock conv) → buildInquiryTabs defaults to showing
-  // Group, since it has always been the talent's primary channel and we
-  // only HIDE it on a confirmed sole-talent inquiry.
+  // real-UUID inquiries via loadTalentInquiryLineupCount, which authorizes on
+  // the caller's OWN participant row (talent lineup row OR self-coordinator
+  // row) — NOT staff scope. This is what lets a self-coordinating hub talent
+  // (who isn't tenant staff) get a real count and correctly HIDE the Group tab
+  // on a sole-talent inquiry. Undefined until resolved / when unavailable
+  // (non-participant / mock conv) → buildInquiryTabs defaults to showing Group,
+  // since it has always been the talent's primary channel and we only HIDE it
+  // on a confirmed sole-talent inquiry.
   const [lineupTotal, setLineupTotal] = useState<number | undefined>(undefined);
   useEffect(() => {
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id);
     if (!isUuid) { setLineupTotal(undefined); return; }
     let active = true;
-    loadInquiryLineup(effectiveTenant.slug, conv.id).then((r) => {
+    loadTalentInquiryLineupCount(conv.id).then((n) => {
       if (!active) return;
-      // Only trust a successful read. A failed read (e.g. a plain talent
-      // who isn't staff) leaves lineupTotal undefined → Group stays shown.
-      if (r.ok && r.data) setLineupTotal(r.data.length);
+      // Only trust a real (non-null) count. A null read (non-participant /
+      // error) leaves lineupTotal undefined → Group stays shown (safe default).
+      if (n !== null) setLineupTotal(n);
     });
     return () => { active = false; };
-  }, [conv.id, effectiveTenant.slug]);
+  }, [conv.id]);
   // F2 — keep activeTab valid. If the async lineup count resolves to a
   // sole-talent inquiry while the talent is sitting on the Group tab,
   // the Group tab vanishes from the row; redirect to a tab that still

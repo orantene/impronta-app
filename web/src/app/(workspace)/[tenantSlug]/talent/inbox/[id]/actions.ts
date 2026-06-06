@@ -373,6 +373,62 @@ export async function loadTalentInquiryThread(
   }
 }
 
+/**
+ * Talent-readable lineup headcount for the Group-tab visibility gate (F2).
+ *
+ * The admin `loadInquiryLineup` is staff-scoped (`requireStaffTenantAction`), so
+ * a SELF-COORDINATING hub talent — who is NOT staff of the hub tenant — gets a
+ * failed read, leaving the count undefined and the Group tab defaulting to
+ * shown (even on a sole-talent inquiry). This action authorizes on the caller's
+ * OWN participant row (the engine keys both the talent lineup row AND the
+ * self-coordinator row on `user_id`), then service-role counts the
+ * `role='talent'` participants on the inquiry. Returns `null` when the caller
+ * doesn't participate or on any error — the caller treats `null` as "unknown"
+ * and keeps the Group tab shown (the safe, non-disruptive default).
+ */
+export async function loadTalentInquiryLineupCount(
+  inquiryId: string,
+): Promise<number | null> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return null;
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const admin = createServiceRoleClient();
+    const readClient = admin ?? supabase;
+
+    // Authorize: the caller must hold a non-removed participant row keyed on
+    // their user_id (talent lineup row OR self/agency coordinator row). Mirrors
+    // the thread authz — no roster/staff scope required. The count itself is
+    // non-sensitive (an integer), so any participation suffices.
+    const { data: ownRow } = await readClient
+      .from("inquiry_participants")
+      .select("inquiry_id")
+      .eq("inquiry_id", inquiryId)
+      .eq("user_id", user.id)
+      .neq("status", "removed")
+      .limit(1)
+      .maybeSingle();
+    if (!ownRow) return null;
+
+    // Count the role='talent' lineup participants (exclude removed).
+    const { count, error } = await readClient
+      .from("inquiry_participants")
+      .select("id", { count: "exact", head: true })
+      .eq("inquiry_id", inquiryId)
+      .eq("role", "talent")
+      .neq("status", "removed");
+    if (error) return null;
+    return count ?? 0;
+  } catch (err) {
+    logServerError("talent.lineup.count", err);
+    return null;
+  }
+}
+
 // ─── Guest / client trust chip (talent thread header) ────────────────────────
 
 /** Serialisable trust-chip data for the talent thread header (no callbacks). */
