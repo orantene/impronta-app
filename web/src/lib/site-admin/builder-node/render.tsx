@@ -11,6 +11,7 @@ import {
 
 import { BuilderNodeCarouselTrack } from "./carousel";
 import { BuilderNodeCodeFrame } from "./code-frame";
+import { BuilderNodeLayoutMotion } from "./layout-motion";
 import type { BuilderSectionEmbedRenderer } from "./section-embed-renderer";
 import { resolveBuilderNodeRole } from "./role-bindings";
 import {
@@ -92,6 +93,13 @@ export interface BuilderNodeRenderOptions {
   // tenant-scoped data) or a labeled placeholder. Absent in lighter render
   // contexts (tests, tenant-less previews) → the case renders nothing.
   renderSectionEmbed?: BuilderSectionEmbedRenderer | null;
+  // W3-T1 — EDITOR-ONLY insert/delete/reorder motion. When true, the rendered
+  // node list is wrapped in a `display: contents` FLIP primitive
+  // (`BuilderNodeLayoutMotion`) so inserts fade+rise, deletes fade out, and
+  // siblings settle. OPT-IN and default OFF → the server / published paths emit
+  // byte-identical markup (no wrapper). Honors `prefers-reduced-motion`. Only
+  // `ClientBuilderCanvas` passes it true.
+  animateLayout?: boolean;
 }
 
 type NormalizedBuilderNodeRenderOptions = Required<
@@ -3207,15 +3215,26 @@ export function renderBuilderNodes(
     styleClasses: options.styleClasses ?? {},
     visibilityContext: options.visibilityContext,
     renderSectionEmbed: options.renderSectionEmbed ?? null,
+    animateLayout: options.animateLayout ?? false,
     repeatItem: null,
     repeatDepth: 0,
   };
-  const renderedNodes = nodes
+  const nodeViews = nodes
     .filter((node) => shouldRenderNode(node, normalizedOptions))
     .map((node) => (
       <BuilderNodeView key={node.id} node={node} options={normalizedOptions} />
     ));
-  if (renderedNodes.length === 0) return null;
+  if (nodeViews.length === 0) return null;
+  // W3-T1 — editor-only: wrap the block list in the FLIP motion primitive. The
+  // wrapper is `display: contents` (no box, overlay-safe) and only emitted when
+  // the editor canvas opts in, so the server / published markup is unchanged.
+  const renderedNodes: ReactNode = normalizedOptions.animateLayout ? (
+    <BuilderNodeLayoutMotion key="site-builder-node-layout-motion">
+      {nodeViews}
+    </BuilderNodeLayoutMotion>
+  ) : (
+    nodeViews
+  );
   const fontLinks = normalizedOptions.includeFontLinks ? (
     <BuilderNodeFontLinks
       key="site-builder-node-fonts"
@@ -3235,7 +3254,11 @@ export function renderBuilderNodes(
     ) : null,
   ].filter(Boolean);
   if (headNodes.length === 0) return renderedNodes;
-  return [...headNodes, ...renderedNodes];
+  // `renderedNodes` is an array on the byte-stable (non-animate) path and a
+  // single `<BuilderNodeLayoutMotion>` element when motion is on; `concat`
+  // flattens an array and appends a lone element, so the non-animate output
+  // stays exactly `[...headNodes, ...nodeViews]` as before.
+  return ([] as ReactNode[]).concat(headNodes, renderedNodes);
 }
 
 /**

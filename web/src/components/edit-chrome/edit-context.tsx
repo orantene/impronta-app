@@ -990,6 +990,16 @@ export interface EditContextValue {
   clearNavigatorRecentAdditions: () => void;
 
   /**
+   * W3-T1 — the most-recently inserted/duplicated/pasted block, carried with a
+   * monotonic `nonce` so a repeat insert of the same id still re-fires. Drives
+   * the canvas highlight pulse (a brief settle ring on the new block); the
+   * layout-settle motion itself is handled by the renderer's FLIP wrapper.
+   * `null` until the first insert of the session. Reduced-motion users get no
+   * pulse (the effect that consumes it bails on `prefers-reduced-motion`).
+   */
+  lastInsertedNodeId: { id: string; nonce: number } | null;
+
+  /**
    * Set a section's `presentation.visibility`. Used by the Navigator
    * panel's eye toggle. Resolves with `{ ok }` so the caller can render
    * an inline error toast on failure. On success the composition is
@@ -2555,6 +2565,16 @@ export function EditProvider({
   const [recentNavigatorAdditions, setRecentNavigatorAdditions] = useState<
     NavigatorRecentAddition[]
   >([]);
+  // W3-T1 — most-recently inserted block (id + monotonic nonce), drives the
+  // canvas highlight pulse. A nonce (not a bare id) so re-inserting the same id
+  // still re-fires, and so the pulse effect keys on a fresh value each insert.
+  const [lastInsertedNodeId, setLastInsertedNodeId] = useState<{
+    id: string;
+    nonce: number;
+  } | null>(null);
+  const markNodeInserted = useCallback((nodeId: string) => {
+    setLastInsertedNodeId({ id: nodeId, nonce: Date.now() });
+  }, []);
   const markNavigatorAddition = useCallback(
     (
       sectionId: string,
@@ -2584,6 +2604,60 @@ export function EditProvider({
       current.length === 0 ? current : [],
     );
   }, []);
+
+  // W3-T1 — highlight pulse on the just-inserted block. Self-contained (Web
+  // Animations API on the element's own box-shadow — no shared keyframe sheet to
+  // depend on, so it fires whether or not the Layers panel is mounted). Honors
+  // `prefers-reduced-motion` (the new block already appears + is selected; only
+  // the pulse is suppressed). Retries a few frames because the canvas DOM node
+  // can lag the insert by one bridge re-render.
+  useEffect(() => {
+    if (lastInsertedNodeId === null) return;
+    if (typeof document === "undefined" || typeof window === "undefined") return;
+    if (
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return;
+    }
+    const targetId = lastInsertedNodeId.id;
+    let cancelled = false;
+    let attempts = 0;
+    const run = () => {
+      if (cancelled) return;
+      const el = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          `[data-builder-node-id="${CSS.escape(targetId)}"]`,
+        ),
+      ).find(
+        (candidate) =>
+          !candidate.closest(
+            "[data-edit-topbar], [data-edit-drawer], [data-edit-overlay]",
+          ),
+      );
+      if (!el) {
+        if (attempts < 8) {
+          attempts += 1;
+          requestAnimationFrame(run);
+        }
+        return;
+      }
+      if (typeof el.animate !== "function") return;
+      el.animate(
+        [
+          { boxShadow: "0 0 0 0 rgba(61,79,124,0)" },
+          { boxShadow: "0 0 0 3px rgba(61,79,124,0.55)" },
+          { boxShadow: "0 0 0 0 rgba(61,79,124,0)" },
+        ],
+        { duration: 720, easing: "ease-out", fill: "none" },
+      );
+    };
+    requestAnimationFrame(run);
+    return () => {
+      cancelled = true;
+    };
+  }, [lastInsertedNodeId]);
+
   const setNavigatorWidth = useCallback((width: number) => {
     if (!Number.isFinite(width)) return;
     const rounded = Math.round(width);
@@ -4702,6 +4776,7 @@ export function EditProvider({
         setSelectedBuilderNodeIdOverride(node.id);
         markNavigatorAddition(ownerSectionId, node.id, "block");
       }
+      markNodeInserted(node.id);
       return { ok: true, nodeId: node.id };
     },
     [
@@ -4710,6 +4785,7 @@ export function EditProvider({
       setSelectedSectionId,
       setSelectedBuilderNodeIdOverride,
       markNavigatorAddition,
+      markNodeInserted,
     ],
   );
   const insertBuilderNodeCompositionPreset = useCallback<
@@ -4742,6 +4818,7 @@ export function EditProvider({
         setSelectedBuilderNodeIdOverride(node.id);
         markNavigatorAddition(ownerSectionId, node.id, "block");
       }
+      markNodeInserted(node.id);
       return { ok: true, nodeId: node.id };
     },
     [
@@ -4750,6 +4827,7 @@ export function EditProvider({
       setSelectedSectionId,
       setSelectedBuilderNodeIdOverride,
       markNavigatorAddition,
+      markNodeInserted,
     ],
   );
   const insertBuilderSectionEmbed = useCallback<
@@ -4782,6 +4860,7 @@ export function EditProvider({
         setSelectedBuilderNodeIdOverride(node.id);
         markNavigatorAddition(ownerSectionId, node.id, "block");
       }
+      markNodeInserted(node.id);
       return { ok: true, nodeId: node.id };
     },
     [
@@ -4790,6 +4869,7 @@ export function EditProvider({
       setSelectedSectionId,
       setSelectedBuilderNodeIdOverride,
       markNavigatorAddition,
+      markNodeInserted,
     ],
   );
   const insertBuilderComponent = useCallback<
@@ -4830,6 +4910,7 @@ export function EditProvider({
         setSelectedBuilderNodeIdOverride(node.id);
         markNavigatorAddition(ownerSectionId, node.id, "block");
       }
+      markNodeInserted(node.id);
       return { ok: true, nodeId: node.id };
     },
     [
@@ -4838,6 +4919,7 @@ export function EditProvider({
       setSelectedSectionId,
       setSelectedBuilderNodeIdOverride,
       markNavigatorAddition,
+      markNodeInserted,
     ],
   );
   // Living Components Phase 2 — insert a LINKED instance: same proven insert
@@ -4879,6 +4961,7 @@ export function EditProvider({
         setSelectedBuilderNodeIdOverride(node.id);
         markNavigatorAddition(ownerSectionId, node.id, "block");
       }
+      markNodeInserted(node.id);
       return { ok: true, nodeId: node.id };
     },
     [
@@ -4887,6 +4970,7 @@ export function EditProvider({
       setSelectedSectionId,
       setSelectedBuilderNodeIdOverride,
       markNavigatorAddition,
+      markNodeInserted,
     ],
   );
   // Re-sync every instance of a component: replace each tagged container's
@@ -5185,6 +5269,7 @@ export function EditProvider({
         setSelectedBuilderNodeIdOverride(duplicatedNodeId);
         markNavigatorAddition(ownerSectionId, duplicatedNodeId, "block");
       }
+      markNodeInserted(duplicatedNodeId);
       return { ok: true, nodeId: duplicatedNodeId };
     },
     [
@@ -5193,6 +5278,7 @@ export function EditProvider({
       setSelectedSectionId,
       setSelectedBuilderNodeIdOverride,
       markNavigatorAddition,
+      markNodeInserted,
     ],
   );
   const copyBuilderNode = useCallback<EditContextValue["copyBuilderNode"]>(
@@ -5331,6 +5417,7 @@ export function EditProvider({
         setSelectedBuilderNodeIdOverride(pastedNodeId);
         markNavigatorAddition(ownerSectionId, pastedNodeId, "block");
       }
+      markNodeInserted(pastedNodeId);
       return { ok: true, nodeId: pastedNodeId };
     },
     [
@@ -5340,6 +5427,7 @@ export function EditProvider({
       setSelectedSectionId,
       setSelectedBuilderNodeIdOverride,
       markNavigatorAddition,
+      markNodeInserted,
     ],
   );
   const pasteCopiedBuilderNode = useCallback<
@@ -5390,6 +5478,7 @@ export function EditProvider({
         setSelectedBuilderNodeIdOverride(pastedNodeId);
         markNavigatorAddition(ownerSectionId, pastedNodeId, "block");
       }
+      markNodeInserted(pastedNodeId);
       return { ok: true, nodeId: pastedNodeId };
     },
     [
@@ -5399,6 +5488,7 @@ export function EditProvider({
       setSelectedSectionId,
       setSelectedBuilderNodeIdOverride,
       markNavigatorAddition,
+      markNodeInserted,
     ],
   );
   const patchBuilderNodeProps = useCallback<
@@ -6561,6 +6651,7 @@ export function EditProvider({
       getOtherWorkspacePanelRects,
       recentNavigatorAdditions,
       clearNavigatorRecentAdditions,
+      lastInsertedNodeId,
       setSectionVisibility,
 
       saveDraft,
@@ -6746,6 +6837,7 @@ export function EditProvider({
       getOtherWorkspacePanelRects,
       recentNavigatorAdditions,
       clearNavigatorRecentAdditions,
+      lastInsertedNodeId,
       setSectionVisibility,
       saveDraft,
       flushBuilderTreeSave,

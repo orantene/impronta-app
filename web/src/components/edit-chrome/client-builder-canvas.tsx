@@ -145,6 +145,10 @@ function ClientBuilderCanvasInner({
       visibilityContext,
       styleClasses,
       renderSectionEmbed,
+      // W3-T1 — editor-only insert/delete/reorder motion. The published /
+      // server render paths never set this, so they stay byte-identical; here
+      // on the live editor canvas it wraps the tree in the FLIP primitive.
+      animateLayout: true,
     }),
     [
       publicPathPrefix,
