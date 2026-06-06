@@ -2141,6 +2141,15 @@ export function EditProvider({
   const pageMetadataRef = useRef<PageMetadata | null>(pageMetadata);
   const slotsRef = useRef<Record<string, CompositionSectionRef[]>>(slots);
   const builderTreeRef = useRef<BuilderNodeTree>(builderTree);
+  // W2-T4a — selection mirrored into refs (synced by an effect below, mirroring
+  // builderTreeRef). executeBuilderNodeOperation reads these for its audit
+  // annotation ONLY; reading the refs instead of the live state lets us DROP
+  // selectedSectionId/selectedBuilderNodeId from its dep array, so a selection
+  // change no longer recreates that callback (and, via its 54 call-sites, the
+  // whole `value`) — the load-bearing fix that makes action-only consumers
+  // selection-quiet (and is why the GATE-C context split is not needed).
+  const selectedSectionIdRef = useRef<string | null>(null);
+  const selectedBuilderNodeIdRef = useRef<string | null>(null);
   // W1-T5(c) — locale + pageId for the pagehide keepalive draft beacon, mirrored
   // into a ref so the (empty-deps) pagehide handler reads the latest values.
   const draftBeaconMetaRef = useRef<{ locale: string; pageId: string | null }>({
@@ -2989,6 +2998,17 @@ export function EditProvider({
       builderNodeIdBySectionId,
     ],
   );
+  // W2-T4a — keep the selection refs current (declared near builderTreeRef).
+  // executeBuilderNodeOperation reads these (not the live state) for its audit
+  // annotation, so selection can leave its dep array. The effect runs after the
+  // render that changed selection; executeBuilderNodeOperation reads them only
+  // after an `await`, so the ref is always current at read time.
+  useEffect(() => {
+    selectedSectionIdRef.current = selectedSectionId;
+  }, [selectedSectionId]);
+  useEffect(() => {
+    selectedBuilderNodeIdRef.current = selectedBuilderNodeId;
+  }, [selectedBuilderNodeId]);
   const selectBuilderNode = useCallback(
     (nodeId: string) => {
       if (!treeContainsBuilderNodeId(builderTree, nodeId)) return;
@@ -4511,8 +4531,10 @@ export function EditProvider({
           nodeId: input.nodeId,
           parentId: input.parentId,
           resultNodeId: operationResult.nodeId ?? null,
-          activeSelectionSectionId: selectedSectionId ?? null,
-          activeSelectionNodeId: selectedBuilderNodeId ?? null,
+          // W2-T4a — read selection from the refs (kept current by the effects
+          // above) so it can leave this callback's dep array.
+          activeSelectionSectionId: selectedSectionIdRef.current ?? null,
+          activeSelectionNodeId: selectedBuilderNodeIdRef.current ?? null,
           previousTree,
           tree: operationResult.tree,
         }),
@@ -4524,12 +4546,15 @@ export function EditProvider({
       };
     },
     [
+      // W2-T4a — selectedBuilderNodeId / selectedSectionId intentionally NOT in
+      // these deps: they are read via selectedBuilderNodeIdRef / selectedSectionIdRef
+      // (audit annotation only). Keeping them here recreated this callback on
+      // EVERY selection change, and via its 54 call-sites a fresh `value`, leaking
+      // selection-churn into action-only consumers. The refs close that leak.
       advancedElementLibraryEnabled,
       canEditSiteShell,
       commitBuilderTreeMutation,
       reportMutationError,
-      selectedBuilderNodeId,
-      selectedSectionId,
     ],
   );
   const runBuilderNodeOp = useCallback(

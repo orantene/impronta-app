@@ -27,18 +27,26 @@ import {
 import type { CompositionData } from "@/lib/site-admin/edit-mode/composition-actions";
 import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
 
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({
+vi.mock("next/navigation", () => {
+  // STABLE router singleton — Next's real useRouter returns a stable reference
+  // across renders. A fresh object per call would make every `[router]`-dep
+  // callback (e.g. queueRouterRefresh → commitBuilderTreeMutation →
+  // executeBuilderNodeOperation) churn on EVERY render, masking the W2-T4a
+  // selection-quiet assertion.
+  const router = {
     push: () => {},
     replace: () => {},
     prefetch: () => {},
     back: () => {},
     forward: () => {},
     refresh: () => {},
-  }),
-  usePathname: () => "/admin/website",
-  useSearchParams: () => new URLSearchParams(),
-}));
+  };
+  return {
+    useRouter: () => router,
+    usePathname: () => "/admin/website",
+    useSearchParams: () => new URLSearchParams(),
+  };
+});
 
 /**
  * Minimal composition fixture so `liveSectionIds` is non-empty and a selection
@@ -212,6 +220,48 @@ describe("edit-context.tsx W0-T2 — undo/redo surface", () => {
     });
     expect(ctx().canUndo).toBe(false);
     expect(ctx().canRedo).toBe(false);
+  });
+});
+
+// ── W2-T4a — selection-ref fix: action callbacks stay stable across a click ──
+
+describe("edit-context.tsx W2-T4a — action-callback identity is selection-quiet", () => {
+  it("a section selection does NOT recreate the builder-node action callbacks that depend only on executeBuilderNodeOperation", () => {
+    const { state, Consumer } = makeRenderCountedConsumer();
+    render(
+      <EditProvider
+        tenantId="t"
+        workspacePlan="studio"
+        initialComposition={compositionWithSections(["sec-1", "sec-2"])}
+      >
+        <Consumer />
+      </EditProvider>,
+    );
+    const ctx = () => state.ctx!;
+
+    // insertBuilderNode / moveBuilderNodeToIndex derive from
+    // executeBuilderNodeOperation and do NOT read selection in their own bodies.
+    // Before W2-T4a, executeBuilderNodeOperation listed selectedSectionId /
+    // selectedBuilderNodeId in its deps purely for an audit annotation, so EVERY
+    // selection change recreated it → recreated these dependent callbacks → a
+    // fresh context `value`. W2-T4a reads selection from refs and drops it from
+    // executeBuilderNodeOperation's deps, so these keep a STABLE identity across
+    // a click — closing the leak that would otherwise re-open the GATE-C split.
+    act(() => ctx().setSelectedSectionId("sec-1"));
+    const insertBefore = ctx().insertBuilderNode;
+    const moveBefore = ctx().moveBuilderNodeToIndex;
+
+    // Change the selection.
+    act(() => ctx().setSelectedSectionId("sec-2"));
+
+    // ✅ W2-T4a: identical references — the selection change did not churn them.
+    expect(ctx().insertBuilderNode).toBe(insertBefore);
+    expect(ctx().moveBuilderNodeToIndex).toBe(moveBefore);
+
+    // NB: removeBuilderNode / duplicateBuilderNode legitimately DO read
+    // selection in their own bodies (post-delete / post-duplicate focus
+    // alignment), so they still churn on selection BY DESIGN — that is a real
+    // functional dependency, not the audit-annotation leak W2-T4a closes.
   });
 });
 
