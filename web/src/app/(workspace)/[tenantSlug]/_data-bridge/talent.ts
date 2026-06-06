@@ -348,6 +348,8 @@ export type TalentInquiryRow = {
    * rows, so the coordinator role is resolved with a service-role lookup.
    */
   iAmCoordinator: boolean;
+  /** F3 — identity tier: "guest"=no email; "identified"=email no account; "email_verified"/"account"=claimed. Null when not selected. */
+  clientIdentity: "guest" | "identified" | "email_verified" | "account" | null;
 };
 
 // Cross-agency unified inbox loader (and its row type) moved to
@@ -432,7 +434,9 @@ export async function loadTalentInquiries(
           tenant_id,
           trust_level_at_submission,
           source_channel,
-          current_offer_id
+          current_offer_id,
+          contact_email,
+          client_user_id
         )
       `)
       .eq("talent_profile_id", talentProfileId)
@@ -464,6 +468,8 @@ export async function loadTalentInquiries(
         trust_level_at_submission: "basic" | "verified" | "silver" | "gold" | null;
         source_channel: string | null;
         current_offer_id: string | null;
+        contact_email: string | null;
+        client_user_id: string | null;
       } | null;
     };
 
@@ -483,24 +489,34 @@ export async function loadTalentInquiries(
       })),
     );
 
-    const rows = partRows.map((r) => ({
-      id: r.inquiries!.id,
-      status: r.inquiries!.status,
-      contact_name: r.inquiries!.contact_name,
-      company: r.inquiries!.company,
-      message: r.inquiries!.message,
-      event_date: r.inquiries!.event_date,
-      event_location: r.inquiries!.event_location,
-      created_at: r.inquiries!.created_at,
-      updated_at: r.inquiries!.updated_at,
-      participantStatus: r.status,
-      unreadCount: 0,
-      trustLevel: r.inquiries!.trust_level_at_submission ?? null,
-      sourceChannel: r.inquiries!.source_channel ?? null,
-      myApprovalStatus: approvalByInquiry.get(r.inquiries!.id) ?? null,
-      // Flipped to true below when the talent ALSO coordinates this inquiry.
-      iAmCoordinator: false,
-    }));
+    // F3 — typed as TalentInquiryRow[] so the coordinator-append can push clientIdentity:null.
+    const rows: TalentInquiryRow[] = (partRows.map((r) => {
+      // Identity ladder (mirrors guest-trust-chip-mapper.ts). email_verified/account collapsed.
+      const clientIdentity: TalentInquiryRow["clientIdentity"] = !r.inquiries!.contact_email
+        ? "guest"
+        : r.inquiries!.client_user_id
+          ? "email_verified"
+          : "identified";
+      return {
+        id: r.inquiries!.id,
+        status: r.inquiries!.status,
+        contact_name: r.inquiries!.contact_name,
+        company: r.inquiries!.company,
+        message: r.inquiries!.message,
+        event_date: r.inquiries!.event_date,
+        event_location: r.inquiries!.event_location,
+        created_at: r.inquiries!.created_at,
+        updated_at: r.inquiries!.updated_at,
+        participantStatus: r.status,
+        unreadCount: 0,
+        trustLevel: r.inquiries!.trust_level_at_submission ?? null,
+        sourceChannel: r.inquiries!.source_channel ?? null,
+        myApprovalStatus: approvalByInquiry.get(r.inquiries!.id) ?? null,
+        clientIdentity,
+        // Flipped to true below when the talent ALSO coordinates this inquiry.
+        iAmCoordinator: false,
+      } satisfies TalentInquiryRow;
+    }) as TalentInquiryRow[]);
 
     // Hub self-coordination (2026-06-02) — surface the talent's COORDINATOR
     // role. A talent who also runs a booking as its coordinator (an
@@ -535,6 +551,7 @@ export async function loadTalentInquiries(
           trustLevel: i.trust_level_at_submission ?? null,
           sourceChannel: i.source_channel ?? null,
           myApprovalStatus: null,
+          clientIdentity: null, // F3 — coord-only rows: contact_email not selected
           iAmCoordinator: true,
         });
       }

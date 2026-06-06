@@ -6,6 +6,7 @@ import { StatusSheet } from "@/components/messages-status-sheet/StatusSheet";
 import { COLORS, RADIUS, FONTS, TRANSITION, type ClientTrustLevel } from "../state";
 import { ClientTrustChip } from "../primitives";
 import { type Conversation } from "../talent";
+import { ClientIdentityPill } from "../talent/shared/conversations-1";
 import { BreakdownRow, TakeHomeCard } from "./client-1";
 import { stageStyle } from "./messages-shared";
 import { FUNNEL_STAGES, ParticipantTrustStrip, StageProgress } from "./shared/inbox-identity-1";
@@ -128,6 +129,11 @@ export function TalentJobShellHeader({
             <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
               {conv.client} <span style={{ fontWeight: 500 }} className="text-admin-ink-muted">· {conv.brief}</span>
             </span>
+            {conv.clientIdentity && (
+              <span className="shrink-0">
+                <ClientIdentityPill identity={conv.clientIdentity} />
+              </span>
+            )}
             {conv.clientTrust && conv.clientTrust !== "basic" && (
               <span className="shrink-0">
                 <ClientTrustChip level={conv.clientTrust} compact />
@@ -316,6 +322,9 @@ export type ShellHeaderInput = {
   location?: string;
   date?: string;
   clientTrust?: import("../state").ClientTrustLevel;
+  /** F3 — identity tier for the client on this inquiry. Optional; renders
+   *  the "Guest" or "Registered" pill next to the client name when set. */
+  clientIdentity?: Conversation["clientIdentity"];
   source?: Conversation["source"];
   iAmCoordinator?: boolean;
 };
@@ -386,6 +395,11 @@ export function ShellHeader({
             <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
               {conv.client} <span style={{ fontWeight: 500 }} className="text-admin-ink-muted">· {conv.brief}</span>
             </span>
+            {conv.clientIdentity && (
+              <span className="shrink-0">
+                <ClientIdentityPill identity={conv.clientIdentity} />
+              </span>
+            )}
             {conv.clientTrust && conv.clientTrust !== "basic" && (
               <span className="shrink-0">
                 <ClientTrustChip level={conv.clientTrust} compact />

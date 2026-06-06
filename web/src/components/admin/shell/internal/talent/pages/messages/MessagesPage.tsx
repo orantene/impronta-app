@@ -9,7 +9,7 @@ import { MOCK_DRAFTS } from "./ThreadParts";
 import { type Msg } from "../../shared/client-conversations-1";
 import { MOCK_THREAD } from "../../shared/client-conversations-2";
 import { ConversationThread, ParticipantsStack, STAGE_META, TalentMessagesShellLazy, useKeyboardInset } from "../../shared/client-threads-1";
-import { MOCK_CONVERSATIONS, type Conversation } from "../../shared/conversations-1";
+import { ClientIdentityPill, MOCK_CONVERSATIONS, type Conversation } from "../../shared/conversations-1";
 
 
 
@@ -409,6 +409,11 @@ function ConversationListRow({
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
           <span data-tulala-conv-row-name style={{ fontSize: 13, fontWeight: conv.unreadCount > 0 ? 600 : 500, color: COLORS.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
             {conv.client}
+            {conv.clientIdentity && (
+              <span className="ml-1 align-middle inline-flex">
+                <ClientIdentityPill identity={conv.clientIdentity} />
+              </span>
+            )}
           </span>
           <span data-tulala-conv-row-age style={{ fontSize: 10.5, color: conv.unreadCount > 0 ? COLORS.ink : COLORS.inkDim, fontWeight: conv.unreadCount > 0 ? 600 : 400, flexShrink: 0 }}>
             {ageLabel}

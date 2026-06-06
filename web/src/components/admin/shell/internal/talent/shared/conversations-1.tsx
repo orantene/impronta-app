@@ -20,6 +20,45 @@
 //      polaroid request, system messages (stage transitions).
 // ════════════════════════════════════════════════════════════════════
 
+// ─── F3 — ClientIdentityPill ──────────────────────────────────────────────────
+// Compact pill rendered next to the client name in the inbox list row AND the
+// thread header. Uses admin token classes (not gold/black inline styles).
+//
+// "guest"          → amber "Guest" pill (bg-admin-amber-soft / text-admin-amber-deep)
+// "identified"     → "Registered" (slate; ClientTrustChip carries the tier nuance)
+// "email_verified" → "Registered"
+// "account"        → "Registered"
+// undefined        → renders nothing (mock rows, no data)
+
+/**
+ * Compact identity pill — "Guest" (amber) or "Registered" (slate).
+ * Renders nothing when identity is undefined (mock/legacy rows).
+ * Uses className only — no new inline styles per the admin-shell ratchet rule.
+ */
+export function ClientIdentityPill({
+  identity,
+}: {
+  identity: Conversation["clientIdentity"];
+}) {
+  if (!identity) return null;
+  const isGuest = identity === "guest";
+  return (
+    <span
+      data-tulala-identity-pill
+      className={[
+        "inline-flex items-center shrink-0",
+        "px-1.5 py-px rounded-full",
+        "text-admin-10 font-bold uppercase tracking-wide leading-snug",
+        isGuest
+          ? "bg-admin-amber-soft text-admin-amber-deep"
+          : "bg-admin-amber-soft text-admin-ink-muted",
+      ].join(" ")}
+    >
+      {isGuest ? "Guest" : "Registered"}
+    </span>
+  );
+}
+
 export type MsgStage = "inquiry" | "hold" | "booked" | "past" | "cancelled";
 
 
@@ -112,6 +151,17 @@ export type Conversation = {
    *  visually from regular unread state. Defaults to true (already
    *  opened) when omitted, so existing seed data renders unchanged. */
   seen?: boolean;
+  /**
+   * F3 — Guest/Registered identity tier for the client on this inquiry.
+   * Drives the identity pill next to the client name in both the inbox list
+   * row and the thread header.
+   *   "guest"          — anonymous; no email captured
+   *   "identified"     — email captured but no account
+   *   "email_verified" — claimed account with confirmed email
+   *   "account"        — claimed account (email not necessarily confirmed)
+   * Optional so mock rows (MOCK_CONVERSATIONS) compile unchanged.
+   */
+  clientIdentity?: "guest" | "identified" | "email_verified" | "account";
 };
 
 
