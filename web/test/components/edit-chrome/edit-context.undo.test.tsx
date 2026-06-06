@@ -207,6 +207,42 @@ describe("W0-T4 undo/redo + CAS (REAL EditProvider)", () => {
     expect(headingStyle(ctx())?.textColor).toBe("#ff0000");
   });
 
+  it("W3-T8: ⌘Z lands back on the affected node with its inspector open (selection restored on undo AND redo)", async () => {
+    saveDraftMock.mockResolvedValue({ ok: true, pageVersion: 6 });
+    const { ctx } = mountProvider(5);
+
+    // Edit the seeded node — selection is now on blk1 and a builderTree entry
+    // carrying that selection was committed.
+    await patchSeededNode(ctx, { textColor: "#ff0000" });
+    expect(ctx().selectedBuilderNodeId).toBe("blk1");
+
+    // Simulate the operator clicking away to "nothing selected" before ⌘Z
+    // (the exact state the OLD behavior dropped you into after every undo).
+    await act(async () => {
+      ctx().setSelectedSectionId(null);
+    });
+    expect(ctx().selectedBuilderNodeId).toBeNull();
+
+    // Undo → the change reverts AND selection is restored to the affected node,
+    // so the inspector re-opens on it instead of going blank.
+    await act(async () => {
+      await ctx().undo();
+    });
+    expect(headingStyle(ctx())?.textColor).toBeUndefined();
+    expect(ctx().selectedBuilderNodeId).toBe("blk1");
+
+    // Deselect again, then redo → selection is restored on the redo replay too.
+    await act(async () => {
+      ctx().setSelectedSectionId(null);
+    });
+    expect(ctx().selectedBuilderNodeId).toBeNull();
+    await act(async () => {
+      await ctx().redo();
+    });
+    expect(headingStyle(ctx())?.textColor).toBe("#ff0000");
+    expect(ctx().selectedBuilderNodeId).toBe("blk1");
+  });
+
   it("the SUCCESS save path fires saveDraftHomepageAction once and bumps pageVersion to the server value", async () => {
     saveDraftMock.mockResolvedValue({ ok: true, pageVersion: 6 });
     const { ctx } = mountProvider(5);

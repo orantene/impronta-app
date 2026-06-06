@@ -1136,15 +1136,27 @@ function mutationErrorFingerprint(input: EditMutationError): string {
  * that section through its autosave action. Keeping both on one
  * timeline means ⌘Z honours LIFO across structural and content edits.
  */
+// W3-T8 — the selection that was active when an edit was committed, carried on
+// each HistoryEntry so undo/redo can land the operator back on the affected
+// block with its inspector open (instead of dropping to "nothing selected").
+// Optional: legacy persisted entries (and the rare entry committed with no
+// selection) simply restore nothing.
+interface HistorySelection {
+  sectionId: string | null;
+  builderNodeId: string | null;
+}
+
 type HistoryEntry =
   | {
       kind: "composition";
       snapshot: CompositionSnapshot;
+      selection?: HistorySelection;
     }
   | {
       kind: "builderTree";
       pre: BuilderNodeTree;
       post: BuilderNodeTree;
+      selection?: HistorySelection;
     }
   | {
       kind: "field";
@@ -1154,6 +1166,7 @@ type HistoryEntry =
       name: string;
       pre: Record<string, unknown>;
       post: Record<string, unknown>;
+      selection?: HistorySelection;
     }
   // Marathon W1-T4 — a section visibility toggle or rename. These persist via
   // the section's own dispatch path (which writes the server record), so they
@@ -1165,6 +1178,7 @@ type HistoryEntry =
       sectionId: string;
       pre: string;
       post: string;
+      selection?: HistorySelection;
     };
 
 function cloneSnapshot(s: CompositionSnapshot): CompositionSnapshot {
@@ -2190,6 +2204,12 @@ export function EditProvider({
   // selection-quiet (and is why the GATE-C context split is not needed).
   const selectedSectionIdRef = useRef<string | null>(null);
   const selectedBuilderNodeIdRef = useRef<string | null>(null);
+  // W3-T8 — true while an undo/redo replay is in flight. The selection-sync
+  // auto-clear effects bail on it so they don't wipe the selection we're about
+  // to restore the instant the replayed tree/slots land (before the restore
+  // runs). The restore itself validates against the new tree, so a genuinely
+  // stale selection still ends up cleared.
+  const replayingHistoryRef = useRef(false);
   // W1-T5(c) — locale + pageId for the pagehide keepalive draft beacon, mirrored
   // into a ref so the (empty-deps) pagehide handler reads the latest values.
   const draftBeaconMetaRef = useRef<{ locale: string; pageId: string | null }>({
@@ -3064,6 +3084,9 @@ export function EditProvider({
     if (!selectedSectionId) return;
     if (selectedSectionId === SITE_HEADER_SELECTION_ID) return;
     if (liveSectionIds.has(selectedSectionId)) return;
+    // W3-T8 — during an undo/redo replay, suppress the auto-clear so the
+    // restore (which runs right after the replayed slots land) isn't pre-empted.
+    if (replayingHistoryRef.current) return;
     // Selection-sync hardening: if a section disappears (remove, restore,
     // locale/content swap), clear stale selection and child-node override.
     setSelectedSectionIdRaw(null);
@@ -3085,6 +3108,8 @@ export function EditProvider({
   }, [liveSectionIds, selectedSectionId]);
   useEffect(() => {
     if (!selectedBuilderNodeIdOverride) return;
+    // W3-T8 — see above: don't fight the in-flight replay restore.
+    if (replayingHistoryRef.current) return;
     // P7A-2 — drop stale child selection if the reconciled tree no longer
     // contains this id (defense in depth alongside sectionIdByBuilderNodeId).
     if (!treeContainsBuilderNodeId(builderTree, selectedBuilderNodeIdOverride)) {
@@ -3157,6 +3182,44 @@ export function EditProvider({
       setSelectedBuilderNodeIdOverride,
       setSelectedSectionId,
     ],
+  );
+
+  // W3-T8 — snapshot the active selection at commit time (read from the refs so
+  // this never churns deps), stamped onto the HistoryEntry so undo/redo can land
+  // back on it.
+  const captureHistorySelection = useCallback(
+    (): HistorySelection => ({
+      sectionId: selectedSectionIdRef.current,
+      builderNodeId: selectedBuilderNodeIdRef.current,
+    }),
+    [],
+  );
+
+  // W3-T8 — re-apply a HistoryEntry's selection after a successful replay.
+  // Validates against the CURRENT (replayed) tree: a builder-node that's back in
+  // the tree is re-selected with its inspector context; a node that no longer
+  // exists (e.g. redo of a delete) falls back to its owner section, then to a
+  // bare section selection, then to nothing — never a dangling selection.
+  const restoreHistorySelection = useCallback(
+    (selection: HistorySelection | undefined) => {
+      if (!selection) return;
+      const { sectionId, builderNodeId } = selection;
+      if (
+        builderNodeId &&
+        treeContainsBuilderNodeId(builderTreeRef.current, builderNodeId)
+      ) {
+        selectBuilderNode(builderNodeId);
+        return;
+      }
+      if (sectionId) {
+        setSelectedSectionId(sectionId);
+        return;
+      }
+      // Nothing valid to restore — clear so the inspector doesn't show a stale
+      // node that the replay removed.
+      setSelectedSectionId(null);
+    },
+    [selectBuilderNode, setSelectedSectionId],
   );
 
   const replaceBuilderNodeSelection = useCallback<
@@ -3549,6 +3612,9 @@ export function EditProvider({
                     sectionId: mutation.sectionId,
                     pre: preVis,
                     post: mutation.visibility,
+                    // W3-T8 — restore selection on undo/redo of a visibility
+                    // toggle (falls back to the affected section if needed).
+                    selection: captureHistorySelection(),
                   },
                 ]),
               );
@@ -3772,6 +3838,8 @@ export function EditProvider({
                   sectionId: mutation.sectionId,
                   pre: previousName,
                   post: trimmed,
+                  // W3-T8 — restore selection on undo/redo of a rename.
+                  selection: captureHistorySelection(),
                 },
               ]),
             );
@@ -3908,6 +3976,8 @@ export function EditProvider({
       reportMutationError,
       // W1-T4 — visibility/rename now push a sectionMeta history entry.
       capHistory,
+      // W3-T8 — stamp selection onto the sectionMeta entry.
+      captureHistorySelection,
     ],
   );
 
@@ -3933,7 +4003,15 @@ export function EditProvider({
 
       // optimistic apply
       setPast((p) =>
-        capHistory([...p, { kind: "composition", snapshot: cloneSnapshot(snap) }]),
+        capHistory([
+          ...p,
+          {
+            kind: "composition",
+            snapshot: cloneSnapshot(snap),
+            // W3-T8 — restore selection on undo/redo of a section mutation.
+            selection: captureHistorySelection(),
+          },
+        ]),
       );
       setFuture([]);
       setSlotsAndBuilderTree(next.slots);
@@ -3999,6 +4077,7 @@ export function EditProvider({
       capHistory,
       setSlotsAndBuilderTree,
       reportMutationError,
+      captureHistorySelection,
     ],
   );
 
@@ -4018,7 +4097,15 @@ export function EditProvider({
       // capture history + clear future BEFORE the round-trip so if the
       // operator navigates away mid-flight, undo still sees the pre-state
       setPast((p) =>
-        capHistory([...p, { kind: "composition", snapshot: cloneSnapshot(snap) }]),
+        capHistory([
+          ...p,
+          {
+            kind: "composition",
+            snapshot: cloneSnapshot(snap),
+            // W3-T8 — restore selection on undo/redo of a section mutation.
+            selection: captureHistorySelection(),
+          },
+        ]),
       );
       setFuture([]);
       setSaving(true);
@@ -4109,6 +4196,7 @@ export function EditProvider({
       reportMutationError,
       setSelectedSectionId,
       markNavigatorAddition,
+      captureHistorySelection,
     ],
   );
 
@@ -4134,7 +4222,15 @@ export function EditProvider({
       }
       const snap = currentSnapshot();
       setPast((p) =>
-        capHistory([...p, { kind: "composition", snapshot: cloneSnapshot(snap) }]),
+        capHistory([
+          ...p,
+          {
+            kind: "composition",
+            snapshot: cloneSnapshot(snap),
+            // W3-T8 — restore selection on undo/redo of a section mutation.
+            selection: captureHistorySelection(),
+          },
+        ]),
       );
       setFuture([]);
       setSaving(true);
@@ -4216,6 +4312,7 @@ export function EditProvider({
       reportMutationError,
       setSelectedSectionId,
       markNavigatorAddition,
+      captureHistorySelection,
     ],
   );
 
@@ -4600,6 +4697,8 @@ export function EditProvider({
             kind: "builderTree",
             pre: cloneBuilderNodeTree(prevTree),
             post: cloneBuilderNodeTree(nextTree),
+            // W3-T8 — stamp the active selection so undo/redo restores it.
+            selection: captureHistorySelection(),
           },
         ]),
       );
@@ -4622,7 +4721,7 @@ export function EditProvider({
       // rollback inside persistBuilderTree.
       return { ok: true as const };
     },
-    [capHistory, queueRouterRefresh],
+    [capHistory, queueRouterRefresh, captureHistorySelection],
   );
 
   const executeBuilderNodeOperation = useCallback(
@@ -6128,40 +6227,62 @@ export function EditProvider({
     }
     const entry = past[past.length - 1]!;
     setPast((p) => p.slice(0, -1));
-    if (entry.kind === "composition") {
-      const presentSnap = currentSnapshot();
-      setFuture((f) =>
-        capHistory([
-          ...f,
-          { kind: "composition", snapshot: cloneSnapshot(presentSnap) },
-        ]),
-      );
-      const restored = await restoreSnapshot(entry.snapshot);
-      if (!restored) {
-        setFuture((f) => f.slice(0, -1));
-        setPast((p) => capHistory([...p, entry]));
+    // W3-T8 — suppress the selection-sync auto-clear while the replayed tree
+    // lands, then restore the entry's selection so ⌘Z keeps the affected block
+    // selected with its inspector open. Reset in `finally` even on a failed
+    // replay (where the entry is pushed back).
+    replayingHistoryRef.current = true;
+    try {
+      if (entry.kind === "composition") {
+        const presentSnap = currentSnapshot();
+        setFuture((f) =>
+          capHistory([
+            ...f,
+            {
+              kind: "composition",
+              snapshot: cloneSnapshot(presentSnap),
+              // The redo target restores the selection live RIGHT NOW.
+              selection: captureHistorySelection(),
+            },
+          ]),
+        );
+        const restored = await restoreSnapshot(entry.snapshot);
+        if (!restored) {
+          setFuture((f) => f.slice(0, -1));
+          setPast((p) => capHistory([...p, entry]));
+        } else {
+          restoreHistorySelection(entry.selection);
+        }
+      } else if (entry.kind === "builderTree") {
+        setFuture((f) => capHistory([...f, entry]));
+        const saved = await persistBuilderTree(entry.pre);
+        if (!saved.ok) {
+          setFuture((f) => f.slice(0, -1));
+          setPast((p) => capHistory([...p, entry]));
+        } else {
+          restoreHistorySelection(entry.selection);
+        }
+      } else if (entry.kind === "sectionMeta") {
+        setFuture((f) => capHistory([...f, entry]));
+        const applied = await replaySectionMeta(entry, entry.pre);
+        if (!applied) {
+          setFuture((f) => f.slice(0, -1));
+          setPast((p) => capHistory([...p, entry]));
+        } else {
+          restoreHistorySelection(entry.selection);
+        }
+      } else {
+        setFuture((f) => capHistory([...f, entry]));
+        const applied = await applyFieldEdit(entry.sectionId, entry.pre);
+        if (!applied) {
+          setFuture((f) => f.slice(0, -1));
+          setPast((p) => capHistory([...p, entry]));
+        } else {
+          restoreHistorySelection(entry.selection);
+        }
       }
-    } else if (entry.kind === "builderTree") {
-      setFuture((f) => capHistory([...f, entry]));
-      const saved = await persistBuilderTree(entry.pre);
-      if (!saved.ok) {
-        setFuture((f) => f.slice(0, -1));
-        setPast((p) => capHistory([...p, entry]));
-      }
-    } else if (entry.kind === "sectionMeta") {
-      setFuture((f) => capHistory([...f, entry]));
-      const applied = await replaySectionMeta(entry, entry.pre);
-      if (!applied) {
-        setFuture((f) => f.slice(0, -1));
-        setPast((p) => capHistory([...p, entry]));
-      }
-    } else {
-      setFuture((f) => capHistory([...f, entry]));
-      const applied = await applyFieldEdit(entry.sectionId, entry.pre);
-      if (!applied) {
-        setFuture((f) => f.slice(0, -1));
-        setPast((p) => capHistory([...p, entry]));
-      }
+    } finally {
+      replayingHistoryRef.current = false;
     }
   }, [
     past,
@@ -6172,6 +6293,8 @@ export function EditProvider({
     applyFieldEdit,
     replaySectionMeta,
     capHistory,
+    captureHistorySelection,
+    restoreHistorySelection,
   ]);
 
   const redo = useCallback(async () => {
@@ -6184,40 +6307,59 @@ export function EditProvider({
     }
     const entry = future[future.length - 1]!;
     setFuture((f) => f.slice(0, -1));
-    if (entry.kind === "composition") {
-      const presentSnap = currentSnapshot();
-      setPast((p) =>
-        capHistory([
-          ...p,
-          { kind: "composition", snapshot: cloneSnapshot(presentSnap) },
-        ]),
-      );
-      const restored = await restoreSnapshot(entry.snapshot);
-      if (!restored) {
-        setPast((p) => p.slice(0, -1));
-        setFuture((f) => capHistory([...f, entry]));
+    // W3-T8 — mirror undo: suppress the auto-clear during the replay, then
+    // restore the entry's selection.
+    replayingHistoryRef.current = true;
+    try {
+      if (entry.kind === "composition") {
+        const presentSnap = currentSnapshot();
+        setPast((p) =>
+          capHistory([
+            ...p,
+            {
+              kind: "composition",
+              snapshot: cloneSnapshot(presentSnap),
+              selection: captureHistorySelection(),
+            },
+          ]),
+        );
+        const restored = await restoreSnapshot(entry.snapshot);
+        if (!restored) {
+          setPast((p) => p.slice(0, -1));
+          setFuture((f) => capHistory([...f, entry]));
+        } else {
+          restoreHistorySelection(entry.selection);
+        }
+      } else if (entry.kind === "builderTree") {
+        setPast((p) => capHistory([...p, entry]));
+        const saved = await persistBuilderTree(entry.post);
+        if (!saved.ok) {
+          setPast((p) => p.slice(0, -1));
+          setFuture((f) => capHistory([...f, entry]));
+        } else {
+          restoreHistorySelection(entry.selection);
+        }
+      } else if (entry.kind === "sectionMeta") {
+        setPast((p) => capHistory([...p, entry]));
+        const applied = await replaySectionMeta(entry, entry.post);
+        if (!applied) {
+          setPast((p) => p.slice(0, -1));
+          setFuture((f) => capHistory([...f, entry]));
+        } else {
+          restoreHistorySelection(entry.selection);
+        }
+      } else {
+        setPast((p) => capHistory([...p, entry]));
+        const applied = await applyFieldEdit(entry.sectionId, entry.post);
+        if (!applied) {
+          setPast((p) => p.slice(0, -1));
+          setFuture((f) => capHistory([...f, entry]));
+        } else {
+          restoreHistorySelection(entry.selection);
+        }
       }
-    } else if (entry.kind === "builderTree") {
-      setPast((p) => capHistory([...p, entry]));
-      const saved = await persistBuilderTree(entry.post);
-      if (!saved.ok) {
-        setPast((p) => p.slice(0, -1));
-        setFuture((f) => capHistory([...f, entry]));
-      }
-    } else if (entry.kind === "sectionMeta") {
-      setPast((p) => capHistory([...p, entry]));
-      const applied = await replaySectionMeta(entry, entry.post);
-      if (!applied) {
-        setPast((p) => p.slice(0, -1));
-        setFuture((f) => capHistory([...f, entry]));
-      }
-    } else {
-      setPast((p) => capHistory([...p, entry]));
-      const applied = await applyFieldEdit(entry.sectionId, entry.post);
-      if (!applied) {
-        setPast((p) => p.slice(0, -1));
-        setFuture((f) => capHistory([...f, entry]));
-      }
+    } finally {
+      replayingHistoryRef.current = false;
     }
   }, [
     future,
@@ -6228,6 +6370,8 @@ export function EditProvider({
     applyFieldEdit,
     replaySectionMeta,
     capHistory,
+    captureHistorySelection,
+    restoreHistorySelection,
   ]);
 
   /**
@@ -6248,12 +6392,14 @@ export function EditProvider({
             name: entry.name,
             pre: entry.pre,
             post: entry.post,
+            // W3-T8 — restore selection on undo/redo of an inspector field edit.
+            selection: captureHistorySelection(),
           },
         ]),
       );
       setFuture([]);
     },
-    [capHistory],
+    [capHistory, captureHistorySelection],
   );
 
   const openLibrary = useCallback(
