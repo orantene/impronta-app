@@ -348,8 +348,8 @@ export type TalentInquiryRow = {
    * rows, so the coordinator role is resolved with a service-role lookup.
    */
   iAmCoordinator: boolean;
-  /** F3 — identity tier: "guest"=no email; "identified"=email no account; "email_verified"/"account"=claimed. Null when not selected. */
-  clientIdentity: "guest" | "identified" | "email_verified" | "account" | null;
+  /** F3 — real anonymity signal: "registered"=client_user_id set; "guest"=guest_session_id set; "client"=email-only. Null on coord-only rows. */
+  clientIdentity: "guest" | "registered" | "client" | null;
 };
 
 // Cross-agency unified inbox loader (and its row type) moved to
@@ -435,8 +435,8 @@ export async function loadTalentInquiries(
           trust_level_at_submission,
           source_channel,
           current_offer_id,
-          contact_email,
-          client_user_id
+          client_user_id,
+          guest_session_id
         )
       `)
       .eq("talent_profile_id", talentProfileId)
@@ -468,8 +468,8 @@ export async function loadTalentInquiries(
         trust_level_at_submission: "basic" | "verified" | "silver" | "gold" | null;
         source_channel: string | null;
         current_offer_id: string | null;
-        contact_email: string | null;
         client_user_id: string | null;
+        guest_session_id: string | null;
       } | null;
     };
 
@@ -491,12 +491,13 @@ export async function loadTalentInquiries(
 
     // F3 — typed as TalentInquiryRow[] so the coordinator-append can push clientIdentity:null.
     const rows: TalentInquiryRow[] = (partRows.map((r) => {
-      // Identity ladder (mirrors guest-trust-chip-mapper.ts). email_verified/account collapsed.
-      const clientIdentity: TalentInquiryRow["clientIdentity"] = !r.inquiries!.contact_email
-        ? "guest"
-        : r.inquiries!.client_user_id
-          ? "email_verified"
-          : "identified";
+      // F3 identity ladder — real anonymity signals (contact_email is NOT NULL on all rows).
+      // client_user_id set → "registered"; guest_session_id set → "guest"; else → "client".
+      const clientIdentity: TalentInquiryRow["clientIdentity"] = r.inquiries!.client_user_id
+        ? "registered"
+        : r.inquiries!.guest_session_id
+          ? "guest"
+          : "client";
       return {
         id: r.inquiries!.id,
         status: r.inquiries!.status,
@@ -551,7 +552,7 @@ export async function loadTalentInquiries(
           trustLevel: i.trust_level_at_submission ?? null,
           sourceChannel: i.source_channel ?? null,
           myApprovalStatus: null,
-          clientIdentity: null, // F3 — coord-only rows: contact_email not selected
+          clientIdentity: null, // F3 — coord-only rows: client_user_id/guest_session_id not selected
           iAmCoordinator: true,
         });
       }

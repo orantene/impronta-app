@@ -24,16 +24,20 @@
 // Compact pill rendered next to the client name in the inbox list row AND the
 // thread header. Uses admin token classes (not gold/black inline styles).
 //
-// "guest"          → amber "Guest" pill (bg-admin-amber-soft / text-admin-amber-deep)
-// "identified"     → "Registered" (slate; ClientTrustChip carries the tier nuance)
-// "email_verified" → "Registered"
-// "account"        → "Registered"
-// undefined        → renders nothing (mock rows, no data)
+// "guest"      → amber caution pill  (bg-admin-amber-soft / text-admin-amber-deep)
+// "registered" → green confirmed pill (bg-admin-success-soft / text-admin-success-deep)
+// "client"     → neutral slate pill   (bg-admin-fill-soft / text-admin-ink-muted)
+// undefined    → renders nothing (mock rows, no data)
+//
+// The three values are keyed off the REAL anonymity signals on the inquiry row:
+//   client_user_id set   → "registered"
+//   guest_session_id set → "guest"
+//   neither              → "client" (email-only, no structural identity anchor)
 
 /**
- * Compact identity pill — "Guest" (amber) or "Registered" (slate).
- * Renders nothing when identity is undefined (mock/legacy rows).
- * Uses className only — no new inline styles per the admin-shell ratchet rule.
+ * Compact identity pill — "Guest" (amber caution), "Registered" (green confirmed),
+ * or "Client" (neutral slate). Renders nothing when identity is null/undefined.
+ * Uses Tailwind admin token classes only — no inline styles.
  */
 export function ClientIdentityPill({
   identity,
@@ -41,20 +45,31 @@ export function ClientIdentityPill({
   identity: Conversation["clientIdentity"];
 }) {
   if (!identity) return null;
-  const isGuest = identity === "guest";
+
+  const styles: Record<
+    NonNullable<Conversation["clientIdentity"]>,
+    { bg: string; text: string; label: string }
+  > = {
+    guest:      { bg: "bg-admin-amber-soft",   text: "text-admin-amber-deep",   label: "Guest" },
+    registered: { bg: "bg-admin-success-soft", text: "text-admin-success-deep", label: "Registered" },
+    client:     { bg: "bg-admin-fill-soft",    text: "text-admin-ink-muted",    label: "Client" },
+  };
+
+  const { bg, text, label } = styles[identity];
+
   return (
     <span
       data-tulala-identity-pill
+      data-identity={identity}
       className={[
         "inline-flex items-center shrink-0",
         "px-1.5 py-px rounded-full",
         "text-admin-10 font-bold uppercase tracking-wide leading-snug",
-        isGuest
-          ? "bg-admin-amber-soft text-admin-amber-deep"
-          : "bg-admin-amber-soft text-admin-ink-muted",
+        bg,
+        text,
       ].join(" ")}
     >
-      {isGuest ? "Guest" : "Registered"}
+      {label}
     </span>
   );
 }
@@ -152,16 +167,13 @@ export type Conversation = {
    *  opened) when omitted, so existing seed data renders unchanged. */
   seen?: boolean;
   /**
-   * F3 — Guest/Registered identity tier for the client on this inquiry.
-   * Drives the identity pill next to the client name in both the inbox list
-   * row and the thread header.
-   *   "guest"          — anonymous; no email captured
-   *   "identified"     — email captured but no account
-   *   "email_verified" — claimed account with confirmed email
-   *   "account"        — claimed account (email not necessarily confirmed)
+   * F3 — Client identity tier, keyed off the real anonymity signals:
+   *   "guest"      — anonymous session (guest_session_id set, no account)
+   *   "registered" — claimed Tulala account (client_user_id set)
+   *   "client"     — email captured but neither structural signal present
    * Optional so mock rows (MOCK_CONVERSATIONS) compile unchanged.
    */
-  clientIdentity?: "guest" | "identified" | "email_verified" | "account";
+  clientIdentity?: "guest" | "registered" | "client";
 };
 
 
