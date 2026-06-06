@@ -41,6 +41,12 @@ export type GuestThreadSwitcherProps = {
    * entirely client-side (the server always sets unreadHint:false).
    */
   seenAtByInquiry: Record<string, string>;
+  /**
+   * Layout hint (Lane C / F4). Default "rail" — the compact horizontal avatar
+   * rail used in the mini panel header. "list" forces the vertical list layout
+   * used in the expanded 2-pane left pane regardless of item count.
+   */
+  layout?: "rail" | "list";
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -587,16 +593,42 @@ function DropdownBody({
 /**
  * GuestThreadSwitcher — rendered by the wiring agent in the MiniChatPanel
  * header area. Returns null for single-thread guests (progressive disclosure).
+ *
+ * When layout="list" (Lane C / F4 expanded left pane), bypasses the rail/dropdown
+ * selection and renders the vertical ConversationRow list directly. All entries are
+ * shown as a scrollable vertical list (no progressive-disclosure threshold applies
+ * in this mode — the host panel controls visiblity via the onListGuestInquiries
+ * fetch). Single-item lists still render in list mode (the host decides visibility).
  */
 export function GuestThreadSwitcher(props: GuestThreadSwitcherProps) {
-  const { inquiries } = props;
-
-  // § 10 progressive disclosure: single-thread guests see nothing.
-  if (inquiries.length < 2) return null;
+  const { inquiries, layout = "rail" } = props;
 
   const accent = props.accent ?? DEFAULT_ACCENT;
   const accentInk = props.accentInk ?? readableOn(accent);
   const merged = { ...props, accent, accentInk };
+
+  // "list" layout — expanded left pane. Show all conversations as a vertical list.
+  // No <2 threshold: the expanded pane always shows whatever we have.
+  if (layout === "list") {
+    return (
+      <div role="listbox" aria-label="Switch conversation" style={{ display: "flex", flexDirection: "column" }}>
+        {inquiries.map((inq) => (
+          <ConversationRow
+            key={inq.inquiryId}
+            inq={inq}
+            isActive={inq.inquiryId === merged.activeInquiryId}
+            accent={accent}
+            accentInk={accentInk}
+            onSelect={merged.onSelect}
+            seenAtByInquiry={merged.seenAtByInquiry}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  // Default "rail" layout — § 10 progressive disclosure: single-thread guests see nothing.
+  if (inquiries.length < 2) return null;
 
   // ≤4 → compact horizontal avatar-rail (fits in the panel header without scroll).
   // 5+ → compact dropdown trigger (prevents overflow).
