@@ -700,6 +700,13 @@ interface StateStyleFieldsProps {
   chromeInk: string;
 }
 
+// Swatch display helper: resolve a color value to a CSS background string for
+// the swatch button. Returns empty string for unset (caller renders checkerboard).
+function stateColorSwatchDisplay(value: string | undefined): string {
+  if (!value) return "";
+  return value;
+}
+
 function StateStyleFields({
   state,
   hoverStyle,
@@ -724,6 +731,12 @@ function StateStyleFields({
         ? "Applies while keyboard-focused (:focus-visible)."
         : "Applies while actively pressed (:active).";
 
+  // Single-instance color popover keyed by the active field.
+  const [stateColorField, setStateColorField] = useState<{
+    field: "backgroundColor" | "color" | "borderColor";
+    anchor: HTMLButtonElement;
+  } | null>(null);
+
   const inputStyle: CSSProperties = {
     height: 30,
     width: "100%",
@@ -735,44 +748,136 @@ function StateStyleFields({
     outline: "none",
   };
 
+  const swatchStyle = (value: string | undefined): CSSProperties => ({
+    width: 30,
+    height: 30,
+    flexShrink: 0,
+    borderRadius: 6,
+    border: `1px solid ${chromeControlBorder}`,
+    cursor: "pointer",
+    background: stateColorSwatchDisplay(value) || "transparent",
+    backgroundImage: value
+      ? undefined
+      : "repeating-conic-gradient(#e5e0d8 0% 25%, #ffffff 0% 50%) 50% / 8px 8px",
+  });
+
   return (
     <div className="flex flex-col gap-2">
       <span className="text-[11px]" style={{ color: chromeMuted }}>
-        {hint} Colors accept token (var(--token-color-primary)), hex, or rgb.
+        {hint}
       </span>
+      {/* Background */}
       <div className="flex flex-col gap-1.5">
-        <span className="text-[11px]" style={{ color: chromeMuted }}>Background</span>
-        <input
-          type="text"
-          className="px-2"
-          style={inputStyle}
-          placeholder="var(--token-color-primary) / #111"
-          value={stateStyle?.backgroundColor ?? ""}
-          onChange={(e) => onPatch({ backgroundColor: e.target.value.trim() || undefined })}
-        />
+        <div className="flex items-center justify-between">
+          <span className="text-[11px]" style={{ color: chromeMuted }}>Background</span>
+          {stateStyle?.backgroundColor ? (
+            <button
+              type="button"
+              onClick={() => onPatch({ backgroundColor: undefined })}
+              className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+              style={{ background: "transparent", border: "none", color: chromeMuted, padding: 0 }}
+            >
+              Clear
+            </button>
+          ) : null}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            aria-label="Pick background color"
+            onClick={(e) => {
+              const btn = e.currentTarget;
+              setStateColorField((prev) =>
+                prev?.field === "backgroundColor" ? null : { field: "backgroundColor", anchor: btn },
+              );
+            }}
+            style={swatchStyle(stateStyle?.backgroundColor)}
+          />
+          <input
+            type="text"
+            className="flex-1 px-2"
+            style={{ ...inputStyle, width: undefined }}
+            placeholder="var(--token-color-primary) / #111"
+            value={stateStyle?.backgroundColor ?? ""}
+            onChange={(e) => onPatch({ backgroundColor: e.target.value.trim() || undefined })}
+          />
+        </div>
       </div>
+      {/* Text color */}
       <div className="flex flex-col gap-1.5">
-        <span className="text-[11px]" style={{ color: chromeMuted }}>Text color</span>
-        <input
-          type="text"
-          className="px-2"
-          style={inputStyle}
-          placeholder="var(--token-color-surface) / #fff"
-          value={stateStyle?.color ?? ""}
-          onChange={(e) => onPatch({ color: e.target.value.trim() || undefined })}
-        />
+        <div className="flex items-center justify-between">
+          <span className="text-[11px]" style={{ color: chromeMuted }}>Text color</span>
+          {stateStyle?.color ? (
+            <button
+              type="button"
+              onClick={() => onPatch({ color: undefined })}
+              className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+              style={{ background: "transparent", border: "none", color: chromeMuted, padding: 0 }}
+            >
+              Clear
+            </button>
+          ) : null}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            aria-label="Pick text color"
+            onClick={(e) => {
+              const btn = e.currentTarget;
+              setStateColorField((prev) =>
+                prev?.field === "color" ? null : { field: "color", anchor: btn },
+              );
+            }}
+            style={swatchStyle(stateStyle?.color)}
+          />
+          <input
+            type="text"
+            className="flex-1 px-2"
+            style={{ ...inputStyle, width: undefined }}
+            placeholder="var(--token-color-surface) / #fff"
+            value={stateStyle?.color ?? ""}
+            onChange={(e) => onPatch({ color: e.target.value.trim() || undefined })}
+          />
+        </div>
       </div>
+      {/* Border color */}
       <div className="flex flex-col gap-1.5">
-        <span className="text-[11px]" style={{ color: chromeMuted }}>Border color</span>
-        <input
-          type="text"
-          className="px-2"
-          style={inputStyle}
-          placeholder="var(--token-color-primary) / #111"
-          value={stateStyle?.borderColor ?? ""}
-          onChange={(e) => onPatch({ borderColor: e.target.value.trim() || undefined })}
-        />
+        <div className="flex items-center justify-between">
+          <span className="text-[11px]" style={{ color: chromeMuted }}>Border color</span>
+          {stateStyle?.borderColor ? (
+            <button
+              type="button"
+              onClick={() => onPatch({ borderColor: undefined })}
+              className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+              style={{ background: "transparent", border: "none", color: chromeMuted, padding: 0 }}
+            >
+              Clear
+            </button>
+          ) : null}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            aria-label="Pick border color"
+            onClick={(e) => {
+              const btn = e.currentTarget;
+              setStateColorField((prev) =>
+                prev?.field === "borderColor" ? null : { field: "borderColor", anchor: btn },
+              );
+            }}
+            style={swatchStyle(stateStyle?.borderColor)}
+          />
+          <input
+            type="text"
+            className="flex-1 px-2"
+            style={{ ...inputStyle, width: undefined }}
+            placeholder="var(--token-color-primary) / #111"
+            value={stateStyle?.borderColor ?? ""}
+            onChange={(e) => onPatch({ borderColor: e.target.value.trim() || undefined })}
+          />
+        </div>
       </div>
+      {/* Shadow */}
       <div className="flex flex-col gap-1.5">
         <span className="text-[11px]" style={{ color: chromeMuted }}>Shadow</span>
         <input
@@ -823,6 +928,21 @@ function StateStyleFields({
           />
         </div>
       </div>
+      {/* Shared color popover — single instance keyed by field */}
+      <ColorPickerPopover
+        open={stateColorField !== null}
+        anchor={stateColorField?.anchor ?? null}
+        value={
+          (stateColorField
+            ? (stateStyle?.[stateColorField.field] as string | undefined)
+            : undefined) || "#111111"
+        }
+        onChange={(next) => {
+          if (!stateColorField) return;
+          onPatch({ [stateColorField.field]: next } as Partial<BuilderNodeHoverStyle>);
+        }}
+        onClose={() => setStateColorField(null)}
+      />
     </div>
   );
 }
