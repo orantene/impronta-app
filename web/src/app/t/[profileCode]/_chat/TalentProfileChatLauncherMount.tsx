@@ -37,6 +37,10 @@ import {
   sendGuestMessageAction,
   startGuestChatInquiry,
 } from "@/app/t/[profileCode]/_actions/guest-chat-actions";
+// U2 thread switcher + U4 detail chips — injected as callbacks so the client
+// bundle imports no backend module.
+import { listGuestInquiries } from "@/app/t/[profileCode]/_actions/guest-inquiries-actions";
+import { captureGuestChip } from "@/app/t/[profileCode]/_actions/guest-detail-chips-actions";
 
 type TalentProfileChatLauncherMountProps = {
   /** talent_profiles.id — the single talent the guest is messaging (MVP). */
@@ -101,6 +105,9 @@ export async function TalentProfileChatLauncherMount({
       onSendMessage={sendGuestMessageAction}
       fetchMessages={getGuestThreadMessages}
       onAddClaimEmail={sendGuestClaimToEmail}
+      onListGuestInquiries={listGuestInquiries}
+      onCaptureChip={captureGuestChip}
+      soundOnReply
       openFullHref={openFullHref}
     />
   );

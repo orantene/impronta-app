@@ -35,6 +35,10 @@ export function TalentProfileChatLauncher({
   onSendMessage,
   fetchMessages,
   onAddClaimEmail = null,
+  onListGuestInquiries = null,
+  onCaptureChip = null,
+  soundOnReply = true,
+  identity = "guest",
   label,
   className,
   openFullHref = null,
@@ -126,6 +130,10 @@ export function TalentProfileChatLauncher({
         onSendMessage={onSendMessage}
         fetchMessages={fetchMessages}
         onAddClaimEmail={onAddClaimEmail}
+        onListGuestInquiries={onListGuestInquiries}
+        onCaptureChip={onCaptureChip}
+        soundOnReply={soundOnReply}
+        identity={identity}
         openFullHref={openFullHref}
       />
     </>

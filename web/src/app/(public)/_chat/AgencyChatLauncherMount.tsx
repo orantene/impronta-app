@@ -17,6 +17,10 @@ import {
   sendGuestMessageAction,
   startGuestChatInquiry,
 } from "@/app/t/[profileCode]/_actions/guest-chat-actions";
+// U2 thread switcher (scopes by tenant + cookie — "all my threads on this brand")
+// + U4 detail chips (per-inquiry). Injected so the client bundle stays backend-free.
+import { listGuestInquiries } from "@/app/t/[profileCode]/_actions/guest-inquiries-actions";
+import { captureGuestChip } from "@/app/t/[profileCode]/_actions/guest-detail-chips-actions";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/reads";
@@ -95,6 +99,9 @@ export async function AgencyChatLauncherMount({
       onSendMessage={sendGuestMessageAction}
       fetchMessages={getGuestThreadMessages}
       onAddClaimEmail={sendGuestClaimToEmail}
+      onListGuestInquiries={listGuestInquiries}
+      onCaptureChip={captureGuestChip}
+      soundOnReply
       openFullHref={null}
     />
   );
