@@ -322,6 +322,9 @@ export async function HomepageCmsSections({
       }
 
       // DEFAULT (flag off) — server-rendered canvas, byte-identical to today.
+      // W4-T4(b) DEFERRED (point of no return): baking the canvas flag + deleting
+      // this fallback requires the W0-T7 flag-OFF/ON profiling baseline (Wave 6)
+      // on disk first — do NOT delete this branch until that delta is captured.
       return (
         <>
           {freeformStyles}
