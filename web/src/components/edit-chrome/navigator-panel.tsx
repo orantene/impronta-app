@@ -108,6 +108,10 @@ import {
   countNodesLinkedToClass,
   type BuilderStyleClass,
 } from "@/lib/site-admin/builder-node/style-classes";
+import {
+  readClasses as readStoredClasses,
+  writeClasses as writeStoredClasses,
+} from "@/lib/site-admin/builder-node/style-classes-storage";
 
 const EXPANDED_SECTIONS_STORAGE_KEY =
   "impronta.editChrome.navigator.expandedSections.v2";
@@ -4044,38 +4048,11 @@ function RenameInput({
 }
 
 // ── Wave 5.8 — Class Manager ──────────────────────────────────────────────────
-
-const CLASS_STORAGE_PREFIX = "tulala:builder:style-classes:v1";
-
-function classStorageKey(pageId: string | null): string {
-  return `${CLASS_STORAGE_PREFIX}:${pageId ?? "home"}`;
-}
-
-function readStoredClasses(pageId: string | null): BuilderStyleClass[] {
-  try {
-    const raw = window.localStorage.getItem(classStorageKey(pageId));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return (parsed as unknown[]).filter(
-      (c): c is BuilderStyleClass =>
-        Boolean(c) &&
-        typeof (c as BuilderStyleClass).id === "string" &&
-        typeof (c as BuilderStyleClass).name === "string" &&
-        Boolean((c as BuilderStyleClass).style),
-    );
-  } catch {
-    return [];
-  }
-}
-
-function writeStoredClasses(pageId: string | null, classes: ReadonlyArray<BuilderStyleClass>) {
-  try {
-    window.localStorage.setItem(classStorageKey(pageId), JSON.stringify(classes));
-  } catch {
-    /* quota / private-mode — non-fatal */
-  }
-}
+//
+// Storage helpers (read/write + the live registry bridge) now live in the
+// shared `builder-node/style-classes-storage.ts` (W1-T1) so this reader and the
+// LinkedStyleClassesBar writer + the publish path share ONE source of truth.
+// Imported above as readStoredClasses / writeStoredClasses.
 
 /**
  * Wave 5.8 — Class Manager panel.
