@@ -1109,6 +1109,17 @@ type HistoryEntry =
       name: string;
       pre: Record<string, unknown>;
       post: Record<string, unknown>;
+    }
+  // Marathon W1-T4 — a section visibility toggle or rename. These persist via
+  // the section's own dispatch path (which writes the server record), so they
+  // can't be replayed through the composition snapshot (stripSnapshotForSave
+  // drops name/visibility). Undo/redo re-dispatch with recordHistory:false.
+  | {
+      kind: "sectionMeta";
+      field: "visibility" | "name";
+      sectionId: string;
+      pre: string;
+      post: string;
     };
 
 function cloneSnapshot(s: CompositionSnapshot): CompositionSnapshot {
@@ -2189,7 +2200,9 @@ export function EditProvider({
   //
   // Entries are a discriminated union: `composition` captures slots +
   // metadata for structural moves; `field` captures a single section's
-  // pre/post props for inline text / image / URL edits. A single LIFO
+  // pre/post props for inline text / image / URL edits; `sectionMeta`
+  // (W1-T4) captures a visibility toggle or rename (replayed through the
+  // section dispatch, which the snapshot path can't persist). A single LIFO
   // timeline so ⌘Z honours the most recent change regardless of kind.
   //
   // #18 UNDO-SURVIVES-RELOAD: we persist the last UNDO_PERSIST_CAP entries of
@@ -2217,7 +2230,9 @@ export function EditProvider({
           (
             (e as { kind: string }).kind === "composition" ||
             (e as { kind: string }).kind === "builderTree" ||
-            (e as { kind: string }).kind === "field"
+            (e as { kind: string }).kind === "field" ||
+            // W1-T4 — visibility/rename entries survive reload too.
+            (e as { kind: string }).kind === "sectionMeta"
           ),
       );
       return valid.slice(-UNDO_PERSIST_CAP);
@@ -3219,6 +3234,28 @@ export function EditProvider({
             reportMutationError(result.error);
             return { ok: false, error: result.error };
           }
+          // Marathon W1-T4 — record an undoable history entry so ⌘Z reverts
+          // THIS visibility change (and nothing else). Skipped on undo/redo
+          // replay (recordHistory:false). `previousVisibility` of undefined
+          // means the section had no explicit setting → treat as "always".
+          if (mutation.recordHistory !== false) {
+            const preVis: SectionVisibility = previousVisibility ?? "always";
+            if (preVis !== mutation.visibility) {
+              setPast((p) =>
+                capHistory([
+                  ...p,
+                  {
+                    kind: "sectionMeta",
+                    field: "visibility",
+                    sectionId: mutation.sectionId,
+                    pre: preVis,
+                    post: mutation.visibility,
+                  },
+                ]),
+              );
+              setFuture([]);
+            }
+          }
           // Storefront DOM cache bust — fire-and-forget.
           void queueRouterRefresh();
           recordDispatchAudit(mutation.sectionId);
@@ -3409,6 +3446,23 @@ export function EditProvider({
                 : prev,
             );
           }
+          // Marathon W1-T4 — record an undoable history entry so ⌘Z restores
+          // the previous name (and reverts nothing else). Skipped on replay.
+          if (mutation.recordHistory !== false && previousName !== trimmed) {
+            setPast((p) =>
+              capHistory([
+                ...p,
+                {
+                  kind: "sectionMeta",
+                  field: "name",
+                  sectionId: mutation.sectionId,
+                  pre: previousName,
+                  post: trimmed,
+                },
+              ]),
+            );
+            setFuture([]);
+          }
           void queueRouterRefresh();
           recordDispatchAudit(mutation.sectionId);
           return { ok: true };
@@ -3538,6 +3592,8 @@ export function EditProvider({
       setSlotsAndBuilderTree,
       syncBuilderNodeChildrenForSection,
       reportMutationError,
+      // W1-T4 — visibility/rename now push a sectionMeta history entry.
+      capHistory,
     ],
   );
 
@@ -5660,6 +5716,35 @@ export function EditProvider({
     [dispatch],
   );
 
+  // Marathon W1-T4 — replay a visibility/rename history entry through the same
+  // dispatch path that persists it (the snapshot path can't — it drops
+  // name/visibility). `recordHistory:false` so the replay doesn't push a new
+  // entry. `value` is the target: `pre` on undo, `post` on redo.
+  const replaySectionMeta = useCallback(
+    async (
+      entry: Extract<HistoryEntry, { kind: "sectionMeta" }>,
+      value: string,
+    ): Promise<boolean> => {
+      if (entry.field === "visibility") {
+        const result = await dispatch({
+          kind: "section.setVisibility",
+          sectionId: entry.sectionId,
+          visibility: value as SectionVisibility,
+          recordHistory: false,
+        });
+        return result.ok;
+      }
+      const result = await dispatch({
+        kind: "section.rename",
+        sectionId: entry.sectionId,
+        newName: value,
+        recordHistory: false,
+      });
+      return result.ok;
+    },
+    [dispatch],
+  );
+
   const undo = useCallback(async () => {
     if (saving) return;
     if (past.length === 0) return;
@@ -5690,6 +5775,13 @@ export function EditProvider({
         setFuture((f) => f.slice(0, -1));
         setPast((p) => capHistory([...p, entry]));
       }
+    } else if (entry.kind === "sectionMeta") {
+      setFuture((f) => capHistory([...f, entry]));
+      const applied = await replaySectionMeta(entry, entry.pre);
+      if (!applied) {
+        setFuture((f) => f.slice(0, -1));
+        setPast((p) => capHistory([...p, entry]));
+      }
     } else {
       setFuture((f) => capHistory([...f, entry]));
       const applied = await applyFieldEdit(entry.sectionId, entry.pre);
@@ -5705,6 +5797,7 @@ export function EditProvider({
     restoreSnapshot,
     persistBuilderTree,
     applyFieldEdit,
+    replaySectionMeta,
     capHistory,
   ]);
 
@@ -5738,6 +5831,13 @@ export function EditProvider({
         setPast((p) => p.slice(0, -1));
         setFuture((f) => capHistory([...f, entry]));
       }
+    } else if (entry.kind === "sectionMeta") {
+      setPast((p) => capHistory([...p, entry]));
+      const applied = await replaySectionMeta(entry, entry.post);
+      if (!applied) {
+        setPast((p) => p.slice(0, -1));
+        setFuture((f) => capHistory([...f, entry]));
+      }
     } else {
       setPast((p) => capHistory([...p, entry]));
       const applied = await applyFieldEdit(entry.sectionId, entry.post);
@@ -5753,6 +5853,7 @@ export function EditProvider({
     restoreSnapshot,
     persistBuilderTree,
     applyFieldEdit,
+    replaySectionMeta,
     capHistory,
   ]);
 

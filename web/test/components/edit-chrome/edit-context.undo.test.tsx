@@ -25,6 +25,10 @@ import { act, render } from "@testing-library/react";
 // ── server-action mocks (declared before the provider import) ───────────────
 const saveDraftMock = vi.fn();
 const loadCompositionMock = vi.fn();
+// W1-T4 — visibility/rename section mutations.
+const setVisibilityMock = vi.fn();
+const saveSectionDraftMock = vi.fn();
+const loadSectionForEditMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -49,6 +53,19 @@ vi.mock("@/lib/site-admin/edit-mode/composition-actions", async (orig) => {
   };
 });
 
+// W1-T4 — section visibility/rename go through section-actions, which the
+// provider's dispatch() calls directly. Mock them so we can drive the
+// sectionMeta history path without a real Supabase round-trip.
+vi.mock("@/lib/site-admin/edit-mode/section-actions", async (orig) => {
+  const actual = (await orig()) as Record<string, unknown>;
+  return {
+    ...actual,
+    setSectionVisibilityAction: (...args: unknown[]) => setVisibilityMock(...args),
+    saveSectionDraftAction: (...args: unknown[]) => saveSectionDraftMock(...args),
+    loadSectionForEditAction: (...args: unknown[]) => loadSectionForEditMock(...args),
+  };
+});
+
 import {
   EditProvider,
   useEditContext,
@@ -64,6 +81,11 @@ const SAVE_DEBOUNCE_WAIT = 1100; // > 750ms save debounce + 500ms persist deboun
 const SEED_TREE: BuilderNodeTree = [
   { id: "blk1", kind: "heading", props: { text: "Headline", level: 2 } },
 ];
+
+// W1-T4 — a real section in a slot so visibility/rename have a target. Starts
+// "always" / "Hero". sortOrder + sectionTypeKey mirror a live composition row.
+const SECTION_ID = "sec-hero";
+const SECTION_SLOT = "main";
 
 function composition(pageVersion: number): CompositionData {
   return {
@@ -81,12 +103,27 @@ function composition(pageVersion: number): CompositionData {
       canonicalUrl: null,
       noindex: false,
     },
-    slots: {},
+    slots: {
+      [SECTION_SLOT]: [
+        {
+          sectionId: SECTION_ID,
+          sortOrder: 0,
+          sectionTypeKey: "hero",
+          name: "Hero",
+          visibility: "always",
+        },
+      ],
+    },
     builderTree: SEED_TREE,
     slotDefs: [],
     library: [],
     availableLocales: ["en"],
   } as unknown as CompositionData;
+}
+
+/** Read the seeded section's slot ref off the live composition. */
+function sectionRef(ctx: EditContextValue) {
+  return ctx.slots[SECTION_SLOT]?.find((e) => e.sectionId === SECTION_ID) ?? null;
 }
 
 /** Mount the provider, return a getter for the live context value. */
@@ -131,6 +168,9 @@ async function patchSeededNode(
 beforeEach(() => {
   saveDraftMock.mockReset();
   loadCompositionMock.mockReset();
+  setVisibilityMock.mockReset();
+  saveSectionDraftMock.mockReset();
+  loadSectionForEditMock.mockReset();
   if (typeof window !== "undefined") window.localStorage.clear();
 });
 
@@ -256,6 +296,132 @@ describe("W0-T4 undo/redo + CAS (REAL EditProvider)", () => {
     // provider should rehydrate the persisted undo entry.
     utils.unmount();
     const second = mountProvider(6);
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+    expect(second.ctx().canUndo).toBe(true);
+  });
+});
+
+// ── W1-T4 — undo coverage for visibility + rename ───────────────────────────
+//
+// Before W1-T4 setSectionVisibility + renameSection did optimistic-apply +
+// revert-on-error but pushed NO HistoryEntry, so ⌘Z silently reverted an
+// UNRELATED earlier edit. These pin: a visibility toggle and a rename each push
+// exactly one undoable entry, ⌘Z reverts THAT change (and nothing else),
+// redo re-applies it, and the replay persists through the section dispatch
+// (recordHistory:false → no double entry).
+
+describe("W1-T4 visibility + rename undo (REAL EditProvider)", () => {
+  it("hide → ⌘Z UN-hides; pushes exactly one entry and reverts nothing else", async () => {
+    setVisibilityMock.mockResolvedValue({ ok: true, version: 2, visibility: "hidden" });
+    const { ctx } = mountProvider(5);
+
+    expect(ctx().canUndo).toBe(false);
+    expect(sectionRef(ctx())?.visibility).toBe("always");
+
+    // Operator hides the section.
+    await act(async () => {
+      await ctx().setSectionVisibility(SECTION_ID, "hidden");
+    });
+    expect(sectionRef(ctx())?.visibility).toBe("hidden");
+    // Exactly one undoable entry; nothing on the redo stack yet.
+    expect(ctx().canUndo).toBe(true);
+    expect(ctx().canRedo).toBe(false);
+
+    // ⌘Z — the replay re-dispatches setSectionVisibility("always").
+    setVisibilityMock.mockResolvedValue({ ok: true, version: 3, visibility: "always" });
+    await act(async () => {
+      await ctx().undo();
+    });
+    // Un-hidden, and the entry moved to redo.
+    expect(sectionRef(ctx())?.visibility).toBe("always");
+    expect(ctx().canUndo).toBe(false);
+    expect(ctx().canRedo).toBe(true);
+
+    // The undo replay was a real dispatch (recordHistory:false) — the action
+    // fired twice total (hide + un-hide), never pushing a 2nd undo entry.
+    expect(setVisibilityMock).toHaveBeenCalledTimes(2);
+
+    // Redo re-hides.
+    setVisibilityMock.mockResolvedValue({ ok: true, version: 4, visibility: "hidden" });
+    await act(async () => {
+      await ctx().redo();
+    });
+    expect(sectionRef(ctx())?.visibility).toBe("hidden");
+    expect(ctx().canRedo).toBe(false);
+    expect(ctx().canUndo).toBe(true);
+  });
+
+  it("rename → ⌘Z restores the previous name (one entry, redo re-applies)", async () => {
+    // The dispatch loads the section fresh (loadedSection is null on mount).
+    loadSectionForEditMock.mockResolvedValue({
+      ok: true,
+      section: {
+        id: SECTION_ID,
+        sectionTypeKey: "hero",
+        schemaVersion: 1,
+        name: "Hero",
+        version: 1,
+        props: {},
+      },
+    });
+    saveSectionDraftMock.mockResolvedValue({ ok: true, version: 2 });
+    const { ctx } = mountProvider(5);
+
+    expect(sectionRef(ctx())?.name).toBe("Hero");
+
+    await act(async () => {
+      await ctx().renameSection(SECTION_ID, "Welcome");
+    });
+    expect(sectionRef(ctx())?.name).toBe("Welcome");
+    expect(ctx().canUndo).toBe(true);
+    expect(ctx().canRedo).toBe(false);
+
+    // ⌘Z restores "Hero". The replay re-loads + re-saves under recordHistory:false.
+    loadSectionForEditMock.mockResolvedValue({
+      ok: true,
+      section: {
+        id: SECTION_ID,
+        sectionTypeKey: "hero",
+        schemaVersion: 1,
+        name: "Welcome",
+        version: 2,
+        props: {},
+      },
+    });
+    saveSectionDraftMock.mockResolvedValue({ ok: true, version: 3 });
+    await act(async () => {
+      await ctx().undo();
+    });
+    expect(sectionRef(ctx())?.name).toBe("Hero");
+    expect(ctx().canUndo).toBe(false);
+    expect(ctx().canRedo).toBe(true);
+
+    // Two saves total (rename + undo-replay) — the replay never pushed a 2nd entry.
+    expect(saveSectionDraftMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("a visibility entry survives reload (persisted + rehydrated as kind 'sectionMeta')", async () => {
+    setVisibilityMock.mockResolvedValue({ ok: true, version: 2, visibility: "hidden" });
+    const { ctx, utils } = mountProvider(5);
+
+    await act(async () => {
+      await ctx().setSectionVisibility(SECTION_ID, "hidden");
+    });
+    // Drain the ~500ms localStorage persist debounce.
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 700));
+    });
+
+    const raw = window.localStorage.getItem(UNDO_LS_KEY);
+    expect(raw).not.toBeNull();
+    const persisted = JSON.parse(raw!) as Array<{ kind: string }>;
+    expect(persisted.some((e) => e.kind === "sectionMeta")).toBe(true);
+
+    // Remount — the sectionMeta entry is recognised + rehydrated (not dropped).
+    utils.unmount();
+    const second = mountProvider(2);
     await act(async () => {
       await new Promise((r) => setTimeout(r, 50));
     });

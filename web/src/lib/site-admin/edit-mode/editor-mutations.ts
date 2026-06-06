@@ -72,11 +72,20 @@ export type EditorMutation =
       kind: "section.setVisibility";
       sectionId: string;
       visibility: SectionVisibility;
+      /**
+       * Marathon W1-T4 — when false (an undo/redo REPLAY), the dispatch does
+       * NOT push a new history entry. Defaults to recording (a fresh operator
+       * action). Without this the visibility toggle pushed no HistoryEntry, so
+       * ⌘Z silently reverted an unrelated earlier edit.
+       */
+      recordHistory?: boolean;
     }
   | {
       kind: "section.rename";
       sectionId: string;
       newName: string;
+      /** Marathon W1-T4 — see section.setVisibility. False on undo/redo replay. */
+      recordHistory?: boolean;
     }
   | {
       kind: "section.applyFieldEdit";
