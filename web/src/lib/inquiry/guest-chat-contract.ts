@@ -138,6 +138,22 @@ export type GuestChatFailure = {
   retryAfterMs?: number;
   /** Only set when code === "validation_failed" (field paths, e.g. "requester.email"). */
   missingFields?: string[];
+  /**
+   * Only set when code === "limit_reached". The resolved identity tier from the
+   * trust gate decision — drives the copy in TrustGateNudge. Optional so that
+   * callers that already hard-code a tier fallback continue to work.
+   */
+  gateTier?: GuestIdentityTier;
+  /**
+   * Only set when code === "limit_reached". The number of active conversations
+   * counted by the gate. Lets TrustGateNudge show real numbers.
+   */
+  activeCount?: number;
+  /**
+   * Only set when code === "limit_reached". The tier's conversation cap.
+   * Lets TrustGateNudge show real numbers.
+   */
+  limit?: number;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

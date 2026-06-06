@@ -255,7 +255,12 @@ function mergeChipIntoQuery(
     appliedSummary = formatted ?? (locationStatus === "online" ? "Online" : "Location TBD");
   } else if (kind === "headcount") {
     const prevTalent = (base.talent as Record<string, unknown> | undefined) ?? {};
-    const count = value.headcount ?? null;
+    const rawCount = value.headcount ?? null;
+    // Server-side bounds: clamp to a sane integer range mirroring the client UI.
+    const count =
+      rawCount !== null && Number.isFinite(rawCount)
+        ? Math.floor(Math.max(1, Math.min(9999, rawCount)))
+        : null;
     base.talent = {
       ...prevTalent,
       ...(count !== null ? { count_needed: count } : {}),
@@ -277,7 +282,14 @@ function mergeChipIntoQuery(
   } else if (kind === "budget") {
     const prevBudget = (base.budget as Record<string, unknown> | undefined) ?? {};
     const preference = value.budgetPreference ?? "not_sure";
-    const amount = value.budgetAmount ?? null;
+    // Server-side bounds: reject non-finite / negative budget amounts.
+    // A budget of 0 is treated as "not provided" (null). No upper cap is imposed
+    // (luxury budgets can be large), but NaN/Infinity/-1 are all rejected.
+    const rawAmount = value.budgetAmount ?? null;
+    const amount =
+      rawAmount !== null && Number.isFinite(rawAmount) && rawAmount > 0
+        ? rawAmount
+        : null;
     const currency = value.currency?.trim().toUpperCase() || null;
     base.budget = {
       ...prevBudget,
@@ -321,8 +333,12 @@ export async function captureGuestChip(input: GuestChipInput): Promise<GuestChip
         missingFields: ["inquiryId"],
       });
     }
-    if (!input.kind) {
-      return fail("validation_failed", "Missing chip kind.", {
+    // Validate kind against the canonical enum before any DB work.
+    const VALID_CHIP_KINDS: ReadonlySet<string> = new Set<GuestChipKind>([
+      "date", "location", "headcount", "event_type", "budget",
+    ]);
+    if (!input.kind || !VALID_CHIP_KINDS.has(input.kind)) {
+      return fail("validation_failed", "Unknown detail.", {
         missingFields: ["kind"],
       });
     }
@@ -336,6 +352,19 @@ export async function captureGuestChip(input: GuestChipInput): Promise<GuestChip
     const owned = await loadOwnedInquiry(admin, input.inquiryId, guestSessionId);
     if (!owned.ok) return owned.failure;
     const { inquiry } = owned;
+
+    // Refuse writes on terminal / finalized inquiries. A booked or closed
+    // inquiry's structured spine must not be mutated by a guest chip — the
+    // coordinator or admin owns the data at that point. Mirrors the
+    // TERMINAL_STATUSES set in guest-trust-gate.ts + the "booked"/"closed"
+    // buckets from toThreadStatus in guest-chat-actions.ts.
+    const terminalStatuses = new Set([
+      "cancelled", "closed", "archived", "rejected", "expired", "closed_lost",
+      "booked", "converted",
+    ]);
+    if (terminalStatuses.has(inquiry.status)) {
+      return { ok: true, appliedSummary: "" }; // silent no-op, data already settled
+    }
 
     // Merge chip payload into interpreted_query
     const { mergedQuery, flatColumns, appliedSummary } = mergeChipIntoQuery(
@@ -364,22 +393,35 @@ export async function captureGuestChip(input: GuestChipInput): Promise<GuestChip
     // platform-generated system event, not a user message — it has no sender
     // (sender_user_id: null, guest_session_id: null) so deriveAuthorRole()
     // renders it as a "system" bubble (centered/neutral). Best-effort — failure
-    // here is non-fatal; the chip data is already written.
-    try {
-      const bubbleBody = `Added: ${appliedSummary}`;
-      await tenantScopedQuery(admin, "inquiry_messages", inquiry.tenantId)
-        .insert({
-          inquiry_id: inquiry.id,
-          thread_type: "group",
-          sender_user_id: null,
-          guest_session_id: null,
-          body: bubbleBody,
-          message_kind: "system_event",
-          metadata: { chip_kind: input.kind },
-        });
-    } catch (bubbleErr) {
-      // Non-fatal. The chip data is already written.
-      logServerError("guest-detail-chips-actions.captureGuestChip/bubble", bubbleErr);
+    // here is non-fatal; the chip data is already written. Skip entirely when
+    // appliedSummary is empty (e.g. a chip that produced no text) so we never
+    // insert a blank or misleading system bubble.
+    if (appliedSummary) {
+      try {
+        // Sanitize the bubble body: cap length, strip control characters
+        // (newlines, carriage returns, other ASCII control chars) so
+        // guest-supplied free text (city / event_type) cannot inject newlines
+        // or spoof system copy. The "Added: " prefix is platform-authored;
+        // only the summary segment comes from guest input.
+        const sanitizedSummary = appliedSummary
+          .replace(/[\x00-\x1F\x7F]/g, " ")
+          .trim()
+          .slice(0, 200);
+        const bubbleBody = `Added: ${sanitizedSummary}`;
+        await tenantScopedQuery(admin, "inquiry_messages", inquiry.tenantId)
+          .insert({
+            inquiry_id: inquiry.id,
+            thread_type: "group",
+            sender_user_id: null,
+            guest_session_id: null,
+            body: bubbleBody,
+            message_kind: "system_event",
+            metadata: { chip_kind: input.kind },
+          });
+      } catch (bubbleErr) {
+        // Non-fatal. The chip data is already written.
+        logServerError("guest-detail-chips-actions.captureGuestChip/bubble", bubbleErr);
+      }
     }
 
     return { ok: true, appliedSummary };

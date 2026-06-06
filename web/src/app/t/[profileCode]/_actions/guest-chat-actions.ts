@@ -40,6 +40,11 @@ import {
   checkGuestInquiryAbuse,
   checkGuestMessageAbuse,
 } from "@/lib/inquiry/guest-abuse-guard";
+import {
+  checkGuestMessageSend,
+  guestCreateEmailKey,
+  normalizeEmailForKey,
+} from "@/lib/rate-limit-kv";
 import { isBlocked } from "@/lib/inquiry/recipient-safety";
 import { resolveInquiryRecipients } from "@/lib/notifications/recipients";
 import { emitGuestAutoAck } from "@/lib/inquiry/guest-auto-ack";
@@ -54,6 +59,7 @@ import type {
   GetGuestThreadResult,
   GuestChatErrorCode,
   GuestChatFailure,
+  GuestIdentityTier,
   GuestMessageAuthorRole,
   GuestMessageKind,
   GuestThreadMessage,
@@ -574,14 +580,23 @@ export async function startGuestChatInquiry(
     contactEmail,
   });
   if (!gate.allowed) {
-    return fail(
-      "limit_reached",
-      gate.tier === "account"
-        ? "You've reached your open-conversation limit. Wrap up or close one to start another."
-        : gate.tier === "email_verified"
-          ? "You have a few conversations going — create a free account to start more."
-          : "You have a conversation going — verify your email to start more.",
-    );
+    return {
+      ...fail(
+        "limit_reached",
+        gate.tier === "account"
+          ? "You've reached your open-conversation limit. Wrap up or close one to start another."
+          : gate.tier === "email_verified"
+            ? "You have a few conversations going — create a free account to start more."
+            : "You have a conversation going — verify your email to start more.",
+      ),
+      // Surface the resolved tier + real counts so TrustGateNudge can show
+      // accurate numbers (fixes the 0/0 display — fix 7).
+      // GuestTrustTier (guest-trust-gate.ts) and GuestIdentityTier (contract)
+      // have the identical union spelling — the cast is safe.
+      gateTier: gate.tier as GuestIdentityTier,
+      activeCount: gate.activeCount,
+      limit: gate.limit,
+    };
   }
 
   // ── Recipient safety (Lane C): refuse to create the inquiry when this sender
@@ -961,6 +976,34 @@ export async function sendGuestClaimToEmail(
   // client-supplied session; this is the same gate the other guest actions use.
   const owned = await loadOwnedInquiry(admin, input.inquiryId, guestSessionId);
   if (!owned.ok) return owned.failure;
+
+  // ── Anti-abuse gate: rate-limit on TARGET email + IP + tenant so an attacker
+  // who owns one inquiry cannot spam claim emails to arbitrary addresses.
+  // Keyed on the NORMALIZED target email (the one the guest just supplied) and
+  // the tenant, so rotating the guest cookie does not bypass it. We reuse the
+  // checkGuestMessageSend limiter on a claim-scoped key — the window is
+  // intentionally generous for message sends but appropriate here because a
+  // legitimate guest has no reason to send dozens of claim emails quickly.
+  const claimIp = await resolveClientIp();
+  const normalizedClaimEmail = normalizeEmailForKey(email);
+  const claimEmailKey = guestCreateEmailKey(owned.inquiry.tenantId, normalizedClaimEmail);
+  const claimEmailAbuse = await checkGuestMessageSend(claimEmailKey);
+  if (!claimEmailAbuse.ok) {
+    return fail("rate_limited", "You're sending claim links too quickly — please wait a moment.", {
+      retryAfterMs: claimEmailAbuse.retryAfterMs,
+    });
+  }
+  // Also check by IP when available — stops a single origin burning through
+  // many email aliases.
+  if (claimIp) {
+    const claimIpKey = `guest_claim_ip:${owned.inquiry.tenantId}:${claimIp}`;
+    const claimIpAbuse = await checkGuestMessageSend(claimIpKey);
+    if (!claimIpAbuse.ok) {
+      return fail("rate_limited", "You're sending claim links too quickly — please wait a moment.", {
+        retryAfterMs: claimIpAbuse.retryAfterMs,
+      });
+    }
+  }
 
   // Provision (or match) a client account for this email. "unlinked" means the
   // email belongs to a privileged (staff/talent) account — there is no client

@@ -276,7 +276,12 @@ export function MiniChatPanel({
   }, [open, onClose]);
 
   // ── Map a contract failure code → friendly copy + side effects ────────────
-  function applyFailure(code: string, message: string, retryAfterMs?: number) {
+  function applyFailure(
+    code: string,
+    message: string,
+    retryAfterMs?: number,
+    extra?: { gateTier?: GuestIdentityTier; activeCount?: number; limit?: number },
+  ) {
     if (code === "rate_limited") {
       setCooldownSecs(Math.max(1, Math.ceil((retryAfterMs ?? 30_000) / 1000)));
       setError(message || "You're sending a little fast — give it a moment.");
@@ -296,21 +301,23 @@ export function MiniChatPanel({
       return;
     }
     if (code === "limit_reached") {
-      // U3: the active-conversation trust gate tripped. Prefer the server-resolved
-      // identity tier; fall back to "identified" when we at least have a valid
-      // captured email (the nudge then says "verify the email you gave us").
-      // activeCount/limit aren't in the minimal failure payload — the nudge's
-      // describeCount clamps to ≥1, and the friendly copy carries the message.
+      // U3: trust gate tripped. Prefer server-resolved tier (gateTier) from
+      // the failure payload; fall back to client-side inference for back-compat.
       const tier: GuestIdentityTier =
-        identity === "account"
+        extra?.gateTier ??
+        (identity === "account"
           ? "account"
           : identity === "email_verified"
             ? "email_verified"
             : identity === "identified" ||
                 (Boolean(name.trim()) && EMAIL_RE.test(email.trim()))
               ? "identified"
-              : "guest";
-      setLimitNudge({ tier, activeCount: 0, limit: 0 });
+              : "guest");
+      setLimitNudge({
+        tier,
+        activeCount: extra?.activeCount ?? 0,
+        limit: extra?.limit ?? 0,
+      });
       setError(message);
       return;
     }
@@ -379,7 +386,11 @@ export function MiniChatPanel({
       // draft was cleared optimistically before the await; put it back so the
       // guest can retry from the composer (the failed bubble copy points here).
       setDraft(body);
-      applyFailure(res.code, res.message, res.retryAfterMs);
+      applyFailure(res.code, res.message, res.retryAfterMs, {
+        gateTier: res.gateTier,
+        activeCount: res.activeCount,
+        limit: res.limit,
+      });
       return;
     }
 
@@ -655,8 +666,8 @@ export function MiniChatPanel({
           />
         )}
 
-        {/* U3: proactive "save this conversation / free account" toolkit. Self-
-            hides for an "account" guest; shows a calm "saved ✓" for email_verified. */}
+        {/* U3: proactive account toolkit. Demotes its button to outline when
+            OpenFullConversationLink is already the filled primary CTA (offer/booked). */}
         {inquiryId && (
           <GuestAccountToolkit
             inquiryId={inquiryId}
@@ -665,6 +676,11 @@ export function MiniChatPanel({
             accent={accent}
             accentInk={accentInk}
             onAddClaimEmail={onAddClaimEmail}
+            deemphasizeButton={
+              threadStatus === "offer_pending" ||
+              threadStatus === "approved" ||
+              threadStatus === "booked"
+            }
           />
         )}
       </div>
@@ -765,11 +781,8 @@ export function MiniChatPanel({
         />
       )}
 
-      {/* ── Footer: "Open full conversation ↗" (U1 — the full-window thread). The
-           panel self-computes /c/{inquiryId} from its own inquiryId; openFullHref
-           is honored as a back-compat override when explicitly passed. Emphasized
-           (filled accent) once an offer/booking exists, pulling the guest into the
-           full surface where the money/booking cards live. ─────────────────── */}
+      {/* ── Footer: "Open full conversation ↗" (U1). Emphasized (filled accent)
+           once an offer/booking exists. openFullHref overrides the self-computed href. */}
       {(inquiryId || openFullHref) && (
         <OpenFullConversationLink
           href={openFullHref ?? `/c/${inquiryId}`}

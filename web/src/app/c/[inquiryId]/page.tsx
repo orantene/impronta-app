@@ -25,7 +25,10 @@ import {
   getGuestThreadMessages,
   sendGuestMessageAction,
 } from "@/app/t/[profileCode]/_actions/guest-chat-actions";
-import { getGuestFullThread } from "@/app/t/[profileCode]/_actions/guest-full-thread-actions";
+import {
+  getGuestFullThread,
+  resolveSignedInClientRedirect,
+} from "@/app/t/[profileCode]/_actions/guest-full-thread-actions";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 
 import { GuestFullThreadView } from "./GuestFullThreadView";
@@ -39,30 +42,37 @@ export default async function GuestFullConversationPage({
 }) {
   const { inquiryId } = await params;
 
-  // Ownership-gated read + brand resolve (the gate runs first; a non-owner
-  // learns nothing). Any failure here → 404 (never reveal whether the inquiry
-  // exists or who owns it).
+  // ── 1. Check for a signed-in owning client FIRST (before the guest cookie
+  // path). getGuestFullThread gates on the guest cookie; a signed-in client
+  // whose current guest cookie doesn't own the inquiry would hit notFound()
+  // before the redirect was ever reached. Instead we do a lightweight
+  // service-role read to compare session.user.id to the inquiry's
+  // client_user_id, BEFORE touching the guest path. Non-owned → fall through.
+  const session = await getCachedActorSession();
+  if (session.user) {
+    const clientRedirect = await resolveSignedInClientRedirect(inquiryId);
+    if (
+      clientRedirect &&
+      clientRedirect.clientUserId &&
+      session.user.id === clientRedirect.clientUserId &&
+      clientRedirect.tenantSlug
+    ) {
+      redirect(
+        `/${clientRedirect.tenantSlug}/client/messages?inquiry=${encodeURIComponent(
+          inquiryId,
+        )}&tab=chat`,
+      );
+    }
+    // If the signed-in user is NOT the owner of this inquiry, fall through to
+    // the guest path — they may have a valid guest cookie that owns it.
+  }
+
+  // ── 2. Ownership-gated guest read + brand resolve (the gate runs first; a
+  // non-owner learns nothing). Any failure here → 404 (never reveal whether
+  // the inquiry exists or who owns it).
   const result = await getGuestFullThread({ inquiryId });
   if (!result.ok) {
     notFound();
-  }
-
-  // Signed-in owning client → deep-link into the REAL client Messages shell
-  // instead of the guest reading-room. We compare the verified session user
-  // (from middleware-set headers, server-resolved) to the inquiry's
-  // client_user_id returned by the gated read.
-  const session = await getCachedActorSession();
-  if (
-    session.user &&
-    result.clientUserId &&
-    session.user.id === result.clientUserId &&
-    result.tenantSlug
-  ) {
-    redirect(
-      `/${result.tenantSlug}/client/messages?inquiry=${encodeURIComponent(
-        inquiryId,
-      )}&tab=chat`,
-    );
   }
 
   // GUEST destination — render the full-window thread. The two server actions

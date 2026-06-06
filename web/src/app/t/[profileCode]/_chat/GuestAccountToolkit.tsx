@@ -59,6 +59,13 @@ export type GuestAccountToolkitProps = {
    * panel passes to ClaimEmailRecap). Null hides the action.
    */
   onAddClaimEmail: AddClaimEmailCallback | null;
+  /**
+   * When true, demote the CTA button from a filled accent button to a
+   * secondary/outline style so there is only ONE primary CTA in the panel at
+   * a time (fix 8). Set to true when threadStatus is offer_pending|approved|booked
+   * (the OpenFullConversationLink footer is already the filled accent primary).
+   */
+  deemphasizeButton?: boolean;
 };
 
 export function GuestAccountToolkit({
@@ -68,6 +75,7 @@ export function GuestAccountToolkit({
   accent,
   accentInk,
   onAddClaimEmail,
+  deemphasizeButton = false,
 }: GuestAccountToolkitProps) {
   const [sending, setSending] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
@@ -127,20 +135,40 @@ export function GuestAccountToolkit({
           type="button"
           onClick={() => void sendLink()}
           disabled={!canSend}
-          style={{
-            alignSelf: "flex-start",
-            height: 32,
-            padding: "0 14px",
-            borderRadius: 8,
-            border: "none",
-            background: accent,
-            color: accentInk,
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: canSend ? "pointer" : "not-allowed",
-            opacity: canSend ? 1 : 0.55,
-            transition: "opacity 120ms",
-          }}
+          style={
+            deemphasizeButton
+              ? {
+                  // Secondary/outline style — accent text + border, no fill.
+                  // Ensures only one primary (filled) CTA is visible when
+                  // OpenFullConversationLink is already the filled accent action.
+                  alignSelf: "flex-start",
+                  height: 32,
+                  padding: "0 14px",
+                  borderRadius: 8,
+                  border: `1.5px solid ${accent}`,
+                  background: "transparent",
+                  color: accent,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: canSend ? "pointer" : "not-allowed",
+                  opacity: canSend ? 1 : 0.55,
+                  transition: "opacity 120ms",
+                }
+              : {
+                  alignSelf: "flex-start",
+                  height: 32,
+                  padding: "0 14px",
+                  borderRadius: 8,
+                  border: "none",
+                  background: accent,
+                  color: accentInk,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: canSend ? "pointer" : "not-allowed",
+                  opacity: canSend ? 1 : 0.55,
+                  transition: "opacity 120ms",
+                }
+          }
         >
           {sending ? "Sending…" : "Email me a sign-in link"}
         </button>

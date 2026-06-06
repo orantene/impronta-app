@@ -76,6 +76,46 @@ function logoUrlFromThemeJson(themeJson: unknown): string | null {
   return typeof candidate === "string" && candidate.trim() ? candidate : null;
 }
 
+/**
+ * Resolve the tenantSlug + clientUserId for a given inquiry using a
+ * service-role read (no guest cookie required). Used by the /c/[inquiryId]
+ * page to check whether the current signed-in user is the owning client —
+ * BEFORE falling through to the guest cookie path. Returns null when the
+ * inquiry cannot be found or the tenant is unavailable.
+ *
+ * SECURITY: this exposes no user data; it only returns the UUID of the
+ * inquiry's client_user_id so the page can compare it to the session. No
+ * message content or PII is returned.
+ */
+export async function resolveSignedInClientRedirect(inquiryId: string): Promise<{
+  tenantSlug: string;
+  clientUserId: string | null;
+} | null> {
+  const admin = createServiceRoleClient();
+  if (!admin) return null;
+  try {
+    const { data: row, error } = await admin
+      .from("inquiries")
+      .select("tenant_id, client_user_id")
+      .eq("id", inquiryId)
+      .maybeSingle();
+    if (error || !row) return null;
+    const tenantId = row.tenant_id as string;
+    const clientUserId = (row.client_user_id as string | null) ?? null;
+    const { data: agencyRow } = await admin
+      .from("agencies")
+      .select("slug, status")
+      .eq("id", tenantId)
+      .maybeSingle();
+    const agencyStatus = (agencyRow?.status as string | null) ?? null;
+    if (!agencyRow || agencyStatus === "cancelled" || agencyStatus === "archived") return null;
+    const tenantSlug = (agencyRow.slug as string | null)?.trim() || "";
+    return { tenantSlug, clientUserId };
+  } catch {
+    return null;
+  }
+}
+
 export async function getGuestFullThread(input: {
   inquiryId: string;
 }): Promise<GetGuestFullThreadResult> {
