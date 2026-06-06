@@ -14,7 +14,7 @@ import type { CustomBreakpoint } from "@/lib/site-admin/sections/shared/presenta
 export function BreakpointStyleEngine({
   tiers,
 }: {
-  tiers?: CustomBreakpoint[] | null;
+  tiers?: readonly CustomBreakpoint[] | null;
 }) {
   const css = generateCustomBreakpointCss(tiers);
   if (!css) return null;

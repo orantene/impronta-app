@@ -127,8 +127,12 @@ const StarterTemplateGalleryOverlay = dynamic(
 
 const DEVICE_WIDTHS: Record<EditDevice, number | null> = {
   desktop: null,
+  // W5-T6 built-in extra tiers: `wide` previews in the 1024–1280 band (tablet
+  // doesn't fire), `compact` in the small-phone band (≤480).
+  wide: 1200,
   tablet: 834,
   mobile: 390,
+  compact: 414,
 };
 
 // Job #17 — landscape (rotated) frame widths. A rotated frame swaps to the
@@ -137,8 +141,10 @@ const DEVICE_WIDTHS: Record<EditDevice, number | null> = {
 // landscape 1112, mobile portrait 390 → landscape 844. Desktop has no rotation.
 const DEVICE_LANDSCAPE_WIDTHS: Record<EditDevice, number | null> = {
   desktop: null,
+  wide: 1200,
   tablet: 1112,
   mobile: 844,
+  compact: 812,
 };
 
 // Job #17 — bounds for the custom-width input. Floor keeps a usable frame;

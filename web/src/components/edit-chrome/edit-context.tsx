@@ -172,7 +172,7 @@ import {
 /** Dispatched from storefront surfaces outside `EditProvider` (empty canvas) to open the template gallery overlay. */
 export const IMPRONTA_OPEN_TEMPLATE_GALLERY_EVENT = "impronta:open-template-gallery";
 
-export type EditDevice = "desktop" | "tablet" | "mobile";
+export type EditDevice = "desktop" | "tablet" | "mobile" | "wide" | "compact";
 
 /**
  * Responsive-preview frame override (job #17) — see {@link EditContextValue.previewFrame}.

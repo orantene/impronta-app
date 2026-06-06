@@ -2196,11 +2196,19 @@ export function StylePanel({
   // state is retained (rather than reading `device` directly) so the dozens of
   // existing `selectedViewport` reads keep working and a future "decouple"
   // affordance can diverge them without a wide refactor.
+  // W5-T6 — freeform nodes have no wide/compact viewport; map those section
+  // breakpoints to the nearest node viewport (wide→desktop, compact→mobile) so
+  // the inspector still lands somewhere sensible when the canvas is on a
+  // custom tier.
+  const mappedViewport: NodeViewport =
+    device === "wide" ? "desktop" : device === "compact" ? "mobile" : device;
   const [selectedViewport, setSelectedViewport] =
-    useState<NodeViewport>(device);
+    useState<NodeViewport>(mappedViewport);
   useEffect(() => {
-    setSelectedViewport((prev) => (prev === device ? prev : device));
-  }, [device]);
+    setSelectedViewport((prev) =>
+      prev === mappedViewport ? prev : mappedViewport,
+    );
+  }, [mappedViewport]);
   const [selectedStandaloneStyleScope, setSelectedStandaloneStyleScope] =
     useState<StandaloneStyleScope>("viewport");
   // Wave 3 · 3D — which interaction state the hover/state editor is targeting.

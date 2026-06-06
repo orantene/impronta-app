@@ -34,6 +34,8 @@ import {
 import { GoogleFontsLink } from "./google-fonts-link";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { TenantRegisterMount } from "@/components/marketing/tenant-register-mount";
+import { BreakpointStyleEngine } from "@/components/edit-chrome/breakpoint-style-engine";
+import { BUILTIN_EXTRA_TIERS } from "@/lib/site-admin/builder-node/custom-breakpoint-css";
 
 import "./globals.css";
 
@@ -187,6 +189,10 @@ export default async function RootLayout({
         <GoogleFontsLink tokens={designTokens} />
         {/* Phase 5 — global scroll-reveal observer (no-op when no targets). */}
         <ScrollReveal />
+        {/* W5-T6 — built-in extra breakpoint tiers (wide ≤1280 / compact ≤480).
+            Renders a single <style>; reaches both the editor and published
+            storefront so section data-section-<tier>-* overrides take effect. */}
+        <BreakpointStyleEngine tiers={BUILTIN_EXTRA_TIERS} />
         <AnalyticsScripts
           gaId={tenantAnalytics?.gaId}
           gtmId={tenantAnalytics?.gtmId}

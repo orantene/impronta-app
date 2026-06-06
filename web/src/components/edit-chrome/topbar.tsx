@@ -1004,6 +1004,16 @@ const VIEWPORT_OPTS: ReadonlyArray<{
     ),
   },
   {
+    key: "wide",
+    label: "Wide",
+    icon: (
+      <svg width="13" height="11" viewBox="0 0 26 22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <rect x="1" y="3" width="24" height="13" rx="2" />
+        <line x1="9" y1="20" x2="17" y2="20" />
+      </svg>
+    ),
+  },
+  {
     key: "tablet",
     label: "Tablet",
     icon: (
@@ -1018,6 +1028,15 @@ const VIEWPORT_OPTS: ReadonlyArray<{
     icon: (
       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
         <rect x="7" y="2" width="10" height="20" rx="2" />
+      </svg>
+    ),
+  },
+  {
+    key: "compact",
+    label: "Compact",
+    icon: (
+      <svg width="9" height="11" viewBox="0 0 18 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <rect x="5" y="2" width="8" height="20" rx="2" />
       </svg>
     ),
   },
@@ -1193,8 +1212,10 @@ const PREVIEW_WIDTH_MAX = 1920;
 // the operator nudges from the real frame width, not an empty field.
 const VIEWPORT_NATURAL_WIDTHS: Record<EditDevice, number> = {
   desktop: 1280,
+  wide: 1200,
   tablet: 834,
   mobile: 390,
+  compact: 414,
 };
 
 function ViewportSwitcher({

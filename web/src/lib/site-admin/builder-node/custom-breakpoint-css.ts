@@ -63,6 +63,20 @@ const SLUG = /^[a-z][a-z0-9-]*$/;
 const MIN_PX = 360;
 const MAX_PX = 2560;
 
+/**
+ * Built-in extra tiers shipped today (beyond the static desktop/tablet/mobile):
+ *   - `wide`    — small-laptop band (≤1280px); lets operators tune the
+ *                 1024–1280 range the base "desktop" couldn't reach.
+ *   - `compact` — small phones (≤480px); finer control below the mobile tier.
+ * Operator-TYPED thresholds (per-page definitions) are the engine-ready
+ * fast-follow — the generator already accepts arbitrary tiers; this constant
+ * is simply the zero-persistence default set.
+ */
+export const BUILTIN_EXTRA_TIERS: ReadonlyArray<CustomBreakpoint> = [
+  { id: "wide", label: "Wide", maxWidthPx: 1280 },
+  { id: "compact", label: "Compact", maxWidthPx: 480 },
+];
+
 function rulesFor(id: string): string {
   const lines: string[] = [];
   for (const [v, decl] of Object.entries(BACKGROUND))
@@ -90,7 +104,7 @@ function rulesFor(id: string): string {
  * tiers (bad slug / out-of-range px) and duplicate ids are dropped.
  */
 export function generateCustomBreakpointCss(
-  tiers: CustomBreakpoint[] | undefined | null,
+  tiers: readonly CustomBreakpoint[] | undefined | null,
 ): string {
   if (!tiers || tiers.length === 0) return "";
   const seen = new Set<string>();

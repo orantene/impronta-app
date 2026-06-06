@@ -728,8 +728,10 @@ export const ANIMATION_FIELD_LABELS = {
  */
 export const BREAKPOINT_LABELS = {
   desktop: "Desktop",
+  wide: "Wide",
   tablet: "Tablet",
   mobile: "Mobile",
+  compact: "Compact",
 } as const;
 
 export type BreakpointKey = keyof typeof BREAKPOINT_LABELS;
