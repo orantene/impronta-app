@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { BuilderNodeRendererStyles, renderBuilderNodes } from "./render";
 import type { BuilderNode } from "./types";
 import { renderInlineRich } from "@/lib/site-admin/sections/shared/rich-text";
+import { nodePresentationToBuilderStyle } from "./node-presentation-bridge";
 
 function renderRich(input: string): string {
   return renderToStaticMarkup(
@@ -1553,4 +1554,66 @@ test("backgroundLayers: node with only backgroundColor/backgroundImage renders b
   const bgImageCount = (legacy.match(/background-image:/gi) ?? []).length;
   assert.ok(bgImageCount >= 1, "background-image present");
   assert.ok(!legacy.includes("background-blend-mode"), "no blend mode injection");
+});
+
+// ── W4-T1: style-engine bridge render cascade pin ─────────────────────────────
+// Pins the DOCUMENTED cascade order (sharedNodeStyle: "Free-value escapes —
+// applied last so they override the token presets above") through the REAL
+// renderBuilderNodes path, fed by the curated→freeform bridge. This is the
+// seatbelt for the W4-T2 dual-inspector collapse: if a future change reorders
+// the cascade so a token preset wins over a free escape (or `tone` wins over
+// `textColor`), these assertions break.
+
+function headingWithStyle(style: Record<string, unknown>): BuilderNode {
+  return {
+    id: "h1",
+    kind: "heading",
+    props: { text: "Cascade", level: 2, style },
+  } as BuilderNode;
+}
+
+test("bridge cascade: nodePresentation px-int spacing renders as px CSS through renderBuilderNodes", () => {
+  const style = nodePresentationToBuilderStyle({
+    align: "left",
+    maxWidthPx: 740,
+    marginTopPx: 14,
+    marginBottomPx: 18,
+    paddingTopPx: 6,
+    paddingBottomPx: 8,
+  });
+  const html = render([headingWithStyle(style as Record<string, unknown>)]);
+  assert.match(html, /text-align:left/);
+  assert.match(html, /max-width:740px/);
+  assert.match(html, /margin-top:14px/);
+  assert.match(html, /margin-bottom:18px/);
+  assert.match(html, /padding-top:6px/);
+  assert.match(html, /padding-bottom:8px/);
+});
+
+test("bridge cascade: a free fontSize (from fontSizePx) WINS over the size token", () => {
+  // size:"sm" is a token preset; fontSizePx:48 is the free escape. The renderer
+  // applies the free escape last (documented), so the rendered font-size is 48px.
+  const style = nodePresentationToBuilderStyle({ size: "sm", fontSizePx: 48 });
+  const html = render([headingWithStyle(style as Record<string, unknown>)]);
+  assert.match(html, /font-size:48px/, "free fontSize must win over the size token");
+});
+
+test("bridge cascade: textColor WINS over the tone token (free escape applied last)", () => {
+  // tone:"muted" sets a muted color token; textColor is the raw free escape and
+  // must win — pin the documented order (tone before, textColor after).
+  const style = nodePresentationToBuilderStyle({ tone: "muted", textColor: "#ff0000" });
+  const html = render([headingWithStyle(style as Record<string, unknown>)]);
+  // The final color declaration must be the raw textColor, not the muted token.
+  assert.match(html, /color:#ff0000/, "textColor must win over tone");
+  assert.ok(
+    !/color:rgba\(18, 18, 18, 0\.62\)/.test(html) ||
+      html.lastIndexOf("#ff0000") > html.lastIndexOf("rgba(18, 18, 18, 0.62)"),
+    "textColor must be the last-wins color",
+  );
+});
+
+test("bridge cascade: visibility hidden renders display:none", () => {
+  const style = nodePresentationToBuilderStyle({ visibility: "hidden" });
+  const html = render([headingWithStyle(style as Record<string, unknown>)]);
+  assert.match(html, /display:none/);
 });
