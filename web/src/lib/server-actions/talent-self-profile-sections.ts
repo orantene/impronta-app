@@ -631,11 +631,19 @@ export async function updateSelfEmergencyContact(input: {
 }): Promise<Result> {
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase, tenantId, profileCode } = auth;
+  const { tenantId, profileCode } = auth;
+
+  // Roster writes: the talent has SELECT-only RLS on agency_talent_roster
+  // (no talent UPDATE policy — only is_staff_of_tenant can write). The
+  // requireTalentSelfAction ownership check above IS the security boundary,
+  // so do the scoped write with the service-role client (same pattern as
+  // selfSetRosterVisibility). Without this the UPDATE silently hits 0 rows.
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error" };
 
   const contact = { name: input.name.trim(), relation: input.relation.trim(), phone: input.phone.trim() };
 
-  const { error } = await supabase
+  const { error } = await admin
     .from("agency_talent_roster")
     .update({ emergency_contact: contact })
     .eq("talent_profile_id", input.talent_profile_id)
@@ -732,9 +740,14 @@ export async function selfPauseAgency(input: {
 }): Promise<Result> {
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase, profileCode } = auth;
+  const { profileCode } = auth;
 
-  const { error } = await supabase
+  // Talent has SELECT-only RLS on agency_talent_roster; ownership is enforced
+  // by requireTalentSelfAction above, so write with the service-role client.
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error" };
+
+  const { error } = await admin
     .from("agency_talent_roster")
     .update({ status: "inactive" })
     .eq("talent_profile_id", input.talent_profile_id)
@@ -757,9 +770,14 @@ export async function selfResumeAgency(input: {
 }): Promise<Result> {
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase, profileCode } = auth;
+  const { profileCode } = auth;
 
-  const { error } = await supabase
+  // Talent has SELECT-only RLS on agency_talent_roster; ownership is enforced
+  // by requireTalentSelfAction above, so write with the service-role client.
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error" };
+
+  const { error } = await admin
     .from("agency_talent_roster")
     .update({ status: "active" })
     .eq("talent_profile_id", input.talent_profile_id)
@@ -782,9 +800,14 @@ export async function selfRemoveAgency(input: {
 }): Promise<Result> {
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase, profileCode } = auth;
+  const { profileCode } = auth;
 
-  const { error } = await supabase
+  // Talent has SELECT-only RLS on agency_talent_roster; ownership is enforced
+  // by requireTalentSelfAction above, so write with the service-role client.
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error" };
+
+  const { error } = await admin
     .from("agency_talent_roster")
     .update({
       status: "removed",
@@ -834,10 +857,13 @@ export async function selfSetPrimaryAgency(input: {
 }): Promise<Result> {
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase } = auth;
+  // Talent has SELECT-only RLS on agency_talent_roster; ownership is enforced
+  // by requireTalentSelfAction above, so write with the service-role client.
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error" };
 
   // Clear all primaries for this talent first.
-  const { error: clearErr } = await supabase
+  const { error: clearErr } = await admin
     .from("agency_talent_roster")
     .update({ is_primary: false })
     .eq("talent_profile_id", input.talent_profile_id)
@@ -845,7 +871,7 @@ export async function selfSetPrimaryAgency(input: {
   if (clearErr) { logServerError("self-sections.set-primary.clear", clearErr); return { ok: false, error: CLIENT_ERROR.update }; }
 
   // Set the chosen agency as primary + mark confirmed (talent is the actor).
-  const { error: setErr } = await supabase
+  const { error: setErr } = await admin
     .from("agency_talent_roster")
     .update({
       is_primary: true,
@@ -880,9 +906,12 @@ export async function confirmAgencyExclusivity(input: {
 }): Promise<Result> {
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase } = auth;
+  // Talent has SELECT-only RLS on agency_talent_roster; ownership is enforced
+  // by requireTalentSelfAction above, so write with the service-role client.
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error" };
 
-  const { error } = await supabase
+  const { error } = await admin
     .from("agency_talent_roster")
     .update({
       exclusivity_status: "confirmed",
@@ -905,9 +934,12 @@ export async function declineAgencyExclusivity(input: {
 }): Promise<Result> {
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase } = auth;
+  // Talent has SELECT-only RLS on agency_talent_roster; ownership is enforced
+  // by requireTalentSelfAction above, so write with the service-role client.
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error" };
 
-  const { error } = await supabase
+  const { error } = await admin
     .from("agency_talent_roster")
     .update({
       is_primary: false,
