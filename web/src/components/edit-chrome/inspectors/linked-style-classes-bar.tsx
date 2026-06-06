@@ -65,11 +65,22 @@ function readClasses(pageId: string | null): BuilderStyleClass[] {
   }
 }
 
-function writeClasses(pageId: string | null, classes: ReadonlyArray<BuilderStyleClass>) {
+/**
+ * Persist the registry. Returns `true` only when the write succeeded, so a
+ * caller that is about to strip a block down to a bare `{ classRef }` can first
+ * confirm the class actually landed in storage (otherwise the block would
+ * reference a class that does not exist → it would render blank on reload).
+ */
+function writeClasses(
+  pageId: string | null,
+  classes: ReadonlyArray<BuilderStyleClass>,
+): boolean {
   try {
     window.localStorage.setItem(storageKey(pageId), JSON.stringify(classes));
+    return true;
   } catch {
-    /* quota / private-mode — non-fatal */
+    /* quota / private-mode — non-fatal; caller keeps the block's own style */
+    return false;
   }
 }
 
@@ -109,9 +120,12 @@ export function LinkedStyleClassesBar({
   }, [pageId]);
 
   const persist = useCallback(
-    (next: ReadonlyArray<BuilderStyleClass>) => {
-      setClasses(next);
-      writeClasses(pageId, next);
+    (next: ReadonlyArray<BuilderStyleClass>): boolean => {
+      const ok = writeClasses(pageId, next);
+      // Only mirror into React state when the registry actually persisted, so
+      // local state never claims a class exists that storage refused to keep.
+      if (ok) setClasses(next);
+      return ok;
     },
     [pageId],
   );
@@ -143,7 +157,19 @@ export function LinkedStyleClassesBar({
       classes.map((c) => c.id),
     );
     const nextClass: BuilderStyleClass = { id, name: name.trim(), style: snapshot };
-    persist([...classes, nextClass]);
+    // SAFETY (Marathon W1-T3): persist FIRST and only collapse the block to a
+    // bare `{ classRef }` once the registry write is confirmed. If storage
+    // refused the write (quota / private mode), the class would not exist and
+    // `{ classRef: id }` would resolve to the node's own (now-stripped) style —
+    // i.e. it would blank the block. On failure we keep the block's existing
+    // style intact and tell the operator nothing was saved.
+    const saved = persist([...classes, nextClass]);
+    if (!saved) {
+      window.alert(
+        "Couldn't save the style class in this browser, so the block was left unchanged. Free up some space and try again.",
+      );
+      return;
+    }
     // The block now references the class and keeps no local overrides, so the
     // class is the single source of truth for its look.
     onSetStyle({ classRef: id });

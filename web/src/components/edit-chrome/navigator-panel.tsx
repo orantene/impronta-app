@@ -1525,8 +1525,14 @@ export function NavigatorPanel() {
               Wave 5.8 — added "Classes" tab for the Class Manager. */}
           {(["sections", "outline", "classes"] as const).map((mode) => {
             const active = viewMode === mode;
+            // Marathon W1-T3 — honest label until W1-T2 makes classes publish.
+            // Removed again once publish bakes the registry (see W1-T2).
             const displayLabel =
-              mode === "sections" ? "Layers" : mode === "outline" ? "Outline" : "Classes";
+              mode === "sections"
+                ? "Layers"
+                : mode === "outline"
+                  ? "Outline"
+                  : "Classes (editor only)";
             return (
               <button
                 key={mode}
@@ -4164,6 +4170,36 @@ function ClassManagerPanel({
     }
   }, [renamingId]);
 
+  // Marathon W1-T3 — honesty banner. Classes are saved per-browser and do
+  // NOT yet reach the published site (the publish path doesn't bake the
+  // registry). Shown on every Class-Manager branch until W1-T2 lands, then
+  // removed alongside the "(editor only)" tab label.
+  const editorOnlyBanner = (
+    <div
+      data-builder-class-manager-banner=""
+      style={{
+        display: "flex",
+        gap: 6,
+        padding: "8px 10px",
+        margin: "0 0 8px",
+        borderRadius: CHROME_RADII.sm,
+        background: CHROME.amberBg,
+        border: `1px solid ${CHROME.amberLine}`,
+        fontSize: 11,
+        lineHeight: 1.45,
+        color: CHROME.amber,
+      }}
+    >
+      <span aria-hidden style={{ flexShrink: 0, fontWeight: 700 }}>
+        ⚠
+      </span>
+      <span>
+        Classes are saved to this browser and don&rsquo;t appear on your live
+        site yet.
+      </span>
+    </div>
+  );
+
   // ── Empty states ──────────────────────────────────────────────────────────
 
   if (classes.length === 0) {
@@ -4176,6 +4212,7 @@ function ClassManagerPanel({
           gap: 6,
         }}
       >
+        {editorOnlyBanner}
         <span
           style={{
             fontSize: 12,
@@ -4201,15 +4238,18 @@ function ClassManagerPanel({
 
   if (filtered.length === 0 && q) {
     return (
-      <div
-        style={{
-          padding: "10px 8px",
-          fontSize: 11.5,
-          color: CHROME.muted2,
-          fontStyle: "italic",
-        }}
-      >
-        No classes match &ldquo;{search}&rdquo;.
+      <div>
+        {editorOnlyBanner}
+        <div
+          style={{
+            padding: "10px 8px",
+            fontSize: 11.5,
+            color: CHROME.muted2,
+            fontStyle: "italic",
+          }}
+        >
+          No classes match &ldquo;{search}&rdquo;.
+        </div>
       </div>
     );
   }
@@ -4225,6 +4265,7 @@ function ClassManagerPanel({
       }}
       data-builder-class-manager=""
     >
+      {editorOnlyBanner}
       {/* Section header */}
       <div
         style={{
