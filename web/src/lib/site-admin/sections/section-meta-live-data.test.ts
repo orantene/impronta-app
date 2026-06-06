@@ -111,6 +111,21 @@ test("every canonical data-bound section is a real section directory on disk", (
   }
 });
 
+test("W2-T2: the section-live-data resolver's set EXACTLY matches the canonical data-bound list", async () => {
+  // The runtime refresh-guard reads `sectionTypeHasLiveData` from
+  // `section-live-data.ts` (a client-safe, Component-free meta aggregation).
+  // Pin that its derived key set equals the async-Component-derived canonical
+  // set — so a NEW data-bound section tagged in meta.ts but NOT added to the
+  // resolver's import list (or vice-versa) fails loudly here.
+  const { LIVE_DATA_SECTION_TYPE_KEYS } = await import("./section-live-data");
+  assert.deepEqual(
+    [...LIVE_DATA_SECTION_TYPE_KEYS].sort(),
+    EXPECTED_DATA_BOUND_SECTIONS,
+    "section-live-data.ts's hasLiveData set drifted from the canonical async-Component set — " +
+      "reconcile its meta import list AND the meta.ts hasLiveData tags.",
+  );
+});
+
 test("W2-T2 GATE: when hasLiveData is present, EVERY data-bound section is true and EVERY pure section is falsy", async () => {
   // Forward-looking. `hasLiveData` is added in W2-T2. Until then `meta` lacks
   // the field and this body asserts nothing about it (the contract is carried by

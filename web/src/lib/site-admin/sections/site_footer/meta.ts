@@ -2,6 +2,9 @@ import type { SectionMeta } from "../types";
 
 export const siteFooterMeta: SectionMeta = {
   key: "site_footer",
+  // W2-T2 — server data-loader (the shell footer resolves tenant/nav data at
+  // render time): an in-editor prop edit must still router.refresh() to repaint.
+  hasLiveData: true,
   label: "Site footer",
   description:
     "The footer that wraps every page on this tenant — brand recap, link columns, social, legal copy. Edited as a section, published as part of the site shell.",

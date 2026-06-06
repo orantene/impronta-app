@@ -2,6 +2,9 @@ import type { SectionMeta } from "../types";
 
 export const siteHeaderMeta: SectionMeta = {
   key: "site_header",
+  // W2-T2 — server data-loader (the shell header resolves tenant/nav data at
+  // render time): an in-editor prop edit must still router.refresh() to repaint.
+  hasLiveData: true,
   label: "Site header",
   description:
     "The header that wraps every page on this tenant — brand mark, primary navigation, optional CTA. Edited as a section, published as part of the site shell.",

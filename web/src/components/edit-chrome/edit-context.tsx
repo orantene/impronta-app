@@ -115,6 +115,7 @@ import { checkSlotTypeCompatibility } from "@/lib/site-admin/edit-mode/slot-type
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
 import { isBuilderClientCanvasEnabled } from "@/lib/site-admin/edit-mode/client-canvas-flag";
+import { sectionTypeHasLiveData } from "@/lib/site-admin/sections/section-live-data";
 import { publishBuilderCanvasTree } from "./client-builder-canvas-bridge";
 import {
   readClasses as readStyleClasses,
@@ -3458,7 +3459,22 @@ export function EditProvider({
             sectionTypeKey: snapshot.sectionTypeKey,
             props: mutation.props,
           });
-          void queueRouterRefresh();
+          // W2-T2 — curated section_embed refresh guard. A prop edit to a
+          // PURE-RENDER curated section (output is a deterministic function of
+          // its props) is already reflected in the live ClientBuilderCanvas
+          // snapshot via syncBuilderNodeChildrenForSection above, so the
+          // unconditional router.refresh() was a wasted server round-trip on
+          // every keystroke-commit (hero / CTA / trust-strip, etc.). Skip it for
+          // those; keep the full refresh for DATA-BOUND sections (hasLiveData),
+          // whose on-screen island only reflects new props after a server
+          // re-render. With the client canvas OFF (legacy server-render) the
+          // refresh is still the only repaint path → always refresh then.
+          if (
+            !isBuilderClientCanvasEnabled() ||
+            sectionTypeHasLiveData(snapshot.sectionTypeKey)
+          ) {
+            void queueRouterRefresh();
+          }
           recordDispatchAudit(mutation.sectionId);
           return { ok: true };
         }
