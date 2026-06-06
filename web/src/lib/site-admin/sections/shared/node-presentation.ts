@@ -1,20 +1,54 @@
 import { z } from "zod";
 import type { CSSProperties } from "react";
 
+/**
+ * Engine-B curated element-style vocabulary. The px-INTEGER companions below
+ * (`*Px`, `lineHeightPct`) are the PARALLEL element-style vocabulary to the
+ * canonical Engine-A model (`BuilderNodeStyle`, CSS-string convention). They are
+ * `@deprecated` at the field level (see each field's `.describe("@deprecated …")`)
+ * to steer NEW styling toward Engine A + the conversion bridge
+ * (`node-presentation-bridge.ts`).
+ *
+ * STORAGE IS RETAINED — do not delete these. Curated section props persist
+ * `nodePresentation` in this px-int shape, and the curated inspector / presets /
+ * clipboard speak it today; removing it is a data migration (out of scope). The
+ * deprecation means: **do not add a new parallel px-int field here — add it to
+ * `BuilderNodeStyle` and let the bridge carry it.** Full rationale + cascade
+ * ladder: `web/docs/builder-style-model.md` (W4-T5). The three fields that do NOT
+ * losslessly collapse to Engine A (`size`, `tone`, the inline shorthands) are
+ * intentionally non-deprecated — they have no context-free Engine-A home (proven
+ * by the `W4-T2 seam:` tests in `node-presentation-render.test.ts`).
+ */
 export const nodePresentationValueSchema = z.object({
   align: z.enum(["left", "center", "right"]).optional(),
+  // @deprecated px-int companion to Engine-A `maxWidthFree` — use BuilderNodeStyle + the bridge for new code (storage kept).
   maxWidthPx: z.number().int().min(120).max(1200).optional(),
+  // @deprecated px-int companion to Engine-A `marginTopFree` (storage kept; prefer BuilderNodeStyle).
   marginTopPx: z.number().int().min(0).max(240).optional(),
+  // @deprecated px-int companion to Engine-A `marginBottomFree` (storage kept; prefer BuilderNodeStyle).
   marginBottomPx: z.number().int().min(0).max(240).optional(),
+  // Inline shorthand — DELIBERATELY not collapsed to Engine A (the bridge expands
+  // it to per-side; the curated emitter keeps the `margin-inline` shorthand). Kept native.
   marginInlinePx: z.number().int().min(0).max(200).optional(),
+  // @deprecated px-int companion to Engine-A `marginLeftFree` (storage kept; prefer BuilderNodeStyle).
   marginLeftPx: z.number().int().min(0).max(200).optional(),
+  // @deprecated px-int companion to Engine-A `marginRightFree` (storage kept; prefer BuilderNodeStyle).
   marginRightPx: z.number().int().min(0).max(200).optional(),
+  // @deprecated px-int companion to Engine-A `paddingTop` (storage kept; prefer BuilderNodeStyle).
   paddingTopPx: z.number().int().min(0).max(160).optional(),
+  // @deprecated px-int companion to Engine-A `paddingBottom` (storage kept; prefer BuilderNodeStyle).
   paddingBottomPx: z.number().int().min(0).max(160).optional(),
+  // Inline shorthand — DELIBERATELY not collapsed to Engine A (kept native; see marginInlinePx).
   paddingInlinePx: z.number().int().min(0).max(120).optional(),
+  // @deprecated px-int companion to Engine-A `paddingLeft` (storage kept; prefer BuilderNodeStyle).
   paddingLeftPx: z.number().int().min(0).max(120).optional(),
+  // @deprecated px-int companion to Engine-A `paddingRight` (storage kept; prefer BuilderNodeStyle).
   paddingRightPx: z.number().int().min(0).max(120).optional(),
+  // Section-SCOPED token (font-size scale resolved per section via sizeMapper) —
+  // DELIBERATELY not collapsed to Engine A (no context-free home). Kept native.
   size: z.enum(["sm", "md", "lg", "xl"]).optional(),
+  // Token color hint (muted/strong) — DELIBERATELY not collapsed (resolves to a
+  // different color string across engines). Kept native.
   tone: z.enum(["default", "muted", "strong"]).optional(),
   visibility: z.enum(["visible", "hidden"]).optional(),
   // Free typography + color escapes — override the theme tokens (size/tone)
@@ -22,9 +56,12 @@ export const nodePresentationValueSchema = z.object({
   // design. Numeric fields stay in the px/int convention of this schema;
   // colors are stored as CSS color strings (validated by the CSSOM at render).
   fontFamily: z.string().max(160).optional(),
+  // @deprecated px-int companion to Engine-A `fontSize` (storage kept; prefer BuilderNodeStyle).
   fontSizePx: z.number().int().min(8).max(240).optional(),
   fontWeight: z.number().int().min(100).max(900).optional(),
+  // @deprecated px-int companion to Engine-A `letterSpacing` (storage kept; prefer BuilderNodeStyle).
   letterSpacingPx: z.number().min(-5).max(30).optional(),
+  // @deprecated percentage-int companion to Engine-A unitless `lineHeight` (120 ⇄ "1.2"; storage kept).
   lineHeightPct: z.number().int().min(80).max(300).optional(),
   textTransform: z.enum(["none", "uppercase", "lowercase", "capitalize"]).optional(),
   // Advanced text controls — modern wrapping, whitespace, and line-clamp.
@@ -39,6 +76,7 @@ export const nodePresentationValueSchema = z.object({
   textColor: z.string().max(64).optional(),
   backgroundColor: z.string().max(64).optional(),
   borderColor: z.string().max(64).optional(),
+  // @deprecated px-int companion to Engine-A `borderWidth` (storage kept; prefer BuilderNodeStyle).
   borderWidthPx: z.number().int().min(0).max(24).optional(),
   borderStyle: z.enum(["solid", "dashed", "dotted"]).optional(),
 });
