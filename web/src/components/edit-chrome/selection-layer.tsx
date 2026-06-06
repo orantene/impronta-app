@@ -730,6 +730,10 @@ export function SelectionLayer() {
   const spacingOverlayRef = useRef<HTMLDivElement | null>(null);
   const gapOverlayRef = useRef<HTMLDivElement | null>(null);
   const overlayTrackRafRef = useRef<number | null>(null);
+  // W3-T4 — rAF handle for the multi-select SECONDARY rings (mirrors the primary
+  // ring's tracking loop so they follow their blocks on scroll/resize instead of
+  // drifting until the next React render).
+  const multiRingTrackRafRef = useRef<number | null>(null);
   // W2-T6(c) — the overlay-tracking rAF loop re-measured the selected element
   // (getBoundingClientRect + 6 style writes) EVERY frame, ~60×/s, even when
   // nothing moved. This flag is set true by the exact geometry-change signals
@@ -2519,6 +2523,83 @@ export function SelectionLayer() {
     getSelectedSectionEl,
   ]);
 
+  // W3-T4 — rAF-track the multi-select SECONDARY rings to their source elements
+  // so they don't drift away from their blocks during a scroll (they used to be
+  // computed once synchronously at render and then sit still). Mirrors the
+  // primary ring's loop: seed once pre-paint, then re-measure only on the shared
+  // `geometryDirtyRef` signal (no idle reflows). Reads the rendered ring elements
+  // by `data-multi-ring-source` and writes top/left/width/height from each ring's
+  // source. Inactive (and cheap) when there's no multi-selection.
+  const hasMultiRings =
+    multiNodeSelectionActive || additionalSelectedIds.size > 0;
+  useLayoutEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    if (!hasMultiRings || isDragging) return undefined;
+
+    const syncMultiRings = () => {
+      const rings = document.querySelectorAll<HTMLElement>(
+        "[data-multi-ring-source]",
+      );
+      for (const ring of Array.from(rings)) {
+        const source = ring.getAttribute("data-multi-ring-source");
+        if (!source) continue;
+        const sep = source.indexOf(":");
+        const kind = source.slice(0, sep);
+        const id = source.slice(sep + 1);
+        let el: HTMLElement | null = null;
+        if (kind === "section") {
+          el = document.querySelector<HTMLElement>(
+            `[data-cms-section][data-section-id="${CSS.escape(id)}"]`,
+          );
+        } else {
+          el =
+            Array.from(
+              document.querySelectorAll<HTMLElement>(
+                `[data-builder-node-id="${CSS.escape(id)}"]`,
+              ),
+            ).find(
+              (candidate) =>
+                !candidate.closest(
+                  "[data-edit-topbar], [data-edit-drawer], [data-edit-overlay]",
+                ),
+            ) ?? null;
+        }
+        if (!el) continue;
+        const r = el.getBoundingClientRect();
+        ring.style.top = `${r.top}px`;
+        ring.style.left = `${r.left}px`;
+        ring.style.width = `${r.width}px`;
+        ring.style.height = `${r.height}px`;
+      }
+    };
+
+    // The shared `geometryDirtyRef` is primed by the same scroll/resize/RO/MO
+    // listeners the primary loop uses. When a BUILDER-NODE multi-select is
+    // active the primary ring loop early-returns (so it never clears the flag) →
+    // THIS loop is the sole owner and must clear it, or it would re-measure every
+    // idle frame (re-introducing the reflows W2-T6 removed). When only SECTION
+    // additional rings are active the primary loop is running and owns the flag,
+    // so we piggyback on its dirty frames without clearing.
+    const ownsDirtyFlag = multiNodeSelectionActive;
+    geometryDirtyRef.current = true;
+    syncMultiRings();
+    const tick = () => {
+      if (geometryDirtyRef.current) {
+        if (ownsDirtyFlag) geometryDirtyRef.current = false;
+        syncMultiRings();
+      }
+      multiRingTrackRafRef.current = requestAnimationFrame(tick);
+    };
+    multiRingTrackRafRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      if (multiRingTrackRafRef.current !== null) {
+        cancelAnimationFrame(multiRingTrackRafRef.current);
+        multiRingTrackRafRef.current = null;
+      }
+    };
+  }, [hasMultiRings, isDragging, multiNodeSelectionActive]);
+
   // 4A #7 — the HOVERED freeform block, when it's a directly-movable block (a
   // real element, not a section / role-bound slot / locked node). Drives the
   // on-hover grab handle so ANY block can be grabbed + reordered, not only the
@@ -3881,6 +3962,7 @@ export function SelectionLayer() {
           <div
             key={`add-${id}`}
             data-selection-additional-ring=""
+            data-multi-ring-source={`section:${id}`}
             style={{
               position: "fixed",
               top: r.top,
@@ -3903,6 +3985,7 @@ export function SelectionLayer() {
 	            key={`builder-add-${rect.id}`}
 	            data-builder-node-multi-ring=""
 	            data-builder-node-id={rect.id}
+	            data-multi-ring-source={`node:${rect.id}`}
 	            style={{
 	              position: "fixed",
 	              top: rect.top,
