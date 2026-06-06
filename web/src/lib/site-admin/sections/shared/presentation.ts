@@ -114,6 +114,26 @@ export const breakpointOverrideSchema = z
 export type BreakpointOverride = z.infer<typeof breakpointOverrideSchema>;
 
 /**
+ * W5-T6 — operator-defined custom breakpoint tier. Lives at the PAGE level
+ * (page settings); each section may then carry overrides keyed by the tier's
+ * `id` in its `breakpoints` map (alongside the built-in `tablet`/`mobile`).
+ * The runtime `<BreakpointStyleEngine>` emits an `@media (max-width: <maxWidthPx>)`
+ * block matching `data-section-<id>-*` attrs — mirroring the static tablet/mobile
+ * rules. `id` is slug-safe so it composes into attribute + selector names.
+ */
+export const customBreakpointSchema = z.object({
+  id: z
+    .string()
+    .min(1)
+    .max(32)
+    .regex(/^[a-z][a-z0-9-]*$/, "lowercase slug (a-z, 0-9, -)"),
+  label: z.string().min(1).max(40),
+  maxWidthPx: z.number().int().min(360).max(2560),
+});
+
+export type CustomBreakpoint = z.infer<typeof customBreakpointSchema>;
+
+/**
  * Section-level animation controls.
  *
  *   - entry        runs once when the section enters the viewport
@@ -172,6 +192,10 @@ export const sectionPresentationSchema = z
         tablet: breakpointOverrideSchema,
         mobile: breakpointOverrideSchema,
       })
+      // W5-T6 — operator-defined custom tiers are extra keys (slug id →
+      // overrides) alongside the built-in tablet/mobile. Back-compat: existing
+      // {tablet,mobile}-only data validates unchanged.
+      .catchall(breakpointOverrideSchema)
       .optional(),
 
     animation: sectionAnimationSchema,
@@ -399,6 +423,20 @@ export function presentationDataAttrs(
     if (mobile.containerWidth) out["data-section-mobile-container"] = mobile.containerWidth;
     if (mobile.align) out["data-section-mobile-align"] = mobile.align;
     if (mobile.dividerTop) out["data-section-mobile-divider-top"] = mobile.dividerTop;
+  }
+  // W5-T6 — operator-defined custom tiers. Any breakpoint key beyond the
+  // built-in tablet/mobile emits the same six override attrs under its slug id
+  // (`data-section-<id>-*`), matched at runtime by <BreakpointStyleEngine>.
+  if (p.breakpoints) {
+    for (const [bpId, ov] of Object.entries(p.breakpoints)) {
+      if (bpId === "tablet" || bpId === "mobile" || !ov) continue;
+      if (ov.background) out[`data-section-${bpId}-background`] = ov.background;
+      if (ov.paddingTop) out[`data-section-${bpId}-padding-top`] = ov.paddingTop;
+      if (ov.paddingBottom) out[`data-section-${bpId}-padding-bottom`] = ov.paddingBottom;
+      if (ov.containerWidth) out[`data-section-${bpId}-container`] = ov.containerWidth;
+      if (ov.align) out[`data-section-${bpId}-align`] = ov.align;
+      if (ov.dividerTop) out[`data-section-${bpId}-divider-top`] = ov.dividerTop;
+    }
   }
 
   // Animation. Reduced-motion mode defaults to "respect" — runtime CSS
