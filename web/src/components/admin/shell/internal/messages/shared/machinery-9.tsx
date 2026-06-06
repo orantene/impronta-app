@@ -198,6 +198,11 @@ export function ThreadSearchTrigger({
  * Chat tab. NOT a dropdown — a 3-button pill that hovers below the
  * Chat tab. Click any button to switch threads immediately.
  *
+ * F2 NOTE: the TALENT shell no longer uses this — its Chat sub-toggle
+ * was flattened into three top-level tabs (Client · Group · Activity).
+ * The ADMIN shell (admin-2.tsx) still renders the single Chat tab with
+ * this floating sub-toggle, so the component stays.
+ *
  * Position is `absolute` so it doesn't reserve vertical space — it
  * floats above the conversation pane's top edge. Parent must be
  * `position: relative`. The conversation pane below sits 36px down
@@ -332,12 +337,25 @@ export function tabIcon(id: ThreadTabId, locked: boolean): React.ReactNode {
         </svg>
       );
     case "talent":
+    case "group":
+      // Group / booking-team thread — multi-person speech bubble (three
+      // dots inside). Shared by the admin "talent" group thread and the
+      // talent shell's flattened Group tab (F2).
       return (
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
           <path d="M2.75 8c0-2.9 2.7-5 6.25-5s6.25 2.1 6.25 5-2.7 5-6.25 5c-.7 0-1.36-.08-1.96-.22L3.4 15l.85-2.95C3.4 11.05 2.75 9.7 2.75 8z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/>
           <circle cx="6" cy="8" r="1" fill="currentColor"/>
           <circle cx="9" cy="8" r="1" fill="currentColor"/>
           <circle cx="12" cy="8" r="1" fill="currentColor"/>
+        </svg>
+      );
+    case "activity":
+      // Activity timeline — clock face. Reads as "the job's
+      // money/booking log over time" (F2 flattened tab).
+      return (
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <circle cx="9" cy="9" r="6.5" stroke="currentColor" strokeWidth="1.6"/>
+          <path d="M9 5.25V9l2.5 1.75" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       );
     case "offer":
