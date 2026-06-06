@@ -485,13 +485,19 @@ export function CanvasSpacingHandles({
         </>
       ) : null}
 
-      {/* Readout */}
+      {/* Readout — live px gap + a one-line modifier hint (W3-T6). Shift
+       *  bypasses the 8px grid snap ("free"); that is the only modifier this
+       *  handle implements, so it is the only one advertised. */}
       {active ? (
         <span
           style={{
             position: "absolute",
             top: 4,
             left: 4,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-start",
+            gap: 2,
             padding: "2px 6px",
             borderRadius: 5,
             background: active.kind === "margin" ? "#5f7290" : accent,
@@ -505,7 +511,10 @@ export function CanvasSpacingHandles({
               'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
           }}
         >
-          {`${active.side} ${active.kind} ${liveVal}px`}
+          <span>{`${active.side} ${active.kind} ${liveVal}px`}</span>
+          <span style={{ fontWeight: 600, opacity: 0.78, fontSize: 9 }}>
+            ⇧ free
+          </span>
         </span>
       ) : null}
     </div>

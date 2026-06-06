@@ -416,13 +416,19 @@ export function CanvasResizeHandles({
           boxShadow: activeAxis === "both" ? activeShadow : undefined,
         })}
       />
-      {/* Live size readout while dragging */}
+      {/* Live size readout while dragging — W×H + a one-line modifier hint
+       *  (W3-T6). Shift bypasses snapping ("free"); that is the only modifier
+       *  this handle implements, so it is the only one advertised. */}
       {activeAxis ? (
         <span
           style={{
             position: "absolute",
             top: -22,
             right: 0,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-end",
+            gap: 2,
             padding: "2px 6px",
             borderRadius: 5,
             background: accent,
@@ -436,11 +442,16 @@ export function CanvasResizeHandles({
               'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
           }}
         >
-          {(activeAxis === "x"
-            ? `${liveW}px`
-            : activeAxis === "y"
-              ? `${liveH}px`
-              : `${liveW} × ${liveH}`) + (snapHint ? `  ·  ${snapHint}` : "")}
+          <span>
+            {(activeAxis === "x"
+              ? `${liveW}px`
+              : activeAxis === "y"
+                ? `${liveH}px`
+                : `${liveW} × ${liveH}`) + (snapHint ? `  ·  ${snapHint}` : "")}
+          </span>
+          <span style={{ fontWeight: 600, opacity: 0.78, fontSize: 9 }}>
+            ⇧ free
+          </span>
         </span>
       ) : null}
       </div>
