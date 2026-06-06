@@ -60,6 +60,8 @@ import { InspectorGroup } from "./kit";
 import { Swatch } from "../kit/swatch";
 import { CHROME } from "../kit/tokens";
 import { BoxModel } from "../kit/box-model";
+import { ImageCropModal } from "../image-crop";
+import { uploadCmsMedia } from "@/lib/client/signed-upload";
 
 // 2026-05-29 readability pass: warm stone (matches the kit) instead of cold
 // zinc, and INHERIT_HINT lifted off the AA-failing zinc-400 (~2.5:1) to a
@@ -2112,6 +2114,7 @@ export function StylePanel({
     // while silently editing Desktop rules.
     device,
     setDevice,
+    tenantId,
   } = useEditContext();
   const [nodeStyleClipboard, setNodeStyleClipboard] =
     useState<NodeStyleClipboard | null>(null);
@@ -2135,6 +2138,10 @@ export function StylePanel({
     style: BuilderNodeStyle | undefined;
   }>({ nodeId: null, style: undefined });
   const standalonePatchChainRef = useRef<Promise<void>>(Promise.resolve());
+  // W5-T5 — image crop entry point from the style panel.
+  const [imageCropOpen, setImageCropOpen] = useState(false);
+  const [imageCropSaving, setImageCropSaving] = useState(false);
+  const [imageCropError, setImageCropError] = useState<string | null>(null);
   const presentation =
     (draftProps.presentation as Record<string, unknown> | undefined) ?? {};
   const present = (key: string): string =>
@@ -9017,6 +9024,40 @@ export function StylePanel({
                     }
                   />
                 </div>
+                {/* W5-T5 — Crop entry point from the style panel. */}
+                {selectedStandaloneStyleNode.props.src ? (
+                  <div
+                    className="flex flex-col gap-1.5 border-t pt-3"
+                    data-builder-node-style-control="crop"
+                    style={{ borderColor: CHROME.line }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setImageCropError(null);
+                        setImageCropOpen(true);
+                      }}
+                      className="cursor-pointer text-left"
+                      style={{
+                        height: 32,
+                        background: CHROME.surface2,
+                        border: `1px solid ${CHROME.controlBorder}`,
+                        borderRadius: 7,
+                        color: CHROME.ink,
+                        fontSize: 12,
+                        fontWeight: 500,
+                        padding: "0 10px",
+                      }}
+                    >
+                      Crop image…
+                    </button>
+                    {imageCropError ? (
+                      <span style={{ fontSize: 11, color: CHROME.rose }}>
+                        {imageCropError}
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
               </>
             ) : null}
 
@@ -9578,6 +9619,45 @@ export function StylePanel({
         </div>
         </section>
       </details>
+
+      {/* W5-T5 — Image crop modal triggered from the image-node inspector */}
+      {imageCropOpen &&
+      selectedStandaloneStyleNode?.kind === "image" &&
+      selectedStandaloneStyleNode.props.src ? (
+        <ImageCropModal
+          src={selectedStandaloneStyleNode.props.src}
+          name="image"
+          saving={imageCropSaving}
+          error={imageCropError}
+          onSave={async (file: File) => {
+            setImageCropSaving(true);
+            setImageCropError(null);
+            try {
+              const result = await uploadCmsMedia({ file, tenantId, kind: "image" });
+              if (!result.ok || !result.item?.publicUrl) {
+                setImageCropError("Couldn't save the cropped image — try again.");
+                setImageCropSaving(false);
+                return;
+              }
+              await patchBuilderNodeProps(selectedStandaloneStyleNode.id, {
+                src: result.item.publicUrl,
+                mediaId: result.item.id ?? undefined,
+              });
+              setImageCropOpen(false);
+              setImageCropError(null);
+            } catch {
+              setImageCropError("Couldn't save the cropped image — try again.");
+            } finally {
+              setImageCropSaving(false);
+            }
+          }}
+          onClose={() => {
+            if (imageCropSaving) return;
+            setImageCropOpen(false);
+            setImageCropError(null);
+          }}
+        />
+      ) : null}
 
       {/* ── Hero treatment (only when section is a hero) ─────────────── */}
       {sectionTypeKey === "hero" ? (
