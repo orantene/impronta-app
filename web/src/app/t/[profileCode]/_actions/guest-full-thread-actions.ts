@@ -138,8 +138,12 @@ export async function getGuestFullThread(input: {
   // tenantScopedQuery returns the native (loosely-typed) postgrest builders, so
   // .maybeSingle() yields `{}` — narrow each row through a local shape, mirroring
   // the `as unknown as RawMessageRow` casts in guest-chat-actions.ts.
-  const agencyQ = tenantScopedQuery(admin, "agencies", tenantId);
-  const { data: agencyData } = await agencyQ
+  // `agencies` IS the tenant table (PK = id; it has NO tenant_id column), so it
+  // is scoped by id directly — NOT via tenantScopedQuery, which would inject a
+  // non-existent `tenant_id` filter, return null, and make EVERY /c page 404
+  // (false "tenant_unavailable"). Mirrors resolveSignedInClientRedirect's read.
+  const { data: agencyData } = await admin
+    .from("agencies")
     .select("display_name, slug, status")
     .eq("id", tenantId)
     .maybeSingle();

@@ -193,6 +193,15 @@ const APP_API_EXACT_PATHS = [
 const CANONICAL_TALENT_PREFIX = "/t" as const;
 
 /**
+ * Guest full-window conversation surface (`/c/[inquiryId]`) — U1 mini→full
+ * expansion. Reachable wherever a guest may be when they click "Open full
+ * conversation" (agency storefronts, hub, app, marketing). Ownership is gated
+ * server-side by the x-impronta-guest cookie inside getGuestFullThread — the
+ * allow-list just lets the path through.
+ */
+const CANONICAL_GUEST_THREAD_PREFIX = "/c" as const;
+
+/**
  * Phase 3 — multi-tenant workspace surface on the app host.
  * Pattern: `/<tenantSlug>/<surface>` where surface ∈ {admin, talent, client, platform}.
  *
@@ -212,6 +221,8 @@ const WORKSPACE_SLUG_RESERVED_PREFIXES = new Set([
   "api", "auth", "login", "register", "forgot-password", "update-password",
   // Public talent canonical
   "t",
+  // Guest full-window conversation (/c/[inquiryId]) — U1 mini→full expansion.
+  "c",
   // Static
   "sitemap.xml", "robots.txt",
   // Prototypes + internals
@@ -400,6 +411,7 @@ export function isPathAllowedForHostKind(
     // user who is NOT a member of this tenant gets redirected by the
     // dashboard layout to their canonical workspace on app.tulala.digital.
     return (
+      hasPrefix(pathname, CANONICAL_GUEST_THREAD_PREFIX) ||
       anyPrefix(pathname, AGENCY_STOREFRONT_PREFIXES) ||
       anyPrefix(pathname, AGENCY_API_PREFIXES) ||
       anyPrefix(pathname, APP_WORKSPACE_PREFIXES) ||
@@ -416,6 +428,7 @@ export function isPathAllowedForHostKind(
 
   if (kind === "app") {
     return (
+      hasPrefix(pathname, CANONICAL_GUEST_THREAD_PREFIX) ||
       anyPrefix(pathname, APP_WORKSPACE_PREFIXES) ||
       anyPrefix(pathname, APP_API_PREFIXES) ||
       anyExact(pathname, APP_API_EXACT_PATHS) ||
@@ -428,6 +441,7 @@ export function isPathAllowedForHostKind(
 
   if (kind === "marketing") {
     return (
+      hasPrefix(pathname, CANONICAL_GUEST_THREAD_PREFIX) ||
       anyPrefix(pathname, MARKETING_PAGE_PREFIXES) ||
       hasPrefix(pathname, CANONICAL_TALENT_PREFIX) ||
       // OAuth callbacks must be reachable on marketing because `window.location.origin`
@@ -441,6 +455,7 @@ export function isPathAllowedForHostKind(
   // slug paths + canonical talent profiles on tulala.digital.
   if (kind === "hub") {
     return (
+      hasPrefix(pathname, CANONICAL_GUEST_THREAD_PREFIX) ||
       anyPrefix(pathname, AUTH_PREFIXES) ||
       hasPrefix(pathname, CANONICAL_TALENT_PREFIX) ||
       isWorkspaceSlugPath(pathname)
