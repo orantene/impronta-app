@@ -118,16 +118,17 @@ export async function loadTalentInquiriesAllAgencies(
     const partialRows: PartialRow[] = (partRows.map((r) => {
       const clientUserId = r.inquiries!.client_user_id;
       const guestSessionId = r.inquiries!.guest_session_id;
-      // Identity ladder — keys off the real anonymity signals.
-      // contact_email is NOT NULL on every inquiry row so "!email → guest"
-      // is a dead branch; use the structural signals instead:
-      //   client_user_id set   → claimed Tulala account  → "registered"
-      //   guest_session_id set → anonymous session        → "guest"
-      //   neither              → email-only legacy row    → "client"
-      const clientIdentity: TalentInquiryRow["clientIdentity"] = clientUserId
-        ? "registered"
-        : guestSessionId
-          ? "guest"
+      // Identity ladder — keys off the real anonymity signal (guest_session_id),
+      // checked FIRST. The guest-chat front door auto-provisions a confirmed
+      // client_user_id shell account for EVERY guest, so keying "registered"
+      // off client_user_id presence mislabels every guest as registered. Order:
+      //   guest_session_id set → originated from the guest door → "guest"
+      //   else client_user_id  → registered account, no guest origin → "registered"
+      //   neither              → email-only legacy/manual row → "client"
+      const clientIdentity: TalentInquiryRow["clientIdentity"] = guestSessionId
+        ? "guest"
+        : clientUserId
+          ? "registered"
           : "client";
       return {
         id: r.inquiries!.id,

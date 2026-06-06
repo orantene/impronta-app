@@ -491,12 +491,17 @@ export async function loadTalentInquiries(
 
     // F3 — typed as TalentInquiryRow[] so the coordinator-append can push clientIdentity:null.
     const rows: TalentInquiryRow[] = (partRows.map((r) => {
-      // F3 identity ladder — real anonymity signals (contact_email is NOT NULL on all rows).
-      // client_user_id set → "registered"; guest_session_id set → "guest"; else → "client".
-      const clientIdentity: TalentInquiryRow["clientIdentity"] = r.inquiries!.client_user_id
-        ? "registered"
-        : r.inquiries!.guest_session_id
-          ? "guest"
+      // F3 identity ladder — real anonymity signal is guest_session_id, checked
+      // FIRST. The guest-chat front door AUTO-PROVISIONS a client_user_id (a
+      // confirmed shell account) for every guest, so keying "registered" off
+      // client_user_id presence mislabels every guest as "registered". An
+      // inquiry that originated from a guest session is a "guest" until/unless
+      // it has no guest origin; a non-guest inquiry with a client account is
+      // "registered"; anything else (legacy/manual, no account) is "client".
+      const clientIdentity: TalentInquiryRow["clientIdentity"] = r.inquiries!.guest_session_id
+        ? "guest"
+        : r.inquiries!.client_user_id
+          ? "registered"
           : "client";
       return {
         id: r.inquiries!.id,
