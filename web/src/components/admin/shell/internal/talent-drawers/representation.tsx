@@ -196,7 +196,7 @@ function RepresentationRow({
             >
               {kindLabel}
             </span>
-            {entry.planTier ? (
+            {entry.planTier && entry.planTier.toLowerCase() !== entry.kind ? (
               <span style={{ fontSize: 10, color: COLORS.inkMuted, textTransform: "uppercase" }}>
                 {entry.planTier}
               </span>
@@ -555,9 +555,9 @@ export function RepresentationDrawer() {
             }}
           >
             <div>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>Hide my profile everywhere</div>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>Show my profile everywhere</div>
               <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>
-                Overrides every roster and directory listing.
+                Turn off to hide on every roster and the directory.
               </div>
             </div>
             <Toggle
