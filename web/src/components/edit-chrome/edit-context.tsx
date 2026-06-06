@@ -121,6 +121,7 @@ import {
   publishHoveredSectionId,
   publishHoveredBuilderNodeId,
 } from "./hover-bridge";
+import { publishDirty } from "./dirty-bridge";
 import {
   readClasses as readStyleClasses,
   toRegistry as toStyleClassRegistry,
@@ -470,8 +471,12 @@ export interface EditContextValue {
     patch: { visibility?: "visible" | "hidden"; order?: number | null },
   ) => Promise<{ ok: boolean; error?: string }>;
 
-  /** Inspector autosave state. */
-  dirty: boolean;
+  /**
+   * Inspector autosave state. W2-T4 — the `dirty` VALUE now lives in the
+   * `dirty-bridge` micro-store: read it with `useDirty()` from "./dirty-bridge"
+   * (that kept it out of the value-memo so a once-per-burst dirty flip doesn't
+   * re-render every consumer). Only the setter remains on the context.
+   */
   setDirty: (d: boolean) => void;
   saving: boolean;
   setSaving: (s: boolean) => void;
@@ -2059,6 +2064,13 @@ export function EditProvider({
   );
 
   const [dirty, setDirty] = useState(false);
+  // W2-T4 — publish `dirty` to the dirty-bridge micro-store. We KEEP the React
+  // state (the beforeunload guard effect below must re-run on the change) but
+  // drop `dirty` from the value-memo deps, so a once-per-burst dirty flip no
+  // longer rebuilds the context value — only the ~4 `useDirty()` readers wake.
+  useEffect(() => {
+    publishDirty(dirty);
+  }, [dirty]);
   const [saving, setSaving] = useState(false);
   const [loadedSection, setLoadedSection] = useState<LoadedSection | null>(
     null,
@@ -6415,7 +6427,8 @@ export function EditProvider({
       mobileEditMode,
       setMobileEditMode,
       setBuilderNodeMobileStructure,
-      dirty,
+      // W2-T4 — `dirty` VALUE removed from `value` (lives in dirty-bridge; the 4
+      // readers use useDirty()). Setter kept so the public API is unchanged.
       setDirty,
       saving,
       setSaving,
@@ -6610,7 +6623,8 @@ export function EditProvider({
       mobileEditMode,
       setMobileEditMode,
       setBuilderNodeMobileStructure,
-      dirty,
+      // W2-T4 — `dirty` removed from the value-memo deps: a dirty flip no longer
+      // rebuilds `value`, so non-dirty consumers don't re-render on it.
       saving,
       loadedSection,
       draftPropsState,

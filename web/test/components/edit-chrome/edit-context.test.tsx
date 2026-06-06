@@ -265,6 +265,31 @@ describe("edit-context.tsx W2-T4a — action-callback identity is selection-quie
   });
 });
 
+// ── W2-T4 — dirty micro-store: a dirty flip doesn't re-render the chrome ──────
+
+describe("edit-context.tsx W2-T4 — dirty is off the context value", () => {
+  it("setDirty(true) does NOT re-render a dirty-agnostic context consumer (dirty moved to the bridge, out of the value-memo deps)", () => {
+    const { state, Consumer } = makeRenderCountedConsumer();
+    render(
+      <EditProvider tenantId="t" workspacePlan="studio">
+        <Consumer />
+      </EditProvider>,
+    );
+    const ctx = () => state.ctx!;
+    const before = state.renders;
+
+    // The first edit of a burst flips `dirty` false→true. Before W2-T4 that
+    // rebuilt the whole context value → every consumer re-rendered. Now `dirty`
+    // is published to the dirty-bridge and dropped from the value-memo deps, so
+    // a dirty-agnostic consumer (this one reads useEditContext() but not dirty)
+    // is not woken — the value identity is stable across the flip.
+    act(() => ctx().setDirty(true));
+
+    // ✅ W2-T4: 0 re-renders of the dirty-agnostic consumer.
+    expect(state.renders - before).toBe(0);
+  });
+});
+
 describe("edit-context.tsx W0-T2/W2-T3 — hover render-count probe (post-fix: hover off the value)", () => {
   it("(d) W2-T3: a hover-setter call does NOT re-render a hover-agnostic context consumer (hover moved to the bridge, out of the value-memo deps)", () => {
     const { state, Consumer } = makeRenderCountedConsumer();

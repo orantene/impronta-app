@@ -32,6 +32,7 @@ import {
   type PreviewFrameOverride,
 } from "./edit-context";
 import { useHoveredSectionId } from "./hover-bridge";
+import { useDirty } from "./dirty-bridge";
 import { PresenceProvider } from "./presence-provider";
 import { CHROME_SHADOWS } from "./kit";
 import { SelectionLayer } from "./selection-layer";
@@ -354,7 +355,6 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     device,
     setDevice,
     previewFrame,
-    dirty,
     saving,
     canUndo,
     canRedo,
@@ -430,6 +430,9 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     openLibrary,
     compositionLoaded,
   } = useEditContext();
+  // W2-T4 — `dirty` VALUE from the dirty-bridge (this shell threads it into the
+  // topbar / exit guard; the setter stays on the context).
+  const dirty = useDirty();
 
   /** Opens Page settings once per cms page id for default draft titles (workspace Add page). */
   const autoPageSettingsForUntitledRef = useRef<Set<string>>(new Set());

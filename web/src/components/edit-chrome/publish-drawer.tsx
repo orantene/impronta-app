@@ -65,6 +65,7 @@ import {
   HelperCounter,
 } from "./kit";
 import { useEditContext } from "./edit-context";
+import { useDirty } from "./dirty-bridge";
 import { PublishPreflight } from "./PublishPreflight";
 import { MobileHealthPanel } from "./MobileHealthPanel";
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
@@ -233,7 +234,6 @@ export function PublishDrawer() {
     getCompositionCasVersion,
     pageId,
     pageSlug,
-    dirty,
     saving,
     locale,
     refreshComposition,
@@ -242,6 +242,8 @@ export function PublishDrawer() {
     flushBuilderTreeSave,
     builderTree,
   } = useEditContext();
+  // W2-T4 — `dirty` VALUE from the dirty-bridge.
+  const dirty = useDirty();
 
   const [state, setState] = useState<PublishState>({ kind: "idle" });
   const [showLegacy, setShowLegacy] = useState(false);

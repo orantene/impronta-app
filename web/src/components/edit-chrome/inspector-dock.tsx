@@ -39,6 +39,7 @@ import {
 import { SECTION_EDITOR_REGISTRY } from "@/lib/site-admin/sections/registry-editors";
 import type { LoadedSection } from "./edit-context";
 import { useEditContext } from "./edit-context";
+import { useDirty } from "./dirty-bridge";
 import { ContentTab } from "./inspectors/content-dispatch";
 import {
   findBuilderNodeById,
@@ -271,7 +272,6 @@ export function InspectorDock() {
     setLoadedSection,
     draftProps,
     setDraftProps,
-    dirty,
     setDirty,
     saving,
     setSaving,
@@ -284,6 +284,8 @@ export function InspectorDock() {
     canEditSiteShell,
     queueRouterRefresh,
   } = useEditContext();
+  // W2-T4 — `dirty` VALUE from the dirty-bridge (setter stays on context).
+  const dirty = useDirty();
 
   const selectedStandaloneBuilderNode = useMemo(
     () =>
