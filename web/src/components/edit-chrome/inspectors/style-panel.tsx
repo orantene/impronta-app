@@ -4639,34 +4639,18 @@ export function StylePanel({
               {!selectedNodeIsButton ? (
                 <div className="flex flex-col gap-1.5">
                   <span className={FIELD_LABEL}>Max width (px)</span>
-                  <input
-                    type="number"
+                  <NumberUnit
+                    units={["px"]}
+                    defaultUnit="px"
                     min={120}
                     max={1200}
-                    value={selectedNodeViewportPresentation?.maxWidthPx ?? ""}
-                    onChange={(e) => {
-                      const raw = e.target.value;
-                      if (!raw) {
-                        patchSelectedNodePresentation({ maxWidthPx: undefined });
-                        return;
-                      }
-                      const n = Number(raw);
-                      if (Number.isFinite(n) && n >= 120 && n <= 1200) {
-                        patchSelectedNodePresentation({ maxWidthPx: Math.round(n) });
-                      }
-                    }}
                     placeholder="Default"
-                    className="w-full px-2"
-                    style={{
-                      height: 30,
-                      fontSize: 12.5,
-                      fontVariantNumeric: "tabular-nums",
-                      background: CHROME.surface2,
-                      border: `1px solid ${CHROME.lineMid}`,
-                      borderRadius: 6,
-                      color: CHROME.ink,
-                      outline: "none",
-                    }}
+                    value={pxLength(selectedNodeViewportPresentation?.maxWidthPx)}
+                    onChange={(next) =>
+                      patchSelectedNodePresentation({
+                        maxWidthPx: next ? Math.round(next.value) : undefined,
+                      })
+                    }
                   />
                   <Segmented
                     fullWidth
@@ -4680,66 +4664,34 @@ export function StylePanel({
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex flex-col gap-1.5">
                   <span className={FIELD_LABEL}>Margin top (px)</span>
-                  <input
-                    type="number"
+                  <NumberUnit
+                    units={["px"]}
+                    defaultUnit="px"
                     min={0}
                     max={240}
-                    value={selectedNodeViewportPresentation?.marginTopPx ?? ""}
-                    onChange={(e) => {
-                      const raw = e.target.value;
-                      if (!raw) {
-                        patchSelectedNodePresentation({ marginTopPx: undefined });
-                        return;
-                      }
-                      const n = Number(raw);
-                      if (Number.isFinite(n) && n >= 0 && n <= 240) {
-                        patchSelectedNodePresentation({ marginTopPx: Math.round(n) });
-                      }
-                    }}
                     placeholder="Default"
-                    className="w-full px-2"
-                    style={{
-                      height: 30,
-                      fontSize: 12.5,
-                      fontVariantNumeric: "tabular-nums",
-                      background: CHROME.surface2,
-                      border: `1px solid ${CHROME.lineMid}`,
-                      borderRadius: 6,
-                      color: CHROME.ink,
-                      outline: "none",
-                    }}
+                    value={pxLength(selectedNodeViewportPresentation?.marginTopPx)}
+                    onChange={(next) =>
+                      patchSelectedNodePresentation({
+                        marginTopPx: next ? Math.round(next.value) : undefined,
+                      })
+                    }
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <span className={FIELD_LABEL}>Margin bottom (px)</span>
-                  <input
-                    type="number"
+                  <NumberUnit
+                    units={["px"]}
+                    defaultUnit="px"
                     min={0}
                     max={240}
-                    value={selectedNodeViewportPresentation?.marginBottomPx ?? ""}
-                    onChange={(e) => {
-                      const raw = e.target.value;
-                      if (!raw) {
-                        patchSelectedNodePresentation({ marginBottomPx: undefined });
-                        return;
-                      }
-                      const n = Number(raw);
-                      if (Number.isFinite(n) && n >= 0 && n <= 240) {
-                        patchSelectedNodePresentation({ marginBottomPx: Math.round(n) });
-                      }
-                    }}
                     placeholder="Default"
-                    className="w-full px-2"
-                    style={{
-                      height: 30,
-                      fontSize: 12.5,
-                      fontVariantNumeric: "tabular-nums",
-                      background: CHROME.surface2,
-                      border: `1px solid ${CHROME.lineMid}`,
-                      borderRadius: 6,
-                      color: CHROME.ink,
-                      outline: "none",
-                    }}
+                    value={pxLength(selectedNodeViewportPresentation?.marginBottomPx)}
+                    onChange={(next) =>
+                      patchSelectedNodePresentation({
+                        marginBottomPx: next ? Math.round(next.value) : undefined,
+                      })
+                    }
                   />
                 </div>
               </div>
@@ -4770,112 +4722,50 @@ export function StylePanel({
                   options={HORIZONTAL_MODE_OPTIONS}
                 />
                 {marginHorizontalMode === "linked" ? (
-                  <input
-                    type="number"
+                  <NumberUnit
+                    units={["px"]}
+                    defaultUnit="px"
                     min={0}
                     max={200}
-                    value={selectedNodeViewportPresentation?.marginInlinePx ?? ""}
-                    onChange={(e) => {
-                      const raw = e.target.value;
-                      if (!raw) {
-                        patchSelectedNodePresentation({
-                          marginInlinePx: undefined,
-                        });
-                        return;
-                      }
-                      const n = Number(raw);
-                      if (Number.isFinite(n) && n >= 0 && n <= 200) {
-                        patchSelectedNodePresentation({
-                          marginInlinePx: Math.round(n),
-                          marginLeftPx: undefined,
-                          marginRightPx: undefined,
-                        });
-                      }
-                    }}
                     placeholder="Default"
-                    className="w-full px-2"
-                    style={{
-                      height: 30,
-                      fontSize: 12.5,
-                      fontVariantNumeric: "tabular-nums",
-                      background: CHROME.surface2,
-                      border: `1px solid ${CHROME.lineMid}`,
-                      borderRadius: 6,
-                      color: CHROME.ink,
-                      outline: "none",
-                    }}
+                    value={pxLength(selectedNodeViewportPresentation?.marginInlinePx)}
+                    onChange={(next) =>
+                      patchSelectedNodePresentation({
+                        marginInlinePx: next ? Math.round(next.value) : undefined,
+                        marginLeftPx: undefined,
+                        marginRightPx: undefined,
+                      })
+                    }
                   />
                 ) : (
                   <div className="grid grid-cols-2 gap-2">
-                    <input
-                      type="number"
+                    <NumberUnit
+                      units={["px"]}
+                      defaultUnit="px"
                       min={0}
                       max={200}
-                      value={selectedNodeViewportPresentation?.marginLeftPx ?? ""}
-                      onChange={(e) => {
-                        const raw = e.target.value;
-                        if (!raw) {
-                          patchSelectedNodePresentation({
-                            marginLeftPx: undefined,
-                            marginInlinePx: undefined,
-                          });
-                          return;
-                        }
-                        const n = Number(raw);
-                        if (Number.isFinite(n) && n >= 0 && n <= 200) {
-                          patchSelectedNodePresentation({
-                            marginLeftPx: Math.round(n),
-                            marginInlinePx: undefined,
-                          });
-                        }
-                      }}
                       placeholder="Left"
-                      className="w-full px-2"
-                      style={{
-                        height: 30,
-                        fontSize: 12.5,
-                        fontVariantNumeric: "tabular-nums",
-                        background: CHROME.surface2,
-                        border: `1px solid ${CHROME.lineMid}`,
-                        borderRadius: 6,
-                        color: CHROME.ink,
-                        outline: "none",
-                      }}
+                      value={pxLength(selectedNodeViewportPresentation?.marginLeftPx)}
+                      onChange={(next) =>
+                        patchSelectedNodePresentation({
+                          marginLeftPx: next ? Math.round(next.value) : undefined,
+                          marginInlinePx: undefined,
+                        })
+                      }
                     />
-                    <input
-                      type="number"
+                    <NumberUnit
+                      units={["px"]}
+                      defaultUnit="px"
                       min={0}
                       max={200}
-                      value={selectedNodeViewportPresentation?.marginRightPx ?? ""}
-                      onChange={(e) => {
-                        const raw = e.target.value;
-                        if (!raw) {
-                          patchSelectedNodePresentation({
-                            marginRightPx: undefined,
-                            marginInlinePx: undefined,
-                          });
-                          return;
-                        }
-                        const n = Number(raw);
-                        if (Number.isFinite(n) && n >= 0 && n <= 200) {
-                          patchSelectedNodePresentation({
-                            marginRightPx: Math.round(n),
-                            marginInlinePx: undefined,
-                          });
-                        }
-                      }}
                       placeholder="Right"
-                      className="w-full px-2"
-                      style={{
-                        height: 30,
-                        fontSize: 12.5,
-                        fontVariantNumeric: "tabular-nums",
-                        background: CHROME.surface2,
-                        border: `1px solid ${CHROME.lineMid}`,
-                        borderRadius: 6,
-                        color: CHROME.ink,
-                        outline: "none",
-                      }}
+                      value={pxLength(selectedNodeViewportPresentation?.marginRightPx)}
+                      onChange={(next) =>
+                        patchSelectedNodePresentation({
+                          marginRightPx: next ? Math.round(next.value) : undefined,
+                          marginInlinePx: undefined,
+                        })
+                      }
                     />
                   </div>
                 )}
@@ -4884,72 +4774,34 @@ export function StylePanel({
                 <div className="grid grid-cols-2 gap-2">
                   <div className="flex flex-col gap-1.5">
                     <span className={FIELD_LABEL}>Pad top (px)</span>
-                    <input
-                      type="number"
+                    <NumberUnit
+                      units={["px"]}
+                      defaultUnit="px"
                       min={0}
                       max={160}
-                      value={selectedNodeViewportPresentation?.paddingTopPx ?? ""}
-                      onChange={(e) => {
-                        const raw = e.target.value;
-                        if (!raw) {
-                          patchSelectedNodePresentation({ paddingTopPx: undefined });
-                          return;
-                        }
-                        const n = Number(raw);
-                        if (Number.isFinite(n) && n >= 0 && n <= 160) {
-                          patchSelectedNodePresentation({
-                            paddingTopPx: Math.round(n),
-                          });
-                        }
-                      }}
                       placeholder="Default"
-                      className="w-full px-2"
-                      style={{
-                        height: 30,
-                        fontSize: 12.5,
-                        fontVariantNumeric: "tabular-nums",
-                        background: CHROME.surface2,
-                        border: `1px solid ${CHROME.lineMid}`,
-                        borderRadius: 6,
-                        color: CHROME.ink,
-                        outline: "none",
-                      }}
+                      value={pxLength(selectedNodeViewportPresentation?.paddingTopPx)}
+                      onChange={(next) =>
+                        patchSelectedNodePresentation({
+                          paddingTopPx: next ? Math.round(next.value) : undefined,
+                        })
+                      }
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <span className={FIELD_LABEL}>Pad bottom (px)</span>
-                    <input
-                      type="number"
+                    <NumberUnit
+                      units={["px"]}
+                      defaultUnit="px"
                       min={0}
                       max={160}
-                      value={selectedNodeViewportPresentation?.paddingBottomPx ?? ""}
-                      onChange={(e) => {
-                        const raw = e.target.value;
-                        if (!raw) {
-                          patchSelectedNodePresentation({
-                            paddingBottomPx: undefined,
-                          });
-                          return;
-                        }
-                        const n = Number(raw);
-                        if (Number.isFinite(n) && n >= 0 && n <= 160) {
-                          patchSelectedNodePresentation({
-                            paddingBottomPx: Math.round(n),
-                          });
-                        }
-                      }}
                       placeholder="Default"
-                      className="w-full px-2"
-                      style={{
-                        height: 30,
-                        fontSize: 12.5,
-                        fontVariantNumeric: "tabular-nums",
-                        background: CHROME.surface2,
-                        border: `1px solid ${CHROME.lineMid}`,
-                        borderRadius: 6,
-                        color: CHROME.ink,
-                        outline: "none",
-                      }}
+                      value={pxLength(selectedNodeViewportPresentation?.paddingBottomPx)}
+                      onChange={(next) =>
+                        patchSelectedNodePresentation({
+                          paddingBottomPx: next ? Math.round(next.value) : undefined,
+                        })
+                      }
                     />
                   </div>
                 </div>
@@ -4967,112 +4819,50 @@ export function StylePanel({
                     options={HORIZONTAL_MODE_OPTIONS}
                   />
                   {paddingHorizontalMode === "linked" ? (
-                    <input
-                      type="number"
+                    <NumberUnit
+                      units={["px"]}
+                      defaultUnit="px"
                       min={0}
                       max={120}
-                      value={selectedNodeViewportPresentation?.paddingInlinePx ?? ""}
-                      onChange={(e) => {
-                        const raw = e.target.value;
-                        if (!raw) {
-                          patchSelectedNodePresentation({
-                            paddingInlinePx: undefined,
-                          });
-                          return;
-                        }
-                        const n = Number(raw);
-                        if (Number.isFinite(n) && n >= 0 && n <= 120) {
-                          patchSelectedNodePresentation({
-                            paddingInlinePx: Math.round(n),
-                            paddingLeftPx: undefined,
-                            paddingRightPx: undefined,
-                          });
-                        }
-                      }}
                       placeholder="Default"
-                      className="w-full px-2"
-                      style={{
-                        height: 30,
-                        fontSize: 12.5,
-                        fontVariantNumeric: "tabular-nums",
-                        background: CHROME.surface2,
-                        border: `1px solid ${CHROME.lineMid}`,
-                        borderRadius: 6,
-                        color: CHROME.ink,
-                        outline: "none",
-                      }}
+                      value={pxLength(selectedNodeViewportPresentation?.paddingInlinePx)}
+                      onChange={(next) =>
+                        patchSelectedNodePresentation({
+                          paddingInlinePx: next ? Math.round(next.value) : undefined,
+                          paddingLeftPx: undefined,
+                          paddingRightPx: undefined,
+                        })
+                      }
                     />
                   ) : (
                     <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="number"
+                      <NumberUnit
+                        units={["px"]}
+                        defaultUnit="px"
                         min={0}
                         max={120}
-                        value={selectedNodeViewportPresentation?.paddingLeftPx ?? ""}
-                        onChange={(e) => {
-                          const raw = e.target.value;
-                          if (!raw) {
-                            patchSelectedNodePresentation({
-                              paddingLeftPx: undefined,
-                              paddingInlinePx: undefined,
-                            });
-                            return;
-                          }
-                          const n = Number(raw);
-                          if (Number.isFinite(n) && n >= 0 && n <= 120) {
-                            patchSelectedNodePresentation({
-                              paddingLeftPx: Math.round(n),
-                              paddingInlinePx: undefined,
-                            });
-                          }
-                        }}
                         placeholder="Left"
-                        className="w-full px-2"
-                        style={{
-                          height: 30,
-                          fontSize: 12.5,
-                          fontVariantNumeric: "tabular-nums",
-                          background: CHROME.surface2,
-                          border: `1px solid ${CHROME.lineMid}`,
-                          borderRadius: 6,
-                          color: CHROME.ink,
-                          outline: "none",
-                        }}
+                        value={pxLength(selectedNodeViewportPresentation?.paddingLeftPx)}
+                        onChange={(next) =>
+                          patchSelectedNodePresentation({
+                            paddingLeftPx: next ? Math.round(next.value) : undefined,
+                            paddingInlinePx: undefined,
+                          })
+                        }
                       />
-                      <input
-                        type="number"
+                      <NumberUnit
+                        units={["px"]}
+                        defaultUnit="px"
                         min={0}
                         max={120}
-                        value={selectedNodeViewportPresentation?.paddingRightPx ?? ""}
-                        onChange={(e) => {
-                          const raw = e.target.value;
-                          if (!raw) {
-                            patchSelectedNodePresentation({
-                              paddingRightPx: undefined,
-                              paddingInlinePx: undefined,
-                            });
-                            return;
-                          }
-                          const n = Number(raw);
-                          if (Number.isFinite(n) && n >= 0 && n <= 120) {
-                            patchSelectedNodePresentation({
-                              paddingRightPx: Math.round(n),
-                              paddingInlinePx: undefined,
-                            });
-                          }
-                        }}
                         placeholder="Right"
-                        className="w-full px-2"
-                        style={{
-                          height: 30,
-                          fontSize: 12.5,
-                          fontVariantNumeric: "tabular-nums",
-                          background: CHROME.surface2,
-                          border: `1px solid ${CHROME.lineMid}`,
-                          borderRadius: 6,
-                          color: CHROME.ink,
-                          outline: "none",
-                        }}
+                        value={pxLength(selectedNodeViewportPresentation?.paddingRightPx)}
+                        onChange={(next) =>
+                          patchSelectedNodePresentation({
+                            paddingRightPx: next ? Math.round(next.value) : undefined,
+                            paddingInlinePx: undefined,
+                          })
+                        }
                       />
                     </div>
                   )}
