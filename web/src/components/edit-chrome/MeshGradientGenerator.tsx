@@ -4,9 +4,9 @@
  * Phase 5 — mesh-gradient generator.
  *
  * Lets the operator build a free mesh gradient (3-5 stops with editable
- * positions + colors) and generate the matching CSS that can be
- * pasted into the per-section custom CSS field, OR applied as the
- * page background via a new `--token-color-background-mesh` CSS var.
+ * positions + colors) and generate the matching CSS that can be copied
+ * from the "CSS output" disclosure and pasted into the per-section custom
+ * CSS field or the page background.
  *
  * Pure CSS output — no canvas, no SVG. Each stop becomes a
  * radial-gradient layer; layers stack as a `background-image` value.
@@ -38,13 +38,7 @@ function buildCss(stops: ReadonlyArray<Stop>, baseColor: string): string {
   return `background-color: ${baseColor};\nbackground-image:\n    ${layers};\nbackground-attachment: fixed;`;
 }
 
-interface Props {
-  /** Optional callback — if set, an "Apply to background" button shows
-   *  that pushes the generated CSS to the parent. */
-  onApply?: (css: string) => void;
-}
-
-export function MeshGradientGenerator({ onApply }: Props): ReactElement {
+export function MeshGradientGenerator(): ReactElement {
   const [stops, setStops] = useState<ReadonlyArray<Stop>>(DEFAULT_STOPS);
   const [baseColor, setBaseColor] = useState<string>("#faf3ee");
 
@@ -125,15 +119,6 @@ export function MeshGradientGenerator({ onApply }: Props): ReactElement {
           {css}
         </pre>
       </details>
-      {onApply ? (
-        <button
-          type="button"
-          onClick={() => onApply(css)}
-          className="self-end rounded-md border border-[#3d4f7c] bg-[#3d4f7c] px-2 py-1 text-[10px] font-semibold text-white hover:bg-[#4a5e94]"
-        >
-          Apply
-        </button>
-      ) : null}
     </div>
   );
 }

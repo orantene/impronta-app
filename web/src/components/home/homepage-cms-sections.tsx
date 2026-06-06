@@ -47,6 +47,7 @@ import {
 } from "@/lib/site-admin/builder-node/section-embed-renderer";
 import { isBuilderClientCanvasEnabled } from "@/lib/site-admin/edit-mode/client-canvas-flag";
 import { ClientBuilderCanvas } from "@/components/edit-chrome/client-builder-canvas";
+import { BuilderProfilerBoundary } from "@/components/edit-chrome/builder-profiler-boundary";
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import { isPreviewActiveForTenant } from "@/lib/site-admin/server/homepage-reads";
@@ -302,19 +303,28 @@ export async function HomepageCmsSections({
         return (
           <>
             {freeformStyles}
-            <ClientBuilderCanvas
-              initialTree={freeform.tree}
-              dataSources={freeformDataSources}
-              sectionEmbedIslands={sectionEmbedIslands}
-              publicPathPrefix={publicPathPrefix}
-              components={freeformComponents}
-              visibilityContext={visibilityContext}
-            />
+            {/* W0-T6 — flag-gated canvas profiler (no-op unless
+                NEXT_PUBLIC_BUILDER_PROFILE=1). Wraps the client canvas so the
+                W0-T7 run can measure canvas reconcile cost per edit separately
+                from the chrome. Renders no extra node when the flag is off. */}
+            <BuilderProfilerBoundary id="builder-canvas">
+              <ClientBuilderCanvas
+                initialTree={freeform.tree}
+                dataSources={freeformDataSources}
+                sectionEmbedIslands={sectionEmbedIslands}
+                publicPathPrefix={publicPathPrefix}
+                components={freeformComponents}
+                visibilityContext={visibilityContext}
+              />
+            </BuilderProfilerBoundary>
           </>
         );
       }
 
       // DEFAULT (flag off) — server-rendered canvas, byte-identical to today.
+      // W4-T4(b) DEFERRED (point of no return): baking the canvas flag + deleting
+      // this fallback requires the W0-T7 flag-OFF/ON profiling baseline (Wave 6)
+      // on disk first — do NOT delete this branch until that delta is captured.
       return (
         <>
           {freeformStyles}

@@ -46,7 +46,8 @@ import {
   type EditDevice,
   type PreviewFrameOverride,
 } from "./edit-context";
-import { CHROME } from "./kit";
+import { CHROME, SaveChip } from "./kit";
+import { useEditContext } from "./edit-context";
 
 /** Minimal `LanguageSettings` for `withLocalePath` / strip-prefix helpers. */
 function localePathSettings(
@@ -826,6 +827,17 @@ function SaveStatus({
   /** ISO timestamp when the page was last published, or null if never. */
   liveSitePublishedAt?: string | null;
 }) {
+  // W3-T2(a) — surface a persistent SAVE-FAILURE state in the topbar status,
+  // not just the transient mutation toast. A draft that didn't persist
+  // (SAVE_FAILED) or lost a CAS race (VERSION_CONFLICT) flips the status chip to
+  // the rose "Couldn't save" state until the operator acts, so the failure is
+  // never invisible once the toast is gone.
+  const { mutationError } = useEditContext();
+  const saveFailed =
+    !saving &&
+    (mutationError?.code === "SAVE_FAILED" ||
+      mutationError?.code === "VERSION_CONFLICT");
+
   // Tick every 15 s so relative "Xs ago" stays reasonably fresh without
   // hammering re-renders. The display is informational, not realtime.
   const [, setTick] = useState(0);
@@ -866,6 +878,25 @@ function SaveStatus({
           aria-hidden
         />
         Saving…
+      </span>
+    );
+  }
+  if (saveFailed) {
+    const label =
+      mutationError?.code === "VERSION_CONFLICT"
+        ? "Save conflict"
+        : "Couldn't save";
+    return (
+      <span role="status" aria-live="polite" aria-atomic="true">
+        <SaveChip
+          status="error"
+          label={label}
+          title={
+            mutationError?.code === "VERSION_CONFLICT"
+              ? "This page changed elsewhere — choose Reload latest or Keep my version in the banner."
+              : "Your last draft didn't save. It will retry on your next edit; reload the editor if it persists."
+          }
+        />
       </span>
     );
   }

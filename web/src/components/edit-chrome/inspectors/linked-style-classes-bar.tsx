@@ -9,6 +9,10 @@ import {
   styleClassIdFromName,
   type BuilderStyleClass,
 } from "@/lib/site-admin/builder-node/style-classes";
+import {
+  readClasses,
+  writeClasses,
+} from "@/lib/site-admin/builder-node/style-classes-storage";
 import { CHROME } from "../kit/tokens";
 
 /**
@@ -33,45 +37,13 @@ import { CHROME } from "../kit/tokens";
  *   • per-class "Edit name" / "Delete" and, on the linked block, "Unlink"
  *     (flattens the class back onto the block so its look is preserved)
  *
- * NOTE (documented follow-up): the EDITOR canvas + the PUBLISHED page are
- * rendered SERVER-side and do not yet receive this client registry, so the
- * VISUAL merge on those surfaces lands once the registry is persisted into the
- * page snapshot and threaded to the server render path. Until then the linked
- * reference + class management persist correctly and the merge is fully wired +
- * unit-tested in the renderer (style-classes.test.ts).
+ * STORAGE: the read/write helpers + the live cross-subtree registry bridge now
+ * live in the shared `builder-node/style-classes-storage.ts` so the editor
+ * canvas + the publish path read ONE source of truth (W1-T1). `writeClasses`
+ * republishes the registry to the canvas bridge on every change. As of W1-T2
+ * the publish path BAKES the registry into the snapshot, so linked styles also
+ * reach the live site.
  */
-
-const STORAGE_PREFIX = "tulala:builder:style-classes:v1";
-
-function storageKey(pageId: string | null): string {
-  return `${STORAGE_PREFIX}:${pageId ?? "home"}`;
-}
-
-function readClasses(pageId: string | null): BuilderStyleClass[] {
-  try {
-    const raw = window.localStorage.getItem(storageKey(pageId));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (c): c is BuilderStyleClass =>
-        Boolean(c) &&
-        typeof (c as BuilderStyleClass).id === "string" &&
-        typeof (c as BuilderStyleClass).name === "string" &&
-        Boolean((c as BuilderStyleClass).style),
-    );
-  } catch {
-    return [];
-  }
-}
-
-function writeClasses(pageId: string | null, classes: ReadonlyArray<BuilderStyleClass>) {
-  try {
-    window.localStorage.setItem(storageKey(pageId), JSON.stringify(classes));
-  } catch {
-    /* quota / private-mode — non-fatal */
-  }
-}
 
 const btnStyle = {
   height: 28,
@@ -109,9 +81,12 @@ export function LinkedStyleClassesBar({
   }, [pageId]);
 
   const persist = useCallback(
-    (next: ReadonlyArray<BuilderStyleClass>) => {
-      setClasses(next);
-      writeClasses(pageId, next);
+    (next: ReadonlyArray<BuilderStyleClass>): boolean => {
+      const ok = writeClasses(pageId, next);
+      // Only mirror into React state when the registry actually persisted, so
+      // local state never claims a class exists that storage refused to keep.
+      if (ok) setClasses(next);
+      return ok;
     },
     [pageId],
   );
@@ -143,7 +118,19 @@ export function LinkedStyleClassesBar({
       classes.map((c) => c.id),
     );
     const nextClass: BuilderStyleClass = { id, name: name.trim(), style: snapshot };
-    persist([...classes, nextClass]);
+    // SAFETY (Marathon W1-T3): persist FIRST and only collapse the block to a
+    // bare `{ classRef }` once the registry write is confirmed. If storage
+    // refused the write (quota / private mode), the class would not exist and
+    // `{ classRef: id }` would resolve to the node's own (now-stripped) style —
+    // i.e. it would blank the block. On failure we keep the block's existing
+    // style intact and tell the operator nothing was saved.
+    const saved = persist([...classes, nextClass]);
+    if (!saved) {
+      window.alert(
+        "Couldn't save the style class in this browser, so the block was left unchanged. Free up some space and try again.",
+      );
+      return;
+    }
     // The block now references the class and keeps no local overrides, so the
     // class is the single source of truth for its look.
     onSetStyle({ classRef: id });

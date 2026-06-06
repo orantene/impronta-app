@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- W5-T4 added zoom/pan state + wheel handler + arrow-key nudge + zoom controls; core is still one self-contained crop component with inline style helpers (no good extraction boundary). */
 "use client";
 
 /**
@@ -50,7 +51,7 @@ const ASPECTS: ReadonlyArray<AspectSpec> = [
 
 // ── geometry ─────────────────────────────────────────────────────────────
 
-/** Crop rect in *display* (CSS-pixel) space, relative to the rendered image. */
+/** Crop rect in *unscaled display* (CSS-pixel) space, relative to the rendered image box. */
 interface Rect { x: number; y: number; w: number; h: number }
 
 type DragMode =
@@ -62,12 +63,19 @@ type DragMode =
       startX: number;
       startY: number;
       orig: Rect;
-    };
+    }
+  // W5-T4 — pan mode: pointer drag on the scrim (outside the crop rect).
+  | { kind: "pan"; startX: number; startY: number; origPan: { x: number; y: number } };
 
 type Handle = "nw" | "ne" | "sw" | "se";
 
 const HANDLES: ReadonlyArray<Handle> = ["nw", "ne", "sw", "se"];
 const MIN_SIZE = 24; // min crop edge in display px
+const SCALE_MIN = 1;
+const SCALE_MAX = 4;
+// Arrow-key nudge distance in unscaled box px.
+const ARROW_NUDGE = 1;
+const ARROW_NUDGE_LARGE = 4;
 
 function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
@@ -88,6 +96,26 @@ function defaultRect(boxW: number, boxH: number, ratio: number | null): Rect {
     w = h * ratio;
   }
   return { x: (boxW - w) / 2, y: (boxH - h) / 2, w, h };
+}
+
+/**
+ * Clamp pan offset so the zoomed image never reveals the stage background
+ * (i.e. the image always covers the display box at all times).
+ * Pan is in unscaled box-px units; at scale S the visual overhang is
+ * (boxW * S - boxW) / 2 = boxW * (S - 1) / 2 in each direction.
+ */
+function clampPan(
+  pan: { x: number; y: number },
+  boxW: number,
+  boxH: number,
+  scale: number,
+): { x: number; y: number } {
+  const maxX = (boxW * (scale - 1)) / 2;
+  const maxY = (boxH * (scale - 1)) / 2;
+  return {
+    x: clamp(pan.x, -maxX, maxX),
+    y: clamp(pan.y, -maxY, maxY),
+  };
 }
 
 /** Re-fit a rect to a new ratio, keeping its center, clamped to the box. */
@@ -147,9 +175,23 @@ export function ImageCropModal({
   const [rect, setRect] = useState<Rect | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
 
+  // W5-T4 — zoom/pan state.
+  const [scale, setScale] = useState(1);
+  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  // W5-T4 — the handle that last received pointerdown; arrow keys nudge it.
+  const [activeHandle, setActiveHandle] = useState<Handle | null>(null);
+
   const imgElRef = useRef<HTMLImageElement | null>(null);
   const frameRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<DragMode>({ kind: "none" });
+  // Keep scale/pan in refs for wheel handler (avoids stale closure in the
+  // passive-listener useEffect). Updated after every render via useLayoutEffect.
+  const scaleRef = useRef(scale);
+  const panRef = useRef(pan);
+  useLayoutEffect(() => {
+    scaleRef.current = scale;
+    panRef.current = pan;
+  });
 
   useEffect(() => {
     setMounted(true);
@@ -196,6 +238,12 @@ export function ImageCropModal({
     );
   }, [box, aspect]);
 
+  // W5-T4 — re-clamp pan when box or scale changes (e.g. window resize).
+  useEffect(() => {
+    if (!box) return;
+    setPan((prev) => clampPan(prev, box.w, box.h, scale));
+  }, [box, scale]);
+
   const handleImgLoad = useCallback(() => {
     const el = imgElRef.current;
     if (!el) return;
@@ -210,6 +258,43 @@ export function ImageCropModal({
   const handleImgError = useCallback(() => {
     setImgState("error");
   }, []);
+
+  // W5-T4 — wheel zoom: zoom in/out around the cursor position.
+  // Attaching via addEventListener (not React onWheel) lets us call
+  // preventDefault() to stop page scroll without a passive-listener warning.
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const currentScale = scaleRef.current;
+      const currentPan = panRef.current;
+      const boxEl = frame;
+      const frameRect = boxEl.getBoundingClientRect();
+      // Cursor position relative to frame center, in unscaled box-px.
+      const cursorX = (e.clientX - frameRect.left - frameRect.width / 2);
+      const cursorY = (e.clientY - frameRect.top - frameRect.height / 2);
+      // Zoom factor: ~10% per wheel tick.
+      const delta = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+      const newScale = clamp(currentScale * delta, SCALE_MIN, SCALE_MAX);
+      if (newScale === currentScale) return;
+      // Adjust pan to keep the point under the cursor stable.
+      // Under zoom S, a point P (in unscaled coords) maps to screen offset:
+      //   screen_offset = (P - pan) * S
+      // We want: (P - newPan) * newScale == (P - pan) * currentScale
+      //   newPan = P - (P - pan) * (currentScale / newScale)
+      // Where P is cursorX/S (the unscaled point under the cursor).
+      const ratio = currentScale / newScale;
+      const newPanX = cursorX / currentScale - (cursorX / currentScale - currentPan.x) * ratio;
+      const newPanY = cursorY / currentScale - (cursorY / currentScale - currentPan.y) * ratio;
+
+      setScale(newScale);
+      // pan clamping is handled by the scale/pan useEffect above.
+      setPan({ x: newPanX, y: newPanY });
+    };
+    frame.addEventListener("wheel", onWheel, { passive: false });
+    return () => frame.removeEventListener("wheel", onWheel);
+  }, []); // stable: reads scale/pan via refs
 
   // Switching aspect re-fits the current rect.
   const chooseAspect = useCallback(
@@ -262,6 +347,22 @@ export function ImageCropModal({
     [rect],
   );
 
+  // W5-T4 — pointer down on the scrim (outside crop rect) starts a pan drag.
+  const onPointerDownPan = useCallback(
+    (e: React.PointerEvent) => {
+      if (scale <= 1) return; // no pan at 1:1
+      e.preventDefault();
+      (e.target as Element).setPointerCapture?.(e.pointerId);
+      dragRef.current = {
+        kind: "pan",
+        startX: e.clientX,
+        startY: e.clientY,
+        origPan: panRef.current,
+      };
+    },
+    [scale],
+  );
+
   const onPointerMove = useCallback(
     (e: React.PointerEvent) => {
       const drag = dragRef.current;
@@ -269,9 +370,25 @@ export function ImageCropModal({
       const dx = e.clientX - drag.startX;
       const dy = e.clientY - drag.startY;
 
+      // W5-T4 — pan drag: move the image in the stage.
+      if (drag.kind === "pan") {
+        // dx/dy are screen px; convert to unscaled box-px by dividing by scale.
+        const newPan = {
+          x: drag.origPan.x + dx / scale,
+          y: drag.origPan.y + dy / scale,
+        };
+        setPan(clampPan(newPan, box.w, box.h, scale));
+        return;
+      }
+
+      // All crop interactions: delta is in screen px; divide by scale so the
+      // crop rect lives in unscaled-box space regardless of zoom level.
+      const udx = dx / scale;
+      const udy = dy / scale;
+
       if (drag.kind === "move") {
-        const x = clamp(drag.orig.x + dx, 0, box.w - drag.orig.w);
-        const y = clamp(drag.orig.y + dy, 0, box.h - drag.orig.h);
+        const x = clamp(drag.orig.x + udx, 0, box.w - drag.orig.w);
+        const y = clamp(drag.orig.y + udy, 0, box.h - drag.orig.h);
         setRect({ ...drag.orig, x, y });
         return;
       }
@@ -289,16 +406,16 @@ export function ImageCropModal({
       const north = drag.handle === "nw" || drag.handle === "ne";
 
       if (west) {
-        nx = clamp(o.x + dx, 0, right - MIN_SIZE);
+        nx = clamp(o.x + udx, 0, right - MIN_SIZE);
         nw = right - nx;
       } else {
-        nw = clamp(o.w + dx, MIN_SIZE, box.w - o.x);
+        nw = clamp(o.w + udx, MIN_SIZE, box.w - o.x);
       }
       if (north) {
-        ny = clamp(o.y + dy, 0, bottom - MIN_SIZE);
+        ny = clamp(o.y + udy, 0, bottom - MIN_SIZE);
         nh = bottom - ny;
       } else {
-        nh = clamp(o.h + dy, MIN_SIZE, box.h - o.y);
+        nh = clamp(o.h + udy, MIN_SIZE, box.h - o.y);
       }
 
       if (ratioOf != null) {
@@ -321,12 +438,51 @@ export function ImageCropModal({
 
       setRect({ x: nx, y: ny, w: nw, h: nh });
     },
-    [box, ratioOf],
+    [box, ratioOf, scale],
   );
 
   const onPointerUp = useCallback(() => {
     dragRef.current = { kind: "none" };
   }, []);
+
+  // W5-T4 — arrow-key nudge: when a corner handle is active, arrow keys move
+  // that handle by ARROW_NUDGE px (ARROW_NUDGE_LARGE with Shift).
+  useEffect(() => {
+    if (!activeHandle || !box) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) return;
+      // Don't interfere with text inputs or command palette.
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
+      e.preventDefault();
+      const step = e.shiftKey ? ARROW_NUDGE_LARGE : ARROW_NUDGE;
+      const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
+      const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
+      setRect((prev) => {
+        if (!prev) return prev;
+        const r = { ...prev };
+        const west = activeHandle === "nw" || activeHandle === "sw";
+        const north = activeHandle === "nw" || activeHandle === "ne";
+        const right = r.x + r.w;
+        const bottom = r.y + r.h;
+        if (west) {
+          r.x = clamp(r.x + dx, 0, right - MIN_SIZE);
+          r.w = right - r.x;
+        } else {
+          r.w = clamp(r.w + dx, MIN_SIZE, box.w - r.x);
+        }
+        if (north) {
+          r.y = clamp(r.y + dy, 0, bottom - MIN_SIZE);
+          r.h = bottom - r.y;
+        } else {
+          r.h = clamp(r.h + dy, MIN_SIZE, box.h - r.y);
+        }
+        return r;
+      });
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [activeHandle, box]);
 
   // ── save (canvas crop → File) ─────────────────────────────────────────
 
@@ -334,7 +490,11 @@ export function ImageCropModal({
     setLocalError(null);
     const el = imgElRef.current;
     if (!el || !natural || !box || !rect) return;
-    // Map display-space rect → source pixels.
+    // Map unscaled-display-space rect → source pixels.
+    // W5-T4: rect is always in *unscaled* box space (0..box.w × 0..box.h),
+    // regardless of the current zoom/pan. The zoom only affects what's
+    // visible — the crop coordinates are stable, so the mapping here is
+    // unchanged: multiply by the natural/box ratio to get source px.
     const scaleX = natural.w / box.w;
     const scaleY = natural.h / box.h;
     const sx = Math.round(rect.x * scaleX);
@@ -416,26 +576,63 @@ export function ImageCropModal({
           </button>
         </div>
 
-        {/* aspect presets */}
-        <div style={presetRowStyle}>
-          {ASPECTS.map((a) => {
-            const active = aspect === a.key;
-            return (
-              <button
-                key={a.key}
-                type="button"
-                onClick={() => chooseAspect(a.key)}
-                disabled={imgState !== "ready"}
-                style={presetBtnStyle(active, imgState !== "ready")}
-              >
-                {a.label}
-              </button>
-            );
-          })}
+        {/* aspect presets + W5-T4 zoom controls */}
+        <div style={{ ...presetRowStyle, justifyContent: "space-between" }}>
+          <div style={{ display: "flex", gap: 6 }}>
+            {ASPECTS.map((a) => {
+              const active = aspect === a.key;
+              return (
+                <button
+                  key={a.key}
+                  type="button"
+                  onClick={() => chooseAspect(a.key)}
+                  disabled={imgState !== "ready"}
+                  style={presetBtnStyle(active, imgState !== "ready")}
+                >
+                  {a.label}
+                </button>
+              );
+            })}
+          </div>
+          {/* W5-T4 — zoom controls: − / indicator / + and a reset to 1× */}
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <button
+              type="button"
+              aria-label="Zoom out"
+              disabled={imgState !== "ready" || scale <= SCALE_MIN}
+              onClick={() => setScale((s) => clamp(s / 1.25, SCALE_MIN, SCALE_MAX))}
+              style={zoomBtnStyle(imgState !== "ready" || scale <= SCALE_MIN)}
+            >
+              −
+            </button>
+            <button
+              type="button"
+              aria-label={`Zoom level ${Math.round(scale * 100)}%; click to reset`}
+              disabled={imgState !== "ready" || scale === 1}
+              onClick={() => { setScale(1); setPan({ x: 0, y: 0 }); }}
+              style={{ ...zoomBtnStyle(imgState !== "ready"), minWidth: 38, fontSize: 10.5 }}
+              title="Reset zoom"
+            >
+              {Math.round(scale * 100)}%
+            </button>
+            <button
+              type="button"
+              aria-label="Zoom in"
+              disabled={imgState !== "ready" || scale >= SCALE_MAX}
+              onClick={() => setScale((s) => clamp(s * 1.25, SCALE_MIN, SCALE_MAX))}
+              style={zoomBtnStyle(imgState !== "ready" || scale >= SCALE_MAX)}
+            >
+              +
+            </button>
+          </div>
         </div>
 
         {/* stage */}
         <div ref={frameRef} style={stageStyle}>
+          {/* W5-T4 — zoom transform: the image and overlay share the same
+              CSS transform so the crop rect always overlays the image pixel-
+              perfectly at any zoom level. The transform origin is the frame
+              center; pan (in unscaled box-px) is added after scaling. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             ref={imgElRef}
@@ -453,6 +650,9 @@ export function ImageCropModal({
               objectFit: "contain",
               userSelect: "none",
               display: imgState === "ready" ? "block" : "none",
+              transform: scale !== 1 ? `translate(${pan.x}px, ${pan.y}px) scale(${scale})` : undefined,
+              transformOrigin: "center center",
+              willChange: scale !== 1 ? "transform" : undefined,
             }}
           />
 
@@ -465,7 +665,8 @@ export function ImageCropModal({
             </div>
           ) : null}
 
-          {/* crop overlay — absolutely positioned over the centered image box */}
+          {/* crop overlay — absolutely positioned over the centered image box,
+              applying the same zoom+pan transform so handles stay aligned. */}
           {imgState === "ready" && box && rect ? (
             <div
               style={{
@@ -474,15 +675,30 @@ export function ImageCropModal({
                 height: box.h,
                 left: "50%",
                 top: "50%",
-                transform: "translate(-50%, -50%)",
+                transform: scale !== 1
+                  ? `translate(calc(-50% + ${pan.x}px), calc(-50% + ${pan.y}px)) scale(${scale})`
+                  : "translate(-50%, -50%)",
+                transformOrigin: "center center",
                 touchAction: "none",
               }}
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
               onPointerCancel={onPointerUp}
             >
-              {/* dark scrim outside the crop rect (4 bands) */}
-              <Scrim box={box} rect={rect} />
+              {/* dark scrim outside the crop rect (4 bands).
+                  W5-T4: clicking/dragging on the scrim starts a pan drag
+                  when zoomed in (scale > 1). */}
+              <div
+                onPointerDown={scale > 1 ? onPointerDownPan : undefined}
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  touchAction: "none",
+                  cursor: scale > 1 ? "grab" : undefined,
+                }}
+              >
+                <Scrim box={box} rect={rect} />
+              </div>
 
               {/* crop rect */}
               <div
@@ -501,12 +717,19 @@ export function ImageCropModal({
               >
                 {/* rule-of-thirds guides */}
                 <Thirds />
-                {/* corner handles */}
+                {/* corner handles — W5-T4: track activeHandle for arrow-key nudge */}
                 {HANDLES.map((h) => (
                   <span
                     key={h}
-                    onPointerDown={onPointerDownResize(h)}
-                    style={handleStyle(h)}
+                    onPointerDown={(e) => {
+                      setActiveHandle(h);
+                      onPointerDownResize(h)(e);
+                    }}
+                    style={{
+                      ...handleStyle(h),
+                      outline: activeHandle === h ? `2px solid ${CHROME.accent}` : undefined,
+                      outlineOffset: activeHandle === h ? 2 : undefined,
+                    }}
                   />
                 ))}
               </div>
@@ -794,5 +1017,27 @@ function primaryBtnStyle(disabled: boolean): CSSProperties {
     borderRadius: 7,
     cursor: disabled ? "not-allowed" : "pointer",
     boxShadow: disabled ? "none" : "0 1px 2px rgba(0,0,0,0.10)",
+  };
+}
+
+// W5-T4 — zoom button style (compact, matches presetBtnStyle family).
+function zoomBtnStyle(disabled: boolean): CSSProperties {
+  return {
+    height: 26,
+    minWidth: 26,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "0 6px",
+    fontSize: 13,
+    fontWeight: 600,
+    color: disabled ? CHROME.muted2 : CHROME.text2,
+    background: CHROME.surface,
+    border: `1px solid ${CHROME.lineMid}`,
+    borderRadius: 6,
+    cursor: disabled ? "not-allowed" : "pointer",
+    opacity: disabled ? 0.5 : 1,
+    fontVariantNumeric: "tabular-nums",
+    lineHeight: 1,
   };
 }

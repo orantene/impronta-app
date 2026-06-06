@@ -74,6 +74,10 @@ import {
   useEditContext,
   type BuilderNodePastePreview,
 } from "./edit-context";
+import {
+  useHoveredSectionId,
+  useHoveredBuilderNodeId,
+} from "./hover-bridge";
 import { CanvasMoveHandle, parseTranslate } from "./canvas-move-handle";
 import { CanvasResizeHandles } from "./canvas-resize-handles";
 import {
@@ -371,33 +375,39 @@ function collectCanvasDropCandidates(
     const id = el.getAttribute("data-builder-node-id");
     if (id && !idToEl.has(id)) idToEl.set(id, el);
   }
+  // W2-T6(b) — one id→node Map instead of a per-element findBuilderNodeById walk.
+  const nodeById = buildBuilderNodeMap(tree);
 
-  const candidates: CanvasDropCandidate[] = [];
+  // W2-T6(a) — FIRST pass: resolve only the CONTAINER elements (a drop parent
+  // must have children.type ≠ "none" and a non-zero box). The depth loop then
+  // iterates THIS small container set, not every [data-builder-node-id] element
+  // — turning the old O(N²-over-all-nodes) containment scan into
+  // O(containers²), which is what the comment always claimed it was.
+  const containerEls: {
+    el: HTMLElement;
+    id: string;
+    node: BuilderNode;
+    rect: DOMRect;
+  }[] = [];
   for (const el of elements) {
     const id = el.getAttribute("data-builder-node-id");
     if (!id) continue;
-    const node = findBuilderNodeById(tree, id);
+    const node = nodeById.get(id);
     if (!node) continue;
-    // Only containers (children policy ≠ "none") can be a drop parent.
     if (BUILDER_NODE_REGISTRY[node.kind].children.type === "none") continue;
     const rect = el.getBoundingClientRect();
     if (rect.width === 0 && rect.height === 0) continue;
+    containerEls.push({ el, id, node, rect });
+  }
 
-    // Depth = how many OTHER candidate elements contain this one. Cheap O(n²)
-    // over the (small) candidate set; mirrors the marquee containment filter.
+  const candidates: CanvasDropCandidate[] = [];
+  for (const { el, id, node, rect } of containerEls) {
+    // Depth = how many OTHER CONTAINER candidates contain this one. O(containers²)
+    // over the (small) container set; mirrors the marquee containment filter.
     let depth = 0;
-    for (const other of elements) {
-      if (other === el) continue;
-      const otherId = other.getAttribute("data-builder-node-id");
-      if (!otherId) continue;
-      const otherNode = findBuilderNodeById(tree, otherId);
-      if (
-        otherNode &&
-        BUILDER_NODE_REGISTRY[otherNode.kind].children.type !== "none" &&
-        other.contains(el)
-      ) {
-        depth += 1;
-      }
+    for (const other of containerEls) {
+      if (other.el === el) continue;
+      if (other.el.contains(el)) depth += 1;
     }
 
     const locked =
@@ -470,6 +480,45 @@ function findBuilderNodeById(
     }
   }
   return null;
+}
+
+/**
+ * W2-T6 — flatten the tree into an id→node Map ONCE. The hot DOM-measure loops
+ * (collectCanvasDropCandidates, buildMarqueeIndex) used to call
+ * `findBuilderNodeById` (a full tree walk) per element — O(N·tree) per scan, and
+ * collectCanvasDropCandidates did it again per OTHER element in its depth loop
+ * (O(N²·tree)). One Map turns each lookup into O(1).
+ */
+function buildBuilderNodeMap(tree: BuilderNodeTree): Map<string, BuilderNode> {
+  const map = new Map<string, BuilderNode>();
+  const stack = [...tree];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current) continue;
+    map.set(current.id, current);
+    if ("children" in current && Array.isArray(current.children)) {
+      for (const child of current.children) stack.push(child);
+    }
+  }
+  return map;
+}
+
+/**
+ * W3-T3 — flatten the tree into DOCUMENT-ORDER node ids (parent, then its
+ * children depth-first) so Tab / Shift+Tab can walk the block tree in the same
+ * order the operator reads it. Used only for keyboard traversal of the canvas
+ * selection.
+ */
+function flattenBuilderNodeIdsInOrder(tree: BuilderNodeTree): string[] {
+  const out: string[] = [];
+  const visit = (node: BuilderNode) => {
+    out.push(node.id);
+    if ("children" in node && Array.isArray(node.children)) {
+      for (const child of node.children) visit(child);
+    }
+  };
+  for (const node of tree) visit(node);
+  return out;
 }
 
 /**
@@ -580,9 +629,7 @@ export function SelectionLayer() {
     extendSelection,
     toggleSelection,
     getAllSelectedIds,
-    hoveredSectionId,
     setHoveredSectionId,
-    hoveredBuilderNodeId,
     setHoveredBuilderNodeId,
     device,
     moveSection,
@@ -620,6 +667,13 @@ export function SelectionLayer() {
     previewing: isEditModePreviewing,
   } = useEditContext();
 
+  // W2-T3 — hover VALUES come from the hover-bridge micro-store (the setters
+  // above stay on the context). This is the whole point: selection-layer DOES
+  // read hover (it draws the hover ring), so it subscribes here and re-renders
+  // on a hover — but a hover no longer re-renders the rest of the chrome.
+  const hoveredSectionId = useHoveredSectionId();
+  const hoveredBuilderNodeId = useHoveredBuilderNodeId();
+
   const [portalEl, setPortalEl] = useState<HTMLElement | null>(null);
   const [hoverRect, setHoverRect] = useState<Rect | null>(null);
   // Job #5 — rect of the freeform node under the cursor (canvas OR a layers
@@ -628,6 +682,13 @@ export function SelectionLayer() {
   const [nodeHoverRect, setNodeHoverRect] = useState<Rect | null>(null);
   const [selectedRect, setSelectedRect] = useState<Rect | null>(null);
   const [selectedTypeKey, setSelectedTypeKey] = useState<string | null>(null);
+  // W3-T3 — keyboard/a11y for the canvas selection. `selectionAnnounce` feeds a
+  // polite aria-live region ("Heading selected") for screen readers;
+  // `selectionFocused` is true while the selected canvas block actually holds DOM
+  // focus, driving a DISTINCT focus-visible ring separate from the hover/select
+  // rings.
+  const [selectionAnnounce, setSelectionAnnounce] = useState("");
+  const [selectionFocused, setSelectionFocused] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [contextMenu, setContextMenu] =
     useState<SelectionContextMenuState | null>(null);
@@ -669,6 +730,18 @@ export function SelectionLayer() {
   const spacingOverlayRef = useRef<HTMLDivElement | null>(null);
   const gapOverlayRef = useRef<HTMLDivElement | null>(null);
   const overlayTrackRafRef = useRef<number | null>(null);
+  // W3-T4 — rAF handle for the multi-select SECONDARY rings (mirrors the primary
+  // ring's tracking loop so they follow their blocks on scroll/resize instead of
+  // drifting until the next React render).
+  const multiRingTrackRafRef = useRef<number | null>(null);
+  // W2-T6(c) — the overlay-tracking rAF loop re-measured the selected element
+  // (getBoundingClientRect + 6 style writes) EVERY frame, ~60×/s, even when
+  // nothing moved. This flag is set true by the exact geometry-change signals
+  // the React rect-recompute path already trusts (scroll/resize + the selected
+  // element's ResizeObserver/MutationObserver); the rAF loop early-returns when
+  // it's false → ~0 forced reflows while idle. Starts true so the first frame
+  // (and every re-selection) always writes.
+  const geometryDirtyRef = useRef(true);
 
   const getSelectedSectionEl = useCallback((): HTMLElement | null => {
     if (!selectedSectionId) return null;
@@ -794,6 +867,89 @@ export function SelectionLayer() {
     getSelectedBuilderNodeEl,
   ]);
 
+  // W3-T3 — canvas selection focus + a11y. When the selection changes, move
+  // keyboard focus to the selected block element (made programmatically
+  // focusable with tabIndex=-1) and announce it to screen readers via the polite
+  // live region. Tracks the element's focus state so the ring can show a DISTINCT
+  // focus-visible treatment. Skips stealing focus while the operator is typing in
+  // an inspector field (so a value-driven re-selection doesn't yank the caret).
+  useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+    if (!selectedBuilderNodeId) {
+      setSelectionAnnounce("");
+      setSelectionFocused(false);
+      return undefined;
+    }
+    // Announce label — read straight off the live tree (no dependency on the
+    // later-computed selectedNodeLabel memo).
+    const node = buildBuilderNodeMap(builderTree).get(selectedBuilderNodeId);
+    const label =
+      node && node.kind !== "section"
+        ? (BUILDER_NODE_REGISTRY[node.kind]?.label ?? "Block")
+        : "Block";
+    setSelectionAnnounce(`${label} selected`);
+
+    let cancelled = false;
+    let attempts = 0;
+    let boundEl: HTMLElement | null = null;
+    const onFocus = () => setSelectionFocused(true);
+    const onBlur = () => setSelectionFocused(false);
+    const activeIsTextEntry = (): boolean => {
+      const a = document.activeElement as HTMLElement | null;
+      if (!a) return false;
+      const tag = a.tagName;
+      return (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        a.isContentEditable ||
+        a.getAttribute("role") === "textbox"
+      );
+    };
+    const run = () => {
+      if (cancelled) return;
+      const el =
+        Array.from(
+          document.querySelectorAll<HTMLElement>(
+            `[data-builder-node-id="${CSS.escape(selectedBuilderNodeId)}"]`,
+          ),
+        ).find(
+          (candidate) =>
+            !candidate.closest(
+              "[data-edit-topbar], [data-edit-drawer], [data-edit-overlay]",
+            ),
+        ) ?? null;
+      if (!el) {
+        if (attempts < 8) {
+          attempts += 1;
+          requestAnimationFrame(run);
+        }
+        return;
+      }
+      boundEl = el;
+      if (el.tabIndex < 0) el.tabIndex = -1;
+      el.addEventListener("focus", onFocus);
+      el.addEventListener("blur", onBlur);
+      // Only pull focus to the canvas if the operator isn't mid-edit in a panel.
+      if (!activeIsTextEntry()) {
+        try {
+          el.focus({ preventScroll: true });
+        } catch {
+          el.focus();
+        }
+      }
+    };
+    requestAnimationFrame(run);
+    return () => {
+      cancelled = true;
+      if (boundEl) {
+        boundEl.removeEventListener("focus", onFocus);
+        boundEl.removeEventListener("blur", onBlur);
+      }
+      setSelectionFocused(false);
+    };
+  }, [selectedBuilderNodeId, builderTree]);
+
   // 2026 direct-manipulation: glue the selection outline + handles to the
   // element WHILE it is dragged/resized. The resize/move/padding handles write
   // style.width/height/transform/padding inline for an instant element preview,
@@ -807,7 +963,12 @@ export function SelectionLayer() {
     if (typeof window === "undefined") return undefined;
     const el = getSelectedBuilderNodeEl() ?? getSelectedSectionEl();
     if (!el) return undefined;
-    const recompute = () => scheduleRectRecomputeRef.current();
+    const recompute = () => {
+      // W2-T6(c) — the element's own size/inline-style changed → let the rAF
+      // overlay loop re-measure on its next frame.
+      geometryDirtyRef.current = true;
+      scheduleRectRecomputeRef.current();
+    };
     const ro =
       typeof ResizeObserver !== "undefined"
         ? new ResizeObserver(recompute)
@@ -1136,6 +1297,9 @@ export function SelectionLayer() {
     function onScrollOrResize() {
       // Rings track the scroll via the rAF rect recompute; no position
       // transition fights it now, so they snap frame-for-frame.
+      // W2-T6(c) — scroll/resize moves the selected element's viewport rect →
+      // wake the rAF overlay loop for the next frame(s).
+      geometryDirtyRef.current = true;
       scheduleRectRecompute();
     }
     function onKey(e: KeyboardEvent) {
@@ -1210,12 +1374,15 @@ export function SelectionLayer() {
     // shape carries the live element so the O(N²) containment filter still works.
     type MarqueeCandidate = { id: string; el: HTMLElement; box: Rect };
     function buildMarqueeIndex(): MarqueeCandidate[] {
+      // W2-T6(b) — one id→node Map instead of a findBuilderNodeById tree walk
+      // per element.
+      const nodeById = buildBuilderNodeMap(builderTree);
       return Array.from(
         document.querySelectorAll<HTMLElement>("[data-builder-node-id]"),
       ).flatMap((el) => {
         const id = el.getAttribute("data-builder-node-id");
         if (!id) return [];
-        const node = findBuilderNodeById(builderTree, id);
+        const node = nodeById.get(id);
         // P3-LOCK: skip locked nodes and section/role nodes from marquee selection.
         if (!node || node.kind === "section" || resolveBuilderNodeRole(node.id) || node.locked) {
           return [];
@@ -1756,21 +1923,37 @@ export function SelectionLayer() {
   }, [canvasDragGestureKey, rebuildCanvasDropIndex]);
 
   // ── drag-to-reorder ──────────────────────────────────────────────
-  // Drop target under the cursor given the current section layout.
-  const computeDrop = (
-    cursorX: number,
-    cursorY: number,
-    sourceSlot: string | null,
-    sourceTypeKey: string | null,
-  ): DropTarget | null => {
+  // W2-T5 — section drop-index cache. `computeDrop` is called on EVERY
+  // pointermove AND every auto-scroll rAF tick during a section reorder, and it
+  // used to `querySelectorAll([data-cms-section…]) + getBoundingClientRect` per
+  // call — thousands of forced reflows/s on a 20-section page. Mirror the
+  // canvasDropIndexRef pattern: snapshot the section boxes once at drag-start,
+  // refresh only on scroll/resize during the drag, and read the cache here.
+  //
+  // Byte-identical guarantee: the cache stores the EXACT `items` the per-frame
+  // scan produced, recomputed on the only inputs that move the boxes (scroll +
+  // resize). The midpoint/insert math below is pure over `items`, so the drop
+  // decision is identical to scanning every frame. An empty cache (a drop event
+  // before the seed) falls back to a fresh scan, so correctness never depends on
+  // the cache being warm.
+  type SectionDropItem = {
+    id: string;
+    slotKey: string;
+    order: number;
+    top: number;
+    bottom: number;
+    left: number;
+    width: number;
+  };
+  const sectionDropIndexRef = useRef<SectionDropItem[] | null>(null);
+  const scanSectionDropItems = useCallback((): SectionDropItem[] => {
     const nodes = Array.from(
       document.querySelectorAll<HTMLElement>(
         "[data-cms-section][data-section-id][data-slot-key]",
       ),
     );
-    if (nodes.length === 0) return null;
     // Flat list of sections with their slot / order / rect.
-    const items = nodes
+    return nodes
       .map((el) => {
         const id = el.getAttribute("data-section-id")!;
         const slotKey = el.getAttribute("data-slot-key")!;
@@ -1780,7 +1963,23 @@ export function SelectionLayer() {
           ? { id, slotKey, order, top: r.top, bottom: r.bottom, left: r.left, width: r.width }
           : null;
       })
-      .filter((x): x is NonNullable<typeof x> => x !== null);
+      .filter((x): x is SectionDropItem => x !== null);
+  }, []);
+  const rebuildSectionDropIndex = useCallback(() => {
+    sectionDropIndexRef.current = scanSectionDropItems();
+  }, [scanSectionDropItems]);
+
+  // Drop target under the cursor given the current section layout.
+  const computeDrop = (
+    cursorX: number,
+    cursorY: number,
+    sourceSlot: string | null,
+    sourceTypeKey: string | null,
+  ): DropTarget | null => {
+    // W2-T5 — read the cache seeded at drag-start (refreshed on scroll/resize);
+    // fall back to a fresh scan if the cache isn't warm.
+    const items = sectionDropIndexRef.current ?? scanSectionDropItems();
+    if (items.length === 0) return null;
     // Find the item whose vertical midpoint is closest to the cursor; cursor
     // in top half → insert before it, bottom half → insert after it.
     let best: (typeof items)[number] | null = null;
@@ -1819,6 +2018,33 @@ export function SelectionLayer() {
       indicatorWidth: best.width,
     };
   };
+
+  // W2-T5 — seed + maintain the section drop-index cache for the lifetime of a
+  // section reorder gesture (armed OR dragging). Refresh only on scroll/resize
+  // (the inputs that move the section boxes); clear when the gesture ends so a
+  // stale snapshot can never leak into the next drag. Mirrors the canvas one.
+  const sectionDragGestureKey =
+    drag.phase === "idle" ? "idle" : `${drag.phase}:${drag.id}`;
+  useEffect(() => {
+    if (sectionDragGestureKey === "idle") {
+      sectionDropIndexRef.current = null;
+      return undefined;
+    }
+    rebuildSectionDropIndex();
+    const onScrollOrResize = () => rebuildSectionDropIndex();
+    window.addEventListener("scroll", onScrollOrResize, {
+      passive: true,
+      capture: true,
+    });
+    window.addEventListener("resize", onScrollOrResize);
+    return () => {
+      window.removeEventListener("scroll", onScrollOrResize, {
+        capture: true,
+      } as EventListenerOptions);
+      window.removeEventListener("resize", onScrollOrResize);
+      sectionDropIndexRef.current = null;
+    };
+  }, [sectionDragGestureKey, rebuildSectionDropIndex]);
 
   // Global pointer listeners while a drag is armed or active.
   useEffect(() => {
@@ -2067,7 +2293,15 @@ export function SelectionLayer() {
       `[data-builder-node-id="${CSS.escape(nodeId)}"]`,
     );
   }, []);
-  const selectedBuilderNodeRects = useMemo<MultiNodeRect[]>(() => {
+  // W2-T6(d) — measure the multi-selected node rects in a LAYOUT EFFECT, not in
+  // a render-phase useMemo. The old useMemo ran getBoundingClientRect per
+  // selected node DURING render, forcing a reflow inside React's reconcile (a
+  // mid-render layout thrash during a multi-select bulk action + scroll). Now
+  // the measurement runs after the DOM is committed (pre-paint) and writes
+  // state; the render phase stays reflow-free. The filter (drop zero-box nodes)
+  // and the resulting `multiNodeSelectionActive = rects.length > 1` semantics
+  // are byte-identical to the previous useMemo.
+  const measureSelectedBuilderNodeRects = useCallback((): MultiNodeRect[] => {
     return getAllSelectedBuilderNodeIds().flatMap((id) => {
       const el = getBuilderNodeEl(id);
       if (!el) return [];
@@ -2083,10 +2317,15 @@ export function SelectionLayer() {
         },
       ];
     });
+  }, [getAllSelectedBuilderNodeIds, getBuilderNodeEl]);
+  const [selectedBuilderNodeRects, setSelectedBuilderNodeRects] = useState<
+    MultiNodeRect[]
+  >([]);
+  useLayoutEffect(() => {
+    setSelectedBuilderNodeRects(measureSelectedBuilderNodeRects());
   }, [
+    measureSelectedBuilderNodeRects,
     additionalSelectedBuilderNodeIds,
-    getAllSelectedBuilderNodeIds,
-    getBuilderNodeEl,
     pageVersion,
     selectedBuilderNodeId,
     selectedSectionNodeId,
@@ -2253,10 +2492,18 @@ export function SelectionLayer() {
     };
 
     // Write once synchronously (pre-paint) so the overlays never flash at the
-    // origin, then track every frame.
+    // origin, then track. W2-T6(c) — re-selection must paint immediately, so
+    // force one write now and prime the dirty flag for the first frame.
+    geometryDirtyRef.current = true;
     sync();
     const tick = () => {
-      sync();
+      // Only re-measure when a geometry-change signal fired (scroll/resize/RO/MO);
+      // otherwise skip the getBoundingClientRect + 6 style writes entirely. This
+      // is the ~60 idle reflows/s W2-T6(c) removes.
+      if (geometryDirtyRef.current) {
+        geometryDirtyRef.current = false;
+        sync();
+      }
       overlayTrackRafRef.current = requestAnimationFrame(tick);
     };
     overlayTrackRafRef.current = requestAnimationFrame(tick);
@@ -2275,6 +2522,83 @@ export function SelectionLayer() {
     getSelectedBuilderNodeEl,
     getSelectedSectionEl,
   ]);
+
+  // W3-T4 — rAF-track the multi-select SECONDARY rings to their source elements
+  // so they don't drift away from their blocks during a scroll (they used to be
+  // computed once synchronously at render and then sit still). Mirrors the
+  // primary ring's loop: seed once pre-paint, then re-measure only on the shared
+  // `geometryDirtyRef` signal (no idle reflows). Reads the rendered ring elements
+  // by `data-multi-ring-source` and writes top/left/width/height from each ring's
+  // source. Inactive (and cheap) when there's no multi-selection.
+  const hasMultiRings =
+    multiNodeSelectionActive || additionalSelectedIds.size > 0;
+  useLayoutEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    if (!hasMultiRings || isDragging) return undefined;
+
+    const syncMultiRings = () => {
+      const rings = document.querySelectorAll<HTMLElement>(
+        "[data-multi-ring-source]",
+      );
+      for (const ring of Array.from(rings)) {
+        const source = ring.getAttribute("data-multi-ring-source");
+        if (!source) continue;
+        const sep = source.indexOf(":");
+        const kind = source.slice(0, sep);
+        const id = source.slice(sep + 1);
+        let el: HTMLElement | null = null;
+        if (kind === "section") {
+          el = document.querySelector<HTMLElement>(
+            `[data-cms-section][data-section-id="${CSS.escape(id)}"]`,
+          );
+        } else {
+          el =
+            Array.from(
+              document.querySelectorAll<HTMLElement>(
+                `[data-builder-node-id="${CSS.escape(id)}"]`,
+              ),
+            ).find(
+              (candidate) =>
+                !candidate.closest(
+                  "[data-edit-topbar], [data-edit-drawer], [data-edit-overlay]",
+                ),
+            ) ?? null;
+        }
+        if (!el) continue;
+        const r = el.getBoundingClientRect();
+        ring.style.top = `${r.top}px`;
+        ring.style.left = `${r.left}px`;
+        ring.style.width = `${r.width}px`;
+        ring.style.height = `${r.height}px`;
+      }
+    };
+
+    // The shared `geometryDirtyRef` is primed by the same scroll/resize/RO/MO
+    // listeners the primary loop uses. When a BUILDER-NODE multi-select is
+    // active the primary ring loop early-returns (so it never clears the flag) →
+    // THIS loop is the sole owner and must clear it, or it would re-measure every
+    // idle frame (re-introducing the reflows W2-T6 removed). When only SECTION
+    // additional rings are active the primary loop is running and owns the flag,
+    // so we piggyback on its dirty frames without clearing.
+    const ownsDirtyFlag = multiNodeSelectionActive;
+    geometryDirtyRef.current = true;
+    syncMultiRings();
+    const tick = () => {
+      if (geometryDirtyRef.current) {
+        if (ownsDirtyFlag) geometryDirtyRef.current = false;
+        syncMultiRings();
+      }
+      multiRingTrackRafRef.current = requestAnimationFrame(tick);
+    };
+    multiRingTrackRafRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      if (multiRingTrackRafRef.current !== null) {
+        cancelAnimationFrame(multiRingTrackRafRef.current);
+        multiRingTrackRafRef.current = null;
+      }
+    };
+  }, [hasMultiRings, isDragging, multiNodeSelectionActive]);
 
   // 4A #7 — the HOVERED freeform block, when it's a directly-movable block (a
   // real element, not a section / role-bound slot / locked node). Drives the
@@ -2652,6 +2976,31 @@ export function SelectionLayer() {
     window.addEventListener("keydown", onArrowNav);
     return () => window.removeEventListener("keydown", onArrowNav);
   }, [contextMenu, selectedCanvasNodeId, selectedNodePath]);
+
+  // W3-T3 — Tab / Shift+Tab walk the block tree in DOCUMENT ORDER (a flat
+  // complement to the arrow keys' spatial sibling/parent/child nav). Only
+  // intercepts Tab when focus is on the canvas and a block is selected, so Tab
+  // still does native focus traversal inside inspector panels. Wraps at the ends.
+  useEffect(() => {
+    function onTab(e: KeyboardEvent) {
+      if (e.key !== "Tab") return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (isEditableKeyboardTarget(e.target) || !keyboardFocusIsOnCanvas()) return;
+      if (contextMenu) return;
+      if (!selectedCanvasNodeId) return;
+      const order = flattenBuilderNodeIdsInOrder(builderTree);
+      if (order.length === 0) return;
+      const idx = order.indexOf(selectedCanvasNodeId);
+      if (idx === -1) return;
+      e.preventDefault();
+      const nextIdx = e.shiftKey
+        ? (idx - 1 + order.length) % order.length
+        : (idx + 1) % order.length;
+      callbacksRef.current.selectBuilderNode(order[nextIdx]!);
+    }
+    window.addEventListener("keydown", onTab);
+    return () => window.removeEventListener("keydown", onTab);
+  }, [contextMenu, selectedCanvasNodeId, builderTree]);
 
   // #13 — canvas selection breadcrumb crumbs.
   // Mirrors the inspector-dock's `inspectorBreadcrumbCrumbs` but lives
@@ -3099,6 +3448,30 @@ export function SelectionLayer() {
 	      <style id={SELECTION_LAYER_KEYFRAMES_ID}>
 	        {SELECTION_LAYER_KEYFRAMES}
 	      </style>
+
+      {/* W3-T3 — polite live region announcing the current canvas selection to
+          screen readers ("Heading selected"). Visually hidden; aria-live reads
+          it on change. */}
+      <div
+        data-selection-announce=""
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        style={{
+          position: "absolute",
+          width: 1,
+          height: 1,
+          margin: -1,
+          padding: 0,
+          border: 0,
+          overflow: "hidden",
+          clip: "rect(0 0 0 0)",
+          clipPath: "inset(50%)",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {selectionAnnounce}
+      </div>
 
       {/* #13 — always-visible canvas selection breadcrumb bar.
        *  Pinned just below the topbar (top: 54px), spanning from the
@@ -3589,6 +3962,7 @@ export function SelectionLayer() {
           <div
             key={`add-${id}`}
             data-selection-additional-ring=""
+            data-multi-ring-source={`section:${id}`}
             style={{
               position: "fixed",
               top: r.top,
@@ -3611,6 +3985,7 @@ export function SelectionLayer() {
 	            key={`builder-add-${rect.id}`}
 	            data-builder-node-multi-ring=""
 	            data-builder-node-id={rect.id}
+	            data-multi-ring-source={`node:${rect.id}`}
 	            style={{
 	              position: "fixed",
 	              top: rect.top,
@@ -3646,9 +4021,14 @@ export function SelectionLayer() {
               borderRadius: CANVAS_SELECTION_RADIUS,
               // Dual-tone: white inset 1px, ink outset 2px, soft outer halo 8px.
               // Uses box-shadow so inset + outset coexist without a second element.
+              // W3-T3 — when the selected block holds keyboard focus, widen the
+              // outer halo into a brighter accent ring so keyboard focus is
+              // visibly DISTINCT from a plain pointer selection (focus-visible).
               boxShadow: isDragging
                 ? `0 0 0 2px rgba(36,41,66,0.30)`
-                : `inset 0 0 0 1px ${SELECT_INSET}, 0 0 0 2px ${SELECT_OUTER}, 0 0 0 8px ${SELECT_HALO}`,
+                : selectionFocused
+                  ? `inset 0 0 0 1px ${SELECT_INSET}, 0 0 0 2px ${SELECT_OUTER}, 0 0 0 6px ${SELECT_HALO}, 0 0 0 8px rgba(58,123,255,0.85)`
+                  : `inset 0 0 0 1px ${SELECT_INSET}, 0 0 0 2px ${SELECT_OUTER}, 0 0 0 8px ${SELECT_HALO}`,
               outline: isDragging
                 ? "2px dashed rgba(36,41,66,0.35)"
                 : "none",

@@ -470,6 +470,10 @@ export function CanvasMoveHandle({
             top: "calc(50% + 20px)",
             left: "50%",
             transform: "translateX(-50%)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 2,
             padding: "2px 6px",
             borderRadius: 5,
             background: accent,
@@ -483,7 +487,13 @@ export function CanvasMoveHandle({
               'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
           }}
         >
-          {`move ${live.x}, ${live.y}`}
+          {/* live offset + a one-line modifier hint (W3-T6). Shift bypasses the
+           *  grid snap + sibling align ("free") — the only modifier this handle
+           *  implements, so the only one advertised. */}
+          <span>{`move ${live.x}, ${live.y}`}</span>
+          <span style={{ fontWeight: 600, opacity: 0.78, fontSize: 9 }}>
+            ⇧ free
+          </span>
         </span>
       ) : null}
     </div>

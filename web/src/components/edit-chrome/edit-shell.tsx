@@ -24,12 +24,15 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/client";
 import { EditErrorBoundary } from "./edit-error-boundary";
+import { BuilderProfilerBoundary } from "./builder-profiler-boundary";
 import {
   EditProvider,
   useEditContext,
   type EditDevice,
   type PreviewFrameOverride,
 } from "./edit-context";
+import { useHoveredSectionId } from "./hover-bridge";
+import { useDirty } from "./dirty-bridge";
 import { PresenceProvider } from "./presence-provider";
 import { CHROME_SHADOWS } from "./kit";
 import { SelectionLayer } from "./selection-layer";
@@ -238,9 +241,15 @@ export function EditShell({
             are available to all chrome components inside the editor. The
             provider must nest inside EditProvider so CanvasKeyboardZoom /
             CanvasZoomControls can read pageId from EditContext. */}
-        <CanvasViewportProviderWrapper>
-          <EditShellInner>{children}</EditShellInner>
-        </CanvasViewportProviderWrapper>
+        {/* W0-T6 — flag-gated profiler boundary (no-op unless
+            NEXT_PUBLIC_BUILDER_PROFILE=1). Wraps the chrome consumer tree so
+            the W0-T7 run can measure per-commit cost of the ~40
+            useEditContext() consumers. Adds zero nodes when the flag is off. */}
+        <BuilderProfilerBoundary id="edit-chrome">
+          <CanvasViewportProviderWrapper>
+            <EditShellInner>{children}</EditShellInner>
+          </CanvasViewportProviderWrapper>
+        </BuilderProfilerBoundary>
       </EditProvider>
     </EditErrorBoundary>
   );
@@ -346,7 +355,6 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     device,
     setDevice,
     previewFrame,
-    dirty,
     saving,
     canUndo,
     canRedo,
@@ -422,6 +430,9 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     openLibrary,
     compositionLoaded,
   } = useEditContext();
+  // W2-T4 — `dirty` VALUE from the dirty-bridge (this shell threads it into the
+  // topbar / exit guard; the setter stays on the context).
+  const dirty = useDirty();
 
   /** Opens Page settings once per cms page id for default draft titles (workspace Add page). */
   const autoPageSettingsForUntitledRef = useRef<Set<string>>(new Set());
@@ -1078,6 +1089,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
          *  operator can test menus, anchors, and click targets. */}
         {!previewing ? <CanvasLinkInterceptor /> : null}
         <FirstPaintTip />
+        <MakeItYoursChecklist />
         <IframeBridgeParent />
         {/* 4C — canvas viewport tools: zoom transform, space-drag pan, keyboard
             zoom, rulers, guides, and the HUD. All suppressed in preview mode
@@ -1172,7 +1184,11 @@ function CanvasViewportComponents({
  * tenant scope here just for a tip, which isn't worth the wiring.
  */
 function FirstPaintTip() {
-  const { selectedSectionId, hoveredSectionId } = useEditContext();
+  const { selectedSectionId } = useEditContext();
+  // W2-T3 — hovered-section VALUE from the bridge (this tip auto-dismisses on
+  // first hover, so it genuinely subscribes; other edit-shell consumers that
+  // don't read hover no longer re-render on a sweep).
+  const hoveredSectionId = useHoveredSectionId();
   // Session-scoped — once dismissed, stays dismissed across in-session
   // navigations (page swap, locale switch, viewport-mode toggle that
   // forces a remount). Without this, navigating to a different page
@@ -1282,6 +1298,276 @@ function FirstPaintTip() {
   );
 }
 
+/**
+ * W6-T2 — post-apply "Make it yours" checklist.
+ *
+ * After an operator applies a full-page design or a section kit, the canvas
+ * fills with a polished-but-generic page: real layout, placeholder words, and
+ * stock placeholder photos. The documented #1 acceptance blocker is operators
+ * not realizing those photos are placeholders to swap — and not knowing where
+ * the three first edits live (inline text, the Assets drawer, the Theme
+ * drawer). This checklist is the guided first edit.
+ *
+ * It mounts hidden and only appears on the `impronta:starter-applied` event
+ * (dispatched by EmptyCanvasStarter's requestStarterSync for BOTH a section-kit
+ * apply and a one-click full-page design). Each step deep-links its action and
+ * auto-checks when the operator engages that surface:
+ *   1. Edit the words   → clicks the first section to open inline editing.
+ *   2. Swap the photos   → opens the Assets drawer (explicitly flags the
+ *                          shipped photos as placeholders).
+ *   3. Make it your color→ opens the Theme drawer.
+ *
+ * Dismissable, and the dismissal persists in sessionStorage so it never
+ * re-nags after the operator closes it or finishes all three. Session-scoped
+ * for the same reason as FirstPaintTip — it's an orientation aid, not a
+ * setting, and per-tenant persistence isn't worth wiring for a checklist.
+ */
+const MAKE_IT_YOURS_DISMISS_KEY = "edit:make-it-yours:dismissed";
+
+function MakeItYoursChecklist() {
+  const { selectedSectionId, openTheme, openAssets, themeOpen, assetsOpen } =
+    useEditContext();
+  // Hidden until a starter/design is applied this session. A separate
+  // "visible" flag (vs. relying on done-counts) lets us keep the panel mounted
+  // through the celebratory all-done state before it auto-dismisses.
+  const [visible, setVisible] = useState(false);
+  const [done, setDone] = useState<{
+    content: boolean;
+    photos: boolean;
+    theme: boolean;
+  }>({ content: false, photos: false, theme: false });
+
+  // Appear on apply — unless the operator already dismissed it this session.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    function onApplied() {
+      try {
+        if (
+          window.sessionStorage.getItem(MAKE_IT_YOURS_DISMISS_KEY) === "1"
+        ) {
+          return;
+        }
+      } catch {
+        // sessionStorage can throw in private mode — fall through and show it.
+      }
+      setVisible(true);
+    }
+    window.addEventListener("impronta:starter-applied", onApplied);
+    return () =>
+      window.removeEventListener("impronta:starter-applied", onApplied);
+  }, []);
+
+  // Auto-check each step when its surface is engaged.
+  useEffect(() => {
+    if (selectedSectionId) {
+      setDone((prev) => (prev.content ? prev : { ...prev, content: true }));
+    }
+  }, [selectedSectionId]);
+  useEffect(() => {
+    if (assetsOpen) {
+      setDone((prev) => (prev.photos ? prev : { ...prev, photos: true }));
+    }
+  }, [assetsOpen]);
+  useEffect(() => {
+    if (themeOpen) {
+      setDone((prev) => (prev.theme ? prev : { ...prev, theme: true }));
+    }
+  }, [themeOpen]);
+
+  const dismiss = useCallback(() => {
+    setVisible(false);
+    if (typeof window === "undefined") return;
+    try {
+      window.sessionStorage.setItem(MAKE_IT_YOURS_DISMISS_KEY, "1");
+    } catch {
+      // Degrade silently — worst case the operator sees it again next apply.
+    }
+  }, []);
+
+  // Step 1 deep-link — click the first section so the inline editor opens.
+  // Going through a synthetic click reuses SelectionLayer's resolution, so it
+  // works for both curated sections and a freeform full-page design.
+  const focusFirstSection = useCallback(() => {
+    if (typeof document === "undefined") return;
+    const first = document.querySelector<HTMLElement>("[data-cms-section]");
+    if (first) {
+      first.scrollIntoView({ behavior: "smooth", block: "center" });
+      first.click();
+    }
+    setDone((prev) => ({ ...prev, content: true }));
+  }, []);
+
+  const steps = [
+    {
+      key: "content" as const,
+      label: "Edit the words",
+      hint: "The headlines and copy are placeholders — click in and rewrite them.",
+      cta: "Start editing",
+      action: focusFirstSection,
+    },
+    {
+      key: "photos" as const,
+      label: "Swap the photos",
+      hint: "Every image shipped is a placeholder. Open Assets to drop in your own.",
+      cta: "Open Assets",
+      action: openAssets,
+    },
+    {
+      key: "theme" as const,
+      label: "Make it your color",
+      hint: "Set your brand color and fonts once — the whole page follows.",
+      cta: "Open Theme",
+      action: openTheme,
+    },
+  ];
+
+  const doneCount = steps.filter((step) => done[step.key]).length;
+  const allDone = doneCount === steps.length;
+
+  if (!visible) return null;
+
+  return (
+    <div
+      data-edit-overlay="make-it-yours"
+      className="pointer-events-auto fixed bottom-5 right-5 z-[89] w-[300px] overflow-hidden rounded-xl"
+      style={{
+        background: "rgba(255, 255, 255, 0.98)",
+        border: "1px solid rgba(24, 24, 27, 0.10)",
+        boxShadow: CHROME_SHADOWS.popover,
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        fontSize: 12,
+        color: "#27272a",
+      }}
+    >
+      <div
+        className="flex items-start justify-between gap-2 px-3.5 pt-3"
+        style={{ paddingBottom: 6 }}
+      >
+        <div>
+          <div
+            style={{
+              fontSize: 12.5,
+              fontWeight: 700,
+              letterSpacing: "-0.01em",
+            }}
+          >
+            {allDone ? "Looking good." : "Make it yours"}
+          </div>
+          <div
+            style={{
+              marginTop: 2,
+              fontSize: 11,
+              color: "rgba(39, 39, 42, 0.6)",
+            }}
+          >
+            {allDone
+              ? "You've made the three core edits — keep going or publish."
+              : `${doneCount} of ${steps.length} — your design is live in this draft.`}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={dismiss}
+          aria-label="Dismiss checklist"
+          className="inline-flex size-[20px] shrink-0 items-center justify-center rounded-full transition hover:bg-black/5"
+          style={{ color: "rgba(39, 39, 42, 0.45)", border: "none", background: "transparent" }}
+        >
+          <svg
+            width="11"
+            height="11"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            aria-hidden
+          >
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+      <ul style={{ listStyle: "none", margin: 0, padding: "2px 8px 10px" }}>
+        {steps.map((step) => {
+          const isDone = done[step.key];
+          return (
+            <li
+              key={step.key}
+              className="rounded-lg px-2.5 py-2 transition hover:bg-black/[0.03]"
+            >
+              <div className="flex items-center gap-2">
+                <span
+                  aria-hidden
+                  className="inline-flex size-[16px] shrink-0 items-center justify-center rounded-full"
+                  style={{
+                    border: isDone
+                      ? "1px solid rgba(22, 163, 74, 0.9)"
+                      : "1px solid rgba(24, 24, 27, 0.25)",
+                    background: isDone ? "rgba(22, 163, 74, 0.9)" : "transparent",
+                  }}
+                >
+                  {isDone ? (
+                    <svg
+                      width="9"
+                      height="9"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#fff"
+                      strokeWidth="3.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  ) : null}
+                </span>
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: isDone ? "rgba(39, 39, 42, 0.5)" : "#27272a",
+                    textDecoration: isDone ? "line-through" : "none",
+                  }}
+                >
+                  {step.label}
+                </span>
+                {!isDone ? (
+                  <button
+                    type="button"
+                    onClick={step.action}
+                    className="ml-auto rounded-md px-2 py-0.5 text-[11px] font-semibold transition"
+                    style={{
+                      color: "#fff",
+                      background: "#2a3147",
+                      border: "none",
+                    }}
+                  >
+                    {step.cta}
+                  </button>
+                ) : null}
+              </div>
+              {!isDone ? (
+                <p
+                  style={{
+                    margin: "3px 0 0 24px",
+                    fontSize: 11,
+                    lineHeight: 1.4,
+                    color: "rgba(39, 39, 42, 0.6)",
+                  }}
+                >
+                  {step.hint}
+                </p>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 function BodyPaddingController({
   selectedSectionId,
   navigatorOpen,
@@ -1351,7 +1637,12 @@ function DraftSavedToast() {
 }
 
 function MutationErrorToast() {
-  const { mutationError, clearMutationError } = useEditContext();
+  const {
+    mutationError,
+    clearMutationError,
+    hasConflictRecovery,
+    keepMyVersionAfterConflict,
+  } = useEditContext();
 
   useEffect(() => {
     if (!mutationError) return;
@@ -1373,6 +1664,12 @@ function MutationErrorToast() {
   const suggestion = mutationError.code
     ? mutationCodeSuggestion(mutationError.code)
     : null;
+  // W3-T2(c) — a recoverable conflict gets a real choice instead of a 5s
+  // disappearing act: take the just-reloaded latest, or re-apply the rejected
+  // edit on top of it. `hasConflictRecovery` is only true after a builder-tree
+  // CAS race parked the operator's tree.
+  const showConflictRecovery =
+    mutationError.code === "VERSION_CONFLICT" && hasConflictRecovery;
 
   return (
     <div
@@ -1397,6 +1694,26 @@ function MutationErrorToast() {
         {suggestion ? (
           <span className="mt-1 block text-[11px] font-normal leading-snug text-amber-900">
             Next step: {suggestion}
+          </span>
+        ) : null}
+        {showConflictRecovery ? (
+          <span className="mt-2 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={clearMutationError}
+              className="rounded-sm border border-amber-300 bg-white/70 px-2 py-1 text-[11px] font-semibold text-amber-900 transition hover:bg-white"
+              title="Discard your change and keep the version that's already loaded."
+            >
+              Reload latest
+            </button>
+            <button
+              type="button"
+              onClick={() => void keepMyVersionAfterConflict()}
+              className="rounded-sm border border-amber-400 bg-amber-200/80 px-2 py-1 text-[11px] font-semibold text-amber-950 transition hover:bg-amber-200"
+              title="Re-apply your change on top of the latest version."
+            >
+              Keep my version
+            </button>
           </span>
         ) : null}
         {detailLines.length > 0 ? (

@@ -27,6 +27,7 @@ import { ArrowDown, ArrowUp, Lock, LockOpen, Plus, X } from "lucide-react";
 
 import { CHROME, CHROME_RADII } from "./kit";
 import { useEditContext } from "./edit-context";
+import { useHoveredBuilderNodeId } from "./hover-bridge";
 import { FreeformInsertPopover } from "./freeform-insert-popover";
 import {
   BUILDER_NODE_REGISTRY,
@@ -284,9 +285,9 @@ export function FreeformLayersTree() {
     reportMutationError,
     advancedElementLibraryEnabled,
     canInsertRawHtmlElements,
-    hoveredBuilderNodeId,
     setHoveredBuilderNodeId,
   } = useEditContext();
+  const hoveredBuilderNodeId = useHoveredBuilderNodeId(); // W2-T3 — value from the bridge
 
   const { rows, rootContainerId, rootContainerKinds } = useMemo(
     () => flattenTree(builderTree),

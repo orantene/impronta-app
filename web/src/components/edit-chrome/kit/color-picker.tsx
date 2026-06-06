@@ -8,11 +8,10 @@
  *
  * Three input paths in one surface:
  *
- *   1. **Native HSL picker** — `<input type="color">` rendered full-bleed.
- *      The OS handles the gradient surface, hue strip, and accessibility.
- *      We don't reinvent a canvas-based picker because the native one is
- *      already excellent on every supported platform (and we ship to
- *      browsers, not embedded contexts).
+ *   1. **In-app HSV picker** — a self-contained saturation/value square + hue
+ *      strip (`HsvPicker`). Replaces the OS `<input type="color">` so the
+ *      color surface stays on the branded chrome and never drops to OS chrome
+ *      (W3-T5). Pointer-drag + keyboard, hex in/out.
  *
  *   2. **Eyedropper** — `window.EyeDropper` is Chromium-only at time of
  *      writing. Feature-detect and show the button only when the API
@@ -36,6 +35,7 @@ import { createPortal } from "react-dom";
 
 import { CHROME, CHROME_RADII, CHROME_SHADOWS } from "./tokens";
 import { Swatch } from "./swatch";
+import { HsvPicker } from "./hsv-picker";
 
 const RECENT_KEY = "tulala.theme.recent-colors";
 const RECENT_MAX = 8;
@@ -247,7 +247,8 @@ export function ColorPickerPopover({
       // Anchor below + slightly right; the popover is 240px wide so we
       // clamp into the viewport with an 8px gutter.
       const popW = 240;
-      const popH = 320;
+      // ~164px HSV surface + hex echo + recents + (optional) theme/gradient rows.
+      const popH = 420;
       let left = rect.left;
       let top = rect.bottom + 6;
       if (left + popW > window.innerWidth - 8) {
@@ -424,37 +425,11 @@ export function ColorPickerPopover({
           </button>
         </div>
       ) : null}
-      {/* Native HSL surface. The control itself is a 1-px transparent input
-          stretched over a swatch tile so we get the full OS picker on click
-          while keeping our own visual style. */}
-      <div
-        style={{
-          position: "relative",
-          height: 64,
-          borderRadius: CHROME_RADII.sm,
-          border: `1px solid ${CHROME.line}`,
-          background: normalised,
-          boxShadow: CHROME_SHADOWS.inputInset,
-          overflow: "hidden",
-        }}
-      >
-        <input
-          id={inputId}
-          type="color"
-          value={normalised}
-          onChange={(e) => commit(e.target.value)}
-          aria-label="Pick a color"
-          style={{
-            position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
-            opacity: 0,
-            cursor: "pointer",
-            border: "none",
-            padding: 0,
-          }}
-        />
+      {/* In-app HSV surface — saturation/value square + hue strip. Replaces the
+          OS `<input type="color">` so color-picking never drops to OS chrome
+          and stays on the branded surface (W3-T5). */}
+      <div id={inputId}>
+        <HsvPicker value={normalised} onChange={commit} />
       </div>
 
       {/* Hex echo + eyedropper trigger */}

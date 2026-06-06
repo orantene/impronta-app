@@ -50,6 +50,10 @@ import {
   type PageDesignSummary,
 } from "@/lib/site-admin/builder-node/page-designs/summaries";
 import {
+  pageDesignThumbnail,
+  kitThumbnail,
+} from "./design-thumbnails";
+import {
   resolveEssentialHomeIndexes,
   sectionSourceKind,
   sectionSourceLabel,
@@ -393,6 +397,15 @@ export function EmptyCanvasStarter({
   const [availabilityLoaded, setAvailabilityLoaded] = useState(false);
   const [pendingSlug, setPendingSlug] = useState<string | null>(null);
   const [quickInsertError, setQuickInsertError] = useState<string | null>(null);
+  // W6-T4(b) — shown briefly after "Start from scratch" inserts the hero so the
+  // operator has a clear nudge to keep building. Auto-dismissed after 8 s (or on
+  // manual close) — the card unmounts once they hover a section gap and add a block.
+  const [scratchMomentum, setScratchMomentum] = useState(false);
+  const scratchMomentumTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // W6-T4(c) — show a brief Undo affordance after a full-page design is applied.
+  // The card stays visible for up to ~2 s while the canvas syncs; the affordance
+  // lives inside it so it's only ever shown during that window (not a ghost toast).
+  const [showDesignUndo, setShowDesignUndo] = useState(false);
   const [templateGalleryOpen, setTemplateGalleryOpen] = useState(false);
   const [templateGalleryQuery, setTemplateGalleryQuery] = useState("");
   const [templateGalleryCategory, setTemplateGalleryCategory] =
@@ -444,6 +457,15 @@ export function EmptyCanvasStarter({
         .includes(q);
     });
   }, [galleryCatalogTiles, templateGalleryCategory, templateGalleryQuery]);
+
+  // Cleanup the scratch-momentum auto-dismiss timer on unmount.
+  useEffect(() => {
+    return () => {
+      if (scratchMomentumTimerRef.current !== null) {
+        clearTimeout(scratchMomentumTimerRef.current);
+      }
+    };
+  }, []);
 
   const requestStarterSync = useCallback(async () => {
     if (typeof window === "undefined") return;
@@ -498,7 +520,12 @@ export function EmptyCanvasStarter({
   // in-place refresh so the canvas paints the design without a manual reload.
   useEffect(() => {
     if (designState?.ok) {
-      void requestStarterSync();
+      // W6-T4(c) — surface the Undo affordance while the sync is in flight.
+      setShowDesignUndo(true);
+      void requestStarterSync().then(() => {
+        // The card is likely unmounted by now, but guard in case of fast sync.
+        setShowDesignUndo(false);
+      });
     }
   }, [designState, requestStarterSync]);
 
@@ -517,6 +544,16 @@ export function EmptyCanvasStarter({
         setQuickInsertError(result?.error ?? "Couldn't add the hero section.");
         return;
       }
+      // W6-T4(b) — show the scratch-momentum nudge while the canvas syncs.
+      // The banner stays visible until the user dismisses it or 8 s elapse.
+      setScratchMomentum(true);
+      if (scratchMomentumTimerRef.current !== null) {
+        clearTimeout(scratchMomentumTimerRef.current);
+      }
+      scratchMomentumTimerRef.current = setTimeout(() => {
+        setScratchMomentum(false);
+        scratchMomentumTimerRef.current = null;
+      }, 8000);
       await requestStarterSync();
     });
   }
@@ -550,6 +587,10 @@ export function EmptyCanvasStarter({
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
           {PAGE_DESIGN_SUMMARIES.map((summary) => {
             const busy = designPending && pendingDesignId === summary.id;
+            // W6-T4(a) — real editorial photo per design (asset-pipeline ready;
+            // falls back to the tinted gradient + placeholder bars when no photo
+            // maps, so the card is never a bare gray box).
+            const thumb = pageDesignThumbnail(summary.id, summary.archetype);
             return (
               <button
                 key={summary.id}
@@ -568,19 +609,30 @@ export function EmptyCanvasStarter({
               >
                 <div
                   className={`relative aspect-[16/10] w-full overflow-hidden border-b border-stone-100 bg-gradient-to-br ${archetypeGradient(summary.archetype)}`}
+                  style={
+                    thumb.src
+                      ? {
+                          backgroundImage: `url(${thumb.src})`,
+                          backgroundSize: "cover",
+                          backgroundPosition: "center",
+                        }
+                      : undefined
+                  }
                 >
                   <span className="absolute right-3 top-3 rounded-full bg-white/85 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-stone-600 shadow-sm ring-1 ring-stone-200/70 backdrop-blur">
                     Full page
                   </span>
-                  <div className="absolute inset-x-5 bottom-4 flex flex-col gap-1.5 opacity-80">
-                    <div className="h-1.5 w-1/3 rounded-full bg-white/70" />
-                    <div className="h-6 w-full rounded-md bg-white/60" />
-                    <div className="grid grid-cols-3 gap-1.5">
-                      <div className="h-4 rounded bg-white/50" />
-                      <div className="h-4 rounded bg-white/50" />
-                      <div className="h-4 rounded bg-white/50" />
+                  {thumb.src ? null : (
+                    <div className="absolute inset-x-5 bottom-4 flex flex-col gap-1.5 opacity-80">
+                      <div className="h-1.5 w-1/3 rounded-full bg-white/70" />
+                      <div className="h-6 w-full rounded-md bg-white/60" />
+                      <div className="grid grid-cols-3 gap-1.5">
+                        <div className="h-4 rounded bg-white/50" />
+                        <div className="h-4 rounded bg-white/50" />
+                        <div className="h-4 rounded bg-white/50" />
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
                 <div className="flex items-center justify-between gap-3 px-4 py-3.5">
                   <div className="min-w-0">
@@ -633,6 +685,10 @@ export function EmptyCanvasStarter({
           {visibleTiles.map((tile) => {
             const busy = pending && pendingSlug === tile.slug;
             const Wire = tile.Wire;
+            // W6-T4(a) — a soft real-photo wash behind the structural Wire so a
+            // section kit reads warm/finished without losing the layout diagram
+            // (the Wire stays the legible foreground — it's what a kit IS).
+            const kitThumb = kitThumbnail(tile.category);
             return (
               <button
                 key={tile.slug}
@@ -644,7 +700,18 @@ export function EmptyCanvasStarter({
                 className="group relative flex flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-stone-300 hover:shadow-[0_18px_44px_-26px_rgba(15,23,20,0.5)] focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900/25 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <div className="relative aspect-[16/10] w-full overflow-hidden border-b border-stone-100 bg-gradient-to-br from-stone-50 to-stone-100/70 p-5">
-                  <Wire className="h-full w-full text-stone-300 transition-colors duration-200 group-hover:text-stone-400" />
+                  {kitThumb.src ? (
+                    <span
+                      aria-hidden
+                      className="pointer-events-none absolute inset-0 opacity-[0.12] transition-opacity duration-200 group-hover:opacity-20"
+                      style={{
+                        backgroundImage: `url(${kitThumb.src})`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                      }}
+                    />
+                  ) : null}
+                  <Wire className="relative h-full w-full text-stone-300 transition-colors duration-200 group-hover:text-stone-400" />
                   <span className="absolute right-3 top-3 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-medium tabular-nums text-stone-500 shadow-sm ring-1 ring-stone-200/70 backdrop-blur">
                     {tile.sections} sections
                   </span>
@@ -745,6 +812,51 @@ export function EmptyCanvasStarter({
           </div>
         </div>
 
+        {/* W6-T4(b) — scratch momentum nudge: shown briefly after the hero is
+            inserted so the operator has a clear next step instead of staring at
+            a lone section. Auto-dismissed after 8 s. */}
+        {scratchMomentum ? (
+          <div
+            role="status"
+            aria-live="polite"
+            className="mt-4 flex items-start justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3"
+          >
+            <div className="flex items-center gap-2.5 text-xs">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="shrink-0 text-emerald-600"
+                aria-hidden
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              <span className="text-emerald-900">
+                <span className="font-semibold">Hero added.</span>{" "}
+                Hover between sections on the canvas to add your next block — or
+                use the{" "}
+                <span className="font-medium">Layers</span> panel on the left.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setScratchMomentum(false)}
+              aria-label="Dismiss"
+              className="shrink-0 rounded-sm p-0.5 text-emerald-700 transition hover:bg-emerald-100 hover:text-emerald-900"
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+        ) : null}
+
         <div className="mt-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs">
           {showTemplateGallery ? (
             <button
@@ -768,9 +880,52 @@ export function EmptyCanvasStarter({
         ) : null}
         {freePlan ? (
           <p className="mt-4 text-center text-[11px] leading-relaxed text-stone-400">
-            Free includes one starter design. Upgrade to Studio for the full
-            gallery.
+            Every full-page design above is free. Studio adds the full section-kit
+            gallery for mixing your own layout.
           </p>
+        ) : null}
+
+        {/* W6-T4(c) — Undo affordance shown while the full-page design is
+            syncing. The card is visible for up to ~2 s during the sync; calling
+            editCtx.undo() before the canvas refreshes reverts the DB write and
+            the canvas returns to the empty state. Dismissed when the sync fires
+            or when the user clicks Undo. Only shown when editCtx is mounted (i.e.
+            we're inside an EditProvider) and the undo stack is non-empty. */}
+        {showDesignUndo && editCtx?.canUndo ? (
+          <div
+            role="status"
+            aria-live="polite"
+            className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-stone-200 bg-stone-50 px-4 py-2.5"
+          >
+            <p className="text-xs text-stone-600">
+              <span className="font-semibold">Design applied.</span>{" "}
+              Changed your mind?
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setShowDesignUndo(false);
+                void editCtx.undo();
+              }}
+              className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-stone-700 shadow-sm transition hover:border-stone-300 hover:bg-stone-50"
+            >
+              <svg
+                width="11"
+                height="11"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M9 14 4 9l5-5" />
+                <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+              </svg>
+              Undo
+            </button>
+          </div>
         ) : null}
       </div>
       <StarterTemplateGalleryModal
@@ -927,9 +1082,9 @@ export function StarterTemplateGalleryModal({
               Start from a flexible composition
             </h3>
             <p className="mt-1 max-w-2xl text-sm leading-relaxed text-stone-500">
-              Wireframe starters for the future template marketplace. Today
-              they use the existing section seeding action; later each card can
-              become a full saved-template preview with reusable blocks.
+              Pick a proven section layout to drop onto your page, then make every
+              block your own. Mix kits freely — each one slots in cleanly and
+              stays fully editable.
             </p>
           </div>
           <button

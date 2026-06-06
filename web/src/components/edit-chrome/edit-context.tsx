@@ -115,7 +115,18 @@ import { checkSlotTypeCompatibility } from "@/lib/site-admin/edit-mode/slot-type
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
 import { isBuilderClientCanvasEnabled } from "@/lib/site-admin/edit-mode/client-canvas-flag";
+import { sectionTypeHasLiveData } from "@/lib/site-admin/sections/section-live-data";
 import { publishBuilderCanvasTree } from "./client-builder-canvas-bridge";
+import {
+  publishHoveredSectionId,
+  publishHoveredBuilderNodeId,
+} from "./hover-bridge";
+import { publishDirty } from "./dirty-bridge";
+import {
+  readClasses as readStyleClasses,
+  toRegistry as toStyleClassRegistry,
+  publishStyleClassRegistry,
+} from "@/lib/site-admin/builder-node/style-classes-storage";
 import { normalizeCompositionSlots } from "./composition-slots";
 import {
   loadWorkspaceLayout,
@@ -390,18 +401,25 @@ export interface EditContextValue {
     targetNodeId?: string | null,
   ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
 
-  /** Section under the cursor, for hover outline. */
-  hoveredSectionId: string | null;
+  /**
+   * Section under the cursor, for hover outline. W2-T3 — the VALUE now lives in
+   * the `hover-bridge` micro-store: read it with `useHoveredSectionId()` from
+   * "./hover-bridge", NOT off the context (that kept it out of the value-memo so
+   * a hover sweep no longer re-renders every consumer). Only the setter remains
+   * on the context.
+   */
   setHoveredSectionId: (id: string | null) => void;
 
   /**
    * Freeform builder node under the cursor (canvas OR layers row), for the
    * bidirectional canvas↔layers highlight. Freeform full-page designs have no
-   * `[data-cms-section]` wrapper, so `hoveredSectionId` never fires for them;
+   * `[data-cms-section]` wrapper, so the hovered SECTION never fires for them;
    * this is the section-less analog. Hovering a layer row sets it (→ canvas
    * hover ring); hovering a canvas block sets it (→ layer row tint).
+   *
+   * W2-T3 — read the VALUE with `useHoveredBuilderNodeId()` from "./hover-bridge"
+   * (not off the context); only the setter remains here.
    */
-  hoveredBuilderNodeId: string | null;
   setHoveredBuilderNodeId: (id: string | null) => void;
 
   device: EditDevice;
@@ -453,8 +471,12 @@ export interface EditContextValue {
     patch: { visibility?: "visible" | "hidden"; order?: number | null },
   ) => Promise<{ ok: boolean; error?: string }>;
 
-  /** Inspector autosave state. */
-  dirty: boolean;
+  /**
+   * Inspector autosave state. W2-T4 — the `dirty` VALUE now lives in the
+   * `dirty-bridge` micro-store: read it with `useDirty()` from "./dirty-bridge"
+   * (that kept it out of the value-memo so a once-per-burst dirty flip doesn't
+   * re-render every consumer). Only the setter remains on the context.
+   */
   setDirty: (d: boolean) => void;
   saving: boolean;
   setSaving: (s: boolean) => void;
@@ -968,6 +990,16 @@ export interface EditContextValue {
   clearNavigatorRecentAdditions: () => void;
 
   /**
+   * W3-T1 — the most-recently inserted/duplicated/pasted block, carried with a
+   * monotonic `nonce` so a repeat insert of the same id still re-fires. Drives
+   * the canvas highlight pulse (a brief settle ring on the new block); the
+   * layout-settle motion itself is handled by the renderer's FLIP wrapper.
+   * `null` until the first insert of the session. Reduced-motion users get no
+   * pulse (the effect that consumes it bails on `prefers-reduced-motion`).
+   */
+  lastInsertedNodeId: { id: string; nonce: number } | null;
+
+  /**
    * Set a section's `presentation.visibility`. Used by the Navigator
    * panel's eye toggle. Resolves with `{ ok }` so the caller can render
    * an inline error toast on failure. On success the composition is
@@ -1021,6 +1053,24 @@ export interface EditContextValue {
    * presentation surface internal mutations use.
    */
   reportMutationError: (message: string | EditMutationError) => void;
+
+  /**
+   * W3-T2(c/d) — when a builder-tree save loses a CAS race (VERSION_CONFLICT),
+   * the operator's rejected tree is parked here so the conflict toast can offer
+   * a real choice instead of silently discarding the edit:
+   *   - true  → a recovery is pending (toast shows "Reload latest" / "Keep my
+   *             version"). The latest server state is ALREADY loaded (the
+   *             reload ran), so "Reload latest" is just `clearMutationError`.
+   *   - false → no pending recovery.
+   * Cleared on any successful save, an explicit reload, or keep-mine.
+   */
+  hasConflictRecovery: boolean;
+  /**
+   * Re-apply the operator's conflict-rejected tree on top of the freshly
+   * reloaded base version (CAS now matches, so it persists). Preserves the
+   * operator's work across the conflict. No-op when nothing is parked.
+   */
+  keepMyVersionAfterConflict: () => Promise<void>;
 }
 
 const EditContext = createContext<EditContextValue | null>(null);
@@ -1086,15 +1136,27 @@ function mutationErrorFingerprint(input: EditMutationError): string {
  * that section through its autosave action. Keeping both on one
  * timeline means ⌘Z honours LIFO across structural and content edits.
  */
+// W3-T8 — the selection that was active when an edit was committed, carried on
+// each HistoryEntry so undo/redo can land the operator back on the affected
+// block with its inspector open (instead of dropping to "nothing selected").
+// Optional: legacy persisted entries (and the rare entry committed with no
+// selection) simply restore nothing.
+interface HistorySelection {
+  sectionId: string | null;
+  builderNodeId: string | null;
+}
+
 type HistoryEntry =
   | {
       kind: "composition";
       snapshot: CompositionSnapshot;
+      selection?: HistorySelection;
     }
   | {
       kind: "builderTree";
       pre: BuilderNodeTree;
       post: BuilderNodeTree;
+      selection?: HistorySelection;
     }
   | {
       kind: "field";
@@ -1104,6 +1166,19 @@ type HistoryEntry =
       name: string;
       pre: Record<string, unknown>;
       post: Record<string, unknown>;
+      selection?: HistorySelection;
+    }
+  // Marathon W1-T4 — a section visibility toggle or rename. These persist via
+  // the section's own dispatch path (which writes the server record), so they
+  // can't be replayed through the composition snapshot (stripSnapshotForSave
+  // drops name/visibility). Undo/redo re-dispatch with recordHistory:false.
+  | {
+      kind: "sectionMeta";
+      field: "visibility" | "name";
+      sectionId: string;
+      pre: string;
+      post: string;
+      selection?: HistorySelection;
     };
 
 function cloneSnapshot(s: CompositionSnapshot): CompositionSnapshot {
@@ -1965,10 +2040,18 @@ export function EditProvider({
     return out;
   }, [selectedSectionId, additionalSelectedIds]);
 
-  const [hoveredSectionId, setHoveredSectionId] = useState<string | null>(null);
-  const [hoveredBuilderNodeId, setHoveredBuilderNodeId] = useState<string | null>(
-    null,
-  );
+  // W2-T3 — hover lives in the `hover-bridge` micro-store, NOT in this
+  // provider's `value`. A pointer sweep used to rebuild the whole context value
+  // (hover sat in its useMemo deps) → all 41 consumers re-rendered per hover.
+  // Now the setters just PUBLISH to the bridge (no React state in `value`), and
+  // only the ~4 readers that subscribe to the bridge re-render. The setters are
+  // stable identities (empty deps) so they don't churn the value either.
+  const setHoveredSectionId = useCallback((id: string | null) => {
+    publishHoveredSectionId(id);
+  }, []);
+  const setHoveredBuilderNodeId = useCallback((id: string | null) => {
+    publishHoveredBuilderNodeId(id);
+  }, []);
   const [device, setDeviceRaw] = useState<EditDevice>("desktop");
   // Responsive-preview frame override (job #17). Reset whenever the operator
   // picks a device tier so a custom width / rotation from a previous tier never
@@ -2023,6 +2106,13 @@ export function EditProvider({
   );
 
   const [dirty, setDirty] = useState(false);
+  // W2-T4 — publish `dirty` to the dirty-bridge micro-store. We KEEP the React
+  // state (the beforeunload guard effect below must re-run on the change) but
+  // drop `dirty` from the value-memo deps, so a once-per-burst dirty flip no
+  // longer rebuilds the context value — only the ~4 `useDirty()` readers wake.
+  useEffect(() => {
+    publishDirty(dirty);
+  }, [dirty]);
   const [saving, setSaving] = useState(false);
   const [loadedSection, setLoadedSection] = useState<LoadedSection | null>(
     null,
@@ -2105,6 +2195,27 @@ export function EditProvider({
   const pageMetadataRef = useRef<PageMetadata | null>(pageMetadata);
   const slotsRef = useRef<Record<string, CompositionSectionRef[]>>(slots);
   const builderTreeRef = useRef<BuilderNodeTree>(builderTree);
+  // W2-T4a — selection mirrored into refs (synced by an effect below, mirroring
+  // builderTreeRef). executeBuilderNodeOperation reads these for its audit
+  // annotation ONLY; reading the refs instead of the live state lets us DROP
+  // selectedSectionId/selectedBuilderNodeId from its dep array, so a selection
+  // change no longer recreates that callback (and, via its 54 call-sites, the
+  // whole `value`) — the load-bearing fix that makes action-only consumers
+  // selection-quiet (and is why the GATE-C context split is not needed).
+  const selectedSectionIdRef = useRef<string | null>(null);
+  const selectedBuilderNodeIdRef = useRef<string | null>(null);
+  // W3-T8 — true while an undo/redo replay is in flight. The selection-sync
+  // auto-clear effects bail on it so they don't wipe the selection we're about
+  // to restore the instant the replayed tree/slots land (before the restore
+  // runs). The restore itself validates against the new tree, so a genuinely
+  // stale selection still ends up cleared.
+  const replayingHistoryRef = useRef(false);
+  // W1-T5(c) — locale + pageId for the pagehide keepalive draft beacon, mirrored
+  // into a ref so the (empty-deps) pagehide handler reads the latest values.
+  const draftBeaconMetaRef = useRef<{ locale: string; pageId: string | null }>({
+    locale,
+    pageId,
+  });
   const builderTreeSaveQueueRef = useRef<Promise<unknown>>(Promise.resolve());
   // ── Debounced/coalesced builder-tree draft saves ──────────────────────
   // Rapid node edits (typing, slider drags, repeated nudges) each used to fire
@@ -2148,6 +2259,9 @@ export function EditProvider({
   useEffect(() => {
     builderTreeRef.current = builderTree;
   }, [builderTree]);
+  useEffect(() => {
+    draftBeaconMetaRef.current = { locale, pageId };
+  }, [locale, pageId]);
 
   // W3 Sub-step B — publish the live tree to the cross-subtree bridge so the
   // client canvas (mounted in the storefront body, OUTSIDE this provider) can
@@ -2162,6 +2276,20 @@ export function EditProvider({
     };
   }, [builderTree]);
 
+  // W1-T2(c) — publish the page's linked-style-class registry to the
+  // cross-subtree bridge so the client canvas (a sibling subtree that can't
+  // read this provider's context) can resolve linked blocks. This handles the
+  // INITIAL hydrate (existing classes when the editor opens / pageId changes);
+  // subsequent create/edit/delete republish from writeClasses itself. Cleared
+  // on unmount so a stale registry can't outlive the editor. Reads localStorage
+  // — additive, does not enter the value memo.
+  useEffect(() => {
+    publishStyleClassRegistry(toStyleClassRegistry(readStyleClasses(pageId)));
+    return () => {
+      publishStyleClassRegistry(null);
+    };
+  }, [pageId]);
+
   // history stacks. Capped so a long session doesn't leak memory — 50 deep
   // is Figma-ish and well past what any realistic undo chain needs for a
   // page-composition tool (the tool has ~12 slots total; 50 states of
@@ -2170,7 +2298,9 @@ export function EditProvider({
   //
   // Entries are a discriminated union: `composition` captures slots +
   // metadata for structural moves; `field` captures a single section's
-  // pre/post props for inline text / image / URL edits. A single LIFO
+  // pre/post props for inline text / image / URL edits; `sectionMeta`
+  // (W1-T4) captures a visibility toggle or rename (replayed through the
+  // section dispatch, which the snapshot path can't persist). A single LIFO
   // timeline so ⌘Z honours the most recent change regardless of kind.
   //
   // #18 UNDO-SURVIVES-RELOAD: we persist the last UNDO_PERSIST_CAP entries of
@@ -2182,25 +2312,62 @@ export function EditProvider({
   const UNDO_PERSIST_CAP = 10;
   const undoPersistKey = pageId ? `builder_undo_stack_v1:${pageId}` : null;
 
+  const isKnownHistoryEntry = (e: unknown): e is HistoryEntry =>
+    e !== null &&
+    typeof e === "object" &&
+    "kind" in (e as object) &&
+    ((e as { kind: string }).kind === "composition" ||
+      (e as { kind: string }).kind === "builderTree" ||
+      (e as { kind: string }).kind === "field" ||
+      // W1-T4 — visibility/rename entries survive reload too.
+      (e as { kind: string }).kind === "sectionMeta");
+
   const [past, setPast] = useState<HistoryEntry[]>(() => {
     if (!undoPersistKey || typeof window === "undefined") return [];
     try {
       const raw = window.localStorage.getItem(undoPersistKey);
       if (!raw) return [];
-      const parsed = JSON.parse(raw) as unknown[];
-      if (!Array.isArray(parsed)) return [];
-      // Only rehydrate entries whose shape we recognise.
-      const valid = parsed.filter(
-        (e): e is HistoryEntry =>
-          e !== null &&
-          typeof e === "object" &&
-          "kind" in (e as object) &&
-          (
-            (e as { kind: string }).kind === "composition" ||
-            (e as { kind: string }).kind === "builderTree" ||
-            (e as { kind: string }).kind === "field"
-          ),
-      );
+      const parsed = JSON.parse(raw) as unknown;
+      // W1-T5(a) — the persisted payload is now a VERSIONED envelope
+      // { baseVersion, entries }. A persisted stack's `pre`/`post` trees are
+      // only safe to replay against the page version they were authored on. If
+      // another session (another browser/tab) advanced the page version while
+      // this stack sat in localStorage, replaying it would write a STALE tree
+      // wholesale at the current version — CAS accepts it → silent clobber. So
+      // we DROP the persisted stack whenever its baseVersion ≠ the version we
+      // just loaded. Same-session reloads match (the stack was stamped with the
+      // version current at persist time) and survive.
+      //
+      // Legacy bare-array payloads (pre-W1-T5) have no baseVersion → we cannot
+      // prove they're same-session, so we conservatively drop them once.
+      const loadedVersion = initialComposition?.pageVersion ?? null;
+      let entriesRaw: unknown[] = [];
+      let baseVersion: number | null = null;
+      if (Array.isArray(parsed)) {
+        // Legacy format — unversioned. Drop (can't prove freshness).
+        return [];
+      }
+      if (
+        parsed !== null &&
+        typeof parsed === "object" &&
+        Array.isArray((parsed as { entries?: unknown }).entries)
+      ) {
+        entriesRaw = (parsed as { entries: unknown[] }).entries;
+        const bv = (parsed as { baseVersion?: unknown }).baseVersion;
+        baseVersion = typeof bv === "number" ? bv : null;
+      } else {
+        return [];
+      }
+      // Stale-base guard: only rehydrate when the stamp matches the loaded
+      // version (or we have no loaded version to compare against — first paint).
+      if (
+        loadedVersion !== null &&
+        baseVersion !== null &&
+        baseVersion !== loadedVersion
+      ) {
+        return [];
+      }
+      const valid = entriesRaw.filter(isKnownHistoryEntry);
       return valid.slice(-UNDO_PERSIST_CAP);
     } catch {
       return [];
@@ -2215,6 +2382,14 @@ export function EditProvider({
     [],
   );
 
+  // W1-T5(b) — mirror the live history depth into a ref so refreshComposition's
+  // conflict-wipe can tell whether it is actually DISCARDING work (and should
+  // explain itself with a toast) without taking past/future as deps.
+  const historyDepthRef = useRef(0);
+  useEffect(() => {
+    historyDepthRef.current = past.length + future.length;
+  }, [past, future]);
+
   // #18 — Persist `past` to localStorage. We write only the tail
   // (UNDO_PERSIST_CAP entries) so the serialised size stays small even for
   // large builder-tree snapshots.
@@ -2227,10 +2402,16 @@ export function EditProvider({
   // FLUSHING any pending write synchronously on unmount and when the page is
   // being hidden/unloaded (pagehide + visibilitychange→hidden) — so a reload
   // immediately after an edit never loses the persisted undo tail.
-  const undoPersistDataRef = useRef<{ key: string | null; past: HistoryEntry[] }>(
-    { key: undoPersistKey, past },
-  );
-  undoPersistDataRef.current = { key: undoPersistKey, past };
+  const undoPersistDataRef = useRef<{
+    key: string | null;
+    past: HistoryEntry[];
+    baseVersion: number | null;
+  }>({ key: undoPersistKey, past, baseVersion: pageVersion });
+  undoPersistDataRef.current = {
+    key: undoPersistKey,
+    past,
+    baseVersion: pageVersion,
+  };
   const undoPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const flushUndoPersist = useCallback(() => {
@@ -2239,18 +2420,30 @@ export function EditProvider({
       undoPersistTimerRef.current = null;
     }
     if (typeof window === "undefined") return;
-    const { key, past: latestPast } = undoPersistDataRef.current;
+    const { key, past: latestPast, baseVersion } = undoPersistDataRef.current;
     if (!key) return;
     try {
       const tail = latestPast.slice(-UNDO_PERSIST_CAP);
-      window.localStorage.setItem(key, JSON.stringify(tail));
+      // W1-T5(a) — write a VERSIONED envelope so rehydrate can drop a stack that
+      // a concurrent session has made stale (baseVersion ≠ loaded version).
+      window.localStorage.setItem(
+        key,
+        JSON.stringify({ baseVersion, entries: tail }),
+      );
     } catch {
       // Quota exceeded or private-browsing block — silently skip.
     }
   }, []);
 
-  // Debounced write — reschedules on every `past` change; the serialize+write
-  // runs ~500ms after the last edit, off the interaction hot path.
+  // Debounced write — reschedules on every `past` change OR pageVersion change;
+  // the serialize+write runs ~500ms after the last edit, off the interaction hot
+  // path. W1-T5(a): pageVersion is a dep so that after a draft save bumps the
+  // version (which lands ~after the persist debounce that the edit itself armed)
+  // the stack is RE-STAMPED with the session's latest version. Re-stamping with
+  // a newer version + the same entries is always safe (the entries didn't
+  // change; only our knowledge of the current version improved), and it's what
+  // lets a same-session reload match (baseVersion === loaded version) while a
+  // concurrent session's advance is detected as stale.
   useEffect(() => {
     if (!undoPersistKey || typeof window === "undefined") return;
     if (undoPersistTimerRef.current !== null) {
@@ -2266,7 +2459,7 @@ export function EditProvider({
         undoPersistTimerRef.current = null;
       }
     };
-  }, [past, undoPersistKey, flushUndoPersist]);
+  }, [past, pageVersion, undoPersistKey, flushUndoPersist]);
 
   // Flush on unmount and when the page is hidden/unloaded so a reload right
   // after an edit never loses the persisted undo tail. visibilitychange→hidden
@@ -2410,6 +2603,16 @@ export function EditProvider({
   const [recentNavigatorAdditions, setRecentNavigatorAdditions] = useState<
     NavigatorRecentAddition[]
   >([]);
+  // W3-T1 — most-recently inserted block (id + monotonic nonce), drives the
+  // canvas highlight pulse. A nonce (not a bare id) so re-inserting the same id
+  // still re-fires, and so the pulse effect keys on a fresh value each insert.
+  const [lastInsertedNodeId, setLastInsertedNodeId] = useState<{
+    id: string;
+    nonce: number;
+  } | null>(null);
+  const markNodeInserted = useCallback((nodeId: string) => {
+    setLastInsertedNodeId({ id: nodeId, nonce: Date.now() });
+  }, []);
   const markNavigatorAddition = useCallback(
     (
       sectionId: string,
@@ -2439,6 +2642,60 @@ export function EditProvider({
       current.length === 0 ? current : [],
     );
   }, []);
+
+  // W3-T1 — highlight pulse on the just-inserted block. Self-contained (Web
+  // Animations API on the element's own box-shadow — no shared keyframe sheet to
+  // depend on, so it fires whether or not the Layers panel is mounted). Honors
+  // `prefers-reduced-motion` (the new block already appears + is selected; only
+  // the pulse is suppressed). Retries a few frames because the canvas DOM node
+  // can lag the insert by one bridge re-render.
+  useEffect(() => {
+    if (lastInsertedNodeId === null) return;
+    if (typeof document === "undefined" || typeof window === "undefined") return;
+    if (
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return;
+    }
+    const targetId = lastInsertedNodeId.id;
+    let cancelled = false;
+    let attempts = 0;
+    const run = () => {
+      if (cancelled) return;
+      const el = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          `[data-builder-node-id="${CSS.escape(targetId)}"]`,
+        ),
+      ).find(
+        (candidate) =>
+          !candidate.closest(
+            "[data-edit-topbar], [data-edit-drawer], [data-edit-overlay]",
+          ),
+      );
+      if (!el) {
+        if (attempts < 8) {
+          attempts += 1;
+          requestAnimationFrame(run);
+        }
+        return;
+      }
+      if (typeof el.animate !== "function") return;
+      el.animate(
+        [
+          { boxShadow: "0 0 0 0 rgba(61,79,124,0)" },
+          { boxShadow: "0 0 0 3px rgba(61,79,124,0.55)" },
+          { boxShadow: "0 0 0 0 rgba(61,79,124,0)" },
+        ],
+        { duration: 720, easing: "ease-out", fill: "none" },
+      );
+    };
+    requestAnimationFrame(run);
+    return () => {
+      cancelled = true;
+    };
+  }, [lastInsertedNodeId]);
+
   const setNavigatorWidth = useCallback((width: number) => {
     if (!Number.isFinite(width)) return;
     const rounded = Math.round(width);
@@ -2577,6 +2834,11 @@ export function EditProvider({
     fingerprint: string;
     at: number;
   } | null>(null);
+  // W3-T2(c/d) — the operator's tree that lost a CAS race, parked so the
+  // conflict toast can re-apply it on the reloaded base ("Keep my version").
+  // A ref holds the (large) tree; a boolean state drives the toast affordance.
+  const conflictRecoveryTreeRef = useRef<BuilderNodeTree | null>(null);
+  const [hasConflictRecovery, setHasConflictRecovery] = useState(false);
   const reportMutationError = useCallback(
     (message: string | EditMutationError) => {
       const normalized = normalizeMutationError(message);
@@ -2606,9 +2868,29 @@ export function EditProvider({
     },
     [],
   );
-  const clearMutationError = useCallback(() => setMutationError(null), []);
+  const clearMutationError = useCallback(() => {
+    setMutationError(null);
+    // W3-T2 — dismissing the conflict toast means "go with the reloaded
+    // (latest) version", so drop the parked recovery tree too.
+    if (conflictRecoveryTreeRef.current !== null) {
+      conflictRecoveryTreeRef.current = null;
+      setHasConflictRecovery(false);
+    }
+  }, []);
   useEffect(() => {
     if (!mutationError) return;
+    // W3-T2(b) — recoverable, decision-bearing failures (a co-editor's save
+    // wins → VERSION_CONFLICT; the draft didn't persist → SAVE_FAILED) must NOT
+    // auto-dismiss. They offer a real choice (reload latest / keep my version)
+    // and disappearing on a 5s timer would silently swallow that choice. Every
+    // other (advisory) code keeps the existing 5s ttl so transient gesture
+    // errors don't squat the layout.
+    if (
+      mutationError.code === "VERSION_CONFLICT" ||
+      mutationError.code === "SAVE_FAILED"
+    ) {
+      return;
+    }
     const t = setTimeout(() => setMutationError(null), 5000);
     return () => clearTimeout(t);
   }, [mutationError]);
@@ -2654,8 +2936,57 @@ export function EditProvider({
         void flushBuilderTreeSaveRef.current();
       }
     };
-    const onPageHide = () => flushIfPending();
+    // W1-T5(c) — on a hard PAGEHIDE the page may be torn down immediately, and a
+    // server action's underlying fetch is NOT keepalive, so the non-awaited
+    // flush above can be cancelled mid-flight and the last <750ms-debounce edit
+    // is lost. Send the pending draft via a keepalive POST the browser is
+    // required to deliver even as the page unloads. Reuses the same draft-save
+    // path (auth + CAS) server-side. Best-effort: returns void.
+    const sendPagehideBeacon = (): boolean => {
+      const pendingTree = pendingTreeRef.current;
+      const version = pageVersionRef.current;
+      const metadata = pageMetadataRef.current;
+      if (pendingTree === null || version === null || metadata === null) {
+        return false;
+      }
+      const { locale: beaconLocale, pageId: beaconPageId } =
+        draftBeaconMetaRef.current;
+      const slotsForSave = stripSnapshotForSave({
+        slots: slotsRef.current,
+        metadata,
+      }).slots;
+      const payload = JSON.stringify({
+        locale: beaconLocale,
+        pageId: beaconPageId,
+        expectedVersion: version,
+        metadata,
+        slots: slotsForSave,
+        builderTree: pendingTree,
+      });
+      try {
+        // fetch+keepalive carries cookies (auth) and survives unload; sendBeacon
+        // is the fallback but can't set a JSON content-type, so prefer fetch.
+        void fetch("/api/site-admin/homepage-draft-beacon", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: payload,
+          keepalive: true,
+          credentials: "same-origin",
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    const onPageHide = () => {
+      // Prefer the guaranteed-delivery beacon; if there is nothing to beacon
+      // (or it couldn't be built) fall back to the normal flush.
+      if (!sendPagehideBeacon()) flushIfPending();
+    };
     const onVisibility = () => {
+      // visibilitychange→hidden does NOT mean the page is going away (tab
+      // switch / minimize), so the normal queued flush — with full CAS handling
+      // — is correct here; no beacon needed.
       if (document.visibilityState === "hidden") flushIfPending();
     };
     window.addEventListener("pagehide", onPageHide);
@@ -2753,6 +3084,9 @@ export function EditProvider({
     if (!selectedSectionId) return;
     if (selectedSectionId === SITE_HEADER_SELECTION_ID) return;
     if (liveSectionIds.has(selectedSectionId)) return;
+    // W3-T8 — during an undo/redo replay, suppress the auto-clear so the
+    // restore (which runs right after the replayed slots land) isn't pre-empted.
+    if (replayingHistoryRef.current) return;
     // Selection-sync hardening: if a section disappears (remove, restore,
     // locale/content swap), clear stale selection and child-node override.
     setSelectedSectionIdRaw(null);
@@ -2774,6 +3108,8 @@ export function EditProvider({
   }, [liveSectionIds, selectedSectionId]);
   useEffect(() => {
     if (!selectedBuilderNodeIdOverride) return;
+    // W3-T8 — see above: don't fight the in-flight replay restore.
+    if (replayingHistoryRef.current) return;
     // P7A-2 — drop stale child selection if the reconciled tree no longer
     // contains this id (defense in depth alongside sectionIdByBuilderNodeId).
     if (!treeContainsBuilderNodeId(builderTree, selectedBuilderNodeIdOverride)) {
@@ -2816,6 +3152,17 @@ export function EditProvider({
       builderNodeIdBySectionId,
     ],
   );
+  // W2-T4a — keep the selection refs current (declared near builderTreeRef).
+  // executeBuilderNodeOperation reads these (not the live state) for its audit
+  // annotation, so selection can leave its dep array. The effect runs after the
+  // render that changed selection; executeBuilderNodeOperation reads them only
+  // after an `await`, so the ref is always current at read time.
+  useEffect(() => {
+    selectedSectionIdRef.current = selectedSectionId;
+  }, [selectedSectionId]);
+  useEffect(() => {
+    selectedBuilderNodeIdRef.current = selectedBuilderNodeId;
+  }, [selectedBuilderNodeId]);
   const selectBuilderNode = useCallback(
     (nodeId: string) => {
       if (!treeContainsBuilderNodeId(builderTree, nodeId)) return;
@@ -2835,6 +3182,44 @@ export function EditProvider({
       setSelectedBuilderNodeIdOverride,
       setSelectedSectionId,
     ],
+  );
+
+  // W3-T8 — snapshot the active selection at commit time (read from the refs so
+  // this never churns deps), stamped onto the HistoryEntry so undo/redo can land
+  // back on it.
+  const captureHistorySelection = useCallback(
+    (): HistorySelection => ({
+      sectionId: selectedSectionIdRef.current,
+      builderNodeId: selectedBuilderNodeIdRef.current,
+    }),
+    [],
+  );
+
+  // W3-T8 — re-apply a HistoryEntry's selection after a successful replay.
+  // Validates against the CURRENT (replayed) tree: a builder-node that's back in
+  // the tree is re-selected with its inspector context; a node that no longer
+  // exists (e.g. redo of a delete) falls back to its owner section, then to a
+  // bare section selection, then to nothing — never a dangling selection.
+  const restoreHistorySelection = useCallback(
+    (selection: HistorySelection | undefined) => {
+      if (!selection) return;
+      const { sectionId, builderNodeId } = selection;
+      if (
+        builderNodeId &&
+        treeContainsBuilderNodeId(builderTreeRef.current, builderNodeId)
+      ) {
+        selectBuilderNode(builderNodeId);
+        return;
+      }
+      if (sectionId) {
+        setSelectedSectionId(sectionId);
+        return;
+      }
+      // Nothing valid to restore — clear so the inspector doesn't show a stale
+      // node that the replay removed.
+      setSelectedSectionId(null);
+    },
+    [selectBuilderNode, setSelectedSectionId],
   );
 
   const replaceBuilderNodeSelection = useCallback<
@@ -3001,6 +3386,17 @@ export function EditProvider({
         // Reloading authoritative state also clears history — the stack
         // captures only session-local mutations and stale snapshots would
         // confuse undo after a concurrent edit.
+        //
+        // W1-T5(b) — when this wipe actually DISCARDS undo/redo work (the
+        // page changed elsewhere and we reloaded), it used to be silent: the
+        // operator's ⌘Z stack vanished with no explanation. Surface a toast so
+        // the reset is understood, not mysterious. (The wipe itself stays — a
+        // stale stack is dangerous to replay; W0-T4 pins this behavior.)
+        if (historyDepthRef.current > 0) {
+          reportMutationError(
+            "Undo history was reset because this page changed in another tab or session.",
+          );
+        }
         setPast([]);
         setFuture([]);
       } else {
@@ -3013,7 +3409,7 @@ export function EditProvider({
     } finally {
       setCompositionLoading(false);
     }
-  }, [locale, pageSlug, applyComposition]);
+  }, [locale, pageSlug, applyComposition, reportMutationError]);
 
   // Initial load: only once per provider lifetime. Subsequent reloads go
   // through refreshComposition on mutation conflicts or explicit refresh.
@@ -3200,6 +3596,31 @@ export function EditProvider({
             reportMutationError(result.error);
             return { ok: false, error: result.error };
           }
+          // Marathon W1-T4 — record an undoable history entry so ⌘Z reverts
+          // THIS visibility change (and nothing else). Skipped on undo/redo
+          // replay (recordHistory:false). `previousVisibility` of undefined
+          // means the section had no explicit setting → treat as "always".
+          if (mutation.recordHistory !== false) {
+            const preVis: SectionVisibility = previousVisibility ?? "always";
+            if (preVis !== mutation.visibility) {
+              setPast((p) =>
+                capHistory([
+                  ...p,
+                  {
+                    kind: "sectionMeta",
+                    field: "visibility",
+                    sectionId: mutation.sectionId,
+                    pre: preVis,
+                    post: mutation.visibility,
+                    // W3-T8 — restore selection on undo/redo of a visibility
+                    // toggle (falls back to the affected section if needed).
+                    selection: captureHistorySelection(),
+                  },
+                ]),
+              );
+              setFuture([]);
+            }
+          }
           // Storefront DOM cache bust — fire-and-forget.
           void queueRouterRefresh();
           recordDispatchAudit(mutation.sectionId);
@@ -3272,7 +3693,22 @@ export function EditProvider({
             sectionTypeKey: snapshot.sectionTypeKey,
             props: mutation.props,
           });
-          void queueRouterRefresh();
+          // W2-T2 — curated section_embed refresh guard. A prop edit to a
+          // PURE-RENDER curated section (output is a deterministic function of
+          // its props) is already reflected in the live ClientBuilderCanvas
+          // snapshot via syncBuilderNodeChildrenForSection above, so the
+          // unconditional router.refresh() was a wasted server round-trip on
+          // every keystroke-commit (hero / CTA / trust-strip, etc.). Skip it for
+          // those; keep the full refresh for DATA-BOUND sections (hasLiveData),
+          // whose on-screen island only reflects new props after a server
+          // re-render. With the client canvas OFF (legacy server-render) the
+          // refresh is still the only repaint path → always refresh then.
+          if (
+            !isBuilderClientCanvasEnabled() ||
+            sectionTypeHasLiveData(snapshot.sectionTypeKey)
+          ) {
+            void queueRouterRefresh();
+          }
           recordDispatchAudit(mutation.sectionId);
           return { ok: true };
         }
@@ -3389,6 +3825,25 @@ export function EditProvider({
                 ? { ...prev, name: trimmed, version: save.version }
                 : prev,
             );
+          }
+          // Marathon W1-T4 — record an undoable history entry so ⌘Z restores
+          // the previous name (and reverts nothing else). Skipped on replay.
+          if (mutation.recordHistory !== false && previousName !== trimmed) {
+            setPast((p) =>
+              capHistory([
+                ...p,
+                {
+                  kind: "sectionMeta",
+                  field: "name",
+                  sectionId: mutation.sectionId,
+                  pre: previousName,
+                  post: trimmed,
+                  // W3-T8 — restore selection on undo/redo of a rename.
+                  selection: captureHistorySelection(),
+                },
+              ]),
+            );
+            setFuture([]);
           }
           void queueRouterRefresh();
           recordDispatchAudit(mutation.sectionId);
@@ -3519,6 +3974,10 @@ export function EditProvider({
       setSlotsAndBuilderTree,
       syncBuilderNodeChildrenForSection,
       reportMutationError,
+      // W1-T4 — visibility/rename now push a sectionMeta history entry.
+      capHistory,
+      // W3-T8 — stamp selection onto the sectionMeta entry.
+      captureHistorySelection,
     ],
   );
 
@@ -3544,7 +4003,15 @@ export function EditProvider({
 
       // optimistic apply
       setPast((p) =>
-        capHistory([...p, { kind: "composition", snapshot: cloneSnapshot(snap) }]),
+        capHistory([
+          ...p,
+          {
+            kind: "composition",
+            snapshot: cloneSnapshot(snap),
+            // W3-T8 — restore selection on undo/redo of a section mutation.
+            selection: captureHistorySelection(),
+          },
+        ]),
       );
       setFuture([]);
       setSlotsAndBuilderTree(next.slots);
@@ -3610,6 +4077,7 @@ export function EditProvider({
       capHistory,
       setSlotsAndBuilderTree,
       reportMutationError,
+      captureHistorySelection,
     ],
   );
 
@@ -3629,7 +4097,15 @@ export function EditProvider({
       // capture history + clear future BEFORE the round-trip so if the
       // operator navigates away mid-flight, undo still sees the pre-state
       setPast((p) =>
-        capHistory([...p, { kind: "composition", snapshot: cloneSnapshot(snap) }]),
+        capHistory([
+          ...p,
+          {
+            kind: "composition",
+            snapshot: cloneSnapshot(snap),
+            // W3-T8 — restore selection on undo/redo of a section mutation.
+            selection: captureHistorySelection(),
+          },
+        ]),
       );
       setFuture([]);
       setSaving(true);
@@ -3720,6 +4196,7 @@ export function EditProvider({
       reportMutationError,
       setSelectedSectionId,
       markNavigatorAddition,
+      captureHistorySelection,
     ],
   );
 
@@ -3745,7 +4222,15 @@ export function EditProvider({
       }
       const snap = currentSnapshot();
       setPast((p) =>
-        capHistory([...p, { kind: "composition", snapshot: cloneSnapshot(snap) }]),
+        capHistory([
+          ...p,
+          {
+            kind: "composition",
+            snapshot: cloneSnapshot(snap),
+            // W3-T8 — restore selection on undo/redo of a section mutation.
+            selection: captureHistorySelection(),
+          },
+        ]),
       );
       setFuture([]);
       setSaving(true);
@@ -3827,6 +4312,7 @@ export function EditProvider({
       reportMutationError,
       setSelectedSectionId,
       markNavigatorAddition,
+      captureHistorySelection,
     ],
   );
 
@@ -4016,6 +4502,13 @@ export function EditProvider({
         builderTreeRef.current = prevTree;
         setBuilderTree(prevTree);
         if (save.code === "VERSION_CONFLICT") {
+          // W3-T2(c/d) — park the operator's rejected tree BEFORE the reload
+          // overwrites local state, so "Keep my version" can re-apply it on the
+          // fresh base. The reload pulls in the co-editor's authoritative state
+          // (so "Reload latest" is just dismiss); the toast then offers the
+          // choice instead of silently winning for the other tab.
+          conflictRecoveryTreeRef.current = nextTree;
+          setHasConflictRecovery(true);
           await refreshComposition();
           const error = formatBuilderNodeMutationError({
             operation: "patch",
@@ -4052,6 +4545,23 @@ export function EditProvider({
       pageVersionRef.current = save.pageVersion;
       setPageVersion(save.pageVersion);
       lastConfirmedTreeRef.current = nextTree;
+      // W3-T2 — a clean save resolves any pending conflict recovery (the
+      // operator either kept-mine, which landed here, or moved on with a fresh
+      // edit that superseded the parked tree).
+      if (conflictRecoveryTreeRef.current !== null) {
+        conflictRecoveryTreeRef.current = null;
+        setHasConflictRecovery(false);
+      }
+      // W1-T5(a) — re-stamp the persisted undo stack with the just-confirmed
+      // version SYNCHRONOUSLY (don't wait for the debounced re-stamp), so a
+      // reload in the window between the save and the next debounce sees the
+      // current version and a same-session undo survives. Mutating the ref then
+      // flushing writes the envelope with save.pageVersion immediately.
+      undoPersistDataRef.current = {
+        ...undoPersistDataRef.current,
+        baseVersion: save.pageVersion,
+      };
+      flushUndoPersist();
       // W3 Sub-step D — skip the per-edit server refresh on the builder-tree
       // happy path WHEN THE CLIENT CANVAS IS ACTIVE. `setBuilderTree(nextTree)`
       // above already published the new tree to the bridge, so the client
@@ -4082,8 +4592,22 @@ export function EditProvider({
       refreshComposition,
       queueRouterRefresh,
       reportMutationError,
+      // W1-T5(a) — synchronous undo-stack re-stamp on save success.
+      flushUndoPersist,
     ],
   );
+
+  // W3-T2(c/d) — "Keep my version": re-apply the conflict-rejected tree on top
+  // of the now-reloaded base version. `persistBuilderTree` reads the current
+  // (fresh) `pageVersionRef`, so the CAS re-issue succeeds and the operator's
+  // work survives the race. Clears the recovery on the success path inside
+  // `persistBuilderTree`; on a second conflict it re-parks the latest attempt.
+  const keepMyVersionAfterConflict = useCallback(async () => {
+    const parked = conflictRecoveryTreeRef.current;
+    if (parked === null) return;
+    clearMutationError();
+    await persistBuilderTree(parked);
+  }, [persistBuilderTree, clearMutationError]);
 
   // ── flush: persist the coalesced pending builder tree NOW ──────────────
   // Cancels any scheduled debounce and enqueues a single `persistBuilderTree`
@@ -4173,6 +4697,8 @@ export function EditProvider({
             kind: "builderTree",
             pre: cloneBuilderNodeTree(prevTree),
             post: cloneBuilderNodeTree(nextTree),
+            // W3-T8 — stamp the active selection so undo/redo restores it.
+            selection: captureHistorySelection(),
           },
         ]),
       );
@@ -4195,7 +4721,7 @@ export function EditProvider({
       // rollback inside persistBuilderTree.
       return { ok: true as const };
     },
-    [capHistory, queueRouterRefresh],
+    [capHistory, queueRouterRefresh, captureHistorySelection],
   );
 
   const executeBuilderNodeOperation = useCallback(
@@ -4259,8 +4785,10 @@ export function EditProvider({
           nodeId: input.nodeId,
           parentId: input.parentId,
           resultNodeId: operationResult.nodeId ?? null,
-          activeSelectionSectionId: selectedSectionId ?? null,
-          activeSelectionNodeId: selectedBuilderNodeId ?? null,
+          // W2-T4a — read selection from the refs (kept current by the effects
+          // above) so it can leave this callback's dep array.
+          activeSelectionSectionId: selectedSectionIdRef.current ?? null,
+          activeSelectionNodeId: selectedBuilderNodeIdRef.current ?? null,
           previousTree,
           tree: operationResult.tree,
         }),
@@ -4272,12 +4800,15 @@ export function EditProvider({
       };
     },
     [
+      // W2-T4a — selectedBuilderNodeId / selectedSectionId intentionally NOT in
+      // these deps: they are read via selectedBuilderNodeIdRef / selectedSectionIdRef
+      // (audit annotation only). Keeping them here recreated this callback on
+      // EVERY selection change, and via its 54 call-sites a fresh `value`, leaking
+      // selection-churn into action-only consumers. The refs close that leak.
       advancedElementLibraryEnabled,
       canEditSiteShell,
       commitBuilderTreeMutation,
       reportMutationError,
-      selectedBuilderNodeId,
-      selectedSectionId,
     ],
   );
   const runBuilderNodeOp = useCallback(
@@ -4413,6 +4944,7 @@ export function EditProvider({
         setSelectedBuilderNodeIdOverride(node.id);
         markNavigatorAddition(ownerSectionId, node.id, "block");
       }
+      markNodeInserted(node.id);
       return { ok: true, nodeId: node.id };
     },
     [
@@ -4421,6 +4953,7 @@ export function EditProvider({
       setSelectedSectionId,
       setSelectedBuilderNodeIdOverride,
       markNavigatorAddition,
+      markNodeInserted,
     ],
   );
   const insertBuilderNodeCompositionPreset = useCallback<
@@ -4453,6 +4986,7 @@ export function EditProvider({
         setSelectedBuilderNodeIdOverride(node.id);
         markNavigatorAddition(ownerSectionId, node.id, "block");
       }
+      markNodeInserted(node.id);
       return { ok: true, nodeId: node.id };
     },
     [
@@ -4461,6 +4995,7 @@ export function EditProvider({
       setSelectedSectionId,
       setSelectedBuilderNodeIdOverride,
       markNavigatorAddition,
+      markNodeInserted,
     ],
   );
   const insertBuilderSectionEmbed = useCallback<
@@ -4493,6 +5028,7 @@ export function EditProvider({
         setSelectedBuilderNodeIdOverride(node.id);
         markNavigatorAddition(ownerSectionId, node.id, "block");
       }
+      markNodeInserted(node.id);
       return { ok: true, nodeId: node.id };
     },
     [
@@ -4501,6 +5037,7 @@ export function EditProvider({
       setSelectedSectionId,
       setSelectedBuilderNodeIdOverride,
       markNavigatorAddition,
+      markNodeInserted,
     ],
   );
   const insertBuilderComponent = useCallback<
@@ -4541,6 +5078,7 @@ export function EditProvider({
         setSelectedBuilderNodeIdOverride(node.id);
         markNavigatorAddition(ownerSectionId, node.id, "block");
       }
+      markNodeInserted(node.id);
       return { ok: true, nodeId: node.id };
     },
     [
@@ -4549,6 +5087,7 @@ export function EditProvider({
       setSelectedSectionId,
       setSelectedBuilderNodeIdOverride,
       markNavigatorAddition,
+      markNodeInserted,
     ],
   );
   // Living Components Phase 2 — insert a LINKED instance: same proven insert
@@ -4590,6 +5129,7 @@ export function EditProvider({
         setSelectedBuilderNodeIdOverride(node.id);
         markNavigatorAddition(ownerSectionId, node.id, "block");
       }
+      markNodeInserted(node.id);
       return { ok: true, nodeId: node.id };
     },
     [
@@ -4598,6 +5138,7 @@ export function EditProvider({
       setSelectedSectionId,
       setSelectedBuilderNodeIdOverride,
       markNavigatorAddition,
+      markNodeInserted,
     ],
   );
   // Re-sync every instance of a component: replace each tagged container's
@@ -4896,6 +5437,7 @@ export function EditProvider({
         setSelectedBuilderNodeIdOverride(duplicatedNodeId);
         markNavigatorAddition(ownerSectionId, duplicatedNodeId, "block");
       }
+      markNodeInserted(duplicatedNodeId);
       return { ok: true, nodeId: duplicatedNodeId };
     },
     [
@@ -4904,6 +5446,7 @@ export function EditProvider({
       setSelectedSectionId,
       setSelectedBuilderNodeIdOverride,
       markNavigatorAddition,
+      markNodeInserted,
     ],
   );
   const copyBuilderNode = useCallback<EditContextValue["copyBuilderNode"]>(
@@ -5042,6 +5585,7 @@ export function EditProvider({
         setSelectedBuilderNodeIdOverride(pastedNodeId);
         markNavigatorAddition(ownerSectionId, pastedNodeId, "block");
       }
+      markNodeInserted(pastedNodeId);
       return { ok: true, nodeId: pastedNodeId };
     },
     [
@@ -5051,6 +5595,7 @@ export function EditProvider({
       setSelectedSectionId,
       setSelectedBuilderNodeIdOverride,
       markNavigatorAddition,
+      markNodeInserted,
     ],
   );
   const pasteCopiedBuilderNode = useCallback<
@@ -5101,6 +5646,7 @@ export function EditProvider({
         setSelectedBuilderNodeIdOverride(pastedNodeId);
         markNavigatorAddition(ownerSectionId, pastedNodeId, "block");
       }
+      markNodeInserted(pastedNodeId);
       return { ok: true, nodeId: pastedNodeId };
     },
     [
@@ -5110,6 +5656,7 @@ export function EditProvider({
       setSelectedSectionId,
       setSelectedBuilderNodeIdOverride,
       markNavigatorAddition,
+      markNodeInserted,
     ],
   );
   const patchBuilderNodeProps = useCallback<
@@ -5641,6 +6188,35 @@ export function EditProvider({
     [dispatch],
   );
 
+  // Marathon W1-T4 — replay a visibility/rename history entry through the same
+  // dispatch path that persists it (the snapshot path can't — it drops
+  // name/visibility). `recordHistory:false` so the replay doesn't push a new
+  // entry. `value` is the target: `pre` on undo, `post` on redo.
+  const replaySectionMeta = useCallback(
+    async (
+      entry: Extract<HistoryEntry, { kind: "sectionMeta" }>,
+      value: string,
+    ): Promise<boolean> => {
+      if (entry.field === "visibility") {
+        const result = await dispatch({
+          kind: "section.setVisibility",
+          sectionId: entry.sectionId,
+          visibility: value as SectionVisibility,
+          recordHistory: false,
+        });
+        return result.ok;
+      }
+      const result = await dispatch({
+        kind: "section.rename",
+        sectionId: entry.sectionId,
+        newName: value,
+        recordHistory: false,
+      });
+      return result.ok;
+    },
+    [dispatch],
+  );
+
   const undo = useCallback(async () => {
     if (saving) return;
     if (past.length === 0) return;
@@ -5651,33 +6227,62 @@ export function EditProvider({
     }
     const entry = past[past.length - 1]!;
     setPast((p) => p.slice(0, -1));
-    if (entry.kind === "composition") {
-      const presentSnap = currentSnapshot();
-      setFuture((f) =>
-        capHistory([
-          ...f,
-          { kind: "composition", snapshot: cloneSnapshot(presentSnap) },
-        ]),
-      );
-      const restored = await restoreSnapshot(entry.snapshot);
-      if (!restored) {
-        setFuture((f) => f.slice(0, -1));
-        setPast((p) => capHistory([...p, entry]));
+    // W3-T8 — suppress the selection-sync auto-clear while the replayed tree
+    // lands, then restore the entry's selection so ⌘Z keeps the affected block
+    // selected with its inspector open. Reset in `finally` even on a failed
+    // replay (where the entry is pushed back).
+    replayingHistoryRef.current = true;
+    try {
+      if (entry.kind === "composition") {
+        const presentSnap = currentSnapshot();
+        setFuture((f) =>
+          capHistory([
+            ...f,
+            {
+              kind: "composition",
+              snapshot: cloneSnapshot(presentSnap),
+              // The redo target restores the selection live RIGHT NOW.
+              selection: captureHistorySelection(),
+            },
+          ]),
+        );
+        const restored = await restoreSnapshot(entry.snapshot);
+        if (!restored) {
+          setFuture((f) => f.slice(0, -1));
+          setPast((p) => capHistory([...p, entry]));
+        } else {
+          restoreHistorySelection(entry.selection);
+        }
+      } else if (entry.kind === "builderTree") {
+        setFuture((f) => capHistory([...f, entry]));
+        const saved = await persistBuilderTree(entry.pre);
+        if (!saved.ok) {
+          setFuture((f) => f.slice(0, -1));
+          setPast((p) => capHistory([...p, entry]));
+        } else {
+          restoreHistorySelection(entry.selection);
+        }
+      } else if (entry.kind === "sectionMeta") {
+        setFuture((f) => capHistory([...f, entry]));
+        const applied = await replaySectionMeta(entry, entry.pre);
+        if (!applied) {
+          setFuture((f) => f.slice(0, -1));
+          setPast((p) => capHistory([...p, entry]));
+        } else {
+          restoreHistorySelection(entry.selection);
+        }
+      } else {
+        setFuture((f) => capHistory([...f, entry]));
+        const applied = await applyFieldEdit(entry.sectionId, entry.pre);
+        if (!applied) {
+          setFuture((f) => f.slice(0, -1));
+          setPast((p) => capHistory([...p, entry]));
+        } else {
+          restoreHistorySelection(entry.selection);
+        }
       }
-    } else if (entry.kind === "builderTree") {
-      setFuture((f) => capHistory([...f, entry]));
-      const saved = await persistBuilderTree(entry.pre);
-      if (!saved.ok) {
-        setFuture((f) => f.slice(0, -1));
-        setPast((p) => capHistory([...p, entry]));
-      }
-    } else {
-      setFuture((f) => capHistory([...f, entry]));
-      const applied = await applyFieldEdit(entry.sectionId, entry.pre);
-      if (!applied) {
-        setFuture((f) => f.slice(0, -1));
-        setPast((p) => capHistory([...p, entry]));
-      }
+    } finally {
+      replayingHistoryRef.current = false;
     }
   }, [
     past,
@@ -5686,7 +6291,10 @@ export function EditProvider({
     restoreSnapshot,
     persistBuilderTree,
     applyFieldEdit,
+    replaySectionMeta,
     capHistory,
+    captureHistorySelection,
+    restoreHistorySelection,
   ]);
 
   const redo = useCallback(async () => {
@@ -5699,33 +6307,59 @@ export function EditProvider({
     }
     const entry = future[future.length - 1]!;
     setFuture((f) => f.slice(0, -1));
-    if (entry.kind === "composition") {
-      const presentSnap = currentSnapshot();
-      setPast((p) =>
-        capHistory([
-          ...p,
-          { kind: "composition", snapshot: cloneSnapshot(presentSnap) },
-        ]),
-      );
-      const restored = await restoreSnapshot(entry.snapshot);
-      if (!restored) {
-        setPast((p) => p.slice(0, -1));
-        setFuture((f) => capHistory([...f, entry]));
+    // W3-T8 — mirror undo: suppress the auto-clear during the replay, then
+    // restore the entry's selection.
+    replayingHistoryRef.current = true;
+    try {
+      if (entry.kind === "composition") {
+        const presentSnap = currentSnapshot();
+        setPast((p) =>
+          capHistory([
+            ...p,
+            {
+              kind: "composition",
+              snapshot: cloneSnapshot(presentSnap),
+              selection: captureHistorySelection(),
+            },
+          ]),
+        );
+        const restored = await restoreSnapshot(entry.snapshot);
+        if (!restored) {
+          setPast((p) => p.slice(0, -1));
+          setFuture((f) => capHistory([...f, entry]));
+        } else {
+          restoreHistorySelection(entry.selection);
+        }
+      } else if (entry.kind === "builderTree") {
+        setPast((p) => capHistory([...p, entry]));
+        const saved = await persistBuilderTree(entry.post);
+        if (!saved.ok) {
+          setPast((p) => p.slice(0, -1));
+          setFuture((f) => capHistory([...f, entry]));
+        } else {
+          restoreHistorySelection(entry.selection);
+        }
+      } else if (entry.kind === "sectionMeta") {
+        setPast((p) => capHistory([...p, entry]));
+        const applied = await replaySectionMeta(entry, entry.post);
+        if (!applied) {
+          setPast((p) => p.slice(0, -1));
+          setFuture((f) => capHistory([...f, entry]));
+        } else {
+          restoreHistorySelection(entry.selection);
+        }
+      } else {
+        setPast((p) => capHistory([...p, entry]));
+        const applied = await applyFieldEdit(entry.sectionId, entry.post);
+        if (!applied) {
+          setPast((p) => p.slice(0, -1));
+          setFuture((f) => capHistory([...f, entry]));
+        } else {
+          restoreHistorySelection(entry.selection);
+        }
       }
-    } else if (entry.kind === "builderTree") {
-      setPast((p) => capHistory([...p, entry]));
-      const saved = await persistBuilderTree(entry.post);
-      if (!saved.ok) {
-        setPast((p) => p.slice(0, -1));
-        setFuture((f) => capHistory([...f, entry]));
-      }
-    } else {
-      setPast((p) => capHistory([...p, entry]));
-      const applied = await applyFieldEdit(entry.sectionId, entry.post);
-      if (!applied) {
-        setPast((p) => p.slice(0, -1));
-        setFuture((f) => capHistory([...f, entry]));
-      }
+    } finally {
+      replayingHistoryRef.current = false;
     }
   }, [
     future,
@@ -5734,7 +6368,10 @@ export function EditProvider({
     restoreSnapshot,
     persistBuilderTree,
     applyFieldEdit,
+    replaySectionMeta,
     capHistory,
+    captureHistorySelection,
+    restoreHistorySelection,
   ]);
 
   /**
@@ -5755,12 +6392,14 @@ export function EditProvider({
             name: entry.name,
             pre: entry.pre,
             post: entry.post,
+            // W3-T8 — restore selection on undo/redo of an inspector field edit.
+            selection: captureHistorySelection(),
           },
         ]),
       );
       setFuture([]);
     },
-    [capHistory],
+    [capHistory, captureHistorySelection],
   );
 
   const openLibrary = useCallback(
@@ -6080,9 +6719,10 @@ export function EditProvider({
       pasteBuilderBlockPreset,
       removeBuilderBlockPreset,
 	      pasteCopiedBuilderNode,
-      hoveredSectionId,
+      // W2-T3 — hover VALUES are no longer in `value` (they live in
+      // hover-bridge; the 4 real readers subscribe there). Only the stable
+      // setters remain on the context so the public API is unchanged.
       setHoveredSectionId,
-      hoveredBuilderNodeId,
       setHoveredBuilderNodeId,
       device,
       setDevice,
@@ -6092,7 +6732,8 @@ export function EditProvider({
       mobileEditMode,
       setMobileEditMode,
       setBuilderNodeMobileStructure,
-      dirty,
+      // W2-T4 — `dirty` VALUE removed from `value` (lives in dirty-bridge; the 4
+      // readers use useDirty()). Setter kept so the public API is unchanged.
       setDirty,
       saving,
       setSaving,
@@ -6225,6 +6866,7 @@ export function EditProvider({
       getOtherWorkspacePanelRects,
       recentNavigatorAdditions,
       clearNavigatorRecentAdditions,
+      lastInsertedNodeId,
       setSectionVisibility,
 
       saveDraft,
@@ -6235,6 +6877,8 @@ export function EditProvider({
       mutationError,
       clearMutationError,
       reportMutationError,
+      hasConflictRecovery,
+      keepMyVersionAfterConflict,
     }),
     [
       tenantId,
@@ -6277,8 +6921,8 @@ export function EditProvider({
 	      copiedBuilderNode,
 	      copiedBuilderNodeClipboard,
 	      setSelectedSectionId,
-      hoveredSectionId,
-      hoveredBuilderNodeId,
+      // W2-T3 — hover values removed from the value-memo deps: a hover no longer
+      // rebuilds `value`, so non-hover consumers don't re-render on a sweep.
       device,
       setDevice,
       previewFrame,
@@ -6287,7 +6931,8 @@ export function EditProvider({
       mobileEditMode,
       setMobileEditMode,
       setBuilderNodeMobileStructure,
-      dirty,
+      // W2-T4 — `dirty` removed from the value-memo deps: a dirty flip no longer
+      // rebuilds `value`, so non-dirty consumers don't re-render on it.
       saving,
       loadedSection,
       draftPropsState,
@@ -6409,6 +7054,7 @@ export function EditProvider({
       getOtherWorkspacePanelRects,
       recentNavigatorAdditions,
       clearNavigatorRecentAdditions,
+      lastInsertedNodeId,
       setSectionVisibility,
       saveDraft,
       flushBuilderTreeSave,
@@ -6417,6 +7063,8 @@ export function EditProvider({
       mutationError,
       clearMutationError,
       reportMutationError,
+      hasConflictRecovery,
+      keepMyVersionAfterConflict,
     ],
   );
 

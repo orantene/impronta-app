@@ -9,12 +9,14 @@
  * string clears the override.
  *
  * Behavior contract:
- *   - The native swatch IS the trigger — clicking it opens the OS
- *     color picker. The text field shows the current value as a
+ *   - The visible swatch IS the trigger — clicking it opens the in-app
+ *     ColorPickerPopover (HSV surface + hex echo + eyedropper + recents),
+ *     so color-picking stays on the branded chrome instead of dropping to
+ *     OS color chrome (W3-T5). The text field shows the current value as a
  *     secondary input for paste-friendly hex / rgba editing.
  *   - Typing in the text field defers the onChange until blur (or
  *     Enter), so a partial hex like "#ff" doesn't fire 5 saves.
- *   - The native picker fires onChange on every drag step (smooth
+ *   - The popover fires onChange on every HSV drag step (smooth
  *     live-preview), but the parent's enqueueToken debounce coalesces
  *     these into one save once the picker closes.
  *   - Clear button only appears when there's a value to clear.
@@ -26,6 +28,7 @@ import { useEffect, useState } from "react";
 // (inspectors/kit) is two `..` up. Don't reach for the edit-chrome
 // kit — that's a different KIT export with different tokens.
 import { KIT } from "../../kit";
+import { ColorPickerPopover } from "../../../kit/color-picker";
 
 interface ColorRowProps {
   label: string;
@@ -36,6 +39,10 @@ interface ColorRowProps {
 
 export function ColorRow({ label, hint, value, onChange }: ColorRowProps) {
   const [draft, setDraft] = useState(value);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  // Callback-ref into state keeps render pure (no `.current` access) — the
+  // codebase pattern for plumbing a popover anchor (see kit/swatch.tsx).
+  const [swatchAnchor, setSwatchAnchor] = useState<HTMLButtonElement | null>(null);
   const isHex = /^#[0-9a-fA-F]{3,8}$/.test(value);
 
   // Sync local draft if the server-side value updates while we're idle.
@@ -60,13 +67,17 @@ export function ColorRow({ label, hint, value, onChange }: ColorRowProps) {
         {hint ? <span className={KIT.hint}>{hint}</span> : null}
       </div>
       <div className="flex items-center gap-2 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2 py-1.5">
-        {/* Native color picker — visible swatch IS the input. The
-         *  native <input type="color"> is positioned absolute over the
-         *  swatch with opacity 0 so the visible square (with the
-         *  current color or a checkered "no value" pattern) handles
-         *  click-to-open. */}
-        <label
+        {/* In-app color picker — the visible swatch button opens the branded
+         *  ColorPickerPopover (HSV surface) instead of the OS picker (W3-T5).
+         *  The square shows the current color, or a checkered "no value"
+         *  pattern when the value isn't a plain hex. */}
+        <button
+          ref={setSwatchAnchor}
+          type="button"
           aria-label={`Change ${label.toLowerCase()} color`}
+          aria-haspopup="dialog"
+          aria-expanded={pickerOpen}
+          onClick={() => setPickerOpen((v) => !v)}
           className="relative inline-block size-7 shrink-0 cursor-pointer overflow-hidden rounded-md border border-stone-200 transition hover:scale-105"
           style={{ background: isHex ? value : "transparent" }}
         >
@@ -76,16 +87,17 @@ export function ColorRow({ label, hint, value, onChange }: ColorRowProps) {
               className="absolute inset-0 bg-[repeating-conic-gradient(#e5e0d8_0_25%,#fff_0_50%)] bg-[length:8px_8px]"
             />
           ) : null}
-          <input
-            type="color"
-            value={isHex ? value : "#000000"}
-            onChange={(e) => {
-              setDraft(e.target.value);
-              onChange(e.target.value);
-            }}
-            className="absolute inset-0 size-full cursor-pointer opacity-0"
-          />
-        </label>
+        </button>
+        <ColorPickerPopover
+          open={pickerOpen}
+          anchor={swatchAnchor}
+          value={value}
+          onChange={(next) => {
+            setDraft(next);
+            onChange(next);
+          }}
+          onClose={() => setPickerOpen(false)}
+        />
         <input
           type="text"
           className="flex-1 bg-transparent font-mono text-[12px] text-stone-700 placeholder:text-stone-500 focus:outline-none"

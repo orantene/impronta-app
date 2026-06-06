@@ -44,6 +44,7 @@ import {
   DrawerBody,
   DrawerFoot,
   DrawerHead,
+  DrawerSkeleton,
 } from "./kit";
 import { useEditContext } from "./edit-context";
 
@@ -503,11 +504,10 @@ export function CommentsDrawer() {
           </div>
 
           {loading ? (
-            <div style={{ padding: 20, textAlign: "center", fontSize: 12, color: CHROME.muted }}>
-              {pageSlug != null && !compositionPageId
-                ? "Loading page…"
-                : "Loading comments…"}
-            </div>
+            // W3-T7: content-shaped skeleton instead of a bare "Loading…" line,
+            // so the thread list doesn't flash empty during the fetch. Three
+            // rows match the thread-card rhythm.
+            <DrawerSkeleton rows={3} />
           ) : threads.length === 0 ? (
             <div
               style={{

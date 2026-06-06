@@ -18,15 +18,15 @@ import type { BuilderNode, BuilderNodeTree } from "./types";
  *   1. The operation mutates the tree it was handed IN PLACE. The production
  *      commit path reads `builderTreeRef.current` as BOTH the pre-snapshot
  *      source AND (after an in-place op) the post tree, so its no-op guard
- *      `JSON.stringify(prev) === JSON.stringify(next)` (edit-context.tsx:3451)
+ *      `JSON.stringify(prev) === JSON.stringify(next)` (edit-context.tsx:4144)
  *      swallows the change → ZERO undo entries, change un-revertable.
  *   2. A single user action is implemented as MULTIPLE operations → multiple
  *      entries → ⌘Z only half-reverts.
  *
  * WHY A LOCAL HARNESS. The production single-entry seam —
  * `executeBuilderNodeOperation` → `commitBuilderTreeMutation` → `undo`
- * (web/src/components/edit-chrome/edit-context.tsx:3478-3553, 3448-3476,
- * 4726-4767) — is a React `useState`/`useRef` closure inside `EditProvider`.
+ * (web/src/components/edit-chrome/edit-context.tsx:4201-4282, 4141-4199,
+ * 5644-5690) — is a React `useState`/`useRef` closure inside `EditProvider`.
  * It cannot be imported without a DOM and a mocked save server action, which
  * would break this suite's pure `tsx --test` convention. `BuilderTreeHistory`
  * below is a faithful, line-cited mirror of ONLY the stack mechanics (the
@@ -34,9 +34,13 @@ import type { BuilderNode, BuilderNodeTree } from "./types";
  * redo on a fresh edit; undo restores `pre`, redo restores `post`). The thing
  * that actually regresses — the OPERATIONS that feed the stack — is exercised
  * through the REAL `applyBuilderNodeOperation`, never a re-implementation.
+ *
+ * NOTE: the async-persistence / optimistic-CAS half this file deliberately
+ * omits is now covered against the REAL EditProvider closures by the W0-T4
+ * jsdom harness at web/test/components/edit-chrome/edit-context.undo.test.tsx.
  */
 
-/** edit-context.tsx:1815 */
+/** edit-context.tsx:2211 */
 const HISTORY_CAP = 50;
 
 interface BuilderTreeHistoryEntry {
@@ -60,11 +64,11 @@ class BuilderTreeHistory {
     this.present = initial;
   }
 
-  /** Mirror of `commitBuilderTreeMutation` (edit-context.tsx:3448-3476). */
+  /** Mirror of `commitBuilderTreeMutation` (edit-context.tsx:4141-4199). */
   commit(next: BuilderNodeTree): { committed: boolean } {
     // No-op guard: identical serialized trees push NO history entry, so a
     // redundant edit (or an in-place-mutating op that returns its own input)
-    // never creates a phantom/empty undo step. (edit-context.tsx:3451-3452)
+    // never creates a phantom/empty undo step. (edit-context.tsx:4144-4146)
     if (JSON.stringify(this.present) === JSON.stringify(next)) {
       return { committed: false };
     }
@@ -73,7 +77,7 @@ class BuilderTreeHistory {
       post: structuredClone(next),
     });
     if (this.past.length > HISTORY_CAP) this.past.shift();
-    // A new edit branches away from any previous undo path. (edit-context.tsx:3464)
+    // A new edit branches away from any previous undo path. (edit-context.tsx:4179)
     this.future.length = 0;
     this.present = next;
     return { committed: true };
@@ -81,7 +85,7 @@ class BuilderTreeHistory {
 
   /**
    * Mirror of `executeBuilderNodeOperation`'s run→commit core
-   * (edit-context.tsx:3511-3536): the op receives the LIVE present tree
+   * (edit-context.tsx:4201-4282): the op receives the LIVE present tree
    * (`builderTreeRef.current`); a failed op pushes no entry; a successful op
    * commits exactly once.
    */
@@ -92,7 +96,7 @@ class BuilderTreeHistory {
     return result;
   }
 
-  /** Mirror of `undo()` builderTree branch (edit-context.tsx:4744-4750). */
+  /** Mirror of `undo()` builderTree branch (edit-context.tsx:5644-5690). */
   undo(): void {
     const entry = this.past.pop();
     if (!entry) return;
@@ -100,7 +104,7 @@ class BuilderTreeHistory {
     this.present = entry.pre;
   }
 
-  /** Mirror of `redo()` builderTree branch (edit-context.tsx:4787-4793). */
+  /** Mirror of `redo()` builderTree branch (edit-context.tsx:5692-5738). */
   redo(): void {
     const entry = this.future.pop();
     if (!entry) return;

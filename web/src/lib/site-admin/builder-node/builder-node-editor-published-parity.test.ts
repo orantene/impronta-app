@@ -8,6 +8,11 @@ import {
   resolveSnapshotBuilderTree,
   resolveSnapshotBuilderTreeForPublish,
 } from "./snapshot-tree";
+import {
+  resolveBuilderTreeClassRefs,
+  type BuilderStyleClass,
+  type BuilderStyleClassRegistry,
+} from "./style-classes";
 import type { BuilderNode, BuilderNodeTree } from "./types";
 
 /**
@@ -256,4 +261,82 @@ test("parity negative control: the test has teeth — dropping a threaded dataSo
     "fallback design text shows when the collection is missing",
   );
   assert.ok(!publishedMissingCollections.includes(">Ana<"), "no bound names without the collection");
+});
+
+// ── W1-T2 — linked style classes: editor (registry threaded) ↔ published
+//    (registry BAKED) parity ──────────────────────────────────────────────────
+//
+// The editor canvas threads the LIVE registry into renderBuilderNodes
+// (client-builder-canvas.tsx:101, W1-T2c). The publish path BAKES the registry
+// into the snapshot via resolveBuilderTreeClassRefs (homepage.ts, W1-T2a) and
+// the public page renders that baked tree with NO registry. These two renders
+// MUST be byte-identical — that is the definition of "classes publish."
+
+const LINKED_REGISTRY: BuilderStyleClassRegistry = ((
+  ...classes: BuilderStyleClass[]
+): BuilderStyleClassRegistry => {
+  const out: Record<string, BuilderStyleClass> = {};
+  for (const c of classes) out[c.id] = c;
+  return out;
+})({
+  id: "promo",
+  name: "Promo",
+  style: { textColor: "#cc0000", fontWeight: 800 },
+});
+
+const LINKED_TREE: BuilderNodeTree = [
+  {
+    id: "linked-heading",
+    kind: "heading",
+    // The block carries ONLY a classRef plus one local override that must win
+    // over the class (fontWeight 600 beats the class's 800).
+    props: { text: "Member offer", level: 2, style: { classRef: "promo", fontWeight: 600 } },
+  },
+];
+
+/** Isolate the linked heading's OPENING tag so presence guards assert on ITS
+ *  inline style, not on the renderer's global keyframes/stylesheet block (which
+ *  contains unrelated weight/color tokens). Mirrors classes-publish-parity. */
+function linkedHeadingTag(html: string): string {
+  return (html.match(/<h2[^>]*>/) ?? ["<no-heading>"])[0];
+}
+
+test("parity (W1-T2 linked class): editor-with-registry == published-baked-without-registry", () => {
+  // EDITOR canvas path — registry threaded at render time.
+  const editorHtml = renderTree(LINKED_TREE, { styleClasses: LINKED_REGISTRY });
+
+  // PUBLISH path — resolveBuilderTreeClassRefs is the exact transform
+  // publishHomepage now runs before writing the snapshot; the public page then
+  // renders the baked tree with NO registry.
+  const bakedTree = resolveBuilderTreeClassRefs(LINKED_TREE, LINKED_REGISTRY);
+  const publishedHtml = renderTree(bakedTree /* no styleClasses — mirrors public render */);
+
+  // THE parity contract: the two renders are byte-identical.
+  assert.equal(editorHtml, publishedHtml, "linked-class editor and published render identically");
+
+  // Presence guards on the heading's OWN inline style — prove the equality is
+  // not two empty/unstyled renders.
+  const tag = linkedHeadingTag(publishedHtml);
+  assert.ok(/color:#cc0000/i.test(tag), "baked class textColor reaches the published heading style");
+  assert.ok(/font-weight:600/.test(tag), "the node's local override (600) wins over the class (800)");
+  assert.ok(!/font-weight:800/.test(tag), "the class fontWeight is overridden in the inline style, not emitted");
+  // No dangling classRef survives into the baked tree (it would resolve to
+  // nothing on the registry-less public render).
+  assert.equal(
+    "classRef" in ((bakedTree[0] as Extract<BuilderNode, { kind: "heading" }>).props.style ?? {}),
+    false,
+    "classRef stripped from the baked published tree",
+  );
+});
+
+test("parity negative control (W1-T2): WITHOUT baking, the published render LOSES the class style", () => {
+  // The pre-W1 bug, pinned as a teeth check: if publish did NOT bake (tree kept
+  // its bare classRef) and the public render has no registry, the class color is
+  // silently dropped → the published render diverges from the editor render.
+  const editorTag = linkedHeadingTag(renderTree(LINKED_TREE, { styleClasses: LINKED_REGISTRY }));
+  const unbakedTag = linkedHeadingTag(renderTree(LINKED_TREE /* bare classRef, no registry */));
+
+  assert.notEqual(editorTag, unbakedTag, "unbaked publish heading diverges from the editor heading");
+  assert.ok(/color:#cc0000/i.test(editorTag), "editor heading HAS the class color");
+  assert.ok(!/color:#cc0000/i.test(unbakedTag), "class color absent from the heading when publish does not bake");
 });

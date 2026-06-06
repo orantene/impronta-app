@@ -197,6 +197,11 @@ export function recordBuilderMutationAuditEvent(
   event: BuilderAuditEvent,
 ): void {
   if (typeof window === "undefined") return;
+  // W4-T4(e): this is a DEV/QA audit aid (a `window.__improntaBuilderMutationAudit`
+  // ring buffer inspected from the console). In production it is pure hot-path
+  // cost — a full array spread + slice + window-write on EVERY mutation — with no
+  // consumer. Drop it in prod so a busy edit session never pays for it.
+  if (process.env.NODE_ENV === "production") return;
   const target = window as Window & {
     [BUILDER_MUTATION_AUDIT_WINDOW_KEY]?: BuilderAuditEvent[];
   };

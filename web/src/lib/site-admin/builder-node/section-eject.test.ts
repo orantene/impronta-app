@@ -1,8 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import type { BuilderNode, BuilderNodeTree } from "./types";
-import { ejectSectionInTree, unejectSectionInTree } from "./section-eject";
+import type { BuilderNode, BuilderNodeStyle, BuilderNodeTree } from "./types";
+import {
+  buildEjectRolePresentation,
+  ejectSectionInTree,
+  unejectSectionInTree,
+  type EjectRolePresentation,
+} from "./section-eject";
+import { nodePresentationToBuilderStyle } from "./node-presentation-bridge";
+import type { NodePresentation } from "../sections/shared/node-presentation";
 
 function section(
   id: string,
@@ -245,4 +252,207 @@ test("BUG-1: reconcile never leaves a rebuilt section with undefined children", 
       `section ${node.id} must have an array children, got ${typeof (node as { children?: unknown }).children}`,
     );
   }
+});
+
+// ── W4-T3: lossless eject — per-role nodePresentation preserved on the child ──
+// Today eject silently drops every per-role align/size/font/color tuning (the
+// derived children carry NO style; the curated Component applies nodePresentation
+// at render). With the role→presentation map handed in, eject translates each
+// role's nodePresentation onto the child's BuilderNodeStyle via the W4-T1 bridge.
+
+function roleChild(
+  sectionId: string,
+  suffix: string,
+  kind: BuilderNode["kind"],
+  props: Record<string, unknown>,
+): BuilderNode {
+  return { id: `${sectionId}${suffix}`, kind, props } as BuilderNode;
+}
+
+function ejectedChildren(result: { tree: BuilderNodeTree }): BuilderNode[] {
+  const sec = result.tree[0] as BuilderNode & { children: BuilderNode[] };
+  return sec.children;
+}
+
+function styleOf(node: BuilderNode): BuilderNodeStyle {
+  return (node.props as { style?: BuilderNodeStyle }).style ?? {};
+}
+
+const HEADLINE_NP: NodePresentation = {
+  align: "left",
+  maxWidthPx: 740,
+  marginTopPx: 14,
+  marginBottomPx: 18,
+  size: "xl",
+  tone: "strong",
+  fontFamily: "Playfair Display",
+  fontSizePx: 48,
+  textColor: "#1a1a1a",
+};
+const COPY_NP: NodePresentation = {
+  align: "left",
+  maxWidthPx: 520,
+  tone: "muted",
+  lineHeightPct: 150,
+};
+
+test("eject(parity): translates each role's nodePresentation onto the ejected child's style", () => {
+  const sectionId = "legacy:body:0:hero";
+  const tree: BuilderNodeTree = [
+    section(sectionId, [
+      roleChild(sectionId, ":heading:headline", "heading", { text: "Hi", level: 2 }),
+      roleChild(sectionId, ":paragraph:copy", "paragraph", { text: "Sub" }),
+    ]),
+  ];
+  const rolePresentation: EjectRolePresentation = {
+    headline: HEADLINE_NP,
+    copy: COPY_NP,
+  };
+  const result = ejectSectionInTree(tree, sectionId, rolePresentation);
+  assert.equal(result.ejected, true);
+  const [head, copy] = ejectedChildren(result);
+
+  // The headline child must now carry the bridged BuilderNodeStyle equivalents.
+  const headStyle = styleOf(head);
+  const expectedHead = nodePresentationToBuilderStyle(HEADLINE_NP);
+  for (const [k, v] of Object.entries(expectedHead)) {
+    assert.deepEqual(
+      (headStyle as Record<string, unknown>)[k],
+      v,
+      `headline style.${k} must equal the bridged nodePresentation value`,
+    );
+  }
+  // Spot-check the headline values directly (px-int → CSS-string).
+  assert.equal(headStyle.align, "left");
+  assert.equal(headStyle.maxWidthFree, "740px");
+  assert.equal(headStyle.marginTopFree, "14px");
+  assert.equal(headStyle.fontFamily, "Playfair Display");
+  assert.equal(headStyle.fontSize, "48px");
+  assert.equal(headStyle.textColor, "#1a1a1a");
+
+  // The copy child carries its own role's presentation (lineHeightPct → ratio).
+  const copyStyle = styleOf(copy);
+  assert.equal(copyStyle.maxWidthFree, "520px");
+  assert.equal(copyStyle.tone, "muted");
+  assert.equal(copyStyle.lineHeight, "1.5");
+});
+
+test("eject(parity): the ejected child renders the SAME key CSS the curated role showed", async () => {
+  // Visual parity, end-to-end: render the ejected freeform child through the
+  // REAL renderBuilderNodes and assert it emits the same load-bearing CSS the
+  // curated nodePresentation would have produced (max-width/align/font-size).
+  const { renderBuilderNodes } = await import("./render");
+  const { renderToStaticMarkup } = await import("react-dom/server");
+
+  const sectionId = "legacy:body:0:hero";
+  const tree: BuilderNodeTree = [
+    section(sectionId, [
+      roleChild(sectionId, ":heading:headline", "heading", { text: "Hi", level: 2 }),
+    ]),
+  ];
+  const result = ejectSectionInTree(tree, sectionId, { headline: HEADLINE_NP });
+  const [head] = ejectedChildren(result);
+
+  const html = renderToStaticMarkup(
+    renderBuilderNodes([head], { mode: "freeform" }) as Parameters<
+      typeof renderToStaticMarkup
+    >[0],
+  );
+  // These are the exact CSS values the curated headline role displayed pre-eject.
+  assert.match(html, /text-align:left/);
+  assert.match(html, /max-width:740px/);
+  assert.match(html, /font-size:48px/);
+  assert.match(html, /font-family:Playfair Display/);
+  assert.match(html, /color:#1a1a1a/);
+});
+
+test("eject(parity): a child's explicit style wins over the curated nodePresentation default", () => {
+  const sectionId = "legacy:body:0:hero";
+  // The headline child ALREADY has an explicit freeform maxWidthFree — it must
+  // not be clobbered by the curated nodePresentation's maxWidthPx.
+  const tree: BuilderNodeTree = [
+    section(sectionId, [
+      roleChild(sectionId, ":heading:headline", "heading", {
+        text: "Hi",
+        level: 2,
+        style: { maxWidthFree: "900px" } as BuilderNodeStyle,
+      }),
+    ]),
+  ];
+  const result = ejectSectionInTree(tree, sectionId, { headline: HEADLINE_NP });
+  const [head] = ejectedChildren(result);
+  const headStyle = styleOf(head);
+  assert.equal(headStyle.maxWidthFree, "900px", "explicit child style wins");
+  // But un-conflicting curated values still merge in.
+  assert.equal(headStyle.fontSize, "48px", "non-conflicting curated value merges");
+  assert.equal(headStyle.align, "left");
+});
+
+test("eject(parity): per-breakpoint nodePresentation carries onto style.responsive", () => {
+  const sectionId = "legacy:body:0:hero";
+  const np: NodePresentation = {
+    maxWidthPx: 740,
+    breakpoints: {
+      mobile: { maxWidthPx: 320, align: "center" },
+    },
+  };
+  const tree: BuilderNodeTree = [
+    section(sectionId, [
+      roleChild(sectionId, ":heading:headline", "heading", { text: "Hi", level: 2 }),
+    ]),
+  ];
+  const result = ejectSectionInTree(tree, sectionId, { headline: np });
+  const headStyle = styleOf(ejectedChildren(result)[0]);
+  assert.equal(headStyle.maxWidthFree, "740px");
+  assert.equal(headStyle.responsive?.mobile?.maxWidthFree, "320px");
+  assert.equal(headStyle.responsive?.mobile?.align, "center");
+});
+
+test("eject(back-compat): omitting rolePresentation reproduces the old lossy behaviour", () => {
+  const sectionId = "legacy:body:0:hero";
+  const tree: BuilderNodeTree = [
+    section(sectionId, [
+      roleChild(sectionId, ":heading:headline", "heading", { text: "Hi", level: 2 }),
+    ]),
+  ];
+  // 2-arg call (the existing edit-context caller) — children get re-minted with
+  // fresh ids and NO injected style.
+  const result = ejectSectionInTree(tree, sectionId);
+  const head = ejectedChildren(result)[0];
+  assert.equal((head.props as { style?: unknown }).style, undefined, "no style injected");
+  assert.ok(!head.id.startsWith("legacy:"), "still re-minted roleless");
+  assert.equal((head.props as { text: string }).text, "Hi", "content preserved");
+});
+
+test("eject(parity): a roleless child (no role suffix) is untouched even with a map", () => {
+  const sectionId = "plain-sec";
+  const tree: BuilderNodeTree = [
+    section(sectionId, [roleChild(sectionId, "-plain", "heading", { text: "Plain", level: 2 })]),
+  ];
+  const result = ejectSectionInTree(tree, sectionId, { headline: HEADLINE_NP });
+  const head = ejectedChildren(result)[0];
+  // No role resolved from the id → no style injected.
+  assert.equal((head.props as { style?: unknown }).style, undefined);
+});
+
+test("buildEjectRolePresentation: maps child ids + curated config to a role→presentation map", () => {
+  const sectionId = "legacy:body:0:hero";
+  const childIds = [
+    `${sectionId}:heading:headline`,
+    `${sectionId}:paragraph:copy`,
+    `${sectionId}:image:hero`, // no role suffix → ignored
+  ];
+  const config = {
+    headline: HEADLINE_NP,
+    copy: COPY_NP,
+    subheadline: undefined, // not present among children → dropped
+  };
+  const map = buildEjectRolePresentation(childIds, config);
+  assert.deepEqual(map.headline, HEADLINE_NP);
+  assert.deepEqual(map.copy, COPY_NP);
+  assert.equal(map.subheadline, undefined);
+});
+
+test("buildEjectRolePresentation: null config → empty map", () => {
+  assert.deepEqual(buildEjectRolePresentation(["legacy:x:heading:headline"], null), {});
 });

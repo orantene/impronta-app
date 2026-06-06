@@ -32,6 +32,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { publishHomepageFromEditModeAction } from "@/lib/site-admin/edit-mode/composition-actions";
 import { safeAction } from "@/lib/site-admin/edit-mode/safe-action";
 import {
+  readClasses,
+  toRegistry,
+} from "@/lib/site-admin/builder-node/style-classes-storage";
+import {
   loadPublishedSnapshotRowsAction,
   type PublishedSnapshotRow,
 } from "@/lib/site-admin/edit-mode/publish-diff-action";
@@ -61,6 +65,7 @@ import {
   HelperCounter,
 } from "./kit";
 import { useEditContext } from "./edit-context";
+import { useDirty } from "./dirty-bridge";
 import { PublishPreflight } from "./PublishPreflight";
 import { MobileHealthPanel } from "./MobileHealthPanel";
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
@@ -229,7 +234,6 @@ export function PublishDrawer() {
     getCompositionCasVersion,
     pageId,
     pageSlug,
-    dirty,
     saving,
     locale,
     refreshComposition,
@@ -238,6 +242,8 @@ export function PublishDrawer() {
     flushBuilderTreeSave,
     builderTree,
   } = useEditContext();
+  // W2-T4 — `dirty` VALUE from the dirty-bridge.
+  const dirty = useDirty();
 
   const [state, setState] = useState<PublishState>({ kind: "idle" });
   const [showLegacy, setShowLegacy] = useState(false);
@@ -437,6 +443,11 @@ export function PublishDrawer() {
       setState({ kind: "idle" });
       return;
     }
+    // W1-T2 — read the page's linked style-class registry from localStorage
+    // (keyed by the REAL pageId) and hand it to the publish action so the
+    // server can bake the classes into the published snapshot. Without this the
+    // public page renders linked blocks with no class styles.
+    const styleClasses = toRegistry(readClasses(pageId));
     // safeAction wrapper: if the dev server restarts mid-publish or the
     // network drops, we get a graceful "Network error" toast instead of
     // a stuck "Publishing…" pending state and a leaked Next.js overlay.
@@ -450,6 +461,7 @@ export function PublishDrawer() {
           // path to the action.
           pageId: pageSlug ? pageId : null,
           expectedVersion: casVersion,
+          styleClasses,
         }),
       {
         name: "publishHomepageFromEditModeAction",

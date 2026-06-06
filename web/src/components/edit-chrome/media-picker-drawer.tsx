@@ -19,6 +19,7 @@ import {
   Drawer,
   DrawerBody,
   DrawerHead,
+  DrawerSkeletonGrid,
   SaveChip,
 } from "./kit";
 import { KIT } from "./inspectors/kit/tokens";
@@ -352,7 +353,10 @@ export function MediaPickerDrawer({
           ) : null}
 
           {loading ? (
-            <StatePanel icon={<Loader2 className="size-4 animate-spin" />} title="Loading" />
+            // W3-T7: content-shaped grid skeleton (matches the 2–3 col tile
+            // grid) instead of a centered spinner, so the library doesn't flash
+            // empty while the asset list loads.
+            <DrawerSkeletonGrid rows={6} />
           ) : error ? (
             <StatePanel
               icon={<AlertCircle className="size-4" />}

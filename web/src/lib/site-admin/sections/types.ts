@@ -70,6 +70,23 @@ export interface SectionMeta {
   inDefault: boolean;
   /** Phase D — optional pill on the tile preview. Restrained on purpose. */
   tag?: SectionTag;
+  /**
+   * Marathon W2-T2 — TRUE when this section's `Component.tsx` renders against
+   * SERVER-resolved live data (it is an `async` server data-loader: awaits
+   * Supabase / session / headers at render time). For these sections an
+   * in-editor prop change does NOT reach the on-screen island until the server
+   * re-renders, so a curated prop edit must still `queueRouterRefresh()`.
+   *
+   * FALSE / absent = pure-render section: its output is a deterministic function
+   * of its props, which the client-canvas snapshot already reflects, so a prop
+   * edit needs NO server round-trip (skip the refresh → instant paint).
+   *
+   * ⚠️ CORRECTNESS-CRITICAL: a data-bound section mistagged falsy ships a STALE
+   * island after a prop edit. The canonical set is enforced by
+   * `section-meta-live-data.test.ts`, which self-derives the data-bound set from
+   * the async-Component scan and fails if any tag drifts.
+   */
+  hasLiveData?: boolean;
 }
 
 export interface SectionComponentProps<TShape> {
