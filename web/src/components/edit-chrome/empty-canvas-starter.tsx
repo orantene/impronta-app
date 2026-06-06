@@ -768,8 +768,8 @@ export function EmptyCanvasStarter({
         ) : null}
         {freePlan ? (
           <p className="mt-4 text-center text-[11px] leading-relaxed text-stone-400">
-            Free includes one starter design. Upgrade to Studio for the full
-            gallery.
+            Every full-page design above is free. Studio adds the full section-kit
+            gallery for mixing your own layout.
           </p>
         ) : null}
       </div>
@@ -927,9 +927,9 @@ export function StarterTemplateGalleryModal({
               Start from a flexible composition
             </h3>
             <p className="mt-1 max-w-2xl text-sm leading-relaxed text-stone-500">
-              Wireframe starters for the future template marketplace. Today
-              they use the existing section seeding action; later each card can
-              become a full saved-template preview with reusable blocks.
+              Pick a proven section layout to drop onto your page, then make every
+              block your own. Mix kits freely — each one slots in cleanly and
+              stays fully editable.
             </p>
           </div>
           <button

@@ -1526,33 +1526,51 @@ export function NavigatorPanel() {
         >
           {/* #15 — renamed "sections" view label to "Layers" (operator
               language, not dev taxonomy). "Outline" stays as-is.
-              Wave 5.8 — added "Classes" tab for the Class Manager. */}
+              Wave 5.8 — added "Classes" tab for the Class Manager.
+              W6-T3 — Layers is the primary view; Outline and Classes are
+              demoted to secondary peers (lighter weight + a hover description
+              that says what they do) so a first-run operator isn't asked to
+              treat a power-user view as an equal default. */}
           {(["sections", "outline", "classes"] as const).map((mode) => {
             const active = viewMode === mode;
             // W1-T2 — classes now publish (the registry is baked into the
             // snapshot), so the temporary "(editor only)" honesty label from
             // W1-T3 is removed.
+            const isPrimary = mode === "sections";
             const displayLabel =
               mode === "sections" ? "Layers" : mode === "outline" ? "Outline" : "Classes";
+            // W6-T3 — hover descriptions demote the two power-user views.
+            const description =
+              mode === "sections"
+                ? "Every block on the page, in order"
+                : mode === "outline"
+                  ? "Just the headings, as a document outline"
+                  : "Reusable style classes you can apply across blocks";
             return (
               <button
                 key={mode}
                 type="button"
                 role="radio"
                 aria-checked={active}
+                aria-label={`${displayLabel} — ${description}`}
+                title={description}
                 onClick={() => setViewMode(mode)}
                 style={{
-                  flex: 1,
+                  flex: isPrimary ? 1.25 : 1,
                   padding: "4px 8px",
                   fontSize: 11,
-                  fontWeight: 600,
+                  fontWeight: isPrimary || active ? 600 : 500,
                   letterSpacing: "-0.005em",
                   textTransform: "capitalize",
                   cursor: "pointer",
                   border: "none",
                   borderRadius: 0,
                   background: active ? CHROME.surface : "transparent",
-                  color: active ? CHROME.ink : CHROME.muted,
+                  color: active
+                    ? CHROME.ink
+                    : isPrimary
+                      ? CHROME.muted
+                      : CHROME.muted2,
                   boxShadow: active
                     ? "0 1px 2px rgba(0,0,0,0.06)"
                     : "none",
