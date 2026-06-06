@@ -47,11 +47,6 @@ export async function sendTalentInquiryMessage(
     return { ok: false, error: "Message is empty or too long." };
   }
 
-  const scope = await getTenantPortalScopeBySlug(tenantSlug);
-  if (!scope) {
-    return { ok: false, error: "Workspace not found." };
-  }
-
   const supabase = await createSupabaseServerClient();
   if (!supabase) {
     return { ok: false, error: "Database unavailable." };
@@ -64,20 +59,40 @@ export async function sendTalentInquiryMessage(
     return { ok: false, error: "Not authenticated." };
   }
 
-  const talent = await loadTalentSelfProfile(user.id, scope.tenantId);
-  if (!talent) {
-    return { ok: false, error: "Talent profile not found in this workspace." };
-  }
+  // Authorize against the INQUIRY's own tenant, never the talent's active
+  // workspace. A talent on several agencies — or replying via the Tulala hub —
+  // holds a thread whose tenant_id is the agency that OWNS the inquiry, which
+  // routinely differs from the URL / effective-workspace slug. The old code
+  // scoped BOTH the talent profile (roster-scoped loadTalentSelfProfile) and the
+  // inquiry lookup to `scope.tenantId`, so a cross-tenant reply failed with
+  // "Inquiry not found in this workspace." even though the talent legitimately
+  // participates. Mirror the already-correct read path (loadTalentInquiryThread):
+  // resolve the inquiry's own tenant + authorize on participant membership via
+  // the service-role client (a platform talent whose agency-roster row is
+  // inactive still participates and must be able to reply). The INSERT stays on
+  // the user client so the participant-scoped RLS — which has NO tenant check —
+  // remains the security backstop.
+  const admin = createServiceRoleClient();
+  const authzClient = admin ?? supabase;
 
-  const { data: inquiry } = await supabase
+  const { data: inquiry } = await authzClient
     .from("inquiries")
-    .select("id")
+    .select("id, tenant_id")
     .eq("id", inquiryId)
-    .eq("tenant_id", scope.tenantId)
     .maybeSingle();
-  if (!inquiry) {
-    return { ok: false, error: "Inquiry not found in this workspace." };
+  if (!inquiry?.tenant_id) {
+    return { ok: false, error: "Inquiry not found." };
   }
+  const inquiryTenantId = inquiry.tenant_id as string;
+
+  // Resolve the talent profile by user_id (NOT the roster/tenant-scoped
+  // loadTalentSelfProfile) so cross-agency participation is honored.
+  const { data: tp } = await authzClient
+    .from("talent_profiles")
+    .select("id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const talentProfileId = (tp as { id: string } | null)?.id ?? null;
 
   // Pull the role on EVERY participant row this user holds on the inquiry.
   // A self-coordinating talent has TWO rows: their lineup row (keyed on
@@ -86,11 +101,14 @@ export async function sendTalentInquiryMessage(
   // Match on either key so the coordinator role is visible here. (RLS now
   // exposes a user's own coordinator row via
   // inquiry_participants_own_coordinator_select.)
-  const { data: participantRows } = await supabase
+  const orMatch = talentProfileId
+    ? `user_id.eq.${user.id},talent_profile_id.eq.${talentProfileId}`
+    : `user_id.eq.${user.id}`;
+  const { data: participantRows } = await authzClient
     .from("inquiry_participants")
     .select("role")
     .eq("inquiry_id", inquiryId)
-    .or(`user_id.eq.${user.id},talent_profile_id.eq.${talent.id}`)
+    .or(orMatch)
     .in("status", ["invited", "active"]);
   const roles = new Set((participantRows ?? []).map((p) => (p as { role: string }).role));
   if (roles.size === 0) {
@@ -109,7 +127,7 @@ export async function sendTalentInquiryMessage(
       thread_type: threadType,
       sender_user_id: user.id,
       body: trimmed,
-      tenant_id: scope.tenantId,
+      tenant_id: inquiryTenantId,
     })
     .select("id, created_at")
     .single();
@@ -133,12 +151,9 @@ export async function sendTalentInquiryMessage(
 }
 
 export async function markTalentInquiryThreadRead(
-  tenantSlug: string,
+  _tenantSlug: string,
   inquiryId: string,
 ): Promise<void> {
-  const scope = await getTenantPortalScopeBySlug(tenantSlug);
-  if (!scope) return;
-
   const supabase = await createSupabaseServerClient();
   if (!supabase) return;
 
@@ -147,22 +162,33 @@ export async function markTalentInquiryThreadRead(
   } = await supabase.auth.getUser();
   if (!user) return;
 
-  const talent = await loadTalentSelfProfile(user.id, scope.tenantId);
-  if (!talent) return;
+  // Tenant-agnostic, like loadTalentInquiryThread / sendTalentInquiryMessage:
+  // authorize on the inquiry's own tenant + participant membership (resolved by
+  // user_id, not the roster-scoped self profile) so a cross-agency / hub thread
+  // still marks read. Authz reads run via service-role; the RPC runs as the user.
+  const admin = createServiceRoleClient();
+  const authzClient = admin ?? supabase;
 
-  const { data: inquiry } = await supabase
+  const { data: inquiry } = await authzClient
     .from("inquiries")
     .select("id")
     .eq("id", inquiryId)
-    .eq("tenant_id", scope.tenantId)
     .maybeSingle();
   if (!inquiry) return;
 
-  const { data: participant } = await supabase
+  const { data: tp } = await authzClient
+    .from("talent_profiles")
+    .select("id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const talentProfileId = (tp as { id: string } | null)?.id ?? null;
+  if (!talentProfileId) return;
+
+  const { data: participant } = await authzClient
     .from("inquiry_participants")
     .select("inquiry_id")
     .eq("inquiry_id", inquiryId)
-    .eq("talent_profile_id", talent.id)
+    .eq("talent_profile_id", talentProfileId)
     .in("status", ["invited", "active"])
     .maybeSingle();
   if (!participant) return;

@@ -16,7 +16,7 @@
  *     cookie, is resolved server-side inside those actions).
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { TalentChatLauncherProps } from "@/lib/inquiry/guest-chat-contract";
 
@@ -40,6 +40,30 @@ export function TalentProfileChatLauncher({
   openFullHref = null,
 }: TalentChatLauncherProps) {
   const [open, setOpen] = useState(false);
+
+  // Restore the open panel across a refresh (B1) so the conversation doesn't
+  // appear to reset. sessionStorage is per-tab → a refresh restores; closing the
+  // tab forgets. Only auto-restore when there's a LIVE thread to show — never
+  // auto-open an empty intro chat, which would read as spammy (strategy §10).
+  const openStateKey = `tulala_guestchat_open:${talentProfileId}`;
+  useEffect(() => {
+    if (!existingInquiryId) return;
+    try {
+      if (sessionStorage.getItem(openStateKey) === "1") setOpen(true);
+    } catch {
+      /* sessionStorage blocked (some privacy modes) — stay closed, no-op. */
+    }
+    // existingInquiryId + openStateKey are stable for a given mount, so this
+    // restores once and never re-opens after the user manually closes.
+  }, [existingInquiryId, openStateKey]);
+  useEffect(() => {
+    try {
+      if (open) sessionStorage.setItem(openStateKey, "1");
+      else sessionStorage.removeItem(openStateKey);
+    } catch {
+      /* ignore — persistence is best-effort. */
+    }
+  }, [open, openStateKey]);
 
   const accent = brand.accentColor ?? DEFAULT_ACCENT;
   const accentInk = readableOn(brand.accentColor);

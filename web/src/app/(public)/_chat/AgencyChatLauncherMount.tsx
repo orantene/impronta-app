@@ -42,7 +42,10 @@ export async function AgencyChatLauncherMount({
   let fallbackName = "the agency";
   if ((ctx.kind === "agency" || ctx.kind === "hub") && ctx.tenantId) {
     tenantId = ctx.tenantId;
-    tenantSlug = ctx.tenantSlug ?? "";
+    // Only the agency arm of PublicHostContext carries a slug; the hub arm does
+    // not. Narrow with `in` (default hub → "" — unchanged runtime behavior) so
+    // the access type-checks. (Pre-existing tsc error from #260, surfaced here.)
+    tenantSlug = "tenantSlug" in ctx ? ctx.tenantSlug ?? "" : "";
   } else if (ctx.kind === "marketing" || ctx.kind === "app") {
     const hub = await getPlatformHubTenant();
     if (!hub) return null;

@@ -48,6 +48,7 @@ import { getAppUrl } from "@/lib/auth-flow";
 import type {
   AddGuestClaimEmailInput,
   AddGuestClaimEmailResult,
+  GetActiveGuestInquiryResult,
   GetGuestThreadInput,
   GetGuestThreadResult,
   GuestChatErrorCode,
@@ -1061,4 +1062,96 @@ export async function getGuestThreadMessages(
     threadStatus: toThreadStatus(owned.inquiry.status),
     typicalReplyLabel,
   };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// getActiveGuestInquiry — returning-guest resume (B1 fix).
+//
+// The launcher mount (a server component) calls this on /t/[code] load so a page
+// refresh — or a fresh tab in the same session — REOPENS the guest's live thread
+// instead of restarting a brand-new chat. Read-side only; the guest identity is
+// the x-impronta-guest cookie (server-resolved), never a client argument, and
+// only an inquiry the cookie OWNS (guest_session_id match) is ever returned.
+// Cross-device / cleared-cookie recovery stays the emailed magic link.
+//
+// Scope: the newest NON-terminal inquiry owned by this guest session on this
+// tenant where THIS talent participates (so a guest who messaged several talents
+// reopens the conversation for the page they're on). Returns { active: null } —
+// NOT an error — when there's nothing to resume.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function getActiveGuestInquiry(input: {
+  tenantSlug: string;
+  talentProfileId?: string | null;
+}): Promise<GetActiveGuestInquiryResult> {
+  try {
+    const guest = await resolveGuestContext();
+    // No cookie / no session row yet = first-time visitor. Any resolve failure
+    // here means "nothing to resume", not an error to surface in the launcher.
+    if (!guest.ok) return { ok: true, active: null };
+    const { admin, guestSessionId } = guest.ctx;
+
+    const tenantId = await resolveTenantIdBySlug(admin, input.tenantSlug);
+    if (!tenantId) return { ok: true, active: null };
+
+    const talentProfileId = input.talentProfileId?.trim() || null;
+
+    // Candidate inquiries owned by this guest session on this tenant, newest
+    // first. The filter on guest_session_id IS the ownership gate (mirrors
+    // loadOwnedInquiry): even via service-role we only ever read this cookie's
+    // own inquiries. Keep the set small — the guest funnel never makes many.
+    const { data: rows, error } = await admin
+      .from("inquiries")
+      .select("id, contact_name, contact_email, contact_phone, status, created_at")
+      .eq("guest_session_id", guestSessionId)
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (error) {
+      logServerError("guest-chat-actions.getActiveGuestInquiry", error);
+      return { ok: true, active: null };
+    }
+    if (!rows || rows.length === 0) return { ok: true, active: null };
+
+    // Drop terminal threads — never resume into a dead conversation. Reuses
+    // toThreadStatus' "closed" bucket + the cancelled status (see loadOwnedInquiry).
+    const live = rows.filter((r) => {
+      const s = r.status as string;
+      return s !== "cancelled" && toThreadStatus(s) !== "closed";
+    });
+    if (live.length === 0) return { ok: true, active: null };
+
+    let chosen = live[0];
+    // On a specific talent's page, prefer the newest live thread where THIS
+    // talent participates, so we never reopen a different talent's conversation
+    // here. No match ⇒ fresh start for this talent (the other thread is still
+    // recoverable via the switcher / magic link).
+    if (talentProfileId) {
+      const ids = live.map((r) => r.id as string);
+      const { data: parts } = await admin
+        .from("inquiry_participants")
+        .select("inquiry_id")
+        .in("inquiry_id", ids)
+        .eq("talent_profile_id", talentProfileId);
+      const withTalent = new Set((parts ?? []).map((p) => p.inquiry_id as string));
+      const match = live.find((r) => withTalent.has(r.id as string));
+      if (!match) return { ok: true, active: null };
+      chosen = match;
+    }
+
+    return {
+      ok: true,
+      active: {
+        inquiryId: chosen.id as string,
+        prefill: {
+          name: (chosen.contact_name as string | null)?.trim() || null,
+          email: (chosen.contact_email as string | null)?.trim() || null,
+          phone: (chosen.contact_phone as string | null)?.trim() || null,
+        },
+      },
+    };
+  } catch (err) {
+    logServerError("guest-chat-actions.getActiveGuestInquiry", err);
+    return { ok: true, active: null };
+  }
 }

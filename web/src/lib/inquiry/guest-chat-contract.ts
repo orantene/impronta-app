@@ -298,6 +298,33 @@ export type GuestThreadStatus =
   | "closed";       // declined / archived / cancelled
 
 // ─────────────────────────────────────────────────────────────────────────────
+// 3d. getActiveGuestInquiry — returning-guest resume. A SERVER COMPONENT (the
+//     launcher mount) calls this on page load to reopen the live thread instead
+//     of starting fresh after a refresh. Guest identity is the x-impronta-guest
+//     cookie (server-resolved); only an inquiry the cookie OWNS is ever returned.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** The resumable thread + prefill for the inline name/email gate. */
+export type ActiveGuestInquiry = {
+  /** inquiries.id to reopen — the panel mounts straight into the thread stage. */
+  inquiryId: string;
+  /** Captured contact fields, so a returning guest never re-types the gate. */
+  prefill: {
+    name: string | null;
+    email: string | null;
+    phone: string | null;
+  };
+};
+
+export type GetActiveGuestInquiryResult =
+  | {
+      ok: true;
+      /** null = nothing to resume (first-time visitor) — open at the intro stage. */
+      active: ActiveGuestInquiry | null;
+    }
+  | GuestChatFailure;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // 4. The three injected callback prop types. The UI lane references THESE,
 //    never the concrete action functions. A server component passes the real
 //    actions (which match these shapes) down as props.
