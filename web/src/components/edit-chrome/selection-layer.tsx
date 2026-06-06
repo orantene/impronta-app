@@ -1765,21 +1765,37 @@ export function SelectionLayer() {
   }, [canvasDragGestureKey, rebuildCanvasDropIndex]);
 
   // ── drag-to-reorder ──────────────────────────────────────────────
-  // Drop target under the cursor given the current section layout.
-  const computeDrop = (
-    cursorX: number,
-    cursorY: number,
-    sourceSlot: string | null,
-    sourceTypeKey: string | null,
-  ): DropTarget | null => {
+  // W2-T5 — section drop-index cache. `computeDrop` is called on EVERY
+  // pointermove AND every auto-scroll rAF tick during a section reorder, and it
+  // used to `querySelectorAll([data-cms-section…]) + getBoundingClientRect` per
+  // call — thousands of forced reflows/s on a 20-section page. Mirror the
+  // canvasDropIndexRef pattern: snapshot the section boxes once at drag-start,
+  // refresh only on scroll/resize during the drag, and read the cache here.
+  //
+  // Byte-identical guarantee: the cache stores the EXACT `items` the per-frame
+  // scan produced, recomputed on the only inputs that move the boxes (scroll +
+  // resize). The midpoint/insert math below is pure over `items`, so the drop
+  // decision is identical to scanning every frame. An empty cache (a drop event
+  // before the seed) falls back to a fresh scan, so correctness never depends on
+  // the cache being warm.
+  type SectionDropItem = {
+    id: string;
+    slotKey: string;
+    order: number;
+    top: number;
+    bottom: number;
+    left: number;
+    width: number;
+  };
+  const sectionDropIndexRef = useRef<SectionDropItem[] | null>(null);
+  const scanSectionDropItems = useCallback((): SectionDropItem[] => {
     const nodes = Array.from(
       document.querySelectorAll<HTMLElement>(
         "[data-cms-section][data-section-id][data-slot-key]",
       ),
     );
-    if (nodes.length === 0) return null;
     // Flat list of sections with their slot / order / rect.
-    const items = nodes
+    return nodes
       .map((el) => {
         const id = el.getAttribute("data-section-id")!;
         const slotKey = el.getAttribute("data-slot-key")!;
@@ -1789,7 +1805,23 @@ export function SelectionLayer() {
           ? { id, slotKey, order, top: r.top, bottom: r.bottom, left: r.left, width: r.width }
           : null;
       })
-      .filter((x): x is NonNullable<typeof x> => x !== null);
+      .filter((x): x is SectionDropItem => x !== null);
+  }, []);
+  const rebuildSectionDropIndex = useCallback(() => {
+    sectionDropIndexRef.current = scanSectionDropItems();
+  }, [scanSectionDropItems]);
+
+  // Drop target under the cursor given the current section layout.
+  const computeDrop = (
+    cursorX: number,
+    cursorY: number,
+    sourceSlot: string | null,
+    sourceTypeKey: string | null,
+  ): DropTarget | null => {
+    // W2-T5 — read the cache seeded at drag-start (refreshed on scroll/resize);
+    // fall back to a fresh scan if the cache isn't warm.
+    const items = sectionDropIndexRef.current ?? scanSectionDropItems();
+    if (items.length === 0) return null;
     // Find the item whose vertical midpoint is closest to the cursor; cursor
     // in top half → insert before it, bottom half → insert after it.
     let best: (typeof items)[number] | null = null;
@@ -1828,6 +1860,33 @@ export function SelectionLayer() {
       indicatorWidth: best.width,
     };
   };
+
+  // W2-T5 — seed + maintain the section drop-index cache for the lifetime of a
+  // section reorder gesture (armed OR dragging). Refresh only on scroll/resize
+  // (the inputs that move the section boxes); clear when the gesture ends so a
+  // stale snapshot can never leak into the next drag. Mirrors the canvas one.
+  const sectionDragGestureKey =
+    drag.phase === "idle" ? "idle" : `${drag.phase}:${drag.id}`;
+  useEffect(() => {
+    if (sectionDragGestureKey === "idle") {
+      sectionDropIndexRef.current = null;
+      return undefined;
+    }
+    rebuildSectionDropIndex();
+    const onScrollOrResize = () => rebuildSectionDropIndex();
+    window.addEventListener("scroll", onScrollOrResize, {
+      passive: true,
+      capture: true,
+    });
+    window.addEventListener("resize", onScrollOrResize);
+    return () => {
+      window.removeEventListener("scroll", onScrollOrResize, {
+        capture: true,
+      } as EventListenerOptions);
+      window.removeEventListener("resize", onScrollOrResize);
+      sectionDropIndexRef.current = null;
+    };
+  }, [sectionDragGestureKey, rebuildSectionDropIndex]);
 
   // Global pointer listeners while a drag is armed or active.
   useEffect(() => {
