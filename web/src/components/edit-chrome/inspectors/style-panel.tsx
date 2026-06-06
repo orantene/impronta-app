@@ -59,6 +59,7 @@ import { InstanceOverridesPanel } from "./instance-overrides-panel";
 import { InspectorGroup } from "./kit";
 import { Swatch } from "../kit/swatch";
 import { CHROME } from "../kit/tokens";
+import { BoxModel } from "../kit/box-model";
 
 // 2026-05-29 readability pass: warm stone (matches the kit) instead of cold
 // zinc, and INHERIT_HINT lifted off the AA-failing zinc-400 (~2.5:1) to a
@@ -4988,6 +4989,56 @@ export function StylePanel({
                   )}
                 </div>
               </div>
+              {/* Box-model diagram — collapsible visual shortcut for the spacing fields above */}
+              <details
+                data-node-presentation-control="box-model"
+              >
+                <summary
+                  className="flex items-center justify-between select-none"
+                  style={{ cursor: "pointer", outline: "none", listStyle: "none" }}
+                >
+                  <span className={FIELD_LABEL}>Box model</span>
+                  <span style={{ color: CHROME.muted, fontSize: 9 }}>›</span>
+                </summary>
+                <div className="mt-2">
+                  <BoxModel
+                    margin={{
+                      top: selectedNodeViewportPresentation?.marginTopPx ?? null,
+                      right: selectedNodeViewportPresentation?.marginRightPx
+                        ?? selectedNodeViewportPresentation?.marginInlinePx
+                        ?? null,
+                      bottom: selectedNodeViewportPresentation?.marginBottomPx ?? null,
+                      left: selectedNodeViewportPresentation?.marginLeftPx
+                        ?? selectedNodeViewportPresentation?.marginInlinePx
+                        ?? null,
+                    }}
+                    padding={{
+                      top: selectedNodeViewportPresentation?.paddingTopPx ?? null,
+                      right: selectedNodeViewportPresentation?.paddingRightPx
+                        ?? selectedNodeViewportPresentation?.paddingInlinePx
+                        ?? null,
+                      bottom: selectedNodeViewportPresentation?.paddingBottomPx ?? null,
+                      left: selectedNodeViewportPresentation?.paddingLeftPx
+                        ?? selectedNodeViewportPresentation?.paddingInlinePx
+                        ?? null,
+                    }}
+                    maxMargin={240}
+                    maxPadding={160}
+                    onChangeMargin={(side, value) => {
+                      if (side === "top") patchSelectedNodePresentation({ marginTopPx: value ?? undefined });
+                      else if (side === "bottom") patchSelectedNodePresentation({ marginBottomPx: value ?? undefined });
+                      else if (side === "left") patchSelectedNodePresentation({ marginLeftPx: value ?? undefined, marginInlinePx: undefined });
+                      else if (side === "right") patchSelectedNodePresentation({ marginRightPx: value ?? undefined, marginInlinePx: undefined });
+                    }}
+                    onChangePadding={(side, value) => {
+                      if (side === "top") patchSelectedNodePresentation({ paddingTopPx: value ?? undefined });
+                      else if (side === "bottom") patchSelectedNodePresentation({ paddingBottomPx: value ?? undefined });
+                      else if (side === "left") patchSelectedNodePresentation({ paddingLeftPx: value ?? undefined, paddingInlinePx: undefined });
+                      else if (side === "right") patchSelectedNodePresentation({ paddingRightPx: value ?? undefined, paddingInlinePx: undefined });
+                    }}
+                  />
+                </div>
+              </details>
               <div className="flex flex-col gap-1.5">
                 <span className={FIELD_LABEL}>Size</span>
                 <Segmented
@@ -6792,6 +6843,69 @@ export function StylePanel({
                     })
                   }
                 />
+              </div>
+            ) : null}
+
+            {/* Box-model diagram for freeform spacing — visual shortcut */}
+            {!["divider", "spacer"].includes(selectedStandaloneStyleNode.kind) ? (
+              <div data-builder-node-style-control="box-model">
+                <details>
+                  <summary
+                    className="flex items-center justify-between select-none"
+                    style={{ cursor: "pointer", outline: "none", listStyle: "none" }}
+                  >
+                    <span className={FIELD_LABEL}>Box model</span>
+                    <span style={{ color: CHROME.muted, fontSize: 9 }}>›</span>
+                  </summary>
+                  <div className="mt-2">
+                    <BoxModel
+                      margin={{
+                        top: selectedStandaloneViewportStyle?.marginTopFree
+                          ? (parseCssLength(selectedStandaloneViewportStyle.marginTopFree)?.value ?? null)
+                          : null,
+                        right: selectedStandaloneViewportStyle?.marginRightFree
+                          ? (parseCssLength(selectedStandaloneViewportStyle.marginRightFree)?.value ?? null)
+                          : null,
+                        bottom: selectedStandaloneViewportStyle?.marginBottomFree
+                          ? (parseCssLength(selectedStandaloneViewportStyle.marginBottomFree)?.value ?? null)
+                          : null,
+                        left: selectedStandaloneViewportStyle?.marginLeftFree
+                          ? (parseCssLength(selectedStandaloneViewportStyle.marginLeftFree)?.value ?? null)
+                          : null,
+                      }}
+                      padding={{
+                        top: selectedStandaloneViewportStyle?.paddingTop
+                          ? (parseCssLength(selectedStandaloneViewportStyle.paddingTop)?.value ?? null)
+                          : null,
+                        right: selectedStandaloneViewportStyle?.paddingRight
+                          ? (parseCssLength(selectedStandaloneViewportStyle.paddingRight)?.value ?? null)
+                          : null,
+                        bottom: selectedStandaloneViewportStyle?.paddingBottom
+                          ? (parseCssLength(selectedStandaloneViewportStyle.paddingBottom)?.value ?? null)
+                          : null,
+                        left: selectedStandaloneViewportStyle?.paddingLeft
+                          ? (parseCssLength(selectedStandaloneViewportStyle.paddingLeft)?.value ?? null)
+                          : null,
+                      }}
+                      maxMargin={200}
+                      maxPadding={120}
+                      onChangeMargin={(side, value) => {
+                        const css = value != null ? `${value}px` : undefined;
+                        if (side === "top") patchSelectedStandaloneStyle({ marginTopFree: css });
+                        else if (side === "right") patchSelectedStandaloneStyle({ marginRightFree: css });
+                        else if (side === "bottom") patchSelectedStandaloneStyle({ marginBottomFree: css });
+                        else if (side === "left") patchSelectedStandaloneStyle({ marginLeftFree: css });
+                      }}
+                      onChangePadding={(side, value) => {
+                        const css = value != null ? `${value}px` : undefined;
+                        if (side === "top") patchSelectedStandaloneStyle({ paddingTop: css });
+                        else if (side === "right") patchSelectedStandaloneStyle({ paddingRight: css });
+                        else if (side === "bottom") patchSelectedStandaloneStyle({ paddingBottom: css });
+                        else if (side === "left") patchSelectedStandaloneStyle({ paddingLeft: css });
+                      }}
+                    />
+                  </div>
+                </details>
               </div>
             ) : null}
                   </div>
