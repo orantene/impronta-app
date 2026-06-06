@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Segmented, type SegmentedOption } from "../kit/segmented";
 import { CHROME } from "../kit/tokens";
+import { ColorSwatchButton } from "./color-swatch-button";
 import type { BuilderNodeStyleValue } from "@/lib/site-admin/builder-node/types";
 
 /**
@@ -191,9 +192,6 @@ function composeGradient(p: GradientParts): string {
     : `radial-gradient(circle, ${p.c1}, ${p.c2})`;
 }
 
-function isHex(color: string): boolean {
-  return /^#[0-9a-fA-F]{3,8}$/.test(color.trim());
-}
 
 export function GradientBuilder({
   value,
@@ -241,13 +239,11 @@ export function GradientBuilder({
       <div className="grid grid-cols-2 gap-2">
         {(["c1", "c2"] as const).map((k) => (
           <div key={k} className="flex items-center gap-1.5">
-            <input
-              type="color"
-              data-builder-gradient-field={`${k}-pick`}
-              className="h-7 w-7 shrink-0 cursor-pointer rounded"
-              style={{ border: `1px solid ${CHROME.controlBorder}`, background: "transparent" }}
-              value={isHex(parts[k]) ? parts[k] : "#000000"}
-              onChange={(e) => patch({ [k]: e.target.value })}
+            <ColorSwatchButton
+              color={parts[k]}
+              dataAttr={["data-builder-gradient-field", `${k}-pick`]}
+              ariaLabel={`Pick gradient color ${k === "c1" ? "1" : "2"}`}
+              onChange={(next) => patch({ [k]: next })}
             />
             <input
               type="text"
@@ -436,13 +432,11 @@ export function GradientStopsBuilder({
       <div className="flex flex-col gap-1.5">
         {parts.stops.map((stop, i) => (
           <div key={i} className="flex items-center gap-1.5">
-            <input
-              type="color"
-              data-builder-gradient-stops-field={`stop-${i}-pick`}
-              className="h-7 w-7 shrink-0 cursor-pointer rounded"
-              style={{ border: `1px solid ${CHROME.controlBorder}`, background: "transparent" }}
-              value={isHex(stop.color) ? stop.color : "#000000"}
-              onChange={(e) => patchStop(i, { color: e.target.value })}
+            <ColorSwatchButton
+              color={stop.color}
+              dataAttr={["data-builder-gradient-stops-field", `stop-${i}-pick`]}
+              ariaLabel={`Pick gradient stop ${i + 1} color`}
+              onChange={(next) => patchStop(i, { color: next })}
             />
             <input
               type="text"
@@ -700,12 +694,10 @@ export function BackgroundLayersEditor({
                   />
                 ) : layer.type === "color" ? (
                   <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      className="h-7 w-7 shrink-0 cursor-pointer rounded"
-                      style={{ border: `1px solid ${CHROME.controlBorder}`, background: "transparent" }}
-                      value={isHex(layer.value) ? layer.value : "#000000"}
-                      onChange={(e) => patchLayer(i, { value: e.target.value })}
+                    <ColorSwatchButton
+                      color={layer.value}
+                      ariaLabel={`Pick background layer ${i + 1} color`}
+                      onChange={(next) => patchLayer(i, { value: next })}
                     />
                     <input
                       type="text"
