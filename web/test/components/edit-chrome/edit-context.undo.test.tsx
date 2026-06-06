@@ -253,6 +253,46 @@ describe("W0-T4 undo/redo + CAS (REAL EditProvider)", () => {
     // No stuck spinner; version advanced to the server's.
     expect(ctx().saving).toBe(false);
     expect(ctx().pageVersion).toBe(9);
+    // W3-T2(c/d) — the operator's rejected tree is parked, so the conflict is
+    // recoverable rather than silently discarded.
+    expect(ctx().hasConflictRecovery).toBe(true);
+  });
+
+  it("W3-T2: keepMyVersionAfterConflict re-applies the rejected tree on the reloaded base — CAS re-issues at the fresh version and the edit survives", async () => {
+    // First save loses the race; the second (keep-mine) lands on the new base.
+    saveDraftMock
+      .mockResolvedValueOnce({
+        ok: false,
+        code: "VERSION_CONFLICT",
+        error: "The page changed elsewhere.",
+      })
+      .mockResolvedValueOnce({ ok: true, pageVersion: 10 });
+    loadCompositionMock.mockResolvedValue({ ok: true, data: composition(9) });
+    const { ctx } = mountProvider(5);
+
+    await patchSeededNode(ctx, { textColor: "#ff0000" });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, SAVE_DEBOUNCE_WAIT));
+    });
+
+    // Conflict: rolled back + recovery armed at the reloaded version (9).
+    expect(headingStyle(ctx())?.textColor).toBeUndefined();
+    expect(ctx().hasConflictRecovery).toBe(true);
+    expect(ctx().pageVersion).toBe(9);
+
+    // Keep my version → re-apply the parked tree on top of the fresh base.
+    await act(async () => {
+      await ctx().keepMyVersionAfterConflict();
+    });
+
+    // The rejected edit is back on the live tree.
+    expect(headingStyle(ctx())?.textColor).toBe("#ff0000");
+    // The re-issued CAS used the RELOADED version (9), not the stale 5.
+    expect(saveDraftMock).toHaveBeenCalledTimes(2);
+    expect(saveDraftMock.mock.calls[1][0]).toMatchObject({ expectedVersion: 9 });
+    // The save landed, version advanced, and the recovery is cleared.
+    expect(ctx().pageVersion).toBe(10);
+    expect(ctx().hasConflictRecovery).toBe(false);
   });
 
   it("a NETWORK failure rolls back the optimistic tree but does NOT refreshComposition (transient error keeps editor state)", async () => {

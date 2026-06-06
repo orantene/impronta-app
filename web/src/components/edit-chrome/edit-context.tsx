@@ -1053,6 +1053,24 @@ export interface EditContextValue {
    * presentation surface internal mutations use.
    */
   reportMutationError: (message: string | EditMutationError) => void;
+
+  /**
+   * W3-T2(c/d) — when a builder-tree save loses a CAS race (VERSION_CONFLICT),
+   * the operator's rejected tree is parked here so the conflict toast can offer
+   * a real choice instead of silently discarding the edit:
+   *   - true  → a recovery is pending (toast shows "Reload latest" / "Keep my
+   *             version"). The latest server state is ALREADY loaded (the
+   *             reload ran), so "Reload latest" is just `clearMutationError`.
+   *   - false → no pending recovery.
+   * Cleared on any successful save, an explicit reload, or keep-mine.
+   */
+  hasConflictRecovery: boolean;
+  /**
+   * Re-apply the operator's conflict-rejected tree on top of the freshly
+   * reloaded base version (CAS now matches, so it persists). Preserves the
+   * operator's work across the conflict. No-op when nothing is parked.
+   */
+  keepMyVersionAfterConflict: () => Promise<void>;
 }
 
 const EditContext = createContext<EditContextValue | null>(null);
@@ -2796,6 +2814,11 @@ export function EditProvider({
     fingerprint: string;
     at: number;
   } | null>(null);
+  // W3-T2(c/d) — the operator's tree that lost a CAS race, parked so the
+  // conflict toast can re-apply it on the reloaded base ("Keep my version").
+  // A ref holds the (large) tree; a boolean state drives the toast affordance.
+  const conflictRecoveryTreeRef = useRef<BuilderNodeTree | null>(null);
+  const [hasConflictRecovery, setHasConflictRecovery] = useState(false);
   const reportMutationError = useCallback(
     (message: string | EditMutationError) => {
       const normalized = normalizeMutationError(message);
@@ -2825,9 +2848,29 @@ export function EditProvider({
     },
     [],
   );
-  const clearMutationError = useCallback(() => setMutationError(null), []);
+  const clearMutationError = useCallback(() => {
+    setMutationError(null);
+    // W3-T2 — dismissing the conflict toast means "go with the reloaded
+    // (latest) version", so drop the parked recovery tree too.
+    if (conflictRecoveryTreeRef.current !== null) {
+      conflictRecoveryTreeRef.current = null;
+      setHasConflictRecovery(false);
+    }
+  }, []);
   useEffect(() => {
     if (!mutationError) return;
+    // W3-T2(b) — recoverable, decision-bearing failures (a co-editor's save
+    // wins → VERSION_CONFLICT; the draft didn't persist → SAVE_FAILED) must NOT
+    // auto-dismiss. They offer a real choice (reload latest / keep my version)
+    // and disappearing on a 5s timer would silently swallow that choice. Every
+    // other (advisory) code keeps the existing 5s ttl so transient gesture
+    // errors don't squat the layout.
+    if (
+      mutationError.code === "VERSION_CONFLICT" ||
+      mutationError.code === "SAVE_FAILED"
+    ) {
+      return;
+    }
     const t = setTimeout(() => setMutationError(null), 5000);
     return () => clearTimeout(t);
   }, [mutationError]);
@@ -4362,6 +4405,13 @@ export function EditProvider({
         builderTreeRef.current = prevTree;
         setBuilderTree(prevTree);
         if (save.code === "VERSION_CONFLICT") {
+          // W3-T2(c/d) — park the operator's rejected tree BEFORE the reload
+          // overwrites local state, so "Keep my version" can re-apply it on the
+          // fresh base. The reload pulls in the co-editor's authoritative state
+          // (so "Reload latest" is just dismiss); the toast then offers the
+          // choice instead of silently winning for the other tab.
+          conflictRecoveryTreeRef.current = nextTree;
+          setHasConflictRecovery(true);
           await refreshComposition();
           const error = formatBuilderNodeMutationError({
             operation: "patch",
@@ -4398,6 +4448,13 @@ export function EditProvider({
       pageVersionRef.current = save.pageVersion;
       setPageVersion(save.pageVersion);
       lastConfirmedTreeRef.current = nextTree;
+      // W3-T2 — a clean save resolves any pending conflict recovery (the
+      // operator either kept-mine, which landed here, or moved on with a fresh
+      // edit that superseded the parked tree).
+      if (conflictRecoveryTreeRef.current !== null) {
+        conflictRecoveryTreeRef.current = null;
+        setHasConflictRecovery(false);
+      }
       // W1-T5(a) — re-stamp the persisted undo stack with the just-confirmed
       // version SYNCHRONOUSLY (don't wait for the debounced re-stamp), so a
       // reload in the window between the save and the next debounce sees the
@@ -4442,6 +4499,18 @@ export function EditProvider({
       flushUndoPersist,
     ],
   );
+
+  // W3-T2(c/d) — "Keep my version": re-apply the conflict-rejected tree on top
+  // of the now-reloaded base version. `persistBuilderTree` reads the current
+  // (fresh) `pageVersionRef`, so the CAS re-issue succeeds and the operator's
+  // work survives the race. Clears the recovery on the success path inside
+  // `persistBuilderTree`; on a second conflict it re-parks the latest attempt.
+  const keepMyVersionAfterConflict = useCallback(async () => {
+    const parked = conflictRecoveryTreeRef.current;
+    if (parked === null) return;
+    clearMutationError();
+    await persistBuilderTree(parked);
+  }, [persistBuilderTree, clearMutationError]);
 
   // ── flush: persist the coalesced pending builder tree NOW ──────────────
   // Cancels any scheduled debounce and enqueues a single `persistBuilderTree`
@@ -6662,6 +6731,8 @@ export function EditProvider({
       mutationError,
       clearMutationError,
       reportMutationError,
+      hasConflictRecovery,
+      keepMyVersionAfterConflict,
     }),
     [
       tenantId,
@@ -6846,6 +6917,8 @@ export function EditProvider({
       mutationError,
       clearMutationError,
       reportMutationError,
+      hasConflictRecovery,
+      keepMyVersionAfterConflict,
     ],
   );
 

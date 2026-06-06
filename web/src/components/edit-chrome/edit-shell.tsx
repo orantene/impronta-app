@@ -1366,7 +1366,12 @@ function DraftSavedToast() {
 }
 
 function MutationErrorToast() {
-  const { mutationError, clearMutationError } = useEditContext();
+  const {
+    mutationError,
+    clearMutationError,
+    hasConflictRecovery,
+    keepMyVersionAfterConflict,
+  } = useEditContext();
 
   useEffect(() => {
     if (!mutationError) return;
@@ -1388,6 +1393,12 @@ function MutationErrorToast() {
   const suggestion = mutationError.code
     ? mutationCodeSuggestion(mutationError.code)
     : null;
+  // W3-T2(c) — a recoverable conflict gets a real choice instead of a 5s
+  // disappearing act: take the just-reloaded latest, or re-apply the rejected
+  // edit on top of it. `hasConflictRecovery` is only true after a builder-tree
+  // CAS race parked the operator's tree.
+  const showConflictRecovery =
+    mutationError.code === "VERSION_CONFLICT" && hasConflictRecovery;
 
   return (
     <div
@@ -1412,6 +1423,26 @@ function MutationErrorToast() {
         {suggestion ? (
           <span className="mt-1 block text-[11px] font-normal leading-snug text-amber-900">
             Next step: {suggestion}
+          </span>
+        ) : null}
+        {showConflictRecovery ? (
+          <span className="mt-2 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={clearMutationError}
+              className="rounded-sm border border-amber-300 bg-white/70 px-2 py-1 text-[11px] font-semibold text-amber-900 transition hover:bg-white"
+              title="Discard your change and keep the version that's already loaded."
+            >
+              Reload latest
+            </button>
+            <button
+              type="button"
+              onClick={() => void keepMyVersionAfterConflict()}
+              className="rounded-sm border border-amber-400 bg-amber-200/80 px-2 py-1 text-[11px] font-semibold text-amber-950 transition hover:bg-amber-200"
+              title="Re-apply your change on top of the latest version."
+            >
+              Keep my version
+            </button>
           </span>
         ) : null}
         {detailLines.length > 0 ? (
