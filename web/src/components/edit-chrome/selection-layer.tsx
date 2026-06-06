@@ -504,6 +504,24 @@ function buildBuilderNodeMap(tree: BuilderNodeTree): Map<string, BuilderNode> {
 }
 
 /**
+ * W3-T3 — flatten the tree into DOCUMENT-ORDER node ids (parent, then its
+ * children depth-first) so Tab / Shift+Tab can walk the block tree in the same
+ * order the operator reads it. Used only for keyboard traversal of the canvas
+ * selection.
+ */
+function flattenBuilderNodeIdsInOrder(tree: BuilderNodeTree): string[] {
+  const out: string[] = [];
+  const visit = (node: BuilderNode) => {
+    out.push(node.id);
+    if ("children" in node && Array.isArray(node.children)) {
+      for (const child of node.children) visit(child);
+    }
+  };
+  for (const node of tree) visit(node);
+  return out;
+}
+
+/**
  * P3-LOCK — returns true when the given builder node (or its DOM element) has
  * the `locked` flag set. Checked in click, resize, move, and nudge paths so
  * locked nodes are entirely inert to direct manipulation.
@@ -664,6 +682,13 @@ export function SelectionLayer() {
   const [nodeHoverRect, setNodeHoverRect] = useState<Rect | null>(null);
   const [selectedRect, setSelectedRect] = useState<Rect | null>(null);
   const [selectedTypeKey, setSelectedTypeKey] = useState<string | null>(null);
+  // W3-T3 — keyboard/a11y for the canvas selection. `selectionAnnounce` feeds a
+  // polite aria-live region ("Heading selected") for screen readers;
+  // `selectionFocused` is true while the selected canvas block actually holds DOM
+  // focus, driving a DISTINCT focus-visible ring separate from the hover/select
+  // rings.
+  const [selectionAnnounce, setSelectionAnnounce] = useState("");
+  const [selectionFocused, setSelectionFocused] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [contextMenu, setContextMenu] =
     useState<SelectionContextMenuState | null>(null);
@@ -837,6 +862,89 @@ export function SelectionLayer() {
     getSelectedSectionEl,
     getSelectedBuilderNodeEl,
   ]);
+
+  // W3-T3 — canvas selection focus + a11y. When the selection changes, move
+  // keyboard focus to the selected block element (made programmatically
+  // focusable with tabIndex=-1) and announce it to screen readers via the polite
+  // live region. Tracks the element's focus state so the ring can show a DISTINCT
+  // focus-visible treatment. Skips stealing focus while the operator is typing in
+  // an inspector field (so a value-driven re-selection doesn't yank the caret).
+  useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+    if (!selectedBuilderNodeId) {
+      setSelectionAnnounce("");
+      setSelectionFocused(false);
+      return undefined;
+    }
+    // Announce label — read straight off the live tree (no dependency on the
+    // later-computed selectedNodeLabel memo).
+    const node = buildBuilderNodeMap(builderTree).get(selectedBuilderNodeId);
+    const label =
+      node && node.kind !== "section"
+        ? (BUILDER_NODE_REGISTRY[node.kind]?.label ?? "Block")
+        : "Block";
+    setSelectionAnnounce(`${label} selected`);
+
+    let cancelled = false;
+    let attempts = 0;
+    let boundEl: HTMLElement | null = null;
+    const onFocus = () => setSelectionFocused(true);
+    const onBlur = () => setSelectionFocused(false);
+    const activeIsTextEntry = (): boolean => {
+      const a = document.activeElement as HTMLElement | null;
+      if (!a) return false;
+      const tag = a.tagName;
+      return (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        a.isContentEditable ||
+        a.getAttribute("role") === "textbox"
+      );
+    };
+    const run = () => {
+      if (cancelled) return;
+      const el =
+        Array.from(
+          document.querySelectorAll<HTMLElement>(
+            `[data-builder-node-id="${CSS.escape(selectedBuilderNodeId)}"]`,
+          ),
+        ).find(
+          (candidate) =>
+            !candidate.closest(
+              "[data-edit-topbar], [data-edit-drawer], [data-edit-overlay]",
+            ),
+        ) ?? null;
+      if (!el) {
+        if (attempts < 8) {
+          attempts += 1;
+          requestAnimationFrame(run);
+        }
+        return;
+      }
+      boundEl = el;
+      if (el.tabIndex < 0) el.tabIndex = -1;
+      el.addEventListener("focus", onFocus);
+      el.addEventListener("blur", onBlur);
+      // Only pull focus to the canvas if the operator isn't mid-edit in a panel.
+      if (!activeIsTextEntry()) {
+        try {
+          el.focus({ preventScroll: true });
+        } catch {
+          el.focus();
+        }
+      }
+    };
+    requestAnimationFrame(run);
+    return () => {
+      cancelled = true;
+      if (boundEl) {
+        boundEl.removeEventListener("focus", onFocus);
+        boundEl.removeEventListener("blur", onBlur);
+      }
+      setSelectionFocused(false);
+    };
+  }, [selectedBuilderNodeId, builderTree]);
 
   // 2026 direct-manipulation: glue the selection outline + handles to the
   // element WHILE it is dragged/resized. The resize/move/padding handles write
@@ -2788,6 +2896,31 @@ export function SelectionLayer() {
     return () => window.removeEventListener("keydown", onArrowNav);
   }, [contextMenu, selectedCanvasNodeId, selectedNodePath]);
 
+  // W3-T3 — Tab / Shift+Tab walk the block tree in DOCUMENT ORDER (a flat
+  // complement to the arrow keys' spatial sibling/parent/child nav). Only
+  // intercepts Tab when focus is on the canvas and a block is selected, so Tab
+  // still does native focus traversal inside inspector panels. Wraps at the ends.
+  useEffect(() => {
+    function onTab(e: KeyboardEvent) {
+      if (e.key !== "Tab") return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (isEditableKeyboardTarget(e.target) || !keyboardFocusIsOnCanvas()) return;
+      if (contextMenu) return;
+      if (!selectedCanvasNodeId) return;
+      const order = flattenBuilderNodeIdsInOrder(builderTree);
+      if (order.length === 0) return;
+      const idx = order.indexOf(selectedCanvasNodeId);
+      if (idx === -1) return;
+      e.preventDefault();
+      const nextIdx = e.shiftKey
+        ? (idx - 1 + order.length) % order.length
+        : (idx + 1) % order.length;
+      callbacksRef.current.selectBuilderNode(order[nextIdx]!);
+    }
+    window.addEventListener("keydown", onTab);
+    return () => window.removeEventListener("keydown", onTab);
+  }, [contextMenu, selectedCanvasNodeId, builderTree]);
+
   // #13 — canvas selection breadcrumb crumbs.
   // Mirrors the inspector-dock's `inspectorBreadcrumbCrumbs` but lives
   // in the selection-layer so the breadcrumb bar is always on the canvas
@@ -3234,6 +3367,30 @@ export function SelectionLayer() {
 	      <style id={SELECTION_LAYER_KEYFRAMES_ID}>
 	        {SELECTION_LAYER_KEYFRAMES}
 	      </style>
+
+      {/* W3-T3 — polite live region announcing the current canvas selection to
+          screen readers ("Heading selected"). Visually hidden; aria-live reads
+          it on change. */}
+      <div
+        data-selection-announce=""
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        style={{
+          position: "absolute",
+          width: 1,
+          height: 1,
+          margin: -1,
+          padding: 0,
+          border: 0,
+          overflow: "hidden",
+          clip: "rect(0 0 0 0)",
+          clipPath: "inset(50%)",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {selectionAnnounce}
+      </div>
 
       {/* #13 — always-visible canvas selection breadcrumb bar.
        *  Pinned just below the topbar (top: 54px), spanning from the
@@ -3781,9 +3938,14 @@ export function SelectionLayer() {
               borderRadius: CANVAS_SELECTION_RADIUS,
               // Dual-tone: white inset 1px, ink outset 2px, soft outer halo 8px.
               // Uses box-shadow so inset + outset coexist without a second element.
+              // W3-T3 — when the selected block holds keyboard focus, widen the
+              // outer halo into a brighter accent ring so keyboard focus is
+              // visibly DISTINCT from a plain pointer selection (focus-visible).
               boxShadow: isDragging
                 ? `0 0 0 2px rgba(36,41,66,0.30)`
-                : `inset 0 0 0 1px ${SELECT_INSET}, 0 0 0 2px ${SELECT_OUTER}, 0 0 0 8px ${SELECT_HALO}`,
+                : selectionFocused
+                  ? `inset 0 0 0 1px ${SELECT_INSET}, 0 0 0 2px ${SELECT_OUTER}, 0 0 0 6px ${SELECT_HALO}, 0 0 0 8px rgba(58,123,255,0.85)`
+                  : `inset 0 0 0 1px ${SELECT_INSET}, 0 0 0 2px ${SELECT_OUTER}, 0 0 0 8px ${SELECT_HALO}`,
               outline: isDragging
                 ? "2px dashed rgba(36,41,66,0.35)"
                 : "none",
