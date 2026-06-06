@@ -6,11 +6,10 @@
 // Captures the PRE-FIX canvas render-count baselines that W2-T1 (the
 // instant-paint fix) must beat:
 //
-//   1. ClientBuilderCanvas is NOT React.memo'd today, so when its PARENT
+//   1. ClientBuilderCanvas is NOW React.memo'd (W2-T1), so when its PARENT
 //      re-renders with byte-identical props (the server-refresh path), the
-//      canvas re-renders too — wasted work. After W2-T1 wraps it in React.memo
-//      with the default shallow compare, this delta drops to 0 (props identical
-//      → bail). THIS is the assertion W2-T1 flips.
+//      canvas bails — no wasted work. The delta is 0 (props identical → bail).
+//      THIS assertion was FLIPPED by W2-T1 from `>= 1` to `=== 0`.
 //
 //   2. The canvas renders the WHOLE tree via a single renderBuilderNodes call
 //      whose inline `options` object is fresh on every render — defeating
@@ -41,8 +40,37 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
+// W2-T1 PROBE: count how often the component's render body actually executes.
+// `React.Profiler.onRender` is NOT a valid probe for a React.memo bail — it
+// fires when the Profiler boundary itself commits (the parent re-render
+// re-creates the <Profiler> element), even when the memoized child bails
+// (empirically verified). So we instead spy on `renderBuilderNodes`, which the
+// component calls IN its render body: if React.memo bails, the body never runs
+// → 0 calls. The barrel is mocked-through (real impl wrapped) so DOM still
+// renders for the emit/DOM-count assertions in the second test.
+const renderCalls = { n: 0 };
+vi.mock("@/lib/site-admin/builder-node", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/site-admin/builder-node")>();
+  return {
+    ...actual,
+    renderBuilderNodes: (
+      ...args: Parameters<typeof actual.renderBuilderNodes>
+    ) => {
+      renderCalls.n += 1;
+      return actual.renderBuilderNodes(...args);
+    },
+  };
+});
+
 const EMPTY_DATA = {} as BuilderNodeRenderDataSources;
 const EMPTY_COMPONENTS = {} as ComponentDefinitions;
+// Stable empty-islands identity. W2-T1's React.memo uses the DEFAULT shallow
+// prop compare, so to prove a parent re-render bails we must hand IDENTICAL prop
+// identities across renders. An inline `{}` would be a fresh identity each render
+// (correctly defeating the memo — that's the W0-T3b fresh-island repaint
+// contract), which is the wrong thing to assert HERE.
+const EMPTY_ISLANDS = {} as Readonly<Record<string, ReactNode>>;
 
 /** A 3-node tree; only n1's text varies by `label` (the "1-char edit"). n2/n3
  *  are byte-identical across calls so a perfect memo would bail them. */
@@ -61,10 +89,14 @@ function seedBridge(tree: BuilderNodeTree): void {
 }
 
 describe("W0-T3 render-tax — ClientBuilderCanvas re-render baseline", () => {
-  it("BASELINE: a parent re-render with IDENTICAL props still re-renders the canvas (no React.memo today) — W2-T1 flips this to 0", () => {
+  it("W2-T1: a parent re-render with IDENTICAL props does NOT re-render the canvas (React.memo bails)", () => {
     seedBridge(tree3("seed"));
-    let canvasCommits = 0;
     let forceParent: (n: number) => void = () => {};
+
+    // Stable prop identities so the default shallow compare can prove the bail.
+    // (A fresh `tree3()` / `{}` per render would be a NEW identity and correctly
+    // defeat the memo — that's the W0-T3b fresh-island contract, not this test.)
+    const STABLE_INITIAL = tree3("init");
 
     function Parent() {
       const [n, setN] = useState(0);
@@ -73,28 +105,33 @@ describe("W0-T3 render-tax — ClientBuilderCanvas re-render baseline", () => {
       // the canvas — the canvas props are identical across parent renders.
       void n;
       return (
-        <Profiler id="canvas" onRender={() => (canvasCommits += 1)}>
-          <ClientBuilderCanvas
-            initialTree={tree3("init")}
-            dataSources={EMPTY_DATA}
-            sectionEmbedIslands={{}}
-            publicPathPrefix="/t"
-            components={EMPTY_COMPONENTS}
-          />
-        </Profiler>
+        <ClientBuilderCanvas
+          initialTree={STABLE_INITIAL}
+          dataSources={EMPTY_DATA}
+          sectionEmbedIslands={EMPTY_ISLANDS}
+          publicPathPrefix="/t"
+          components={EMPTY_COMPONENTS}
+        />
       );
     }
 
     render(<Parent />);
-    const afterMount = canvasCommits;
-    expect(afterMount).toBeGreaterThanOrEqual(1); // mounted at least once
+    const afterMount = renderCalls.n;
+    expect(afterMount).toBeGreaterThanOrEqual(1); // body ran at least once
 
     act(() => forceParent(1));
-    const parentRerenderDelta = canvasCommits - afterMount;
-    // PRE-FIX: the canvas re-renders on a parent re-render even though every
-    // prop is identical. W2-T1 wraps ClientBuilderCanvas in React.memo →
-    // this becomes 0. Flip to `expect(parentRerenderDelta).toBe(0)` then.
-    expect(parentRerenderDelta).toBeGreaterThanOrEqual(1);
+    const parentRerenderDelta = renderCalls.n - afterMount;
+    // ✅ W2-T1 LANDED: ClientBuilderCanvas is now React.memo'd (default shallow
+    // compare). A parent re-render with byte-identical prop identities bails →
+    // the component's render body (renderBuilderNodes) does NOT run again. This
+    // assertion FLIPPED from `>= 1` (pre-fix baseline) to `=== 0` — the
+    // instant-paint count win at the seatbelt level.
+    //
+    // NB: probed via the renderBuilderNodes call count, NOT a React.Profiler —
+    // a Profiler's onRender fires when its own boundary commits on the parent
+    // re-render even when a memoized child bails (verified), so it cannot
+    // observe the bail.
+    expect(parentRerenderDelta).toBe(0);
   });
 
   it("BASELINE: a 1-node tree change (emit) repaints the canvas over the WHOLE tree (3 DOM nodes) — the options-memo target", () => {

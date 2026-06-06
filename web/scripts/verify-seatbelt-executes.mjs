@@ -35,7 +35,10 @@ const REQUIRED = [
   {
     file: "test/components/edit-chrome/edit-context.render-tax.test.tsx",
     titles: [
-      "a parent re-render with IDENTICAL props still re-renders the canvas",
+      // W2-T1 FLIPPED this assertion (was "...still re-renders the canvas"):
+      // ClientBuilderCanvas is now React.memo'd, so an identical-prop parent
+      // re-render no longer runs the canvas body.
+      "a parent re-render with IDENTICAL props does NOT re-render the canvas",
       "repaints the canvas over the WHOLE tree",
     ],
   },

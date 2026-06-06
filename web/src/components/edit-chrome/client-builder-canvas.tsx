@@ -33,7 +33,7 @@
  * back to the server-resolved `initialTree`, which equals what the server would
  * have rendered — so the first client paint matches the server markup.
  */
-import { useSyncExternalStore } from "react";
+import { memo, useCallback, useMemo, useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
 
 import {
@@ -84,7 +84,7 @@ export interface ClientBuilderCanvasProps {
   includeRendererStyles?: boolean;
 }
 
-export function ClientBuilderCanvas({
+function ClientBuilderCanvasInner({
   initialTree,
   dataSources,
   sectionEmbedIslands,
@@ -115,18 +115,63 @@ export function ClientBuilderCanvas({
     getStyleClassRegistryServerSnapshot,
   );
 
-  return renderBuilderNodes(tree, {
-    publicPathPrefix,
-    mode: "freeform",
-    includeRendererStyles,
-    dataSources,
-    components,
-    visibilityContext,
-    styleClasses,
+  // W2-T1 — memoize the `renderSectionEmbed` closure so its identity is stable
+  // across renders where `sectionEmbedIslands` did not change. (When the server
+  // hands a fresh-identity islands map on a refresh, the closure correctly
+  // re-creates and the new island propagates — the W0-T3b contract pins this.)
+  const renderSectionEmbed = useCallback(
     // section_embed islands stay server-rendered: return the pre-rendered node.
     // An island we weren't handed (a tree-shape divergence) renders nothing
     // rather than attempting a client-side curated-section render.
-    renderSectionEmbed: (node: BuilderNode) =>
-      sectionEmbedIslands[node.id] ?? null,
-  });
+    (node: BuilderNode): ReactNode => sectionEmbedIslands[node.id] ?? null,
+    [sectionEmbedIslands],
+  );
+
+  // W2-T1 — memoize the `renderBuilderNodes` options object. The only memo
+  // boundary inside the renderer is `BuilderNodeView`, which compares
+  // `Object.is(prev.options, next.options)`; a fresh inline options object every
+  // render made that half ALWAYS false, so every node repainted on every commit.
+  // A stable options identity lets the `Object.is(prev.node)` half finally bail
+  // unchanged subtrees → instant paint. The deps cover every field the renderer
+  // reads, so a genuine change to any of them still recomputes the options and
+  // repaints (no staleness).
+  const options = useMemo(
+    () => ({
+      publicPathPrefix,
+      mode: "freeform" as const,
+      includeRendererStyles,
+      dataSources,
+      components,
+      visibilityContext,
+      styleClasses,
+      renderSectionEmbed,
+    }),
+    [
+      publicPathPrefix,
+      includeRendererStyles,
+      dataSources,
+      components,
+      visibilityContext,
+      styleClasses,
+      renderSectionEmbed,
+    ],
+  );
+
+  return renderBuilderNodes(tree, options);
 }
+
+/**
+ * W2-T1 — `React.memo` so a PARENT re-render (the server-refresh path of
+ * `homepage-cms-sections.tsx`) with unchanged props no longer wastes a full
+ * canvas re-render. The live tree + style registry arrive via
+ * `useSyncExternalStore` INSIDE the component, so they still force a re-render
+ * on emit regardless of the memo.
+ *
+ * ⚠️ DEFAULT shallow comparator ONLY (no custom one). `dataSources` /
+ * `sectionEmbedIslands` / `components` arrive as props re-identified on every
+ * server render; a hand-written comparator that omitted them would freeze a
+ * published hero/island edit (the server-refresh repaint). The default shallow
+ * compare correctly re-renders when any of those identities change — the
+ * W0-T3b contract test pins both propagation channels.
+ */
+export const ClientBuilderCanvas = memo(ClientBuilderCanvasInner);
