@@ -57,6 +57,7 @@
 import { useEffect, useRef } from "react";
 
 import { useEditContext } from "./edit-context";
+import { useHoveredSectionId } from "./hover-bridge";
 
 // Discriminated union of all bridge messages. Used as a runtime
 // guard via the `type` string and as the typescript shape for
@@ -106,9 +107,12 @@ export function IframeBridgeChild() {
     selectBuilderNode,
     setSelectedSectionId,
     focusSectionForEdit,
-    hoveredSectionId,
     setPreviewing,
   } = useEditContext();
+  // W2-T3 — hovered-section VALUE from the bridge (this component re-broadcasts
+  // it cross-frame, so it legitimately subscribes; the setter on the second
+  // useEditContext below is unchanged).
+  const hoveredSectionId = useHoveredSectionId();
   // Track the last value we posted so we don't echo back a parent-
   // originated update as a "child clicked" event (which would loop).
   const lastPostedSelectionKeyRef = useRef<string | undefined>(undefined);

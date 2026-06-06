@@ -29,7 +29,9 @@ const REQUIRED = [
     titles: [
       "selecting a section flips selectedSectionId",
       "openTheme() flips themeOpen",
-      "a hover-setter call re-renders a context consumer",
+      // W2-T3 FLIPPED this (was "...re-renders a context consumer"): hover moved
+      // to the bridge, so a hover-setter no longer re-renders the consumer.
+      "a hover-setter call does NOT re-render a hover-agnostic context consumer",
     ],
   },
   {

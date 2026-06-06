@@ -118,6 +118,10 @@ import { isBuilderClientCanvasEnabled } from "@/lib/site-admin/edit-mode/client-
 import { sectionTypeHasLiveData } from "@/lib/site-admin/sections/section-live-data";
 import { publishBuilderCanvasTree } from "./client-builder-canvas-bridge";
 import {
+  publishHoveredSectionId,
+  publishHoveredBuilderNodeId,
+} from "./hover-bridge";
+import {
   readClasses as readStyleClasses,
   toRegistry as toStyleClassRegistry,
   publishStyleClassRegistry,
@@ -396,18 +400,25 @@ export interface EditContextValue {
     targetNodeId?: string | null,
   ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
 
-  /** Section under the cursor, for hover outline. */
-  hoveredSectionId: string | null;
+  /**
+   * Section under the cursor, for hover outline. W2-T3 — the VALUE now lives in
+   * the `hover-bridge` micro-store: read it with `useHoveredSectionId()` from
+   * "./hover-bridge", NOT off the context (that kept it out of the value-memo so
+   * a hover sweep no longer re-renders every consumer). Only the setter remains
+   * on the context.
+   */
   setHoveredSectionId: (id: string | null) => void;
 
   /**
    * Freeform builder node under the cursor (canvas OR layers row), for the
    * bidirectional canvas↔layers highlight. Freeform full-page designs have no
-   * `[data-cms-section]` wrapper, so `hoveredSectionId` never fires for them;
+   * `[data-cms-section]` wrapper, so the hovered SECTION never fires for them;
    * this is the section-less analog. Hovering a layer row sets it (→ canvas
    * hover ring); hovering a canvas block sets it (→ layer row tint).
+   *
+   * W2-T3 — read the VALUE with `useHoveredBuilderNodeId()` from "./hover-bridge"
+   * (not off the context); only the setter remains here.
    */
-  hoveredBuilderNodeId: string | null;
   setHoveredBuilderNodeId: (id: string | null) => void;
 
   device: EditDevice;
@@ -1982,10 +1993,18 @@ export function EditProvider({
     return out;
   }, [selectedSectionId, additionalSelectedIds]);
 
-  const [hoveredSectionId, setHoveredSectionId] = useState<string | null>(null);
-  const [hoveredBuilderNodeId, setHoveredBuilderNodeId] = useState<string | null>(
-    null,
-  );
+  // W2-T3 — hover lives in the `hover-bridge` micro-store, NOT in this
+  // provider's `value`. A pointer sweep used to rebuild the whole context value
+  // (hover sat in its useMemo deps) → all 41 consumers re-rendered per hover.
+  // Now the setters just PUBLISH to the bridge (no React state in `value`), and
+  // only the ~4 readers that subscribe to the bridge re-render. The setters are
+  // stable identities (empty deps) so they don't churn the value either.
+  const setHoveredSectionId = useCallback((id: string | null) => {
+    publishHoveredSectionId(id);
+  }, []);
+  const setHoveredBuilderNodeId = useCallback((id: string | null) => {
+    publishHoveredBuilderNodeId(id);
+  }, []);
   const [device, setDeviceRaw] = useState<EditDevice>("desktop");
   // Responsive-preview frame override (job #17). Reset whenever the operator
   // picks a device tier so a custom width / rotation from a previous tier never
@@ -6358,9 +6377,10 @@ export function EditProvider({
       pasteBuilderBlockPreset,
       removeBuilderBlockPreset,
 	      pasteCopiedBuilderNode,
-      hoveredSectionId,
+      // W2-T3 — hover VALUES are no longer in `value` (they live in
+      // hover-bridge; the 4 real readers subscribe there). Only the stable
+      // setters remain on the context so the public API is unchanged.
       setHoveredSectionId,
-      hoveredBuilderNodeId,
       setHoveredBuilderNodeId,
       device,
       setDevice,
@@ -6555,8 +6575,8 @@ export function EditProvider({
 	      copiedBuilderNode,
 	      copiedBuilderNodeClipboard,
 	      setSelectedSectionId,
-      hoveredSectionId,
-      hoveredBuilderNodeId,
+      // W2-T3 — hover values removed from the value-memo deps: a hover no longer
+      // rebuilds `value`, so non-hover consumers don't re-render on a sweep.
       device,
       setDevice,
       previewFrame,

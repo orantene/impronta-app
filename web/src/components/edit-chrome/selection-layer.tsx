@@ -74,6 +74,10 @@ import {
   useEditContext,
   type BuilderNodePastePreview,
 } from "./edit-context";
+import {
+  useHoveredSectionId,
+  useHoveredBuilderNodeId,
+} from "./hover-bridge";
 import { CanvasMoveHandle, parseTranslate } from "./canvas-move-handle";
 import { CanvasResizeHandles } from "./canvas-resize-handles";
 import {
@@ -580,9 +584,7 @@ export function SelectionLayer() {
     extendSelection,
     toggleSelection,
     getAllSelectedIds,
-    hoveredSectionId,
     setHoveredSectionId,
-    hoveredBuilderNodeId,
     setHoveredBuilderNodeId,
     device,
     moveSection,
@@ -619,6 +621,13 @@ export function SelectionLayer() {
     navigatorOpen,
     previewing: isEditModePreviewing,
   } = useEditContext();
+
+  // W2-T3 — hover VALUES come from the hover-bridge micro-store (the setters
+  // above stay on the context). This is the whole point: selection-layer DOES
+  // read hover (it draws the hover ring), so it subscribes here and re-renders
+  // on a hover — but a hover no longer re-renders the rest of the chrome.
+  const hoveredSectionId = useHoveredSectionId();
+  const hoveredBuilderNodeId = useHoveredBuilderNodeId();
 
   const [portalEl, setPortalEl] = useState<HTMLElement | null>(null);
   const [hoverRect, setHoverRect] = useState<Rect | null>(null);

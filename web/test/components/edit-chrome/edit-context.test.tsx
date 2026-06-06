@@ -215,8 +215,8 @@ describe("edit-context.tsx W0-T2 — undo/redo surface", () => {
   });
 });
 
-describe("edit-context.tsx W0-T2 — render-count probe (PRE-FIX baseline)", () => {
-  it("(d) BASELINE: a hover-setter call re-renders a context consumer (hoveredBuilderNodeId is in the value-memo deps today)", () => {
+describe("edit-context.tsx W0-T2/W2-T3 — hover render-count probe (post-fix: hover off the value)", () => {
+  it("(d) W2-T3: a hover-setter call does NOT re-render a hover-agnostic context consumer (hover moved to the bridge, out of the value-memo deps)", () => {
     const { state, Consumer } = makeRenderCountedConsumer();
     render(
       <EditProvider tenantId="t" workspacePlan="studio">
@@ -229,24 +229,22 @@ describe("edit-context.tsx W0-T2 — render-count probe (PRE-FIX baseline)", () 
     act(() => ctx().setHoveredBuilderNodeId("node-x"));
 
     const hoverRenderDelta = state.renders - before;
-    // PRE-FIX BASELINE (the number Wave 2's hover micro-store must drive to 0
-    // for action-only / hover-agnostic consumers): today a hover boundary
-    // rebuilds the giant context `value` (hoveredBuilderNodeId sits in its deps
-    // at edit-context.tsx:6281), so EVERY consumer re-renders — delta >= 1.
-    // When W2-T3 moves hover into a useSyncExternalStore micro-store and drops
-    // it from the value deps, a hover-agnostic consumer's delta becomes 0 and
-    // THIS assertion flips to expect(hoverRenderDelta).toBe(0).
-    expect(hoverRenderDelta).toBeGreaterThanOrEqual(1);
+    // ✅ W2-T3 LANDED: hover moved into the `hover-bridge` useSyncExternalStore
+    // micro-store and was dropped from the value-memo deps. A hover-agnostic
+    // consumer (this one reads useEditContext() but never the hovered id) is no
+    // longer woken — the setter just publishes to the bridge, the context value
+    // does NOT rebuild. This assertion FLIPPED from `>= 1` (pre-fix baseline)
+    // to `=== 0`: the count proof that a hover no longer re-renders the chrome.
+    expect(hoverRenderDelta).toBe(0);
 
-    // Setting the SAME hovered id again must NOT re-render (React state bails on
-    // an identical primitive) — proves the delta above is the hover-driven
-    // value rebuild, not unconditional churn.
+    // Setting the SAME hovered id again still must NOT re-render — the bridge
+    // no-ops on an identical primitive (Object.is), so no listener fires.
     const afterFirst = state.renders;
     act(() => ctx().setHoveredBuilderNodeId("node-x"));
     expect(state.renders).toBe(afterFirst);
   });
 
-  it("BASELINE: a hovered-SECTION setter likewise re-renders a consumer today", () => {
+  it("W2-T3: a hovered-SECTION setter no longer re-renders a hover-agnostic consumer", () => {
     const { state, Consumer } = makeRenderCountedConsumer();
     render(
       <EditProvider tenantId="t" workspacePlan="studio">
@@ -256,6 +254,8 @@ describe("edit-context.tsx W0-T2 — render-count probe (PRE-FIX baseline)", () 
     const ctx = () => state.ctx!;
     const before = state.renders;
     act(() => ctx().setHoveredSectionId("sec-hover"));
-    expect(state.renders - before).toBeGreaterThanOrEqual(1);
+    // ✅ W2-T3: same as the node-hover case — section hover publishes to the
+    // bridge, not the context value. FLIPPED from `>= 1` to `=== 0`.
+    expect(state.renders - before).toBe(0);
   });
 });

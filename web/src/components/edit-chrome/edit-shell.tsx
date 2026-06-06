@@ -31,6 +31,7 @@ import {
   type EditDevice,
   type PreviewFrameOverride,
 } from "./edit-context";
+import { useHoveredSectionId } from "./hover-bridge";
 import { PresenceProvider } from "./presence-provider";
 import { CHROME_SHADOWS } from "./kit";
 import { SelectionLayer } from "./selection-layer";
@@ -1179,7 +1180,11 @@ function CanvasViewportComponents({
  * tenant scope here just for a tip, which isn't worth the wiring.
  */
 function FirstPaintTip() {
-  const { selectedSectionId, hoveredSectionId } = useEditContext();
+  const { selectedSectionId } = useEditContext();
+  // W2-T3 — hovered-section VALUE from the bridge (this tip auto-dismisses on
+  // first hover, so it genuinely subscribes; other edit-shell consumers that
+  // don't read hover no longer re-render on a sweep).
+  const hoveredSectionId = useHoveredSectionId();
   // Session-scoped — once dismissed, stays dismissed across in-session
   // navigations (page swap, locale switch, viewport-mode toggle that
   // forces a remount). Without this, navigating to a different page
