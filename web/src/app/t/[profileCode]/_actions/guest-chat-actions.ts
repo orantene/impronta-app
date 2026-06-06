@@ -402,10 +402,25 @@ async function loadParticipantIdentities(
     }
   }
 
+  // A self-coordinating hub talent holds TWO rows with the SAME user_id (one
+  // role='talent', one role='coordinator'). The participant query is unordered,
+  // so a naive map.set would let row order decide the guest-visible label. Apply
+  // an explicit precedence instead: 'talent' wins over 'coordinator' wins over
+  // 'client'. Rationale — the guest messaged this person's TALENT profile, so
+  // their reply should read as the talent's own name (Orlando), not the agency
+  // brand ("Booking team"). A separate, coordinator-only user (the hub-owner
+  // agency coordinator) still presents as the brand.
+  const rolePriority: Record<"client" | "coordinator" | "talent", number> = {
+    talent: 3,
+    coordinator: 2,
+    client: 1,
+  };
   for (const p of participants) {
     const userId = p.user_id as string | null;
     if (!userId) continue;
     const role = p.role as "client" | "coordinator" | "talent";
+    const existing = map.get(userId);
+    if (existing && rolePriority[existing.role] >= rolePriority[role]) continue;
     if (role === "talent") {
       const name = p.talent_profile_id ? talentNameById.get(p.talent_profile_id as string) : null;
       map.set(userId, { role, label: name ?? "Talent", avatarUrl: null });
@@ -457,7 +472,9 @@ async function loadAgencyName(admin: SupabaseClient, tenantId: string): Promise<
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared: read the guest-visible messages for an inquiry, oldest→newest.
-// NEVER returns private staff-internal thread rows.
+// The guest IS the client, so the guest reads the PRIVATE (client) thread — the
+// same thread the talent's Client tab and a registered client read/write. The
+// GROUP thread is the talent-coordination channel and must NOT reach the guest.
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function readGuestVisibleMessages(
@@ -476,9 +493,11 @@ async function readGuestVisibleMessages(
     )
     .eq("inquiry_id", inquiry.id)
     .eq("tenant_id", inquiry.tenantId)
-    // GROUP thread only — the private thread is staff-internal and must never
-    // reach a guest.
-    .eq("thread_type", "group")
+    // PRIVATE (client) thread — the guest IS the client, so they read the same
+    // thread the talent's Client tab and a registered client use. This surfaces
+    // the talent-coordinator's replies (which live on 'private'). The GROUP
+    // thread is the talent-coordination channel and must NOT reach the guest.
+    .eq("thread_type", "private")
     .order("created_at", { ascending: true });
 
   if (afterIso) {
@@ -727,15 +746,17 @@ export async function startGuestChatInquiry(
     }
   }
 
-  // Append the first message as a GROUP-thread guest message so it shows in the
-  // popup AND fires the talent/coordinator realtime + notification fanout. The
-  // brief.summary above seeds the inquiry record; this is the visible bubble.
+  // Append the first message as a PRIVATE/client-thread guest message so it
+  // lands on the same client↔coordinator thread the talent's Client tab and a
+  // registered client read — the guest IS the client. This fires the
+  // coordinator realtime + notification fanout. The brief.summary above seeds
+  // the inquiry record; this is the visible bubble.
   const sent = await sendMessage(admin, {
     inquiryId,
     tenantId,
     actorUserId: null,
     guestSessionId,
-    threadType: "group",
+    threadType: "private",
     body: firstMessage,
   });
 
@@ -907,12 +928,15 @@ export async function sendGuestMessageAction(
     return fail("blocked", "This conversation can't continue.");
   }
 
+  // Send the follow-up onto the PRIVATE/client thread — the guest IS the
+  // client, so this is the same client↔coordinator thread the talent's Client
+  // tab and a registered client read/write.
   const sent = await sendMessage(admin, {
     inquiryId: owned.inquiry.id,
     tenantId: owned.inquiry.tenantId,
     actorUserId: null,
     guestSessionId,
-    threadType: "group",
+    threadType: "private",
     body,
   });
 

@@ -53,6 +53,7 @@ function adaptTalentInquiry(row: InquiryBridgeRow, fallbackAgencyName: string): 
     client:        clientName,
     clientInitials: initials || clientName.slice(0, 2).toUpperCase(),
     clientTrust:   (row.trustLevel ?? "basic") as ClientTrustLevel,
+    clientIdentity: row.clientIdentity ?? undefined,
     brief,
     stage,
     agency:        agencyName,

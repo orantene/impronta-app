@@ -634,9 +634,13 @@ export function ComposerSelect({ value, onChange, options }: { value: string; on
 // without TypeScript fighting us.
 export type ThreadTabId =
   // Slice B (Messages consolidation v2): new universal tab IDs.
-  | "chat"     // single Chat tab with Client | Group | DM sub-toggle
+  | "chat"     // single Chat tab with Client | Group | DM sub-toggle (admin)
   | "lineup"   // people on this inquiry (was Live lineup panel)
   | "event"    // when/where/transport/lodging/call-sheet/activity (was Project/Details)
+  // F2 (Messages consolidation v2): talent flattened the Chat sub-toggle
+  // into three top-level tabs — Client (legacy id below), Group, Activity.
+  | "group"    // booking-team coordination thread (talent flattened tab)
+  | "activity" // read-only money/booking timeline (talent flattened tab)
   // Legacy IDs kept active during multi-slice migration. Talent + client
   // shells still emit these; they remain valid tab keys until Slices C + D.
   | "client" | "talent" | "offer" | "files" | "details"

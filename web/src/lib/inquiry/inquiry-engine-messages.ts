@@ -105,8 +105,12 @@ export async function sendMessage(
     });
 
     // Fire-and-forget notification fanout — best-effort, never blocks the
-    // send. Workspace recipients (staff) always get notified; talent/client
-    // only on the group thread (private thread is staff-internal).
+    // send. Workspace recipients (staff) always get notified. On the GROUP
+    // (talent-coordination) thread the lineup talent + client are notified. On
+    // the PRIVATE (client) thread the coordinator(s) and the client are the
+    // two parties — a guest/client post notifies the coordinator(s); a
+    // coordinator post notifies the client. Lineup talents are NOT notified on
+    // the private thread (it is the client↔coordinator channel).
     resolveInquiryRecipients(supabase, ctx.inquiryId, ctx.tenantId)
       .then(async (recipients) => {
         const title = "New message";
@@ -162,6 +166,60 @@ export async function sendMessage(
             recipients.clientUserId &&
             recipients.clientUserId !== ctx.actorUserId
           ) {
+            promises.push(
+              emitNotificationToUsers([recipients.clientUserId], {
+                tenantId: ctx.tenantId,
+                kind: "message",
+                surface: "client",
+                title,
+                body,
+                actorUserId: ctx.actorUserId,
+                targetDrawer: "client-inquiry",
+                targetPayload: { inquiryId: ctx.inquiryId },
+                originKind: "message_sent",
+                originInquiryId: ctx.inquiryId,
+              }),
+            );
+          }
+        }
+
+        if (ctx.threadType === "private") {
+          // The private (client) thread has exactly two parties: the client
+          // (a registered client OR a guest — the guest IS the client) and the
+          // coordinator(s). Route the bell to the OTHER party.
+          const senderIsClient = isGuestSender || ctx.actorUserId === recipients.clientUserId;
+          if (senderIsClient) {
+            // Client/guest posted → notify the coordinator(s) on the talent
+            // surface. A self-coordinating talent on a direct guest inquiry is
+            // here (not in workspaceUserIds), so this is the channel that
+            // reaches them. Agency-staff coordinators are excluded — they are
+            // in workspaceUserIds and already got the workspace bell above; the
+            // talent-surface notification would be the wrong inbox for them.
+            const workspaceSet = new Set(recipients.workspaceUserIds);
+            const coordinatorTargets = recipients.coordinatorUserIds.filter(
+              (id) =>
+                id !== ctx.actorUserId &&
+                id !== recipients.clientUserId &&
+                !workspaceSet.has(id),
+            );
+            if (coordinatorTargets.length > 0) {
+              promises.push(
+                emitNotificationToUsers(coordinatorTargets, {
+                  tenantId: ctx.tenantId,
+                  kind: "message",
+                  surface: "talent",
+                  title,
+                  body,
+                  actorUserId: ctx.actorUserId,
+                  targetDrawer: "talent-inquiry",
+                  targetPayload: { inquiryId: ctx.inquiryId, threadType: ctx.threadType },
+                  originKind: "message_sent",
+                  originInquiryId: ctx.inquiryId,
+                }),
+              );
+            }
+          } else if (recipients.clientUserId && recipients.clientUserId !== ctx.actorUserId) {
+            // Coordinator/staff posted → notify the client.
             promises.push(
               emitNotificationToUsers([recipients.clientUserId], {
                 tenantId: ctx.tenantId,

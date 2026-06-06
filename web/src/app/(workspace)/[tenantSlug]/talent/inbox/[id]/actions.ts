@@ -208,7 +208,7 @@ export type TalentThreadMessage = {
   id: string;
   isMine: boolean;
   senderName: string;
-  senderRole: "you" | "coordinator" | "system";
+  senderRole: "you" | "coordinator" | "client" | "system";
   body: string;
   ts: string;
   messageKind: string;
@@ -255,11 +255,17 @@ export async function loadTalentInquiryThread(
 
     const { data: inquiry } = await readClient
       .from("inquiries")
-      .select("id, tenant_id")
+      .select("id, tenant_id, contact_name, client_user_id")
       .eq("id", inquiryId)
       .maybeSingle();
     if (!inquiry?.tenant_id) return [];
     const tenantId = inquiry.tenant_id as string;
+    // The guest IS the client: a private-thread row with sender_user_id NULL +
+    // a guest_session_id is the guest/client's own message. Label it with the
+    // inquiry contact name (no PII leak — it's the client they're brokering),
+    // never the "system" fallback. Registered clients post with their user id.
+    const contactName = ((inquiry as { contact_name?: string | null }).contact_name ?? "")?.trim();
+    const clientUserId = (inquiry as { client_user_id?: string | null }).client_user_id ?? null;
 
     if (threadType === "private") {
       // Private/client thread is coordinator-only. Authorize on a COORDINATOR
@@ -300,7 +306,7 @@ export async function loadTalentInquiryThread(
 
     const { data, error } = await readClient
       .from("inquiry_messages")
-      .select("id, sender_user_id, body, created_at, message_kind, card_payload, metadata, profiles:sender_user_id(display_name)")
+      .select("id, sender_user_id, guest_session_id, body, created_at, message_kind, card_payload, metadata, profiles:sender_user_id(display_name)")
       .eq("inquiry_id", inquiryId)
       .eq("thread_type", threadType)
       .eq("tenant_id", tenantId)
@@ -315,6 +321,7 @@ export async function loadTalentInquiryThread(
     type Row = {
       id: string;
       sender_user_id: string | null;
+      guest_session_id: string | null;
       body: string;
       created_at: string;
       message_kind: string | null;
@@ -322,18 +329,36 @@ export async function loadTalentInquiryThread(
       metadata: Record<string, unknown> | null;
       profiles: { display_name: string | null } | { display_name: string | null }[] | null;
     };
+    const clientLabel = contactName || "Client";
     return ((data ?? []) as unknown as Row[]).map((row) => {
       const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
       const isMine = !!row.sender_user_id && row.sender_user_id === user.id;
-      const senderRole: TalentThreadMessage["senderRole"] = !row.sender_user_id
-        ? "system"
-        : isMine
-          ? "you"
-          : "coordinator";
+      // The guest IS the client: a row with no sender but a guest_session_id is
+      // the client's own message — show it as the CLIENT (contact name), not a
+      // "system" bubble. A registered client posts with client_user_id.
+      const isGuestClient = !row.sender_user_id && !!row.guest_session_id;
+      const isRegisteredClient = !!row.sender_user_id && !!clientUserId && row.sender_user_id === clientUserId;
+      let senderRole: TalentThreadMessage["senderRole"];
+      let senderName: string;
+      if (isMine) {
+        senderRole = "you";
+        senderName = "You";
+      } else if (isGuestClient || isRegisteredClient) {
+        senderRole = "client";
+        senderName = clientLabel;
+      } else if (!row.sender_user_id) {
+        // True system/platform row (no sender, no guest) — preserves the prior
+        // label so existing group-thread system rows render unchanged.
+        senderRole = "system";
+        senderName = "Coordinator";
+      } else {
+        senderRole = "coordinator";
+        senderName = profile?.display_name?.trim() || "Coordinator";
+      }
       return {
         id: row.id,
         isMine,
-        senderName: isMine ? "You" : profile?.display_name?.trim() || "Coordinator",
+        senderName,
         senderRole,
         body: row.body,
         ts: row.created_at,
@@ -345,6 +370,62 @@ export async function loadTalentInquiryThread(
   } catch (err) {
     logServerError("talent.thread.load", err);
     return [];
+  }
+}
+
+/**
+ * Talent-readable lineup headcount for the Group-tab visibility gate (F2).
+ *
+ * The admin `loadInquiryLineup` is staff-scoped (`requireStaffTenantAction`), so
+ * a SELF-COORDINATING hub talent — who is NOT staff of the hub tenant — gets a
+ * failed read, leaving the count undefined and the Group tab defaulting to
+ * shown (even on a sole-talent inquiry). This action authorizes on the caller's
+ * OWN participant row (the engine keys both the talent lineup row AND the
+ * self-coordinator row on `user_id`), then service-role counts the
+ * `role='talent'` participants on the inquiry. Returns `null` when the caller
+ * doesn't participate or on any error — the caller treats `null` as "unknown"
+ * and keeps the Group tab shown (the safe, non-disruptive default).
+ */
+export async function loadTalentInquiryLineupCount(
+  inquiryId: string,
+): Promise<number | null> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return null;
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const admin = createServiceRoleClient();
+    const readClient = admin ?? supabase;
+
+    // Authorize: the caller must hold a non-removed participant row keyed on
+    // their user_id (talent lineup row OR self/agency coordinator row). Mirrors
+    // the thread authz — no roster/staff scope required. The count itself is
+    // non-sensitive (an integer), so any participation suffices.
+    const { data: ownRow } = await readClient
+      .from("inquiry_participants")
+      .select("inquiry_id")
+      .eq("inquiry_id", inquiryId)
+      .eq("user_id", user.id)
+      .neq("status", "removed")
+      .limit(1)
+      .maybeSingle();
+    if (!ownRow) return null;
+
+    // Count the role='talent' lineup participants (exclude removed).
+    const { count, error } = await readClient
+      .from("inquiry_participants")
+      .select("id", { count: "exact", head: true })
+      .eq("inquiry_id", inquiryId)
+      .eq("role", "talent")
+      .neq("status", "removed");
+    if (error) return null;
+    return count ?? 0;
+  } catch (err) {
+    logServerError("talent.lineup.count", err);
+    return null;
   }
 }
 

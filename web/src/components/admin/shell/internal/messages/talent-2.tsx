@@ -1,15 +1,14 @@
 "use client";
 
-import React, { useTransition, useState } from "react";
+import React, { useTransition, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CoordRequestSheet } from "@/components/coord-request/CoordRequestSheet";
 import { StatusSheet, type StatusSheetData } from "@/components/messages-status-sheet/StatusSheet";
 import { DetailsTabContainer } from "@/components/details-tab/DetailsTabContainer";
 import { MobileShellStyles } from "@/components/messages-mobile/MobileShellStyles";
 import { PitchOriginCard } from "@/components/pitch-origin/PitchOriginCard";
 import { ReservationThread, type ReservationStage, type PillDescriptor, type PillKind, type SheetDescriptor } from "@/components/reservation-thread";
 import { acceptInquiryInvitation, declineInquiryInvitation, respondToInquiryOffer } from "@/lib/server-actions/talent-pipeline";
-import { sendTalentInquiryMessage } from "@/app/(workspace)/[tenantSlug]/talent/inbox/[id]/actions";
+import { sendTalentInquiryMessage, loadTalentInquiryLineupCount } from "@/app/(workspace)/[tenantSlug]/talent/inbox/[id]/actions";
 import { useAdminShell, FONTS, COLORS } from "../state";
 import { MOCK_CONVERSATIONS, MOCK_THREAD, type Conversation } from "../talent";
 import { AdminReservationView } from "./admin-3";
@@ -29,8 +28,8 @@ import { TalentLogisticsTab, TalentPaymentTab } from "./shared/machinery-5";
 import { ShellNextActionBar, resolveShellAction } from "./shared/machinery-6";
 import { DetailsPanel } from "./shared/machinery-7";
 import { PageTopThread } from "./shared/machinery-8";
-import type { ChatSubThreadId, ThreadTabId } from "./shared/machinery-8";
-import { ChatSubToggleDropdown, MOCK_FILES_FOR_CONV, ThreadTabBar, isTalentCoordOnOffer, talentCoordCombinedTotal } from "./shared/machinery-9";
+import type { ThreadTabId } from "./shared/machinery-8";
+import { MOCK_FILES_FOR_CONV, ThreadTabBar, isTalentCoordOnOffer, talentCoordCombinedTotal } from "./shared/machinery-9";
 import type { Offer } from "./shared/machinery-9";
 import { LineupTabPanel, TalentJobShellHeader } from "./talent-1";
 
@@ -235,27 +234,59 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
   // booked conversation and request the "logistics" tab, that beats
   // the stage-default. One-shot consumption so a refresh resets to the
   // stage-appropriate default.
-  // Slice C (Messages consolidation v2): talent lands on the unified
-  // Chat tab. Coord-talents default sub-thread is Client (the sales
-  // surface they're managing); plain talent default is Group. The
-  // legacy pinned-tab override still works for deep-links.
+  // F2 (Messages consolidation v2): the talent's Chat sub-toggle was
+  // flattened into three top-level tabs — Client · Group · Activity.
+  // Coord-talents land on Client (the sales surface they're managing);
+  // plain talents land on Group (their booking-team channel). The legacy
+  // pinned-tab override still works for deep-links.
   const defaultTab: ThreadTabId = (() => {
     const pinned = consumePendingThreadTab();
     if (pinned) {
-      // Map legacy IDs to v2 IDs so deep-links keep working.
+      // Map legacy IDs to the flattened talent tabs so deep-links keep
+      // working. The old single "chat" / "talent" group thread → "group";
+      // a pinned "client" deep-link → "client" for a coordinator (who can
+      // see it), else fall back to the group channel.
       const p = pinned as string;
-      if (p === "client" || p === "talent") return "chat";
+      if (p === "client") return isCoordinator ? "client" : "group";
+      if (p === "chat" || p === "talent") return "group";
       if (p === "booking" || p === "details" || p === "logistics") return "event";
       return pinned as ThreadTabId;
     }
-    return "chat";
+    return isCoordinator ? "client" : "group";
   })();
-  const defaultSubThread: ChatSubThreadId = isCoordinator ? "client" : "group";
   const [activeTab, setActiveTab] = useState<ThreadTabId>(defaultTab);
-  const [chatSubThread, setChatSubThread] = useState<ChatSubThreadId>(defaultSubThread);
-  // Slice G (Messages consolidation v2): coordinator-request sheet
-  // state. Opens when a plain talent taps the locked Client sub-toggle.
-  const [coordRequestOpen, setCoordRequestOpen] = useState(false);
+  // F2 — real role='talent' headcount, gating the Group tab. Loaded for
+  // real-UUID inquiries via loadTalentInquiryLineupCount, which authorizes on
+  // the caller's OWN participant row (talent lineup row OR self-coordinator
+  // row) — NOT staff scope. This is what lets a self-coordinating hub talent
+  // (who isn't tenant staff) get a real count and correctly HIDE the Group tab
+  // on a sole-talent inquiry. Undefined until resolved / when unavailable
+  // (non-participant / mock conv) → buildInquiryTabs defaults to showing Group,
+  // since it has always been the talent's primary channel and we only HIDE it
+  // on a confirmed sole-talent inquiry.
+  const [lineupTotal, setLineupTotal] = useState<number | undefined>(undefined);
+  useEffect(() => {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id);
+    if (!isUuid) { setLineupTotal(undefined); return; }
+    let active = true;
+    loadTalentInquiryLineupCount(conv.id).then((n) => {
+      if (!active) return;
+      // Only trust a real (non-null) count. A null read (non-participant /
+      // error) leaves lineupTotal undefined → Group stays shown (safe default).
+      if (n !== null) setLineupTotal(n);
+    });
+    return () => { active = false; };
+  }, [conv.id]);
+  // F2 — keep activeTab valid. If the async lineup count resolves to a
+  // sole-talent inquiry while the talent is sitting on the Group tab,
+  // the Group tab vanishes from the row; redirect to a tab that still
+  // exists (Client for a coordinator, else the always-present Activity).
+  const groupHidden = lineupTotal !== undefined && lineupTotal < 2;
+  useEffect(() => {
+    if (activeTab === "group" && groupHidden) {
+      setActiveTab(isCoordinator ? "client" : "activity");
+    }
+  }, [activeTab, groupHidden, isCoordinator]);
   // Slice P wiring: Status sheet state — opens when the user taps the
   // header status pill. Shows the 4-family status breakdown.
   const [statusSheetOpen, setStatusSheetOpen] = useState(false);
@@ -328,8 +359,10 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
         toast={toast}
       />
 
-      {/* TAB BAR — Conversation | Offer | Files | Details (no Client thread for talent) */}
-      <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, overflow: "hidden", flex: 1, minHeight: 0, display: "flex", flexDirection: "column", // Anchor for the floating ChatSubToggleDropdown switch.
+      {/* TAB BAR — F2 flattened talent row:
+          Client · Group · Activity · Lineup · Offer · Details · Files
+          (Client only for coordinators; Group only with ≥2 talents) */}
+      <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, overflow: "hidden", flex: 1, minHeight: 0, display: "flex", flexDirection: "column",
         position: "relative" }} className="rounded-admin-md">
         <ThreadTabBar
           activeId={activeTab}
@@ -339,103 +372,80 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
             pov: isCoordinator ? "talent_coord" : "talent",
             unread: { talent: talentGroupUnread, files: fileCount },
             paymentDue: conv.stage === "booked",
+            lineupTotal,
           })}
         />
-        {/* D4 — Whose-turn banner. Shows above the sub-toggle and chat
-            stream so the talent sees their current action at a glance
-            without scrolling to the bottom action bar. Only renders on
-            the Chat tab (not on Offer/Details/etc). */}
-        {(activeTab === "chat" || activeTab === "talent" || activeTab === "client") && (
+        {/* D4 — Whose-turn banner. Shows above the conversation stream so
+            the talent sees their current action at a glance without
+            scrolling to the bottom action bar. Only on the conversation
+            tabs (Client / Group / Activity), not on Offer/Details/etc. */}
+        {(activeTab === "client" || activeTab === "group" || activeTab === "activity") && (
           <TalentWhosTurnBanner conv={conv} isCoordinator={isCoordinator} />
         )}
-        {/* Slice C (Messages consolidation v2): unified Chat tab with
-            [Client | Group | DM] sub-toggle. Plain talent: Client is
-            locked (Slice G adds the request-to-join flow); Group is
-            the default. Coord-talent: all 3 unlocked. */}
-        {(activeTab === "chat" || activeTab === "talent" || activeTab === "client") && (() => {
-          // Resolve effective sub-thread from chat-state OR legacy tab id.
-          const effSub: ChatSubThreadId =
-            activeTab === "talent" ? "group"
-            : activeTab === "client" ? "client"
-            : chatSubThread;
-          const showClient = effSub === "client";
-          const showGroup = effSub === "group";
-          const showDm = effSub === "dm";
-          return (
-            <>
-              {activeTab === "chat" && (
-                <ChatSubToggleDropdown
-                  current={chatSubThread}
-                  onSelect={(s) => setChatSubThread(s)}
-                  groupUnread={talentGroupUnread}
-                  lockClient={!isCoordinator}
-                  onLockedClick={() => setCoordRequestOpen(true)}
-                />
-              )}
-              {/* Item #12 wiring: pitch-origin context. Renders on the
-                  talent Chat tab when this conv came from a Pitch.
-                  Conversation type doesn't carry pitchId today —
-                  surface stays hidden until pitchId is plumbed onto
-                  conv (or a sibling field is added). */}
-              {activeTab === "chat" && (conv as Conversation & { pitchId?: string }).pitchId && (
-                <div style={{ padding: "44px 12px 4px" }}>
-                  <PitchOriginCard
-                    tenantSlug={effectiveTenant.slug}
-                    pitchId={(conv as Conversation & { pitchId?: string }).pitchId as string}
-                    pitchTitle={(conv as Conversation & { pitchTitle?: string }).pitchTitle ?? "Pitch"}
-                    compact
-                  />
-                </div>
-              )}
-              {showGroup && (
-                <ConversationTab
-                  conv={conv}
-                  threadKey={`${conv.id}:talent`}
-                  placeholder="Message booking team…"
-                  crossThreadBridge={!isCoordinator ? { who: conv.leader.name, clientName: conv.client } : undefined}
-                  povCanEditLineup={isCoordinator}
-                  povCanSeeOffers={isCoordinator}
-                  povCanSeeCoordNote={true}
-                  mode="chat"
-                />
-              )}
-              {showClient && isCoordinator && (
-                <ConversationTab
-                  conv={conv}
-                  threadKey={`${conv.id}:client`}
-                  placeholder={`Message ${conv.client}…`}
-                  povCanEditLineup={isCoordinator}
-                  povCanSeeOffers={isCoordinator}
-                  povCanSeeCoordNote={true}
-                  // Hub self-coordination: load + post to the CLIENT (private)
-                  // thread AS the talent-coordinator. Without this the shared
-                  // ConversationTab would post via the client action (wrong
-                  // identity) and load the group thread. sendTalentInquiryMessage
-                  // re-checks the coordinator role server-side + the RLS gates it.
-                  realThreadType="private"
-                  onSendReal={(text) =>
-                    sendTalentInquiryMessage(effectiveTenant.slug, conv.id, text, "private")
-                  }
-                />
-              )}
-              {/* "Activity" sub-tab (repurposed from the retired fake DM):
-                  the job's money/booking timeline — offer → payment → booking
-                  — as read-only timestamped cards. Same underlying group thread
-                  as Chat, filtered to event cards so Chat stays conversation. */}
-              {showDm && (
-                <ConversationTab
-                  conv={conv}
-                  threadKey={`${conv.id}:talent`}
-                  placeholder=""
-                  povCanEditLineup={isCoordinator}
-                  povCanSeeOffers={isCoordinator}
-                  povCanSeeCoordNote={false}
-                  mode="activity"
-                />
-              )}
-            </>
-          );
-        })()}
+        {/* Item #12 wiring: pitch-origin context. Renders on the talent
+            conversation tabs when this conv came from a Pitch. Conversation
+            type doesn't carry pitchId today — surface stays hidden until
+            pitchId is plumbed onto conv (or a sibling field is added). */}
+        {(activeTab === "client" || activeTab === "group" || activeTab === "activity")
+          && (conv as Conversation & { pitchId?: string }).pitchId && (
+          <div style={{ padding: "8px 12px 4px" }}>
+            <PitchOriginCard
+              tenantSlug={effectiveTenant.slug}
+              pitchId={(conv as Conversation & { pitchId?: string }).pitchId as string}
+              pitchTitle={(conv as Conversation & { pitchTitle?: string }).pitchTitle ?? "Pitch"}
+              compact
+            />
+          </div>
+        )}
+        {/* F2: Client tab — the private/client thread. Coordinators only
+            (server canSeeClientThread gate). Loads + posts to the CLIENT
+            (private) thread AS the talent-coordinator (hub self-coord);
+            sendTalentInquiryMessage re-checks the coordinator role
+            server-side + RLS gates it. The Client tab is omitted from the
+            row entirely for non-coordinators, so this branch is reachable
+            only when isCoordinator. */}
+        {activeTab === "client" && isCoordinator && (
+          <ConversationTab
+            conv={conv}
+            threadKey={`${conv.id}:client`}
+            placeholder={`Message ${conv.client}…`}
+            povCanEditLineup={isCoordinator}
+            povCanSeeOffers={isCoordinator}
+            povCanSeeCoordNote={true}
+            realThreadType="private"
+            onSendReal={(text) =>
+              sendTalentInquiryMessage(effectiveTenant.slug, conv.id, text, "private")
+            }
+          />
+        )}
+        {/* F2: Group tab — the booking-team coordination channel. */}
+        {activeTab === "group" && (
+          <ConversationTab
+            conv={conv}
+            threadKey={`${conv.id}:talent`}
+            placeholder="Message booking team…"
+            crossThreadBridge={!isCoordinator ? { who: conv.leader.name, clientName: conv.client } : undefined}
+            povCanEditLineup={isCoordinator}
+            povCanSeeOffers={isCoordinator}
+            povCanSeeCoordNote={true}
+            mode="chat"
+          />
+        )}
+        {/* F2: Activity tab — the job's money/booking timeline (offer →
+            payment → booking) as read-only timestamped cards. Same
+            underlying group thread as Group, filtered to event cards;
+            composer hidden (activity mode is read-only). */}
+        {activeTab === "activity" && (
+          <ConversationTab
+            conv={conv}
+            threadKey={`${conv.id}:talent`}
+            placeholder=""
+            povCanEditLineup={isCoordinator}
+            povCanSeeOffers={isCoordinator}
+            povCanSeeCoordNote={false}
+            mode="activity"
+          />
+        )}
         {/* Slice C + D5: Lineup tab.
             - Coordinators: see the full admin lineup management UI
               (LiveLineupPanel) via the openLineupTab / LineupTabPanel flow.
@@ -640,15 +650,6 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
           (LiveLineupPanel) handles add/remove/swap. Drawer component
           retained as dead code until follow-up purge confirms no
           residual references. */}
-      {/* Slice G (Messages consolidation v2): coordinator-request
-          sheet. Opens when a plain talent taps the locked Client
-          sub-toggle. Engine RPCs from Slice F do the work. */}
-      {coordRequestOpen && (
-        <CoordRequestSheet
-          inquiryId={conv.id}
-          onClose={() => setCoordRequestOpen(false)}
-        />
-      )}
       {/* Slice P wiring (talent): Status sheet — opens from the header
           status pill. Derives a simplified 4-family status view from
           the conversation's current state. */}

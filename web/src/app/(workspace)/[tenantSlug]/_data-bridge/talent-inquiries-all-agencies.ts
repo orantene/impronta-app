@@ -58,7 +58,9 @@ export async function loadTalentInquiriesAllAgencies(
           tenant_id,
           trust_level_at_submission,
           source_channel,
-          current_offer_id
+          current_offer_id,
+          client_user_id,
+          guest_session_id
         )
       `)
       .eq("talent_profile_id", talentProfileId)
@@ -90,6 +92,8 @@ export async function loadTalentInquiriesAllAgencies(
         trust_level_at_submission: "basic" | "verified" | "silver" | "gold" | null;
         source_channel: string | null;
         current_offer_id: string | null;
+        client_user_id: string | null;
+        guest_session_id: string | null;
       } | null;
     };
 
@@ -107,25 +111,46 @@ export async function loadTalentInquiriesAllAgencies(
       })),
     );
 
-    const partialRows = partRows.map((r) => ({
-      id: r.inquiries!.id,
-      status: r.inquiries!.status,
-      contact_name: r.inquiries!.contact_name,
-      company: r.inquiries!.company,
-      message: r.inquiries!.message,
-      event_date: r.inquiries!.event_date,
-      event_location: r.inquiries!.event_location,
-      created_at: r.inquiries!.created_at,
-      updated_at: r.inquiries!.updated_at,
-      participantStatus: r.status,
-      unreadCount: 0,
-      trustLevel: r.inquiries!.trust_level_at_submission ?? null,
-      sourceChannel: r.inquiries!.source_channel ?? null,
-      myApprovalStatus: approvalByInquiry.get(r.inquiries!.id) ?? null,
-      tenantId: r.inquiries!.tenant_id,
-      // Flipped to true below when the talent ALSO coordinates this inquiry.
-      iAmCoordinator: false,
-    }));
+    // F3 — identity tier derived from contact linkage. The array is explicitly
+    // typed so the coordinator-append section (below) can push rows with
+    // clientIdentity: null without a narrowing mismatch from the map result.
+    type PartialRow = TalentInquiryRow & { tenantId: string };
+    const partialRows: PartialRow[] = (partRows.map((r) => {
+      const clientUserId = r.inquiries!.client_user_id;
+      const guestSessionId = r.inquiries!.guest_session_id;
+      // Identity ladder — keys off the real anonymity signal (guest_session_id),
+      // checked FIRST. The guest-chat front door auto-provisions a confirmed
+      // client_user_id shell account for EVERY guest, so keying "registered"
+      // off client_user_id presence mislabels every guest as registered. Order:
+      //   guest_session_id set → originated from the guest door → "guest"
+      //   else client_user_id  → registered account, no guest origin → "registered"
+      //   neither              → email-only legacy/manual row → "client"
+      const clientIdentity: TalentInquiryRow["clientIdentity"] = guestSessionId
+        ? "guest"
+        : clientUserId
+          ? "registered"
+          : "client";
+      return {
+        id: r.inquiries!.id,
+        status: r.inquiries!.status,
+        contact_name: r.inquiries!.contact_name,
+        company: r.inquiries!.company,
+        message: r.inquiries!.message,
+        event_date: r.inquiries!.event_date,
+        event_location: r.inquiries!.event_location,
+        created_at: r.inquiries!.created_at,
+        updated_at: r.inquiries!.updated_at,
+        participantStatus: r.status,
+        unreadCount: 0,
+        trustLevel: r.inquiries!.trust_level_at_submission ?? null,
+        sourceChannel: r.inquiries!.source_channel ?? null,
+        myApprovalStatus: approvalByInquiry.get(r.inquiries!.id) ?? null,
+        clientIdentity,
+        tenantId: r.inquiries!.tenant_id,
+        // Flipped to true below when the talent ALSO coordinates this inquiry.
+        iAmCoordinator: false,
+      } satisfies PartialRow;
+    }) as PartialRow[]);
 
     // Hub self-coordination (2026-06-02) — surface the talent's COORDINATOR
     // role across every tenant (RLS talent-select only returns role='talent').
@@ -158,6 +183,9 @@ export async function loadTalentInquiriesAllAgencies(
           trustLevel: i.trust_level_at_submission ?? null,
           sourceChannel: i.source_channel ?? null,
           myApprovalStatus: null,
+          // F3 — coordinator-only rows come from a service-role query that
+          // doesn't select client_user_id / guest_session_id; identity unknown.
+          clientIdentity: null,
           tenantId: i.tenant_id,
           iAmCoordinator: true,
         });

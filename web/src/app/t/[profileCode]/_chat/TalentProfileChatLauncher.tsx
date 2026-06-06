@@ -44,6 +44,8 @@ export function TalentProfileChatLauncher({
   openFullHref = null,
 }: TalentChatLauncherProps) {
   const [open, setOpen] = useState(false);
+  // F4: expanded state — grows the panel into a 2-pane layout in-place.
+  const [expanded, setExpanded] = useState(false);
 
   // Restore the open panel across a refresh (B1) so the conversation doesn't
   // appear to reset. sessionStorage is per-tab → a refresh restores; closing the
@@ -116,9 +118,28 @@ export function TalentProfileChatLauncher({
         <span>{open ? "Close" : launcherLabel}</span>
       </button>
 
+      {/* Faint scrim behind the panel when expanded (non-blocking — aria-modal="false") */}
+      {open && expanded && (
+        <div
+          aria-hidden
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 88,
+            background: "rgba(16,18,29,0.18)",
+            pointerEvents: "none",
+          }}
+        />
+      )}
+
       <MiniChatPanel
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={() => {
+          setOpen(false);
+          setExpanded(false);
+        }}
+        expanded={expanded}
+        onToggleExpand={() => setExpanded((v) => !v)}
         tenantSlug={tenantSlug}
         talentProfileId={talentProfileId}
         talentProfileCode={talentProfileCode}

@@ -68,8 +68,14 @@ export function buildInquiryTabs(opts: {
    *  payout from the thread instead of leaving to /admin/work. Admin pov
    *  only; client + talent have their own money surfaces. */
   paymentRelevant?: boolean;
+  /** F2 — real role='talent' headcount on this inquiry. Gates the Group
+   *  tab (the booking-team coordination channel): it only surfaces when
+   *  there are ≥2 talents (this talent + ≥1 other). A sole-talent inquiry
+   *  has no team to coordinate, so the Group tab is suppressed and the
+   *  talent anchors on Client (F1) / Activity instead. Talent pov only. */
+  lineupTotal?: number;
 }): TabDef[] {
-  const { status, pov, unread = {}, offerNeedsAttention, paymentDue, planTier, currencyCode, paymentRelevant } = opts;
+  const { status, pov, unread = {}, offerNeedsAttention, paymentDue, planTier, currencyCode, paymentRelevant, lineupTotal } = opts;
 
   // Currency-aware payment-due glyph. Never hardcode "€": derive the symbol
   // from the inquiry's currency; if none is supplied, use a neutral dot so a
@@ -140,44 +146,76 @@ export function buildInquiryTabs(opts: {
     return adminTabs;
   }
 
-  // Slice C (Messages consolidation v2): talent + talent_coord get
-  // the universal tab set. Client + Group + DM live as sub-toggles
-  // inside the Chat tab; for plain talent the Client sub-toggle
-  // renders locked (Slice G adds the request-to-join flow). Booked-
-  // stage payment surfaces via the offer chip + Event tab, not as a
-  // standalone tab.
+  // F2 (Messages consolidation v2): talent + talent_coord get the
+  // flattened tab row — the old Chat tab's [Client | Group | Activity]
+  // sub-toggle is promoted to three TOP-LEVEL tabs:
+  //   Client · Group · Activity · Lineup · Offer · Details · Files
+  //
+  // • Client  — the private/client thread. Surfaces ONLY for
+  //   talent_coord (the materialized canSeeClientThread gate: a
+  //   coordinator participant row on this inquiry). A plain lineup
+  //   talent never holds that row, so the tab is omitted entirely —
+  //   no empty/locked tab, matching the server read gate exactly.
+  // • Group   — the booking-team coordination channel. Surfaces ONLY
+  //   when lineupTotal >= 2 (this talent + ≥1 other). A sole-talent
+  //   inquiry has no team to coordinate; F1 anchors them on Client.
+  // • Activity — read-only money/booking timeline (group thread,
+  //   activity mode). Always present.
+  //
+  // Booked-stage payment surfaces via the offer chip + Details tab,
+  // not as a standalone tab.
   if (pov === "talent" || pov === "talent_coord") {
     const chatUnread = unread.talent ?? 0;
-    const talentTabs: TabDef[] = [
-      {
-        id: "chat",
-        label: "Chat",
+    const isCoord = pov === "talent_coord";
+    // Group is the team-coordination channel — only meaningful with ≥2
+    // talents. undefined lineupTotal (count not yet resolved) defaults
+    // to showing it, since Group has always been the talent's primary
+    // channel; we only HIDE it on a confirmed sole-talent inquiry.
+    const showGroup = lineupTotal === undefined || lineupTotal >= 2;
+    const talentTabs: TabDef[] = [];
+    if (isCoord) {
+      talentTabs.push({
+        id: "client",
+        label: "Client",
+        state: "active",
+        badge: unread.client && unread.client > 0 ? unread.client : undefined,
+      });
+    }
+    if (showGroup) {
+      talentTabs.push({
+        id: "group",
+        label: "Group",
         state: "active",
         badge: chatUnread > 0 ? chatUnread : undefined,
-      },
-      {
-        id: "lineup",
-        label: "Lineup",
-        state: "active",
-      },
-      {
-        id: "offer",
-        label: "Offer",
-        state: "active",
-        badge: offerNeedsAttention ? "!" : (status === "booked" && paymentDue ? payDueGlyph : undefined),
-      },
-      {
-        id: "event",
-        label: "Details",
-        state: "active",
-      },
-      {
-        id: "files",
-        label: "Files",
-        state: "active",
-        badge: unread.files && unread.files > 0 ? unread.files : undefined,
-      },
-    ];
+      });
+    }
+    talentTabs.push({
+      id: "activity",
+      label: "Activity",
+      state: "active",
+    });
+    talentTabs.push({
+      id: "lineup",
+      label: "Lineup",
+      state: "active",
+    });
+    talentTabs.push({
+      id: "offer",
+      label: "Offer",
+      state: "active",
+      badge: offerNeedsAttention ? "!" : (status === "booked" && paymentDue ? payDueGlyph : undefined),
+    });
+    talentTabs.push({
+      id: "event",
+      label: "Details",
+      state: "active",
+    });
+    talentTabs.push({
+      id: "files",
+      label: "Files",
+      state: "active",
+      badge: unread.files && unread.files > 0 ? unread.files : undefined,
+    });
     return talentTabs;
   }
 

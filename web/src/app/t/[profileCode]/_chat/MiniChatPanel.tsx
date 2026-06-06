@@ -8,67 +8,55 @@
  * fills a one-line name+email gate, and a real inquiry is created. The thread
  * then renders live (initial load + ~4s poll) and the guest keeps chatting.
  *
- * Design constraints baked in (strategy §10 + deep-dives Part C):
- *   • Async-first, honest presence — NO fake "online now". Header shows the
- *     real "Typically replies in ~X" (from the server) and we set the
- *     expectation BEFORE the first send. Instant auto-ack confirms receipt.
- *   • First message is NEVER blocked — the email gate appears at send time,
- *     inline, framed as "Where should {Name} reach you?", not "Register".
- *   • Premium, brand-skinned — accent color from agency_branding drives the
- *     launcher/send button; NO gold/rust accents hard-coded (house rule).
- *   • The UI imports NO backend module. The three server actions arrive as
- *     INJECTED CALLBACK PROPS (onStartInquiry / onSendMessage / fetchMessages)
- *     per guest-chat-contract.ts — the security boundary (the guest cookie)
- *     is resolved server-side inside those actions, never passed from here.
+ * F4 (Lane C): the panel can be expanded in-place into a 2-pane layout via
+ * the `expanded` + `onToggleExpand` local props (intersected onto MiniChatPanelProps).
+ * When expanded, ExpandedChatLayout wraps MiniChatPanelColumn as the right pane
+ * and adds a left conversation-list pane.
  *
- * Anti-abuse floor (Lane B integration points handled here on the UI side):
- *   • Honeypot field rendered hidden + aria-hidden + off-screen; its value is
- *     forwarded on both start + send.
- *   • On code "captcha_required" we surface a Turnstile slot (inert stub for
- *     MVP — Lane B wires the real widget); on "rate_limited" we show a
- *     cooldown countdown (driven by a ticking state, never Date.now() in render).
+ * Design constraints baked in (strategy §10 + deep-dives Part C):
+ *   • Async-first, honest presence — NO fake "online now".
+ *   • First message is NEVER blocked — the email gate appears at send time.
+ *   • Premium, brand-skinned — NO gold/rust accents hard-coded (house rule).
+ *   • The UI imports NO backend module — actions arrive as injected callbacks.
  *
  * Memoization note: this codebase runs under the React Compiler, so this file
- * deliberately uses plain functions (no manual useCallback/useMemo) — the
- * compiler handles memoization and the lint forbids hand-rolled memo here.
+ * deliberately uses plain functions (no manual useCallback/useMemo).
  */
 
 import { useEffect, useRef, useState } from "react";
 
 import type {
-  GuestChipInput,
   GuestChipKind,
   GuestIdentityTier,
+  GuestInquirySummary,
   GuestThreadMessage,
   GuestThreadStatus,
   MiniChatPanelProps,
 } from "@/lib/inquiry/guest-chat-contract";
 
-import { ClaimEmailRecap } from "./ClaimEmailRecap";
-import { MiniChatComposer } from "./MiniChatComposer";
-import { MiniChatGateForm } from "./MiniChatGateForm";
-import { GuestAccountToolkit } from "./GuestAccountToolkit"; // U3
-import { GuestDetailChips } from "./GuestDetailChips"; // U4
-import { GuestPanelHeaderExtras } from "./GuestPanelHeaderExtras"; // U2 (switcher strip)
-import { NewMessagePulse } from "./NewMessagePulse"; // U2
-import { OpenFullConversationLink } from "./OpenFullConversationLink"; // U1
-import { TrustGateNudge } from "./TrustGateNudge"; // U3
-import { usePresenceChime } from "./usePresenceChime"; // U2
-import {
-  MiniChatMessageBubble,
-  type StreamRow,
-} from "./MiniChatMessageBubble";
+import { ExpandedChatLayout } from "./ExpandedChatLayout";
+import { MiniChatPanelColumn } from "./MiniChatPanelColumn";
+import { usePresenceChime } from "./usePresenceChime";
+import type { StreamRow } from "./MiniChatMessageBubble";
 import {
   C,
   DEFAULT_ACCENT,
   EMAIL_RE,
   FONT,
-  STATUS_COPY,
   firstNameOf,
   readableOn,
 } from "./mini-chat-styles";
 
 type Stage = "intro" | "gate" | "thread";
+
+// Local extension of MiniChatPanelProps for the F4 expand/collapse props.
+// NOT added to guest-chat-contract.ts (shared read-only); consumed here + the launcher only.
+type MiniChatPanelLocalProps = MiniChatPanelProps & {
+  /** When true, render 2-pane expanded mode. Owned by TalentProfileChatLauncher. */
+  expanded?: boolean;
+  /** Toggle handler from TalentProfileChatLauncher's setExpanded. */
+  onToggleExpand?: () => void;
+};
 
 // ───────────────────────────────────────────────────────────────────────────
 // Component
@@ -94,19 +82,17 @@ export function MiniChatPanel({
   onCaptureChip = null,
   soundOnReply = true,
   identity = "guest",
-}: MiniChatPanelProps) {
+  expanded = false,
+  onToggleExpand,
+}: MiniChatPanelLocalProps) {
   const accent = brand.accentColor ?? DEFAULT_ACCENT;
   const accentInk = readableOn(brand.accentColor);
   const talentFirst = firstNameOf(brand.talentDisplayName);
 
-  // Inquiry identity. Starts from any existing thread the cookie maps to.
   const [inquiryId, setInquiryId] = useState<string | null>(existingInquiryId);
-
-  // Conversation stream + cursor for incremental polling.
   const [rows, setRows] = useState<StreamRow[]>([]);
   const lastSeenIsoRef = useRef<string | null>(null);
 
-  // Composer + gate state.
   const [draft, setDraft] = useState("");
   const [name, setName] = useState(prefill?.name ?? "");
   const [email, setEmail] = useState(prefill?.email ?? "");
@@ -116,44 +102,62 @@ export function MiniChatPanel({
   const [stage, setStage] = useState<Stage>(existingInquiryId ? "thread" : "intro");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Cooldown is tracked as a remaining-seconds countdown so render never calls
-  // Date.now() (React-purity rule). 0 = not in cooldown.
   const [cooldownSecs, setCooldownSecs] = useState(0);
   const [captchaRequired, setCaptchaRequired] = useState(false);
 
-  // Header SLA + status (honest presence). Null until the server tells us.
   const [typicalReply, setTypicalReply] = useState<string | null>(null);
   const [threadStatus, setThreadStatus] = useState<GuestThreadStatus>("open");
   const [emailedTo, setEmailedTo] = useState<string | null>(null);
 
-  // ── U2: inbound chime + accent pulse + per-inquiry seen cursor ─────────────
   const [pulseActive, setPulseActive] = useState(false);
   const [seenAtByInquiry, setSeenAtByInquiry] = useState<Record<string, string>>({});
-  // Gesture-gated: the chime only ever fires once a thread exists (the guest has
-  // sent ≥1 message, satisfying the browser autoplay-gesture requirement).
-  // notifyInbound is a stable useCallback from the hook — safe to list in deps.
   const { notifyInbound } = usePresenceChime({
     soundEnabled: soundOnReply && Boolean(inquiryId),
   });
 
-  // ── U3: trust-gate nudge shown when startGuestChatInquiry returns limit_reached.
   const [limitNudge, setLimitNudge] = useState<{
     tier: GuestIdentityTier;
     activeCount: number;
     limit: number;
   } | null>(null);
 
-  // ── U4: which detail chips the guest has captured (drives the value labels) ─
   const [capturedChipKinds, setCapturedChipKinds] = useState<GuestChipKind[]>([]);
+
+  // F4: inquiries list for the expanded left pane.
+  const [inquiries, setInquiries] = useState<GuestInquirySummary[]>([]);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const inCooldown = cooldownSecs > 0;
 
-  // ── Reconcile a batch of server messages into the stream ──────────────────
-  // Drops optimistic tmp- rows whose body matches an incoming server row;
-  // de-dupes by id; keeps oldest→newest order; advances the poll cursor.
+  // Named switch handler — shared by mini-mode dropdown + expanded left pane.
+  function handleSwitchInquiry(id: string) {
+    if (id === inquiryId) return;
+    setInquiryId(id);
+    setRows([]);
+    lastSeenIsoRef.current = null;
+    setStage("thread");
+    setCapturedChipKinds([]);
+  }
+
+  // F4: load the inquiries list when open (for both mini switcher + expanded pane).
+  useEffect(() => {
+    if (!open || !onListGuestInquiries || !tenantSlug) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await onListGuestInquiries({ tenantSlug });
+        if (!cancelled && res.ok) setInquiries(res.inquiries);
+      } catch {
+        /* transient */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, expanded, onListGuestInquiries, tenantSlug]);
+
   function mergeServer(incoming: GuestThreadMessage[]) {
     if (incoming.length === 0) return;
     setRows((cur) => {
@@ -162,8 +166,7 @@ export function MiniChatPanel({
         incoming.filter((m) => m.authorRole === "guest").map((m) => m.body.trim()),
       );
       const kept = cur.filter((r) => {
-        if (!r.pending) return !serverIds.has(r.id); // replace persisted dupes
-        // Optimistic guest row — drop once its body lands from the server.
+        if (!r.pending) return !serverIds.has(r.id);
         return !serverBodies.has(r.body.trim());
       });
       const merged = [...kept, ...incoming];
@@ -173,8 +176,6 @@ export function MiniChatPanel({
     const newest = incoming[incoming.length - 1]?.createdAt ?? null;
     if (newest && (!lastSeenIsoRef.current || newest > lastSeenIsoRef.current)) {
       lastSeenIsoRef.current = newest;
-      // U2: record the active thread's last-seen cursor so the switcher can
-      // suppress its 'new' dot for the conversation the guest is currently in.
       if (inquiryId) {
         setSeenAtByInquiry((prev) =>
           prev[inquiryId] && prev[inquiryId] >= newest
@@ -185,7 +186,6 @@ export function MiniChatPanel({
     }
   }
 
-  // ── Cooldown ticker — decrements the countdown once per second ────────────
   useEffect(() => {
     if (cooldownSecs <= 0) return;
     const id = setInterval(() => {
@@ -194,7 +194,6 @@ export function MiniChatPanel({
     return () => clearInterval(id);
   }, [cooldownSecs]);
 
-  // ── Initial load when a thread exists (reopen path) ───────────────────────
   useEffect(() => {
     if (!open || !inquiryId) return;
     let cancelled = false;
@@ -212,7 +211,6 @@ export function MiniChatPanel({
     };
   }, [open, inquiryId, fetchMessages]);
 
-  // ── ~4s poll while open + visible (MVP liveness; pause when hidden) ────────
   useEffect(() => {
     if (!open || !inquiryId) return;
     let stopped = false;
@@ -227,9 +225,6 @@ export function MiniChatPanel({
       try {
         const res = await fetchMessages({ inquiryId, afterIso: lastSeenIsoRef.current });
         if (!stopped && res.ok) {
-          // U2: a NEW INBOUND batch (staff/talent/other — not the guest, not
-          // system) → soft chime + a one-shot accent pulse. Honest signal only:
-          // it fires solely on real messages the server just returned.
           const inbound = res.messages.filter(
             (m) => m.authorRole !== "guest" && m.authorRole !== "system",
           );
@@ -243,7 +238,7 @@ export function MiniChatPanel({
           }
         }
       } catch {
-        /* transient — next tick retries */
+        /* transient */
       }
       if (!stopped) timer = setTimeout(tick, pollIntervalMs);
     };
@@ -255,13 +250,11 @@ export function MiniChatPanel({
     };
   }, [open, inquiryId, pollIntervalMs, fetchMessages, notifyInbound]);
 
-  // ── Auto-scroll to newest on stream growth ────────────────────────────────
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [rows.length, stage]);
 
-  // ── Escape closes; focus the composer when opening ────────────────────────
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -275,7 +268,6 @@ export function MiniChatPanel({
     };
   }, [open, onClose]);
 
-  // ── Map a contract failure code → friendly copy + side effects ────────────
   function applyFailure(
     code: string,
     message: string,
@@ -301,8 +293,6 @@ export function MiniChatPanel({
       return;
     }
     if (code === "limit_reached") {
-      // U3: trust gate tripped. Prefer server-resolved tier (gateTier) from
-      // the failure payload; fall back to client-side inference for back-compat.
       const tier: GuestIdentityTier =
         extra?.gateTier ??
         (identity === "account"
@@ -324,23 +314,17 @@ export function MiniChatPanel({
     setError(message || "Something went wrong. Please try again.");
   }
 
-  // ── First send: collect email if not yet captured, else start the inquiry ─
   async function handleFirstSend() {
     const body = draft.trim();
     if (!body) return;
-
-    // Gate: we need name+email before we can persist + route + claim.
     if (!name.trim() || !EMAIL_RE.test(email.trim())) {
       setStage("gate");
       setError(null);
       return;
     }
-
     setSending(true);
     setError(null);
     setCaptchaRequired(false);
-
-    // Optimistic guest bubble.
     const tmpId = `tmp-${Date.now()}`;
     const nowIso = new Date().toISOString();
     setRows((cur) => [
@@ -363,7 +347,6 @@ export function MiniChatPanel({
     ]);
     setDraft("");
     setStage("thread");
-
     const res = await onStartInquiry({
       tenantSlug,
       talentProfileId,
@@ -375,16 +358,11 @@ export function MiniChatPanel({
       sourcePage,
       honeypot: honeypot || null,
     });
-
     setSending(false);
-
     if (!res.ok) {
       setRows((cur) =>
         cur.map((r) => (r.id === tmpId ? { ...r, pending: false, failed: true } : r)),
       );
-      // Restore the typed text so a transient failure doesn't destroy it. The
-      // draft was cleared optimistically before the await; put it back so the
-      // guest can retry from the composer (the failed bubble copy points here).
       setDraft(body);
       applyFailure(res.code, res.message, res.retryAfterMs, {
         gateTier: res.gateTier,
@@ -393,25 +371,20 @@ export function MiniChatPanel({
       });
       return;
     }
-
     setInquiryId(res.inquiryId);
     setEmailedTo(res.guestEmail);
     lastSeenIsoRef.current = null;
-    // Drop the optimistic row; render the canonical opening + auto-ack.
     setRows((cur) => cur.filter((r) => r.id !== tmpId));
     const seeded: GuestThreadMessage[] = [res.openingMessage];
     if (res.autoAckMessage) seeded.push(res.autoAckMessage);
     mergeServer(seeded);
   }
 
-  // ── Subsequent sends in an existing thread ────────────────────────────────
   async function handleReply() {
     const body = draft.trim();
     if (!body || !inquiryId) return;
-
     setSending(true);
     setError(null);
-
     const tmpId = `tmp-${Date.now()}`;
     const nowIso = new Date().toISOString();
     setRows((cur) => [
@@ -433,22 +406,16 @@ export function MiniChatPanel({
       },
     ]);
     setDraft("");
-
     const res = await onSendMessage({ inquiryId, body, honeypot: honeypot || null });
-
     setSending(false);
-
     if (!res.ok) {
       setRows((cur) =>
         cur.map((r) => (r.id === tmpId ? { ...r, pending: false, failed: true } : r)),
       );
-      // Restore the typed text (cleared optimistically before the await) so a
-      // transient failure doesn't lose the reply.
       setDraft(body);
       applyFailure(res.code, res.message, res.retryAfterMs);
       return;
     }
-
     setRows((cur) => cur.map((r) => (r.id === tmpId ? { ...res.message, pending: false } : r)));
     const iso = res.message.createdAt;
     if (!lastSeenIsoRef.current || iso > lastSeenIsoRef.current) {
@@ -458,19 +425,82 @@ export function MiniChatPanel({
 
   function submit() {
     if (sending || inCooldown) return;
-    if (inquiryId) {
-      void handleReply();
-    } else {
-      void handleFirstSend();
-    }
+    if (inquiryId) void handleReply();
+    else void handleFirstSend();
   }
 
   if (!open) return null;
 
   const sendDisabled = !draft.trim() || sending || inCooldown;
-  const gateReady = Boolean(name.trim()) && EMAIL_RE.test(email.trim());
-  const showGate = stage === "gate";
 
+  // Shared column props passed to MiniChatPanelColumn (avoids duplication).
+  const columnProps = {
+    brand,
+    accent,
+    accentInk,
+    talentFirst,
+    tenantSlug,
+    talentProfileId,
+    open,
+    expanded,
+    inquiryId,
+    rows,
+    scrollRef,
+    stage,
+    threadStatus,
+    typicalReply,
+    emailedTo,
+    seenAtByInquiry,
+    pulseActive,
+    limitNudge,
+    capturedChipKinds,
+    draft,
+    name,
+    email,
+    honeypot,
+    sending,
+    error,
+    inCooldown,
+    cooldownSecs,
+    sendDisabled,
+    captchaRequired,
+    onClose,
+    onDraftChange: setDraft,
+    onNameChange: setName,
+    onEmailChange: setEmail,
+    onHoneypotChange: setHoneypot,
+    onSubmit: submit,
+    onFirstSend: () => void handleFirstSend(),
+    onAddClaimEmail,
+    onSwitchInquiry: handleSwitchInquiry,
+    onCaptureChip,
+    onCapturedChipKind: (kind: GuestChipKind) =>
+      setCapturedChipKinds((k) => (k.includes(kind) ? k : [...k, kind])),
+    prefill,
+    openFullHref,
+    onListGuestInquiries,
+    onToggleExpand,
+    identity,
+    textareaRef,
+  };
+
+  // ── Expanded 2-pane mode (F4) ─────────────────────────────────────────────
+  if (expanded) {
+    return (
+      <ExpandedChatLayout
+        right={<MiniChatPanelColumn {...columnProps} />}
+        accent={accent}
+        accentInk={accentInk}
+        ariaLabel={`Message ${brand.agencyName}`}
+        inquiries={inquiries}
+        activeInquiryId={inquiryId}
+        seenAtByInquiry={seenAtByInquiry}
+        onSelect={handleSwitchInquiry}
+      />
+    );
+  }
+
+  // ── Mini single-column mode (default) ─────────────────────────────────────
   return (
     <div
       role="dialog"
@@ -494,306 +524,7 @@ export function MiniChatPanel({
         fontFamily: FONT,
       }}
     >
-      {/* ── Header ──────────────────────────────────────────────────────── */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 11,
-          padding: "13px 14px",
-          borderBottom: `1px solid ${C.borderSoft}`,
-          background: C.surfaceFaint,
-        }}
-      >
-        <div
-          aria-hidden
-          style={{
-            width: 38,
-            height: 38,
-            borderRadius: "50%",
-            flexShrink: 0,
-            background: brand.logoUrl
-              ? `center / cover no-repeat url(${brand.logoUrl})`
-              : accent,
-            color: accentInk,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 15,
-            fontWeight: 700,
-            letterSpacing: 0.2,
-          }}
-        >
-          {!brand.logoUrl && (talentFirst[0]?.toUpperCase() ?? "•")}
-        </div>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div
-            style={{
-              fontSize: 13.5,
-              fontWeight: 700,
-              color: C.ink,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {brand.agencyName}
-          </div>
-          {/* HONEST presence: only ever the real reply-time, never "online now".
-              typicalReply is a bare fragment ("in ~2 hours", "within a day") —
-              the "Typically replies" prefix is owned here, so the producer must
-              NOT also include it (avoids the double-prefix). */}
-          <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 1 }}>
-            {inquiryId
-              ? STATUS_COPY[threadStatus]
-              : typicalReply
-                ? `Typically replies ${typicalReply}`
-                : "Leave a message — the team replies by email"}
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close"
-          style={{
-            width: 30,
-            height: 30,
-            borderRadius: 8,
-            border: "none",
-            background: "transparent",
-            color: C.inkMuted,
-            cursor: "pointer",
-            fontSize: 19,
-            lineHeight: 1,
-            flexShrink: 0,
-          }}
-        >
-          ×
-        </button>
-      </div>
-
-      {/* ── U2: thread switcher (self-hides for <2 live conversations) ────── */}
-      {onListGuestInquiries && (
-        <GuestPanelHeaderExtras
-          open={open}
-          tenantSlug={tenantSlug}
-          activeInquiryId={inquiryId}
-          accent={accent}
-          accentInk={accentInk}
-          seenAtByInquiry={seenAtByInquiry}
-          onListGuestInquiries={onListGuestInquiries}
-          onSelect={(id) => {
-            if (id === inquiryId) return;
-            setInquiryId(id);
-            setRows([]);
-            lastSeenIsoRef.current = null;
-            setStage("thread");
-            setCapturedChipKinds([]);
-          }}
-        />
-      )}
-
-      {/* ── Body ────────────────────────────────────────────────────────── */}
-      <div
-        ref={scrollRef}
-        style={{
-          flex: 1,
-          overflowY: "auto",
-          padding: "14px 14px 6px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 9,
-          background: C.surface,
-        }}
-      >
-        {/* U2: one-shot accent pulse when a new inbound batch lands. */}
-        <NewMessagePulse active={pulseActive} accent={accent} />
-
-        {/* Warm opener — always first, brand-voiced. */}
-        <div
-          style={{
-            alignSelf: "flex-start",
-            maxWidth: "88%",
-            background: C.surfaceCool,
-            color: C.ink,
-            borderRadius: "14px 14px 14px 4px",
-            padding: "10px 13px",
-            fontSize: 13.5,
-            lineHeight: 1.5,
-          }}
-        >
-          {brand.greeting?.trim() ? (
-            brand.greeting.trim()
-          ) : (
-            <>
-              Hi — I&rsquo;m {talentFirst}&rsquo;s booking assistant. What&rsquo;s the event?
-              Tell me a little and I&rsquo;ll get the right person to reply.
-            </>
-          )}
-        </div>
-
-        {rows.map((m) => (
-          <MiniChatMessageBubble key={m.id} m={m} accent={accent} />
-        ))}
-
-        {/* U3: trust-gate nudge — shown only when the active-conversation cap is
-            hit (limit_reached). The unlock currency is VERIFICATION, never money. */}
-        {limitNudge && limitNudge.tier !== "account" && (
-          <TrustGateNudge
-            tier={limitNudge.tier}
-            activeCount={limitNudge.activeCount}
-            limit={limitNudge.limit}
-            accent={accent}
-            accentInk={accentInk}
-            canVerify={Boolean(onAddClaimEmail) && Boolean(inquiryId) && Boolean(emailedTo ?? prefill?.email)}
-            onVerifyEmail={() => {
-              const addr = (emailedTo ?? prefill?.email ?? email).trim();
-              if (onAddClaimEmail && inquiryId && addr) {
-                void onAddClaimEmail({ inquiryId, email: addr });
-              }
-            }}
-          />
-        )}
-
-        {/* "Link sent" recap + "Use a different email" (first-confirm-wins). */}
-        {emailedTo && (
-          <ClaimEmailRecap
-            emailedTo={emailedTo}
-            inquiryId={inquiryId}
-            accent={accent}
-            accentInk={accentInk}
-            onAddClaimEmail={onAddClaimEmail}
-          />
-        )}
-
-        {/* U3: proactive account toolkit. Demotes its button to outline when
-            OpenFullConversationLink is already the filled primary CTA (offer/booked). */}
-        {inquiryId && (
-          <GuestAccountToolkit
-            inquiryId={inquiryId}
-            guestEmail={emailedTo ?? prefill?.email ?? null}
-            identity={emailedTo ? (identity === "guest" ? "identified" : identity) : identity}
-            accent={accent}
-            accentInk={accentInk}
-            onAddClaimEmail={onAddClaimEmail}
-            deemphasizeButton={
-              threadStatus === "offer_pending" ||
-              threadStatus === "approved" ||
-              threadStatus === "booked"
-            }
-          />
-        )}
-      </div>
-
-      {/* ── Inline name+email gate (appears only at send time) ──────────── */}
-      {showGate && (
-        <MiniChatGateForm
-          talentFirst={talentFirst}
-          draft={draft}
-          name={name}
-          onNameChange={setName}
-          email={email}
-          onEmailChange={setEmail}
-          accent={accent}
-          accentInk={accentInk}
-          gateReady={gateReady}
-          sending={sending}
-          onSend={() => void handleFirstSend()}
-        />
-      )}
-
-      {/* ── Captcha slot (inert stub for MVP; Lane B mounts Turnstile here) ─ */}
-      {captchaRequired && !showGate && (
-        <div
-          data-guest-chat-captcha-slot
-          style={{
-            padding: "9px 14px",
-            borderTop: `1px solid ${C.borderSoft}`,
-            background: C.surfaceFaint,
-            fontSize: 11.5,
-            color: C.inkMuted,
-          }}
-        >
-          Quick human check required to continue. (Verification widget loads here.)
-        </div>
-      )}
-
-      {/* ── Error line ──────────────────────────────────────────────────── */}
-      {error && !showGate && (
-        <div
-          role="alert"
-          style={{
-            padding: "7px 14px",
-            fontSize: 11.5,
-            color: C.danger,
-            background: "rgba(161,58,58,0.06)",
-          }}
-        >
-          {error}
-          {inCooldown ? ` Try again in ${cooldownSecs}s.` : ""}
-        </div>
-      )}
-
-      {/* ── U4: guided detail chips (progressive disclosure — only once a thread
-           exists, and only when the capture action is injected). ─────────── */}
-      {!showGate && inquiryId && onCaptureChip && (
-        <GuestDetailChips
-          inquiryId={inquiryId}
-          accent={accent}
-          accentInk={accentInk}
-          capturedKinds={capturedChipKinds}
-          onCapture={async (input: GuestChipInput) => {
-            const r = await onCaptureChip(input);
-            if (r.ok) {
-              setCapturedChipKinds((k) =>
-                k.includes(input.kind) ? k : [...k, input.kind],
-              );
-            }
-            return r;
-          }}
-          onAddMoreDetails={() => {
-            // Deep-link to the full client inquiry form. The client messages page
-            // already reads ?new=1&talent= to pre-open the composer. talentProfileId
-            // is "" on the agency-level launcher → opens the form with no preselect.
-            window.open(
-              `/${tenantSlug}/client/messages?new=1&talent=${talentProfileId}`,
-              "_blank",
-            );
-          }}
-        />
-      )}
-
-      {/* ── Composer (hidden while the gate is showing) ─────────────────── */}
-      {!showGate && (
-        <MiniChatComposer
-          draft={draft}
-          onDraftChange={setDraft}
-          honeypot={honeypot}
-          onHoneypotChange={setHoneypot}
-          onSubmit={submit}
-          placeholder={inquiryId ? "Write a reply…" : "Type your message…"}
-          sending={sending}
-          inCooldown={inCooldown}
-          sendDisabled={sendDisabled}
-          accent={accent}
-          accentInk={accentInk}
-          textareaRef={textareaRef}
-        />
-      )}
-
-      {/* ── Footer: "Open full conversation ↗" (U1). Emphasized (filled accent)
-           once an offer/booking exists. openFullHref overrides the self-computed href. */}
-      {(inquiryId || openFullHref) && (
-        <OpenFullConversationLink
-          href={openFullHref ?? `/c/${inquiryId}`}
-          accent={accent}
-          emphasize={
-            threadStatus === "offer_pending" ||
-            threadStatus === "approved" ||
-            threadStatus === "booked"
-          }
-        />
-      )}
+      <MiniChatPanelColumn {...columnProps} />
     </div>
   );
 }

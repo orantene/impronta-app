@@ -20,6 +20,60 @@
 //      polaroid request, system messages (stage transitions).
 // ════════════════════════════════════════════════════════════════════
 
+// ─── F3 — ClientIdentityPill ──────────────────────────────────────────────────
+// Compact pill rendered next to the client name in the inbox list row AND the
+// thread header. Uses admin token classes (not gold/black inline styles).
+//
+// "guest"      → amber caution pill  (bg-admin-amber-soft / text-admin-amber-deep)
+// "registered" → green confirmed pill (bg-admin-success-soft / text-admin-success-deep)
+// "client"     → neutral slate pill   (bg-admin-fill-soft / text-admin-ink-muted)
+// undefined    → renders nothing (mock rows, no data)
+//
+// The three values are keyed off the REAL anonymity signals on the inquiry row:
+//   client_user_id set   → "registered"
+//   guest_session_id set → "guest"
+//   neither              → "client" (email-only, no structural identity anchor)
+
+/**
+ * Compact identity pill — "Guest" (amber caution), "Registered" (green confirmed),
+ * or "Client" (neutral slate). Renders nothing when identity is null/undefined.
+ * Uses Tailwind admin token classes only — no inline styles.
+ */
+export function ClientIdentityPill({
+  identity,
+}: {
+  identity: Conversation["clientIdentity"];
+}) {
+  if (!identity) return null;
+
+  const styles: Record<
+    NonNullable<Conversation["clientIdentity"]>,
+    { bg: string; text: string; label: string }
+  > = {
+    guest:      { bg: "bg-admin-amber-soft",   text: "text-admin-amber-deep",   label: "Guest" },
+    registered: { bg: "bg-admin-success-soft", text: "text-admin-success-deep", label: "Registered" },
+    client:     { bg: "bg-admin-fill-soft",    text: "text-admin-ink-muted",    label: "Client" },
+  };
+
+  const { bg, text, label } = styles[identity];
+
+  return (
+    <span
+      data-tulala-identity-pill
+      data-identity={identity}
+      className={[
+        "inline-flex items-center shrink-0",
+        "px-1.5 py-px rounded-full",
+        "text-admin-10 font-bold uppercase tracking-wide leading-snug",
+        bg,
+        text,
+      ].join(" ")}
+    >
+      {label}
+    </span>
+  );
+}
+
 export type MsgStage = "inquiry" | "hold" | "booked" | "past" | "cancelled";
 
 
@@ -112,6 +166,14 @@ export type Conversation = {
    *  visually from regular unread state. Defaults to true (already
    *  opened) when omitted, so existing seed data renders unchanged. */
   seen?: boolean;
+  /**
+   * F3 — Client identity tier, keyed off the real anonymity signals:
+   *   "guest"      — anonymous session (guest_session_id set, no account)
+   *   "registered" — claimed Tulala account (client_user_id set)
+   *   "client"     — email captured but neither structural signal present
+   * Optional so mock rows (MOCK_CONVERSATIONS) compile unchanged.
+   */
+  clientIdentity?: "guest" | "registered" | "client";
 };
 
 

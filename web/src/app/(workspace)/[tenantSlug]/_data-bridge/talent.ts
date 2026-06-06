@@ -348,6 +348,8 @@ export type TalentInquiryRow = {
    * rows, so the coordinator role is resolved with a service-role lookup.
    */
   iAmCoordinator: boolean;
+  /** F3 — real anonymity signal: "registered"=client_user_id set; "guest"=guest_session_id set; "client"=email-only. Null on coord-only rows. */
+  clientIdentity: "guest" | "registered" | "client" | null;
 };
 
 // Cross-agency unified inbox loader (and its row type) moved to
@@ -432,7 +434,9 @@ export async function loadTalentInquiries(
           tenant_id,
           trust_level_at_submission,
           source_channel,
-          current_offer_id
+          current_offer_id,
+          client_user_id,
+          guest_session_id
         )
       `)
       .eq("talent_profile_id", talentProfileId)
@@ -464,6 +468,8 @@ export async function loadTalentInquiries(
         trust_level_at_submission: "basic" | "verified" | "silver" | "gold" | null;
         source_channel: string | null;
         current_offer_id: string | null;
+        client_user_id: string | null;
+        guest_session_id: string | null;
       } | null;
     };
 
@@ -483,24 +489,40 @@ export async function loadTalentInquiries(
       })),
     );
 
-    const rows = partRows.map((r) => ({
-      id: r.inquiries!.id,
-      status: r.inquiries!.status,
-      contact_name: r.inquiries!.contact_name,
-      company: r.inquiries!.company,
-      message: r.inquiries!.message,
-      event_date: r.inquiries!.event_date,
-      event_location: r.inquiries!.event_location,
-      created_at: r.inquiries!.created_at,
-      updated_at: r.inquiries!.updated_at,
-      participantStatus: r.status,
-      unreadCount: 0,
-      trustLevel: r.inquiries!.trust_level_at_submission ?? null,
-      sourceChannel: r.inquiries!.source_channel ?? null,
-      myApprovalStatus: approvalByInquiry.get(r.inquiries!.id) ?? null,
-      // Flipped to true below when the talent ALSO coordinates this inquiry.
-      iAmCoordinator: false,
-    }));
+    // F3 — typed as TalentInquiryRow[] so the coordinator-append can push clientIdentity:null.
+    const rows: TalentInquiryRow[] = (partRows.map((r) => {
+      // F3 identity ladder — real anonymity signal is guest_session_id, checked
+      // FIRST. The guest-chat front door AUTO-PROVISIONS a client_user_id (a
+      // confirmed shell account) for every guest, so keying "registered" off
+      // client_user_id presence mislabels every guest as "registered". An
+      // inquiry that originated from a guest session is a "guest" until/unless
+      // it has no guest origin; a non-guest inquiry with a client account is
+      // "registered"; anything else (legacy/manual, no account) is "client".
+      const clientIdentity: TalentInquiryRow["clientIdentity"] = r.inquiries!.guest_session_id
+        ? "guest"
+        : r.inquiries!.client_user_id
+          ? "registered"
+          : "client";
+      return {
+        id: r.inquiries!.id,
+        status: r.inquiries!.status,
+        contact_name: r.inquiries!.contact_name,
+        company: r.inquiries!.company,
+        message: r.inquiries!.message,
+        event_date: r.inquiries!.event_date,
+        event_location: r.inquiries!.event_location,
+        created_at: r.inquiries!.created_at,
+        updated_at: r.inquiries!.updated_at,
+        participantStatus: r.status,
+        unreadCount: 0,
+        trustLevel: r.inquiries!.trust_level_at_submission ?? null,
+        sourceChannel: r.inquiries!.source_channel ?? null,
+        myApprovalStatus: approvalByInquiry.get(r.inquiries!.id) ?? null,
+        clientIdentity,
+        // Flipped to true below when the talent ALSO coordinates this inquiry.
+        iAmCoordinator: false,
+      } satisfies TalentInquiryRow;
+    }) as TalentInquiryRow[]);
 
     // Hub self-coordination (2026-06-02) — surface the talent's COORDINATOR
     // role. A talent who also runs a booking as its coordinator (an
@@ -535,6 +557,7 @@ export async function loadTalentInquiries(
           trustLevel: i.trust_level_at_submission ?? null,
           sourceChannel: i.source_channel ?? null,
           myApprovalStatus: null,
+          clientIdentity: null, // F3 — coord-only rows: client_user_id/guest_session_id not selected
           iAmCoordinator: true,
         });
       }

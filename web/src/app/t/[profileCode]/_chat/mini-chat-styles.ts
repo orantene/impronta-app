@@ -109,6 +109,57 @@ export function labelForKind(kind: GuestMessageKind): string {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Expanded 2-pane mode — dimension constants (Lane C / F4).
+// Accent drives active indicators; NO gold/rust (house rule).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Width of the expanded 2-pane panel. */
+export const EXPANDED_WIDTH = "min(720px, calc(100vw - 32px))";
+/** Max-height of the expanded 2-pane panel. */
+export const EXPANDED_MAX_HEIGHT = "min(680px, calc(100vh - 100px))";
+/** Fixed width of the left conversation-list pane when expanded. */
+export const LEFT_PANE_WIDTH = 232;
+
+/** Shared shell style for the 2-pane outer container. Applied by ExpandedChatLayout. */
+export const expandedShellStyle: CSSProperties = {
+  position: "fixed",
+  right: "max(16px, env(safe-area-inset-right))",
+  bottom: "calc(84px + env(safe-area-inset-bottom))",
+  zIndex: 90,
+  width: EXPANDED_WIDTH,
+  maxHeight: EXPANDED_MAX_HEIGHT,
+  display: "flex",
+  flexDirection: "column",
+  background: C.surface,
+  borderRadius: 18,
+  border: `1px solid ${C.border}`,
+  boxShadow:
+    "0 24px 60px -18px rgba(16,18,29,0.45), 0 6px 18px -8px rgba(16,18,29,0.25)",
+  overflow: "hidden",
+  fontFamily: FONT,
+};
+
+/** Style for the left conversation-list pane in expanded mode. */
+export const leftPaneStyle: CSSProperties = {
+  width: LEFT_PANE_WIDTH,
+  flexShrink: 0,
+  borderRight: `1px solid ${C.borderSoft}`,
+  display: "flex",
+  flexDirection: "column",
+  overflowY: "auto",
+  background: C.surfaceFaint,
+};
+
+/** Style for the right thread pane in expanded mode. */
+export const rightPaneStyle: CSSProperties = {
+  flex: 1,
+  minWidth: 0,
+  display: "flex",
+  flexDirection: "column",
+  overflow: "hidden",
+};
+
 export const inputStyle: CSSProperties = {
   flex: 1,
   minWidth: 0,

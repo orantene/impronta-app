@@ -261,8 +261,14 @@ export async function listGuestInquiries(input: {
   const portraitById = await loadTalentCardThumbs(admin, talentIds);
 
   // ── Last message per inquiry (preview + timestamp) ─────────────────────────
-  // Single batched query: newest group-thread message per inquiry.
-  // We fetch all messages for the inquiry set ordered newest-first and reduce.
+  // Single batched query: newest PRIVATE-thread message per inquiry.
+  // SECURITY: the preview MUST read the SAME thread the guest is allowed to see
+  // (readGuestVisibleMessages now filters thread_type='private'). The 'group'
+  // thread is the coordinator↔talent coordination channel — reading it here
+  // would leak an 80-char slice of internal team chat into the guest's
+  // conversation switcher on a multi-talent inquiry. Sourcing the preview from
+  // 'private' both closes that leak and keeps the preview in sync with the
+  // guest's actual messages (which moved to 'private' in the Messages-v2 flip).
   const { data: msgRows, error: msgErr } = await tenantScopedQuery(
     admin,
     "inquiry_messages",
@@ -270,7 +276,7 @@ export async function listGuestInquiries(input: {
   )
     .select("inquiry_id, body, message_kind, created_at, sender_user_id, guest_session_id")
     .in("inquiry_id", inquiryIds)
-    .eq("thread_type", "group")
+    .eq("thread_type", "private")
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
