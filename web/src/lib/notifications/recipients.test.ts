@@ -3,9 +3,10 @@
  *
  * resolveInquiryRecipients drives the fan-out for B.2 message-sent
  * notifications. The contract is:
- *   - workspaceUserIds: every active staff member's profile_id
- *   - clientUserId:     inquiries.client_user_id (or null)
- *   - talentUserIds:    each active talent participant's profile.user_id
+ *   - workspaceUserIds:   every active staff member's profile_id
+ *   - clientUserId:       inquiries.client_user_id (or null)
+ *   - talentUserIds:      each active talent participant's profile.user_id
+ *   - coordinatorUserIds: each invited/active coordinator participant's user_id
  *
  * This module is a pure resolver around a Supabase admin client. The
  * test mocks the admin client with a recorded fixture so the contract
@@ -27,11 +28,13 @@ test("InquiryNotificationRecipients shape is exhaustive", () => {
     workspaceUserIds: ["staff-1", "staff-2"],
     clientUserId: "client-1",
     talentUserIds: ["talent-1", "talent-2"],
+    coordinatorUserIds: ["coord-1"],
   };
-  // All three keys must exist + must be arrays / string|null.
+  // All keys must exist + must be arrays / string|null.
   assert.equal(Array.isArray(sample.workspaceUserIds), true);
   assert.equal(typeof sample.clientUserId === "string" || sample.clientUserId === null, true);
   assert.equal(Array.isArray(sample.talentUserIds), true);
+  assert.equal(Array.isArray(sample.coordinatorUserIds), true);
 });
 
 test("empty recipients have correct types", () => {
@@ -39,10 +42,12 @@ test("empty recipients have correct types", () => {
     workspaceUserIds: [],
     clientUserId: null,
     talentUserIds: [],
+    coordinatorUserIds: [],
   };
   assert.deepEqual(empty.workspaceUserIds, []);
   assert.equal(empty.clientUserId, null);
   assert.deepEqual(empty.talentUserIds, []);
+  assert.deepEqual(empty.coordinatorUserIds, []);
 });
 
 // Spot-check the dedup behavior we expect from Set semantics inside the
