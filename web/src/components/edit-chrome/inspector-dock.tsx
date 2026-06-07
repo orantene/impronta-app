@@ -777,19 +777,19 @@ export function InspectorDock() {
           ? "Loading…"
           : "Inspector";
   const sectionMeta = isSiteHeaderSelected
-    ? "Site shell"
+    ? "SITE SHELL"
     : selectedStandaloneBuilderNode
-      ? `Builder block · ${BUILDER_NODE_REGISTRY[selectedStandaloneBuilderNode.kind].label}`
+      ? `BUILDER BLOCK · ${BUILDER_NODE_REGISTRY[selectedStandaloneBuilderNode.kind].label.toUpperCase()}`
       : currentLoadedSection
-        ? humanizeTypeKey(currentLoadedSection.sectionTypeKey)
+        ? `BUILDER BLOCK · ${humanizeTypeKey(currentLoadedSection.sectionTypeKey).toUpperCase()}`
         : skeletonHint
-          ? humanizeTypeKey(skeletonHint.typeKey)
+          ? `BUILDER BLOCK · ${humanizeTypeKey(skeletonHint.typeKey).toUpperCase()}`
           : undefined;
   const inspectorBreadcrumbCrumbs = useMemo<
     ReadonlyArray<InspectorBreadcrumbCrumb>
   >(() => {
     if (!selectedSectionId) return [];
-    const crumbs: InspectorBreadcrumbCrumb[] = [{ id: "page", label: "Page", selectable: false }];
+    const crumbs: InspectorBreadcrumbCrumb[] = [{ id: "page", label: "Home", selectable: false }];
     // The breadcrumb shows section TYPE (e.g. "Hero"), not the content-
     // derived display name (which is what `sectionTitle` carries and
     // matches across the navigator + chip + dock title per QA-2).
@@ -847,15 +847,25 @@ export function InspectorDock() {
     [selectBuilderNode, focusSectionForEdit],
   );
   const headerMeta = useMemo(() => {
-    if (!sectionMeta && inspectorBreadcrumbCrumbs.length === 0) return undefined;
+    if (!sectionMeta && !sectionTitle && inspectorBreadcrumbCrumbs.length === 0) {
+      return undefined;
+    }
     return (
       <div className="flex min-w-0 flex-col gap-0.5">
         {sectionMeta ? (
           <span
-            className="truncate text-[10.5px] font-medium uppercase tracking-[0.06em]"
+            className="truncate text-[10px] font-semibold uppercase tracking-[0.08em]"
             style={{ color: CHROME.muted }}
           >
             {sectionMeta}
+          </span>
+        ) : null}
+        {sectionTitle && sectionTitle !== "Inspector" ? (
+          <span
+            className="truncate text-[13px] font-semibold tracking-[-0.01em]"
+            style={{ color: CHROME.ink }}
+          >
+            {sectionTitle}
           </span>
         ) : null}
         {inspectorBreadcrumbCrumbs.length > 0 ? (
@@ -898,7 +908,7 @@ export function InspectorDock() {
         ) : null}
       </div>
     );
-  }, [handleInspectorCrumbSelect, inspectorBreadcrumbCrumbs, sectionMeta]);
+  }, [handleInspectorCrumbSelect, inspectorBreadcrumbCrumbs, sectionMeta, sectionTitle]);
 
   // 2026-04-28 — Tab strip is now adaptive per section type. Sections
   // declare which tabs they meaningfully use; the strip only renders
@@ -972,7 +982,7 @@ export function InspectorDock() {
     >
       <DrawerHead
         titleId="inspector-drawer-title"
-        title={isSiteHeaderSelected ? "Site header" : sectionTitle}
+        title="Inspector"
         meta={headerMeta}
         metaWrap
         icon={
