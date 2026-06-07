@@ -935,6 +935,15 @@ export interface EditContextValue {
     revisionId: string,
   ) => Promise<{ ok: boolean; error?: string }>;
 
+  /** Request the inspector to switch tabs (e.g. floating toolbar Edit/Design). */
+  inspectorTabRequest: {
+    tab: "content" | "style" | "layout" | "data" | "responsive" | "motion";
+    nonce: number;
+  } | null;
+  requestInspectorTab: (
+    tab: "content" | "style" | "layout" | "data" | "responsive" | "motion",
+  ) => void;
+
   // ── structure navigator (left rail) ──
   /**
    * Toggle state for the left-rail Structure Navigator (Phase 3).
@@ -2538,6 +2547,18 @@ export function EditProvider({
   const [allPagesPanelOpen, setAllPagesPanelOpen] = useState(false);
   const [brandPanelOpen, setBrandPanelOpen] = useState(false);
 
+  const [inspectorTabRequest, setInspectorTabRequest] = useState<{
+    tab: "content" | "style" | "layout" | "data" | "responsive" | "motion";
+    nonce: number;
+  } | null>(null);
+  const requestInspectorTab = useCallback(
+    (
+      tab: "content" | "style" | "layout" | "data" | "responsive" | "motion",
+    ) => {
+      setInspectorTabRequest({ tab, nonce: Date.now() });
+    },
+    [],
+  );
 
   // revisions drawer state (Phase 4)
   const [revisionsOpen, setRevisionsOpen] = useState(false);
@@ -7028,6 +7049,8 @@ export function EditProvider({
       brandPanelOpen,
       toggleBrandPanel,
       closeBrandPanel,
+      inspectorTabRequest,
+      requestInspectorTab,
       savePageMetadata,
 
       revisionsOpen,
@@ -7237,6 +7260,8 @@ export function EditProvider({
       brandPanelOpen,
       toggleBrandPanel,
       closeBrandPanel,
+      inspectorTabRequest,
+      requestInspectorTab,
       savePageMetadata,
       revisionsOpen,
       openRevisions,

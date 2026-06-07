@@ -36,6 +36,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type DragEvent,
 } from "react";
 import { createPortal } from "react-dom";
@@ -65,6 +66,12 @@ import {
   type BuilderNodeKind,
   type BuilderNodeTree,
 } from "@/lib/site-admin/builder-node";
+import { getNodeClassRef } from "@/lib/site-admin/builder-node/style-classes";
+import {
+  getStyleClassRegistryServerSnapshot,
+  getStyleClassRegistrySnapshot,
+  subscribeStyleClassRegistry,
+} from "@/lib/site-admin/builder-node/style-classes-storage";
 import {
   resolveSectionHeadlineFromProps,
   sectionDisplayName,
@@ -93,7 +100,8 @@ import {
   getActiveBuilderNodePaletteDrag,
   type BuilderNodePaletteDragPayload,
 } from "./element-library-insert-picker";
-import { CHROME } from "./kit/tokens";
+import { CHROME, Z_INDEX } from "./kit/tokens";
+import { CANVAS_HUD_LEFT_INSET_PX } from "./workspace-layout";
 import { resolveLayerDisplayName } from "./freeform-layer-name";
 import { MultiSelectionMoveHandle } from "./multi-selection-move-handle";
 import { MultiSelectionToolbar } from "./multi-selection-toolbar";
@@ -120,34 +128,11 @@ const BUILDER_GAP_LAYOUT_KINDS = new Set<string>([
   "masonry",
 ]);
 
-function isEditableKeyboardTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof Element)) return false;
-  const tag = target.tagName;
-  return (
-    tag === "INPUT" ||
-    tag === "TEXTAREA" ||
-    tag === "SELECT" ||
-    (target instanceof HTMLElement && target.isContentEditable) ||
-    target.closest('[contenteditable="true"]') !== null ||
-    target.closest('[role="textbox"]') !== null
-  );
-}
-
-function hasNativeTextSelection(): boolean {
-  const selection = window.getSelection();
-  return Boolean(selection && !selection.isCollapsed && selection.toString());
-}
-
-function keyboardFocusIsOnCanvas(): boolean {
-  const active = document.activeElement;
-  if (!active || active === document.body) return true;
-  if (!(active instanceof Element)) return false;
-  return Boolean(
-    active.closest(
-      "[data-cms-section], [data-builder-node-id], [data-edit-overlay]",
-    ),
-  );
-}
+import {
+  hasNativeTextSelection,
+  isEditableKeyboardTarget,
+  keyboardFocusIsOnCanvas,
+} from "./builder-keyboard";
 
 function eventTargetElement(target: EventTarget | null): Element | null {
   if (target instanceof Element) return target;
@@ -665,6 +650,7 @@ export function SelectionLayer() {
     navigatorWidth,
     navigatorOpen,
     previewing: isEditModePreviewing,
+    requestInspectorTab,
   } = useEditContext();
 
   // W2-T3 — hover VALUES come from the hover-bridge micro-store (the setters
@@ -673,6 +659,11 @@ export function SelectionLayer() {
   // on a hover — but a hover no longer re-renders the rest of the chrome.
   const hoveredSectionId = useHoveredSectionId();
   const hoveredBuilderNodeId = useHoveredBuilderNodeId();
+  const styleClassRegistry = useSyncExternalStore(
+    subscribeStyleClassRegistry,
+    getStyleClassRegistrySnapshot,
+    getStyleClassRegistryServerSnapshot,
+  );
 
   const [portalEl, setPortalEl] = useState<HTMLElement | null>(null);
   const [hoverRect, setHoverRect] = useState<Rect | null>(null);
@@ -2366,6 +2357,20 @@ export function SelectionLayer() {
     () => findBuilderNodeById(builderTree, selectedCanvasNodeId),
     [builderTree, selectedCanvasNodeId],
   );
+  const selectedLinkedStyleClass = useMemo(() => {
+    if (!selectedBuilderNode) return null;
+    const classRef = getNodeClassRef(selectedBuilderNode);
+    if (!classRef) return null;
+    const klass = styleClassRegistry[classRef];
+    return {
+      id: classRef,
+      label: klass?.name ?? classRef,
+    };
+  }, [selectedBuilderNode, styleClassRegistry]);
+  const canvasClassBadgeLabel = selectedLinkedStyleClass
+    ? `class="${selectedLinkedStyleClass.label}"`
+    : null;
+  const canvasTopRailOffset = canvasClassBadgeLabel ? 32 : 0;
   const selectedNodeAllowedKinds = useMemo(() => {
     if (!selectedBuilderNode) return [];
     const policy = BUILDER_NODE_REGISTRY[selectedBuilderNode.kind].children;
@@ -3273,12 +3278,58 @@ export function SelectionLayer() {
         if (!childNode) return;
         e.preventDefault();
         selectBuilderNode(childNode.id);
+        return;
+      }
+
+      if (mod && e.shiftKey && !e.altKey && key === "g") {
+        if (!multiNodeSelectionActive || selectedBuilderNodeRects.length < 2) return;
+        e.preventDefault();
+        void groupSelectedBuilderNodes().then(reportResult);
+        return;
+      }
+
+      if (mod && e.shiftKey && e.altKey && key === "g") {
+        if (!canUngroupSelectedNode) return;
+        e.preventDefault();
+        void ungroupSelectedBuilderNode().then(reportResult);
+        return;
+      }
+
+      if (mod && e.shiftKey && !e.altKey && key === "l") {
+        if (!multiNodeSelectionActive || selectedBuilderNodeRects.length < 2) return;
+        e.preventDefault();
+        void alignSelectedBuilderNodes("left", selectedBuilderNodeRects).then(reportResult);
+        return;
+      }
+
+      if (mod && e.shiftKey && !e.altKey && key === "r") {
+        if (!multiNodeSelectionActive || selectedBuilderNodeRects.length < 2) return;
+        e.preventDefault();
+        void alignSelectedBuilderNodes("right", selectedBuilderNodeRects).then(reportResult);
+        return;
+      }
+
+      if (mod && e.shiftKey && !e.altKey && key === "e") {
+        if (!multiNodeSelectionActive || selectedBuilderNodeRects.length < 2) return;
+        e.preventDefault();
+        void alignSelectedBuilderNodes("center", selectedBuilderNodeRects).then(reportResult);
+        return;
+      }
+
+      if (mod && e.shiftKey && !e.altKey && key === "h") {
+        if (!multiNodeSelectionActive || selectedBuilderNodeRects.length < 3) return;
+        e.preventDefault();
+        void distributeSelectedBuilderNodes(
+          "horizontal",
+          selectedBuilderNodeRects,
+        ).then(reportResult);
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [
     canRemoveSelectedNode,
+    canUngroupSelectedNode,
     commitNodeRemoval,
     contextMenu,
     copySelectedBuilderNodes,
@@ -3289,6 +3340,9 @@ export function SelectionLayer() {
     duplicateSelectedBuilderNodes,
     focusSectionForEdit,
     getAllSelectedIds,
+    groupSelectedBuilderNodes,
+    alignSelectedBuilderNodes,
+    distributeSelectedBuilderNodes,
     multiNodeSelectionActive,
     pasteBuilderNodeClipboard,
     removeSelectedBuilderNodes,
@@ -3296,12 +3350,14 @@ export function SelectionLayer() {
     saving,
     selectBuilderNode,
     selectedBuilderNodeId,
+    selectedBuilderNodeRects,
     selectedCanvasNodeId,
     selectedNodeChildren,
     selectedNodeIsEditableBlock,
     selectedNodePath,
     selectedSectionId,
     selectedSectionNodeId,
+    ungroupSelectedBuilderNode,
   ]);
   const requestInlineEdit = useCallback(
     (nodeId?: string | null) => {
@@ -3491,10 +3547,10 @@ export function SelectionLayer() {
           style={{
             position: "fixed",
             top: 54,
-            left: navigatorOpen ? navigatorWidth : 22,
+            left: CANVAS_HUD_LEFT_INSET_PX,
             right: 0,
             height: 28,
-            zIndex: 82,
+            zIndex: Z_INDEX.selectionChrome,
             pointerEvents: "auto",
             display: "flex",
             alignItems: "center",
@@ -4107,12 +4163,50 @@ export function SelectionLayer() {
 
           {drag.phase === "idle" &&
           !multiNodeSelectionActive &&
+          selectedLinkedStyleClass &&
+          renderSelectedRect ? (
+            <div
+              data-edit-overlay="builder-node-class-badge"
+              data-builder-style-class-linked={selectedLinkedStyleClass.id}
+              title={`Linked style class: ${selectedLinkedStyleClass.label}`}
+              style={{
+                position: "fixed",
+                top: Math.max(renderSelectedRect.top + 8, 62),
+                left: renderSelectedRect.left + renderSelectedRect.width,
+                transform: "translateX(-100%)",
+                height: 28,
+                display: "inline-flex",
+                alignItems: "center",
+                padding: "0 10px",
+                background: RAIL_BG,
+                color: "rgba(255,255,255,0.92)",
+                borderRadius: CANVAS_CHROME_RADIUS,
+                boxShadow: RAIL_SHADOW,
+                backdropFilter: "blur(12px)",
+                WebkitBackdropFilter: "blur(12px)",
+                zIndex: 89,
+                pointerEvents: "none",
+                fontFamily:
+                  'ui-monospace, "SF Mono", ui-sans-serif, system-ui, monospace',
+                fontSize: 10.5,
+                fontWeight: 600,
+                letterSpacing: "-0.01em",
+                userSelect: "none",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {canvasClassBadgeLabel}
+            </div>
+          ) : null}
+
+          {drag.phase === "idle" &&
+          !multiNodeSelectionActive &&
           (canInsertIntoSelectedNode || canRemoveSelectedNode) ? (
             <div
               data-edit-overlay="builder-node-canvas-rail"
               style={{
                 position: "fixed",
-                top: Math.max(renderSelectedRect.top + 8, 62),
+                top: Math.max(renderSelectedRect.top + 8 + canvasTopRailOffset, 62),
                 left: Math.max(
                   renderSelectedRect.left + renderSelectedRect.width - 88,
                   8,
@@ -4702,6 +4796,8 @@ export function SelectionLayer() {
                 confirmRemove={confirmRemove}
                 canEditText={selectedNodeHasInlineTextTarget}
                 onResetPosition={() => commitSelectedNodeTranslate(0, 0)}
+                onEditContent={() => requestInspectorTab("content")}
+                onDesign={() => requestInspectorTab("style")}
                 onEdit={() => requestInlineEdit(selectedBuilderNodeId)}
                 onMoveUp={
                   selectedSiblingContext?.canMoveUp && selectedBuilderNodeId
@@ -4757,6 +4853,8 @@ export function SelectionLayer() {
                 confirmRemove={confirmRemove}
                 isHidden={isHidden}
                 multiCount={additionalSelectedIds.size}
+                onEditContent={() => requestInspectorTab("content")}
+                onDesign={() => requestInspectorTab("style")}
                 onMoveUp={() => {
                   if (!selectedSectionId) return;
                   void moveSection(selectedSectionId, "up");
@@ -6298,11 +6396,45 @@ function truncateNodeLabel(value: string, max: number): string {
  * ChipToolBar — the icon-button cluster on the right side of the selection chip.
  * 34×34px per button, matching `.chip-tool` from the mockup.
  */
+function ChipTextAction({
+  label,
+  disabled,
+  onClick,
+}: {
+  label: string;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className="inline-flex h-full cursor-pointer items-center gap-[5px] border-none px-[10px] text-[11px] font-semibold tracking-[-0.01em] transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+      style={{
+        background: "transparent",
+        color: "rgba(255,255,255,0.88)",
+        borderLeft: "1px solid rgba(255,255,255,0.10)",
+      }}
+      onMouseEnter={(e) => {
+        if (!disabled) e.currentTarget.style.background = "rgba(255,255,255,0.08)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = "transparent";
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
 function ChipToolBar({
   disabled,
   confirmRemove,
   isHidden,
   multiCount = 0,
+  onEditContent,
+  onDesign,
   onMoveUp,
   onMoveDown,
   onToggleHide,
@@ -6318,6 +6450,8 @@ function ChipToolBar({
    *  When > 0 the Remove confirm copy reads "Remove N+1?" so the
    *  operator sees the bulk scope before committing. */
   multiCount?: number;
+  onEditContent: () => void;
+  onDesign: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
   onToggleHide: () => void;
@@ -6390,6 +6524,12 @@ function ChipToolBar({
 
   return (
     <div style={{ display: "inline-flex", height: "100%", alignItems: "stretch" }}>
+      <ChipTextAction
+        label="Edit Content"
+        disabled={disabled}
+        onClick={onEditContent}
+      />
+      <ChipTextAction label="Design" disabled={disabled} onClick={onDesign} />
       <ChipBtn
         style={btnStyle}
         disabled={disabled}
@@ -6455,6 +6595,8 @@ function BlockChipToolBar({
   confirmRemove,
   canEditText,
   onResetPosition,
+  onEditContent,
+  onDesign,
   onEdit,
   onMoveUp,
   onMoveDown,
@@ -6474,6 +6616,8 @@ function BlockChipToolBar({
   // is a no-op, so we omit the affordance instead of showing a dead button.
   canEditText: boolean;
   onResetPosition: () => void;
+  onEditContent: () => void;
+  onDesign: () => void;
   onEdit: () => void;
   onMoveUp: (() => void) | null;
   onMoveDown: (() => void) | null;
@@ -6549,10 +6693,13 @@ function BlockChipToolBar({
       data-selection-block-toolbar=""
       style={{ display: "inline-flex", height: "100%", alignItems: "stretch" }}
     >
-      {/* PRIMARY actions — kept on the chip. Secondary actions
-          (reset-position, add-before, move-up, move-down, copy) live in the
-          overflow menu opened by the "More" button below, so the chip stays
-          to ~4 high-frequency affordances. */}
+      <ChipTextAction
+        label="Edit Content"
+        disabled={disabled}
+        onClick={onEditContent}
+      />
+      <ChipTextAction label="Design" disabled={disabled} onClick={onDesign} />
+      {/* Inline pencil edit remains for text blocks; inspector tabs above. */}
       {canEditText ? (
         <ChipBtn
           style={btnStyle}

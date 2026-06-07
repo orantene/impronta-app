@@ -81,6 +81,8 @@ import {
   normalizeBuilderDataBinding,
   type BuilderNode,
 } from "@/lib/site-admin/builder-node";
+import { isBuilderClientCanvasEnabled } from "@/lib/site-admin/edit-mode/client-canvas-flag";
+import { sectionTypeHasLiveData } from "@/lib/site-admin/sections/section-live-data";
 
 type TabKey = "content" | "layout" | "style" | "data" | "responsive" | "motion";
 
@@ -356,6 +358,11 @@ export function InspectorDock() {
   }, [selectedSectionId, slots]);
 
   const [tab, setTab] = useState<TabKey>("content");
+  const { inspectorTabRequest } = useEditContext();
+  useEffect(() => {
+    if (!inspectorTabRequest) return;
+    setTab(inspectorTabRequest.tab);
+  }, [inspectorTabRequest]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -517,15 +524,17 @@ export function InspectorDock() {
           sectionTypeKey: loaded.sectionTypeKey,
           props: snapshot,
         });
-        // Server-rendered canvas re-renders ONLY after a router.refresh.
-        // Without this, clicking a layout chip ("Split", "Overlay") flips
-        // the inspector's chip-active state but leaves the canvas showing
-        // the previous variant — the operator clicks and "nothing
-        // happens." `upsertSection` already busted the section + sections-all
-        // cache tags, so this refresh hits fresh data immediately.
-        startRefreshTransition(() => {
-          void queueRouterRefresh();
-        });
+        // Pure-render curated sections already repaint on the client canvas
+        // after syncBuilderNodeChildrenForSection; skip the server round-trip
+        // unless the section type loads live data (roster/catalog islands).
+        if (
+          !isBuilderClientCanvasEnabled() ||
+          sectionTypeHasLiveData(loaded.sectionTypeKey)
+        ) {
+          startRefreshTransition(() => {
+            void queueRouterRefresh();
+          });
+        }
         return;
       }
       if (result.code === "VERSION_CONFLICT") {
@@ -842,19 +851,34 @@ export function InspectorDock() {
     return (
       <div className="flex min-w-0 flex-col gap-0.5">
         {sectionMeta ? (
-          <span className="truncate text-[10.5px] font-medium uppercase tracking-[0.06em] text-stone-500">
+          <span
+            className="truncate text-[10.5px] font-medium uppercase tracking-[0.06em]"
+            style={{ color: CHROME.muted }}
+          >
             {sectionMeta}
           </span>
         ) : null}
         {inspectorBreadcrumbCrumbs.length > 0 ? (
-          <span className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 text-[11px] text-stone-600">
+          <span
+            className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 text-[11px]"
+            style={{ color: CHROME.text }}
+          >
             {inspectorBreadcrumbCrumbs.map((crumb, index) => (
               <span key={`${crumb.id}:${index}`} className="inline-flex min-w-0 items-center">
                 {crumb.selectable ? (
                   <button
                     type="button"
                     onClick={() => handleInspectorCrumbSelect(crumb)}
-                    className="min-w-0 max-w-[170px] truncate rounded-[3px] px-1 text-left transition hover:bg-stone-100 hover:text-stone-800"
+                    className="min-w-0 max-w-[170px] truncate rounded-[3px] px-1 text-left transition"
+                    style={{ color: CHROME.text }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = CHROME.paper;
+                      e.currentTarget.style.color = CHROME.ink;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "transparent";
+                      e.currentTarget.style.color = CHROME.text;
+                    }}
                     title={crumb.label}
                     aria-label={`Select ${crumb.label}`}
                   >
@@ -864,7 +888,7 @@ export function InspectorDock() {
                   <span className="truncate px-1">{crumb.label}</span>
                 )}
                 {index < inspectorBreadcrumbCrumbs.length - 1 ? (
-                  <span className="px-0.5 text-stone-500" aria-hidden>
+                  <span className="px-0.5" style={{ color: CHROME.muted }} aria-hidden>
                     &gt;
                   </span>
                 ) : null}
@@ -939,12 +963,12 @@ export function InspectorDock() {
       kind="dock"
       open={dockOpen}
       zIndex={85}
-      className="max-lg:hidden"
       testId="inspector-dock"
       ariaLabelledBy="inspector-drawer-title"
       floating
       floatLabel="Inspector"
       floatPanelId="inspector"
+      compactBottomSheetBelowLg
     >
       <DrawerHead
         titleId="inspector-drawer-title"
