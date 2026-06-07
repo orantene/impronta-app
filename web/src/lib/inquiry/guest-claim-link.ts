@@ -31,7 +31,8 @@ import "server-only";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { sendEmail } from "@/lib/email";
+import { improntaLog } from "@/lib/server/structured-log";
+import { sendEmailResult } from "@/lib/email";
 import { resolveTenantBrand } from "@/lib/brand/resolve-tenant-brand";
 
 export type SendGuestClaimEmailArgs = {
@@ -50,18 +51,32 @@ export type SendGuestClaimEmailArgs = {
   tenantId?: string | null;
 };
 
+export type SendGuestClaimEmailResult =
+  | { ok: true }
+  | {
+      ok: false;
+      reason: "no_admin" | "no_email" | "link_failed" | "skipped" | "send_failed";
+      detail?: string;
+    };
+
 /**
  * Email the guest a magic-link that signs them in and drops them into their
- * client Messages, where their conversation is waiting. Fire-and-forget:
- * NEVER throws — every failure is logged and swallowed.
+ * client Messages, where their conversation is waiting.
+ *
+ * Returns whether Resend actually accepted the message. Callers that show
+ * "check your inbox" MUST gate on `ok: true` — when RESEND_API_KEY is unset
+ * (local dev) this returns `{ ok: false, reason: "skipped" }` instead of
+ * pretending the mail went out.
  */
-export async function sendGuestClaimEmail(args: SendGuestClaimEmailArgs): Promise<void> {
+export async function sendGuestClaimEmail(
+  args: SendGuestClaimEmailArgs,
+): Promise<SendGuestClaimEmailResult> {
   try {
     const admin = createServiceRoleClient();
-    if (!admin) return;
+    if (!admin) return { ok: false, reason: "no_admin" };
 
     const email = args.email.trim().toLowerCase();
-    if (!email) return;
+    if (!email) return { ok: false, reason: "no_email" };
 
     const appUrl = args.appUrl.replace(/\/$/, "");
     const next = `/${args.tenantSlug}/client/messages`;
@@ -81,7 +96,11 @@ export async function sendGuestClaimEmail(args: SendGuestClaimEmailArgs): Promis
     const tokenHash = data?.properties?.hashed_token;
     if (error || !tokenHash) {
       if (error) logServerError("guest-claim-link/generateLink", error);
-      return;
+      return {
+        ok: false,
+        reason: "link_failed",
+        detail: error?.message,
+      };
     }
     const claimLink = `${appUrl}/auth/confirm?token_hash=${encodeURIComponent(
       tokenHash,
@@ -90,15 +109,39 @@ export async function sendGuestClaimEmail(args: SendGuestClaimEmailArgs): Promis
     const brand = await resolveTenantBrand(args.tenantId ?? "");
     const { subject, html } = _buildClaimEmail(claimLink, args.talentName, brand);
 
-    await sendEmail({
+    const sendResult = await sendEmailResult({
       to: email,
       subject,
       html,
       tenantId: args.tenantId ?? null,
       tenantName: brand.accountName,
     });
+
+    if (sendResult.status === "sent") {
+      return { ok: true };
+    }
+
+    if (sendResult.status === "skipped") {
+      void improntaLog("email.warn", {
+        message: "[guest-claim-link] RESEND_API_KEY not set — claim email skipped",
+        email,
+        subject,
+      });
+      return { ok: false, reason: "skipped" };
+    }
+
+    return {
+      ok: false,
+      reason: "send_failed",
+      detail: sendResult.error,
+    };
   } catch (err) {
     logServerError("guest-claim-link/sendGuestClaimEmail", err);
+    return {
+      ok: false,
+      reason: "send_failed",
+      detail: err instanceof Error ? err.message : String(err),
+    };
   }
 }
 

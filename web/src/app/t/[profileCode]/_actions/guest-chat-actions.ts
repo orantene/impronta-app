@@ -54,11 +54,14 @@ import { getAppUrl } from "@/lib/auth-flow";
 import type {
   AddGuestClaimEmailInput,
   AddGuestClaimEmailResult,
+  CheckGuestClaimEmailInput,
+  CheckGuestClaimEmailResult,
   GetActiveGuestInquiryResult,
   GetGuestThreadInput,
   GetGuestThreadResult,
   GuestChatErrorCode,
   GuestChatFailure,
+  GuestClaimEmailStatus,
   GuestIdentityTier,
   GuestMessageAuthorRole,
   GuestMessageKind,
@@ -530,16 +533,21 @@ export async function startGuestChatInquiry(
     return fail("forbidden", "Unable to send your message.");
   }
 
-  const contactName = input.contactName?.trim() ?? "";
+  const contactFirstName = input.contactFirstName?.trim() ?? "";
+  const contactLastName = input.contactLastName?.trim() ?? "";
+  const contactName =
+    input.contactName?.trim() ||
+    [contactFirstName, contactLastName].filter(Boolean).join(" ");
   const contactEmail = input.contactEmail?.trim() ?? "";
   const firstMessage = input.firstMessage?.trim() ?? "";
 
   const missing: string[] = [];
+  if (!contactFirstName) missing.push("requester.first_name");
   if (!contactName) missing.push("requester.name");
   if (!contactEmail) missing.push("requester.email");
   if (!firstMessage) missing.push("brief.summary");
   if (missing.length > 0) {
-    return fail("validation_failed", "Add your name, email, and a message to start.", {
+    return fail("validation_failed", "Add your first name, email, and a message to start.", {
       missingFields: missing,
     });
   }
@@ -581,6 +589,8 @@ export async function startGuestChatInquiry(
   const provisioned = await ensureGuestClientByEmail({
     email: contactEmail,
     name: contactName,
+    firstName: contactFirstName,
+    lastName: contactLastName,
     company: "",
     phone: input.contactPhone?.trim() ?? "",
   });
@@ -772,14 +782,11 @@ export async function startGuestChatInquiry(
     talentProfileId,
   });
 
-  // GUEST → CLIENT CLAIM (best-effort, non-blocking): email the guest a
-  // magic-link so they can sign in (passwordless, proves email ownership now
-  // that confirmations are ON) and continue THIS conversation from the client
-  // Messages surface. Only when a real client account was provisioned/matched —
-  // an "unlinked" guest (the email belongs to staff/talent) has no account to
-  // claim, so we never email a sign-in link there. sendGuestClaimEmail swallows
-  // all failures (the inquiry is already created); we await it but the function
-  // contract is void/never-throws.
+  // GUEST → CLIENT CLAIM (best-effort): email the guest a magic-link so they can
+  // sign in (passwordless, proves email ownership) and continue THIS conversation
+  // from the client Messages surface. Only when a real client account was
+  // provisioned/matched — an "unlinked" guest has no account to claim.
+  let claimEmailSent = false;
   if (provisioned.clientUserId) {
     // Talent display name for the subject/body — best-effort; fall back to the
     // agency name so the copy is never empty.
@@ -796,13 +803,20 @@ export async function startGuestChatInquiry(
       talentName = (await loadAgencyName(admin, tenantId)) ?? "the team";
     }
 
-    await sendGuestClaimEmail({
+    const claimResult = await sendGuestClaimEmail({
       email: contactEmail,
       tenantSlug: input.tenantSlug,
       talentName,
       appUrl: getAppUrl(),
       tenantId,
     });
+    claimEmailSent = claimResult.ok;
+    if (!claimResult.ok) {
+      logServerError(
+        "guest-chat-actions.startGuestChatInquiry/claimEmail",
+        new Error(`${claimResult.reason}${claimResult.detail ? `: ${claimResult.detail}` : ""}`),
+      );
+    }
   }
 
   // Load the inquiry as an OwnedInquiry to read back the opening + auto-ack.
@@ -817,6 +831,7 @@ export async function startGuestChatInquiry(
         openingMessage: synthOpeningMessage(inquiryId, sent.data?.messageId ?? "", firstMessage),
         autoAckMessage: emittedAutoAck,
         guestEmail: contactEmail,
+        claimEmailSent,
         guestActivation: provisioned.status,
       };
     }
@@ -838,6 +853,7 @@ export async function startGuestChatInquiry(
     openingMessage,
     autoAckMessage,
     guestEmail: contactEmail,
+    claimEmailSent,
     guestActivation: provisioned.status,
   };
 }
@@ -974,6 +990,119 @@ export async function sendGuestMessageAction(
   return { ok: true, message: synthOpeningMessage(owned.inquiry.id, messageId, body) };
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Guest claim-email lookup — shared by checkGuestClaimEmail + sendGuestClaimToEmail.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const TEAM_EMAIL_MSG =
+  "That email is already tied to a team account — try a personal email instead.";
+const REGISTERED_REPLACE_MSG =
+  "This email is already registered. Sign in with that account, or use a different email.";
+const REGISTERED_GATE_MSG =
+  "This email already has a Tulala account — we'll send a sign-in link after you send your message.";
+const REGISTERED_SAME_MSG =
+  "This is the email on your conversation — we'll send a sign-in link here.";
+
+function claimEmailFailureMessage(reason: string | undefined): string {
+  if (reason === "skipped") {
+    return "Email delivery isn't configured in this environment — sign-in links can't be sent from local dev without RESEND_API_KEY.";
+  }
+  return "Couldn't send the sign-in link. Please try again in a moment.";
+}
+
+type ClaimEmailLookup = {
+  status: GuestClaimEmailStatus;
+  matchedUserId: string | null;
+  message?: string;
+  blocksSubmit?: boolean;
+};
+
+async function lookupGuestClaimEmail(
+  admin: SupabaseClient,
+  email: string,
+  inquiryClientUserId: string | null,
+  opts: { replacePrimary: boolean },
+): Promise<ClaimEmailLookup> {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized) return { status: "available", matchedUserId: null };
+
+  const { data: matchRows, error: matchErr } = await admin.rpc(
+    "find_auth_user_identity_by_email",
+    { p_email: normalized },
+  );
+  if (matchErr) {
+    logServerError("guest-chat-actions.lookupGuestClaimEmail", matchErr);
+    return { status: "available", matchedUserId: null };
+  }
+
+  const match = Array.isArray(matchRows) ? matchRows[0] : null;
+  if (!match?.user_id) return { status: "available", matchedUserId: null };
+
+  const role = match.app_role as string | null;
+  if (role === "super_admin" || role === "agency_staff" || role === "talent") {
+    return {
+      status: "team_account",
+      matchedUserId: match.user_id as string,
+      message: TEAM_EMAIL_MSG,
+      blocksSubmit: opts.replacePrimary,
+    };
+  }
+
+  const matchedUserId = match.user_id as string;
+  if (inquiryClientUserId && matchedUserId === inquiryClientUserId) {
+    return {
+      status: "same_account",
+      matchedUserId,
+      message: REGISTERED_SAME_MSG,
+    };
+  }
+
+  if (opts.replacePrimary) {
+    return {
+      status: "already_registered",
+      matchedUserId,
+      message: REGISTERED_REPLACE_MSG,
+      blocksSubmit: true,
+    };
+  }
+
+  return {
+    status: "already_registered",
+    matchedUserId,
+    message: REGISTERED_GATE_MSG,
+    blocksSubmit: false,
+  };
+}
+
+export async function checkGuestClaimEmail(
+  input: CheckGuestClaimEmailInput,
+): Promise<CheckGuestClaimEmailResult> {
+  const email = input.email?.trim() ?? "";
+  if (!email) return { ok: true, status: "available" };
+
+  const guest = await resolveGuestContext();
+  if (!guest.ok) return guest.failure;
+  const { admin, guestSessionId } = guest.ctx;
+
+  let inquiryClientUserId: string | null = null;
+  if (input.inquiryId) {
+    const owned = await loadOwnedInquiry(admin, input.inquiryId, guestSessionId);
+    if (!owned.ok) return owned.failure;
+    inquiryClientUserId = owned.inquiry.clientUserId;
+  }
+
+  const lookup = await lookupGuestClaimEmail(admin, email, inquiryClientUserId, {
+    replacePrimary: Boolean(input.replacePrimary),
+  });
+
+  return {
+    ok: true,
+    status: lookup.status,
+    message: lookup.message,
+    blocksSubmit: lookup.blocksSubmit,
+  };
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 // 3b-bis. sendGuestClaimToEmail — send the claim/sign-in link to a different OR
 // additional email and register that account as a claim CANDIDATE on the
@@ -1000,6 +1129,23 @@ export async function sendGuestClaimToEmail(
   // client-supplied session; this is the same gate the other guest actions use.
   const owned = await loadOwnedInquiry(admin, input.inquiryId, guestSessionId);
   if (!owned.ok) return owned.failure;
+
+  const emailLookup = await lookupGuestClaimEmail(
+    admin,
+    email,
+    owned.inquiry.clientUserId,
+    { replacePrimary: Boolean(input.replacePrimary) },
+  );
+  if (emailLookup.blocksSubmit) {
+    return fail(
+      "validation_failed",
+      emailLookup.message ?? REGISTERED_REPLACE_MSG,
+      { missingFields: ["email"] },
+    );
+  }
+  if (emailLookup.status === "team_account") {
+    return fail("forbidden", emailLookup.message ?? TEAM_EMAIL_MSG);
+  }
 
   // ── Anti-abuse gate: rate-limit on TARGET email + IP + tenant so an attacker
   // who owns one inquiry cannot spam claim emails to arbitrary addresses.
@@ -1029,12 +1175,24 @@ export async function sendGuestClaimToEmail(
     }
   }
 
+  // Register the account as a claim candidate (deduped) so the first-confirm-wins
+  // relink in /auth/confirm recognizes it. Read-modify-write the uuid[] array.
+  const { data: row, error: readErr } = await admin
+    .from("inquiries")
+    .select("claim_candidate_user_ids, contact_email, contact_name, interpreted_query")
+    .eq("id", owned.inquiry.id)
+    .maybeSingle();
+  if (readErr) {
+    logServerError("guest-chat-actions.sendGuestClaimToEmail/readCandidates", readErr);
+    return fail("engine_error", "Couldn't send the link. Please try again.");
+  }
+
   // Provision (or match) a client account for this email. "unlinked" means the
   // email belongs to a privileged (staff/talent) account — there is no client
   // account to claim, so we refuse politely and never email a sign-in link there.
   const provisioned = await ensureGuestClientByEmail({
     email,
-    name: "",
+    name: ((row?.contact_name as string | null) ?? "").trim(),
     company: "",
     phone: "",
   });
@@ -1045,24 +1203,42 @@ export async function sendGuestClaimToEmail(
     );
   }
 
-  // Register the account as a claim candidate (deduped) so the first-confirm-wins
-  // relink in /auth/confirm recognizes it. Read-modify-write the uuid[] array.
-  const { data: row, error: readErr } = await admin
-    .from("inquiries")
-    .select("claim_candidate_user_ids")
-    .eq("id", owned.inquiry.id)
-    .maybeSingle();
-  if (readErr) {
-    logServerError("guest-chat-actions.sendGuestClaimToEmail/readCandidates", readErr);
-    return fail("engine_error", "Couldn't send the link. Please try again.");
-  }
   const existing = ((row?.claim_candidate_user_ids as string[] | null) ?? []).filter(Boolean);
-  if (!existing.includes(provisioned.clientUserId)) {
-    const next = [...existing, provisioned.clientUserId];
+  const normalizedNew = email.trim().toLowerCase();
+  const normalizedOld = ((row?.contact_email as string | null) ?? "").trim().toLowerCase();
+  const shouldReplacePrimary =
+    Boolean(input.replacePrimary) && normalizedNew.length > 0 && normalizedNew !== normalizedOld;
+
+  const candidatePatch: {
+    claim_candidate_user_ids: string[];
+    contact_email?: string;
+    client_user_id?: string;
+    interpreted_query?: Record<string, unknown>;
+  } = {
+    claim_candidate_user_ids: existing.includes(provisioned.clientUserId)
+      ? existing
+      : [...existing, provisioned.clientUserId],
+  };
+
+  if (shouldReplacePrimary) {
+    candidatePatch.contact_email = normalizedNew;
+    candidatePatch.client_user_id = provisioned.clientUserId;
+    const iq = (row?.interpreted_query as Record<string, unknown> | null) ?? {};
+    const requester = (iq.requester as Record<string, unknown> | null) ?? {};
+    candidatePatch.interpreted_query = {
+      ...iq,
+      requester: { ...requester, email: normalizedNew },
+    };
+  }
+
+  const candidatesChanged =
+    candidatePatch.claim_candidate_user_ids.length !== existing.length || shouldReplacePrimary;
+  if (candidatesChanged) {
     const { error: writeErr } = await admin
       .from("inquiries")
-      .update({ claim_candidate_user_ids: next })
-      .eq("id", owned.inquiry.id);
+      .update(candidatePatch)
+      .eq("id", owned.inquiry.id)
+      .eq("guest_session_id", guestSessionId);
     if (writeErr) {
       logServerError("guest-chat-actions.sendGuestClaimToEmail/writeCandidates", writeErr);
       return fail("engine_error", "Couldn't send the link. Please try again.");
@@ -1100,14 +1276,22 @@ export async function sendGuestClaimToEmail(
     .maybeSingle();
   const tenantSlug = (tenantRow?.slug as string | null) ?? "";
 
-  // Send the magic-link. Reuses the existing module (swallows all failures).
-  await sendGuestClaimEmail({
+  // Send the magic-link. Fail loudly when Resend didn't accept the message so
+  // the UI never shows "check your inbox" for a mail that never left.
+  const claimResult = await sendGuestClaimEmail({
     email,
     tenantSlug,
     talentName,
     appUrl: getAppUrl(),
     tenantId: owned.inquiry.tenantId,
   });
+  if (!claimResult.ok) {
+    logServerError(
+      "guest-chat-actions.sendGuestClaimToEmail/claimEmail",
+      new Error(`${claimResult.reason}${claimResult.detail ? `: ${claimResult.detail}` : ""}`),
+    );
+    return fail("engine_error", claimEmailFailureMessage(claimResult.reason));
+  }
 
   return { ok: true, email };
 }

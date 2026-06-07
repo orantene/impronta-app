@@ -30,11 +30,11 @@
  * no manual useCallback/useMemo. Brand accent via mini-chat-styles tokens.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import type { AddClaimEmailCallback } from "@/lib/inquiry/guest-chat-contract";
+import type { AddClaimEmailCallback, CheckGuestClaimEmailCallback } from "@/lib/inquiry/guest-chat-contract";
 
-import { C } from "./mini-chat-styles";
+import { C, EMAIL_RE, inputStyle, primaryBtnStyle } from "./mini-chat-styles";
 
 /** Trust-tier identity union (kept LOCAL to this lane; integration promotes it). */
 export type GuestAccountToolkitIdentity =
@@ -42,6 +42,8 @@ export type GuestAccountToolkitIdentity =
   | "identified"
   | "email_verified"
   | "account";
+
+const RESEND_COOLDOWN_SECS = 30;
 
 export type GuestAccountToolkitProps = {
   /** The inquiry the claim email is registered against. Null pre-first-send. */
@@ -59,6 +61,13 @@ export type GuestAccountToolkitProps = {
    * panel passes to ClaimEmailRecap). Null hides the action.
    */
   onAddClaimEmail: AddClaimEmailCallback | null;
+  /** Read-only probe for already-registered addresses (change-email form). */
+  onCheckClaimEmail?: CheckGuestClaimEmailCallback | null;
+  /**
+   * Called when the guest corrects their primary contact email so the panel can
+   * sync emailedTo / gate prefill.
+   */
+  onGuestEmailUpdated?: (email: string) => void;
   /**
    * When true, demote the CTA button from a filled accent button to a
    * secondary/outline style so there is only ONE primary CTA in the panel at
@@ -75,11 +84,65 @@ export function GuestAccountToolkit({
   accent,
   accentInk,
   onAddClaimEmail,
+  onCheckClaimEmail,
+  onGuestEmailUpdated,
   deemphasizeButton = false,
 }: GuestAccountToolkitProps) {
   const [sending, setSending] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [cooldownSecs, setCooldownSecs] = useState(0);
+  const [showChangeEmail, setShowChangeEmail] = useState(false);
+  const [editEmail, setEditEmail] = useState("");
+  const [editEmailNotice, setEditEmailNotice] = useState<string | null>(null);
+  const [editEmailBlocksSubmit, setEditEmailBlocksSubmit] = useState(false);
+
+  useEffect(() => {
+    if (cooldownSecs <= 0) return;
+    const timer = window.setTimeout(() => {
+      setCooldownSecs((cur) => Math.max(0, cur - 1));
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [cooldownSecs]);
+
+  useEffect(() => {
+    if (!showChangeEmail || !onCheckClaimEmail || !inquiryId) {
+      setEditEmailNotice(null);
+      setEditEmailBlocksSubmit(false);
+      return;
+    }
+
+    const addr = editEmail.trim();
+    if (!EMAIL_RE.test(addr)) {
+      setEditEmailNotice(null);
+      setEditEmailBlocksSubmit(false);
+      return;
+    }
+
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        const res = await onCheckClaimEmail({
+          email: addr,
+          inquiryId,
+          replacePrimary: true,
+        });
+        if (cancelled) return;
+        if (!res.ok) {
+          setEditEmailNotice(null);
+          setEditEmailBlocksSubmit(false);
+          return;
+        }
+        setEditEmailNotice(res.message ?? null);
+        setEditEmailBlocksSubmit(Boolean(res.blocksSubmit));
+      })();
+    }, 350);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [editEmail, inquiryId, onCheckClaimEmail, showChangeEmail]);
 
   // A registered client has nothing to claim — hide entirely.
   if (identity === "account") return null;
@@ -97,20 +160,102 @@ export function GuestAccountToolkit({
   }
 
   const email = guestEmail?.trim() || null;
-  const canSend = !!onAddClaimEmail && !!inquiryId && !!email && !sending;
+  const inCooldown = cooldownSecs > 0;
+  const canSend =
+    !!onAddClaimEmail && !!inquiryId && !!email && !sending && !inCooldown;
 
-  async function sendLink() {
-    if (!onAddClaimEmail || !inquiryId || !email || sending) return;
+  function startCooldown() {
+    setCooldownSecs(RESEND_COOLDOWN_SECS);
+  }
+
+  async function sendLink(targetEmail: string, replacePrimary = false) {
+    if (!onAddClaimEmail || !inquiryId || sending || inCooldown) return;
+    const addr = targetEmail.trim();
+    if (!EMAIL_RE.test(addr)) {
+      setError("Enter a valid email address.");
+      return;
+    }
+
     setSending(true);
     setError(null);
-    const res = await onAddClaimEmail({ inquiryId, email });
+
+    const res = await onAddClaimEmail({
+      inquiryId,
+      email: addr,
+      replacePrimary,
+    });
+
     setSending(false);
+
     if (!res.ok) {
       setError(res.message || "Couldn't send the link. Please try again.");
       return;
     }
-    setSentTo(res.email || email);
+
+    const confirmed = res.email || addr;
+    setSentTo(confirmed);
+    startCooldown();
+
+    if (replacePrimary && confirmed !== email) {
+      onGuestEmailUpdated?.(confirmed);
+      setShowChangeEmail(false);
+    }
   }
+
+  function openChangeEmail() {
+    setEditEmail(email ?? "");
+    setShowChangeEmail(true);
+    setError(null);
+    setEditEmailNotice(null);
+    setEditEmailBlocksSubmit(false);
+  }
+
+  const editSameAsCurrent =
+    EMAIL_RE.test(editEmail.trim()) &&
+    editEmail.trim().toLowerCase() === (email ?? "").trim().toLowerCase();
+
+  const editReady =
+    EMAIL_RE.test(editEmail.trim()) &&
+    !sending &&
+    !inCooldown &&
+    !editEmailBlocksSubmit &&
+    !editSameAsCurrent;
+
+  const primaryBtnStyleResolved = deemphasizeButton
+    ? {
+        alignSelf: "flex-start",
+        height: 32,
+        padding: "0 14px",
+        borderRadius: 8,
+        border: `1.5px solid ${accent}`,
+        background: "transparent",
+        color: accent,
+        fontSize: 12,
+        fontWeight: 600,
+        cursor: canSend ? "pointer" : "not-allowed",
+        opacity: canSend ? 1 : 0.55,
+        transition: "opacity 120ms",
+      }
+    : {
+        alignSelf: "flex-start",
+        height: 32,
+        padding: "0 14px",
+        borderRadius: 8,
+        border: "none",
+        background: accent,
+        color: accentInk,
+        fontSize: 12,
+        fontWeight: 600,
+        cursor: canSend ? "pointer" : "not-allowed",
+        opacity: canSend ? 1 : 0.55,
+        transition: "opacity 120ms",
+      };
+
+  const resendLabel = sending
+    ? "Sending…"
+    : inCooldown
+      ? `Try again in ${cooldownSecs}s`
+      : "Email me a sign-in link";
 
   return (
     <div style={cardStyle}>
@@ -125,53 +270,129 @@ export function GuestAccountToolkit({
         </div>
       </div>
 
-      {/* Confirmation once the link has been sent. */}
-      {sentTo ? (
+      {sentTo && (
         <div style={{ fontSize: 11.5, color: C.inkMuted }}>
           Check <strong style={{ color: C.ink }}>{sentTo}</strong> for your sign-in link.
         </div>
-      ) : email ? (
-        <button
-          type="button"
-          onClick={() => void sendLink()}
-          disabled={!canSend}
-          style={
-            deemphasizeButton
-              ? {
-                  // Secondary/outline style — accent text + border, no fill.
-                  // Ensures only one primary (filled) CTA is visible when
-                  // OpenFullConversationLink is already the filled accent action.
-                  alignSelf: "flex-start",
-                  height: 32,
-                  padding: "0 14px",
-                  borderRadius: 8,
-                  border: `1.5px solid ${accent}`,
-                  background: "transparent",
-                  color: accent,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: canSend ? "pointer" : "not-allowed",
-                  opacity: canSend ? 1 : 0.55,
-                  transition: "opacity 120ms",
-                }
-              : {
-                  alignSelf: "flex-start",
-                  height: 32,
-                  padding: "0 14px",
-                  borderRadius: 8,
-                  border: "none",
-                  background: accent,
-                  color: accentInk,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: canSend ? "pointer" : "not-allowed",
-                  opacity: canSend ? 1 : 0.55,
-                  transition: "opacity 120ms",
-                }
-          }
-        >
-          {sending ? "Sending…" : "Email me a sign-in link"}
-        </button>
+      )}
+
+      {email ? (
+        <>
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => void sendLink(email)}
+              disabled={!canSend}
+              style={primaryBtnStyleResolved}
+            >
+              {resendLabel}
+            </button>
+
+            {onAddClaimEmail && !showChangeEmail && (
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontSize: 11.5,
+                  color: C.inkMuted,
+                }}
+              >
+                <span>or</span>
+                <button
+                  type="button"
+                  onClick={openChangeEmail}
+                  style={textLinkStyle}
+                >
+                  change email
+                </button>
+              </div>
+            )}
+          </div>
+
+          {showChangeEmail && onAddClaimEmail && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={{ fontSize: 11, color: C.inkMuted }}>
+                Your email
+              </label>
+              <input
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (editReady) void sendLink(editEmail, true);
+                  }
+                }}
+                placeholder="name@example.com"
+                type="email"
+                autoComplete="email"
+                style={{ ...inputStyle, fontSize: 12 }}
+              />
+              {editSameAsCurrent && !editEmailNotice && (
+                <div
+                  role="status"
+                  style={{
+                    fontSize: 11,
+                    lineHeight: 1.45,
+                    color: C.inkMuted,
+                  }}
+                >
+                  This is already the email on this conversation.
+                </div>
+              )}
+              {editEmailNotice && (
+                <div
+                  role={editEmailBlocksSubmit ? "alert" : "status"}
+                  style={{
+                    fontSize: 11,
+                    lineHeight: 1.45,
+                    color: editEmailBlocksSubmit ? C.danger : C.inkMuted,
+                  }}
+                >
+                  {editEmailNotice}
+                </div>
+              )}
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => void sendLink(editEmail, true)}
+                  disabled={!editReady}
+                  style={{
+                    ...primaryBtnStyle(accent, accentInk),
+                    width: "auto",
+                    padding: "0 12px",
+                    height: 32,
+                    fontSize: 12,
+                    opacity: editReady ? 1 : 0.5,
+                    cursor: editReady ? "pointer" : "not-allowed",
+                  }}
+                >
+                  {sending ? "Saving…" : inCooldown ? `Wait ${cooldownSecs}s` : "Save & send link"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowChangeEmail(false);
+                    setError(null);
+                    setEditEmailNotice(null);
+                    setEditEmailBlocksSubmit(false);
+                  }}
+                  style={textLinkStyle}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       ) : (
         <div style={{ fontSize: 11, color: C.inkDim, fontStyle: "italic" }}>
           Type a message below to get started.
@@ -213,4 +434,14 @@ const savedWrapStyle = {
   color: C.inkMuted,
   padding: "2px 8px",
   textAlign: "center",
+} as const;
+
+const textLinkStyle = {
+  border: "none",
+  background: "transparent",
+  color: C.inkMuted,
+  fontSize: 11.5,
+  textDecoration: "underline",
+  cursor: "pointer",
+  padding: "1px 2px",
 } as const;

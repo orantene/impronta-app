@@ -1,5 +1,6 @@
 import "server-only";
 
+import { getAppUrl } from "@/lib/auth-flow";
 import type { EmailBrand } from "@/lib/brand/resolve-tenant-brand";
 import type { RecipientRole } from "./types";
 
@@ -17,6 +18,15 @@ import type { RecipientRole } from "./types";
  */
 export function pageUrl(brand: EmailBrand, path: string): string {
   return `${brand.homeHref.replace(/\/$/, "")}${path}`;
+}
+
+/**
+ * Build an absolute URL on the app host (dashboard / messages surfaces).
+ * Marketing-host links 404 on `/client/*`; transactional CTAs must land here.
+ */
+export function appPageUrl(path: string): string {
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  return `${getAppUrl().replace(/\/$/, "")}${normalized}`;
 }
 
 /**
@@ -40,6 +50,31 @@ export function inquiryPathForRole(
         ? "/admin/work"
         : "/client/inquiries";
   return inquiryId ? `${base}/${inquiryId}` : base;
+}
+
+/**
+ * Role-aware deep link with tenant slug when the canonical surface is
+ * workspace-scoped (client messages, admin work). Used by digest emails and
+ * any CTA that must land on the app host dashboard, not the marketing apex.
+ */
+export function inquiryDeepLinkForRole(
+  role: RecipientRole | undefined,
+  inquiryId: string | null | undefined,
+  tenantSlug: string | null | undefined,
+): string {
+  if (role === "client") {
+    if (tenantSlug && inquiryId) {
+      return `/${tenantSlug}/client/messages?inquiry=${encodeURIComponent(inquiryId)}`;
+    }
+    if (inquiryId) return `/client/inquiries/${inquiryId}`;
+    return tenantSlug ? `/${tenantSlug}/client/messages` : "/client";
+  }
+  if (role === "workspace_member" || role === "platform_admin") {
+    if (tenantSlug && inquiryId) return `/${tenantSlug}/admin/work/${inquiryId}`;
+    if (tenantSlug) return `/${tenantSlug}/admin/work`;
+    return inquiryPathForRole(role, inquiryId);
+  }
+  return inquiryPathForRole(role, inquiryId);
 }
 
 /**

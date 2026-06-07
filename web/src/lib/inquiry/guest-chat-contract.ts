@@ -181,8 +181,15 @@ export type StartGuestChatInput = {
   talentProfileId?: string | null;
   /** Public profile code, for source_context provenance. Omitted on agency-level chats. */
   talentProfileCode?: string | null;
-  /** Guest's name from the inline gate. Required (engine requires requester.name). */
-  contactName: string;
+  /** Guest's first name from the inline gate. Required (engine requires requester.name). */
+  contactFirstName: string;
+  /** Guest's last name from the inline gate. Optional. */
+  contactLastName?: string | null;
+  /**
+   * Full display name derived from first + last. Kept for callers that already
+   * assemble it; the action recomputes when omitted.
+   */
+  contactName?: string;
   /** Guest's email from the inline gate. Required to persist + route + claim. */
   contactEmail: string;
   /** Optional phone. */
@@ -213,8 +220,10 @@ export type StartGuestChatResult =
        * "Got it — we'll reply in ~X" immediately when available.
        */
       autoAckMessage: GuestThreadMessage | null;
-      /** Echo of the email used — drives the "we emailed you a link" copy. */
+      /** Echo of the email used — drives identity + change-email prefill. */
       guestEmail: string;
+      /** True only when the sign-in link email was accepted by Resend. */
+      claimEmailSent: boolean;
       /** Guest-account provisioning outcome (mirrors GuestActivationStatus). */
       guestActivation: "matched" | "created" | "unlinked";
     }
@@ -260,6 +269,12 @@ export type AddGuestClaimEmailInput = {
   inquiryId: string;
   /** The different/additional email to send the sign-in link to. */
   email: string;
+  /**
+   * When true, overwrite the inquiry's primary contact_email (and client_user_id)
+   * with this address instead of only registering an additional claim candidate.
+   * Used when a guest corrects a typo in the email they entered at send time.
+   */
+  replacePrimary?: boolean;
 };
 
 export type AddGuestClaimEmailResult =
@@ -269,6 +284,39 @@ export type AddGuestClaimEmailResult =
       email: string;
     }
   | GuestChatFailure;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3b-ter. checkGuestClaimEmail — read-only probe so the gate / change-email UI
+//     can warn when an address is already registered before the guest submits.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type GuestClaimEmailStatus =
+  | "available"
+  | "same_account"
+  | "already_registered"
+  | "team_account";
+
+export type CheckGuestClaimEmailInput = {
+  email: string;
+  inquiryId?: string | null;
+  /** When true, an address registered to a different account is a hard block. */
+  replacePrimary?: boolean;
+};
+
+export type CheckGuestClaimEmailResult =
+  | {
+      ok: true;
+      status: GuestClaimEmailStatus;
+      /** Human-readable helper/error copy for the UI. Omitted when available. */
+      message?: string;
+      /** When true the UI should disable submit for this address. */
+      blocksSubmit?: boolean;
+    }
+  | GuestChatFailure;
+
+export type CheckGuestClaimEmailCallback = (
+  input: CheckGuestClaimEmailInput,
+) => Promise<CheckGuestClaimEmailResult>;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 3c. getGuestThreadMessages — initial load + poll source for the popup.
@@ -328,6 +376,8 @@ export type ActiveGuestInquiry = {
   /** Captured contact fields, so a returning guest never re-types the gate. */
   prefill: {
     name: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
     email: string | null;
     phone: string | null;
   };
@@ -484,6 +534,8 @@ export type MiniChatPanelProps = {
    */
   prefill?: {
     name?: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
     email?: string | null;
     phone?: string | null;
   } | null;
@@ -498,6 +550,8 @@ export type MiniChatPanelProps = {
    * "Use a different email" affordance is hidden.
    */
   onAddClaimEmail?: AddClaimEmailCallback | null;
+  /** Optional: probe whether an email is already registered (gate + change-email). */
+  onCheckClaimEmail?: CheckGuestClaimEmailCallback | null;
 
   /**
    * Poll cadence in ms while the panel is focused/open (MVP liveness path).
@@ -560,6 +614,7 @@ export type TalentChatLauncherProps = {
   fetchMessages: FetchMessagesCallback;
   /** Optional add-a-claim-email action, forwarded to the panel. Null hides the control. */
   onAddClaimEmail?: AddClaimEmailCallback | null;
+  onCheckClaimEmail?: CheckGuestClaimEmailCallback | null;
 
   /**
    * Launcher label override. Default "Message {talentDisplayName}".

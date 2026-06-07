@@ -35,6 +35,7 @@ export function TalentProfileChatLauncher({
   onSendMessage,
   fetchMessages,
   onAddClaimEmail = null,
+  onCheckClaimEmail = null,
   onListGuestInquiries = null,
   onCaptureChip = null,
   soundOnReply = true,
@@ -151,6 +152,7 @@ export function TalentProfileChatLauncher({
         onSendMessage={onSendMessage}
         fetchMessages={fetchMessages}
         onAddClaimEmail={onAddClaimEmail}
+        onCheckClaimEmail={onCheckClaimEmail}
         onListGuestInquiries={onListGuestInquiries}
         onCaptureChip={onCaptureChip}
         soundOnReply={soundOnReply}

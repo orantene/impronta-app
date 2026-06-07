@@ -12,6 +12,7 @@
 
 import { TalentProfileChatLauncher } from "@/app/t/[profileCode]/_chat/TalentProfileChatLauncher";
 import {
+  checkGuestClaimEmail,
   getGuestThreadMessages,
   sendGuestClaimToEmail,
   sendGuestMessageAction,
@@ -99,6 +100,7 @@ export async function AgencyChatLauncherMount({
       onSendMessage={sendGuestMessageAction}
       fetchMessages={getGuestThreadMessages}
       onAddClaimEmail={sendGuestClaimToEmail}
+      onCheckClaimEmail={checkGuestClaimEmail}
       onListGuestInquiries={listGuestInquiries}
       onCaptureChip={captureGuestChip}
       soundOnReply

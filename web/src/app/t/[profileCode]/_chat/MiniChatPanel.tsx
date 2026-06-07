@@ -44,7 +44,9 @@ import {
   EMAIL_RE,
   FONT,
   firstNameOf,
+  joinGuestDisplayName,
   readableOn,
+  splitGuestFullName,
 } from "./mini-chat-styles";
 
 type Stage = "intro" | "gate" | "thread";
@@ -75,6 +77,7 @@ export function MiniChatPanel({
   onStartInquiry,
   onSendMessage,
   onAddClaimEmail = null,
+  onCheckClaimEmail = null,
   fetchMessages,
   pollIntervalMs = 4000,
   openFullHref = null,
@@ -94,7 +97,9 @@ export function MiniChatPanel({
   const lastSeenIsoRef = useRef<string | null>(null);
 
   const [draft, setDraft] = useState("");
-  const [name, setName] = useState(prefill?.name ?? "");
+  const prefillNames = splitGuestFullName(prefill?.name);
+  const [firstName, setFirstName] = useState(prefill?.firstName ?? prefillNames.firstName);
+  const [lastName, setLastName] = useState(prefill?.lastName ?? prefillNames.lastName);
   const [email, setEmail] = useState(prefill?.email ?? "");
   const [phone] = useState(prefill?.phone ?? "");
   const [honeypot, setHoneypot] = useState("");
@@ -108,6 +113,8 @@ export function MiniChatPanel({
   const [typicalReply, setTypicalReply] = useState<string | null>(null);
   const [threadStatus, setThreadStatus] = useState<GuestThreadStatus>("open");
   const [emailedTo, setEmailedTo] = useState<string | null>(null);
+  const [gateEmailNotice, setGateEmailNotice] = useState<string | null>(null);
+  const [gateEmailBlocksSubmit, setGateEmailBlocksSubmit] = useState(false);
 
   const [pulseActive, setPulseActive] = useState(false);
   const [seenAtByInquiry, setSeenAtByInquiry] = useState<Record<string, string>>({});
@@ -157,6 +164,41 @@ export function MiniChatPanel({
       cancelled = true;
     };
   }, [open, expanded, onListGuestInquiries, tenantSlug]);
+
+  useEffect(() => {
+    if (stage !== "gate" || !onCheckClaimEmail) {
+      setGateEmailNotice(null);
+      setGateEmailBlocksSubmit(false);
+      return;
+    }
+
+    const addr = email.trim();
+    if (!EMAIL_RE.test(addr)) {
+      setGateEmailNotice(null);
+      setGateEmailBlocksSubmit(false);
+      return;
+    }
+
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        const res = await onCheckClaimEmail({ email: addr, replacePrimary: false });
+        if (cancelled) return;
+        if (!res.ok) {
+          setGateEmailNotice(null);
+          setGateEmailBlocksSubmit(false);
+          return;
+        }
+        setGateEmailNotice(res.message ?? null);
+        setGateEmailBlocksSubmit(Boolean(res.blocksSubmit));
+      })();
+    }, 350);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [email, onCheckClaimEmail, stage]);
 
   function mergeServer(incoming: GuestThreadMessage[]) {
     if (incoming.length === 0) return;
@@ -300,7 +342,7 @@ export function MiniChatPanel({
           : identity === "email_verified"
             ? "email_verified"
             : identity === "identified" ||
-                (Boolean(name.trim()) && EMAIL_RE.test(email.trim()))
+                (Boolean(firstName.trim()) && EMAIL_RE.test(email.trim()))
               ? "identified"
               : "guest");
       setLimitNudge({
@@ -317,11 +359,12 @@ export function MiniChatPanel({
   async function handleFirstSend() {
     const body = draft.trim();
     if (!body) return;
-    if (!name.trim() || !EMAIL_RE.test(email.trim())) {
+    if (!firstName.trim() || !EMAIL_RE.test(email.trim())) {
       setStage("gate");
       setError(null);
       return;
     }
+    const contactName = joinGuestDisplayName(firstName, lastName);
     setSending(true);
     setError(null);
     setCaptchaRequired(false);
@@ -351,7 +394,9 @@ export function MiniChatPanel({
       tenantSlug,
       talentProfileId,
       talentProfileCode,
-      contactName: name.trim(),
+      contactFirstName: firstName.trim(),
+      contactLastName: lastName.trim() || null,
+      contactName,
       contactEmail: email.trim(),
       contactPhone: phone.trim() || null,
       firstMessage: body,
@@ -372,7 +417,12 @@ export function MiniChatPanel({
       return;
     }
     setInquiryId(res.inquiryId);
-    setEmailedTo(res.guestEmail);
+    setEmailedTo(res.claimEmailSent ? res.guestEmail : null);
+    if (!res.claimEmailSent && res.guestActivation !== "unlinked") {
+      setError(
+        "Your message was sent, but we couldn't email a sign-in link. Use “Email me a sign-in link” below to try again.",
+      );
+    }
     lastSeenIsoRef.current = null;
     setRows((cur) => cur.filter((r) => r.id !== tmpId));
     const seeded: GuestThreadMessage[] = [res.openingMessage];
@@ -455,7 +505,8 @@ export function MiniChatPanel({
     limitNudge,
     capturedChipKinds,
     draft,
-    name,
+    firstName,
+    lastName,
     email,
     honeypot,
     sending,
@@ -466,12 +517,20 @@ export function MiniChatPanel({
     captchaRequired,
     onClose,
     onDraftChange: setDraft,
-    onNameChange: setName,
+    onFirstNameChange: setFirstName,
+    onLastNameChange: setLastName,
     onEmailChange: setEmail,
     onHoneypotChange: setHoneypot,
     onSubmit: submit,
     onFirstSend: () => void handleFirstSend(),
+    gateEmailNotice,
+    gateEmailBlocksSubmit,
     onAddClaimEmail,
+    onCheckClaimEmail,
+    onGuestEmailUpdated: (addr: string) => {
+      setEmailedTo(addr);
+      setEmail(addr);
+    },
     onSwitchInquiry: handleSwitchInquiry,
     onCaptureChip,
     onCapturedChipKind: (kind: GuestChipKind) =>

@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   categoryForRow,
+  digestCtaPath,
   digestHeading,
   digestSummaryLine,
   digestTimeLabel,
@@ -17,6 +18,7 @@ function row(over: Partial<DigestRow>): DigestRow {
   return {
     id: over.id ?? "row-1",
     tenant_id: over.tenant_id ?? null,
+    inquiry_id: over.inquiry_id ?? null,
     recipient_user_id: over.recipient_user_id ?? null,
     recipient_email: over.recipient_email ?? null,
     catalog_entry_id: over.catalog_entry_id ?? null,
@@ -132,4 +134,40 @@ test("digestHeading: singular/plural per category", () => {
   assert.equal(digestHeading("messages", 5), "You have 5 new messages");
   assert.equal(digestHeading("roster_activity", 1), "1 roster update");
   assert.equal(digestHeading(null, 3), "You have 3 new notifications");
+});
+
+test("digestCtaPath: message digest deep-links client to tenant messages", () => {
+  const batch = groupDigestRows([
+    row({
+      recipient_user_id: "u1",
+      inquiry_id: "inq-9",
+      payload: { category: "messages", recipientRole: "client" },
+    }),
+  ])[0];
+  assert.equal(
+    digestCtaPath(batch, "tulala"),
+    "/tulala/client/messages?inquiry=inq-9",
+  );
+});
+
+test("digestCtaPath: message digest deep-links talent to inbox thread", () => {
+  const batch = groupDigestRows([
+    row({
+      recipient_user_id: "u1",
+      inquiry_id: "inq-9",
+      payload: { category: "messages", recipientRole: "talent" },
+    }),
+  ])[0];
+  assert.equal(digestCtaPath(batch, "tulala"), "/talent/inbox/inq-9");
+});
+
+test("digestCtaPath: message digest deep-links staff to tenant admin work", () => {
+  const batch = groupDigestRows([
+    row({
+      recipient_user_id: "u1",
+      inquiry_id: "inq-9",
+      payload: { category: "messages", recipientRole: "workspace_member" },
+    }),
+  ])[0];
+  assert.equal(digestCtaPath(batch, "tulala"), "/tulala/admin/work/inq-9");
 });

@@ -123,9 +123,16 @@ export async function dispatchEventNotifications(
         // and collapses it. The flag must be on the persisted payload (the sweep
         // filters `payload->>digest`), so log a payload-augmented event.
         const isDigest = channel === "email" && entry.email?.digest === true;
-        const logEvent: NotificationEvent = isDigest
-          ? { ...enriched, payload: { ...enriched.payload, digest: true } }
-          : enriched;
+  const logEvent: NotificationEvent = isDigest
+    ? {
+        ...enriched,
+        payload: {
+          ...enriched.payload,
+          digest: true,
+          recipientRole: recipient.role,
+        },
+      }
+    : enriched;
         const logId = await tryInsertDispatchLog(ctx.admin, {
           event: logEvent,
           recipient,

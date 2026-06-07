@@ -36,6 +36,7 @@ import {
   sendGuestClaimToEmail,
   sendGuestMessageAction,
   startGuestChatInquiry,
+  checkGuestClaimEmail,
 } from "@/app/t/[profileCode]/_actions/guest-chat-actions";
 // U2 thread switcher + U4 detail chips — injected as callbacks so the client
 // bundle imports no backend module.
@@ -105,6 +106,7 @@ export async function TalentProfileChatLauncherMount({
       onSendMessage={sendGuestMessageAction}
       fetchMessages={getGuestThreadMessages}
       onAddClaimEmail={sendGuestClaimToEmail}
+      onCheckClaimEmail={checkGuestClaimEmail}
       onListGuestInquiries={listGuestInquiries}
       onCaptureChip={captureGuestChip}
       soundOnReply

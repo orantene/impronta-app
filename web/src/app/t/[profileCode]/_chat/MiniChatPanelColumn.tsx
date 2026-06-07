@@ -17,6 +17,7 @@ import type { RefObject } from "react";
 import type {
   AddClaimEmailCallback,
   CaptureGuestChipCallback,
+  CheckGuestClaimEmailCallback,
   GuestChipInput,
   GuestChipKind,
   GuestIdentityTier,
@@ -77,7 +78,8 @@ export type MiniChatPanelColumnProps = {
   capturedChipKinds: GuestChipKind[];
   // Composer state
   draft: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   honeypot: string;
   sending: boolean;
@@ -89,17 +91,28 @@ export type MiniChatPanelColumnProps = {
   // Callbacks (UI → parent)
   onClose: () => void;
   onDraftChange: (v: string) => void;
-  onNameChange: (v: string) => void;
+  onFirstNameChange: (v: string) => void;
+  onLastNameChange: (v: string) => void;
   onEmailChange: (v: string) => void;
   onHoneypotChange: (v: string) => void;
   onSubmit: () => void;
   onFirstSend: () => void;
+  gateEmailNotice?: string | null;
+  gateEmailBlocksSubmit?: boolean;
   onAddClaimEmail: AddClaimEmailCallback | null;
+  onCheckClaimEmail?: CheckGuestClaimEmailCallback | null;
+  onGuestEmailUpdated?: (email: string) => void;
   onSwitchInquiry: (id: string) => void;
   onCaptureChip: CaptureGuestChipCallback | null;
   onCapturedChipKind: (kind: GuestChipKind) => void;
   // Optional
-  prefill?: { name?: string | null; email?: string | null; phone?: string | null } | null;
+  prefill?: {
+    name?: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  } | null;
   openFullHref?: string | null;
   onListGuestInquiries?: ListGuestInquiriesCallback | null;
   onToggleExpand?: () => void;
@@ -132,7 +145,8 @@ export function MiniChatPanelColumn({
   limitNudge,
   capturedChipKinds,
   draft,
-  name,
+  firstName,
+  lastName,
   email,
   honeypot,
   sending,
@@ -143,12 +157,17 @@ export function MiniChatPanelColumn({
   captchaRequired,
   onClose,
   onDraftChange,
-  onNameChange,
+  onFirstNameChange,
+  onLastNameChange,
   onEmailChange,
   onHoneypotChange,
   onSubmit,
   onFirstSend,
+  gateEmailNotice = null,
+  gateEmailBlocksSubmit = false,
   onAddClaimEmail,
+  onCheckClaimEmail,
+  onGuestEmailUpdated,
   onSwitchInquiry,
   onCaptureChip,
   onCapturedChipKind,
@@ -159,7 +178,9 @@ export function MiniChatPanelColumn({
   identity,
   textareaRef,
 }: MiniChatPanelColumnProps) {
-  const gateReady = Boolean(name.trim()) && EMAIL_RE.test(email.trim());
+  const gateReady = Boolean(firstName.trim()) && EMAIL_RE.test(email.trim());
+  const guestContactEmail =
+    (emailedTo ?? prefill?.email ?? email.trim()) || null;
   const showGate = stage === "gate";
 
   return (
@@ -305,10 +326,10 @@ export function MiniChatPanelColumn({
             canVerify={
               Boolean(onAddClaimEmail) &&
               Boolean(inquiryId) &&
-              Boolean(emailedTo ?? prefill?.email)
+              Boolean(guestContactEmail)
             }
             onVerifyEmail={() => {
-              const addr = (emailedTo ?? prefill?.email ?? email).trim();
+              const addr = guestContactEmail;
               if (onAddClaimEmail && inquiryId && addr) {
                 void onAddClaimEmail({ inquiryId, email: addr });
               }
@@ -329,11 +350,19 @@ export function MiniChatPanelColumn({
         {inquiryId && (
           <GuestAccountToolkit
             inquiryId={inquiryId}
-            guestEmail={emailedTo ?? prefill?.email ?? null}
-            identity={emailedTo ? (identity === "guest" ? "identified" : identity) : identity}
+            guestEmail={guestContactEmail}
+            identity={
+              guestContactEmail
+                ? identity === "guest"
+                  ? "identified"
+                  : identity
+                : identity
+            }
             accent={accent}
             accentInk={accentInk}
             onAddClaimEmail={onAddClaimEmail}
+            onCheckClaimEmail={onCheckClaimEmail}
+            onGuestEmailUpdated={onGuestEmailUpdated}
             deemphasizeButton={
               threadStatus === "offer_pending" ||
               threadStatus === "approved" ||
@@ -348,13 +377,17 @@ export function MiniChatPanelColumn({
         <MiniChatGateForm
           talentFirst={talentFirst}
           draft={draft}
-          name={name}
-          onNameChange={onNameChange}
+          firstName={firstName}
+          onFirstNameChange={onFirstNameChange}
+          lastName={lastName}
+          onLastNameChange={onLastNameChange}
           email={email}
           onEmailChange={onEmailChange}
           accent={accent}
           accentInk={accentInk}
           gateReady={gateReady}
+          emailNotice={gateEmailNotice}
+          emailBlocksSubmit={gateEmailBlocksSubmit}
           sending={sending}
           onSend={onFirstSend}
         />

@@ -34,9 +34,26 @@ function generateGuestClientPassword() {
   return randomBytes(18).toString("base64url");
 }
 
+function buildGuestDisplayName(args: {
+  name?: string;
+  firstName?: string;
+  lastName?: string;
+}): string {
+  const combined = joinGuestDisplayName(args.firstName ?? "", args.lastName ?? "");
+  if (combined) return combined;
+  return args.name?.trim() ?? "";
+}
+
+function joinGuestDisplayName(firstName: string, lastName: string): string {
+  return [firstName.trim(), lastName.trim()].filter(Boolean).join(" ");
+}
+
 export async function ensureGuestClientByEmail(args: {
   email: string;
+  /** Legacy full name — used when first/last are omitted (directory submit). */
   name: string;
+  firstName?: string;
+  lastName?: string;
   company: string;
   phone: string;
 }): Promise<GuestClientProvisionResult> {
@@ -46,6 +63,17 @@ export async function ensureGuestClientByEmail(args: {
   }
 
   const normalizedEmail = args.email.trim().toLowerCase();
+  const displayName = buildGuestDisplayName(args);
+  const firstName = args.firstName?.trim() ?? "";
+  const lastName = args.lastName?.trim() ?? "";
+  const userMetadata: Record<string, string> = {};
+  if (displayName) {
+    userMetadata.full_name = displayName;
+    userMetadata.name = displayName;
+  }
+  if (firstName) userMetadata.given_name = firstName;
+  if (lastName) userMetadata.family_name = lastName;
+
   const { data: matchRows, error: matchErr } = await admin.rpc(
     "find_auth_user_identity_by_email",
     { p_email: normalizedEmail },
@@ -64,10 +92,10 @@ export async function ensureGuestClientByEmail(args: {
     }
 
     const userId = match.user_id as string;
-    const nextDisplayName =
-      (match.display_name as string | null)?.trim() || args.name;
+    const existingDisplayName = (match.display_name as string | null)?.trim() || "";
+    const nextDisplayName = displayName || existingDisplayName;
     const profilePatch: Record<string, unknown> = {
-      display_name: nextDisplayName,
+      display_name: nextDisplayName || null,
       app_role: "client",
       account_status:
         match.account_status === "active" ? "active" : "onboarding",
@@ -85,6 +113,15 @@ export async function ensureGuestClientByEmail(args: {
     if (profileErr) {
       logServerError("inquiry/ensureGuestClientByEmail/profileUpdate", profileErr);
       return { status: "unlinked", clientUserId: null };
+    }
+
+    if (Object.keys(userMetadata).length > 0) {
+      const { error: authMetaErr } = await admin.auth.admin.updateUserById(userId, {
+        user_metadata: userMetadata,
+      });
+      if (authMetaErr) {
+        logServerError("inquiry/ensureGuestClientByEmail/authMetadata", authMetaErr);
+      }
     }
 
     const { error: clientProfileErr } = await admin
@@ -114,10 +151,7 @@ export async function ensureGuestClientByEmail(args: {
     email: normalizedEmail,
     password: generateGuestClientPassword(),
     email_confirm: true,
-    user_metadata: {
-      full_name: args.name,
-      name: args.name,
-    },
+    user_metadata: userMetadata,
   });
 
   if (created.error || !created.data.user?.id) {
@@ -130,7 +164,7 @@ export async function ensureGuestClientByEmail(args: {
   const { error: profileErr } = await admin
     .from("profiles")
     .update({
-      display_name: args.name,
+      display_name: displayName || null,
       app_role: "client",
       account_status: "onboarding",
       onboarding_completed_at: null,

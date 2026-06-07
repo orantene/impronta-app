@@ -19,14 +19,20 @@ export type MiniChatGateFormProps = {
   talentFirst: string;
   /** The pending message body (shown as a read-only recap above the fields). */
   draft: string;
-  name: string;
-  onNameChange: (value: string) => void;
+  firstName: string;
+  onFirstNameChange: (value: string) => void;
+  lastName: string;
+  onLastNameChange: (value: string) => void;
   email: string;
   onEmailChange: (value: string) => void;
   accent: string;
   accentInk: string;
-  /** True when name + a valid email are present (enables the send button). */
+  /** True when first name + a valid email are present (enables the send button). */
   gateReady: boolean;
+  /** Helper or error copy under the email field (already-registered probe). */
+  emailNotice?: string | null;
+  /** When true, emailNotice is an error and send stays disabled. */
+  emailBlocksSubmit?: boolean;
   sending: boolean;
   /** Fire the first-send (the panel's handleFirstSend). */
   onSend: () => void;
@@ -35,16 +41,22 @@ export type MiniChatGateFormProps = {
 export function MiniChatGateForm({
   talentFirst,
   draft,
-  name,
-  onNameChange,
+  firstName,
+  onFirstNameChange,
+  lastName,
+  onLastNameChange,
   email,
   onEmailChange,
   accent,
   accentInk,
   gateReady,
+  emailNotice = null,
+  emailBlocksSubmit = false,
   sending,
   onSend,
 }: MiniChatGateFormProps) {
+  const canSend = gateReady && !emailBlocksSubmit && !sending;
+
   return (
     <div
       style={{
@@ -86,29 +98,48 @@ export function MiniChatGateForm({
       )}
       <div style={{ display: "flex", gap: 8 }}>
         <input
-          value={name}
-          onChange={(e) => onNameChange(e.target.value)}
-          placeholder="Your name"
-          autoComplete="name"
+          value={firstName}
+          onChange={(e) => onFirstNameChange(e.target.value)}
+          placeholder="First name"
+          autoComplete="given-name"
           style={inputStyle}
         />
         <input
-          value={email}
-          onChange={(e) => onEmailChange(e.target.value)}
-          placeholder="Email"
-          type="email"
-          autoComplete="email"
+          value={lastName}
+          onChange={(e) => onLastNameChange(e.target.value)}
+          placeholder="Last name"
+          autoComplete="family-name"
           style={inputStyle}
         />
       </div>
+      <input
+        value={email}
+        onChange={(e) => onEmailChange(e.target.value)}
+        placeholder="Email"
+        type="email"
+        autoComplete="email"
+        style={inputStyle}
+      />
+      {emailNotice && (
+        <div
+          role={emailBlocksSubmit ? "alert" : "status"}
+          style={{
+            fontSize: 11,
+            lineHeight: 1.45,
+            color: emailBlocksSubmit ? C.danger : C.inkMuted,
+          }}
+        >
+          {emailNotice}
+        </div>
+      )}
       <button
         type="button"
         onClick={onSend}
-        disabled={!gateReady || sending}
+        disabled={!canSend}
         style={{
           ...primaryBtnStyle(accent, accentInk),
-          opacity: !gateReady || sending ? 0.5 : 1,
-          cursor: !gateReady || sending ? "not-allowed" : "pointer",
+          opacity: !canSend ? 0.5 : 1,
+          cursor: !canSend ? "not-allowed" : "pointer",
         }}
       >
         {sending ? "Sending…" : "Send message"}

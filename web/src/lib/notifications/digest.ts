@@ -8,6 +8,7 @@ import { renderEmailHtml } from "@/lib/email/render";
 import { sendEmail } from "@/lib/email";
 import DigestEmail, { type DigestItem } from "../../../emails/notifications/Digest";
 import { findCatalogEntryById } from "./catalog";
+import { appPageUrl, inquiryDeepLinkForRole } from "./catalog-render";
 import { NOTIFICATION_CATEGORIES } from "./categories";
 import { isEmailSuppressed } from "./suppressions";
 import {
@@ -15,7 +16,7 @@ import {
   buildUnsubscribeUrl,
   getUnsubscribeToken,
 } from "./unsubscribe";
-import type { NotificationCategory } from "./types";
+import type { NotificationCategory, RecipientRole } from "./types";
 
 /**
  * Digest sweep (spec §7) — the consumer side of the batching policy.
@@ -67,6 +68,7 @@ const VALID_CATEGORIES = new Set<string>(Object.keys(NOTIFICATION_CATEGORIES));
 export type DigestRow = {
   id: string;
   tenant_id: string | null;
+  inquiry_id: string | null;
   recipient_user_id: string | null;
   recipient_email: string | null;
   catalog_entry_id: string | null;
@@ -191,6 +193,27 @@ function digestIntro(category: NotificationCategory | null): string {
   return "here's a summary of your recent notifications:";
 }
 
+/** Resolve the digest CTA from the newest row in the batch (app-host dashboard link). */
+export function digestCtaPath(
+  batch: Pick<DigestBatch, "category" | "rows">,
+  tenantSlug: string | null,
+): string {
+  const newest = batch.rows[batch.rows.length - 1];
+  const inquiryId =
+    newest?.inquiry_id ?? str(newest?.payload?.inquiryId) ?? null;
+  const role = (str(newest?.payload?.recipientRole) as RecipientRole | null) ?? null;
+
+  if (batch.category === "messages") {
+    return inquiryDeepLinkForRole(role ?? "client", inquiryId, tenantSlug);
+  }
+
+  if (role) {
+    return inquiryDeepLinkForRole(role, inquiryId, tenantSlug);
+  }
+
+  return tenantSlug ? `/${tenantSlug}/client/messages` : "/client";
+}
+
 // ─── Orchestration (DB-bound) ─────────────────────────────────────────────────
 
 export type DigestRunResult = {
@@ -224,7 +247,7 @@ export async function processQueuedDigests(
   const { data, error } = await admin
     .from("notification_dispatch_log")
     .select(
-      "id, tenant_id, recipient_user_id, recipient_email, catalog_entry_id, event_kind, locale, payload, created_at",
+      "id, tenant_id, inquiry_id, recipient_user_id, recipient_email, catalog_entry_id, event_kind, locale, payload, created_at",
     )
     .eq("status", "queued")
     .eq("channel", "email")
@@ -301,6 +324,18 @@ async function flushBatch(
   const label = category ? NOTIFICATION_CATEGORIES[category].label : "Notifications";
   const heading = digestHeading(category, count);
 
+  let tenantSlug: string | null = null;
+  if (batch.tenantId) {
+    const { data: agencyRow } = await admin
+      .from("agencies")
+      .select("slug")
+      .eq("id", batch.tenantId)
+      .maybeSingle();
+    tenantSlug = (agencyRow?.slug as string | null)?.trim() || null;
+  }
+
+  const ctaUrl = appPageUrl(digestCtaPath(batch, tenantSlug));
+
   // Per-category one-click unsubscribe (account-holders, non-required only).
   let unsubscribeUrl: string | undefined;
   let headers: Record<string, string> | undefined;
@@ -320,7 +355,7 @@ async function flushBatch(
     heading,
     intro: digestIntro(category),
     items,
-    ctaUrl: brand.homeHref,
+    ctaUrl,
     ctaLabel: `Open ${brand.accountName} →`,
     brand,
     unsubscribeUrl,

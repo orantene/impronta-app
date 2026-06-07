@@ -80,6 +80,23 @@ export function firstNameOf(name: string): string {
   return t.split(/\s+/)[0] ?? t;
 }
 
+/** Split a stored full name into gate first/last fields (prefill resume). */
+export function splitGuestFullName(name: string | null | undefined): {
+  firstName: string;
+  lastName: string;
+} {
+  const t = (name ?? "").trim();
+  if (!t) return { firstName: "", lastName: "" };
+  const parts = t.split(/\s+/);
+  if (parts.length === 1) return { firstName: parts[0] ?? "", lastName: "" };
+  return { firstName: parts[0] ?? "", lastName: parts.slice(1).join(" ") };
+}
+
+/** Combine gate fields into profiles.display_name / inquiries.contact_name. */
+export function joinGuestDisplayName(firstName: string, lastName: string): string {
+  return [firstName.trim(), lastName.trim()].filter(Boolean).join(" ");
+}
+
 export const STATUS_COPY: Record<GuestThreadStatus, string> = {
   open: "Open conversation",
   offer_pending: "You have an offer",
