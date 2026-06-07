@@ -27,6 +27,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -123,7 +124,13 @@ import {
 } from "./hover-bridge";
 import { publishDirty } from "./dirty-bridge";
 import {
+  readOsBuilderClipboard,
+  writeOsBuilderClipboard,
+  type SerializedBuilderNodeClipboard,
+} from "./builder-clipboard";
+import {
   readClasses as readStyleClasses,
+  writeClasses as writeStyleClasses,
   toRegistry as toStyleClassRegistry,
   publishStyleClassRegistry,
 } from "@/lib/site-admin/builder-node/style-classes-storage";
@@ -166,7 +173,6 @@ import {
   removeBuilderNodes,
   serializeBuilderNodeClipboard,
   ungroupBuilderNode,
-  type SerializedBuilderNodeClipboard,
 } from "./multi-node-transforms";
 
 /** Dispatched from storefront surfaces outside `EditProvider` (empty canvas) to open the template gallery overlay. */
@@ -211,6 +217,8 @@ export interface EditMutationError {
 
 export interface PageMetadata {
   title: string;
+  /** Browser tab / SERP title when set; falls back to `title` on publish. */
+  metaTitle: string | null;
   metaDescription: string | null;
   introTagline: string | null;
   /** SEO/OG knobs surfaced in the Page settings drawer's Social and URL tabs.
@@ -1077,6 +1085,7 @@ const EditContext = createContext<EditContextValue | null>(null);
 
 const DEFAULT_METADATA: PageMetadata = {
   title: "Homepage",
+  metaTitle: null,
   metaDescription: null,
   introTagline: null,
   ogTitle: null,
@@ -2061,7 +2070,8 @@ export function EditProvider({
   );
   const setDevice = useCallback((next: EditDevice) => {
     setDeviceRaw((prev) => {
-      if (prev !== next) setPreviewFrame(DEFAULT_PREVIEW_FRAME);
+      if (prev === next) return prev;
+      setPreviewFrame(DEFAULT_PREVIEW_FRAME);
       return next;
     });
   }, []);
@@ -2210,6 +2220,8 @@ export function EditProvider({
   // runs). The restore itself validates against the new tree, so a genuinely
   // stale selection still ends up cleared.
   const replayingHistoryRef = useRef(false);
+  /** Queued undo/redo while a save is in flight (M3 — never drop rapid ⌘Z). */
+  const historyPendingRef = useRef<"undo" | "redo" | null>(null);
   // W1-T5(c) — locale + pageId for the pagehide keepalive draft beacon, mirrored
   // into a ref so the (empty-deps) pagehide handler reads the latest values.
   const draftBeaconMetaRef = useRef<{ locale: string; pageId: string | null }>({
@@ -2407,11 +2419,13 @@ export function EditProvider({
     past: HistoryEntry[];
     baseVersion: number | null;
   }>({ key: undoPersistKey, past, baseVersion: pageVersion });
-  undoPersistDataRef.current = {
-    key: undoPersistKey,
-    past,
-    baseVersion: pageVersion,
-  };
+  useLayoutEffect(() => {
+    undoPersistDataRef.current = {
+      key: undoPersistKey,
+      past,
+      baseVersion: pageVersion,
+    };
+  });
   const undoPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const flushUndoPersist = useCallback(() => {
@@ -2595,8 +2609,11 @@ export function EditProvider({
     setPickerPopover(null);
   }, [dismissCentredModals, closeStarterTemplateGallery]);
 
-  // structure navigator (left rail) — open by default; ⌘\ toggles
-  const [navigatorOpen, setNavigatorOpen] = useState(true);
+  // structure navigator (Page Structure panel) — CLOSED by default in the
+  // canvas-first model (2026-06 redesign): the slim CommandDock owns the left
+  // edge and launches this panel on click. ⌘\ still toggles it, and inserting
+  // a section still force-opens it via `markNavigatorAddition`.
+  const [navigatorOpen, setNavigatorOpen] = useState(false);
   const [navigatorWidth, setNavigatorWidthState] = useState(
     NAVIGATOR_WIDTH_DEFAULT,
   );
@@ -3373,6 +3390,9 @@ export function EditProvider({
     setSlotDefs(data.slotDefs);
     setLibrary(data.library);
     setAvailableLocales(data.availableLocales);
+    if (data.styleClasses && Object.keys(data.styleClasses).length > 0) {
+      writeStyleClasses(data.pageId, Object.values(data.styleClasses));
+    }
     setCompositionLoaded(true);
     setCompositionError(null);
   }, []);
@@ -4039,6 +4059,10 @@ export function EditProvider({
             expectedVersion: casVersion,
             ...stripSnapshotForSave(next),
             builderTree: builderTreeForSave,
+            styleClasses: (() => {
+              const classes = readStyleClasses(pageId);
+              return classes.length > 0 ? toStyleClassRegistry(classes) : undefined;
+            })(),
           }),
         {
           name: "saveHomepageCompositionAction",
@@ -4084,7 +4108,9 @@ export function EditProvider({
   // Populate the ref dispatch() reads via — synchronous on every render
   // so dispatch's composition.* branches always see the freshest
   // dispatchMutation closure.
-  dispatchMutationRef.current = dispatchMutation;
+  useLayoutEffect(() => {
+    dispatchMutationRef.current = dispatchMutation;
+  });
 
   // ── insert ─────────────────────────────────────────────────────────
   const insertSection = useCallback<EditContextValue["insertSection"]>(
@@ -4200,7 +4226,9 @@ export function EditProvider({
     ],
   );
 
-  insertSectionRef.current = insertSection;
+  useLayoutEffect(() => {
+    insertSectionRef.current = insertSection;
+  });
 
   // ── remove ─────────────────────────────────────────────────────────
   // Sprint 5 — routes through dispatch() (composition.remove case
@@ -4316,7 +4344,9 @@ export function EditProvider({
     ],
   );
 
-  duplicateSectionRef.current = duplicateSection;
+  useLayoutEffect(() => {
+    duplicateSectionRef.current = duplicateSection;
+  });
 
   // ── move to explicit slot + position ──────────────────────────────
   const moveSectionTo = useCallback<EditContextValue["moveSectionTo"]>(
@@ -4415,7 +4445,9 @@ export function EditProvider({
     [dispatchMutation, slotDefs, slots, reportMutationError],
   );
 
-  moveSectionToRef.current = moveSectionTo;
+  useLayoutEffect(() => {
+    moveSectionToRef.current = moveSectionTo;
+  });
 
   // ── move up/down (thin wrapper over moveSectionTo) ────────────────
   const moveSection = useCallback<EditContextValue["moveSection"]>(
@@ -4485,6 +4517,10 @@ export function EditProvider({
             metadata: snapshot.metadata,
             slots: stripSnapshotForSave(snapshot).slots,
             builderTree: nextTree,
+            styleClasses: (() => {
+              const classes = readStyleClasses(pageId);
+              return classes.length > 0 ? toStyleClassRegistry(classes) : undefined;
+            })(),
           }),
         {
           name: "saveDraftHomepageAction",
@@ -4665,6 +4701,9 @@ export function EditProvider({
   const commitBuilderTreeMutation = useCallback(
     async (nextTree: BuilderNodeTree) => {
       const prevTree = builderTreeRef.current;
+      if (prevTree === nextTree) {
+        return { ok: true as const };
+      }
       if (JSON.stringify(prevTree) === JSON.stringify(nextTree)) {
         return { ok: true as const };
       }
@@ -5473,6 +5512,7 @@ export function EditProvider({
       // sequence closes the action row before the state effect runs.
       writeStoredBuilderNodeClipboard(copiedNode);
       writeStoredBuilderNodeMultiClipboard(clipboard);
+      void writeOsBuilderClipboard(clipboard);
       return { ok: true };
     },
     [builderTree],
@@ -6013,6 +6053,7 @@ export function EditProvider({
     } else {
       writeStoredBuilderNodeClipboard(null);
     }
+    void writeOsBuilderClipboard(serialized);
     return { ok: true, count: serialized.nodes.length };
   }, [getAllSelectedBuilderNodeIds]);
 
@@ -6030,11 +6071,14 @@ export function EditProvider({
     EditContextValue["pasteBuilderNodeClipboard"]
   >(
     async (targetNodeId) => {
-      const clipboard =
+      let clipboard: SerializedBuilderNodeClipboard | null =
         copiedBuilderNodeClipboard ??
         (copiedBuilderNode
           ? { version: 2 as const, nodes: [copiedBuilderNode] }
           : readStoredBuilderNodeMultiClipboard());
+      if (!clipboard) {
+        clipboard = await readOsBuilderClipboard();
+      }
       if (!clipboard) return { ok: false, error: "Copy a block before pasting." };
       const target = targetNodeId ?? selectedBuilderNodeId;
       const guarded = target ? guardSelectedBuilderNodes([target]) : null;
@@ -6110,6 +6154,10 @@ export function EditProvider({
             expectedVersion: pageVersionRef.current!,
             ...stripSnapshotForSave(normalizedTarget),
             builderTree: builderTreeForSave,
+            styleClasses: (() => {
+              const classes = readStyleClasses(pageId);
+              return classes.length > 0 ? toStyleClassRegistry(classes) : undefined;
+            })(),
           }),
         {
           name: "saveHomepageCompositionAction(restoreSnapshot)",
@@ -6218,7 +6266,10 @@ export function EditProvider({
   );
 
   const undo = useCallback(async () => {
-    if (saving) return;
+    if (saving) {
+      historyPendingRef.current = "undo";
+      return;
+    }
     if (past.length === 0) return;
     // Commit any pending coalesced builder save first so its version bump lands
     // BEFORE this undo's own persist — preserves save-queue ordering + CAS.
@@ -6298,7 +6349,10 @@ export function EditProvider({
   ]);
 
   const redo = useCallback(async () => {
-    if (saving) return;
+    if (saving) {
+      historyPendingRef.current = "redo";
+      return;
+    }
     if (future.length === 0) return;
     // Commit any pending coalesced builder save first so its version bump lands
     // BEFORE this redo's own persist — preserves save-queue ordering + CAS.
@@ -6373,6 +6427,33 @@ export function EditProvider({
     captureHistorySelection,
     restoreHistorySelection,
   ]);
+
+  // Flush a queued undo/redo once the in-flight save completes.
+  useEffect(() => {
+    if (saving || !historyPendingRef.current) return;
+    const pending = historyPendingRef.current;
+    historyPendingRef.current = null;
+    if (pending === "undo") void undo();
+    else void redo();
+  }, [saving, undo, redo]);
+
+  // Hydrate clipboard from OS when returning to the tab (cross-tab paste).
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    function onFocus() {
+      void readOsBuilderClipboard().then((clip) => {
+        if (!clip) return;
+        setCopiedBuilderNodeClipboard(clip);
+        setCopiedBuilderNode(clip.nodes.length === 1 ? clip.nodes[0]! : null);
+        writeStoredBuilderNodeMultiClipboard(clip);
+        if (clip.nodes.length === 1) {
+          writeStoredBuilderNodeClipboard(clip.nodes[0]!);
+        }
+      });
+    }
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, []);
 
   /**
    * Called by inspector-dock when an autosave field edit completes. Pushes
@@ -6632,6 +6713,10 @@ export function EditProvider({
           expectedVersion: casVersion,
           ...stripSnapshotForSave(snap),
           builderTree: reconcileBuilderTreeFromSlots(builderTree, snap.slots),
+          styleClasses: (() => {
+            const classes = readStyleClasses(pageId);
+            return classes.length > 0 ? toStyleClassRegistry(classes) : undefined;
+          })(),
         }),
       {
         name: "saveDraftHomepageAction",

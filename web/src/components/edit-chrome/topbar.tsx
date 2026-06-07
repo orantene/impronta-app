@@ -1,5 +1,17 @@
 "use client";
 import { improntaLog } from "@/lib/server/structured-log";
+import {
+  useBuilderBreakpoints,
+  notifyBuilderBreakpointsChanged,
+} from "./use-builder-breakpoints";
+import {
+  breakpointLabelForDevice,
+  naturalWidthForDevice,
+  DEFAULT_BUILDER_BREAKPOINTS,
+  saveCustomBreakpoints,
+  type BuilderBreakpoint,
+} from "./breakpoint-registry";
+import { BuilderCoachmarkTip } from "./builder-coachmark-tip";
 
 /**
  * EditTopBar — mission control bar for the canvas editor.
@@ -38,6 +50,7 @@ import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import {
   listPagesForPickerAction,
   duplicatePageAction,
+  createDraftPageAction,
   type PagePickerItem,
   type PagePickerAvailability,
 } from "@/lib/server-actions/admin-site-pages";
@@ -91,6 +104,15 @@ function urlForLocale(
 }
 
 const TOPBAR_H = 54;
+
+/**
+ * Phase 1 canvas-first redesign: the pin/reset workspace controls are hidden
+ * from the topbar to keep it clean while panels are being re-homed. The
+ * underlying logic (`pinWorkspaceLayout` / `resetWorkspaceLayout` in
+ * EditContext) is untouched; flip this back on (or move it into a layout
+ * utility panel) in a later phase.
+ */
+const SHOW_WORKSPACE_CONTROLS = false;
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -210,61 +232,6 @@ function TbIconBtn({
 
 // ── sub-components ────────────────────────────────────────────────────────────
 
-function BrandMark({
-  siteLabel,
-  pageTitle,
-}: {
-  /** Tenant display name, or workspace slug fallback — never product-only when we can help it (BUG-006). */
-  siteLabel: string | null;
-  /** Current page title (e.g. Homepage) — shown with site on second line. */
-  pageTitle: string | null;
-}) {
-  const product = "Tulala Builder";
-  const trimmedPage = pageTitle?.trim() || null;
-  const trimmedSite = siteLabel?.trim() || null;
-  const subtitleParts = [trimmedSite, trimmedPage].filter(Boolean);
-  const subtitle = subtitleParts.length > 0 ? subtitleParts.join(" · ") : null;
-  const aria = subtitle ? `${product} — ${subtitle}` : product;
-  return (
-    <div
-      className="inline-flex min-w-0 shrink-0 items-center gap-[10px] pr-2"
-      aria-label={aria}
-    >
-      <span
-        className="inline-flex shrink-0 items-center justify-center rounded-[7px] text-[12px] font-bold text-white"
-        style={{
-          width: 26,
-          height: 26,
-          // 2026-04-29 — brand mark uses the indigo accent gradient,
-          // not ink-black. Ties the mark to the accent family.
-          background: `linear-gradient(135deg, ${CHROME.accent2} 0%, ${CHROME.accent} 100%)`,
-          boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.15), 0 1px 3px rgba(0,0,0,0.12)",
-        }}
-        aria-hidden
-      >
-        T
-      </span>
-      <div className="flex min-w-0 flex-col justify-center gap-px leading-none">
-        <span
-          className="text-[12px] font-bold tracking-[-0.01em]"
-          style={{ color: CHROME.ink }}
-        >
-          {product}
-        </span>
-        {subtitle ? (
-          <span
-            className="max-w-[min(240px,32vw)] truncate text-[10px] font-semibold tracking-[0.01em]"
-            style={{ color: CHROME.muted }}
-            title={subtitle}
-          >
-            {subtitle}
-          </span>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
 /**
  * PagePicker — popover surfacing the current page + a route to the multi-
  * page manager. Mockup surface §24 (Pages picker).
@@ -302,6 +269,7 @@ function PagePicker({
   );
   const [loadingPages, setLoadingPages] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+  const [creatingPage, setCreatingPage] = useState(false);
   const [fetchErr, setFetchErr] = useState<string | null>(null);
   const router = useRouter();
   const pagePickerMenuId = useId();
@@ -372,6 +340,32 @@ function PagePicker({
     if (dirty && !confirm("You have unsaved changes. Leave this page?")) return;
     setOpen(false);
     router.push(slug === "" ? "/?edit=1" : `/${slug}?edit=1`);
+  }
+
+  async function handleCreatePage() {
+    if (availability && !availability.canCreatePages) {
+      setFetchErr(
+        availability.createPageHint ??
+          "Upgrade your plan to create additional pages.",
+      );
+      return;
+    }
+    setCreatingPage(true);
+    setFetchErr(null);
+    try {
+      const result = await createDraftPageAction();
+      if (result.ok) {
+        setOpen(false);
+        if (dirty && !confirm("You have unsaved changes. Leave this page?")) {
+          return;
+        }
+        router.push(result.slug ? `/${result.slug}?edit=1` : "/?edit=1");
+      } else {
+        setFetchErr(result.error);
+      }
+    } finally {
+      setCreatingPage(false);
+    }
   }
 
   async function handleDuplicate(sourceId: string) {
@@ -711,8 +705,33 @@ function PagePicker({
               );
             })}
 
-          {/* ── Footer: Manage pages link ── */}
+          {/* ── Footer: create + manage pages ── */}
           <div aria-hidden style={{ height: 1, background: CHROME.line, margin: "6px 2px" }} />
+          <button
+            type="button"
+            role="menuitem"
+            disabled={creatingPage}
+            onClick={() => void handleCreatePage()}
+            className="flex w-full cursor-pointer items-center gap-[8px] rounded-[6px] border-none px-[10px] py-[7px] text-left transition-colors"
+            style={{ color: CHROME.text, background: "transparent" }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = CHROME.paper2;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+            }}
+          >
+            <span
+              className="inline-flex shrink-0 items-center justify-center rounded-[4px]"
+              style={{ width: 18, height: 18, background: CHROME.paper2, color: CHROME.muted }}
+              aria-hidden
+            >
+              +
+            </span>
+            <span className="flex-1 font-semibold tracking-[-0.005em]" style={{ fontSize: 12.5 }}>
+              {creatingPage ? "Creating…" : "New page"}
+            </span>
+          </button>
           <Link
             href={workspaceWebsiteHref}
             role="menuitem"
@@ -746,54 +765,6 @@ function PagePicker({
         </div>
       ) : null}
     </div>
-  );
-}
-
-/** Matches publish-drawer human-readable publish timestamps (local tz). */
-function formatLiveSitePublishedChip(value: string | null | undefined): string {
-  if (value == null || value.trim() === "") return "";
-  return new Date(value).toLocaleString(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-    month: "short",
-    day: "numeric",
-  });
-}
-
-/**
- * P2-2 — glanceable hint for what visitors last saw for this page vs the draft
- * you are editing (authoritative `cms_pages.published_at` from composition load).
- */
-function LiveSitePublishedChip({
-  publishedAt,
-}: {
-  publishedAt?: string | null;
-}) {
-  const trimmed = publishedAt?.trim() ?? "";
-  const hasPublish = trimmed.length > 0;
-  const when = hasPublish ? formatLiveSitePublishedChip(trimmed) : "";
-  const ariaLabel = hasPublish
-    ? `Live site last showed this page as published on ${new Date(trimmed).toLocaleString(undefined, {
-        dateStyle: "medium",
-        timeStyle: "short",
-      })}. Draft edits are not public until you publish again.`
-    : "This page has never been published. The live site does not show it until you publish.";
-  return (
-    <span
-      role="note"
-      className="inline-flex max-w-[min(200px,30vw)] shrink-0 items-center truncate rounded-full border px-[9px] py-[4px] text-[10.5px] font-semibold tracking-[-0.01em]"
-      style={{
-        background: CHROME.paper2,
-        color: CHROME.muted,
-        borderColor: CHROME.line,
-      }}
-      title={ariaLabel}
-      aria-label={ariaLabel}
-    >
-      <span className="truncate">
-        Live · {hasPublish ? when : "not published"}
-      </span>
-    </span>
   );
 }
 
@@ -1210,7 +1181,9 @@ const PREVIEW_WIDTH_MIN = 280;
 const PREVIEW_WIDTH_MAX = 1920;
 // Natural portrait widths per tier — seed the custom-width input when blank so
 // the operator nudges from the real frame width, not an empty field.
-const VIEWPORT_NATURAL_WIDTHS: Record<EditDevice, number> = {
+// Defaults mirror edit-shell DEVICE_WIDTHS; overridden at runtime via the
+// breakpoint registry (Builder 2026 M4).
+const VIEWPORT_NATURAL_WIDTH_FALLBACK: Record<EditDevice, number> = {
   desktop: 1280,
   wide: 1200,
   tablet: 834,
@@ -1244,6 +1217,7 @@ function ViewportSwitcher({
   setMobileEditMode?: (next: boolean) => void;
 }) {
   const mobileEditAvailable = typeof setMobileEditMode === "function";
+  const breakpoints = useBuilderBreakpoints();
   // Picking a tier: Mobile enters the editing mode; the others exit it. When no
   // mode plumbing is present, this is exactly the old `setDevice`.
   const selectTier = (key: EditDevice) => {
@@ -1277,6 +1251,7 @@ function ViewportSwitcher({
       >
         {VIEWPORT_OPTS.map((opt) => {
           const active = device === opt.key;
+          const label = breakpointLabelForDevice(opt.key, breakpoints);
           // Wave 6C — the active Mobile tier in editing mode reads with the
           // indigo accent (a MODE, not just a frame); the dot flags it's live.
           const inMobileEditMode =
@@ -1289,12 +1264,12 @@ function ViewportSwitcher({
               title={
                 opt.key === "mobile" && mobileEditAvailable
                   ? "Mobile editing — edit the mobile layout: scope style edits to mobile, hide/reorder blocks per-phone, run mobile health checks"
-                  : viewportPreviewTitle(opt.key, opt.label)
+                  : viewportPreviewTitle(opt.key, label)
               }
               aria-label={
                 opt.key === "mobile" && mobileEditAvailable
                   ? "Mobile editing mode"
-                  : opt.label
+                  : label
               }
               aria-pressed={active}
               className="inline-flex items-center gap-[5px] rounded-full border-none px-[14px] py-[6px] text-[12px] font-semibold tracking-[-0.005em] transition-all"
@@ -1320,7 +1295,7 @@ function ViewportSwitcher({
               }}
             >
               {opt.icon}
-              {opt.label}
+              {label}
               {inMobileEditMode ? (
                 <span
                   aria-hidden
@@ -1369,11 +1344,14 @@ function ViewportFrameTools({
   setPreviewFrameWidth: (widthPx: number | null) => void;
   togglePreviewRotated: () => void;
 }) {
+  const breakpoints = useBuilderBreakpoints();
   const isCustom = previewFrame.widthPx != null;
   const isRotated = previewFrame.rotated;
   // Draft text so an in-progress entry ("8") isn't clamped mid-keystroke.
   const [draft, setDraft] = useState<string | null>(null);
-  const naturalWidth = VIEWPORT_NATURAL_WIDTHS[device];
+  const naturalWidth =
+    naturalWidthForDevice(device, breakpoints) ||
+    VIEWPORT_NATURAL_WIDTH_FALLBACK[device];
   const displayWidth = previewFrame.widthPx ?? naturalWidth;
   const inputValue = draft ?? String(displayWidth);
 
@@ -1893,65 +1871,6 @@ function MenuItem({
 }
 
 /**
- * CommandPaletteLauncher — discoverable on-screen affordance for the ⌘K
- * command palette. The palette was previously summonable only via the
- * keyboard, so mouse-first operators never found it. This pill mirrors the
- * familiar "search box with a ⌘K keycap" pattern, carrying the keycap hint
- * so the shortcut is teachable. Clicking it fires the exact handler the
- * keyboard shortcut runs in EditShell.
- */
-function CommandPaletteLauncher({ onOpen }: { onOpen: () => void }) {
-  const isMac =
-    typeof navigator !== "undefined" &&
-    /mac|iphone|ipad|ipod/i.test(navigator.platform || navigator.userAgent);
-  const modLabel = isMac ? "⌘" : "Ctrl";
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      title="Command palette (⌘K)"
-      aria-label="Open command palette"
-      aria-haspopup="dialog"
-      className="inline-flex shrink-0 cursor-pointer items-center gap-[7px] rounded-[8px] border transition-colors"
-      style={{
-        height: 36,
-        padding: "0 8px 0 10px",
-        background: "transparent",
-        borderColor: CHROME.line,
-        color: CHROME.muted,
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = CHROME.paper2;
-        e.currentTarget.style.color = CHROME.ink;
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = "transparent";
-        e.currentTarget.style.color = CHROME.muted;
-      }}
-    >
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <circle cx="11" cy="11" r="8" />
-        <line x1="21" y1="21" x2="16.65" y2="16.65" />
-      </svg>
-      <span
-        aria-hidden
-        className="shrink-0 rounded-[4px] border px-[5px] py-[2px] font-mono"
-        style={{
-          fontSize: 10.5,
-          fontWeight: 600,
-          lineHeight: 1,
-          color: CHROME.muted2,
-          background: CHROME.paper2,
-          borderColor: CHROME.line,
-        }}
-      >
-        {modLabel}K
-      </span>
-    </button>
-  );
-}
-
-/**
  * MoreMenu — overflow popover that hosts secondary topbar actions.
  *
  * Page settings moved back to a dedicated cog (next to Preview). This menu
@@ -1964,28 +1883,21 @@ function CommandPaletteLauncher({ onOpen }: { onOpen: () => void }) {
  */
 function MoreMenu({
   onRevisions,
-  onTheme,
   onAssets,
   onCollections,
   onTemplates,
-  onShare,
 }: {
   onRevisions?: () => void;
-  onTheme?: () => void;
   onAssets?: () => void;
   onCollections?: () => void;
   onTemplates?: () => void;
-  onShare?: (opts: {
-    label?: string;
-    ttlSeconds?: number;
-  }) => Promise<string | null>;
 }) {
   const [open, setOpen] = useState(false);
-  const [shareOpen, setShareOpen] = useState(false);
-  const [shareLabel, setShareLabel] = useState("");
-  const [shareTtl, setShareTtl] =
-    useState<(typeof SHARE_TTL_CHOICES)[number]["id"]>(SHARE_TTL_DEFAULT);
-  const [shareBusy, setShareBusy] = useState(false);
+  const [breakpointsOpen, setBreakpointsOpen] = useState(false);
+  const [breakpointDraft, setBreakpointDraft] = useState<BuilderBreakpoint[]>(() =>
+    [...DEFAULT_BUILDER_BREAKPOINTS],
+  );
+  const liveBreakpoints = useBuilderBreakpoints();
   const moreMenuId = useId();
   const moreMenuTriggerId = useId();
 
@@ -1995,7 +1907,6 @@ function MoreMenu({
       const target = e.target as HTMLElement;
       if (!target.closest("[data-more-menu]")) {
         setOpen(false);
-        setShareOpen(false);
       }
     }
     document.addEventListener("mousedown", onDoc);
@@ -2008,52 +1919,28 @@ function MoreMenu({
       if (e.key !== "Escape") return;
       e.preventDefault();
       e.stopPropagation();
-      if (shareOpen) {
-        setShareOpen(false);
-      } else {
-        setOpen(false);
-      }
+      setOpen(false);
     }
     document.addEventListener("keydown", onKey, true);
     return () => document.removeEventListener("keydown", onKey, true);
-  }, [open, shareOpen]);
+  }, [open]);
 
   useEffect(() => {
     if (!open) {
-      setShareOpen(false);
-      setShareLabel("");
-      setShareTtl(SHARE_TTL_DEFAULT);
+      setBreakpointsOpen(false);
     }
   }, [open]);
+
+  useEffect(() => {
+    if (breakpointsOpen) {
+      setBreakpointDraft([...liveBreakpoints]);
+    }
+  }, [breakpointsOpen, liveBreakpoints]);
 
   function handlePick(cb?: () => void) {
     if (!cb) return;
     cb();
     setOpen(false);
-  }
-
-  async function handleGenerateShare() {
-    if (!onShare || shareBusy) return;
-    setShareBusy(true);
-    try {
-      const ttlSeconds = SHARE_TTL_CHOICES.find((c) => c.id === shareTtl)
-        ?.seconds;
-      const url = await onShare({
-        label: shareLabel.trim() || undefined,
-        ttlSeconds,
-      });
-      if (!url) return;
-      if (typeof navigator !== "undefined" && navigator.clipboard) {
-        try {
-          await navigator.clipboard.writeText(url);
-        } catch {
-          window.prompt("Share link", url);
-        }
-      }
-      setOpen(false);
-    } finally {
-      setShareBusy(false);
-    }
   }
 
   return (
@@ -2088,8 +1975,7 @@ function MoreMenu({
               "0 24px 64px -16px rgba(0,0,0,0.20), 0 4px 12px rgba(0,0,0,0.08), 0 0 0 1px rgba(24,24,27,0.07)",
           }}
         >
-          {!shareOpen ? (
-            <>
+          <>
               <MoreRow
                 disabled={!onRevisions}
                 onClick={() => handlePick(onRevisions)}
@@ -2102,17 +1988,6 @@ function MoreMenu({
                 }
                 label="Revisions"
                 hint="Snapshot history"
-              />
-              <MoreRow
-                disabled={!onTheme}
-                onClick={() => handlePick(onTheme)}
-                icon={
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                    <path d="M12 22a10 10 0 1 1 10-10c0 2.5-2 4-4 4h-2a2 2 0 0 0-2 2 2 2 0 0 1-2 2z" />
-                  </svg>
-                }
-                label="Theme"
-                hint="Brand tokens & palette"
               />
               <MoreRow
                 disabled={!onAssets}
@@ -2154,164 +2029,123 @@ function MoreMenu({
                 label="Template gallery"
                 hint="Starter layouts"
               />
-              <div
-                role="separator"
-                style={{ height: 1, background: CHROME.line, margin: "4px 2px" }}
-              />
               <MoreRow
-                disabled={!onShare}
-                onClick={() => setShareOpen(true)}
+                onClick={() => setBreakpointsOpen((o) => !o)}
                 icon={
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                    <circle cx="18" cy="5" r="3" />
-                    <circle cx="6" cy="12" r="3" />
-                    <circle cx="18" cy="19" r="3" />
-                    <line x1="8.6" y1="13.5" x2="15.4" y2="17.5" />
-                    <line x1="15.4" y1="6.5" x2="8.6" y2="10.5" />
+                    <rect x="2" y="5" width="20" height="14" rx="2" />
+                    <path d="M8 5v14" />
+                    <path d="M16 5v14" />
                   </svg>
                 }
-                label="Share preview link…"
-                hint="Generate a private URL"
-                showCaret
+                label="Breakpoints"
+                hint="Custom viewport tiers"
               />
-            </>
-          ) : (
-            <div className="p-2">
-              <button
-                type="button"
-                onClick={() => setShareOpen(false)}
-                className="cursor-pointer"
-                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(42,49,71,0.06)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                  fontSize: 11.5,
-                  fontWeight: 500,
-                  color: CHROME.muted,
-                  background: "transparent",
-                  border: "none",
-                  marginBottom: 8,
-                  padding: 0,
-                  transition: "background 110ms ease",
-                }}
-              >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                  <polyline points="15 18 9 12 15 6" />
-                </svg>
-                Back
-              </button>
-              <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: CHROME.ink,
-                }}
-              >
-                Share a preview link
-              </div>
-              <div
-                style={{
-                  fontSize: 11.5,
-                  color: CHROME.muted,
-                  marginTop: 2,
-                  lineHeight: 1.45,
-                }}
-              >
-                Anyone with the link can view this draft until it expires.
-              </div>
-              <input
-                type="text"
-                value={shareLabel}
-                onChange={(e) => setShareLabel(e.target.value)}
-                placeholder="Q3 review draft"
-                maxLength={80}
-                spellCheck={false}
-                style={{
-                  width: "100%",
-                  marginTop: 10,
-                  padding: "8px 10px",
-                  fontSize: 13,
-                  color: CHROME.ink,
-                  background: CHROME.paper,
-                  border: `1px solid ${CHROME.line}`,
-                  borderRadius: 6,
-                  outline: 0,
-                  boxSizing: "border-box",
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    void handleGenerateShare();
-                  }
-                }}
-              />
-              <div
-                role="radiogroup"
-                aria-label="Link expiration"
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr 1fr 1fr",
-                  gap: 4,
-                  marginTop: 8,
-                }}
-              >
-                {SHARE_TTL_CHOICES.map((c) => {
-                  const active = c.id === shareTtl;
-                  return (
+              {breakpointsOpen ? (
+                <div
+                  className="mx-1 mb-1 rounded-lg p-2"
+                  style={{ background: CHROME.paper2, border: `1px solid ${CHROME.line}` }}
+                >
+                  <p
+                    className="mb-2 px-1"
+                    style={{ fontSize: 10.5, color: CHROME.muted, lineHeight: 1.35 }}
+                  >
+                    Min-width tiers for responsive style editing and device preview frames.
+                  </p>
+                  <div className="flex max-h-[160px] flex-col gap-1 overflow-y-auto">
+                    {breakpointDraft.map((bp, index) => (
+                      <div key={`${bp.id}-${index}`} className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          value={bp.label}
+                          onChange={(e) => {
+                            const label = e.target.value;
+                            setBreakpointDraft((rows) =>
+                              rows.map((row, i) => (i === index ? { ...row, label } : row)),
+                            );
+                          }}
+                          aria-label={`Breakpoint ${index + 1} label`}
+                          className="min-w-0 flex-1 rounded border px-1.5 py-1 text-[11px]"
+                          style={{ borderColor: CHROME.line, background: CHROME.surface }}
+                        />
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={bp.minWidth}
+                          onChange={(e) => {
+                            const minWidth = Number(e.target.value);
+                            if (!Number.isFinite(minWidth) || minWidth < 0) return;
+                            setBreakpointDraft((rows) =>
+                              rows.map((row, i) =>
+                                i === index ? { ...row, minWidth } : row,
+                              ),
+                            );
+                          }}
+                          aria-label={`Breakpoint ${index + 1} min width`}
+                          className="w-[68px] rounded border px-1.5 py-1 text-[11px]"
+                          style={{ borderColor: CHROME.line, background: CHROME.surface }}
+                        />
+                        <button
+                          type="button"
+                          aria-label={`Remove breakpoint ${bp.label}`}
+                          className="cursor-pointer rounded border-none bg-transparent px-1 text-[11px]"
+                          style={{ color: CHROME.muted }}
+                          onClick={() =>
+                            setBreakpointDraft((rows) => rows.filter((_, i) => i !== index))
+                          }
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
                     <button
-                      key={c.id}
                       type="button"
-                      role="radio"
-                      aria-checked={active}
-                      onClick={() => setShareTtl(c.id)}
-                      className="cursor-pointer"
-                      onMouseEnter={active ? undefined : (e) => { e.currentTarget.style.background = "rgba(42,49,71,0.06)"; }}
-                      onMouseLeave={active ? undefined : (e) => { e.currentTarget.style.background = CHROME.paper; }}
-                      style={{
-                        padding: "7px 0",
-                        fontSize: 12,
-                        fontWeight: 500,
-                        // Sprint 3.2 — radio-active uses the slate accent
-                        // family rather than brand-black ink, keeping the
-                        // active state distinguishable on black tenants.
-                        background: active ? CHROME.accent : CHROME.paper,
-                        color: active ? "#fff" : CHROME.text,
-                        border: `1px solid ${active ? CHROME.accent : CHROME.line}`,
-                        borderRadius: 6,
-                        letterSpacing: "-0.005em",
-                        transition: "background 110ms ease",
+                      className="cursor-pointer rounded-md border px-2 py-1 text-[10.5px] font-medium"
+                      style={{ borderColor: CHROME.line, background: CHROME.surface }}
+                      onClick={() =>
+                        setBreakpointDraft((rows) => [
+                          ...rows,
+                          {
+                            id: `custom-${rows.length + 1}`,
+                            label: `Tier ${rows.length + 1}`,
+                            minWidth: 1440,
+                          },
+                        ])
+                      }
+                    >
+                      Add tier
+                    </button>
+                    <button
+                      type="button"
+                      className="cursor-pointer rounded-md border px-2 py-1 text-[10.5px] font-medium"
+                      style={{ borderColor: CHROME.line, background: CHROME.surface }}
+                      onClick={() => setBreakpointDraft([...DEFAULT_BUILDER_BREAKPOINTS])}
+                    >
+                      Reset defaults
+                    </button>
+                    <button
+                      type="button"
+                      className="cursor-pointer rounded-md border-none px-2 py-1 text-[10.5px] font-semibold text-white"
+                      style={{ background: CHROME.accent }}
+                      onClick={() => {
+                        const cleaned = breakpointDraft.filter(
+                          (bp) => bp.label.trim() !== "" && Number.isFinite(bp.minWidth),
+                        );
+                        saveCustomBreakpoints(
+                          cleaned.length > 0 ? cleaned : [...DEFAULT_BUILDER_BREAKPOINTS],
+                        );
+                        notifyBuilderBreakpointsChanged();
                       }}
                     >
-                      {c.label}
+                      Save
                     </button>
-                  );
-                })}
-              </div>
-              <button
-                type="button"
-                onClick={() => void handleGenerateShare()}
-                disabled={shareBusy}
-                className="cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
-                style={{
-                  width: "100%",
-                  marginTop: 10,
-                  padding: "9px 12px",
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  color: "#fff",
-                  // Sprint 3.2 — secondary primary uses slate accent.
-                  background: CHROME.accent,
-                  border: `1px solid ${CHROME.accent}`,
-                  borderRadius: 6,
-                  letterSpacing: "-0.005em",
-                }}
-              >
-                {shareBusy ? "Generating…" : "Generate & copy link"}
-              </button>
-            </div>
-          )}
+                  </div>
+                </div>
+              ) : null}
+          </>
         </div>
       ) : null}
     </div>
@@ -2399,8 +2233,22 @@ function MoreRow({
 function ExitButton() {
   const { pending } = useFormStatus();
   return (
-    <TbTextBtn type="submit" disabled={pending}>
-      {pending ? "Exiting…" : "Exit"}
+    <TbTextBtn type="submit" disabled={pending} title="Back to dashboard">
+      <svg
+        width="15"
+        height="15"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <line x1="19" y1="12" x2="5" y2="12" />
+        <polyline points="12 19 5 12 12 5" />
+      </svg>
+      {pending ? "Exiting…" : "Back to Dashboard"}
     </TbTextBtn>
   );
 }
@@ -2425,6 +2273,211 @@ function ExitForm({ dirty, saving }: { dirty: boolean; saving: boolean }) {
     <form action={exitEditModeAction} onSubmit={handleSubmit}>
       <ExitButton />
     </form>
+  );
+}
+
+/**
+ * ShareButton — standalone "Share preview link" affordance for the right
+ * cluster (next to Comments). Mints a private draft URL via the same
+ * `onShare` handler the topbar already receives; the popover carries a label
+ * field + TTL choice and copies the generated link to the clipboard.
+ *
+ * Surfaced as its own button (2026-06 canvas-first redesign) so collaboration
+ * actions live beside Comments rather than buried in an overflow menu.
+ */
+function ShareButton({
+  onShare,
+}: {
+  onShare: (opts: {
+    label?: string;
+    ttlSeconds?: number;
+  }) => Promise<string | null>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [label, setLabel] = useState("");
+  const [ttl, setTtl] =
+    useState<(typeof SHARE_TTL_CHOICES)[number]["id"]>(SHARE_TTL_DEFAULT);
+  const [busy, setBusy] = useState(false);
+  const popoverId = useId();
+
+  useEffect(() => {
+    if (!open) return;
+    function onDoc(e: MouseEvent) {
+      const target = e.target as HTMLElement;
+      if (!target.closest("[data-share-button]")) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      e.stopPropagation();
+      setOpen(false);
+    }
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) {
+      setLabel("");
+      setTtl(SHARE_TTL_DEFAULT);
+    }
+  }, [open]);
+
+  async function handleGenerate() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const ttlSeconds = SHARE_TTL_CHOICES.find((c) => c.id === ttl)?.seconds;
+      const url = await onShare({ label: label.trim() || undefined, ttlSeconds });
+      if (!url) return;
+      if (typeof navigator !== "undefined" && navigator.clipboard) {
+        try {
+          await navigator.clipboard.writeText(url);
+        } catch {
+          window.prompt("Share link", url);
+        }
+      }
+      setOpen(false);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="relative shrink-0" data-share-button>
+      <TbIconBtn
+        title="Share preview link"
+        label="Share"
+        ariaExpanded={open}
+        ariaHaspopup="dialog"
+        ariaControls={popoverId}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <circle cx="18" cy="5" r="3" />
+          <circle cx="6" cy="12" r="3" />
+          <circle cx="18" cy="19" r="3" />
+          <line x1="8.6" y1="13.5" x2="15.4" y2="17.5" />
+          <line x1="15.4" y1="6.5" x2="8.6" y2="10.5" />
+        </svg>
+      </TbIconBtn>
+      {open ? (
+        <div
+          id={popoverId}
+          role="dialog"
+          aria-label="Share a preview link"
+          className="absolute right-0 top-[44px] z-[120] w-[280px] rounded-[10px] p-3"
+          style={{
+            background: CHROME.surface,
+            border: `1px solid ${CHROME.line}`,
+            boxShadow:
+              "0 24px 64px -16px rgba(0,0,0,0.20), 0 4px 12px rgba(0,0,0,0.08), 0 0 0 1px rgba(24,24,27,0.07)",
+          }}
+        >
+          <div style={{ fontSize: 13, fontWeight: 600, color: CHROME.ink }}>
+            Share a preview link
+          </div>
+          <div
+            style={{
+              fontSize: 11.5,
+              color: CHROME.muted,
+              marginTop: 2,
+              lineHeight: 1.45,
+            }}
+          >
+            Anyone with the link can view this draft until it expires.
+          </div>
+          <input
+            type="text"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder="Q3 review draft"
+            maxLength={80}
+            spellCheck={false}
+            style={{
+              width: "100%",
+              marginTop: 10,
+              padding: "8px 10px",
+              fontSize: 13,
+              color: CHROME.ink,
+              background: CHROME.paper,
+              border: `1px solid ${CHROME.line}`,
+              borderRadius: 6,
+              outline: 0,
+              boxSizing: "border-box",
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void handleGenerate();
+              }
+            }}
+          />
+          <div
+            role="radiogroup"
+            aria-label="Link expiration"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr 1fr 1fr",
+              gap: 4,
+              marginTop: 8,
+            }}
+          >
+            {SHARE_TTL_CHOICES.map((c) => {
+              const active = c.id === ttl;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => setTtl(c.id)}
+                  className="cursor-pointer"
+                  style={{
+                    padding: "7px 0",
+                    fontSize: 12,
+                    fontWeight: 500,
+                    background: active ? CHROME.accent : CHROME.paper,
+                    color: active ? "#fff" : CHROME.text,
+                    border: `1px solid ${active ? CHROME.accent : CHROME.line}`,
+                    borderRadius: 6,
+                    letterSpacing: "-0.005em",
+                  }}
+                >
+                  {c.label}
+                </button>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            onClick={() => void handleGenerate()}
+            disabled={busy}
+            className="cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+            style={{
+              width: "100%",
+              marginTop: 10,
+              padding: "9px 12px",
+              fontSize: 12.5,
+              fontWeight: 600,
+              color: "#fff",
+              background: CHROME.accent,
+              border: `1px solid ${CHROME.accent}`,
+              borderRadius: 6,
+              letterSpacing: "-0.005em",
+            }}
+          >
+            {busy ? "Generating…" : "Generate & copy link"}
+          </button>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -2458,51 +2511,57 @@ function WorkspaceLayoutControls() {
         boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.04)",
       }}
     >
-      <button
-        type="button"
-        onClick={pinWorkspaceLayout}
-        title={
-          hasSavedWorkspaceLayout
-            ? "Workspace pinned — panel positions are saved and restore on refresh. Click to re-pin to the current layout."
-            : "Pin workspace — save where you've placed the panels so they stay put after a refresh"
-        }
-        aria-label="Pin workspace layout"
-        aria-pressed={hasSavedWorkspaceLayout}
-        className="inline-flex size-[30px] cursor-pointer items-center justify-center rounded-full border-none transition-colors"
-        style={{
-          background: hasSavedWorkspaceLayout ? CHROME.surface : "transparent",
-          color: hasSavedWorkspaceLayout ? CHROME.accent : CHROME.muted,
-          boxShadow: hasSavedWorkspaceLayout
-            ? "0 1px 3px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.04)"
-            : "none",
-        }}
-        onMouseEnter={(e) => {
-          if (hasSavedWorkspaceLayout) return;
-          e.currentTarget.style.background = CHROME.surface;
-          e.currentTarget.style.color = CHROME.ink;
-        }}
-        onMouseLeave={(e) => {
-          if (hasSavedWorkspaceLayout) return;
-          e.currentTarget.style.background = "transparent";
-          e.currentTarget.style.color = CHROME.muted;
-        }}
+      <BuilderCoachmarkTip
+        id="pin-workspace"
+        message="Pin the panel layout so your workspace restores after refresh."
+        placement="below"
       >
-        {/* pin glyph (lucide "pin") */}
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill={hasSavedWorkspaceLayout ? "currentColor" : "none"}
-          stroke="currentColor"
-          strokeWidth="1.9"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
+        <button
+          type="button"
+          onClick={pinWorkspaceLayout}
+          title={
+            hasSavedWorkspaceLayout
+              ? "Workspace pinned — panel positions are saved and restore on refresh. Click to re-pin to the current layout."
+              : "Pin workspace — save where you've placed the panels so they stay put after a refresh"
+          }
+          aria-label="Pin workspace layout"
+          aria-pressed={hasSavedWorkspaceLayout}
+          className="inline-flex size-[30px] cursor-pointer items-center justify-center rounded-full border-none transition-colors"
+          style={{
+            background: hasSavedWorkspaceLayout ? CHROME.surface : "transparent",
+            color: hasSavedWorkspaceLayout ? CHROME.accent : CHROME.muted,
+            boxShadow: hasSavedWorkspaceLayout
+              ? "0 1px 3px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.04)"
+              : "none",
+          }}
+          onMouseEnter={(e) => {
+            if (hasSavedWorkspaceLayout) return;
+            e.currentTarget.style.background = CHROME.surface;
+            e.currentTarget.style.color = CHROME.ink;
+          }}
+          onMouseLeave={(e) => {
+            if (hasSavedWorkspaceLayout) return;
+            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.color = CHROME.muted;
+          }}
         >
-          <path d="M12 17v5" />
-          <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" />
-        </svg>
-      </button>
+          {/* pin glyph (lucide "pin") */}
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill={hasSavedWorkspaceLayout ? "currentColor" : "none"}
+            stroke="currentColor"
+            strokeWidth="1.9"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <path d="M12 17v5" />
+            <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" />
+          </svg>
+        </button>
+      </BuilderCoachmarkTip>
       <button
         type="button"
         onClick={resetWorkspaceLayout}
@@ -2671,17 +2730,13 @@ export function TopBar({
   onUndo,
   onRedo,
   onPublish,
-  onPageSettings,
   onRevisions,
-  onTheme,
   onAssets,
   onCollections,
   onTemplates,
   onSchedule,
   onComments,
   commentsBadge,
-  onOpenPalette,
-  onOpenShortcuts,
   onSaveDraft,
   onShare,
   pageTitle,
@@ -2693,12 +2748,7 @@ export function TopBar({
   liveSitePublishedAt = null,
   lastDraftSavedAt = null,
 }: TopBarProps) {
-  const router = useRouter();
   const editCtx = useMaybeEditContext();
-  const workspaceSlug = editCtx?.workspaceMembershipSlug?.trim() || null;
-  const brandSiteLabel =
-    editCtx?.tenantSiteLabel?.trim() || workspaceSlug || null;
-  const brandPageTitle = pageTitle?.trim() || null;
 
   function handleMenuSelect(opt: PublishMenuOption) {
     if (opt === "schedule") {
@@ -2719,19 +2769,6 @@ export function TopBar({
     }
   }
 
-  function handlePreview() {
-    // Phase 9 v2 — flip `?preview=1` ON in the same tab. EditChrome's
-    // `useSearchParams` subscription picks the change up and swaps from
-    // EditShell to PreviewPill without unmounting the storefront DOM,
-    // so scroll position + any in-flight section reads stay intact. The
-    // edit cookie is unaffected — the operator goes back to the shell
-    // by clicking "Back to edit" inside the pill.
-    if (typeof window === "undefined") return;
-    const url = new URL(window.location.href);
-    url.searchParams.set("preview", "1");
-    router.replace(`${url.pathname}${url.search}${url.hash}`);
-  }
-
   return (
     <div
       data-edit-topbar
@@ -2750,8 +2787,8 @@ export function TopBar({
           Playwright (and operators) cannot reach them. Inner row keeps natural
           width; outer bar scrolls. */}
       <div className="flex h-full min-w-max items-center gap-[8px] px-[12px]">
-      {/* ── Left cluster ── */}
-      <BrandMark siteLabel={brandSiteLabel} pageTitle={brandPageTitle} />
+      {/* ── Left cluster — page-level navigation ── */}
+      <ExitForm dirty={dirty} saving={saving} />
       <TbDivider />
       <PagePicker
         title={pageTitle ?? "Homepage"}
@@ -2767,46 +2804,11 @@ export function TopBar({
           dirty={dirty}
         />
       ) : null}
-      <span className="inline-flex min-w-0 shrink items-center gap-[6px]">
-        <SaveStatus
-          dirty={dirty}
-          saving={saving}
-          lastDraftSavedAt={lastDraftSavedAt}
-          liveSitePublishedAt={liveSitePublishedAt}
-        />
-        {/* Hide on <lg to claw horizontal space toward Publish (BUG-010). */}
-        <span className="hidden lg:contents">
-          <LiveSitePublishedChip publishedAt={liveSitePublishedAt} />
-        </span>
-      </span>
-      <TbDivider />
-
-      {/* ── Undo / Redo ── */}
-      <TbIconBtn
-        title="Undo (⌘Z)"
-        onClick={onUndo}
-        disabled={!canUndo}
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <path d="M3 7v6h6" />
-          <path d="M21 17a9 9 0 0 0-15-6.7L3 13" />
-        </svg>
-      </TbIconBtn>
-      <TbIconBtn
-        title="Redo (⇧⌘Z)"
-        onClick={onRedo}
-        disabled={!canRedo}
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <path d="M21 7v6h-6" />
-          <path d="M3 17a9 9 0 0 1 15-6.7l3 2.7" />
-        </svg>
-      </TbIconBtn>
 
       {/* ── Spacer ── */}
       <span className="flex-1" />
 
-      {/* ── Viewport switcher ── */}
+      {/* ── Center — device preview controls ── */}
       <ViewportSwitcher
         device={device}
         setDevice={setDevice}
@@ -2817,33 +2819,30 @@ export function TopBar({
         setMobileEditMode={editCtx?.setMobileEditMode}
       />
 
-      {/* ── Preview toggle ──
-       * Suppresses canvas editing chrome (selection rings, hover pills,
-       * drag toolbars, link interceptor) so the operator can interact
-       * with the live page exactly as a visitor would. The drawer
-       * stays accessible — flip back to test → tweak → test in seconds.
-       */}
-      <PreviewToggle previewing={previewing} setPreviewing={setPreviewing} />
-
-      {/* ── Workspace pin / reset (Photoshop-style dockable panels) ──
-       * Pin saves where the operator dragged the floating panels so the layout
-       * persists across refresh; Reset returns them to their default home. */}
-      <WorkspaceLayoutControls />
-
       {/* ── Spacer ── */}
       <span className="flex-1" />
 
-      {/* ── Right cluster — surfaced primaries only ──
-       *
-       * Compression sprint (2026-04-28): secondary actions collapse into the
-       * More menu except where glanceability matters. Surfaced on the right:
-       * Comments (badge), Preview (visitor view), Page settings (slug/SEO —
-       * operators hit this constantly on new pages). Revisions · Theme ·
-       * Assets · Share stay under More (⋯).
+      {/* ── Right cluster — history · collaboration · save & publish ──
+       * Page-level tools only. Element/section editing lives in the inspector
+       * and the floating toolbar; tool panels launch from the left command
+       * dock. Search · Add · Page settings · Theme · Help now live in the dock.
        */}
-      {/* #14 — added short visible text labels to bare-glyph right-cluster
-          buttons so operators can understand each action without hovering.
-          aria-label is already set via TbIconBtn (title fallback). */}
+      <TbIconBtn title="Undo (⌘Z)" onClick={onUndo} disabled={!canUndo}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M3 7v6h6" />
+          <path d="M21 17a9 9 0 0 0-15-6.7L3 13" />
+        </svg>
+      </TbIconBtn>
+      <TbIconBtn title="Redo (⇧⌘Z)" onClick={onRedo} disabled={!canRedo}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M21 7v6h-6" />
+          <path d="M3 17a9 9 0 0 1 15-6.7l3 2.7" />
+        </svg>
+      </TbIconBtn>
+
+      <TbDivider />
+
+      {/* ── Collaboration ── */}
       <TbIconBtn
         title="Comments"
         label="Comments"
@@ -2854,53 +2853,40 @@ export function TopBar({
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
         </svg>
       </TbIconBtn>
-      <TbIconBtn title="Preview as visitor (⌘P)" label="Preview" onClick={handlePreview}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-          <circle cx="12" cy="12" r="3" />
-        </svg>
-      </TbIconBtn>
-      <TbIconBtn
-        title="Page settings (,)"
-        ariaLabel="Page settings"
-        label="Settings"
-        disabled={!onPageSettings}
-        onClick={onPageSettings}
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-        </svg>
-      </TbIconBtn>
-      {/* Command palette launcher — the ⌘K palette was previously keyboard-only
-          with no on-screen affordance. This pill makes it discoverable and
-          carries the keycap hint. Wired to the same handler the shortcut fires. */}
-      {onOpenPalette ? <CommandPaletteLauncher onOpen={onOpenPalette} /> : null}
-      {/* Keyboard-shortcuts overlay launcher — the `?` overlay was likewise
-          keyboard-only. This glyph surfaces it for mouse users. */}
-      {onOpenShortcuts ? (
-        <TbIconBtn
-          title="Keyboard shortcuts (?)"
-          ariaLabel="Keyboard shortcuts"
-          onClick={onOpenShortcuts}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <circle cx="12" cy="12" r="10" />
-            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-            <line x1="12" y1="17" x2="12.01" y2="17" />
-          </svg>
-        </TbIconBtn>
-      ) : null}
+      {onShare ? <ShareButton onShare={onShare} /> : null}
+      <PreviewToggle previewing={previewing} setPreviewing={setPreviewing} />
+
+      {/* Secondary page tools awaiting a Phase 2 home (Revisions → page menu,
+          Assets/Collections/Templates → Add, Breakpoints → device dropdown). */}
       <MoreMenu
         onRevisions={onRevisions}
-        onTheme={onTheme}
         onAssets={onAssets}
         onCollections={onCollections}
         onTemplates={onTemplates}
-        onShare={onShare}
       />
+      {SHOW_WORKSPACE_CONTROLS ? <WorkspaceLayoutControls /> : null}
 
       <TbDivider />
+
+      {/* ── Save state + explicit Save draft ── */}
+      <SaveStatus
+        dirty={dirty}
+        saving={saving}
+        lastDraftSavedAt={lastDraftSavedAt}
+        liveSitePublishedAt={liveSitePublishedAt}
+      />
+      {onSaveDraft ? (
+        <TbTextBtn
+          onClick={() => void onSaveDraft()}
+          disabled={saving}
+          title="Save draft (⌘S)"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M20 6 9 17l-5-5" />
+          </svg>
+          Save
+        </TbTextBtn>
+      ) : null}
 
       {/* ── Publish split (primary CTA) ── */}
       <PublishSplitButton
@@ -2908,11 +2894,6 @@ export function TopBar({
         onMenuSelect={handleMenuSelect}
         disabled={saving}
       />
-
-      <TbDivider />
-
-      {/* ── Exit ── */}
-      <ExitForm dirty={dirty} saving={saving} />
       </div>
     </div>
   );

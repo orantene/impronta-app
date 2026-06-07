@@ -52,7 +52,6 @@ import {
   ClipboardPaste,
   Copy,
   Files,
-  PanelLeftOpen,
   Plus,
   X,
 } from "lucide-react";
@@ -63,7 +62,6 @@ import {
   CHROME_SHADOWS,
   SectionTypeIcon,
 } from "./kit";
-import { RailAvatar, RailIconButton } from "./chrome-icon-rail";
 import { useFloatingDrag, FloatingDragHandle } from "./floating-panel";
 import {
   computeNavigatorDisclosure,
@@ -80,7 +78,10 @@ import { sectionDisplayName } from "@/lib/site-admin/section-display-name";
 import type { SectionVisibility as SectionVisibilityT } from "@/lib/site-admin/edit-mode/section-actions";
 
 import { useEditContext } from "./edit-context";
+import { BuilderCoachmarkTip } from "./builder-coachmark-tip";
 import { FreeformLayersTree } from "./freeform-layers-tree";
+import { locateCanvasNode } from "./freeform-layer-row";
+import { useEditorLocale } from "./use-editor-locale";
 import {
   builderSectionNodeAddressKey,
   BUILDER_NODE_REGISTRY,
@@ -93,6 +94,7 @@ import {
   type BuilderNodeKind,
   type BuilderNodeTree,
 } from "@/lib/site-admin/builder-node";
+import { buildHeadingOutlineFromBuilderTree } from "@/lib/site-admin/builder-node/freeform-heading-outline";
 import { checkSlotTypeCompatibility } from "@/lib/site-admin/edit-mode/slot-type-compatibility";
 import { siblingDropGapToMoveIndex } from "@/lib/site-admin/builder-node/sibling-drop-gap";
 import { ElementLibraryInsertPicker } from "./element-library-insert-picker";
@@ -105,9 +107,12 @@ import {
   type HeadingNode,
 } from "@/lib/site-admin/a11y/heading-hierarchy";
 import {
+  collectNodeIdsLinkedToClass,
   countNodesLinkedToClass,
+  getNodeClassRef,
   type BuilderStyleClass,
 } from "@/lib/site-admin/builder-node/style-classes";
+import { findBuilderNodeById } from "./inspectors/builder-node-content-utils";
 import {
   readClasses as readStoredClasses,
   writeClasses as writeStoredClasses,
@@ -233,12 +238,14 @@ function resolveSectionDropTarget(
 }
 
 export function NavigatorPanel() {
+  const { t } = useEditorLocale();
   const {
     tenantId,
     selectedSectionId,
     selectedBuilderNodeId,
     setSelectedSectionId,
     selectBuilderNode,
+    extendBuilderNodeSelection,
     focusSectionForEdit,
     additionalSelectedIds,
     extendSelection,
@@ -291,6 +298,22 @@ export function NavigatorPanel() {
   // already loads for the lint badge. Toggling is local to the navigator —
   // it doesn't change selection or any persisted state.
   const [viewMode, setViewMode] = useState<"sections" | "outline" | "classes">("sections");
+  const selectedStyleClassId = useMemo(() => {
+    if (!selectedBuilderNodeId) return null;
+    const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
+    return node ? getNodeClassRef(node) : null;
+  }, [builderTree, selectedBuilderNodeId]);
+  const focusStyleClassOnCanvas = useCallback(
+    (classId: string) => {
+      const nodeIds = collectNodeIdsLinkedToClass(builderTree, classId);
+      if (nodeIds.length === 0) return;
+      selectBuilderNode(nodeIds[0]!);
+      for (let i = 1; i < nodeIds.length; i += 1) {
+        extendBuilderNodeSelection(nodeIds[i]!);
+      }
+    },
+    [builderTree, extendBuilderNodeSelection, selectBuilderNode],
+  );
   const [draggingChildNode, setDraggingChildNode] = useState<{
     nodeId: string;
     kind: BuilderNodeKind;
@@ -778,6 +801,28 @@ export function NavigatorPanel() {
     return buildHeadingOutline(propBased);
   }, [flat, headingProbe, displayNameById]);
 
+  /** Freeform pages have no composition slots — walk builderTree instead. */
+  const freeformOutlineNodes = useMemo<HeadingNode[]>(() => {
+    if (flat.length > 0) return [];
+    return buildHeadingOutlineFromBuilderTree(builderTree);
+  }, [flat.length, builderTree]);
+
+  const outlineNodesResolved = useMemo<HeadingNode[]>(() => {
+    if (outlineNodes.length > 0) return outlineNodes;
+    if (freeformOutlineNodes.length > 0) return freeformOutlineNodes;
+    if (flat.length === 0) return [];
+    const structural = buildStructuralHeadingOutline(
+      flat.map((r) => ({
+        sectionId: r.ref.sectionId,
+        sectionTypeKey: r.ref.sectionTypeKey,
+      })),
+    );
+    return structural.map((node) => ({
+      ...node,
+      text: displayNameById.get(node.sectionId) ?? node.text,
+    }));
+  }, [outlineNodes, freeformOutlineNodes, flat, displayNameById]);
+
   const headingIssues = useMemo(() => {
     const flatLite = flat.map((r) => ({
       sectionId: r.ref.sectionId,
@@ -846,10 +891,19 @@ export function NavigatorPanel() {
   const selectNavigatorSectionById = useCallback(
     (sectionId: string) => {
       const row = flat.find((r) => r.ref.sectionId === sectionId);
-      if (row) selectNavigatorSectionRow(row);
-      else focusSectionForEdit(sectionId);
+      if (row) {
+        selectNavigatorSectionRow(row);
+        if (row.builderNodeId) locateCanvasNode(row.builderNodeId);
+        return;
+      }
+      if (findBuilderNodeById(builderTree, sectionId)) {
+        selectBuilderNode(sectionId);
+        locateCanvasNode(sectionId);
+        return;
+      }
+      focusSectionForEdit(sectionId);
     },
-    [flat, selectNavigatorSectionRow, focusSectionForEdit],
+    [flat, builderTree, selectNavigatorSectionRow, focusSectionForEdit, selectBuilderNode],
   );
 
   const onDragStart = useCallback(
@@ -1127,96 +1181,11 @@ export function NavigatorPanel() {
     ],
   );
 
-  if (!navigatorOpen) {
-    // Collapsed state — a tall FLOATING, DRAGGABLE white rail (Google-app
-    // style), not a fixed full-height tab pinned to the left edge. It shares
-    // the SAME floating offset as the expanded panel, so it stays wherever you
-    // parked the panel and you can keep dragging it around like a Paint tool
-    // window. Layout: a drag grip at the very top, a clean column of round
-    // icon buttons (expand is primary), and a single collaborator avatar
-    // pinned to the BOTTOM via margin-top:auto.
-    return (
-      <div
-        ref={(node) => floatingDrag.setPanelNode(node)}
-        data-edit-overlay="navigator-rail-handle"
-        style={{
-          position: "fixed",
-          left: 14,
-          top: 66,
-          width: 52,
-          minHeight: 232,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          padding: "6px 0 10px",
-          background: CHROME.surface,
-          border: `1px solid ${CHROME.line}`,
-          borderRadius: 18,
-          boxShadow: floatingDrag.dragging
-            ? "0 30px 70px -20px rgba(17,24,39,0.45), 0 10px 26px -10px rgba(17,24,39,0.26)"
-            : "0 16px 44px -20px rgba(17,24,39,0.26), 0 4px 12px -8px rgba(17,24,39,0.14)",
-          zIndex: 80,
-          transform: floatingDrag.transform,
-          transition: floatingDrag.dragging ? "none" : "box-shadow 180ms ease",
-          userSelect: floatingDrag.dragging ? "none" : undefined,
-        }}
-      >
-        {/* Drag grip — the whole strip moves the rail. */}
-        <div
-          onPointerDown={floatingDrag.onHandlePointerDown}
-          title="Drag to move"
-          style={{
-            width: "100%",
-            display: "flex",
-            justifyContent: "center",
-            padding: "4px 0 8px",
-            cursor: floatingDrag.dragging ? "grabbing" : "grab",
-            touchAction: "none",
-            color: CHROME.muted2,
-          }}
-        >
-          <span
-            aria-hidden
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(2, 3px)",
-              gridAutoRows: "3px",
-              gap: 2.5,
-              opacity: floatingDrag.dragging ? 0.85 : 0.45,
-            }}
-          >
-            {Array.from({ length: 6 }).map((_, i) => (
-              <span
-                key={i}
-                style={{ width: 3, height: 3, borderRadius: 9999, background: "currentColor" }}
-              />
-            ))}
-          </span>
-        </div>
-        {/* Icon column — generous vertical rhythm, subtle hover, tooltips. */}
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 8,
-          }}
-        >
-          <RailIconButton
-            title="Open Layers (⌘\\)"
-            onClick={toggleNavigator}
-            primary
-          >
-            <PanelLeftOpen size={20} strokeWidth={1.9} aria-hidden />
-          </RailIconButton>
-        </div>
-        {/* Collaborator avatar — pinned to the bottom of the rail. */}
-        <div style={{ marginTop: "auto", paddingTop: 10 }}>
-          <RailAvatar initials="You" title="You" />
-        </div>
-      </div>
-    );
-  }
+  // Canvas-first model (2026-06 redesign): the Page Structure panel is closed
+  // by default and launched from the slim CommandDock. When closed it renders
+  // nothing — the dock owns the left edge, so the old collapsed floating rail
+  // pill would just compete with it.
+  if (!navigatorOpen) return null;
 
   return (
     <aside
@@ -1415,7 +1384,7 @@ export function NavigatorPanel() {
               }}
               aria-hidden
             />
-            <span id="structure-navigator-label">Layers</span>
+            <span id="structure-navigator-label">{t("layers.panel")}</span>
             {builderPerformanceIssues.length > 0 ? (
               hasBlockingPerformanceIssue ? (
                 /* Genuine blocking problems keep a visible (rose) pill. */
@@ -1546,7 +1515,48 @@ export function NavigatorPanel() {
                 : mode === "outline"
                   ? "Just the headings, as a document outline"
                   : "Reusable style classes you can apply across blocks";
-            return (
+            return mode === "outline" ? (
+              <BuilderCoachmarkTip
+                key={mode}
+                id="outline-tab"
+                message="Outline shows just the headings — jump through long pages faster."
+                placement="below"
+                wrapperStyle={{ flex: isPrimary ? 1.25 : 1, display: "inline-flex" }}
+              >
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  aria-label={`${displayLabel} — ${description}`}
+                  title={description}
+                  onClick={() => setViewMode(mode)}
+                  style={{
+                    flex: 1,
+                    padding: "4px 8px",
+                    fontSize: 11,
+                    fontWeight: isPrimary || active ? 600 : 500,
+                    letterSpacing: "-0.005em",
+                    textTransform: "capitalize",
+                    cursor: "pointer",
+                    border: "none",
+                    borderRadius: 0,
+                    background: active ? CHROME.surface : "transparent",
+                    color: active
+                      ? CHROME.ink
+                      : isPrimary
+                        ? CHROME.muted
+                        : CHROME.muted2,
+                    boxShadow: active
+                      ? "0 1px 2px rgba(0,0,0,0.06)"
+                      : "none",
+                    transition: "background 100ms, color 100ms",
+                    width: "100%",
+                  }}
+                >
+                  {displayLabel}
+                </button>
+              </BuilderCoachmarkTip>
+            ) : (
               <button
                 key={mode}
                 type="button"
@@ -1644,9 +1654,10 @@ export function NavigatorPanel() {
          *  outline reuses headingProbe — no new fetch. */}
         {viewMode === "outline" ? (
           <OutlineTree
-            nodes={outlineNodes}
+            nodes={outlineNodesResolved}
             selectedSectionId={selectedSectionId}
-            onSelect={setSelectedSectionId}
+            selectedBuilderNodeId={selectedBuilderNodeId}
+            onSelect={selectNavigatorSectionById}
             search={search}
           />
         ) : null}
@@ -1659,6 +1670,8 @@ export function NavigatorPanel() {
             pageId={pageId}
             builderTree={builderTree}
             search={search}
+            activeClassId={selectedStyleClassId}
+            onFocusClass={focusStyleClassOnCanvas}
           />
         ) : null}
         {/* Phase B.2.C — Site shell group. Renders above the page root
@@ -3857,11 +3870,13 @@ function FooterShortcut({
 function OutlineTree({
   nodes,
   selectedSectionId,
+  selectedBuilderNodeId,
   onSelect,
   search,
 }: {
   nodes: ReadonlyArray<HeadingNode>;
   selectedSectionId: string | null;
+  selectedBuilderNodeId: string | null;
   onSelect: (id: string) => void;
   search: string;
 }) {
@@ -3909,7 +3924,9 @@ function OutlineTree({
       }}
     >
       {filtered.map((node, idx) => {
-        const selected = node.sectionId === selectedSectionId;
+        const selected =
+          node.sectionId === selectedSectionId ||
+          node.sectionId === selectedBuilderNodeId;
         // Indent by level. H1 = no indent (the page root). H2 = 14px.
         // H3 = 28px. Cap at H6 visually but the renderer schema doesn't
         // produce >H2 today.
@@ -4089,10 +4106,16 @@ function ClassManagerPanel({
   pageId,
   builderTree,
   search,
+  activeClassId,
+  onFocusClass,
 }: {
   pageId: string | null;
   builderTree: BuilderNodeTree;
   search: string;
+  /** classRef on the currently selected canvas block, if any. */
+  activeClassId: string | null;
+  /** Jump the canvas selection to block(s) linked to this class. */
+  onFocusClass: (classId: string) => void;
 }) {
   const [classes, setClasses] = useState<ReadonlyArray<BuilderStyleClass>>([]);
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -4248,29 +4271,59 @@ function ClassManagerPanel({
       {filtered.map((klass) => {
         const count = usageCounts[klass.id] ?? 0;
         const isRenaming = renamingId === klass.id;
+        const isActive = activeClassId === klass.id;
 
         return (
           <div
             key={klass.id}
             data-builder-class-row={klass.id}
+            role="button"
+            tabIndex={isRenaming ? -1 : 0}
+            aria-label={`${klass.name} — ${count} block${count === 1 ? "" : "s"}. Click to select on canvas.`}
+            onClick={() => {
+              if (isRenaming) return;
+              onFocusClass(klass.id);
+            }}
+            onKeyDown={(e) => {
+              if (isRenaming) return;
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onFocusClass(klass.id);
+              }
+            }}
             style={{
               display: "flex",
               alignItems: "center",
               gap: 6,
               padding: "6px 8px",
               borderRadius: CHROME_RADII.sm,
-              background: isRenaming ? CHROME.surface2 : "transparent",
-              border: `1px solid ${isRenaming ? CHROME.controlBorder : "transparent"}`,
+              background: isRenaming
+                ? CHROME.surface2
+                : isActive
+                  ? "rgba(42,49,71,0.08)"
+                  : "transparent",
+              border: `1px solid ${
+                isRenaming
+                  ? CHROME.controlBorder
+                  : isActive
+                    ? CHROME.lineMid
+                    : "transparent"
+              }`,
               transition: "background 80ms",
+              cursor: isRenaming ? "default" : count > 0 ? "pointer" : "default",
+              opacity: count === 0 ? 0.55 : 1,
             }}
             onMouseEnter={(e) => {
-              if (!isRenaming) {
+              if (!isRenaming && !isActive && count > 0) {
                 (e.currentTarget as HTMLElement).style.background = CHROME.surface;
               }
             }}
             onMouseLeave={(e) => {
-              if (!isRenaming) {
+              if (!isRenaming && !isActive) {
                 (e.currentTarget as HTMLElement).style.background = "transparent";
+              } else if (isActive) {
+                (e.currentTarget as HTMLElement).style.background =
+                  "rgba(42,49,71,0.08)";
               }
             }}
           >
@@ -4394,7 +4447,10 @@ function ClassManagerPanel({
                 title={`Rename "${klass.name}"`}
                 aria-label={`Rename class ${klass.name}`}
                 data-builder-class-rename={klass.id}
-                onClick={() => startRename(klass)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  startRename(klass);
+                }}
                 style={{
                   flexShrink: 0,
                   width: 22,

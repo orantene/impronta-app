@@ -1260,9 +1260,6 @@
     },
     "react-hooks/immutability": {
       "count": 2
-    },
-    "react-hooks/refs": {
-      "count": 4
     }
   },
   "src/components/edit-chrome/edit-shell.tsx": {
@@ -1751,7 +1748,7 @@
       "count": 1
     },
     "ratchet/no-untenanted-from": {
-      "count": 30
+      "count": 29
     }
   },
   "src/lib/server-actions/talent-self-provision.ts": {

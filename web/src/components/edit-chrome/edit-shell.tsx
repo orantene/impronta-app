@@ -35,6 +35,7 @@ import { useHoveredSectionId } from "./hover-bridge";
 import { useDirty } from "./dirty-bridge";
 import { PresenceProvider } from "./presence-provider";
 import { CHROME_SHADOWS } from "./kit";
+import { isCoachmarkDismissed, dismissCoachmark } from "./builder-coachmarks";
 import { SelectionLayer } from "./selection-layer";
 import { InspectorDock } from "./inspector-dock";
 import { CompositionInserters } from "./composition-inserter";
@@ -42,12 +43,14 @@ import { CompositionLibraryOverlay } from "./composition-library";
 import { InlineEditor } from "./inline-editor";
 import { MobileEditPanel } from "./mobile-edit-panel";
 import { NavigatorPanel } from "./navigator-panel";
+import { CommandDock } from "./command-dock";
 import { ShortcutOverlay } from "./shortcut-overlay";
 import { TopBar } from "./topbar";
 import { CanvasLinkInterceptor } from "./canvas-link-interceptor";
 import { IframeBridgeParent } from "./iframe-bridge";
 import { SectionPickerPopover } from "./section-picker-popover";
 import { findBuilderNodeById } from "./inspectors/builder-node-content-utils";
+import { isEditableKeyboardTarget } from "./builder-keyboard";
 import { copySharePreviewLinkToClipboard } from "./copy-share-preview-link";
 import { createShareLinkAction } from "@/lib/site-admin/share-link/share-actions";
 import { defaultSectionAddSlot } from "./default-section-add-slot";
@@ -61,6 +64,12 @@ import {
   CanvasGuides,
   useCanvasViewport,
 } from "./canvas-viewport";
+import {
+  DEFAULT_WORKSPACE_CANVAS_MODE,
+  resolveBodyHorizontalPadding,
+  resolveDeviceFrameHorizontalPadding,
+  type WorkspaceCanvasMode,
+} from "./workspace-layout";
 
 // ---------------------------------------------------------------------------
 // Heavy drawers — lazy-loaded via next/dynamic so their JS chunks are
@@ -125,11 +134,19 @@ const StarterTemplateGalleryOverlay = dynamic(
   { ssr: false, loading: () => null },
 );
 
+const BuilderFindReplaceOverlay = dynamic(
+  () =>
+    import("./builder-find-replace-overlay").then((m) => ({
+      default: m.BuilderFindReplaceOverlay,
+    })),
+  { ssr: false, loading: () => null },
+);
+
 const DEVICE_WIDTHS: Record<EditDevice, number | null> = {
   desktop: null,
   // W5-T6 built-in extra tiers: `wide` previews in the 1024–1280 band (tablet
   // doesn't fire), `compact` in the small-phone band (≤480).
-  wide: 1200,
+  wide: 1280,
   tablet: 834,
   mobile: 390,
   compact: 414,
@@ -141,7 +158,7 @@ const DEVICE_WIDTHS: Record<EditDevice, number | null> = {
 // landscape 1112, mobile portrait 390 → landscape 844. Desktop has no rotation.
 const DEVICE_LANDSCAPE_WIDTHS: Record<EditDevice, number | null> = {
   desktop: null,
-  wide: 1200,
+  wide: 1280,
   tablet: 1112,
   mobile: 844,
   compact: 812,
@@ -444,7 +461,6 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
   const autoPageSettingsForUntitledRef = useRef<Set<string>>(new Set());
 
   /** Compact-mode hint — shown once on mobile, dismissible. */
-  const [mobileHintDismissed, setMobileHintDismissed] = useState(false);
 
   // Lazy-mount guards for heavy drawers. Each flag starts false and flips
   // to true the first time its corresponding open-flag becomes true. Once
@@ -462,6 +478,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
   const [everOpenedSchedule, setEverOpenedSchedule] = useState(false);
   const [everOpenedComments, setEverOpenedComments] = useState(false);
   const [everOpenedTemplateGallery, setEverOpenedTemplateGallery] = useState(false);
+  const [findReplaceOpen, setFindReplaceOpen] = useState(false);
 
   useEffect(() => {
     if (publishOpen) setEverOpenedPublish(true);
@@ -548,7 +565,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     const dispatch: Record<string, (() => void) | "noop"> = {
       publish: openPublish,
       pageSettings: openPageSettings,
-      revisions: pageSlug ? "noop" : openRevisions,
+      revisions: openRevisions,
       theme: openTheme,
       assets: openAssets,
       collections: openCollections,
@@ -638,17 +655,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      const tgt = e.target as HTMLElement | null;
-      const tag = tgt?.tagName;
-      const withinContentEditable =
-        tgt?.closest('[contenteditable="true"]') !== null;
-      const editable =
-        tag === "INPUT" ||
-        tag === "TEXTAREA" ||
-        tag === "SELECT" ||
-        tgt?.isContentEditable === true ||
-        withinContentEditable;
-      if (editable) return;
+      if (isEditableKeyboardTarget(e.target)) return;
 
       const mod = e.metaKey || e.ctrlKey;
       const key = e.key.toLowerCase();
@@ -775,6 +782,12 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         return;
       }
 
+      if (mod && key === "y" && !e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        void redo();
+        return;
+      }
+
       if (mod && key === "z") {
         e.preventDefault();
         if (e.shiftKey) void redo();
@@ -840,6 +853,15 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
       }
 
       if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown") && selectedSectionId) {
+        const selectedBuilderNode = findBuilderNodeById(
+          builderTree,
+          selectedBuilderNodeId,
+        );
+        // Alt+arrow nudge on nested blocks is owned by selection-layer; section
+        // reorder only when the section root (or no block) is active.
+        if (selectedBuilderNode && selectedBuilderNode.kind !== "section") {
+          return;
+        }
         e.preventDefault();
         void moveSection(
           selectedSectionId,
@@ -928,9 +950,10 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
   return (
     <>
       <BodyPaddingController
-        selectedSectionId={selectedSectionId}
+        canvasMode={DEFAULT_WORKSPACE_CANVAS_MODE}
         navigatorOpen={navigatorOpen}
         navigatorWidth={navigatorWidth}
+        inspectorOpen={!!selectedSectionId}
       />
       {/* data-edit-chrome marks all editor UI so CanvasLinkInterceptor can
           exclude these links (locale switcher, page picker, admin nav) from
@@ -974,40 +997,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
           ["--primary-foreground" as string]: "#fafafa",
         }}
       >
-        {/* P8-2 — inspector dock is `max-lg:hidden`; orient operators on phones/tablets. */}
-        {!mobileHintDismissed && (
-          <div
-            className="fixed left-0 right-0 z-[79] flex items-center justify-between gap-2 border-b border-zinc-200/80 bg-white/95 px-3 py-1.5 backdrop-blur-sm lg:hidden"
-            style={{ top: 52 }}
-            role="note"
-          >
-            <p className="flex-1 text-center text-[11px] leading-snug text-zinc-500">
-              Compact editing mode — use Layers and the canvas. Widen the window for the full
-              inspector.
-            </p>
-            <button
-              type="button"
-              aria-label="Dismiss"
-              onClick={() => setMobileHintDismissed(true)}
-              className="shrink-0 rounded p-0.5 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600"
-            >
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 12 12"
-                fill="none"
-                aria-hidden="true"
-              >
-                <path
-                  d="M1 1l10 10M11 1L1 11"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </button>
-          </div>
-        )}
+        {/* Compact editing: inspector is a bottom sheet below lg; no dismiss banner. */}
         <TopBar
           device={device}
           setDevice={setDevice}
@@ -1021,7 +1011,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
           onRedo={() => void redo()}
           onPublish={openPublish}
           onPageSettings={openPageSettings}
-          onRevisions={pageSlug ? undefined : openRevisions}
+          onRevisions={openRevisions}
           onTheme={canEditSiteShell ? openTheme : undefined}
           onAssets={openAssets}
           onCollections={openCollections}
@@ -1060,6 +1050,10 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
          *  for a real visitor. SelectionLayer owns the hover ring,
          *  drag toolbar chip, and click-selection capture. */}
         {!previewing ? <SelectionLayer /> : null}
+        {/* Slim left command dock — launches the floating panels (Search, Add,
+            All Pages, Page Structure, Page Settings, Brand, Theme, Help).
+            Suppressed in preview so the page reads as a real visitor view. */}
+        {!previewing ? <CommandDock /> : null}
         <CompositionInserters />
         <InlineEditor />
         <NavigatorPanel />
@@ -1083,11 +1077,19 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         {everOpenedComments && <CommentsDrawer />}
         {everOpenedTemplateGallery && <StarterTemplateGalleryOverlay />}
         {everOpenedPalette && (
-          <CommandPalette open={paletteOpen} onClose={closePalette} />
+          <CommandPalette
+            open={paletteOpen}
+            onClose={closePalette}
+            onOpenFindReplace={() => setFindReplaceOpen(true)}
+          />
         )}
         <ShortcutOverlay
           open={shortcutOverlayOpen}
           onClose={closeShortcutOverlay}
+        />
+        <BuilderFindReplaceOverlay
+          open={findReplaceOpen}
+          onClose={() => setFindReplaceOpen(false)}
         />
         <MutationErrorToast />
         <DraftSavedToast />
@@ -1214,7 +1216,8 @@ function FirstPaintTip() {
     try {
       if (
         typeof window !== "undefined" &&
-        window.sessionStorage.getItem("edit:first-paint-tip:dismissed") === "1"
+        (window.sessionStorage.getItem("edit:first-paint-tip:dismissed") === "1" ||
+          isCoachmarkDismissed("cmd-k-tip"))
       ) {
         setDismissed(true);
       }
@@ -1224,6 +1227,7 @@ function FirstPaintTip() {
   }, []);
   const dismiss = useCallback(() => {
     setDismissed(true);
+    dismissCoachmark("cmd-k-tip");
     if (typeof window === "undefined") return;
     try {
       window.sessionStorage.setItem("edit:first-paint-tip:dismissed", "1");
@@ -1274,7 +1278,7 @@ function FirstPaintTip() {
         <path d="M12 20h9" />
         <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
       </svg>
-      <span>Click any section on the page to edit it</span>
+      <span>Click any section to edit · Press ⌘K for quick actions</span>
       <button
         type="button"
         onClick={dismiss}
@@ -1575,19 +1579,23 @@ function MakeItYoursChecklist() {
 }
 
 function BodyPaddingController({
-  selectedSectionId,
+  canvasMode,
   navigatorOpen,
   navigatorWidth,
+  inspectorOpen,
 }: {
-  selectedSectionId: string | null;
+  canvasMode: WorkspaceCanvasMode;
   navigatorOpen: boolean;
   navigatorWidth: number;
+  inspectorOpen: boolean;
 }) {
-  const dockOpen = !!selectedSectionId;
-  // Navigator collapses to a 22px rail handle so the canvas always cedes
-  // a hair of space; when open it reserves the user-sized left rail.
-  const left = navigatorOpen ? navigatorWidth : 22;
-  const right = dockOpen ? 380 : 0;
+  const { left, right } = resolveBodyHorizontalPadding({
+    mode: canvasMode,
+    navigatorOpen,
+    navigatorWidth,
+    inspectorOpen,
+  });
+  if (left === 0 && right === 0) return null;
   return (
     <style>{`@media (min-width: 1024px) { body { padding-left: ${left}px !important; padding-right: ${right}px !important; transition: padding-left 200ms ease, padding-right 200ms ease; } }`}</style>
   );
@@ -2041,12 +2049,15 @@ function DeviceFrameSurface({
   // so the value is irrelevant there — frameWidthForTier falls back to tablet.
   const width = frameWidthForTier(device, device, previewFrame);
 
-  // Padding rules — large gutters on desktop where the navigator + inspector
-  // can be open; tight on phone where neither is mounted (their wrappers
-  // carry `max-lg:hidden`, see NavigatorPanel + InspectorDock).
+  // Padding rules — full-bleed canvas uses safe margins only; panels overlay.
   const isPhone = (hostSize?.w ?? 1280) < 1024;
-  const leftPad = isPhone ? 8 : navigatorOpen ? navigatorWidth : 22;
-  const rightPad = isPhone ? 8 : inspectorOpen ? 380 : 0;
+  const { left: leftPad, right: rightPad } = resolveDeviceFrameHorizontalPadding({
+    mode: DEFAULT_WORKSPACE_CANVAS_MODE,
+    isPhone,
+    navigatorOpen,
+    navigatorWidth,
+    inspectorOpen,
+  });
   const verticalPad = isPhone ? 12 : 24;
 
   // Available iframe footprint inside the host gutter.
