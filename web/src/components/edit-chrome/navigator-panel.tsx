@@ -62,6 +62,7 @@ import {
   CHROME_SHADOWS,
   SectionTypeIcon,
 } from "./kit";
+import { COMMAND_DOCK_PANEL_INSET_PX } from "./command-dock";
 import { useFloatingDrag, FloatingDragHandle } from "./floating-panel";
 import {
   computeNavigatorDisclosure,
@@ -1199,7 +1200,7 @@ export function NavigatorPanel() {
         // session drag offset; `overflow:hidden` clips the rounded corners (the
         // inner layers list scrolls on its own — flex:1 + overflowY:auto).
         position: "fixed",
-        left: 14,
+        left: COMMAND_DOCK_PANEL_INSET_PX,
         top: 66,
         width: navigatorWidth,
         maxHeight: "calc(100vh - 84px)",
@@ -1233,7 +1234,7 @@ export function NavigatorPanel() {
       <FloatingDragHandle
         onPointerDown={floatingDrag.onHandlePointerDown}
         dragging={floatingDrag.dragging}
-        label="Layers"
+        label="Page Structure"
         moved={floatingMoved}
         onReset={floatingDrag.reset}
         style={{
@@ -1384,7 +1385,7 @@ export function NavigatorPanel() {
               }}
               aria-hidden
             />
-            <span id="structure-navigator-label">{t("layers.panel")}</span>
+            <span id="structure-navigator-label">Page Structure</span>
             {builderPerformanceIssues.length > 0 ? (
               hasBlockingPerformanceIssue ? (
                 /* Genuine blocking problems keep a visible (rose) pill. */

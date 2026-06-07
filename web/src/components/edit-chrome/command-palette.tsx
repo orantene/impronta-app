@@ -57,6 +57,7 @@ import {
   type Shortcut,
 } from "./kit";
 import { isShortcutVisible } from "./kit/shortcuts";
+import { useModalFocusTrap } from "./modal-focus-trap";
 import { BUILDER_NODE_COMPOSITION_PRESETS } from "@/lib/site-admin/builder-node";
 import {
   listBuilderComponents,
@@ -72,6 +73,13 @@ import { copySharePreviewLinkToClipboard } from "./copy-share-preview-link";
 interface CommandPaletteProps {
   open: boolean;
   onClose: () => void;
+  onOpenFindReplace?: () => void;
+  /**
+   * When true, renders only the search + results body (no centred modal
+   * backdrop). Used by the dock Search panel — same row logic as ⌘K.
+   */
+  embedded?: boolean;
+  placeholder?: string;
 }
 
 // ── result row types ────────────────────────────────────────────────────
@@ -201,8 +209,15 @@ function sectionJumpKeywords(
 
 // ── component ───────────────────────────────────────────────────────────
 
-export function CommandPalette({ open, onClose }: CommandPaletteProps) {
+export function CommandPalette({
+  open,
+  onClose,
+  onOpenFindReplace,
+  embedded = false,
+  placeholder = "Jump to a section, drawer, or action…",
+}: CommandPaletteProps) {
   const ctx = useEditContext();
+  const dialogRef = useModalFocusTrap(open, onClose);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
@@ -472,6 +487,21 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
           onClose();
         },
       ),
+    );
+    if (onOpenFindReplace) {
+      rows.push({
+        id: "action:find-replace",
+        group: "action",
+        label: "Find and replace text",
+        meta: "Project-wide",
+        keywords: ["find", "replace", "search", "text", "bulk"],
+        perform: () => {
+          onOpenFindReplace();
+          onClose();
+        },
+      });
+    }
+    rows.push(
       actionRow(
         "share-link",
         "Share preview link",
@@ -727,6 +757,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   }, [
     ctx,
     onClose,
+    onOpenFindReplace,
     savedBlocks,
   ]);
 
@@ -824,96 +855,68 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
 
   if (!open) return null;
 
-  return (
-    <div
-      data-edit-overlay="command-palette"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="command-palette-title"
-      className="fixed inset-0 z-[150] flex items-start justify-center"
-      style={{
-        background: "rgba(11, 11, 13, 0.32)",
-        paddingTop: "12vh",
-      }}
-      onClick={(e) => {
-        // Click on the backdrop closes; clicks inside the card are
-        // stopped below.
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
+  const paletteBody = (
+    <>
+      <span id="command-palette-title" className="sr-only">
+        {embedded ? "Search" : "Command palette"}
+      </span>
+      {/* search row */}
       <div
-        onClick={(e) => e.stopPropagation()}
         style={{
-          width: "min(640px, calc(100vw - 32px))",
-          background: CHROME.paper,
-          borderRadius: CHROME_RADII.lg,
-          boxShadow: CHROME_SHADOWS.popover,
-          border: `1px solid ${CHROME.lineMid}`,
-          overflow: "hidden",
           display: "flex",
-          flexDirection: "column",
-          maxHeight: "76vh",
+          alignItems: "center",
+          gap: 10,
+          padding: embedded ? "10px 12px" : "12px 14px",
+          borderBottom: `1px solid ${CHROME.line}`,
+          background: CHROME.surface,
         }}
       >
-        <span id="command-palette-title" className="sr-only">
-          Command palette
-        </span>
-        {/* search row */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "12px 14px",
-            borderBottom: `1px solid ${CHROME.line}`,
-            background: CHROME.surface,
-          }}
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke={CHROME.muted}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
         >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke={CHROME.muted}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
-          >
-            <circle cx="11" cy="11" r="7" />
-            <path d="m20 20-3.5-3.5" />
-          </svg>
-          <input
-            ref={inputRef}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder="Jump to a section, drawer, or action…"
-            spellCheck={false}
-            autoComplete="off"
-            style={{
-              flex: 1,
-              background: "transparent",
-              border: 0,
-              outline: 0,
-              fontSize: 14,
-              color: CHROME.ink,
-              padding: 0,
-            }}
-          />
-          <KbdSequence keys={["Esc"]} />
-        </div>
-
-        {/* result list */}
-        <div
-          ref={listRef}
+          <circle cx="11" cy="11" r="7" />
+          <path d="m20 20-3.5-3.5" />
+        </svg>
+        <input
+          ref={inputRef}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={onKeyDown}
+          placeholder={placeholder}
+          spellCheck={false}
+          autoComplete="off"
           style={{
             flex: 1,
-            overflowY: "auto",
-            padding: "6px 0",
+            background: "transparent",
+            border: 0,
+            outline: 0,
+            fontSize: embedded ? 13 : 14,
+            color: CHROME.ink,
+            padding: 0,
           }}
-          role="listbox"
-        >
+        />
+        {!embedded ? <KbdSequence keys={["Esc"]} /> : null}
+      </div>
+
+      {/* result list */}
+      <div
+        ref={listRef}
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          padding: "6px 0",
+          minHeight: embedded ? 200 : undefined,
+        }}
+        role="listbox"
+      >
           {flatRows.length === 0 ? (
             <EmptyState query={query} />
           ) : (
@@ -946,7 +949,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
           )}
         </div>
 
-        {/* footer hint strip */}
+      {!embedded ? (
         <div
           style={{
             display: "flex",
@@ -964,6 +967,54 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
           <FooterHint label="Run" keys={["↵"]} />
           <FooterHint label="Close" keys={["Esc"]} />
         </div>
+      ) : null}
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <div
+        ref={dialogRef}
+        data-edit-overlay="search-panel-body"
+        className="flex min-h-0 flex-1 flex-col overflow-hidden"
+        style={{ background: CHROME.surface }}
+      >
+        {paletteBody}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      data-edit-overlay="command-palette"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="command-palette-title"
+      className="fixed inset-0 z-[150] flex items-start justify-center"
+      style={{
+        background: "rgba(11, 11, 13, 0.32)",
+        paddingTop: "12vh",
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        ref={dialogRef}
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "min(640px, calc(100vw - 32px))",
+          background: CHROME.paper,
+          borderRadius: CHROME_RADII.lg,
+          boxShadow: CHROME_SHADOWS.popover,
+          border: `1px solid ${CHROME.lineMid}`,
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          maxHeight: "76vh",
+        }}
+      >
+        {paletteBody}
       </div>
     </div>
   );

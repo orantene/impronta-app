@@ -791,6 +791,21 @@ export interface EditContextValue {
   pagesPickerOpenNonce: number;
   requestPagesPickerOpen: () => void;
 
+  /** Dock-launched left floating panels (canvas-first model). */
+  searchPanelOpen: boolean;
+  toggleSearchPanel: () => void;
+  closeSearchPanel: () => void;
+  addMenuOpen: boolean;
+  toggleAddMenu: () => void;
+  closeAddMenu: () => void;
+  allPagesPanelOpen: boolean;
+  openAllPagesPanel: () => void;
+  closeAllPagesPanel: () => void;
+  toggleAllPagesPanel: () => void;
+  brandPanelOpen: boolean;
+  toggleBrandPanel: () => void;
+  closeBrandPanel: () => void;
+
   // ── revisions drawer (Phase 4) ──
   /**
    * Visibility flag for the RevisionsDrawer. The topbar's revisions icon
@@ -2518,6 +2533,12 @@ export function EditProvider({
 
   const [pagesPickerOpenNonce, setPagesPickerOpenNonce] = useState(0);
 
+  const [searchPanelOpen, setSearchPanelOpen] = useState(false);
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const [allPagesPanelOpen, setAllPagesPanelOpen] = useState(false);
+  const [brandPanelOpen, setBrandPanelOpen] = useState(false);
+
+
   // revisions drawer state (Phase 4)
   const [revisionsOpen, setRevisionsOpen] = useState(false);
 
@@ -2743,10 +2764,111 @@ export function EditProvider({
       // Ignore localStorage failures.
     }
   }, [navigatorWidth]);
-  const toggleNavigator = useCallback(
-    () => setNavigatorOpen((prev) => !prev),
-    [],
-  );
+  const toggleNavigator = useCallback(() => {
+    setNavigatorOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        setSearchPanelOpen(false);
+        setAddMenuOpen(false);
+        setAllPagesPanelOpen(false);
+        setBrandPanelOpen(false);
+      }
+      return next;
+    });
+  }, []);
+
+  const closeSearchPanel = useCallback(() => setSearchPanelOpen(false), []);
+  const toggleSearchPanel = useCallback(() => {
+    setSearchPanelOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        dismissCompetingEditorChrome();
+        closeAllRightRailDrawers();
+        setAddMenuOpen(false);
+        setAllPagesPanelOpen(false);
+        setBrandPanelOpen(false);
+        setNavigatorOpen(false);
+      }
+      return next;
+    });
+  }, [
+    closeAllRightRailDrawers,
+    dismissCompetingEditorChrome,
+    setNavigatorOpen,
+  ]);
+
+  const closeAddMenu = useCallback(() => setAddMenuOpen(false), []);
+  const toggleAddMenu = useCallback(() => {
+    setAddMenuOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        dismissCompetingEditorChrome();
+        closeAllRightRailDrawers();
+        setSearchPanelOpen(false);
+        setAllPagesPanelOpen(false);
+        setBrandPanelOpen(false);
+        setNavigatorOpen(false);
+      }
+      return next;
+    });
+  }, [
+    closeAllRightRailDrawers,
+    dismissCompetingEditorChrome,
+    setNavigatorOpen,
+  ]);
+
+  const closeAllPagesPanel = useCallback(() => setAllPagesPanelOpen(false), []);
+  const openAllPagesPanel = useCallback(() => {
+    dismissCompetingEditorChrome();
+    closeAllRightRailDrawers();
+    setSearchPanelOpen(false);
+    setAddMenuOpen(false);
+    setBrandPanelOpen(false);
+    setNavigatorOpen(false);
+    setAllPagesPanelOpen(true);
+  }, [
+    closeAllRightRailDrawers,
+    dismissCompetingEditorChrome,
+    setNavigatorOpen,
+  ]);
+  const toggleAllPagesPanel = useCallback(() => {
+    setAllPagesPanelOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        dismissCompetingEditorChrome();
+        closeAllRightRailDrawers();
+        setSearchPanelOpen(false);
+        setAddMenuOpen(false);
+        setBrandPanelOpen(false);
+        setNavigatorOpen(false);
+      }
+      return next;
+    });
+  }, [
+    closeAllRightRailDrawers,
+    dismissCompetingEditorChrome,
+    setNavigatorOpen,
+  ]);
+
+  const closeBrandPanel = useCallback(() => setBrandPanelOpen(false), []);
+  const toggleBrandPanel = useCallback(() => {
+    setBrandPanelOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        dismissCompetingEditorChrome();
+        closeAllRightRailDrawers();
+        setSearchPanelOpen(false);
+        setAddMenuOpen(false);
+        setAllPagesPanelOpen(false);
+        setNavigatorOpen(false);
+      }
+      return next;
+    });
+  }, [
+    closeAllRightRailDrawers,
+    dismissCompetingEditorChrome,
+    setNavigatorOpen,
+  ]);
 
   // ── Photoshop-style dockable workspace ─────────────────────────────────
   // The pinned layout is read ONCE on mount (so panels can seed their initial
@@ -6551,9 +6673,9 @@ export function EditProvider({
   const closePageSettings = useCallback(() => setPageSettingsOpen(false), []);
 
   const requestPagesPickerOpen = useCallback(() => {
-    dismissCompetingEditorChrome();
+    openAllPagesPanel();
     setPagesPickerOpenNonce((n) => n + 1);
-  }, [dismissCompetingEditorChrome]);
+  }, [openAllPagesPanel]);
 
   const openRevisions = useCallback(() => {
     showExclusiveRightRailDrawer("revisions");
@@ -6893,6 +7015,19 @@ export function EditProvider({
       closePageSettings,
       pagesPickerOpenNonce,
       requestPagesPickerOpen,
+      searchPanelOpen,
+      toggleSearchPanel,
+      closeSearchPanel,
+      addMenuOpen,
+      toggleAddMenu,
+      closeAddMenu,
+      allPagesPanelOpen,
+      openAllPagesPanel,
+      closeAllPagesPanel,
+      toggleAllPagesPanel,
+      brandPanelOpen,
+      toggleBrandPanel,
+      closeBrandPanel,
       savePageMetadata,
 
       revisionsOpen,
@@ -7089,6 +7224,19 @@ export function EditProvider({
       closePageSettings,
       pagesPickerOpenNonce,
       requestPagesPickerOpen,
+      searchPanelOpen,
+      toggleSearchPanel,
+      closeSearchPanel,
+      addMenuOpen,
+      toggleAddMenu,
+      closeAddMenu,
+      allPagesPanelOpen,
+      openAllPagesPanel,
+      closeAllPagesPanel,
+      toggleAllPagesPanel,
+      brandPanelOpen,
+      toggleBrandPanel,
+      closeBrandPanel,
       savePageMetadata,
       revisionsOpen,
       openRevisions,

@@ -43,7 +43,11 @@ import { CompositionLibraryOverlay } from "./composition-library";
 import { InlineEditor } from "./inline-editor";
 import { MobileEditPanel } from "./mobile-edit-panel";
 import { NavigatorPanel } from "./navigator-panel";
+import { AddQuickMenu } from "./add-quick-menu";
+import { AllPagesPanel } from "./all-pages-panel";
+import { BrandQuickPanel } from "./brand-quick-panel";
 import { CommandDock } from "./command-dock";
+import { SearchPanel } from "./search-panel";
 import { ShortcutOverlay } from "./shortcut-overlay";
 import { TopBar } from "./topbar";
 import { CanvasLinkInterceptor } from "./canvas-link-interceptor";
@@ -423,6 +427,14 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     lastDraftSavedAt,
     pagesPickerOpenNonce,
     requestPagesPickerOpen,
+    searchPanelOpen,
+    closeSearchPanel,
+    addMenuOpen,
+    closeAddMenu,
+    allPagesPanelOpen,
+    closeAllPagesPanel,
+    brandPanelOpen,
+    closeBrandPanel,
     pageMetadata,
     pageId,
     selectedSectionId,
@@ -699,6 +711,22 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
       if (e.key === "Escape" && shortcutOverlayOpen) {
         e.preventDefault();
         closeShortcutOverlay();
+        return;
+      }
+      if (
+        e.key === "Escape" &&
+        (searchPanelOpen ||
+          addMenuOpen ||
+          allPagesPanelOpen ||
+          brandPanelOpen ||
+          navigatorOpen)
+      ) {
+        e.preventDefault();
+        if (searchPanelOpen) closeSearchPanel();
+        if (addMenuOpen) closeAddMenu();
+        if (allPagesPanelOpen) closeAllPagesPanel();
+        if (brandPanelOpen) closeBrandPanel();
+        if (navigatorOpen) toggleNavigator();
         return;
       }
       if (e.key === "Escape" && paletteOpen) {
@@ -1054,6 +1082,18 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
             All Pages, Page Structure, Page Settings, Brand, Theme, Help).
             Suppressed in preview so the page reads as a real visitor view. */}
         {!previewing ? <CommandDock /> : null}
+        {!previewing ? (
+          <SearchPanel open={searchPanelOpen} onClose={closeSearchPanel} />
+        ) : null}
+        {!previewing ? (
+          <AddQuickMenu open={addMenuOpen} onClose={closeAddMenu} />
+        ) : null}
+        {!previewing ? (
+          <AllPagesPanel open={allPagesPanelOpen} onClose={closeAllPagesPanel} />
+        ) : null}
+        {!previewing ? (
+          <BrandQuickPanel open={brandPanelOpen} onClose={closeBrandPanel} />
+        ) : null}
         <CompositionInserters />
         <InlineEditor />
         <NavigatorPanel />

@@ -3,35 +3,26 @@
 /**
  * CommandDock — slim left command rail for the canvas-first builder.
  *
- * Implements the mockup's left dock (`Page_builder_Mockup`): a thin, fixed
- * vertical column under the 54px topbar. Each item is icon + short label and
- * launches a floating panel / surface; the active item is highlighted, and
- * clicking the active item again closes its surface.
+ * Implements the mockup's left dock: a thin, fixed vertical column under the
+ * 54px topbar. Each item is icon + short label and launches a floating panel;
+ * the active item is highlighted, and clicking the active item again closes it.
  *
- * The dock is purely a LAUNCHER. It owns no state of its own — every action
- * routes through the existing `EditContext` open/close handlers so the drawer
- * mutex, deep-link dispatch, and Escape ladder keep working unchanged.
- *
- * Phase 1 wiring (panels get re-skinned in Phase 2):
- *   Search          → command palette (⌘K) surface
- *   Add             → composition library overlay (default add slot)
- *   All Pages       → page picker popover
- *   Page Structure  → navigator (Layers/Outline/Classes)
- *   Page Settings   → page settings drawer
- *   Brand           → disabled placeholder (panel arrives in Phase 2)
- *   Theme           → theme drawer (site-shell editors only)
- *   Help            → keyboard-shortcuts overlay
+ * The dock is purely a LAUNCHER — every action routes through EditContext so
+ * drawer mutex, deep-link dispatch, and Escape ladder keep working unchanged.
  */
 
 import { type ReactNode } from "react";
 
 import { useEditContext } from "./edit-context";
-import { defaultSectionAddSlot } from "./default-section-add-slot";
 import { CHROME, Z_INDEX } from "./kit";
 
 const TOPBAR_H = 54;
+const DOCK_LEFT = 12;
 const DOCK_TOP = TOPBAR_H + 12;
 const DOCK_WIDTH = 64;
+
+/** Left inset for dock-launched floating panels (dock + gap). */
+export const COMMAND_DOCK_PANEL_INSET_PX = DOCK_LEFT + DOCK_WIDTH + 12;
 
 interface DockItem {
   id: string;
@@ -117,20 +108,19 @@ const ICON_PROPS = {
 export function CommandDock() {
   const ctx = useEditContext();
   const {
-    paletteOpen,
-    togglePalette,
-    closePalette,
-    libraryTarget,
-    openLibrary,
-    closeLibrary,
-    slotDefs,
-    slots,
-    requestPagesPickerOpen,
+    searchPanelOpen,
+    toggleSearchPanel,
+    addMenuOpen,
+    toggleAddMenu,
+    allPagesPanelOpen,
+    toggleAllPagesPanel,
     navigatorOpen,
     toggleNavigator,
     pageSettingsOpen,
     openPageSettings,
     closePageSettings,
+    brandPanelOpen,
+    toggleBrandPanel,
     canEditSiteShell,
     themeOpen,
     openTheme,
@@ -144,9 +134,9 @@ export function CommandDock() {
     {
       id: "search",
       label: "Search",
-      title: "Search (⌘K)",
-      active: paletteOpen,
-      onClick: () => (paletteOpen ? closePalette() : togglePalette()),
+      title: "Search (⌘K also opens command palette)",
+      active: searchPanelOpen,
+      onClick: () => toggleSearchPanel(),
       icon: (
         <svg {...ICON_PROPS}>
           <circle cx="11" cy="11" r="7" />
@@ -157,15 +147,9 @@ export function CommandDock() {
     {
       id: "add",
       label: "Add",
-      title: "Add section or element",
-      active: libraryTarget != null,
-      onClick: () =>
-        libraryTarget != null
-          ? closeLibrary()
-          : openLibrary({
-              slotKey: defaultSectionAddSlot(slotDefs, slots),
-              insertAfterSortOrder: null,
-            }),
+      title: "Quick add",
+      active: addMenuOpen,
+      onClick: () => toggleAddMenu(),
       icon: (
         <svg {...ICON_PROPS}>
           <path d="M12 5v14" />
@@ -177,8 +161,8 @@ export function CommandDock() {
       id: "pages",
       label: "All Pages",
       title: "All pages",
-      active: false,
-      onClick: () => requestPagesPickerOpen(),
+      active: allPagesPanelOpen,
+      onClick: () => toggleAllPagesPanel(),
       icon: (
         <svg {...ICON_PROPS}>
           <rect x="3" y="3" width="7" height="7" rx="1.5" />
@@ -221,9 +205,8 @@ export function CommandDock() {
       id: "brand",
       label: "Brand",
       title: "Brand",
-      active: false,
-      disabled: true,
-      onClick: () => {},
+      active: brandPanelOpen,
+      onClick: () => toggleBrandPanel(),
       icon: (
         <svg {...ICON_PROPS}>
           <path d="M2 12a10 10 0 1 0 10-10 10 10 0 0 0-10 10z" />
@@ -275,7 +258,7 @@ export function CommandDock() {
       aria-label="Builder tools"
       className="fixed flex flex-col"
       style={{
-        left: 12,
+        left: DOCK_LEFT,
         top: DOCK_TOP,
         width: DOCK_WIDTH,
         maxHeight: `calc(100vh - ${DOCK_TOP + 12}px)`,
