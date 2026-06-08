@@ -56,12 +56,15 @@ import { ShadowBuilder, GradientBuilder, BackgroundLayersEditor } from "./css-va
 import { StylePresetsBar } from "./style-presets-bar";
 import { LinkedStyleClassesBar } from "./linked-style-classes-bar";
 import { InstanceOverridesPanel } from "./instance-overrides-panel";
+import { InstanceVariantPicker } from "./instance-variant-picker";
 import { InspectorGroup } from "./kit";
 import { Swatch } from "../kit/swatch";
 import { CHROME } from "../kit/tokens";
 import { BoxModel } from "../kit/box-model";
 import { ImageCropModal } from "../image-crop";
 import { uploadCmsMedia } from "@/lib/client/signed-upload";
+import { breakpointLabelForDevice, naturalWidthForDevice } from "../breakpoint-registry";
+import { useBuilderBreakpoints } from "../use-builder-breakpoints";
 
 // 2026-05-29 readability pass: warm stone (matches the kit) instead of cold
 // zinc, and INHERIT_HINT lifted off the AA-failing zinc-400 (~2.5:1) to a
@@ -2043,52 +2046,59 @@ function StyleGroupOverrideDot({ label }: { label: string }) {
 function ViewportScopeBanner({
   viewport,
   onBackToDesktop,
+  canvasHint,
 }: {
   viewport: NodeViewport;
   onBackToDesktop: () => void;
+  canvasHint?: string | null;
 }) {
   return (
     <div
       data-style-panel-viewport-banner={viewport}
-      className="flex items-center justify-between gap-2 rounded-md px-3 py-2"
+      className="flex flex-col gap-1 rounded-md px-3 py-2"
       style={{
         background: CHROME.blueBg,
         border: `1px solid ${CHROME.blueLine}`,
         color: CHROME.blue,
       }}
     >
-      <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold leading-snug">
-        <svg
-          width="13"
-          height="13"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
+      <div className="flex items-center justify-between gap-2">
+        <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold leading-snug">
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            {/* pencil glyph */}
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+          </svg>
+          Editing {VIEWPORT_SCOPE_LABEL[viewport]} styles — desktop stays the base.
+        </span>
+        <button
+          type="button"
+          onClick={onBackToDesktop}
+          className="shrink-0 text-[10.5px] font-semibold uppercase tracking-[0.08em]"
+          style={{
+            background: "transparent",
+            border: "none",
+            color: CHROME.blue,
+            cursor: "pointer",
+            padding: 0,
+          }}
         >
-          {/* pencil glyph */}
-          <path d="M12 20h9" />
-          <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-        </svg>
-        Editing {VIEWPORT_SCOPE_LABEL[viewport]} styles — desktop stays the base.
-      </span>
-      <button
-        type="button"
-        onClick={onBackToDesktop}
-        className="shrink-0 text-[10.5px] font-semibold uppercase tracking-[0.08em]"
-        style={{
-          background: "transparent",
-          border: "none",
-          color: CHROME.blue,
-          cursor: "pointer",
-          padding: 0,
-        }}
-      >
-        Desktop base
-      </button>
+          Desktop base
+        </button>
+      </div>
+      {canvasHint ? (
+        <span className="text-[10.5px] leading-snug opacity-90">{canvasHint}</span>
+      ) : null}
     </div>
   );
 }
@@ -2209,6 +2219,19 @@ export function StylePanel({
       prev === mappedViewport ? prev : mappedViewport,
     );
   }, [mappedViewport]);
+  const builderBreakpoints = useBuilderBreakpoints();
+  const viewportSegmentOptions = useMemo(
+    (): ReadonlyArray<SegmentedOption<NodeViewport>> =>
+      VIEWPORT_OPTIONS.map((opt) => ({
+        ...opt,
+        label: breakpointLabelForDevice(opt.value, builderBreakpoints),
+      })),
+    [builderBreakpoints],
+  );
+  const canvasBreakpointHint =
+    device === "wide" || device === "compact"
+      ? `Canvas: ${breakpointLabelForDevice(device, builderBreakpoints)} (${naturalWidthForDevice(device, builderBreakpoints)}px) maps to ${VIEWPORT_SCOPE_LABEL[mappedViewport]} overrides.`
+      : null;
   const [selectedStandaloneStyleScope, setSelectedStandaloneStyleScope] =
     useState<StandaloneStyleScope>("viewport");
   // Wave 3 · 3D — which interaction state the hover/state editor is targeting.
@@ -4124,6 +4147,7 @@ export function StylePanel({
         <ViewportScopeBanner
           viewport={selectedViewport}
           onBackToDesktop={() => selectViewport("desktop")}
+          canvasHint={canvasBreakpointHint}
         />
       ) : null}
       {selectedNodeRole && selectedNodeLabel ? (
@@ -4489,7 +4513,7 @@ export function StylePanel({
                   compact
                   value={selectedViewport}
                   onChange={(next) => selectViewport(next as NodeViewport)}
-                  options={VIEWPORT_OPTIONS}
+                  options={viewportSegmentOptions}
                 />
                 {selectedViewport !== "desktop" ? (
                   <span className={INHERIT_HINT}>
@@ -5582,7 +5606,7 @@ export function StylePanel({
                 compact
                 value={selectedViewport}
                 onChange={(next) => selectViewport(next as NodeViewport)}
-                options={VIEWPORT_OPTIONS}
+                options={viewportSegmentOptions}
               />
               {selectedViewport !== "desktop" ? (
                 <Segmented
@@ -5700,7 +5724,12 @@ export function StylePanel({
             ) : null}
 
             {selectedInstanceComponentId && selectedBuilderNodeId ? (
-              <InstanceOverridesPanel
+              <>
+                <InstanceVariantPicker
+                  instanceNodeId={selectedBuilderNodeId}
+                  componentId={selectedInstanceComponentId}
+                />
+                <InstanceOverridesPanel
                 instanceNodeId={selectedBuilderNodeId}
                 componentId={selectedInstanceComponentId}
                 overrides={
@@ -5708,7 +5737,8 @@ export function StylePanel({
                     ? selectedStandaloneStyleNode.props.instanceOverrides
                     : undefined
                 }
-              />
+                />
+              </>
             ) : null}
 
             <StylePresetsBar
@@ -6171,7 +6201,7 @@ export function StylePanel({
               title="Dimensions"
               collapsible
               storageKey={`style-panel:dimensions:${selectedStandaloneStyleNode.kind}`}
-              defaultOpen
+              defaultOpen={false}
             >
             <div className="flex flex-col gap-1.5" data-builder-node-style-control="maxWidth">
               <span className={FIELD_LABEL}>Max width (preset)</span>
@@ -6303,7 +6333,7 @@ export function StylePanel({
               title="Appearance"
               collapsible
               storageKey={`style-panel:appearance:${selectedStandaloneStyleNode.kind}`}
-              defaultOpen
+              defaultOpen={false}
             >
             {["container", "split", "card", "cta_group"].includes(
               selectedStandaloneStyleNode.kind,
@@ -6599,7 +6629,7 @@ export function StylePanel({
               title="Spacing"
               collapsible
               storageKey={`style-panel:spacing:${selectedStandaloneStyleNode.kind}`}
-              defaultOpen
+              defaultOpen={false}
               accessory={
                 spacingHasResponsiveOverride ? (
                   <StyleGroupOverrideDot label="Spacing has tablet/mobile overrides" />

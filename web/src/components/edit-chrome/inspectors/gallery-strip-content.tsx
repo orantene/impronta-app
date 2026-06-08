@@ -359,7 +359,7 @@ export function GalleryStripContentInspector({
       </InspectorGroup>
 
       {/* ── Layout ── */}
-      <InspectorGroup title="Layout" collapsible storageKey="gs-layout" defaultOpen>
+      <InspectorGroup title="Layout" collapsible storageKey="gs-layout" defaultOpen={false}>
         <VisualChipGroup
           value={variant}
           onChange={(v) => onChange({ ...draftProps, variant: v })}
