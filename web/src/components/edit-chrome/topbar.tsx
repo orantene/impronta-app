@@ -21,8 +21,8 @@ import { BuilderCoachmarkTip } from "./builder-coachmark-tip";
  *
  * Layout (left to right):
  *   Brand mark → divider → page picker → save status + live publish hint → divider →
- *   undo/redo → [spacer] → viewport switcher · preview toggle → [spacer] →
- *   comments · preview · page-settings · More (⋯) → divider →
+ *   undo/redo → [spacer] → viewport switcher · breakpoints · preview toggle → [spacer] →
+ *   comments · share · preview → divider →
  *   Save draft · Publish split-button → divider → Exit
  *
  * Visual language: 54px glass bar, warm-white tint, hairline border —
@@ -1871,41 +1871,26 @@ function MenuItem({
 }
 
 /**
- * MoreMenu — overflow popover that hosts secondary topbar actions.
+ * BreakpointsPopover — custom viewport tiers beside the device switcher.
  *
- * Page settings moved back to a dedicated cog (next to Preview). This menu
- * keeps Revisions · Theme · Assets · Share.
- *
- * Each entry calls the open-handler the topbar already received from
- * EditShell; if a handler is missing, the row renders disabled. The
- * Share row spawns an inline mini-form (label + TTL + Generate) so
- * the operator never leaves the popover to mint a link.
+ * Revisions, assets, collections, and templates now launch from the left
+ * command dock; breakpoint editing stays in the topbar center cluster per
+ * the canvas-first mockup.
  */
-function MoreMenu({
-  onRevisions,
-  onAssets,
-  onCollections,
-  onTemplates,
-}: {
-  onRevisions?: () => void;
-  onAssets?: () => void;
-  onCollections?: () => void;
-  onTemplates?: () => void;
-}) {
+function BreakpointsPopover() {
   const [open, setOpen] = useState(false);
-  const [breakpointsOpen, setBreakpointsOpen] = useState(false);
   const [breakpointDraft, setBreakpointDraft] = useState<BuilderBreakpoint[]>(() =>
     [...DEFAULT_BUILDER_BREAKPOINTS],
   );
   const liveBreakpoints = useBuilderBreakpoints();
-  const moreMenuId = useId();
-  const moreMenuTriggerId = useId();
+  const popoverId = useId();
+  const triggerId = useId();
 
   useEffect(() => {
     if (!open) return;
     function onDoc(e: MouseEvent) {
       const target = e.target as HTMLElement;
-      if (!target.closest("[data-more-menu]")) {
+      if (!target.closest("[data-breakpoints-popover]")) {
         setOpen(false);
       }
     }
@@ -1926,48 +1911,35 @@ function MoreMenu({
   }, [open]);
 
   useEffect(() => {
-    if (!open) {
-      setBreakpointsOpen(false);
-    }
-  }, [open]);
-
-  useEffect(() => {
-    if (breakpointsOpen) {
+    if (open) {
       setBreakpointDraft([...liveBreakpoints]);
     }
-  }, [breakpointsOpen, liveBreakpoints]);
-
-  function handlePick(cb?: () => void) {
-    if (!cb) return;
-    cb();
-    setOpen(false);
-  }
+  }, [open, liveBreakpoints]);
 
   return (
-    <div className="relative shrink-0" data-more-menu>
+    <div className="relative shrink-0" data-breakpoints-popover>
       <TbIconBtn
-        id={moreMenuTriggerId}
-        title="More actions"
-        ariaLabel="More actions"
-        label="More"
+        id={triggerId}
+        title="Breakpoints — custom viewport tiers"
+        ariaLabel="Breakpoints"
         ariaExpanded={open}
-        ariaHaspopup="menu"
-        ariaControls={moreMenuId}
+        ariaHaspopup="dialog"
+        ariaControls={popoverId}
         onClick={() => setOpen((o) => !o)}
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none" />
-          <circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none" />
-          <circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none" />
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <rect x="2" y="5" width="20" height="14" rx="2" />
+          <path d="M8 5v14" />
+          <path d="M16 5v14" />
         </svg>
       </TbIconBtn>
 
       {open ? (
         <div
-          id={moreMenuId}
-          role="menu"
-          aria-labelledby={moreMenuTriggerId}
-          className="absolute right-0 top-[44px] z-[120] min-w-[260px] rounded-[10px] p-[6px]"
+          id={popoverId}
+          role="dialog"
+          aria-labelledby={triggerId}
+          className="absolute left-1/2 top-[44px] z-[120] w-[280px] -translate-x-1/2 rounded-[10px] p-3"
           style={{
             background: CHROME.surface,
             border: `1px solid ${CHROME.line}`,
@@ -1975,258 +1947,107 @@ function MoreMenu({
               "0 24px 64px -16px rgba(0,0,0,0.20), 0 4px 12px rgba(0,0,0,0.08), 0 0 0 1px rgba(24,24,27,0.07)",
           }}
         >
-          <>
-              <MoreRow
-                disabled={!onRevisions}
-                onClick={() => handlePick(onRevisions)}
-                icon={
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                    <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
-                    <path d="M3 3v5h5" />
-                    <path d="M12 7v5l3 2" />
-                  </svg>
-                }
-                label="Revisions"
-                hint="Snapshot history"
-              />
-              <MoreRow
-                disabled={!onAssets}
-                onClick={() => handlePick(onAssets)}
-                icon={
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                    <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                  </svg>
-                }
-                label="Asset library"
-                hint="Images & uploads"
-                shortcut="⌘L"
-              />
-              <MoreRow
-                disabled={!onCollections}
-                onClick={() => handlePick(onCollections)}
-                icon={
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                    <rect x="3" y="3" width="7" height="7" rx="1" />
-                    <rect x="14" y="3" width="7" height="7" rx="1" />
-                    <rect x="3" y="14" width="7" height="7" rx="1" />
-                    <rect x="14" y="14" width="7" height="7" rx="1" />
-                  </svg>
-                }
-                label="Collections"
-                hint="Reusable content + binding"
-              />
-              <MoreRow
-                disabled={!onTemplates}
-                onClick={() => handlePick(onTemplates)}
-                icon={
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                    <rect x="3" y="3" width="7" height="7" rx="1" />
-                    <rect x="14" y="3" width="7" height="7" rx="1" />
-                    <rect x="3" y="14" width="7" height="7" rx="1" />
-                    <rect x="14" y="14" width="7" height="7" rx="1" />
-                  </svg>
-                }
-                label="Template gallery"
-                hint="Starter layouts"
-              />
-              <MoreRow
-                onClick={() => setBreakpointsOpen((o) => !o)}
-                icon={
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                    <rect x="2" y="5" width="20" height="14" rx="2" />
-                    <path d="M8 5v14" />
-                    <path d="M16 5v14" />
-                  </svg>
-                }
-                label="Breakpoints"
-                hint="Custom viewport tiers"
-              />
-              {breakpointsOpen ? (
-                <div
-                  className="mx-1 mb-1 rounded-lg p-2"
-                  style={{ background: CHROME.paper2, border: `1px solid ${CHROME.line}` }}
+          <p
+            className="mb-2"
+            style={{ fontSize: 10.5, color: CHROME.muted, lineHeight: 1.35 }}
+          >
+            Min-width tiers for responsive style editing and device preview frames.
+          </p>
+          <div className="flex max-h-[200px] flex-col gap-1 overflow-y-auto">
+            {breakpointDraft.map((bp, index) => (
+              <div key={`${bp.id}-${index}`} className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  value={bp.label}
+                  onChange={(e) => {
+                    const label = e.target.value;
+                    setBreakpointDraft((rows) =>
+                      rows.map((row, i) => (i === index ? { ...row, label } : row)),
+                    );
+                  }}
+                  aria-label={`Breakpoint ${index + 1} label`}
+                  className="min-w-0 flex-1 rounded border px-1.5 py-1 text-[11px]"
+                  style={{ borderColor: CHROME.line, background: CHROME.surface }}
+                />
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={bp.minWidth}
+                  onChange={(e) => {
+                    const minWidth = Number(e.target.value);
+                    if (!Number.isFinite(minWidth) || minWidth < 0) return;
+                    setBreakpointDraft((rows) =>
+                      rows.map((row, i) =>
+                        i === index ? { ...row, minWidth } : row,
+                      ),
+                    );
+                  }}
+                  aria-label={`Breakpoint ${index + 1} min width`}
+                  className="w-[68px] rounded border px-1.5 py-1 text-[11px]"
+                  style={{ borderColor: CHROME.line, background: CHROME.surface }}
+                />
+                <button
+                  type="button"
+                  aria-label={`Remove breakpoint ${bp.label}`}
+                  className="cursor-pointer rounded border-none bg-transparent px-1 text-[11px]"
+                  style={{ color: CHROME.muted }}
+                  onClick={() =>
+                    setBreakpointDraft((rows) => rows.filter((_, i) => i !== index))
+                  }
                 >
-                  <p
-                    className="mb-2 px-1"
-                    style={{ fontSize: 10.5, color: CHROME.muted, lineHeight: 1.35 }}
-                  >
-                    Min-width tiers for responsive style editing and device preview frames.
-                  </p>
-                  <div className="flex max-h-[160px] flex-col gap-1 overflow-y-auto">
-                    {breakpointDraft.map((bp, index) => (
-                      <div key={`${bp.id}-${index}`} className="flex items-center gap-1.5">
-                        <input
-                          type="text"
-                          value={bp.label}
-                          onChange={(e) => {
-                            const label = e.target.value;
-                            setBreakpointDraft((rows) =>
-                              rows.map((row, i) => (i === index ? { ...row, label } : row)),
-                            );
-                          }}
-                          aria-label={`Breakpoint ${index + 1} label`}
-                          className="min-w-0 flex-1 rounded border px-1.5 py-1 text-[11px]"
-                          style={{ borderColor: CHROME.line, background: CHROME.surface }}
-                        />
-                        <input
-                          type="number"
-                          min={0}
-                          step={1}
-                          value={bp.minWidth}
-                          onChange={(e) => {
-                            const minWidth = Number(e.target.value);
-                            if (!Number.isFinite(minWidth) || minWidth < 0) return;
-                            setBreakpointDraft((rows) =>
-                              rows.map((row, i) =>
-                                i === index ? { ...row, minWidth } : row,
-                              ),
-                            );
-                          }}
-                          aria-label={`Breakpoint ${index + 1} min width`}
-                          className="w-[68px] rounded border px-1.5 py-1 text-[11px]"
-                          style={{ borderColor: CHROME.line, background: CHROME.surface }}
-                        />
-                        <button
-                          type="button"
-                          aria-label={`Remove breakpoint ${bp.label}`}
-                          className="cursor-pointer rounded border-none bg-transparent px-1 text-[11px]"
-                          style={{ color: CHROME.muted }}
-                          onClick={() =>
-                            setBreakpointDraft((rows) => rows.filter((_, i) => i !== index))
-                          }
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    <button
-                      type="button"
-                      className="cursor-pointer rounded-md border px-2 py-1 text-[10.5px] font-medium"
-                      style={{ borderColor: CHROME.line, background: CHROME.surface }}
-                      onClick={() =>
-                        setBreakpointDraft((rows) => [
-                          ...rows,
-                          {
-                            id: `custom-${rows.length + 1}`,
-                            label: `Tier ${rows.length + 1}`,
-                            minWidth: 1440,
-                          },
-                        ])
-                      }
-                    >
-                      Add tier
-                    </button>
-                    <button
-                      type="button"
-                      className="cursor-pointer rounded-md border px-2 py-1 text-[10.5px] font-medium"
-                      style={{ borderColor: CHROME.line, background: CHROME.surface }}
-                      onClick={() => setBreakpointDraft([...DEFAULT_BUILDER_BREAKPOINTS])}
-                    >
-                      Reset defaults
-                    </button>
-                    <button
-                      type="button"
-                      className="cursor-pointer rounded-md border-none px-2 py-1 text-[10.5px] font-semibold text-white"
-                      style={{ background: CHROME.accent }}
-                      onClick={() => {
-                        const cleaned = breakpointDraft.filter(
-                          (bp) => bp.label.trim() !== "" && Number.isFinite(bp.minWidth),
-                        );
-                        saveCustomBreakpoints(
-                          cleaned.length > 0 ? cleaned : [...DEFAULT_BUILDER_BREAKPOINTS],
-                        );
-                        notifyBuilderBreakpointsChanged();
-                      }}
-                    >
-                      Save
-                    </button>
-                  </div>
-                </div>
-              ) : null}
-          </>
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              className="cursor-pointer rounded-md border px-2 py-1 text-[10.5px] font-medium"
+              style={{ borderColor: CHROME.line, background: CHROME.surface }}
+              onClick={() =>
+                setBreakpointDraft((rows) => [
+                  ...rows,
+                  {
+                    id: `custom-${rows.length + 1}`,
+                    label: `Tier ${rows.length + 1}`,
+                    minWidth: 1440,
+                  },
+                ])
+              }
+            >
+              Add tier
+            </button>
+            <button
+              type="button"
+              className="cursor-pointer rounded-md border px-2 py-1 text-[10.5px] font-medium"
+              style={{ borderColor: CHROME.line, background: CHROME.surface }}
+              onClick={() => setBreakpointDraft([...DEFAULT_BUILDER_BREAKPOINTS])}
+            >
+              Reset defaults
+            </button>
+            <button
+              type="button"
+              className="cursor-pointer rounded-md border-none px-2 py-1 text-[10.5px] font-semibold text-white"
+              style={{ background: CHROME.accent }}
+              onClick={() => {
+                const cleaned = breakpointDraft.filter(
+                  (bp) => bp.label.trim() !== "" && Number.isFinite(bp.minWidth),
+                );
+                saveCustomBreakpoints(
+                  cleaned.length > 0 ? cleaned : [...DEFAULT_BUILDER_BREAKPOINTS],
+                );
+                notifyBuilderBreakpointsChanged();
+                setOpen(false);
+              }}
+            >
+              Save
+            </button>
+          </div>
         </div>
       ) : null}
     </div>
-  );
-}
-
-function MoreRow({
-  disabled,
-  onClick,
-  icon,
-  label,
-  hint,
-  shortcut,
-  showCaret,
-}: {
-  disabled?: boolean;
-  onClick: () => void;
-  icon: React.ReactNode;
-  label: string;
-  hint?: string;
-  shortcut?: string;
-  showCaret?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      role="menuitem"
-      onClick={onClick}
-      disabled={disabled}
-      className="flex w-full cursor-pointer items-center gap-2.5 rounded-[6px] px-[10px] py-[8px] transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-      style={{ color: CHROME.text, background: "transparent", border: "none" }}
-      onMouseEnter={(e) => {
-        if (!disabled) {
-          (e.currentTarget as HTMLElement).style.background = CHROME.paper2;
-        }
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.background = "transparent";
-      }}
-    >
-      <span
-        className="inline-flex shrink-0 items-center justify-center rounded-[5px]"
-        style={{
-          width: 26,
-          height: 26,
-          background: CHROME.paper2,
-          color: CHROME.ink,
-        }}
-        aria-hidden
-      >
-        {icon}
-      </span>
-      <span className="min-w-0 flex-1 text-left">
-        <span className="block font-semibold tracking-[-0.005em]" style={{ color: CHROME.ink, fontSize: 13 }}>
-          {label}
-        </span>
-        {hint ? (
-          <span className="block" style={{ fontSize: 11, color: CHROME.muted, marginTop: 1 }}>
-            {hint}
-          </span>
-        ) : null}
-      </span>
-      {shortcut ? (
-        <span
-          className="shrink-0 rounded-[3px] border px-[5px] py-[2px] font-mono"
-          style={{
-            fontSize: 10.5,
-            color: CHROME.muted2,
-            background: CHROME.paper2,
-            borderColor: CHROME.line,
-          }}
-        >
-          {shortcut}
-        </span>
-      ) : null}
-      {showCaret ? (
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={CHROME.muted2} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <polyline points="9 18 15 12 9 6" />
-        </svg>
-      ) : null}
-    </button>
   );
 }
 
@@ -2629,18 +2450,6 @@ export interface TopBarProps {
   onUndo: () => void;
   onRedo: () => void;
   onPublish: () => void;
-  /** Open the Page Settings drawer (cog icon in the right cluster). */
-  onPageSettings?: () => void;
-  /** Open the Revisions drawer (clock-arrow icon in the right cluster). */
-  onRevisions?: () => void;
-  /** Open the Theme drawer (palette icon in the right cluster). */
-  onTheme?: () => void;
-  /** Open the Assets drawer (folder icon in the right cluster). */
-  onAssets?: () => void;
-  /** Open the Collections drawer (operator content collections). */
-  onCollections?: () => void;
-  /** Open the template gallery overlay. */
-  onTemplates?: () => void;
   /** Open the Schedule drawer (Phase 12 — Publish-split-button menu option). */
   onSchedule?: () => void;
   /** Open the Comments drawer (Phase 11 — speech-bubble icon in the right cluster). */
@@ -2730,10 +2539,6 @@ export function TopBar({
   onUndo,
   onRedo,
   onPublish,
-  onRevisions,
-  onAssets,
-  onCollections,
-  onTemplates,
   onSchedule,
   onComments,
   commentsBadge,
@@ -2809,15 +2614,18 @@ export function TopBar({
       <span className="flex-1" />
 
       {/* ── Center — device preview controls ── */}
-      <ViewportSwitcher
-        device={device}
-        setDevice={setDevice}
-        previewFrame={editCtx?.previewFrame ?? null}
-        setPreviewFrameWidth={editCtx?.setPreviewFrameWidth}
-        togglePreviewRotated={editCtx?.togglePreviewRotated}
-        mobileEditMode={editCtx?.mobileEditMode}
-        setMobileEditMode={editCtx?.setMobileEditMode}
-      />
+      <div className="inline-flex shrink-0 items-center gap-2">
+        <ViewportSwitcher
+          device={device}
+          setDevice={setDevice}
+          previewFrame={editCtx?.previewFrame ?? null}
+          setPreviewFrameWidth={editCtx?.setPreviewFrameWidth}
+          togglePreviewRotated={editCtx?.togglePreviewRotated}
+          mobileEditMode={editCtx?.mobileEditMode}
+          setMobileEditMode={editCtx?.setMobileEditMode}
+        />
+        <BreakpointsPopover />
+      </div>
 
       {/* ── Spacer ── */}
       <span className="flex-1" />
@@ -2856,14 +2664,6 @@ export function TopBar({
       {onShare ? <ShareButton onShare={onShare} /> : null}
       <PreviewToggle previewing={previewing} setPreviewing={setPreviewing} />
 
-      {/* Secondary page tools awaiting a Phase 2 home (Revisions → page menu,
-          Assets/Collections/Templates → Add, Breakpoints → device dropdown). */}
-      <MoreMenu
-        onRevisions={onRevisions}
-        onAssets={onAssets}
-        onCollections={onCollections}
-        onTemplates={onTemplates}
-      />
       {SHOW_WORKSPACE_CONTROLS ? <WorkspaceLayoutControls /> : null}
 
       <TbDivider />
