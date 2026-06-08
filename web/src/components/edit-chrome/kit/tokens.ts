@@ -74,8 +74,8 @@ export const CHROME = {
   // ── Text (3 real values, 5 names for back-compat) ────────────
   text: "#18181b",
   text2: "#18181b", // collapsed → text
-  muted: "#6b6b73",
-  muted2: "#8b8b93", // closer to muted (was #9b9ba3)
+  muted: "#57575f",
+  muted2: "#6b6b73",
   muted3: "#b8b8c0", // soft disabled
 
   // ── Operator chrome (chip / rail / drag-ghost / publish hero) ────────
@@ -92,18 +92,20 @@ export const CHROME = {
   // tactile, gem-like feel. 2026-04-29: moved from dark navy
   // (#2a3147) to a true indigo that introduces color into the
   // chrome without feeling garish.
-  accent: "#3d4f7c",
-  accent2: "#4a5e94",
-  accentInk: "#2b3a66",
+  accent: "#7c3aed",
+  accent2: "#8b5cf6",
+  accentInk: "#5b21b6",
 
   // Canvas (storefront body bg, e.g. Editorial Noir)
   canvasDark: "#0a0a0a",
+  /** Light gray desk behind the page in canvas-first edit mode (mockup). */
+  canvasWorkspace: "#F9F9FB",
 
   // Selection ink (canvas ring) — indigo-inflected so the selection
   // ring feels like part of the accent family, not a black outline.
-  selectOuter: "rgba(36, 41, 66, 0.92)",
+  selectOuter: "rgba(124, 58, 237, 0.92)",
   selectInset: "rgba(255, 255, 255, 0.75)",
-  selectHalo: "rgba(61, 79, 124, 0.12)",
+  selectHalo: "rgba(124, 58, 237, 0.14)",
 
   // ── Status accents (canonical 4: blue/green/amber/rose) ──────
   blue: "#2c5fdb",
@@ -193,3 +195,22 @@ export const DRAWER_WIDTHS = {
 } as const;
 
 export type DrawerKind = keyof typeof DRAWER_WIDTHS;
+
+/**
+ * Named z-index bands for edit chrome. Use these instead of ad-hoc z-[N]
+ * values so floating panels never cover selection handles.
+ *
+ * Order (low → high): canvas < selectionChrome < floatingControls < panels
+ * < topBar < modals < toasts
+ */
+export const Z_INDEX = {
+  canvas: 1,
+  selectionChrome: 70,
+  floatingControls: 84,
+  panels: 85,
+  panelOverlay: 88,
+  topBar: 90,
+  modal: 100,
+  modalOverlay: 110,
+  toast: 120,
+} as const;

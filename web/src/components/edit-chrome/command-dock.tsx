@@ -36,6 +36,55 @@ interface DockItem {
 
 function DockButton({ item }: { item: DockItem }) {
   const { active, disabled } = item;
+  const isAdd = item.id === "add";
+
+  if (isAdd) {
+    return (
+      <button
+        type="button"
+        onClick={item.onClick}
+        disabled={disabled}
+        title={item.title}
+        aria-label={item.label}
+        aria-pressed={active}
+        data-dock-item={item.id}
+        data-dock-active={active ? "true" : undefined}
+        className="group relative mx-auto flex shrink-0 cursor-pointer flex-col items-center gap-[4px] border-none bg-transparent p-0 transition-transform disabled:cursor-not-allowed disabled:opacity-40"
+        style={{ width: "100%" }}
+      >
+        <span
+          aria-hidden
+          className="inline-flex items-center justify-center transition-transform group-hover:scale-[1.03]"
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 999,
+            background: active ? CHROME.accentInk : CHROME.accent,
+            color: "#ffffff",
+            boxShadow: active
+              ? "0 0 0 3px rgba(124, 58, 237, 0.28), 0 6px 16px -4px rgba(124, 58, 237, 0.45)"
+              : "0 6px 16px -4px rgba(124, 58, 237, 0.40)",
+          }}
+        >
+          {item.icon}
+        </span>
+        <span
+          aria-hidden
+          style={{
+            fontSize: 9.5,
+            fontWeight: 600,
+            letterSpacing: "0.01em",
+            lineHeight: 1.05,
+            textAlign: "center",
+            color: active ? CHROME.accent : CHROME.muted,
+          }}
+        >
+          {item.label}
+        </span>
+      </button>
+    );
+  }
+
   return (
     <button
       type="button"
@@ -48,12 +97,12 @@ function DockButton({ item }: { item: DockItem }) {
       data-dock-active={active ? "true" : undefined}
       className="group relative flex w-full shrink-0 cursor-pointer flex-col items-center gap-[3px] rounded-[12px] border-none px-[2px] py-[7px] transition-colors disabled:cursor-not-allowed disabled:opacity-40"
       style={{
-        background: active ? "rgba(61, 79, 124, 0.12)" : "transparent",
-        color: active ? CHROME.accentInk : CHROME.muted,
+        background: active ? "rgba(124, 58, 237, 0.12)" : "transparent",
+        color: active ? CHROME.accent : CHROME.muted,
       }}
       onMouseEnter={(e) => {
         if (disabled || active) return;
-        e.currentTarget.style.background = "rgba(24, 24, 27, 0.05)";
+        e.currentTarget.style.background = "rgba(124, 58, 237, 0.06)";
         e.currentTarget.style.color = CHROME.ink2;
       }}
       onMouseLeave={(e) => {

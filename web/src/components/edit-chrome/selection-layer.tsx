@@ -239,6 +239,10 @@ const RAIL_BG =
   `linear-gradient(180deg, rgba(36,41,66,0.94) 0%, rgba(26,31,53,0.94) 100%)`;
 const CHIP_SHADOW =
   "0 12px 32px -8px rgba(0,0,0,0.38), 0 2px 6px -2px rgba(0,0,0,0.18), inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.14)";
+/** Canvas-first mockup — light floating toolbar for section selections. */
+const LIGHT_CHIP_BG = CHROME.surface;
+const LIGHT_CHIP_SHADOW =
+  "0 8px 28px -8px rgba(0,0,0,0.14), 0 0 0 1px rgba(24,24,27,0.08)";
 const RAIL_SHADOW =
   "0 8px 22px -8px rgba(0,0,0,0.32), 0 1px 3px rgba(0,0,0,0.16), inset 0 0 0 1px rgba(255,255,255,0.07), inset 0 1px 0 rgba(255,255,255,0.10)";
 // Rounded to match the rest of the editor chrome (topbar popovers + drawers
@@ -651,6 +655,7 @@ export function SelectionLayer() {
     navigatorOpen,
     previewing: isEditModePreviewing,
     requestInspectorTab,
+    inspectorTabRequest,
   } = useEditContext();
 
   // W2-T3 — hover VALUES come from the hover-bridge micro-store (the setters
@@ -681,6 +686,16 @@ export function SelectionLayer() {
   const [selectionAnnounce, setSelectionAnnounce] = useState("");
   const [selectionFocused, setSelectionFocused] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
+  const [chipInspectorTab, setChipInspectorTab] = useState<"content" | "style">(
+    "content",
+  );
+
+  useEffect(() => {
+    const next = inspectorTabRequest?.tab;
+    if (next === "content" || next === "style") {
+      setChipInspectorTab(next);
+    }
+  }, [inspectorTabRequest]);
   const [contextMenu, setContextMenu] =
     useState<SelectionContextMenuState | null>(null);
   const [nodeInsertTarget, setNodeInsertTarget] = useState<NodeInsertTarget | null>(
@@ -4607,11 +4622,11 @@ export function SelectionLayer() {
               height: 34,
               display: "inline-flex",
               alignItems: "stretch",
-              background: CHIP_BG,
-              color: "white",
+              background: selectedNodeIsEditableBlock ? CHIP_BG : LIGHT_CHIP_BG,
+              color: selectedNodeIsEditableBlock ? "white" : CHROME.ink,
               borderRadius: CANVAS_CHROME_RADIUS,
-              boxShadow: CHIP_SHADOW,
-              backdropFilter: "blur(12px)",
+              boxShadow: selectedNodeIsEditableBlock ? CHIP_SHADOW : LIGHT_CHIP_SHADOW,
+              backdropFilter: selectedNodeIsEditableBlock ? "blur(12px)" : undefined,
               overflow: "hidden",
               zIndex: 90,
               fontFamily:
@@ -4673,7 +4688,14 @@ export function SelectionLayer() {
               }}
             >
               {/* 2×3 grip dot grid */}
-              <span style={{ color: "rgba(255,255,255,0.50)", lineHeight: 0 }}>
+              <span
+                style={{
+                  color: selectedNodeIsEditableBlock
+                    ? "rgba(255,255,255,0.50)"
+                    : CHROME.muted3,
+                  lineHeight: 0,
+                }}
+              >
                 <svg
                   width="9"
                   height="14"
@@ -4696,12 +4718,18 @@ export function SelectionLayer() {
                   width: 22,
                   height: 22,
                   borderRadius: CANVAS_CHROME_RADIUS,
-                  background: "rgba(255,255,255,0.08)",
-                  color: "rgba(255,255,255,0.92)",
+                  background: selectedNodeIsEditableBlock
+                    ? "rgba(255,255,255,0.08)"
+                    : "rgba(124, 58, 237, 0.10)",
+                  color: selectedNodeIsEditableBlock
+                    ? "rgba(255,255,255,0.92)"
+                    : CHROME.accent,
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.06)",
+                  boxShadow: selectedNodeIsEditableBlock
+                    ? "inset 0 0 0 1px rgba(255,255,255,0.06)"
+                    : `inset 0 0 0 1px rgba(124, 58, 237, 0.16)`,
                   flexShrink: 0,
                 }}
               >
@@ -4853,8 +4881,16 @@ export function SelectionLayer() {
                 confirmRemove={confirmRemove}
                 isHidden={isHidden}
                 multiCount={additionalSelectedIds.size}
-                onEditContent={() => requestInspectorTab("content")}
-                onDesign={() => requestInspectorTab("style")}
+                light
+                activeInspectorTab={chipInspectorTab}
+                onEditContent={() => {
+                  setChipInspectorTab("content");
+                  requestInspectorTab("content");
+                }}
+                onDesign={() => {
+                  setChipInspectorTab("style");
+                  requestInspectorTab("style");
+                }}
                 onMoveUp={() => {
                   if (!selectedSectionId) return;
                   void moveSection(selectedSectionId, "up");
@@ -6400,11 +6436,16 @@ function ChipTextAction({
   label,
   disabled,
   onClick,
+  active = false,
+  light = false,
 }: {
   label: string;
   disabled: boolean;
   onClick: () => void;
+  active?: boolean;
+  light?: boolean;
 }) {
+  const lightActive = light && active;
   return (
     <button
       type="button"
@@ -6412,17 +6453,66 @@ function ChipTextAction({
       onClick={onClick}
       className="inline-flex h-full cursor-pointer items-center gap-[5px] border-none px-[10px] text-[11px] font-semibold tracking-[-0.01em] transition-colors disabled:cursor-not-allowed disabled:opacity-50"
       style={{
-        background: "transparent",
-        color: "rgba(255,255,255,0.88)",
-        borderLeft: "1px solid rgba(255,255,255,0.10)",
+        background: lightActive
+          ? "rgba(124, 58, 237, 0.10)"
+          : "transparent",
+        color: lightActive
+          ? CHROME.accent
+          : light
+            ? CHROME.ink
+            : "rgba(255,255,255,0.88)",
+        borderLeft: light
+          ? `1px solid ${CHROME.line}`
+          : "1px solid rgba(255,255,255,0.10)",
+        boxShadow: lightActive
+          ? `inset 0 0 0 1px ${CHROME.accent}`
+          : undefined,
+        borderRadius: lightActive ? 6 : undefined,
+        margin: lightActive ? "4px 2px" : undefined,
       }}
       onMouseEnter={(e) => {
-        if (!disabled) e.currentTarget.style.background = "rgba(255,255,255,0.08)";
+        if (disabled || lightActive) return;
+        e.currentTarget.style.background = light
+          ? CHROME.paper2
+          : "rgba(255,255,255,0.08)";
       }}
       onMouseLeave={(e) => {
+        if (lightActive) return;
         e.currentTarget.style.background = "transparent";
       }}
     >
+      {light && label === "Edit Content" ? (
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="M12 20h9" />
+          <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+        </svg>
+      ) : null}
+      {light && label === "Design" ? (
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="m12 19 7-7-7-7-7 7 7 7Z" />
+          <path d="M18.5 5.5 12 12" />
+        </svg>
+      ) : null}
       {label}
     </button>
   );
@@ -6433,6 +6523,8 @@ function ChipToolBar({
   confirmRemove,
   isHidden,
   multiCount = 0,
+  light = false,
+  activeInspectorTab = "content",
   onEditContent,
   onDesign,
   onMoveUp,
@@ -6450,6 +6542,9 @@ function ChipToolBar({
    *  When > 0 the Remove confirm copy reads "Remove N+1?" so the
    *  operator sees the bulk scope before committing. */
   multiCount?: number;
+  /** Light mockup toolbar (section selections). */
+  light?: boolean;
+  activeInspectorTab?: "content" | "style";
   onEditContent: () => void;
   onDesign: () => void;
   onMoveUp: () => void;
@@ -6512,9 +6607,11 @@ function ChipToolBar({
     width: 34,
     height: 34,
     background: "transparent",
-    color: "rgba(255,255,255,0.72)",
+    color: light ? CHROME.muted : "rgba(255,255,255,0.72)",
     border: "none",
-    borderLeft: "1px solid rgba(255,255,255,0.10)",
+    borderLeft: light
+      ? `1px solid ${CHROME.line}`
+      : "1px solid rgba(255,255,255,0.10)",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
@@ -6528,8 +6625,16 @@ function ChipToolBar({
         label="Edit Content"
         disabled={disabled}
         onClick={onEditContent}
+        light={light}
+        active={activeInspectorTab === "content"}
       />
-      <ChipTextAction label="Design" disabled={disabled} onClick={onDesign} />
+      <ChipTextAction
+        label="Design"
+        disabled={disabled}
+        onClick={onDesign}
+        light={light}
+        active={activeInspectorTab === "style"}
+      />
       <ChipBtn
         style={btnStyle}
         disabled={disabled}

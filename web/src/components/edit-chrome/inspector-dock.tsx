@@ -62,7 +62,7 @@ import {
   DrawerBody,
   SectionTypeIcon,
 } from "./kit";
-import { DrawerIconTabs, type DrawerIconTabItem } from "./kit/drawer";
+import { DrawerIconTabsRow, type DrawerIconTabItem } from "./kit/drawer";
 import {
   FileText,
   LayoutGrid,
@@ -1041,9 +1041,9 @@ export function InspectorDock() {
       ) : !selectedStandaloneBuilderNode && (!currentLoadedSection || !registryEntry) ? (
         <InspectorSkeleton />
       ) : (
-        <div className="flex min-h-0 flex-1">
+        <div className="flex min-h-0 flex-1 flex-col">
           {visibleTabs.length > 1 ? (
-            <DrawerIconTabs
+            <DrawerIconTabsRow
               items={iconTabItems}
               active={tab}
               onSelect={setTab}
@@ -1053,7 +1053,7 @@ export function InspectorDock() {
 
           <DrawerBody
             padding="14px 14px 32px"
-            className="min-w-0 overflow-x-hidden"
+            className="min-h-0 min-w-0 flex-1 overflow-x-hidden"
           >
             {saveError ? (
               <div

@@ -58,9 +58,11 @@ import {
   CHROME,
   CHROME_SHADOWS,
   DRAWER_WIDTHS,
+  Z_INDEX,
   type DrawerKind,
 } from "./tokens";
-import { useFloatingDrag, FloatingDragHandle } from "../floating-panel";
+import { useFloatingDrag } from "../floating-panel";
+import { FloatingPanelShell } from "./floating-panel-shell";
 
 // ── Drawer ──────────────────────────────────────────────────────────────────
 
@@ -78,7 +80,7 @@ interface DrawerProps {
   open?: boolean;
   /** Optional data attribute for QA / e2e tests. */
   testId?: string;
-  /** Z-index. Defaults to 80 (above selection layer, below modals). */
+  /** Z-index. Defaults to panels band (above selection chrome). */
   zIndex?: number;
   /**
    * Top offset in px. Defaults to 52 (editor topbar height). Override
@@ -111,6 +113,8 @@ interface DrawerProps {
    */
   floatPanelId?: string;
   className?: string;
+  /** On viewports below 1024px, render as a bottom sheet (inspector compact mode). */
+  compactBottomSheetBelowLg?: boolean;
   children: ReactNode;
 }
 
@@ -120,13 +124,14 @@ export function Drawer({
   width,
   open = true,
   testId,
-  zIndex = 80,
+  zIndex = Z_INDEX.panels,
   topPx = 52,
   restoreFocusOnClose = true,
   floating = false,
   floatLabel,
   floatPanelId,
   className,
+  compactBottomSheetBelowLg,
   children,
 }: DrawerProps) {
   const priorFocusRef = useRef<HTMLElement | null>(null);
@@ -177,47 +182,27 @@ export function Drawer({
   // (it takes over the whole canvas, where a movable card makes no sense).
   if (floating && width !== "fullscreen") {
     return (
-      <aside
-        ref={(node) => float.setPanelNode(node)}
-        data-edit-drawer={kind}
-        data-edit-drawer-floating=""
-        data-edit-float-panel-id={floatPanelId}
-        data-testid={testId}
-        aria-labelledby={ariaLabelledBy}
-        aria-hidden={!open}
-        className={`fixed flex flex-col font-sans ${className ?? ""}`}
-        style={{
-          top: 66,
-          right: 14,
-          maxHeight: "calc(100vh - 84px)",
-          width: resolvedWidth,
-          background: CHROME.paper2,
-          border: `1px solid ${CHROME.line}`,
-          borderRadius: 16,
-          boxShadow: float.dragging
-            ? "0 30px 70px -20px rgba(17,24,39,0.45), 0 10px 26px -10px rgba(17,24,39,0.26)"
-            : "0 18px 50px -20px rgba(17,24,39,0.26), 0 4px 14px -8px rgba(17,24,39,0.14)",
-          zIndex,
-          overflow: "hidden",
-          pointerEvents: open ? "auto" : "none",
-          opacity: open ? 1 : 0,
-          transform: float.transform,
-          transition: float.dragging
-            ? "none"
-            : "box-shadow 180ms ease, opacity 160ms ease",
-          userSelect: float.dragging ? "none" : undefined,
-        }}
+      <FloatingPanelShell
+        side="right"
+        width={resolvedWidth}
+        open={open}
+        zIndex={zIndex}
+        testId={testId}
+        dragLabel={floatLabel}
+        panelId={floatPanelId}
+        setPanelNode={float.setPanelNode}
+        transform={float.transform}
+        dragging={float.dragging}
+        onHandlePointerDown={float.onHandlePointerDown}
+        moved={floatingMoved}
+        onReset={float.reset}
+        dataEditDrawer={kind}
+        ariaLabelledBy={ariaLabelledBy}
+        compactBottomSheetBelowLg={compactBottomSheetBelowLg}
+        className={className}
       >
-        <FloatingDragHandle
-          onPointerDown={float.onHandlePointerDown}
-          dragging={float.dragging}
-          label={floatLabel}
-          moved={floatingMoved}
-          onReset={float.reset}
-          style={{ color: CHROME.muted, background: CHROME.paper2 }}
-        />
         {children}
-      </aside>
+      </FloatingPanelShell>
     );
   }
 
@@ -651,6 +636,64 @@ export function DrawerIconTabs<K extends string>({
   );
 }
 
+/**
+ * Horizontal icon tab strip — matches the canvas-first mockup inspector:
+ * icon row under the header with a purple underline on the active tab.
+ */
+export function DrawerIconTabsRow<K extends string>({
+  items,
+  active,
+  onSelect,
+  ariaLabel = "Inspector sections",
+  className,
+}: DrawerIconTabsProps<K>) {
+  return (
+    <div
+      role="tablist"
+      aria-orientation="horizontal"
+      aria-label={ariaLabel}
+      className={`flex shrink-0 items-stretch justify-around gap-0 border-b px-1 ${className ?? ""}`}
+      style={{ background: CHROME.surface, borderColor: CHROME.line }}
+    >
+      {items.map((item) => {
+        const isActive = item.key === active;
+        const Icon = item.icon;
+        return (
+          <button
+            key={item.key}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            title={item.hint ?? item.label}
+            aria-label={item.label}
+            onClick={() => onSelect(item.key)}
+            className="relative inline-flex min-w-[44px] flex-1 cursor-pointer flex-col items-center justify-center gap-1 border-none bg-transparent py-2.5 transition-colors"
+            style={{ color: isActive ? CHROME.accent : CHROME.muted }}
+            onMouseEnter={(e) => {
+              if (isActive) return;
+              e.currentTarget.style.color = CHROME.ink;
+            }}
+            onMouseLeave={(e) => {
+              if (isActive) return;
+              e.currentTarget.style.color = CHROME.muted;
+            }}
+          >
+            <Icon size={18} strokeWidth={1.85} aria-hidden />
+            <span
+              aria-hidden
+              className="absolute inset-x-2 bottom-0 h-[2px] rounded-full transition-opacity"
+              style={{
+                background: CHROME.accent,
+                opacity: isActive ? 1 : 0,
+              }}
+            />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── DrawerBody / DrawerFoot ─────────────────────────────────────────────────
 
 interface DrawerBodyProps {
@@ -696,7 +739,7 @@ export function DrawerFoot({
       data-edit-drawer-foot
       className={`flex items-center justify-between gap-3 px-[18px] py-3.5 ${className ?? ""}`}
       style={{
-        background: `linear-gradient(180deg, ${CHROME.paper2}, ${CHROME.paper3})`,
+        background: CHROME.surface,
         borderTop: `1px solid ${CHROME.line}`,
       }}
     >
@@ -736,88 +779,3 @@ function Eyebrow({ children }: { children: ReactNode }) {
   );
 }
 
-// ── DrawerSkeleton ───────────────────────────────────────────────────────────
-//
-// Unified loading state for all drawers (Theme, Revisions, Assets,
-// Page Settings). Every drawer that fetch-on-open previously had its own
-// skeleton — usually bespoke height + opacity values. This shared primitive
-// guarantees a visually consistent "loading" moment across the whole builder
-// right panel so the operator never sees four different loading treatments.
-//
-// Wave 1 Item 1C job #12 — unified drawer chrome + preload.
-
-interface DrawerSkeletonProps {
-  /**
-   * Number of placeholder rows. Defaults to 4.
-   * Row height is fixed at 64px to approximate content height.
-   */
-  rows?: number;
-  /** Optional additional className applied to the wrapper div. */
-  className?: string;
-}
-
-/**
- * A pulsing stack of placeholder rows suitable for any drawer's loading state.
- * Drop this in place of the bespoke `SkeletonList` / `SkeletonGrid` each drawer
- * previously defined locally. Import from "./kit".
- *
- * Usage:
- *   {loading && data === null ? <DrawerSkeleton rows={3} /> : <ActualContent />}
- */
-export function DrawerSkeleton({
-  rows = 4,
-  className,
-}: DrawerSkeletonProps) {
-  return (
-    <div
-      className={`flex flex-col gap-2 ${className ?? ""}`}
-      aria-busy="true"
-      aria-label="Loading"
-    >
-      {Array.from({ length: rows }, (_, i) => (
-        <div
-          key={i}
-          className="animate-pulse rounded-lg"
-          style={{
-            height: 64,
-            background: CHROME.surface,
-            border: `1px solid ${CHROME.line}`,
-            // Fade out progressively so the bottom rows feel like they trail off.
-            opacity: Math.max(0.15, 0.55 - i * 0.1),
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
-/**
- * Variant: grid of equal-ratio tiles (for media/asset library).
- * Automatically fills 2 columns. Rows defaults to 6 (2×3 grid).
- */
-export function DrawerSkeletonGrid({
-  rows = 6,
-  className,
-}: DrawerSkeletonProps) {
-  return (
-    <div
-      className={`grid gap-2.5 ${className ?? ""}`}
-      aria-busy="true"
-      aria-label="Loading"
-      style={{ gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))" }}
-    >
-      {Array.from({ length: rows }, (_, i) => (
-        <div
-          key={i}
-          className="animate-pulse rounded-lg"
-          style={{
-            aspectRatio: "1 / 1.18",
-            background: CHROME.surface,
-            border: `1px solid ${CHROME.line}`,
-            opacity: 0.55,
-          }}
-        />
-      ))}
-    </div>
-  );
-}

@@ -14,9 +14,12 @@ export {
   CHROME_RADII,
   CHROME_SHADOWS,
   DRAWER_WIDTHS,
+  Z_INDEX,
   type DrawerKind,
 } from "./tokens";
 
+export { DrawerFootButton } from "./drawer-foot-button";
+export { DrawerSkeleton, DrawerSkeletonGrid } from "./drawer-skeleton";
 export {
   Drawer,
   DrawerHead,
@@ -25,9 +28,9 @@ export {
   DrawerTab,
   DrawerBody,
   DrawerFoot,
-  DrawerSkeleton,
-  DrawerSkeletonGrid,
 } from "./drawer";
+
+export { FloatingPanelShell, floatingPanelBoxShadow } from "./floating-panel-shell";
 
 export { Card, CardHead, CardBody, CardAction } from "./card";
 export { Field, FieldLabel, Helper, HelperCounter } from "./field";
