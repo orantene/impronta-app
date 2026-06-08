@@ -139,7 +139,7 @@ export function CtaBannerContentInspector({
   const usesImage = variant === "centered-overlay" || variant === "split-image";
 
   return (
-    <div ref={rootRef} className="flex flex-col gap-6">
+    <div ref={rootRef} className="flex flex-col gap-4">
       {focusRole && focusLabel ? (
         <div
           className="rounded-lg border px-3 py-2 text-xs font-medium"
@@ -152,52 +152,50 @@ export function CtaBannerContentInspector({
           Editing selected canvas node: {focusLabel}
         </div>
       ) : null}
-      <InspectorGroup title="Message">
-        <div className={KIT.field} data-cta-banner-node-role="subheadline">
-          <label className={KIT.label}>Eyebrow</label>
-          <input
-            type="text"
-            className={KIT.input}
-            placeholder="Optional — e.g. Ready when you are"
-            maxLength={60}
-            value={eyebrow}
-            onChange={(e) => update({ eyebrow: e.target.value || undefined })}
-          />
-        </div>
-        <div className={KIT.field} data-cta-banner-node-role="headline">
-          <label className={KIT.label}>Headline</label>
-          <RichEditor
-            value={headline}
-            onChange={(next) => update({ headline: next })}
-            variant="single"
-            tenantId={tenantId}
-            placeholder="The decisive line. Keep it short."
-            ariaLabel="Headline"
-          />
-        </div>
-        <div className={KIT.field} data-cta-banner-node-role="copy">
-          <label className={KIT.label}>Supporting copy</label>
-          <RichEditor
-            value={copy}
-            onChange={(next) => update({ copy: next || undefined })}
-            variant="multi"
-            tenantId={tenantId}
-            placeholder="Optional — one reassuring paragraph under the headline"
-            ariaLabel="Supporting copy"
-          />
-        </div>
-        <div className={KIT.field}>
-          <label className={KIT.label}>Reassurance line</label>
-          <RichEditor
-            value={reassurance}
-            onChange={(next) => update({ reassurance: next || undefined })}
-            variant="single"
-            tenantId={tenantId}
-            placeholder="Optional — italic line below the buttons"
-            ariaLabel="Reassurance line"
-          />
-        </div>
-      </InspectorGroup>
+      <div className={KIT.field} data-cta-banner-node-role="subheadline">
+        <label className={KIT.label}>Eyebrow</label>
+        <input
+          type="text"
+          className={KIT.input}
+          placeholder="Optional — e.g. Ready when you are"
+          maxLength={60}
+          value={eyebrow}
+          onChange={(e) => update({ eyebrow: e.target.value || undefined })}
+        />
+      </div>
+      <div className={KIT.field} data-cta-banner-node-role="headline">
+        <label className={KIT.label}>Headline</label>
+        <RichEditor
+          value={headline}
+          onChange={(next) => update({ headline: next })}
+          variant="single"
+          tenantId={tenantId}
+          placeholder="The decisive line. Keep it short."
+          ariaLabel="Headline"
+        />
+      </div>
+      <div className={KIT.field} data-cta-banner-node-role="copy">
+        <label className={KIT.label}>Description</label>
+        <RichEditor
+          value={copy}
+          onChange={(next) => update({ copy: next || undefined })}
+          variant="multi"
+          tenantId={tenantId}
+          placeholder="Optional — one reassuring paragraph under the headline"
+          ariaLabel="Description"
+        />
+      </div>
+      <div className={KIT.field}>
+        <label className={KIT.label}>Reassurance line</label>
+        <RichEditor
+          value={reassurance}
+          onChange={(next) => update({ reassurance: next || undefined })}
+          variant="single"
+          tenantId={tenantId}
+          placeholder="Optional — italic line below the buttons"
+          ariaLabel="Reassurance line"
+        />
+      </div>
 
       <InspectorGroup title="Buttons">
         <CtaDuoEditor
@@ -212,7 +210,7 @@ export function CtaBannerContentInspector({
         />
       </InspectorGroup>
 
-      <InspectorGroup title="Layout style">
+      <InspectorGroup title="Layout style" storageKey="cta_banner:layout">
         <VisualChipGroup<Variant>
           value={variant}
           onChange={(v) => update({ variant: v })}

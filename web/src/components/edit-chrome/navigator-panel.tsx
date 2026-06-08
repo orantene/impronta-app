@@ -62,8 +62,8 @@ import {
   CHROME_SHADOWS,
   SectionTypeIcon,
 } from "./kit";
-import { COMMAND_DOCK_PANEL_INSET_PX } from "./command-dock";
-import { useFloatingDrag, FloatingDragHandle } from "./floating-panel";
+import { DockFloatingPanel } from "./dock-floating-panel";
+import { useFloatingDrag } from "./floating-panel";
 import {
   computeNavigatorDisclosure,
   navigatorSelectedAncestors,
@@ -350,7 +350,6 @@ export function NavigatorPanel() {
   // local state, so it snaps back to the home position on every page refresh
   // but stays where you drop it for the rest of the session.
   const floatingDrag = useFloatingDrag({ panelId: "navigator" });
-  const floatingMoved = floatingDrag.offset.x !== 0 || floatingDrag.offset.y !== 0;
 
   const handleResizeMove = useCallback(
     (event: PointerEvent) => {
@@ -1188,411 +1187,313 @@ export function NavigatorPanel() {
   // pill would just compete with it.
   if (!navigatorOpen) return null;
 
-  return (
-    <aside
-      ref={(node) => floatingDrag.setPanelNode(node)}
-      data-edit-overlay="navigator-panel"
-      aria-labelledby="structure-navigator-label"
-      style={{
-        // Floating control-panel card (Paint-style). Detached from the screen
-        // edges, rounded + shadowed, height-capped so it reads as a movable
-        // tool window rather than a wall-to-wall rail. `transform` carries the
-        // session drag offset; `overflow:hidden` clips the rounded corners (the
-        // inner layers list scrolls on its own — flex:1 + overflowY:auto).
-        position: "fixed",
-        left: COMMAND_DOCK_PANEL_INSET_PX,
-        top: 66,
-        width: navigatorWidth,
-        maxHeight: "calc(100vh - 84px)",
-        background: CHROME.surface,
-        border: `1px solid ${CHROME.line}`,
-        borderRadius: 16,
-        boxShadow: floatingDrag.dragging
-          ? "0 30px 70px -20px rgba(17,24,39,0.45), 0 10px 26px -10px rgba(17,24,39,0.26)"
-          : "0 18px 50px -20px rgba(17,24,39,0.26), 0 4px 14px -8px rgba(17,24,39,0.14)",
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-        zIndex: 80,
-        transform: floatingDrag.transform,
-        transition: floatingDrag.dragging ? "none" : "box-shadow 180ms ease",
-        userSelect: resizing || floatingDrag.dragging ? "none" : undefined,
+  const navigatorPerfBadge =
+    builderPerformanceIssues.length > 0 ? (
+      hasBlockingPerformanceIssue ? (
+        <span
+          title={
+            "Performance issues detected:\n" +
+            builderPerformanceIssues.map((issue) => `• ${issue.message}`).join("\n")
+          }
+          aria-label={`${builderPerformanceIssues.length} performance ${builderPerformanceIssues.length === 1 ? "issue" : "issues"} detected — hover for details`}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 3,
+            padding: "1px 6px",
+            borderRadius: 999,
+            border: "1px solid rgba(180, 35, 35, 0.35)",
+            background: "rgba(180, 35, 35, 0.14)",
+            color: "#9f1239",
+            fontSize: 9,
+            fontWeight: 700,
+            letterSpacing: "0.04em",
+            cursor: "default",
+          }}
+        >
+          <svg width="8" height="8" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
+            <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm-.75 3.5h1.5v4.5h-1.5V4.5zm0 5.5h1.5v1.5h-1.5V10z" />
+          </svg>
+          Slow
+        </span>
+      ) : (
+        <span
+          title={
+            "Performance hints:\n" +
+            builderPerformanceIssues.map((issue) => `• ${issue.message}`).join("\n")
+          }
+          aria-label={`${builderPerformanceIssues.length} builder ${builderPerformanceIssues.length === 1 ? "hint" : "hints"} — hover for details`}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            color: "#9ca3af",
+            opacity: 0.6,
+            cursor: "default",
+          }}
+        >
+          <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
+            <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm-.75 3.5h1.5v4.5h-1.5V4.5zm0 5.5h1.5v1.5h-1.5V10z" />
+          </svg>
+        </span>
+      )
+    ) : null;
+
+  const navigatorResizeHandle = (
+    <div
+      role="separator"
+      aria-label="Resize navigator"
+      aria-orientation="vertical"
+      aria-valuemin={NAVIGATOR_MIN_WIDTH}
+      aria-valuemax={NAVIGATOR_MAX_WIDTH}
+      aria-valuenow={navigatorWidth}
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.key === "ArrowLeft") {
+          event.preventDefault();
+          setNavigatorWidth(navigatorWidth - NAVIGATOR_KEYBOARD_STEP);
+          return;
+        }
+        if (event.key === "ArrowRight") {
+          event.preventDefault();
+          setNavigatorWidth(navigatorWidth + NAVIGATOR_KEYBOARD_STEP);
+          return;
+        }
+        if (event.key === "Home") {
+          event.preventDefault();
+          setNavigatorWidth(NAVIGATOR_MIN_WIDTH);
+          return;
+        }
+        if (event.key === "End") {
+          event.preventDefault();
+          setNavigatorWidth(NAVIGATOR_MAX_WIDTH);
+        }
       }}
+      onDoubleClick={() => {
+        setNavigatorWidth(NAVIGATOR_DEFAULT_WIDTH);
+      }}
+      onPointerDown={startResize}
+      onPointerEnter={() => setResizeHandleHovered(true)}
+      onPointerLeave={() => setResizeHandleHovered(false)}
+      style={{
+        position: "absolute",
+        top: 0,
+        right: 0,
+        bottom: 0,
+        width: RESIZE_HANDLE_WIDTH,
+        cursor: "col-resize",
+        zIndex: 6,
+        background:
+          resizing || resizeHandleHovered ? "rgba(42,49,71,0.09)" : "transparent",
+        touchAction: "none",
+      }}
+    >
+      {(resizing || resizeHandleHovered) && (
+        <span
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: 10,
+            right: 8,
+            padding: "2px 6px",
+            border: `1px solid ${CHROME.lineStrong}`,
+            borderRadius: 0,
+            background: CHROME.surface,
+            color: CHROME.muted,
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: "0.02em",
+            lineHeight: 1.2,
+            boxShadow: CHROME_SHADOWS.card,
+            pointerEvents: "none",
+          }}
+        >
+          {navigatorWidth}px
+        </span>
+      )}
+      <span
+        aria-hidden
+        style={{
+          position: "absolute",
+          left: "50%",
+          top: 14,
+          bottom: 14,
+          width: 2,
+          transform: "translateX(-50%)",
+          background:
+            resizing || resizeHandleHovered
+              ? "rgba(42,49,71,0.44)"
+              : "rgba(24,24,27,0.16)",
+          transition: "background 120ms ease",
+        }}
+      />
+    </div>
+  );
+
+  const navigatorTabs = (
+    <div
+      role="radiogroup"
+      aria-label="Layers view mode"
+      style={{
+        display: "inline-flex",
+        alignSelf: "stretch",
+        borderBottom: `1px solid ${CHROME.line}`,
+        gap: 0,
+        padding: "0 14px",
+      }}
+    >
+      {(["sections", "outline", "classes"] as const).map((mode) => {
+        const active = viewMode === mode;
+        const isPrimary = mode === "sections";
+        const displayLabel =
+          mode === "sections" ? "Layers" : mode === "outline" ? "Outline" : "Classes";
+        const description =
+          mode === "sections"
+            ? "Every block on the page, in order"
+            : mode === "outline"
+              ? "Just the headings, as a document outline"
+              : "Reusable style classes you can apply across blocks";
+        return mode === "outline" ? (
+          <BuilderCoachmarkTip
+            key={mode}
+            id="outline-tab"
+            message="Outline shows just the headings — jump through long pages faster."
+            placement="below"
+            wrapperStyle={{ flex: isPrimary ? 1.25 : 1, display: "inline-flex" }}
+          >
+            <button
+              type="button"
+              role="radio"
+              aria-checked={active}
+              aria-label={`${displayLabel} — ${description}`}
+              title={description}
+              onClick={() => setViewMode(mode)}
+              style={{
+                flex: 1,
+                padding: "8px 10px",
+                fontSize: 12,
+                fontWeight: active ? 600 : 500,
+                letterSpacing: "-0.005em",
+                cursor: "pointer",
+                border: "none",
+                borderBottom: active
+                  ? `2px solid ${CHROME.accent}`
+                  : "2px solid transparent",
+                marginBottom: -1,
+                background: "transparent",
+                color: active ? CHROME.accent : CHROME.muted,
+                boxShadow: "none",
+                transition: "color 100ms, border-color 100ms",
+                width: "100%",
+              }}
+            >
+              {displayLabel}
+            </button>
+          </BuilderCoachmarkTip>
+        ) : (
+          <button
+            key={mode}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            aria-label={`${displayLabel} — ${description}`}
+            title={description}
+            onClick={() => setViewMode(mode)}
+            style={{
+              flex: isPrimary ? 1.25 : 1,
+              padding: "8px 10px",
+              fontSize: 12,
+              fontWeight: active ? 600 : 500,
+              letterSpacing: "-0.005em",
+              cursor: "pointer",
+              border: "none",
+              borderBottom: active
+                ? `2px solid ${CHROME.accent}`
+                : "2px solid transparent",
+              marginBottom: -1,
+              background: "transparent",
+              color: active ? CHROME.accent : CHROME.muted,
+              boxShadow: "none",
+              transition: "color 100ms, border-color 100ms",
+            }}
+          >
+            {displayLabel}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const navigatorFooter = (
+    <div
+      style={{
+        borderTop: `1px solid ${CHROME.line}`,
+        padding: "10px 12px",
+        background: CHROME.surface,
+      }}
+    >
+      <div
+        style={{
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: "0.10em",
+          textTransform: "uppercase",
+          color: CHROME.muted2,
+          marginBottom: 6,
+        }}
+      >
+        Page
+      </div>
+      <div className="flex gap-1.5">
+        <FooterShortcut
+          onClick={openPageSettings}
+          title="Page setup — title, SEO, social preview, URL"
+        >
+          Page setup
+        </FooterShortcut>
+        {canEditSiteShell ? (
+          <FooterShortcut onClick={openTheme} title="Edit colours, type, and spacing">
+            Theme
+          </FooterShortcut>
+        ) : null}
+      </div>
+    </div>
+  );
+
+  return (
+    <DockFloatingPanel
+      panelId="navigator"
+      title="Page Structure"
+      titleId="structure-navigator-label"
+      open={navigatorOpen}
+      onClose={toggleNavigator}
+      closeAriaLabel="Close Page Structure"
+      width={navigatorWidth}
+      testId="navigator-panel"
+      dataEditOverlay="navigator-panel"
+      floatingDrag={floatingDrag}
+      zIndex={80}
+      headerExtra={navigatorPerfBadge}
+      afterHandle={navigatorResizeHandle}
       onDragLeave={(e) => {
-        // Only clear when leaving the panel as a whole, not when moving
-        // between rows inside it.
         const target = e.relatedTarget as Node | null;
         if (!target || !e.currentTarget.contains(target)) {
           setDropAt(null);
         }
       }}
-      onDrop={onDrop}
+      onDrop={(e) => void onDrop(e as React.DragEvent<HTMLDivElement>)}
       onDragOver={(e) => {
         if (draggingId) e.preventDefault();
       }}
+      tabs={navigatorTabs}
+      footer={navigatorFooter}
     >
-      <FloatingDragHandle
-        onPointerDown={floatingDrag.onHandlePointerDown}
-        dragging={floatingDrag.dragging}
-        label="Page Structure"
-        moved={floatingMoved}
-        onReset={floatingDrag.reset}
-        style={{
-          // Clean grip strip flush under the rounded top corners. The row
-          // spans the full width and carries the SAME top radius as the
-          // <aside>, so the panel's overflow:hidden has nothing to clip at the
-          // corners (no white-on-white background seam / bleed). The header
-          // band directly below already supplies the divider — no border here.
-          color: CHROME.muted,
-          background: CHROME.surface,
-          width: "100%",
-          boxSizing: "border-box",
-          borderTopLeftRadius: 16,
-          borderTopRightRadius: 16,
-          height: 32,
-        }}
-      />
-      <div
-        role="separator"
-        aria-label="Resize navigator"
-        aria-orientation="vertical"
-        aria-valuemin={NAVIGATOR_MIN_WIDTH}
-        aria-valuemax={NAVIGATOR_MAX_WIDTH}
-        aria-valuenow={navigatorWidth}
-        tabIndex={0}
-        onKeyDown={(event) => {
-          if (event.key === "ArrowLeft") {
-            event.preventDefault();
-            setNavigatorWidth(navigatorWidth - NAVIGATOR_KEYBOARD_STEP);
-            return;
-          }
-          if (event.key === "ArrowRight") {
-            event.preventDefault();
-            setNavigatorWidth(navigatorWidth + NAVIGATOR_KEYBOARD_STEP);
-            return;
-          }
-          if (event.key === "Home") {
-            event.preventDefault();
-            setNavigatorWidth(NAVIGATOR_MIN_WIDTH);
-            return;
-          }
-          if (event.key === "End") {
-            event.preventDefault();
-            setNavigatorWidth(NAVIGATOR_MAX_WIDTH);
-          }
-        }}
-        onDoubleClick={() => {
-          setNavigatorWidth(NAVIGATOR_DEFAULT_WIDTH);
-        }}
-        onPointerDown={startResize}
-        onPointerEnter={() => setResizeHandleHovered(true)}
-        onPointerLeave={() => setResizeHandleHovered(false)}
-        style={{
-          position: "absolute",
-          top: 0,
-          // At the inner right edge (was straddling at -4) so the rounded
-          // card's overflow:hidden doesn't clip the resize grab zone.
-          right: 0,
-          bottom: 0,
-          width: RESIZE_HANDLE_WIDTH,
-          cursor: "col-resize",
-          zIndex: 6,
-          background:
-            resizing || resizeHandleHovered ? "rgba(42,49,71,0.09)" : "transparent",
-          touchAction: "none",
-        }}
-      >
-        {(resizing || resizeHandleHovered) && (
-          <span
-            aria-hidden
-            style={{
-              position: "absolute",
-              top: 10,
-              right: 8,
-              padding: "2px 6px",
-              border: `1px solid ${CHROME.lineStrong}`,
-              borderRadius: 0,
-              background: CHROME.surface,
-              color: CHROME.muted,
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: "0.02em",
-              lineHeight: 1.2,
-              boxShadow: CHROME_SHADOWS.card,
-              pointerEvents: "none",
-            }}
-          >
-            {navigatorWidth}px
-          </span>
-        )}
-        <span
-          aria-hidden
-          style={{
-            position: "absolute",
-            left: "50%",
-            // Inset top + bottom by the card's corner radius so the resize
-            // line never pokes a hairline across the rounded top-right /
-            // bottom-right corners (a source of the top-edge "bleed").
-            top: 14,
-            bottom: 14,
-            width: 2,
-            transform: "translateX(-50%)",
-            background:
-              resizing || resizeHandleHovered
-                ? "rgba(42,49,71,0.44)"
-                : "rgba(24,24,27,0.16)",
-            transition: "background 120ms ease",
-          }}
-        />
-      </div>
-      {/* Header — eyebrow + search + collapse */}
       <div
         style={{
-          padding: "12px 14px",
+          padding: "10px 14px 12px",
           borderBottom: `1px solid ${CHROME.line}`,
           background: CHROME.surface,
-          display: "flex",
-          flexDirection: "column",
-          gap: 10,
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: "0.10em",
-              textTransform: "uppercase",
-              color: CHROME.muted,
-            }}
-          >
-            <span
-              style={{
-                display: "inline-block",
-                width: 6,
-                height: 6,
-                borderRadius: 999,
-                background: CHROME.green,
-              }}
-              aria-hidden
-            />
-            <span id="structure-navigator-label">Page Structure</span>
-            {builderPerformanceIssues.length > 0 ? (
-              hasBlockingPerformanceIssue ? (
-                /* Genuine blocking problems keep a visible (rose) pill. */
-                <span
-                  title={
-                    "Performance issues detected:\n" +
-                    builderPerformanceIssues
-                      .map((issue) => `• ${issue.message}`)
-                      .join("\n")
-                  }
-                  aria-label={`${builderPerformanceIssues.length} performance ${builderPerformanceIssues.length === 1 ? "issue" : "issues"} detected — hover for details`}
-                  style={{
-                    marginLeft: 6,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 3,
-                    padding: "1px 6px",
-                    borderRadius: 999,
-                    border: "1px solid rgba(180, 35, 35, 0.35)",
-                    background: "rgba(180, 35, 35, 0.14)",
-                    color: "#9f1239",
-                    fontSize: 9,
-                    fontWeight: 700,
-                    letterSpacing: "0.04em",
-                    cursor: "default",
-                  }}
-                >
-                  <svg width="8" height="8" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
-                    <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm-.75 3.5h1.5v4.5h-1.5V4.5zm0 5.5h1.5v1.5h-1.5V10z"/>
-                  </svg>
-                  Slow
-                </span>
-              ) : (
-                /* Hint-level signals (e.g. deep nesting) are NOT an alarm — a
-                   muted, neutral info glyph that reveals the full list on hover.
-                   No warning color, no "Perf" label greeting the operator. */
-                <span
-                  title={
-                    "Performance hints:\n" +
-                    builderPerformanceIssues
-                      .map((issue) => `• ${issue.message}`)
-                      .join("\n")
-                  }
-                  aria-label={`${builderPerformanceIssues.length} builder ${builderPerformanceIssues.length === 1 ? "hint" : "hints"} — hover for details`}
-                  style={{
-                    marginLeft: 6,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    color: "#9ca3af",
-                    opacity: 0.6,
-                    cursor: "default",
-                  }}
-                >
-                  <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
-                    <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm-.75 3.5h1.5v4.5h-1.5V4.5zm0 5.5h1.5v1.5h-1.5V10z"/>
-                  </svg>
-                </span>
-              )
-            ) : null}
-          </div>
-          <button
-            type="button"
-            onClick={toggleNavigator}
-            title="Hide Layers (⌘\\)"
-            aria-label="Hide Layers"
-            style={{
-              width: 22,
-              height: 22,
-              borderRadius: CHROME_RADII.sm,
-              border: "none",
-              background: "transparent",
-              color: CHROME.muted,
-              cursor: "pointer",
-            }}
-          >
-            <svg
-              width="11"
-              height="11"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
-            >
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-          </button>
-        </div>
-        {/* Sprint 4 — view-mode toggle. Sections (flat list, default) ↔
-         *  Outline (heading hierarchy view). Sits between the navigator
-         *  header and the search bar so it's discoverable but doesn't
-         *  steal vertical space when the operator isn't using it.
-         *  Search remains scoped to the current view. */}
-        <div
-          role="radiogroup"
-          aria-label="Layers view mode"
-          style={{
-            display: "inline-flex",
-            alignSelf: "stretch",
-            background: CHROME.paper,
-            border: `1px solid ${CHROME.line}`,
-            borderRadius: CHROME_RADII.sm,
-            padding: 2,
-            marginBottom: 6,
-          }}
-        >
-          {/* #15 — renamed "sections" view label to "Layers" (operator
-              language, not dev taxonomy). "Outline" stays as-is.
-              Wave 5.8 — added "Classes" tab for the Class Manager.
-              W6-T3 — Layers is the primary view; Outline and Classes are
-              demoted to secondary peers (lighter weight + a hover description
-              that says what they do) so a first-run operator isn't asked to
-              treat a power-user view as an equal default. */}
-          {(["sections", "outline", "classes"] as const).map((mode) => {
-            const active = viewMode === mode;
-            // W1-T2 — classes now publish (the registry is baked into the
-            // snapshot), so the temporary "(editor only)" honesty label from
-            // W1-T3 is removed.
-            const isPrimary = mode === "sections";
-            const displayLabel =
-              mode === "sections" ? "Layers" : mode === "outline" ? "Outline" : "Classes";
-            // W6-T3 — hover descriptions demote the two power-user views.
-            const description =
-              mode === "sections"
-                ? "Every block on the page, in order"
-                : mode === "outline"
-                  ? "Just the headings, as a document outline"
-                  : "Reusable style classes you can apply across blocks";
-            return mode === "outline" ? (
-              <BuilderCoachmarkTip
-                key={mode}
-                id="outline-tab"
-                message="Outline shows just the headings — jump through long pages faster."
-                placement="below"
-                wrapperStyle={{ flex: isPrimary ? 1.25 : 1, display: "inline-flex" }}
-              >
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={active}
-                  aria-label={`${displayLabel} — ${description}`}
-                  title={description}
-                  onClick={() => setViewMode(mode)}
-                  style={{
-                    flex: 1,
-                    padding: "4px 8px",
-                    fontSize: 11,
-                    fontWeight: isPrimary || active ? 600 : 500,
-                    letterSpacing: "-0.005em",
-                    textTransform: "capitalize",
-                    cursor: "pointer",
-                    border: "none",
-                    borderRadius: 0,
-                    background: active ? CHROME.surface : "transparent",
-                    color: active
-                      ? CHROME.ink
-                      : isPrimary
-                        ? CHROME.muted
-                        : CHROME.muted2,
-                    boxShadow: active
-                      ? "0 1px 2px rgba(0,0,0,0.06)"
-                      : "none",
-                    transition: "background 100ms, color 100ms",
-                    width: "100%",
-                  }}
-                >
-                  {displayLabel}
-                </button>
-              </BuilderCoachmarkTip>
-            ) : (
-              <button
-                key={mode}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                aria-label={`${displayLabel} — ${description}`}
-                title={description}
-                onClick={() => setViewMode(mode)}
-                style={{
-                  flex: isPrimary ? 1.25 : 1,
-                  padding: "4px 8px",
-                  fontSize: 11,
-                  fontWeight: isPrimary || active ? 600 : 500,
-                  letterSpacing: "-0.005em",
-                  textTransform: "capitalize",
-                  cursor: "pointer",
-                  border: "none",
-                  borderRadius: 0,
-                  background: active ? CHROME.surface : "transparent",
-                  color: active
-                    ? CHROME.ink
-                    : isPrimary
-                      ? CHROME.muted
-                      : CHROME.muted2,
-                  boxShadow: active
-                    ? "0 1px 2px rgba(0,0,0,0.06)"
-                    : "none",
-                  transition: "background 100ms, color 100ms",
-                }}
-              >
-                {displayLabel}
-              </button>
-            );
-          })}
-        </div>
         <div className="relative">
           <svg
             width="12"
@@ -1620,7 +1521,13 @@ export function NavigatorPanel() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={viewMode === "outline" ? "Search headings…" : viewMode === "classes" ? "Search classes…" : "Search layers…"}
+            placeholder={
+              viewMode === "outline"
+                ? "Search headings…"
+                : viewMode === "classes"
+                  ? "Search classes…"
+                  : "Search layers…"
+            }
             style={{
               width: "100%",
               padding: "6px 8px 6px 28px",
@@ -3280,42 +3187,7 @@ export function NavigatorPanel() {
         </>
         ) : null}
       </div>
-
-      {/* Footer — Page settings + Theme shortcuts */}
-      <div
-        style={{
-          borderTop: `1px solid ${CHROME.line}`,
-          padding: "10px 12px",
-          background: CHROME.surface,
-        }}
-      >
-        <div
-          style={{
-            fontSize: 10,
-            fontWeight: 700,
-            letterSpacing: "0.10em",
-            textTransform: "uppercase",
-            color: CHROME.muted2,
-            marginBottom: 6,
-          }}
-        >
-          Page
-        </div>
-        <div className="flex gap-1.5">
-          <FooterShortcut
-            onClick={openPageSettings}
-            title="Page setup — title, SEO, social preview, URL"
-          >
-            Page setup
-          </FooterShortcut>
-          {canEditSiteShell ? (
-            <FooterShortcut onClick={openTheme} title="Edit colours, type, and spacing">
-              Theme
-            </FooterShortcut>
-          ) : null}
-        </div>
-      </div>
-    </aside>
+    </DockFloatingPanel>
   );
 }
 

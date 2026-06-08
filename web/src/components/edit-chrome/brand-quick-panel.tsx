@@ -15,6 +15,7 @@ import {
   saveHeaderIdentityAction,
 } from "@/lib/site-admin/site-header/actions";
 import type { SiteHeaderConfig } from "@/lib/site-admin/site-header/types";
+import { MediaPicker } from "@/lib/site-admin/sections/shared/MediaPicker";
 import { useEditContext } from "./edit-context";
 import { DockFloatingPanel } from "./dock-floating-panel";
 import { CHROME, Field, FieldLabel, Helper, SaveChip, type SaveChipStatus } from "./kit";
@@ -24,8 +25,111 @@ interface BrandQuickPanelProps {
   onClose: () => void;
 }
 
+function LogoQuickField({
+  tenantId,
+  assetId,
+  onChange,
+}: {
+  tenantId: string;
+  assetId: string | null;
+  onChange: (next: string | null) => void;
+}) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [resolving, setResolving] = useState(false);
+
+  useEffect(() => {
+    if (!assetId) {
+      setPreviewUrl(null);
+      return;
+    }
+    let cancelled = false;
+    setResolving(true);
+    void fetch(
+      `/api/admin/media/library?tenantId=${encodeURIComponent(tenantId)}&id=${encodeURIComponent(assetId)}`,
+      { cache: "no-store" },
+    )
+      .then((res) => res.json())
+      .then((body) => {
+        if (cancelled) return;
+        if (body.ok && Array.isArray(body.items)) {
+          const found = body.items.find(
+            (m: { id: string; publicUrl: string }) => m.id === assetId,
+          );
+          setPreviewUrl(found?.publicUrl ?? null);
+        }
+      })
+      .catch(() => setPreviewUrl(null))
+      .finally(() => {
+        if (!cancelled) setResolving(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [assetId, tenantId]);
+
+  const hasLogo = Boolean(assetId && previewUrl);
+
+  return (
+    <Field>
+      <FieldLabel>Logo</FieldLabel>
+      <div
+        className="group relative overflow-hidden rounded-[10px] border"
+        style={{
+          width: 96,
+          height: 96,
+          borderColor: CHROME.line,
+          background: CHROME.controlFill,
+        }}
+      >
+        <div className="absolute inset-0 flex items-center justify-center">
+          {hasLogo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={previewUrl!}
+              alt="Site logo"
+              className="size-full object-contain p-2"
+            />
+          ) : resolving ? (
+            <span
+              className="size-3 animate-pulse rounded-full"
+              style={{ background: CHROME.muted3 }}
+            />
+          ) : (
+            <span className="text-[10px] font-semibold uppercase tracking-[0.08em]" style={{ color: CHROME.muted3 }}>
+              Logo
+            </span>
+          )}
+        </div>
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-stone-900/55 text-[10px] font-semibold uppercase tracking-[0.1em] text-white opacity-0 transition-opacity group-hover:opacity-100">
+          {hasLogo ? "Replace" : "Add"}
+        </div>
+        <div className="absolute inset-0 z-20 [&>button]:absolute [&>button]:inset-0 [&>button]:size-full [&>button]:cursor-pointer [&>button]:border-0 [&>button]:bg-transparent [&>button]:opacity-0">
+          <MediaPicker
+            tenantId={tenantId}
+            label="Pick logo"
+            onPick={() => {}}
+            onPickItem={(item) => onChange(item.id)}
+          />
+        </div>
+        {assetId ? (
+          <button
+            type="button"
+            aria-label="Clear logo"
+            title="Clear logo"
+            onClick={() => onChange(null)}
+            className="absolute right-1 top-1 z-30 inline-flex size-5 items-center justify-center rounded-full bg-stone-900/85 text-white opacity-0 shadow-md transition-opacity group-hover:opacity-100"
+          >
+            ×
+          </button>
+        ) : null}
+      </div>
+      <Helper>Shown in the site header and shared with header settings.</Helper>
+    </Field>
+  );
+}
+
 export function BrandQuickPanel({ open, onClose }: BrandQuickPanelProps) {
-  const { queueRouterRefresh } = useEditContext();
+  const { queueRouterRefresh, tenantId } = useEditContext();
   const [config, setConfig] = useState<SiteHeaderConfig | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadErr, setLoadErr] = useState<string | null>(null);
@@ -139,7 +243,7 @@ export function BrandQuickPanel({ open, onClose }: BrandQuickPanelProps) {
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-[14px] py-[12px]">
         <div className="mb-[10px] flex items-center justify-between gap-[8px]">
           <p className="m-0 text-[11px] leading-snug" style={{ color: CHROME.muted }}>
-            Quick brand controls. Logo and deep setup live in site header or dashboard.
+            Quick brand controls for name, logo, and colors.
           </p>
           <SaveChip status={chipStatus} />
         </div>
@@ -157,6 +261,14 @@ export function BrandQuickPanel({ open, onClose }: BrandQuickPanelProps) {
 
         {config ? (
           <div className="flex flex-col gap-[14px]">
+            <LogoQuickField
+              tenantId={tenantId}
+              assetId={config.branding.logoMediaAssetId}
+              onChange={(next) =>
+                scheduleBranding({ logoMediaAssetId: next })
+              }
+            />
+
             <Field>
               <FieldLabel>Brand name</FieldLabel>
               <input

@@ -234,7 +234,7 @@ export function FeaturedTalentContentInspector({
   }
 
   return (
-    <div ref={rootRef} className="flex flex-col gap-6">
+    <div ref={rootRef} className="flex flex-col gap-4">
       {focusRole && focusLabel ? (
         <div
           className="rounded-lg border px-3 py-2 text-xs font-medium"
@@ -247,58 +247,77 @@ export function FeaturedTalentContentInspector({
           Editing selected canvas node: {focusLabel}
         </div>
       ) : null}
-      <div className="rounded-lg border border-amber-300/70 bg-amber-50 p-3 text-amber-950 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold">V11 featured talent preset</p>
-            <p className="mt-0.5 text-xs leading-relaxed text-amber-800">
-              Resets this section to the prototype: centered header, four-card
-              noir grid, cinematic images, bookmark glyphs, outline buttons,
-              and the Explore Talent footer link.
-            </p>
-          </div>
-          <button type="button" className={KIT.primaryButton} onClick={applyV11Preset}>
-            Apply full preset
-          </button>
-        </div>
+
+      <div className={KIT.field} data-featured-talent-node-role="subheadline">
+        <label className={KIT.label}>Eyebrow</label>
+        <input
+          type="text"
+          className={KIT.input}
+          placeholder="Optional — e.g. Featured this month"
+          maxLength={60}
+          value={eyebrow}
+          onChange={(e) => update({ eyebrow: e.target.value || undefined })}
+        />
       </div>
-      <InspectorGroup title="Header" storageKey="featured_talent:header">
-        <div className={KIT.field} data-featured-talent-node-role="subheadline">
-          <label className={KIT.label}>Eyebrow</label>
-          <input
-            type="text"
-            className={KIT.input}
-            placeholder="Optional — e.g. Featured this month"
-            maxLength={60}
-            value={eyebrow}
-            onChange={(e) => update({ eyebrow: e.target.value || undefined })}
-          />
-        </div>
-        <div className={KIT.field} data-featured-talent-node-role="headline">
-          <label className={KIT.label}>Headline</label>
-          <RichEditor
-            value={headline}
-            onChange={(next) => update({ headline: next || undefined })}
-            variant="single"
-            tenantId={tenantId}
-            placeholder="A section title that names the set"
-            ariaLabel="Headline"
-          />
-        </div>
-        <div className={KIT.field} data-featured-talent-node-role="copy">
-          <label className={KIT.label}>Intro copy</label>
-          <RichEditor
-            value={copy}
-            onChange={(next) => update({ copy: next || undefined })}
-            variant="multi"
-            tenantId={tenantId}
-            placeholder="Optional — one paragraph of context"
-            ariaLabel="Intro copy"
-          />
-        </div>
+      <div className={KIT.field} data-featured-talent-node-role="headline">
+        <label className={KIT.label}>Headline</label>
+        <RichEditor
+          value={headline}
+          onChange={(next) => update({ headline: next || undefined })}
+          variant="single"
+          tenantId={tenantId}
+          placeholder="A section title that names the set"
+          ariaLabel="Headline"
+        />
+      </div>
+      <div className={KIT.field} data-featured-talent-node-role="copy">
+        <label className={KIT.label}>Description</label>
+        <RichEditor
+          value={copy}
+          onChange={(next) => update({ copy: next || undefined })}
+          variant="multi"
+          tenantId={tenantId}
+          placeholder="Optional — one paragraph of context"
+          ariaLabel="Description"
+        />
+      </div>
+
+      <InspectorGroup title="Layout" storageKey="featured_talent:layout-main">
+        <VisualChipGroup<Variant>
+          value={variant}
+          onChange={(v) => update({ variant: v })}
+          options={[
+            {
+              value: "grid",
+              label: "Uniform card grid",
+              preview: <GridPreview />,
+            },
+            {
+              value: "carousel",
+              label: "Horizontal rail",
+              preview: <CarouselPreview />,
+            },
+          ]}
+          columns={2}
+        />
       </InspectorGroup>
 
-      <InspectorGroup title="Who shows up">
+      <InspectorGroup
+        title="Preset"
+        collapsible
+        storageKey="featured_talent:preset"
+        defaultOpen={false}
+      >
+        <p className={KIT.hint}>
+          V11 showcase: centered header, four-card noir grid, cinematic images,
+          outline buttons, and Explore Talent footer link.
+        </p>
+        <button type="button" className={KIT.primaryButton} onClick={applyV11Preset}>
+          Apply full preset
+        </button>
+      </InspectorGroup>
+
+      <InspectorGroup title="Talent source" storageKey="featured_talent:source">
         <VisualChipGroup<SourceMode>
           value={sourceMode}
           onChange={switchMode}
@@ -353,9 +372,11 @@ export function FeaturedTalentContentInspector({
       </InspectorGroup>
 
       <InspectorGroup
-        title="Prototype layout"
+        title="Visual style"
         info="Controls the visual system around the live talent cards."
         storageKey="featured_talent:prototype"
+        collapsible
+        defaultOpen={false}
       >
         <VisualChipGroup<LayoutPreset>
           value={layoutPreset}
@@ -442,11 +463,11 @@ export function FeaturedTalentContentInspector({
       </InspectorGroup>
 
       <InspectorGroup
-        title="Card content"
-        info="Choose which real public profile fields are visible on each card."
+        title="Card fields"
+        info="Choose which public profile fields are visible on each card."
         collapsible
         storageKey="featured_talent:card-content"
-        defaultOpen={layoutPreset === "v11-showcase"}
+        defaultOpen={false}
       >
         <div className="grid grid-cols-2 gap-2 text-sm">
           {[
@@ -476,7 +497,7 @@ export function FeaturedTalentContentInspector({
         info="Optional per-card Request/Add to inquiry action."
         collapsible
         storageKey="featured_talent:card-actions"
-        defaultOpen={Boolean(requestCta) || layoutPreset === "v11-showcase"}
+        defaultOpen={false}
       >
         <CtaDuoEditor
           primary={requestCta}
@@ -536,26 +557,6 @@ export function FeaturedTalentContentInspector({
               update({ columnsDesktop: Number(e.target.value) })
             }
             className="w-full accent-stone-900"
-          />
-        </div>
-        <div className={KIT.field}>
-          <label className={KIT.label}>Layout</label>
-          <VisualChipGroup<Variant>
-            value={variant}
-            onChange={(v) => update({ variant: v })}
-            options={[
-              {
-                value: "grid",
-                label: "Grid",
-                preview: <GridPreview />,
-              },
-              {
-                value: "carousel",
-                label: "Carousel",
-                preview: <CarouselPreview />,
-              },
-            ]}
-            columns={2}
           />
         </div>
       </InspectorGroup>

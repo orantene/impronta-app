@@ -34,7 +34,7 @@ import {
 import { useHoveredSectionId } from "./hover-bridge";
 import { useDirty } from "./dirty-bridge";
 import { PresenceProvider } from "./presence-provider";
-import { CHROME_SHADOWS } from "./kit";
+import { CHROME, CHROME_SHADOWS } from "./kit";
 import { isCoachmarkDismissed, dismissCoachmark } from "./builder-coachmarks";
 import { SelectionLayer } from "./selection-layer";
 import { InspectorDock } from "./inspector-dock";
@@ -1038,12 +1038,6 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
           onUndo={() => void undo()}
           onRedo={() => void redo()}
           onPublish={openPublish}
-          onPageSettings={openPageSettings}
-          onRevisions={openRevisions}
-          onTheme={canEditSiteShell ? openTheme : undefined}
-          onAssets={openAssets}
-          onCollections={openCollections}
-          onTemplates={openStarterTemplateGallery}
           onSchedule={openSchedule}
           onComments={openComments}
           onOpenPalette={togglePalette}
@@ -2155,7 +2149,7 @@ function DeviceFrameSurface({
           bottom: 0,
           left: leftPad,
           right: rightPad,
-          background: "#f3f0e8",
+          background: CHROME.canvasWorkspace,
           display: isDesktop ? "none" : "flex",
           alignItems: "flex-start",
           justifyContent: "center",

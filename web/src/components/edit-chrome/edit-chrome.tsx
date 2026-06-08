@@ -54,12 +54,19 @@
  * remounts the right surface without a hard reload.
  */
 
+import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 
 import { EditPill } from "./edit-pill";
-import { EditShell } from "./edit-shell";
+import { EditShellLoading } from "./edit-shell-loading";
 import { IframeChild } from "./iframe-child";
 import { PreviewPill } from "./preview-pill";
+
+/** Deferred until edit mode engages — keeps idle storefront bundle lean. */
+const EditShell = dynamic(
+  () => import("./edit-shell").then((m) => ({ default: m.EditShell })),
+  { ssr: false, loading: () => <EditShellLoading /> },
+);
 
 interface EditChromeProps {
   tenantId: string;
@@ -157,9 +164,9 @@ export function EditChrome({
   return (
     <>
       <style>{`
-        body { padding-top: 54px !important; }
-        /* padding-right on lg is managed client-side by BodyPaddingController
-           in EditShell so it can animate in/out with the inspector dock. */
+        body { padding-top: 54px !important; background: #F9F9FB !important; }
+        /* Lateral body padding is managed by BodyPaddingController in EditShell
+           when workspaceCanvasMode is reserveGutters; fullBleed (default) uses none. */
         /* Keep the storefront header visible below the 54px edit topbar so
            operators can see their nav while editing. The header is sticky
            top-0 by default; offset it to sit below the topbar. */

@@ -8,7 +8,7 @@
  * right of the CommandDock via COMMAND_DOCK_PANEL_INSET_PX.
  */
 
-import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
+import type { DragEvent, PointerEvent as ReactPointerEvent, ReactNode } from "react";
 
 import { COMMAND_DOCK_PANEL_INSET_PX } from "./command-dock";
 import { useFloatingDrag } from "./floating-panel";
@@ -18,7 +18,10 @@ import {
   FloatingPanelShell,
   floatingPanelBoxShadow,
 } from "./kit/floating-panel-shell";
-import { CHROME } from "./kit";
+import { CHROME, Z_INDEX } from "./kit";
+
+/** Subset of {@link useFloatingDrag} return for panels that manage their own hook. */
+export type FloatingDragBinding = ReturnType<typeof useFloatingDrag>;
 
 export interface DockFloatingPanelProps {
   panelId: string;
@@ -30,15 +33,35 @@ export interface DockFloatingPanelProps {
   footer?: ReactNode;
   children: ReactNode;
   testId?: string;
+  /** id on the title `<h2>` for `aria-labelledby`. */
+  titleId?: string;
+  closeAriaLabel?: string;
+  /** Extra controls in the header row (before close). */
+  headerExtra?: ReactNode;
+  /** Slot below grip (e.g. navigator width resize rail). */
+  afterHandle?: ReactNode;
+  onDragLeave?: (event: DragEvent<HTMLElement>) => void;
+  onDrop?: (event: DragEvent<HTMLElement>) => void;
+  onDragOver?: (event: DragEvent<HTMLElement>) => void;
+  /** Reuse an existing drag binding (navigator width + pin share one hook). */
+  floatingDrag?: FloatingDragBinding;
+  zIndex?: number;
+  dataEditOverlay?: string;
 }
 
-function PanelCloseButton({ onClose }: { onClose: () => void }) {
+function PanelCloseButton({
+  onClose,
+  ariaLabel = "Close panel",
+}: {
+  onClose: () => void;
+  ariaLabel?: string;
+}) {
   return (
     <button
       type="button"
       onClick={onClose}
-      title="Close panel"
-      aria-label="Close panel"
+      title={ariaLabel}
+      aria-label={ariaLabel}
       className="inline-flex h-[28px] w-[28px] shrink-0 cursor-pointer items-center justify-center rounded-[8px] border-none transition-colors"
       style={{ background: "transparent", color: CHROME.muted }}
       onMouseEnter={(e) => {
@@ -78,11 +101,24 @@ export function DockFloatingPanel({
   footer,
   children,
   testId,
+  titleId,
+  closeAriaLabel,
+  headerExtra,
+  afterHandle,
+  onDragLeave,
+  onDrop,
+  onDragOver,
+  floatingDrag: floatingDragProp,
+  zIndex = Z_INDEX.panels,
+  dataEditOverlay,
 }: DockFloatingPanelProps) {
-  const floatingDrag = useFloatingDrag({ panelId });
+  const internalDrag = useFloatingDrag({ panelId });
+  const floatingDrag = floatingDragProp ?? internalDrag;
   const moved = floatingDrag.offset.x !== 0 || floatingDrag.offset.y !== 0;
 
   if (!open) return null;
+
+  const resolvedTitleId = titleId ?? `${panelId}-title`;
 
   return (
     <FloatingPanelShell
@@ -99,19 +135,27 @@ export function DockFloatingPanel({
       moved={moved}
       onReset={floatingDrag.reset}
       dataEditDrawer={panelId}
+      dataEditOverlay={dataEditOverlay}
+      ariaLabelledBy={resolvedTitleId}
+      zIndex={zIndex}
+      afterHandle={afterHandle}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      onDragOver={onDragOver}
       header={
         <div
           className="flex items-center justify-between gap-[8px] px-[14px] py-[10px]"
-          style={{ borderBottom: `1px solid ${CHROME.line}` }}
+          style={{ borderBottom: tabs ? undefined : `1px solid ${CHROME.line}` }}
         >
           <h2
-            id={`${panelId}-title`}
+            id={resolvedTitleId}
             className="m-0 min-w-0 flex-1 truncate text-[13px] font-semibold tracking-[-0.01em]"
             style={{ color: CHROME.ink }}
           >
             {title}
           </h2>
-          <PanelCloseButton onClose={onClose} />
+          {headerExtra}
+          <PanelCloseButton onClose={onClose} ariaLabel={closeAriaLabel} />
         </div>
       }
       tabs={tabs}

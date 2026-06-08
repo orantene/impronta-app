@@ -1,0 +1,47 @@
+---
+description: Mandatory browser verification after edit-chrome / builder work
+globs: web/src/components/edit-chrome/**,web/src/lib/site-admin/edit-mode/**,web/src/lib/site-admin/server/homepage.ts
+alwaysApply: false
+---
+
+# Builder work — verify in browser before done
+
+After any change under edit-chrome, composition-actions, or homepage draft/publish:
+
+## 1. Dev server must be up
+
+```bash
+curl -s -o /dev/null -w '%{http_code}' 'http://localhost:3000/impronta?edit=1'
+# Expect 200. If not: cd web && PORT=3000 npm run dev
+```
+
+If routes 404 including `/api/dev/signin`, run `npm install` in `web/`.
+
+## 2. Load the editor in the browser (required)
+
+Open (or MCP-navigate to):
+
+```
+http://localhost:3000/api/dev/signin?email=qa-admin@impronta.test&next=/impronta?edit=1
+```
+
+**Wait for hydration** — `EditShell` dynamic-imports client-side (~2–3s). Poll until
+`[data-edit-topbar]` has real controls (Publish, Save) — not just
+`[data-edit-chrome-loading]` skeleton.
+
+**Done only when ALL pass:**
+
+- No Next.js build/runtime error overlay
+- Topbar visible: Publish, viewport switcher, undo/redo
+- Command dock visible (Search, Add FAB, Structure, …)
+- URL stays on `?edit=1` (or editor chrome is fully mounted)
+
+`tsc` + unit tests alone are **not** sufficient for builder UI work.
+
+## 3. Server Actions rule
+
+Never export sync helpers from `"use server"` files (`composition-actions.ts`, etc.). Pure parsers live in sibling modules (e.g. `composition-revision-snapshot.ts`).
+
+## 4. Report to user
+
+State: dev server status, browser result (pass/fail), and any remaining issues — not "should work."
