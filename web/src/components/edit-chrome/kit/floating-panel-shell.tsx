@@ -11,11 +11,13 @@
 import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from "react";
 
 import { FloatingDragHandle } from "../floating-panel";
-import { CHROME, Z_INDEX } from "./tokens";
+import { commandDockPanelDockStyle } from "../command-dock-rail-dock";
+import { inspectorPanelDockStyle } from "../inspector-rail-dock";
+import { CHROME, EDIT_TOPBAR_H, Z_INDEX } from "./tokens";
 
-export const FLOATING_PANEL_TOP_PX = 66;
+export const FLOATING_PANEL_TOP_PX = EDIT_TOPBAR_H + 12;
 export const FLOATING_PANEL_SIDE_INSET_PX = 14;
-export const FLOATING_PANEL_MAX_HEIGHT = "calc(100vh - 84px)";
+export const FLOATING_PANEL_MAX_HEIGHT = `calc(100vh - ${EDIT_TOPBAR_H + 24}px)`;
 export const FLOATING_PANEL_RADIUS_PX = 16;
 
 export function floatingPanelBoxShadow(dragging: boolean): string {
@@ -32,8 +34,10 @@ export interface FloatingPanelShellProps {
   open?: boolean;
   zIndex?: number;
   testId?: string;
-  /** Grip strip label (e.g. "Layers", "Theme"). */
+  /** Grip strip label (e.g. "Layers", "Theme"). Omit when the grip lives in `header`. */
   dragLabel?: string;
+  /** When false, skips the top drag strip (grip is rendered inside `header` instead). */
+  showDragStrip?: boolean;
   /** Measured panel node ref for magnet + pin. */
   setPanelNode?: (node: HTMLElement | null) => void;
   transform?: string;
@@ -64,6 +68,14 @@ export interface FloatingPanelShellProps {
    * floating side panel (compact editing mode).
    */
   compactBottomSheetBelowLg?: boolean;
+  /** Override default side inset (e.g. inspector panel left of tab rail). */
+  sideInsetPx?: number;
+  /** Merged dock styling when inspector panel locks to tab rail. */
+  dockedToRail?: boolean;
+  /** Which edge the tab rail sits on when {@link dockedToRail} is true. */
+  dockRailSide?: "left" | "right";
+  /** Override fixed `top` (inspector uses {@link INSPECTOR_CHROME_TOP_PX}). */
+  topPx?: number;
 }
 
 export function FloatingPanelShell({
@@ -73,6 +85,7 @@ export function FloatingPanelShell({
   zIndex = Z_INDEX.panels,
   testId,
   dragLabel,
+  showDragStrip = true,
   panelId,
   setPanelNode,
   transform = "translate(0px, 0px)",
@@ -90,16 +103,39 @@ export function FloatingPanelShell({
   dataEditDrawer,
   ariaLabelledBy,
   compactBottomSheetBelowLg = false,
+  sideInsetPx,
+  dockedToRail = false,
+  dockRailSide = "right",
+  topPx = FLOATING_PANEL_TOP_PX,
   dataEditOverlay,
   onDragLeave,
   onDrop,
   onDragOver,
 }: FloatingPanelShellProps) {
   const resolvedWidth = typeof width === "number" ? `${width}px` : width;
+  const inset = sideInsetPx ?? FLOATING_PANEL_SIDE_INSET_PX;
   const horizontalAnchor =
     side === "left"
-      ? { left: FLOATING_PANEL_SIDE_INSET_PX, right: undefined }
-      : { right: FLOATING_PANEL_SIDE_INSET_PX, left: undefined };
+      ? { left: inset, right: undefined }
+      : { right: inset, left: undefined };
+  const panelShadow = floatingPanelBoxShadow(dragging);
+  const dockStyle =
+    dockRailSide === "left"
+      ? commandDockPanelDockStyle(
+          dockedToRail,
+          dragging,
+          FLOATING_PANEL_RADIUS_PX,
+          panelShadow,
+        )
+      : inspectorPanelDockStyle(
+          dockedToRail,
+          dragging,
+          FLOATING_PANEL_RADIUS_PX,
+          panelShadow,
+        );
+  const panelBorder = `1px solid ${CHROME.line}`;
+  const dockedOnLeft = dockedToRail && dockRailSide === "left";
+  const dockedOnRight = dockedToRail && dockRailSide === "right";
 
   return (
     <aside
@@ -120,25 +156,29 @@ export function FloatingPanelShell({
           : ""
       } ${className ?? ""}`}
       style={{
-        top: FLOATING_PANEL_TOP_PX,
+        top: topPx,
         ...horizontalAnchor,
         maxHeight: FLOATING_PANEL_MAX_HEIGHT,
         width: resolvedWidth,
         background: CHROME.surface,
-        border: `1px solid ${CHROME.line}`,
-        borderRadius: FLOATING_PANEL_RADIUS_PX,
-        boxShadow: floatingPanelBoxShadow(dragging),
+        borderTop: panelBorder,
+        borderBottom: panelBorder,
+        borderLeft: dockedOnLeft ? "none" : panelBorder,
+        borderRight: dockedOnRight ? "none" : panelBorder,
+        ...dockStyle,
         zIndex,
         overflow: "hidden",
         pointerEvents: open ? "auto" : "none",
         opacity: open ? 1 : 0,
         transform,
-        transition: dragging ? "none" : "box-shadow 180ms ease, opacity 160ms ease",
+        transition: dragging
+          ? dockStyle.transition ?? "none"
+          : `${dockStyle.transition ?? ""}, opacity 160ms ease`.replace(/^, /, ""),
         userSelect: dragging ? "none" : undefined,
         ...style,
       }}
     >
-      {onHandlePointerDown ? (
+      {showDragStrip && onHandlePointerDown ? (
         <FloatingDragHandle
           onPointerDown={onHandlePointerDown}
           dragging={dragging}
@@ -150,9 +190,10 @@ export function FloatingPanelShell({
             background: CHROME.surface,
             width: "100%",
             boxSizing: "border-box",
-            borderTopLeftRadius: FLOATING_PANEL_RADIUS_PX,
-            borderTopRightRadius: FLOATING_PANEL_RADIUS_PX,
+            borderTopLeftRadius: dockedOnLeft ? 0 : FLOATING_PANEL_RADIUS_PX,
+            borderTopRightRadius: dockedOnRight ? 0 : FLOATING_PANEL_RADIUS_PX,
             height: 32,
+            transition: "border-radius 220ms ease",
           }}
         />
       ) : null}

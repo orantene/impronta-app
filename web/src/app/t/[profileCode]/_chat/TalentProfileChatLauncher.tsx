@@ -16,12 +16,20 @@
  *     cookie, is resolved server-side inside those actions).
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import type { TalentChatLauncherProps } from "@/lib/inquiry/guest-chat-contract";
 
 import { MiniChatPanel } from "./MiniChatPanel";
 import { DEFAULT_ACCENT, firstNameOf, readableOn } from "./mini-chat-styles";
+
+function subscribeNoop(): () => void {
+  return () => undefined;
+}
+
+function useClientMounted(): boolean {
+  return useSyncExternalStore(subscribeNoop, () => true, () => false);
+}
 
 export function TalentProfileChatLauncher({
   tenantSlug,
@@ -44,6 +52,7 @@ export function TalentProfileChatLauncher({
   className,
   openFullHref = null,
 }: TalentChatLauncherProps) {
+  const mounted = useClientMounted();
   const [open, setOpen] = useState(false);
   // F4: expanded state — grows the panel into a 2-pane layout in-place.
   const [expanded, setExpanded] = useState(false);
@@ -76,6 +85,8 @@ export function TalentProfileChatLauncher({
   const accentInk = readableOn(brand.accentColor);
   const talentFirst = firstNameOf(brand.talentDisplayName);
   const launcherLabel = label ?? `Message ${talentFirst}`;
+
+  if (!mounted) return null;
 
   return (
     <>

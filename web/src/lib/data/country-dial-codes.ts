@@ -321,3 +321,91 @@ export function firstIsoForDial(dial: string): string | undefined {
   const row = COUNTRY_DIAL_CODES.find((c) => c.dial === dial);
   return row?.iso;
 }
+
+/** Longest-match-first dial list for parsing user-typed E.164 strings. */
+const DIALS_LONGEST_FIRST = [...COUNTRY_DIAL_CODES].sort(
+  (a, b) => b.dial.length - a.dial.length,
+);
+
+/**
+ * Flag ISO for a dial code shown in inline phone inputs.
+ * +1 maps to US (covers US/Canada NANP in the product copy).
+ */
+export function isoForInlineDial(dial: string, preferIso?: string): string {
+  if (preferIso) return preferIso.toUpperCase();
+  if (dial === "+1") return "US";
+  return firstIsoForDial(dial) ?? "US";
+}
+
+export function formatE164Display(dial: string, national: string): string {
+  const n = national.trim();
+  if (!n) return "";
+  if (n.startsWith("+")) return n;
+  return `${dial || "+1"} ${n}`;
+}
+
+export type ParsedE164Phone = {
+  dial: string;
+  national: string;
+  iso: string;
+};
+
+/**
+ * Split a single phone input into dial prefix + national digits.
+ * Supports in-progress typing ("+5" → Argentina flag once "+54" is complete).
+ */
+export function parseE164PhoneInput(
+  raw: string,
+  fallback: { dial: string; iso?: string } = { dial: "+1", iso: "US" },
+): ParsedE164Phone {
+  const s = raw.trim();
+  const fallbackIso = fallback.iso ?? isoForInlineDial(fallback.dial);
+
+  if (!s) {
+    return { dial: fallback.dial, national: "", iso: fallbackIso };
+  }
+
+  if (!s.startsWith("+")) {
+    return { dial: fallback.dial, national: s, iso: fallbackIso };
+  }
+
+  for (const row of DIALS_LONGEST_FIRST) {
+    if (s.startsWith(row.dial)) {
+      const national = s.slice(row.dial.length).replace(/^\s+/, "");
+      return {
+        dial: row.dial,
+        national,
+        iso: isoForInlineDial(row.dial, row.iso),
+      };
+    }
+  }
+
+  const typedDial = s.match(/^(\+\d*)/)?.[1] ?? "+";
+  const rest = s.slice(typedDial.length).replace(/^\s+/, "");
+
+  const exact = DIALS_LONGEST_FIRST.find((r) => r.dial === typedDial);
+  if (exact) {
+    return {
+      dial: exact.dial,
+      national: rest,
+      iso: isoForInlineDial(exact.dial, exact.iso),
+    };
+  }
+
+  if (typedDial.length > 1) {
+    const candidates = DIALS_LONGEST_FIRST.filter((r) => r.dial.startsWith(typedDial));
+    if (candidates.length === 1) {
+      const c = candidates[0];
+      return { dial: c.dial, national: rest, iso: isoForInlineDial(c.dial, c.iso) };
+    }
+    if (typedDial === "+1" || candidates.some((c) => c.dial === "+1")) {
+      return { dial: "+1", national: rest, iso: "US" };
+    }
+    const guess = firstIsoForDial(typedDial);
+    if (guess) {
+      return { dial: typedDial, national: rest, iso: isoForInlineDial(typedDial, guess) };
+    }
+  }
+
+  return { dial: fallback.dial, national: s.slice(1), iso: fallbackIso };
+}

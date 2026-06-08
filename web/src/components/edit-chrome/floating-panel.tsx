@@ -21,7 +21,9 @@
  */
 
 import {
+  createContext,
   useCallback,
+  useContext,
   useEffect,
   useRef,
   useState,
@@ -56,6 +58,12 @@ export interface UseFloatingDragOptions {
    * before: session-only offset, no persistence, no magnet.
    */
   panelId?: string;
+  /** Fired when a drag begins (e.g. inspector undocks from tab rail). */
+  onDragStart?: () => void;
+  /** Fired on each move with the delta since the previous tick. */
+  onDragMove?: (offset: FloatingOffset, delta: FloatingOffset) => void;
+  /** Fired when a drag ends — use for dock snap / re-lock. */
+  onDragEnd?: (offset: FloatingOffset) => void;
 }
 
 export interface UseFloatingDragResult {
@@ -66,6 +74,8 @@ export interface UseFloatingDragResult {
   onHandlePointerDown: (event: ReactPointerEvent) => void;
   /** Snap the panel back to its home position (offset 0,0). */
   reset: () => void;
+  /** Imperative offset (dock snap / coupled follower). */
+  setOffset: (next: FloatingOffset | ((prev: FloatingOffset) => FloatingOffset)) => void;
   /** `transform` string for the panel element. */
   transform: string;
   /**
@@ -84,13 +94,21 @@ export interface UseFloatingDragResult {
 export function useFloatingDrag(
   options: UseFloatingDragOptions = {},
 ): UseFloatingDragResult {
-  const { panelId } = options;
+  const { panelId, onDragStart, onDragMove, onDragEnd } = options;
   const ctx = useMaybeEditContext();
+  const onDragStartRef = useRef(onDragStart);
+  const onDragMoveRef = useRef(onDragMove);
+  const onDragEndRef = useRef(onDragEnd);
+  useEffect(() => {
+    onDragStartRef.current = onDragStart;
+    onDragMoveRef.current = onDragMove;
+    onDragEndRef.current = onDragEnd;
+  }, [onDragStart, onDragMove, onDragEnd]);
 
   // Seed from the pinned workspace layout (if any) so a saved layout restores
   // on refresh. With no panelId / no provider / no saved layout this is {0,0}
   // — the unchanged session-only default. Computed once on first render.
-  const [offset, setOffset] = useState<FloatingOffset>(() => {
+  const [offset, setOffsetState] = useState<FloatingOffset>(() => {
     if (!panelId || !ctx) return { x: 0, y: 0 };
     const saved = ctx.getSavedPanelOffset(panelId);
     return saved ?? { x: 0, y: 0 };
@@ -131,9 +149,20 @@ export function useFloatingDrag(
     };
   }, []);
 
+  const setOffset = useCallback(
+    (next: FloatingOffset | ((prev: FloatingOffset) => FloatingOffset)) => {
+      setOffsetState((prev) => {
+        const resolved = typeof next === "function" ? next(prev) : next;
+        return clamp(resolved);
+      });
+    },
+    [clamp],
+  );
+
   // Register this panel into the dockable-workspace registry so Pin can read
   // its live offset and the magnet can edge-align siblings against its rect.
   const register = ctx?.registerWorkspacePanel;
+  const registerOffset = ctx?.registerWorkspacePanelOffset;
   useEffect(() => {
     if (!panelId || !register) return undefined;
     return register(panelId, {
@@ -146,6 +175,10 @@ export function useFloatingDrag(
       },
     });
   }, [panelId, register]);
+  useEffect(() => {
+    if (!panelId || !registerOffset) return undefined;
+    return registerOffset(panelId, setOffset);
+  }, [panelId, registerOffset, setOffset]);
 
   const onHandlePointerDown = useCallback(
     (event: ReactPointerEvent) => {
@@ -168,7 +201,10 @@ export function useFloatingDrag(
       // right-anchored panel) and converts the snap back into an offset delta.
       const startRect = nodeRef.current?.getBoundingClientRect() ?? null;
       const magnetEnabled = Boolean(panelId && ctx && startRect);
+      onDragStartRef.current?.();
       setDragging(true);
+      let lastX = baseX;
+      let lastY = baseY;
       const prevCursor = document.body.style.cursor;
       const prevSelect = document.body.style.userSelect;
       document.body.style.cursor = "grabbing";
@@ -196,7 +232,14 @@ export function useFloatingDrag(
           nextY = baseY + (snap.top - startRect.top);
         }
 
-        setOffset(clamp({ x: nextX, y: nextY }));
+        const clamped = clamp({ x: nextX, y: nextY });
+        onDragMoveRef.current?.(clamped, {
+          x: clamped.x - lastX,
+          y: clamped.y - lastY,
+        });
+        lastX = clamped.x;
+        lastY = clamped.y;
+        setOffsetState(clamped);
       };
       const onUp = () => {
         window.removeEventListener("pointermove", onMove);
@@ -205,6 +248,7 @@ export function useFloatingDrag(
         document.body.style.cursor = prevCursor;
         document.body.style.userSelect = prevSelect;
         setDragging(false);
+        onDragEndRef.current?.(offsetRef.current);
       };
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
@@ -216,12 +260,12 @@ export function useFloatingDrag(
   // Re-clamp if the viewport shrinks under a dragged-out panel.
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
-    const onResize = () => setOffset((cur) => clamp(cur));
+    const onResize = () => setOffsetState((cur) => clamp(cur));
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, [clamp]);
 
-  const reset = useCallback(() => setOffset({ x: 0, y: 0 }), []);
+  const reset = useCallback(() => setOffsetState({ x: 0, y: 0 }), []);
 
   // Reset-to-default from the topbar bumps `workspaceResetNonce`; snap this
   // panel home when it changes (skip the initial mount value).
@@ -233,7 +277,7 @@ export function useFloatingDrag(
       return;
     }
     if (!panelId) return;
-    setOffset({ x: 0, y: 0 });
+    setOffsetState({ x: 0, y: 0 });
   }, [resetNonce, panelId]);
 
   return {
@@ -241,9 +285,68 @@ export function useFloatingDrag(
     dragging,
     onHandlePointerDown,
     reset,
+    setOffset,
     transform: `translate(${Math.round(offset.x)}px, ${Math.round(offset.y)}px)`,
     setPanelNode,
   };
+}
+
+export interface FloatingPanelDragContextValue {
+  onHandlePointerDown: (event: ReactPointerEvent) => void;
+  dragging: boolean;
+  moved: boolean;
+  onReset: () => void;
+}
+
+const FloatingPanelDragContext =
+  createContext<FloatingPanelDragContextValue | null>(null);
+
+export function FloatingPanelDragProvider({
+  value,
+  children,
+}: {
+  value: FloatingPanelDragContextValue;
+  children: ReactNode;
+}) {
+  return (
+    <FloatingPanelDragContext.Provider value={value}>
+      {children}
+    </FloatingPanelDragContext.Provider>
+  );
+}
+
+/** Drag handle state when the grip is integrated into a panel header row. */
+export function useFloatingPanelDrag(): FloatingPanelDragContextValue | null {
+  return useContext(FloatingPanelDragContext);
+}
+
+/** Six-dot grip glyph — shared by the drag strip and inline header handles. */
+export function FloatingDragGrip({ dragging = false }: { dragging?: boolean }) {
+  return (
+    <span
+      aria-hidden
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(2, 3px)",
+        gridAutoRows: "3px",
+        gap: 2.5,
+        opacity: dragging ? 0.85 : 0.5,
+        flexShrink: 0,
+      }}
+    >
+      {Array.from({ length: 6 }).map((_, i) => (
+        <span
+          key={i}
+          style={{
+            width: 3,
+            height: 3,
+            borderRadius: 9999,
+            background: "currentColor",
+          }}
+        />
+      ))}
+    </span>
+  );
 }
 
 interface FloatingDragHandleProps {
@@ -288,28 +391,7 @@ export function FloatingDragHandle({
         ...style,
       }}
     >
-      <span
-        aria-hidden
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(2, 3px)",
-          gridAutoRows: "3px",
-          gap: 2.5,
-          opacity: dragging ? 0.85 : 0.5,
-        }}
-      >
-        {Array.from({ length: 6 }).map((_, i) => (
-          <span
-            key={i}
-            style={{
-              width: 3,
-              height: 3,
-              borderRadius: 9999,
-              background: "currentColor",
-            }}
-          />
-        ))}
-      </span>
+      <FloatingDragGrip dragging={dragging} />
       {label ? (
         <span
           style={{

@@ -61,7 +61,13 @@ import {
   Z_INDEX,
   type DrawerKind,
 } from "./tokens";
-import { useFloatingDrag } from "../floating-panel";
+import {
+  FloatingPanelDragProvider,
+  useFloatingDrag,
+  useFloatingPanelDrag,
+  type UseFloatingDragOptions,
+} from "../floating-panel";
+import { FloatingPanelHeader } from "./floating-panel-header";
 import { FloatingPanelShell } from "./floating-panel-shell";
 
 // ── Drawer ──────────────────────────────────────────────────────────────────
@@ -115,6 +121,12 @@ interface DrawerProps {
   className?: string;
   /** On viewports below 1024px, render as a bottom sheet (inspector compact mode). */
   compactBottomSheetBelowLg?: boolean;
+  /** Override default floating side inset (e.g. dock left of tab rail). */
+  floatSideInsetPx?: number;
+  /** Extra floating-drag options (inspector ↔ tab-rail coupling, etc.). */
+  floatingDragOptions?: Omit<UseFloatingDragOptions, "panelId">;
+  /** Inspector merged with tab rail — flattens inner corners on the panel. */
+  dockedToRail?: boolean;
   children: ReactNode;
 }
 
@@ -128,14 +140,20 @@ export function Drawer({
   topPx = 52,
   restoreFocusOnClose = true,
   floating = false,
-  floatLabel,
+  floatLabel: _floatLabel,
   floatPanelId,
   className,
   compactBottomSheetBelowLg,
+  floatSideInsetPx,
+  floatingDragOptions,
+  dockedToRail,
   children,
 }: DrawerProps) {
   const priorFocusRef = useRef<HTMLElement | null>(null);
-  const float = useFloatingDrag({ panelId: floatPanelId });
+  const float = useFloatingDrag({
+    panelId: floatPanelId,
+    ...floatingDragOptions,
+  });
   const floatingMoved = float.offset.x !== 0 || float.offset.y !== 0;
 
   useEffect(() => {
@@ -182,27 +200,39 @@ export function Drawer({
   // (it takes over the whole canvas, where a movable card makes no sense).
   if (floating && width !== "fullscreen") {
     return (
-      <FloatingPanelShell
-        side="right"
-        width={resolvedWidth}
-        open={open}
-        zIndex={zIndex}
-        testId={testId}
-        dragLabel={floatLabel}
-        panelId={floatPanelId}
-        setPanelNode={float.setPanelNode}
-        transform={float.transform}
-        dragging={float.dragging}
-        onHandlePointerDown={float.onHandlePointerDown}
-        moved={floatingMoved}
-        onReset={float.reset}
-        dataEditDrawer={kind}
-        ariaLabelledBy={ariaLabelledBy}
-        compactBottomSheetBelowLg={compactBottomSheetBelowLg}
-        className={className}
+      <FloatingPanelDragProvider
+        value={{
+          onHandlePointerDown: float.onHandlePointerDown,
+          dragging: float.dragging,
+          moved: floatingMoved,
+          onReset: float.reset,
+        }}
       >
-        {children}
-      </FloatingPanelShell>
+        <FloatingPanelShell
+          side="right"
+          width={resolvedWidth}
+          open={open}
+          zIndex={zIndex}
+          testId={testId}
+          showDragStrip={false}
+          panelId={floatPanelId}
+          setPanelNode={float.setPanelNode}
+          transform={float.transform}
+          dragging={float.dragging}
+          onHandlePointerDown={float.onHandlePointerDown}
+          moved={floatingMoved}
+          onReset={float.reset}
+          dataEditDrawer={kind}
+          ariaLabelledBy={ariaLabelledBy}
+          compactBottomSheetBelowLg={compactBottomSheetBelowLg}
+          sideInsetPx={floatSideInsetPx}
+          dockedToRail={dockedToRail}
+          topPx={topPx}
+          className={className}
+        >
+          {children}
+        </FloatingPanelShell>
+      </FloatingPanelDragProvider>
     );
   }
 
@@ -255,12 +285,25 @@ interface DrawerHeadProps {
   meta?: ReactNode;
   /** When true, meta renders as wrapped content instead of one-line truncation. */
   metaWrap?: boolean;
+  /**
+   * When false, meta aligns flush left (no icon-column indent). Use for
+   * inspector headers that omit the decorative type icon.
+   */
+  metaIndent?: boolean;
+  /**
+   * `minimal` — standalone close affordance (canvas-first inspector mockup).
+   * `cluster` — expand / fullscreen / close pill (default drawer chrome).
+   */
+  toolsVariant?: "cluster" | "minimal";
   /** Tool callbacks. Tools render only for handlers that are provided. */
   onExpand?: () => void;
   onFullscreen?: () => void;
   onClose?: () => void;
   /** When set, labels the heading for `Drawer` `aria-labelledby`. */
   titleId?: string;
+  closeAriaLabel?: string;
+  /** Flatten grip row top-right when inspector locks to tab rail. */
+  dockedToRail?: boolean;
 }
 
 export function DrawerHead({
@@ -270,68 +313,140 @@ export function DrawerHead({
   saveChip,
   meta,
   metaWrap = false,
+  metaIndent,
+  toolsVariant = "cluster",
   onExpand,
   onFullscreen,
   onClose,
   titleId,
+  closeAriaLabel = "Close panel",
+  dockedToRail,
 }: DrawerHeadProps) {
+  const drag = useFloatingPanelDrag();
+  const resolvedMetaIndent = metaIndent ?? Boolean(icon);
+
+  if (drag) {
+    return (
+      <FloatingPanelHeader
+        titleId={titleId ?? "drawer-title"}
+        title={title}
+        onPointerDown={drag.onHandlePointerDown}
+        dragging={drag.dragging}
+        moved={drag.moved}
+        onReset={drag.onReset}
+        onClose={toolsVariant === "minimal" ? onClose : undefined}
+        closeAriaLabel={closeAriaLabel}
+        dockedToRail={dockedToRail}
+        headerExtra={
+          toolsVariant === "cluster" ? (
+            <span data-no-drag>
+              <DrawerTools
+                onExpand={onExpand}
+                onFullscreen={onFullscreen}
+                onClose={onClose}
+              />
+            </span>
+          ) : (
+            saveChip
+          )
+        }
+        meta={meta}
+        metaWrap={metaWrap}
+      />
+    );
+  }
+
+  const titleStyle = {
+    color: CHROME.ink,
+    fontSize: 15,
+    fontWeight: 600,
+    letterSpacing: "-0.01em",
+  } as const;
+
+  const closeButton =
+    toolsVariant === "minimal" && onClose ? (
+      <button
+        type="button"
+        data-no-drag
+        onClick={onClose}
+        title="Close"
+        aria-label="Close panel"
+        className="inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md border-none bg-transparent transition-colors"
+        style={{ color: CHROME.muted }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.color = CHROME.ink;
+          e.currentTarget.style.background = CHROME.paper;
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.color = CHROME.muted;
+          e.currentTarget.style.background = "transparent";
+        }}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    ) : null;
+
+  const toolsCluster =
+    toolsVariant === "minimal" ? (
+      closeButton
+    ) : (
+      <span data-no-drag>
+        <DrawerTools
+          onExpand={onExpand}
+          onFullscreen={onFullscreen}
+          onClose={onClose}
+        />
+      </span>
+    );
+
   return (
     <header
-      className="flex items-start gap-2.5 px-[18px] py-[14px]"
       style={{
         background: CHROME.surface,
         borderBottom: `1px solid ${CHROME.line}`,
       }}
     >
-      <div className="min-w-0 flex-1">
-        {eyebrow ? <Eyebrow>{eyebrow}</Eyebrow> : null}
-        <div className={`${eyebrow ? "mt-1.5" : ""} flex items-center gap-2.5`}>
-          {icon ? (
-            <span
-              className="inline-flex size-[30px] shrink-0 items-center justify-center"
-              style={{
-                color: CHROME.ink,
-                background: `linear-gradient(180deg, ${CHROME.paper}, ${CHROME.paper2})`,
-                border: `1px solid ${CHROME.lineMid}`,
-                boxShadow: CHROME_SHADOWS.inputInset,
-                borderRadius: 7,
-              }}
-            >
-              {icon}
+      <div className="flex items-start gap-2.5 px-[18px] py-[14px]">
+        <div className="min-w-0 flex-1">
+          {eyebrow ? <Eyebrow>{eyebrow}</Eyebrow> : null}
+          <div className={`${eyebrow ? "mt-1.5" : ""} flex items-center gap-2.5`}>
+            {icon ? (
+              <span
+                className="inline-flex size-[30px] shrink-0 items-center justify-center"
+                style={{
+                  color: CHROME.ink,
+                  background: `linear-gradient(180deg, ${CHROME.paper}, ${CHROME.paper2})`,
+                  border: `1px solid ${CHROME.lineMid}`,
+                  boxShadow: CHROME_SHADOWS.inputInset,
+                  borderRadius: 7,
+                }}
+              >
+                {icon}
+              </span>
+            ) : null}
+            <span id={titleId} className="min-w-0 flex-1 truncate" style={titleStyle}>
+              {title}
             </span>
-          ) : null}
-          <span
-            id={titleId}
-            className="min-w-0 flex-1 truncate"
-            style={{
-              // Sprint 2 — single canonical drawer heading style. Display
-              // serif was retired (multi-personality typography read as
-              // inconsistency, not "important moment"). Hierarchy now comes
-              // from spacing + structure, not a separate font.
-              color: CHROME.ink,
-              fontSize: 15,
-              fontWeight: 600,
-              letterSpacing: "-0.01em",
-            }}
-          >
-            {title}
-          </span>
-          {saveChip ? <span className="shrink-0">{saveChip}</span> : null}
-        </div>
-        {meta ? (
-          <div
-            className={metaWrap ? "mt-1 ml-[40px]" : "mt-1 ml-[40px] truncate"}
-            style={{ fontSize: 11, color: CHROME.muted }}
-          >
-            {meta}
+            {saveChip ? <span className="shrink-0">{saveChip}</span> : null}
           </div>
-        ) : null}
+        </div>
+        {toolsCluster}
       </div>
-      <DrawerTools
-        onExpand={onExpand}
-        onFullscreen={onFullscreen}
-        onClose={onClose}
-      />
+      {meta ? (
+        <div
+          className={
+            metaWrap
+              ? `px-[18px] pb-[14px] ${resolvedMetaIndent ? "ml-[40px]" : ""}`
+              : `truncate px-[18px] pb-[14px] ${resolvedMetaIndent ? "ml-[40px]" : ""}`
+          }
+          style={{ fontSize: 11, color: CHROME.muted }}
+        >
+          {meta}
+        </div>
+      ) : null}
     </header>
   );
 }
@@ -526,173 +641,11 @@ export function DrawerTab({
   );
 }
 
-// ── DrawerIconTabs ──────────────────────────────────────────────────────────
-//
-// 2026-06-03 — Vertical icon-rail variant of the tab strip, used by the
-// floating inspector dock. Instead of a horizontal text-pill bar across the
-// top, the tabs become a slim ~46px column of icon buttons down the left
-// inner edge; the tab content renders to its right. The active icon fills
-// with the editor `accent` (the same indigo the tokens designate for "active
-// tab"), so the rail reads as a premium tool selector. Each button's tooltip
-// is `hint` (falls back to `label`) and its aria-label is `label`, so the
-// icon-only rail stays fully accessible. A hairline right border divides the
-// rail from the content panel.
-
-export interface DrawerIconTabItem<K extends string = string> {
-  key: K;
-  /** Plain-language label — the aria-label, and the tooltip when no `hint`. */
-  label: string;
-  /** Optional longer hover tooltip (an icon target is less self-evident). */
-  hint?: string;
-  /** Lucide icon component (e.g. `FileText`). Rendered at 17px. */
-  icon: ComponentType<{ size?: number | string; strokeWidth?: number | string; "aria-hidden"?: boolean }>;
-}
-
-interface DrawerIconTabsProps<K extends string> {
-  items: ReadonlyArray<DrawerIconTabItem<K>>;
-  /** Currently active tab key. */
-  active: K;
-  onSelect: (key: K) => void;
-  /** Accessible label for the rail's tablist. */
-  ariaLabel?: string;
-  className?: string;
-}
-
-export function DrawerIconTabs<K extends string>({
-  items,
-  active,
-  onSelect,
-  ariaLabel = "Inspector sections",
-  className,
-}: DrawerIconTabsProps<K>) {
-  const activeItem = items.find((i) => i.key === active);
-  return (
-    <div
-      role="tablist"
-      aria-orientation="vertical"
-      aria-label={ariaLabel}
-      className={`flex shrink-0 flex-col items-center gap-1 overflow-y-auto py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${className ?? ""}`}
-      style={{ width: 46, background: CHROME.paper2, borderRight: `1px solid ${CHROME.line}` }}
-    >
-      {items.map((item) => {
-        const isActive = item.key === active;
-        const Icon = item.icon;
-        return (
-          <button
-            key={item.key}
-            type="button"
-            role="tab"
-            aria-selected={isActive}
-            title={item.hint ?? item.label}
-            aria-label={item.label}
-            onClick={() => onSelect(item.key)}
-            className="inline-flex size-9 cursor-pointer items-center justify-center rounded-[9px] border-none transition-colors"
-            style={{
-              background: isActive ? CHROME.accent : "transparent",
-              color: isActive ? "#ffffff" : CHROME.muted,
-              boxShadow: isActive
-                ? "0 1px 2px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.14)"
-                : "none",
-            }}
-            onMouseEnter={(e) => {
-              if (isActive) return;
-              e.currentTarget.style.background = CHROME.paper;
-              e.currentTarget.style.color = CHROME.ink;
-            }}
-            onMouseLeave={(e) => {
-              if (isActive) return;
-              e.currentTarget.style.background = "transparent";
-              e.currentTarget.style.color = CHROME.muted;
-            }}
-          >
-            <Icon size={17} strokeWidth={1.85} aria-hidden />
-          </button>
-        );
-      })}
-      {/* Active-tab label — surfaced at the bottom of the rail so the user
-          always sees which tab they're on without hover. Rotated 90° to
-          read vertically along the rail, matching the slim-column budget.
-          Transitions smoothly when the active key changes. */}
-      {activeItem ? (
-        <div
-          aria-hidden
-          className="mt-auto shrink-0 pb-3 pt-1"
-          style={{
-            writingMode: "vertical-rl",
-            transform: "rotate(180deg)",
-            fontSize: 9.5,
-            fontWeight: 600,
-            letterSpacing: "0.07em",
-            textTransform: "uppercase",
-            color: CHROME.accent,
-            userSelect: "none",
-            lineHeight: 1,
-          }}
-        >
-          {activeItem.label}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-/**
- * Horizontal icon tab strip — matches the canvas-first mockup inspector:
- * icon row under the header with a purple underline on the active tab.
- */
-export function DrawerIconTabsRow<K extends string>({
-  items,
-  active,
-  onSelect,
-  ariaLabel = "Inspector sections",
-  className,
-}: DrawerIconTabsProps<K>) {
-  return (
-    <div
-      role="tablist"
-      aria-orientation="horizontal"
-      aria-label={ariaLabel}
-      className={`flex shrink-0 items-stretch justify-around gap-0 border-b px-1 ${className ?? ""}`}
-      style={{ background: CHROME.surface, borderColor: CHROME.line }}
-    >
-      {items.map((item) => {
-        const isActive = item.key === active;
-        const Icon = item.icon;
-        return (
-          <button
-            key={item.key}
-            type="button"
-            role="tab"
-            aria-selected={isActive}
-            title={item.hint ?? item.label}
-            aria-label={item.label}
-            onClick={() => onSelect(item.key)}
-            className="relative inline-flex min-w-[44px] flex-1 cursor-pointer flex-col items-center justify-center gap-1 border-none bg-transparent py-2.5 transition-colors"
-            style={{ color: isActive ? CHROME.accent : CHROME.muted }}
-            onMouseEnter={(e) => {
-              if (isActive) return;
-              e.currentTarget.style.color = CHROME.ink;
-            }}
-            onMouseLeave={(e) => {
-              if (isActive) return;
-              e.currentTarget.style.color = CHROME.muted;
-            }}
-          >
-            <Icon size={18} strokeWidth={1.85} aria-hidden />
-            <span
-              aria-hidden
-              className="absolute inset-x-2 bottom-0 h-[2px] rounded-full transition-opacity"
-              style={{
-                background: CHROME.accent,
-                opacity: isActive ? 1 : 0,
-              }}
-            />
-          </button>
-        );
-      })}
-    </div>
-  );
-}
+export {
+  DrawerIconTabs,
+  DrawerIconTabsRow,
+  type DrawerIconTabItem,
+} from "./drawer-icon-tabs";
 
 // ── DrawerBody / DrawerFoot ─────────────────────────────────────────────────
 

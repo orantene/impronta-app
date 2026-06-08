@@ -337,6 +337,7 @@ export function ColorPickerPopover({
   return createPortal(
     <div
       ref={popoverRef}
+      data-edit-overlay="color-picker-popover"
       role="dialog"
       aria-modal="true"
       aria-labelledby="color-picker-dialog-title"

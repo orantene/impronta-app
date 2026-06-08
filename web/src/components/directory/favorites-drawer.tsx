@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Bookmark, Trash2, X } from "lucide-react";
 
 import { setTalentFavorited, setTalentSaved } from "@/app/(public)/directory/actions";
@@ -15,6 +15,15 @@ import { clientLocaleHref } from "@/i18n/client-directory-href";
 import { createTranslator } from "@/i18n/messages";
 import { stripLocaleFromPathname } from "@/i18n/pathnames";
 import type { DirectoryTalentMini } from "@/app/api/directory/talents-by-ids/route";
+
+function subscribeNoop(): () => void {
+  return () => undefined;
+}
+
+/** False during SSR/hydration — avoids favorite-count / drawer chrome drift. */
+function useClientMounted(): boolean {
+  return useSyncExternalStore(subscribeNoop, () => true, () => false);
+}
 
 /**
  * The bookmark-icon drawer. Lists every talent the visitor has hearted
@@ -29,12 +38,24 @@ import type { DirectoryTalentMini } from "@/app/api/directory/talents-by-ids/rou
  * bottom. Signup triggers the merge bridge which mirrors localStorage
  * favorites into `client_favorites`.
  */
-export function FavoritesDrawer({ signupHref }: { signupHref: string }) {
+export function FavoritesDrawer({
+  signupHref,
+  locale: localeProp,
+  initialFavoriteIdsCount = 0,
+}: {
+  signupHref: string;
+  /** SSR-resolved locale — avoids pathname/cookie drift on first paint. */
+  locale?: string;
+  /** SSR favorite count — matches header badge seed until client storage merges. */
+  initialFavoriteIdsCount?: number;
+}) {
+  const mounted = useClientMounted();
   const drawer = useFavoritesDrawer();
   const discovery = usePublicDiscoveryState();
   const inquiryModal = useOptionalDirectoryInquiryModal();
   const pathname = usePathname();
-  const { locale } = stripLocaleFromPathname(pathname);
+  const pathnameLocale = stripLocaleFromPathname(pathname).locale;
+  const locale = localeProp ?? pathnameLocale;
   const t = useMemo(() => createTranslator(locale), [locale]);
   const [talents, setTalents] = useState<DirectoryTalentMini[]>([]);
   const [loading, setLoading] = useState(false);
@@ -43,6 +64,12 @@ export function FavoritesDrawer({ signupHref }: { signupHref: string }) {
 
   const favoriteIds = discovery.favoriteIds;
   const isOpen = drawer?.isOpen ?? false;
+
+  // Keep SSR/first paint aligned until guest localStorage merges post-hydration.
+  const displayFavoriteCount = discovery.storageMerged
+    ? favoriteIds.length
+    : initialFavoriteIdsCount;
+  const hasFavorites = displayFavoriteCount > 0;
 
   // Load talent metadata whenever drawer opens with a non-empty list.
   useEffect(() => {
@@ -134,6 +161,7 @@ export function FavoritesDrawer({ signupHref }: { signupHref: string }) {
   }, [discovery, favoriteIds, inquiryModal, drawer]);
 
   if (!drawer) return null;
+  if (!mounted) return null;
 
   const isGuest = !inquiryModal; // Heuristic — inquiry provider mounts on every public page; only missing in odd embeds.
   void isGuest;
@@ -167,11 +195,17 @@ export function FavoritesDrawer({ signupHref }: { signupHref: string }) {
               className="size-5 shrink-0 text-[var(--impronta-gold)]"
               fill="currentColor"
             />
-            <h2 className="truncate font-display text-lg font-medium tracking-wide text-foreground">
+            <h2
+              className="truncate font-display text-lg font-medium tracking-wide text-foreground"
+              suppressHydrationWarning
+            >
               {t("public.directory.ui.favorites.title")}
-              {favoriteIds.length > 0 ? (
-                <span className="ml-2 font-mono text-[11px] tabular-nums text-white/55">
-                  {favoriteIds.length}
+              {hasFavorites ? (
+                <span
+                  className="ml-2 font-mono text-[11px] tabular-nums text-white/55"
+                  suppressHydrationWarning
+                >
+                  {displayFavoriteCount}
                 </span>
               ) : null}
             </h2>
@@ -188,10 +222,10 @@ export function FavoritesDrawer({ signupHref }: { signupHref: string }) {
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-3 py-3">
-          {favoriteIds.length === 0 ? (
-            <EmptyState />
+          {!hasFavorites ? (
+            <EmptyState locale={locale} />
           ) : loading && talents.length === 0 ? (
-            <FavoritesSkeleton count={Math.min(favoriteIds.length, 4)} />
+            <FavoritesSkeleton count={Math.min(displayFavoriteCount, 4)} />
           ) : (
             <ul className="flex flex-col gap-1.5">
               {talents.map((talent) => (
@@ -218,7 +252,7 @@ export function FavoritesDrawer({ signupHref }: { signupHref: string }) {
 
         {/* Footer */}
         <footer className="border-t border-white/10 px-5 py-4">
-          {favoriteIds.length > 0 ? (
+          {hasFavorites ? (
             <div className="flex flex-col gap-2.5">
               <Button
                 onClick={moveAllToCart}
@@ -227,7 +261,7 @@ export function FavoritesDrawer({ signupHref }: { signupHref: string }) {
               >
                 {t("public.directory.ui.favorites.inquireAboutThese").replace(
                   "{count}",
-                  String(favoriteIds.length),
+                  String(displayFavoriteCount),
                 )}
               </Button>
               <div className="flex items-center justify-between gap-2 text-[12px]">
@@ -328,9 +362,7 @@ function FavoriteRow({
   );
 }
 
-function EmptyState() {
-  const pathname = usePathname();
-  const { locale } = stripLocaleFromPathname(pathname);
+function EmptyState({ locale }: { locale: string }) {
   const t = useMemo(() => createTranslator(locale), [locale]);
   return (
     <div className="mx-auto mt-12 max-w-xs text-center">

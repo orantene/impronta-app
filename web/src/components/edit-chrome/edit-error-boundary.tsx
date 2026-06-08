@@ -31,6 +31,8 @@ import { improntaLog } from "@/lib/server/structured-log";
 
 import { Component, type ReactNode } from "react";
 
+import { EDIT_TOPBAR_H } from "./kit";
+
 interface Props {
   children: ReactNode;
 }
@@ -67,7 +69,8 @@ export class EditErrorBoundary extends Component<Props, State> {
     return (
       <div
         role="alert"
-        className="fixed inset-x-0 top-[54px] z-[120] mx-auto mt-4 max-w-md rounded-xl border border-rose-200 bg-rose-50/95 p-4 text-sm text-rose-900 shadow-lg backdrop-blur"
+        className="fixed inset-x-0 z-[120] mx-auto mt-4 max-w-md rounded-xl border border-rose-200 bg-rose-50/95 p-4 text-sm text-rose-900 shadow-lg backdrop-blur"
+        style={{ top: EDIT_TOPBAR_H }}
       >
         <div className="mb-1 font-semibold">Editor hit an error</div>
         <p className="mb-3 text-xs leading-relaxed text-rose-800">

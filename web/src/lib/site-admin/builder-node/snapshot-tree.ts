@@ -5,6 +5,7 @@ import {
 } from "./snapshot-slot-bridge";
 import { BUILDER_NODE_REGISTRY } from "./registry";
 import { resolveBuilderNodeRole, type BuilderNodeRole } from "./role-bindings";
+import { sectionEmbedTypeLabel } from "./section-embed-presets";
 import type { BuilderNode, BuilderNodeTree } from "./types";
 import {
   validateBuilderNodeTree,
@@ -63,21 +64,82 @@ function truncateLabel(value: string, maxLength = 40): string {
   return `${compact.slice(0, maxLength - 1)}…`;
 }
 
+function humanizeSectionTypeKey(key: string): string {
+  return key
+    .split(/[_\s]+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function stripInlineMarkers(value: string): string {
+  return value
+    .replace(/\{\/?(?:b|i|accent)\}/g, "")
+    .replace(/\{color:#[0-9a-fA-F]{3,8}\}/g, "")
+    .replace(/\{\/color\}/g, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+}
+
+function findFirstHeadingText(
+  nodes: readonly BuilderNode[],
+  depth: number,
+): string | undefined {
+  for (const child of nodes) {
+    if (child.kind === "heading") {
+      const text = stripInlineMarkers(child.props.text).trim();
+      if (text) return text;
+    }
+  }
+  if (depth <= 0) return undefined;
+  for (const child of nodes) {
+    const grandchildren = (child as { children?: BuilderNode[] }).children;
+    if (grandchildren && grandchildren.length > 0) {
+      const found = findFirstHeadingText(grandchildren, depth - 1);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}
+
 function resolveBuilderNodeLabel(node: BuilderNode): string {
   const role = resolveBuilderNodeRole(node.id);
   if (role) return ROLE_LABELS[role];
 
   if (node.kind === "heading") {
-    const text = truncateLabel(node.props.text);
+    const text = truncateLabel(stripInlineMarkers(node.props.text));
     return text || "Heading";
   }
   if (node.kind === "paragraph") {
-    const text = truncateLabel(node.props.text);
+    const text = truncateLabel(stripInlineMarkers(node.props.text));
     return text || "Paragraph";
   }
   if (node.kind === "button") {
-    const label = truncateLabel(node.props.label);
+    const label = truncateLabel(stripInlineMarkers(node.props.label));
     return label ? `Button: ${label}` : "Button";
+  }
+  if (node.kind === "container") {
+    const children = (node as { children?: BuilderNode[] }).children ?? [];
+    if (children.length === 1) {
+      const only = children[0];
+      if (only && (only.kind === "section_embed" || only.kind === "heading")) {
+        return resolveBuilderNodeLabel(only);
+      }
+    }
+    const heading = findFirstHeadingText(children, 1);
+    if (heading) return truncateLabel(heading);
+    return node.props.layout === "row"
+      ? "Row"
+      : node.props.layout === "grid"
+        ? "Grid"
+        : "Stack";
+  }
+  if (node.kind === "section_embed") {
+    const key = node.props.sectionTypeKey;
+    return (
+      sectionEmbedTypeLabel(key) ??
+      humanizeSectionTypeKey(key) ??
+      BUILDER_NODE_REGISTRY.section_embed.label
+    );
   }
   if (node.kind === "image") {
     const alt = truncateLabel(node.props.alt ?? "");

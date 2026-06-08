@@ -38,6 +38,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -64,6 +65,7 @@ import {
 } from "./kit";
 import { DockFloatingPanel } from "./dock-floating-panel";
 import { useFloatingDrag } from "./floating-panel";
+import { useCommandDockCoupling } from "./use-command-dock-coupling";
 import {
   computeNavigatorDisclosure,
   navigatorSelectedAncestors,
@@ -349,7 +351,14 @@ export function NavigatorPanel() {
   // Floating-panel drag (Paint-style movable Layers card). The offset lives in
   // local state, so it snaps back to the home position on every page refresh
   // but stays where you drop it for the rest of the session.
-  const floatingDrag = useFloatingDrag({ panelId: "navigator" });
+  const panelSetOffsetRef = useRef<
+    ReturnType<typeof useFloatingDrag>["setOffset"] | null
+  >(null);
+  const { dragOptions } = useCommandDockCoupling("navigator", panelSetOffsetRef);
+  const floatingDrag = useFloatingDrag({ panelId: "navigator", ...dragOptions });
+  useLayoutEffect(() => {
+    panelSetOffsetRef.current = floatingDrag.setOffset;
+  });
 
   const handleResizeMove = useCallback(
     (event: PointerEvent) => {
@@ -1963,7 +1972,7 @@ export function NavigatorPanel() {
             gap: 2,
           }}
         >
-          {visible.length === 0 && search.trim() && (
+          {visible.length === 0 && search.trim() && builderTree.length === 0 && (
             <div
               style={{
                 padding: "10px 8px",
@@ -1974,15 +1983,19 @@ export function NavigatorPanel() {
               role="status"
               aria-live="polite"
             >
-              No layers match &ldquo;{search}&rdquo;. Clear the search or add a block that matches.
+              No layers match &ldquo;{search}&rdquo;.{" "}
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                className="cursor-pointer border-none bg-transparent p-0 text-[11.5px] font-semibold not-italic underline"
+                style={{ color: CHROME.accent }}
+              >
+                Clear search
+              </button>
             </div>
           )}
-          {/* Freeform full-page design: zero curated sections but a non-empty
-              builderTree of containers + blocks. Show the Layers tree so the
-              block hierarchy is visible + navigable from the left rail
-              (the section list / FlatRow model is empty for freeform). */}
-          {visible.length === 0 && !search.trim() && builderTree.length > 0 && (
-            <FreeformLayersTree />
+          {visible.length === 0 && builderTree.length > 0 && (
+            <FreeformLayersTree search={search} onClearSearch={() => setSearch("")} />
           )}
           {visible.length === 0 && !search.trim() && builderTree.length === 0 && (
             <div

@@ -50,7 +50,10 @@ export default async function PublicLayout({
 
   return (
     <div className="flex min-h-full flex-1 flex-col bg-background">
-      <PublicDiscoveryStateProvider>
+      <PublicDiscoveryStateProvider
+        initialSavedIds={savedIds}
+        initialFavoriteIds={favoriteIds}
+      >
         <DiscoveryStateBridge savedIds={savedIds} favoriteIds={favoriteIds} favoriteIcon={favoriteIcon} />
         {/* Runs once per session for authed visitors — sweeps any guest-mode
             cart + inquiries + localStorage favorites into the authed account. */}
@@ -60,7 +63,11 @@ export default async function PublicLayout({
             <PublicFlashHost dismissAria={dismissFlashAria} />
             {children}
             <DirectoryInquirySheet ui={directoryUi} locale={locale} />
-            <FavoritesDrawer signupHref="/login" />
+            <FavoritesDrawer
+              signupHref="/login"
+              locale={locale}
+              initialFavoriteIdsCount={favoriteIds.length}
+            />
           </FavoritesDrawerProvider>
         </DirectoryInquiryModalProvider>
       </PublicDiscoveryStateProvider>

@@ -376,9 +376,30 @@ export const SHORTCUTS: ReadonlyArray<Shortcut> = [
   {
     id: "redo",
     label: "Redo",
-    keys: ["⌘", "⇧", "Z"],
+    keys: ["⌘", "Y"],
     category: "history",
     paletteAction: true,
+  },
+  {
+    id: "redo-shift-z",
+    label: "Redo (alternate)",
+    keys: ["⌘", "⇧", "Z"],
+    category: "history",
+    paletteAction: false,
+  },
+  {
+    id: "group-blocks",
+    label: "Group selected blocks",
+    keys: ["⌘", "⇧", "G"],
+    category: "selection",
+    paletteAction: false,
+  },
+  {
+    id: "align-blocks-left",
+    label: "Align selected blocks left",
+    keys: ["⌘", "⇧", "L"],
+    category: "selection",
+    paletteAction: false,
   },
 
   // ── selection ────────────────────────────────────────────────────────

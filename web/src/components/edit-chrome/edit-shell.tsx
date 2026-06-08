@@ -34,7 +34,7 @@ import {
 import { useHoveredSectionId } from "./hover-bridge";
 import { useDirty } from "./dirty-bridge";
 import { PresenceProvider } from "./presence-provider";
-import { CHROME, CHROME_SHADOWS } from "./kit";
+import { CHROME, CHROME_SHADOWS, EDIT_TOPBAR_H } from "./kit";
 import { isCoachmarkDismissed, dismissCoachmark } from "./builder-coachmarks";
 import { SelectionLayer } from "./selection-layer";
 import { InspectorDock } from "./inspector-dock";
@@ -47,6 +47,7 @@ import { AddQuickMenu } from "./add-quick-menu";
 import { AllPagesPanel } from "./all-pages-panel";
 import { BrandQuickPanel } from "./brand-quick-panel";
 import { CommandDock } from "./command-dock";
+import { InspectorCommandRail } from "./inspector-command-rail";
 import { SearchPanel } from "./search-panel";
 import { ShortcutOverlay } from "./shortcut-overlay";
 import { TopBar } from "./topbar";
@@ -453,6 +454,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     navigatorOpen,
     navigatorWidth,
     toggleNavigator,
+    inspectorDockOpen,
     reportMutationError,
     locale,
     defaultLocale,
@@ -981,7 +983,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         canvasMode={DEFAULT_WORKSPACE_CANVAS_MODE}
         navigatorOpen={navigatorOpen}
         navigatorWidth={navigatorWidth}
-        inspectorOpen={!!selectedSectionId}
+        inspectorOpen={inspectorDockOpen}
       />
       {/* data-edit-chrome marks all editor UI so CanvasLinkInterceptor can
           exclude these links (locale switcher, page picker, admin nav) from
@@ -1063,7 +1065,8 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
          *  and those only render over the canvas or the (intended) menu. */}
         <div
           id="edit-overlay-portal"
-          className="pointer-events-none fixed inset-0 top-[54px] z-[83]"
+          className="pointer-events-none fixed inset-0 z-[83]"
+          style={{ top: EDIT_TOPBAR_H }}
           aria-hidden
         />
         {/* Preview toggle suppression — when the operator clicks the
@@ -1076,6 +1079,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
             All Pages, Page Structure, Page Settings, Brand, Theme, Help).
             Suppressed in preview so the page reads as a real visitor view. */}
         {!previewing ? <CommandDock /> : null}
+        {!previewing ? <InspectorCommandRail /> : null}
         {!previewing ? (
           <SearchPanel open={searchPanelOpen} onClose={closeSearchPanel} />
         ) : null}
@@ -1140,7 +1144,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
           previewing={previewing}
           navigatorOpen={navigatorOpen}
           navigatorWidth={navigatorWidth}
-          inspectorOpen={!!selectedSectionId}
+          inspectorOpen={inspectorDockOpen}
         />
       </div>
       {children}
@@ -1151,7 +1155,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
           pageVersion={pageVersion}
           navigatorOpen={navigatorOpen}
           navigatorWidth={navigatorWidth}
-          inspectorOpen={!!selectedSectionId}
+          inspectorOpen={inspectorDockOpen}
         />
     </>
   );
@@ -2097,7 +2101,7 @@ function DeviceFrameSurface({
   // Available iframe footprint inside the host gutter.
   const containerWidth = (hostSize?.w ?? 1280) - leftPad - rightPad - 32;
   const containerHeight =
-    (hostSize?.h ?? 800) - 54 /* topbar */ - verticalPad * 2;
+    (hostSize?.h ?? 800) - EDIT_TOPBAR_H /* topbar */ - verticalPad * 2;
 
   // Scale factor: shrink to fit; never enlarge above 1.
   const scale = Math.min(1, containerWidth / width);
@@ -2145,7 +2149,7 @@ function DeviceFrameSurface({
         // Tablet or Mobile is instant — no reload, no bridge re-handshake.
         style={{
           position: "fixed",
-          top: 54,
+          top: EDIT_TOPBAR_H,
           bottom: 0,
           left: leftPad,
           right: rightPad,

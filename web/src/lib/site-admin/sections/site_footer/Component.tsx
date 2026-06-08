@@ -221,6 +221,7 @@ export async function SiteFooterComponent({
                 className="site-footer__brand-label"
                 data-builder-node-id={nodeIdsByRole?.headline}
                 style={textNodeStyle(headlineNode, headingSize)}
+                suppressHydrationWarning
               >
                 {brand.label}
               </span>
@@ -230,6 +231,7 @@ export async function SiteFooterComponent({
                 className="site-footer__tagline"
                 data-builder-node-id={nodeIdsByRole?.copy}
                 style={textNodeStyle(copyNode, paragraphSize)}
+                suppressHydrationWarning
               >
                 {brand.tagline}
               </p>
@@ -239,8 +241,10 @@ export async function SiteFooterComponent({
         {hasColumns ? (
           <div className="site-footer__columns">
             {columns.map((col, i) => (
-              <div key={i} className="site-footer__column">
-                <h3 className="site-footer__column-heading">{col.heading}</h3>
+              <div key={i} className="site-footer__column" suppressHydrationWarning>
+                <h3 className="site-footer__column-heading" suppressHydrationWarning>
+                  {col.heading}
+                </h3>
                 <ul className="site-footer__column-list">
                   {col.links.map((link, j) => {
                     const L = resolveLinkLike(link.href, linkCtx);
@@ -252,6 +256,7 @@ export async function SiteFooterComponent({
                           href={L.href}
                           target={newTab ? "_blank" : undefined}
                           rel={newTab ? "noopener noreferrer" : undefined}
+                          suppressHydrationWarning
                         >
                           {link.label}
                         </a>

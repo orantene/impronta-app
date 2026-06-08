@@ -67,6 +67,8 @@ type PublicDiscoveryStateValue = {
   setFavoriteState: (id: string, favorited: boolean) => void;
   hydrateFavoriteIds: (ids: string[]) => void;
   clearFavoriteIds: () => void;
+  /** True after guest localStorage/sessionStorage has been merged (post-hydration). */
+  storageMerged: boolean;
   // — Branding tokens (seeded from SSR, read-only for UI components) ————
   /** A1/A2 — which icon to use for the favorites toggle. Default 'bookmark'. */
   favoriteIcon: "heart" | "bookmark";
@@ -137,24 +139,52 @@ function parseSearchContext(raw: string | null): DiscoverySearchContext | null {
   }
 }
 
+function sameIdList(a: readonly string[], b: readonly string[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
 export function PublicDiscoveryStateProvider({
   children,
+  initialSavedIds = [],
+  initialFavoriteIds = [],
 }: {
   children: React.ReactNode;
+  /** SSR-seeded inquiry cart — matches `getSavedTalentIds()` on first paint. */
+  initialSavedIds?: string[];
+  /** SSR-seeded favorites — matches `getFavoriteTalentIds()` on first paint. */
+  initialFavoriteIds?: string[];
 }) {
-  const [savedIds, setSavedIds] = useState<string[]>([]);
-  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const [savedIds, setSavedIds] = useState<string[]>(() =>
+    Array.from(new Set(initialSavedIds)),
+  );
+  const [favoriteIds, setFavoriteIds] = useState<string[]>(() =>
+    Array.from(new Set(initialFavoriteIds)),
+  );
+  const [storageMerged, setStorageMerged] = useState(false);
   const [favoriteIcon, setFavoriteIconState] = useState<"heart" | "bookmark">("bookmark");
   const [searchContext, setSearchContextState] =
     useState<DiscoverySearchContext | null>(null);
   const [flash, setFlashState] = useState<PublicFlashMessage | null>(null);
 
   useEffect(() => {
-    setSavedIds(parseIdList(window.localStorage.getItem(SAVED_IDS_KEY)));
-    setFavoriteIds(parseIdList(window.localStorage.getItem(FAVORITE_IDS_KEY)));
+    const localSaved = parseIdList(window.localStorage.getItem(SAVED_IDS_KEY));
+    const localFavorites = parseIdList(
+      window.localStorage.getItem(FAVORITE_IDS_KEY),
+    );
+    if (localSaved.length > 0) {
+      setSavedIds((prev) => Array.from(new Set([...prev, ...localSaved])));
+    }
+    if (localFavorites.length > 0) {
+      setFavoriteIds((prev) => Array.from(new Set([...prev, ...localFavorites])));
+    }
     setSearchContextState(
       parseSearchContext(window.sessionStorage.getItem(SEARCH_CONTEXT_KEY)),
     );
+    setStorageMerged(true);
   }, []);
 
   const isSaved = useCallback(
@@ -174,8 +204,11 @@ export function PublicDiscoveryStateProvider({
 
   const hydrateSavedIds = useCallback((ids: string[]) => {
     const next = Array.from(new Set(ids));
-    setSavedIds(next);
-    window.localStorage.setItem(SAVED_IDS_KEY, JSON.stringify(next));
+    setSavedIds((prev) => {
+      if (sameIdList(prev, next)) return prev;
+      window.localStorage.setItem(SAVED_IDS_KEY, JSON.stringify(next));
+      return next;
+    });
   }, []);
 
   const clearSavedIds = useCallback(() => {
@@ -200,8 +233,11 @@ export function PublicDiscoveryStateProvider({
 
   const hydrateFavoriteIds = useCallback((ids: string[]) => {
     const next = Array.from(new Set(ids));
-    setFavoriteIds(next);
-    window.localStorage.setItem(FAVORITE_IDS_KEY, JSON.stringify(next));
+    setFavoriteIds((prev) => {
+      if (sameIdList(prev, next)) return prev;
+      window.localStorage.setItem(FAVORITE_IDS_KEY, JSON.stringify(next));
+      return next;
+    });
   }, []);
 
   const clearFavoriteIds = useCallback(() => {
@@ -246,6 +282,7 @@ export function PublicDiscoveryStateProvider({
       setFavoriteState,
       hydrateFavoriteIds,
       clearFavoriteIds,
+      storageMerged,
       favoriteIcon,
       setFavoriteIcon,
       searchContext,
@@ -263,6 +300,7 @@ export function PublicDiscoveryStateProvider({
       isFavorited,
       savedIds,
       favoriteIds,
+      storageMerged,
       favoriteIcon,
       setFavoriteIcon,
       searchContext,
@@ -312,17 +350,22 @@ export function DiscoveryStateBridge({
   const { hydrateSavedIds, hydrateFavoriteIds, setFavoriteIcon, setSearchContext } =
     usePublicDiscoveryState();
 
-  useEffect(() => {
-    if (savedIds) {
-      hydrateSavedIds(savedIds);
-    }
-  }, [hydrateSavedIds, savedIds]);
+  const savedIdsKey = savedIds?.join("\0") ?? "";
+  const favoriteIdsKey = favoriteIds?.join("\0") ?? "";
 
   useEffect(() => {
-    if (favoriteIds) {
+    if (savedIds && savedIds.length > 0) {
+      hydrateSavedIds(savedIds);
+    }
+  }, [hydrateSavedIds, savedIdsKey, savedIds]);
+
+  useEffect(() => {
+    // Guests keep favorites in localStorage until signup — an empty server
+    // seed must not clobber them (see MergeGuestFavorites race note).
+    if (favoriteIds && favoriteIds.length > 0) {
       hydrateFavoriteIds(favoriteIds);
     }
-  }, [hydrateFavoriteIds, favoriteIds]);
+  }, [hydrateFavoriteIds, favoriteIdsKey, favoriteIds]);
 
   useEffect(() => {
     if (favoriteIcon) {

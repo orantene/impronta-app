@@ -32,6 +32,8 @@ import {
   FieldMapPreview,
   VisibilityRulesCard,
 } from "./data-panel-conditional";
+import { InspectorBody, InspectorSection, InspectorNotice } from "./kit";
+import { InspectorPlaceholderField } from "./kit/inspector-mockup-primitives";
 import { KIT } from "./kit/tokens";
 
 interface DataPanelProps {
@@ -113,7 +115,7 @@ export function DataPanel({
   onPatchBuilderNodeProps,
   onMutationError,
 }: DataPanelProps) {
-  const { workspacePlan } = useEditContext();
+  const { workspacePlan, device } = useEditContext();
   const collections = useWorkspaceCollections();
   const persistedBinding = useMemo(
     () =>
@@ -205,37 +207,33 @@ export function DataPanel({
   }
 
   return (
-    <div
-      className="flex flex-col gap-3"
+    <InspectorBody
+      className="gap-3"
       data-builder-data-panel="node"
       data-builder-data-target-kind={selectedBuilderNode.kind}
       data-builder-data-target-id={selectedBuilderNode.id}
     >
-      <Card state={binding ? "active" : "default"}>
-        <CardHead
-          title="Data binding"
-          sub={
-            binding
-              ? boundCollection?.label ?? source?.label ?? binding.sourceKey
-              : "Manual by default"
-          }
-          iconAccent={binding ? "green" : "blue"}
-          action={
-            binding ? (
-              <button
-                type="button"
-                className={KIT.subtleButton}
-                onClick={() => {
-                  void commitBinding(null);
-                }}
-              >
-                Clear
-              </button>
-            ) : null
-          }
-        />
-        <CardBody>
-          <div className="flex flex-col gap-3">
+      {device !== "desktop" ? (
+        <InspectorNotice tone="info">
+          Data binding uses desktop settings on {device === "tablet" ? "Tablet" : "Mobile"}. Per-device binding is not available yet.
+        </InspectorNotice>
+      ) : null}
+      <InspectorSection
+        title="Data binding"
+        description={
+          binding
+            ? boundCollection?.label ?? source?.label ?? binding.sourceKey
+            : "Manual by default"
+        }
+      >
+        {device !== "desktop" ? (
+          <InspectorPlaceholderField
+            label="Source"
+            message="Same as desktop"
+            value={binding ? source?.label ?? binding.sourceKey : "Manual content"}
+          />
+        ) : (
+        <div className="flex flex-col gap-3" style={{ opacity: device !== "desktop" ? 0.55 : 1 }}>
             <Field flush>
               <FieldLabel>Source</FieldLabel>
               <select
@@ -390,12 +388,13 @@ export function DataPanel({
               </Field>
             ) : null}
           </div>
-        </CardBody>
-      </Card>
+        )}
+      </InspectorSection>
 
-      <Card state={findings.some((finding) => finding.severity === "error") ? "warn" : "default"}>
-        <CardHead title="Binding health" sub={`${findings.length} checks`} iconAccent="amber" />
-        <CardBody>
+      <InspectorSection
+        title="Binding health"
+        description={`${findings.length} checks`}
+      >
           <div className="flex flex-col gap-2">
             {findings.map((finding) => (
               <div
@@ -419,15 +418,14 @@ export function DataPanel({
               </div>
             ))}
           </div>
-        </CardBody>
-      </Card>
+      </InspectorSection>
 
       <VisibilityRulesCard
         selectedBuilderNode={selectedBuilderNode}
         onPatchBuilderNodeProps={onPatchBuilderNodeProps}
         onMutationError={onMutationError}
       />
-    </div>
+    </InspectorBody>
   );
 }
 

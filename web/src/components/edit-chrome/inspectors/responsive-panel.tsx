@@ -1,32 +1,11 @@
 "use client";
 
 /**
- * ResponsivePanel — per-viewport overrides over the shared Layout schema.
+ * ResponsivePanel — ARCHIVED (2026-06-08)
  *
- * Implements builder-experience.html surface §4 (Inspector Responsive tab).
- * Last reconciled: 2026-04-25.
- *
- * Reads `presentation.breakpoints.{tablet,mobile}` and exposes the same six
- * Layout fields per breakpoint with chip-row + Swatch affordances. The
- * active breakpoint follows the topbar's device switcher (`useEditContext`
- * `device`) so the canvas preview and inspector stay in lockstep — picking
- * a chip while on the Tablet device immediately re-renders the canvas at
- * tablet width.
- *
- * Inheritance is the marquee feature here: every chip row shows BOTH the
- * desktop base value (greyed, with a corner dot) AND the active override
- * (filled). Clicking the active override clears it back to inherit. Storefront
- * CSS already handles the cascade — see Phase 6 block in token-presets.css —
- * so an unset field falls through naturally with no JS at render time.
- *
- * Patch shape: `{ breakpoints: { [device]: { fieldKey: value } } }` to the
- * dock's `handlePresentationDeepPatch`, which merges preserving siblings.
- *
- * Why Segmented chips and Swatch instead of `<select>`:
- *   The previous select-only build collapsed the inheritance signal — you
- *   had to mentally compare the desktop dropdown with the tablet dropdown
- *   to know whether you'd overridden anything. The chip row puts both
- *   states on screen at once.
+ * Retired when the Responsive tab merged into Layout + Style viewport rail.
+ * Kept for reference during inspector mockup closure; do not import in new code.
+ * Shared helpers live in responsive-field-utils.tsx and responsive-field-state.ts.
  */
 
 import {
@@ -47,18 +26,22 @@ import {
 } from "@/lib/site-admin/edit-mode/publish-preflight-layout-rules";
 
 import { useCallback, useMemo, type ReactElement } from "react";
+import { Monitor, Smartphone, Tablet } from "lucide-react";
 
 import { useEditContext, type EditDevice } from "../edit-context";
 import { Segmented, type SegmentedOption } from "../kit/segmented";
 import { Swatch } from "../kit/swatch";
 import { CHROME } from "../kit/tokens";
+import {
+  INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL,
+  INSPECTOR_HELP_TEXT_CLASS as HINT,
+  INSPECTOR_SECTION_TITLE_CLASS as SECTION_TITLE,
+  InspectorBody,
+  InspectorDeviceCards,
+  InspectorSection,
+} from "./kit/inspector-ui";
 
-const SECTION_TITLE =
-  "text-[10.5px] font-semibold uppercase tracking-[0.14em] text-stone-500";
-const FIELD_LABEL =
-  "text-[10.5px] font-semibold uppercase tracking-[0.10em] text-stone-600";
-const HINT = "text-[11px] leading-tight text-stone-500";
-const INHERIT_HINT = "text-[11px] text-stone-500";
+const INHERIT_HINT = HINT;
 
 // Mirror Style panel swatches so background overrides are visually
 // consistent across tabs.
@@ -271,7 +254,7 @@ export function ResponsivePanel({
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <InspectorBody>
       <BreakpointSwitcher value={device} onChange={setDevice} />
 
       {isDesktop ? (
@@ -450,7 +433,7 @@ export function ResponsivePanel({
         640px. Anything left on inherit falls through to the desktop base
         above the breakpoint.
       </p>
-    </div>
+    </InspectorBody>
   );
 }
 
@@ -808,43 +791,30 @@ function BreakpointSwitcher({
   value: EditDevice;
   onChange: (d: EditDevice) => void;
 }) {
-  // Keep this one local rather than borrowing kit Segmented because it
-  // also drives the live canvas device — it's a navigational control
-  // (mode), not an enum picker (value).
-  const items: ReadonlyArray<{ key: EditDevice; label: string }> = [
-    { key: "desktop", label: BREAKPOINT_LABELS.desktop },
-    { key: "tablet", label: BREAKPOINT_LABELS.tablet },
-    { key: "mobile", label: BREAKPOINT_LABELS.mobile },
-  ];
   return (
-    <div
-      className="inline-flex w-fit p-0.5"
-      style={{
-        background: CHROME.paper,
-        border: `1px solid ${CHROME.line}`,
-        borderRadius: 7,
-      }}
-    >
-      {items.map((it) => (
-        <button
-          key={it.key}
-          type="button"
-          className="rounded-[5px] px-3 py-1 text-[11px] font-semibold transition"
-          style={{
-            background: value === it.key ? CHROME.surface : "transparent",
-            color: value === it.key ? CHROME.ink : CHROME.muted,
-            boxShadow:
-              value === it.key
-                ? "0 1px 3px rgba(0,0,0,0.08)"
-                : "none",
-            border: "none",
-            cursor: "pointer",
-          }}
-          onClick={() => onChange(it.key)}
-        >
-          {it.label}
-        </button>
-      ))}
-    </div>
+    <InspectorDeviceCards
+      value={value}
+      onChange={onChange}
+      options={[
+        {
+          key: "desktop",
+          label: "Desktop",
+          hint: "≥1280px",
+          icon: <Monitor size={18} strokeWidth={1.75} aria-hidden />,
+        },
+        {
+          key: "tablet",
+          label: "Tablet",
+          hint: "768–1279",
+          icon: <Tablet size={18} strokeWidth={1.75} aria-hidden />,
+        },
+        {
+          key: "mobile",
+          label: "Mobile",
+          hint: "<768px",
+          icon: <Smartphone size={18} strokeWidth={1.75} aria-hidden />,
+        },
+      ]}
+    />
   );
 }

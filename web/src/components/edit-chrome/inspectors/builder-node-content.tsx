@@ -40,6 +40,26 @@ interface BuilderNodeContentInspectorProps {
   tenantId: string;
 }
 
+/** Flat inspector shell — no nested cards (canvas-first mockup). */
+function BuilderNodeFlatPanel({ children }: { children: ReactNode }) {
+  return <div className="flex flex-col gap-4">{children}</div>;
+}
+
+function BuilderNodeSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="flex flex-col gap-2.5">
+      <h3 className={KIT.blockHeading}>{title}</h3>
+      {children}
+    </section>
+  );
+}
+
 export function BuilderNodeContentInspector({
   node,
   tenantId,
@@ -204,70 +224,58 @@ export function BuilderNodeContentInspector({
 
   if (node.kind === "heading") {
     return (
-      <div className="flex flex-col gap-3">
-        <Card state="active">
-          <CardHead title="Heading node" sub="Canvas selection" iconAccent="blue" />
-          <CardBody>
-            <div className="flex flex-col gap-3">
-              <Field flush>
-                <FieldLabel>Text</FieldLabel>
-                <BuilderNodeRichTextField
-                  key={`${node.id}:text:${node.props.text}`}
-                  value={node.props.text}
-                  tenantId={tenantId}
-                  variant="single"
-                  ariaLabel="Heading text"
-                  className={KIT.inputLg}
-                  onCommit={(next) => commitTextInput("text", node.props.text)(next)}
-                />
-                <Helper>Use selected text for bold, italic, accent, and links.</Helper>
-              </Field>
-              <Field flush>
-                <FieldLabel>Level</FieldLabel>
-                <Segmented
-                  fullWidth
-                  compact
-                  value={String(node.props.level) as "1" | "2" | "3" | "4"}
-                  onChange={(next) => {
-                    void commitPatch({ level: Number.parseInt(next, 10) });
-                  }}
-                  options={[
-                    { value: "1", label: "H1" },
-                    { value: "2", label: "H2" },
-                    { value: "3", label: "H3" },
-                    { value: "4", label: "H4" },
-                  ]}
-                />
-              </Field>
-            </div>
-          </CardBody>
-        </Card>
-      </div>
+      <BuilderNodeFlatPanel>
+        <BuilderNodeSection title="Heading">
+          <div className={KIT.field}>
+            <label className={KIT.label}>Text</label>
+            <BuilderNodeRichTextField
+              key={`${node.id}:text:${node.props.text}`}
+              value={node.props.text}
+              tenantId={tenantId}
+              variant="single"
+              ariaLabel="Heading text"
+              className={KIT.inputLg}
+              onCommit={(next) => commitTextInput("text", node.props.text)(next)}
+            />
+          </div>
+          <div className={KIT.field}>
+            <label className={KIT.label}>Level</label>
+            <Segmented
+              fullWidth
+              compact
+              value={String(node.props.level) as "1" | "2" | "3" | "4"}
+              onChange={(next) => {
+                void commitPatch({ level: Number.parseInt(next, 10) });
+              }}
+              options={[
+                { value: "1", label: "H1" },
+                { value: "2", label: "H2" },
+                { value: "3", label: "H3" },
+                { value: "4", label: "H4" },
+              ]}
+            />
+          </div>
+        </BuilderNodeSection>
+      </BuilderNodeFlatPanel>
     );
   }
 
   if (node.kind === "paragraph") {
     return (
-      <div className="flex flex-col gap-3">
-        <Card state="active">
-          <CardHead title="Paragraph node" sub="Canvas selection" iconAccent="blue" />
-          <CardBody>
-            <Field flush>
-              <FieldLabel>Copy</FieldLabel>
-              <BuilderNodeRichTextField
-                key={`${node.id}:text:${node.props.text}`}
-                value={node.props.text}
-                tenantId={tenantId}
-                variant="multi"
-                ariaLabel="Paragraph copy"
-                className={`${KIT.textarea} min-h-[128px] whitespace-pre-wrap break-words`}
-                onCommit={(next) => commitTextInput("text", node.props.text)(next)}
-              />
-              <Helper>Standalone paragraph block with inline text formatting.</Helper>
-            </Field>
-          </CardBody>
-        </Card>
-      </div>
+      <BuilderNodeFlatPanel>
+        <div className={KIT.field}>
+          <label className={KIT.label}>Copy</label>
+          <BuilderNodeRichTextField
+            key={`${node.id}:text:${node.props.text}`}
+            value={node.props.text}
+            tenantId={tenantId}
+            variant="multi"
+            ariaLabel="Paragraph copy"
+            className={`${KIT.textarea} min-h-[128px] whitespace-pre-wrap break-words`}
+            onCommit={(next) => commitTextInput("text", node.props.text)(next)}
+          />
+        </div>
+      </BuilderNodeFlatPanel>
     );
   }
 
@@ -301,181 +309,153 @@ export function BuilderNodeContentInspector({
   if (node.kind === "code") {
     if (!canInsertRawHtmlElements) {
       return (
-        <div className="flex flex-col gap-3">
-          <Card state="active">
-            <CardHead title="Code / HTML node" sub="Canvas selection" iconAccent="blue" />
-            <CardBody>
-              <Helper>
-                Raw HTML blocks can only be edited by a platform owner. The block
-                stays live on the page — ask an owner to change its markup.
-              </Helper>
-            </CardBody>
-          </Card>
-        </div>
+        <BuilderNodeFlatPanel>
+          <p className={KIT.hint}>
+            Raw HTML blocks can only be edited by a platform owner. The block
+            stays live on the page — ask an owner to change its markup.
+          </p>
+        </BuilderNodeFlatPanel>
       );
     }
     return (
-      <div className="flex flex-col gap-3">
-        <Card state="active">
-          <CardHead title="Code / HTML node" sub="Canvas selection" iconAccent="blue" />
-          <CardBody>
-            <div className="flex flex-col gap-3">
-              <Field flush>
-                <FieldLabel>HTML</FieldLabel>
-                <textarea
-                  key={`${node.id}:html`}
-                  defaultValue={node.props.html}
-                  className={`${KIT.textarea} min-h-[200px] whitespace-pre break-all font-mono text-[12px]`}
-                  spellCheck={false}
-                  aria-label="Raw HTML"
-                  onBlur={(event) => {
-                    const next = event.currentTarget.value;
-                    if (next !== node.props.html) {
-                      void commitPatch({ html: next });
-                    }
-                  }}
-                />
-                <Helper>
-                  Rendered inside a sandboxed iframe on an isolated origin — it
-                  cannot read your site&rsquo;s cookies or DOM. Any scripts run
-                  only within the frame.
-                </Helper>
-              </Field>
-              <Field flush>
-                <FieldLabel>Min height (px)</FieldLabel>
-                <input
-                  type="number"
-                  min={40}
-                  max={5000}
-                  key={`${node.id}:minHeight:${node.props.minHeight ?? ""}`}
-                  defaultValue={node.props.minHeight ?? 120}
-                  className={KIT.input}
-                  onBlur={(event) => {
-                    const parsed = Number.parseInt(event.currentTarget.value, 10);
-                    if (Number.isFinite(parsed)) {
-                      void commitPatch({
-                        minHeight: Math.min(Math.max(parsed, 40), 5000),
-                      });
-                    }
-                  }}
-                />
-                <Helper>
-                  Floor height shown before the frame reports its measured
-                  content height.
-                </Helper>
-              </Field>
-            </div>
-          </CardBody>
-        </Card>
-      </div>
+      <BuilderNodeFlatPanel>
+        <BuilderNodeSection title="HTML">
+          <div className={KIT.field}>
+            <label className={KIT.label}>Markup</label>
+            <textarea
+              key={`${node.id}:html`}
+              defaultValue={node.props.html}
+              className={`${KIT.textarea} min-h-[200px] whitespace-pre break-all font-mono text-[12px]`}
+              spellCheck={false}
+              aria-label="Raw HTML"
+              onBlur={(event) => {
+                const next = event.currentTarget.value;
+                if (next !== node.props.html) {
+                  void commitPatch({ html: next });
+                }
+              }}
+            />
+          </div>
+          <div className={KIT.field}>
+            <label className={KIT.label}>Min height (px)</label>
+            <input
+              type="number"
+              min={40}
+              max={5000}
+              key={`${node.id}:minHeight:${node.props.minHeight ?? ""}`}
+              defaultValue={node.props.minHeight ?? 120}
+              className={KIT.input}
+              onBlur={(event) => {
+                const parsed = Number.parseInt(event.currentTarget.value, 10);
+                if (Number.isFinite(parsed)) {
+                  void commitPatch({
+                    minHeight: Math.min(Math.max(parsed, 40), 5000),
+                  });
+                }
+              }}
+            />
+          </div>
+        </BuilderNodeSection>
+      </BuilderNodeFlatPanel>
     );
   }
 
   if (node.kind === "button") {
     return (
-      <div className="flex flex-col gap-3">
-        <Card state="active">
-          <CardHead title="Button node" sub="Canvas selection" iconAccent="blue" />
-          <CardBody>
-            <div className="flex flex-col gap-3">
-              <Field flush>
-                <FieldLabel>Label</FieldLabel>
-                <input
-                  key={`${node.id}:label:${node.props.label}`}
-                  defaultValue={node.props.label}
-                  className={KIT.input}
-                  onBlur={(event) => {
+      <BuilderNodeFlatPanel>
+        <BuilderNodeSection title="Button">
+          <div className="grid grid-cols-2 gap-2">
+            <div className={KIT.field}>
+              <label className={KIT.label}>Text</label>
+              <input
+                key={`${node.id}:label:${node.props.label}`}
+                defaultValue={node.props.label}
+                className={KIT.input}
+                onBlur={(event) => {
                   void commitTextInput("label", node.props.label)(event.currentTarget.value);
                 }}
                 onKeyDown={handleCommitKey((value) => {
                   void commitTextInput("label", node.props.label)(value);
                 })}
-                />
-              </Field>
-              <Field flush>
-                <FieldLabel>Destination</FieldLabel>
-                <input
-                  key={`${node.id}:href:${node.props.href}`}
-                  defaultValue={node.props.href}
-                  className={KIT.input}
-                  placeholder="/contact or https://..."
-                  onBlur={(event) => {
+              />
+            </div>
+            <div className={KIT.field}>
+              <label className={KIT.label}>Link</label>
+              <input
+                key={`${node.id}:href:${node.props.href}`}
+                defaultValue={node.props.href}
+                className={KIT.input}
+                placeholder="/contact or https://..."
+                onBlur={(event) => {
                   void commitTextInput("href", node.props.href)(event.currentTarget.value);
                 }}
                 onKeyDown={handleCommitKey((value) => {
                   void commitTextInput("href", node.props.href)(value);
                 })}
-                />
-                <Helper>Internal paths, mailto, or full URLs all work here.</Helper>
-              </Field>
-              <Field flush>
-                <FieldLabel>Tone</FieldLabel>
-                <Segmented
-                  fullWidth
-                  compact
-                  value={node.props.tone ?? "primary"}
-                  onChange={(next) => {
-                    void commitPatch({ tone: next });
-                  }}
-                  options={[
-                    { value: "primary", label: "Primary" },
-                    { value: "secondary", label: "Secondary" },
-                  ]}
-                />
-              </Field>
+              />
             </div>
-          </CardBody>
-        </Card>
-      </div>
+          </div>
+          <div className={KIT.field}>
+            <label className={KIT.label}>Tone</label>
+            <Segmented
+              fullWidth
+              compact
+              value={node.props.tone ?? "primary"}
+              onChange={(next) => {
+                void commitPatch({ tone: next });
+              }}
+              options={[
+                { value: "primary", label: "Primary" },
+                { value: "secondary", label: "Secondary" },
+              ]}
+            />
+          </div>
+        </BuilderNodeSection>
+      </BuilderNodeFlatPanel>
     );
   }
 
   if (node.kind === "image") {
     return (
-      <div className="flex flex-col gap-3">
-        <Card state="active">
-          <CardHead title="Image node" sub="Canvas selection" iconAccent="blue" />
-          <CardBody>
-            <div className="flex flex-col gap-3">
-              <MediaPickerButton
-                tenantId={tenantId}
-                value={node.props.src}
-                onChange={(next) => {
-                  if (!next) return;
-                  void commitPatch({ src: next, mediaId: undefined });
-                }}
-                onPickItem={(item) => {
-                  void commitPatch({
-                    src: item.publicUrl,
-                    mediaId: item.id,
-                    alt: node.props.alt ?? item.alt ?? undefined,
-                  });
-                }}
-                emptyLabel="Choose image"
-                aspect="4/5"
-              />
-              <Field flush>
-                <FieldLabel>Alt text</FieldLabel>
-                <input
-                  key={`${node.id}:alt:${node.props.alt ?? ""}`}
-                  defaultValue={node.props.alt ?? ""}
-                  className={KIT.input}
-                  placeholder="Describe the image"
-                  onBlur={(event) => {
-                    void commitTextInput("alt", node.props.alt ?? "", true)(
-                      event.currentTarget.value,
-                    );
-                  }}
-                  onKeyDown={handleCommitKey((value) => {
-                    void commitTextInput("alt", node.props.alt ?? "", true)(value);
-                  })}
-                />
-                <Helper>Optional, but recommended for accessibility and SEO.</Helper>
-              </Field>
-            </div>
-          </CardBody>
-        </Card>
-      </div>
+      <BuilderNodeFlatPanel>
+        <BuilderNodeSection title="Image">
+          <MediaPickerButton
+            tenantId={tenantId}
+            value={node.props.src}
+            onChange={(next) => {
+              if (!next) return;
+              void commitPatch({ src: next, mediaId: undefined });
+            }}
+            onPickItem={(item) => {
+              void commitPatch({
+                src: item.publicUrl,
+                mediaId: item.id,
+                alt: node.props.alt ?? item.alt ?? undefined,
+              });
+            }}
+            emptyLabel="Choose image"
+            aspect="4/5"
+            variant="row"
+          />
+          <div className={KIT.field}>
+            <label className={KIT.label}>Alt text</label>
+            <input
+              key={`${node.id}:alt:${node.props.alt ?? ""}`}
+              defaultValue={node.props.alt ?? ""}
+              className={KIT.input}
+              placeholder="Describe the image"
+              onBlur={(event) => {
+                void commitTextInput("alt", node.props.alt ?? "", true)(
+                  event.currentTarget.value,
+                );
+              }}
+              onKeyDown={handleCommitKey((value) => {
+                void commitTextInput("alt", node.props.alt ?? "", true)(value);
+              })}
+            />
+          </div>
+        </BuilderNodeSection>
+      </BuilderNodeFlatPanel>
     );
   }
 
@@ -797,73 +777,63 @@ export function BuilderNodeContentInspector({
   // videoPropsSchema in registry.ts.
   if (node.kind === "video") {
     return (
-      <div className="flex flex-col gap-3">
-        <Card state="active">
-          <CardHead title="Video node" sub="Canvas selection" iconAccent="blue" />
-          <CardBody>
-            <div className="flex flex-col gap-3">
-              <div>
-                <div className={`${KIT.label} mb-1.5`}>Video source</div>
-                <MediaPickerButton
-                  tenantId={tenantId}
-                  value={node.props.src}
-                  onChange={(next) => {
-                    if (!next) return;
-                    void commitPatch({ src: next, mediaId: undefined });
-                  }}
-                  onPickItem={(item) => {
-                    void commitPatch({ src: item.publicUrl, mediaId: item.id });
-                  }}
-                  emptyLabel="Choose video"
-                />
-                <Helper>Paste a URL or choose from the media library.</Helper>
-              </div>
-              <div>
-                <div className={`${KIT.label} mb-1.5`}>Poster image (optional)</div>
-                <MediaPickerButton
-                  tenantId={tenantId}
-                  value={node.props.poster}
-                  onChange={(next) => {
-                    void commitPatch({ poster: next === null ? undefined : next });
-                  }}
-                  onPickItem={(item) => {
-                    void commitPatch({ poster: item.publicUrl });
-                  }}
-                  emptyLabel="Choose poster"
-                  aspect="16/9"
-                />
-                <Helper>Shown before the video plays; should match the video aspect ratio.</Helper>
-              </div>
-              <div className="flex flex-col gap-2">
-                <Toggle
-                  on={node.props.controls ?? true}
-                  onChange={(next) => { void commitPatch({ controls: next }); }}
-                  label="Show controls"
-                  helper="Native browser play/pause/seek bar."
-                />
-                <Toggle
-                  on={node.props.autoplay ?? false}
-                  onChange={(next) => { void commitPatch({ autoplay: next }); }}
-                  label="Autoplay"
-                  helper="Starts playing on load. Most browsers require Muted to be on."
-                />
-                <Toggle
-                  on={node.props.muted ?? false}
-                  onChange={(next) => { void commitPatch({ muted: next }); }}
-                  label="Muted"
-                  helper="Required for autoplay in most browsers."
-                />
-                <Toggle
-                  on={node.props.loop ?? false}
-                  onChange={(next) => { void commitPatch({ loop: next }); }}
-                  label="Loop"
-                  helper="Restarts automatically when it ends."
-                />
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-      </div>
+      <BuilderNodeFlatPanel>
+        <BuilderNodeSection title="Video">
+          <div className={KIT.field}>
+            <label className={KIT.label}>Video source</label>
+            <MediaPickerButton
+              tenantId={tenantId}
+              value={node.props.src}
+              onChange={(next) => {
+                if (!next) return;
+                void commitPatch({ src: next, mediaId: undefined });
+              }}
+              onPickItem={(item) => {
+                void commitPatch({ src: item.publicUrl, mediaId: item.id });
+              }}
+              emptyLabel="Choose video"
+            />
+          </div>
+          <div className={KIT.field}>
+            <label className={KIT.label}>Poster image</label>
+            <MediaPickerButton
+              tenantId={tenantId}
+              value={node.props.poster}
+              onChange={(next) => {
+                void commitPatch({ poster: next === null ? undefined : next });
+              }}
+              onPickItem={(item) => {
+                void commitPatch({ poster: item.publicUrl });
+              }}
+              emptyLabel="Choose poster"
+              aspect="16/9"
+              variant="row"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Toggle
+              on={node.props.controls ?? true}
+              onChange={(next) => { void commitPatch({ controls: next }); }}
+              label="Show controls"
+            />
+            <Toggle
+              on={node.props.autoplay ?? false}
+              onChange={(next) => { void commitPatch({ autoplay: next }); }}
+              label="Autoplay"
+            />
+            <Toggle
+              on={node.props.muted ?? false}
+              onChange={(next) => { void commitPatch({ muted: next }); }}
+              label="Muted"
+            />
+            <Toggle
+              on={node.props.loop ?? false}
+              onChange={(next) => { void commitPatch({ loop: next }); }}
+              label="Loop"
+            />
+          </div>
+        </BuilderNodeSection>
+      </BuilderNodeFlatPanel>
     );
   }
 
@@ -873,84 +843,71 @@ export function BuilderNodeContentInspector({
   // embedPropsSchema — provider enum: youtube | vimeo | maps | calendly | url.
   if (node.kind === "embed") {
     return (
-      <div className="flex flex-col gap-3">
-        <Card state="active">
-          <CardHead title="Embed node" sub="Canvas selection" iconAccent="blue" />
-          <CardBody>
-            <div className="flex flex-col gap-3">
-              <Field flush>
-                <FieldLabel>Embed URL</FieldLabel>
-                <input
-                  key={`${node.id}:src:${node.props.src}`}
-                  defaultValue={node.props.src}
-                  className={KIT.input}
-                  type="url"
-                  placeholder="https://www.youtube.com/embed/..."
-                  onBlur={(event) => {
-                    void commitTextInput("src", node.props.src)(event.currentTarget.value);
-                  }}
-                  onKeyDown={handleCommitKey((value) => {
-                    void commitTextInput("src", node.props.src)(value);
-                  })}
-                />
-                <Helper>
-                  Must be https://. Allowed: YouTube, Vimeo, Google Maps, Calendly.
-                </Helper>
-              </Field>
-              <Field flush>
-                <FieldLabel>Provider</FieldLabel>
-                <select
-                  className={KIT.select}
-                  value={node.props.provider ?? "url"}
-                  onChange={(event) => {
-                    void commitPatch({
-                      provider: event.currentTarget.value as
-                        | "youtube"
-                        | "vimeo"
-                        | "maps"
-                        | "calendly"
-                        | "url",
-                    });
-                  }}
-                >
-                  <option value="youtube">YouTube</option>
-                  <option value="vimeo">Vimeo</option>
-                  <option value="maps">Google Maps</option>
-                  <option value="calendly">Calendly</option>
-                  <option value="url">Other URL</option>
-                </select>
-                <Helper>Shown in the editor — used for safe rendering.</Helper>
-              </Field>
-              <Field flush>
-                <FieldLabel>Title (accessibility)</FieldLabel>
-                <input
-                  key={`${node.id}:title:${node.props.title ?? ""}`}
-                  defaultValue={node.props.title ?? ""}
-                  className={KIT.input}
-                  placeholder="e.g. Demo video"
-                  onBlur={(event) => {
-                    void commitTextInput("title", node.props.title ?? "", true)(
-                      event.currentTarget.value,
-                    );
-                  }}
-                  onKeyDown={handleCommitKey((value) => {
-                    void commitTextInput("title", node.props.title ?? "", true)(value);
-                  })}
-                />
-                <Helper>Used as the iframe&apos;s title for screen readers.</Helper>
-              </Field>
-              <div style={{ padding: "4px 0" }}>
-                <Toggle
-                  on={node.props.allowFullScreen ?? false}
-                  onChange={(next) => { void commitPatch({ allowFullScreen: next }); }}
-                  label="Allow full screen"
-                  helper="Lets visitors expand the embed to fill their screen."
-                />
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-      </div>
+      <BuilderNodeFlatPanel>
+        <BuilderNodeSection title="Embed">
+          <div className={KIT.field}>
+            <label className={KIT.label}>Embed URL</label>
+            <input
+              key={`${node.id}:src:${node.props.src}`}
+              defaultValue={node.props.src}
+              className={KIT.input}
+              type="url"
+              placeholder="https://www.youtube.com/embed/..."
+              onBlur={(event) => {
+                void commitTextInput("src", node.props.src)(event.currentTarget.value);
+              }}
+              onKeyDown={handleCommitKey((value) => {
+                void commitTextInput("src", node.props.src)(value);
+              })}
+            />
+          </div>
+          <div className={KIT.field}>
+            <label className={KIT.label}>Provider</label>
+            <select
+              className={KIT.select}
+              value={node.props.provider ?? "url"}
+              onChange={(event) => {
+                void commitPatch({
+                  provider: event.currentTarget.value as
+                    | "youtube"
+                    | "vimeo"
+                    | "maps"
+                    | "calendly"
+                    | "url",
+                });
+              }}
+            >
+              <option value="youtube">YouTube</option>
+              <option value="vimeo">Vimeo</option>
+              <option value="maps">Google Maps</option>
+              <option value="calendly">Calendly</option>
+              <option value="url">Other URL</option>
+            </select>
+          </div>
+          <div className={KIT.field}>
+            <label className={KIT.label}>Title</label>
+            <input
+              key={`${node.id}:title:${node.props.title ?? ""}`}
+              defaultValue={node.props.title ?? ""}
+              className={KIT.input}
+              placeholder="e.g. Demo video"
+              onBlur={(event) => {
+                void commitTextInput("title", node.props.title ?? "", true)(
+                  event.currentTarget.value,
+                );
+              }}
+              onKeyDown={handleCommitKey((value) => {
+                void commitTextInput("title", node.props.title ?? "", true)(value);
+              })}
+            />
+          </div>
+          <Toggle
+            on={node.props.allowFullScreen ?? false}
+            onChange={(next) => { void commitPatch({ allowFullScreen: next }); }}
+            label="Allow full screen"
+          />
+        </BuilderNodeSection>
+      </BuilderNodeFlatPanel>
     );
   }
 
@@ -1774,29 +1731,20 @@ export function BuilderNodeContentInspector({
   // Double-click inline editing is wired in inline-editor.tsx below.
   if (node.kind === "rich_text") {
     return (
-      <div className="flex flex-col gap-3">
-        <Card state="active">
-          <CardHead title="Rich text node" sub="Canvas selection" iconAccent="blue" />
-          <CardBody>
-            <Field flush>
-              <FieldLabel>Copy</FieldLabel>
-              <BuilderNodeRichTextField
-                key={`${node.id}:text:${node.props.text}`}
-                value={node.props.text}
-                tenantId={tenantId}
-                variant="multi"
-                ariaLabel="Rich text copy"
-                className={`${KIT.textarea} min-h-[128px] whitespace-pre-wrap break-words`}
-                onCommit={(next) => commitTextInput("text", node.props.text)(next)}
-              />
-              <Helper>
-                Body copy with bold, italic, and sanitized links. Double-click on the
-                canvas to edit inline.
-              </Helper>
-            </Field>
-          </CardBody>
-        </Card>
-      </div>
+      <BuilderNodeFlatPanel>
+        <div className={KIT.field}>
+          <label className={KIT.label}>Copy</label>
+          <BuilderNodeRichTextField
+            key={`${node.id}:text:${node.props.text}`}
+            value={node.props.text}
+            tenantId={tenantId}
+            variant="multi"
+            ariaLabel="Rich text copy"
+            className={`${KIT.textarea} min-h-[128px] whitespace-pre-wrap break-words`}
+            onCommit={(next) => commitTextInput("text", node.props.text)(next)}
+          />
+        </div>
+      </BuilderNodeFlatPanel>
     );
   }
 

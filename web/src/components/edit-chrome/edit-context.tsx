@@ -943,8 +943,36 @@ export interface EditContextValue {
   requestInspectorTab: (
     tab: "content" | "style" | "layout" | "data" | "responsive" | "motion",
   ) => void;
-
-  // ── structure navigator (left rail) ──
+  /** Toggle the inspector panel from the right tab rail (click again to close). */
+  toggleInspectorTab: (
+    tab: "content" | "style" | "layout" | "data" | "responsive" | "motion",
+  ) => void;
+  /** Active inspector tab — synced from the dock for rail highlight + toggle. */
+  inspectorActiveTab: "content" | "style" | "layout" | "data" | "motion";
+  setInspectorActiveTab: (
+    tab: "content" | "style" | "layout" | "data" | "motion",
+  ) => void;
+  /** Inspector panel visually merged with the right tab rail. */
+  inspectorRailDocked: boolean;
+  setInspectorRailDocked: (docked: boolean) => void;
+  /** Left dock panel visually merged with the command rail. */
+  commandDockDocked: boolean;
+  setCommandDockDocked: (docked: boolean) => void;
+  registerWorkspacePanelOffset: (
+    panelId: string,
+    setOffset: (
+      next: PanelOffset | ((prev: PanelOffset) => PanelOffset),
+    ) => void,
+  ) => () => void;
+  applyWorkspacePanelOffsetDelta: (
+    panelId: string,
+    delta: PanelOffset,
+  ) => void;
+  setWorkspacePanelOffset: (panelId: string, offset: PanelOffset) => void;
+  getWorkspacePanelOffset: (panelId: string) => PanelOffset | null;
+  getWorkspacePanelRect: (
+    panelId: string,
+  ) => { left: number; top: number; width: number; height: number } | null;
   /**
    * Toggle state for the left-rail Structure Navigator (Phase 3).
    * Controlled so the ⌘\ keybind, the topbar button, and the navigator's
@@ -956,6 +984,11 @@ export interface EditContextValue {
   toggleNavigator: () => void;
   navigatorWidth: number;
   setNavigatorWidth: (width: number) => void;
+
+  /** Right inspector panel visibility — persisted across sessions. */
+  inspectorDockOpen: boolean;
+  setInspectorDockOpen: (open: boolean) => void;
+  toggleInspectorDock: () => void;
 
   // ── Photoshop-style dockable workspace (floating-panel layout) ──────────
   /**
@@ -2547,17 +2580,74 @@ export function EditProvider({
   const [allPagesPanelOpen, setAllPagesPanelOpen] = useState(false);
   const [brandPanelOpen, setBrandPanelOpen] = useState(false);
 
+  /** Inspector panel starts closed — tab rail only until the operator picks a tab. */
+  const [inspectorDockOpen, setInspectorDockOpenState] = useState(false);
+  const [inspectorRailDocked, setInspectorRailDocked] = useState(false);
+  const [commandDockDocked, setCommandDockDocked] = useState(false);
+  const setInspectorDockOpen = useCallback((open: boolean) => {
+    setInspectorDockOpenState(open);
+    if (!open) setInspectorRailDocked(false);
+  }, []);
+  const toggleInspectorDock = useCallback(() => {
+    setInspectorDockOpenState((prev) => {
+      if (prev) setInspectorRailDocked(false);
+      return !prev;
+    });
+  }, []);
+
   const [inspectorTabRequest, setInspectorTabRequest] = useState<{
     tab: "content" | "style" | "layout" | "data" | "responsive" | "motion";
     nonce: number;
   } | null>(null);
+  const [inspectorActiveTab, setInspectorActiveTabState] = useState<
+    "content" | "style" | "layout" | "data" | "motion"
+  >("content");
+  const inspectorActiveTabRef = useRef(inspectorActiveTab);
+  useEffect(() => {
+    inspectorActiveTabRef.current = inspectorActiveTab;
+  }, [inspectorActiveTab]);
+  const setInspectorActiveTab = useCallback(
+    (tab: "content" | "style" | "layout" | "data" | "motion") => {
+      inspectorActiveTabRef.current = tab;
+      setInspectorActiveTabState(tab);
+    },
+    [],
+  );
   const requestInspectorTab = useCallback(
     (
       tab: "content" | "style" | "layout" | "data" | "responsive" | "motion",
     ) => {
-      setInspectorTabRequest({ tab, nonce: Date.now() });
+      const normalized =
+        tab === "responsive" ? "layout" : tab;
+      setInspectorActiveTab(normalized);
+      setInspectorDockOpen(true);
+      setInspectorTabRequest({
+        tab: normalized,
+        nonce: Date.now(),
+      });
     },
-    [],
+    [setInspectorActiveTab, setInspectorDockOpen],
+  );
+  const toggleInspectorTab = useCallback(
+    (
+      tab: "content" | "style" | "layout" | "data" | "responsive" | "motion",
+    ) => {
+      const normalized =
+        tab === "responsive" ? "layout" : tab;
+      setInspectorDockOpenState((open) => {
+        if (open && inspectorActiveTabRef.current === normalized) {
+          setInspectorRailDocked(false);
+          return false;
+        }
+        setInspectorActiveTab(normalized);
+        setInspectorTabRequest({
+          tab: normalized,
+          nonce: Date.now(),
+        });
+        return true;
+      });
+    },
+    [setInspectorActiveTab],
   );
 
   // revisions drawer state (Phase 4)
@@ -2929,6 +3019,53 @@ export function EditProvider({
       }
     >
   >(new Map());
+  const workspacePanelOffsetSettersRef = useRef<
+    Map<
+      string,
+      (next: PanelOffset | ((prev: PanelOffset) => PanelOffset)) => void
+    >
+  >(new Map());
+
+  const registerWorkspacePanelOffset = useCallback<
+    EditContextValue["registerWorkspacePanelOffset"]
+  >((panelId, setOffset) => {
+    workspacePanelOffsetSettersRef.current.set(panelId, setOffset);
+    return () => {
+      if (workspacePanelOffsetSettersRef.current.get(panelId) === setOffset) {
+        workspacePanelOffsetSettersRef.current.delete(panelId);
+      }
+    };
+  }, []);
+
+  const getWorkspacePanelOffset = useCallback<
+    EditContextValue["getWorkspacePanelOffset"]
+  >((panelId) => {
+    return workspacePanelsRef.current.get(panelId)?.getOffset() ?? null;
+  }, []);
+
+  const getWorkspacePanelRect = useCallback<
+    EditContextValue["getWorkspacePanelRect"]
+  >((panelId) => {
+    return workspacePanelsRef.current.get(panelId)?.getRect() ?? null;
+  }, []);
+
+  const setWorkspacePanelOffset = useCallback<
+    EditContextValue["setWorkspacePanelOffset"]
+  >((panelId, offset) => {
+    const setter = workspacePanelOffsetSettersRef.current.get(panelId);
+    setter?.(offset);
+  }, []);
+
+  const applyWorkspacePanelOffsetDelta = useCallback<
+    EditContextValue["applyWorkspacePanelOffsetDelta"]
+  >((panelId, delta) => {
+    const setter = workspacePanelOffsetSettersRef.current.get(panelId);
+    if (!setter) return;
+    setter((prev) => ({
+      x: prev.x + delta.x,
+      y: prev.y + delta.y,
+    }));
+  }, []);
 
   const getSavedPanelOffset = useCallback<
     EditContextValue["getSavedPanelOffset"]
@@ -7051,6 +7188,18 @@ export function EditProvider({
       closeBrandPanel,
       inspectorTabRequest,
       requestInspectorTab,
+      toggleInspectorTab,
+      inspectorActiveTab,
+      setInspectorActiveTab,
+      inspectorRailDocked,
+      setInspectorRailDocked,
+      commandDockDocked,
+      setCommandDockDocked,
+      registerWorkspacePanelOffset,
+      applyWorkspacePanelOffsetDelta,
+      setWorkspacePanelOffset,
+      getWorkspacePanelOffset,
+      getWorkspacePanelRect,
       savePageMetadata,
 
       revisionsOpen,
@@ -7100,6 +7249,9 @@ export function EditProvider({
       toggleNavigator,
       navigatorWidth,
       setNavigatorWidth,
+      inspectorDockOpen,
+      setInspectorDockOpen,
+      toggleInspectorDock,
       hasSavedWorkspaceLayout,
       pinWorkspaceLayout,
       resetWorkspaceLayout,
@@ -7262,6 +7414,18 @@ export function EditProvider({
       closeBrandPanel,
       inspectorTabRequest,
       requestInspectorTab,
+      toggleInspectorTab,
+      inspectorActiveTab,
+      setInspectorActiveTab,
+      inspectorRailDocked,
+      setInspectorRailDocked,
+      commandDockDocked,
+      setCommandDockDocked,
+      registerWorkspacePanelOffset,
+      applyWorkspacePanelOffsetDelta,
+      setWorkspacePanelOffset,
+      getWorkspacePanelOffset,
+      getWorkspacePanelRect,
       savePageMetadata,
       revisionsOpen,
       openRevisions,
@@ -7303,6 +7467,9 @@ export function EditProvider({
       toggleNavigator,
       navigatorWidth,
       setNavigatorWidth,
+      inspectorDockOpen,
+      setInspectorDockOpen,
+      toggleInspectorDock,
       hasSavedWorkspaceLayout,
       pinWorkspaceLayout,
       resetWorkspaceLayout,

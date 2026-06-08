@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { BuilderNodeStyle } from "@/lib/site-admin/builder-node/types";
 import {
@@ -25,24 +25,6 @@ import { CHROME } from "../kit/tokens";
  * by `pageId` (no DB migration — the same per-browser persistence the preset
  * bar uses). The renderer merges a referenced class beneath the node's own
  * props (see style-classes.ts + render.tsx).
- *
- * The control surfaces:
- *   • the linked class NAME badge (when the block is linked)
- *   • "Apply class …" — link the block to an existing class (its id is written
- *     onto the block's style; the block's own props still win on top)
- *   • "Create class from this block" — snapshot the block's CURRENT style into
- *     a new named class and link the block to it (the block's own style becomes
- *     just `{ classRef }`, so the class fully drives it — the cleanest "edit the
- *     class → the block changes" demo)
- *   • per-class "Edit name" / "Delete" and, on the linked block, "Unlink"
- *     (flattens the class back onto the block so its look is preserved)
- *
- * STORAGE: the read/write helpers + the live cross-subtree registry bridge now
- * live in the shared `builder-node/style-classes-storage.ts` so the editor
- * canvas + the publish path read ONE source of truth (W1-T1). `writeClasses`
- * republishes the registry to the canvas bridge on every change. As of W1-T2
- * the publish path BAKES the registry into the snapshot, so linked styles also
- * reach the live site.
  */
 
 const btnStyle = {
@@ -57,34 +39,50 @@ const btnStyle = {
   cursor: "pointer" as const,
 };
 
+const inputStyle = {
+  height: 28,
+  paddingInline: 8,
+  fontSize: 11,
+  fontWeight: 500,
+  background: CHROME.surface,
+  border: `1px solid ${CHROME.controlBorder}`,
+  borderRadius: 7,
+  color: CHROME.ink,
+  flex: 1,
+  minWidth: 0,
+} as const;
+
 export function LinkedStyleClassesBar({
   pageId,
   currentStyle,
   onSetStyle,
 }: {
-  /** Page id → registry localStorage key (page-scoped classes). */
   pageId: string | null;
-  /** The selected block's full style (incl. any existing classRef). */
   currentStyle: BuilderNodeStyle | undefined;
-  /**
-   * Overwrite the selected block's style. Used to (a) write `classRef` on
-   * apply/create, and (b) flatten the class back onto the block on unlink.
-   * Passing `undefined` clears the block's style.
-   */
   onSetStyle: (style: BuilderNodeStyle | undefined) => void;
 }) {
   const [classes, setClasses] = useState<ReadonlyArray<BuilderStyleClass>>([]);
   const [picking, setPicking] = useState(false);
+  const [inlineMessage, setInlineMessage] = useState<string | null>(null);
+  const [namingMode, setNamingMode] = useState<"create" | "rename" | null>(null);
+  const [namingValue, setNamingValue] = useState("");
+  const [renameClassId, setRenameClassId] = useState<string | null>(null);
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     setClasses(readClasses(pageId));
   }, [pageId]);
 
+  useEffect(() => {
+    if (namingMode && nameInputRef.current) {
+      nameInputRef.current.focus();
+      nameInputRef.current.select();
+    }
+  }, [namingMode]);
+
   const persist = useCallback(
     (next: ReadonlyArray<BuilderStyleClass>): boolean => {
       const ok = writeClasses(pageId, next);
-      // Only mirror into React state when the registry actually persisted, so
-      // local state never claims a class exists that storage refused to keep.
       if (ok) setClasses(next);
       return ok;
     },
@@ -96,50 +94,98 @@ export function LinkedStyleClassesBar({
     () => (linkedId ? classes.find((c) => c.id === linkedId) ?? null : null),
     [classes, linkedId],
   );
-  const hasStyle = Boolean(currentStyle && Object.keys(currentStyle).length > 0);
+  const styleSnapshot = stripClassRef(currentStyle) ?? {};
+  const hasStyle = Object.keys(styleSnapshot).length > 0;
+
+  const clearNaming = () => {
+    setNamingMode(null);
+    setNamingValue("");
+    setRenameClassId(null);
+  };
 
   const applyClass = (classId: string) => {
     setPicking(false);
+    setInlineMessage(null);
     onSetStyle({ ...(currentStyle ?? {}), classRef: classId });
   };
 
-  const createClassFromBlock = () => {
-    // Snapshot the block's CURRENT style (minus any existing classRef) as the
-    // new class, then link the block so the class fully drives it.
-    const snapshot = stripClassRef(currentStyle) ?? {};
-    if (Object.keys(snapshot).length === 0) {
-      window.alert("Style this block first, then save it as a class.");
+  const commitCreateClass = () => {
+    const name = namingValue.trim();
+    if (!name) {
+      setInlineMessage("Enter a name for the style class.");
       return;
     }
-    const name = window.prompt("Name this style class");
-    if (!name?.trim()) return;
+    if (Object.keys(styleSnapshot).length === 0) {
+      setInlineMessage(
+        "Style this block first — set padding, color, or another property below — then save it as a class.",
+      );
+      clearNaming();
+      return;
+    }
     const id = styleClassIdFromName(
       name,
       classes.map((c) => c.id),
     );
-    const nextClass: BuilderStyleClass = { id, name: name.trim(), style: snapshot };
-    // SAFETY (Marathon W1-T3): persist FIRST and only collapse the block to a
-    // bare `{ classRef }` once the registry write is confirmed. If storage
-    // refused the write (quota / private mode), the class would not exist and
-    // `{ classRef: id }` would resolve to the node's own (now-stripped) style —
-    // i.e. it would blank the block. On failure we keep the block's existing
-    // style intact and tell the operator nothing was saved.
+    const nextClass: BuilderStyleClass = { id, name, style: styleSnapshot };
     const saved = persist([...classes, nextClass]);
     if (!saved) {
-      window.alert(
-        "Couldn't save the style class in this browser, so the block was left unchanged. Free up some space and try again.",
+      setInlineMessage(
+        "Couldn't save the style class in this browser. Free up space and try again.",
       );
       return;
     }
-    // The block now references the class and keeps no local overrides, so the
-    // class is the single source of truth for its look.
     onSetStyle({ classRef: id });
+    clearNaming();
+    setInlineMessage(null);
+    setPicking(false);
   };
 
-  const renameClass = (klass: BuilderStyleClass) => {
-    const name = window.prompt("Rename style class", klass.name);
-    if (!name?.trim()) return;
-    persist(classes.map((c) => (c.id === klass.id ? { ...c, name: name.trim() } : c)));
+  const commitRenameClass = () => {
+    const name = namingValue.trim();
+    if (!name || !renameClassId) {
+      clearNaming();
+      return;
+    }
+    persist(
+      classes.map((c) => (c.id === renameClassId ? { ...c, name } : c)),
+    );
+    clearNaming();
+  };
+
+  const handleApplyClick = () => {
+    setInlineMessage(null);
+    clearNaming();
+    if (classes.length === 0) {
+      setInlineMessage(
+        "No classes yet. Style a block, then use “Create class from this block”.",
+      );
+      setPicking(false);
+      return;
+    }
+    setPicking((v) => !v);
+  };
+
+  const handleCreateClick = () => {
+    setInlineMessage(null);
+    setPicking(false);
+    if (!hasStyle) {
+      setInlineMessage(
+        "Style this block first — set padding, color, or another property below — then save it as a class.",
+      );
+      clearNaming();
+      return;
+    }
+    setNamingMode("create");
+    setNamingValue("");
+    setRenameClassId(null);
+  };
+
+  const startRenameClass = (klass: BuilderStyleClass) => {
+    setInlineMessage(null);
+    setPicking(false);
+    setNamingMode("rename");
+    setNamingValue(klass.name);
+    setRenameClassId(klass.id);
   };
 
   const deleteClass = (classId: string) => {
@@ -151,7 +197,6 @@ export function LinkedStyleClassesBar({
       return;
     }
     persist(classes.filter((c) => c.id !== classId));
-    // If the SELECTED block was linked to it, flatten so its look is preserved.
     if (linkedId === classId) {
       const klass = classes.find((c) => c.id === classId);
       const flattened = klass
@@ -166,7 +211,6 @@ export function LinkedStyleClassesBar({
       onSetStyle(stripClassRef(currentStyle));
       return;
     }
-    // Flatten the class onto the block so unlinking does not change its look.
     const flattened = mergeBuilderNodeStyle(
       linkedClass.style,
       stripClassRef(currentStyle) ?? {},
@@ -175,17 +219,12 @@ export function LinkedStyleClassesBar({
   };
 
   const updateClassFromBlock = () => {
-    // "Edit class" by example: push the SELECTED block's effective style into the
-    // linked class so every other linked block updates too. The block's own
-    // local overrides (beyond classRef) are folded into the class.
     if (!linkedClass) return;
     const effective = stripClassRef(currentStyle) ?? {};
     const merged = mergeBuilderNodeStyle(linkedClass.style, effective);
     persist(
       classes.map((c) => (c.id === linkedClass.id ? { ...c, style: merged } : c)),
     );
-    // The block's local overrides are now part of the class → reset it to a pure
-    // reference so the class is the single source of truth.
     onSetStyle({ classRef: linkedClass.id });
   };
 
@@ -220,8 +259,6 @@ export function LinkedStyleClassesBar({
             {linkedClass.name}
           </span>
         ) : linkedId ? (
-          // Linked to a class id that is not in this browser's registry (e.g.
-          // authored elsewhere). Show the raw id so the link is still visible.
           <span
             data-builder-style-class-linked={linkedId}
             style={{ fontSize: 11, color: CHROME.muted }}
@@ -236,18 +273,18 @@ export function LinkedStyleClassesBar({
         <button
           type="button"
           data-builder-style-class-action="apply"
-          style={{ ...btnStyle, opacity: classes.length > 0 ? 1 : 0.45 }}
-          disabled={classes.length === 0}
-          onClick={() => setPicking((v) => !v)}
+          style={{ ...btnStyle, opacity: classes.length > 0 ? 1 : 0.65 }}
+          aria-disabled={classes.length === 0}
+          onClick={handleApplyClick}
         >
           Apply class…
         </button>
         <button
           type="button"
           data-builder-style-class-action="create"
-          style={{ ...btnStyle, opacity: hasStyle ? 1 : 0.45 }}
-          disabled={!hasStyle}
-          onClick={createClassFromBlock}
+          style={{ ...btnStyle, opacity: hasStyle ? 1 : 0.65 }}
+          aria-disabled={!hasStyle}
+          onClick={handleCreateClick}
         >
           Create class from this block
         </button>
@@ -273,6 +310,74 @@ export function LinkedStyleClassesBar({
           </button>
         ) : null}
       </div>
+
+      {inlineMessage ? (
+        <p
+          data-builder-style-class-hint=""
+          style={{
+            margin: 0,
+            fontSize: 11,
+            lineHeight: 1.45,
+            color: CHROME.muted,
+          }}
+        >
+          {inlineMessage}
+        </p>
+      ) : null}
+
+      {namingMode ? (
+        <div
+          className="flex flex-col gap-1.5"
+          data-builder-style-class-naming=""
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.preventDefault();
+              clearNaming();
+            }
+          }}
+        >
+          <label
+            htmlFor="builder-style-class-name"
+            style={{ fontSize: 11, fontWeight: 600, color: CHROME.ink }}
+          >
+            {namingMode === "create" ? "Class name" : "Rename class"}
+          </label>
+          <div className="flex gap-1.5">
+            <input
+              ref={nameInputRef}
+              id="builder-style-class-name"
+              type="text"
+              value={namingValue}
+              placeholder="e.g. Card shadow"
+              onChange={(event) => setNamingValue(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  if (namingMode === "create") commitCreateClass();
+                  else commitRenameClass();
+                }
+              }}
+              style={inputStyle}
+            />
+            <button
+              type="button"
+              style={btnStyle}
+              onClick={
+                namingMode === "create" ? commitCreateClass : commitRenameClass
+              }
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              style={{ ...btnStyle, background: "transparent" }}
+              onClick={clearNaming}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {picking && classes.length > 0 ? (
         <div className="flex flex-col gap-1" data-builder-style-class-picker="">
@@ -307,7 +412,7 @@ export function LinkedStyleClassesBar({
                 type="button"
                 className="cursor-pointer"
                 style={{ fontSize: 11, color: CHROME.muted, background: "transparent" }}
-                onClick={() => renameClass(klass)}
+                onClick={() => startRenameClass(klass)}
                 title="Rename"
               >
                 Edit

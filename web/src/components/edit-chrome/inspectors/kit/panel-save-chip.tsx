@@ -14,6 +14,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { CHROME } from "../../kit/tokens";
+
 interface PanelSaveChipProps {
   dirty: boolean;
   saving: boolean;
@@ -71,4 +73,51 @@ export function PanelSaveChip({ dirty, saving, error }: PanelSaveChipProps) {
     );
   }
   return null;
+}
+
+/**
+ * InspectorDraftStatus — persistent save line under the inspector breadcrumb.
+ * Matches the canvas-first mockup ("Draft saved" with a green check).
+ */
+export function InspectorDraftStatus({
+  dirty,
+  saving,
+  error,
+}: PanelSaveChipProps) {
+  if (error) {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-rose-600">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+        Couldn&apos;t save
+      </span>
+    );
+  }
+  if (saving) {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-stone-500">
+        <span className="size-1.5 animate-pulse rounded-full bg-stone-400" aria-hidden />
+        Saving…
+      </span>
+    );
+  }
+  if (dirty) {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-700">
+        <span className="size-1.5 rounded-full bg-amber-500" aria-hidden />
+        Unsaved changes
+      </span>
+    );
+  }
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[12px] font-medium" style={{ color: CHROME.green }}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M20 6L9 17l-5-5" />
+        </svg>
+        Draft saved
+      </span>
+    );
 }

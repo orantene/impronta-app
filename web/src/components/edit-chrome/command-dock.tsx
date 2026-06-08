@@ -3,26 +3,43 @@
 /**
  * CommandDock — slim left command rail for the canvas-first builder.
  *
- * Implements the mockup's left dock: a thin, fixed vertical column under the
- * 54px topbar. Each item is icon + short label and launches a floating panel;
+ * Implements the mockup's left dock: a fixed vertical column under the
+ * edit topbar. Each item is icon + short label and launches a floating panel;
  * the active item is highlighted, and clicking the active item again closes it.
- *
- * The dock is purely a LAUNCHER — every action routes through EditContext so
- * drawer mutex, deep-link dispatch, and Escape ladder keep working unchanged.
  */
 
-import { type ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
+import { GripVertical } from "lucide-react";
 
+import { commandDockRailDockStyle } from "./command-dock-rail-dock";
 import { useEditContext } from "./edit-context";
-import { CHROME, Z_INDEX } from "./kit";
+import { useFloatingDrag } from "./floating-panel";
+import {
+  CHROME,
+  COMMAND_DOCK_CHROME_TOP_PX,
+  COMMAND_DOCK_LEFT_PX,
+  COMMAND_DOCK_PANEL_GAP_PX,
+  COMMAND_DOCK_WIDTH_PX,
+  Z_INDEX,
+} from "./kit";
+import { useCommandDockCoupling } from "./use-command-dock-coupling";
 
-const TOPBAR_H = 54;
-const DOCK_LEFT = 12;
-const DOCK_TOP = TOPBAR_H + 12;
-const DOCK_WIDTH = 64;
+const DOCK_LEFT = COMMAND_DOCK_LEFT_PX;
+const DOCK_TOP = COMMAND_DOCK_CHROME_TOP_PX;
+const DOCK_WIDTH = COMMAND_DOCK_WIDTH_PX;
+const DOCK_RADIUS_PX = 20;
+const DOCK_SHADOW =
+  "0 1px 2px rgba(0,0,0,0.04), 0 10px 28px -12px rgba(0,0,0,0.14)";
 
 /** Left inset for dock-launched floating panels (dock + gap). */
-export const COMMAND_DOCK_PANEL_INSET_PX = DOCK_LEFT + DOCK_WIDTH + 12;
+export const COMMAND_DOCK_PANEL_INSET_PX =
+  DOCK_LEFT + DOCK_WIDTH + COMMAND_DOCK_PANEL_GAP_PX;
+
+/** Flush left edge when a panel is magnet-locked to the command dock. */
+export const COMMAND_DOCK_PANEL_FLUSH_LEFT_PX = DOCK_LEFT + DOCK_WIDTH;
+
+const DOCK_ICON_PX = 22;
+const DOCK_LABEL_PX = 11;
 
 interface DockItem {
   id: string;
@@ -49,34 +66,44 @@ function DockButton({ item }: { item: DockItem }) {
         aria-pressed={active}
         data-dock-item={item.id}
         data-dock-active={active ? "true" : undefined}
-        className="group relative mx-auto flex shrink-0 cursor-pointer flex-col items-center gap-[4px] border-none bg-transparent p-0 transition-transform disabled:cursor-not-allowed disabled:opacity-40"
-        style={{ width: "100%" }}
+        className="group relative mx-auto flex shrink-0 cursor-pointer flex-col items-center gap-[6px] border-none bg-transparent p-0 transition-transform disabled:cursor-not-allowed disabled:opacity-40"
+        style={{ width: "100%", padding: "4px 0 8px" }}
       >
         <span
           aria-hidden
-          className="inline-flex items-center justify-center transition-transform group-hover:scale-[1.03]"
+          className="inline-flex items-center justify-center transition-transform group-hover:scale-[1.02]"
           style={{
-            width: 40,
-            height: 40,
-            borderRadius: 999,
-            background: active ? CHROME.accentInk : CHROME.accent,
-            color: "#ffffff",
-            boxShadow: active
-              ? "0 0 0 3px rgba(124, 58, 237, 0.28), 0 6px 16px -4px rgba(124, 58, 237, 0.45)"
-              : "0 6px 16px -4px rgba(124, 58, 237, 0.40)",
+            width: 52,
+            height: 52,
+            borderRadius: 14,
+            background: "rgba(124, 58, 237, 0.10)",
           }}
         >
-          {item.icon}
+          <span
+            className="inline-flex items-center justify-center"
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 999,
+              background: active ? CHROME.accentInk : CHROME.accent,
+              color: "#ffffff",
+              boxShadow: active
+                ? "0 0 0 3px rgba(124, 58, 237, 0.24), 0 8px 20px -6px rgba(124, 58, 237, 0.45)"
+                : "0 8px 20px -6px rgba(124, 58, 237, 0.38)",
+            }}
+          >
+            {item.icon}
+          </span>
         </span>
         <span
           aria-hidden
           style={{
-            fontSize: 9.5,
+            fontSize: DOCK_LABEL_PX,
             fontWeight: 600,
             letterSpacing: "0.01em",
-            lineHeight: 1.05,
+            lineHeight: 1.15,
             textAlign: "center",
-            color: active ? CHROME.accent : CHROME.muted,
+            color: CHROME.accent,
           }}
         >
           {item.label}
@@ -95,9 +122,9 @@ function DockButton({ item }: { item: DockItem }) {
       aria-pressed={active}
       data-dock-item={item.id}
       data-dock-active={active ? "true" : undefined}
-      className="group relative flex w-full shrink-0 cursor-pointer flex-col items-center gap-[3px] rounded-[12px] border-none px-[2px] py-[7px] transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+      className="group relative flex w-full shrink-0 cursor-pointer flex-col items-center gap-[6px] rounded-[14px] border-none px-[4px] py-[11px] transition-colors disabled:cursor-not-allowed disabled:opacity-40"
       style={{
-        background: active ? "rgba(124, 58, 237, 0.12)" : "transparent",
+        background: active ? "rgba(124, 58, 237, 0.10)" : "transparent",
         color: active ? CHROME.accent : CHROME.muted,
       }}
       onMouseEnter={(e) => {
@@ -114,26 +141,28 @@ function DockButton({ item }: { item: DockItem }) {
       {active ? (
         <span
           aria-hidden
-          className="absolute left-[-8px] top-1/2 h-[20px] w-[3px] -translate-y-1/2 rounded-full"
+          className="absolute left-[-10px] top-1/2 h-[24px] w-[3px] -translate-y-1/2 rounded-full"
           style={{ background: CHROME.accent }}
         />
       ) : null}
       <span
         aria-hidden
         className="inline-flex items-center justify-center"
-        style={{ width: 22, height: 22 }}
+        style={{ width: 26, height: 26 }}
       >
         {item.icon}
       </span>
       <span
         aria-hidden
         style={{
-          fontSize: 9.5,
+          fontSize: DOCK_LABEL_PX,
           fontWeight: 600,
           letterSpacing: "0.01em",
-          lineHeight: 1.05,
+          lineHeight: 1.15,
           textAlign: "center",
           color: "inherit",
+          maxWidth: "100%",
+          padding: "0 2px",
         }}
       >
         {item.label}
@@ -143,12 +172,12 @@ function DockButton({ item }: { item: DockItem }) {
 }
 
 const ICON_PROPS = {
-  width: 18,
-  height: 18,
+  width: DOCK_ICON_PX,
+  height: DOCK_ICON_PX,
   viewBox: "0 0 24 24",
   fill: "none",
   stroke: "currentColor",
-  strokeWidth: 1.9,
+  strokeWidth: 2,
   strokeLinecap: "round" as const,
   strokeLinejoin: "round" as const,
   "aria-hidden": true,
@@ -214,6 +243,19 @@ export function CommandDock() {
       onClick: () => toggleAllPagesPanel(),
       icon: (
         <svg {...ICON_PROPS}>
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+        </svg>
+      ),
+    },
+    {
+      id: "structure",
+      label: "Page Structure",
+      title: "Page structure (⌘\\)",
+      active: navigatorOpen,
+      onClick: () => toggleNavigator(),
+      icon: (
+        <svg {...ICON_PROPS}>
           <rect x="3" y="3" width="7" height="7" rx="1.5" />
           <rect x="14" y="3" width="7" height="7" rx="1.5" />
           <rect x="3" y="14" width="7" height="7" rx="1.5" />
@@ -222,24 +264,8 @@ export function CommandDock() {
       ),
     },
     {
-      id: "structure",
-      label: "Structure",
-      title: "Page structure (⌘\\)",
-      active: navigatorOpen,
-      onClick: () => toggleNavigator(),
-      icon: (
-        <svg {...ICON_PROPS}>
-          <path d="M3 5h18" />
-          <path d="M8 12h13" />
-          <path d="M8 19h13" />
-          <path d="M4 12h.01" />
-          <path d="M4 19h.01" />
-        </svg>
-      ),
-    },
-    {
       id: "pageSettings",
-      label: "Settings",
+      label: "Page Settings",
       title: "Page settings",
       active: pageSettingsOpen,
       onClick: () => (pageSettingsOpen ? closePageSettings() : openPageSettings()),
@@ -258,9 +284,8 @@ export function CommandDock() {
       onClick: () => toggleBrandPanel(),
       icon: (
         <svg {...ICON_PROPS}>
-          <path d="M2 12a10 10 0 1 0 10-10 10 10 0 0 0-10 10z" />
-          <path d="M12 2v20" />
-          <path d="M2 12h20" />
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
         </svg>
       ),
     },
@@ -301,33 +326,96 @@ export function CommandDock() {
     ),
   };
 
+  const { dragOptions, commandDockDocked } =
+    useCommandDockCoupling("command-dock");
+  const {
+    setPanelNode,
+    onHandlePointerDown,
+    transform,
+    dragging,
+    offset,
+  } = useFloatingDrag(dragOptions);
+  const moved = offset.x !== 0 || offset.y !== 0;
+  const dragMovedRef = useRef(false);
+  const dockedToPanel = commandDockDocked;
+  const dockStyle = commandDockRailDockStyle(
+    dockedToPanel,
+    dragging,
+    DOCK_RADIUS_PX,
+    DOCK_SHADOW,
+  );
+  const dockBorder = `1px solid ${CHROME.line}`;
+
   return (
     <nav
+      ref={setPanelNode}
       data-command-dock
+      data-command-dock-docked={dockedToPanel ? "true" : "false"}
       aria-label="Builder tools"
       className="fixed flex flex-col"
       style={{
         left: DOCK_LEFT,
         top: DOCK_TOP,
         width: DOCK_WIDTH,
-        maxHeight: `calc(100vh - ${DOCK_TOP + 12}px)`,
-        zIndex: Z_INDEX.panels,
+        maxHeight: `calc(100vh - ${DOCK_TOP + 16}px)`,
+        zIndex: Z_INDEX.panels + 1,
         background: CHROME.surface,
-        border: `1px solid ${CHROME.line}`,
-        borderRadius: 16,
-        boxShadow:
-          "0 1px 2px rgba(0,0,0,0.04), 0 8px 24px -10px rgba(0,0,0,0.12)",
-        padding: "8px 6px",
-        gap: 2,
+        borderTop: dockBorder,
+        borderBottom: dockBorder,
+        borderLeft: dockBorder,
+        borderRight: dockedToPanel ? "none" : dockBorder,
+        padding: "14px 8px 12px",
+        gap: 4,
+        transform,
+        userSelect: dragging ? "none" : undefined,
+        ...dockStyle,
       }}
     >
+      <button
+        type="button"
+        aria-label="Drag tab strip"
+        title="Drag to move"
+        onPointerDown={(e) => {
+          dragMovedRef.current = false;
+          const startX = e.clientX;
+          const startY = e.clientY;
+          const onMove = (ev: PointerEvent) => {
+            if (
+              Math.abs(ev.clientX - startX) > 4 ||
+              Math.abs(ev.clientY - startY) > 4
+            ) {
+              dragMovedRef.current = true;
+            }
+          };
+          window.addEventListener("pointermove", onMove);
+          window.addEventListener(
+            "pointerup",
+            () => window.removeEventListener("pointermove", onMove),
+            { once: true },
+          );
+          onHandlePointerDown(e);
+        }}
+        className="mx-auto mb-2 inline-flex cursor-grab items-center justify-center border-none bg-transparent p-0 active:cursor-grabbing"
+        style={{ color: CHROME.muted3, height: 20 }}
+      >
+        <GripVertical size={16} strokeWidth={2.25} aria-hidden />
+      </button>
+
+      <div
+        className="flex flex-col gap-1"
+        style={{
+          background: moved ? "rgba(124, 58, 237, 0.03)" : undefined,
+          borderRadius: 12,
+        }}
+      >
       {primaryItems.map((item) => (
         <DockButton key={item.id} item={item} />
       ))}
+      </div>
       <span aria-hidden className="flex-1" />
       <span
         aria-hidden
-        className="my-[2px] h-px w-full shrink-0"
+        className="my-[6px] h-px w-full shrink-0"
         style={{ background: CHROME.line }}
       />
       <DockButton item={helpItem} />

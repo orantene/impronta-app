@@ -25,7 +25,7 @@
  * label. One clear action: "Edit".
  */
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useSyncExternalStore } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 
@@ -128,7 +128,8 @@ export function EditPill({ autoEnter = false }: EditPillProps) {
  */
 function EntryProgressBar({ autoEnter }: { autoEnter: boolean }) {
   const { pending } = useFormStatus();
-  if (!pending && !autoEnter) return null;
+  const autoPending = useAutoEnterPending(autoEnter);
+  if (!pending && !autoPending) return null;
   return (
     <div
       aria-hidden
@@ -160,17 +161,25 @@ function EditPillButton({ autoEnter }: { autoEnter: boolean }) {
   // sees "Loading editor…" the instant the page paints, not only after the
   // action handler kicks the pending state on. The auto-fire effect runs
   // post-mount so without this hint the button briefly says "Edit".
-  const showPending = pending || autoEnter;
+  // Gate autoEnter behind mount so SSR and the first client paint agree
+  // (searchParams / useFormStatus can differ between server HTML and hydration).
+  const mounted = useClientMounted();
+  const autoPending = mounted && autoEnter;
+  const showPending = pending || autoPending;
+  // ?edit=1 deep links: keep the idle pill markup frozen until mounted so
+  // boolean data-* / aria-* attrs never drift between server and client.
+  const displayPending = autoEnter && !mounted ? false : showPending;
   return (
     <button
       type="submit"
-      disabled={showPending}
-      aria-busy={showPending}
+      disabled={displayPending}
+      aria-busy={displayPending || undefined}
+      suppressHydrationWarning={autoEnter}
       className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-indigo-400/20 bg-[#3d4f7c] px-4 py-2.5 text-sm font-medium text-white shadow-[0_10px_30px_-8px_rgba(61,79,124,0.45)] transition hover:bg-[#4a5e94] disabled:opacity-60 data-[pending=true]:opacity-60"
-      data-pending={showPending}
-      aria-label={showPending ? "Entering edit mode" : "Edit this page"}
+      {...(displayPending ? { "data-pending": true } : {})}
+      aria-label={displayPending ? "Entering edit mode" : "Edit this page"}
     >
-      {showPending ? (
+      {displayPending ? (
         <svg
           width="14"
           height="14"
@@ -201,7 +210,21 @@ function EditPillButton({ autoEnter }: { autoEnter: boolean }) {
           <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
         </svg>
       )}
-      {showPending ? "Loading editor…" : "Edit"}
+      {displayPending ? "Loading editor…" : "Edit"}
     </button>
   );
+}
+
+function subscribeNoop(): () => void {
+  return () => undefined;
+}
+
+/** False during SSR + hydration, true after — avoids pending UI drift on ?edit=1. */
+function useClientMounted(): boolean {
+  return useSyncExternalStore(subscribeNoop, () => true, () => false);
+}
+
+/** True only after mount when `autoEnter` is set — avoids hydration mismatch. */
+function useAutoEnterPending(autoEnter: boolean): boolean {
+  return useClientMounted() && autoEnter;
 }

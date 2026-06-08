@@ -57,7 +57,14 @@ import { StylePresetsBar } from "./style-presets-bar";
 import { LinkedStyleClassesBar } from "./linked-style-classes-bar";
 import { InstanceOverridesPanel } from "./instance-overrides-panel";
 import { InstanceVariantPicker } from "./instance-variant-picker";
+import { SectionStyleMockupPanel } from "./section-style-mockup-panel";
 import { InspectorGroup } from "./kit";
+import {
+  INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL,
+  INSPECTOR_HELP_TEXT_CLASS as HINT,
+  INSPECTOR_SECTION_TITLE_CLASS as SECTION_TITLE,
+  InspectorBody,
+} from "./kit/inspector-ui";
 import { Swatch } from "../kit/swatch";
 import { CHROME } from "../kit/tokens";
 import { BoxModel } from "../kit/box-model";
@@ -66,15 +73,7 @@ import { uploadCmsMedia } from "@/lib/client/signed-upload";
 import { breakpointLabelForDevice, naturalWidthForDevice } from "../breakpoint-registry";
 import { useBuilderBreakpoints } from "../use-builder-breakpoints";
 
-// 2026-05-29 readability pass: warm stone (matches the kit) instead of cold
-// zinc, and INHERIT_HINT lifted off the AA-failing zinc-400 (~2.5:1) to a
-// legible stone-500 (~4.9:1). Labels nudged +0.5px for clarity.
-const SECTION_TITLE =
-  "text-[10.5px] font-semibold uppercase tracking-[0.14em] text-stone-500";
-const FIELD_LABEL =
-  "text-[10.5px] font-semibold uppercase tracking-[0.10em] text-stone-600";
-const HINT = "text-[11px] leading-tight text-stone-500";
-const INHERIT_HINT = "text-[11px] text-stone-500";
+const INHERIT_HINT = HINT;
 
 // Approximate hex for each background palette token. Real tenant rendering
 // uses CSS variables from token-presets.css — these swatches are inspector
@@ -684,6 +683,31 @@ function colorSwatchDisplay(value: string | undefined): string | undefined {
   }
   return value;
 }
+
+const COLOR_SWATCH_CHECKERBOARD =
+  "repeating-conic-gradient(#e5e0d8 0% 25%, #ffffff 0% 50%) 50% / 8px 8px";
+
+/** Avoid mixing `background` shorthand with `backgroundImage` on rerender. */
+function inspectorColorSwatchStyle(
+  hasValue: boolean,
+  displayColor: string | undefined,
+  extra: CSSProperties = {},
+): CSSProperties {
+  const base: CSSProperties = {
+    width: 30,
+    height: 30,
+    borderRadius: 6,
+    ...extra,
+  };
+  if (hasValue && displayColor) {
+    return { ...base, backgroundColor: displayColor };
+  }
+  return {
+    ...base,
+    backgroundColor: "transparent",
+    backgroundImage: COLOR_SWATCH_CHECKERBOARD,
+  };
+}
 /**
  * Wave 3 · 3D — state-style fields component.
  *
@@ -754,18 +778,16 @@ function StateStyleFields({
     outline: "none",
   };
 
-  const swatchStyle = (value: string | undefined): CSSProperties => ({
-    width: 30,
-    height: 30,
-    flexShrink: 0,
-    borderRadius: 6,
-    border: `1px solid ${chromeControlBorder}`,
-    cursor: "pointer",
-    background: stateColorSwatchDisplay(value) || "transparent",
-    backgroundImage: value
-      ? undefined
-      : "repeating-conic-gradient(#e5e0d8 0% 25%, #ffffff 0% 50%) 50% / 8px 8px",
-  });
+  const swatchStyle = (value: string | undefined): CSSProperties =>
+    inspectorColorSwatchStyle(
+      Boolean(value),
+      stateColorSwatchDisplay(value) || undefined,
+      {
+        flexShrink: 0,
+        border: `1px solid ${chromeControlBorder}`,
+        cursor: "pointer",
+      },
+    );
 
   return (
     <div className="flex flex-col gap-2">
@@ -2036,73 +2058,6 @@ function StyleGroupOverrideDot({ label }: { label: string }) {
   );
 }
 
-/**
- * Job #2 — persistent banner shown at the top of the Style panel whenever the
- * scope is a non-desktop breakpoint (kept in sync with the canvas viewport).
- * Reuses the blue "editing overrides" treatment from ResponsivePanel so the two
- * inspectors read identically. The "Desktop base" button is the explicit escape
- * back to editing the base values.
- */
-function ViewportScopeBanner({
-  viewport,
-  onBackToDesktop,
-  canvasHint,
-}: {
-  viewport: NodeViewport;
-  onBackToDesktop: () => void;
-  canvasHint?: string | null;
-}) {
-  return (
-    <div
-      data-style-panel-viewport-banner={viewport}
-      className="flex flex-col gap-1 rounded-md px-3 py-2"
-      style={{
-        background: CHROME.blueBg,
-        border: `1px solid ${CHROME.blueLine}`,
-        color: CHROME.blue,
-      }}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold leading-snug">
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
-          >
-            {/* pencil glyph */}
-            <path d="M12 20h9" />
-            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-          </svg>
-          Editing {VIEWPORT_SCOPE_LABEL[viewport]} styles — desktop stays the base.
-        </span>
-        <button
-          type="button"
-          onClick={onBackToDesktop}
-          className="shrink-0 text-[10.5px] font-semibold uppercase tracking-[0.08em]"
-          style={{
-            background: "transparent",
-            border: "none",
-            color: CHROME.blue,
-            cursor: "pointer",
-            padding: 0,
-          }}
-        >
-          Desktop base
-        </button>
-      </div>
-      {canvasHint ? (
-        <span className="text-[10.5px] leading-snug opacity-90">{canvasHint}</span>
-      ) : null}
-    </div>
-  );
-}
-
 export function StylePanel({
   sectionTypeKey,
   draftProps,
@@ -2732,6 +2687,19 @@ export function StylePanel({
         Object.keys(nextNodePresentation).length > 0
           ? nextNodePresentation
           : undefined,
+    });
+  }
+
+  function patchNodeRoleByKey(
+    role: string,
+    patch: Partial<NodePresentation>,
+  ) {
+    const baseNodePresentation = nodePresentationRaw ?? {};
+    const currentForRole =
+      (baseNodePresentation[role] as NodePresentation | undefined) ?? {};
+    setNodeRolePresentation(role as EditableNodeRole, {
+      ...currentForRole,
+      ...patch,
     });
   }
 
@@ -4137,19 +4105,8 @@ export function StylePanel({
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Job #2 — persistent breakpoint-scope banner. Synced to the canvas
-          viewport: when the operator is previewing Tablet/Mobile, every style
-          they change here lands on THAT breakpoint's override bucket (desktop
-          stays the base). The banner makes that unmistakable + offers a
-          one-click route back to the Desktop base. */}
-      {selectedViewport !== "desktop" ? (
-        <ViewportScopeBanner
-          viewport={selectedViewport}
-          onBackToDesktop={() => selectViewport("desktop")}
-          canvasHint={canvasBreakpointHint}
-        />
-      ) : null}
+    <InspectorBody>
+      {/* Viewport scope is shown in the dock InspectorViewportRail (synced to canvas device). */}
       {selectedNodeRole && selectedNodeLabel ? (
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
@@ -4508,13 +4465,14 @@ export function StylePanel({
                     ) : null}
                   </div>
                 </div>
-                <Segmented
-                  fullWidth
-                  compact
-                  value={selectedViewport}
-                  onChange={(next) => selectViewport(next as NodeViewport)}
-                  options={viewportSegmentOptions}
-                />
+                <p className={HINT}>
+                  Viewport is controlled by the device rail above (synced to the canvas).
+                  {selectedViewport !== "desktop"
+                    ? ` Editing ${selectedViewport} — ${selectedViewportOverrideCount} override${
+                        selectedViewportOverrideCount === 1 ? "" : "s"
+                      }.`
+                    : ""}
+                </p>
                 {selectedViewport !== "desktop" ? (
                   <span className={INHERIT_HINT}>
                     {selectedViewportOverrideCount > 0
@@ -5383,19 +5341,13 @@ export function StylePanel({
                         );
                       }}
                       className="cursor-pointer"
-                      style={{
-                        width: 30,
-                        height: 30,
-                        borderRadius: 6,
-                        border: `1px solid ${CHROME.lineMid}`,
-                        background:
-                          colorSwatchDisplay(
-                            selectedNodeViewportPresentation?.textColor,
-                          ) || "transparent",
-                        backgroundImage: selectedNodeViewportPresentation?.textColor
-                          ? undefined
-                          : "repeating-conic-gradient(#e5e0d8 0% 25%, #ffffff 0% 50%) 50% / 8px 8px",
-                      }}
+                      style={inspectorColorSwatchStyle(
+                        Boolean(selectedNodeViewportPresentation?.textColor),
+                        colorSwatchDisplay(
+                          selectedNodeViewportPresentation?.textColor,
+                        ),
+                        { border: `1px solid ${CHROME.lineMid}` },
+                      )}
                     />
                   </div>
                 </div>
@@ -5439,19 +5391,13 @@ export function StylePanel({
                         );
                       }}
                       className="cursor-pointer"
-                      style={{
-                        width: 30,
-                        height: 30,
-                        borderRadius: 6,
-                        border: `1px solid ${CHROME.lineMid}`,
-                        background:
-                          colorSwatchDisplay(
-                            selectedNodeViewportPresentation?.backgroundColor,
-                          ) || "transparent",
-                        backgroundImage: selectedNodeViewportPresentation?.backgroundColor
-                          ? undefined
-                          : "repeating-conic-gradient(#e5e0d8 0% 25%, #ffffff 0% 50%) 50% / 8px 8px",
-                      }}
+                      style={inspectorColorSwatchStyle(
+                        Boolean(selectedNodeViewportPresentation?.backgroundColor),
+                        colorSwatchDisplay(
+                          selectedNodeViewportPresentation?.backgroundColor,
+                        ),
+                        { border: `1px solid ${CHROME.lineMid}` },
+                      )}
                     />
                   </div>
                 </div>
@@ -5496,19 +5442,13 @@ export function StylePanel({
                           );
                         }}
                         className="cursor-pointer"
-                        style={{
-                          width: 30,
-                          height: 30,
-                          borderRadius: 6,
-                          border: `1px solid ${CHROME.lineMid}`,
-                          background:
-                            colorSwatchDisplay(
-                              selectedNodeViewportPresentation?.borderColor,
-                            ) || "transparent",
-                          backgroundImage: selectedNodeViewportPresentation?.borderColor
-                            ? undefined
-                            : "repeating-conic-gradient(#e5e0d8 0% 25%, #ffffff 0% 50%) 50% / 8px 8px",
-                        }}
+                        style={inspectorColorSwatchStyle(
+                          Boolean(selectedNodeViewportPresentation?.borderColor),
+                          colorSwatchDisplay(
+                            selectedNodeViewportPresentation?.borderColor,
+                          ),
+                          { border: `1px solid ${CHROME.lineMid}` },
+                        )}
                       />
                     </div>
                   </div>
@@ -5576,50 +5516,18 @@ export function StylePanel({
             </span>
           </div>
           <div
-            className="flex flex-col gap-3 p-3"
+            className="flex flex-col gap-3"
             data-builder-node-style-panel={selectedStandaloneStyleNode.kind}
-            style={{
-              background: CHROME.paper,
-              border: `1px solid ${CHROME.line}`,
-            }}
           >
-            <div
-              className="flex flex-col gap-1.5"
-              data-builder-node-style-control="viewport"
-            >
-              <div className="flex items-end justify-between gap-2">
-                <span className={FIELD_LABEL}>Viewport</span>
-                <span className={INHERIT_HINT}>
-                  {selectedViewport === "desktop"
-                    ? `${selectedStandaloneViewportOverrideCount} desktop rule${
-                        selectedStandaloneViewportOverrideCount === 1 ? "" : "s"
-                      }`
-                    : selectedStandaloneViewportOverrideCount > 0
-                      ? `${selectedStandaloneViewportOverrideCount} override${
-                          selectedStandaloneViewportOverrideCount === 1 ? "" : "s"
-                        }`
-                      : "Inherits desktop"}
-                </span>
-              </div>
-              <Segmented
-                fullWidth
-                compact
-                value={selectedViewport}
-                onChange={(next) => selectViewport(next as NodeViewport)}
-                options={viewportSegmentOptions}
-              />
-              {selectedViewport !== "desktop" ? (
-                <Segmented
-                  fullWidth
-                  compact
-                  value={effectiveStandaloneStyleScope}
-                  onChange={(next) =>
-                    selectStandaloneStyleScope(next as StandaloneStyleScope)
-                  }
-                  options={STANDALONE_STYLE_SCOPE_OPTIONS}
-                />
-              ) : null}
-              {selectedViewport !== "desktop" ? (
+            <p className={HINT}>
+              Viewport is controlled by the device rail above the inspector (synced to the canvas).
+              {selectedViewport !== "desktop"
+                ? ` Editing ${selectedViewport} overrides — ${selectedStandaloneViewportOverrideCount} field${
+                    selectedStandaloneViewportOverrideCount === 1 ? "" : "s"
+                  } set.`
+                : ""}
+            </p>
+            {selectedViewport !== "desktop" ? (
                 <button
                   type="button"
                   data-builder-node-style-copy-desktop=""
@@ -5642,7 +5550,6 @@ export function StylePanel({
                   Copy desktop to {selectedViewport}
                 </button>
               ) : null}
-            </div>
 
             {["container", "split", "card", "cta_group"].includes(
               selectedStandaloneStyleNode.kind,
@@ -5804,12 +5711,12 @@ export function StylePanel({
               collapsible
               storageKey={`style-panel:typography:${selectedStandaloneStyleNode.kind}`}
               defaultOpen={["heading", "paragraph", "button", "rich_text"].includes(selectedStandaloneStyleNode.kind)}
-              accessory={
-                typographyHasResponsiveOverride ? (
-                  <StyleGroupOverrideDot label="Typography has tablet/mobile overrides" />
-                ) : null
-              }
             >
+            {typographyHasResponsiveOverride ? (
+              <div className="flex justify-end">
+                <StyleGroupOverrideDot label="Typography has tablet/mobile overrides" />
+              </div>
+            ) : null}
             <div className="flex flex-col gap-1.5" data-builder-node-style-control="align">
               <span className={FIELD_LABEL}>Align</span>
               <Segmented
@@ -6434,19 +6341,13 @@ export function StylePanel({
                           );
                         }}
                         className="cursor-pointer"
-                        style={{
-                          width: 30,
-                          height: 30,
-                          borderRadius: 6,
-                          border: `1px solid ${CHROME.lineMid}`,
-                          background:
-                            colorSwatchDisplay(
-                              selectedStandaloneViewportStyle?.textColor,
-                            ) || "transparent",
-                          backgroundImage: selectedStandaloneViewportStyle?.textColor
-                            ? undefined
-                            : "repeating-conic-gradient(#e5e0d8 0% 25%, #ffffff 0% 50%) 50% / 8px 8px",
-                        }}
+                        style={inspectorColorSwatchStyle(
+                          Boolean(selectedStandaloneViewportStyle?.textColor),
+                          colorSwatchDisplay(
+                            selectedStandaloneViewportStyle?.textColor,
+                          ),
+                          { border: `1px solid ${CHROME.lineMid}` },
+                        )}
                       />
                     </div>
                   </div>
@@ -6494,19 +6395,13 @@ export function StylePanel({
                           );
                         }}
                         className="cursor-pointer"
-                        style={{
-                          width: 30,
-                          height: 30,
-                          borderRadius: 6,
-                          border: `1px solid ${CHROME.lineMid}`,
-                          background:
-                            colorSwatchDisplay(
-                              selectedStandaloneViewportStyle?.backgroundColor,
-                            ) || "transparent",
-                          backgroundImage: selectedStandaloneViewportStyle?.backgroundColor
-                            ? undefined
-                            : "repeating-conic-gradient(#e5e0d8 0% 25%, #ffffff 0% 50%) 50% / 8px 8px",
-                        }}
+                        style={inspectorColorSwatchStyle(
+                          Boolean(selectedStandaloneViewportStyle?.backgroundColor),
+                          colorSwatchDisplay(
+                            selectedStandaloneViewportStyle?.backgroundColor,
+                          ),
+                          { border: `1px solid ${CHROME.lineMid}` },
+                        )}
                       />
                     </div>
                   </div>
@@ -6555,19 +6450,13 @@ export function StylePanel({
                             );
                           }}
                           className="cursor-pointer"
-                          style={{
-                            width: 30,
-                            height: 30,
-                            borderRadius: 6,
-                            border: `1px solid ${CHROME.lineMid}`,
-                            background:
-                              colorSwatchDisplay(
-                                selectedStandaloneViewportStyle?.borderColor,
-                              ) || "transparent",
-                            backgroundImage: selectedStandaloneViewportStyle?.borderColor
-                              ? undefined
-                              : "repeating-conic-gradient(#e5e0d8 0% 25%, #ffffff 0% 50%) 50% / 8px 8px",
-                          }}
+                          style={inspectorColorSwatchStyle(
+                            Boolean(selectedStandaloneViewportStyle?.borderColor),
+                            colorSwatchDisplay(
+                              selectedStandaloneViewportStyle?.borderColor,
+                            ),
+                            { border: `1px solid ${CHROME.lineMid}` },
+                          )}
                         />
                       </div>
                     </div>
@@ -9258,7 +9147,26 @@ export function StylePanel({
           </div>
         </section>
       ) : null}
-      {/* ── Surface ──────────────────────────────────────────────────── */}
+      {!selectedNodeRole && !selectedStandaloneStyleNode ? (
+        <SectionStyleMockupPanel
+          sectionTypeKey={sectionTypeKey}
+          draftProps={draftProps}
+          presentation={presentation}
+          onPatch={onPatch}
+          onPresentationPatch={(patch) => onPatch({ __presentation: patch })}
+          onNodePresentationPatch={patchNodeRoleByKey}
+          backgroundValue={backgroundValue}
+          backgroundColorCustom={backgroundColorCustom}
+          moodValue={moodValue}
+          onSetBackground={(value) => setOrToggleP("background", value)}
+          onSetBackgroundCustom={(value) =>
+            onPatch({ __presentation: { backgroundColorCustom: value } })
+          }
+          onSetMood={(value) => setOrToggleRoot("mood", value)}
+        />
+      ) : null}
+      {/* ── Surface (node/role contexts only — section default uses mockup panel) ── */}
+      {selectedNodeRole || selectedStandaloneStyleNode ? (
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div className={SECTION_TITLE}>Surface</div>
@@ -9332,16 +9240,11 @@ export function StylePanel({
               onClick={() => setColorOpen((v) => !v)}
               aria-label="Pick custom background color"
               className="cursor-pointer"
-              style={{
-                width: 30,
-                height: 30,
-                borderRadius: 6,
-                border: `1px solid ${CHROME.lineMid}`,
-                background: backgroundColorCustom || "transparent",
-                backgroundImage: backgroundColorCustom
-                  ? undefined
-                  : "repeating-conic-gradient(#e5e0d8 0% 25%, #ffffff 0% 50%) 50% / 8px 8px",
-              }}
+              style={inspectorColorSwatchStyle(
+                Boolean(backgroundColorCustom),
+                backgroundColorCustom || undefined,
+                { border: `1px solid ${CHROME.lineMid}` },
+              )}
             />
             <input
               type="text"
@@ -9379,7 +9282,7 @@ export function StylePanel({
           />
         </div>
       </section>
-
+      ) : null}
       {/*
         ── Advanced (Phase A 2026-04-26) ────────────────────────────────────
         Custom CSS is now folded into a collapsible "Advanced" disclosure at
@@ -9698,31 +9601,9 @@ export function StylePanel({
       ) : null}
 
       {/* ── Hero treatment (only when section is a hero) ─────────────── */}
-      {sectionTypeKey === "hero" ? (
+      {sectionTypeKey === "hero" && !selectedNodeRole && !selectedStandaloneStyleNode ? (
         <section className="flex flex-col gap-3">
           <div className={SECTION_TITLE}>Hero treatment</div>
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center justify-between">
-              <span className={FIELD_LABEL}>Mood</span>
-              {!moodValue ? (
-                <span className={INHERIT_HINT}>Theme default</span>
-              ) : null}
-            </div>
-            <Segmented
-              fullWidth
-              compact
-              value={moodValue}
-              onChange={(next) => setOrToggleRoot("mood", next)}
-              options={HERO_MOOD_OPTIONS.map((o) => ({
-                value: o.value,
-                label: o.label,
-              }))}
-            />
-            <span className={HINT}>
-              {HERO_MOOD_OPTIONS.find((o) => o.value === moodValue)?.hint ??
-                ""}
-            </span>
-          </div>
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
               <span className={FIELD_LABEL}>Overlay</span>
@@ -9738,35 +9619,8 @@ export function StylePanel({
               options={HERO_OVERLAY_OPTIONS}
             />
           </div>
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center justify-between">
-              <span className={FIELD_LABEL}>Layout</span>
-              {!layoutValue ? (
-                <span className={INHERIT_HINT}>Centered</span>
-              ) : null}
-            </div>
-            <Segmented
-              fullWidth
-              compact
-              value={layoutValue}
-              onChange={(next) => setOrToggleRoot("layout", next)}
-              options={HERO_LAYOUT_OPTIONS.map((o) => ({
-                value: o.value,
-                label: o.label,
-              }))}
-            />
-            <span
-              id="hero-layout-hint"
-              className={HINT}
-              role="status"
-              aria-live="polite"
-            >
-              {HERO_LAYOUT_OPTIONS.find((o) => o.value === layoutValue)?.hint ??
-                ""}
-            </span>
-          </div>
         </section>
       ) : null}
-    </div>
+    </InspectorBody>
   );
 }

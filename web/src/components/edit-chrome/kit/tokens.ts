@@ -130,6 +130,34 @@ export const CHROME = {
   tealLine: "rgba(58, 123, 255, 0.24)",
 } as const;
 
+/** Edit-mode topbar height — sync with `edit-chrome` body padding. */
+export const EDIT_TOPBAR_H = 60;
+
+/** Left command dock geometry (canvas-first builder). */
+export const COMMAND_DOCK_LEFT_PX = 16;
+export const COMMAND_DOCK_TOP_GAP_PX = 16;
+export const COMMAND_DOCK_WIDTH_PX = 88;
+export const COMMAND_DOCK_PANEL_GAP_PX = 16;
+/** Shared top offset for command dock + dock-launched panels (must stay in sync). */
+export const COMMAND_DOCK_CHROME_TOP_PX = EDIT_TOPBAR_H + COMMAND_DOCK_TOP_GAP_PX;
+export const COMMAND_DOCK_PANEL_MAX_HEIGHT = `calc(100vh - ${COMMAND_DOCK_CHROME_TOP_PX + 16}px)`;
+
+/** Right-side inspector tab rail (mirror of command dock). */
+export const INSPECTOR_RAIL_RIGHT_PX = 16;
+export const INSPECTOR_RAIL_TOP_GAP_PX = 16;
+/** Shared top offset for inspector panel + tab rail (must stay in sync). */
+export const INSPECTOR_CHROME_TOP_PX = EDIT_TOPBAR_H + INSPECTOR_RAIL_TOP_GAP_PX;
+/** Mirror {@link COMMAND_DOCK_WIDTH_PX} so left + right rails match. */
+export const INSPECTOR_RAIL_WIDTH_PX = COMMAND_DOCK_WIDTH_PX;
+/** Gap between the tab rail and the floating inspector panel docked to its left. */
+export const INSPECTOR_RAIL_PANEL_GAP_PX = COMMAND_DOCK_PANEL_GAP_PX;
+/** Default `right` inset for the inspector floating panel (panel sits left of the rail). */
+export const INSPECTOR_PANEL_RIGHT_INSET_PX =
+  INSPECTOR_RAIL_RIGHT_PX + INSPECTOR_RAIL_WIDTH_PX + INSPECTOR_RAIL_PANEL_GAP_PX;
+
+export const INSPECTOR_DOCK_OPEN_STORAGE_KEY =
+  "impronta.editChrome.inspectorDockOpen.v1";
+
 /** Multi-layer box-shadows. Each value can drop straight into `style.boxShadow`. */
 export const CHROME_SHADOWS = {
   card: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px -4px rgba(0,0,0,0.06)",

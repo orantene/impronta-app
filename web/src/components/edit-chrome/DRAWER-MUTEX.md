@@ -1,6 +1,8 @@
 # Edit chrome — drawer and overlay mutex
 
-Operators must never see **two right-rail drawers** open at once, or **palette + full-screen picker + drawer** stacked incoherently. Logic lives in [`edit-context.tsx`](./edit-context.tsx).
+Operators must never see **two utility drawers** open at once, or **palette + full-screen picker + drawer** stacked incoherently. Logic lives in [`edit-context.tsx`](./edit-context.tsx).
+
+**2026-06-07 — Builder 2026 floating workspace:** Utility drawers (Theme, Publish, Page settings, …) and the **Inspector** are independent floating white cards. `showExclusiveRightRailDrawer` mutexes **utility drawers only** — opening Theme does **not** close the inspector (selection-driven). The storefront canvas is full-bleed; panels overlay at `Z_INDEX.panels` without shrinking body width.
 
 ## APIs (client)
 

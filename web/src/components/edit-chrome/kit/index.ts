@@ -13,7 +13,21 @@ export {
   CHROME,
   CHROME_RADII,
   CHROME_SHADOWS,
+  COMMAND_DOCK_CHROME_TOP_PX,
+  COMMAND_DOCK_LEFT_PX,
+  COMMAND_DOCK_PANEL_GAP_PX,
+  COMMAND_DOCK_PANEL_MAX_HEIGHT,
+  COMMAND_DOCK_TOP_GAP_PX,
+  COMMAND_DOCK_WIDTH_PX,
+  INSPECTOR_CHROME_TOP_PX,
+  INSPECTOR_DOCK_OPEN_STORAGE_KEY,
+  INSPECTOR_PANEL_RIGHT_INSET_PX,
+  INSPECTOR_RAIL_PANEL_GAP_PX,
+  INSPECTOR_RAIL_RIGHT_PX,
+  INSPECTOR_RAIL_TOP_GAP_PX,
+  INSPECTOR_RAIL_WIDTH_PX,
   DRAWER_WIDTHS,
+  EDIT_TOPBAR_H,
   Z_INDEX,
   type DrawerKind,
 } from "./tokens";
@@ -30,7 +44,16 @@ export {
   DrawerFoot,
 } from "./drawer";
 
-export { FloatingPanelShell, floatingPanelBoxShadow } from "./floating-panel-shell";
+export {
+  FLOATING_PANEL_MAX_HEIGHT,
+  FLOATING_PANEL_TOP_PX,
+  FloatingPanelShell,
+  floatingPanelBoxShadow,
+} from "./floating-panel-shell";
+export {
+  FloatingPanelHeader,
+  FloatingPanelCloseButton,
+} from "./floating-panel-header";
 
 export { Card, CardHead, CardBody, CardAction } from "./card";
 export { Field, FieldLabel, Helper, HelperCounter } from "./field";

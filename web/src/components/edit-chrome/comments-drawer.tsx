@@ -438,6 +438,9 @@ export function CommentsDrawer() {
       open={open}
       testId="comments-drawer"
       ariaLabelledBy="comments-drawer-title"
+      floating
+      floatLabel="Comments"
+      floatPanelId="comments"
     >
       <DrawerHead
         titleId="comments-drawer-title"

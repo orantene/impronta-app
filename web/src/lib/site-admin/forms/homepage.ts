@@ -129,6 +129,7 @@ function optionalUrlString() {
 
 export const homepageMetadataSchema = z.object({
   title: z.string().trim().min(1, "Title is required").max(140),
+  metaTitle: optionalTrimmedString(140),
   metaDescription: optionalTrimmedString(280),
   introTagline: optionalTrimmedString(140),
   // SEO/OG knobs — all optional. Empty strings normalise to `undefined` so

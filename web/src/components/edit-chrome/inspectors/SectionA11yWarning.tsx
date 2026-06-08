@@ -60,8 +60,17 @@ const HEADLINE_PROPS: Record<string, string | null> = {
   before_after: "headline",
   content_tabs: "headline",
   code_embed: "headline",
+  hero_search: "headline",
+  talent_type_grid: "headline",
+  location_discovery: "headline",
+  editorial_split_hero: "headline",
+  directory: "headline",
+  join_register: "headline",
   marquee: null,
   anchor_nav: null,
+  site_header: null,
+  site_footer: null,
+  blank_section: null,
 };
 
 /** Translate raw prop-name pairs into operator-readable copy. */

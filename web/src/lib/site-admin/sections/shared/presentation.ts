@@ -96,9 +96,8 @@ const visibilityEnum = z.enum([
  * One breakpoint's worth of overrides. Same shape as the base presentation
  * fields, all optional — an unset field inherits from the desktop base.
  *
- * `mobileStack` and `visibility` aren't repeated here: the base already
- * carries device-aware semantics, and re-overriding them per-breakpoint
- * would create surprising cascades.
+ * `mobileStack` isn't repeated here. `visibility` is per-breakpoint so
+ * operators can hide a section on tablet/mobile without changing desktop.
  */
 export const breakpointOverrideSchema = z
   .object({
@@ -108,6 +107,7 @@ export const breakpointOverrideSchema = z
     containerWidth: containerEnum.optional(),
     align: alignEnum.optional(),
     dividerTop: dividerEnum.optional(),
+    visibility: visibilityEnum.optional(),
   })
   .optional();
 
@@ -414,6 +414,7 @@ export function presentationDataAttrs(
     if (tablet.containerWidth) out["data-section-tablet-container"] = tablet.containerWidth;
     if (tablet.align) out["data-section-tablet-align"] = tablet.align;
     if (tablet.dividerTop) out["data-section-tablet-divider-top"] = tablet.dividerTop;
+    if (tablet.visibility) out["data-section-tablet-visibility"] = tablet.visibility;
   }
   const mobile = p.breakpoints?.mobile;
   if (mobile) {
@@ -423,6 +424,7 @@ export function presentationDataAttrs(
     if (mobile.containerWidth) out["data-section-mobile-container"] = mobile.containerWidth;
     if (mobile.align) out["data-section-mobile-align"] = mobile.align;
     if (mobile.dividerTop) out["data-section-mobile-divider-top"] = mobile.dividerTop;
+    if (mobile.visibility) out["data-section-mobile-visibility"] = mobile.visibility;
   }
   // W5-T6 — operator-defined custom tiers. Any breakpoint key beyond the
   // built-in tablet/mobile emits the same six override attrs under its slug id
@@ -436,6 +438,7 @@ export function presentationDataAttrs(
       if (ov.containerWidth) out[`data-section-${bpId}-container`] = ov.containerWidth;
       if (ov.align) out[`data-section-${bpId}-align`] = ov.align;
       if (ov.dividerTop) out[`data-section-${bpId}-divider-top`] = ov.dividerTop;
+      if (ov.visibility) out[`data-section-${bpId}-visibility`] = ov.visibility;
     }
   }
 

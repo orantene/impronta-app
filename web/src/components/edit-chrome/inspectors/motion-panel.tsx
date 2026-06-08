@@ -32,20 +32,21 @@
  */
 
 import {
-  ANIMATION_FIELD_LABELS,
   ANIMATION_OPTIONS,
 } from "@/lib/site-admin/sections/shared/presentation";
 
 import { useEffect, useRef, useState, type ReactElement } from "react";
 
+import { useEditContext } from "../edit-context";
 import { Segmented, type SegmentedOption } from "../kit/segmented";
-import { CHROME } from "../kit/tokens";
-
-const SECTION_TITLE =
-  "text-[10.5px] font-semibold uppercase tracking-[0.14em] text-stone-500";
-const FIELD_LABEL =
-  "text-[10.5px] font-semibold uppercase tracking-[0.10em] text-stone-600";
-const HINT = "text-[11px] leading-tight text-stone-500";
+import {
+  INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL,
+  INSPECTOR_HELP_TEXT_CLASS as HINT,
+  InspectorBody,
+  InspectorNotice,
+  InspectorOptionCards,
+  InspectorSection,
+} from "./kit/inspector-ui";
 
 /**
  * Debounced range slider.
@@ -116,7 +117,6 @@ function DebouncedRangeInput({
     />
   );
 }
-const INHERIT_HINT = "text-[11px] text-stone-500";
 
 type AnimationKey = "entry" | "scroll" | "hover" | "reducedMotion";
 
@@ -269,6 +269,8 @@ interface MotionPanelProps {
 }
 
 export function MotionPanel({ presentation, onDeepPatch }: MotionPanelProps) {
+  const { device } = useEditContext();
+  const nonDesktop = device !== "desktop";
   const animation =
     (presentation.animation as Record<string, unknown> | undefined) ?? {};
 
@@ -314,173 +316,126 @@ export function MotionPanel({ presentation, onDeepPatch }: MotionPanelProps) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* ── Entry ───────────────────────────────────────────────────── */}
-      <section className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <div className={SECTION_TITLE}>Entry</div>
-          {!entryValue ? (
-            <span className={INHERIT_HINT}>Theme default</span>
-          ) : null}
-        </div>
-        <div className="flex flex-col gap-2">
-          <span className={FIELD_LABEL}>{ANIMATION_FIELD_LABELS.entry}</span>
-          <Segmented
-            fullWidth
-            compact
-            value={entryValue}
-            onChange={(next) => setOrToggle("entry", next)}
-            options={buildIconOptions(ANIMATION_OPTIONS.entry, ENTRY_ICONS)}
-          />
-          <span className={HINT}>
-            {describe(ANIMATION_OPTIONS.entry, entryValue) ??
-              "Runs once when the section first scrolls into view."}
-          </span>
-        </div>
-      </section>
+    <InspectorBody>
+      {nonDesktop ? (
+        <InspectorNotice tone="info">
+          Uses desktop motion on {device === "tablet" ? "Tablet" : "Mobile"}. Switch to Desktop to edit entrance, scroll, and hover effects. Hide on this device is in the viewport rail above.
+        </InspectorNotice>
+      ) : null}
+      <div style={{ opacity: nonDesktop ? 0.55 : 1, pointerEvents: nonDesktop ? "none" : "auto" }}>
+      <InspectorSection
+        title="Entrance animation"
+        description={
+          describe(ANIMATION_OPTIONS.entry, entryValue) ??
+          "Runs once when the section first scrolls into view."
+        }
+      >
+        <InspectorOptionCards
+          value={entryValue || undefined}
+          onChange={(next) => setOrToggle("entry", next ?? "")}
+          columns={5}
+          options={ANIMATION_OPTIONS.entry.map((o) => {
+            const Icon = ENTRY_ICONS[o.value];
+            return {
+              value: o.value,
+              label: o.label,
+              icon: Icon ? <Icon /> : undefined,
+            };
+          })}
+        />
+      </InspectorSection>
 
-      {/* ── Scroll ──────────────────────────────────────────────────── */}
-      <section className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <div className={SECTION_TITLE}>Scroll</div>
-          {!scrollValue ? (
-            <span className={INHERIT_HINT}>None</span>
-          ) : null}
-        </div>
-        <div className="flex flex-col gap-2">
-          <span className={FIELD_LABEL}>{ANIMATION_FIELD_LABELS.scroll}</span>
-          <Segmented
-            fullWidth
-            compact
-            value={scrollValue}
-            onChange={(next) => setOrToggle("scroll", next)}
-            options={buildIconOptions(
-              ANIMATION_OPTIONS.scroll,
-              SCROLL_ICONS,
-            )}
-          />
-          <span className={HINT}>
-            {scrollValue === "parallax-soft"
-              ? "Soft parallax slows the background image as the visitor scrolls."
-              : scrollValue === "reveal-stagger"
-                ? "Stagger reveal fades child items in sequence as they enter view."
-                : "Continuous behavior bound to scroll position. Off by default."}
-          </span>
-        </div>
-      </section>
+      <InspectorSection
+        title="Scroll behavior"
+        description={
+          scrollValue === "parallax-soft"
+            ? "Soft parallax slows the background image as the visitor scrolls."
+            : scrollValue === "reveal-stagger"
+              ? "Stagger reveal fades child items in sequence as they enter view."
+              : "Continuous behavior bound to scroll position. Off by default."
+        }
+      >
+        <Segmented
+          fullWidth
+          compact
+          value={scrollValue}
+          onChange={(next) => setOrToggle("scroll", next)}
+          options={buildIconOptions(ANIMATION_OPTIONS.scroll, SCROLL_ICONS)}
+        />
+      </InspectorSection>
 
-      {/* ── Hover ───────────────────────────────────────────────────── */}
-      <section className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <div className={SECTION_TITLE}>Hover</div>
-          {!hoverValue ? (
-            <span className={INHERIT_HINT}>None</span>
-          ) : null}
-        </div>
-        <div className="flex flex-col gap-2">
-          <span className={FIELD_LABEL}>{ANIMATION_FIELD_LABELS.hover}</span>
-          <Segmented
-            fullWidth
-            compact
-            value={hoverValue}
-            onChange={(next) => setOrToggle("hover", next)}
-            options={buildIconOptions(ANIMATION_OPTIONS.hover, HOVER_ICONS)}
-          />
-          <span className={HINT}>
-            {hoverValue === "lift"
-              ? "Subtle translate upward on cursor-over."
-              : hoverValue === "glow"
-                ? "Accent-color shadow blooms outward."
-                : hoverValue === "tilt"
-                  ? "Perspective rotate following the cursor."
-                  : "Applied on cursor-over the section card. Off by default."}
-          </span>
-        </div>
-      </section>
+      <InspectorSection title="Hover">
+        <Segmented
+          fullWidth
+          compact
+          value={hoverValue}
+          onChange={(next) => setOrToggle("hover", next)}
+          options={buildIconOptions(ANIMATION_OPTIONS.hover, HOVER_ICONS)}
+        />
+        <span className={HINT}>
+          {hoverValue === "lift"
+            ? "Subtle translate upward on cursor-over."
+            : hoverValue === "glow"
+              ? "Accent-color shadow blooms outward."
+              : hoverValue === "tilt"
+                ? "Perspective rotate following the cursor."
+                : "Applied on cursor-over the section card. Off by default."}
+        </span>
+      </InspectorSection>
 
-      {/* ── Accessibility ───────────────────────────────────────────── */}
-      <section className="flex flex-col gap-3">
-        <div className={SECTION_TITLE}>Accessibility</div>
-        <div className="flex flex-col gap-2">
-          <span className={FIELD_LABEL}>
-            {ANIMATION_FIELD_LABELS.reducedMotion}
-          </span>
-          {/* Two-state Segmented: explicit "Respect" rather than an unset
-              chip, because accessibility defaults should be visible. The
-              unset state and "respect" map to identical behavior — we
-              normalize to undefined when the operator picks Respect so we
-              don't bloat the saved JSON. */}
-          <Segmented
-            fullWidth
-            compact
-            value={reducedMotion || "respect"}
-            onChange={(next) => {
-              onDeepPatch({
-                animation: {
-                  reducedMotion: next === "respect" ? undefined : next,
-                },
-              });
-            }}
-            options={[
-              { value: "respect", label: "Respect" },
-              { value: "always", label: "Force animate" },
-            ]}
-          />
-          {reducedMotion === "always" ? (
-            <div
-              className="rounded-md px-2.5 py-1.5 text-[11px] leading-relaxed"
-              style={{
-                background: CHROME.amberBg,
-                border: `1px solid ${CHROME.amberLine}`,
-                color: CHROME.amber,
-              }}
-            >
-              <strong className="font-semibold">Heads up:</strong> visitors
-              who set <em>prefers-reduced-motion: reduce</em> at the OS level
-              are asking you not to animate. Use this only for animation
-              that is truly content-critical.
-            </div>
-          ) : (
-            <span className={HINT}>
-              Animations run for visitors who haven&apos;t asked the OS for
-              reduced motion. Recommended.
-            </span>
-          )}
-        </div>
-      </section>
+      <InspectorSection title="Reduced motion">
+        <Segmented
+          fullWidth
+          compact
+          value={reducedMotion || "respect"}
+          onChange={(next) => {
+            onDeepPatch({
+              animation: {
+                reducedMotion: next === "respect" ? undefined : next,
+              },
+            });
+          }}
+          options={[
+            { value: "respect", label: "Respect" },
+            { value: "always", label: "Force animate" },
+          ]}
+        />
+        {reducedMotion === "always" ? (
+          <InspectorNotice tone="info">
+            <strong className="font-semibold">Heads up:</strong> visitors who set{" "}
+            <em>prefers-reduced-motion: reduce</em> at the OS level are asking you not
+            to animate. Use this only for animation that is truly content-critical.
+          </InspectorNotice>
+        ) : (
+          <InspectorNotice>
+            Animations will respect users&apos; reduced motion preferences for
+            accessibility.
+          </InspectorNotice>
+        )}
+      </InspectorSection>
 
-      {/* ── Phase 5: scroll-reveal + parallax ─────────────────────────── */}
-      <section className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <div className={SECTION_TITLE}>Scroll reveal</div>
-          {!presentation.scrollReveal ? (
-            <span className={INHERIT_HINT}>None</span>
-          ) : null}
-        </div>
-        <div className="flex flex-col gap-2">
-          <span className={FIELD_LABEL}>Entry direction (one-shot)</span>
-          <Segmented
-            fullWidth
-            compact
-            value={(presentation.scrollReveal as string) ?? "none"}
-            onChange={(next) =>
-              onDeepPatch({ scrollReveal: next === "none" ? undefined : next })
-            }
-            options={[
-              { value: "none", label: "None" },
-              { value: "fade", label: "Fade" },
-              { value: "fade-up", label: "Up" },
-              { value: "fade-down", label: "Down" },
-              { value: "fade-left", label: "Left" },
-              { value: "fade-right", label: "Right" },
-              { value: "zoom", label: "Zoom" },
-            ]}
-          />
-          <span className={HINT}>
-            Plays once when the section enters the viewport. Skipped when the
-            visitor prefers reduced motion.
-          </span>
-        </div>
+      <InspectorSection title="Scroll reveal">
+        <Segmented
+          fullWidth
+          compact
+          value={(presentation.scrollReveal as string) ?? "none"}
+          onChange={(next) =>
+            onDeepPatch({ scrollReveal: next === "none" ? undefined : next })
+          }
+          options={[
+            { value: "none", label: "None" },
+            { value: "fade", label: "Fade" },
+            { value: "fade-up", label: "Up" },
+            { value: "fade-down", label: "Down" },
+            { value: "fade-left", label: "Left" },
+            { value: "fade-right", label: "Right" },
+            { value: "zoom", label: "Zoom" },
+          ]}
+        />
+        <span className={HINT}>
+          Plays once when the section enters the viewport. Skipped when the
+          visitor prefers reduced motion.
+        </span>
         {presentation.scrollReveal && presentation.scrollReveal !== "none" ? (
           <div className="flex flex-col gap-2">
             <span className={FIELD_LABEL}>
@@ -503,43 +458,28 @@ export function MotionPanel({ presentation, onDeepPatch }: MotionPanelProps) {
             />
           </div>
         ) : null}
-      </section>
+      </InspectorSection>
 
-      <section className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <div className={SECTION_TITLE}>Parallax</div>
-          {!presentation.parallaxIntensity ? (
-            <span className={INHERIT_HINT}>Off</span>
-          ) : null}
-        </div>
-        <div className="flex flex-col gap-2">
-          <span className={FIELD_LABEL}>
-            Intensity (
-            {Math.round(
-              ((presentation.parallaxIntensity as number | undefined) ?? 0) *
-                100,
-            )}
-            %)
-          </span>
-          <DebouncedRangeInput
-            min={0}
-            max={1}
-            step={0.05}
-            value={(presentation.parallaxIntensity as number | undefined) ?? 0}
-            ariaLabel="Parallax intensity"
-            onCommit={(next) =>
-              onDeepPatch({
-                parallaxIntensity: next || undefined,
-              })
-            }
-          />
-          <span className={HINT}>
-            Section translates ±60px relative to scroll. Falls back to no
-            motion in browsers without scroll-driven animation support, and
-            for visitors who prefer reduced motion.
-          </span>
-        </div>
-      </section>
-    </div>
+      <InspectorSection title="Parallax">
+        <DebouncedRangeInput
+          min={0}
+          max={1}
+          step={0.05}
+          value={(presentation.parallaxIntensity as number | undefined) ?? 0}
+          ariaLabel="Parallax intensity"
+          onCommit={(next) =>
+            onDeepPatch({
+              parallaxIntensity: next || undefined,
+            })
+          }
+        />
+        <span className={HINT}>
+          Section translates ±60px relative to scroll. Falls back to no motion in
+          browsers without scroll-driven animation support, and for visitors who
+          prefer reduced motion.
+        </span>
+      </InspectorSection>
+      </div>
+    </InspectorBody>
   );
 }

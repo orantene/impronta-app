@@ -72,6 +72,10 @@ import {
 import { resolveSnapshotBuilderTree } from "@/lib/site-admin/builder-node/snapshot-tree";
 import { enforceFreePlanNestedBuilderDraftGuard } from "@/lib/site-admin/server/free-plan-draft-save-guard";
 import { isShellMutationAllowedForPlan } from "@/lib/site-admin/edit-mode/shell-plan-guard";
+import {
+  parseBuilderTreeFromSnapshot,
+  parseStyleClassesFromSnapshot,
+} from "@/lib/site-admin/edit-mode/composition-revision-snapshot";
 
 // ── types ─────────────────────────────────────────────────────────────────
 
@@ -131,6 +135,7 @@ export interface CompositionData {
   liveSitePublishedAt: string | null;
   metadata: {
     title: string;
+    metaTitle: string | null;
     metaDescription: string | null;
     introTagline: string | null;
     ogTitle: string | null;
@@ -149,6 +154,8 @@ export interface CompositionData {
   builderTree: BuilderNodeTree;
   slotDefs: CompositionSlotDef[];
   library: CompositionLibraryEntry[];
+  /** Linked style classes from the latest draft revision snapshot. */
+  styleClasses?: BuilderStyleClassRegistry;
   /** Locales available for the active tenant (read-only here — used for the
    *  Topbar locale switcher and the clone-from-locale command). */
   availableLocales: ReadonlyArray<Locale>;
@@ -206,6 +213,34 @@ function resolveBuilderTreeForSnapshot(input: {
     builderTree: input.preferredBuilderTree,
   });
   return resolved.tree;
+}
+
+async function loadDraftRevisionExtras(
+  admin: SupabaseClient,
+  tenantId: string,
+  pageId: string,
+  version?: number,
+): Promise<{
+  styleClasses?: BuilderStyleClassRegistry;
+  builderTree?: BuilderNodeTree;
+}> {
+  let query = admin
+    .from("cms_page_revisions")
+    .select("snapshot")
+    .eq("tenant_id", tenantId)
+    .eq("page_id", pageId)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  if (version !== undefined) {
+    query = query.eq("version", version);
+  }
+  const { data: revisionRow } = await query.maybeSingle<{ snapshot: unknown }>();
+  const snapshot = revisionRow?.snapshot;
+  if (!snapshot) return {};
+  return {
+    styleClasses: parseStyleClassesFromSnapshot(snapshot),
+    builderTree: parseBuilderTreeFromSnapshot(snapshot),
+  };
 }
 
 async function guardShellPlanMutation(input: {
@@ -310,7 +345,7 @@ export async function loadHomepageCompositionAction(input: {
     const { data: pageRow, error: pageErr } = await admin
       .from("cms_pages")
       .select(
-        "id, title, meta_description, og_title, og_description, og_image_url, canonical_url, noindex, version, published_at",
+        "id, title, meta_title, meta_description, og_title, og_description, og_image_url, canonical_url, noindex, version, published_at",
       )
       .eq("tenant_id", scope.tenantId)
       .eq("locale", locale)
@@ -319,6 +354,7 @@ export async function loadHomepageCompositionAction(input: {
       .maybeSingle<{
         id: string;
         title: string;
+        meta_title: string | null;
         meta_description: string | null;
         og_title: string | null;
         og_description: string | null;
@@ -430,13 +466,14 @@ export async function loadHomepageCompositionAction(input: {
       .eq("version", pageRow.version)
       .order("created_at", { ascending: false })
       .limit(1)
-      .maybeSingle<{ snapshot: { builderTree?: unknown } | null }>();
-    const preferredBuilderTree =
-      revisionRow?.snapshot &&
-      typeof revisionRow.snapshot === "object" &&
-      "builderTree" in revisionRow.snapshot
-        ? revisionRow.snapshot.builderTree
-        : undefined;
+      .maybeSingle<{ snapshot: unknown }>();
+    const revisionExtras = revisionRow?.snapshot
+      ? {
+          styleClasses: parseStyleClassesFromSnapshot(revisionRow.snapshot),
+          builderTree: parseBuilderTreeFromSnapshot(revisionRow.snapshot),
+        }
+      : await loadDraftRevisionExtras(admin, scope.tenantId, pageRow.id, pageRow.version);
+    const preferredBuilderTree = revisionExtras.builderTree;
 
     const publishedAt =
       typeof pageRow.published_at === "string" && pageRow.published_at.trim() !== ""
@@ -452,6 +489,7 @@ export async function loadHomepageCompositionAction(input: {
         liveSitePublishedAt: publishedAt,
         metadata: {
           title: pageRow.title,
+          metaTitle: pageRow.meta_title,
           metaDescription: pageRow.meta_description,
           introTagline: null, // homepage-specific field; not applicable here
           ogTitle: pageRow.og_title,
@@ -465,6 +503,7 @@ export async function loadHomepageCompositionAction(input: {
           slots: legacyBuilderSlots,
           preferredBuilderTree,
         }),
+        styleClasses: revisionExtras.styleClasses,
         slotDefs,
         library,
         availableLocales: localeSettings.supportedLocales,
@@ -560,21 +599,17 @@ export async function loadHomepageCompositionAction(input: {
   // line up. Curated slot pages keep their existing snapshot tree.
   const isFreeformPage = Object.keys(slots).length === 0;
   let draftRevisionBuilderTree: BuilderNodeTree | undefined;
-  if (isFreeformPage) {
-    const adminClient = createServiceRoleClient();
-    if (adminClient) {
-      const { data: revisionRow } = await adminClient
-        .from("cms_page_revisions")
-        .select("snapshot")
-        .eq("tenant_id", scope.tenantId)
-        .eq("page_id", page.pageId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle<{ snapshot: { builderTree?: unknown } | null }>();
-      const tree = revisionRow?.snapshot?.builderTree;
-      if (Array.isArray(tree) && tree.length > 0) {
-        draftRevisionBuilderTree = tree as BuilderNodeTree;
-      }
+  let draftRevisionStyleClasses: BuilderStyleClassRegistry | undefined;
+  const adminClient = createServiceRoleClient();
+  if (adminClient) {
+    const revisionExtras = await loadDraftRevisionExtras(
+      adminClient,
+      scope.tenantId,
+      page.pageId,
+    );
+    draftRevisionStyleClasses = revisionExtras.styleClasses;
+    if (isFreeformPage) {
+      draftRevisionBuilderTree = revisionExtras.builderTree;
     }
   }
 
@@ -587,6 +622,7 @@ export async function loadHomepageCompositionAction(input: {
       liveSitePublishedAt: homepagePublishedAt,
       metadata: {
         title: page.title,
+        metaTitle: page.metaTitle,
         metaDescription: page.metaDescription,
         introTagline: comp?.fields.introTagline ?? null,
         ogTitle: page.ogTitle,
@@ -601,6 +637,7 @@ export async function loadHomepageCompositionAction(input: {
         (comp?.builderTree && comp.builderTree.length > 0
           ? comp.builderTree
           : buildBuilderTreeFromCompositionSlots(slots)),
+      styleClasses: draftRevisionStyleClasses,
       slotDefs,
       library,
       availableLocales: localeSettings.supportedLocales,
@@ -620,6 +657,7 @@ export interface CompositionSaveInput {
   expectedVersion: number;
   metadata: {
     title: string;
+    metaTitle?: string | null;
     metaDescription?: string | null;
     introTagline?: string | null;
     ogTitle?: string | null;
@@ -635,6 +673,8 @@ export interface CompositionSaveInput {
    * publish.
    */
   builderTree?: BuilderNodeTree;
+  /** Page-scoped linked style classes to persist in the draft revision snapshot. */
+  styleClasses?: BuilderStyleClassRegistry;
 }
 
 /**
@@ -803,6 +843,7 @@ export async function saveHomepageCompositionAction(
         .from("cms_pages")
         .update({
           title: input.metadata.title,
+          meta_title: input.metadata.metaTitle ?? null,
           meta_description: input.metadata.metaDescription ?? null,
           og_title: input.metadata.ogTitle ?? null,
           og_description: input.metadata.ogDescription ?? null,
@@ -878,7 +919,7 @@ export async function saveHomepageCompositionAction(
           status: pageRow.status,
           body: pageRow.body ?? "",
           hero: pageRow.hero ?? {},
-          meta_title: pageRow.meta_title,
+          meta_title: input.metadata.metaTitle ?? pageRow.meta_title,
           meta_description: input.metadata.metaDescription ?? null,
           og_title: input.metadata.ogTitle ?? null,
           og_description: input.metadata.ogDescription ?? null,
@@ -890,6 +931,9 @@ export async function saveHomepageCompositionAction(
           version: nextVersion,
           composition: compositionSnapshot,
           builderTree: draftBuilderTree,
+          ...(input.styleClasses && Object.keys(input.styleClasses).length > 0
+            ? { styleClasses: input.styleClasses }
+            : {}),
         },
         created_by: auth.user.id,
       });
@@ -909,6 +953,7 @@ export async function saveHomepageCompositionAction(
   // round-trips correctly.
   const metadataInput = {
     title: input.metadata.title,
+    metaTitle: input.metadata.metaTitle ?? undefined,
     metaDescription: input.metadata.metaDescription ?? undefined,
     introTagline: input.metadata.introTagline ?? undefined,
     ogTitle: input.metadata.ogTitle ?? undefined,
@@ -950,6 +995,7 @@ export async function saveHomepageCompositionAction(
     const result = await saveHomepageDraftComposition(auth.supabase, {
       tenantId: scope.tenantId,
       values: envelope.data,
+      styleClasses: input.styleClasses,
       actorProfileId: auth.user.id,
     });
     if (!result.ok) {
@@ -1461,6 +1507,7 @@ export async function saveDraftHomepageAction(input: {
   metadata: CompositionSaveInput["metadata"];
   slots: Record<string, Array<{ sectionId: string; sortOrder: number }>>;
   builderTree?: BuilderNodeTree;
+  styleClasses?: BuilderStyleClassRegistry;
 }): Promise<SaveDraftResult> {
   const save = await saveHomepageCompositionAction({
     locale: input.locale,
@@ -1469,6 +1516,7 @@ export async function saveDraftHomepageAction(input: {
     metadata: input.metadata,
     slots: input.slots,
     builderTree: input.builderTree,
+    styleClasses: input.styleClasses,
   });
   if (!save.ok) {
     return {

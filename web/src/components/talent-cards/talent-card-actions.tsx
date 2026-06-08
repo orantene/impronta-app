@@ -21,6 +21,7 @@
  */
 
 import type { MouseEvent } from "react";
+import { useSyncExternalStore } from "react";
 import { Bookmark, Check, Heart, Send } from "lucide-react";
 
 import type { TalentCardActionsProps } from "@/lib/talent-cards/contracts";
@@ -29,6 +30,15 @@ import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 import { cn } from "@/lib/utils";
 
 import "./talent-card-actions.css";
+
+function subscribeNoop(): () => void {
+  return () => undefined;
+}
+
+/** False during SSR + hydration, true after — avoids aria-pressed drift. */
+function useClientMounted(): boolean {
+  return useSyncExternalStore(subscribeNoop, () => true, () => false);
+}
 
 export function TalentCardActions({
   talentProfileId,
@@ -40,12 +50,13 @@ export function TalentCardActions({
   hideInquiry = false,
   className,
 }: TalentCardActionsProps) {
+  const mounted = useClientMounted();
   const favorites = useFavorites();
   const cart = useInquiryCart();
 
   // No PublicDiscoveryState provider on this surface → favorites + inquiry
   // stores are unreachable. Render nothing rather than dead controls.
-  if (!favorites.isReady) return null;
+  if (!favorites.isReady || !mounted) return null;
 
   const favorited = favorites.isFavorited(talentProfileId);
   const favPending = favorites.isPending(talentProfileId);

@@ -55,6 +55,8 @@ import { $applyColor, $clearColor } from "./setColor";
 interface Props {
   /** Called when user clicks the Link button. Caller mounts LinkPicker. */
   onRequestLink: (rect: DOMRect, currentUrl: string | null) => void;
+  /** When true, the dark floating Lexical toolbar is hidden (canvas toolbar owns UI). */
+  suppressChrome?: boolean;
 }
 
 interface ToolbarState {
@@ -94,7 +96,7 @@ const SWATCHES: ReadonlyArray<{ hex: string; label: string }> = [
 
 const DEFAULT_CUSTOM = "#3d4f7c";
 
-export function ToolbarPlugin({ onRequestLink }: Props) {
+export function ToolbarPlugin({ onRequestLink, suppressChrome = false }: Props) {
   const [editor] = useLexicalComposerContext();
   const [state, setState] = useState<ToolbarState | null>(null);
   const [paletteRect, setPaletteRect] = useState<DOMRect | null>(null);
@@ -244,6 +246,7 @@ export function ToolbarPlugin({ onRequestLink }: Props) {
   }
 
   const anchorRect = state?.rect ?? paletteRect;
+  if (suppressChrome) return null;
   if (!anchorRect) return null;
 
   const top = Math.max(anchorRect.top - 44, 8);

@@ -1280,6 +1280,10 @@ export default async function PublicTalentProfilePage({
   const locale = await getRequestLocale();
   const t = createTranslator(locale);
   const previewMode = preview === "1";
+  const [initialSavedIds, initialFavoriteIds] = await Promise.all([
+    getSavedTalentIds(),
+    getFavoriteTalentIds(),
+  ]);
 
   const [hostCtx, publicPathPrefix] = await Promise.all([
     getPublicHostContext(),
@@ -1296,7 +1300,10 @@ export default async function PublicTalentProfilePage({
     }
     if (siteResolved.kind === "render") {
       return (
-        <PublicDiscoveryStateProvider>
+        <PublicDiscoveryStateProvider
+          initialSavedIds={initialSavedIds}
+          initialFavoriteIds={initialFavoriteIds}
+        >
           <PlatformTalentMaxSiteView
             snapshot={siteResolved.snapshot}
             locale={locale}
@@ -1321,7 +1328,10 @@ export default async function PublicTalentProfilePage({
 
   if (!isSupabaseConfigured()) {
     return (
-      <PublicDiscoveryStateProvider>
+      <PublicDiscoveryStateProvider
+        initialSavedIds={initialSavedIds}
+        initialFavoriteIds={initialFavoriteIds}
+      >
         <DirectoryInquiryModalProvider>
           <FavoritesDrawerProvider>
             <PublicHeader />
@@ -1329,7 +1339,11 @@ export default async function PublicTalentProfilePage({
               {t("public.forms.inquiry.supabaseNotConfigured")}
             </div>
             <DirectoryInquirySheet ui={ui} locale={locale} />
-            <FavoritesDrawer signupHref="/login" />
+            <FavoritesDrawer
+              signupHref="/login"
+              locale={locale}
+              initialFavoriteIdsCount={initialFavoriteIds.length}
+            />
           </FavoritesDrawerProvider>
         </DirectoryInquiryModalProvider>
       </PublicDiscoveryStateProvider>
@@ -1480,10 +1494,6 @@ export default async function PublicTalentProfilePage({
     a.groupSort - b.groupSort || a.sort - b.sort || a.key.localeCompare(b.key);
   basicInfoDetailRows.sort(sortDetail);
   otherDetailRows.sort(sortDetail);
-  const [initialSavedIds, initialFavoriteIds] = await Promise.all([
-    getSavedTalentIds(),
-    getFavoriteTalentIds(),
-  ]);
 
   // D3 — similar talent strip (agency surface only; free-tier / no roster = []).
   const similarTalentRaw: SimilarTalentMini[] =
@@ -2096,7 +2106,10 @@ export default async function PublicTalentProfilePage({
   );
 
   return (
-    <PublicDiscoveryStateProvider>
+    <PublicDiscoveryStateProvider
+      initialSavedIds={initialSavedIds}
+      initialFavoriteIds={initialFavoriteIds}
+    >
       <DirectoryInquiryModalProvider>
         <FavoritesDrawerProvider>
           {jsonLd ? (
@@ -2139,7 +2152,11 @@ export default async function PublicTalentProfilePage({
           )}
 
           <DirectoryInquirySheet ui={ui} locale={locale} />
-          <FavoritesDrawer signupHref="/login" />
+          <FavoritesDrawer
+            signupHref="/login"
+            locale={locale}
+            initialFavoriteIdsCount={initialFavoriteIds.length}
+          />
         </FavoritesDrawerProvider>
       </DirectoryInquiryModalProvider>
     </PublicDiscoveryStateProvider>

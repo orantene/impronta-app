@@ -40,6 +40,143 @@ export interface WorkspaceLayoutV1 {
 export const WORKSPACE_LAYOUT_STORAGE_KEY =
   "impronta.editChrome.workspaceLayout.v1";
 
+/** How the storefront canvas relates to floating chrome panels. */
+export type WorkspaceCanvasMode = "fullBleed" | "reserveGutters";
+
+export const WORKSPACE_CANVAS_MODE_STORAGE_KEY =
+  "impronta.editChrome.workspaceCanvasMode.v1";
+
+export const DEFAULT_WORKSPACE_CANVAS_MODE: WorkspaceCanvasMode = "fullBleed";
+
+/** Safe margin for device-frame host in full-bleed mode (panels overlay). */
+export const CANVAS_SAFE_MARGIN_PX = 16;
+
+/** Fixed inset for zoom HUD / breadcrumb in full-bleed mode. */
+export const CANVAS_HUD_LEFT_INSET_PX = 14;
+
+/** Collapsed navigator rail width when reserve-gutters mode is off but rail visible. */
+export const COLLAPSED_NAVIGATOR_RAIL_PX = 22;
+
+/** Default inspector dock width — mirrors {@link DRAWER_WIDTHS.dock}. */
+export const INSPECTOR_DOCK_WIDTH_PX = 380;
+
+/**
+ * Load persisted canvas mode. Defaults to fullBleed when absent / invalid.
+ */
+export function loadWorkspaceCanvasMode(
+  storage: LayoutStorage | null | undefined,
+): WorkspaceCanvasMode {
+  if (!storage) return DEFAULT_WORKSPACE_CANVAS_MODE;
+  try {
+    const raw = storage.getItem(WORKSPACE_CANVAS_MODE_STORAGE_KEY);
+    if (raw === "fullBleed" || raw === "reserveGutters") return raw;
+  } catch {
+    // private mode / disabled storage
+  }
+  return DEFAULT_WORKSPACE_CANVAS_MODE;
+}
+
+export function saveWorkspaceCanvasMode(
+  storage: LayoutStorage | null | undefined,
+  mode: WorkspaceCanvasMode,
+): void {
+  if (!storage) return;
+  try {
+    storage.setItem(WORKSPACE_CANVAS_MODE_STORAGE_KEY, mode);
+  } catch {
+    // best-effort
+  }
+}
+
+export interface BodyHorizontalPaddingInput {
+  mode: WorkspaceCanvasMode;
+  navigatorOpen: boolean;
+  navigatorWidth: number;
+  inspectorOpen: boolean;
+  inspectorWidth?: number;
+}
+
+/**
+ * Body lateral padding for edit mode. In fullBleed the canvas spans 100vw;
+ * panels float over content without shrinking the storefront.
+ */
+export function resolveBodyHorizontalPadding({
+  mode,
+  navigatorOpen,
+  navigatorWidth,
+  inspectorOpen,
+  inspectorWidth = INSPECTOR_DOCK_WIDTH_PX,
+}: BodyHorizontalPaddingInput): { left: number; right: number } {
+  if (mode === "fullBleed") {
+    return { left: 0, right: 0 };
+  }
+  const left = navigatorOpen ? navigatorWidth : COLLAPSED_NAVIGATOR_RAIL_PX;
+  const right = inspectorOpen ? inspectorWidth : 0;
+  return { left, right };
+}
+
+export interface DeviceFramePaddingInput {
+  mode: WorkspaceCanvasMode;
+  isPhone: boolean;
+  navigatorOpen: boolean;
+  navigatorWidth: number;
+  inspectorOpen: boolean;
+  inspectorWidth?: number;
+}
+
+/**
+ * Horizontal padding for the tablet/mobile iframe host. Full-bleed uses only
+ * safe margins; reserve-gutters reserves space for open panels.
+ */
+export function resolveDeviceFrameHorizontalPadding({
+  mode,
+  isPhone,
+  navigatorOpen,
+  navigatorWidth,
+  inspectorOpen,
+  inspectorWidth = INSPECTOR_DOCK_WIDTH_PX,
+}: DeviceFramePaddingInput): { left: number; right: number } {
+  if (isPhone) return { left: 8, right: 8 };
+  if (mode === "fullBleed") {
+    return { left: CANVAS_SAFE_MARGIN_PX, right: CANVAS_SAFE_MARGIN_PX };
+  }
+  return {
+    left: navigatorOpen ? navigatorWidth : COLLAPSED_NAVIGATOR_RAIL_PX,
+    right: inspectorOpen ? inspectorWidth : 0,
+  };
+}
+
+export interface CanvasHudLeftInsetInput {
+  mode: WorkspaceCanvasMode;
+  navigatorOpen: boolean;
+  navigatorWidth: number;
+}
+
+/** Left offset for zoom HUD and similar floating controls. */
+export function resolveCanvasHudLeftInset({
+  mode,
+  navigatorOpen,
+  navigatorWidth,
+}: CanvasHudLeftInsetInput): number {
+  if (mode === "fullBleed") return CANVAS_HUD_LEFT_INSET_PX;
+  return navigatorOpen ? navigatorWidth + 12 : 34;
+}
+
+/**
+ * Horizontal space available for fit-to-page zoom. Full-bleed uses full viewport;
+ * reserve-gutters subtracts body lateral padding injected by BodyPaddingController.
+ */
+export function resolveCanvasAvailableWidth(
+  mode: WorkspaceCanvasMode = DEFAULT_WORKSPACE_CANVAS_MODE,
+): number {
+  if (typeof window === "undefined") return 1280;
+  if (mode === "fullBleed") return window.innerWidth;
+  const bodyStyle = window.getComputedStyle(document.body);
+  const leftPad = parseFloat(bodyStyle.paddingLeft) || 0;
+  const rightPad = parseFloat(bodyStyle.paddingRight) || 0;
+  return window.innerWidth - leftPad - rightPad;
+}
+
 const WORKSPACE_LAYOUT_VERSION = 1 as const;
 
 /** Magnet pull radius (px). An edge within this distance of a guide snaps to it. */

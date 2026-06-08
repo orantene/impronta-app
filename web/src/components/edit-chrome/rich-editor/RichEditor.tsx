@@ -39,6 +39,7 @@ import { richEditorTheme } from "./theme";
 import { ToolbarPlugin } from "./plugins/ToolbarPlugin";
 import { SerializePlugin } from "./plugins/SerializePlugin";
 import { KeyboardShortcutsPlugin } from "./plugins/KeyboardShortcutsPlugin";
+import { CanvasLexicalBridgePlugin } from "./plugins/CanvasLexicalBridgePlugin";
 import { SingleLinePlugin } from "./plugins/SingleLinePlugin";
 import { LinkPickerPopover } from "./plugins/LinkPickerPopover";
 import { FormatPlugin } from "./plugins/FormatPlugin";
@@ -61,6 +62,8 @@ interface Props {
   ariaLabel?: string;
   /** When the editor mounts read-only (rare). */
   readOnly?: boolean;
+  /** Hide Lexical's dark floating toolbar (canvas text toolbar owns formatting UI). */
+  suppressFloatingToolbar?: boolean;
 }
 
 /**
@@ -98,6 +101,7 @@ export function RichEditor({
   className,
   ariaLabel,
   readOnly,
+  suppressFloatingToolbar,
 }: Props) {
   const [linkAnchor, setLinkAnchor] = useState<{
     rect: DOMRect;
@@ -163,7 +167,13 @@ export function RichEditor({
         <FormatPlugin />
         <SerializePlugin onChange={onChange} multiline={variant === "multi"} />
         <KeyboardShortcutsPlugin onRequestLink={onRequestLink} />
-        <ToolbarPlugin onRequestLink={onRequestLink} />
+        <ToolbarPlugin
+          onRequestLink={onRequestLink}
+          suppressChrome={suppressFloatingToolbar}
+        />
+        {suppressFloatingToolbar ? (
+          <CanvasLexicalBridgePlugin onRequestLink={onRequestLink} />
+        ) : null}
         {variant === "single" ? <SingleLinePlugin /> : null}
         <LinkPickerPopover
           anchor={linkAnchor}

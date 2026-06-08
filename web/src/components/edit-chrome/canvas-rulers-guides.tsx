@@ -22,7 +22,11 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { CHROME } from "./kit/tokens";
+import { CHROME, EDIT_TOPBAR_H, Z_INDEX } from "./kit/tokens";
+import {
+  DEFAULT_WORKSPACE_CANVAS_MODE,
+  resolveCanvasHudLeftInset,
+} from "./workspace-layout";
 import {
   useCanvasViewport,
   type CanvasGuide,
@@ -90,8 +94,12 @@ export function CanvasRulers({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const left = navigatorOpen ? navigatorWidth : 22;
-    const topOff = 54;
+    const left = resolveCanvasHudLeftInset({
+      mode: DEFAULT_WORKSPACE_CANVAS_MODE,
+      navigatorOpen,
+      navigatorWidth,
+    });
+    const topOff = EDIT_TOPBAR_H;
 
     function onMove(e: PointerEvent) {
       const d = dragRef.current;
@@ -135,8 +143,12 @@ export function CanvasRulers({
 
   if (!showRulers) return null;
 
-  const leftOffset = navigatorOpen ? navigatorWidth : 22;
-  const topOffset = 54; // topbar height
+  const leftOffset = resolveCanvasHudLeftInset({
+    mode: DEFAULT_WORKSPACE_CANVAS_MODE,
+    navigatorOpen,
+    navigatorWidth,
+  });
+  const topOffset = EDIT_TOPBAR_H; // topbar height
 
   // Adaptive tick interval in document-px.
   const rawInterval = 100 / zoom;
@@ -165,12 +177,13 @@ export function CanvasRulers({
       <div
         data-edit-overlay="ruler-horizontal"
         aria-hidden
-        className="pointer-events-auto fixed z-[84] select-none overflow-hidden"
+        className="pointer-events-auto fixed select-none overflow-hidden"
         style={{
           top: topOffset,
           left: leftOffset + RULER_SIZE,
           width: horizWidth,
           height: RULER_SIZE,
+          zIndex: Z_INDEX.floatingControls,
           background: rulerBg,
           borderBottom: "1px solid rgba(255,255,255,0.10)",
           cursor: "ns-resize",
@@ -215,12 +228,13 @@ export function CanvasRulers({
       <div
         data-edit-overlay="ruler-vertical"
         aria-hidden
-        className="pointer-events-auto fixed z-[84] select-none overflow-hidden"
+        className="pointer-events-auto fixed select-none overflow-hidden"
         style={{
           top: topOffset + RULER_SIZE,
           left: leftOffset,
           width: RULER_SIZE,
           height: vertHeight,
+          zIndex: Z_INDEX.floatingControls,
           background: rulerBg,
           borderRight: "1px solid rgba(255,255,255,0.10)",
           cursor: "ew-resize",
@@ -318,8 +332,12 @@ export function CanvasGuides({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const left = navigatorOpen ? navigatorWidth : 22;
-    const top = 54;
+    const left = resolveCanvasHudLeftInset({
+      mode: DEFAULT_WORKSPACE_CANVAS_MODE,
+      navigatorOpen,
+      navigatorWidth,
+    });
+    const top = EDIT_TOPBAR_H;
 
     function onMove(e: PointerEvent) {
       const d = dragRef.current;
@@ -352,8 +370,12 @@ export function CanvasGuides({
     };
   }, [zoom, scroll, navigatorOpen, navigatorWidth, moveGuide, removeGuide]);
 
-  const leftOffset = navigatorOpen ? navigatorWidth : 22;
-  const topOffset = 54;
+  const leftOffset = resolveCanvasHudLeftInset({
+    mode: DEFAULT_WORKSPACE_CANVAS_MODE,
+    navigatorOpen,
+    navigatorWidth,
+  });
+  const topOffset = EDIT_TOPBAR_H;
   const rulerGutter = showRulers ? RULER_SIZE : 0;
 
   const guideColor = "rgba(82, 130, 255, 0.65)";

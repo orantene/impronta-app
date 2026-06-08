@@ -573,23 +573,27 @@ export async function runPublishPreflight(input?: {
     // Preflight is best-effort; ARIA check failures don't block publish.
   }
 
-  const normalizedIssues =
-    workspacePlan === "free"
-      ? issues.map((issue) => {
-          const escalatesOnFree =
-            issue.severity === "warn" &&
-            (issue.category === "alt_text" ||
-              issue.category === "link_integrity" ||
-              issue.category === "seo");
-          return escalatesOnFree
-            ? {
-                ...issue,
-                severity: "error" as const,
-                message: `${issue.message} (Free publish policy)`,
-              }
-            : issue;
-        })
-      : issues;
+  const normalizedIssues = issues.map((issue) => {
+    if (issue.category === "alt_text" && issue.severity === "warn") {
+      return {
+        ...issue,
+        severity: "error" as const,
+        message: `${issue.message} Add alt text before publishing.`,
+      };
+    }
+    if (
+      workspacePlan === "free" &&
+      issue.severity === "warn" &&
+      (issue.category === "link_integrity" || issue.category === "seo")
+    ) {
+      return {
+        ...issue,
+        severity: "error" as const,
+        message: `${issue.message} (Free publish policy)`,
+      };
+    }
+    return issue;
+  });
 
   return { ok: true, issues: normalizedIssues };
 }

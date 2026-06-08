@@ -52,6 +52,7 @@ import {
   Toggle,
 } from "./kit";
 import { useEditContext, type PageMetadata } from "./edit-context";
+import { MediaPickerButton } from "./inspectors/kit";
 import { safeAction } from "@/lib/site-admin/edit-mode/safe-action";
 import {
   createRedirectAction,
@@ -156,6 +157,7 @@ function LinkIcon() {
 function metadataEqual(a: PageMetadata, b: PageMetadata): boolean {
   return (
     a.title === b.title &&
+    (a.metaTitle ?? "") === (b.metaTitle ?? "") &&
     (a.metaDescription ?? "") === (b.metaDescription ?? "") &&
     (a.introTagline ?? "") === (b.introTagline ?? "") &&
     (a.ogTitle ?? "") === (b.ogTitle ?? "") &&
@@ -224,6 +226,7 @@ export function PageSettingsDrawer() {
     pageId,
     pageSlug,
     tenantSiteLabel,
+    tenantId,
   } = useEditContext();
 
   const [tab, setTab] = useState<TabKey>("basics");
@@ -373,6 +376,9 @@ export function PageSettingsDrawer() {
       open={pageSettingsOpen}
       zIndex={87}
       ariaLabelledBy="page-settings-drawer-title"
+      floating
+      floatLabel="Page settings"
+      floatPanelId="page-settings"
     >
       <DrawerHead
         titleId="page-settings-drawer-title"
@@ -445,6 +451,28 @@ export function PageSettingsDrawer() {
                     Used in browser tabs, bookmarks, and search results.
                   </span>
                   <HelperCounter current={titleLen} max={TITLE_MAX} />
+                </Helper>
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="ps-meta-title" meta="SERP / tab override">
+                  Meta title
+                </FieldLabel>
+                <input
+                  id="ps-meta-title"
+                  type="text"
+                  value={draft?.metaTitle ?? ""}
+                  onChange={(e) =>
+                    patch(
+                      "metaTitle",
+                      e.target.value === "" ? null : e.target.value,
+                    )
+                  }
+                  style={inputStyle()}
+                  placeholder="Optional — defaults to page title when empty"
+                />
+                <Helper>
+                  <span>Shown in browser tabs and search when set.</span>
                 </Helper>
               </Field>
 
@@ -586,25 +614,19 @@ export function PageSettingsDrawer() {
 
                 <Field flush>
                   <FieldLabel htmlFor="ps-og-image" meta="1200×630 recommended">
-                    OG image URL
+                    OG image
                   </FieldLabel>
-                  <input
-                    id="ps-og-image"
-                    type="url"
-                    value={draft?.ogImageUrl ?? ""}
-                    onChange={(e) =>
-                      patch(
-                        "ogImageUrl",
-                        e.target.value === "" ? null : e.target.value,
-                      )
-                    }
-                    style={inputStyle()}
-                    placeholder="https://… or /path/to/image.jpg"
+                  <MediaPickerButton
+                    tenantId={tenantId}
+                    value={draft?.ogImageUrl ?? null}
+                    onChange={(next) => patch("ogImageUrl", next)}
+                    emptyLabel="Add share image"
+                    aspect="21/9"
                   />
                   <Helper>
                     <span>
-                      Paste a fully qualified URL or a /path; image must be
-                      reachable to render in shares.
+                      Used on social share cards. Falls back to page title and
+                      description when blank.
                     </span>
                   </Helper>
                 </Field>

@@ -61,6 +61,7 @@ import { EditPill } from "./edit-pill";
 import { EditShellLoading } from "./edit-shell-loading";
 import { IframeChild } from "./iframe-child";
 import { PreviewPill } from "./preview-pill";
+import { EDIT_TOPBAR_H } from "./kit";
 
 /** Deferred until edit mode engages — keeps idle storefront bundle lean. */
 const EditShell = dynamic(
@@ -164,13 +165,13 @@ export function EditChrome({
   return (
     <>
       <style>{`
-        body { padding-top: 54px !important; background: #F9F9FB !important; }
+        body { padding-top: ${EDIT_TOPBAR_H}px !important; background: #F9F9FB !important; }
         /* Lateral body padding is managed by BodyPaddingController in EditShell
            when workspaceCanvasMode is reserveGutters; fullBleed (default) uses none. */
-        /* Keep the storefront header visible below the 54px edit topbar so
+        /* Keep the storefront header visible below the edit topbar so
            operators can see their nav while editing. The header is sticky
            top-0 by default; offset it to sit below the topbar. */
-        header[data-public-header] { top: 54px !important; }
+        header[data-public-header] { top: ${EDIT_TOPBAR_H}px !important; }
       `}</style>
       <EditShell
         tenantId={tenantId}

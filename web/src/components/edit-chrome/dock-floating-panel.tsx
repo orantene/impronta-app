@@ -8,17 +8,20 @@
  * right of the CommandDock via COMMAND_DOCK_PANEL_INSET_PX.
  */
 
-import type { DragEvent, PointerEvent as ReactPointerEvent, ReactNode } from "react";
+import { useLayoutEffect, useRef, type DragEvent, type ReactNode } from "react";
 
 import { COMMAND_DOCK_PANEL_INSET_PX } from "./command-dock";
 import { useFloatingDrag } from "./floating-panel";
+import { useEditContext } from "./edit-context";
+import { useCommandDockCoupling } from "./use-command-dock-coupling";
 import {
-  FLOATING_PANEL_MAX_HEIGHT,
-  FLOATING_PANEL_TOP_PX,
+  COMMAND_DOCK_CHROME_TOP_PX,
+  COMMAND_DOCK_PANEL_MAX_HEIGHT,
+  FloatingPanelHeader,
   FloatingPanelShell,
   floatingPanelBoxShadow,
-} from "./kit/floating-panel-shell";
-import { CHROME, Z_INDEX } from "./kit";
+  Z_INDEX,
+} from "./kit";
 
 /** Subset of {@link useFloatingDrag} return for panels that manage their own hook. */
 export type FloatingDragBinding = ReturnType<typeof useFloatingDrag>;
@@ -49,49 +52,12 @@ export interface DockFloatingPanelProps {
   dataEditOverlay?: string;
 }
 
-function PanelCloseButton({
-  onClose,
-  ariaLabel = "Close panel",
-}: {
-  onClose: () => void;
-  ariaLabel?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClose}
-      title={ariaLabel}
-      aria-label={ariaLabel}
-      className="inline-flex h-[28px] w-[28px] shrink-0 cursor-pointer items-center justify-center rounded-[8px] border-none transition-colors"
-      style={{ background: "transparent", color: CHROME.muted }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = CHROME.paper2;
-        e.currentTarget.style.color = CHROME.ink;
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = "transparent";
-        e.currentTarget.style.color = CHROME.muted;
-      }}
-    >
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden
-      >
-        <line x1="18" y1="6" x2="6" y2="18" />
-        <line x1="6" y1="6" x2="18" y2="18" />
-      </svg>
-    </button>
-  );
-}
+type ShellProps = Omit<DockFloatingPanelProps, "floatingDrag"> & {
+  floatingDrag: FloatingDragBinding;
+  dockedToRail: boolean;
+};
 
-export function DockFloatingPanel({
+function DockFloatingPanelShell({
   panelId,
   title,
   open,
@@ -108,12 +74,11 @@ export function DockFloatingPanel({
   onDragLeave,
   onDrop,
   onDragOver,
-  floatingDrag: floatingDragProp,
+  floatingDrag,
+  dockedToRail,
   zIndex = Z_INDEX.panels,
   dataEditOverlay,
-}: DockFloatingPanelProps) {
-  const internalDrag = useFloatingDrag({ panelId });
-  const floatingDrag = floatingDragProp ?? internalDrag;
+}: ShellProps) {
   const moved = floatingDrag.offset.x !== 0 || floatingDrag.offset.y !== 0;
 
   if (!open) return null;
@@ -127,7 +92,7 @@ export function DockFloatingPanel({
       width={width}
       open={open}
       testId={testId}
-      dragLabel={title}
+      showDragStrip={false}
       setPanelNode={floatingDrag.setPanelNode}
       transform={floatingDrag.transform}
       dragging={floatingDrag.dragging}
@@ -143,31 +108,78 @@ export function DockFloatingPanel({
       onDrop={onDrop}
       onDragOver={onDragOver}
       header={
-        <div
-          className="flex items-center justify-between gap-[8px] px-[14px] py-[10px]"
-          style={{ borderBottom: tabs ? undefined : `1px solid ${CHROME.line}` }}
-        >
-          <h2
-            id={resolvedTitleId}
-            className="m-0 min-w-0 flex-1 truncate text-[13px] font-semibold tracking-[-0.01em]"
-            style={{ color: CHROME.ink }}
-          >
-            {title}
-          </h2>
-          {headerExtra}
-          <PanelCloseButton onClose={onClose} ariaLabel={closeAriaLabel} />
-        </div>
+        <FloatingPanelHeader
+          titleId={resolvedTitleId}
+          title={title}
+          onPointerDown={floatingDrag.onHandlePointerDown}
+          dragging={floatingDrag.dragging}
+          moved={moved}
+          onReset={floatingDrag.reset}
+          onClose={onClose}
+          closeAriaLabel={closeAriaLabel}
+          headerExtra={headerExtra}
+          titleRowBorder={!tabs}
+        />
       }
       tabs={tabs}
       footer={footer}
+      dockRailSide="left"
+      dockedToRail={dockedToRail}
       style={{
         left: COMMAND_DOCK_PANEL_INSET_PX,
-        top: FLOATING_PANEL_TOP_PX,
-        maxHeight: FLOATING_PANEL_MAX_HEIGHT,
+        top: COMMAND_DOCK_CHROME_TOP_PX,
+        maxHeight: COMMAND_DOCK_PANEL_MAX_HEIGHT,
         boxShadow: floatingPanelBoxShadow(floatingDrag.dragging),
       }}
     >
       {children}
     </FloatingPanelShell>
   );
+}
+
+function DockFloatingPanelOwned(props: Omit<DockFloatingPanelProps, "floatingDrag">) {
+  const panelSetOffsetRef = useRef<
+    ReturnType<typeof useFloatingDrag>["setOffset"] | null
+  >(null);
+  const { dragOptions, commandDockDocked } = useCommandDockCoupling(
+    props.panelId,
+    panelSetOffsetRef,
+  );
+  const floatingDrag = useFloatingDrag({ panelId: props.panelId, ...dragOptions });
+  useLayoutEffect(() => {
+    panelSetOffsetRef.current = floatingDrag.setOffset;
+  });
+  return (
+    <DockFloatingPanelShell
+      {...props}
+      floatingDrag={floatingDrag}
+      dockedToRail={commandDockDocked && props.open}
+    />
+  );
+}
+
+function DockFloatingPanelExternal(
+  props: Omit<DockFloatingPanelProps, "floatingDrag"> & {
+    floatingDrag: FloatingDragBinding;
+  },
+) {
+  const { commandDockDocked } = useEditContext();
+  return (
+    <DockFloatingPanelShell
+      {...props}
+      dockedToRail={commandDockDocked && props.open}
+    />
+  );
+}
+
+export function DockFloatingPanel({
+  floatingDrag: floatingDragProp,
+  ...props
+}: DockFloatingPanelProps) {
+  if (floatingDragProp) {
+    return (
+      <DockFloatingPanelExternal {...props} floatingDrag={floatingDragProp} />
+    );
+  }
+  return <DockFloatingPanelOwned {...props} />;
 }

@@ -194,7 +194,10 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
           Preview — showing draft. Publish from the composer to go live.
         </div>
       ) : null}
-      <PublicDiscoveryStateProvider>
+      <PublicDiscoveryStateProvider
+        initialSavedIds={savedIds}
+        initialFavoriteIds={favoriteIds}
+      >
         <DiscoveryStateBridge savedIds={savedIds} favoriteIds={favoriteIds} favoriteIcon={favoriteIcon} />
         {actor.user ? <MergeGuestFavorites serverFavoriteIds={favoriteIds} /> : null}
         <DirectoryInquiryModalProvider>
@@ -307,7 +310,11 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
           )}
         </main>
             <DirectoryInquirySheet ui={directoryUi} locale={locale} />
-            <FavoritesDrawer signupHref="/login" />
+            <FavoritesDrawer
+              signupHref="/login"
+              locale={locale}
+              initialFavoriteIdsCount={favoriteIds.length}
+            />
           </FavoritesDrawerProvider>
         </DirectoryInquiryModalProvider>
       </PublicDiscoveryStateProvider>

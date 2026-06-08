@@ -39,6 +39,7 @@ import {
 import { SECTION_EDITOR_REGISTRY } from "@/lib/site-admin/sections/registry-editors";
 import type { LoadedSection } from "./edit-context";
 import { useEditContext } from "./edit-context";
+import { useInspectorRailCoupling } from "./use-inspector-rail-coupling";
 import { useDirty } from "./dirty-bridge";
 import { ContentTab } from "./inspectors/content-dispatch";
 import {
@@ -50,9 +51,13 @@ import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection
 import { LayoutPanel } from "./inspectors/layout-panel";
 import { StylePanel } from "./inspectors/style-panel";
 import { DataPanel } from "./inspectors/data-panel";
-import { ResponsivePanel } from "./inspectors/responsive-panel";
 import { MotionPanel } from "./inspectors/motion-panel";
-import { PanelSaveChip } from "./inspectors/kit";
+import {
+  InspectorDraftStatus,
+  InspectorViewportRail,
+} from "./inspectors/kit";
+import { countPresentationOverrides, countStyleOverrides } from "./inspectors/responsive-field-state";
+import type { ViewportDevice } from "./inspectors/responsive-field-state";
 import { SectionA11yWarning } from "./inspectors/SectionA11yWarning";
 import { AiTranslateSectionButton } from "./inspectors/AiTranslateSectionButton";
 import {
@@ -60,20 +65,13 @@ import {
   Drawer,
   DrawerHead,
   DrawerBody,
-  SectionTypeIcon,
+  INSPECTOR_CHROME_TOP_PX,
+  INSPECTOR_PANEL_RIGHT_INSET_PX,
 } from "./kit";
-import { DrawerIconTabsRow, type DrawerIconTabItem } from "./kit/drawer";
 import {
-  FileText,
-  LayoutGrid,
-  Palette,
-  Database,
-  Monitor,
-  Zap,
-  type LucideIcon,
+  Home,
 } from "lucide-react";
 import { cleanSectionName as _cleanSectionName } from "@/lib/site-admin/clean-section-name";
-import { sectionDisplayName } from "@/lib/site-admin/section-display-name";
 import {
   BUILDER_NODE_REGISTRY,
   builderNodeSupportsFieldBindings,
@@ -84,47 +82,15 @@ import {
 import { isBuilderClientCanvasEnabled } from "@/lib/site-admin/edit-mode/client-canvas-flag";
 import { sectionTypeHasLiveData } from "@/lib/site-admin/sections/section-live-data";
 
-type TabKey = "content" | "layout" | "style" | "data" | "responsive" | "motion";
+type TabKey = "content" | "layout" | "style" | "data" | "motion";
 
 const TABS: ReadonlyArray<{ key: TabKey; label: string }> = [
   { key: "content", label: "Content" },
   { key: "layout", label: "Layout" },
   { key: "style", label: "Style" },
   { key: "data", label: "Data" },
-  { key: "responsive", label: "Responsive" },
   { key: "motion", label: "Motion" },
 ];
-
-/**
- * Lucide glyph for each inspector tab. The tab strip is now a slim VERTICAL
- * ICON RAIL down the left inner edge of the floating dock (2026-06-03) rather
- * than a horizontal text-pill bar — icons + tooltips read as a premium tool
- * selector and reclaim the horizontal room a narrow floating panel can't
- * spare. Labels still drive the tooltip + aria-label so the rail is fully
- * accessible.
- */
-const TAB_ICON: Record<TabKey, LucideIcon> = {
-  content: FileText,
-  layout: LayoutGrid,
-  style: Palette,
-  data: Database,
-  responsive: Monitor,
-  motion: Zap,
-};
-
-/**
- * Short hover hints — non-technical language (Phase 2 trust). On the icon
- * rail these become the tooltip so an icon-only target stays discoverable;
- * the short tab label remains the aria-label for assistive tech.
- */
-const INSPECTOR_TAB_HINT: Record<TabKey, string> = {
-  content: "Edit text, images, and controls for this block",
-  layout: "Spacing, width, and how the block sits on the page",
-  style: "Colors, type, borders, and surfaces",
-  data: "Connect this block to live roster or catalog data",
-  responsive: "Tweak behavior on smaller or larger screens",
-  motion: "Entrance motion when visitors scroll to this block",
-};
 
 /**
  * Per-section-type tab visibility.
@@ -143,25 +109,20 @@ const INSPECTOR_TAB_HINT: Record<TabKey, string> = {
 const DEFAULT_TABS: ReadonlyArray<TabKey> = ["content", "style", "layout"];
 
 const TABS_BY_SECTION_TYPE: Record<string, ReadonlyArray<TabKey>> = {
-  // Heroes carry headlines / overlays / motion entries — full toolkit.
-  hero: ["content", "style", "layout", "responsive", "motion"],
-  // Featured Talent grids meaningfully benefit from per-breakpoint counts +
-  // entry animation when scrolling into view.
-  featured_talent: ["content", "style", "layout", "data", "responsive", "motion"],
-  gallery_strip: ["content", "style", "layout", "responsive", "motion"],
+  // Heroes — five-tab surface; responsive controls live in Layout + viewport rail.
+  hero: ["content", "style", "layout", "data", "motion"],
+  featured_talent: ["content", "style", "layout", "data", "motion"],
+  gallery_strip: ["content", "style", "layout", "motion"],
   testimonials_trio: ["content", "style", "layout", "motion"],
-  // CTA banners are short and benefit from a subtle entry animation.
   cta_banner: ["content", "style", "layout", "motion"],
-  // Image+copy alternating layouts use breakpoint flips on small screens.
-  image_copy_alternating: ["content", "style", "layout", "responsive"],
-  // Static content sections — Content + Style + Layout is the minimum.
+  image_copy_alternating: ["content", "style", "layout"],
   trust_strip: ["content", "style", "layout"],
   press_strip: ["content", "style", "layout"],
   values_trio: ["content", "style", "layout"],
   process_steps: ["content", "style", "layout"],
-  category_grid: ["content", "style", "layout", "data", "responsive"],
-  destinations_mosaic: ["content", "style", "layout", "data", "responsive"],
-  map_overlay: ["content", "style", "layout", "data", "responsive"],
+  category_grid: ["content", "style", "layout", "data"],
+  destinations_mosaic: ["content", "style", "layout", "data"],
+  map_overlay: ["content", "style", "layout", "data"],
   marquee: ["content", "style", "layout", "motion"],
 };
 
@@ -176,6 +137,14 @@ function humanizeTypeKey(key: string | null | undefined): string {
     .split("_")
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
+}
+
+/** Canvas-first inspector block title — type label, not content-derived copy. */
+function inspectorBlockTitle(typeKey: string | null | undefined): string {
+  if (!typeKey) return "Section";
+  const base = humanizeTypeKey(typeKey);
+  if (/\bsection\b/i.test(base)) return base;
+  return `${base} Section`;
 }
 
 function builderNodeTitle(node: Exclude<BuilderNode, { kind: "section" }>): string {
@@ -285,6 +254,12 @@ export function InspectorDock() {
     builderTree,
     canEditSiteShell,
     queueRouterRefresh,
+    device,
+    setDevice,
+    inspectorDockOpen,
+    setInspectorDockOpen,
+    setInspectorActiveTab,
+    inspectorTabRequest,
   } = useEditContext();
   // W2-T4 — `dirty` VALUE from the dirty-bridge (setter stays on context).
   const dirty = useDirty();
@@ -358,11 +333,17 @@ export function InspectorDock() {
   }, [selectedSectionId, slots]);
 
   const [tab, setTab] = useState<TabKey>("content");
-  const { inspectorTabRequest } = useEditContext();
   useEffect(() => {
     if (!inspectorTabRequest) return;
-    setTab(inspectorTabRequest.tab);
+    const nextTab =
+      inspectorTabRequest.tab === "responsive"
+        ? "layout"
+        : inspectorTabRequest.tab;
+    setTab(nextTab);
   }, [inspectorTabRequest]);
+  useEffect(() => {
+    setInspectorActiveTab(tab);
+  }, [tab, setInspectorActiveTab]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -697,6 +678,107 @@ export function InspectorDock() {
     [setDraftProps, setDirty],
   );
 
+  const sectionPresentation = useMemo(
+    () =>
+      (currentDraftProps?.presentation as Record<string, unknown> | undefined) ??
+      {},
+    [currentDraftProps],
+  );
+
+  const viewportDevice = device as ViewportDevice;
+
+  const hideOnDevice = useMemo(() => {
+    if (viewportDevice === "desktop") return false;
+    if (selectedStandaloneBuilderNode) {
+      const style = (selectedStandaloneBuilderNode.props as { style?: { responsive?: Record<string, Record<string, unknown>> } }).style;
+      return style?.responsive?.[viewportDevice]?.visibility === "hidden";
+    }
+    const bp = sectionPresentation.breakpoints as
+      | Partial<Record<"tablet" | "mobile", Record<string, unknown>>>
+      | undefined;
+    return bp?.[viewportDevice]?.visibility === "hidden";
+  }, [sectionPresentation, selectedStandaloneBuilderNode, viewportDevice]);
+
+  const viewportOverrideCount = useMemo(() => {
+    if (viewportDevice === "desktop") return 0;
+    if (selectedStandaloneBuilderNode) {
+      const style = (selectedStandaloneBuilderNode.props as { style?: import("@/lib/site-admin/builder-node").BuilderNodeStyle }).style;
+      return countStyleOverrides(style, viewportDevice);
+    }
+    return countPresentationOverrides(sectionPresentation, viewportDevice);
+  }, [sectionPresentation, selectedStandaloneBuilderNode, viewportDevice]);
+
+  const handleViewportHideChange = useCallback(
+    (hidden: boolean) => {
+      if (viewportDevice === "desktop") return;
+      if (selectedStandaloneBuilderNode) {
+        void patchBuilderNodeProps(selectedStandaloneBuilderNode.id, {
+          style: {
+            responsive: {
+              [viewportDevice]: { visibility: hidden ? "hidden" : undefined },
+            },
+          },
+        });
+        return;
+      }
+      if (!currentLoadedSection) return;
+      handlePresentationDeepPatch({
+        breakpoints: {
+          [viewportDevice]: {
+            visibility: hidden ? "hidden" : undefined,
+          },
+        },
+      });
+    },
+    [
+      currentLoadedSection,
+      handlePresentationDeepPatch,
+      patchBuilderNodeProps,
+      selectedStandaloneBuilderNode,
+      viewportDevice,
+    ],
+  );
+
+  const handleResetViewportOverrides = useCallback(() => {
+    if (viewportDevice === "desktop") return;
+    if (selectedStandaloneBuilderNode) {
+      const style = (selectedStandaloneBuilderNode.props as { style?: { responsive?: Record<string, Record<string, unknown>> } }).style;
+      const bucket = style?.responsive?.[viewportDevice];
+      if (!bucket) return;
+      void patchBuilderNodeProps(selectedStandaloneBuilderNode.id, {
+        style: {
+          responsive: {
+            [viewportDevice]: Object.fromEntries(
+              Object.keys(bucket).map((key) => [key, undefined]),
+            ),
+          },
+        },
+      });
+      return;
+    }
+    if (!currentLoadedSection) return;
+    const bp = sectionPresentation.breakpoints as
+      | Partial<Record<"tablet" | "mobile", Record<string, unknown>>>
+      | undefined;
+    const bucket = bp?.[viewportDevice];
+    if (!bucket) return;
+    const cleared = Object.fromEntries(
+      Object.keys(bucket).map((key) => [key, undefined]),
+    );
+    handlePresentationDeepPatch({
+      breakpoints: {
+        [viewportDevice]: cleared,
+      },
+    });
+  }, [
+    currentLoadedSection,
+    handlePresentationDeepPatch,
+    patchBuilderNodeProps,
+    sectionPresentation,
+    selectedStandaloneBuilderNode,
+    viewportDevice,
+  ]);
+
   const handleStylePatch = useCallback(
     (patch: Record<string, unknown>) => {
       // Style-panel edits can patch both root-level fields (e.g. hero overlay,
@@ -748,11 +830,9 @@ export function InspectorDock() {
   const selectedStandaloneBuilderNodeIsLocked =
     selectedStandaloneBuilderNode?.locked === true;
 
-  // Freeform full-page-design blocks have NO owner section, so selection lands
-  // a standalone builder node with selectedSectionId === null. Open the dock for
-  // either a section OR a standalone node — otherwise freeform blocks select in
-  // state but the inspector stays collapsed/empty.
-  const dockOpen = !!selectedSectionId || !!selectedStandaloneBuilderNode;
+  // Visibility is operator-controlled (persisted). Content still reflects the
+  // current canvas selection — closing the dock no longer clears selection.
+  const dockOpen = inspectorDockOpen;
 
   // T2-1 — Use the skeleton hint (name + type known from slots) when the
   // field-draft fetch hasn't resolved yet. Falls back to "Inspector" only
@@ -763,28 +843,22 @@ export function InspectorDock() {
   // dock still rendering "Featured professionals — new" while the chip
   // and navigator already showed "A short list, always on call." Three
   // surfaces, one rule.
+  const sectionTypeKey =
+    currentLoadedSection?.sectionTypeKey ?? skeletonHint?.typeKey ?? null;
   const sectionTitle = selectedStandaloneBuilderNode
     ? builderNodeTitle(selectedStandaloneBuilderNode)
-    : currentLoadedSection
-      ? (sectionDisplayName({
-        typeKey: currentLoadedSection.sectionTypeKey,
-        rawName: currentLoadedSection.name,
-        props: currentLoadedSection.props as Record<string, unknown> | null,
-        }) || humanizeTypeKey(currentLoadedSection.sectionTypeKey))
-      : skeletonHint
-        ? skeletonHint.name
-        : selectedSectionId && loadingId
-          ? "Loading…"
-          : "Inspector";
+    : sectionTypeKey
+      ? inspectorBlockTitle(sectionTypeKey)
+      : selectedSectionId && loadingId
+        ? "Loading…"
+        : "Select a block";
   const sectionMeta = isSiteHeaderSelected
     ? "SITE SHELL"
     : selectedStandaloneBuilderNode
       ? `BUILDER BLOCK · ${BUILDER_NODE_REGISTRY[selectedStandaloneBuilderNode.kind].label.toUpperCase()}`
-      : currentLoadedSection
-        ? `BUILDER BLOCK · ${humanizeTypeKey(currentLoadedSection.sectionTypeKey).toUpperCase()}`
-        : skeletonHint
-          ? `BUILDER BLOCK · ${humanizeTypeKey(skeletonHint.typeKey).toUpperCase()}`
-          : undefined;
+      : sectionTypeKey
+        ? `BUILDER BLOCK · ${inspectorBlockTitle(sectionTypeKey).toUpperCase()}`
+        : undefined;
   const inspectorBreadcrumbCrumbs = useMemo<
     ReadonlyArray<InspectorBreadcrumbCrumb>
   >(() => {
@@ -802,11 +876,9 @@ export function InspectorDock() {
     // when content-derived names collide.
     const rootLabel = isSiteHeaderSelected
       ? "Site header"
-      : currentLoadedSection
-        ? humanizeTypeKey(currentLoadedSection.sectionTypeKey)
-        : skeletonHint
-          ? humanizeTypeKey(skeletonHint.typeKey)
-          : null;
+      : sectionTypeKey
+        ? inspectorBlockTitle(sectionTypeKey)
+        : null;
     if (rootLabel) {
       crumbs.push({
         id: selectedSectionId,
@@ -828,12 +900,11 @@ export function InspectorDock() {
     }
     return crumbs;
   }, [
-    currentLoadedSection,
     isSiteHeaderSelected,
+    sectionTypeKey,
     selectedBuilderNode,
     selectedBuilderNodePath,
     selectedSectionId,
-    skeletonHint,
   ]);
   const handleInspectorCrumbSelect = useCallback(
     (crumb: InspectorBreadcrumbCrumb) => {
@@ -851,18 +922,18 @@ export function InspectorDock() {
       return undefined;
     }
     return (
-      <div className="flex min-w-0 flex-col gap-0.5">
+      <div className="flex min-w-0 flex-col gap-1">
         {sectionMeta ? (
           <span
-            className="truncate text-[10px] font-semibold uppercase tracking-[0.08em]"
+            className="truncate text-[11px] font-semibold uppercase tracking-[0.06em]"
             style={{ color: CHROME.muted }}
           >
             {sectionMeta}
           </span>
         ) : null}
-        {sectionTitle && sectionTitle !== "Inspector" ? (
+        {sectionTitle && sectionTitle !== "Select a block" ? (
           <span
-            className="truncate text-[13px] font-semibold tracking-[-0.01em]"
+            className="truncate text-[16px] font-semibold tracking-[-0.02em]"
             style={{ color: CHROME.ink }}
           >
             {sectionTitle}
@@ -870,24 +941,27 @@ export function InspectorDock() {
         ) : null}
         {inspectorBreadcrumbCrumbs.length > 0 ? (
           <span
-            className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 text-[11px]"
-            style={{ color: CHROME.text }}
+            className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 text-[11.5px]"
+            style={{ color: CHROME.muted }}
           >
             {inspectorBreadcrumbCrumbs.map((crumb, index) => (
               <span key={`${crumb.id}:${index}`} className="inline-flex min-w-0 items-center">
+                {index === 0 ? (
+                  <Home size={11} strokeWidth={2} className="mr-0.5 shrink-0 opacity-70" aria-hidden />
+                ) : null}
                 {crumb.selectable ? (
                   <button
                     type="button"
                     onClick={() => handleInspectorCrumbSelect(crumb)}
-                    className="min-w-0 max-w-[170px] truncate rounded-[3px] px-1 text-left transition"
-                    style={{ color: CHROME.text }}
+                    className="min-w-0 max-w-[170px] truncate rounded-[3px] px-0.5 text-left transition"
+                    style={{ color: CHROME.muted }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.background = CHROME.paper;
                       e.currentTarget.style.color = CHROME.ink;
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.background = "transparent";
-                      e.currentTarget.style.color = CHROME.text;
+                      e.currentTarget.style.color = CHROME.muted;
                     }}
                     title={crumb.label}
                     aria-label={`Select ${crumb.label}`}
@@ -895,7 +969,7 @@ export function InspectorDock() {
                     {crumb.label}
                   </button>
                 ) : (
-                  <span className="truncate px-1">{crumb.label}</span>
+                  <span className="truncate px-0.5">{crumb.label}</span>
                 )}
                 {index < inspectorBreadcrumbCrumbs.length - 1 ? (
                   <span className="px-0.5" style={{ color: CHROME.muted }} aria-hidden>
@@ -906,9 +980,38 @@ export function InspectorDock() {
             ))}
           </span>
         ) : null}
+        {currentLoadedSection ? (
+          <InspectorDraftStatus
+            dirty={dirty}
+            saving={saving}
+            error={saveError}
+          />
+        ) : null}
+        {device !== "desktop" ? (
+          <span
+            className="inline-flex w-fit rounded-md px-2 py-0.5 text-[10.5px] font-semibold"
+            style={{
+              background: CHROME.blueBg,
+              color: CHROME.blue,
+              border: `1px solid ${CHROME.blueLine}`,
+            }}
+          >
+            Editing {device === "tablet" ? "Tablet" : "Mobile"}
+          </span>
+        ) : null}
       </div>
     );
-  }, [handleInspectorCrumbSelect, inspectorBreadcrumbCrumbs, sectionMeta, sectionTitle]);
+  }, [
+    currentLoadedSection,
+    device,
+    dirty,
+    handleInspectorCrumbSelect,
+    inspectorBreadcrumbCrumbs,
+    saveError,
+    saving,
+    sectionMeta,
+    sectionTitle,
+  ]);
 
   // 2026-04-28 — Tab strip is now adaptive per section type. Sections
   // declare which tabs they meaningfully use; the strip only renders
@@ -939,19 +1042,7 @@ export function InspectorDock() {
     return TABS.filter((t) => set.has(t.key)).map((t) => t.key);
   }, [currentLoadedSection, selectedStandaloneBuilderNode, skeletonHint]);
 
-  // Vertical icon-rail items for the visible tabs, in canonical TABS order.
-  // Each carries its lucide glyph + plain-language label; the label is the
-  // rail button's tooltip + aria-label (see DrawerIconTabs).
-  const iconTabItems = useMemo<ReadonlyArray<DrawerIconTabItem<TabKey>>>(
-    () =>
-      TABS.filter((t) => visibleTabs.includes(t.key)).map((t) => ({
-        key: t.key,
-        label: t.label,
-        hint: INSPECTOR_TAB_HINT[t.key],
-        icon: TAB_ICON[t.key],
-      })),
-    [visibleTabs],
-  );
+  // Vertical icon-rail items removed — tab strip lives on InspectorCommandRail.
 
   // If the active tab disappears for the new section type (e.g. operator
   // had Motion open for Hero, then selects Trust Strip which doesn't
@@ -968,43 +1059,36 @@ export function InspectorDock() {
     }
   }, [selectedBuilderNodeId, selectedStandaloneBuilderNode, visibleTabs, tab]);
 
+  const { dragOptions, inspectorRailDocked } =
+    useInspectorRailCoupling("inspector");
+
   return (
+    <>
+      {!dockOpen ? null : (
     <Drawer
       kind="dock"
       open={dockOpen}
       zIndex={85}
       testId="inspector-dock"
       ariaLabelledBy="inspector-drawer-title"
+      topPx={INSPECTOR_CHROME_TOP_PX}
       floating
-      floatLabel="Inspector"
       floatPanelId="inspector"
+      floatSideInsetPx={INSPECTOR_PANEL_RIGHT_INSET_PX}
+      floatingDragOptions={dragOptions}
+      dockedToRail={inspectorRailDocked}
       compactBottomSheetBelowLg
     >
       <DrawerHead
         titleId="inspector-drawer-title"
-        title="Inspector"
+        title={sectionTitle}
         meta={headerMeta}
         metaWrap
-        icon={
-          isSiteHeaderSelected ? (
-            <SiteHeaderHeadIcon />
-          ) : currentLoadedSection ? (
-            <SectionTypeIcon
-              typeKey={currentLoadedSection.sectionTypeKey}
-              size={15}
-            />
-          ) : skeletonHint ? (
-            <SectionTypeIcon typeKey={skeletonHint.typeKey} size={15} />
-          ) : undefined
-        }
-        saveChip={
-          currentLoadedSection ? (
-            <PanelSaveChip dirty={dirty} saving={saving} error={saveError} />
-          ) : undefined
-        }
-        onClose={
-          selectedSectionId ? () => setSelectedSectionId(null) : undefined
-        }
+        metaIndent={false}
+        toolsVariant="minimal"
+        onClose={() => setInspectorDockOpen(false)}
+        closeAriaLabel="Close panel"
+        dockedToRail={inspectorRailDocked}
       />
 
       {!selectedSectionId && !selectedStandaloneBuilderNode ? (
@@ -1042,17 +1126,8 @@ export function InspectorDock() {
         <InspectorSkeleton />
       ) : (
         <div className="flex min-h-0 flex-1 flex-col">
-          {visibleTabs.length > 1 ? (
-            <DrawerIconTabsRow
-              items={iconTabItems}
-              active={tab}
-              onSelect={setTab}
-              ariaLabel="Inspector sections"
-            />
-          ) : null}
-
           <DrawerBody
-            padding="14px 14px 32px"
+            padding="18px 20px 36px"
             className="min-h-0 min-w-0 flex-1 overflow-x-hidden"
           >
             {saveError ? (
@@ -1069,6 +1144,18 @@ export function InspectorDock() {
               >
                 {saveError}
               </div>
+            ) : null}
+            {(currentLoadedSection || selectedStandaloneBuilderNode) ? (
+              <InspectorViewportRail
+                device={viewportDevice}
+                onDeviceChange={setDevice}
+                hideOnDevice={hideOnDevice}
+                onHideChange={handleViewportHideChange}
+                overrideCount={viewportOverrideCount}
+                onResetOverrides={
+                  viewportOverrideCount > 0 ? handleResetViewportOverrides : undefined
+                }
+              />
             ) : null}
             {tab === "content" ? (
               <>
@@ -1115,7 +1202,9 @@ export function InspectorDock() {
                 }
                 onPatch={handlePresentationPatch}
                 onDeepPatch={handlePresentationDeepPatch}
-                hasResponsiveTab={visibleTabs.includes("responsive")}
+                sectionTypeKey={currentLoadedSection?.sectionTypeKey}
+                sectionDraftProps={currentDraftProps ?? undefined}
+                onSectionPatch={handleStylePatch}
               />
             ) : null}
             {tab === "style" ? (
@@ -1151,16 +1240,6 @@ export function InspectorDock() {
                 onMutationError={setSaveError}
               />
             ) : null}
-            {tab === "responsive" ? (
-              <ResponsivePanel
-                presentation={
-                  (currentDraftProps?.presentation as
-                    | Record<string, unknown>
-                    | undefined) ?? {}
-                }
-                onDeepPatch={handlePresentationDeepPatch}
-              />
-            ) : null}
             {tab === "motion" ? (
               <MotionPanel
                 presentation={
@@ -1175,46 +1254,64 @@ export function InspectorDock() {
         </div>
       )}
     </Drawer>
+      )}
+    </>
   );
 }
 
 function EmptyState() {
   return (
-    <div
-      className="flex flex-1 flex-col items-center justify-center gap-0 px-8 text-center"
-      style={{ color: CHROME.muted }}
-      role="region"
-      aria-labelledby="inspector-empty-title"
-      aria-describedby="inspector-empty-desc"
-    >
+    <div className="flex min-h-[340px] flex-1 flex-col p-5">
       <div
-        className="mb-4 flex size-12 items-center justify-center rounded-2xl border"
+        className="flex flex-1 flex-col items-center justify-center rounded-2xl px-10 py-14 text-center"
         style={{
-          borderColor: CHROME.lineMid,
-          background: `linear-gradient(180deg, ${CHROME.paper}, ${CHROME.paper2})`,
-          boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-          color: CHROME.muted,
+          background: `linear-gradient(180deg, ${CHROME.paper} 0%, ${CHROME.paper2} 100%)`,
+          border: `1px solid ${CHROME.lineMid}`,
         }}
+        role="region"
+        aria-labelledby="inspector-empty-title"
+        aria-describedby="inspector-empty-desc"
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-        </svg>
+        <div
+          className="mb-5 flex size-14 items-center justify-center rounded-2xl border"
+          style={{
+            borderColor: CHROME.lineMid,
+            background: CHROME.surface,
+            boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+            color: CHROME.muted,
+          }}
+        >
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+          </svg>
+        </div>
+        <p
+          id="inspector-empty-title"
+          className="text-[15px] font-semibold tracking-tight"
+          style={{ color: CHROME.ink }}
+        >
+          Nothing selected
+        </p>
+        <p
+          id="inspector-empty-desc"
+          className="mt-2.5 max-w-[260px] text-[13px] leading-[1.55]"
+          style={{ color: CHROME.muted2 }}
+        >
+          Click a section on the canvas or a row in the left Layers panel. Your
+          draft edits stay private until you publish.
+        </p>
       </div>
-      <p
-        id="inspector-empty-title"
-        className="text-[13px] font-semibold tracking-tight"
-        style={{ color: CHROME.text2 }}
-      >
-        Nothing selected
-      </p>
-      <p
-        id="inspector-empty-desc"
-        className="mt-1.5 max-w-[220px] text-[11.5px] leading-relaxed"
-        style={{ color: CHROME.muted2 }}
-      >
-        Click a section on the canvas or a row in the left Layers panel. Your draft edits stay private until you publish.
-      </p>
     </div>
   );
 }
@@ -1434,29 +1531,3 @@ function InspectorSkeleton() {
   );
 }
 
-/**
- * Small glyph for the site-header head icon — a calm horizontal bar
- * with three dots, signalling "the header lives here". Uses currentColor
- * so it tracks the drawer head's text color without extra wiring.
- */
-function SiteHeaderHeadIcon() {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      width="15"
-      height="15"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <rect x="2" y="3.5" width="12" height="4" rx="1" />
-      <circle cx="11.5" cy="5.5" r="0.6" fill="currentColor" />
-      <circle cx="13" cy="5.5" r="0.6" fill="currentColor" />
-      <line x1="2" y1="11" x2="9" y2="11" />
-      <line x1="2" y1="13" x2="6" y2="13" />
-    </svg>
-  );
-}

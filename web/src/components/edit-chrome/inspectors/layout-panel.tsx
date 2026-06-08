@@ -59,27 +59,39 @@ import { NumberUnit, type LengthUnit } from "../kit/number-unit";
 import { Segmented, type SegmentedOption } from "../kit/segmented";
 import { Toggle } from "../kit/toggle";
 import { CHROME } from "../kit/tokens";
+import {
+  INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL,
+  INSPECTOR_HELP_TEXT_CLASS as HINT,
+  INSPECTOR_SECTION_TITLE_CLASS as SECTION_TITLE,
+  InspectorBody,
+  InspectorControlWell,
+  InspectorOptionCards,
+  InspectorSection,
+} from "./kit/inspector-ui";
+import { InspectorResetFooter } from "./kit/inspector-mockup-primitives";
+import { InspectorLayoutPresetCards } from "./kit/inspector-mockup-primitives";
+import { InspectorResponsiveSettings } from "./kit/inspector-responsive-settings";
+import {
+  countPresentationOverrides,
+  type ViewportDevice,
+} from "./responsive-field-state";
 
-const SECTION_TITLE =
-  "text-[10.5px] font-semibold uppercase tracking-[0.14em] text-stone-500";
-const FIELD_LABEL =
-  "text-[10.5px] font-semibold uppercase tracking-[0.10em] text-stone-600";
-const HINT = "text-[11px] leading-tight text-stone-500";
-const INHERIT_HINT = "text-[11px] text-stone-500";
+const INHERIT_HINT = HINT;
 
 interface LayoutPanelProps {
   presentation: Record<string, unknown>;
   onPatch: (patch: Record<string, unknown>) => void;
   onDeepPatch?: (patch: Record<string, unknown>) => void;
-  /**
-   * True when the section also exposes a dedicated Responsive tab (see
-   * TABS_BY_SECTION_TYPE in inspector-dock). When set, the in-tab
-   * "Per-screen overrides" block is hidden to avoid two editors writing
-   * the same `presentation.breakpoints` store. Sections without a
-   * Responsive tab keep the block as their only per-breakpoint editor.
-   */
-  hasResponsiveTab?: boolean;
+  sectionTypeKey?: string;
+  sectionDraftProps?: Record<string, unknown>;
+  onSectionPatch?: (patch: Record<string, unknown>) => void;
 }
+
+const HERO_LAYOUT_OPTIONS = [
+  { value: "", label: "Text centered", hint: "Copy centered, image full-bleed behind." },
+  { value: "split-left", label: "Text left, media right", hint: "Background photo on the left." },
+  { value: "split-right", label: "Text right, media left", hint: "Copy on the left." },
+] as const;
 
 // Short pill labels — full descriptors live in PRESENTATION_OPTIONS for the
 // dropdown shape but don't fit in chips. Keep these aligned with the enum
@@ -786,34 +798,18 @@ function NodeLayoutPresetGrid({
   if (presets.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-2">
-      <span className={FIELD_LABEL}>Quick layouts</span>
-      <div className="grid grid-cols-2 gap-2">
-        {presets.map((preset) => (
-          <button
-            key={preset.id}
-            type="button"
-            data-builder-node-layout-preset={preset.id}
-            onClick={() => onApply(preset.patch)}
-            className="cursor-pointer text-left transition-colors"
-            style={{
-              background: CHROME.paper,
-              border: `1px solid ${CHROME.line}`,
-              borderRadius: 6,
-              padding: "8px 9px",
-              color: CHROME.ink,
-            }}
-          >
-            <span className="block text-[11.5px] font-semibold">
-              {preset.label}
-            </span>
-            <span className="mt-0.5 block text-[10.5px] leading-tight text-stone-500">
-              {preset.description}
-            </span>
-          </button>
-        ))}
-      </div>
-    </div>
+    <InspectorLayoutPresetCards
+      value={undefined}
+      onChange={(id) => {
+        const preset = presets.find((p) => p.id === id);
+        if (preset) onApply(preset.patch);
+      }}
+      options={presets.map((preset) => ({
+        value: preset.id,
+        title: preset.label,
+        description: preset.description,
+      }))}
+    />
   );
 }
 
@@ -996,90 +992,32 @@ function LayoutHealthCard({
   );
 }
 
-function ContainerResponsiveEditor({
-  viewport,
-  value,
-  onPatch,
-}: {
-  viewport: ContainerResponsiveViewport;
-  value: NonNullable<BuilderContainerNode["props"]["responsive"]>[ContainerResponsiveViewport];
-  onPatch: (
-    key: "layout" | "gap" | "columns" | "align",
-    next: string | number | undefined,
-  ) => void;
-}) {
-  const label = viewport === "tablet" ? "Tablet" : "Mobile";
-
-  return (
-    <div
-      className="flex flex-col gap-2 rounded-md p-3"
-      style={{ background: CHROME.paper, border: `1px solid ${CHROME.line}` }}
-    >
-      <div className="flex items-center justify-between">
-        <span className={FIELD_LABEL}>{label}</span>
-        <span className={INHERIT_HINT}>
-          {value ? "Override active" : "Inherit desktop"}
-        </span>
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <span className={FIELD_LABEL}>Layout</span>
-        <Segmented
-          fullWidth
-          compact
-          value={value?.layout ?? ""}
-          onChange={(next) => onPatch("layout", next || undefined)}
-          options={[{ value: "", label: "Inherit" }, ...NODE_LAYOUT_OPTIONS]}
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        <div className="flex flex-col gap-1.5">
-          <span className={FIELD_LABEL}>Gap</span>
-          <Segmented
-            fullWidth
-            compact
-            value={value?.gap ?? ""}
-            onChange={(next) => onPatch("gap", next || undefined)}
-            options={[{ value: "", label: "Auto" }, ...NODE_GAP_OPTIONS]}
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <span className={FIELD_LABEL}>Align</span>
-          <Segmented
-            fullWidth
-            compact
-            value={value?.align ?? ""}
-            onChange={(next) => onPatch("align", next || undefined)}
-            options={[{ value: "", label: "Auto" }, ...NODE_ALIGN_OPTIONS]}
-          />
-        </div>
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <span className={FIELD_LABEL}>Columns</span>
-        <Segmented
-          fullWidth
-          compact
-          value={String(value?.columns ?? "")}
-          onChange={(next) =>
-            onPatch("columns", next ? Number.parseInt(next, 10) : undefined)
-          }
-          options={[{ value: "", label: "Auto" }, ...GRID_COLUMNS_OPTIONS]}
-        />
-      </div>
-    </div>
-  );
+function viewportDeviceFromEditDevice(
+  device: string,
+): ViewportDevice {
+  if (device === "tablet" || device === "mobile") return device;
+  return "desktop";
 }
 
 function AdvancedNodeLayoutEditor({
   node,
   onPatch,
+  device,
 }: {
   node: AdvancedEditableBuilderNode;
   onPatch: (patch: Record<string, unknown>) => void;
+  device: ViewportDevice;
 }) {
   const resetNodeLayout = () => onPatch(nodeLayoutResetPatch(node));
 
   if (node.kind === "container") {
     const responsive = node.props.responsive;
+    const editingOverride = device !== "desktop";
+    const overrideBucket =
+      editingOverride && (device === "tablet" || device === "mobile")
+        ? responsive?.[device]
+        : undefined;
+
     const patchResponsive = (
       viewport: ContainerResponsiveViewport,
       key: "layout" | "gap" | "columns" | "align",
@@ -1095,14 +1033,40 @@ function AdvancedNodeLayoutEditor({
       onPatch({ responsive: cleanContainerResponsive(nextResponsive) });
     };
 
+    const layoutValue = editingOverride
+      ? overrideBucket?.layout ?? ""
+      : node.props.layout;
+    const gapValue = editingOverride ? overrideBucket?.gap ?? "" : node.props.gap ?? "m";
+    const columnsValue = editingOverride
+      ? String(overrideBucket?.columns ?? "")
+      : String(node.props.columns ?? "");
+    const alignValue = editingOverride
+      ? overrideBucket?.align ?? ""
+      : node.props.align ?? "stretch";
+
+    const patchLayoutField = (
+      key: "layout" | "gap" | "columns" | "align",
+      next: string | number | undefined,
+    ) => {
+      if (editingOverride && (device === "tablet" || device === "mobile")) {
+        patchResponsive(device, key, next);
+        return;
+      }
+      if (key === "layout") onPatch({ layout: next as string });
+      else if (key === "gap") onPatch({ gap: next as string });
+      else if (key === "columns") onPatch({ columns: next as number | undefined });
+      else onPatch({ align: next as string });
+    };
+
     return (
       <div className="flex flex-col gap-3" data-builder-node-layout-panel="container">
-        <div className="flex justify-end">
+        <div className="flex items-center justify-between">
+          <span className={FIELD_LABEL}>Selected node</span>
           <button
             type="button"
             data-builder-node-layout-reset=""
             onClick={resetNodeLayout}
-            className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+            className="cursor-pointer text-[12px] font-semibold"
             style={{
               background: "transparent",
               border: "none",
@@ -1113,6 +1077,11 @@ function AdvancedNodeLayoutEditor({
             Reset node
           </button>
         </div>
+        {editingOverride ? (
+          <span className={INHERIT_HINT}>
+            Editing {device} layout overrides — desktop values stay the base.
+          </span>
+        ) : null}
         <NodeLayoutPresetGrid kind={node.kind} onApply={onPatch} />
         <div className="grid grid-cols-2 gap-2">
           <div className="flex flex-col gap-1.5">
@@ -1120,8 +1089,8 @@ function AdvancedNodeLayoutEditor({
             <Segmented
               fullWidth
               compact
-              value={node.props.layout}
-              onChange={(next) => onPatch({ layout: next })}
+              value={layoutValue}
+              onChange={(next) => patchLayoutField("layout", next)}
               options={NODE_LAYOUT_OPTIONS}
             />
           </div>
@@ -1130,8 +1099,8 @@ function AdvancedNodeLayoutEditor({
             <Segmented
               fullWidth
               compact
-              value={node.props.gap ?? "m"}
-              onChange={(next) => onPatch({ gap: next })}
+              value={gapValue}
+              onChange={(next) => patchLayoutField("gap", next)}
               options={NODE_GAP_OPTIONS}
             />
           </div>
@@ -1142,17 +1111,25 @@ function AdvancedNodeLayoutEditor({
             <Segmented
               fullWidth
               compact
-              value={String(node.props.columns ?? "")}
+              value={columnsValue}
               onChange={(next) =>
-                onPatch({
-                  columns:
-                    node.props.layout === "grid" && next
-                      ? Number.parseInt(next, 10)
-                      : undefined,
-                })
+                patchLayoutField(
+                  "columns",
+                  (editingOverride ? overrideBucket?.layout : node.props.layout) === "grid" &&
+                    next
+                    ? Number.parseInt(next, 10)
+                    : editingOverride
+                      ? next
+                        ? Number.parseInt(next, 10)
+                        : undefined
+                      : node.props.layout === "grid" && next
+                        ? Number.parseInt(next, 10)
+                        : undefined,
+                )
               }
               options={
-                node.props.layout === "grid"
+                (editingOverride ? overrideBucket?.layout : node.props.layout) === "grid" ||
+                (!editingOverride && node.props.layout === "grid")
                   ? GRID_COLUMNS_OPTIONS
                   : [{ value: "", label: "Only for grid" }]
               }
@@ -1163,44 +1140,11 @@ function AdvancedNodeLayoutEditor({
             <Segmented
               fullWidth
               compact
-              value={node.props.align ?? "stretch"}
-              onChange={(next) => onPatch({ align: next })}
+              value={alignValue}
+              onChange={(next) => patchLayoutField("align", next)}
               options={NODE_ALIGN_OPTIONS}
             />
           </div>
-        </div>
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <span className={FIELD_LABEL}>Responsive overrides</span>
-            {responsive ? (
-              <button
-                type="button"
-                data-builder-node-responsive-reset=""
-                onClick={() => onPatch({ responsive: undefined })}
-                className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  color: CHROME.muted,
-                  padding: 0,
-                }}
-              >
-                Clear
-              </button>
-            ) : (
-              <span className={INHERIT_HINT}>Desktop only</span>
-            )}
-          </div>
-          <ContainerResponsiveEditor
-            viewport="tablet"
-            value={responsive?.tablet}
-            onPatch={(key, next) => patchResponsive("tablet", key, next)}
-          />
-          <ContainerResponsiveEditor
-            viewport="mobile"
-            value={responsive?.mobile}
-            onPatch={(key, next) => patchResponsive("mobile", key, next)}
-          />
         </div>
       </div>
     );
@@ -1692,7 +1636,9 @@ export function LayoutPanel({
   presentation,
   onPatch,
   onDeepPatch,
-  hasResponsiveTab,
+  sectionTypeKey,
+  sectionDraftProps,
+  onSectionPatch,
 }: LayoutPanelProps) {
   const {
     builderTree,
@@ -1895,7 +1841,88 @@ export function LayoutPanel({
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <InspectorBody>
+      {!selectedBuilderNode && onDeepPatch ? (
+        <InspectorResponsiveSettings
+          device={device as ViewportDevice}
+          onDeviceChange={setDevice}
+          presentation={presentation}
+          onPatch={onPatch}
+          onDeepPatch={onDeepPatch}
+          hideOnDevice={
+            device !== "desktop" &&
+            (
+              (presentation.breakpoints as
+                | Partial<Record<"tablet" | "mobile", Record<string, unknown>>>
+                | undefined)?.[device as "tablet" | "mobile"]?.visibility ===
+              "hidden"
+            )
+          }
+          onHideChange={(hidden) => {
+            if (device === "desktop") return;
+            onDeepPatch({
+              breakpoints: {
+                [device]: { visibility: hidden ? "hidden" : undefined },
+              },
+            });
+          }}
+          overrideCount={
+            device === "tablet" || device === "mobile"
+              ? countPresentationOverrides(presentation, device)
+              : 0
+          }
+          onResetOverrides={() => {
+            if (device === "desktop") return;
+            const bucket = (
+              presentation.breakpoints as
+                | Partial<Record<"tablet" | "mobile", Record<string, unknown>>>
+                | undefined
+            )?.[device as "tablet" | "mobile"];
+            if (!bucket) return;
+            onDeepPatch({
+              breakpoints: {
+                [device]: Object.fromEntries(
+                  Object.keys(bucket).map((key) => [key, undefined]),
+                ),
+              },
+            });
+          }}
+        />
+      ) : null}
+      {sectionTypeKey === "hero" && !selectedBuilderNode && onSectionPatch ? (
+        <>
+          <InspectorSection
+            title="Hero layout"
+            description="Container width, alignment, and composition for this hero."
+          >
+            <InspectorOptionCards
+              value={(sectionDraftProps?.layout as string | undefined) ?? ""}
+              onChange={(next) =>
+                onSectionPatch({ layout: next === "" ? undefined : next })
+              }
+              options={HERO_LAYOUT_OPTIONS.map((o) => ({
+                value: o.value,
+                label: o.label,
+              }))}
+              columns={3}
+            />
+          </InspectorSection>
+          <InspectorResetFooter
+            label="Reset layout"
+            onClick={() =>
+              onSectionPatch({
+                layout: undefined,
+                presentation: {
+                  containerWidth: undefined,
+                  paddingTop: undefined,
+                  paddingBottom: undefined,
+                  align: undefined,
+                },
+              })
+            }
+          />
+        </>
+      ) : null}
       {selectedBuilderNode ? (
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
@@ -1904,13 +1931,7 @@ export function LayoutPanel({
               {nodeKindLabel(selectedBuilderNode.kind)}
             </span>
           </div>
-          <div
-            className="flex flex-col gap-3 rounded-md p-3"
-            style={{
-              background: CHROME.surface2,
-              border: `1px solid ${CHROME.line}`,
-            }}
-          >
+          <div className="flex flex-col gap-3">
             <LayoutHealthCard
               findings={selectedBuilderNodeFindings}
               onApply={(patch) => {
@@ -1919,14 +1940,15 @@ export function LayoutPanel({
             />
             <AdvancedNodeLayoutEditor
               node={selectedBuilderNode}
+              device={viewportDeviceFromEditDevice(device)}
               onPatch={(patch) => {
                 void commitBuilderNodePatch(selectedBuilderNode.id, patch);
               }}
             />
           </div>
         </section>
-      ) : null}
-
+      ) : sectionTypeKey !== "hero" ? (
+      <>
       {/* ── Container ────────────────────────────────────────────────── */}
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
@@ -2087,157 +2109,6 @@ export function LayoutPanel({
         </div>
       </section>
 
-      {onDeepPatch && !hasResponsiveTab ? (
-        <section className="flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <div className={SECTION_TITLE}>Per-screen overrides</div>
-            {hasResponsiveLayoutOverride ? (
-              <button
-                type="button"
-                onClick={resetResponsiveSpacing}
-                className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  color: CHROME.muted,
-                  padding: 0,
-                }}
-              >
-                Reset {BREAKPOINT_LABELS[responsiveSpacingTarget]}
-              </button>
-            ) : (
-              <span className={INHERIT_HINT}>
-                Inherits desktop
-              </span>
-            )}
-          </div>
-          <div
-            className="rounded-md p-3"
-            style={{
-              background: CHROME.paper,
-              border: `1px solid ${CHROME.line}`,
-            }}
-          >
-            <div className="flex flex-col gap-3">
-              <div
-                className="inline-flex w-fit p-0.5"
-                style={{
-                  background: CHROME.surface2,
-                  border: `1px solid ${CHROME.line}`,
-                  borderRadius: 7,
-                }}
-              >
-                {RESPONSIVE_SPACING_TARGETS.map((target) => {
-                  const active = responsiveSpacingTarget === target;
-                  const targetHasOverride = Boolean(
-                    breakpointOverrides[target]?.paddingTop ||
-                      breakpointOverrides[target]?.paddingBottom ||
-                      breakpointOverrides[target]?.containerWidth ||
-                      breakpointOverrides[target]?.align,
-                  );
-                  return (
-                    <button
-                      key={target}
-                      type="button"
-                      data-layout-responsive-target={target}
-                      aria-pressed={active}
-                      onClick={() => setDevice(target)}
-                      className="relative rounded-[5px] px-3 py-1 text-[11px] font-semibold transition"
-                      style={{
-                        background: active ? CHROME.surface : "transparent",
-                        color: active ? CHROME.ink : CHROME.muted,
-                        boxShadow: active
-                          ? "0 1px 3px rgba(0,0,0,0.08)"
-                          : "none",
-                        border: "none",
-                        cursor: "pointer",
-                      }}
-                    >
-                      {BREAKPOINT_LABELS[target]}
-                      {targetHasOverride ? (
-                        <span
-                          aria-hidden
-                          style={{
-                            position: "absolute",
-                            right: 4,
-                            top: 4,
-                            width: 4,
-                            height: 4,
-                            borderRadius: "50%",
-                            background: CHROME.blue,
-                          }}
-                        />
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="grid grid-cols-2 gap-1.5">
-                {SECTION_SPACING_PRESETS.map((preset) => {
-                  const selectedPreset =
-                    responsivePadTop === preset.paddingTop &&
-                    responsivePadBottom === preset.paddingBottom;
-                  return (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      data-layout-responsive-spacing-preset={preset.id}
-                      aria-pressed={selectedPreset}
-                      title={`${BREAKPOINT_LABELS[responsiveSpacingTarget]}: ${preset.description}`}
-                      onClick={() => applyResponsiveSpacingPreset(preset)}
-                      className="min-h-8 cursor-pointer px-2 text-left text-[11px] font-semibold"
-                      style={{
-                        background: selectedPreset ? CHROME.accent : CHROME.surface2,
-                        border: `1px solid ${
-                          selectedPreset ? CHROME.accent : CHROME.line
-                        }`,
-                        borderRadius: 6,
-                        color: selectedPreset ? "#fff" : CHROME.text,
-                      }}
-                    >
-                      {preset.label}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div
-                  className="flex flex-col gap-1.5"
-                  data-layout-responsive-container-control=""
-                >
-                  <span className={FIELD_LABEL}>Container</span>
-                  <Segmented
-                    fullWidth
-                    compact
-                    value={responsiveContainerWidth}
-                    onChange={(next) =>
-                      setResponsiveLayoutField("containerWidth", next)
-                    }
-                    options={chipOptions("containerWidth")}
-                  />
-                </div>
-                <div
-                  className="flex flex-col gap-1.5"
-                  data-layout-responsive-align-control=""
-                >
-                  <span className={FIELD_LABEL}>Align</span>
-                  <Segmented
-                    compact
-                    value={responsiveAlign}
-                    onChange={(next) => setResponsiveLayoutField("align", next)}
-                    options={iconOptions("align", ALIGN_ICONS)}
-                  />
-                </div>
-              </div>
-              <span className={HINT}>
-                Applies only to {BREAKPOINT_LABELS[responsiveSpacingTarget]}.
-                Desktop spacing stays untouched.
-              </span>
-            </div>
-          </div>
-        </section>
-      ) : null}
-
       {/* ── Margin (pixel-only — no token equivalent) ────────────────── */}
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
@@ -2381,47 +2252,51 @@ export function LayoutPanel({
           />
         </div>
       </section>
+      </>
+      ) : null}
 
-      {/* ── Stacking & visibility (mobileStack + visibility — NOT covered
-            by the Responsive tab's OVERRIDE_KEYS, so this stays in every
-            Layout tab regardless of hasResponsiveTab) ─────────────────── */}
+      {/* ── Stacking & visibility ───────────────────────────────────── */}
       <section className="flex flex-col gap-3">
         <div className={SECTION_TITLE}>Stacking &amp; visibility</div>
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between">
-            <span className={FIELD_LABEL}>
-              {PRESENTATION_FIELD_LABELS.mobileStack}
-            </span>
-            {!mobileStackValue ? (
-              <span className={INHERIT_HINT}>Default</span>
-            ) : null}
+        <InspectorControlWell>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <span className={FIELD_LABEL}>
+                {PRESENTATION_FIELD_LABELS.mobileStack}
+              </span>
+              {!mobileStackValue ? (
+                <span className={INHERIT_HINT}>Default</span>
+              ) : null}
+            </div>
+            <Segmented
+              fullWidth
+              compact
+              value={mobileStackValue}
+              onChange={(next) => setOrToggle("mobileStack", next)}
+              options={iconOptions("mobileStack", MOBILE_STACK_ICONS)}
+            />
           </div>
-          <Segmented
-            fullWidth
-            compact
-            value={mobileStackValue}
-            onChange={(next) => setOrToggle("mobileStack", next)}
-            options={iconOptions("mobileStack", MOBILE_STACK_ICONS)}
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between">
-            <span className={FIELD_LABEL}>
-              {PRESENTATION_FIELD_LABELS.visibility}
-            </span>
-            {!visibilityValue ? (
-              <span className={INHERIT_HINT}>Always visible</span>
-            ) : null}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <span className={FIELD_LABEL}>
+                {PRESENTATION_FIELD_LABELS.visibility}
+              </span>
+              {!visibilityValue ? (
+                <span className={INHERIT_HINT}>Always visible</span>
+              ) : null}
+            </div>
+            <Segmented
+              fullWidth
+              compact
+              value={visibilityValue}
+              onChange={(next) => setOrToggle("visibility", next)}
+              options={iconOptions("visibility", VISIBILITY_ICONS)}
+            />
           </div>
-          <Segmented
-            fullWidth
-            compact
-            value={visibilityValue}
-            onChange={(next) => setOrToggle("visibility", next)}
-            options={iconOptions("visibility", VISIBILITY_ICONS)}
-          />
         </div>
+        </InspectorControlWell>
       </section>
-    </div>
+    </InspectorBody>
   );
 }

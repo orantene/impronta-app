@@ -839,7 +839,9 @@ export interface BuilderFormField {
   id: string;
   /** Submission key (form-data field name). Lowercase/no-spaces recommended. */
   name: string;
-  type: "text" | "email" | "tel" | "textarea" | "submit";
+  type: "text" | "email" | "tel" | "textarea" | "submit" | "select" | "radio" | "checkbox";
+  /** Options for select / radio groups (one label per option). */
+  options?: string[];
   /** Visible label (also the submit button caption for type:"submit"). */
   label: string;
   placeholder?: string;
@@ -855,8 +857,8 @@ export interface BuilderFormField {
  * the endpoint above and requires `sectionId` to be a real `cms_sections` row
  * id) or to a full external URL (Formspree, your own handler, …).
  *
- * DEFERRED (clearly noted): select / radio / checkbox controls, multi-step,
- * client-side validation beyond the native `required`/`type` constraints.
+ * DEFERRED (clearly noted): multi-step flows and client-side validation beyond
+ * native `required`/`type` constraints.
  */
 export interface BuilderFormNode extends BuilderNodeBase {
   kind: "form";

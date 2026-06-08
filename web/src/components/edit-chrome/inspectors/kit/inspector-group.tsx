@@ -16,6 +16,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 
 import { InfoTip } from "@/components/ui/info-tip";
+import { InspectorAccordion } from "./inspector-ui";
 import { KIT } from "./tokens";
 
 interface InspectorGroupProps {
@@ -75,7 +76,7 @@ export function InspectorGroup({
     }
   }, [open, storageKey]);
 
-  const titleCls = advanced ? KIT.sectionTitle : KIT.groupTitle;
+  const titleCls = advanced ? KIT.sectionTitle : KIT.blockHeading;
 
   if (!collapsible) {
     return (
@@ -92,43 +93,17 @@ export function InspectorGroup({
     );
   }
 
-  // T1-4 — InfoTip is rendered as a SIBLING of the toggle button, not as a
-  // child. InfoTip itself emits a <button>, and nesting a <button> inside
-  // another <button> is an HTML hydration error that surfaces in the
-  // Next.js dev overlay (the audit's "red 2 Issues badge" leak). Splitting
-  // them keeps the visual layout identical (flex row, same gap) but makes
-  // the DOM legal so React stops complaining.
-  return (
-    <section className="flex flex-col gap-2.5">
-      <div className="flex w-full items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            className="flex items-center gap-1.5 text-left"
-            aria-expanded={open}
-          >
-            <span className={titleCls}>{title}</span>
-            <svg
-              width="11"
-              height="11"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className={`text-stone-500 transition ${open ? "rotate-180" : ""}`}
-              aria-hidden
-            >
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </button>
-          {info ? <InfoTip label={info} /> : null}
-        </div>
-        {accessory ?? null}
-      </div>
-      {open ? children : null}
-    </section>
-  );
+  if (collapsible) {
+    return (
+      <InspectorAccordion title={title} defaultOpen={open}>
+        {accessory ? (
+          <div className="flex justify-end">{accessory}</div>
+        ) : null}
+        {info ? <p className="text-[11px] leading-snug text-stone-500">{info}</p> : null}
+        {children}
+      </InspectorAccordion>
+    );
+  }
+
+  return null;
 }

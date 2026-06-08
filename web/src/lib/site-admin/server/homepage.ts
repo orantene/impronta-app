@@ -283,6 +283,7 @@ function buildRevisionSnapshot(args: {
   page: PageRow;
   composition: HomepageSnapshotSection[];
   builderTree?: BuilderNodeTree | null;
+  styleClasses?: BuilderStyleClassRegistry | null;
   kind: "draft" | "published" | "rollback";
 }): Record<string, unknown> {
   const snapshot: Record<string, unknown> = {
@@ -313,6 +314,9 @@ function buildRevisionSnapshot(args: {
   };
   if (args.builderTree && args.builderTree.length > 0) {
     snapshot.builderTree = args.builderTree;
+  }
+  if (args.styleClasses && Object.keys(args.styleClasses).length > 0) {
+    snapshot.styleClasses = args.styleClasses;
   }
   return snapshot;
 }
@@ -610,6 +614,8 @@ export async function saveHomepageDraftComposition(
   params: {
     tenantId: string;
     values: HomepageSaveDraftValues;
+    /** Page-scoped linked style classes (editor localStorage mirror). */
+    styleClasses?: BuilderStyleClassRegistry;
     actorProfileId: string | null;
     correlationId?: string;
     /**
@@ -742,6 +748,7 @@ export async function saveHomepageDraftComposition(
     .from("cms_pages")
     .update({
       title: values.metadata.title,
+      meta_title: values.metadata.metaTitle ?? null,
       meta_description: values.metadata.metaDescription ?? null,
       // introTagline lives in `hero.introTagline` on the homepage row so the
       // existing hero JSON column stays the single source for hero-area text.
@@ -844,6 +851,7 @@ export async function saveHomepageDraftComposition(
       page: updatedPage,
       composition: compositionSnapshot,
       builderTree: draftBuilderTree,
+      styleClasses: params.styleClasses,
       kind: "draft",
     }),
     actorProfileId,

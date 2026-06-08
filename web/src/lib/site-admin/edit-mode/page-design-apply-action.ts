@@ -29,6 +29,7 @@ import {
   bakePageDesignTree,
   getPageDesign,
 } from "@/lib/site-admin/builder-node/page-designs";
+import { saveHomepageCompositionAction } from "./composition-actions";
 
 export type ApplyPageDesignState =
   | { ok: true; designId: string }
@@ -115,5 +116,51 @@ export async function applyPageDesignToHomepage(
     };
   }
 
+  return { ok: true, designId: design.id };
+}
+
+/** Apply a curated page design to any cms_page (not just homepage). */
+export async function applyPageDesignToPage(
+  pageId: string,
+  designId: string,
+  expectedVersion: number,
+): Promise<ApplyPageDesignState> {
+  const auth = await requireStaff();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const scope = await requireTenantScope().catch(() => null);
+  if (!scope) {
+    return { ok: false, error: "Select an agency workspace first." };
+  }
+  const design = getPageDesign(designId);
+  if (!design) {
+    return { ok: false, error: `Unknown design "${designId}".` };
+  }
+  const admin = createServiceRoleClient();
+  if (!admin) {
+    return { ok: false, error: "Server is missing service-role credentials." };
+  }
+  const { data: pageRow } = await admin
+    .from("cms_pages")
+    .select("id, title, meta_description, version")
+    .eq("id", pageId)
+    .eq("tenant_id", scope.tenantId)
+    .maybeSingle();
+  if (!pageRow) return { ok: false, error: "Page not found." };
+
+  const builderTree = bakePageDesignTree(design.tree, design.dataSources);
+  const save = await saveHomepageCompositionAction({
+    locale: DEFAULT_PLATFORM_LOCALE,
+    pageId,
+    expectedVersion,
+    metadata: {
+      title: pageRow.title ?? "Untitled page",
+      metaDescription: pageRow.meta_description,
+    },
+    slots: {},
+    builderTree,
+  });
+  if (!save.ok) {
+    return { ok: false, error: save.error, code: save.code };
+  }
   return { ok: true, designId: design.id };
 }

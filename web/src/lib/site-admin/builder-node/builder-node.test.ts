@@ -3070,9 +3070,47 @@ test("indexBuilderSectionChildNodes includes labels and nested depth", () => {
   ]);
   assert.deepEqual(rows.map((row) => row.depth), [1, 1, 2, 2]);
   assert.equal(rows[0]?.label, "Headline");
-  assert.equal(rows[1]?.label, "Container");
+  assert.equal(rows[1]?.label, "Stack");
   assert.equal(rows[2]?.label, "Primary CTA");
   assert.equal(rows[3]?.label, "Accordion item: FAQ");
+});
+
+test("indexBuilderSectionChildNodes promotes section_embed labels through wrapper containers", () => {
+  const sectionNodeId = "legacy:body:0:22222222-2222-4222-8222-222222222222";
+  const tree = [
+    {
+      id: sectionNodeId,
+      kind: "section" as const,
+      props: {
+        sectionId: "22222222-2222-4222-8222-222222222222",
+        sectionTypeKey: "featured_talent",
+        slotKey: "body",
+        sortOrder: 0,
+      },
+      children: [
+        {
+          id: `${sectionNodeId}:container:wrap`,
+          kind: "container" as const,
+          props: { layout: "stack" as const },
+          children: [
+            {
+              id: `${sectionNodeId}:embed:featured`,
+              kind: "section_embed" as const,
+              props: {
+                sectionTypeKey: "featured_talent",
+                config: {},
+              },
+            },
+          ],
+        },
+      ],
+    },
+  ];
+
+  const rows = indexBuilderSectionChildNodes(tree).get(sectionNodeId) ?? [];
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0]?.label, "Featured talent");
+  assert.equal(rows[1]?.label, "Featured talent");
 });
 
 test("reconcileBuilderTreeWithLegacySlots preserves non-section roots and stable section ids", () => {

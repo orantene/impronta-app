@@ -3,7 +3,9 @@ import { test } from "node:test";
 
 import {
   WORKSPACE_LAYOUT_STORAGE_KEY,
+  WORKSPACE_CANVAS_MODE_STORAGE_KEY,
   MAGNET_THRESHOLD_PX,
+  DEFAULT_WORKSPACE_CANVAS_MODE,
   parseWorkspaceLayout,
   serializeWorkspaceLayout,
   loadWorkspaceLayout,
@@ -11,6 +13,11 @@ import {
   clearWorkspaceLayout,
   savedOffsetForPanel,
   computeMagnetSnap,
+  loadWorkspaceCanvasMode,
+  saveWorkspaceCanvasMode,
+  resolveBodyHorizontalPadding,
+  resolveDeviceFrameHorizontalPadding,
+  resolveCanvasHudLeftInset,
   type LayoutStorage,
   type SnapRect,
 } from "./workspace-layout";
@@ -251,4 +258,66 @@ test("threshold is respected exactly at the boundary (inclusive)", () => {
     others: [],
   });
   assert.equal(res.left, 0); // inclusive boundary → snaps
+});
+
+// ── canvas mode (fullBleed vs reserveGutters) ─────────────────────────────
+
+test("loadWorkspaceCanvasMode defaults to fullBleed when absent", () => {
+  const storage = makeStorage();
+  assert.equal(loadWorkspaceCanvasMode(storage), DEFAULT_WORKSPACE_CANVAS_MODE);
+});
+
+test("save/load round-trips workspace canvas mode", () => {
+  const storage = makeStorage();
+  saveWorkspaceCanvasMode(storage, "reserveGutters");
+  assert.equal(storage.dump()[WORKSPACE_CANVAS_MODE_STORAGE_KEY], "reserveGutters");
+  assert.equal(loadWorkspaceCanvasMode(storage), "reserveGutters");
+});
+
+test("resolveBodyHorizontalPadding — fullBleed returns zero gutters", () => {
+  assert.deepEqual(
+    resolveBodyHorizontalPadding({
+      mode: "fullBleed",
+      navigatorOpen: true,
+      navigatorWidth: 280,
+      inspectorOpen: true,
+    }),
+    { left: 0, right: 0 },
+  );
+});
+
+test("resolveBodyHorizontalPadding — reserveGutters reserves panel widths", () => {
+  assert.deepEqual(
+    resolveBodyHorizontalPadding({
+      mode: "reserveGutters",
+      navigatorOpen: true,
+      navigatorWidth: 280,
+      inspectorOpen: true,
+    }),
+    { left: 280, right: 380 },
+  );
+});
+
+test("resolveDeviceFrameHorizontalPadding — fullBleed uses safe margins on desktop", () => {
+  assert.deepEqual(
+    resolveDeviceFrameHorizontalPadding({
+      mode: "fullBleed",
+      isPhone: false,
+      navigatorOpen: true,
+      navigatorWidth: 280,
+      inspectorOpen: true,
+    }),
+    { left: 16, right: 16 },
+  );
+});
+
+test("resolveCanvasHudLeftInset — fullBleed uses fixed HUD inset", () => {
+  assert.equal(
+    resolveCanvasHudLeftInset({
+      mode: "fullBleed",
+      navigatorOpen: true,
+      navigatorWidth: 280,
+    }),
+    14,
+  );
 });

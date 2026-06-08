@@ -56,7 +56,12 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { CHROME, CHROME_SHADOWS } from "./kit/tokens";
+import { CHROME, CHROME_SHADOWS, Z_INDEX } from "./kit/tokens";
+import {
+  DEFAULT_WORKSPACE_CANVAS_MODE,
+  resolveCanvasAvailableWidth,
+  resolveCanvasHudLeftInset,
+} from "./workspace-layout";
 
 // ── constants ──────────────────────────────────────────────────────────────
 
@@ -226,12 +231,7 @@ export function CanvasViewportProvider({
 
   const fitPage = useCallback(() => {
     if (typeof window === "undefined") return;
-    // The available width is the viewport minus the navigator + inspector rails.
-    // We read the current body padding that BodyPaddingController injects.
-    const bodyStyle = window.getComputedStyle(document.body);
-    const leftPad = parseFloat(bodyStyle.paddingLeft) || 0;
-    const rightPad = parseFloat(bodyStyle.paddingRight) || 0;
-    const available = window.innerWidth - leftPad - rightPad;
+    const available = resolveCanvasAvailableWidth(DEFAULT_WORKSPACE_CANVAS_MODE);
     // Use the unscaled document width. document.documentElement.scrollWidth
     // reflects the rendered layout, which at zoom=1 is the real page width.
     // At zoom>1 the content is larger; we need the natural (zoom=1) width, so
@@ -547,16 +547,21 @@ export function CanvasZoomControls({
   const { zoom, zoomIn, zoomOut, zoomTo, fitPage, showRulers, toggleRulers } =
     useCanvasViewport();
 
-  const leftOffset = navigatorOpen ? navigatorWidth + 12 : 34;
-  const rightOffset = inspectorOpen ? 380 + 12 : 12;
+  const leftOffset = resolveCanvasHudLeftInset({
+    mode: DEFAULT_WORKSPACE_CANVAS_MODE,
+    navigatorOpen,
+    navigatorWidth,
+  });
+  const rightOffset = inspectorOpen ? 12 : 12;
 
   return (
     <div
       data-edit-overlay="zoom-controls"
-      className="pointer-events-auto fixed z-[84] flex items-center gap-[3px] rounded-[10px] p-[3px]"
+      className="pointer-events-auto fixed flex items-center gap-[3px] rounded-[10px] p-[3px]"
       style={{
         bottom: 24,
         left: leftOffset,
+        zIndex: Z_INDEX.floatingControls,
         background: CHROME.chipInk,
         boxShadow: CHROME_SHADOWS.chip,
         transition: "left 220ms cubic-bezier(0.32,0.72,0,1)",

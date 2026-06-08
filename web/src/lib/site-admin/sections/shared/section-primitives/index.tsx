@@ -181,6 +181,7 @@ export function SectionHead({
           className="site-prim-head__headline"
           data-builder-node-id={headlineBuilderNodeId}
           style={headlineStyle}
+          suppressHydrationWarning
         >
           {headline}
         </h2>
@@ -190,6 +191,7 @@ export function SectionHead({
           className="site-prim-head__intro"
           data-builder-node-id={introBuilderNodeId}
           style={introStyle}
+          suppressHydrationWarning
         >
           {intro}
         </p>
@@ -369,6 +371,7 @@ export function SearchInput({
       role="search"
       data-search-mode={mode}
       data-builder-node-id={builderNodeId}
+      suppressHydrationWarning
     >
       <span className="site-prim-search__ic" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -385,9 +388,14 @@ export function SearchInput({
         aria-label={placeholder}
         autoComplete="off"
         readOnly={!submitting}
+        suppressHydrationWarning
       />
       {submitting ? (
-        <button className="site-prim-search__submit" type="submit">
+        <button
+          className="site-prim-search__submit"
+          type="submit"
+          suppressHydrationWarning
+        >
           {submitLabel}
         </button>
       ) : null}

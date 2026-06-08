@@ -232,7 +232,10 @@ export default async function ClientLayout({
       `}</style>
 
       <div className="client-root" style={{ minHeight: "100dvh", background: C.surface, fontFamily: FONT_BODY }}>
-       <PublicDiscoveryStateProvider>
+       <PublicDiscoveryStateProvider
+         initialSavedIds={savedIds}
+         initialFavoriteIds={favoriteIds}
+       >
         {/* D4 — hydrate the canonical favorites + inquiry-cart stores from
             the SSR seed. The client dashboard uses the ♥ heart icon
             (matches every existing dashboard surface + page copy). */}

@@ -37,6 +37,7 @@ import {
 import { KbdSequence } from "./kit/kbd";
 import { CHROME, CHROME_RADII, CHROME_SHADOWS } from "./kit/tokens";
 import { useEditContext } from "./edit-context";
+import { useModalFocusTrap } from "./modal-focus-trap";
 
 interface ShortcutOverlayProps {
   open: boolean;
@@ -54,6 +55,7 @@ const CATEGORY_ORDER: ReadonlyArray<ShortcutCategory> = [
 
 export function ShortcutOverlay({ open, onClose }: ShortcutOverlayProps) {
   const { canEditSiteShell, pageSlug } = useEditContext();
+  const dialogRef = useModalFocusTrap(open, onClose);
   // Escape close lives both here (when focus is within the overlay) and
   // in edit-shell.tsx (so background focus still dismisses). Two layers
   // of safety net so a stray click anywhere can't strand the modal.
@@ -108,6 +110,7 @@ export function ShortcutOverlay({ open, onClose }: ShortcutOverlayProps) {
       }}
     >
       <div
+        ref={dialogRef}
         onClick={(e) => e.stopPropagation()}
         style={{
           width: "min(720px, 100%)",

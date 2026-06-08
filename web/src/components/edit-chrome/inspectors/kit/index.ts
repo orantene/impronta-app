@@ -2,7 +2,9 @@
  * Inspector kit barrel — all bespoke panels import from here.
  */
 
-export { KIT } from "./tokens";
+export { KIT, BUILDER_VISUAL } from "./tokens";
+export { InspectorViewportRail } from "./inspector-viewport-rail";
+export { InspectorResponsiveSettings } from "./inspector-responsive-settings";
 export { InspectorGroup } from "./inspector-group";
 export {
   InspectorItemRow,
@@ -11,7 +13,7 @@ export {
 export { VisualChipGroup, type ChipOption } from "./visual-chip-group";
 export { MediaPickerButton } from "./media-picker-button";
 export { CtaDuoEditor, type CtaShape } from "./cta-duo-editor";
-export { PanelSaveChip } from "./panel-save-chip";
+export { InspectorDraftStatus, PanelSaveChip } from "./panel-save-chip";
 export { DraggableList, type DragHandleProps } from "./draggable-list";
 export {
   CategoryIconGlyph,
@@ -19,3 +21,43 @@ export {
   CATEGORY_ICON_LABEL,
 } from "./category-icon-glyph";
 export { TalentPicker } from "./talent-picker";
+export {
+  InspectorBody,
+  InspectorSection,
+  InspectorCard,
+  InspectorAccordion,
+  InspectorField,
+  InspectorLabel,
+  InspectorHelpText,
+  InspectorInput,
+  InspectorTextarea,
+  InspectorSelect,
+  InspectorButton,
+  InspectorActionRow,
+  InspectorNotice,
+  InspectorEmptyState,
+  InspectorDeviceCards,
+  InspectorOptionCards,
+  InspectorControlWell,
+  InspectorOverrideBadge,
+  InspectorMicroAction,
+  InspectorPaddingPair,
+  InspectorMediaRow,
+  INSPECTOR_SECTION_TITLE_CLASS,
+  INSPECTOR_FIELD_LABEL_CLASS,
+  INSPECTOR_HELP_TEXT_CLASS,
+  INSPECTOR_LEGACY_SECTION_CLASS,
+  INSPECTOR_LEGACY_FIELD_CLASS,
+  INSPECTOR_BODY_GAP,
+  INSPECTOR_SECTION_GAP,
+  INSPECTOR_FIELD_GAP,
+} from "./inspector-ui";
+export {
+  InspectorPlaceholderField,
+  InspectorTypographyRow,
+  InspectorColorSwatchRow,
+  InspectorColorHexPair,
+  InspectorColorHexInput,
+  InspectorLayoutPresetCards,
+  InspectorResetFooter,
+} from "./inspector-mockup-primitives";

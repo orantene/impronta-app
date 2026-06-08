@@ -280,6 +280,9 @@ export function RevisionsDrawer(): ReactElement | null {
       open={revisionsOpen}
       zIndex={87}
       ariaLabelledBy="revisions-drawer-title"
+      floating
+      floatLabel="Revisions"
+      floatPanelId="revisions"
     >
       <DrawerHead
         titleId="revisions-drawer-title"

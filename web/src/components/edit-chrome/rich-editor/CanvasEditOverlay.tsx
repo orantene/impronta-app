@@ -14,7 +14,7 @@
  *     duration of the edit so the overlay sits in its layout slot
  *     without visual overlap. Layout doesn't shift.
  *   - Esc reverts. Enter commits (single-line variant only). Outside-
- *     click commits. Blur commits.
+ *     click / blur commits automatically — no Done button required.
  *   - On commit, the `onCommit` callback receives the new marker string
  *     and the parent's existing `findPathByValue` path-rewrite path
  *     handles the save.
@@ -24,9 +24,13 @@
  * changes.
  */
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import {
+  canvasOverlayStyleFromPatch,
+  subscribeCanvasOverlayStylePatch,
+} from "../canvas-lexical-bridge";
 import { RichEditor } from "./RichEditor";
 
 interface Props {
@@ -34,6 +38,8 @@ interface Props {
   target: HTMLElement;
   /** Initial marker string — typically `target.textContent`. */
   initialValue: string;
+  /** Remount the editor when undo/redo changes stored copy mid-edit. */
+  resyncKey?: number;
   /** Tenant id for LinkPicker scoping. */
   tenantId?: string;
   /**
@@ -63,6 +69,7 @@ const TYPE_STYLE_PROPS = [
 export function CanvasEditOverlay({
   target,
   initialValue,
+  resyncKey = 0,
   tenantId,
   variant,
   onCommit,
@@ -72,12 +79,13 @@ export function CanvasEditOverlay({
   const fieldRef = useRef<HTMLDivElement | null>(null);
   const [rect, setRect] = useState(() => target.getBoundingClientRect());
   const [typeStyles, setTypeStyles] = useState<Record<string, string>>({});
-  // Mirror the live editor value so we can commit on outside-click without a
-  // stale-closure dance.
   const valueRef = useRef<string>(initialValue);
   const committedRef = useRef(false);
 
-  // Hide the target while editing — the overlay occupies its visual slot.
+  useLayoutEffect(() => {
+    valueRef.current = initialValue;
+  }, [initialValue, resyncKey]);
+
   useLayoutEffect(() => {
     const previous = target.style.visibility;
     target.style.visibility = "hidden";
@@ -86,7 +94,6 @@ export function CanvasEditOverlay({
     };
   }, [target]);
 
-  // Capture computed type styles so the overlay matches the page's typography.
   useLayoutEffect(() => {
     const cs = window.getComputedStyle(target);
     const out: Record<string, string> = {};
@@ -94,9 +101,16 @@ export function CanvasEditOverlay({
       out[key] = cs.getPropertyValue(toKebab(key));
     }
     setTypeStyles(out);
-  }, [target]);
+  }, [target, resyncKey]);
 
-  // Track scroll/resize so the overlay stays glued to the target.
+  useEffect(() => {
+    return subscribeCanvasOverlayStylePatch((patch) => {
+      const mapped = canvasOverlayStyleFromPatch(patch);
+      if (Object.keys(mapped).length === 0) return;
+      setTypeStyles((prev) => ({ ...prev, ...mapped }));
+    });
+  }, []);
+
   useEffect(() => {
     let raf = 0;
     function refresh() {
@@ -114,33 +128,36 @@ export function CanvasEditOverlay({
     };
   }, [target]);
 
-  function commit() {
+  const commit = useCallback(() => {
     if (committedRef.current) return;
     committedRef.current = true;
     const serialized = valueRef.current.trim();
     const liveText = (fieldRef.current?.innerText ?? "").trim();
-    onCommit(serialized === initialValue.trim() && liveText ? liveText : serialized);
-  }
-  function cancel() {
+    onCommit(
+      serialized === initialValue.trim() && liveText ? liveText : serialized,
+    );
+  }, [initialValue, onCommit]);
+
+  const cancel = useCallback(() => {
     if (committedRef.current) return;
     committedRef.current = true;
     onCancel();
+  }, [onCancel]);
+
+  function isExternalChromeClick(t: HTMLElement | null): boolean {
+    if (!t) return false;
+    return Boolean(
+      t.closest('[data-edit-overlay="rich-toolbar"]') ||
+        t.closest('[data-edit-overlay="rich-link-popover"]') ||
+        t.closest("[data-canvas-text-toolbar]") ||
+        t.closest('[data-edit-overlay="color-picker-popover"]'),
+    );
   }
 
-  // Outside-click + Escape + Enter (single) handling.
   useEffect(() => {
     function onMouseDown(e: MouseEvent) {
       if (overlayRef.current && overlayRef.current.contains(e.target as Node)) return;
-      // Clicks on the floating toolbar/popovers (rendered via portal to body)
-      // would otherwise count as "outside" and commit. Skip if the click
-      // landed inside any rich-editor-owned overlay.
-      const t = e.target as HTMLElement | null;
-      if (
-        t &&
-        (t.closest('[data-edit-overlay="rich-toolbar"]') ||
-          t.closest('[data-edit-overlay="rich-link-popover"]'))
-      )
-        return;
+      if (isExternalChromeClick(e.target as HTMLElement | null)) return;
       commit();
     }
     function onKey(e: KeyboardEvent) {
@@ -158,8 +175,20 @@ export function CanvasEditOverlay({
       document.removeEventListener("mousedown", onMouseDown, true);
       document.removeEventListener("keydown", onKey, true);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- commit/cancel use refs (committedRef, valueRef, overlayRef) so they don't need to be deps; variant controls Enter-key behaviour and must re-register
-  }, [variant]);
+  }, [variant, commit, cancel]);
+
+  useEffect(() => {
+    const root = fieldRef.current;
+    if (!root) return;
+    function onFocusOut(e: FocusEvent) {
+      const next = e.relatedTarget as Node | null;
+      if (next && overlayRef.current?.contains(next)) return;
+      if (isExternalChromeClick(next as HTMLElement | null)) return;
+      commit();
+    }
+    root.addEventListener("focusout", onFocusOut);
+    return () => root.removeEventListener("focusout", onFocusOut);
+  }, [commit]);
 
   return createPortal(
     <div
@@ -172,29 +201,19 @@ export function CanvasEditOverlay({
         top: rect.top,
         left: rect.left,
         width: rect.width,
-        // No fixed height — the editor expands to fit content. We do bound
-        // it from below to the original height so a brief layout flicker
-        // doesn't yank surrounding sections.
         minHeight: rect.height,
         zIndex: 125,
-        // Carry the canvas typography over to the editor surface.
         ...typeStyles,
-        // Keep the editor visually anchored: subtle ring so the operator
-        // sees they are mid-edit, matching the selection-layer palette.
         outline: "1px solid rgba(17,24,39,0.92)",
         outlineOffset: 2,
         boxShadow: "0 0 0 4px rgba(17,24,39,0.12)",
         borderRadius: 0,
-        // The RichEditor's default class adds borders; we override with
-        // transparent backgrounds + no border so the inline edit reads as
-        // a continuation of the page, not a chrome panel.
         background: "transparent",
       }}
-      // The overlay should not eat clicks meant for the toolbar (rendered
-      // separately via portal). It does receive its own clicks normally.
     >
       <div ref={fieldRef}>
         <RichEditor
+          key={`${resyncKey}:${initialValue}`}
           value={initialValue}
           onChange={(next) => {
             valueRef.current = next;
@@ -202,59 +221,9 @@ export function CanvasEditOverlay({
           variant={variant}
           tenantId={tenantId}
           ariaLabel="Inline canvas editor"
-          // No surrounding pad / border — the overlay's outline + shadow
-          // already mark the edit affordance.
+          suppressFloatingToolbar
           className="outline-none"
         />
-      </div>
-      <div
-        data-edit-overlay="canvas-edit-actions"
-        style={{
-          position: "absolute",
-          right: 0,
-          top: "calc(100% + 8px)",
-          display: "inline-flex",
-          gap: 6,
-          padding: 4,
-          borderRadius: 0,
-          background: "rgba(36, 41, 66, 0.96)",
-          boxShadow: "0 12px 28px -12px rgba(0,0,0,0.42)",
-        }}
-      >
-        <button
-          type="button"
-          aria-label="Cancel inline edit"
-          onClick={cancel}
-          style={{
-            border: "none",
-            borderRadius: 0,
-            background: "transparent",
-            color: "rgba(255,255,255,0.76)",
-            cursor: "pointer",
-            fontSize: 11,
-            fontWeight: 700,
-            padding: "5px 9px",
-          }}
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          aria-label="Apply inline edit"
-          onClick={commit}
-          style={{
-            border: "none",
-            borderRadius: 0,
-            background: "#fff",
-            color: "#242942",
-            cursor: "pointer",
-            fontSize: 11,
-            fontWeight: 800,
-            padding: "5px 10px",
-          }}
-        >
-          Done
-        </button>
       </div>
     </div>,
     document.body,

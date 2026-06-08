@@ -52,7 +52,7 @@ export function Segmented<T extends string>({
       style={{
         background: CHROME.paper,
         border: `1px solid ${CHROME.controlBorder}`,
-        borderRadius: 7,
+        borderRadius: 10,
         display: fullWidth ? "grid" : "inline-flex",
         // QA 2026-05-13 — Page background field has 11 chips; the old
         // `minmax(0, 1fr)` grid forced them all into one row and clipped
@@ -89,14 +89,11 @@ export function Segmented<T extends string>({
               fontSize: 11.5,
               fontWeight: 600,
               letterSpacing: "-0.005em",
-              background: active ? CHROME.surface : "transparent",
-              // Inactive options use stone-600 (warm, ~7:1) rather than the
-              // lighter `muted` so every choice stays clearly legible — the
-              // white active pill + shadow remains the "selected" signal.
-              color: active ? CHROME.ink : "#57534e",
+              background: active ? "rgba(124, 58, 237, 0.08)" : "transparent",
+              color: active ? CHROME.accent : "#57534e",
               border: "none",
               boxShadow: active
-                ? "0 1px 3px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.04)"
+                ? `inset 0 0 0 1px ${CHROME.accent}`
                 : "none",
             }}
           >

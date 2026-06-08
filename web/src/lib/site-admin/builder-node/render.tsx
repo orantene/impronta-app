@@ -327,7 +327,10 @@ const BUILDER_NODE_NAV_CSS = `
 const CONTAINER_STYLE: CSSProperties = {
   width: "100%",
   maxWidth: "1120px",
-  margin: "0 auto",
+  marginTop: 0,
+  marginRight: "auto",
+  marginBottom: 0,
+  marginLeft: "auto",
 };
 
 const BUILDER_NODE_RENDERER_CSS = `
@@ -1615,6 +1618,73 @@ const BUILDER_PARALLAX_KEYFRAME: Record<
   strong: "bn-parallax-strong",
 };
 
+/** Per-side margin escapes in {@link sharedNodeStyle} must not mix with `margin` shorthand. */
+const MARGIN_ZERO: CSSProperties = {
+  marginTop: 0,
+  marginRight: 0,
+  marginBottom: 0,
+  marginLeft: 0,
+};
+
+function marginShorthandToLonghand(
+  margin: CSSProperties["margin"],
+): Partial<
+  Pick<CSSProperties, "marginTop" | "marginRight" | "marginBottom" | "marginLeft">
+> {
+  if (margin === undefined) return {};
+  if (margin === 0 || margin === "0" || margin === "0px") {
+    return { marginTop: 0, marginRight: 0, marginBottom: 0, marginLeft: 0 };
+  }
+  if (margin === "0 auto" || margin === "0px auto") {
+    return {
+      marginTop: 0,
+      marginRight: "auto",
+      marginBottom: 0,
+      marginLeft: "auto",
+    };
+  }
+  return {};
+}
+
+/** Merge inline node styles without mixing `margin` shorthand + per-side margins. */
+export function composeInlineNodeStyle(
+  ...layers: Array<CSSProperties | undefined>
+): CSSProperties {
+  const merged: CSSProperties = {};
+  for (const layer of layers) {
+    if (layer) Object.assign(merged, layer);
+  }
+  const {
+    margin,
+    marginTop,
+    marginRight,
+    marginBottom,
+    marginLeft,
+    ...rest
+  } = merged;
+  const hasLonghand =
+    marginTop !== undefined ||
+    marginRight !== undefined ||
+    marginBottom !== undefined ||
+    marginLeft !== undefined;
+  if (margin === undefined || !hasLonghand) return merged;
+  const fromShorthand = marginShorthandToLonghand(margin);
+  return {
+    ...rest,
+    marginTop: marginTop ?? fromShorthand.marginTop,
+    marginRight: marginRight ?? fromShorthand.marginRight,
+    marginBottom: marginBottom ?? fromShorthand.marginBottom,
+    marginLeft: marginLeft ?? fromShorthand.marginLeft,
+  };
+}
+
+export function inlineNodeStyle(
+  style: BuilderNodeStyle | undefined,
+  ...base: Array<CSSProperties | undefined>
+): CSSProperties {
+  return composeInlineNodeStyle(...base, sharedNodeStyle(style));
+}
+
 export function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   if (!style) return {};
   const out: CSSProperties = {
@@ -1915,13 +1985,6 @@ export function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSPropert
   return out;
 }
 
-function alignSelfStyle(style: BuilderNodeStyle | undefined): CSSProperties {
-  if (!style?.align) return {};
-  if (style.align === "center") return { marginLeft: "auto", marginRight: "auto" };
-  if (style.align === "right") return { marginLeft: "auto", marginRight: 0 };
-  return { marginLeft: 0, marginRight: "auto" };
-}
-
 function hasRenderableChildren(
   node: BuilderNode,
 ): node is BuilderNode & { children: BuilderNode[] } {
@@ -2196,37 +2259,28 @@ function shouldRenderNode(
 }
 
 function containerStyle(node: Extract<BuilderNode, { kind: "container" }>): CSSProperties {
-  return {
-    ...builderNodeStyleVars({
+  return inlineNodeStyle(node.props.style, builderNodeStyleVars({
     "--bn-gap": GAP_BY_SIZE[node.props.gap ?? "m"],
     "--bn-align": node.props.align ?? "stretch",
     "--bn-columns": node.props.columns ?? 2,
     "--bn-tablet-columns": node.props.responsive?.tablet?.columns,
     "--bn-mobile-columns": node.props.responsive?.mobile?.columns,
-    }),
-    ...sharedNodeStyle(node.props.style),
-  };
+    }));
 }
 
 function splitStyle(node: Extract<BuilderNode, { kind: "split" }>): CSSProperties {
   const [left, right] = (node.props.ratio ?? "50-50").split("-").map(Number);
-  return {
-    ...builderNodeStyleVars({
+  return inlineNodeStyle(node.props.style, builderNodeStyleVars({
       "--bn-split-left": `${left}fr`,
       "--bn-split-right": `${right}fr`,
       "--bn-gap": GAP_BY_SIZE[node.props.gap ?? "m"],
-    }),
-    ...sharedNodeStyle(node.props.style),
-  };
+    }));
 }
 
 function cardStyle(node: Extract<BuilderNode, { kind: "card" }>): CSSProperties {
-  return {
-    ...builderNodeStyleVars({
+  return inlineNodeStyle(node.props.style, builderNodeStyleVars({
       "--bn-gap": GAP_BY_SIZE.m,
-    }),
-    ...sharedNodeStyle(node.props.style),
-  };
+    }));
 }
 
 function ctaGroupStyle(node: Extract<BuilderNode, { kind: "cta_group" }>): CSSProperties {
@@ -2248,25 +2302,18 @@ function ctaGroupStyle(node: Extract<BuilderNode, { kind: "cta_group" }>): CSSPr
           justifyContent: alignMap[align === "stretch" ? "center" : align],
           alignItems: "center",
         };
-  return {
-    ...builderNodeStyleVars({
+  return inlineNodeStyle(node.props.style, builderNodeStyleVars({
       "--bn-gap": GAP_BY_SIZE[node.props.gap ?? "m"],
-    }),
-    ...structured,
-    ...sharedNodeStyle(node.props.style),
-  };
+    }), structured);
 }
 
 function pricingTableStyle(
   node: Extract<BuilderNode, { kind: "pricing_table" }>,
 ): CSSProperties {
-  return {
-    ...builderNodeStyleVars({
+  return inlineNodeStyle(node.props.style, builderNodeStyleVars({
       "--bn-pricing-columns": Math.min(Math.max(node.props.tiers.length, 2), 4),
       "--bn-gap": GAP_BY_SIZE.m,
-    }),
-    ...sharedNodeStyle(node.props.style),
-  };
+    }));
 }
 
 function resolveNodeStringProp(
@@ -2461,12 +2508,10 @@ function renderBuilderNode(
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
           className="site-builder-node site-builder-node--accordion"
-          style={{
-            ...CONTAINER_STYLE,
+          style={inlineNodeStyle(node.props.style, CONTAINER_STYLE, {
             display: "grid",
             gap: GAP_BY_SIZE.m,
-            ...sharedNodeStyle(node.props.style),
-          }}
+          })}
         >
           {renderChildren(node, options)}
         </div>
@@ -2480,12 +2525,11 @@ function renderBuilderNode(
           {...builderNodeStyleAttrs(node.props.style)}
           className="site-builder-node site-builder-node--accordion-item"
           open
-          style={{
+          style={inlineNodeStyle(node.props.style, {
             border: "1px solid rgba(18, 18, 18, 0.14)",
             borderRadius: "0",
             padding: "1rem",
-            ...sharedNodeStyle(node.props.style),
-          }}
+          })}
         >
           <summary style={{ cursor: "pointer", fontWeight: 700 }}>
             {node.props.title}
@@ -2506,12 +2550,10 @@ function renderBuilderNode(
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
           className="site-builder-node site-builder-node--tabs"
-          style={{
-            ...CONTAINER_STYLE,
+          style={inlineNodeStyle(node.props.style, CONTAINER_STYLE, {
             display: "grid",
             gap: GAP_BY_SIZE.m,
-            ...sharedNodeStyle(node.props.style),
-          }}
+          })}
         >
           <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
             {panels.map((panel) => (
@@ -2543,7 +2585,7 @@ function renderBuilderNode(
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
           className="site-builder-node site-builder-node--tab-panel"
-          style={{ display: "grid", gap: GAP_BY_SIZE.s, ...sharedNodeStyle(node.props.style) }}
+          style={inlineNodeStyle(node.props.style, { display: "grid", gap: GAP_BY_SIZE.s })}
         >
           {renderChildren(node, options)}
         </div>
@@ -2569,13 +2611,10 @@ function renderBuilderNode(
           data-builder-carousel-loop={node.props.loop ? "true" : undefined}
           data-builder-carousel-autoplay-ms={node.props.autoplayMs}
           className="site-builder-node site-builder-node--carousel"
-          style={{
-            ...builderNodeStyleVars({
+          style={inlineNodeStyle(node.props.style, builderNodeStyleVars({
               "--bn-slide-width": `${100 / (node.props.slidesPerView ?? 2)}%`,
               "--bn-tablet-slides": Math.min(node.props.slidesPerView ?? 2, 2),
-            }),
-            ...sharedNodeStyle(node.props.style),
-          }}
+            }))}
         >
           <BuilderNodeCarouselTrack
             nodeId={node.id}
@@ -2595,13 +2634,10 @@ function renderBuilderNode(
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
           className="site-builder-node site-builder-node--masonry"
-          style={{
-            ...builderNodeStyleVars({
+          style={inlineNodeStyle(node.props.style, builderNodeStyleVars({
               "--bn-columns": node.props.columns ?? 3,
               "--bn-gap": GAP_BY_SIZE[node.props.gap ?? "m"],
-            }),
-            ...sharedNodeStyle(node.props.style),
-          }}
+            }))}
         >
           {renderChildren(node, options)}
         </div>
@@ -2649,12 +2685,8 @@ function renderBuilderNode(
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
           className="site-builder-node site-builder-node--heading"
-          style={{
-            margin: 0,
-            lineHeight: 1.05,
-            ...sharedNodeStyle(node.props.style),
-            ...alignSelfStyle(node.props.style),
-          }}
+          suppressHydrationWarning
+          style={inlineNodeStyle(node.props.style, MARGIN_ZERO, { lineHeight: 1.05 })}
         >
           {renderInlineRich(text)}
         </Tag>
@@ -2674,13 +2706,11 @@ function renderBuilderNode(
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
           className="site-builder-node site-builder-node--paragraph"
-          style={{
-            margin: 0,
+          suppressHydrationWarning
+          style={inlineNodeStyle(node.props.style, MARGIN_ZERO, {
             lineHeight: 1.65,
             color: "rgba(18, 18, 18, 0.72)",
-            ...sharedNodeStyle(node.props.style),
-            ...alignSelfStyle(node.props.style),
-          }}
+          })}
         >
           {renderInlineRich(text)}
         </p>
@@ -2706,10 +2736,7 @@ function renderBuilderNode(
           {...builderNodeStyleAttrs(node.props.style)}
           className={`site-builder-node site-builder-node--button site-builder-node--button-${node.props.tone ?? "primary"}`}
           href={href}
-          style={{
-            ...sharedNodeStyle(node.props.style),
-            ...alignSelfStyle(node.props.style),
-          }}
+          style={inlineNodeStyle(node.props.style)}
         >
           {label}
         </a>
@@ -2756,7 +2783,7 @@ function renderBuilderNode(
           alt={alt}
           loading="lazy"
           decoding="async"
-          style={{
+          style={inlineNodeStyle(node.props.style, {
             display: "block",
             width: "100%",
             maxWidth: "100%",
@@ -2765,9 +2792,7 @@ function renderBuilderNode(
             aspectRatio:
               node.props.style?.aspectRatioFree ??
               NODE_ASPECT_RATIO[node.props.style?.aspectRatio ?? "auto"],
-            ...sharedNodeStyle(node.props.style),
-            ...alignSelfStyle(node.props.style),
-          }}
+          })}
         />
       );
     }
@@ -2787,15 +2812,13 @@ function renderBuilderNode(
           controls={node.props.controls ?? true}
           playsInline
           preload="metadata"
-          style={{
+          style={inlineNodeStyle(node.props.style, {
             objectFit: node.props.style?.objectFit ?? "cover",
             objectPosition: node.props.style?.objectPosition ?? "center",
             aspectRatio:
               node.props.style?.aspectRatioFree ??
               NODE_ASPECT_RATIO[node.props.style?.aspectRatio ?? "auto"],
-            ...sharedNodeStyle(node.props.style),
-            ...alignSelfStyle(node.props.style),
-          }}
+          })}
         />
       );
     case "embed":
@@ -2814,13 +2837,11 @@ function renderBuilderNode(
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; gyroscope; picture-in-picture; web-share"
           referrerPolicy="strict-origin-when-cross-origin"
           allowFullScreen={node.props.allowFullScreen ?? true}
-          style={{
+          style={inlineNodeStyle(node.props.style, {
             aspectRatio:
               node.props.style?.aspectRatioFree ??
               NODE_ASPECT_RATIO[node.props.style?.aspectRatio ?? "16:9"],
-            ...sharedNodeStyle(node.props.style),
-            ...alignSelfStyle(node.props.style),
-          }}
+          })}
         />
       );
     case "icon": {
@@ -2837,11 +2858,9 @@ function renderBuilderNode(
           role={decorative ? undefined : "img"}
           aria-label={decorative ? undefined : node.props.label || icon.name}
           aria-hidden={decorative ? true : undefined}
-          style={{
+          style={inlineNodeStyle(node.props.style, {
             fontSize: ICON_SIZE[node.props.size ?? "md"],
-            ...sharedNodeStyle(node.props.style),
-            ...alignSelfStyle(node.props.style),
-          }}
+          })}
         >
           <svg
             viewBox="0 0 24 24"
@@ -2955,14 +2974,11 @@ function renderBuilderNode(
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
           className="site-builder-node site-builder-node--rich-text"
-          style={{
-            margin: 0,
+          style={inlineNodeStyle(node.props.style, MARGIN_ZERO, {
             lineHeight: 1.65,
             color: "rgba(18, 18, 18, 0.72)",
             whiteSpace: "pre-wrap",
-            ...sharedNodeStyle(node.props.style),
-            ...alignSelfStyle(node.props.style),
-          }}
+          })}
         >
           {renderInlineRich(sanitizeBuilderRichText(text))}
         </div>
@@ -2981,10 +2997,7 @@ function renderBuilderNode(
           minHeight={node.props.minHeight}
           className="site-builder-node site-builder-node--code"
           dataAttrs={builderNodeStyleAttrs(node.props.style)}
-          style={{
-            ...sharedNodeStyle(node.props.style),
-            ...alignSelfStyle(node.props.style),
-          }}
+          style={inlineNodeStyle(node.props.style)}
         />
       );
     case "divider":
@@ -2996,10 +3009,7 @@ function renderBuilderNode(
           data-builder-divider-tone={node.props.tone ?? "default"}
           {...builderNodeStyleAttrs(node.props.style)}
           className="site-builder-node site-builder-node--divider"
-          style={{
-            ...sharedNodeStyle(node.props.style),
-            ...alignSelfStyle(node.props.style),
-          }}
+          style={inlineNodeStyle(node.props.style)}
         />
       );
     case "spacer":
@@ -3011,7 +3021,9 @@ function renderBuilderNode(
           {...builderNodeStyleAttrs(node.props.style)}
           className="site-builder-node site-builder-node--spacer"
           aria-hidden="true"
-          style={{ height: SPACER_BY_SIZE[node.props.size], ...sharedNodeStyle(node.props.style) }}
+          style={inlineNodeStyle(node.props.style, {
+            height: SPACER_BY_SIZE[node.props.size],
+          })}
         />
       );
     case "form": {
@@ -3037,12 +3049,10 @@ function renderBuilderNode(
           className="site-builder-node site-builder-node--form"
           method="post"
           action={action}
-          style={{
+          style={inlineNodeStyle(formProps.style, {
             display: "grid",
             gap: GAP_BY_SIZE.m,
-            ...sharedNodeStyle(formProps.style),
-            ...alignSelfStyle(formProps.style),
-          }}
+          })}
         >
           {isInternal && formProps.sectionId ? (
             <input type="hidden" name="__tulala_section" value={formProps.sectionId} />
@@ -3093,6 +3103,50 @@ function renderBuilderNode(
                     required={field.required ?? false}
                     rows={4}
                   />
+                ) : field.type === "select" ? (
+                  <select
+                    id={fieldId}
+                    name={field.name}
+                    required={field.required ?? false}
+                    defaultValue=""
+                  >
+                    <option value="" disabled>
+                      {field.placeholder ?? "Choose…"}
+                    </option>
+                    {(field.options ?? []).map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))}
+                  </select>
+                ) : field.type === "radio" ? (
+                  <fieldset style={{ border: "none", margin: 0, padding: 0 }}>
+                    {(field.options ?? []).map((opt) => (
+                      <label
+                        key={opt}
+                        style={{ display: "flex", gap: "0.35rem", alignItems: "center" }}
+                      >
+                        <input
+                          type="radio"
+                          name={field.name}
+                          value={opt}
+                          required={field.required ?? false}
+                        />
+                        {opt}
+                      </label>
+                    ))}
+                  </fieldset>
+                ) : field.type === "checkbox" ? (
+                  <label style={{ display: "flex", gap: "0.35rem", alignItems: "center" }}>
+                    <input
+                      id={fieldId}
+                      type="checkbox"
+                      name={field.name}
+                      value="yes"
+                      required={field.required ?? false}
+                    />
+                    {field.placeholder ?? field.label}
+                  </label>
                 ) : (
                   <input
                     id={fieldId}
@@ -3132,7 +3186,7 @@ function renderBuilderNode(
           data-bn-collapse={collapseAt}
           aria-label={navAriaLabel}
           className="site-builder-node site-builder-node--nav"
-          style={{ ...sharedNodeStyle(navProps.style), ...alignSelfStyle(navProps.style) }}
+          style={inlineNodeStyle(navProps.style)}
         >
           {navProps.brand ? (
             <a

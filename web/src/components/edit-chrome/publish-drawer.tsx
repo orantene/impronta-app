@@ -594,6 +594,9 @@ export function PublishDrawer() {
       open={publishOpen}
       zIndex={88}
       ariaLabelledBy="publish-drawer-title"
+      floating
+      floatLabel="Publish"
+      floatPanelId="publish"
     >
       <DrawerHead
         titleId="publish-drawer-title"

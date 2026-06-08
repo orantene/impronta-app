@@ -11,14 +11,16 @@ import { useEffect, useMemo, useRef } from "react";
 import { resolveBuilderNodeRole } from "@/lib/site-admin/builder-node";
 
 import { CHROME } from "../kit";
+import { RichEditor } from "@/components/edit-chrome/rich-editor";
+import { LinkKindPicker } from "@/lib/site-admin/sections/shared/LinkKindPicker";
 import {
   InspectorGroup,
+  InspectorSection,
+  InspectorBody,
   KIT,
   MediaPickerButton,
   type CtaShape,
 } from "./kit";
-import { RichEditor } from "@/components/edit-chrome/rich-editor";
-import { LinkKindPicker } from "@/lib/site-admin/sections/shared/LinkKindPicker";
 
 interface HeroContentProps {
   draftProps: Record<string, unknown>;
@@ -79,7 +81,7 @@ function CtaInlineRow({
   }
 
   return (
-    <InspectorGroup title={title}>
+    <InspectorSection title={title}>
       <div
         className="grid grid-cols-2 gap-2"
         data-hero-node-role={nodeRole}
@@ -103,7 +105,7 @@ function CtaInlineRow({
           />
         </div>
       </div>
-    </InspectorGroup>
+    </InspectorSection>
   );
 }
 
@@ -209,7 +211,8 @@ export function HeroContentInspector({
   }
 
   return (
-    <div ref={rootRef} className="flex flex-col gap-4">
+    <InspectorBody className="gap-4">
+      <div ref={rootRef} className="flex flex-col gap-4">
       {focusRole && focusLabel ? (
         <div
           className="rounded-lg border px-3 py-2 text-xs font-medium"
@@ -223,7 +226,7 @@ export function HeroContentInspector({
         </div>
       ) : null}
 
-      <InspectorGroup title="Hero content">
+      <InspectorSection title="Hero Content">
         <div className={KIT.field}>
           <label className={KIT.label}>Eyebrow</label>
           <input
@@ -256,37 +259,32 @@ export function HeroContentInspector({
             ariaLabel="Description"
           />
         </div>
-      </InspectorGroup>
+      </InspectorSection>
 
       <CtaInlineRow
-        title="Primary button"
+        title="Primary Button"
         cta={primaryCta}
         onChange={(next) => update({ primaryCta: next ?? undefined })}
         nodeRole="primaryCta"
       />
 
       <CtaInlineRow
-        title="Secondary button"
+        title="Secondary Button"
         cta={secondaryCta}
         onChange={(next) => update({ secondaryCta: next ?? undefined })}
         nodeRole="secondaryCta"
       />
 
-      <InspectorGroup title="Hero image">
+      <InspectorSection title="Right Image">
         <MediaPickerButton
           tenantId={tenantId}
           value={backdropUrl}
           onChange={patchBackdrop}
           emptyLabel="Add hero image"
           aspect="16/9"
+          variant="row"
         />
-        {backdropUrl ? (
-          <p className={KIT.hint}>
-            This image renders on the right in split layouts and full-bleed in
-            centered heroes.
-          </p>
-        ) : null}
-      </InspectorGroup>
+      </InspectorSection>
 
       <InspectorGroup
         title={
@@ -379,6 +377,7 @@ export function HeroContentInspector({
           + Add slide
         </button>
       </InspectorGroup>
-    </div>
+      </div>
+    </InspectorBody>
   );
 }

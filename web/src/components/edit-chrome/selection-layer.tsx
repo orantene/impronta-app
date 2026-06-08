@@ -43,6 +43,15 @@ import { createPortal } from "react-dom";
 
 import { siblingDropGapToMoveIndex } from "@/lib/site-admin/builder-node/sibling-drop-gap";
 import {
+  CanvasTextToolbar,
+  isCanvasTextToolbarKind,
+} from "./canvas-text-toolbar";
+import { useCanvasTextStylePatch } from "./use-canvas-text-style-patch";
+import {
+  getActiveCanvasLexicalEditor,
+  subscribeActiveCanvasLexicalEditor,
+} from "./canvas-lexical-bridge";
+import {
   resolveCanvasNodeDrop,
   type CanvasDropCandidate,
   type CanvasDropResult,
@@ -100,7 +109,7 @@ import {
   getActiveBuilderNodePaletteDrag,
   type BuilderNodePaletteDragPayload,
 } from "./element-library-insert-picker";
-import { CHROME, Z_INDEX } from "./kit/tokens";
+import { CHROME, EDIT_TOPBAR_H, Z_INDEX } from "./kit/tokens";
 import { CANVAS_HUD_LEFT_INSET_PX } from "./workspace-layout";
 import { resolveLayerDisplayName } from "./freeform-layer-name";
 import { MultiSelectionMoveHandle } from "./multi-selection-move-handle";
@@ -1083,7 +1092,7 @@ export function SelectionLayer() {
         nodeEl && sectionEl.contains(nodeEl) ? nodeEl : sectionEl;
       const r = targetEl.getBoundingClientRect();
       const vh = window.innerHeight;
-      const TOPBAR = 54;
+      const TOPBAR = EDIT_TOPBAR_H;
       const SAFE_TOP = TOPBAR + 24;
       const SAFE_BOTTOM = vh - 24;
       const fullyVisible = r.top >= SAFE_TOP && r.bottom <= SAFE_BOTTOM;
@@ -2440,6 +2449,29 @@ export function SelectionLayer() {
         return false;
     }
   })();
+  const selectedNodeUsesCanvasTextToolbar =
+    selectedNodeIsEditableBlock &&
+    !!selectedBuilderNode &&
+    isCanvasTextToolbarKind(selectedBuilderNode);
+  const getCanvasTextNodeStyle = useCallback(
+    (nodeId: string) => {
+      const node = findBuilderNodeById(builderTree, nodeId);
+      if (!node || !("props" in node)) return undefined;
+      return (node.props as { style?: Record<string, unknown> }).style;
+    },
+    [builderTree],
+  );
+  const canvasInlineTextEditActive = useSyncExternalStore(
+    subscribeActiveCanvasLexicalEditor,
+    () => getActiveCanvasLexicalEditor() !== null,
+    () => false,
+  );
+  const { patchTextStyle } = useCanvasTextStylePatch({
+    nodeId: selectedNodeUsesCanvasTextToolbar ? selectedBuilderNodeId : null,
+    getNodeStyle: getCanvasTextNodeStyle,
+    patchBuilderNodeProps,
+    deferTreeCommit: canvasInlineTextEditActive,
+  });
   const chipPrimaryLabel = selectedNodeIsEditableBlock
     ? builderNodeCrumbLabel(selectedBuilderNode, chipLabel)
     : chipLabel;
@@ -3561,7 +3593,7 @@ export function SelectionLayer() {
           data-edit-overlay=""
           style={{
             position: "fixed",
-            top: 54,
+            top: EDIT_TOPBAR_H,
             left: CANVAS_HUD_LEFT_INSET_PX,
             right: 0,
             height: 28,
@@ -4601,8 +4633,96 @@ export function SelectionLayer() {
 	              }}
 	            />
 	          ) : null}
+	          {/* Text layers — premium white toolbar (replaces dark block chip). */}
+	          {!multiNodeSelectionActive &&
+	          selectedBuilderNode &&
+	          isCanvasTextToolbarKind(selectedBuilderNode) ? (
+	            <CanvasTextToolbar
+	              node={selectedBuilderNode}
+	              rect={{
+	                top: renderSelectedRect.top,
+	                left: renderSelectedRect.left,
+	                width: renderSelectedRect.width,
+	                height: renderSelectedRect.height,
+	                bottom: renderSelectedRect.top + renderSelectedRect.height,
+	              }}
+	              disabled={saving}
+	              locked={selectedBuilderNode.locked === true}
+	              onOpenInspector={() => requestInspectorTab("style")}
+	              onDuplicate={() => {
+	                if (!selectedBuilderNodeId) return;
+	                void commitChildDuplicate(selectedBuilderNodeId);
+	              }}
+	              onRemove={() => {
+	                void commitNodeRemoval();
+	              }}
+	              onToggleLock={async () => {
+	                if (!selectedBuilderNodeId) return;
+	                const locked = selectedBuilderNode.locked === true;
+	                await patchBuilderNodeProps(selectedBuilderNodeId, {
+	                  locked: locked ? undefined : true,
+	                });
+	              }}
+	              onPatchStyle={patchTextStyle}
+	              onRequestInlineEdit={() => {
+	                if (selectedBuilderNodeId) requestInlineEdit(selectedBuilderNodeId);
+	              }}
+	              repositionKey={Math.round(renderSelectedRect.top + renderSelectedRect.left)}
+	              onCopyStyle={() => {
+	                if (!selectedBuilderNode?.props.style) return;
+	                try {
+	                  window.localStorage.setItem(
+	                    "tulala:builder:style-clipboard",
+	                    JSON.stringify(selectedBuilderNode.props.style),
+	                  );
+	                } catch {
+	                  /* ignore */
+	                }
+	              }}
+	              onPasteStyle={() => {
+	                if (!selectedBuilderNodeId) return;
+	                try {
+	                  const raw = window.localStorage.getItem("tulala:builder:style-clipboard");
+	                  if (!raw) return;
+	                  const clip = JSON.parse(raw) as Record<string, unknown>;
+	                  void patchBuilderNodeProps(selectedBuilderNodeId, {
+	                    style: {
+	                      ...(selectedBuilderNode.props.style as Record<string, unknown> | undefined),
+	                      ...clip,
+	                    },
+	                  });
+	                } catch {
+	                  /* ignore */
+	                }
+	              }}
+	              canPasteStyle
+	              onResetStyle={() => {
+	                if (!selectedBuilderNodeId) return;
+	                void patchBuilderNodeProps(selectedBuilderNodeId, { style: undefined });
+	              }}
+	              onHideOnDevice={() => {
+	                if (!selectedBuilderNodeId || device === "desktop") return;
+	                const prevStyle =
+	                  (selectedBuilderNode.props.style as Record<string, unknown> | undefined) ?? {};
+	                const responsive =
+	                  (prevStyle.responsive as Record<string, unknown> | undefined) ?? {};
+	                void patchBuilderNodeProps(selectedBuilderNodeId, {
+	                  style: {
+	                    ...prevStyle,
+	                    responsive: {
+	                      ...responsive,
+	                      [device]: {
+	                        ...(responsive[device] as Record<string, unknown> | undefined),
+	                        visibility: "hidden",
+	                      },
+	                    },
+	                  },
+	                });
+	              }}
+	            />
+	          ) : null}
 	          {/* ── Premium selection chip ────────────────────────────── */}
-	          {!multiNodeSelectionActive ? (
+	          {!multiNodeSelectionActive && !selectedNodeUsesCanvasTextToolbar ? (
 	          <div
             ref={chipRef}
             data-selection-chip=""

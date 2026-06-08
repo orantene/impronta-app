@@ -59,7 +59,7 @@ import {
   type EditDevice,
   type PreviewFrameOverride,
 } from "./edit-context";
-import { CHROME, SaveChip } from "./kit";
+import { CHROME, EDIT_TOPBAR_H, SaveChip } from "./kit";
 import { useEditContext } from "./edit-context";
 
 /** Minimal `LanguageSettings` for `withLocalePath` / strip-prefix helpers. */
@@ -103,7 +103,12 @@ function urlForLocale(
   return `${path}${q}${h}`;
 }
 
-const TOPBAR_H = 54;
+const TOPBAR_H = EDIT_TOPBAR_H;
+/** Shared control sizing — mockup breathing-room pass. */
+const TB_CONTROL_H = 40;
+const TB_ICON_PX = 18;
+const TB_FONT_PX = 14;
+const TB_RADIUS = 10;
 
 /**
  * Phase 1 canvas-first redesign: the pin/reset workspace controls are hidden
@@ -123,9 +128,9 @@ function TbDivider() {
       className="shrink-0"
       style={{
         width: 1,
-        height: 24,
+        height: 30,
         background: CHROME.lineStrong,
-        margin: "0 6px",
+        margin: "0 10px",
         opacity: 0.5,
       }}
     />
@@ -176,10 +181,10 @@ function TbIconBtn({
       aria-expanded={ariaExpanded}
       aria-haspopup={ariaHaspopup}
       aria-controls={ariaControls}
-      className="relative inline-flex shrink-0 cursor-pointer items-center rounded-[8px] border border-transparent transition-colors disabled:cursor-not-allowed"
+      className="relative inline-flex shrink-0 cursor-pointer items-center rounded-[10px] border border-transparent transition-colors disabled:cursor-not-allowed"
       style={{
-        width: label ? 44 : 36,
-        height: 36,
+        width: label ? 48 : 40,
+        height: 40,
         flexDirection: label ? "column" : "row",
         justifyContent: "center",
         gap: label ? 1 : undefined,
@@ -406,10 +411,10 @@ function PagePicker({
         aria-expanded={open}
         aria-controls={pagePickerMenuId}
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex shrink-0 cursor-pointer items-center gap-[7px] rounded-[7px] border border-transparent transition-colors"
+        className="inline-flex shrink-0 cursor-pointer items-center gap-[8px] rounded-[10px] border border-transparent transition-colors"
         style={{
-          padding: "5px 9px 5px 11px",
-          fontSize: 12.5,
+          padding: "8px 12px",
+          fontSize: TB_FONT_PX,
           fontWeight: 500,
           color: CHROME.ink,
           background: open ? CHROME.paper2 : "transparent",
@@ -428,21 +433,11 @@ function PagePicker({
           }
         }}
       >
-        <span
-          className="inline-flex shrink-0 items-center justify-center rounded-[4px]"
-          style={{ width: 18, height: 18, background: CHROME.paper2, color: CHROME.muted }}
-          aria-hidden
-        >
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-          </svg>
-        </span>
-        <span className="font-semibold tracking-[-0.005em]" style={{ color: CHROME.ink }}>
+        <span className="font-medium tracking-[-0.005em]" style={{ color: CHROME.ink, fontSize: TB_FONT_PX }}>
           {title || "Homepage"}
         </span>
         <span style={{ color: CHROME.muted2 }} aria-hidden>
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <polyline points="6 9 12 15 18 9" />
           </svg>
         </span>
@@ -897,10 +892,10 @@ function SaveStatus({
     );
   }
 
-  // Saved state — show relative timestamp + optional "Unpublished changes" pill.
+  // Saved state — plain "Draft saved" text per canvas-first mockup.
   const savedAgoText = lastDraftSavedAt
-    ? `Saved ${formatSavedAgo(lastDraftSavedAt)}`
-    : "Draft up to date";
+    ? `Draft saved · ${formatSavedAgo(lastDraftSavedAt)}`
+    : "Draft saved";
 
   return (
     <>
@@ -908,13 +903,8 @@ function SaveStatus({
         role="status"
         aria-live="polite"
         aria-atomic="true"
-        className="inline-flex shrink-0 items-center gap-[6px] rounded-full border text-[11px] font-semibold"
-        style={{
-          padding: "4px 11px 4px 9px",
-          background: CHROME.greenBg,
-          color: CHROME.green,
-          borderColor: CHROME.greenLine,
-        }}
+        className="inline-flex shrink-0 items-center gap-[5px] text-[13px] font-medium"
+        style={{ color: CHROME.muted }}
         title={
           lastDraftSavedAt
             ? `Draft last saved at ${new Date(lastDraftSavedAt).toLocaleString()} — visitors see the last published version until you publish.`
@@ -922,12 +912,20 @@ function SaveStatus({
         }
         aria-label={savedAgoText}
       >
-        <span
-          className={dot}
-          style={{ width: 6, height: 6, background: CHROME.green }}
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke={CHROME.green}
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
           aria-hidden
-        />
-        {savedAgoText}
+        >
+          <path d="M20 6 9 17l-5-5" />
+        </svg>
+        Draft saved
       </span>
       {/* #18 — "Unpublished changes" amber pill: visible whenever there are
           draft saves that haven't been published to the live site yet. This
@@ -967,7 +965,7 @@ const VIEWPORT_OPTS: ReadonlyArray<{
     key: "desktop",
     label: "Desktop",
     icon: (
-      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
         <rect x="2" y="3" width="20" height="14" rx="2" />
         <line x1="8" y1="21" x2="16" y2="21" />
         <line x1="12" y1="17" x2="12" y2="21" />
@@ -988,7 +986,7 @@ const VIEWPORT_OPTS: ReadonlyArray<{
     key: "tablet",
     label: "Tablet",
     icon: (
-      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
         <rect x="4" y="2" width="16" height="20" rx="2" />
       </svg>
     ),
@@ -997,7 +995,7 @@ const VIEWPORT_OPTS: ReadonlyArray<{
     key: "mobile",
     label: "Mobile",
     icon: (
-      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
         <rect x="7" y="2" width="10" height="20" rx="2" />
       </svg>
     ),
@@ -1012,6 +1010,18 @@ const VIEWPORT_OPTS: ReadonlyArray<{
     ),
   },
 ];
+
+/** Mockup topbar shows Desktop · Tablet · Mobile only (icon toggles). */
+const MOCKUP_VIEWPORT_KEYS: readonly EditDevice[] = [
+  "desktop",
+  "tablet",
+  "mobile",
+];
+
+function viewportTierActive(device: EditDevice, key: EditDevice): boolean {
+  if (device === key) return true;
+  return key === "desktop" && (device === "wide" || device === "compact");
+}
 
 function viewportPreviewTitle(device: EditDevice, label: string): string {
   if (device === "desktop") {
@@ -1122,7 +1132,7 @@ function LocaleSwitcher({
 
   return (
     <div
-      className="inline-flex shrink-0 items-center rounded-full p-[3px]"
+      className="inline-flex shrink-0 items-center rounded-full p-[4px]"
       style={{
         background: "rgba(0,0,0,0.05)",
         boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.04)",
@@ -1150,7 +1160,7 @@ function LocaleSwitcher({
             }}
             title={`Edit homepage in ${label} (←/→ to cycle)`}
             onClick={() => navigateToLocale(code)}
-            className="inline-flex items-center gap-[5px] rounded-full border-none px-[11px] py-[5px] text-[12px] font-semibold uppercase tracking-[0.04em] transition-all"
+            className="inline-flex items-center gap-[5px] rounded-full border-none px-[14px] py-[7px] text-[13px] font-semibold uppercase tracking-[0.04em] transition-all"
             style={{
               background: active ? CHROME.surface : "transparent",
               color: active ? CHROME.ink : CHROME.muted,
@@ -1238,22 +1248,20 @@ function ViewportSwitcher({
     typeof setPreviewFrameWidth === "function" &&
     typeof togglePreviewRotated === "function";
 
+  const visibleOpts = VIEWPORT_OPTS.filter((opt) =>
+    MOCKUP_VIEWPORT_KEYS.includes(opt.key),
+  );
+
   return (
     <div className="inline-flex shrink-0 items-center gap-2">
       <div
         role="group"
         aria-label="Canvas preview width"
-        className="inline-flex shrink-0 items-center rounded-full p-[3px]"
-        style={{
-          background: "rgba(0,0,0,0.05)",
-          boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.04)",
-        }}
+        className="inline-flex shrink-0 items-center gap-[8px]"
       >
-        {VIEWPORT_OPTS.map((opt) => {
-          const active = device === opt.key;
+        {visibleOpts.map((opt) => {
+          const active = viewportTierActive(device, opt.key);
           const label = breakpointLabelForDevice(opt.key, breakpoints);
-          // Wave 6C — the active Mobile tier in editing mode reads with the
-          // indigo accent (a MODE, not just a frame); the dot flags it's live.
           const inMobileEditMode =
             opt.key === "mobile" && active && Boolean(mobileEditMode);
           return (
@@ -1272,40 +1280,32 @@ function ViewportSwitcher({
                   : label
               }
               aria-pressed={active}
-              className="inline-flex items-center gap-[5px] rounded-full border-none px-[14px] py-[6px] text-[12px] font-semibold tracking-[-0.005em] transition-all"
+              className="relative inline-flex items-center justify-center rounded-[10px] border-none transition-all"
               style={{
-                background: inMobileEditMode
-                  ? "rgba(61, 79, 124, 0.12)"
-                  : active
-                    ? CHROME.surface
-                    : "transparent",
-                color: inMobileEditMode
-                  ? CHROME.accent
-                  : active
-                    ? CHROME.ink
-                    : CHROME.muted,
-                boxShadow: inMobileEditMode
-                  ? "inset 0 0 0 1px rgba(61, 79, 124, 0.28)"
-                  : active
-                    ? "0 1px 3px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.04)"
-                    : "none",
-                minWidth: 80,
-                justifyContent: "center",
+                width: 44,
+                height: 44,
+                background: active
+                  ? "rgba(124, 58, 237, 0.08)"
+                  : "transparent",
+                color: active ? CHROME.accent : CHROME.ink,
+                boxShadow: active
+                  ? `inset 0 0 0 1px ${CHROME.accent}`
+                  : "none",
                 cursor: "pointer",
               }}
             >
               {opt.icon}
-              {label}
               {inMobileEditMode ? (
                 <span
                   aria-hidden
+                  className="absolute"
                   style={{
                     width: 5,
                     height: 5,
-                    marginLeft: 1,
+                    marginTop: 14,
+                    marginLeft: 14,
                     borderRadius: 999,
                     background: CHROME.accent,
-                    flexShrink: 0,
                   }}
                 />
               ) : null}
@@ -1538,31 +1538,20 @@ function PreviewToggle({
   setPreviewing: (next: boolean) => void;
 }) {
   return (
-    <button
-      type="button"
+    <TbOutlineBtn
       onClick={() => setPreviewing(!previewing)}
       title={
         previewing
           ? "Exit preview — show editing tools"
           : "Preview — hide editing tools and interact with the page"
       }
+      active={previewing}
       aria-pressed={previewing}
-      className="ml-2 inline-flex shrink-0 items-center gap-[6px] rounded-full border-none px-[12px] py-[5px] text-[12px] font-semibold tracking-[-0.005em] transition-all"
-      style={{
-        background: previewing
-          ? "rgba(61, 79, 124, 0.12)"
-          : "rgba(0,0,0,0.05)",
-        color: previewing ? CHROME.accent : CHROME.muted,
-        boxShadow: previewing
-          ? "inset 0 0 0 1px rgba(61, 79, 124, 0.28)"
-          : "inset 0 0 0 1px rgba(0,0,0,0.04)",
-      }}
     >
       {previewing ? (
-        // Eye-off — "currently in preview, click to return"
         <svg
-          width="14"
-          height="14"
+          width={TB_ICON_PX}
+          height={TB_ICON_PX}
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -1577,10 +1566,9 @@ function PreviewToggle({
           <line x1="2" y1="2" x2="22" y2="22" />
         </svg>
       ) : (
-        // Eye — "click to preview"
         <svg
-          width="14"
-          height="14"
+          width={TB_ICON_PX}
+          height={TB_ICON_PX}
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -1593,8 +1581,8 @@ function PreviewToggle({
           <circle cx="12" cy="12" r="3" />
         </svg>
       )}
-      {previewing ? "Editing off" : "Preview"}
-    </button>
+      Preview
+    </TbOutlineBtn>
   );
 }
 
@@ -1617,27 +1605,78 @@ function TbTextBtn({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className="inline-flex shrink-0 cursor-pointer items-center gap-[6px] rounded-[8px] border border-transparent transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+      className="inline-flex shrink-0 cursor-pointer items-center gap-[8px] rounded-[10px] border border-transparent transition-colors disabled:cursor-not-allowed disabled:opacity-50"
       style={{
-        height: 36,
-        padding: "0 14px",
-        fontSize: 13,
+        height: TB_CONTROL_H,
+        padding: "0 12px",
+        fontSize: TB_FONT_PX,
         fontWeight: 500,
         letterSpacing: "-0.005em",
-        color: CHROME.text2,
+        color: CHROME.text,
         background: "transparent",
       }}
       onMouseEnter={(e) => {
         if (!disabled) {
           e.currentTarget.style.background = CHROME.paper2;
           e.currentTarget.style.color = CHROME.ink;
-          e.currentTarget.style.borderColor = CHROME.line;
         }
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.background = "transparent";
-        e.currentTarget.style.color = CHROME.text2;
-        e.currentTarget.style.borderColor = "transparent";
+        e.currentTarget.style.color = CHROME.text;
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** White bordered pill — Preview / Save per canvas-first mockup. */
+function TbOutlineBtn({
+  children,
+  onClick,
+  disabled,
+  title,
+  type = "button",
+  active,
+  "aria-pressed": ariaPressed,
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  title?: string;
+  type?: "button" | "submit" | "reset";
+  active?: boolean;
+  "aria-pressed"?: boolean;
+}) {
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      aria-pressed={ariaPressed}
+      className="inline-flex shrink-0 cursor-pointer items-center gap-[8px] rounded-[10px] border transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+      style={{
+        height: TB_CONTROL_H,
+        padding: "0 18px",
+        fontSize: TB_FONT_PX,
+        fontWeight: 500,
+        letterSpacing: "-0.005em",
+        color: CHROME.ink,
+        background: CHROME.surface,
+        borderColor: active ? CHROME.accent : CHROME.lineStrong,
+        boxShadow: active ? `inset 0 0 0 1px ${CHROME.accent}` : "none",
+      }}
+      onMouseEnter={(e) => {
+        if (!disabled) e.currentTarget.style.borderColor = CHROME.accent;
+      }}
+      onMouseLeave={(e) => {
+        if (!disabled) {
+          e.currentTarget.style.borderColor = active
+            ? CHROME.accent
+            : CHROME.lineStrong;
+        }
       }}
     >
       {children}
@@ -1688,19 +1727,13 @@ function PublishSplitButton({
   return (
     <div className="relative shrink-0" data-publish-split>
       <div
-        className="inline-flex items-stretch overflow-hidden rounded-[8px]"
+        className="inline-flex items-stretch overflow-hidden rounded-[10px]"
         role="group"
         aria-label="Publish"
         style={{
-          height: 36,
-          // Sprint 3.2 — primary CTA uses the operator-chrome slate accent
-          // instead of CHROME.ink. Black-brand tenants no longer end up
-          // with a Publish button that disappears into the storefront, and
-          // the slate reads as a calm, premium primary action distinct
-          // from the blue we reserve for drop indicators / focus rings.
-          background: `linear-gradient(180deg, ${CHROME.accent2} 0%, ${CHROME.accent} 100%)`,
-          boxShadow:
-            "0 1px 2px rgba(15,19,32,0.20), inset 0 0 0 1px rgba(255,255,255,0.10), inset 0 1px 0 rgba(255,255,255,0.10)",
+          height: TB_CONTROL_H,
+          background: CHROME.accent,
+          boxShadow: "0 1px 2px rgba(124, 58, 237, 0.28)",
         }}
       >
         <button
@@ -1708,9 +1741,24 @@ function PublishSplitButton({
           onClick={onPublish}
           disabled={disabled}
           title="Review publish checks in the drawer, then publish your draft to the live site"
-          className="cursor-pointer border-none text-[13px] font-semibold tracking-[-0.005em] text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
-          style={{ padding: "0 16px", background: "transparent" }}
+          className="inline-flex cursor-pointer items-center gap-[8px] border-none text-[14px] font-semibold tracking-[-0.005em] text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+          style={{ padding: "0 18px 0 20px", background: "transparent" }}
         >
+          <svg
+            width="17"
+            height="17"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <path d="M12 13V7" />
+            <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+            <path d="m8 17 4-4 4 4" />
+          </svg>
           Publish
         </button>
         <span
@@ -1727,14 +1775,14 @@ function PublishSplitButton({
           aria-controls={publishMenuId}
           className="inline-flex cursor-pointer items-center justify-center border-none transition hover:bg-white/10"
           style={{
-            width: 32,
+            width: 36,
             background: "transparent",
             color: "rgba(255,255,255,0.85)",
           }}
         >
           <svg
-            width="10"
-            height="10"
+            width="11"
+            height="11"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -2056,8 +2104,8 @@ function ExitButton() {
   return (
     <TbTextBtn type="submit" disabled={pending} title="Back to dashboard">
       <svg
-        width="15"
-        height="15"
+        width={TB_ICON_PX}
+        height={TB_ICON_PX}
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -2580,9 +2628,9 @@ export function TopBar({
       className="fixed inset-x-0 top-0 z-[90] overflow-x-auto overflow-y-hidden"
       style={{
         height: TOPBAR_H,
-        background: "rgba(255,255,255,0.88)",
-        backdropFilter: "blur(20px) saturate(160%)",
-        WebkitBackdropFilter: "blur(20px) saturate(160%)",
+        background: "rgba(249, 249, 251, 0.96)",
+        backdropFilter: "blur(16px) saturate(140%)",
+        WebkitBackdropFilter: "blur(16px) saturate(140%)",
         borderBottom: `1px solid ${CHROME.line}`,
         WebkitOverflowScrolling: "touch",
       }}
@@ -2591,7 +2639,7 @@ export function TopBar({
           horizontal scroll parent, Publish/Exit sit outside the viewport and
           Playwright (and operators) cannot reach them. Inner row keeps natural
           width; outer bar scrolls. */}
-      <div className="flex h-full min-w-max items-center gap-[8px] px-[12px]">
+      <div className="flex h-full min-w-max items-center gap-[12px] px-[20px]">
       {/* ── Left cluster — page-level navigation ── */}
       <ExitForm dirty={dirty} saving={saving} />
       <TbDivider />
@@ -2624,7 +2672,6 @@ export function TopBar({
           mobileEditMode={editCtx?.mobileEditMode}
           setMobileEditMode={editCtx?.setMobileEditMode}
         />
-        <BreakpointsPopover />
       </div>
 
       {/* ── Spacer ── */}
@@ -2636,57 +2683,60 @@ export function TopBar({
        * dock. Search · Add · Page settings · Theme · Help now live in the dock.
        */}
       <TbIconBtn title="Undo (⌘Z)" onClick={onUndo} disabled={!canUndo}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <svg width={TB_ICON_PX} height={TB_ICON_PX} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M3 7v6h6" />
           <path d="M21 17a9 9 0 0 0-15-6.7L3 13" />
         </svg>
       </TbIconBtn>
       <TbIconBtn title="Redo (⇧⌘Z)" onClick={onRedo} disabled={!canRedo}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <svg width={TB_ICON_PX} height={TB_ICON_PX} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M21 7v6h-6" />
           <path d="M3 17a9 9 0 0 1 15-6.7l3 2.7" />
         </svg>
       </TbIconBtn>
 
-      <TbDivider />
-
-      {/* ── Collaboration ── */}
       <TbIconBtn
         title="Comments"
-        label="Comments"
         onClick={onComments}
         badge={commentsBadge}
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <svg width={TB_ICON_PX} height={TB_ICON_PX} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
         </svg>
       </TbIconBtn>
-      {onShare ? <ShareButton onShare={onShare} /> : null}
       <PreviewToggle previewing={previewing} setPreviewing={setPreviewing} />
 
       {SHOW_WORKSPACE_CONTROLS ? <WorkspaceLayoutControls /> : null}
 
-      <TbDivider />
-
-      {/* ── Save state + explicit Save draft ── */}
+      {onSaveDraft ? (
+        <TbOutlineBtn
+          onClick={() => void onSaveDraft()}
+          disabled={saving}
+          title="Save draft (⌘S)"
+        >
+          <span
+            className="inline-flex shrink-0 items-center justify-center rounded-full"
+            style={{
+              width: 18,
+              height: 18,
+              background: CHROME.green,
+              color: CHROME.surface,
+            }}
+            aria-hidden
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M20 6 9 17l-5-5" />
+            </svg>
+          </span>
+          Save
+        </TbOutlineBtn>
+      ) : null}
       <SaveStatus
         dirty={dirty}
         saving={saving}
         lastDraftSavedAt={lastDraftSavedAt}
         liveSitePublishedAt={liveSitePublishedAt}
       />
-      {onSaveDraft ? (
-        <TbTextBtn
-          onClick={() => void onSaveDraft()}
-          disabled={saving}
-          title="Save draft (⌘S)"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <path d="M20 6 9 17l-5-5" />
-          </svg>
-          Save
-        </TbTextBtn>
-      ) : null}
 
       {/* ── Publish split (primary CTA) ── */}
       <PublishSplitButton

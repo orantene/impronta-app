@@ -189,9 +189,10 @@ export function FeaturedTalentCard({
             <h3
               className="text-lg font-semibold leading-tight tracking-wide text-white drop-shadow-sm sm:text-xl"
               style={{
-                fontFamily: "var(--site-heading-font, var(--font-display))",
+                fontFamily: "var(--site-heading-font, inherit)",
               }}
               data-card-name
+              suppressHydrationWarning
             >
               {card.displayName}
             </h3>
@@ -200,6 +201,7 @@ export function FeaturedTalentCard({
             <p
               className="mt-1 truncate text-xs font-medium uppercase tracking-[0.14em] text-white/85 sm:text-[13px]"
               data-card-kicker
+              suppressHydrationWarning
             >
               {showPrimary ? card.primaryTalentTypeLabel : null}
               {showPrimary && showCity ? (
@@ -212,6 +214,7 @@ export function FeaturedTalentCard({
             <p
               className="mt-1.5 truncate text-[11px] text-white/65 sm:text-xs"
               data-card-meta
+              suppressHydrationWarning
             >
               {showSecondary ? card.secondaryTalentTypeLabel : null}
               {showSecondary && languageLine ? (
@@ -236,6 +239,7 @@ export function FeaturedTalentCard({
         data-card-variant={variant}
         data-card-chrome={cardChrome}
         data-card-image-treatment={imageTreatment}
+        suppressHydrationWarning
       >
         {media}
       </Link>
@@ -253,27 +257,32 @@ export function FeaturedTalentCard({
       data-card-chrome={cardChrome}
       data-card-image-treatment={imageTreatment}
       data-card-action-style={actionStyle}
+      suppressHydrationWarning
     >
       <Link
         href={href}
         className="block"
         aria-label={`View ${card.displayName}`}
+        suppressHydrationWarning
       >
         {media}
       </Link>
       <div
         className="flex items-stretch gap-2 p-3 sm:gap-2.5 sm:p-4"
         data-card-actions
+        suppressHydrationWarning
       >
         <Link
           href={href}
           className="site-prim-cta site-prim-cta--outline site-prim-cta--sm flex-1 justify-center"
+          suppressHydrationWarning
         >
           View profile
         </Link>
         <a
           href={prefixPublicHref(requestCta.href, publicPathPrefix)}
           className="site-prim-cta site-prim-cta--primary site-prim-cta--sm flex-1 justify-center"
+          suppressHydrationWarning
         >
           {requestCta.label}
         </a>

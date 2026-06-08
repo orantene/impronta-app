@@ -40,6 +40,7 @@ import { useEditContext } from "./edit-context";
 import { MediaPickerDialog } from "./media-picker-dialog";
 import { findPathByValue, setByPath } from "@/lib/site-admin/edit-mode/prop-path";
 import { CanvasEditOverlay } from "./rich-editor";
+import { flushCanvasTextStylePatches } from "./canvas-lexical-bridge";
 import {
   resolveBuilderNodeRole,
   type BuilderNode,
@@ -55,6 +56,7 @@ interface ActiveTextEdit {
   el: HTMLElement;
   original: string;
   variant: "single" | "multi";
+  resyncKey?: number;
   builderNode?: {
     id: string;
     propKey: "text" | "label" | "title" | "brand";
@@ -312,6 +314,7 @@ export function InlineEditor() {
   const endActiveEdit = useCallback(
     (commit: boolean, next?: string) => {
       if (!activeEdit) return;
+      void flushCanvasTextStylePatches();
       if (commit && next !== undefined) {
         if (activeEdit.builderNode) {
           void commitBuilderNodeText(
@@ -327,6 +330,26 @@ export function InlineEditor() {
     },
     [activeEdit, commitBuilderNodeText, commitText],
   );
+
+  // Undo/redo while inline edit is open — remount the overlay from stored copy.
+  useEffect(() => {
+    if (!activeEdit?.builderNode) return;
+    const stored = resolveBuilderNodeTextValue(
+      builderTree,
+      activeEdit.builderNode.id,
+      activeEdit.builderNode.propKey,
+    );
+    if (stored === null) return;
+    setActiveEdit((prev) => {
+      if (!prev?.builderNode) return prev;
+      if (stored === prev.original) return prev;
+      return {
+        ...prev,
+        original: stored,
+        resyncKey: (prev.resyncKey ?? 0) + 1,
+      };
+    });
+  }, [builderTree, activeEdit?.builderNode?.id, activeEdit?.builderNode?.propKey]);
 
   // ── image hover + replace driver + text hover hint driver ────────────
   useEffect(() => {
@@ -569,6 +592,7 @@ export function InlineEditor() {
         <CanvasEditOverlay
           target={activeEdit.el}
           initialValue={activeEdit.original}
+          resyncKey={activeEdit.resyncKey}
           variant={activeEdit.variant}
           tenantId={tenantId ?? undefined}
           onCommit={(next) => endActiveEdit(true, next)}

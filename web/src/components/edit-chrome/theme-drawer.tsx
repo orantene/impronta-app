@@ -616,6 +616,9 @@ export function ThemeDrawer(): ReactElement | null {
       open={themeOpen}
       zIndex={87}
       ariaLabelledBy="theme-drawer-title"
+      floating
+      floatLabel="Theme"
+      floatPanelId="theme"
     >
       {/* QA 2026-05-13 — during the first ~2s while `loadDesignAction`
           is in flight, `snapshot` is null. The previous render fell

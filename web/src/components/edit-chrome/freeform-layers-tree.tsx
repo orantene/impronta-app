@@ -13,6 +13,7 @@
  * / `moveBuilderNodeWithinParent` / `removeBuilderNode` from `useEditContext`;
  * styling reuses CHROME tokens to match the navigator rows.
  */
+/* eslint-disable max-lines -- flat layer rows + insert popovers; roving keyboard (M5) */
 
 import {
   useCallback,
@@ -26,6 +27,7 @@ import {
 import { ArrowDown, ArrowUp, Lock, LockOpen, Plus, X } from "lucide-react";
 
 import { CHROME, CHROME_RADII } from "./kit";
+import { BUILDER_VISUAL } from "./inspectors/kit/tokens";
 import { useEditContext } from "./edit-context";
 import { useHoveredBuilderNodeId } from "./hover-bridge";
 import { FreeformInsertPopover } from "./freeform-insert-popover";
@@ -42,10 +44,12 @@ import {
   resolveResponsiveOverrides,
   type ResponsiveOverrideSummary,
 } from "./freeform-layer-name";
+import { filterFreeformRowsWithAncestors } from "./navigator-layer-search";
 import {
   useNavigatorDisclosure,
   NavigatorDisclosureChevron,
 } from "./use-navigator-disclosure";
+import { useLayersTreeContainer } from "./use-roving-tree-focus";
 import {
   layerIcon,
   LayerKindPill,
@@ -272,7 +276,13 @@ interface InsertTarget {
   label: string;
 }
 
-export function FreeformLayersTree() {
+export function FreeformLayersTree({
+  search = "",
+  onClearSearch,
+}: {
+  search?: string;
+  onClearSearch?: () => void;
+} = {}) {
   const {
     builderTree,
     selectedBuilderNodeId,
@@ -294,13 +304,25 @@ export function FreeformLayersTree() {
     [builderTree],
   );
 
+  const searchFilteredRows = useMemo(() => {
+    const mapped = rows.map((row) => ({
+      ...row,
+      depth: row.depth,
+    }));
+    return filterFreeformRowsWithAncestors(
+      mapped,
+      search,
+    );
+  }, [rows, search]);
+
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [insertTarget, setInsertTarget] = useState<InsertTarget | null>(null);
+  const treeRef = useLayersTreeContainer();
 
   // Progressive disclosure — collapse to an outline; logic + persistence in hook.
   const { visibleRows, rowsWithChildren, isNodeOpen, toggleNode } =
-    useNavigatorDisclosure(rows, selectedBuilderNodeId);
+    useNavigatorDisclosure(searchFilteredRows, selectedBuilderNodeId);
 
   /** Plan + owner gate over a kind's raw registry allow-list (mirrors navigator). */
   const gateChildKinds = useCallback(
@@ -337,9 +359,10 @@ export function FreeformLayersTree() {
   // else the resolved root container. Tracks selection off the live rows.
   const selectedContainerRow = useMemo(
     () =>
-      rows.find((row) => row.id === selectedBuilderNodeId && row.rawChildKinds.length > 0) ??
-      null,
-    [rows, selectedBuilderNodeId],
+      searchFilteredRows.find(
+        (row) => row.id === selectedBuilderNodeId && row.rawChildKinds.length > 0,
+      ) ?? null,
+    [searchFilteredRows, selectedBuilderNodeId],
   );
   const headerTargetId = selectedContainerRow?.id ?? rootContainerId;
   // Gate the ACTUAL header target's kinds: the selected container row, else the
@@ -443,6 +466,7 @@ export function FreeformLayersTree() {
 
   return (
     <div
+      ref={treeRef}
       role="tree"
       aria-label="Page layers"
       style={{ display: "flex", flexDirection: "column", gap: 1 }}
@@ -450,6 +474,33 @@ export function FreeformLayersTree() {
       {/* Click-to-locate flash keyframes (job #5). Inert until a canvas block
        *  carries data-builder-node-flash="1"; skipped under reduced-motion. */}
       <style id={LAYERS_FLASH_KEYFRAMES_ID}>{LAYERS_FLASH_KEYFRAMES}</style>
+      {search.trim() && searchFilteredRows.length === 0 ? (
+        <div
+          style={{
+            padding: "10px 8px",
+            fontSize: 11.5,
+            color: CHROME.muted2,
+            lineHeight: 1.45,
+          }}
+          role="status"
+          aria-live="polite"
+        >
+          No layers match &ldquo;{search.trim()}&rdquo;.
+          {onClearSearch ? (
+            <>
+              {" "}
+              <button
+                type="button"
+                onClick={onClearSearch}
+                className="cursor-pointer border-none bg-transparent p-0 text-[11.5px] font-semibold underline"
+                style={{ color: CHROME.accent }}
+              >
+                Clear search
+              </button>
+            </>
+          ) : null}
+        </div>
+      ) : null}
       <div
         style={{
           display: "flex",
@@ -461,14 +512,13 @@ export function FreeformLayersTree() {
       >
         <span
           style={{
-            fontSize: 10,
-            fontWeight: 700,
-            letterSpacing: "0.10em",
-            textTransform: "uppercase",
-            color: CHROME.muted2,
+            fontSize: 13,
+            fontWeight: 600,
+            letterSpacing: "-0.01em",
+            color: CHROME.ink,
           }}
         >
-          Layers
+          Page layers
         </span>
         {headerAddEnabled ? (
           <HeaderAddButton
@@ -533,7 +583,7 @@ export function FreeformLayersTree() {
             aria-level={row.depth + 1}
             aria-selected={selected}
             aria-label={row.locked ? `${row.label} (locked)` : row.label}
-            tabIndex={0}
+            tabIndex={selected ? 0 : -1}
             data-builder-node-id={row.id}
             data-builder-node-kind={row.kind}
             data-selected={selected ? "true" : "false"}
@@ -567,21 +617,21 @@ export function FreeformLayersTree() {
               paddingLeft: ROOT_PADDING + row.depth * DEPTH_INDENT,
               borderRadius: CHROME_RADII.sm,
               background: selected
-                ? "rgba(42,49,71,0.10)"
+                ? BUILDER_VISUAL.accentBg
                 : row.locked
                   ? "rgba(250,174,0,0.06)"
                   : hovered
-                    ? "rgba(42,49,71,0.045)"
+                    ? "rgba(124,58,237,0.06)"
                     : canvasHovered
-                      ? "rgba(61,79,124,0.07)"
+                      ? "rgba(124,58,237,0.04)"
                       : "transparent",
-              color: selected ? CHROME.text : row.locked ? CHROME.amber : CHROME.muted,
-              fontSize: ROW_FONT_SIZE,
+              color: selected ? BUILDER_VISUAL.accent : row.locked ? CHROME.amber : CHROME.muted,
               fontWeight: selected ? 600 : 500,
+              fontSize: ROW_FONT_SIZE,
               cursor: "pointer",
               opacity: pending ? 0.72 : 1,
               boxShadow: selected
-                ? `inset 3px 0 0 ${CHROME.accent}`
+                ? `inset 3px 0 0 ${BUILDER_VISUAL.accent}`
                 : row.locked
                   ? "inset 3px 0 0 rgba(250,174,0,0.5)"
                   : canvasHovered

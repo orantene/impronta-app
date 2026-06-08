@@ -243,7 +243,7 @@ function ClockIcon(): ReactElement {
 // ── component ─────────────────────────────────────────────────────────────
 
 export function AssetsDrawer(): ReactElement | null {
-  const { assetsOpen, closeAssets, tenantId } = useEditContext();
+  const { assetsOpen, closeAssets, tenantId, reportMutationError } = useEditContext();
 
   const [items, setItems] = useState<MediaLibraryItem[] | null>(null);
   const [usage, setUsage] = useState<Record<string, AssetUsage>>({});
@@ -296,6 +296,9 @@ export function AssetsDrawer(): ReactElement | null {
         setItems([]);
         setUsage({});
         setLoadError(libRes.error);
+        reportMutationError(
+          libRes.error ?? "The assets library could not load — try again.",
+        );
         setBusy("idle");
         return;
       }
@@ -307,7 +310,7 @@ export function AssetsDrawer(): ReactElement | null {
     return () => {
       cancelled = true;
     };
-  }, [assetsOpen]);
+  }, [assetsOpen, reportMutationError]);
 
   // Filter pipeline: tab → search.
   const filtered = useMemo<MediaLibraryItem[]>(() => {
@@ -533,6 +536,9 @@ export function AssetsDrawer(): ReactElement | null {
       open={assetsOpen}
       zIndex={87}
       ariaLabelledBy="assets-drawer-title"
+      floating
+      floatLabel="Assets"
+      floatPanelId="assets"
     >
       <DrawerHead
         titleId="assets-drawer-title"

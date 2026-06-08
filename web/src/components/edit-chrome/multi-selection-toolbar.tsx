@@ -10,6 +10,7 @@ import {
   AlignStartVertical,
   AlignVerticalDistributeCenter,
   CopyPlus,
+  Ellipsis,
   Group,
   Paintbrush,
   Trash2,
@@ -17,6 +18,7 @@ import {
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
+import { BuilderCoachmarkTip } from "./builder-coachmark-tip";
 import type {
   MultiNodeAlignMode,
   MultiNodeDistributeMode,
@@ -128,9 +130,27 @@ export function MultiSelectionToolbar({
   // heavier style editing is opt-in. State is local: it only governs the
   // panel's open/closed; every committed change fans out via onBulkStyle.
   const [styleOpen, setStyleOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const toolbarTop = Math.max(rect.top - 38, 58);
   return (
     <>
+    <BuilderCoachmarkTip
+      id="multi-select-toolbar"
+      message="Shift-click to select multiple blocks — align, group, and style them together."
+      placement="above"
+    >
+      <span
+        aria-hidden
+        style={{
+          position: "fixed",
+          top: toolbarTop + 16,
+          left: rect.left + rect.width / 2,
+          width: 1,
+          height: 1,
+          pointerEvents: "none",
+        }}
+      />
+    </BuilderCoachmarkTip>
     <div
       data-multi-selection-toolbar=""
       data-edit-overlay="multi-selection-toolbar"
@@ -188,6 +208,57 @@ export function MultiSelectionToolbar({
       >
         <AlignCenterVertical size={14} aria-hidden />
       </IconButton>
+      <IconButton
+        disabled={disabled || !canGroup}
+        label="Group selected blocks"
+        action="group"
+        onClick={onGroup}
+      >
+        <Group size={14} aria-hidden />
+      </IconButton>
+      <IconButton
+        disabled={disabled}
+        label="Duplicate selected blocks"
+        action="duplicate"
+        onClick={onDuplicate}
+      >
+        <CopyPlus size={14} aria-hidden />
+      </IconButton>
+      <IconButton
+        disabled={disabled}
+        label="More layout actions"
+        action="more"
+        onClick={() => setMoreOpen((open) => !open)}
+      >
+        <Ellipsis size={14} aria-hidden />
+      </IconButton>
+      <Divider />
+      <IconButton
+        disabled={disabled}
+        label="Remove selected blocks"
+        action="remove"
+        tone="danger"
+        onClick={onRemove}
+      >
+        <Trash2 size={14} aria-hidden />
+      </IconButton>
+    </div>
+    {moreOpen ? (
+      <div
+        data-multi-selection-more=""
+        style={{
+          position: "fixed",
+          top: toolbarTop + 36,
+          left: rect.left,
+          display: "inline-flex",
+          alignItems: "stretch",
+          borderRadius: 8,
+          background: TOOLBAR_BG,
+          boxShadow:
+            "0 12px 32px -8px rgba(0,0,0,0.38), inset 0 0 0 1px rgba(255,255,255,0.08)",
+          zIndex: 101,
+        }}
+      >
       <IconButton
         disabled={disabled}
         label="Align right"
@@ -253,14 +324,6 @@ export function MultiSelectionToolbar({
       ) : null}
       <Divider />
       <IconButton
-        disabled={disabled || !canGroup}
-        label="Group selected blocks"
-        action="group"
-        onClick={onGroup}
-      >
-        <Group size={14} aria-hidden />
-      </IconButton>
-      <IconButton
         disabled={disabled || !canUngroup}
         label="Ungroup selected block"
         action="ungroup"
@@ -268,24 +331,23 @@ export function MultiSelectionToolbar({
       >
         <Ungroup size={14} aria-hidden />
       </IconButton>
-      <IconButton
-        disabled={disabled}
-        label="Duplicate selected blocks"
-        action="duplicate"
-        onClick={onDuplicate}
-      >
-        <CopyPlus size={14} aria-hidden />
-      </IconButton>
-      <IconButton
-        disabled={disabled}
-        label="Remove selected blocks"
-        action="remove"
-        tone="danger"
-        onClick={onRemove}
-      >
-        <Trash2 size={14} aria-hidden />
-      </IconButton>
-    </div>
+      {canBulkStyle ? (
+        <>
+          <Divider />
+          <IconButton
+            disabled={disabled}
+            label={
+              styleOpen ? "Hide shared style" : "Edit shared style for all"
+            }
+            action="bulk-style"
+            onClick={() => setStyleOpen((open) => !open)}
+          >
+            <Paintbrush size={14} aria-hidden />
+          </IconButton>
+        </>
+      ) : null}
+      </div>
+    ) : null}
     {/* Rendered as a SIBLING of the toolbar (not a child) so the toolbar's
      *  overflow:hidden scroll-row can't clip it; anchored just below the
      *  toolbar via the same viewport rect. */}

@@ -14,6 +14,7 @@ import {
   runPublishPreflight,
   type PreflightIssue,
 } from "@/lib/site-admin/edit-mode/publish-preflight-action";
+import { useEditContext } from "./edit-context";
 
 const CATEGORY_LABEL: Record<PreflightIssue["category"], string> = {
   headings: "Headings",
@@ -53,6 +54,7 @@ export function PublishPreflight({
   onStatusChange,
   onFocusSection,
 }: Props) {
+  const { reportMutationError } = useEditContext();
   const [issues, setIssues] = useState<ReadonlyArray<PreflightIssue> | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,13 +84,16 @@ export function PublishPreflight({
         onStatusChange?.({ loading: false, blockingErrors });
       } else {
         setError(result.error);
+        reportMutationError(
+          result.error ?? "Publish checks could not load — try again.",
+        );
         onStatusChange?.({ loading: false, blockingErrors: 0 });
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [enabled, refreshKey, locale, pageId, onStatusChange]);
+  }, [enabled, refreshKey, locale, pageId, onStatusChange, reportMutationError]);
 
   if (loading) {
     return (

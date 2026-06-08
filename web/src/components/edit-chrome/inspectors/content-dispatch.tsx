@@ -23,6 +23,7 @@
 import { useMemo, type ComponentType } from "react";
 
 import { useEditContext } from "../edit-context";
+import { InspectorNotice } from "./kit";
 import { BuilderNodeContentInspector } from "./builder-node-content";
 import { resolveStandaloneBuilderNodeForContent } from "./builder-node-content-utils";
 import { HeroContentInspector } from "./hero-content";
@@ -70,7 +71,7 @@ export function ContentTab({
   selectedBuilderNodeId,
   onChange,
 }: ContentTabProps) {
-  const { builderTree } = useEditContext();
+  const { builderTree, device } = useEditContext();
   const selectedStandaloneBuilderNode = useMemo(
     () =>
       resolveStandaloneBuilderNodeForContent(
@@ -91,12 +92,20 @@ export function ContentTab({
   const Curated = CURATED[sectionTypeKey];
   if (Curated) {
     return (
-      <Curated
-        draftProps={draftProps}
-        tenantId={tenantId}
-        selectedBuilderNodeId={selectedBuilderNodeId}
-        onChange={onChange}
-      />
+      <>
+        {device !== "desktop" ? (
+          <InspectorNotice tone="info">
+            Content fields without breakpoint overrides show desktop values on{" "}
+            {device === "tablet" ? "Tablet" : "Mobile"}. Use the viewport rail to hide this section on a device.
+          </InspectorNotice>
+        ) : null}
+        <Curated
+          draftProps={draftProps}
+          tenantId={tenantId}
+          selectedBuilderNodeId={selectedBuilderNodeId}
+          onChange={onChange}
+        />
+      </>
     );
   }
   return (

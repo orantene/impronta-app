@@ -105,7 +105,36 @@ const HEADING_MAP: Record<
   event_listing: { level: 2, propKey: "headline" },
   lookbook: { level: 2, propKey: "headline" },
   booking_widget: { level: 2, propKey: "headline" },
+  // Impronta / directory surfaces (SectionHead → h2)
+  hero_search: { level: 2, propKey: "headline" },
+  talent_type_grid: { level: 2, propKey: "headline" },
+  location_discovery: { level: 2, propKey: "headline" },
+  editorial_split_hero: { level: 2, propKey: "headline" },
+  directory: { level: 2, propKey: "headline" },
+  join_register: { level: 2, propKey: "headline" },
+  // Page chrome / freeform — no section-level heading in outline
+  site_header: { level: 0, propKey: "headline" },
+  site_footer: { level: 0, propKey: "headline" },
+  blank_section: { level: 0, propKey: "headline" },
 };
+
+/** Map one section type + props/config record to an outline row (or null). */
+export function headingNodeFromSectionType(
+  sectionTypeKey: string,
+  props: Record<string, unknown>,
+  sectionId: string,
+): HeadingNode | null {
+  const cfg = HEADING_MAP[sectionTypeKey];
+  if (!cfg || cfg.level === 0) return null;
+  const text = String(props[cfg.propKey] ?? "").trim();
+  if (!text) return null;
+  return {
+    level: cfg.level,
+    text,
+    sectionId,
+    sectionTypeKey,
+  };
+}
 
 export function buildHeadingOutline(
   sections: ReadonlyArray<SectionLike>,
