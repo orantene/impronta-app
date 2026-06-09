@@ -198,7 +198,7 @@ test("patchBuilderNodeProps: syncs the base mirror (locked) on the shared result
   const set = patchBuilderNodeProps({ tree, nodeId: "c1", patch: { locked: true } });
   assert.ok(set.ok, "set patch should succeed");
   assert.equal(
-    (set.tree[0] as Record<string, unknown>).locked,
+    (set.tree[0] as unknown as Record<string, unknown>).locked,
     true,
     "base mirror node.locked must be derived from props on the op result",
   );
@@ -210,7 +210,7 @@ test("patchBuilderNodeProps: syncs the base mirror (locked) on the shared result
   });
   assert.ok(cleared.ok, "clear patch should succeed");
   assert.equal(
-    (cleared.tree[0] as Record<string, unknown>).locked,
+    (cleared.tree[0] as unknown as Record<string, unknown>).locked,
     undefined,
     "cleared base mirror must not retain a stale locked flag",
   );
