@@ -32,6 +32,10 @@ import {
   type PreviewFrameOverride,
 } from "./edit-context";
 import { useHoveredSectionId } from "./hover-bridge";
+import {
+  useSelectedSectionId,
+  useSelectedBuilderNodeId,
+} from "./selection-bridge";
 import { useDirty } from "./dirty-bridge";
 import { PresenceProvider } from "./presence-provider";
 import { CHROME, CHROME_SHADOWS, EDIT_TOPBAR_H } from "./kit";
@@ -438,8 +442,6 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     closeBrandPanel,
     pageMetadata,
     pageId,
-    selectedSectionId,
-    selectedBuilderNodeId,
     setSelectedSectionId,
     focusSectionForEdit,
     builderTree,
@@ -467,6 +469,10 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     openLibrary,
     compositionLoaded,
   } = useEditContext();
+  // W2 (selection-bridge) — selection VALUES from the micro-store (the keyboard
+  // handler below reads them; setters/mutators stay on the context).
+  const selectedSectionId = useSelectedSectionId();
+  const selectedBuilderNodeId = useSelectedBuilderNodeId();
   // W2-T4 — `dirty` VALUE from the dirty-bridge (this shell threads it into the
   // topbar / exit guard; the setter stays on the context).
   const dirty = useDirty();
@@ -1230,7 +1236,8 @@ function CanvasViewportComponents({
  * tenant scope here just for a tip, which isn't worth the wiring.
  */
 function FirstPaintTip() {
-  const { selectedSectionId } = useEditContext();
+  // W2 (selection-bridge) — selected-section VALUE from the micro-store.
+  const selectedSectionId = useSelectedSectionId();
   // W2-T3 — hovered-section VALUE from the bridge (this tip auto-dismisses on
   // first hover, so it genuinely subscribes; other edit-shell consumers that
   // don't read hover no longer re-render on a sweep).
@@ -1373,8 +1380,9 @@ function FirstPaintTip() {
 const MAKE_IT_YOURS_DISMISS_KEY = "edit:make-it-yours:dismissed";
 
 function MakeItYoursChecklist() {
-  const { selectedSectionId, openTheme, openAssets, themeOpen, assetsOpen } =
-    useEditContext();
+  const { openTheme, openAssets, themeOpen, assetsOpen } = useEditContext();
+  // W2 (selection-bridge) — selected-section VALUE from the micro-store.
+  const selectedSectionId = useSelectedSectionId();
   // Hidden until a starter/design is applied this session. A separate
   // "visible" flag (vs. relying on done-counts) lets us keep the panel mounted
   // through the celebratory all-done state before it auto-dismisses.
