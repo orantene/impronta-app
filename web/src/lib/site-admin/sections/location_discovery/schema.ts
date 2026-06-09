@@ -66,6 +66,16 @@ export const locationDiscoverySchemaV1 = z.object({
   layout: z.enum(["grid", "list", "compact"]).default("grid"),
   emptyStateText: z.string().max(240).optional(),
 
+  /**
+   * Head-less render mode — set by the freeform wrapper
+   * (`gridOnlyLocationDiscoveryConfig`). When true, the section omits its own
+   * SectionHead. In practice, blanking eyebrow/headline/subheadline already
+   * causes SectionHead to return null (it guards on all three), so this flag
+   * is belt-and-suspenders and for explicit signalling. Default undefined =
+   * false (standard render; BYTE-IDENTICAL to prior behaviour).
+   */
+  headless: z.boolean().optional(),
+
   nodePresentation: z
     .object({
       subheadline: nodePresentationSchema,

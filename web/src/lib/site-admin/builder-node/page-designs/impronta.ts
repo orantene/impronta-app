@@ -3,6 +3,8 @@ import type { BuilderNode } from "../types";
 import type { BuilderNodeRenderDataSources } from "../render";
 import type { PageDesign } from "./types";
 import { buildTalentDisciplineDecomposedSection } from "../talent-discipline-freeform";
+import { buildFeaturedTalentDecomposedSection, gridOnlyFeaturedTalentConfig } from "../featured-talent-freeform";
+import { buildLocationDiscoveryDecomposedSection, gridOnlyLocationDiscoveryConfig } from "../location-discovery-freeform";
 import { FRAUNCES, CINZEL, INTER } from "./tokens";
 
 /**
@@ -604,9 +606,10 @@ const disciplines: BuilderNode = buildTalentDisciplineDecomposedSection({
   },
 });
 
-// Featured talent — REAL represented roster (section_embed of the featured_talent
-// component). `sourceMode: manual_pick` shows the agency's hand-picked talent;
-// re-pick who appears right in the section's editor (manualProfileCodes).
+// Featured talent — REAL represented roster, decomposed into freeform header
+// layers + a grid-only `featured_talent` section_embed. The freeform layers
+// (Intro Text "Selected" / Title "FEATURED TALENT" / See All Link) are now
+// editable builder nodes; the embed renders talent cards only (headless mode).
 //
 // CODES VERIFIED (P2-VERIFY-DATA, 2026-06-02): all six resolve to live, active,
 // featured profiles — TAL-00036 Anto, TAL-00033 Tina, TAL-00034 Nalea,
@@ -615,50 +618,45 @@ const disciplines: BuilderNode = buildTalentDisciplineDecomposedSection({
 // resolver falls back across card → public_watermarked → gallery, so all six
 // render an image today. Uploading dedicated card crops for Nalea/Annher/Anto
 // is a polish follow-up, not an empty-state risk.
-const featured: BuilderNode = {
-  id: "impronta-featured",
-  kind: "section_embed",
-  props: {
-    sectionTypeKey: "featured_talent",
-    config: {
-      copy: "",
-      limit: 4,
-      eyebrow: "Selected",
-      variant: "grid",
-      headline: "FEATURED TALENT",
-      showCity: true,
-      showName: true,
-      footerCta: { href: "/directory", label: "Explore Talent" },
-      showBadge: false,
-      cardChrome: "v11-noir",
-      requestCta: { href: "/contact", label: "Request" },
-      sourceMode: "manual_pick",
-      actionStyle: "outline-duo",
-      cardVariant: "editorial",
-      headerAlign: "center",
-      layoutPreset: "v11-showcase",
-      presentation: { align: "center", background: "canvas", dividerTop: "thin-line", paddingTop: "editorial", paddingBottom: "editorial", containerWidth: "wide", animation: { entry: "fade-up", reducedMotion: "respect" } },
-      showLanguages: true,
-      columnsDesktop: 4,
-      emptyStateText: "Featured profiles appear here as talent are added to the roster.",
-      imageTreatment: "cinematic",
-      showPrimaryType: true,
-      showAvailability: true,
-      showBookmarkIcon: true,
-      showSecondaryType: true,
-      manualProfileCodes: ["TAL-00036", "TAL-00033", "TAL-00034", "TAL-00031", "TAL-00035", "TAL-00037"],
-      parentCategoryDisplay: false,
-    },
-  },
-};
+const featured: BuilderNode = buildFeaturedTalentDecomposedSection({
+  rootId: "impronta-featured",
+  eyebrow: "Selected",
+  headline: "FEATURED TALENT",
+  subheadline: "",
+  seeAllLabel: "Explore Talent",
+  seeAllHref: "/directory",
+  embedConfig: gridOnlyFeaturedTalentConfig({
+    limit: 4,
+    variant: "grid",
+    showCity: true,
+    showName: true,
+    showBadge: false,
+    cardChrome: "v11-noir",
+    requestCta: { href: "/contact", label: "Request" },
+    sourceMode: "manual_pick",
+    actionStyle: "outline-duo",
+    cardVariant: "editorial",
+    headerAlign: "center",
+    layoutPreset: "v11-showcase",
+    presentation: { align: "center", background: "canvas", dividerTop: "thin-line", paddingTop: "editorial", paddingBottom: "editorial", containerWidth: "wide", animation: { entry: "fade-up", reducedMotion: "respect" } },
+    showLanguages: true,
+    columnsDesktop: 4,
+    emptyStateText: "Featured profiles appear here as talent are added to the roster.",
+    imageTreatment: "cinematic",
+    showPrimaryType: true,
+    showAvailability: true,
+    showBookmarkIcon: true,
+    showSecondaryType: true,
+    manualProfileCodes: ["TAL-00036", "TAL-00033", "TAL-00034", "TAL-00031", "TAL-00035", "TAL-00037"],
+    parentCategoryDisplay: false,
+  }),
+});
 
-// Local faces / markets — a REAL `location_discovery` Tulala component
-// (section_embed), not a static glyph map. `showMap: true` renders the section's
-// own token-driven editorial map with clickable pins that link into the
-// directory, plus the featured-market panel (active vs coming-soon stats derived
-// from the item statuses). The markets are the curated editorial set the brand
-// leads with: Riviera Maya (featured) + Mexico City/Buenos Aires (active) +
-// Los Angeles/Madrid (coming soon).
+// Local faces / markets — a REAL `location_discovery` Tulala component,
+// decomposed into freeform header layers + a grid-only `location_discovery`
+// section_embed. The freeform layers (Intro Text / Title / Subtitle / See All
+// Link) are now editable builder nodes; the embed renders the map/grid only
+// (headless mode — SectionHead suppressed by blank eyebrow/headline/subheadline).
 //
 // source = "manual" (not "roster_cities") on purpose: roster_cities dumps the
 // raw residence cities of roster talent (all flagged "active") and would lose
@@ -667,48 +665,41 @@ const featured: BuilderNode = {
 // per-market count when one is supplied, so nothing fake shows; an operator can
 // switch this to roster_cities or add real counts in the section's own editor.
 //
-// (The legacy home Google-Maps `LocationMap` lives only in the removed
-// home-storefront data path — it is not a registered embeddable section, and
-// rebuilding it as one is out of scope: notes/map-component-findings.md says
-// "do NOT rebuild the map". This registered section IS the real, editable,
-// roster-wired markets component.)
+// The dark WARM band wrapper (id "impronta-markets") is preserved; the
+// decomposed section (rootId "impronta-markets-embed") lives inside it.
 const markets: BuilderNode = band(
   "impronta-markets",
   WARM,
   [
-    {
-      id: "impronta-markets-embed",
-      kind: "section_embed",
-      props: {
-        sectionTypeKey: "location_discovery",
-        config: {
-          eyebrow: "Talent network",
-          headline: "Local faces, international reach.",
-          subheadline:
-            "Starting with Riviera Maya, expanding across Mexico City, Buenos Aires, and other creative markets — international reach with a real team in every market.",
-          source: "manual",
-          items: [
-            { label: "Riviera Maya", region: "Mexico", href: "/directory", featured: true, status: "active" },
-            { label: "Mexico City", region: "Mexico", href: "/directory", status: "active" },
-            { label: "Buenos Aires", region: "Argentina", href: "/directory", status: "active" },
-            { label: "Los Angeles", region: "United States", href: "/directory", status: "coming_soon" },
-            { label: "Madrid", region: "Spain", href: "/directory", status: "coming_soon" },
-          ],
-          maxItems: 8,
-          showCount: false,
-          showMap: true,
-          // The live interactive map with talent-profile photos orbiting each
-          // city pin (sources live roster cities + featured talent; the manual
-          // items above remain as the editorial fallback if no live data).
-          mapStyle: "talent_orbit",
-          ctaLabel: "Browse the directory",
-          ctaHref: "/directory",
-          layout: "grid",
-          emptyStateText: "Markets appear here as talent join the roster across our cities.",
-          presentation: { background: "espresso", align: "center", dividerTop: "thin-line", paddingTop: "none", paddingBottom: "none", animation: { entry: "fade-up", reducedMotion: "respect" } },
-        },
-      },
-    },
+    buildLocationDiscoveryDecomposedSection({
+      rootId: "impronta-markets-embed",
+      eyebrow: "Talent network",
+      headline: "Local faces, international reach.",
+      subheadline:
+        "Starting with Riviera Maya, expanding across Mexico City, Buenos Aires, and other creative markets — international reach with a real team in every market.",
+      seeAllLabel: "Browse the directory",
+      seeAllHref: "/directory",
+      embedConfig: gridOnlyLocationDiscoveryConfig({
+        source: "manual",
+        items: [
+          { label: "Riviera Maya", region: "Mexico", href: "/directory", featured: true, status: "active" },
+          { label: "Mexico City", region: "Mexico", href: "/directory", status: "active" },
+          { label: "Buenos Aires", region: "Argentina", href: "/directory", status: "active" },
+          { label: "Los Angeles", region: "United States", href: "/directory", status: "coming_soon" },
+          { label: "Madrid", region: "Spain", href: "/directory", status: "coming_soon" },
+        ],
+        maxItems: 8,
+        showCount: false,
+        showMap: true,
+        // The live interactive map with talent-profile photos orbiting each
+        // city pin (sources live roster cities + featured talent; the manual
+        // items above remain as the editorial fallback if no live data).
+        mapStyle: "talent_orbit",
+        layout: "grid",
+        emptyStateText: "Markets appear here as talent join the roster across our cities.",
+        presentation: { background: "espresso", align: "center", dividerTop: "thin-line", paddingTop: "none", paddingBottom: "none", animation: { entry: "fade-up", reducedMotion: "respect" } },
+      }),
+    }),
   ],
 );
 
