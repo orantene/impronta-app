@@ -80,6 +80,14 @@ export const featuredTalentSchemaV1 = z.object({
   /** Copy shown when the resolved collection is empty. */
   emptyStateText: z.string().max(240).optional(),
   footerCta: ctaSchema.optional(),
+  /**
+   * Head-less render mode — set by the freeform wrapper
+   * (`gridOnlyFeaturedTalentConfig`). When true, the section omits its own
+   * header (eyebrow / headline / copy / footerCta in header) and renders only
+   * the talent grid + optional footer CTA. Default undefined = false
+   * (standard render; BYTE-IDENTICAL to prior behaviour).
+   */
+  headless: z.boolean().optional(),
   /** Optional child-node-level layout/style overrides (Phase 4 bridge). */
   nodePresentation: z
     .object({

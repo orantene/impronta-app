@@ -152,6 +152,29 @@ test("connected wrapper templates include labeled embed child", () => {
   ]);
 });
 
+test("markets-wrapper template exposes freeform header layers and grid-only embed", () => {
+  const markets = buildAddGallerySectionTemplate("markets-wrapper");
+  assert.ok(markets);
+  assert.equal(sectionTemplateContainsKind(markets!, "section_embed"), true);
+  assertTemplateLayerLabels("markets-wrapper", [
+    "Intro Text",
+    "Title",
+    "See All Link",
+    "Markets Grid",
+  ]);
+
+  // location-discovery-wrapper is an alias — same template
+  const alias = buildAddGallerySectionTemplate("location-discovery-wrapper");
+  assert.ok(alias);
+  assert.equal(sectionTemplateContainsKind(alias!, "section_embed"), true);
+  assertTemplateLayerLabels("location-discovery-wrapper", [
+    "Intro Text",
+    "Title",
+    "See All Link",
+    "Markets Grid",
+  ]);
+});
+
 test("connected native templates agency-logo and inquiry-cta", () => {
   assertTemplateLayerLabels("agency-logo", ["Title", "Logo Row", "Logo 1"]);
   assertTemplateLayerLabels("inquiry-cta", [

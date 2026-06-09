@@ -281,6 +281,7 @@ export async function FeaturedTalentComponent({
     imageTreatment,
     showBookmarkIcon,
     actionStyle,
+    headless,
   } = props;
   const isV11Showcase = layoutPreset === "v11-showcase";
   const effectiveHeaderAlign =
@@ -417,7 +418,7 @@ export async function FeaturedTalentComponent({
         <style dangerouslySetInnerHTML={{ __html: responsiveCss }} />
       ) : null}
       <div className="site-featured-talent__inner">
-        {(eyebrow || headline || copy || footerCtaInHeader) && (
+        {!headless && (eyebrow || headline || copy || footerCtaInHeader) && (
           <header className="site-featured-talent__head">
             <div
               className="site-featured-talent__head-text"
