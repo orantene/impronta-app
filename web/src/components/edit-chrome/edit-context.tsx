@@ -5062,8 +5062,14 @@ export function EditProvider({
           ...p,
           {
             kind: "builderTree",
-            pre: cloneBuilderNodeTree(prevTree),
-            post: cloneBuilderNodeTree(nextTree),
+            // Store the immutable tree refs directly — no deep clone. Since the
+            // copy-on-write ops refactor, prevTree/nextTree are never mutated in
+            // place (ops only write fresh spine nodes and share off-path
+            // subtrees; persistBuilderTree treats trees as read-only), so the
+            // former defensive clone is pure overhead per commit. Undo/redo
+            // restore these refs verbatim via persistBuilderTree.
+            pre: prevTree,
+            post: nextTree,
             // W3-T8 — stamp the active selection so undo/redo restores it.
             selection: captureHistorySelection(),
           },
