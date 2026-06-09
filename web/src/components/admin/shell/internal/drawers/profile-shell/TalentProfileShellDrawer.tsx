@@ -213,6 +213,7 @@ import type { TalentLanguageInput } from "@/lib/server-actions/admin-talent-lang
 import {
   formatProfileShellSaveFailures,
   runProfileShellSaveSteps,
+  type ProfileShellSaveStepResult,
 } from "@/lib/talent/profile-shell-save-feedback";
 
 function detailsGroupHelperText(label: string): string {
@@ -1164,7 +1165,10 @@ export function TalentProfileShellDrawer() {
 
     // Agency roster edit: explicit Save runs profile batch + deferred slices.
     if (adminVisible && !isSelf) {
-      const saveSteps: Parameters<typeof runProfileShellSaveSteps>[0] = [
+      const saveSteps: {
+        section: string;
+        run: () => Promise<ProfileShellSaveStepResult>;
+      }[] = [
         {
           section: "Profile",
           run: async () => {
@@ -1626,7 +1630,7 @@ export function TalentProfileShellDrawer() {
   // a slug missing from the DB layout still renders a label + emoji.
   const metaFor = useCallback(
     (slug: string): { label: string; emoji: string } =>
-      profileEditorLayout.sectionMeta[slug] ?? SECTION_META[slug as ProfileSectionId],
+      profileEditorLayout.sectionMeta[slug] ?? SECTION_META[slug as Exclude<ProfileSectionId, "">],
     [profileEditorLayout],
   );
 
@@ -2774,7 +2778,7 @@ export function TalentProfileShellDrawer() {
                                     }}
                                   >
                                     <span data-details-rail-child-label>
-                                      {copy.t(SECTION_META.refinement.label)}
+                                      {copy.t(metaFor("refinement").label)}
                                     </span>
                                   </button>
                                 )}
