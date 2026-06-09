@@ -195,11 +195,12 @@ function buildAboutStats(): BuilderNode {
         ],
         {
           layerLabel: "Stats Row",
-          layout: "row",
+          layout: "grid",
+          columns: 3,
           gap: "l",
           align: "stretch",
           responsive: {
-            tablet: { layout: "row", columns: 3 },
+            tablet: { columns: 3 },
             mobile: { layout: "stack", columns: 1 },
           },
         },

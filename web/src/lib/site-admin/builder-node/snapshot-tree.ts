@@ -339,6 +339,31 @@ function hydrateLegacySectionChildren(
   });
 }
 
+/**
+ * Root-level custom sections inserted via Add Gallery (`sectionTypeKey: custom`,
+ * no `sectionId` / slot binding). These are not rendered by the composition
+ * slot loop — callers must paint them separately.
+ */
+export function collectUnboundRootGallerySections(
+  tree: BuilderNodeTree,
+): ReadonlyArray<Extract<BuilderNode, { kind: "section" }>> {
+  return tree.filter(
+    (node): node is Extract<BuilderNode, { kind: "section" }> =>
+      node.kind === "section" &&
+      node.props.sectionTypeKey === "custom" &&
+      !node.props.sectionId,
+  );
+}
+
+export function unboundGallerySectionIdsSignature(
+  tree: BuilderNodeTree,
+): string {
+  return collectUnboundRootGallerySections(tree)
+    .map((node) => node.id)
+    .sort()
+    .join(",");
+}
+
 export function indexBuilderSectionNodeIds(
   tree: BuilderNodeTree,
 ): ReadonlyMap<string, string> {

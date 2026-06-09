@@ -158,6 +158,7 @@ test("testimonials-trio template exposes quote cards as freeform layers", () => 
   assert.ok(labels.includes("Title"));
   assert.ok(labels.includes("Testimonial Grid"));
   assert.ok(labels.includes("Testimonial Card"));
+  assert.ok(labels.includes("Quote Mark"));
   assert.ok(labels.includes("Quote Text"));
   assert.ok(labels.includes("Client Name"));
   assert.ok(labels.includes("Client Role"));

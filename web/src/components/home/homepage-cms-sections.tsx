@@ -33,6 +33,7 @@ import {
   indexBuilderSectionChildNodeIds,
   indexBuilderSectionNodeIds,
   indexBuilderSectionNodes,
+  collectUnboundRootGallerySections,
   type BuilderNode,
   type BuilderNodeRenderDataSources,
   type BuilderVisibilityContext,
@@ -625,6 +626,34 @@ export async function HomepageCmsSections({
           </div>
         );
       })}
+      {collectUnboundRootGallerySections(builderTreeResolution.tree).map(
+        (sectionNode) => {
+          const label = sectionNode.props.label?.trim() || "Section";
+          return (
+            <div
+              key={`gallery:${sectionNode.id}`}
+              data-cms-section=""
+              data-builder-node-id={sectionNode.id}
+              data-section-type-key="custom"
+              data-section-label={label}
+            >
+              {renderBuilderNodes([sectionNode], {
+                publicPathPrefix,
+                mode: "freeform",
+                includeRendererStyles: false,
+                dataSources: builderDataSources,
+                components: builderComponents,
+                visibilityContext,
+                renderSectionEmbed: makeSectionEmbedRenderer({
+                  tenantId,
+                  locale,
+                  publicPathPrefix,
+                }),
+              })}
+            </div>
+          );
+        },
+      )}
     </>
   );
 }

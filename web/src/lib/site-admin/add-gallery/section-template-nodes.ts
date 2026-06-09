@@ -568,7 +568,11 @@ export function tplTestimonialCard(
 ): BuilderNode {
   return tplCard(
     [
-      tplIcon({ layerLabel: "Quote Icon", icon: "sparkle", label: "" }),
+      tplLabeledParagraph("\u201C", "Quote Mark", {
+        size: "lg",
+        tone: "muted",
+        align: "left",
+      }),
       tplLabeledParagraph(quote, "Quote Text", { size: "lg", tone: "default" }),
       tplLabeledParagraph(clientName, "Client Name", {
         size: "sm",

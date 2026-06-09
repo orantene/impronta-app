@@ -11,6 +11,10 @@ Branch: `feat/edit-chrome/add-gallery-freeform-marathon`
 | **C — Curated embed only** | Truly dynamic blocks | `sectionEmbed` / `connectedNode` |
 | **D — Hidden / roadmap** | Duplicate or deferred; not insertable | `disabledComingSoon` |
 
+## Add Gallery insert on composition-slot pages
+
+Section templates insert as **unbound root `section` nodes** (`sectionTypeKey: custom`, no `sectionId`). On pages that still have composition slots (homepage, new-page `blank_section` starter), those sections are stored in `builderTree` but were **not painted on the canvas** until the marathon follow-up render path in `homepage-cms-sections.tsx` (`collectUnboundRootGallerySections`). Click-to-add uses `parentId: null` (page root) — drag-drop can target a specific container.
+
 ## Hard rules (never break)
 
 - No Add Gallery path to `composition[]`, `cms_page_sections`, or `applyStarterComposition`

@@ -97,6 +97,7 @@ import {
   recordBuilderMutationAuditEvent,
   summarizeBuilderNodeIssues,
   reconcileBuilderTreeWithLegacySlots,
+  unboundGallerySectionIdsSignature,
   validateBuilderNodeTree,
   assertAdvancedLibraryAllowsOperation,
   isAdvancedElementLibraryEnabledForPlan,
@@ -1916,6 +1917,17 @@ function mutationTouchesSectionEmbedIslandSet(
     if (!prevSet.has(id)) return true;
   }
   return false;
+}
+
+/** Add Gallery custom sections paint via server HTML on composition-slot pages. */
+function mutationTouchesUnboundGallerySections(
+  prevTree: BuilderNodeTree,
+  nextTree: BuilderNodeTree,
+): boolean {
+  return (
+    unboundGallerySectionIdsSignature(prevTree) !==
+    unboundGallerySectionIdsSignature(nextTree)
+  );
 }
 
 export function EditProvider({
@@ -4895,7 +4907,8 @@ export function EditProvider({
       // eager reconcile) and could flip an embed in/out.
       if (
         !isBuilderClientCanvasEnabled() ||
-        mutationTouchesSectionEmbedIslandSet(prevTree, nextTree)
+        mutationTouchesSectionEmbedIslandSet(prevTree, nextTree) ||
+        mutationTouchesUnboundGallerySections(prevTree, nextTree)
       ) {
         void queueRouterRefresh();
       }
@@ -5005,7 +5018,8 @@ export function EditProvider({
       // eager refresh would be redundant, so it stays scoped to the flag-on path.
       if (
         isBuilderClientCanvasEnabled() &&
-        mutationTouchesSectionEmbedIslandSet(prevTree, nextTree)
+        (mutationTouchesSectionEmbedIslandSet(prevTree, nextTree) ||
+          mutationTouchesUnboundGallerySections(prevTree, nextTree))
       ) {
         void queueRouterRefresh();
       }
