@@ -33,6 +33,7 @@ const PANEL_WIDTH = 592;
 const PANEL_MAX_HEIGHT = "min(78vh, 640px)";
 
 const TABS: ReadonlyArray<{ id: AddGalleryTab; label: string }> = [
+  { id: "layout", label: "Layout" },
   { id: "elements", label: "Elements" },
   { id: "sections", label: "Sections" },
   { id: "connected", label: "Connected" },
@@ -456,6 +457,7 @@ function GalleryCard(props: {
   if (props.tab === "connected") {
     return <ConnectedCard {...props} />;
   }
+  // layout and elements both use the icon-card grid
   return <ElementCard {...props} />;
 }
 
@@ -469,7 +471,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
     selectBuilderNode,
   } = useEditContext();
 
-  const [tab, setTab] = useState<AddGalleryTab>("elements");
+  const [tab, setTab] = useState<AddGalleryTab>("layout");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [pending, setPending] = useState(false);
@@ -531,11 +533,13 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
   );
 
   const tabTitle =
-    tab === "elements"
-      ? "Add Elements"
-      : tab === "sections"
-        ? "Add Sections"
-        : "Add Connected";
+    tab === "layout"
+      ? "Add Layout"
+      : tab === "elements"
+        ? "Add Elements"
+        : tab === "sections"
+          ? "Add Sections"
+          : "Add Connected";
 
   const gridColumns =
     tab === "sections" || tab === "connected"

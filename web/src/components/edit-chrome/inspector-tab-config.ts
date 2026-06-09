@@ -19,8 +19,8 @@ import { resolveStandaloneBuilderNodeForContent } from "./inspectors/builder-nod
 export type InspectorTabKey = "content" | "layout" | "style" | "data" | "motion";
 
 export const INSPECTOR_TABS: ReadonlyArray<{ key: InspectorTabKey; label: string }> = [
-  { key: "content", label: "Content" },
   { key: "layout", label: "Layout" },
+  { key: "content", label: "Content" },
   { key: "style", label: "Style" },
   { key: "data", label: "Data" },
   { key: "motion", label: "Motion" },
@@ -42,23 +42,23 @@ export const INSPECTOR_TAB_HINT: Record<InspectorTabKey, string> = {
   motion: "Entrance motion when visitors scroll to this block",
 };
 
-const DEFAULT_TABS: ReadonlyArray<InspectorTabKey> = ["content", "style", "layout"];
+const DEFAULT_TABS: ReadonlyArray<InspectorTabKey> = ["layout", "content", "style"];
 
 const TABS_BY_SECTION_TYPE: Record<string, ReadonlyArray<InspectorTabKey>> = {
-  hero: ["content", "style", "layout", "data", "motion"],
-  featured_talent: ["content", "style", "layout", "data", "motion"],
-  gallery_strip: ["content", "style", "layout", "motion"],
-  testimonials_trio: ["content", "style", "layout", "motion"],
-  cta_banner: ["content", "style", "layout", "motion"],
-  image_copy_alternating: ["content", "style", "layout"],
-  trust_strip: ["content", "style", "layout"],
-  press_strip: ["content", "style", "layout"],
-  values_trio: ["content", "style", "layout"],
-  process_steps: ["content", "style", "layout"],
-  category_grid: ["content", "style", "layout", "data"],
-  destinations_mosaic: ["content", "style", "layout", "data"],
-  map_overlay: ["content", "style", "layout", "data"],
-  marquee: ["content", "style", "layout", "motion"],
+  hero: ["layout", "content", "style", "data", "motion"],
+  featured_talent: ["layout", "content", "style", "data", "motion"],
+  gallery_strip: ["layout", "content", "style", "motion"],
+  testimonials_trio: ["layout", "content", "style", "motion"],
+  cta_banner: ["layout", "content", "style", "motion"],
+  image_copy_alternating: ["layout", "content", "style"],
+  trust_strip: ["layout", "content", "style"],
+  press_strip: ["layout", "content", "style"],
+  values_trio: ["layout", "content", "style"],
+  process_steps: ["layout", "content", "style"],
+  category_grid: ["layout", "content", "style", "data"],
+  destinations_mosaic: ["layout", "content", "style", "data"],
+  map_overlay: ["layout", "content", "style", "data"],
+  marquee: ["layout", "content", "style", "motion"],
 };
 
 export function tabsForSectionType(
@@ -94,10 +94,9 @@ export function resolveInspectorVisibleTabs(input: {
 }): ReadonlyArray<InspectorTabKey> {
   const { sectionTypeKey, selectedStandaloneBuilderNode } = input;
   if (selectedStandaloneBuilderNode) {
-    const tabs: InspectorTabKey[] = ["content", "style"];
-    if (nodeUsesLayoutInspector(selectedStandaloneBuilderNode)) {
-      tabs.push("layout");
-    }
+    const tabs: InspectorTabKey[] = nodeUsesLayoutInspector(selectedStandaloneBuilderNode)
+      ? ["layout", "content", "style"]
+      : ["content", "style"];
     if (builderNodeSupportsDataBinding(selectedStandaloneBuilderNode.kind)) {
       tabs.push("data");
     } else if (
