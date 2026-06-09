@@ -7,7 +7,7 @@ import {
   type BuilderTextRoleId,
 } from "./text-role";
 import type { BuilderNode, BuilderNodeTree } from "./types";
-import { validateBuilderNodeTree } from "./validate";
+import { syncBaseNodeFieldsFromProps, validateBuilderNodeTree } from "./validate";
 
 export type BuilderNodeOpCode =
   | "NODE_NOT_FOUND"
@@ -386,15 +386,20 @@ function finalizeMutatedTree(
 ): BuilderNodeOpResult {
   const after = validateBuilderNodeTree(nextTree);
   if (after.ok) {
-    // Clean validation (the common case): return the COPY-ON-WRITE `nextTree`
-    // itself, not `validateBuilderNodeTree`'s re-minted `after.tree`. They are
-    // value-identical here (validation only re-spreads a fully-valid tree), but
-    // `after.tree` gives every node a fresh identity — which would defeat the
-    // whole point of the copy-on-write spine, since the canvas memo keys on
-    // `Object.is(node)`. Returning `nextTree` preserves the shared off-path
-    // references so memo'd nodes off the edited path skip re-render. The
-    // accept/reject/heal DECISION below is unchanged; only the success path now
-    // hands back the structurally-shared tree.
+    // Clean validation (the common case): return the COPY-ON-WRITE `nextTree`,
+    // NOT `validateBuilderNodeTree`'s `after.tree`. `after.tree` re-mints every
+    // node (fresh identity), which defeats the copy-on-write spine — the canvas
+    // memo keys on `Object.is(node)`, so a re-minted tree forces a full repaint.
+    // Returning `nextTree` preserves the shared off-path references so memo'd
+    // nodes off the edited path skip re-render.
+    //
+    // Two things validate would otherwise do on this pass, and how we handle the
+    // gap: (1) re-derive the base-mirror fields (locked/visibilityCondition) from
+    // props — the prop-mutating ops (patch / role-convert) call
+    // `syncBaseNodeFieldsFromProps` on the one node they touched, so the mirror
+    // stays correct; (2) strip undeclared prop keys — harmless, and re-stripped
+    // on the next snapshot reload. The accept/reject/heal DECISION below is
+    // unchanged; only the success path hands back the structurally-shared tree.
     return { ok: true, tree: nextTree };
   }
   const before = validateBuilderNodeTree(originalTree);
@@ -918,6 +923,10 @@ export function patchBuilderNodeProps(input: {
     ...input.patch,
   };
   (target as unknown as { props: unknown }).props = mergedProps;
+  // Keep the base mirror (locked / visibilityCondition) in sync with the merged
+  // props on the one node we touched — finalizeMutatedTree returns the shared
+  // tree without the full re-validate that would normally re-derive it.
+  syncBaseNodeFieldsFromProps(target);
   return finalizeMutatedTree(input.tree, nextTree);
 }
 
@@ -985,6 +994,7 @@ export function convertBuilderTextNodeRole(input: {
     };
   }
   children[location.index] = converted;
+  syncBaseNodeFieldsFromProps(converted);
   return finalizeMutatedTree(input.tree, nextTree);
 }
 

@@ -181,3 +181,37 @@ test("removeBuilderNode: copy-on-write shares off-path subtrees, freshens only t
   );
   assert.equal(findNode(next, "deep-target"), null, "the removed node is gone from the result");
 });
+
+/**
+ * BASE-MIRROR sync guard. The structural-sharing patch path returns the shared
+ * tree WITHOUT the full `validateBuilderNodeTree` pass that used to re-derive the
+ * base-mirror fields (locked / visibilityCondition) from props. The visibility
+ * reader (visibility.ts) reads the base mirror FIRST, so a stale base would mask
+ * the just-applied edit until the next reload. patchBuilderNodeProps must sync
+ * the mirror on the node it touched. (This test fails without that sync.)
+ */
+test("patchBuilderNodeProps: syncs the base mirror (locked) on the shared result", () => {
+  const tree: BuilderNodeTree = [
+    { id: "c1", kind: "container", props: { layout: "stack" }, children: [] } as BuilderNode,
+  ];
+
+  const set = patchBuilderNodeProps({ tree, nodeId: "c1", patch: { locked: true } });
+  assert.ok(set.ok, "set patch should succeed");
+  assert.equal(
+    (set.tree[0] as Record<string, unknown>).locked,
+    true,
+    "base mirror node.locked must be derived from props on the op result",
+  );
+
+  const cleared = patchBuilderNodeProps({
+    tree: set.tree,
+    nodeId: "c1",
+    patch: { locked: false },
+  });
+  assert.ok(cleared.ok, "clear patch should succeed");
+  assert.equal(
+    (cleared.tree[0] as Record<string, unknown>).locked,
+    undefined,
+    "cleared base mirror must not retain a stale locked flag",
+  );
+});
