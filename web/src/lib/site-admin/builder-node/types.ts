@@ -541,6 +541,7 @@ export interface BuilderAccordionNode extends BuilderNodeBase {
   props: {
     allowMultiple?: boolean;
     defaultOpenItemIds?: string[];
+    layerLabel?: string;
     style?: BuilderNodeStyle;
   };
   children: BuilderNode[];

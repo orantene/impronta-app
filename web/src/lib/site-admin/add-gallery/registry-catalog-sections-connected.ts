@@ -138,13 +138,13 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
   }),
 
   // ── Sections / CTA ──────────────────────────────────────────────────────
-  secEmbed({
+  section({
     id: "sec-cta-banner",
     label: "CTA Banner",
     description: "Conversion band with headline and actions.",
     category: "cta",
     icon: "cta",
-    sectionEmbedKey: "cta_banner",
+    sectionTemplateId: "cta-banner",
   }),
   section({
     id: "sec-cta-split",
@@ -156,13 +156,13 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
   }),
 
   // ── Sections / FAQ ──────────────────────────────────────────────────────
-  secEmbed({
+  section({
     id: "sec-faq-accordion",
     label: "FAQ Accordion",
     description: "Collapsible Q&A pairs.",
     category: "faq",
     icon: "faq",
-    sectionEmbedKey: "faq_accordion",
+    sectionTemplateId: "faq-accordion",
   }),
 
   // ── Sections / Contact ──────────────────────────────────────────────────

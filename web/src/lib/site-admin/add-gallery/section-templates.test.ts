@@ -46,6 +46,31 @@ test("testimonials-trio template exposes quote cards as freeform layers", () => 
   assert.ok(labels.includes("Client Role"));
 });
 
+test("cta-banner template is native freeform with CTA layers", () => {
+  const root = buildAddGallerySectionTemplate("cta-banner");
+  assert.ok(root);
+  assert.equal(root!.props.label, "CTA Banner Section");
+  assert.equal(sectionTemplateContainsKind(root!, "section_embed"), false);
+  const labels = collectSectionTemplateLayerLabels(root!);
+  assert.ok(labels.includes("Intro Text"));
+  assert.ok(labels.includes("Title"));
+  assert.ok(labels.includes("Description"));
+  assert.ok(labels.includes("Button Group"));
+  assert.ok(labels.includes("Primary Button"));
+  assert.ok(labels.includes("Reassurance Text"));
+});
+
+test("faq-accordion template exposes accordion Q&A as freeform layers", () => {
+  const root = buildAddGallerySectionTemplate("faq-accordion");
+  assert.ok(root);
+  assert.equal(root!.props.label, "FAQ Section");
+  assert.equal(sectionTemplateContainsKind(root!, "section_embed"), false);
+  assert.equal(sectionTemplateContainsKind(root!, "accordion"), true);
+  const labels = collectSectionTemplateLayerLabels(root!);
+  assert.ok(labels.includes("FAQ Accordion"));
+  assert.ok(labels.includes("Answer"));
+});
+
 test("hero-search template is freeform with search form and chips", () => {
   const root = buildAddGallerySectionTemplate("hero-search");
   assert.ok(root);

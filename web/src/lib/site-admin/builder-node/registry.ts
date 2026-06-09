@@ -383,9 +383,12 @@ const builderNodeStyleSchema = builderNodeStyleValueSchema
   })
   .optional();
 
+const layerLabelSchema = z.string().max(80).optional();
+
 const accordionPropsSchema = z.object({
   allowMultiple: z.boolean().optional(),
   defaultOpenItemIds: z.array(z.string().min(1)).max(30).optional(),
+  layerLabel: layerLabelSchema,
   style: builderNodeStyleSchema,
 });
 
@@ -431,8 +434,6 @@ const containerResponsiveSchema = z.object({
     .optional(),
   align: z.enum(["start", "center", "end", "stretch"]).optional(),
 });
-
-const layerLabelSchema = z.string().max(80).optional();
 
 const containerPropsSchema = z
   .object({

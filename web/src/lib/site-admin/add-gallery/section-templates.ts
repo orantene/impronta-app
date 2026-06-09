@@ -15,6 +15,7 @@ import {
   tplCtaGroup,
   tplDescription,
   tplDirectorySearchForm,
+  tplFaqAccordion,
   tplIntroText,
   tplSection,
   tplTestimonialCard,
@@ -87,6 +88,65 @@ function buildTestimonialsTrio(): BuilderNode {
           gap: "m",
         },
       ),
+    ]),
+  ]);
+}
+
+function buildCtaBanner(): BuilderNode {
+  return tplSection("CTA Banner Section", [
+    tplContentColumn([
+      tplIntroText("Ready when you are"),
+      tplTitle("Planning an event, shoot, activation, or private experience?", 2),
+      tplDescription(
+        "Tell us the brief and your market. We'll match the right talent — a coordinator replies personally.",
+        "Description",
+      ),
+      tplCtaGroup(
+        [
+          tplButton("Start an inquiry", "/contact", {
+            layerLabel: "Primary Button",
+          }),
+          tplButton("Explore talent", "/directory", {
+            layerLabel: "Secondary Button",
+            tone: "secondary",
+          }),
+        ],
+        { layerLabel: "Button Group" },
+      ),
+      tplDescription(
+        "Agency-managed end to end — no direct talent contact.",
+        "Reassurance Text",
+        { size: "sm", tone: "muted" },
+      ),
+    ]),
+  ]);
+}
+
+function buildFaqAccordion(): BuilderNode {
+  return tplSection("FAQ Section", [
+    tplContentColumn([
+      tplIntroText("Common questions"),
+      tplTitle("Things people ask before they book.", 2),
+      tplDescription(
+        "Answers to the most common questions. Anything else? Reach out.",
+        "Description",
+      ),
+      tplFaqAccordion([
+        {
+          question: "What's included in a booking?",
+          answer:
+            "All sessions include scouting, scheduling, and coordination through confirmation.",
+        },
+        {
+          question: "How quickly can you respond?",
+          answer: "Inquiries are answered within 24 business hours.",
+        },
+        {
+          question: "Do you travel?",
+          answer:
+            "Yes — domestic and international. Travel costs are billed at cost.",
+        },
+      ]),
     ]),
   ]);
 }
@@ -342,14 +402,9 @@ const SECTION_TEMPLATE_BUILDERS: Readonly<
       ]),
     ]),
   testimonials: buildTestimonialsTrio,
-  cta: () =>
-    sectionShell("CTA Banner", [
-      contentContainer([
-        createHeading("Ready to get started?", 2),
-        createParagraph("Invite visitors to inquire, book, or explore talent."),
-        createButton("Contact us", "/contact"),
-      ]),
-    ]),
+  cta: buildCtaBanner,
+  "cta-banner": buildCtaBanner,
+  "faq-accordion": buildFaqAccordion,
   "cta-split": () =>
     sectionShell("CTA Split", [
       {
@@ -370,13 +425,7 @@ const SECTION_TEMPLATE_BUILDERS: Readonly<
         ],
       },
     ]),
-  faq: () =>
-    sectionShell("FAQ", [
-      contentContainer([
-        createHeading("Frequently asked questions", 2),
-        createParagraph("How do bookings work? Add answers for common questions."),
-      ]),
-    ]),
+  faq: buildFaqAccordion,
   contact: () =>
     sectionShell("Contact", [
       contentContainer([

@@ -279,6 +279,30 @@ export function tplContentColumn(children: BuilderNode[]): BuilderNode {
   });
 }
 
+export function tplFaqItem(question: string, answer: string): BuilderNode {
+  return {
+    id: makeId("accordion_item"),
+    kind: "accordion_item",
+    props: { title: question },
+    children: [
+      {
+        id: makeId("paragraph"),
+        kind: "paragraph",
+        props: withLayerLabel({ text: answer }, "Answer"),
+      },
+    ],
+  };
+}
+
+export function tplFaqAccordion(items: ReadonlyArray<{ question: string; answer: string }>): BuilderNode {
+  return {
+    id: makeId("accordion"),
+    kind: "accordion",
+    props: withLayerLabel({ allowMultiple: false }, "FAQ Accordion"),
+    children: items.map((item) => tplFaqItem(item.question, item.answer)),
+  };
+}
+
 export function tplTestimonialCard(
   quote: string,
   clientName: string,
