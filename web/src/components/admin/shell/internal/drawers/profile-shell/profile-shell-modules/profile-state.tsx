@@ -47,10 +47,9 @@ export type ProfileShellPayload = {
    *  Replaces the old "match by stage name" behavior so any talent
    *  (not just Marta) can be edited with the same shell. */
   talentId?: string;
-  /** Section to land on. When set, the shell skips its default
-   *  (identity for edit, services for create) and opens directly on
-   *  this section. Used by the talent's MyProfilePage to deep-link
-   *  from each dashboard card straight into the right section. */
+  /** Section to land on. When set, the shell skips its default (identity)
+   *  and opens directly on this section. Used by the talent's MyProfilePage
+   *  to deep-link from each dashboard card straight into the right section. */
   section?: string;
   /** Pre-filled fields handed off from NewTalentDrawer or approval queue. */
   seed?: {

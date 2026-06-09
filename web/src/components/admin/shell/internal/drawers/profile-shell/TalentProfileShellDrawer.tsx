@@ -1428,7 +1428,8 @@ export function TalentProfileShellDrawer() {
   const [taxonomyVersion, setTaxonomyVersion] = useState(0);
   // #3 — Deep-link hydration. URL ?section=availability lands directly
   // on the Availability accordion, scrolled into view + expanded.
-  // Falls back to "identity" for fresh edits, "services" for create mode.
+  // Falls back to "identity" (Stage / professional name) for all modes unless
+  // payload.section or ?section= overrides.
   const [historyOpen, setHistoryOpen] = useState(false);
   const hasResolvedEngineContext = !!payload.talentId && (!!bridgeTenantIdentity?.tenantId || isSelf);
   const selectedTalentTypeSlugs = useMemo(
@@ -1459,7 +1460,7 @@ export function TalentProfileShellDrawer() {
     if (fromUrl && (PROFILE_SECTIONS as readonly string[]).includes(fromUrl)) {
       return fromUrl as ProfileSectionId;
     }
-    return mode === "create" ? "services" : "identity";
+    return "identity";
   });
   // Scroll the section into view after the accordion expands
   useEffect(() => {
