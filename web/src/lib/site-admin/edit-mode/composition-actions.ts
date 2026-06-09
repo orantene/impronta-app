@@ -675,6 +675,11 @@ export interface CompositionSaveInput {
   builderTree?: BuilderNodeTree;
   /** Page-scoped linked style classes to persist in the draft revision snapshot. */
   styleClasses?: BuilderStyleClassRegistry;
+  /**
+   * First-run starter for a newly created standard page — exempt from the
+   * Free-plan nested-builder draft guard (same intent as homepage curated seeds).
+   */
+  seedNewPageStarter?: boolean;
 }
 
 /**
@@ -813,27 +818,29 @@ export async function saveHomepageCompositionAction(
         return a.sortOrder - b.sortOrder;
       });
 
-      const draftGuard = await enforceFreePlanNestedBuilderDraftGuard({
-        supabase: admin,
-        tenantId: scope.tenantId,
-        pageId: input.pageId,
-        pageVersion: pageRow.version,
-        logTag: "page-draft-save-builder-plan",
-        baselineLegacyTree: resolveBuilderTreeForSnapshot({
-          slots: compositionSnapshot,
-          preferredBuilderTree: undefined,
-        }),
-        nextTree: resolveBuilderTreeForSnapshot({
-          slots: compositionSnapshot,
-          preferredBuilderTree: input.builderTree,
-        }),
-      });
-      if (!draftGuard.ok) {
-        return {
-          ok: false,
-          error: draftGuard.message,
-          code: "VALIDATION_FAILED",
-        };
+      if (!input.seedNewPageStarter) {
+        const draftGuard = await enforceFreePlanNestedBuilderDraftGuard({
+          supabase: admin,
+          tenantId: scope.tenantId,
+          pageId: input.pageId,
+          pageVersion: pageRow.version,
+          logTag: "page-draft-save-builder-plan",
+          baselineLegacyTree: resolveBuilderTreeForSnapshot({
+            slots: compositionSnapshot,
+            preferredBuilderTree: undefined,
+          }),
+          nextTree: resolveBuilderTreeForSnapshot({
+            slots: compositionSnapshot,
+            preferredBuilderTree: input.builderTree,
+          }),
+        });
+        if (!draftGuard.ok) {
+          return {
+            ok: false,
+            error: draftGuard.message,
+            code: "VALIDATION_FAILED",
+          };
+        }
       }
 
       const nextVersion = pageRow.version + 1;

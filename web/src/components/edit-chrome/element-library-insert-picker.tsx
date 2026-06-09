@@ -33,18 +33,24 @@ export const BUILDER_NODE_PALETTE_DRAG_MIME =
   "application/x-impronta-builder-node-palette";
 
 export function encodeBuilderNodePaletteDrag(
-  payload:
-    | { kind: "element"; elementKind: BuilderNodeKind }
-    | { kind: "section_embed"; sectionTypeKey: string },
+  payload: BuilderNodePaletteDragPayload,
 ): string {
-  return payload.kind === "element"
-    ? `kind:${payload.elementKind}`
-    : `embed:${payload.sectionTypeKey}`;
+  if (payload.kind === "element") {
+    return `kind:${payload.elementKind}`;
+  }
+  if (payload.kind === "section_embed") {
+    return `embed:${payload.sectionTypeKey}`;
+  }
+  if (payload.kind === "gallery_item") {
+    return `gallery:${payload.itemId}`;
+  }
+  return "";
 }
 
 export type BuilderNodePaletteDragPayload =
   | { kind: "element"; elementKind: BuilderNodeKind }
-  | { kind: "section_embed"; sectionTypeKey: string };
+  | { kind: "section_embed"; sectionTypeKey: string }
+  | { kind: "gallery_item"; itemId: string };
 
 export function decodeBuilderNodePaletteDrag(
   raw: string | null | undefined,
@@ -59,6 +65,11 @@ export function decodeBuilderNodePaletteDrag(
     const sectionTypeKey = raw.slice("embed:".length);
     if (!sectionTypeKey) return null;
     return { kind: "section_embed", sectionTypeKey };
+  }
+  if (raw.startsWith("gallery:")) {
+    const itemId = raw.slice("gallery:".length);
+    if (!itemId) return null;
+    return { kind: "gallery_item", itemId };
   }
   return null;
 }

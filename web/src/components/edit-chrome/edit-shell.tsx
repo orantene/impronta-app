@@ -43,7 +43,7 @@ import { CompositionLibraryOverlay } from "./composition-library";
 import { InlineEditor } from "./inline-editor";
 import { MobileEditPanel } from "./mobile-edit-panel";
 import { NavigatorPanel } from "./navigator-panel";
-import { AddQuickMenu } from "./add-quick-menu";
+import { AddGalleryPanel } from "./add-gallery/add-gallery-panel";
 import { AllPagesPanel } from "./all-pages-panel";
 import { BrandQuickPanel } from "./brand-quick-panel";
 import { CommandDock } from "./command-dock";
@@ -1084,7 +1084,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
           <SearchPanel open={searchPanelOpen} onClose={closeSearchPanel} />
         ) : null}
         {!previewing ? (
-          <AddQuickMenu open={addMenuOpen} onClose={closeAddMenu} />
+          <AddGalleryPanel open={addMenuOpen} onClose={closeAddMenu} />
         ) : null}
         {!previewing ? (
           <AllPagesPanel open={allPagesPanelOpen} onClose={closeAllPagesPanel} />

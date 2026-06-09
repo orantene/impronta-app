@@ -32,6 +32,8 @@ export interface DockFloatingPanelProps {
   open: boolean;
   onClose: () => void;
   width?: number;
+  /** Override default panel max-height (CSS value). */
+  maxHeight?: string;
   tabs?: ReactNode;
   footer?: ReactNode;
   children: ReactNode;
@@ -63,6 +65,7 @@ function DockFloatingPanelShell({
   open,
   onClose,
   width = 320,
+  maxHeight = COMMAND_DOCK_PANEL_MAX_HEIGHT,
   tabs,
   footer,
   children,
@@ -128,7 +131,7 @@ function DockFloatingPanelShell({
       style={{
         left: COMMAND_DOCK_PANEL_INSET_PX,
         top: COMMAND_DOCK_CHROME_TOP_PX,
-        maxHeight: COMMAND_DOCK_PANEL_MAX_HEIGHT,
+        maxHeight,
         boxShadow: floatingPanelBoxShadow(floatingDrag.dragging),
       }}
     >

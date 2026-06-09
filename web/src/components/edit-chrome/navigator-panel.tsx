@@ -75,7 +75,6 @@ import type {
   CompositionSectionRef,
   CompositionSlotDef,
 } from "@/lib/site-admin/edit-mode/composition-actions";
-import { defaultSectionAddSlot } from "./default-section-add-slot";
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
 import { sectionDisplayName } from "@/lib/site-admin/section-display-name";
 import type { SectionVisibility as SectionVisibilityT } from "@/lib/site-admin/edit-mode/section-actions";
@@ -280,7 +279,7 @@ export function NavigatorPanel() {
     setNavigatorWidth,
     toggleNavigator,
     setSectionVisibility,
-    openLibrary,
+    toggleAddMenu,
     reportMutationError,
     builderTree,
     pageId,
@@ -1901,13 +1900,7 @@ export function NavigatorPanel() {
             type="button"
             title="Add a section"
             aria-label="Add a section"
-            onClick={() => {
-              const firstSlot = defaultSectionAddSlot(slotDefs, slots);
-              openLibrary({
-                slotKey: firstSlot,
-                insertAfterSortOrder: null,
-              });
-            }}
+            onClick={() => toggleAddMenu()}
             style={{
               marginLeft: hasLayeredSections ? 0 : "auto",
               width: 22,
@@ -2013,17 +2006,11 @@ export function NavigatorPanel() {
                   lineHeight: 1.45,
                 }}
               >
-                No sections on this page yet. Add one from the library — it appears here and on the canvas.
+                No sections on this page yet. Open Add gallery — new blocks appear here and on the canvas.
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  const firstSlot = defaultSectionAddSlot(slotDefs, slots);
-                  openLibrary({
-                    slotKey: firstSlot,
-                    insertAfterSortOrder: null,
-                  });
-                }}
+                onClick={() => toggleAddMenu()}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",

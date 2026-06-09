@@ -31,6 +31,7 @@ import {
   requirePhase5Capability,
 } from "@/lib/site-admin";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
+import { seedNewPageStarterComposition } from "@/lib/site-admin/edit-mode/new-page-starter";
 import {
   archivePage,
   deletePage,
@@ -645,6 +646,20 @@ export async function createDraftPageAction(): Promise<
     if (!result.ok) {
       return { ok: false, error: result.message ?? "Could not create page." };
     }
+
+    const starter = await seedNewPageStarterComposition({
+      supabase: auth.supabase,
+      tenantId: scope.tenantId,
+      actorProfileId: auth.user.id,
+      locale,
+      pageId: result.data.id,
+      pageVersion: result.data.version,
+      title: parsed.data.title,
+    });
+    if (!starter.ok) {
+      return { ok: false, error: starter.error };
+    }
+
     return { ok: true, id: result.data.id, slug };
   } catch (error) {
     logServerError("site-admin/pages/create-draft", error);

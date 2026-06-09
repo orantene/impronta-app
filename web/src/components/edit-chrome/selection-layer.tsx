@@ -109,6 +109,9 @@ import {
   getActiveBuilderNodePaletteDrag,
   type BuilderNodePaletteDragPayload,
 } from "./element-library-insert-picker";
+import { resolveAddGalleryInsertAction } from "@/lib/site-admin/add-gallery/insert";
+import { performAddGalleryInsertById } from "@/lib/site-admin/add-gallery/perform-insert";
+import { getAddGalleryItemById } from "@/lib/site-admin/add-gallery/registry";
 import { CHROME, EDIT_TOPBAR_H, Z_INDEX } from "./kit/tokens";
 import { CANVAS_HUD_LEFT_INSET_PX } from "./workspace-layout";
 import { resolveLayerDisplayName } from "./freeform-layer-name";
@@ -180,7 +183,22 @@ function humanizeTypeKey(key: string | null | undefined): string {
  * palette-onto-canvas drag. A plain element reuses the registry's `label`
  * ("Heading", "Container"…); a Tulala-component embed humanizes its type key.
  */
+function paletteKindForGalleryItem(itemId: string): BuilderNodeKind {
+  const item = getAddGalleryItemById(itemId);
+  if (!item) return "section";
+  const action = resolveAddGalleryInsertAction(item);
+  if (action.type === "nativeNode") return action.node.kind;
+  if (action.type === "sectionTemplate") return "section";
+  if (action.type === "sectionEmbed" || action.type === "connectedNode") {
+    return "section_embed";
+  }
+  return "section";
+}
+
 function paletteDragLabel(payload: BuilderNodePaletteDragPayload): string {
+  if (payload.kind === "gallery_item") {
+    return getAddGalleryItemById(payload.itemId)?.label ?? "Element";
+  }
   return payload.kind === "section_embed"
     ? humanizeTypeKey(payload.sectionTypeKey)
     : (BUILDER_NODE_REGISTRY[payload.elementKind]?.label ??
@@ -651,6 +669,7 @@ export function SelectionLayer() {
     builderTree,
     insertBuilderNode,
     insertBuilderSectionEmbed,
+    insertBuilderComponent,
     moveBuilderNodeWithinParent,
     moveBuilderNodeToParentIndex,
     removeBuilderNode,
@@ -1545,6 +1564,7 @@ export function SelectionLayer() {
     builderTree,
     insertBuilderNode,
     insertBuilderSectionEmbed,
+    insertBuilderComponent,
     moveBuilderNodeToParentIndex,
     reportMutationError,
     selectBuilderNode,
@@ -1554,6 +1574,7 @@ export function SelectionLayer() {
       builderTree,
       insertBuilderNode,
       insertBuilderSectionEmbed,
+      insertBuilderComponent,
       moveBuilderNodeToParentIndex,
       reportMutationError,
       selectBuilderNode,
@@ -1562,6 +1583,7 @@ export function SelectionLayer() {
     builderTree,
     insertBuilderNode,
     insertBuilderSectionEmbed,
+    insertBuilderComponent,
     moveBuilderNodeToParentIndex,
     reportMutationError,
     selectBuilderNode,
@@ -1693,7 +1715,11 @@ export function SelectionLayer() {
           phase: "palette",
           payload,
           draggedKind:
-            payload.kind === "section_embed" ? "section_embed" : payload.elementKind,
+            payload.kind === "gallery_item"
+              ? paletteKindForGalleryItem(payload.itemId)
+              : payload.kind === "section_embed"
+                ? "section_embed"
+                : payload.elementKind,
           drop: null,
           label: paletteDragLabel(payload),
           cursorX,
@@ -1716,7 +1742,12 @@ export function SelectionLayer() {
     function paletteKind(
       payload: BuilderNodePaletteDragPayload,
     ): BuilderNodeKind {
-      return payload.kind === "section_embed" ? "section_embed" : payload.elementKind;
+      if (payload.kind === "gallery_item") {
+        return paletteKindForGalleryItem(payload.itemId);
+      }
+      return payload.kind === "section_embed"
+        ? "section_embed"
+        : payload.elementKind;
     }
 
     function onDragOver(event: globalThis.DragEvent) {
@@ -1814,7 +1845,16 @@ export function SelectionLayer() {
       event.preventDefault();
 
       if (state.phase === "palette") {
-        if (state.payload.kind === "section_embed") {
+        if (state.payload.kind === "gallery_item") {
+          void performAddGalleryInsertById(
+            state.payload.itemId,
+            { parentId: drop.parentNodeId, index: drop.index },
+            deps,
+          ).then((result) => {
+            if (!result.ok && result.error) deps.reportMutationError(result.error);
+            else if (result.ok && result.nodeId) deps.selectBuilderNode(result.nodeId);
+          });
+        } else if (state.payload.kind === "section_embed") {
           void deps
             .insertBuilderSectionEmbed(
               drop.parentNodeId,

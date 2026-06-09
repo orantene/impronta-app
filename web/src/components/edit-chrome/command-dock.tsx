@@ -225,7 +225,7 @@ export function CommandDock() {
     {
       id: "add",
       label: "Add",
-      title: "Quick add",
+      title: "Add gallery",
       active: addMenuOpen,
       onClick: () => toggleAddMenu(),
       icon: (

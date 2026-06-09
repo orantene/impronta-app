@@ -1519,17 +1519,7 @@ function ViewportFrameTools({
   );
 }
 
-/**
- * PreviewToggle — pill-style switch that flips the canvas between
- * "editing" mode (rings, drag chips, hover pills) and "preview" mode
- * (interactive page, no overlays).
- *
- * Visual treatment matches the viewport switcher (rounded pill, soft
- * inset background) so the two segmented controls read as paired
- * canvas controls. The active state uses an indigo ink to distinguish
- * "preview is on" at a glance — a ghosted-page-eye glyph signals the
- * concept without requiring a label change.
- */
+/** Icon-only preview toggle — matches undo/redo/comments in the right cluster. */
 function PreviewToggle({
   previewing,
   setPreviewing,
@@ -1538,15 +1528,14 @@ function PreviewToggle({
   setPreviewing: (next: boolean) => void;
 }) {
   return (
-    <TbOutlineBtn
+    <TbIconBtn
       onClick={() => setPreviewing(!previewing)}
       title={
         previewing
           ? "Exit preview — show editing tools"
           : "Preview — hide editing tools and interact with the page"
       }
-      active={previewing}
-      aria-pressed={previewing}
+      ariaLabel={previewing ? "Exit preview" : "Preview"}
     >
       {previewing ? (
         <svg
@@ -1581,8 +1570,7 @@ function PreviewToggle({
           <circle cx="12" cy="12" r="3" />
         </svg>
       )}
-      Preview
-    </TbOutlineBtn>
+    </TbIconBtn>
   );
 }
 
