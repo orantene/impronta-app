@@ -200,7 +200,7 @@ export default async function PlatformFieldGroupsBuilderPage({
     <div style={{ fontFamily: F, color: HQ.ink, padding: 4 }}>
       <div style={{ marginBottom: 16, fontSize: 12 }}>
         <Link href="/platform/admin/catalog" style={{ color: HQ.inkMuted, textDecoration: "none" }}>
-          ← Catalog Map
+          ← Profile Fields
         </Link>
       </div>
 

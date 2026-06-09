@@ -8,6 +8,7 @@ import {
   normalizeRosterCardBadges,
   type RosterCardBadgePrefs,
 } from "@/lib/talent-cards/roster-card-badges";
+import type { ProfileEditorLayout } from "@/lib/profile-editor/section-layout";
 
 // Re-export the workspace-level loaders so layout.tsx has a single import
 // surface for all bridge data. The workspace bridge is tenant-id-explicit;
@@ -91,7 +92,6 @@ import type {
   TalentAgencyRow,
   UserNotification,
   TalentCalendarEntry,
-  TalentCalendarEntryKind,
   RecentActivityItem,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge";
 
@@ -350,6 +350,8 @@ export type BridgeData = {
    * already returns `{ ok: false }` on failure, so this never throws.
    */
   payoutsSurface?: PayoutsSurfaceResult | null;
+  /** B0 — DB-backed profile-editor sidebar layout; falls back to hardcoded. */
+  profileEditorLayout?: ProfileEditorLayout;
 };
 
 export function createBridgeDataFromRoster(
