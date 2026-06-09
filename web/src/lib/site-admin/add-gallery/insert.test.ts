@@ -74,5 +74,26 @@ test("resolveAddGalleryInsertAction builds hero section template", () => {
   assert.equal(action.type, "sectionTemplate");
   if (action.type === "sectionTemplate") {
     assert.equal(action.node.kind, "section");
+    assert.equal(
+      action.node.kind === "section" ? action.node.props.label : null,
+      "Hero Centered Section",
+    );
+  }
+});
+
+test("resolveAddGalleryInsertAction builds testimonials trio freeform template", () => {
+  const action = resolveAddGalleryInsertAction({
+    ...baseItem,
+    id: "sec-testimonials-trio",
+    insertMethod: "sectionTemplate",
+    sectionTemplateId: "testimonials-trio",
+  });
+  assert.equal(action.type, "sectionTemplate");
+  if (action.type === "sectionTemplate") {
+    assert.equal(action.node.kind, "section");
+    assert.equal(
+      action.node.kind === "section" ? action.node.props.label : null,
+      "Testimonials Section",
+    );
   }
 });

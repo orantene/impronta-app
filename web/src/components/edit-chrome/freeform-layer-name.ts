@@ -191,6 +191,12 @@ function findFirstHeadingText(
   return undefined;
 }
 
+function explicitLayerLabel(node: BuilderNode): string | undefined {
+  const label = (node.props as { layerLabel?: string }).layerLabel?.trim();
+  if (!label) return undefined;
+  return truncate(label, LAYER_NAME_MAX);
+}
+
 /**
  * The semantic display name for a freeform layer row.
  *
@@ -202,6 +208,9 @@ export function resolveLayerDisplayName(
   node: BuilderNode,
   sectionEmbedLabel?: (sectionTypeKey: string) => string | undefined,
 ): string {
+  const explicit = explicitLayerLabel(node);
+  if (explicit) return explicit;
+
   switch (node.kind) {
     case "heading":
       return truncate(stripInlineMarkers(node.props.text), LAYER_NAME_MAX) || "Heading";

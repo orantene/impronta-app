@@ -442,6 +442,8 @@ export interface BuilderContainerNode extends BuilderNodeBase {
     gap?: "s" | "m" | "l";
     columns?: 1 | 2 | 3 | 4;
     align?: "start" | "center" | "end" | "stretch";
+    /** Operator-facing layer name in Page Structure (display-only). */
+    layerLabel?: string;
     responsive?: {
       tablet?: {
         layout?: "stack" | "row" | "grid";
@@ -599,6 +601,7 @@ export interface BuilderHeadingNode extends BuilderNodeBase {
   props: {
     text: string;
     level: 1 | 2 | 3 | 4;
+    layerLabel?: string;
     fieldBindings?: BuilderNodeFieldBindings;
     style?: BuilderNodeStyle;
   };
@@ -608,6 +611,7 @@ export interface BuilderParagraphNode extends BuilderNodeBase {
   kind: "paragraph";
   props: {
     text: string;
+    layerLabel?: string;
     fieldBindings?: BuilderNodeFieldBindings;
     style?: BuilderNodeStyle;
   };
@@ -618,6 +622,7 @@ export interface BuilderButtonNode extends BuilderNodeBase {
   props: {
     label: string;
     href: string;
+    layerLabel?: string;
     tone?: "primary" | "secondary";
     fieldBindings?: BuilderNodeFieldBindings;
     stateStyles?: {
@@ -670,6 +675,7 @@ export interface BuilderIconNode extends BuilderNodeBase {
   props: {
     icon: import("./icon-registry").BuilderIconName;
     label?: string;
+    layerLabel?: string;
     decorative?: boolean;
     size?: "sm" | "md" | "lg" | "xl";
     style?: BuilderNodeStyle;
@@ -746,6 +752,7 @@ export interface BuilderCardNode extends BuilderNodeBase {
   kind: "card";
   props: {
     variant?: "elevated" | "outline" | "ghost";
+    layerLabel?: string;
     style?: BuilderNodeStyle;
     // Phase 4 (T4.4) — a `card` may ALSO be a linked-component instance, not
     // just a `container`. A card has children, so resolveInstanceChildren works
@@ -766,6 +773,7 @@ export interface BuilderCtaGroupNode extends BuilderNodeBase {
     layout?: "row" | "stack";
     gap?: "s" | "m" | "l";
     align?: "start" | "center" | "end" | "stretch";
+    layerLabel?: string;
     style?: BuilderNodeStyle;
   };
   children: BuilderNode[];
@@ -865,8 +873,11 @@ export interface BuilderFormNode extends BuilderNodeBase {
   props: {
     /** Where the form POSTs. "internal" → /api/cms/forms/submit; or a full URL. */
     action?: string;
+    /** HTTP method — defaults to post; use get for directory search bars. */
+    method?: "get" | "post";
     /** Required when action is "internal": the cms_sections row id to record under. */
     sectionId?: string | null;
+    layerLabel?: string;
     fields: BuilderFormField[];
     /** Honeypot field name (a hidden input bots fill — submissions with it set are flagged spam). */
     honeypotName?: string;

@@ -3032,6 +3032,10 @@ function renderBuilderNode(
       const honeypotName = formProps.honeypotName?.trim() || "website";
       const isInternal =
         !formProps.action || formProps.action.trim().toLowerCase() === "internal";
+      const method =
+        formProps.method === "get" || formProps.method === "post"
+          ? formProps.method
+          : "post";
       // Internal submissions hit the existing endpoint, which reads FormData and
       // requires `__tulala_section` to be a real cms_sections row id. When that
       // id is missing we still render the form, but point the action at the
@@ -3039,7 +3043,7 @@ function renderBuilderNode(
       // — the inspector warns the operator to set one).
       const action = isInternal
         ? prefixPublicHref("/api/cms/forms/submit", options.publicPathPrefix)
-        : formProps.action!.trim();
+        : prefixPublicHref(formProps.action!.trim(), options.publicPathPrefix);
       return (
         <form
           key={node.id}
@@ -3047,17 +3051,17 @@ function renderBuilderNode(
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(formProps.style)}
           className="site-builder-node site-builder-node--form"
-          method="post"
+          method={method}
           action={action}
           style={inlineNodeStyle(formProps.style, {
             display: "grid",
             gap: GAP_BY_SIZE.m,
           })}
         >
-          {isInternal && formProps.sectionId ? (
+          {isInternal && method === "post" && formProps.sectionId ? (
             <input type="hidden" name="__tulala_section" value={formProps.sectionId} />
           ) : null}
-          {isInternal ? (
+          {isInternal && method === "post" ? (
             <input type="hidden" name="__tulala_honeypot" value={honeypotName} />
           ) : null}
           {/* Honeypot — visually hidden, off the tab order. A real visitor never

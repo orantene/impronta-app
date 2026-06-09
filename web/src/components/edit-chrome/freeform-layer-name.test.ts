@@ -11,7 +11,16 @@ import {
 
 // ── Semantic name resolution (job #1) ──────────────────────────────────────
 
-test("heading row reads its text", () => {
+test("explicit layerLabel wins over derived text on any node kind", () => {
+  const node: BuilderNode = {
+    id: "c1",
+    kind: "card",
+    props: { layerLabel: "Testimonial Card" },
+    children: [],
+  };
+  assert.equal(resolveLayerDisplayName(node), "Testimonial Card");
+});
+
   const node: BuilderNode = {
     id: "h1",
     kind: "heading",

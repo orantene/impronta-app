@@ -432,10 +432,13 @@ const containerResponsiveSchema = z.object({
   align: z.enum(["start", "center", "end", "stretch"]).optional(),
 });
 
+const layerLabelSchema = z.string().max(80).optional();
+
 const containerPropsSchema = z
   .object({
     layout: z.enum(["stack", "row", "grid"]),
     gap: z.enum(["s", "m", "l"]).optional(),
+    layerLabel: layerLabelSchema,
     columns: z
       .union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)])
       .optional(),
@@ -524,12 +527,14 @@ const splitPropsSchema = z.object({
 const headingPropsSchema = z.object({
   text: z.string().min(1).max(240),
   level: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
+  layerLabel: layerLabelSchema,
   fieldBindings: fieldBindingPropsSchema.optional(),
   style: builderNodeStyleSchema,
 });
 
 const paragraphPropsSchema = z.object({
   text: z.string().min(1).max(5000),
+  layerLabel: layerLabelSchema,
   fieldBindings: fieldBindingPropsSchema.optional(),
   style: builderNodeStyleSchema,
 });
@@ -537,6 +542,7 @@ const paragraphPropsSchema = z.object({
 const buttonPropsSchema = z.object({
   label: z.string().min(1).max(80),
   href: z.string().min(1).max(500),
+  layerLabel: layerLabelSchema,
   tone: z.enum(["primary", "secondary"]).optional(),
   fieldBindings: fieldBindingPropsSchema.optional(),
   stateStyles: z
@@ -614,6 +620,7 @@ const embedPropsSchema = z.object({
 const iconPropsSchema = z.object({
   icon: z.enum(BUILDER_ICON_NAMES),
   label: z.string().max(160).optional(),
+  layerLabel: layerLabelSchema,
   decorative: z.boolean().optional(),
   size: z.enum(["sm", "md", "lg", "xl"]).optional(),
   style: builderNodeStyleSchema,
@@ -638,6 +645,7 @@ const dividerPropsSchema = z.object({
 
 const cardPropsSchema = z.object({
   variant: z.enum(["elevated", "outline", "ghost"]).optional(),
+  layerLabel: layerLabelSchema,
   style: builderNodeStyleSchema,
 });
 
@@ -645,6 +653,7 @@ const ctaGroupPropsSchema = z.object({
   layout: z.enum(["row", "stack"]).optional(),
   gap: z.enum(["s", "m", "l"]).optional(),
   align: z.enum(["start", "center", "end", "stretch"]).optional(),
+  layerLabel: layerLabelSchema,
   style: builderNodeStyleSchema,
 });
 
@@ -686,7 +695,9 @@ const formFieldSchema = z.object({
 
 const formPropsSchema = z.object({
   action: z.string().max(2048).optional(),
+  method: z.enum(["get", "post"]).optional(),
   sectionId: z.string().uuid().nullable().optional(),
+  layerLabel: layerLabelSchema,
   fields: z.array(formFieldSchema).min(1).max(24),
   honeypotName: z.string().max(80).optional(),
   style: builderNodeStyleSchema,

@@ -148,6 +148,9 @@ function inspectorBlockTitle(typeKey: string | null | undefined): string {
 }
 
 function builderNodeTitle(node: Exclude<BuilderNode, { kind: "section" }>): string {
+  const layerLabel = (node.props as { layerLabel?: string }).layerLabel?.trim();
+  if (layerLabel) return layerLabel;
+
   switch (node.kind) {
     case "heading":
       return node.props.text || "Heading";

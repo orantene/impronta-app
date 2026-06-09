@@ -127,13 +127,13 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
   }),
 
   // ── Sections / Testimonials ─────────────────────────────────────────────
-  secEmbed({
+  section({
     id: "sec-testimonials-trio",
     label: "Testimonials Trio",
     description: "Three elegant client quote cards.",
     category: "testimonials",
     icon: "testimonials",
-    sectionEmbedKey: "testimonials_trio",
+    sectionTemplateId: "testimonials-trio",
     searchTerms: ["testimonial", "social proof"],
   }),
 
