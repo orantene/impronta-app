@@ -1,5 +1,5 @@
 import type { AddGalleryItem } from "./types";
-import { connected, secEmbed, section } from "./registry-helpers";
+import { connected, section } from "./registry-helpers";
 
 export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem> = [
   // ── Sections / Hero ─────────────────────────────────────────────────────
@@ -91,38 +91,40 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     icon: "gallery",
     sectionTemplateId: "gallery",
   }),
-  secEmbed({
+  section({
     id: "sec-gallery-strip",
     label: "Gallery Strip",
     description: "Editorial mosaic image rail.",
     category: "gallery-section",
     icon: "gallery-strip",
-    sectionEmbedKey: "gallery_strip",
+    sectionTemplateId: "gallery-strip",
   }),
 
   // ── Sections / Featured Talent ──────────────────────────────────────────
-  secEmbed({
+  section({
     id: "sec-featured-talent-grid",
     label: "Featured Talent Grid",
-    description: "Curated roster highlight grid.",
+    description: "Curated roster highlight grid with editable intro layers.",
     category: "featured-talent",
     icon: "talent-grid",
-    sectionEmbedKey: "featured_talent",
-    connectedSource: "Talent Collection",
+    sectionTemplateId: "featured-talent-wrapper",
     itemKind: "connected",
+    connectedSource: "Talent Collection",
+    sourceType: "native-freeform",
     searchTerms: ["featured_talent", "agency picks"],
   }),
 
   // ── Sections / Talent Roster ────────────────────────────────────────────
-  secEmbed({
+  section({
     id: "sec-roster-grid",
     label: "Roster Grid",
-    description: "Full filterable talent directory.",
+    description: "Full filterable talent directory with intro layers.",
     category: "talent-roster",
     icon: "roster",
-    sectionEmbedKey: "directory",
-    connectedSource: "Talent Directory",
+    sectionTemplateId: "roster-wrapper",
     itemKind: "connected",
+    connectedSource: "Talent Directory",
+    sourceType: "native-freeform",
     searchTerms: ["directory", "roster"],
   }),
 
@@ -175,24 +177,28 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     sectionTemplateId: "contact-form",
   }),
 
-  // ── Connected / Talent ──────────────────────────────────────────────────
+  // ── Connected / Talent (canonical featured-talent wrapper) ────────────────
   connected({
     id: "conn-talent-grid",
     label: "Talent Grid",
-    description: "Show talent profiles in a responsive grid.",
+    description: "Show talent profiles in a responsive grid with editable intro.",
     category: "talent",
     icon: "talent-grid",
-    sectionEmbedKey: "featured_talent",
+    insertMethod: "sectionTemplate",
+    sectionTemplateId: "featured-talent-wrapper",
+    sourceType: "native-freeform",
     connectedSource: "Talent Collection",
     searchTerms: ["featured talent", "roster"],
   }),
   connected({
     id: "conn-featured-talent",
     label: "Featured Talent",
-    description: "Highlighted roster block with curated picks.",
+    description: "Highlighted roster block with curated picks and intro layers.",
     category: "talent",
     icon: "featured-talent",
-    sectionEmbedKey: "featured_talent",
+    insertMethod: "sectionTemplate",
+    sectionTemplateId: "featured-talent-wrapper",
+    sourceType: "native-freeform",
     connectedSource: "Talent Collection",
   }),
 
@@ -200,19 +206,21 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
   connected({
     id: "conn-agency-logo",
     label: "Agency Logo",
-    description: "Logo image from agency profile.",
+    description: "Press and client logo row with editable title.",
     category: "agency",
     icon: "agency-logo",
-    sectionEmbedKey: "logo_cloud",
+    insertMethod: "sectionTemplate",
+    sectionTemplateId: "agency-logo",
+    sourceType: "native-freeform",
     connectedSource: "Agency Profile",
-    searchTerms: ["brand mark"],
+    searchTerms: ["brand mark", "logo cloud"],
   }),
 
-  // ── Connected / Directory ─────────────────────────────────────────────────
+  // ── Connected / Directory (dynamic embeds — Class C) ────────────────────
   connected({
     id: "conn-talent-search",
     label: "Talent Search Bar",
-    description: "Directory search with filters.",
+    description: "Live directory search with filters (dynamic embed).",
     category: "directory",
     icon: "search",
     sectionEmbedKey: "directory",
@@ -221,7 +229,7 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
   connected({
     id: "conn-directory-grid",
     label: "Talent Directory Grid",
-    description: "Full roster directory grid.",
+    description: "Full roster directory grid (dynamic embed).",
     category: "directory",
     icon: "directory-grid",
     sectionEmbedKey: "directory",
@@ -232,16 +240,18 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
   connected({
     id: "conn-inquiry-button",
     label: "Inquiry Button",
-    description: "Opens inquiry workflow.",
+    description: "Compact inquiry CTA with editable copy.",
     category: "booking",
     icon: "inquiry",
-    sectionEmbedKey: "cta_banner",
+    insertMethod: "sectionTemplate",
+    sectionTemplateId: "inquiry-cta",
+    sourceType: "native-freeform",
     connectedSource: "Inquiry Collection",
   }),
   connected({
     id: "conn-booking-button",
     label: "Booking Button",
-    description: "Embedded booking widget.",
+    description: "Embedded booking widget (dynamic embed).",
     category: "booking",
     icon: "booking",
     sectionEmbedKey: "booking_widget",
@@ -252,10 +262,12 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
   connected({
     id: "conn-collection-grid",
     label: "Collection Grid",
-    description: "Grid bound to a talent or content collection.",
+    description: "Grid bound to a talent collection with editable intro.",
     category: "dynamic",
     icon: "collection-grid",
-    sectionEmbedKey: "featured_talent",
+    insertMethod: "sectionTemplate",
+    sectionTemplateId: "featured-talent-wrapper",
+    sourceType: "native-freeform",
     connectedSource: "Talent Collection",
     searchTerms: ["repeater", "dynamic"],
   }),

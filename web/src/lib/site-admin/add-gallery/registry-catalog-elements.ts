@@ -1,5 +1,5 @@
 import type { AddGalleryItem } from "./types";
-import { el } from "./registry-helpers";
+import { el, roadmap } from "./registry-helpers";
 
 export const ADD_GALLERY_ELEMENT_ITEMS: ReadonlyArray<AddGalleryItem> = [
   // ── Elements / Text ─────────────────────────────────────────────────────
@@ -125,15 +125,12 @@ export const ADD_GALLERY_ELEMENT_ITEMS: ReadonlyArray<AddGalleryItem> = [
     nativeKind: "button",
     nativeVariant: "icon-button",
   }),
-  el({
+  roadmap({
     id: "el-inquiry-button",
     label: "Inquiry Button",
-    description: "Opens the inquiry flow.",
+    description: "Use Connected → Inquiry Button or Sections → CTA Banner instead.",
     category: "buttons",
     icon: "inquiry",
-    insertMethod: "sectionEmbed",
-    sectionEmbedKey: "cta_banner",
-    sourceType: "section-embed",
   }),
   el({
     id: "el-booking-button",
@@ -204,15 +201,12 @@ export const ADD_GALLERY_ELEMENT_ITEMS: ReadonlyArray<AddGalleryItem> = [
     insertMethod: "nativeNode",
     nativeKind: "video",
   }),
-  el({
+  roadmap({
     id: "el-gallery",
     label: "Gallery",
-    description: "Curated image gallery section.",
+    description: "Use Sections → Gallery Grid or Gallery Strip instead.",
     category: "media",
     icon: "gallery",
-    insertMethod: "sectionEmbed",
-    sectionEmbedKey: "gallery_strip",
-    sourceType: "section-embed",
   }),
   el({
     id: "el-image-grid",
@@ -454,55 +448,40 @@ export const ADD_GALLERY_ELEMENT_ITEMS: ReadonlyArray<AddGalleryItem> = [
   }),
 
   // ── Elements / Marketing ────────────────────────────────────────────────
-  el({
+  roadmap({
     id: "el-cta-banner",
     label: "CTA Banner",
-    description: "Conversion band with headline and actions.",
+    description: "Use Sections → CTA Banner instead.",
     category: "marketing",
     icon: "cta-banner",
-    insertMethod: "sectionEmbed",
-    sectionEmbedKey: "cta_banner",
-    sourceType: "section-embed",
   }),
-  el({
+  roadmap({
     id: "el-stats-counter",
     label: "Stats Counter",
-    description: "Key metrics in large type.",
+    description: "Use Sections → About Stats instead.",
     category: "marketing",
     icon: "stats",
-    insertMethod: "sectionEmbed",
-    sectionEmbedKey: "stats",
-    sourceType: "section-embed",
   }),
-  el({
+  roadmap({
     id: "el-testimonial",
     label: "Testimonial",
-    description: "Social proof quote section.",
+    description: "Use Sections → Testimonials Trio instead.",
     category: "marketing",
     icon: "testimonial",
-    insertMethod: "sectionEmbed",
-    sectionEmbedKey: "testimonials_trio",
-    sourceType: "section-embed",
   }),
-  el({
+  roadmap({
     id: "el-faq-group",
     label: "FAQ Group",
-    description: "Collapsible frequently asked questions.",
+    description: "Use Sections → FAQ Accordion instead.",
     category: "marketing",
     icon: "faq",
-    insertMethod: "sectionEmbed",
-    sectionEmbedKey: "faq_accordion",
-    sourceType: "section-embed",
   }),
-  el({
+  roadmap({
     id: "el-logo-strip",
     label: "Logo Strip",
-    description: "Client or press logo row.",
+    description: "Use Connected → Agency Logo instead.",
     category: "marketing",
     icon: "logo-strip",
-    insertMethod: "sectionEmbed",
-    sectionEmbedKey: "logo_cloud",
-    sourceType: "section-embed",
   }),
 
   // ── Elements / Utility ──────────────────────────────────────────────────
