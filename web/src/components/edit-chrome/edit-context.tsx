@@ -2161,14 +2161,19 @@ export function EditProvider({
     });
   }, [setSelectedSectionIdRaw, setAdditionalSelectedIds]);
 
+  // W2-T4a — read selection via refs (synced every render) so a selection
+  // change doesn't recreate this callback (and, via the value memo, re-render
+  // every consumer). The refs are declared below near builderTreeRef; this
+  // callback only runs on a user action, well after they're initialised.
   const getAllSelectedIds = useCallback(() => {
+    const primary = selectedSectionIdRef.current;
     const out: string[] = [];
-    if (selectedSectionId) out.push(selectedSectionId);
-    for (const id of additionalSelectedIds) {
-      if (id !== selectedSectionId) out.push(id);
+    if (primary) out.push(primary);
+    for (const id of additionalSelectedIdsRef.current) {
+      if (id !== primary) out.push(id);
     }
     return out;
-  }, [selectedSectionId, additionalSelectedIds]);
+  }, []);
 
   // W2-T3 — hover lives in the `hover-bridge` micro-store, NOT in this
   // provider's `value`. A pointer sweep used to rebuild the whole context value
@@ -2335,6 +2340,16 @@ export function EditProvider({
   // selection-quiet (and is why the GATE-C context split is not needed).
   const selectedSectionIdRef = useRef<string | null>(null);
   const selectedBuilderNodeIdRef = useRef<string | null>(null);
+  // W2-T4a (Set legs) — the two multi-select Sets mirrored into refs the same
+  // way, so the selection-reading action callbacks (getAllSelectedIds /
+  // getAllSelectedBuilderNodeIds / extend·toggleBuilderNodeSelection) can read
+  // the live multi-set without listing it in their deps. Dropping the Sets from
+  // those deps keeps the callbacks (and the value memo they feed) stable across
+  // a selection change.
+  const additionalSelectedIdsRef = useRef<ReadonlySet<string>>(new Set());
+  const additionalSelectedBuilderNodeIdsRef = useRef<ReadonlySet<string>>(
+    new Set(),
+  );
   // W3-T8 — true while an undo/redo replay is in flight. The selection-sync
   // auto-clear effects bail on it so they don't wipe the selection we're about
   // to restore the instant the replayed tree/slots land (before the restore
@@ -3524,6 +3539,12 @@ export function EditProvider({
   useEffect(() => {
     selectedBuilderNodeIdRef.current = selectedBuilderNodeId;
   }, [selectedBuilderNodeId]);
+  useEffect(() => {
+    additionalSelectedIdsRef.current = additionalSelectedIds;
+  }, [additionalSelectedIds]);
+  useEffect(() => {
+    additionalSelectedBuilderNodeIdsRef.current = additionalSelectedBuilderNodeIds;
+  }, [additionalSelectedBuilderNodeIds]);
   // W2 (selection-bridge) — selection now lives in the `selection-bridge`
   // micro-store, NOT in this provider's `value` memo. We KEEP the React state
   // above (the auto-clear effects depend on it) and PUBLISH each slice to the
@@ -3635,21 +3656,24 @@ export function EditProvider({
     EditContextValue["getAllSelectedBuilderNodeIds"]
   >(
     () =>
+      // W2-T4a — read selection from refs so this callback (and its many
+      // wrapper callbacks → the value memo) stays stable on a selection change.
       selectedIdsFromState(
-        selectedBuilderNodeId,
-        additionalSelectedBuilderNodeIds,
+        selectedBuilderNodeIdRef.current,
+        additionalSelectedBuilderNodeIdsRef.current,
       ),
-    [selectedBuilderNodeId, additionalSelectedBuilderNodeIds],
+    [],
   );
 
   const extendBuilderNodeSelection = useCallback<
     EditContextValue["extendBuilderNodeSelection"]
   >(
     (nodeId) => {
+      // W2-T4a — read selection from refs so this stays stable on selection.
       const next = extendMultiSelection(
         {
-          primaryId: selectedBuilderNodeId,
-          additionalIds: additionalSelectedBuilderNodeIds,
+          primaryId: selectedBuilderNodeIdRef.current,
+          additionalIds: additionalSelectedBuilderNodeIdsRef.current,
         },
         nodeId,
       );
@@ -3657,21 +3681,18 @@ export function EditProvider({
         selectedIdsFromState(next.primaryId, next.additionalIds),
       );
     },
-    [
-      additionalSelectedBuilderNodeIds,
-      replaceBuilderNodeSelection,
-      selectedBuilderNodeId,
-    ],
+    [replaceBuilderNodeSelection],
   );
 
   const toggleBuilderNodeSelection = useCallback<
     EditContextValue["toggleBuilderNodeSelection"]
   >(
     (nodeId) => {
+      // W2-T4a — read selection from refs so this stays stable on selection.
       const next = toggleMultiSelection(
         {
-          primaryId: selectedBuilderNodeId,
-          additionalIds: additionalSelectedBuilderNodeIds,
+          primaryId: selectedBuilderNodeIdRef.current,
+          additionalIds: additionalSelectedBuilderNodeIdsRef.current,
         },
         nodeId,
       );
@@ -3679,11 +3700,7 @@ export function EditProvider({
         selectedIdsFromState(next.primaryId, next.additionalIds),
       );
     },
-    [
-      additionalSelectedBuilderNodeIds,
-      replaceBuilderNodeSelection,
-      selectedBuilderNodeId,
-    ],
+    [replaceBuilderNodeSelection],
   );
 
   useEffect(() => {
@@ -4060,7 +4077,7 @@ export function EditProvider({
             return { ok: false, error: save.error, code: save.code };
           }
           if (
-            selectedSectionId === mutation.sectionId &&
+            selectedSectionIdRef.current === mutation.sectionId &&
             loadedSection !== null
           ) {
             setLoadedSection({
@@ -4200,7 +4217,7 @@ export function EditProvider({
           // Reconcile version on the loaded record. Slots already
           // reflect the optimistic name.
           if (
-            selectedSectionId === mutation.sectionId &&
+            selectedSectionIdRef.current === mutation.sectionId &&
             loadedSection !== null
           ) {
             setLoadedSection((prev) =>
@@ -4353,7 +4370,10 @@ export function EditProvider({
     [
       queueRouterRefresh,
       loadedSection,
-      selectedSectionId,
+      // W2-T4a — selectedSectionId read via selectedSectionIdRef inside the
+      // section.applyFieldEdit / section.rename branches, so it stays out of
+      // these deps and dispatch (→ its wrapper callbacks → the value memo) does
+      // not churn on a selection change.
       setSlotsAndBuilderTree,
       syncBuilderNodeChildrenForSection,
       reportMutationError,
@@ -5734,12 +5754,14 @@ export function EditProvider({
     EditContextValue["saveSelectedNodeAsComponent"]
   >(
     async (name, description) => {
-      if (!selectedBuilderNodeId) {
+      // W2-T4a — read selection from the ref so this stays stable on selection.
+      const activeNodeId = selectedBuilderNodeIdRef.current;
+      if (!activeNodeId) {
         return { ok: false, error: "Select a block on the canvas first." };
       }
       const location = findBuilderNodeLocation(
         builderTreeRef.current,
-        selectedBuilderNodeId,
+        activeNodeId,
       );
       if (!location || location.node.kind === "section") {
         return {
@@ -5754,19 +5776,21 @@ export function EditProvider({
       });
       return result;
     },
-    [selectedBuilderNodeId],
+    [],
   );
   // Phase 3 — overwrite an existing master component from the selected block.
   const updateSelectedNodeAsComponent = useCallback<
     EditContextValue["updateSelectedNodeAsComponent"]
   >(
     async (componentId) => {
-      if (!selectedBuilderNodeId) {
+      // W2-T4a — read selection from the ref so this stays stable on selection.
+      const activeNodeId = selectedBuilderNodeIdRef.current;
+      if (!activeNodeId) {
         return { ok: false, error: "Select a block on the canvas first." };
       }
       const location = findBuilderNodeLocation(
         builderTreeRef.current,
-        selectedBuilderNodeId,
+        activeNodeId,
       );
       if (!location || location.node.kind === "section") {
         return {
@@ -5776,15 +5800,18 @@ export function EditProvider({
       }
       return updateBuilderComponent({ componentId, subtree: location.node });
     },
-    [selectedBuilderNodeId],
+    [],
   );
   const removeBuilderNode = useCallback<
     EditContextValue["removeBuilderNode"]
   >(
     async (nodeId) => {
+      // W2-T4a — read selection from refs so this stays stable on selection.
       const ownerSectionId =
-        sectionIdByBuilderNodeId.get(nodeId) ?? selectedSectionId ?? null;
-      const removingActiveNode = selectedBuilderNodeId === nodeId;
+        sectionIdByBuilderNodeId.get(nodeId) ??
+        selectedSectionIdRef.current ??
+        null;
+      const removingActiveNode = selectedBuilderNodeIdRef.current === nodeId;
       const removed = await executeBuilderNodeOperation({
         operation: "remove",
         nodeId,
@@ -5813,8 +5840,6 @@ export function EditProvider({
       executeBuilderNodeOperation,
       runBuilderNodeOp,
       sectionIdByBuilderNodeId,
-      selectedBuilderNodeId,
-      selectedSectionId,
       focusSectionForEdit,
       setSelectedBuilderNodeIdOverride,
     ],
@@ -5901,7 +5926,8 @@ export function EditProvider({
         targetNodeId,
       }).preview;
       if (!canEditSiteShell) {
-        const targetId = targetNodeId ?? selectedBuilderNodeId;
+        // W2-T4a — read selection from the ref so this stays stable on selection.
+        const targetId = targetNodeId ?? selectedBuilderNodeIdRef.current;
         if (targetId) {
           const shellSlot = findSiteShellSlotForBuilderNode(builderTree, targetId);
           if (shellSlot) {
@@ -5916,7 +5942,7 @@ export function EditProvider({
       }
       return preview;
     },
-    [builderTree, canEditSiteShell, copiedBuilderNode, selectedBuilderNodeId],
+    [builderTree, canEditSiteShell, copiedBuilderNode],
   );
   const saveCopiedBuilderNodeAsPreset = useCallback<
     EditContextValue["saveCopiedBuilderNodeAsPreset"]
@@ -6272,7 +6298,8 @@ export function EditProvider({
   const ungroupSelectedBuilderNode = useCallback<
     EditContextValue["ungroupSelectedBuilderNode"]
   >(async () => {
-    const nodeId = selectedBuilderNodeId;
+    // W2-T4a — read selection from the ref so this stays stable on selection.
+    const nodeId = selectedBuilderNodeIdRef.current;
     if (!nodeId) return { ok: false, error: "Select a group first." };
     const guarded = guardSelectedBuilderNodes([nodeId]);
     if (guarded) return { ok: false, error: guarded };
@@ -6296,7 +6323,6 @@ export function EditProvider({
     executeBuilderNodeOperation,
     guardSelectedBuilderNodes,
     replaceBuilderNodeSelection,
-    selectedBuilderNodeId,
   ]);
 
   const removeSelectedBuilderNodes = useCallback<
@@ -6481,7 +6507,8 @@ export function EditProvider({
         clipboard = await readOsBuilderClipboard();
       }
       if (!clipboard) return { ok: false, error: "Copy a block before pasting." };
-      const target = targetNodeId ?? selectedBuilderNodeId;
+      // W2-T4a — read selection from the ref so this stays stable on selection.
+      const target = targetNodeId ?? selectedBuilderNodeIdRef.current;
       const guarded = target ? guardSelectedBuilderNodes([target]) : null;
       if (guarded) return { ok: false, error: guarded };
       let pastedIds: string[] = [];
@@ -6507,7 +6534,6 @@ export function EditProvider({
       executeBuilderNodeOperation,
       guardSelectedBuilderNodes,
       replaceBuilderNodeSelection,
-      selectedBuilderNodeId,
     ],
   );
 

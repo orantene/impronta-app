@@ -1259,7 +1259,7 @@
       "count": 1
     },
     "react-hooks/immutability": {
-      "count": 2
+      "count": 4
     }
   },
   "src/components/edit-chrome/edit-shell.tsx": {
