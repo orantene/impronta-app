@@ -96,7 +96,6 @@ import {
   actionUploadAndAssignMedia,
   addPendingReview,
   addTalentToRoster,
-  assignTalentTaxonomyBySlug,
   clearPendingReview,
   clearProfileDraft,
   commitTalentProfileShellAdmin,
@@ -115,7 +114,6 @@ import {
   prefetchSkillsData,
   registerPortfolioPhoto,
   removeFromRoster,
-  removeTalentTaxonomyBySlug,
   saveSelfLanguages,
   setProfileOverride,
   setTalentAvatar,
@@ -203,6 +201,19 @@ import {
 import { shouldShowPolaroidsSection } from "./profile-polaroids-policy";
 import { CommercialTermsEditor } from "./profile-shell-modules/profile-commercial-terms";
 import { ProfileReviewsEditor } from "./profile-shell-modules/profile-reviews";
+import {
+  ProfileShellSaveErrorBanner,
+  ProfileShellSectionSaveHint,
+  ProfileShellUnsavedBanner,
+} from "./profile-shell-modules/profile-shell-save-hints";
+import type { ServiceAreaDesired } from "../../location-slot-panel";
+import { saveTalentServiceAreas } from "@/lib/server-actions/admin-talent-service-areas";
+import { setTalentLanguages } from "@/lib/server-actions/admin-talent-languages";
+import type { TalentLanguageInput } from "@/lib/server-actions/admin-talent-languages.types";
+import {
+  formatProfileShellSaveFailures,
+  runProfileShellSaveSteps,
+} from "@/lib/talent/profile-shell-save-feedback";
 
 function detailsGroupHelperText(label: string): string {
   const normalized = label.toLowerCase();
@@ -234,7 +245,7 @@ function detailsGroupHelperText(label: string): string {
 // irreducible — max-lines grandfathered via mandated scoped suppression regen.
 
 export function TalentProfileShellDrawer() {
-  const { state: protoState, closeDrawer, openDrawer, toast, customFields, tenantSlug, bridgeTenantIdentity, bridgeTalentSelfProfile, effectiveTenant } = useAdminShell();
+  const { state: protoState, closeDrawer, openDrawer, toast, customFields, tenantSlug, bridgeTenantIdentity, bridgeTalentSelfProfile, effectiveTenant, profileEditorLayout } = useAdminShell();
   const workspaceScopeTenantId =
     bridgeTenantIdentity?.tenantId
     ?? bridgeTenantIdentity?.slug
@@ -539,6 +550,33 @@ export function TalentProfileShellDrawer() {
   // needs it. Re-assigned every render so it always points at the latest state.
   const stateRef = useRef(state);
   stateRef.current = state;
+  const deferredServiceAreaRef = useRef<ServiceAreaDesired | null>(null);
+  const deferredServiceAreaTouchedRef = useRef(false);
+  const deferredLanguagesRef = useRef<TalentLanguageInput[] | null>(null);
+  const deferredLanguagesTouchedRef = useRef(false);
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    deferredServiceAreaTouchedRef.current = false;
+    deferredLanguagesTouchedRef.current = false;
+  }, [drawerOpen, payload.talentId]);
+
+  const handleDeferredServiceAreaHydrated = useCallback((value: ServiceAreaDesired) => {
+    deferredServiceAreaRef.current = value;
+  }, []);
+  const handleDeferredServiceAreaChange = useCallback((value: ServiceAreaDesired) => {
+    deferredServiceAreaRef.current = value;
+    deferredServiceAreaTouchedRef.current = true;
+    setDirty(true);
+  }, []);
+  const handleDeferredLanguagesHydrated = useCallback((languages: TalentLanguageInput[]) => {
+    deferredLanguagesRef.current = languages;
+  }, []);
+  const handleDeferredLanguagesChange = useCallback((languages: TalentLanguageInput[]) => {
+    deferredLanguagesRef.current = languages;
+    deferredLanguagesTouchedRef.current = true;
+    setDirty(true);
+  }, []);
   useEffect(() => {
     if (!drawerOpen || mode === "create") return;
     const tid = payload.talentId;
@@ -870,10 +908,9 @@ export function TalentProfileShellDrawer() {
   }, [payload.talentId, bridgeTenantIdentity?.tenantId]);
 
   // ── Save-button architecture ─────────────────────────────────────────────
-  // No autosave. The user explicitly clicks "Save" in the drawer header to
-  // commit text edits to DB. Photo upload + delete + reorder still happen on
-  // pick/click (intent-based). The Save button waits for any in-flight photo
-  // operations to complete before declaring the whole save done.
+  // Option A — explicit header Save for all text/select/profile slices.
+  // Location + language slot panels run in `deferred` mode (local state
+  // only until Save). Photo upload/delete/reorder still commit on intent.
   // stateRef is declared above (near the media hydration block) — saveAll
   // reads from it so we can keep `state` out of this callback's dep array.
 
@@ -977,21 +1014,8 @@ export function TalentProfileShellDrawer() {
     };
 
     const s = stateRef.current;
-    const realTenantEdit = !!(bridgeTenantIdentity?.tenantId && tid);
-    // On the create→edit handoff the Location/Language slot panels were not
-    // mounted yet — the legacy drawer state owns those slices for this save.
-    const panelSlicesWriteIndependently = realTenantEdit && !justCreated;
-    const shellSyncTaxonomy = !realTenantEdit;
-    // Real-tenant talents edit languages through the immediate-setAll
-    // LanguageSlotPanel, which persists independently. The batched save
-    // (admin commit + self ops) MUST skip languages here or its stale
-    // `state.languages` would wipe the panel's edits via the replace RPC.
-    const languagesOwnedByPanel = panelSlicesWriteIndependently;
-    // Same rule for canonical service areas: the LocationSlotPanel writes
-    // talent_service_areas independently, so the batched save must NOT
-    // also write the panel-owned location scalars (home base / radius /
-    // fee / remote-only) or it would race/clobber the canonical state.
-    const serviceAreasOwnedByPanel = panelSlicesWriteIndependently;
+    const useCanonicalDeferredPanels = !!(bridgeTenantIdentity?.tenantId && tid) && !justCreated;
+    const shellSyncTaxonomy = adminVisible && !isSelf && !!tid;
     const id = s.identity;
     const visibilityDraft = id.visibility;
     const visibilityPatch = visibilityDraft && (visibilityDraft.legalName || visibilityDraft.pronouns || visibilityDraft.gender || visibilityDraft.dob)
@@ -1138,70 +1162,114 @@ export function TalentProfileShellDrawer() {
         })),
     };
 
-    // Agency roster edit: one batched server action (fast + single auth).
+    // Agency roster edit: explicit Save runs profile batch + deferred slices.
     if (adminVisible && !isSelf) {
-      const batchRes = await commitTalentProfileShellAdmin({
-        talent_profile_id: tid,
-        identity: identityPayload,
-        about: {
-          bios: aboutPayload.bios,
-          bio_tone: aboutPayload.bio_tone,
-          personality_traits: aboutPayload.personality_traits,
-          tagline: aboutPayload.tagline,
+      const saveSteps: Parameters<typeof runProfileShellSaveSteps>[0] = [
+        {
+          section: "Profile",
+          run: async () => {
+            const batchRes = await commitTalentProfileShellAdmin({
+              talent_profile_id: tid,
+              identity: identityPayload,
+              about: {
+                bios: aboutPayload.bios,
+                bio_tone: aboutPayload.bio_tone,
+                personality_traits: aboutPayload.personality_traits,
+                tagline: aboutPayload.tagline,
+              },
+              location: {
+                home_base: locationPayload.home_base,
+                home_place_id: locationPayload.home_place_id,
+                travel_radius_km: locationPayload.travel_radius_km,
+                travel_fee_required: locationPayload.travel_fee_required,
+                remote_only: locationPayload.remote_only,
+                passport_status: locationPayload.passport_status,
+                drivers_license: locationPayload.drivers_license,
+                work_eligibility: locationPayload.work_eligibility,
+                upcoming_visits: locationPayload.upcoming_visits,
+              },
+              rates: {
+                rates_data: ratesPayload.rates_data,
+                package_rates_data: ratesPayload.package_rates_data,
+                rate_tiers_data: ratesPayload.rate_tiers_data,
+                rate_card_visibility: ratesPayload.rate_card_visibility,
+                ask_for_quote: ratesPayload.ask_for_quote,
+                travel_included: ratesPayload.travel_included,
+                lodging_included: ratesPayload.lodging_included,
+              },
+              shell_sync_taxonomy: shellSyncTaxonomy,
+              skip_languages: useCanonicalDeferredPanels,
+              skip_service_areas: useCanonicalDeferredPanels,
+              shell_primary_talent_slug: s.primaryType,
+              shell_secondary_talent_slugs: s.secondaryTypes,
+              shell_profile_status: s.profileStatus,
+              availability: { availability_data: availPayload.availability_data },
+              languages: { languages: langsPayload.languages },
+              credits: { credits_data: creditsPayload.credits_data },
+              limits: { limits_data: limitsPayload.limits_data },
+              social: { social_proof_data: socialPayload.social_proof_data },
+              albums: { albums: albumsPayload.albums },
+              documents: { documents: documentsPayload.documents },
+              rosterMeta: {
+                internal_notes: rosterMetaPayload.internal_notes,
+                emergency_contact: rosterMetaPayload.emergency_contact,
+                field_locks_data: rosterMetaPayload.field_locks_data,
+                feature_in_directory: rosterMetaPayload.feature_in_directory,
+              },
+              dyn_fields: s.dynFields,
+              profileDrawerExtras: {
+                videoLinks: s.videoLinks,
+                whatsapp: s.identity.whatsapp ?? "",
+                whatsappPrefix: s.identity.whatsappPrefix ?? "+1",
+                businessLine: s.identity.businessLine ?? "",
+              },
+            });
+            return batchRes.ok ? { ok: true as const } : { ok: false as const, error: batchRes.error };
+          },
         },
-        location: {
-          home_base: locationPayload.home_base,
-          home_place_id: locationPayload.home_place_id,
-          travel_radius_km: locationPayload.travel_radius_km,
-          travel_fee_required: locationPayload.travel_fee_required,
-          remote_only: locationPayload.remote_only,
-          passport_status: locationPayload.passport_status,
-          drivers_license: locationPayload.drivers_license,
-          work_eligibility: locationPayload.work_eligibility,
-          upcoming_visits: locationPayload.upcoming_visits,
-        },
-        rates: {
-          rates_data: ratesPayload.rates_data,
-          package_rates_data: ratesPayload.package_rates_data,
-          rate_tiers_data: ratesPayload.rate_tiers_data,
-          rate_card_visibility: ratesPayload.rate_card_visibility,
-          ask_for_quote: ratesPayload.ask_for_quote,
-          travel_included: ratesPayload.travel_included,
-          lodging_included: ratesPayload.lodging_included,
-        },
-        shell_sync_taxonomy: shellSyncTaxonomy,
-        skip_languages: languagesOwnedByPanel,
-        skip_service_areas: serviceAreasOwnedByPanel,
-        shell_primary_talent_slug: s.primaryType,
-        shell_secondary_talent_slugs: s.secondaryTypes,
-        shell_profile_status: s.profileStatus,
-        availability: { availability_data: availPayload.availability_data },
-        languages: { languages: langsPayload.languages },
-        credits: { credits_data: creditsPayload.credits_data },
-        limits: { limits_data: limitsPayload.limits_data },
-        social: { social_proof_data: socialPayload.social_proof_data },
-        albums: { albums: albumsPayload.albums },
-        documents: { documents: documentsPayload.documents },
-        rosterMeta: {
-          internal_notes: rosterMetaPayload.internal_notes,
-          emergency_contact: rosterMetaPayload.emergency_contact,
-          field_locks_data: rosterMetaPayload.field_locks_data,
-          feature_in_directory: rosterMetaPayload.feature_in_directory,
-        },
-        dyn_fields: s.dynFields,
-        profileDrawerExtras: {
-          videoLinks: s.videoLinks,
-          whatsapp: s.identity.whatsapp ?? "",
-          whatsappPrefix: s.identity.whatsappPrefix ?? "+1",
-          businessLine: s.identity.businessLine ?? "",
-        },
-      });
-      if (!batchRes.ok) {
+      ];
+
+      if (useCanonicalDeferredPanels && deferredServiceAreaTouchedRef.current && deferredServiceAreaRef.current) {
+        const area = deferredServiceAreaRef.current;
+        saveSteps.push({
+          section: "Location",
+          run: async () => {
+            const res = await saveTalentServiceAreas({
+              talent_profile_id: tid,
+              home_base_location_id: area.homeBase?.id ?? null,
+              travel_to_location_ids: area.travelTo.map((c) => c.id),
+              travel_radius_km: area.travelRadiusKm,
+              travel_fee_required: area.travelFeeRequired,
+              remote_only: area.remoteOnly,
+            });
+            return res.ok ? { ok: true as const } : { ok: false as const, error: res.error };
+          },
+        });
+      }
+
+      if (useCanonicalDeferredPanels && deferredLanguagesTouchedRef.current && deferredLanguagesRef.current) {
+        saveSteps.push({
+          section: "Languages",
+          run: async () => {
+            const res = await setTalentLanguages({
+              talent_profile_id: tid,
+              languages: deferredLanguagesRef.current!.map((l, i) => ({
+                ...l,
+                display_order: i,
+              })),
+            });
+            return res.ok ? { ok: true as const } : { ok: false as const, error: res.error };
+          },
+        });
+      }
+
+      const stepped = await runProfileShellSaveSteps(saveSteps);
+      if (!stepped.ok) {
         setSaveStatus("error");
-        setSaveError(batchRes.error);
+        setSaveError(formatProfileShellSaveFailures(stepped.failures));
         void improntaLog("admin_talentprofileshelldrawer.error", {
-          message: "[saveAll] batch:",
-          batchRes: batchRes.error,
+          message: "[saveAll] stepped:",
+          failures: stepped.failures.join(", "),
         });
         return false;
       }
@@ -1212,6 +1280,8 @@ export function TalentProfileShellDrawer() {
           talentId: tid,
         });
       }
+      deferredServiceAreaTouchedRef.current = false;
+      deferredLanguagesTouchedRef.current = false;
       setDirty(false);
       setServerProfileUpdatedAtMs(Date.now());
       setSaveStatus("saved");
@@ -1241,21 +1311,10 @@ export function TalentProfileShellDrawer() {
       updateSelfIdentity(identityPayload),
       updateSelfProfileDrawerExtras(profileDrawerExtrasPayload),
       updateSelfAbout(aboutPayload),
-      updateSelfLocation(
-        serviceAreasOwnedByPanel
-          ? {
-              ...locationPayload,
-              home_base: undefined,
-              home_place_id: undefined,
-              travel_radius_km: undefined,
-              travel_fee_required: undefined,
-              remote_only: undefined,
-            }
-          : locationPayload,
-      ),
+      updateSelfLocation(locationPayload),
       updateSelfRates(ratesPayload),
       updateSelfAvailability(availPayload),
-      ...(languagesOwnedByPanel ? [] : [saveSelfLanguages(langsPayload)]),
+      saveSelfLanguages(langsPayload),
       updateSelfCredits(creditsPayload),
       updateSelfLimits(limitsPayload),
       updateSelfSocialProof(socialPayload),
@@ -1272,7 +1331,7 @@ export function TalentProfileShellDrawer() {
       "Location",
       "Rates",
       "Availability",
-      ...(languagesOwnedByPanel ? [] : ["Languages"]),
+      "Languages",
       "Credits",
       "Limits",
       "Social proof",
@@ -1335,7 +1394,7 @@ export function TalentProfileShellDrawer() {
       logServerError("saveall", e);
       return false;
     }
-  }, [payload.talentId, mode, isSelf, adminVisible, queueShellRouterRefresh, copy, bridgeTenantIdentity?.tenantId, tenantSlug, openDrawer]);
+  }, [payload.talentId, mode, isSelf, adminVisible, queueShellRouterRefresh, copy, bridgeTenantIdentity, tenantSlug, openDrawer]);
 
   const toggleSet = (field: "secondaryTypes" | "specialties" | "contexts" | "aspirations") =>
     (value: string) => {
@@ -1555,6 +1614,51 @@ export function TalentProfileShellDrawer() {
   const isServicesPrimary = state.primaryType
     ? !!TAXONOMY.find(p => p.id === "services")?.children.some(c => c.id === state.primaryType)
     : false;
+
+  // ── DB-driven editor sidebar layout (B0/B1) ────────────────────────────────
+  // The rail group order/labels + mobile-pill order now come from
+  // `profileEditorLayout` (loaded DB-first by the layout, hardcoded fallback in
+  // the context). PROFILE_SECTIONS / SECTION_META remain the STATIC type-source
+  // + per-slug fallback. `activeSection` init/validation and the per-section
+  // accordion renderers below stay on the static constants and are untouched.
+
+  // Per-slug meta resolver: DB layout first, hardcoded SECTION_META fallback so
+  // a slug missing from the DB layout still renders a label + emoji.
+  const metaFor = useCallback(
+    (slug: string): { label: string; emoji: string } =>
+      profileEditorLayout.sectionMeta[slug] ?? SECTION_META[slug as ProfileSectionId],
+    [profileEditorLayout],
+  );
+
+  // Derived rail groups: order/grouping/labels from the DB layout. Each group's
+  // header uses labelEnAlt for service-primary talents when present (generalises
+  // the old `isServicesPrimary ? "Photos of work / venue" : "Portfolio"` flip).
+  // Section ids are filtered to known renderer slugs so a stray DB slug can't
+  // break typing or rendering.
+  const railGroups = useMemo<{ label: string; ids: ProfileSectionId[] }[]>(
+    () =>
+      profileEditorLayout.groups.map((g) => ({
+        label: (isServicesPrimary && g.labelEnAlt) ? g.labelEnAlt : g.labelEn,
+        ids: g.sections
+          .map((s) => s.slug)
+          .filter((slug) => (PROFILE_SECTIONS as readonly string[]).includes(slug)) as ProfileSectionId[],
+      })),
+    [profileEditorLayout, isServicesPrimary],
+  );
+
+  // Mobile-pill order: DB order first, then any static section not present in
+  // the DB layout (so nothing ever disappears). Visibility gates are applied at
+  // the render site, unchanged.
+  const mobilePillSlugs = useMemo<Exclude<ProfileSectionId, "">[]>(() => {
+    const orderedSet = new Set(profileEditorLayout.orderedSectionSlugs);
+    const ordered = profileEditorLayout.orderedSectionSlugs.filter((slug) =>
+      (PROFILE_SECTIONS as readonly string[]).includes(slug),
+    );
+    const tail = (PROFILE_SECTIONS as readonly string[]).filter(
+      (s) => s && !orderedSet.has(s),
+    );
+    return [...ordered, ...tail] as Exclude<ProfileSectionId, "">[];
+  }, [profileEditorLayout]);
   const allSelectedChildren = allSelectedTypeIds
     .map(id => findChild(id))
     .filter((x): x is { parent: TaxonomyParent; child: TaxonomyChild } => x !== null);
@@ -2433,12 +2537,12 @@ export function TalentProfileShellDrawer() {
           padding: "8px 14px", borderBottom: `1px solid ${COLORS.borderSoft}`,
           gap: 6, overflowX: "auto", flexShrink: 0,
         }}>
-          {(PROFILE_SECTIONS as readonly Exclude<ProfileSectionId, "">[]).map(s => {
+          {mobilePillSlugs.map(s => {
             if (s === "admin" && !adminVisible) return null;
             if (s === "polaroids" && !showPolaroidsSection) return null;
             if (s === "details" && dynamicGroups.length === 0) return null;
             if (s === "refinement" && hasResolvedEngineContext) return null;
-            const meta = SECTION_META[s];
+            const meta = metaFor(s);
             const active = activeSection === s;
             const done = sectionComplete[s];
             return (
@@ -2517,16 +2621,11 @@ export function TalentProfileShellDrawer() {
             // don't apply (e.g. physical/wardrobe for non-models, admin
             // for non-admins, details with no fields) are filtered out and
             // empty groups collapse so the rail stays tight.
-            const mediaGroupLabel = isServicesPrimary ? "Photos of work / venue" : "Portfolio";
-            const RAIL_GROUPS: { label: string; ids: ProfileSectionId[] }[] = [
-              { label: "Profile", ids: ["identity", "location", "about", "services"] },
-              { label: "Craft", ids: ["physical", "wardrobe", "details"] },
-              { label: "Logistics", ids: ["logistics", "availability"] },
-              { label: mediaGroupLabel, ids: ["media", "albums", "polaroids"] },
-              { label: "Terms", ids: ["rates", "limits"] },
-              { label: "Proof", ids: ["credits", "social_proof", "verifications"] },
-              { label: "Back office", ids: ["files", "agency_fields", "admin"] },
-            ];
+            // Rail groups now come from the DB-driven layout (`railGroups`,
+            // derived above from `profileEditorLayout`). The old inline
+            // RAIL_GROUPS literal + `mediaGroupLabel` flip are superseded by the
+            // layout's group order + labelEnAlt handling.
+            const RAIL_GROUPS = railGroups;
             // One source of truth: when the NEW DB-driven engine is
             // mounted (real talent + tenant), it supersedes the legacy
             // field_values/dynamicGroups editor. Collapse the OLD
@@ -2590,7 +2689,7 @@ export function TalentProfileShellDrawer() {
                         fontFamily: FONTS.body,
                       }}>{copy.t(group.label)}</div>
                       {items.map(s => {
-                        const meta = SECTION_META[s];
+                        const meta = metaFor(s);
                         const ownsProfileFieldGroups = s === "services" && newEngineActive && profileFieldNavGroups.length > 0;
                         const ownsLegacyRefinement = s === "services" && visible("refinement");
                         const active = activeSection === s
@@ -2817,6 +2916,10 @@ export function TalentProfileShellDrawer() {
             {/* "Add N to publish" coach moved to the drawer header. The
                 FirstTimeHero (only fires for very low completeness) still
                 lives in-form because it's a richer onboarding moment. */}
+            <div data-pshell-form-banners>
+              <ProfileShellUnsavedBanner visible={dirty} />
+              <ProfileShellSaveErrorBanner message={saveStatus === "error" ? saveError : null} />
+            </div>
             {completeness < 35 && !localStorage.getItem("tulala.welcome.dismissed." + (payload.talentId ?? "")) && (
               <div data-pshell-form-banners>
                 <FirstTimeHero
@@ -2855,6 +2958,7 @@ export function TalentProfileShellDrawer() {
               open={activeSection === "identity"}
               onToggle={() => setActiveSection(activeSection === "identity" ? "" : "identity")}
             >
+              <ProfileShellSectionSaveHint locked={personalProfileLocked} />
               <IdentityEditor
                 identity={state.identity}
                 onChange={(next) => patch({ identity: next, stageName: next.stageName })}
@@ -2994,30 +3098,15 @@ export function TalentProfileShellDrawer() {
                         ? `/${bridgeTenantIdentity.slug}/admin/settings#talent-types`
                         : undefined
                     }
-                    onPickPrimary={async (id) => {
+                    onPickPrimary={(id) => {
                       patch({ primaryType: id });
-                      if (payload.talentId) {
-                        await assignTalentTaxonomyBySlug({ talent_profile_id: payload.talentId, slug: id, relationship_type: "primary_role" });
-                        setTaxonomyVersion((v) => v + 1);
-                      }
                     }}
-                    onClearPrimary={async () => {
-                      const prev = state.primaryType;
+                    onClearPrimary={() => {
                       patch({ primaryType: null });
-                      if (payload.talentId && prev) {
-                        await removeTalentTaxonomyBySlug({ talent_profile_id: payload.talentId, slug: prev });
-                        setTaxonomyVersion((v) => v + 1);
-                      }
                     }}
-                    onToggleSecondary={async (id) => {
+                    onToggleSecondary={(id) => {
                       if (id === state.primaryType) return;
-                      const removing = state.secondaryTypes.includes(id);
                       toggleSet("secondaryTypes")(id);
-                      if (payload.talentId) {
-                        if (removing) await removeTalentTaxonomyBySlug({ talent_profile_id: payload.talentId, slug: id });
-                        else await assignTalentTaxonomyBySlug({ talent_profile_id: payload.talentId, slug: id, relationship_type: "secondary_role" });
-                        setTaxonomyVersion((v) => v + 1);
-                      }
                     }}
                     onToggleSpecialty={(s) => toggleSet("specialties")(s)}
                   />
@@ -3070,11 +3159,15 @@ export function TalentProfileShellDrawer() {
               onToggle={() => setActiveSection(activeSection === "location" ? "" : "location")}
             >
               {payload.talentId && bridgeTenantIdentity?.tenantId ? (
-                // Real tenant: canonical Service-Area panel owns home base,
-                // service cities, travel radius/fee, remote-only — writes
-                // talent_service_areas (search/AI/cache-readable). The global
-                // save skips these (serviceAreasOwnedByPanel).
-                <LocationSlotPanel talentProfileId={payload.talentId} />
+                <>
+                  <ProfileShellSectionSaveHint locked={personalProfileLocked} />
+                  <LocationSlotPanel
+                    talentProfileId={payload.talentId}
+                    persistMode="deferred"
+                    onHydrated={handleDeferredServiceAreaHydrated}
+                    onDesiredChange={handleDeferredServiceAreaChange}
+                  />
+                </>
               ) : (
                 <>
                   <FieldRow label="Current location" catalogId="serviceArea.homeBase" tenantId={workspaceScopeTenantId}>
@@ -3343,10 +3436,16 @@ export function TalentProfileShellDrawer() {
                   <span style={{ marginLeft: 6, fontWeight: 500, letterSpacing: 0 }} className="text-admin-ink-dim">· Languages this talent can use with clients.</span>
                 </div>
                 {payload.talentId && bridgeTenantIdentity?.tenantId ? (
-                  // Real tenant: DB-backed immediate-setAll panel owns
-                  // languages (persists independently; batched save skips
-                  // languages — see languagesOwnedByPanel).
-                  <LanguageSlotPanel talentProfileId={payload.talentId} disabled={personalProfileLocked} />
+                  <>
+                    <ProfileShellSectionSaveHint locked={personalProfileLocked} />
+                    <LanguageSlotPanel
+                      talentProfileId={payload.talentId}
+                      disabled={personalProfileLocked}
+                      persistMode="deferred"
+                      onHydrated={handleDeferredLanguagesHydrated}
+                      onLanguagesChange={handleDeferredLanguagesChange}
+                    />
+                  </>
                 ) : (
                   <>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>

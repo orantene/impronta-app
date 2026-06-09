@@ -27,13 +27,15 @@ import { useDashboardText } from "./dashboard-i18n";
 import { F_BODY, T } from "./skill-tokens";
 
 type City = { id: string; name: string };
-type Desired = {
+export type ServiceAreaDesired = {
   homeBase: City | null;
   travelTo: City[];
   travelRadiusKm: number;
   travelFeeRequired: boolean;
   remoteOnly: boolean;
 };
+
+type Desired = ServiceAreaDesired;
 
 function emptyDesired(): Desired {
   return {
@@ -238,7 +240,20 @@ const inputCss: React.CSSProperties = { width: "100%", padding: "8px 12px", bord
 const rowBtnCss: React.CSSProperties = { width: "100%", textAlign: "left", padding: "9px 12px", marginBottom: 3, borderRadius: 8, border: `1px solid ${T.border}`, background: T.surface, color: T.ink, cursor: "pointer", fontFamily: F_BODY, fontSize: 13 };
 const chipCss: React.CSSProperties = { padding: "6px 12px", borderRadius: 999, border: `1px solid ${T.border}`, background: T.surface, color: T.inkMuted, fontSize: 12, fontWeight: 600, fontFamily: F_BODY };
 
-export function LocationSlotPanel({ talentProfileId }: { talentProfileId: string }) {
+export function LocationSlotPanel({
+  talentProfileId,
+  persistMode = "immediate",
+  onHydrated,
+  onDesiredChange,
+}: {
+  talentProfileId: string;
+  /** `deferred` — update parent state only; persist on profile shell Save. */
+  persistMode?: "immediate" | "deferred";
+  /** Fires once when server rows are loaded (does not mark dirty). */
+  onHydrated?: (value: ServiceAreaDesired) => void;
+  /** Fires on user edits when `persistMode` is `deferred`. */
+  onDesiredChange?: (value: ServiceAreaDesired) => void;
+}) {
   const copy = useDashboardText();
   const [desired, setDesired] = useState<Desired | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -258,7 +273,7 @@ export function LocationSlotPanel({ talentProfileId }: { talentProfileId: string
       if (!res.ok) { setError(res.error); setDesired(emptyDesired()); return; }
       const home = res.rows.find((r) => r.service_kind === "home_base") ?? null;
       const travel = res.rows.filter((r) => r.service_kind === "travel_to");
-      setDesired({
+      const loaded: ServiceAreaDesired = {
         homeBase: home ? { id: home.location_id, name: home.city } : null,
         travelTo: travel.map((r) => ({ id: r.location_id, name: r.city })),
         // Radius/fee live on the home_base row, but also mirror to the
@@ -268,7 +283,9 @@ export function LocationSlotPanel({ talentProfileId }: { talentProfileId: string
         travelFeeRequired:
           home?.travel_fee_required ?? res.travel_fee_required ?? false,
         remoteOnly: res.remote_only,
-      });
+      };
+      setDesired(loaded);
+      onHydrated?.(loaded);
     });
     return () => { off = true; };
   }, [talentProfileId]);
@@ -280,6 +297,11 @@ export function LocationSlotPanel({ talentProfileId }: { talentProfileId: string
       const rollback = desiredRef.current;
       desiredRef.current = next;
       setDesired(next);
+      if (persistMode === "deferred") {
+        onDesiredChange?.(next);
+        setError(null);
+        return;
+      }
       setSaving(true);
       void improntaLog("admin_location_slot_panel.info", {
         message: `[serviceAreas-ui] ${reqId} seq=${seq} ${label} payload home=${next.homeBase?.id ?? "-"} travel=[${next.travelTo.map((c) => c.id).join(",")}] r=${next.travelRadiusKm} fee=${next.travelFeeRequired} remote=${next.remoteOnly}`,
@@ -323,7 +345,7 @@ export function LocationSlotPanel({ talentProfileId }: { talentProfileId: string
         message: `[serviceAreas-ui] ${reqId} seq=${seq} APPLIED server truth rows=${res.rows.length}`,
       });
     },
-    [talentProfileId],
+    [talentProfileId, persistMode, onDesiredChange],
   );
 
   if (!desired) {
