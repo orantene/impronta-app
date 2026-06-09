@@ -1,6 +1,6 @@
 import type { BuilderNodeKind } from "@/lib/site-admin/builder-node/types";
 
-export type AddGalleryTab = "elements" | "sections" | "connected";
+export type AddGalleryTab = "layout" | "elements" | "sections" | "connected";
 
 export type AddGalleryInsertMethod =
   | "nativeNode"
