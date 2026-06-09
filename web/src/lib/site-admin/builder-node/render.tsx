@@ -1678,6 +1678,9 @@ export function composeInlineNodeStyle(
   };
 }
 
+/** Module-level cache: style object identity → computed CSSProperties. */
+const sharedNodeStyleCache = new WeakMap<object, CSSProperties>();
+
 export function inlineNodeStyle(
   style: BuilderNodeStyle | undefined,
   ...base: Array<CSSProperties | undefined>
@@ -1687,6 +1690,8 @@ export function inlineNodeStyle(
 
 export function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   if (!style) return {};
+  const cached = sharedNodeStyleCache.get(style);
+  if (cached) return cached;
   const out: CSSProperties = {
     ...responsiveStyleVars(style),
   };
@@ -1982,6 +1987,8 @@ export function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSPropert
   // breakpoint layers inherit it). Per-breakpoint hides are handled by the
   // data-attr + media rules in builderNodeStyleAttrs / the static sheet.
   if (style.visibility === "hidden") out.display = "none";
+  Object.freeze(out);
+  sharedNodeStyleCache.set(style, out);
   return out;
 }
 
