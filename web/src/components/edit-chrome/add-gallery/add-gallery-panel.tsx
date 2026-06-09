@@ -67,13 +67,23 @@ function TabBar({
             role="tab"
             aria-selected={isActive}
             onClick={() => onChange(tab.id)}
-            className="cursor-pointer border-none bg-transparent px-[14px] py-[11px] text-[13px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/40"
+            className="cursor-pointer rounded-t-[6px] border-none bg-transparent px-[14px] py-[11px] text-[13px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/40"
             style={{
               color: isActive ? CHROME.accent : CHROME.muted,
               borderBottom: isActive
                 ? `2px solid ${CHROME.accent}`
                 : "2px solid transparent",
               marginBottom: -1,
+            }}
+            onMouseEnter={(e) => {
+              if (isActive) return;
+              e.currentTarget.style.background = "rgba(124, 58, 237, 0.06)";
+              e.currentTarget.style.color = CHROME.ink4;
+            }}
+            onMouseLeave={(e) => {
+              if (isActive) return;
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.color = CHROME.muted;
             }}
           >
             {tab.label}
@@ -618,6 +628,18 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
               }}
             />
           </div>
+          {query.trim() ? (
+            <p
+              className="mt-[6px] text-[11px]"
+              style={{ color: CHROME.muted }}
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              {items.length === 0
+                ? "No results"
+                : `${items.length} result${items.length === 1 ? "" : "s"}`}
+            </p>
+          ) : null}
         </div>
 
         <div className="flex min-h-0 flex-1">
