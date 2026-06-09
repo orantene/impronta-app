@@ -14,7 +14,7 @@ export function AddGalleryCardInfo({
 }) {
   const buttonId = useId();
   const popoverId = useId();
-  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const triggerRef = useRef<HTMLSpanElement | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<{ top: number; left: number } | null>(
@@ -22,7 +22,7 @@ export function AddGalleryCardInfo({
   );
 
   const placePopover = useCallback(() => {
-    const anchor = buttonRef.current;
+    const anchor = triggerRef.current;
     if (!anchor) return;
     const rect = anchor.getBoundingClientRect();
     const popH = 120;
@@ -55,7 +55,7 @@ export function AddGalleryCardInfo({
       const target = event.target as Node | null;
       if (!target) return;
       if (popoverRef.current?.contains(target)) return;
-      if (buttonRef.current?.contains(target)) return;
+      if (triggerRef.current?.contains(target)) return;
       setOpen(false);
     }
     function onKey(event: KeyboardEvent) {
@@ -71,10 +71,10 @@ export function AddGalleryCardInfo({
 
   return (
     <>
-      <button
-        ref={buttonRef}
+      {/* Span trigger — cards are <button>; nested <button> breaks HTML + hydration. */}
+      <span
+        ref={triggerRef}
         id={buttonId}
-        type="button"
         aria-label="More information"
         aria-expanded={open}
         aria-controls={popoverId}
@@ -85,7 +85,7 @@ export function AddGalleryCardInfo({
           event.stopPropagation();
           setOpen((prev) => !prev);
         }}
-        className="absolute right-[6px] top-[6px] z-[2] inline-flex h-[20px] w-[20px] cursor-pointer items-center justify-center rounded-full border-none bg-white/90 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/40"
+        className="absolute right-[6px] top-[6px] z-[2] inline-flex h-[20px] w-[20px] cursor-pointer items-center justify-center rounded-full bg-white/90 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/40"
         style={{ color: CHROME.muted }}
         onMouseEnter={(e) => {
           e.currentTarget.style.color = CHROME.accent;
@@ -107,7 +107,7 @@ export function AddGalleryCardInfo({
           <path d="M12 10v6" />
           <circle cx="12" cy="7.5" r="0.8" fill="currentColor" stroke="none" />
         </svg>
-      </button>
+      </span>
       {open && position
         ? createPortal(
             <div
