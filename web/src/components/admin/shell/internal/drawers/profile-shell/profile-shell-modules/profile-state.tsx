@@ -511,7 +511,7 @@ export function makeInitialProfileState(
       // real talents so QA admin's drawer doesn't open with "Madrid".
       homeBase: seed.homeBase
         ?? draft.homeBase
-        ?? (bridgeProfile && !isFixtureTalent ? (bridgeProfile.homeCity ?? "") : ""),
+        ?? (!isCreate && bridgeProfile && !isFixtureTalent ? (bridgeProfile.homeCity ?? "") : ""),
       serviceCities: seed.serviceCities ?? [],
       travelKm: seed.travelKm ?? 50,
       travelFee: false,
@@ -600,8 +600,9 @@ export function makeInitialProfileState(
     // they actually publish. Read the real value from the bridge when
     // available; fall back to the legacy default for fixture / standalone
     // demo mode.
-    profileStatus:
-      bridgeProfile?.workflowStatus === "published" || bridgeProfile?.workflowStatus === "approved"
+    profileStatus: isCreate
+      ? "draft"
+      : bridgeProfile?.workflowStatus === "published" || bridgeProfile?.workflowStatus === "approved"
         ? "published"
         : bridgeProfile?.workflowStatus === "pending" || bridgeProfile?.workflowStatus === "submitted" || bridgeProfile?.workflowStatus === "under_review"
         ? "pending"

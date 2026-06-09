@@ -934,7 +934,7 @@ export function TalentProfileShellDrawer() {
         return false;
       }
       const s = stateRef.current;
-      const stageName = (s.stageName ?? "").trim();
+      const stageName = (s.stageName ?? s.identity?.stageName ?? "").trim();
       const homeBase = (s.serviceArea?.homeBase ?? "").trim();
       const primaryType = s.primaryType ?? null;
       // Same minimum gate as the legacy QuickAdd drawer (`minimumValid`
