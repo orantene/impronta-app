@@ -124,6 +124,52 @@ function cloneTree(tree: BuilderNodeTree): BuilderNodeTree {
   return tree.map(cloneNode);
 }
 
+/**
+ * Copy-on-write spine rebuild — the perf keystone of the canvas editor.
+ *
+ * Returns a NEW top-level array in which only the root→`path` spine is rebuilt:
+ * the node at each step along `path` is shallow-copied (fresh identity) and its
+ * `children` array is shallow-copied (so a downstream `splice` never touches the
+ * original), while EVERY off-path sibling subtree keeps its ORIGINAL object
+ * reference. The node addressed by `path` itself is shallow-copied with a fresh
+ * `children` array (when it has one), so callers can either reassign its `props`
+ * (patch) or splice its `children` (insert/move target) without mutating any
+ * object that existed in the input tree.
+ *
+ * The canvas renderer wraps each node in `React.memo` keyed by identity
+ * (`Object.is`), so sharing the off-path references makes every memo'd node that
+ * isn't on the edited spine skip re-render — a deep text edit no longer repaints
+ * the whole page (the old `cloneTree` gave every node a fresh identity → 100%
+ * memo miss). `getNodeByPath`/`getChildrenRefAtPath` resolve the freshly-copied
+ * containers/target on the returned tree, so the existing mutation code is
+ * unchanged below the clone.
+ *
+ * INVARIANT: only freshly-created spine objects are ever written to. An empty
+ * `path` copies just the top-level array (e.g. a root-level insert/remove).
+ */
+function copyPathToTarget(
+  nodes: ReadonlyArray<BuilderNode>,
+  path: ReadonlyArray<number>,
+): BuilderNodeTree {
+  const next = nodes.slice();
+  if (path.length === 0) return next;
+
+  const headIndex = path[0]!;
+  const original = next[headIndex];
+  if (!original) return next;
+
+  const copied = { ...original } as BuilderNode;
+  if ("children" in original && Array.isArray(original.children)) {
+    const restPath = path.slice(1);
+    (copied as BuilderNode & { children: BuilderNode[] }).children =
+      restPath.length === 0
+        ? original.children.slice()
+        : copyPathToTarget(original.children, restPath);
+  }
+  next[headIndex] = copied;
+  return next;
+}
+
 function freshNodeId(kind: BuilderNode["kind"]): string {
   return `${kind}-${crypto.randomUUID()}`;
 }
@@ -340,7 +386,16 @@ function finalizeMutatedTree(
 ): BuilderNodeOpResult {
   const after = validateBuilderNodeTree(nextTree);
   if (after.ok) {
-    return { ok: true, tree: after.tree };
+    // Clean validation (the common case): return the COPY-ON-WRITE `nextTree`
+    // itself, not `validateBuilderNodeTree`'s re-minted `after.tree`. They are
+    // value-identical here (validation only re-spreads a fully-valid tree), but
+    // `after.tree` gives every node a fresh identity — which would defeat the
+    // whole point of the copy-on-write spine, since the canvas memo keys on
+    // `Object.is(node)`. Returning `nextTree` preserves the shared off-path
+    // references so memo'd nodes off the edited path skip re-render. The
+    // accept/reject/heal DECISION below is unchanged; only the success path now
+    // hands back the structurally-shared tree.
+    return { ok: true, tree: nextTree };
   }
   const before = validateBuilderNodeTree(originalTree);
   const preExistingCount = before.ok ? 0 : before.issues.length;
@@ -373,12 +428,11 @@ export function insertBuilderNode(input: {
   parentId: string | null;
   index?: number;
 }): BuilderNodeOpResult {
-  const nextTree = cloneTree(input.tree);
   let targetPath: number[] = [];
   let parentKind: BuilderNode["kind"] | null = null;
 
   if (input.parentId) {
-    const parent = findNodeLocation(nextTree, input.parentId);
+    const parent = findNodeLocation(input.tree, input.parentId);
     if (!parent) {
       return {
         ok: false,
@@ -435,6 +489,7 @@ export function insertBuilderNode(input: {
     };
   }
 
+  const nextTree = copyPathToTarget(input.tree, targetPath);
   const targetChildren = getChildrenRefAtPath(nextTree, targetPath);
   if (!targetChildren) {
     return {
@@ -472,8 +527,7 @@ export function removeBuilderNode(input: {
   tree: BuilderNodeTree;
   nodeId: string;
 }): BuilderNodeOpResult {
-  const nextTree = cloneTree(input.tree);
-  const location = findNodeLocation(nextTree, input.nodeId);
+  const location = findNodeLocation(input.tree, input.nodeId);
   if (!location) {
     return {
       ok: false,
@@ -482,7 +536,7 @@ export function removeBuilderNode(input: {
       issues: missingNodeIssue(input.nodeId),
     };
   }
-  if (removingWouldEmptyRequiredGroup(nextTree, location)) {
+  if (removingWouldEmptyRequiredGroup(input.tree, location)) {
     return {
       ok: false,
       code: "INVALID_MOVE_TARGET",
@@ -496,6 +550,7 @@ export function removeBuilderNode(input: {
       ],
     };
   }
+  const nextTree = copyPathToTarget(input.tree, location.parentPath);
   const parentChildren = getChildrenRefAtPath(nextTree, location.parentPath);
   if (!parentChildren) {
     return {
@@ -518,8 +573,7 @@ export function duplicateBuilderNode(input: {
   tree: BuilderNodeTree;
   nodeId: string;
 }): BuilderNodeDuplicateResult {
-  const nextTree = cloneTree(input.tree);
-  const location = findNodeLocation(nextTree, input.nodeId);
+  const location = findNodeLocation(input.tree, input.nodeId);
   if (!location) {
     return {
       ok: false,
@@ -549,6 +603,7 @@ export function duplicateBuilderNode(input: {
     };
   }
 
+  const nextTree = copyPathToTarget(input.tree, location.parentPath);
   const parentChildren = getChildrenRefAtPath(nextTree, location.parentPath);
   if (!parentChildren) {
     return {
@@ -719,8 +774,7 @@ export function moveBuilderNode(input: {
     };
   }
 
-  const nextTree = cloneTree(input.tree);
-  const moving = findNodeLocation(nextTree, input.nodeId);
+  const moving = findNodeLocation(input.tree, input.nodeId);
   if (!moving) {
     return {
       ok: false,
@@ -729,7 +783,13 @@ export function moveBuilderNode(input: {
       issues: missingNodeIssue(input.nodeId),
     };
   }
-  const sourceChildren = getChildrenRefAtPath(nextTree, moving.parentPath);
+  // Copy-on-write the source spine first, splice the moving node out of the
+  // freshly-copied source list, THEN copy-on-write the (possibly index-shifted)
+  // target spine on the resulting tree. Each pass shares every off-path subtree
+  // reference, so the only objects ever mutated are the fresh spine arrays —
+  // the input tree is never touched.
+  const afterRemoveTree = copyPathToTarget(input.tree, moving.parentPath);
+  const sourceChildren = getChildrenRefAtPath(afterRemoveTree, moving.parentPath);
   if (!sourceChildren) {
     return {
       ok: false,
@@ -756,7 +816,7 @@ export function moveBuilderNode(input: {
   let targetPath: number[] = [];
   let parentKind: BuilderNode["kind"] | null = null;
   if (input.parentId) {
-    const parent = findNodeLocation(nextTree, input.parentId);
+    const parent = findNodeLocation(afterRemoveTree, input.parentId);
     if (!parent) {
       return {
         ok: false,
@@ -774,6 +834,7 @@ export function moveBuilderNode(input: {
     parentKind = parent.node.kind;
   }
 
+  const nextTree = copyPathToTarget(afterRemoveTree, targetPath);
   const targetChildren = getChildrenRefAtPath(nextTree, targetPath);
   if (!targetChildren) {
     return {
@@ -812,8 +873,7 @@ export function patchBuilderNodeProps(input: {
   nodeId: string;
   patch: Record<string, unknown>;
 }): BuilderNodeOpResult {
-  const nextTree = cloneTree(input.tree);
-  const location = findNodeLocation(nextTree, input.nodeId);
+  const location = findNodeLocation(input.tree, input.nodeId);
   if (!location) {
     return {
       ok: false,
@@ -822,16 +882,10 @@ export function patchBuilderNodeProps(input: {
       issues: missingNodeIssue(input.nodeId),
     };
   }
-  const target = getNodeByPath(nextTree, location.path);
-  if (!target) {
-    return {
-      ok: false,
-      code: "NODE_NOT_FOUND",
-      message: `Node "${input.nodeId}" was not found for patch.`,
-      issues: missingNodeIssue(input.nodeId),
-    };
-  }
-  const currentProps = target.props as Record<string, unknown>;
+  // No-op detection runs against the ORIGINAL node's props — byte-for-byte the
+  // same comparison as before. Only build the copy-on-write spine once we know
+  // there is a real change to apply (avoids a pointless allocation on no-ops).
+  const currentProps = location.node.props as Record<string, unknown>;
   const hasRealChange = Object.entries(input.patch).some(([key, value]) => {
     return !valuesEqual(currentProps[key], value);
   });
@@ -847,6 +901,16 @@ export function patchBuilderNodeProps(input: {
       code: "NO_CHANGE",
       message: "No changes to apply.",
       issues: [],
+    };
+  }
+  const nextTree = copyPathToTarget(input.tree, location.path);
+  const target = getNodeByPath(nextTree, location.path);
+  if (!target) {
+    return {
+      ok: false,
+      code: "NODE_NOT_FOUND",
+      message: `Node "${input.nodeId}" was not found for patch.`,
+      issues: missingNodeIssue(input.nodeId),
     };
   }
   const mergedProps = {
