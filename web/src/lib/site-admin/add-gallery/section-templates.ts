@@ -1,34 +1,27 @@
-import {
-  createButton,
-  createHeading,
-  createImage,
-  createParagraph,
-  createBuilderNode,
-  makeId,
-} from "@/lib/site-admin/builder-node/create";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 
 import {
   tplButton,
-  tplContainer,
+  tplContactForm,
   tplContentColumn,
+  tplContentColumnLeft,
+  tplContainer,
   tplCtaGroup,
   tplDescription,
   tplDirectorySearchForm,
   tplFaqAccordion,
+  tplImageLayer,
   tplIntroText,
+  tplLabeledParagraph,
+  tplMasonryGrid,
   tplSection,
+  tplSectionEmbed,
+  tplServiceCard,
+  tplSplitColumn,
+  tplStatCard,
   tplTestimonialCard,
   tplTitle,
 } from "./section-template-nodes";
-
-function sectionShell(name: string, children: BuilderNode[]): BuilderNode {
-  return tplSection(name, children);
-}
-
-function contentContainer(children: BuilderNode[]): BuilderNode {
-  return tplContentColumn(children);
-}
 
 function buildHeroCentered(): BuilderNode {
   return tplSection("Hero Centered Section", [
@@ -55,98 +48,30 @@ function buildHeroCentered(): BuilderNode {
   ]);
 }
 
-function buildTestimonialsTrio(): BuilderNode {
-  return tplSection("Testimonials Section", [
-    tplContentColumn([
-      tplIntroText("Social proof"),
-      tplTitle("Trusted by leading brands", 2),
-      tplContainer(
-        [
-          tplTestimonialCard(
-            "Working with this team was seamless from first inquiry to final delivery. The talent matched our brand exactly.",
-            "Agency partner",
-            "Global campaign lead",
-            0,
-          ),
-          tplTestimonialCard(
-            "We've worked with agencies across three continents — this experience stood apart. Responsive, professional, and exceptional results.",
-            "Production studio",
-            "Executive producer",
-            1,
-          ),
-          tplTestimonialCard(
-            "The roster depth is remarkable. We found our lead for a global campaign in under 48 hours.",
-            "Brand team",
-            "Marketing director",
-            2,
-          ),
-        ],
-        {
-          layerLabel: "Testimonial Grid",
-          layout: "grid",
-          columns: 3,
-          gap: "m",
-        },
-      ),
-    ]),
+function buildHeroSplit(): BuilderNode {
+  return tplSection("Hero Split Image Section", [
+    tplSplitColumn(
+      [
+        tplTitle("Headline with visual balance", 1, { align: "left" }),
+        tplDescription(
+          "Pair a strong message with editorial photography or brand imagery.",
+          "Description",
+          { align: "left" },
+        ),
+        tplButton("View roster", "/directory", { layerLabel: "Primary Button" }),
+      ],
+      [tplImageLayer(0, "Background Image")],
+      { ratio: "50-50", layerLabel: "Split Layout" },
+    ),
   ]);
 }
 
-function buildCtaBanner(): BuilderNode {
-  return tplSection("CTA Banner Section", [
+function buildHeroMinimal(): BuilderNode {
+  return tplSection("Hero Minimal Section", [
     tplContentColumn([
-      tplIntroText("Ready when you are"),
-      tplTitle("Planning an event, shoot, activation, or private experience?", 2),
-      tplDescription(
-        "Tell us the brief and your market. We'll match the right talent — a coordinator replies personally.",
-        "Description",
-      ),
-      tplCtaGroup(
-        [
-          tplButton("Start an inquiry", "/contact", {
-            layerLabel: "Primary Button",
-          }),
-          tplButton("Explore talent", "/directory", {
-            layerLabel: "Secondary Button",
-            tone: "secondary",
-          }),
-        ],
-        { layerLabel: "Button Group" },
-      ),
-      tplDescription(
-        "Agency-managed end to end — no direct talent contact.",
-        "Reassurance Text",
-        { size: "sm", tone: "muted" },
-      ),
-    ]),
-  ]);
-}
-
-function buildFaqAccordion(): BuilderNode {
-  return tplSection("FAQ Section", [
-    tplContentColumn([
-      tplIntroText("Common questions"),
-      tplTitle("Things people ask before they book.", 2),
-      tplDescription(
-        "Answers to the most common questions. Anything else? Reach out.",
-        "Description",
-      ),
-      tplFaqAccordion([
-        {
-          question: "What's included in a booking?",
-          answer:
-            "All sessions include scouting, scheduling, and coordination through confirmation.",
-        },
-        {
-          question: "How quickly can you respond?",
-          answer: "Inquiries are answered within 24 business hours.",
-        },
-        {
-          question: "Do you travel?",
-          answer:
-            "Yes — domestic and international. Travel costs are billed at cost.",
-        },
-      ]),
+      tplTitle("A focused headline", 1),
+      tplDescription("One line of supporting copy. Nothing extra.", "Description"),
+      tplButton("Get started", "/contact", { layerLabel: "Primary Button" }),
     ]),
   ]);
 }
@@ -203,15 +128,11 @@ function buildHeroSearch(): BuilderNode {
               align: "center",
             },
           ),
-          {
-            id: makeId("paragraph"),
-            kind: "paragraph",
-            props: {
-              text: "27+ represented talent · agency-managed end to end",
-              layerLabel: "Stats Text",
-              style: { align: "center", size: "sm", tone: "muted" },
-            },
-          },
+          tplLabeledParagraph(
+            "27+ represented talent · agency-managed end to end",
+            "Stats Text",
+            { align: "center", size: "sm", tone: "muted" },
+          ),
         ]),
       ],
       {
@@ -228,220 +149,384 @@ function buildHeroSearch(): BuilderNode {
   ]);
 }
 
+function buildAboutSimple(): BuilderNode {
+  return tplSection("About Simple Section", [
+    tplContentColumn([
+      tplIntroText("Our agency"),
+      tplTitle("About us", 2),
+      tplDescription(
+        "Share your story, approach, and what makes your agency distinctive.",
+        "Description",
+      ),
+    ]),
+  ]);
+}
+
+function buildAboutSplit(): BuilderNode {
+  return tplSection("About Split Image Section", [
+    tplSplitColumn(
+      [
+        tplTitle("Our story", 2, { align: "left" }),
+        tplDescription(
+          "Tell visitors who you are, how you work, and why clients trust your team.",
+          "Description",
+          { align: "left" },
+        ),
+      ],
+      [tplImageLayer(1, "Background Image")],
+      { ratio: "40-60", layerLabel: "Split Layout" },
+    ),
+  ]);
+}
+
+function buildAboutStats(): BuilderNode {
+  return tplSection("About Stats Section", [
+    tplContentColumn([
+      tplTitle("Built for scale", 2),
+      tplDescription(
+        "Key figures that reinforce your agency credibility.",
+        "Description",
+      ),
+      tplContainer(
+        [
+          tplStatCard("200+", "Talent represented", 0),
+          tplStatCard("12", "Years of experience", 1),
+          tplStatCard("40+", "Markets worldwide", 2),
+        ],
+        {
+          layerLabel: "Stats Row",
+          layout: "row",
+          gap: "l",
+          align: "stretch",
+          responsive: {
+            tablet: { layout: "row", columns: 3 },
+            mobile: { layout: "stack", columns: 1 },
+          },
+        },
+      ),
+    ]),
+  ]);
+}
+
+function buildServicesGrid(): BuilderNode {
+  return tplSection("Services Grid Section", [
+    tplContentColumn([
+      tplTitle("Services", 2),
+      tplDescription("Outline the packages and support you provide.", "Description"),
+      tplContainer(
+        [
+          tplServiceCard(
+            "Representation",
+            "Talent management, bookings, and career support.",
+            0,
+          ),
+          tplServiceCard("Casting", "Brief matching and roster curation.", 1),
+          tplServiceCard(
+            "Production",
+            "On-set coordination and client liaison.",
+            2,
+          ),
+        ],
+        {
+          layerLabel: "Service Grid",
+          layout: "grid",
+          columns: 3,
+          gap: "m",
+          responsive: {
+            tablet: { columns: 2 },
+            mobile: { layout: "stack", columns: 1 },
+          },
+        },
+      ),
+    ]),
+  ]);
+}
+
+function buildServicesList(): BuilderNode {
+  return tplSection("Services List Section", [
+    tplContentColumnLeft([
+      tplTitle("What we offer", 2, { align: "left" }),
+      tplLabeledParagraph("• Talent representation and bookings", "Service Item 1", {
+        align: "left",
+      }),
+      tplLabeledParagraph("• Casting and brief matching", "Service Item 2", {
+        align: "left",
+      }),
+      tplLabeledParagraph("• On-set coordination and logistics", "Service Item 3", {
+        align: "left",
+      }),
+    ]),
+  ]);
+}
+
+function buildGalleryGrid(): BuilderNode {
+  return tplSection("Gallery Grid Section", [
+    tplContentColumn([
+      tplTitle("Gallery", 2),
+      tplDescription(
+        "Showcase editorial photography and recent work.",
+        "Description",
+      ),
+      tplMasonryGrid(3, {
+        layerLabel: "Gallery Grid",
+        columns: 3,
+        imageLabelPrefix: "Gallery Image",
+      }),
+    ]),
+  ]);
+}
+
+function buildGalleryStrip(): BuilderNode {
+  return tplSection("Gallery Strip Section", [
+    tplContentColumn([
+      tplTitle("Recent work", 2),
+      tplDescription("Editorial mosaic image rail.", "Description"),
+      tplContainer(
+        [
+          tplImageLayer(0, "Gallery Image 1"),
+          tplImageLayer(1, "Gallery Image 2"),
+          tplImageLayer(2, "Gallery Image 3"),
+          tplImageLayer(3, "Gallery Image 4"),
+        ],
+        {
+          layerLabel: "Gallery Strip",
+          layout: "row",
+          gap: "s",
+          align: "stretch",
+          responsive: {
+            mobile: { layout: "stack" },
+          },
+        },
+      ),
+    ]),
+  ]);
+}
+
+function buildFeaturedTalentWrapper(): BuilderNode {
+  return tplSection("Featured Talent Section", [
+    tplContentColumn([
+      tplIntroText("Agency picks"),
+      tplTitle("Featured talent", 2),
+      tplDescription(
+        "Curated roster highlights — live profiles from your collection.",
+        "Subtitle",
+      ),
+      tplButton("See all talent", "/directory", { layerLabel: "See All Link" }),
+      tplSectionEmbed("featured_talent", "Talent Grid"),
+    ]),
+  ]);
+}
+
+function buildRosterWrapper(): BuilderNode {
+  return tplSection("Roster Section", [
+    tplContentColumn([
+      tplTitle("Talent directory", 2),
+      tplDescription(
+        "Browse the full filterable roster — search by role, location, or specialty.",
+        "Description",
+      ),
+      tplSectionEmbed("directory", "Directory Grid"),
+    ]),
+  ]);
+}
+
+function buildAgencyLogo(): BuilderNode {
+  return tplSection("Agency Logo Section", [
+    tplContentColumn([
+      tplTitle("Trusted by leading brands", 2),
+      tplContainer(
+        [
+          tplImageLayer(0, "Logo 1", { maxWidth: "narrow" }),
+          tplImageLayer(1, "Logo 2", { maxWidth: "narrow" }),
+          tplImageLayer(2, "Logo 3", { maxWidth: "narrow" }),
+          tplImageLayer(3, "Logo 4", { maxWidth: "narrow" }),
+        ],
+        {
+          layerLabel: "Logo Row",
+          layout: "row",
+          gap: "l",
+          align: "center",
+          responsive: {
+            mobile: { layout: "stack" },
+          },
+        },
+      ),
+    ]),
+  ]);
+}
+
+function buildInquiryCta(): BuilderNode {
+  return tplSection("Inquiry CTA Section", [
+    tplContentColumn([
+      tplTitle("Ready to start?", 2),
+      tplDescription(
+        "Tell us about your project and our team will respond personally.",
+        "Description",
+      ),
+      tplButton("Start an inquiry", "/contact", { layerLabel: "Primary Button" }),
+    ]),
+  ]);
+}
+
+function buildTestimonialsTrio(): BuilderNode {
+  return tplSection("Testimonials Section", [
+    tplContentColumn([
+      tplIntroText("Social proof"),
+      tplTitle("Trusted by leading brands", 2),
+      tplContainer(
+        [
+          tplTestimonialCard(
+            "Working with this team was seamless from first inquiry to final delivery. The talent matched our brand exactly.",
+            "Agency partner",
+            "Global campaign lead",
+            0,
+          ),
+          tplTestimonialCard(
+            "We've worked with agencies across three continents — this experience stood apart. Responsive, professional, and exceptional results.",
+            "Production studio",
+            "Executive producer",
+            1,
+          ),
+          tplTestimonialCard(
+            "The roster depth is remarkable. We found our lead for a global campaign in under 48 hours.",
+            "Brand team",
+            "Marketing director",
+            2,
+          ),
+        ],
+        {
+          layerLabel: "Testimonial Grid",
+          layout: "grid",
+          columns: 3,
+          gap: "m",
+          responsive: {
+            tablet: { columns: 2 },
+            mobile: { layout: "stack", columns: 1 },
+          },
+        },
+      ),
+    ]),
+  ]);
+}
+
+function buildCtaBanner(): BuilderNode {
+  return tplSection("CTA Banner Section", [
+    tplContentColumn([
+      tplIntroText("Ready when you are"),
+      tplTitle("Planning an event, shoot, activation, or private experience?", 2),
+      tplDescription(
+        "Tell us the brief and your market. We'll match the right talent — a coordinator replies personally.",
+        "Description",
+      ),
+      tplCtaGroup(
+        [
+          tplButton("Start an inquiry", "/contact", {
+            layerLabel: "Primary Button",
+          }),
+          tplButton("Explore talent", "/directory", {
+            layerLabel: "Secondary Button",
+            tone: "secondary",
+          }),
+        ],
+        { layerLabel: "Button Group" },
+      ),
+      tplDescription(
+        "Agency-managed end to end — no direct talent contact.",
+        "Reassurance Text",
+        { size: "sm", tone: "muted" },
+      ),
+    ]),
+  ]);
+}
+
+function buildCtaSplit(): BuilderNode {
+  return tplSection("CTA Split Section", [
+    tplSplitColumn(
+      [
+        tplTitle("Let's work together", 2, { align: "left" }),
+        tplDescription(
+          "Tell us about your project and we'll respond quickly.",
+          "Description",
+          { align: "left" },
+        ),
+      ],
+      [tplButton("Start an inquiry", "/contact", { layerLabel: "Primary Button" })],
+      { ratio: "60-40", layerLabel: "Split Layout" },
+    ),
+  ]);
+}
+
+function buildFaqAccordion(): BuilderNode {
+  return tplSection("FAQ Section", [
+    tplContentColumn([
+      tplIntroText("Common questions"),
+      tplTitle("Things people ask before they book.", 2),
+      tplDescription(
+        "Answers to the most common questions. Anything else? Reach out.",
+        "Description",
+      ),
+      tplFaqAccordion([
+        {
+          question: "What's included in a booking?",
+          answer:
+            "All sessions include scouting, scheduling, and coordination through confirmation.",
+        },
+        {
+          question: "How quickly can you respond?",
+          answer: "Inquiries are answered within 24 business hours.",
+        },
+        {
+          question: "Do you travel?",
+          answer:
+            "Yes — domestic and international. Travel costs are billed at cost.",
+        },
+      ]),
+    ]),
+  ]);
+}
+
+function buildContactForm(): BuilderNode {
+  return tplSection("Contact Form Section", [
+    tplContentColumn([
+      tplIntroText("Get in touch"),
+      tplTitle("Contact us", 2),
+      tplDescription(
+        "Send a message and our team will get back to you.",
+        "Description",
+      ),
+      tplContactForm(),
+    ]),
+  ]);
+}
+
 const SECTION_TEMPLATE_BUILDERS: Readonly<
   Record<string, () => BuilderNode>
 > = {
   hero: buildHeroCentered,
   "hero-centered": buildHeroCentered,
-  "hero-split": () =>
-    sectionShell("Hero Split Image", [
-      {
-        id: makeId("split"),
-        kind: "split",
-        props: { ratio: "50-50", gap: "l", collapseOnMobile: true },
-        children: [
-          contentContainer([
-            createHeading("Headline with visual balance", 1),
-            createParagraph(
-              "Pair a strong message with editorial photography or brand imagery.",
-            ),
-            createButton("View roster", "/directory"),
-          ]),
-          {
-            id: makeId("container"),
-            kind: "container",
-            props: { layout: "stack", gap: "m" },
-            children: [createImage(0)],
-          },
-        ],
-      },
-    ]),
-  "hero-minimal": () =>
-    sectionShell("Hero Minimal", [
-      contentContainer([
-        createHeading("A focused headline", 1),
-        createParagraph("One line of supporting copy. Nothing extra."),
-        createButton("Get started", "/contact"),
-      ]),
-    ]),
+  "hero-split": buildHeroSplit,
+  "hero-minimal": buildHeroMinimal,
   "hero-search": buildHeroSearch,
-  "testimonials-trio": buildTestimonialsTrio,
-  about: () =>
-    sectionShell("About Simple", [
-      contentContainer([
-        createHeading("About us", 2),
-        createParagraph(
-          "Share your story, approach, and what makes your agency distinctive.",
-        ),
-      ]),
-    ]),
-  "about-split": () =>
-    sectionShell("About Split Image", [
-      {
-        id: makeId("split"),
-        kind: "split",
-        props: { ratio: "40-60", gap: "l", collapseOnMobile: true },
-        children: [
-          contentContainer([
-            createHeading("Our story", 2),
-            createParagraph(
-              "Tell visitors who you are, how you work, and why clients trust your team.",
-            ),
-          ]),
-          {
-            id: makeId("container"),
-            kind: "container",
-            props: { layout: "stack" },
-            children: [createImage(1)],
-          },
-        ],
-      },
-    ]),
-  "about-stats": () =>
-    sectionShell("About Stats", [
-      contentContainer([
-        createHeading("Built for scale", 2),
-        createParagraph("Key figures that reinforce your agency credibility."),
-        {
-          id: makeId("container"),
-          kind: "container",
-          props: { layout: "row", gap: "l" },
-          children: [
-            {
-              id: makeId("card"),
-              kind: "card",
-              props: {},
-              children: [
-                createHeading("200+", 3),
-                createParagraph("Talent represented"),
-              ],
-            },
-            {
-              id: makeId("card"),
-              kind: "card",
-              props: {},
-              children: [
-                createHeading("12", 3),
-                createParagraph("Years of experience"),
-              ],
-            },
-            {
-              id: makeId("card"),
-              kind: "card",
-              props: {},
-              children: [
-                createHeading("40+", 3),
-                createParagraph("Markets worldwide"),
-              ],
-            },
-          ],
-        },
-      ]),
-    ]),
-  services: () =>
-    sectionShell("Services Grid", [
-      contentContainer([
-        createHeading("Services", 2),
-        createParagraph("Outline the packages and support you provide."),
-        {
-          id: makeId("container"),
-          kind: "container",
-          props: { layout: "row", gap: "m" },
-          children: [
-            {
-              id: makeId("card"),
-              kind: "card",
-              props: {},
-              children: [
-                createHeading("Representation", 3),
-                createParagraph("Talent management, bookings, and career support."),
-              ],
-            },
-            {
-              id: makeId("card"),
-              kind: "card",
-              props: {},
-              children: [
-                createHeading("Casting", 3),
-                createParagraph("Brief matching and roster curation."),
-              ],
-            },
-            {
-              id: makeId("card"),
-              kind: "card",
-              props: {},
-              children: [
-                createHeading("Production", 3),
-                createParagraph("On-set coordination and client liaison."),
-              ],
-            },
-          ],
-        },
-      ]),
-    ]),
-  "services-list": () =>
-    sectionShell("Services List", [
-      contentContainer([
-        createHeading("What we offer", 2),
-        createParagraph("• Talent representation and bookings"),
-        createParagraph("• Casting and brief matching"),
-        createParagraph("• On-set coordination and logistics"),
-      ]),
-    ]),
-  gallery: () =>
-    sectionShell("Gallery Grid", [
-      contentContainer([
-        createHeading("Gallery", 2),
-        createParagraph("Showcase editorial photography and recent work."),
-        {
-          id: makeId("masonry"),
-          kind: "masonry",
-          props: { columns: 3, gap: "m" },
-          children: [createImage(0), createImage(1), createImage(2)],
-        },
-      ]),
-    ]),
+  about: buildAboutSimple,
+  "about-split": buildAboutSplit,
+  "about-stats": buildAboutStats,
+  services: buildServicesGrid,
+  "services-list": buildServicesList,
+  gallery: buildGalleryGrid,
+  "gallery-strip": buildGalleryStrip,
+  "featured-talent-wrapper": buildFeaturedTalentWrapper,
+  "roster-wrapper": buildRosterWrapper,
+  "agency-logo": buildAgencyLogo,
+  "inquiry-cta": buildInquiryCta,
   testimonials: buildTestimonialsTrio,
+  "testimonials-trio": buildTestimonialsTrio,
   cta: buildCtaBanner,
   "cta-banner": buildCtaBanner,
+  "cta-split": buildCtaSplit,
   "faq-accordion": buildFaqAccordion,
-  "cta-split": () =>
-    sectionShell("CTA Split", [
-      {
-        id: makeId("split"),
-        kind: "split",
-        props: { ratio: "60-40", gap: "l", collapseOnMobile: true },
-        children: [
-          contentContainer([
-            createHeading("Let's work together", 2),
-            createParagraph("Tell us about your project and we'll respond quickly."),
-          ]),
-          {
-            id: makeId("container"),
-            kind: "container",
-            props: { layout: "stack", align: "center" },
-            children: [createButton("Start an inquiry", "/contact")],
-          },
-        ],
-      },
-    ]),
   faq: buildFaqAccordion,
-  contact: () =>
-    sectionShell("Contact", [
-      contentContainer([
-        createHeading("Get in touch", 2),
-        createParagraph("Share how clients can reach your team."),
-        createButton("Send an inquiry", "/contact"),
-      ]),
-    ]),
-  "contact-form": () =>
-    sectionShell("Contact Form", [
-      contentContainer([
-        createHeading("Contact us", 2),
-        createParagraph("Send a message and our team will get back to you."),
-        createBuilderNode("form"),
-      ]),
-    ]),
+  contact: buildContactForm,
+  "contact-form": buildContactForm,
 };
 
 export function buildAddGallerySectionTemplate(
@@ -480,4 +565,23 @@ export function sectionTemplateContainsKind(
     return node.children.some((child) => sectionTemplateContainsKind(child, kind));
   }
   return false;
+}
+
+/** Test helper — asserts a template exposes all required layerLabel values. */
+export function assertTemplateLayerLabels(
+  templateId: string,
+  requiredLabels: readonly string[],
+): void {
+  const root = buildAddGallerySectionTemplate(templateId);
+  if (!root) {
+    throw new Error(`Template "${templateId}" not found.`);
+  }
+  const labels = collectSectionTemplateLayerLabels(root);
+  for (const required of requiredLabels) {
+    if (!labels.includes(required)) {
+      throw new Error(
+        `Template "${templateId}" missing layerLabel "${required}". Found: ${labels.join(", ")}`,
+      );
+    }
+  }
 }

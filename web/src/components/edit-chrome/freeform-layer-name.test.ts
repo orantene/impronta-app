@@ -21,6 +21,7 @@ test("explicit layerLabel wins over derived text on any node kind", () => {
   assert.equal(resolveLayerDisplayName(node), "Testimonial Card");
 });
 
+test("heading text is used as layer display name when no layerLabel", () => {
   const node: BuilderNode = {
     id: "h1",
     kind: "heading",

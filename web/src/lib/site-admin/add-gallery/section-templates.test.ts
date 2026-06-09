@@ -5,6 +5,7 @@ import { resolveLayerDisplayName } from "@/components/edit-chrome/freeform-layer
 import type { BuilderNode } from "@/lib/site-admin/builder-node";
 
 import {
+  assertTemplateLayerLabels,
   buildAddGallerySectionTemplate,
   collectSectionTemplateLayerLabels,
   sectionTemplateContainsKind,
@@ -24,11 +25,127 @@ test("hero-centered template is native freeform with semantic layer labels", () 
   assert.ok(root);
   assert.equal(root!.props.label, "Hero Centered Section");
   assert.equal(sectionTemplateContainsKind(root!, "section_embed"), false);
-  const labels = collectSectionTemplateLayerLabels(root!);
-  assert.ok(labels.includes("Title"));
-  assert.ok(labels.includes("Description"));
-  assert.ok(labels.includes("Button Group"));
-  assert.ok(labels.includes("Primary Button"));
+  assertTemplateLayerLabels("hero-centered", [
+    "Intro Text",
+    "Title",
+    "Description",
+    "Button Group",
+    "Primary Button",
+  ]);
+});
+
+test("hero-split template exposes split layout layers", () => {
+  const root = buildAddGallerySectionTemplate("hero-split");
+  assert.ok(root);
+  assert.equal(root!.props.label, "Hero Split Image Section");
+  assertTemplateLayerLabels("hero-split", [
+    "Title",
+    "Description",
+    "Primary Button",
+    "Background Image",
+  ]);
+});
+
+test("hero-minimal template exposes title and primary button", () => {
+  assertTemplateLayerLabels("hero-minimal", [
+    "Title",
+    "Description",
+    "Primary Button",
+  ]);
+});
+
+test("hero-search template is freeform with search form and chips", () => {
+  const root = buildAddGallerySectionTemplate("hero-search");
+  assert.ok(root);
+  assert.equal(root!.props.label, "Hero Search Section");
+  assert.equal(sectionTemplateContainsKind(root!, "section_embed"), false);
+  assertTemplateLayerLabels("hero-search", [
+    "Intro Text",
+    "Title",
+    "Subtitle",
+    "Search Form",
+    "Button Group",
+    "Location Chips",
+    "Stats Text",
+  ]);
+  assert.equal(sectionTemplateContainsKind(root!, "form"), true);
+});
+
+test("about templates expose intro and description layers", () => {
+  assertTemplateLayerLabels("about", ["Intro Text", "Title", "Description"]);
+  assertTemplateLayerLabels("about-split", [
+    "Title",
+    "Description",
+    "Background Image",
+  ]);
+  assertTemplateLayerLabels("about-stats", [
+    "Title",
+    "Description",
+    "Stat Card",
+    "Stat Value",
+    "Stat Label",
+  ]);
+});
+
+test("services templates expose service layers", () => {
+  assertTemplateLayerLabels("services", [
+    "Title",
+    "Description",
+    "Service Card",
+    "Service Title",
+    "Service Description",
+  ]);
+  assertTemplateLayerLabels("services-list", [
+    "Title",
+    "Service Item 1",
+    "Service Item 2",
+    "Service Item 3",
+  ]);
+});
+
+test("gallery templates expose image layers", () => {
+  assertTemplateLayerLabels("gallery", [
+    "Title",
+    "Description",
+    "Gallery Grid",
+    "Gallery Image 1",
+  ]);
+  assertTemplateLayerLabels("gallery-strip", [
+    "Title",
+    "Description",
+    "Gallery Strip",
+    "Gallery Image 1",
+  ]);
+});
+
+test("connected wrapper templates include labeled embed child", () => {
+  const featured = buildAddGallerySectionTemplate("featured-talent-wrapper");
+  assert.ok(featured);
+  assert.equal(sectionTemplateContainsKind(featured!, "section_embed"), true);
+  assertTemplateLayerLabels("featured-talent-wrapper", [
+    "Intro Text",
+    "Title",
+    "Subtitle",
+    "See All Link",
+    "Talent Grid",
+  ]);
+
+  const roster = buildAddGallerySectionTemplate("roster-wrapper");
+  assert.ok(roster);
+  assertTemplateLayerLabels("roster-wrapper", [
+    "Title",
+    "Description",
+    "Directory Grid",
+  ]);
+});
+
+test("connected native templates agency-logo and inquiry-cta", () => {
+  assertTemplateLayerLabels("agency-logo", ["Title", "Logo Row", "Logo 1"]);
+  assertTemplateLayerLabels("inquiry-cta", [
+    "Title",
+    "Description",
+    "Primary Button",
+  ]);
 });
 
 test("testimonials-trio template exposes quote cards as freeform layers", () => {
@@ -51,13 +168,22 @@ test("cta-banner template is native freeform with CTA layers", () => {
   assert.ok(root);
   assert.equal(root!.props.label, "CTA Banner Section");
   assert.equal(sectionTemplateContainsKind(root!, "section_embed"), false);
-  const labels = collectSectionTemplateLayerLabels(root!);
-  assert.ok(labels.includes("Intro Text"));
-  assert.ok(labels.includes("Title"));
-  assert.ok(labels.includes("Description"));
-  assert.ok(labels.includes("Button Group"));
-  assert.ok(labels.includes("Primary Button"));
-  assert.ok(labels.includes("Reassurance Text"));
+  assertTemplateLayerLabels("cta-banner", [
+    "Intro Text",
+    "Title",
+    "Description",
+    "Button Group",
+    "Primary Button",
+    "Reassurance Text",
+  ]);
+});
+
+test("cta-split template exposes split CTA layers", () => {
+  assertTemplateLayerLabels("cta-split", [
+    "Title",
+    "Description",
+    "Primary Button",
+  ]);
 });
 
 test("faq-accordion template exposes accordion Q&A as freeform layers", () => {
@@ -71,18 +197,15 @@ test("faq-accordion template exposes accordion Q&A as freeform layers", () => {
   assert.ok(labels.includes("Answer"));
 });
 
-test("hero-search template is freeform with search form and chips", () => {
-  const root = buildAddGallerySectionTemplate("hero-search");
+test("contact-form template exposes labeled form layer", () => {
+  const root = buildAddGallerySectionTemplate("contact-form");
   assert.ok(root);
-  assert.equal(root!.props.label, "Hero Search Section");
-  assert.equal(sectionTemplateContainsKind(root!, "section_embed"), false);
-  const labels = collectSectionTemplateLayerLabels(root!);
-  assert.ok(labels.includes("Intro Text"));
-  assert.ok(labels.includes("Title"));
-  assert.ok(labels.includes("Subtitle"));
-  assert.ok(labels.includes("Search Form"));
-  assert.ok(labels.includes("Button Group"));
-  assert.ok(labels.includes("Location Chips"));
-  assert.ok(labels.includes("Stats Text"));
+  assert.equal(root!.props.label, "Contact Form Section");
+  assertTemplateLayerLabels("contact-form", [
+    "Intro Text",
+    "Title",
+    "Description",
+    "Contact Form",
+  ]);
   assert.equal(sectionTemplateContainsKind(root!, "form"), true);
 });

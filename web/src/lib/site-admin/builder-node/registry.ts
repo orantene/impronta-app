@@ -423,6 +423,7 @@ const masonryPropsSchema = z.object({
     .union([z.literal(2), z.literal(3), z.literal(4), z.literal(5)])
     .optional(),
   gap: z.enum(["s", "m", "l"]).optional(),
+  layerLabel: layerLabelSchema,
   style: builderNodeStyleSchema,
 });
 
@@ -522,6 +523,7 @@ const splitPropsSchema = z.object({
   ratio: z.enum(["50-50", "40-60", "60-40", "30-70", "70-30"]).optional(),
   gap: z.enum(["s", "m", "l"]).optional(),
   collapseOnMobile: z.boolean().optional(),
+  layerLabel: layerLabelSchema,
   style: builderNodeStyleSchema,
 });
 
@@ -561,6 +563,7 @@ const imagePropsSchema = z.object({
   src: z.string().max(2048),
   mediaId: z.string().uuid().optional(),
   alt: z.string().max(240).optional(),
+  layerLabel: layerLabelSchema,
   fieldBindings: fieldBindingPropsSchema.optional(),
   style: builderNodeStyleSchema,
 });
@@ -670,6 +673,7 @@ const sectionEmbedPropsSchema = z.object({
   sectionTypeKey: z.string().min(1).max(80),
   sectionId: z.string().uuid().nullable().optional(),
   dataBinding: dataBindingPropsSchema.optional(),
+  layerLabel: layerLabelSchema,
   config: z.record(z.string(), z.unknown()).optional(),
   // Wrapper-level style overrides (background, padding, margin, border, radius,
   // max-width, shadow…). Applied to the section_embed's wrapper <div> in the

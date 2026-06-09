@@ -531,6 +531,7 @@ export interface BuilderSplitNode extends BuilderNodeBase {
     ratio?: "50-50" | "40-60" | "60-40" | "30-70" | "70-30";
     gap?: "s" | "m" | "l";
     collapseOnMobile?: boolean;
+    layerLabel?: string;
     style?: BuilderNodeStyle;
   };
   children: BuilderNode[];
@@ -592,6 +593,7 @@ export interface BuilderMasonryNode extends BuilderNodeBase {
   props: {
     columns?: 2 | 3 | 4 | 5;
     gap?: "s" | "m" | "l";
+    layerLabel?: string;
     style?: BuilderNodeStyle;
   };
   children: BuilderNode[];
@@ -642,6 +644,7 @@ export interface BuilderImageNode extends BuilderNodeBase {
     src: string;
     mediaId?: string;
     alt?: string;
+    layerLabel?: string;
     fieldBindings?: BuilderNodeFieldBindings;
     style?: BuilderNodeStyle;
   };
@@ -822,6 +825,7 @@ export interface BuilderSectionEmbedNode extends BuilderNodeBase {
     sectionTypeKey: string;
     sectionId?: string | null;
     dataBinding?: BuilderDataBindingProps;
+    layerLabel?: string;
     config?: Record<string, unknown>;
     /**
      * Wrapper-level style overrides applied to the section_embed's wrapper
