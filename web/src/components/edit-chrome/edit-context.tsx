@@ -125,6 +125,12 @@ import {
   publishHoveredSectionId,
   publishHoveredBuilderNodeId,
 } from "./hover-bridge";
+import {
+  publishSelectedSectionId,
+  publishSelectedBuilderNodeId,
+  publishAdditionalSelectedIds,
+  publishAdditionalSelectedBuilderNodeIds,
+} from "./selection-bridge";
 import { publishDirty } from "./dirty-bridge";
 import {
   readOsBuilderClipboard,
@@ -312,8 +318,13 @@ export interface EditContextValue {
    *
    *  Sprint 4 — calling this with a new id ALSO clears the multi-set
    *  below (plain click semantics). Modifier-aware setters
-   *  (`extendSelection`, `toggleSelection`) preserve it. */
-  selectedSectionId: string | null;
+   *  (`extendSelection`, `toggleSelection`) preserve it.
+   *
+   *  W2 (selection-bridge) — the VALUE now lives in the `selection-bridge`
+   *  micro-store: read it with `useSelectedSectionId()` from
+   *  "./selection-bridge", NOT off the context (that kept it out of the
+   *  value-memo so a click no longer re-renders every consumer). Only the
+   *  setter remains on the context. */
   setSelectedSectionId: (id: string | null) => void;
 
   /** Preview toggle — when true, ALL editing chrome (selection rings,
@@ -332,8 +343,11 @@ export interface EditContextValue {
    *  ctrl-click. Full selection is `[selectedSectionId, ...additional]`
    *  (with nulls filtered). The inspector always binds to
    *  `selectedSectionId` only — multi-select is for BULK actions
-   *  (move/duplicate/hide/delete), not multi-edit. */
-  additionalSelectedIds: ReadonlySet<string>;
+   *  (move/duplicate/hide/delete), not multi-edit.
+   *
+   *  W2 (selection-bridge) — read the VALUE with `useAdditionalSelectedIds()`
+   *  from "./selection-bridge" (not off the context); only the mutators remain
+   *  here. */
   /** Add a section to the multi-set without unseating the primary. Shift-click. */
   extendSelection: (id: string) => void;
   /** Toggle a section in/out of the multi-set. Cmd-click. */
@@ -344,15 +358,21 @@ export interface EditContextValue {
    * BuilderNode identity for the primary selection. Today this resolves to
    * the section-node mirror of the selected cms section; future nested nodes
    * can keep the same selection contract without inventing a second editor.
+   *
+   * W2 (selection-bridge) — read the VALUE with `useSelectedBuilderNodeId()`
+   * from "./selection-bridge", NOT off the context; only the write API remains.
    */
-  selectedBuilderNodeId: string | null;
   /**
    * BuilderNode-first selection entrypoint.
    * Phase 4 bridge: today section nodes map to existing section selection;
    * future nested nodes can route through the same API without forking state.
    */
   selectBuilderNode: (nodeId: string) => void;
-  additionalSelectedBuilderNodeIds: ReadonlySet<string>;
+  /**
+   * W2 (selection-bridge) — read the VALUE with
+   * `useAdditionalSelectedBuilderNodeIds()` from "./selection-bridge"; only the
+   * mutators remain on the context.
+   */
   extendBuilderNodeSelection: (nodeId: string) => void;
   toggleBuilderNodeSelection: (nodeId: string) => void;
   replaceBuilderNodeSelection: (nodeIds: ReadonlyArray<string>) => void;
@@ -3504,6 +3524,25 @@ export function EditProvider({
   useEffect(() => {
     selectedBuilderNodeIdRef.current = selectedBuilderNodeId;
   }, [selectedBuilderNodeId]);
+  // W2 (selection-bridge) — selection now lives in the `selection-bridge`
+  // micro-store, NOT in this provider's `value` memo. We KEEP the React state
+  // above (the auto-clear effects depend on it) and PUBLISH each slice to the
+  // bridge here. A click used to rebuild the whole context value (selection sat
+  // in its useMemo deps) → all ~56 consumers re-rendered. Now only the handful
+  // of bridge subscribers re-render. The publishers no-op when unchanged
+  // (primitives by Object.is, Sets by membership) so they never over-notify.
+  useEffect(() => {
+    publishSelectedSectionId(selectedSectionId);
+  }, [selectedSectionId]);
+  useEffect(() => {
+    publishSelectedBuilderNodeId(selectedBuilderNodeId);
+  }, [selectedBuilderNodeId]);
+  useEffect(() => {
+    publishAdditionalSelectedIds(additionalSelectedIds);
+  }, [additionalSelectedIds]);
+  useEffect(() => {
+    publishAdditionalSelectedBuilderNodeIds(additionalSelectedBuilderNodeIds);
+  }, [additionalSelectedBuilderNodeIds]);
   const selectBuilderNode = useCallback(
     (nodeId: string) => {
       if (!treeContainsBuilderNodeId(builderTree, nodeId)) return;
@@ -7130,17 +7169,19 @@ export function EditProvider({
       defaultLocale,
       pageSlug,
       pageId,
-      selectedSectionId,
+      // W2 (selection-bridge) — selectedSectionId / selectedBuilderNodeId +
+      // the two multi-select Sets are READ via the selection-bridge hooks
+      // (useSelectedSectionId / useSelectedBuilderNodeId /
+      // useAdditionalSelectedIds / useAdditionalSelectedBuilderNodeIds), NOT
+      // off the context, so a selection change no longer rebuilds this value.
+      // Only the WRITE API (setters + mutators) stays on the context.
       setSelectedSectionId,
       previewing,
       setPreviewing,
-      additionalSelectedIds,
       extendSelection,
       toggleSelection,
 	      getAllSelectedIds,
-	      selectedBuilderNodeId,
 	      selectBuilderNode,
-	      additionalSelectedBuilderNodeIds,
 	      extendBuilderNodeSelection,
 	      toggleBuilderNodeSelection,
 	      replaceBuilderNodeSelection,
@@ -7370,16 +7411,12 @@ export function EditProvider({
       defaultLocale,
       pageSlug,
       pageId,
-      selectedSectionId,
       previewing,
       setPreviewing,
-      additionalSelectedIds,
       extendSelection,
       toggleSelection,
 	      getAllSelectedIds,
-	      selectedBuilderNodeId,
 	      selectBuilderNode,
-	      additionalSelectedBuilderNodeIds,
 	      extendBuilderNodeSelection,
 	      toggleBuilderNodeSelection,
 	      replaceBuilderNodeSelection,

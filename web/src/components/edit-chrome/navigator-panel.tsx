@@ -80,6 +80,11 @@ import { sectionDisplayName } from "@/lib/site-admin/section-display-name";
 import type { SectionVisibility as SectionVisibilityT } from "@/lib/site-admin/edit-mode/section-actions";
 
 import { useEditContext } from "./edit-context";
+import {
+  useSelectedSectionId,
+  useSelectedBuilderNodeId,
+  useAdditionalSelectedIds,
+} from "./selection-bridge";
 import { BuilderCoachmarkTip } from "./builder-coachmark-tip";
 import { FreeformLayersTree } from "./freeform-layers-tree";
 import { locateCanvasNode } from "./freeform-layer-row";
@@ -243,13 +248,10 @@ export function NavigatorPanel() {
   const { t } = useEditorLocale();
   const {
     tenantId,
-    selectedSectionId,
-    selectedBuilderNodeId,
     setSelectedSectionId,
     selectBuilderNode,
     extendBuilderNodeSelection,
     focusSectionForEdit,
-    additionalSelectedIds,
     extendSelection,
     toggleSelection,
     renameSection,
@@ -286,6 +288,12 @@ export function NavigatorPanel() {
     advancedElementLibraryEnabled,
     canInsertRawHtmlElements,
   } = useEditContext();
+  // W2 (selection-bridge) — selection VALUES from the micro-store. The navigator
+  // highlights the selected row + auto-expands to it, so these subscriptions are
+  // what drive its re-render on selection change.
+  const selectedSectionId = useSelectedSectionId();
+  const selectedBuilderNodeId = useSelectedBuilderNodeId();
+  const additionalSelectedIds = useAdditionalSelectedIds();
 
   const [search, setSearch] = useState("");
   const [draggingId, setDraggingId] = useState<string | null>(null);

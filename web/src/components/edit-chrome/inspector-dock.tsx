@@ -39,6 +39,10 @@ import {
 import { SECTION_EDITOR_REGISTRY } from "@/lib/site-admin/sections/registry-editors";
 import type { LoadedSection } from "./edit-context";
 import { useEditContext } from "./edit-context";
+import {
+  useSelectedSectionId,
+  useSelectedBuilderNodeId,
+} from "./selection-bridge";
 import { useInspectorRailCoupling } from "./use-inspector-rail-coupling";
 import { useDirty } from "./dirty-bridge";
 import { ContentTab } from "./inspectors/content-dispatch";
@@ -237,8 +241,6 @@ function cleanSectionName(raw: string | null | undefined): string | null {
 export function InspectorDock() {
   const {
     tenantId,
-    selectedSectionId,
-    selectedBuilderNodeId,
     setSelectedSectionId,
     focusSectionForEdit,
     selectBuilderNode,
@@ -264,6 +266,11 @@ export function InspectorDock() {
     setInspectorActiveTab,
     inspectorTabRequest,
   } = useEditContext();
+  // W2 (selection-bridge) — selection VALUES from the micro-store. The dock
+  // re-renders on selection change via these subscriptions (it loads the
+  // selected section + drives the inspector tabs), which is exactly correct.
+  const selectedSectionId = useSelectedSectionId();
+  const selectedBuilderNodeId = useSelectedBuilderNodeId();
   // W2-T4 — `dirty` VALUE from the dirty-bridge (setter stays on context).
   const dirty = useDirty();
 

@@ -16,6 +16,7 @@ import {
   type BuilderComponentRow,
 } from "@/lib/site-admin/edit-mode/builder-components-action";
 import { useEditContext } from "../edit-context";
+import { useSelectedBuilderNodeId } from "../selection-bridge";
 import { KIT } from "./kit/tokens";
 
 export function MyBlocksPanel({
@@ -30,8 +31,9 @@ export function MyBlocksPanel({
     syncComponentInstances,
     saveSelectedNodeAsComponent,
     updateSelectedNodeAsComponent,
-    selectedBuilderNodeId,
   } = useEditContext();
+  // W2 (selection-bridge) — selection VALUE from the micro-store.
+  const selectedBuilderNodeId = useSelectedBuilderNodeId();
   const [components, setComponents] = useState<
     ReadonlyArray<BuilderComponentRow>
   >([]);

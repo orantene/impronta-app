@@ -4,6 +4,10 @@ import { cleanSectionName as cleanSectionNameRaw } from "@/lib/site-admin/clean-
 
 import { useEditContext } from "./edit-context";
 import {
+  useSelectedSectionId,
+  useSelectedBuilderNodeId,
+} from "./selection-bridge";
+import {
   humanizeSectionTypeKey,
   inspectorTabItemsForKeys,
   resolveInspectorVisibleTabs,
@@ -18,13 +22,10 @@ function cleanSectionName(raw: string | null | undefined): string | null {
 }
 
 export function useInspectorVisibleTabs() {
-  const {
-    selectedSectionId,
-    selectedBuilderNodeId,
-    loadedSection,
-    slots,
-    builderTree,
-  } = useEditContext();
+  const { loadedSection, slots, builderTree } = useEditContext();
+  // W2 (selection-bridge) — selection VALUES from the micro-store.
+  const selectedSectionId = useSelectedSectionId();
+  const selectedBuilderNodeId = useSelectedBuilderNodeId();
 
   const selectedStandaloneBuilderNode = resolveStandaloneBuilderNodeForContent(
     builderTree,

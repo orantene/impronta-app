@@ -95,6 +95,12 @@ import {
   useHoveredSectionId,
   useHoveredBuilderNodeId,
 } from "./hover-bridge";
+import {
+  useSelectedSectionId,
+  useSelectedBuilderNodeId,
+  useAdditionalSelectedIds,
+  useAdditionalSelectedBuilderNodeIds,
+} from "./selection-bridge";
 import { CanvasMoveHandle, parseTranslate } from "./canvas-move-handle";
 import { CanvasResizeHandles } from "./canvas-resize-handles";
 import {
@@ -620,12 +626,9 @@ const NON_EJECTABLE_SECTION_TYPE_KEYS = new Set<string>([
 
 export function SelectionLayer() {
   const {
-    selectedSectionId,
-    selectedBuilderNodeId,
     setSelectedSectionId,
     focusSectionForEdit,
     selectBuilderNode,
-    additionalSelectedBuilderNodeIds,
     extendBuilderNodeSelection,
     toggleBuilderNodeSelection,
     replaceBuilderNodeSelection,
@@ -641,7 +644,6 @@ export function SelectionLayer() {
     copySelectedBuilderNodes,
     cutSelectedBuilderNodes,
     pasteBuilderNodeClipboard,
-    additionalSelectedIds,
     extendSelection,
     toggleSelection,
     getAllSelectedIds,
@@ -693,6 +695,14 @@ export function SelectionLayer() {
   // on a hover — but a hover no longer re-renders the rest of the chrome.
   const hoveredSectionId = useHoveredSectionId();
   const hoveredBuilderNodeId = useHoveredBuilderNodeId();
+  // W2 (selection-bridge) — selection VALUES from the micro-store. The canvas
+  // overlay draws the selection ring(s) + multi-select handles, so it subscribes
+  // here and re-renders on a selection change (the rest of the chrome no longer
+  // does).
+  const selectedSectionId = useSelectedSectionId();
+  const selectedBuilderNodeId = useSelectedBuilderNodeId();
+  const additionalSelectedIds = useAdditionalSelectedIds();
+  const additionalSelectedBuilderNodeIds = useAdditionalSelectedBuilderNodeIds();
   const styleClassRegistry = useSyncExternalStore(
     subscribeStyleClassRegistry,
     getStyleClassRegistrySnapshot,

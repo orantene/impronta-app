@@ -58,6 +58,10 @@ import { useEffect, useRef } from "react";
 
 import { useEditContext } from "./edit-context";
 import { useHoveredSectionId } from "./hover-bridge";
+import {
+  useSelectedSectionId,
+  useSelectedBuilderNodeId,
+} from "./selection-bridge";
 
 // Discriminated union of all bridge messages. Used as a runtime
 // guard via the `type` string and as the typescript shape for
@@ -102,13 +106,15 @@ function isBridgeMessage(data: unknown): data is BridgeMessage {
  */
 export function IframeBridgeChild() {
   const {
-    selectedSectionId,
-    selectedBuilderNodeId,
     selectBuilderNode,
     setSelectedSectionId,
     focusSectionForEdit,
     setPreviewing,
   } = useEditContext();
+  // W2 (selection-bridge) — selection VALUES from the micro-store (this child
+  // re-broadcasts them cross-frame, so it legitimately subscribes).
+  const selectedSectionId = useSelectedSectionId();
+  const selectedBuilderNodeId = useSelectedBuilderNodeId();
   // W2-T3 — hovered-section VALUE from the bridge (this component re-broadcasts
   // it cross-frame, so it legitimately subscribes; the setter on the second
   // useEditContext below is unchanged).
@@ -222,14 +228,15 @@ export function IframeBridgeChild() {
  */
 export function IframeBridgeParent() {
   const {
-    selectedSectionId,
-    selectedBuilderNodeId,
     selectBuilderNode,
     focusSectionForEdit,
     setHoveredSectionId,
     device,
     previewing,
   } = useEditContext();
+  // W2 (selection-bridge) — selection VALUES from the micro-store.
+  const selectedSectionId = useSelectedSectionId();
+  const selectedBuilderNodeId = useSelectedBuilderNodeId();
 
   // Track the last selection we POSTED to the iframe so we don't echo
   // a child-originated selection back as a parent-driven setSelection

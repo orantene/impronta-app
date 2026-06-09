@@ -37,6 +37,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useEditContext } from "./edit-context";
+import { useSelectedSectionId } from "./selection-bridge";
 import { MediaPickerDialog } from "./media-picker-dialog";
 import { findPathByValue, setByPath } from "@/lib/site-admin/edit-mode/prop-path";
 import { CanvasEditOverlay } from "./rich-editor";
@@ -90,7 +91,6 @@ const SINGLE_LINE_TAGS = new Set([
 export function InlineEditor() {
   const {
     tenantId,
-    selectedSectionId,
     builderTree,
     draftProps,
     patchBuilderNodeProps,
@@ -99,6 +99,8 @@ export function InlineEditor() {
     setDraftProps,
     setDirty,
   } = useEditContext();
+  // W2 (selection-bridge) — selected-section VALUE from the micro-store.
+  const selectedSectionId = useSelectedSectionId();
 
   const [mediaOpen, setMediaOpen] = useState(false);
   const targetImgRef = useRef<TargetImageEdit | null>(null);
