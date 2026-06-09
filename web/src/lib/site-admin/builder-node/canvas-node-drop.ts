@@ -49,11 +49,21 @@ export interface CanvasDropCandidate {
   children: ReadonlyArray<{ nodeId: string; top: number; bottom: number }>;
 }
 
+export interface PageRootDropRow {
+  nodeId: string;
+  top: number;
+  bottom: number;
+  left: number;
+  width: number;
+  /** Root `builderTree` index from `data-block-index` when present. */
+  blockIndex?: number;
+}
+
 export interface CanvasDropResult {
-  /** Container the element will land inside. */
-  parentNodeId: string;
-  /** The resolved parent container's own kind (drives the reparent label). */
-  parentKind: BuilderNodeKind;
+  /** Container the element will land inside; `null` = page root. */
+  parentNodeId: string | null;
+  /** The resolved parent container's own kind; `null` when landing at page root. */
+  parentKind: BuilderNodeKind | null;
   /**
    * Viewport rect of the resolved parent container. Lets the canvas chrome
    * outline the would-be parent (drop-target highlight + reparent/nesting
@@ -158,5 +168,55 @@ export function resolveCanvasNodeDrop(input: {
     indicatorY,
     indicatorLeft: parent.rect.left,
     indicatorWidth: parent.rect.width,
+  };
+}
+
+/**
+ * Resolve a drop onto the page root (builderTree top level). Add Gallery
+ * section templates and connected embeds always insert here — never nested
+ * inside inner containers where `section` / `section_embed` are rejected.
+ */
+export function resolvePageRootDrop(input: {
+  cursorY: number;
+  draggedKind: BuilderNodeKind;
+  rootRows: ReadonlyArray<PageRootDropRow>;
+  bounds: { top: number; bottom: number; left: number; width: number };
+}): CanvasDropResult {
+  const { cursorY, draggedKind, rootRows, bounds } = input;
+  const siblings = [...rootRows].sort((a, b) => a.top - b.top);
+
+  let index = siblings.length;
+  let indicatorY = bounds.bottom;
+  for (let i = 0; i < siblings.length; i += 1) {
+    const row = siblings[i]!;
+    const mid = (row.top + row.bottom) / 2;
+    if (cursorY < mid) {
+      index = i;
+      indicatorY = row.top;
+      break;
+    }
+    index = i + 1;
+    indicatorY = row.bottom;
+  }
+
+  const allowed = canDropBuilderNode({
+    nodeKind: draggedKind,
+    parentKind: null,
+  }).ok;
+
+  return {
+    parentNodeId: null,
+    parentKind: null,
+    parentRect: {
+      top: bounds.top,
+      left: bounds.left,
+      width: bounds.width,
+      height: Math.max(0, bounds.bottom - bounds.top),
+    },
+    index,
+    allowed,
+    indicatorY,
+    indicatorLeft: bounds.left,
+    indicatorWidth: bounds.width,
   };
 }

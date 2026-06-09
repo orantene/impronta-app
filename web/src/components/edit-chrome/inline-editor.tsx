@@ -42,10 +42,13 @@ import { findPathByValue, setByPath } from "@/lib/site-admin/edit-mode/prop-path
 import { CanvasEditOverlay } from "./rich-editor";
 import { flushCanvasTextStylePatches } from "./canvas-lexical-bridge";
 import {
-  resolveBuilderNodeRole,
-  type BuilderNode,
-  type BuilderNodeTree,
-} from "@/lib/site-admin/builder-node";
+  findBuilderNodeById,
+  resolveBuilderNodeTextValue,
+  resolveEditableBuilderNodeImageTarget,
+  resolveEditableBuilderNodeTextTarget,
+  resolveSectionEmbedConfigTextValue,
+} from "./inline-editor-builder-resolvers";
+import type { BuilderNodeTree } from "@/lib/site-admin/builder-node";
 
 type Banner =
   | { kind: "none" }
@@ -60,6 +63,8 @@ interface ActiveTextEdit {
   builderNode?: {
     id: string;
     propKey: "text" | "label" | "title" | "brand";
+    /** Patches `section_embed.props.config[sectionEmbedConfigKey]` when set. */
+    sectionEmbedConfigKey?: string;
   };
 }
 
@@ -173,6 +178,27 @@ export function InlineEditor() {
         });
         return;
       }
+      if (target.sectionEmbedConfigKey) {
+        const node = findBuilderNodeById(builderTreeRef.current, target.id);
+        if (!node || node.kind !== "section_embed") {
+          setBanner({
+            kind: "error",
+            text: "Couldn't find this Tulala component to save.",
+          });
+          return;
+        }
+        const config = {
+          ...((node.props.config ?? {}) as Record<string, unknown>),
+          [target.sectionEmbedConfigKey]: next.trim(),
+        };
+        const result = await patchBuilderNodeProps(target.id, { config });
+        if (!result.ok) {
+          const text = result.error ?? "Couldn't save this block. Try the inspector.";
+          reportMutationError(text);
+          setBanner({ kind: "error", text });
+        }
+        return;
+      }
       const result = await patchBuilderNodeProps(target.id, {
         [target.propKey]: next.trim(),
       });
@@ -217,6 +243,13 @@ export function InlineEditor() {
             (n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim(),
           );
           if (hasOwnText) return el;
+          // Rich-text headings/paragraphs render copy in child spans only.
+          if (
+            (/^H[1-6]$/.test(el.tagName) || el.tagName === "P") &&
+            (el.textContent ?? "").trim()
+          ) {
+            return el;
+          }
         }
         el = el.parentElement;
       }
@@ -255,11 +288,17 @@ export function InlineEditor() {
       if (builderNodeTarget) {
         // Resolve the stored value BEFORE the empty check so a heading that
         // contains only styled spans (empty DOM text) doesn't block.
-        const storedValue = resolveBuilderNodeTextValue(
-          builderTreeRef.current,
-          builderNodeTarget.id,
-          builderNodeTarget.propKey,
-        );
+        const storedValue = builderNodeTarget.sectionEmbedConfigKey
+          ? resolveSectionEmbedConfigTextValue(
+              builderTreeRef.current,
+              builderNodeTarget.id,
+              builderNodeTarget.sectionEmbedConfigKey,
+            )
+          : resolveBuilderNodeTextValue(
+              builderTreeRef.current,
+              builderNodeTarget.id,
+              builderNodeTarget.propKey,
+            );
         const original =
           storedValue !== null
             ? storedValue
@@ -334,11 +373,17 @@ export function InlineEditor() {
   // Undo/redo while inline edit is open — remount the overlay from stored copy.
   useEffect(() => {
     if (!activeEdit?.builderNode) return;
-    const stored = resolveBuilderNodeTextValue(
-      builderTree,
-      activeEdit.builderNode.id,
-      activeEdit.builderNode.propKey,
-    );
+    const stored = activeEdit.builderNode.sectionEmbedConfigKey
+      ? resolveSectionEmbedConfigTextValue(
+          builderTree,
+          activeEdit.builderNode.id,
+          activeEdit.builderNode.sectionEmbedConfigKey,
+        )
+      : resolveBuilderNodeTextValue(
+          builderTree,
+          activeEdit.builderNode.id,
+          activeEdit.builderNode.propKey,
+        );
     if (stored === null) return;
     setActiveEdit((prev) => {
       if (!prev?.builderNode) return prev;
@@ -640,129 +685,3 @@ function resolveOriginalImageSrc(src: string): string {
   return src;
 }
 
-function findBuilderNodeById(
-  tree: BuilderNodeTree,
-  nodeId: string | null,
-): BuilderNode | null {
-  if (!nodeId) return null;
-  const queue = [...tree];
-  while (queue.length > 0) {
-    const current = queue.shift() ?? null;
-    if (!current) continue;
-    if (current.id === nodeId) return current;
-    if ("children" in current && Array.isArray(current.children)) {
-      queue.unshift(...current.children);
-    }
-  }
-  return null;
-}
-
-/**
- * #16 Inline-edit everywhere — resolve the prop key and editing variant for any
- * text-bearing builder node. Fast-path: reads `data-builder-node-kind` from the
- * DOM attr set by render.tsx. Slow-path: tree lookup for nodes whose kind was
- * not yet in the original DOM-attr fast-path list.
- *
- * Extended in Wave 3 · 3D to cover `nav` (brand), `icon` (label), and
- * `accordion_item` / `tab_panel` titles already covered by the data-attr path.
- */
-function resolveEditableBuilderNodeTextTarget(
-  tree: BuilderNodeTree,
-  el: HTMLElement,
-): {
-  id: string;
-  propKey: "text" | "label" | "title" | "brand";
-  variant: "single" | "multi";
-} | null {
-  const nodeEl = el.closest<HTMLElement>("[data-builder-node-id]");
-  const nodeId = nodeEl?.getAttribute("data-builder-node-id") ?? null;
-  if (!nodeId || resolveBuilderNodeRole(nodeId)) return null;
-  const renderedKind = nodeEl?.getAttribute("data-builder-node-kind");
-  // Fast-path — kind is present on the DOM element (covers all builder-node render cases).
-  if (renderedKind === "heading") {
-    return { id: nodeId, propKey: "text", variant: "single" };
-  }
-  if (renderedKind === "paragraph") {
-    return { id: nodeId, propKey: "text", variant: "multi" };
-  }
-  if (renderedKind === "rich_text") {
-    return { id: nodeId, propKey: "text", variant: "multi" };
-  }
-  if (renderedKind === "button") {
-    return { id: nodeId, propKey: "label", variant: "single" };
-  }
-  if (renderedKind === "accordion_item" || renderedKind === "tab_panel") {
-    return { id: nodeId, propKey: "title", variant: "single" };
-  }
-  if (renderedKind === "icon") {
-    // Only editable if it has a label (decorative icons have none).
-    const node = findBuilderNodeById(tree, nodeId);
-    if (node?.kind === "icon" && node.props.label) {
-      return { id: node.id, propKey: "label", variant: "single" };
-    }
-    return null;
-  }
-  if (renderedKind === "nav") {
-    // Only the brand name (wordmark) is inline-editable; link labels are in
-    // the inspector table. Check whether the click landed on the brand element.
-    const brandEl = nodeEl?.querySelector(".site-builder-node--nav-brand");
-    if (brandEl && (brandEl === el || brandEl.contains(el))) {
-      const node = findBuilderNodeById(tree, nodeId);
-      if (node?.kind === "nav" && node.props.brand) {
-        return { id: node.id, propKey: "brand", variant: "single" };
-      }
-    }
-    return null;
-  }
-  // Slow-path — tree lookup for any remaining text-bearing kinds.
-  const node = findBuilderNodeById(tree, nodeId);
-  if (!node || node.kind === "section") return null;
-  if (node.kind === "heading") return { id: node.id, propKey: "text", variant: "single" };
-  if (node.kind === "paragraph") return { id: node.id, propKey: "text", variant: "multi" };
-  if (node.kind === "rich_text") return { id: node.id, propKey: "text", variant: "multi" };
-  if (node.kind === "button") return { id: node.id, propKey: "label", variant: "single" };
-  if (node.kind === "accordion_item" || node.kind === "tab_panel") {
-    return { id: node.id, propKey: "title", variant: "single" };
-  }
-  if (node.kind === "icon" && node.props.label) {
-    return { id: node.id, propKey: "label", variant: "single" };
-  }
-  if (node.kind === "nav" && node.props.brand) {
-    const brandEl = nodeEl?.querySelector(".site-builder-node--nav-brand");
-    if (brandEl && (brandEl === el || brandEl.contains(el))) {
-      return { id: node.id, propKey: "brand", variant: "single" };
-    }
-  }
-  return null;
-}
-
-/**
- * #16 Retrieve the STORED prop value for a builder node's text field so the
- * inline editor gets the full marker syntax (e.g. `**bold**`) rather than the
- * plain-text DOM rendering. Returns null if the node / prop is not found.
- */
-function resolveBuilderNodeTextValue(
-  tree: BuilderNodeTree,
-  nodeId: string,
-  propKey: "text" | "label" | "title" | "brand",
-): string | null {
-  const node = findBuilderNodeById(tree, nodeId);
-  if (!node) return null;
-  if ("props" in node) {
-    const props = node.props as Record<string, unknown>;
-    const value = props[propKey];
-    if (typeof value === "string") return value;
-  }
-  return null;
-}
-
-function resolveEditableBuilderNodeImageTarget(
-  tree: BuilderNodeTree,
-  img: HTMLImageElement,
-): { id: string } | null {
-  const nodeEl = img.closest<HTMLElement>("[data-builder-node-id]");
-  const nodeId = nodeEl?.getAttribute("data-builder-node-id") ?? null;
-  if (!nodeId || resolveBuilderNodeRole(nodeId)) return null;
-  const node = findBuilderNodeById(tree, nodeId);
-  return node?.kind === "image" ? { id: node.id } : null;
-}

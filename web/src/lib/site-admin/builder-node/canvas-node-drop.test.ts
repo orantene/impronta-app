@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import {
   resolveCanvasNodeDrop,
+  resolvePageRootDrop,
   type CanvasDropCandidate,
 } from "./canvas-node-drop";
 
@@ -239,4 +240,34 @@ test("nested drop reports the INNER container's rect, not the outer's", () => {
   assert.equal(result.parentNodeId, "inner");
   assert.equal(result.parentRect.left, 20);
   assert.equal(result.parentRect.width, 300);
+});
+
+test("page root drop inserts section before first root row", () => {
+  const result = resolvePageRootDrop({
+    cursorY: 50,
+    draggedKind: "section",
+    rootRows: [
+      { nodeId: "a", top: 100, bottom: 200, left: 0, width: 800 },
+      { nodeId: "b", top: 220, bottom: 320, left: 0, width: 800 },
+    ],
+    bounds: { top: 100, bottom: 320, left: 0, width: 800 },
+  });
+  assert.equal(result.parentNodeId, null);
+  assert.equal(result.index, 0);
+  assert.equal(result.allowed, true);
+  assert.equal(result.indicatorY, 100);
+});
+
+test("page root drop appends after last root row", () => {
+  const result = resolvePageRootDrop({
+    cursorY: 400,
+    draggedKind: "section_embed",
+    rootRows: [
+      { nodeId: "a", top: 100, bottom: 200, left: 0, width: 800 },
+    ],
+    bounds: { top: 100, bottom: 200, left: 0, width: 800 },
+  });
+  assert.equal(result.index, 1);
+  assert.equal(result.allowed, true);
+  assert.equal(result.indicatorY, 200);
 });

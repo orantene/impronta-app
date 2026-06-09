@@ -1,5 +1,11 @@
 import { BUILDER_NODE_REGISTRY } from "./registry";
 import { builderNodeKindAllowedAtRoot } from "./drop-policy";
+import {
+  buildConvertedTextNode,
+  builderTextRoleSupported,
+  resolveBuilderTextRoleFromNode,
+  type BuilderTextRoleId,
+} from "./text-role";
 import type { BuilderNode, BuilderNodeTree } from "./types";
 import { validateBuilderNodeTree } from "./validate";
 
@@ -848,6 +854,73 @@ export function patchBuilderNodeProps(input: {
     ...input.patch,
   };
   (target as unknown as { props: unknown }).props = mergedProps;
+  return finalizeMutatedTree(input.tree, nextTree);
+}
+
+export function convertBuilderTextNodeRole(input: {
+  tree: BuilderNodeTree;
+  nodeId: string;
+  role: BuilderTextRoleId;
+}): BuilderNodeOpResult {
+  const location = findNodeLocation(input.tree, input.nodeId);
+  if (!location) {
+    return {
+      ok: false,
+      code: "NODE_NOT_FOUND",
+      message: `Node "${input.nodeId}" was not found.`,
+      issues: missingNodeIssue(input.nodeId),
+    };
+  }
+  if (!builderTextRoleSupported(location.node)) {
+    return {
+      ok: false,
+      code: "INVALID_MOVE_TARGET",
+      message: "Only heading and paragraph blocks can change text style.",
+      issues: [
+        {
+          path: "target.node",
+          message: "Select a heading or paragraph block.",
+        },
+      ],
+    };
+  }
+  if (resolveBuilderTextRoleFromNode(location.node) === input.role) {
+    return {
+      ok: false,
+      code: "NO_CHANGE",
+      message: "No changes to apply.",
+      issues: [],
+    };
+  }
+  const nextTree = cloneTree(input.tree);
+  const children = getChildrenRefAtPath(nextTree, location.parentPath);
+  if (!children) {
+    return {
+      ok: false,
+      code: "NODE_NOT_FOUND",
+      message: "Parent container for that text block was not found.",
+      issues: missingNodeIssue(input.nodeId),
+    };
+  }
+  const parentKind =
+    location.parentPath.length === 0
+      ? null
+      : getNodeByPath(nextTree, location.parentPath)?.kind ?? null;
+  const converted = buildConvertedTextNode(location.node, input.role);
+  if (parentKind && !childAllowed(parentKind, converted.kind)) {
+    return {
+      ok: false,
+      code: "CHILD_KIND_NOT_ALLOWED",
+      message: `Child kind "${converted.kind}" is not allowed under "${parentKind}".`,
+      issues: [
+        {
+          path: "target.parent",
+          message: `Allowed child kinds: ${allowedChildKindsSummary(parentKind)}.`,
+        },
+      ],
+    };
+  }
+  children[location.index] = converted;
   return finalizeMutatedTree(input.tree, nextTree);
 }
 

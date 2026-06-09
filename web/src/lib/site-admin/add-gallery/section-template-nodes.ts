@@ -17,23 +17,25 @@ import type {
 /** Operator-facing layer name stored on node props (display-only). */
 export type SectionTemplateLayerLabel = string;
 
-function withLayerLabel<P extends { layerLabel?: string }>(
-  props: P,
+function withLayerLabel<T extends object>(
+  props: T,
   layerLabel?: SectionTemplateLayerLabel,
-): P {
-  return layerLabel ? { ...props, layerLabel } : props;
+): T & { layerLabel?: string } {
+  return layerLabel ? { ...props, layerLabel } : (props as T & { layerLabel?: string });
 }
 
+/**
+ * Root gallery block — a freeform `container`, not a legacy `section` shell.
+ * Legacy `section` nodes are slot-bound composition wrappers; Add Gallery
+ * templates need full container drop/edit freedom from day one.
+ */
 export function tplSection(label: string, children: BuilderNode[]): BuilderNode {
-  return {
-    id: makeId("section"),
-    kind: "section",
-    props: {
-      sectionTypeKey: "custom",
-      label,
-    },
-    children,
-  };
+  return tplContainer(children, {
+    layerLabel: label,
+    layout: "stack",
+    gap: "m",
+    align: "stretch",
+  });
 }
 
 export function tplContainer(
@@ -57,12 +59,13 @@ export function tplContainer(
     };
   } = {},
 ): BuilderNode {
-  const { layerLabel, responsive, ...rest } = options;
+  const { layerLabel, responsive, layout = "stack", ...rest } = options;
   return {
     id: makeId("container"),
     kind: "container",
     props: withLayerLabel(
       {
+        layout,
         ...rest,
         responsive,
       },
@@ -200,7 +203,7 @@ export function tplButton(
 export function tplIcon(
   options: {
     layerLabel?: SectionTemplateLayerLabel;
-    icon?: string;
+    icon?: "check" | "sparkle" | "star" | "heart" | "arrow_right" | "calendar" | "map_pin" | "mail" | "phone" | "play" | "users" | "camera";
     label?: string;
     size?: "sm" | "md" | "lg";
   } = {},
@@ -225,9 +228,11 @@ export function tplImageLayer(
   style?: BuilderNodeStyle,
 ): BuilderNode {
   const image = createImage(index, style);
+  if (image.kind !== "image") return image;
   return {
-    ...image,
-    props: withLayerLabel(image.props as { layerLabel?: string }, layerLabel),
+    id: image.id,
+    kind: "image",
+    props: { ...image.props, layerLabel },
   };
 }
 
@@ -385,13 +390,11 @@ export function tplSectionEmbed(
   return {
     id: makeId("section_embed"),
     kind: "section_embed",
-    props: withLayerLabel(
-      {
-        sectionTypeKey,
-        config,
-      },
+    props: {
+      sectionTypeKey,
+      ...(config !== undefined ? { config } : {}),
       layerLabel,
-    ),
+    },
   };
 }
 
@@ -399,11 +402,11 @@ export function tplContactForm(): BuilderNode {
   return {
     id: makeId("form"),
     kind: "form",
-    props: withLayerLabel(
-      {
-        action: "internal",
-        honeypotName: "website",
-        fields: [
+    props: {
+      action: "internal",
+      honeypotName: "website",
+      layerLabel: "Contact Form",
+      fields: [
           {
             id: crypto.randomUUID(),
             name: "name",
@@ -441,8 +444,6 @@ export function tplContactForm(): BuilderNode {
           width: "100%",
         },
       },
-      "Contact Form",
-    ),
   };
 }
 
@@ -453,11 +454,11 @@ export function tplDirectorySearchForm(
   return {
     id: makeId("form"),
     kind: "form",
-    props: withLayerLabel(
-      {
-        action: "/directory",
-        method: "get",
-        fields: [
+    props: {
+      action: "/directory",
+      method: "get",
+      layerLabel: "Search Form",
+      fields: [
           {
             id: crypto.randomUUID(),
             name: "q",
@@ -480,8 +481,6 @@ export function tplDirectorySearchForm(
           width: "100%",
         },
       },
-      "Search Form",
-    ),
   };
 }
 
@@ -543,7 +542,7 @@ export function tplFaqItem(question: string, answer: string): BuilderNode {
       {
         id: makeId("paragraph"),
         kind: "paragraph",
-        props: withLayerLabel({ text: answer }, "Answer"),
+        props: { text: answer, layerLabel: "Answer" },
       },
     ],
   };
@@ -555,7 +554,7 @@ export function tplFaqAccordion(
   return {
     id: makeId("accordion"),
     kind: "accordion",
-    props: withLayerLabel({ allowMultiple: false }, "FAQ Accordion"),
+    props: { allowMultiple: false, layerLabel: "FAQ Accordion" },
     children: items.map((item) => tplFaqItem(item.question, item.answer)),
   };
 }

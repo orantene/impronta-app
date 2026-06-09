@@ -613,6 +613,22 @@ export async function loadHomepageCompositionAction(input: {
     }
   }
 
+  const legacyBuilderSlots: LegacySnapshotSlot[] = comp
+    ? comp.slots.map((row) => ({
+        slotKey: row.slotKey,
+        sortOrder: row.sortOrder,
+        sectionId: row.sectionId,
+        sectionTypeKey: row.sectionTypeKey,
+        name: row.name,
+        props: row.props ?? {},
+      }))
+    : [];
+  const preferredHomepageBuilderTree =
+    (isFreeformPage ? draftRevisionBuilderTree : undefined) ??
+    (comp?.builderTree && comp.builderTree.length > 0
+      ? comp.builderTree
+      : undefined);
+
   return {
     ok: true,
     data: {
@@ -632,11 +648,12 @@ export async function loadHomepageCompositionAction(input: {
         noindex: page.noindex,
       },
       slots,
-      builderTree:
-        (isFreeformPage ? draftRevisionBuilderTree : undefined) ??
-        (comp?.builderTree && comp.builderTree.length > 0
-          ? comp.builderTree
-          : buildBuilderTreeFromCompositionSlots(slots)),
+      builderTree: preferredHomepageBuilderTree
+        ? resolveBuilderTreeForSnapshot({
+            slots: legacyBuilderSlots,
+            preferredBuilderTree: preferredHomepageBuilderTree,
+          })
+        : buildBuilderTreeFromCompositionSlots(slots),
       styleClasses: draftRevisionStyleClasses,
       slotDefs,
       library,

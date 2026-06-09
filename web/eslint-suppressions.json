@@ -303,7 +303,7 @@
   },
   "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-identity-editor.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 42
+      "count": 35
     }
   },
   "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-identity-fields.tsx": {
@@ -1335,9 +1335,6 @@
     }
   },
   "src/components/edit-chrome/rich-editor/CanvasEditOverlay.tsx": {
-    "ratchet/no-new-hook-deps-disable": {
-      "count": 1
-    },
     "react-hooks/immutability": {
       "count": 1
     }

@@ -461,6 +461,7 @@ function GalleryCard(props: {
 
 export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
   const {
+    builderTree,
     insertBuilderNode,
     insertBuilderSectionEmbed,
     insertBuilderComponent,
@@ -500,7 +501,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
       try {
         const result = await performAddGalleryInsert(
           item,
-          { parentId: null },
+          { parentId: null, index: builderTree.length },
           {
             insertBuilderNode,
             insertBuilderSectionEmbed,
@@ -519,6 +520,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
     },
     [
       pending,
+      builderTree.length,
       insertBuilderNode,
       insertBuilderSectionEmbed,
       insertBuilderComponent,
@@ -575,7 +577,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
             <path d="M5 9l4 4-4 4" />
             <path d="M9 5v14" />
           </svg>
-          Drag onto the canvas, or click to insert at the page root.
+          Drag between blocks on the canvas, or click to append at the bottom.
         </div>
       }
     >

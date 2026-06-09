@@ -33,7 +33,8 @@ import {
   indexBuilderSectionChildNodeIds,
   indexBuilderSectionNodeIds,
   indexBuilderSectionNodes,
-  collectUnboundRootGallerySections,
+  renderFreeformPageRootTree,
+  renderUnboundGalleryRoots,
   type BuilderNode,
   type BuilderNodeRenderDataSources,
   type BuilderVisibilityContext,
@@ -187,6 +188,8 @@ interface HomepageCmsSectionsProps {
    * drift between tree nodes vs slot rows could leave `blank_section` children unbound.
    */
   onlySectionId?: string;
+  /** Render only Add Gallery custom root sections (single mount on slot pages). */
+  onlyUnboundGallery?: boolean;
 }
 
 export async function HomepageCmsSections({
@@ -196,6 +199,7 @@ export async function HomepageCmsSections({
   onlySlot,
   includeBuilderNodeRendererStyles = true,
   onlySectionId,
+  onlyUnboundGallery = false,
 }: HomepageCmsSectionsProps) {
   // Only pay for the tenant Maps-key resolution when a map-bearing section is
   // actually in the snapshot (today: location_discovery's orbit map). Avoids a
@@ -258,6 +262,33 @@ export async function HomepageCmsSections({
     if (onlySectionId && s.sectionId !== onlySectionId) return false;
     return true;
   });
+
+  if (onlyUnboundGallery) {
+    const tree = resolveSnapshotBuilderTree(snapshot).tree;
+    const builderDataSources = await loadBuilderNodeDataSources(
+      tree,
+      tenantId,
+      locale,
+    );
+    const builderComponents =
+      !editMode && treeHasInstances(tree)
+        ? await loadBuilderComponentsForTenant(tenantId)
+        : {};
+    const sectionEmbedRenderer = makeSectionEmbedRenderer({
+      tenantId,
+      locale,
+      publicPathPrefix,
+    });
+    return renderUnboundGalleryRoots(tree, {
+      publicPathPrefix,
+      mode: "freeform",
+      includeRendererStyles: false,
+      dataSources: builderDataSources,
+      components: builderComponents,
+      visibilityContext,
+      renderSectionEmbed: sectionEmbedRenderer,
+    });
+  }
 
   // Freeform full-page design: a builderTree persisted with NO curated slots
   // (e.g. a one-click starter design). The slot loop below only renders
@@ -329,7 +360,7 @@ export async function HomepageCmsSections({
       return (
         <>
           {freeformStyles}
-          {renderBuilderNodes(freeform.tree, {
+          {renderFreeformPageRootTree(freeform.tree, {
             publicPathPrefix,
             mode: "freeform",
             includeRendererStyles: false,
@@ -551,11 +582,18 @@ export async function HomepageCmsSections({
                   : {}),
               }
             : undefined;
+        const rootBlockIndex = builderNodeId
+          ? builderTreeResolution.tree.findIndex((node) => node.id === builderNodeId)
+          : -1;
         return (
           <div
             key={`wrap:${key}`}
             {...(isBlankSection ? presentationDataAttrs(presentation) : {})}
             data-cms-section=""
+            data-cms-block=""
+            data-block-index={
+              rootBlockIndex >= 0 ? rootBlockIndex : (entry.sortOrder ?? 0)
+            }
             data-section-id={entry.sectionId}
             data-section-type-key={entry.sectionTypeKey}
             data-slot-key={entry.slotKey}
@@ -626,34 +664,21 @@ export async function HomepageCmsSections({
           </div>
         );
       })}
-      {collectUnboundRootGallerySections(builderTreeResolution.tree).map(
-        (sectionNode) => {
-          const label = sectionNode.props.label?.trim() || "Section";
-          return (
-            <div
-              key={`gallery:${sectionNode.id}`}
-              data-cms-section=""
-              data-builder-node-id={sectionNode.id}
-              data-section-type-key="custom"
-              data-section-label={label}
-            >
-              {renderBuilderNodes([sectionNode], {
-                publicPathPrefix,
-                mode: "freeform",
-                includeRendererStyles: false,
-                dataSources: builderDataSources,
-                components: builderComponents,
-                visibilityContext,
-                renderSectionEmbed: makeSectionEmbedRenderer({
-                  tenantId,
-                  locale,
-                  publicPathPrefix,
-                }),
-              })}
-            </div>
-          );
-        },
-      )}
+      {onlySectionId || onlySlot
+        ? null
+        : renderUnboundGalleryRoots(builderTreeResolution.tree, {
+            publicPathPrefix,
+            mode: "freeform",
+            includeRendererStyles: false,
+            dataSources: builderDataSources,
+            components: builderComponents,
+            visibilityContext,
+            renderSectionEmbed: makeSectionEmbedRenderer({
+              tenantId,
+              locale,
+              publicPathPrefix,
+            }),
+          })}
     </>
   );
 }

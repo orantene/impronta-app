@@ -267,6 +267,13 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
                       );
                     })
                 : null}
+              <HomepageCmsSections
+                snapshot={cmsHomepage.snapshot}
+                tenantId={tenantId}
+                locale={locale}
+                onlyUnboundGallery
+                includeBuilderNodeRendererStyles={false}
+              />
             </>
           ) : (
             // No published composition (public visitor). Render a data-driven

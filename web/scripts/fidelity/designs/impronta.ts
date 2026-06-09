@@ -3,12 +3,12 @@
  * page builder IS the design the fidelity harness scores.
  * Source of truth: src/lib/site-admin/builder-node/page-designs/impronta.ts
  *
- * HARNESS NOTE (section_embeds): impronta is the ONLY registered design that uses
- * `section_embed` nodes (heroFind wraps hero_search; disciplines, featured, and
- * the markets band embed are bare section_embeds). The fidelity renderer has no
- * section registry injected, so those nodes render as `null`. The scored frames
- * therefore show: the heroFind INK band wrapper (with no search content inside),
- * heroClassic fully, process/pillars/join/finalCta fully. The discipline rail,
+ * HARNESS NOTE (section_embeds): impronta still uses `section_embed` for connected
+ * blocks (discipline rail, featured talent, markets band). heroFind is freeform
+ * layers (title, search form, CTAs). The fidelity renderer has no section registry
+ * injected, so embed nodes render as `null`. The scored frames therefore show:
+ * heroFind fully (freeform search hero), heroClassic fully, process/pillars/join/
+ * finalCta fully. The discipline rail,
  * featured talent, and markets map are invisible in harness output.
  *
  * This is an honest limitation — score the design only on what the frames show.

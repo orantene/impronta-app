@@ -23,7 +23,8 @@ test("layerLabel overrides derived paragraph text in layers tree", () => {
 test("hero-centered template is native freeform with semantic layer labels", () => {
   const root = buildAddGallerySectionTemplate("hero-centered");
   assert.ok(root);
-  assert.equal(root!.props.label, "Hero Centered Section");
+  assert.equal(root!.kind, "container");
+  assert.equal(root!.props.layerLabel, "Hero Centered Section");
   assert.equal(sectionTemplateContainsKind(root!, "section_embed"), false);
   assertTemplateLayerLabels("hero-centered", [
     "Intro Text",
@@ -37,7 +38,8 @@ test("hero-centered template is native freeform with semantic layer labels", () 
 test("hero-split template exposes split layout layers", () => {
   const root = buildAddGallerySectionTemplate("hero-split");
   assert.ok(root);
-  assert.equal(root!.props.label, "Hero Split Image Section");
+  assert.equal(root!.kind, "container");
+  assert.equal(root!.props.layerLabel, "Hero Split Image Section");
   assertTemplateLayerLabels("hero-split", [
     "Title",
     "Description",
@@ -57,7 +59,8 @@ test("hero-minimal template exposes title and primary button", () => {
 test("hero-search template is freeform with search form and chips", () => {
   const root = buildAddGallerySectionTemplate("hero-search");
   assert.ok(root);
-  assert.equal(root!.props.label, "Hero Search Section");
+  assert.equal(root!.kind, "container");
+  assert.equal(root!.props.layerLabel, "Hero Search Section");
   assert.equal(sectionTemplateContainsKind(root!, "section_embed"), false);
   assertTemplateLayerLabels("hero-search", [
     "Intro Text",
@@ -137,6 +140,16 @@ test("connected wrapper templates include labeled embed child", () => {
     "Description",
     "Directory Grid",
   ]);
+
+  const discipline = buildAddGallerySectionTemplate("talent-discipline-wrapper");
+  assert.ok(discipline);
+  assert.equal(sectionTemplateContainsKind(discipline!, "section_embed"), true);
+  assertTemplateLayerLabels("talent-discipline-wrapper", [
+    "Intro Text",
+    "Title",
+    "See All Link",
+    "Discipline Grid",
+  ]);
 });
 
 test("connected native templates agency-logo and inquiry-cta", () => {
@@ -151,7 +164,8 @@ test("connected native templates agency-logo and inquiry-cta", () => {
 test("testimonials-trio template exposes quote cards as freeform layers", () => {
   const root = buildAddGallerySectionTemplate("testimonials-trio");
   assert.ok(root);
-  assert.equal(root!.props.label, "Testimonials Section");
+  assert.equal(root!.kind, "container");
+  assert.equal(root!.props.layerLabel, "Testimonials Section");
   assert.equal(sectionTemplateContainsKind(root!, "section_embed"), false);
   const labels = collectSectionTemplateLayerLabels(root!);
   assert.ok(labels.includes("Intro Text"));
@@ -167,7 +181,8 @@ test("testimonials-trio template exposes quote cards as freeform layers", () => 
 test("cta-banner template is native freeform with CTA layers", () => {
   const root = buildAddGallerySectionTemplate("cta-banner");
   assert.ok(root);
-  assert.equal(root!.props.label, "CTA Banner Section");
+  assert.equal(root!.kind, "container");
+  assert.equal(root!.props.layerLabel, "CTA Banner Section");
   assert.equal(sectionTemplateContainsKind(root!, "section_embed"), false);
   assertTemplateLayerLabels("cta-banner", [
     "Intro Text",
@@ -190,7 +205,8 @@ test("cta-split template exposes split CTA layers", () => {
 test("faq-accordion template exposes accordion Q&A as freeform layers", () => {
   const root = buildAddGallerySectionTemplate("faq-accordion");
   assert.ok(root);
-  assert.equal(root!.props.label, "FAQ Section");
+  assert.equal(root!.kind, "container");
+  assert.equal(root!.props.layerLabel, "FAQ Section");
   assert.equal(sectionTemplateContainsKind(root!, "section_embed"), false);
   assert.equal(sectionTemplateContainsKind(root!, "accordion"), true);
   const labels = collectSectionTemplateLayerLabels(root!);
@@ -201,7 +217,8 @@ test("faq-accordion template exposes accordion Q&A as freeform layers", () => {
 test("contact-form template exposes labeled form layer", () => {
   const root = buildAddGallerySectionTemplate("contact-form");
   assert.ok(root);
-  assert.equal(root!.props.label, "Contact Form Section");
+  assert.equal(root!.kind, "container");
+  assert.equal(root!.props.layerLabel, "Contact Form Section");
   assertTemplateLayerLabels("contact-form", [
     "Intro Text",
     "Title",

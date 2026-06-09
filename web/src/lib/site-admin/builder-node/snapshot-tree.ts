@@ -3,7 +3,9 @@ import {
   deriveLegacySectionChildNodes,
   type LegacySnapshotSlot,
 } from "./snapshot-slot-bridge";
+import { builderNodeKindAllowedAtRoot } from "./drop-policy";
 import { BUILDER_NODE_REGISTRY } from "./registry";
+import { migrateMonolithicTalentTypeGridEmbeds } from "./talent-discipline-freeform";
 import { resolveBuilderNodeRole, type BuilderNodeRole } from "./role-bindings";
 import { sectionEmbedTypeLabel } from "./section-embed-presets";
 import type { BuilderNode, BuilderNodeTree } from "./types";
@@ -206,9 +208,14 @@ export function resolveSnapshotBuilderTree(
       if (hasSlotMissingFromTree) {
         tree = reconcileBuilderTreeWithLegacySlots(tree, snapshot.slots);
       }
+      tree = migrateMonolithicTalentTypeGridEmbeds(
+        migrateUnboundGallerySectionsToContainers(
+          hydrateLegacySectionChildren(tree, snapshot.slots),
+        ),
+      );
       return {
         source: "snapshot_builder_tree",
-        tree: hydrateLegacySectionChildren(tree, snapshot.slots),
+        tree,
         issues: [],
       };
     }
@@ -340,25 +347,67 @@ function hydrateLegacySectionChildren(
 }
 
 /**
- * Root-level custom sections inserted via Add Gallery (`sectionTypeKey: custom`,
- * no `sectionId` / slot binding). These are not rendered by the composition
- * slot loop — callers must paint them separately.
+ * Legacy Add Gallery root wrapper (`sectionTypeKey: custom`, no slot binding).
+ * New templates insert `container` directly — see `migrateUnboundGallerySectionsToContainers`.
  */
+export function isUnboundGallerySectionNode(
+  node: BuilderNode,
+): node is Extract<BuilderNode, { kind: "section" }> {
+  return (
+    node.kind === "section" &&
+    node.props.sectionTypeKey === "custom" &&
+    !node.props.sectionId
+  );
+}
+
+/** Root gallery / freeform blocks not painted by the composition slot loop. */
+export function isUnboundRootGalleryBlock(node: BuilderNode): boolean {
+  if (node.kind === "section") {
+    return isUnboundGallerySectionNode(node);
+  }
+  return builderNodeKindAllowedAtRoot(node.kind);
+}
+
+export function collectUnboundRootGalleryBlocks(
+  tree: BuilderNodeTree,
+): ReadonlyArray<BuilderNode> {
+  return tree.filter(isUnboundRootGalleryBlock);
+}
+
+/** @deprecated Prefer {@link collectUnboundRootGalleryBlocks}. */
 export function collectUnboundRootGallerySections(
   tree: BuilderNodeTree,
 ): ReadonlyArray<Extract<BuilderNode, { kind: "section" }>> {
-  return tree.filter(
-    (node): node is Extract<BuilderNode, { kind: "section" }> =>
-      node.kind === "section" &&
-      node.props.sectionTypeKey === "custom" &&
-      !node.props.sectionId,
-  );
+  return tree.filter(isUnboundGallerySectionNode);
+}
+
+function migrateUnboundGallerySectionsToContainers(
+  tree: BuilderNodeTree,
+): BuilderNodeTree {
+  let changed = false;
+  const next = tree.map((node) => {
+    if (!isUnboundGallerySectionNode(node)) return node;
+    changed = true;
+    const label = node.props.label?.trim() || "Container";
+    return {
+      id: node.id,
+      kind: "container",
+      props: {
+        layerLabel: label,
+        layout: "stack",
+        gap: "m",
+        align: "stretch",
+      },
+      children: node.children ?? [],
+    } satisfies BuilderNode;
+  });
+  return changed ? next : tree;
 }
 
 export function unboundGallerySectionIdsSignature(
   tree: BuilderNodeTree,
 ): string {
-  return collectUnboundRootGallerySections(tree)
+  return collectUnboundRootGalleryBlocks(tree)
     .map((node) => node.id)
     .sort()
     .join(",");

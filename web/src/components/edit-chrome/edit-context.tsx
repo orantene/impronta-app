@@ -81,6 +81,7 @@ import {
 } from "@/lib/site-admin/builder-node/section-eject";
 import {
   applyBuilderNodeOperation,
+  convertBuilderTextNodeRole as convertBuilderTextNodeRoleInTree,
   builderSectionNodeAddressKey,
   buildLegacySectionBuilderTree,
   BUILDER_NODE_REGISTRY,
@@ -107,6 +108,7 @@ import {
   type BuilderNodeOperationKind,
   type BuilderNodeTree,
   type BuilderComponentVariant,
+  type BuilderTextRoleId,
   type LegacySnapshotSlot,
 } from "@/lib/site-admin/builder-node";
 import {
@@ -706,6 +708,11 @@ export interface EditContextValue {
   patchBuilderNodeProps: (
     nodeId: string,
     patch: Record<string, unknown>,
+  ) => Promise<{ ok: boolean; error?: string }>;
+  /** Switch a heading/paragraph block between P and H1–H4 (theme size by default). */
+  convertBuilderTextNodeRole: (
+    nodeId: string,
+    role: BuilderTextRoleId,
   ) => Promise<{ ok: boolean; error?: string }>;
   duplicateSection: (
     sectionId: string,
@@ -1917,6 +1924,31 @@ function mutationTouchesSectionEmbedIslandSet(
     if (!prevSet.has(id)) return true;
   }
   return false;
+}
+
+/** Config edits on an existing embed id — island HTML must re-render on the server. */
+function sectionEmbedConfigSignature(tree: BuilderNodeTree): string {
+  const parts: string[] = [];
+  function visit(node: BuilderNode): void {
+    if (node.kind === "section_embed") {
+      parts.push(
+        `${node.id}:${JSON.stringify(node.props.config ?? null)}`,
+      );
+    }
+    if ("children" in node && Array.isArray(node.children)) {
+      for (const child of node.children) visit(child);
+    }
+  }
+  for (const node of tree) visit(node);
+  parts.sort();
+  return parts.join("\n");
+}
+
+function mutationTouchesSectionEmbedConfig(
+  prevTree: BuilderNodeTree,
+  nextTree: BuilderNodeTree,
+): boolean {
+  return sectionEmbedConfigSignature(prevTree) !== sectionEmbedConfigSignature(nextTree);
 }
 
 /** Add Gallery custom sections paint via server HTML on composition-slot pages. */
@@ -4908,6 +4940,7 @@ export function EditProvider({
       if (
         !isBuilderClientCanvasEnabled() ||
         mutationTouchesSectionEmbedIslandSet(prevTree, nextTree) ||
+        mutationTouchesSectionEmbedConfig(prevTree, nextTree) ||
         mutationTouchesUnboundGallerySections(prevTree, nextTree)
       ) {
         void queueRouterRefresh();
@@ -5019,6 +5052,7 @@ export function EditProvider({
       if (
         isBuilderClientCanvasEnabled() &&
         (mutationTouchesSectionEmbedIslandSet(prevTree, nextTree) ||
+          mutationTouchesSectionEmbedConfig(prevTree, nextTree) ||
           mutationTouchesUnboundGallerySections(prevTree, nextTree))
       ) {
         void queueRouterRefresh();
@@ -6014,6 +6048,34 @@ export function EditProvider({
       return { ok: true };
     },
     [executeBuilderNodeOperation, runBuilderNodeOp],
+  );
+
+  const convertBuilderTextNodeRole = useCallback<
+    EditContextValue["convertBuilderTextNodeRole"]
+  >(
+    async (nodeId, role) => {
+      const converted = await executeBuilderNodeOperation({
+        operation: "patch",
+        nodeId,
+        run: (tree) => {
+          const result = convertBuilderTextNodeRoleInTree({ tree, nodeId, role });
+          if (!result.ok) {
+            return {
+              ok: false,
+              code: result.code,
+              error: result.message,
+              details: summarizeBuilderNodeIssues(result.issues),
+            };
+          }
+          return { ok: true, tree: result.tree };
+        },
+      });
+      if (!converted.ok) {
+        return { ok: false, error: converted.error };
+      }
+      return { ok: true };
+    },
+    [executeBuilderNodeOperation],
   );
 
   // ── Wave 6C — surgical mobile-only structure override (job #35) ─────────
@@ -7160,6 +7222,7 @@ export function EditProvider({
       duplicateBuilderNode,
       removeBuilderNode,
       patchBuilderNodeProps,
+      convertBuilderTextNodeRole,
       duplicateSection,
       renameSection,
       syncBuilderNodeChildrenForSection,
@@ -7391,6 +7454,7 @@ export function EditProvider({
       builderBlockPresets,
       removeBuilderNode,
       patchBuilderNodeProps,
+      convertBuilderTextNodeRole,
       duplicateSection,
       renameSection,
       syncBuilderNodeChildrenForSection,

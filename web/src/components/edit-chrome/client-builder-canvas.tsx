@@ -37,7 +37,7 @@ import { memo, useCallback, useMemo, useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
 
 import {
-  renderBuilderNodes,
+  renderFreeformPageRootTree,
   type BuilderNode,
   type BuilderNodeRenderDataSources,
   type BuilderNodeTree,
@@ -161,7 +161,7 @@ function ClientBuilderCanvasInner({
     ],
   );
 
-  return renderBuilderNodes(tree, options);
+  return renderFreeformPageRootTree(tree, options);
 }
 
 /**

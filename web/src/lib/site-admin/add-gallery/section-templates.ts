@@ -1,4 +1,5 @@
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+import { buildTalentDisciplineDecomposedSection } from "@/lib/site-admin/builder-node/talent-discipline-freeform";
 
 import {
   tplButton,
@@ -331,6 +332,10 @@ function buildRosterWrapper(): BuilderNode {
   ]);
 }
 
+function buildTalentDisciplineWrapper(): BuilderNode {
+  return buildTalentDisciplineDecomposedSection();
+}
+
 function buildAgencyLogo(): BuilderNode {
   return tplSection("Agency Logo Section", [
     tplContentColumn([
@@ -517,6 +522,7 @@ const SECTION_TEMPLATE_BUILDERS: Readonly<
   "gallery-strip": buildGalleryStrip,
   "featured-talent-wrapper": buildFeaturedTalentWrapper,
   "roster-wrapper": buildRosterWrapper,
+  "talent-discipline-wrapper": buildTalentDisciplineWrapper,
   "agency-logo": buildAgencyLogo,
   "inquiry-cta": buildInquiryCta,
   testimonials: buildTestimonialsTrio,

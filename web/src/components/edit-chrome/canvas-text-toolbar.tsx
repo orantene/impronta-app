@@ -3,7 +3,8 @@
 
 /**
  * CanvasTextToolbar — single-row white floating bar for text layer quick edits.
- * Replaces dark BlockChipToolBar + stacked Lexical toolbar on canvas.
+ * Docked to the bottom-center of the viewport (decoupled from the selected
+ * element) so formatting controls stay in a stable, reachable spot while editing.
  */
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
@@ -53,6 +54,13 @@ import {
 } from "./kit/tokens";
 import { resolveLayerDisplayName } from "./freeform-layer-name";
 import type { BuilderNode } from "@/lib/site-admin/builder-node";
+import {
+  BUILDER_TEXT_ROLE_OPTIONS,
+  builderTextRoleSupported,
+  readThemeTypographySize,
+  resolveBuilderTextRoleFromNode,
+  type BuilderTextRoleId,
+} from "@/lib/site-admin/builder-node/text-role";
 import { useEditContext } from "./edit-context";
 
 export type CanvasTextKind = "heading" | "paragraph" | "rich_text" | "button";
@@ -90,6 +98,7 @@ export interface CanvasTextToolbarProps {
   isItalic?: boolean;
   onToggleBold?: () => void;
   onToggleItalic?: () => void;
+  onChangeTextRole?: (role: BuilderTextRoleId) => void;
 }
 
 const FONT_SIZE_MIN = 8;
@@ -127,6 +136,9 @@ const FONT_FAMILIES = [
 ];
 
 const TOOLBAR_MAX_WIDTH = 720;
+const TOOLBAR_HEIGHT = 42;
+/** Distance from the viewport bottom edge. */
+const TOOLBAR_BOTTOM_GUTTER = 70;
 /** Keep the bar inside the viewport — flush to the right edge when needed. */
 const VIEWPORT_EDGE_GUTTER = 8;
 const VIEWPORT_LEFT_GUTTER = 8;
@@ -141,37 +153,22 @@ function inspectorRightReservePx(inspectorDockOpen: boolean): number {
   );
 }
 
-function clampToolbarLeft(
-  anchorLeft: number,
-  toolbarWidth: number,
-  viewportWidth: number,
-  rightReservePx: number,
-): number {
-  const maxLeft = viewportWidth - rightReservePx - toolbarWidth;
-  return Math.max(VIEWPORT_LEFT_GUTTER, Math.min(anchorLeft, maxLeft));
-}
-
 function computeToolbarPosition(
-  rect: CanvasTextToolbarProps["rect"],
   measuredWidth: number | null,
   rightReservePx: number,
-) {
-  const toolbarHeight = 44;
-  const gap = 10;
-  const safeTop = 58;
-  const flip = rect.top < toolbarHeight + gap + safeTop;
-  const top = flip ? rect.bottom + gap : rect.top - toolbarHeight - gap;
+): { left: number } {
   const viewportWidth =
     typeof window !== "undefined" ? window.innerWidth : TOOLBAR_MAX_WIDTH;
   const widthEstimate =
     measuredWidth ?? Math.min(viewportWidth * 0.96, TOOLBAR_MAX_WIDTH);
-  const left = clampToolbarLeft(
-    rect.left,
-    widthEstimate,
-    viewportWidth,
-    rightReservePx,
-  );
-  return { top: Math.max(top, safeTop), left };
+  const availableWidth =
+    viewportWidth - VIEWPORT_LEFT_GUTTER - rightReservePx;
+  const centeredLeft =
+    VIEWPORT_LEFT_GUTTER + (availableWidth - widthEstimate) / 2;
+  const maxLeft = viewportWidth - rightReservePx - widthEstimate;
+  return {
+    left: Math.max(VIEWPORT_LEFT_GUTTER, Math.min(centeredLeft, maxLeft)),
+  };
 }
 
 function Divider() {
@@ -366,7 +363,7 @@ function FontSizeStepper({
 
 export function CanvasTextToolbar({
   node,
-  rect,
+  rect: _selectionRect,
   disabled = false,
   onOpenInspector,
   onDuplicate,
@@ -385,6 +382,7 @@ export function CanvasTextToolbar({
   isItalic = false,
   onToggleBold,
   onToggleItalic,
+  onChangeTextRole,
 }: CanvasTextToolbarProps) {
   const { inspectorDockOpen, device } = useEditContext();
   const viewportDevice: ViewportDevice =
@@ -397,6 +395,7 @@ export function CanvasTextToolbar({
   const resolvedToggleBold = onToggleBold ?? lexical.toggleBold;
   const resolvedToggleItalic = onToggleItalic ?? lexical.toggleItalic;
   const [moreOpen, setMoreOpen] = useState(false);
+  const [textStyleOpen, setTextStyleOpen] = useState(false);
   const [fontFamilyOpen, setFontFamilyOpen] = useState(false);
   const [nodeColorOpen, setNodeColorOpen] = useState(false);
   const [colorAnchor, setColorAnchor] = useState<HTMLElement | null>(null);
@@ -408,7 +407,15 @@ export function CanvasTextToolbar({
     setStyleOverride({});
     setBlockPositionOpen(false);
     setFontFamilyOpen(false);
+    setTextStyleOpen(false);
   }, [node.id]);
+  const supportsTextRole = builderTextRoleSupported(node);
+  const activeTextRole = supportsTextRole
+    ? resolveBuilderTextRoleFromNode(node)
+    : null;
+  const activeTextRoleLabel =
+    BUILDER_TEXT_ROLE_OPTIONS.find((opt) => opt.id === activeTextRole)
+      ?.shortLabel ?? "Text";
   const style = {
     ...((node.props.style ?? {}) as Record<string, unknown>),
     ...styleOverride,
@@ -420,6 +427,11 @@ export function CanvasTextToolbar({
     resolveStyleField(style, viewportDevice, "fontSize"),
   );
   const displayFontSize = storedFontSizePx ?? computedFontSizePx ?? "16";
+  const usesThemeFontSize = !storedFontSizePx;
+  const fontSizeTitle =
+    usesThemeFontSize && activeTextRole
+      ? `Theme size — ${readThemeTypographySize(activeTextRole)}. Adjust to override.`
+      : "Custom font size on this block";
   const fontFamily = (style.fontFamily as string | undefined) ?? "";
   const selectedFontLabel =
     FONT_FAMILIES.find((f) => f.value === fontFamily)?.label ??
@@ -447,19 +459,18 @@ export function CanvasTextToolbar({
 
   const barRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState(() =>
-    computeToolbarPosition(rect, null, rightReservePx),
+    computeToolbarPosition(null, rightReservePx),
   );
 
   useLayoutEffect(() => {
     function place() {
       const measured = barRef.current?.offsetWidth ?? null;
-      setPosition(computeToolbarPosition(rect, measured, rightReservePx));
+      setPosition(computeToolbarPosition(measured, rightReservePx));
     }
     place();
     window.addEventListener("resize", place);
     return () => window.removeEventListener("resize", place);
   }, [
-    rect,
     repositionKey,
     label,
     showJustify,
@@ -467,12 +478,13 @@ export function CanvasTextToolbar({
     moreOpen,
     blockPositionOpen,
     fontFamilyOpen,
+    textStyleOpen,
     displayFontSize,
     rightReservePx,
   ]);
 
   useEffect(() => {
-    if (!moreOpen && !blockPositionOpen && !fontFamilyOpen) {
+    if (!moreOpen && !blockPositionOpen && !fontFamilyOpen && !textStyleOpen) {
       return;
     }
     const close = (e: MouseEvent) => {
@@ -481,10 +493,11 @@ export function CanvasTextToolbar({
       setMoreOpen(false);
       setBlockPositionOpen(false);
       setFontFamilyOpen(false);
+      setTextStyleOpen(false);
     };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
-  }, [moreOpen, blockPositionOpen, fontFamilyOpen]);
+  }, [moreOpen, blockPositionOpen, fontFamilyOpen, textStyleOpen]);
 
   const patchAlign = useCallback(
     (next: string) => {
@@ -554,13 +567,13 @@ export function CanvasTextToolbar({
       onMouseDown={preventToolbarBlur}
       style={{
         position: "fixed",
-        top: position.top,
+        bottom: TOOLBAR_BOTTOM_GUTTER,
         left: position.left,
         zIndex: Z_INDEX.floatingControls,
         display: "inline-flex",
         alignItems: "center",
         gap: 4,
-        height: 42,
+        height: TOOLBAR_HEIGHT,
         padding: "0 8px 0 6px",
         background: CHROME.surface,
         borderRadius: CHROME_RADII.lg ?? BUILDER_VISUAL.toolbarRadius,
@@ -608,6 +621,95 @@ export function CanvasTextToolbar({
 
       <Divider />
 
+      {supportsTextRole && onChangeTextRole ? (
+        <div style={{ position: "relative", flexShrink: 0 }}>
+          <button
+            type="button"
+            title="Text style"
+            aria-label="Text style"
+            aria-haspopup="menu"
+            aria-expanded={textStyleOpen}
+            disabled={disabled}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={(e) => {
+              e.stopPropagation();
+              setTextStyleOpen((open) => !open);
+              setMoreOpen(false);
+              setBlockPositionOpen(false);
+              setFontFamilyOpen(false);
+            }}
+            className="inline-flex cursor-pointer items-center gap-1 border-none bg-transparent px-1 disabled:cursor-not-allowed disabled:opacity-40"
+            style={{
+              height: 28,
+              borderRadius: 8,
+              color: textStyleOpen ? CHROME.accent : CHROME.ink,
+              background: textStyleOpen ? BUILDER_VISUAL.accentBg : "transparent",
+              fontSize: 12,
+              fontWeight: 700,
+              minWidth: 44,
+              justifyContent: "center",
+            }}
+          >
+            {activeTextRoleLabel}
+            <ChevronDown size={11} strokeWidth={2.5} aria-hidden />
+          </button>
+          {textStyleOpen ? (
+            <div
+              role="menu"
+              aria-label="Text style"
+              onMouseDown={(e) => e.stopPropagation()}
+              style={{
+                position: "absolute",
+                left: 0,
+                bottom: "calc(100% + 6px)",
+                minWidth: 156,
+                background: CHROME.surface,
+                border: `1px solid ${CHROME.line}`,
+                borderRadius: 10,
+                boxShadow: BUILDER_VISUAL.toolbarShadow,
+                padding: 4,
+                zIndex: Z_INDEX.toast,
+              }}
+            >
+              {BUILDER_TEXT_ROLE_OPTIONS.map((option) => {
+                const selected = option.id === activeTextRole;
+                const themeSize = readThemeTypographySize(option.id);
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={selected}
+                    disabled={disabled}
+                    onClick={() => {
+                      onChangeTextRole(option.id);
+                      setTextStyleOpen(false);
+                    }}
+                    className="flex w-full cursor-pointer items-center justify-between gap-3 border-none bg-transparent px-3 py-2 text-left text-[12px] font-medium"
+                    style={{
+                      color: selected ? CHROME.accent : CHROME.ink,
+                      background: selected ? BUILDER_VISUAL.accentBg : "transparent",
+                      borderRadius: 6,
+                    }}
+                  >
+                    <span>{option.label}</span>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        color: CHROME.muted,
+                        fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
+                      }}
+                    >
+                      {themeSize}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       <div style={{ position: "relative", flexShrink: 0 }}>
         <ToolbarBtn
           title={`Font: ${selectedFontLabel}`}
@@ -630,7 +732,7 @@ export function CanvasTextToolbar({
             style={{
               position: "absolute",
               left: 0,
-              top: "calc(100% + 6px)",
+              bottom: "calc(100% + 6px)",
               minWidth: 168,
               background: CHROME.surface,
               border: `1px solid ${CHROME.line}`,
@@ -673,11 +775,13 @@ export function CanvasTextToolbar({
         ) : null}
       </div>
 
-      <FontSizeStepper
-        value={displayFontSize}
-        disabled={disabled}
-        onChange={patchFontSize}
-      />
+      <span title={fontSizeTitle}>
+        <FontSizeStepper
+          value={displayFontSize}
+          disabled={disabled}
+          onChange={patchFontSize}
+        />
+      </span>
 
       <Divider />
 
@@ -875,7 +979,7 @@ export function CanvasTextToolbar({
             style={{
               position: "absolute",
               right: 0,
-              top: "calc(100% + 6px)",
+              bottom: "calc(100% + 6px)",
               minWidth: 168,
               background: CHROME.surface,
               border: `1px solid ${CHROME.line}`,
@@ -887,6 +991,14 @@ export function CanvasTextToolbar({
           >
             {[
               { label: "Edit in inspector", action: onOpenInspector },
+              ...(usesThemeFontSize
+                ? []
+                : [
+                    {
+                      label: "Use theme font size",
+                      action: () => applyStylePatch({ fontSize: undefined }),
+                    },
+                  ]),
               { label: "Copy style", action: onCopyStyle },
               { label: "Paste style", action: onPasteStyle, disabled: !canPasteStyle },
               { label: "Reset style", action: onResetStyle },

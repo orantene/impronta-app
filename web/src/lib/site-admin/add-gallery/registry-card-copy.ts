@@ -380,6 +380,11 @@ export const ADD_GALLERY_CARD_COPY: Readonly<
     infoTooltip:
       "Connected to your Talent Collection. Shows agency-curated featured profiles.",
   },
+  "sec-talent-discipline": {
+    description: "Category grid with featured Models pod and discipline cards.",
+    infoTooltip:
+      "Intro Text and Title are freeform layers — double-click them on the canvas to edit copy. Select Discipline Grid → Edit Content for category cards, images, and taxonomy source.",
+  },
   "sec-roster-grid": {
     description: "Full filterable talent directory.",
     infoTooltip:
@@ -431,6 +436,11 @@ export const ADD_GALLERY_CARD_COPY: Readonly<
     description: "Highlighted roster block with curated picks.",
     infoTooltip:
       "Connected to Talent Collection. Displays agency-selected featured talent.",
+  },
+  "conn-talent-discipline": {
+    description: "Discipline category grid with featured pod layout.",
+    infoTooltip:
+      "Connected to your directory taxonomy. Shows Models, hosts, performers, and other discipline cards with explore links.",
   },
   "conn-talent-card": {
     description: "Single bound talent profile card.",

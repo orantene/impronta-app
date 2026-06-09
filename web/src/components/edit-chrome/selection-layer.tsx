@@ -53,6 +53,7 @@ import {
 } from "./canvas-lexical-bridge";
 import {
   resolveCanvasNodeDrop,
+  resolvePageRootDrop,
   type CanvasDropCandidate,
   type CanvasDropResult,
 } from "@/lib/site-admin/builder-node/canvas-node-drop";
@@ -109,7 +110,14 @@ import {
   getActiveBuilderNodePaletteDrag,
   type BuilderNodePaletteDragPayload,
 } from "./element-library-insert-picker";
-import { resolveAddGalleryInsertAction } from "@/lib/site-admin/add-gallery/insert";
+import {
+  galleryItemDragNodeKind,
+  galleryItemInsertsAtPageRoot,
+} from "@/lib/site-admin/add-gallery/drag";
+import {
+  collectPageRootDropRowsFromDom,
+  readPageRootDropBoundsFromDom,
+} from "./page-block-dom";
 import { performAddGalleryInsertById } from "@/lib/site-admin/add-gallery/perform-insert";
 import { getAddGalleryItemById } from "@/lib/site-admin/add-gallery/registry";
 import { CHROME, EDIT_TOPBAR_H, Z_INDEX } from "./kit/tokens";
@@ -184,15 +192,7 @@ function humanizeTypeKey(key: string | null | undefined): string {
  * ("Heading", "Container"…); a Tulala-component embed humanizes its type key.
  */
 function paletteKindForGalleryItem(itemId: string): BuilderNodeKind {
-  const item = getAddGalleryItemById(itemId);
-  if (!item) return "section";
-  const action = resolveAddGalleryInsertAction(item);
-  if (action.type === "nativeNode") return action.node.kind;
-  if (action.type === "sectionTemplate") return "section";
-  if (action.type === "sectionEmbed" || action.type === "connectedNode") {
-    return "section_embed";
-  }
-  return "section";
+  return galleryItemDragNodeKind(itemId);
 }
 
 function paletteDragLabel(payload: BuilderNodePaletteDragPayload): string {
@@ -674,6 +674,7 @@ export function SelectionLayer() {
     moveBuilderNodeToParentIndex,
     removeBuilderNode,
     patchBuilderNodeProps,
+    convertBuilderTextNodeRole,
     ejectSection,
     unejectSection,
     reportMutationError,
@@ -1630,7 +1631,20 @@ export function SelectionLayer() {
       cursorY: number,
       draggedKind: BuilderNodeKind,
       excludeNodeId: string | null,
+      paletteGalleryItemId?: string | null,
     ): CanvasDropResult | null => {
+      if (
+        paletteGalleryItemId &&
+        galleryItemInsertsAtPageRoot(paletteGalleryItemId)
+      ) {
+        const rootRows = collectPageRootDropRowsFromDom();
+        return resolvePageRootDrop({
+          cursorY,
+          draggedKind,
+          rootRows,
+          bounds: readPageRootDropBoundsFromDom(rootRows),
+        });
+      }
       const candidates =
         canvasDropIndexRef.current ??
         collectCanvasDropCandidates(canvasDropDepsRef.current.builderTree);
@@ -1768,6 +1782,10 @@ export function SelectionLayer() {
           ? paletteKind(active.payload)
           : active.draggedKind;
       const excludeNodeId = active.phase === "move" ? active.nodeId : null;
+      const paletteGalleryItemId =
+        active.phase === "palette" && active.payload.kind === "gallery_item"
+          ? active.payload.itemId
+          : null;
       const drop = overChrome
         ? null
         : computeCanvasNodeDrop(
@@ -1775,6 +1793,7 @@ export function SelectionLayer() {
             event.clientY,
             draggedKind,
             excludeNodeId,
+            paletteGalleryItemId,
           );
       // preventDefault on a valid target so the browser fires `drop`. Done
       // synchronously here (NOT inside the state updater, which must stay pure).
@@ -1831,6 +1850,10 @@ export function SelectionLayer() {
             ? state.draggedKind
             : null;
       const excludeNodeId = state.phase === "move" ? state.nodeId : null;
+      const paletteGalleryItemId =
+        state.phase === "palette" && state.payload.kind === "gallery_item"
+          ? state.payload.itemId
+          : null;
       const drop =
         overChrome || draggedKind === null
           ? null
@@ -1839,6 +1862,7 @@ export function SelectionLayer() {
               event.clientY,
               draggedKind,
               excludeNodeId,
+              paletteGalleryItemId,
             );
       setCanvasNodeDrag({ phase: "idle" });
       if (!drop || !drop.allowed) return;
@@ -2485,6 +2509,10 @@ export function SelectionLayer() {
         return !!selectedBuilderNode.props.label;
       case "nav":
         return !!selectedBuilderNode.props.brand;
+      case "section_embed":
+        // Curated copy (headline/eyebrow) lives inside the island DOM — inline
+        // edit resolves via section_embed config patch (inline-editor.tsx).
+        return true;
       default:
         return false;
     }
@@ -4673,7 +4701,7 @@ export function SelectionLayer() {
 	              }}
 	            />
 	          ) : null}
-	          {/* Text layers — premium white toolbar (replaces dark block chip). */}
+	          {/* Text layers — bottom-docked formatting bar (decoupled from element). */}
 	          {!multiNodeSelectionActive &&
 	          selectedBuilderNode &&
 	          isCanvasTextToolbarKind(selectedBuilderNode) ? (
@@ -4704,6 +4732,16 @@ export function SelectionLayer() {
 	                });
 	              }}
 	              onPatchStyle={patchTextStyle}
+	              onChangeTextRole={(role) => {
+	                if (!selectedBuilderNodeId) return;
+	                void convertBuilderTextNodeRole(selectedBuilderNodeId, role).then(
+	                  (result) => {
+	                    if (!result.ok && result.error) {
+	                      reportMutationError(result.error);
+	                    }
+	                  },
+	                );
+	              }}
 	              onRequestInlineEdit={() => {
 	                if (selectedBuilderNodeId) requestInlineEdit(selectedBuilderNodeId);
 	              }}
@@ -5179,12 +5217,14 @@ export function SelectionLayer() {
        *  Disallowed drops show a red wash. Hidden over edit chrome. */}
       {canvasNodeDrag.phase !== "idle" &&
       canvasNodeDrag.drop &&
+      canvasNodeDrag.drop.parentNodeId !== null &&
       canvasNodeDrag.drop.parentRect.width > 0 ? (
         (() => {
           const drop = canvasNodeDrag.drop;
           const isReparent =
             canvasNodeDrag.phase === "move" &&
             canvasNodeDrag.sourceParentNodeId !== null &&
+            drop.parentNodeId !== null &&
             canvasNodeDrag.sourceParentNodeId !== drop.parentNodeId;
           const accentRgb = !drop.allowed
             ? DISALLOW_RGB
@@ -5263,7 +5303,7 @@ export function SelectionLayer() {
                       fill="#ffffff"
                     />
                   </svg>
-                  {`Nest in ${BUILDER_NODE_REGISTRY[drop.parentKind]?.label ?? humanizeTypeKey(drop.parentKind)}`}
+                  {`Nest in ${drop.parentKind != null ? (BUILDER_NODE_REGISTRY[drop.parentKind]?.label ?? humanizeTypeKey(drop.parentKind)) : "container"}`}
                 </span>
               ) : null}
             </div>
@@ -5357,6 +5397,7 @@ export function SelectionLayer() {
             canvasNodeDrag.phase === "move" &&
             drop !== null &&
             drop.allowed &&
+            drop.parentNodeId !== null &&
             canvasNodeDrag.sourceParentNodeId !== null &&
             canvasNodeDrag.sourceParentNodeId !== drop.parentNodeId;
           const status = !drop
@@ -5366,7 +5407,7 @@ export function SelectionLayer() {
             : !drop.allowed
               ? "Not allowed here"
               : isReparent
-                ? `Nest in ${BUILDER_NODE_REGISTRY[drop.parentKind]?.label ?? humanizeTypeKey(drop.parentKind)}`
+                ? `Nest in ${drop.parentKind != null ? (BUILDER_NODE_REGISTRY[drop.parentKind]?.label ?? humanizeTypeKey(drop.parentKind)) : "container"}`
                 : canvasNodeDrag.phase === "palette"
                   ? "Drop to place"
                   : "Drop to move";

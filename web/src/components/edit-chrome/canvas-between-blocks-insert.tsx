@@ -37,6 +37,7 @@ import {
   type BuilderNodeKind,
 } from "@/lib/site-admin/builder-node";
 import { ElementLibraryInsertPicker } from "./element-library-insert-picker";
+import { collectPageBlockBoundaries } from "./page-block-dom";
 
 // Visual constants — mirror selection-layer.tsx chip tokens exactly so the
 // two surfaces look identical without coupling the file.
@@ -69,6 +70,15 @@ interface PickerTarget {
 }
 
 function collectSectionBoundaries(): GapTarget[] {
+  const blockGaps = collectPageBlockBoundaries();
+  if (blockGaps.length > 0) {
+    return blockGaps.map((gap) => ({
+      y: gap.y,
+      insertIndex: gap.insertIndex,
+      left: gap.left,
+      width: gap.width,
+    }));
+  }
   if (typeof document === "undefined") return [];
   const els = Array.from(
     document.querySelectorAll<HTMLElement>("[data-cms-section]"),

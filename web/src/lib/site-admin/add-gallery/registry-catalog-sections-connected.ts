@@ -116,6 +116,25 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
 
   // ── Sections / Talent Roster ────────────────────────────────────────────
   section({
+    id: "sec-talent-discipline",
+    label: "Talent by Discipline",
+    description:
+      "Featured-pod category grid — Models, hosts, performers, and more.",
+    category: "talent-roster",
+    icon: "talent-grid",
+    sectionTemplateId: "talent-discipline-wrapper",
+    itemKind: "connected",
+    connectedSource: "Talent Directory",
+    sourceType: "native-freeform",
+    searchTerms: [
+      "talent_type_grid",
+      "discipline",
+      "browse by type",
+      "categories",
+      "roster",
+    ],
+  }),
+  section({
     id: "sec-roster-grid",
     label: "Roster Grid",
     description: "Full filterable talent directory with intro layers.",
@@ -200,6 +219,24 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     sectionTemplateId: "featured-talent-wrapper",
     sourceType: "native-freeform",
     connectedSource: "Talent Collection",
+  }),
+  connected({
+    id: "conn-talent-discipline",
+    label: "Talent by Discipline",
+    description:
+      "Category grid with featured Models pod and discipline cards (dynamic or manual).",
+    category: "talent",
+    icon: "talent-grid",
+    insertMethod: "sectionTemplate",
+    sectionTemplateId: "talent-discipline-wrapper",
+    sourceType: "native-freeform",
+    connectedSource: "Talent Directory",
+    searchTerms: [
+      "talent_type_grid",
+      "discipline",
+      "browse by type",
+      "categories",
+    ],
   }),
 
   // ── Connected / Agency ──────────────────────────────────────────────────

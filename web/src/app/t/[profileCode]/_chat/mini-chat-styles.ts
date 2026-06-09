@@ -37,6 +37,11 @@ export const C = {
 // for the brand color so nothing falls back to a near-black fill.
 export const DEFAULT_ACCENT = "#33507a";
 
+/** Launcher pill offset from the viewport bottom (safe-area added at use site). */
+export const GUEST_CHAT_LAUNCHER_BOTTOM_PX = 130;
+/** Mini / expanded panel offset — sits above the launcher pill. */
+export const GUEST_CHAT_PANEL_BOTTOM_PX = 194;
+
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
@@ -142,7 +147,7 @@ export const LEFT_PANE_WIDTH = 232;
 export const expandedShellStyle: CSSProperties = {
   position: "fixed",
   right: "max(16px, env(safe-area-inset-right))",
-  bottom: "calc(84px + env(safe-area-inset-bottom))",
+  bottom: `calc(${GUEST_CHAT_PANEL_BOTTOM_PX}px + env(safe-area-inset-bottom))`,
   zIndex: 90,
   width: EXPANDED_WIDTH,
   maxHeight: EXPANDED_MAX_HEIGHT,

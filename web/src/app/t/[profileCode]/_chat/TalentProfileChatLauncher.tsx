@@ -21,7 +21,12 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import type { TalentChatLauncherProps } from "@/lib/inquiry/guest-chat-contract";
 
 import { MiniChatPanel } from "./MiniChatPanel";
-import { DEFAULT_ACCENT, firstNameOf, readableOn } from "./mini-chat-styles";
+import {
+  DEFAULT_ACCENT,
+  GUEST_CHAT_LAUNCHER_BOTTOM_PX,
+  firstNameOf,
+  readableOn,
+} from "./mini-chat-styles";
 
 function subscribeNoop(): () => void {
   return () => undefined;
@@ -100,7 +105,7 @@ export function TalentProfileChatLauncher({
         style={{
           position: "fixed",
           right: "max(16px, env(safe-area-inset-right))",
-          bottom: "calc(20px + env(safe-area-inset-bottom))",
+          bottom: `calc(${GUEST_CHAT_LAUNCHER_BOTTOM_PX}px + env(safe-area-inset-bottom))`,
           zIndex: 95,
           display: "inline-flex",
           alignItems: "center",

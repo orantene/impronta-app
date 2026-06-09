@@ -73,9 +73,9 @@ test("resolveAddGalleryInsertAction builds hero section template", () => {
   });
   assert.equal(action.type, "sectionTemplate");
   if (action.type === "sectionTemplate") {
-    assert.equal(action.node.kind, "section");
+    assert.equal(action.node.kind, "container");
     assert.equal(
-      action.node.kind === "section" ? action.node.props.label : null,
+      action.node.kind === "container" ? action.node.props.layerLabel : null,
       "Hero Centered Section",
     );
   }
@@ -90,9 +90,9 @@ test("resolveAddGalleryInsertAction builds testimonials trio freeform template",
   });
   assert.equal(action.type, "sectionTemplate");
   if (action.type === "sectionTemplate") {
-    assert.equal(action.node.kind, "section");
+    assert.equal(action.node.kind, "container");
     assert.equal(
-      action.node.kind === "section" ? action.node.props.label : null,
+      action.node.kind === "container" ? action.node.props.layerLabel : null,
       "Testimonials Section",
     );
   }

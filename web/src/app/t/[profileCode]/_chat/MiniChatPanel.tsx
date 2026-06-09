@@ -43,6 +43,7 @@ import {
   DEFAULT_ACCENT,
   EMAIL_RE,
   FONT,
+  GUEST_CHAT_PANEL_BOTTOM_PX,
   firstNameOf,
   joinGuestDisplayName,
   readableOn,
@@ -568,7 +569,7 @@ export function MiniChatPanel({
       style={{
         position: "fixed",
         right: "max(16px, env(safe-area-inset-right))",
-        bottom: "calc(84px + env(safe-area-inset-bottom))",
+        bottom: `calc(${GUEST_CHAT_PANEL_BOTTOM_PX}px + env(safe-area-inset-bottom))`,
         zIndex: 90,
         width: "min(380px, calc(100vw - 32px))",
         maxHeight: "min(620px, calc(100vh - 140px))",

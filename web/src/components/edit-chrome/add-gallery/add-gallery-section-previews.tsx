@@ -153,6 +153,19 @@ function GalleryStripPreview() {
   );
 }
 
+function TalentDisciplinePreview() {
+  return (
+    <Wire>
+      <path d="M20 12h56" strokeWidth="2" />
+      <rect x="10" y="20" width="48" height="44" rx="4" opacity="0.45" />
+      <rect x="62" y="20" width="42" height="20" rx="3" opacity="0.35" />
+      <rect x="108" y="20" width="42" height="20" rx="3" opacity="0.35" />
+      <rect x="62" y="44" width="42" height="20" rx="3" opacity="0.35" />
+      <rect x="108" y="44" width="42" height="20" rx="3" opacity="0.35" />
+    </Wire>
+  );
+}
+
 function TalentGridPreview() {
   return (
     <Wire>
@@ -261,6 +274,7 @@ const PREVIEW_BY_ITEM_ID: Record<string, () => ReactNode> = {
   "sec-gallery-grid": GalleryGridPreview,
   "sec-gallery-strip": GalleryStripPreview,
   "sec-featured-talent-grid": TalentGridPreview,
+  "sec-talent-discipline": TalentDisciplinePreview,
   "sec-roster-grid": RosterPreview,
   "sec-testimonials-trio": TestimonialsPreview,
   "sec-cta-banner": CtaBannerPreview,

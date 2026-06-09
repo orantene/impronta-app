@@ -2,6 +2,7 @@
 import type { BuilderNode } from "../types";
 import type { BuilderNodeRenderDataSources } from "../render";
 import type { PageDesign } from "./types";
+import { buildTalentDisciplineDecomposedSection } from "../talent-discipline-freeform";
 import { FRAUNCES, CINZEL, INTER } from "./tokens";
 
 /**
@@ -15,7 +16,7 @@ import { FRAUNCES, CINZEL, INTER } from "./tokens";
  * portraits (never placeholder boxes); the discipline rail uses a licensed
  * editorial set pending a first-party shoot (see the `disciplines` note).
  *
- * Sections: a single search-first hero (real `hero_search` Tulala component) →
+ * Sections: a search-first hero (freeform Title / Search Form / CTAs / chips) →
  * "Discover premium talent" stage-card hero → talent-by-discipline rail →
  * featured talent → markets / "Local faces" (real `location_discovery` Tulala
  * component, roster-derived live counts) → a clear process with a connected
@@ -26,9 +27,9 @@ import { FRAUNCES, CINZEL, INTER } from "./tokens";
  *
  * Real-component decisions (Wave-2 flagship pass — see builder audit
  * 2026-06-02):
- *   - The hero "search box" is now a real `hero_search` section_embed (native
- *     GET → /directory ?q=, live tenant talent-count stat). No decorative
- *     <paragraph> search bar.
+ *   - The hero search row is a native GET form (`action=/directory`, field `q`) as
+ *     freeform layers — not a monolithic `hero_search` section_embed (so Title,
+ *     Search Form, and buttons are separate layers in Page Structure).
  *   - The "markets map" is now a real `location_discovery` section_embed
  *     (source: roster_cities → live per-city counts + featured-market panel,
  *     real /directory links). The registered map visual is the section's own
@@ -74,7 +75,7 @@ const TALENT = {
 const dataSources: BuilderNodeRenderDataSources = {
   collections: {
     // impronta_disciplines and impronta_featured were removed: the discipline
-    // rail is now a section_embed of talent_type_grid (uses its own config),
+    // discipline rail is a container + freeform title + grid-only talent_type_grid embed,
     // and featured talent is a section_embed of featured_talent (live roster).
     // impronta_markets was removed: the markets panel is now a real
     // location_discovery section_embed (roster-derived counts), not a repeater.
@@ -279,13 +280,155 @@ const lineButton = (id: string, label: string, href: string): BuilderNode => ({
 
 // ── sections ──────────────────────────────────────────────────────────────────
 
-// Search-first hero — a REAL `hero_search` Tulala component (section_embed),
-// not a decorative <paragraph> search bar. Native GET → /directory (?q=), a
-// live tenant-scoped talent-count stat (statSource: tenant_talent_count — the
-// honest replacement for the fabricated "120+"), and the real Start-an-Inquiry
-// / Apply-as-talent CTAs. The dark editorial band wraps the embed so the gold
-// radial wash + Fraunces/Cinzel/Inter type carry through. Edit the headline,
-// placeholder, chips and CTAs in the section's own editor.
+/** Decomposed hero search — each row is its own builder layer (not one Tulala embed). */
+function improntaHeroSearchLayers(): BuilderNode[] {
+  return [
+    {
+      id: "impronta-hf-eyebrow",
+      kind: "paragraph",
+      props: {
+        text: "Models & Image Agency",
+        layerLabel: "Intro Text",
+        style: {
+          fontFamily: CINZEL,
+          fontSize: "12px",
+          fontWeight: 600,
+          letterSpacing: "0.32em",
+          textTransform: "uppercase",
+          textColor: GOLD,
+          align: "center",
+          marginBottomFree: "14px",
+        },
+      },
+    },
+    {
+      id: "impronta-hf-title",
+      kind: "heading",
+      props: {
+        text: "Find the right talent for your brief.",
+        level: 1,
+        layerLabel: "Title",
+        style: {
+          fontFamily: FRAUNCES,
+          fontSize: "clamp(2.8rem, 7vw, 6.4rem)",
+          lineHeight: "1.02",
+          fontWeight: 500,
+          letterSpacing: "-0.015em",
+          textColor: TEXT,
+          textTransform: "uppercase",
+          textWrap: "balance",
+          align: "center",
+          marginBottomFree: "0px",
+          responsive: { tablet: { fontSize: "48px" }, mobile: { fontSize: "36px" } },
+        },
+      },
+    },
+    {
+      id: "impronta-hf-sub",
+      kind: "paragraph",
+      props: {
+        text: "Search the directory by role, location or fit — agency-managed, no direct contact.",
+        layerLabel: "Subtitle",
+        style: {
+          fontFamily: INTER,
+          fontSize: "17px",
+          lineHeight: "1.62",
+          textColor: MUTED,
+          align: "center",
+          marginTopFree: "22px",
+          maxWidthFree: "640px",
+          marginLeftFree: "auto",
+          marginRightFree: "auto",
+        },
+      },
+    },
+    {
+      id: "impronta-hf-search",
+      kind: "form",
+      props: {
+        action: "/directory",
+        method: "get",
+        layerLabel: "Search Form",
+        fields: [
+          {
+            id: "impronta-hf-q",
+            name: "q",
+            type: "text",
+            label: "Search",
+            placeholder: "Bilingual hosts for a product launch in Tulum…",
+            required: false,
+          },
+          {
+            id: "impronta-hf-submit",
+            name: "submit",
+            type: "submit",
+            label: "Search",
+          },
+        ],
+        style: {
+          maxWidthFree: "640px",
+          marginLeftFree: "auto",
+          marginRightFree: "auto",
+          width: "100%",
+          marginTopFree: "28px",
+        },
+      },
+    },
+    {
+      id: "impronta-hf-actions",
+      kind: "container",
+      props: {
+        layout: "row",
+        align: "center",
+        layerLabel: "Button Group",
+        responsive: { mobile: { layout: "stack", align: "stretch" } },
+        style: {
+          marginTopFree: "24px",
+          gap: "16px",
+          justifyContent: "center",
+        },
+      },
+      children: [
+        goldButton("impronta-hf-inquiry", "Start an Inquiry", "/inquiry"),
+        lineButton("impronta-hf-apply", "Apply as talent →", "/join"),
+      ],
+    },
+    {
+      id: "impronta-hf-chips",
+      kind: "container",
+      props: {
+        layout: "row",
+        align: "center",
+        layerLabel: "Location Chips",
+        style: { marginTopFree: "20px", gap: "10px", flexWrap: "wrap", justifyContent: "center" },
+      },
+      children: [
+        lineButton("impronta-hf-chip-rm", "Riviera Maya", "/directory"),
+        lineButton("impronta-hf-chip-cdmx", "Mexico City", "/directory"),
+        lineButton("impronta-hf-chip-ba", "Buenos Aires", "/directory"),
+      ],
+    },
+    {
+      id: "impronta-hf-stat",
+      kind: "paragraph",
+      props: {
+        text: "27+ represented talent · agency-managed end to end",
+        layerLabel: "Stats Text",
+        style: {
+          fontFamily: INTER,
+          fontSize: "13px",
+          textColor: FAINT,
+          align: "center",
+          marginTopFree: "18px",
+        },
+      },
+    },
+  ];
+}
+
+// Search-first hero — freeform layers inside the dark editorial band (gold radial
+// wash + Fraunces/Cinzel/Inter). Connected blocks below (discipline rail, featured
+// talent, markets) stay as `section_embed`s where live roster data is required.
 const heroFind: BuilderNode = {
   id: "impronta-hero-find",
   kind: "container",
@@ -312,42 +455,7 @@ const heroFind: BuilderNode = {
       id: "impronta-hero-find-wrap",
       kind: "container",
       props: { layout: "stack", align: "center", style: { width: "100%", maxWidthFree: "920px", gap: "0px", align: "center", ...RISE } },
-      children: [
-        {
-          id: "impronta-hf-search",
-          kind: "section_embed",
-          props: {
-            sectionTypeKey: "hero_search",
-            config: {
-              eyebrow: "Models & Image Agency",
-              headline: "Find the right talent",
-              highlight: "for your brief.",
-              subheadline:
-                "Search the directory by role, location or fit — agency-managed, no direct contact.",
-              search: {
-                enabled: true,
-                mode: "directory-query",
-                placeholder: "Bilingual hosts for a product launch in Tulum…",
-                actionHref: "/directory",
-                submitLabel: "Search",
-              },
-              primaryCta: { label: "Start an Inquiry", href: "/inquiry" },
-              secondaryCta: { label: "Apply as talent →", href: "/join" },
-              chipsSource: "manual",
-              chips: [
-                { label: "Riviera Maya", href: "/directory" },
-                { label: "Mexico City", href: "/directory" },
-                { label: "Buenos Aires", href: "/directory" },
-              ],
-              // Live tenant talent count — the honest replacement for "120+".
-              statSource: "tenant_talent_count",
-              statCountLabel: "represented talent · agency-managed end to end",
-              layout: "centered",
-              presentation: { background: "canvas", align: "center", paddingTop: "tight", paddingBottom: "tight" },
-            },
-          },
-        },
-      ],
+      children: improntaHeroSearchLayers(),
     },
   ],
 };
@@ -454,56 +562,47 @@ const heroClassic: BuilderNode = {
   ],
 };
 
-// Talent by discipline — REAL curated rail (section_embed of the talent_type_grid
-// component) with a featured-pod rail; edit/reorder in the section's own editor.
-//
-// IMAGERY (P2-VERIFY-DATA, 2026-06-02): there is NO agency-level or editorial
-// discipline-rail photography in the media-public bucket — all 794 tenant assets
-// are individual talent portraits (purpose='talent'), so they CANNOT honestly
-// label a category ("Models", "Chefs"…) without mislabeling a specific person.
-// These remain a cohesive, topically-correct licensed editorial set (Unsplash)
-// as the launch placeholder; replace with a bespoke editorial shoot or a
-// licensed Getty/Stocksy set keyed per discipline before launch. Tracked as a
-// follow-up — the renderer + alt text are correct; only the source needs to
-// become first-party.
-const disciplines: BuilderNode = {
-  id: "impronta-disciplines",
-  kind: "section_embed",
-  props: {
-    sectionTypeKey: "talent_type_grid",
-    config: {
-      mode: "manual",
-      items: [
-        { href: "/directory", icon: "◑", label: "Models", featured: true, imageAlt: "Studio portrait of a model with long blonde hair and a sheer black top.", imageUrl: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&q=72&w=1200&h=1500", description: "Editorial, runway & commercial" },
-        { href: "/directory", icon: "✦", label: "Hosts & Promo", imageAlt: "Confetti falling over a crowded live event.", imageUrl: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=72&w=1200&h=760", description: "Brand ambassadors & activations" },
-        { href: "/directory", icon: "✷", label: "Chefs & Culinary", imageAlt: "Chef plating food in a professional kitchen.", imageUrl: "https://images.unsplash.com/photo-1577219491135-ce391730fb2c?auto=format&fit=crop&q=72&w=1200&h=760", description: "Private chefs & catering" },
-        { href: "/directory", icon: "♪", label: "Performers", imageAlt: "Singer performing into a microphone through stage smoke.", imageUrl: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&q=72&w=1200&h=760", description: "Dancers, acts & entertainers" },
-        { href: "/directory", icon: "❀", label: "Wellness & Beauty", imageAlt: "Close-up beauty portrait showing dramatic eye makeup.", imageUrl: "https://images.unsplash.com/photo-1487412947147-5cebf100ffc2?auto=format&fit=crop&q=72&w=1200&h=760", description: "Hair, makeup & wellness" },
-        { href: "/directory", icon: "♫", label: "Music & DJs", imageAlt: "Musicians performing on a dark stage with concert lights.", imageUrl: "https://images.unsplash.com/photo-1499364615650-ec38552f4f34?auto=format&fit=crop&q=72&w=1200&h=760", description: "DJs, bands & live music" },
-        { href: "/directory", icon: "◉", label: "Photo, Video & Creative", imageAlt: "Camera equipment and lighting set up for a creative shoot.", imageUrl: "https://images.unsplash.com/photo-1478720568477-152d9b164e26?auto=format&fit=crop&q=72&w=1200&h=760", description: "Photographers & creatives" },
-      ],
-      eyebrow: "The roster",
-      showCta: true,
-      ctaLabel: "Explore",
-      headline: "Talent, by discipline",
-      maxItems: 7,
-      cardRatio: "16/9",
-      showCount: false,
-      seeAllHref: "/directory",
-      showImages: true,
-      seeAllLabel: "See all",
-      subheadline: "",
-      mobileLayout: "horizontal-scroll",
-      presentation: { background: "espresso", dividerTop: "thin-line", paddingTop: "editorial", paddingBottom: "editorial", animation: { entry: "fade-up", reducedMotion: "respect" } },
-      textPosition: "overlay-bottom",
-      desktopLayout: "featured-pod-rail",
-      showCardIcons: true,
-      showDescriptions: true,
-      showRailControls: true,
-      imageOverlayStrength: "strong",
+// Talent by discipline — freeform header layers + grid-only talent_type_grid embed.
+// IMAGERY (P2-VERIFY-DATA): licensed Unsplash placeholders per discipline until
+// first-party editorial assets exist.
+const disciplines: BuilderNode = buildTalentDisciplineDecomposedSection({
+  rootId: "impronta-disciplines",
+  eyebrow: "The roster",
+  headline: "Talent, by discipline",
+  seeAllLabel: "See all",
+  seeAllHref: "/directory",
+  embedConfig: {
+    mode: "manual",
+    items: [
+      { href: "/directory", icon: "◑", label: "Models", featured: true, imageAlt: "Studio portrait of a model with long blonde hair and a sheer black top.", imageUrl: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&q=72&w=1200&h=1500", description: "Editorial, runway & commercial" },
+      { href: "/directory", icon: "✦", label: "Hosts & Promo", imageAlt: "Confetti falling over a crowded live event.", imageUrl: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=72&w=1200&h=760", description: "Brand ambassadors & activations" },
+      { href: "/directory", icon: "✷", label: "Chefs & Culinary", imageAlt: "Chef plating food in a professional kitchen.", imageUrl: "https://images.unsplash.com/photo-1577219491135-ce391730fb2c?auto=format&fit=crop&q=72&w=1200&h=760", description: "Private chefs & catering" },
+      { href: "/directory", icon: "♪", label: "Performers", imageAlt: "Singer performing into a microphone through stage smoke.", imageUrl: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&q=72&w=1200&h=760", description: "Dancers, acts & entertainers" },
+      { href: "/directory", icon: "❀", label: "Wellness & Beauty", imageAlt: "Close-up beauty portrait showing dramatic eye makeup.", imageUrl: "https://images.unsplash.com/photo-1487412947147-5cebf100ffc2?auto=format&fit=crop&q=72&w=1200&h=760", description: "Hair, makeup & wellness" },
+      { href: "/directory", icon: "♫", label: "Music & DJs", imageAlt: "Musicians performing on a dark stage with concert lights.", imageUrl: "https://images.unsplash.com/photo-1499364615650-ec38552f4f34?auto=format&fit=crop&q=72&w=1200&h=760", description: "DJs, bands & live music" },
+      { href: "/directory", icon: "◉", label: "Photo, Video & Creative", imageAlt: "Camera equipment and lighting set up for a creative shoot.", imageUrl: "https://images.unsplash.com/photo-1478720568477-152d9b164e26?auto=format&fit=crop&q=72&w=1200&h=760", description: "Photographers & creatives" },
+    ],
+    maxItems: 7,
+    cardRatio: "16/9",
+    showCta: true,
+    ctaLabel: "Explore",
+    showImages: true,
+    showDescriptions: true,
+    showCardIcons: true,
+    showRailControls: true,
+    mobileLayout: "horizontal-scroll",
+    desktopLayout: "featured-pod-rail",
+    textPosition: "overlay-bottom",
+    imageOverlayStrength: "strong",
+    presentation: {
+      background: "espresso",
+      dividerTop: "thin-line",
+      paddingTop: "editorial",
+      paddingBottom: "editorial",
+      animation: { entry: "fade-up", reducedMotion: "respect" },
     },
   },
-};
+});
 
 // Featured talent — REAL represented roster (section_embed of the featured_talent
 // component). `sourceMode: manual_pick` shows the agency's hand-picked talent;

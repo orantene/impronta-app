@@ -12,6 +12,8 @@ export * from "./operations";
 export * from "./drop-policy";
 export * from "./layout-health";
 export * from "./render";
+export * from "./freeform-page-blocks";
+export * from "./text-role";
 export * from "./fonts-registry";
 export * from "./icon-registry";
 export * from "./mutation-feedback";

@@ -6,8 +6,10 @@ import {
   type BuilderNodePaletteDragPayload,
 } from "@/components/edit-chrome/element-library-insert-picker";
 
-import { galleryItemSupportsDrag } from "./insert";
+import { galleryItemSupportsDrag, resolveAddGalleryInsertAction } from "./insert";
+import { getAddGalleryItemById } from "./registry";
 import type { AddGalleryItem } from "./types";
+import type { BuilderNodeKind } from "@/lib/site-admin/builder-node/types";
 
 export const ADD_GALLERY_DRAG_PREFIX = "gallery:";
 
@@ -49,4 +51,23 @@ export function armAddGalleryDrag(
 
 export function clearAddGalleryDrag(): void {
   setActiveBuilderNodePaletteDrag(null);
+}
+
+/** Node kind used for canvas drop-policy when dragging a gallery item. */
+export function galleryItemDragNodeKind(itemId: string): BuilderNodeKind {
+  const item = getAddGalleryItemById(itemId);
+  if (!item) return "section";
+  const action = resolveAddGalleryInsertAction(item);
+  if (action.type === "nativeNode") return action.node.kind;
+  if (action.type === "sectionTemplate") return "container";
+  if (action.type === "sectionEmbed" || action.type === "connectedNode") {
+    return "section_embed";
+  }
+  return "section";
+}
+
+/** Full-width gallery blocks (sections, connected embeds) insert at page root. */
+export function galleryItemInsertsAtPageRoot(itemId: string): boolean {
+  const kind = galleryItemDragNodeKind(itemId);
+  return kind === "section" || kind === "section_embed" || kind === "container";
 }

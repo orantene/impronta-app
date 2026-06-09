@@ -10,6 +10,19 @@ import {
 
 const STYLE_PATCH_DEBOUNCE_MS = 480;
 
+/** Match bulk-style patch semantics: `undefined` deletes the key. */
+function mergeTopLevelStylePatch(
+  prev: Record<string, unknown>,
+  patch: Record<string, unknown>,
+): Record<string, unknown> | undefined {
+  const next = { ...prev };
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === undefined) delete next[key];
+    else next[key] = value;
+  }
+  return Object.keys(next).length > 0 ? next : undefined;
+}
+
 interface PendingStylePatch {
   nodeId: string;
   patch: Record<string, unknown>;
@@ -69,7 +82,7 @@ export function useCanvasTextStylePatch({
     pendingRef.current = { nodeId: targetId, patch: {} };
     const prevStyle = getNodeStyleRef.current(targetId) ?? {};
     await patchRef.current(targetId, {
-      style: { ...prevStyle, ...patch },
+      style: mergeTopLevelStylePatch(prevStyle, patch),
     });
   }, []);
 
