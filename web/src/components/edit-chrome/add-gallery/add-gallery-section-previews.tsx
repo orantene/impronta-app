@@ -1,8 +1,22 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { memo } from "react";
 
-const STROKE = {
+import { getAddGalleryItemById } from "@/lib/site-admin/add-gallery";
+import { buildAddGallerySectionTemplate } from "@/lib/site-admin/add-gallery/section-templates";
+import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+
+// ── SVG wireframe constants ──────────────────────────────────────────────────
+
+/** Viewbox dimensions for all section preview SVGs. */
+const VW = 160;
+const VH = 72;
+
+/** Common accent color — indigo, matches the CHROME.accent token. */
+const ACCENT_FG = "#7c3aed";
+
+/** Base wire stroke props */
+const WIRE_STROKE = {
   fill: "none",
   stroke: "currentColor",
   strokeWidth: 1.25,
@@ -10,287 +24,578 @@ const STROKE = {
   strokeLinejoin: "round" as const,
 };
 
-function Wire({ children }: { children: ReactNode }) {
+// ── Layout helpers ────────────────────────────────────────────────────────────
+
+/**
+ * A "slot" is a positioned rectangle in the SVG viewbox.
+ * The tree walker breaks the VW×VH space into slots for each node.
+ */
+interface Slot {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+const ROOT_SLOT: Slot = { x: 6, y: 6, w: VW - 12, h: VH - 12 };
+
+/** Shrink a slot inward by padding on each side. */
+function pad(s: Slot, px: number): Slot {
+  return { x: s.x + px, y: s.y + px, w: s.w - px * 2, h: s.h - px * 2 };
+}
+
+/** Split a slot into N equal horizontal slices, with a small gap. */
+function splitH(s: Slot, n: number, gap = 4): Slot[] {
+  const usable = s.w - gap * (n - 1);
+  const w = Math.max(1, usable / n);
+  return Array.from({ length: n }, (_, i) => ({
+    x: s.x + i * (w + gap),
+    y: s.y,
+    w,
+    h: s.h,
+  }));
+}
+
+/** Split a slot into N equal vertical slices (rows), with a small gap. */
+function splitV(s: Slot, n: number, gap = 3): Slot[] {
+  const usable = s.h - gap * (n - 1);
+  const h = Math.max(1, usable / n);
+  return Array.from({ length: n }, (_, i) => ({
+    x: s.x,
+    y: s.y + i * (h + gap),
+    w: s.w,
+    h,
+  }));
+}
+
+// ── SVG element emitters per node kind ───────────────────────────────────────
+
+/**
+ * Recursively walk a BuilderNode tree and emit SVG wireframe elements.
+ * The slot is the space this node should occupy in the 160×72 viewbox.
+ * Returns an array of SVG element descriptors (rendered lazily).
+ */
+function walk(
+  node: BuilderNode,
+  slot: Slot,
+  depth = 0,
+): React.ReactNode[] {
+  const { kind } = node;
+  const children =
+    "children" in node && Array.isArray(node.children) ? node.children : [];
+
+  // Depth cap — anything past depth 6 just renders a faint placeholder
+  if (depth > 6) return [];
+
+  // ── Leaf-level semantic nodes ────────────────────────────────────────────
+  if (kind === "heading") {
+    // Bold horizontal bar — thicker for level 1, thinner for 2+
+    const level = (node.props as { level?: number }).level ?? 2;
+    const barH = level === 1 ? 2 : 1.5;
+    const barW = level === 1 ? slot.w * 0.75 : slot.w * 0.6;
+    const barX = slot.x + (slot.w - barW) / 2;
+    const barY = slot.y + slot.h / 2 - barH / 2;
+    return [
+      <rect
+        key="heading"
+        x={barX}
+        y={barY}
+        width={barW}
+        height={barH}
+        rx={0.5}
+        fill="currentColor"
+        opacity={level === 1 ? 0.75 : 0.6}
+      />,
+    ];
+  }
+
+  if (kind === "paragraph") {
+    // One or two thin lines to suggest body copy
+    const lineH = 1;
+    const maxLines = slot.h > 8 ? 2 : 1;
+    const lines = Array.from({ length: maxLines }, (_, i) => {
+      const lineW = i === 0 ? slot.w * 0.85 : slot.w * 0.65;
+      const lineX = slot.x + (slot.w - lineW) / 2;
+      const lineY =
+        maxLines === 1
+          ? slot.y + slot.h / 2 - lineH / 2
+          : slot.y + slot.h / 2 - 2.5 + i * 4;
+      return (
+        <rect
+          key={`para-${i}`}
+          x={lineX}
+          y={lineY}
+          width={lineW}
+          height={lineH}
+          rx={0.5}
+          fill="currentColor"
+          opacity={0.35}
+        />
+      );
+    });
+    return lines;
+  }
+
+  if (kind === "button") {
+    // Rounded pill shape
+    const pillH = Math.min(8, slot.h * 0.6);
+    const pillW = Math.min(slot.w, 28);
+    const pillX = slot.x + (slot.w - pillW) / 2;
+    const pillY = slot.y + (slot.h - pillH) / 2;
+    return [
+      <rect
+        key="button"
+        x={pillX}
+        y={pillY}
+        width={pillW}
+        height={pillH}
+        rx={pillH / 2}
+        fill="currentColor"
+        opacity={0.55}
+      />,
+    ];
+  }
+
+  if (kind === "cta_group") {
+    // Row of two pill buttons
+    const slots = splitH(slot, Math.min(children.length || 2, 3), 4);
+    return slots.flatMap((s, i) => {
+      const c = children[i];
+      return c ? walk(c, s, depth + 1) : walkButton(s);
+    });
+  }
+
+  if (kind === "image") {
+    // Filled rect with a subtle diagonal — indicates image placeholder
+    return [
+      <rect
+        key="img"
+        x={slot.x}
+        y={slot.y}
+        width={slot.w}
+        height={slot.h}
+        rx={3}
+        fill="currentColor"
+        opacity={0.18}
+      />,
+      <line
+        key="img-diag"
+        x1={slot.x}
+        y1={slot.y + slot.h}
+        x2={slot.x + slot.w}
+        y2={slot.y}
+        stroke="currentColor"
+        strokeWidth={0.75}
+        opacity={0.12}
+      />,
+    ];
+  }
+
+  if (kind === "masonry") {
+    // 3-column grid of image rects
+    const cols = (node.props as { columns?: number }).columns ?? 3;
+    const count = Math.max(cols, children.length || cols);
+    const slotCols = splitH(slot, Math.min(count, 4), 3);
+    return slotCols.map((s, i) => (
+      <rect
+        key={`masonry-${i}`}
+        x={s.x}
+        y={s.y}
+        width={s.w}
+        height={s.h}
+        rx={2}
+        fill="currentColor"
+        opacity={0.22}
+      />
+    ));
+  }
+
+  if (kind === "section_embed") {
+    // Special "connected data" slot — filled rect with a subtle grid pattern
+    return [
+      <rect
+        key="embed-bg"
+        x={slot.x}
+        y={slot.y}
+        width={slot.w}
+        height={slot.h}
+        rx={3}
+        fill="currentColor"
+        opacity={0.08}
+      />,
+      // 3 columns of placeholder "cards"
+      ...splitH(pad(slot, 3), 3, 3).map((s, i) => (
+        <rect
+          key={`embed-col-${i}`}
+          x={s.x}
+          y={s.y}
+          width={s.w}
+          height={s.h}
+          rx={2}
+          fill="currentColor"
+          opacity={0.18}
+        />
+      )),
+    ];
+  }
+
+  if (kind === "card") {
+    // Bordered box with a brief interior line
+    const elems: React.ReactNode[] = [
+      <rect
+        key="card-bg"
+        x={slot.x}
+        y={slot.y}
+        width={slot.w}
+        height={slot.h}
+        rx={3}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={0.75}
+        opacity={0.35}
+      />,
+    ];
+    if (children.length > 0) {
+      // Stack children inside the card
+      const inner = pad(slot, 3);
+      const childSlots = splitV(inner, Math.min(children.length, 3), 2);
+      childSlots.forEach((s, i) => {
+        if (children[i]) {
+          elems.push(...walk(children[i], s, depth + 1));
+        }
+      });
+    } else {
+      // Default: a single thin interior line
+      const lineY = slot.y + slot.h / 2;
+      elems.push(
+        <line
+          key="card-line"
+          x1={slot.x + 4}
+          y1={lineY}
+          x2={slot.x + slot.w - 4}
+          y2={lineY}
+          stroke="currentColor"
+          strokeWidth={1}
+          opacity={0.3}
+        />,
+      );
+    }
+    return elems;
+  }
+
+  if (kind === "accordion" || kind === "accordion_item") {
+    // Stack of horizontal bars (collapsed rows)
+    const rowCount = kind === "accordion" ? Math.min(children.length || 3, 4) : 1;
+    const rows = splitV(slot, rowCount, 2);
+    return rows.map((row, i) => (
+      <rect
+        key={`acc-${i}`}
+        x={row.x}
+        y={row.y}
+        width={row.w}
+        height={Math.max(row.h, 5)}
+        rx={2}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={0.75}
+        opacity={0.35}
+      />
+    ));
+  }
+
+  if (kind === "form") {
+    // Stack of 3 input field rects + a submit button
+    const rows = splitV(slot, 3, 3);
+    const elems: React.ReactNode[] = rows.map((row, i) => (
+      <rect
+        key={`field-${i}`}
+        x={row.x}
+        y={row.y}
+        width={row.w}
+        height={Math.max(row.h - 1, 4)}
+        rx={2}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={0.75}
+        opacity={i < 2 ? 0.3 : 0.5}
+      />
+    ));
+    return elems;
+  }
+
+  // ── Container / structural nodes ─────────────────────────────────────────
+  if (kind === "split") {
+    // Left content + right image
+    const [leftSlot, rightSlot] = splitH(slot, 2, 6);
+    const leftChildren =
+      "children" in node && Array.isArray(node.children) ? node.children[0] : null;
+    const rightChildren =
+      "children" in node && Array.isArray(node.children) ? node.children[1] : null;
+
+    const leftElems = leftChildren
+      ? walk(leftChildren, leftSlot, depth + 1)
+      : walkTextBlock(leftSlot);
+    const rightElems = rightChildren
+      ? walk(rightChildren, rightSlot, depth + 1)
+      : [
+          <rect
+            key="split-img"
+            x={rightSlot.x}
+            y={rightSlot.y}
+            width={rightSlot.w}
+            height={rightSlot.h}
+            rx={3}
+            fill="currentColor"
+            opacity={0.18}
+          />,
+        ];
+
+    return [...leftElems, ...rightElems];
+  }
+
+  if (kind === "container") {
+    if (children.length === 0) {
+      return [
+        <rect
+          key="empty-container"
+          x={slot.x}
+          y={slot.y}
+          width={slot.w}
+          height={slot.h}
+          rx={2}
+          fill="currentColor"
+          opacity={0.06}
+        />,
+      ];
+    }
+
+    const layout = (node.props as { layout?: string }).layout ?? "stack";
+
+    if (layout === "row") {
+      const childSlots = splitH(slot, Math.min(children.length, 5), 4);
+      return children
+        .slice(0, 5)
+        .flatMap((child, i) =>
+          childSlots[i] ? walk(child, childSlots[i], depth + 1) : [],
+        );
+    }
+
+    if (layout === "grid") {
+      const columns = Math.min((node.props as { columns?: number }).columns ?? 3, 4);
+      const visibleChildren = children.slice(0, columns * 2);
+      const rowCount = Math.ceil(visibleChildren.length / columns);
+      const rowSlots = splitV(slot, rowCount, 3);
+      return rowSlots.flatMap((rowSlot, ri) => {
+        const rowChildren = visibleChildren.slice(ri * columns, (ri + 1) * columns);
+        const colSlots = splitH(rowSlot, columns, 3);
+        return rowChildren.flatMap((child, ci) =>
+          colSlots[ci] ? walk(child, colSlots[ci], depth + 1) : [],
+        );
+      });
+    }
+
+    // stack layout (default)
+    const visibleChildren = children.slice(0, 5);
+    const childSlots = distributeVertically(slot, visibleChildren, depth);
+    return visibleChildren.flatMap((child, i) =>
+      childSlots[i] ? walk(child, childSlots[i], depth + 1) : [],
+    );
+  }
+
+  // Fallback — tiny placeholder rect
+  return [
+    <rect
+      key={`fallback-${kind}`}
+      x={slot.x}
+      y={slot.y}
+      width={slot.w}
+      height={Math.max(slot.h, 3)}
+      rx={1}
+      fill="currentColor"
+      opacity={0.1}
+    />,
+  ];
+}
+
+/**
+ * Distribute a slot's vertical space among children.
+ * Headings, paragraphs, and buttons get proportional heights.
+ * Containers, grids, and images get more space.
+ */
+function distributeVertically(slot: Slot, children: BuilderNode[], depth: number): Slot[] {
+  const weights = children.map((child) => {
+    const k = child.kind;
+    if (k === "heading") return depth <= 1 ? 1.5 : 1;
+    if (k === "paragraph") return 1;
+    if (k === "button") return 0.8;
+    if (k === "cta_group") return 1;
+    if (k === "image") return 3;
+    if (k === "masonry") return 3;
+    if (k === "section_embed") return 3.5;
+    if (k === "container") {
+      const layout = (child.props as { layout?: string }).layout ?? "stack";
+      return layout === "grid" ? 3 : 2;
+    }
+    if (k === "split") return 4;
+    if (k === "card") return 2;
+    if (k === "accordion") return 3;
+    if (k === "form") return 3;
+    return 1.5;
+  });
+
+  const totalWeight = weights.reduce((a, b) => a + b, 0);
+  const gap = 3;
+  const usableH = slot.h - gap * (children.length - 1);
+
+  let y = slot.y;
+  return children.map((_, i) => {
+    const h = Math.max((weights[i] / totalWeight) * usableH, 4);
+    const s: Slot = { x: slot.x, y, w: slot.w, h };
+    y += h + gap;
+    return s;
+  });
+}
+
+/** Fallback: render a generic "text block" (title + 2 body lines) in a slot. */
+function walkTextBlock(slot: Slot): React.ReactNode[] {
+  const rows = splitV(slot, 3, 3);
+  return [
+    <rect
+      key="tb-title"
+      x={rows[0].x + rows[0].w * 0.1}
+      y={rows[0].y + rows[0].h / 2 - 0.75}
+      width={rows[0].w * 0.7}
+      height={1.5}
+      rx={0.5}
+      fill="currentColor"
+      opacity={0.55}
+    />,
+    <rect
+      key="tb-p1"
+      x={rows[1].x}
+      y={rows[1].y + rows[1].h / 2 - 0.5}
+      width={rows[1].w * 0.85}
+      height={1}
+      rx={0.5}
+      fill="currentColor"
+      opacity={0.3}
+    />,
+    <rect
+      key="tb-p2"
+      x={rows[2].x}
+      y={rows[2].y + rows[2].h / 2 - 0.5}
+      width={rows[2].w * 0.65}
+      height={1}
+      rx={0.5}
+      fill="currentColor"
+      opacity={0.3}
+    />,
+  ];
+}
+
+/** Fallback: a single button pill in a slot. */
+function walkButton(slot: Slot): React.ReactNode[] {
+  const pillH = Math.min(8, slot.h * 0.6);
+  const pillW = Math.min(slot.w * 0.8, 28);
+  return [
+    <rect
+      key="btn-fb"
+      x={slot.x + (slot.w - pillW) / 2}
+      y={slot.y + (slot.h - pillH) / 2}
+      width={pillW}
+      height={pillH}
+      rx={pillH / 2}
+      fill="currentColor"
+      opacity={0.5}
+    />,
+  ];
+}
+
+// ── Fallback icon for templates without a builder ────────────────────────────
+
+function FallbackIcon() {
   return (
     <svg
-      viewBox="0 0 160 72"
-      className="h-full w-full"
+      viewBox="0 0 24 24"
+      width={28}
+      height={28}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
       aria-hidden
-      {...STROKE}
     >
-      {children}
+      <rect x="3" y="3" width="18" height="18" rx="3" opacity={0.3} />
+      <path d="M7 10h10M7 14h7" opacity={0.5} />
     </svg>
   );
 }
 
-function HeroCenteredPreview() {
+// ── Core memoized wireframe renderer ─────────────────────────────────────────
+
+/**
+ * Renders a structural wireframe for a given sectionTemplateId.
+ * Memoized so the same template doesn't re-render across panel pans.
+ */
+const TemplateWireframe = memo(function TemplateWireframe({
+  templateId,
+}: {
+  templateId: string;
+}) {
+  const root = buildAddGallerySectionTemplate(templateId);
+
+  if (!root) {
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        <FallbackIcon />
+      </div>
+    );
+  }
+
+  const elements = walk(root, ROOT_SLOT, 0);
+
   return (
-    <Wire>
-      <rect x="8" y="8" width="144" height="56" rx="4" opacity="0.35" />
-      <path d="M40 24h80" strokeWidth="2" />
-      <path d="M48 34h64" opacity="0.6" />
-      <rect x="52" y="44" width="24" height="8" rx="4" />
-      <rect x="80" y="44" width="24" height="8" rx="4" opacity="0.5" />
-    </Wire>
+    <svg
+      viewBox={`0 0 ${VW} ${VH}`}
+      className="h-full w-full"
+      aria-hidden
+      {...WIRE_STROKE}
+    >
+      {elements}
+    </svg>
   );
-}
+});
 
-function HeroSplitPreview() {
-  return (
-    <Wire>
-      <rect x="8" y="8" width="68" height="56" rx="4" opacity="0.2" />
-      <rect x="84" y="8" width="68" height="56" rx="4" opacity="0.45" />
-      <path d="M16 22h44" strokeWidth="2" />
-      <path d="M16 32h36" opacity="0.6" />
-      <rect x="16" y="44" width="20" height="8" rx="4" />
-    </Wire>
-  );
-}
+// ── Public component ──────────────────────────────────────────────────────────
 
-function HeroSearchPreview() {
-  return (
-    <Wire>
-      <path d="M36 18h88" strokeWidth="2" />
-      <path d="M44 28h72" opacity="0.6" />
-      <rect x="28" y="38" width="104" height="14" rx="7" opacity="0.5" />
-      <path d="M118 45h8" strokeWidth="2" />
-      <circle cx="122" cy="45" r="3" />
-    </Wire>
-  );
-}
+/**
+ * Section preview rendered from the section's builder template tree.
+ *
+ * The preview is a monochrome SVG wireframe that reflects the section's
+ * actual structure — headings become bold bars, paragraphs become thin lines,
+ * buttons become pill shapes, images become filled rectangles, containers
+ * arrange children in rows/stacks. This makes Hero vs Gallery vs CTA vs FAQ
+ * distinguishable at a glance without any images or data fetching.
+ */
+export function AddGallerySectionPreview({
+  itemId,
+  templateId,
+}: {
+  itemId: string;
+  /** Optional override — if supplied the template is looked up directly. */
+  templateId?: string;
+}) {
+  // Prefer explicit templateId; otherwise look up via the item registry.
+  const resolvedTemplateId =
+    templateId ?? getAddGalleryItemById(itemId)?.sectionTemplateId ?? itemId;
 
-function HeroMinimalPreview() {
-  return (
-    <Wire>
-      <path d="M48 26h64" strokeWidth="2" />
-      <path d="M56 38h48" opacity="0.6" />
-      <rect x="64" y="48" width="32" height="8" rx="4" />
-    </Wire>
-  );
-}
-
-function AboutPreview() {
-  return (
-    <Wire>
-      <path d="M20 20h72" strokeWidth="2" />
-      <path d="M20 30h96" opacity="0.55" />
-      <path d="M20 38h88" opacity="0.55" />
-      <path d="M20 46h80" opacity="0.55" />
-    </Wire>
-  );
-}
-
-function AboutSplitPreview() {
-  return (
-    <Wire>
-      <path d="M14 22h52" strokeWidth="2" />
-      <path d="M14 32h44" opacity="0.55" />
-      <path d="M14 40h48" opacity="0.55" />
-      <rect x="88" y="16" width="58" height="40" rx="4" opacity="0.45" />
-    </Wire>
-  );
-}
-
-function StatsPreview() {
-  return (
-    <Wire>
-      <path d="M20 18h80" strokeWidth="2" />
-      <rect x="14" y="30" width="28" height="28" rx="4" opacity="0.35" />
-      <rect x="50" y="30" width="28" height="28" rx="4" opacity="0.35" />
-      <rect x="86" y="30" width="28" height="28" rx="4" opacity="0.35" />
-      <path d="M20 40h16" strokeWidth="2" />
-      <path d="M56 40h16" strokeWidth="2" />
-      <path d="M92 40h16" strokeWidth="2" />
-    </Wire>
-  );
-}
-
-function ServicesGridPreview() {
-  return (
-    <Wire>
-      <path d="M20 16h72" strokeWidth="2" />
-      <rect x="12" y="28" width="40" height="32" rx="4" opacity="0.4" />
-      <rect x="60" y="28" width="40" height="32" rx="4" opacity="0.4" />
-      <rect x="108" y="28" width="40" height="32" rx="4" opacity="0.4" />
-    </Wire>
-  );
-}
-
-function ServicesListPreview() {
-  return (
-    <Wire>
-      <path d="M20 18h64" strokeWidth="2" />
-      <circle cx="18" cy="32" r="2" fill="currentColor" stroke="none" />
-      <path d="M26 32h90" opacity="0.55" />
-      <circle cx="18" cy="42" r="2" fill="currentColor" stroke="none" />
-      <path d="M26 42h84" opacity="0.55" />
-      <circle cx="18" cy="52" r="2" fill="currentColor" stroke="none" />
-      <path d="M26 52h78" opacity="0.55" />
-    </Wire>
-  );
-}
-
-function GalleryGridPreview() {
-  return (
-    <Wire>
-      <rect x="10" y="14" width="42" height="28" rx="3" opacity="0.45" />
-      <rect x="58" y="14" width="42" height="28" rx="3" opacity="0.45" />
-      <rect x="106" y="14" width="42" height="28" rx="3" opacity="0.45" />
-      <rect x="10" y="48" width="68" height="18" rx="3" opacity="0.3" />
-      <rect x="84" y="48" width="64" height="18" rx="3" opacity="0.3" />
-    </Wire>
-  );
-}
-
-function GalleryStripPreview() {
-  return (
-    <Wire>
-      <rect x="8" y="22" width="36" height="28" rx="3" opacity="0.5" />
-      <rect x="50" y="18" width="28" height="36" rx="3" opacity="0.5" />
-      <rect x="84" y="24" width="36" height="24" rx="3" opacity="0.5" />
-      <rect x="126" y="20" width="26" height="32" rx="3" opacity="0.5" />
-    </Wire>
-  );
-}
-
-function TalentDisciplinePreview() {
-  return (
-    <Wire>
-      <path d="M20 12h56" strokeWidth="2" />
-      <rect x="10" y="20" width="48" height="44" rx="4" opacity="0.45" />
-      <rect x="62" y="20" width="42" height="20" rx="3" opacity="0.35" />
-      <rect x="108" y="20" width="42" height="20" rx="3" opacity="0.35" />
-      <rect x="62" y="44" width="42" height="20" rx="3" opacity="0.35" />
-      <rect x="108" y="44" width="42" height="20" rx="3" opacity="0.35" />
-    </Wire>
-  );
-}
-
-function TalentGridPreview() {
-  return (
-    <Wire>
-      <path d="M20 14h72" strokeWidth="2" />
-      <circle cx="26" cy="34" r="8" opacity="0.5" />
-      <rect x="18" y="46" width="24" height="4" rx="2" opacity="0.4" />
-      <circle cx="58" cy="34" r="8" opacity="0.5" />
-      <rect x="50" y="46" width="24" height="4" rx="2" opacity="0.4" />
-      <circle cx="90" cy="34" r="8" opacity="0.5" />
-      <rect x="82" y="46" width="24" height="4" rx="2" opacity="0.4" />
-      <circle cx="122" cy="34" r="8" opacity="0.5" />
-      <rect x="114" y="46" width="24" height="4" rx="2" opacity="0.4" />
-    </Wire>
-  );
-}
-
-function RosterPreview() {
-  return (
-    <Wire>
-      <rect x="10" y="14" width="140" height="12" rx="6" opacity="0.35" />
-      <rect x="10" y="32" width="32" height="32" rx="4" opacity="0.4" />
-      <rect x="48" y="32" width="32" height="32" rx="4" opacity="0.4" />
-      <rect x="86" y="32" width="32" height="32" rx="4" opacity="0.4" />
-      <rect x="124" y="32" width="26" height="32" rx="4" opacity="0.4" />
-    </Wire>
-  );
-}
-
-function TestimonialsPreview() {
-  return (
-    <Wire>
-      <rect x="10" y="18" width="42" height="40" rx="4" opacity="0.4" />
-      <rect x="58" y="18" width="42" height="40" rx="4" opacity="0.4" />
-      <rect x="106" y="18" width="42" height="40" rx="4" opacity="0.4" />
-      <path d="M18 28h24" opacity="0.55" />
-      <path d="M66 28h24" opacity="0.55" />
-      <path d="M114 28h24" opacity="0.55" />
-    </Wire>
-  );
-}
-
-function CtaBannerPreview() {
-  return (
-    <Wire>
-      <rect x="8" y="20" width="144" height="32" rx="6" opacity="0.35" />
-      <path d="M24 30h72" strokeWidth="2" />
-      <path d="M24 40h56" opacity="0.55" />
-      <rect x="104" y="34" width="32" height="10" rx="5" />
-    </Wire>
-  );
-}
-
-function CtaSplitPreview() {
-  return (
-    <Wire>
-      <path d="M16 28h56" strokeWidth="2" />
-      <path d="M16 38h48" opacity="0.55" />
-      <rect x="96" y="26" width="48" height="20" rx="4" opacity="0.35" />
-      <rect x="108" y="32" width="24" height="8" rx="4" />
-    </Wire>
-  );
-}
-
-function FaqPreview() {
-  return (
-    <Wire>
-      <path d="M20 16h72" strokeWidth="2" />
-      <rect x="12" y="28" width="136" height="10" rx="3" opacity="0.4" />
-      <rect x="12" y="42" width="136" height="10" rx="3" opacity="0.4" />
-      <rect x="12" y="56" width="136" height="10" rx="3" opacity="0.4" />
-    </Wire>
-  );
-}
-
-function ContactFormPreview() {
-  return (
-    <Wire>
-      <path d="M20 16h64" strokeWidth="2" />
-      <rect x="14" y="26" width="132" height="10" rx="3" opacity="0.35" />
-      <rect x="14" y="40" width="132" height="10" rx="3" opacity="0.35" />
-      <rect x="14" y="54" width="132" height="14" rx="3" opacity="0.35" />
-    </Wire>
-  );
-}
-
-function GenericSectionPreview() {
-  return (
-    <Wire>
-      <rect x="8" y="12" width="144" height="48" rx="4" opacity="0.25" />
-      <path d="M24 28h64" strokeWidth="2" />
-      <path d="M24 38h96" opacity="0.55" />
-    </Wire>
-  );
-}
-
-const PREVIEW_BY_ITEM_ID: Record<string, () => ReactNode> = {
-  "sec-hero-centered": HeroCenteredPreview,
-  "sec-hero-split": HeroSplitPreview,
-  "sec-hero-search": HeroSearchPreview,
-  "sec-hero-minimal": HeroMinimalPreview,
-  "sec-about-simple": AboutPreview,
-  "sec-about-split": AboutSplitPreview,
-  "sec-about-stats": StatsPreview,
-  "sec-services-grid": ServicesGridPreview,
-  "sec-services-list": ServicesListPreview,
-  "sec-gallery-grid": GalleryGridPreview,
-  "sec-gallery-strip": GalleryStripPreview,
-  "sec-featured-talent-grid": TalentGridPreview,
-  "sec-talent-discipline": TalentDisciplinePreview,
-  "sec-roster-grid": RosterPreview,
-  "sec-testimonials-trio": TestimonialsPreview,
-  "sec-cta-banner": CtaBannerPreview,
-  "sec-cta-split": CtaSplitPreview,
-  "sec-faq-accordion": FaqPreview,
-  "sec-contact-form": ContactFormPreview,
-};
-
-export function AddGallerySectionPreview({ itemId }: { itemId: string }) {
-  const Preview = PREVIEW_BY_ITEM_ID[itemId] ?? GenericSectionPreview;
   return (
     <div
       className="flex h-full w-full items-center justify-center px-[10px] py-[8px]"
-      style={{ color: "#7c3aed" }}
+      style={{ color: ACCENT_FG }}
     >
-      <Preview />
+      <TemplateWireframe templateId={resolvedTemplateId} />
     </div>
   );
 }
