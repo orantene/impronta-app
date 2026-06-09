@@ -417,8 +417,8 @@ function AdminShellRoot() {
   // ⌘? / ? opens the keyboard shortcuts modal (#18)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      const inInput = target?.matches("input, textarea, select, [contenteditable]");
+      const target = e.target;
+      const inInput = target instanceof Element && target.matches("input, textarea, select, [contenteditable]");
       if (e.key === "?" && !inInput) setShortcutsOpen(true);
     };
     window.addEventListener("keydown", handler);
