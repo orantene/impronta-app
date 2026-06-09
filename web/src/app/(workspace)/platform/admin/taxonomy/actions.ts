@@ -191,6 +191,13 @@ export async function createPlatformTaxonomyTermAction(formData: FormData): Prom
   });
 
   revalidateTaxonomySurfaces(created?.id ?? null);
+
+  // Optional: when return_to points to the catalog hub, redirect there instead of taxonomy.
+  const returnTo = text(formData, "return_to");
+  if (returnTo && returnTo.startsWith("/platform/admin/catalog") && created?.id) {
+    redirect(`/platform/admin/catalog/type/${created.id}?saved=create`);
+  }
+
   redirect(`/platform/admin/taxonomy?term=${encodeURIComponent(created?.slug ?? slug)}&saved=create`);
 }
 
@@ -253,6 +260,13 @@ export async function updatePlatformTaxonomyTermAction(formData: FormData): Prom
   });
 
   revalidateTaxonomySurfaces(id);
+
+  // Optional: when return_to points to the catalog hub, redirect back there to keep the drawer open.
+  const returnTo = text(formData, "return_to");
+  if (returnTo && returnTo.startsWith("/platform/admin/catalog/type/")) {
+    redirect(`${returnTo}?saved=term`);
+  }
+
   redirect("/platform/admin/taxonomy?saved=term");
 }
 

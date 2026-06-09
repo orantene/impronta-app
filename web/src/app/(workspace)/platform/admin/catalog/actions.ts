@@ -473,12 +473,103 @@ export async function removePlatformFieldRecommendationAction(formData: FormData
   redirect(`/platform/admin/catalog/${encodeURIComponent(fieldKey)}?saved=mapping_removed`);
 }
 
-export async function updatePlatformFieldGroupAction(formData: FormData): Promise<void> {
+export async function createPlatformFieldGroupAction(formData: FormData): Promise<void> {
   const auth = await requirePlatformAdmin();
-  if (!auth.ok) redirect(`/platform/admin/catalog/groups?error=${encodeURIComponent(auth.error)}`);
+  if (!auth.ok) redirect(`/platform/admin/catalog?tab=groups&error=${encodeURIComponent(auth.error)}`);
+
+  const slug = text(formData, "slug");
+  const nameEn = text(formData, "name_en");
+  if (!slug || !nameEn) {
+    redirect("/platform/admin/catalog?tab=groups&error=Slug%20and%20name%20(EN)%20are%20required");
+  }
+
+  const insertRow = {
+    slug,
+    name_en: nameEn,
+    name_es: text(formData, "name_es"),
+    description_en: text(formData, "description_en"),
+    description_es: text(formData, "description_es"),
+    sort_order: intOrNull(formData, "sort_order") ?? 100,
+    is_active: true,
+  };
+
+  const { data: created, error } = await auth.sb
+    .from("profile_field_groups")
+    .insert(insertRow)
+    .select("id")
+    .single();
+
+  if (error) {
+    logServerError("platform.catalog.createGroup", error);
+    redirect("/platform/admin/catalog?tab=groups&error=Could%20not%20create%20group");
+  }
+
+  await recordEngineAudit(auth.sb, {
+    actorId: auth.actorId,
+    action: "platform.engine.field_group.create",
+    targetType: "profile_field_group",
+    targetId: created?.id ?? null,
+    beforeValue: null,
+    afterValue: insertRow,
+  });
+
+  revalidateEngineSurfaces();
+  redirect(`/platform/admin/catalog?tab=groups&saved=group_create`);
+}
+
+export async function setPlatformFieldGroupLifecycleAction(formData: FormData): Promise<void> {
+  const auth = await requirePlatformAdmin();
+  if (!auth.ok) redirect(`/platform/admin/catalog?tab=groups&error=${encodeURIComponent(auth.error)}`);
 
   const id = text(formData, "id");
-  if (!id) redirect("/platform/admin/catalog/groups?error=Missing%20group");
+  const mode = text(formData, "mode");
+  if (!id || (mode !== "archive" && mode !== "restore")) {
+    redirect("/platform/admin/catalog?tab=groups&error=Invalid%20lifecycle%20request");
+  }
+
+  const { data: beforeRow } = await auth.sb
+    .from("profile_field_groups")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  const patch = {
+    is_active: mode === "restore",
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await auth.sb
+    .from("profile_field_groups")
+    .update(patch)
+    .eq("id", id);
+
+  if (error) {
+    logServerError("platform.catalog.groupLifecycle", error);
+    redirect(`/platform/admin/catalog/group/${id}?error=Could%20not%20change%20lifecycle`);
+  }
+
+  await recordEngineAudit(auth.sb, {
+    actorId: auth.actorId,
+    action: mode === "archive"
+      ? "platform.engine.field_group.archive"
+      : "platform.engine.field_group.restore",
+    targetType: "profile_field_group",
+    targetId: id,
+    beforeValue: beforeRow,
+    afterValue: patch,
+    severity: "warn",
+  });
+
+  revalidateEngineSurfaces();
+  redirect(`/platform/admin/catalog/group/${id}?saved=group_lifecycle`);
+}
+
+export async function updatePlatformFieldGroupAction(formData: FormData): Promise<void> {
+  const auth = await requirePlatformAdmin();
+  if (!auth.ok) redirect(`/platform/admin/catalog?tab=groups&error=${encodeURIComponent(auth.error)}`);
+
+  const id = text(formData, "id");
+  if (!id) redirect("/platform/admin/catalog?tab=groups&error=Missing%20group");
 
   const { data: beforeRow } = await auth.sb
     .from("profile_field_groups")
@@ -504,7 +595,7 @@ export async function updatePlatformFieldGroupAction(formData: FormData): Promis
 
   if (error) {
     logServerError("platform.catalog.updateGroup", error);
-    redirect("/platform/admin/catalog/groups?error=Could%20not%20save%20group");
+    redirect(`/platform/admin/catalog?tab=groups&error=Could%20not%20save%20group`);
   }
 
   await recordEngineAudit(auth.sb, {
@@ -517,16 +608,16 @@ export async function updatePlatformFieldGroupAction(formData: FormData): Promis
   });
 
   revalidateEngineSurfaces();
-  redirect("/platform/admin/catalog/groups?saved=group");
+  redirect(`/platform/admin/catalog/group/${id}?saved=group`);
 }
 
 export async function reorderPlatformFieldGroupsAction(formData: FormData): Promise<void> {
   const auth = await requirePlatformAdmin();
-  if (!auth.ok) redirect(`/platform/admin/catalog/groups?error=${encodeURIComponent(auth.error)}`);
+  if (!auth.ok) redirect(`/platform/admin/catalog?tab=groups&error=${encodeURIComponent(auth.error)}`);
 
   const orderedIds = parseOrderedIds(formData);
   if (orderedIds.length < 2) {
-    redirect("/platform/admin/catalog/groups?error=Add%20at%20least%20two%20groups%20to%20reorder");
+    redirect("/platform/admin/catalog?tab=groups&error=Add%20at%20least%20two%20groups%20to%20reorder");
   }
 
   const { data: rows, error } = await auth.sb
@@ -536,12 +627,12 @@ export async function reorderPlatformFieldGroupsAction(formData: FormData): Prom
 
   if (error || !rows || rows.length !== orderedIds.length) {
     logServerError("platform.catalog.reorderGroups.readRows", error);
-    redirect("/platform/admin/catalog/groups?error=Could%20not%20load%20field%20groups");
+    redirect("/platform/admin/catalog?tab=groups&error=Could%20not%20load%20field%20groups");
   }
 
   const rowIds = new Set(rows.map((row) => row.id));
   if (new Set(orderedIds).size !== orderedIds.length || orderedIds.some((id) => !rowIds.has(id))) {
-    redirect("/platform/admin/catalog/groups?error=Invalid%20field%20group%20order");
+    redirect("/platform/admin/catalog?tab=groups&error=Invalid%20field%20group%20order");
   }
 
   const beforeValue = rows
@@ -562,7 +653,7 @@ export async function reorderPlatformFieldGroupsAction(formData: FormData): Prom
   const failed = results.find((result) => result.error);
   if (failed?.error) {
     logServerError("platform.catalog.reorderGroups.update", failed.error);
-    redirect("/platform/admin/catalog/groups?error=Could%20not%20save%20field%20group%20order");
+    redirect("/platform/admin/catalog?tab=groups&error=Could%20not%20save%20field%20group%20order");
   }
 
   await recordEngineAudit(auth.sb, {
@@ -575,7 +666,7 @@ export async function reorderPlatformFieldGroupsAction(formData: FormData): Prom
   });
 
   revalidateEngineSurfaces();
-  redirect("/platform/admin/catalog/groups?saved=order");
+  redirect("/platform/admin/catalog?tab=groups&saved=order");
 }
 
 export async function reorderPlatformFieldsAction(formData: FormData): Promise<void> {

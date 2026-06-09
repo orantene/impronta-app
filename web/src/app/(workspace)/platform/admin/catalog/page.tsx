@@ -15,86 +15,20 @@ import {
 } from "@/lib/field-engine/effective-visibility";
 import { CreateFieldForm } from "./create-field-form";
 import { FieldOrderPanel } from "./field-order-panel";
+import { HQ, F, FD, HqCard, HqAccordion, Stat } from "./_ui";
+import { GroupsTab } from "./_tabs/groups-tab";
+import { TypesTab } from "./_tabs/types-tab";
+import { EditorTab } from "./_tabs/editor-tab";
 
 export const dynamic = "force-dynamic";
 
-const HQ = {
-  card: "#16161A",
-  cardSoft: "rgba(255,255,255,0.04)",
-  border: "rgba(255,255,255,0.10)",
-  borderSoft: "rgba(255,255,255,0.06)",
-  ink: "#F5F2EB",
-  inkMuted: "rgba(245,242,235,0.62)",
-  inkDim: "rgba(245,242,235,0.38)",
-  green: "#5DD3A0",
-  amber: "#9BA8B7",
-  red: "#F36772",
-} as const;
-
-const F = '"Inter", system-ui, sans-serif';
-const FD = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
-
-function HqCard({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section
-      style={{
-        background: HQ.card,
-        border: `1px solid ${HQ.borderSoft}`,
-        borderRadius: 12,
-        padding: 16,
-        fontFamily: F,
-        marginBottom: 16,
-      }}
-    >
-      <div style={{ marginBottom: 12 }}>
-        <div style={{ fontFamily: FD, fontSize: 15, fontWeight: 600, color: HQ.ink }}>
-          {title}
-        </div>
-        {subtitle && (
-          <div style={{ fontSize: 12, color: HQ.inkMuted, marginTop: 2 }}>
-            {subtitle}
-          </div>
-        )}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function Stat({ label, value, tone }: { label: string; value: string | number; tone?: string }) {
-  return (
-    <div
-      style={{
-        background: HQ.cardSoft,
-        border: `1px solid ${HQ.borderSoft}`,
-        borderRadius: 10,
-        padding: "10px 14px",
-        minWidth: 110,
-      }}
-    >
-      <div style={{ fontSize: 11, color: HQ.inkMuted, letterSpacing: 0.3 }}>{label}</div>
-      <div
-        style={{
-          fontFamily: FD,
-          fontSize: 22,
-          fontWeight: 600,
-          color: tone ?? HQ.ink,
-          marginTop: 2,
-        }}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
+const navLink: React.CSSProperties = {
+  fontSize: 11.5,
+  fontWeight: 600,
+  color: HQ.green,
+  textDecoration: "none",
+  letterSpacing: 0.2,
+};
 
 function VisChip({ v }: { v: CatalogField["visibility"] }) {
   const meta =
@@ -131,28 +65,28 @@ function FieldRow({
   // platform_admin is the default and always sees everything.
   const seen = viewAs === "platform_admin" ? true : canViewerSee(f.visibility, viewAs);
   const dim = !seen || f.deprecated;
+  // Whole row is the click target — opens the field editor drawer.
   return (
-    <div
+    <Link
+      href={`/platform/admin/catalog/${encodeURIComponent(f.field_key)}`}
+      className="hq-field-row"
+      title={`Edit ${f.label} — click to open field editor`}
       style={{
         display: "flex",
         alignItems: "center",
         gap: 10,
-        padding: "7px 10px",
+        padding: "8px 10px",
         borderTop: `1px solid ${HQ.borderSoft}`,
         fontSize: 12.5,
         color: dim ? HQ.inkDim : HQ.ink,
         opacity: dim ? 0.55 : 1,
+        textDecoration: "none",
+        cursor: "pointer",
       }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <Link
-            href={`/platform/admin/catalog/${encodeURIComponent(f.field_key)}`}
-            style={{ fontWeight: 600, color: "inherit", textDecoration: "none" }}
-            title={`Edit ${f.label} — click to open field editor`}
-          >
-            {f.label}
-          </Link>
+          <span style={{ fontWeight: 600 }}>{f.label}</span>
           <span style={{ fontSize: 10, color: HQ.green, letterSpacing: 0.2 }}>›</span>
           {f.deprecated && (
             <span style={{ fontSize: 9.5, fontWeight: 700, color: HQ.red }}>DEPRECATED</span>
@@ -193,6 +127,64 @@ function FieldRow({
       <span style={{ fontSize: 11, color: HQ.inkMuted, minWidth: 78, textAlign: "right" }}>
         {f.value_count} values
       </span>
+    </Link>
+  );
+}
+
+// Two-column group body: scannable field list on the left, drag-to-reorder
+// panel on the right. The order panel is hidden while a filter/search is
+// active (reordering a filtered subset would be misleading) and for groups
+// with fewer than two fields (nothing to reorder).
+function GroupFields({
+  fields,
+  fieldGroupId,
+  viewAs,
+  filtersActive,
+}: {
+  fields: CatalogField[];
+  fieldGroupId: string | null;
+  viewAs: ViewerRole;
+  filtersActive: boolean;
+}) {
+  const showOrder = !filtersActive && fields.length >= 2;
+  const colHead: React.CSSProperties = {
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+    color: HQ.inkDim,
+    padding: "0 2px 6px",
+  };
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: showOrder ? "minmax(0, 1fr) 340px" : "1fr",
+        gap: 18,
+        alignItems: "start",
+      }}
+    >
+      <div style={{ minWidth: 0 }}>
+        {showOrder && <div style={colHead}>Fields</div>}
+        {fields.map((f) => (
+          <FieldRow key={f.id} f={f} viewAs={viewAs} />
+        ))}
+      </div>
+      {showOrder && (
+        <div style={{ minWidth: 0 }}>
+          <div style={colHead}>Drag to reorder</div>
+          <FieldOrderPanel
+            fieldGroupId={fieldGroupId}
+            fields={fields.map((f) => ({
+              id: f.id,
+              field_key: f.field_key,
+              label: f.label,
+              display_order: f.display_order,
+              deprecated: f.deprecated,
+            }))}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -220,7 +212,28 @@ type FilterParams = {
   override?: string;
   q?: string;
   view?: string;
+  tab?: string;
 };
+
+// Profile Fields hub tabs. The Fields view is the default and lives inline in
+// this page; the other three are extracted tab modules.
+type HubTab = "fields" | "groups" | "types" | "editor";
+function parseTab(raw: string | undefined): HubTab {
+  switch (raw) {
+    case "groups":
+    case "types":
+    case "editor":
+      return raw;
+    default:
+      return "fields";
+  }
+}
+const HUB_TABS: ReadonlyArray<{ tab: HubTab; label: string }> = [
+  { tab: "fields", label: "Fields" },
+  { tab: "groups", label: "Groups" },
+  { tab: "types", label: "Types" },
+  { tab: "editor", label: "Editor Layout" },
+];
 
 // Phase 9A slice 3 — "View-as" role preview. platform_admin = default
 // (sees everything); the other three apply canViewerSee per row.
@@ -305,6 +318,7 @@ export default async function PlatformCatalogMapPage({
   const overrideFilter = params.override === "yes";
   const q = (params.q ?? "").trim().toLowerCase();
   const viewAs: ViewerRole = parseView(params.view);
+  const tab: HubTab = parseTab(params.tab);
   const filtersActive =
     tier !== "all" ||
     riskFilter ||
@@ -315,7 +329,7 @@ export default async function PlatformCatalogMapPage({
   if (!map.ok) {
     return (
       <div style={{ fontFamily: F, color: HQ.ink, padding: 4 }}>
-        <h1 style={{ fontFamily: FD, fontSize: 20, fontWeight: 600 }}>Catalog Map</h1>
+        <h1 style={{ fontFamily: FD, fontSize: 20, fontWeight: 600 }}>Profile Fields</h1>
         <HqCard title="Unavailable">
           <div style={{ fontSize: 13, color: HQ.inkMuted }}>
             Could not load the catalog (service client unavailable or query
@@ -328,7 +342,6 @@ export default async function PlatformCatalogMapPage({
   }
 
   const s = map.summary;
-  const tierEntries = Object.entries(s.byTier).sort((a, b) => b[1] - a[1]);
 
   // Apply slice-2 filters (purely in-memory; data was already loaded).
   const hasRiskByKey = new Set(map.risks.map((r) => r.field_key));
@@ -352,105 +365,179 @@ export default async function PlatformCatalogMapPage({
     filteredGroups.reduce((n, g) => n + g.fields.length, 0) +
     filteredUngrouped.length;
 
+  // Separate action-worthy risks from the high-volume "unused" diagnostic so
+  // the two real warnings aren't buried under 100+ informational rows.
+  const priorityRisks = map.risks.filter((r) => r.kind !== "unused");
+  const unusedRisks = map.risks.filter((r) => r.kind === "unused");
+
+  // Shared GET-form hidden inputs so the header search preserves active filters.
+  const preservedParams = (
+    <>
+      {tier !== "all" && <input type="hidden" name="tier" value={tier} />}
+      {riskFilter && <input type="hidden" name="risk" value="yes" />}
+      {overrideFilter && <input type="hidden" name="override" value="yes" />}
+      {viewAs !== "platform_admin" && <input type="hidden" name="view" value={viewAs} />}
+    </>
+  );
+
   return (
     <div style={{ fontFamily: F, color: HQ.ink, padding: 4 }}>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 4 }}>
-        <h1 style={{ fontFamily: FD, fontSize: 20, fontWeight: 600, margin: 0 }}>
-          Catalog Map
-        </h1>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Link
-            href="/platform/admin/catalog/groups"
-            style={{ fontSize: 11, fontWeight: 700, color: HQ.green, textDecoration: "none", letterSpacing: 0.2 }}
+      <style>{`
+        details.hq-acc > summary { list-style: none; }
+        details.hq-acc > summary::-webkit-details-marker { display: none; }
+        details.hq-acc[open] > summary .hq-chev { transform: rotate(90deg); }
+        details.hq-acc > summary:hover { background: rgba(255,255,255,0.02); border-radius: 12px; }
+        a.hq-field-row { transition: background .12s; border-radius: 8px; }
+        a.hq-field-row:hover { background: rgba(255,255,255,0.05); }
+      `}</style>
+
+      {/* Sticky toolbar — title, primary search, and section actions. */}
+      <div
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 5,
+          background: "#0E0E11",
+          paddingBottom: 12,
+          marginBottom: 14,
+          borderBottom: `1px solid ${HQ.borderSoft}`,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", paddingTop: 4 }}>
+          <h1 style={{ fontFamily: FD, fontSize: 20, fontWeight: 600, margin: 0 }}>Profile Fields</h1>
+          <span style={{ fontSize: 12, color: HQ.inkMuted }}>
+            {filtersActive
+              ? `${filteredCount} of ${s.totalFields} fields`
+              : `${s.totalFields} fields · ${s.totalGroups} groups`}
+          </span>
+          <form
+            method="GET"
+            style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}
           >
-            Field Groups Builder
-          </Link>
-          <span style={{ fontSize: 11, color: HQ.inkDim }}>·</span>
-          <Link
-            href="/platform/admin/taxonomy"
-            style={{ fontSize: 11, fontWeight: 700, color: HQ.green, textDecoration: "none", letterSpacing: 0.2 }}
-          >
-            Taxonomy Builder
-          </Link>
-          <span style={{ fontSize: 11, color: HQ.inkDim }}>·</span>
-          <Link
-            href="/platform/admin/catalog/export?format=csv"
-            style={{ fontSize: 11, fontWeight: 600, color: HQ.green, textDecoration: "none", letterSpacing: 0.2 }}
-          >
-            Export CSV ↓
-          </Link>
-          <span style={{ fontSize: 11, color: HQ.inkDim }}>·</span>
-          <Link
-            href="/platform/admin/catalog/export?format=json"
-            style={{ fontSize: 11, fontWeight: 600, color: HQ.green, textDecoration: "none", letterSpacing: 0.2 }}
-          >
-            Export JSON ↓
-          </Link>
+            {preservedParams}
+            <input
+              type="text"
+              name="q"
+              defaultValue={q}
+              placeholder="Search field key or label…"
+              style={{
+                fontSize: 12.5,
+                padding: "6px 11px",
+                borderRadius: 7,
+                border: `1px solid ${HQ.border}`,
+                background: HQ.cardSoft,
+                color: HQ.ink,
+                fontFamily: F,
+                minWidth: 240,
+              }}
+            />
+            <button
+              type="submit"
+              style={{
+                fontSize: 11.5,
+                fontWeight: 600,
+                padding: "6px 12px",
+                border: `1px solid ${HQ.green}`,
+                background: "rgba(93,211,160,0.12)",
+                color: HQ.green,
+                borderRadius: 7,
+                cursor: "pointer",
+                fontFamily: F,
+              }}
+            >
+              Search
+            </button>
+            {filtersActive && (
+              <Link
+                href="/platform/admin/catalog"
+                style={{ fontSize: 11, color: HQ.inkMuted, textDecoration: "underline", whiteSpace: "nowrap" }}
+              >
+                Clear
+              </Link>
+            )}
+          </form>
+        </div>
+        <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 10 }}>
+          <Link href="/platform/admin/catalog/groups" style={navLink}>Field Groups Builder</Link>
+          <Link href="/platform/admin/taxonomy" style={navLink}>Taxonomy Builder</Link>
+          <Link href="/platform/admin/catalog/export?format=csv" style={navLink}>Export CSV ↓</Link>
+          <Link href="/platform/admin/catalog/export?format=json" style={navLink}>Export JSON ↓</Link>
         </div>
       </div>
-      <div style={{ fontSize: 12.5, color: HQ.inkMuted, marginBottom: 18 }}>
-        All platform fields, grouped by section. Click any field name to open its editor — bilingual labels, lifecycle, visibility, taxonomy mapping, and workspace adoption.
+
+      {/* Hub tabs — segmented control. Links set ?tab=; active chip highlighted
+          in green, matching the FilterChip visual language. */}
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+        {HUB_TABS.map(({ tab: t, label }) => {
+          const active = tab === t;
+          return (
+            <Link
+              key={t}
+              href={t === "fields" ? "/platform/admin/catalog" : `?tab=${t}`}
+              style={{
+                fontSize: 11.5,
+                fontWeight: 600,
+                padding: "5px 12px",
+                borderRadius: 999,
+                border: `1px solid ${active ? HQ.green : HQ.borderSoft}`,
+                background: active ? "rgba(93,211,160,0.14)" : HQ.cardSoft,
+                color: active ? HQ.green : HQ.inkMuted,
+                textDecoration: "none",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {label}
+            </Link>
+          );
+        })}
       </div>
 
-      <HqCard
-        title="Create Field"
-        subtitle="Add a canonical profile field, then map it to the talent types that should load it."
+      {/* Compact metric strip — replaces the old full-width Overview card. */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+        <Stat label="Fields" value={s.totalFields} />
+        <Stat label="Groups" value={s.totalGroups} />
+        <Stat label="Deprecated" value={s.deprecated} tone={s.deprecated ? HQ.amber : undefined} />
+        <Stat label="Sensitive" value={s.sensitive} tone={s.sensitive ? HQ.red : undefined} />
+        <Stat label="Admin-only" value={s.adminOnly} />
+        <Stat label="With values" value={s.fieldsWithValues} />
+        <Stat
+          label="Risks"
+          value={priorityRisks.length}
+          tone={priorityRisks.length ? HQ.red : HQ.green}
+        />
+      </div>
+
+      {tab === "fields" && (
+        <>
+      {/* Create field — collapsed by default; occasional action. */}
+      <HqAccordion
+        title="＋ Create a field"
+        meta="Add a canonical profile field, then map it to talent types"
       >
         <CreateFieldForm groups={map.groups.map((group) => ({ id: group.id, name: group.name, slug: group.slug }))} />
-      </HqCard>
+      </HqAccordion>
 
-      <HqCard
+      {/* Filters — collapsed unless something is active. Search lives in the toolbar. */}
+      <HqAccordion
         title="Filters"
-        subtitle={
+        defaultOpen={filtersActive}
+        badge={
           filtersActive
-            ? `Showing ${filteredCount} of ${s.totalFields} fields`
-            : `All ${s.totalFields} fields`
+            ? { text: `${filteredCount} shown`, tone: HQ.green }
+            : undefined
         }
+        meta={filtersActive ? undefined : "Tier · status · view-as"}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              flexWrap: "wrap",
-            }}
-          >
-            <span style={{ fontSize: 10.5, color: HQ.inkDim, minWidth: 56 }}>
-              Tier
-            </span>
-            <FilterChip
-              label="All"
-              href={urlFor(params, { tier: undefined })}
-              active={tier === "all"}
-            />
-            <FilterChip
-              label="Universal"
-              href={urlFor(params, { tier: "universal" })}
-              active={tier === "universal"}
-            />
-            <FilterChip
-              label="Global"
-              href={urlFor(params, { tier: "global" })}
-              active={tier === "global"}
-            />
-            <FilterChip
-              label="Type-specific"
-              href={urlFor(params, { tier: "type-specific" })}
-              active={tier === "type-specific"}
-            />
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 10.5, color: HQ.inkDim, minWidth: 56 }}>Tier</span>
+            <FilterChip label="All" href={urlFor(params, { tier: undefined })} active={tier === "all"} />
+            <FilterChip label="Universal" href={urlFor(params, { tier: "universal" })} active={tier === "universal"} />
+            <FilterChip label="Global" href={urlFor(params, { tier: "global" })} active={tier === "global"} />
+            <FilterChip label="Type-specific" href={urlFor(params, { tier: "type-specific" })} active={tier === "type-specific"} />
           </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              flexWrap: "wrap",
-            }}
-          >
-            <span style={{ fontSize: 10.5, color: HQ.inkDim, minWidth: 56 }}>
-              Status
-            </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 10.5, color: HQ.inkDim, minWidth: 56 }}>Status</span>
             <FilterChip
               label={`Has risks (${map.risks.length})`}
               href={urlFor(params, { risk: riskFilter ? undefined : "yes" })}
@@ -459,21 +546,12 @@ export default async function PlatformCatalogMapPage({
             {(s.fieldsWithOverrides > 0 || overrideFilter) && (
               <FilterChip
                 label={`Workspace override (${s.fieldsWithOverrides})`}
-                href={urlFor(params, {
-                  override: overrideFilter ? undefined : "yes",
-                })}
+                href={urlFor(params, { override: overrideFilter ? undefined : "yes" })}
                 active={overrideFilter}
               />
             )}
           </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              flexWrap: "wrap",
-            }}
-          >
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <span
               style={{ fontSize: 10.5, color: HQ.inkDim, minWidth: 56 }}
               title="Preview which fields each audience sees on the public/admin/talent surface"
@@ -484,218 +562,146 @@ export default async function PlatformCatalogMapPage({
               <FilterChip
                 key={role}
                 label={label}
-                href={urlFor(params, {
-                  view: role === "platform_admin" ? undefined : role,
-                })}
+                href={urlFor(params, { view: role === "platform_admin" ? undefined : role })}
                 active={viewAs === role}
               />
             ))}
           </div>
-          <form
-            method="GET"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              flexWrap: "wrap",
-            }}
-          >
-            <span style={{ fontSize: 10.5, color: HQ.inkDim, minWidth: 56 }}>
-              Search
-            </span>
-            {/* Preserve other params on form submit. */}
-            {tier !== "all" && <input type="hidden" name="tier" value={tier} />}
-            {riskFilter && <input type="hidden" name="risk" value="yes" />}
-            {overrideFilter && (
-              <input type="hidden" name="override" value="yes" />
-            )}
-            {viewAs !== "platform_admin" && (
-              <input type="hidden" name="view" value={viewAs} />
-            )}
-            <input
-              type="text"
-              name="q"
-              defaultValue={q}
-              placeholder="field key or label…"
-              style={{
-                fontSize: 12,
-                padding: "5px 10px",
-                borderRadius: 6,
-                border: `1px solid ${HQ.borderSoft}`,
-                background: HQ.cardSoft,
-                color: HQ.ink,
-                fontFamily: F,
-                minWidth: 240,
-              }}
-            />
-            <button
-              type="submit"
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                padding: "5px 11px",
-                border: `1px solid ${HQ.green}`,
-                background: "rgba(93,211,160,0.12)",
-                color: HQ.green,
-                borderRadius: 6,
-                cursor: "pointer",
-                fontFamily: F,
-              }}
-            >
-              Apply
-            </button>
-            {filtersActive && (
-              <Link
-                href="/platform/admin/catalog"
-                style={{
-                  fontSize: 11,
-                  color: HQ.inkMuted,
-                  textDecoration: "underline",
-                }}
-              >
-                Clear all
-              </Link>
-            )}
-          </form>
         </div>
-      </HqCard>
+      </HqAccordion>
 
-      <HqCard title="Overview">
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-          <Stat label="Fields" value={s.totalFields} />
-          <Stat label="Groups" value={s.totalGroups} />
-          <Stat label="Deprecated" value={s.deprecated} tone={s.deprecated ? HQ.amber : undefined} />
-          <Stat label="Admin-only" value={s.adminOnly} />
-          <Stat label="Sensitive" value={s.sensitive} tone={s.sensitive ? HQ.red : undefined} />
-          <Stat label="With ws overrides" value={s.fieldsWithOverrides} />
-          <Stat label="With values" value={s.fieldsWithValues} />
-          <Stat label="Risks" value={map.risks.length} tone={map.risks.length ? HQ.red : HQ.green} />
-        </div>
-        {tierEntries.length > 0 && (
-          <div style={{ marginTop: 12, fontSize: 12, color: HQ.inkMuted }}>
-            By tier:{" "}
-            {tierEntries.map(([t, n], i) => (
-              <span key={t}>
-                {i > 0 ? " · " : ""}
-                <strong style={{ color: HQ.ink }}>{n}</strong> {t}
-              </span>
-            ))}
-          </div>
-        )}
-      </HqCard>
-
+      {/* Risk warnings — real issues headlined; the high-volume "unused"
+          diagnostic is tucked into its own nested collapse so it can't bury them. */}
       {map.risks.length > 0 && (
-        <HqCard
-          title={`Risk warnings (${map.risks.length})`}
-          subtitle="Read-only diagnostics — never auto-acted."
+        <HqAccordion
+          title="Risk warnings"
+          defaultOpen={priorityRisks.length > 0}
+          badge={
+            priorityRisks.length > 0
+              ? { text: `${priorityRisks.length} need${priorityRisks.length === 1 ? "s" : ""} attention`, tone: HQ.red }
+              : { text: "all clear", tone: HQ.green }
+          }
+          meta="Read-only diagnostics"
         >
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {map.risks.map((r, i) => (
-              <div
-                key={`${r.kind}-${r.field_key}-${i}`}
-                style={{
-                  display: "flex",
-                  gap: 8,
-                  fontSize: 12,
-                  padding: "5px 8px",
-                  background: HQ.cardSoft,
-                  borderRadius: 8,
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: RISK_TONE[r.kind],
-                    minWidth: 168,
-                  }}
-                  title={r.kind}
+          {priorityRisks.length > 0 ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {priorityRisks.map((r, i) => (
+                <div
+                  key={`${r.kind}-${r.field_key}-${i}`}
+                  style={{ display: "flex", gap: 8, fontSize: 12, padding: "5px 8px", background: HQ.cardSoft, borderRadius: 8 }}
                 >
-                  {RISK_LABEL[r.kind]}
+                  <span style={{ fontSize: 10, fontWeight: 700, color: RISK_TONE[r.kind], minWidth: 168 }} title={r.kind}>
+                    {RISK_LABEL[r.kind]}
+                  </span>
+                  <span style={{ color: HQ.ink, fontFamily: "ui-monospace, monospace" }}>{r.field_key}</span>
+                  <span style={{ color: HQ.inkMuted }}>{r.detail}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ fontSize: 12, color: HQ.inkMuted }}>
+              No action-worthy risks. Only informational “unused field” diagnostics below.
+            </div>
+          )}
+          {unusedRisks.length > 0 && (
+            <details className="hq-acc" style={{ marginTop: priorityRisks.length ? 12 : 0 }}>
+              <summary style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "8px 10px", background: HQ.cardSoft, borderRadius: 8, userSelect: "none" }}>
+                <span className="hq-chev" aria-hidden style={{ fontSize: 10, color: HQ.inkDim, transition: "transform .15s", display: "inline-block" }}>▶</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: HQ.inkMuted }}>
+                  {unusedRisks.length} unused fields
                 </span>
-                <span style={{ color: HQ.ink, fontFamily: "ui-monospace, monospace" }}>
-                  {r.field_key}
-                </span>
-                <span style={{ color: HQ.inkMuted }}>{r.detail}</span>
+                <span style={{ fontSize: 11, color: HQ.inkDim }}>no overrides, no stored values — informational</span>
+              </summary>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: "10px 4px 4px" }}>
+                {unusedRisks.map((r, i) => (
+                  <Link
+                    key={`${r.field_key}-${i}`}
+                    href={`/platform/admin/catalog/${encodeURIComponent(r.field_key)}`}
+                    style={{
+                      fontSize: 11,
+                      fontFamily: "ui-monospace, monospace",
+                      color: HQ.inkMuted,
+                      background: HQ.cardSoft,
+                      border: `1px solid ${HQ.borderSoft}`,
+                      borderRadius: 6,
+                      padding: "2px 7px",
+                      textDecoration: "none",
+                    }}
+                  >
+                    {r.field_key}
+                  </Link>
+                ))}
               </div>
-            ))}
-          </div>
-        </HqCard>
+            </details>
+          )}
+        </HqAccordion>
       )}
 
-      {filteredGroups.map((g) => (
-        <HqCard
-          key={g.id}
-          title={g.name}
-          subtitle={`${g.fields.length} of ${g.field_count} field${g.field_count === 1 ? "" : "s"} · ${g.slug}${g.is_active ? "" : " · INACTIVE"}`}
-        >
-          <div>
+      {/* Field-group index — each group a collapsed accordion. Auto-opens while
+          a filter/search is active so matches stay visible. */}
+      {filteredGroups.map((g) => {
+        const deprecatedInGroup = g.fields.filter((f) => f.deprecated).length;
+        return (
+          <HqAccordion
+            key={g.id}
+            title={g.name}
+            defaultOpen={filtersActive}
+            badge={
+              !g.is_active
+                ? { text: "INACTIVE", tone: HQ.amber }
+                : deprecatedInGroup > 0
+                  ? { text: `${deprecatedInGroup} deprecated`, tone: HQ.amber }
+                  : undefined
+            }
+            meta={`${filtersActive ? `${g.fields.length} of ${g.field_count}` : g.field_count} field${g.field_count === 1 ? "" : "s"} · ${g.slug}`}
+          >
             {g.fields.length === 0 ? (
               <div style={{ fontSize: 12, color: HQ.inkDim, padding: "6px 0" }}>
                 No fields in this group yet — create one above and assign it here.
               </div>
             ) : (
-              <>
-                {!filtersActive && (
-                  <FieldOrderPanel
-                    fieldGroupId={g.id}
-                    fields={g.fields.map((f) => ({
-                      id: f.id,
-                      field_key: f.field_key,
-                      label: f.label,
-                      display_order: f.display_order,
-                      deprecated: f.deprecated,
-                    }))}
-                  />
-                )}
-                {g.fields.map((f) => <FieldRow key={f.id} f={f} viewAs={viewAs} />)}
-              </>
-            )}
-          </div>
-        </HqCard>
-      ))}
-
-      {filteredUngrouped.length > 0 && (
-        <HqCard
-          title="Ungrouped"
-          subtitle={`${filteredUngrouped.length} field${filteredUngrouped.length === 1 ? "" : "s"} with no field group`}
-        >
-          <div>
-            {!filtersActive && (
-              <FieldOrderPanel
-                fieldGroupId={null}
-                fields={filteredUngrouped.map((f) => ({
-                  id: f.id,
-                  field_key: f.field_key,
-                  label: f.label,
-                  display_order: f.display_order,
-                  deprecated: f.deprecated,
-                }))}
+              <GroupFields
+                fields={g.fields}
+                fieldGroupId={g.id}
+                viewAs={viewAs}
+                filtersActive={filtersActive}
               />
             )}
-            {filteredUngrouped.map((f) => (
-              <FieldRow key={f.id} f={f} viewAs={viewAs} />
-            ))}
-          </div>
-        </HqCard>
+          </HqAccordion>
+        );
+      })}
+
+      {filteredUngrouped.length > 0 && (
+        <HqAccordion
+          title="Ungrouped"
+          defaultOpen={filtersActive}
+          meta={`${filteredUngrouped.length} field${filteredUngrouped.length === 1 ? "" : "s"} with no field group`}
+        >
+          <GroupFields
+            fields={filteredUngrouped}
+            fieldGroupId={null}
+            viewAs={viewAs}
+            filtersActive={filtersActive}
+          />
+        </HqAccordion>
       )}
 
       {filtersActive && filteredCount === 0 && (
-        <HqCard
-          title="No matches"
-          subtitle="No fields match the current filter set."
-        >
+        <HqCard title="No matches" subtitle="No fields match the current filter set.">
           <div style={{ fontSize: 12, color: HQ.inkMuted }}>
-            <Link
-              href="/platform/admin/catalog"
-              style={{ color: HQ.green, textDecoration: "underline" }}
-            >
+            <Link href="/platform/admin/catalog" style={{ color: HQ.green, textDecoration: "underline" }}>
               Clear all filters
             </Link>{" "}
             to see all {s.totalFields} fields.
           </div>
         </HqCard>
       )}
+        </>
+      )}
+
+      {tab === "groups" && <GroupsTab sp={params} />}
+      {tab === "types" && <TypesTab sp={params} />}
+      {tab === "editor" && <EditorTab sp={params} />}
     </div>
   );
 }

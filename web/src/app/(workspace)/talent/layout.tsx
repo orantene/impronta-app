@@ -31,6 +31,7 @@ import {
 import { TalentAgencyContextSwitcher } from "@/components/talent/site/TalentAgencyContextSwitcher";
 import { TalentSiteDashboardProvider } from "@/components/talent/site/TalentSiteDashboardProvider";
 import { loadTalentPersonalSiteDashboardState } from "@/lib/talent-site/server/dashboard-state";
+import { loadProfileEditorLayout } from "@/lib/profile-editor/section-layout";
 
 export const dynamic = "force-dynamic";
 
@@ -119,6 +120,7 @@ export default async function PlatformTalentLayout({
     talentSiteDashboardLoad,
     talentPayoutSnapshot,
     talentHeldPayouts,
+    profileEditorLayout,
   ] = await Promise.all([
     loadTalentInquiriesAllAgencies(baseProfile.id),
     loadTalentAgencies(talentSelfProfile.id),
@@ -136,6 +138,9 @@ export default async function PlatformTalentLayout({
     getTalentConnectedAccountSnapshot(talentSelfProfile.id),
     // Held payout totals (earnings waiting on bank connection) for the banner.
     getHeldPayoutTotals({ talentProfileId: talentSelfProfile.id }),
+    // B0 — DB-backed profile-editor sidebar layout. Never throws (falls back
+    // to the hardcoded structure), so it can't break the layout.
+    loadProfileEditorLayout(),
   ]);
 
   // Platform currency policy: unless a super-admin has turned multi-currency
@@ -186,6 +191,7 @@ export default async function PlatformTalentLayout({
         firstRunToggleTipSeen: userPrefs?.firstRunToggleTipSeen ?? false,
         talentCalendarEntries,
         talentEarnings: displayEarnings,
+        profileEditorLayout,
       }}
     >
       {isHybrid && agencyOptions.length > 1 ? (
