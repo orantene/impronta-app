@@ -879,13 +879,16 @@ export function TalentProfileShellDrawer() {
 
   const saveAll = React.useCallback(async (): Promise<boolean> => {
     let tid = payload.talentId;
+    /** First save in `create` mode — row minted this click; fall through to
+     *  commitTalentProfileShellAdmin so identity/location/bio/etc. persist. */
+    let justCreated = false;
 
     // ── Create-mode bridge ─────────────────────────────────────────────
     // The drawer is now also the "Add talent" entry point. When opened in
     // `create` mode with no talentId, the first save inserts the row via
-    // `addTalentToRoster` (same server action the QuickAdd used) and then
-    // transitions the drawer to `edit-admin` mode with the new id so all
-    // subsequent saves flow through the normal commit path.
+    // `addTalentToRoster` (same server action the QuickAdd used), then
+    // commits the full drawer state in the same click, then transitions to
+    // `edit-admin` mode with the new id.
     if (!tid && mode === "create" && !isSelf) {
       if (!tenantSlug) {
         setSaveError(copy.t("No workspace context."));
@@ -946,24 +949,10 @@ export function TalentProfileShellDrawer() {
         return false;
       }
       tid = createRes.talentProfileId;
-      // Hand off to edit-admin mode with the new talentId. The drawer
-      // remounts with full hydration so the user keeps editing the same
-      // talent without losing context. Fields the user already typed
-      // (bio, photos, rates, etc.) are preserved server-side because the
-      // commit step below runs against the new tid in the same save.
-      clearProfileDraft("default");
-      setSaveStatus("saved");
-      setSavedAt(new Date());
-      // Reopen the drawer in edit-admin mode so showHeaderSave gates,
-      // hydration, and section-specific saves all use the real talent id.
-      closeDrawer();
-      openDrawer("talent-profile-shell", {
-        mode: "edit-admin",
-        talentId: tid,
-        seed: { stageName, primaryType, homeBase },
-      });
-      queueShellRouterRefresh();
-      return true;
+      justCreated = true;
+      // Fall through — commitTalentProfileShellAdmin runs below with `tid`
+      // so nationality, bio, logistics, dyn fields, etc. persist on the
+      // first click (not only the minimal addTalentToRoster columns).
     }
 
     if (!tid) {
@@ -988,17 +977,21 @@ export function TalentProfileShellDrawer() {
     };
 
     const s = stateRef.current;
-    const shellSyncTaxonomy = !(bridgeTenantIdentity?.tenantId && tid);
+    const realTenantEdit = !!(bridgeTenantIdentity?.tenantId && tid);
+    // On the create→edit handoff the Location/Language slot panels were not
+    // mounted yet — the legacy drawer state owns those slices for this save.
+    const panelSlicesWriteIndependently = realTenantEdit && !justCreated;
+    const shellSyncTaxonomy = !realTenantEdit;
     // Real-tenant talents edit languages through the immediate-setAll
     // LanguageSlotPanel, which persists independently. The batched save
     // (admin commit + self ops) MUST skip languages here or its stale
     // `state.languages` would wipe the panel's edits via the replace RPC.
-    const languagesOwnedByPanel = !!(bridgeTenantIdentity?.tenantId && tid);
+    const languagesOwnedByPanel = panelSlicesWriteIndependently;
     // Same rule for canonical service areas: the LocationSlotPanel writes
     // talent_service_areas independently, so the batched save must NOT
     // also write the panel-owned location scalars (home base / radius /
     // fee / remote-only) or it would race/clobber the canonical state.
-    const serviceAreasOwnedByPanel = !!(bridgeTenantIdentity?.tenantId && tid);
+    const serviceAreasOwnedByPanel = panelSlicesWriteIndependently;
     const id = s.identity;
     const visibilityDraft = id.visibility;
     const visibilityPatch = visibilityDraft && (visibilityDraft.legalName || visibilityDraft.pronouns || visibilityDraft.gender || visibilityDraft.dob)
@@ -1212,6 +1205,13 @@ export function TalentProfileShellDrawer() {
         });
         return false;
       }
+      if (justCreated) {
+        clearProfileDraft("default");
+        openDrawer("talent-profile-shell", {
+          mode: "edit-admin",
+          talentId: tid,
+        });
+      }
       setDirty(false);
       setServerProfileUpdatedAtMs(Date.now());
       setSaveStatus("saved");
@@ -1335,7 +1335,7 @@ export function TalentProfileShellDrawer() {
       logServerError("saveall", e);
       return false;
     }
-  }, [payload.talentId, mode, isSelf, adminVisible, queueShellRouterRefresh, copy, bridgeTenantIdentity?.tenantId]);
+  }, [payload.talentId, mode, isSelf, adminVisible, queueShellRouterRefresh, copy, bridgeTenantIdentity?.tenantId, tenantSlug, openDrawer]);
 
   const toggleSet = (field: "secondaryTypes" | "specialties" | "contexts" | "aspirations") =>
     (value: string) => {

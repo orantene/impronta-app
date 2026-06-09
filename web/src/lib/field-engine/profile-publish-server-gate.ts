@@ -55,7 +55,7 @@ async function loadCorePublishSnapshot(input: {
     .select("taxonomy_term_id")
     .eq("talent_profile_id", talentProfileId)
     .eq("tenant_id", tenantId)
-    .eq("relationship_type", "primary")
+    .eq("relationship_type", "primary_role")
     .limit(1);
   if (primaryError) throw primaryError;
 
