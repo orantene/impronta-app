@@ -79,9 +79,9 @@ export async function loadSelfProfileEditorData(input: {
     // P3 Tier-B Stage-4: source the editor-only JSONB blobs from the catalog
     // value table, falling back to the dedicated column below when absent.
     readBlobFieldValuesFromCatalog(supabase, talentProfileId),
-    // P3 Tier-C Stage-4: source the identity-PII text fields (pronouns +
-    // pronouns_custom) from the catalog value table, falling back to the
-    // dedicated column below when absent. DOB + gender stay column-only.
+    // P3 Tier-C Stage-4: source the identity-PII fields (pronouns,
+    // pronouns_custom + gender) from the catalog value table, falling back to the
+    // dedicated column below when absent. DOB stays column-only.
     readIdentityFieldValuesFromCatalog(supabase, talentProfileId),
   ]);
 
@@ -123,10 +123,10 @@ export async function loadSelfProfileEditorData(input: {
       legal_name: (p.legal_name as string | null) ?? null,
       // P3 Tier-C Stage-4: prefer the catalog value row, fall back to the
       // dedicated talent_profiles column when no value row exists (column write
-      // still live). DOB + gender remain column-sourced (excluded from Tier C).
+      // still live). DOB remains column-sourced (excluded from Tier C).
       pronouns: iv.pronouns ?? (p.pronouns as string | null) ?? null,
       pronouns_custom: iv.pronouns_custom ?? (p.pronouns_custom as string | null) ?? null,
-      gender: (p.gender as string | null) ?? null,
+      gender: iv.gender ?? (p.gender as string | null) ?? null,
       date_of_birth: (p.date_of_birth as string | null) ?? null,
       // P3 Tier-A Stage-4: prefer the catalog value row, fall back to the
       // dedicated talent_profiles column when no value row exists (column write

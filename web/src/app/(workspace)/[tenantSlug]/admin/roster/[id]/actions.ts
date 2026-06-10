@@ -53,8 +53,28 @@ const editSchema = z.object({
       message: "Enter a valid email address.",
     }),
   home_city_text: z.string().optional().transform((v) => v?.trim() ?? ""),
+  // Canonical, inclusive gender option-set (Tier-C-tail, 2026-06-10) — values
+  // are the display strings stored verbatim in talent_profiles.gender, in
+  // lockstep with profile_field_definitions(identity.gender).options + the
+  // directory facet config.
   gender: z
-    .enum(["woman", "man", "non_binary", "other", ""])
+    .enum([
+      "Woman",
+      "Man",
+      "Non-binary",
+      "Trans woman",
+      "Trans man",
+      "Transgender",
+      "Genderfluid",
+      "Genderqueer",
+      "Agender",
+      "Bigender",
+      "Two-Spirit",
+      "Intersex",
+      "Prefer to self-describe",
+      "Prefer not to say",
+      "",
+    ])
     .optional()
     .transform((v) => (v === "" ? null : (v ?? null))),
   date_of_birth: z

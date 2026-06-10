@@ -7,11 +7,25 @@ import {
   useFormPersistence,
 } from "@/lib/ui/use-form-persistence";
 
+// Canonical, inclusive gender option-set (Tier-C-tail, 2026-06-10). value ==
+// label == the string stored verbatim in talent_profiles.gender (posted to the
+// onboarding RPC `p_gender`). Kept in lockstep with
+// profile_field_definitions(identity.gender).options + the directory facet config.
 const GENDER_OPTIONS = [
-  { value: "female", label: "Female" },
-  { value: "male", label: "Male" },
-  { value: "non_binary", label: "Non-binary" },
-  { value: "prefer_not_to_say", label: "Prefer not to say" },
+  { value: "Woman", label: "Woman" },
+  { value: "Man", label: "Man" },
+  { value: "Non-binary", label: "Non-binary" },
+  { value: "Trans woman", label: "Trans woman" },
+  { value: "Trans man", label: "Trans man" },
+  { value: "Transgender", label: "Transgender" },
+  { value: "Genderfluid", label: "Genderfluid" },
+  { value: "Genderqueer", label: "Genderqueer" },
+  { value: "Agender", label: "Agender" },
+  { value: "Bigender", label: "Bigender" },
+  { value: "Two-Spirit", label: "Two-Spirit" },
+  { value: "Intersex", label: "Intersex" },
+  { value: "Prefer to self-describe", label: "Prefer to self-describe" },
+  { value: "Prefer not to say", label: "Prefer not to say" },
 ];
 
 export function TalentLocationOnboardingForm({

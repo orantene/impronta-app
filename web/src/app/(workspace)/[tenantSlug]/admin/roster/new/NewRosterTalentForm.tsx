@@ -239,12 +239,27 @@ export function NewRosterTalentForm({
           <input name="height_cm" type="number" min={50} max={280} step={0.5} placeholder="cm" style={inputStyle()} />
         </Field>
         <Field label={t("admin.roster.new.gender")}>
+          {/* Canonical, inclusive gender option-set — values match
+              talent_profiles.gender + profile_field_definitions(identity.gender).options
+              + the directory facet config (Tier-C-tail, 2026-06-10). The four
+              common values keep their translated labels; the rest are proper
+              identity terms shown verbatim. */}
           <select name="gender" defaultValue="" style={inputStyle()}>
             <option value="">{t("admin.roster.new.noneOption")}</option>
-            <option value="woman">{t("admin.roster.new.genderWoman")}</option>
-            <option value="man">{t("admin.roster.new.genderMan")}</option>
-            <option value="non_binary">{t("admin.roster.new.genderNonBinary")}</option>
-            <option value="other">{t("admin.roster.new.genderOther")}</option>
+            <option value="Woman">{t("admin.roster.new.genderWoman")}</option>
+            <option value="Man">{t("admin.roster.new.genderMan")}</option>
+            <option value="Non-binary">{t("admin.roster.new.genderNonBinary")}</option>
+            <option value="Trans woman">Trans woman</option>
+            <option value="Trans man">Trans man</option>
+            <option value="Transgender">Transgender</option>
+            <option value="Genderfluid">Genderfluid</option>
+            <option value="Genderqueer">Genderqueer</option>
+            <option value="Agender">Agender</option>
+            <option value="Bigender">Bigender</option>
+            <option value="Two-Spirit">Two-Spirit</option>
+            <option value="Intersex">Intersex</option>
+            <option value="Prefer to self-describe">Prefer to self-describe</option>
+            <option value="Prefer not to say">Prefer not to say</option>
           </select>
         </Field>
         <Field label={t("admin.roster.new.rosterVisibility")}>

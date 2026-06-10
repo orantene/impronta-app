@@ -954,12 +954,26 @@ export function TalentEditForm({
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
           <Field label={t("admin.talent.edit.form.gender")}>
+            {/* Canonical, inclusive gender option-set — values match
+                talent_profiles.gender + profile_field_definitions(identity.gender).options
+                + the directory facet config (Tier-C-tail, 2026-06-10). The four
+                common values keep their translated labels. */}
             <select name="gender" defaultValue={initial.gender ?? ""} style={inputStyle()}>
               <option value="">{t("admin.talent.edit.form.selectNone")}</option>
-              <option value="woman">{t("admin.talent.edit.form.genderWoman")}</option>
-              <option value="man">{t("admin.talent.edit.form.genderMan")}</option>
-              <option value="non_binary">{t("admin.talent.edit.form.genderNonBinary")}</option>
-              <option value="other">{t("admin.talent.edit.form.genderOther")}</option>
+              <option value="Woman">{t("admin.talent.edit.form.genderWoman")}</option>
+              <option value="Man">{t("admin.talent.edit.form.genderMan")}</option>
+              <option value="Non-binary">{t("admin.talent.edit.form.genderNonBinary")}</option>
+              <option value="Trans woman">Trans woman</option>
+              <option value="Trans man">Trans man</option>
+              <option value="Transgender">Transgender</option>
+              <option value="Genderfluid">Genderfluid</option>
+              <option value="Genderqueer">Genderqueer</option>
+              <option value="Agender">Agender</option>
+              <option value="Bigender">Bigender</option>
+              <option value="Two-Spirit">Two-Spirit</option>
+              <option value="Intersex">Intersex</option>
+              <option value="Prefer to self-describe">Prefer to self-describe</option>
+              <option value="Prefer not to say">Prefer not to say</option>
             </select>
           </Field>
           <Field label={t("admin.talent.edit.form.dob")}>

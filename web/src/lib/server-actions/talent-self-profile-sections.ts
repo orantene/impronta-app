@@ -471,13 +471,15 @@ export async function updateSelfIdentity(input: {
     response_time: input.response_time !== undefined ? (input.response_time || null) : undefined,
   });
 
-  // P3 Tier-C Stage-1 dual-write — pronouns + pronouns_custom identity text.
+  // P3 Tier-C Stage-1 dual-write — pronouns, pronouns_custom + gender identity.
   // Pass the column-normalized values from `patch` (set above only when the
   // input touched them); `undefined` (untouched) is respected by the helper.
-  // DOB + gender are DELIBERATELY EXCLUDED — see identity-field-values-catalog.ts.
+  // gender stores the canonical select value (== column after Tier-C-tail
+  // normalization). DOB is DELIBERATELY EXCLUDED — see identity-field-values-catalog.ts.
   await syncIdentityFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
     pronouns: input.pronouns !== undefined ? (patch.pronouns as string | null) : undefined,
     pronouns_custom: input.pronouns_custom !== undefined ? (patch.pronouns_custom as string | null) : undefined,
+    gender: input.gender !== undefined ? (patch.gender as string | null) : undefined,
   });
 
   revalidatePath(`/t/${profileCode}`, "page");

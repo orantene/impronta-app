@@ -5,10 +5,30 @@
 // merged on main.
 //
 // Tier C is identity PII on `talent_profiles`. Of the candidate columns
-// (pronouns, pronouns_custom, gender, date_of_birth) this helper handles ONLY
-// the two that are provably safe to converge:
-//   pronouns         (text) → registry key `identity.pronouns`        (pre-existing def)
-//   pronouns_custom  (text) → registry key `identity.pronounsCustom`  (registered by this tier)
+// (pronouns, pronouns_custom, gender, date_of_birth) this helper handles three:
+//   pronouns         (text)   → registry key `identity.pronouns`        (pre-existing def)
+//   pronouns_custom  (text)   → registry key `identity.pronounsCustom`  (registered by Tier C)
+//   gender           (select) → registry key `identity.gender`          (Tier C tail; see below)
+//
+// ─── GENDER — Tier C tail (2026-06-10) ──────────────────────────────────────
+// Gender was DEFERRED out of the first Tier-C wave: the `identity.gender` def
+// was kind='select' with options=NULL and the column vocab was inconsistent
+// (woman/female/male/man coexisted). The Tier-C tail closes that gap:
+//   1. The `identity.gender` def now carries a clean, inclusive 14-option set
+//      (Woman, Man, Non-binary, Trans woman, … Prefer not to say) — the
+//      canonical DISPLAY values, which are ALSO the stored column values.
+//   2. The column was normalized to those canonical values in lockstep
+//      (female/woman → Woman, male/man → Man) by the gender-normalize migration.
+//   3. The directory gender FACET — a SEPARATE System-B `field_definitions`
+//      row keyed `gender` whose `config.filter_options` exact-matches the
+//      column via `.in("gender", values)` — had its filter_options re-set to the
+//      same canonical vocab in the same migration, so the directory filter keeps
+//      matching after normalization. (The Tier-C note "not column-queried" was
+//      WRONG: apply-directory-field-facet-filters.ts filters the column directly.
+//      Normalization is only safe BECAUSE the facet config moved with it.)
+// Gender is a TEXT-shaped value here (a single select string), so it flows
+// through the same present-⇔-not-null-and-trim<>'' contract as the two pronouns
+// text fields and is stored as a jsonb string.
 //
 // ─── DELIBERATELY EXCLUDED (investigation findings) ─────────────────────────
 //  • date_of_birth → identity.dob — EXCLUDED. The legacy mirror
@@ -22,19 +42,12 @@
 //    reads. DOB is ALSO query-critical: fetch-directory-page.ts filters the
 //    directory age facet directly on talent_profiles.date_of_birth. DOB stays
 //    DEDICATED. The legacy mirror keeps owning identity.dob value rows.
-//  • gender → identity.gender — EXCLUDED (conservative). No legacy collision and
-//    not column-queried in the directory (the directory gender facet reads the
-//    System-A field_values path), so it is mechanically migratable. BUT the
-//    `identity.gender` def is kind='select' with options=NULL and the column
-//    vocab is inconsistent (woman/female/male/man coexist). Migrating ambiguous
-//    PII vocab into a null-options select is a smell; deferred to a follow-up
-//    that first cleans the gender option-set + vocab. Gender stays DEDICATED.
 //
 // P3 converges field VALUES onto the catalog value table
 // `talent_profile_field_values`. This helper is the Stage-1 DUAL-WRITE: every
-// caller that writes pronouns/pronouns_custom on talent_profiles ALSO upserts
-// the value into the catalog table here, alongside (not instead of) the column
-// write. The column write stays the source of truth until the read-flip
+// caller that writes pronouns/pronouns_custom/gender on talent_profiles ALSO
+// upserts the value into the catalog table here, alongside (not instead of) the
+// column write. The column write stays the source of truth until the read-flip
 // (Stage 4) + the column drop (Stage 5, a later release).
 //
 // Fire-and-forget — errors are logged + swallowed so a failed catalog mirror
@@ -63,10 +76,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { improntaLog } from "@/lib/server/structured-log";
 
-// Canonical registry keys for the two Tier-C identity-PII text fields.
+// Canonical registry keys for the Tier-C identity-PII fields. pronouns +
+// pronouns_custom are free text; gender is a single select string that flows
+// through the exact same text contract (present ⇔ not null AND trim<>'').
 export const IDENTITY_FIELD_KEYS = {
   pronouns: "identity.pronouns",
   pronouns_custom: "identity.pronounsCustom",
+  gender: "identity.gender",
 } as const;
 
 export type IdentityFieldColumn = keyof typeof IDENTITY_FIELD_KEYS;
@@ -78,11 +94,12 @@ export type IdentityFieldColumn = keyof typeof IDENTITY_FIELD_KEYS;
 type AnySupabase = SupabaseClient | any;
 
 // Only keys PRESENT (not `undefined`) are touched — an absent key means the
-// caller didn't edit it. Both fields are text; accept string | null. `undefined`
-// is "untouched".
+// caller didn't edit it. All three fields are stored as text/string; accept
+// string | null. `undefined` is "untouched".
 export type IdentityFieldValues = {
   pronouns?: string | null;
   pronouns_custom?: string | null;
+  gender?: string | null;
 };
 
 /** True when a text field carries a real value (not null, not blank). */
@@ -91,10 +108,10 @@ function textPresent(v: string | null | undefined): boolean {
 }
 
 /**
- * Dual-write the supplied Tier-C identity text fields into
- * `talent_profile_field_values`. Only keys PRESENT in `fields` are touched. A
- * present key whose value is empty DELETEs any stale value row; a present key
- * with a value upserts the value row (stored as a jsonb string).
+ * Dual-write the supplied Tier-C identity fields (pronouns, pronouns_custom,
+ * gender) into `talent_profile_field_values`. Only keys PRESENT in `fields` are
+ * touched. A present key whose value is empty DELETEs any stale value row; a
+ * present key with a value upserts the value row (stored as a jsonb string).
  *
  * When `tenantId` is null (no active roster) the write is SKIPPED entirely —
  * the column stays the source for independent talents.
@@ -207,6 +224,7 @@ export async function syncIdentityFieldValuesToCatalog(
 export type IdentityFieldValueReads = {
   pronouns?: string | null;
   pronouns_custom?: string | null;
+  gender?: string | null;
 };
 
 // Reverse map: field_key → the talent_profiles column name.
