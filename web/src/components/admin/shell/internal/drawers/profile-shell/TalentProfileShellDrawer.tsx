@@ -11,6 +11,7 @@ import {
   getProfilePublishCompleteness,
 } from "@/lib/field-engine/profile-publish-requirements";
 import type { ResolvedField } from "@/lib/field-engine/resolve-talent-fields";
+import { resolveDynamicFieldsForParent } from "@/lib/field-engine/client-field-source-select";
 import {
   getFieldsForTalentAsTalent,
   getTalentFieldValuesAsTalent,
@@ -246,7 +247,7 @@ function detailsGroupHelperText(label: string): string {
 // irreducible — max-lines grandfathered via mandated scoped suppression regen.
 
 export function TalentProfileShellDrawer() {
-  const { state: protoState, closeDrawer, openDrawer, toast, customFields, tenantSlug, bridgeTenantIdentity, bridgeTalentSelfProfile, effectiveTenant, profileEditorLayout } = useAdminShell();
+  const { state: protoState, closeDrawer, openDrawer, toast, customFields, tenantSlug, bridgeTenantIdentity, bridgeTalentSelfProfile, effectiveTenant, profileEditorLayout, clientFieldSource } = useAdminShell();
   const workspaceScopeTenantId =
     bridgeTenantIdentity?.tenantId
     ?? bridgeTenantIdentity?.slug
@@ -1676,8 +1677,22 @@ export function TalentProfileShellDrawer() {
     .map(pid => {
       const parent = TAXONOMY.find(p => p.id === pid)!;
       const groups = getDynamicFieldsForType(pid);
-      const fields = groups[0]?.fields ?? [];
-      return { parent, fields };
+      const staticFields = groups[0]?.fields ?? [];
+      // P1 field-engine unification — when the `drawer` surface is flipped to
+      // `db`, render the DB-resolved type-specific catalog for this parent.
+      // When `static` (default) or the DB has no fields for this parent, this
+      // returns null and we keep `staticFields` (byte-identical to today).
+      // NOTE: this `dynamicGroups`/"Profile details" path is the prototype /
+      // standalone fallback — for a real tenant (`hasResolvedEngineContext`),
+      // the type-specific editor is the DB-driven `LiveCategoryFieldsEditor`
+      // and these sections are hidden. The dev parity assertion still runs.
+      const dbFields = resolveDynamicFieldsForParent({
+        payload: clientFieldSource,
+        surface: "drawer",
+        parentSlug: pid,
+        staticFields,
+      });
+      return { parent, fields: dbFields ? [...dbFields] : staticFields };
     })
     .filter(g => g.fields.length > 0);
 

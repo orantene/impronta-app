@@ -31,12 +31,13 @@ import {
   validateField
 } from "./drawer-shared";
 import { buildNewTalentPickerTaxonomy } from "./profile-shell/profile-shell-modules/new-talent-taxonomy";
+import { resolveDynamicFieldsForParent } from "@/lib/field-engine/client-field-source-select";
 
 // Phase 1d (remediation §4): 1 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
 
 export function TalentRegistrationDrawer() {
-  const { state, closeDrawer, toast, effectiveTenant, bridgeTenantIdentity } = useAdminShell();
+  const { state, closeDrawer, toast, effectiveTenant, bridgeTenantIdentity, clientFieldSource } = useAdminShell();
   const open = state.drawer.drawerId === "talent-registration";
   const liveTaxonomy = useLiveTaxonomy();
   const [step, setStep] = useState(0);
@@ -203,7 +204,19 @@ export function TalentRegistrationDrawer() {
             subsection: f.subsection,
           };
         });
-      return { parent, fields };
+      // P1 field-engine unification — when the `wizard` surface is flipped to
+      // `db` (FIELD_ENGINE_CLIENT_SOURCE), render the DB-resolved type-specific
+      // catalog for this parent instead of the static one. When `static` (the
+      // default) or the DB has no fields for this parent, `resolved` is null
+      // and we keep the static `fields` (byte-identical to today). The dev
+      // parity assertion runs inside the selector whenever a DB payload exists.
+      const dbFields = resolveDynamicFieldsForParent({
+        payload: clientFieldSource,
+        surface: "wizard",
+        parentSlug: pid,
+        staticFields: fields,
+      });
+      return { parent, fields: dbFields ? [...dbFields] : fields };
     });
 
   // Validation

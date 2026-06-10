@@ -63,6 +63,14 @@ export type ResolvedFieldDefinition = {
   countMin: number | null;
   displayOrder: number;
   note: string | null;
+  /** How the field renders: 'catalog' = generic catalog renderer; 'bespoke'
+   *  = a hand-coded editor component. Added in the field-engine unification
+   *  (P0 migration 20260610090000). Defaults to 'catalog' for rows predating
+   *  the column. */
+  renderMode: "catalog" | "bespoke";
+  /** Where the value is stored: 'field_values' = talent_profile_field_values
+   *  bag; 'dedicated' = a dedicated column / structured store. */
+  storageMode: "field_values" | "dedicated";
   /** Talent-type slugs (TaxonomyParentId) where this field applies. */
   appliesTo: ReadonlyArray<string>;
   /** Talent-type slugs where this field is required for publish. */
@@ -109,6 +117,8 @@ type FieldDefinitionRow = {
   display_order: number;
   note: string | null;
   deprecated_at: string | null;
+  render_mode: "catalog" | "bespoke" | null;
+  storage_mode: "field_values" | "dedicated" | null;
 };
 
 type RecommendationRow = {
@@ -392,6 +402,8 @@ function mergeCatalog(
       countMin: d.count_min,
       displayOrder: o?.display_order_override ?? d.display_order,
       note: d.note,
+      renderMode: d.render_mode ?? "catalog",
+      storageMode: d.storage_mode ?? "field_values",
       appliesTo,
       requiredFor,
       recommendedFor,
