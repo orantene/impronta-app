@@ -444,6 +444,17 @@ export interface BuilderSectionNode extends BuilderNodeBase {
   children?: BuilderNode[];
 }
 
+/**
+ * One breakpoint tier's container-layout override. Shared by the built-in
+ * `tablet`/`mobile` tiers and any operator-defined custom tier id.
+ */
+export interface BuilderContainerResponsiveOverride {
+  layout?: "stack" | "row" | "grid";
+  gap?: "s" | "m" | "l";
+  columns?: 1 | 2 | 3 | 4;
+  align?: "start" | "center" | "end" | "stretch";
+}
+
 export interface BuilderContainerNode extends BuilderNodeBase {
   kind: "container";
   props: {
@@ -453,20 +464,16 @@ export interface BuilderContainerNode extends BuilderNodeBase {
     align?: "start" | "center" | "end" | "stretch";
     /** Operator-facing layer name in Page Structure (display-only). */
     layerLabel?: string;
-    responsive?: {
-      tablet?: {
-        layout?: "stack" | "row" | "grid";
-        gap?: "s" | "m" | "l";
-        columns?: 1 | 2 | 3 | 4;
-        align?: "start" | "center" | "end" | "stretch";
-      };
-      mobile?: {
-        layout?: "stack" | "row" | "grid";
-        gap?: "s" | "m" | "l";
-        columns?: 1 | 2 | 3 | 4;
-        align?: "start" | "center" | "end" | "stretch";
-      };
-    };
+    /**
+     * Per-breakpoint layout overrides, keyed by tier id. `tablet` (≤900px) and
+     * `mobile` (≤640px) are the two built-in tiers and render via the static
+     * stylesheet; ANY other key is an operator-defined custom tier whose CSS is
+     * generated at runtime by {@link generateContainerLayoutCss} and mounted via
+     * {@link BreakpointStyleEngine}. Widened from a fixed `{tablet,mobile}` to a
+     * `Record` (Builder 2026 "first-class responsive") — back-compat is exact:
+     * `tablet`/`mobile` remain the same two keys with the same shape.
+     */
+    responsive?: Record<string, BuilderContainerResponsiveOverride>;
     dataBinding?: BuilderDataBindingProps;
     style?: BuilderNodeStyle;
     // Linked-component instance marker (Living Components Phase 2/3). When set,
