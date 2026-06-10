@@ -120,7 +120,10 @@ import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
 import { isBuilderClientCanvasEnabled } from "@/lib/site-admin/edit-mode/client-canvas-flag";
 import { sectionTypeHasLiveData } from "@/lib/site-admin/sections/section-live-data";
-import { publishBuilderCanvasTree } from "./client-builder-canvas-bridge";
+import {
+  publishBuilderCanvasTree,
+  isClientBuilderCanvasMounted,
+} from "./client-builder-canvas-bridge";
 import {
   publishHoveredSectionId,
   publishHoveredBuilderNodeId,
@@ -4141,10 +4144,14 @@ export function EditProvider({
           // every keystroke-commit (hero / CTA / trust-strip, etc.). Skip it for
           // those; keep the full refresh for DATA-BOUND sections (hasLiveData),
           // whose on-screen island only reflects new props after a server
-          // re-render. With the client canvas OFF (legacy server-render) the
-          // refresh is still the only repaint path → always refresh then.
+          // re-render. With NO client canvas mounted for this page (legacy
+          // server-render, OR a curated-slot page where the canvas never mounts)
+          // the refresh is still the only repaint path → always refresh then.
+          // builder-perf-2026 — gate on the canvas being ACTUALLY MOUNTED, not the
+          // build flag: a curated-slot page can have the flag on yet no canvas, and
+          // skipping the refresh there would leave the server canvas stale.
           if (
-            !isBuilderClientCanvasEnabled() ||
+            !isClientBuilderCanvasMounted() ||
             sectionTypeHasLiveData(snapshot.sectionTypeKey)
           ) {
             void queueRouterRefresh();
@@ -5059,14 +5066,17 @@ export function EditProvider({
       };
       flushUndoPersist();
       // W3 Sub-step D — skip the per-edit server refresh on the builder-tree
-      // happy path WHEN THE CLIENT CANVAS IS ACTIVE. `setBuilderTree(nextTree)`
-      // above already published the new tree to the bridge, so the client
-      // canvas has already repainted the REGULAR nodes — the server round-trip
-      // is pure lag. Flag OFF keeps the refresh EXACTLY as before (the
-      // server-rendered canvas is the only thing that paints, so it MUST
-      // re-render).
+      // happy path WHEN A CLIENT CANVAS IS MOUNTED for this page.
+      // `setBuilderTree(nextTree)` above already published the new tree to the
+      // bridge, so the client canvas has already repainted the REGULAR nodes —
+      // the server round-trip is pure lag. builder-perf-2026 — this now gates on
+      // the canvas being ACTUALLY MOUNTED (`isClientBuilderCanvasMounted()`), not
+      // the build flag. A curated-slot page mounts NO canvas even with the flag
+      // on, so it correctly keeps the refresh (the server-rendered canvas is the
+      // only thing that paints and MUST re-render) — this is what makes enabling
+      // the flag safe for ALL page shapes, not just freeform full-page designs.
       //
-      // The ONE flag-on exception: a builder-tree mutation that adds/removes a
+      // The ONE canvas-mounted exception: a builder-tree mutation that adds/removes a
       // `section_embed` island. The client canvas can't conjure a server island
       // the server never rendered (and can't drop one cleanly), so when the
       // embed id set changes we still refresh to fetch/retire the island. This
@@ -5074,7 +5084,7 @@ export function EditProvider({
       // through `persistBuilderTree` (bypassing `commitBuilderTreeMutation`'s
       // eager reconcile) and could flip an embed in/out.
       if (
-        !isBuilderClientCanvasEnabled() ||
+        !isClientBuilderCanvasMounted() ||
         mutationTouchesSectionEmbedIslandSet(prevTree, nextTree) ||
         mutationTouchesSectionEmbedConfig(prevTree, nextTree) ||
         mutationTouchesUnboundGallerySections(prevTree, nextTree)
@@ -5214,11 +5224,12 @@ export function EditProvider({
       // duplicated this commit gets a fresh id with no cached island). When the
       // set of section_embed ids changes, eagerly refresh the server RSC tree so
       // the new island is rendered promptly instead of waiting for the debounced
-      // save's trailing refresh. Flag-gated: with the client canvas OFF, the
-      // server-rendered canvas already repaints on the save refresh — this extra
-      // eager refresh would be redundant, so it stays scoped to the flag-on path.
+      // save's trailing refresh. Gated on a canvas being MOUNTED: with no client
+      // canvas (legacy server-render or a curated-slot page), the server-rendered
+      // canvas already repaints on the save refresh — this extra eager refresh
+      // would be redundant, so it stays scoped to the canvas-active path.
       if (
-        isBuilderClientCanvasEnabled() &&
+        isClientBuilderCanvasMounted() &&
         (mutationTouchesSectionEmbedIslandSet(prevTree, nextTree) ||
           mutationTouchesSectionEmbedConfig(prevTree, nextTree) ||
           mutationTouchesUnboundGallerySections(prevTree, nextTree))

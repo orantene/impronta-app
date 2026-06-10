@@ -49,3 +49,38 @@ export function subscribeBuilderCanvasTree(listener: Listener): () => void {
 export function getBuilderCanvasTreeSnapshot(): BuilderNodeTree | null {
   return currentTree;
 }
+
+// ── Canvas-mounted signal (builder-perf-2026, reload fix) ──────────────────
+// `<ClientBuilderCanvas>` mounts ONLY in the freeform full-page branch of
+// `homepage-cms-sections.tsx` (and only when edit mode + the flag are on). The
+// per-edit refresh-skip in `edit-context` must therefore gate on whether a canvas
+// is ACTUALLY mounted for THIS page — not merely on the build flag. On a
+// curated-slot page the flag can be on yet NO canvas is mounted; skipping the
+// refresh there (the old `isBuilderClientCanvasEnabled()`-only gate) would leave
+// the server-rendered canvas stale with nothing to repaint it. A reference count
+// (not a bool) tolerates a transient mount/unmount overlap during a re-render.
+let mountedCanvasCount = 0;
+
+/**
+ * Register a mounted `<ClientBuilderCanvas>`. Call from a mount effect; the
+ * returned fn decrements on unmount. Idempotent per caller via the effect cleanup.
+ */
+export function registerClientBuilderCanvasMount(): () => void {
+  mountedCanvasCount += 1;
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    mountedCanvasCount = Math.max(0, mountedCanvasCount - 1);
+  };
+}
+
+/**
+ * True when at least one `<ClientBuilderCanvas>` is mounted for the current page
+ * — i.e. an optimistic tree edit will repaint client-side, so the per-edit server
+ * `router.refresh()` is pure lag and can be skipped. False on legacy/curated-slot
+ * pages (no canvas) and whenever the flag is off, so those keep refreshing.
+ */
+export function isClientBuilderCanvasMounted(): boolean {
+  return mountedCanvasCount > 0;
+}
