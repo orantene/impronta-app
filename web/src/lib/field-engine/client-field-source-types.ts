@@ -15,8 +15,85 @@
 // into a 'use client' component" rule intact (same precedent as
 // `profile-editor/layout-types.ts`).
 
-import type { RegFieldKind, RegFieldChannel } from
+import type { RegFieldKind, RegFieldChannel, TaxonomyParentId } from
   "@/components/admin/shell/internal/state/types";
+
+// ── Wizard TaxonomyParentId ↔ DB parent_category slug reconciliation ─────────
+//
+// The registration wizard + static field catalog (`field-catalog.ts` /
+// `TAXONOMY_FIELDS`) key type-specific fields by the fixed `TaxonomyParentId`
+// union (`models`, `hosts`, `music`, …). The DB field engine groups its
+// type-specific catalog (`render_mode='catalog'`) by the live
+// `taxonomy_terms.slug` for the parent_category (`models`, `hosts-promo`,
+// `music-djs`, …). Several differ.
+//
+// VERIFIED against the live DB (`SELECT slug FROM taxonomy_terms WHERE
+// term_type='parent_category'`, 2026-06-10) vs the wizard's `TaxonomyParentId`
+// union in `state/types.ts`:
+//
+//   wizard id        →  DB parent_category slug
+//   ───────────────────────────────────────────
+//   models           →  models                  (exact)
+//   hosts            →  hosts-promo             (rename)
+//   performers       →  performers              (exact)
+//   music            →  music-djs               (rename)
+//   creators         →  influencers-creators    (rename)
+//   chefs            →  chefs-culinary          (rename)
+//   wellness         →  wellness-beauty         (rename)
+//   hospitality      →  hospitality-property    (rename)
+//   transportation   →  transportation          (exact)
+//   photo_video      →  photo-video-creative    (rename)
+//   event_staff      →  event-staff             (underscore→hyphen)
+//   security         →  security-protection     (rename)
+//   services         →  (none — see note)
+//
+// `services` is the static catch-all bucket whose children span MULTIPLE DB
+// parents (cleaning, hospitality, transport, security, catering, retail,
+// technical). It has no single DB parent_category equivalent, so it is left
+// UNMAPPED on purpose — the selector then returns `null` for it and the wizard
+// keeps its existing static `services` field set. Mapping it to any one DB
+// parent would render the wrong field set.
+export const WIZARD_PARENT_ID_TO_DB_SLUG: Readonly<
+  Partial<Record<TaxonomyParentId, string>>
+> = {
+  models: "models",
+  hosts: "hosts-promo",
+  performers: "performers",
+  music: "music-djs",
+  creators: "influencers-creators",
+  chefs: "chefs-culinary",
+  wellness: "wellness-beauty",
+  hospitality: "hospitality-property",
+  transportation: "transportation",
+  photo_video: "photo-video-creative",
+  event_staff: "event-staff",
+  security: "security-protection",
+  // services: intentionally omitted — no single DB parent (see note above).
+} as const;
+
+/** Reverse map: DB parent_category slug → wizard `TaxonomyParentId`. */
+export const DB_SLUG_TO_WIZARD_PARENT_ID: Readonly<Record<string, TaxonomyParentId>> =
+  Object.fromEntries(
+    Object.entries(WIZARD_PARENT_ID_TO_DB_SLUG).map(([wid, slug]) => [slug, wid]),
+  ) as Record<string, TaxonomyParentId>;
+
+/**
+ * Resolve a wizard-side parent key (which may be a static `TaxonomyParentId`
+ * like `hosts` OR already a live DB slug like `hosts-promo`, depending on
+ * whether the live taxonomy or the static fallback produced the parent) to the
+ * DB parent_category slug used to key `dynamicFieldsByParent`.
+ *
+ * Order: explicit static→DB map → already-a-DB-slug (identity) → null. Pure.
+ */
+export function wizardParentKeyToDbSlug(
+  parentKey: string,
+): string | null {
+  const mapped = WIZARD_PARENT_ID_TO_DB_SLUG[parentKey as TaxonomyParentId];
+  if (mapped) return mapped;
+  // Already a DB slug? (live-taxonomy path passes the slug straight through).
+  if (parentKey in DB_SLUG_TO_WIZARD_PARENT_ID) return parentKey;
+  return null;
+}
 
 // ── Flag ───────────────────────────────────────────────────────────────────
 //
@@ -26,10 +103,14 @@ import type { RegFieldKind, RegFieldChannel } from
 // registry (the "one engine" target). Per-surface granularity so the wizard,
 // drawer and validation can flip independently as each is proven safe.
 //
-// Default is `static` for EVERY surface → byte-identical to today. The server
-// loader only does the (heavier) DB resolve + injects a payload when a surface
-// is flipped to `db`; when `static`, it injects `null` and the client falls
-// back to its existing static path untouched.
+// Default (P1 follow-up, 2026-06-10): the `wizard` surface defaults to `db`
+// (the registration wizard renders the DB registration field set so a
+// super-admin's Profile Fields edits reach registration), while `drawer` and
+// `validation` stay `static` until each is separately proven safe. The server
+// loader does the (heavier) DB resolve + injects a payload whenever ANY surface
+// is `db`; for a `static` surface the client still uses its existing static
+// path untouched. Setting `FIELD_ENGINE_CLIENT_SOURCE=static` reverts every
+// surface (including the wizard) to the old static catalog — the kill switch.
 //
 // Read once on the server from `process.env`. A single env var sets every
 // surface; the rarely-needed per-surface override uses a comma list like
@@ -50,9 +131,14 @@ export const FIELD_ENGINE_CLIENT_SURFACES: readonly FieldEngineClientSurface[] =
   "validation",
 ] as const;
 
-/** The safe default — every surface reads the static catalog. */
+/**
+ * The default per-surface flags when `FIELD_ENGINE_CLIENT_SOURCE` is unset.
+ * The registration `wizard` reads the DB registration field set; the editor
+ * `drawer` + `validation` stay on the static catalog until separately proven.
+ * `FIELD_ENGINE_CLIENT_SOURCE=static` is the kill switch (reverts all → static).
+ */
 export const DEFAULT_FIELD_ENGINE_CLIENT_SOURCE_FLAGS: FieldEngineClientSourceFlags = {
-  wizard: "static",
+  wizard: "db",
   drawer: "static",
   validation: "static",
 };
@@ -61,14 +147,17 @@ export const DEFAULT_FIELD_ENGINE_CLIENT_SOURCE_FLAGS: FieldEngineClientSourceFl
  * Parse `FIELD_ENGINE_CLIENT_SOURCE` into per-surface flags.
  *
  * Accepted forms (case-insensitive):
- *   - unset / ""        → all surfaces `static`
- *   - "static"          → all `static`
+ *   - unset / ""        → the default flags (wizard `db`, drawer/validation
+ *                          `static`) — see DEFAULT_FIELD_ENGINE_CLIENT_SOURCE_FLAGS
+ *   - "static"          → all `static` (kill switch — reverts the wizard too)
  *   - "db"              → all `db`
- *   - "wizard:db"       → wizard `db`, rest `static`
+ *   - "drawer:db"       → drawer `db`, others keep the default
+ *   - "wizard:static"   → wizard `static`, others keep the default
  *   - "wizard:db,drawer:db,validation:static" → explicit per-surface
  *
- * Unknown tokens are ignored (fail safe to `static`). Pure — no env access —
- * so it is trivially testable and client-safe.
+ * Per-surface tokens layer on top of the default flags (so naming one surface
+ * does not reset the others). Unknown tokens are ignored. Pure — no env access
+ * — so it is trivially testable and client-safe.
  */
 export function parseFieldEngineClientSourceFlags(
   raw: string | null | undefined,

@@ -23,6 +23,36 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { filterTenantCatalogFieldsByEnabledTaxonomy } from "@/lib/field-engine/tenant-catalog-scope";
 
+// PostgREST caps a single SELECT at `max-rows` (1000 by default). `taxonomy_terms`
+// has >1000 rows, so an un-paged `.select()` SILENTLY drops terms past the cap —
+// including parent_category rows the field-recommendation join needs (this is what
+// made transportation/hospitality/event-staff/security type-specific fields vanish
+// from the tenant-scoped catalog, falling the DB-backed wizard back to static for
+// those types). Page through in 1000-row windows so every term is loaded.
+const PG_PAGE = 1000;
+async function fetchAllTaxonomyTerms<Row>(
+  supabase: SupabaseClient,
+  select: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  applyFilters?: (q: any) => any,
+): Promise<Row[]> {
+  const out: Row[] = [];
+  for (let from = 0; ; from += PG_PAGE) {
+    let query = supabase
+      .from("taxonomy_terms")
+      .select(select)
+      .range(from, from + PG_PAGE - 1)
+      .order("id", { ascending: true });
+    if (applyFilters) query = applyFilters(query);
+    const { data, error } = await query;
+    if (error) throw new Error(`taxonomy_terms (paged): ${error.message}`);
+    const rows = (data ?? []) as Row[];
+    out.push(...rows);
+    if (rows.length < PG_PAGE) break;
+  }
+  return out;
+}
+
 // ─── Types ─────────────────────────────────────────────────────────────
 
 export type FieldTier = "universal" | "global" | "type-specific";
@@ -195,28 +225,24 @@ export async function loadFieldCatalog(
   // the slug in code via `slugByTermId`. This mirrors the pattern used in
   // web/src/lib/field-engine/resolve-talent-fields.ts which fetches recs
   // and taxonomy_terms separately and joins by taxonomy_term_id.
-  const [recsResult, termsResult] = await Promise.all([
+  // term-id → slug lookup for resolving recommendation slugs. NOTE:
+  // `taxonomy_terms` has NO `deprecated_at` column (it uses `is_active`); an
+  // earlier version filtered on it and threw at runtime. We fetch ALL terms
+  // here (PAGED — the table exceeds the PostgREST 1000-row cap) — the map is
+  // only consulted for term-ids a recommendation references, so including any
+  // inactive rows is harmless and avoids dropping a slug.
+  const [recsResult, allTermsForSlug] = await Promise.all([
     supabase
       .from("profile_field_recommendations")
       .select("field_definition_id, taxonomy_term_id, relationship"),
-    // term-id → slug lookup for resolving recommendation slugs. NOTE:
-    // `taxonomy_terms` has NO `deprecated_at` column (it uses `is_active`); an
-    // earlier version filtered on it and threw at runtime. We fetch ALL terms
-    // here — the map is only consulted for term-ids that a recommendation
-    // actually references (all of which are active parent_category terms), so
-    // including any inactive rows is harmless and avoids dropping a slug.
-    supabase
-      .from("taxonomy_terms")
-      .select("id, slug"),
+    fetchAllTaxonomyTerms<{ id: string; slug: string }>(supabase, "id, slug"),
   ]);
   if (recsResult.error) throw new Error(`profile_field_recommendations: ${recsResult.error.message}`);
-  if (termsResult.error) throw new Error(`taxonomy_terms (for recs): ${termsResult.error.message}`);
   const recs = recsResult.data ?? [];
   // Build a term-id → slug lookup so `uniqSlugs` can resolve slugs without
   // relying on the PostgREST embedded join that failed to resolve.
   const slugByTermId = new Map<string, string>(
-    ((termsResult.data ?? []) as Array<{ id: string; slug: string }>)
-      .map((t) => [t.id, t.slug] as const),
+    allTermsForSlug.map((t) => [t.id, t.slug] as const),
   );
 
   let overrides: WorkspaceOverrideRow[] = [];
@@ -237,11 +263,14 @@ export async function loadFieldCatalog(
   );
   if (!opts.tenantId) return merged;
 
-  const { data: terms, error: termsErr } = await supabase
-    .from("taxonomy_terms")
-    .select("id, parent_id, is_active")
-    .eq("is_active", true);
-  if (termsErr) throw new Error(`taxonomy_terms: ${termsErr.message}`);
+  // PAGED — see fetchAllTaxonomyTerms. An un-paged fetch here dropped enabled
+  // parent_category terms past row 1000, so their type-specific fields were
+  // wrongly filtered out of the tenant catalog.
+  const terms = await fetchAllTaxonomyTerms<{
+    id: string;
+    parent_id: string | null;
+    is_active: boolean | null;
+  }>(supabase, "id, parent_id, is_active", (q) => q.eq("is_active", true));
 
   const { data: taxonomySettings, error: taxonomySettingsErr } = await supabase
     .from("agency_taxonomy_settings")
@@ -254,7 +283,7 @@ export async function loadFieldCatalog(
   return filterTenantCatalogFieldsByEnabledTaxonomy(
     merged,
     recs as RecommendationRow[],
-    (terms ?? []) as TenantCatalogTermRow[],
+    terms as TenantCatalogTermRow[],
     (taxonomySettings ?? []) as TenantCatalogSettingRow[],
   );
 }

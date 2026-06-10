@@ -16,10 +16,11 @@
 // vs the static one for the same parent, logging any drift via console.warn.
 // This proves DB==static (or surfaces the drift) BEFORE a surface is flipped.
 
-import type {
-  ClientFieldSourcePayload,
-  ClientDynamicFieldDTO,
-  FieldEngineClientSurface,
+import {
+  wizardParentKeyToDbSlug,
+  type ClientFieldSourcePayload,
+  type ClientDynamicFieldDTO,
+  type FieldEngineClientSurface,
 } from "@/lib/field-engine/client-field-source-types";
 import type { RegField } from "@/components/admin/shell/internal/state/types";
 
@@ -66,7 +67,13 @@ export function resolveDynamicFieldsForParent(args: {
   staticFields: ReadonlyArray<RegField>;
 }): ReadonlyArray<RegField> | null {
   const { payload, surface, parentSlug, staticFields } = args;
-  const dbDtos = payload?.dynamicFieldsByParent[parentSlug] ?? null;
+  // The wizard passes a static `TaxonomyParentId` (e.g. `hosts`, `music`) OR a
+  // live DB slug (e.g. `hosts-promo`) depending on which taxonomy path produced
+  // the parent. The DB payload is keyed by the DB parent_category slug, so
+  // reconcile first. Fall back to the raw key (covers a DB slug the map
+  // doesn't list yet) so a new parent still resolves if its slug is the key.
+  const dbSlug = wizardParentKeyToDbSlug(parentSlug) ?? parentSlug;
+  const dbDtos = payload?.dynamicFieldsByParent[dbSlug] ?? null;
 
   // Dev parity assertion — runs whenever we HAVE a DB payload for this parent,
   // even if the surface is still `static`. Proves DB==static before a flip.

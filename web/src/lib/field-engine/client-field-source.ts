@@ -136,6 +136,16 @@ function buildDynamicFieldsByParent(
     if (f.tier !== "type-specific") continue;
     if (f.renderMode !== "catalog") continue;
     if (!f.enabled) continue;
+    // Registration gating — the wizard surface only renders fields a
+    // super-admin flagged for registration (`show_in_registration`, plus the
+    // per-tenant `workspace_profile_field_settings` override resolved into
+    // `showInRegistration` by `loadFieldCatalog`). This matches
+    // `loadFieldsForMode('registration')`'s gate so the DB-backed wizard shows
+    // the registration field set, not the full catalog. A field a super-admin
+    // hides from registration drops out here; today every type-specific catalog
+    // field is registration-flagged, so counts are unchanged until one is
+    // toggled off.
+    if (!f.showInRegistration) continue;
     const parents = appliesByFieldKey.get(f.fieldKey);
     if (!parents || parents.size === 0) continue;
     for (const parentSlug of parents) {
@@ -169,7 +179,28 @@ async function loadAppliesByFieldKey(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   svc: any,
 ): Promise<Map<string, Set<string>>> {
-  const [{ data: defs }, { data: recs }, { data: terms }] = await Promise.all([
+  type TermNode = TermSlugRow & { parent_id: string | null };
+  // `taxonomy_terms` exceeds the PostgREST 1000-row cap, so an un-paged select
+  // silently drops the parent_category rows past row 1000 — which made the walk
+  // resolve to no parent for transportation/hospitality/event-staff/security
+  // fields, falling the wizard back to static for those types. Page through.
+  const fetchAllTerms = async (): Promise<TermNode[]> => {
+    const PAGE = 1000;
+    const all: TermNode[] = [];
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await svc
+        .from("taxonomy_terms")
+        .select("id, slug, term_type, parent_id")
+        .range(from, from + PAGE - 1)
+        .order("id", { ascending: true });
+      if (error) throw new Error(`taxonomy_terms (paged): ${error.message}`);
+      const rows = (data ?? []) as TermNode[];
+      all.push(...rows);
+      if (rows.length < PAGE) break;
+    }
+    return all;
+  };
+  const [{ data: defs }, { data: recs }, terms] = await Promise.all([
     svc
       .from("profile_field_definitions")
       .select("id, field_key")
@@ -179,15 +210,14 @@ async function loadAppliesByFieldKey(
       .from("profile_field_recommendations")
       .select("field_definition_id, taxonomy_term_id")
       .in("relationship", ["applies", "recommended", "required"]),
-    svc.from("taxonomy_terms").select("id, slug, term_type, parent_id"),
+    fetchAllTerms(),
   ]);
 
   const fieldKeyById = new Map<string, string>(
     ((defs ?? []) as FieldKeyRow[]).map((d) => [d.id, d.field_key]),
   );
-  type TermNode = TermSlugRow & { parent_id: string | null };
   const termById = new Map<string, TermNode>(
-    ((terms ?? []) as TermNode[]).map((t) => [t.id, t]),
+    terms.map((t) => [t.id, t]),
   );
 
   /** Walk a term up to its parent_category slug. */
