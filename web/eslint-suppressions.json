@@ -1226,14 +1226,6 @@
       "count": 1
     }
   },
-  "src/components/edit-chrome/WorkspaceTemplateGallery.tsx": {
-    "max-lines": {
-      "count": 1
-    },
-    "ratchet/no-new-hook-deps-disable": {
-      "count": 1
-    }
-  },
   "src/components/edit-chrome/assets-drawer.tsx": {
     "max-lines": {
       "count": 1
@@ -1249,11 +1241,6 @@
       "count": 1
     }
   },
-  "src/components/edit-chrome/composition-library.tsx": {
-    "max-lines": {
-      "count": 1
-    }
-  },
   "src/components/edit-chrome/edit-context.tsx": {
     "max-lines": {
       "count": 1
@@ -1263,11 +1250,6 @@
     }
   },
   "src/components/edit-chrome/edit-shell.tsx": {
-    "max-lines": {
-      "count": 1
-    }
-  },
-  "src/components/edit-chrome/empty-canvas-starter.tsx": {
     "max-lines": {
       "count": 1
     }
