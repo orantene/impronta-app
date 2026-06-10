@@ -1755,9 +1755,22 @@ function MutationErrorToast() {
             </button>
             <button
               type="button"
-              onClick={() => void keepMyVersionAfterConflict()}
+              onClick={() => {
+                // WS1-D — "Keep my version" re-applies the operator's WHOLE tree on
+                // top of the freshly-loaded base, which silently overwrites the
+                // change that just saved. Confirm first so a co-editor's (or your
+                // other tab's) work isn't lost without a heads-up. Names the editor
+                // when presence knows who saved.
+                const who = conflictWho
+                  ? ` (${conflictWho.replace(/\.$/, "")})`
+                  : "";
+                const ok = window.confirm(
+                  `Keep your version?\n\nA newer change was just saved${who}. Keeping yours overwrites it — that work will be lost.`,
+                );
+                if (ok) void keepMyVersionAfterConflict();
+              }}
               className="rounded-sm border border-amber-400 bg-amber-200/80 px-2 py-1 text-[11px] font-semibold text-amber-950 transition hover:bg-amber-200"
-              title="Re-apply your change on top of the latest version."
+              title="Re-apply your change on top of the latest version (overwrites the change that just saved)."
             >
               Keep my version
             </button>
