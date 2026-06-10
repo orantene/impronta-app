@@ -20,9 +20,11 @@ import {
 } from "../../../catalog-map-data";
 
 export type EditorSectionField = {
+  id: string;
   field_key: string;
   label: string;
   label_es: string | null;
+  tier: string;
   required_default: boolean;
   deprecated: boolean;
 };
@@ -55,6 +57,12 @@ export type EditorGroupRow = {
   sections: EditorSectionRow[];
 };
 
+export type UnmappedSectionBucket = {
+  /** The raw `profile_field_definitions.section` value (e.g. "skills", "languages"). */
+  section: string;
+  fields: EditorSectionField[];
+};
+
 export type EditorLayoutAdmin = {
   ok: boolean;
   groups: EditorGroupRow[];
@@ -69,6 +77,12 @@ export type EditorLayoutAdmin = {
     activeSections: number;
     archivedSections: number;
   };
+  /**
+   * DB field-section values (profile_field_definitions.section) that are NOT
+   * claimed by any entry in SECTION_FIELD_SECTIONS.  Surfaced so nothing is
+   * hidden from the admin.
+   */
+  unmappedSections: UnmappedSectionBucket[];
 };
 
 const EMPTY: EditorLayoutAdmin = {
@@ -83,6 +97,36 @@ const EMPTY: EditorLayoutAdmin = {
     activeSections: 0,
     archivedSections: 0,
   },
+  unmappedSections: [],
+};
+
+/**
+ * Explicit mapping from profile-editor section slug → the DB
+ * `profile_field_definitions.section` values whose fields belong there.
+ * An empty array means the section has no directly-mapped catalog fields
+ * (it may be composed or rendered without field-gating).
+ */
+const SECTION_FIELD_SECTIONS: Record<string, string[]> = {
+  identity: ["identity"],
+  location: ["location", "travel"],
+  about: [],
+  services: [],
+  physical: ["measurements"],
+  wardrobe: ["wardrobe"],
+  details: ["type-specific"],
+  logistics: [],
+  availability: [],
+  media: ["media"],
+  albums: [],
+  polaroids: [],
+  rates: ["rates"],
+  limits: ["limits"],
+  credits: ["credits", "reviews"],
+  social_proof: ["social"],
+  verifications: [],
+  files: ["documents"],
+  agency_fields: [],
+  admin: [],
 };
 
 type GroupDbRow = {
@@ -110,30 +154,91 @@ type SectionDbRow = {
   archived_at: string | null;
 };
 
-function buildFieldsBySection(
-  fields: CatalogField[],
-): Map<string, EditorSectionField[]> {
-  const bySection = new Map<string, EditorSectionField[]>();
-  for (const f of fields) {
-    if (!f.section) continue;
-    const bucket = bySection.get(f.section) ?? [];
-    bucket.push({
-      field_key: f.field_key,
-      label: f.label,
-      label_es: null,
-      required_default: f.required_default,
-      deprecated: f.deprecated,
-    });
-    bySection.set(f.section, bucket);
+/** Converts a CatalogField to the slim EditorSectionField shape. */
+function toSectionField(f: CatalogField): EditorSectionField {
+  return {
+    id: f.id,
+    field_key: f.field_key,
+    label: f.label,
+    label_es: null, // not available in CatalogField; kept for future join
+    tier: f.tier,
+    required_default: f.required_default,
+    deprecated: f.deprecated,
+  };
+}
+
+type FieldBuckets = {
+  /**
+   * Map from editor-section slug → fields that belong there (using
+   * SECTION_FIELD_SECTIONS). Keys are always present (even if empty array).
+   */
+  bySectionSlug: Map<string, EditorSectionField[]>;
+  /** DB field-section values not claimed by any slug entry. */
+  unmappedSections: UnmappedSectionBucket[];
+};
+
+function buildFieldBuckets(fields: CatalogField[]): FieldBuckets {
+  // Build the reverse lookup: DB section value → editor slug(s)
+  // (one DB section value can map to at most one slug in our map)
+  const dbSectionToSlug = new Map<string, string>();
+  for (const [slug, dbSections] of Object.entries(SECTION_FIELD_SECTIONS)) {
+    for (const dbSec of dbSections) {
+      dbSectionToSlug.set(dbSec, slug);
+    }
   }
-  for (const bucket of bySection.values()) {
+
+  // Collect all claimed DB section values
+  const claimedDbSections = new Set<string>(dbSectionToSlug.keys());
+
+  // Initialise slug buckets (so every editor slug key is present)
+  const bySectionSlug = new Map<string, EditorSectionField[]>();
+  for (const slug of Object.keys(SECTION_FIELD_SECTIONS)) {
+    bySectionSlug.set(slug, []);
+  }
+
+  // Group fields into either a slug bucket or the unmapped pile
+  const unmappedByDbSection = new Map<string, EditorSectionField[]>();
+
+  for (const f of fields) {
+    const dbSec = f.section ?? null;
+    const sectionField = toSectionField(f);
+
+    if (dbSec && claimedDbSections.has(dbSec)) {
+      const slug = dbSectionToSlug.get(dbSec)!;
+      bySectionSlug.get(slug)!.push(sectionField);
+    } else {
+      // null section or an unclaimed DB section value
+      const key = dbSec ?? "(no section)";
+      const bucket = unmappedByDbSection.get(key) ?? [];
+      bucket.push(sectionField);
+      unmappedByDbSection.set(key, bucket);
+    }
+  }
+
+  // Sort each slug bucket
+  for (const bucket of bySectionSlug.values()) {
     bucket.sort(
       (a, b) =>
         a.label.localeCompare(b.label) ||
         a.field_key.localeCompare(b.field_key),
     );
   }
-  return bySection;
+
+  // Build sorted unmapped buckets
+  const unmappedSections: UnmappedSectionBucket[] = Array.from(
+    unmappedByDbSection.entries(),
+  )
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([section, sectionFields]) => ({
+      section,
+      fields: sectionFields.sort(
+        (a, b) =>
+          a.label.localeCompare(b.label) ||
+          a.field_key.localeCompare(b.field_key),
+      ),
+    }));
+
+  return { bySectionSlug, unmappedSections };
 }
 
 export async function loadEditorLayoutAdmin(): Promise<EditorLayoutAdmin> {
@@ -169,7 +274,7 @@ export async function loadEditorLayoutAdmin(): Promise<EditorLayoutAdmin> {
     const catalogFields: CatalogField[] = catalog.ok
       ? [...catalog.groups.flatMap((g) => g.fields), ...catalog.ungrouped]
       : [];
-    const fieldsBySection = buildFieldsBySection(catalogFields);
+    const { bySectionSlug, unmappedSections } = buildFieldBuckets(catalogFields);
 
     const groupRows = (groupsRes.data ?? []) as GroupDbRow[];
     const sectionRows = (sectionsRes.data ?? []) as SectionDbRow[];
@@ -187,7 +292,9 @@ export async function loadEditorLayoutAdmin(): Promise<EditorLayoutAdmin> {
         is_active: row.is_active !== false,
         is_system: row.is_system === true,
         archived_at: row.archived_at,
-        fields: fieldsBySection.get(slug) ?? [],
+        // Look up by slug in the explicit map; fall back to empty array for
+        // slugs not in SECTION_FIELD_SECTIONS (e.g. newly-created sections).
+        fields: bySectionSlug.get(slug) ?? [],
       };
     };
 
@@ -242,6 +349,7 @@ export async function loadEditorLayoutAdmin(): Promise<EditorLayoutAdmin> {
         activeSections,
         archivedSections,
       },
+      unmappedSections,
     };
   } catch (e) {
     // eslint-disable-next-line no-console
