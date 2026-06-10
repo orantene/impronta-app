@@ -59,6 +59,33 @@ function carryBaseNodeFields(
   }
 }
 
+/**
+ * Re-derive the base-mirror fields (locked, visibilityCondition) on a SINGLE
+ * node from its current props, mutating the node in place. The structural-
+ * sharing mutation path (patchBuilderNodeProps / convertBuilderTextNodeRole)
+ * returns the shared tree WITHOUT a full re-validate — to preserve node identity
+ * for the canvas memo — so it must keep the base mirror in sync itself, exactly
+ * as `validateBuilderNodeTree` would on the next reload. Call ONLY on a freshly
+ * copied node the caller just produced (this mutates); never on an input node.
+ */
+export function syncBaseNodeFieldsFromProps(node: BuilderNode): void {
+  const props =
+    node.props && typeof node.props === "object" && !Array.isArray(node.props)
+      ? (node.props as Record<string, unknown>)
+      : undefined;
+  const base = node as unknown as Record<string, unknown>;
+  for (const carrier of BASE_NODE_FIELD_CARRIERS) {
+    const normalized = carrier.normalize(props?.[carrier.key]);
+    if (normalized !== undefined) {
+      base[carrier.key] = normalized;
+      if (props) props[carrier.key] = normalized;
+    } else {
+      delete base[carrier.key];
+      if (props) delete props[carrier.key];
+    }
+  }
+}
+
 export interface BuilderNodeValidationIssue {
   path: string;
   message: string;

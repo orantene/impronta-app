@@ -55,6 +55,7 @@ import {
 import { useEffect, useMemo, useState, type ReactElement } from "react";
 
 import { useEditContext } from "../edit-context";
+import { useSelectedBuilderNodeId } from "../selection-bridge";
 import { NumberUnit, type LengthUnit } from "../kit/number-unit";
 import { Segmented, type SegmentedOption } from "../kit/segmented";
 import { Toggle } from "../kit/toggle";
@@ -1642,12 +1643,13 @@ export function LayoutPanel({
 }: LayoutPanelProps) {
   const {
     builderTree,
-    selectedBuilderNodeId,
     patchBuilderNodeProps,
     reportMutationError,
     device,
     setDevice,
   } = useEditContext();
+  // W2 (selection-bridge) — selection VALUE from the micro-store.
+  const selectedBuilderNodeId = useSelectedBuilderNodeId();
   const val = (key: string): string =>
     (presentation[key] as string | undefined) ?? "";
 

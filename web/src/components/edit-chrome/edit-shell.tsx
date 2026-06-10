@@ -7,10 +7,8 @@
  *   - Top bar: brand mark, page picker, save indicator, device toggle, undo/redo,
  *     page settings, revisions, preview, share, save draft, publish split-button, exit.
  *   - #edit-overlay-portal: fixed pointer-events:none layer where SelectionLayer
- *     draws hover/selection rings and CompositionInserters renders "+" zones.
+ *     draws hover/selection rings.
  *   - InspectorDock: curated per-section editor on the right.
- *   - CompositionLibraryOverlay: modal section picker that opens from an
- *     inserter click.
  *
  * The storefront itself stays in normal document flow — no iframe, no
  * transforms. Composition mutations trigger `router.refresh()` so the
@@ -32,14 +30,16 @@ import {
   type PreviewFrameOverride,
 } from "./edit-context";
 import { useHoveredSectionId } from "./hover-bridge";
+import {
+  useSelectedSectionId,
+  useSelectedBuilderNodeId,
+} from "./selection-bridge";
 import { useDirty } from "./dirty-bridge";
 import { PresenceProvider } from "./presence-provider";
 import { CHROME, CHROME_SHADOWS, EDIT_TOPBAR_H } from "./kit";
 import { isCoachmarkDismissed, dismissCoachmark } from "./builder-coachmarks";
 import { SelectionLayer } from "./selection-layer";
 import { InspectorDock } from "./inspector-dock";
-import { CompositionInserters } from "./composition-inserter";
-import { CompositionLibraryOverlay } from "./composition-library";
 import { InlineEditor } from "./inline-editor";
 import { MobileEditPanel } from "./mobile-edit-panel";
 import { NavigatorPanel } from "./navigator-panel";
@@ -53,12 +53,10 @@ import { ShortcutOverlay } from "./shortcut-overlay";
 import { TopBar } from "./topbar";
 import { CanvasLinkInterceptor } from "./canvas-link-interceptor";
 import { IframeBridgeParent } from "./iframe-bridge";
-import { SectionPickerPopover } from "./section-picker-popover";
 import { findBuilderNodeById } from "./inspectors/builder-node-content-utils";
 import { isEditableKeyboardTarget } from "./builder-keyboard";
 import { copySharePreviewLinkToClipboard } from "./copy-share-preview-link";
 import { createShareLinkAction } from "@/lib/site-admin/share-link/share-actions";
-import { defaultSectionAddSlot } from "./default-section-add-slot";
 import {
   CanvasViewportProvider,
   CanvasZoomStyle,
@@ -131,14 +129,6 @@ const CommentsDrawer = dynamic(
     import("./comments-drawer").then((m) => ({ default: m.CommentsDrawer })),
   { ssr: false, loading: () => null },
 );
-const StarterTemplateGalleryOverlay = dynamic(
-  () =>
-    import("./starter-template-gallery-overlay").then((m) => ({
-      default: m.StarterTemplateGalleryOverlay,
-    })),
-  { ssr: false, loading: () => null },
-);
-
 const BuilderFindReplaceOverlay = dynamic(
   () =>
     import("./builder-find-replace-overlay").then((m) => ({
@@ -397,7 +387,6 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     openCollections,
     openSchedule,
     openComments,
-    openStarterTemplateGallery,
     previewing,
     setPreviewing,
     closePublish,
@@ -416,7 +405,6 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     collectionsOpen,
     scheduleOpen,
     commentsOpen,
-    starterTemplateGalleryOpen,
     paletteOpen,
     togglePalette,
     closePalette,
@@ -438,8 +426,6 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     closeBrandPanel,
     pageMetadata,
     pageId,
-    selectedSectionId,
-    selectedBuilderNodeId,
     setSelectedSectionId,
     focusSectionForEdit,
     builderTree,
@@ -462,11 +448,12 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     pageSlug,
     pageVersion,
     liveSitePublishedAt,
-    slots,
-    slotDefs,
-    openLibrary,
     compositionLoaded,
   } = useEditContext();
+  // W2 (selection-bridge) — selection VALUES from the micro-store (the keyboard
+  // handler below reads them; setters/mutators stay on the context).
+  const selectedSectionId = useSelectedSectionId();
+  const selectedBuilderNodeId = useSelectedBuilderNodeId();
   // W2-T4 — `dirty` VALUE from the dirty-bridge (this shell threads it into the
   // topbar / exit guard; the setter stays on the context).
   const dirty = useDirty();
@@ -491,7 +478,6 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
   const [everOpenedPalette, setEverOpenedPalette] = useState(false);
   const [everOpenedSchedule, setEverOpenedSchedule] = useState(false);
   const [everOpenedComments, setEverOpenedComments] = useState(false);
-  const [everOpenedTemplateGallery, setEverOpenedTemplateGallery] = useState(false);
   const [findReplaceOpen, setFindReplaceOpen] = useState(false);
 
   useEffect(() => {
@@ -521,9 +507,6 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
   useEffect(() => {
     if (commentsOpen) setEverOpenedComments(true);
   }, [commentsOpen]);
-  useEffect(() => {
-    if (starterTemplateGalleryOpen) setEverOpenedTemplateGallery(true);
-  }, [starterTemplateGalleryOpen]);
 
   useEffect(() => {
     if (!compositionLoaded || !pageId || !pageMetadata) return;
@@ -569,13 +552,6 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     // palette / shortcut overlay / pages dropdown shouldn't stack oddly.
     dismissCompetingEditorChrome();
 
-    const templateSlug = searchParams.get("template");
-    const openCompositionLibrary = () =>
-      openLibrary({
-        slotKey: defaultSectionAddSlot(slotDefs, slots),
-        insertAfterSortOrder: null,
-      });
-
     const dispatch: Record<string, (() => void) | "noop"> = {
       publish: openPublish,
       pageSettings: openPageSettings,
@@ -585,13 +561,10 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
       collections: openCollections,
       schedule: openSchedule,
       comments: openComments,
-      templates: () => openStarterTemplateGallery(templateSlug),
-      templateGallery: () => openStarterTemplateGallery(templateSlug),
       pages: requestPagesPickerOpen,
-      /** Opens full section library overlay (same as Structure → Add section). */
-      library: openCompositionLibrary,
-      sectionsLibrary: openCompositionLibrary,
       // Canvas is the sections navigator; landing in edit mode is enough.
+      // The legacy slot-writer panels (templates / templateGallery / library /
+      // sectionsLibrary) were removed when the builder went freeform-only.
       sections: "noop",
     };
     const handler = dispatch[panel];
@@ -615,13 +588,9 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     openCollections,
     openSchedule,
     openComments,
-    openStarterTemplateGallery,
     requestPagesPickerOpen,
     pageSlug,
     dismissCompetingEditorChrome,
-    slots,
-    slotDefs,
-    openLibrary,
   ]);
 
   // T0-1 — Server-action network failure resilience.
@@ -1092,12 +1061,9 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         {!previewing ? (
           <BrandQuickPanel open={brandPanelOpen} onClose={closeBrandPanel} />
         ) : null}
-        <CompositionInserters />
         <InlineEditor />
         <NavigatorPanel />
         <InspectorDock />
-        <CompositionLibraryOverlay />
-        <SectionPickerPopover />
         {/* Heavy drawers — each is gated by an "ever opened" flag so the
             next/dynamic chunk is not downloaded until first open. After the
             first open the component stays mounted so its internal state
@@ -1113,7 +1079,6 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         <MobileEditPanel />
         {everOpenedSchedule && <ScheduleDrawer />}
         {everOpenedComments && <CommentsDrawer />}
-        {everOpenedTemplateGallery && <StarterTemplateGalleryOverlay />}
         {everOpenedPalette && (
           <CommandPalette
             open={paletteOpen}
@@ -1230,7 +1195,8 @@ function CanvasViewportComponents({
  * tenant scope here just for a tip, which isn't worth the wiring.
  */
 function FirstPaintTip() {
-  const { selectedSectionId } = useEditContext();
+  // W2 (selection-bridge) — selected-section VALUE from the micro-store.
+  const selectedSectionId = useSelectedSectionId();
   // W2-T3 — hovered-section VALUE from the bridge (this tip auto-dismisses on
   // first hover, so it genuinely subscribes; other edit-shell consumers that
   // don't read hover no longer re-render on a sweep).
@@ -1373,8 +1339,9 @@ function FirstPaintTip() {
 const MAKE_IT_YOURS_DISMISS_KEY = "edit:make-it-yours:dismissed";
 
 function MakeItYoursChecklist() {
-  const { selectedSectionId, openTheme, openAssets, themeOpen, assetsOpen } =
-    useEditContext();
+  const { openTheme, openAssets, themeOpen, assetsOpen } = useEditContext();
+  // W2 (selection-bridge) — selected-section VALUE from the micro-store.
+  const selectedSectionId = useSelectedSectionId();
   // Hidden until a starter/design is applied this session. A separate
   // "visible" flag (vs. relying on done-counts) lets us keep the panel mounted
   // through the celebratory all-done state before it auto-dismisses.

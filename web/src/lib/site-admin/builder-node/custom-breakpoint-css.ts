@@ -97,6 +97,9 @@ function rulesFor(id: string): string {
   return lines.join("\n");
 }
 
+/** Module-level cache: tiers array identity → generated CSS string. */
+const generateCustomBreakpointCssCache = new WeakMap<object, string>();
+
 /**
  * Build the runtime stylesheet for all valid custom tiers. Widest threshold
  * first so a narrower custom tier (later in source order) wins at equal
@@ -107,6 +110,8 @@ export function generateCustomBreakpointCss(
   tiers: readonly CustomBreakpoint[] | undefined | null,
 ): string {
   if (!tiers || tiers.length === 0) return "";
+  const cached = generateCustomBreakpointCssCache.get(tiers);
+  if (cached !== undefined) return cached;
   const seen = new Set<string>();
   const valid = tiers
     .filter(
@@ -128,5 +133,7 @@ export function generateCustomBreakpointCss(
       `@media (max-width: ${Math.round(t.maxWidthPx)}px) {\n${rulesFor(t.id)}\n}`,
     );
   }
-  return blocks.join("\n\n");
+  const result = blocks.join("\n\n");
+  generateCustomBreakpointCssCache.set(tiers, result);
+  return result;
 }

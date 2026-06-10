@@ -24,6 +24,14 @@ import {
   useMaybeEditContext,
   type EditContextValue,
 } from "@/components/edit-chrome/edit-context";
+// W2 (selection-bridge) — selection READS moved out of the context value into a
+// useSyncExternalStore micro-store. The setters/mutators stay on the context;
+// the live VALUE is published to the bridge from the provider's effects, so we
+// assert against the bridge snapshots (read after the act() that flushed them).
+import {
+  getSelectedSectionIdSnapshot,
+  getAdditionalSelectedIdsSnapshot,
+} from "@/components/edit-chrome/selection-bridge";
 import type { CompositionData } from "@/lib/site-admin/edit-mode/composition-actions";
 import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
 
@@ -123,8 +131,8 @@ describe("edit-context.tsx smoke", () => {
     // workspacePlan defaults to null → normalized via builderPlanAllows;
     // the contract is that we always get a string field back.
     expect(typeof result.current.workspacePlan).toBe("string");
-    // selectedSectionId is null at first paint.
-    expect(result.current.selectedSectionId).toBeNull();
+    // selectedSectionId is null at first paint (now lives in the selection-bridge).
+    expect(getSelectedSectionIdSnapshot()).toBeNull();
   });
 });
 
@@ -146,17 +154,17 @@ describe("edit-context.tsx W0-T2 — selection", () => {
 
     // Plain select sticks (the section is live).
     act(() => ctx().setSelectedSectionId("sec-1"));
-    expect(ctx().selectedSectionId).toBe("sec-1");
+    expect(getSelectedSectionIdSnapshot()).toBe("sec-1");
 
     // Extend selection to a second live section → it lands in the multi-set.
     act(() => ctx().extendSelection("sec-2"));
-    expect(ctx().additionalSelectedIds.has("sec-2")).toBe(true);
+    expect(getAdditionalSelectedIdsSnapshot().has("sec-2")).toBe(true);
 
     // A plain select of a different section CLEARS the multi-set (plain-click
     // semantics) and re-seats the primary.
     act(() => ctx().setSelectedSectionId("sec-2"));
-    expect(ctx().selectedSectionId).toBe("sec-2");
-    expect(ctx().additionalSelectedIds.size).toBe(0);
+    expect(getSelectedSectionIdSnapshot()).toBe("sec-2");
+    expect(getAdditionalSelectedIdsSnapshot().size).toBe(0);
   });
 
   it("setSelectedSectionId(null) clears the primary selection", () => {
@@ -172,9 +180,9 @@ describe("edit-context.tsx W0-T2 — selection", () => {
     );
     const ctx = () => state.ctx!;
     act(() => ctx().setSelectedSectionId("sec-1"));
-    expect(ctx().selectedSectionId).toBe("sec-1");
+    expect(getSelectedSectionIdSnapshot()).toBe("sec-1");
     act(() => ctx().setSelectedSectionId(null));
-    expect(ctx().selectedSectionId).toBeNull();
+    expect(getSelectedSectionIdSnapshot()).toBeNull();
   });
 });
 
@@ -250,6 +258,11 @@ describe("edit-context.tsx W2-T4a — action-callback identity is selection-quie
     act(() => ctx().setSelectedSectionId("sec-1"));
     const insertBefore = ctx().insertBuilderNode;
     const moveBefore = ctx().moveBuilderNodeToIndex;
+    // W2-T4a (extended) — removeBuilderNode used to churn on selection too
+    // (it read live selection in its body for post-delete focus alignment).
+    // It now reads selection from refs, so its identity is stable across a click.
+    const removeBefore = ctx().removeBuilderNode;
+    const pasteBefore = ctx().pasteCopiedBuilderNode;
 
     // Change the selection.
     act(() => ctx().setSelectedSectionId("sec-2"));
@@ -257,11 +270,15 @@ describe("edit-context.tsx W2-T4a — action-callback identity is selection-quie
     // ✅ W2-T4a: identical references — the selection change did not churn them.
     expect(ctx().insertBuilderNode).toBe(insertBefore);
     expect(ctx().moveBuilderNodeToIndex).toBe(moveBefore);
+    expect(ctx().removeBuilderNode).toBe(removeBefore);
+    expect(ctx().pasteCopiedBuilderNode).toBe(pasteBefore);
 
-    // NB: removeBuilderNode / duplicateBuilderNode legitimately DO read
-    // selection in their own bodies (post-delete / post-duplicate focus
-    // alignment), so they still churn on selection BY DESIGN — that is a real
-    // functional dependency, not the audit-annotation leak W2-T4a closes.
+    // W2-T4a final state: removeBuilderNode / duplicateBuilderNode /
+    // ungroupSelectedBuilderNode / pasteBuilderNodeClipboard /
+    // saveSelectedNodeAsComponent etc. now ALL read selection from refs, so
+    // NONE of them churn on a selection change. That removes the last selection
+    // variable from the value-memo deps (directly OR via a callback) — proven
+    // by the value-ref-stable assertion in the W2 block below.
   });
 });
 
@@ -332,5 +349,104 @@ describe("edit-context.tsx W0-T2/W2-T3 — hover render-count probe (post-fix: h
     // ✅ W2-T3: same as the node-hover case — section hover publishes to the
     // bridge, not the context value. FLIPPED from `>= 1` to `=== 0`.
     expect(state.renders - before).toBe(0);
+  });
+});
+
+// ── W2 — selection micro-store: selection moves OFF the context value ─────────
+//
+// The four selection slices (selectedSectionId / selectedBuilderNodeId + the two
+// multi-select Sets) no longer live in the value-memo object NOR its dependency
+// array — they are published to the `selection-bridge` micro-store, and only the
+// handful of readers that call the bridge hooks re-render on a selection change.
+//
+// W2-T4a CLOSED: a selection change now leaves the value memo's REFERENCE
+// unchanged. The four selection slices were already off the value object + its
+// dep array (selection-bridge). The remaining leak — several ACTION callbacks
+// (removeBuilderNode / saveSelectedNodeAsComponent / the multi-select mutators /
+// ungroup / paste / getCopiedBuilderNodePastePreview, and dispatch's
+// section.applyFieldEdit·rename branches) that read live selection in their
+// bodies and listed it in their deps — is now closed: they read selection from
+// refs (synced every render) and dropped it from their deps. So a click no
+// longer churns ANY callback that feeds the value memo → the value ref is
+// stable → a selection-agnostic consumer re-renders ZERO times. The assertions
+// below FLIPPED from `<= 1` to `=== 0` and now also pin the value REFERENCE.
+describe("edit-context.tsx W2 — selection is off the context value", () => {
+  it("setSelectedSectionId does NOT re-render a selection-agnostic consumer and keeps the context value reference stable (Object.is)", () => {
+    const { state, Consumer } = makeRenderCountedConsumer();
+    render(
+      <EditProvider
+        tenantId="t"
+        workspacePlan="studio"
+        initialComposition={compositionWithSections(["sec-1", "sec-2"])}
+      >
+        <Consumer />
+      </EditProvider>,
+    );
+    const ctx = () => state.ctx!;
+    // Establish a baseline selection so the measured flip is sec-1 → sec-2 (a
+    // genuine selection change, not the first null → sec-1 transition which can
+    // also flush composition-derived state).
+    act(() => ctx().setSelectedSectionId("sec-1"));
+    const valueBefore = state.ctx;
+    const before = state.renders;
+
+    act(() => ctx().setSelectedSectionId("sec-2"));
+
+    // ✅ W2-T4a: the value REFERENCE is unchanged across the selection change —
+    // no callback that feeds the value memo churned, so the memo did not rebuild.
+    expect(Object.is(state.ctx, valueBefore)).toBe(true);
+    // ✅ ...and a selection-agnostic consumer re-renders ZERO times.
+    expect(state.renders - before).toBe(0);
+    // The selection DID change, proven via the bridge snapshot.
+    expect(getSelectedSectionIdSnapshot()).toBe("sec-2");
+  });
+
+  it("extendSelection publishes the additional-selected Set to the bridge and keeps the context value reference stable", () => {
+    const { state, Consumer } = makeRenderCountedConsumer();
+    render(
+      <EditProvider
+        tenantId="t"
+        workspacePlan="studio"
+        initialComposition={compositionWithSections(["sec-1", "sec-2"])}
+      >
+        <Consumer />
+      </EditProvider>,
+    );
+    const ctx = () => state.ctx!;
+    act(() => ctx().setSelectedSectionId("sec-1"));
+    const valueBefore = state.ctx;
+    const before = state.renders;
+
+    act(() => ctx().extendSelection("sec-2"));
+
+    // ✅ W2-T4a: the additional-selected Set is published to the bridge AND the
+    // multi-select mutators read it via refs, so the value ref is unchanged and
+    // a selection-agnostic consumer re-renders ZERO times.
+    expect(Object.is(state.ctx, valueBefore)).toBe(true);
+    expect(state.renders - before).toBe(0);
+    expect(getAdditionalSelectedIdsSnapshot().has("sec-2")).toBe(true);
+  });
+
+  it("the selection-bridge Set publisher is referentially STABLE when membership is unchanged (no useSyncExternalStore loop)", () => {
+    const { state, Consumer } = makeRenderCountedConsumer();
+    render(
+      <EditProvider
+        tenantId="t"
+        workspacePlan="studio"
+        initialComposition={compositionWithSections(["sec-1", "sec-2"])}
+      >
+        <Consumer />
+      </EditProvider>,
+    );
+    const ctx = () => state.ctx!;
+    act(() => ctx().setSelectedSectionId("sec-1"));
+    act(() => ctx().extendSelection("sec-2"));
+    const refA = getAdditionalSelectedIdsSnapshot();
+    // Re-extend the SAME id — membership is unchanged, so the bridge must keep
+    // the same Set reference (the publisher no-ops by size + every-member-present).
+    act(() => ctx().extendSelection("sec-2"));
+    const refB = getAdditionalSelectedIdsSnapshot();
+    expect(refB).toBe(refA);
+    expect(refB.has("sec-2")).toBe(true);
   });
 });

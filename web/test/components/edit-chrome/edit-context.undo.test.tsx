@@ -71,6 +71,10 @@ import {
   useEditContext,
   type EditContextValue,
 } from "@/components/edit-chrome/edit-context";
+// W2 (selection-bridge) — selectedBuilderNodeId now lives in the selection-bridge
+// micro-store, not on the context value. The provider publishes it from an
+// effect; we assert against the bridge snapshot after the flushing act().
+import { getSelectedBuilderNodeIdSnapshot } from "@/components/edit-chrome/selection-bridge";
 import type { CompositionData } from "@/lib/site-admin/edit-mode/composition-actions";
 import type { BuilderNode, BuilderNodeTree } from "@/lib/site-admin/builder-node";
 
@@ -214,14 +218,14 @@ describe("W0-T4 undo/redo + CAS (REAL EditProvider)", () => {
     // Edit the seeded node — selection is now on blk1 and a builderTree entry
     // carrying that selection was committed.
     await patchSeededNode(ctx, { textColor: "#ff0000" });
-    expect(ctx().selectedBuilderNodeId).toBe("blk1");
+    expect(getSelectedBuilderNodeIdSnapshot()).toBe("blk1");
 
     // Simulate the operator clicking away to "nothing selected" before ⌘Z
     // (the exact state the OLD behavior dropped you into after every undo).
     await act(async () => {
       ctx().setSelectedSectionId(null);
     });
-    expect(ctx().selectedBuilderNodeId).toBeNull();
+    expect(getSelectedBuilderNodeIdSnapshot()).toBeNull();
 
     // Undo → the change reverts AND selection is restored to the affected node,
     // so the inspector re-opens on it instead of going blank.
@@ -229,18 +233,18 @@ describe("W0-T4 undo/redo + CAS (REAL EditProvider)", () => {
       await ctx().undo();
     });
     expect(headingStyle(ctx())?.textColor).toBeUndefined();
-    expect(ctx().selectedBuilderNodeId).toBe("blk1");
+    expect(getSelectedBuilderNodeIdSnapshot()).toBe("blk1");
 
     // Deselect again, then redo → selection is restored on the redo replay too.
     await act(async () => {
       ctx().setSelectedSectionId(null);
     });
-    expect(ctx().selectedBuilderNodeId).toBeNull();
+    expect(getSelectedBuilderNodeIdSnapshot()).toBeNull();
     await act(async () => {
       await ctx().redo();
     });
     expect(headingStyle(ctx())?.textColor).toBe("#ff0000");
-    expect(ctx().selectedBuilderNodeId).toBe("blk1");
+    expect(getSelectedBuilderNodeIdSnapshot()).toBe("blk1");
   });
 
   it("the SUCCESS save path fires saveDraftHomepageAction once and bumps pageVersion to the server value", async () => {

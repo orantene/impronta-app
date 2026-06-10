@@ -23,6 +23,8 @@
  *   data-card-kicker · data-card-meta · data-card-availability ·
  *   data-card-actions
  */
+import { memo } from "react";
+
 import Image from "next/image";
 import Link from "next/link";
 
@@ -69,7 +71,7 @@ export interface FeaturedTalentCardDisplay {
   actionStyle?: "primary-duo" | "outline-duo";
 }
 
-export function FeaturedTalentCard({
+function FeaturedTalentCardInner({
   card,
   priority,
   publicPathPrefix = "",
@@ -290,3 +292,5 @@ export function FeaturedTalentCard({
     </article>
   );
 }
+
+export const FeaturedTalentCard = memo(FeaturedTalentCardInner);

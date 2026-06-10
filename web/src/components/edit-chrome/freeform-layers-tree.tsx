@@ -30,6 +30,7 @@ import { CHROME, CHROME_RADII } from "./kit";
 import { BUILDER_VISUAL } from "./inspectors/kit/tokens";
 import { useEditContext } from "./edit-context";
 import { useHoveredBuilderNodeId } from "./hover-bridge";
+import { useSelectedBuilderNodeId } from "./selection-bridge";
 import { FreeformInsertPopover } from "./freeform-insert-popover";
 import {
   BUILDER_NODE_REGISTRY,
@@ -285,7 +286,6 @@ export function FreeformLayersTree({
 } = {}) {
   const {
     builderTree,
-    selectedBuilderNodeId,
     selectBuilderNode,
     moveBuilderNodeWithinParent,
     removeBuilderNode,
@@ -298,6 +298,7 @@ export function FreeformLayersTree({
     setHoveredBuilderNodeId,
   } = useEditContext();
   const hoveredBuilderNodeId = useHoveredBuilderNodeId(); // W2-T3 — value from the bridge
+  const selectedBuilderNodeId = useSelectedBuilderNodeId(); // W2 (selection-bridge) — value from the micro-store
 
   const { rows, rootContainerId, rootContainerKinds } = useMemo(
     () => flattenTree(builderTree),

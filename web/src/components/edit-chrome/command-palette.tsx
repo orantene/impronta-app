@@ -64,6 +64,10 @@ import {
   type BuilderComponentRow,
 } from "@/lib/site-admin/edit-mode/builder-components-action";
 import { useEditContext, type EditDevice } from "./edit-context";
+import {
+  useSelectedSectionId,
+  useSelectedBuilderNodeId,
+} from "./selection-bridge";
 import { findBuilderNodeById } from "./inspectors/builder-node-content-utils";
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
 import { copySharePreviewLinkToClipboard } from "./copy-share-preview-link";
@@ -217,6 +221,9 @@ export function CommandPalette({
   placeholder = "Jump to a section, drawer, or action…",
 }: CommandPaletteProps) {
   const ctx = useEditContext();
+  // W2 (selection-bridge) — selection is read from the micro-store, not `ctx`.
+  const selectedSectionId = useSelectedSectionId();
+  const selectedBuilderNodeId = useSelectedBuilderNodeId();
   const dialogRef = useModalFocusTrap(open, onClose);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -418,16 +425,6 @@ export function CommandPalette({
         },
       ),
       drawerRow(
-        "open-template-gallery",
-        "Open Template gallery",
-        "Starter layouts for flexible page compositions",
-        ["templates", "starter", "marketplace", "layout", "start with this"],
-        () => {
-          ctx.openStarterTemplateGallery();
-          onClose();
-        },
-      ),
-      drawerRow(
         "open-schedule",
         "Schedule publish",
         "Pick a future date/time to go live",
@@ -518,7 +515,7 @@ export function CommandPalette({
     );
     const selectedBuilderNode = findBuilderNodeById(
       ctx.builderTree,
-      ctx.selectedBuilderNodeId,
+      selectedBuilderNodeId,
     );
     if (selectedBuilderNode && selectedBuilderNode.kind !== "section") {
       const id = selectedBuilderNode.id;
@@ -562,8 +559,8 @@ export function CommandPalette({
           },
         ),
       );
-    } else if (ctx.selectedSectionId) {
-      const id = ctx.selectedSectionId;
+    } else if (selectedSectionId) {
+      const id = selectedSectionId;
       rows.push(
         actionRow(
           "duplicate-section",
@@ -614,7 +611,7 @@ export function CommandPalette({
     }
     if (ctx.copiedBuilderNodeKind) {
       const pastePreview = ctx.getCopiedBuilderNodePastePreview(
-        ctx.selectedBuilderNodeId,
+        selectedBuilderNodeId,
       );
       rows.push(
         actionRow(
@@ -631,7 +628,7 @@ export function CommandPalette({
             pastePreview?.message ?? "",
           ],
           () => {
-            void ctx.pasteCopiedBuilderNode(ctx.selectedBuilderNodeId).then((res) => {
+            void ctx.pasteCopiedBuilderNode(selectedBuilderNodeId).then((res) => {
               if (!res.ok && res.error) {
                 ctx.reportMutationError(res.error);
               }
@@ -655,7 +652,7 @@ export function CommandPalette({
           ],
           () => {
             void ctx
-              .pasteBuilderBlockPreset(preset.id, ctx.selectedBuilderNodeId)
+              .pasteBuilderBlockPreset(preset.id, selectedBuilderNodeId)
               .then((res) => {
                 if (!res.ok && res.error) {
                   ctx.reportMutationError(res.error);
@@ -676,7 +673,7 @@ export function CommandPalette({
           `Insert pack: ${pack.label}`,
           ["pack", "block", "insert", "section pack", ...pack.keywords],
           () => {
-            const parentId = ctx.selectedBuilderNodeId;
+            const parentId = selectedBuilderNodeId;
             if (!parentId) {
               ctx.reportMutationError(
                 "Select a container on the canvas first, then insert a pack.",
@@ -705,7 +702,7 @@ export function CommandPalette({
           `Insert my block: ${block.name}`,
           ["my block", "component", "saved", "reuse", "insert", block.rootKind],
           () => {
-            const parentId = ctx.selectedBuilderNodeId;
+            const parentId = selectedBuilderNodeId;
             if (!parentId) {
               ctx.reportMutationError(
                 "Select a container on the canvas first, then insert a block.",
@@ -756,6 +753,8 @@ export function CommandPalette({
     return rows;
   }, [
     ctx,
+    selectedSectionId,
+    selectedBuilderNodeId,
     onClose,
     onOpenFindReplace,
     savedBlocks,

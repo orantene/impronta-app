@@ -34,6 +34,7 @@
 import { useMemo, useState } from "react";
 
 import { useMaybeEditContext } from "./edit-context";
+import { useSelectedBuilderNodeId } from "./selection-bridge";
 import { MobileHealthPanel } from "./MobileHealthPanel";
 import { layerIcon, LayerKindPill } from "./freeform-layer-row";
 import {
@@ -450,7 +451,9 @@ export function MobileEditPanel() {
   const ctx = useMaybeEditContext();
 
   const builderTree = ctx?.builderTree ?? EMPTY_BUILDER_TREE;
-  const selectedBuilderNodeId = ctx?.selectedBuilderNodeId ?? null;
+  // W2 (selection-bridge) — selection VALUE from the micro-store (always safe to
+  // call; the store is a module singleton independent of the provider).
+  const selectedBuilderNodeId = useSelectedBuilderNodeId();
 
   const selectedNode = useMemo(
     () => findBuilderNodeById(builderTree, selectedBuilderNodeId),

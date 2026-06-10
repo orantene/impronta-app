@@ -1,5 +1,7 @@
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { buildTalentDisciplineDecomposedSection } from "@/lib/site-admin/builder-node/talent-discipline-freeform";
+import { buildFeaturedTalentDecomposedSection } from "@/lib/site-admin/builder-node/featured-talent-freeform";
+import { buildLocationDiscoveryDecomposedSection } from "@/lib/site-admin/builder-node/location-discovery-freeform";
 
 import {
   tplButton,
@@ -305,18 +307,22 @@ function buildGalleryStrip(): BuilderNode {
 }
 
 function buildFeaturedTalentWrapper(): BuilderNode {
-  return tplSection("Featured Talent Section", [
-    tplContentColumn([
-      tplIntroText("Agency picks"),
-      tplTitle("Featured talent", 2),
-      tplDescription(
-        "Curated roster highlights — live profiles from your collection.",
-        "Subtitle",
-      ),
-      tplButton("See all talent", "/directory", { layerLabel: "See All Link" }),
-      tplSectionEmbed("featured_talent", "Talent Grid"),
-    ]),
-  ]);
+  return buildFeaturedTalentDecomposedSection({
+    eyebrow: "Agency picks",
+    headline: "Featured talent",
+    subheadline: "Curated roster highlights — live profiles from your collection.",
+    seeAllLabel: "See all talent",
+    seeAllHref: "/directory",
+  });
+}
+
+function buildMarketsWrapper(): BuilderNode {
+  return buildLocationDiscoveryDecomposedSection({
+    eyebrow: "Talent network",
+    headline: "Local faces, international reach.",
+    seeAllLabel: "Browse the directory",
+    seeAllHref: "/directory",
+  });
 }
 
 function buildRosterWrapper(): BuilderNode {
@@ -523,6 +529,8 @@ const SECTION_TEMPLATE_BUILDERS: Readonly<
   "featured-talent-wrapper": buildFeaturedTalentWrapper,
   "roster-wrapper": buildRosterWrapper,
   "talent-discipline-wrapper": buildTalentDisciplineWrapper,
+  "markets-wrapper": buildMarketsWrapper,
+  "location-discovery-wrapper": buildMarketsWrapper,
   "agency-logo": buildAgencyLogo,
   "inquiry-cta": buildInquiryCta,
   testimonials: buildTestimonialsTrio,

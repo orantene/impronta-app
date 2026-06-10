@@ -1,5 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
-import { memo } from "react";
+import { Fragment, memo } from "react";
+
+import { nodeScopedCss } from "@/lib/site-admin/sections/shared/scoped-custom-css";
 
 import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 import { FeaturedTalentCard } from "@/lib/site-admin/sections/featured_talent/FeaturedTalentCard";
@@ -1203,7 +1205,7 @@ function containerQueryStyleVars(
       : undefined,
     [`${prefix}-aspect-free`]: style?.aspectRatioFree,
     [`${prefix}-font-family`]: styleToken(style?.fontFamily),
-    [`${prefix}-font-size`]: style?.fontSize,
+    [`${prefix}-font-size`]: styleToken(style?.fontSize),
     [`${prefix}-font-weight`]: style?.fontWeight,
     [`${prefix}-line-height`]: style?.lineHeight,
     [`${prefix}-letter-spacing`]: style?.letterSpacing,
@@ -1227,20 +1229,20 @@ function containerQueryStyleVars(
     [`${prefix}-min-width`]: style?.minWidth,
     [`${prefix}-max-width-free`]: style?.maxWidthFree,
     [`${prefix}-max-height`]: style?.maxHeight,
-    [`${prefix}-padding-top`]: style?.paddingTop,
-    [`${prefix}-padding-right`]: style?.paddingRight,
-    [`${prefix}-padding-bottom`]: style?.paddingBottom,
-    [`${prefix}-padding-left`]: style?.paddingLeft,
-    [`${prefix}-margin-top-free`]: style?.marginTopFree,
-    [`${prefix}-margin-right-free`]: style?.marginRightFree,
-    [`${prefix}-margin-bottom-free`]: style?.marginBottomFree,
-    [`${prefix}-margin-left-free`]: style?.marginLeftFree,
-    [`${prefix}-shadow`]: style?.boxShadow,
+    [`${prefix}-padding-top`]: styleToken(style?.paddingTop),
+    [`${prefix}-padding-right`]: styleToken(style?.paddingRight),
+    [`${prefix}-padding-bottom`]: styleToken(style?.paddingBottom),
+    [`${prefix}-padding-left`]: styleToken(style?.paddingLeft),
+    [`${prefix}-margin-top-free`]: styleToken(style?.marginTopFree),
+    [`${prefix}-margin-right-free`]: styleToken(style?.marginRightFree),
+    [`${prefix}-margin-bottom-free`]: styleToken(style?.marginBottomFree),
+    [`${prefix}-margin-left-free`]: styleToken(style?.marginLeftFree),
+    [`${prefix}-shadow`]: styleToken(style?.boxShadow),
     [`${prefix}-text-shadow`]: style?.textShadow,
     [`${prefix}-bg-image`]: style?.backgroundImage,
     [`${prefix}-opacity`]: style?.opacity,
-    [`${prefix}-radius-free`]: style?.borderRadius,
-    [`${prefix}-gap-free`]: style?.gap,
+    [`${prefix}-radius-free`]: styleToken(style?.borderRadius),
+    [`${prefix}-gap-free`]: styleToken(style?.gap),
     [`${prefix}-container-type`]: style?.containerType,
     [`${prefix}-container-name`]: style?.containerName,
     [`${prefix}-position`]: style?.position,
@@ -1373,7 +1375,7 @@ function responsiveStyleVars(
     // gated by the matching data-attr so an unset var never clobbers the desktop
     // value (an ungated !important rule would reset inherited props to the parent).
     "--bn-tablet-font-family": styleToken(style?.responsive?.tablet?.fontFamily),
-    "--bn-tablet-font-size": style?.responsive?.tablet?.fontSize,
+    "--bn-tablet-font-size": styleToken(style?.responsive?.tablet?.fontSize),
     "--bn-tablet-font-weight": style?.responsive?.tablet?.fontWeight,
     "--bn-tablet-line-height": style?.responsive?.tablet?.lineHeight,
     "--bn-tablet-letter-spacing": style?.responsive?.tablet?.letterSpacing,
@@ -1396,7 +1398,7 @@ function responsiveStyleVars(
         ? style?.responsive?.tablet?.borderStyle ?? style?.borderStyle ?? "solid"
         : undefined,
     "--bn-mobile-font-family": styleToken(style?.responsive?.mobile?.fontFamily),
-    "--bn-mobile-font-size": style?.responsive?.mobile?.fontSize,
+    "--bn-mobile-font-size": styleToken(style?.responsive?.mobile?.fontSize),
     "--bn-mobile-font-weight": style?.responsive?.mobile?.fontWeight,
     "--bn-mobile-line-height": style?.responsive?.mobile?.lineHeight,
     "--bn-mobile-letter-spacing": style?.responsive?.mobile?.letterSpacing,
@@ -1430,34 +1432,34 @@ function responsiveStyleVars(
     "--bn-mobile-min-width": style?.responsive?.mobile?.minWidth,
     "--bn-mobile-max-width-free": style?.responsive?.mobile?.maxWidthFree,
     "--bn-mobile-max-height": style?.responsive?.mobile?.maxHeight,
-    "--bn-tablet-padding-top": style?.responsive?.tablet?.paddingTop,
-    "--bn-tablet-padding-right": style?.responsive?.tablet?.paddingRight,
-    "--bn-tablet-padding-bottom": style?.responsive?.tablet?.paddingBottom,
-    "--bn-tablet-padding-left": style?.responsive?.tablet?.paddingLeft,
-    "--bn-mobile-padding-top": style?.responsive?.mobile?.paddingTop,
-    "--bn-mobile-padding-right": style?.responsive?.mobile?.paddingRight,
-    "--bn-mobile-padding-bottom": style?.responsive?.mobile?.paddingBottom,
-    "--bn-mobile-padding-left": style?.responsive?.mobile?.paddingLeft,
-    "--bn-tablet-margin-top-free": style?.responsive?.tablet?.marginTopFree,
-    "--bn-tablet-margin-right-free": style?.responsive?.tablet?.marginRightFree,
-    "--bn-tablet-margin-bottom-free": style?.responsive?.tablet?.marginBottomFree,
-    "--bn-tablet-margin-left-free": style?.responsive?.tablet?.marginLeftFree,
-    "--bn-mobile-margin-top-free": style?.responsive?.mobile?.marginTopFree,
-    "--bn-mobile-margin-right-free": style?.responsive?.mobile?.marginRightFree,
-    "--bn-mobile-margin-bottom-free": style?.responsive?.mobile?.marginBottomFree,
-    "--bn-mobile-margin-left-free": style?.responsive?.mobile?.marginLeftFree,
-    "--bn-tablet-shadow": style?.responsive?.tablet?.boxShadow,
+    "--bn-tablet-padding-top": styleToken(style?.responsive?.tablet?.paddingTop),
+    "--bn-tablet-padding-right": styleToken(style?.responsive?.tablet?.paddingRight),
+    "--bn-tablet-padding-bottom": styleToken(style?.responsive?.tablet?.paddingBottom),
+    "--bn-tablet-padding-left": styleToken(style?.responsive?.tablet?.paddingLeft),
+    "--bn-mobile-padding-top": styleToken(style?.responsive?.mobile?.paddingTop),
+    "--bn-mobile-padding-right": styleToken(style?.responsive?.mobile?.paddingRight),
+    "--bn-mobile-padding-bottom": styleToken(style?.responsive?.mobile?.paddingBottom),
+    "--bn-mobile-padding-left": styleToken(style?.responsive?.mobile?.paddingLeft),
+    "--bn-tablet-margin-top-free": styleToken(style?.responsive?.tablet?.marginTopFree),
+    "--bn-tablet-margin-right-free": styleToken(style?.responsive?.tablet?.marginRightFree),
+    "--bn-tablet-margin-bottom-free": styleToken(style?.responsive?.tablet?.marginBottomFree),
+    "--bn-tablet-margin-left-free": styleToken(style?.responsive?.tablet?.marginLeftFree),
+    "--bn-mobile-margin-top-free": styleToken(style?.responsive?.mobile?.marginTopFree),
+    "--bn-mobile-margin-right-free": styleToken(style?.responsive?.mobile?.marginRightFree),
+    "--bn-mobile-margin-bottom-free": styleToken(style?.responsive?.mobile?.marginBottomFree),
+    "--bn-mobile-margin-left-free": styleToken(style?.responsive?.mobile?.marginLeftFree),
+    "--bn-tablet-shadow": styleToken(style?.responsive?.tablet?.boxShadow),
     "--bn-tablet-text-shadow": style?.responsive?.tablet?.textShadow,
     "--bn-tablet-bg-image": style?.responsive?.tablet?.backgroundImage,
     "--bn-tablet-opacity": style?.responsive?.tablet?.opacity,
-    "--bn-mobile-shadow": style?.responsive?.mobile?.boxShadow,
+    "--bn-mobile-shadow": styleToken(style?.responsive?.mobile?.boxShadow),
     "--bn-mobile-text-shadow": style?.responsive?.mobile?.textShadow,
     "--bn-mobile-bg-image": style?.responsive?.mobile?.backgroundImage,
     "--bn-mobile-opacity": style?.responsive?.mobile?.opacity,
-    "--bn-tablet-radius-free": style?.responsive?.tablet?.borderRadius,
-    "--bn-mobile-radius-free": style?.responsive?.mobile?.borderRadius,
-    "--bn-tablet-gap-free": style?.responsive?.tablet?.gap,
-    "--bn-mobile-gap-free": style?.responsive?.mobile?.gap,
+    "--bn-tablet-radius-free": styleToken(style?.responsive?.tablet?.borderRadius),
+    "--bn-mobile-radius-free": styleToken(style?.responsive?.mobile?.borderRadius),
+    "--bn-tablet-gap-free": styleToken(style?.responsive?.tablet?.gap),
+    "--bn-mobile-gap-free": styleToken(style?.responsive?.mobile?.gap),
     "--bn-tablet-position": style?.responsive?.tablet?.position,
     "--bn-tablet-inset-top": style?.responsive?.tablet?.top,
     "--bn-tablet-inset-right": style?.responsive?.tablet?.right,
@@ -1557,7 +1559,7 @@ function responsiveStyleVars(
     "--bn-hover-bg": styleToken(style?.hover?.backgroundColor),
     "--bn-hover-color": styleToken(style?.hover?.color),
     "--bn-hover-border-color": styleToken(style?.hover?.borderColor),
-    "--bn-hover-shadow": style?.hover?.boxShadow,
+    "--bn-hover-shadow": styleToken(style?.hover?.boxShadow),
     "--bn-hover-scale": style?.hover?.scale,
     "--bn-hover-translate": style?.hover?.translate,
     "--bn-hover-opacity": style?.hover?.opacity,
@@ -1565,14 +1567,14 @@ function responsiveStyleVars(
     "--bn-focus-bg": styleToken(style?.stateStyles?.focus?.backgroundColor),
     "--bn-focus-color": styleToken(style?.stateStyles?.focus?.color),
     "--bn-focus-border-color": styleToken(style?.stateStyles?.focus?.borderColor),
-    "--bn-focus-shadow": style?.stateStyles?.focus?.boxShadow,
+    "--bn-focus-shadow": styleToken(style?.stateStyles?.focus?.boxShadow),
     "--bn-focus-scale": style?.stateStyles?.focus?.scale,
     "--bn-focus-translate": style?.stateStyles?.focus?.translate,
     "--bn-focus-opacity": style?.stateStyles?.focus?.opacity,
     "--bn-active-bg": styleToken(style?.stateStyles?.active?.backgroundColor),
     "--bn-active-color": styleToken(style?.stateStyles?.active?.color),
     "--bn-active-border-color": styleToken(style?.stateStyles?.active?.borderColor),
-    "--bn-active-shadow": style?.stateStyles?.active?.boxShadow,
+    "--bn-active-shadow": styleToken(style?.stateStyles?.active?.boxShadow),
     "--bn-active-scale": style?.stateStyles?.active?.scale,
     "--bn-active-translate": style?.stateStyles?.active?.translate,
     "--bn-active-opacity": style?.stateStyles?.active?.opacity,
@@ -1678,6 +1680,9 @@ export function composeInlineNodeStyle(
   };
 }
 
+/** Module-level cache: style object identity → computed CSSProperties. */
+const sharedNodeStyleCache = new WeakMap<object, CSSProperties>();
+
 export function inlineNodeStyle(
   style: BuilderNodeStyle | undefined,
   ...base: Array<CSSProperties | undefined>
@@ -1687,6 +1692,8 @@ export function inlineNodeStyle(
 
 export function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   if (!style) return {};
+  const cached = sharedNodeStyleCache.get(style);
+  if (cached) return cached;
   const out: CSSProperties = {
     ...responsiveStyleVars(style),
   };
@@ -1714,7 +1721,9 @@ export function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSPropert
   // fontFamily may be a `token:typography.*-font-family` binding → resolved to
   // the theme font var; a raw stack is emitted unchanged.
   if (style.fontFamily) out.fontFamily = styleToken(style.fontFamily);
-  if (style.fontSize) out.fontSize = style.fontSize;
+  // fontSize may bind to a type-scale token (`token:typography.h2-size`); a raw
+  // length is emitted unchanged (resolveStyleTokenRef returns it by identity).
+  if (style.fontSize) out.fontSize = styleToken(style.fontSize);
   if (typeof style.fontWeight === "number") out.fontWeight = style.fontWeight;
   if (style.lineHeight) out.lineHeight = style.lineHeight;
   if (style.letterSpacing) out.letterSpacing = style.letterSpacing;
@@ -1744,8 +1753,10 @@ export function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSPropert
     if (style.borderColor) out.borderColor = styleToken(style.borderColor);
   }
   // Free border-radius escape — applied after the radius token so an exact value
-  // (or per-corner shorthand) wins over the preset.
-  if (style.borderRadius) out.borderRadius = style.borderRadius;
+  // (or per-corner shorthand) wins over the preset. May ALSO be a
+  // `token:radius.*` binding → resolved to var(--site-radius-*, fallback) so a
+  // live "Radius scale" theme change re-rounds it; a raw value is unchanged.
+  if (style.borderRadius) out.borderRadius = styleToken(style.borderRadius);
   // Free dimension escapes — exact width/height + min/max clamps. width coexists
   // with the maxWidth token above; maxWidthFree is applied after it so an exact
   // clamp wins over the preset.
@@ -1756,20 +1767,22 @@ export function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSPropert
   if (style.maxWidthFree) out.maxWidth = style.maxWidthFree;
   if (style.maxHeight) out.maxHeight = style.maxHeight;
   // Free per-side padding — applied after the paddingX/paddingY token so an
-  // exact side overrides the preset.
-  if (style.paddingTop) out.paddingTop = style.paddingTop;
-  if (style.paddingRight) out.paddingRight = style.paddingRight;
-  if (style.paddingBottom) out.paddingBottom = style.paddingBottom;
-  if (style.paddingLeft) out.paddingLeft = style.paddingLeft;
+  // exact side overrides the preset. Each may bind to a `token:space.*` var; a
+  // raw length is emitted unchanged.
+  if (style.paddingTop) out.paddingTop = styleToken(style.paddingTop);
+  if (style.paddingRight) out.paddingRight = styleToken(style.paddingRight);
+  if (style.paddingBottom) out.paddingBottom = styleToken(style.paddingBottom);
+  if (style.paddingLeft) out.paddingLeft = styleToken(style.paddingLeft);
   // Free per-side margin — applied after the marginTop/marginBottom token so an
   // exact side overrides the preset (and adds left/right, which have no token).
-  if (style.marginTopFree) out.marginTop = style.marginTopFree;
-  if (style.marginRightFree) out.marginRight = style.marginRightFree;
-  if (style.marginBottomFree) out.marginBottom = style.marginBottomFree;
-  if (style.marginLeftFree) out.marginLeft = style.marginLeftFree;
+  if (style.marginTopFree) out.marginTop = styleToken(style.marginTopFree);
+  if (style.marginRightFree) out.marginRight = styleToken(style.marginRightFree);
+  if (style.marginBottomFree) out.marginBottom = styleToken(style.marginBottomFree);
+  if (style.marginLeftFree) out.marginLeft = styleToken(style.marginLeftFree);
   // Surface & depth escapes. A box-shadow layers over the token background; a
   // background image/gradient is painted cover/center/no-repeat; opacity 0–1.
-  if (style.boxShadow) out.boxShadow = style.boxShadow;
+  // boxShadow may bind to a `token:shadow.*` var; a raw shadow is unchanged.
+  if (style.boxShadow) out.boxShadow = styleToken(style.boxShadow);
   if (style.textShadow) out.textShadow = style.textShadow;
   // Paint a background image at the desktop level AND whenever any breakpoint
   // sets one, so the paint axes (cover/center/no-repeat defaults, or the free
@@ -1835,7 +1848,8 @@ export function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSPropert
   // Free gap escape — reassign the --bn-gap variable that every layout consumer
   // reads. Spread after the node's own --bn-gap (see containerStyle etc.) so the
   // exact value wins, and inherited by child tracks (carousel) automatically.
-  if (style.gap) out["--bn-gap" as keyof CSSProperties] = style.gap as never;
+  // May bind to a `token:space.*` var; a raw length is emitted unchanged.
+  if (style.gap) out["--bn-gap" as keyof CSSProperties] = styleToken(style.gap) as never;
   // Positioning escapes — a position context plus inset offsets. Applied after
   // layout so an explicit position/offset wins; negatives enable overlaps.
   if (style.position) out.position = style.position;
@@ -1982,6 +1996,8 @@ export function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSPropert
   // breakpoint layers inherit it). Per-breakpoint hides are handled by the
   // data-attr + media rules in builderNodeStyleAttrs / the static sheet.
   if (style.visibility === "hidden") out.display = "none";
+  Object.freeze(out);
+  sharedNodeStyleCache.set(style, out);
   return out;
 }
 
@@ -2451,11 +2467,48 @@ function applyStyleClass(
   } as BuilderNode;
 }
 
+/**
+ * Per-node custom-CSS escape hatch. When `node.props.style.customCss` is set,
+ * wrap the rendered element in a keyed Fragment that ALSO emits a scope-confined
+ * `<style>` keyed to the node's `[data-builder-node-id]`. The scoper
+ * (`nodeScopedCss` → `scopeCustomCss`) is the SAME hardened one sections use, so
+ * a stray `}` can't break out to page-global rules.
+ *
+ * ADDITIVE / byte-stable: when there is no `customCss` (the universal case) the
+ * element is returned BY IDENTITY — no Fragment, no extra `<style>` — so existing
+ * render output is unchanged. The emitted `<style>` carries `data-builder-node-id`
+ * so it's traceable, and the Fragment's children are keyed so the node's own
+ * `key={node.id}` reconciliation is preserved.
+ */
+function withNodeCustomCss(node: BuilderNode, element: ReactNode): ReactNode {
+  if (!("props" in node)) return element;
+  const customCss = (node.props as { style?: BuilderNodeStyle }).style?.customCss;
+  const scoped = customCss ? nodeScopedCss(node.id, customCss) : null;
+  if (!scoped) return element;
+  return (
+    <Fragment key={node.id}>
+      {element}
+      <style
+        key={`${node.id}::custom-css`}
+        data-builder-node-custom-css={node.id}
+        dangerouslySetInnerHTML={{ __html: scoped }}
+      />
+    </Fragment>
+  );
+}
+
 function renderBuilderNode(
   rawNode: BuilderNode,
   options: NormalizedBuilderNodeRenderOptions,
 ): ReactNode {
   const node = applyStyleClass(rawNode, options.styleClasses);
+  return withNodeCustomCss(node, renderBuilderNodeElement(node, options));
+}
+
+function renderBuilderNodeElement(
+  node: BuilderNode,
+  options: NormalizedBuilderNodeRenderOptions,
+): ReactNode {
   switch (node.kind) {
     case "section":
       return null;

@@ -95,6 +95,12 @@ import {
   useHoveredSectionId,
   useHoveredBuilderNodeId,
 } from "./hover-bridge";
+import {
+  useSelectedSectionId,
+  useSelectedBuilderNodeId,
+  useAdditionalSelectedIds,
+  useAdditionalSelectedBuilderNodeIds,
+} from "./selection-bridge";
 import { CanvasMoveHandle, parseTranslate } from "./canvas-move-handle";
 import { CanvasResizeHandles } from "./canvas-resize-handles";
 import {
@@ -620,12 +626,9 @@ const NON_EJECTABLE_SECTION_TYPE_KEYS = new Set<string>([
 
 export function SelectionLayer() {
   const {
-    selectedSectionId,
-    selectedBuilderNodeId,
     setSelectedSectionId,
     focusSectionForEdit,
     selectBuilderNode,
-    additionalSelectedBuilderNodeIds,
     extendBuilderNodeSelection,
     toggleBuilderNodeSelection,
     replaceBuilderNodeSelection,
@@ -641,7 +644,6 @@ export function SelectionLayer() {
     copySelectedBuilderNodes,
     cutSelectedBuilderNodes,
     pasteBuilderNodeClipboard,
-    additionalSelectedIds,
     extendSelection,
     toggleSelection,
     getAllSelectedIds,
@@ -659,7 +661,6 @@ export function SelectionLayer() {
     pasteCopiedBuilderNode,
     saveSelectedNodeAsComponent,
     setSectionVisibility,
-    openPickerPopover,
     saving,
     /** Bumps after persisted mutations — canvas DOM may lag until RSC refresh completes. */
     pageVersion,
@@ -693,6 +694,14 @@ export function SelectionLayer() {
   // on a hover — but a hover no longer re-renders the rest of the chrome.
   const hoveredSectionId = useHoveredSectionId();
   const hoveredBuilderNodeId = useHoveredBuilderNodeId();
+  // W2 (selection-bridge) — selection VALUES from the micro-store. The canvas
+  // overlay draws the selection ring(s) + multi-select handles, so it subscribes
+  // here and re-renders on a selection change (the rest of the chrome no longer
+  // does).
+  const selectedSectionId = useSelectedSectionId();
+  const selectedBuilderNodeId = useSelectedBuilderNodeId();
+  const additionalSelectedIds = useAdditionalSelectedIds();
+  const additionalSelectedBuilderNodeIds = useAdditionalSelectedBuilderNodeIds();
   const styleClassRegistry = useSyncExternalStore(
     subscribeStyleClassRegistry,
     getStyleClassRegistrySnapshot,
@@ -3802,14 +3811,15 @@ export function SelectionLayer() {
        * inserter.tsx is now a no-op) with a per-section affordance:
        * a small chip-style pill at the section's top-left corner.
        * Same dark gradient + blur as the selection chip so the visual
-       * language stays unified. Two controls:
+       * language stays unified. Single control:
        *
        *   - drag grip → `startDrag(e, hoveredSectionId)` (lifts section
        *     to selection and arms the existing reorder flow)
-       *   - `+` button → `openPickerPopover` anchored at the rail with
-       *     target = insert AFTER (sortOrder = -1, i.e., prepend at
-       *     this slot — matching the legacy "insert above this section"
-       *     intent the between-section bars conveyed)
+       *
+       * The legacy "+" slot-section insert (openPickerPopover →
+       * SectionPickerPopover) was removed when the builder went
+       * freeform-only; new sections are added via the freeform
+       * Add Gallery / between-blocks insert paths.
        *
        * Hover-revealed via `showHover`. Hidden when the section is
        * already selected (the chip with full toolbar takes over).
@@ -3910,90 +3920,6 @@ export function SelectionLayer() {
                   <circle cx="2" cy="12" r="1" />
                   <circle cx="7" cy="12" r="1" />
                 </svg>
-              </button>
-              <span
-                aria-hidden
-                style={{
-                  width: 1,
-                  background: "rgba(255,255,255,0.16)",
-                  alignSelf: "stretch",
-                  margin: "5px 0",
-                }}
-              />
-              <button
-                type="button"
-                aria-label="Add a section above this one"
-                title="Add section here"
-                onClick={(e) => {
-                  if (!hoveredSectionId) return;
-                  // Compute the target: same slot, insert before this section.
-                  // `insertAfterSortOrder` of (this.sortOrder - 1) puts the new
-                  // section in the slot BEFORE the hovered one (the existing
-                  // save op normalises sort orders).
-                  const el = document.querySelector<HTMLElement>(
-                    `[data-cms-section][data-section-id="${CSS.escape(hoveredSectionId)}"]`,
-                  );
-                  if (!el) return;
-                  const slot = el.getAttribute("data-slot-key");
-                  const order = Number(
-                    el.getAttribute("data-sort-order") ?? "",
-                  );
-                  if (!slot || !Number.isFinite(order)) return;
-                  const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                  openPickerPopover(
-                    {
-                      slotKey: slot,
-                      insertAfterSortOrder: order - 1,
-                    },
-                    r.left + r.width / 2,
-                    r.top + r.height / 2,
-                  );
-                }}
-                style={{
-                  // QA-7 fix — the "+" insert button now ships an explicit
-                  // "Add" label beside the icon. The previous icon-only
-                  // 28×28 cell was indistinguishable from the drag grip
-                  // and required trial clicks to learn. Width grows to
-                  // ~58px which still keeps the rail compact (~92px total).
-                  height: 28,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 4,
-                  padding: "0 9px 0 7px",
-                  background: "transparent",
-                  color: "rgba(255,255,255,0.92)",
-                  border: "none",
-                  cursor: "pointer",
-                  transition: "background 100ms",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  letterSpacing: "0.01em",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLElement).style.background =
-                    "rgba(54,63,89,0.55)";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.background =
-                    "transparent";
-                }}
-              >
-                <svg
-                  width="13"
-                  height="13"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.4"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden
-                >
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                <span>Add</span>
               </button>
             </div>
           ) : null}
