@@ -56,6 +56,7 @@ import { LayoutPanel } from "./inspectors/layout-panel";
 import { StylePanel } from "./inspectors/style-panel";
 import { DataPanel } from "./inspectors/data-panel";
 import { MotionPanel } from "./inspectors/motion-panel";
+import { NodeMotionPanel } from "./inspectors/node-motion-panel";
 import {
   InspectorDraftStatus,
   InspectorViewportRail,
@@ -1040,6 +1041,7 @@ export function InspectorDock() {
       } else if (builderNodeSupportsFieldBindings(selectedStandaloneBuilderNode.kind)) {
         tabs.push("data");
       }
+      tabs.push("motion");
       return tabs;
     }
     const allowed = currentLoadedSection
@@ -1251,14 +1253,24 @@ export function InspectorDock() {
               />
             ) : null}
             {tab === "motion" ? (
-              <MotionPanel
-                presentation={
-                  (currentDraftProps?.presentation as
-                    | Record<string, unknown>
-                    | undefined) ?? {}
-                }
-                onDeepPatch={handlePresentationDeepPatch}
-              />
+              selectedStandaloneBuilderNode ? (
+                <NodeMotionPanel
+                  node={selectedStandaloneBuilderNode}
+                  onPatchNodeProps={async (nodeId, patch) => {
+                    const result = await patchBuilderNodeProps(nodeId, patch);
+                    if (!result.ok && result.error) reportMutationError(result.error);
+                  }}
+                />
+              ) : (
+                <MotionPanel
+                  presentation={
+                    (currentDraftProps?.presentation as
+                      | Record<string, unknown>
+                      | undefined) ?? {}
+                  }
+                  onDeepPatch={handlePresentationDeepPatch}
+                />
+              )
             ) : null}
           </DrawerBody>
         </div>

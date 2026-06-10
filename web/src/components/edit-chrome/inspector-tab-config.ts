@@ -104,6 +104,7 @@ export function resolveInspectorVisibleTabs(input: {
     ) {
       tabs.push("data");
     }
+    tabs.push("motion");
     return tabs;
   }
   const allowed = tabsForSectionType(sectionTypeKey);
