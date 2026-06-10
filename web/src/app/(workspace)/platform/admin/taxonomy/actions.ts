@@ -195,6 +195,10 @@ export async function createPlatformTaxonomyTermAction(formData: FormData): Prom
   // Optional: when return_to points to the catalog hub, redirect there instead of taxonomy.
   const returnTo = text(formData, "return_to");
   if (returnTo && returnTo.startsWith("/platform/admin/catalog") && created?.id) {
+    // For term (parent_category / category_group) creation redirect back to the term view.
+    if (termType === "parent_category" || termType === "category_group") {
+      redirect(`/platform/admin/catalog/term/${created.id}?saved=create`);
+    }
     redirect(`/platform/admin/catalog/type/${created.id}?saved=create`);
   }
 
@@ -263,6 +267,9 @@ export async function updatePlatformTaxonomyTermAction(formData: FormData): Prom
 
   // Optional: when return_to points to the catalog hub, redirect back there to keep the drawer open.
   const returnTo = text(formData, "return_to");
+  if (returnTo && returnTo.startsWith("/platform/admin/catalog/term/")) {
+    redirect(`${returnTo}?saved=term`);
+  }
   if (returnTo && returnTo.startsWith("/platform/admin/catalog/type/")) {
     redirect(`${returnTo}?saved=term`);
   }

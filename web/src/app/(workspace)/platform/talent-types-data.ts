@@ -1,12 +1,8 @@
-/**
- * Platform Talent Types data loader.
- *
- * Loads talent-type taxonomy terms (term_type='talent_type') with analytics
- * derived from agency_talent_roster and talent_profile_taxonomy joins.
- * Service-role only — never import from client components.
- * Degrades to empty shape on any failure.
- */
-
+/* eslint-disable max-lines -- cohesive taxonomy data-loader module (flat talent-type loaders + 3-level hierarchy loaders); a split is a clean follow-up. */
+// Platform Talent Types + taxonomy-tree data loaders. Loads talent_type terms
+// + the 3-level parent_category→category_group→talent_type hierarchy with
+// analytics (agency_talent_roster + talent_profile_taxonomy joins). Service-role
+// only — never import from client components. Degrades to empty on any failure.
 import { unstable_cache } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { CACHE_TAG_TAXONOMY } from "@/lib/cache-tags";
@@ -219,6 +215,430 @@ async function loadPlatformTalentTypesUncached(): Promise<LoadPlatformTalentType
     // eslint-disable-next-line no-console
     console.error("[talent-types-data] unexpected error:", e);
     return EMPTY_LIST;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Taxonomy tree loader — 3-level hierarchy for the Talent Types tab
+// ---------------------------------------------------------------------------
+
+export type TaxonomyTermBase = {
+  id: string;
+  slug: string;
+  name_en: string;
+  name_es: string | null;
+  icon: string | null;
+  parent_id: string | null;
+  sort_order: number;
+  term_type: string;
+  is_active: boolean;
+  archived_at: string | null;
+};
+
+export type TaxonomyTypeNode = TaxonomyTermBase & {
+  mappedFieldCount: number;
+  agencyCount: number;
+  talentCount: number;
+};
+
+export type TaxonomyGroupNode = TaxonomyTermBase & {
+  talentTypesCount: number;
+  agencyCount: number;
+  talentCount: number;
+  types: TaxonomyTypeNode[];
+};
+
+export type TaxonomyParentNode = TaxonomyTermBase & {
+  talentTypesCount: number;
+  groupsCount: number;
+  agencyCount: number;
+  talentCount: number;
+  groups: TaxonomyGroupNode[];
+};
+
+export type LoadPlatformTaxonomyTreeResult = {
+  ok: boolean;
+  parents: TaxonomyParentNode[];
+};
+
+const EMPTY_TREE: LoadPlatformTaxonomyTreeResult = { ok: false, parents: [] };
+
+export async function loadPlatformTaxonomyTree(): Promise<LoadPlatformTaxonomyTreeResult> {
+  return unstable_cache(
+    () => loadPlatformTaxonomyTreeUncached(),
+    ["platform:taxonomy-tree", "v1"],
+    {
+      tags: [CACHE_TAG_TAXONOMY, CACHE_TAG_FIELD_CATALOG],
+      revalidate: 60,
+    },
+  )();
+}
+
+async function loadPlatformTaxonomyTreeUncached(): Promise<LoadPlatformTaxonomyTreeResult> {
+  const sb = createServiceRoleClient();
+  if (!sb) return EMPTY_TREE;
+
+  try {
+    const [termsR, recsR, assignmentsR, rosterR] = await Promise.all([
+      sb
+        .from("taxonomy_terms")
+        .select(
+          "id, slug, name_en, name_es, icon, parent_id, sort_order, term_type, is_active, archived_at",
+        )
+        .in("term_type", ["parent_category", "category_group", "talent_type"])
+        .is("archived_at", null)
+        .order("sort_order", { ascending: true })
+        .order("name_en", { ascending: true }),
+      sb
+        .from("profile_field_recommendations")
+        .select("taxonomy_term_id"),
+      sb
+        .from("talent_profile_taxonomy")
+        .select("taxonomy_term_id, talent_profile_id"),
+      sb
+        .from("agency_talent_roster")
+        .select("talent_profile_id, tenant_id")
+        .neq("status", "removed"),
+    ]);
+
+    if (termsR.error) {
+      // eslint-disable-next-line no-console
+      console.error("[talent-types-data] tree terms load failed:", termsR.error.message);
+      return EMPTY_TREE;
+    }
+
+    const allTerms = (termsR.data ?? []) as Array<TaxonomyTermBase>;
+
+    // ---- mapped field counts per talent_type ----
+    const mappedCounts = new Map<string, number>();
+    for (const row of (recsR.data ?? []) as Array<{ taxonomy_term_id: string | null }>) {
+      if (!row.taxonomy_term_id) continue;
+      mappedCounts.set(row.taxonomy_term_id, (mappedCounts.get(row.taxonomy_term_id) ?? 0) + 1);
+    }
+
+    // ---- talent and agency sets per talent_type ----
+    // talent_profile_id → Set<tenant_id>
+    const tenantsByTalent = new Map<string, Set<string>>();
+    for (const row of (rosterR.data ?? []) as Array<{
+      talent_profile_id: string | null;
+      tenant_id: string | null;
+    }>) {
+      if (!row.talent_profile_id || !row.tenant_id) continue;
+      const s = tenantsByTalent.get(row.talent_profile_id) ?? new Set<string>();
+      s.add(row.tenant_id);
+      tenantsByTalent.set(row.talent_profile_id, s);
+    }
+
+    // taxonomy_term_id → Set<talent_profile_id>  (only talent_type terms)
+    const talentsByType = new Map<string, Set<string>>();
+    for (const row of (assignmentsR.data ?? []) as Array<{
+      taxonomy_term_id: string | null;
+      talent_profile_id: string | null;
+    }>) {
+      if (!row.taxonomy_term_id || !row.talent_profile_id) continue;
+      const s = talentsByType.get(row.taxonomy_term_id) ?? new Set<string>();
+      s.add(row.talent_profile_id);
+      talentsByType.set(row.taxonomy_term_id, s);
+    }
+
+    // Helper: given a Set of talent_profile_ids, derive distinct tenant set
+    function agencySetFromTalents(talentIds: Set<string>): Set<string> {
+      const agencies = new Set<string>();
+      for (const tid of talentIds) {
+        for (const tenantId of tenantsByTalent.get(tid) ?? new Set()) {
+          agencies.add(tenantId);
+        }
+      }
+      return agencies;
+    }
+
+    // ---- partition by term_type ----
+    const parentTerms: TaxonomyTermBase[] = [];
+    const groupTerms: TaxonomyTermBase[] = [];
+    const typeTerms: TaxonomyTermBase[] = [];
+
+    for (const t of allTerms) {
+      if (t.term_type === "parent_category") parentTerms.push(t);
+      else if (t.term_type === "category_group") groupTerms.push(t);
+      else if (t.term_type === "talent_type") typeTerms.push(t);
+    }
+
+    // ---- build group → types map ----
+    const typesByGroup = new Map<string, TaxonomyTypeNode[]>();
+    for (const t of typeTerms) {
+      const talentSet = talentsByType.get(t.id) ?? new Set<string>();
+      const agencySet = agencySetFromTalents(talentSet);
+      const node: TaxonomyTypeNode = {
+        ...t,
+        mappedFieldCount: mappedCounts.get(t.id) ?? 0,
+        agencyCount: agencySet.size,
+        talentCount: talentSet.size,
+      };
+      if (!t.parent_id) continue;
+      const list = typesByGroup.get(t.parent_id) ?? [];
+      list.push(node);
+      typesByGroup.set(t.parent_id, list);
+    }
+
+    // ---- build parent → groups map ----
+    const groupsByParent = new Map<string, TaxonomyGroupNode[]>();
+    for (const g of groupTerms) {
+      const childTypes = typesByGroup.get(g.id) ?? [];
+      // Roll up: union of all descendant talent sets
+      const unionTalents = new Set<string>();
+      for (const ct of childTypes) {
+        for (const tid of talentsByType.get(ct.id) ?? new Set()) {
+          unionTalents.add(tid);
+        }
+      }
+      const agencySet = agencySetFromTalents(unionTalents);
+      const node: TaxonomyGroupNode = {
+        ...g,
+        talentTypesCount: childTypes.length,
+        agencyCount: agencySet.size,
+        talentCount: unionTalents.size,
+        types: childTypes,
+      };
+      if (!g.parent_id) continue;
+      const list = groupsByParent.get(g.parent_id) ?? [];
+      list.push(node);
+      groupsByParent.set(g.parent_id, list);
+    }
+
+    // ---- build parent nodes ----
+    const parents: TaxonomyParentNode[] = parentTerms.map((p) => {
+      const childGroups = groupsByParent.get(p.id) ?? [];
+      // Roll up across all descendant talent_types of all groups
+      const unionTalents = new Set<string>();
+      for (const cg of childGroups) {
+        for (const ct of cg.types) {
+          for (const tid of talentsByType.get(ct.id) ?? new Set()) {
+            unionTalents.add(tid);
+          }
+        }
+      }
+      const agencySet = agencySetFromTalents(unionTalents);
+      const totalTypes = childGroups.reduce((s, cg) => s + cg.types.length, 0);
+      return {
+        ...p,
+        talentTypesCount: totalTypes,
+        groupsCount: childGroups.length,
+        agencyCount: agencySet.size,
+        talentCount: unionTalents.size,
+        groups: childGroups,
+      };
+    });
+
+    return { ok: true, parents };
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error("[talent-types-data] tree unexpected error:", e);
+    return EMPTY_TREE;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Generic taxonomy term detail loader (parent_category / category_group)
+// ---------------------------------------------------------------------------
+
+export type TaxonomyTermDetail = {
+  id: string;
+  slug: string;
+  name_en: string;
+  name_es: string | null;
+  plural_name: string | null;
+  description: string | null;
+  icon: string | null;
+  level: number;
+  sort_order: number;
+  is_active: boolean;
+  archived_at: string | null;
+  is_public_filter: boolean;
+  is_profile_badge: boolean;
+  is_visible_by_default: boolean;
+  is_restricted: boolean;
+  term_type: string;
+  parent_id: string | null;
+};
+
+export type TaxonomyTermChild = {
+  id: string;
+  slug: string;
+  name_en: string;
+  name_es: string | null;
+  term_type: string;
+  agencyCount: number;
+  talentCount: number;
+  childCount: number;
+};
+
+export type TaxonomyTermDetailResult =
+  | {
+      ok: true;
+      term: TaxonomyTermDetail;
+      children: TaxonomyTermChild[];
+      agencyCount: number;
+      talentCount: number;
+    }
+  | { ok: false; notFound?: boolean };
+
+export async function loadPlatformTaxonomyTermDetail(
+  termId: string,
+): Promise<TaxonomyTermDetailResult> {
+  return unstable_cache(
+    () => loadPlatformTaxonomyTermDetailUncached(termId),
+    ["platform:taxonomy-term-detail", termId, "v1"],
+    {
+      tags: [CACHE_TAG_TAXONOMY, CACHE_TAG_FIELD_CATALOG],
+      revalidate: 60,
+    },
+  )();
+}
+
+async function loadPlatformTaxonomyTermDetailUncached(
+  termId: string,
+): Promise<TaxonomyTermDetailResult> {
+  const sb = createServiceRoleClient();
+  if (!sb) return { ok: false };
+
+  try {
+    const [termR, childrenR, assignmentsR, rosterR] = await Promise.all([
+      sb
+        .from("taxonomy_terms")
+        .select(
+          "id, slug, name_en, name_es, plural_name, description, icon, level, sort_order, is_active, archived_at, is_public_filter, is_profile_badge, is_visible_by_default, is_restricted, term_type, parent_id",
+        )
+        .eq("id", termId)
+        .in("term_type", ["parent_category", "category_group"])
+        .maybeSingle(),
+      sb
+        .from("taxonomy_terms")
+        .select("id, slug, name_en, name_es, term_type")
+        .eq("parent_id", termId)
+        .is("archived_at", null)
+        .order("sort_order", { ascending: true })
+        .order("name_en", { ascending: true }),
+      sb
+        .from("talent_profile_taxonomy")
+        .select("taxonomy_term_id, talent_profile_id"),
+      sb
+        .from("agency_talent_roster")
+        .select("talent_profile_id, tenant_id")
+        .neq("status", "removed"),
+    ]);
+
+    if (termR.error) {
+      // eslint-disable-next-line no-console
+      console.error("[talent-types-data] term-detail load failed:", termR.error.message);
+      return { ok: false };
+    }
+    if (!termR.data) return { ok: false, notFound: true };
+
+    const term = termR.data as TaxonomyTermDetail;
+    const childRows = (childrenR.data ?? []) as Array<{
+      id: string;
+      slug: string;
+      name_en: string;
+      name_es: string | null;
+      term_type: string;
+    }>;
+
+    // Build talent/agency rollups
+    const tenantsByTalent = new Map<string, Set<string>>();
+    for (const row of (rosterR.data ?? []) as Array<{
+      talent_profile_id: string | null;
+      tenant_id: string | null;
+    }>) {
+      if (!row.talent_profile_id || !row.tenant_id) continue;
+      const s = tenantsByTalent.get(row.talent_profile_id) ?? new Set<string>();
+      s.add(row.tenant_id);
+      tenantsByTalent.set(row.talent_profile_id, s);
+    }
+
+    // taxonomy_term_id → Set<talent_profile_id>
+    const talentsByTerm = new Map<string, Set<string>>();
+    for (const row of (assignmentsR.data ?? []) as Array<{
+      taxonomy_term_id: string | null;
+      talent_profile_id: string | null;
+    }>) {
+      if (!row.taxonomy_term_id || !row.talent_profile_id) continue;
+      const s = talentsByTerm.get(row.taxonomy_term_id) ?? new Set<string>();
+      s.add(row.talent_profile_id);
+      talentsByTerm.set(row.taxonomy_term_id, s);
+    }
+
+    function agencySetFromTalents(talentIds: Set<string>): Set<string> {
+      const agencies = new Set<string>();
+      for (const tid of talentIds) {
+        for (const tenantId of tenantsByTalent.get(tid) ?? new Set()) {
+          agencies.add(tenantId);
+        }
+      }
+      return agencies;
+    }
+
+    // For a category_group: direct talent_type children carry assignments
+    // For a parent_category: children are groups, which need further recursion
+    // We approximate by loading all assignments and resolving via grandchildren
+    // loaded separately. For the detail view, we load grandchildren too.
+    const grandchildIds: string[] = [];
+    if (term.term_type === "parent_category") {
+      // grandchildren = talent_types whose parent is in childRows
+      const groupIds = childRows.map((c) => c.id);
+      if (groupIds.length > 0) {
+        const gcR = await sb
+          .from("taxonomy_terms")
+          .select("id")
+          .in("parent_id", groupIds)
+          .eq("term_type", "talent_type")
+          .is("archived_at", null);
+        for (const gc of (gcR.data ?? []) as Array<{ id: string }>) {
+          grandchildIds.push(gc.id);
+        }
+      }
+    }
+
+    const leafIds =
+      term.term_type === "category_group"
+        ? childRows.map((c) => c.id)
+        : grandchildIds;
+
+    const unionTalents = new Set<string>();
+    for (const leafId of leafIds) {
+      for (const tid of talentsByTerm.get(leafId) ?? new Set()) {
+        unionTalents.add(tid);
+      }
+    }
+    const unionAgencies = agencySetFromTalents(unionTalents);
+
+    // Per-child counts — for category_group children (talent_types) use direct assignments
+    // For parent_category children (groups) we load grandchild counts from the unified data
+    const children: TaxonomyTermChild[] = childRows.map((c) => {
+      const directTalents = talentsByTerm.get(c.id) ?? new Set<string>();
+      const directAgencies = agencySetFromTalents(directTalents);
+      return {
+        id: c.id,
+        slug: c.slug,
+        name_en: c.name_en,
+        name_es: c.name_es,
+        term_type: c.term_type,
+        agencyCount: directAgencies.size,
+        talentCount: directTalents.size,
+        childCount: 0, // populated as 0; list UI shows link not counts
+      };
+    });
+
+    return {
+      ok: true,
+      term,
+      children,
+      agencyCount: unionAgencies.size,
+      talentCount: unionTalents.size,
+    };
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error("[talent-types-data] term-detail unexpected error:", e);
+    return { ok: false };
   }
 }
 

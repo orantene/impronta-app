@@ -1,12 +1,21 @@
 // Platform HQ · Catalog · Types tab.
-// Renders the list of all talent types with analytics (agencies + talents),
-// and a "+ New talent type" link that opens the create drawer.
+// Renders the full 3-level taxonomy tree:
+//   parent_category → category_group → talent_type
+// All three levels are editable via drawer/full-page routes.
 
 import Link from "next/link";
-import { loadPlatformTalentTypes, type TalentTypeRow } from "../../../talent-types-data";
-import { HqCard, Stat, CopyableId, HQ, F, FD } from "../_ui";
+import {
+  loadPlatformTaxonomyTree,
+  type TaxonomyParentNode,
+  type TaxonomyGroupNode,
+  type TaxonomyTypeNode,
+} from "../../../talent-types-data";
+import { HqCard, HqAccordion, Stat, CopyableId, HQ, F, FD } from "../_ui";
 
-function TypeRow({ t }: { t: TalentTypeRow }) {
+// ---------------------------------------------------------------------------
+// Leaf row — a single talent_type
+// ---------------------------------------------------------------------------
+function TypeRow({ t }: { t: TaxonomyTypeNode }) {
   const isArchived = !!t.archived_at;
   return (
     <Link
@@ -17,7 +26,7 @@ function TypeRow({ t }: { t: TalentTypeRow }) {
         display: "flex",
         alignItems: "center",
         gap: 10,
-        padding: "10px 12px",
+        padding: "9px 12px 9px 16px",
         borderTop: `1px solid ${HQ.borderSoft}`,
         fontSize: 12.5,
         color: isArchived ? HQ.inkMuted : HQ.ink,
@@ -26,15 +35,11 @@ function TypeRow({ t }: { t: TalentTypeRow }) {
         cursor: "pointer",
       }}
     >
-      {/* ID pill */}
       <CopyableId id={t.id} />
 
-      {/* Icon + names */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          {t.icon && (
-            <span style={{ fontSize: 15, lineHeight: 1 }}>{t.icon}</span>
-          )}
+          {t.icon && <span style={{ fontSize: 14, lineHeight: 1 }}>{t.icon}</span>}
           <span style={{ fontWeight: 600 }}>{t.name_en}</span>
           {t.name_es && (
             <>
@@ -51,30 +56,21 @@ function TypeRow({ t }: { t: TalentTypeRow }) {
             marginTop: 2,
           }}
         >
-          {t.slug} · #{t.sort_order} · {t.mappedFieldCount} mapped field{t.mappedFieldCount === 1 ? "" : "s"}
+          {t.slug} · {t.mappedFieldCount} mapped field{t.mappedFieldCount === 1 ? "" : "s"}
         </div>
       </div>
 
-      {/* Analytics inline */}
-      <div
-        style={{
-          display: "flex",
-          gap: 12,
-          fontSize: 11.5,
-          flexShrink: 0,
-        }}
-      >
+      <div style={{ display: "flex", gap: 10, fontSize: 11.5, flexShrink: 0 }}>
         <span style={{ color: t.agencyCount > 0 ? HQ.green : HQ.inkDim }}>
-          <strong style={{ fontSize: 14, fontFamily: FD }}>{t.agencyCount}</strong>{" "}
+          <strong style={{ fontSize: 13, fontFamily: FD }}>{t.agencyCount}</strong>{" "}
           <span style={{ color: HQ.inkMuted }}>agenc{t.agencyCount === 1 ? "y" : "ies"}</span>
         </span>
         <span style={{ color: t.talentCount > 0 ? HQ.green : HQ.inkDim }}>
-          <strong style={{ fontSize: 14, fontFamily: FD }}>{t.talentCount}</strong>{" "}
+          <strong style={{ fontSize: 13, fontFamily: FD }}>{t.talentCount}</strong>{" "}
           <span style={{ color: HQ.inkMuted }}>talent{t.talentCount === 1 ? "" : "s"}</span>
         </span>
       </div>
 
-      {/* Status badge */}
       {isArchived && (
         <span
           style={{
@@ -95,18 +91,214 @@ function TypeRow({ t }: { t: TalentTypeRow }) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Second-level accordion — a category_group
+// ---------------------------------------------------------------------------
+function GroupAccordion({ group }: { group: TaxonomyGroupNode }) {
+  const countMeta = `${group.types.length} type${group.types.length === 1 ? "" : "s"} · ${group.agencyCount} agenc${group.agencyCount === 1 ? "y" : "ies"} · ${group.talentCount} talent${group.talentCount === 1 ? "" : "s"}`;
+  return (
+    <details
+      className="hq-acc"
+      style={{
+        background: "rgba(255,255,255,0.025)",
+        border: `1px solid ${HQ.borderSoft}`,
+        borderRadius: 10,
+        marginBottom: 8,
+      }}
+    >
+      <summary
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 9,
+          padding: "10px 14px",
+          cursor: "pointer",
+          userSelect: "none",
+        }}
+      >
+        <span
+          className="hq-chev"
+          aria-hidden
+          style={{
+            fontSize: 10,
+            color: HQ.inkDim,
+            transition: "transform .15s",
+            display: "inline-block",
+          }}
+        >
+          ▶
+        </span>
+        <CopyableId id={group.id} />
+        <span style={{ fontFamily: FD, fontSize: 13.5, fontWeight: 600, color: HQ.ink, flex: 1 }}>
+          {group.icon ? `${group.icon} ` : ""}
+          {group.name_en}
+          {group.name_es && (
+            <span style={{ fontWeight: 400, fontSize: 11, color: HQ.inkDim, marginLeft: 6 }}>
+              {group.name_es}
+            </span>
+          )}
+        </span>
+        <span style={{ fontSize: 11, color: HQ.inkMuted, flexShrink: 0 }}>{countMeta}</span>
+        <Link
+          href={`/platform/admin/catalog/term/${group.id}`}
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            color: HQ.inkMuted,
+            border: `1px solid ${HQ.borderSoft}`,
+            background: "transparent",
+            borderRadius: 6,
+            padding: "2px 8px",
+            textDecoration: "none",
+            whiteSpace: "nowrap",
+            flexShrink: 0,
+          }}
+        >
+          Edit
+        </Link>
+        <Link
+          href={`/platform/admin/catalog/type/new`}
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            color: HQ.green,
+            border: `1px solid rgba(93,211,160,0.30)`,
+            background: "rgba(93,211,160,0.08)",
+            borderRadius: 6,
+            padding: "2px 8px",
+            textDecoration: "none",
+            whiteSpace: "nowrap",
+            flexShrink: 0,
+          }}
+        >
+          + Type
+        </Link>
+      </summary>
+
+      <div style={{ paddingBottom: 8 }}>
+        {group.types.length === 0 ? (
+          <div
+            style={{
+              padding: "8px 16px",
+              fontSize: 12,
+              color: HQ.inkMuted,
+            }}
+          >
+            No talent types yet.{" "}
+            <Link
+              href={`/platform/admin/catalog/type/new`}
+              style={{ color: HQ.green, textDecoration: "none" }}
+            >
+              + Add one
+            </Link>
+          </div>
+        ) : (
+          group.types.map((t) => <TypeRow key={t.id} t={t} />)
+        )}
+      </div>
+    </details>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Top-level accordion — a parent_category
+// ---------------------------------------------------------------------------
+function ParentAccordion({ parent }: { parent: TaxonomyParentNode }) {
+  const countMeta = `${parent.groupsCount} group${parent.groupsCount === 1 ? "" : "s"} · ${parent.talentTypesCount} type${parent.talentTypesCount === 1 ? "" : "s"} · ${parent.agencyCount} agenc${parent.agencyCount === 1 ? "y" : "ies"} · ${parent.talentCount} talent${parent.talentCount === 1 ? "" : "s"}`;
+
+  return (
+    <HqAccordion
+      title={`${parent.icon ? `${parent.icon} ` : ""}${parent.name_en}${parent.name_es ? ` · ${parent.name_es}` : ""}`}
+      meta={countMeta}
+      defaultOpen={false}
+    >
+      {/* Summary action row */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          marginBottom: 12,
+          paddingBottom: 10,
+          borderBottom: `1px solid ${HQ.borderSoft}`,
+        }}
+      >
+        <CopyableId id={parent.id} />
+        <span style={{ fontFamily: "ui-monospace, monospace", fontSize: 10.5, color: HQ.inkDim }}>
+          {parent.slug}
+        </span>
+        <div style={{ flex: 1 }} />
+        <Link
+          href={`/platform/admin/catalog/term/${parent.id}`}
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            color: HQ.inkMuted,
+            border: `1px solid ${HQ.borderSoft}`,
+            background: "transparent",
+            borderRadius: 6,
+            padding: "3px 9px",
+            textDecoration: "none",
+            whiteSpace: "nowrap",
+          }}
+        >
+          Edit
+        </Link>
+        <Link
+          href={`/platform/admin/catalog/term/new?kind=category_group&parent=${parent.id}`}
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            color: HQ.green,
+            border: `1px solid rgba(93,211,160,0.30)`,
+            background: "rgba(93,211,160,0.08)",
+            borderRadius: 6,
+            padding: "3px 9px",
+            textDecoration: "none",
+            whiteSpace: "nowrap",
+          }}
+        >
+          + Group
+        </Link>
+      </div>
+
+      {/* Groups */}
+      {parent.groups.length === 0 ? (
+        <div style={{ fontSize: 12.5, color: HQ.inkMuted, padding: "4px 0" }}>
+          No category groups yet.
+        </div>
+      ) : (
+        parent.groups.map((g) => <GroupAccordion key={g.id} group={g} />)
+      )}
+    </HqAccordion>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Tab component
+// ---------------------------------------------------------------------------
 export async function TypesTab({ sp }: { sp: Record<string, string | undefined> }) {
   void sp;
-  const result = await loadPlatformTalentTypes();
+  const result = await loadPlatformTaxonomyTree();
 
-  const activeTypes = result.types.filter((t) => !t.archived_at);
-  const archivedTypes = result.types.filter((t) => !!t.archived_at);
+  const totalParents = result.parents.length;
+  const totalGroups = result.parents.reduce((s, p) => s + p.groupsCount, 0);
+  const totalTypes = result.parents.reduce((s, p) => s + p.talentTypesCount, 0);
 
-  const totalAgencies = new Set(
-    // just summarize the max agencyCount for the stat — count of distinct types that have agencies
-    result.types.filter((t) => t.agencyCount > 0).map((t) => t.id),
-  ).size;
-  const totalTalents = result.types.reduce((sum, t) => sum + t.talentCount, 0);
+  // Distinct agencies/talents across all parent categories
+  const allAgencyIds = new Set<string>();
+  const allTalentIds = new Set<string>();
+  // We can't re-build sets here (already aggregated), use the parent rollup numbers
+  // For the stat we just sum parent.agencyCount — this may double-count talents
+  // across parents in edge cases, but is a reasonable summary stat.
+  let statAgencies = 0;
+  let statTalents = 0;
+  for (const p of result.parents) {
+    statAgencies = Math.max(statAgencies, p.agencyCount);
+    statTalents += p.talentCount;
+  }
+  void allAgencyIds;
+  void allTalentIds;
 
   return (
     <div style={{ fontFamily: F, color: HQ.ink }}>
@@ -125,13 +317,13 @@ export async function TypesTab({ sp }: { sp: Record<string, string | undefined> 
             Talent Types
           </div>
           <div style={{ fontSize: 12, color: HQ.inkMuted, marginTop: 2 }}>
-            {!result.ok && result.types.length === 0
-              ? "Could not load talent types."
-              : `${result.types.length} type${result.types.length === 1 ? "" : "s"} · ${activeTypes.length} active`}
+            {!result.ok && result.parents.length === 0
+              ? "Could not load taxonomy."
+              : `${totalParents} categories · ${totalGroups} groups · ${totalTypes} types`}
           </div>
         </div>
         <Link
-          href="/platform/admin/catalog/type/new"
+          href="/platform/admin/catalog/term/new?kind=parent_category"
           style={{
             fontSize: 12,
             fontWeight: 700,
@@ -144,21 +336,21 @@ export async function TypesTab({ sp }: { sp: Record<string, string | undefined> 
             whiteSpace: "nowrap",
           }}
         >
-          + New talent type
+          + New parent category
         </Link>
       </div>
 
-      {!result.ok && result.types.length === 0 ? (
+      {!result.ok && result.parents.length === 0 ? (
         <HqCard title="Unavailable">
           <div style={{ fontSize: 13, color: HQ.inkMuted }}>
-            Could not load talent types (service client unavailable or query failed). Retry shortly.
+            Could not load taxonomy (service client unavailable or query failed). Retry shortly.
           </div>
         </HqCard>
-      ) : result.types.length === 0 ? (
-        <HqCard title="No talent types yet">
+      ) : result.parents.length === 0 ? (
+        <HqCard title="No taxonomy yet">
           <div style={{ fontSize: 12.5, color: HQ.inkMuted }}>
-            Create your first talent type using the button above. Talent types drive the
-            field-mapping engine — every type-specific Details field is mapped through these terms.
+            Create your first parent category using the button above to start building the taxonomy
+            hierarchy.
           </div>
         </HqCard>
       ) : (
@@ -172,74 +364,27 @@ export async function TypesTab({ sp }: { sp: Record<string, string | undefined> 
               marginBottom: 16,
             }}
           >
-            <Stat label="Active types" value={activeTypes.length} tone={HQ.green} />
+            <Stat label="Parent categories" value={totalParents} tone={HQ.green} />
+            <Stat label="Category groups" value={totalGroups} tone={HQ.green} />
+            <Stat label="Talent types" value={totalTypes} tone={HQ.green} />
             <Stat
-              label="Archived types"
-              value={archivedTypes.length}
-              tone={archivedTypes.length > 0 ? HQ.amber : HQ.inkDim}
-            />
-            <Stat
-              label="Types with agencies"
-              value={totalAgencies}
-              tone={totalAgencies > 0 ? HQ.green : HQ.inkDim}
+              label="Max agencies (any cat.)"
+              value={statAgencies}
+              tone={statAgencies > 0 ? HQ.green : HQ.inkDim}
             />
             <Stat
               label="Total talent assignments"
-              value={totalTalents}
-              tone={totalTalents > 0 ? HQ.green : HQ.inkDim}
+              value={statTalents}
+              tone={statTalents > 0 ? HQ.green : HQ.inkDim}
             />
           </div>
 
-          {/* Type list */}
-          <HqCard title="All talent types" subtitle="Click a row to open the type editor.">
-            <div>
-              {/* Column header */}
-              <div
-                style={{
-                  display: "flex",
-                  gap: 10,
-                  padding: "4px 12px 8px",
-                  fontSize: 10,
-                  fontWeight: 700,
-                  color: HQ.inkDim,
-                  letterSpacing: 0.4,
-                  textTransform: "uppercase",
-                }}
-              >
-                <span style={{ minWidth: 80 }}>ID</span>
-                <span style={{ flex: 1 }}>Type</span>
-                <span style={{ minWidth: 200, textAlign: "right" }}>Adoption</span>
-              </div>
-
-              {/* Active types first */}
-              {activeTypes.map((t) => (
-                <TypeRow key={t.id} t={t} />
-              ))}
-
-              {/* Archived types (dimmed, at the bottom) */}
-              {archivedTypes.length > 0 && (
-                <>
-                  <div
-                    style={{
-                      padding: "8px 12px 4px",
-                      fontSize: 10,
-                      fontWeight: 700,
-                      color: HQ.inkDim,
-                      letterSpacing: 0.4,
-                      textTransform: "uppercase",
-                      borderTop: `1px solid ${HQ.borderSoft}`,
-                      marginTop: 4,
-                    }}
-                  >
-                    Archived
-                  </div>
-                  {archivedTypes.map((t) => (
-                    <TypeRow key={t.id} t={t} />
-                  ))}
-                </>
-              )}
-            </div>
-          </HqCard>
+          {/* Tree */}
+          <div>
+            {result.parents.map((parent) => (
+              <ParentAccordion key={parent.id} parent={parent} />
+            ))}
+          </div>
         </>
       )}
     </div>
