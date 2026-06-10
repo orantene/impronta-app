@@ -5032,6 +5032,15 @@ export function EditProvider({
       pageVersionRef.current = save.pageVersion;
       setPageVersion(save.pageVersion);
       lastConfirmedTreeRef.current = nextTree;
+      // builder-perf-2026 (1F) — stamp the "all changes saved" marker on the
+      // AUTOSAVE happy path too. Previously only the manual `saveDraft()` set
+      // `lastDraftSavedAt`, so a debounced block edit showed the "saving…" spinner
+      // and then NOTHING — leaving the operator unsure whether the ~1s wait (debounce
+      // + server round-trip + the flag-off server refresh) actually persisted. Now
+      // every confirmed autosave drives the honest "Saved" state. `save.savedAt` is
+      // the server-stamped time (saveDraftHomepageAction); `save` is narrowed to the
+      // success variant `{ ok:true; pageVersion; savedAt }` past the `!save.ok` guard.
+      setLastDraftSavedAt(save.savedAt);
       // W3-T2 — a clean save resolves any pending conflict recovery (the
       // operator either kept-mine, which landed here, or moved on with a fresh
       // edit that superseded the parked tree).
@@ -5178,10 +5187,18 @@ export function EditProvider({
   const commitBuilderTreeMutation = useCallback(
     async (nextTree: BuilderNodeTree) => {
       const prevTree = builderTreeRef.current;
+      // No-op guard: a reference check is SUFFICIENT here. The single caller is
+      // `executeBuilderNodeOperation`, which only reaches this commit when the
+      // COW op returned `ok:true` — and the operations pipeline (operations.ts)
+      // returns the SAME root reference on a true no-op (e.g. `patchBuilderNodeProps`
+      // → `NO_CHANGE` via `hasRealChange`, filtered out at the `!operationResult.ok`
+      // early-return above) and a FRESH root array on any real change. So a changed
+      // tree is always `prevTree !== nextTree`, and a no-op is always caught here.
+      // (Was: a second `JSON.stringify(prevTree) === JSON.stringify(nextTree)` check
+      // — a full double serialization of the WHOLE tree on EVERY commit that could
+      // never catch a case this ref check misses. Removed: it was the single most
+      // expensive line per edit.)
       if (prevTree === nextTree) {
-        return { ok: true as const };
-      }
-      if (JSON.stringify(prevTree) === JSON.stringify(nextTree)) {
         return { ok: true as const };
       }
       // Optimistic local update — apply immediately so the canvas reflects the
