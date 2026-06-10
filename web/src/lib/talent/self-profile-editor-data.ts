@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { readRosterFieldValuesFromCatalog } from "@/lib/talent/roster-field-values-catalog";
+import { readScalarFieldValuesFromCatalog } from "@/lib/talent/scalar-field-values-catalog";
 import type {
   MediaAlbumEntry,
   ProfileEditorData,
@@ -32,7 +33,7 @@ export async function loadSelfProfileEditorData(input: {
   talentProfileId: string;
 }): Promise<{ ok: true; data: ProfileEditorData } | { ok: false; error: string }> {
   const { supabase, tenantId, talentProfileId } = input;
-  const [profileRes, rosterRes, rosterFieldValues] = await Promise.all([
+  const [profileRes, rosterRes, rosterFieldValues, scalarFieldValues] = await Promise.all([
     supabase
       .from("talent_profiles")
       .select(`
@@ -70,6 +71,9 @@ export async function loadSelfProfileEditorData(input: {
     // P3 Tier-D Stage-4: source roster-scoped fields from the catalog value
     // table, falling back to the dedicated column below when absent.
     readRosterFieldValuesFromCatalog(supabase, talentProfileId),
+    // P3 Tier-A Stage-4: source the scalar fields from the catalog value table,
+    // falling back to the dedicated talent_profiles column below when absent.
+    readScalarFieldValuesFromCatalog(supabase, talentProfileId),
   ]);
 
   if (profileRes.error || !profileRes.data) {
@@ -80,6 +84,7 @@ export async function loadSelfProfileEditorData(input: {
   type Row = Record<string, unknown>;
   const p = profileRes.data as Row;
   const r = (rosterRes.data ?? {}) as Row;
+  const sv = scalarFieldValues;
   const { primary: shellPrimarySlug, secondaries: shellSecondarySlugs } =
     talentTypeSlugsFromTaxonomyEmbed(p.talent_profile_taxonomy);
   const rawBios = Array.isArray(p.bios)
@@ -107,34 +112,37 @@ export async function loadSelfProfileEditorData(input: {
       pronouns_custom: (p.pronouns_custom as string | null) ?? null,
       gender: (p.gender as string | null) ?? null,
       date_of_birth: (p.date_of_birth as string | null) ?? null,
-      age_display_mode: (p.age_display_mode as string | null) ?? null,
+      // P3 Tier-A Stage-4: prefer the catalog value row, fall back to the
+      // dedicated talent_profiles column when no value row exists (column write
+      // still live). Booleans: a present `false` value row wins.
+      age_display_mode: sv.age_display_mode ?? (p.age_display_mode as string | null) ?? null,
       nationality: (p.nationality as string | null) ?? null,
       home_country_text: (p.home_country_text as string | null) ?? null,
-      response_time: (p.response_time as string | null) ?? null,
+      response_time: sv.response_time ?? (p.response_time as string | null) ?? null,
       is_discoverable: Boolean(p.is_discoverable),
       field_visibility: p.field_visibility ?? null,
       invitation_email: (p.invitation_email as string | null) ?? null,
       phone: (p.phone as string | null) ?? null,
       bios,
-      bio_tone: (p.bio_tone as string | null) ?? null,
+      bio_tone: sv.bio_tone ?? (p.bio_tone as string | null) ?? null,
       personality_traits: p.personality_traits ?? { loves: [], avoids: [] },
-      tagline: (p.tagline as string | null) ?? null,
+      tagline: sv.tagline ?? (p.tagline as string | null) ?? null,
       home_city_text: (p.home_city_text as string | null) ?? null,
       home_place_id: (p.home_place_id as string | null) ?? null,
       travel_radius_km: (p.travel_radius_km as number | null) ?? null,
       travel_fee_required: Boolean(p.travel_fee_required),
       remote_only: Boolean(p.remote_only),
-      passport_status: (p.passport_status as string | null) ?? null,
-      drivers_license: (p.drivers_license as string | null) ?? null,
+      passport_status: sv.passport_status ?? (p.passport_status as string | null) ?? null,
+      drivers_license: sv.drivers_license ?? (p.drivers_license as string | null) ?? null,
       work_eligibility: p.work_eligibility ?? [],
       upcoming_visits: Array.isArray(p.upcoming_visits) ? p.upcoming_visits : [],
       rates_data: p.rates_data ?? [],
       package_rates_data: p.package_rates_data ?? [],
       rate_tiers_data: p.rate_tiers_data ?? [],
-      rate_card_visibility: (p.rate_card_visibility as string | null) ?? null,
-      ask_for_quote: Boolean(p.ask_for_quote),
-      travel_included: Boolean(p.travel_included),
-      lodging_included: Boolean(p.lodging_included),
+      rate_card_visibility: sv.rate_card_visibility ?? (p.rate_card_visibility as string | null) ?? null,
+      ask_for_quote: sv.ask_for_quote ?? Boolean(p.ask_for_quote),
+      travel_included: sv.travel_included ?? Boolean(p.travel_included),
+      lodging_included: sv.lodging_included ?? Boolean(p.lodging_included),
       availability_data: p.availability_data ?? {},
       credits_data: Array.isArray(p.credits_data) ? p.credits_data : [],
       limits_data: p.limits_data ?? {},
