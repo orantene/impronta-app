@@ -37,6 +37,8 @@
 
 import { z } from "zod";
 
+import { scopeCustomCss } from "./scoped-custom-css";
+
 /**
  * ── Pixel-first companion fields ───────────────────────────────────────
  *
@@ -584,17 +586,15 @@ export function presentationVideoBackground(
 }
 
 /**
- * Render the `customCss` field as a scoped <style> tag. Returns null when
- * empty. The CSS is wrapped in a section-id attribute selector so it can't
- * leak out of the section.
+ * Render a section's `customCss` field as scope-confined CSS keyed to the
+ * section root attribute selector. Returns null when empty.
  *
- *   [data-cms-section][data-section-id="<id>"] {
- *     <user CSS>
- *   }
+ *   [data-cms-section][data-section-id="<id>"] <selector> { … }
  *
- * Sanitization is intentionally minimal — we strip </style> and <script>
- * substrings to prevent the obvious tag-break attacks, but otherwise trust
- * the operator (this is workspace-internal authoring, not public input).
+ * Hardened against scope-escape via `scopeCustomCss` (scoped-custom-css.ts) — a
+ * stray `}` can no longer break out and emit page-global rules. The brace-depth
+ * parser + tag-break strip live in that shared module, reused by the per-node
+ * escape hatch (`nodeScopedCss`).
  */
 export function presentationScopedCss(
   sectionId: string,
@@ -602,12 +602,10 @@ export function presentationScopedCss(
 ): string | null {
   const css = p?.customCss?.trim();
   if (!css) return null;
-  // Defensive: strip any tag-break attempts.
-  const safe = css
-    .replace(/<\/style>/gi, "")
-    .replace(/<script/gi, "")
-    .replace(/<\/script>/gi, "");
-  return `[data-cms-section][data-section-id="${sectionId}"] { ${safe} }`;
+  return scopeCustomCss(
+    `[data-cms-section][data-section-id="${sectionId}"]`,
+    css,
+  );
 }
 
 /**

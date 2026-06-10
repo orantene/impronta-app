@@ -1,5 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
-import { memo } from "react";
+import { Fragment, memo } from "react";
+
+import { nodeScopedCss } from "@/lib/site-admin/sections/shared/scoped-custom-css";
 
 import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 import { FeaturedTalentCard } from "@/lib/site-admin/sections/featured_talent/FeaturedTalentCard";
@@ -2465,11 +2467,48 @@ function applyStyleClass(
   } as BuilderNode;
 }
 
+/**
+ * Per-node custom-CSS escape hatch. When `node.props.style.customCss` is set,
+ * wrap the rendered element in a keyed Fragment that ALSO emits a scope-confined
+ * `<style>` keyed to the node's `[data-builder-node-id]`. The scoper
+ * (`nodeScopedCss` → `scopeCustomCss`) is the SAME hardened one sections use, so
+ * a stray `}` can't break out to page-global rules.
+ *
+ * ADDITIVE / byte-stable: when there is no `customCss` (the universal case) the
+ * element is returned BY IDENTITY — no Fragment, no extra `<style>` — so existing
+ * render output is unchanged. The emitted `<style>` carries `data-builder-node-id`
+ * so it's traceable, and the Fragment's children are keyed so the node's own
+ * `key={node.id}` reconciliation is preserved.
+ */
+function withNodeCustomCss(node: BuilderNode, element: ReactNode): ReactNode {
+  if (!("props" in node)) return element;
+  const customCss = (node.props as { style?: BuilderNodeStyle }).style?.customCss;
+  const scoped = customCss ? nodeScopedCss(node.id, customCss) : null;
+  if (!scoped) return element;
+  return (
+    <Fragment key={node.id}>
+      {element}
+      <style
+        key={`${node.id}::custom-css`}
+        data-builder-node-custom-css={node.id}
+        dangerouslySetInnerHTML={{ __html: scoped }}
+      />
+    </Fragment>
+  );
+}
+
 function renderBuilderNode(
   rawNode: BuilderNode,
   options: NormalizedBuilderNodeRenderOptions,
 ): ReactNode {
   const node = applyStyleClass(rawNode, options.styleClasses);
+  return withNodeCustomCss(node, renderBuilderNodeElement(node, options));
+}
+
+function renderBuilderNodeElement(
+  node: BuilderNode,
+  options: NormalizedBuilderNodeRenderOptions,
+): ReactNode {
   switch (node.kind) {
     case "section":
       return null;

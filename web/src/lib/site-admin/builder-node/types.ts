@@ -360,6 +360,15 @@ export interface BuilderNodeStyleValue {
     | "ease-in-out"
     | "back"
     | "smooth";
+  // Per-node custom CSS escape hatch (2026-06-09). Free author CSS, rendered as
+  // a scope-confined `<style>` keyed to this node's `[data-builder-node-id]` via
+  // the SAME hardened scoper sections use (`nodeScopedCss` → `scopeCustomCss`),
+  // so it can target the node + its descendants but can NEVER emit a page-global
+  // rule (a stray `}` is dropped, not an escape). Lives on the BASE style only —
+  // it is not a per-viewport layer (a `<style>` block carries its own @media if
+  // an author wants responsiveness). Optional + back-compat: when absent (the
+  // universal case) the renderer emits NOTHING extra, so output is byte-identical.
+  customCss?: string;
 }
 
 // Hover-state overrides — a curated subset of style props that re-apply only
