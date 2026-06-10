@@ -199,10 +199,15 @@ export async function loadFieldCatalog(
     supabase
       .from("profile_field_recommendations")
       .select("field_definition_id, taxonomy_term_id, relationship"),
+    // term-id → slug lookup for resolving recommendation slugs. NOTE:
+    // `taxonomy_terms` has NO `deprecated_at` column (it uses `is_active`); an
+    // earlier version filtered on it and threw at runtime. We fetch ALL terms
+    // here — the map is only consulted for term-ids that a recommendation
+    // actually references (all of which are active parent_category terms), so
+    // including any inactive rows is harmless and avoids dropping a slug.
     supabase
       .from("taxonomy_terms")
-      .select("id, slug")
-      .is("deprecated_at", null),
+      .select("id, slug"),
   ]);
   if (recsResult.error) throw new Error(`profile_field_recommendations: ${recsResult.error.message}`);
   if (termsResult.error) throw new Error(`taxonomy_terms (for recs): ${termsResult.error.message}`);
