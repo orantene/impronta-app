@@ -120,7 +120,11 @@ import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
 import { isBuilderClientCanvasEnabled } from "@/lib/site-admin/edit-mode/client-canvas-flag";
 import { sectionTypeHasLiveData } from "@/lib/site-admin/sections/section-live-data";
-import { publishBuilderCanvasTree } from "./client-builder-canvas-bridge";
+import {
+  publishBuilderCanvasTree,
+  isClientBuilderCanvasMounted,
+  isAnyBuilderNodeCanvasMounted,
+} from "./client-builder-canvas-bridge";
 import {
   publishHoveredSectionId,
   publishHoveredBuilderNodeId,
@@ -4141,10 +4145,14 @@ export function EditProvider({
           // every keystroke-commit (hero / CTA / trust-strip, etc.). Skip it for
           // those; keep the full refresh for DATA-BOUND sections (hasLiveData),
           // whose on-screen island only reflects new props after a server
-          // re-render. With the client canvas OFF (legacy server-render) the
-          // refresh is still the only repaint path → always refresh then.
+          // re-render. With NO client canvas mounted for this page (legacy
+          // server-render, OR a curated-slot page where the canvas never mounts)
+          // the refresh is still the only repaint path → always refresh then.
+          // builder-perf-2026 — gate on the canvas being ACTUALLY MOUNTED, not the
+          // build flag: a curated-slot page can have the flag on yet no canvas, and
+          // skipping the refresh there would leave the server canvas stale.
           if (
-            !isBuilderClientCanvasEnabled() ||
+            !isClientBuilderCanvasMounted() ||
             sectionTypeHasLiveData(snapshot.sectionTypeKey)
           ) {
             void queueRouterRefresh();
@@ -5032,6 +5040,15 @@ export function EditProvider({
       pageVersionRef.current = save.pageVersion;
       setPageVersion(save.pageVersion);
       lastConfirmedTreeRef.current = nextTree;
+      // builder-perf-2026 (1F) — stamp the "all changes saved" marker on the
+      // AUTOSAVE happy path too. Previously only the manual `saveDraft()` set
+      // `lastDraftSavedAt`, so a debounced block edit showed the "saving…" spinner
+      // and then NOTHING — leaving the operator unsure whether the ~1s wait (debounce
+      // + server round-trip + the flag-off server refresh) actually persisted. Now
+      // every confirmed autosave drives the honest "Saved" state. `save.savedAt` is
+      // the server-stamped time (saveDraftHomepageAction); `save` is narrowed to the
+      // success variant `{ ok:true; pageVersion; savedAt }` past the `!save.ok` guard.
+      setLastDraftSavedAt(save.savedAt);
       // W3-T2 — a clean save resolves any pending conflict recovery (the
       // operator either kept-mine, which landed here, or moved on with a fresh
       // edit that superseded the parked tree).
@@ -5050,22 +5067,28 @@ export function EditProvider({
       };
       flushUndoPersist();
       // W3 Sub-step D — skip the per-edit server refresh on the builder-tree
-      // happy path WHEN THE CLIENT CANVAS IS ACTIVE. `setBuilderTree(nextTree)`
-      // above already published the new tree to the bridge, so the client
-      // canvas has already repainted the REGULAR nodes — the server round-trip
-      // is pure lag. Flag OFF keeps the refresh EXACTLY as before (the
-      // server-rendered canvas is the only thing that paints, so it MUST
-      // re-render).
+      // happy path WHEN A CLIENT CANVAS IS MOUNTED for this page.
+      // `setBuilderTree(nextTree)` above already published the new tree to the
+      // bridge, so the client canvas has already repainted the REGULAR nodes —
+      // the server round-trip is pure lag. builder-perf-2026 — this now gates on
+      // the canvas being ACTUALLY MOUNTED (`isClientBuilderCanvasMounted()`), not
+      // the build flag. A curated-slot page mounts NO canvas even with the flag
+      // on, so it correctly keeps the refresh (the server-rendered canvas is the
+      // only thing that paints and MUST re-render) — this is what makes enabling
+      // the flag safe for ALL page shapes, not just freeform full-page designs.
       //
-      // The ONE flag-on exception: a builder-tree mutation that adds/removes a
+      // The ONE canvas-mounted exception: a builder-tree mutation that adds/removes a
       // `section_embed` island. The client canvas can't conjure a server island
       // the server never rendered (and can't drop one cleanly), so when the
       // embed id set changes we still refresh to fetch/retire the island. This
       // also covers undo/redo of `builderTree` entries that route straight
       // through `persistBuilderTree` (bypassing `commitBuilderTreeMutation`'s
       // eager reconcile) and could flip an embed in/out.
+      // builder-perf-2026 — ANY builder-node canvas (full-page OR a curated-slot
+      // section-children canvas) repaints this edit, so EITHER lets us skip the
+      // server refresh; only the embed/gallery carve-outs force it.
       if (
-        !isBuilderClientCanvasEnabled() ||
+        !isAnyBuilderNodeCanvasMounted() ||
         mutationTouchesSectionEmbedIslandSet(prevTree, nextTree) ||
         mutationTouchesSectionEmbedConfig(prevTree, nextTree) ||
         mutationTouchesUnboundGallerySections(prevTree, nextTree)
@@ -5178,10 +5201,18 @@ export function EditProvider({
   const commitBuilderTreeMutation = useCallback(
     async (nextTree: BuilderNodeTree) => {
       const prevTree = builderTreeRef.current;
+      // No-op guard: a reference check is SUFFICIENT here. The single caller is
+      // `executeBuilderNodeOperation`, which only reaches this commit when the
+      // COW op returned `ok:true` — and the operations pipeline (operations.ts)
+      // returns the SAME root reference on a true no-op (e.g. `patchBuilderNodeProps`
+      // → `NO_CHANGE` via `hasRealChange`, filtered out at the `!operationResult.ok`
+      // early-return above) and a FRESH root array on any real change. So a changed
+      // tree is always `prevTree !== nextTree`, and a no-op is always caught here.
+      // (Was: a second `JSON.stringify(prevTree) === JSON.stringify(nextTree)` check
+      // — a full double serialization of the WHOLE tree on EVERY commit that could
+      // never catch a case this ref check misses. Removed: it was the single most
+      // expensive line per edit.)
       if (prevTree === nextTree) {
-        return { ok: true as const };
-      }
-      if (JSON.stringify(prevTree) === JSON.stringify(nextTree)) {
         return { ok: true as const };
       }
       // Optimistic local update — apply immediately so the canvas reflects the
@@ -5197,11 +5228,13 @@ export function EditProvider({
       // duplicated this commit gets a fresh id with no cached island). When the
       // set of section_embed ids changes, eagerly refresh the server RSC tree so
       // the new island is rendered promptly instead of waiting for the debounced
-      // save's trailing refresh. Flag-gated: with the client canvas OFF, the
-      // server-rendered canvas already repaints on the save refresh — this extra
-      // eager refresh would be redundant, so it stays scoped to the flag-on path.
+      // save's trailing refresh. Gated on a canvas being MOUNTED (full-page OR a
+      // curated-slot section-children canvas — an embed can live in either): with
+      // no client canvas (legacy server-render), the server canvas already
+      // repaints on the save refresh — this extra eager refresh would be redundant,
+      // so it stays scoped to the canvas-active path.
       if (
-        isBuilderClientCanvasEnabled() &&
+        isAnyBuilderNodeCanvasMounted() &&
         (mutationTouchesSectionEmbedIslandSet(prevTree, nextTree) ||
           mutationTouchesSectionEmbedConfig(prevTree, nextTree) ||
           mutationTouchesUnboundGallerySections(prevTree, nextTree))

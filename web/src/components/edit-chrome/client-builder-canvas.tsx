@@ -33,7 +33,7 @@
  * back to the server-resolved `initialTree`, which equals what the server would
  * have rendered — so the first client paint matches the server markup.
  */
-import { memo, useCallback, useMemo, useSyncExternalStore } from "react";
+import { memo, useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
 
 import {
@@ -53,6 +53,7 @@ import {
 
 import {
   getBuilderCanvasTreeSnapshot,
+  registerClientBuilderCanvasMount,
   subscribeBuilderCanvasTree,
 } from "./client-builder-canvas-bridge";
 
@@ -103,6 +104,12 @@ function ClientBuilderCanvasInner({
     () => null,
   );
   const tree = bridgedTree ?? initialTree;
+
+  // builder-perf-2026 (reload fix) — announce that a client canvas is mounted for
+  // this page, so `edit-context` skips the per-edit server `router.refresh()` ONLY
+  // when an edit will actually repaint here. On a curated-slot page no canvas
+  // mounts, so the signal stays false and those edits keep refreshing (safe).
+  useEffect(() => registerClientBuilderCanvasMount(), []);
 
   // W1-T2(c) — subscribe to the live linked-style-class registry the editor
   // publishes (localStorage-backed). Threading it here makes linked blocks look
