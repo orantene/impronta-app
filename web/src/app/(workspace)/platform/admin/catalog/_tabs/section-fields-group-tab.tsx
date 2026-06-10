@@ -4,7 +4,7 @@
 //   RIGHT = EditorSectionReorderPanel for that group
 // Orphan sections (no group) are surfaced below.
 
-import { HQ, HqCard, Stat } from "../_ui";
+import { HQ, HqCard, HqAccordion, Stat } from "../_ui";
 import { SaveNotice } from "../[fieldKey]/field-detail-editor-parts";
 import { loadEditorLayoutAdmin } from "./editor-layout-admin-data";
 import { EditorSectionReorderPanel } from "./editor-section-reorder-panel";
@@ -127,15 +127,30 @@ export async function SectionFieldsGroupTab({
                 alignItems: "start",
               }}
             >
-              {/* LEFT — section edit cards without field lists */}
+              {/* LEFT — section edit accordions without field lists */}
               <div style={{ minWidth: 0 }}>
                 {group.sections.map((section) => (
-                  <SectionRow
+                  <HqAccordion
                     key={section.id}
-                    section={section}
-                    groupOptions={data.groupOptions}
-                    showFields={false}
-                  />
+                    title={`${section.emoji ? `${section.emoji} ` : ""}${section.label_en}`}
+                    meta={`slug: ${section.slug} · #${section.sort_order}`}
+                    badge={{
+                      text:
+                        section.archived_at
+                          ? "archived"
+                          : section.is_active
+                            ? "active"
+                            : "inactive",
+                      tone: section.archived_at || !section.is_active ? HQ.red : HQ.green,
+                    }}
+                  >
+                    <SectionRow
+                      section={section}
+                      groupOptions={data.groupOptions}
+                      showFields={false}
+                      embedded
+                    />
+                  </HqAccordion>
                 ))}
               </div>
 
@@ -178,12 +193,22 @@ export async function SectionFieldsGroupTab({
           subtitle="These sections have no group and will not render in the rail. Move them into a group."
         >
           {data.orphanSections.map((section) => (
-            <SectionRow
+            <HqAccordion
               key={section.id}
-              section={section}
-              groupOptions={data.groupOptions}
-              showFields={false}
-            />
+              title={`${section.emoji ? `${section.emoji} ` : ""}${section.label_en}`}
+              meta={`slug: ${section.slug}`}
+              badge={{
+                text: section.is_active ? "active" : "inactive",
+                tone: section.is_active ? HQ.green : HQ.red,
+              }}
+            >
+              <SectionRow
+                section={section}
+                groupOptions={data.groupOptions}
+                showFields={false}
+                embedded
+              />
+            </HqAccordion>
           ))}
         </HqCard>
       )}

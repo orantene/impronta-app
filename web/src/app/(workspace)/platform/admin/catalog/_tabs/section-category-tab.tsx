@@ -3,7 +3,7 @@
 // Two-column layout: LEFT = group edit cards + "+ New section group" form;
 //                   RIGHT = EditorGroupReorderPanel (drag group order).
 
-import { HQ, HqCard, Stat } from "../_ui";
+import { HQ, HqCard, HqAccordion, Stat } from "../_ui";
 import { SaveNotice } from "../[fieldKey]/field-detail-editor-parts";
 import { loadEditorLayoutAdmin } from "./editor-layout-admin-data";
 import { EditorGroupReorderPanel } from "./editor-group-reorder-panel";
@@ -75,7 +75,17 @@ export async function SectionCategoryTab({
             </HqCard>
           ) : (
             data.groups.map((group) => (
-              <GroupEditForm key={group.id} group={group} />
+              <HqAccordion
+                key={group.id}
+                title={group.label_en}
+                meta={`slug: ${group.slug} · ${group.sections.length} section${group.sections.length === 1 ? "" : "s"} · #${group.sort_order}`}
+                badge={{
+                  text: group.is_active ? "active" : "inactive",
+                  tone: group.is_active ? HQ.green : HQ.red,
+                }}
+              >
+                <GroupEditForm group={group} embedded />
+              </HqAccordion>
             ))
           )}
         </div>

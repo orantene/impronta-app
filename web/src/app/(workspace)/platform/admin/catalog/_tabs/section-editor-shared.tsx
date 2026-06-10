@@ -124,55 +124,76 @@ export function SectionRow({
   section,
   groupOptions,
   showFields = true,
+  embedded = false,
 }: {
   section: EditorSectionRow;
   groupOptions: { id: string; label_en: string; is_active: boolean }[];
   showFields?: boolean;
+  /** When true the card chrome + name/badge header is dropped — the parent
+   *  accordion supplies them; only a compact id/slug line + the forms render. */
+  embedded?: boolean;
 }) {
   const archived = !!section.archived_at;
   return (
     <div
-      style={{
-        border: `1px solid ${HQ.borderSoft}`,
-        borderRadius: 10,
-        padding: 12,
-        marginBottom: 8,
-        background: HQ.cardSoft,
-        opacity: archived ? 0.7 : 1,
-      }}
+      style={
+        embedded
+          ? { opacity: archived ? 0.7 : 1 }
+          : {
+              border: `1px solid ${HQ.borderSoft}`,
+              borderRadius: 10,
+              padding: 12,
+              marginBottom: 8,
+              background: HQ.cardSoft,
+              opacity: archived ? 0.7 : 1,
+            }
+      }
     >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          flexWrap: "wrap",
-          marginBottom: 10,
-        }}
-      >
-        <span style={{ fontSize: 16 }}>{section.emoji}</span>
-        <span
-          style={{ fontFamily: FD, fontSize: 13.5, fontWeight: 650, color: HQ.ink }}
-        >
-          {section.label_en}
-        </span>
-        {section.label_es && (
-          <span style={{ fontSize: 12, color: HQ.inkMuted }}>{section.label_es}</span>
-        )}
-        <span style={monoStyle}>slug: {section.slug}</span>
-        <CopyableId id={section.id} />
-        {section.is_system && (
-          <span style={{ fontSize: 10, color: HQ.inkDim }}>system</span>
-        )}
-        <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
-          <ActiveBadge active={section.is_active && !archived} />
-          {archived && (
-            <span style={{ fontSize: 10, fontWeight: 800, color: HQ.red }}>
-              ARCHIVED
-            </span>
+      {embedded ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+          <span style={monoStyle}>slug: {section.slug}</span>
+          <CopyableId id={section.id} />
+          {section.is_system && (
+            <span style={{ fontSize: 10, color: HQ.inkDim }}>system</span>
           )}
-        </span>
-      </div>
+          {archived && (
+            <span style={{ fontSize: 10, fontWeight: 800, color: HQ.red }}>ARCHIVED</span>
+          )}
+        </div>
+      ) : (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexWrap: "wrap",
+            marginBottom: 10,
+          }}
+        >
+          <span style={{ fontSize: 16 }}>{section.emoji}</span>
+          <span
+            style={{ fontFamily: FD, fontSize: 13.5, fontWeight: 650, color: HQ.ink }}
+          >
+            {section.label_en}
+          </span>
+          {section.label_es && (
+            <span style={{ fontSize: 12, color: HQ.inkMuted }}>{section.label_es}</span>
+          )}
+          <span style={monoStyle}>slug: {section.slug}</span>
+          <CopyableId id={section.id} />
+          {section.is_system && (
+            <span style={{ fontSize: 10, color: HQ.inkDim }}>system</span>
+          )}
+          <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+            <ActiveBadge active={section.is_active && !archived} />
+            {archived && (
+              <span style={{ fontSize: 10, fontWeight: 800, color: HQ.red }}>
+                ARCHIVED
+              </span>
+            )}
+          </span>
+        </div>
+      )}
 
       {/* Edit label / emoji / active */}
       <form action={updateSection} style={{ display: "grid", gap: 10, marginBottom: 10 }}>
@@ -275,60 +296,82 @@ export function SectionRow({
 }
 
 /** GroupEditForm — the edit + archive form for a single section group. */
-export function GroupEditForm({ group }: { group: EditorGroupRow }) {
+export function GroupEditForm({
+  group,
+  embedded = false,
+}: {
+  group: EditorGroupRow;
+  /** When true the card chrome + name/badge header is dropped — the parent
+   *  accordion supplies them; only a compact id/slug line + the forms render. */
+  embedded?: boolean;
+}) {
   const activeSections = group.sections.filter(
     (s) => s.is_active && !s.archived_at,
   );
   return (
     <div
-      style={{
-        border: `1px solid ${HQ.borderSoft}`,
-        borderRadius: 10,
-        padding: 14,
-        marginBottom: 10,
-        background: HQ.cardSoft,
-        opacity: group.is_active ? 1 : 0.72,
-      }}
+      style={
+        embedded
+          ? { opacity: group.is_active ? 1 : 0.72 }
+          : {
+              border: `1px solid ${HQ.borderSoft}`,
+              borderRadius: 10,
+              padding: 14,
+              marginBottom: 10,
+              background: HQ.cardSoft,
+              opacity: group.is_active ? 1 : 0.72,
+            }
+      }
     >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          flexWrap: "wrap",
-          marginBottom: 10,
-        }}
-      >
-        <span
-          style={{ fontFamily: FD, fontSize: 14, fontWeight: 650, color: HQ.ink }}
+      {embedded ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+          <span style={monoStyle}>slug: {group.slug}</span>
+          <CopyableId id={group.id} />
+          {group.is_system && (
+            <span style={{ fontSize: 10, color: HQ.inkDim }}>system</span>
+          )}
+        </div>
+      ) : (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexWrap: "wrap",
+            marginBottom: 10,
+          }}
         >
-          {group.label_en}
-        </span>
-        {group.label_es && (
-          <span style={{ fontSize: 12, color: HQ.inkMuted }}>{group.label_es}</span>
-        )}
-        <span style={monoStyle}>slug: {group.slug}</span>
-        <CopyableId id={group.id} />
-        {group.is_system && (
-          <span style={{ fontSize: 10, color: HQ.inkDim }}>system</span>
-        )}
-        <span style={{ marginLeft: "auto" }}>
           <span
-            style={{
-              fontSize: 10,
-              fontWeight: 800,
-              textTransform: "uppercase",
-              color: group.is_active ? HQ.green : HQ.red,
-              border: `1px solid ${group.is_active ? HQ.green : HQ.red}44`,
-              background: `${group.is_active ? HQ.green : HQ.red}1a`,
-              borderRadius: 999,
-              padding: "1px 8px",
-            }}
+            style={{ fontFamily: FD, fontSize: 14, fontWeight: 650, color: HQ.ink }}
           >
-            {group.is_active ? "active" : "inactive"}
+            {group.label_en}
           </span>
-        </span>
-      </div>
+          {group.label_es && (
+            <span style={{ fontSize: 12, color: HQ.inkMuted }}>{group.label_es}</span>
+          )}
+          <span style={monoStyle}>slug: {group.slug}</span>
+          <CopyableId id={group.id} />
+          {group.is_system && (
+            <span style={{ fontSize: 10, color: HQ.inkDim }}>system</span>
+          )}
+          <span style={{ marginLeft: "auto" }}>
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 800,
+                textTransform: "uppercase",
+                color: group.is_active ? HQ.green : HQ.red,
+                border: `1px solid ${group.is_active ? HQ.green : HQ.red}44`,
+                background: `${group.is_active ? HQ.green : HQ.red}1a`,
+                borderRadius: 999,
+                padding: "1px 8px",
+              }}
+            >
+              {group.is_active ? "active" : "inactive"}
+            </span>
+          </span>
+        </div>
+      )}
 
       {group.label_en_alt && (
         <div style={{ fontSize: 11, color: HQ.inkDim, marginBottom: 8 }}>
