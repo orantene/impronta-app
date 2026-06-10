@@ -80,21 +80,12 @@ function mergeResponsive(
   const next: NonNullable<BuilderContainerNode["props"]["responsive"]> = {
     ...(responsive ?? {}),
   };
-  if (patch.tablet || responsive?.tablet) {
-    next.tablet = patch.tablet
-      ? {
-          ...(responsive?.tablet ?? {}),
-          ...patch.tablet,
-        }
-      : responsive?.tablet;
-  }
-  if (patch.mobile || responsive?.mobile) {
-    next.mobile = patch.mobile
-      ? {
-          ...(responsive?.mobile ?? {}),
-          ...patch.mobile,
-        }
-      : responsive?.mobile;
+  // Generalized over ALL breakpoint tiers (tablet / mobile / wide / compact /
+  // custom) — merge each patched tier onto its existing override.
+  for (const tier of Object.keys(patch)) {
+    const tierPatch = patch[tier];
+    if (!tierPatch) continue;
+    next[tier] = { ...(responsive?.[tier] ?? {}), ...tierPatch };
   }
   return next;
 }
