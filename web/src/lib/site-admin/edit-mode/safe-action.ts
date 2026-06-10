@@ -35,6 +35,20 @@ interface SafeActionOptions<F> {
   name?: string;
   /** Optional guard for action transports that stall without rejecting. */
   timeoutMs?: number;
+  /**
+   * Optional cancellation signal. When it aborts, `safeAction` stops AWAITING
+   * the action and resolves to `fallback` immediately. The timeout path also
+   * aborts (it resolves to `fallback` the same way).
+   *
+   * IMPORTANT — client-only cancellation. A Next.js server action runs over the
+   * RSC boundary; there is no way to cancel it once the request is in flight, so
+   * aborting here only abandons the CLIENT's wait. The server write may still
+   * complete. Callers that depend on ordered, version-stamped writes (e.g. the
+   * CAS-versioned draft-save queue) must treat an aborted await as "we stopped
+   * waiting on a possibly-already-superseded write" — the next write's CAS read
+   * of the live version is what makes this safe.
+   */
+  signal?: AbortSignal;
 }
 
 export async function safeAction<R, F>(
@@ -73,26 +87,69 @@ export async function safeAction<R, F>(
     return opts.fallback;
   }
 
-  if (opts.timeoutMs && opts.timeoutMs > 0) {
-    let timeoutId: ReturnType<typeof globalThis.setTimeout> | null = null;
-    const timeout = new Promise<F>((resolve) => {
-      timeoutId = globalThis.setTimeout(() => {
-        void improntaLog("site_admin_safe_action.warn", {
-          message: `[safeAction] ${label} timed out after ${opts.timeoutMs}ms`,
-        });
-        resolve(opts.fallback);
-      }, opts.timeoutMs);
-    });
-    try {
-      return await Promise.race([action, timeout]);
-    } finally {
-      if (timeoutId !== null) {
-        globalThis.clearTimeout(timeoutId);
-      }
-    }
+  // Build the set of "give up waiting" racers: an optional timeout and an
+  // optional caller-supplied abort signal. Each resolves the race to `fallback`
+  // WITHOUT rejecting, so the caller still gets its envelope shape. The
+  // underlying `action` keeps running (and is already `.catch`-guarded above),
+  // so abandoning it here can never surface an unhandled rejection.
+  const hasTimeout = Boolean(opts.timeoutMs && opts.timeoutMs > 0);
+  const signal = opts.signal;
+  const hasSignal = Boolean(signal);
+
+  if (!hasTimeout && !hasSignal) {
+    return await action;
   }
 
-  return await action;
+  // Fast-path: the caller passed a signal that is ALREADY aborted — don't even
+  // wait a tick.
+  if (signal?.aborted) {
+    void improntaLog("site_admin_safe_action.warn", {
+      message: `[safeAction] ${label} aborted before await (superseded)`,
+    });
+    return opts.fallback;
+  }
+
+  let timeoutId: ReturnType<typeof globalThis.setTimeout> | null = null;
+  let onAbort: (() => void) | null = null;
+  const racers: Array<Promise<R | F>> = [action];
+
+  if (hasTimeout) {
+    racers.push(
+      new Promise<F>((resolve) => {
+        timeoutId = globalThis.setTimeout(() => {
+          void improntaLog("site_admin_safe_action.warn", {
+            message: `[safeAction] ${label} timed out after ${opts.timeoutMs}ms`,
+          });
+          resolve(opts.fallback);
+        }, opts.timeoutMs);
+      }),
+    );
+  }
+
+  if (signal) {
+    racers.push(
+      new Promise<F>((resolve) => {
+        onAbort = () => {
+          void improntaLog("site_admin_safe_action.warn", {
+            message: `[safeAction] ${label} aborted (superseded by a newer call)`,
+          });
+          resolve(opts.fallback);
+        };
+        signal.addEventListener("abort", onAbort, { once: true });
+      }),
+    );
+  }
+
+  try {
+    return await Promise.race(racers);
+  } finally {
+    if (timeoutId !== null) {
+      globalThis.clearTimeout(timeoutId);
+    }
+    if (signal && onAbort) {
+      signal.removeEventListener("abort", onAbort);
+    }
+  }
 }
 
 /**

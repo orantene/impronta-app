@@ -2365,6 +2365,14 @@ export function EditProvider({
     pageId,
   });
   const builderTreeSaveQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+  // AbortController for the draft save whose AWAIT is currently in flight. When a
+  // newer tree is enqueued while a save is still being awaited, we abort this
+  // controller so `persistBuilderTree` stops waiting on the now-superseded write
+  // and the queue proceeds promptly to the latest tree (instead of blocking up
+  // to the 45s safeAction timeout). Cancellation is CLIENT-ONLY — the server
+  // write may still complete; the NEXT save's CAS read of the live pageVersion
+  // is what keeps this safe (see persistBuilderTree's ABORTED branch).
+  const builderSaveAbortRef = useRef<AbortController | null>(null);
   // ── Debounced/coalesced builder-tree draft saves ──────────────────────
   // Rapid node edits (typing, slider drags, repeated nudges) each used to fire
   // their own blocking `saveDraftHomepageAction`, serializing a burst into N
@@ -3312,6 +3320,38 @@ export function EditProvider({
         void flushBuilderTreeSaveRef.current();
       }
     };
+    // ── ASSESSMENT (lane/save-abort, Task 2 — no code change here) ─────────
+    // KNOWN GAP: the beacon CAS-conflicts and silently drops the last edit when
+    // a normal debounced save advanced the version just before tab-close.
+    //
+    // Repro: edit (commit v→arms 750ms debounce) → that save lands, bumping the
+    // page row version N→N+1 and `pageVersionRef`→N+1 → operator edits AGAIN
+    // (pendingTree set, new 750ms timer) → closes the tab INSIDE that second
+    // window. `onPageHide` fires the beacon with expectedVersion = the ref's
+    // CURRENT value. Usually that is N+1 (correct) and the beacon wins. But the
+    // FAILURE case is a beacon racing an in-flight *normal* save (or a co-editor
+    // write) that bumps the row to N+2 first: the beacon still carries N+1, the
+    // server CAS (`pageRow.version !== expectedVersion`) returns VERSION_CONFLICT
+    // → 409 → the route drops it quietly (route.ts:78-83) and the last edit is
+    // LOST. The abort work in this lane makes superseded normal saves resolve
+    // FASTER, which slightly *widens* the window where a just-bumped version and
+    // an unawaited beacon can disagree — so this is worth fixing next.
+    //
+    // CLEANEST FIX (REQUIRES A MIGRATION — deliberately deferred, not done here):
+    // give the beacon a last-write-wins lane keyed on an EDIT/SESSION TOKEN so it
+    // bypasses the version CAS for the operator's own latest draft. Add a nullable
+    // `edit_session_id uuid` (+ `draft_seq bigint`) to the draft row (cms_pages /
+    // cms_page_revisions draft); the editor mints one token per edit session and
+    // stamps every save + the beacon with it. A dedicated beacon write path does
+    // "apply iff edit_session_id matches AND draft_seq > stored" — last-write-wins
+    // WITHIN a session, while cross-session/co-editor conflicts still hard-fail.
+    // This needs the new columns, so it is a schema migration + a new server path,
+    // NOT a beacon-semantics tweak — out of scope for this lane by instruction.
+    // Interim (no migration) mitigations are weaker: (a) re-read the live version
+    // right before the beacon — impossible to do reliably during unload; (b) have
+    // the beacon send expectedVersion:-1 to force last-write-wins — UNSAFE, it
+    // would clobber a genuine co-editor. So the token migration is the real fix.
+    //
     // W1-T5(c) — on a hard PAGEHIDE the page may be torn down immediately, and a
     // server action's underlying fetch is NOT keepalive, so the non-awaited
     // flush above can be cancelled mid-flight and the last <750ms-debounce edit
@@ -4877,6 +4917,11 @@ export function EditProvider({
       // callers (undo/redo/restore) omit it and keep the original semantics of
       // reverting to whatever tree was current when the save started.
       rollbackTarget?: BuilderNodeTree,
+      // Optional cancellation signal supplied by the coalesced save queue. When
+      // a NEWER tree supersedes this save while its await is in flight, the
+      // queue aborts this signal so we stop waiting on a stale write and the
+      // next (latest-tree) save runs promptly. See the ABORTED branch below.
+      signal?: AbortSignal,
     ) => {
       const activePageVersion = pageVersionRef.current;
       if (activePageVersion === null) {
@@ -4908,6 +4953,7 @@ export function EditProvider({
         {
           name: "saveDraftHomepageAction",
           timeoutMs: 45_000,
+          signal,
           fallback: {
             ok: false as const,
             error:
@@ -4916,6 +4962,28 @@ export function EditProvider({
           },
         },
       );
+      // ── Superseded (aborted) await ────────────────────────────────────────
+      // A newer tree was enqueued while this save's await was in flight, so the
+      // queue aborted us. The server write MAY still complete, but it is stale:
+      // the next queued save reads the live `pageVersionRef` (its CAS handles a
+      // version bump if our write happened to land) and persists the LATEST
+      // tree. We must therefore NOT touch local state here:
+      //   - no rollback — `builderTreeRef`/`setBuilderTree` already hold the
+      //     newer optimistic tree the next save owns.
+      //   - no `setSaving(false)` — the next save keeps the spinner on; clearing
+      //     it would flicker "saved" mid-burst.
+      //   - no error report — this is a benign supersede, not a failure.
+      // Return a distinct ABORTED code so the flush handler skips the
+      // burst-history pop (those edits are still live, owned by the next save).
+      //
+      // Discriminator: `signal.aborted` is true ONLY when the queue aborted THIS
+      // controller (a genuine network drop / 45s timeout leaves it false). And
+      // we require `!save.ok` so that if the real write happened to RESOLVE
+      // (ok:true) in the same tick we aborted, we still honor that success and
+      // fall through to the version-stamp path below.
+      if (signal?.aborted && !save.ok) {
+        return { ok: false as const, code: "ABORTED" as const };
+      }
       setSaving(false);
       if (!save.ok) {
         builderTreeRef.current = prevTree;
@@ -5052,11 +5120,35 @@ export function EditProvider({
     const rollbackTarget = lastConfirmedTreeRef.current;
     const burstHistoryCount = pendingHistoryCountRef.current;
     pendingHistoryCountRef.current = 0;
+
+    // Supersede the previous in-flight save's AWAIT. Because saves are
+    // serialized through `builderTreeSaveQueueRef` and CAS-versioned, aborting
+    // the prior await is safe: we just stop blocking on a now-stale write so the
+    // queue can run THIS (latest) tree promptly instead of waiting up to 45s.
+    // The aborted save's server write may still land; the CAS read in this
+    // save's `persistBuilderTree` reconciles the version. The newest enqueued
+    // save is never aborted by anything later (nothing supersedes it), so the
+    // FINAL save of a burst always runs to completion.
+    builderSaveAbortRef.current?.abort();
+    const abortController = new AbortController();
+    builderSaveAbortRef.current = abortController;
+
     const resultPromise = builderTreeSaveQueueRef.current.then(() =>
-      persistBuilderTree(pending, rollbackTarget),
+      persistBuilderTree(pending, rollbackTarget, abortController.signal),
     );
     builderTreeSaveQueueRef.current = resultPromise.catch(() => undefined);
     void resultPromise.then((result) => {
+      // Clear our controller slot if it is still the active one (a later flush
+      // may already have replaced it). Lets GC reclaim the listener.
+      if (builderSaveAbortRef.current === abortController) {
+        builderSaveAbortRef.current = null;
+      }
+      // A superseded (aborted) save is a benign no-op: a newer save owns the
+      // burst's edits, the spinner, and the eventual dirty=false. Touching
+      // history/dirty here would double-count or flicker, so bail early.
+      if (result && !result.ok && result.code === "ABORTED") {
+        return;
+      }
       // persistBuilderTree clears `saving`; mirror dirty so the unsaved-changes
       // guard + UI clear once the coalesced save lands (or stays set on failure
       // because the reverted history still differs from the server is moot —
