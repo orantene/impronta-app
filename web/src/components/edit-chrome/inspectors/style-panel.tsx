@@ -42,7 +42,15 @@ import { resolveStandaloneBuilderNodeForContent } from "./builder-node-content-u
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 
 import { ColorPickerPopover, type ColorTokenSwatch } from "../kit/color-picker";
-import { STYLE_BINDABLE_COLOR_TOKENS } from "@/lib/site-admin/builder-node/style-token-bindings";
+import {
+  STYLE_BINDABLE_COLOR_TOKENS,
+  type StyleBindableToken,
+  type StyleBindableTokenKind,
+  bindableTokensForStyleProp,
+  parseStyleTokenRef,
+  rebindRawToTokenRef,
+  styleTokenRef,
+} from "@/lib/site-admin/builder-node/style-token-bindings";
 import { useEditContext } from "../edit-context";
 import { GoogleFontPicker } from "../GoogleFontPicker";
 import {
@@ -2055,6 +2063,150 @@ function StyleGroupOverrideDot({ label }: { label: string }) {
       />
       Responsive
     </span>
+  );
+}
+
+/**
+ * Theme-binding affordance for a non-color style prop (radius / shadow /
+ * spacing / type-scale). Sits beside the prop's raw control and lets the author
+ * BIND the prop to a Theme token (emits the `token:<key>` sentinel the renderer
+ * resolves to `var(--site-…)`, so a global theme change re-styles the node) or
+ * DETACH it back to a raw value.
+ *
+ * - When BOUND: shows a "Theme · <label>" pill + a Detach (×) button, plus a
+ *   compact Segmented to switch which token within the same category.
+ * - When RAW / empty: shows a "Bind" toggle that reveals the token Segmented,
+ *   and — when the current raw value is an EXACT theme-token value — a one-click
+ *   "Follow theme" that rebinds it conservatively.
+ *
+ * Matches the premium control idiom (Segmented chips; no raw <select>). Renders
+ * nothing when the prop has no bindable tokens, so it's a safe no-op to drop in.
+ */
+function ThemeBindRow({
+  prop,
+  value,
+  onSet,
+  onDetach,
+}: {
+  prop: string;
+  value: string | undefined;
+  /** Set the prop to a `token:<key>` sentinel. */
+  onSet: (sentinel: string) => void;
+  /** Restore the prop to a raw value (undefined clears it). */
+  onDetach: () => void;
+}) {
+  const tokens = bindableTokensForStyleProp(prop);
+  const [bindOpen, setBindOpen] = useState(false);
+  if (tokens.length === 0) return null;
+
+  const bound = parseStyleTokenRef(value);
+  const kind = tokens[0]!.kind as StyleBindableTokenKind;
+  const tokenOptions: ReadonlyArray<SegmentedOption<string>> = tokens.map(
+    (t: StyleBindableToken) => ({
+      value: t.key,
+      // Short chip label — the token label is e.g. "Radius — base"; show the
+      // part after the em-dash so chips stay tight.
+      label: t.label.includes("—") ? t.label.split("—")[1]!.trim() : t.label,
+      title: t.label,
+    }),
+  );
+  // A conservative one-click suggestion when the raw value IS a token's value.
+  const followSuggestion =
+    !bound && value ? rebindRawToTokenRef(value, kind) : null;
+  const followToken = followSuggestion ? parseStyleTokenRef(followSuggestion) : null;
+
+  return (
+    <div
+      className="flex flex-col gap-1.5"
+      data-builder-node-theme-bind={prop}
+      style={{ marginTop: 2 }}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            fontSize: 9.5,
+            fontWeight: 700,
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+            color: bound ? CHROME.blue : CHROME.muted,
+          }}
+        >
+          <span
+            aria-hidden
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: 999,
+              background: bound ? CHROME.blue : "transparent",
+              border: bound ? "none" : `1px solid ${CHROME.controlBorder}`,
+              boxShadow: bound ? "0 0 0 2px rgba(58,123,255,0.18)" : "none",
+            }}
+          />
+          {bound ? `Theme · ${bound.label}` : "Theme"}
+        </span>
+        {bound ? (
+          <button
+            type="button"
+            onClick={() => {
+              onDetach();
+              setBindOpen(false);
+            }}
+            className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+            style={{ background: "transparent", border: "none", color: CHROME.muted, padding: 0 }}
+            title="Detach from theme (back to a raw value)"
+          >
+            Detach
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setBindOpen((o) => !o)}
+            className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+            style={{ background: "transparent", border: "none", color: CHROME.blue, padding: 0 }}
+            title="Bind this property to a theme token"
+            aria-expanded={bindOpen}
+          >
+            {bindOpen ? "Cancel" : "Bind"}
+          </button>
+        )}
+      </div>
+
+      {followSuggestion && followToken && !bindOpen ? (
+        <button
+          type="button"
+          onClick={() => onSet(followSuggestion)}
+          className="cursor-pointer text-left text-[11px]"
+          style={{
+            background: CHROME.surface2,
+            border: `1px solid ${CHROME.controlBorder}`,
+            borderRadius: 7,
+            color: CHROME.ink,
+            padding: "5px 8px",
+          }}
+          title={`This value matches the theme "${followToken.label}" token — bind to follow the theme`}
+        >
+          Follow theme · {followToken.label}
+        </button>
+      ) : null}
+
+      {bound || bindOpen ? (
+        <Segmented
+          fullWidth
+          compact
+          value={bound?.key ?? ""}
+          onChange={(next) => {
+            if (next) {
+              onSet(styleTokenRef(next));
+              setBindOpen(false);
+            }
+          }}
+          options={tokenOptions}
+        />
+      ) : null}
+    </div>
   );
 }
 
@@ -6269,25 +6421,37 @@ export function StylePanel({
                   onChange={(next) => setOrToggleStandaloneStyle("radius", next)}
                   options={BUILDER_NODE_RADIUS_OPTIONS}
                 />
-                <div
-                  className="flex items-center justify-between gap-2"
-                  data-builder-node-style-control="radiusFree"
-                >
-                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                    Exact
-                  </span>
-                  <NumberUnit
-                    units={["px", "rem", "%"]}
-                    defaultUnit="px"
-                    placeholder="Token"
-                    value={parseCssLength(selectedStandaloneViewportStyle?.borderRadius)}
-                    onChange={(next) =>
-                      patchSelectedStandaloneStyle({
-                        borderRadius: next ? formatLength(next) : undefined,
-                      })
-                    }
-                  />
-                </div>
+                {parseStyleTokenRef(selectedStandaloneViewportStyle?.borderRadius) ? null : (
+                  <div
+                    className="flex items-center justify-between gap-2"
+                    data-builder-node-style-control="radiusFree"
+                  >
+                    <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                      Exact
+                    </span>
+                    <NumberUnit
+                      units={["px", "rem", "%"]}
+                      defaultUnit="px"
+                      placeholder="Token"
+                      value={parseCssLength(selectedStandaloneViewportStyle?.borderRadius)}
+                      onChange={(next) =>
+                        patchSelectedStandaloneStyle({
+                          borderRadius: next ? formatLength(next) : undefined,
+                        })
+                      }
+                    />
+                  </div>
+                )}
+                <ThemeBindRow
+                  prop="borderRadius"
+                  value={selectedStandaloneViewportStyle?.borderRadius}
+                  onSet={(sentinel) =>
+                    patchSelectedStandaloneStyle({ borderRadius: sentinel })
+                  }
+                  onDetach={() =>
+                    patchSelectedStandaloneStyle({ borderRadius: undefined })
+                  }
+                />
               </div>
             ) : null}
 
@@ -6612,6 +6776,29 @@ export function StylePanel({
                 data-builder-node-style-control="exactPadding"
               >
                 <span className={FIELD_LABEL}>Exact padding</span>
+                {/* Bind all four padding sides to the theme spacing rhythm in one
+                    move (or detach back to raw). Reads/writes paddingTop as the
+                    representative side; applies the same value to all sides. */}
+                <ThemeBindRow
+                  prop="paddingTop"
+                  value={selectedStandaloneViewportStyle?.paddingTop}
+                  onSet={(sentinel) =>
+                    patchSelectedStandaloneStyle({
+                      paddingTop: sentinel,
+                      paddingRight: sentinel,
+                      paddingBottom: sentinel,
+                      paddingLeft: sentinel,
+                    })
+                  }
+                  onDetach={() =>
+                    patchSelectedStandaloneStyle({
+                      paddingTop: undefined,
+                      paddingRight: undefined,
+                      paddingBottom: undefined,
+                      paddingLeft: undefined,
+                    })
+                  }
+                />
                 <div className="grid grid-cols-2 gap-2">
                   <div className="flex flex-col gap-1">
                     <span className="text-[11px]" style={{ color: CHROME.muted }}>
@@ -6762,20 +6949,30 @@ export function StylePanel({
               selectedStandaloneStyleNode.kind,
             ) ? (
               <div
-                className="flex items-center justify-between gap-2"
+                className="flex flex-col gap-1.5"
                 data-builder-node-style-control="gap"
               >
-                <span className={FIELD_LABEL}>Gap</span>
-                <NumberUnit
-                  units={["px", "rem", "%"]}
-                  defaultUnit="px"
-                  placeholder="Token"
-                  value={parseCssLength(selectedStandaloneViewportStyle?.gap)}
-                  onChange={(next) =>
-                    patchSelectedStandaloneStyle({
-                      gap: next ? formatLength(next) : undefined,
-                    })
-                  }
+                <div className="flex items-center justify-between gap-2">
+                  <span className={FIELD_LABEL}>Gap</span>
+                  {parseStyleTokenRef(selectedStandaloneViewportStyle?.gap) ? null : (
+                    <NumberUnit
+                      units={["px", "rem", "%"]}
+                      defaultUnit="px"
+                      placeholder="Token"
+                      value={parseCssLength(selectedStandaloneViewportStyle?.gap)}
+                      onChange={(next) =>
+                        patchSelectedStandaloneStyle({
+                          gap: next ? formatLength(next) : undefined,
+                        })
+                      }
+                    />
+                  )}
+                </div>
+                <ThemeBindRow
+                  prop="gap"
+                  value={selectedStandaloneViewportStyle?.gap}
+                  onSet={(sentinel) => patchSelectedStandaloneStyle({ gap: sentinel })}
+                  onDetach={() => patchSelectedStandaloneStyle({ gap: undefined })}
                 />
               </div>
             ) : null}
@@ -8445,16 +8642,30 @@ export function StylePanel({
                 <span className="text-[11px]" style={{ color: CHROME.muted }}>
                   Shadow
                 </span>
-                <Segmented
-                  fullWidth
-                  compact
-                  value={selectedStandaloneViewportStyle?.boxShadow ?? ""}
-                  onChange={(next) => setOrToggleStandaloneStyle("boxShadow", next)}
-                  options={BUILDER_NODE_SHADOW_OPTIONS}
-                />
-                <ShadowBuilder
+                {parseStyleTokenRef(selectedStandaloneViewportStyle?.boxShadow) ? null : (
+                  <>
+                    <Segmented
+                      fullWidth
+                      compact
+                      value={selectedStandaloneViewportStyle?.boxShadow ?? ""}
+                      onChange={(next) => setOrToggleStandaloneStyle("boxShadow", next)}
+                      options={BUILDER_NODE_SHADOW_OPTIONS}
+                    />
+                    <ShadowBuilder
+                      value={selectedStandaloneViewportStyle?.boxShadow}
+                      onChange={(next) => patchSelectedStandaloneStyle({ boxShadow: next })}
+                    />
+                  </>
+                )}
+                <ThemeBindRow
+                  prop="boxShadow"
                   value={selectedStandaloneViewportStyle?.boxShadow}
-                  onChange={(next) => patchSelectedStandaloneStyle({ boxShadow: next })}
+                  onSet={(sentinel) =>
+                    patchSelectedStandaloneStyle({ boxShadow: sentinel })
+                  }
+                  onDetach={() =>
+                    patchSelectedStandaloneStyle({ boxShadow: undefined })
+                  }
                 />
               </div>
               <div
