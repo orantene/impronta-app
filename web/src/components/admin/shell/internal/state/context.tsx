@@ -30,6 +30,9 @@ import {
   type TalentEarningsByCurrency,
 } from "@/lib/talent/earnings-by-currency-types";
 import { setInquiryFlagsTenantSlug, setInquiryFlagsUserId } from "../inquiry-flags-tenant-slug";
+// Runtime layout may flow in through the bridge (`initialBridgeData.profileEditorLayout`).
+// When absent, fall back to the hardcoded mirror below so the drawer rail never crashes.
+import type { ProfileEditorLayout } from "@/lib/profile-editor/layout-types";
 import type { Client, ClientPage, ClientPlan, ClientProfile, ClientProfileId, ClientTrustLevel, CoordinatorAssignment, Density, EntityType, FieldVisibility, HqRole, Impersonation, InquirySource, InquiryStage, MessageSenderRole, Offer, PendingTalent, Plan, PlatformPage, ProfileClaimInvitation, ProfileClaimStatus, ProfileFieldId, ProfileVerification, RequirementGroup, RichInquiry, Role, Surface, TalentContactGate, TalentPage, TalentProfile, TalentSubscriptionTier, TeamMember, ThreadMessage, ThreadType, TrustSummary, VerificationActiveStatus, VerificationMethodAuditEntry, VerificationMethodConfig, VerificationRequest, VerificationRequestStatus, VerificationReviewMode, VerificationSubjectType, VerificationTierGate, VerificationType, VerificationVisibility, WebsiteState, WorkspaceCustomField, WorkspaceLayout, WorkspacePage } from "./types";
 import type { DrawerContext, DrawerId, UpgradeOffer } from "./drawer-ids";
 import { ALWAYS_INTERNAL_FIELDS, ALWAYS_VISIBLE_FIELDS, CLIENT_PAGES, CLIENT_PLANS, CLIENT_PROFILES, DEFAULT_FIELD_VISIBILITY, ENTITY_TYPES, HQ_ROLES, MY_TALENT_PROFILE, PENDING_TALENT, PLANS, PLATFORM_PAGES, RICH_INQUIRIES, ROLES, SEED_ACCOUNT_VERIFICATION, SEED_CLAIM_STATUS, SEED_PROFILE_CLAIMS, SEED_PROFILE_VERIFICATIONS, SEED_TALENT_CONTACT_GATE, SEED_VERIFICATION_METHOD_AUDIT, SEED_VERIFICATION_METHOD_CONFIG, SEED_VERIFICATION_REQUESTS, SURFACES, TALENT_PAGES, TALENT_TO_USER, TENANT, VERIFICATION_TYPE_META, WEBSITE_STATE, getClients, getRoster, getTeam, mergeWebsiteStateFromBridge, resolveWorkspacePage } from "./fixtures";
@@ -450,6 +453,15 @@ type Ctx = {
    * `PayoutsPage` then renders its "couldn't load payout settings" card.
    */
   payoutsSurface: PayoutsSurfaceResult | null;
+
+  /**
+   * Talent profile-editor sidebar layout (rail group headers + order + each
+   * section's label/emoji), loaded DB-first by the layout via
+   * `loadProfileEditorLayout()` and carried on the bridge. Always non-null:
+   * defaults to the client-safe hardcoded fallback when the bridge field is
+   * absent, so the editor rail + pills always have order/labels to render.
+   */
+  profileEditorLayout: ProfileEditorLayout;
 };
 
 // ── Phase 3.12 bridge adapters ─────────────────────────────────────────────
@@ -660,6 +672,74 @@ function shortInitialsForBridge(name: string): string {
 }
 
 const AdminShellContext = createContext<Ctx | null>(null);
+
+// ── Client-safe profile-editor layout fallback ──────────────────────────────
+// Mirror of `deriveLayoutFromHardcoded()` (src/lib/profile-editor/section-layout.ts)
+// and the drawer's former RAIL_GROUPS / SECTION_META. We can't import the server
+// module's value here (it's `server-only`), so we rebuild the same structure with
+// a tiny pure helper. The bridge supplies the live (DB-backed) layout; this is
+// only used when the bridge field is absent (standalone/mock mode or a loader
+// miss) so the editor rail + pills render identically to today.
+const FALLBACK_SECTION_META: Record<string, { label: string; emoji: string }> = {
+  identity:      { label: "Identity",      emoji: "👤" },
+  services:      { label: "Services",      emoji: "🎯" },
+  location:      { label: "Location",      emoji: "📍" },
+  logistics:     { label: "Logistics",     emoji: "🧳" },
+  media:         { label: "Media",         emoji: "📷" },
+  albums:        { label: "Albums",        emoji: "🗂" },
+  polaroids:     { label: "Polaroids",     emoji: "🪪" },
+  about:         { label: "About",         emoji: "✏️" },
+  physical:      { label: "Physical",      emoji: "📐" },
+  wardrobe:      { label: "Wardrobe",      emoji: "👗" },
+  details:       { label: "Details",       emoji: "📋" },
+  rates:         { label: "Rates",         emoji: "💶" },
+  availability:  { label: "Availability",  emoji: "📅" },
+  credits:       { label: "Credits",       emoji: "🏆" },
+  limits:        { label: "Restrictions",  emoji: "⊘" },
+  files:         { label: "Files",         emoji: "📎" },
+  social_proof:  { label: "Past clients",  emoji: "⭐" },
+  verifications: { label: "Trust",         emoji: "🛡" },
+  agency_fields: { label: "Agency Fields", emoji: "🧬" },
+  admin:         { label: "Admin",         emoji: "🔒" },
+};
+
+const FALLBACK_GROUP_DEFS: {
+  slug: string;
+  labelEn: string;
+  labelEnAlt: string | null;
+  sectionSlugs: string[];
+}[] = [
+  { slug: "profile",     labelEn: "Profile",     labelEnAlt: null,                     sectionSlugs: ["identity", "location", "about", "services"] },
+  { slug: "craft",       labelEn: "Craft",       labelEnAlt: null,                     sectionSlugs: ["physical", "wardrobe", "details"] },
+  { slug: "logistics",   labelEn: "Logistics",   labelEnAlt: null,                     sectionSlugs: ["logistics", "availability"] },
+  { slug: "portfolio",   labelEn: "Portfolio",   labelEnAlt: "Photos of work / venue", sectionSlugs: ["media", "albums", "polaroids"] },
+  { slug: "terms",       labelEn: "Terms",       labelEnAlt: null,                     sectionSlugs: ["rates", "limits"] },
+  { slug: "proof",       labelEn: "Proof",       labelEnAlt: null,                     sectionSlugs: ["credits", "social_proof", "verifications"] },
+  { slug: "back_office", labelEn: "Back office", labelEnAlt: null,                     sectionSlugs: ["files", "agency_fields", "admin"] },
+];
+
+const FALLBACK_PROFILE_EDITOR_LAYOUT: ProfileEditorLayout = (() => {
+  const groups = FALLBACK_GROUP_DEFS.map((g) => ({
+    slug: g.slug,
+    labelEn: g.labelEn,
+    labelEs: null,
+    labelEnAlt: g.labelEnAlt,
+    labelEsAlt: null,
+    sections: g.sectionSlugs.map((slug) => {
+      const meta = FALLBACK_SECTION_META[slug];
+      return { slug, labelEn: meta?.label ?? slug, labelEs: null, emoji: meta?.emoji ?? "" };
+    }),
+  }));
+  const orderedSectionSlugs: string[] = [];
+  const sectionMeta: Record<string, { label: string; emoji: string }> = {};
+  for (const group of groups) {
+    for (const section of group.sections) {
+      orderedSectionSlugs.push(section.slug);
+      sectionMeta[section.slug] = { label: section.labelEn, emoji: section.emoji };
+    }
+  }
+  return { groups, orderedSectionSlugs, sectionMeta };
+})();
 
 // 2026 #6 — Wrap a state mutation in document.startViewTransition() so
 // the browser interpolates DOM changes into a smooth crossfade. Falls
@@ -1779,6 +1859,12 @@ export function AdminShellProvider({
   const bridgeTenantIdentity = initialBridgeData?.tenantIdentity ?? null;
   const bridgeSessionIdentity = initialBridgeData?.sessionIdentity ?? null;
 
+  // DB-backed profile-editor sidebar layout (or the client-safe hardcoded
+  // fallback when the bridge didn't carry one). Never null, so the drawer can
+  // read order/grouping/labels unconditionally.
+  const profileEditorLayout: ProfileEditorLayout =
+    initialBridgeData?.profileEditorLayout ?? FALLBACK_PROFILE_EDITOR_LAYOUT;
+
   // Stable, serialization-safe tenant values for all JSX renders.
   // Computed from the bridge in production; falls back to the TENANT mock
   // in standalone prototype mode. Stable reference (memoised on bridgeTenantIdentity
@@ -1993,6 +2079,7 @@ export function AdminShellProvider({
       effectiveWebsiteState,
       websiteUsesLiveCms,
       payoutsSurface: bridgePayoutsSurface,
+      profileEditorLayout,
       // Phase 5
       bridgeTalentUnread,
       bridgeWorkspaceUnread,
@@ -2105,6 +2192,7 @@ export function AdminShellProvider({
       effectiveWebsiteState,
       websiteUsesLiveCms,
       bridgePayoutsSurface,
+      profileEditorLayout,
       // Phase 5
       bridgeTalentUnread,
       bridgeWorkspaceUnread,

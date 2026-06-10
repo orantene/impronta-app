@@ -47,10 +47,9 @@ export type ProfileShellPayload = {
    *  Replaces the old "match by stage name" behavior so any talent
    *  (not just Marta) can be edited with the same shell. */
   talentId?: string;
-  /** Section to land on. When set, the shell skips its default
-   *  (identity for edit, services for create) and opens directly on
-   *  this section. Used by the talent's MyProfilePage to deep-link
-   *  from each dashboard card straight into the right section. */
+  /** Section to land on. When set, the shell skips its default (identity)
+   *  and opens directly on this section. Used by the talent's MyProfilePage
+   *  to deep-link from each dashboard card straight into the right section. */
   section?: string;
   /** Pre-filled fields handed off from NewTalentDrawer or approval queue. */
   seed?: {
@@ -512,7 +511,7 @@ export function makeInitialProfileState(
       // real talents so QA admin's drawer doesn't open with "Madrid".
       homeBase: seed.homeBase
         ?? draft.homeBase
-        ?? (bridgeProfile && !isFixtureTalent ? (bridgeProfile.homeCity ?? "") : ""),
+        ?? (!isCreate && bridgeProfile && !isFixtureTalent ? (bridgeProfile.homeCity ?? "") : ""),
       serviceCities: seed.serviceCities ?? [],
       travelKm: seed.travelKm ?? 50,
       travelFee: false,
@@ -601,8 +600,9 @@ export function makeInitialProfileState(
     // they actually publish. Read the real value from the bridge when
     // available; fall back to the legacy default for fixture / standalone
     // demo mode.
-    profileStatus:
-      bridgeProfile?.workflowStatus === "published" || bridgeProfile?.workflowStatus === "approved"
+    profileStatus: isCreate
+      ? "draft"
+      : bridgeProfile?.workflowStatus === "published" || bridgeProfile?.workflowStatus === "approved"
         ? "published"
         : bridgeProfile?.workflowStatus === "pending" || bridgeProfile?.workflowStatus === "submitted" || bridgeProfile?.workflowStatus === "under_review"
         ? "pending"

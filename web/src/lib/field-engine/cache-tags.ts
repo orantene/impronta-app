@@ -15,3 +15,10 @@ export const CACHE_TAG_FIELD_CATALOG = "field-catalog";
 export function fieldCatalogTagForTenant(tenantId: string): string {
   return `${CACHE_TAG_FIELD_CATALOG}:${tenantId}`;
 }
+
+/**
+ * Cache tag for the DB-backed talent profile-editor sidebar layout
+ * (`loadProfileEditorLayout`). Revalidate this after any write to
+ * `profile_editor_section_groups` / `profile_editor_sections`.
+ */
+export const CACHE_TAG_PROFILE_EDITOR_LAYOUT = "profile-editor-layout";

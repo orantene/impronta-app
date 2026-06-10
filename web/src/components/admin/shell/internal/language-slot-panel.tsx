@@ -77,6 +77,9 @@ const PRESETS: Array<{ id: string; label: string; codes: string[] }> = [
 export function LanguageSlotPanel({
   talentProfileId,
   disabled,
+  persistMode = "immediate",
+  onHydrated,
+  onLanguagesChange,
 }: {
   talentProfileId: string;
   /** Phase 2b — multi-tenant identity blanket lock. When true the panel
@@ -84,6 +87,12 @@ export function LanguageSlotPanel({
    *  are inert. Server-side guard on `setTalentLanguages` is the safety
    *  floor; this is the UI affordance. */
   disabled?: boolean;
+  /** `deferred` — update parent state only; persist on profile shell Save. */
+  persistMode?: "immediate" | "deferred";
+  /** Fires once when server rows are loaded (does not mark dirty). */
+  onHydrated?: (languages: LangRow[]) => void;
+  /** Fires on user edits when `persistMode` is `deferred`. */
+  onLanguagesChange?: (languages: LangRow[]) => void;
 }) {
   const copy = useDashboardText();
   const [languages, setLanguages] = useState<LangRow[] | null>(null);
@@ -109,13 +118,17 @@ export function LanguageSlotPanel({
       const hit = _langCache.get(talentProfileId);
       if (hit && Date.now() - hit.ts < CACHE_TTL) {
         setLanguages(hit.languages);
+        onHydrated?.(hit.languages);
         return;
       }
       const existing = _inflight.get(talentProfileId);
       if (existing) {
         await existing;
         const fresh = _langCache.get(talentProfileId);
-        if (fresh) setLanguages(fresh.languages);
+        if (fresh) {
+          setLanguages(fresh.languages);
+          onHydrated?.(fresh.languages);
+        }
         return;
       }
     }
@@ -132,6 +145,7 @@ export function LanguageSlotPanel({
           ts: Date.now(),
         });
         setLanguages(res.languages);
+        onHydrated?.(res.languages);
       } else {
         setError(res.error);
       }
@@ -185,8 +199,13 @@ export function LanguageSlotPanel({
     // Optimistic + synchronous ref advance.
     languagesRef.current = next;
     setLanguages(next);
-    setSaving(savingKey, true);
     const payload = next.map((l, i) => ({ ...l, display_order: i }));
+    if (persistMode === "deferred") {
+      onLanguagesChange?.(payload);
+      setError(null);
+      return;
+    }
+    setSaving(savingKey, true);
     void improntaLog("admin_language_slot_panel.info", {
       message: `[lang-ui] ${reqId} seq=${seq} desired-after-optimistic=[` +
         `${next.map((l) => `${l.language_code}:${l.speaking_level}`).join(",")}] ` +

@@ -31,7 +31,7 @@ const TABS = [
   { id: "pricing",    label: "Pricing",     segment: "pricing"    },
   { id: "operations", label: "Operations",  segment: "operations" },
   { id: "integrations", label: "Integrations", segment: "integrations" },
-  { id: "catalog",    label: "Catalog",     segment: "catalog"    },
+  { id: "catalog",    label: "Profile Fields", segment: "catalog" },
   { id: "taxonomy",   label: "Taxonomy",    segment: "taxonomy"   },
   { id: "settings",   label: "Settings",    segment: "settings"   },
   { id: "audit-log", label: "Audit Log",   segment: "audit-log" },

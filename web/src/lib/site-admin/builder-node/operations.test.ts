@@ -345,6 +345,7 @@ test("patchBuilderNodeProps rejects no-op patch payloads", () => {
   if (patched.ok) return;
   assert.equal(patched.code, "NO_CHANGE");
   assert.match(patched.message, /No changes to apply/i);
+  assert.deepEqual(patched.issues, []);
 });
 
 test("patchBuilderNodeProps returns validation failure for invalid patch", () => {
@@ -415,6 +416,7 @@ test("patchBuilderNodeProps treats nested-equal payload as no-op", () => {
   assert.equal(patched.ok, false);
   if (patched.ok) return;
   assert.equal(patched.code, "NO_CHANGE");
+  assert.deepEqual(patched.issues, []);
 });
 
 test("patchBuilderNodeProps rejects invalid advanced layout props", () => {
