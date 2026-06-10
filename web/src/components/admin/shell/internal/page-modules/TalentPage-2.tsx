@@ -431,7 +431,7 @@ function RosterCard({
             fill
             sizes="(max-width: 600px) 50vw, (max-width: 1500px) 22vw, 220px"
             style={{ objectFit: "cover" }}
-            unoptimized={!/^https?:\/\//.test(profile.thumb) || profile.thumb.includes("pravatar.cc")}
+            unoptimized={!/^https?:\/\//.test(profile.thumb) || profile.thumb.includes("pravatar.cc") || /\/(card|thumb|polaroid)\//.test(profile.thumb)}
             onError={() => setPhotoFailed(true)}
           />
         )}
