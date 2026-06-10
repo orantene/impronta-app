@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { fetchAllTaxonomyTerms } from "@/lib/supabase/paged";
 
 export type InterpretCatalogTerm = {
   id: string;
@@ -16,31 +17,38 @@ const MAX_LOCATION_LINES = 2000;
 export async function loadInterpretSearchCatalog(
   supabase: SupabaseClient,
 ): Promise<{ terms: InterpretCatalogTerm[]; locationSlugs: string[] }> {
-  const [{ data: termRows, error: termErr }, { data: locRows, error: locErr }] =
-    await Promise.all([
-      supabase
-        .from("taxonomy_terms")
-        .select("id, kind, slug, name_en, name_es, aliases")
-        .is("archived_at", null)
-        .order("kind")
-        .order("sort_order"),
-      supabase
-        .from("locations")
-        .select("city_slug")
-        .is("archived_at", null)
-        .not("city_slug", "is", null),
-    ]);
+  // `archived_at IS NULL` alone ≈ 1068 rows > PostgREST's 1000-row cap, so an
+  // un-paged select silently dropped terms past row 1000 — the AI search
+  // interpreter would then be unable to resolve those terms. Page by `id`, then
+  // re-sort by the original display order (kind → sort_order) below.
+  type InterpretTermRow = InterpretCatalogTerm & {
+    aliases?: unknown;
+    sort_order: number | null;
+  };
+  const [termRows, { data: locRows, error: locErr }] = await Promise.all([
+    fetchAllTaxonomyTerms<InterpretTermRow>(
+      supabase,
+      "id, kind, slug, name_en, name_es, aliases, sort_order",
+      (q) => q.is("archived_at", null),
+    ),
+    supabase
+      .from("locations")
+      .select("city_slug")
+      .is("archived_at", null)
+      .not("city_slug", "is", null),
+  ]);
 
-  if (termErr) {
-    throw new Error(`[interpret-search] taxonomy_terms: ${termErr.message}`);
-  }
   if (locErr) {
     throw new Error(`[interpret-search] locations: ${locErr.message}`);
   }
 
-  const terms: InterpretCatalogTerm[] = (
-    (termRows ?? []) as (InterpretCatalogTerm & { aliases?: unknown })[]
-  ).map((r) => ({
+  termRows.sort(
+    (a, b) =>
+      (a.kind ?? "").localeCompare(b.kind ?? "") ||
+      (a.sort_order ?? 0) - (b.sort_order ?? 0),
+  );
+
+  const terms: InterpretCatalogTerm[] = termRows.map((r) => ({
     id: r.id,
     kind: r.kind,
     slug: r.slug,

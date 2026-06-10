@@ -6,6 +6,7 @@
 // areas, portfolio gallery photos.
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { fetchAllTaxonomyTerms } from "@/lib/supabase/paged";
 import { logServerError } from "@/lib/server/safe-error";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -85,20 +86,6 @@ export async function loadAllTaxonomyTerms(): Promise<TaxonomyTermPick[]> {
   const admin = createServiceRoleClient();
   if (!admin) return [];
 
-  const { data, error } = await admin
-    .from("taxonomy_terms")
-    .select("id, slug, name_en, name_es, term_type, level, parent_id")
-    .is("archived_at", null)
-    .eq("is_active", true)
-    .order("term_type", { ascending: true })
-    .order("sort_order", { ascending: true })
-    .order("slug", { ascending: true });
-
-  if (error) {
-    logServerError("roster.loadAllTaxonomyTerms", error);
-    return [];
-  }
-
   type Row = {
     id: string;
     slug: string;
@@ -107,8 +94,29 @@ export async function loadAllTaxonomyTerms(): Promise<TaxonomyTermPick[]> {
     term_type: string | null;
     level: number | null;
     parent_id: string | null;
+    sort_order: number | null;
   };
-  const rows = (data ?? []) as Row[];
+
+  // `archived_at IS NULL AND is_active = true` ≈ 1068 rows > PostgREST's
+  // 1000-row cap, so an un-paged select silently dropped terms past row 1000.
+  // Page by `id`, then re-sort by the original display order below.
+  let rows: Row[];
+  try {
+    rows = await fetchAllTaxonomyTerms<Row>(
+      admin,
+      "id, slug, name_en, name_es, term_type, level, parent_id, sort_order",
+      (q) => q.is("archived_at", null).eq("is_active", true),
+    );
+  } catch (error) {
+    logServerError("roster.loadAllTaxonomyTerms", error);
+    return [];
+  }
+  rows.sort(
+    (a, b) =>
+      (a.term_type ?? "").localeCompare(b.term_type ?? "") ||
+      (a.sort_order ?? 0) - (b.sort_order ?? 0) ||
+      a.slug.localeCompare(b.slug),
+  );
 
   const byId = new Map<string, Row>();
   for (const r of rows) byId.set(r.id, r);

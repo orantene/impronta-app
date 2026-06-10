@@ -14,6 +14,7 @@
 
 import { unstable_cache } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { fetchAllTaxonomyTerms } from "@/lib/supabase/paged";
 import {
   platformBaseVisibility,
   type FieldVisibility,
@@ -314,7 +315,7 @@ async function loadPlatformCatalogFieldDetailUncached(
     //    Before this filter, total_value_count included pending/archived rows
     //    while tenants_with_values reflected only live, producing inconsistent
     //    totals on the field summary card.
-    const [valCountRes, ovsRes, recsRes, termsRes, groupsRes] = await Promise.all([
+    const [valCountRes, ovsRes, recsRes, termRows, groupsRes] = await Promise.all([
       sb
         .from("talent_profile_field_values")
         .select("id", { count: "exact", head: true })
@@ -332,12 +333,14 @@ async function loadPlatformCatalogFieldDetailUncached(
           "id, taxonomy_term_id, relationship, display_order, required_at_registration, required_before_publish, required_before_verification, requires_verification, is_admin_only",
         )
         .eq("field_definition_id", def.id),
-      sb
-        .from("taxonomy_terms")
-        .select("id, slug, name_en, name_es, term_type, level, parent_id, sort_order")
-        .is("archived_at", null)
-        .order("level", { ascending: true })
-        .order("sort_order", { ascending: true }),
+      // `archived_at IS NULL` alone ≈ 1068 rows > PostgREST's 1000-row cap, so an
+      // un-paged select silently dropped terms past row 1000. Page by `id`, then
+      // re-sort by the original display order (level → sort_order → name_en) below.
+      fetchAllTaxonomyTerms<FieldDetailTaxonomyTerm>(
+        sb,
+        "id, slug, name_en, name_es, term_type, level, parent_id, sort_order",
+        (q) => q.is("archived_at", null),
+      ),
       sb
         .from("profile_field_groups")
         .select("id, slug, name_en, name_es, sort_order, is_active")
@@ -345,7 +348,7 @@ async function loadPlatformCatalogFieldDetailUncached(
     ]);
     const ovRows = (ovsRes.data ?? []) as OverrideRow[];
 
-    const taxonomyTerms = ((termsRes.data ?? []) as FieldDetailTaxonomyTerm[]).sort(
+    const taxonomyTerms = termRows.sort(
       (a, b) => a.level - b.level || a.sort_order - b.sort_order || a.name_en.localeCompare(b.name_en),
     );
     const taxonomyById = new Map(taxonomyTerms.map((t) => [t.id, t] as const));

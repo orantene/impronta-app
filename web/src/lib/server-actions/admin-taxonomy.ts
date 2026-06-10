@@ -5,6 +5,7 @@
 import { revalidatePath, revalidateTag } from "next/cache";
 import { z } from "zod";
 import { CACHE_TAG_TAXONOMY } from "@/lib/cache-tags";
+import { fetchAllTaxonomyTerms } from "@/lib/supabase/paged";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { logEngineAudit } from "./engine-audit";
@@ -84,23 +85,19 @@ export async function getEnabledTaxonomyTree(): Promise<GetTaxonomyTreeResult> {
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
-  // Taxonomy hierarchy:
-  //   level 1 = parent_category   (19  — Models, Music & DJs, Chefs, …)
-  //   level 2 = category_group    (75  — Fashion Models, Commercial Models, …)
-  //   level 3 = talent_type       (425 — Editorial Model, House DJ, …)
-  //
-  // For the Settings UI, level 1 + level 2 are the visible grain ("which
-  // categories do you support, and which sub-types within each"). We also
-  // include level 3 talent_type rows in the returned tree so downstream
-  // pickers can respect tenant leaf-type overrides without another fetch.
-  const { data: terms, error: termsErr } = await supabase
-    .from("taxonomy_terms")
-    .select(
-      "id, slug, name_en, name_es, level, term_type, parent_id, is_active, sort_order",
-    )
-    .eq("is_active", true)
-    .in("term_type", ["parent_category", "category_group", "talent_type"])
-    .order("sort_order", { ascending: true });
+  // Taxonomy hierarchy: level 1 = parent_category (19), level 2 =
+  // category_group (75), level 3 = talent_type (425). For the Settings UI,
+  // level 1 + level 2 are the visible grain; we also include level 3
+  // talent_type rows so downstream pickers can respect tenant leaf-type
+  // overrides without another fetch.
+  // Broad types are ~532 rows today but grow past PostgREST's 1000-row cap
+  // (un-paged → silent drop). Page by `id`; tree re-sorts in `sortRecursive`.
+  type EnabledTreeTermRow = Pick<TaxonomyNode, "id" | "slug" | "name_en" | "name_es" | "level" | "term_type" | "parent_id" | "is_active"> & { sort_order: number | null };
+  const { data: terms, error: termsErr } = await fetchAllTaxonomyTerms<EnabledTreeTermRow>(
+    supabase,
+    "id, slug, name_en, name_es, level, term_type, parent_id, is_active, sort_order",
+    (q) => q.eq("is_active", true).in("term_type", ["parent_category", "category_group", "talent_type"]),
+  ).then((data) => ({ data, error: null as null }), (error) => ({ data: null, error }));
 
   if (termsErr) {
     logServerError("getEnabledTaxonomyTree.terms", termsErr);

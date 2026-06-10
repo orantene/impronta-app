@@ -22,36 +22,13 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { filterTenantCatalogFieldsByEnabledTaxonomy } from "@/lib/field-engine/tenant-catalog-scope";
-
 // PostgREST caps a single SELECT at `max-rows` (1000 by default). `taxonomy_terms`
 // has >1000 rows, so an un-paged `.select()` SILENTLY drops terms past the cap —
 // including parent_category rows the field-recommendation join needs (this is what
 // made transportation/hospitality/event-staff/security type-specific fields vanish
 // from the tenant-scoped catalog, falling the DB-backed wizard back to static for
-// those types). Page through in 1000-row windows so every term is loaded.
-const PG_PAGE = 1000;
-async function fetchAllTaxonomyTerms<Row>(
-  supabase: SupabaseClient,
-  select: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  applyFilters?: (q: any) => any,
-): Promise<Row[]> {
-  const out: Row[] = [];
-  for (let from = 0; ; from += PG_PAGE) {
-    let query = supabase
-      .from("taxonomy_terms")
-      .select(select)
-      .range(from, from + PG_PAGE - 1)
-      .order("id", { ascending: true });
-    if (applyFilters) query = applyFilters(query);
-    const { data, error } = await query;
-    if (error) throw new Error(`taxonomy_terms (paged): ${error.message}`);
-    const rows = (data ?? []) as Row[];
-    out.push(...rows);
-    if (rows.length < PG_PAGE) break;
-  }
-  return out;
-}
+// those types). The shared paginator pages by `id` so every term is loaded.
+import { fetchAllTaxonomyTerms } from "@/lib/supabase/paged";
 
 // ─── Types ─────────────────────────────────────────────────────────────
 

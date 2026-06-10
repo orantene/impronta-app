@@ -22,6 +22,7 @@ import "server-only";
 
 import { unstable_cache } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { fetchAllTaxonomyTerms } from "@/lib/supabase/paged";
 import {
   loadFieldCatalog,
   type ResolvedFieldDefinition,
@@ -183,23 +184,8 @@ async function loadAppliesByFieldKey(
   // `taxonomy_terms` exceeds the PostgREST 1000-row cap, so an un-paged select
   // silently drops the parent_category rows past row 1000 — which made the walk
   // resolve to no parent for transportation/hospitality/event-staff/security
-  // fields, falling the wizard back to static for those types. Page through.
-  const fetchAllTerms = async (): Promise<TermNode[]> => {
-    const PAGE = 1000;
-    const all: TermNode[] = [];
-    for (let from = 0; ; from += PAGE) {
-      const { data, error } = await svc
-        .from("taxonomy_terms")
-        .select("id, slug, term_type, parent_id")
-        .range(from, from + PAGE - 1)
-        .order("id", { ascending: true });
-      if (error) throw new Error(`taxonomy_terms (paged): ${error.message}`);
-      const rows = (data ?? []) as TermNode[];
-      all.push(...rows);
-      if (rows.length < PAGE) break;
-    }
-    return all;
-  };
+  // fields, falling the wizard back to static for those types. The shared
+  // paginator pages by `id` so every term is loaded.
   const [{ data: defs }, { data: recs }, terms] = await Promise.all([
     svc
       .from("profile_field_definitions")
@@ -210,7 +196,7 @@ async function loadAppliesByFieldKey(
       .from("profile_field_recommendations")
       .select("field_definition_id, taxonomy_term_id")
       .in("relationship", ["applies", "recommended", "required"]),
-    fetchAllTerms(),
+    fetchAllTaxonomyTerms<TermNode>(svc, "id, slug, term_type, parent_id"),
   ]);
 
   const fieldKeyById = new Map<string, string>(

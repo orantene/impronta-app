@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { fetchAllTaxonomyTerms } from "@/lib/supabase/paged";
 import { CreateTaxonomyTermForm } from "./create-taxonomy-term-form";
 import { TaxonomyFieldMappingPanel } from "./taxonomy-field-mapping-panel";
 import { TaxonomyReorderPanel } from "./taxonomy-reorder-panel";
@@ -174,14 +175,22 @@ async function loadTaxonomy(): Promise<{
   const sb = createServiceRoleClient();
   if (!sb) return null;
 
+  type FlatTaxonomyRow = Omit<TaxonomyRow, "tenant_count" | "children">;
   const [termsR, settingsR, recsR, assignmentsR, auditsR, fieldsR] = await Promise.all([
-    sb
-      .from("taxonomy_terms")
-      .select(
-        "id, slug, name_en, name_es, plural_name, description, icon, term_type, level, parent_id, sort_order, aliases, search_synonyms, ai_keywords, is_active, archived_at, is_public_filter, is_visible_by_default, is_profile_badge, is_restricted, is_generic_fallback, restriction_level",
-      )
-      .order("level", { ascending: true })
-      .order("sort_order", { ascending: true }),
+    // No filter → the FULL table (1088 rows, incl. archived) > PostgREST's
+    // 1000-row cap, so an un-paged select silently dropped terms past row 1000.
+    // Page by `id`, then re-sort by the original display order (level →
+    // sort_order) below. The display tree is independently re-sorted in
+    // `sortTree`, so this only restores the incidental flat order.
+    fetchAllTaxonomyTerms<FlatTaxonomyRow>(
+      sb,
+      "id, slug, name_en, name_es, plural_name, description, icon, term_type, level, parent_id, sort_order, aliases, search_synonyms, ai_keywords, is_active, archived_at, is_public_filter, is_visible_by_default, is_profile_badge, is_restricted, is_generic_fallback, restriction_level",
+    ).then((rows) => ({
+      data: rows
+        .slice()
+        .sort((a, b) => a.level - b.level || a.sort_order - b.sort_order),
+      error: null as null,
+    })),
     sb.from("agency_taxonomy_settings").select("taxonomy_term_id, tenant_id"),
     sb
       .from("profile_field_recommendations")

@@ -5,6 +5,7 @@ import { createTranslator } from "@/i18n/messages";
 import { CACHE_TAG_DIRECTORY, CACHE_TAG_TAXONOMY } from "@/lib/cache-tags";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { fetchAllTaxonomyTerms } from "@/lib/supabase/paged";
 import { isPostgrestMissingColumnError, logServerError } from "@/lib/server/safe-error";
 import {
   clampHeightRangeToCatalog,
@@ -738,6 +739,7 @@ async function loadDirectoryFilterSectionsUncached(
     name_en: string;
     name_es: string | null;
     sort_order: number;
+    slug: string;
   };
   type LocationRow = {
     id: string;
@@ -748,15 +750,30 @@ async function loadDirectoryFilterSectionsUncached(
   };
 
   const [taxonomyRes, locationsRes] = await Promise.all([
+    // `kind IN (taxonomyKinds) AND archived_at IS NULL` is ~900 rows today but
+    // grows with talent_type (already 454) and can cross PostgREST's 1000-row
+    // cap, which would silently drop facet options — directory-critical. Page by
+    // `id`, then re-sort by the original display order (kind → sort_order →
+    // slug) so the per-kind facet lists keep their order.
     taxonomyKinds.length > 0
-      ? supabase
-          .from("taxonomy_terms")
-          .select("id, kind, name_en, name_es, sort_order, slug")
-          .in("kind", taxonomyKinds)
-          .is("archived_at", null)
-          .order("kind")
-          .order("sort_order")
-          .order("slug")
+      ? fetchAllTaxonomyTerms<TaxonomyTermRow>(
+          supabase,
+          "id, kind, name_en, name_es, sort_order, slug",
+          (q) => q.in("kind", taxonomyKinds).is("archived_at", null),
+        ).then(
+          (rows) => ({
+            data: rows
+              .slice()
+              .sort(
+                (a, b) =>
+                  (a.kind ?? "").localeCompare(b.kind ?? "") ||
+                  (a.sort_order ?? 0) - (b.sort_order ?? 0) ||
+                  a.slug.localeCompare(b.slug),
+              ),
+            error: null as null,
+          }),
+          (error) => ({ data: null as TaxonomyTermRow[] | null, error }),
+        )
       : Promise.resolve({ data: [] as TaxonomyTermRow[], error: null }),
     (async () => {
       // Tenant-scope the location facet options: show only cities where this
