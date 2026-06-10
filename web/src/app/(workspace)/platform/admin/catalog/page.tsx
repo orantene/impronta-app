@@ -222,22 +222,23 @@ type FilterParams = {
 type HubTab = "fields" | "groups" | "types" | "editor" | "sections" | "section-fields";
 function parseTab(raw: string | undefined): HubTab {
   switch (raw) {
+    case "fields":
     case "groups":
-    case "types":
     case "editor":
     case "sections":
     case "section-fields":
       return raw;
     default:
-      return "fields";
+      // Talent-Type Category (the taxonomy tree) is the first tab + default landing.
+      return "types";
   }
 }
 const HUB_TABS: ReadonlyArray<{ tab: HubTab; label: string }> = [
-  { tab: "fields", label: "Fields" },
-  { tab: "groups", label: "Field Groups" },
-  { tab: "types", label: "Talent Types" },
+  { tab: "types", label: "Talent-Type Category" },
+  { tab: "groups", label: "Talent-Type Fields Groups" },
+  { tab: "fields", label: "Talent-Type Fields" },
   { tab: "editor", label: "Section Category" },
-  { tab: "sections", label: "Section Fields Group" },
+  { tab: "sections", label: "Section Fields Groups" },
   { tab: "section-fields", label: "Section Fields" },
 ];
 
@@ -488,13 +489,13 @@ export default async function PlatformCatalogMapPage({
           >
             Catalog Engine
           </span>
-          {(["fields", "groups", "types"] as const).map((t) => {
+          {(["types", "groups", "fields"] as const).map((t) => {
             const entry = HUB_TABS.find((h) => h.tab === t)!;
             const active = tab === t;
             return (
               <Link
                 key={t}
-                href={t === "fields" ? "/platform/admin/catalog" : `?tab=${t}`}
+                href={t === "types" ? "/platform/admin/catalog" : `?tab=${t}`}
                 style={{
                   fontSize: 11.5,
                   fontWeight: 600,
