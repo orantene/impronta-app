@@ -27,8 +27,6 @@ import {
   buildBuilderNodeRoleBindings,
   builderSectionNodeAddressKey,
   BuilderNodeRendererStyles,
-  collectBuilderCollectionSourceKeys,
-  collectBuilderImageMediaIds,
   hasRenderableBuilderNodes,
   indexBuilderSectionChildNodeIds,
   indexBuilderSectionNodeIds,
@@ -36,7 +34,6 @@ import {
   renderFreeformPageRootTree,
   renderUnboundGalleryRoots,
   type BuilderNode,
-  type BuilderNodeRenderDataSources,
   type BuilderVisibilityContext,
   renderBuilderNodes,
   resolveBuilderNodeRole,
@@ -49,6 +46,8 @@ import {
 } from "@/lib/site-admin/builder-node/section-embed-renderer";
 import { isBuilderClientCanvasEnabled } from "@/lib/site-admin/edit-mode/client-canvas-flag";
 import { ClientBuilderCanvas } from "@/components/edit-chrome/client-builder-canvas";
+import { ClientSectionChildren } from "@/components/edit-chrome/client-section-children";
+import { loadBuilderNodeDataSources } from "./homepage-cms-data-sources";
 import { BuilderProfilerBoundary } from "@/components/edit-chrome/builder-profiler-boundary";
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
@@ -67,13 +66,8 @@ import {
   presentationScopedCss,
   presentationVideoBackground,
 } from "@/lib/site-admin/sections/shared/presentation";
-import { fetchFeaturedTalentForSection } from "@/lib/site-admin/sections/featured_talent/fetch";
-import { listBuilderImageMediaAssets } from "@/lib/site-admin/media/assets";
-import { resolveCollectionDataSources } from "@/lib/site-admin/collections/server";
-import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getPublicPathPrefix } from "@/lib/saas";
 import { prefixPublicHrefsDeep } from "@/lib/saas/public-hrefs";
-import { getHomepageData } from "@/lib/home-data";
 import {
   resolveGoogleMapsKeyForClient,
   resolveTenantCaptcha,
@@ -585,6 +579,49 @@ export async function HomepageCmsSections({
         const rootBlockIndex = builderNodeId
           ? builderTreeResolution.tree.findIndex((node) => node.id === builderNodeId)
           : -1;
+        // builder-perf-2026 — curated-slot instant editing. In edit mode with the
+        // client-canvas flag on, render this section's builder CHILDREN client-side
+        // (<ClientSectionChildren>) so a child edit repaints instantly instead of
+        // triggering the per-edit server `router.refresh()`. The curated <Component>
+        // above stays server-rendered (its prop edits keep the refresh). Flag off /
+        // published / preview → the byte-identical server render below.
+        const sectionEmbedRendererForChildren = makeSectionEmbedRenderer({
+          tenantId,
+          locale,
+          publicPathPrefix,
+        });
+        let builderChildrenNode: ReactNode = null;
+        if (builderSectionChildren.length > 0) {
+          if (editMode && isBuilderClientCanvasEnabled() && builderNodeId) {
+            const childEmbedIslands: Record<string, ReactNode> = {};
+            for (const embed of collectBuilderSectionEmbedNodes(
+              builderSectionChildren,
+            )) {
+              childEmbedIslands[embed.id] = sectionEmbedRendererForChildren(embed);
+            }
+            builderChildrenNode = (
+              <ClientSectionChildren
+                sectionNodeId={builderNodeId}
+                initialChildren={builderSectionChildren}
+                dataSources={builderDataSources}
+                sectionEmbedIslands={childEmbedIslands}
+                publicPathPrefix={publicPathPrefix}
+                components={builderComponents}
+                visibilityContext={visibilityContext}
+              />
+            );
+          } else {
+            builderChildrenNode = renderBuilderNodes(builderSectionChildren, {
+              publicPathPrefix,
+              mode: "freeform",
+              includeRendererStyles: false,
+              dataSources: builderDataSources,
+              components: builderComponents,
+              visibilityContext,
+              renderSectionEmbed: sectionEmbedRendererForChildren,
+            });
+          }
+        }
         return (
           <div
             key={`wrap:${key}`}
@@ -646,21 +683,7 @@ export async function HomepageCmsSections({
               </>
             ) : null}
             {sectionEjected ? null : rendered}
-            {builderSectionChildren.length > 0
-              ? renderBuilderNodes(builderSectionChildren, {
-                  publicPathPrefix,
-                  mode: "freeform",
-                  includeRendererStyles: false,
-                  dataSources: builderDataSources,
-                  components: builderComponents,
-                  visibilityContext,
-                  renderSectionEmbed: makeSectionEmbedRenderer({
-                    tenantId,
-                    locale,
-                    publicPathPrefix,
-                  }),
-                })
-              : null}
+            {builderChildrenNode}
           </div>
         );
       })}
@@ -683,96 +706,3 @@ export async function HomepageCmsSections({
   );
 }
 
-function collectBuilderDataBindingMax(
-  nodes: ReadonlyArray<BuilderNode>,
-  sourceKey: string,
-): number | null {
-  let max: number | null = null;
-  const visit = (node: BuilderNode) => {
-    if (
-      node.kind === "container" &&
-      node.props.dataBinding?.sourceKey === sourceKey
-    ) {
-      max = Math.max(max ?? 0, node.props.dataBinding.maxItems ?? 4);
-    }
-    if ("children" in node && Array.isArray(node.children)) {
-      for (const child of node.children) visit(child);
-    }
-  };
-  for (const node of nodes) visit(node);
-  return max;
-}
-
-function hasBuilderDataBinding(
-  nodes: ReadonlyArray<BuilderNode>,
-  sourceKey: string,
-): boolean {
-  return collectBuilderDataBindingMax(nodes, sourceKey) != null;
-}
-
-async function loadBuilderNodeDataSources(
-  nodes: ReadonlyArray<BuilderNode>,
-  tenantId: string,
-  locale: string,
-): Promise<BuilderNodeRenderDataSources> {
-  const featuredLimit = collectBuilderDataBindingMax(
-    nodes,
-    "featured_talent_profiles",
-  );
-  const needsLocations = hasBuilderDataBinding(nodes, "talent_locations");
-  const needsDirectoryShortcuts = hasBuilderDataBinding(
-    nodes,
-    "tenant_directory_search",
-  );
-  const mediaIds = collectBuilderImageMediaIds(nodes);
-  const collectionSourceKeys = collectBuilderCollectionSourceKeys(nodes);
-  if (
-    featuredLimit == null &&
-    !needsLocations &&
-    !needsDirectoryShortcuts &&
-    mediaIds.length === 0 &&
-    collectionSourceKeys.length === 0
-  ) {
-    return {};
-  }
-  // The storefront read bypasses RLS (service role) for media + collections.
-  const serviceSupabase =
-    mediaIds.length > 0 || collectionSourceKeys.length > 0
-      ? createServiceRoleClient()
-      : null;
-  const mediaSupabase = mediaIds.length > 0 ? serviceSupabase : null;
-
-  const [featuredTalentProfiles, homepageData, mediaAssets, collections] =
-    await Promise.all([
-    featuredLimit == null
-      ? Promise.resolve(undefined)
-      : fetchFeaturedTalentForSection(
-          tenantId,
-          {
-            sourceMode: "auto_featured_flag",
-            limit: Math.min(Math.max(featuredLimit, 1), 12),
-            columnsDesktop: 4,
-            variant: "grid",
-            presentation: {},
-          },
-          locale,
-        ),
-    needsLocations || needsDirectoryShortcuts
-      ? getHomepageData({ tenantId })
-      : Promise.resolve(null),
-    mediaSupabase
-      ? listBuilderImageMediaAssets(mediaSupabase, tenantId, mediaIds)
-      : Promise.resolve(undefined),
-    serviceSupabase && collectionSourceKeys.length > 0
-      ? resolveCollectionDataSources(serviceSupabase, tenantId, collectionSourceKeys)
-      : Promise.resolve(undefined),
-  ]);
-
-  return {
-    featuredTalentProfiles,
-    talentLocations: homepageData?.locations,
-    directoryShortcuts: homepageData?.talentTypes,
-    mediaAssets,
-    collections,
-  };
-}

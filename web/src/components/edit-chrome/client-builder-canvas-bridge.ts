@@ -76,11 +76,49 @@ export function registerClientBuilderCanvasMount(): () => void {
 }
 
 /**
- * True when at least one `<ClientBuilderCanvas>` is mounted for the current page
- * — i.e. an optimistic tree edit will repaint client-side, so the per-edit server
- * `router.refresh()` is pure lag and can be skipped. False on legacy/curated-slot
- * pages (no canvas) and whenever the flag is off, so those keep refreshing.
+ * True when a FULL-PAGE `<ClientBuilderCanvas>` is mounted (freeform full-page
+ * design) — it reflects the ENTIRE tree client-side, including curated sections
+ * (as pre-rendered `section_embed` islands). So both builder-node edits AND
+ * curated-prop edits repaint here and the per-edit `router.refresh()` is pure lag.
+ * False on legacy/curated-slot pages (no full-page canvas) and when the flag is off.
  */
 export function isClientBuilderCanvasMounted(): boolean {
   return mountedCanvasCount > 0;
+}
+
+// ── Section-children canvas signal (builder-perf-2026, curated-slot coverage) ──
+// On a CURATED-SLOT page each section is server-rendered as `[curated <Component>]
+// + [its freeform/role-bound builder children]`. `<ClientSectionChildren>` wraps
+// ONLY the children, repainting them client-side on edit — so builder-node edits
+// (text colour/size/bold, the common case) skip the refresh and feel instant. The
+// curated server `<Component>` is NOT reflected here, so a curated-PROP edit still
+// needs a server refresh — which is why this is a SEPARATE signal from the
+// full-page one: `edit-context` lets builder-tree edits skip when EITHER signal is
+// set, but keeps the curated-prop dispatch refreshing unless the FULL-PAGE canvas
+// is mounted.
+let mountedSectionChildrenCount = 0;
+
+/** Register a mounted `<ClientSectionChildren>`. Returns the unmount decrementer. */
+export function registerSectionChildrenCanvasMount(): () => void {
+  mountedSectionChildrenCount += 1;
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    mountedSectionChildrenCount = Math.max(0, mountedSectionChildrenCount - 1);
+  };
+}
+
+/**
+ * True when at least one `<ClientSectionChildren>` is mounted — i.e. a curated
+ * section's builder CHILDREN repaint client-side, so a builder-node edit can skip
+ * the per-edit refresh. Does NOT imply curated `<Component>` props are reflected.
+ */
+export function isSectionChildrenCanvasMounted(): boolean {
+  return mountedSectionChildrenCount > 0;
+}
+
+/** True when ANY client canvas (full-page OR section-children) reflects builder-node edits. */
+export function isAnyBuilderNodeCanvasMounted(): boolean {
+  return mountedCanvasCount > 0 || mountedSectionChildrenCount > 0;
 }

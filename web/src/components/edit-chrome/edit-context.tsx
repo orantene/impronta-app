@@ -123,6 +123,7 @@ import { sectionTypeHasLiveData } from "@/lib/site-admin/sections/section-live-d
 import {
   publishBuilderCanvasTree,
   isClientBuilderCanvasMounted,
+  isAnyBuilderNodeCanvasMounted,
 } from "./client-builder-canvas-bridge";
 import {
   publishHoveredSectionId,
@@ -5083,8 +5084,11 @@ export function EditProvider({
       // also covers undo/redo of `builderTree` entries that route straight
       // through `persistBuilderTree` (bypassing `commitBuilderTreeMutation`'s
       // eager reconcile) and could flip an embed in/out.
+      // builder-perf-2026 — ANY builder-node canvas (full-page OR a curated-slot
+      // section-children canvas) repaints this edit, so EITHER lets us skip the
+      // server refresh; only the embed/gallery carve-outs force it.
       if (
-        !isClientBuilderCanvasMounted() ||
+        !isAnyBuilderNodeCanvasMounted() ||
         mutationTouchesSectionEmbedIslandSet(prevTree, nextTree) ||
         mutationTouchesSectionEmbedConfig(prevTree, nextTree) ||
         mutationTouchesUnboundGallerySections(prevTree, nextTree)
@@ -5224,12 +5228,13 @@ export function EditProvider({
       // duplicated this commit gets a fresh id with no cached island). When the
       // set of section_embed ids changes, eagerly refresh the server RSC tree so
       // the new island is rendered promptly instead of waiting for the debounced
-      // save's trailing refresh. Gated on a canvas being MOUNTED: with no client
-      // canvas (legacy server-render or a curated-slot page), the server-rendered
-      // canvas already repaints on the save refresh — this extra eager refresh
-      // would be redundant, so it stays scoped to the canvas-active path.
+      // save's trailing refresh. Gated on a canvas being MOUNTED (full-page OR a
+      // curated-slot section-children canvas — an embed can live in either): with
+      // no client canvas (legacy server-render), the server canvas already
+      // repaints on the save refresh — this extra eager refresh would be redundant,
+      // so it stays scoped to the canvas-active path.
       if (
-        isClientBuilderCanvasMounted() &&
+        isAnyBuilderNodeCanvasMounted() &&
         (mutationTouchesSectionEmbedIslandSet(prevTree, nextTree) ||
           mutationTouchesSectionEmbedConfig(prevTree, nextTree) ||
           mutationTouchesUnboundGallerySections(prevTree, nextTree))
