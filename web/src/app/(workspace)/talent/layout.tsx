@@ -32,6 +32,7 @@ import { TalentAgencyContextSwitcher } from "@/components/talent/site/TalentAgen
 import { TalentSiteDashboardProvider } from "@/components/talent/site/TalentSiteDashboardProvider";
 import { loadTalentPersonalSiteDashboardState } from "@/lib/talent-site/server/dashboard-state";
 import { loadProfileEditorLayout } from "@/lib/profile-editor/section-layout";
+import { loadClientFieldSource } from "@/lib/field-engine/client-field-source";
 
 export const dynamic = "force-dynamic";
 
@@ -121,6 +122,7 @@ export default async function PlatformTalentLayout({
     talentPayoutSnapshot,
     talentHeldPayouts,
     profileEditorLayout,
+    clientFieldSource,
   ] = await Promise.all([
     loadTalentInquiriesAllAgencies(baseProfile.id),
     loadTalentAgencies(talentSelfProfile.id),
@@ -141,6 +143,10 @@ export default async function PlatformTalentLayout({
     // B0 — DB-backed profile-editor sidebar layout. Never throws (falls back
     // to the hardcoded structure), so it can't break the layout.
     loadProfileEditorLayout(),
+    // P1 — DB-resolved client field source (wizard/drawer type-specific
+    // catalog). Null when every surface is `static` (default). `tenantId` may
+    // be null for independent talent — the loader degrades to flags-only.
+    loadClientFieldSource(tenantId),
   ]);
 
   // Platform currency policy: unless a super-admin has turned multi-currency
@@ -192,6 +198,7 @@ export default async function PlatformTalentLayout({
         talentCalendarEntries,
         talentEarnings: displayEarnings,
         profileEditorLayout,
+        clientFieldSource,
       }}
     >
       {isHybrid && agencyOptions.length > 1 ? (

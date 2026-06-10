@@ -9,6 +9,7 @@ import {
   type RosterCardBadgePrefs,
 } from "@/lib/talent-cards/roster-card-badges";
 import type { ProfileEditorLayout } from "@/lib/profile-editor/section-layout";
+import type { ClientFieldSourcePayload } from "@/lib/field-engine/client-field-source-types";
 
 // Re-export the workspace-level loaders so layout.tsx has a single import
 // surface for all bridge data. The workspace bridge is tenant-id-explicit;
@@ -352,6 +353,8 @@ export type BridgeData = {
   payoutsSurface?: PayoutsSurfaceResult | null;
   /** B0 — DB-backed profile-editor sidebar layout; falls back to hardcoded. */
   profileEditorLayout?: ProfileEditorLayout;
+  // P1 — DB-resolved field source + flags; null = static (default).
+  clientFieldSource?: ClientFieldSourcePayload | null;
 };
 
 export function createBridgeDataFromRoster(
@@ -379,10 +382,9 @@ export function createBridgeDataFromRoster(
 /**
  * Load the per-tenant roster-card badge prefs from
  * `agencies.settings.rosterCardBadges`. Read under the user's RLS via the SSR
- * client — `agencies.settings` is staff-only and the workspace admin owns the
- * row, so no service-role elevation is needed. Returns `null` on any failure
- * (no scope, no env, query error); the shell then falls back to the all-on
- * default, so a transient read failure never silently hides badges.
+ * client (staff-only row, owned by the workspace admin — no service-role).
+ * Returns `null` on any failure; the shell falls back to the all-on default,
+ * so a transient read failure never silently hides badges.
  */
 export async function loadRosterCardBadges(
   explicitTenantId?: string,
@@ -574,10 +576,8 @@ function deriveDisplayName(
  * Multi-skill V1 (2026-05-07): a talent can have multiple primary_role rows
  * (up to 9 total skills). The "featured" skill = lowest display_order among
  * primary_role rows. Falls back to first secondary_role if no primary set.
- *
- * Returns the canonical slug. When the slug doesn't appear in TAXONOMY (DB
- * taxonomy was seeded independently, so slugs may diverge), the caller can
- * use this string directly as a display fallback via name_en.
+ * Returns the canonical slug; when it isn't in TAXONOMY the caller can use the
+ * string directly as a display fallback via name_en.
  */
 function derivePrimaryType(
   profile: NonNullable<RosterRow["talent_profiles"]>,

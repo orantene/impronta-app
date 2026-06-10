@@ -33,6 +33,7 @@ import { setInquiryFlagsTenantSlug, setInquiryFlagsUserId } from "../inquiry-fla
 // Runtime layout may flow in through the bridge (`initialBridgeData.profileEditorLayout`).
 // When absent, fall back to the hardcoded mirror below so the drawer rail never crashes.
 import type { ProfileEditorLayout } from "@/lib/profile-editor/layout-types";
+import type { ClientFieldSourcePayload } from "@/lib/field-engine/client-field-source-types";
 import type { Client, ClientPage, ClientPlan, ClientProfile, ClientProfileId, ClientTrustLevel, CoordinatorAssignment, Density, EntityType, FieldVisibility, HqRole, Impersonation, InquirySource, InquiryStage, MessageSenderRole, Offer, PendingTalent, Plan, PlatformPage, ProfileClaimInvitation, ProfileClaimStatus, ProfileFieldId, ProfileVerification, RequirementGroup, RichInquiry, Role, Surface, TalentContactGate, TalentPage, TalentProfile, TalentSubscriptionTier, TeamMember, ThreadMessage, ThreadType, TrustSummary, VerificationActiveStatus, VerificationMethodAuditEntry, VerificationMethodConfig, VerificationRequest, VerificationRequestStatus, VerificationReviewMode, VerificationSubjectType, VerificationTierGate, VerificationType, VerificationVisibility, WebsiteState, WorkspaceCustomField, WorkspaceLayout, WorkspacePage } from "./types";
 import type { DrawerContext, DrawerId, UpgradeOffer } from "./drawer-ids";
 import { ALWAYS_INTERNAL_FIELDS, ALWAYS_VISIBLE_FIELDS, CLIENT_PAGES, CLIENT_PLANS, CLIENT_PROFILES, DEFAULT_FIELD_VISIBILITY, ENTITY_TYPES, HQ_ROLES, MY_TALENT_PROFILE, PENDING_TALENT, PLANS, PLATFORM_PAGES, RICH_INQUIRIES, ROLES, SEED_ACCOUNT_VERIFICATION, SEED_CLAIM_STATUS, SEED_PROFILE_CLAIMS, SEED_PROFILE_VERIFICATIONS, SEED_TALENT_CONTACT_GATE, SEED_VERIFICATION_METHOD_AUDIT, SEED_VERIFICATION_METHOD_CONFIG, SEED_VERIFICATION_REQUESTS, SURFACES, TALENT_PAGES, TALENT_TO_USER, TENANT, VERIFICATION_TYPE_META, WEBSITE_STATE, getClients, getRoster, getTeam, mergeWebsiteStateFromBridge, resolveWorkspacePage } from "./fixtures";
@@ -462,6 +463,15 @@ type Ctx = {
    * absent, so the editor rail + pills always have order/labels to render.
    */
   profileEditorLayout: ProfileEditorLayout;
+
+  /**
+   * P1 field-engine unification — DB-resolved type-specific catalog projected
+   * into the wizard/drawer `RegField` shape, plus per-surface source flags.
+   * `null` = every client field surface is `static` (default) → the wizard +
+   * drawer use the static `field-catalog.ts` path. Non-null when a surface is
+   * flipped to `db` via the `FIELD_ENGINE_CLIENT_SOURCE` env flag.
+   */
+  clientFieldSource: ClientFieldSourcePayload | null;
 };
 
 // ── Phase 3.12 bridge adapters ─────────────────────────────────────────────
@@ -1865,6 +1875,12 @@ export function AdminShellProvider({
   const profileEditorLayout: ProfileEditorLayout =
     initialBridgeData?.profileEditorLayout ?? FALLBACK_PROFILE_EDITOR_LAYOUT;
 
+  // P1 field-engine unification — DB-resolved client field source (or null when
+  // every surface is `static`, the default). The wizard + drawer read this off
+  // the context; null = use the static `field-catalog.ts` path untouched.
+  const clientFieldSource: ClientFieldSourcePayload | null =
+    initialBridgeData?.clientFieldSource ?? null;
+
   // Stable, serialization-safe tenant values for all JSX renders.
   // Computed from the bridge in production; falls back to the TENANT mock
   // in standalone prototype mode. Stable reference (memoised on bridgeTenantIdentity
@@ -2080,6 +2096,7 @@ export function AdminShellProvider({
       websiteUsesLiveCms,
       payoutsSurface: bridgePayoutsSurface,
       profileEditorLayout,
+      clientFieldSource,
       // Phase 5
       bridgeTalentUnread,
       bridgeWorkspaceUnread,
@@ -2193,6 +2210,7 @@ export function AdminShellProvider({
       websiteUsesLiveCms,
       bridgePayoutsSurface,
       profileEditorLayout,
+      clientFieldSource,
       // Phase 5
       bridgeTalentUnread,
       bridgeWorkspaceUnread,

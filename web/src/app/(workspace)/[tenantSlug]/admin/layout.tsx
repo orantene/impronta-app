@@ -33,6 +33,7 @@ import {
   loadRecentActivity,
 } from "@/components/admin/shell/internal/data-bridge";
 import { loadProfileEditorLayout } from "@/lib/profile-editor/section-layout";
+import { loadClientFieldSource } from "@/lib/field-engine/client-field-source";
 import { loadPayoutsSurface } from "./payouts/payouts-surface-actions";
 import { loadTalentUnreadCount } from "@/lib/saas/unread-counts";
 import { loadUserPrefs, type UserPrefs } from "@/lib/server-actions/user-prefs";
@@ -124,6 +125,7 @@ export default async function WorkspaceAdminLayout({
     payoutsSurface,
     recentActivity,
     profileEditorLayout,
+    clientFieldSource,
   ] = await Promise.all([
     loadWorkspaceRosterForCurrentTenant(tenantId),
     loadInquiriesForMessages(tenantId),
@@ -156,6 +158,10 @@ export default async function WorkspaceAdminLayout({
     // B0 — DB-backed profile-editor sidebar layout. Never throws (falls back
     // to the hardcoded structure), so it can't break the layout.
     loadProfileEditorLayout(),
+    // P1 — DB-resolved client field source (wizard/drawer type-specific
+    // catalog). Returns null when every surface is `static` (the default), so
+    // it adds no DB work in the default config and never breaks the layout.
+    loadClientFieldSource(tenantId),
   ]);
 
   // Pre-fetch hybrid-only data (talent inquiries + cross-mode unread + user
@@ -230,6 +236,7 @@ export default async function WorkspaceAdminLayout({
           payoutsSurface,
           recentActivity,
           profileEditorLayout,
+          clientFieldSource,
         }}
       >
         {/* PageRouteSyncer lives here — inside AdminShellProvider context, returns null */}
