@@ -38,6 +38,10 @@ import {
   syncScalarFieldValuesToCatalog,
   readScalarFieldValuesFromCatalog,
 } from "@/lib/talent/scalar-field-values-catalog";
+import {
+  syncBlobFieldValuesToCatalog,
+  readBlobFieldValuesFromCatalog,
+} from "@/lib/talent/blob-field-values-catalog";
 import { syncTalentTypeTaxonomyFromShellSlugs } from "@/lib/talent/profile-shell-taxonomy-sync";
 import type { UiProfileShellStatus } from "@/lib/talent/profile-shell-workflow";
 
@@ -671,6 +675,29 @@ export async function commitTalentProfileShellAdmin(
   });
   lap("scalarFieldValuesCatalog");
 
+  // P3 Tier-B Stage-1 dual-write: mirror the editor-only JSONB blobs written to
+  // talent_profiles above into the catalog value table, scoped to the active
+  // roster tenant, stored VERBATIM. Fire-and-forget — never blocks the column
+  // write. Each blob is UNCONDITIONALLY set in profilePatch above (the shell
+  // commit always replaces them), so all twelve are passed; the helper's
+  // per-blob emptiness contract decides upsert vs delete. `availability_data`
+  // is a deliberate carve-out (powers booking queries) and is NOT mirrored.
+  await syncBlobFieldValuesToCatalog(supabase, tid, tenantId, {
+    bios: profilePatch.bios,
+    personality_traits: profilePatch.personality_traits,
+    rates_data: profilePatch.rates_data,
+    package_rates_data: profilePatch.package_rates_data,
+    rate_tiers_data: profilePatch.rate_tiers_data,
+    credits_data: profilePatch.credits_data,
+    limits_data: profilePatch.limits_data,
+    social_proof_data: profilePatch.social_proof_data,
+    work_eligibility: profilePatch.work_eligibility,
+    upcoming_visits: profilePatch.upcoming_visits,
+    media_albums_data: profilePatch.media_albums_data,
+    documents_data: profilePatch.documents_data,
+  });
+  lap("blobFieldValuesCatalog");
+
   const rm = input.rosterMeta;
   const rosterPatch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (rm.internal_notes !== undefined) rosterPatch.internal_notes = rm.internal_notes?.trim() || null;
@@ -1254,7 +1281,7 @@ export async function getTalentProfileEditorData(input: {
 
   // Fetch talent_profiles row + the roster row + the Tier-D catalog value
   // rows in parallel.
-  const [profileRes, rosterRes, rosterFieldValues, scalarFieldValues] = await Promise.all([
+  const [profileRes, rosterRes, rosterFieldValues, scalarFieldValues, blobFieldValues] = await Promise.all([
     supabase
       .from("talent_profiles")
       .select(`
@@ -1292,6 +1319,9 @@ export async function getTalentProfileEditorData(input: {
     // P3 Tier-A Stage-4: source the scalar fields from the catalog value table,
     // falling back to the dedicated talent_profiles column below when absent.
     readScalarFieldValuesFromCatalog(supabase, input.talent_profile_id),
+    // P3 Tier-B Stage-4: source the editor-only JSONB blobs from the catalog
+    // value table, falling back to the dedicated column below when absent.
+    readBlobFieldValuesFromCatalog(supabase, input.talent_profile_id),
   ]);
 
   if (profileRes.error || !profileRes.data) {
@@ -1303,13 +1333,18 @@ export async function getTalentProfileEditorData(input: {
   const p = profileRes.data as Row;
   const r = (rosterRes.data ?? {}) as Row;
   const sv = scalarFieldValues;
+  const bv = blobFieldValues;
   const { primary: shellPrimarySlug, secondaries: shellSecondarySlugs } = talentTypeSlugsFromTaxonomyEmbed(
     p.talent_profile_taxonomy,
   );
 
   // Normalize bios to always have at least an English entry so the editor
-  // doesn't show an empty locale chip strip.
-  const rawBios = Array.isArray(p.bios) ? (p.bios as Array<{ locale?: string; text?: string }>) : [];
+  // doesn't show an empty locale chip strip. P3 Tier-B Stage-4: prefer the
+  // catalog value row (verbatim array blob), fall back to the column.
+  const biosSource = bv.bios ?? p.bios;
+  const rawBios = Array.isArray(biosSource)
+    ? (biosSource as Array<{ locale?: string; text?: string }>)
+    : [];
   const bios = rawBios.length > 0
     ? rawBios.map(b => ({ locale: b.locale ?? "en", text: b.text ?? "" }))
     : [{ locale: "en", text: "" }];
@@ -1359,7 +1394,9 @@ export async function getTalentProfileEditorData(input: {
       phone: (p.phone as string | null) ?? null,
       bios,
       bio_tone: sv.bio_tone ?? (p.bio_tone as string | null) ?? null,
-      personality_traits: p.personality_traits ?? { loves: [], avoids: [] },
+      // P3 Tier-B Stage-4: prefer the catalog value row (verbatim blob), fall
+      // back to the dedicated talent_profiles column when no value row exists.
+      personality_traits: bv.personality_traits ?? p.personality_traits ?? { loves: [], avoids: [] },
       tagline: sv.tagline ?? (p.tagline as string | null) ?? null,
       home_city_text: (p.home_city_text as string | null) ?? null,
       home_place_id: (p.home_place_id as string | null) ?? null,
@@ -1368,21 +1405,30 @@ export async function getTalentProfileEditorData(input: {
       remote_only: Boolean(p.remote_only),
       passport_status: sv.passport_status ?? (p.passport_status as string | null) ?? null,
       drivers_license: sv.drivers_license ?? (p.drivers_license as string | null) ?? null,
-      work_eligibility: p.work_eligibility ?? [],
-      upcoming_visits: Array.isArray(p.upcoming_visits) ? p.upcoming_visits : [],
-      rates_data: p.rates_data ?? [],
-      package_rates_data: p.package_rates_data ?? [],
-      rate_tiers_data: p.rate_tiers_data ?? [],
+      work_eligibility: bv.work_eligibility ?? p.work_eligibility ?? [],
+      upcoming_visits: bv.upcoming_visits ?? (Array.isArray(p.upcoming_visits) ? p.upcoming_visits : []),
+      rates_data: bv.rates_data ?? p.rates_data ?? [],
+      package_rates_data: bv.package_rates_data ?? p.package_rates_data ?? [],
+      rate_tiers_data: bv.rate_tiers_data ?? p.rate_tiers_data ?? [],
       rate_card_visibility: sv.rate_card_visibility ?? (p.rate_card_visibility as string | null) ?? null,
       ask_for_quote: sv.ask_for_quote ?? Boolean(p.ask_for_quote),
       travel_included: sv.travel_included ?? Boolean(p.travel_included),
       lodging_included: sv.lodging_included ?? Boolean(p.lodging_included),
+      // availability_data is a carve-out — never sourced from the value table.
       availability_data: p.availability_data ?? {},
-      credits_data: p.credits_data ?? [],
-      limits_data: p.limits_data ?? {},
-      social_proof_data: p.social_proof_data ?? [],
-      media_albums_data: Array.isArray(p.media_albums_data) ? (p.media_albums_data as MediaAlbumEntry[]) : [],
-      documents_data: Array.isArray(p.documents_data) ? (p.documents_data as TalentDocumentEntry[]) : [],
+      credits_data: bv.credits_data ?? p.credits_data ?? [],
+      limits_data: bv.limits_data ?? p.limits_data ?? {},
+      social_proof_data: bv.social_proof_data ?? p.social_proof_data ?? [],
+      media_albums_data: Array.isArray(bv.media_albums_data)
+        ? (bv.media_albums_data as MediaAlbumEntry[])
+        : Array.isArray(p.media_albums_data)
+          ? (p.media_albums_data as MediaAlbumEntry[])
+          : [],
+      documents_data: Array.isArray(bv.documents_data)
+        ? (bv.documents_data as TalentDocumentEntry[])
+        : Array.isArray(p.documents_data)
+          ? (p.documents_data as TalentDocumentEntry[])
+          : [],
       // P3 Tier-D Stage-4: prefer the catalog value row, fall back to the
       // dedicated column when no value row exists (column write still live).
       internal_notes:
