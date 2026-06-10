@@ -60,6 +60,9 @@ import {
   type PreviewFrameOverride,
 } from "./edit-context";
 import { CHROME, EDIT_TOPBAR_H, SaveChip } from "./kit";
+import { usePagePresence } from "./presence-provider";
+import { RailPresenceStack } from "./chrome-icon-rail";
+import { isBuilderPresenceEnabled } from "@/lib/site-admin/edit-mode/presence-flag";
 import { useEditContext } from "./edit-context";
 
 /** Minimal `LanguageSettings` for `withLocalePath` / strip-prefix helpers. */
@@ -2563,6 +2566,26 @@ const SHARE_TTL_CHOICES = [
 ] as const;
 const SHARE_TTL_DEFAULT = "7d" as const;
 
+/**
+ * WS1-A — live collaborator avatars in the topbar. Renders the (previously
+ * orphaned) `RailPresenceStack` only when someone ELSE is on the page, so a solo
+ * editor sees no clutter. Gated behind `NEXT_PUBLIC_BUILDER_PRESENCE`.
+ */
+function TopBarPresence() {
+  if (!isBuilderPresenceEnabled()) return null;
+  return <TopBarPresenceInner />;
+}
+
+function TopBarPresenceInner() {
+  const { editors } = usePagePresence();
+  if (editors.length <= 1) return null;
+  return (
+    <div className="flex shrink-0 items-center pr-1" aria-label="Editors on this page">
+      <RailPresenceStack />
+    </div>
+  );
+}
+
 export function TopBar({
   device,
   setDevice,
@@ -2719,6 +2742,7 @@ export function TopBar({
           Save
         </TbOutlineBtn>
       ) : null}
+      <TopBarPresence />
       <SaveStatus
         dirty={dirty}
         saving={saving}
