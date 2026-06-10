@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { readRosterFieldValuesFromCatalog } from "@/lib/talent/roster-field-values-catalog";
 import { readScalarFieldValuesFromCatalog } from "@/lib/talent/scalar-field-values-catalog";
+import { readBlobFieldValuesFromCatalog } from "@/lib/talent/blob-field-values-catalog";
 import type {
   MediaAlbumEntry,
   ProfileEditorData,
@@ -33,7 +34,7 @@ export async function loadSelfProfileEditorData(input: {
   talentProfileId: string;
 }): Promise<{ ok: true; data: ProfileEditorData } | { ok: false; error: string }> {
   const { supabase, tenantId, talentProfileId } = input;
-  const [profileRes, rosterRes, rosterFieldValues, scalarFieldValues] = await Promise.all([
+  const [profileRes, rosterRes, rosterFieldValues, scalarFieldValues, blobFieldValues] = await Promise.all([
     supabase
       .from("talent_profiles")
       .select(`
@@ -74,6 +75,9 @@ export async function loadSelfProfileEditorData(input: {
     // P3 Tier-A Stage-4: source the scalar fields from the catalog value table,
     // falling back to the dedicated talent_profiles column below when absent.
     readScalarFieldValuesFromCatalog(supabase, talentProfileId),
+    // P3 Tier-B Stage-4: source the editor-only JSONB blobs from the catalog
+    // value table, falling back to the dedicated column below when absent.
+    readBlobFieldValuesFromCatalog(supabase, talentProfileId),
   ]);
 
   if (profileRes.error || !profileRes.data) {
@@ -85,10 +89,13 @@ export async function loadSelfProfileEditorData(input: {
   const p = profileRes.data as Row;
   const r = (rosterRes.data ?? {}) as Row;
   const sv = scalarFieldValues;
+  const bv = blobFieldValues;
   const { primary: shellPrimarySlug, secondaries: shellSecondarySlugs } =
     talentTypeSlugsFromTaxonomyEmbed(p.talent_profile_taxonomy);
-  const rawBios = Array.isArray(p.bios)
-    ? (p.bios as Array<{ locale?: string; text?: string }>)
+  // P3 Tier-B Stage-4: prefer the catalog value row (verbatim array blob).
+  const biosSource = bv.bios ?? p.bios;
+  const rawBios = Array.isArray(biosSource)
+    ? (biosSource as Array<{ locale?: string; text?: string }>)
     : [];
   const bios = rawBios.length > 0
     ? rawBios.map((b) => ({ locale: b.locale ?? "en", text: b.text ?? "" }))
@@ -125,7 +132,9 @@ export async function loadSelfProfileEditorData(input: {
       phone: (p.phone as string | null) ?? null,
       bios,
       bio_tone: sv.bio_tone ?? (p.bio_tone as string | null) ?? null,
-      personality_traits: p.personality_traits ?? { loves: [], avoids: [] },
+      // P3 Tier-B Stage-4: prefer the catalog value row (verbatim blob), fall
+      // back to the dedicated talent_profiles column when no value row exists.
+      personality_traits: bv.personality_traits ?? p.personality_traits ?? { loves: [], avoids: [] },
       tagline: sv.tagline ?? (p.tagline as string | null) ?? null,
       home_city_text: (p.home_city_text as string | null) ?? null,
       home_place_id: (p.home_place_id as string | null) ?? null,
@@ -134,25 +143,38 @@ export async function loadSelfProfileEditorData(input: {
       remote_only: Boolean(p.remote_only),
       passport_status: sv.passport_status ?? (p.passport_status as string | null) ?? null,
       drivers_license: sv.drivers_license ?? (p.drivers_license as string | null) ?? null,
-      work_eligibility: p.work_eligibility ?? [],
-      upcoming_visits: Array.isArray(p.upcoming_visits) ? p.upcoming_visits : [],
-      rates_data: p.rates_data ?? [],
-      package_rates_data: p.package_rates_data ?? [],
-      rate_tiers_data: p.rate_tiers_data ?? [],
+      work_eligibility: bv.work_eligibility ?? p.work_eligibility ?? [],
+      upcoming_visits: bv.upcoming_visits ?? (Array.isArray(p.upcoming_visits) ? p.upcoming_visits : []),
+      rates_data: bv.rates_data ?? p.rates_data ?? [],
+      package_rates_data: bv.package_rates_data ?? p.package_rates_data ?? [],
+      rate_tiers_data: bv.rate_tiers_data ?? p.rate_tiers_data ?? [],
       rate_card_visibility: sv.rate_card_visibility ?? (p.rate_card_visibility as string | null) ?? null,
       ask_for_quote: sv.ask_for_quote ?? Boolean(p.ask_for_quote),
       travel_included: sv.travel_included ?? Boolean(p.travel_included),
       lodging_included: sv.lodging_included ?? Boolean(p.lodging_included),
+      // availability_data is a carve-out — never sourced from the value table.
       availability_data: p.availability_data ?? {},
-      credits_data: Array.isArray(p.credits_data) ? p.credits_data : [],
-      limits_data: p.limits_data ?? {},
-      social_proof_data: Array.isArray(p.social_proof_data) ? p.social_proof_data : [],
-      media_albums_data: Array.isArray(p.media_albums_data)
-        ? (p.media_albums_data as MediaAlbumEntry[])
-        : [],
-      documents_data: Array.isArray(p.documents_data)
-        ? (p.documents_data as TalentDocumentEntry[])
-        : [],
+      credits_data: Array.isArray(bv.credits_data)
+        ? bv.credits_data
+        : Array.isArray(p.credits_data)
+          ? p.credits_data
+          : [],
+      limits_data: bv.limits_data ?? p.limits_data ?? {},
+      social_proof_data: Array.isArray(bv.social_proof_data)
+        ? bv.social_proof_data
+        : Array.isArray(p.social_proof_data)
+          ? p.social_proof_data
+          : [],
+      media_albums_data: Array.isArray(bv.media_albums_data)
+        ? (bv.media_albums_data as MediaAlbumEntry[])
+        : Array.isArray(p.media_albums_data)
+          ? (p.media_albums_data as MediaAlbumEntry[])
+          : [],
+      documents_data: Array.isArray(bv.documents_data)
+        ? (bv.documents_data as TalentDocumentEntry[])
+        : Array.isArray(p.documents_data)
+          ? (p.documents_data as TalentDocumentEntry[])
+          : [],
       // P3 Tier-D Stage-4: prefer the catalog value row, fall back to the
       // dedicated column when no value row exists (column write still live).
       internal_notes:

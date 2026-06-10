@@ -15,6 +15,7 @@ import { mergeShellSocialAndEmbedded } from "@/lib/talent/profile-shell-drawer-p
 import { syncProfileShellDynFieldValues } from "@/lib/talent/profile-shell-dyn-field-values";
 import { syncRosterFieldValuesToCatalog } from "@/lib/talent/roster-field-values-catalog";
 import { syncScalarFieldValuesToCatalog } from "@/lib/talent/scalar-field-values-catalog";
+import { syncBlobFieldValuesToCatalog } from "@/lib/talent/blob-field-values-catalog";
 import { syncTalentTypeTaxonomyFromShellSlugs } from "@/lib/talent/profile-shell-taxonomy-sync";
 import type { UiProfileShellStatus } from "@/lib/talent/profile-shell-workflow";
 import { uiProfileShellStatusToDbPatch } from "@/lib/talent/profile-shell-workflow";
@@ -74,6 +75,13 @@ export async function updateSelfAbout(input: {
     tagline: input.tagline !== undefined ? (input.tagline?.trim() || null) : undefined,
   });
 
+  // P3 Tier-B Stage-1 dual-write — the bios + personality JSONB blobs (verbatim).
+  // bios is always part of this save; personality_traits only when edited.
+  await syncBlobFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
+    bios: input.bios,
+    personality_traits: input.personality_traits,
+  });
+
   revalidatePath(`/t/${profileCode}`, "page");
   return { ok: true };
 }
@@ -118,6 +126,13 @@ export async function updateSelfLocation(input: {
     drivers_license: input.drivers_license !== undefined ? (input.drivers_license || null) : undefined,
   });
 
+  // P3 Tier-B Stage-1 dual-write — work_eligibility + upcoming_visits JSONB
+  // blobs (verbatim). Only the keys the talent edited (undefined = untouched).
+  await syncBlobFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
+    work_eligibility: input.work_eligibility,
+    upcoming_visits: input.upcoming_visits,
+  });
+
   revalidatePath(`/t/${profileCode}`, "page");
   return { ok: true };
 }
@@ -159,6 +174,14 @@ export async function updateSelfRates(input: {
     lodging_included: input.lodging_included,
   });
 
+  // P3 Tier-B Stage-1 dual-write — rates / package-rates / rate-tiers JSONB
+  // blobs (verbatim). Only the keys the talent edited (undefined = untouched).
+  await syncBlobFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
+    rates_data: input.rates_data,
+    package_rates_data: input.package_rates_data,
+    rate_tiers_data: input.rate_tiers_data,
+  });
+
   revalidatePath(`/t/${profileCode}`, "page");
   return { ok: true };
 }
@@ -190,13 +213,18 @@ export async function updateSelfCredits(input: {
 }): Promise<Result> {
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase, profileCode } = auth;
+  const { supabase, tenantId, profileCode } = auth;
 
   const { error } = await supabase
     .from("talent_profiles")
     .update({ credits_data: input.credits_data, updated_at: new Date().toISOString() })
     .eq("id", input.talent_profile_id);
   if (error) { logServerError("self-sections.credits", error); return { ok: false, error: CLIENT_ERROR.update }; }
+
+  // P3 Tier-B Stage-1 dual-write — credits JSONB blob (verbatim).
+  await syncBlobFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
+    credits_data: input.credits_data,
+  });
 
   revalidatePath(`/t/${profileCode}`, "page");
   return { ok: true };
@@ -210,13 +238,18 @@ export async function updateSelfLimits(input: {
 }): Promise<Result> {
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase, profileCode } = auth;
+  const { supabase, tenantId, profileCode } = auth;
 
   const { error } = await supabase
     .from("talent_profiles")
     .update({ limits_data: input.limits_data, updated_at: new Date().toISOString() })
     .eq("id", input.talent_profile_id);
   if (error) { logServerError("self-sections.limits", error); return { ok: false, error: CLIENT_ERROR.update }; }
+
+  // P3 Tier-B Stage-1 dual-write — limits JSONB object blob (verbatim).
+  await syncBlobFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
+    limits_data: input.limits_data,
+  });
 
   revalidatePath(`/t/${profileCode}`, "page");
   return { ok: true };
@@ -230,13 +263,18 @@ export async function updateSelfSocialProof(input: {
 }): Promise<Result> {
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase, profileCode } = auth;
+  const { supabase, tenantId, profileCode } = auth;
 
   const { error } = await supabase
     .from("talent_profiles")
     .update({ social_proof_data: input.social_proof_data, updated_at: new Date().toISOString() })
     .eq("id", input.talent_profile_id);
   if (error) { logServerError("self-sections.social-proof", error); return { ok: false, error: CLIENT_ERROR.update }; }
+
+  // P3 Tier-B Stage-1 dual-write — social-proof (past clients) JSONB blob.
+  await syncBlobFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
+    social_proof_data: input.social_proof_data,
+  });
 
   revalidatePath(`/t/${profileCode}`, "page");
   return { ok: true };
@@ -250,16 +288,20 @@ export async function updateSelfMediaAlbums(input: {
 }): Promise<Result> {
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase, profileCode } = auth;
+  const { supabase, tenantId, profileCode } = auth;
+
+  // Normalize once so the column write + the dual-write share the SAME shape
+  // (parity requires the value row to equal the column verbatim).
+  const normalizedAlbums = input.albums.map((a, i) => ({
+    id: a.id,
+    name: a.name,
+    sortOrder: a.sortOrder ?? i,
+  }));
 
   const { error } = await supabase
     .from("talent_profiles")
     .update({
-      media_albums_data: input.albums.map((a, i) => ({
-        id: a.id,
-        name: a.name,
-        sortOrder: a.sortOrder ?? i,
-      })),
+      media_albums_data: normalizedAlbums,
       updated_at: new Date().toISOString(),
     })
     .eq("id", input.talent_profile_id);
@@ -267,6 +309,11 @@ export async function updateSelfMediaAlbums(input: {
     logServerError("self-sections.media-albums", error);
     return { ok: false, error: CLIENT_ERROR.update };
   }
+
+  // P3 Tier-B Stage-1 dual-write — album-list JSONB blob (verbatim, normalized).
+  await syncBlobFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
+    media_albums_data: normalizedAlbums,
+  });
 
   revalidatePath(`/t/${profileCode}`, "page");
   return { ok: true };
@@ -280,7 +327,7 @@ export async function updateSelfTalentDocuments(input: {
 }): Promise<Result> {
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase, profileCode } = auth;
+  const { supabase, tenantId, profileCode } = auth;
 
   const { error } = await supabase
     .from("talent_profiles")
@@ -290,6 +337,11 @@ export async function updateSelfTalentDocuments(input: {
     logServerError("self-sections.documents", error);
     return { ok: false, error: CLIENT_ERROR.update };
   }
+
+  // P3 Tier-B Stage-1 dual-write — documents JSONB blob (verbatim).
+  await syncBlobFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
+    documents_data: input.documents,
+  });
 
   revalidatePath(`/t/${profileCode}`, "page");
   return { ok: true };
