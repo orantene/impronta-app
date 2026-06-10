@@ -26,6 +26,10 @@ function makeChain<T>(result: MockResult<T>) {
     order: () => chain,
     eq: () => chain,
     in: () => chain,
+    // taxonomy_terms is now fetched paged (`.range(...).order(...)`) because the
+    // table exceeds the PostgREST 1000-row cap. The mock returns the whole
+    // fixture on the first page; the loop stops since rows < page size.
+    range: () => chain,
     then: (resolve: (v: MockResult<T>) => void) => {
       resolve(result);
     },
