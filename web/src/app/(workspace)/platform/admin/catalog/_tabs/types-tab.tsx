@@ -11,6 +11,7 @@ import {
   type TaxonomyTypeNode,
 } from "../../../talent-types-data";
 import { HqCard, HqAccordion, Stat, CopyableId, HQ, F, FD } from "../_ui";
+import { SaveNotice } from "../[fieldKey]/field-detail-editor-parts";
 
 // ---------------------------------------------------------------------------
 // Leaf row — a single talent_type
@@ -278,30 +279,44 @@ function ParentAccordion({ parent }: { parent: TaxonomyParentNode }) {
 // Tab component
 // ---------------------------------------------------------------------------
 export async function TypesTab({ sp }: { sp: Record<string, string | undefined> }) {
-  void sp;
   const result = await loadPlatformTaxonomyTree();
 
   const totalParents = result.parents.length;
   const totalGroups = result.parents.reduce((s, p) => s + p.groupsCount, 0);
   const totalTypes = result.parents.reduce((s, p) => s + p.talentTypesCount, 0);
 
-  // Distinct agencies/talents across all parent categories
-  const allAgencyIds = new Set<string>();
-  const allTalentIds = new Set<string>();
-  // We can't re-build sets here (already aggregated), use the parent rollup numbers
-  // For the stat we just sum parent.agencyCount — this may double-count talents
-  // across parents in edge cases, but is a reasonable summary stat.
+  // Sum agencies/talents across all parent categories (uses parent rollup numbers;
+  // agencies are max-ed to avoid double-counting across overlapping categories).
   let statAgencies = 0;
   let statTalents = 0;
   for (const p of result.parents) {
     statAgencies = Math.max(statAgencies, p.agencyCount);
     statTalents += p.talentCount;
   }
-  void allAgencyIds;
-  void allTalentIds;
 
   return (
     <div style={{ fontFamily: F, color: HQ.ink }}>
+      <SaveNotice saved={sp.saved} error={sp.error} />
+
+      {/* Stats strip — always shown (zeros when unavailable) */}
+      <div
+        style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}
+      >
+        <Stat label="Parent categories" value={totalParents} />
+        <Stat label="Category groups" value={totalGroups} />
+        <Stat label="Talent types" value={totalTypes} />
+        <Stat
+          label="Agencies (max any cat.)"
+          value={statAgencies}
+          tone={statAgencies > 0 ? HQ.green : undefined}
+        />
+        <Stat
+          label="Talent assignments"
+          value={statTalents}
+          tone={statTalents > 0 ? HQ.green : undefined}
+        />
+      </div>
+
       {/* Header row */}
       <div
         style={{
@@ -354,38 +369,12 @@ export async function TypesTab({ sp }: { sp: Record<string, string | undefined> 
           </div>
         </HqCard>
       ) : (
-        <>
-          {/* Summary stats */}
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 10,
-              marginBottom: 16,
-            }}
-          >
-            <Stat label="Parent categories" value={totalParents} tone={HQ.green} />
-            <Stat label="Category groups" value={totalGroups} tone={HQ.green} />
-            <Stat label="Talent types" value={totalTypes} tone={HQ.green} />
-            <Stat
-              label="Max agencies (any cat.)"
-              value={statAgencies}
-              tone={statAgencies > 0 ? HQ.green : HQ.inkDim}
-            />
-            <Stat
-              label="Total talent assignments"
-              value={statTalents}
-              tone={statTalents > 0 ? HQ.green : HQ.inkDim}
-            />
-          </div>
-
-          {/* Tree */}
-          <div>
-            {result.parents.map((parent) => (
-              <ParentAccordion key={parent.id} parent={parent} />
-            ))}
-          </div>
-        </>
+        /* Tree */
+        <div>
+          {result.parents.map((parent) => (
+            <ParentAccordion key={parent.id} parent={parent} />
+          ))}
+        </div>
       )}
     </div>
   );
