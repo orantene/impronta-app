@@ -425,16 +425,6 @@ export function CommandPalette({
         },
       ),
       drawerRow(
-        "open-template-gallery",
-        "Open Template gallery",
-        "Starter layouts for flexible page compositions",
-        ["templates", "starter", "marketplace", "layout", "start with this"],
-        () => {
-          ctx.openStarterTemplateGallery();
-          onClose();
-        },
-      ),
-      drawerRow(
         "open-schedule",
         "Schedule publish",
         "Pick a future date/time to go live",
