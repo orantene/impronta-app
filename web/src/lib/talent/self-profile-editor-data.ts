@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { readRosterFieldValuesFromCatalog } from "@/lib/talent/roster-field-values-catalog";
 import type {
   MediaAlbumEntry,
   ProfileEditorData,
@@ -31,7 +32,7 @@ export async function loadSelfProfileEditorData(input: {
   talentProfileId: string;
 }): Promise<{ ok: true; data: ProfileEditorData } | { ok: false; error: string }> {
   const { supabase, tenantId, talentProfileId } = input;
-  const [profileRes, rosterRes] = await Promise.all([
+  const [profileRes, rosterRes, rosterFieldValues] = await Promise.all([
     supabase
       .from("talent_profiles")
       .select(`
@@ -66,6 +67,9 @@ export async function loadSelfProfileEditorData(input: {
           .neq("status", "removed")
           .maybeSingle()
       : Promise.resolve({ data: null, error: null }),
+    // P3 Tier-D Stage-4: source roster-scoped fields from the catalog value
+    // table, falling back to the dedicated column below when absent.
+    readRosterFieldValuesFromCatalog(supabase, talentProfileId),
   ]);
 
   if (profileRes.error || !profileRes.data) {
@@ -141,9 +145,12 @@ export async function loadSelfProfileEditorData(input: {
       documents_data: Array.isArray(p.documents_data)
         ? (p.documents_data as TalentDocumentEntry[])
         : [],
-      internal_notes: (r.internal_notes as string | null) ?? null,
-      emergency_contact: r.emergency_contact ?? null,
-      field_locks_data: r.field_locks_data ?? null,
+      // P3 Tier-D Stage-4: prefer the catalog value row, fall back to the
+      // dedicated column when no value row exists (column write still live).
+      internal_notes:
+        rosterFieldValues.internal_notes ?? (r.internal_notes as string | null) ?? null,
+      emergency_contact: rosterFieldValues.emergency_contact ?? r.emergency_contact ?? null,
+      field_locks_data: rosterFieldValues.field_locks_data ?? r.field_locks_data ?? null,
       feature_in_directory: Boolean(r.feature_in_directory),
       social_links: p.social_links ?? [],
       embedded_media: p.embedded_media ?? [],
