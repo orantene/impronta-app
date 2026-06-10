@@ -79,7 +79,7 @@ function tokenAwareStyleString(max: number) {
     .max(max)
     .refine((v) => !isStyleTokenRef(v) || isBindableTokenKey(v.slice(STYLE_TOKEN_REF_PREFIX.length)), {
       message:
-        "Unknown theme token reference. Use token:<color.* | typography.*-font-family> for a bindable token, or a raw CSS value.",
+        "Unknown theme token reference. Use token:<color.* | typography.* | radius.* | shadow.* | space.*> for a bindable token, or a raw CSS value.",
     })
     .optional();
 }
@@ -115,7 +115,8 @@ const builderNodeStyleValueSchema = z.object({
   // React inline styles, which the CSSOM validates (no injection surface).
   // fontFamily also accepts a `token:typography.*-font-family` binding.
   fontFamily: tokenAwareStyleString(160),
-  fontSize: z.string().max(32).optional(),
+  // fontSize also accepts a `token:typography.*-size` type-scale binding.
+  fontSize: tokenAwareStyleString(32),
   fontWeight: z.number().int().min(100).max(900).optional(),
   lineHeight: z.string().max(16).optional(),
   letterSpacing: z.string().max(16).optional(),
@@ -136,8 +137,9 @@ const builderNodeStyleValueSchema = z.object({
   borderWidth: z.string().max(16).optional(),
   borderStyle: z.enum(["solid", "dashed", "dotted"]).optional(),
   // Free border-radius escape — raw CSS (supports per-corner shorthand). Layers
-  // after the radius token so an exact value wins.
-  borderRadius: z.string().max(64).optional(),
+  // after the radius token so an exact value wins. Also accepts a `token:radius.*`
+  // binding → follows the theme's radius scale live.
+  borderRadius: tokenAwareStyleString(64),
   // Free dimension escapes — exact width / height / min-height (length-capped).
   // Coexist with the maxWidth token above (max-width clamps the free width).
   width: z.string().max(16).optional(),
@@ -147,18 +149,21 @@ const builderNodeStyleValueSchema = z.object({
   maxWidthFree: z.string().max(16).optional(),
   maxHeight: z.string().max(16).optional(),
   // Free per-side padding escapes — layer after the paddingX/paddingY token.
-  paddingTop: z.string().max(16).optional(),
-  paddingRight: z.string().max(16).optional(),
-  paddingBottom: z.string().max(16).optional(),
-  paddingLeft: z.string().max(16).optional(),
+  // Also accept a `token:space.*` binding → follow the theme's spacing rhythm.
+  paddingTop: tokenAwareStyleString(16),
+  paddingRight: tokenAwareStyleString(16),
+  paddingBottom: tokenAwareStyleString(16),
+  paddingLeft: tokenAwareStyleString(16),
   // Free per-side margin escapes (collision-safe *Free keys; the margin tokens
-  // are enums). Layer after every margin token so the exact value wins.
-  marginTopFree: z.string().max(16).optional(),
-  marginRightFree: z.string().max(16).optional(),
-  marginBottomFree: z.string().max(16).optional(),
-  marginLeftFree: z.string().max(16).optional(),
+  // are enums). Layer after every margin token so the exact value wins. Also
+  // accept a `token:space.*` binding.
+  marginTopFree: tokenAwareStyleString(16),
+  marginRightFree: tokenAwareStyleString(16),
+  marginBottomFree: tokenAwareStyleString(16),
+  marginLeftFree: tokenAwareStyleString(16),
   // Surface & depth escapes (length/string-capped; opacity normalized 0–1).
-  boxShadow: z.string().max(200).optional(),
+  // boxShadow also accepts a `token:shadow.*` binding → follows the theme shadow.
+  boxShadow: tokenAwareStyleString(200),
   textShadow: z.string().max(200).optional(),
   backgroundImage: z.string().max(500).optional(),
   backgroundSize: z.string().max(40).optional(),
@@ -170,7 +175,8 @@ const builderNodeStyleValueSchema = z.object({
   backgroundClip: z.enum(["text"]).optional(),
   opacity: z.number().min(0).max(1).optional(),
   // Free gap escape — overrides the layout gap token via the --bn-gap variable.
-  gap: z.string().max(16).optional(),
+  // Also accepts a `token:space.*` binding → follows the theme spacing rhythm.
+  gap: tokenAwareStyleString(16),
   // Container-query registration — turns this node into a query container.
   containerType: z.enum(["normal", "inline-size", "size"]).optional(),
   containerName: z.string().max(80).optional(),
@@ -346,7 +352,8 @@ const builderNodeHoverStyleSchema = z.object({
   backgroundColor: tokenAwareStyleString(80),
   color: tokenAwareStyleString(80),
   borderColor: tokenAwareStyleString(80),
-  boxShadow: z.string().max(200).optional(),
+  // boxShadow also accepts a `token:shadow.*` binding (Wave 3 · 3A-extended).
+  boxShadow: tokenAwareStyleString(200),
   scale: z.string().max(16).optional(),
   translate: z.string().max(24).optional(),
   opacity: z.number().min(0).max(1).optional(),
