@@ -24,6 +24,7 @@ import {
   loadEditorLayoutAdmin,
   type EditorGroupRow,
   type EditorSectionRow,
+  type UnmappedSectionBucket,
 } from "./editor-layout-admin-data";
 import {
   createSectionGroup,
@@ -70,64 +71,72 @@ function ActiveBadge({ active }: { active: boolean }) {
   );
 }
 
+/** Shared field link row — used in SectionFields and UnmappedCard. */
+function FieldLink({ field }: { field: EditorSectionRow["fields"][number] }) {
+  return (
+    <Link
+      key={field.field_key}
+      href={`/platform/admin/catalog/${encodeURIComponent(field.field_key)}`}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "5px 8px",
+        border: `1px solid ${HQ.borderSoft}`,
+        borderRadius: 8,
+        background: HQ.cardSoft,
+        color: HQ.ink,
+        textDecoration: "none",
+        fontSize: 12,
+        opacity: field.deprecated ? 0.56 : 1,
+      }}
+    >
+      <span style={{ fontWeight: 650 }}>{field.label}</span>
+      {field.label_es && (
+        <span style={{ color: HQ.inkMuted, fontSize: 11 }}>
+          {field.label_es}
+        </span>
+      )}
+      <span style={{ ...monoStyle, marginLeft: "auto" }}>
+        {field.field_key}
+      </span>
+      {field.tier && field.tier !== "universal" && (
+        <span style={{ fontSize: 9.5, color: HQ.inkDim }}>{field.tier}</span>
+      )}
+      {field.required_default && (
+        <span
+          style={{
+            fontSize: 9.5,
+            fontWeight: 800,
+            textTransform: "uppercase",
+            color: HQ.red,
+            border: `1px solid ${HQ.red}44`,
+            borderRadius: 999,
+            padding: "1px 6px",
+          }}
+        >
+          required
+        </span>
+      )}
+      {field.deprecated && (
+        <span style={{ fontSize: 9.5, color: HQ.inkDim }}>archived</span>
+      )}
+    </Link>
+  );
+}
+
 function SectionFields({ section }: { section: EditorSectionRow }) {
   if (section.fields.length === 0) {
     return (
       <div style={{ fontSize: 11, color: HQ.inkDim, padding: "4px 0" }}>
-        No direct catalog fields bind to{" "}
-        <span style={monoStyle}>{section.slug}</span> (this section may be
-        composed, not catalog-gated).
+        No catalog fields mapped to this section.
       </div>
     );
   }
   return (
     <div style={{ display: "grid", gap: 4 }}>
       {section.fields.map((field) => (
-        <Link
-          key={field.field_key}
-          href={`/platform/admin/catalog/${encodeURIComponent(field.field_key)}`}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "5px 8px",
-            border: `1px solid ${HQ.borderSoft}`,
-            borderRadius: 8,
-            background: HQ.cardSoft,
-            color: HQ.ink,
-            textDecoration: "none",
-            fontSize: 12,
-            opacity: field.deprecated ? 0.56 : 1,
-          }}
-        >
-          <span style={{ fontWeight: 650 }}>{field.label}</span>
-          {field.label_es && (
-            <span style={{ color: HQ.inkMuted, fontSize: 11 }}>
-              {field.label_es}
-            </span>
-          )}
-          <span style={{ ...monoStyle, marginLeft: "auto" }}>
-            {field.field_key}
-          </span>
-          {field.required_default && (
-            <span
-              style={{
-                fontSize: 9.5,
-                fontWeight: 800,
-                textTransform: "uppercase",
-                color: HQ.red,
-                border: `1px solid ${HQ.red}44`,
-                borderRadius: 999,
-                padding: "1px 6px",
-              }}
-            >
-              required
-            </span>
-          )}
-          {field.deprecated && (
-            <span style={{ fontSize: 9.5, color: HQ.inkDim }}>archived</span>
-          )}
-        </Link>
+        <FieldLink key={field.field_key} field={field} />
       ))}
     </div>
   );
@@ -189,8 +198,8 @@ function SectionRow({
       <form action={updateSection} style={{ display: "grid", gap: 10, marginBottom: 10 }}>
         <input type="hidden" name="id" value={section.id} />
         <div style={formGridStyle}>
-          <FieldInput label="Label (EN)" name="label_en" defaultValue={section.label_en} />
-          <FieldInput label="Label (ES)" name="label_es" defaultValue={section.label_es} />
+          <FieldInput label="Label EN" name="label_en" defaultValue={section.label_en} />
+          <FieldInput label="Label ES" name="label_es" defaultValue={section.label_es} />
           <FieldInput label="Emoji" name="emoji" defaultValue={section.emoji} />
         </div>
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
@@ -240,7 +249,7 @@ function SectionRow({
       </form>
 
       <div style={{ fontSize: 11, color: HQ.inkMuted, marginBottom: 6, fontWeight: 600 }}>
-        Catalog fields in this section
+        Catalog fields ({section.fields.length})
       </div>
       <SectionFields section={section} />
     </div>
@@ -348,15 +357,64 @@ function GroupBlock({
         </div>
       )}
 
-      {/* Sections */}
+      {/* Sections — two-column grid */}
       {group.sections.length === 0 ? (
         <div style={{ fontSize: 12, color: HQ.inkDim }}>No sections in this group.</div>
       ) : (
-        group.sections.map((section) => (
-          <SectionRow key={section.id} section={section} groupOptions={groupOptions} />
-        ))
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+            gap: 14,
+            alignItems: "start",
+          }}
+        >
+          {group.sections.map((section) => (
+            <SectionRow key={section.id} section={section} groupOptions={groupOptions} />
+          ))}
+        </div>
       )}
     </HqAccordion>
+  );
+}
+
+function UnmappedCard({ unmappedSections }: { unmappedSections: UnmappedSectionBucket[] }) {
+  if (unmappedSections.length === 0) return null;
+  return (
+    <HqCard
+      title="Unmapped field sections"
+      subtitle="These DB field sections aren't bound to any profile-editor section yet."
+    >
+      <div style={{ fontSize: 11.5, color: HQ.inkMuted, marginBottom: 12 }}>
+        Each entry below is a distinct <span style={monoStyle}>profile_field_definitions.section</span> value
+        that doesn&apos;t appear in the section→DB-section mapping. Add the value to{" "}
+        <span style={monoStyle}>SECTION_FIELD_SECTIONS</span> in{" "}
+        <span style={monoStyle}>editor-layout-admin-data.ts</span> to assign it.
+      </div>
+      {unmappedSections.map((bucket) => (
+        <div key={bucket.section} style={{ marginBottom: 14 }}>
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: HQ.amber,
+              fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+              marginBottom: 6,
+            }}
+          >
+            {bucket.section}{" "}
+            <span style={{ fontWeight: 400, color: HQ.inkDim }}>
+              ({bucket.fields.length} field{bucket.fields.length === 1 ? "" : "s"})
+            </span>
+          </div>
+          <div style={{ display: "grid", gap: 4 }}>
+            {bucket.fields.map((field) => (
+              <FieldLink key={field.field_key} field={field} />
+            ))}
+          </div>
+        </div>
+      ))}
+    </HqCard>
   );
 }
 
@@ -365,7 +423,7 @@ export async function EditorTab({ sp }: { sp: Record<string, string | undefined>
 
   if (!data.ok) {
     return (
-      <HqCard title="Editor Layout">
+      <HqCard title="Section Editor">
         <SaveNotice saved={sp.saved} error={sp.error} />
         <div style={{ fontSize: 13, color: HQ.inkMuted }}>
           Could not load the profile-editor layout. The service client may be
@@ -381,7 +439,7 @@ export async function EditorTab({ sp }: { sp: Record<string, string | undefined>
       <SaveNotice saved={sp.saved} error={sp.error} />
 
       <HqCard
-        title="Editor Layout"
+        title="Section Editor"
         subtitle="Reorder, rename, move, and archive the talent profile-editor sections and their groups. Changes drive the live editor rail. Soft-archive only; slugs are immutable."
       >
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
@@ -466,6 +524,9 @@ export async function EditorTab({ sp }: { sp: Record<string, string | undefined>
           ))}
         </HqCard>
       )}
+
+      {/* Unmapped field sections — full-width card at the bottom */}
+      <UnmappedCard unmappedSections={data.unmappedSections} />
     </div>
   );
 }

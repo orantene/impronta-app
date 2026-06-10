@@ -230,9 +230,9 @@ function parseTab(raw: string | undefined): HubTab {
 }
 const HUB_TABS: ReadonlyArray<{ tab: HubTab; label: string }> = [
   { tab: "fields", label: "Fields" },
-  { tab: "groups", label: "Groups" },
-  { tab: "types", label: "Types" },
-  { tab: "editor", label: "Editor Layout" },
+  { tab: "groups", label: "Field Groups" },
+  { tab: "types", label: "Talent Types" },
+  { tab: "editor", label: "Section Editor" },
 ];
 
 // Phase 9A slice 3 — "View-as" role preview. platform_admin = default
@@ -465,31 +465,95 @@ export default async function PlatformCatalogMapPage({
         </div>
       </div>
 
-      {/* Hub tabs — segmented control. Links set ?tab=; active chip highlighted
-          in green, matching the FilterChip visual language. */}
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
-        {HUB_TABS.map(({ tab: t, label }) => {
-          const active = tab === t;
-          return (
-            <Link
-              key={t}
-              href={t === "fields" ? "/platform/admin/catalog" : `?tab=${t}`}
-              style={{
-                fontSize: 11.5,
-                fontWeight: 600,
-                padding: "5px 12px",
-                borderRadius: 999,
-                border: `1px solid ${active ? HQ.green : HQ.borderSoft}`,
-                background: active ? "rgba(93,211,160,0.14)" : HQ.cardSoft,
-                color: active ? HQ.green : HQ.inkMuted,
-                textDecoration: "none",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {label}
-            </Link>
-          );
-        })}
+      {/* Hub tabs — two labeled clusters: Catalog Engine + Section Editor. */}
+      <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 12 }}>
+        {/* Cluster A — Catalog Engine */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span
+            style={{
+              fontSize: 9.5,
+              fontWeight: 800,
+              letterSpacing: 0.7,
+              textTransform: "uppercase",
+              color: HQ.inkDim,
+              whiteSpace: "nowrap",
+              paddingRight: 2,
+            }}
+          >
+            Catalog Engine
+          </span>
+          {(["fields", "groups", "types"] as const).map((t) => {
+            const entry = HUB_TABS.find((h) => h.tab === t)!;
+            const active = tab === t;
+            return (
+              <Link
+                key={t}
+                href={t === "fields" ? "/platform/admin/catalog" : `?tab=${t}`}
+                style={{
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  padding: "5px 12px",
+                  borderRadius: 999,
+                  border: `1px solid ${active ? HQ.green : HQ.borderSoft}`,
+                  background: active ? "rgba(93,211,160,0.14)" : HQ.cardSoft,
+                  color: active ? HQ.green : HQ.inkMuted,
+                  textDecoration: "none",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {entry.label}
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Thin divider */}
+        <div
+          style={{
+            width: 1,
+            height: 22,
+            background: HQ.borderSoft,
+            flexShrink: 0,
+          }}
+        />
+
+        {/* Cluster B — Section Editor */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span
+            style={{
+              fontSize: 9.5,
+              fontWeight: 800,
+              letterSpacing: 0.7,
+              textTransform: "uppercase",
+              color: HQ.inkDim,
+              whiteSpace: "nowrap",
+              paddingRight: 2,
+            }}
+          >
+            Section Editor
+          </span>
+          {(() => {
+            const active = tab === "editor";
+            return (
+              <Link
+                href="?tab=editor"
+                style={{
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  padding: "5px 12px",
+                  borderRadius: 999,
+                  border: `1px solid ${active ? HQ.green : HQ.borderSoft}`,
+                  background: active ? "rgba(93,211,160,0.14)" : HQ.cardSoft,
+                  color: active ? HQ.green : HQ.inkMuted,
+                  textDecoration: "none",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Section Editor
+              </Link>
+            );
+          })()}
+        </div>
       </div>
 
       {/* Compact metric strip — replaces the old full-width Overview card. */}
