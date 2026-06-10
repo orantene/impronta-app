@@ -30,6 +30,10 @@ import { isReservedTalentProfileFieldKey } from "@/lib/field-canonical";
 import { applyProfileShellStatusWithPublishGate } from "@/lib/field-engine/profile-publish-server-gate";
 import { mergeShellSocialAndEmbedded } from "@/lib/talent/profile-shell-drawer-persist";
 import { syncProfileShellDynFieldValues } from "@/lib/talent/profile-shell-dyn-field-values";
+import {
+  syncRosterFieldValuesToCatalog,
+  readRosterFieldValuesFromCatalog,
+} from "@/lib/talent/roster-field-values-catalog";
 import { syncTalentTypeTaxonomyFromShellSlugs } from "@/lib/talent/profile-shell-taxonomy-sync";
 import type { UiProfileShellStatus } from "@/lib/talent/profile-shell-workflow";
 
@@ -660,6 +664,16 @@ export async function commitTalentProfileShellAdmin(
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
+  // P3 Tier-D Stage-1 dual-write: mirror the roster-scoped fields into the
+  // catalog value table alongside the column write above. Fire-and-forget —
+  // never blocks the column write the editor already trusts.
+  await syncRosterFieldValuesToCatalog(supabase, tid, tenantId, {
+    internal_notes: rm.internal_notes,
+    emergency_contact: rm.emergency_contact,
+    field_locks_data: rm.field_locks_data,
+  });
+  lap("rosterFieldValuesCatalog");
+
   // Skip when the LanguageSlotPanel owns languages — it persists them
   // independently and this stale `state.languages` would otherwise wipe
   // the panel's edits via the replace RPC (the dual-writer hazard).
@@ -1212,8 +1226,9 @@ export async function getTalentProfileEditorData(input: {
   const check = await assertOnRoster(supabase as never, tenantId, input.talent_profile_id);
   if (!check.ok) return check;
 
-  // Fetch talent_profiles row + the roster row in parallel.
-  const [profileRes, rosterRes] = await Promise.all([
+  // Fetch talent_profiles row + the roster row + the Tier-D catalog value
+  // rows in parallel.
+  const [profileRes, rosterRes, rosterFieldValues] = await Promise.all([
     supabase
       .from("talent_profiles")
       .select(`
@@ -1245,6 +1260,9 @@ export async function getTalentProfileEditorData(input: {
       .eq("tenant_id", tenantId)
       .neq("status", "removed")
       .maybeSingle(),
+    // P3 Tier-D Stage-4: source roster-scoped fields from the catalog value
+    // table, falling back to the dedicated column below when absent.
+    readRosterFieldValuesFromCatalog(supabase, input.talent_profile_id),
   ]);
 
   if (profileRes.error || !profileRes.data) {
@@ -1331,9 +1349,12 @@ export async function getTalentProfileEditorData(input: {
       social_proof_data: p.social_proof_data ?? [],
       media_albums_data: Array.isArray(p.media_albums_data) ? (p.media_albums_data as MediaAlbumEntry[]) : [],
       documents_data: Array.isArray(p.documents_data) ? (p.documents_data as TalentDocumentEntry[]) : [],
-      internal_notes: (r.internal_notes as string | null) ?? null,
-      emergency_contact: r.emergency_contact ?? {},
-      field_locks_data: r.field_locks_data ?? {},
+      // P3 Tier-D Stage-4: prefer the catalog value row, fall back to the
+      // dedicated column when no value row exists (column write still live).
+      internal_notes:
+        rosterFieldValues.internal_notes ?? (r.internal_notes as string | null) ?? null,
+      emergency_contact: rosterFieldValues.emergency_contact ?? r.emergency_contact ?? {},
+      field_locks_data: rosterFieldValues.field_locks_data ?? r.field_locks_data ?? {},
       feature_in_directory: Boolean(r.feature_in_directory),
       social_links: p.social_links ?? [],
       embedded_media: p.embedded_media ?? [],

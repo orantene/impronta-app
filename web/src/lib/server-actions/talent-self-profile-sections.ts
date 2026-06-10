@@ -13,6 +13,7 @@ import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { revalidateDirectoryListing } from "@/lib/revalidate-public";
 import { mergeShellSocialAndEmbedded } from "@/lib/talent/profile-shell-drawer-persist";
 import { syncProfileShellDynFieldValues } from "@/lib/talent/profile-shell-dyn-field-values";
+import { syncRosterFieldValuesToCatalog } from "@/lib/talent/roster-field-values-catalog";
 import { syncTalentTypeTaxonomyFromShellSlugs } from "@/lib/talent/profile-shell-taxonomy-sync";
 import type { UiProfileShellStatus } from "@/lib/talent/profile-shell-workflow";
 import { uiProfileShellStatusToDbPatch } from "@/lib/talent/profile-shell-workflow";
@@ -650,6 +651,12 @@ export async function updateSelfEmergencyContact(input: {
     .eq("tenant_id", tenantId)
     .neq("status", "removed");
   if (error) { logServerError("self-sections.emergency-contact", error); return { ok: false, error: CLIENT_ERROR.update }; }
+
+  // P3 Tier-D Stage-1 dual-write: mirror the emergency contact into the catalog
+  // value table alongside the column write. Fire-and-forget — never blocks.
+  await syncRosterFieldValuesToCatalog(admin, input.talent_profile_id, tenantId, {
+    emergency_contact: contact,
+  });
 
   revalidatePath(`/t/${profileCode}`, "page");
   return { ok: true };
