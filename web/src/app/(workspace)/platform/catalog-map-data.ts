@@ -33,6 +33,9 @@ export type CatalogField = {
   show_in_public: boolean;
   required_default: boolean;
   deprecated: boolean;
+  /** How the field renders in the talent editor — 'catalog' (generic
+   *  renderer) or 'bespoke' (hand-coded control). Defaults to 'catalog'. */
+  render_mode: string;
   /** # of workspaces that have a per-field override row. */
   override_count: number;
   /** # of talents with a stored value for this field. */
@@ -108,6 +111,7 @@ type DefRow = {
   show_in_public: boolean | null;
   is_optional: boolean | null;
   deprecated_at: string | null;
+  render_mode: string | null;
 };
 type GroupRow = {
   id: string;
@@ -148,7 +152,7 @@ async function loadPlatformCatalogMapUncached(): Promise<PlatformCatalogMap> {
       sb
         .from("profile_field_definitions")
         .select(
-          "id, field_key, label, tier, section, field_group_id, display_order, default_visibility, admin_only, is_sensitive, show_in_public, is_optional, deprecated_at",
+          "id, field_key, label, tier, section, field_group_id, display_order, default_visibility, admin_only, is_sensitive, show_in_public, is_optional, deprecated_at, render_mode",
         ),
       sb
         .from("profile_field_groups")
@@ -258,6 +262,7 @@ async function loadPlatformCatalogMapUncached(): Promise<PlatformCatalogMap> {
         show_in_public: !!d.show_in_public,
         required_default: d.is_optional === false,
         deprecated: isDeprecated,
+        render_mode: d.render_mode ?? "catalog",
         override_count: ov,
         value_count: vc,
       };

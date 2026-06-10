@@ -15,6 +15,7 @@ export const HQ = {
   green: "#5DD3A0",
   amber: "#9BA8B7",
   red: "#F36772",
+  violet: "#A99BE6",
 } as const;
 
 export const F = '"Inter", system-ui, sans-serif';
