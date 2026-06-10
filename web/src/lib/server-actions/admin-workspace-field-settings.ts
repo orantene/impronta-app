@@ -23,6 +23,7 @@ import {
 import { filterTenantCatalogFieldsByEnabledTaxonomy } from "@/lib/field-engine/tenant-catalog-scope";
 import { sanitizeWorkspaceFieldCatalogOverride } from "@/lib/field-engine/workspace-field-settings-safety";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
+import { fetchAllTaxonomyTerms } from "@/lib/supabase/paged";
 
 // ── Phase 7a — audit helpers ────────────────────────────────────────────
 // Tiny shaping helpers so the before/after snapshots stored in
@@ -135,8 +136,9 @@ export async function getFieldPrivacyCatalog(): Promise<
       ),
     tenantScopedQuery(supabase, "workspace_field_group_settings", tenantId)
       .select("field_group_id, custom_label, display_order"),
-    // eslint-disable-next-line ratchet/no-untenanted-from -- taxonomy_terms is the platform-global taxonomy table and has no tenant_id column
-    supabase.from("taxonomy_terms").select("id, parent_id, is_active").eq("is_active", true),
+    // taxonomy_terms (global): is_active ≈ 1068 rows > 1000-row cap — page by id.
+    fetchAllTaxonomyTerms<ScopeTermRow>(supabase, "id, parent_id, is_active", (q) => q.eq("is_active", true))
+      .then((data) => ({ data, error: null as null }), (error) => ({ data: null, error })),
     tenantScopedQuery(supabase, "agency_taxonomy_settings", tenantId).select(
       "taxonomy_term_id, is_enabled",
     ),
@@ -518,8 +520,9 @@ export async function getWorkspaceFieldCatalog(): Promise<
       .select("field_definition_id, enabled_override, required_override, custom_label, custom_helper, display_order_override"),
     tenantScopedQuery(supabase, "workspace_field_group_settings", tenantId)
       .select("field_group_id, is_enabled, custom_label, display_order"),
-    // eslint-disable-next-line ratchet/no-untenanted-from -- taxonomy_terms is the platform-global taxonomy table and has no tenant_id column
-    supabase.from("taxonomy_terms").select("id, parent_id, is_active").eq("is_active", true),
+    // taxonomy_terms (global): is_active ≈ 1068 rows > 1000-row cap — page by id.
+    fetchAllTaxonomyTerms<ScopeTermRow>(supabase, "id, parent_id, is_active", (q) => q.eq("is_active", true))
+      .then((data) => ({ data, error: null as null }), (error) => ({ data: null, error })),
     tenantScopedQuery(supabase, "agency_taxonomy_settings", tenantId).select(
       "taxonomy_term_id, is_enabled",
     ),

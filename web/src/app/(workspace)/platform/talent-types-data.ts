@@ -5,6 +5,7 @@
 // only — never import from client components. Degrades to empty on any failure.
 import { unstable_cache } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { fetchAllTaxonomyTerms } from "@/lib/supabase/paged";
 import { CACHE_TAG_TAXONOMY } from "@/lib/cache-tags";
 import { CACHE_TAG_FIELD_CATALOG } from "@/lib/field-engine/cache-tags";
 
@@ -279,16 +280,19 @@ async function loadPlatformTaxonomyTreeUncached(): Promise<LoadPlatformTaxonomyT
   if (!sb) return EMPTY_TREE;
 
   try {
-    const [termsR, recsR, assignmentsR, rosterR] = await Promise.all([
-      sb
-        .from("taxonomy_terms")
-        .select(
-          "id, slug, name_en, name_es, icon, parent_id, sort_order, term_type, is_active, archived_at",
-        )
-        .in("term_type", ["parent_category", "category_group", "talent_type"])
-        .is("archived_at", null)
-        .order("sort_order", { ascending: true })
-        .order("name_en", { ascending: true }),
+    const [termRows, recsR, assignmentsR, rosterR] = await Promise.all([
+      // The 3 broad types under `archived_at IS NULL` are ~532 rows today, but
+      // grow as talent_types are added and can cross PostgREST's 1000-row cap.
+      // Page by `id`, then re-sort by the display order (sort_order → name_en)
+      // below so the partitioned parent/group/type lists keep their order.
+      fetchAllTaxonomyTerms<TaxonomyTermBase>(
+        sb,
+        "id, slug, name_en, name_es, icon, parent_id, sort_order, term_type, is_active, archived_at",
+        (q) =>
+          q
+            .in("term_type", ["parent_category", "category_group", "talent_type"])
+            .is("archived_at", null),
+      ),
       sb
         .from("profile_field_recommendations")
         .select("taxonomy_term_id"),
@@ -301,13 +305,13 @@ async function loadPlatformTaxonomyTreeUncached(): Promise<LoadPlatformTaxonomyT
         .neq("status", "removed"),
     ]);
 
-    if (termsR.error) {
-      // eslint-disable-next-line no-console
-      console.error("[talent-types-data] tree terms load failed:", termsR.error.message);
-      return EMPTY_TREE;
-    }
-
-    const allTerms = (termsR.data ?? []) as Array<TaxonomyTermBase>;
+    const allTerms = termRows
+      .slice()
+      .sort(
+        (a, b) =>
+          (a.sort_order ?? 0) - (b.sort_order ?? 0) ||
+          a.name_en.localeCompare(b.name_en),
+      );
 
     // ---- mapped field counts per talent_type ----
     const mappedCounts = new Map<string, number>();

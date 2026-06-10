@@ -22,7 +22,23 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { fetchAllTaxonomyTerms } from "@/lib/supabase/paged";
 import { TAXONOMY, type TaxonomyParent, type TaxonomyParentId } from "./state";
+
+/** Raw `taxonomy_terms` row shape this hook selects (input to `rowToTerm`). */
+type TaxonomyTermsRow = {
+  id: string;
+  slug: string;
+  name_en: string;
+  plural_name?: string | null;
+  icon?: string | null;
+  term_type: string;
+  parent_id: string | null;
+  level: number;
+  sort_order: number;
+  is_public_filter: boolean;
+  is_active: boolean;
+};
 
 /**
  * Live shape — every term keeps its real Supabase id + full row, so
@@ -177,23 +193,29 @@ export function useLiveTaxonomy(): LiveTaxonomyResult {
     }
 
     (async () => {
-      // Pull every parent_category + every talent_type row in one call
-      // (≤ ~270 rows). We reshape client-side; cheaper than two queries.
-      const { data, error } = await sb
-        .from("taxonomy_terms")
-        .select("id, slug, name_en, plural_name, icon, term_type, parent_id, level, sort_order, is_public_filter, is_active")
-        .in("term_type", ["parent_category", "category_group", "talent_type"])
-        .eq("is_active", true)
-        .is("archived_at", null)
-        .order("sort_order", { ascending: true });
+      // Pull every parent_category + category_group + talent_type row. This is
+      // ~532 rows today but grows with talent_types and can cross PostgREST's
+      // 1000-row cap, which would silently drop rows past row 1000. Page by `id`
+      // (shared helper), then re-sort by the display order (sort_order) below.
+      // We reshape client-side. `fetchAllTaxonomyTerms` is runtime-agnostic
+      // (no "server-only") so it is safe to call from this client hook with the
+      // browser Supabase client.
+      const data = await fetchAllTaxonomyTerms<TaxonomyTermsRow>(
+        sb,
+        "id, slug, name_en, plural_name, icon, term_type, parent_id, level, sort_order, is_public_filter, is_active",
+        (q) =>
+          q
+            .in("term_type", ["parent_category", "category_group", "talent_type"])
+            .eq("is_active", true)
+            .is("archived_at", null),
+      );
 
       if (cancelled) return;
 
-      if (error || !data) {
-        setState({ source: "fallback", rows: [], error: error?.message ?? "load failed" });
-        return;
-      }
-      setState({ source: "live", rows: data.map(rowToTerm), error: null });
+      const sorted = data
+        .slice()
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+      setState({ source: "live", rows: sorted.map(rowToTerm), error: null });
     })().catch((e) => {
       if (cancelled) return;
       setState({ source: "fallback", rows: [], error: String(e) });

@@ -15,6 +15,7 @@ import {
 } from "@/lib/taxonomy/engine";
 import { logServerError } from "@/lib/server/safe-error";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
+import { fetchAllTaxonomyTerms } from "@/lib/supabase/paged";
 import type { FieldDefinitionRow, FieldGroupRow } from "@/lib/fields/types";
 import { resolveTalentTermsVersion } from "@/lib/talent-submission-service";
 import { buildTalentPreviewHref } from "@/lib/talent-nav-groups";
@@ -203,28 +204,39 @@ export const loadTalentTaxonomyEditorData = cache(
 
     if (pErr || !profile) return { ok: false, reason: "no_profile" };
 
-    const [{ data: assignmentRows, error: aErr }, { data: allTerms, error: termsErr }] =
-      await Promise.all([
-        supabase
-          .from("talent_profile_taxonomy")
-          .select("taxonomy_term_id, is_primary, taxonomy_terms(kind)")
-          .eq("talent_profile_id", profile.id),
-        supabase
-          .from("taxonomy_terms")
-          .select("id, kind, slug, name_en, name_es, sort_order")
-          .is("archived_at", null)
-          .order("kind")
-          .order("sort_order"),
-      ]);
+    // `archived_at IS NULL` alone ≈ 1068 rows > PostgREST's 1000-row cap, so an
+    // un-paged select silently dropped terms past row 1000. Page by `id`, then
+    // re-sort by the original display order (kind → sort_order) below.
+    const [{ data: assignmentRows, error: aErr }, allTermsResult] = await Promise.all([
+      supabase
+        .from("talent_profile_taxonomy")
+        .select("taxonomy_term_id, is_primary, taxonomy_terms(kind)")
+        .eq("talent_profile_id", profile.id),
+      fetchAllTaxonomyTerms<TalentTaxonomyTermOption>(
+        supabase,
+        "id, kind, slug, name_en, name_es, sort_order",
+        (q) => q.is("archived_at", null),
+      ).then(
+        (rows) => ({ data: rows, error: null as null }),
+        (error) => ({ data: null, error }),
+      ),
+    ]);
 
     if (aErr) {
       logServerError("talent/taxonomyEditor/assignments", aErr);
       return { ok: false, reason: "load_error" };
     }
-    if (termsErr) {
-      logServerError("talent/taxonomyEditor/terms", termsErr);
+    if (allTermsResult.error || !allTermsResult.data) {
+      logServerError("talent/taxonomyEditor/terms", allTermsResult.error);
       return { ok: false, reason: "load_error" };
     }
+    const allTerms = allTermsResult.data
+      .slice()
+      .sort(
+        (a, b) =>
+          (a.kind ?? "").localeCompare(b.kind ?? "") ||
+          (a.sort_order ?? 0) - (b.sort_order ?? 0),
+      );
 
     const rows = (assignmentRows ?? []) as {
       taxonomy_term_id: string;

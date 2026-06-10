@@ -2,6 +2,7 @@ import { unstable_cache } from "next/cache";
 import { CACHE_TAG_TAXONOMY } from "@/lib/cache-tags";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { fetchAllTaxonomyTerms } from "@/lib/supabase/paged";
 
 export type TaxonomyFilterOption = {
   id: string;
@@ -34,21 +35,8 @@ async function loadTaxonomyTermsUncached(
   if (!supabase) {
     return [];
   }
-  const { data, error } = await supabase
-    .from("taxonomy_terms")
-    .select(
-      "id, slug, kind, term_type, parent_id, level, is_public_filter, is_active, search_synonyms, name_en, name_es, sort_order",
-    )
-    .is("archived_at", null)
-    .order("term_type", { nullsFirst: false })
-    .order("kind")
-    .order("sort_order");
 
-  if (error || !data) {
-    return [];
-  }
-
-  const rows = data as Array<{
+  type TaxonomyTermRow = {
     id: string;
     slug: string;
     kind: string;
@@ -61,7 +49,40 @@ async function loadTaxonomyTermsUncached(
     name_en: string;
     name_es: string | null;
     sort_order: number | null;
-  }>;
+  };
+
+  // `archived_at IS NULL` alone ≈ 1068 rows > PostgREST's 1000-row cap, so an
+  // un-paged select silently dropped terms past row 1000 — directory-critical
+  // (the marketplace filter facets). Page by `id`, then re-sort by the original
+  // display order (term_type → kind → sort_order) below. The final output is
+  // also re-sorted by display_order/sort_order, but we restore this order first
+  // so any stable-sort ties resolve identically to the old query.
+  let rows: TaxonomyTermRow[];
+  try {
+    rows = await fetchAllTaxonomyTerms<TaxonomyTermRow>(
+      supabase,
+      "id, slug, kind, term_type, parent_id, level, is_public_filter, is_active, search_synonyms, name_en, name_es, sort_order",
+      (q) => q.is("archived_at", null),
+    );
+  } catch {
+    return [];
+  }
+  rows.sort((a, b) => {
+    // Match the old query's `.order("term_type", { nullsFirst: false })` —
+    // nulls sort LAST — then kind, then sort_order.
+    const at = a.term_type;
+    const bt = b.term_type;
+    if (at !== bt) {
+      if (at == null) return 1;
+      if (bt == null) return -1;
+      const c = at.localeCompare(bt);
+      if (c !== 0) return c;
+    }
+    return (
+      (a.kind ?? "").localeCompare(b.kind ?? "") ||
+      (a.sort_order ?? 0) - (b.sort_order ?? 0)
+    );
+  });
   const rowById = new Map(rows.map((row) => [row.id, row] as const));
   const tenantSettings = new Map<
     string,
