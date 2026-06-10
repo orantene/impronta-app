@@ -2093,7 +2093,11 @@ function BreakpointsPopover() {
 function ExitButton() {
   const { pending } = useFormStatus();
   return (
-    <TbTextBtn type="submit" disabled={pending} title="Back to dashboard">
+    <TbTextBtn
+      type="submit"
+      disabled={pending}
+      title="Exit edit mode and view your live published site"
+    >
       <svg
         width={TB_ICON_PX}
         height={TB_ICON_PX}
@@ -2108,7 +2112,7 @@ function ExitButton() {
         <line x1="19" y1="12" x2="5" y2="12" />
         <polyline points="12 19 5 12 12 5" />
       </svg>
-      {pending ? "Exiting…" : "Back to Dashboard"}
+      {pending ? "Exiting…" : "Exit to live site"}
     </TbTextBtn>
   );
 }

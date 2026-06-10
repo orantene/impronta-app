@@ -404,8 +404,8 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--button[data-builder-button-hover-tone="secondary"]:hover,.site-builder-node--button[data-builder-button-focus-tone="secondary"]:focus-visible,.site-builder-node--button[data-builder-button-active-tone="secondary"]:active{background:transparent!important;color:var(--token-color-primary,#111)!important;border-color:rgba(18,18,18,0.28)!important}
 .site-builder-node--button[data-builder-button-disabled-tone="secondary"][aria-disabled="true"]{background:transparent;color:rgba(18,18,18,0.42);border-color:rgba(18,18,18,0.16);pointer-events:none}
 .site-builder-node--button[data-builder-button-disabled-tone="primary"][aria-disabled="true"]{background:rgba(18,18,18,0.35);color:#fff;border-color:rgba(18,18,18,0.08);pointer-events:none}
-.site-builder-node--heading{font-family:var(--site-heading-font,inherit);color:var(--token-color-ink,inherit)}
-.site-builder-node--paragraph{font-family:var(--site-body-font,inherit)}
+.site-builder-node--heading{align-self:stretch;font-family:var(--site-heading-font,inherit);color:var(--token-color-ink,inherit)}
+.site-builder-node--paragraph{align-self:stretch;font-family:var(--site-body-font,inherit)}
 .site-builder-node--video{display:block;width:100%;max-width:100%;background:#000}
 .site-builder-node--embed{display:block;width:100%;max-width:100%;border:0;background:#000}
 .site-builder-node--icon{display:inline-flex;align-items:center;justify-content:center;color:currentColor;line-height:1}
