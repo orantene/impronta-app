@@ -564,6 +564,85 @@ export async function setPlatformTaxonomyFieldMappingAction(formData: FormData):
   redirect(`/platform/admin/taxonomy?term=${encodeURIComponent(term.slug)}&saved=mapping`);
 }
 
+export async function deletePlatformTaxonomyTermAction(formData: FormData): Promise<void> {
+  const auth = await requirePlatformAdmin();
+  if (!auth.ok) redirect(`/platform/admin/taxonomy?error=${encodeURIComponent(auth.error)}`);
+
+  const id = text(formData, "id");
+  const returnTo = text(formData, "return_to");
+  if (!id) redirect("/platform/admin/taxonomy?error=Missing%20term");
+
+  // Guard: block delete if any term has this term as its parent (has children).
+  const { data: children, error: childErr } = await auth.sb
+    .from("taxonomy_terms")
+    .select("id")
+    .eq("parent_id", id)
+    .limit(1);
+  if (childErr) {
+    logServerError("platform.taxonomy.deleteTerm.childCheck", childErr);
+    redirect("/platform/admin/taxonomy?error=Could%20not%20check%20for%20child%20terms");
+  }
+  if ((children?.length ?? 0) > 0) {
+    // Redirect back to the term page with a clear error.
+    const errorMsg = encodeURIComponent("Remove child terms first");
+    if (returnTo && returnTo.startsWith("/platform/admin/catalog")) {
+      redirect(`${returnTo}?error=${errorMsg}`);
+    }
+    redirect(`/platform/admin/taxonomy?error=${errorMsg}`);
+  }
+
+  const { data: beforeRow } = await auth.sb
+    .from("taxonomy_terms")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  // Dependent-row cleanup.
+  const { error: recErr } = await auth.sb
+    .from("profile_field_recommendations")
+    .delete()
+    .eq("taxonomy_term_id", id);
+  if (recErr) {
+    logServerError("platform.taxonomy.deleteTerm.recommendations", recErr);
+    redirect("/platform/admin/taxonomy?error=Could%20not%20remove%20field%20mappings");
+  }
+
+  const { error: taxErr } = await auth.sb
+    .from("talent_profile_taxonomy")
+    .delete()
+    .eq("taxonomy_term_id", id);
+  if (taxErr) {
+    logServerError("platform.taxonomy.deleteTerm.talentTaxonomy", taxErr);
+    redirect("/platform/admin/taxonomy?error=Could%20not%20remove%20talent%20taxonomy%20links");
+  }
+
+  const { error } = await auth.sb
+    .from("taxonomy_terms")
+    .delete()
+    .eq("id", id);
+  if (error) {
+    logServerError("platform.taxonomy.deleteTerm", error);
+    redirect("/platform/admin/taxonomy?error=Could%20not%20delete%20term");
+  }
+
+  await recordTaxonomyAudit(auth.sb, {
+    actorId: auth.actorId,
+    action: "platform.engine.taxonomy.delete",
+    targetId: id,
+    beforeValue: beforeRow,
+    afterValue: null,
+    severity: "warn",
+  });
+
+  revalidateTaxonomySurfaces();
+
+  // Redirect: catalog hub paths land on ?tab=types; taxonomy hub lands on ?saved=deleted.
+  if (returnTo && returnTo.startsWith("/platform/admin/catalog")) {
+    redirect("/platform/admin/catalog?tab=types&saved=term_deleted");
+  }
+  redirect("/platform/admin/taxonomy?saved=deleted");
+}
+
 export async function removePlatformTaxonomyFieldMappingAction(formData: FormData): Promise<void> {
   const auth = await requirePlatformAdmin();
   if (!auth.ok) redirect(`/platform/admin/taxonomy?error=${encodeURIComponent(auth.error)}`);

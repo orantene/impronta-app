@@ -10,9 +10,11 @@ import Link from "next/link";
 import type { TalentTypeDetailResult } from "../../../talent-types-data";
 import {
   createPlatformTaxonomyTermAction,
+  deletePlatformTaxonomyTermAction,
   updatePlatformTaxonomyTermAction,
   setPlatformTaxonomyLifecycleAction,
 } from "../../taxonomy/actions";
+import { ConfirmSubmitButton } from "../confirm-submit-button";
 import {
   TaxonomyFieldMappingPanel,
   type TaxonomyFieldMapping,
@@ -345,13 +347,22 @@ export function TalentTypeDetailView({
             {" · "}
             {detail.talentCount} talent{detail.talentCount === 1 ? "" : "s"} assigned
           </div>
-          <form action={setPlatformTaxonomyLifecycleAction}>
-            <input type="hidden" name="id" value={term.id} />
-            <input type="hidden" name="mode" value={isArchived ? "restore" : "archive"} />
-            <SubmitButton tone={isArchived ? "neutral" : "danger"}>
-              {isArchived ? "Restore type" : "Archive type"}
-            </SubmitButton>
-          </form>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <form action={setPlatformTaxonomyLifecycleAction}>
+              <input type="hidden" name="id" value={term.id} />
+              <input type="hidden" name="mode" value={isArchived ? "restore" : "archive"} />
+              <SubmitButton tone={isArchived ? "neutral" : "danger"}>
+                {isArchived ? "Restore type" : "Archive type"}
+              </SubmitButton>
+            </form>
+            <form action={deletePlatformTaxonomyTermAction}>
+              <input type="hidden" name="id" value={term.id} />
+              <input type="hidden" name="return_to" value="/platform/admin/catalog/type" />
+              <ConfirmSubmitButton message="Permanently delete this talent type? This removes its field mappings and unlinks it from all talent profiles. This cannot be undone.">
+                Permanently remove
+              </ConfirmSubmitButton>
+            </form>
+          </div>
         </div>
       </HqCard>
     </div>

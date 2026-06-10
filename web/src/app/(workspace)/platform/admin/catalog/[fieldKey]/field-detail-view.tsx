@@ -15,10 +15,12 @@ import {
   type FieldDetailWorkspace,
 } from "../../../catalog-field-detail-data";
 import {
+  deletePlatformFieldAction,
   setPlatformFieldLifecycleAction,
   updatePlatformFieldAction,
   updatePlatformFieldRecommendationAction,
 } from "../actions";
+import { ConfirmSubmitButton } from "../confirm-submit-button";
 import {
   Check,
   FIELD_KINDS,
@@ -566,14 +568,23 @@ export function FieldDetailView({
             {" · "}
             {f.total_value_count} stored live value{f.total_value_count === 1 ? "" : "s"}
           </div>
-          <form action={setPlatformFieldLifecycleAction}>
-            <input type="hidden" name="id" value={f.id} />
-            <input type="hidden" name="field_key" value={f.field_key} />
-            <input type="hidden" name="mode" value={f.deprecated ? "restore" : "archive"} />
-            <SubmitButton tone={f.deprecated ? "neutral" : "danger"}>
-              {f.deprecated ? "Restore field" : "Archive field"}
-            </SubmitButton>
-          </form>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <form action={setPlatformFieldLifecycleAction}>
+              <input type="hidden" name="id" value={f.id} />
+              <input type="hidden" name="field_key" value={f.field_key} />
+              <input type="hidden" name="mode" value={f.deprecated ? "restore" : "archive"} />
+              <SubmitButton tone={f.deprecated ? "neutral" : "danger"}>
+                {f.deprecated ? "Restore field" : "Archive field"}
+              </SubmitButton>
+            </form>
+            <form action={deletePlatformFieldAction}>
+              <input type="hidden" name="id" value={f.id} />
+              <input type="hidden" name="field_key" value={f.field_key} />
+              <ConfirmSubmitButton message="Permanently delete this field AND all its stored talent values, overrides, and type mappings? This cannot be undone.">
+                Permanently remove
+              </ConfirmSubmitButton>
+            </form>
+          </div>
         </div>
       </HqCard>
 

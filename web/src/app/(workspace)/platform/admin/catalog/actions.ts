@@ -1,4 +1,5 @@
 "use server";
+/* eslint-disable max-lines -- cohesive platform-catalog server-action module (field/group CRUD + lifecycle + hard-delete); a split is a clean follow-up. */
 
 import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
@@ -667,6 +668,117 @@ export async function reorderPlatformFieldGroupsAction(formData: FormData): Prom
 
   revalidateEngineSurfaces();
   redirect("/platform/admin/catalog?tab=groups&saved=order");
+}
+
+export async function deletePlatformFieldAction(formData: FormData): Promise<void> {
+  const auth = await requirePlatformAdmin();
+  if (!auth.ok) redirect(`/platform/admin/catalog?error=${encodeURIComponent(auth.error)}`);
+
+  const id = text(formData, "id");
+  const fieldKey = text(formData, "field_key");
+  if (!id || !fieldKey) redirect("/platform/admin/catalog?error=Missing%20field");
+
+  const { data: beforeRow } = await auth.sb
+    .from("profile_field_definitions")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  // Dependent-row cleanup — delete child rows first to satisfy FKs.
+  const { error: recErr } = await auth.sb
+    .from("profile_field_recommendations")
+    .delete()
+    .eq("field_definition_id", id);
+  if (recErr) {
+    logServerError("platform.catalog.deleteField.recommendations", recErr);
+    redirect(`/platform/admin/catalog/${encodeURIComponent(fieldKey)}?error=Could%20not%20remove%20field%20mappings`);
+  }
+
+  const { error: wsErr } = await auth.sb
+    .from("workspace_profile_field_settings")
+    .delete()
+    .eq("field_definition_id", id);
+  if (wsErr) {
+    logServerError("platform.catalog.deleteField.workspaceSettings", wsErr);
+    redirect(`/platform/admin/catalog/${encodeURIComponent(fieldKey)}?error=Could%20not%20remove%20workspace%20overrides`);
+  }
+
+  const { error: valErr } = await auth.sb
+    .from("talent_profile_field_values")
+    .delete()
+    .eq("field_definition_id", id);
+  if (valErr) {
+    logServerError("platform.catalog.deleteField.values", valErr);
+    redirect(`/platform/admin/catalog/${encodeURIComponent(fieldKey)}?error=Could%20not%20remove%20talent%20values`);
+  }
+
+  const { error } = await auth.sb
+    .from("profile_field_definitions")
+    .delete()
+    .eq("id", id);
+  if (error) {
+    logServerError("platform.catalog.deleteField", error);
+    redirect(`/platform/admin/catalog/${encodeURIComponent(fieldKey)}?error=Could%20not%20delete%20field`);
+  }
+
+  await recordEngineAudit(auth.sb, {
+    actorId: auth.actorId,
+    action: "platform.engine.field.delete",
+    targetType: "profile_field_definition",
+    targetId: id,
+    beforeValue: beforeRow,
+    afterValue: null,
+    severity: "warn",
+  });
+
+  revalidateEngineSurfaces();
+  redirect("/platform/admin/catalog?saved=field_deleted");
+}
+
+export async function deletePlatformFieldGroupAction(formData: FormData): Promise<void> {
+  const auth = await requirePlatformAdmin();
+  if (!auth.ok) redirect(`/platform/admin/catalog?tab=groups&error=${encodeURIComponent(auth.error)}`);
+
+  const id = text(formData, "id");
+  if (!id) redirect("/platform/admin/catalog?tab=groups&error=Missing%20group");
+
+  const { data: beforeRow } = await auth.sb
+    .from("profile_field_groups")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  // Dependent-row cleanup — detach member fields (don't destroy them).
+  const { error: detachErr } = await auth.sb
+    .from("profile_field_definitions")
+    .update({ field_group_id: null, updated_at: new Date().toISOString() })
+    .eq("field_group_id", id);
+  if (detachErr) {
+    logServerError("platform.catalog.deleteGroup.detachFields", detachErr);
+    redirect("/platform/admin/catalog?tab=groups&error=Could%20not%20detach%20member%20fields");
+  }
+
+  const { error } = await auth.sb
+    .from("profile_field_groups")
+    .delete()
+    .eq("id", id);
+  if (error) {
+    logServerError("platform.catalog.deleteGroup", error);
+    redirect("/platform/admin/catalog?tab=groups&error=Could%20not%20delete%20group");
+  }
+
+  await recordEngineAudit(auth.sb, {
+    actorId: auth.actorId,
+    action: "platform.engine.field_group.delete",
+    targetType: "profile_field_group",
+    targetId: id,
+    beforeValue: beforeRow,
+    afterValue: null,
+    severity: "warn",
+  });
+
+  revalidateEngineSurfaces();
+  redirect("/platform/admin/catalog?tab=groups&saved=group_deleted");
 }
 
 export async function reorderPlatformFieldsAction(formData: FormData): Promise<void> {
