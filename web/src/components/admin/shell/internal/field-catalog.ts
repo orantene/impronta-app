@@ -1,4 +1,33 @@
 /**
+ * @deprecated — TYPED FALLBACK + FROZEN SEED BASELINE ONLY
+ *
+ * This file has been demoted from "source of truth" to a typed fallback
+ * and frozen seed baseline as part of the P2 field-engine unification.
+ *
+ * ─── DO NOT ADD FIELDS HERE ─────────────────────────────────────────
+ * New fields MUST be hand-authored as SQL migrations against
+ * `profile_field_definitions` (supabase/migrations/). Editing
+ * `HARDCODED_FIELDS` or `TAXONOMY_FIELDS` in this file without a
+ * paired new migration will fail the `check:field-catalog-frozen` CI
+ * guard (see web/scripts/check-field-catalog-frozen.mjs).
+ *
+ * The production read layer is `web/src/lib/profile-fields-service.ts`
+ * (DB-backed). This file is retained for:
+ *   1. Runtime fallback — `FIELD_ENGINE_CLIENT_SOURCE=static` still
+ *      reads from this file (the P1 flag; see profile-fields-service.ts).
+ *   2. Type definitions — `FieldCatalogEntry`, `FieldTier`, etc. are
+ *      re-exported by drawer-shared.tsx and remain stable contracts.
+ *   3. Historical seed reference — the constants match the content of
+ *      `supabase/migrations/20260901120400_seed_profile_field_catalog.sql`
+ *      which was auto-generated from this file and is now the frozen baseline.
+ *
+ * The localStorage-backed workspace-field-override prototype in this file
+ * (setWorkspaceFieldOverride, applyWorkspaceFieldOverride, etc.) is also
+ * retained because it has live consumers (drawer-shared.tsx, forms.tsx,
+ * light-03.tsx, new-talent-drawer.tsx, profile-modals.tsx). It will be
+ * replaced by the DB table `workspace_profile_field_settings` in P3.
+ * ─────────────────────────────────────────────────────────────────────
+ *
  * ═══════════════════════════════════════════════════════════════════
  * FIELD TIER ARCHITECTURE — Tulala's locked schema
  * ═══════════════════════════════════════════════════════════════════

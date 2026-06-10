@@ -1,5 +1,23 @@
 #!/usr/bin/env node
 /**
+ * ╔══════════════════════════════════════════════════════════════════╗
+ * ║  ⚠  DEPRECATED — FROZEN — DO NOT RE-RUN  ⚠                      ║
+ * ║                                                                  ║
+ * ║  This generator is FROZEN as of the P2 field-engine unification. ║
+ * ║                                                                  ║
+ * ║  The seed migration it once generated:                           ║
+ * ║    supabase/migrations/20260901120400_seed_profile_field_catalog.sql  ║
+ * ║  is a HISTORICAL BASELINE. It is applied once to bootstrap the   ║
+ * ║  `profile_field_definitions` table. Do not regenerate it.        ║
+ * ║                                                                  ║
+ * ║  NEW FIELDS must be hand-authored as SQL migrations against       ║
+ * ║  `profile_field_definitions`. Editing field-catalog.ts and        ║
+ * ║  re-running this script will be REJECTED by the CI guard:        ║
+ * ║    web/scripts/check-field-catalog-frozen.mjs                    ║
+ * ║                                                                  ║
+ * ║  The script is retained for historical reference only.           ║
+ * ╚══════════════════════════════════════════════════════════════════╝
+ *
  * Generate the profile field catalog seed migration.
  *
  * Reads the source-of-truth frontend catalog from:
@@ -11,7 +29,7 @@
  *   - INSERT INTO profile_field_recommendations (one row per appliesTo /
  *     requiredFor / recommendedFor pair)
  *
- * Usage:
+ * Usage (DEPRECATED — do not use for new fields):
  *   node scripts/generate-profile-field-catalog-seed.mjs \
  *     > supabase/migrations/20260901120400_seed_profile_field_catalog.sql
  *
@@ -25,6 +43,13 @@
  *     literals. No TypeScript runtime needed (avoids ts-node + React
  *     transitive deps for a build-time tool).
  */
+
+process.stderr.write(
+  "\n⚠  WARNING: generate-profile-field-catalog-seed.mjs is FROZEN.\n" +
+  "   This script generated the historical seed migration (20260901120400).\n" +
+  "   New fields must be hand-authored SQL migrations against profile_field_definitions.\n" +
+  "   See web/scripts/check-field-catalog-frozen.mjs for the CI guard.\n\n",
+);
 
 import fs from "node:fs";
 import path from "node:path";

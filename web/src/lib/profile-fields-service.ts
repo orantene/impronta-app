@@ -125,10 +125,11 @@ type RecommendationRow = {
   field_definition_id: string;
   taxonomy_term_id: string;
   relationship: FieldRelationship;
-  // Supabase typed select returns relations as arrays (zero-or-many).
-  // Each row points to exactly one taxonomy_term but the type allows
-  // an array — we read [0] in the merge.
-  taxonomy_terms: Array<{ slug: string }>;
+  // NOTE: The `taxonomy_terms` embedded relation was removed in the P2
+  // bug fix (the PostgREST join did not resolve at runtime, causing all
+  // appliesTo/requiredFor/recommendedFor arrays to come back empty).
+  // taxonomy_terms is now fetched in a separate query and joined in code.
+  // See the `loadFieldCatalog` fix and the `slugByTermId` map.
 };
 
 type WorkspaceOverrideRow = {
@@ -185,10 +186,33 @@ export async function loadFieldCatalog(
     .order("display_order", { ascending: true });
   if (defsErr) throw new Error(`profile_field_definitions: ${defsErr.message}`);
 
-  const { data: recs, error: recsErr } = await supabase
-    .from("profile_field_recommendations")
-    .select("field_definition_id, taxonomy_term_id, relationship, taxonomy_terms(slug)");
-  if (recsErr) throw new Error(`profile_field_recommendations: ${recsErr.message}`);
+  // P2 bug fix: the original query used `taxonomy_terms(slug)` as a
+  // PostgREST embedded relation, which did NOT resolve at runtime — every
+  // recommendation row came back with taxonomy_terms: [] (or undefined),
+  // so appliesTo / requiredFor / recommendedFor were always empty arrays.
+  //
+  // Fix: fetch recommendations and taxonomy_terms in parallel, then join
+  // the slug in code via `slugByTermId`. This mirrors the pattern used in
+  // web/src/lib/field-engine/resolve-talent-fields.ts which fetches recs
+  // and taxonomy_terms separately and joins by taxonomy_term_id.
+  const [recsResult, termsResult] = await Promise.all([
+    supabase
+      .from("profile_field_recommendations")
+      .select("field_definition_id, taxonomy_term_id, relationship"),
+    supabase
+      .from("taxonomy_terms")
+      .select("id, slug")
+      .is("deprecated_at", null),
+  ]);
+  if (recsResult.error) throw new Error(`profile_field_recommendations: ${recsResult.error.message}`);
+  if (termsResult.error) throw new Error(`taxonomy_terms (for recs): ${termsResult.error.message}`);
+  const recs = recsResult.data ?? [];
+  // Build a term-id → slug lookup so `uniqSlugs` can resolve slugs without
+  // relying on the PostgREST embedded join that failed to resolve.
+  const slugByTermId = new Map<string, string>(
+    ((termsResult.data ?? []) as Array<{ id: string; slug: string }>)
+      .map((t) => [t.id, t.slug] as const),
+  );
 
   let overrides: WorkspaceOverrideRow[] = [];
   if (opts.tenantId) {
@@ -202,8 +226,9 @@ export async function loadFieldCatalog(
 
   const merged = mergeCatalog(
     (defs ?? []) as FieldDefinitionRow[],
-    (recs ?? []) as unknown as RecommendationRow[],
+    recs as RecommendationRow[],
     overrides,
+    slugByTermId,
   );
   if (!opts.tenantId) return merged;
 
@@ -223,7 +248,7 @@ export async function loadFieldCatalog(
 
   return filterTenantCatalogFieldsByEnabledTaxonomy(
     merged,
-    (recs ?? []) as unknown as RecommendationRow[],
+    recs as RecommendationRow[],
     (terms ?? []) as TenantCatalogTermRow[],
     (taxonomySettings ?? []) as TenantCatalogSettingRow[],
   );
@@ -337,6 +362,11 @@ function mergeCatalog(
   defs: FieldDefinitionRow[],
   recs: RecommendationRow[],
   overrides: WorkspaceOverrideRow[],
+  /** term-id → slug lookup built from a separate taxonomy_terms query.
+   *  P2 bug fix: the previous implementation relied on a PostgREST
+   *  embedded join (`taxonomy_terms(slug)`) that did not resolve at
+   *  runtime, returning empty arrays for every applicability field. */
+  slugByTermId: Map<string, string>,
 ): ResolvedFieldDefinition[] {
   const overrideById = new Map<string, WorkspaceOverrideRow>(
     overrides.map((o) => [o.field_definition_id, o]),
@@ -351,9 +381,9 @@ function mergeCatalog(
   return defs.map((d) => {
     const o = overrideById.get(d.id);
     const fieldRecs = recsByField.get(d.id) ?? [];
-    const appliesTo = uniqSlugs(fieldRecs.filter((r) => r.relationship === "applies"));
-    const requiredFor = uniqSlugs(fieldRecs.filter((r) => r.relationship === "required"));
-    const recommendedFor = uniqSlugs(fieldRecs.filter((r) => r.relationship === "recommended"));
+    const appliesTo = uniqSlugs(fieldRecs.filter((r) => r.relationship === "applies"), slugByTermId);
+    const requiredFor = uniqSlugs(fieldRecs.filter((r) => r.relationship === "required"), slugByTermId);
+    const recommendedFor = uniqSlugs(fieldRecs.filter((r) => r.relationship === "recommended"), slugByTermId);
 
     // Merge order: catalog default → workspace override.
     const enabled = d.tier === "universal"
@@ -412,10 +442,12 @@ function mergeCatalog(
   });
 }
 
-function uniqSlugs(rows: RecommendationRow[]): string[] {
+/** P2 bug fix: resolve slugs via `slugByTermId` map (separate query)
+ *  rather than the PostgREST embedded join that failed to resolve. */
+function uniqSlugs(rows: RecommendationRow[], slugByTermId: Map<string, string>): string[] {
   const set = new Set<string>();
   for (const r of rows) {
-    const slug = r.taxonomy_terms?.[0]?.slug;
+    const slug = slugByTermId.get(r.taxonomy_term_id);
     if (slug) set.add(slug);
   }
   return [...set];
