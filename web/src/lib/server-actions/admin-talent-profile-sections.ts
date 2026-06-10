@@ -702,17 +702,20 @@ export async function commitTalentProfileShellAdmin(
   });
   lap("blobFieldValuesCatalog");
 
-  // P3 Tier-C Stage-1 dual-write: mirror the identity-PII text fields written to
+  // P3 Tier-C Stage-1 dual-write: mirror the identity-PII fields written to
   // talent_profiles above into the catalog value table, scoped to the active
-  // roster tenant. Fire-and-forget — never blocks the column write. pronouns +
-  // pronouns_custom arrive via `...idBuilt.patch` and are only present when the
-  // identity payload edited them — pass them raw so `undefined` (untouched) is
-  // respected by the helper's per-key contract. DOB + gender are DELIBERATELY
-  // EXCLUDED (legacy-mirror collision on identity.dob; gender vocab ambiguity) —
-  // see identity-field-values-catalog.ts for the full reconciliation.
+  // roster tenant. Fire-and-forget — never blocks the column write. pronouns,
+  // pronouns_custom + gender arrive via `...idBuilt.patch` and are only present
+  // when the identity payload edited them — pass them raw so `undefined`
+  // (untouched) is respected by the helper's per-key contract. gender stores the
+  // canonical select value (== the column value after the Tier-C-tail
+  // normalization). DOB is DELIBERATELY EXCLUDED (legacy-mirror collision on
+  // identity.dob) — see identity-field-values-catalog.ts for the full
+  // reconciliation.
   await syncIdentityFieldValuesToCatalog(supabase, tid, tenantId, {
     pronouns: profilePatch.pronouns as string | null | undefined,
     pronouns_custom: profilePatch.pronouns_custom as string | null | undefined,
+    gender: profilePatch.gender as string | null | undefined,
   });
   lap("identityFieldValuesCatalog");
 
@@ -1340,9 +1343,9 @@ export async function getTalentProfileEditorData(input: {
     // P3 Tier-B Stage-4: source the editor-only JSONB blobs from the catalog
     // value table, falling back to the dedicated column below when absent.
     readBlobFieldValuesFromCatalog(supabase, input.talent_profile_id),
-    // P3 Tier-C Stage-4: source the identity-PII text fields (pronouns +
-    // pronouns_custom) from the catalog value table, falling back to the
-    // dedicated column below when absent. DOB + gender stay column-only.
+    // P3 Tier-C Stage-4: source the identity-PII fields (pronouns,
+    // pronouns_custom + gender) from the catalog value table, falling back to the
+    // dedicated column below when absent. DOB stays column-only.
     readIdentityFieldValuesFromCatalog(supabase, input.talent_profile_id),
   ]);
 
@@ -1401,10 +1404,10 @@ export async function getTalentProfileEditorData(input: {
       legal_name: (p.legal_name as string | null) ?? null,
       // P3 Tier-C Stage-4: prefer the catalog value row, fall back to the
       // dedicated talent_profiles column when no value row exists (column write
-      // still live). DOB + gender remain column-sourced (excluded from Tier C).
+      // still live). DOB remains column-sourced (excluded from Tier C).
       pronouns: iv.pronouns ?? (p.pronouns as string | null) ?? null,
       pronouns_custom: iv.pronouns_custom ?? (p.pronouns_custom as string | null) ?? null,
-      gender: (p.gender as string | null) ?? null,
+      gender: iv.gender ?? (p.gender as string | null) ?? null,
       date_of_birth: (p.date_of_birth as string | null) ?? null,
       // P3 Tier-A Stage-4: prefer the catalog value row, fall back to the
       // dedicated talent_profiles column when no value row exists (column write

@@ -1693,7 +1693,27 @@ export type ProfileChange = {
 
 // ── Identity ─────────────────────────────────────────────────────────
 export type Pronouns = "she/her" | "he/him" | "they/them" | "ze/zir" | "custom";
-export type GenderOption = "woman" | "man" | "non_binary" | "other" | "prefer_not_to_say";
+// Gender option values are the CANONICAL display strings — they are ALSO the
+// stored talent_profiles.gender column values (the bespoke identity editor
+// persists the picker id verbatim, no slug↔label map; see TalentProfileShellDrawer
+// gender read/write). Kept in lockstep with profile_field_definitions
+// `identity.gender`.options + the directory facet field_definitions(gender)
+// config.filter_options. (Tier-C-tail unification, 2026-06-10.)
+export type GenderOption =
+  | "Woman"
+  | "Man"
+  | "Non-binary"
+  | "Trans woman"
+  | "Trans man"
+  | "Transgender"
+  | "Genderfluid"
+  | "Genderqueer"
+  | "Agender"
+  | "Bigender"
+  | "Two-Spirit"
+  | "Intersex"
+  | "Prefer to self-describe"
+  | "Prefer not to say";
 export type AgeDisplayMode = "exact" | "range" | "hidden";
 
 export type ProfileIdentity = {

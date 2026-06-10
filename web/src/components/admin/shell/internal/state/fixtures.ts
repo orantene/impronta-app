@@ -3094,12 +3094,26 @@ export const PRONOUNS_OPTIONS: { id: Pronouns; label: string }[] = [
   { id: "custom",    label: "custom" },
 ];
 
+// Canonical, inclusive gender option-set (Tier-C-tail, 2026-06-10). id == label
+// == the stored talent_profiles.gender value (no slug↔label map — the bespoke
+// identity editor persists the picker id verbatim). Kept in lockstep with the
+// profile_field_definitions `identity.gender`.options JSON array + the directory
+// facet field_definitions(gender).config.filter_options.
 export const GENDER_OPTIONS: { id: GenderOption; label: string }[] = [
-  { id: "woman",                label: "Woman" },
-  { id: "man",                  label: "Man" },
-  { id: "non_binary",           label: "Non-binary" },
-  { id: "other",                label: "Other" },
-  { id: "prefer_not_to_say",    label: "Prefer not to say" },
+  { id: "Woman",                   label: "Woman" },
+  { id: "Man",                     label: "Man" },
+  { id: "Non-binary",              label: "Non-binary" },
+  { id: "Trans woman",             label: "Trans woman" },
+  { id: "Trans man",               label: "Trans man" },
+  { id: "Transgender",             label: "Transgender" },
+  { id: "Genderfluid",             label: "Genderfluid" },
+  { id: "Genderqueer",             label: "Genderqueer" },
+  { id: "Agender",                 label: "Agender" },
+  { id: "Bigender",                label: "Bigender" },
+  { id: "Two-Spirit",              label: "Two-Spirit" },
+  { id: "Intersex",                label: "Intersex" },
+  { id: "Prefer to self-describe", label: "Prefer to self-describe" },
+  { id: "Prefer not to say",       label: "Prefer not to say" },
 ];
 
 /** Prefixes shown in IdentityEditor — longest match wins when parsing DB `phone`. */
