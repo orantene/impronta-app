@@ -14,6 +14,7 @@ import { revalidateDirectoryListing } from "@/lib/revalidate-public";
 import { mergeShellSocialAndEmbedded } from "@/lib/talent/profile-shell-drawer-persist";
 import { syncProfileShellDynFieldValues } from "@/lib/talent/profile-shell-dyn-field-values";
 import { syncRosterFieldValuesToCatalog } from "@/lib/talent/roster-field-values-catalog";
+import { syncScalarFieldValuesToCatalog } from "@/lib/talent/scalar-field-values-catalog";
 import { syncTalentTypeTaxonomyFromShellSlugs } from "@/lib/talent/profile-shell-taxonomy-sync";
 import type { UiProfileShellStatus } from "@/lib/talent/profile-shell-workflow";
 import { uiProfileShellStatusToDbPatch } from "@/lib/talent/profile-shell-workflow";
@@ -56,7 +57,7 @@ export async function updateSelfAbout(input: {
 }): Promise<Result> {
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase, profileCode } = auth;
+  const { supabase, tenantId, profileCode } = auth;
 
   const patch: Record<string, unknown> = { bios: input.bios, updated_at: new Date().toISOString() };
   if (input.bio_tone !== undefined) patch.bio_tone = input.bio_tone || null;
@@ -65,6 +66,13 @@ export async function updateSelfAbout(input: {
 
   const { error } = await supabase.from("talent_profiles").update(patch).eq("id", input.talent_profile_id);
   if (error) { logServerError("self-sections.about", error); return { ok: false, error: CLIENT_ERROR.update }; }
+
+  // P3 Tier-A Stage-1 dual-write — only the keys the talent edited (undefined
+  // = untouched). Skips the value-row write for no-roster (independent) talent.
+  await syncScalarFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
+    bio_tone: input.bio_tone !== undefined ? (input.bio_tone || null) : undefined,
+    tagline: input.tagline !== undefined ? (input.tagline?.trim() || null) : undefined,
+  });
 
   revalidatePath(`/t/${profileCode}`, "page");
   return { ok: true };
@@ -104,6 +112,12 @@ export async function updateSelfLocation(input: {
 
   // talent_service_areas is keyed by location_id (FK); skip until picker wired.
 
+  // P3 Tier-A Stage-1 dual-write — passport_status + drivers_license scalars.
+  await syncScalarFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
+    passport_status: input.passport_status !== undefined ? (input.passport_status || null) : undefined,
+    drivers_license: input.drivers_license !== undefined ? (input.drivers_license || null) : undefined,
+  });
+
   revalidatePath(`/t/${profileCode}`, "page");
   return { ok: true };
 }
@@ -122,7 +136,7 @@ export async function updateSelfRates(input: {
 }): Promise<Result> {
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase, profileCode } = auth;
+  const { supabase, tenantId, profileCode } = auth;
 
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (input.rates_data !== undefined) patch.rates_data = input.rates_data;
@@ -135,6 +149,15 @@ export async function updateSelfRates(input: {
 
   const { error } = await supabase.from("talent_profiles").update(patch).eq("id", input.talent_profile_id);
   if (error) { logServerError("self-sections.rates", error); return { ok: false, error: CLIENT_ERROR.update }; }
+
+  // P3 Tier-A Stage-1 dual-write — rate_card_visibility + the 3 commercial
+  // booleans (a `false` is a real value; only undefined = untouched).
+  await syncScalarFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
+    rate_card_visibility: input.rate_card_visibility,
+    ask_for_quote: input.ask_for_quote,
+    travel_included: input.travel_included,
+    lodging_included: input.lodging_included,
+  });
 
   revalidatePath(`/t/${profileCode}`, "page");
   return { ok: true };
@@ -359,7 +382,7 @@ export async function updateSelfIdentity(input: {
 }): Promise<Result> {
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase, profileCode } = auth;
+  const { supabase, tenantId, profileCode } = auth;
 
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   const nullIfEmpty = (v: string | undefined) => v === undefined ? undefined : (v.trim() || null);
@@ -388,6 +411,12 @@ export async function updateSelfIdentity(input: {
 
   const { error } = await supabase.from("talent_profiles").update(patch).eq("id", input.talent_profile_id);
   if (error) { logServerError("self-sections.identity", error); return { ok: false, error: CLIENT_ERROR.update }; }
+
+  // P3 Tier-A Stage-1 dual-write — age_display_mode + response_time scalars.
+  await syncScalarFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
+    age_display_mode: input.age_display_mode,
+    response_time: input.response_time !== undefined ? (input.response_time || null) : undefined,
+  });
 
   revalidatePath(`/t/${profileCode}`, "page");
   return { ok: true };
