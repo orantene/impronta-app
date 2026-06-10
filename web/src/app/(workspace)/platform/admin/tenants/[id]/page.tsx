@@ -128,6 +128,12 @@ export default async function PlatformTenantDetailPage({
             <Link href={`/platform/admin/tenants/${detail.id}/catalog`} style={headerLink}>
               Catalog →
             </Link>
+            <Link
+              href={`/platform/admin/tenants/${detail.id}/registration-fields`}
+              style={headerLink}
+            >
+              Registration fields →
+            </Link>
           </div>
         </div>
       </div>

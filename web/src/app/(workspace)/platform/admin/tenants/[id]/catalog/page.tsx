@@ -395,7 +395,15 @@ export default async function TenantCatalogPage({ params }: { params: PageParams
       </h1>
       <div style={{ fontSize: 12.5, color: HQ.inkMuted, marginBottom: 20 }}>
         Read-only inspection of field-engine configuration for this workspace.
-        Cross-links go to the platform-wide{" "}
+        To curate this workspace&rsquo;s talent registration wizard (which fields
+        show, are required, and in what order), open{" "}
+        <Link
+          href={`/platform/admin/tenants/${id}/registration-fields`}
+          style={{ color: HQ.green, textDecoration: "none" }}
+        >
+          Registration fields
+        </Link>
+        . Cross-links go to the platform-wide{" "}
         <Link
           href="/platform/admin/catalog"
           style={{ color: HQ.green, textDecoration: "none" }}
