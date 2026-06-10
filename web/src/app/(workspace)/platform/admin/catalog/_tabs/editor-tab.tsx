@@ -357,18 +357,11 @@ function GroupBlock({
         </div>
       )}
 
-      {/* Sections — two-column grid */}
+      {/* Sections — single column within the (now half-width) group card */}
       {group.sections.length === 0 ? (
         <div style={{ fontSize: 12, color: HQ.inkDim }}>No sections in this group.</div>
       ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-            gap: 14,
-            alignItems: "start",
-          }}
-        >
+        <div style={{ display: "grid", gap: 10, alignItems: "start" }}>
           {group.sections.map((section) => (
             <SectionRow key={section.id} section={section} groupOptions={groupOptions} />
           ))}
@@ -484,49 +477,69 @@ export async function EditorTab({ sp }: { sp: Record<string, string | undefined>
         </details>
       </HqCard>
 
-      {/* Group order */}
-      {data.groups.length >= 2 && (
-        <HqCard title="Group order" subtitle="Drag to set the order of the profile-editor rail groups.">
-          <EditorGroupReorderPanel
-            groups={data.groups.map((g) => ({
-              id: g.id,
-              slug: g.slug,
-              label_en: g.label_en,
-              sort_order: g.sort_order,
-              is_active: g.is_active,
-              section_count: g.sections.length,
-            }))}
-          />
-        </HqCard>
-      )}
+      {/* Two columns: Group order (left) · group accordions / "tabs" (right) */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(300px, 420px) minmax(0, 1fr)",
+          gap: 16,
+          alignItems: "start",
+        }}
+      >
+        {/* LEFT — group order (sticky so it stays while scrolling the groups) */}
+        <div style={{ position: "sticky", top: 12 }}>
+          {data.groups.length >= 2 ? (
+            <HqCard title="Group order" subtitle="Drag to set the order of the profile-editor rail groups.">
+              <EditorGroupReorderPanel
+                groups={data.groups.map((g) => ({
+                  id: g.id,
+                  slug: g.slug,
+                  label_en: g.label_en,
+                  sort_order: g.sort_order,
+                  is_active: g.is_active,
+                  section_count: g.sections.length,
+                }))}
+              />
+            </HqCard>
+          ) : (
+            <HqCard title="Group order">
+              <div style={{ fontSize: 12, color: HQ.inkDim }}>
+                Add a second group to enable drag-reordering.
+              </div>
+            </HqCard>
+          )}
+        </div>
 
-      {/* Groups + their sections */}
-      {data.groups.length === 0 ? (
-        <HqCard title="No section groups">
-          <div style={{ fontSize: 13, color: HQ.inkMuted }}>
-            No section groups defined yet. Create one above.
-          </div>
-        </HqCard>
-      ) : (
-        data.groups.map((group) => (
-          <GroupBlock key={group.id} group={group} groupOptions={data.groupOptions} />
-        ))
-      )}
+        {/* RIGHT — all the group accordions, then orphans + unmapped */}
+        <div>
+          {data.groups.length === 0 ? (
+            <HqCard title="No section groups">
+              <div style={{ fontSize: 13, color: HQ.inkMuted }}>
+                No section groups defined yet. Create one above.
+              </div>
+            </HqCard>
+          ) : (
+            data.groups.map((group) => (
+              <GroupBlock key={group.id} group={group} groupOptions={data.groupOptions} />
+            ))
+          )}
 
-      {/* Orphan sections (no group FK) — surfaced so they're not lost */}
-      {data.orphanSections.length > 0 && (
-        <HqCard
-          title="Ungrouped sections"
-          subtitle="These sections have no group and will not render in the rail. Move them into a group."
-        >
-          {data.orphanSections.map((section) => (
-            <SectionRow key={section.id} section={section} groupOptions={data.groupOptions} />
-          ))}
-        </HqCard>
-      )}
+          {/* Orphan sections (no group FK) — surfaced so they're not lost */}
+          {data.orphanSections.length > 0 && (
+            <HqCard
+              title="Ungrouped sections"
+              subtitle="These sections have no group and will not render in the rail. Move them into a group."
+            >
+              {data.orphanSections.map((section) => (
+                <SectionRow key={section.id} section={section} groupOptions={data.groupOptions} />
+              ))}
+            </HqCard>
+          )}
 
-      {/* Unmapped field sections — full-width card at the bottom */}
-      <UnmappedCard unmappedSections={data.unmappedSections} />
+          {/* Unmapped field sections */}
+          <UnmappedCard unmappedSections={data.unmappedSections} />
+        </div>
+      </div>
     </div>
   );
 }
