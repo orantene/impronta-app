@@ -1006,8 +1006,12 @@ export function InspectorDock() {
               color: CHROME.blue,
               border: `1px solid ${CHROME.blueLine}`,
             }}
+            // WS3 — make the per-device scoping explicit (the reported confusion was
+            // "I thought elements can be different per size"): they CAN, but style
+            // edits here are scoped to the selected device only.
+            title={`Style changes here apply to ${device === "tablet" ? "Tablet" : "Mobile"} only. Switch the device above to edit Desktop or another size.`}
           >
-            Editing {device === "tablet" ? "Tablet" : "Mobile"}
+            Editing {device === "tablet" ? "Tablet" : "Mobile"} only
           </span>
         ) : null}
       </div>
