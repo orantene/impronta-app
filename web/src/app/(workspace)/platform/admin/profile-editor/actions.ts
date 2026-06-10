@@ -1,4 +1,5 @@
 "use server";
+/* eslint-disable max-lines -- cohesive section-editor server-action module (group/section CRUD + reorder + hard-delete); a split is a clean follow-up. */
 
 // Server actions for the Editor Layout admin tab (B2). Mirrors the catalog
 // actions pattern (catalog/actions.ts): super_admin gate via requirePlatformAdmin,
@@ -15,7 +16,10 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getPlatformRole } from "@/lib/access/platform-role";
-import { CACHE_TAG_PROFILE_EDITOR_LAYOUT } from "@/lib/field-engine/cache-tags";
+import {
+  CACHE_TAG_PROFILE_EDITOR_LAYOUT,
+  CACHE_TAG_FIELD_CATALOG,
+} from "@/lib/field-engine/cache-tags";
 import { logServerError } from "@/lib/server/safe-error";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -601,6 +605,169 @@ export async function archiveSection(formData: FormData): Promise<void> {
   });
 
   done("section_archived");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Section field order (within a single profile-editor section)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function reorderSectionFieldsAction(
+  formData: FormData,
+): Promise<void> {
+  const auth = await requirePlatformAdmin();
+  if (!auth.ok) fail(auth.error);
+
+  const orderedIds = parseOrderedIds(formData);
+  if (orderedIds.length < 2) {
+    fail("Add at least two fields to reorder.");
+  }
+
+  const { data: rows, error } = await auth.sb
+    .from("profile_field_definitions")
+    .select("id, field_key, display_order")
+    .in("id", orderedIds);
+
+  if (error || !rows || rows.length !== orderedIds.length) {
+    logServerError("platform.editor.reorderSectionFields.readRows", error);
+    fail("Could not load fields.");
+  }
+
+  const rowIds = new Set(rows.map((row) => row.id));
+  if (
+    new Set(orderedIds).size !== orderedIds.length ||
+    orderedIds.some((id) => !rowIds.has(id))
+  ) {
+    fail("Invalid field order.");
+  }
+
+  const beforeValue = rows
+    .slice()
+    .sort(
+      (a, b) =>
+        (a.display_order ?? 0) - (b.display_order ?? 0) ||
+        String(a.field_key).localeCompare(String(b.field_key)),
+    )
+    .map((row) => ({ id: row.id, field_key: row.field_key, display_order: row.display_order }));
+  const afterValue = orderedIds.map((id, i) => ({
+    id,
+    display_order: (i + 1) * 10,
+  }));
+  const now = new Date().toISOString();
+
+  const results = await Promise.all(
+    afterValue.map((row) =>
+      auth.sb
+        .from("profile_field_definitions")
+        .update({ display_order: row.display_order, updated_at: now })
+        .eq("id", row.id),
+    ),
+  );
+  const failed = results.find((result) => result.error);
+  if (failed?.error) {
+    logServerError("platform.editor.reorderSectionFields.update", failed.error);
+    fail("Could not save field order.");
+  }
+
+  await recordEngineAudit(auth.sb, {
+    actorId: auth.actorId,
+    action: "platform.editor.section_field.reorder",
+    targetType: "profile_field_definition",
+    targetId: "section_fields",
+    beforeValue,
+    afterValue,
+  });
+
+  // Revalidate field catalog (display_order change) + editor surfaces.
+  revalidateTag(CACHE_TAG_FIELD_CATALOG, "default");
+  revalidatePath("/platform/admin/catalog");
+  redirect(
+    `/platform/admin/catalog?tab=section-fields&saved=${encodeURIComponent("field_order")}`,
+  );
+}
+
+export async function deleteSectionGroup(formData: FormData): Promise<void> {
+  const auth = await requirePlatformAdmin();
+  if (!auth.ok) fail(auth.error);
+
+  const id = text(formData, "id");
+  if (!id) fail("Missing section group.");
+
+  const { data: beforeRow } = await auth.sb
+    .from("profile_editor_section_groups")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  // Dependent-row cleanup — detach member sections (null their FK; don't delete them).
+  const { error: detachErr } = await auth.sb
+    .from("profile_editor_sections")
+    .update({ section_group_id: null, updated_at: new Date().toISOString() })
+    .eq("section_group_id", id);
+  if (detachErr) {
+    logServerError("platform.editor.deleteSectionGroup.detach", detachErr);
+    fail("Could not detach member sections.");
+  }
+
+  const { error } = await auth.sb
+    .from("profile_editor_section_groups")
+    .delete()
+    .eq("id", id);
+  if (error) {
+    logServerError("platform.editor.deleteSectionGroup", error);
+    fail("Could not delete section group.");
+  }
+
+  await recordEngineAudit(auth.sb, {
+    actorId: auth.actorId,
+    action: "platform.editor.section_group.delete",
+    targetType: "profile_editor_section_group",
+    targetId: id,
+    beforeValue: beforeRow,
+    afterValue: null,
+    severity: "warn",
+  });
+
+  revalidateTag(CACHE_TAG_PROFILE_EDITOR_LAYOUT, "default");
+  revalidatePath("/platform/admin/catalog");
+  redirect(`${TAB}&saved=${encodeURIComponent("group_deleted")}`);
+}
+
+export async function deleteSection(formData: FormData): Promise<void> {
+  const auth = await requirePlatformAdmin();
+  if (!auth.ok) fail(auth.error);
+
+  const id = text(formData, "id");
+  if (!id) fail("Missing section.");
+
+  const { data: beforeRow } = await auth.sb
+    .from("profile_editor_sections")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  // No FK dependents on profile_editor_sections — slug is code-referenced only.
+  const { error } = await auth.sb
+    .from("profile_editor_sections")
+    .delete()
+    .eq("id", id);
+  if (error) {
+    logServerError("platform.editor.deleteSection", error);
+    fail("Could not delete section.");
+  }
+
+  await recordEngineAudit(auth.sb, {
+    actorId: auth.actorId,
+    action: "platform.editor.section.delete",
+    targetType: "profile_editor_section",
+    targetId: id,
+    beforeValue: beforeRow,
+    afterValue: null,
+    severity: "warn",
+  });
+
+  revalidateTag(CACHE_TAG_PROFILE_EDITOR_LAYOUT, "default");
+  revalidatePath("/platform/admin/catalog");
+  redirect(`/platform/admin/catalog?tab=sections&saved=${encodeURIComponent("section_deleted")}`);
 }
 
 export async function restoreSection(formData: FormData): Promise<void> {

@@ -18,7 +18,9 @@ import { FieldOrderPanel } from "./field-order-panel";
 import { HQ, F, FD, HqCard, HqAccordion, Stat } from "./_ui";
 import { GroupsTab } from "./_tabs/groups-tab";
 import { TypesTab } from "./_tabs/types-tab";
-import { EditorTab } from "./_tabs/editor-tab";
+import { SectionCategoryTab } from "./_tabs/section-category-tab";
+import { SectionFieldsGroupTab } from "./_tabs/section-fields-group-tab";
+import { SectionFieldsTab } from "./_tabs/section-fields-tab";
 
 export const dynamic = "force-dynamic";
 
@@ -216,13 +218,15 @@ type FilterParams = {
 };
 
 // Profile Fields hub tabs. The Fields view is the default and lives inline in
-// this page; the other three are extracted tab modules.
-type HubTab = "fields" | "groups" | "types" | "editor";
+// this page; the other five are extracted tab modules.
+type HubTab = "fields" | "groups" | "types" | "editor" | "sections" | "section-fields";
 function parseTab(raw: string | undefined): HubTab {
   switch (raw) {
     case "groups":
     case "types":
     case "editor":
+    case "sections":
+    case "section-fields":
       return raw;
     default:
       return "fields";
@@ -232,7 +236,9 @@ const HUB_TABS: ReadonlyArray<{ tab: HubTab; label: string }> = [
   { tab: "fields", label: "Fields" },
   { tab: "groups", label: "Field Groups" },
   { tab: "types", label: "Talent Types" },
-  { tab: "editor", label: "Section Editor" },
+  { tab: "editor", label: "Section Category" },
+  { tab: "sections", label: "Section Fields Group" },
+  { tab: "section-fields", label: "Section Fields" },
 ];
 
 // Phase 9A slice 3 — "View-as" role preview. platform_admin = default
@@ -517,7 +523,7 @@ export default async function PlatformCatalogMapPage({
           }}
         />
 
-        {/* Cluster B — Section Editor */}
+        {/* Cluster B — Section Editor (3 chips) */}
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span
             style={{
@@ -532,11 +538,13 @@ export default async function PlatformCatalogMapPage({
           >
             Section Editor
           </span>
-          {(() => {
-            const active = tab === "editor";
+          {(["editor", "sections", "section-fields"] as const).map((t) => {
+            const entry = HUB_TABS.find((h) => h.tab === t)!;
+            const active = tab === t;
             return (
               <Link
-                href="?tab=editor"
+                key={t}
+                href={`?tab=${t}`}
                 style={{
                   fontSize: 11.5,
                   fontWeight: 600,
@@ -549,10 +557,10 @@ export default async function PlatformCatalogMapPage({
                   whiteSpace: "nowrap",
                 }}
               >
-                Section Editor
+                {entry.label}
               </Link>
             );
-          })()}
+          })}
         </div>
       </div>
 
@@ -765,7 +773,9 @@ export default async function PlatformCatalogMapPage({
 
       {tab === "groups" && <GroupsTab sp={params} />}
       {tab === "types" && <TypesTab sp={params} />}
-      {tab === "editor" && <EditorTab sp={params} />}
+      {tab === "editor" && <SectionCategoryTab sp={params} />}
+      {tab === "sections" && <SectionFieldsGroupTab sp={params} />}
+      {tab === "section-fields" && <SectionFieldsTab sp={params} />}
     </div>
   );
 }

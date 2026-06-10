@@ -8,9 +8,11 @@ import Link from "next/link";
 import type { GroupDetail } from "./group-detail-data";
 import {
   createPlatformFieldGroupAction,
+  deletePlatformFieldGroupAction,
   setPlatformFieldGroupLifecycleAction,
   updatePlatformFieldGroupAction,
 } from "../actions";
+import { ConfirmSubmitButton } from "../confirm-submit-button";
 import {
   FieldInput,
   FieldTextarea,
@@ -282,13 +284,21 @@ export function GroupDetailView({
               {" · "}
               {group.field_count} field{group.field_count === 1 ? "" : "s"}
             </div>
-            <form action={setPlatformFieldGroupLifecycleAction}>
-              <input type="hidden" name="id" value={group.id} />
-              <input type="hidden" name="mode" value={group.is_active ? "archive" : "restore"} />
-              <SubmitButton tone={group.is_active ? "danger" : "neutral"}>
-                {group.is_active ? "Archive group" : "Restore group"}
-              </SubmitButton>
-            </form>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <form action={setPlatformFieldGroupLifecycleAction}>
+                <input type="hidden" name="id" value={group.id} />
+                <input type="hidden" name="mode" value={group.is_active ? "archive" : "restore"} />
+                <SubmitButton tone={group.is_active ? "danger" : "neutral"}>
+                  {group.is_active ? "Archive group" : "Restore group"}
+                </SubmitButton>
+              </form>
+              <form action={deletePlatformFieldGroupAction}>
+                <input type="hidden" name="id" value={group.id} />
+                <ConfirmSubmitButton message="Permanently delete this field group? Member fields will be detached (not deleted). This cannot be undone.">
+                  Permanently remove
+                </ConfirmSubmitButton>
+              </form>
+            </div>
           </div>
         </HqCard>
       )}

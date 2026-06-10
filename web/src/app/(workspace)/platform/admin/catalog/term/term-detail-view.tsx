@@ -9,9 +9,11 @@ import type {
 } from "../../../talent-types-data";
 import {
   createPlatformTaxonomyTermAction,
+  deletePlatformTaxonomyTermAction,
   updatePlatformTaxonomyTermAction,
   setPlatformTaxonomyLifecycleAction,
 } from "../../taxonomy/actions";
+import { ConfirmSubmitButton } from "../confirm-submit-button";
 import {
   FieldInput,
   FieldTextarea,
@@ -420,13 +422,22 @@ export function TermDetailView({
                   : "Inactive"}
             </strong>
           </div>
-          <form action={setPlatformTaxonomyLifecycleAction}>
-            <input type="hidden" name="id" value={term.id} />
-            <input type="hidden" name="mode" value={isArchived ? "restore" : "archive"} />
-            <SubmitButton tone={isArchived ? "neutral" : "danger"}>
-              {isArchived ? `Restore ${kindLabel.toLowerCase()}` : `Archive ${kindLabel.toLowerCase()}`}
-            </SubmitButton>
-          </form>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <form action={setPlatformTaxonomyLifecycleAction}>
+              <input type="hidden" name="id" value={term.id} />
+              <input type="hidden" name="mode" value={isArchived ? "restore" : "archive"} />
+              <SubmitButton tone={isArchived ? "neutral" : "danger"}>
+                {isArchived ? `Restore ${kindLabel.toLowerCase()}` : `Archive ${kindLabel.toLowerCase()}`}
+              </SubmitButton>
+            </form>
+            <form action={deletePlatformTaxonomyTermAction}>
+              <input type="hidden" name="id" value={term.id} />
+              <input type="hidden" name="return_to" value={`/platform/admin/catalog/term/${term.id}`} />
+              <ConfirmSubmitButton message="Permanently delete this term? Any child terms must be removed first. This removes field mappings and talent taxonomy links. This cannot be undone.">
+                Permanently remove
+              </ConfirmSubmitButton>
+            </form>
+          </div>
         </div>
       </HqCard>
     </div>
