@@ -35,7 +35,8 @@ import {
   useSelectedBuilderNodeId,
 } from "./selection-bridge";
 import { useDirty } from "./dirty-bridge";
-import { PresenceProvider } from "./presence-provider";
+import { PresenceProvider, usePagePresence } from "./presence-provider";
+import { isBuilderPresenceEnabled } from "@/lib/site-admin/edit-mode/presence-flag";
 import { CHROME, CHROME_SHADOWS, EDIT_TOPBAR_H } from "./kit";
 import { isCoachmarkDismissed, dismissCoachmark } from "./builder-coachmarks";
 import { SelectionLayer } from "./selection-layer";
@@ -279,7 +280,7 @@ export function EditShell({
  * (graceful: falls back to a generic "You" / per-session id if unavailable).
  */
 function CanvasViewportProviderWrapper({ children }: { children: React.ReactNode }) {
-  const { pageId } = useEditContext();
+  const { pageId, locale } = useEditContext();
 
   // Resolve the Supabase user for presence identity. We do this once per
   // mount (the EditProvider already manages the auth session; we just read it).
@@ -314,6 +315,7 @@ function CanvasViewportProviderWrapper({ children }: { children: React.ReactNode
   return (
     <PresenceProvider
       pageId={pageId}
+      locale={locale}
       selfId={presenceMeta.selfId}
       selfName={presenceMeta.selfName}
     >
@@ -1096,6 +1098,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         />
         <MutationErrorToast />
         <DraftSavedToast />
+        <PresenceBanner />
         {/* Preview toggle: when on, links navigate normally so the
          *  operator can test menus, anchors, and click targets. */}
         {!previewing ? <CanvasLinkInterceptor /> : null}
@@ -1662,6 +1665,9 @@ function MutationErrorToast() {
     hasConflictRecovery,
     keepMyVersionAfterConflict,
   } = useEditContext();
+  // WS1-A — attribute a version conflict to the editor(s) who caused it, turning
+  // "version conflict" into "Sofía is also editing" (or "your other tab").
+  const { editors, others } = usePagePresence();
 
   useEffect(() => {
     if (!mutationError) return;
@@ -1689,6 +1695,23 @@ function MutationErrorToast() {
   // CAS race parked the operator's tree.
   const showConflictRecovery =
     mutationError.code === "VERSION_CONFLICT" && hasConflictRecovery;
+  // WS1-A — name who caused the conflict (gated). Falls back to the generic
+  // message when presence is off or nobody else is tracked.
+  const conflictWho = ((): string | null => {
+    if (!isBuilderPresenceEnabled() || !showConflictRecovery) return null;
+    const { peopleNames, myOtherTabs } = summarizeOtherEditors(editors, others);
+    if (peopleNames.length > 0) {
+      const names =
+        peopleNames.length === 1
+          ? peopleNames[0]!
+          : `${peopleNames[0]} and ${peopleNames.length - 1} other${peopleNames.length - 1 === 1 ? "" : "s"}`;
+      return `${names} ${peopleNames.length === 1 ? "is" : "are"} also editing this page.`;
+    }
+    if (myOtherTabs > 0) {
+      return "You have this page open in another tab — that edit landed first.";
+    }
+    return null;
+  })();
 
   return (
     <div
@@ -1713,6 +1736,11 @@ function MutationErrorToast() {
         {suggestion ? (
           <span className="mt-1 block text-[11px] font-normal leading-snug text-amber-900">
             Next step: {suggestion}
+          </span>
+        ) : null}
+        {conflictWho ? (
+          <span className="mt-1 block text-[11px] font-semibold leading-snug text-amber-900">
+            {conflictWho}
           </span>
         ) : null}
         {showConflictRecovery ? (
@@ -1762,6 +1790,71 @@ function MutationErrorToast() {
           <line x1="6" y1="6" x2="18" y2="18" />
         </svg>
       </button>
+    </div>
+  );
+}
+
+/**
+ * WS1-A — summarize OTHER editors on the page for the presence banner + the
+ * named version-conflict. Dedupes other PEOPLE by userId (multiple tabs of one
+ * person collapse to one name) and counts THIS user's own other tabs separately.
+ */
+function summarizeOtherEditors(
+  editors: ReturnType<typeof usePagePresence>["editors"],
+  others: ReturnType<typeof usePagePresence>["others"],
+): { peopleNames: string[]; myOtherTabs: number } {
+  const myUserId = editors.find((e) => e.isSelf)?.userId ?? null;
+  const peopleById = new Map<string, string>();
+  let myOtherTabs = 0;
+  for (const o of others) {
+    if (o.userId && myUserId && o.userId === myUserId) {
+      myOtherTabs += 1;
+    } else {
+      peopleById.set(o.userId ?? o.id, o.name);
+    }
+  }
+  return { peopleNames: [...peopleById.values()], myOtherTabs };
+}
+
+/** Renders "X is also editing" / "open in another tab" — a calm bottom-center heads-up. */
+function PresenceBanner() {
+  if (!isBuilderPresenceEnabled()) return null;
+  return <PresenceBannerInner />;
+}
+
+function PresenceBannerInner() {
+  const { editors, others } = usePagePresence();
+  if (others.length === 0) return null;
+  const { peopleNames, myOtherTabs } = summarizeOtherEditors(editors, others);
+
+  let message: string | null = null;
+  if (peopleNames.length > 0) {
+    const names =
+      peopleNames.length === 1
+        ? peopleNames[0]
+        : peopleNames.length === 2
+          ? `${peopleNames[0]} and ${peopleNames[1]}`
+          : `${peopleNames[0]} and ${peopleNames.length - 1} others`;
+    message = `${names} ${peopleNames.length === 1 ? "is" : "are"} also editing this page`;
+    if (myOtherTabs > 0) message += " · also open in another tab of yours";
+  } else if (myOtherTabs > 0) {
+    message = `You have this page open in ${myOtherTabs === 1 ? "another tab" : `${myOtherTabs} other tabs`} — edits there can conflict`;
+  }
+  if (!message) return null;
+
+  return (
+    <div
+      data-edit-overlay="presence-banner"
+      role="status"
+      aria-live="polite"
+      className="pointer-events-none fixed bottom-4 left-1/2 z-[110] flex max-w-[min(92vw,520px)] -translate-x-1/2 items-center gap-2 rounded-full border border-slate-200 bg-white/95 px-3.5 py-1.5 text-xs font-medium text-slate-600 shadow-md backdrop-blur"
+    >
+      <span
+        aria-hidden
+        className="inline-block h-1.5 w-1.5 shrink-0 animate-pulse rounded-full"
+        style={{ background: "#1e6f8e" }}
+      />
+      <span className="truncate">{message}</span>
     </div>
   );
 }

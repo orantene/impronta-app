@@ -1,19 +1,29 @@
 "use client";
 
 /**
- * Presence provider — live collaborator presence for the page builder.
+ * Presence provider — live collaborator presence for the page builder (WS1-A).
  *
- * Uses Supabase Realtime PRESENCE on channel `cms-page-editors-${pageId}`.
- * Each browser tab that mounts PresenceProvider joins the channel, tracks
- * its own identity, and receives sync events when other editors join or leave.
+ * Uses Supabase Realtime PRESENCE on channel `cms-page-editors-${pageId}` (or
+ * `…-${pageId}-${locale}` when a locale is supplied — the builder edits content
+ * per-locale, so editors on different locales of the same page are NOT colliding
+ * and must not appear to each other). Each browser TAB that mounts this joins the
+ * channel, tracks its identity, and receives sync events as editors join/leave.
  *
- * Graceful fallbacks:
- *   - If Supabase client is unavailable (missing env), returns a single
- *     self-entry so the rail still renders something.
- *   - If pageId is null (composition not yet loaded), no channel is joined
- *     and we return only self.
- *   - All errors are swallowed — presence is decorative and must never
- *     break the builder.
+ * IDENTITY — keyed per TAB, grouped per USER:
+ *   - The presence KEY is a per-tab id (`getSessionId()`, sessionStorage-backed),
+ *     so two tabs of the SAME account appear as two distinct entries (the old code
+ *     keyed on `user.id`, collapsing them to one — which is why a second tab could
+ *     edit with zero awareness and only surface at the save conflict).
+ *   - The tracked payload carries `userId` + `name`, so the UI can tell "another
+ *     person is editing" (different userId) from "you have this open in another
+ *     tab" (same userId).
+ *
+ * This is pure ephemeral Realtime presence — ZERO database writes — so it can
+ * never cause a save/version conflict; it is strictly additive awareness.
+ *
+ * Graceful fallbacks: missing Supabase env / null pageId / any Realtime error →
+ * a single self-entry and `online:false`. Presence is decorative and must never
+ * break the builder.
  */
 
 import {
@@ -31,18 +41,27 @@ import { createClient } from "@/lib/supabase/client";
 // ── types ──────────────────────────────────────────────────────────────────────
 
 export interface EditorPresence {
-  /** Stable per-session id (user id when available, random fallback). */
+  /** Per-TAB id (presence key). Unique per browser tab. */
   id: string;
+  /** Auth user id — same across this user's tabs; distinguishes people from tabs. */
+  userId: string | null;
   /** Display name. */
   name: string;
   /** 1–2 letter initials derived from name. */
   initials: string;
-  /** Stable accent color derived from id. */
+  /** Stable accent color derived from the tab id. */
   color: string;
+  /** True for THIS tab's own entry. */
+  isSelf: boolean;
 }
 
 interface PresenceContextValue {
+  /** All editor tabs on the channel, self first. */
   editors: EditorPresence[];
+  /** Editors other than this tab (other people AND this user's other tabs). */
+  others: EditorPresence[];
+  /** Whether the Realtime channel is subscribed (false = degraded/offline). */
+  online: boolean;
 }
 
 // ── palette ───────────────────────────────────────────────────────────────────
@@ -75,25 +94,33 @@ function initialsForName(name: string): string {
   return (words[0]?.slice(0, 2) ?? "?").toUpperCase();
 }
 
-function makeEditor(id: string, name: string): EditorPresence {
+function makeEditor(
+  tabId: string,
+  name: string,
+  opts: { userId?: string | null; isSelf?: boolean } = {},
+): EditorPresence {
   return {
-    id,
+    id: tabId,
+    userId: opts.userId ?? null,
     name,
     initials: initialsForName(name),
-    color: colorForId(id),
+    color: colorForId(tabId),
+    isSelf: opts.isSelf ?? false,
   };
 }
 
-// ── stable per-session id ─────────────────────────────────────────────────────
+// ── stable per-TAB id ───────────────────────────────────────────────────────────
 
 let _sessionId: string | null = null;
 
+/** A stable id unique to THIS browser tab (sessionStorage is per-tab). */
 function getSessionId(): string {
   if (_sessionId) return _sessionId;
   try {
-    const stored = typeof sessionStorage !== "undefined"
-      ? sessionStorage.getItem("edit:presence-id")
-      : null;
+    const stored =
+      typeof sessionStorage !== "undefined"
+        ? sessionStorage.getItem("edit:presence-id")
+        : null;
     if (stored) {
       _sessionId = stored;
       return stored;
@@ -101,7 +128,7 @@ function getSessionId(): string {
   } catch {
     // sessionStorage may be blocked
   }
-  const id = `anon-${Math.random().toString(36).slice(2, 10)}`;
+  const id = `tab-${Math.random().toString(36).slice(2, 10)}`;
   _sessionId = id;
   try {
     if (typeof sessionStorage !== "undefined") {
@@ -115,30 +142,42 @@ function getSessionId(): string {
 
 // ── context ───────────────────────────────────────────────────────────────────
 
-const PresenceContext = createContext<PresenceContextValue>({ editors: [] });
+const PresenceContext = createContext<PresenceContextValue>({
+  editors: [],
+  others: [],
+  online: false,
+});
 
 // ── provider ──────────────────────────────────────────────────────────────────
 
 export interface PresenceProviderProps {
   /** cms_pages.id for the page being edited. Presence is scoped per page. */
   pageId: string | null;
+  /** Active edit locale — scopes the channel so locales don't cross-talk. */
+  locale?: string | null;
   /** Display name for this editor. Defaults to "You". */
   selfName?: string;
-  /** Stable id for this editor. Falls back to a per-session random id. */
+  /** Auth user id for this editor (grouping key; distinguishes people from tabs). */
   selfId?: string;
   children: React.ReactNode;
 }
 
 export function PresenceProvider({
   pageId,
+  locale,
   selfName = "You",
   selfId,
   children,
 }: PresenceProviderProps) {
-  const resolvedId = selfId ?? getSessionId();
-  const self = useMemo(() => makeEditor(resolvedId, selfName), [resolvedId, selfName]);
+  // Per-TAB presence key — two tabs of one account are two distinct entries.
+  const tabId = getSessionId();
+  const self = useMemo(
+    () => makeEditor(tabId, selfName, { userId: selfId ?? null, isSelf: true }),
+    [tabId, selfName, selfId],
+  );
 
   const [editors, setEditors] = useState<EditorPresence[]>([self]);
+  const [online, setOnline] = useState(false);
 
   // Keep a ref to the latest self so the effect closure is always fresh.
   const selfRef = useRef(self);
@@ -148,36 +187,38 @@ export function PresenceProvider({
 
   const buildEditorList = useCallback(
     (
-      presenceState: Record<string, Array<{ id?: string; name?: string }>>,
+      presenceState: Record<
+        string,
+        Array<{ tabId?: string; userId?: string; name?: string }>
+      >,
     ): EditorPresence[] => {
-      // Flatten all presence tracks from all "clients" (connection keys).
-      // Deduplicate by id; self takes priority for its own entry.
+      // One entry per presence KEY (= tab). Self always included + first.
       const seen = new Map<string, EditorPresence>();
-      // Always include self.
       seen.set(selfRef.current.id, selfRef.current);
 
-      for (const tracks of Object.values(presenceState)) {
-        for (const track of tracks) {
-          const id = typeof track.id === "string" && track.id ? track.id : null;
-          const name =
-            typeof track.name === "string" && track.name ? track.name : "Editor";
-          if (!id) continue;
-          // Don't override self entry.
-          if (!seen.has(id)) {
-            seen.set(id, makeEditor(id, name));
-          }
-        }
+      for (const [key, tracks] of Object.entries(presenceState)) {
+        const track = tracks[0];
+        const id =
+          (typeof track?.tabId === "string" && track.tabId) || key || null;
+        if (!id || seen.has(id)) continue;
+        const name =
+          typeof track?.name === "string" && track.name ? track.name : "Editor";
+        const userId =
+          typeof track?.userId === "string" && track.userId
+            ? track.userId
+            : null;
+        seen.set(id, makeEditor(id, name, { userId, isSelf: id === tabId }));
       }
 
       return Array.from(seen.values());
     },
-    [],
+    [tabId],
   );
 
   useEffect(() => {
     if (!pageId) {
-      // No page yet — just show self.
       setEditors([selfRef.current]);
+      setOnline(false);
       return;
     }
 
@@ -190,22 +231,23 @@ export function PresenceProvider({
 
     if (!supa) {
       setEditors([selfRef.current]);
+      setOnline(false);
       return;
     }
 
-    // Create the presence channel.
-    const channelName = `cms-page-editors-${pageId}`;
+    const channelName = locale
+      ? `cms-page-editors-${pageId}-${locale}`
+      : `cms-page-editors-${pageId}`;
     const channel = supa.channel(channelName, {
-      config: { presence: { key: resolvedId } },
+      config: { presence: { key: tabId } },
     });
 
     channel
       .on("presence", { event: "sync" }, () => {
         try {
-          // presenceState() returns { [key: string]: Array<PresenceData> }
           const state = channel.presenceState() as Record<
             string,
-            Array<{ id?: string; name?: string }>
+            Array<{ tabId?: string; userId?: string; name?: string }>
           >;
           setEditors(buildEditorList(state));
         } catch {
@@ -214,15 +256,27 @@ export function PresenceProvider({
       })
       .subscribe(async (status) => {
         if (status === "SUBSCRIBED") {
+          setOnline(true);
           try {
-            await channel.track({ id: resolvedId, name: selfRef.current.name });
+            await channel.track({
+              tabId,
+              userId: selfRef.current.userId,
+              name: selfRef.current.name,
+            });
           } catch {
             // ignore — presence is decorative
           }
+        } else if (
+          status === "CHANNEL_ERROR" ||
+          status === "TIMED_OUT" ||
+          status === "CLOSED"
+        ) {
+          setOnline(false);
         }
       });
 
     return () => {
+      setOnline(false);
       try {
         void channel.untrack();
         void supa!.removeChannel(channel);
@@ -230,9 +284,12 @@ export function PresenceProvider({
         // ignore
       }
     };
-  }, [pageId, resolvedId, buildEditorList]);
+  }, [pageId, locale, tabId, buildEditorList]);
 
-  const value = useMemo<PresenceContextValue>(() => ({ editors }), [editors]);
+  const value = useMemo<PresenceContextValue>(() => {
+    const others = editors.filter((e) => !e.isSelf);
+    return { editors, others, online };
+  }, [editors, online]);
 
   return (
     <PresenceContext.Provider value={value}>
@@ -244,8 +301,8 @@ export function PresenceProvider({
 // ── hook ──────────────────────────────────────────────────────────────────────
 
 /**
- * Returns the list of active editors on the current page.
- * The current user is always first in the list.
+ * Returns presence for the current page: all editor tabs (`editors`, self first),
+ * everyone else (`others`), and whether the channel is live (`online`).
  */
 export function usePagePresence(): PresenceContextValue {
   return useContext(PresenceContext);
