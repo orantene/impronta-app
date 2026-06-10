@@ -5,9 +5,7 @@ import type {
 } from "./types";
 import { createBuilderSectionEmbed } from "./section-embed-presets";
 
-export function makeId(kind: BuilderNodeKind): string {
-  return `builder-${kind}-${crypto.randomUUID()}`;
-}
+export { makeId } from "./make-id";
 
 const SAMPLE_IMAGES = [
   {

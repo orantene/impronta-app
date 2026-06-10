@@ -19,7 +19,7 @@ import { v11FeaturedTalentPreset } from "@/lib/site-admin/sections/featured_tale
 import { fashionDirectoryPreset } from "@/lib/site-admin/sections/directory/presets";
 
 import type { BuilderNode } from "./types";
-import { makeId } from "./create";
+import { makeId } from "./make-id";
 
 export interface SectionEmbedPreset {
   /** Stable id for the picker entry. */

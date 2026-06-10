@@ -8,12 +8,8 @@ import {
   v11TalentTypeGridPreset,
 } from "@/lib/site-admin/sections/talent_type_grid/presets";
 
-import type { BuilderNode, BuilderNodeTree, BuilderNodeKind } from "./types";
-
-/** Local id minting — avoids importing `create` (circular via page-designs → impronta). */
-function makeNodeId(kind: BuilderNodeKind): string {
-  return `builder-${kind}-${crypto.randomUUID()}`;
-}
+import type { BuilderNode, BuilderNodeTree } from "./types";
+import { makeId as makeNodeId } from "./make-id";
 
 export interface TalentDisciplineDecomposedInput {
   /** Stable root id (migration / page-design presets). */
