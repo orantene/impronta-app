@@ -76,6 +76,8 @@ import {
   countPresentationOverrides,
   type ViewportDevice,
 } from "./responsive-field-state";
+import { useBuilderBreakpoints } from "../use-builder-breakpoints";
+import { breakpointLabelForDevice } from "../breakpoint-registry";
 
 const INHERIT_HINT = HINT;
 
@@ -647,7 +649,10 @@ type AdvancedEditableBuilderNode =
   | BuilderDividerNode
   | BuilderSpacerNode;
 
-type ContainerResponsiveViewport = "tablet" | "mobile";
+// A container-layout override tier id. `tablet`/`mobile` are the built-ins;
+// any other slug is an operator-defined custom tier. `desktop` is the base
+// (never an override bucket). First-class responsive writes into any of these.
+type ContainerResponsiveViewport = string;
 
 function findBuilderNodeById(
   tree: BuilderNodeTree,
@@ -697,7 +702,9 @@ function cleanContainerResponsive(
 ) {
   if (!responsive) return undefined;
   const next: NonNullable<BuilderContainerNode["props"]["responsive"]> = {};
-  for (const viewport of ["tablet", "mobile"] as const) {
+  // Iterate EVERY tier id present (built-in tablet/mobile + any custom tier),
+  // not a fixed pair — first-class responsive writes into any tier bucket.
+  for (const viewport of Object.keys(responsive)) {
     const value = responsive[viewport];
     if (!value) continue;
     const cleaned = Object.fromEntries(
@@ -993,31 +1000,79 @@ function LayoutHealthCard({
   );
 }
 
-function viewportDeviceFromEditDevice(
-  device: string,
-): ViewportDevice {
-  if (device === "tablet" || device === "mobile") return device;
-  return "desktop";
+/**
+ * Per-field label for the node layout editor. Shows a "modified on this tier"
+ * dot + a reset-to-inherited control when the field carries an override on the
+ * active breakpoint — mirroring the section-level override badge pattern so
+ * per-breakpoint node editing reads as first-class and confident.
+ */
+function ContainerFieldLabel({
+  label,
+  modified,
+  onReset,
+}: {
+  label: string;
+  modified: boolean;
+  onReset: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-1.5">
+      <span className={`${FIELD_LABEL} flex items-center gap-1`}>
+        {label}
+        {modified ? (
+          <span
+            aria-hidden
+            data-builder-field-modified=""
+            title="Overridden on this breakpoint"
+            className="inline-block h-1.5 w-1.5 rounded-full"
+            style={{ background: CHROME.amber }}
+          />
+        ) : null}
+      </span>
+      {modified ? (
+        <button
+          type="button"
+          data-builder-field-reset=""
+          onClick={onReset}
+          className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.08em]"
+          style={{ background: "transparent", border: "none", color: CHROME.muted, padding: 0 }}
+          title="Reset to desktop value"
+        >
+          Reset
+        </button>
+      ) : null}
+    </div>
+  );
 }
 
 function AdvancedNodeLayoutEditor({
   node,
   onPatch,
   device,
+  tierLabel,
 }: {
   node: AdvancedEditableBuilderNode;
   onPatch: (patch: Record<string, unknown>) => void;
-  device: ViewportDevice;
+  /**
+   * The active editing tier id. `desktop` is the base; ANY other id
+   * (`tablet`/`mobile` or a custom tier) is an override bucket in
+   * `responsive[tier]`. Widened from `ViewportDevice` so editing in `wide`,
+   * `compact`, or a custom tier writes the right bucket instead of silently
+   * collapsing to desktop.
+   */
+  device: string;
+  /** Friendly label for the active tier (e.g. "Wide", "Compact phone"). */
+  tierLabel?: string;
 }) {
   const resetNodeLayout = () => onPatch(nodeLayoutResetPatch(node));
 
   if (node.kind === "container") {
     const responsive = node.props.responsive;
     const editingOverride = device !== "desktop";
-    const overrideBucket =
-      editingOverride && (device === "tablet" || device === "mobile")
-        ? responsive?.[device]
-        : undefined;
+    // Any non-desktop tier id is a valid override bucket now — not just the two
+    // built-ins. This is the core "remove the tier limitation" change.
+    const overrideBucket = editingOverride ? responsive?.[device] : undefined;
+    const activeTierLabel = tierLabel ?? device;
 
     const patchResponsive = (
       viewport: ContainerResponsiveViewport,
@@ -1034,6 +1089,18 @@ function AdvancedNodeLayoutEditor({
       onPatch({ responsive: cleanContainerResponsive(nextResponsive) });
     };
 
+    // Per-field reset on this tier: drop the one key from the override bucket,
+    // re-inheriting the desktop base. Reuses cleanContainerResponsive so an
+    // emptied bucket disappears entirely.
+    const resetField = (key: "layout" | "gap" | "columns" | "align") => {
+      if (!editingOverride) return;
+      patchResponsive(device, key, undefined);
+    };
+
+    // A field is "modified on this tier" when its override bucket key is set.
+    const isFieldOverridden = (key: "layout" | "gap" | "columns" | "align"): boolean =>
+      editingOverride && overrideBucket?.[key] !== undefined && overrideBucket?.[key] !== null;
+
     const layoutValue = editingOverride
       ? overrideBucket?.layout ?? ""
       : node.props.layout;
@@ -1049,7 +1116,7 @@ function AdvancedNodeLayoutEditor({
       key: "layout" | "gap" | "columns" | "align",
       next: string | number | undefined,
     ) => {
-      if (editingOverride && (device === "tablet" || device === "mobile")) {
+      if (editingOverride) {
         patchResponsive(device, key, next);
         return;
       }
@@ -1058,6 +1125,10 @@ function AdvancedNodeLayoutEditor({
       else if (key === "columns") onPatch({ columns: next as number | undefined });
       else onPatch({ align: next as string });
     };
+
+    const effectiveLayout = editingOverride
+      ? overrideBucket?.layout ?? node.props.layout
+      : node.props.layout;
 
     return (
       <div className="flex flex-col gap-3" data-builder-node-layout-panel="container">
@@ -1080,13 +1151,17 @@ function AdvancedNodeLayoutEditor({
         </div>
         {editingOverride ? (
           <span className={INHERIT_HINT}>
-            Editing {device} layout overrides — desktop values stay the base.
+            Editing {activeTierLabel} layout overrides — desktop values stay the base.
           </span>
         ) : null}
         <NodeLayoutPresetGrid kind={node.kind} onApply={onPatch} />
         <div className="grid grid-cols-2 gap-2">
           <div className="flex flex-col gap-1.5">
-            <span className={FIELD_LABEL}>Layout</span>
+            <ContainerFieldLabel
+              label="Layout"
+              modified={isFieldOverridden("layout")}
+              onReset={() => resetField("layout")}
+            />
             <Segmented
               fullWidth
               compact
@@ -1096,7 +1171,11 @@ function AdvancedNodeLayoutEditor({
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <span className={FIELD_LABEL}>Gap</span>
+            <ContainerFieldLabel
+              label="Gap"
+              modified={isFieldOverridden("gap")}
+              onReset={() => resetField("gap")}
+            />
             <Segmented
               fullWidth
               compact
@@ -1108,7 +1187,11 @@ function AdvancedNodeLayoutEditor({
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div className="flex flex-col gap-1.5">
-            <span className={FIELD_LABEL}>Columns</span>
+            <ContainerFieldLabel
+              label="Columns"
+              modified={isFieldOverridden("columns")}
+              onReset={() => resetField("columns")}
+            />
             <Segmented
               fullWidth
               compact
@@ -1116,8 +1199,7 @@ function AdvancedNodeLayoutEditor({
               onChange={(next) =>
                 patchLayoutField(
                   "columns",
-                  (editingOverride ? overrideBucket?.layout : node.props.layout) === "grid" &&
-                    next
+                  effectiveLayout === "grid" && next
                     ? Number.parseInt(next, 10)
                     : editingOverride
                       ? next
@@ -1129,15 +1211,18 @@ function AdvancedNodeLayoutEditor({
                 )
               }
               options={
-                (editingOverride ? overrideBucket?.layout : node.props.layout) === "grid" ||
-                (!editingOverride && node.props.layout === "grid")
+                effectiveLayout === "grid"
                   ? GRID_COLUMNS_OPTIONS
                   : [{ value: "", label: "Only for grid" }]
               }
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <span className={FIELD_LABEL}>Align</span>
+            <ContainerFieldLabel
+              label="Align"
+              modified={isFieldOverridden("align")}
+              onReset={() => resetField("align")}
+            />
             <Segmented
               fullWidth
               compact
@@ -1648,6 +1733,9 @@ export function LayoutPanel({
     device,
     setDevice,
   } = useEditContext();
+  // Author-defined breakpoint tiers (built-in + custom) — used to label the
+  // active editing tier in the node layout editor.
+  const builderBreakpoints = useBuilderBreakpoints();
   // W2 (selection-bridge) — selection VALUE from the micro-store.
   const selectedBuilderNodeId = useSelectedBuilderNodeId();
   const val = (key: string): string =>
@@ -1942,7 +2030,8 @@ export function LayoutPanel({
             />
             <AdvancedNodeLayoutEditor
               node={selectedBuilderNode}
-              device={viewportDeviceFromEditDevice(device)}
+              device={device}
+              tierLabel={breakpointLabelForDevice(device, builderBreakpoints)}
               onPatch={(patch) => {
                 void commitBuilderNodePatch(selectedBuilderNode.id, patch);
               }}

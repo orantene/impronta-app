@@ -77,6 +77,74 @@ export const BUILTIN_EXTRA_TIERS: ReadonlyArray<CustomBreakpoint> = [
   { id: "compact", label: "Compact", maxWidthPx: 480 },
 ];
 
+/**
+ * Built-in tier ids that render via the STATIC stylesheet in `render.tsx`
+ * (the `@media (max-width:900px)` / `@media (max-width:640px)` blocks). The
+ * runtime generators skip these so they never double-emit / conflict with the
+ * static rules — they only ever produce CSS for operator-defined custom tiers.
+ */
+const BUILTIN_TIER_IDS: ReadonlySet<string> = new Set(["tablet", "mobile"]);
+
+/**
+ * Builder 2026 "first-class responsive" — runtime CSS for custom-tier CONTAINER
+ * LAYOUT overrides (`BuilderContainerNode.props.responsive[<tierId>]`). Mirrors
+ * the static container rules in `render.tsx` byte-for-byte (the
+ * `data-builder-<tier>-layout` stack/row/grid rules + the `--bn-<tier>-columns`
+ * grid/masonry threading), but for any operator-chosen tier id + threshold.
+ *
+ * Built-in `tablet`/`mobile` are skipped (the static sheet owns them), so this
+ * is purely additive and can never change how an existing design renders.
+ */
+function containerLayoutRulesFor(id: string): string {
+  return [
+    `  .site-builder-node--container[data-builder-${id}-layout="stack"]{display:flex;flex-direction:column}`,
+    `  .site-builder-node--container[data-builder-${id}-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}`,
+    `  .site-builder-node--container[data-builder-${id}-layout="grid"]{display:grid;grid-template-columns:repeat(var(--bn-${id}-columns,var(--bn-columns,2)),minmax(0,1fr))}`,
+  ].join("\n");
+}
+
+/** Module-level cache: tiers array identity → generated container-layout CSS. */
+const containerLayoutCssCache = new WeakMap<object, string>();
+
+/**
+ * Build the runtime stylesheet for custom-tier container-layout overrides.
+ * Widest threshold first (so a narrower custom tier wins at equal specificity),
+ * mirroring {@link generateCustomBreakpointCss}. Invalid / built-in / duplicate
+ * tiers are dropped.
+ */
+export function generateContainerLayoutCss(
+  tiers: readonly CustomBreakpoint[] | undefined | null,
+): string {
+  if (!tiers || tiers.length === 0) return "";
+  const cached = containerLayoutCssCache.get(tiers);
+  if (cached !== undefined) return cached;
+  const seen = new Set<string>();
+  const valid = tiers
+    .filter(
+      (t) =>
+        !!t &&
+        SLUG.test(t.id) &&
+        !BUILTIN_TIER_IDS.has(t.id) &&
+        Number.isFinite(t.maxWidthPx) &&
+        t.maxWidthPx >= MIN_PX &&
+        t.maxWidthPx <= MAX_PX,
+    )
+    .sort((a, b) => b.maxWidthPx - a.maxWidthPx);
+  const blocks: string[] = [];
+  for (const t of valid) {
+    if (seen.has(t.id)) continue;
+    seen.add(t.id);
+    blocks.push(
+      `@media (max-width: ${Math.round(t.maxWidthPx)}px) {\n${containerLayoutRulesFor(
+        t.id,
+      )}\n}`,
+    );
+  }
+  const result = blocks.join("\n\n");
+  containerLayoutCssCache.set(tiers, result);
+  return result;
+}
+
 function rulesFor(id: string): string {
   const lines: string[] = [];
   for (const [v, decl] of Object.entries(BACKGROUND))
@@ -118,8 +186,7 @@ export function generateCustomBreakpointCss(
       (t) =>
         !!t &&
         SLUG.test(t.id) &&
-        t.id !== "tablet" &&
-        t.id !== "mobile" &&
+        !BUILTIN_TIER_IDS.has(t.id) &&
         Number.isFinite(t.maxWidthPx) &&
         t.maxWidthPx >= MIN_PX &&
         t.maxWidthPx <= MAX_PX,

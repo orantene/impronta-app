@@ -2274,6 +2274,40 @@ function shouldRenderNode(
   return true;
 }
 
+// Tiers whose container-layout overrides render via the STATIC stylesheet.
+// Any other key in `responsive` is a custom tier handled at runtime by
+// generateContainerLayoutCss + the data-attrs below.
+const BUILTIN_CONTAINER_TIERS: ReadonlySet<string> = new Set(["tablet", "mobile"]);
+
+// Emit `--bn-<tier>-columns` for each custom tier so the runtime grid rule can
+// thread the per-tier column count (mirrors the static --bn-tablet/mobile vars).
+function customTierColumnVars(
+  responsive: Extract<BuilderNode, { kind: "container" }>["props"]["responsive"],
+): Record<string, string | number | undefined> {
+  if (!responsive) return {};
+  const out: Record<string, string | number | undefined> = {};
+  for (const [tierId, bucket] of Object.entries(responsive)) {
+    if (BUILTIN_CONTAINER_TIERS.has(tierId)) continue;
+    if (bucket?.columns !== undefined) out[`--bn-${tierId}-columns`] = bucket.columns;
+  }
+  return out;
+}
+
+// Emit `data-builder-<tier>-layout` for each custom tier (mirrors the static
+// data-builder-tablet/mobile-layout attrs). Built-in tiers are emitted inline
+// in the render JSX, so they are skipped here.
+function customTierLayoutAttrs(
+  responsive: Extract<BuilderNode, { kind: "container" }>["props"]["responsive"],
+): Record<string, string> {
+  if (!responsive) return {};
+  const out: Record<string, string> = {};
+  for (const [tierId, bucket] of Object.entries(responsive)) {
+    if (BUILTIN_CONTAINER_TIERS.has(tierId)) continue;
+    if (bucket?.layout) out[`data-builder-${tierId}-layout`] = bucket.layout;
+  }
+  return out;
+}
+
 function containerStyle(node: Extract<BuilderNode, { kind: "container" }>): CSSProperties {
   return inlineNodeStyle(node.props.style, builderNodeStyleVars({
     "--bn-gap": GAP_BY_SIZE[node.props.gap ?? "m"],
@@ -2281,6 +2315,7 @@ function containerStyle(node: Extract<BuilderNode, { kind: "container" }>): CSSP
     "--bn-columns": node.props.columns ?? 2,
     "--bn-tablet-columns": node.props.responsive?.tablet?.columns,
     "--bn-mobile-columns": node.props.responsive?.mobile?.columns,
+    ...customTierColumnVars(node.props.responsive),
     }));
 }
 
@@ -2530,6 +2565,7 @@ function renderBuilderNodeElement(
           data-builder-layout={node.props.layout}
           data-builder-tablet-layout={node.props.responsive?.tablet?.layout}
           data-builder-mobile-layout={node.props.responsive?.mobile?.layout}
+          {...customTierLayoutAttrs(node.props.responsive)}
           data-builder-data-source={node.props.dataBinding?.sourceKey}
           data-builder-data-mode={node.props.dataBinding?.mode}
           data-builder-data-max-items={node.props.dataBinding?.maxItems}
