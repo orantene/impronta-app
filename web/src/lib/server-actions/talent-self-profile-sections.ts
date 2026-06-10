@@ -16,6 +16,7 @@ import { syncProfileShellDynFieldValues } from "@/lib/talent/profile-shell-dyn-f
 import { syncRosterFieldValuesToCatalog } from "@/lib/talent/roster-field-values-catalog";
 import { syncScalarFieldValuesToCatalog } from "@/lib/talent/scalar-field-values-catalog";
 import { syncBlobFieldValuesToCatalog } from "@/lib/talent/blob-field-values-catalog";
+import { syncIdentityFieldValuesToCatalog } from "@/lib/talent/identity-field-values-catalog";
 import { syncTalentTypeTaxonomyFromShellSlugs } from "@/lib/talent/profile-shell-taxonomy-sync";
 import type { UiProfileShellStatus } from "@/lib/talent/profile-shell-workflow";
 import { uiProfileShellStatusToDbPatch } from "@/lib/talent/profile-shell-workflow";
@@ -468,6 +469,15 @@ export async function updateSelfIdentity(input: {
   await syncScalarFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
     age_display_mode: input.age_display_mode,
     response_time: input.response_time !== undefined ? (input.response_time || null) : undefined,
+  });
+
+  // P3 Tier-C Stage-1 dual-write — pronouns + pronouns_custom identity text.
+  // Pass the column-normalized values from `patch` (set above only when the
+  // input touched them); `undefined` (untouched) is respected by the helper.
+  // DOB + gender are DELIBERATELY EXCLUDED — see identity-field-values-catalog.ts.
+  await syncIdentityFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
+    pronouns: input.pronouns !== undefined ? (patch.pronouns as string | null) : undefined,
+    pronouns_custom: input.pronouns_custom !== undefined ? (patch.pronouns_custom as string | null) : undefined,
   });
 
   revalidatePath(`/t/${profileCode}`, "page");

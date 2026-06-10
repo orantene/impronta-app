@@ -42,6 +42,10 @@ import {
   syncBlobFieldValuesToCatalog,
   readBlobFieldValuesFromCatalog,
 } from "@/lib/talent/blob-field-values-catalog";
+import {
+  syncIdentityFieldValuesToCatalog,
+  readIdentityFieldValuesFromCatalog,
+} from "@/lib/talent/identity-field-values-catalog";
 import { syncTalentTypeTaxonomyFromShellSlugs } from "@/lib/talent/profile-shell-taxonomy-sync";
 import type { UiProfileShellStatus } from "@/lib/talent/profile-shell-workflow";
 
@@ -698,6 +702,20 @@ export async function commitTalentProfileShellAdmin(
   });
   lap("blobFieldValuesCatalog");
 
+  // P3 Tier-C Stage-1 dual-write: mirror the identity-PII text fields written to
+  // talent_profiles above into the catalog value table, scoped to the active
+  // roster tenant. Fire-and-forget — never blocks the column write. pronouns +
+  // pronouns_custom arrive via `...idBuilt.patch` and are only present when the
+  // identity payload edited them — pass them raw so `undefined` (untouched) is
+  // respected by the helper's per-key contract. DOB + gender are DELIBERATELY
+  // EXCLUDED (legacy-mirror collision on identity.dob; gender vocab ambiguity) —
+  // see identity-field-values-catalog.ts for the full reconciliation.
+  await syncIdentityFieldValuesToCatalog(supabase, tid, tenantId, {
+    pronouns: profilePatch.pronouns as string | null | undefined,
+    pronouns_custom: profilePatch.pronouns_custom as string | null | undefined,
+  });
+  lap("identityFieldValuesCatalog");
+
   const rm = input.rosterMeta;
   const rosterPatch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (rm.internal_notes !== undefined) rosterPatch.internal_notes = rm.internal_notes?.trim() || null;
@@ -1281,7 +1299,7 @@ export async function getTalentProfileEditorData(input: {
 
   // Fetch talent_profiles row + the roster row + the Tier-D catalog value
   // rows in parallel.
-  const [profileRes, rosterRes, rosterFieldValues, scalarFieldValues, blobFieldValues] = await Promise.all([
+  const [profileRes, rosterRes, rosterFieldValues, scalarFieldValues, blobFieldValues, identityFieldValues] = await Promise.all([
     supabase
       .from("talent_profiles")
       .select(`
@@ -1322,6 +1340,10 @@ export async function getTalentProfileEditorData(input: {
     // P3 Tier-B Stage-4: source the editor-only JSONB blobs from the catalog
     // value table, falling back to the dedicated column below when absent.
     readBlobFieldValuesFromCatalog(supabase, input.talent_profile_id),
+    // P3 Tier-C Stage-4: source the identity-PII text fields (pronouns +
+    // pronouns_custom) from the catalog value table, falling back to the
+    // dedicated column below when absent. DOB + gender stay column-only.
+    readIdentityFieldValuesFromCatalog(supabase, input.talent_profile_id),
   ]);
 
   if (profileRes.error || !profileRes.data) {
@@ -1334,6 +1356,7 @@ export async function getTalentProfileEditorData(input: {
   const r = (rosterRes.data ?? {}) as Row;
   const sv = scalarFieldValues;
   const bv = blobFieldValues;
+  const iv = identityFieldValues;
   const { primary: shellPrimarySlug, secondaries: shellSecondarySlugs } = talentTypeSlugsFromTaxonomyEmbed(
     p.talent_profile_taxonomy,
   );
@@ -1376,8 +1399,11 @@ export async function getTalentProfileEditorData(input: {
       first_name: (p.first_name as string | null) ?? null,
       last_name: (p.last_name as string | null) ?? null,
       legal_name: (p.legal_name as string | null) ?? null,
-      pronouns: (p.pronouns as string | null) ?? null,
-      pronouns_custom: (p.pronouns_custom as string | null) ?? null,
+      // P3 Tier-C Stage-4: prefer the catalog value row, fall back to the
+      // dedicated talent_profiles column when no value row exists (column write
+      // still live). DOB + gender remain column-sourced (excluded from Tier C).
+      pronouns: iv.pronouns ?? (p.pronouns as string | null) ?? null,
+      pronouns_custom: iv.pronouns_custom ?? (p.pronouns_custom as string | null) ?? null,
       gender: (p.gender as string | null) ?? null,
       date_of_birth: (p.date_of_birth as string | null) ?? null,
       // P3 Tier-A Stage-4: prefer the catalog value row, fall back to the
