@@ -329,7 +329,7 @@ export async function TypesTab({ sp }: { sp: Record<string, string | undefined> 
       >
         <div>
           <div style={{ fontFamily: FD, fontSize: 16, fontWeight: 600, color: HQ.ink }}>
-            Talent Types
+            Talent-Type Category
           </div>
           <div style={{ fontSize: 12, color: HQ.inkMuted, marginTop: 2 }}>
             {!result.ok && result.parents.length === 0

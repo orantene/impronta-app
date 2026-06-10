@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- the Profile Fields hub shell + inline Fields view; tab bodies are already split into _tabs/*. */
 // Phase 9A — Platform HQ · Catalog Map.
 // Server Component — no "use client". Platform-admin gated by the
 // (workspace)/platform/admin layout (super_admin). Mutations are delegated to
@@ -241,6 +242,23 @@ const HUB_TABS: ReadonlyArray<{ tab: HubTab; label: string }> = [
   { tab: "sections", label: "Section Fields Groups" },
   { tab: "section-fields", label: "Section Fields" },
 ];
+
+// One-line orientation per tab — rendered under the tab chips so each surface
+// is self-explanatory and the six pages read consistently.
+const TAB_DESC: Record<HubTab, string> = {
+  types:
+    "The talent-type taxonomy — parent categories → category groups → talent types. Expand to edit; analytics show agencies + talents per type.",
+  groups:
+    "Field groups bundle profile fields. Edit, reorder, archive, or permanently remove a group; expand one to see its fields.",
+  fields:
+    "Every canonical profile field. Filter, search, preview by role, and reorder within each group. Click a field to edit it.",
+  editor:
+    "The profile-editor rail groups (Profile, Craft, …) that head the talent editor's left rail. Rename, reorder, archive, or remove.",
+  sections:
+    "The profile-editor sections (Identity → Admin) within each rail group. Edit labels EN/ES, move between groups, and reorder.",
+  "section-fields":
+    "Each profile-editor section and the fields it shows. Expand a section to view and reorder its fields.",
+};
 
 // Phase 9A slice 3 — "View-as" role preview. platform_admin = default
 // (sees everything); the other three apply canViewerSee per row.
@@ -565,20 +583,37 @@ export default async function PlatformCatalogMapPage({
         </div>
       </div>
 
-      {/* Compact metric strip — replaces the old full-width Overview card. */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-        <Stat label="Fields" value={s.totalFields} />
-        <Stat label="Groups" value={s.totalGroups} />
-        <Stat label="Deprecated" value={s.deprecated} tone={s.deprecated ? HQ.amber : undefined} />
-        <Stat label="Sensitive" value={s.sensitive} tone={s.sensitive ? HQ.red : undefined} />
-        <Stat label="Admin-only" value={s.adminOnly} />
-        <Stat label="With values" value={s.fieldsWithValues} />
-        <Stat
-          label="Risks"
-          value={priorityRisks.length}
-          tone={priorityRisks.length ? HQ.red : HQ.green}
-        />
+      {/* Per-tab orientation line — keeps the six pages self-explanatory. */}
+      <div
+        style={{
+          fontSize: 12.5,
+          color: HQ.inkMuted,
+          maxWidth: 920,
+          lineHeight: 1.5,
+          marginBottom: 14,
+        }}
+      >
+        {TAB_DESC[tab]}
       </div>
+
+      {/* Field-engine overview — only on the Talent-Type Fields tab, where these
+          field-level stats are the relevant summary. Every other tab shows its
+          own contextual stats, so the global strip would just be noise there. */}
+      {tab === "fields" && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+          <Stat label="Fields" value={s.totalFields} />
+          <Stat label="Groups" value={s.totalGroups} />
+          <Stat label="Deprecated" value={s.deprecated} tone={s.deprecated ? HQ.amber : undefined} />
+          <Stat label="Sensitive" value={s.sensitive} tone={s.sensitive ? HQ.red : undefined} />
+          <Stat label="Admin-only" value={s.adminOnly} />
+          <Stat label="With values" value={s.fieldsWithValues} />
+          <Stat
+            label="Risks"
+            value={priorityRisks.length}
+            tone={priorityRisks.length ? HQ.red : HQ.green}
+          />
+        </div>
+      )}
 
       {tab === "fields" && (
         <>
