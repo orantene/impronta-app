@@ -387,6 +387,13 @@ const builderNodeStyleSchema = builderNodeStyleValueSchema
     // the base with this node's own props on top. Length-capped to the id
     // normalizer's 48-char ceiling (styleClassIdFromName).
     classRef: z.string().min(1).max(48).optional(),
+    // Per-node custom CSS escape hatch (2026-06-09). Free author CSS rendered as
+    // a scope-confined <style> keyed to `[data-builder-node-id]` via the hardened
+    // `nodeScopedCss` scoper — a stray `}` can't break the scope. Base-style only
+    // (not per-viewport). Capped at 8000 chars (a generous block; sections' field
+    // is uncapped at the schema, but bounding the node escape keeps payloads sane).
+    // Optional + back-compat: absent → renderer emits nothing → byte-identical.
+    customCss: z.string().max(8000).optional(),
   })
   .optional();
 

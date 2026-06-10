@@ -1574,6 +1574,9 @@ function cleanBuilderNodeStyle(
   // patch (the allowlist above intentionally drops unknown keys; classRef must
   // survive or "Apply class" would be wiped on the next inspector edit).
   if (value.classRef) out.classRef = value.classRef;
+  // Per-node custom CSS escape hatch (2026-06-09) — base-style only (no viewport
+  // layer). Must survive the allow-list or it'd be wiped on the next style edit.
+  if (value.customCss) out.customCss = value.customCss;
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -9262,6 +9265,95 @@ export function StylePanel({
                   : `Hides only on ${selectedViewport}; desktop stays shown.`}
               </span>
             </div>
+
+            {/*
+              ── Custom CSS (Advanced, node-level) ───────────────────────────
+              Per-node escape hatch mirroring the SECTION custom-CSS field. The
+              CSS is scope-confined to this node's `[data-builder-node-id]` by
+              the hardened `nodeScopedCss` scoper in the renderer — a stray `}`
+              can't break out to page-global rules. Base-style only (not a
+              per-viewport layer) — an author writing responsive rules embeds
+              their own @media inside the block. Folded into a collapsed
+              disclosure since most operators never hand-write CSS; a row marker
+              (•) flags it as in-use even before opening.
+            */}
+            <details
+              open={Boolean(selectedStandaloneFullStyle?.customCss)}
+              className="flex flex-col gap-2 border-t pt-3"
+              data-builder-node-style-control="customCss"
+              style={{ borderColor: CHROME.line }}
+            >
+              <summary
+                className="cursor-pointer flex items-center justify-between select-none"
+                style={{ outline: "none", listStyle: "none" }}
+              >
+                <span className={FIELD_LABEL}>
+                  Custom CSS
+                  {selectedStandaloneFullStyle?.customCss ? (
+                    <span
+                      aria-hidden
+                      style={{
+                        marginLeft: 8,
+                        width: 6,
+                        height: 6,
+                        background: CHROME.blue,
+                        borderRadius: 999,
+                        display: "inline-block",
+                        verticalAlign: "middle",
+                      }}
+                    />
+                  ) : null}
+                </span>
+                <span style={{ color: CHROME.muted, fontSize: 9 }}>›</span>
+              </summary>
+              <div className="flex flex-col gap-2 mt-2">
+                {selectedStandaloneFullStyle?.customCss ? (
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => patchSelectedBaseStyle({ customCss: undefined })}
+                      className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        color: CHROME.muted,
+                        padding: 0,
+                      }}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                ) : null}
+                <textarea
+                  value={selectedStandaloneFullStyle?.customCss ?? ""}
+                  onChange={(e) =>
+                    patchSelectedBaseStyle({
+                      customCss: e.target.value || undefined,
+                    })
+                  }
+                  placeholder={
+                    "/* Scoped to this block. Modern CSS supported. */\n.headline {\n  letter-spacing: -0.02em;\n}"
+                  }
+                  spellCheck={false}
+                  rows={6}
+                  className="w-full px-2 py-2"
+                  style={{
+                    fontSize: 11.5,
+                    lineHeight: 1.45,
+                    fontFamily: "ui-monospace, SFMono-Regular, monospace",
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                />
+                <span className={INHERIT_HINT}>
+                  Scoped to this block and its contents. Cannot affect the rest
+                  of the page.
+                </span>
+              </div>
+            </details>
 
             <div
               className="flex flex-col gap-2 border-t pt-3"
