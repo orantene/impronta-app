@@ -37,6 +37,7 @@ import {
 import { useDirty } from "./dirty-bridge";
 import { PresenceProvider, usePagePresence } from "./presence-provider";
 import { isBuilderPresenceEnabled } from "@/lib/site-admin/edit-mode/presence-flag";
+import { RemoteCursorsLayer } from "./remote-cursors-layer";
 import { CHROME, CHROME_SHADOWS, EDIT_TOPBAR_H } from "./kit";
 import { isCoachmarkDismissed, dismissCoachmark } from "./builder-coachmarks";
 import { SelectionLayer } from "./selection-layer";
@@ -1099,6 +1100,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         <MutationErrorToast />
         <DraftSavedToast />
         <PresenceBanner />
+        <RemoteCursorsLayer />
         {/* Preview toggle: when on, links navigate normally so the
          *  operator can test menus, anchors, and click targets. */}
         {!previewing ? <CanvasLinkInterceptor /> : null}
