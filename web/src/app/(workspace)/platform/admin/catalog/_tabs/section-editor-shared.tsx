@@ -93,6 +93,24 @@ export function FieldLink({
       {field.tier && field.tier !== "universal" && (
         <span style={{ fontSize: 9.5, color: HQ.inkDim }}>{field.tier}</span>
       )}
+      {field.render_mode === "bespoke" && (
+        <span
+          style={{
+            fontSize: 9.5,
+            fontWeight: 700,
+            textTransform: "uppercase",
+            letterSpacing: 0.2,
+            color: HQ.violet,
+            border: `1px solid ${HQ.violet}44`,
+            background: `${HQ.violet}1a`,
+            borderRadius: 999,
+            padding: "1px 6px",
+          }}
+          title="Rendered by a hand-coded editor control, not the generic catalog renderer."
+        >
+          custom editor
+        </span>
+      )}
       {field.required_default && (
         <span
           style={{

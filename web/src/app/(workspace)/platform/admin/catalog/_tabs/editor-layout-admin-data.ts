@@ -27,6 +27,9 @@ export type EditorSectionField = {
   tier: string;
   required_default: boolean;
   deprecated: boolean;
+  /** 'catalog' = generic catalog renderer; 'bespoke' = hand-coded editor
+   *  control. Surfaced so the admin can see which fields are coded. */
+  render_mode: string;
 };
 
 export type EditorSectionRow = {
@@ -106,27 +109,41 @@ const EMPTY: EditorLayoutAdmin = {
  * An empty array means the section has no directly-mapped catalog fields
  * (it may be composed or rendered without field-gating).
  */
+// Maps each RAIL section slug (the 20 sections the talent editor actually
+// renders — RAIL_GROUPS / profile_editor_sections) to the DB
+// `profile_field_definitions.section` values whose fields render there.
+//
+// Migration 20260610090001 re-tags most fields onto their editor slug
+// (bios/languages→about, social→social_proof, travel→logistics,
+// documents→files, skills→refinement, emergency→admin, media.polaroids→
+// polaroids). Three editor concepts are NOT standalone rail sections
+// (commercial_terms "Booking terms", refinement "Extra details", reviews) —
+// their fields are folded into the nearest rail accordion (Rates, Details,
+// Credits) so nothing is hidden. Legacy section aliases (travel/skills/social/
+// emergency/documents) are kept as defense-in-depth against drift. Every
+// distinct DB section value is claimed → `unmappedSections` stays empty and
+// the admin "Section Fields" tab mirrors the editor 1:1.
 const SECTION_FIELD_SECTIONS: Record<string, string[]> = {
   identity: ["identity"],
-  location: ["location", "travel"],
-  about: [],
-  services: [],
+  services: ["services"],
+  location: ["location"],
+  logistics: ["logistics", "travel"],
+  media: ["media"],
+  albums: ["albums"],
+  polaroids: ["polaroids"],
+  about: ["about"],
   physical: ["measurements"],
   wardrobe: ["wardrobe"],
-  details: ["type-specific"],
-  logistics: [],
-  availability: [],
-  media: ["media"],
-  albums: [],
-  polaroids: [],
-  rates: ["rates"],
-  limits: ["limits"],
+  details: ["type-specific", "refinement", "skills"],
+  rates: ["rates", "commercial_terms"],
+  availability: ["availability"],
   credits: ["credits", "reviews"],
-  social_proof: ["social"],
-  verifications: [],
-  files: ["documents"],
-  agency_fields: [],
-  admin: [],
+  limits: ["limits"],
+  files: ["files", "documents"],
+  social_proof: ["social_proof", "social"],
+  verifications: ["verifications"],
+  agency_fields: ["agency_fields"],
+  admin: ["admin", "emergency"],
 };
 
 type GroupDbRow = {
@@ -164,6 +181,7 @@ function toSectionField(f: CatalogField): EditorSectionField {
     tier: f.tier,
     required_default: f.required_default,
     deprecated: f.deprecated,
+    render_mode: f.render_mode ?? "catalog",
   };
 }
 
