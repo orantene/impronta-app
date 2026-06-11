@@ -76,7 +76,12 @@ export type FieldEngineReadSourceFlags = Record<
  * `FIELD_ENGINE_READ_SOURCE=directory_facets:a`.
  */
 export const DEFAULT_FIELD_ENGINE_READ_SOURCE_FLAGS: FieldEngineReadSourceFlags = {
-  directory_facets: "a",
+  // T2.1 (this PR) ACTIVATES the directory facet value-store repoint: the facet
+  // VALUE reads now default to canonical System B, proven at result-set parity
+  // (see read-source-directory-facets.ts + the PR's per-facet-option table).
+  // Kill switch: FIELD_ENGINE_READ_SOURCE=directory_facets:a (or =a) reverts to
+  // System A; a B-read that throws also safe-falls-back to A at runtime.
+  directory_facets: "b",
   public_sidebar: "a",
   dashboard_nav: "a",
   directory_cards: "a",
