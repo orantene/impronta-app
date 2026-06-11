@@ -410,6 +410,26 @@ export const SHORTCUTS: ReadonlyArray<Shortcut> = [
     category: "selection",
     paletteAction: false,
   },
+
+  // ── WS4 additions ────────────────────────────────────────────────────
+  {
+    id: "toggle-preview",
+    label: "Toggle preview mode",
+    description: "Switch between edit and preview-only canvas view.",
+    // ⌘P is browser print on macOS — intentionally no global bind.
+    keys: [],
+    category: "navigation",
+    paletteAction: true,
+  },
+  {
+    id: "exit-to-live-site",
+    label: "Exit to live site",
+    description: "Leave the editor and view the published storefront.",
+    // No global key — accidental exit is destructive on an unsaved draft.
+    keys: [],
+    category: "navigation",
+    paletteAction: true,
+  },
 ];
 
 /** Inputs shared by `isShortcutVisible` + `filterVisibleShortcuts`. */
