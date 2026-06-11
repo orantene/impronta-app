@@ -44,7 +44,14 @@
  * callback to run — it doesn't fetch state or save anything itself.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import type { CSSProperties, ReactNode } from "react";
 
 import {
@@ -71,6 +78,7 @@ import {
 import { findBuilderNodeById } from "./inspectors/builder-node-content-utils";
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
 import { copySharePreviewLinkToClipboard } from "./copy-share-preview-link";
+import { exitEditModeAction } from "@/lib/site-admin/edit-mode/server";
 
 // ── public surface ──────────────────────────────────────────────────────
 
@@ -225,6 +233,9 @@ export function CommandPalette({
   const selectedSectionId = useSelectedSectionId();
   const selectedBuilderNodeId = useSelectedBuilderNodeId();
   const dialogRef = useModalFocusTrap(open, onClose);
+  // WS4 — exit-to-live-site uses a server action; wrap in a transition so
+  // React treats it as a pending navigation and doesn't error on the redirect.
+  const [, startExitTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
@@ -750,6 +761,34 @@ export function CommandPalette({
       );
     }
 
+    // WS4 — toggle preview mode (enter/exit the preview-only canvas view).
+    rows.push(
+      navRow(
+        "toggle-preview",
+        ctx.previewing ? "Exit preview mode" : "Toggle preview mode",
+        ["preview", "view", "canvas", "read-only"],
+        () => {
+          ctx.setPreviewing(!ctx.previewing);
+          onClose();
+        },
+      ),
+    );
+
+    // WS4 — exit to live site (leave the editor).
+    rows.push(
+      navRow(
+        "exit-to-live-site",
+        "Exit to live site",
+        ["exit", "leave", "close editor", "live", "storefront"],
+        () => {
+          onClose();
+          startExitTransition(() => {
+            void exitEditModeAction();
+          });
+        },
+      ),
+    );
+
     return rows;
   }, [
     ctx,
@@ -758,6 +797,7 @@ export function CommandPalette({
     onClose,
     onOpenFindReplace,
     savedBlocks,
+    startExitTransition,
   ]);
 
   // Score + sort + group.
