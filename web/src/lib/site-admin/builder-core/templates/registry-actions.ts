@@ -117,7 +117,7 @@ export async function createTemplateDraft(
     return ok(data as BuilderTemplateRow);
   } catch (err) {
     logServerError("createTemplateDraft", err);
-    return fail(CLIENT_ERROR);
+    return fail(CLIENT_ERROR.generic);
   }
 }
 
@@ -173,7 +173,7 @@ export async function updateTemplateDraft(
     return ok(data as BuilderTemplateRow);
   } catch (err) {
     logServerError("updateTemplateDraft", err);
-    return fail(CLIENT_ERROR);
+    return fail(CLIENT_ERROR.generic);
   }
 }
 
@@ -201,7 +201,7 @@ export async function submitTemplateForReview(
     return ok(data as BuilderTemplateRow);
   } catch (err) {
     logServerError("submitTemplateForReview", err);
-    return fail(CLIENT_ERROR);
+    return fail(CLIENT_ERROR.generic);
   }
 }
 
@@ -277,7 +277,7 @@ export async function publishTemplate(
     return ok(publishedRow);
   } catch (err) {
     logServerError("publishTemplate", err);
-    return fail(CLIENT_ERROR);
+    return fail(CLIENT_ERROR.generic);
   }
 }
 
@@ -307,7 +307,7 @@ export async function unpublishTemplate(
     return ok(data as BuilderTemplateRow);
   } catch (err) {
     logServerError("unpublishTemplate", err);
-    return fail(CLIENT_ERROR);
+    return fail(CLIENT_ERROR.generic);
   }
 }
 
@@ -337,7 +337,7 @@ export async function archiveTemplate(
     return ok(data as BuilderTemplateRow);
   } catch (err) {
     logServerError("archiveTemplate", err);
-    return fail(CLIENT_ERROR);
+    return fail(CLIENT_ERROR.generic);
   }
 }
 
@@ -397,7 +397,7 @@ export async function duplicateTemplate(
     return ok(dup as BuilderTemplateRow);
   } catch (err) {
     logServerError("duplicateTemplate", err);
-    return fail(CLIENT_ERROR);
+    return fail(CLIENT_ERROR.generic);
   }
 }
 
@@ -452,7 +452,7 @@ export async function restoreTemplateRevision(
     return ok(restored as BuilderTemplateRow);
   } catch (err) {
     logServerError("restoreTemplateRevision", err);
-    return fail(CLIENT_ERROR);
+    return fail(CLIENT_ERROR.generic);
   }
 }
 
@@ -474,6 +474,7 @@ export async function listPublishedTemplates(
 ): Promise<TemplateActionResult<BuilderTemplateRow[]>> {
   try {
     const sb = await createClient();
+    if (!sb) return fail(CLIENT_ERROR.generic);
 
     let query = sb
       .from("builder_templates")
@@ -518,6 +519,6 @@ export async function listPublishedTemplates(
     return ok(rows);
   } catch (err) {
     logServerError("listPublishedTemplates", err);
-    return fail(CLIENT_ERROR);
+    return fail(CLIENT_ERROR.generic);
   }
 }

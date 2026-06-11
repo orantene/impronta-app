@@ -4,7 +4,7 @@ import { test } from "node:test";
 import {
   createHomepageAdapter,
   type HomepageAdapterActions,
-} from "./adapters/homepage-adapter";
+} from "./adapters/homepage-adapter-core";
 import type {
   BuilderSurfaceContext,
   BuilderSurfacePublishInput,
