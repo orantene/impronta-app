@@ -1675,7 +1675,14 @@ function TbOutlineBtn({
   );
 }
 
-type PublishMenuOption = "schedule" | "save-draft" | "discard";
+type PublishMenuOption =
+  | "schedule"
+  | "save-draft"
+  | "preview"
+  | "revisions"
+  | "page-settings"
+  | "duplicate-page"
+  | "unpublish";
 
 function PublishSplitButton({
   onPublish,
@@ -1800,6 +1807,37 @@ function PublishSplitButton({
               "0 24px 64px -16px rgba(0,0,0,0.20), 0 4px 12px rgba(0,0,0,0.08), 0 0 0 1px rgba(24,24,27,0.07)",
           }}
         >
+          {/* Save draft */}
+          <MenuItem
+            icon={
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                <polyline points="17 21 17 13 7 13 7 21" />
+                <polyline points="7 3 7 8 15 8" />
+              </svg>
+            }
+            title="Save draft"
+            description="Checkpoint without publishing"
+            shortcut="⌘S"
+            onClick={() => { onMenuSelect("save-draft"); setMenuOpen(false); }}
+          />
+          {/* Preview */}
+          <MenuItem
+            icon={
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            }
+            title="Preview"
+            description="View page as a visitor"
+            onClick={() => { onMenuSelect("preview"); setMenuOpen(false); }}
+          />
+          <div
+            role="separator"
+            style={{ height: 1, background: CHROME.line, margin: "4px 2px" }}
+          />
+          {/* Schedule */}
           <MenuItem
             icon={
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -1815,24 +1853,62 @@ function PublishSplitButton({
             role="separator"
             style={{ height: 1, background: CHROME.line, margin: "4px 2px" }}
           />
+          {/* Revision history */}
           <MenuItem
             icon={
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="17 8 12 3 7 8" />
-                <line x1="12" y1="3" x2="12" y2="15" />
+                <path d="M3 3v5h5" />
+                <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8" />
+                <polyline points="12 7 12 12 15 15" />
               </svg>
             }
-            title="Save as named draft…"
-            description="Checkpoint without publishing"
-            shortcut="⌘S"
-            onClick={() => { onMenuSelect("save-draft"); setMenuOpen(false); }}
+            title="Revision history"
+            description="Browse and restore past saves"
+            onClick={() => { onMenuSelect("revisions"); setMenuOpen(false); }}
           />
-          {/* Discard draft — hidden until implemented. The handler is a
-              logging-only stub ("not yet implemented") that does nothing, so
-              surfacing it reads as a live, dangerous action that silently no-ops.
-              Restore this MenuItem once `handleMenuSelect`'s "discard" branch
-              actually reverts the draft to the live snapshot. */}
+          {/* Page settings */}
+          <MenuItem
+            icon={
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+            }
+            title="Page settings"
+            description="SEO, URL, metadata"
+            onClick={() => { onMenuSelect("page-settings"); setMenuOpen(false); }}
+          />
+          {/* Duplicate page */}
+          <MenuItem
+            icon={
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+              </svg>
+            }
+            title="Duplicate page"
+            description="Clone this page to a new draft"
+            onClick={() => { onMenuSelect("duplicate-page"); setMenuOpen(false); }}
+          />
+          <div
+            role="separator"
+            style={{ height: 1, background: CHROME.line, margin: "4px 2px" }}
+          />
+          {/* Unpublish / Archive */}
+          <MenuItem
+            icon={
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                <path d="M10 11v6" />
+                <path d="M14 11v6" />
+                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+              </svg>
+            }
+            title="Unpublish / Archive"
+            description="Take this page offline"
+            onClick={() => { onMenuSelect("unpublish"); setMenuOpen(false); }}
+          />
         </div>
       ) : null}
     </div>
@@ -2473,6 +2549,45 @@ function WorkspaceLayoutControls() {
   );
 }
 
+// ── Lab Exit Button ───────────────────────────────────────────────────────────
+
+/**
+ * Alternative exit button for the `"lab"` header variant.
+ * Calls a JS callback instead of submitting the server-action form, so it
+ * works when there's no live-site storefront to navigate back to.
+ */
+function LabExitButton({
+  onExit,
+  exitLabel = "Exit",
+}: {
+  onExit?: () => void;
+  exitLabel?: string;
+}) {
+  return (
+    <TbTextBtn
+      type="button"
+      onClick={onExit}
+      title={exitLabel}
+    >
+      <svg
+        width={TB_ICON_PX}
+        height={TB_ICON_PX}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <line x1="19" y1="12" x2="5" y2="12" />
+        <polyline points="12 19 5 12 12 5" />
+      </svg>
+      {exitLabel}
+    </TbTextBtn>
+  );
+}
+
 // ── Main TopBar ───────────────────────────────────────────────────────────────
 
 export interface TopBarProps {
@@ -2555,6 +2670,57 @@ export interface TopBarProps {
    * is ahead of the live site).
    */
   lastDraftSavedAt?: string | null;
+
+  // ── WS3 — Publish dropdown wiring ────────────────────────────────────────
+
+  /**
+   * Open the Revisions drawer. Wired to context `openRevisions`.
+   * Omit → the Revision history menu item is still shown but is a no-op,
+   * so call-sites that haven't threaded it yet degrade gracefully.
+   */
+  onRevisions?: () => void;
+  /**
+   * Open the Page Settings drawer. Wired to context `openPageSettings`.
+   */
+  onPageSettings?: () => void;
+  /**
+   * Open the All-Pages panel / pages picker. Wired to context `requestPagesPickerOpen`.
+   */
+  onDuplicatePage?: () => void;
+  /**
+   * Open the Publish drawer to the Unpublish/Archive view.
+   * Wired to context `openPublish` (same drawer; the drawer handles the
+   * Unpublish/Archive sub-state internally).
+   */
+  onUnpublish?: () => void;
+
+  // ── WS3 — Header variants (consumed by WS5 Builder Lab) ──────────────────
+
+  /**
+   * Header variant. Defaults to `"live"` which renders the existing storefront
+   * editor header byte-for-byte identically. `"lab"` is consumed by WS5 to
+   * swap in the Builder Lab chrome (ephemeral adapter; no live-site exit).
+   *
+   * When absent the header defaults to `"live"` — fully back-compat.
+   */
+  headerVariant?: "live" | "lab";
+  /**
+   * Custom exit handler. When provided AND `headerVariant === "lab"`, replaces
+   * the form-action exit with a JS callback (e.g. navigate back to the Platform
+   * Admin shell). Ignored when `headerVariant === "live"`.
+   */
+  onExit?: () => void;
+  /**
+   * Label shown on the Exit button when `headerVariant === "lab"`.
+   * Defaults to `"Exit"`. Ignored when `headerVariant === "live"`.
+   */
+  exitLabel?: string;
+  /**
+   * A small chip rendered beside the page title when `headerVariant === "lab"`.
+   * Typically the talent/workspace name the Builder Lab is previewing.
+   * Ignored when `headerVariant === "live"`.
+   */
+  previewSubjectChip?: React.ReactNode;
 }
 
 /**
@@ -2615,6 +2781,14 @@ export function TopBar({
   availableLocales = [],
   liveSitePublishedAt = null,
   lastDraftSavedAt = null,
+  onRevisions,
+  onPageSettings,
+  onDuplicatePage,
+  onUnpublish,
+  headerVariant = "live",
+  onExit,
+  exitLabel = "Exit",
+  previewSubjectChip,
 }: TopBarProps) {
   const editCtx = useMaybeEditContext();
 
@@ -2625,14 +2799,30 @@ export function TopBar({
         message: "[topbar] schedule publish: no handler wired",
       });
     } else if (opt === "save-draft") {
-      // Same affordance as the Save draft text button — write a draft
-      // revision row through the existing autosave path. Phase 4 layers
-      // the named-draft prompt on top of this.
       if (onSaveDraft) void onSaveDraft();
-    } else if (opt === "discard") {
-      // Phase 4 — discard draft (revert to live snapshot)
-      void improntaLog("edit_chrome_topbar.info", {
-        message: "[topbar] discard draft: not yet implemented",
+    } else if (opt === "preview") {
+      setPreviewing(true);
+    } else if (opt === "revisions") {
+      if (onRevisions) onRevisions();
+      else void improntaLog("edit_chrome_topbar.info", {
+        message: "[topbar] revision history: no handler wired",
+      });
+    } else if (opt === "page-settings") {
+      if (onPageSettings) onPageSettings();
+      else void improntaLog("edit_chrome_topbar.info", {
+        message: "[topbar] page settings: no handler wired",
+      });
+    } else if (opt === "duplicate-page") {
+      if (onDuplicatePage) onDuplicatePage();
+      else void improntaLog("edit_chrome_topbar.info", {
+        message: "[topbar] duplicate page: no handler wired",
+      });
+    } else if (opt === "unpublish") {
+      // Opens the Publish drawer — the drawer handles Unpublish/Archive state.
+      if (onUnpublish) onUnpublish();
+      else if (onPublish) onPublish();
+      else void improntaLog("edit_chrome_topbar.info", {
+        message: "[topbar] unpublish/archive: no handler wired",
       });
     }
   }
@@ -2656,7 +2846,11 @@ export function TopBar({
           width; outer bar scrolls. */}
       <div className="flex h-full min-w-max items-center gap-[12px] px-[20px]">
       {/* ── Left cluster — page-level navigation ── */}
-      <ExitForm dirty={dirty} saving={saving} />
+      {headerVariant === "lab" ? (
+        <LabExitButton onExit={onExit} exitLabel={exitLabel} />
+      ) : (
+        <ExitForm dirty={dirty} saving={saving} />
+      )}
       <TbDivider />
       <PagePicker
         title={pageTitle ?? "Homepage"}
@@ -2664,6 +2858,9 @@ export function TopBar({
         dirty={dirty}
         pagesPickerOpenNonce={pagesPickerOpenNonce}
       />
+      {headerVariant === "lab" && previewSubjectChip ? (
+        <>{previewSubjectChip}</>
+      ) : null}
       {activeLocale && availableLocales.length > 1 ? (
         <LocaleSwitcher
           activeLocale={activeLocale}
