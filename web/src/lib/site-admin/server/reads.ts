@@ -104,6 +104,7 @@ const BRANDING_READ_COLUMNS = `
   body_font,
   brand_mark_svg,
   theme_json,
+  component_styles_json,
   theme_preset_slug,
   favorite_icon,
   version,
