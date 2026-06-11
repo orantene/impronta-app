@@ -1,0 +1,336 @@
+{
+  "_comment": "Live OUT-OF-OPTION stored values from talent_profile_field_values (workflow_state='live') for every active select/multiselect field, captured 2026-06-11 from prod Supabase pluhdapdnuiulvxmyspd. Each row = a distinct stored value NOT present in the field's options array, with its live row count. Used by field-validation-parity.test.ts to prove the save-path tolerant coercion (resolveSelectValue) either heals the value (case/slug drift) or skips it (stale options) \u2014 never bricks a save.",
+  "capturedAt": "2026-06-11",
+  "rows": [
+    {
+      "fieldKey": "availability.status",
+      "options": [
+        "active",
+        "by_request",
+        "paused",
+        "not_available"
+      ],
+      "storedValue": "available_now",
+      "rowCount": 36
+    },
+    {
+      "fieldKey": "availability.status",
+      "options": [
+        "active",
+        "by_request",
+        "paused",
+        "not_available"
+      ],
+      "storedValue": "available_this_month",
+      "rowCount": 2
+    },
+    {
+      "fieldKey": "availability.status",
+      "options": [
+        "active",
+        "by_request",
+        "paused",
+        "not_available"
+      ],
+      "storedValue": "available_this_week",
+      "rowCount": 11
+    },
+    {
+      "fieldKey": "availability.status",
+      "options": [
+        "active",
+        "by_request",
+        "paused",
+        "not_available"
+      ],
+      "storedValue": "limited",
+      "rowCount": 2
+    },
+    {
+      "fieldKey": "availability.status",
+      "options": [
+        "active",
+        "by_request",
+        "paused",
+        "not_available"
+      ],
+      "storedValue": "unavailable",
+      "rowCount": 1
+    },
+    {
+      "fieldKey": "experience.level",
+      "options": [
+        "junior",
+        "mid_level",
+        "senior",
+        "highly_experienced"
+      ],
+      "storedValue": "beginner",
+      "rowCount": 2
+    },
+    {
+      "fieldKey": "experience.level",
+      "options": [
+        "junior",
+        "mid_level",
+        "senior",
+        "highly_experienced"
+      ],
+      "storedValue": "experienced",
+      "rowCount": 11
+    },
+    {
+      "fieldKey": "experience.level",
+      "options": [
+        "junior",
+        "mid_level",
+        "senior",
+        "highly_experienced"
+      ],
+      "storedValue": "intermediate",
+      "rowCount": 1
+    },
+    {
+      "fieldKey": "experience.level",
+      "options": [
+        "junior",
+        "mid_level",
+        "senior",
+        "highly_experienced"
+      ],
+      "storedValue": "professional",
+      "rowCount": 37
+    },
+    {
+      "fieldKey": "physical.body_type",
+      "options": [
+        "Slim",
+        "Athletic",
+        "Curvy",
+        "Plus",
+        "Muscular",
+        "Other"
+      ],
+      "storedValue": "athletic",
+      "rowCount": 2
+    },
+    {
+      "fieldKey": "physical.body_type",
+      "options": [
+        "Slim",
+        "Athletic",
+        "Curvy",
+        "Plus",
+        "Muscular",
+        "Other"
+      ],
+      "storedValue": "average",
+      "rowCount": 5
+    },
+    {
+      "fieldKey": "physical.dress_size",
+      "options": [
+        "XXS",
+        "XS",
+        "S",
+        "M",
+        "L",
+        "XL",
+        "XXL"
+      ],
+      "storedValue": "m",
+      "rowCount": 1
+    },
+    {
+      "fieldKey": "physical.dress_size",
+      "options": [
+        "XXS",
+        "XS",
+        "S",
+        "M",
+        "L",
+        "XL",
+        "XXL"
+      ],
+      "storedValue": "msafa",
+      "rowCount": 1
+    },
+    {
+      "fieldKey": "physical.dress_size",
+      "options": [
+        "XXS",
+        "XS",
+        "S",
+        "M",
+        "L",
+        "XL",
+        "XXL"
+      ],
+      "storedValue": "s",
+      "rowCount": 1
+    },
+    {
+      "fieldKey": "physical.eye_color",
+      "options": [
+        "Brown",
+        "Blue",
+        "Green",
+        "Hazel",
+        "Grey",
+        "Amber",
+        "Black",
+        "Other"
+      ],
+      "storedValue": "brown",
+      "rowCount": 1
+    },
+    {
+      "fieldKey": "physical.eye_color",
+      "options": [
+        "Brown",
+        "Blue",
+        "Green",
+        "Hazel",
+        "Grey",
+        "Amber",
+        "Black",
+        "Other"
+      ],
+      "storedValue": "dark_brown",
+      "rowCount": 3
+    },
+    {
+      "fieldKey": "physical.eye_color",
+      "options": [
+        "Brown",
+        "Blue",
+        "Green",
+        "Hazel",
+        "Grey",
+        "Amber",
+        "Black",
+        "Other"
+      ],
+      "storedValue": "gray",
+      "rowCount": 1
+    },
+    {
+      "fieldKey": "physical.eye_color",
+      "options": [
+        "Brown",
+        "Blue",
+        "Green",
+        "Hazel",
+        "Grey",
+        "Amber",
+        "Black",
+        "Other"
+      ],
+      "storedValue": "green",
+      "rowCount": 1
+    },
+    {
+      "fieldKey": "physical.hair_color",
+      "options": [
+        "Black",
+        "Dark brown",
+        "Brown",
+        "Light brown",
+        "Blonde",
+        "Red",
+        "Auburn",
+        "Grey",
+        "White",
+        "Other"
+      ],
+      "storedValue": "black",
+      "rowCount": 1
+    },
+    {
+      "fieldKey": "physical.hair_color",
+      "options": [
+        "Black",
+        "Dark brown",
+        "Brown",
+        "Light brown",
+        "Blonde",
+        "Red",
+        "Auburn",
+        "Grey",
+        "White",
+        "Other"
+      ],
+      "storedValue": "brown",
+      "rowCount": 1
+    },
+    {
+      "fieldKey": "physical.hair_color",
+      "options": [
+        "Black",
+        "Dark brown",
+        "Brown",
+        "Light brown",
+        "Blonde",
+        "Red",
+        "Auburn",
+        "Grey",
+        "White",
+        "Other"
+      ],
+      "storedValue": "dark_blonde",
+      "rowCount": 2
+    },
+    {
+      "fieldKey": "physical.hair_color",
+      "options": [
+        "Black",
+        "Dark brown",
+        "Brown",
+        "Light brown",
+        "Blonde",
+        "Red",
+        "Auburn",
+        "Grey",
+        "White",
+        "Other"
+      ],
+      "storedValue": "dark_brown",
+      "rowCount": 1
+    },
+    {
+      "fieldKey": "physical.hair_length",
+      "options": [
+        "Shaved",
+        "Short",
+        "Medium",
+        "Long",
+        "Extra long"
+      ],
+      "storedValue": "medium",
+      "rowCount": 1
+    },
+    {
+      "fieldKey": "physical.hair_length",
+      "options": [
+        "Shaved",
+        "Short",
+        "Medium",
+        "Long",
+        "Extra long"
+      ],
+      "storedValue": "short",
+      "rowCount": 2
+    },
+    {
+      "fieldKey": "travel.scope",
+      "options": [
+        "local",
+        "regional",
+        "national",
+        "international"
+      ],
+      "storedValue": "region",
+      "rowCount": 9
+    }
+  ]
+}
