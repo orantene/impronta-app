@@ -9,10 +9,14 @@ import { slugPathFromParams } from "@/lib/cms/paths";
 import { getRequestLocale } from "@/i18n/request-locale";
 import type { Locale } from "@/i18n/config";
 import { buildPublicLocaleAlternates } from "@/lib/seo/locale-alternates";
-import { getPublicTenantScope } from "@/lib/saas/scope";
+import { getPublicTenantScope, getPublicPathPrefix } from "@/lib/saas/scope";
 import { loadPageForRender } from "@/lib/site-admin/server/page-reads";
 import { BlocksRenderer } from "@/components/page-builder/blocks";
 import type { PageBlock, PageTheme } from "@/components/page-builder/blocks";
+import { renderBuilderNodes } from "@/lib/site-admin/builder-node/render";
+import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+import { isFreeformBlocks } from "@/lib/site-admin/builder-node/legacy-page-blocks";
+import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
 import {
   jsonLdDocumentToScript,
   type JsonLdDocument,
@@ -155,6 +159,14 @@ export default async function CmsPublicPage({
       .maybeSingle();
     if (wpPage) {
       const theme = (wpPage.theme ?? {}) as PageTheme;
+      const blocks = wpPage.blocks ?? [];
+      // Shape-aware render. `workspace_pages.blocks` is ONE column that holds
+      // either a LEGACY PageBlock[] (rendered by BlocksRenderer, byte-identical
+      // to before this migration) or a FREEFORM BuilderNode[] (WS6 page
+      // builder). `isFreeformBlocks` discriminates by the disjoint
+      // `kind`/`type` enums; legacy + empty rows keep the legacy path.
+      const freeform = isFreeformBlocks(blocks);
+      const publicPathPrefix = freeform ? await getPublicPathPrefix() : "";
       return (
         <main
           style={{
@@ -165,10 +177,23 @@ export default async function CmsPublicPage({
           }}
         >
           <JsonLdScript script={jsonLdScript} />
-          <BlocksRenderer
-            blocks={(wpPage.blocks ?? []) as PageBlock[]}
-            tenantId={publicScope.tenantId}
-          />
+          {freeform ? (
+            renderBuilderNodes(blocks as BuilderNode[], {
+              publicPathPrefix,
+              mode: "freeform",
+              renderSectionEmbed: makeSectionEmbedRenderer({
+                tenantId: publicScope.tenantId,
+                locale,
+                publicPathPrefix,
+                previewSubject: { kind: "workspace", id: publicScope.tenantId },
+              }),
+            })
+          ) : (
+            <BlocksRenderer
+              blocks={blocks as PageBlock[]}
+              tenantId={publicScope.tenantId}
+            />
+          )}
         </main>
       );
     }
