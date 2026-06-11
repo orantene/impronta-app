@@ -42,6 +42,7 @@ import {
   type VisChannel,
   type FieldEditorProps,
 } from "@/components/fields/FieldEditor";
+import { isDetailsSection } from "@/lib/profile-editor/section-field-mapping";
 
 // Map of suppressed field_key → the drawer section that owns it. Used both
 // to filter the editor (any key listed here is hidden) and to render the
@@ -161,22 +162,29 @@ function isGeneralField(f: { field_key: string }): boolean {
   return GENERAL_NAMESPACES.has(namespaceFor(f.field_key));
 }
 
-type ScopeFilteredField = { field_key: string; field_group_slug: string | null };
+type ScopeFilteredField = { field_key: string; field_group_slug: string | null; section: string | null };
 export function filterLiveCategoryFieldsForScope<T extends ScopeFilteredField>(
   allFields: readonly T[],
   scope: "specialty" | "general",
 ): T[] {
+  // SECTION GATE (the duplication fix): the catalog editor only ever renders
+  // fields whose DB `section` belongs to the Services "Details" catch-all
+  // (type-specific / refinement / skills / measurements / wardrobe — the
+  // sections with no dedicated visible rail accordion). Any field tagged to a
+  // dedicated rail section (identity / about / rates / logistics / …) is
+  // rendered by that section's bespoke editor and must NOT also appear here —
+  // otherwise it shows up as a sub-group that duplicates the rail section.
+  // (`isFieldSuppressed` is kept as defense-in-depth for the in-catch-all
+  // aliases like the taxonomy `skills` row.)
   return allFields.filter((f) =>
     scope === "general"
-      // General mount: always-on global groups, but STILL honor
-      // suppression — a group like media-portfolio is in
-      // SUPPRESSED_GROUP_SLUGS (its real home is the fixed Media
-      // section), so it must not leak into About even though its
-      // namespace is "general".
-      ? isGeneralField(f) && !isFieldSuppressed(f)
-      // Specialty mount: type-driven only — drop suppressed AND the
-      // general groups (they live in About now).
-      : !isFieldSuppressed(f) && !isGeneralField(f));
+      // General mount: always-on global groups inside About — still gated to
+      // catch-all sections so dedicated-section fields (media.*, etc.) don't
+      // leak into About either.
+      ? isGeneralField(f) && isDetailsSection(f.section) && !isFieldSuppressed(f)
+      // Specialty mount: type-driven catch-all only — drop dedicated-section
+      // fields, suppressed aliases, and the general groups (they live in About).
+      : isDetailsSection(f.section) && !isFieldSuppressed(f) && !isGeneralField(f));
 }
 
 // Friendly label for each field_key namespace prefix — used to sub-group
@@ -1040,7 +1048,7 @@ export function LiveCategoryFieldsEditor({
         }
         const filledGroupSlugs = new Set<string>();
         for (const f of fieldsRes.fields) {
-          if (isFieldSuppressed(f)) continue;
+          if (!isDetailsSection(f.section) || isFieldSuppressed(f)) continue;
           if (f.field_group_slug && isValueFilled(valuesMap.get(f.field_definition_id))) {
             filledGroupSlugs.add(f.field_group_slug);
           }
