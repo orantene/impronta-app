@@ -27,10 +27,7 @@ import { stripLocaleFromPathname } from "@/i18n/pathnames";
 import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
 import { headers } from "next/headers";
 import { getFavoriteTalentIds, getSavedTalentIds } from "@/lib/public-discovery";
-import {
-  isResolvedFieldVisibleInPublicProfileSidebar,
-  type PublicSurfaceContext,
-} from "@/lib/field-engine/public-surface-visibility";
+import { readPublicSidebarVisibility } from "@/lib/field-engine/read-source-public-sidebar";
 import { createTranslator } from "@/i18n/messages";
 import { buildDirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 import { PublicFlashHost } from "@/components/directory/public-flash-host";
@@ -1698,81 +1695,20 @@ export default async function PublicTalentProfilePage({
     title: row.title,
   }));
 
-  // Phase 1.4 (Lane B) — sidebar section visibility via unified resolver helper.
-  // Fetches the six taxonomy section keys from field_definitions, then routes
-  // each through isResolvedFieldVisibleInPublicProfileSidebar (C2 synthetic
-  // path; canonical rows for non-bridged keys are Phase 2 scope).
-  // Safe-fail open: a missing row OR a null public client defaults to visible,
-  // matching legacy behaviour. The `pub` guard re-narrows here because the
-  // destructured `pub` from line ~1176 is `SupabaseClient | null` per
-  // fetchTalentProfile's contract; if it is null we skip the batch and
-  // render all sections.
-  const _SIDEBAR_KEYS = [
-    "fit_labels",
-    "skills",
-    "languages",
-    "industries",
-    "event_types",
-    "tags",
-  ] as const;
-  type _SidebarFieldRow = {
-    key: string;
-    active: boolean;
-    archived_at: string | null;
-    tenant_id: string | null;
-    public_visible: boolean;
-    profile_visible: boolean;
-    internal_only: boolean;
-  };
-  let fieldVisibility: {
-    showFitLabels: boolean;
-    showSkills: boolean;
-    showLanguages: boolean;
-    showIndustries: boolean;
-    showEventTypes: boolean;
-    showTags: boolean;
-  };
-  if (pub) {
-    const _sidebarCtx: PublicSurfaceContext = {
-      supabase: pub,
-      tenantId: hostCtx.tenantId,
-    };
-    const { data: _sidebarDefs } = await pub
-      .from("field_definitions")
-      .select(
-        "key, active, archived_at, tenant_id, public_visible, profile_visible, internal_only",
-      )
-      .in("key", [..._SIDEBAR_KEYS]);
-    const _sidebarDefMap = new Map<string, _SidebarFieldRow>(
-      ((_sidebarDefs ?? []) as _SidebarFieldRow[]).map((r) => [r.key, r]),
-    );
-    const _checkSidebar = (key: string): Promise<boolean> => {
-      const row = _sidebarDefMap.get(key);
-      return row
-        ? isResolvedFieldVisibleInPublicProfileSidebar(row, _sidebarCtx)
-        : Promise.resolve(true);
-    };
-    const [_fv0, _fv1, _fv2, _fv3, _fv4, _fv5] = await Promise.all(
-      _SIDEBAR_KEYS.map(_checkSidebar),
-    );
-    fieldVisibility = {
-      showFitLabels: _fv0 ?? true,
-      showSkills: _fv1 ?? true,
-      showLanguages: _fv2 ?? true,
-      showIndustries: _fv3 ?? true,
-      showEventTypes: _fv4 ?? true,
-      showTags: _fv5 ?? true,
-    };
-  } else {
-    fieldVisibility = {
-      showFitLabels: true,
-      showSkills: true,
-      showLanguages: true,
-      showIndustries: true,
-      showEventTypes: true,
-      showTags: true,
-    };
-  }
+  // Sidebar section visibility (six taxonomy sections). Read behind the T2.2
+  // field-engine seam: the `public_sidebar` flag selects the legacy
+  // `field_definitions` base-guard row shape (`a`) or the canonical
+  // `profile_field_definitions` row shape (`b`); BOTH route through the same
+  // `isResolvedFieldVisibleInPublicProfileSidebar` resolver (whose visibility
+  // decision was already canonical pre-T2.2), so the output is identical and
+  // the flip is behaviour-neutral. A null public client → render all sections
+  // (legacy fallback, preserved inside the reader). The `skills` section stays
+  // hidden under both stores (canonical `skills` row is deprecated). A B-read
+  // throw safe-falls-back to A. See read-source-public-sidebar.ts.
+  const fieldVisibility = await readPublicSidebarVisibility(
+    pub,
+    hostCtx.tenantId,
+  );
   // ── New data: talent skills + availability ─────────────────────────────────
   const [resolvedSkills, publicAvailability] = pub
     ? await Promise.all([

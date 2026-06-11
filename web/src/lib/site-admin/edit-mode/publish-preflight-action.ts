@@ -59,6 +59,10 @@ import { isAdvancedElementLibraryEnabledForPlan } from "@/lib/site-admin/builder
 import { resolveSnapshotBuilderTree } from "@/lib/site-admin/builder-node/snapshot-tree";
 import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
+import {
+  collectContrastPreflightIssues,
+  loadThemeDraftTokens,
+} from "./publish-preflight-contrast-rules";
 
 export type PreflightSeverity = "error" | "warn";
 
@@ -551,6 +555,29 @@ export async function runPublishPreflight(input?: {
     }
   } catch {
     // Locale completeness is best-effort.
+  }
+
+  // WS4 — WCAG AA contrast check against the workspace's brand token palette.
+  // Advisory only (severity "warn") — a failing palette is a design issue, not
+  // a publish blocker. Operators are directed to the Theme drawer to fix.
+  //
+  // Limitation: this checks *theme-level* token pairs only (the same 5 pairs
+  // shown in the ContrastChecker widget inside the Theme Drawer). Per-node
+  // background-inheritance resolution (walking the BuilderNode ancestor chain
+  // and resolving `token:<key>` sentinels) is not done here because it requires
+  // the full CSS cascade to be accurate. That deeper check is tracked as a
+  // future enhancement in publish-preflight-contrast-rules.ts.
+  try {
+    const themeTokens = await loadThemeDraftTokens(auth.supabase, scope.tenantId);
+    for (const finding of collectContrastPreflightIssues(themeTokens)) {
+      issues.push({
+        severity: "warn",
+        category: "aria",
+        message: finding.message,
+      });
+    }
+  } catch {
+    // Contrast check is best-effort; failures don't block publish.
   }
 
   // ARIA landmark check — folded in Phase 0 sweep. Maps high/med/low →

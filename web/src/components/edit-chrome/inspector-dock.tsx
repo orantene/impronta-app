@@ -39,6 +39,7 @@ import {
 import { SECTION_EDITOR_REGISTRY } from "@/lib/site-admin/sections/registry-editors";
 import type { LoadedSection } from "./edit-context";
 import { useEditContext } from "./edit-context";
+import { useBuilderTree } from "./builder-tree-bridge";
 import {
   useSelectedSectionId,
   useSelectedBuilderNodeId,
@@ -65,6 +66,7 @@ import { countPresentationOverrides, countStyleOverrides } from "./inspectors/re
 import type { ViewportDevice } from "./inspectors/responsive-field-state";
 import { SectionA11yWarning } from "./inspectors/SectionA11yWarning";
 import { AiTranslateSectionButton } from "./inspectors/AiTranslateSectionButton";
+import { SectionAiRewritePanel } from "./inspectors/SectionAiRewritePanel";
 import {
   CHROME,
   Drawer,
@@ -257,7 +259,6 @@ export function InspectorDock() {
     patchBuilderNodeProps,
     reportMutationError,
     slots,
-    builderTree,
     canEditSiteShell,
     queueRouterRefresh,
     device,
@@ -267,6 +268,8 @@ export function InspectorDock() {
     setInspectorActiveTab,
     inspectorTabRequest,
   } = useEditContext();
+  // WS2 — tree VALUE from the micro-store (builder-tree-bridge).
+  const builderTree = useBuilderTree();
   // W2 (selection-bridge) — selection VALUES from the micro-store. The dock
   // re-renders on selection change via these subscriptions (it loads the
   // selected section + drives the inspector tabs), which is exactly correct.
@@ -1187,6 +1190,21 @@ export function InspectorDock() {
                   selectedBuilderNodeId={selectedBuilderNodeId}
                   onChange={handleContentChange}
                 />
+                {/* WS4-TASK2: AI rewrite — per-field rewrite at the foot of Content */}
+                {currentLoadedSection && currentDraftProps ? (
+                  <SectionAiRewritePanel
+                    sectionTypeKey={currentLoadedSection.sectionTypeKey}
+                    draftProps={currentDraftProps}
+                    onPatch={(patch) => {
+                      setDraftProps((prev) => {
+                        if (!prev) return prev;
+                        return { ...prev, ...patch };
+                      });
+                      setDirty(true);
+                    }}
+                  />
+                ) : null}
+
                 {/* AI translate — secondary tool at the foot of Content */}
                 {currentLoadedSection && currentDraftProps ? (
                   <div className="mt-4 flex justify-end border-t pt-3" style={{ borderColor: CHROME.line }}>

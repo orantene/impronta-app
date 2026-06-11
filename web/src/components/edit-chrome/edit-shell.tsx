@@ -30,6 +30,8 @@ import {
   type PreviewFrameOverride,
 } from "./edit-context";
 import { useHoveredSectionId } from "./hover-bridge";
+import { useBuilderTree } from "./builder-tree-bridge";
+import { useCanUndo, useCanRedo } from "./history-bridge";
 import {
   useSelectedSectionId,
   useSelectedBuilderNodeId,
@@ -387,8 +389,6 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     setDevice,
     previewFrame,
     saving,
-    canUndo,
-    canRedo,
     undo,
     redo,
     openPublish,
@@ -426,6 +426,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     openShortcutOverlay,
     closeShortcutOverlay,
     saveDraft,
+    saveNamedCheckpoint,
     lastDraftSavedAt,
     pagesPickerOpenNonce,
     requestPagesPickerOpen,
@@ -441,7 +442,6 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     pageId,
     setSelectedSectionId,
     focusSectionForEdit,
-    builderTree,
     copiedBuilderNodeKind,
     copyBuilderNode,
     pasteCopiedBuilderNode,
@@ -470,6 +470,11 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
   // W2-T4 — `dirty` VALUE from the dirty-bridge (this shell threads it into the
   // topbar / exit guard; the setter stays on the context).
   const dirty = useDirty();
+  // WS2 — tree + history-depth VALUES from their micro-stores (the keyboard
+  // handler reads the tree; canUndo/canRedo feed the topbar undo/redo buttons).
+  const builderTree = useBuilderTree();
+  const canUndo = useCanUndo();
+  const canRedo = useCanRedo();
 
   /** Opens Page settings once per cms page id for default draft titles (workspace Add page). */
   const autoPageSettingsForUntitledRef = useRef<Set<string>>(new Set());
@@ -1027,6 +1032,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
           onOpenPalette={togglePalette}
           onOpenShortcuts={openShortcutOverlay}
           onSaveDraft={() => void saveDraft()}
+          onSaveNamedDraft={(label) => saveNamedCheckpoint(label)}
           onShare={(opts) => handleShareClick(opts, reportMutationError)}
           pageTitle={pageMetadata?.title ?? undefined}
           pageId={pageId}

@@ -47,6 +47,7 @@ export interface HomepageAdapterActions {
     slots: CompositionSaveInput["slots"];
     builderTree?: CompositionSaveInput["builderTree"];
     styleClasses?: BuilderSurfaceSaveDraftInput["styleClasses"];
+    editSession?: BuilderSurfaceSaveDraftInput["editSession"];
   }) => Promise<SaveDraftResult>;
   publish: (input: {
     locale: string;
@@ -106,6 +107,7 @@ export function createHomepageAdapter(
         slots: input.slots,
         builderTree: input.builderTree,
         styleClasses: input.styleClasses,
+        editSession: input.editSession,
       });
     },
 

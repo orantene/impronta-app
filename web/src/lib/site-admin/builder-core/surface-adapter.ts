@@ -60,6 +60,10 @@ export interface BuilderSurfaceSaveDraftInput {
   slots: CompositionSaveInput["slots"];
   builderTree?: CompositionSaveInput["builderTree"];
   styleClasses?: BuilderStyleClassRegistry;
+  /** Per-tab edit session stamp (id + seq) so the homepage pagehide beacon can
+   *  last-write-wins against the stored draft. Homepage-only; other surfaces
+   *  ignore it. Forwarded verbatim by the homepage adapter. */
+  editSession?: { id: string; seq: number };
 }
 
 /** Input the seam accepts for a Publish. Mirrors `publishHomepageFromEditModeAction`

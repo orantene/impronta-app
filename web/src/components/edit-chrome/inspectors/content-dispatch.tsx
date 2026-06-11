@@ -23,6 +23,7 @@
 import { useMemo, type ComponentType } from "react";
 
 import { useEditContext } from "../edit-context";
+import { useBuilderTree } from "../builder-tree-bridge";
 import { InspectorNotice } from "./kit";
 import { BuilderNodeContentInspector } from "./builder-node-content";
 import { resolveStandaloneBuilderNodeForContent } from "./builder-node-content-utils";
@@ -71,7 +72,9 @@ export function ContentTab({
   selectedBuilderNodeId,
   onChange,
 }: ContentTabProps) {
-  const { builderTree, device } = useEditContext();
+  const { device } = useEditContext();
+  // WS2 — tree VALUE from the micro-store (builder-tree-bridge).
+  const builderTree = useBuilderTree();
   const selectedStandaloneBuilderNode = useMemo(
     () =>
       resolveStandaloneBuilderNodeForContent(

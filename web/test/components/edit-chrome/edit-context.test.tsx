@@ -32,6 +32,12 @@ import {
   getSelectedSectionIdSnapshot,
   getAdditionalSelectedIdsSnapshot,
 } from "@/components/edit-chrome/selection-bridge";
+// WS2 — canUndo/canRedo moved to the history-bridge micro-store (no longer on
+// the context value); assert against its snapshots.
+import {
+  getCanUndoSnapshot,
+  getCanRedoSnapshot,
+} from "@/components/edit-chrome/history-bridge";
 import type { CompositionData } from "@/lib/site-admin/edit-mode/composition-actions";
 import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
 
@@ -219,15 +225,15 @@ describe("edit-context.tsx W0-T2 — undo/redo surface", () => {
       </EditProvider>,
     );
     const ctx = () => state.ctx!;
-    expect(ctx().canUndo).toBe(false);
-    expect(ctx().canRedo).toBe(false);
+    expect(getCanUndoSnapshot()).toBe(false);
+    expect(getCanRedoSnapshot()).toBe(false);
     // Calling undo/redo on empty stacks must not throw (guarded internally).
     await act(async () => {
       await ctx().undo();
       await ctx().redo();
     });
-    expect(ctx().canUndo).toBe(false);
-    expect(ctx().canRedo).toBe(false);
+    expect(getCanUndoSnapshot()).toBe(false);
+    expect(getCanRedoSnapshot()).toBe(false);
   });
 });
 

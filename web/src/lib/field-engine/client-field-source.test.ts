@@ -21,7 +21,7 @@ import type { RegField } from "@/components/admin/shell/internal/state/types";
 
 // ── Flag parser ──────────────────────────────────────────────────────────────
 
-test("parser: unset/empty → the default (wizard db, drawer/validation static)", () => {
+test("parser: unset/empty → the default (wizard db, validation db, drawer static)", () => {
   assert.deepEqual(
     parseFieldEngineClientSourceFlags(undefined),
     DEFAULT_FIELD_ENGINE_CLIENT_SOURCE_FLAGS,
@@ -33,7 +33,7 @@ test("parser: unset/empty → the default (wizard db, drawer/validation static)"
   assert.deepEqual(parseFieldEngineClientSourceFlags("   "), {
     wizard: "db",
     drawer: "static",
-    validation: "static",
+    validation: "db",
   });
 });
 
@@ -52,15 +52,21 @@ test("parser: 'db' flips every surface; 'static' is the kill switch (all static)
 });
 
 test("parser: per-surface tokens layer over the default (others keep default)", () => {
-  // Naming the drawer leaves the wizard at its default (db).
+  // Naming the drawer leaves the wizard + validation at their default (db).
   assert.deepEqual(parseFieldEngineClientSourceFlags("drawer:db"), {
     wizard: "db",
     drawer: "db",
-    validation: "static",
+    validation: "db",
   });
-  // Opting the wizard out individually.
+  // Opting the wizard out individually leaves validation at its default (db).
   assert.deepEqual(parseFieldEngineClientSourceFlags("wizard:static"), {
     wizard: "static",
+    drawer: "static",
+    validation: "db",
+  });
+  // The documented T1.4 kill switch: revert just the validation flip.
+  assert.deepEqual(parseFieldEngineClientSourceFlags("validation:static"), {
+    wizard: "db",
     drawer: "static",
     validation: "static",
   });
@@ -75,7 +81,7 @@ test("parser: unknown surfaces/sources are ignored (keep default)", () => {
   assert.deepEqual(parseFieldEngineClientSourceFlags("bogus:db,wizard:weird"), {
     wizard: "db",
     drawer: "static",
-    validation: "static",
+    validation: "db",
   });
 });
 

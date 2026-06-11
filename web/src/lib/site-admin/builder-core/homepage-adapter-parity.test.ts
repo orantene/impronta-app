@@ -167,11 +167,14 @@ test("homepage adapter.saveDraft forwards the legacy saveDraftHomepageAction sha
     slots: baseSlots,
     builderTree: [],
     styleClasses: undefined,
+    // WS1-D beacon stamp (merged from main) — must pass through the adapter so
+    // the homepage pagehide beacon can last-write-wins against the stored draft.
+    editSession: { id: "sess-1", seq: 3 },
   };
 
   const res = await adapter.saveDraft(ctx, input);
 
-  // Direct call-site passed: saveDraftHomepageAction({ locale, pageId, expectedVersion, metadata, slots, builderTree, styleClasses })
+  // Direct call-site passed: saveDraftHomepageAction({ locale, pageId, expectedVersion, metadata, slots, builderTree, styleClasses, editSession })
   assert.deepEqual(calls.saveDraft![0], {
     locale: "en",
     pageId: null,
@@ -180,6 +183,7 @@ test("homepage adapter.saveDraft forwards the legacy saveDraftHomepageAction sha
     slots: baseSlots,
     builderTree: [],
     styleClasses: undefined,
+    editSession: { id: "sess-1", seq: 3 },
   });
   assert.equal(res, results.saveDraft);
 });

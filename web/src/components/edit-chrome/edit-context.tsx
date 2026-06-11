@@ -55,6 +55,11 @@ import {
   type BuilderContextConfig,
 } from "@/lib/site-admin/builder-core/config";
 import { homepageAdapter } from "@/lib/site-admin/builder-core/adapters/homepage-adapter";
+import {
+  restoreHomepageRevisionAction,
+  restorePageRevisionAction,
+  fetchNewestDraftRevisionIdAction,
+} from "@/lib/site-admin/edit-mode/revisions-actions";
 import type {
   DispatchResult,
   EditorMutation,
@@ -134,6 +139,9 @@ import {
   publishAdditionalSelectedBuilderNodeIds,
 } from "./selection-bridge";
 import { publishDirty } from "./dirty-bridge";
+import { publishBuilderTree } from "./builder-tree-bridge";
+import { publishCanUndo, publishCanRedo } from "./history-bridge";
+import { getEditSessionId } from "./presence-provider";
 import {
   readOsBuilderClipboard,
   writeOsBuilderClipboard,
@@ -541,7 +549,9 @@ export interface EditContextValue {
   getCompositionCasVersion: () => number | null;
   pageMetadata: PageMetadata | null;
   slots: Record<string, CompositionSectionRef[]>;
-  builderTree: BuilderNodeTree;
+  // WS2 — `builderTree` is no longer on the context value; read it via the
+  // `useBuilderTree()` selector hook (builder-tree-bridge) so a tree change
+  // re-renders only the readers, not every useEditContext() consumer.
   slotDefs: CompositionSlotDef[];
   library: CompositionLibraryEntry[];
   /** Locales the active tenant has enabled — drives the topbar locale
@@ -762,8 +772,9 @@ export interface EditContextValue {
   }) => void;
 
   // ── history ──
-  canUndo: boolean;
-  canRedo: boolean;
+  // WS2 — `canUndo` / `canRedo` are no longer on the context value; read them
+  // via the `useCanUndo()` / `useCanRedo()` selector hooks (history-bridge) so a
+  // history-depth change re-renders only the undo/redo-button readers.
   undo: () => Promise<void>;
   redo: () => Promise<void>;
   /**
@@ -1125,6 +1136,16 @@ export interface EditContextValue {
    * confirmation chip.
    */
   saveDraft: () => Promise<{ ok: boolean; error?: string; savedAt?: string }>;
+  /**
+   * WS4-TASK1: Save an explicit draft checkpoint with a user-supplied label.
+   * Calls `saveDraft()` then fetches the newly-minted revision id (via
+   * `fetchNewestDraftRevisionIdAction`) and persists the label to localStorage
+   * under the standard `builder_revision_labels_v1` key so the revisions drawer
+   * picks it up on its next open.
+   * Resolves `{ ok: true, revisionId, savedAt }` on success; on failure the
+   * error is already surfaced via the mutation-error toast.
+   */
+  saveNamedCheckpoint: (label: string) => Promise<{ ok: boolean; revisionId?: string; error?: string }>;
   /**
    * Flush any debounced/coalesced builder-tree draft save immediately and wait
    * for it (and any save already in flight) to settle. Call this before any
@@ -2444,6 +2465,29 @@ export function EditProvider({
   const flushBuilderTreeSaveRef = useRef<() => Promise<unknown>>(() =>
     Promise.resolve(),
   );
+  // WS1-D — monotonic per-session draft sequence. Every draft save AND the
+  // pagehide beacon stamp `cms_pages.draft_seq` with the next value, paired with
+  // the per-tab `getEditSessionId()` token. The beacon fires AFTER the last
+  // normal save, so its seq is strictly greater → it wins the server's
+  // last-write-wins comparison for THIS operator's own latest edit, bypassing the
+  // brittle version CAS that used to silently drop it.
+  //
+  // Seeded lazily from the wall clock (NOT inline at render — `Date.now()` is
+  // impure and the purity lint rule forbids it during render) so even a
+  // brand-new session starts above any stale stored seq from a prior session of
+  // the same row.
+  const draftSeqRef = useRef<number | null>(null);
+  const nextDraftSeq = useCallback((): number => {
+    if (draftSeqRef.current === null) draftSeqRef.current = Date.now();
+    return ++draftSeqRef.current;
+  }, []);
+  const nextEditSession = useCallback(
+    (): { id: string; seq: number } => ({
+      id: getEditSessionId(),
+      seq: nextDraftSeq(),
+    }),
+    [nextDraftSeq],
+  );
 
   useEffect(() => {
     pageVersionRef.current = pageVersion;
@@ -2457,6 +2501,26 @@ export function EditProvider({
   useEffect(() => {
     builderTreeRef.current = builderTree;
   }, [builderTree]);
+  // WS2 (builder-tree-bridge) — publish the live tree to the micro-store. Reading
+  // the tree via useBuilderTree() (not off the context value) is what lets us
+  // drop `builderTree` from the value-memo deps, so an edit no longer rebuilds
+  // the whole context value (the load-bearing instant-feel + fast-undo fix).
+  // A LAYOUT effect (not a passive effect) so the FIRST publish lands BEFORE the
+  // first paint — subscribers (~17 useBuilderTree() readers) render the loaded
+  // tree on first paint instead of the shared empty-tree server snapshot (no
+  // empty-canvas flash). It runs on mount (the seed) AND every change. The
+  // unmount reset lives in a SEPARATE mount-only effect so a re-publish on a
+  // tree change does NOT first flash an empty tree through subscribers.
+  useLayoutEffect(() => {
+    publishBuilderTree(builderTree);
+  }, [builderTree]);
+  // Reset the tree store when the provider unmounts so a stale tree can't outlive
+  // the editor / bleed into a remount.
+  useEffect(() => {
+    return () => {
+      publishBuilderTree([]);
+    };
+  }, []);
   useEffect(() => {
     draftBeaconMetaRef.current = { locale, pageId };
   }, [locale, pageId]);
@@ -2584,8 +2648,25 @@ export function EditProvider({
   // conflict-wipe can tell whether it is actually DISCARDING work (and should
   // explain itself with a toast) without taking past/future as deps.
   const historyDepthRef = useRef(0);
+  // WS2 (Step 3) — mirror the live past/future STACKS into refs so `undo`/`redo`
+  // can read the current stack (and `canUndo`/`canRedo`) without listing
+  // `past`/`future` in their deps. Dropping those deps keeps the undo/redo
+  // callbacks stable across every edit, which (together with the history-bridge
+  // publish) is what removes `past.length`/`future.length` from the value memo —
+  // the fast-undo half of the fix. Kept current in the SAME effect that already
+  // runs on every past/future change (single source of truth → no drift between
+  // the refs, the depth ref, and the published booleans).
+  const pastRef = useRef<HistoryEntry[]>(past);
+  const futureRef = useRef<HistoryEntry[]>(future);
   useEffect(() => {
     historyDepthRef.current = past.length + future.length;
+    pastRef.current = past;
+    futureRef.current = future;
+    // WS2 (history-bridge) — publish the derived can-undo/redo booleans so the
+    // ~4 undo/redo-button readers subscribe via useCanUndo()/useCanRedo() and
+    // a history-depth change no longer rebuilds the whole context value.
+    publishCanUndo(past.length > 0);
+    publishCanRedo(future.length > 0);
   }, [past, future]);
 
   // #18 — Persist `past` to localStorage. We write only the tail
@@ -3362,37 +3443,23 @@ export function EditProvider({
         void flushBuilderTreeSaveRef.current();
       }
     };
-    // ── ASSESSMENT (lane/save-abort, Task 2 — no code change here) ─────────
-    // KNOWN GAP: the beacon CAS-conflicts and silently drops the last edit when
-    // a normal debounced save advanced the version just before tab-close.
+    // ── WS1-D — beacon LAST-WRITE-WINS (the fix for the old KNOWN GAP) ─────
+    // History of the gap (now fixed): the beacon used to carry only the version
+    // CAS. If a normal debounced save (or a co-editor) bumped the page row's
+    // version just before tab-close, the beacon's `expectedVersion` was stale,
+    // the server returned VERSION_CONFLICT → 409, and the operator's LAST edit
+    // was silently dropped.
     //
-    // Repro: edit (commit v→arms 750ms debounce) → that save lands, bumping the
-    // page row version N→N+1 and `pageVersionRef`→N+1 → operator edits AGAIN
-    // (pendingTree set, new 750ms timer) → closes the tab INSIDE that second
-    // window. `onPageHide` fires the beacon with expectedVersion = the ref's
-    // CURRENT value. Usually that is N+1 (correct) and the beacon wins. But the
-    // FAILURE case is a beacon racing an in-flight *normal* save (or a co-editor
-    // write) that bumps the row to N+2 first: the beacon still carries N+1, the
-    // server CAS (`pageRow.version !== expectedVersion`) returns VERSION_CONFLICT
-    // → 409 → the route drops it quietly (route.ts:78-83) and the last edit is
-    // LOST. The abort work in this lane makes superseded normal saves resolve
-    // FASTER, which slightly *widens* the window where a just-bumped version and
-    // an unawaited beacon can disagree — so this is worth fixing next.
-    //
-    // CLEANEST FIX (REQUIRES A MIGRATION — deliberately deferred, not done here):
-    // give the beacon a last-write-wins lane keyed on an EDIT/SESSION TOKEN so it
-    // bypasses the version CAS for the operator's own latest draft. Add a nullable
-    // `edit_session_id uuid` (+ `draft_seq bigint`) to the draft row (cms_pages /
-    // cms_page_revisions draft); the editor mints one token per edit session and
-    // stamps every save + the beacon with it. A dedicated beacon write path does
-    // "apply iff edit_session_id matches AND draft_seq > stored" — last-write-wins
-    // WITHIN a session, while cross-session/co-editor conflicts still hard-fail.
-    // This needs the new columns, so it is a schema migration + a new server path,
-    // NOT a beacon-semantics tweak — out of scope for this lane by instruction.
-    // Interim (no migration) mitigations are weaker: (a) re-read the live version
-    // right before the beacon — impossible to do reliably during unload; (b) have
-    // the beacon send expectedVersion:-1 to force last-write-wins — UNSAFE, it
-    // would clobber a genuine co-editor. So the token migration is the real fix.
+    // The fix: every draft save AND this beacon now stamp `cms_pages`
+    // `edit_session_id` (the per-tab `getEditSessionId()` token, also used by
+    // WS1-A presence) + a monotonic `draft_seq` (`draftSeqRef`). The dedicated
+    // beacon server path (`applyHomepageDraftBeacon`) applies the beacon's tree
+    // IFF its `edit_session_id` matches the stored one AND `draft_seq > stored`
+    // — last-write-wins WITHIN the operator's own session — bypassing the
+    // version CAS that used to drop it. A different session / co-editor (different
+    // token) still hard-fails, and an EMPTY beacon over a good stored draft is
+    // refused (homepage draft empty-load incident guard). The beacon fires after
+    // the last normal save, so its seq is strictly greater → it wins.
     //
     // W1-T5(c) — on a hard PAGEHIDE the page may be torn down immediately, and a
     // server action's underlying fetch is NOT keepalive, so the non-awaited
@@ -3420,6 +3487,17 @@ export function EditProvider({
         metadata,
         slots: slotsForSave,
         builderTree: pendingTree,
+        // WS1-D — stamp the beacon with the per-tab session token + the NEXT seq.
+        // The beacon fires after the last normal save, so this seq is strictly
+        // greater → the server applies it under last-write-wins for THIS
+        // operator's own latest edit, bypassing the version CAS that used to
+        // 409-drop it. Bumped straight off the ref (lazily seeded like
+        // `nextDraftSeq`) so this stays a mount-only, ref-only effect.
+        editSessionId: getEditSessionId(),
+        draftSeq: (() => {
+          if (draftSeqRef.current === null) draftSeqRef.current = Date.now();
+          return ++draftSeqRef.current;
+        })(),
       });
       try {
         // fetch+keepalive carries cookies (auth) and survives unload; sendBeacon
@@ -3529,6 +3607,23 @@ export function EditProvider({
     builderTree.forEach((node) => walk(node, null));
     return out;
   }, [builderTree]);
+  // WS2 — these two maps are derived from `builderTree`, so they get a NEW
+  // reference on every edit. Selection callbacks (`selectBuilderNode`,
+  // `replaceBuilderNodeSelection`, the cut-paste section resolver) used to list
+  // the map as a dep → they recreated on every edit → and because
+  // `selectBuilderNode` is a value-memo dep (and a transitive dep of ~30 mutators
+  // via `replaceBuilderNodeSelection`), an edit rebuilt the WHOLE context value.
+  // Mirroring the maps into refs lets those callbacks read the latest map WITHOUT
+  // a dep — so they stay stable across an edit and the value memo no longer
+  // churns. Synced in a layout effect (NOT at render — refs must not be written
+  // during render) so the refs are current before any event handler / effect
+  // reads them, mirroring the `duplicateSectionRef` pattern below.
+  const sectionIdByBuilderNodeIdRef = useRef(sectionIdByBuilderNodeId);
+  const builderNodeIdBySectionIdRef = useRef(builderNodeIdBySectionId);
+  useLayoutEffect(() => {
+    sectionIdByBuilderNodeIdRef.current = sectionIdByBuilderNodeId;
+    builderNodeIdBySectionIdRef.current = builderNodeIdBySectionId;
+  }, [sectionIdByBuilderNodeId, builderNodeIdBySectionId]);
   const liveSectionIds = useMemo(() => {
     const ids = new Set<string>();
     for (const entries of Object.values(slots)) {
@@ -3648,23 +3743,22 @@ export function EditProvider({
   }, [additionalSelectedBuilderNodeIds]);
   const selectBuilderNode = useCallback(
     (nodeId: string) => {
-      if (!treeContainsBuilderNodeId(builderTree, nodeId)) return;
+      // WS2 — read the live tree from the ref so a tree change doesn't recreate
+      // this callback (and, via the value memo, re-render every consumer).
+      if (!treeContainsBuilderNodeId(builderTreeRef.current, nodeId)) return;
       // Freeform full-page designs (one-click starter designs) have builder
       // nodes with NO parent CMS section, so `sectionIdByBuilderNodeId` has no
       // entry. The old `if (!sectionId) return` bailed on every freeform block —
       // making the whole design unselectable. Select the node directly; the
       // section id is only selection *context* (null is fine), and the inspector
       // + canvas overlay both key off the selected builder-node id.
-      const sectionId = sectionIdByBuilderNodeId.get(nodeId) ?? null;
+      // WS2 — read the derived map from the ref so a tree change doesn't recreate
+      // this callback (which would rebuild the whole context value).
+      const sectionId = sectionIdByBuilderNodeIdRef.current.get(nodeId) ?? null;
       setSelectedSectionId(sectionId);
       setSelectedBuilderNodeIdOverride(nodeId);
     },
-    [
-      builderTree,
-      sectionIdByBuilderNodeId,
-      setSelectedBuilderNodeIdOverride,
-      setSelectedSectionId,
-    ],
+    [setSelectedBuilderNodeIdOverride, setSelectedSectionId],
   );
 
   // W3-T8 — snapshot the active selection at commit time (read from the refs so
@@ -3717,7 +3811,9 @@ export function EditProvider({
         setSelectedSectionId(null);
         return;
       }
-      const sectionId = sectionIdByBuilderNodeId.get(next.primaryId);
+      // WS2 — read the derived map from the ref so a tree change doesn't recreate
+      // this callback (it is a transitive value-memo dep via ~30 mutators).
+      const sectionId = sectionIdByBuilderNodeIdRef.current.get(next.primaryId);
       if (!sectionId) return;
       setSelectedSectionIdRaw(sectionId);
       setSelectedBuilderNodeIdOverride(next.primaryId);
@@ -3725,7 +3821,6 @@ export function EditProvider({
       setAdditionalSelectedIds((prev) => (prev.size === 0 ? prev : new Set()));
     },
     [
-      sectionIdByBuilderNodeId,
       setSelectedSectionId,
       setSelectedSectionIdRaw,
       setSelectedBuilderNodeIdOverride,
@@ -3818,12 +3913,13 @@ export function EditProvider({
         );
         return;
       }
-      const rootId = builderNodeIdBySectionId.get(sectionId);
+      // WS2 — read the derived map from the ref so a tree change doesn't recreate
+      // this callback (it is a value-memo dep).
+      const rootId = builderNodeIdBySectionIdRef.current.get(sectionId);
       if (rootId) selectBuilderNode(rootId);
       else setSelectedSectionId(sectionId);
     },
     [
-      builderNodeIdBySectionId,
       liveSectionIds,
       reportMutationError,
       selectBuilderNode,
@@ -4743,7 +4839,9 @@ export function EditProvider({
         expectedVersion: pageVersionRef.current ?? pageVersion,
         metadata: snap.metadata,
         slots: stripSnapshotForSave(snap).slots,
-        builderTree,
+        // WS2 — read the live tree from the ref so a tree change doesn't recreate
+        // this callback (and rebuild the value memo via its 1 call-site).
+        builderTree: builderTreeRef.current,
         sourceSectionId: sectionId,
       });
       setSaving(false);
@@ -4808,7 +4906,6 @@ export function EditProvider({
       refreshComposition,
       queueRouterRefresh,
       capHistory,
-      builderTree,
       setSlotsAndBuilderTree,
       syncBuilderNodeChildrenForSection,
       reportMutationError,
@@ -5000,6 +5097,10 @@ export function EditProvider({
                 const classes = readStyleClasses(pageId);
                 return classes.length > 0 ? toStyleClassRegistry(classes) : undefined;
               })(),
+              // WS1-D — stamp this save with the per-tab session token + next seq
+              // so the pagehide beacon can last-write-wins against the stored draft.
+              // The homepage adapter forwards editSession to saveDraftHomepageAction.
+              editSession: nextEditSession(),
             },
           ),
         {
@@ -5150,6 +5251,8 @@ export function EditProvider({
       refreshComposition,
       queueRouterRefresh,
       reportMutationError,
+      // WS1-D — stamps each save with the per-tab session token + next seq.
+      nextEditSession,
       // W1-T5(a) — synchronous undo-stack re-stamp on save success.
       flushUndoPersist,
     ],
@@ -5978,8 +6081,10 @@ export function EditProvider({
   >(
     async (nodeId) => {
       // W2-T4a — read selection from refs so this stays stable on selection.
+      // WS2 — and the owner-section map from its ref so a tree change doesn't
+      // recreate this callback (value-memo dep).
       const ownerSectionId =
-        sectionIdByBuilderNodeId.get(nodeId) ??
+        sectionIdByBuilderNodeIdRef.current.get(nodeId) ??
         selectedSectionIdRef.current ??
         null;
       const removingActiveNode = selectedBuilderNodeIdRef.current === nodeId;
@@ -6010,7 +6115,6 @@ export function EditProvider({
     [
       executeBuilderNodeOperation,
       runBuilderNodeOp,
-      sectionIdByBuilderNodeId,
       focusSectionForEdit,
       setSelectedBuilderNodeIdOverride,
     ],
@@ -6059,7 +6163,8 @@ export function EditProvider({
   );
   const copyBuilderNode = useCallback<EditContextValue["copyBuilderNode"]>(
     (nodeId) => {
-      const location = findBuilderNodeLocation(builderTree, nodeId);
+      // WS2 — read the live tree from the ref so copy doesn't recreate on edits.
+      const location = findBuilderNodeLocation(builderTreeRef.current, nodeId);
       if (!location) {
         return {
           ok: false,
@@ -6084,15 +6189,17 @@ export function EditProvider({
       void writeOsBuilderClipboard(clipboard);
       return { ok: true };
     },
-    [builderTree],
+    [],
   );
   const getCopiedBuilderNodePastePreview = useCallback<
     EditContextValue["getCopiedBuilderNodePastePreview"]
   >(
     (targetNodeId) => {
       if (!copiedBuilderNode) return null;
+      // WS2 — read the live tree from the ref so the paste-preview callback stays
+      // stable across edits (was recreating the value memo on every tree change).
       const preview = resolveCopiedBuilderNodePasteTarget({
-        tree: builderTree,
+        tree: builderTreeRef.current,
         copiedNode: copiedBuilderNode,
         targetNodeId,
       }).preview;
@@ -6100,7 +6207,10 @@ export function EditProvider({
         // W2-T4a — read selection from the ref so this stays stable on selection.
         const targetId = targetNodeId ?? selectedBuilderNodeIdRef.current;
         if (targetId) {
-          const shellSlot = findSiteShellSlotForBuilderNode(builderTree, targetId);
+          const shellSlot = findSiteShellSlotForBuilderNode(
+            builderTreeRef.current,
+            targetId,
+          );
           if (shellSlot) {
             return {
               ...preview,
@@ -6113,7 +6223,7 @@ export function EditProvider({
       }
       return preview;
     },
-    [builderTree, canEditSiteShell, copiedBuilderNode],
+    [canEditSiteShell, copiedBuilderNode],
   );
   const saveCopiedBuilderNodeAsPreset = useCallback<
     EditContextValue["saveCopiedBuilderNodeAsPreset"]
@@ -6871,13 +6981,22 @@ export function EditProvider({
       historyPendingRef.current = "undo";
       return;
     }
-    if (past.length === 0) return;
+    // WS2 (Step 3) — read the live `past` stack from the ref so `undo` does not
+    // list `past` in its deps; dropping that dep keeps `undo` stable across every
+    // edit (an edit pushes to `past`, which used to recreate this callback and,
+    // via its value-memo entry, rebuild the whole context value — the fast-undo
+    // half of the fix). The functional setPast/setFuture updaters below already
+    // operate on the latest state, so only these two READS needed the ref. The
+    // ref is synced AFTER the flush await by the same effect that drives the
+    // history bridge, so reading it post-flush sees the freshest stack.
+    if (pastRef.current.length === 0) return;
     // Commit any pending coalesced builder save first so its version bump lands
     // BEFORE this undo's own persist — preserves save-queue ordering + CAS.
     if (pendingTreeRef.current !== null) {
       await flushBuilderTreeSaveRef.current();
     }
-    const entry = past[past.length - 1]!;
+    if (pastRef.current.length === 0) return;
+    const entry = pastRef.current[pastRef.current.length - 1]!;
     setPast((p) => p.slice(0, -1));
     // W3-T8 — suppress the selection-sync auto-clear while the replayed tree
     // lands, then restore the entry's selection so ⌘Z keeps the affected block
@@ -6937,7 +7056,7 @@ export function EditProvider({
       replayingHistoryRef.current = false;
     }
   }, [
-    past,
+    // WS2 (Step 3) — `past` dropped; read via pastRef.current (see body comment).
     saving,
     currentSnapshot,
     restoreSnapshot,
@@ -6954,13 +7073,16 @@ export function EditProvider({
       historyPendingRef.current = "redo";
       return;
     }
-    if (future.length === 0) return;
+    // WS2 (Step 3) — read the live `future` stack from the ref (mirror of `undo`)
+    // so `redo` does not list `future` in its deps and stays stable across edits.
+    if (futureRef.current.length === 0) return;
     // Commit any pending coalesced builder save first so its version bump lands
     // BEFORE this redo's own persist — preserves save-queue ordering + CAS.
     if (pendingTreeRef.current !== null) {
       await flushBuilderTreeSaveRef.current();
     }
-    const entry = future[future.length - 1]!;
+    if (futureRef.current.length === 0) return;
+    const entry = futureRef.current[futureRef.current.length - 1]!;
     setFuture((f) => f.slice(0, -1));
     // W3-T8 — mirror undo: suppress the auto-clear during the replay, then
     // restore the entry's selection.
@@ -7017,7 +7139,7 @@ export function EditProvider({
       replayingHistoryRef.current = false;
     }
   }, [
-    future,
+    // WS2 (Step 3) — `future` dropped; read via futureRef.current (see body).
     saving,
     currentSnapshot,
     restoreSnapshot,
@@ -7317,7 +7439,12 @@ export function EditProvider({
           {
             expectedVersion: casVersion,
             ...stripSnapshotForSave(snap),
-            builderTree: reconcileBuilderTreeFromSlots(builderTree, snap.slots),
+            // WS2 — read the live tree from the ref so saveDraft stays stable
+            // across edits (was recreating the value memo on every tree change).
+            builderTree: reconcileBuilderTreeFromSlots(
+              builderTreeRef.current,
+              snap.slots,
+            ),
             styleClasses: (() => {
               const classes = readStyleClasses(pageId);
               return classes.length > 0 ? toStyleClassRegistry(classes) : undefined;
@@ -7353,9 +7480,49 @@ export function EditProvider({
     pageId,
     surfaceAdapter,
     refreshComposition,
-    builderTree,
     reportMutationError,
   ]);
+
+  /**
+   * WS4-TASK1: Save named checkpoint — saves the draft, then fetches the
+   * newly-minted revision id and persists the label to localStorage under
+   * the `builder_revision_labels_v1` key so the revisions drawer picks it up.
+   */
+  const saveNamedCheckpoint = useCallback<EditContextValue["saveNamedCheckpoint"]>(
+    async (label: string) => {
+      // First save the draft normally.
+      const saveRes = await saveDraft();
+      if (!saveRes.ok) {
+        return { ok: false, error: saveRes.error };
+      }
+      // We need pageId to query the revision. Non-homepage has it; homepage
+      // falls back to the pageId stored in context state.
+      const effectivePageId = pageId;
+      if (!effectivePageId) {
+        // No pageId available — save still succeeded; just skip label persistence.
+        return { ok: true };
+      }
+      // Fetch the newest draft revision id for this page.
+      const revRes = await fetchNewestDraftRevisionIdAction({ pageId: effectivePageId });
+      if (!revRes.ok) {
+        // Save succeeded — silently skip the label if id fetch fails.
+        return { ok: true };
+      }
+      const trimmedLabel = label.trim();
+      if (trimmedLabel) {
+        try {
+          const raw = window.localStorage.getItem("builder_revision_labels_v1");
+          const map: Record<string, string> = raw ? (JSON.parse(raw) as Record<string, string>) : {};
+          map[revRes.revisionId] = trimmedLabel;
+          window.localStorage.setItem("builder_revision_labels_v1", JSON.stringify(map));
+        } catch {
+          // localStorage unavailable (quota / private browsing) — ignore.
+        }
+      }
+      return { ok: true, revisionId: revRes.revisionId };
+    },
+    [saveDraft, pageId],
+  );
 
   const getCompositionCasVersion = useCallback<
     EditContextValue["getCompositionCasVersion"]
@@ -7445,7 +7612,8 @@ export function EditProvider({
       getCompositionCasVersion,
       pageMetadata,
       slots,
-      builderTree,
+      // WS2 (builder-tree-bridge) — `builderTree` is READ via useBuilderTree(),
+      // NOT off the context value, so an edit no longer rebuilds this value memo.
       slotDefs,
       library,
       availableLocales,
@@ -7481,8 +7649,9 @@ export function EditProvider({
       renameSection,
       syncBuilderNodeChildrenForSection,
 
-      canUndo: past.length > 0,
-      canRedo: future.length > 0,
+      // WS2 (history-bridge) — canUndo / canRedo are READ via useCanUndo() /
+      // useCanRedo(), NOT off the context value, so a history-depth change no
+      // longer rebuilds this value memo.
       undo,
       redo,
       recordFieldEdit,
@@ -7596,6 +7765,7 @@ export function EditProvider({
       setSectionVisibility,
 
       saveDraft,
+      saveNamedCheckpoint,
       flushBuilderTreeSave,
       lastDraftSavedAt,
       clearDraftSavedToast,
@@ -7667,7 +7837,8 @@ export function EditProvider({
       getCompositionCasVersion,
       pageMetadata,
       slots,
-      builderTree,
+      // WS2 — `builderTree` dropped from the value-memo deps (read via
+      // useBuilderTree()); an edit no longer rebuilds `value`.
       slotDefs,
       library,
       availableLocales,
@@ -7708,8 +7879,10 @@ export function EditProvider({
       duplicateSection,
       renameSection,
       syncBuilderNodeChildrenForSection,
-      past.length,
-      future.length,
+      // WS2 — `past.length` / `future.length` dropped from the value-memo deps
+      // (canUndo/canRedo read via useCanUndo()/useCanRedo()); a history-depth
+      // change no longer rebuilds `value`. `undo`/`redo` are now stable across
+      // edits (Step 3 ref-conversion) so their presence here is identity-stable.
       undo,
       redo,
       recordFieldEdit,
@@ -7810,6 +7983,7 @@ export function EditProvider({
       lastInsertedNodeId,
       setSectionVisibility,
       saveDraft,
+      saveNamedCheckpoint,
       flushBuilderTreeSave,
       lastDraftSavedAt,
       clearDraftSavedToast,

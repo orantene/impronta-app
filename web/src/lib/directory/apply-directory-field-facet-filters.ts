@@ -4,6 +4,7 @@ import {
   isResolvedFieldVisibleInDirectoryFilter,
   type PublicSurfaceContext,
 } from "@/lib/field-engine/public-surface-visibility";
+import { fetchDirectoryFacetTalentIds } from "@/lib/field-engine/read-source-directory-facets";
 
 /** Canonical `talent_profiles.gender` — filtered via column, not `field_values`. */
 export const DIRECTORY_CANONICAL_GENDER_FIELD_KEY = "gender";
@@ -60,56 +61,12 @@ function parseBooleanFacetValues(values: string[]): boolean[] {
   return [...out];
 }
 
-async function fetchFieldValueTalentIds(
-  supabase: SupabaseClient,
-  fieldDefinitionId: string,
-  filter: { kind: "boolean"; values: boolean[] } | { kind: "text"; values: string[] },
-  constrainedTalentIds: string[] | null,
-): Promise<string[]> {
-  const acc = new Set<string>();
-  const textValues =
-    filter.kind === "text"
-      ? new Set(filter.values.map((value) => value.trim().toLowerCase()).filter(Boolean))
-      : null;
-
-  const runBatch = async (idChunk: string[] | null) => {
-    let q = supabase
-      .from("field_values")
-      .select("talent_profile_id,value_text")
-      .eq("field_definition_id", fieldDefinitionId);
-    if (idChunk) {
-      if (idChunk.length === 0) return;
-      q = q.in("talent_profile_id", idChunk);
-    }
-    if (filter.kind === "boolean") {
-      q = q.in("value_boolean", filter.values);
-    } else {
-      q = q.not("value_text", "is", null);
-    }
-    const { data, error } = await q;
-    if (error) throw new Error(`[directory] field_values facet: ${error.message}`);
-    for (const row of (data ?? []) as { talent_profile_id: string; value_text?: string | null }[]) {
-      if (
-        textValues &&
-        !textValues.has((row.value_text ?? "").trim().toLowerCase())
-      ) {
-        continue;
-      }
-      acc.add(row.talent_profile_id);
-    }
-  };
-
-  if (constrainedTalentIds === null) {
-    await runBatch(null);
-  } else if (constrainedTalentIds.length === 0) {
-    return [];
-  } else {
-    for (let i = 0; i < constrainedTalentIds.length; i += ID_CHUNK) {
-      await runBatch(constrainedTalentIds.slice(i, i + ID_CHUNK));
-    }
-  }
-  return [...acc];
-}
+// The facet VALUE-store read (`field_values` for A / `talent_profile_field_values`
+// for B) now lives behind the field-engine read seam:
+// `fetchDirectoryFacetTalentIds` in read-source-directory-facets.ts. The legacy
+// A-reader is lifted there verbatim as `readA`; the `directory_facets` flag (and
+// safe-fallback-to-A on a B throw) governs which store this query hits. Gender +
+// height are NOT routed through it — they read indexed `talent_profiles` columns.
 
 async function fetchGenderProfileIds(
   supabase: SupabaseClient,
@@ -217,7 +174,12 @@ export async function applyDirectoryFieldFacetFilters(
     if (def.value_type === "boolean") {
       const bools = parseBooleanFacetValues(values);
       if (bools.length === 0) continue;
-      const next = await fetchFieldValueTalentIds(supabase, def.id, { kind: "boolean", values: bools }, ids);
+      const next = await fetchDirectoryFacetTalentIds(
+        supabase,
+        { fieldKey: def.key, aFieldDefinitionId: def.id },
+        { kind: "boolean", values: bools },
+        ids,
+      );
       if (next.length === 0) return { filteredTalentIds: [], isEmpty: true };
       ids = next;
       continue;
@@ -229,7 +191,12 @@ export async function applyDirectoryFieldFacetFilters(
       const allowed = new Set(opts);
       const tVals = values.filter((v) => allowed.has(v));
       if (tVals.length === 0) continue;
-      const next = await fetchFieldValueTalentIds(supabase, def.id, { kind: "text", values: tVals }, ids);
+      const next = await fetchDirectoryFacetTalentIds(
+        supabase,
+        { fieldKey: def.key, aFieldDefinitionId: def.id },
+        { kind: "text", values: tVals },
+        ids,
+      );
       if (next.length === 0) return { filteredTalentIds: [], isEmpty: true };
       ids = next;
       continue;

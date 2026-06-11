@@ -44,7 +44,14 @@
  * callback to run — it doesn't fetch state or save anything itself.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import type { CSSProperties, ReactNode } from "react";
 
 import {
@@ -64,6 +71,8 @@ import {
   type BuilderComponentRow,
 } from "@/lib/site-admin/edit-mode/builder-components-action";
 import { useEditContext, type EditDevice } from "./edit-context";
+import { useBuilderTree } from "./builder-tree-bridge";
+import { useCanUndo, useCanRedo } from "./history-bridge";
 import {
   useSelectedSectionId,
   useSelectedBuilderNodeId,
@@ -71,6 +80,7 @@ import {
 import { findBuilderNodeById } from "./inspectors/builder-node-content-utils";
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
 import { copySharePreviewLinkToClipboard } from "./copy-share-preview-link";
+import { exitEditModeAction } from "@/lib/site-admin/edit-mode/server";
 
 // ── public surface ──────────────────────────────────────────────────────
 
@@ -224,7 +234,14 @@ export function CommandPalette({
   // W2 (selection-bridge) — selection is read from the micro-store, not `ctx`.
   const selectedSectionId = useSelectedSectionId();
   const selectedBuilderNodeId = useSelectedBuilderNodeId();
+  // WS2 — tree + history-depth read from their micro-stores, not `ctx`.
+  const builderTree = useBuilderTree();
+  const canUndo = useCanUndo();
+  const canRedo = useCanRedo();
   const dialogRef = useModalFocusTrap(open, onClose);
+  // WS4 — exit-to-live-site uses a server action; wrap in a transition so
+  // React treats it as a pending navigation and doesn't error on the redirect.
+  const [, startExitTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
@@ -449,7 +466,7 @@ export function CommandPalette({
     // Actions — undo, redo, save draft, duplicate / move / delete (when
     // a section is selected). Driven by the SHORTCUTS registry so the
     // palette and the keyboard overlay show the same chips.
-    if (ctx.canUndo) {
+    if (canUndo) {
       rows.push(
         actionRow("undo", "Undo last change", ["revert", "back"], () => {
           void ctx.undo();
@@ -457,7 +474,7 @@ export function CommandPalette({
         }),
       );
     }
-    if (ctx.canRedo) {
+    if (canRedo) {
       rows.push(
         actionRow("redo", "Redo", ["reapply", "forward"], () => {
           void ctx.redo();
@@ -514,7 +531,7 @@ export function CommandPalette({
       ),
     );
     const selectedBuilderNode = findBuilderNodeById(
-      ctx.builderTree,
+      builderTree,
       selectedBuilderNodeId,
     );
     if (selectedBuilderNode && selectedBuilderNode.kind !== "section") {
@@ -750,14 +767,48 @@ export function CommandPalette({
       );
     }
 
+    // WS4 — toggle preview mode (enter/exit the preview-only canvas view).
+    rows.push(
+      navRow(
+        "toggle-preview",
+        ctx.previewing ? "Exit preview mode" : "Toggle preview mode",
+        ["preview", "view", "canvas", "read-only"],
+        () => {
+          ctx.setPreviewing(!ctx.previewing);
+          onClose();
+        },
+      ),
+    );
+
+    // WS4 — exit to live site (leave the editor).
+    rows.push(
+      navRow(
+        "exit-to-live-site",
+        "Exit to live site",
+        ["exit", "leave", "close editor", "live", "storefront"],
+        () => {
+          onClose();
+          startExitTransition(() => {
+            void exitEditModeAction();
+          });
+        },
+      ),
+    );
+
     return rows;
   }, [
     ctx,
+    // WS2 — these now come from the micro-stores (no longer off `ctx`), so list
+    // them so the rows recompute when the tree / undo-redo availability changes.
+    builderTree,
+    canUndo,
+    canRedo,
     selectedSectionId,
     selectedBuilderNodeId,
     onClose,
     onOpenFindReplace,
     savedBlocks,
+    startExitTransition,
   ]);
 
   // Score + sort + group.

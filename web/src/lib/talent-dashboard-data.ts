@@ -22,6 +22,10 @@ import { buildTalentPreviewHref } from "@/lib/talent-nav-groups";
 import { userHasEmailPasswordIdentity } from "@/lib/auth-identities";
 import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity";
 import { subjectUserId } from "@/lib/impersonation/subject-user";
+import {
+  readDashboardFieldCatalog,
+  readDashboardTaxonomyEditableFields,
+} from "@/lib/field-engine/read-source-dashboard-nav";
 
 export type TalentDashboardProfileRow = {
   id: string;
@@ -250,40 +254,15 @@ export const loadTalentTaxonomyEditorData = cache(
     const primaryTalentTypeId: string | null =
       (primaryRow as unknown as { taxonomy_term_id?: string })?.taxonomy_term_id ?? null;
 
-    // Field-driven governance: only show taxonomy fields that are active + editable by talent.
-    const { data: fieldRows, error: fErr } = await supabase
-      .from("field_definitions")
-      .select(
-        "key, label_en, label_es, taxonomy_kind, sort_order, field_groups(sort_order)",
-      )
-      .eq("active", true)
-      .is("archived_at", null)
-      .eq("editable_by_talent", true)
-      .eq("profile_visible", true)
-      .eq("internal_only", false)
-      .in("value_type", ["taxonomy_single", "taxonomy_multi"])
-      .not("taxonomy_kind", "is", null);
-
-    if (fErr) {
+    // Field-driven governance: only show taxonomy fields that are active + editable
+    // by talent. Routes through the field-engine read seam (`dashboard_nav` flag).
+    let editableFields: TalentEditableTaxonomyField[];
+    try {
+      editableFields = await readDashboardTaxonomyEditableFields(supabase);
+    } catch (fErr) {
       logServerError("talent/taxonomyEditor/fields", fErr);
       return { ok: false, reason: "load_error" };
     }
-
-    const editableFields: TalentEditableTaxonomyField[] = (fieldRows ?? [])
-      .map((row) => {
-        const fg = row.field_groups as { sort_order: number } | { sort_order: number }[] | null;
-        const groupSort = Array.isArray(fg) ? fg[0]?.sort_order ?? 0 : fg?.sort_order ?? 0;
-        return {
-          key: row.key as string,
-          label_en: row.label_en as string,
-          label_es: (row.label_es as string | null) ?? null,
-          taxonomy_kind: row.taxonomy_kind as string,
-          sort_order: (row.sort_order as number) ?? 0,
-          group_sort_order: groupSort,
-        };
-      })
-      .filter((f) => f.taxonomy_kind !== "location_city" && f.taxonomy_kind !== "location_country")
-      .sort((a, b) => a.group_sort_order - b.group_sort_order || a.sort_order - b.sort_order);
 
     return {
       ok: true,
@@ -363,9 +342,11 @@ async function loadTalentDashboardDataImpl(): Promise<TalentDashboardLoadResult>
       { data: submissionHistory },
       { data: submissionConsents },
       { data: events },
-      { data: fieldGroups },
-      { data: fieldDefs },
-      { data: fieldValues },
+      // fieldCatalog + fieldValues are now routed through the field-engine read
+      // seam (`dashboard_nav` flag). Default (`a`) is byte-identical to today;
+      // `dashboard_nav:b` reads canonical System B. The seam safe-falls-back to
+      // A if the B-read throws. Both readA and readB return the same shape.
+      fieldCatalogAndValues,
       talentTermsVersion,
     ] =
       await Promise.all([
@@ -416,27 +397,7 @@ async function loadTalentDashboardDataImpl(): Promise<TalentDashboardLoadResult>
           .eq("talent_profile_id", typedProfile.id)
           .order("created_at", { ascending: false })
           .limit(12),
-        supabase
-          .from("field_groups")
-          .select("id, slug, name_en, name_es, sort_order, archived_at")
-          .is("archived_at", null)
-          .order("sort_order"),
-        supabase
-          .from("field_definitions")
-          .select(
-            "id, field_group_id, key, label_en, label_es, help_en, help_es, value_type, required_level, public_visible, internal_only, card_visible, profile_visible, filterable, searchable, ai_visible, editable_by_talent, editable_by_staff, editable_by_admin, active, sort_order, taxonomy_kind, config, archived_at",
-          )
-          .eq("active", true)
-          .is("archived_at", null)
-          .eq("editable_by_talent", true)
-          .eq("profile_visible", true)
-          .eq("internal_only", false)
-          .order("field_group_id")
-          .order("sort_order"),
-        supabase
-          .from("field_values")
-          .select("field_definition_id, value_text, value_number, value_boolean, value_date")
-          .eq("talent_profile_id", typedProfile.id),
+        readDashboardFieldCatalog(supabase, typedProfile.id),
         resolveTalentTermsVersion(supabase),
       ]);
 
@@ -472,24 +433,9 @@ async function loadTalentDashboardDataImpl(): Promise<TalentDashboardLoadResult>
     const hasPrimaryTalentType =
       extractPrimaryRoleTerm(taxonomyRows as unknown as ProfileTaxonomyRow[]) !== null;
 
-    const editableDefinitions = filterOutReservedFieldDefinitions(
-      ((fieldDefs ?? []) as FieldDefinitionRow[]).filter((d) => d.value_type !== "location"),
-    );
-    const groupIdsUsed = new Set<string>();
-    for (const d of editableDefinitions) {
-      if (d.field_group_id) groupIdsUsed.add(d.field_group_id);
-    }
-    const groups = ((fieldGroups ?? []) as FieldGroupRow[]).filter((g) => groupIdsUsed.has(g.id));
-    const editableByGroup = new Map<string, FieldDefinitionRow[]>();
-    for (const d of editableDefinitions) {
-      const gid = d.field_group_id ?? "ungrouped";
-      const arr = editableByGroup.get(gid) ?? [];
-      arr.push(d);
-      editableByGroup.set(gid, arr);
-    }
-    const scalarEditableIds = editableDefinitions
-      .filter((d) => ["text", "textarea", "number", "boolean", "date"].includes(d.value_type))
-      .map((d) => d.id);
+    // Destructure the field catalog + values from the seam-dispatched read.
+    const { catalog: fieldCatalog, fieldValues } = fieldCatalogAndValues;
+    const { groups, editableDefinitions, editableByGroup, scalarEditableIds } = fieldCatalog;
 
     const completionInput = buildTalentCompletionInput({
       display_name: typedProfile.display_name,
@@ -508,13 +454,7 @@ async function loadTalentDashboardDataImpl(): Promise<TalentDashboardLoadResult>
       taxonomyCount,
       hasPrimaryTalentType,
       definitionsForScalarScoring: editableDefinitions,
-      fieldValues: (fieldValues ?? []) as Array<{
-        field_definition_id: string;
-        value_text: string | null;
-        value_number: number | null;
-        value_boolean: boolean | null;
-        value_date: string | null;
-      }>,
+      fieldValues,
     });
     const completionScore = calculateTalentCompletion(completionInput);
     const checklist = buildTalentChecklist(completionInput);
@@ -576,19 +516,8 @@ async function loadTalentDashboardDataImpl(): Promise<TalentDashboardLoadResult>
         livePageAvailable,
         previewHref,
         canSubmit,
-      fieldCatalog: {
-        groups,
-        editableDefinitions,
-        editableByGroup,
-        scalarEditableIds,
-      },
-      fieldValues: (fieldValues ?? []) as Array<{
-        field_definition_id: string;
-        value_text: string | null;
-        value_number: number | null;
-        value_boolean: boolean | null;
-        value_date: string | null;
-      }>,
+      fieldCatalog,
+      fieldValues,
       },
     };
   } catch (err) {

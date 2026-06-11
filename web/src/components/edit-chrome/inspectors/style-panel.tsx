@@ -52,6 +52,8 @@ import {
   styleTokenRef,
 } from "@/lib/site-admin/builder-node/style-token-bindings";
 import { useEditContext } from "../edit-context";
+import { useBuilderTree } from "../builder-tree-bridge";
+import { useCanUndo, useCanRedo } from "../history-bridge";
 import { GoogleFontPicker } from "../GoogleFontPicker";
 import {
   NumberUnit,
@@ -72,7 +74,9 @@ import {
   INSPECTOR_HELP_TEXT_CLASS as HINT,
   INSPECTOR_SECTION_TITLE_CLASS as SECTION_TITLE,
   InspectorBody,
+  InspectorOverrideBadge,
 } from "./kit/inspector-ui";
+import { getStyleOverrideDevice } from "./responsive-field-state";
 import { Swatch } from "../kit/swatch";
 import { CHROME } from "../kit/tokens";
 import { BoxModel } from "../kit/box-model";
@@ -2220,10 +2224,7 @@ export function StylePanel({
   onPatch,
 }: StylePanelProps) {
   const {
-    builderTree,
     pageId,
-    canUndo,
-    canRedo,
     patchBuilderNodeProps,
     detachComponentInstance,
     undo,
@@ -2236,6 +2237,12 @@ export function StylePanel({
     setDevice,
     tenantId,
   } = useEditContext();
+  // WS2 — tree + history-depth VALUES from their micro-stores (builder-tree-bridge
+  // / history-bridge), so an edit/undo no longer re-renders this panel via the
+  // value memo. canUndo/canRedo gate the in-panel undo/redo buttons.
+  const builderTree = useBuilderTree();
+  const canUndo = useCanUndo();
+  const canRedo = useCanRedo();
   const [nodeStyleClipboard, setNodeStyleClipboard] =
     useState<NodeStyleClipboard | null>(null);
   const [standaloneStyleClipboard, setStandaloneStyleClipboard] =
@@ -5873,7 +5880,19 @@ export function StylePanel({
               </div>
             ) : null}
             <div className="flex flex-col gap-1.5" data-builder-node-style-control="align">
-              <span className={FIELD_LABEL}>Align</span>
+              <div className="flex items-center justify-between gap-2">
+                <span className={FIELD_LABEL}>Align</span>
+                {getStyleOverrideDevice(selectedStandaloneFullStyle, "align") ? (
+                  <InspectorOverrideBadge
+                    device={getStyleOverrideDevice(selectedStandaloneFullStyle, "align")!}
+                    onReset={
+                      selectedViewport !== "desktop"
+                        ? () => patchSelectedStandaloneStyle({ align: undefined })
+                        : undefined
+                    }
+                  />
+                ) : null}
+              </div>
               <Segmented
                 fullWidth
                 compact
@@ -5887,7 +5906,19 @@ export function StylePanel({
               selectedStandaloneStyleNode.kind,
             ) ? (
               <div className="flex flex-col gap-1.5" data-builder-node-style-control="size">
-                <span className={FIELD_LABEL}>Size</span>
+                <div className="flex items-center justify-between gap-2">
+                  <span className={FIELD_LABEL}>Size</span>
+                  {getStyleOverrideDevice(selectedStandaloneFullStyle, "size") ? (
+                    <InspectorOverrideBadge
+                      device={getStyleOverrideDevice(selectedStandaloneFullStyle, "size")!}
+                      onReset={
+                        selectedViewport !== "desktop"
+                          ? () => patchSelectedStandaloneStyle({ size: undefined })
+                          : undefined
+                      }
+                    />
+                  ) : null}
+                </div>
                 <Segmented
                   fullWidth
                   compact
@@ -5900,7 +5931,19 @@ export function StylePanel({
 
             {["heading", "paragraph"].includes(selectedStandaloneStyleNode.kind) ? (
               <div className="flex flex-col gap-1.5" data-builder-node-style-control="tone">
-                <span className={FIELD_LABEL}>Tone</span>
+                <div className="flex items-center justify-between gap-2">
+                  <span className={FIELD_LABEL}>Tone</span>
+                  {getStyleOverrideDevice(selectedStandaloneFullStyle, "tone") ? (
+                    <InspectorOverrideBadge
+                      device={getStyleOverrideDevice(selectedStandaloneFullStyle, "tone")!}
+                      onReset={
+                        selectedViewport !== "desktop"
+                          ? () => patchSelectedStandaloneStyle({ tone: undefined })
+                          : undefined
+                      }
+                    />
+                  ) : null}
+                </div>
                 <Segmented
                   fullWidth
                   compact
@@ -5973,7 +6016,19 @@ export function StylePanel({
                     className="flex flex-col gap-1.5"
                     data-builder-node-style-control="fontSize"
                   >
-                    <span className={FIELD_LABEL}>Size</span>
+                    <div className="flex items-center justify-between gap-1">
+                      <span className={FIELD_LABEL}>Size</span>
+                      {getStyleOverrideDevice(selectedStandaloneFullStyle, "fontSize") ? (
+                        <InspectorOverrideBadge
+                          device={getStyleOverrideDevice(selectedStandaloneFullStyle, "fontSize")!}
+                          onReset={
+                            selectedViewport !== "desktop"
+                              ? () => patchSelectedStandaloneStyle({ fontSize: undefined })
+                              : undefined
+                          }
+                        />
+                      ) : null}
+                    </div>
                     <NumberUnit
                       units={["px", "rem", "em"]}
                       defaultUnit="px"
@@ -5992,7 +6047,19 @@ export function StylePanel({
                     className="flex flex-col gap-1.5"
                     data-builder-node-style-control="lineHeight"
                   >
-                    <span className={FIELD_LABEL}>Line height</span>
+                    <div className="flex items-center justify-between gap-1">
+                      <span className={FIELD_LABEL}>Line height</span>
+                      {getStyleOverrideDevice(selectedStandaloneFullStyle, "lineHeight") ? (
+                        <InspectorOverrideBadge
+                          device={getStyleOverrideDevice(selectedStandaloneFullStyle, "lineHeight")!}
+                          onReset={
+                            selectedViewport !== "desktop"
+                              ? () => patchSelectedStandaloneStyle({ lineHeight: undefined })
+                              : undefined
+                          }
+                        />
+                      ) : null}
+                    </div>
                     <input
                       type="number"
                       step={0.1}
@@ -6038,7 +6105,19 @@ export function StylePanel({
                   className="flex flex-col gap-1.5"
                   data-builder-node-style-control="letterSpacing"
                 >
-                  <span className={FIELD_LABEL}>Letter spacing</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={FIELD_LABEL}>Letter spacing</span>
+                    {getStyleOverrideDevice(selectedStandaloneFullStyle, "letterSpacing") ? (
+                      <InspectorOverrideBadge
+                        device={getStyleOverrideDevice(selectedStandaloneFullStyle, "letterSpacing")!}
+                        onReset={
+                          selectedViewport !== "desktop"
+                            ? () => patchSelectedStandaloneStyle({ letterSpacing: undefined })
+                            : undefined
+                        }
+                      />
+                    ) : null}
+                  </div>
                   <NumberUnit
                     units={["em", "px"]}
                     defaultUnit="em"
@@ -6082,7 +6161,19 @@ export function StylePanel({
                   className="flex flex-col gap-1.5"
                   data-builder-node-style-control="fontWeight"
                 >
-                  <span className={FIELD_LABEL}>Weight</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={FIELD_LABEL}>Weight</span>
+                    {getStyleOverrideDevice(selectedStandaloneFullStyle, "fontWeight") ? (
+                      <InspectorOverrideBadge
+                        device={getStyleOverrideDevice(selectedStandaloneFullStyle, "fontWeight")!}
+                        onReset={
+                          selectedViewport !== "desktop"
+                            ? () => patchSelectedStandaloneStyle({ fontWeight: undefined })
+                            : undefined
+                        }
+                      />
+                    ) : null}
+                  </div>
                   <Segmented
                     fullWidth
                     compact
@@ -6694,7 +6785,19 @@ export function StylePanel({
             >
             <div className="grid grid-cols-2 gap-2">
               <div className="flex flex-col gap-1.5" data-builder-node-style-control="marginTop">
-                <span className={FIELD_LABEL}>Margin top</span>
+                <div className="flex items-center justify-between gap-1">
+                  <span className={FIELD_LABEL}>Margin top</span>
+                  {getStyleOverrideDevice(selectedStandaloneFullStyle, "marginTop") ? (
+                    <InspectorOverrideBadge
+                      device={getStyleOverrideDevice(selectedStandaloneFullStyle, "marginTop")!}
+                      onReset={
+                        selectedViewport !== "desktop"
+                          ? () => patchSelectedStandaloneStyle({ marginTop: undefined })
+                          : undefined
+                      }
+                    />
+                  ) : null}
+                </div>
                 <Segmented
                   fullWidth
                   compact
@@ -6704,7 +6807,19 @@ export function StylePanel({
                 />
               </div>
               <div className="flex flex-col gap-1.5" data-builder-node-style-control="marginBottom">
-                <span className={FIELD_LABEL}>Bottom</span>
+                <div className="flex items-center justify-between gap-1">
+                  <span className={FIELD_LABEL}>Bottom</span>
+                  {getStyleOverrideDevice(selectedStandaloneFullStyle, "marginBottom") ? (
+                    <InspectorOverrideBadge
+                      device={getStyleOverrideDevice(selectedStandaloneFullStyle, "marginBottom")!}
+                      onReset={
+                        selectedViewport !== "desktop"
+                          ? () => patchSelectedStandaloneStyle({ marginBottom: undefined })
+                          : undefined
+                      }
+                    />
+                  ) : null}
+                </div>
                 <Segmented
                   fullWidth
                   compact
@@ -6720,7 +6835,19 @@ export function StylePanel({
             ) ? (
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex flex-col gap-1.5" data-builder-node-style-control="paddingX">
-                  <span className={FIELD_LABEL}>Padding X</span>
+                  <div className="flex items-center justify-between gap-1">
+                    <span className={FIELD_LABEL}>Padding X</span>
+                    {getStyleOverrideDevice(selectedStandaloneFullStyle, "paddingX") ? (
+                      <InspectorOverrideBadge
+                        device={getStyleOverrideDevice(selectedStandaloneFullStyle, "paddingX")!}
+                        onReset={
+                          selectedViewport !== "desktop"
+                            ? () => patchSelectedStandaloneStyle({ paddingX: undefined })
+                            : undefined
+                        }
+                      />
+                    ) : null}
+                  </div>
                   <Segmented
                     fullWidth
                     compact
@@ -6730,7 +6857,19 @@ export function StylePanel({
                   />
                 </div>
                 <div className="flex flex-col gap-1.5" data-builder-node-style-control="paddingY">
-                  <span className={FIELD_LABEL}>Padding Y</span>
+                  <div className="flex items-center justify-between gap-1">
+                    <span className={FIELD_LABEL}>Padding Y</span>
+                    {getStyleOverrideDevice(selectedStandaloneFullStyle, "paddingY") ? (
+                      <InspectorOverrideBadge
+                        device={getStyleOverrideDevice(selectedStandaloneFullStyle, "paddingY")!}
+                        onReset={
+                          selectedViewport !== "desktop"
+                            ? () => patchSelectedStandaloneStyle({ paddingY: undefined })
+                            : undefined
+                        }
+                      />
+                    ) : null}
+                  </div>
                   <Segmented
                     fullWidth
                     compact

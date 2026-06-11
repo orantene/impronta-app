@@ -91,6 +91,7 @@ import {
   useEditContext,
   type BuilderNodePastePreview,
 } from "./edit-context";
+import { useBuilderTree } from "./builder-tree-bridge";
 import {
   useHoveredSectionId,
   useHoveredBuilderNodeId,
@@ -667,7 +668,6 @@ export function SelectionLayer() {
     loadedSection,
     slots,
     slotDefs,
-    builderTree,
     insertBuilderNode,
     insertBuilderSectionEmbed,
     insertBuilderComponent,
@@ -687,6 +687,10 @@ export function SelectionLayer() {
     requestInspectorTab,
     inspectorTabRequest,
   } = useEditContext();
+  // WS2 — tree VALUE from the micro-store (builder-tree-bridge). selection-layer
+  // reads the tree heavily (overlays, drop candidates, context menu) so it
+  // subscribes here; an edit re-renders this layer, which is exactly intended.
+  const builderTree = useBuilderTree();
 
   // W2-T3 — hover VALUES come from the hover-bridge micro-store (the setters
   // above stay on the context). This is the whole point: selection-layer DOES

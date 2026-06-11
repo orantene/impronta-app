@@ -496,6 +496,55 @@ export async function restorePageRevisionAction(input: {
 // module can only export async functions, so a value const cannot be exported
 // from here (it would be stripped → "export not found" at build).
 
+// ── Named checkpoint: resolve the newest draft revision id after a save ────────
+
+export type NamedCheckpointResult =
+  | { ok: true; revisionId: string; savedAt: string }
+  | { ok: false; error: string; code?: string };
+
+/**
+ * WS4-TASK1: After the caller performs a draft save (via saveDraft / the
+ * autosave path), fetch the most recently written `kind='draft'` revision id
+ * for the page so the client can persist a user-supplied label against it in
+ * localStorage. No new server writes — this is a pure read that the
+ * revisions drawer also does on open.
+ *
+ * Accepts either a `pageId` (for non-homepage pages) or a `locale` (for the
+ * homepage, which uses locale-based lookup). Returns the newest draft revision
+ * row's id + a server-issued ISO timestamp the UI can surface as a
+ * confirmation.
+ */
+export async function fetchNewestDraftRevisionIdAction(input: {
+  pageId: string;
+}): Promise<NamedCheckpointResult> {
+  const auth = await requireStaff();
+  if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
+  const scope = await requireTenantScope().catch(() => null);
+  if (!scope) {
+    return { ok: false, error: "Select an agency workspace first.", code: "NO_SCOPE" };
+  }
+
+  try {
+    const { data, error } = await auth.supabase
+      .from("cms_page_revisions")
+      .select("id, created_at")
+      .eq("tenant_id", scope.tenantId)
+      .eq("page_id", input.pageId)
+      .eq("kind", "draft")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle<{ id: string; created_at: string }>();
+
+    if (error) return { ok: false, error: "Could not fetch revision.", code: "DB_ERROR" };
+    if (!data) return { ok: false, error: "No draft revision found for this page.", code: "NOT_FOUND" };
+
+    return { ok: true, revisionId: data.id, savedAt: data.created_at };
+  } catch (err) {
+    logServerError("edit-mode/fetch-newest-draft-revision", err);
+    return { ok: false, error: "Failed to fetch revision id." };
+  }
+}
+
 // ── Publish diff: load the two revision IDs the diff panel needs ──────────────
 
 export type PublishDiffRevisionIdsResult =

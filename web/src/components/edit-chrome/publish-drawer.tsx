@@ -65,6 +65,7 @@ import {
   HelperCounter,
 } from "./kit";
 import { useEditContext } from "./edit-context";
+import { useBuilderTree } from "./builder-tree-bridge";
 import { useDirty } from "./dirty-bridge";
 import { PublishPreflight } from "./PublishPreflight";
 import { MobileHealthPanel } from "./MobileHealthPanel";
@@ -240,8 +241,9 @@ export function PublishDrawer() {
     savePageMetadata,
     saveDraft,
     flushBuilderTreeSave,
-    builderTree,
   } = useEditContext();
+  // WS2 — tree VALUE from the micro-store (builder-tree-bridge).
+  const builderTree = useBuilderTree();
   // W2-T4 — `dirty` VALUE from the dirty-bridge.
   const dirty = useDirty();
 

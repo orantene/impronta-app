@@ -34,6 +34,7 @@
 import { useMemo, useState } from "react";
 
 import { useMaybeEditContext } from "./edit-context";
+import { useBuilderTree } from "./builder-tree-bridge";
 import { useSelectedBuilderNodeId } from "./selection-bridge";
 import { MobileHealthPanel } from "./MobileHealthPanel";
 import { layerIcon, LayerKindPill } from "./freeform-layer-row";
@@ -450,7 +451,12 @@ function nudgeBtnStyle(busy: boolean): React.CSSProperties {
 export function MobileEditPanel() {
   const ctx = useMaybeEditContext();
 
-  const builderTree = ctx?.builderTree ?? EMPTY_BUILDER_TREE;
+  // WS2 — tree VALUE from the micro-store (always safe to call; the store is a
+  // module singleton independent of the provider). Keep the `ctx` guard so the
+  // tree reads empty when this panel renders OUTSIDE an EditProvider — exactly
+  // matching the prior `ctx?.builderTree ?? EMPTY_BUILDER_TREE` semantics.
+  const liveBuilderTree = useBuilderTree();
+  const builderTree = ctx ? liveBuilderTree : EMPTY_BUILDER_TREE;
   // W2 (selection-bridge) — selection VALUE from the micro-store (always safe to
   // call; the store is a module singleton independent of the provider).
   const selectedBuilderNodeId = useSelectedBuilderNodeId();

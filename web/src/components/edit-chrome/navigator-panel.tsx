@@ -80,6 +80,7 @@ import { sectionDisplayName } from "@/lib/site-admin/section-display-name";
 import type { SectionVisibility as SectionVisibilityT } from "@/lib/site-admin/edit-mode/section-actions";
 
 import { useEditContext } from "./edit-context";
+import { useBuilderTree } from "./builder-tree-bridge";
 import {
   useSelectedSectionId,
   useSelectedBuilderNodeId,
@@ -283,11 +284,13 @@ export function NavigatorPanel() {
     setSectionVisibility,
     toggleAddMenu,
     reportMutationError,
-    builderTree,
     pageId,
     advancedElementLibraryEnabled,
     canInsertRawHtmlElements,
   } = useEditContext();
+  // WS2 — tree VALUE from the micro-store (builder-tree-bridge). The navigator
+  // renders the tree, so this subscription is exactly the intended re-render.
+  const builderTree = useBuilderTree();
   // W2 (selection-bridge) — selection VALUES from the micro-store. The navigator
   // highlights the selected row + auto-expands to it, so these subscriptions are
   // what drive its re-render on selection change.

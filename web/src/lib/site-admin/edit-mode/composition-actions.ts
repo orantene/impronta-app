@@ -27,6 +27,7 @@ import {
   type HomepageSlotsValues,
 } from "@/lib/site-admin/forms/homepage";
 import {
+  applyHomepageDraftBeacon,
   ensureHomepageRow,
   publishHomepage,
   saveHomepageDraftComposition,
@@ -697,6 +698,12 @@ export interface CompositionSaveInput {
    * Free-plan nested-builder draft guard (same intent as homepage curated seeds).
    */
   seedNewPageStarter?: boolean;
+  /**
+   * WS1-D — the writer's per-tab edit-session token + monotonic draft sequence,
+   * stamped onto the `cms_pages` row so the pagehide beacon can be granted a
+   * last-write-wins lane within this operator's own session. Optional.
+   */
+  editSession?: { id: string; seq: number };
 }
 
 /**
@@ -876,6 +883,14 @@ export async function saveHomepageCompositionAction(
           noindex: input.metadata.noindex ?? false,
           version: nextVersion,
           updated_at: new Date().toISOString(),
+          // WS1-D — stamp the writer's edit-session token + draft seq so the
+          // pagehide beacon can later last-write-wins against the stored draft.
+          ...(input.editSession
+            ? {
+                edit_session_id: input.editSession.id,
+                draft_seq: input.editSession.seq,
+              }
+            : {}),
         })
         .eq("id", input.pageId)
         .eq("tenant_id", scope.tenantId)
@@ -1021,6 +1036,7 @@ export async function saveHomepageCompositionAction(
       values: envelope.data,
       styleClasses: input.styleClasses,
       actorProfileId: auth.user.id,
+      editSession: input.editSession,
     });
     if (!result.ok) {
       if (result.code === "VERSION_CONFLICT") {
@@ -1532,6 +1548,8 @@ export async function saveDraftHomepageAction(input: {
   slots: Record<string, Array<{ sectionId: string; sortOrder: number }>>;
   builderTree?: BuilderNodeTree;
   styleClasses?: BuilderStyleClassRegistry;
+  /** WS1-D — per-tab edit-session token + monotonic draft seq (beacon LWW). */
+  editSession?: { id: string; seq: number };
 }): Promise<SaveDraftResult> {
   const save = await saveHomepageCompositionAction({
     locale: input.locale,
@@ -1541,6 +1559,7 @@ export async function saveDraftHomepageAction(input: {
     slots: input.slots,
     builderTree: input.builderTree,
     styleClasses: input.styleClasses,
+    editSession: input.editSession,
   });
   if (!save.ok) {
     return {
@@ -1555,6 +1574,143 @@ export async function saveDraftHomepageAction(input: {
     pageVersion: save.pageVersion,
     savedAt: new Date().toISOString(),
   };
+}
+
+// ── WS1-D — pagehide draft beacon (last-write-wins) ─────────────────────────
+
+/** Does a beacon payload (tree + slots) carry real content? */
+function beaconPayloadHasContent(input: {
+  builderTree?: BuilderNodeTree;
+  slots: Record<string, Array<{ sectionId: string; sortOrder: number }>>;
+}): boolean {
+  if (Array.isArray(input.builderTree) && input.builderTree.length > 0) {
+    return true;
+  }
+  return Object.values(input.slots).some(
+    (entries) => Array.isArray(entries) && entries.length > 0,
+  );
+}
+
+/**
+ * WS1-D — apply a keepalive pagehide draft beacon under LAST-WRITE-WINS.
+ *
+ * The normal beacon (`saveDraftHomepageAction`) guards with a version CAS and
+ * silently drops the operator's last edit when a concurrent save bumped the
+ * version first. This path instead compares the beacon's per-tab edit-session
+ * token + monotonic `draftSeq` against the stamp on the stored draft: same
+ * session + strictly-newer seq → apply (bypassing the version CAS); a different
+ * session, a stale seq, or an EMPTY tree over good content → refuse.
+ *
+ * HOMEPAGE only (pageId null) gets the LWW lane — that is the documented gap.
+ * Non-homepage pages fall back to the existing CAS beacon (still stamping the
+ * session columns), since their save path is the lighter page-row writer.
+ */
+export async function applyHomepageDraftBeaconAction(input: {
+  locale: string;
+  pageId?: string | null;
+  expectedVersion: number;
+  metadata: CompositionSaveInput["metadata"];
+  slots: Record<string, Array<{ sectionId: string; sortOrder: number }>>;
+  builderTree?: BuilderNodeTree;
+  styleClasses?: BuilderStyleClassRegistry;
+  editSession: { id: string; seq: number };
+}): Promise<SaveDraftResult> {
+  // Non-homepage pages: keep the existing CAS beacon (session columns stamped).
+  if (input.pageId) {
+    return saveDraftHomepageAction(input);
+  }
+
+  const auth = await requireStaff();
+  if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
+  const scope = await requireTenantScope().catch(() => null);
+  if (!scope) {
+    return {
+      ok: false,
+      error: "Select an agency workspace before editing the homepage.",
+      code: "TENANT_SCOPE",
+    };
+  }
+  const locale = asLocale(input.locale);
+  if (!locale) {
+    return { ok: false, error: `Unsupported locale "${input.locale}".` };
+  }
+
+  const metadataInput = {
+    title: input.metadata.title,
+    metaTitle: input.metadata.metaTitle ?? undefined,
+    metaDescription: input.metadata.metaDescription ?? undefined,
+    introTagline: input.metadata.introTagline ?? undefined,
+    ogTitle: input.metadata.ogTitle ?? undefined,
+    ogDescription: input.metadata.ogDescription ?? undefined,
+    ogImageUrl: input.metadata.ogImageUrl ?? undefined,
+    canonicalUrl: input.metadata.canonicalUrl ?? undefined,
+    noindex: input.metadata.noindex,
+  };
+  const metadataParsed = homepageMetadataSchema.safeParse(metadataInput);
+  if (!metadataParsed.success) {
+    return {
+      ok: false,
+      error:
+        metadataParsed.error.issues[0]?.message ??
+        "Page metadata is missing or invalid.",
+    };
+  }
+  const slotsParsed = homepageSlotsSchema.safeParse(input.slots);
+  if (!slotsParsed.success) {
+    return {
+      ok: false,
+      error: slotsParsed.error.issues[0]?.message ?? "Invalid slot layout.",
+    };
+  }
+  const envelope = homepageSaveDraftSchema.safeParse({
+    tenantId: scope.tenantId,
+    locale,
+    // expectedVersion is unused by the LWW lane (it ignores the version CAS),
+    // but the schema requires a non-negative int — pass the beacon's value.
+    expectedVersion: input.expectedVersion,
+    metadata: metadataParsed.data satisfies HomepageMetadataValues,
+    slots: slotsParsed.data satisfies HomepageSlotsValues,
+    builderTree: input.builderTree,
+  });
+  if (!envelope.success) {
+    return { ok: false, error: "Composition envelope failed validation." };
+  }
+
+  try {
+    const result = await applyHomepageDraftBeacon(auth.supabase, {
+      tenantId: scope.tenantId,
+      values: envelope.data,
+      styleClasses: input.styleClasses,
+      actorProfileId: auth.user.id,
+      editSession: input.editSession,
+      incomingHasContent: beaconPayloadHasContent({
+        builderTree: input.builderTree,
+        slots: input.slots,
+      }),
+    });
+    if (!result.ok) {
+      return { ok: false, error: result.error, code: result.code };
+    }
+    if (!result.applied) {
+      // Refused under LWW (stale / mismatched session / empty-over-good). This
+      // is a benign no-op: the operator's in-session draft already persisted on
+      // the previous keystroke's debounce. Report a non-conflict ok so the route
+      // returns 200 (the beacon is best-effort; nothing to retry).
+      return {
+        ok: true,
+        pageVersion: input.expectedVersion,
+        savedAt: new Date().toISOString(),
+      };
+    }
+    return {
+      ok: true,
+      pageVersion: result.pageVersion,
+      savedAt: new Date().toISOString(),
+    };
+  } catch (err) {
+    logServerError("edit-mode/composition/beacon-lww", err);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
 }
 
 // ── publish ───────────────────────────────────────────────────────────────
