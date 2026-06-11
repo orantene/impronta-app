@@ -2518,6 +2518,12 @@ export interface TopBarProps {
    */
   onSaveDraft?: () => void | Promise<unknown>;
   /**
+   * WS4-TASK1: Save a named checkpoint. The topbar will show an inline
+   * label prompt before calling this. When present the "Save as named draft…"
+   * menu item opens a small modal instead of firing `onSaveDraft` directly.
+   */
+  onSaveNamedDraft?: (label: string) => Promise<{ ok: boolean; error?: string }>;
+  /**
    * Mint a share link. Receives the operator-supplied label + TTL choice
    * from the popover form and returns the full URL to copy. The topbar
    * surfaces a transient confirmation when the promise resolves; failures
@@ -2606,6 +2612,7 @@ export function TopBar({
   onComments,
   commentsBadge,
   onSaveDraft,
+  onSaveNamedDraft,
   onShare,
   pageTitle,
   pageId,
@@ -2618,6 +2625,28 @@ export function TopBar({
 }: TopBarProps) {
   const editCtx = useMaybeEditContext();
 
+  // WS4-TASK1: Named checkpoint prompt state.
+  const [namedDraftOpen, setNamedDraftOpen] = useState(false);
+  const [namedDraftLabel, setNamedDraftLabel] = useState("");
+  const [namedDraftPending, setNamedDraftPending] = useState(false);
+  const [namedDraftError, setNamedDraftError] = useState<string | null>(null);
+
+  async function handleNamedDraftSubmit() {
+    if (!onSaveNamedDraft) return;
+    const label = namedDraftLabel.trim();
+    if (!label) return;
+    setNamedDraftPending(true);
+    setNamedDraftError(null);
+    const res = await onSaveNamedDraft(label);
+    setNamedDraftPending(false);
+    if (res.ok) {
+      setNamedDraftOpen(false);
+      setNamedDraftLabel("");
+    } else {
+      setNamedDraftError(res.error ?? "Save failed. Try again.");
+    }
+  }
+
   function handleMenuSelect(opt: PublishMenuOption) {
     if (opt === "schedule") {
       if (onSchedule) onSchedule();
@@ -2625,10 +2654,15 @@ export function TopBar({
         message: "[topbar] schedule publish: no handler wired",
       });
     } else if (opt === "save-draft") {
-      // Same affordance as the Save draft text button — write a draft
-      // revision row through the existing autosave path. Phase 4 layers
-      // the named-draft prompt on top of this.
-      if (onSaveDraft) void onSaveDraft();
+      // WS4-TASK1: if onSaveNamedDraft is wired, open the label prompt instead
+      // of firing onSaveDraft silently.
+      if (onSaveNamedDraft) {
+        setNamedDraftLabel("");
+        setNamedDraftError(null);
+        setNamedDraftOpen(true);
+      } else if (onSaveDraft) {
+        void onSaveDraft();
+      }
     } else if (opt === "discard") {
       // Phase 4 — discard draft (revert to live snapshot)
       void improntaLog("edit_chrome_topbar.info", {
@@ -2761,6 +2795,127 @@ export function TopBar({
         disabled={saving}
       />
       </div>
+
+      {/* WS4-TASK1 — Named checkpoint modal (backdrop + dialog). Rendered
+          inside the topbar container so it inherits the correct z-index stack
+          without a portal dependency. */}
+      {namedDraftOpen ? (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 200,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(0,0,0,0.35)",
+            backdropFilter: "blur(3px)",
+          }}
+          onClick={() => { if (!namedDraftPending) { setNamedDraftOpen(false); } }}
+        >
+          <div
+            style={{
+              background: CHROME.surface,
+              border: `1px solid ${CHROME.lineMid}`,
+              borderRadius: 12,
+              boxShadow: "0 8px 32px rgba(0,0,0,0.14)",
+              padding: "24px",
+              width: 360,
+              display: "flex",
+              flexDirection: "column",
+              gap: 16,
+            }}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="named-draft-title"
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <span
+                id="named-draft-title"
+                style={{ fontSize: 14, fontWeight: 700, color: CHROME.ink, letterSpacing: "-0.01em" }}
+              >
+                Save named checkpoint
+              </span>
+              <span style={{ fontSize: 12, color: CHROME.muted }}>
+                Give this draft a label so you can identify it in the Revisions history.
+              </span>
+            </div>
+            <input
+              type="text"
+              autoFocus
+              maxLength={48}
+              placeholder="e.g. Before homepage redesign…"
+              value={namedDraftLabel}
+              onChange={(e) => setNamedDraftLabel(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && namedDraftLabel.trim() && !namedDraftPending) {
+                  void handleNamedDraftSubmit();
+                }
+                if (e.key === "Escape" && !namedDraftPending) {
+                  setNamedDraftOpen(false);
+                }
+              }}
+              disabled={namedDraftPending}
+              style={{
+                width: "100%",
+                background: CHROME.surface2,
+                border: `1px solid ${CHROME.violetLine}`,
+                borderRadius: 8,
+                padding: "8px 12px",
+                fontSize: 13,
+                color: CHROME.ink,
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+              aria-label="Checkpoint label"
+            />
+            {namedDraftError ? (
+              <div style={{ fontSize: 12, color: CHROME.rose }}>
+                {namedDraftError}
+              </div>
+            ) : null}
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => { if (!namedDraftPending) setNamedDraftOpen(false); }}
+                disabled={namedDraftPending}
+                style={{
+                  height: 32,
+                  padding: "0 14px",
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: CHROME.text2,
+                  background: CHROME.surface,
+                  border: `1px solid ${CHROME.lineMid}`,
+                  borderRadius: 7,
+                  cursor: namedDraftPending ? "not-allowed" : "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => { void handleNamedDraftSubmit(); }}
+                disabled={namedDraftPending || !namedDraftLabel.trim()}
+                style={{
+                  height: 32,
+                  padding: "0 16px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: "#fff",
+                  background: namedDraftPending || !namedDraftLabel.trim() ? CHROME.muted2 : CHROME.accent,
+                  border: "none",
+                  borderRadius: 7,
+                  cursor: namedDraftPending || !namedDraftLabel.trim() ? "not-allowed" : "pointer",
+                }}
+              >
+                {namedDraftPending ? "Saving…" : "Save checkpoint"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
