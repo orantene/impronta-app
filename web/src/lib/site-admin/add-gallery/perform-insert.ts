@@ -33,6 +33,7 @@ export async function performAddGalleryInsert(
       return { ok: false, error: "This item is not available yet." };
     case "nativeNode":
     case "sectionTemplate":
+    case "dbTemplate":
       return deps.insertBuilderComponent(
         parentId,
         JSON.stringify(action.node),

@@ -7,11 +7,23 @@
  */
 
 import type { BuilderNode, BuilderNodeKind } from "./types";
+import type { SectionEmbedSubjectKind } from "./section-embed-preview-subject";
 
 /** Local id minting — avoids importing `create` (circular via page-designs → impronta). */
 function makeNodeId(kind: BuilderNodeKind): string {
   return `builder-${kind}-${crypto.randomUUID()}`;
 }
+
+/**
+ * WS4 §D — preview-subject binding for this connected resolver. The embedded
+ * `featured_talent` section reads the WORKSPACE roster from request context, so
+ * a `workspace` preview subject rescopes it to the chosen workspace
+ * (see `resolveSectionEmbedSubjectScope` in section-embed-preview-subject.ts;
+ * keys are registered there). Published renders pass no subject → unchanged.
+ */
+export const FEATURED_TALENT_EMBED_KEY = "featured_talent" as const;
+export const FEATURED_TALENT_PREVIEW_SUBJECT_KIND: SectionEmbedSubjectKind =
+  "workspace";
 
 export interface FeaturedTalentDecomposedInput {
   /** Stable root id (migration / page-design presets). */

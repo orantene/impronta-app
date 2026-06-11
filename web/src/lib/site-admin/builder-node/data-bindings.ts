@@ -194,6 +194,27 @@ export const BUILDER_DATA_SOURCE_REGISTRY: ReadonlyArray<BuilderDataSourceDefini
   },
 ] as const;
 
+/**
+ * WS4 §D — preview-subject scope for a `workspace_profile`-bound node.
+ *
+ * The `workspace_profile` source resolves tenant name/brand/contact metadata
+ * from the active tenant. When the editor renders against a `workspace` preview
+ * subject, a `workspace_profile` binding must resolve from `previewSubject.id`
+ * instead of the active tenant. Mirrors `resolveSectionEmbedSubjectScope` for
+ * `section_embed` nodes; `previewSubject == null` (the published default)
+ * returns the active tenant unchanged.
+ */
+export function resolveWorkspaceProfileSubjectTenantId(input: {
+  sourceKey: string;
+  tenantId: string;
+  previewSubject?: { kind: "talent" | "workspace"; id: string } | null;
+}): string {
+  const { sourceKey, tenantId, previewSubject } = input;
+  if (!previewSubject) return tenantId;
+  if (normalizeDataSourceKey(sourceKey) !== "workspace_profile") return tenantId;
+  return previewSubject.kind === "workspace" ? previewSubject.id : tenantId;
+}
+
 const DATA_BINDING_NODE_KINDS = new Set<BuilderNodeKind>(["section", "container"]);
 const FIELD_BINDING_PROPS_BY_KIND: Partial<
   Record<BuilderNodeKind, ReadonlyArray<BuilderFieldBindingProp>>

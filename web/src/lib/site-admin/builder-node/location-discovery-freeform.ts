@@ -15,11 +15,23 @@
  */
 
 import type { BuilderNode, BuilderNodeKind } from "./types";
+import type { SectionEmbedSubjectKind } from "./section-embed-preview-subject";
 
 /** Local id minting — avoids importing `create` (circular via page-designs → impronta). */
 function makeNodeId(kind: BuilderNodeKind): string {
   return `builder-${kind}-${crypto.randomUUID()}`;
 }
+
+/**
+ * WS4 §D — preview-subject binding for this connected resolver. The embedded
+ * `location_discovery` section reads WORKSPACE talent-location coverage from
+ * request context, so a `workspace` preview subject rescopes it to the chosen
+ * workspace (registered in section-embed-preview-subject.ts). Published renders
+ * pass no subject → unchanged.
+ */
+export const LOCATION_DISCOVERY_EMBED_KEY = "location_discovery" as const;
+export const LOCATION_DISCOVERY_PREVIEW_SUBJECT_KIND: SectionEmbedSubjectKind =
+  "workspace";
 
 export interface LocationDiscoveryDecomposedInput {
   /** Stable root id (migration / page-design presets). */

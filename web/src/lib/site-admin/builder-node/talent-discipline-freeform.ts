@@ -9,11 +9,23 @@ import {
 } from "@/lib/site-admin/sections/talent_type_grid/presets";
 
 import type { BuilderNode, BuilderNodeTree, BuilderNodeKind } from "./types";
+import type { SectionEmbedSubjectKind } from "./section-embed-preview-subject";
 
 /** Local id minting — avoids importing `create` (circular via page-designs → impronta). */
 function makeNodeId(kind: BuilderNodeKind): string {
   return `builder-${kind}-${crypto.randomUUID()}`;
 }
+
+/**
+ * WS4 §D — preview-subject binding for this connected resolver. The embedded
+ * `talent_type_grid` section reads the WORKSPACE discipline taxonomy from
+ * request context, so a `workspace` preview subject rescopes it to the chosen
+ * workspace (registered in section-embed-preview-subject.ts). Published renders
+ * pass no subject → unchanged.
+ */
+export const TALENT_TYPE_GRID_EMBED_KEY = "talent_type_grid" as const;
+export const TALENT_TYPE_GRID_PREVIEW_SUBJECT_KIND: SectionEmbedSubjectKind =
+  "workspace";
 
 export interface TalentDisciplineDecomposedInput {
   /** Stable root id (migration / page-design presets). */

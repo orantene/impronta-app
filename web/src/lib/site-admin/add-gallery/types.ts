@@ -1,6 +1,12 @@
-import type { BuilderNodeKind } from "@/lib/site-admin/builder-node/types";
+import type { BuilderNode, BuilderNodeKind } from "@/lib/site-admin/builder-node/types";
 
-export type AddGalleryTab = "layout" | "elements" | "sections" | "connected";
+export type AddGalleryTab =
+  | "layout"
+  | "elements"
+  | "sections"
+  | "connected"
+  /** DB-backed published page/section templates (WS2/WS4). */
+  | "page_templates";
 
 export type AddGalleryInsertMethod =
   | "nativeNode"
@@ -8,6 +14,14 @@ export type AddGalleryInsertMethod =
   | "sectionEmbed"
   | "connectedNode"
   | "disabledComingSoon"
+  /**
+   * DB-backed published template (WS4). Inserts the row's `builder_tree` as an
+   * EDITABLE freeform subtree (every node re-minted, immediately editable) via
+   * `insertBuilderComponent` → `applyBuilderNodeOperation`. ALLOWED by
+   * `assertAddGalleryBuilderTreeOnly` — it never touches `cms_page_sections`
+   * or `composition[]`.
+   */
+  | "dbTemplate"
   /** Developer guard only — must never ship in the agency gallery. */
   | "legacyCompositionSlot"
   | "cmsPageSectionSlot";
@@ -85,6 +99,21 @@ export interface AddGalleryItem {
   sectionTemplateId?: string;
   /** Optional preview image URL for section image cards. */
   previewImageUrl?: string;
+  /** DB-backed template id (insertMethod === "dbTemplate"). */
+  dbTemplateId?: string;
+  /**
+   * Resolved freeform subtree for a `dbTemplate` item (the published row's
+   * `builder_tree`). Carried on the item so `resolveAddGalleryInsertAction`
+   * can re-mint ids + build the insert node without a second DB round-trip.
+   * Ids are re-minted at insert time (the source row is shared/immutable).
+   */
+  dbTemplateTree?: ReadonlyArray<BuilderNode>;
+  /** required_plan for a dbTemplate item (already plan-gated server-side). */
+  requiredPlan?: "free" | "studio" | "agency" | "network";
+  /** target_context for a dbTemplate item (talent | workspace | both | platform). */
+  targetContext?: "talent" | "workspace" | "both" | "platform";
+  /** required_talent_tier for a dbTemplate item (null when unrestricted). */
+  requiredTalentTier?: string | null;
 }
 
 export interface AddGalleryCategoryDef {

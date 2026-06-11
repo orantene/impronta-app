@@ -6,6 +6,7 @@ import {
   createParagraph,
   makeId,
 } from "@/lib/site-admin/builder-node/create";
+import { cloneNodeWithFreshIds } from "@/lib/site-admin/builder-node/operations";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 
 import { buildAddGallerySectionTemplate } from "./section-templates";
@@ -41,6 +42,69 @@ export function createNativeNodeForGalleryItem(item: AddGalleryItem): BuilderNod
   }
   const variant = item.nativeVariant ?? "default";
   return applyNativeVariant(createBuilderNode(item.nativeKind), variant);
+}
+
+/**
+ * Build the editable freeform node for a `dbTemplate` gallery item.
+ *
+ * The published row's `builder_tree` is a freeform `BuilderNode[]`. Every node
+ * id is RE-MINTED (`cloneNodeWithFreshIds`) so the inserted subtree never
+ * collides with the source row or any other inserted copy — each landed node
+ * keeps a brand-new `data-builder-node-id` and is immediately editable.
+ *
+ * Shape:
+ *   - single root  → that root, re-minted, is inserted directly.
+ *   - 0 or 2+ roots → wrapped in ONE re-minted freeform `container` (stack) so
+ *     a whole page template lands as one editable container subtree (never a
+ *     locked page).
+ *
+ * The result is a pure freeform `BuilderNode` — it carries NO `section_embed`
+ * locking, NO composition slot. It routes through `insertBuilderComponent`
+ * exactly like a `sectionTemplate`, so the editor's own insert path validates
+ * + selects it.
+ */
+export function createDbTemplateNodeForGalleryItem(
+  item: AddGalleryItem,
+): BuilderNode {
+  assertAddGalleryBuilderTreeOnly(item);
+  if (item.insertMethod !== "dbTemplate") {
+    throw new Error(`Item "${item.id}" is not a dbTemplate insert.`);
+  }
+  const tree = item.dbTemplateTree;
+  if (!tree || tree.length === 0) {
+    // An empty published tree still yields an editable (empty) container so the
+    // insert never throws — the operator can build inside it.
+    return {
+      id: makeId("container"),
+      kind: "container",
+      props: {
+        layout: "stack",
+        gap: "m",
+        align: "stretch",
+        layerLabel: item.label,
+      },
+      children: [],
+    } as BuilderNode;
+  }
+
+  if (tree.length === 1) {
+    return cloneNodeWithFreshIds(tree[0]!);
+  }
+
+  // Multiple roots → wrap in one freeform container, then re-mint the whole
+  // wrapped subtree (the wrapper gets a fresh id too).
+  const wrapper: BuilderNode = {
+    id: makeId("container"),
+    kind: "container",
+    props: {
+      layout: "stack",
+      gap: "m",
+      align: "stretch",
+      layerLabel: item.label,
+    },
+    children: tree.map((node) => node),
+  } as BuilderNode;
+  return cloneNodeWithFreshIds(wrapper);
 }
 
 function applyNativeVariant(
@@ -314,6 +378,7 @@ function applyNativeVariant(
 export type AddGalleryInsertAction =
   | { type: "nativeNode"; node: BuilderNode }
   | { type: "sectionTemplate"; node: BuilderNode }
+  | { type: "dbTemplate"; node: BuilderNode }
   | { type: "sectionEmbed"; sectionTypeKey: string }
   | { type: "connectedNode"; sectionTypeKey: string }
   | { type: "noop" };
@@ -341,6 +406,8 @@ export function resolveAddGalleryInsertAction(
       }
       return { type: "sectionTemplate", node };
     }
+    case "dbTemplate":
+      return { type: "dbTemplate", node: createDbTemplateNodeForGalleryItem(item) };
     case "sectionEmbed":
     case "connectedNode": {
       const key = item.sectionEmbedKey;

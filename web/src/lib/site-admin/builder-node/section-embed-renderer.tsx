@@ -34,6 +34,7 @@ import {
 } from "@/lib/site-admin/sections/types";
 
 import type { BuilderNode, BuilderSectionEmbedNode } from "./types";
+import { resolveSectionEmbedSubjectScope } from "./section-embed-preview-subject";
 // Wrapper-style helpers (section_embed restyle support). render.tsx imports
 // only this module's TYPE, so importing its values here is not a runtime cycle.
 import { builderNodeStyleAttrs, sharedNodeStyle } from "./render";
@@ -48,6 +49,23 @@ export interface SectionEmbedRenderContext {
   tenantId: string;
   locale: string;
   publicPathPrefix?: string;
+  /**
+   * In-editor PREVIEW SUBJECT (Builder Lab / talent + workspace previews, WS4).
+   *
+   * When set AND its `kind` matches the section embed's subject kind
+   * (see `sectionEmbedPreviewSubjectKind`), the curated section is rendered
+   * scoped to `previewSubject.id` instead of the active `tenantId` — e.g. a
+   * platform operator previewing a template against a chosen workspace sees
+   * THAT workspace's roster/directory data, not the platform tenant's.
+   *
+   * The published storefront ALWAYS passes `null` / omits this field, so a
+   * published render is byte-identical to its pre-WS4 behaviour.
+   */
+  previewSubject?: {
+    kind: "talent" | "workspace";
+    id: string;
+    locale?: string;
+  } | null;
 }
 
 /**
@@ -209,6 +227,17 @@ export function renderSectionEmbed(
   const payloadForRender = prefixPublicHrefsDeep(payload, publicPathPrefix);
   const Component = registryEntry.Component;
 
+  // §D — when an in-editor preview subject matches this section's subject kind,
+  // resolve the section's tenant-scoped data against the subject id instead of
+  // the active tenant. `previewSubject == null` (the published default) returns
+  // the active tenant id + locale unchanged → byte-identical published render.
+  const scope = resolveSectionEmbedSubjectScope({
+    sectionTypeKey,
+    tenantId: context.tenantId,
+    locale: context.locale,
+    previewSubject: context.previewSubject,
+  });
+
   // Wrap so the curated section markup is identifiable in the freeform DOM
   // (selection chrome + scoped styling), matching the storefront wrapper.
   return (
@@ -223,8 +252,8 @@ export function renderSectionEmbed(
     >
       <Component
         props={payloadForRender as never}
-        tenantId={context.tenantId}
-        locale={context.locale}
+        tenantId={scope.tenantId}
+        locale={scope.locale}
         preview={false}
         sectionId={node.props.sectionId ?? undefined}
         publicPathPrefix={publicPathPrefix}
