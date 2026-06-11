@@ -13,7 +13,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   buildAiSearchDocument,
-  type AiSearchDocumentFieldLine,
   type AiSearchDocumentTaxonomyTerm,
   type AiSearchDocumentLanguage,
   type AiSearchDocumentServiceArea,
@@ -27,31 +26,7 @@ import {
   type ProfileTaxonomyRow,
   type TermShape,
 } from "@/lib/taxonomy/engine";
-
-function stringifyFieldValue(row: {
-  value_type: string;
-  value_text: string | null;
-  value_number: number | null;
-  value_boolean: boolean | null;
-  value_date: string | null;
-  value_taxonomy_ids: string[] | null;
-}): string | null {
-  const vt = row.value_type;
-  if (vt === "text" || vt === "textarea") return row.value_text?.trim() || null;
-  if (vt === "number" && row.value_number != null && !Number.isNaN(row.value_number)) {
-    return String(row.value_number);
-  }
-  if (vt === "boolean") return row.value_boolean === null ? null : row.value_boolean ? "Yes" : "No";
-  if (vt === "date" && row.value_date) return row.value_date;
-  if (vt === "taxonomy_single" || vt === "taxonomy_multi") {
-    // Labels resolved separately if needed; store UUIDs as fallback
-    const ids = row.value_taxonomy_ids ?? [];
-    if (ids.length === 0) return null;
-    return ids.join(", ");
-  }
-  if (vt === "location") return row.value_text?.trim() || null;
-  return row.value_text?.trim() || null;
-}
+import { readAiSearchDocFields } from "@/lib/field-engine/read-source-ai-search-doc";
 
 export async function rebuildAiSearchDocument(
   supabase: SupabaseClient,
@@ -237,84 +212,22 @@ export async function rebuildAiSearchDocument(
       }];
     });
 
-    const { data: fieldValueRows, error: fvErr } = await supabase
-      .from("field_values")
-      .select(
-        `
-        value_text,
-        value_number,
-        value_boolean,
-        value_date,
-        value_taxonomy_ids,
-        field_definitions (
-          key,
-          label_en,
-          value_type,
-          ai_visible,
-          internal_only,
-          active,
-          archived_at,
-          public_visible,
-          profile_visible
-        )
-      `,
-      )
-      .eq("talent_profile_id", talentProfileId);
-
-    if (fvErr) {
-      logServerError("rebuildAiSearchDocument/field_values", fvErr);
+    // Load AI-visible field lines + gender gate via the field-engine read seam
+    // (T2.5). The flag `ai_search_doc` decides A (legacy field_values) or B
+    // (canonical talent_profile_field_values); defaults to B as of T2.5.
+    // A B-read that throws safe-falls-back to A — the doc is never silently empty.
+    let aiVisibleFields: import("@/lib/ai/build-ai-search-document").AiSearchDocumentFieldLine[] = [];
+    let genderAiVisible = false;
+    try {
+      const result = await readAiSearchDocFields(supabase, talentProfileId);
+      aiVisibleFields = result.aiVisibleFields;
+      genderAiVisible = result.genderAiVisible;
+    } catch (fieldErr) {
+      logServerError("rebuildAiSearchDocument/field_values", fieldErr);
     }
-
-    const aiVisibleFields: AiSearchDocumentFieldLine[] = [];
-    for (const fv of fieldValueRows ?? []) {
-      const fvRow = fv as Record<string, unknown>;
-      const fd = fvRow.field_definitions;
-      const def = (Array.isArray(fd) ? fd[0] : fd) as
-        | {
-            key: string;
-            label_en: string;
-            value_type: string;
-            ai_visible: boolean;
-            internal_only: boolean;
-            active: boolean;
-            archived_at: string | null;
-            public_visible: boolean;
-            profile_visible: boolean;
-          }
-        | null
-        | undefined;
-      if (!def?.key) continue;
-      if (def.key === "gender") continue;
-      if (!def.ai_visible || def.internal_only || !def.active || def.archived_at) continue;
-      if (!def.public_visible || !def.profile_visible) continue;
-
-      const raw = {
-        value_type: def.value_type,
-        value_text: fvRow.value_text as string | null,
-        value_number: fvRow.value_number as number | null,
-        value_boolean: fvRow.value_boolean as boolean | null,
-        value_date: fvRow.value_date as string | null,
-        value_taxonomy_ids: (fvRow.value_taxonomy_ids as string[] | null) ?? null,
-      };
-      const value = stringifyFieldValue(raw);
-      if (!value) continue;
-      aiVisibleFields.push({
-        key: def.key,
-        label_en: def.label_en ?? def.key,
-        value,
-      });
-    }
-
-    const { data: genderDef } = await supabase
-      .from("field_definitions")
-      .select("key, ai_visible")
-      .eq("key", "gender")
-      .eq("active", true)
-      .is("archived_at", null)
-      .maybeSingle();
 
     const genderForDoc =
-      genderDef?.ai_visible && typeof p.gender === "string" && p.gender.trim() ? p.gender.trim() : null;
+      genderAiVisible && typeof p.gender === "string" && p.gender.trim() ? p.gender.trim() : null;
 
     const document = buildAiSearchDocument({
       displayName: (p.display_name as string | null) ?? null,
