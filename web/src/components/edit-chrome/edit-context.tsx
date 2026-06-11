@@ -56,6 +56,7 @@ import {
 import {
   restoreHomepageRevisionAction,
   restorePageRevisionAction,
+  fetchNewestDraftRevisionIdAction,
 } from "@/lib/site-admin/edit-mode/revisions-actions";
 import type {
   DispatchResult,
@@ -1132,6 +1133,16 @@ export interface EditContextValue {
    * confirmation chip.
    */
   saveDraft: () => Promise<{ ok: boolean; error?: string; savedAt?: string }>;
+  /**
+   * WS4-TASK1: Save an explicit draft checkpoint with a user-supplied label.
+   * Calls `saveDraft()` then fetches the newly-minted revision id (via
+   * `fetchNewestDraftRevisionIdAction`) and persists the label to localStorage
+   * under the standard `builder_revision_labels_v1` key so the revisions drawer
+   * picks it up on its next open.
+   * Resolves `{ ok: true, revisionId, savedAt }` on success; on failure the
+   * error is already surfaced via the mutation-error toast.
+   */
+  saveNamedCheckpoint: (label: string) => Promise<{ ok: boolean; revisionId?: string; error?: string }>;
   /**
    * Flush any debounced/coalesced builder-tree draft save immediately and wait
    * for it (and any save already in flight) to settle. Call this before any
@@ -7385,6 +7396,47 @@ export function EditProvider({
     reportMutationError,
   ]);
 
+  /**
+   * WS4-TASK1: Save named checkpoint — saves the draft, then fetches the
+   * newly-minted revision id and persists the label to localStorage under
+   * the `builder_revision_labels_v1` key so the revisions drawer picks it up.
+   */
+  const saveNamedCheckpoint = useCallback<EditContextValue["saveNamedCheckpoint"]>(
+    async (label: string) => {
+      // First save the draft normally.
+      const saveRes = await saveDraft();
+      if (!saveRes.ok) {
+        return { ok: false, error: saveRes.error };
+      }
+      // We need pageId to query the revision. Non-homepage has it; homepage
+      // falls back to the pageId stored in context state.
+      const effectivePageId = pageId;
+      if (!effectivePageId) {
+        // No pageId available — save still succeeded; just skip label persistence.
+        return { ok: true };
+      }
+      // Fetch the newest draft revision id for this page.
+      const revRes = await fetchNewestDraftRevisionIdAction({ pageId: effectivePageId });
+      if (!revRes.ok) {
+        // Save succeeded — silently skip the label if id fetch fails.
+        return { ok: true };
+      }
+      const trimmedLabel = label.trim();
+      if (trimmedLabel) {
+        try {
+          const raw = window.localStorage.getItem("builder_revision_labels_v1");
+          const map: Record<string, string> = raw ? (JSON.parse(raw) as Record<string, string>) : {};
+          map[revRes.revisionId] = trimmedLabel;
+          window.localStorage.setItem("builder_revision_labels_v1", JSON.stringify(map));
+        } catch {
+          // localStorage unavailable (quota / private browsing) — ignore.
+        }
+      }
+      return { ok: true, revisionId: revRes.revisionId };
+    },
+    [saveDraft, pageId],
+  );
+
   const getCompositionCasVersion = useCallback<
     EditContextValue["getCompositionCasVersion"]
   >(() => pageVersionRef.current, []);
@@ -7626,6 +7678,7 @@ export function EditProvider({
       setSectionVisibility,
 
       saveDraft,
+      saveNamedCheckpoint,
       flushBuilderTreeSave,
       lastDraftSavedAt,
       clearDraftSavedToast,
@@ -7843,6 +7896,7 @@ export function EditProvider({
       lastInsertedNodeId,
       setSectionVisibility,
       saveDraft,
+      saveNamedCheckpoint,
       flushBuilderTreeSave,
       lastDraftSavedAt,
       clearDraftSavedToast,

@@ -66,6 +66,7 @@ import { countPresentationOverrides, countStyleOverrides } from "./inspectors/re
 import type { ViewportDevice } from "./inspectors/responsive-field-state";
 import { SectionA11yWarning } from "./inspectors/SectionA11yWarning";
 import { AiTranslateSectionButton } from "./inspectors/AiTranslateSectionButton";
+import { SectionAiRewritePanel } from "./inspectors/SectionAiRewritePanel";
 import {
   CHROME,
   Drawer,
@@ -1189,6 +1190,21 @@ export function InspectorDock() {
                   selectedBuilderNodeId={selectedBuilderNodeId}
                   onChange={handleContentChange}
                 />
+                {/* WS4-TASK2: AI rewrite — per-field rewrite at the foot of Content */}
+                {currentLoadedSection && currentDraftProps ? (
+                  <SectionAiRewritePanel
+                    sectionTypeKey={currentLoadedSection.sectionTypeKey}
+                    draftProps={currentDraftProps}
+                    onPatch={(patch) => {
+                      setDraftProps((prev) => {
+                        if (!prev) return prev;
+                        return { ...prev, ...patch };
+                      });
+                      setDirty(true);
+                    }}
+                  />
+                ) : null}
+
                 {/* AI translate — secondary tool at the foot of Content */}
                 {currentLoadedSection && currentDraftProps ? (
                   <div className="mt-4 flex justify-end border-t pt-3" style={{ borderColor: CHROME.line }}>

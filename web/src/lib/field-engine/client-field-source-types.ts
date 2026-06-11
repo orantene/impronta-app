@@ -103,14 +103,20 @@ export function wizardParentKeyToDbSlug(
 // registry (the "one engine" target). Per-surface granularity so the wizard,
 // drawer and validation can flip independently as each is proven safe.
 //
-// Default (P1 follow-up, 2026-06-10): the `wizard` surface defaults to `db`
-// (the registration wizard renders the DB registration field set so a
-// super-admin's Profile Fields edits reach registration), while `drawer` and
-// `validation` stay `static` until each is separately proven safe. The server
-// loader does the (heavier) DB resolve + injects a payload whenever ANY surface
-// is `db`; for a `static` surface the client still uses its existing static
-// path untouched. Setting `FIELD_ENGINE_CLIENT_SOURCE=static` reverts every
-// surface (including the wizard) to the old static catalog — the kill switch.
+// Default (T1.4, 2026-06-11): the `wizard` AND `validation` surfaces default to
+// `db`; the `drawer` surface stays `static` until separately proven. The
+// `validation` flip is gated by a parity proof
+// (`field-validation-parity.test.ts`) showing DB-derived pre-save validation is
+// decision-identical to the static catalog for every active field — the editor
+// drawer's publish gate is already DB-resolver-driven, and the registration
+// wizard's `canStep5` reads required/optional off the (already DB-resolved when
+// `wizard=db`) rendered field, so the flip changes no accept/reject decision.
+// The server loader does the (heavier) DB resolve + injects a payload whenever
+// ANY surface is `db`; for a `static` surface the client still uses its
+// existing static path untouched. Setting `FIELD_ENGINE_CLIENT_SOURCE=static`
+// reverts every surface (including the wizard + validation) to the old static
+// catalog — the kill switch. The documented per-surface kill switch for this
+// flip alone is `FIELD_ENGINE_CLIENT_SOURCE=validation:static`.
 //
 // Read once on the server from `process.env`. A single env var sets every
 // surface; the rarely-needed per-surface override uses a comma list like
@@ -133,26 +139,29 @@ export const FIELD_ENGINE_CLIENT_SURFACES: readonly FieldEngineClientSurface[] =
 
 /**
  * The default per-surface flags when `FIELD_ENGINE_CLIENT_SOURCE` is unset.
- * The registration `wizard` reads the DB registration field set; the editor
- * `drawer` + `validation` stay on the static catalog until separately proven.
- * `FIELD_ENGINE_CLIENT_SOURCE=static` is the kill switch (reverts all → static).
+ * The registration `wizard` + `validation` read the DB registration field set;
+ * the editor `drawer` stays on the static catalog until separately proven.
+ * `FIELD_ENGINE_CLIENT_SOURCE=static` is the kill switch (reverts all → static);
+ * `FIELD_ENGINE_CLIENT_SOURCE=validation:static` reverts just the validation flip.
  */
 export const DEFAULT_FIELD_ENGINE_CLIENT_SOURCE_FLAGS: FieldEngineClientSourceFlags = {
   wizard: "db",
   drawer: "static",
-  validation: "static",
+  validation: "db",
 };
 
 /**
  * Parse `FIELD_ENGINE_CLIENT_SOURCE` into per-surface flags.
  *
  * Accepted forms (case-insensitive):
- *   - unset / ""        → the default flags (wizard `db`, drawer/validation
- *                          `static`) — see DEFAULT_FIELD_ENGINE_CLIENT_SOURCE_FLAGS
- *   - "static"          → all `static` (kill switch — reverts the wizard too)
- *   - "db"              → all `db`
- *   - "drawer:db"       → drawer `db`, others keep the default
- *   - "wizard:static"   → wizard `static`, others keep the default
+ *   - unset / ""          → the default flags (wizard `db`, validation `db`,
+ *                            drawer `static`) — see DEFAULT_FIELD_ENGINE_CLIENT_SOURCE_FLAGS
+ *   - "static"            → all `static` (kill switch — reverts every surface)
+ *   - "db"                → all `db`
+ *   - "drawer:db"         → drawer `db`, others keep the default
+ *   - "validation:static" → validation `static`, others keep the default (the
+ *                            documented kill switch for the T1.4 validation flip)
+ *   - "wizard:static"     → wizard `static`, others keep the default
  *   - "wizard:db,drawer:db,validation:static" → explicit per-surface
  *
  * Per-surface tokens layer on top of the default flags (so naming one surface

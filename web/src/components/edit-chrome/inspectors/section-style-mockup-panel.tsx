@@ -117,6 +117,60 @@ export function SectionStyleMockupPanel({
   const paddingTopOverride = getPresentationOverrideDevice(presentation, "paddingTop");
   const visibilityOverride = getPresentationOverrideDevice(presentation, "visibility");
 
+  /**
+   * Clear a single field from a breakpoint bucket in the section presentation.
+   * Reconstructs the full `breakpoints` entry so `onPresentationPatch` (a shallow
+   * merge at the presentation level) lands correctly without stomping other buckets.
+   */
+  function clearPresentationBreakpointField(overrideDevice: string, field: string) {
+    const bp = (presentation.breakpoints as
+      | Partial<Record<string, Record<string, unknown>>>
+      | undefined) ?? {};
+    const bucket = { ...(bp[overrideDevice] ?? {}) };
+    delete bucket[field];
+    const nextBp: Record<string, unknown> = { ...bp };
+    if (Object.keys(bucket).length === 0) {
+      delete nextBp[overrideDevice];
+    } else {
+      nextBp[overrideDevice] = bucket;
+    }
+    onPresentationPatch({
+      breakpoints: Object.keys(nextBp).length > 0 ? nextBp : undefined,
+    });
+  }
+
+  const headingOverrideDevice = getNodePresentationOverrideDevice(
+    heading as Record<string, unknown> | undefined,
+    "fontSizePx",
+  );
+  const bodyOverrideDevice = getNodePresentationOverrideDevice(
+    body as Record<string, unknown> | undefined,
+    "fontSizePx",
+  );
+
+  function resetHeadingBreakpoint() {
+    if (!headingOverrideDevice) return;
+    const od = headingOverrideDevice;
+    onNodePresentationPatch("headline", {
+      breakpoints: {
+        tablet: od === "tablet" ? undefined : heading?.breakpoints?.tablet,
+        mobile: od === "mobile" ? undefined : heading?.breakpoints?.mobile,
+      },
+    });
+  }
+
+  function resetBodyBreakpoint() {
+    if (!bodyOverrideDevice) return;
+    const od = bodyOverrideDevice;
+    const bodyRole = nodePresentation?.subheadline ? "subheadline" : "copy";
+    onNodePresentationPatch(bodyRole, {
+      breakpoints: {
+        tablet: od === "tablet" ? undefined : body?.breakpoints?.tablet,
+        mobile: od === "mobile" ? undefined : body?.breakpoints?.mobile,
+      },
+    });
+  }
+
   const colorValues = useMemo(
     () => ({
       text: heading?.textColor ?? "#111111",
@@ -156,10 +210,8 @@ export function SectionStyleMockupPanel({
           <>
             <InspectorTypographyRow
               title="Heading"
-              overrideDevice={getNodePresentationOverrideDevice(
-                heading as Record<string, unknown> | undefined,
-                "fontSizePx",
-              )}
+              overrideDevice={headingOverrideDevice}
+              onResetOverride={headingOverrideDevice ? resetHeadingBreakpoint : undefined}
               fontFamily={
                 <GoogleFontPicker
                   slot="heading"
@@ -210,10 +262,8 @@ export function SectionStyleMockupPanel({
             />
             <InspectorTypographyRow
               title="Body"
-              overrideDevice={getNodePresentationOverrideDevice(
-                body as Record<string, unknown> | undefined,
-                "fontSizePx",
-              )}
+              overrideDevice={bodyOverrideDevice}
+              onResetOverride={bodyOverrideDevice ? resetBodyBreakpoint : undefined}
               fontFamily={
                 <GoogleFontPicker
                   slot="body"
@@ -329,6 +379,11 @@ export function SectionStyleMockupPanel({
             <InspectorField
               label="Padding top"
               overrideDevice={paddingTopOverride}
+              onResetOverride={
+                paddingTopOverride
+                  ? () => clearPresentationBreakpointField(paddingTopOverride, "paddingTop")
+                  : undefined
+              }
             >
               <Segmented
                 fullWidth
@@ -362,6 +417,11 @@ export function SectionStyleMockupPanel({
           <InspectorField
             label="Section visibility"
             overrideDevice={visibilityOverride}
+            onResetOverride={
+              visibilityOverride
+                ? () => clearPresentationBreakpointField(visibilityOverride, "visibility")
+                : undefined
+            }
           >
             <Segmented
               fullWidth
