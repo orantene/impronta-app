@@ -20,6 +20,7 @@
 
 import { useEffect, useState, useRef, type CSSProperties, type ReactNode } from "react";
 import { type ResolvedField } from "@/lib/server-actions/admin-taxonomy";
+import { HeightDualControl, HEIGHT_CM_FIELD_KEY } from "@/components/fields/HeightDualControl";
 
 // Palette mirrors the real app COLORS tokens (state.tsx) so the Details
 // editor's greys match the New Inquiry / rest of the shell exactly:
@@ -484,6 +485,24 @@ export function FieldEditor({
     }
 
     case "number": {
+      // The single canonical body-height field renders a bespoke cm⇄ft/in
+      // converter (two inputs, live bidirectional conversion). The stored
+      // value stays a plain cm number, so the save/visibility contract is
+      // identical to any other number field.
+      if (field.field_key === HEIGHT_CM_FIELD_KEY) {
+        control = (
+          <HeightDualControl
+            cm={asNumber(draft)}
+            onCm={setDraftAndClearError}
+            onCommit={() => {
+              const s = asNumber(draft);
+              commit(s === "" ? null : Number(s));
+            }}
+            inputStyle={inputStyle}
+          />
+        );
+        break;
+      }
       // B5 — show the unit suffix ("years", "guests") inside the field so
       // the number reads as a quantity, not a bare integer.
       const unit = field.unit?.trim();
