@@ -18,6 +18,10 @@ import {
   loadPlatformCatalogMap,
   type CatalogField,
 } from "../../../catalog-map-data";
+// Canonical section→rail mapping. Shared with the talent profile editor
+// (live-category-fields-editor.tsx) so this admin tab and the editor's field
+// routing never drift. See src/lib/profile-editor/section-field-mapping.ts.
+import { SECTION_FIELD_SECTIONS } from "@/lib/profile-editor/section-field-mapping";
 
 export type EditorSectionField = {
   id: string;
@@ -109,42 +113,8 @@ const EMPTY: EditorLayoutAdmin = {
  * An empty array means the section has no directly-mapped catalog fields
  * (it may be composed or rendered without field-gating).
  */
-// Maps each RAIL section slug (the 20 sections the talent editor actually
-// renders — RAIL_GROUPS / profile_editor_sections) to the DB
-// `profile_field_definitions.section` values whose fields render there.
-//
-// Migration 20260610090001 re-tags most fields onto their editor slug
-// (bios/languages→about, social→social_proof, travel→logistics,
-// documents→files, skills→refinement, emergency→admin, media.polaroids→
-// polaroids). Three editor concepts are NOT standalone rail sections
-// (commercial_terms "Booking terms", refinement "Extra details", reviews) —
-// their fields are folded into the nearest rail accordion (Rates, Details,
-// Credits) so nothing is hidden. Legacy section aliases (travel/skills/social/
-// emergency/documents) are kept as defense-in-depth against drift. Every
-// distinct DB section value is claimed → `unmappedSections` stays empty and
-// the admin "Section Fields" tab mirrors the editor 1:1.
-const SECTION_FIELD_SECTIONS: Record<string, string[]> = {
-  identity: ["identity"],
-  services: ["services"],
-  location: ["location"],
-  logistics: ["logistics", "travel"],
-  media: ["media"],
-  albums: ["albums"],
-  polaroids: ["polaroids"],
-  about: ["about"],
-  physical: ["measurements"],
-  wardrobe: ["wardrobe"],
-  details: ["type-specific", "refinement", "skills"],
-  rates: ["rates", "commercial_terms"],
-  availability: ["availability"],
-  credits: ["credits", "reviews"],
-  limits: ["limits"],
-  files: ["files", "documents"],
-  social_proof: ["social_proof", "social"],
-  verifications: ["verifications"],
-  agency_fields: ["agency_fields"],
-  admin: ["admin", "emergency"],
-};
+// SECTION_FIELD_SECTIONS (the rail-section → DB-section map) now lives in the
+// shared module imported above so the editor and this admin tab cannot drift.
 
 type GroupDbRow = {
   id: string;
