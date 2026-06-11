@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { readAiSearchDocFields } from "@/lib/field-engine/read-source-ai-search-doc";
 
 export type AiSearchDocumentDebugContributor = {
   source: string;
@@ -74,22 +75,6 @@ export async function loadAiSearchDocumentDebug(
     contributors.push({ source: "profile", detail: "Height (profile column)" });
   }
 
-  const { data: genderDef } = await supabase
-    .from("field_definitions")
-    .select("key, ai_visible")
-    .eq("key", "gender")
-    .eq("active", true)
-    .is("archived_at", null)
-    .maybeSingle();
-
-  if (
-    genderDef?.ai_visible &&
-    typeof p.gender === "string" &&
-    p.gender.trim()
-  ) {
-    contributors.push({ source: "profile", detail: "Gender (canonical column, ai_visible)" });
-  }
-
   if (typeof p.short_bio === "string" && p.short_bio.trim()) {
     contributors.push({ source: "profile", detail: "Short bio" });
   }
@@ -116,72 +101,34 @@ export async function loadAiSearchDocumentDebug(
     contributors.push({ source: "taxonomy", detail: `Terms (kind: ${k})` });
   }
 
-  const { data: fvRows } = await supabase
-    .from("field_values")
-    .select(
-      `
-      value_text,
-      value_number,
-      value_boolean,
-      value_date,
-      value_taxonomy_ids,
-      field_definitions (
-        key,
-        label_en,
-        value_type,
-        ai_visible,
-        internal_only,
-        active,
-        archived_at,
-        public_visible,
-        profile_visible
-      )
-    `,
-    )
-    .eq("talent_profile_id", talentProfileId);
+  // Load AI-visible field contributors + gender gate via the field-engine read
+  // seam (T2.5). Uses the same source as rebuildAiSearchDocument so debug and
+  // rebuild agree on which fields contribute to the AI doc.
+  let fieldLines: Array<{ key: string; label_en: string; value: string }> = [];
+  let genderAiVisible = false;
+  try {
+    const fieldResult = await readAiSearchDocFields(supabase, talentProfileId);
+    fieldLines = fieldResult.aiVisibleFields;
+    genderAiVisible = fieldResult.genderAiVisible;
+  } catch {
+    // Fall through: no field_value contributors shown on error (non-critical in debug).
+  }
 
-  for (const fv of fvRows ?? []) {
-    const fvRow = fv as Record<string, unknown>;
-    const fd = fvRow.field_definitions;
-    const def = (Array.isArray(fd) ? fd[0] : fd) as
-      | {
-          key: string;
-          label_en: string;
-          value_type: string;
-          ai_visible: boolean;
-          internal_only: boolean;
-          active: boolean;
-          archived_at: string | null;
-          public_visible: boolean;
-          profile_visible: boolean;
-        }
-      | null
-      | undefined;
-    if (!def?.key) continue;
-    if (def.key === "gender") continue;
-    if (!def.ai_visible || def.internal_only || !def.active || def.archived_at) continue;
-    if (!def.public_visible || !def.profile_visible) continue;
+  // Gender contributor — the gate comes from the field read; the VALUE is always
+  // the profile column (column-backed field).
+  if (
+    genderAiVisible &&
+    typeof p.gender === "string" &&
+    p.gender.trim()
+  ) {
+    contributors.push({ source: "profile", detail: "Gender (canonical column, ai_visible)" });
+  }
 
-    const raw = {
-      value_type: def.value_type,
-      value_text: fvRow.value_text as string | null,
-      value_number: fvRow.value_number as number | null,
-      value_boolean: fvRow.value_boolean as boolean | null,
-      value_date: fvRow.value_date as string | null,
-      value_taxonomy_ids: (fvRow.value_taxonomy_ids as string[] | null) ?? null,
-    };
-    const has =
-      (raw.value_text?.trim() ?? "") ||
-      raw.value_number != null ||
-      raw.value_boolean != null ||
-      (raw.value_date?.trim() ?? "") ||
-      (raw.value_taxonomy_ids?.length ?? 0) > 0;
-    if (has) {
-      contributors.push({
-        source: "field_values",
-        detail: `${def.key} (${def.label_en || def.key})`,
-      });
-    }
+  for (const line of fieldLines) {
+    contributors.push({
+      source: "field_values",
+      detail: `${line.key} (${line.label_en || line.key})`,
+    });
   }
 
   return { storedDocument, hasEmbedding, contributors };
