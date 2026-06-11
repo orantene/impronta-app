@@ -82,7 +82,17 @@ export const DEFAULT_FIELD_ENGINE_READ_SOURCE_FLAGS: FieldEngineReadSourceFlags 
   // Kill switch: FIELD_ENGINE_READ_SOURCE=directory_facets:a (or =a) reverts to
   // System A; a B-read that throws also safe-falls-back to A at runtime.
   directory_facets: "b",
-  public_sidebar: "a",
+  // T2.2 (this PR) ACTIVATES the public-profile sidebar VISIBILITY repoint: the
+  // /t/[profileCode] sidebar section gates now default to the canonical System B
+  // row shape (`profile_field_definitions`), routed through the same already-
+  // canonical visibility resolver — proven byte-identical to System A on the 12
+  // sampled profiles (see read-source-public-sidebar.ts + the PR parity table;
+  // the deprecated `skills` row stays hidden under both stores). ORDER is NOT
+  // repointed (hard-coded JSX render; the two stores' order columns diverge but
+  // never reach the render — see HAZARD #1 in read-source-public-sidebar.ts).
+  // Kill switch: FIELD_ENGINE_READ_SOURCE=public_sidebar:a (or =a) reverts to
+  // System A; a B-read that throws also safe-falls-back to A at runtime.
+  public_sidebar: "b",
   dashboard_nav: "a",
   directory_cards: "a",
   ai_search_doc: "a",
