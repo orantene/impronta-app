@@ -31,7 +31,7 @@
 export type FieldEngineReadSource = "a" | "b";
 
 /**
- * The five System-A reader surfaces being repointed in Phase 2, one task each:
+ * The System-A reader surfaces repointed in Phase 2, one task each:
  *   directory_facets — T2.1 — directory facet filtering (value reads +
  *     field_definitions facet config). apply-directory-field-facet-filters.ts,
  *     fetch-directory-page.ts, directory-filter-catalog.ts.
@@ -44,13 +44,21 @@ export type FieldEngineReadSource = "a" | "b";
  *     directory-card-display-catalog.ts.
  *   ai_search_doc    — T2.5 — AI search-doc field reader.
  *     rebuild-ai-search-document.ts, ai-search-document-debug.ts.
+ *   directory_search — T2.5a — the legacy directory text-search `field_values`
+ *     reader. read-source-directory-search.ts (called from
+ *     directory-search-legacy.ts).
+ *   directory_card_values — T2.5a — the per-profile directory card VALUE reader
+ *     (`field_values` by card def-ids). read-source-directory-card-values.ts
+ *     (called from fetch-directory-page.ts).
  */
 export type FieldEngineReadSurface =
   | "directory_facets"
   | "public_sidebar"
   | "dashboard_nav"
   | "directory_cards"
-  | "ai_search_doc";
+  | "ai_search_doc"
+  | "directory_search"
+  | "directory_card_values";
 
 export const FIELD_ENGINE_READ_SURFACES: readonly FieldEngineReadSurface[] = [
   "directory_facets",
@@ -58,6 +66,8 @@ export const FIELD_ENGINE_READ_SURFACES: readonly FieldEngineReadSurface[] = [
   "dashboard_nav",
   "directory_cards",
   "ai_search_doc",
+  "directory_search",
+  "directory_card_values",
 ] as const;
 
 export type FieldEngineReadSourceFlags = Record<
@@ -127,6 +137,31 @@ export const DEFAULT_FIELD_ENGINE_READ_SOURCE_FLAGS: FieldEngineReadSourceFlags 
   // FIELD_ENGINE_READ_SOURCE=ai_search_doc:a (or =a) reverts to System A; a
   // B-read that throws also safe-falls-back to A at runtime.
   ai_search_doc: "b",
+  // T2.5a (this PR) ACTIVATES the legacy directory TEXT-SEARCH value-store
+  // repoint: the `field_values.value_text` ILIKE leg of the legacy directory
+  // search now defaults to canonical System B (`talent_profile_field_values`),
+  // via read-source-directory-search.ts. The 13 BRIDGED searchable keys read B;
+  // the 3 UN-BRIDGED social-URL keys (instagram_url/tiktok_url/youtube_url —
+  // no canonical B def) keep reading A so search coverage stays byte-identical
+  // (proven 0/0 symmetric-diff on 14 sample queries incl. the social-URL ones).
+  // display_name/short_bio carry NO field_values data (covered by the
+  // talent_profiles column search in the same legacy query). Kill switch:
+  // FIELD_ENGINE_READ_SOURCE=directory_search:a (or =a); a B-read that throws
+  // also safe-falls-back to A at runtime.
+  directory_search: "b",
+  // T2.5a (this PR) ACTIVATES the per-profile directory CARD VALUE repoint: the
+  // `field_values` read by card def-ids (rendered into card_attributes) now
+  // defaults to canonical System B, via read-source-directory-card-values.ts.
+  // The reader maps each card def's A `key` → B `field_key` (legacy-mirror
+  // bridge) and reads BRIDGED SCALAR keys from `talent_profile_field_values`,
+  // projecting back into the SAME `FieldValueRow` shape keyed by the A def-id so
+  // `buildCardAttributesForProfile` is unchanged. Taxonomy/location card defs
+  // (talent_type, industries, location) are NOT bridged scalars and carry ZERO
+  // field_values scalar data under A (proven) — they render from
+  // talent_profile_taxonomy assignments either way, so the card output is
+  // byte-identical. Kill switch: FIELD_ENGINE_READ_SOURCE=directory_card_values:a
+  // (or =a); a B-read that throws also safe-falls-back to A at runtime.
+  directory_card_values: "b",
 };
 
 /**
