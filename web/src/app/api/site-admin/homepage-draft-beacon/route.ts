@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { requireStaffApi } from "@/lib/server/staff-api-route";
-import { saveDraftHomepageAction } from "@/lib/site-admin/edit-mode/composition-actions";
+import { applyHomepageDraftBeaconAction } from "@/lib/site-admin/edit-mode/composition-actions";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 
 /**
@@ -16,15 +16,18 @@ import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
  *
  * This route is a plain JSON POST the pagehide handler hits with
  * `fetch(..., { keepalive: true })` (or `navigator.sendBeacon`), which the
- * browser is required to complete even as the page unloads. It reuses the EXACT
- * same `saveDraftHomepageAction` path (same auth via requireStaffApi cookies,
- * same CAS, same capability/validation), so it is just a delivery-guaranteed
- * wrapper — not a second save implementation.
+ * browser is required to complete even as the page unloads. It reuses the same
+ * auth (requireStaffApi cookies) + capability/validation as the editor's draft
+ * save, so it is a delivery-guaranteed wrapper, not a second save implementation.
  *
- * Best-effort by nature: a stale `expectedVersion` (a concurrent save landed
- * first) returns 409 and the beacon is simply dropped — the operator's
- * in-session draft already persisted on the previous keystroke's debounce, and
- * the normal editor flow recovers on next load.
+ * WS1-D — LAST-WRITE-WINS. The beacon carries the operator's per-tab
+ * `editSessionId` + a monotonic `draftSeq`. `applyHomepageDraftBeaconAction`
+ * compares them against the stamp on the stored draft and, for the operator's
+ * OWN latest edit (same session + newer seq), bypasses the brittle version CAS
+ * that used to 409-drop the last edit when a concurrent save bumped the version.
+ * A different session, a stale seq, or an empty tree over good content is refused
+ * (returns ok with no version change — nothing to retry). Cross-session /
+ * co-editor conflicts still hard-fail.
  */
 const bodySchema = z.object({
   locale: z.string().min(2).max(8),
@@ -43,6 +46,9 @@ const bodySchema = z.object({
   // The builder tree is validated server-side by the shared save path; accept
   // it opaquely here (same as the server action's `builderTree?: BuilderNodeTree`).
   builderTree: z.unknown().optional(),
+  // WS1-D — per-tab edit-session token (uuid) + monotonic draft seq for LWW.
+  editSessionId: z.string().uuid(),
+  draftSeq: z.number().int().min(0),
 });
 
 export async function POST(request: Request) {
@@ -61,18 +67,22 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await saveDraftHomepageAction({
+    const result = await applyHomepageDraftBeaconAction({
       locale: parsed.data.locale,
       pageId: parsed.data.pageId ?? null,
       expectedVersion: parsed.data.expectedVersion,
       metadata:
         parsed.data.metadata as Parameters<
-          typeof saveDraftHomepageAction
+          typeof applyHomepageDraftBeaconAction
         >[0]["metadata"],
       slots: parsed.data.slots,
       builderTree: parsed.data.builderTree as Parameters<
-        typeof saveDraftHomepageAction
+        typeof applyHomepageDraftBeaconAction
       >[0]["builderTree"],
+      editSession: {
+        id: parsed.data.editSessionId,
+        seq: parsed.data.draftSeq,
+      },
     });
     if (!result.ok) {
       // A version conflict means another writer won — drop the beacon quietly.

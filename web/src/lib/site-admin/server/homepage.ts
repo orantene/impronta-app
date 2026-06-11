@@ -91,6 +91,7 @@ import {
 import { enforceFreePlanNestedBuilderDraftGuard } from "./free-plan-draft-save-guard";
 import type { PageRow } from "./pages";
 import { recoverBuilderTreeIfEmpty } from "./recover-builder-tree";
+import { decideBeaconLastWriteWins } from "./beacon-last-write-wins";
 
 // ---- row shapes -----------------------------------------------------------
 
@@ -629,6 +630,13 @@ export async function saveHomepageDraftComposition(
      * fixed `getPageDesign` registry, so no user-supplied tree can use this.
      */
     seedCuratedDesign?: boolean;
+    /**
+     * WS1-D — the writer's per-tab edit-session token + monotonic draft sequence.
+     * Stamped onto the `cms_pages` row so the pagehide beacon can be granted a
+     * last-write-wins lane WITHIN this operator's own session. Optional: legacy
+     * callers (composer, older shells) omit it and the columns stay NULL.
+     */
+    editSession?: { id: string; seq: number };
   },
 ): Promise<Phase5Result<{ id: string; version: number }>> {
   const { tenantId, values, actorProfileId } = params;
@@ -769,6 +777,14 @@ export async function saveHomepageDraftComposition(
       noindex: values.metadata.noindex ?? false,
       version: nextVersion,
       updated_by: actorProfileId,
+      // WS1-D — stamp the writer's edit-session token + draft seq so the pagehide
+      // beacon can later compare against the stored draft for last-write-wins.
+      ...(params.editSession
+        ? {
+            edit_session_id: params.editSession.id,
+            draft_seq: params.editSession.seq,
+          }
+        : {}),
     })
     .eq("id", beforeRow.id)
     .eq("tenant_id", tenantId)
@@ -871,6 +887,179 @@ export async function saveHomepageDraftComposition(
   });
 
   return ok({ id: updatedPage.id, version: updatedPage.version });
+}
+
+// ---- applyHomepageDraftBeacon (WS1-D last-write-wins) ----------------------
+
+export type BeaconLwwResult =
+  | { ok: true; pageVersion: number; applied: true }
+  | { ok: true; applied: false; reason: string }
+  | { ok: false; error: string; code?: string };
+
+/**
+ * WS1-D — apply a pagehide draft beacon under LAST-WRITE-WINS instead of the
+ * brittle version CAS.
+ *
+ * The keepalive `pagehide` beacon carries the operator's per-tab
+ * `editSessionId` + a monotonic `draftSeq`. We compare them against the
+ * `edit_session_id` / `draft_seq` last stamped on the `cms_pages` row:
+ *   - SAME session + STRICTLY-NEWER seq → the beacon is the operator's own
+ *     latest edit; apply it (bypassing the version CAS that would otherwise 409
+ *     when a normal in-flight save bumped the version first).
+ *   - different/NULL session, stale seq, or an EMPTY tree over good content →
+ *     refuse (the empty-over-good guard mirrors `recoverBuilderTreeIfEmpty`:
+ *     an empty beacon must never clobber a non-empty stored draft).
+ *
+ * The actual write reuses `saveHomepageDraftComposition` (same gates / revision
+ * / audit) with the CURRENT version as `expectedVersion`, so it stays atomic.
+ * Because the LWW decision has already granted this operator's latest edit, a
+ * concurrent version bump between our read and the CAS write is retried a few
+ * times rather than dropped — the beacon's whole purpose is to not lose the
+ * last edit.
+ */
+export async function applyHomepageDraftBeacon(
+  supabase: SupabaseClient,
+  params: {
+    tenantId: string;
+    values: HomepageSaveDraftValues;
+    styleClasses?: BuilderStyleClassRegistry;
+    actorProfileId: string | null;
+    editSession: { id: string; seq: number };
+    /** Whether the incoming beacon tree has real content (non-empty). */
+    incomingHasContent: boolean;
+    correlationId?: string;
+  },
+): Promise<BeaconLwwResult> {
+  const { tenantId, values, editSession } = params;
+
+  await requirePhase5Capability("agency.site_admin.homepage.compose", tenantId);
+
+  if (values.tenantId !== tenantId) {
+    return { ok: false, error: "tenantId mismatch", code: "FORBIDDEN" };
+  }
+
+  // Load the homepage row + the WS1-D stamps + a content signal for the stored
+  // draft (does it currently hold real builder/composition content?).
+  const { data: row, error: loadErr } = await supabase
+    .from("cms_pages")
+    .select("id, version, edit_session_id, draft_seq")
+    .eq("tenant_id", tenantId)
+    .eq("locale", values.locale)
+    .eq("is_system_owned", true)
+    .eq("system_template_key", "homepage")
+    .maybeSingle<{
+      id: string;
+      version: number;
+      edit_session_id: string | null;
+      draft_seq: number | null;
+    }>();
+  if (loadErr) return { ok: false, error: loadErr.message, code: "FORBIDDEN" };
+  if (!row) return { ok: false, error: "Homepage row not found.", code: "NOT_FOUND" };
+
+  const storedHasContent = await homepageDraftHasContent(supabase, {
+    tenantId,
+    pageId: row.id,
+    pageVersion: row.version,
+  });
+
+  const decision = decideBeaconLastWriteWins(
+    {
+      editSessionId: row.edit_session_id,
+      draftSeq: row.draft_seq,
+      storedHasContent,
+    },
+    {
+      editSessionId: editSession.id,
+      draftSeq: editSession.seq,
+      incomingHasContent: params.incomingHasContent,
+    },
+  );
+
+  if (!decision.apply) {
+    // Refused: not this operator's latest edit (or empty-over-good). Drop it
+    // quietly — the operator's in-session draft already persisted on the
+    // previous keystroke's debounce.
+    return { ok: true, applied: false, reason: decision.reason };
+  }
+
+  // Granted. Apply via the standard draft-save path under the CURRENT version,
+  // retrying a couple times if a concurrent save bumps the version in the gap.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const { data: liveRow } = await supabase
+      .from("cms_pages")
+      .select("version")
+      .eq("id", row.id)
+      .eq("tenant_id", tenantId)
+      .maybeSingle<{ version: number }>();
+    if (!liveRow) return { ok: false, error: "Homepage row not found.", code: "NOT_FOUND" };
+
+    const res = await saveHomepageDraftComposition(supabase, {
+      tenantId,
+      values: { ...values, expectedVersion: liveRow.version },
+      styleClasses: params.styleClasses,
+      actorProfileId: params.actorProfileId,
+      correlationId: params.correlationId,
+      editSession,
+    });
+    if (res.ok) {
+      return { ok: true, pageVersion: res.data.version, applied: true };
+    }
+    if (res.code !== "VERSION_CONFLICT") {
+      return { ok: false, error: res.message ?? "Beacon save failed", code: res.code };
+    }
+    // VERSION_CONFLICT — a normal save landed in the gap. LWW already granted
+    // this beacon, so re-read the version and try again.
+  }
+  return { ok: false, error: "Beacon save lost a version race", code: "VERSION_CONFLICT" };
+}
+
+/**
+ * WS1-D helper — does the homepage's current DRAFT hold real content (any
+ * builder nodes OR any draft composition slot rows)? Used to refuse an empty
+ * beacon over a good stored draft (empty-load-incident guard). Defensive: on a
+ * query error we treat the stored draft as "has content" so we NEVER let an
+ * empty beacon through on an ambiguous read.
+ */
+async function homepageDraftHasContent(
+  supabase: SupabaseClient,
+  params: { tenantId: string; pageId: string; pageVersion: number },
+): Promise<boolean> {
+  // (1) draft composition slot rows
+  const { count, error: countErr } = await supabase
+    .from("cms_page_sections")
+    .select("id", { count: "exact", head: true })
+    .eq("tenant_id", params.tenantId)
+    .eq("page_id", params.pageId)
+    .eq("is_draft", true);
+  if (countErr) return true; // ambiguous → protect content
+  if ((count ?? 0) > 0) return true;
+
+  // (2) builder tree from the version-matched draft revision, with the
+  // empty-load self-heal so a transiently-empty pointer doesn't read as empty.
+  const { data: rev } = await supabase
+    .from("cms_page_revisions")
+    .select("snapshot")
+    .eq("tenant_id", params.tenantId)
+    .eq("page_id", params.pageId)
+    .eq("version", params.pageVersion)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ snapshot: { builderTree?: unknown } | null }>();
+  const versionMatchedTree =
+    rev?.snapshot && typeof rev.snapshot === "object"
+      ? rev.snapshot.builderTree
+      : undefined;
+  const recovered = await recoverBuilderTreeIfEmpty(
+    supabase,
+    {
+      tenantId: params.tenantId,
+      pageId: params.pageId,
+      pageVersion: params.pageVersion,
+      hasSlots: false,
+    },
+    versionMatchedTree,
+  );
+  return Array.isArray(recovered) && recovered.length > 0;
 }
 
 // ---- publishHomepage -----------------------------------------------------

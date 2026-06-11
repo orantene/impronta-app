@@ -140,6 +140,70 @@ function getSessionId(): string {
   return id;
 }
 
+// ── per-TAB EDIT-SESSION token (WS1-D — beacon last-write-wins) ──────────────
+//
+// A UUID-shaped, sessionStorage-backed token unique to THIS tab, minted once per
+// edit session. It is the SAME per-tab-session pattern WS1-A presence uses
+// (sessionStorage so it survives reloads but not a new tab), but kept as a
+// distinct token because it must be a real `uuid` to stamp the `edit_session_id`
+// column on `cms_pages` (the presence id is a `tab-…` string, not a uuid). Every
+// draft save AND the pagehide beacon stamp this token so the server can grant the
+// beacon a last-write-wins lane WITHIN the operator's own session (see
+// `applyHomepageDraftBeacon`), while a different session / co-editor still
+// hard-fails the version CAS.
+
+let _editSessionId: string | null = null;
+
+function makeUuid(): string {
+  try {
+    if (
+      typeof crypto !== "undefined" &&
+      typeof crypto.randomUUID === "function"
+    ) {
+      return crypto.randomUUID();
+    }
+  } catch {
+    // crypto may be unavailable in some embeds — fall through to the manual mint
+  }
+  // RFC-4122-shaped fallback (version 4) for environments without crypto.randomUUID.
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+/**
+ * A stable `uuid` unique to THIS browser tab's edit session (sessionStorage is
+ * per-tab). Reused by every draft save and the pagehide beacon as the
+ * `edit_session_id` last-write-wins key.
+ */
+export function getEditSessionId(): string {
+  if (_editSessionId) return _editSessionId;
+  try {
+    const stored =
+      typeof sessionStorage !== "undefined"
+        ? sessionStorage.getItem("edit:session-id")
+        : null;
+    if (stored) {
+      _editSessionId = stored;
+      return stored;
+    }
+  } catch {
+    // sessionStorage may be blocked — fall through to an in-memory token
+  }
+  const id = makeUuid();
+  _editSessionId = id;
+  try {
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.setItem("edit:session-id", id);
+    }
+  } catch {
+    // ignore
+  }
+  return id;
+}
+
 // ── context ───────────────────────────────────────────────────────────────────
 
 const PresenceContext = createContext<PresenceContextValue>({

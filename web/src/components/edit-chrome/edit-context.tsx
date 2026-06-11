@@ -139,6 +139,7 @@ import {
 import { publishDirty } from "./dirty-bridge";
 import { publishBuilderTree } from "./builder-tree-bridge";
 import { publishCanUndo, publishCanRedo } from "./history-bridge";
+import { getEditSessionId } from "./presence-provider";
 import {
   readOsBuilderClipboard,
   writeOsBuilderClipboard,
@@ -2422,6 +2423,29 @@ export function EditProvider({
   const flushBuilderTreeSaveRef = useRef<() => Promise<unknown>>(() =>
     Promise.resolve(),
   );
+  // WS1-D — monotonic per-session draft sequence. Every draft save AND the
+  // pagehide beacon stamp `cms_pages.draft_seq` with the next value, paired with
+  // the per-tab `getEditSessionId()` token. The beacon fires AFTER the last
+  // normal save, so its seq is strictly greater → it wins the server's
+  // last-write-wins comparison for THIS operator's own latest edit, bypassing the
+  // brittle version CAS that used to silently drop it.
+  //
+  // Seeded lazily from the wall clock (NOT inline at render — `Date.now()` is
+  // impure and the purity lint rule forbids it during render) so even a
+  // brand-new session starts above any stale stored seq from a prior session of
+  // the same row.
+  const draftSeqRef = useRef<number | null>(null);
+  const nextDraftSeq = useCallback((): number => {
+    if (draftSeqRef.current === null) draftSeqRef.current = Date.now();
+    return ++draftSeqRef.current;
+  }, []);
+  const nextEditSession = useCallback(
+    (): { id: string; seq: number } => ({
+      id: getEditSessionId(),
+      seq: nextDraftSeq(),
+    }),
+    [nextDraftSeq],
+  );
 
   useEffect(() => {
     pageVersionRef.current = pageVersion;
@@ -3377,37 +3401,23 @@ export function EditProvider({
         void flushBuilderTreeSaveRef.current();
       }
     };
-    // ── ASSESSMENT (lane/save-abort, Task 2 — no code change here) ─────────
-    // KNOWN GAP: the beacon CAS-conflicts and silently drops the last edit when
-    // a normal debounced save advanced the version just before tab-close.
+    // ── WS1-D — beacon LAST-WRITE-WINS (the fix for the old KNOWN GAP) ─────
+    // History of the gap (now fixed): the beacon used to carry only the version
+    // CAS. If a normal debounced save (or a co-editor) bumped the page row's
+    // version just before tab-close, the beacon's `expectedVersion` was stale,
+    // the server returned VERSION_CONFLICT → 409, and the operator's LAST edit
+    // was silently dropped.
     //
-    // Repro: edit (commit v→arms 750ms debounce) → that save lands, bumping the
-    // page row version N→N+1 and `pageVersionRef`→N+1 → operator edits AGAIN
-    // (pendingTree set, new 750ms timer) → closes the tab INSIDE that second
-    // window. `onPageHide` fires the beacon with expectedVersion = the ref's
-    // CURRENT value. Usually that is N+1 (correct) and the beacon wins. But the
-    // FAILURE case is a beacon racing an in-flight *normal* save (or a co-editor
-    // write) that bumps the row to N+2 first: the beacon still carries N+1, the
-    // server CAS (`pageRow.version !== expectedVersion`) returns VERSION_CONFLICT
-    // → 409 → the route drops it quietly (route.ts:78-83) and the last edit is
-    // LOST. The abort work in this lane makes superseded normal saves resolve
-    // FASTER, which slightly *widens* the window where a just-bumped version and
-    // an unawaited beacon can disagree — so this is worth fixing next.
-    //
-    // CLEANEST FIX (REQUIRES A MIGRATION — deliberately deferred, not done here):
-    // give the beacon a last-write-wins lane keyed on an EDIT/SESSION TOKEN so it
-    // bypasses the version CAS for the operator's own latest draft. Add a nullable
-    // `edit_session_id uuid` (+ `draft_seq bigint`) to the draft row (cms_pages /
-    // cms_page_revisions draft); the editor mints one token per edit session and
-    // stamps every save + the beacon with it. A dedicated beacon write path does
-    // "apply iff edit_session_id matches AND draft_seq > stored" — last-write-wins
-    // WITHIN a session, while cross-session/co-editor conflicts still hard-fail.
-    // This needs the new columns, so it is a schema migration + a new server path,
-    // NOT a beacon-semantics tweak — out of scope for this lane by instruction.
-    // Interim (no migration) mitigations are weaker: (a) re-read the live version
-    // right before the beacon — impossible to do reliably during unload; (b) have
-    // the beacon send expectedVersion:-1 to force last-write-wins — UNSAFE, it
-    // would clobber a genuine co-editor. So the token migration is the real fix.
+    // The fix: every draft save AND this beacon now stamp `cms_pages`
+    // `edit_session_id` (the per-tab `getEditSessionId()` token, also used by
+    // WS1-A presence) + a monotonic `draft_seq` (`draftSeqRef`). The dedicated
+    // beacon server path (`applyHomepageDraftBeacon`) applies the beacon's tree
+    // IFF its `edit_session_id` matches the stored one AND `draft_seq > stored`
+    // — last-write-wins WITHIN the operator's own session — bypassing the
+    // version CAS that used to drop it. A different session / co-editor (different
+    // token) still hard-fails, and an EMPTY beacon over a good stored draft is
+    // refused (homepage draft empty-load incident guard). The beacon fires after
+    // the last normal save, so its seq is strictly greater → it wins.
     //
     // W1-T5(c) — on a hard PAGEHIDE the page may be torn down immediately, and a
     // server action's underlying fetch is NOT keepalive, so the non-awaited
@@ -3435,6 +3445,17 @@ export function EditProvider({
         metadata,
         slots: slotsForSave,
         builderTree: pendingTree,
+        // WS1-D — stamp the beacon with the per-tab session token + the NEXT seq.
+        // The beacon fires after the last normal save, so this seq is strictly
+        // greater → the server applies it under last-write-wins for THIS
+        // operator's own latest edit, bypassing the version CAS that used to
+        // 409-drop it. Bumped straight off the ref (lazily seeded like
+        // `nextDraftSeq`) so this stays a mount-only, ref-only effect.
+        editSessionId: getEditSessionId(),
+        draftSeq: (() => {
+          if (draftSeqRef.current === null) draftSeqRef.current = Date.now();
+          return ++draftSeqRef.current;
+        })(),
       });
       try {
         // fetch+keepalive carries cookies (auth) and survives unload; sendBeacon
@@ -5029,6 +5050,9 @@ export function EditProvider({
               const classes = readStyleClasses(pageId);
               return classes.length > 0 ? toStyleClassRegistry(classes) : undefined;
             })(),
+            // WS1-D — stamp this save with the per-tab session token + next seq
+            // so the pagehide beacon can last-write-wins against the stored draft.
+            editSession: nextEditSession(),
           }),
         {
           name: "saveDraftHomepageAction",
@@ -5176,6 +5200,8 @@ export function EditProvider({
       refreshComposition,
       queueRouterRefresh,
       reportMutationError,
+      // WS1-D — stamps each save with the per-tab session token + next seq.
+      nextEditSession,
       // W1-T5(a) — synchronous undo-stack re-stamp on save success.
       flushUndoPersist,
     ],
