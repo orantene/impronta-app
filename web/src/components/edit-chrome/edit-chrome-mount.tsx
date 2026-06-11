@@ -26,10 +26,8 @@ import { improntaLog } from "@/lib/server/structured-log";
 import { headers } from "next/headers";
 import { requireStaff } from "@/lib/server/action-guards";
 import { getPublicHostContext } from "@/lib/saas/scope";
-import {
-  loadHomepageCompositionAction,
-  type CompositionData,
-} from "@/lib/site-admin/edit-mode/composition-actions";
+import { type CompositionData } from "@/lib/site-admin/edit-mode/composition-actions";
+import { homepageAdapter } from "@/lib/site-admin/builder-core/adapters/homepage-adapter";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { resolveStorefrontLocale } from "@/lib/site-admin/server/storefront-locale";
@@ -211,10 +209,16 @@ export async function EditChromeMount() {
     }
   }
 
+  // WS1 core-adapter seam — the storefront editor is the homepage surface, so
+  // prefetch through the homepage adapter's `load` (a pure pass-through over
+  // `loadHomepageCompositionAction`). Behaviour is byte-identical; routing the
+  // prefetch through the adapter keeps server + client on the one seam. The
+  // EditChrome client layer builds the matching homepage BuilderContextConfig
+  // and threads it into EditProvider.
   let initialComposition: CompositionData | null = null;
   if (editActive) {
     try {
-      const res = await loadHomepageCompositionAction({
+      const res = await homepageAdapter.load({
         locale: localeContext.locale,
         pageSlug,
       });

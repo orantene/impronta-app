@@ -52,6 +52,9 @@ interface IframeChildProps {
   tenantSiteLabel?: string | null;
   workspaceMembershipSlug?: string | null;
   canInsertRawHtmlElements?: boolean;
+  /** WS1 — surface config forwarded to the iframe's own EditProvider. Defaults
+   *  to the homepage config when omitted (the storefront iframe IS homepage). */
+  surfaceConfig?: import("@/lib/site-admin/builder-core/config").BuilderContextConfig;
 }
 
 export function IframeChild({
@@ -65,6 +68,7 @@ export function IframeChild({
   tenantSiteLabel = null,
   workspaceMembershipSlug = null,
   canInsertRawHtmlElements = false,
+  surfaceConfig,
 }: IframeChildProps) {
   return (
     <EditErrorBoundary>
@@ -90,6 +94,7 @@ export function IframeChild({
         tenantSiteLabel={tenantSiteLabel}
         workspaceMembershipSlug={workspaceMembershipSlug}
         canInsertRawHtmlElements={canInsertRawHtmlElements}
+        surfaceConfig={surfaceConfig}
       >
         {/* The storefront DOM is rendered by the host page (page.tsx →
             AgencyHomeStorefront). All we add here is the selection

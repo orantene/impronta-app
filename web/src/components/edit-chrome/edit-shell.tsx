@@ -227,6 +227,14 @@ interface EditShellProps {
   workspaceMembershipSlug?: string | null;
   /** True only for platform owners (super_admin) — gates raw-HTML `code` insertion. */
   canInsertRawHtmlElements?: boolean;
+  /**
+   * WS1 core-adapter seam — surface config injected into EditProvider. The
+   * storefront mount leaves this undefined → EditProvider defaults to the
+   * homepage config (byte-identical). New mount points (BuilderEditorMount)
+   * pass their own config so the same editor persists against a different
+   * surface adapter.
+   */
+  surfaceConfig?: import("@/lib/site-admin/builder-core/config").BuilderContextConfig;
   children?: React.ReactNode;
 }
 
@@ -241,6 +249,7 @@ export function EditShell({
   tenantSiteLabel = null,
   workspaceMembershipSlug = null,
   canInsertRawHtmlElements = false,
+  surfaceConfig,
   children,
 }: EditShellProps) {
   return (
@@ -256,6 +265,7 @@ export function EditShell({
         tenantSiteLabel={tenantSiteLabel}
         workspaceMembershipSlug={workspaceMembershipSlug}
         canInsertRawHtmlElements={canInsertRawHtmlElements}
+        surfaceConfig={surfaceConfig}
       >
         {/* 4C — wrap in the canvas viewport provider so zoom/pan/rulers/guides
             are available to all chrome components inside the editor. The
