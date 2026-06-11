@@ -6,6 +6,7 @@ import {
   isResolvedFieldVisibleOnDirectoryCard,
   type PublicSurfaceContext,
 } from "@/lib/field-engine/public-surface-visibility";
+import { readDirectoryCardCatalog } from "@/lib/field-engine/read-source-directory-cards";
 
 export type DirectoryCardScalarDef = {
   id: string;
@@ -154,7 +155,13 @@ async function loadDirectoryCardDisplayCatalogUncached(
   return { fitLabelsEnabled, heightCardDef, scalarCardDefs };
 }
 
-/** Cached field catalog for directory cards — invalidated with `CACHE_TAG_DIRECTORY`. */
+/** Cached field catalog for directory cards — invalidated with `CACHE_TAG_DIRECTORY`.
+ *
+ *  T2.4: the uncached load is now dispatched through the `directory_cards`
+ *  read-source seam (`read-source-directory-cards.ts`). Flag `a` (default)
+ *  preserves the legacy System A read byte-for-byte; flag `b` reads canonical
+ *  System B. Kill switch: `FIELD_ENGINE_READ_SOURCE=directory_cards:a`.
+ */
 export function getCachedDirectoryCardDisplayCatalog(
   opts: DirectoryCardDisplayCatalogOptions = {},
 ): Promise<DirectoryCardDisplayCatalog> {
@@ -162,8 +169,10 @@ export function getCachedDirectoryCardDisplayCatalog(
   const cacheKey = tenantId
     ? `directory-card-display-catalog-v4:${tenantId}`
     : "directory-card-display-catalog-v4:canonical";
+  const publicSupabase = createPublicSupabaseClient();
+  const supabase = createServiceRoleClient() ?? publicSupabase;
   return unstable_cache(
-    () => loadDirectoryCardDisplayCatalogUncached({ tenantId }),
+    () => readDirectoryCardCatalog(supabase, { tenantId }),
     [cacheKey],
     { tags: [CACHE_TAG_DIRECTORY], revalidate: 120 },
   )();

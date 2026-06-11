@@ -105,22 +105,27 @@ export const DEFAULT_FIELD_ENGINE_READ_SOURCE_FLAGS: FieldEngineReadSourceFlags 
   // Kill switch: FIELD_ENGINE_READ_SOURCE=dashboard_nav:a (or =a) reverts to
   // System A instantly; a B-read that throws also safe-falls-back to A.
   dashboard_nav: "b",
-  directory_cards: "a",
-  // T2.5 (this PR) ACTIVATES the AI search-document field-value reader repoint:
-  // the `rebuildAiSearchDocument` + `loadAiSearchDocumentDebug` field-value reads
-  // now default to canonical System B (`talent_profile_field_values` joined to
-  // `profile_field_definitions`), projected through the `readAiSearchDocFields`
-  // seam in `read-source-ai-search-doc.ts`. Documented non-regressive diffs:
-  //   1. `instagram_url`, `tiktok_url`, `youtube_url` excluded from B-read: no
-  //      canonical `profile_field_definitions` rows for these social URL keys.
-  //      Semantic impact: AI doc omits social URL lines for the 22/6/5 talents
-  //      that have them in A (handles/links are low-signal for embedding retrieval).
-  //   2. Value vocab: B stores human labels ("Dark brown", "Extra long") where A
-  //      stores slugs ("dark_brown", "extra_long"). Labels are BETTER for embedding.
-  //   3. Field header renames (5 fields): B's canonical labels more precise
-  //      (e.g. "Booking availability" > "Availability status").
-  // Kill switch: FIELD_ENGINE_READ_SOURCE=ai_search_doc:a (or =a) reverts to
-  // System A instantly; a B-read that throws also safe-falls-back to A at runtime.
+  // T2.4 ACTIVATES the directory card scalar-metadata catalog repoint: the card
+  // attribute catalog (`directory-card-display-catalog.ts`) now defaults to
+  // canonical System B (`profile_field_definitions`), via the same
+  // `isResolvedFieldVisibleOnDirectoryCard` resolver — proven byte-identical to
+  // System A on all 3 card-visible fields across all 101 talents. `fit_labels`
+  // `label_es` was corrected in B to "Etiquetas de ajuste" (migration
+  // 20260611180515), so the ES card label is now byte-identical to A.
+  // `identity.gender` (B-only) is excluded from readB output (column-backed, no
+  // card-builder path). Kill switch: FIELD_ENGINE_READ_SOURCE=directory_cards:a.
+  directory_cards: "b",
+  // T2.5 ACTIVATES the AI search-document field-value reader repoint: the
+  // `rebuildAiSearchDocument` + `loadAiSearchDocumentDebug` field-value reads now
+  // default to canonical System B (`talent_profile_field_values` joined to
+  // `profile_field_definitions`), via the `readAiSearchDocFields` seam. Documented
+  // non-regressive diffs: (1) instagram_url/tiktok_url/youtube_url excluded (no
+  // canonical B rows; demo handles, low-signal for embedding retrieval);
+  // (2) value vocab — B labels ("Dark brown") beat A slugs ("dark_brown") for
+  // embedding; (3) 5 field-header renames; toggle fields (travel.willing) emit
+  // Yes/No by honoring meta.kind. Kill switch:
+  // FIELD_ENGINE_READ_SOURCE=ai_search_doc:a (or =a) reverts to System A; a
+  // B-read that throws also safe-falls-back to A at runtime.
   ai_search_doc: "b",
 };
 
