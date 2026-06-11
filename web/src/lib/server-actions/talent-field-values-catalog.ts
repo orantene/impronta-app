@@ -16,7 +16,6 @@ import { z } from "zod";
 import { requireTalentSelfAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
-import { mirrorWriteToLegacy } from "@/lib/fields/legacy-mirror";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import {
   resolveTalentFields,
@@ -109,7 +108,7 @@ export async function setTalentFieldValueAsTalent(
   // eslint-disable-next-line ratchet/no-untenanted-from
   const { data: def } = await supabase
     .from("profile_field_definitions")
-    .select("id, kind, field_key, talent_editable, deprecated_at")
+    .select("id, talent_editable, deprecated_at")
     .eq("id", v.field_definition_id)
     .maybeSingle();
   if (!def) return { ok: false, error: "Unknown field." };
@@ -139,11 +138,10 @@ export async function setTalentFieldValueAsTalent(
       logServerError("setTalentFieldValueAsTalent.delete", error);
       return { ok: false, error: CLIENT_ERROR.update };
     }
-    // Mirror delete to legacy field_values for bridged keys so Discover /
-    // the directory facet filters (which still read the OLD system) stay
-    // in sync with talent self-edits — same bridge the admin path uses.
-    await mirrorWriteToLegacy(supabase, def.kind as string,
-      v.talent_profile_id, def.field_key as string | undefined, null);
+    // T2.6 step 3: the B→A legacy mirror was removed. Talent self-edits land in
+    // System B (`talent_profile_field_values`) ONLY — the canonical store every
+    // product reader (Discover, directory facets, etc.) now reads. Legacy
+    // `field_values` is frozen; the reconcile cron's A→B heal is the backstop.
     revalidatePath("/talent", "layout");
     return { ok: true };
   }
@@ -170,13 +168,10 @@ export async function setTalentFieldValueAsTalent(
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
-  // Mirror write to legacy field_values for any bridged key. Discover and
-  // a few legacy surfaces still read the OLD tables; without this, talent
-  // self-edits through the new editor would not appear there until the
-  // Phase 5 cutover — same bridge the admin write path already uses.
-  await mirrorWriteToLegacy(supabase, def.kind as string,
-    v.talent_profile_id, def.field_key as string | undefined, v.value);
-
+  // T2.6 step 3: the B→A legacy mirror was removed. This write lands in System
+  // B (`talent_profile_field_values`) ONLY — the canonical store every product
+  // reader now reads. Legacy `field_values` is frozen (data preserved, not
+  // deleted); the reconcile cron's A→B heal is the backstop.
   revalidatePath("/talent", "layout");
   return { ok: true };
 }

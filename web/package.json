@@ -158,7 +158,6 @@
     "eval:search": "tsx --env-file=.env.local scripts/eval-search.ts",
     "qa:interpret-search": "node scripts/qa-interpret-search.mjs",
     "check:schema-drift": "tsx --env-file=.env.local scripts/check-schema-drift.ts",
-    "backfill:legacy-field-values": "tsx --env-file=.env.local scripts/backfill-legacy-field-values.ts",
     "backfill:media-resize": "tsx --env-file=.env.local scripts/backfill-media-resize.ts",
     "cleanup:orphan-media": "tsx --env-file=.env.local scripts/cleanup-orphan-media-rows.ts"
   },

@@ -16,18 +16,15 @@
 // per-surface kill switch, same pure-parser → trivially-unit-testable shape).
 //
 // DIFFERENCE FROM the read flag: the read flag chooses which *store a reader
-// pulls from*. This flag chooses which store the shell *writes to FIRST* and
-// which direction the transition-period mirror runs:
-//   - `a` (default, today): write `field_values` (System A) FIRST, then
+// pulls from*. This flag chooses which store the shell *writes to*:
+//   - `b` (default, live): write `talent_profile_field_values` (System B) ONLY
+//     via `mirrorWriteToCanonical`. T2.6 step 3 deleted the B→A reverse mirror,
+//     so a B-first save no longer touches System A (`field_values` is frozen).
+//   - `a` (kill switch): write `field_values` (System A) FIRST, then
 //     fire-and-forget `mirrorWriteToCanonical` (A→B) so canonical stays fresh.
-//   - `b`: write `talent_profile_field_values` (System B) FIRST via
-//     `mirrorWriteToCanonical`, then mirror `mirrorWriteToLegacy` (B→A) so the
-//     residual legacy `field_values` readers + the reconcile cron stay fresh.
-// Both paths land BYTE-EQUIVALENT values in BOTH stores; only WHICH store is
-// the primary (non-fire-and-forget) target differs. Every surface defaults to
-// `a`, so merging this scaffold is 100% behaviour-neutral; the manager flips a
-// surface to `b` as a separate activation after the proof + review. The mirror
-// itself is NOT deleted here — that is the human-gated T2.6.
+//     Retained as the documented rollback path only.
+// Both paths land BYTE-EQUIVALENT values in System B; they differ only in
+// whether the legacy A store is also written (yes under `a`, never under `b`).
 
 // ── Source + surface vocabulary ──────────────────────────────────────────────
 

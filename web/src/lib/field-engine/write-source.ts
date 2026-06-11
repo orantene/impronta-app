@@ -3,14 +3,12 @@
 // The SERVER-ONLY env reader for the Phase 2.5c field-engine WRITE repoint.
 //
 // The shell write path (`syncProfileShellDynFieldValues`) asks this module
-// which store it should write FIRST for the `shell` surface:
-//   • `a` (default) — write System A `field_values` first, then fire-and-forget
-//     the A→B mirror (`mirrorWriteToCanonical`). This is today's behaviour,
-//     byte-for-byte.
-//   • `b`           — write System B `talent_profile_field_values` first (the
-//     canonical store, now the read source of truth), then mirror B→A
-//     (`mirrorWriteToLegacy`) so residual legacy readers + the reconcile cron
-//     stay fresh until the mirror is deleted in T2.6.
+// which store it should write for the `shell` surface:
+//   • `b` (default, live) — write System B `talent_profile_field_values` ONLY
+//     (the canonical store + read source of truth) via `mirrorWriteToCanonical`.
+//     T2.6 step 3 deleted the B→A mirror, so System A `field_values` is frozen.
+//   • `a` (kill switch)   — write System A `field_values` first, then fire-and-
+//     forget the A→B mirror (`mirrorWriteToCanonical`). Documented rollback only.
 //
 // This module is server-only (it reads `process.env` for the live flag). The
 // PURE pieces (the flag grammar + the dispatch decision) live in

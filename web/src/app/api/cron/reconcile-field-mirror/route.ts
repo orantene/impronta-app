@@ -3,19 +3,17 @@
  *
  * Endpoint: GET /api/cron/reconcile-field-mirror  (CRON_SECRET bearer auth)
  *
- * Backstop for the FIRE-AND-FORGET legacy mirror (`@/lib/fields/legacy-mirror`):
- * every shell write dual-writes the 17 bridged keys between System A
- * (`field_values`) and System B (`talent_profile_field_values`), but mirror
- * errors are logged + swallowed, so a failed mirror leaves silent A↔B drift.
- * This sweep re-detects drift (one read-only RPC) and re-heals each drifted
- * (talent, key) by re-applying the SAME proven mirror helpers the live path
- * uses — A→B for A-only/disagree, B→A for B-only (while the legacy mirror is
- * active). Idempotent: a clean run heals 0.
+ * Backstop for the field-engine A→B bridge (`@/lib/fields/legacy-mirror`):
+ * the product write paths now write System B (`talent_profile_field_values`)
+ * ONLY — T2.6 step 3 removed the B→A mirror and froze System A (`field_values`).
+ * This sweep re-detects A↔B drift (one read-only RPC) and heals A→B ONLY
+ * (a_only/disagree rows), re-applying the same proven `mirrorWriteToCanonical`
+ * helper the live path uses. b_only rows are the post-cutover steady state and
+ * are reported but never written back to A. Idempotent: a clean run heals 0.
  *
- * TRANSITIONAL — scaffolding for the transition window only. Phase 2.6 stops
- * the B→A mirror (set ENGINE_LEGACY_MIRROR_ACTIVE=0); Phase 3 drops System A,
- * after which this route + `@/lib/fields/reconcile-field-mirror` become a no-op
- * and should be deleted alongside `legacy-mirror.ts`.
+ * TRANSITIONAL — scaffolding only. Phase 3 drops System A entirely, after which
+ * this route + `@/lib/fields/reconcile-field-mirror` become a true no-op and
+ * should be deleted alongside `legacy-mirror.ts`.
  *
  * Scheduled nightly off-peak in `web/vercel.json` (09:00 UTC ~ low traffic).
  * Safe to run more often — purely re-heals existing drift; no double-effect.
