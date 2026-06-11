@@ -157,6 +157,35 @@ export function buildHomepageBuilderConfig(
 const PLATFORM_LAB_DATA_SOURCES: readonly BuilderDataSourceKey[] =
   HOMEPAGE_DATA_SOURCES;
 
+// ── Workspace-page data sources ───────────────────────────────────────────────
+
+/** Data sources available on the workspace_page surface. Workspace pages can
+ *  bind the workspace profile + featured talent data (same as the homepage),
+ *  but not talent-personal sources. */
+const WORKSPACE_PAGE_DATA_SOURCES: readonly BuilderDataSourceKey[] = [
+  "workspace_profile",
+  "featured_talent_profiles",
+  "tenant_directory_search",
+  "talent_locations",
+  "inquiry_path",
+  "cms_page",
+  "asset",
+  "custom_field",
+];
+
+// ── Talent-page data sources ──────────────────────────────────────────────────
+
+/** Data sources available on the talent_page surface. Talent pages bind
+ *  talent-personal data (the talent's own profile / services). */
+const TALENT_PAGE_DATA_SOURCES: readonly BuilderDataSourceKey[] = [
+  "workspace_profile",
+  "asset",
+  "custom_field",
+  // talent_profile and talent_services are implied by the previewSubjectKind
+  // "talent" set on this surface's config — the connected resolvers scope
+  // to the talent when previewSubject.kind === "talent".
+];
+
 /**
  * The platform_lab config (WS5) — specialises the ONE Page Builder Core for the
  * Platform Builder Lab. Built as a factory (mirrors `buildHomepageBuilderConfig`)
@@ -180,6 +209,118 @@ const PLATFORM_LAB_DATA_SOURCES: readonly BuilderDataSourceKey[] =
  *     site header/footer shell.
  *   - raw-HTML `code` insertion is allowed (super_admin-only surface).
  */
+/**
+ * The workspace_page config (WS6) — specialises the ONE Page Builder Core for
+ * a workspace admin page builder surface. Built as a factory so the mount
+ * hands the provider a fresh object per render.
+ *
+ * Differences from homepage:
+ *   - `previewSubjectKind: "workspace"` — connected nodes hydrate against the
+ *     workspace's data in-canvas (WS4 render plumbing).
+ *   - `allowDbTemplates: true` + `"page_templates"` tab — workspace admins can
+ *     insert DB-backed page templates from the gallery.
+ *   - `canEditShell: false` — workspace pages don't own the shared site shell.
+ *   - `canInsertRawHtmlElements: false` — not super_admin-only; raw HTML off.
+ *
+ * The adapter is passed IN (same pattern as homepage / platform_lab) to keep
+ * `config.ts` free of a static edge to `workspace-page-adapter.ts`.
+ */
+export function buildWorkspacePageBuilderConfig(
+  workspacePageSurfaceAdapter: BuilderSurfaceAdapter,
+  opts?: {
+    /** Allow raw HTML code elements (super_admin only). Defaults to false. */
+    canInsertRawHtmlElements?: boolean;
+  },
+): BuilderContextConfig {
+  const kind: BuilderSurfaceKind = workspacePageSurfaceAdapter.kind;
+  if (kind !== "workspace_page") {
+    throw new Error(
+      `buildWorkspacePageBuilderConfig requires a workspace_page adapter, got "${kind}".`,
+    );
+  }
+  return {
+    surface: workspacePageSurfaceAdapter,
+    permissions: {
+      canEditDraft: true,
+      canPublish: true,
+      canRestoreRevision: true,
+      canEditShell: false,
+      canInsertRawHtmlElements: opts?.canInsertRawHtmlElements ?? false,
+    },
+    galleryPolicy: {
+      allowedTabs: ["layout", "elements", "sections", "connected", "page_templates"],
+      allowDbTemplates: true,
+    },
+    dataSources: { allowed: WORKSPACE_PAGE_DATA_SOURCES },
+    previewSubjectKind: "workspace",
+    capabilities: {
+      motion: true,
+      themeTokens: true,
+      customCss: true,
+      responsiveBreakpoints: true,
+    },
+  };
+}
+
+/**
+ * The talent_page config (WS6) — specialises the ONE Page Builder Core for the
+ * Talent Max page builder surface. Built as a factory.
+ *
+ * Differences from homepage:
+ *   - `previewSubjectKind: "talent"` — connected nodes hydrate against the
+ *     talent's own data in-canvas (WS4 render plumbing).
+ *   - `allowDbTemplates: true` + `"page_templates"` tab — talent Max can
+ *     apply DB-backed page templates.
+ *   - `canEditShell: false` — talent pages don't own the shared site shell.
+ *   - `canInsertRawHtmlElements: false` — raw HTML off for talent tier.
+ *   - Capability gating by `talentTier` (e.g. custom CSS only on Max):
+ *     pass `opts.tier` to reduce capabilities for lower tiers.
+ *
+ * The adapter is passed IN to keep `config.ts` free of server-action edges.
+ */
+export function buildTalentPageBuilderConfig(
+  talentPageSurfaceAdapter: BuilderSurfaceAdapter,
+  opts?: {
+    /** Talent tier — reduces capabilities for lower tiers. */
+    talentTier?: string | null;
+  },
+): BuilderContextConfig {
+  const kind: BuilderSurfaceKind = talentPageSurfaceAdapter.kind;
+  if (kind !== "talent_page") {
+    throw new Error(
+      `buildTalentPageBuilderConfig requires a talent_page adapter, got "${kind}".`,
+    );
+  }
+  // Capability gating: Max (talent_portfolio) gets all; lower tiers may be
+  // restricted in future. For now all tiers get the same capabilities —
+  // the plan intent is that only Max can reach this builder surface at all.
+  const isMaxTier =
+    !opts?.talentTier || opts.talentTier === "talent_portfolio";
+
+  return {
+    surface: talentPageSurfaceAdapter,
+    permissions: {
+      canEditDraft: true,
+      canPublish: true,
+      canRestoreRevision: true,
+      canEditShell: false,
+      canInsertRawHtmlElements: false,
+    },
+    galleryPolicy: {
+      allowedTabs: ["layout", "elements", "sections", "connected", "page_templates"],
+      allowDbTemplates: true,
+    },
+    dataSources: { allowed: TALENT_PAGE_DATA_SOURCES },
+    previewSubjectKind: "talent",
+    capabilities: {
+      motion: isMaxTier,
+      themeTokens: isMaxTier,
+      customCss: isMaxTier,
+      responsiveBreakpoints: true,
+    },
+  };
+}
+
 export function buildPlatformLabBuilderConfig(
   platformLabSurfaceAdapter: BuilderSurfaceAdapter,
   previewSubjectKind: BuilderPreviewSubjectKind,

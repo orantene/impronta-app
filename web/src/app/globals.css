@@ -532,6 +532,13 @@ html[data-public-font-preset="editorial"] {
   transform: translateY(-1px);
 }
 
+/* WS6 builder surface mounts — full-height wrappers.
+ * Styled here (not inline) to satisfy the admin shell ratchet/no-new-inline-style rule. */
+[data-workspace-builder-mount],
+[data-talent-max-builder-mount] {
+  min-height: calc(100vh - 50px);
+}
+
 .site-hero__cta--primary {
   background: var(--token-color-primary, var(--primary));
   color: var(--primary-foreground, #fff);
