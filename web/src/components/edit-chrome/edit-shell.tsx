@@ -40,6 +40,7 @@ import { useDirty } from "./dirty-bridge";
 import { PresenceProvider, usePagePresence } from "./presence-provider";
 import { isBuilderPresenceEnabled } from "@/lib/site-admin/edit-mode/presence-flag";
 import { RemoteCursorsLayer } from "./remote-cursors-layer";
+import { ThemePreviewProjector } from "./theme-preview-projector";
 import { CHROME, CHROME_SHADOWS, EDIT_TOPBAR_H } from "./kit";
 import { isCoachmarkDismissed, dismissCoachmark } from "./builder-coachmarks";
 import { SelectionLayer } from "./selection-layer";
@@ -1117,6 +1118,9 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
           open={findReplaceOpen}
           onClose={() => setFindReplaceOpen(false)}
         />
+        {/* GAP A — always-mounted (renders null) so it can react the instant
+            the Theme drawer publishes a draft to the theme-preview bridge. */}
+        <ThemePreviewProjector />
         <MutationErrorToast />
         <DraftSavedToast />
         <PresenceBanner />

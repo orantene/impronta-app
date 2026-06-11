@@ -27,6 +27,10 @@ import {
 import { getBuilderIconDefinition } from "./icon-registry";
 import { resolveStyleTokenRef } from "./style-token-bindings";
 import {
+  applyComponentStyleDefaults,
+  type ComponentStyleDefaults,
+} from "./component-style-defaults";
+import {
   resolveNodeStyleWithClass,
   type BuilderStyleClassRegistry,
 } from "./style-classes";
@@ -102,6 +106,15 @@ export interface BuilderNodeRenderOptions {
   // byte-identical markup (no wrapper). Honors `prefers-reduced-motion`. Only
   // `ClientBuilderCanvas` passes it true.
   animateLayout?: boolean;
+  // GAP B — per-component-type DEFAULT styles (the cascade middle layer). When
+  // provided, every node's own style is merged OVER `componentStyleDefaults[
+  // node.kind]` at the single dispatch (`renderBuilderNode`), so e.g. all
+  // headings start from the theme's heading default and any one heading can
+  // still override. Absent / empty → every node resolves to its own style by
+  // identity (byte-identical). The SSR renderer and the editor canvas both pass
+  // this, so the cascade is computed in ONE place for both. See
+  // `component-style-defaults.ts`.
+  componentStyleDefaults?: ComponentStyleDefaults;
 }
 
 type NormalizedBuilderNodeRenderOptions = Required<
@@ -2536,7 +2549,14 @@ function renderBuilderNode(
   rawNode: BuilderNode,
   options: NormalizedBuilderNodeRenderOptions,
 ): ReactNode {
-  const node = applyStyleClass(rawNode, options.styleClasses);
+  // Cascade order: global token (via var() fallback) ‹ component default ‹
+  // style class ‹ node inline. applyStyleClass resolves the class layer under
+  // the node's own props; applyComponentStyleDefaults then folds the
+  // per-kind default UNDER that result (node-and-class win; an `@inherit`
+  // sentinel on a node field lets the default show). Both are identity-returns
+  // when there's nothing to merge → byte-stable for trees with no defaults.
+  const classed = applyStyleClass(rawNode, options.styleClasses);
+  const node = applyComponentStyleDefaults(classed, options.componentStyleDefaults);
   return withNodeCustomCss(node, renderBuilderNodeElement(node, options));
 }
 
@@ -3363,6 +3383,7 @@ export function renderBuilderNodes(
     visibilityContext: options.visibilityContext,
     renderSectionEmbed: options.renderSectionEmbed ?? null,
     animateLayout: options.animateLayout ?? false,
+    componentStyleDefaults: options.componentStyleDefaults ?? {},
     repeatItem: null,
     repeatDepth: 0,
   };

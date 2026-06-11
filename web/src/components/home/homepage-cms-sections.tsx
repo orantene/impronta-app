@@ -52,6 +52,8 @@ import { BuilderProfilerBoundary } from "@/components/edit-chrome/builder-profil
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import { isPreviewActiveForTenant } from "@/lib/site-admin/server/homepage-reads";
+import { loadPublicBranding } from "@/lib/site-admin/server/reads";
+import { normalizeComponentStyleDefaults } from "@/lib/site-admin/builder-node/component-style-defaults";
 import {
   SECTION_REGISTRY,
   type SectionTypeKey,
@@ -212,6 +214,7 @@ export async function HomepageCmsSections({
     actorSession,
     mapsApiKey,
     resolvedCaptcha,
+    branding,
   ] =
     await Promise.all([
       isEditModeActiveForTenant(tenantId),
@@ -224,7 +227,17 @@ export async function HomepageCmsSections({
       needsCaptcha
         ? resolveTenantCaptcha(tenantId)
         : Promise.resolve(null),
+      loadPublicBranding(tenantId),
     ]);
+
+  // GAP B — the tenant's LIVE per-component-type default styles (cascade middle
+  // layer). Normalized once and passed to every freeform render path; an empty
+  // map is the no-op default (renderer returns each node by identity). Draft
+  // live-preview while editing these is layered on top via the theme-preview
+  // bridge (B-4); the published page always uses the LIVE map.
+  const componentStyleDefaults = normalizeComponentStyleDefaults(
+    branding?.component_styles_json,
+  );
 
   // Wave 5B · #38 — render-time signals for node-level conditional visibility.
   // `locale` is always known; `signedIn` comes from the request-cached actor
@@ -341,6 +354,7 @@ export async function HomepageCmsSections({
                 publicPathPrefix={publicPathPrefix}
                 components={freeformComponents}
                 visibilityContext={visibilityContext}
+                componentStyleDefaults={componentStyleDefaults}
               />
             </BuilderProfilerBoundary>
           </>
@@ -361,6 +375,7 @@ export async function HomepageCmsSections({
             dataSources: freeformDataSources,
             components: freeformComponents,
             visibilityContext,
+            componentStyleDefaults,
             renderSectionEmbed: freeformSectionEmbedRenderer,
           })}
         </>
@@ -618,6 +633,7 @@ export async function HomepageCmsSections({
               dataSources: builderDataSources,
               components: builderComponents,
               visibilityContext,
+              componentStyleDefaults,
               renderSectionEmbed: sectionEmbedRendererForChildren,
             });
           }

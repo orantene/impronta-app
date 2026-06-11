@@ -44,6 +44,7 @@ import {
   type BuilderVisibilityContext,
 } from "@/lib/site-admin/builder-node";
 import type { ComponentDefinitions } from "@/lib/site-admin/builder-node/component-instances";
+import type { ComponentStyleDefaults } from "@/lib/site-admin/builder-node/component-style-defaults";
 
 import {
   getStyleClassRegistrySnapshot,
@@ -78,6 +79,13 @@ export interface ClientBuilderCanvasProps {
   /** Node-level conditional-visibility signals (undefined in edit mode). */
   visibilityContext?: BuilderVisibilityContext;
   /**
+   * GAP B — the tenant's LIVE per-component-type default styles. Passed so the
+   * editor canvas resolves the SAME default→override cascade as the published
+   * page. (Draft live-preview of unpublished default edits is layered on later
+   * via the theme-preview bridge.)
+   */
+  componentStyleDefaults?: ComponentStyleDefaults;
+  /**
    * Whether to emit the shared `<BuilderNodeRendererStyles>` head sheet. The
    * server caller already emits it once (matching the server path), so this
    * defaults off to avoid a duplicate.
@@ -92,6 +100,7 @@ function ClientBuilderCanvasInner({
   publicPathPrefix,
   components,
   visibilityContext,
+  componentStyleDefaults,
   includeRendererStyles = false,
 }: ClientBuilderCanvasProps): ReactNode {
   // Subscribe to the live in-memory tree published by EditProvider. The
@@ -151,6 +160,7 @@ function ClientBuilderCanvasInner({
       components,
       visibilityContext,
       styleClasses,
+      componentStyleDefaults,
       renderSectionEmbed,
       // W3-T1 — editor-only insert/delete/reorder motion. The published /
       // server render paths never set this, so they stay byte-identical; here
@@ -164,6 +174,7 @@ function ClientBuilderCanvasInner({
       components,
       visibilityContext,
       styleClasses,
+      componentStyleDefaults,
       renderSectionEmbed,
     ],
   );

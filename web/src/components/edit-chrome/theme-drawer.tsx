@@ -64,6 +64,7 @@ import {
   type SegmentedOption,
 } from "./kit";
 import { useEditContext } from "./edit-context";
+import { clearThemePreview, publishThemePreview } from "./theme-preview-bridge";
 
 import {
   applyThemePresetFromEditAction,
@@ -384,6 +385,11 @@ export function ThemeDrawer(): ReactElement | null {
     if (!themeOpen) {
       setConfirmingPublish(false);
       setError(null);
+      // GAP A — drawer closed: drop the live-preview projection so the canvas
+      // reverts to the inherited LIVE `--token-*` vars from <html>. The drawer
+      // stays mounted (everOpenedTheme), so this must fire on close, not just
+      // unmount.
+      clearThemePreview();
       return;
     }
     let cancelled = false;
@@ -422,6 +428,18 @@ export function ThemeDrawer(): ReactElement | null {
   const set = useCallback((key: string, value: string) => {
     setDraft((prev) => (prev ? { ...prev, [key]: value } : prev));
   }, []);
+
+  // GAP A — publish the working draft to the theme-preview bridge on EVERY
+  // draft mutation (load, set, reset, preset-apply, save/publish-reload), in
+  // one place. ThemePreviewProjector projects it onto the canvas root so the
+  // edit recolours the canvas instantly. Only while the drawer is open.
+  useEffect(() => {
+    if (themeOpen && draft) publishThemePreview(draft);
+  }, [themeOpen, draft]);
+
+  // Belt-and-braces: if the drawer ever unmounts (e.g. leaving edit mode),
+  // drop the projection so the canvas isn't frozen on a draft value.
+  useEffect(() => clearThemePreview, []);
 
   const reset = useCallback(() => {
     if (!snapshot) return;
