@@ -416,6 +416,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     openShortcutOverlay,
     closeShortcutOverlay,
     saveDraft,
+    saveNamedCheckpoint,
     lastDraftSavedAt,
     pagesPickerOpenNonce,
     requestPagesPickerOpen,
@@ -1017,6 +1018,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
           onOpenPalette={togglePalette}
           onOpenShortcuts={openShortcutOverlay}
           onSaveDraft={() => void saveDraft()}
+          onSaveNamedDraft={(label) => saveNamedCheckpoint(label)}
           onShare={(opts) => handleShareClick(opts, reportMutationError)}
           pageTitle={pageMetadata?.title ?? undefined}
           pageId={pageId}
