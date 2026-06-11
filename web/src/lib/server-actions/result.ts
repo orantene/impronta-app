@@ -9,7 +9,7 @@
  * those need a shape that carries `{ values, error }` on the error
  * branch so the form can re-render with the user's last input. See
  * `admin-inquiries.ts`, `admin-clients.ts`, `admin-talent.ts`,
- * `admin-bookings.ts`, `talent-field-values.ts`, `client-pipeline.ts`,
+ * `admin-bookings.ts`, `client-pipeline.ts`,
  * `talent-pipeline.ts`, `client-guest-merge.ts` for the form-state
  * shape. The divergence is intentional, not technical debt.
  *

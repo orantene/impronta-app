@@ -7,8 +7,9 @@
 // Pure / config-level only (no DB). DB-level parity is proven by the harness +
 // the per-residual evidence tables in the PR body:
 //   • #1 search: A-vs-B id-set 0/0 symmetric diff on 8 attribute-value queries
-//     for the bridged keys; hybrid (B-bridged ∪ A-social) == pure-A on 6 more
-//     incl. instagram/tik/youtu.
+//     for the bridged keys. T2.6 repointed the 3 social keys from A → B via the
+//     canonical creator.* handles; full-search id-set parity is identical on all
+//     name/handle queries (URL-text-only diffs are non-meaningful artifacts).
 //   • #2 card values: A field_values scalar rows for the card defs == 0; the
 //     bridged-scalar projection is proven 69/69 normalized-equal on body_type.
 //   • #3 taxonomy: field_values.value_taxonomy_ids empty across all 1188 rows →
@@ -26,7 +27,7 @@ import {
   readSourceForSurface,
   FIELD_ENGINE_READ_SURFACES,
 } from "@/lib/field-engine/read-source-types";
-import { DIRECTORY_SEARCH_UNBRIDGED_KEYS } from "@/lib/field-engine/read-source-directory-search";
+import { DIRECTORY_SEARCH_SOCIAL_A_TO_B_KEY } from "@/lib/field-engine/read-source-directory-search";
 import { OLD_TO_NEW_KEY } from "@/lib/fields/legacy-mirror";
 
 // ── Surface registration + default ───────────────────────────────────────────
@@ -59,13 +60,18 @@ test("global kill switch (=a) reverts both new surfaces to A", () => {
 
 // ── #1 search coverage bridge ────────────────────────────────────────────────
 
-test("the 3 un-bridged social-URL search keys have NO canonical B bridge", () => {
-  // These keys keep reading System A in the B-reader so search coverage is
-  // byte-identical. They must NOT be in the A→B key bridge (else they'd be read
-  // from B and lost — B has no def for them).
-  for (const k of ["instagram_url", "tiktok_url", "youtube_url"]) {
-    assert.ok(DIRECTORY_SEARCH_UNBRIDGED_KEYS.has(k), `${k} carved out`);
-    assert.equal(OLD_TO_NEW_KEY[k], undefined, `${k} must have no B bridge`);
+test("the 3 social search keys repoint to canonical System B creator.* handles", () => {
+  // T2.6: these keys are NOT in the generic A→B key bridge (B uses a different
+  // key — handle vs URL), so the B-reader resolves them via the dedicated social
+  // map instead. After this repoint the search reader has ZERO System-A reads.
+  const expected: Record<string, string> = {
+    instagram_url: "creator.instagram_handle",
+    tiktok_url: "creator.tiktok_handle",
+    youtube_url: "creator.youtube_channel",
+  };
+  for (const [aKey, bKey] of Object.entries(expected)) {
+    assert.equal(DIRECTORY_SEARCH_SOCIAL_A_TO_B_KEY[aKey], bKey, `${aKey} → ${bKey}`);
+    assert.equal(OLD_TO_NEW_KEY[aKey], undefined, `${aKey} must not be in the generic bridge`);
   }
 });
 

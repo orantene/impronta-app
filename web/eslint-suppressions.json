@@ -1567,11 +1567,8 @@
     }
   },
   "src/lib/server-actions/admin-talent.ts": {
-    "max-lines": {
-      "count": 1
-    },
     "ratchet/no-untenanted-from": {
-      "count": 21
+      "count": 18
     }
   },
   "src/lib/server-actions/admin-taxonomy.ts": {
@@ -1702,11 +1699,6 @@
   "src/lib/server-actions/search-talent.ts": {
     "ratchet/no-untenanted-from": {
       "count": 3
-    }
-  },
-  "src/lib/server-actions/talent-field-values.ts": {
-    "ratchet/no-untenanted-from": {
-      "count": 4
     }
   },
   "src/lib/server-actions/talent-pipeline.ts": {

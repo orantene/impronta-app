@@ -1,36 +1,43 @@
 // src/lib/field-engine/read-source-directory-search.ts
 //
-// T2.5a — DIRECTORY TEXT-SEARCH value-store repoint.
+// T2.5a → T2.6 — DIRECTORY TEXT-SEARCH value-store repoint (now FULLY System B).
 //
 // `fetchLegacyDirectorySearchTalentIds` (directory-search-legacy.ts) is the
-// pre-RPC fallback directory search. One of its legs ILIKEs
-// `field_values.value_text` across the SEARCHABLE text/textarea field
-// definitions and unions the matching `talent_profile_id`s into the result set.
-// This module lifts that leg behind the shared read-source seam as `readA`
-// (byte-identical to today) and adds a `readB` that reads canonical System B
+// pre-RPC fallback directory search. One of its legs ILIKEs the SEARCHABLE
+// text/textarea field VALUES and unions the matching `talent_profile_id`s into
+// the result set. This module lifts that leg behind the shared read-source seam:
+// `readA` is the legacy System A read (`field_values.value_text`, kept verbatim
+// as the kill-switch fallback) and `readB` reads canonical System B
 // (`talent_profile_field_values`) for the SAME projected output (a Set of
 // matching talent_profile_id added to the accumulator the caller passes in).
 //
 // THE COVERAGE BRIDGE (the crux):
 //   The searchable A defs split into two groups (verified read-only against prod
 //   ref pluhdapdnuiulvxmyspd, 2026-06-11):
-//     • 13 BRIDGED keys (body_type, clothing_size, eye_color, hair_color,
+//     • 13 BRIDGED-BY-KEY keys (body_type, clothing_size, eye_color, hair_color,
 //       hair_length, shoe_size, experience_level, notable_work,
 //       professional_highlights, availability_status, available_for,
-//       travel_scope, website_url) — each has a canonical System B definition.
-//       readB ILIKEs these on B's jsonb scalar. ILIKE is case-insensitive so it
-//       matches whether B stored the canonical LABEL ("Athletic") or the A SLUG
-//       residue ("athletic"); per-query A-vs-B id-set parity is 0/0 symmetric
-//       diff on 8 attribute-value sample queries.
-//     • 3 UN-BRIDGED social-URL keys (instagram_url, tiktok_url, youtube_url) —
-//       NO canonical B definition exists. readB KEEPS reading these from A so
-//       search coverage is byte-identical (a pure B-repoint would silently drop
-//       33 populated social-URL rows from search). display_name + short_bio are
-//       also searchable A text defs but carry ZERO field_values rows AND are
-//       already searched on the `talent_profiles` columns in the same legacy
-//       query — so they need no value-store read in either store.
-//   Net: readB(B-bridged ∪ A-social) == readA across all 14 sample queries
-//   (incl. "instagram"/"tik"/"youtu"): a_only=0, b_only=0.
+//       travel_scope, website_url) — each has a canonical System B definition
+//       reachable via the A→B key bridge (`OLD_TO_NEW_KEY`). readB ILIKEs these
+//       on B's jsonb scalar. ILIKE is case-insensitive so it matches whether B
+//       stored the canonical LABEL ("Athletic") or the A SLUG residue
+//       ("athletic"); per-query A-vs-B id-set parity is 0/0 symmetric diff on 8
+//       attribute-value sample queries.
+//     • 3 SOCIAL keys (instagram_url, tiktok_url, youtube_url) — NOT in the
+//       generic A→B key bridge, but System B DOES have canonical equivalents
+//       under DIFFERENT keys: creator.instagram_handle (~28 talents),
+//       creator.tiktok_handle (~26), creator.youtube_channel (~27). T2.6 repoints
+//       this leg from A → B via the explicit map below. readB resolves these B
+//       defs and ILIKEs their jsonb scalar — so search has ZERO System-A reads.
+//       The B values are bare handles ("@nina.hart") while the legacy A values
+//       were demo URLs ("https://instagram.com/nina.hart.demo", 32/33 `.demo`
+//       seed data). A query matching a NAME/HANDLE fragment is identical to the
+//       old A leg (and the talent is independently covered by the name/profile
+//       leg); the only diffs are URL-text-substring artifacts ("https"/".com"/
+//       ".demo") that are not meaningful talent searches.
+//   display_name + short_bio are also searchable A text defs but carry ZERO
+//   field_values rows AND are already searched on the `talent_profiles` columns
+//   in the same legacy query — so they need no value-store read in either store.
 //
 // The caller (directory-search-legacy.ts) passes the accumulator Set + the
 // already-resolved searchable A def rows (id+key) + the sanitized search term.
@@ -45,9 +52,8 @@ import { readFieldSurface } from "@/lib/field-engine/read-source";
 import { OLD_TO_NEW_KEY } from "@/lib/fields/legacy-mirror";
 
 /** A searchable legacy field definition: its A id + A key. The id drives the
- *  A-read (`field_values.field_definition_id`); the key drives the B-read
- *  (resolve the canonical def via the A→B key bridge) and the un-bridged
- *  social-URL carve-out. */
+ *  legacy A-read (`field_values.field_definition_id`); the key drives the B-read
+ *  (resolve the canonical def via the A→B key bridge or the social-key map). */
 export type DirectorySearchFieldDef = {
   /** Legacy `field_definitions.id`. */
   id: string;
@@ -55,15 +61,17 @@ export type DirectorySearchFieldDef = {
   key: string;
 };
 
-/** Legacy searchable text keys that have NO canonical System B definition and
- *  must keep reading System A so search coverage stays byte-identical. Verified
- *  against prod (2026-06-11): instagram_url(22)/tiktok_url(5)/youtube_url(6) carry
- *  populated value_text with no other search coverage; B has no def for them. */
-export const DIRECTORY_SEARCH_UNBRIDGED_KEYS: ReadonlySet<string> = new Set([
-  "instagram_url",
-  "tiktok_url",
-  "youtube_url",
-]);
+/** Social searchable A keys → their canonical System B field_key. These three
+ *  are NOT in the generic A→B key bridge (`OLD_TO_NEW_KEY`) because the B keys
+ *  live under a different name (handle vs URL), but B carries the canonical
+ *  social value, so the search reads B here instead of legacy A `field_values`.
+ *  Verified against prod (2026-06-11): creator.instagram_handle(28),
+ *  creator.tiktok_handle(26), creator.youtube_channel(27), all non-deprecated. */
+export const DIRECTORY_SEARCH_SOCIAL_A_TO_B_KEY: Readonly<Record<string, string>> = {
+  instagram_url: "creator.instagram_handle",
+  tiktok_url: "creator.tiktok_handle",
+  youtube_url: "creator.youtube_channel",
+};
 
 // ── A-reader: legacy System A (`field_values.value_text` ILIKE) ──────────────
 //
@@ -93,16 +101,17 @@ async function readDirectorySearchIdsFromA(
   return acc;
 }
 
-// ── B-reader: canonical System B + the un-bridged social-URL carve-out ────────
+// ── B-reader: canonical System B ONLY (zero System-A reads) ───────────────────
 //
-// Same projected shape (the accumulator Set). For the BRIDGED searchable keys it
-// resolves the canonical def via the A→B key bridge and ILIKEs B's jsonb scalar
-// (`value #>> '{}'` server-side via the `->>` text cast on the jsonb column). For
-// the UN-BRIDGED social-URL keys it ILIKEs `field_values.value_text` on JUST those
-// A def-ids — keeping their coverage identical. The two passes union into the
-// accumulator. If NO bridged key resolves to a B def the reader still runs the
-// social-URL A pass (never throws away coverage); it only throws on a real DB
-// error so the seam safe-falls-back to A.
+// Same projected shape (the accumulator Set). Every searchable key resolves to a
+// canonical System B `profile_field_definitions.field_key` — the bridged keys via
+// the generic A→B key bridge (`OLD_TO_NEW_KEY`), the three social keys via the
+// explicit `DIRECTORY_SEARCH_SOCIAL_A_TO_B_KEY` map. The reader resolves all those
+// B field_keys to their def ids in ONE lookup and ILIKEs B's jsonb scalar
+// (`value->>0` — Postgres returns the scalar string for these string/number/bool
+// values; arrays/objects, never these keys, render as json text that won't match
+// an attribute-value query). It only throws on a real DB error so the seam
+// safe-falls-back to A. There are NO `field_values` / System-A reads here.
 async function readDirectorySearchIdsFromB(
   supabase: SupabaseClient,
   searchableDefs: readonly DirectorySearchFieldDef[],
@@ -111,63 +120,44 @@ async function readDirectorySearchIdsFromB(
 ): Promise<Set<string>> {
   if (termSafe.length === 0) return acc;
 
-  // Partition the searchable defs into bridged (read B) and un-bridged social
-  // URLs (read A). display_name/short_bio (no field_values data, covered by the
-  // talent_profiles column search) fall into neither bucket and are skipped.
-  const bridgedBKeys: string[] = [];
-  const socialAIds: string[] = [];
+  // Resolve every searchable A key to its canonical System B field_key. Bridged
+  // attribute keys come from the generic A→B bridge; the three social keys come
+  // from the dedicated social map. display_name/short_bio (no field_values data,
+  // covered by the talent_profiles column search) resolve to neither and are
+  // skipped.
+  const bKeys = new Set<string>();
   for (const def of searchableDefs) {
-    const bKey = OLD_TO_NEW_KEY[def.key];
-    if (bKey) {
-      bridgedBKeys.push(bKey);
-    } else if (DIRECTORY_SEARCH_UNBRIDGED_KEYS.has(def.key) && def.id) {
-      socialAIds.push(def.id);
+    const bridged = OLD_TO_NEW_KEY[def.key];
+    if (bridged) {
+      bKeys.add(bridged);
+      continue;
     }
+    const social = DIRECTORY_SEARCH_SOCIAL_A_TO_B_KEY[def.key];
+    if (social) bKeys.add(social);
   }
+  if (bKeys.size === 0) return acc;
 
-  // Pass 1 — bridged keys from canonical System B.
-  if (bridgedBKeys.length > 0) {
-    const { data: defRows, error: defErr } = await supabase
-      .from("profile_field_definitions")
-      .select("id")
-      .in("field_key", bridgedBKeys)
-      .is("deprecated_at", null);
-    if (defErr) {
-      throw new Error(`[directory] legacy search canonical def: ${defErr.message}`);
-    }
-    const bDefIds = ((defRows ?? []) as { id: string }[]).map((r) => r.id).filter(Boolean);
-    if (bDefIds.length > 0) {
-      // jsonb scalar → text via the PostgREST `->>0` operator on the `value`
-      // column so the ILIKE matches the stored string/number/bool scalar
-      // (arrays/objects — never these scalar keys — render as their json text,
-      // which simply won't match an attribute-value query).
-      const { data, error } = await supabase
-        .from("talent_profile_field_values")
-        .select("talent_profile_id")
-        .in("field_definition_id", bDefIds)
-        .ilike("value->>0", `%${termSafe}%`);
-      if (error) {
-        throw new Error(`[directory] legacy search canonical values: ${error.message}`);
-      }
-      for (const row of (data ?? []) as { talent_profile_id: string }[]) {
-        acc.add(row.talent_profile_id);
-      }
-    }
+  const { data: defRows, error: defErr } = await supabase
+    .from("profile_field_definitions")
+    .select("id")
+    .in("field_key", [...bKeys])
+    .is("deprecated_at", null);
+  if (defErr) {
+    throw new Error(`[directory] legacy search canonical def: ${defErr.message}`);
   }
+  const bDefIds = ((defRows ?? []) as { id: string }[]).map((r) => r.id).filter(Boolean);
+  if (bDefIds.length === 0) return acc;
 
-  // Pass 2 — un-bridged social-URL keys from System A (coverage parity).
-  if (socialAIds.length > 0) {
-    const { data, error } = await supabase
-      .from("field_values")
-      .select("talent_profile_id")
-      .in("field_definition_id", socialAIds)
-      .ilike("value_text", `%${termSafe}%`);
-    if (error) {
-      throw new Error(`[directory] legacy search social field_values: ${error.message}`);
-    }
-    for (const row of (data ?? []) as { talent_profile_id: string }[]) {
-      acc.add(row.talent_profile_id);
-    }
+  const { data, error } = await supabase
+    .from("talent_profile_field_values")
+    .select("talent_profile_id")
+    .in("field_definition_id", bDefIds)
+    .ilike("value->>0", `%${termSafe}%`);
+  if (error) {
+    throw new Error(`[directory] legacy search canonical values: ${error.message}`);
+  }
+  for (const row of (data ?? []) as { talent_profile_id: string }[]) {
+    acc.add(row.talent_profile_id);
   }
 
   return acc;

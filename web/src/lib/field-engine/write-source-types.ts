@@ -44,11 +44,14 @@ export type FieldEngineWriteSource = "a" | "b";
  *     `talent-self-profile-sections.ts`). This is the BIG one: the primary
  *     write target for every bridged scalar field edit.
  *
- * Future T2.6 surfaces (the OTHER A-writers — NOT in this flag yet, see the
- * T2.5c inventory): `admin-talent.ts saveFieldValues`,
- * `talent-field-values.ts saveFieldValues`, `admin-translation-quick-edit.ts`
- * (value_i18n). Those are separate, non-shell write paths; they get their own
- * surfaces here when T2.6 repoints them.
+ * Future T2.6 surfaces (the OTHER A-writers — NOT in this flag yet):
+ * `admin-translation-quick-edit.ts` (value_i18n). That is a separate,
+ * non-shell write path; it gets its own surface here when T2.6 repoints it.
+ *
+ * (The two scalar-field-values A-writer actions — `admin-talent.ts
+ * saveAdminTalentScalarFieldValues` + `talent-field-values.ts
+ * saveTalentScalarFieldValues` — were dead code rendered nowhere and were
+ * DELETED in T2.6 step 2 rather than repointed.)
  */
 export type FieldEngineWriteSurface = "shell";
 
