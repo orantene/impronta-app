@@ -75,6 +75,7 @@ export const PLATFORM_PAGES: PlatformPage[] = [
   "network",
   "billing",
   "operations",
+  "builder-lab",
   "settings",
 ];
 
@@ -304,6 +305,7 @@ export const PLATFORM_PAGE_META: Record<PlatformPage, { label: string }> = {
   network: { label: "Network" },
   billing: { label: "Billing" },
   operations: { label: "Operations" },
+  "builder-lab": { label: "Builder Lab" },
   settings: { label: "Settings" },
 };
 

@@ -91,6 +91,10 @@ export type PlatformPage =
   | "network"
   | "billing"
   | "operations"
+  // Platform Builder Lab (WS5) — super_admin-only page-builder workshop that
+  // authors/tests templates against real talent + workspace data and publishes
+  // them into the consumer gallery. Persistence is ephemeral (never a page).
+  | "builder-lab"
   | "settings";
 
 // ════════════════════════════════════════════════════════════════════

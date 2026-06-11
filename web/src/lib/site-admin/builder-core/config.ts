@@ -21,6 +21,7 @@ import type { AddGalleryTab } from "@/lib/site-admin/add-gallery/types";
 import type { BuilderDataSourceKey } from "@/lib/site-admin/builder-node/data-bindings";
 
 import type { BuilderSurfaceAdapter } from "./surface-adapter";
+import type { BuilderSurfaceKind } from "./surface-kind";
 
 /** Subject a connected/data-bound node hydrates against in the editor canvas.
  *  `null` → render against the active tenant (the published-storefront default,
@@ -141,6 +142,82 @@ export function buildHomepageBuilderConfig(
     },
     dataSources: { allowed: HOMEPAGE_DATA_SOURCES },
     previewSubjectKind: null,
+    capabilities: {
+      motion: true,
+      themeTokens: true,
+      customCss: true,
+      responsiveBreakpoints: true,
+    },
+  };
+}
+
+/** Every data source the Platform Builder Lab may bind. The Lab authors
+ *  templates for ALL consumer surfaces, so it can preview every connected
+ *  source against the chosen subject. (Same set the homepage editor binds.) */
+const PLATFORM_LAB_DATA_SOURCES: readonly BuilderDataSourceKey[] =
+  HOMEPAGE_DATA_SOURCES;
+
+/**
+ * The platform_lab config (WS5) — specialises the ONE Page Builder Core for the
+ * Platform Builder Lab. Built as a factory (mirrors `buildHomepageBuilderConfig`)
+ * so the Lab mount always hands the provider a fresh object and can swap the
+ * preview subject per area (Talent Lab → "talent"; Workspace Lab → "workspace").
+ *
+ * The platform_lab `surface` adapter is passed IN (rather than imported here),
+ * for the same reason the homepage adapter is: keeping `config.ts` free of a
+ * static edge to an adapter module that pulls the server-action graph. The Lab
+ * mount holds `platformLabAdapter` and threads it in.
+ *
+ * Differences from homepage:
+ *   - `previewSubjectKind` is the chosen area (talent / workspace) so connected
+ *     nodes hydrate against the picked subject in-canvas (WS4 render plumbing).
+ *   - `allowDbTemplates` + the "Page Templates" gallery tab are ON — the Lab is
+ *     where templates are authored, so it both consumes and produces them.
+ *   - `canPublish` is false: the Lab never publishes a live PAGE. Publishing a
+ *     TEMPLATE happens via the header's "Save as page template" → WS2 actions,
+ *     not the surface adapter's publish (which is an ephemeral no-op sink).
+ *   - `canEditShell` is false: the Lab edits template bodies, not the shared
+ *     site header/footer shell.
+ *   - raw-HTML `code` insertion is allowed (super_admin-only surface).
+ */
+export function buildPlatformLabBuilderConfig(
+  platformLabSurfaceAdapter: BuilderSurfaceAdapter,
+  previewSubjectKind: BuilderPreviewSubjectKind,
+): BuilderContextConfig {
+  // Defensive: this factory must only ever wrap the platform_lab surface.
+  const kind: BuilderSurfaceKind = platformLabSurfaceAdapter.kind;
+  if (kind !== "platform_lab") {
+    throw new Error(
+      `buildPlatformLabBuilderConfig requires a platform_lab adapter, got "${kind}".`,
+    );
+  }
+  return {
+    surface: platformLabSurfaceAdapter,
+    permissions: {
+      canEditDraft: true,
+      // The Lab never publishes a live page; template publish is a separate
+      // header action through the WS2 registry, not the surface adapter.
+      canPublish: false,
+      // No revision history on the ephemeral sink.
+      canRestoreRevision: false,
+      // The Lab edits template bodies, not the shared site shell.
+      canEditShell: false,
+      // super_admin-only surface → raw-HTML elements allowed.
+      canInsertRawHtmlElements: true,
+    },
+    galleryPolicy: {
+      allowedTabs: [
+        "layout",
+        "elements",
+        "sections",
+        "connected",
+        "page_templates",
+      ],
+      // The Lab both authors and consumes DB templates.
+      allowDbTemplates: true,
+    },
+    dataSources: { allowed: PLATFORM_LAB_DATA_SOURCES },
+    previewSubjectKind,
     capabilities: {
       motion: true,
       themeTokens: true,

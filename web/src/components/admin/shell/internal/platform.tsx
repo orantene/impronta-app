@@ -18,6 +18,8 @@
  */
 
 import { type ReactNode, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+import { BuilderLabRestrictedNotice } from "@/components/builder-lab/builder-lab-intro";
 import {
   COLORS,
   ENTITY_TYPE_META,
@@ -87,6 +89,18 @@ const HQ = {
   green: "#5DD3A0",
   red: "#F36772",
 };
+
+// WS5 — Platform Builder Lab page module. Dynamically imported (ssr:false) so
+// the shared editor + builder-core graph only loads when a super_admin opens
+// the Lab, keeping the rest of the HQ console light. Mirrors the
+// `pages-dynamic.ts` pattern used for the Client/Platform surfaces.
+const BuilderLabPage = dynamic(
+  () =>
+    import("./page-modules/BuilderLabPage").then((m) => ({
+      default: m.BuilderLabPage,
+    })),
+  { ssr: false },
+);
 
 function openPlatformSupportEmail(subject: string, body: string) {
   const params = new URLSearchParams({ subject, body });
@@ -332,7 +346,7 @@ function ImpersonationStrip() {
 // ─── Router ───────────────────────────────────────────────────────
 
 function PlatformRouter() {
-  const { state } = useAdminShell();
+  const { state, bridgeSessionIdentity } = useAdminShell();
   switch (state.platformPage) {
     case "today":
       return <PlatformTodayPage />;
@@ -346,9 +360,36 @@ function PlatformRouter() {
       return <PlatformBillingPage />;
     case "operations":
       return <PlatformOperationsPage />;
+    case "builder-lab":
+      // WS5 — Platform Builder Lab. super_admin-only. The platform surface is
+      // already reached only by platform admins, but the Lab writes the shared
+      // template registry, so we re-gate here on `isPlatformAdmin` (mirrors the
+      // server-side `requireSuperAdmin` in the registry actions) and degrade to
+      // a "restricted" notice for any non-super_admin who deep-links here.
+      return bridgeSessionIdentity?.isPlatformAdmin ? (
+        <BuilderLabPage />
+      ) : (
+        <BuilderLabRestricted />
+      );
     case "settings":
       return <PlatformSettingsPage />;
   }
+}
+
+/** Shown when a non-super_admin deep-links `?platformPage=builder-lab`. */
+function BuilderLabRestricted() {
+  return (
+    <>
+      <PageHeader
+        eyebrow="Tulala HQ"
+        title="Builder Lab"
+        subtitle="The Builder Lab is restricted to platform super admins."
+      />
+      <HqCard title="Access restricted">
+        <BuilderLabRestrictedNotice />
+      </HqCard>
+    </>
+  );
 }
 
 // ─── Shared header ────────────────────────────────────────────────
