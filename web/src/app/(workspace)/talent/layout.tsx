@@ -88,6 +88,14 @@ export default async function PlatformTalentLayout({
   const isTalentRoot =
     pathname === "/talent" || pathname === "/talent/";
 
+  // Full-screen surfaces under /talent/* that own their entire viewport (the
+  // freeform Page Builder editor chrome) opt OUT of the dashboard shell so the
+  // editor renders bare. The route itself enforces auth + the Max-tier gate;
+  // here we only skip the heavy shell + its dashboard data loads.
+  if (pathname.startsWith("/talent/page-builder")) {
+    return <>{children}</>;
+  }
+
   const baseProfile = await loadTalentSelfProfileByUser(session.user.id);
   if (!baseProfile) {
     if (isTalentRoot) {
