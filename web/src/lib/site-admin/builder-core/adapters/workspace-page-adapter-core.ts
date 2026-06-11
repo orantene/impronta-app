@@ -50,6 +50,11 @@ import type {
   BuilderSurfaceRestoreInput,
 } from "../surface-adapter";
 import { assertNoLegacyBuilderWrite } from "../legacy-write-guard";
+import {
+  isFreeformBlocks,
+  convertLegacyPageBlocksToBuilderNodes,
+} from "@/lib/site-admin/builder-node/legacy-page-blocks";
+import type { PageBlock } from "@/components/page-builder/blocks/types";
 
 // ── Row shape (only fields we read/write) ───────────────────────────────────
 
@@ -153,12 +158,43 @@ export function buildEmptyWorkspacePageComposition(
       noindex: false,
     },
     slots: {},
-    builderTree: (row.blocks as CompositionData["builderTree"]) ?? [],
+    // CONVERT-ON-OPEN (Gap 2). `workspace_pages.blocks` may hold a LEGACY
+    // PageBlock[] (the retired block editor) or a FREEFORM BuilderNode[]. The
+    // freeform editor only understands BuilderNode[], so a legacy row is
+    // converted to an equivalent freeform tree HERE, on load. This is
+    // editor-only and non-destructive: the row's stored legacy blocks are NOT
+    // rewritten until the operator explicitly saves, and until then the
+    // published page keeps rendering its legacy blocks via the shape-aware
+    // public renderer. Freeform + empty rows pass through unchanged.
+    builderTree: builderTreeFromStoredBlocks(row.blocks),
     slotDefs: [],
     library: [],
     styleClasses: (row.theme as CompositionData["styleClasses"]) ?? undefined,
     availableLocales: [locale as CompositionData["locale"]],
   };
+}
+
+/**
+ * Normalize a stored `workspace_pages.blocks` value into the freeform
+ * `builderTree` the editor expects:
+ *   - already-freeform BuilderNode[]  → returned as-is
+ *   - legacy PageBlock[]              → converted to an equivalent BuilderNode[]
+ *   - empty / non-array / unknown     → empty tree (the freeform editor opens a
+ *     blank page; the public renderer routes the untouched row to its legacy
+ *     path, so nothing is lost)
+ */
+function builderTreeFromStoredBlocks(
+  blocks: unknown,
+): CompositionData["builderTree"] {
+  if (isFreeformBlocks(blocks)) {
+    return blocks as CompositionData["builderTree"];
+  }
+  if (Array.isArray(blocks) && blocks.length > 0) {
+    return convertLegacyPageBlocksToBuilderNodes(
+      blocks as PageBlock[],
+    ) as CompositionData["builderTree"];
+  }
+  return [];
 }
 
 // ── createWorkspacePageAdapter ───────────────────────────────────────────────

@@ -8,7 +8,7 @@ import { createDraftPageAction } from "@/lib/server-actions/admin-site-pages";
 import { EmptyState, Icon, PrimaryButton, SecondaryButton } from "../primitives";
 import { COLORS, FONTS, TRANSITION, fmtMoney, meetsRole, useAdminShell } from "../state";
 import type { WebsitePageRow, WebsitePost } from "../state";
-import { PageBuilderPage } from "./page-builder/PageBuilderPage";
+import { WorkspacePageBuilderSurface } from "./page-builder/WorkspacePageBuilderSurface";
 import { CardDesignStudio } from "./CardDesignStudio";
 import { PageStatusChip } from "./SitePage";
 import { ConfigStatusRow, HeroStat, PageVisualCard, WebsitePerformance } from "./WebsitePage-2";
@@ -467,7 +467,7 @@ export function WebsitePage() {
               </p>
             </div>
           ) : (
-            <PageBuilderPage />
+            <WorkspacePageBuilderSurface />
           )}
         </div>
       </section>
