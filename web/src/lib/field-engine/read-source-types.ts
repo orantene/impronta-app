@@ -93,7 +93,18 @@ export const DEFAULT_FIELD_ENGINE_READ_SOURCE_FLAGS: FieldEngineReadSourceFlags 
   // Kill switch: FIELD_ENGINE_READ_SOURCE=public_sidebar:a (or =a) reverts to
   // System A; a B-read that throws also safe-falls-back to A at runtime.
   public_sidebar: "b",
-  dashboard_nav: "a",
+  // T2.3 (this PR) ACTIVATES the talent dashboard nav-groups + fieldCatalog +
+  // fieldValues + taxonomy-editor editableFields repoint: these reads now default
+  // to canonical System B (`profile_field_definitions` /
+  // `talent_profile_field_values`), behind the read-source-dashboard-nav.ts
+  // reader pair. Documented diffs vs A (all non-regressive):
+  //   1. `classification` group absent in B: talent_type has no B definition.
+  //   2. `skills` absent from `abilities` group in B: deprecated in B catalog.
+  //   3. instagram_url, tiktok_url, youtube_url absent from `social_external`: no
+  //      B canonical definitions for these social URLs yet.
+  // Kill switch: FIELD_ENGINE_READ_SOURCE=dashboard_nav:a (or =a) reverts to
+  // System A instantly; a B-read that throws also safe-falls-back to A.
+  dashboard_nav: "b",
   directory_cards: "a",
   ai_search_doc: "a",
 };
