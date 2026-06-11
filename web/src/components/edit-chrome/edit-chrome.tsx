@@ -55,8 +55,11 @@
  */
 
 import dynamic from "next/dynamic";
+import { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 
+import { buildHomepageBuilderConfig } from "@/lib/site-admin/builder-core/config";
+import { homepageAdapter } from "@/lib/site-admin/builder-core/adapters/homepage-adapter";
 import { EditPill } from "./edit-pill";
 import { EditShellLoading } from "./edit-shell-loading";
 import { IframeChild } from "./iframe-child";
@@ -126,6 +129,19 @@ export function EditChrome({
   const editIntent = searchParams?.get("edit") === "1";
   const iframeMode = searchParams?.get("iframe") === "1";
 
+  // WS1 core-adapter seam — the homepage builder config. The storefront editor
+  // is the homepage surface: build its config here (in the client boundary so
+  // the adapter's server-action-backed functions stay client-callable, not
+  // serialized across RSC) and thread it through EditShell → EditProvider. The
+  // homepage adapter is a pure pass-through over the existing four homepage
+  // actions, so this is byte-identical to the prior behaviour — EditProvider's
+  // own default is this very same config; passing it explicitly makes the
+  // storefront surface contract visible and threads the resolved raw-HTML gate.
+  const surfaceConfig = useMemo(
+    () => buildHomepageBuilderConfig(homepageAdapter, { canInsertRawHtmlElements }),
+    [canInsertRawHtmlElements],
+  );
+
   // Sprint 3 — iframe-child mode. The parent editor mounts an <iframe>
   // pointing at the same URL with `?iframe=1`. Here in the iframe we
   // render a minimal selection-layer + postMessage bridge over the
@@ -154,6 +170,7 @@ export function EditChrome({
         tenantSiteLabel={tenantSiteLabel}
         workspaceMembershipSlug={workspaceMembershipSlug}
         canInsertRawHtmlElements={canInsertRawHtmlElements}
+        surfaceConfig={surfaceConfig}
       />
     );
   }
@@ -184,6 +201,7 @@ export function EditChrome({
         tenantSiteLabel={tenantSiteLabel}
         workspaceMembershipSlug={workspaceMembershipSlug}
         canInsertRawHtmlElements={canInsertRawHtmlElements}
+        surfaceConfig={surfaceConfig}
       />
     </>
   );

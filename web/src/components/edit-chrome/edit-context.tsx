@@ -38,9 +38,6 @@ import type { ReactNode } from "react";
 import {
   createAndInsertSectionAction,
   duplicateSectionAction,
-  loadHomepageCompositionAction,
-  saveDraftHomepageAction,
-  saveHomepageCompositionAction,
   type CompositionData,
   type CompositionLibraryEntry,
   type CompositionSectionRef,
@@ -54,9 +51,10 @@ import {
   type SectionVisibility,
 } from "@/lib/site-admin/edit-mode/section-actions";
 import {
-  restoreHomepageRevisionAction,
-  restorePageRevisionAction,
-} from "@/lib/site-admin/edit-mode/revisions-actions";
+  buildHomepageBuilderConfig,
+  type BuilderContextConfig,
+} from "@/lib/site-admin/builder-core/config";
+import { homepageAdapter } from "@/lib/site-admin/builder-core/adapters/homepage-adapter";
 import type {
   DispatchResult,
   EditorMutation,
@@ -1899,6 +1897,20 @@ interface EditProviderProps {
   workspaceMembershipSlug?: string | null;
   /** True only for platform owners (super_admin) — gates raw-HTML `code` insertion. */
   canInsertRawHtmlElements?: boolean;
+  /**
+   * WS1 core-adapter seam — the surface config that specialises this ONE
+   * Page Builder Core for a surface (homepage / workspace_page / talent_page /
+   * platform_lab). Every persistence call-site (load / save / save-draft /
+   * restore) routes through `surfaceConfig.surface` (the adapter) instead of
+   * importing the homepage actions directly.
+   *
+   * OPTIONAL with a homepage default: when omitted (every existing storefront
+   * call path), the provider uses `DEFAULT_HOMEPAGE_BUILDER_CONFIG`, whose
+   * adapter is a pure pass-through over the four homepage actions — so the
+   * homepage stays byte-identical. New mount points (BuilderEditorMount) pass
+   * their own config with a different adapter; same provider, zero forked code.
+   */
+  surfaceConfig?: BuilderContextConfig;
   children: ReactNode;
 }
 
@@ -1986,6 +1998,22 @@ function mutationTouchesUnboundGallerySections(
   );
 }
 
+/**
+ * WS1 — lazily-built homepage builder config, the EditProvider default when no
+ * `surfaceConfig` prop is passed. Computed on first use (NOT at module load) so
+ * the import cycle edit-context → homepage-adapter → composition-actions →
+ * (section registry) → edit-context never reads a half-initialised export at
+ * top level (that would TDZ). The homepage adapter is a pure pass-through, so
+ * this default keeps the homepage byte-identical.
+ */
+let cachedDefaultHomepageConfig: BuilderContextConfig | null = null;
+function defaultHomepageBuilderConfig(): BuilderContextConfig {
+  if (cachedDefaultHomepageConfig === null) {
+    cachedDefaultHomepageConfig = buildHomepageBuilderConfig(homepageAdapter);
+  }
+  return cachedDefaultHomepageConfig;
+}
+
 export function EditProvider({
   tenantId,
   workspacePlan = null,
@@ -1997,9 +2025,19 @@ export function EditProvider({
   tenantSiteLabel = null,
   workspaceMembershipSlug = null,
   canInsertRawHtmlElements = false,
+  surfaceConfig,
   children,
 }: EditProviderProps) {
   const router = useRouter();
+  // WS1 — the surface adapter every persistence call routes through. Defaults
+  // to the homepage pass-through adapter, so existing storefront call paths
+  // behave identically. Memoised on the (possibly-defaulted) config so the
+  // closures below have a stable reference for their dependency arrays.
+  const resolvedSurfaceConfig = surfaceConfig ?? defaultHomepageBuilderConfig();
+  const surfaceAdapter = useMemo(
+    () => resolvedSurfaceConfig.surface,
+    [resolvedSurfaceConfig],
+  );
   /** P9-1 — coalesce burst refreshes in one animation frame (insert + CAS + overlay). */
   const routerRefreshPromiseRef = useRef<Promise<void> | null>(null);
   const queueRouterRefresh = useCallback((): Promise<void> => {
@@ -3824,7 +3862,7 @@ export function EditProvider({
   const refreshComposition = useCallback(async () => {
     setCompositionLoading(true);
     try {
-      const res = await loadHomepageCompositionAction({ locale, pageSlug });
+      const res = await surfaceAdapter.load({ locale, pageSlug, pageId });
       if (res.ok) {
         applyComposition(res.data);
         // Reloading authoritative state also clears history — the stack
@@ -3853,7 +3891,7 @@ export function EditProvider({
     } finally {
       setCompositionLoading(false);
     }
-  }, [locale, pageSlug, applyComposition, reportMutationError]);
+  }, [locale, pageSlug, pageId, surfaceAdapter, applyComposition, reportMutationError]);
 
   // Initial load: only once per provider lifetime. Subsequent reloads go
   // through refreshComposition on mutation conflicts or explicit refresh.
@@ -4484,17 +4522,20 @@ export function EditProvider({
 
       const save = await safeAction(
         () =>
-          saveHomepageCompositionAction({
-            locale,
-            pageId,
-            expectedVersion: casVersion,
-            ...stripSnapshotForSave(next),
-            builderTree: builderTreeForSave,
-            styleClasses: (() => {
-              const classes = readStyleClasses(pageId);
-              return classes.length > 0 ? toStyleClassRegistry(classes) : undefined;
-            })(),
-          }),
+          surfaceAdapter.save(
+            { locale, pageSlug, pageId },
+            {
+              locale,
+              pageId,
+              expectedVersion: casVersion,
+              ...stripSnapshotForSave(next),
+              builderTree: builderTreeForSave,
+              styleClasses: (() => {
+                const classes = readStyleClasses(pageId);
+                return classes.length > 0 ? toStyleClassRegistry(classes) : undefined;
+              })(),
+            },
+          ),
         {
           name: "saveHomepageCompositionAction",
           timeoutMs: 45_000,
@@ -4526,7 +4567,9 @@ export function EditProvider({
     [
       currentSnapshot,
       locale,
+      pageSlug,
       pageId,
+      surfaceAdapter,
       refreshComposition,
       queueRouterRefresh,
       capHistory,
@@ -4946,18 +4989,19 @@ export function EditProvider({
       const snapshot = currentSnapshot();
       const save = await safeAction(
         () =>
-          saveDraftHomepageAction({
-            locale,
-            pageId,
-            expectedVersion: activePageVersion,
-            metadata: snapshot.metadata,
-            slots: stripSnapshotForSave(snapshot).slots,
-            builderTree: nextTree,
-            styleClasses: (() => {
-              const classes = readStyleClasses(pageId);
-              return classes.length > 0 ? toStyleClassRegistry(classes) : undefined;
-            })(),
-          }),
+          surfaceAdapter.saveDraft(
+            { locale, pageSlug, pageId },
+            {
+              expectedVersion: activePageVersion,
+              metadata: snapshot.metadata,
+              slots: stripSnapshotForSave(snapshot).slots,
+              builderTree: nextTree,
+              styleClasses: (() => {
+                const classes = readStyleClasses(pageId);
+                return classes.length > 0 ? toStyleClassRegistry(classes) : undefined;
+              })(),
+            },
+          ),
         {
           name: "saveDraftHomepageAction",
           timeoutMs: 45_000,
@@ -5100,7 +5144,9 @@ export function EditProvider({
     [
       currentSnapshot,
       locale,
+      pageSlug,
       pageId,
+      surfaceAdapter,
       refreshComposition,
       queueRouterRefresh,
       reportMutationError,
@@ -6700,17 +6746,20 @@ export function EditProvider({
       );
       const save = await safeAction(
         () =>
-          saveHomepageCompositionAction({
-            locale,
-            pageId,
-            expectedVersion: pageVersionRef.current!,
-            ...stripSnapshotForSave(normalizedTarget),
-            builderTree: builderTreeForSave,
-            styleClasses: (() => {
-              const classes = readStyleClasses(pageId);
-              return classes.length > 0 ? toStyleClassRegistry(classes) : undefined;
-            })(),
-          }),
+          surfaceAdapter.save(
+            { locale, pageSlug, pageId },
+            {
+              locale,
+              pageId,
+              expectedVersion: pageVersionRef.current!,
+              ...stripSnapshotForSave(normalizedTarget),
+              builderTree: builderTreeForSave,
+              styleClasses: (() => {
+                const classes = readStyleClasses(pageId);
+                return classes.length > 0 ? toStyleClassRegistry(classes) : undefined;
+              })(),
+            },
+          ),
         {
           name: "saveHomepageCompositionAction(restoreSnapshot)",
           timeoutMs: 45_000,
@@ -6740,7 +6789,7 @@ export function EditProvider({
       void queueRouterRefresh();
       return true;
     },
-    [locale, pageId, refreshComposition, queueRouterRefresh, setSlotsAndBuilderTree],
+    [locale, pageSlug, pageId, surfaceAdapter, refreshComposition, queueRouterRefresh, setSlotsAndBuilderTree],
   );
 
   /**
@@ -7165,17 +7214,21 @@ export function EditProvider({
       // by locale (no pageId needed in the action); non-homepage pages use
       // the pageId directly so the right cms_page row is targeted.
       const casVersion = pageVersionRef.current ?? pageVersion;
-      const res = pageSlug && pageId
-        ? await restorePageRevisionAction({
-            revisionId,
-            pageId,
-            expectedVersion: casVersion,
-          })
-        : await restoreHomepageRevisionAction({
-            revisionId,
-            locale,
-            expectedVersion: casVersion,
-          });
+      // WS1 — route through the surface adapter. The homepage adapter
+      // reproduces the exact branch this used to inline: a non-homepage page
+      // (pageSlug + pageId) restores by pageId; the homepage restores by
+      // locale. A surface with no revision history omits restoreRevision —
+      // guard on its presence.
+      if (!surfaceAdapter.restoreRevision) {
+        setSaving(false);
+        const message = "This surface does not support restoring revisions.";
+        reportMutationError(message);
+        return { ok: false, error: message };
+      }
+      const res = await surfaceAdapter.restoreRevision(
+        { locale, pageSlug, pageId },
+        { revisionId, expectedVersion: casVersion },
+      );
       setSaving(false);
       if (!res.ok) {
         if (res.code === "VERSION_CONFLICT") {
@@ -7192,7 +7245,7 @@ export function EditProvider({
       void queueRouterRefresh();
       return { ok: true };
     },
-    [pageVersion, pageSlug, pageId, locale, refreshComposition, queueRouterRefresh, reportMutationError],
+    [pageVersion, pageSlug, pageId, locale, surfaceAdapter, refreshComposition, queueRouterRefresh, reportMutationError],
   );
 
   // Sprint 5 — public setSectionVisibility now routes through the
@@ -7259,17 +7312,18 @@ export function EditProvider({
     setSaving(true);
     const res = await safeAction(
       () =>
-        saveDraftHomepageAction({
-          locale,
-          pageId,
-          expectedVersion: casVersion,
-          ...stripSnapshotForSave(snap),
-          builderTree: reconcileBuilderTreeFromSlots(builderTree, snap.slots),
-          styleClasses: (() => {
-            const classes = readStyleClasses(pageId);
-            return classes.length > 0 ? toStyleClassRegistry(classes) : undefined;
-          })(),
-        }),
+        surfaceAdapter.saveDraft(
+          { locale, pageSlug, pageId },
+          {
+            expectedVersion: casVersion,
+            ...stripSnapshotForSave(snap),
+            builderTree: reconcileBuilderTreeFromSlots(builderTree, snap.slots),
+            styleClasses: (() => {
+              const classes = readStyleClasses(pageId);
+              return classes.length > 0 ? toStyleClassRegistry(classes) : undefined;
+            })(),
+          },
+        ),
       {
         name: "saveDraftHomepageAction",
         timeoutMs: 45_000,
@@ -7295,7 +7349,9 @@ export function EditProvider({
   }, [
     currentSnapshot,
     locale,
+    pageSlug,
     pageId,
+    surfaceAdapter,
     refreshComposition,
     builderTree,
     reportMutationError,
