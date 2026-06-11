@@ -32,6 +32,7 @@ import type { LegacySnapshotSlot } from "@/lib/site-admin/builder-node/snapshot-
 
 import type { HomepageSnapshot } from "./homepage";
 import type { PageRevisionRow } from "./pages";
+import { recoverBuilderTreeIfEmpty } from "./recover-builder-tree";
 
 // ---- column sets ----------------------------------------------------------
 
@@ -447,12 +448,28 @@ export async function loadDraftHomepage(
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle<{ snapshot: { builderTree?: unknown } | null }>();
-  const preferredBuilderTree =
+  const versionMatchedBuilderTree =
     revisionRow?.snapshot &&
     typeof revisionRow.snapshot === "object" &&
     "builderTree" in revisionRow.snapshot
       ? revisionRow.snapshot.builderTree
       : undefined;
+
+  // Self-heal guard (homepage draft empty-load incident, 2026-06-11): if the
+  // version-matched revision is empty, recover the latest non-empty revision so
+  // the editor never renders — and then autosaves — an empty homepage over a
+  // good draft. See recover-builder-tree.ts.
+  const preferredBuilderTree = await recoverBuilderTreeIfEmpty(
+    supabase,
+    {
+      tenantId,
+      pageId: page.id,
+      pageVersion: page.version,
+      hasSlots: slots.length > 0,
+    },
+    versionMatchedBuilderTree,
+  );
+
   const resolvedBuilderTree = resolveSnapshotBuilderTree({
     slots: toLegacySnapshotSlots(slots),
     builderTree: preferredBuilderTree,

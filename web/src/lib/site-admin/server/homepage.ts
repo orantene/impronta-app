@@ -90,6 +90,7 @@ import {
 
 import { enforceFreePlanNestedBuilderDraftGuard } from "./free-plan-draft-save-guard";
 import type { PageRow } from "./pages";
+import { recoverBuilderTreeIfEmpty } from "./recover-builder-tree";
 
 // ---- row shapes -----------------------------------------------------------
 
@@ -1076,12 +1077,26 @@ export async function publishHomepage(
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle<{ snapshot: { builderTree?: unknown } | null }>();
-  const preferredBuilderTree =
+  const versionMatchedBuilderTree =
     revisionRow?.snapshot &&
     typeof revisionRow.snapshot === "object" &&
     "builderTree" in revisionRow.snapshot
       ? revisionRow.snapshot.builderTree
       : undefined;
+  // Self-heal guard (homepage draft empty-load incident, 2026-06-11): never
+  // freeze an empty homepage at publish if the version pointer drifted onto an
+  // empty revision while a recent non-empty draft still exists. See
+  // recover-builder-tree.ts.
+  const preferredBuilderTree = await recoverBuilderTreeIfEmpty(
+    supabase,
+    {
+      tenantId,
+      pageId: beforeRow.id,
+      pageVersion: beforeRow.version,
+      hasSlots: compositionSnapshot.length > 0,
+    },
+    versionMatchedBuilderTree,
+  );
   const publishedBuilderTreeResolved = resolveSnapshotBuilderTreeForPublish({
     slots: toLegacySnapshotSlots(compositionSnapshot),
     builderTree: preferredBuilderTree,
