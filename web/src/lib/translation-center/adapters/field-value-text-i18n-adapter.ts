@@ -12,6 +12,10 @@ import type {
   ListUnitsResult,
   TranslationUnitDTO,
 } from "@/lib/translation-center/types";
+import {
+  readTranslationAggregateRows,
+  readTranslationListRows,
+} from "@/lib/field-engine/read-source-translation-i18n";
 
 function empty(domain: AdapterContext["domain"]): DomainAggregateDTO {
   return {
@@ -60,6 +64,9 @@ function localeSummaryTargets(perTarget: Record<string, string>, targetLocales: 
   return targetLocales.map((c) => `${c.toUpperCase()}: ${perTarget[c]?.trim() ? "✓" : "—"}`).join(" · ");
 }
 
+/** Local fallback guard used only by `translatableDefinitionIds` (legacy-column
+ *  detection for `field_definitions.translatable`). The equivalent helper for the
+ *  value-store reads has been moved to read-source-translation-i18n.ts. */
 function isUndefinedColumn(err: unknown, columnSqlName: string): boolean {
   if (!err || typeof err !== "object") return false;
   const e = err as { code?: string; message?: string };
@@ -98,17 +105,12 @@ async function translatableDefinitionIds(supabase: SupabaseClient): Promise<{
   return { ids, meta };
 }
 
-const FIELD_VALUES_AGGREGATE_SELECT_WITH_I18N =
-  "id, talent_profile_id, field_definition_id, value_text, value_i18n, talent_profiles ( profile_code, display_name, workflow_status, deleted_at )";
-
-const FIELD_VALUES_AGGREGATE_SELECT_LEGACY =
-  "id, talent_profile_id, field_definition_id, value_text, talent_profiles ( profile_code, display_name, workflow_status, deleted_at )";
-
-const FIELD_VALUES_LIST_SELECT_WITH_I18N =
-  "id, talent_profile_id, field_definition_id, value_text, value_i18n, talent_profiles ( id, profile_code, display_name, workflow_status, deleted_at )";
-
-const FIELD_VALUES_LIST_SELECT_LEGACY =
-  "id, talent_profile_id, field_definition_id, value_text, talent_profiles ( id, profile_code, display_name, workflow_status, deleted_at )";
+// NOTE: The SELECT string constants previously defined here (FIELD_VALUES_AGGREGATE_SELECT_*,
+// FIELD_VALUES_LIST_SELECT_*) have been moved into the read-source seam
+// (read-source-translation-i18n.ts) as part of the T2.5b read-source wiring.
+// The adapter now calls readTranslationAggregateRows / readTranslationListRows
+// which route through the `translation` surface flag (currently `a`, schema-blocked
+// for `b`). See read-source-translation-i18n.ts for the B-unblock plan.
 
 export const fieldValueTextI18nAdapter: TranslationCenterAdapter = {
   adapterId: "fieldValueTextI18n",
@@ -123,47 +125,19 @@ export const fieldValueTextI18nAdapter: TranslationCenterAdapter = {
     const { ids, meta } = await translatableDefinitionIds(supabase);
     if (ids.length === 0) return base;
 
-    let { data: aggRows, error } = await supabase
-      .from("field_values")
-      .select(FIELD_VALUES_AGGREGATE_SELECT_WITH_I18N)
-      .in("field_definition_id", ids)
-      .limit(TC_AGGREGATE_LIST_CAP);
-
-    if (error && isUndefinedColumn(error, "value_i18n")) {
-      const legacy = await supabase
-        .from("field_values")
-        .select(FIELD_VALUES_AGGREGATE_SELECT_LEGACY)
-        .in("field_definition_id", ids)
-        .limit(TC_AGGREGATE_LIST_CAP);
-      aggRows = legacy.data as typeof aggRows;
-      error = legacy.error;
-    }
-
-    if (error) {
-      logServerError("translation-center/fieldValueTextI18nAdapter/aggregate", error);
+    let aggRows: Awaited<ReturnType<typeof readTranslationAggregateRows>>;
+    try {
+      aggRows = await readTranslationAggregateRows(supabase, {
+        defIds: ids,
+        limit: TC_AGGREGATE_LIST_CAP,
+      });
+    } catch (err) {
+      logServerError("translation-center/fieldValueTextI18nAdapter/aggregate", err);
       return base;
     }
 
-    for (const row of aggRows ?? []) {
-      const r = row as unknown as {
-        value_text: string | null;
-        value_i18n?: unknown;
-        field_definition_id: string;
-        talent_profiles:
-          | {
-              profile_code: string;
-              display_name: string | null;
-              workflow_status: string;
-              deleted_at: string | null;
-            }
-          | Array<{
-              profile_code: string;
-              display_name: string | null;
-              workflow_status: string;
-              deleted_at: string | null;
-            }>
-          | null;
-      };
+    for (const row of aggRows) {
+      const r = row;
       const tp = Array.isArray(r.talent_profiles) ? r.talent_profiles[0] : r.talent_profiles;
       if (!tp || tp.deleted_at || tp.workflow_status !== "approved") continue;
       if (!meta.has(r.field_definition_id)) continue;
@@ -200,55 +174,20 @@ export const fieldValueTextI18nAdapter: TranslationCenterAdapter = {
       return { units: [], hasMore: false, loadError: null };
     }
 
-    let { data: listRows, error } = await supabase
-      .from("field_values")
-      .select(FIELD_VALUES_LIST_SELECT_WITH_I18N)
-      .in("field_definition_id", ids)
-      .order("updated_at", { ascending: false })
-      .range(params.offset, params.offset + TC_TABLE_PAGE_SIZE - 1);
-
-    if (error && isUndefinedColumn(error, "value_i18n")) {
-      const legacy = await supabase
-        .from("field_values")
-        .select(FIELD_VALUES_LIST_SELECT_LEGACY)
-        .in("field_definition_id", ids)
-        .order("updated_at", { ascending: false })
-        .range(params.offset, params.offset + TC_TABLE_PAGE_SIZE - 1);
-      listRows = legacy.data as typeof listRows;
-      error = legacy.error;
-    }
-
-    if (error) {
-      logServerError("translation-center/fieldValueTextI18nAdapter/list", error);
+    let listRows: Awaited<ReturnType<typeof readTranslationListRows>>;
+    try {
+      listRows = await readTranslationListRows(supabase, {
+        defIds: ids,
+        offset: params.offset,
+        limit: TC_TABLE_PAGE_SIZE,
+      });
+    } catch (err) {
+      logServerError("translation-center/fieldValueTextI18nAdapter/list", err);
       return { units: [], hasMore: false, loadError: CLIENT_ERROR.loadPage };
     }
 
-    const rows = (listRows ?? []) as unknown as Array<{
-      id: string;
-      talent_profile_id: string;
-      field_definition_id: string;
-      value_text: string | null;
-      value_i18n?: unknown;
-      talent_profiles:
-        | {
-            id: string;
-            profile_code: string;
-            display_name: string | null;
-            workflow_status: string;
-            deleted_at: string | null;
-          }
-        | {
-            id: string;
-            profile_code: string;
-            display_name: string | null;
-            workflow_status: string;
-            deleted_at: string | null;
-          }[]
-        | null;
-    }>;
-
     let units: TranslationUnitDTO[] = [];
-    for (const row of rows) {
+    for (const row of listRows) {
       const tp = Array.isArray(row.talent_profiles) ? row.talent_profiles[0] : row.talent_profiles;
       if (!tp || tp.deleted_at || tp.workflow_status !== "approved") continue;
       const fd = meta.get(row.field_definition_id);
@@ -291,6 +230,6 @@ export const fieldValueTextI18nAdapter: TranslationCenterAdapter = {
       units = units.filter((u) => u.displayLabel.toLowerCase().includes(q));
     }
 
-    return { units, hasMore: (listRows ?? []).length === TC_TABLE_PAGE_SIZE, loadError: null };
+    return { units, hasMore: listRows.length === TC_TABLE_PAGE_SIZE, loadError: null };
   },
 };

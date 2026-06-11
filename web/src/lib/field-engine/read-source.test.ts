@@ -39,15 +39,18 @@ test("parser: unset/empty/whitespace → the default flags", () => {
     DEFAULT_FIELD_ENGINE_READ_SOURCE_FLAGS,
   );
   // T2.1 flipped directory_facets to `b`; T2.2 flipped public_sidebar to `b`;
-  // T2.1–T2.5 flipped ALL five surfaces to `b`. None default to `a` now.
+  // T2.1–T2.5 flipped ALL seven directory/AI/nav/card surfaces to `b`.
+  // T2.5b added `translation` but it remains `a` (schema-blocked: no value_i18n
+  // in talent_profile_field_values yet). Check each surface individually.
   assert.equal(DEFAULT_FIELD_ENGINE_READ_SOURCE_FLAGS.directory_facets, "b");
   assert.equal(DEFAULT_FIELD_ENGINE_READ_SOURCE_FLAGS.public_sidebar, "b");
   assert.equal(DEFAULT_FIELD_ENGINE_READ_SOURCE_FLAGS.dashboard_nav, "b");
   assert.equal(DEFAULT_FIELD_ENGINE_READ_SOURCE_FLAGS.directory_cards, "b");
   assert.equal(DEFAULT_FIELD_ENGINE_READ_SOURCE_FLAGS.ai_search_doc, "b");
-  for (const s of FIELD_ENGINE_READ_SURFACES) {
-    assert.equal(DEFAULT_FIELD_ENGINE_READ_SOURCE_FLAGS[s], "b");
-  }
+  assert.equal(DEFAULT_FIELD_ENGINE_READ_SOURCE_FLAGS.directory_search, "b");
+  assert.equal(DEFAULT_FIELD_ENGINE_READ_SOURCE_FLAGS.directory_card_values, "b");
+  // translation stays `a` until the B schema addition (T2.5b blocker).
+  assert.equal(DEFAULT_FIELD_ENGINE_READ_SOURCE_FLAGS.translation, "a");
 });
 
 test("parser: `b` flips every surface; `a` is the global kill switch (all a)", () => {
@@ -59,6 +62,7 @@ test("parser: `b` flips every surface; `a` is the global kill switch (all a)", (
     ai_search_doc: "b",
     directory_search: "b",
     directory_card_values: "b",
+    translation: "b",
   });
   // `a` (or `A`) must revert every surface — the explicit rollback / kill switch.
   assert.deepEqual(parseFieldEngineReadSourceFlags("A"), {
@@ -69,13 +73,15 @@ test("parser: `b` flips every surface; `a` is the global kill switch (all a)", (
     ai_search_doc: "a",
     directory_search: "a",
     directory_card_values: "a",
+    translation: "a",
   });
 });
 
 test("parser: per-surface tokens layer over the default (others keep their default)", () => {
   // Naming one surface leaves the rest at their default (directory_facets `b`
   // post-T2.1, public_sidebar `b` post-T2.2, dashboard_nav `b` post-T2.3,
-  // all five default to `b` post-T2.5; naming one keeps the rest at `b`).
+  // all seven directory/AI/nav/card surfaces default to `b` post-T2.5;
+  // translation defaults to `a` post-T2.5b; naming one keeps the rest at their default).
   assert.deepEqual(parseFieldEngineReadSourceFlags("directory_cards:b"), {
     directory_facets: "b",
     public_sidebar: "b",
@@ -84,8 +90,9 @@ test("parser: per-surface tokens layer over the default (others keep their defau
     ai_search_doc: "b",
     directory_search: "b",
     directory_card_values: "b",
+    translation: "a",
   });
-  // Per-surface kill switch: revert just ai_search_doc to `a`; the rest keep `b`.
+  // Per-surface kill switch: revert just ai_search_doc to `a`; the rest keep their default.
   assert.deepEqual(parseFieldEngineReadSourceFlags("ai_search_doc:a"), {
     directory_facets: "b",
     public_sidebar: "b",
@@ -94,6 +101,7 @@ test("parser: per-surface tokens layer over the default (others keep their defau
     ai_search_doc: "a",
     directory_search: "b",
     directory_card_values: "b",
+    translation: "a",
   });
   // Multiple surfaces flipped explicitly (public_sidebar + dashboard_nav keep `b` default).
   assert.deepEqual(
@@ -106,6 +114,7 @@ test("parser: per-surface tokens layer over the default (others keep their defau
       ai_search_doc: "b",
       directory_search: "b",
       directory_card_values: "b",
+      translation: "a",
     },
   );
   // Per-surface rollback (the dashboard_nav kill switch): revert just that
@@ -118,6 +127,7 @@ test("parser: per-surface tokens layer over the default (others keep their defau
     ai_search_doc: "b",
     directory_search: "b",
     directory_card_values: "b",
+    translation: "a",
   });
 });
 
@@ -130,6 +140,7 @@ test("parser: unknown surfaces/sources are ignored (keep default)", () => {
     ai_search_doc: "b", // T2.5 default
     directory_search: "b", // T2.5a default
     directory_card_values: "b", // T2.5a default
+    translation: "a", // T2.5b default (schema-blocked)
   });
   // Case-insensitive surface + source — explicit kill-switch for ai_search_doc.
   assert.deepEqual(parseFieldEngineReadSourceFlags("AI_SEARCH_DOC:A"), {
@@ -140,6 +151,7 @@ test("parser: unknown surfaces/sources are ignored (keep default)", () => {
     ai_search_doc: "a",
     directory_search: "b", // T2.5a default
     directory_card_values: "b", // T2.5a default
+    translation: "a", // T2.5b default (schema-blocked)
   });
 });
 

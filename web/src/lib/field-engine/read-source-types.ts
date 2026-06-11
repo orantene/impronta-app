@@ -50,6 +50,10 @@ export type FieldEngineReadSource = "a" | "b";
  *   directory_card_values — T2.5a — the per-profile directory card VALUE reader
  *     (`field_values` by card def-ids). read-source-directory-card-values.ts
  *     (called from fetch-directory-page.ts).
+ *   translation      — T2.5b — translation-center i18n adapter value reads
+ *     (field-value-text-i18n-adapter.ts). BLOCKED on B schema: B has no
+ *     `value_i18n` column yet; defaults to `a`. Seam is wired so the flip
+ *     to `b` requires only a schema addition + B-reader completion.
  */
 export type FieldEngineReadSurface =
   | "directory_facets"
@@ -58,7 +62,8 @@ export type FieldEngineReadSurface =
   | "directory_cards"
   | "ai_search_doc"
   | "directory_search"
-  | "directory_card_values";
+  | "directory_card_values"
+  | "translation";
 
 export const FIELD_ENGINE_READ_SURFACES: readonly FieldEngineReadSurface[] = [
   "directory_facets",
@@ -68,6 +73,7 @@ export const FIELD_ENGINE_READ_SURFACES: readonly FieldEngineReadSurface[] = [
   "ai_search_doc",
   "directory_search",
   "directory_card_values",
+  "translation",
 ] as const;
 
 export type FieldEngineReadSourceFlags = Record<
@@ -162,6 +168,21 @@ export const DEFAULT_FIELD_ENGINE_READ_SOURCE_FLAGS: FieldEngineReadSourceFlags 
   // byte-identical. Kill switch: FIELD_ENGINE_READ_SOURCE=directory_card_values:a
   // (or =a); a B-read that throws also safe-falls-back to A at runtime.
   directory_card_values: "b",
+  // T2.5b — Translation i18n adapter (field-value-text-i18n-adapter.ts).
+  // BLOCKED at `a`: the B-repoint requires `value_i18n` to be added to
+  // `talent_profile_field_values` first (it currently lives only in the legacy
+  // `field_values.value_i18n` column). Until that schema addition lands, the
+  // B-reader would see every translation unit as health="missing" (no i18n
+  // column to read), which is REGRESSIVE. The seam is wired (adapter calls
+  // readFieldSurface("translation", ...)) so the flip to `b` requires only:
+  //   1. DB: ALTER TABLE talent_profile_field_values ADD COLUMN value_i18n jsonb;
+  //   2. Code: complete the B-reader in read-source-translation-i18n.ts to join
+  //            value_i18n from the new column; update default here to "b".
+  //   3. Write path: admin-translation-quick-edit.ts must also write to the B
+  //            column so translated text survives the mirror-stop (T2.6).
+  // Kill switch: n/a (already `a`). Setting `translation:b` before the schema
+  // migration lands is a no-op fallback — the B-reader throws → falls back to A.
+  translation: "a",
 };
 
 /**
