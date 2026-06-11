@@ -58,10 +58,9 @@
 //     A.sort_order=10 (see SORT HAZARD below).
 //
 //   fit_labels → A-key=fit_labels: label_en "Fit Labels"=✓
-//     label_es: A="Etiquetas de ajuste" | B="Etiquetas de fit".
-//     DIFF: the two stores carry different Spanish labels. readB uses B's
-//     canonical "Etiquetas de fit" — this is NOT a regression; it is B being
-//     the authoritative canonical label. The EN label is byte-identical.
+//     label_es: A="Etiquetas de ajuste" | B="Etiquetas de ajuste"=✓
+//     (migration 20260611180515 corrected the placeholder "Etiquetas de fit"
+//     left by the May-27 visibility-scaffolding migration — full ES parity).
 //
 //   industries → A-key=industries: label_en "Industries"=✓  label_es
 //     "Industrias"=✓  sort_order: B.display_order=360 vs A.sort_order=40
@@ -91,9 +90,9 @@
 //   • heightCardDef: A=height_cm def  B=same def (A sort_order preserved)  ✓
 //   • scalarCardDefs keys: A=[industries, fit_labels]  B=[industries, fit_labels]  ✓
 //   • scalarCardDefs EN labels: all byte-identical  ✓
-//   • scalarCardDefs ES labels: fit_labels ES DIFF (A="Etiquetas de ajuste"
-//     B="Etiquetas de fit"). NON-REGRESSIVE: B is the canonical store; its
-//     Spanish label is the authoritative value; the display change is correct.
+//   • scalarCardDefs ES labels: all byte-identical  ✓ (fit_labels ES label
+//     corrected in B via migration 20260611180515 — was "Etiquetas de fit",
+//     now "Etiquetas de ajuste", matching A).
 //   • scalarCardDefs sort_order: preserved (B-reader uses A sort values)  ✓
 //   • scalarCardDefs taxonomy_kind: readB derives from A row (no B column)  ✓
 //
