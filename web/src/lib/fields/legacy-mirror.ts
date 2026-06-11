@@ -245,15 +245,35 @@ export async function prefetchMirrorCanonicalContext(
   }
 }
 
+/**
+ * Outcome of a `mirrorWriteToCanonical` call. Returned so a B-FIRST caller
+ * (T2.5c) can feed the EXACT value that landed in canonical System B back into
+ * the reverse mirror (`mirrorWriteToLegacy`) without re-deriving the slug→label
+ * translation — single source of truth for the vocab round-trip.
+ *
+ *   - status "noop"     — key not bridged or no catalog def; B untouched.
+ *   - status "deleted"  — the canonical row was deleted (value was null/empty).
+ *   - status "upserted" — `bValue` is the value persisted to B (the translated
+ *                         label for selects, or the coerced scalar otherwise)
+ *                         AND `newKey` is the canonical field key.
+ *
+ * The A-first call site ignores this return entirely, so its behaviour is
+ * unchanged (byte-identical to before this field was added).
+ */
+export type MirrorCanonicalResult =
+  | { status: "noop" }
+  | { status: "deleted"; newKey: string }
+  | { status: "upserted"; newKey: string; bValue: unknown };
+
 export async function mirrorWriteToCanonical(
   supabase: MirrorSupabase,
   legacyKey: string,
   talentProfileId: string,
   value: unknown, // text | number | boolean | null
   context?: MirrorCanonicalContext,
-): Promise<void> {
+): Promise<MirrorCanonicalResult> {
   const newKey = OLD_TO_NEW_KEY[legacyKey];
-  if (!newKey) return; // not in the 17-key bridge — no-op
+  if (!newKey) return { status: "noop" }; // not in the 17-key bridge — no-op
 
   try {
     // Def id resolution — from context if provided, otherwise inline lookup
@@ -261,7 +281,7 @@ export async function mirrorWriteToCanonical(
     let fieldDefinitionId: string | null = null;
     if (context) {
       fieldDefinitionId = context.defIdByNewKey.get(newKey) ?? null;
-      if (!fieldDefinitionId) return; // not in catalog — no-op (same as inline path's `if (!newDef) return`)
+      if (!fieldDefinitionId) return { status: "noop" }; // not in catalog — no-op (same as inline path's `if (!newDef) return`)
     } else {
       const { data: newDef, error: defErr } = await supabase
         .from("profile_field_definitions")
@@ -273,9 +293,9 @@ export async function mirrorWriteToCanonical(
           newKey,
           error_message: defErr.message ?? String(defErr),
         });
-        return;
+        return { status: "noop" };
       }
-      if (!newDef) return;
+      if (!newDef) return { status: "noop" };
       fieldDefinitionId = newDef.id as string;
     }
 
@@ -318,7 +338,7 @@ export async function mirrorWriteToCanonical(
           error_message: delErr.message ?? String(delErr),
         });
       }
-      return;
+      return { status: "deleted", newKey };
     }
 
     // Tenant id resolution — from context if provided, otherwise inline.
@@ -358,7 +378,18 @@ export async function mirrorWriteToCanonical(
         error_message: upErr.message ?? String(upErr),
       });
     }
+    // `bValue` is the value persisted to B (translated label for selects, the
+    // coerced scalar otherwise) — the B-first caller feeds this verbatim into
+    // `mirrorWriteToLegacy` so the reverse vocab translation has a single
+    // source of truth. Returned regardless of `upErr` (fire-and-forget: a
+    // failed B-write is logged + the reconcile cron is the backstop); the
+    // A-sync still reflects the intended value, matching the A-first row.
+    return { status: "upserted", newKey, bValue: outValue };
   } catch (err) {
     logServerError(`legacy_mirror.unexpected[${legacyKey}]`, err);
   }
+  // Unexpected error already logged + swallowed (fire-and-forget); report noop
+  // so a B-first caller skips the reverse mirror for this key rather than
+  // syncing A off an unknown B state.
+  return { status: "noop" };
 }
