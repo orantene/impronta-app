@@ -20,7 +20,7 @@ import { activeWriteSource } from "@/lib/field-engine/write-source";
 
 // ── Flag parser ──────────────────────────────────────────────────────────────
 
-test("parser: unset/empty/whitespace → the default flags (shell `a`)", () => {
+test("parser: unset/empty/whitespace → the default flags (shell `b`)", () => {
   assert.deepEqual(
     parseFieldEngineWriteSourceFlags(undefined),
     DEFAULT_FIELD_ENGINE_WRITE_SOURCE_FLAGS,
@@ -33,8 +33,8 @@ test("parser: unset/empty/whitespace → the default flags (shell `a`)", () => {
     parseFieldEngineWriteSourceFlags("   "),
     DEFAULT_FIELD_ENGINE_WRITE_SOURCE_FLAGS,
   );
-  // The scaffold ships behaviour-neutral: shell defaults to A-first.
-  assert.equal(DEFAULT_FIELD_ENGINE_WRITE_SOURCE_FLAGS.shell, "a");
+  // T2.6 activation: shell now defaults to B-first.
+  assert.equal(DEFAULT_FIELD_ENGINE_WRITE_SOURCE_FLAGS.shell, "b");
 });
 
 test("parser: `b` flips every surface; `a` is the global kill switch (all a)", () => {
@@ -53,9 +53,9 @@ test("parser: per-surface token flips just that surface", () => {
 
 test("parser: unknown surfaces/sources are ignored (keep default)", () => {
   assert.deepEqual(parseFieldEngineWriteSourceFlags("bogus:b,shell:weird"), {
-    shell: "a", // weird source ignored → keeps default (`a`)
+    shell: "b", // weird source ignored → keeps default (now `b` post-T2.6)
   });
-  assert.deepEqual(parseFieldEngineWriteSourceFlags("unknown:b"), { shell: "a" });
+  assert.deepEqual(parseFieldEngineWriteSourceFlags("unknown:b"), { shell: "b" });
 });
 
 test("FIELD_ENGINE_WRITE_SURFACES lists exactly the keys of the default flags", () => {
@@ -97,9 +97,9 @@ async function withFlag<T>(
   }
 }
 
-test("activeWriteSource: default/unset → `a` (A-first, today's behaviour)", async () => {
+test("activeWriteSource: default/unset → `b` (B-first, T2.6 activation)", async () => {
   const src = await withFlag(undefined, () => activeWriteSource("shell"));
-  assert.equal(src, "a");
+  assert.equal(src, "b");
 });
 
 test("activeWriteSource: `shell:b` (and `b`) flips the shell to B-first", async () => {
