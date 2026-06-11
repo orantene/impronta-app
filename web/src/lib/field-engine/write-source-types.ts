@@ -63,22 +63,28 @@ export type FieldEngineWriteSourceFlags = Record<
 
 /**
  * The default per-surface flags when `FIELD_ENGINE_WRITE_SOURCE` is unset.
- * EVERY surface defaults to `a` (write legacy System A first, mirror A→B) — so
- * the scaffold is behaviour-neutral on merge. T2.5c flips `shell` to `b` as a
- * SEPARATE activation once the proof + review pass.
  *
- * Kill switch: `FIELD_ENGINE_WRITE_SOURCE=a` forces every surface back to
- * A-first (instant rollback to today's behaviour). Per-surface rollback: name
- * just that surface, e.g. `FIELD_ENGINE_WRITE_SOURCE=shell:a`.
+ * T2.6 ACTIVATION: `shell` now defaults to `b` (write canonical System B first,
+ * mirror B→A). The T2.5c b-first code path is unchanged — this flip is the ONLY
+ * behavioural change. The controlled-write proof (T2.5c, 16/16 byte-equivalent,
+ * A stays mirrored, reverted) plus reviewer sign-off + the b-first round-trip
+ * regression test (`profile-shell-dyn-field-values.roundtrip.test.ts`) gate this
+ * activation.
+ *
+ * KILL SWITCH / ROLLBACK: `FIELD_ENGINE_WRITE_SOURCE=a` forces every surface
+ * back to A-first (instant rollback to the prior, pre-T2.6 behaviour).
+ * Per-surface rollback: name just that surface, e.g.
+ * `FIELD_ENGINE_WRITE_SOURCE=shell:a`. (Re-aliasing to the prior deploy is the
+ * deploy-level fallback.)
  */
 export const DEFAULT_FIELD_ENGINE_WRITE_SOURCE_FLAGS: FieldEngineWriteSourceFlags =
   {
-    // T2.5c scaffold ships with `shell` at `a` (today's A-first behaviour) so
-    // the merge is 100% behaviour-neutral. The manager flips this to `b`
-    // (B-first) via env (`FIELD_ENGINE_WRITE_SOURCE=shell:b` or `=b`) AFTER the
-    // controlled-write proof + reviewer sign-off. Kill switch back to A-first:
-    // `FIELD_ENGINE_WRITE_SOURCE=shell:a` (or `=a`).
-    shell: "a",
+    // T2.6 — `shell` activated to `b` (B-first: write canonical System B, then
+    // mirror B→A so residual legacy `field_values` readers + the reconcile cron
+    // stay fresh until the mirror is deleted). Documented kill switch back to
+    // A-first (the prior behaviour): `FIELD_ENGINE_WRITE_SOURCE=shell:a` (or
+    // the global `=a`).
+    shell: "b",
   };
 
 /**
