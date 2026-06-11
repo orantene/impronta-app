@@ -166,6 +166,63 @@ export function TalentSiteDashboardClient({ initialState, onReload, locale = "en
         {cardCopy.subtitle}
       </p>
 
+      {state.tier === "max" ? (
+        <Link
+          href="/talent/page-builder"
+          data-talent-page-builder-cta
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 14,
+            marginBottom: 16,
+            padding: "16px 18px",
+            background: `linear-gradient(135deg, ${COLORS.royalSoft} 0%, ${COLORS.surfaceAlt} 75%)`,
+            border: `1px solid rgba(95,75,139,0.22)`,
+            borderRadius: 14,
+            textDecoration: "none",
+            fontFamily: FONTS.body,
+          }}
+        >
+          <span style={{ display: "block" }}>
+            <span
+              style={{
+                display: "block",
+                fontFamily: FONTS.display,
+                fontSize: 15,
+                fontWeight: 600,
+                color: COLORS.ink,
+              }}
+            >
+              {talentSiteCopy(locale, "pageBuilderCtaTitle")}
+            </span>
+            <span
+              style={{
+                display: "block",
+                marginTop: 4,
+                fontSize: 12.25,
+                color: COLORS.inkMuted,
+                lineHeight: 1.5,
+                maxWidth: 520,
+              }}
+            >
+              {talentSiteCopy(locale, "pageBuilderCtaSubtitle")}
+            </span>
+          </span>
+          <span
+            aria-hidden
+            style={{
+              flexShrink: 0,
+              fontSize: 13,
+              fontWeight: 700,
+              color: COLORS.ink,
+            }}
+          >
+            {talentSiteCopy(locale, "pageBuilderCtaAction")} →
+          </span>
+        </Link>
+      ) : null}
+
       {state.publicSiteUrl ? (
         <div
           style={{

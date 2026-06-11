@@ -43,6 +43,10 @@ const COPY = {
     whereManage: "Manage",
     whereViewSite: "View site",
     whereViewRoster: "View roster profile",
+    pageBuilderCtaTitle: "Page Builder",
+    pageBuilderCtaSubtitle:
+      "Design a fully custom, freeform page — drag-and-drop sections, your own media, and a layout that is entirely yours.",
+    pageBuilderCtaAction: "Open builder",
   },
   es: {
     pageTitle: "Mi sitio",
@@ -86,6 +90,10 @@ const COPY = {
     whereManage: "Administrar",
     whereViewSite: "Ver sitio",
     whereViewRoster: "Ver perfil en lista",
+    pageBuilderCtaTitle: "Editor de página",
+    pageBuilderCtaSubtitle:
+      "Diseña una página totalmente personalizada y libre — secciones de arrastrar y soltar, tus propios medios y un diseño completamente tuyo.",
+    pageBuilderCtaAction: "Abrir editor",
   },
 } as const;
 
