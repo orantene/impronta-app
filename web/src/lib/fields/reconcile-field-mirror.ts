@@ -1,21 +1,24 @@
 // ============================================================================
-// reconcile-field-mirror.ts — TRANSITIONAL A↔B drift backstop (T1.2b).
+// reconcile-field-mirror.ts — TRANSITIONAL A→B drift backstop (T1.2b → T2.6).
 //
 // WHY THIS EXISTS — SCAFFOLDING ONLY, REMOVE AT PHASE 3
-// The app dual-writes the 17 bridged keys between System A (`field_values`)
-// and System B (`talent_profile_field_values`) via `legacy-mirror.ts`. Those
-// mirror writes are FIRE-AND-FORGET — errors are logged + swallowed — so a
-// failed mirror leaves silent A↔B drift with no self-heal. T1.2a made B a
-// superset (0 A-only) and T1.1 added column-sync triggers; this module closes
-// the remaining gap with a periodic re-detect + re-heal sweep.
+// Historically the app dual-wrote the 17 bridged keys between System A
+// (`field_values`) and System B (`talent_profile_field_values`). T2.6 step 3
+// removed the B→A mirror entirely — the product write paths now write System B
+// ONLY. System A is FROZEN (existing data preserved, no new writes).
+//
+// This module is now a SAFE near-no-op: it still detects A↔B drift via the
+// read-only RPC, but only ever heals in the A→B direction (rebuild a stale B
+// row from a leftover A row). Because B is already a proven superset of A
+// (T1.2a: 0 A-only) and nothing writes A anymore, a steady-state run heals 0.
+// The B→A leg — which used to resurrect legacy `field_values` rows — is GONE;
+// the cron must never write System A again now that it's frozen.
 //
 // It is invoked nightly by `web/src/app/api/cron/reconcile-field-mirror`.
 //
-// TRANSITIONAL — this is scaffolding for the transition window only:
-//   - Phase 2.6 stops the B→A mirror → set ENGINE_LEGACY_MIRROR_ACTIVE=0 (or
-//     unset) and this job heals A→B only.
-//   - Phase 3 drops System A entirely → this whole module + its cron route
-//     become a no-op and should be deleted alongside `legacy-mirror.ts`.
+// TRANSITIONAL — Phase 3 drops System A entirely, after which this whole
+// module + its cron route become a true no-op and should be deleted alongside
+// `legacy-mirror.ts`.
 //
 // DESIGN — REUSE THE PROVEN TS MIRROR, never hand-roll slug↔label in SQL:
 //   1. ONE consolidated detection query — the `reconcile_field_mirror_drift`
@@ -24,11 +27,10 @@
 //      keys, classified a_only / b_only / disagree, with the raw A typed-columns
 //      and the raw B jsonb scalar. Called through the SERVICE-ROLE PostgREST
 //      client the cron already has (no Management-API token at runtime).
-//   2. For each drift row we re-apply the SAME helper the live write path uses:
-//        - a_only / disagree → mirrorWriteToCanonical (A→B), so the slug→label
-//          translation stays byte-identical to the live path.
-//        - b_only            → mirrorWriteToLegacy (B→A), only while the legacy
-//          mirror is still active (ENGINE_LEGACY_MIRROR_ACTIVE).
+//   2. For a_only / disagree rows we re-apply `mirrorWriteToCanonical` (A→B),
+//      so the slug→label translation stays byte-identical to the live path.
+//      b_only rows are NO LONGER healed (the B→A mirror is retired + A is
+//      frozen) — they are counted + reported only, never written back to A.
 //   Idempotent: a clean run heals 0. DB load is bounded — one detection query
 //   plus targeted per-drift heals (no fan-out); the cron runs off-peak.
 // ============================================================================
@@ -36,7 +38,6 @@
 import {
   NEW_TO_OLD_KEY,
   mirrorWriteToCanonical,
-  mirrorWriteToLegacy,
   type MirrorSupabase,
 } from "@/lib/fields/legacy-mirror";
 import { improntaLog } from "@/lib/server/structured-log";
@@ -49,15 +50,6 @@ export const DRIFT_RPC = "reconcile_field_mirror_drift";
 /** The 17 bridged legacy keys, derived once from the canonical bridge map so
  *  this module and `legacy-mirror.ts` can never drift on the key-set. */
 const BRIDGED_LEGACY_KEYS = Object.values(NEW_TO_OLD_KEY);
-
-/** B→A heal is gated so Phase 2.6 can stop the legacy mirror without a code
- *  change. Active (the current transition state) unless explicitly disabled.
- *  Matches the contract documented in this module's header. */
-export function isLegacyMirrorActive(): boolean {
-  const v = process.env.ENGINE_LEGACY_MIRROR_ACTIVE;
-  // Default ACTIVE — only an explicit "0" / "false" turns the B→A heal off.
-  return v !== "0" && v !== "false";
-}
 
 /** One drift row as returned by the consolidated detection query. */
 type DriftRow = {
@@ -75,7 +67,8 @@ type DriftRow = {
   a_value_number: number | null;
   a_value_boolean: boolean | null;
   a_value_date: string | null;
-  // System B jsonb scalar as text (what mirrorWriteToLegacy consumes).
+  // System B jsonb scalar as text. Retained in the RPC return shape; no longer
+  // consumed now that the B→A heal is gone (b_only rows are reported, not healed).
   b_value_text: string | null;
 };
 
@@ -83,13 +76,13 @@ export type ReconcileResult = {
   scanned_keys: number;
   drift_total: number;
   a_only: number;
+  // b_only rows are detected + reported only. Since T2.6 step 3 retired the B→A
+  // mirror and froze System A, the cron NEVER writes A back — a b_only row just
+  // means an A row was deleted while B kept the value (the correct end state).
   b_only: number;
   disagree: number;
   healed_a_to_b: number;
-  healed_b_to_a: number;
-  skipped_b_to_a_legacy_off: number;
   errors: number;
-  legacy_mirror_active: boolean;
 };
 
 /** Rebuild the NATIVE scalar from System A's typed columns, exactly the way
@@ -105,19 +98,20 @@ function aNativeScalar(row: DriftRow): string | number | boolean | null {
 }
 
 /**
- * Run the reconcile sweep: detect A↔B drift on the 17 bridged keys and re-heal
- * each drifted (talent, key) by re-applying the proven TS mirror. Idempotent.
+ * Run the reconcile sweep: detect A↔B drift on the 17 bridged keys and heal
+ * each drifted (talent, key) in the A→B direction ONLY. Idempotent.
  *
  * Detection uses ONE consolidated read-only RPC (`reconcile_field_mirror_drift`,
  * modelled on the parity harness) executed through the service-role PostgREST
  * client — one round-trip, no Management-API token at runtime. The heal then
- * re-applies `mirrorWriteToCanonical` (A→B) / `mirrorWriteToLegacy` (B→A) per
- * drift row.
+ * re-applies `mirrorWriteToCanonical` (A→B) for a_only/disagree rows. b_only
+ * rows are reported but NOT healed — T2.6 step 3 retired the B→A mirror and
+ * froze System A, so the cron must never write A. Because B is a proven
+ * superset (T1.2a) and nothing writes A anymore, a steady-state run heals 0.
  */
 export async function reconcileFieldMirror(
   supabase: MirrorSupabase,
 ): Promise<ReconcileResult> {
-  const legacyActive = isLegacyMirrorActive();
   const result: ReconcileResult = {
     scanned_keys: BRIDGED_LEGACY_KEYS.length,
     drift_total: 0,
@@ -125,10 +119,7 @@ export async function reconcileFieldMirror(
     b_only: 0,
     disagree: 0,
     healed_a_to_b: 0,
-    healed_b_to_a: 0,
-    skipped_b_to_a_legacy_off: 0,
     errors: 0,
-    legacy_mirror_active: legacyActive,
   };
 
   let driftRows: DriftRow[];
@@ -147,35 +138,21 @@ export async function reconcileFieldMirror(
     else if (row.b_only) result.b_only += 1;
     else if (row.disagree) result.disagree += 1;
 
+    // Only a_only / disagree rows get healed (A→B). b_only rows are the
+    // post-cutover steady state (A frozen / deleted, B authoritative) — count
+    // them for observability but never write System A back.
+    if (!row.a_only && !row.disagree) continue;
+
     try {
-      if (row.a_only || row.disagree) {
-        // A→B heal: re-apply the live-path canonical mirror with the native A
-        // scalar. mirrorWriteToCanonical does the slug→label translation.
-        await mirrorWriteToCanonical(
-          supabase,
-          row.a_key,
-          row.talent_profile_id,
-          aNativeScalar(row),
-        );
-        result.healed_a_to_b += 1;
-      } else if (row.b_only) {
-        if (!legacyActive) {
-          // Phase 2.6+: the B→A mirror is retired; do NOT resurrect legacy rows.
-          result.skipped_b_to_a_legacy_off += 1;
-          continue;
-        }
-        // B→A heal: re-apply the live-path legacy mirror. It needs the canonical
-        // (System B) value + the new field key + kind. The mirror resolves the
-        // legacy def + coerces to typed columns; pass the B scalar text.
-        await mirrorWriteToLegacy(
-          supabase,
-          /* newKind */ "text",
-          row.talent_profile_id,
-          row.b_key,
-          row.b_value_text,
-        );
-        result.healed_b_to_a += 1;
-      }
+      // A→B heal: re-apply the live-path canonical mirror with the native A
+      // scalar. mirrorWriteToCanonical does the slug→label translation.
+      await mirrorWriteToCanonical(
+        supabase,
+        row.a_key,
+        row.talent_profile_id,
+        aNativeScalar(row),
+      );
+      result.healed_a_to_b += 1;
     } catch (err) {
       logServerError(`reconcile-field-mirror.heal[${row.b_key}]`, err);
       result.errors += 1;

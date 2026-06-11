@@ -8,7 +8,6 @@ import { scheduleRebuildAiSearchDocument } from "@/lib/ai/schedule-rebuild-ai-se
 import { isReservedTalentProfileFieldKey } from "@/lib/field-canonical";
 import {
   mirrorWriteToCanonical,
-  mirrorWriteToLegacy,
   prefetchMirrorCanonicalContext,
   OLD_TO_NEW_KEY,
 } from "@/lib/fields/legacy-mirror";
@@ -206,17 +205,23 @@ export async function syncProfileShellDynFieldValues(
         null);
 
     // Is this field one of the 17 keys with a canonical System B definition?
-    // Unbridged keys have NO B store — under B-first they must still write A
-    // directly (there is nowhere else for their value to live).
+    // Unbridged keys have NO B store. Under B-first they are now a value-store
+    // no-op (the dead legacy A-write was removed — see the unbridged branch
+    // below); under the A-first kill switch they still write A as before.
     const isBridged = Boolean(OLD_TO_NEW_KEY[def.key]);
 
     if (writeSource === "b" && isBridged) {
-      // ── B-FIRST (canonical primary, A kept in sync via the reverse mirror) ──
-      // 1) Write System B FIRST — this is now the primary store. The value that
-      //    lands in B is byte-equivalent to what the A-first path's A→B mirror
-      //    produces today (identical helper, identical args, identical slug→
+      // ── B-ONLY (canonical is the sole store; legacy field_values is frozen) ──
+      // T2.6 step 3 removed the B→A reverse mirror — the shell write path no
+      // longer touches System A `field_values` at all under shell:b. Existing A
+      // data is frozen (not deleted); the reconcile cron's A→B heal remains the
+      // backstop if any legacy reader still depends on A.
+      //
+      // 1) Write System B (the primary + read-source-of-truth store). The value
+      //    that lands in B is byte-equivalent to what the A-first path's A→B
+      //    mirror produces (identical helper, identical args, identical slug→
       //    label translation + delete-on-null contract + workflow_state/role).
-      const bResult = await mirrorWriteToCanonical(
+      await mirrorWriteToCanonical(
         supabase,
         def.key,
         talent_profile_id,
@@ -229,28 +234,32 @@ export async function syncProfileShellDynFieldValues(
       const h = await syncHeightColumn(def.key, patch);
       if (!h.ok) return { ok: false, error: CLIENT_ERROR.update };
 
-      // 3) Transition-period reverse mirror B→A so residual legacy `field_values`
-      //    readers + the reconcile cron stay fresh. We feed `mirrorWriteToLegacy`
-      //    the EXACT value B persisted (returned by the canonical write) so the
-      //    reverse vocab translation (B label → A slug) has one source of truth.
-      //    Deleted in T2.6 alongside the rest of the mirror.
-      const newFieldKey = OLD_TO_NEW_KEY[def.key];
-      const legacyValue =
-        bResult.status === "upserted" ? bResult.bValue : null; // deleted/noop ⇒ clear A
-      await mirrorWriteToLegacy(
-        supabase,
-        def.value_type,
-        talent_profile_id,
-        newFieldKey,
-        legacyValue,
-      );
       continue;
     }
 
-    // ── A-FIRST (default) and the B-first UNBRIDGED fallback ───────────────────
-    // A-first: today's behaviour byte-for-byte. B-first-unbridged: identical A
-    // write (no B store exists for the key), but we SKIP the A→B canonical
-    // mirror because there is no canonical def to mirror into (it would no-op).
+    // ── B-first UNBRIDGED keys: no-op on the value store ───────────────────────
+    // Under shell:b an unbridged key has no canonical System B definition, so
+    // there is nowhere in B for its value to live. The prior code wrote such
+    // keys straight to legacy System A `field_values`. T2.6 step 3 INVESTIGATION
+    // (production query, 2026-06-11): EVERY `field_values` row in prod belongs
+    // to one of the 17 bridged keys — there are ZERO `field_values` rows for any
+    // unbridged key, and the only unbridged active+editable shell keys
+    // (instagram_url / tiktok_url / youtube_url / long_bio) have their real home
+    // in System B's catalog (creator.* handles, bios) or are bridged
+    // (media.website_url). So this A-write path is dead: it has never produced a
+    // live row and cannot lose data. We skip it entirely rather than resurrect
+    // legacy `field_values` writes. The height column (independent of either
+    // value store) still mirrors so non-bridged height edits aren't dropped.
+    if (writeSource === "b") {
+      const h = await syncHeightColumn(def.key, patch);
+      if (!h.ok) return { ok: false, error: CLIENT_ERROR.update };
+      continue;
+    }
+
+    // ── A-FIRST (kill switch: FIELD_ENGINE_WRITE_SOURCE=shell:a) ────────────────
+    // Today's pre-B-first behaviour byte-for-byte: write System A first, then
+    // fire-and-forget the A→B canonical mirror. Retained as the documented
+    // rollback path; under the default shell:b it is never taken.
     const wA = await writeLegacyA(field_definition_id, patch);
     if (!wA.ok) return { ok: false, error: CLIENT_ERROR.update };
     touchedAiDoc = true;
@@ -258,18 +267,16 @@ export async function syncProfileShellDynFieldValues(
     const h = await syncHeightColumn(def.key, patch);
     if (!h.ok) return { ok: false, error: CLIENT_ERROR.update };
 
-    if (writeSource === "a") {
-      // P5-γ legacy→canonical bridge — keep talent_profile_field_values in sync
-      // for the 17 bridged keys. No-op for unbridged keys; errors are logged
-      // inside the helper and never block the legacy write above.
-      await mirrorWriteToCanonical(
-        supabase,
-        def.key,
-        talent_profile_id,
-        canonicalValue,
-        mirrorContext,
-      );
-    }
+    // P5-γ legacy→canonical bridge — keep talent_profile_field_values in sync
+    // for the 17 bridged keys. No-op for unbridged keys; errors are logged
+    // inside the helper and never block the legacy write above.
+    await mirrorWriteToCanonical(
+      supabase,
+      def.key,
+      talent_profile_id,
+      canonicalValue,
+      mirrorContext,
+    );
   }
 
   if (touchedAiDoc) {

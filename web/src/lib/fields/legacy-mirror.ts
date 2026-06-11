@@ -1,31 +1,36 @@
 // ============================================================================
-// legacy-mirror.ts — Canonical → legacy field-value bridge.
+// legacy-mirror.ts — legacy ⇄ canonical field-value bridge.
 //
-// The new catalog persists to `talent_profile_field_values`; Discover, the
-// directory facet filters, and a few legacy surfaces still read the OLD
-// `field_values` + `field_definitions` tables. Until the Phase 5 cutover
-// drops the old tables, every canonical write must mirror to legacy for the
-// bridged keys so those surfaces stay in sync.
+// HISTORY: this module used to hold a BI-directional bridge between the OLD
+// `field_values` (System A) and the NEW `talent_profile_field_values`
+// (System B) tables. T2.6 step 3 removed the B→A leg (`mirrorWriteToLegacy`)
+// entirely — the product write paths now write System B ONLY and System A is
+// frozen. What remains is the FORWARD bridge:
 //
-// This was previously a private helper inside admin-talent-field-values.ts
-// (admin write path only). Extracted here so the talent self-edit path
-// (talent-field-values-catalog.ts) shares the SAME proven bridge — closing
-// the split-brain where talent self-edits never reached Discover.
+//   • `mirrorWriteToCanonical` (A→B) — under the default B-first write source
+//     this is the PRIMARY System B write helper (it does the slug→label vocab
+//     translation + delete-on-null + workflow_state/role). Still used by the
+//     shell write path (B-first), the admin/talent kill-switch A-first path,
+//     and the reconcile cron's A→B heal.
+//   • `NEW_TO_OLD_KEY` / `OLD_TO_NEW_KEY` — the 17-key A↔B bridge maps, still
+//     consumed by many read-source modules (directory cards/facets/search,
+//     ai-search-doc, dashboard-nav, public-surface-visibility, …) and the
+//     reconcile cron.
 //
-// NOT a "use server" module — it's a plain helper imported by the server
-// actions. Behavior is byte-identical to the original admin-only helper.
-// When the OLD tables are dropped this whole file becomes a no-op and can
-// be deleted alongside its call sites.
+// NOT a "use server" module — a plain helper imported by the server actions.
+// When System A is dropped (Phase 3) this whole file can be deleted alongside
+// its remaining call sites.
 // ============================================================================
 
 import { improntaLog } from "@/lib/server/structured-log";
 import { logServerError } from "@/lib/server/safe-error";
-import { resolveSelectValue, matchLabelOption } from "@/lib/fields/coerce-select-value";
+import { matchLabelOption } from "@/lib/fields/coerce-select-value";
 
-// Reverse map of the migration's KEY_BRIDGE (new field_key → old key).
-// Only includes keys whose old equivalent existed; new-only keys have no
-// mirror. When the OLD tables are dropped (Phase 5 cutover), this map
-// becomes a no-op and can be removed alongside this function.
+// The 17-key A↔B bridge: canonical (new) field_key → legacy (old) field key.
+// Only includes keys whose legacy equivalent existed; new-only keys are absent.
+// Still consumed by the surviving forward bridge (`mirrorWriteToCanonical`),
+// the reconcile cron, and many read-source modules. Removable only when System
+// A is dropped (Phase 3).
 export const NEW_TO_OLD_KEY: Record<string, string> = {
   "physical.body_type":     "body_type",
   "physical.dress_size":    "clothing_size",
@@ -52,71 +57,10 @@ export const NEW_TO_OLD_KEY: Record<string, string> = {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type MirrorSupabase = any;
 
-export async function mirrorWriteToLegacy(
-  supabase: MirrorSupabase,
-  newKind: string,
-  talentProfileId: string,
-  newFieldKey: string | undefined,
-  value: unknown,
-): Promise<void> {
-  if (!newFieldKey) return;
-  const oldKey = NEW_TO_OLD_KEY[newFieldKey];
-  if (!oldKey) return;
-
-  const { data: oldDef } = await supabase
-    .from("field_definitions")
-    .select("id, value_type, config")
-    .eq("key", oldKey)
-    .maybeSingle();
-  if (!oldDef) return;
-
-  if (value === null || value === undefined) {
-    await supabase
-      .from("field_values")
-      .delete()
-      .eq("talent_profile_id", talentProfileId)
-      .eq("field_definition_id", oldDef.id);
-    return;
-  }
-
-  // Coerce jsonb value to typed columns based on the OLD field's value_type.
-  const row: Record<string, unknown> = {
-    talent_profile_id: talentProfileId,
-    field_definition_id: oldDef.id,
-    value_text: null,
-    value_number: null,
-    value_boolean: null,
-    value_date: null,
-  };
-  const ot = oldDef.value_type as string;
-  if (ot === "text" || ot === "textarea") {
-    const text = typeof value === "string" ? value : String(value);
-    // Translate the canonical (System B) label into the legacy (System A)
-    // option *value* slug so legacy `field_values` stays in its own
-    // vocabulary (and passes the legacy select validators). Non-select or
-    // unmatchable values pass through unchanged.
-    const res = ot === "text" ? resolveSelectValue(oldDef.config, text) : { kind: "passthrough" as const };
-    row.value_text = res.kind === "matched" ? res.value : text;
-  } else if (ot === "number") {
-    row.value_number = typeof value === "number" ? value : Number(value);
-  } else if (ot === "boolean") {
-    row.value_boolean = value === true;
-  } else if (ot === "date") {
-    row.value_date = typeof value === "string" ? value : null;
-  } else {
-    // taxonomy / location — out of scope for the bridge
-    return;
-  }
-  // Suppress unused-arg warning — newKind reserved for future divergent
-  // coercion (e.g. chips → array on a text column).
-  void newKind;
-
-  await supabase
-    .from("field_values")
-    .upsert(row, {
-      onConflict: "talent_profile_id,field_definition_id",
-    });
-}
+// NOTE: `mirrorWriteToLegacy` (the B→A reverse mirror) was DELETED in T2.6
+// step 3. The product write paths now write System B only; System A
+// `field_values` is frozen. The forward bridge (`mirrorWriteToCanonical`,
+// below) is retained.
 
 // Reverse map (legacy key → canonical key) for the canonical-mirror.
 // Derived once from NEW_TO_OLD_KEY so the two stay in lockstep.
@@ -246,10 +190,7 @@ export async function prefetchMirrorCanonicalContext(
 }
 
 /**
- * Outcome of a `mirrorWriteToCanonical` call. Returned so a B-FIRST caller
- * (T2.5c) can feed the EXACT value that landed in canonical System B back into
- * the reverse mirror (`mirrorWriteToLegacy`) without re-deriving the slug→label
- * translation — single source of truth for the vocab round-trip.
+ * Outcome of a `mirrorWriteToCanonical` call.
  *
  *   - status "noop"     — key not bridged or no catalog def; B untouched.
  *   - status "deleted"  — the canonical row was deleted (value was null/empty).
@@ -257,8 +198,10 @@ export async function prefetchMirrorCanonicalContext(
  *                         label for selects, or the coerced scalar otherwise)
  *                         AND `newKey` is the canonical field key.
  *
- * The A-first call site ignores this return entirely, so its behaviour is
- * unchanged (byte-identical to before this field was added).
+ * `bValue` originally fed the B→A reverse mirror (deleted in T2.6 step 3) so the
+ * slug→label vocab round-trip had a single source of truth. The current callers
+ * ignore the return (they call this helper for its System-B write side-effect),
+ * so it is retained only as informational diagnostic output.
  */
 export type MirrorCanonicalResult =
   | { status: "noop" }
@@ -379,11 +322,10 @@ export async function mirrorWriteToCanonical(
       });
     }
     // `bValue` is the value persisted to B (translated label for selects, the
-    // coerced scalar otherwise) — the B-first caller feeds this verbatim into
-    // `mirrorWriteToLegacy` so the reverse vocab translation has a single
-    // source of truth. Returned regardless of `upErr` (fire-and-forget: a
-    // failed B-write is logged + the reconcile cron is the backstop); the
-    // A-sync still reflects the intended value, matching the A-first row.
+    // coerced scalar otherwise). It originally fed the B→A reverse mirror
+    // (deleted in T2.6 step 3); now informational only. Returned regardless of
+    // `upErr` (fire-and-forget: a failed B-write is logged + the reconcile cron
+    // is the backstop).
     return { status: "upserted", newKey, bValue: outValue };
   } catch (err) {
     logServerError(`legacy_mirror.unexpected[${legacyKey}]`, err);

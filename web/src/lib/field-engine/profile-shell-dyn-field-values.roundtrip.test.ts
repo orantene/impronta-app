@@ -1,22 +1,25 @@
 // profile-shell-dyn-field-values.roundtrip.test.ts
 //
-// T2.6 B-FIRST ROUND-TRIP REGRESSION GUARD (the T2.5c reviewer asked for this
-// before the `shell` default was flipped to `b`).
+// T2.6 B-FIRST ROUND-TRIP REGRESSION GUARD (originally the T2.5c reviewer's ask
+// before the `shell` default was flipped to `b`; updated for T2.6 step 3 which
+// DELETED the B→A reverse mirror).
 //
 // Drives the REAL `syncProfileShellDynFieldValues` (the shell write path shared
 // by the admin roster shell + the talent self-edit shell) under BOTH write
-// sources — A-first (`FIELD_ENGINE_WRITE_SOURCE=shell:a`, the prior behaviour /
-// kill switch) and B-first (`shell:b`, the T2.6 activation) — over an in-memory
+// sources — A-first (`FIELD_ENGINE_WRITE_SOURCE=shell:a`, the legacy behaviour /
+// kill switch) and B-first (`shell:b`, the live default) — over an in-memory
 // fake Supabase, and asserts:
 //
 //   1. The value PERSISTED to canonical System B (`talent_profile_field_values`)
 //      is BYTE-EQUIVALENT between A-first and B-first.
-//   2. System A (`field_values`) is STILL mirrored in both modes (B-first via
-//      the reverse `mirrorWriteToLegacy`), with the legacy vocabulary preserved.
+//   2. System A (`field_values`):
+//        - A-first  → still written (that mode writes A first, then mirrors A→B).
+//        - B-first  → NOT written. T2.6 step 3 removed the B→A reverse mirror,
+//          so a B-first shell save touches System B ONLY and leaves `field_values`
+//          untouched (existing A rows frozen, never created/updated/deleted).
 //
-// for a select, a number, and a delete-to-empty. A future refactor of
-// `mirrorWriteToCanonical` / `mirrorWriteToLegacy` that breaks the round-trip
-// (drifts B, or stops mirroring A) MUST fail this test in CI.
+// for a select, a number, and a delete-to-empty. A future refactor that drifts B,
+// OR that resurrects an A write under shell:b, MUST fail this test in CI.
 //
 // No live prod write — the Supabase is fully faked (same spirit as
 // write-source.test.ts / read-source.test.ts; modelled on the in-memory fake in
@@ -279,8 +282,9 @@ async function runShell(
 
 // ── The round-trip parity assertions ──────────────────────────────────────────
 
-test("round-trip: SELECT — B-persisted value is byte-equivalent A-first vs B-first, and A stays mirrored", async () => {
-  // User submits the legacy slug; both modes must land B="Athletic", A="athletic".
+test("round-trip: SELECT — B-persisted value is byte-equivalent A-first vs B-first; B-first does NOT write A", async () => {
+  // User submits the legacy slug; both modes must land B="Athletic". A-first
+  // also writes A="athletic"; B-first writes NO A row (mirror deleted).
   const dyn = { body_type: "athletic" };
 
   const a = await runShell("a", dyn);
@@ -293,12 +297,12 @@ test("round-trip: SELECT — B-persisted value is byte-equivalent A-first vs B-f
   assert.equal(a.bOf("physical.body_type")?.value, "Athletic");
   assert.equal(b.bOf("physical.body_type")?.value, a.bOf("physical.body_type")?.value);
 
-  // (2) System A is STILL mirrored in both modes, in A's own (slug) vocabulary.
+  // (2) A-first still mirrors A (slug vocabulary); B-first writes NO A row at all.
   assert.equal(a.aOf("body_type")?.value_text, "athletic");
-  assert.equal(b.aOf("body_type")?.value_text, a.aOf("body_type")?.value_text);
+  assert.equal(b.aOf("body_type"), undefined);
 });
 
-test("round-trip: NUMBER — B-persisted value is byte-equivalent A-first vs B-first, and A stays mirrored", async () => {
+test("round-trip: NUMBER — B-persisted value is byte-equivalent A-first vs B-first; B-first does NOT write A", async () => {
   const dyn = { years_experience: "7" };
 
   const a = await runShell("a", dyn);
@@ -311,13 +315,13 @@ test("round-trip: NUMBER — B-persisted value is byte-equivalent A-first vs B-f
   assert.equal(a.bOf("experience.years_total")?.value, 7);
   assert.equal(b.bOf("experience.years_total")?.value, a.bOf("experience.years_total")?.value);
 
-  // (2) System A number column mirrored identically in both modes.
+  // (2) A-first mirrors the A number column; B-first writes NO A row at all.
   assert.equal(a.aOf("years_experience")?.value_number, 7);
-  assert.equal(b.aOf("years_experience")?.value_number, a.aOf("years_experience")?.value_number);
+  assert.equal(b.aOf("years_experience"), undefined);
 });
 
-test("round-trip: DELETE-TO-EMPTY — clears B and A identically A-first vs B-first", async () => {
-  // Seed an existing value in BOTH stores, then submit empty → both rows cleared.
+test("round-trip: DELETE-TO-EMPTY — clears B in both modes; A-first clears A, B-first leaves the frozen A row", async () => {
+  // Seed an existing value in BOTH stores, then submit empty.
   const seed = (store: Store) => {
     store.fieldValues.push({
       talent_profile_id: TALENT_ID,
@@ -342,7 +346,9 @@ test("round-trip: DELETE-TO-EMPTY — clears B and A identically A-first vs B-fi
   assert.equal(a.bOf("physical.body_type"), undefined);
   assert.equal(b.bOf("physical.body_type"), undefined);
 
-  // (2) System A row also cleared in both modes (B-first via the reverse mirror).
+  // (2) A-first clears the legacy A row; B-first leaves it FROZEN — T2.6 step 3
+  //     removed the B→A reverse mirror, so a B-first delete never touches A. The
+  //     pre-existing seeded A row must still be present, unchanged.
   assert.equal(a.aOf("body_type"), undefined);
-  assert.equal(b.aOf("body_type"), undefined);
+  assert.equal(b.aOf("body_type")?.value_text, "athletic");
 });

@@ -29,8 +29,8 @@
 // Acceptance for the P5-ζ slice (per the runbook): mismatch rate < 0.5%
 // over one production week, with `ENGINE_CANONICAL_READ_SHADOW=1` set in
 // the prod env. Then the flag flips so canonical becomes primary + legacy
-// becomes the shadow for one more release. After that release, P5-η
-// removes `mirrorWriteToLegacy` entirely.
+// becomes the shadow for one more release. The B→A write mirror
+// (`mirrorWriteToLegacy`) was subsequently removed in T2.6 step 3.
 
 import { improntaLog, type ImprontaLogFields } from "@/lib/server/structured-log";
 
