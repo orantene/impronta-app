@@ -44,6 +44,8 @@ import {
   type BuilderVisibilityContext,
 } from "@/lib/site-admin/builder-node";
 import type { ComponentDefinitions } from "@/lib/site-admin/builder-node/component-instances";
+import type { ComponentStyleDefaults } from "@/lib/site-admin/builder-node/component-style-defaults";
+import { useComponentDefaultsPreview } from "./component-defaults-bridge";
 
 import {
   getStyleClassRegistrySnapshot,
@@ -78,6 +80,13 @@ export interface ClientBuilderCanvasProps {
   /** Node-level conditional-visibility signals (undefined in edit mode). */
   visibilityContext?: BuilderVisibilityContext;
   /**
+   * GAP B — the tenant's LIVE per-component-type default styles. Passed so the
+   * editor canvas resolves the SAME default→override cascade as the published
+   * page. (Draft live-preview of unpublished default edits is layered on later
+   * via the theme-preview bridge.)
+   */
+  componentStyleDefaults?: ComponentStyleDefaults;
+  /**
    * Whether to emit the shared `<BuilderNodeRendererStyles>` head sheet. The
    * server caller already emits it once (matching the server path), so this
    * defaults off to avoid a duplicate.
@@ -92,6 +101,7 @@ function ClientBuilderCanvasInner({
   publicPathPrefix,
   components,
   visibilityContext,
+  componentStyleDefaults,
   includeRendererStyles = false,
 }: ClientBuilderCanvasProps): ReactNode {
   // Subscribe to the live in-memory tree published by EditProvider. The
@@ -122,6 +132,13 @@ function ClientBuilderCanvasInner({
     getStyleClassRegistryServerSnapshot,
   );
 
+  // GAP B-4 — live-preview the operator's DRAFT component defaults while the
+  // Theme drawer's Components tab is open; fall back to the server-resolved
+  // LIVE defaults prop otherwise (so first paint matches the published page).
+  const draftComponentDefaults = useComponentDefaultsPreview();
+  const effectiveComponentDefaults =
+    draftComponentDefaults ?? componentStyleDefaults;
+
   // W2-T1 — memoize the `renderSectionEmbed` closure so its identity is stable
   // across renders where `sectionEmbedIslands` did not change. (When the server
   // hands a fresh-identity islands map on a refresh, the closure correctly
@@ -151,6 +168,7 @@ function ClientBuilderCanvasInner({
       components,
       visibilityContext,
       styleClasses,
+      componentStyleDefaults: effectiveComponentDefaults,
       renderSectionEmbed,
       // W3-T1 — editor-only insert/delete/reorder motion. The published /
       // server render paths never set this, so they stay byte-identical; here
@@ -164,6 +182,7 @@ function ClientBuilderCanvasInner({
       components,
       visibilityContext,
       styleClasses,
+      effectiveComponentDefaults,
       renderSectionEmbed,
     ],
   );

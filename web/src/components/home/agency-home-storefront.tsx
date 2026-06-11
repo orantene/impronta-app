@@ -177,6 +177,12 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
     <div
       className="flex min-h-full flex-1 flex-col bg-background"
       data-preview={previewActive ? "draft" : undefined}
+      // GAP A — the editor's live-theme projector (ThemePreviewProjector)
+      // targets this marker to write draft `--token-*` CSS vars onto the
+      // canvas root, so theme edits recolour the canvas instantly without
+      // touching the published <html>. Harmless (an unused data-attr) when
+      // rendered for an anonymous storefront visitor.
+      data-theme-canvas-root=""
     >
       {jsonLdScript ? (
         <script

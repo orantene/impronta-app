@@ -1,3 +1,6 @@
+/* eslint-disable max-lines -- the design lifecycle (save/publish/restore/preset
+   for theme tokens + GAP B component-style defaults) is one cohesive server
+   module; splitting it fragments the shared row/CAS/revision helpers. */
 /**
  * Phase 5 / M6 — design controls server operations.
  *
@@ -58,6 +61,11 @@ import type {
   DesignRestoreRevisionValues,
   DesignSaveDraftValues,
 } from "@/lib/site-admin/forms/design";
+import {
+  normalizeComponentStyleDefaults,
+  validateComponentStyleDefaults,
+  type ComponentStyleDefaults,
+} from "@/lib/site-admin/builder-node/component-style-defaults";
 
 // ---- row shapes -----------------------------------------------------------
 
@@ -72,6 +80,13 @@ export interface DesignBrandingRow {
   tenant_id: string;
   theme_json: Record<string, string>;
   theme_json_draft: Record<string, string>;
+  /**
+   * GAP B — per-component-type default styles. LIVE + draft, mirroring the
+   * theme_json pair. Optional in the type because legacy rows predate the
+   * columns; the DB default is `{}` so reads are always an object in practice.
+   */
+  component_styles_json?: Record<string, unknown> | null;
+  component_styles_json_draft?: Record<string, unknown> | null;
   /**
    * M7 — slug of the last applied preset (e.g. 'editorial-bridal').
    * Null for tenants that have never applied a preset / are fully custom.
@@ -110,6 +125,8 @@ const DESIGN_SELECT = `
   tenant_id,
   theme_json,
   theme_json_draft,
+  component_styles_json,
+  component_styles_json_draft,
   theme_preset_slug,
   theme_published_at,
   version,
@@ -331,6 +348,93 @@ export async function saveDesignDraft(
   });
 }
 
+// ---- save component-style defaults draft (GAP B) --------------------------
+
+/**
+ * Save the per-component-type default styles to `component_styles_json_draft`.
+ * Sibling of `saveDesignDraft`: same capability, same `version` CAS, same
+ * no-cache-bust posture (a draft has no storefront effect until Publish copies
+ * it across). Validates the incoming map against the builder-node style schema +
+ * the closed node-kind set; rejects surface as a single error.
+ */
+export async function saveComponentStylesDraft(
+  supabase: SupabaseClient,
+  params: {
+    tenantId: string;
+    componentStyles: unknown;
+    expectedVersion: number;
+    actorProfileId: string | null;
+    correlationId?: string;
+  },
+): Promise<
+  Phase5Result<{ version: number; componentStylesDraft: ComponentStyleDefaults }>
+> {
+  const { tenantId, componentStyles, expectedVersion, actorProfileId } = params;
+  const correlationId = params.correlationId ?? randomUUID();
+
+  await requirePhase5Capability("agency.site_admin.design.edit", tenantId);
+
+  const beforeRow = await loadRow(supabase, tenantId);
+  if (!beforeRow) {
+    return fail(
+      "NOT_FOUND",
+      "Branding row missing. Initialise branding before editing component defaults.",
+    );
+  }
+  if (beforeRow.version !== expectedVersion) {
+    return versionConflict(beforeRow.version);
+  }
+
+  const gate = validateComponentStyleDefaults(componentStyles);
+  if (!gate.ok) {
+    return fail(
+      "TOKEN_NOT_OVERRIDABLE",
+      `Rejected component styles: ${gate.rejected.join(", ")}`,
+    );
+  }
+
+  const nextVersion = beforeRow.version + 1;
+  const { data: updatedRow, error: updateError } = await supabase
+    .from("agency_branding")
+    .update({
+      component_styles_json_draft: gate.normalized,
+      version: nextVersion,
+      updated_by: actorProfileId,
+    })
+    .eq("tenant_id", tenantId)
+    .eq("version", beforeRow.version)
+    .select(DESIGN_SELECT)
+    .maybeSingle<DesignBrandingRow>();
+  if (updateError) {
+    return fail("FORBIDDEN", updateError.message);
+  }
+  if (!updatedRow) {
+    const fresh = await loadRow(supabase, tenantId);
+    return versionConflict(fresh?.version ?? beforeRow.version + 1);
+  }
+
+  scheduleAuditEvent(supabase, {
+    tenantId,
+    actorProfileId,
+    action: "agency.site_admin.design.edit",
+    entityType: "agency_branding",
+    entityId: tenantId,
+    diffSummary: `component defaults draft: ${Object.keys(gate.normalized).length} kind(s)`,
+    beforeSnapshot: beforeRow,
+    afterSnapshot: updatedRow,
+    correlationId,
+  });
+
+  // NO cache bust — draft has no storefront effect.
+
+  return ok({
+    version: updatedRow.version,
+    componentStylesDraft: normalizeComponentStyleDefaults(
+      updatedRow.component_styles_json_draft,
+    ),
+  });
+}
+
 // ---- publish --------------------------------------------------------------
 
 export async function publishDesign(
@@ -368,10 +472,18 @@ export async function publishDesign(
 
   const nextVersion = beforeRow.version + 1;
   const now = new Date().toISOString();
+  // GAP B — publish the component-style defaults atomically with the theme:
+  // copy the draft map across, validated/normalized so a stale or malformed
+  // draft can never reach the LIVE column. An empty/absent draft publishes `{}`
+  // (a no-op for tenants that never set component defaults).
+  const componentStylesLive = normalizeComponentStyleDefaults(
+    beforeRow.component_styles_json_draft,
+  );
   const { data: updatedRow, error: updateError } = await supabase
     .from("agency_branding")
     .update({
       theme_json: gate.normalized,
+      component_styles_json: componentStylesLive,
       theme_published_at: now,
       version: nextVersion,
       updated_by: actorProfileId,

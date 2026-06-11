@@ -94,7 +94,12 @@ const sectionPropsSchema = z.object({
   ejected: z.boolean().optional(),
 });
 
-const builderNodeStyleValueSchema = z.object({
+/**
+ * Exported so the per-component-type default-style cascade
+ * (`component-style-defaults.ts`) validates stored defaults against the exact
+ * same style-value contract a node's own style uses — no drift.
+ */
+export const builderNodeStyleValueSchema = z.object({
   align: z.enum(["left", "center", "right"]).optional(),
   size: z.enum(["sm", "md", "lg", "xl"]).optional(),
   tone: z.enum(["default", "muted", "strong"]).optional(),

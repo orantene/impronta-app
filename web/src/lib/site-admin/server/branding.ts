@@ -46,6 +46,12 @@ export interface BrandingRow {
   body_font: string | null;
   brand_mark_svg: string | null;
   theme_json: Record<string, unknown>;
+  /**
+   * GAP B — per-component-type DEFAULT styles (LIVE). Map of BuilderNodeKind →
+   * partial builder-node style. Optional; `{}` / null on rows that never set a
+   * component default. Normalized + consumed by the renderer cascade.
+   */
+  component_styles_json?: Record<string, unknown> | null;
   /** M7 — optional; null on legacy / never-applied rows. Metadata only. */
   theme_preset_slug?: string | null;
   /** A1/A2 — per-tenant favorite icon preference: 'heart' | 'bookmark'. Default 'bookmark'. */

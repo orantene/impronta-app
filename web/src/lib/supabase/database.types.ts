@@ -479,6 +479,8 @@ export type Database = {
           accent_color: string | null
           body_font: string | null
           brand_mark_svg: string | null
+          component_styles_json: Json
+          component_styles_json_draft: Json
           created_at: string
           favicon_media_asset_id: string | null
           font_preset: string | null
@@ -502,6 +504,8 @@ export type Database = {
           accent_color?: string | null
           body_font?: string | null
           brand_mark_svg?: string | null
+          component_styles_json?: Json
+          component_styles_json_draft?: Json
           created_at?: string
           favicon_media_asset_id?: string | null
           font_preset?: string | null
@@ -525,6 +529,8 @@ export type Database = {
           accent_color?: string | null
           body_font?: string | null
           brand_mark_svg?: string | null
+          component_styles_json?: Json
+          component_styles_json_draft?: Json
           created_at?: string
           favicon_media_asset_id?: string | null
           font_preset?: string | null

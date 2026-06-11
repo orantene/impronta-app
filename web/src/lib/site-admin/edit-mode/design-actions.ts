@@ -31,8 +31,13 @@ import {
   applyThemePreset,
   loadDesignForStaff,
   publishDesign,
+  saveComponentStylesDraft,
   saveDesignDraft,
 } from "@/lib/site-admin/server/design";
+import {
+  normalizeComponentStyleDefaults,
+  type ComponentStyleDefaults,
+} from "@/lib/site-admin/builder-node/component-style-defaults";
 import { tokenDefaults } from "@/lib/site-admin/tokens/registry";
 import { requireStaff } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
@@ -55,6 +60,10 @@ export interface DesignSnapshot {
   themePublishedAt: string | null;
   /** CAS version on the shared agency_branding row. */
   version: number;
+  /** GAP B — per-component-type DEFAULT styles, draft + live. Empty `{}` when
+   * the tenant has never set component defaults. */
+  componentStylesDraft: ComponentStyleDefaults;
+  componentStylesLive: ComponentStyleDefaults;
 }
 
 export type DesignLoadResult =
@@ -151,6 +160,12 @@ export async function loadDesignAction(): Promise<DesignLoadResult> {
         presetSlug: row.theme_preset_slug ?? null,
         themePublishedAt: row.theme_published_at ?? null,
         version: row.version,
+        componentStylesDraft: normalizeComponentStyleDefaults(
+          row.component_styles_json_draft,
+        ),
+        componentStylesLive: normalizeComponentStyleDefaults(
+          row.component_styles_json,
+        ),
       },
     };
   } catch (error) {
@@ -245,6 +260,75 @@ export async function saveDesignDraftFromEditAction(input: {
   } catch (error) {
     logServerError("edit-mode/save-design-draft", error);
     return { ok: false, error: "Could not save theme draft." };
+  }
+}
+
+// ── save component-style defaults draft (GAP B) ─────────────────────────────
+
+export type ComponentStylesSaveResult =
+  | {
+      ok: true;
+      version: number;
+      componentStylesDraft: ComponentStyleDefaults;
+    }
+  | {
+      ok: false;
+      error: string;
+      code?: string;
+      currentVersion?: number;
+    };
+
+/**
+ * Replace `component_styles_json_draft` with the operator's full working map
+ * (per-component-type default styles) and bump the row's CAS version. Sibling
+ * of `saveDesignDraftFromEditAction`: same staff/tenant guards, same no-cache-
+ * bust (a draft has no storefront effect until Publish copies it across). The
+ * full map is sent each save (drop a kind to clear its default).
+ */
+export async function saveComponentStylesDraftFromEditAction(input: {
+  componentStyles: ComponentStyleDefaults;
+  expectedVersion: number;
+}): Promise<ComponentStylesSaveResult> {
+  const auth = await requireStaff();
+  if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
+  const scope = await requireTenantScope().catch(() => null);
+  if (!scope) {
+    return {
+      ok: false,
+      error: "Select an agency workspace before editing component defaults.",
+    };
+  }
+
+  try {
+    const result = await saveComponentStylesDraft(auth.supabase, {
+      tenantId: scope.tenantId,
+      componentStyles: input.componentStyles,
+      expectedVersion: input.expectedVersion,
+      actorProfileId: auth.user.id,
+    });
+    if (!result.ok) {
+      if (result.code === "VERSION_CONFLICT") {
+        return {
+          ok: false,
+          error: "Theme changed elsewhere; reload and try again.",
+          code: result.code,
+          currentVersion: result.currentVersion,
+        };
+      }
+      return {
+        ok: false,
+        error: result.message ?? "Could not save component defaults.",
+        code: result.code,
+      };
+    }
+    return {
+      ok: true,
+      version: result.data.version,
+      componentStylesDraft: result.data.componentStylesDraft,
+    };
+  } catch (error) {
+    logServerError("edit-mode/save-component-styles-draft", error);
+    return { ok: false, error: "Could not save component defaults." };
   }
 }
 
