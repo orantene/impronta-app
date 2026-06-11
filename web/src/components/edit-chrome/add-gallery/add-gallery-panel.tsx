@@ -23,6 +23,7 @@ import { armAddGalleryDrag, clearAddGalleryDrag } from "@/lib/site-admin/add-gal
 import { galleryItemSupportsDrag } from "@/lib/site-admin/add-gallery/insert";
 
 import { useEditContext } from "../edit-context";
+import { useBuilderTree } from "../builder-tree-bridge";
 import { DockFloatingPanel } from "../dock-floating-panel";
 import { CHROME } from "../kit";
 import { AddGalleryCardInfo } from "./add-gallery-card-info";
@@ -473,13 +474,15 @@ function GalleryCard(props: {
 
 export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
   const {
-    builderTree,
     insertBuilderNode,
     insertBuilderSectionEmbed,
     insertBuilderComponent,
     reportMutationError,
     selectBuilderNode,
   } = useEditContext();
+  // WS2 — tree read from the micro-store (builder-tree-bridge) instead of the
+  // context value, so an edit no longer re-renders this panel via the value memo.
+  const builderTree = useBuilderTree();
 
   const [tab, setTab] = useState<AddGalleryTab>("layout");
   const [categoryId, setCategoryId] = useState<string | null>(null);

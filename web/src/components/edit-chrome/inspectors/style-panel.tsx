@@ -52,6 +52,8 @@ import {
   styleTokenRef,
 } from "@/lib/site-admin/builder-node/style-token-bindings";
 import { useEditContext } from "../edit-context";
+import { useBuilderTree } from "../builder-tree-bridge";
+import { useCanUndo, useCanRedo } from "../history-bridge";
 import { GoogleFontPicker } from "../GoogleFontPicker";
 import {
   NumberUnit,
@@ -2220,10 +2222,7 @@ export function StylePanel({
   onPatch,
 }: StylePanelProps) {
   const {
-    builderTree,
     pageId,
-    canUndo,
-    canRedo,
     patchBuilderNodeProps,
     detachComponentInstance,
     undo,
@@ -2236,6 +2235,12 @@ export function StylePanel({
     setDevice,
     tenantId,
   } = useEditContext();
+  // WS2 — tree + history-depth VALUES from their micro-stores (builder-tree-bridge
+  // / history-bridge), so an edit/undo no longer re-renders this panel via the
+  // value memo. canUndo/canRedo gate the in-panel undo/redo buttons.
+  const builderTree = useBuilderTree();
+  const canUndo = useCanUndo();
+  const canRedo = useCanRedo();
   const [nodeStyleClipboard, setNodeStyleClipboard] =
     useState<NodeStyleClipboard | null>(null);
   const [standaloneStyleClipboard, setStandaloneStyleClipboard] =

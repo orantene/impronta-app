@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import type { BuilderComponentVariant } from "@/lib/site-admin/builder-node/types";
 import { readInstanceVariant } from "@/lib/site-admin/builder-node/component-instances";
 import { useEditContext } from "../edit-context";
+import { useBuilderTree } from "../builder-tree-bridge";
 import { listComponentVariants } from "../builder-component-variants";
 import { CHROME } from "../kit/tokens";
 
@@ -17,8 +18,9 @@ export function InstanceVariantPicker({
   instanceNodeId,
   componentId,
 }: InstanceVariantPickerProps) {
-  const { builderTree, applyInstanceVariant, clearInstanceVariant } =
-    useEditContext();
+  const { applyInstanceVariant, clearInstanceVariant } = useEditContext();
+  // WS2 — tree VALUE from the micro-store (builder-tree-bridge).
+  const builderTree = useBuilderTree();
   const [busy, setBusy] = useState(false);
 
   const variants = useMemo(

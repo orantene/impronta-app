@@ -39,6 +39,7 @@ import {
   collectionItemsToRecords,
 } from "@/lib/site-admin/collections/types";
 import { useEditContext } from "../edit-context";
+import { useBuilderTree } from "../builder-tree-bridge";
 import { Card, CardBody, CardHead, Field, FieldLabel, Helper, Segmented } from "../kit";
 import { KIT } from "./kit/tokens";
 
@@ -298,7 +299,8 @@ export function FieldMapPreview({
 }: {
   selectedBuilderNode: BuilderNode;
 }) {
-  const { builderTree } = useEditContext();
+  // WS2 — tree VALUE from the micro-store (builder-tree-bridge).
+  const builderTree = useBuilderTree();
   const sourceKey = useMemo(
     () => findAncestorCollectionSourceKey(builderTree, selectedBuilderNode.id),
     [builderTree, selectedBuilderNode.id],

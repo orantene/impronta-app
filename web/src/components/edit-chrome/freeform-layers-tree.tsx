@@ -29,6 +29,7 @@ import { ArrowDown, ArrowUp, Lock, LockOpen, Plus, X } from "lucide-react";
 import { CHROME, CHROME_RADII } from "./kit";
 import { BUILDER_VISUAL } from "./inspectors/kit/tokens";
 import { useEditContext } from "./edit-context";
+import { useBuilderTree } from "./builder-tree-bridge";
 import { useHoveredBuilderNodeId } from "./hover-bridge";
 import { useSelectedBuilderNodeId } from "./selection-bridge";
 import { FreeformInsertPopover } from "./freeform-insert-popover";
@@ -285,7 +286,6 @@ export function FreeformLayersTree({
   onClearSearch?: () => void;
 } = {}) {
   const {
-    builderTree,
     selectBuilderNode,
     moveBuilderNodeWithinParent,
     removeBuilderNode,
@@ -297,6 +297,7 @@ export function FreeformLayersTree({
     canInsertRawHtmlElements,
     setHoveredBuilderNodeId,
   } = useEditContext();
+  const builderTree = useBuilderTree(); // WS2 — value from the tree micro-store
   const hoveredBuilderNodeId = useHoveredBuilderNodeId(); // W2-T3 — value from the bridge
   const selectedBuilderNodeId = useSelectedBuilderNodeId(); // W2 (selection-bridge) — value from the micro-store
 

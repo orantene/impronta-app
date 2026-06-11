@@ -64,6 +64,8 @@ import {
   type BuilderComponentRow,
 } from "@/lib/site-admin/edit-mode/builder-components-action";
 import { useEditContext, type EditDevice } from "./edit-context";
+import { useBuilderTree } from "./builder-tree-bridge";
+import { useCanUndo, useCanRedo } from "./history-bridge";
 import {
   useSelectedSectionId,
   useSelectedBuilderNodeId,
@@ -224,6 +226,10 @@ export function CommandPalette({
   // W2 (selection-bridge) — selection is read from the micro-store, not `ctx`.
   const selectedSectionId = useSelectedSectionId();
   const selectedBuilderNodeId = useSelectedBuilderNodeId();
+  // WS2 — tree + history-depth read from their micro-stores, not `ctx`.
+  const builderTree = useBuilderTree();
+  const canUndo = useCanUndo();
+  const canRedo = useCanRedo();
   const dialogRef = useModalFocusTrap(open, onClose);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -449,7 +455,7 @@ export function CommandPalette({
     // Actions — undo, redo, save draft, duplicate / move / delete (when
     // a section is selected). Driven by the SHORTCUTS registry so the
     // palette and the keyboard overlay show the same chips.
-    if (ctx.canUndo) {
+    if (canUndo) {
       rows.push(
         actionRow("undo", "Undo last change", ["revert", "back"], () => {
           void ctx.undo();
@@ -457,7 +463,7 @@ export function CommandPalette({
         }),
       );
     }
-    if (ctx.canRedo) {
+    if (canRedo) {
       rows.push(
         actionRow("redo", "Redo", ["reapply", "forward"], () => {
           void ctx.redo();
@@ -514,7 +520,7 @@ export function CommandPalette({
       ),
     );
     const selectedBuilderNode = findBuilderNodeById(
-      ctx.builderTree,
+      builderTree,
       selectedBuilderNodeId,
     );
     if (selectedBuilderNode && selectedBuilderNode.kind !== "section") {
@@ -753,6 +759,11 @@ export function CommandPalette({
     return rows;
   }, [
     ctx,
+    // WS2 — these now come from the micro-stores (no longer off `ctx`), so list
+    // them so the rows recompute when the tree / undo-redo availability changes.
+    builderTree,
+    canUndo,
+    canRedo,
     selectedSectionId,
     selectedBuilderNodeId,
     onClose,

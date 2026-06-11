@@ -75,6 +75,15 @@ import {
 // micro-store, not on the context value. The provider publishes it from an
 // effect; we assert against the bridge snapshot after the flushing act().
 import { getSelectedBuilderNodeIdSnapshot } from "@/components/edit-chrome/selection-bridge";
+// WS2 — builderTree now lives in the builder-tree-bridge micro-store and
+// canUndo/canRedo in the history-bridge (no longer on the context value). The
+// provider publishes them from effects; we assert against the bridge snapshots
+// after the flushing act(), mirroring the selection-bridge precedent above.
+import { getBuilderTreeSnapshot } from "@/components/edit-chrome/builder-tree-bridge";
+import {
+  getCanUndoSnapshot,
+  getCanRedoSnapshot,
+} from "@/components/edit-chrome/history-bridge";
 import type { CompositionData } from "@/lib/site-admin/edit-mode/composition-actions";
 import type { BuilderNode, BuilderNodeTree } from "@/lib/site-admin/builder-node";
 
@@ -149,9 +158,12 @@ function mountProvider(pageVersion = 5) {
   return { ctx: () => ref.current!, utils };
 }
 
-/** Read the heading node's style off the live tree. */
-function headingStyle(ctx: EditContextValue): Record<string, unknown> | null {
-  const node = ctx.builderTree[0] as Extract<BuilderNode, { kind: "heading" }>;
+/** Read the heading node's style off the live tree (WS2 — via the tree bridge). */
+function headingStyle(): Record<string, unknown> | null {
+  const node = getBuilderTreeSnapshot()[0] as Extract<
+    BuilderNode,
+    { kind: "heading" }
+  >;
   return (node.props.style as Record<string, unknown> | undefined) ?? null;
 }
 
@@ -187,28 +199,28 @@ describe("W0-T4 undo/redo + CAS (REAL EditProvider)", () => {
     saveDraftMock.mockResolvedValue({ ok: true, pageVersion: 6 });
     const { ctx } = mountProvider(5);
 
-    expect(ctx().canUndo).toBe(false);
+    expect(getCanUndoSnapshot()).toBe(false);
     await patchSeededNode(ctx, { textColor: "#ff0000" });
 
     // Optimistic apply pushed exactly one entry; the style is live.
-    expect(ctx().canUndo).toBe(true);
-    expect(ctx().canRedo).toBe(false);
-    expect(headingStyle(ctx())?.textColor).toBe("#ff0000");
+    expect(getCanUndoSnapshot()).toBe(true);
+    expect(getCanRedoSnapshot()).toBe(false);
+    expect(headingStyle()?.textColor).toBe("#ff0000");
 
     // Undo reverts the style and moves the entry to the redo stack.
     await act(async () => {
       await ctx().undo();
     });
-    expect(ctx().canUndo).toBe(false);
-    expect(ctx().canRedo).toBe(true);
-    expect(headingStyle(ctx())?.textColor).toBeUndefined();
+    expect(getCanUndoSnapshot()).toBe(false);
+    expect(getCanRedoSnapshot()).toBe(true);
+    expect(headingStyle()?.textColor).toBeUndefined();
 
     // Redo re-applies it.
     await act(async () => {
       await ctx().redo();
     });
-    expect(ctx().canRedo).toBe(false);
-    expect(headingStyle(ctx())?.textColor).toBe("#ff0000");
+    expect(getCanRedoSnapshot()).toBe(false);
+    expect(headingStyle()?.textColor).toBe("#ff0000");
   });
 
   it("W3-T8: ⌘Z lands back on the affected node with its inspector open (selection restored on undo AND redo)", async () => {
@@ -232,7 +244,7 @@ describe("W0-T4 undo/redo + CAS (REAL EditProvider)", () => {
     await act(async () => {
       await ctx().undo();
     });
-    expect(headingStyle(ctx())?.textColor).toBeUndefined();
+    expect(headingStyle()?.textColor).toBeUndefined();
     expect(getSelectedBuilderNodeIdSnapshot()).toBe("blk1");
 
     // Deselect again, then redo → selection is restored on the redo replay too.
@@ -243,7 +255,7 @@ describe("W0-T4 undo/redo + CAS (REAL EditProvider)", () => {
     await act(async () => {
       await ctx().redo();
     });
-    expect(headingStyle(ctx())?.textColor).toBe("#ff0000");
+    expect(headingStyle()?.textColor).toBe("#ff0000");
     expect(getSelectedBuilderNodeIdSnapshot()).toBe("blk1");
   });
 
@@ -275,7 +287,7 @@ describe("W0-T4 undo/redo + CAS (REAL EditProvider)", () => {
     const { ctx } = mountProvider(5);
 
     await patchSeededNode(ctx, { textColor: "#ff0000" });
-    expect(ctx().canUndo).toBe(true); // optimistic entry present
+    expect(getCanUndoSnapshot()).toBe(true); // optimistic entry present
 
     await act(async () => {
       await new Promise((r) => setTimeout(r, SAVE_DEBOUNCE_WAIT));
@@ -284,12 +296,12 @@ describe("W0-T4 undo/redo + CAS (REAL EditProvider)", () => {
     expect(saveDraftMock).toHaveBeenCalledTimes(1);
     expect(loadCompositionMock).toHaveBeenCalledTimes(1); // refreshComposition ran
     // Optimistic style rolled back.
-    expect(headingStyle(ctx())?.textColor).toBeUndefined();
+    expect(headingStyle()?.textColor).toBeUndefined();
     // Both stacks wiped by refreshComposition (the documented harsh-but-safe
     // behavior W1-T5 will soften with a toast — pinned here so that change is
     // deliberate, not accidental).
-    expect(ctx().canUndo).toBe(false);
-    expect(ctx().canRedo).toBe(false);
+    expect(getCanUndoSnapshot()).toBe(false);
+    expect(getCanRedoSnapshot()).toBe(false);
     // No stuck spinner; version advanced to the server's.
     expect(ctx().saving).toBe(false);
     expect(ctx().pageVersion).toBe(9);
@@ -316,7 +328,7 @@ describe("W0-T4 undo/redo + CAS (REAL EditProvider)", () => {
     });
 
     // Conflict: rolled back + recovery armed at the reloaded version (9).
-    expect(headingStyle(ctx())?.textColor).toBeUndefined();
+    expect(headingStyle()?.textColor).toBeUndefined();
     expect(ctx().hasConflictRecovery).toBe(true);
     expect(ctx().pageVersion).toBe(9);
 
@@ -326,7 +338,7 @@ describe("W0-T4 undo/redo + CAS (REAL EditProvider)", () => {
     });
 
     // The rejected edit is back on the live tree.
-    expect(headingStyle(ctx())?.textColor).toBe("#ff0000");
+    expect(headingStyle()?.textColor).toBe("#ff0000");
     // The re-issued CAS used the RELOADED version (9), not the stale 5.
     expect(saveDraftMock).toHaveBeenCalledTimes(2);
     expect(saveDraftMock.mock.calls[1][0]).toMatchObject({ expectedVersion: 9 });
@@ -350,7 +362,7 @@ describe("W0-T4 undo/redo + CAS (REAL EditProvider)", () => {
 
     expect(saveDraftMock).toHaveBeenCalledTimes(1);
     expect(loadCompositionMock).not.toHaveBeenCalled(); // NO refresh on network error
-    expect(headingStyle(ctx())?.textColor).toBeUndefined(); // rolled back
+    expect(headingStyle()?.textColor).toBeUndefined(); // rolled back
     expect(ctx().saving).toBe(false);
     // Version unchanged — the conflict path is the only one that re-versions.
     expect(ctx().pageVersion).toBe(5);
@@ -388,7 +400,7 @@ describe("W0-T4 undo/redo + CAS (REAL EditProvider)", () => {
     await act(async () => {
       await new Promise((r) => setTimeout(r, 50));
     });
-    expect(second.ctx().canUndo).toBe(true);
+    expect(getCanUndoSnapshot()).toBe(true);
   });
 
   it("W1-T5(a): a STALE persisted stack (baseVersion ≠ loaded version) is DROPPED on rehydrate", async () => {
@@ -407,7 +419,7 @@ describe("W0-T4 undo/redo + CAS (REAL EditProvider)", () => {
     });
     // The stale stack is dropped — replaying its trees at v9 would clobber the
     // other session's work, so undo is empty rather than dangerous.
-    expect(second.ctx().canUndo).toBe(false);
+    expect(getCanUndoSnapshot()).toBe(false);
   });
 });
 
@@ -425,7 +437,7 @@ describe("W1-T4 visibility + rename undo (REAL EditProvider)", () => {
     setVisibilityMock.mockResolvedValue({ ok: true, version: 2, visibility: "hidden" });
     const { ctx } = mountProvider(5);
 
-    expect(ctx().canUndo).toBe(false);
+    expect(getCanUndoSnapshot()).toBe(false);
     expect(sectionRef(ctx())?.visibility).toBe("always");
 
     // Operator hides the section.
@@ -434,8 +446,8 @@ describe("W1-T4 visibility + rename undo (REAL EditProvider)", () => {
     });
     expect(sectionRef(ctx())?.visibility).toBe("hidden");
     // Exactly one undoable entry; nothing on the redo stack yet.
-    expect(ctx().canUndo).toBe(true);
-    expect(ctx().canRedo).toBe(false);
+    expect(getCanUndoSnapshot()).toBe(true);
+    expect(getCanRedoSnapshot()).toBe(false);
 
     // ⌘Z — the replay re-dispatches setSectionVisibility("always").
     setVisibilityMock.mockResolvedValue({ ok: true, version: 3, visibility: "always" });
@@ -444,8 +456,8 @@ describe("W1-T4 visibility + rename undo (REAL EditProvider)", () => {
     });
     // Un-hidden, and the entry moved to redo.
     expect(sectionRef(ctx())?.visibility).toBe("always");
-    expect(ctx().canUndo).toBe(false);
-    expect(ctx().canRedo).toBe(true);
+    expect(getCanUndoSnapshot()).toBe(false);
+    expect(getCanRedoSnapshot()).toBe(true);
 
     // The undo replay was a real dispatch (recordHistory:false) — the action
     // fired twice total (hide + un-hide), never pushing a 2nd undo entry.
@@ -457,8 +469,8 @@ describe("W1-T4 visibility + rename undo (REAL EditProvider)", () => {
       await ctx().redo();
     });
     expect(sectionRef(ctx())?.visibility).toBe("hidden");
-    expect(ctx().canRedo).toBe(false);
-    expect(ctx().canUndo).toBe(true);
+    expect(getCanRedoSnapshot()).toBe(false);
+    expect(getCanUndoSnapshot()).toBe(true);
   });
 
   it("rename → ⌘Z restores the previous name (one entry, redo re-applies)", async () => {
@@ -483,8 +495,8 @@ describe("W1-T4 visibility + rename undo (REAL EditProvider)", () => {
       await ctx().renameSection(SECTION_ID, "Welcome");
     });
     expect(sectionRef(ctx())?.name).toBe("Welcome");
-    expect(ctx().canUndo).toBe(true);
-    expect(ctx().canRedo).toBe(false);
+    expect(getCanUndoSnapshot()).toBe(true);
+    expect(getCanRedoSnapshot()).toBe(false);
 
     // ⌘Z restores "Hero". The replay re-loads + re-saves under recordHistory:false.
     loadSectionForEditMock.mockResolvedValue({
@@ -503,8 +515,8 @@ describe("W1-T4 visibility + rename undo (REAL EditProvider)", () => {
       await ctx().undo();
     });
     expect(sectionRef(ctx())?.name).toBe("Hero");
-    expect(ctx().canUndo).toBe(false);
-    expect(ctx().canRedo).toBe(true);
+    expect(getCanUndoSnapshot()).toBe(false);
+    expect(getCanRedoSnapshot()).toBe(true);
 
     // Two saves total (rename + undo-replay) — the replay never pushed a 2nd entry.
     expect(saveSectionDraftMock).toHaveBeenCalledTimes(2);
@@ -540,6 +552,6 @@ describe("W1-T4 visibility + rename undo (REAL EditProvider)", () => {
     await act(async () => {
       await new Promise((r) => setTimeout(r, 50));
     });
-    expect(second.ctx().canUndo).toBe(true);
+    expect(getCanUndoSnapshot()).toBe(true);
   });
 });
