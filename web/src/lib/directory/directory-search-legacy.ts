@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { addDirectorySearchValueMatches } from "@/lib/field-engine/read-source-directory-search";
 
 function escapeIlike(input: string): string {
   return input.replaceAll(",", " ").replace(/\s+/g, " ").trim();
@@ -53,7 +54,7 @@ export async function fetchLegacyDirectorySearchTalentIds(
       .or(`name_en.ilike.%${term}%,name_es.ilike.%${term}%,slug.ilike.%${term}%`),
     supabase
       .from("field_definitions")
-      .select("id")
+      .select("id, key")
       .eq("searchable", true)
       .eq("active", true)
       .is("archived_at", null)
@@ -107,22 +108,15 @@ export async function fetchLegacyDirectorySearchTalentIds(
     }
   }
 
-  const searchableDefIds = ((searchableDefRows ?? []) as { id: string }[])
-    .map((r) => r.id)
-    .filter(Boolean);
-  if (termSafe.length > 0 && searchableDefIds.length > 0) {
-    const { data: valueHits, error: valueHitErr } = await supabase
-      .from("field_values")
-      .select("talent_profile_id")
-      .in("field_definition_id", searchableDefIds)
-      .ilike("value_text", `%${termSafe}%`);
-
-    if (valueHitErr) {
-      throw new Error(`[directory] legacy search field_values: ${valueHitErr.message}`);
-    }
-    for (const row of (valueHits ?? []) as { talent_profile_id: string }[]) {
-      matchedIds.add(row.talent_profile_id);
-    }
+  const searchableDefs = ((searchableDefRows ?? []) as { id: string; key: string }[]).filter(
+    (r) => r.id && r.key,
+  );
+  if (termSafe.length > 0 && searchableDefs.length > 0) {
+    // T2.5a: the searchable-field VALUE leg now reads through the
+    // `directory_search` read-source seam — System B for the 13 bridged keys,
+    // System A for the 3 un-bridged social-URL keys (coverage-identical). Flag
+    // `directory_search:a` (or a thrown B-read) reverts to the legacy A read.
+    await addDirectorySearchValueMatches(supabase, searchableDefs, termSafe, matchedIds);
   }
 
   return [...matchedIds];

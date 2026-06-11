@@ -14,6 +14,7 @@ import type { FieldValueRow } from "@/lib/directory/format-card-attribute-value"
 import { mapApiDirectoryRpcRowToDirectoryCardDTO } from "@/lib/directory/talent-card-dto";
 import type { ApiDirectoryCardRpcRow } from "@/lib/directory/talent-card-dto";
 import { fetchLegacyDirectorySearchTalentIds } from "@/lib/directory/directory-search-legacy";
+import { fetchDirectoryCardValues } from "@/lib/field-engine/read-source-directory-card-values";
 import { extractPrimaryRoleTerm, type ProfileTaxonomyRow } from "@/lib/taxonomy/engine";
 import {
   directorySearchForceLegacy,
@@ -445,36 +446,30 @@ export async function fetchDirectoryPage(
     const perKindSets: string[][] = [];
     for (const [, termIds] of taxonomyByKind) {
       if (termIds.length === 0) continue;
-      const [taxonomyResult, fieldValueResult] = await Promise.all([
-        auditTime(audit, timings, "taxonomyProfileFilterMs", () =>
+      // T2.5a: the legacy `field_values.value_taxonomy_ids overlaps` leg was
+      // DROPPED — it is a dead redundant read. Every taxonomy assignment lives in
+      // `talent_profile_taxonomy` (the canonical store); `value_taxonomy_ids` is
+      // EMPTY across all 1188 field_values rows in prod (verified read-only ref
+      // pluhdapdnuiulvxmyspd, 2026-06-11), so the overlap could never add a
+      // profile (0 public-cohort profiles matched only via field_values). The
+      // taxonomy filter now reads `talent_profile_taxonomy` alone.
+      const { data: taxonomyRows, error: taxonomyError } = await auditTime(
+        audit,
+        timings,
+        "taxonomyProfileFilterMs",
+        () =>
           supabase
             .from("talent_profile_taxonomy")
             .select("talent_profile_id")
             .in("taxonomy_term_id", termIds),
-        ),
-        auditTime(audit, timings, "taxonomyFieldValueFilterMs", () =>
-          supabase
-            .from("field_values")
-            .select("talent_profile_id")
-            .overlaps("value_taxonomy_ids", termIds),
-        ),
-      ]);
-
-      const { data: taxonomyRows, error: taxonomyError } = taxonomyResult;
-      const { data: fieldValueRows, error: fieldValueError } = fieldValueResult;
+      );
 
       if (taxonomyError) {
         throw new Error(`[directory] taxonomy filter: ${taxonomyError.message}`);
       }
-      if (fieldValueError) {
-        throw new Error(`[directory] taxonomy field value filter: ${fieldValueError.message}`);
-      }
 
       const ids = [
-        ...new Set([
-          ...uniqueIds((taxonomyRows ?? []) as { talent_profile_id: string }[]),
-          ...uniqueIds((fieldValueRows ?? []) as { talent_profile_id: string }[]),
-        ]),
+        ...new Set(uniqueIds((taxonomyRows ?? []) as { talent_profile_id: string }[])),
       ];
       if (ids.length === 0) {
         return { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds };
@@ -749,32 +744,31 @@ export async function fetchDirectoryPage(
   }
 
   const cardDefinitionIds = scalarCardDefs.map((d) => d.id);
-  const valuesByProfileId = new Map<string, Map<string, FieldValueRow>>();
+  let valuesByProfileId = new Map<string, Map<string, FieldValueRow>>();
   const termsById = new Map<string, { name_en: string; name_es: string | null }>();
 
   if (cardDefinitionIds.length > 0) {
-    const { data: fvRows, error: fvErr } = await auditTime(
-      audit,
-      timings,
-      "fieldValuesMs",
-      () =>
-        supabase
-          .from("field_values")
-          .select(
-            "talent_profile_id, field_definition_id, value_text, value_number, value_boolean, value_date, value_taxonomy_ids",
-          )
-          .in("talent_profile_id", profileIds)
-          .in("field_definition_id", cardDefinitionIds),
+    // T2.5a: the per-profile card VALUE read now goes through the
+    // `directory_card_values` read-source seam — System B (mapped A def-id → B
+    // field_key for bridged scalar card defs) by default, safe-falling-back to
+    // System A. Returns the SAME `Map<profileId, Map<aDefId, FieldValueRow>>`
+    // the renderer consumes, so `buildCardAttributesForProfile` is unchanged.
+    // Kill switch: FIELD_ENGINE_READ_SOURCE=directory_card_values:a.
+    valuesByProfileId = await auditTime(audit, timings, "fieldValuesMs", () =>
+      fetchDirectoryCardValues(supabase, scalarCardDefs, profileIds),
     );
 
-    if (fvErr) {
-      throw new Error(`[directory] field_values for cards: ${fvErr.message}`);
-    }
-
+    // Taxonomy card defs render from `talent_profile_taxonomy` assignments
+    // (below). The card-value rows can ALSO carry `value_taxonomy_ids` (legacy
+    // System A) — empty in practice — whose term NAMES are looked up here for
+    // `formatCardAttributeValue`'s taxonomy branch. Build the lookup off the
+    // reader's output so the System-A and System-B paths behave identically.
     const termIdSet = new Set<string>();
-    for (const raw of (fvRows ?? []) as FieldValueRow[]) {
-      for (const tid of raw.value_taxonomy_ids ?? []) {
-        if (tid) termIdSet.add(tid);
+    for (const inner of valuesByProfileId.values()) {
+      for (const raw of inner.values()) {
+        for (const tid of raw.value_taxonomy_ids ?? []) {
+          if (tid) termIdSet.add(tid);
+        }
       }
     }
 
@@ -800,15 +794,6 @@ export async function fetchDirectoryPage(
       }[]) {
         termsById.set(t.id, { name_en: t.name_en, name_es: t.name_es });
       }
-    }
-
-    for (const raw of (fvRows ?? []) as FieldValueRow[]) {
-      let inner = valuesByProfileId.get(raw.talent_profile_id);
-      if (!inner) {
-        inner = new Map();
-        valuesByProfileId.set(raw.talent_profile_id, inner);
-      }
-      inner.set(raw.field_definition_id, raw);
     }
   }
 
