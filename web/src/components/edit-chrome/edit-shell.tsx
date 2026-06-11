@@ -1036,6 +1036,10 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
           availableLocales={availableLocales}
           liveSitePublishedAt={liveSitePublishedAt}
           lastDraftSavedAt={lastDraftSavedAt}
+          onRevisions={openRevisions}
+          onPageSettings={openPageSettings}
+          onDuplicatePage={requestPagesPickerOpen}
+          onUnpublish={openPublish}
         />
         {/* z-[83]: above the Layers/Structure navigator (z-80) so canvas
          *  chrome — selection rings, chips, and especially the #30 right-click
