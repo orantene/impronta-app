@@ -62,17 +62,15 @@ CREATE POLICY talent_pages_owner ON public.talent_pages
   USING  (
     EXISTS (
       SELECT 1 FROM public.talent_profiles tp
-      JOIN public.profiles p ON p.id = tp.profile_id
       WHERE tp.id = talent_profile_id
-        AND p.user_id = auth.uid()
+        AND tp.user_id = auth.uid()
     )
   )
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.talent_profiles tp
-      JOIN public.profiles p ON p.id = tp.profile_id
       WHERE tp.id = talent_profile_id
-        AND p.user_id = auth.uid()
+        AND tp.user_id = auth.uid()
     )
   );
 
@@ -83,14 +81,14 @@ CREATE POLICY talent_pages_staff ON public.talent_pages
     EXISTS (
       SELECT 1 FROM public.talent_profiles tp
       WHERE tp.id = talent_profile_id
-        AND public.is_staff_of_tenant(tp.agency_id)
+        AND public.is_staff_of_tenant(tp.created_by_agency_id)
     )
   )
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.talent_profiles tp
       WHERE tp.id = talent_profile_id
-        AND public.is_staff_of_tenant(tp.agency_id)
+        AND public.is_staff_of_tenant(tp.created_by_agency_id)
     )
   );
 
@@ -105,16 +103,14 @@ CREATE POLICY talent_page_revisions_owner ON public.talent_page_revisions
   USING  (EXISTS (
     SELECT 1 FROM public.talent_pages p
     JOIN public.talent_profiles tp ON tp.id = p.talent_profile_id
-    JOIN public.profiles prof ON prof.id = tp.profile_id
     WHERE p.id = page_id
-      AND prof.user_id = auth.uid()
+      AND tp.user_id = auth.uid()
   ))
   WITH CHECK (EXISTS (
     SELECT 1 FROM public.talent_pages p
     JOIN public.talent_profiles tp ON tp.id = p.talent_profile_id
-    JOIN public.profiles prof ON prof.id = tp.profile_id
     WHERE p.id = page_id
-      AND prof.user_id = auth.uid()
+      AND tp.user_id = auth.uid()
   ));
 
 CREATE POLICY talent_page_revisions_staff ON public.talent_page_revisions
@@ -123,13 +119,13 @@ CREATE POLICY talent_page_revisions_staff ON public.talent_page_revisions
     SELECT 1 FROM public.talent_pages p
     JOIN public.talent_profiles tp ON tp.id = p.talent_profile_id
     WHERE p.id = page_id
-      AND public.is_staff_of_tenant(tp.agency_id)
+      AND public.is_staff_of_tenant(tp.created_by_agency_id)
   ))
   WITH CHECK (EXISTS (
     SELECT 1 FROM public.talent_pages p
     JOIN public.talent_profiles tp ON tp.id = p.talent_profile_id
     WHERE p.id = page_id
-      AND public.is_staff_of_tenant(tp.agency_id)
+      AND public.is_staff_of_tenant(tp.created_by_agency_id)
   ));
 
 COMMIT;
