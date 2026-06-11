@@ -39,13 +39,19 @@ test("parser: unset/empty/whitespace → the default flags", () => {
     DEFAULT_FIELD_ENGINE_READ_SOURCE_FLAGS,
   );
   // T2.1 flipped directory_facets to `b`; T2.2 flipped public_sidebar to `b`;
-  // T2.3 flipped dashboard_nav to `b`. The two not-yet-repointed surfaces still
-  // default to `a`.
+  // T2.3 flipped dashboard_nav to `b`; T2.5 flipped ai_search_doc to `b`.
+  // The one not-yet-repointed surface (directory_cards) still defaults to `a`.
   assert.equal(DEFAULT_FIELD_ENGINE_READ_SOURCE_FLAGS.directory_facets, "b");
   assert.equal(DEFAULT_FIELD_ENGINE_READ_SOURCE_FLAGS.public_sidebar, "b");
   assert.equal(DEFAULT_FIELD_ENGINE_READ_SOURCE_FLAGS.dashboard_nav, "b");
+  assert.equal(DEFAULT_FIELD_ENGINE_READ_SOURCE_FLAGS.ai_search_doc, "b");
   for (const s of FIELD_ENGINE_READ_SURFACES) {
-    if (s === "directory_facets" || s === "public_sidebar" || s === "dashboard_nav") continue;
+    if (
+      s === "directory_facets" ||
+      s === "public_sidebar" ||
+      s === "dashboard_nav" ||
+      s === "ai_search_doc"
+    ) continue;
     assert.equal(DEFAULT_FIELD_ENGINE_READ_SOURCE_FLAGS[s], "a");
   }
 });
@@ -71,12 +77,20 @@ test("parser: `b` flips every surface; `a` is the global kill switch (all a)", (
 test("parser: per-surface tokens layer over the default (others keep their default)", () => {
   // Naming one surface leaves the rest at their default (directory_facets `b`
   // post-T2.1, public_sidebar `b` post-T2.2, dashboard_nav `b` post-T2.3,
-  // directory_cards `a`, ai_search_doc `a`).
+  // ai_search_doc `b` post-T2.5, directory_cards still `a`).
   assert.deepEqual(parseFieldEngineReadSourceFlags("directory_cards:b"), {
     directory_facets: "b",
     public_sidebar: "b",
     dashboard_nav: "b",
     directory_cards: "b",
+    ai_search_doc: "b",
+  });
+  // Per-surface kill switch for ai_search_doc: revert just that surface to `a`.
+  assert.deepEqual(parseFieldEngineReadSourceFlags("ai_search_doc:a"), {
+    directory_facets: "b",
+    public_sidebar: "b",
+    dashboard_nav: "b",
+    directory_cards: "a",
     ai_search_doc: "a",
   });
   // Multiple surfaces flipped explicitly (public_sidebar + dashboard_nav keep `b` default).
@@ -97,7 +111,7 @@ test("parser: per-surface tokens layer over the default (others keep their defau
     public_sidebar: "b",
     dashboard_nav: "a",
     directory_cards: "a",
-    ai_search_doc: "a",
+    ai_search_doc: "b",
   });
 });
 
@@ -107,12 +121,12 @@ test("parser: unknown surfaces/sources are ignored (keep default)", () => {
     public_sidebar: "b", // T2.2 default
     dashboard_nav: "b", // weird source ignored → keeps T2.3 default (`b`)
     directory_cards: "a",
-    ai_search_doc: "a",
+    ai_search_doc: "b", // T2.5 default
   });
-  // Case-insensitive surface + source — explicit rollback of public_sidebar.
-  assert.deepEqual(parseFieldEngineReadSourceFlags("PUBLIC_SIDEBAR:A"), {
+  // Case-insensitive surface + source — explicit kill-switch for ai_search_doc.
+  assert.deepEqual(parseFieldEngineReadSourceFlags("AI_SEARCH_DOC:A"), {
     directory_facets: "b", // T2.1 default
-    public_sidebar: "a",
+    public_sidebar: "b", // T2.2 default
     dashboard_nav: "b", // T2.3 default
     directory_cards: "a",
     ai_search_doc: "a",
@@ -127,13 +141,15 @@ test("readSourceForSurface + surfaceReadsCanonical reflect the flags", () => {
   );
   assert.equal(readSourceForSurface(flags, "dashboard_nav"), "b");
   // directory_facets defaults to `b` post-T2.1; public_sidebar `b` post-T2.2;
-  // directory_cards still defaults to `a`.
+  // ai_search_doc `b` post-T2.5; directory_cards still `a`.
   assert.equal(readSourceForSurface(flags, "directory_facets"), "b");
   assert.equal(readSourceForSurface(flags, "public_sidebar"), "b");
+  assert.equal(readSourceForSurface(flags, "ai_search_doc"), "b");
   assert.equal(readSourceForSurface(flags, "directory_cards"), "a");
   assert.equal(surfaceReadsCanonical(flags, "dashboard_nav"), true);
   assert.equal(surfaceReadsCanonical(flags, "directory_facets"), true);
   assert.equal(surfaceReadsCanonical(flags, "public_sidebar"), true);
+  assert.equal(surfaceReadsCanonical(flags, "ai_search_doc"), true);
   assert.equal(surfaceReadsCanonical(flags, "directory_cards"), false);
 });
 
@@ -189,10 +205,20 @@ test("dispatch: default/`a` → reads A (byte-identical to today)", async () => 
     readFieldSurface("public_sidebar", fakePair({}), "x"),
   );
   assert.deepEqual(out4, { src: "a", arg: "x" });
+  // ai_search_doc now defaults to `b` (T2.5 activation); unset flag → B.
+  const out5 = await withFlag(undefined, () =>
+    readFieldSurface("ai_search_doc", fakePair({}), "x"),
+  );
+  assert.deepEqual(out5, { src: "b", arg: "x" });
+  // The per-surface kill switch forces ai_search_doc back to A.
+  const out6 = await withFlag("ai_search_doc:a", () =>
+    readFieldSurface("ai_search_doc", fakePair({}), "x"),
+  );
+  assert.deepEqual(out6, { src: "a", arg: "x" });
 });
 
 test("dispatch: surface flipped to `b` → reads B", async () => {
-  // dashboard_nav defaults to `b` post-T2.3, so test with directory_cards (still `a`).
+  // directory_cards is still `a` by default — flip it to b explicitly.
   const out = await withFlag("directory_cards:b", () =>
     readFieldSurface("directory_cards", fakePair({}), "y"),
   );
@@ -202,15 +228,30 @@ test("dispatch: surface flipped to `b` → reads B", async () => {
     readFieldSurface("dashboard_nav", fakePair({}), "y"),
   );
   assert.deepEqual(out2, { src: "a", arg: "y" });
+  // Per-surface kill switch: ai_search_doc:a overrides the T2.5 `b` default back to A.
+  const out3 = await withFlag("ai_search_doc:a", () =>
+    readFieldSurface("ai_search_doc", fakePair({}), "y"),
+  );
+  assert.deepEqual(out3, { src: "a", arg: "y" });
 });
 
 test("dispatch: a DIFFERENT surface flipped does not affect this surface", async () => {
   // dashboard_nav:a (kill-switch for T2.3) must NOT flip directory_cards
-  // (still `a` by default — confirms isolation in both directions).
+  // (still `a` by default) or ai_search_doc (now `b` by default post-T2.5).
   const out = await withFlag("dashboard_nav:a", () =>
     readFieldSurface("directory_cards", fakePair({}), "z"),
   );
   assert.deepEqual(out, { src: "a", arg: "z" });
+  // ai_search_doc kill-switch must NOT flip directory_cards (still `a`).
+  const out2 = await withFlag("ai_search_doc:a", () =>
+    readFieldSurface("directory_cards", fakePair({}), "z"),
+  );
+  assert.deepEqual(out2, { src: "a", arg: "z" });
+  // dashboard_nav kill-switch must NOT affect ai_search_doc (stays `b` post-T2.5).
+  const out3 = await withFlag("dashboard_nav:a", () =>
+    readFieldSurface("ai_search_doc", fakePair({}), "z"),
+  );
+  assert.deepEqual(out3, { src: "b", arg: "z" });
 });
 
 test("dispatch: B-read that throws safe-falls-back to A (never hardens broken B)", async () => {
@@ -221,6 +262,11 @@ test("dispatch: B-read that throws safe-falls-back to A (never hardens broken B)
   );
   // Flag said b, but b threw → A result, surface stays up.
   assert.deepEqual(out, { src: "a", arg: "q" });
+  // ai_search_doc defaults to `b` (T2.5); a throwing B-read degrades to A.
+  const out2 = await withFlag(undefined, () =>
+    readFieldSurface("ai_search_doc", fakePair({ bThrows: true }), "q"),
+  );
+  assert.deepEqual(out2, { src: "a", arg: "q" });
 });
 
 test("readFieldSurfaceBoth runs both readers regardless of the flag (proof helper)", async () => {
