@@ -8,6 +8,7 @@ import { useCallback, useMemo, useState } from "react";
 
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { useEditContext } from "./edit-context";
+import { useBuilderTree } from "./builder-tree-bridge";
 import { useModalFocusTrap } from "./modal-focus-trap";
 import { CHROME, CHROME_RADII, CHROME_SHADOWS } from "./kit/tokens";
 
@@ -79,8 +80,10 @@ export function BuilderFindReplaceOverlay({
   open,
   onClose,
 }: BuilderFindReplaceOverlayProps) {
-  const { builderTree, patchBuilderNodeProps, selectBuilderNode, reportMutationError } =
+  const { patchBuilderNodeProps, selectBuilderNode, reportMutationError } =
     useEditContext();
+  // WS2 — tree read from the micro-store (builder-tree-bridge), not the context value.
+  const builderTree = useBuilderTree();
   const dialogRef = useModalFocusTrap(open, onClose);
   const [query, setQuery] = useState("");
   const [replacement, setReplacement] = useState("");

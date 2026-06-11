@@ -49,6 +49,7 @@ import {
 } from "@/lib/site-admin/builder-node/page-designs/summaries";
 import { pageDesignThumbnail } from "./design-thumbnails";
 import { useMaybeEditContext } from "./edit-context";
+import { useCanUndo } from "./history-bridge";
 
 /** A soft archetype-tinted gradient for each full-page design preview card. */
 function archetypeGradient(archetype: PageDesignSummary["archetype"]): string {
@@ -79,6 +80,10 @@ export function EmptyCanvasStarter({
 } = {}) {
   const router = useRouter();
   const editCtx = useMaybeEditContext();
+  // WS2 — can-undo read from the micro-store (history-bridge). The store is a
+  // process global, so we still gate the undo card on `editCtx` being mounted
+  // (inside an EditProvider) below — preserving the original behavior exactly.
+  const canUndo = useCanUndo();
   const [designState, designDispatch, designPending] = useActionState<
     ApplyPageDesignState,
     FormData
@@ -412,7 +417,7 @@ export function EmptyCanvasStarter({
             the canvas returns to the empty state. Dismissed when the sync fires
             or when the user clicks Undo. Only shown when editCtx is mounted (i.e.
             we're inside an EditProvider) and the undo stack is non-empty. */}
-        {showDesignUndo && editCtx?.canUndo ? (
+        {showDesignUndo && editCtx && canUndo ? (
           <div
             role="status"
             aria-live="polite"

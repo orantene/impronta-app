@@ -37,6 +37,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useEditContext } from "./edit-context";
+import { useBuilderTree } from "./builder-tree-bridge";
 import { useSelectedSectionId } from "./selection-bridge";
 import { MediaPickerDialog } from "./media-picker-dialog";
 import { findPathByValue, setByPath } from "@/lib/site-admin/edit-mode/prop-path";
@@ -91,7 +92,6 @@ const SINGLE_LINE_TAGS = new Set([
 export function InlineEditor() {
   const {
     tenantId,
-    builderTree,
     draftProps,
     patchBuilderNodeProps,
     reportMutationError,
@@ -99,6 +99,8 @@ export function InlineEditor() {
     setDraftProps,
     setDirty,
   } = useEditContext();
+  // WS2 — tree VALUE from the micro-store (builder-tree-bridge).
+  const builderTree = useBuilderTree();
   // W2 (selection-bridge) — selected-section VALUE from the micro-store.
   const selectedSectionId = useSelectedSectionId();
 

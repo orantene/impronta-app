@@ -25,6 +25,7 @@ import {
 } from "@/lib/site-admin/edit-mode/builder-components-action";
 import { countComponentInstances } from "@/lib/site-admin/builder-node/component-instances";
 import { useEditContext } from "../edit-context";
+import { useBuilderTree } from "../builder-tree-bridge";
 import { useSelectedBuilderNodeId } from "../selection-bridge";
 import { KIT } from "./kit/tokens";
 
@@ -35,13 +36,14 @@ export function ComponentLibraryPanel({
   parentNodeId: string;
 }) {
   const {
-    builderTree,
     insertBuilderComponent,
     insertLinkedComponent,
     syncComponentInstances,
     updateSelectedNodeAsComponent,
     selectBuilderNode,
   } = useEditContext();
+  // WS2 — tree VALUE from the micro-store (builder-tree-bridge).
+  const builderTree = useBuilderTree();
   // W2 (selection-bridge) — selection VALUE from the micro-store.
   const selectedBuilderNodeId = useSelectedBuilderNodeId();
 

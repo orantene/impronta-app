@@ -39,6 +39,7 @@ import {
 import { SECTION_EDITOR_REGISTRY } from "@/lib/site-admin/sections/registry-editors";
 import type { LoadedSection } from "./edit-context";
 import { useEditContext } from "./edit-context";
+import { useBuilderTree } from "./builder-tree-bridge";
 import {
   useSelectedSectionId,
   useSelectedBuilderNodeId,
@@ -258,7 +259,6 @@ export function InspectorDock() {
     patchBuilderNodeProps,
     reportMutationError,
     slots,
-    builderTree,
     canEditSiteShell,
     queueRouterRefresh,
     device,
@@ -268,6 +268,8 @@ export function InspectorDock() {
     setInspectorActiveTab,
     inspectorTabRequest,
   } = useEditContext();
+  // WS2 — tree VALUE from the micro-store (builder-tree-bridge).
+  const builderTree = useBuilderTree();
   // W2 (selection-bridge) — selection VALUES from the micro-store. The dock
   // re-renders on selection change via these subscriptions (it loads the
   // selected section + drives the inspector tabs), which is exactly correct.

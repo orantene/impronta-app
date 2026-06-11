@@ -55,6 +55,7 @@ import {
 import { useEffect, useMemo, useState, type ReactElement } from "react";
 
 import { useEditContext } from "../edit-context";
+import { useBuilderTree } from "../builder-tree-bridge";
 import { useSelectedBuilderNodeId } from "../selection-bridge";
 import { NumberUnit, type LengthUnit } from "../kit/number-unit";
 import { Segmented, type SegmentedOption } from "../kit/segmented";
@@ -1727,12 +1728,13 @@ export function LayoutPanel({
   onSectionPatch,
 }: LayoutPanelProps) {
   const {
-    builderTree,
     patchBuilderNodeProps,
     reportMutationError,
     device,
     setDevice,
   } = useEditContext();
+  // WS2 — tree VALUE from the micro-store (builder-tree-bridge).
+  const builderTree = useBuilderTree();
   // Author-defined breakpoint tiers (built-in + custom) — used to label the
   // active editing tier in the node layout editor.
   const builderBreakpoints = useBuilderBreakpoints();
