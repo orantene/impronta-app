@@ -719,14 +719,6 @@
       "count": 23
     }
   },
-  "src/components/admin/shell/internal/page-modules/page-builder/PageBuilderPage.tsx": {
-    "ratchet/no-new-hook-deps-disable": {
-      "count": 1
-    },
-    "ratchet/no-new-inline-style": {
-      "count": 76
-    }
-  },
   "src/components/admin/shell/internal/page-modules/pages-dynamic.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 19
@@ -1584,7 +1576,7 @@
   },
   "src/lib/server-actions/admin-taxonomy.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 16
+      "count": 15
     }
   },
   "src/lib/server-actions/admin-translation-quick-edit.ts": {
