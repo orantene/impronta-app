@@ -11,6 +11,7 @@ import type { Locale } from "@/i18n/config";
 import { buildPublicLocaleAlternates } from "@/lib/seo/locale-alternates";
 import { getPublicTenantScope, getPublicPathPrefix } from "@/lib/saas/scope";
 import { loadPageForRender } from "@/lib/site-admin/server/page-reads";
+import { loadPublicComponentStyleDefaults } from "@/lib/site-admin/server/reads";
 import { BlocksRenderer } from "@/components/page-builder/blocks";
 import type { PageBlock, PageTheme } from "@/components/page-builder/blocks";
 import { renderBuilderNodes } from "@/lib/site-admin/builder-node/render";
@@ -167,6 +168,10 @@ export default async function CmsPublicPage({
       // `kind`/`type` enums; legacy + empty rows keep the legacy path.
       const freeform = isFreeformBlocks(blocks);
       const publicPathPrefix = freeform ? await getPublicPathPrefix() : "";
+      // GAP B — tenant LIVE per-component-type default styles for the cascade.
+      const componentStyleDefaults = freeform
+        ? await loadPublicComponentStyleDefaults(publicScope.tenantId)
+        : {};
       return (
         <main
           style={{
@@ -181,6 +186,7 @@ export default async function CmsPublicPage({
             renderBuilderNodes(blocks as BuilderNode[], {
               publicPathPrefix,
               mode: "freeform",
+              componentStyleDefaults,
               renderSectionEmbed: makeSectionEmbedRenderer({
                 tenantId: publicScope.tenantId,
                 locale,

@@ -38,6 +38,7 @@ import {
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
 import { loadBuilderNodeDataSources } from "@/components/home/homepage-cms-data-sources";
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
+import { loadPublicComponentStyleDefaults } from "@/lib/site-admin/server/reads";
 import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
 import { PublicHeader } from "@/components/public-header";
 
@@ -100,12 +101,15 @@ export default async function PublicTalentFreeformPage({
   // Data sources (bound media, collections, directory) + live component
   // instances — only load when the tree actually binds them AND a managing
   // tenant exists (the loaders are tenant-scoped service-role reads).
-  const [dataSources, components] = await Promise.all([
+  const [dataSources, components, componentStyleDefaults] = await Promise.all([
     tenantId
       ? loadBuilderNodeDataSources(blocks, tenantId, locale)
       : Promise.resolve({}),
     tenantId && treeHasInstances(blocks)
       ? loadBuilderComponentsForTenant(tenantId)
+      : Promise.resolve({}),
+    tenantId
+      ? loadPublicComponentStyleDefaults(tenantId)
       : Promise.resolve({}),
   ]);
 
@@ -124,6 +128,7 @@ export default async function PublicTalentFreeformPage({
           styleClasses: theme,
           dataSources,
           components,
+          componentStyleDefaults,
           renderSectionEmbed,
         })}
       </main>

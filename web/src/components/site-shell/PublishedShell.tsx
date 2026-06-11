@@ -42,6 +42,7 @@ import {
 import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
+import { loadPublicComponentStyleDefaults } from "@/lib/site-admin/server/reads";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import { listBuilderImageMediaAssets } from "@/lib/site-admin/media/assets";
 import { resolveCollectionDataSources } from "@/lib/site-admin/collections/server";
@@ -266,7 +267,14 @@ async function renderShellSlot(
       ? createServiceRoleClient()
       : null;
   const mediaSupabase = mediaIds.length > 0 ? serviceSupabase : null;
-  const [builderComponents, mediaAssets, collections, actorSession, editModeActive] =
+  const [
+    builderComponents,
+    mediaAssets,
+    collections,
+    actorSession,
+    editModeActive,
+    componentStyleDefaults,
+  ] =
     await Promise.all([
       treeHasInstances(builderSectionChildren)
         ? loadBuilderComponentsForTenant(tenantId)
@@ -279,6 +287,7 @@ async function renderShellSlot(
         : Promise.resolve(undefined),
       getCachedActorSession(),
       isEditModeActiveForTenant(tenantId),
+      loadPublicComponentStyleDefaults(tenantId),
     ]);
   // Wave 5B · #38 — shell blocks honor node-level conditional visibility too
   // (e.g. a "Sign in" CTA shown only to signed-out visitors). Request-cached
@@ -332,6 +341,7 @@ async function renderShellSlot(
             // Gated: the DB query only runs when the slot actually has instances.
             components: builderComponents,
             visibilityContext,
+            componentStyleDefaults,
             renderSectionEmbed: makeSectionEmbedRenderer({
               tenantId,
               locale,

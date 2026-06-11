@@ -25,6 +25,10 @@ import { isPostgrestMissingColumnError } from "@/lib/server/safe-error";
 
 import type { IdentityRow } from "./identity";
 import type { BrandingRow } from "./branding";
+import {
+  normalizeComponentStyleDefaults,
+  type ComponentStyleDefaults,
+} from "@/lib/site-admin/builder-node/component-style-defaults";
 
 const IDENTITY_READ_COLUMNS = `
   tenant_id,
@@ -219,6 +223,21 @@ export function loadPublicBranding(
       revalidate: 300,
     },
   )();
+}
+
+/**
+ * GAP B — the tenant's LIVE per-component-type default styles (cascade middle
+ * layer), normalized for the renderer. Reuses the cached branding read (same
+ * `branding` tag / TTL), so every builder render surface can pass
+ * `componentStyleDefaults` with one call. Empty `{}` for tenants that never set
+ * a component default (a no-op in the renderer).
+ */
+export async function loadPublicComponentStyleDefaults(
+  tenantId: string,
+): Promise<ComponentStyleDefaults> {
+  if (!tenantId) return {};
+  const branding = await loadPublicBranding(tenantId);
+  return normalizeComponentStyleDefaults(branding?.component_styles_json);
 }
 
 // ---- uncached, request-scoped reads (admin + server action prelude) ------
