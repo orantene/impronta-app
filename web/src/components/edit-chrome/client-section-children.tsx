@@ -42,6 +42,8 @@ import {
   type BuilderVisibilityContext,
 } from "@/lib/site-admin/builder-node";
 import type { ComponentDefinitions } from "@/lib/site-admin/builder-node/component-instances";
+import type { ComponentStyleDefaults } from "@/lib/site-admin/builder-node/component-style-defaults";
+import { useComponentDefaultsPreview } from "./component-defaults-bridge";
 
 import {
   getStyleClassRegistrySnapshot,
@@ -86,6 +88,8 @@ export interface ClientSectionChildrenProps {
   publicPathPrefix: string;
   components: ComponentDefinitions;
   visibilityContext?: BuilderVisibilityContext;
+  /** GAP B — tenant LIVE per-component-type default styles (cascade middle layer). */
+  componentStyleDefaults?: ComponentStyleDefaults;
 }
 
 function ClientSectionChildrenInner({
@@ -96,6 +100,7 @@ function ClientSectionChildrenInner({
   publicPathPrefix,
   components,
   visibilityContext,
+  componentStyleDefaults,
 }: ClientSectionChildrenProps): ReactNode {
   // builder-perf-2026 — announce a section-children canvas is mounted so
   // `edit-context` lets builder-node edits skip the per-edit refresh.
@@ -131,6 +136,12 @@ function ClientSectionChildrenInner({
     [sectionEmbedIslands],
   );
 
+  // GAP B-4 — live-preview the operator's DRAFT component defaults while editing;
+  // fall back to the server-resolved LIVE defaults prop otherwise.
+  const draftComponentDefaults = useComponentDefaultsPreview();
+  const effectiveComponentDefaults =
+    draftComponentDefaults ?? componentStyleDefaults;
+
   // Stable options identity so the renderer's `BuilderNodeView` memo can bail
   // unchanged subtrees (same rationale as ClientBuilderCanvas). Mirrors the SAME
   // option set the server passes for section children at the call site.
@@ -143,6 +154,7 @@ function ClientSectionChildrenInner({
       components,
       visibilityContext,
       styleClasses,
+      componentStyleDefaults: effectiveComponentDefaults,
       renderSectionEmbed,
       animateLayout: true,
     }),
@@ -152,6 +164,7 @@ function ClientSectionChildrenInner({
       components,
       visibilityContext,
       styleClasses,
+      effectiveComponentDefaults,
       renderSectionEmbed,
     ],
   );

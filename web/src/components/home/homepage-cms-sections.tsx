@@ -623,6 +623,7 @@ export async function HomepageCmsSections({
                 publicPathPrefix={publicPathPrefix}
                 components={builderComponents}
                 visibilityContext={visibilityContext}
+                componentStyleDefaults={componentStyleDefaults}
               />
             );
           } else {

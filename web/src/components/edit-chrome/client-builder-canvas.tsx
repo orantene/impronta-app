@@ -45,6 +45,7 @@ import {
 } from "@/lib/site-admin/builder-node";
 import type { ComponentDefinitions } from "@/lib/site-admin/builder-node/component-instances";
 import type { ComponentStyleDefaults } from "@/lib/site-admin/builder-node/component-style-defaults";
+import { useComponentDefaultsPreview } from "./component-defaults-bridge";
 
 import {
   getStyleClassRegistrySnapshot,
@@ -131,6 +132,13 @@ function ClientBuilderCanvasInner({
     getStyleClassRegistryServerSnapshot,
   );
 
+  // GAP B-4 — live-preview the operator's DRAFT component defaults while the
+  // Theme drawer's Components tab is open; fall back to the server-resolved
+  // LIVE defaults prop otherwise (so first paint matches the published page).
+  const draftComponentDefaults = useComponentDefaultsPreview();
+  const effectiveComponentDefaults =
+    draftComponentDefaults ?? componentStyleDefaults;
+
   // W2-T1 — memoize the `renderSectionEmbed` closure so its identity is stable
   // across renders where `sectionEmbedIslands` did not change. (When the server
   // hands a fresh-identity islands map on a refresh, the closure correctly
@@ -160,7 +168,7 @@ function ClientBuilderCanvasInner({
       components,
       visibilityContext,
       styleClasses,
-      componentStyleDefaults,
+      componentStyleDefaults: effectiveComponentDefaults,
       renderSectionEmbed,
       // W3-T1 — editor-only insert/delete/reorder motion. The published /
       // server render paths never set this, so they stay byte-identical; here
@@ -174,7 +182,7 @@ function ClientBuilderCanvasInner({
       components,
       visibilityContext,
       styleClasses,
-      componentStyleDefaults,
+      effectiveComponentDefaults,
       renderSectionEmbed,
     ],
   );

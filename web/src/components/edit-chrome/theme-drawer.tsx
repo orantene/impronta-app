@@ -65,6 +65,8 @@ import {
 } from "./kit";
 import { useEditContext } from "./edit-context";
 import { clearThemePreview, publishThemePreview } from "./theme-preview-bridge";
+import { clearComponentDefaultsPreview } from "./component-defaults-bridge";
+import { ComponentDefaultsTab } from "./component-defaults-tab";
 
 import {
   applyThemePresetFromEditAction,
@@ -89,13 +91,20 @@ import { classifyContrast, contrastRatio } from "@/lib/site-admin/a11y/contrast"
 // nothing for mesh) by introducing a clear two-card hierarchy: Theme JSON at
 // top, Power tools disclosure card below. The everyday tabs (Colors →
 // Typography → Layout → Effects) are unchanged.
-type TabKey = "colors" | "typography" | "layout" | "effects" | "code";
+type TabKey =
+  | "colors"
+  | "typography"
+  | "layout"
+  | "effects"
+  | "components"
+  | "code";
 
 const TABS: ReadonlyArray<{ key: TabKey; label: string }> = [
   { key: "colors", label: "Colors" },
   { key: "typography", label: "Typography" },
   { key: "layout", label: "Layout" },
   { key: "effects", label: "Effects" },
+  { key: "components", label: "Components" },
   { key: "code", label: "Code" },
 ];
 
@@ -390,6 +399,7 @@ export function ThemeDrawer(): ReactElement | null {
       // stays mounted (everOpenedTheme), so this must fire on close, not just
       // unmount.
       clearThemePreview();
+      clearComponentDefaultsPreview();
       return;
     }
     let cancelled = false;
@@ -438,8 +448,14 @@ export function ThemeDrawer(): ReactElement | null {
   }, [themeOpen, draft]);
 
   // Belt-and-braces: if the drawer ever unmounts (e.g. leaving edit mode),
-  // drop the projection so the canvas isn't frozen on a draft value.
-  useEffect(() => clearThemePreview, []);
+  // drop the projections so the canvas isn't frozen on a draft value.
+  useEffect(
+    () => () => {
+      clearThemePreview();
+      clearComponentDefaultsPreview();
+    },
+    [],
+  );
 
   const reset = useCallback(() => {
     if (!snapshot) return;
@@ -803,6 +819,23 @@ export function ThemeDrawer(): ReactElement | null {
                 presets={EFFECT_PRESETS}
                 draft={draft}
                 onChange={set}
+              />
+            ) : null}
+            {tab === "components" ? (
+              <ComponentDefaultsTab
+                initialDefaults={snapshot.componentStylesDraft}
+                version={snapshot.version}
+                onSaved={(newVersion, saved) =>
+                  setSnapshot((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          version: newVersion,
+                          componentStylesDraft: saved,
+                        }
+                      : prev,
+                  )
+                }
               />
             ) : null}
             {tab === "code" ? (
