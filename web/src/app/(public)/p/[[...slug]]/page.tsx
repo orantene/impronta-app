@@ -12,11 +12,8 @@ import { buildPublicLocaleAlternates } from "@/lib/seo/locale-alternates";
 import { getPublicTenantScope, getPublicPathPrefix } from "@/lib/saas/scope";
 import { loadPageForRender } from "@/lib/site-admin/server/page-reads";
 import { loadPublicComponentStyleDefaults } from "@/lib/site-admin/server/reads";
-import { BlocksRenderer } from "@/components/page-builder/blocks";
-import type { PageBlock, PageTheme } from "@/components/page-builder/blocks";
 import { renderBuilderNodes } from "@/lib/site-admin/builder-node/render";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
-import { isFreeformBlocks } from "@/lib/site-admin/builder-node/legacy-page-blocks";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
 import {
   jsonLdDocumentToScript,
@@ -159,19 +156,20 @@ export default async function CmsPublicPage({
       .eq("status", "published")
       .maybeSingle();
     if (wpPage) {
-      const theme = (wpPage.theme ?? {}) as PageTheme;
-      const blocks = wpPage.blocks ?? [];
-      // Shape-aware render. `workspace_pages.blocks` is ONE column that holds
-      // either a LEGACY PageBlock[] (rendered by BlocksRenderer, byte-identical
-      // to before this migration) or a FREEFORM BuilderNode[] (WS6 page
-      // builder). `isFreeformBlocks` discriminates by the disjoint
-      // `kind`/`type` enums; legacy + empty rows keep the legacy path.
-      const freeform = isFreeformBlocks(blocks);
-      const publicPathPrefix = freeform ? await getPublicPathPrefix() : "";
+      const theme = (wpPage.theme ?? {}) as {
+        backgroundColor?: string;
+        fontColor?: string;
+        fontFamily?: string;
+      };
+      // `workspace_pages.blocks` is always a FREEFORM BuilderNode[] (authored in
+      // the WS6 page builder). The legacy PageBlock[] shape + its block renderer
+      // were retired with the legacy block editor — no row can hold them.
+      const blocks = (wpPage.blocks ?? []) as BuilderNode[];
+      const publicPathPrefix = await getPublicPathPrefix();
       // GAP B — tenant LIVE per-component-type default styles for the cascade.
-      const componentStyleDefaults = freeform
-        ? await loadPublicComponentStyleDefaults(publicScope.tenantId)
-        : {};
+      const componentStyleDefaults = await loadPublicComponentStyleDefaults(
+        publicScope.tenantId,
+      );
       return (
         <main
           style={{
@@ -182,24 +180,17 @@ export default async function CmsPublicPage({
           }}
         >
           <JsonLdScript script={jsonLdScript} />
-          {freeform ? (
-            renderBuilderNodes(blocks as BuilderNode[], {
+          {renderBuilderNodes(blocks, {
+            publicPathPrefix,
+            mode: "freeform",
+            componentStyleDefaults,
+            renderSectionEmbed: makeSectionEmbedRenderer({
+              tenantId: publicScope.tenantId,
+              locale,
               publicPathPrefix,
-              mode: "freeform",
-              componentStyleDefaults,
-              renderSectionEmbed: makeSectionEmbedRenderer({
-                tenantId: publicScope.tenantId,
-                locale,
-                publicPathPrefix,
-                previewSubject: { kind: "workspace", id: publicScope.tenantId },
-              }),
-            })
-          ) : (
-            <BlocksRenderer
-              blocks={blocks as PageBlock[]}
-              tenantId={publicScope.tenantId}
-            />
-          )}
+              previewSubject: { kind: "workspace", id: publicScope.tenantId },
+            }),
+          })}
         </main>
       );
     }

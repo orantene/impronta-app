@@ -5,19 +5,13 @@
  * surface, repointed from the RETIRED legacy block editor (`PageBuilderPage`)
  * to the WS6 FREEFORM page builder (`WorkspaceBuilderMount`).
  *
- * It keeps the legacy surface's page-LIST management (list / create / delete /
- * status) — those affordances are unchanged — but when the operator opens a
- * page it mounts the full freeform `WorkspaceBuilderMount` for that page's slug
- * instead of the old three-column block editor.
+ * It keeps the page-LIST management (list / create / delete / status) — those
+ * affordances are unchanged — but when the operator opens a page it mounts the
+ * full freeform `WorkspaceBuilderMount` for that page's slug.
  *
- * SAFETY (the migration's #1 rule): a page whose stored `workspace_pages.blocks`
- * are LEGACY `PageBlock[]` is NOT fed raw into the freeform editor. The
- * workspace-page adapter converts legacy blocks → an equivalent freeform tree
- * on load (`convertLegacyPageBlocksToBuilderNodes`), and that conversion is
- * non-destructive — the row's stored legacy blocks are untouched until the
- * operator explicitly saves, so the PUBLISHED page keeps rendering identically
- * (the shape-aware `/p/` renderer routes legacy rows to `BlocksRenderer`) until
- * then.
+ * The legacy `PageBlock[]` block editor + renderer have been fully removed:
+ * `workspace_pages.blocks` is always a freeform `BuilderNode[]`, and `/p/`
+ * renders it via `renderBuilderNodes`.
  *
  * Styling note: this surface lives under `components/admin/shell`, where new
  * inline `style={{…}}` is frozen by the `ratchet/no-new-inline-style` rule, so
