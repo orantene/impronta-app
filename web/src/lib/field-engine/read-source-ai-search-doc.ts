@@ -405,19 +405,34 @@ async function readAiSearchDocFieldsFromB(
     if (!meta) continue;
 
     // Extract the stringified value from B's JSONB scalar.
-    // JSONB primitives (string/number/boolean) → text directly.
-    // JSONB arrays (multiselect labels) → join with ", ".
-    // NULL / empty object → skip.
+    // The field's KIND drives the projection so toggle fields always emit
+    // "Yes"/"No" regardless of whether the JSONB value is stored as a JSON
+    // boolean (true/false) or as a JSON string ("true"/"false") — both forms
+    // appear in prod (≈50 boolean-stored, ≈20 string-stored for travel.willing).
+    // bKindToValueType maps the B kind to the A value_type vocabulary so the
+    // projection is consistent with System A's stringifyFieldValue output.
     const rawVal = bv.value;
     let stringVal: string | null = null;
     if (rawVal === null || rawVal === undefined) {
       continue;
+    }
+    const valueType = bKindToValueType(meta.kind);
+    if (valueType === "boolean") {
+      // toggle field: coerce both JSON booleans and the string "true"/"false"
+      // (B data-quality nit: ~20 travel.willing rows store "true"/"false" as a
+      // JSON string instead of a JSON boolean; the reader tolerates both forms;
+      // data normalisation is a deferred cleanup).
+      const boolLike =
+        rawVal === true ||
+        rawVal === false ||
+        rawVal === "true" ||
+        rawVal === "false";
+      if (!boolLike) continue;
+      stringVal = rawVal === true || rawVal === "true" ? "Yes" : "No";
     } else if (typeof rawVal === "string") {
       stringVal = rawVal.trim() || null;
     } else if (typeof rawVal === "number") {
       stringVal = !Number.isNaN(rawVal) ? String(rawVal) : null;
-    } else if (typeof rawVal === "boolean") {
-      stringVal = rawVal ? "Yes" : "No";
     } else if (Array.isArray(rawVal)) {
       // multiselect stored as JSONB array of label strings in B
       const parts = rawVal
