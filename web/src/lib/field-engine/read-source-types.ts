@@ -105,7 +105,20 @@ export const DEFAULT_FIELD_ENGINE_READ_SOURCE_FLAGS: FieldEngineReadSourceFlags 
   // Kill switch: FIELD_ENGINE_READ_SOURCE=dashboard_nav:a (or =a) reverts to
   // System A instantly; a B-read that throws also safe-falls-back to A.
   dashboard_nav: "b",
-  directory_cards: "a",
+  // T2.4 (this PR) ACTIVATES the directory card scalar-metadata catalog repoint:
+  // the card attribute catalog (`directory-card-display-catalog.ts`) now defaults
+  // to canonical System B (`profile_field_definitions`), projected through the
+  // same `isResolvedFieldVisibleOnDirectoryCard` resolver — proven byte-identical
+  // to System A on all 3 card-visible fields across all 101 talents (see
+  // read-source-directory-cards.ts + the PR's 20-card parity table).
+  // Documented non-regressive diff: `fit_labels.label_es` changes from A's
+  // "Etiquetas de ajuste" to B's canonical "Etiquetas de fit". All other
+  // attributes (EN labels, sort_order, taxonomy_kind, value_type, id) are
+  // byte-identical. `identity.gender` (B-only) is excluded from readB output
+  // (column-backed, no card-builder path — see module header).
+  // Kill switch: FIELD_ENGINE_READ_SOURCE=directory_cards:a (or =a) reverts to
+  // System A; a B-read that throws also safe-falls-back to A at runtime.
+  directory_cards: "b",
   ai_search_doc: "a",
 };
 
