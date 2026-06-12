@@ -127,9 +127,16 @@ function jsonScalarToBool(scalar: string | null): boolean | null {
 // definition via the A→B key bridge, builds the per-slug candidate match set via
 // the vocab bridge, then reads the canonical store and matches B `value` by
 // normalized equality (text) or jsonb bool (boolean). Constrained-id chunking +
-// the empty-constraint short-circuit mirror the A-reader so the AND semantics are
-// identical. If the B definition can't be resolved the reader THROWS so the seam
-// safe-falls-back to A (never silently returns an empty/wrong set).
+// the empty-constraint short-circuit are byte-identical to the legacy reader so
+// the AND semantics are preserved.
+//
+// T3.2b — System A is retired (both seam legs read B; there is no A fallback). A
+// facet key absent from the A→B bridge, or with no canonical B definition, is no
+// longer an error to recover from — it is SKIPPED: the reader returns the
+// incoming constraint UNCHANGED (a no-op narrowing) so the facet simply does not
+// participate, rather than throwing (which the seam would re-raise) or returning
+// an empty set (which would wrongly zero the result). A real DB error still
+// throws.
 async function readDirectoryFacetIdsFromB(
   supabase: SupabaseClient,
   target: DirectoryFacetReadTarget,
@@ -138,9 +145,10 @@ async function readDirectoryFacetIdsFromB(
 ): Promise<string[]> {
   const bKey = OLD_TO_NEW_KEY[target.fieldKey];
   if (!bKey) {
-    // No canonical bridge for this legacy key — cannot read B. Throw so the seam
-    // degrades to A rather than dropping the facet (would widen the result set).
-    throw new Error(`[directory] facet ${target.fieldKey}: no canonical (System B) key`);
+    // No canonical bridge for this legacy key — skip the facet (pass the incoming
+    // constraint through; null means "no id constraint yet", which the caller
+    // handles). Dropping the narrowing is the correct no-op for an unbridged key.
+    return constrainedTalentIds ?? [];
   }
 
   const { data: defRows, error: defErr } = await supabase
@@ -153,7 +161,9 @@ async function readDirectoryFacetIdsFromB(
   }
   const defIds = ((defRows ?? []) as { id: string }[]).map((r) => r.id).filter(Boolean);
   if (defIds.length === 0) {
-    throw new Error(`[directory] facet ${target.fieldKey} → ${bKey}: no canonical definition`);
+    // No canonical B definition for the bridged key — skip the facet (no-op
+    // narrowing) instead of throwing/zeroing the result.
+    return constrainedTalentIds ?? [];
   }
 
   // Build the normalized candidate match set (text only). The B select labels

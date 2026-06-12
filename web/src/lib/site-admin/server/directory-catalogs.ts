@@ -10,33 +10,33 @@
  *      knobs that live inside `cms_page_sections.props_v1`. Already wired
  *      end-to-end via `upsertSection`.
  *
- *   2. LIVE TENANT CATALOGS — three SaaS-scoped tables/columns whose
- *      values control the rendered sidebar across ALL directory instances
- *      for a tenant:
+ *   2. LIVE TENANT CATALOGS — the SaaS-scoped state controlling the rendered
+ *      sidebar across ALL directory instances for a tenant:
  *        - `directory_sidebar_layout` (per-tenant row): item_order,
  *          filter_option_search_visible, section_collapsed_defaults,
  *          top_bar_facet_key, field_visibility_overrides.
- *        - `field_definitions.directory_filter_visible` (per field):
+ *        - `profile_field_definitions.show_in_directory_filter` (per field):
  *          whether a field appears as a sidebar facet at all.
- *        - `field_definitions.card_visible` (per field): whether the
- *          field is eligible to render on the directory card.
+ *        - `profile_field_definitions.show_in_directory_card` (per field):
+ *          whether the field is eligible to render on the directory card.
  *
  * Phase 2 wired (1). This module wires (2) — without it, a producer
  * toggling "hide height filter" in the drawer would only change the
  * section's local intent and the live sidebar would keep rendering
  * height. (Lane brief, Phase 2b.)
  *
- * AUTH: `requireStaff` (admin/coord) + `requireTenantScope`. Every write
- * is keyed by `scope.tenantId` — the tenant-isolation invariant.
+ * AUTH: `requireStaff` (admin/coord) + `requireTenantScope`. Layout writes
+ * are keyed by `scope.tenantId` — the tenant-isolation invariant.
  *
  * READ CONTRACT: the reader for the sidebar layout is
  * `fetchDirectorySidebarLayout` (lib/directory/directory-sidebar-layout.ts).
  * It only consumes the existing column set; we preserve those shapes
- * verbatim. The card-visible reader is `directory-card-display-catalog`;
- * it filters `field_definitions` on `card_visible = true` with no tenant
- * predicate, so writes against canonical (tenant_id IS NULL) rows
- * propagate to every tenant. To keep writes tenant-safe we always
- * UPSERT a tenant-local override row (`tenant_id = scope.tenantId`).
+ * verbatim. The card/filter visibility reader is the canonical resolver
+ * (`public-surface-visibility.ts`), gated on canonical System B
+ * (`profile_field_definitions.show_in_directory_*`). T3.2b — System A
+ * `field_definitions` is retired; the per-tenant override leg was UNUSED
+ * (0 prod rows), so the card/filter visibility writes are now GLOBAL B
+ * toggles (propagate to every tenant) rather than tenant-local A overrides.
  *
  * SCHEMA LIMITATION (worth documenting): the legacy migration
  * `20260411230000_directory_sidebar_filter_layout.sql` defined
@@ -65,6 +65,30 @@ import {
   parseFieldVisibilityOverrides,
   parseSectionCollapsedDefaults,
 } from "@/lib/directory/directory-sidebar-layout";
+import { DIRECTORY_CARD_CANDIDATE_REGISTRY } from "@/lib/field-engine/directory-field-catalog-registry";
+import { OLD_TO_NEW_KEY } from "@/lib/fields/legacy-mirror";
+
+// Map a legacy directory field key → canonical System B `field_key`. Covers the
+// 17 value-bridge keys (OLD_TO_NEW_KEY) + the self-mapping taxonomy keys + the
+// explicit gender/dob remaps. Returns null for A-only keys with no B definition
+// (talent_type, location, skills, long_bio, short_bio, the social-URL keys).
+const SELF_MAPPING_B_KEYS = new Set<string>([
+  "fit_labels",
+  "tags",
+  "industries",
+  "event_types",
+  "languages",
+]);
+const EXPLICIT_A_TO_B: Record<string, string> = {
+  gender: "identity.gender",
+  date_of_birth: "identity.dob",
+};
+function aKeyToBFieldKey(aKey: string): string | null {
+  if (OLD_TO_NEW_KEY[aKey]) return OLD_TO_NEW_KEY[aKey];
+  if (SELF_MAPPING_B_KEYS.has(aKey)) return aKey;
+  if (EXPLICIT_A_TO_B[aKey]) return EXPLICIT_A_TO_B[aKey];
+  return null;
+}
 
 // ──────────────────────────────────────────────────────────────────────
 // Common types + helpers
@@ -408,69 +432,72 @@ export async function setDirectorySectionCollapsedDefault(
 export type CardDesignFieldCandidate = {
   key: string;
   label: string;
-  /** Whether the field currently renders on talent cards for this tenant. */
+  /** Whether the field currently renders on talent cards. */
   cardVisible: boolean;
   valueType: string;
 };
 
-type CardCandidateRow = {
-  key: string;
-  value_type: string;
-  sort_order: number | null;
-  label_en: string | null;
-  tenant_id: string | null;
-  card_visible: boolean | null;
-};
-
 /**
- * The candidate set the Card Design studio offers as card fields: every
- * field the public surface stack would let onto a card (`public_visible`
- * + `profile_visible`, active, non-internal), each tagged with its current
- * `card_visible` flag so the studio can render on/off toggles. Tenant-local
- * override rows shadow canonical rows by key — the same precedence the
- * directory card display catalog applies. Toggling a row calls
- * `setFieldCardVisible`, so the studio reads and writes the one engine
- * source (`field_definitions`), not a parallel model.
+ * The candidate set the Card Design studio offers as card fields: the frozen
+ * public-eligible directory card skeleton (the rows that were `public_visible`
+ * + `profile_visible`, active, non-internal in System A), each tagged with its
+ * CURRENT card visibility read live from canonical System B
+ * (`profile_field_definitions.show_in_directory_card`).
+ *
+ * T3.2b — System A `field_definitions` is retired. The skeleton (key, label,
+ * value_type, sort order) is the frozen registry; the live on/off state is the
+ * GLOBAL B flag the directory card display catalog actually reads, so a toggle
+ * here (`setFieldCardVisible`) is real and immediate. A candidate key whose B
+ * definition does not exist (the A-only keys: talent_type, location, skills,
+ * long_bio, short_bio, the social-URL keys) reports `cardVisible=false` — the
+ * card display catalog never emits those keys regardless (it only renders the
+ * bridged scalar set), so this matches the rendered reality.
  */
 export async function readCardDesignFieldCandidates(): Promise<
   { ok: true; data: CardDesignFieldCandidate[] } | { ok: false; error: string }
 > {
   const guard = await guardCatalogScope();
   if (!guard.ok) return guard;
-  const { admin, tenantId } = guard.scope;
+  const { admin } = guard.scope;
 
-  const columns = "key, value_type, sort_order, label_en, tenant_id, card_visible";
-  const base = () =>
-    admin
-      .from("field_definitions")
-      .select(columns)
-      .is("archived_at", null)
-      .eq("active", true)
-      .eq("internal_only", false)
-      .eq("public_visible", true)
-      .eq("profile_visible", true);
+  // Live B card-visible state per A key. Map each candidate A key → B field_key,
+  // then read `show_in_directory_card` from canonical System B.
+  const candidates = DIRECTORY_CARD_CANDIDATE_REGISTRY.filter((r) => r.key !== "fit_labels");
+  const aKeyToB = new Map<string, string>();
+  for (const r of candidates) {
+    const bKey = aKeyToBFieldKey(r.key);
+    if (bKey) aKeyToB.set(r.key, bKey);
+  }
 
-  const [canonicalRes, tenantRes] = await Promise.all([
-    base().is("tenant_id", null),
-    base().eq("tenant_id", tenantId),
-  ]);
-  if (canonicalRes.error) return { ok: false, error: canonicalRes.error.message };
-  if (tenantRes.error) return { ok: false, error: tenantRes.error.message };
+  const bCardVisibleByBKey = new Map<string, boolean>();
+  const bKeys = [...new Set(aKeyToB.values())];
+  if (bKeys.length > 0) {
+    const bRes = await admin
+      .from("profile_field_definitions")
+      .select("field_key, show_in_directory_card")
+      .in("field_key", bKeys)
+      .is("deprecated_at", null);
+    if (bRes.error) return { ok: false, error: bRes.error.message };
+    for (const row of (bRes.data ?? []) as {
+      field_key: string;
+      show_in_directory_card: boolean | null;
+    }[]) {
+      bCardVisibleByBKey.set(row.field_key, Boolean(row.show_in_directory_card));
+    }
+  }
 
-  // Canonical first, tenant-local rows override by key.
-  const byKey = new Map<string, CardCandidateRow>();
-  for (const r of (canonicalRes.data ?? []) as CardCandidateRow[]) byKey.set(r.key, r);
-  for (const r of (tenantRes.data ?? []) as CardCandidateRow[]) byKey.set(r.key, r);
-
-  const data = [...byKey.values()]
-    .filter((r) => r.key !== "fit_labels")
-    .map((r) => ({
-      key: r.key,
-      label: r.label_en?.trim() || r.key,
-      cardVisible: Boolean(r.card_visible),
-      valueType: r.value_type,
-      sortOrder: typeof r.sort_order === "number" ? r.sort_order : 0,
-    }))
+  const data = candidates
+    .map((r) => {
+      const bKey = aKeyToB.get(r.key);
+      const cardVisible = bKey ? (bCardVisibleByBKey.get(bKey) ?? false) : false;
+      return {
+        key: r.key,
+        label: r.label_en?.trim() || r.key,
+        cardVisible,
+        valueType: r.value_type,
+        sortOrder: typeof r.sort_order === "number" ? r.sort_order : 0,
+      };
+    })
     .sort((a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label))
     .map(({ sortOrder: _sortOrder, ...rest }) => rest);
 
@@ -478,20 +505,22 @@ export async function readCardDesignFieldCandidates(): Promise<
 }
 
 // ──────────────────────────────────────────────────────────────────────
-// field_definitions writes (card_visible + directory_filter_visible)
+// Directory card / filter visibility writes (System B)
 // ──────────────────────────────────────────────────────────────────────
+//
+// T3.2b — these were tenant-local UPSERTs into System A `field_definitions`
+// (keyed on `field_definitions.tenant_id`). System A is retired and the
+// per-tenant override leg was UNUSED (0 prod override rows). The directory card
+// display catalog + filter sidebar now read the GLOBAL canonical flags
+// (`profile_field_definitions.show_in_directory_card` /
+// `show_in_directory_filter`), so the studio writes those — a global toggle that
+// propagates to every rendered card/sidebar immediately. A key with no canonical
+// B definition (the A-only keys: talent_type, location, skills, long_bio,
+// short_bio, the social-URL keys) cannot be toggled — the directory card/filter
+// pipeline never renders those from this flag anyway, so it is a documented
+// no-op rather than a silent failure.
 
-/**
- * Tenant-safe write for `field_definitions.card_visible`.
- *
- * Strategy:
- *   - If a tenant-local row exists for `(tenant_id, key)` → UPDATE that row.
- *   - Otherwise → INSERT a tenant-local override row that clones the
- *     canonical row's required columns and flips `card_visible`.
- *
- * We never mutate the canonical (tenant_id IS NULL) row — that would
- * propagate to every tenant.
- */
+/** Global write for `profile_field_definitions.show_in_directory_card`. */
 export async function setFieldCardVisible(
   fieldKey: string,
   cardVisible: boolean,
@@ -503,13 +532,12 @@ export async function setFieldCardVisible(
   const key = String(fieldKey ?? "").trim();
   if (!key) return { ok: false, error: "fieldKey required" };
 
-  return upsertTenantLocalFieldFlag(admin, tenantId, key, { card_visible: cardVisible });
+  return updateCanonicalDirectoryFlag(admin, tenantId, key, {
+    show_in_directory_card: cardVisible,
+  });
 }
 
-/**
- * Tenant-safe write for `field_definitions.directory_filter_visible`.
- * Same strategy as setFieldCardVisible.
- */
+/** Global write for `profile_field_definitions.show_in_directory_filter`. */
 export async function setFieldDirectoryFilterVisible(
   fieldKey: string,
   directoryFilterVisible: boolean,
@@ -521,70 +549,46 @@ export async function setFieldDirectoryFilterVisible(
   const key = String(fieldKey ?? "").trim();
   if (!key) return { ok: false, error: "fieldKey required" };
 
-  return upsertTenantLocalFieldFlag(admin, tenantId, key, {
-    directory_filter_visible: directoryFilterVisible,
+  return updateCanonicalDirectoryFlag(admin, tenantId, key, {
+    show_in_directory_filter: directoryFilterVisible,
   });
 }
 
-async function upsertTenantLocalFieldFlag(
+async function updateCanonicalDirectoryFlag(
   admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
   tenantId: string,
   fieldKey: string,
-  patch: { card_visible?: boolean; directory_filter_visible?: boolean },
+  patch: { show_in_directory_card?: boolean; show_in_directory_filter?: boolean },
 ): Promise<CatalogActionResult> {
-  // Look for an existing tenant-local row first.
-  const existing = await admin
-    .from("field_definitions")
-    .select("id, tenant_id")
-    .eq("tenant_id", tenantId)
-    .eq("key", fieldKey)
-    .maybeSingle();
-
-  if (existing.error) {
-    return { ok: false, error: `field lookup failed: ${existing.error.message}` };
-  }
-
-  if (existing.data) {
-    const upd = await admin
-      .from("field_definitions")
-      .update({ ...patch, updated_at: new Date().toISOString() })
-      .eq("id", existing.data.id)
-      .eq("tenant_id", tenantId);
-    if (upd.error) {
-      return { ok: false, error: `update failed: ${upd.error.message}` };
-    }
-    bustDirectoryCaches(tenantId);
-    return { ok: true };
-  }
-
-  // No tenant-local row → clone canonical to a tenant-local override.
-  const canonical = await admin
-    .from("field_definitions")
-    .select(
-      "field_group_id, key, label_en, label_es, help_en, help_es, value_type, required_level, public_visible, internal_only, card_visible, profile_visible, filterable, directory_filter_visible, directory_filter_sort_order, searchable, ai_visible, editable_by_talent, editable_by_staff, editable_by_admin, active, sort_order, taxonomy_kind, config",
-    )
-    .is("tenant_id", null)
-    .eq("key", fieldKey)
-    .maybeSingle();
-
-  if (canonical.error) {
-    return { ok: false, error: `canonical lookup failed: ${canonical.error.message}` };
-  }
-  if (!canonical.data) {
+  const bFieldKey = aKeyToBFieldKey(fieldKey);
+  if (!bFieldKey) {
+    // A-only key with no canonical B definition. The directory card/filter
+    // pipeline never renders these from the canonical flag, so the toggle has
+    // nothing to persist — report it honestly rather than failing or pretending.
     return {
       ok: false,
-      error: `no canonical field_definitions row for key="${fieldKey}" — can't seed a tenant-local override`,
+      error: `field "${fieldKey}" has no canonical System B definition — its directory card/filter visibility is structural and not toggleable here`,
     };
   }
 
-  const ins = await admin.from("field_definitions").insert({
-    ...canonical.data,
-    ...patch,
-    tenant_id: tenantId,
-  });
-  if (ins.error) {
-    return { ok: false, error: `insert failed: ${ins.error.message}` };
+  const upd = await admin
+    .from("profile_field_definitions")
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq("field_key", bFieldKey)
+    .is("deprecated_at", null)
+    .select("id")
+    .maybeSingle();
+
+  if (upd.error) {
+    return { ok: false, error: `update failed: ${upd.error.message}` };
   }
+  if (!upd.data) {
+    return {
+      ok: false,
+      error: `no canonical profile_field_definitions row for field_key="${bFieldKey}"`,
+    };
+  }
+
   bustDirectoryCaches(tenantId);
   return { ok: true };
 }

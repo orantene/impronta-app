@@ -1,114 +1,48 @@
 // src/lib/field-engine/read-source-directory-cards.ts
 //
-// T2.4 — DIRECTORY CARD SCALAR-METADATA CATALOG repoint.
+// T2.4 → T3.2b — DIRECTORY CARD SCALAR-METADATA CATALOG, collapsed to System B.
 //
 // The directory card display pipeline reads a catalog of scalar field
-// definitions from `directory-card-display-catalog.ts`. Today that module
-// reads the legacy System A store (`field_definitions`) and routes each row
-// through `isResolvedFieldVisibleOnDirectoryCard`. This module lifts that
-// read behind the shared seam as `readA` (byte-identical to today) and adds
-// `readB` that reads canonical System B (`profile_field_definitions`)
-// returning the IDENTICAL `DirectoryCardDisplayCatalog` shape. The caller
-// (`directory-card-display-catalog.ts`) calls the seam; the
-// `directory_cards` flag decides A vs B.
+// definitions from `directory-card-display-catalog.ts`. T2.4 put it behind the
+// read-source seam with an A-reader (legacy `field_definitions`) and a B-reader
+// (canonical `profile_field_definitions`); the `directory_cards` flag defaulted
+// to `b`. T3.2b COLLAPSED the surface to System B only: the legacy
+// `field_definitions` A-reader was deleted (System A is being retired), and the
+// B-reader's residual `field_definitions` METADATA fetch (sort_order +
+// taxonomy_kind) was repointed to the frozen directory catalog registry
+// (`directory-field-catalog-registry.ts`, captured 1:1 from prod). Both seam
+// legs now point at the B reader, preserving the `readFieldSurface` shell + the
+// safe-fallback path (which re-runs the same B read). NO `field_definitions`
+// read remains.
 //
-// WHAT MOVES:
-//   • The field-definition METADATA read (value_type, label_en/es,
-//     sort_order, taxonomy_kind, id) — the card scalar catalog.
-//   • The `fitLabelsEnabled` gate (derived from whether `fit_labels` passes
-//     the visibility check).
+// WHAT THE B-READER PRODUCES:
+//   • The field-definition METADATA (value_type, label_en/es, taxonomy_kind,
+//     sort_order, id) for the card scalar catalog. Visibility comes from B
+//     (`show_in_directory_card` via the canonical resolver); the structural
+//     metadata B does not carry (taxonomy_kind, A sort_order, the A def-id the
+//     value-store joins on) comes from the frozen registry.
+//   • The `fitLabelsEnabled` gate (derived from whether `fit_labels` passes the
+//     canonical visibility check).
 //   • `heightCardDef` (the special `height_cm` path).
 //   • `scalarCardDefs` (all other card-visible scalars).
 //
 // WHAT DOES NOT MOVE:
 //   • The visibility DECISION — already canonical (Phase 1.4).
 //     `isResolvedFieldVisibleOnDirectoryCard` reads `profile_field_definitions`
-//     via the batch canonical loader regardless of which store supplies the
-//     row shape. Both readA and readB route through the SAME resolver.
-//   • The VALUE READS (`field_values`) — the card builder looks up values by
-//     A `field_definition_id` (a join key) and will move separately (T2.5/
-//     value-side, if needed). This task moves the METADATA CATALOG only.
+//     via the batch canonical loader. It IGNORES the legacy flag columns
+//     (Sub-Task 5), so the synthesized guard row below carries only base-guard
+//     defaults.
 //   • Tenant overrides for `show_in_directory_card` — confirmed ZERO prod
-//     overrides (2026-06-11). The resolver checks these via the canonical
-//     batch loader and returns identical decisions from either store.
+//     overrides (2026-06-11, in BOTH `field_definitions.tenant_id` and
+//     `workspace_profile_field_settings`). The resolver checks the B override
+//     home and returns identical decisions for any tenantId.
 //
-// ── PARITY ANALYSIS ───────────────────────────────────────────────────────
-//
-// System A (after visibility resolver, null tenant, prod 2026-06-11):
-//   3 card-visible fields:
-//     height_cm   | value_type=number        | label_en="Height"     | label_es="Altura"    | sort=10
-//     industries  | value_type=taxonomy_multi | label_en="Industries" | label_es="Industrias"| sort=40
-//     fit_labels  | value_type=taxonomy_multi | label_en="Fit Labels" | label_es="Etiquetas de ajuste" | sort=60
-//   fitLabelsEnabled=true
-//   heightCardDef = height_cm def
-//   scalarCardDefs = [industries, fit_labels]
-//
-// System B (show_in_directory_card=true, non-deprecated, null tenant):
-//   4 rows: identity.gender, physical.height_cm, fit_labels, industries.
-//
-//   identity.gender: B-ONLY — has no A legacy key (gender is stored in the
-//     `talent_profiles.gender` column, not in `field_values`). The readB
-//     implementation EXCLUDES it (no NEW_TO_OLD mapping). NON-REGRESSIVE:
-//     gender is already handled by a separate column-backed card path (not
-//     through the scalar catalog), so suppressing it in the catalog changes
-//     nothing the card builder can act on. It was NEVER emitted by readA.
-//
-//   physical.height_cm → A-key=height_cm: label_en "Height"=✓
-//     label_es "Altura"=✓  sort_order: B.display_order=100 but we use
-//     A.sort_order=10 (see SORT HAZARD below).
-//
-//   fit_labels → A-key=fit_labels: label_en "Fit Labels"=✓
-//     label_es: A="Etiquetas de ajuste" | B="Etiquetas de ajuste"=✓
-//     (migration 20260611180515 corrected the placeholder "Etiquetas de fit"
-//     left by the May-27 visibility-scaffolding migration — full ES parity).
-//
-//   industries → A-key=industries: label_en "Industries"=✓  label_es
-//     "Industrias"=✓  sort_order: B.display_order=360 vs A.sort_order=40
-//     (see SORT HAZARD below).
-//
-// SORT HAZARD: B's `display_order` values (50, 100, 350, 360) are DIFFERENT
-//   from A's `sort_order` (10, 40, 60) for the same fields. If readB used B's
-//   `display_order`, the relative card attribute order (height → industries →
-//   fit_labels) would change to (height → fit_labels → industries) — a visible
-//   regression. The fix: readB uses the A `field_definitions.sort_order` for
-//   the projected `DirectoryCardScalarDef.sort_order`. This mirrors the T2.2
-//   HAZARD #1 pattern (B's order columns are authoritative for future callers,
-//   but a live surface that reads order must stay on A order until a separate
-//   migration reconciles the two).
-//   In practice the only meaningful order question is height_cm FIRST (the
-//   `heightCardDef` path handles it separately) and then sort_order determines
-//   scalarCardDefs order. Both stores agree height_cm is separate; for scalars
-//   the A sort produces [industries(40), fit_labels(60)] — identical ordering.
-//
-// TENANT OVERRIDES: 0 prod overrides for `show_in_directory_card` confirmed
-//   2026-06-11 (workspace_profile_field_settings query). Both readers produce
-//   identical results for any tenantId.
-//
-// NET PARITY (20-card table — all share the same global catalog, confirmed
-//   across all 101 talents and both hub + tenant contexts):
-//   • fitLabelsEnabled: A=true  B=true  ✓ (fit_labels visible in both)
-//   • heightCardDef: A=height_cm def  B=same def (A sort_order preserved)  ✓
-//   • scalarCardDefs keys: A=[industries, fit_labels]  B=[industries, fit_labels]  ✓
-//   • scalarCardDefs EN labels: all byte-identical  ✓
-//   • scalarCardDefs ES labels: all byte-identical  ✓ (fit_labels ES label
-//     corrected in B via migration 20260611180515 — was "Etiquetas de fit",
-//     now "Etiquetas de ajuste", matching A).
-//   • scalarCardDefs sort_order: preserved (B-reader uses A sort values)  ✓
-//   • scalarCardDefs taxonomy_kind: readB derives from A row (no B column)  ✓
-//
-// IDENTITY.GENDER DIFF: B has 4 rows (A has 3 that pass the resolver).
-//   The extra B row (identity.gender) has no A key equivalent and is EXCLUDED
-//   by the B-reader's NEW_TO_OLD filter. This is intentional: gender is
-//   column-backed (talent_profiles.gender) not field-values-backed, and the
-//   card builder has no code path to display it from the scalar catalog.
-//   Emitting it from readB would produce a catalog entry whose `def.id` (a B
-//   `profile_field_definitions.id`) would never match any A `field_values`
-//   row, resulting in an empty card line — identical to the A outcome (nothing
-//   shown for gender in the scalar card). EXCLUDED for clean parity.
-//
-// KILL SWITCH: set `FIELD_ENGINE_READ_SOURCE=directory_cards:a` (or `=a`)
-//   to revert this surface to System A instantly without a deploy.
-//   A B-read that throws safe-falls-back to A (never hardens a broken surface).
+// PARITY (prod 2026-06-11): the card-visible set is height_cm, industries,
+//   fit_labels; fitLabelsEnabled=true; heightCardDef=height_cm; scalarCardDefs
+//   keys [industries, fit_labels] in A sort order (40, 60). `identity.gender`
+//   (B-only, no A legacy key) is excluded — column-backed, no card-builder path.
+//   The frozen registry supplies the A sort_order (10/40/60) + taxonomy_kind so
+//   the projected order + shape is byte-identical to the prior T2.4 B-read.
 
 import "server-only";
 
@@ -120,10 +54,13 @@ import {
   type PublicSurfaceContext,
 } from "@/lib/field-engine/public-surface-visibility";
 import { NEW_TO_OLD_KEY } from "@/lib/fields/legacy-mirror";
-// Types only — avoid circular import (directory-card-display-catalog imports
-// readDirectoryCardCatalog from this module; we import types back, which TypeScript
-// erases at emit. The function pickEffectiveDirectoryCardFieldRows is inlined in
-// readA below to avoid the function import that would complete the cycle).
+import {
+  DIRECTORY_FILTER_CATALOG_REGISTRY,
+  DIRECTORY_CARD_CANDIDATE_REGISTRY,
+} from "@/lib/field-engine/directory-field-catalog-registry";
+// Types only — avoid a runtime circular import (directory-card-display-catalog
+// imports readDirectoryCardCatalog from this module; we import the result types
+// back, which TypeScript erases at emit).
 import type {
   DirectoryCardDisplayCatalog,
   DirectoryCardScalarDef,
@@ -133,162 +70,25 @@ import type {
 
 type DirectoryCardCatalogArgs = { tenantId: string | null };
 
-// ── A-reader: legacy System A (field_definitions) ────────────────────────────
-//
-// Lifted VERBATIM from `loadDirectoryCardDisplayCatalogUncached` in
-// directory-card-display-catalog.ts so `directory_cards:a` is byte-for-byte
-// today. Reads `field_definitions`, routes each row through the canonical
-// visibility resolver, builds the catalog. A null client (createServiceRoleClient
-// not available) returns the safe-empty fallback.
-
-type DirectoryCardFieldCatalogRow = {
-  id: string;
-  key: string;
-  value_type: string;
-  taxonomy_kind: string | null;
-  sort_order: number;
-  label_en: string;
-  label_es: string | null;
-  tenant_id: string | null;
-  card_visible: boolean;
-  active: boolean;
-  archived_at: string | null;
-  internal_only: boolean;
-  public_visible: boolean;
-  profile_visible: boolean;
-};
-
-/** Inlined equivalent of `pickEffectiveDirectoryCardFieldRows` from
- *  directory-card-display-catalog.ts. The original is preserved there for the
- *  unit test; inlined here to avoid a circular module dependency
- *  (directory-card-display-catalog → read-source-directory-cards →
- *  directory-card-display-catalog). Logic is byte-identical. */
-function pickEffectiveRows(
-  rows: readonly DirectoryCardFieldCatalogRow[],
-  tenantId: string | null,
-): DirectoryCardFieldCatalogRow[] {
-  const byKey = new Map<
-    string,
-    { canonical: DirectoryCardFieldCatalogRow | null; tenant: DirectoryCardFieldCatalogRow | null }
-  >();
-  for (const row of rows) {
-    const existing = byKey.get(row.key) ?? { canonical: null, tenant: null };
-    if (row.tenant_id === null) {
-      existing.canonical = row;
-    } else if (tenantId !== null && row.tenant_id === tenantId) {
-      existing.tenant = row;
-    }
-    byKey.set(row.key, existing);
-  }
-  const merged: DirectoryCardFieldCatalogRow[] = [];
-  for (const pair of byKey.values()) {
-    const chosen = pair.tenant ?? pair.canonical;
-    if (chosen) merged.push(chosen);
-  }
-  return merged;
-}
-
-async function readDirectoryCardCatalogFromA(
-  supabase: SupabaseClient | null,
-  opts: DirectoryCardCatalogArgs,
-): Promise<DirectoryCardDisplayCatalog> {
-  const tenantId = opts.tenantId;
-  if (!supabase) {
-    return { fitLabelsEnabled: true, heightCardDef: null, scalarCardDefs: [] };
-  }
-
-  const buildBaseQuery = () =>
-    supabase
-      .from("field_definitions")
-      .select(
-        "id, key, value_type, taxonomy_kind, sort_order, label_en, label_es, tenant_id, card_visible, active, archived_at, internal_only, public_visible, profile_visible",
-      )
-      .is("archived_at", null)
-      .eq("active", true)
-      .eq("internal_only", false)
-      .eq("public_visible", true)
-      .eq("profile_visible", true);
-
-  const [canonicalRes, tenantRes] = await Promise.all([
-    buildBaseQuery().is("tenant_id", null),
-    tenantId
-      ? buildBaseQuery().eq("tenant_id", tenantId)
-      : Promise.resolve({ data: [] as DirectoryCardFieldCatalogRow[], error: null }),
-  ]);
-
-  if (canonicalRes.error) {
-    return { fitLabelsEnabled: true, heightCardDef: null, scalarCardDefs: [] };
-  }
-  if (tenantRes.error) {
-    return { fitLabelsEnabled: true, heightCardDef: null, scalarCardDefs: [] };
-  }
-
-  const effectiveRows = pickEffectiveRows(
-    [
-      ...((canonicalRes.data ?? []) as DirectoryCardFieldCatalogRow[]),
-      ...((tenantRes.data ?? []) as DirectoryCardFieldCatalogRow[]),
-    ],
-    tenantId,
-  );
-  const ctx: PublicSurfaceContext = { supabase, tenantId };
-  const cardVisible = await Promise.all(
-    effectiveRows.map((row) => isResolvedFieldVisibleOnDirectoryCard(row, ctx)),
-  );
-  const cardVisibleRows = effectiveRows.filter((_, i) => cardVisible[i]);
-
-  const fitRow = effectiveRows.find((row) => row.key === "fit_labels");
-  const fitLabelsEnabled = fitRow
-    ? cardVisibleRows.some((row) => row.key === "fit_labels")
-    : true;
-  if (cardVisibleRows.length === 0) {
-    return { fitLabelsEnabled, heightCardDef: null, scalarCardDefs: [] };
-  }
-
-  const defs: DirectoryCardScalarDef[] = cardVisibleRows.map((r) => ({
-    id: r.id,
-    key: r.key,
-    value_type: r.value_type,
-    taxonomy_kind: r.taxonomy_kind,
-    sort_order: typeof r.sort_order === "number" ? r.sort_order : 0,
-    label_en: r.label_en,
-    label_es: r.label_es,
-  }));
-
-  const heightCardDef = defs.find((d) => d.key === "height_cm") ?? null;
-
-  const scalarCardDefs = defs
-    .filter((d) => d.key !== "fit_labels" && d.key !== "height_cm")
-    .sort((a, b) => a.sort_order - b.sort_order || a.key.localeCompare(b.key));
-
-  return { fitLabelsEnabled, heightCardDef, scalarCardDefs };
-}
-
 // ── B-reader: canonical System B (profile_field_definitions) ──────────────────
 //
 // Reads `profile_field_definitions` for non-deprecated rows with
 // `show_in_directory_card=true`, projects each to `DirectoryCardScalarDef`
 // using the A→B key bridge in reverse (NEW_TO_OLD_KEY + self-mapping taxonomy
-// keys), and uses the A `field_definitions.sort_order` value to preserve card
-// attribute ordering (see SORT HAZARD in the module header).
+// keys), and uses the A `field_definitions.sort_order` value (from the frozen
+// catalog registry) to preserve card attribute ordering.
 //
-// The canonical visibility decision (isResolvedFieldVisibleOnDirectoryCard)
-// is still called with a synthesized A-shaped guard row — the same resolver
-// the A-reader uses. Since the resolver's ACTUAL decision comes from the
-// canonical batch loader (profile_field_definitions), the decision is
-// identical from either store.
+// The canonical visibility decision (isResolvedFieldVisibleOnDirectoryCard) is
+// called with a synthesized base-guard row (active + non-archived). The ACTUAL
+// decision comes from the canonical batch loader (profile_field_definitions),
+// so the legacy guard columns are nominal.
 //
-// B rows without an A legacy key (identity.gender) are filtered out — they
-// have no A field_definition_id and no entry in NEW_TO_OLD_KEY / the taxonomy
-// direct-map (see IDENTITY.GENDER DIFF in the module header).
+// B rows without an A legacy key (identity.gender) are filtered out — they have
+// no A def-id and no entry in NEW_TO_OLD_KEY / the taxonomy direct-map.
 //
-// The A sort_order is fetched in a single parallel query so the projected
-// sort values are byte-identical to readA's output.
-//
-// taxonomy_kind: B has no `taxonomy_kind` column. readB derives it from the A
-//   `field_definitions.taxonomy_kind` (fetched in the same parallel query).
-//
-// Tenant overrides: none in prod (confirmed 2026-06-11); the resolver handles
-//   them via the canonical batch loader if/when they appear.
+// taxonomy_kind + sort_order + the A def-id: B has no taxonomy_kind column and
+// its `display_order` diverges from A's `sort_order`; both are sourced from the
+// frozen registry so the projected shape is byte-identical to the prior read.
 
 /** Taxonomy keys whose A key == B field_key (no rename). */
 const TAXONOMY_DIRECT_KEYS = new Set([
@@ -331,6 +131,18 @@ function bKindToValueType(kind: string | null): string {
       return "text";
   }
 }
+
+/** Frozen A-metadata (id, sort_order, taxonomy_kind) keyed by A legacy key,
+ *  built once from the registry. Replaces the residual `field_definitions`
+ *  metadata fetch the B-reader used to run. */
+const A_META_BY_KEY = new Map<
+  string,
+  { id: string; sort_order: number; taxonomy_kind: string | null }
+>(
+  [...DIRECTORY_FILTER_CATALOG_REGISTRY, ...DIRECTORY_CARD_CANDIDATE_REGISTRY].map(
+    (r) => [r.key, { id: r.id, sort_order: r.sort_order, taxonomy_kind: r.taxonomy_kind }],
+  ),
+);
 
 type BProfileFieldDefRow = {
   id: string;
@@ -389,38 +201,14 @@ async function readDirectoryCardCatalogFromB(
   }
 
   if (bridgedRows.length === 0) {
-    // No bridged rows — throw so the seam safe-falls-back to A
-    throw new Error("[directory_cards/B] no bridged B card-visible rows — falling back to A");
+    // No bridged rows — return the safe-empty catalog (fit labels default on).
+    return { fitLabelsEnabled: true, heightCardDef: null, scalarCardDefs: [] };
   }
 
-  // Step 3 — fetch the A sort_order and taxonomy_kind for the bridged A keys.
-  // This is METADATA-only (no values); we need it to preserve the sort order
-  // the card builder expects (see SORT HAZARD in the module header) and to
-  // carry the A taxonomy_kind (missing from B schema).
-  const aKeysNeeded = bridgedRows.map((r) => r.aKey);
-  const { data: aMetaDefs, error: aMetaErr } = await supabase
-    .from("field_definitions")
-    .select("key, id, sort_order, taxonomy_kind")
-    .in("key", aKeysNeeded)
-    .is("archived_at", null)
-    .eq("active", true)
-    .is("tenant_id", null); // canonical A rows only; tenant-local A rows are not relevant here
-
-  if (aMetaErr) {
-    throw new Error(`[directory_cards/B] field_definitions sort_order: ${aMetaErr.message}`);
-  }
-
-  const aMetaByKey = new Map(
-    ((aMetaDefs ?? []) as { key: string; id: string; sort_order: number | null; taxonomy_kind: string | null }[]).map(
-      (r) => [r.key, r],
-    ),
-  );
-
-  // Step 4 — route each bridged row through the canonical visibility resolver
-  // (same resolver readA uses). We synthesize an A-shaped guard row so the
-  // resolver's base-guard (active + non-archived) passes correctly. The actual
-  // visibility decision comes from the canonical batch loader (B store), so
-  // both readers make the identical canonical decision.
+  // Step 3 — route each bridged row through the canonical visibility resolver.
+  // We synthesize an A-shaped guard row so the resolver's base-guard (active +
+  // non-archived) passes. The actual visibility decision comes from the
+  // canonical batch loader (B store).
   const ctx: PublicSurfaceContext = { supabase, tenantId };
 
   const guardRows: CardGuardRow[] = bridgedRows.map(({ aKey }) => ({
@@ -438,7 +226,7 @@ async function readDirectoryCardCatalogFromB(
     guardRows.map((row) => isResolvedFieldVisibleOnDirectoryCard(row, ctx)),
   );
 
-  // Step 5 — assemble the catalog from resolver-approved rows.
+  // Step 4 — assemble the catalog from resolver-approved rows.
   // fit_labels gating: if fit_labels was in the B rows, check if it passed.
   const fitLabelsBridged = bridgedRows.some(({ aKey }) => aKey === "fit_labels");
   const fitLabelsPassedResolver = bridgedRows.some(
@@ -449,18 +237,16 @@ async function readDirectoryCardCatalogFromB(
   const approvedDefs: DirectoryCardScalarDef[] = bridgedRows
     .filter((_, i) => cardVisible[i])
     .map(({ bRow, aKey }) => {
-      const aMeta = aMetaByKey.get(aKey);
+      const aMeta = A_META_BY_KEY.get(aKey);
       return {
         // Use the A field_definitions.id as the def id so the card value-lookup
-        // pipeline (which joins field_values by A field_definition_id) continues
-        // to work without change. The B def id is different.
+        // pipeline (which joins by A field_definition_id) continues to work.
         id: aMeta?.id ?? bRow.id,
         key: aKey,
         value_type: bKindToValueType(bRow.kind),
         taxonomy_kind: aMeta?.taxonomy_kind ?? null,
-        // Use A sort_order to preserve the card attribute display order.
-        // B display_order values are not comparable to A sort_order for this
-        // surface (see SORT HAZARD in the module header).
+        // Use the A sort_order (frozen registry) to preserve card attribute
+        // display order. B's display_order diverges for this surface.
         sort_order: typeof aMeta?.sort_order === "number" ? aMeta.sort_order : 0,
         label_en: bRow.label ?? aKey,
         label_es: bRow.label_es ?? null,
@@ -481,28 +267,26 @@ async function readDirectoryCardCatalogFromB(
 
 // ── Reader pair ───────────────────────────────────────────────────────────────
 
-/** The reader pair for the directory card display catalog. Exposed for tests
- *  and the `readFieldSurfaceBoth` parity harness. */
+/** The reader pair for the directory card display catalog. T3.2b collapsed this
+ *  surface to System B ONLY: the legacy `field_definitions` A-reader was deleted.
+ *  Both legs point at the canonical B reader, so the `readFieldSurface` seam
+ *  shell + the `directory_cards` flag are preserved (the flag no longer switches
+ *  stores — both resolve to B) and the safe-fallback path re-runs the same B
+ *  read. NO `field_definitions` read remains. */
 export const directoryCardCatalogReaderPair: FieldSurfaceReaderPair<
   [SupabaseClient | null, DirectoryCardCatalogArgs],
   DirectoryCardDisplayCatalog
 > = {
-  readA: readDirectoryCardCatalogFromA,
+  readA: readDirectoryCardCatalogFromB,
   readB: readDirectoryCardCatalogFromB,
 };
 
 /**
- * PUBLIC entry — load the directory card display catalog from the active
- * source for the `directory_cards` surface.
- *
- * Default (`directory_cards:a`): byte-identical to the existing
- * `loadDirectoryCardDisplayCatalogUncached` — reads System A.
- * `directory_cards:b`: reads canonical System B (`profile_field_definitions`),
- * projects to the identical `DirectoryCardDisplayCatalog` shape. A B-read
- * that throws safe-falls-back to A (the surface never hardens a broken catalog).
- *
- * Rollback: set `FIELD_ENGINE_READ_SOURCE=directory_cards:a` (or `=a`) in
- * Vercel env and redeploy — no code change needed.
+ * PUBLIC entry — load the directory card display catalog for the
+ * `directory_cards` surface from canonical System B
+ * (`profile_field_definitions`), projecting to the `DirectoryCardDisplayCatalog`
+ * shape. (T3.2b: System A removed — both seam legs read B; the `directory_cards`
+ * flag no longer switches stores.)
  */
 export function readDirectoryCardCatalog(
   supabase: SupabaseClient | null,
