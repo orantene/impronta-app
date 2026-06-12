@@ -25,6 +25,7 @@ import {
   isResolvedFieldVisibleInDirectoryFilter,
   type PublicSurfaceContext,
 } from "@/lib/field-engine/public-surface-visibility";
+import { loadDirectoryFacetConfigByLegacyKey } from "@/lib/field-engine/read-source-directory-facet-config";
 
 export type DirectoryFilterPresentation = "chips" | "radio" | "grid" | "location" | "height_range" | "age_range";
 
@@ -165,6 +166,11 @@ type FieldDefinitionQueryRow = FieldDefinitionRow & {
   config?: Record<string, unknown> | null;
   field_group_id?: string | null;
   field_groups?: { sort_order: number } | { sort_order: number }[] | null;
+  /** T3.1 — the facet vocab from canonical System B
+   *  (`directory_filter_config.filter_options`), overlaid onto the catalog row
+   *  when the `directory_facets` flag is `b`. Preferred over the legacy A
+   *  `config` vocab when present; absent = read A. */
+  bFilterOptions?: string[] | null;
 };
 
 const UNGROUPED_GROUP_SORT = 1_000_000;
@@ -336,6 +342,9 @@ function sanitizeSearchForRpc(q: string): string {
 }
 
 function textEnumOptionsFromConfigRow(row: FieldDefinitionQueryRow): string[] | null {
+  // T3.1 — prefer the canonical System B vocab (`directory_filter_config.
+  // filter_options`) when overlaid behind the `directory_facets` flag.
+  if (row.bFilterOptions && row.bFilterOptions.length > 0) return row.bFilterOptions;
   // Prefer explicit filter_options (set by admin for directory filtering).
   const filterOpts = row.config?.filter_options;
   if (Array.isArray(filterOpts)) {
@@ -700,6 +709,23 @@ async function loadDirectoryFilterSectionsUncached(
   const catalogRows = (fieldRows as FieldDefinitionQueryRow[])
     .slice()
     .sort(compareFieldCatalogOrder);
+
+  // T3.1 — overlay the facet vocab from canonical System B
+  // (`directory_filter_config.filter_options`) behind the `directory_facets`
+  // flag. Mutates the catalog rows in place so the section-building loop below
+  // reads B's migrated vocab via `textEnumOptionsFromConfigRow`. Absent/throwing
+  // B reads leave `bFilterOptions` unset → the A `config` vocab is used (today's
+  // behaviour). Gender keeps its bare-label vocab (identical in A + B).
+  const bFacetConfig = await loadDirectoryFacetConfigByLegacyKey(
+    supabase,
+    catalogRows.map((r) => r.key),
+  );
+  for (const row of catalogRows) {
+    const cfg = bFacetConfig.get(row.key);
+    if (cfg?.filterOptions && cfg.filterOptions.length > 0) {
+      row.bFilterOptions = cfg.filterOptions;
+    }
+  }
 
   const toDefRow = (r: FieldDefinitionQueryRow): FieldDefinitionRow => ({
     key: r.key,
@@ -1276,7 +1302,7 @@ export function getCachedDirectoryFilterSidebarModel(
   const tenantKey = tenantId ?? "__hub__";
   return unstable_cache(
     () => loadDirectoryFilterSectionsUncached(locale, ctx, tenantId),
-    ["directory-filter-sidebar", "v14-tenant-scoped", locale, tenantKey, key],
+    ["directory-filter-sidebar", "v15-b-facet-config", locale, tenantKey, key],
     { tags: [CACHE_TAG_DIRECTORY, CACHE_TAG_TAXONOMY], revalidate: 90 },
   )();
 }

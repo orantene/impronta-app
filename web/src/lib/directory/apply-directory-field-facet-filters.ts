@@ -5,6 +5,7 @@ import {
   type PublicSurfaceContext,
 } from "@/lib/field-engine/public-surface-visibility";
 import { fetchDirectoryFacetTalentIds } from "@/lib/field-engine/read-source-directory-facets";
+import { loadDirectoryFacetConfigByLegacyKey } from "@/lib/field-engine/read-source-directory-facet-config";
 
 /** Canonical `talent_profiles.gender` — filtered via column, not `field_values`. */
 export const DIRECTORY_CANONICAL_GENDER_FIELD_KEY = "gender";
@@ -18,6 +19,11 @@ export type DirectoryFacetDefinitionRow = {
   filterable: boolean;
   directory_filter_visible?: boolean | null;
   config: Record<string, unknown> | null;
+  /** T3.1 — the facet's `filter_options` vocab as read from canonical System B
+   *  (`profile_field_definitions.directory_filter_config`). Populated by
+   *  `loadDirectoryFacetDefinitionsByKey` when the `directory_facets` flag is `b`;
+   *  preferred over the legacy A `config` vocab when present. Absent = read A. */
+  bFilterOptions?: string[] | null;
 };
 
 function filterOptionsFromConfig(
@@ -43,6 +49,17 @@ function filterOptionsFromConfig(
     )
     .map((x) => x.value.trim());
   return out.length ? out : null;
+}
+
+/** The facet's selectable vocab — System B `directory_filter_config.filter_options`
+ *  when present (the migrated home), else the legacy A `config` vocab. This is the
+ *  single resolver the apply step uses so config flips with the `directory_facets`
+ *  flag without changing the call sites' validation semantics. */
+export function resolveFacetFilterOptions(
+  def: DirectoryFacetDefinitionRow,
+): string[] | null {
+  if (def.bFilterOptions && def.bFilterOptions.length > 0) return def.bFilterOptions;
+  return filterOptionsFromConfig(def.config);
 }
 
 export function isDirectoryFacetEligibleDef(row: DirectoryFacetDefinitionRow): boolean {
@@ -152,10 +169,10 @@ export async function applyDirectoryFieldFacetFilters(
     const isCanonicalGender =
       def.key === DIRECTORY_CANONICAL_GENDER_FIELD_KEY &&
       (def.value_type === "text" || def.value_type === "textarea") &&
-      filterOptionsFromConfig(def.config) != null;
+      resolveFacetFilterOptions(def) != null;
 
     if (isCanonicalGender) {
-      const allowed = new Set(filterOptionsFromConfig(def.config) ?? []);
+      const allowed = new Set(resolveFacetFilterOptions(def) ?? []);
       const gVals = values.filter((v) => allowed.has(v));
       if (gVals.length === 0) continue;
       const next = await fetchGenderProfileIds(supabase, gVals, {
@@ -186,7 +203,7 @@ export async function applyDirectoryFieldFacetFilters(
     }
 
     if (def.value_type === "text" || def.value_type === "textarea") {
-      const opts = filterOptionsFromConfig(def.config);
+      const opts = resolveFacetFilterOptions(def);
       if (!opts) continue;
       const allowed = new Set(opts);
       const tVals = values.filter((v) => allowed.has(v));
@@ -266,6 +283,19 @@ export async function loadDirectoryFacetDefinitionsByKey(
   const map = new Map<string, DirectoryFacetDefinitionRow>();
   for (let i = 0; i < facetRows.length; i++) {
     if (visible[i]) map.set(facetRows[i].key, facetRows[i]);
+  }
+
+  // T3.1 — overlay the facet `filter_options` vocab from canonical System B
+  // (`directory_filter_config`) behind the `directory_facets` flag. When the flag
+  // is `b`, each visible key's vocab is sourced from B (the migrated home);
+  // absent/throwing B reads leave `bFilterOptions` unset so the apply step falls
+  // back to the row's own A `config` vocab (byte-identical to today).
+  const bConfig = await loadDirectoryFacetConfigByLegacyKey(supabase, [...map.keys()]);
+  for (const [key, def] of map) {
+    const cfg = bConfig.get(key);
+    if (cfg?.filterOptions && cfg.filterOptions.length > 0) {
+      def.bFilterOptions = cfg.filterOptions;
+    }
   }
   return map;
 }

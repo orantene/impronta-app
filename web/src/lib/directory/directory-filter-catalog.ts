@@ -1,10 +1,13 @@
 import { unstable_cache } from "next/cache";
 import { CACHE_TAG_DIRECTORY } from "@/lib/cache-tags";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
+import { directoryFacetConfigReadsB } from "@/lib/field-engine/read-source-directory-facet-config";
+import { logServerError } from "@/lib/server/safe-error";
 
 export type DirectoryHeightFilterConfig = {
   enabled: boolean;
-  /** Slider / clamp bounds from `field_definitions.config` */
+  /** Slider / clamp bounds — System B `directory_filter_config.{min,max}` when
+   *  the `directory_facets` flag is `b`, else legacy A `field_definitions.config`. */
   sliderMinCm: number;
   sliderMaxCm: number;
   labelEn: string;
@@ -14,16 +17,78 @@ export type DirectoryHeightFilterConfig = {
 const DEFAULT_SLIDER_MIN = 140;
 const DEFAULT_SLIDER_MAX = 220;
 
+const HEIGHT_FALLBACK: DirectoryHeightFilterConfig = {
+  enabled: false,
+  sliderMinCm: DEFAULT_SLIDER_MIN,
+  sliderMaxCm: DEFAULT_SLIDER_MAX,
+  labelEn: "Height (cm)",
+  labelEs: null,
+};
+
+/** Clamp a raw bound to the absolute safety band + round (shared by A + B). */
+function clampBound(raw: number, fallback: number): number {
+  return Number.isFinite(raw)
+    ? Math.round(Math.min(250, Math.max(100, raw)))
+    : fallback;
+}
+
+/**
+ * System-B height-filter catalog: reads `physical.height_cm`'s
+ * `directory_filter_config.{min,max}` + the canonical `show_in_directory_filter`
+ * COLUMN, returning the IDENTICAL shape as the A reader. Throws on a DB error so
+ * the caller safe-falls-back to A.
+ */
+async function loadHeightFilterCatalogFromB(
+  supabase: ReturnType<typeof createPublicSupabaseClient>,
+): Promise<DirectoryHeightFilterConfig> {
+  if (!supabase) return HEIGHT_FALLBACK;
+  const { data, error } = await supabase
+    .from("profile_field_definitions")
+    .select("show_in_directory_filter, deprecated_at, directory_filter_config, label, label_es")
+    .eq("field_key", "physical.height_cm")
+    .maybeSingle();
+  if (error) {
+    throw new Error(`[directory] height filter config (System B): ${error.message}`);
+  }
+  if (!data) return HEIGHT_FALLBACK;
+  const r = data as {
+    show_in_directory_filter?: boolean | null;
+    deprecated_at?: string | null;
+    directory_filter_config?: { min?: unknown; max?: unknown } | null;
+    label?: string | null;
+    label_es?: string | null;
+  };
+  const enabled = Boolean(r.show_in_directory_filter === true && r.deprecated_at == null);
+  const cfg = r.directory_filter_config ?? {};
+  const rawMin = typeof cfg.min === "number" ? cfg.min : Number(cfg.min);
+  const rawMax = typeof cfg.max === "number" ? cfg.max : Number(cfg.max);
+  const sliderMinCm = clampBound(rawMin, DEFAULT_SLIDER_MIN);
+  const sliderMaxCm = clampBound(rawMax, DEFAULT_SLIDER_MAX);
+  return {
+    enabled,
+    sliderMinCm: Math.min(sliderMinCm, sliderMaxCm),
+    sliderMaxCm: Math.max(sliderMinCm, sliderMaxCm),
+    labelEn:
+      typeof r.label === "string" && r.label.trim() ? r.label.trim() : "Height (cm)",
+    labelEs: typeof r.label_es === "string" && r.label_es.trim() ? r.label_es.trim() : null,
+  };
+}
+
 async function loadHeightFilterCatalogUncached(): Promise<DirectoryHeightFilterConfig> {
   const supabase = createPublicSupabaseClient();
   if (!supabase) {
-    return {
-      enabled: false,
-      sliderMinCm: DEFAULT_SLIDER_MIN,
-      sliderMaxCm: DEFAULT_SLIDER_MAX,
-      labelEn: "Height (cm)",
-      labelEs: null,
-    };
+    return { ...HEIGHT_FALLBACK };
+  }
+
+  // Repoint behind the `directory_facets` flag (same flag that governs the facet
+  // value-store + vocab reads); safe-fall-back to the A reader on a B throw.
+  if (directoryFacetConfigReadsB()) {
+    try {
+      return await loadHeightFilterCatalogFromB(supabase);
+    } catch (err) {
+      logServerError("directory/height-filter-catalog/b", err);
+      // fall through to the A reader below
+    }
   }
 
   type HeightRow = {
@@ -58,13 +123,7 @@ async function loadHeightFilterCatalogUncached(): Promise<DirectoryHeightFilterC
   }
 
   if (error || !row) {
-    return {
-      enabled: false,
-      sliderMinCm: DEFAULT_SLIDER_MIN,
-      sliderMaxCm: DEFAULT_SLIDER_MAX,
-      labelEn: "Height (cm)",
-      labelEs: null,
-    };
+    return { ...HEIGHT_FALLBACK };
   }
 
   const r = row;
@@ -76,12 +135,8 @@ async function loadHeightFilterCatalogUncached(): Promise<DirectoryHeightFilterC
   const cfg = (row.config ?? {}) as { min?: unknown; max?: unknown };
   const rawMin = typeof cfg.min === "number" ? cfg.min : Number(cfg.min);
   const rawMax = typeof cfg.max === "number" ? cfg.max : Number(cfg.max);
-  const sliderMinCm = Number.isFinite(rawMin)
-    ? Math.round(Math.min(250, Math.max(100, rawMin)))
-    : DEFAULT_SLIDER_MIN;
-  const sliderMaxCm = Number.isFinite(rawMax)
-    ? Math.round(Math.min(250, Math.max(100, rawMax)))
-    : DEFAULT_SLIDER_MAX;
+  const sliderMinCm = clampBound(rawMin, DEFAULT_SLIDER_MIN);
+  const sliderMaxCm = clampBound(rawMax, DEFAULT_SLIDER_MAX);
 
   return {
     enabled: active,
@@ -96,7 +151,7 @@ async function loadHeightFilterCatalogUncached(): Promise<DirectoryHeightFilterC
 export function getCachedDirectoryHeightFilterConfig(): Promise<DirectoryHeightFilterConfig> {
   return unstable_cache(
     () => loadHeightFilterCatalogUncached(),
-    ["directory-height-filter-catalog-v2"],
+    ["directory-height-filter-catalog-v3-b-config"],
     { tags: [CACHE_TAG_DIRECTORY], revalidate: 120 },
   )();
 }
