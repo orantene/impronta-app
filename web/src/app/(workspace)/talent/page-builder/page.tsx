@@ -23,6 +23,7 @@ import { getActiveTalentAgencyContext } from "@/lib/talent/active-agency-context
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { buildInEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
+import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
 import { readTalentDesignSlice } from "@/lib/site-admin/edit-mode/talent-design-store";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node";
 import { TalentPageBuilderScreen } from "@/components/talent/site/TalentPageBuilderScreen";
@@ -96,8 +97,19 @@ export default async function TalentPageBuilderRoute() {
         // + design tokens) so the canvas reflects the talent's theme, not the host
         // tenant's. The Theme drawer previews the DRAFT live on top of this.
         const slice = readTalentDesignSlice(row?.theme);
-        talentComponentStyleDefaults = slice.componentStyles;
-        talentDesignTokens = slice.tokens;
+        // A talent with NO theme of their own inherits the PLATFORM DEFAULT
+        // (Modern 2026) — NOT the host tenant's (e.g. Impronta's black/gold)
+        // component styles, which would render white-on-white buttons on the
+        // new light canvas. Operator overrides (a non-empty slice) win.
+        const platformDefault = await loadPlatformDefaultTheme();
+        talentComponentStyleDefaults =
+          Object.keys(slice.componentStyles).length > 0
+            ? slice.componentStyles
+            : platformDefault.componentStyles;
+        talentDesignTokens =
+          Object.keys(slice.tokens).length > 0
+            ? slice.tokens
+            : platformDefault.tokens;
       }
       canvasRenderData = await buildInEditorCanvasRenderData({
         tree: draftTree,

@@ -22,8 +22,9 @@ import { useState } from "react";
 import { PreviewSubjectPicker, type PreviewSubject } from "./preview-subject-picker";
 import { BuilderLabStage } from "./builder-lab-stage";
 import { TemplateManager } from "./template-manager";
+import { SiteDefaultsEditor } from "./site-defaults-editor";
 
-type LabTab = "talent" | "workspace" | "templates";
+type LabTab = "talent" | "workspace" | "templates" | "site-defaults";
 
 const T = {
   bg: "#0F0F11",
@@ -41,6 +42,7 @@ const TABS: Array<{ id: LabTab; label: string; blurb: string }> = [
   { id: "talent", label: "Talent Lab", blurb: "Author + test templates against a real talent profile." },
   { id: "workspace", label: "Workspace Lab", blurb: "Author + test against a real workspace / hub." },
   { id: "templates", label: "Templates", blurb: "Publish into the gallery. Full lifecycle + metadata." },
+  { id: "site-defaults", label: "Site Defaults", blurb: "Edit the platform default theme every new tenant + talent page inherits." },
 ];
 
 export function BuilderLabShell({
@@ -108,6 +110,10 @@ export function BuilderLabShell({
       {tab === "templates" ? (
         <Panel>
           <TemplateManager />
+        </Panel>
+      ) : tab === "site-defaults" ? (
+        <Panel title="Platform default theme">
+          <SiteDefaultsEditor />
         </Panel>
       ) : (
         <SubjectArea

@@ -69,7 +69,24 @@ html {
   --site-label-tracking: 0.1em;
   --site-label-case: uppercase;
 
-  --site-page-background: var(--background);
+  /* Base page canvas follows the configurable `color.background` token
+   * (projected as --token-color-background), defaulting white. A subtree that
+   * re-declares --token-color-background (talent page / in-editor canvas root)
+   * paints its OWN background, overriding the host. Dark background-mode rules
+   * below re-pin --token-color-background to their dark color so Impronta
+   * (editorial-noir) stays black even on subtrees. */
+  --site-page-background: var(--token-color-background, #ffffff);
+}
+
+/* Page canvas paint. Any `[data-theme-canvas-root]` (storefront frame, talent
+ * page <main>, in-editor canvas region) paints its background from the
+ * configurable token directly — NOT from the <html>-level --site-page-background
+ * — so a talent rendered UNDER the Impronta host paints their own canvas and the
+ * in-editor canvas paints white for a default/light theme instead of showing the
+ * dark builder chrome behind it. Equal specificity to `.bg-background`; for
+ * Impronta both resolve to #0a0a0a so the storefront frame is unchanged. */
+[data-theme-canvas-root] {
+  background-color: var(--token-color-background, #ffffff);
 }
 
 /* ---------------------------------------------------------------------------
@@ -77,6 +94,10 @@ html {
  * ------------------------------------------------------------------------- */
 html[data-token-background-mode="editorial-ivory"] {
   --site-page-background: #f6f1ea;
+  /* Re-pin the canvas-paint var so `[data-theme-canvas-root]` (storefront /
+   * talent page / editor canvas) matches this mode's base tint, even on a
+   * subtree, unless the tenant explicitly overrode color.background. */
+  --token-color-background: #f6f1ea;
   --token-color-surface-raised: #ffffff;
   --token-color-line: #e5dcce;
   --token-color-muted: #8c7f75;
@@ -118,6 +139,11 @@ html[data-token-background-mode="editorial-ivory"] body {
  * plumbs through the token system so any tenant can opt in. */
 html[data-token-background-mode="editorial-noir"] {
   --site-page-background: #0a0a0a;
+  /* CRITICAL — Impronta parity. This re-pins the canvas-paint var to the noir
+   * black so `[data-theme-canvas-root]` (storefront frame, talent page <main>,
+   * in-editor canvas region) stays BLACK even on a subtree rendered under this
+   * host. Without this, a subtree would fall back to the white default. */
+  --token-color-background: #0a0a0a;
   --token-color-surface-raised: #0f0f0f;
   --token-color-line: rgba(201, 162, 39, 0.18);
   --token-color-muted: #a1a1aa;
@@ -182,6 +208,13 @@ html[data-token-background-mode="editorial-noir"] body.site-theme-tenant-overrid
   --site-ambient-base: #0a0a0a;
 }
 
+/* Texture / gradient modes paint their effect on `body` (overlaying the base
+ * canvas). Re-pin --token-color-background to each mode's base tint so the
+ * `[data-theme-canvas-root]` paint (which consumes the var directly) matches
+ * the mode's base color on subtrees too. The body gradient still layers on top. */
+html[data-token-background-mode="champagne-gradient"] {
+  --token-color-background: #f6f1ea;
+}
 html[data-token-background-mode="champagne-gradient"] body {
   background:
     radial-gradient(ellipse 80% 50% at 50% 0%, rgba(232, 216, 195, 0.45), transparent 70%),
@@ -210,6 +243,9 @@ html[data-token-background-mode="noise-texture"] body {
 /* Phase 5 — mesh-gradient presets. Layered radial gradients on a
  * fixed-size attachment so the mesh stays still while the page
  * scrolls. Pure CSS, no JS, no images. */
+html[data-token-background-mode="mesh-blush"] {
+  --token-color-background: #faf3ee;
+}
 html[data-token-background-mode="mesh-blush"] body {
   background-color: #faf3ee;
   background-image:
@@ -218,6 +254,9 @@ html[data-token-background-mode="mesh-blush"] body {
     radial-gradient(at 70% 80%, rgba(220, 195, 220, 0.45) 0, transparent 50%),
     radial-gradient(at 18% 88%, rgba(250, 230, 215, 0.5) 0, transparent 45%);
   background-attachment: fixed;
+}
+html[data-token-background-mode="mesh-sage"] {
+  --token-color-background: #f3f5f0;
 }
 html[data-token-background-mode="mesh-sage"] body {
   background-color: #f3f5f0;
@@ -228,6 +267,12 @@ html[data-token-background-mode="mesh-sage"] body {
     radial-gradient(at 18% 86%, rgba(225, 235, 220, 0.5) 0, transparent 45%);
   background-attachment: fixed;
 }
+/* mesh-noir is a DARK mode — re-pin the canvas-paint var to its dark base so
+ * `[data-theme-canvas-root]` stays dark on subtrees (same parity guarantee as
+ * editorial-noir). */
+html[data-token-background-mode="mesh-noir"] {
+  --token-color-background: #0c0c0e;
+}
 html[data-token-background-mode="mesh-noir"] body {
   background-color: #0c0c0e;
   background-image:
@@ -237,6 +282,9 @@ html[data-token-background-mode="mesh-noir"] body {
     radial-gradient(at 18% 88%, rgba(50, 40, 50, 0.5) 0, transparent 45%);
   background-attachment: fixed;
   color: #f8f5ef;
+}
+html[data-token-background-mode="mesh-aurora"] {
+  --token-color-background: #f8f7f4;
 }
 html[data-token-background-mode="mesh-aurora"] body {
   background-color: #f8f7f4;

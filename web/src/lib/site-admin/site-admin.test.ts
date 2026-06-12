@@ -147,14 +147,15 @@ test("validateThemePatch accepts agency-configurable keys", () => {
   }
 });
 
-test("validateThemePatch rejects non-overridable tokens", () => {
+test("validateThemePatch accepts color.background (subtree-overridable canvas)", () => {
+  // color.background became agency-configurable so talent/tenant subtrees can
+  // set their own page canvas (overriding the host) — see tokens/registry.ts.
   const result = validateThemePatch({
     "color.background": "#ffffff",
   });
-  assert.equal(result.ok, false);
-  if (!result.ok) {
-    assert.ok(result.rejected.includes("color.background"));
-    assert.match(result.reasons["color.background"], /Not agency-configurable/);
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.equal(result.normalized["color.background"], "#ffffff");
   }
 });
 

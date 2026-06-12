@@ -31,6 +31,7 @@ import {
   TOKEN_REGISTRY,
   type TokenSpec,
 } from "../tokens/registry";
+import type { ComponentStyleDefaults } from "../builder-node/component-style-defaults";
 
 export interface ThemePreset {
   /** URL-safe identifier. Stored in `agency_branding.theme_preset_slug`. */
@@ -57,7 +58,81 @@ export interface ThemePreset {
   };
   /** Stable display order in the picker. Lower = earlier. */
   order: number;
+  /**
+   * Optional per-component default styles bundled with the preset. When an
+   * operator applies the preset these seed `component_styles_json[_draft]` so a
+   * freshly-ADDED element (heading, button, card…) is themed immediately rather
+   * than rendering raw browser defaults. Values use the same vocabulary as a
+   * node's own style: raw CSS strings OR `token:<key>` bindings that resolve to
+   * `var(--token-…)` so a live theme change cascades.
+   */
+  componentStyles?: ComponentStyleDefaults;
 }
+
+/**
+ * MODERN 2026 — the platform's default register. A clean light canvas
+ * (white background, near-black ink), a sky-blue accent (#0ea5e9) for CTAs and
+ * links, soft radii + soft shadows, cozy spacing, and a system-sans pairing.
+ * This is what EVERY new tenant + new talent page inherits unless an operator
+ * picks another preset or the super-admin edits the Site Default in Builder Lab.
+ *
+ * Ships with a `componentStyles` slice so a freshly-ADDED element looks themed
+ * the instant it's dropped: headings render in Ink, paragraphs in Muted, the
+ * button paints the sky-blue accent with white text + a soft radius, and a card
+ * gets the raised surface + hairline border. All color values are `token:`
+ * bindings so a live theme change (or the Site-Default editor) cascades.
+ */
+const modernPreset: ThemePreset = {
+  slug: "modern-2026",
+  label: "Modern 2026",
+  summary:
+    "Clean white canvas, near-black type, sky-blue accent, soft radii — the modern default every new site starts on.",
+  idealFor: ["New tenants", "New talent pages", "SaaS", "Any modern brand"],
+  order: 1,
+  previewSwatch: {
+    primary: "#111111",
+    secondary: "#6b7280",
+    accent: "#0ea5e9",
+    background: "#ffffff",
+  },
+  tokens: {
+    // colors — clean light + sky-blue accent
+    "color.background": "#ffffff",
+    "color.ink": "#111111",
+    "color.primary": "#111111",
+    "color.secondary": "#6b7280",
+    "color.accent": "#0ea5e9",
+    "color.neutral": "#737373",
+    "color.line": "#e5e7eb",
+    "color.surface-raised": "#ffffff",
+    "color.muted": "#6b7280",
+    // surface
+    "background.mode": "plain",
+    // shape & feel
+    "radius.scale-preset": "soft",
+    "shadow.preset": "soft",
+    "spacing.scale": "cozy",
+    // typography — system sans, standard scale
+    "typography.heading-preset": "sans",
+    "typography.body-preset": "sans",
+    "typography.scale-preset": "standard",
+    // motion
+    "motion.preset": "snappy",
+  },
+  componentStyles: {
+    heading: { textColor: "token:color.ink" },
+    paragraph: { textColor: "token:color.muted" },
+    button: {
+      backgroundColor: "token:color.accent",
+      textColor: "#ffffff",
+      borderRadius: "10px",
+    },
+    card: {
+      backgroundColor: "token:color.surface-raised",
+      borderColor: "token:color.line",
+    },
+  },
+};
 
 /**
  * NEUTRAL — the clean white default foundation. Zero brand color: white
@@ -439,6 +514,7 @@ const editorialNoirPreset: ThemePreset = {
 };
 
 export const THEME_PRESETS: ThemePreset[] = [
+  modernPreset,
   neutralPreset,
   classicPreset,
   editorialBridalPreset,
@@ -447,11 +523,13 @@ export const THEME_PRESETS: ThemePreset[] = [
 ].sort((a, b) => a.order - b.order);
 
 /**
- * Slug of the preset a brand-new tenant starts on. Neutral by design:
- * a fresh builder canvas must be clean white, never an Impronta-flavored
- * default. Onboarding / tenant-creation should seed this.
+ * Slug of the preset a brand-new tenant / talent page starts on. Modern 2026
+ * by design: a clean light canvas with a sky-blue accent, never an
+ * Impronta-flavored default. Onboarding / tenant-creation seeds this, and the
+ * super-admin can edit the live Site Default (which overrides this constant) in
+ * Builder Lab → Site Defaults.
  */
-export const DEFAULT_THEME_PRESET_SLUG = "neutral" as const;
+export const DEFAULT_THEME_PRESET_SLUG = "modern-2026" as const;
 
 export function getThemePreset(slug: string | null | undefined): ThemePreset | null {
   if (!slug) return null;

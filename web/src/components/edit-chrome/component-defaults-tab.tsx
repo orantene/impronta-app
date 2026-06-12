@@ -18,7 +18,7 @@
  */
 import { useCallback, useEffect, useMemo, useState, type ReactElement } from "react";
 
-import { Card, CardBody, CardHead, CHROME, ColorRow, Field, FieldLabel, Helper } from "./kit";
+import { Card, CardBody, CardHead, CHROME, ColorRow, Field, FieldLabel, Helper, SelectDropdown } from "./kit";
 import {
   publishComponentDefaultsPreview,
 } from "./component-defaults-bridge";
@@ -269,36 +269,26 @@ function DefaultControl({
 
   const selectValue = value === "" ? INHERIT_OPTION : isCustomColor ? CUSTOM_OPTION : value;
 
+  // Build the options list for SelectDropdown
+  const dropdownOptions = [
+    ...tokenOpts,
+    ...(type === "color" ? [{ value: CUSTOM_OPTION, label: "Custom color…" }] : []),
+  ];
+
   return (
-    <div className="flex flex-col gap-1.5">
-      <select
+    <div className="flex flex-col gap-1.5" data-theme-tab="components">
+      <SelectDropdown
         id={id}
         value={selectValue}
-        onChange={(e) => {
-          const v = e.target.value;
+        onChange={(v) => {
           if (v === INHERIT_OPTION) onChange("");
           else if (v === CUSTOM_OPTION) onChange("#000000");
           else onChange(v);
         }}
-        style={{
-          width: "100%",
-          height: 30,
-          padding: "0 8px",
-          fontSize: 12,
-          border: `1px solid ${CHROME.lineMid}`,
-          borderRadius: 6,
-          background: CHROME.surface2,
-          color: CHROME.text2,
-        }}
-      >
-        <option value={INHERIT_OPTION}>Inherit (theme default)</option>
-        {tokenOpts.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-        {type === "color" ? <option value={CUSTOM_OPTION}>Custom color…</option> : null}
-      </select>
+        leadingOptions={[{ value: INHERIT_OPTION, label: "Inherit (theme default)" }]}
+        options={dropdownOptions}
+        data-theme-control={`cd-${id}`}
+      />
       {isCustomColor ? (
         <ColorRow value={value} onChange={(v) => onChange(v)} />
       ) : null}

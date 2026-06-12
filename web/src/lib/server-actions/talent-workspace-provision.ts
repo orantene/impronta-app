@@ -29,6 +29,7 @@ import {
 } from "@/lib/saas/workspace-signup";
 import { isReservedSlug } from "@/lib/site-admin/reserved-routes";
 import { onboardStarterContent } from "@/lib/site-admin/server/onboard-starter-content";
+import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
 
 export type ProvisionFreeWorkspaceResult =
   | { ok: true; slug: string }
@@ -195,10 +196,23 @@ export async function provisionFreeWorkspaceFromTalent(params: {
   }
 
   // ── Step 4: Scaffold branding + starter content ───────────────────────────
+  // Seed the new workspace from the platform DEFAULT THEME (Modern 2026 unless a
+  // super-admin edited the Site Default). `ignoreDuplicates` keeps this a no-op
+  // for any existing tenant — only the freshly-created row is themed. Both live
+  // + draft layers (tokens AND component styles) are seeded so the builder opens
+  // on the modern look with nothing to publish.
+  const platformDefault = await loadPlatformDefaultTheme();
   const { error: brandingError } = await admin
     .from("agency_branding")
     .upsert(
-      { tenant_id: agency.id, theme_json: {} },
+      {
+        tenant_id: agency.id,
+        theme_json: platformDefault.tokens,
+        theme_json_draft: platformDefault.tokens,
+        component_styles_json: platformDefault.componentStyles,
+        component_styles_json_draft: platformDefault.componentStyles,
+        theme_preset_slug: platformDefault.presetSlug,
+      },
       { onConflict: "tenant_id", ignoreDuplicates: true },
     );
   if (brandingError) {

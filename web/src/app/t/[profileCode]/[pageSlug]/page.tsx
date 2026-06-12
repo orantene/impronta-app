@@ -39,6 +39,7 @@ import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-
 import { loadBuilderNodeDataSources } from "@/components/home/homepage-cms-data-sources";
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { loadPublicComponentStyleDefaults } from "@/lib/site-admin/server/reads";
+import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
 import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
 import {
   designTokensToCssVars,
@@ -126,27 +127,34 @@ export default async function PublicTalentFreeformPage({
   ]);
 
   // Talent-scoped theme cascade: the talent's OWN published per-component-type
-  // defaults take precedence over the managing tenant's when the talent has set
-  // any (theme = talent self-expression); otherwise inherit the tenant defaults.
+  // defaults take precedence; otherwise inherit the PLATFORM DEFAULT (Modern
+  // 2026) — NOT the host tenant's (Impronta black/gold) which would render
+  // white-on-white buttons on the light canvas. Mirrors the talent editor.
+  const platformDefault = await loadPlatformDefaultTheme();
+  void tenantComponentStyleDefaults; // host-tenant defaults intentionally not used as the talent fallback
   const componentStyleDefaults =
     talentComponentStyleDefaults && Object.keys(talentComponentStyleDefaults).length > 0
       ? talentComponentStyleDefaults
-      : tenantComponentStyleDefaults;
+      : platformDefault.componentStyles;
 
   // Talent-scoped design tokens. When the talent has themed their page, project
   // their LIVE tokens as CSS vars + data-attrs on a `data-theme-canvas-root`
   // wrapper. Every bound node renders `var(--token-x, fallback)`, so setting the
   // vars on this ancestor overrides the host tenant's tokens (inherited from
   // <html>) for this subtree — the SAME projection the storefront + editor use.
-  const hasTalentTokens = Object.keys(designTokens).length > 0;
-  const talentCssVars = hasTalentTokens ? designTokensToCssVars(designTokens) : {};
+  // Unthemed talent → the PLATFORM DEFAULT tokens (modern light), so the public
+  // page matches what they built in the editor and doesn't inherit the host's bg.
+  const effectiveTokens =
+    Object.keys(designTokens).length > 0 ? designTokens : platformDefault.tokens;
+  const hasTalentTokens = Object.keys(effectiveTokens).length > 0;
+  const talentCssVars = hasTalentTokens ? designTokensToCssVars(effectiveTokens) : {};
   // Custom font families consume `--site-heading/body-font` (declared on <html>);
   // override them on the canvas root too when a custom family is set.
-  const headingFamily = designTokens["typography.heading-font-family"]?.trim();
-  const bodyFamily = designTokens["typography.body-font-family"]?.trim();
+  const headingFamily = effectiveTokens["typography.heading-font-family"]?.trim();
+  const bodyFamily = effectiveTokens["typography.body-font-family"]?.trim();
   if (headingFamily) talentCssVars["--site-heading-font"] = headingFamily;
   if (bodyFamily) talentCssVars["--site-body-font"] = bodyFamily;
-  const talentDataAttrs = hasTalentTokens ? designTokensToDataAttrs(designTokens) : {};
+  const talentDataAttrs = hasTalentTokens ? designTokensToDataAttrs(effectiveTokens) : {};
 
   return (
     <div data-talent-freeform-page-shell="">
@@ -157,7 +165,7 @@ export default async function PublicTalentFreeformPage({
       <BuilderNodeFontLinks nodes={blocks} components={components} />
       {/* Load any Google fonts the talent picked in their theme. No-op when no
           picker tokens are set. */}
-      {hasTalentTokens ? <GoogleFontsLink tokens={designTokens} /> : null}
+      {hasTalentTokens ? <GoogleFontsLink tokens={effectiveTokens} /> : null}
       <main
         data-talent-freeform-page-main=""
         data-theme-canvas-root=""

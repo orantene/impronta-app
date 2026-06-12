@@ -98,3 +98,43 @@ export function resolveThemeActionSet(
     publish: (input) => publishDesignFromEditAction(input),
   };
 }
+
+// ── platform_default route ──────────────────────────────────────────────────
+//
+// The Builder Lab → Site Defaults editor edits the PLATFORM DEFAULT THEME
+// (the Modern 2026 Site Default every new tenant + talent inherits), which lives
+// on the `platform_settings` singleton — NOT on a tenant/talent row. It has no
+// CAS version / draft-vs-live distinction (Save IS publish for the singleton),
+// so it uses a focused two-move set rather than the five-move `ThemeActionSet`.
+// Kept here so the surface-aware theme seam stays in one module.
+
+import {
+  loadPlatformDefaultThemeAction,
+  savePlatformDefaultThemeAction,
+} from "@/lib/server-actions/admin-platform-default-theme";
+import type { PlatformDefaultTheme } from "@/lib/platform/default-theme";
+
+/** The two lifecycle moves the focused Site-Defaults editor needs. */
+export interface PlatformDefaultThemeActionSet {
+  load(): Promise<
+    | { ok: true; theme: PlatformDefaultTheme }
+    | { ok: false; error: string }
+  >;
+  /** Save = publish for the singleton (no draft layer). */
+  save(input: {
+    tokens: Record<string, string>;
+    componentStyles: ComponentStyleDefaults;
+    presetSlug: string | null;
+  }): Promise<{ ok: true } | { ok: false; error: string }>;
+}
+
+/**
+ * The `platform_default` route — the action set the super-admin Site-Defaults
+ * editor calls. Both moves are platform-admin gated inside the actions.
+ */
+export function resolvePlatformDefaultThemeActionSet(): PlatformDefaultThemeActionSet {
+  return {
+    load: () => loadPlatformDefaultThemeAction(),
+    save: (input) => savePlatformDefaultThemeAction(input),
+  };
+}

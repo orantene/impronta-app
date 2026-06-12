@@ -34,6 +34,7 @@ import {
 } from "@/lib/site-admin/builder-node/component-style-defaults";
 import { tokenDefaults, validateThemePatch } from "@/lib/site-admin/tokens/registry";
 import { getThemePreset } from "@/lib/site-admin/presets/theme-presets";
+import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
 import { getCachedActorSession, getCachedServerSupabase } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import type {
@@ -62,12 +63,19 @@ interface ThemeRow {
 }
 
 /**
- * Merge platform defaults under the talent's stored token map so the drawer
- * always has a value to render for every control (same contract as the agency
- * `withDefaults`). Non-string values are ignored.
+ * Merge defaults UNDER the talent's stored token map so the drawer always has a
+ * value to render for every control (same contract as the agency `withDefaults`).
+ *
+ * Precedence (highest wins): talent's own stored token > platform Site Default
+ * (Modern 2026 unless a super-admin edited it) > registry `tokenDefaults()`.
+ * So a brand-new / empty talent page renders the modern default, while any
+ * non-empty talent override still wins. Non-string values are ignored.
  */
-function withDefaults(raw: Record<string, unknown> | null | undefined): Record<string, string> {
-  const out: Record<string, string> = { ...tokenDefaults() };
+function withDefaults(
+  raw: Record<string, unknown> | null | undefined,
+  platformTokens: Record<string, string>,
+): Record<string, string> {
+  const out: Record<string, string> = { ...tokenDefaults(), ...platformTokens };
   if (!raw || typeof raw !== "object") return out;
   for (const [key, value] of Object.entries(raw)) {
     if (typeof value === "string" && value.length > 0) out[key] = value;
@@ -148,12 +156,15 @@ async function persistDesignSlice(
   return { ok: true };
 }
 
-function snapshotFromSlice(slice: TalentDesignSlice): DesignLoadResult {
+function snapshotFromSlice(
+  slice: TalentDesignSlice,
+  platformTokens: Record<string, string>,
+): DesignLoadResult {
   return {
     ok: true,
     snapshot: {
-      themeDraft: withDefaults(slice.tokensDraft),
-      themeLive: withDefaults(slice.tokens),
+      themeDraft: withDefaults(slice.tokensDraft, platformTokens),
+      themeLive: withDefaults(slice.tokens, platformTokens),
       presetSlug: slice.presetSlug,
       themePublishedAt: slice.publishedAt,
       version: slice.version,
@@ -176,8 +187,9 @@ export async function loadTalentDesignAction(input: {
   const resolved = await resolveOwnTalentPageRow(input.pageSlug);
   if (!resolved.ok) return { ok: false, error: resolved.error, code: resolved.code };
   try {
+    const platformDefault = await loadPlatformDefaultTheme();
     const slice = readTalentDesignSlice(resolved.row.theme);
-    return snapshotFromSlice(slice);
+    return snapshotFromSlice(slice, platformDefault.tokens);
   } catch (error) {
     logServerError("talent-design/load", error);
     return { ok: false, error: "Failed to load theme." };

@@ -73,6 +73,17 @@ export function InEditorCanvasRegion({
   if (headingFamily) tokenCssVars["--site-heading-font"] = headingFamily;
   if (bodyFamily) tokenCssVars["--site-body-font"] = bodyFamily;
   const tokenDataAttrs = hasTokens ? designTokensToDataAttrs(designTokens) : {};
+  // Paint the canvas background from the surface's `color.background` token,
+  // defaulting WHITE so a brand-new / default / light theme shows a white canvas
+  // instead of the dark builder chrome behind this region. The CSS rule on
+  // `[data-theme-canvas-root]` (token-presets.css) consumes the same var; this
+  // inline value guarantees the paint even before the projector runs and
+  // regardless of the editor host's <html> --token-color-background. The Theme
+  // drawer's live preview overwrites --token-color-background on this root, so
+  // changing color.background still repaints live.
+  const canvasBackground: CSSProperties = {
+    backgroundColor: "var(--token-color-background, #ffffff)",
+  };
 
   return (
     // `data-theme-canvas-root` makes this the projection target for the Theme
@@ -85,7 +96,7 @@ export function InEditorCanvasRegion({
       data-in-editor-canvas-region
       data-theme-canvas-root=""
       {...tokenDataAttrs}
-      style={tokenCssVars as CSSProperties}
+      style={{ ...canvasBackground, ...(tokenCssVars as CSSProperties) }}
     >
       {isEmpty ? <InEditorEmptyCanvas /> : null}
       <BuilderProfilerBoundary id="builder-canvas">

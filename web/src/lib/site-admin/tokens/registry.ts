@@ -113,8 +113,13 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
     key: "color.background",
     label: "Background",
     scope: "color",
-    // Platform-governed: changing this risks storefront legibility.
-    agencyConfigurable: false,
+    // Subtree-overridable page canvas. Projected as `--token-color-background`
+    // (COLOR_VAR_NAMES) which the base `--site-page-background` chain + the
+    // `[data-theme-canvas-root]` paint rule consume, so a talent/tenant subtree
+    // can override the host's canvas. Dark background modes (editorial-noir,
+    // mesh-noir) re-pin this var to their dark color in token-presets.css, so
+    // Impronta stays black even on subtrees.
+    agencyConfigurable: true,
     validator: hexColor,
     defaultValue: "#ffffff",
     group: "Brand colors",
