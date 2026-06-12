@@ -2,21 +2,26 @@
 //
 // The SHARED READ SEAM for the Phase 2 field-engine unification.
 //
-// Each of the five System-A reader surfaces (T2.1–T2.5) implements a pair of
-// readers behind this seam:
-//   • an A-reader — reads legacy System A exactly as today (byte-identical), and
-//   • a B-reader — reads canonical System B and projects to the SAME output type.
+// Each reader surface (T2.1–T2.5) implements a pair of readers behind this seam:
+//   • a readA leg and a readB leg, each returning the SAME output type `T`.
 //
 // `readFieldSurface` dispatches to one of the two based on the per-surface flag
 // (`FIELD_ENGINE_READ_SOURCE`, parsed in read-source-types.ts). Because both
 // readers return the identical `T`, the surface's CALLER never changes when a
-// surface is flipped — only the flag does. That is the whole point: the repoint
-// is a config flip, the rollback is a config flip, and the call site is frozen.
+// surface is flipped — only the flag does.
 //
-// SAFE-FALLBACK: a B-read that throws degrades to the A-read (and logs), so a
-// flipped flag can never harden into a broken surface in production. The flag is
-// still the kill switch for a *wrong-but-not-throwing* B-read (set the surface
-// back to `a`).
+// PHASE 3 NOTE (T3.2 / T3.2b): System A is retired. The collapsed surfaces
+// (directory facets/search/card-values/cards, ai-search-doc, public-sidebar)
+// now point BOTH legs at their canonical System B reader — the legacy System A
+// `field_values` / `field_definitions` legs were deleted. The seam shell + the
+// per-surface flag are kept so the call sites stay frozen and the flag grammar
+// is preserved, but for a collapsed surface the flag no longer switches stores
+// (both `a` and `b` resolve to the same B reader).
+//
+// SAFE-FALLBACK: a readB throw is caught, logged, and the readA leg re-run. For
+// a not-yet-collapsed surface that degrades to System A; for a collapsed surface
+// both legs are B, so this simply re-runs the B read (no System-A fallback
+// exists anymore).
 //
 // This module is server-only (it reads `process.env` for the live flags). The
 // PURE pieces (the flag grammar + the dispatch decision) live in
@@ -64,13 +69,14 @@ export interface FieldSurfaceReaderPair<Args extends unknown[], T> {
 }
 
 /**
- * Dispatch a surface read to A or B per the live flag.
+ * Dispatch a surface read to the readA or readB leg per the live flag.
  *
  * Behaviour:
- *   - flag `a` (default)  → `readA(...)` — byte-identical to today.
- *   - flag `b`            → `readB(...)`; if it throws, log + fall back to
- *                           `readA(...)` (safe-fallback). The flag remains the
- *                           kill switch for a non-throwing-but-wrong B-read.
+ *   - flag `a` → `readA(...)`. For a collapsed surface (T3.2b) readA IS the B
+ *                reader, so this still reads canonical System B.
+ *   - flag `b` → `readB(...)`; if it throws, log + re-run `readA(...)`. For a
+ *                not-yet-collapsed surface that degrades to System A; for a
+ *                collapsed surface readA is also B, so it re-runs the B read.
  *
  * `surface` names which flag governs this call. `pair` is the surface's
  * reader pair. `args` are forwarded verbatim to whichever reader runs.
@@ -86,7 +92,10 @@ export async function readFieldSurface<Args extends unknown[], T>(
     return await pair.readB(...args);
   } catch (err) {
     logServerError(`field-engine.readFieldSurface.${surface}.b`, err);
-    return pair.readA(...args); // degrade to A — never harden a broken B-read
+    // Re-run readA. For a collapsed surface readA is the same B reader (no
+    // System-A fallback exists anymore); for a non-collapsed surface this
+    // degrades to System A so a broken B-read never hardens.
+    return pair.readA(...args);
   }
 }
 

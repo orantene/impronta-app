@@ -117,8 +117,8 @@ function projectBValueToFieldValueRow(
 // the A→B key bridge, reads the canonical store (chunked by profile id), and
 // projects each B row into a `FieldValueRow` stored under the A def-id. Non-bridged
 // / non-scalar card defs (taxonomy/location) yield no B rows — correct, they
-// render from taxonomy assignments. Throws only on a real DB error so the seam
-// safe-falls-back to A.
+// render from taxonomy assignments. Throws only on a real DB error (the seam
+// re-runs this same B reader on a throw; System A is retired — no A fallback).
 async function readDirectoryCardValuesFromB(
   supabase: SupabaseClient,
   cardDefs: readonly DirectoryCardScalarDef[],
@@ -198,8 +198,9 @@ export const directoryCardValuesReaderPair: FieldSurfaceReaderPair<
 
 /**
  * PUBLIC entry — return `Map<profileId, Map<aDefId, FieldValueRow>>` for the
- * directory card values, reading the active value store for the
- * `directory_card_values` surface. A B-read that throws safe-falls-back to A.
+ * directory card values, reading canonical System B for the
+ * `directory_card_values` surface (T3.2: System A retired — both seam legs read
+ * B; a readB throw re-runs the same B reader).
  */
 export function fetchDirectoryCardValues(
   supabase: SupabaseClient,

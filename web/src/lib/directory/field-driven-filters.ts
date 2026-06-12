@@ -26,6 +26,7 @@ import {
   type PublicSurfaceContext,
 } from "@/lib/field-engine/public-surface-visibility";
 import { loadDirectoryFacetConfigByLegacyKey } from "@/lib/field-engine/read-source-directory-facet-config";
+import { DIRECTORY_FILTER_CATALOG_REGISTRY } from "@/lib/field-engine/directory-field-catalog-registry";
 
 export type DirectoryFilterPresentation = "chips" | "radio" | "grid" | "location" | "height_range" | "age_range";
 
@@ -209,114 +210,76 @@ function taxonomyPresentation(f: FieldDefinitionRow): "radio" | "grid" | "chips"
   return "chips";
 }
 
-const FILTERABLE_FIELD_DEF_SELECT =
-  "id, key, label_en, label_es, value_type, filterable, config, active, archived_at, taxonomy_kind, sort_order, field_group_id, tenant_id, field_groups(sort_order)";
-
-const DIRECTORY_FILTER_FIELD_DEF_SELECT =
-  "id, key, label_en, label_es, value_type, filterable, directory_filter_visible, config, active, archived_at, taxonomy_kind, sort_order, field_group_id, tenant_id, field_groups(sort_order)";
-
-function isMissingDirectoryFilterMigration(error: { code?: string; message?: string } | null): boolean {
-  if (!error) return false;
-  const text = `${error.code ?? ""} ${error.message ?? ""}`.toLowerCase();
-  return text.includes("directory_filter_visible") || text.includes("directory_sidebar_layout");
+/** Project a frozen registry row into the `FieldDefinitionQueryRow` shape the
+ *  rest of this module consumes. `field_groups.sort_order` carries the group
+ *  order (the catalog comparator reads it); the legacy `directory_filter_visible`
+ *  flag is synthesized `true` because the live gate is the canonical resolver
+ *  (`isResolvedFieldVisibleInDirectoryFilter`), not this flag (Sub-Task 5). */
+function registryRowToQueryRow(
+  r: (typeof DIRECTORY_FILTER_CATALOG_REGISTRY)[number],
+): FieldDefinitionQueryRow {
+  return {
+    id: r.id,
+    key: r.key,
+    label_en: r.label_en,
+    label_es: r.label_es,
+    value_type: r.value_type,
+    filterable: r.filterable,
+    directory_filter_visible: true,
+    active: true,
+    archived_at: null,
+    taxonomy_kind: r.taxonomy_kind,
+    sort_order: r.sort_order,
+    config: r.config,
+    field_group_id: null,
+    field_groups: { sort_order: r.group_sort_order },
+  };
 }
 
+/**
+ * The directory FILTER catalog skeleton.
+ *
+ * T3.2b — repointed off legacy System A `field_definitions`. The row SKELETON
+ * (key, labels, value_type, taxonomy_kind, sort_order, group order, option
+ * config) is the FROZEN catalog registry captured 1:1 from prod; the per-tenant
+ * `field_definitions.tenant_id` override leg is gone (0 prod override rows). The
+ * live VISIBILITY gate stays canonical — every row is routed through
+ * `isResolvedFieldVisibleInDirectoryFilter`, which reads
+ * `profile_field_definitions` + `workspace_profile_field_settings` (so an admin
+ * B-toggle still hides/shows a facet). The A-only keys (talent_type, location,
+ * skills, the social-URL keys, display_name, the text `gender` chip) have no B
+ * governance and are gated by the resolver's legacy-only allow-list — identical
+ * to today.
+ *
+ * `supabase` is still passed for the resolver context (tenant-scoped override
+ * lookup). The frozen rows are the canonical (`tenant_id IS NULL`) set, so the
+ * result is byte-identical to the prior global+empty-tenant read.
+ */
 async function fetchDirectoryFilterCatalogRows(
   supabase: SupabaseClient,
   tenantId: string | null,
 ): Promise<FieldDefinitionQueryRow[]> {
-  // Prefer service-role client: `internal_only=true` fields (e.g. gender, date_of_birth) must be
-  // readable here so their filter categories appear in the public sidebar. The anon RLS policy
-  // restricts `internal_only=true` rows, but `directory_filter_visible` is an independent flag
-  // that controls sidebar visibility regardless of profile-page visibility.
-  const svc = createServiceRoleClient();
-  const client = svc ?? supabase;
-
-  const modern = await client
-    .from("field_definitions")
-    .select(DIRECTORY_FILTER_FIELD_DEF_SELECT)
-    .eq("directory_filter_visible", true)
-    .eq("active", true)
-    .is("archived_at", null);
-
-  if (modern.error && isMissingDirectoryFilterMigration(modern.error)) {
-    const legacy = await client
-      .from("field_definitions")
-      .select(FILTERABLE_FIELD_DEF_SELECT)
-      .eq("filterable", true)
-      .eq("active", true)
-      .is("archived_at", null);
-    if (legacy.error) {
-      logServerError("directory/filter-sections/field_definitions_legacy", legacy.error);
-      return [];
-    }
-    return filterFieldCatalogByTenantAndEngine(
-      client,
-      (legacy.data ?? []) as FieldDefinitionQueryRow[],
-      tenantId,
-    );
-  }
-
-  if (modern.error) {
-    logServerError("directory/filter-sections/field_definitions", modern.error);
-    return [];
-  }
-  return filterFieldCatalogByTenantAndEngine(
-    client,
-    (modern.data ?? []) as FieldDefinitionQueryRow[],
-    tenantId,
-  );
-}
-
-/**
- * Phase 6: field_definitions can be canonical (tenant_id NULL, visible to all
- * tenants) or agency-local (tenant_id = agency, visible only to that agency).
- * Public storefront sees canonical rows + the current tenant's own rows only.
- * Hub/marketing/app (tenantId null) see canonical rows only.
- */
-function filterFieldCatalogByTenant(
-  rows: FieldDefinitionQueryRow[],
-  tenantId: string | null,
-): FieldDefinitionQueryRow[] {
-  return rows.filter((r) => {
-    const rowTenant = (r as { tenant_id?: string | null }).tenant_id ?? null;
-    if (rowTenant === null) return true;
-    return tenantId !== null && rowTenant === tenantId;
-  });
-}
-
-async function filterFieldCatalogByTenantAndEngine(
-  supabase: SupabaseClient,
-  rows: FieldDefinitionQueryRow[],
-  tenantId: string | null,
-): Promise<FieldDefinitionQueryRow[]> {
-  const tenantRows = filterFieldCatalogByTenant(rows, tenantId);
-  if (tenantRows.length === 0) return [];
+  const rows = DIRECTORY_FILTER_CATALOG_REGISTRY.map(registryRowToQueryRow);
   const ctx: PublicSurfaceContext = { supabase, tenantId };
-  // Route every row through the unified resolver helper. The helper covers:
-  //   - Bridged keys: canonical effectiveFieldVisibility + show_in_directory (R1 AND)
-  //   - Gender allow-list: internal_only=true but explicitly permitted (R4)
-  //   - Non-bridged keys: synthetic C2 visibility from legacy flags
-  // Modern rows carry directory_filter_visible; legacy-fallback rows (missing
-  // the column) carry filterable — normalize before calling the helper.
+  // Route every row through the unified resolver helper. It covers:
+  //   - Bridged keys: canonical effectiveFieldVisibility ∧ show_in_directory_filter
+  //   - Gender allow-list (R4) + the legacy-only filter chips (talent_type, location)
+  //   - Tenant overrides via workspace_profile_field_settings
   const visible = await Promise.all(
-    tenantRows.map((row) =>
+    rows.map((row) =>
       isResolvedFieldVisibleInDirectoryFilter(
         {
           key: row.key,
-          directory_filter_visible:
-            row.directory_filter_visible != null
-              ? Boolean(row.directory_filter_visible)
-              : Boolean(row.filterable),
+          directory_filter_visible: row.directory_filter_visible ?? true,
           active: row.active,
           archived_at: row.archived_at,
-          tenant_id: (row as { tenant_id?: string | null }).tenant_id ?? null,
+          tenant_id: null,
         },
         ctx,
       ),
     ),
   );
-  return tenantRows.filter((_, i) => visible[i]);
+  return rows.filter((_, i) => visible[i]);
 }
 
 function serializeFilterContextKey(ctx: DirectoryFilterRequestContext): string {
@@ -686,23 +649,11 @@ async function loadDirectoryFilterSectionsUncached(
   const locSlug = ctx.locationSlug.trim() || null;
   const t = createTranslator(locale);
 
-  let fieldRows = await fetchDirectoryFilterCatalogRows(supabase, tenantId);
-
-  if (!fieldRows.length) {
-    const service = createServiceRoleClient();
-    if (service) {
-      const svcRows = await fetchDirectoryFilterCatalogRows(service, tenantId);
-      if (svcRows.length) {
-        logServerError(
-          "directory/filter-sections/catalog_anon_blocked",
-          new Error(
-            "Anon key cannot read field_definitions catalog. Using service-role fallback.",
-          ),
-        );
-        fieldRows = svcRows;
-      }
-    }
-  }
+  // T3.2b: the catalog skeleton is the frozen registry (no anon-RLS hazard);
+  // the resolver self-services its canonical reads with a service-role client.
+  // Empty here means the canonical resolver hid every facet — a real state, not
+  // an RLS block, so there is no service-role retry to do.
+  const fieldRows = await fetchDirectoryFilterCatalogRows(supabase, tenantId);
 
   if (!fieldRows.length) return { blocks: [] };
 

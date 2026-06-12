@@ -6,6 +6,15 @@ import {
 } from "@/lib/field-engine/public-surface-visibility";
 import { fetchDirectoryFacetTalentIds } from "@/lib/field-engine/read-source-directory-facets";
 import { loadDirectoryFacetConfigByLegacyKey } from "@/lib/field-engine/read-source-directory-facet-config";
+import { DIRECTORY_FILTER_CATALOG_REGISTRY } from "@/lib/field-engine/directory-field-catalog-registry";
+import { OLD_TO_NEW_KEY } from "@/lib/fields/legacy-mirror";
+
+/** True when a legacy facet key bridges to a canonical System B definition (the
+ *  only store the facet value reader can read post-T3.2b). Gender is handled by
+ *  its own column-backed path and never reaches the bridged-value reader. */
+function facetKeyHasCanonicalBridge(legacyKey: string): boolean {
+  return Boolean(OLD_TO_NEW_KEY[legacyKey]);
+}
 
 /** Canonical `talent_profiles.gender` — filtered via column, not `field_values`. */
 export const DIRECTORY_CANONICAL_GENDER_FIELD_KEY = "gender";
@@ -78,12 +87,12 @@ function parseBooleanFacetValues(values: string[]): boolean[] {
   return [...out];
 }
 
-// The facet VALUE-store read (`field_values` for A / `talent_profile_field_values`
-// for B) now lives behind the field-engine read seam:
-// `fetchDirectoryFacetTalentIds` in read-source-directory-facets.ts. The legacy
-// A-reader is lifted there verbatim as `readA`; the `directory_facets` flag (and
-// safe-fallback-to-A on a B throw) governs which store this query hits. Gender +
-// height are NOT routed through it — they read indexed `talent_profiles` columns.
+// The facet VALUE-store read lives behind the field-engine read seam:
+// `fetchDirectoryFacetTalentIds` in read-source-directory-facets.ts. T3.2
+// collapsed that surface to canonical System B (`talent_profile_field_values`)
+// ONLY — the legacy System A `field_values` reader is gone; both seam legs read
+// B. Gender + height are NOT routed through it — they read indexed
+// `talent_profiles` columns.
 
 async function fetchGenderProfileIds(
   supabase: SupabaseClient,
@@ -188,6 +197,13 @@ export async function applyDirectoryFieldFacetFilters(
       continue;
     }
 
+    // T3.2b — the facet VALUE store is canonical System B only (System A
+    // retired). A scalar facet whose key has no A→B bridge cannot be read from
+    // B, so SKIP it (leave the id constraint unchanged) rather than narrowing
+    // the result to an empty set. In practice every facet that reaches here is
+    // bridged (the catalog gates on B); this is the latent-edge guard.
+    if (!facetKeyHasCanonicalBridge(def.key)) continue;
+
     if (def.value_type === "boolean") {
       const bools = parseBooleanFacetValues(values);
       if (bools.length === 0) continue;
@@ -223,6 +239,24 @@ export async function applyDirectoryFieldFacetFilters(
   return { filteredTalentIds: ids, isEmpty: false };
 }
 
+/** The frozen filter catalog projected to the facet-def shape, keyed by A key.
+ *  T3.2b — the facet defs used to come from `field_definitions WHERE key IN
+ *  (...)`; they are now the frozen registry (captured 1:1 from prod). Liveness
+ *  is still re-gated on canonical System B by `loadDirectoryFacetDefinitionsByKey`. */
+const FACET_DEF_BY_KEY = new Map<string, DirectoryFacetDefinitionRow>(
+  DIRECTORY_FILTER_CATALOG_REGISTRY.map((r) => [
+    r.key,
+    {
+      id: r.id,
+      key: r.key,
+      value_type: r.value_type,
+      filterable: r.filterable,
+      directory_filter_visible: true,
+      config: r.config,
+    },
+  ]),
+);
+
 export async function loadDirectoryFacetDefinitionsByKey(
   supabase: SupabaseClient,
   keys: string[],
@@ -232,49 +266,25 @@ export async function loadDirectoryFacetDefinitionsByKey(
   const uniq = [...new Set(keys.map((k) => k.trim()).filter(Boolean))];
   if (uniq.length === 0) return new Map();
 
-  const modern = await supabase
-    .from("field_definitions")
-    .select("id, key, value_type, filterable, directory_filter_visible, config")
-    .in("key", uniq)
-    .eq("active", true)
-    .is("archived_at", null);
+  // Pull the requested keys from the frozen catalog registry (System A retired).
+  const facetRows = uniq
+    .map((k) => FACET_DEF_BY_KEY.get(k))
+    .filter((r): r is DirectoryFacetDefinitionRow => Boolean(r));
 
-  const legacy =
-    modern.error && `${modern.error.message} ${modern.error.code}`.includes("directory_filter_visible")
-      ? await supabase
-          .from("field_definitions")
-          .select("id, key, value_type, filterable, config")
-          .in("key", uniq)
-          .eq("active", true)
-          .is("archived_at", null)
-      : null;
-
-  const res = legacy && !legacy.error ? legacy : modern;
-  if (res.error) {
-    throw new Error(`[directory] field_definitions facet keys: ${res.error.message}`);
-  }
-
-  // Route all rows through the unified resolver helper so bridged, gender,
-  // and non-bridged keys are all gated consistently. Rows fetched above are
-  // active + non-archived (.eq("active",true).is("archived_at",null)) so we
-  // can synthesize those flags. tenant_id is not in the select; tenantId
-  // is carried in ctx for the canonical workspace-override lookup.
+  // Route all rows through the unified resolver helper so bridged, gender, and
+  // non-bridged keys are all gated consistently. The frozen rows are the
+  // canonical (tenant_id IS NULL) set; tenantId is carried in ctx for the
+  // canonical workspace-override lookup.
   const ctx: PublicSurfaceContext = { supabase, tenantId: opts.tenantId ?? null };
-  const facetRows = (res.data ?? []) as DirectoryFacetDefinitionRow[];
   const visible = await Promise.all(
     facetRows.map((row) =>
       isResolvedFieldVisibleInDirectoryFilter(
         {
           key: row.key,
-          // Modern rows have directory_filter_visible; legacy-fallback rows
-          // (missing the column) carry filterable — normalize here.
-          directory_filter_visible:
-            row.directory_filter_visible != null
-              ? row.directory_filter_visible
-              : Boolean(row.filterable),
-          active: true,      // enforced by .eq("active", true) above
-          archived_at: null, // enforced by .is("archived_at", null) above
-          tenant_id: null,   // not in select; ctx.tenantId carries the scope
+          directory_filter_visible: row.directory_filter_visible ?? true,
+          active: true,
+          archived_at: null,
+          tenant_id: null,
         },
         ctx,
       ),

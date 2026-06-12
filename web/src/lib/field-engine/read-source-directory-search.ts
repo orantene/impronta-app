@@ -41,8 +41,8 @@
 //
 // The caller (directory-search-legacy.ts) passes the accumulator Set + the
 // already-resolved searchable A def rows (id+key) + the sanitized search term.
-// The seam picks A or B via the `directory_search` flag; a B-read that throws
-// safe-falls-back to A.
+// T3.2 collapsed this surface to canonical System B only — both seam legs read
+// B; a readB throw re-runs the same B reader (System A is retired, no fallback).
 
 import "server-only";
 
@@ -110,8 +110,9 @@ export const DIRECTORY_SEARCH_SOCIAL_A_TO_B_KEY: Readonly<Record<string, string>
 // B field_keys to their def ids in ONE lookup and ILIKEs B's jsonb scalar
 // (`value->>0` — Postgres returns the scalar string for these string/number/bool
 // values; arrays/objects, never these keys, render as json text that won't match
-// an attribute-value query). It only throws on a real DB error so the seam
-// safe-falls-back to A. There are NO `field_values` / System-A reads here.
+// an attribute-value query). It only throws on a real DB error (the seam re-runs
+// this same B reader on a throw). There are NO `field_values` / System-A reads
+// here — System A is retired.
 async function readDirectorySearchIdsFromB(
   supabase: SupabaseClient,
   searchableDefs: readonly DirectorySearchFieldDef[],
