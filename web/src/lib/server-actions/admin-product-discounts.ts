@@ -27,6 +27,7 @@ import {
   archiveDiscountInStripe,
 } from "@/lib/pricing/stripe-discount-sync";
 import type { PricingDiscountRow } from "@/lib/pricing/pricing-types";
+import { pgUuidSchema } from "@/lib/site-admin/validators";
 
 const PRICING_PATH = "/platform/admin/pricing";
 
@@ -61,7 +62,7 @@ const createDiscountSchema = z
     value: z.number().positive(),
     currency: z.enum(DEFAULT_CURRENCY_OPTIONS).optional(),
     appliesTo: z
-      .union([z.literal("all"), z.array(z.string().uuid()).min(1)])
+      .union([z.literal("all"), z.array(pgUuidSchema()).min(1)])
       .default("all"),
     maxRedemptions: z.number().int().positive().optional(),
     perCustomerLimit: z.number().int().positive().default(1),
@@ -211,7 +212,7 @@ export async function archiveDiscount(
   if (!gate.ok) return { ok: false, error: gate.error };
 
   const parsed = z
-    .object({ discountId: z.string().uuid() })
+    .object({ discountId: pgUuidSchema() })
     .strict()
     .safeParse(raw);
   if (!parsed.success) {

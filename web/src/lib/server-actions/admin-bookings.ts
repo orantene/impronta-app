@@ -17,6 +17,7 @@ import { computeBookingTalentRowTotals, sumBookingHeaderFromRows } from "@/lib/b
 import { logBookingActivity, logInquiryActivity } from "@/lib/server/commercial-audit";
 import { resolveClientAccountContactForSave } from "@/lib/server/client-account-contact-validation";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { pgUuidSchema } from "@/lib/site-admin/validators";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { emitFieldChange, type FieldVisibility } from "@/lib/inquiry/audit-field-emit";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -77,7 +78,7 @@ async function recalculateBookingTotals(
 }
 
 const convertInquirySchema = z.object({
-  inquiry_id: z.string().uuid(),
+  inquiry_id: pgUuidSchema(),
   convert_mode: z.enum(["new", "attach"]),
   existing_booking_id: z.string(),
   title: z.string(),
@@ -339,7 +340,7 @@ export async function convertInquiryToBooking(formData: FormData): Promise<void>
 }
 
 const updateBookingSchema = z.object({
-  booking_id: z.string().uuid(),
+  booking_id: pgUuidSchema(),
   title: z.string().min(1, "Title is required."),
   status: bookingStatusSchema,
   owner_staff_id: z.string(),
@@ -642,7 +643,7 @@ export async function updateBooking(
 }
 
 const quickPeekBookingSchema = z.object({
-  booking_id: z.string().uuid(),
+  booking_id: pgUuidSchema(),
   status: bookingStatusSchema,
   owner_staff_id: z.string(),
 });
@@ -715,7 +716,7 @@ export async function quickUpdateBookingPeek(formData: FormData): Promise<Bookin
 }
 
 const assignBookingToMeSchema = z.object({
-  booking_id: z.string().uuid(),
+  booking_id: pgUuidSchema(),
 });
 
 export async function assignBookingToCurrentStaff(formData: FormData): Promise<void> {
@@ -775,7 +776,7 @@ export async function assignBookingToCurrentStaffForm(formData: FormData): Promi
 }
 
 const patchBookingEntityLinksSchema = z.object({
-  booking_id: z.string().uuid(),
+  booking_id: pgUuidSchema(),
   patch_mode: z.enum(["platform_client", "billing_account", "contact", "source_inquiry"]),
   client_user_id: z.string(),
   client_account_id: z.string(),
@@ -846,7 +847,7 @@ export async function patchBookingEntityLinks(
     if (raw.length === 0) {
       source_inquiry_id = null;
     } else {
-      const uuidOk = z.string().uuid().safeParse(raw);
+      const uuidOk = pgUuidSchema().safeParse(raw);
       if (!uuidOk.success) return { error: "Source inquiry must be a valid id or left blank." };
       const { data: inqExists } = await supabase
         .from("inquiries")
@@ -933,8 +934,8 @@ const num0 = z.preprocess(
 );
 
 const bookingTalentRowSchema = z.object({
-  booking_talent_id: z.string().uuid(),
-  booking_id: z.string().uuid(),
+  booking_talent_id: pgUuidSchema(),
+  booking_id: pgUuidSchema(),
   role_label: z.string(),
   pricing_unit: pricingUnitSchema,
   units: num0.pipe(z.number().nonnegative()),
@@ -1021,7 +1022,7 @@ export async function saveBookingTalentRow(
 }
 
 const newBookingTalentSchema = z.object({
-  booking_id: z.string().uuid(),
+  booking_id: pgUuidSchema(),
   talent_profile_id: z.string(),
 });
 
@@ -1106,8 +1107,8 @@ export async function addBookingTalentRow(
 }
 
 const deleteBookingTalentSchema = z.object({
-  booking_talent_id: z.string().uuid(),
-  booking_id: z.string().uuid(),
+  booking_talent_id: pgUuidSchema(),
+  booking_id: pgUuidSchema(),
 });
 
 export async function deleteBookingTalentRow(
@@ -1351,7 +1352,7 @@ export async function duplicateBooking(formData: FormData): Promise<void> {
   const { supabase, user, tenantId } = auth;
 
   const sourceId = trimmedString(formData, "source_booking_id");
-  if (!z.string().uuid().safeParse(sourceId).success) {
+  if (!pgUuidSchema().safeParse(sourceId).success) {
     redirect("/admin/bookings");
   }
 

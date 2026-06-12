@@ -19,6 +19,7 @@ import { userHasCapability } from "@/lib/access";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
+import { pgUuidSchema } from "@/lib/site-admin/validators";
 import { notifyTalentProfileApproved } from "@/lib/notifications/producers/talent-profile-approved-notify";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -99,9 +100,7 @@ const editSchema = z.object({
   agency_visibility: z
     .enum(["roster_only", "site_visible", "featured"])
     .optional(),
-  talent_type_term_id: z
-    .string()
-    .uuid()
+  talent_type_term_id: pgUuidSchema()
     .optional()
     .or(z.literal("").transform(() => undefined)),
   /** Height in centimetres. Stored as NUMERIC in talent_profiles. */

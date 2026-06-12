@@ -22,6 +22,7 @@ import {
 import type { ServerActionResult } from "@/lib/server-actions/result";
 import type { TranslationQuickSaveKind } from "@/lib/translation-center/types";
 import { scheduleRebuildAiSearchDocument } from "@/lib/ai/schedule-rebuild-ai-search-document";
+import { pgUuidSchema } from "@/lib/site-admin/validators";
 
 const QUICK_SAVE_KINDS = [
   "talent_bio_es",
@@ -37,7 +38,7 @@ const QUICK_SAVE_KINDS = [
 const loadSchema = z.object({
   adapterId: z.string().min(1),
   entityId: z.string().min(1),
-  parentEntityId: z.string().uuid().optional().nullable(),
+  parentEntityId: pgUuidSchema().optional().nullable(),
 });
 
 export type TranslationQuickEditPayload = {
@@ -118,8 +119,8 @@ export async function loadTranslationQuickEditPayload(
 
 const saveSchema = z.object({
   saveKind: z.enum(QUICK_SAVE_KINDS),
-  entityId: z.string().uuid(),
-  parentEntityId: z.string().uuid().optional().nullable(),
+  entityId: pgUuidSchema(),
+  parentEntityId: pgUuidSchema().optional().nullable(),
   fields: z.record(z.string(), z.string()),
 });
 

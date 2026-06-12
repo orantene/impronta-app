@@ -14,6 +14,7 @@ import {
   setCachedRefineSuggestions,
 } from "@/lib/ai/refine-response-cache";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { pgUuidSchema } from "@/lib/site-admin/validators";
 
 async function resolveTenantIdForRefineRequest(
   request: Request,
@@ -53,7 +54,7 @@ async function resolveTenantIdForRefineRequest(
 
 const bodySchema = z.object({
   q: z.string().optional().nullable(),
-  taxonomyTermIds: z.array(z.string().uuid()).optional(),
+  taxonomyTermIds: z.array(pgUuidSchema()).optional(),
   locale: z.enum(["en", "es"]).optional(),
   locationSlug: z.string().optional().nullable(),
   /** Top visible result fit-label slugs — boosts refine when `ai_refine_v2`. */

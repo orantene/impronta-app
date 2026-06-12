@@ -3,10 +3,11 @@ import { z } from "zod";
 import { requireStaffApi } from "@/lib/server/staff-api-route";
 import { getTenantScope } from "@/lib/saas/scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { pgUuidSchema } from "@/lib/site-admin/validators";
 
 const querySchema = z.object({
   kind: z.enum(["page", "post"]),
-  id: z.string().uuid(),
+  id: pgUuidSchema(),
 });
 
 /**

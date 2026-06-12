@@ -5,6 +5,7 @@ import {
   isStyleTokenRef,
   STYLE_TOKEN_REF_PREFIX,
 } from "./style-token-bindings";
+import { pgUuidSchema } from "@/lib/site-admin/validators";
 import type { BuilderNodeKind } from "./types";
 
 /** Kinds allowed inside composable shells (section body, container, card, CTA group, …). */
@@ -85,7 +86,7 @@ function tokenAwareStyleString(max: number) {
 }
 
 const sectionPropsSchema = z.object({
-  sectionId: z.string().uuid().nullable().optional(),
+  sectionId: pgUuidSchema().nullable().optional(),
   sectionTypeKey: z.string().min(1),
   label: z.string().nullable().optional(),
   slotKey: z.string().min(1).nullable().optional(),
@@ -580,7 +581,7 @@ const buttonPropsSchema = z.object({
 
 const imagePropsSchema = z.object({
   src: z.string().max(2048),
-  mediaId: z.string().uuid().optional(),
+  mediaId: pgUuidSchema().optional(),
   alt: z.string().max(240).optional(),
   layerLabel: layerLabelSchema,
   fieldBindings: fieldBindingPropsSchema.optional(),
@@ -690,7 +691,7 @@ const ctaGroupPropsSchema = z.object({
 // render time rather than failing tree validation.
 const sectionEmbedPropsSchema = z.object({
   sectionTypeKey: z.string().min(1).max(80),
-  sectionId: z.string().uuid().nullable().optional(),
+  sectionId: pgUuidSchema().nullable().optional(),
   dataBinding: dataBindingPropsSchema.optional(),
   layerLabel: layerLabelSchema,
   config: z.record(z.string(), z.unknown()).optional(),
@@ -720,7 +721,7 @@ const formFieldSchema = z.object({
 const formPropsSchema = z.object({
   action: z.string().max(2048).optional(),
   method: z.enum(["get", "post"]).optional(),
-  sectionId: z.string().uuid().nullable().optional(),
+  sectionId: pgUuidSchema().nullable().optional(),
   layerLabel: layerLabelSchema,
   fields: z.array(formFieldSchema).min(1).max(24),
   honeypotName: z.string().max(80).optional(),

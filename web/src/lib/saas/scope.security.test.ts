@@ -296,14 +296,20 @@ test(
   },
 );
 
-test("INVARIANT TENANT_ID_SCHEMA: header tenant-id values must validate as UUID", () => {
+test("INVARIANT TENANT_ID_SCHEMA: header tenant-id values must validate as UUID shape", () => {
   // Pin the schema shape so a later refactor that loosens it (e.g. to a
   // generic string) regresses loudly. The legitimate path always writes a
-  // UUID; nothing else should pass.
+  // Postgres UUID; nothing else should pass.
+  //
+  // DELIBERATELY shape-only (`z.string().regex(8-4-4-4-12 hex)`), NOT
+  // `z.string().uuid()`: zod 4's `.uuid()` also enforces the RFC-4122
+  // version/variant nibbles, which the seeded placeholder tenant ids
+  // (e.g. 00000000-0000-0000-0000-000000000001) do not satisfy — that
+  // over-strict check silently dropped tenant scope on every storefront.
   assert.match(
     SCOPE_SRC,
-    /const TENANT_ID_SCHEMA = z\.string\(\)\.uuid\(\)/,
-    "TENANT_ID_SCHEMA must remain z.string().uuid()",
+    /const TENANT_ID_SCHEMA = z\s*\.string\(\)\s*\.regex\(/,
+    "TENANT_ID_SCHEMA must remain a shape-only UUID regex (not z.string().uuid(), which rejects seed ids)",
   );
 });
 

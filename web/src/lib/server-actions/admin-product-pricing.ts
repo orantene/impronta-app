@@ -43,6 +43,7 @@ import {
   syncTierPriceToStripe,
   renameStripeProduct,
 } from "@/lib/pricing/stripe-sync";
+import { pgUuidSchema } from "@/lib/site-admin/validators";
 // Phase 3 discount actions live in `admin-product-discounts.ts` (kept
 // out of this file to stay under the 800-line max-lines cap).
 
@@ -66,7 +67,7 @@ async function requirePlatformAdmin(): Promise<GateOk | GateErr> {
 
 const updatePriceSchema = z
   .object({
-    priceId: z.string().uuid(),
+    priceId: pgUuidSchema(),
     unitAmount: z.number().int().min(0).max(99_999_999),
     // Phase 1 only writes USD; the schema accepts any supported code so
     // Phase 2 doesn't need a parallel action.
@@ -219,7 +220,7 @@ export async function updateTierPrice(
 
 const updateDisplaySchema = z
   .object({
-    tierId: z.string().uuid(),
+    tierId: pgUuidSchema(),
     name: z.string().min(1).max(60).optional(),
     tagline: z.string().max(160).nullable().optional(),
     isActive: z.boolean().optional(),
@@ -357,7 +358,7 @@ export async function verifyStripeAccount(): Promise<VerifyStripeAccountResult> 
 
 const addPriceSchema = z
   .object({
-    tierId: z.string().uuid(),
+    tierId: pgUuidSchema(),
     currency: z.enum(DEFAULT_CURRENCY_OPTIONS),
     interval: z.enum(["month", "year", "once", "lifetime"]),
     unitAmount: z.number().int().min(0).max(99_999_999),
@@ -496,7 +497,7 @@ export async function addTierPrice(
 
 // ─── 5. archiveTierPrice (Phase 2 — soft-delete a row) ───────────────────────
 
-const archivePriceSchema = z.object({ priceId: z.string().uuid() }).strict();
+const archivePriceSchema = z.object({ priceId: pgUuidSchema() }).strict();
 
 export type ArchiveTierPriceResult =
   | { ok: true }

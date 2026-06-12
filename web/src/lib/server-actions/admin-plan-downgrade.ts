@@ -36,6 +36,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { pgUuidSchema } from "@/lib/site-admin/validators";
 
 const PLAN_TIER = z.enum(["free", "studio", "agency", "network"]);
 
@@ -167,7 +168,7 @@ const commitSchema = z.object({
   /** Talent profile ids the owner WANTS to keep visible. Must be ≤ the
    *  target plan's talent cap. Anything not in this list will be
    *  archived. */
-  talent_keep_ids: z.array(z.string().uuid()),
+  talent_keep_ids: z.array(pgUuidSchema()),
 });
 
 export type CommitDowngradeResult =
@@ -260,7 +261,7 @@ const restoreSchema = z.object({
    *  When omitted, restore everything currently archived for this
    *  tenant — used when the agency upgrades back to a tier that
    *  comfortably fits the entire archive. */
-  event_id: z.string().uuid().optional(),
+  event_id: pgUuidSchema().optional(),
 });
 
 export async function restoreFromDowngradeArchive(

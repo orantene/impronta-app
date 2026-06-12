@@ -7,10 +7,11 @@ import { getPublicSettings } from "@/lib/public-settings";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { runAiDirectorySearch } from "@/lib/ai/run-ai-directory-search";
+import { pgUuidSchema } from "@/lib/site-admin/validators";
 
 const bodySchema = z.object({
   q: z.string().optional().nullable(),
-  taxonomyTermIds: z.array(z.string().uuid()).optional(),
+  taxonomyTermIds: z.array(pgUuidSchema()).optional(),
   locationSlug: z.string().optional().nullable(),
   sort: z.string().optional().nullable(),
   locale: z.enum(["en", "es"]).optional(),

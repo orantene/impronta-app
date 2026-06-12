@@ -7,9 +7,10 @@ import { z } from "zod";
 import { revalidateTaxonomyCaches } from "@/lib/revalidate-public";
 import { requireStaff } from "@/lib/server/action-guards";
 import type { ServerActionResult } from "@/lib/server-actions/result";
+import { pgUuidSchema } from "@/lib/site-admin/validators";
 
-const idSchema = z.object({ id: z.string().uuid() });
-const bulkSchema = z.object({ ids: z.array(z.string().uuid()).max(500) });
+const idSchema = z.object({ id: pgUuidSchema() });
+const bulkSchema = z.object({ ids: z.array(pgUuidSchema()).max(500) });
 
 export type TaxLocActionResult = ServerActionResult;
 
@@ -145,12 +146,12 @@ export async function adminBulkMarkLocationTranslated(
 }
 
 const labelEsSchema = z.object({
-  id: z.string().uuid(),
+  id: pgUuidSchema(),
   name_es: z.string(),
 });
 
 const locationEsSchema = z.object({
-  id: z.string().uuid(),
+  id: pgUuidSchema(),
   display_name_es: z.string(),
 });
 

@@ -1,7 +1,5 @@
 "use server";
 
-import { z } from "zod";
-
 import { buildPostPublicPathname, buildPublicPathname } from "@/lib/cms/paths";
 import {
   parseCmsPageSnapshot,
@@ -12,6 +10,7 @@ import {
 import type { Locale } from "@/i18n/config";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
+import { pgUuidSchema } from "@/lib/site-admin/validators";
 
 export type CmsRevisionListItem = {
   id: string;
@@ -20,7 +19,7 @@ export type CmsRevisionListItem = {
   created_by: string | null;
 };
 
-const uuid = z.string().uuid();
+const uuid = pgUuidSchema();
 
 export async function listCmsPageRevisions(
   pageId: string,

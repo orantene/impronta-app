@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireStaffApi } from "@/lib/server/staff-api-route";
 import { applyHomepageDraftBeaconAction } from "@/lib/site-admin/edit-mode/composition-actions";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { pgUuidSchema } from "@/lib/site-admin/validators";
 
 /**
  * Marathon W1-T5(c) — keepalive draft-flush endpoint.
@@ -31,7 +32,7 @@ import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
  */
 const bodySchema = z.object({
   locale: z.string().min(2).max(8),
-  pageId: z.string().uuid().nullable().optional(),
+  pageId: pgUuidSchema().nullable().optional(),
   expectedVersion: z.number().int().min(0),
   metadata: z.record(z.string(), z.unknown()),
   slots: z.record(
@@ -47,7 +48,7 @@ const bodySchema = z.object({
   // it opaquely here (same as the server action's `builderTree?: BuilderNodeTree`).
   builderTree: z.unknown().optional(),
   // WS1-D — per-tab edit-session token (uuid) + monotonic draft seq for LWW.
-  editSessionId: z.string().uuid(),
+  editSessionId: pgUuidSchema(),
   draftSeq: z.number().int().min(0),
 });
 

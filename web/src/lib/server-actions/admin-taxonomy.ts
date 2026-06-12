@@ -19,6 +19,7 @@ import type {
   ResolvedFieldGroup,
 } from "@/lib/field-engine/resolve-talent-fields";
 import { assertCanEnableTenantParentCategory } from "@/lib/taxonomy/tenant-taxonomy-plan-limits";
+import { pgUuidSchema } from "@/lib/site-admin/validators";
 
 // Keep legacy type import paths working while the field engine owns the shapes.
 // Use direct type re-export; Turbopack emitted runtime references for local re-export.
@@ -421,7 +422,7 @@ export async function getCategoryDetail(input: {
 // ─── Mutate: enable/disable a term for this tenant ───────────────────────────
 
 const setEnabledSchema = z.object({
-  taxonomy_term_id: z.string().uuid(),
+  taxonomy_term_id: pgUuidSchema(),
   is_enabled: z.boolean(),
 });
 
@@ -507,7 +508,7 @@ export async function setTaxonomyEnabled(input: {
 // ─── Mutate: bulk-update flags for one term ──────────────────────────────────
 
 const setFlagsSchema = z.object({
-  taxonomy_term_id: z.string().uuid(),
+  taxonomy_term_id: pgUuidSchema(),
   is_enabled: z.boolean().optional(),
   show_in_registration: z.boolean().optional(),
   show_in_directory: z.boolean().optional(),
@@ -597,7 +598,7 @@ export async function setTaxonomyFlags(
 // ─── Mutate: add a tenant-local sub-type ─────────────────────────────────────
 
 const addCustomSchema = z.object({
-  parent_id: z.string().uuid(),
+  parent_id: pgUuidSchema(),
   name_en: z.string().min(2).max(80),
   name_es: z.string().max(80).nullable().optional(),
   helper_text: z.string().max(500).nullable().optional(),
@@ -684,7 +685,7 @@ export async function addCustomSubType(input: {
 }
 
 const removeCustomSchema = z.object({
-  id: z.string().uuid(),
+  id: pgUuidSchema(),
 });
 
 export async function removeCustomSubType(input: {

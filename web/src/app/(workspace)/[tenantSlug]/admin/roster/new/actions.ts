@@ -10,6 +10,7 @@ import { checkRosterSeatAvailability } from "@/lib/saas/roster-seat-limit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
+import { pgUuidSchema } from "@/lib/site-admin/validators";
 
 export type CreateRosterTalentState =
   | { error: string }
@@ -59,9 +60,7 @@ const schema = z.object({
     ])
     .optional()
     .transform((v) => (v === "" ? null : (v ?? null))),
-  talent_type_term_id: z
-    .string()
-    .uuid()
+  talent_type_term_id: pgUuidSchema()
     .optional()
     .or(z.literal("").transform(() => undefined)),
   agency_visibility: z

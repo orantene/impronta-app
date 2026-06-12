@@ -23,6 +23,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { pgUuidSchema } from "@/lib/site-admin/validators";
 
 const PRICING_PATH = "/platform/admin/pricing";
 
@@ -44,7 +45,7 @@ async function requirePlatformAdmin(): Promise<
 
 const addSchema = z
   .object({
-    tierId: z.string().uuid(),
+    tierId: pgUuidSchema(),
     label: z.string().min(1).max(120),
     included: z.boolean().default(true),
     highlight: z.boolean().default(false),
@@ -121,7 +122,7 @@ export async function addFeature(raw: AddFeatureInput): Promise<AddFeatureResult
 
 const updateSchema = z
   .object({
-    featureId: z.string().uuid(),
+    featureId: pgUuidSchema(),
     label: z.string().min(1).max(120).optional(),
     included: z.boolean().optional(),
     highlight: z.boolean().optional(),
@@ -201,7 +202,7 @@ export async function archiveFeature(raw: {
   if (!gate.ok) return { ok: false, error: gate.error };
 
   const parsed = z
-    .object({ featureId: z.string().uuid() })
+    .object({ featureId: pgUuidSchema() })
     .strict()
     .safeParse(raw);
   if (!parsed.success) {
@@ -234,7 +235,7 @@ export async function archiveFeature(raw: {
 
 const reorderSchema = z
   .object({
-    featureId: z.string().uuid(),
+    featureId: pgUuidSchema(),
     direction: z.enum(["up", "down"]),
   })
   .strict();

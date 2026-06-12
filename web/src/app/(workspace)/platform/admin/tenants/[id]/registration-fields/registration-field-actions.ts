@@ -28,6 +28,7 @@ import {
   CACHE_TAG_FIELD_CATALOG,
   fieldCatalogTagForTenant,
 } from "@/lib/field-engine/cache-tags";
+import { pgUuidSchema } from "@/lib/site-admin/validators";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -105,14 +106,13 @@ async function assertTenant(sb: SupabaseClient, tenantId: string): Promise<boole
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 
-// Permissive UUID-shape check (8-4-4-4-12 hex). zod's `.uuid()` enforces the
-// RFC-4122 version/variant nibbles, which REJECTS hand-crafted seed tenant ids
-// like Impronta's `00000000-0000-0000-0000-000000000001` (version nibble 0) —
-// silently failing every registration-field write for those tenants with a
-// generic "Invalid request." Match the column shape, not the RFC variant.
-const uuidish = z
-  .string()
-  .regex(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/, "Invalid id");
+// Canonical Postgres UUID-shape check (8-4-4-4-12 hex). zod's `.uuid()` enforces
+// the RFC-4122 version/variant nibbles, which REJECTS hand-crafted seed tenant
+// ids like Impronta's `00000000-0000-0000-0000-000000000001` (version nibble 0)
+// — silently failing every registration-field write for those tenants with a
+// generic "Invalid request." `pgUuidSchema` matches the column shape, not the
+// RFC variant (shared helper from site-admin/validators).
+const uuidish = pgUuidSchema();
 
 const showSchema = z.object({
   tenantId: uuidish,
