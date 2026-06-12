@@ -7,10 +7,11 @@ import { runAiDirectorySearch } from "@/lib/ai/run-ai-directory-search";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { loadAccessProfile } from "@/lib/access-profile";
 import { isStaffRole } from "@/lib/auth-flow";
+import { pgUuidSchema } from "@/lib/site-admin/validators";
 
 const bodySchema = z.object({
   q: z.string().optional().nullable(),
-  taxonomyTermIds: z.array(z.string().uuid()).optional(),
+  taxonomyTermIds: z.array(pgUuidSchema()).optional(),
   locationSlug: z.string().optional().nullable(),
   sort: z.string().optional().nullable(),
   locale: z.enum(["en", "es"]).optional(),

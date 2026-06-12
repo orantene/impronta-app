@@ -28,6 +28,7 @@ import {
   type Locale,
 } from "@/lib/site-admin/locales";
 import { invalidateTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
+import { pgUuidSchema } from "@/lib/site-admin/validators";
 
 // ─── Branding ────────────────────────────────────────────────────────────────
 //
@@ -458,7 +459,7 @@ const watermarkOverridePresetSchema = z.object({
 }).optional();
 
 const overrideSchema = z.object({
-  mediaAssetId: z.string().uuid(),
+  mediaAssetId: pgUuidSchema(),
   override: watermarkOverridePresetSchema,
 }).strict();
 

@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { requireTalentSelf } from "@/lib/server/talent-self-guard";
+import { pgUuidSchema } from "@/lib/site-admin/validators";
 import {
   defaultTalentIntegrationControls,
   getTalentIntegrationCatalogList,
@@ -93,13 +94,13 @@ const addMediaItemSchema = z.object({
 });
 
 const updateMediaItemSchema = z.object({
-  itemId: z.string().uuid(),
+  itemId: pgUuidSchema(),
   title: z.string().trim().max(160).optional(),
   publicProfileEnabled: z.boolean().optional(),
 });
 
 const removeMediaItemSchema = z.object({
-  itemId: z.string().uuid(),
+  itemId: pgUuidSchema(),
 });
 
 export type TalentFeaturedMediaItem = {

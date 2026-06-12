@@ -16,14 +16,12 @@ import {
   visibilityToOverrideColumns,
 } from "@/lib/field-engine/effective-visibility";
 import { logEngineAudit } from "./engine-audit";
-import {
-  CACHE_TAG_FIELD_CATALOG,
-  fieldCatalogTagForTenant,
-} from "@/lib/field-engine/cache-tags";
+import { CACHE_TAG_FIELD_CATALOG, fieldCatalogTagForTenant } from "@/lib/field-engine/cache-tags";
 import { filterTenantCatalogFieldsByEnabledTaxonomy } from "@/lib/field-engine/tenant-catalog-scope";
 import { sanitizeWorkspaceFieldCatalogOverride } from "@/lib/field-engine/workspace-field-settings-safety";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { fetchAllTaxonomyTerms } from "@/lib/supabase/paged";
+import { pgUuidSchema } from "@/lib/site-admin/validators";
 
 // ── Phase 7a — audit helpers ────────────────────────────────────────────
 // Tiny shaping helpers so the before/after snapshots stored in
@@ -83,10 +81,10 @@ function bustFieldCatalog(tenantId: string): void {
 }
 
 const visibilitySchema = z.object({
-  field_definition_id: z.string().uuid(),
+  field_definition_id: pgUuidSchema(),
   visibility: z.enum(["public", "admin", "hidden"]),
 });
-const fieldIdSchema = z.object({ field_definition_id: z.string().uuid() });
+const fieldIdSchema = z.object({ field_definition_id: pgUuidSchema() });
 
 type FieldPrivacyGroup = { id: string; slug: string; name: string; sort_order: number };
 type FieldPrivacyEntry = {
@@ -481,7 +479,7 @@ type FieldCatalogGroupRow = {
 };
 
 const catalogFieldSchema = z.object({
-  field_definition_id: z.string().uuid(),
+  field_definition_id: pgUuidSchema(),
   enabled: z.boolean().nullable().optional(),
   required: z.boolean().nullable().optional(),
   custom_label: z.string().max(120).nullable().optional(),
@@ -489,7 +487,7 @@ const catalogFieldSchema = z.object({
   display_order: z.number().int().nullable().optional(),
 });
 const catalogGroupSchema = z.object({
-  field_group_id: z.string().uuid(),
+  field_group_id: pgUuidSchema(),
   is_enabled: z.boolean().optional(),
   custom_label: z.string().max(120).nullable().optional(),
   display_order: z.number().int().nullable().optional(),

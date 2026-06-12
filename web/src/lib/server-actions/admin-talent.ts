@@ -18,6 +18,7 @@ import { assertPersonalProfileEditable } from "@/lib/talent/personal-profile-loc
 import { checkRosterSeatAvailability } from "@/lib/saas/roster-seat-limit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { resolveExclusivityForRosterAdd } from "@/lib/agency/exclusivity-resolver";
+import { pgUuidSchema } from "@/lib/site-admin/validators";
 import {
   readCanonicalLocationSelection,
   resolveCanonicalLocationSelection,
@@ -646,9 +647,7 @@ const createTalentSchema = z.object({
   last_name: trimmedField,
   short_bio: trimmedField,
   phone: trimmedField,
-  talent_type_term_id: z
-    .string()
-    .uuid()
+  talent_type_term_id: pgUuidSchema()
     .optional()
     .or(z.literal("").transform(() => undefined)),
   agency_visibility: z

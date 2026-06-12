@@ -16,6 +16,7 @@ import { BOOKING_AUDIT, INQUIRY_AUDIT } from "@/lib/commercial-audit-events";
 import { logBookingActivity, logInquiryActivity } from "@/lib/server/commercial-audit";
 import { resolveClientAccountContactForSave } from "@/lib/server/client-account-contact-validation";
 import { CLIENT_ERROR, isPostgrestMissingColumnError, logServerError } from "@/lib/server/safe-error";
+import { pgUuidSchema } from "@/lib/site-admin/validators";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { sendMessage as engineSendMessage } from "@/lib/inquiry/inquiry-engine-messages";
 import { submitInquiry } from "@/lib/inquiry/inquiry-engine";
@@ -1678,7 +1679,7 @@ export async function assignInquiryToCurrentStaffForm(formData: FormData): Promi
 }
 
 const quickInquiryStatusPeekSchema = z.object({
-  inquiry_id: z.string().uuid(),
+  inquiry_id: pgUuidSchema(),
   status: inquiryStatusSchema,
 });
 
@@ -1792,7 +1793,7 @@ export async function duplicateInquiry(formData: FormData): Promise<void> {
   const { supabase, user, tenantId } = auth;
 
   const sourceId = trimmedString(formData, "source_inquiry_id");
-  if (!z.string().uuid().safeParse(sourceId).success) {
+  if (!pgUuidSchema().safeParse(sourceId).success) {
     redirect("/admin/inquiries");
   }
 

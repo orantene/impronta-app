@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { logAnalyticsEventServer } from "@/lib/analytics/server-log";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
+import { pgUuidSchema } from "@/lib/site-admin/validators";
 
 const eventNames = new Set<string>(Object.values(PRODUCT_ANALYTICS_EVENTS));
 
@@ -9,7 +10,7 @@ const bodySchema = z.object({
   name: z.string().min(1).max(128),
   payload: z.record(z.string(), z.unknown()).optional(),
   session_id: z.string().max(256).nullable().optional(),
-  talent_id: z.string().uuid().nullable().optional(),
+  talent_id: pgUuidSchema().nullable().optional(),
   path: z.string().max(2048).nullable().optional(),
   locale: z.string().max(16).nullable().optional(),
 });

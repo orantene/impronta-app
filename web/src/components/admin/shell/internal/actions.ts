@@ -25,6 +25,7 @@ import { checkRosterSeatAvailability } from "@/lib/saas/roster-seat-limit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
+import { pgUuidSchema } from "@/lib/site-admin/validators";
 import {
   assignTaxonomyTermToProfile,
   resolveTenantTalentTypeTermId,
@@ -303,7 +304,7 @@ export async function createTalentDraft(
 
 const patchDraftSchema = z.object({
   tenantSlug:           z.string().min(1),
-  talentProfileId:      z.string().uuid(),
+  talentProfileId:      pgUuidSchema(),
   firstName:            z.string().trim().optional(),
   lastName:             z.string().trim().optional(),
   displayName:          z.string().trim().optional(),
