@@ -478,6 +478,22 @@ function renderThreeWay(cohort, rows) {
 // Run — STRICTLY SEQUENTIAL. Per cohort: 1 agreement query + 1 three-way query.
 // ---------------------------------------------------------------------------
 async function main() {
+  // ── System A DROPPED (T3.3, 2026-06) ───────────────────────────────────────
+  // This harness compares legacy System A (`field_definitions` + `field_values`)
+  // against canonical System B. Both A tables were DROPPED once every reader was
+  // repointed to B and B was proven a superset. There is nothing left to compare
+  // — the SELECTs below would hit `relation "public.field_values" does not exist`.
+  // The historical snapshots survive (during the soak window) as
+  // `field_{definitions,values}_archived_20260611` if a one-off audit is needed.
+  console.error(
+    "[parity] System A was dropped in T3.3 — `field_definitions` + `field_values`\n" +
+      "         no longer exist, so the A-vs-B parity proof is obsolete. The\n" +
+      "         archive tables field_{definitions,values}_archived_20260611 hold the\n" +
+      "         last snapshot during the soak. Refusing to run against a dropped table.",
+  );
+  process.exit(2);
+
+  // eslint-disable-next-line no-unreachable
   const out = { ref: REF, generatedAt: new Date().toISOString(), cohorts: {} };
   console.log(`[parity] project ref ${REF} — READ-ONLY — ${KEY_PAIRS.length} key pairs`);
   console.log(`[parity] cohorts: ${COHORTS.join(", ")} | samples: ${SAMPLES}`);
