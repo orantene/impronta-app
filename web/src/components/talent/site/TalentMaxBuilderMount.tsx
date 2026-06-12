@@ -27,6 +27,7 @@ import { useMemo } from "react";
 import { BuilderEditorMount } from "@/lib/site-admin/builder-core/mount/BuilderEditorMount";
 import { buildTalentPageBuilderConfig } from "@/lib/site-admin/builder-core/config";
 import { createBoundTalentPageAdapter } from "@/lib/site-admin/builder-core/adapters/talent-page-adapter";
+import { CHROME } from "@/components/edit-chrome/kit/tokens";
 import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
 
 export interface TalentMaxBuilderMountProps {
@@ -91,8 +92,8 @@ export function TalentMaxBuilderMount({
             alignItems: "center",
             gap: 10,
             padding: "8px 16px",
-            background: "#16161A",
-            borderBottom: "1px solid rgba(255,255,255,0.10)",
+            background: CHROME.paper,
+            borderBottom: `1px solid ${CHROME.line}`,
           }}
         >
           <button
@@ -104,9 +105,9 @@ export function TalentMaxBuilderMount({
               gap: 6,
               padding: "5px 12px",
               borderRadius: 8,
-              border: "1px solid rgba(255,255,255,0.14)",
-              background: "rgba(255,255,255,0.04)",
-              color: "#F5F2EB",
+              border: `1px solid ${CHROME.controlBorder}`,
+              background: CHROME.controlFill,
+              color: CHROME.text,
               fontSize: 12,
               fontWeight: 600,
               cursor: "pointer",
@@ -122,8 +123,8 @@ export function TalentMaxBuilderMount({
                 gap: 7,
                 padding: "3px 10px",
                 borderRadius: 999,
-                background: "rgba(93,211,160,0.12)",
-                color: "#5DD3A0",
+                background: CHROME.greenBg,
+                color: CHROME.green,
                 fontSize: 11.5,
                 fontWeight: 600,
               }}
@@ -134,7 +135,7 @@ export function TalentMaxBuilderMount({
                   width: 6,
                   height: 6,
                   borderRadius: "50%",
-                  background: "#5DD3A0",
+                  background: CHROME.green,
                 }}
               />
               {talentDisplayName}
