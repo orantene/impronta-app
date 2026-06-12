@@ -8,13 +8,9 @@ import {
   v11TalentTypeGridPreset,
 } from "@/lib/site-admin/sections/talent_type_grid/presets";
 
-import type { BuilderNode, BuilderNodeTree, BuilderNodeKind } from "./types";
+import type { BuilderNode, BuilderNodeTree } from "./types";
 import type { SectionEmbedSubjectKind } from "./section-embed-preview-subject";
-
-/** Local id minting — avoids importing `create` (circular via page-designs → impronta). */
-function makeNodeId(kind: BuilderNodeKind): string {
-  return `builder-${kind}-${crypto.randomUUID()}`;
-}
+import { makeId as makeNodeId } from "./make-id";
 
 /**
  * WS4 §D — preview-subject binding for this connected resolver. The embedded

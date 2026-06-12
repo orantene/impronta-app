@@ -4,10 +4,11 @@ import type {
   BuilderNodeStyle,
 } from "./types";
 import { createBuilderSectionEmbed } from "./section-embed-presets";
+import { makeId } from "./make-id";
 
-export function makeId(kind: BuilderNodeKind): string {
-  return `builder-${kind}-${crypto.randomUUID()}`;
-}
+// Re-exported so existing `import { makeId } from "./create"` consumers keep
+// working; the canonical home is now the dependency-light `./make-id`.
+export { makeId };
 
 const SAMPLE_IMAGES = [
   {
