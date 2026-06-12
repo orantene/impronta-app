@@ -241,6 +241,8 @@ export function PublishDrawer() {
     savePageMetadata,
     saveDraft,
     flushBuilderTreeSave,
+    surfaceKind,
+    publishViaSurfaceAdapter,
   } = useEditContext();
   // WS2 — tree VALUE from the micro-store (builder-tree-bridge).
   const builderTree = useBuilderTree();
@@ -285,7 +287,11 @@ export function PublishDrawer() {
     if (publishOpen) {
       setState({ kind: "idle" });
       setShowLegacy(false);
-      setPreflightLoading(true);
+      // Only the homepage surface runs the CMS preflight; for talent/workspace
+      // it's disabled, and since PublishPreflight (a child) resolves its status
+      // BEFORE this parent effect, optimistically setting `true` here would
+      // leave the publish button stuck "Running publish checks…".
+      setPreflightLoading(surfaceKind === "homepage");
       setPreflightBlockingErrors(0);
       setPublishedRows(null);
       setLastPublishedAt(null);
@@ -295,7 +301,7 @@ export function PublishDrawer() {
       setBuilderDiffIds(null);
       setBuilderDiffLoading(false);
     }
-  }, [publishOpen, pageMetadata]);
+  }, [publishOpen, pageMetadata, surfaceKind]);
 
   useEffect(() => {
     let cancelled = false;
@@ -453,20 +459,29 @@ export function PublishDrawer() {
     // safeAction wrapper: if the dev server restarts mid-publish or the
     // network drops, we get a graceful "Network error" toast instead of
     // a stuck "Publishing…" pending state and a leaked Next.js overlay.
+    // Surface-aware publish. Homepage routes through its dedicated CMS action;
+    // talent_page / workspace_page / platform_lab publish through their surface
+    // adapter (talent_pages / workspace_pages) — otherwise the homepage action
+    // 401s for a non-staff talent and the page can never go live.
     const res = await safeAction(
       () =>
-        publishHomepageFromEditModeAction({
-          locale,
-          // Pass pageId only for non-homepage pages (identified by non-null
-          // slug). Homepage always has a real cms_pages UUID but must route
-          // through the homepage publish path — passing null signals that
-          // path to the action.
-          pageId: pageSlug ? pageId : null,
-          expectedVersion: casVersion,
-          styleClasses,
-        }),
+        surfaceKind === "homepage"
+          ? publishHomepageFromEditModeAction({
+              locale,
+              // Pass pageId only for non-homepage pages (identified by non-null
+              // slug). Homepage always has a real cms_pages UUID but must route
+              // through the homepage publish path — passing null signals that
+              // path to the action.
+              pageId: pageSlug ? pageId : null,
+              expectedVersion: casVersion,
+              styleClasses,
+            })
+          : publishViaSurfaceAdapter({
+              expectedVersion: casVersion,
+              styleClasses,
+            }),
       {
-        name: "publishHomepageFromEditModeAction",
+        name: "publishPage",
         fallback: {
           ok: false as const,
           error:
@@ -654,7 +669,12 @@ export function PublishDrawer() {
             {/* Phase 10 — preflight (heading + alt-text + contrast). */}
             <div className="mb-3">
               <PublishPreflight
-                enabled={publishOpen}
+                // The CMS preflight (requireStaff + cms_pages) only applies to
+                // the homepage surface; talent_page / workspace_page publish
+                // through their own adapter, so skip it there (it would 401 for
+                // a non-staff talent and falsely block publish). Mobile-health
+                // advisories below still run for all surfaces.
+                enabled={publishOpen && surfaceKind === "homepage"}
                 refreshKey={publishOpen ? 1 : 0}
                 locale={locale}
                 pageId={pageSlug ? pageId : undefined}

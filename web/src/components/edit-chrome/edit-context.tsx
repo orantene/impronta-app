@@ -56,6 +56,8 @@ import {
   type BuilderGalleryPolicy,
 } from "@/lib/site-admin/builder-core/config";
 import type { BuilderSurfaceKind } from "@/lib/site-admin/builder-core/surface-kind";
+import type { BuilderSurfacePublishInput } from "@/lib/site-admin/builder-core/surface-adapter";
+import type { PublishResult } from "@/lib/site-admin/edit-mode/composition-actions";
 import { homepageAdapter } from "@/lib/site-admin/builder-core/adapters/homepage-adapter";
 import {
   restoreHomepageRevisionAction,
@@ -569,6 +571,16 @@ export interface EditContextValue {
   liveSitePublishedAt: string | null;
   /** CAS page row version — read from a ref for saves immediately after async gaps. */
   getCompositionCasVersion: () => number | null;
+  /**
+   * Publish the current page through the active SURFACE adapter (talent_page /
+   * workspace_page / platform_lab). The homepage surface publishes via its own
+   * dedicated action in the publish drawer; this routes everything else so a
+   * talent/workspace freeform page can actually go live (the drawer otherwise
+   * hard-routes to the homepage action, which 401s for non-staff talents).
+   */
+  publishViaSurfaceAdapter: (
+    input: BuilderSurfacePublishInput,
+  ) => Promise<PublishResult>;
   pageMetadata: PageMetadata | null;
   slots: Record<string, CompositionSectionRef[]>;
   // WS2 — `builderTree` is no longer on the context value; read it via the
@@ -7570,6 +7582,13 @@ export function EditProvider({
     EditContextValue["getCompositionCasVersion"]
   >(() => pageVersionRef.current, []);
 
+  const publishViaSurfaceAdapter = useCallback<
+    EditContextValue["publishViaSurfaceAdapter"]
+  >(
+    (input) => surfaceAdapter.publish({ locale, pageSlug, pageId }, input),
+    [surfaceAdapter, locale, pageSlug, pageId],
+  );
+
   const value = useMemo<EditContextValue>(
     () => ({
       tenantId,
@@ -7581,6 +7600,7 @@ export function EditProvider({
       canEditSiteShell,
       surfaceKind: resolvedSurfaceConfig.surface.kind,
       canEditTheme,
+      publishViaSurfaceAdapter,
       advancedElementLibraryEnabled,
       canInsertRawHtmlElements,
       galleryPolicy: resolvedSurfaceConfig.galleryPolicy,
@@ -7887,6 +7907,7 @@ export function EditProvider({
       pageVersion,
       liveSitePublishedAt,
       getCompositionCasVersion,
+      publishViaSurfaceAdapter,
       pageMetadata,
       slots,
       // WS2 — `builderTree` dropped from the value-memo deps (read via
