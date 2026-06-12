@@ -65,6 +65,9 @@ import { Segmented, type SegmentedOption } from "../kit/segmented";
 import { ShadowBuilder, GradientBuilder, BackgroundLayersEditor } from "./css-value-builders";
 import { StylePresetsBar } from "./style-presets-bar";
 import { LinkedStyleClassesBar } from "./linked-style-classes-bar";
+import { NodeThemeInheritancePanel } from "./node-theme-inheritance-panel";
+import { buildFieldInheritRows } from "./inherit-override-fields";
+import { useComponentDefaultsPreview } from "../component-defaults-bridge";
 import { InstanceOverridesPanel } from "./instance-overrides-panel";
 import { InstanceVariantPicker } from "./instance-variant-picker";
 import { SectionStyleMockupPanel } from "./section-style-mockup-panel";
@@ -2243,6 +2246,11 @@ export function StylePanel({
   const builderTree = useBuilderTree();
   const canUndo = useCanUndo();
   const canRedo = useCanRedo();
+  // #3b — resolved component-default map for the inherit/override inspector.
+  // Prefers the operator's working draft (published to the bridge by the Theme
+  // drawer's Components tab) so the panel matches the live canvas preview; null
+  // when no draft is active (the panel then shows the global-token source).
+  const draftComponentDefaults = useComponentDefaultsPreview();
   const [nodeStyleClipboard, setNodeStyleClipboard] =
     useState<NodeStyleClipboard | null>(null);
   const [standaloneStyleClipboard, setStandaloneStyleClipboard] =
@@ -2498,6 +2506,25 @@ export function StylePanel({
   );
   const selectedStandaloneFullStyle =
     selectedStandaloneStyleNode?.props.style;
+  // #3b — per-field inherit/override rows for the selected node. Resolved off
+  // the node's BASE style (not a responsive layer — inherit/override is a
+  // base-level concept) against the draft component-default map. Empty for kinds
+  // with no themable surface, so the panel self-hides.
+  const nodeInheritRows = useMemo(
+    () =>
+      selectedStandaloneStyleNode
+        ? buildFieldInheritRows(
+            selectedStandaloneStyleNode.kind,
+            selectedStandaloneFullStyle,
+            draftComponentDefaults,
+          )
+        : [],
+    [
+      selectedStandaloneStyleNode,
+      selectedStandaloneFullStyle,
+      draftComponentDefaults,
+    ],
+  );
   // Job #33 — does the Typography / Spacing group carry a tablet/mobile override
   // (any responsive or container-query bucket)? Drives the per-group "Responsive"
   // dot so the difference is visible even while editing the desktop base.
@@ -5819,6 +5846,22 @@ export function StylePanel({
               pageId={pageId}
               currentStyle={selectedStandaloneFullStyle ?? undefined}
               onSetStyle={(style) => setSelectedStandaloneStyleObject(style)}
+            />
+
+            {/* #3b — per-field Inherit / Override (Figma/Webflow-style). Writes
+                route through patchSelectedBaseStyle, the SAME base-style chain
+                the color/size rows use — inherit = clear the literal (cascade
+                default shows), override = seed the resolved value to edit. */}
+            <NodeThemeInheritancePanel
+              rows={nodeInheritRows}
+              onInherit={(field) =>
+                patchSelectedBaseStyle({ [field]: undefined })
+              }
+              onOverride={(field, seedValue) =>
+                patchSelectedBaseStyle({
+                  [field]: seedValue || undefined,
+                })
+              }
             />
 
             {selectedStandaloneStylePresets.length > 0 ? (
