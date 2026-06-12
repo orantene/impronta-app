@@ -1540,7 +1540,7 @@
       "count": 1
     },
     "ratchet/no-untenanted-from": {
-      "count": 25
+      "count": 18
     }
   },
   "src/lib/server-actions/admin-talent-roster.ts": {
@@ -1706,7 +1706,7 @@
       "count": 1
     },
     "ratchet/no-untenanted-from": {
-      "count": 27
+      "count": 19
     }
   },
   "src/lib/server-actions/talent-self-provision.ts": {

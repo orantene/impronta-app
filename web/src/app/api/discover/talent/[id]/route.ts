@@ -17,6 +17,7 @@ import { NextResponse } from "next/server";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { readScalarFieldValuesFromCatalog } from "@/lib/talent/scalar-field-values-catalog";
 
 export const dynamic = "force-dynamic";
 
@@ -71,7 +72,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       id, display_name, first_name, last_name, profile_code,
       home_country_text, home_city_text,
       workflow_status, is_discoverable,
-      short_bio, bio_en, response_time,
+      short_bio, bio_en,
       talent_profile_taxonomy (
         relationship_type,
         taxonomy_terms ( name_en, slug )
@@ -107,7 +108,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     is_discoverable: boolean | null;
     short_bio: string | null;
     bio_en: string | null;
-    response_time: string | null;
     talent_profile_taxonomy: Array<{
       relationship_type: string | null;
       taxonomy_terms: { name_en: string | null; slug: string | null } | null;
@@ -152,7 +152,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const bio = (row.short_bio?.trim() || row.bio_en?.trim()) || null;
 
-  const responseTimeRaw = row.response_time;
+  // T4 collapse-dedicated-columns: response_time is sourced from System B
+  // (`talent_profile_field_values`) — its dedicated talent_profiles column was
+  // dropped. Read-only; errors fall back to null inside the helper.
+  const scalarValues = await readScalarFieldValuesFromCatalog(admin, row.id);
+  const responseTimeRaw = scalarValues.response_time ?? null;
   const responseTime: DiscoverTalentDetail["responseTime"] =
     responseTimeRaw === "1h" || responseTimeRaw === "4h"
       || responseTimeRaw === "24h" || responseTimeRaw === "48h"

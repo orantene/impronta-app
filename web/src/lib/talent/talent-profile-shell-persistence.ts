@@ -57,10 +57,35 @@ function nullifyEmpty(v: string | undefined): string | null | undefined {
   return t === "" ? null : t;
 }
 
+/**
+ * Tier-A/Tier-C identity field values that were migrated OFF dedicated
+ * `talent_profiles` columns into System B (`talent_profile_field_values`) and
+ * whose columns were DROPPED in T4 (collapse-dedicated-columns). The builder no
+ * longer writes these to the `talent_profiles` patch (the columns are gone) — it
+ * surfaces them here so the caller can mirror them into the catalog value table
+ * via the scalar/identity sync helpers. `undefined` = untouched (the caller's
+ * per-key contract leaves it alone). `gender` is INTENTIONALLY NOT here — its
+ * column is a deliberate carve-out (directory facet queries it directly), so it
+ * stays in `patch` and is written to the column as before.
+ */
+export type MigratedIdentityFieldValues = {
+  /** Tier C — System B only (column dropped). */
+  pronouns?: string | null;
+  pronouns_custom?: string | null;
+  /** Tier A — System B only (column dropped). */
+  age_display_mode?: "exact" | "range" | "hidden";
+  response_time?: "1h" | "4h" | "24h" | "48h" | null;
+};
+
 export function buildTalentIdentityProfilePatch(
   input: unknown,
 ):
-  | { ok: true; talent_profile_id: string; patch: Record<string, unknown> }
+  | {
+      ok: true;
+      talent_profile_id: string;
+      patch: Record<string, unknown>;
+      migratedFieldValues: MigratedIdentityFieldValues;
+    }
   | { ok: false; error: string } {
   const parsed = updateTalentIdentitySchema.safeParse(input);
   if (!parsed.success) {
@@ -77,21 +102,27 @@ export function buildTalentIdentityProfilePatch(
   if (lastName !== undefined) patch.last_name = lastName;
   const legalName = nullifyEmpty(v.legal_name);
   if (legalName !== undefined) patch.legal_name = legalName;
-  if (v.pronouns !== undefined) patch.pronouns = v.pronouns;
+  // pronouns / pronouns_custom — Tier-C migrated fields. The dedicated columns
+  // were dropped (T4); these now live ONLY in System B. They are surfaced in
+  // `migratedFieldValues` for the caller to mirror, NOT written to `patch`.
+  const migratedFieldValues: MigratedIdentityFieldValues = {};
+  if (v.pronouns !== undefined) migratedFieldValues.pronouns = v.pronouns;
   const pronounsCustom = nullifyEmpty(v.pronouns_custom);
-  if (pronounsCustom !== undefined) patch.pronouns_custom = pronounsCustom;
+  if (pronounsCustom !== undefined) migratedFieldValues.pronouns_custom = pronounsCustom;
+  // gender — deliberate carve-out, stays on the column.
   const gender = nullifyEmpty(v.gender);
   if (gender !== undefined) patch.gender = gender;
   if (v.date_of_birth !== undefined) {
     const t = v.date_of_birth.trim();
     patch.date_of_birth = t === "" ? null : t;
   }
-  if (v.age_display_mode !== undefined) patch.age_display_mode = v.age_display_mode;
+  // age_display_mode / response_time — Tier-A migrated scalars, System B only.
+  if (v.age_display_mode !== undefined) migratedFieldValues.age_display_mode = v.age_display_mode;
   const nationality = nullifyEmpty(v.nationality);
   if (nationality !== undefined) patch.nationality = nationality;
   const homeCountry = nullifyEmpty(v.home_country);
   if (homeCountry !== undefined) patch.home_country_text = homeCountry;
-  if (v.response_time !== undefined) patch.response_time = v.response_time;
+  if (v.response_time !== undefined) migratedFieldValues.response_time = v.response_time;
   if (v.is_discoverable !== undefined) patch.is_discoverable = v.is_discoverable;
   if (v.field_visibility !== undefined) patch.field_visibility = v.field_visibility;
 
@@ -106,7 +137,7 @@ export function buildTalentIdentityProfilePatch(
     patch.phone = combined === "" ? null : combined;
   }
 
-  return { ok: true, talent_profile_id: v.talent_profile_id, patch };
+  return { ok: true, talent_profile_id: v.talent_profile_id, patch, migratedFieldValues };
 }
 
 // ─── Languages → RPC rows (mirrors admin-talent-languages.ts) ────────────────
