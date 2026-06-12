@@ -96,7 +96,11 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           set +e
-          tsc_output=$(npx tsc --noEmit 2>&1)
+          # Bump heap: the full-project tsc exceeds the default ~2GB and was
+          # OOM-exiting (134) mid-compile, making the ratchet a false-green (it
+          # counted 0 errors before the heap died). 8GB lets tsc finish so the
+          # error count is real.
+          tsc_output=$(NODE_OPTIONS="--max-old-space-size=8192" npx tsc --noEmit 2>&1)
           tsc_exit=$?
           set -e
           # Match the primary error line; TS sometimes prints multi-line
