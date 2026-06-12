@@ -55,12 +55,60 @@ test("coerceBuilderTree: array passes through, non-array → []", () => {
   assert.deepEqual(coerceBuilderTree("[]"), []);
 });
 
-test("coerceTheme: plain object passes, array/null/string → {}", () => {
-  const theme = { x: 1 };
-  assert.equal(coerceTheme(theme), theme);
+test("coerceTheme: style-class entries pass, array/null/string → {}", () => {
+  // coerceTheme now returns the style-class registry portion (every top-level
+  // key EXCEPT the reserved `__design` slice). Plain content keys pass through.
+  assert.deepEqual(coerceTheme({ x: 1 }), { x: 1 });
   assert.deepEqual(coerceTheme(null), {});
   assert.deepEqual(coerceTheme([1, 2]), {});
   assert.deepEqual(coerceTheme("{}"), {});
+});
+
+test("coerceTheme: strips the reserved __design slice from style classes", () => {
+  const theme = {
+    abc: { display: "flex" },
+    __design: { tokens: { "color.primary": "#f00" }, version: 2 },
+  };
+  // __design is the theme slice, NOT a style class — it must not leak into the
+  // style-class registry the renderer consumes.
+  assert.deepEqual(coerceTheme(theme), { abc: { display: "flex" } });
+});
+
+test("resolvePublishedTalentPage: extracts LIVE design tokens + component styles", async () => {
+  const row = publishedRow({
+    theme: {
+      abc: { display: "flex" },
+      __design: {
+        tokens: { "color.primary": "#0a0" },
+        tokensDraft: { "color.primary": "#f00" },
+        componentStyles: { heading: { textColor: "#0a0" } },
+        componentStylesDraft: {},
+        presetSlug: "editorial-noir",
+        publishedAt: "2026-06-12T00:00:00.000Z",
+        version: 3,
+      },
+    },
+  });
+  const out = await resolvePublishedTalentPage(
+    makeActions({ talent: TALENT, page: row }),
+    { profileCode: "ARIA", slug: "home" },
+  );
+  assert.ok(out);
+  // LIVE tokens only (never the draft).
+  assert.deepEqual(out.designTokens, { "color.primary": "#0a0" });
+  assert.deepEqual(out.componentStyleDefaults, { heading: { textColor: "#0a0" } });
+  // Style classes still exclude __design.
+  assert.deepEqual(out.theme, { abc: { display: "flex" } });
+});
+
+test("resolvePublishedTalentPage: no __design → empty tokens, page still renders", async () => {
+  const out = await resolvePublishedTalentPage(
+    makeActions({ talent: TALENT, page: publishedRow() }),
+    { profileCode: "ARIA", slug: "home" },
+  );
+  assert.ok(out);
+  assert.deepEqual(out.designTokens, {});
+  assert.deepEqual(out.componentStyleDefaults, {});
 });
 
 test("missing talent → null", async () => {

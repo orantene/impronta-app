@@ -28,10 +28,16 @@
 
 import type { ReactNode } from "react";
 
+import type { CSSProperties } from "react";
+
 import { ClientBuilderCanvas } from "./client-builder-canvas";
 import { BuilderProfilerBoundary } from "./builder-profiler-boundary";
 import { InEditorEmptyCanvas } from "./in-editor-empty-canvas";
 import { useBuilderTree } from "./builder-tree-bridge";
+import {
+  designTokensToCssVars,
+  designTokensToDataAttrs,
+} from "@/lib/site-admin/tokens/resolve";
 import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
 
 export interface InEditorCanvasRegionProps {
@@ -55,8 +61,32 @@ export function InEditorCanvasRegion({
   // canvas still mounts below so the first insert paints in place.
   const isEmpty = tree.length === 0;
 
+  // Surface-scoped LIVE design tokens (talent_page → the talent's published
+  // theme) painted on the canvas root at first paint. Same projection as the
+  // public render + storefront. The drawer's preview bridge overlays the DRAFT
+  // on top of these vars via ThemePreviewProjector → the canvas recolours live.
+  const designTokens = canvasRenderData?.designTokens;
+  const hasTokens = !!designTokens && Object.keys(designTokens).length > 0;
+  const tokenCssVars = hasTokens ? designTokensToCssVars(designTokens) : {};
+  const headingFamily = designTokens?.["typography.heading-font-family"]?.trim();
+  const bodyFamily = designTokens?.["typography.body-font-family"]?.trim();
+  if (headingFamily) tokenCssVars["--site-heading-font"] = headingFamily;
+  if (bodyFamily) tokenCssVars["--site-body-font"] = bodyFamily;
+  const tokenDataAttrs = hasTokens ? designTokensToDataAttrs(designTokens) : {};
+
   return (
-    <div data-in-editor-canvas-region>
+    // `data-theme-canvas-root` makes this the projection target for the Theme
+    // drawer's live preview (ThemePreviewProjector → CSS-var channel). The
+    // homepage paints into its storefront body (which carries the same marker);
+    // the non-homepage surfaces (workspace_page / talent_page / platform_lab)
+    // paint here, so the marker must live on this region too — otherwise a token
+    // edit has no canvas-root to recolour and GAP A silently no-ops.
+    <div
+      data-in-editor-canvas-region
+      data-theme-canvas-root=""
+      {...tokenDataAttrs}
+      style={tokenCssVars as CSSProperties}
+    >
       {isEmpty ? <InEditorEmptyCanvas /> : null}
       <BuilderProfilerBoundary id="builder-canvas">
         <ClientBuilderCanvas

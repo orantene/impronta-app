@@ -21,6 +21,11 @@
 
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 import type { BuilderStyleClassRegistry } from "@/lib/site-admin/builder-node/style-classes";
+import type { ComponentStyleDefaults } from "@/lib/site-admin/builder-node/component-style-defaults";
+import {
+  readTalentDesignSlice,
+  readTalentStyleClasses,
+} from "@/lib/site-admin/edit-mode/talent-design-store";
 
 /** Minimal `talent_pages` row the loader reads for a public render. */
 export interface PublishedTalentPageRow {
@@ -53,8 +58,16 @@ export interface PublishedTalentPageRenderData {
   tenantId: string | null;
   title: string;
   blocks: BuilderNodeTree;
-  /** Page-scoped linked style-class registry (persisted in `talent_pages.theme`). */
+  /** Page-scoped linked style-class registry (persisted in `talent_pages.theme`,
+   *  every top-level key EXCEPT the reserved `__design` slice). */
   theme: BuilderStyleClassRegistry;
+  /** Talent-scoped LIVE design tokens (from `talent_pages.theme.__design.tokens`).
+   *  Empty `{}` when the talent has never themed their page → the page inherits
+   *  the host tenant's tokens from `<html>`. */
+  designTokens: Record<string, string>;
+  /** Talent-scoped LIVE per-component-type default styles
+   *  (`talent_pages.theme.__design.componentStyles`). Empty when unset. */
+  componentStyleDefaults: ComponentStyleDefaults;
 }
 
 /**
@@ -85,14 +98,14 @@ export function coerceBuilderTree(blocks: unknown): BuilderNodeTree {
 
 /**
  * Coerce a persisted `theme` jsonb into the page-scoped style-class registry.
- * The adapter writes `talent_pages.theme = styleClasses`; anything that is not a
- * plain object (array / null / string) degrades to an empty registry so the
- * renderer resolves each node to its own style by identity.
+ * The content adapter writes the style classes as top-level keys on
+ * `talent_pages.theme`; the talent THEME slice lives under the reserved
+ * `__design` key and is stripped here (it is NOT a style class). Anything that
+ * is not a plain object degrades to an empty registry so the renderer resolves
+ * each node to its own style by identity.
  */
 export function coerceTheme(theme: unknown): BuilderStyleClassRegistry {
-  return theme && typeof theme === "object" && !Array.isArray(theme)
-    ? (theme as BuilderStyleClassRegistry)
-    : {};
+  return readTalentStyleClasses(theme) as BuilderStyleClassRegistry;
 }
 
 /**
@@ -120,6 +133,7 @@ export async function resolvePublishedTalentPage(
   // path can never leak a draft through this public renderer.
   if (row.status !== "published") return null;
 
+  const designSlice = readTalentDesignSlice(row.theme);
   return {
     pageId: row.id,
     talentProfileId: talent.id,
@@ -127,5 +141,7 @@ export async function resolvePublishedTalentPage(
     title: row.title,
     blocks: coerceBuilderTree(row.blocks),
     theme: coerceTheme(row.theme),
+    designTokens: designSlice.tokens,
+    componentStyleDefaults: designSlice.componentStyles,
   };
 }

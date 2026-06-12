@@ -54,6 +54,13 @@ export interface InEditorCanvasRenderData {
   sectionEmbedIslands: Readonly<Record<string, ReactNode>>;
   componentStyleDefaults: ComponentStyleDefaults;
   publicPathPrefix: string;
+  /**
+   * Surface-scoped LIVE design tokens to paint on the in-editor canvas root at
+   * first paint (talent_page surface → the talent's published theme). Empty when
+   * the surface has no own tokens — the canvas then inherits the host `<html>`
+   * tokens. The Theme drawer's preview bridge overlays the DRAFT live on top.
+   */
+  designTokens: Record<string, string>;
 }
 
 export async function buildInEditorCanvasRenderData(args: {
@@ -70,6 +77,20 @@ export async function buildInEditorCanvasRenderData(args: {
    * Null/omitted → the active tenant (homepage behaviour).
    */
   previewSubject?: InEditorCanvasPreviewSubject | null;
+  /**
+   * Surface-scoped per-component-type default styles to use INSTEAD of the
+   * tenant's `loadPublicComponentStyleDefaults`. The talent_page surface passes
+   * the talent's OWN LIVE component-style defaults (from
+   * `talent_pages.theme.__design.componentStyles`) so the first paint matches
+   * the talent's theme, not the host tenant's. Omitted/empty → tenant defaults.
+   */
+  componentStyleDefaultsOverride?: ComponentStyleDefaults | null;
+  /**
+   * Surface-scoped LIVE design tokens to paint on the canvas root at first paint
+   * (talent_page → the talent's published theme tokens). Omitted → empty (inherit
+   * the host `<html>` tokens).
+   */
+  designTokens?: Record<string, string> | null;
 }): Promise<InEditorCanvasRenderData> {
   const {
     tree,
@@ -77,6 +98,8 @@ export async function buildInEditorCanvasRenderData(args: {
     locale,
     publicPathPrefix = "",
     previewSubject = null,
+    componentStyleDefaultsOverride = null,
+    designTokens = null,
   } = args;
 
   const subjectForSectionEmbed:
@@ -90,15 +113,26 @@ export async function buildInEditorCanvasRenderData(args: {
         }
       : null;
 
-  const [dataSources, componentStyleDefaults] = await Promise.all([
+  const useOverride =
+    componentStyleDefaultsOverride !== null &&
+    Object.keys(componentStyleDefaultsOverride).length > 0;
+
+  const [dataSources, tenantComponentStyleDefaults] = await Promise.all([
     loadBuilderNodeDataSources(
       tree,
       tenantId,
       locale,
       previewSubject ? { kind: previewSubject.kind, id: previewSubject.id } : null,
     ),
-    loadPublicComponentStyleDefaults(tenantId),
+    // Skip the tenant read entirely when a surface override is supplied.
+    useOverride
+      ? Promise.resolve({} as ComponentStyleDefaults)
+      : loadPublicComponentStyleDefaults(tenantId),
   ]);
+
+  const componentStyleDefaults = useOverride
+    ? componentStyleDefaultsOverride
+    : tenantComponentStyleDefaults;
 
   const sectionEmbedRenderer = makeSectionEmbedRenderer({
     tenantId,
@@ -117,5 +151,6 @@ export async function buildInEditorCanvasRenderData(args: {
     sectionEmbedIslands,
     componentStyleDefaults,
     publicPathPrefix,
+    designTokens: designTokens ?? {},
   };
 }

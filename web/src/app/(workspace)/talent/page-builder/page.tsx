@@ -23,6 +23,7 @@ import { getActiveTalentAgencyContext } from "@/lib/talent/active-agency-context
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { buildInEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
+import { readTalentDesignSlice } from "@/lib/site-admin/edit-mode/talent-design-store";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node";
 import { TalentPageBuilderScreen } from "@/components/talent/site/TalentPageBuilderScreen";
 
@@ -80,22 +81,31 @@ export default async function TalentPageBuilderRoute() {
     try {
       const admin = createServiceRoleClient();
       let draftTree: BuilderNodeTree = [];
+      let talentComponentStyleDefaults = null;
+      let talentDesignTokens: Record<string, string> | null = null;
       if (admin) {
         const { data: pageRow } = await admin
           .from("talent_pages")
-          .select("blocks")
+          .select("blocks, theme")
           .eq("talent_profile_id", profile.id)
           .eq("slug", TALENT_PAGE_SLUG)
           .maybeSingle();
-        draftTree =
-          ((pageRow as { blocks: BuilderNodeTree | null } | null)?.blocks ??
-            []) as BuilderNodeTree;
+        const row = pageRow as { blocks: BuilderNodeTree | null; theme: unknown } | null;
+        draftTree = (row?.blocks ?? []) as BuilderNodeTree;
+        // First paint uses the talent's PUBLISHED theme (component-style defaults
+        // + design tokens) so the canvas reflects the talent's theme, not the host
+        // tenant's. The Theme drawer previews the DRAFT live on top of this.
+        const slice = readTalentDesignSlice(row?.theme);
+        talentComponentStyleDefaults = slice.componentStyles;
+        talentDesignTokens = slice.tokens;
       }
       canvasRenderData = await buildInEditorCanvasRenderData({
         tree: draftTree,
         tenantId,
         locale,
         previewSubject: { kind: "talent", id: profile.id },
+        componentStyleDefaultsOverride: talentComponentStyleDefaults,
+        designTokens: talentDesignTokens,
       });
     } catch {
       canvasRenderData = null;

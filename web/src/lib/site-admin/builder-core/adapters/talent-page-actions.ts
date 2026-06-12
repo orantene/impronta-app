@@ -15,6 +15,7 @@
 
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
+import { mergeStyleClassesPreservingDesign } from "@/lib/site-admin/edit-mode/talent-design-store";
 
 import type {
   TalentPageAdapterActions,
@@ -113,9 +114,28 @@ export async function saveTalentPageAction(
     if (!sb) return { ok: false as const, error: "Supabase client unavailable." };
 
     const { talentProfileId, pageId, patch } = input;
+
+    // The content adapter's `patch.theme` is the page-scoped style-class
+    // registry. `talent_pages.theme` ALSO carries the talent's THEME slice under
+    // a reserved `__design` key (see talent-design-store). A naive
+    // `theme: patch.theme` would WIPE that slice on every content save, so we
+    // read the current theme and merge the new style classes on top while
+    // PRESERVING `__design`. (This is the production binding, not the pure
+    // adapter-core factory — its page-content contract is unchanged.)
+    const { data: existing } = await sb
+      .from("talent_pages")
+      .select("theme")
+      .eq("id", pageId)
+      .eq("talent_profile_id", talentProfileId)
+      .maybeSingle();
+    const mergedTheme = mergeStyleClassesPreservingDesign(
+      (existing as { theme: unknown } | null)?.theme,
+      patch.theme,
+    );
+
     const updatePayload: Record<string, unknown> = {
       blocks: patch.blocks,
-      theme: patch.theme,
+      theme: mergedTheme,
       updated_at: patch.updated_at,
     };
     if (patch.title !== undefined) updatePayload.title = patch.title;
@@ -184,10 +204,25 @@ export async function restoreTalentPageRevisionAction(
     if (revErr || !rev)
       return { ok: false as const, error: revErr?.message ?? "Talent page revision not found." };
 
+    // Restoring a revision restores PAGE CONTENT (blocks + style classes). The
+    // talent's THEME slice (`__design`) is a separate concern carried on the live
+    // row, so preserve it across a content restore rather than reverting it to
+    // whatever the snapshot held (revisions predate the design slice).
+    const { data: live } = await sb
+      .from("talent_pages")
+      .select("theme")
+      .eq("id", pageId)
+      .eq("talent_profile_id", talentProfileId)
+      .maybeSingle();
+    const mergedTheme = mergeStyleClassesPreservingDesign(
+      (live as { theme: unknown } | null)?.theme,
+      rev.theme,
+    );
+
     const now = new Date().toISOString();
     const { data, error } = await sb
       .from("talent_pages")
-      .update({ blocks: rev.blocks, theme: rev.theme, updated_at: now, status: "draft" })
+      .update({ blocks: rev.blocks, theme: mergedTheme, updated_at: now, status: "draft" })
       .eq("id", pageId)
       .eq("talent_profile_id", talentProfileId)
       .select("updated_at")

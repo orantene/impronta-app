@@ -68,13 +68,8 @@ import { clearThemePreview, publishThemePreview } from "./theme-preview-bridge";
 import { clearComponentDefaultsPreview } from "./component-defaults-bridge";
 import { ComponentDefaultsTab } from "./component-defaults-tab";
 
-import {
-  applyThemePresetFromEditAction,
-  loadDesignAction,
-  publishDesignFromEditAction,
-  saveDesignDraftFromEditAction,
-  type DesignSnapshot,
-} from "@/lib/site-admin/edit-mode/design-actions";
+import type { DesignSnapshot } from "@/lib/site-admin/edit-mode/design-actions";
+import { resolveThemeActionSet } from "./theme-action-scope";
 import { tokenDefaults } from "@/lib/site-admin/tokens/registry";
 import { GoogleFontPicker } from "./GoogleFontPicker";
 import { ContrastChecker } from "./ContrastChecker";
@@ -375,7 +370,16 @@ function patchesEqual(
 // ── component ─────────────────────────────────────────────────────────────
 
 export function ThemeDrawer(): ReactElement | null {
-  const { themeOpen, closeTheme, queueRouterRefresh } = useEditContext();
+  const { themeOpen, closeTheme, queueRouterRefresh, surfaceKind, pageSlug } =
+    useEditContext();
+
+  // Surface-aware theme backend: talent_page → talent_pages.theme; everything
+  // else → tenant agency_branding. Memoized so the action closures are stable
+  // for the effect deps. `null` only when a talent surface has no slug.
+  const themeActions = useMemo(
+    () => resolveThemeActionSet(surfaceKind, pageSlug),
+    [surfaceKind, pageSlug],
+  );
 
   const [snapshot, setSnapshot] = useState<DesignSnapshot | null>(null);
   const [draft, setDraft] = useState<Record<string, string> | null>(null);
@@ -402,12 +406,19 @@ export function ThemeDrawer(): ReactElement | null {
       clearComponentDefaultsPreview();
       return;
     }
+    if (!themeActions) {
+      setSnapshot(null);
+      setDraft(null);
+      setLoadError("This page has no theme to edit yet.");
+      setBusy("idle");
+      return;
+    }
     let cancelled = false;
     setBusy("loading");
     setLoadError(null);
     setError(null);
     (async () => {
-      const res = await loadDesignAction();
+      const res = await themeActions.load();
       if (cancelled) return;
       if (!res.ok) {
         setSnapshot(null);
@@ -423,7 +434,7 @@ export function ThemeDrawer(): ReactElement | null {
     return () => {
       cancelled = true;
     };
-  }, [themeOpen]);
+  }, [themeOpen, themeActions]);
 
   const dirty = useMemo(() => {
     if (!snapshot || !draft) return false;
@@ -475,18 +486,18 @@ export function ThemeDrawer(): ReactElement | null {
   // bundle into the DRAFT (operator must Publish to go live — surfaced in UI).
   const handleApplyPreset = useCallback(
     async (slug: string) => {
-      if (!snapshot) return;
+      if (!snapshot || !themeActions) return;
       setBusy("saving");
       setError(null);
       try {
-        const res = await applyThemePresetFromEditAction({
+        const res = await themeActions.applyPreset({
           presetSlug: slug,
           expectedVersion: snapshot.version,
         });
         if (!res.ok) {
           setError(res.error);
           if (res.code === "VERSION_CONFLICT") {
-            const fresh = await loadDesignAction();
+            const fresh = await themeActions.load();
             if (fresh.ok) setSnapshot(fresh.snapshot);
           }
           return;
@@ -511,25 +522,25 @@ export function ThemeDrawer(): ReactElement | null {
         setBusy("idle");
       }
     },
-    [snapshot],
+    [snapshot, themeActions],
   );
 
   const handleSaveDraft = useCallback(async () => {
-    if (!snapshot || !draft) return;
+    if (!snapshot || !draft || !themeActions) return;
     setBusy("saving");
     setError(null);
     // T3-1 — Outer try/catch ensures busy state is released even when an
     // intermediate await rejects (network drop, server restart). Without
     // it the drawer stays stuck on "saving" indefinitely.
     try {
-      const res = await saveDesignDraftFromEditAction({
+      const res = await themeActions.saveDraft({
         patch: draft,
         expectedVersion: snapshot.version,
       });
       if (!res.ok) {
         setError(res.error);
         if (res.code === "VERSION_CONFLICT") {
-          const fresh = await loadDesignAction();
+          const fresh = await themeActions.load();
           if (fresh.ok) setSnapshot(fresh.snapshot);
         }
         return;
@@ -554,10 +565,10 @@ export function ThemeDrawer(): ReactElement | null {
     } finally {
       setBusy("idle");
     }
-  }, [snapshot, draft]);
+  }, [snapshot, draft, themeActions]);
 
   const handlePublish = useCallback(async () => {
-    if (!snapshot) return;
+    if (!snapshot || !themeActions) return;
     setBusy("publishing");
     setError(null);
     // T3-1 — Wrapping the multi-step publish flow in try/catch ensures
@@ -568,31 +579,31 @@ export function ThemeDrawer(): ReactElement | null {
       // Save the working copy first if it diverges from the stored draft,
       // so we publish what the operator sees.
       if (dirty && draft) {
-        const saveRes = await saveDesignDraftFromEditAction({
+        const saveRes = await themeActions.saveDraft({
           patch: draft,
           expectedVersion: snapshot.version,
         });
         if (!saveRes.ok) {
           setError(saveRes.error);
           if (saveRes.code === "VERSION_CONFLICT") {
-            const fresh = await loadDesignAction();
+            const fresh = await themeActions.load();
             if (fresh.ok) setSnapshot(fresh.snapshot);
           }
           return;
         }
         const latestVersion = saveRes.version;
-        const pubRes = await publishDesignFromEditAction({
+        const pubRes = await themeActions.publish({
           expectedVersion: latestVersion,
         });
         if (!pubRes.ok) {
           setError(pubRes.error);
           if (pubRes.code === "VERSION_CONFLICT") {
-            const fresh = await loadDesignAction();
+            const fresh = await themeActions.load();
             if (fresh.ok) setSnapshot(fresh.snapshot);
           }
           return;
         }
-        const fresh = await loadDesignAction();
+        const fresh = await themeActions.load();
         if (fresh.ok) {
           setSnapshot(fresh.snapshot);
           setDraft({ ...fresh.snapshot.themeDraft });
@@ -601,18 +612,18 @@ export function ThemeDrawer(): ReactElement | null {
         setConfirmingPublish(false);
         return;
       }
-      const pubRes = await publishDesignFromEditAction({
+      const pubRes = await themeActions.publish({
         expectedVersion: snapshot.version,
       });
       if (!pubRes.ok) {
         setError(pubRes.error);
         if (pubRes.code === "VERSION_CONFLICT") {
-          const fresh = await loadDesignAction();
+          const fresh = await themeActions.load();
           if (fresh.ok) setSnapshot(fresh.snapshot);
         }
         return;
       }
-      const fresh = await loadDesignAction();
+      const fresh = await themeActions.load();
       if (fresh.ok) {
         setSnapshot(fresh.snapshot);
         setDraft({ ...fresh.snapshot.themeDraft });
@@ -626,7 +637,7 @@ export function ThemeDrawer(): ReactElement | null {
     } finally {
       setBusy("idle");
     }
-  }, [snapshot, draft, dirty, queueRouterRefresh]);
+  }, [snapshot, draft, dirty, queueRouterRefresh, themeActions]);
 
   const chipStatus =
     busy === "saving" || busy === "publishing"
@@ -825,6 +836,14 @@ export function ThemeDrawer(): ReactElement | null {
               <ComponentDefaultsTab
                 initialDefaults={snapshot.componentStylesDraft}
                 version={snapshot.version}
+                saveComponentStyles={(input) =>
+                  themeActions
+                    ? themeActions.saveComponentStyles(input)
+                    : Promise.resolve({
+                        ok: false as const,
+                        error: "This page has no theme to edit yet.",
+                      })
+                }
                 onSaved={(newVersion, saved) =>
                   setSnapshot((prev) =>
                     prev

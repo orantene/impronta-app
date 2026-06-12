@@ -22,7 +22,7 @@ import { Card, CardBody, CardHead, CHROME, ColorRow, Field, FieldLabel, Helper }
 import {
   publishComponentDefaultsPreview,
 } from "./component-defaults-bridge";
-import { saveComponentStylesDraftFromEditAction } from "@/lib/site-admin/edit-mode/design-actions";
+import type { ComponentStylesSaveResult } from "@/lib/site-admin/edit-mode/design-actions";
 import {
   STYLE_BINDABLE_COLOR_TOKENS,
   STYLE_BINDABLE_FONT_FAMILY_TOKENS,
@@ -104,10 +104,21 @@ export function ComponentDefaultsTab({
   initialDefaults,
   version,
   onSaved,
+  saveComponentStyles,
 }: {
   initialDefaults: ComponentStyleDefaults;
   version: number;
   onSaved: (newVersion: number, saved: ComponentStyleDefaults) => void;
+  /**
+   * Surface-aware persistence. The drawer passes the resolved theme action set's
+   * `saveComponentStyles` so this tab writes the talent's `talent_pages.theme`
+   * component-style draft on talent surfaces, and `agency_branding` elsewhere —
+   * without this tab importing tenant actions directly.
+   */
+  saveComponentStyles: (input: {
+    componentStyles: ComponentStyleDefaults;
+    expectedVersion: number;
+  }) => Promise<ComponentStylesSaveResult>;
 }): ReactElement {
   const [defaults, setDefaults] = useState<ComponentStyleDefaults>(initialDefaults);
   const [savedSnapshot, setSavedSnapshot] = useState<ComponentStyleDefaults>(initialDefaults);
@@ -151,7 +162,7 @@ export function ComponentDefaultsTab({
     setBusy(true);
     setError(null);
     try {
-      const res = await saveComponentStylesDraftFromEditAction({
+      const res = await saveComponentStyles({
         componentStyles: defaults,
         expectedVersion: version,
       });
@@ -167,7 +178,7 @@ export function ComponentDefaultsTab({
     } finally {
       setBusy(false);
     }
-  }, [defaults, version, onSaved]);
+  }, [defaults, version, onSaved, saveComponentStyles]);
 
   return (
     <>
