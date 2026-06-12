@@ -1270,16 +1270,13 @@ export type Database = {
           archived_for_downgrade_by: string | null
           archived_for_downgrade_event: string | null
           created_at: string
-          emergency_contact: Json
           exclusivity_auto_assigned_at: string | null
           exclusivity_confirmed_at: string | null
           exclusivity_declined_at: string | null
           exclusivity_status: Database["public"]["Enums"]["exclusivity_status"]
           feature_in_directory: boolean
-          field_locks_data: Json
           hub_visibility_status: string
           id: string
-          internal_notes: string | null
           is_primary: boolean
           origin_domain: string | null
           removed_at: string | null
@@ -1299,16 +1296,13 @@ export type Database = {
           archived_for_downgrade_by?: string | null
           archived_for_downgrade_event?: string | null
           created_at?: string
-          emergency_contact?: Json
           exclusivity_auto_assigned_at?: string | null
           exclusivity_confirmed_at?: string | null
           exclusivity_declined_at?: string | null
           exclusivity_status?: Database["public"]["Enums"]["exclusivity_status"]
           feature_in_directory?: boolean
-          field_locks_data?: Json
           hub_visibility_status?: string
           id?: string
-          internal_notes?: string | null
           is_primary?: boolean
           origin_domain?: string | null
           removed_at?: string | null
@@ -1328,16 +1322,13 @@ export type Database = {
           archived_for_downgrade_by?: string | null
           archived_for_downgrade_event?: string | null
           created_at?: string
-          emergency_contact?: Json
           exclusivity_auto_assigned_at?: string | null
           exclusivity_confirmed_at?: string | null
           exclusivity_declined_at?: string | null
           exclusivity_status?: Database["public"]["Enums"]["exclusivity_status"]
           feature_in_directory?: boolean
-          field_locks_data?: Json
           hub_visibility_status?: string
           id?: string
-          internal_notes?: string | null
           is_primary?: boolean
           origin_domain?: string | null
           removed_at?: string | null
@@ -8585,9 +8576,7 @@ export type Database = {
       }
       talent_profiles: {
         Row: {
-          age_display_mode: string
           ai_search_document: string | null
-          ask_for_quote: boolean
           availability_data: Json
           bio_en: string | null
           bio_en_draft: string | null
@@ -8597,20 +8586,15 @@ export type Database = {
           bio_es_draft: string | null
           bio_es_status: Database["public"]["Enums"]["bio_es_status"]
           bio_es_updated_at: string | null
-          bio_tone: string | null
-          bios: Json
           booking_note: string | null
           contact_policy: Json
           created_at: string
           created_by_agency_id: string | null
           created_by_user_id_provenance: string | null
-          credits_data: Json
           date_of_birth: string | null
           deleted_at: string | null
           destinations: string[]
           display_name: string | null
-          documents_data: Json
-          drivers_license: string | null
           embedded_media: Json
           event_styles: string[]
           featured_level: number
@@ -8633,41 +8617,28 @@ export type Database = {
           last_name: string | null
           lead_time_weeks: string | null
           legal_name: string | null
-          limits_data: Json
           listing_started_at: string | null
           location_id: string | null
-          lodging_included: boolean
           manual_rank_override: number | null
-          media_albums_data: Json
           membership_status: Database["public"]["Enums"]["membership_status"]
           membership_tier: Database["public"]["Enums"]["membership_tier"]
           nationality: string | null
           origin_city_id: string | null
           origin_country_id: string | null
-          package_rates_data: Json
           package_teasers: Json
-          passport_status: string | null
-          personality_traits: Json
           phone: string | null
           phone_e164: string | null
           profile_code: string
           profile_completeness_pct: number | null
           profile_completeness_score: number
-          pronouns: string | null
-          pronouns_custom: string | null
           pronunciation: string | null
           public_slug_part: string | null
-          rate_card_visibility: string
-          rate_tiers_data: Json
-          rates_data: Json
           remote_only: boolean
           residence_city_id: string | null
           residence_country_id: string | null
-          response_time: string | null
           service_category_slug: string | null
           short_bio: string | null
           social_links: Json
-          social_proof_data: Json
           source_type: string | null
           starting_from: string | null
           stripe_account_id: string | null
@@ -8676,25 +8647,19 @@ export type Database = {
           stripe_charges_enabled: boolean
           stripe_details_submitted: boolean
           stripe_payouts_enabled: boolean
-          tagline: string | null
           talent_plan_key: string
           team_size: string | null
           total_completed_bookings: number
           travel_fee_required: boolean
-          travel_included: boolean
           travel_radius_km: number | null
           travels_globally: boolean
-          upcoming_visits: Json
           updated_at: string
           user_id: string | null
           visibility: Database["public"]["Enums"]["visibility"]
-          work_eligibility: Json
           workflow_status: Database["public"]["Enums"]["profile_workflow_status"]
         }
         Insert: {
-          age_display_mode?: string
           ai_search_document?: string | null
-          ask_for_quote?: boolean
           availability_data?: Json
           bio_en?: string | null
           bio_en_draft?: string | null
@@ -8704,20 +8669,15 @@ export type Database = {
           bio_es_draft?: string | null
           bio_es_status?: Database["public"]["Enums"]["bio_es_status"]
           bio_es_updated_at?: string | null
-          bio_tone?: string | null
-          bios?: Json
           booking_note?: string | null
           contact_policy?: Json
           created_at?: string
           created_by_agency_id?: string | null
           created_by_user_id_provenance?: string | null
-          credits_data?: Json
           date_of_birth?: string | null
           deleted_at?: string | null
           destinations?: string[]
           display_name?: string | null
-          documents_data?: Json
-          drivers_license?: string | null
           embedded_media?: Json
           event_styles?: string[]
           featured_level?: number
@@ -8740,41 +8700,28 @@ export type Database = {
           last_name?: string | null
           lead_time_weeks?: string | null
           legal_name?: string | null
-          limits_data?: Json
           listing_started_at?: string | null
           location_id?: string | null
-          lodging_included?: boolean
           manual_rank_override?: number | null
-          media_albums_data?: Json
           membership_status?: Database["public"]["Enums"]["membership_status"]
           membership_tier?: Database["public"]["Enums"]["membership_tier"]
           nationality?: string | null
           origin_city_id?: string | null
           origin_country_id?: string | null
-          package_rates_data?: Json
           package_teasers?: Json
-          passport_status?: string | null
-          personality_traits?: Json
           phone?: string | null
           phone_e164?: string | null
           profile_code: string
           profile_completeness_pct?: number | null
           profile_completeness_score?: number
-          pronouns?: string | null
-          pronouns_custom?: string | null
           pronunciation?: string | null
           public_slug_part?: string | null
-          rate_card_visibility?: string
-          rate_tiers_data?: Json
-          rates_data?: Json
           remote_only?: boolean
           residence_city_id?: string | null
           residence_country_id?: string | null
-          response_time?: string | null
           service_category_slug?: string | null
           short_bio?: string | null
           social_links?: Json
-          social_proof_data?: Json
           source_type?: string | null
           starting_from?: string | null
           stripe_account_id?: string | null
@@ -8783,25 +8730,19 @@ export type Database = {
           stripe_charges_enabled?: boolean
           stripe_details_submitted?: boolean
           stripe_payouts_enabled?: boolean
-          tagline?: string | null
           talent_plan_key?: string
           team_size?: string | null
           total_completed_bookings?: number
           travel_fee_required?: boolean
-          travel_included?: boolean
           travel_radius_km?: number | null
           travels_globally?: boolean
-          upcoming_visits?: Json
           updated_at?: string
           user_id?: string | null
           visibility?: Database["public"]["Enums"]["visibility"]
-          work_eligibility?: Json
           workflow_status?: Database["public"]["Enums"]["profile_workflow_status"]
         }
         Update: {
-          age_display_mode?: string
           ai_search_document?: string | null
-          ask_for_quote?: boolean
           availability_data?: Json
           bio_en?: string | null
           bio_en_draft?: string | null
@@ -8811,20 +8752,15 @@ export type Database = {
           bio_es_draft?: string | null
           bio_es_status?: Database["public"]["Enums"]["bio_es_status"]
           bio_es_updated_at?: string | null
-          bio_tone?: string | null
-          bios?: Json
           booking_note?: string | null
           contact_policy?: Json
           created_at?: string
           created_by_agency_id?: string | null
           created_by_user_id_provenance?: string | null
-          credits_data?: Json
           date_of_birth?: string | null
           deleted_at?: string | null
           destinations?: string[]
           display_name?: string | null
-          documents_data?: Json
-          drivers_license?: string | null
           embedded_media?: Json
           event_styles?: string[]
           featured_level?: number
@@ -8847,41 +8783,28 @@ export type Database = {
           last_name?: string | null
           lead_time_weeks?: string | null
           legal_name?: string | null
-          limits_data?: Json
           listing_started_at?: string | null
           location_id?: string | null
-          lodging_included?: boolean
           manual_rank_override?: number | null
-          media_albums_data?: Json
           membership_status?: Database["public"]["Enums"]["membership_status"]
           membership_tier?: Database["public"]["Enums"]["membership_tier"]
           nationality?: string | null
           origin_city_id?: string | null
           origin_country_id?: string | null
-          package_rates_data?: Json
           package_teasers?: Json
-          passport_status?: string | null
-          personality_traits?: Json
           phone?: string | null
           phone_e164?: string | null
           profile_code?: string
           profile_completeness_pct?: number | null
           profile_completeness_score?: number
-          pronouns?: string | null
-          pronouns_custom?: string | null
           pronunciation?: string | null
           public_slug_part?: string | null
-          rate_card_visibility?: string
-          rate_tiers_data?: Json
-          rates_data?: Json
           remote_only?: boolean
           residence_city_id?: string | null
           residence_country_id?: string | null
-          response_time?: string | null
           service_category_slug?: string | null
           short_bio?: string | null
           social_links?: Json
-          social_proof_data?: Json
           source_type?: string | null
           starting_from?: string | null
           stripe_account_id?: string | null
@@ -8890,19 +8813,15 @@ export type Database = {
           stripe_charges_enabled?: boolean
           stripe_details_submitted?: boolean
           stripe_payouts_enabled?: boolean
-          tagline?: string | null
           talent_plan_key?: string
           team_size?: string | null
           total_completed_bookings?: number
           travel_fee_required?: boolean
-          travel_included?: boolean
           travel_radius_km?: number | null
           travels_globally?: boolean
-          upcoming_visits?: Json
           updated_at?: string
           user_id?: string | null
           visibility?: Database["public"]["Enums"]["visibility"]
-          work_eligibility?: Json
           workflow_status?: Database["public"]["Enums"]["profile_workflow_status"]
         }
         Relationships: [

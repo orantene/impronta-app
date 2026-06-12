@@ -64,16 +64,10 @@ export async function updateSelfAbout(input: {
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, profileCode } = auth;
 
-  const patch: Record<string, unknown> = { bios: input.bios, updated_at: new Date().toISOString() };
-  if (input.bio_tone !== undefined) patch.bio_tone = input.bio_tone || null;
-  if (input.personality_traits !== undefined) patch.personality_traits = input.personality_traits;
-  if (input.tagline !== undefined) patch.tagline = input.tagline?.trim() || null;
-
-  const { error } = await supabase.from("talent_profiles").update(patch).eq("id", input.talent_profile_id);
-  if (error) { logServerError("self-sections.about", error); return { ok: false, error: CLIENT_ERROR.update }; }
-
-  // P3 Tier-A Stage-1 dual-write — only the keys the talent edited (undefined
-  // = untouched). Skips the value-row write for no-roster (independent) talent.
+  // T4 collapse-dedicated-columns: bios/bio_tone/personality_traits/tagline are
+  // System-B only now (columns dropped). Only the keys the talent edited
+  // (undefined = untouched). Skips the value-row write for no-roster
+  // (independent) talent.
   await syncScalarFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
     bio_tone: input.bio_tone !== undefined ? (input.bio_tone || null) : undefined,
     tagline: input.tagline !== undefined ? (input.tagline?.trim() || null) : undefined,
@@ -108,23 +102,24 @@ export async function updateSelfLocation(input: {
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, profileCode } = auth;
 
+  // Kept columns (home base + travel + remote) still live on talent_profiles.
+  // passport_status/drivers_license (Tier-A) + work_eligibility/upcoming_visits
+  // (Tier-B) are System-B only now (T4).
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (input.home_base !== undefined) patch.home_city_text = input.home_base?.trim() || null;
   if (input.home_place_id !== undefined) patch.home_place_id = input.home_place_id?.trim() || null;
   if (input.travel_radius_km !== undefined) patch.travel_radius_km = input.travel_radius_km;
   if (input.travel_fee_required !== undefined) patch.travel_fee_required = input.travel_fee_required;
   if (input.remote_only !== undefined) patch.remote_only = input.remote_only;
-  if (input.passport_status !== undefined) patch.passport_status = input.passport_status || null;
-  if (input.drivers_license !== undefined) patch.drivers_license = input.drivers_license || null;
-  if (input.work_eligibility !== undefined) patch.work_eligibility = input.work_eligibility;
-  if (input.upcoming_visits !== undefined) patch.upcoming_visits = input.upcoming_visits;
 
-  const { error } = await supabase.from("talent_profiles").update(patch).eq("id", input.talent_profile_id);
-  if (error) { logServerError("self-sections.location", error); return { ok: false, error: CLIENT_ERROR.update }; }
+  if (Object.keys(patch).length > 1) {
+    const { error } = await supabase.from("talent_profiles").update(patch).eq("id", input.talent_profile_id);
+    if (error) { logServerError("self-sections.location", error); return { ok: false, error: CLIENT_ERROR.update }; }
+  }
 
   // talent_service_areas is keyed by location_id (FK); skip until picker wired.
 
-  // P3 Tier-A Stage-1 dual-write — passport_status + drivers_license scalars.
+  // T4 collapse-dedicated-columns — passport_status + drivers_license scalars.
   await syncScalarFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
     passport_status: input.passport_status !== undefined ? (input.passport_status || null) : undefined,
     drivers_license: input.drivers_license !== undefined ? (input.drivers_license || null) : undefined,
@@ -157,20 +152,10 @@ export async function updateSelfRates(input: {
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, profileCode } = auth;
 
-  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (input.rates_data !== undefined) patch.rates_data = input.rates_data;
-  if (input.package_rates_data !== undefined) patch.package_rates_data = input.package_rates_data;
-  if (input.rate_tiers_data !== undefined) patch.rate_tiers_data = input.rate_tiers_data;
-  if (input.rate_card_visibility !== undefined) patch.rate_card_visibility = input.rate_card_visibility;
-  if (input.ask_for_quote !== undefined) patch.ask_for_quote = input.ask_for_quote;
-  if (input.travel_included !== undefined) patch.travel_included = input.travel_included;
-  if (input.lodging_included !== undefined) patch.lodging_included = input.lodging_included;
-
-  const { error } = await supabase.from("talent_profiles").update(patch).eq("id", input.talent_profile_id);
-  if (error) { logServerError("self-sections.rates", error); return { ok: false, error: CLIENT_ERROR.update }; }
-
-  // P3 Tier-A Stage-1 dual-write — rate_card_visibility + the 3 commercial
-  // booleans (a `false` is a real value; only undefined = untouched).
+  // T4 collapse-dedicated-columns: rates_data/package_rates_data/rate_tiers_data
+  // (Tier-B) + the commercial scalars (Tier-A) are System-B only now.
+  // rate_card_visibility + the 3 commercial booleans (a `false` is a real value;
+  // only undefined = untouched).
   await syncScalarFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
     rate_card_visibility: input.rate_card_visibility,
     ask_for_quote: input.ask_for_quote,
@@ -219,13 +204,7 @@ export async function updateSelfCredits(input: {
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, profileCode } = auth;
 
-  const { error } = await supabase
-    .from("talent_profiles")
-    .update({ credits_data: input.credits_data, updated_at: new Date().toISOString() })
-    .eq("id", input.talent_profile_id);
-  if (error) { logServerError("self-sections.credits", error); return { ok: false, error: CLIENT_ERROR.update }; }
-
-  // P3 Tier-B Stage-1 dual-write — credits JSONB blob (verbatim).
+  // T4 collapse-dedicated-columns: credits is System-B only (verbatim).
   await syncBlobFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
     credits_data: input.credits_data,
   });
@@ -244,13 +223,7 @@ export async function updateSelfLimits(input: {
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, profileCode } = auth;
 
-  const { error } = await supabase
-    .from("talent_profiles")
-    .update({ limits_data: input.limits_data, updated_at: new Date().toISOString() })
-    .eq("id", input.talent_profile_id);
-  if (error) { logServerError("self-sections.limits", error); return { ok: false, error: CLIENT_ERROR.update }; }
-
-  // P3 Tier-B Stage-1 dual-write — limits JSONB object blob (verbatim).
+  // T4 collapse-dedicated-columns: limits is System-B only (verbatim object).
   await syncBlobFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
     limits_data: input.limits_data,
   });
@@ -269,13 +242,7 @@ export async function updateSelfSocialProof(input: {
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, profileCode } = auth;
 
-  const { error } = await supabase
-    .from("talent_profiles")
-    .update({ social_proof_data: input.social_proof_data, updated_at: new Date().toISOString() })
-    .eq("id", input.talent_profile_id);
-  if (error) { logServerError("self-sections.social-proof", error); return { ok: false, error: CLIENT_ERROR.update }; }
-
-  // P3 Tier-B Stage-1 dual-write — social-proof (past clients) JSONB blob.
+  // T4 collapse-dedicated-columns: social-proof (past clients) is System-B only.
   await syncBlobFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
     social_proof_data: input.social_proof_data,
   });
@@ -294,27 +261,14 @@ export async function updateSelfMediaAlbums(input: {
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, profileCode } = auth;
 
-  // Normalize once so the column write + the dual-write share the SAME shape
-  // (parity requires the value row to equal the column verbatim).
   const normalizedAlbums = input.albums.map((a, i) => ({
     id: a.id,
     name: a.name,
     sortOrder: a.sortOrder ?? i,
   }));
 
-  const { error } = await supabase
-    .from("talent_profiles")
-    .update({
-      media_albums_data: normalizedAlbums,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", input.talent_profile_id);
-  if (error) {
-    logServerError("self-sections.media-albums", error);
-    return { ok: false, error: CLIENT_ERROR.update };
-  }
-
-  // P3 Tier-B Stage-1 dual-write — album-list JSONB blob (verbatim, normalized).
+  // T4 collapse-dedicated-columns: album-list is System-B only (verbatim,
+  // normalized).
   await syncBlobFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
     media_albums_data: normalizedAlbums,
   });
@@ -333,16 +287,7 @@ export async function updateSelfTalentDocuments(input: {
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, profileCode } = auth;
 
-  const { error } = await supabase
-    .from("talent_profiles")
-    .update({ documents_data: input.documents, updated_at: new Date().toISOString() })
-    .eq("id", input.talent_profile_id);
-  if (error) {
-    logServerError("self-sections.documents", error);
-    return { ok: false, error: CLIENT_ERROR.update };
-  }
-
-  // P3 Tier-B Stage-1 dual-write — documents JSONB blob (verbatim).
+  // T4 collapse-dedicated-columns: documents is System-B only (verbatim).
   await syncBlobFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
     documents_data: input.documents,
   });
@@ -443,17 +388,17 @@ export async function updateSelfIdentity(input: {
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   const nullIfEmpty = (v: string | undefined) => v === undefined ? undefined : (v.trim() || null);
 
+  // Kept columns. pronouns/pronouns_custom (Tier-C) + age_display_mode/
+  // response_time (Tier-A) are System-B only now (T4) — NOT written to the
+  // column patch. gender + date_of_birth stay dedicated carve-out columns.
   if (input.stage_name !== undefined) patch.display_name = nullIfEmpty(input.stage_name);
   if (input.legal_name !== undefined) patch.legal_name = nullIfEmpty(input.legal_name);
   if (input.pronunciation !== undefined) patch.pronunciation = nullIfEmpty(input.pronunciation);
-  if (input.pronouns !== undefined) patch.pronouns = input.pronouns || null;
-  if (input.pronouns_custom !== undefined) patch.pronouns_custom = nullIfEmpty(input.pronouns_custom);
-  if (input.gender !== undefined) patch.gender = nullIfEmpty(input.gender);
+  const genderValue = input.gender !== undefined ? nullIfEmpty(input.gender) : undefined;
+  if (genderValue !== undefined) patch.gender = genderValue;
   if (input.date_of_birth !== undefined) patch.date_of_birth = input.date_of_birth?.trim() || null;
-  if (input.age_display_mode !== undefined) patch.age_display_mode = input.age_display_mode;
   if (input.nationality !== undefined) patch.nationality = nullIfEmpty(input.nationality);
   if (input.home_country !== undefined) patch.home_country_text = nullIfEmpty(input.home_country);
-  if (input.response_time !== undefined) patch.response_time = input.response_time || null;
   if (input.is_discoverable !== undefined) patch.is_discoverable = input.is_discoverable;
   if (input.contact_email !== undefined) patch.invitation_email = nullIfEmpty(input.contact_email);
   if (input.contact_phone !== undefined || input.contact_phone_prefix !== undefined) {
@@ -465,24 +410,28 @@ export async function updateSelfIdentity(input: {
     patch.phone = combined === "" ? null : combined;
   }
 
-  const { error } = await supabase.from("talent_profiles").update(patch).eq("id", input.talent_profile_id);
-  if (error) { logServerError("self-sections.identity", error); return { ok: false, error: CLIENT_ERROR.update }; }
+  // Only touch the row when a kept column was actually edited.
+  if (Object.keys(patch).length > 1) {
+    const { error } = await supabase.from("talent_profiles").update(patch).eq("id", input.talent_profile_id);
+    if (error) { logServerError("self-sections.identity", error); return { ok: false, error: CLIENT_ERROR.update }; }
+  }
 
-  // P3 Tier-A Stage-1 dual-write — age_display_mode + response_time scalars.
+  // T4 collapse-dedicated-columns — age_display_mode + response_time scalars
+  // are System-B only.
   await syncScalarFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
     age_display_mode: input.age_display_mode,
     response_time: input.response_time !== undefined ? (input.response_time || null) : undefined,
   });
 
-  // P3 Tier-C Stage-1 dual-write — pronouns, pronouns_custom + gender identity.
-  // Pass the column-normalized values from `patch` (set above only when the
-  // input touched them); `undefined` (untouched) is respected by the helper.
-  // gender stores the canonical select value (== column after Tier-C-tail
-  // normalization). DOB is DELIBERATELY EXCLUDED — see identity-field-values-catalog.ts.
+  // T4 collapse-dedicated-columns — pronouns + pronouns_custom are System-B
+  // only. gender is a carve-out (still on the column above) but is also mirrored
+  // to B for parity. DOB is DELIBERATELY EXCLUDED — see
+  // identity-field-values-catalog.ts.
   await syncIdentityFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
-    pronouns: input.pronouns !== undefined ? (patch.pronouns as string | null) : undefined,
-    pronouns_custom: input.pronouns_custom !== undefined ? (patch.pronouns_custom as string | null) : undefined,
-    gender: input.gender !== undefined ? (patch.gender as string | null) : undefined,
+    pronouns: input.pronouns !== undefined ? (input.pronouns || null) : undefined,
+    pronouns_custom:
+      input.pronouns_custom !== undefined ? nullIfEmpty(input.pronouns_custom) : undefined,
+    gender: input.gender !== undefined ? (genderValue ?? null) : undefined,
   });
 
   revalidatePath(`/t/${profileCode}`, "page");
@@ -699,16 +648,12 @@ export async function updateSelfEmergencyContact(input: {
 
   const contact = { name: input.name.trim(), relation: input.relation.trim(), phone: input.phone.trim() };
 
-  const { error } = await admin
-    .from("agency_talent_roster")
-    .update({ emergency_contact: contact })
-    .eq("talent_profile_id", input.talent_profile_id)
-    .eq("tenant_id", tenantId)
-    .neq("status", "removed");
-  if (error) { logServerError("self-sections.emergency-contact", error); return { ok: false, error: CLIENT_ERROR.update }; }
-
-  // P3 Tier-D Stage-1 dual-write: mirror the emergency contact into the catalog
-  // value table alongside the column write. Fire-and-forget — never blocks.
+  // T4 collapse-dedicated-columns: emergency_contact is System-B only now (the
+  // agency_talent_roster.emergency_contact column was dropped). The value table
+  // is talent-scoped (one row per talent), so the per-roster fan-out the column
+  // write needed is gone — a single value-row upsert covers all the talent's
+  // rosters. The requireTalentSelfAction ownership check above is the security
+  // boundary; the helper writes with the service-role client.
   await syncRosterFieldValuesToCatalog(admin, input.talent_profile_id, tenantId, {
     emergency_contact: contact,
   });

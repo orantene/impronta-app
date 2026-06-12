@@ -108,19 +108,16 @@ export async function updateTalentAbout(input: {
   );
   if (!lock.ok) return lock;
 
-  const patch: Record<string, unknown> = {
+  // T4 collapse-dedicated-columns: bios/bio_tone/personality_traits/tagline no
+  // longer have dedicated columns — System B is the sole store.
+  await syncScalarFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
+    bio_tone: input.bio_tone !== undefined ? (input.bio_tone || null) : undefined,
+    tagline: input.tagline !== undefined ? (input.tagline?.trim() || null) : undefined,
+  });
+  await syncBlobFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
     bios: input.bios,
-    updated_at: new Date().toISOString(),
-  };
-  if (input.bio_tone !== undefined) patch.bio_tone = input.bio_tone || null;
-  if (input.personality_traits !== undefined) patch.personality_traits = input.personality_traits;
-  if (input.tagline !== undefined) patch.tagline = input.tagline?.trim() || null;
-
-  const { error } = await supabase
-    .from("talent_profiles")
-    .update(patch)
-    .eq("id", input.talent_profile_id);
-  if (error) { logServerError("profile-sections.about", error); return { ok: false, error: CLIENT_ERROR.update }; }
+    personality_traits: input.personality_traits,
+  });
 
   revalidatePath(`/${tenantSlug}/admin/roster`, "page");
   return { ok: true };
@@ -157,27 +154,39 @@ export async function updateTalentLocation(input: {
   );
   if (!lock.ok) return lock;
 
+  // Kept columns (home base + travel + remote) still live on talent_profiles.
+  // The migrated Tier-A scalars (passport_status, drivers_license) + Tier-B
+  // blobs (work_eligibility, upcoming_visits) are System-B only (T4).
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (input.home_base !== undefined) patch.home_city_text = input.home_base?.trim() || null;
   if (input.home_place_id !== undefined) patch.home_place_id = input.home_place_id?.trim() || null;
   if (input.travel_radius_km !== undefined) patch.travel_radius_km = input.travel_radius_km;
   if (input.travel_fee_required !== undefined) patch.travel_fee_required = input.travel_fee_required;
   if (input.remote_only !== undefined) patch.remote_only = input.remote_only;
-  if (input.passport_status !== undefined) patch.passport_status = input.passport_status || null;
-  if (input.drivers_license !== undefined) patch.drivers_license = input.drivers_license || null;
-  if (input.work_eligibility !== undefined) patch.work_eligibility = input.work_eligibility;
-  if (input.upcoming_visits !== undefined) patch.upcoming_visits = input.upcoming_visits;
 
-  const { error } = await supabase
-    .from("talent_profiles")
-    .update(patch)
-    .eq("id", input.talent_profile_id);
-  if (error) { logServerError("profile-sections.location", error); return { ok: false, error: CLIENT_ERROR.update }; }
+  // Only touch the row when a kept column was actually edited.
+  if (Object.keys(patch).length > 1) {
+    const { error } = await supabase
+      .from("talent_profiles")
+      .update(patch)
+      .eq("id", input.talent_profile_id);
+    if (error) { logServerError("profile-sections.location", error); return { ok: false, error: CLIENT_ERROR.update }; }
+  }
 
   // The structured `talent_service_areas` row is keyed by location_id (FK to a
   // locations registry) which the drawer doesn't yet collect. The text-only
   // `home_city_text` write above is the canonical path until a location picker
   // is wired into this section.
+
+  // T4 collapse-dedicated-columns: System B is the sole store for these.
+  await syncScalarFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
+    passport_status: input.passport_status !== undefined ? (input.passport_status || null) : undefined,
+    drivers_license: input.drivers_license !== undefined ? (input.drivers_license || null) : undefined,
+  });
+  await syncBlobFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
+    work_eligibility: input.work_eligibility,
+    upcoming_visits: input.upcoming_visits,
+  });
 
   revalidatePath(`/${tenantSlug}/admin/roster`, "page");
   return { ok: true };
@@ -204,19 +213,19 @@ export async function updateTalentRates(input: {
   const check = await assertOnRoster(supabase as never, tenantId, input.talent_profile_id);
   if (!check.ok) return check;
 
-  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (input.rates_data !== undefined) patch.rates_data = input.rates_data;
-  if (input.package_rates_data !== undefined) patch.package_rates_data = input.package_rates_data;
-  if (input.rate_card_visibility !== undefined) patch.rate_card_visibility = input.rate_card_visibility;
-  if (input.ask_for_quote !== undefined) patch.ask_for_quote = input.ask_for_quote;
-  if (input.travel_included !== undefined) patch.travel_included = input.travel_included;
-  if (input.lodging_included !== undefined) patch.lodging_included = input.lodging_included;
-
-  const { error } = await supabase
-    .from("talent_profiles")
-    .update(patch)
-    .eq("id", input.talent_profile_id);
-  if (error) { logServerError("profile-sections.rates", error); return { ok: false, error: CLIENT_ERROR.update }; }
+  // T4 collapse-dedicated-columns: rates_data/package_rates_data + the
+  // commercial scalars no longer have dedicated columns — System B is the sole
+  // store. (rate_tiers_data isn't part of this standalone writer's input.)
+  await syncScalarFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
+    rate_card_visibility: input.rate_card_visibility,
+    ask_for_quote: input.ask_for_quote,
+    travel_included: input.travel_included,
+    lodging_included: input.lodging_included,
+  });
+  await syncBlobFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
+    rates_data: input.rates_data,
+    package_rates_data: input.package_rates_data,
+  });
 
   revalidatePath(`/${tenantSlug}/admin/roster`, "page");
   return { ok: true };
@@ -263,11 +272,10 @@ export async function updateTalentCredits(input: {
   const check = await assertOnRoster(supabase as never, tenantId, input.talent_profile_id);
   if (!check.ok) return check;
 
-  const { error } = await supabase
-    .from("talent_profiles")
-    .update({ credits_data: input.credits_data, updated_at: new Date().toISOString() })
-    .eq("id", input.talent_profile_id);
-  if (error) { logServerError("profile-sections.credits", error); return { ok: false, error: CLIENT_ERROR.update }; }
+  // T4 collapse-dedicated-columns: credits_data is System-B only.
+  await syncBlobFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
+    credits_data: input.credits_data,
+  });
 
   revalidatePath(`/${tenantSlug}/admin/roster`, "page");
   return { ok: true };
@@ -286,11 +294,10 @@ export async function updateTalentLimits(input: {
   const check = await assertOnRoster(supabase as never, tenantId, input.talent_profile_id);
   if (!check.ok) return check;
 
-  const { error } = await supabase
-    .from("talent_profiles")
-    .update({ limits_data: input.limits_data, updated_at: new Date().toISOString() })
-    .eq("id", input.talent_profile_id);
-  if (error) { logServerError("profile-sections.limits", error); return { ok: false, error: CLIENT_ERROR.update }; }
+  // T4 collapse-dedicated-columns: limits_data is System-B only.
+  await syncBlobFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
+    limits_data: input.limits_data,
+  });
 
   revalidatePath(`/${tenantSlug}/admin/roster`, "page");
   return { ok: true };
@@ -311,11 +318,10 @@ export async function updateTalentSocialProof(input: {
   const check = await assertOnRoster(supabase as never, tenantId, input.talent_profile_id);
   if (!check.ok) return check;
 
-  const { error } = await supabase
-    .from("talent_profiles")
-    .update({ social_proof_data: input.social_proof_data, updated_at: new Date().toISOString() })
-    .eq("id", input.talent_profile_id);
-  if (error) { logServerError("profile-sections.social-proof", error); return { ok: false, error: CLIENT_ERROR.update }; }
+  // T4 collapse-dedicated-columns: social_proof_data is System-B only.
+  await syncBlobFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
+    social_proof_data: input.social_proof_data,
+  });
 
   revalidatePath(`/${tenantSlug}/admin/roster`, "page");
   return { ok: true };
@@ -339,18 +345,14 @@ export async function updateTalentMediaAlbums(input: {
   const check = await assertOnRoster(supabase as never, tenantId, input.talent_profile_id);
   if (!check.ok) return check;
 
-  const { error } = await supabase
-    .from("talent_profiles")
-    .update({
-      media_albums_data: input.albums.map((a, i) => ({
-        id: a.id,
-        name: a.name,
-        sortOrder: a.sortOrder ?? i,
-      })),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", input.talent_profile_id);
-  if (error) { logServerError("profile-sections.albums", error); return { ok: false, error: CLIENT_ERROR.update }; }
+  // T4 collapse-dedicated-columns: media_albums_data is System-B only.
+  await syncBlobFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
+    media_albums_data: input.albums.map((a, i) => ({
+      id: a.id,
+      name: a.name,
+      sortOrder: a.sortOrder ?? i,
+    })),
+  });
 
   revalidatePath(`/${tenantSlug}/admin/roster`, "page");
   return { ok: true };
@@ -382,11 +384,10 @@ export async function updateTalentDocuments(input: {
   const check = await assertOnRoster(supabase as never, tenantId, input.talent_profile_id);
   if (!check.ok) return check;
 
-  const { error } = await supabase
-    .from("talent_profiles")
-    .update({ documents_data: input.documents, updated_at: new Date().toISOString() })
-    .eq("id", input.talent_profile_id);
-  if (error) { logServerError("profile-sections.documents", error); return { ok: false, error: CLIENT_ERROR.update }; }
+  // T4 collapse-dedicated-columns: documents_data is System-B only.
+  await syncBlobFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
+    documents_data: input.documents,
+  });
 
   revalidatePath(`/${tenantSlug}/admin/roster`, "page");
   return { ok: true };
@@ -405,19 +406,28 @@ export async function updateRosterMeta(input: {
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
-  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (input.internal_notes !== undefined) patch.internal_notes = input.internal_notes?.trim() || null;
-  if (input.emergency_contact !== undefined) patch.emergency_contact = input.emergency_contact;
-  if (input.field_locks_data !== undefined) patch.field_locks_data = input.field_locks_data;
-  if (input.feature_in_directory !== undefined) patch.feature_in_directory = input.feature_in_directory;
+  // T4 collapse-dedicated-columns: internal_notes / emergency_contact /
+  // field_locks_data are System-B only now (their agency_talent_roster columns
+  // were dropped). Only feature_in_directory remains a column; the roster UPDATE
+  // only runs when it was edited.
+  if (input.feature_in_directory !== undefined) {
+    const { error } = await supabase
+      .from("agency_talent_roster")
+      .update({
+        feature_in_directory: input.feature_in_directory,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("tenant_id", tenantId)
+      .eq("talent_profile_id", input.talent_profile_id)
+      .neq("status", "removed");
+    if (error) { logServerError("profile-sections.roster-meta", error); return { ok: false, error: CLIENT_ERROR.update }; }
+  }
 
-  const { error } = await supabase
-    .from("agency_talent_roster")
-    .update(patch)
-    .eq("tenant_id", tenantId)
-    .eq("talent_profile_id", input.talent_profile_id)
-    .neq("status", "removed");
-  if (error) { logServerError("profile-sections.roster-meta", error); return { ok: false, error: CLIENT_ERROR.update }; }
+  await syncRosterFieldValuesToCatalog(supabase, input.talent_profile_id, tenantId, {
+    internal_notes: input.internal_notes,
+    emergency_contact: input.emergency_contact,
+    field_locks_data: input.field_locks_data,
+  });
 
   return { ok: true };
 }
@@ -586,12 +596,49 @@ export async function commitTalentProfileShellAdmin(
   const rates = input.rates;
   const about = input.about;
 
+  // T4 collapse-dedicated-columns: the Tier-A scalars (tagline, bio_tone,
+  // rate_card_visibility, ask_for_quote, travel_included, lodging_included,
+  // passport_status, drivers_license), the Tier-B JSONB blobs (bios,
+  // personality_traits, rates_data, package_rates_data, rate_tiers_data,
+  // credits_data, limits_data, social_proof_data, work_eligibility,
+  // upcoming_visits, media_albums_data, documents_data) and the Tier-A identity
+  // scalars (age_display_mode, response_time via idBuilt.migratedFieldValues) no
+  // longer have dedicated columns — they live ONLY in System B and are written
+  // by the catalog syncs below. They are computed here as locals and are NOT
+  // added to `profilePatch` (the columns are gone). `gender` IS kept on the
+  // column (carve-out) and rides in via `idBuilt.patch`.
+  const mediaAlbums = input.albums.albums.map((a, i) => ({
+    id: a.id,
+    name: a.name,
+    sortOrder: a.sortOrder ?? i,
+  }));
+  const scalarValues = {
+    tagline: about.tagline?.trim() || null,
+    bio_tone: about.bio_tone ?? null,
+    rate_card_visibility: rates.rate_card_visibility ?? null,
+    ask_for_quote: rates.ask_for_quote ?? false,
+    travel_included: rates.travel_included ?? false,
+    lodging_included: rates.lodging_included ?? false,
+    passport_status: loc.passport_status ?? null,
+    drivers_license: loc.drivers_license ?? null,
+  };
+  const blobValues = {
+    bios: about.bios,
+    personality_traits: about.personality_traits,
+    rates_data: rates.rates_data ?? [],
+    package_rates_data: rates.package_rates_data ?? [],
+    rate_tiers_data: rates.rate_tiers_data ?? [],
+    credits_data: input.credits.credits_data,
+    limits_data: input.limits.limits_data,
+    social_proof_data: input.social.social_proof_data,
+    work_eligibility: loc.work_eligibility ?? [],
+    upcoming_visits: loc.upcoming_visits ?? [],
+    media_albums_data: mediaAlbums,
+    documents_data: input.documents.documents,
+  };
+
   const profilePatch: Record<string, unknown> = {
     ...idBuilt.patch,
-    bios: about.bios,
-    bio_tone: about.bio_tone ?? null,
-    personality_traits: about.personality_traits,
-    tagline: about.tagline?.trim() || null,
     // Panel-owned location scalars — skipped when the canonical
     // LocationSlotPanel owns service areas (else this stale state would
     // clobber talent_service_areas). Deferred fields below stay.
@@ -604,27 +651,9 @@ export async function commitTalentProfileShellAdmin(
           travel_fee_required: loc.travel_fee_required ?? false,
           remote_only: loc.remote_only ?? false,
         }),
-    passport_status: loc.passport_status ?? null,
-    drivers_license: loc.drivers_license ?? null,
-    work_eligibility: loc.work_eligibility ?? [],
-    upcoming_visits: loc.upcoming_visits ?? [],
-    rates_data: rates.rates_data ?? [],
-    package_rates_data: rates.package_rates_data ?? [],
-    rate_tiers_data: rates.rate_tiers_data ?? [],
-    rate_card_visibility: rates.rate_card_visibility ?? null,
-    ask_for_quote: rates.ask_for_quote ?? false,
-    travel_included: rates.travel_included ?? false,
-    lodging_included: rates.lodging_included ?? false,
+    // availability_data is a deliberate carve-out (powers booking queries) —
+    // stays a dedicated column.
     availability_data: input.availability.availability_data,
-    credits_data: input.credits.credits_data,
-    limits_data: input.limits.limits_data,
-    social_proof_data: input.social.social_proof_data,
-    media_albums_data: input.albums.albums.map((a, i) => ({
-      id: a.id,
-      name: a.name,
-      sortOrder: a.sortOrder ?? i,
-    })),
-    documents_data: input.documents.documents,
     updated_at: new Date().toISOString(),
   };
 
@@ -660,90 +689,76 @@ export async function commitTalentProfileShellAdmin(
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
-  // P3 Tier-A Stage-1 dual-write: mirror the scalar fields written to
-  // talent_profiles above into the catalog value table, scoped to the active
-  // roster tenant. Fire-and-forget — never blocks the column write the editor
-  // already trusts. Booleans pass `false` as a real value (not empty).
-  // The first 8 scalars are UNCONDITIONALLY set in profilePatch above (always
-  // defined). age_display_mode + response_time arrive via `...idBuilt.patch`
-  // and are only present when the identity payload edited them — pass them raw
-  // so `undefined` (untouched) is respected by the helper's per-key contract.
+  // T4 collapse-dedicated-columns: System B is now the SOLE store for these
+  // Tier-A scalars (the dedicated columns were dropped). Scoped to the active
+  // roster tenant. Booleans pass `false` as a real value (not empty). The 8
+  // scalars below are always present (the shell commit always supplies them);
+  // age_display_mode + response_time arrive via idBuilt.migratedFieldValues and
+  // are only present when the identity payload edited them (undefined =
+  // untouched). Fire-and-forget.
   await syncScalarFieldValuesToCatalog(supabase, tid, tenantId, {
-    tagline: profilePatch.tagline as string | null,
-    bio_tone: profilePatch.bio_tone as string | null,
-    rate_card_visibility: profilePatch.rate_card_visibility as string | null,
-    ask_for_quote: profilePatch.ask_for_quote as boolean,
-    travel_included: profilePatch.travel_included as boolean,
-    lodging_included: profilePatch.lodging_included as boolean,
-    passport_status: profilePatch.passport_status as string | null,
-    drivers_license: profilePatch.drivers_license as string | null,
-    age_display_mode: profilePatch.age_display_mode as string | null | undefined,
-    response_time: profilePatch.response_time as string | null | undefined,
+    tagline: scalarValues.tagline,
+    bio_tone: scalarValues.bio_tone,
+    rate_card_visibility: scalarValues.rate_card_visibility,
+    ask_for_quote: scalarValues.ask_for_quote,
+    travel_included: scalarValues.travel_included,
+    lodging_included: scalarValues.lodging_included,
+    passport_status: scalarValues.passport_status,
+    drivers_license: scalarValues.drivers_license,
+    age_display_mode: idBuilt.migratedFieldValues.age_display_mode,
+    response_time: idBuilt.migratedFieldValues.response_time,
   });
   lap("scalarFieldValuesCatalog");
 
-  // P3 Tier-B Stage-1 dual-write: mirror the editor-only JSONB blobs written to
-  // talent_profiles above into the catalog value table, scoped to the active
-  // roster tenant, stored VERBATIM. Fire-and-forget — never blocks the column
-  // write. Each blob is UNCONDITIONALLY set in profilePatch above (the shell
-  // commit always replaces them), so all twelve are passed; the helper's
-  // per-blob emptiness contract decides upsert vs delete. `availability_data`
-  // is a deliberate carve-out (powers booking queries) and is NOT mirrored.
-  await syncBlobFieldValuesToCatalog(supabase, tid, tenantId, {
-    bios: profilePatch.bios,
-    personality_traits: profilePatch.personality_traits,
-    rates_data: profilePatch.rates_data,
-    package_rates_data: profilePatch.package_rates_data,
-    rate_tiers_data: profilePatch.rate_tiers_data,
-    credits_data: profilePatch.credits_data,
-    limits_data: profilePatch.limits_data,
-    social_proof_data: profilePatch.social_proof_data,
-    work_eligibility: profilePatch.work_eligibility,
-    upcoming_visits: profilePatch.upcoming_visits,
-    media_albums_data: profilePatch.media_albums_data,
-    documents_data: profilePatch.documents_data,
-  });
+  // T4 collapse-dedicated-columns: System B is now the SOLE store for these
+  // Tier-B JSONB blobs (the dedicated columns were dropped), stored VERBATIM.
+  // All twelve are always supplied by the shell commit; the helper's per-blob
+  // emptiness contract decides upsert vs delete. `availability_data` is a
+  // deliberate carve-out (powers booking queries) and stays a column.
+  await syncBlobFieldValuesToCatalog(supabase, tid, tenantId, blobValues);
   lap("blobFieldValuesCatalog");
 
-  // P3 Tier-C Stage-1 dual-write: mirror the identity-PII fields written to
-  // talent_profiles above into the catalog value table, scoped to the active
-  // roster tenant. Fire-and-forget — never blocks the column write. pronouns,
-  // pronouns_custom + gender arrive via `...idBuilt.patch` and are only present
-  // when the identity payload edited them — pass them raw so `undefined`
-  // (untouched) is respected by the helper's per-key contract. gender stores the
-  // canonical select value (== the column value after the Tier-C-tail
-  // normalization). DOB is DELIBERATELY EXCLUDED (legacy-mirror collision on
-  // identity.dob) — see identity-field-values-catalog.ts for the full
-  // reconciliation.
+  // T4 collapse-dedicated-columns: System B is now the SOLE store for the
+  // Tier-C identity-PII fields pronouns + pronouns_custom (their dedicated
+  // columns were dropped). They arrive via idBuilt.migratedFieldValues and are
+  // only present when the identity payload edited them (undefined = untouched).
+  // `gender` is a deliberate carve-out — it stays on the column (written via
+  // idBuilt.patch) AND is still mirrored to B for parity. DOB is DELIBERATELY
+  // EXCLUDED (legacy-mirror collision on identity.dob) — see
+  // identity-field-values-catalog.ts for the full reconciliation.
   await syncIdentityFieldValuesToCatalog(supabase, tid, tenantId, {
-    pronouns: profilePatch.pronouns as string | null | undefined,
-    pronouns_custom: profilePatch.pronouns_custom as string | null | undefined,
-    gender: profilePatch.gender as string | null | undefined,
+    pronouns: idBuilt.migratedFieldValues.pronouns,
+    pronouns_custom: idBuilt.migratedFieldValues.pronouns_custom,
+    gender: idBuilt.patch.gender as string | null | undefined,
   });
   lap("identityFieldValuesCatalog");
 
+  // T4 collapse-dedicated-columns: internal_notes / emergency_contact /
+  // field_locks_data (Tier-D) no longer have dedicated columns on
+  // agency_talent_roster — System B is the sole store (written below). Only
+  // feature_in_directory (a kept column) is patched here; the roster UPDATE only
+  // runs when there's actually a kept column to set.
   const rm = input.rosterMeta;
-  const rosterPatch: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (rm.internal_notes !== undefined) rosterPatch.internal_notes = rm.internal_notes?.trim() || null;
-  if (rm.emergency_contact !== undefined) rosterPatch.emergency_contact = rm.emergency_contact;
-  if (rm.field_locks_data !== undefined) rosterPatch.field_locks_data = rm.field_locks_data;
-  if (rm.feature_in_directory !== undefined) rosterPatch.feature_in_directory = rm.feature_in_directory;
-
-  const { error: rosterErr } = await supabase
-    .from("agency_talent_roster")
-    .update(rosterPatch)
-    .eq("tenant_id", tenantId)
-    .eq("talent_profile_id", tid)
-    .neq("status", "removed");
-  lap("agency_talent_roster.update");
-  if (rosterErr) {
-    logServerError("profile-sections.commit-shell.roster", rosterErr);
-    return { ok: false, error: CLIENT_ERROR.update };
+  if (rm.feature_in_directory !== undefined) {
+    const { error: rosterErr } = await supabase
+      .from("agency_talent_roster")
+      .update({
+        feature_in_directory: rm.feature_in_directory,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("tenant_id", tenantId)
+      .eq("talent_profile_id", tid)
+      .neq("status", "removed");
+    if (rosterErr) {
+      logServerError("profile-sections.commit-shell.roster", rosterErr);
+      return { ok: false, error: CLIENT_ERROR.update };
+    }
   }
+  lap("agency_talent_roster.update");
 
-  // P3 Tier-D Stage-1 dual-write: mirror the roster-scoped fields into the
-  // catalog value table alongside the column write above. Fire-and-forget —
-  // never blocks the column write the editor already trusts.
+  // T4 collapse-dedicated-columns: System B is the SOLE store for the Tier-D
+  // roster-scoped fields. Only keys the editor touched are present (undefined =
+  // untouched). Fire-and-forget.
   await syncRosterFieldValuesToCatalog(supabase, tid, tenantId, {
     internal_notes: rm.internal_notes,
     emergency_contact: rm.emergency_contact,
@@ -1268,19 +1283,18 @@ export async function getTalentProfileEditorData(input: {
   const [profileRes, rosterRes, rosterFieldValues, scalarFieldValues, blobFieldValues, identityFieldValues] = await Promise.all([
     supabase
       .from("talent_profiles")
+      // T4 collapse-dedicated-columns: the migrated Tier-A/B/C fields no longer
+      // have columns — they're sourced from System B below. Only kept columns
+      // (incl. gender + date_of_birth carve-outs) are selected here.
       .select(`
         updated_at,
         user_id,
-        display_name, first_name, last_name, legal_name, field_visibility, pronouns, pronouns_custom,
-        gender, date_of_birth, age_display_mode, nationality, home_country_text, response_time,
+        display_name, first_name, last_name, legal_name, field_visibility,
+        gender, date_of_birth, nationality, home_country_text,
         is_discoverable,
         invitation_email, phone,
-        bios, bio_tone, personality_traits, tagline,
         home_city_text, home_place_id, travel_radius_km, travel_fee_required, remote_only,
-        passport_status, drivers_license, work_eligibility, upcoming_visits,
-        rates_data, package_rates_data, rate_tiers_data, rate_card_visibility, ask_for_quote,
-        travel_included, lodging_included,
-        availability_data, credits_data, limits_data, social_proof_data, media_albums_data, documents_data,
+        availability_data,
         social_links, embedded_media,
         workflow_status, visibility,
         talent_profile_taxonomy (
@@ -1292,7 +1306,7 @@ export async function getTalentProfileEditorData(input: {
       .maybeSingle(),
     supabase
       .from("agency_talent_roster")
-      .select("internal_notes, emergency_contact, field_locks_data, feature_in_directory, exclusivity_status")
+      .select("feature_in_directory, exclusivity_status")
       .eq("talent_profile_id", input.talent_profile_id)
       .eq("tenant_id", tenantId)
       .neq("status", "removed")
@@ -1328,9 +1342,8 @@ export async function getTalentProfileEditorData(input: {
   );
 
   // Normalize bios to always have at least an English entry so the editor
-  // doesn't show an empty locale chip strip. P3 Tier-B Stage-4: prefer the
-  // catalog value row (verbatim array blob), fall back to the column.
-  const biosSource = bv.bios ?? p.bios;
+  // doesn't show an empty locale chip strip. T4: bios is System-B only now.
+  const biosSource = bv.bios;
   const rawBios = Array.isArray(biosSource)
     ? (biosSource as Array<{ locale?: string; text?: string }>)
     : [];
@@ -1365,68 +1378,61 @@ export async function getTalentProfileEditorData(input: {
       first_name: (p.first_name as string | null) ?? null,
       last_name: (p.last_name as string | null) ?? null,
       legal_name: (p.legal_name as string | null) ?? null,
-      // P3 Tier-C Stage-4: prefer the catalog value row, fall back to the
-      // dedicated talent_profiles column when no value row exists (column write
-      // still live). DOB remains column-sourced (excluded from Tier C).
-      pronouns: iv.pronouns ?? (p.pronouns as string | null) ?? null,
-      pronouns_custom: iv.pronouns_custom ?? (p.pronouns_custom as string | null) ?? null,
+      // T4 collapse-dedicated-columns: pronouns / pronouns_custom are System-B
+      // only now (columns dropped). gender + date_of_birth remain dedicated
+      // carve-out columns; gender is also mirrored to B (prefer B, fall back to
+      // the column). DOB is column-sourced.
+      pronouns: iv.pronouns ?? null,
+      pronouns_custom: iv.pronouns_custom ?? null,
       gender: iv.gender ?? (p.gender as string | null) ?? null,
       date_of_birth: (p.date_of_birth as string | null) ?? null,
-      // P3 Tier-A Stage-4: prefer the catalog value row, fall back to the
-      // dedicated talent_profiles column when no value row exists (column write
-      // still live). Booleans: a present `false` value row wins; `undefined`
-      // (no row) falls through to the column.
-      age_display_mode: sv.age_display_mode ?? (p.age_display_mode as string | null) ?? null,
+      // T4: Tier-A scalars are System-B only. Booleans: a present `false` value
+      // row is returned as `false`; absent (no row) → the helper omits the key,
+      // so `?? null` / `?? false` is the empty default.
+      age_display_mode: sv.age_display_mode ?? null,
       nationality: (p.nationality as string | null) ?? null,
       home_country_text: (p.home_country_text as string | null) ?? null,
-      response_time: sv.response_time ?? (p.response_time as string | null) ?? null,
+      response_time: sv.response_time ?? null,
       is_discoverable: Boolean(p.is_discoverable),
       field_visibility: p.field_visibility ?? null,
       invitation_email: (p.invitation_email as string | null) ?? null,
       phone: (p.phone as string | null) ?? null,
       bios,
-      bio_tone: sv.bio_tone ?? (p.bio_tone as string | null) ?? null,
-      // P3 Tier-B Stage-4: prefer the catalog value row (verbatim blob), fall
-      // back to the dedicated talent_profiles column when no value row exists.
-      personality_traits: bv.personality_traits ?? p.personality_traits ?? { loves: [], avoids: [] },
-      tagline: sv.tagline ?? (p.tagline as string | null) ?? null,
+      bio_tone: sv.bio_tone ?? null,
+      // T4: Tier-B blobs are System-B only (verbatim).
+      personality_traits: bv.personality_traits ?? { loves: [], avoids: [] },
+      tagline: sv.tagline ?? null,
       home_city_text: (p.home_city_text as string | null) ?? null,
       home_place_id: (p.home_place_id as string | null) ?? null,
       travel_radius_km: (p.travel_radius_km as number | null) ?? null,
       travel_fee_required: Boolean(p.travel_fee_required),
       remote_only: Boolean(p.remote_only),
-      passport_status: sv.passport_status ?? (p.passport_status as string | null) ?? null,
-      drivers_license: sv.drivers_license ?? (p.drivers_license as string | null) ?? null,
-      work_eligibility: bv.work_eligibility ?? p.work_eligibility ?? [],
-      upcoming_visits: bv.upcoming_visits ?? (Array.isArray(p.upcoming_visits) ? p.upcoming_visits : []),
-      rates_data: bv.rates_data ?? p.rates_data ?? [],
-      package_rates_data: bv.package_rates_data ?? p.package_rates_data ?? [],
-      rate_tiers_data: bv.rate_tiers_data ?? p.rate_tiers_data ?? [],
-      rate_card_visibility: sv.rate_card_visibility ?? (p.rate_card_visibility as string | null) ?? null,
-      ask_for_quote: sv.ask_for_quote ?? Boolean(p.ask_for_quote),
-      travel_included: sv.travel_included ?? Boolean(p.travel_included),
-      lodging_included: sv.lodging_included ?? Boolean(p.lodging_included),
+      passport_status: sv.passport_status ?? null,
+      drivers_license: sv.drivers_license ?? null,
+      work_eligibility: bv.work_eligibility ?? [],
+      upcoming_visits: bv.upcoming_visits ?? [],
+      rates_data: bv.rates_data ?? [],
+      package_rates_data: bv.package_rates_data ?? [],
+      rate_tiers_data: bv.rate_tiers_data ?? [],
+      rate_card_visibility: sv.rate_card_visibility ?? null,
+      ask_for_quote: sv.ask_for_quote ?? false,
+      travel_included: sv.travel_included ?? false,
+      lodging_included: sv.lodging_included ?? false,
       // availability_data is a carve-out — never sourced from the value table.
       availability_data: p.availability_data ?? {},
-      credits_data: bv.credits_data ?? p.credits_data ?? [],
-      limits_data: bv.limits_data ?? p.limits_data ?? {},
-      social_proof_data: bv.social_proof_data ?? p.social_proof_data ?? [],
+      credits_data: bv.credits_data ?? [],
+      limits_data: bv.limits_data ?? {},
+      social_proof_data: bv.social_proof_data ?? [],
       media_albums_data: Array.isArray(bv.media_albums_data)
         ? (bv.media_albums_data as MediaAlbumEntry[])
-        : Array.isArray(p.media_albums_data)
-          ? (p.media_albums_data as MediaAlbumEntry[])
-          : [],
+        : [],
       documents_data: Array.isArray(bv.documents_data)
         ? (bv.documents_data as TalentDocumentEntry[])
-        : Array.isArray(p.documents_data)
-          ? (p.documents_data as TalentDocumentEntry[])
-          : [],
-      // P3 Tier-D Stage-4: prefer the catalog value row, fall back to the
-      // dedicated column when no value row exists (column write still live).
-      internal_notes:
-        rosterFieldValues.internal_notes ?? (r.internal_notes as string | null) ?? null,
-      emergency_contact: rosterFieldValues.emergency_contact ?? r.emergency_contact ?? {},
-      field_locks_data: rosterFieldValues.field_locks_data ?? r.field_locks_data ?? {},
+        : [],
+      // T4: Tier-D roster fields are System-B only.
+      internal_notes: rosterFieldValues.internal_notes ?? null,
+      emergency_contact: rosterFieldValues.emergency_contact ?? {},
+      field_locks_data: rosterFieldValues.field_locks_data ?? {},
       feature_in_directory: Boolean(r.feature_in_directory),
       social_links: p.social_links ?? [],
       embedded_media: p.embedded_media ?? [],

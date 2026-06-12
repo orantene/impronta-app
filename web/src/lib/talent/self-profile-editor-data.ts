@@ -38,18 +38,17 @@ export async function loadSelfProfileEditorData(input: {
   const [profileRes, rosterRes, rosterFieldValues, scalarFieldValues, blobFieldValues, identityFieldValues] = await Promise.all([
     supabase
       .from("talent_profiles")
+      // T4 collapse-dedicated-columns: the migrated Tier-A/B/C fields no longer
+      // have columns — they're sourced from System B below. Only kept columns
+      // (incl. gender + date_of_birth carve-outs) are selected here.
       .select(`
         updated_at,
-        display_name, first_name, last_name, legal_name, field_visibility, pronouns, pronouns_custom,
-        gender, date_of_birth, age_display_mode, nationality, home_country_text, response_time,
+        display_name, first_name, last_name, legal_name, field_visibility,
+        gender, date_of_birth, nationality, home_country_text,
         is_discoverable,
         invitation_email, phone,
-        bios, bio_tone, personality_traits, tagline,
         home_city_text, home_place_id, travel_radius_km, travel_fee_required, remote_only,
-        passport_status, drivers_license, work_eligibility, upcoming_visits,
-        rates_data, package_rates_data, rate_tiers_data, rate_card_visibility, ask_for_quote,
-        travel_included, lodging_included,
-        availability_data, credits_data, limits_data, social_proof_data, media_albums_data, documents_data,
+        availability_data,
         social_links, embedded_media,
         workflow_status, visibility,
         talent_profile_taxonomy (
@@ -60,28 +59,26 @@ export async function loadSelfProfileEditorData(input: {
       .eq("id", talentProfileId)
       .maybeSingle(),
     // Agency-managed fields only exist when the talent is on a roster.
-    // Independent (no-tenant) talent skip this query entirely.
+    // Independent (no-tenant) talent skip this query entirely. feature_in_directory
+    // is the only kept roster column; the rest are sourced from System B.
     tenantId
       ? supabase
           .from("agency_talent_roster")
-          .select("internal_notes, emergency_contact, field_locks_data, feature_in_directory")
+          .select("feature_in_directory")
           .eq("talent_profile_id", talentProfileId)
           .eq("tenant_id", tenantId)
           .neq("status", "removed")
           .maybeSingle()
       : Promise.resolve({ data: null, error: null }),
-    // P3 Tier-D Stage-4: source roster-scoped fields from the catalog value
-    // table, falling back to the dedicated column below when absent.
+    // T4: source the Tier-D roster-scoped fields from System B (sole store).
     readRosterFieldValuesFromCatalog(supabase, talentProfileId),
-    // P3 Tier-A Stage-4: source the scalar fields from the catalog value table,
-    // falling back to the dedicated talent_profiles column below when absent.
+    // T4: source the Tier-A scalar fields from System B (sole store).
     readScalarFieldValuesFromCatalog(supabase, talentProfileId),
-    // P3 Tier-B Stage-4: source the editor-only JSONB blobs from the catalog
-    // value table, falling back to the dedicated column below when absent.
+    // T4: source the Tier-B editor-only JSONB blobs from System B (sole store).
     readBlobFieldValuesFromCatalog(supabase, talentProfileId),
-    // P3 Tier-C Stage-4: source the identity-PII fields (pronouns,
-    // pronouns_custom + gender) from the catalog value table, falling back to the
-    // dedicated column below when absent. DOB stays column-only.
+    // T4: source the Tier-C pronouns/pronouns_custom + gender from System B.
+    // gender is also kept on the column (carve-out) as a fallback. DOB is
+    // column-only.
     readIdentityFieldValuesFromCatalog(supabase, talentProfileId),
   ]);
 
@@ -98,8 +95,8 @@ export async function loadSelfProfileEditorData(input: {
   const iv = identityFieldValues;
   const { primary: shellPrimarySlug, secondaries: shellSecondarySlugs } =
     talentTypeSlugsFromTaxonomyEmbed(p.talent_profile_taxonomy);
-  // P3 Tier-B Stage-4: prefer the catalog value row (verbatim array blob).
-  const biosSource = bv.bios ?? p.bios;
+  // T4: bios is System-B only now (verbatim array blob).
+  const biosSource = bv.bios;
   const rawBios = Array.isArray(biosSource)
     ? (biosSource as Array<{ locale?: string; text?: string }>)
     : [];
@@ -121,75 +118,58 @@ export async function loadSelfProfileEditorData(input: {
       first_name: (p.first_name as string | null) ?? null,
       last_name: (p.last_name as string | null) ?? null,
       legal_name: (p.legal_name as string | null) ?? null,
-      // P3 Tier-C Stage-4: prefer the catalog value row, fall back to the
-      // dedicated talent_profiles column when no value row exists (column write
-      // still live). DOB remains column-sourced (excluded from Tier C).
-      pronouns: iv.pronouns ?? (p.pronouns as string | null) ?? null,
-      pronouns_custom: iv.pronouns_custom ?? (p.pronouns_custom as string | null) ?? null,
+      // T4: pronouns / pronouns_custom are System-B only. gender + DOB remain
+      // dedicated carve-out columns; gender prefers B, falls back to the column.
+      pronouns: iv.pronouns ?? null,
+      pronouns_custom: iv.pronouns_custom ?? null,
       gender: iv.gender ?? (p.gender as string | null) ?? null,
       date_of_birth: (p.date_of_birth as string | null) ?? null,
-      // P3 Tier-A Stage-4: prefer the catalog value row, fall back to the
-      // dedicated talent_profiles column when no value row exists (column write
-      // still live). Booleans: a present `false` value row wins.
-      age_display_mode: sv.age_display_mode ?? (p.age_display_mode as string | null) ?? null,
+      // T4: Tier-A scalars are System-B only. Booleans: a present `false` value
+      // row is returned as `false`; absent → empty default.
+      age_display_mode: sv.age_display_mode ?? null,
       nationality: (p.nationality as string | null) ?? null,
       home_country_text: (p.home_country_text as string | null) ?? null,
-      response_time: sv.response_time ?? (p.response_time as string | null) ?? null,
+      response_time: sv.response_time ?? null,
       is_discoverable: Boolean(p.is_discoverable),
       field_visibility: p.field_visibility ?? null,
       invitation_email: (p.invitation_email as string | null) ?? null,
       phone: (p.phone as string | null) ?? null,
       bios,
-      bio_tone: sv.bio_tone ?? (p.bio_tone as string | null) ?? null,
-      // P3 Tier-B Stage-4: prefer the catalog value row (verbatim blob), fall
-      // back to the dedicated talent_profiles column when no value row exists.
-      personality_traits: bv.personality_traits ?? p.personality_traits ?? { loves: [], avoids: [] },
-      tagline: sv.tagline ?? (p.tagline as string | null) ?? null,
+      bio_tone: sv.bio_tone ?? null,
+      // T4: Tier-B blobs are System-B only (verbatim).
+      personality_traits: bv.personality_traits ?? { loves: [], avoids: [] },
+      tagline: sv.tagline ?? null,
       home_city_text: (p.home_city_text as string | null) ?? null,
       home_place_id: (p.home_place_id as string | null) ?? null,
       travel_radius_km: (p.travel_radius_km as number | null) ?? null,
       travel_fee_required: Boolean(p.travel_fee_required),
       remote_only: Boolean(p.remote_only),
-      passport_status: sv.passport_status ?? (p.passport_status as string | null) ?? null,
-      drivers_license: sv.drivers_license ?? (p.drivers_license as string | null) ?? null,
-      work_eligibility: bv.work_eligibility ?? p.work_eligibility ?? [],
-      upcoming_visits: bv.upcoming_visits ?? (Array.isArray(p.upcoming_visits) ? p.upcoming_visits : []),
-      rates_data: bv.rates_data ?? p.rates_data ?? [],
-      package_rates_data: bv.package_rates_data ?? p.package_rates_data ?? [],
-      rate_tiers_data: bv.rate_tiers_data ?? p.rate_tiers_data ?? [],
-      rate_card_visibility: sv.rate_card_visibility ?? (p.rate_card_visibility as string | null) ?? null,
-      ask_for_quote: sv.ask_for_quote ?? Boolean(p.ask_for_quote),
-      travel_included: sv.travel_included ?? Boolean(p.travel_included),
-      lodging_included: sv.lodging_included ?? Boolean(p.lodging_included),
+      passport_status: sv.passport_status ?? null,
+      drivers_license: sv.drivers_license ?? null,
+      work_eligibility: bv.work_eligibility ?? [],
+      upcoming_visits: bv.upcoming_visits ?? [],
+      rates_data: bv.rates_data ?? [],
+      package_rates_data: bv.package_rates_data ?? [],
+      rate_tiers_data: bv.rate_tiers_data ?? [],
+      rate_card_visibility: sv.rate_card_visibility ?? null,
+      ask_for_quote: sv.ask_for_quote ?? false,
+      travel_included: sv.travel_included ?? false,
+      lodging_included: sv.lodging_included ?? false,
       // availability_data is a carve-out — never sourced from the value table.
       availability_data: p.availability_data ?? {},
-      credits_data: Array.isArray(bv.credits_data)
-        ? bv.credits_data
-        : Array.isArray(p.credits_data)
-          ? p.credits_data
-          : [],
-      limits_data: bv.limits_data ?? p.limits_data ?? {},
-      social_proof_data: Array.isArray(bv.social_proof_data)
-        ? bv.social_proof_data
-        : Array.isArray(p.social_proof_data)
-          ? p.social_proof_data
-          : [],
+      credits_data: Array.isArray(bv.credits_data) ? bv.credits_data : [],
+      limits_data: bv.limits_data ?? {},
+      social_proof_data: Array.isArray(bv.social_proof_data) ? bv.social_proof_data : [],
       media_albums_data: Array.isArray(bv.media_albums_data)
         ? (bv.media_albums_data as MediaAlbumEntry[])
-        : Array.isArray(p.media_albums_data)
-          ? (p.media_albums_data as MediaAlbumEntry[])
-          : [],
+        : [],
       documents_data: Array.isArray(bv.documents_data)
         ? (bv.documents_data as TalentDocumentEntry[])
-        : Array.isArray(p.documents_data)
-          ? (p.documents_data as TalentDocumentEntry[])
-          : [],
-      // P3 Tier-D Stage-4: prefer the catalog value row, fall back to the
-      // dedicated column when no value row exists (column write still live).
-      internal_notes:
-        rosterFieldValues.internal_notes ?? (r.internal_notes as string | null) ?? null,
-      emergency_contact: rosterFieldValues.emergency_contact ?? r.emergency_contact ?? null,
-      field_locks_data: rosterFieldValues.field_locks_data ?? r.field_locks_data ?? null,
+        : [],
+      // T4: Tier-D roster fields are System-B only.
+      internal_notes: rosterFieldValues.internal_notes ?? null,
+      emergency_contact: rosterFieldValues.emergency_contact ?? null,
+      field_locks_data: rosterFieldValues.field_locks_data ?? null,
       feature_in_directory: Boolean(r.feature_in_directory),
       social_links: p.social_links ?? [],
       embedded_media: p.embedded_media ?? [],

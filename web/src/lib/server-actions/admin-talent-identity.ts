@@ -30,6 +30,8 @@ import {
   buildTalentIdentityProfilePatch,
   type UpdateTalentIdentityInput,
 } from "@/lib/talent/talent-profile-shell-persistence";
+import { syncScalarFieldValuesToCatalog } from "@/lib/talent/scalar-field-values-catalog";
+import { syncIdentityFieldValuesToCatalog } from "@/lib/talent/identity-field-values-catalog";
 
 // Types for this action live in `talent-profile-shell-persistence.ts`.
 // Do not re-export types from this `use server` file — Next's action
@@ -98,18 +100,35 @@ export async function updateTalentIdentity(
     };
   }
 
-  if (Object.keys(built.patch).length === 0) {
-    return { ok: true, talent_profile_id: vId };
+  // Only touch the talent_profiles row when there is a column to write. The
+  // migrated Tier-A/Tier-C fields (pronouns, pronouns_custom, age_display_mode,
+  // response_time) no longer have dedicated columns — they live ONLY in System
+  // B and are mirrored below — so a payload that edits only those leaves
+  // `built.patch` empty and skips the column UPDATE.
+  if (Object.keys(built.patch).length > 0) {
+    const patch = { ...built.patch, updated_at: new Date().toISOString() };
+
+    const { error } = await supabase.from("talent_profiles").update(patch).eq("id", vId);
+
+    if (error) {
+      logServerError("admin-talent-identity.update", error);
+      return { ok: false, error: CLIENT_ERROR.update };
+    }
   }
 
-  const patch = { ...built.patch, updated_at: new Date().toISOString() };
-
-  const { error } = await supabase.from("talent_profiles").update(patch).eq("id", vId);
-
-  if (error) {
-    logServerError("admin-talent-identity.update", error);
-    return { ok: false, error: CLIENT_ERROR.update };
-  }
+  // System-B writes for the migrated identity fields (formerly dedicated
+  // columns, dropped in T4). Scoped to the active roster tenant; the helpers
+  // skip when the talent has no roster (no tenant). Only keys the payload
+  // touched are present (undefined = untouched). Fire-and-forget.
+  const mfv = built.migratedFieldValues;
+  await syncScalarFieldValuesToCatalog(supabase, vId, tenantId, {
+    age_display_mode: mfv.age_display_mode,
+    response_time: mfv.response_time,
+  });
+  await syncIdentityFieldValuesToCatalog(supabase, vId, tenantId, {
+    pronouns: mfv.pronouns,
+    pronouns_custom: mfv.pronouns_custom,
+  });
 
   revalidatePath(`/${auth.tenantSlug}`, "layout");
 

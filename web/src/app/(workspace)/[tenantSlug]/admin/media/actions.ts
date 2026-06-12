@@ -15,6 +15,10 @@ import {
   shouldResize,
   MAX_UPLOAD_BYTES,
 } from "@/lib/server/media-resize";
+import {
+  readBlobFieldValuesFromCatalog,
+  syncBlobFieldValuesToCatalog,
+} from "@/lib/talent/blob-field-values-catalog";
 
 type ActionResult<T = null> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -1019,23 +1023,22 @@ export async function actionDeleteTalentDocument(
     return { ok: false, error: "Could not delete file from storage." };
   }
 
-  // Remove the matching entry from documents_data so the DB stays in sync
-  // with storage. If documentId is omitted we fall back to matching by storagePath.
+  // Remove the matching entry from the `documents` metadata list so the DB
+  // stays in sync with storage. T4 collapse-dedicated-columns: this list lives
+  // in System B (`talent_profile_field_values`) now — the documents_data column
+  // was dropped. If documentId is omitted we fall back to matching by storagePath.
   if (documentId || storagePath) {
-    const { data: profile } = await admin
-      .from("talent_profiles")
-      .select("documents_data")
-      .eq("id", talentProfileId)
-      .maybeSingle();
-    if (profile) {
-      const existing = Array.isArray(profile.documents_data) ? profile.documents_data as Array<Record<string, unknown>> : [];
-      const filtered = existing.filter(d =>
-        documentId ? d.id !== documentId : d.storagePath !== storagePath,
-      );
-      await admin
-        .from("talent_profiles")
-        .update({ documents_data: filtered })
-        .eq("id", talentProfileId);
+    const blobValues = await readBlobFieldValuesFromCatalog(admin, talentProfileId);
+    const existing = Array.isArray(blobValues.documents_data)
+      ? (blobValues.documents_data as Array<Record<string, unknown>>)
+      : [];
+    const filtered = existing.filter(d =>
+      documentId ? d.id !== documentId : d.storagePath !== storagePath,
+    );
+    if (filtered.length !== existing.length) {
+      await syncBlobFieldValuesToCatalog(admin, talentProfileId, tenantId, {
+        documents_data: filtered,
+      });
     }
   }
 
