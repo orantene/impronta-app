@@ -43,6 +43,68 @@ export async function loadTalentPageAction(
   }
 }
 
+export async function ensureTalentPageAction(
+  input: Parameters<TalentPageAdapterActions["ensurePage"]>[0],
+): Promise<TalentPageRow | null> {
+  const SELECT_COLS =
+    "id, talent_profile_id, slug, title, status, blocks, theme, required_talent_tier, published_at, updated_at";
+  try {
+    const sb = await getCachedServerSupabase();
+    if (!sb) return null;
+
+    // 1. Try to load the existing row.
+    const { data: existing, error: loadErr } = await sb
+      .from("talent_pages")
+      .select(SELECT_COLS)
+      .eq("talent_profile_id", input.talentProfileId)
+      .eq("slug", input.slug)
+      .maybeSingle();
+
+    if (loadErr) {
+      logServerError("talentPageAdapter/ensurePage/load", loadErr);
+      return null;
+    }
+    if (existing) return existing as TalentPageRow;
+
+    // 2. No row — INSERT a draft.
+    const { data: inserted, error: insertErr } = await sb
+      .from("talent_pages")
+      .insert({
+        talent_profile_id: input.talentProfileId,
+        slug: input.slug,
+        status: "draft",
+        blocks: [],
+        theme: {},
+      })
+      .select(SELECT_COLS)
+      .single();
+
+    if (insertErr) {
+      // 23505 = unique_violation — concurrent insert; re-select.
+      if (insertErr.code === "23505") {
+        const { data: raced, error: raceErr } = await sb
+          .from("talent_pages")
+          .select(SELECT_COLS)
+          .eq("talent_profile_id", input.talentProfileId)
+          .eq("slug", input.slug)
+          .maybeSingle();
+        if (raceErr) {
+          logServerError("talentPageAdapter/ensurePage/race-reselect", raceErr);
+          return null;
+        }
+        return (raced as TalentPageRow) ?? null;
+      }
+      logServerError("talentPageAdapter/ensurePage/insert", insertErr);
+      return null;
+    }
+
+    return inserted as TalentPageRow;
+  } catch (err) {
+    logServerError("talentPageAdapter/ensurePage", err);
+    return null;
+  }
+}
+
 export async function saveTalentPageAction(
   input: Parameters<TalentPageAdapterActions["savePage"]>[0],
 ): ReturnType<TalentPageAdapterActions["savePage"]> {

@@ -1,16 +1,18 @@
 "use client";
 
 /**
- * AddGalleryPanel — builder Add Gallery (Elements / Sections / Connected).
+ * AddGalleryPanel — builder Add Gallery (Elements / Sections / Connected /
+ * Page Templates).
  * All inserts route through builderTree only via performAddGalleryInsert.
  */
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   filterAddGalleryItems,
   isAddGalleryItemAvailable,
   listAddGalleryCategoriesForTab,
+  builderTemplateRowToGalleryItem,
   type AddGalleryItem,
   type AddGalleryTab,
 } from "@/lib/site-admin/add-gallery";
@@ -21,6 +23,7 @@ import {
 import { performAddGalleryInsert } from "@/lib/site-admin/add-gallery/perform-insert";
 import { armAddGalleryDrag, clearAddGalleryDrag } from "@/lib/site-admin/add-gallery/drag";
 import { galleryItemSupportsDrag } from "@/lib/site-admin/add-gallery/insert";
+import { listPublishedTemplates } from "@/lib/site-admin/builder-core/templates/registry-actions";
 
 import { useEditContext } from "../edit-context";
 import { useBuilderTree } from "../builder-tree-bridge";
@@ -33,11 +36,18 @@ import { AddGallerySectionPreview } from "./add-gallery-section-previews";
 const PANEL_WIDTH = 592;
 const PANEL_MAX_HEIGHT = "min(78vh, 640px)";
 
-const TABS: ReadonlyArray<{ id: AddGalleryTab; label: string }> = [
+/**
+ * Full ordered catalog of all possible Add Gallery tabs. The TabBar filters
+ * this down to only those in the surface's `galleryPolicy.allowedTabs` so:
+ *   - homepage (policy omits page_templates) → 4 tabs, unchanged
+ *   - talent/workspace/platform_lab (policy includes page_templates) → 5 tabs
+ */
+const ALL_TABS: ReadonlyArray<{ id: AddGalleryTab; label: string }> = [
   { id: "layout", label: "Layout" },
   { id: "elements", label: "Elements" },
   { id: "sections", label: "Sections" },
   { id: "connected", label: "Connected" },
+  { id: "page_templates", label: "Page Templates" },
 ];
 
 interface AddGalleryPanelProps {
@@ -47,11 +57,19 @@ interface AddGalleryPanelProps {
 
 function TabBar({
   active,
+  allowedTabs,
   onChange,
 }: {
   active: AddGalleryTab;
+  /** Ordered set of tabs this surface permits. Derived from galleryPolicy.allowedTabs. */
+  allowedTabs: ReadonlyArray<AddGalleryTab>;
   onChange: (tab: AddGalleryTab) => void;
 }) {
+  const allowedSet = useMemo(() => new Set(allowedTabs), [allowedTabs]);
+  const tabs = useMemo(
+    () => ALL_TABS.filter((t) => allowedSet.has(t.id)),
+    [allowedSet],
+  );
   return (
     <div
       className="flex shrink-0 gap-0 border-b"
@@ -59,7 +77,7 @@ function TabBar({
       role="tablist"
       aria-label="Add gallery tabs"
     >
-      {TABS.map((tab) => {
+      {tabs.map((tab) => {
         const isActive = tab.id === active;
         return (
           <button
@@ -462,7 +480,8 @@ function GalleryCard(props: {
   onInsert: (item: AddGalleryItem) => void;
   pending: boolean;
 }) {
-  if (props.tab === "sections") {
+  if (props.tab === "sections" || props.tab === "page_templates") {
+    // page_templates use the same card shape as sections (preview + copy)
     return <SectionCard {...props} />;
   }
   if (props.tab === "connected") {
@@ -479,6 +498,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
     insertBuilderComponent,
     reportMutationError,
     selectBuilderNode,
+    galleryPolicy,
   } = useEditContext();
   // WS2 — tree read from the micro-store (builder-tree-bridge) instead of the
   // context value, so an edit no longer re-renders this panel via the value memo.
@@ -488,6 +508,36 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [pending, setPending] = useState(false);
+
+  // ── Page Templates DB loading ────────────────────────────────────────────
+  // `page_templates` items are exclusively DB-backed (no static code catalog
+  // entries). We load them once when the tab is first activated, then cache
+  // them for the lifetime of this panel open/close cycle.
+  const [dbTemplateItems, setDbTemplateItems] = useState<AddGalleryItem[]>([]);
+  const [dbTemplatesLoading, setDbTemplatesLoading] = useState(false);
+  const [dbTemplatesLoaded, setDbTemplatesLoaded] = useState(false);
+
+  useEffect(() => {
+    if (tab !== "page_templates") return;
+    if (dbTemplatesLoaded) return;
+    let cancelled = false;
+    setDbTemplatesLoading(true);
+    listPublishedTemplates({ galleryTab: "page_templates" }).then((result) => {
+      if (cancelled) return;
+      if (result.ok) {
+        setDbTemplateItems(
+          result.data.map((row) => builderTemplateRowToGalleryItem(row)),
+        );
+      }
+      // On error fall through to empty list — the UI shows "No matches"
+      setDbTemplatesLoading(false);
+      setDbTemplatesLoaded(true);
+    });
+    return () => { cancelled = true; };
+    // Deps are complete: `tab`/`dbTemplatesLoaded` are the reactive inputs; the
+    // setters and the module-level `listPublishedTemplates`/`builderTemplateRowToGalleryItem`
+    // imports are stable and intentionally not listed.
+  }, [tab, dbTemplatesLoaded]);
 
   const categories = useMemo(
     () => listAddGalleryCategoriesForTab(tab),
@@ -502,12 +552,23 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
   }, [categoryId, categories]);
 
   const items = useMemo(() => {
+    if (tab === "page_templates") {
+      // page_templates are DB-only; filter the loaded rows by query
+      const q = query.trim().toLowerCase();
+      if (!q) return dbTemplateItems;
+      return dbTemplateItems.filter((item) =>
+        [item.label, item.description, ...(item.searchTerms ?? [])]
+          .join(" ")
+          .toLowerCase()
+          .includes(q),
+      );
+    }
     return filterAddGalleryItems({
       tab,
       categoryId: query.trim() ? undefined : (activeCategoryId ?? undefined),
       query,
     });
-  }, [tab, activeCategoryId, query]);
+  }, [tab, activeCategoryId, query, dbTemplateItems]);
 
   const handleInsert = useCallback(
     async (item: AddGalleryItem) => {
@@ -552,10 +613,12 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
         ? "Add Elements"
         : tab === "sections"
           ? "Add Sections"
-          : "Add Connected";
+          : tab === "page_templates"
+            ? "Page Templates"
+            : "Add Connected";
 
   const gridColumns =
-    tab === "sections" || tab === "connected"
+    tab === "sections" || tab === "connected" || tab === "page_templates"
       ? "repeat(2, minmax(0, 1fr))"
       : "repeat(4, minmax(0, 1fr))";
 
@@ -571,6 +634,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
       tabs={
         <TabBar
           active={tab}
+          allowedTabs={galleryPolicy.allowedTabs}
           onChange={(next) => {
             setTab(next);
             setCategoryId(null);
@@ -654,7 +718,17 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
             />
           ) : null}
           <div className="min-h-0 flex-1 overflow-y-auto px-[14px] pb-[14px]">
-            {items.length === 0 ? (
+            {tab === "page_templates" && dbTemplatesLoading ? (
+              <div
+                className="flex flex-col items-center justify-center gap-[8px] px-[20px] py-[48px] text-center"
+                role="status"
+                aria-live="polite"
+              >
+                <span className="text-[13px]" style={{ color: CHROME.muted }}>
+                  Loading templates…
+                </span>
+              </div>
+            ) : items.length === 0 ? (
               <div
                 className="flex flex-col items-center justify-center gap-[8px] px-[20px] py-[48px] text-center"
                 role="status"
@@ -666,7 +740,9 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
                   No matches
                 </span>
                 <span className="text-[12px]" style={{ color: CHROME.muted }}>
-                  Try a different search or browse another category.
+                  {tab === "page_templates"
+                    ? "No published page templates yet."
+                    : "Try a different search or browse another category."}
                 </span>
               </div>
             ) : (

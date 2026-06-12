@@ -22,6 +22,8 @@ import { loadTalentSelfProfileByUser } from "@/app/(workspace)/[tenantSlug]/_dat
 import { getActiveTalentAgencyContext } from "@/lib/talent/active-agency-context";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { buildInEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
+import type { BuilderNodeTree } from "@/lib/site-admin/builder-node";
 import { TalentPageBuilderScreen } from "@/components/talent/site/TalentPageBuilderScreen";
 
 export const dynamic = "force-dynamic";
@@ -66,6 +68,40 @@ export default async function TalentPageBuilderRoute() {
     }
   }
 
+  // Prime the in-editor canvas: assemble data sources + section_embed islands +
+  // component-style defaults for the talent's CURRENT draft blocks, scoped to
+  // the talent preview subject. The editor's adapter loads/republishes the
+  // canonical draft client-side (which repaints the canvas via the bridge); this
+  // server-built render data makes the FIRST paint correct (data-bound +
+  // section_embed nodes) instead of empty. Best-effort — on any failure the
+  // canvas mounts against empty inputs and still paints live inserts.
+  let canvasRenderData = null;
+  if (tenantId) {
+    try {
+      const admin = createServiceRoleClient();
+      let draftTree: BuilderNodeTree = [];
+      if (admin) {
+        const { data: pageRow } = await admin
+          .from("talent_pages")
+          .select("blocks")
+          .eq("talent_profile_id", profile.id)
+          .eq("slug", TALENT_PAGE_SLUG)
+          .maybeSingle();
+        draftTree =
+          ((pageRow as { blocks: BuilderNodeTree | null } | null)?.blocks ??
+            []) as BuilderNodeTree;
+      }
+      canvasRenderData = await buildInEditorCanvasRenderData({
+        tree: draftTree,
+        tenantId,
+        locale,
+        previewSubject: { kind: "talent", id: profile.id },
+      });
+    } catch {
+      canvasRenderData = null;
+    }
+  }
+
   return (
     <TalentPageBuilderScreen
       talentProfileId={profile.id}
@@ -75,6 +111,7 @@ export default async function TalentPageBuilderRoute() {
       talentTier={profile.talentTier}
       talentDisplayName={profile.displayName}
       locale={locale}
+      canvasRenderData={canvasRenderData}
     />
   );
 }

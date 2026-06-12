@@ -26,6 +26,7 @@ import type { ReactNode } from "react";
 
 import type { BuilderContextConfig } from "@/lib/site-admin/builder-core/config";
 import type { CompositionData } from "@/lib/site-admin/edit-mode/composition-actions";
+import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
 
 import { EditShell } from "@/components/edit-chrome/edit-shell";
 
@@ -66,6 +67,15 @@ export interface BuilderEditorMountProps {
   workspaceMembershipSlug?: string | null;
   /** Raw-HTML `code` insertion gate (super_admin only). */
   canInsertRawHtmlElements?: boolean;
+  /**
+   * Server-assembled render data for the in-editor `ClientBuilderCanvas` (data
+   * sources + pre-rendered section_embed islands + component-style defaults).
+   * Required for the NON-homepage surfaces to paint the saved tree on canvas;
+   * null → the canvas mounts against empty inputs and the bridge paints live
+   * inserts. `sectionEmbedIslands` carry RSC nodes across this boundary — fine,
+   * since the mount is rendered by a server component that builds them.
+   */
+  canvasRenderData?: InEditorCanvasRenderData | null;
   /** Optional extra chrome rendered inside the provider tree. */
   children?: ReactNode;
 }
@@ -82,6 +92,7 @@ export function BuilderEditorMount({
   tenantSiteLabel = null,
   workspaceMembershipSlug = null,
   canInsertRawHtmlElements = false,
+  canvasRenderData = null,
   children,
 }: BuilderEditorMountProps) {
   return (
@@ -97,6 +108,7 @@ export function BuilderEditorMount({
       workspaceMembershipSlug={workspaceMembershipSlug}
       canInsertRawHtmlElements={canInsertRawHtmlElements}
       surfaceConfig={surfaceConfig}
+      canvasRenderData={canvasRenderData}
     >
       {children}
     </EditShell>

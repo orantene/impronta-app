@@ -101,13 +101,23 @@ function makeWorkspaceActions(
   };
 }
 
-/** Build a fake talent-page action set with spy tracking. */
+/** Build a fake talent-page action set with spy tracking.
+ *
+ * `ensurePage` returns the same `row` as `loadPage` by default, simulating the
+ * load-or-create contract.  Pass `ensureRow` to override just that behaviour
+ * (e.g. to return a freshly-created row when `row` would be null).
+ */
 function makeTalentActions(
   row: TalentPageRow | null = makeFakeTalentPageRow(),
+  ensureRow: TalentPageRow | null = row ?? makeFakeTalentPageRow(),
 ): TalentPageAdapterActions & { calls: string[] } {
   const calls: string[] = [];
   return {
     calls,
+    async ensurePage(_input) {
+      calls.push("ensurePage");
+      return ensureRow;
+    },
     async loadPage(_input) {
       calls.push("loadPage");
       return row;
@@ -315,14 +325,36 @@ test("[talent] load returns composition from DB row", async () => {
   assert.equal(result.data.pageId, "tp-row-001");
   assert.equal(result.data.metadata.title, "My Max Page");
   assert.deepEqual(result.data.builderTree, [{ id: "n2", kind: "section", props: {} }]);
-  assert.ok(actions.calls.includes("loadPage"), "loadPage must be called");
+  assert.ok(actions.calls.includes("ensurePage"), "ensurePage must be called on load");
 });
 
-test("[talent] load returns error when page not found", async () => {
-  const actions = makeTalentActions(null);
+test("[talent] load lazily creates a page when none exists", async () => {
+  // ensurePage returns a created row even though loadPage would return null.
+  const createdRow = makeFakeTalentPageRow({
+    id: "tp-created-001",
+    blocks: [],
+    updated_at: new Date("2026-06-11T13:00:00Z").toISOString(),
+  });
+  const actions = makeTalentActions(null, createdRow);
+  const adapter = createTalentPageAdapter(actions, { talentProfileId: "p1" });
+
+  const result = await adapter.load(TALENT_CTX);
+  assert.equal(result.ok, true, "load must succeed when ensurePage creates a row");
+  if (!result.ok) return;
+  assert.ok(
+    typeof result.data.pageVersion === "number" && isFinite(result.data.pageVersion) && result.data.pageVersion > 0,
+    "pageVersion must be a finite positive number derived from updated_at",
+  );
+  assert.deepEqual(result.data.builderTree, [], "builderTree must be empty for a freshly created page");
+  assert.ok(actions.calls.includes("ensurePage"), "ensurePage must be called");
+});
+
+test("[talent] load returns error when ensurePage fails", async () => {
+  // ensurePage returns null (hard failure / RLS denial).
+  const actions = makeTalentActions(null, null);
   const adapter = createTalentPageAdapter(actions, { talentProfileId: "p1" });
   const result = await adapter.load(TALENT_CTX);
-  assert.equal(result.ok, false);
+  assert.equal(result.ok, false, "load must return ok=false when ensurePage returns null");
 });
 
 test("[talent] save calls guard then savePage — NEVER writes cms_page_sections", async () => {

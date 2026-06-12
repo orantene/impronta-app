@@ -73,14 +73,20 @@ function splitV(s: Slot, n: number, gap = 3): Slot[] {
 /**
  * Recursively walk a BuilderNode tree and emit SVG wireframe elements.
  * The slot is the space this node should occupy in the 160×72 viewbox.
+ * `nodePath` is a unique positional prefix (e.g. "0-1-2") that scopes every
+ * emitted key so siblings from different branches never collide.
  * Returns an array of SVG element descriptors (rendered lazily).
  */
 function walk(
   node: BuilderNode,
   slot: Slot,
   depth = 0,
+  nodePath = "r",
 ): React.ReactNode[] {
   const { kind } = node;
+  // Use the node's own id when available for extra stability; fall back to the
+  // positional path, which is always unique within a single walk invocation.
+  const p = (node as { id?: string }).id ?? nodePath;
   const children =
     "children" in node && Array.isArray(node.children) ? node.children : [];
 
@@ -97,7 +103,7 @@ function walk(
     const barY = slot.y + slot.h / 2 - barH / 2;
     return [
       <rect
-        key="heading"
+        key={`${p}-heading`}
         x={barX}
         y={barY}
         width={barW}
@@ -122,7 +128,7 @@ function walk(
           : slot.y + slot.h / 2 - 2.5 + i * 4;
       return (
         <rect
-          key={`para-${i}`}
+          key={`${p}-para-${i}`}
           x={lineX}
           y={lineY}
           width={lineW}
@@ -144,7 +150,7 @@ function walk(
     const pillY = slot.y + (slot.h - pillH) / 2;
     return [
       <rect
-        key="button"
+        key={`${p}-button`}
         x={pillX}
         y={pillY}
         width={pillW}
@@ -161,7 +167,9 @@ function walk(
     const slots = splitH(slot, Math.min(children.length || 2, 3), 4);
     return slots.flatMap((s, i) => {
       const c = children[i];
-      return c ? walk(c, s, depth + 1) : walkButton(s);
+      return c
+        ? walk(c, s, depth + 1, `${p}-${i}`)
+        : walkButton(s, `${p}-fb-${i}`);
     });
   }
 
@@ -169,7 +177,7 @@ function walk(
     // Filled rect with a subtle diagonal — indicates image placeholder
     return [
       <rect
-        key="img"
+        key={`${p}-img`}
         x={slot.x}
         y={slot.y}
         width={slot.w}
@@ -179,7 +187,7 @@ function walk(
         opacity={0.18}
       />,
       <line
-        key="img-diag"
+        key={`${p}-img-diag`}
         x1={slot.x}
         y1={slot.y + slot.h}
         x2={slot.x + slot.w}
@@ -198,7 +206,7 @@ function walk(
     const slotCols = splitH(slot, Math.min(count, 4), 3);
     return slotCols.map((s, i) => (
       <rect
-        key={`masonry-${i}`}
+        key={`${p}-masonry-${i}`}
         x={s.x}
         y={s.y}
         width={s.w}
@@ -214,7 +222,7 @@ function walk(
     // Special "connected data" slot — filled rect with a subtle grid pattern
     return [
       <rect
-        key="embed-bg"
+        key={`${p}-embed-bg`}
         x={slot.x}
         y={slot.y}
         width={slot.w}
@@ -226,7 +234,7 @@ function walk(
       // 3 columns of placeholder "cards"
       ...splitH(pad(slot, 3), 3, 3).map((s, i) => (
         <rect
-          key={`embed-col-${i}`}
+          key={`${p}-embed-col-${i}`}
           x={s.x}
           y={s.y}
           width={s.w}
@@ -243,7 +251,7 @@ function walk(
     // Bordered box with a brief interior line
     const elems: React.ReactNode[] = [
       <rect
-        key="card-bg"
+        key={`${p}-card-bg`}
         x={slot.x}
         y={slot.y}
         width={slot.w}
@@ -261,7 +269,7 @@ function walk(
       const childSlots = splitV(inner, Math.min(children.length, 3), 2);
       childSlots.forEach((s, i) => {
         if (children[i]) {
-          elems.push(...walk(children[i], s, depth + 1));
+          elems.push(...walk(children[i], s, depth + 1, `${p}-${i}`));
         }
       });
     } else {
@@ -269,7 +277,7 @@ function walk(
       const lineY = slot.y + slot.h / 2;
       elems.push(
         <line
-          key="card-line"
+          key={`${p}-card-line`}
           x1={slot.x + 4}
           y1={lineY}
           x2={slot.x + slot.w - 4}
@@ -289,7 +297,7 @@ function walk(
     const rows = splitV(slot, rowCount, 2);
     return rows.map((row, i) => (
       <rect
-        key={`acc-${i}`}
+        key={`${p}-acc-${i}`}
         x={row.x}
         y={row.y}
         width={row.w}
@@ -308,7 +316,7 @@ function walk(
     const rows = splitV(slot, 3, 3);
     const elems: React.ReactNode[] = rows.map((row, i) => (
       <rect
-        key={`field-${i}`}
+        key={`${p}-field-${i}`}
         x={row.x}
         y={row.y}
         width={row.w}
@@ -333,13 +341,13 @@ function walk(
       "children" in node && Array.isArray(node.children) ? node.children[1] : null;
 
     const leftElems = leftChildren
-      ? walk(leftChildren, leftSlot, depth + 1)
-      : walkTextBlock(leftSlot);
+      ? walk(leftChildren, leftSlot, depth + 1, `${p}-0`)
+      : walkTextBlock(leftSlot, `${p}-tb`);
     const rightElems = rightChildren
-      ? walk(rightChildren, rightSlot, depth + 1)
+      ? walk(rightChildren, rightSlot, depth + 1, `${p}-1`)
       : [
           <rect
-            key="split-img"
+            key={`${p}-split-img`}
             x={rightSlot.x}
             y={rightSlot.y}
             width={rightSlot.w}
@@ -357,7 +365,7 @@ function walk(
     if (children.length === 0) {
       return [
         <rect
-          key="empty-container"
+          key={`${p}-empty-container`}
           x={slot.x}
           y={slot.y}
           width={slot.w}
@@ -376,7 +384,7 @@ function walk(
       return children
         .slice(0, 5)
         .flatMap((child, i) =>
-          childSlots[i] ? walk(child, childSlots[i], depth + 1) : [],
+          childSlots[i] ? walk(child, childSlots[i], depth + 1, `${p}-${i}`) : [],
         );
     }
 
@@ -389,7 +397,7 @@ function walk(
         const rowChildren = visibleChildren.slice(ri * columns, (ri + 1) * columns);
         const colSlots = splitH(rowSlot, columns, 3);
         return rowChildren.flatMap((child, ci) =>
-          colSlots[ci] ? walk(child, colSlots[ci], depth + 1) : [],
+          colSlots[ci] ? walk(child, colSlots[ci], depth + 1, `${p}-${ri}-${ci}`) : [],
         );
       });
     }
@@ -398,14 +406,14 @@ function walk(
     const visibleChildren = children.slice(0, 5);
     const childSlots = distributeVertically(slot, visibleChildren, depth);
     return visibleChildren.flatMap((child, i) =>
-      childSlots[i] ? walk(child, childSlots[i], depth + 1) : [],
+      childSlots[i] ? walk(child, childSlots[i], depth + 1, `${p}-${i}`) : [],
     );
   }
 
   // Fallback — tiny placeholder rect
   return [
     <rect
-      key={`fallback-${kind}`}
+      key={`${p}-fallback-${kind}`}
       x={slot.x}
       y={slot.y}
       width={slot.w}
@@ -457,11 +465,11 @@ function distributeVertically(slot: Slot, children: BuilderNode[], depth: number
 }
 
 /** Fallback: render a generic "text block" (title + 2 body lines) in a slot. */
-function walkTextBlock(slot: Slot): React.ReactNode[] {
+function walkTextBlock(slot: Slot, pathPrefix = "tb"): React.ReactNode[] {
   const rows = splitV(slot, 3, 3);
   return [
     <rect
-      key="tb-title"
+      key={`${pathPrefix}-title`}
       x={rows[0].x + rows[0].w * 0.1}
       y={rows[0].y + rows[0].h / 2 - 0.75}
       width={rows[0].w * 0.7}
@@ -471,7 +479,7 @@ function walkTextBlock(slot: Slot): React.ReactNode[] {
       opacity={0.55}
     />,
     <rect
-      key="tb-p1"
+      key={`${pathPrefix}-p1`}
       x={rows[1].x}
       y={rows[1].y + rows[1].h / 2 - 0.5}
       width={rows[1].w * 0.85}
@@ -481,7 +489,7 @@ function walkTextBlock(slot: Slot): React.ReactNode[] {
       opacity={0.3}
     />,
     <rect
-      key="tb-p2"
+      key={`${pathPrefix}-p2`}
       x={rows[2].x}
       y={rows[2].y + rows[2].h / 2 - 0.5}
       width={rows[2].w * 0.65}
@@ -494,12 +502,12 @@ function walkTextBlock(slot: Slot): React.ReactNode[] {
 }
 
 /** Fallback: a single button pill in a slot. */
-function walkButton(slot: Slot): React.ReactNode[] {
+function walkButton(slot: Slot, pathPrefix = "btn-fb"): React.ReactNode[] {
   const pillH = Math.min(8, slot.h * 0.6);
   const pillW = Math.min(slot.w * 0.8, 28);
   return [
     <rect
-      key="btn-fb"
+      key={`${pathPrefix}`}
       x={slot.x + (slot.w - pillW) / 2}
       y={slot.y + (slot.h - pillH) / 2}
       width={pillW}

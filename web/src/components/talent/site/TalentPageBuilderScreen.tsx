@@ -15,6 +15,7 @@ import Link from "next/link";
 import { useCallback } from "react";
 
 import { TalentMaxBuilderMount } from "./TalentMaxBuilderMount";
+import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
 
 type Props = {
   talentProfileId: string;
@@ -26,6 +27,8 @@ type Props = {
   talentTier: string | null;
   talentDisplayName: string | null;
   locale?: string;
+  /** Server-assembled in-editor canvas render data (data sources + islands). */
+  canvasRenderData?: InEditorCanvasRenderData | null;
 };
 
 const MAX_PLAN_KEY = "talent_portfolio";
@@ -38,6 +41,7 @@ export function TalentPageBuilderScreen({
   talentTier,
   talentDisplayName,
   locale,
+  canvasRenderData = null,
 }: Props) {
   const router = useRouter();
 
@@ -171,6 +175,7 @@ export function TalentPageBuilderScreen({
         talentDisplayName={talentDisplayName}
         locale={locale}
         onExit={handleExit}
+        canvasRenderData={canvasRenderData}
       />
     </div>
   );

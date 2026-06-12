@@ -321,6 +321,21 @@ export function buildTalentPageBuilderConfig(
   };
 }
 
+/**
+ * True for every NON-homepage surface (workspace_page / talent_page /
+ * platform_lab). These surfaces mount the editor via `BuilderEditorMount`
+ * over a chrome-only shell — they have no server-rendered storefront body that
+ * paints the freeform tree. They therefore mount an in-editor
+ * `ClientBuilderCanvas` (see `in-editor-canvas-region.tsx`) so the saved tree
+ * actually renders on canvas. The homepage is the sole exception: its
+ * storefront body already mounts the canvas, so it must NOT double-mount.
+ */
+export function builderConfigUsesInEditorCanvas(
+  cfg: BuilderContextConfig,
+): boolean {
+  return cfg.surface.kind !== "homepage";
+}
+
 export function buildPlatformLabBuilderConfig(
   platformLabSurfaceAdapter: BuilderSurfaceAdapter,
   previewSubjectKind: BuilderPreviewSubjectKind,

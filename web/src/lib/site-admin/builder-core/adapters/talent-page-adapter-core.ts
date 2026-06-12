@@ -115,6 +115,16 @@ export interface TalentPageAdapterActions {
   }) => Promise<{ ok: true; publishedAt: string; updatedAt: string } | { ok: false; error: string }>;
 
   /**
+   * Return the existing talent_pages row for (talentProfileId, slug); if none,
+   * INSERT a draft row (status='draft', blocks=[], theme={}) and return it.
+   * Returns null only on hard failure / RLS denial.
+   */
+  ensurePage: (input: {
+    talentProfileId: string;
+    slug: string;
+  }) => Promise<TalentPageRow | null>;
+
+  /**
    * Restore a revision's blocks+theme onto the live row. Optional.
    */
   restoreRevision?: (input: {
@@ -197,11 +207,11 @@ export function createTalentPageAdapter(
       const talentProfileId = capturedTalentProfileId || ctx.pageId || "";
       const slug = ctx.pageSlug ?? "index";
 
-      const row = await actions.loadPage({ talentProfileId, slug });
+      const row = await actions.ensurePage({ talentProfileId, slug });
       if (!row) {
         return {
           ok: false,
-          error: `Talent page not found: profile=${talentProfileId} slug=${slug}`,
+          error: `Could not open or create your page.`,
         };
       }
       return { ok: true, data: buildEmptyTalentPageComposition(row, ctx.locale) };

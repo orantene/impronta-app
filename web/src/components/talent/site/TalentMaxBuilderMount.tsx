@@ -27,6 +27,7 @@ import { useMemo } from "react";
 import { BuilderEditorMount } from "@/lib/site-admin/builder-core/mount/BuilderEditorMount";
 import { buildTalentPageBuilderConfig } from "@/lib/site-admin/builder-core/config";
 import { createBoundTalentPageAdapter } from "@/lib/site-admin/builder-core/adapters/talent-page-adapter";
+import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
 
 export interface TalentMaxBuilderMountProps {
   /**
@@ -51,6 +52,8 @@ export interface TalentMaxBuilderMountProps {
   locale?: string;
   /** Called when the user clicks "Exit" in the editor chrome. */
   onExit?: () => void;
+  /** Server-assembled in-editor canvas render data (data sources + islands). */
+  canvasRenderData?: InEditorCanvasRenderData | null;
 }
 
 export function TalentMaxBuilderMount({
@@ -62,6 +65,7 @@ export function TalentMaxBuilderMount({
   talentDisplayName = null,
   locale,
   onExit,
+  canvasRenderData = null,
 }: TalentMaxBuilderMountProps) {
   // Create a per-mount adapter with talentProfileId in closure.
   // Config rebuilds on talentProfileId or tier change.
@@ -154,6 +158,7 @@ export function TalentMaxBuilderMount({
             : "Talent page builder"
         }
         canInsertRawHtmlElements={false}
+        canvasRenderData={canvasRenderData}
       />
     </div>
   );

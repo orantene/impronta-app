@@ -199,7 +199,7 @@ export function CommandDock() {
     closePageSettings,
     brandPanelOpen,
     toggleBrandPanel,
-    canEditSiteShell,
+    canEditTheme,
     themeOpen,
     openTheme,
     closeTheme,
@@ -308,7 +308,7 @@ export function CommandDock() {
     },
   ];
 
-  if (canEditSiteShell) {
+  if (canEditTheme) {
     primaryItems.push({
       id: "theme",
       label: "Theme",
