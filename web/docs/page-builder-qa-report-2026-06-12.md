@@ -141,3 +141,44 @@ CAVEAT: tested on `next dev` (Turbopack), not a production build. Memory notes p
 
 ## Cleanup done
 - Created one throwaway workspace draft page `/impronta/p/untitled-mqahg6wl` (status=draft, never published) while testing F6. It is harmless (draft, not public) but should be deleted from the `impronta` Website → Pages list. No theme changes were published (Brand-color test was discarded). No `cms_page_sections` writes.
+
+---
+---
+
+# Fix Verification Log
+
+> Integration branch `integration/builder-launch-ready`. Gate at log time: **tsc 0 / lint 0 / test:builder 465 pass · 0 fail**. All evidence DOM-measured or DB-queried on `localhost:3330` (prod flags `NEXT_PUBLIC_BUILDER_CLIENT_CANVAS=1`, `NEXT_PUBLIC_BUILDER_PRESENCE=1`).
+
+## Wave 1 — F1–F9 (canvas render, talent first-page, publish menu, gallery keys, templates tab, theme gate)
+All FIXED + live-verified in prior sessions (Lanes A–E merged; in-editor `ClientBuilderCanvas` now paints all non-homepage surfaces; talent lazy `ensurePage`; viewport-clamped Publish menu; scoped gallery keys; tab list derived from `galleryPolicy.allowedTabs`; Theme drawer gated on `themeTokens` capability). Retained as history above.
+
+## Wave 2 — Theme Modernization + "no black canvas" (this session)
+
+**Platform default (DB-verified):** `platform_settings.id=true` → `default_theme_preset_slug='modern-2026'`, `color.accent=#0ea5e9`, `color.background=#ffffff`, `color.ink=#111111`, `button.backgroundColor=token:color.accent`. Seed migration `20260612182139_platform_default_theme.sql` applied to remote.
+
+| Acceptance step | Result | Evidence |
+|---|---|---|
+| **1. New site opens on modern LIGHT default** | ✅ | Fresh talent (theme `{}`) editor canvas: `--token-color-background=#ffffff`, `--token-color-accent=#0ea5e9`, hero buttons `rgb(14,165,233)`, headings ink `#111`. |
+| **2. Added elements adopt the theme** | ✅ | Hero H1 ink `#111`, paragraph grey `#6b7280`, CTAs sky-blue white-label 10px-radius — all from the modern preset cascade (no per-node styles). |
+| **3. Theme drawer — every tab/control** | ✅ | Drawer light + consistent. New **PAGE BACKGROUND** card (color picker + "white by default" + texture Segmented) at top of Colors; BRAND COLORS (Primary/Secondary/Accent/Neutral) with swatch+hex rows. Tabs: Colors/Typography/Layout/Effects/Components/Code. |
+| **4a. Change theme globally — live repaint** | ✅ | Accent `#0EA5E9`→`#E11D48`: `--token-color-accent` + every button repainted to `rgb(225,29,72)` instantly. |
+| **4b. Page background control (user's pain point)** | ✅ | Background `#FFFFFF`→`#F0F9FF`: canvas `--token-color-background` + paint → `rgb(240,249,255)` live. The control the user "couldn't find" is now top of Colors and works. |
+| **5. Override one component beats theme** | ✅ | H1 font-size override via inline toolbar (default→240px→tidy 86px) while color stayed theme-ink `#111` — per-node override wins over the global token. |
+| **6. Public render inherits platform default** | ✅ | Live `/t/TAL-92001/home` (unthemed talent): shell `rgb(255,255,255)`, accent `#0ea5e9`, buttons `rgb(14,165,233)`, H1 ink `#111`. Falls back to modern light, NOT the host's black. |
+| **7. Impronta stays black** | ✅ (structural) | 3 chrome commits touch only editor-chrome wrappers; no public storefront paint, no Impronta theme, no existing-tenant data. Platform default seeds only NEW/empty rows. |
+
+## "Lighten everything" — builder chrome (this session, 3 commits)
+
+The editor chrome (topbar/rails/panels) already used the light `CHROME` palette; the dark came from **wrapper screens** hardcoding `#0E0E11`/`#16161A`. Fixed:
+
+| Commit | Surface | Before → After (DOM-verified) |
+|---|---|---|
+| `b9c26f154` | Talent builder | desk `rgb(14,14,17)`→`rgb(249,249,251)`; exit strip `rgb(22,22,26)`→`rgb(250,249,246)`; non-Max upsell dark→light. **0 dark blocks ≥200×30 in viewport.** |
+| `c51d59fb6` | Builder Lab stage | header-bridge `#16161A`→`CHROME.paper`; PreviewSubjectChip dark→`CHROME.muted/green` (also fixed an invisible near-white chip in the light topbar). Lab canvas `rgb(255,255,255)`, 0 dark blocks; surrounding super-admin dashboard intentionally kept dark per user. |
+| (prior) | Canvas region | `min-height:100vh` + `var(--token-color-background)` paint so a short page fills light to the bottom. |
+
+## Follow-ups / honest residual notes
+- **Agency public header is dark on talent pages** — `--token-shell-header-bg` isn't set by the modern preset, so the shared agency header falls back to dark. For Impronta-hosted talents this is *correct* (their managing agency is a black brand); a talent under a light agency would get a light header. Flagged, not "fixed", to avoid silently re-skinning shared agency chrome. Decide whether the modern default should ship a light header token.
+- **Publish CAS conflict during QA** was self-inflicted (direct SQL `theme={}` reset bumped the row under the open editor) — not a product bug; the app's own publish checks passed.
+- **QA fixture state:** TAL-92001 (Sofía) left with `theme={}` (renders modern light) — fine as a fixture; clean at ship if desired.
+- Deferred Wave-1 sweep tail (repeaters/field-binding deep test, media-library picker insert, multi-select/drag depth, public `/p/`) unchanged from above.
