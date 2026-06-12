@@ -199,7 +199,7 @@ export function CommandDock() {
     closePageSettings,
     brandPanelOpen,
     toggleBrandPanel,
-    canEditTheme,
+    canEditSiteShell,
     themeOpen,
     openTheme,
     closeTheme,
@@ -308,7 +308,10 @@ export function CommandDock() {
     },
   ];
 
-  if (canEditTheme) {
+  // F5 NOTE: Theme is gated on shell-edit. Exposing it for Max talents needs a
+  // talent-scoped theme backend (talent_pages.theme) — loadDesignAction is
+  // tenant-scoped and 401s for a talent. Deferred to a dedicated lane.
+  if (canEditSiteShell) {
     primaryItems.push({
       id: "theme",
       label: "Theme",

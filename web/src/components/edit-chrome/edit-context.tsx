@@ -7323,6 +7323,9 @@ export function EditProvider({
   const closeRevisions = useCallback(() => setRevisionsOpen(false), []);
 
   const openTheme = useCallback(() => {
+    // F5 NOTE: gated on shell-edit. Talent-scoped theme editing (themeTokens)
+    // needs a backend (talent_pages.theme) — loadDesignAction is tenant-scoped
+    // and returns "Not authorized" for a talent. Deferred to a dedicated lane.
     if (!canEditSiteShell) return;
     showExclusiveRightRailDrawer("theme");
   }, [canEditSiteShell, showExclusiveRightRailDrawer]);
