@@ -121,61 +121,6 @@ function jsonScalarToBool(scalar: string | null): boolean | null {
   return null;
 }
 
-// ── A-reader: legacy System A (`field_values`) ───────────────────────────────
-//
-// Lifted VERBATIM from `fetchFieldValueTalentIds` in
-// apply-directory-field-facet-filters.ts so `directory_facets:a` is byte-for-byte
-// today. Reads `field_values` by the legacy `field_definition_id`, ANDed onto the
-// already-constrained id set, chunked by ID_CHUNK. Text match is case-insensitive
-// exact on `value_text`; boolean match is `value_boolean IN (...)`.
-async function readDirectoryFacetIdsFromA(
-  supabase: SupabaseClient,
-  target: DirectoryFacetReadTarget,
-  filter: DirectoryFacetValueFilter,
-  constrainedTalentIds: string[] | null,
-): Promise<string[]> {
-  const acc = new Set<string>();
-  const textValues =
-    filter.kind === "text"
-      ? new Set(filter.values.map((value) => value.trim().toLowerCase()).filter(Boolean))
-      : null;
-
-  const runBatch = async (idChunk: string[] | null) => {
-    let q = supabase
-      .from("field_values")
-      .select("talent_profile_id,value_text")
-      .eq("field_definition_id", target.aFieldDefinitionId);
-    if (idChunk) {
-      if (idChunk.length === 0) return;
-      q = q.in("talent_profile_id", idChunk);
-    }
-    if (filter.kind === "boolean") {
-      q = q.in("value_boolean", filter.values);
-    } else {
-      q = q.not("value_text", "is", null);
-    }
-    const { data, error } = await q;
-    if (error) throw new Error(`[directory] field_values facet: ${error.message}`);
-    for (const row of (data ?? []) as { talent_profile_id: string; value_text?: string | null }[]) {
-      if (textValues && !textValues.has((row.value_text ?? "").trim().toLowerCase())) {
-        continue;
-      }
-      acc.add(row.talent_profile_id);
-    }
-  };
-
-  if (constrainedTalentIds === null) {
-    await runBatch(null);
-  } else if (constrainedTalentIds.length === 0) {
-    return [];
-  } else {
-    for (let i = 0; i < constrainedTalentIds.length; i += ID_CHUNK) {
-      await runBatch(constrainedTalentIds.slice(i, i + ID_CHUNK));
-    }
-  }
-  return [...acc];
-}
-
 // ── B-reader: canonical System B (`talent_profile_field_values`) ─────────────
 //
 // Same projected shape (`string[]` of talent_profile_id). Resolves the B
@@ -280,22 +225,26 @@ async function readDirectoryFacetIdsFromB(
   return [...acc];
 }
 
-/** The reader pair, exposed so a test/diagnostic can run A and B side by side via
- *  `readFieldSurfaceBoth` without going through the env flag. */
+/** The reader pair. T3.2 collapsed this surface to System B ONLY: the legacy
+ *  `field_values` A-reader was deleted (System A is being retired). Both legs now
+ *  point at the canonical B reader, so the `readFieldSurface` seam shell + the
+ *  `directory_facets` flag are preserved (the flag no longer switches stores —
+ *  both resolve to B) and the safe-fallback path re-runs the same B read. NO
+ *  `field_values` read remains. */
 export const directoryFacetReaderPair: FieldSurfaceReaderPair<
   [SupabaseClient, DirectoryFacetReadTarget, DirectoryFacetValueFilter, string[] | null],
   string[]
 > = {
-  readA: readDirectoryFacetIdsFromA,
+  readA: readDirectoryFacetIdsFromB,
   readB: readDirectoryFacetIdsFromB,
 };
 
 /**
  * PUBLIC entry — return the `talent_profile_id`s matching this scalar facet
- * filter, reading the active value store for the `directory_facets` surface. The
- * caller passes the legacy facet target + the value filter + the already-
- * constrained id set; the flag decides A vs B. A B-read that throws safe-falls-
- * back to A (the surface never hardens into a broken/empty facet).
+ * filter, reading canonical System B (`talent_profile_field_values`) for the
+ * `directory_facets` surface. The caller passes the facet target + the value
+ * filter + the already-constrained id set. (T3.2: System A removed — both seam
+ * legs read B.)
  */
 export function fetchDirectoryFacetTalentIds(
   supabase: SupabaseClient,

@@ -138,39 +138,6 @@ async function resolveSidebarVisibility(
   return toVisibility(checks);
 }
 
-// ── A-reader: legacy System A (field_definitions) ────────────────────────────
-//
-// Byte-identical to the inline block in page.tsx (~:1735–1775): fetch the six
-// `field_definitions` rows, build a key→row map, route each through the
-// canonical resolver, assemble the named object. A null client renders every
-// section (the legacy else-branch).
-async function readSidebarVisibilityFromA(
-  supabase: SupabaseClient | null,
-  tenantId: string | null,
-): Promise<SidebarFieldVisibility> {
-  if (!supabase) {
-    return {
-      showFitLabels: true,
-      showSkills: true,
-      showLanguages: true,
-      showIndustries: true,
-      showEventTypes: true,
-      showTags: true,
-    };
-  }
-  const ctx: PublicSurfaceContext = { supabase, tenantId };
-  const { data } = await supabase
-    .from("field_definitions")
-    .select(
-      "key, active, archived_at, tenant_id, public_visible, profile_visible, internal_only",
-    )
-    .in("key", [...PUBLIC_SIDEBAR_KEYS]);
-  const rowByKey = new Map<string, SidebarGuardRow>(
-    ((data ?? []) as SidebarGuardRow[]).map((r) => [r.key, r]),
-  );
-  return resolveSidebarVisibility(ctx, rowByKey);
-}
-
 // ── B-reader: canonical System B (profile_field_definitions) ─────────────────
 //
 // Sources the SAME base-guard row shape from System B. Fetches the six keys
@@ -230,16 +197,20 @@ export const sidebarVisibilityReaderPair: FieldSurfaceReaderPair<
   [SupabaseClient | null, string | null],
   SidebarFieldVisibility
 > = {
-  readA: readSidebarVisibilityFromA,
+  // T3.2 — System A removed: the legacy `field_definitions` base-guard A-reader
+  // was deleted. Both legs read canonical System B (`profile_field_definitions`),
+  // synthesizing the base-guard row from `deprecated_at` so the canonical
+  // visibility resolver yields the identical decision (incl. the hidden `skills`).
+  readA: readSidebarVisibilityFromB,
   readB: readSidebarVisibilityFromB,
 };
 
 /**
- * PUBLIC entry — read the public-profile sidebar section visibility from the
- * active source for the `public_sidebar` surface. The caller passes its public
- * Supabase client + the host tenant; the flag decides A vs B. Default (`a`)
- * returns the legacy decision byte-for-byte; `public_sidebar:b` reads the
- * canonical row shape; a B-read failure safe-falls-back to A.
+ * PUBLIC entry — read the public-profile sidebar section visibility for the
+ * `public_sidebar` surface. The caller passes its public Supabase client + the
+ * host tenant. (T3.2: System A removed — both seam legs read canonical System B
+ * `profile_field_definitions`; the visibility decision is unchanged, incl. the
+ * deliberately-hidden deprecated `skills` section.)
  */
 export function readPublicSidebarVisibility(
   supabase: SupabaseClient | null,
@@ -253,88 +224,3 @@ export function readPublicSidebarVisibility(
   );
 }
 
-// ── ORDER slice — A/B relative-sequence COMPARISON (NOT seam-dispatched) ──────
-//
-// IMPORTANT — the order slice is deliberately NOT wired to the seam / flag and
-// has NO live caller. The rendered top-to-bottom sidebar sequence is hard-coded
-// JSX (`_light/SkillsExperienceBlock.tsx`), so neither store's order column
-// reaches the live render. We expose the two readers ONLY so the parity test
-// can compare the relative sequences and DOCUMENT the divergence below.
-//
-// HAZARD #1 — the two stores' order columns produce DIFFERENT relative
-// sequences (verified read-only against prod ref pluhdapdnuiulvxmyspd,
-// 2026-06-11):
-//   A `sort_order` : tags=20, skills=30, industries=40, event_types=50,
-//                    fit_labels=60, languages=70
-//                    → [tags, skills, industries, event_types, fit_labels, languages]
-//   B `display_order` (deprecated `skills` dropped): languages=100,
-//                    fit_labels=350, industries=360, event_types=365, tags=370
-//                    → [languages, fit_labels, industries, event_types, tags]
-// These sequences DIVERGE. Because the live render IGNORES both, the divergence
-// is NON-RENDERING and cannot reorder any public profile. We therefore do NOT
-// expose a flag-gated `readPublicSidebarOrder` — that would be a latent
-// foot-gun that silently reorders a future caller when the flag flips. If a
-// future surface ever needs DB-driven sidebar order, B's `display_order` must
-// first be reconciled to reproduce A's intended sequence (a follow-up, flagged
-// for human sign-off), or the new order documented and signed off. The visibility
-// flip in this PR does NOT touch order.
-
-export type SidebarOrderEntry = { key: PublicSidebarKey; rank: number };
-
-async function readSidebarOrderFromA(
-  supabase: SupabaseClient | null,
-): Promise<PublicSidebarKey[]> {
-  if (!supabase) return [...PUBLIC_SIDEBAR_KEYS];
-  const { data } = await supabase
-    .from("field_definitions")
-    .select("key, sort_order")
-    .in("key", [...PUBLIC_SIDEBAR_KEYS]);
-  type Row = { key: string; sort_order: number | null };
-  const ranked = ((data ?? []) as Row[])
-    .filter((r): r is { key: PublicSidebarKey; sort_order: number | null } =>
-      (PUBLIC_SIDEBAR_KEYS as readonly string[]).includes(r.key),
-    )
-    .map((r) => ({ key: r.key, rank: r.sort_order ?? 0 }));
-  return rankedToSequence(ranked);
-}
-
-async function readSidebarOrderFromB(
-  supabase: SupabaseClient | null,
-): Promise<PublicSidebarKey[]> {
-  if (!supabase) return [...PUBLIC_SIDEBAR_KEYS];
-  const { data } = await supabase
-    .from("profile_field_definitions")
-    .select("field_key, display_order")
-    .in("field_key", [...PUBLIC_SIDEBAR_KEYS])
-    .is("deprecated_at", null);
-  type Row = { field_key: string; display_order: number | null };
-  const ranked = ((data ?? []) as Row[])
-    .filter((r): r is { field_key: PublicSidebarKey; display_order: number | null } =>
-      (PUBLIC_SIDEBAR_KEYS as readonly string[]).includes(r.field_key),
-    )
-    .map((r) => ({ key: r.field_key, rank: r.display_order ?? 0 }));
-  return rankedToSequence(ranked);
-}
-
-/** Stable sort by rank, then by the canonical key order as the tiebreaker (so
- *  equal ranks never reorder non-deterministically). Returns just the key
- *  sequence — the absolute ranks are intentionally discarded; only the relative
- *  sequence is the contract. */
-function rankedToSequence(ranked: SidebarOrderEntry[]): PublicSidebarKey[] {
-  const tieIndex = (k: PublicSidebarKey) => PUBLIC_SIDEBAR_KEYS.indexOf(k);
-  return [...ranked]
-    .sort((a, b) => a.rank - b.rank || tieIndex(a.key) - tieIndex(b.key))
-    .map((r) => r.key);
-}
-
-/** The order reader pair — exposed for the parity test's sequence COMPARISON
- *  only. Intentionally NOT routed through `readFieldSurface` (no flag dispatch)
- *  and NOT exported as a `readPublicSidebarOrder` entry, because the two stores'
- *  sequences diverge (see HAZARD #1 above) and nothing live consumes order. */
-export const sidebarOrderReaderPair: FieldSurfaceReaderPair<
-  [SupabaseClient | null],
-  PublicSidebarKey[]
-> = {
-  readA: readSidebarOrderFromA,
-  readB: readSidebarOrderFromB,
-};

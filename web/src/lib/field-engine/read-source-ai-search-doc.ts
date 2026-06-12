@@ -130,132 +130,6 @@ export type AiSearchDocFieldsResult = {
   genderAiVisible: boolean;
 };
 
-// ── Helpers shared between A and B ────────────────────────────────────────────
-
-/** Stringify a typed value row into a single text value for the AI doc, or
- *  null if there is no meaningful value. Identical to the inline helper in
- *  rebuild-ai-search-document.ts (lifted verbatim to share between A and B
- *  without a circular import). */
-function stringifyFieldValue(row: {
-  value_type: string;
-  value_text: string | null;
-  value_number: number | null;
-  value_boolean: boolean | null;
-  value_date: string | null;
-  value_taxonomy_ids: string[] | null;
-}): string | null {
-  const vt = row.value_type;
-  if (vt === "text" || vt === "textarea") return row.value_text?.trim() || null;
-  if (vt === "number" && row.value_number != null && !Number.isNaN(row.value_number)) {
-    return String(row.value_number);
-  }
-  if (vt === "boolean") return row.value_boolean === null ? null : row.value_boolean ? "Yes" : "No";
-  if (vt === "date" && row.value_date) return row.value_date;
-  if (vt === "taxonomy_single" || vt === "taxonomy_multi") {
-    const ids = row.value_taxonomy_ids ?? [];
-    if (ids.length === 0) return null;
-    return ids.join(", ");
-  }
-  if (vt === "location") return row.value_text?.trim() || null;
-  return row.value_text?.trim() || null;
-}
-
-// ── A-reader: legacy System A (field_values + field_definitions) ──────────────
-//
-// Byte-identical to the inline blocks in rebuild-ai-search-document.ts (~:241–317):
-//   1. Fetch field_values joined to field_definitions for the talent.
-//   2. Gate: ai_visible=true, internal_only=false, active=true, archived_at IS NULL,
-//      public_visible=true, profile_visible=true, key != "gender".
-//   3. Stringify the typed value columns.
-//   4. Fetch the gender field_definitions row to gate the gender-from-column path.
-//
-// This is the baseline; readA flag returns this exactly.
-
-async function readAiSearchDocFieldsFromA(
-  supabase: SupabaseClient,
-  talentProfileId: string,
-): Promise<AiSearchDocFieldsResult> {
-  const { data: fieldValueRows, error: fvErr } = await supabase
-    .from("field_values")
-    .select(
-      `
-      value_text,
-      value_number,
-      value_boolean,
-      value_date,
-      value_taxonomy_ids,
-      field_definitions (
-        key,
-        label_en,
-        value_type,
-        ai_visible,
-        internal_only,
-        active,
-        archived_at,
-        public_visible,
-        profile_visible
-      )
-    `,
-    )
-    .eq("talent_profile_id", talentProfileId);
-
-  if (fvErr) {
-    throw new Error(`[ai_search_doc/A] field_values: ${fvErr.message}`);
-  }
-
-  const aiVisibleFields: AiSearchDocumentFieldLine[] = [];
-  for (const fv of fieldValueRows ?? []) {
-    const fvRow = fv as Record<string, unknown>;
-    const fd = fvRow.field_definitions;
-    const def = (Array.isArray(fd) ? fd[0] : fd) as
-      | {
-          key: string;
-          label_en: string;
-          value_type: string;
-          ai_visible: boolean;
-          internal_only: boolean;
-          active: boolean;
-          archived_at: string | null;
-          public_visible: boolean;
-          profile_visible: boolean;
-        }
-      | null
-      | undefined;
-    if (!def?.key) continue;
-    if (def.key === "gender") continue;
-    if (!def.ai_visible || def.internal_only || !def.active || def.archived_at) continue;
-    if (!def.public_visible || !def.profile_visible) continue;
-
-    const raw = {
-      value_type: def.value_type,
-      value_text: fvRow.value_text as string | null,
-      value_number: fvRow.value_number as number | null,
-      value_boolean: fvRow.value_boolean as boolean | null,
-      value_date: fvRow.value_date as string | null,
-      value_taxonomy_ids: (fvRow.value_taxonomy_ids as string[] | null) ?? null,
-    };
-    const value = stringifyFieldValue(raw);
-    if (!value) continue;
-    aiVisibleFields.push({
-      key: def.key,
-      label_en: def.label_en ?? def.key,
-      value,
-    });
-  }
-
-  const { data: genderDef } = await supabase
-    .from("field_definitions")
-    .select("key, ai_visible")
-    .eq("key", "gender")
-    .eq("active", true)
-    .is("archived_at", null)
-    .maybeSingle();
-
-  const genderAiVisible = genderDef?.ai_visible === true;
-
-  return { aiVisibleFields, genderAiVisible };
-}
-
 // ── B-reader: canonical System B (talent_profile_field_values + profile_field_definitions) ──
 //
 // System B gate:
@@ -472,7 +346,10 @@ export const aiSearchDocReaderPair: FieldSurfaceReaderPair<
   [SupabaseClient, string],
   AiSearchDocFieldsResult
 > = {
-  readA: readAiSearchDocFieldsFromA,
+  // T3.2 — System A removed: the legacy `field_values` + `field_definitions`
+  // A-reader (incl. the gender-gate def lookup) was deleted. Both legs read
+  // canonical System B. NO field_values / field_definitions read remains.
+  readA: readAiSearchDocFieldsFromB,
   readB: readAiSearchDocFieldsFromB,
 };
 

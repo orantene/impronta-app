@@ -12,7 +12,10 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { revalidateDirectoryListing } from "@/lib/revalidate-public";
 import { mergeShellSocialAndEmbedded } from "@/lib/talent/profile-shell-drawer-persist";
-import { syncProfileShellDynFieldValues } from "@/lib/talent/profile-shell-dyn-field-values";
+import {
+  syncProfileShellDynFieldValues,
+  loadProfileShellDynFieldValues,
+} from "@/lib/talent/profile-shell-dyn-field-values";
 import { syncRosterFieldValuesToCatalog } from "@/lib/talent/roster-field-values-catalog";
 import { syncScalarFieldValuesToCatalog } from "@/lib/talent/scalar-field-values-catalog";
 import { syncBlobFieldValuesToCatalog } from "@/lib/talent/blob-field-values-catalog";
@@ -550,59 +553,18 @@ export async function syncSelfTalentTypeTaxonomyFromShell(input: {
   return { ok: true };
 }
 
-/** Hydrate profile-shell `dynFields` for the signed-in talent (same shape as staff roster hydrate). */
+/** Hydrate profile-shell `dynFields` for the signed-in talent (same shape as staff
+ *  roster hydrate). T3.2 — reads canonical System B (the store the shell writes)
+ *  via the shared `loadProfileShellDynFieldValues` helper; no `field_values`. */
 export async function getTalentProfileDynFieldValuesForSelf(input: {
   talent_profile_id: string;
 }): Promise<{ ok: true; values: Record<string, string> } | { ok: false; error: string }> {
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase } = auth;
 
-  const { data: rows, error } = await supabase
-    .from("field_values")
-    .select("field_definition_id, value_text, value_number, value_boolean, value_date")
-    .eq("talent_profile_id", input.talent_profile_id);
-  if (error) {
-    logServerError("self-sections.dyn-fv-hydrate.fv", error);
-    return { ok: false, error: CLIENT_ERROR.generic };
-  }
-
-  const ids = [
-    ...new Set(
-      (rows ?? []).map((r: { field_definition_id: string }) => r.field_definition_id),
-    ),
-  ];
-  if (ids.length === 0) return { ok: true, values: {} };
-
-  const { data: defs, error: dErr } = await supabase
-    .from("field_definitions")
-    .select("id, key")
-    .in("id", ids);
-  if (dErr) {
-    logServerError("self-sections.dyn-fv-hydrate.defs", dErr);
-    return { ok: false, error: CLIENT_ERROR.generic };
-  }
-
-  const idToKey = new Map((defs ?? []).map((d: { id: string; key: string }) => [d.id, d.key]));
-  const values: Record<string, string> = {};
-  for (const r of rows ?? []) {
-    const key = idToKey.get((r as { field_definition_id: string }).field_definition_id);
-    if (!key || isReservedTalentProfileFieldKey(key)) continue;
-    const row = r as {
-      value_text: string | null;
-      value_number: number | null;
-      value_boolean: boolean | null;
-      value_date: string | null;
-    };
-    let s: string | null = null;
-    if (row.value_text != null && row.value_text !== "") s = String(row.value_text);
-    else if (row.value_number != null && Number.isFinite(Number(row.value_number))) {
-      s = String(row.value_number);
-    } else if (row.value_boolean != null) s = row.value_boolean ? "true" : "false";
-    else if (row.value_date != null && row.value_date !== "") s = String(row.value_date);
-    if (s !== null) values[key] = s;
-  }
-  return { ok: true, values };
+  const res = await loadProfileShellDynFieldValues(auth.supabase, input.talent_profile_id);
+  if (!res.ok) return { ok: false, error: CLIENT_ERROR.generic };
+  return { ok: true, values: res.values };
 }
 
 // ─── Social links ─────────────────────────────────────────────────────────────

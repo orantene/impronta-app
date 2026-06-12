@@ -1,7 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { CACHE_TAG_DIRECTORY } from "@/lib/cache-tags";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
-import { directoryFacetConfigReadsB } from "@/lib/field-engine/read-source-directory-facet-config";
 import { logServerError } from "@/lib/server/safe-error";
 
 export type DirectoryHeightFilterConfig = {
@@ -80,71 +79,18 @@ async function loadHeightFilterCatalogUncached(): Promise<DirectoryHeightFilterC
     return { ...HEIGHT_FALLBACK };
   }
 
-  // Repoint behind the `directory_facets` flag (same flag that governs the facet
-  // value-store + vocab reads); safe-fall-back to the A reader on a B throw.
-  if (directoryFacetConfigReadsB()) {
-    try {
-      return await loadHeightFilterCatalogFromB(supabase);
-    } catch (err) {
-      logServerError("directory/height-filter-catalog/b", err);
-      // fall through to the A reader below
-    }
-  }
-
-  type HeightRow = {
-    filterable?: boolean;
-    directory_filter_visible?: boolean | null;
-    active?: boolean;
-    archived_at?: string | null;
-    config?: unknown;
-    label_en?: string;
-    label_es?: string | null;
-  };
-
-  const first = await supabase
-    .from("field_definitions")
-    .select("filterable, directory_filter_visible, active, archived_at, config, label_en, label_es")
-    .eq("key", "height_cm")
-    .maybeSingle();
-
-  let row: HeightRow | null = first.data as HeightRow | null;
-  let error = first.error;
-
-  const colMissing =
-    error && `${error.message ?? ""}`.toLowerCase().includes("directory_filter_visible");
-  if (colMissing) {
-    const retry = await supabase
-      .from("field_definitions")
-      .select("filterable, active, archived_at, config, label_en, label_es")
-      .eq("key", "height_cm")
-      .maybeSingle();
-    row = retry.data as HeightRow | null;
-    error = retry.error;
-  }
-
-  if (error || !row) {
+  // T3.2 — System A removed. The height filter config reads canonical System B
+  // ONLY (`profile_field_definitions.directory_filter_config` for the slider
+  // bounds + the `show_in_directory_filter` column for enablement, keyed by the
+  // single canonical key `physical.height_cm`; no tenant-override row mechanism is
+  // involved). On a B read error, fall back to the safe HEIGHT_FALLBACK (filtering
+  // disabled) rather than the retired legacy `field_definitions` read.
+  try {
+    return await loadHeightFilterCatalogFromB(supabase);
+  } catch (err) {
+    logServerError("directory/height-filter-catalog/b", err);
     return { ...HEIGHT_FALLBACK };
   }
-
-  const r = row;
-  const dirOn =
-    r.directory_filter_visible !== undefined && r.directory_filter_visible !== null
-      ? r.directory_filter_visible === true
-      : r.filterable === true;
-  const active = Boolean(r.active === true && r.archived_at == null && dirOn);
-  const cfg = (row.config ?? {}) as { min?: unknown; max?: unknown };
-  const rawMin = typeof cfg.min === "number" ? cfg.min : Number(cfg.min);
-  const rawMax = typeof cfg.max === "number" ? cfg.max : Number(cfg.max);
-  const sliderMinCm = clampBound(rawMin, DEFAULT_SLIDER_MIN);
-  const sliderMaxCm = clampBound(rawMax, DEFAULT_SLIDER_MAX);
-
-  return {
-    enabled: active,
-    sliderMinCm: Math.min(sliderMinCm, sliderMaxCm),
-    sliderMaxCm: Math.max(sliderMinCm, sliderMaxCm),
-    labelEn: typeof row.label_en === "string" && row.label_en.trim() ? row.label_en.trim() : "Height (cm)",
-    labelEs: typeof row.label_es === "string" && row.label_es.trim() ? row.label_es.trim() : null,
-  };
 }
 
 /** Whether height range filtering is allowed + UI bounds (cached with directory). */

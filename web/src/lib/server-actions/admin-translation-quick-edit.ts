@@ -105,30 +105,12 @@ export async function loadTranslationQuickEditPayload(
       },
     };
   }
+  // T3.2 — the `fieldValueTextI18n` domain is dead: it was built around a
+  // `field_values.value_i18n` column that never existed, and System A is retired.
+  // The adapter surfaces no units, so this branch is unreachable from the UI;
+  // return a clear "not available" rather than read the removed System-A store.
   if (adapterId === "fieldValueTextI18n") {
-    if (!parentEntityId) return { ok: false, error: "Missing parent profile id." };
-    const { data: fv, error } = await auth.supabase
-      .from("field_values")
-      .select("id, value_text, value_i18n")
-      .eq("id", entityId)
-      .eq("talent_profile_id", parentEntityId)
-      .maybeSingle();
-    if (error) {
-      logServerError("translation-center/quickEdit/loadFieldValue", error);
-      return { ok: false, error: "Could not load field value." };
-    }
-    if (!fv) return { ok: false, error: "Field value not found." };
-    const i18n = fv.value_i18n as Record<string, unknown> | null;
-    const en = String(i18n?.en ?? fv.value_text ?? "").trim();
-    const es = String(i18n?.es ?? "").trim();
-    return {
-      ok: true,
-      data: {
-        title: "Profile field (i18n)",
-        subtitle: entityId,
-        fields: { en, es },
-      },
-    };
+    return { ok: false, error: "Profile field (i18n) inline editing is not available." };
   }
 
   return { ok: false, error: "Inline editing is not available for this domain." };
@@ -180,32 +162,12 @@ export async function applyTranslationQuickEditSave(
       display_name_es: fields.display_name_es ?? "",
     });
   }
+  // T3.2 — `field_value_i18n` is the save path for the dead `fieldValueTextI18n`
+  // domain (it wrote a non-existent `field_values.value_i18n` column; System A is
+  // retired). The domain surfaces no editable units, so this is unreachable from
+  // the UI; return a clear error rather than write the removed System-A store.
   if (saveKind === "field_value_i18n") {
-    if (!parentEntityId) return { ok: false, error: "Missing parent profile id." };
-    const en = (fields.en ?? "").trim();
-    const es = (fields.es ?? "").trim();
-    const value_i18n = { en, es };
-    const now = new Date().toISOString();
-    const { error } = await auth.supabase
-      .from("field_values")
-      .update({
-        value_i18n,
-        value_text: en.length > 0 ? en : null,
-        updated_at: now,
-      })
-      .eq("id", entityId)
-      .eq("talent_profile_id", parentEntityId);
-    if (error) {
-      if (String(error.message ?? "").includes("value_i18n")) {
-        return { ok: false, error: "Database is missing value_i18n — apply migrations." };
-      }
-      logServerError("translation-center/quickEdit/saveFieldValue", error);
-      return { ok: false, error: error.message };
-    }
-    await scheduleRebuildAiSearchDocument(auth.supabase, parentEntityId);
-    revalidatePath("/admin/translations");
-    revalidatePath(`/admin/talent/${parentEntityId}`);
-    return { ok: true, data: undefined };
+    return { ok: false, error: "Profile field (i18n) saving is not available." };
   }
 
   return { ok: false, error: "Save is not configured for this action." };

@@ -65,36 +65,6 @@ function ensureInner(map: CardValuesByProfileId, profileId: string): Map<string,
   return inner;
 }
 
-// ── A-reader: legacy System A (`field_values` by card def-ids) ───────────────
-//
-// Lifted VERBATIM from the card-values read in fetch-directory-page.ts so
-// `directory_card_values:a` is byte-for-byte today. Reads every column the
-// renderer consumes and keys rows by the A `field_definition_id`.
-async function readDirectoryCardValuesFromA(
-  supabase: SupabaseClient,
-  cardDefs: readonly DirectoryCardScalarDef[],
-  profileIds: readonly string[],
-): Promise<CardValuesByProfileId> {
-  const out: CardValuesByProfileId = new Map();
-  const defIds = cardDefs.map((d) => d.id).filter(Boolean);
-  if (defIds.length === 0 || profileIds.length === 0) return out;
-
-  const { data, error } = await supabase
-    .from("field_values")
-    .select(
-      "talent_profile_id, field_definition_id, value_text, value_number, value_boolean, value_date, value_taxonomy_ids",
-    )
-    .in("talent_profile_id", profileIds as string[])
-    .in("field_definition_id", defIds);
-  if (error) {
-    throw new Error(`[directory] field_values for cards: ${error.message}`);
-  }
-  for (const raw of (data ?? []) as FieldValueRow[]) {
-    ensureInner(out, raw.talent_profile_id).set(raw.field_definition_id, raw);
-  }
-  return out;
-}
-
 /** Project a System B jsonb scalar into the typed `FieldValueRow` columns the
  *  renderer reads, per the card def's `value_type`. Mirrors
  *  `formatCardAttributeValue`'s column expectations exactly. */
@@ -219,7 +189,10 @@ export const directoryCardValuesReaderPair: FieldSurfaceReaderPair<
   [SupabaseClient, readonly DirectoryCardScalarDef[], readonly string[]],
   CardValuesByProfileId
 > = {
-  readA: readDirectoryCardValuesFromA,
+  // T3.2 — System A removed: the legacy `field_values` A-reader was deleted.
+  // Both legs read canonical System B (`talent_profile_field_values`), projecting
+  // each B row back into the A-def-id-keyed `FieldValueRow` the renderer expects.
+  readA: readDirectoryCardValuesFromB,
   readB: readDirectoryCardValuesFromB,
 };
 

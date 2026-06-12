@@ -1,5 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { addDirectorySearchValueMatches } from "@/lib/field-engine/read-source-directory-search";
+import {
+  addDirectorySearchValueMatches,
+  DIRECTORY_SEARCHABLE_KEYS,
+} from "@/lib/field-engine/read-source-directory-search";
 
 function escapeIlike(input: string): string {
   return input.replaceAll(",", " ").replace(/\s+/g, " ").trim();
@@ -30,7 +33,6 @@ export async function fetchLegacyDirectorySearchTalentIds(
     { data: profileMatches, error: profileError },
     { data: locationMatches, error: locationError },
     { data: taxonomyTermMatches, error: termError },
-    { data: searchableDefRows, error: searchableDefErr },
   ] = await Promise.all([
     supabase
       .from("talent_profiles")
@@ -52,21 +54,11 @@ export async function fetchLegacyDirectorySearchTalentIds(
       .select("id")
       .is("archived_at", null)
       .or(`name_en.ilike.%${term}%,name_es.ilike.%${term}%,slug.ilike.%${term}%`),
-    supabase
-      .from("field_definitions")
-      .select("id, key")
-      .eq("searchable", true)
-      .eq("active", true)
-      .is("archived_at", null)
-      .eq("internal_only", false)
-      .eq("public_visible", true)
-      .eq("profile_visible", true)
-      .in("value_type", ["text", "textarea"]),
   ]);
 
-  if (profileError || locationError || termError || searchableDefErr) {
+  if (profileError || locationError || termError) {
     throw new Error(
-      `[directory] legacy search: ${profileError?.message ?? locationError?.message ?? termError?.message ?? searchableDefErr?.message}`,
+      `[directory] legacy search: ${profileError?.message ?? locationError?.message ?? termError?.message}`,
     );
   }
 
@@ -108,15 +100,22 @@ export async function fetchLegacyDirectorySearchTalentIds(
     }
   }
 
-  const searchableDefs = ((searchableDefRows ?? []) as { id: string; key: string }[]).filter(
-    (r) => r.id && r.key,
-  );
-  if (termSafe.length > 0 && searchableDefs.length > 0) {
-    // T2.5a: the searchable-field VALUE leg now reads through the
-    // `directory_search` read-source seam — System B for the 13 bridged keys,
-    // System A for the 3 un-bridged social-URL keys (coverage-identical). Flag
-    // `directory_search:a` (or a thrown B-read) reverts to the legacy A read.
-    await addDirectorySearchValueMatches(supabase, searchableDefs, termSafe, matchedIds);
+  if (termSafe.length > 0) {
+    // The searchable-field VALUE leg reads canonical System B via the
+    // `directory_search` read-source seam (T3.2: System A fully removed). The
+    // seam resolves each searchable legacy key to its B `field_key` (the 13
+    // bridged keys via OLD_TO_NEW_KEY + the 3 social keys via its social map) and
+    // ILIKEs `talent_profile_field_values`. The legacy `id` it once received is no
+    // longer consulted, so we pass the FROZEN searchable-key list directly rather
+    // than reading the retired `field_definitions` registry. display_name/short_bio
+    // carry no field_values data and are already covered by the talent_profiles
+    // column search above, so they are intentionally omitted here.
+    await addDirectorySearchValueMatches(
+      supabase,
+      DIRECTORY_SEARCHABLE_KEYS,
+      termSafe,
+      matchedIds,
+    );
   }
 
   return [...matchedIds];
