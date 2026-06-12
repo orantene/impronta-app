@@ -28,6 +28,7 @@ import { useMemo } from "react";
 import { BuilderEditorMount } from "@/lib/site-admin/builder-core/mount/BuilderEditorMount";
 import { buildPlatformLabBuilderConfig } from "@/lib/site-admin/builder-core/config";
 import { platformLabAdapter } from "@/lib/site-admin/builder-core/adapters/platform-lab-adapter";
+import { CHROME } from "@/components/edit-chrome/kit/tokens";
 
 import type { PreviewSubject } from "./preview-subject-picker";
 
@@ -126,8 +127,10 @@ function BuilderLabStageHeaderBridge({
         alignItems: "center",
         gap: 10,
         padding: "8px 16px",
-        background: "#16161A",
-        borderBottom: "1px solid rgba(255,255,255,0.10)",
+        // Light builder canvas frame — the surrounding Lab dashboard stays dark,
+        // but the area you actually build in is clean. Matches the talent builder.
+        background: CHROME.paper,
+        borderBottom: `1px solid ${CHROME.line}`,
       }}
     >
       <button
@@ -139,9 +142,9 @@ function BuilderLabStageHeaderBridge({
           gap: 6,
           padding: "5px 12px",
           borderRadius: 8,
-          border: "1px solid rgba(255,255,255,0.14)",
-          background: "rgba(255,255,255,0.04)",
-          color: "#F5F2EB",
+          border: `1px solid ${CHROME.controlBorder}`,
+          background: CHROME.controlFill,
+          color: CHROME.text,
           fontSize: 12,
           fontWeight: 600,
           cursor: "pointer",
@@ -171,7 +174,7 @@ export function PreviewSubjectChip({
       <span
         style={{
           fontSize: 11.5,
-          color: "rgba(245,242,235,0.45)",
+          color: CHROME.muted,
           fontWeight: 500,
         }}
       >
@@ -187,15 +190,15 @@ export function PreviewSubjectChip({
         gap: 7,
         padding: "3px 10px",
         borderRadius: 999,
-        background: "rgba(93,211,160,0.12)",
-        color: "#5DD3A0",
+        background: CHROME.greenBg,
+        color: CHROME.green,
         fontSize: 11.5,
         fontWeight: 600,
       }}
     >
       <span
         aria-hidden
-        style={{ width: 6, height: 6, borderRadius: "50%", background: "#5DD3A0" }}
+        style={{ width: 6, height: 6, borderRadius: "50%", background: CHROME.green }}
       />
       {area === "talent" ? "Talent" : "Workspace"}: {subject.label}
     </span>
