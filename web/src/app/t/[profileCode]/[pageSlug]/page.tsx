@@ -157,7 +157,19 @@ export default async function PublicTalentFreeformPage({
   const talentDataAttrs = hasTalentTokens ? designTokensToDataAttrs(effectiveTokens) : {};
 
   return (
-    <div data-talent-freeform-page-shell="">
+    <div
+      data-talent-freeform-page-shell=""
+      // Paint the talent's OWN page background across the whole page area (below
+      // the agency header), with min-height so a short page still fills the
+      // viewport — otherwise a light talent page under a dark-host agency shows
+      // the host's black around the content. The header keeps its own
+      // (--token-shell-header-bg) colour.
+      style={{
+        ...(talentCssVars as React.CSSProperties),
+        backgroundColor: "var(--token-color-background, #ffffff)",
+        minHeight: "100vh",
+      }}
+    >
       <PublicHeader />
       {/* Renderer styles + fonts emitted once at the page level; the root-tree
           helper sets includeRendererStyles/includeFontLinks=false per block. */}

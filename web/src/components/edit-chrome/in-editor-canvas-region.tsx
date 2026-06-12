@@ -83,6 +83,10 @@ export function InEditorCanvasRegion({
   // changing color.background still repaints live.
   const canvasBackground: CSSProperties = {
     backgroundColor: "var(--token-color-background, #ffffff)",
+    // Fill the editor canvas viewport so a short page still paints the theme
+    // background all the way down (otherwise the dark editor chrome shows below
+    // the content). Matches the public talent/workspace page shell.
+    minHeight: "100vh",
   };
 
   return (
