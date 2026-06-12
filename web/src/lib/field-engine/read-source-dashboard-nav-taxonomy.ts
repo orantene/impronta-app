@@ -22,118 +22,65 @@ import type { FieldSurfaceReaderPair } from "@/lib/field-engine/read-source";
 import { readFieldSurface } from "@/lib/field-engine/read-source";
 import type { DashboardNavEditableTaxonomyFields } from "@/lib/field-engine/read-source-dashboard-nav";
 
-// ── A-reader: loadTalentTaxonomyEditorData editableFields ──────────────────────
+// ── Taxonomy-field skeleton (STATIC — System A registry retired) ──────────────
 //
-// Lifted from `loadTalentTaxonomyEditorData` (~:254–287): reads `field_definitions`
-// for taxonomy-type fields + joins `field_groups` for group_sort_order.
+// T3.2 — repointed off legacy System A `field_definitions`. The taxonomy editor's
+// per-field governance metadata (`taxonomy_kind`, intra-group `sort_order`, the
+// owning group's `group_sort_order`, and fallback EN/ES labels) came from the
+// FROZEN System-A registry; it never lived in the value store. We pin it as a
+// code-level constant captured 1:1 from prod (ref pluhdapdnuiulvxmyspd,
+// 2026-06-11) using the SAME gate the A-reader applied. WHETHER each field appears
+// is still decided at runtime by querying System B (`profile_field_definitions`)
+// for a live (non-deprecated, talent-editable) row — the static map only supplies
+// the governance metadata, never a liveness verdict. `talent_type` (no B row) +
+// `skills` (deprecated in B) are documented drops; the surviving five
+// (`fit_labels`, `tags`, `languages`, `industries`, `event_types`) gate on B.
 
-async function readTaxonomyEditableFieldsFromA(
-  supabase: SupabaseClient,
-): Promise<DashboardNavEditableTaxonomyFields> {
-  const { data: fieldRows, error: fErr } = await supabase
-    .from("field_definitions")
-    .select("key, label_en, label_es, taxonomy_kind, sort_order, field_groups(sort_order)")
-    .eq("active", true)
-    .is("archived_at", null)
-    .eq("editable_by_talent", true)
-    .eq("profile_visible", true)
-    .eq("internal_only", false)
-    .in("value_type", ["taxonomy_single", "taxonomy_multi"])
-    .not("taxonomy_kind", "is", null);
+type TaxonomyFieldSkeleton = {
+  key: string;
+  label_en: string;
+  label_es: string | null;
+  taxonomy_kind: string;
+  sort_order: number;
+  group_sort_order: number;
+};
 
-  if (fErr) throw new Error(`[dashboard_nav/taxonomy-A] field_definitions: ${fErr.message}`);
+const TAXONOMY_FIELD_SKELETON: readonly TaxonomyFieldSkeleton[] = [
+  { key: "talent_type", label_en: "Talent Type", label_es: "Tipo de talento", taxonomy_kind: "talent_type", sort_order: 10, group_sort_order: 20 },
+  { key: "skills", label_en: "Skills", label_es: "Habilidades", taxonomy_kind: "skill", sort_order: 30, group_sort_order: 30 },
+  { key: "languages", label_en: "Languages", label_es: "Idiomas", taxonomy_kind: "language", sort_order: 70, group_sort_order: 30 },
+  { key: "tags", label_en: "Tags", label_es: "Etiquetas", taxonomy_kind: "tag", sort_order: 20, group_sort_order: 40 },
+  { key: "industries", label_en: "Industries", label_es: "Industrias", taxonomy_kind: "industry", sort_order: 40, group_sort_order: 50 },
+  { key: "event_types", label_en: "Event Types", label_es: "Tipos de evento", taxonomy_kind: "event_type", sort_order: 50, group_sort_order: 60 },
+  { key: "fit_labels", label_en: "Fit Labels", label_es: "Etiquetas de ajuste", taxonomy_kind: "fit_label", sort_order: 60, group_sort_order: 60 },
+] as const;
 
-  return ((fieldRows ?? []) as Array<{
-    key: string;
-    label_en: string;
-    label_es: string | null;
-    taxonomy_kind: string;
-    sort_order: number;
-    field_groups: { sort_order: number } | { sort_order: number }[] | null;
-  }>)
-    .map((row) => {
-      const fg = row.field_groups;
-      const groupSort = Array.isArray(fg) ? fg[0]?.sort_order ?? 0 : fg?.sort_order ?? 0;
-      return {
-        key: row.key,
-        label_en: row.label_en,
-        label_es: row.label_es ?? null,
-        taxonomy_kind: row.taxonomy_kind,
-        sort_order: row.sort_order ?? 0,
-        group_sort_order: groupSort,
-      };
-    })
-    .filter(
-      (f) =>
-        f.taxonomy_kind !== "location_city" &&
-        f.taxonomy_kind !== "location_country",
-    )
-    .sort(
-      (a, b) =>
-        a.group_sort_order - b.group_sort_order || a.sort_order - b.sort_order,
-    );
-}
-
-// ── B-reader: loadTalentTaxonomyEditorData editableFields ──────────────────────
+// ── Taxonomy editableFields reader (System B liveness + static metadata) ──────
 //
-// Reads B's `profile_field_definitions` for the taxonomy-type fields
-// (kind = multiselect / chips / select where there's an A taxonomy_kind
-// equivalent). Since B does not store `taxonomy_kind` separately, we derive it
-// from the A def via the key bridge for bridged keys, or use the field_key
-// itself for direct-match taxonomy keys.
-//
-// Only the 5 direct-match taxonomy keys (`fit_labels`, `tags`, `languages`,
-// `industries`, `event_types`) are taxonomy-type fields in A's sense that are
-// governance-visible. `talent_type` is a taxonomy_single but has no B row.
-// The `skills` key is deprecated in B.
-//
-// For the taxonomy editor, the B-reader produces the SAME shape
-// `DashboardNavEditableTaxonomyFields`, using A group sort_order as
-// `group_sort_order` (via the A→group mapping).
+// Reads System B `profile_field_definitions` for the 5 direct-match taxonomy keys
+// that survive in B (`fit_labels`, `tags`, `languages`, `industries`,
+// `event_types`) to confirm a live, talent-editable row, then joins the static
+// governance metadata above. `talent_type` (no B row) + `skills` (deprecated in B)
+// are NOT in the B-eligible set, so they drop — NON-REGRESSIVE (see module header).
+// B's canonical `label`/`label_es` win when present; the skeleton supplies the
+// fallback + the metadata B doesn't carry.
 
 async function readTaxonomyEditableFieldsFromB(
   supabase: SupabaseClient,
 ): Promise<DashboardNavEditableTaxonomyFields> {
-  // The taxonomy direct-match keys that survive in B
+  // The taxonomy direct-match keys that survive in B.
   const taxonomyBKeys = ["fit_labels", "tags", "languages", "industries", "event_types"];
 
-  const [
-    { data: bTaxonomyDefs, error: bErr },
-    { data: aTaxonomyDefs, error: aErr },
-  ] = await Promise.all([
-    supabase
-      .from("profile_field_definitions")
-      .select("field_key, label, label_es, display_order, kind")
-      .in("field_key", taxonomyBKeys)
-      .is("deprecated_at", null)
-      .eq("talent_editable", true),
-    // Still need A field_definitions to get sort_order + taxonomy_kind + group sort_order
-    supabase
-      .from("field_definitions")
-      .select("key, label_en, label_es, taxonomy_kind, sort_order, field_groups(sort_order)")
-      .eq("active", true)
-      .is("archived_at", null)
-      .eq("editable_by_talent", true)
-      .eq("profile_visible", true)
-      .eq("internal_only", false)
-      .in("value_type", ["taxonomy_single", "taxonomy_multi"])
-      .not("taxonomy_kind", "is", null),
-  ]);
+  const { data: bTaxonomyDefs, error: bErr } = await supabase
+    .from("profile_field_definitions")
+    .select("field_key, label, label_es, display_order, kind")
+    .in("field_key", taxonomyBKeys)
+    .is("deprecated_at", null)
+    .eq("talent_editable", true);
 
   if (bErr) throw new Error(`[dashboard_nav/taxonomy-B] profile_field_definitions: ${bErr.message}`);
-  if (aErr) throw new Error(`[dashboard_nav/taxonomy-B] field_definitions: ${aErr.message}`);
 
-  type ARow = {
-    key: string;
-    label_en: string;
-    label_es: string | null;
-    taxonomy_kind: string;
-    sort_order: number;
-    field_groups: { sort_order: number } | { sort_order: number }[] | null;
-  };
-  const aByKey = new Map<string, ARow>(
-    ((aTaxonomyDefs ?? []) as ARow[]).map((r) => [r.key, r]),
-  );
+  const skeletonByKey = new Map(TAXONOMY_FIELD_SKELETON.map((s) => [s.key, s]));
 
   type BRow = {
     field_key: string;
@@ -145,19 +92,16 @@ async function readTaxonomyEditableFieldsFromB(
   const result: DashboardNavEditableTaxonomyFields = [];
 
   for (const bRow of (bTaxonomyDefs ?? []) as BRow[]) {
-    const aRow = aByKey.get(bRow.field_key);
-    if (!aRow) continue; // No A equivalent → skip
-
-    const fg = aRow.field_groups;
-    const groupSort = Array.isArray(fg) ? fg[0]?.sort_order ?? 0 : fg?.sort_order ?? 0;
+    const skel = skeletonByKey.get(bRow.field_key);
+    if (!skel) continue; // not a governance-visible taxonomy field
 
     result.push({
       key: bRow.field_key,
-      label_en: bRow.label ?? aRow.label_en,
-      label_es: bRow.label_es ?? aRow.label_es ?? null,
-      taxonomy_kind: aRow.taxonomy_kind,
-      sort_order: aRow.sort_order ?? 0,
-      group_sort_order: groupSort,
+      label_en: bRow.label ?? skel.label_en,
+      label_es: bRow.label_es ?? skel.label_es ?? null,
+      taxonomy_kind: skel.taxonomy_kind,
+      sort_order: skel.sort_order,
+      group_sort_order: skel.group_sort_order,
     });
   }
 
@@ -173,12 +117,13 @@ async function readTaxonomyEditableFieldsFromB(
     );
 }
 
-/** The reader pair for `loadTalentTaxonomyEditorData`'s editableFields. */
+/** The reader pair for `loadTalentTaxonomyEditorData`'s editableFields. T3.2 —
+ *  System A removed: both legs read System B liveness + static governance metadata. */
 export const taxonomyEditableFieldsReaderPair: FieldSurfaceReaderPair<
   [SupabaseClient],
   DashboardNavEditableTaxonomyFields
 > = {
-  readA: readTaxonomyEditableFieldsFromA,
+  readA: readTaxonomyEditableFieldsFromB,
   readB: readTaxonomyEditableFieldsFromB,
 };
 

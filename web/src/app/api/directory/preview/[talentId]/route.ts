@@ -119,32 +119,31 @@ export async function GET(
     locale === "es" && term.name_es ? term.name_es : term.name_en;
 
   type FieldVisibilityRow = {
-    key: string;
-    active: boolean;
-    archived_at: string | null;
-    public_visible: boolean;
-    internal_only: boolean;
-    profile_visible: boolean;
-    preview_visible?: boolean;
+    field_key: string;
+    deprecated_at: string | null;
+    admin_only: boolean;
   };
 
-  /** Hardcoded keys; preview_visible + visibility columns apply only to these definitions today. */
+  // T3.2 — repointed off legacy System A `field_definitions` to canonical System B
+  // (`profile_field_definitions`). The preview shows a section when its canonical
+  // def is live (non-deprecated) and not admin-only. Default-allow on a read error
+  // / missing row (same as the legacy gate). B has no `preview_visible` column;
+  // the deprecated-row check subsumes it — the only key affected is `skills`,
+  // which is deprecated in B and is ALSO hidden on the live public sidebar by
+  // design, so the preview now matches the live profile (an A/B inconsistency B
+  // corrects; fit_labels + languages stay visible as before).
   const allowedKeys = new Set<string>(["fit_labels", "languages", "skills"]);
   const { data: fieldRows, error: fieldErr } = await supabase
-    .from("field_definitions")
-    .select("key, active, archived_at, public_visible, internal_only, profile_visible, preview_visible")
-    .in("key", ["fit_labels", "languages", "skills"]);
+    .from("profile_field_definitions")
+    .select("field_key, deprecated_at, admin_only")
+    .in("field_key", ["fit_labels", "languages", "skills"]);
 
   if (!fieldErr && fieldRows) {
     allowedKeys.clear();
     for (const row of fieldRows as FieldVisibilityRow[]) {
-      if (row.archived_at) continue;
-      if (!row.active) continue;
-      if (row.internal_only) continue;
-      if (!row.public_visible) continue;
-      if (!row.profile_visible) continue;
-      if (row.preview_visible === false) continue;
-      allowedKeys.add(row.key);
+      if (row.deprecated_at) continue;
+      if (row.admin_only) continue;
+      allowedKeys.add(row.field_key);
     }
   }
 

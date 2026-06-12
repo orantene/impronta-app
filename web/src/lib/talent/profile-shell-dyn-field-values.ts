@@ -1,6 +1,17 @@
 /**
- * Sync profile shell `dynFields` to public.field_values (catalog keys only).
- * Staff vs talent use different `editable_by_*` gates on field_definitions.
+ * Sync profile shell `dynFields` to canonical System B
+ * (`talent_profile_field_values`), catalog keys only.
+ *
+ * T3.2 — System A removed. This path used to read the legacy `field_definitions`
+ * registry + write `field_values`; both are gone. It now reads the field
+ * metadata + gate from canonical System B (`profile_field_definitions`), keyed by
+ * each incoming legacy (A) key's bridged B `field_key`, and writes ONLY System B
+ * via `mirrorWriteToCanonical`. The write path was already B-first by default;
+ * T3.2 drops the `shell:a` System-A write kill switch entirely.
+ *
+ * Staff vs talent use different gates: `talent` → B `talent_editable`; `staff` →
+ * any non-`admin_only` field (staff/admin may edit anything that isn't admin-only,
+ * matching the legacy `editable_by_staff` semantics).
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -10,10 +21,9 @@ import {
   mirrorWriteToCanonical,
   prefetchMirrorCanonicalContext,
   OLD_TO_NEW_KEY,
+  NEW_TO_OLD_KEY,
 } from "@/lib/fields/legacy-mirror";
 import { mirrorHeightCmToTalentProfile } from "@/lib/field-values-height-mirror";
-import { resolveSelectValue } from "@/lib/fields/coerce-select-value";
-import { activeWriteSource } from "@/lib/field-engine/write-source";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 
 export type ShellDynFieldEditor = "staff" | "talent";
@@ -33,20 +43,46 @@ function parseBooleanRaw(raw: string): boolean | null {
   return null;
 }
 
-type FieldDefDynRow = {
-  id: string;
+/** A bridged shell field resolved from canonical System B, keyed back to its
+ *  legacy (A) key (which `mirrorWriteToCanonical` + the height mirror still use). */
+type ShellDynFieldDef = {
+  /** Legacy (A) key — the key the incoming dynFields are keyed by. */
   key: string;
+  /** Coercion type, mapped from the B `kind`. */
   value_type: string;
-  editable_by_staff: boolean;
+  /** Talent self-edit gate (B `talent_editable`). */
   editable_by_talent: boolean;
-  active: boolean;
-  archived_at: string | null;
-  config: Record<string, unknown> | null;
+  /** Staff/admin edit gate (B `!admin_only`). */
+  editable_by_staff: boolean;
+  /** Display label for error messages (B `label`). */
   label_en: string | null;
 };
 
-function canEditDef(def: FieldDefDynRow, editor: ShellDynFieldEditor): boolean {
+function canEditDef(def: ShellDynFieldDef, editor: ShellDynFieldEditor): boolean {
   return editor === "staff" ? def.editable_by_staff : def.editable_by_talent;
+}
+
+/** Map a System B `kind` to the shell's supported scalar `value_type`. Select-
+ *  family kinds collapse to "text" (the shell writes the scalar option value; the
+ *  canonical mirror translates slug→label against B's options). Unsupported kinds
+ *  (multiselect/chips/etc.) return null so the shell skips them — the same
+ *  effective set the legacy A `value_type` SUPPORTED gate allowed. */
+function bKindToShellValueType(kind: string | null): string | null {
+  switch (kind) {
+    case "number":
+      return "number";
+    case "toggle":
+      return "boolean";
+    case "date":
+      return "date";
+    case "textarea":
+      return "textarea";
+    case "select":
+    case "text":
+      return "text";
+    default:
+      return null;
+  }
 }
 
 export async function syncProfileShellDynFieldValues(
@@ -65,87 +101,77 @@ export async function syncProfileShellDynFieldValues(
   }
   if (entries.length === 0) return { ok: true };
 
-  const keys = [...new Set(entries.map((e) => e.key))];
-  const { data: defs, error: defErr } = await supabase
-    .from("field_definitions")
-    .select("id, key, value_type, editable_by_staff, editable_by_talent, active, archived_at, config, label_en")
-    .in("key", keys);
-  if (defErr) {
-    logServerError("profile-shell-dyn-fv.defs", defErr);
-    return { ok: false, error: CLIENT_ERROR.update };
+  // Resolve the incoming legacy (A) keys to their bridged canonical (B)
+  // `field_key`s. Only bridged keys have a System B definition + value home;
+  // unbridged keys are a value-store no-op (their only effect was the dead legacy
+  // `field_values` write, removed in T2.6 — verified zero live rows in prod). The
+  // `height_cm` column mirror runs independently below regardless.
+  const legacyKeys = [...new Set(entries.map((e) => e.key))];
+  const bKeyByLegacy = new Map<string, string>();
+  for (const lk of legacyKeys) {
+    const bKey = OLD_TO_NEW_KEY[lk];
+    if (bKey) bKeyByLegacy.set(lk, bKey);
   }
 
-  const byKey = new Map(
-    ((defs ?? []) as FieldDefDynRow[]).map((d) => [d.key, d] as const),
-  );
+  // Read the field metadata + gate from canonical System B
+  // (`profile_field_definitions`) for the bridged keys. NO `field_definitions`.
+  const byKey = new Map<string, ShellDynFieldDef>();
+  const bKeysNeeded = [...new Set(bKeyByLegacy.values())];
+  if (bKeysNeeded.length > 0) {
+    const { data: defs, error: defErr } = await supabase
+      .from("profile_field_definitions")
+      .select("field_key, kind, talent_editable, admin_only, deprecated_at, label")
+      .in("field_key", bKeysNeeded)
+      .is("deprecated_at", null);
+    if (defErr) {
+      logServerError("profile-shell-dyn-fv.defs", defErr);
+      return { ok: false, error: CLIENT_ERROR.update };
+    }
+    type BDefRow = {
+      field_key: string;
+      kind: string | null;
+      talent_editable: boolean;
+      admin_only: boolean;
+      deprecated_at: string | null;
+      label: string | null;
+    };
+    const bDefByKey = new Map(
+      ((defs ?? []) as BDefRow[]).map((d) => [d.field_key, d] as const),
+    );
+    for (const [legacyKey, bKey] of bKeyByLegacy) {
+      const bDef = bDefByKey.get(bKey);
+      if (!bDef) continue; // no live B def — skip (gate fails closed)
+      const value_type = bKindToShellValueType(bDef.kind);
+      if (!value_type) continue; // unsupported kind — skip
+      byKey.set(legacyKey, {
+        key: legacyKey,
+        value_type,
+        editable_by_talent: bDef.talent_editable === true,
+        editable_by_staff: bDef.admin_only !== true,
+        label_en: bDef.label,
+      });
+    }
+  }
 
   // P5-γ + §11.2 batching — hoist the canonical-mirror lookups (def id per
   // bridged key + tenant id from active roster) once for the whole batch.
-  // Per-call inside the loop becomes a Map lookup + the upsert/delete RPC,
-  // dropping a 17-key save from 51 round-trips (17×3) to 19 (2 + 17×1).
+  // Per-call inside the loop becomes a Map lookup + the upsert/delete RPC.
   const mirrorContext = await prefetchMirrorCanonicalContext(
     supabase,
     talent_profile_id,
     entries.map((e) => e.key),
   );
 
-  // T2.5c write-source seam. `a` (default) = today's behaviour exactly: write
-  // System A `field_values` FIRST, then fire-and-forget the A→B mirror. `b` =
-  // write canonical System B FIRST (the read source of truth), then mirror B→A
-  // so residual legacy readers + the reconcile cron stay fresh until the mirror
-  // is deleted (T2.6). Resolved ONCE per batch — the env flag does not change
-  // mid-save. Kill switch back to A-first: FIELD_ENGINE_WRITE_SOURCE=shell:a.
-  const writeSource = activeWriteSource("shell");
-
-  // ── Per-store write helpers (shared by both A-first and B-first) ───────────
-
-  /** Upsert/delete the legacy System A `field_values` row for this field. The
-   *  delete path is `patch === null`. Returns ok=false on a hard DB error
-   *  (aborts the batch, same contract as today's inline code). */
-  async function writeLegacyA(
-    field_definition_id: string,
-    patch: Record<string, unknown> | null,
-  ): Promise<{ ok: true } | { ok: false }> {
-    if (!patch) {
-      const { error } = await supabase
-        .from("field_values")
-        .delete()
-        .eq("talent_profile_id", talent_profile_id)
-        .eq("field_definition_id", field_definition_id);
-      if (error) {
-        logServerError("profile-shell-dyn-fv.delete", error);
-        return { ok: false };
-      }
-      return { ok: true };
-    }
-    const { error } = await supabase.from("field_values").upsert(
-      {
-        talent_profile_id,
-        field_definition_id,
-        ...patch,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "talent_profile_id,field_definition_id" },
-    );
-    if (error) {
-      logServerError("profile-shell-dyn-fv.upsert", error);
-      return { ok: false };
-    }
-    return { ok: true };
-  }
-
   /** Mirror `height_cm` to the `talent_profiles.height_cm` column. Independent
-   *  of both value stores; runs under A-first AND B-first identically. */
+   *  of the value store. */
   async function syncHeightColumn(
     defKey: string,
-    patch: Record<string, unknown> | null,
+    numericValue: number | null,
   ): Promise<{ ok: true } | { ok: false }> {
     if (defKey !== "height_cm") return { ok: true };
     const height =
-      patch &&
-      typeof patch.value_number === "number" &&
-      Number.isFinite(patch.value_number)
-        ? Math.round(patch.value_number)
+      numericValue != null && Number.isFinite(numericValue)
+        ? Math.round(numericValue)
         : null;
     const m = await mirrorHeightCmToTalentProfile(supabase, talent_profile_id, height);
     return m.ok ? { ok: true } : { ok: false };
@@ -155,121 +181,36 @@ export async function syncProfileShellDynFieldValues(
 
   for (const { key, raw } of entries) {
     const def = byKey.get(key);
-    if (!def) continue;
-    if (def.archived_at || !def.active || !canEditDef(def, editor)) continue;
+    if (!def) continue; // unbridged / no live B def / unsupported kind — value-store no-op
+    if (!canEditDef(def, editor)) continue;
     if (!isSupportedDynFvType(def.value_type)) continue;
     if (isReservedTalentProfileFieldKey(def.key)) continue;
 
-    const field_definition_id = def.id;
-    let patch: Record<string, unknown> | null = null;
-
+    // Coerce the raw shell input to the single scalar System B stores. `null` ⇒
+    // clear/delete. Select self-healing is handled inside `mirrorWriteToCanonical`
+    // (it translates the incoming slug into B's option label).
+    let canonicalValue: string | number | boolean | null = null;
     if (def.value_type === "text" || def.value_type === "textarea") {
-      let textToWrite = raw;
-      if (def.value_type === "text" && raw.length > 0) {
-        const res = resolveSelectValue(def.config, raw);
-        // Orphaned/legacy value on a select field — never abort the whole batch
-        // save for a value the user can't even see; leave the row untouched and
-        // move on. (Select inputs only ever emit valid option values, so an
-        // unmatchable raw is always pre-existing data echoed back, never fresh
-        // user input.)
-        if (res.kind === "unmatchable") continue;
-        // Self-heal label/case drift to the canonical option value.
-        if (res.kind === "matched") textToWrite = res.value;
-      }
-      patch = textToWrite.length > 0 ? { value_text: textToWrite } : null;
+      canonicalValue = raw.length > 0 ? raw : null;
     } else if (def.value_type === "number") {
       const n = raw ? Number(raw) : NaN;
-      patch = Number.isFinite(n) ? { value_number: n } : null;
+      canonicalValue = Number.isFinite(n) ? n : null;
     } else if (def.value_type === "date") {
-      patch = raw.length > 0 ? { value_date: raw } : null;
+      canonicalValue = raw.length > 0 ? raw : null;
     } else if (def.value_type === "boolean") {
       if (raw.length === 0) {
-        patch = null;
+        canonicalValue = null;
       } else {
         const b = parseBooleanRaw(raw);
         if (b === null) {
           return { ok: false, error: `Invalid value for ${def.label_en ?? "field"}.` };
         }
-        patch = { value_boolean: b };
+        canonicalValue = b;
       }
     }
 
-    // The single scalar that maps to canonical System B (the same extraction
-    // the A→B mirror has always used). `null` ⇒ clear/delete the value.
-    const canonicalValue = !patch
-      ? null
-      : (patch.value_text ??
-        patch.value_number ??
-        patch.value_boolean ??
-        patch.value_date ??
-        null);
-
-    // Is this field one of the 17 keys with a canonical System B definition?
-    // Unbridged keys have NO B store. Under B-first they are now a value-store
-    // no-op (the dead legacy A-write was removed — see the unbridged branch
-    // below); under the A-first kill switch they still write A as before.
-    const isBridged = Boolean(OLD_TO_NEW_KEY[def.key]);
-
-    if (writeSource === "b" && isBridged) {
-      // ── B-ONLY (canonical is the sole store; legacy field_values is frozen) ──
-      // T2.6 step 3 removed the B→A reverse mirror — the shell write path no
-      // longer touches System A `field_values` at all under shell:b. Existing A
-      // data is frozen (not deleted); the reconcile cron's A→B heal remains the
-      // backstop if any legacy reader still depends on A.
-      //
-      // 1) Write System B (the primary + read-source-of-truth store). The value
-      //    that lands in B is byte-equivalent to what the A-first path's A→B
-      //    mirror produces (identical helper, identical args, identical slug→
-      //    label translation + delete-on-null contract + workflow_state/role).
-      await mirrorWriteToCanonical(
-        supabase,
-        def.key,
-        talent_profile_id,
-        canonicalValue,
-        mirrorContext,
-      );
-      touchedAiDoc = true;
-
-      // 2) Height column mirror (independent of the value store; same as A-first).
-      const h = await syncHeightColumn(def.key, patch);
-      if (!h.ok) return { ok: false, error: CLIENT_ERROR.update };
-
-      continue;
-    }
-
-    // ── B-first UNBRIDGED keys: no-op on the value store ───────────────────────
-    // Under shell:b an unbridged key has no canonical System B definition, so
-    // there is nowhere in B for its value to live. The prior code wrote such
-    // keys straight to legacy System A `field_values`. T2.6 step 3 INVESTIGATION
-    // (production query, 2026-06-11): EVERY `field_values` row in prod belongs
-    // to one of the 17 bridged keys — there are ZERO `field_values` rows for any
-    // unbridged key, and the only unbridged active+editable shell keys
-    // (instagram_url / tiktok_url / youtube_url / long_bio) have their real home
-    // in System B's catalog (creator.* handles, bios) or are bridged
-    // (media.website_url). So this A-write path is dead: it has never produced a
-    // live row and cannot lose data. We skip it entirely rather than resurrect
-    // legacy `field_values` writes. The height column (independent of either
-    // value store) still mirrors so non-bridged height edits aren't dropped.
-    if (writeSource === "b") {
-      const h = await syncHeightColumn(def.key, patch);
-      if (!h.ok) return { ok: false, error: CLIENT_ERROR.update };
-      continue;
-    }
-
-    // ── A-FIRST (kill switch: FIELD_ENGINE_WRITE_SOURCE=shell:a) ────────────────
-    // Today's pre-B-first behaviour byte-for-byte: write System A first, then
-    // fire-and-forget the A→B canonical mirror. Retained as the documented
-    // rollback path; under the default shell:b it is never taken.
-    const wA = await writeLegacyA(field_definition_id, patch);
-    if (!wA.ok) return { ok: false, error: CLIENT_ERROR.update };
-    touchedAiDoc = true;
-
-    const h = await syncHeightColumn(def.key, patch);
-    if (!h.ok) return { ok: false, error: CLIENT_ERROR.update };
-
-    // P5-γ legacy→canonical bridge — keep talent_profile_field_values in sync
-    // for the 17 bridged keys. No-op for unbridged keys; errors are logged
-    // inside the helper and never block the legacy write above.
+    // Write canonical System B ONLY (the sole value store; System A removed). The
+    // helper does the slug→label translation + delete-on-null + workflow/role.
     await mirrorWriteToCanonical(
       supabase,
       def.key,
@@ -277,6 +218,14 @@ export async function syncProfileShellDynFieldValues(
       canonicalValue,
       mirrorContext,
     );
+    touchedAiDoc = true;
+
+    // Height column mirror (independent of the value store).
+    const h = await syncHeightColumn(
+      def.key,
+      typeof canonicalValue === "number" ? canonicalValue : null,
+    );
+    if (!h.ok) return { ok: false, error: CLIENT_ERROR.update };
   }
 
   if (touchedAiDoc) {
@@ -284,4 +233,63 @@ export async function syncProfileShellDynFieldValues(
   }
 
   return { ok: true };
+}
+
+/**
+ * Hydrate the profile-shell `dynFields` for a talent — the READ counterpart of
+ * `syncProfileShellDynFieldValues`. Returns a map keyed by the legacy (A) shell
+ * key (e.g. `body_type`) so the shell editor (A-keyed) renders the saved values.
+ *
+ * T3.2 — System A removed. This reads canonical System B
+ * (`talent_profile_field_values` joined to `profile_field_definitions`), the SAME
+ * store the shell now writes, and maps each canonical `field_key` back to its
+ * legacy shell key via `NEW_TO_OLD_KEY`. Returns `{ ok:false }` on a hard DB
+ * error so the caller surfaces a generic error (same contract as the prior
+ * A-reading hydrate). Reserved keys are excluded (basic-info has its own path).
+ */
+export async function loadProfileShellDynFieldValues(
+  supabase: SupabaseClient,
+  talent_profile_id: string,
+): Promise<{ ok: true; values: Record<string, string> } | { ok: false }> {
+  const { data: rows, error } = await supabase
+    .from("talent_profile_field_values")
+    .select("value, profile_field_definitions(field_key)")
+    .eq("talent_profile_id", talent_profile_id);
+  if (error) {
+    logServerError("profile-shell-dyn-fv.hydrate", error);
+    return { ok: false };
+  }
+
+  type Row = {
+    value: unknown;
+    profile_field_definitions:
+      | { field_key: string }
+      | Array<{ field_key: string }>
+      | null;
+  };
+  const values: Record<string, string> = {};
+  for (const r of (rows ?? []) as Row[]) {
+    const def = Array.isArray(r.profile_field_definitions)
+      ? r.profile_field_definitions[0]
+      : r.profile_field_definitions;
+    const bKey = def?.field_key;
+    if (!bKey) continue;
+    // Map the canonical field_key back to the legacy shell key. Keys with no
+    // legacy equivalent (B-only fields) are not part of the A-keyed shell.
+    const legacyKey = NEW_TO_OLD_KEY[bKey];
+    if (!legacyKey || isReservedTalentProfileFieldKey(legacyKey)) continue;
+
+    // Project B's JSONB scalar to the string the shell editor expects.
+    const raw = r.value;
+    let s: string | null = null;
+    if (typeof raw === "string") {
+      if (raw.length > 0) s = raw;
+    } else if (typeof raw === "number") {
+      if (Number.isFinite(raw)) s = String(raw);
+    } else if (typeof raw === "boolean") {
+      s = raw ? "true" : "false";
+    }
+    if (s !== null) values[legacyKey] = s;
+  }
+  return { ok: true, values };
 }

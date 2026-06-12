@@ -1,25 +1,20 @@
 // profile-shell-dyn-field-values.roundtrip.test.ts
 //
-// T2.6 B-FIRST ROUND-TRIP REGRESSION GUARD (originally the T2.5c reviewer's ask
-// before the `shell` default was flipped to `b`; updated for T2.6 step 3 which
-// DELETED the B→A reverse mirror).
+// T3.2 B-ONLY ROUND-TRIP REGRESSION GUARD (originally the T2.5c/T2.6 B-first
+// guard; updated for T3.2 which REMOVED System A from the shell write path —
+// `field_definitions` reads + the `field_values` write kill switch are gone).
 //
 // Drives the REAL `syncProfileShellDynFieldValues` (the shell write path shared
-// by the admin roster shell + the talent self-edit shell) under BOTH write
-// sources — A-first (`FIELD_ENGINE_WRITE_SOURCE=shell:a`, the legacy behaviour /
-// kill switch) and B-first (`shell:b`, the live default) — over an in-memory
-// fake Supabase, and asserts:
+// by the admin roster shell + the talent self-edit shell) under BOTH write-source
+// flags — `shell:a` and `shell:b` — over an in-memory fake Supabase, and asserts:
 //
 //   1. The value PERSISTED to canonical System B (`talent_profile_field_values`)
-//      is BYTE-EQUIVALENT between A-first and B-first.
-//   2. System A (`field_values`):
-//        - A-first  → still written (that mode writes A first, then mirrors A→B).
-//        - B-first  → NOT written. T2.6 step 3 removed the B→A reverse mirror,
-//          so a B-first shell save touches System B ONLY and leaves `field_values`
-//          untouched (existing A rows frozen, never created/updated/deleted).
+//      is correct AND identical regardless of the (now no-op) write-source flag.
+//   2. System A (`field_values`) is NEVER written — T3.2 deleted the A write path
+//      entirely, so neither flag touches `field_values` (existing A rows frozen).
 //
 // for a select, a number, and a delete-to-empty. A future refactor that drifts B,
-// OR that resurrects an A write under shell:b, MUST fail this test in CI.
+// OR that resurrects an A write, MUST fail this test in CI.
 //
 // No live prod write — the Supabase is fully faked (same spirit as
 // write-source.test.ts / read-source.test.ts; modelled on the in-memory fake in
@@ -81,19 +76,31 @@ const A_DEFS = [
   },
 ];
 
-// System B `profile_field_definitions` rows (keyed by canonical field_key).
+// System B `profile_field_definitions` rows (keyed by canonical field_key). T3.2
+// — the shell now reads its gate + value_type from these columns (kind,
+// talent_editable, admin_only, deprecated_at, label), not from System A.
 const B_DEFS = [
   {
     id: "bdef-body_type",
     field_key: "physical.body_type",
     kind: "select",
     options: ["Athletic", "Curvy"],
+    talent_editable: true,
+    admin_only: false,
+    deprecated_at: null as string | null,
+    label: "Body type",
+    label_es: null as string | null,
   },
   {
     id: "bdef-years_total",
     field_key: "experience.years_total",
     kind: "number",
     options: null as unknown,
+    talent_editable: true,
+    admin_only: false,
+    deprecated_at: null as string | null,
+    label: "Years of experience",
+    label_es: null as string | null,
   },
 ];
 
@@ -134,6 +141,7 @@ function makeSupabase(store: Store): SupabaseClient {
   function builder(table: string) {
     const eqs: Array<[string, unknown]> = [];
     const ins: Array<[string, unknown[]]> = [];
+    const iss: Array<[string, unknown]> = [];
     let op: "select" | "delete" | "upsert" | null = null;
     let upsertRow: Record<string, unknown> | null = null;
     let limitOne = false;
@@ -149,6 +157,10 @@ function makeSupabase(store: Store): SupabaseClient {
       },
       in(col: string, vals: unknown[]) {
         ins.push([col, vals]);
+        return chain;
+      },
+      is(col: string, val: unknown) {
+        iss.push([col, val]);
         return chain;
       },
       order() {
@@ -180,6 +192,11 @@ function makeSupabase(store: Store): SupabaseClient {
     function matches(row: Record<string, unknown>): boolean {
       for (const [c, v] of eqs) if (row[c] !== v) return false;
       for (const [c, vals] of ins) if (!vals.includes(row[c] as never)) return false;
+      // `.is(col, null)` → row[col] must be null/undefined (the only `.is` form
+      // the shell uses: `deprecated_at IS NULL`).
+      for (const [c, v] of iss) {
+        if (v === null && row[c] != null) return false;
+      }
       return true;
     }
 
@@ -282,9 +299,9 @@ async function runShell(
 
 // ── The round-trip parity assertions ──────────────────────────────────────────
 
-test("round-trip: SELECT — B-persisted value is byte-equivalent A-first vs B-first; B-first does NOT write A", async () => {
-  // User submits the legacy slug; both modes must land B="Athletic". A-first
-  // also writes A="athletic"; B-first writes NO A row (mirror deleted).
+test("round-trip: SELECT — B value is correct and identical regardless of flag; NO A row is ever written", async () => {
+  // User submits the legacy slug; both flag values must land B="Athletic" (the
+  // canonical mirror translates slug→label). System A is never touched.
   const dyn = { body_type: "athletic" };
 
   const a = await runShell("a", dyn);
@@ -293,16 +310,16 @@ test("round-trip: SELECT — B-persisted value is byte-equivalent A-first vs B-f
   assert.equal(a.ok, true);
   assert.equal(b.ok, true);
 
-  // (1) Canonical System B value is byte-equivalent across the two write orders.
+  // (1) Canonical System B value is correct + identical regardless of flag.
   assert.equal(a.bOf("physical.body_type")?.value, "Athletic");
   assert.equal(b.bOf("physical.body_type")?.value, a.bOf("physical.body_type")?.value);
 
-  // (2) A-first still mirrors A (slug vocabulary); B-first writes NO A row at all.
-  assert.equal(a.aOf("body_type")?.value_text, "athletic");
+  // (2) System A is NEVER written under either flag (T3.2 removed the A write).
+  assert.equal(a.aOf("body_type"), undefined);
   assert.equal(b.aOf("body_type"), undefined);
 });
 
-test("round-trip: NUMBER — B-persisted value is byte-equivalent A-first vs B-first; B-first does NOT write A", async () => {
+test("round-trip: NUMBER — B value is correct and identical regardless of flag; NO A row is ever written", async () => {
   const dyn = { years_experience: "7" };
 
   const a = await runShell("a", dyn);
@@ -311,16 +328,16 @@ test("round-trip: NUMBER — B-persisted value is byte-equivalent A-first vs B-f
   assert.equal(a.ok, true);
   assert.equal(b.ok, true);
 
-  // (1) Canonical System B value byte-equivalent (number 7, not "7").
+  // (1) Canonical System B value (number 7, not "7"), identical regardless of flag.
   assert.equal(a.bOf("experience.years_total")?.value, 7);
   assert.equal(b.bOf("experience.years_total")?.value, a.bOf("experience.years_total")?.value);
 
-  // (2) A-first mirrors the A number column; B-first writes NO A row at all.
-  assert.equal(a.aOf("years_experience")?.value_number, 7);
+  // (2) System A is NEVER written under either flag.
+  assert.equal(a.aOf("years_experience"), undefined);
   assert.equal(b.aOf("years_experience"), undefined);
 });
 
-test("round-trip: DELETE-TO-EMPTY — clears B in both modes; A-first clears A, B-first leaves the frozen A row", async () => {
+test("round-trip: DELETE-TO-EMPTY — clears B under either flag; the pre-existing frozen A row is left untouched", async () => {
   // Seed an existing value in BOTH stores, then submit empty.
   const seed = (store: Store) => {
     store.fieldValues.push({
@@ -342,13 +359,12 @@ test("round-trip: DELETE-TO-EMPTY — clears B in both modes; A-first clears A, 
   assert.equal(a.ok, true);
   assert.equal(b.ok, true);
 
-  // (1) Canonical System B row deleted in both modes (byte-equivalent: absent).
+  // (1) Canonical System B row deleted under either flag (absent).
   assert.equal(a.bOf("physical.body_type"), undefined);
   assert.equal(b.bOf("physical.body_type"), undefined);
 
-  // (2) A-first clears the legacy A row; B-first leaves it FROZEN — T2.6 step 3
-  //     removed the B→A reverse mirror, so a B-first delete never touches A. The
-  //     pre-existing seeded A row must still be present, unchanged.
-  assert.equal(a.aOf("body_type"), undefined);
+  // (2) The pre-existing seeded System A row is FROZEN — T3.2's shell never
+  //     touches `field_values`, so the seeded A row survives unchanged.
+  assert.equal(a.aOf("body_type")?.value_text, "athletic");
   assert.equal(b.aOf("body_type")?.value_text, "athletic");
 });

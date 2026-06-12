@@ -51,15 +51,43 @@ import type { FieldSurfaceReaderPair } from "@/lib/field-engine/read-source";
 import { readFieldSurface } from "@/lib/field-engine/read-source";
 import { OLD_TO_NEW_KEY } from "@/lib/fields/legacy-mirror";
 
-/** A searchable legacy field definition: its A id + A key. The id drives the
- *  legacy A-read (`field_values.field_definition_id`); the key drives the B-read
- *  (resolve the canonical def via the A→B key bridge or the social-key map). */
+/** A searchable field: its legacy `key` drives the B-read (resolve the canonical
+ *  def via the A→B key bridge or the social-key map). `id` is OPTIONAL — it was
+ *  the legacy `field_values.field_definition_id` join key, no longer consulted
+ *  now that the search reads System B only (T3.2). */
 export type DirectorySearchFieldDef = {
-  /** Legacy `field_definitions.id`. */
-  id: string;
+  /** Legacy `field_definitions.id` — deprecated, no longer read. */
+  id?: string;
   /** Legacy `field_definitions.key` (e.g. "body_type", "instagram_url"). */
   key: string;
 };
+
+/** The FROZEN set of searchable legacy field keys (captured 1:1 from the prod
+ *  `field_definitions` searchable gate, ref pluhdapdnuiulvxmyspd, 2026-06-11).
+ *  The B-reader resolves each to its canonical System B def (13 bridged via
+ *  OLD_TO_NEW_KEY + 3 social via the social map); `display_name`/`short_bio` have
+ *  no field_values data and resolve to neither (covered by the talent_profiles
+ *  column search) — included for completeness, harmlessly skipped by the reader. */
+export const DIRECTORY_SEARCHABLE_KEYS: readonly DirectorySearchFieldDef[] = [
+  { key: "availability_status" },
+  { key: "available_for" },
+  { key: "body_type" },
+  { key: "clothing_size" },
+  { key: "display_name" },
+  { key: "experience_level" },
+  { key: "eye_color" },
+  { key: "hair_color" },
+  { key: "hair_length" },
+  { key: "instagram_url" },
+  { key: "notable_work" },
+  { key: "professional_highlights" },
+  { key: "shoe_size" },
+  { key: "short_bio" },
+  { key: "tiktok_url" },
+  { key: "travel_scope" },
+  { key: "website_url" },
+  { key: "youtube_url" },
+] as const;
 
 /** Social searchable A keys → their canonical System B field_key. These three
  *  are NOT in the generic A→B key bridge (`OLD_TO_NEW_KEY`) because the B keys
@@ -72,34 +100,6 @@ export const DIRECTORY_SEARCH_SOCIAL_A_TO_B_KEY: Readonly<Record<string, string>
   tiktok_url: "creator.tiktok_handle",
   youtube_url: "creator.youtube_channel",
 };
-
-// ── A-reader: legacy System A (`field_values.value_text` ILIKE) ──────────────
-//
-// Lifted VERBATIM from the `field_values` leg of fetchLegacyDirectorySearchTalentIds
-// so `directory_search:a` is byte-for-byte today. ILIKEs value_text on ALL the
-// searchable def ids and adds every matching talent_profile_id to the accumulator.
-async function readDirectorySearchIdsFromA(
-  supabase: SupabaseClient,
-  searchableDefs: readonly DirectorySearchFieldDef[],
-  termSafe: string,
-  acc: Set<string>,
-): Promise<Set<string>> {
-  const ids = searchableDefs.map((d) => d.id).filter(Boolean);
-  if (ids.length === 0 || termSafe.length === 0) return acc;
-
-  const { data, error } = await supabase
-    .from("field_values")
-    .select("talent_profile_id")
-    .in("field_definition_id", ids)
-    .ilike("value_text", `%${termSafe}%`);
-  if (error) {
-    throw new Error(`[directory] legacy search field_values: ${error.message}`);
-  }
-  for (const row of (data ?? []) as { talent_profile_id: string }[]) {
-    acc.add(row.talent_profile_id);
-  }
-  return acc;
-}
 
 // ── B-reader: canonical System B ONLY (zero System-A reads) ───────────────────
 //
@@ -169,7 +169,10 @@ export const directorySearchReaderPair: FieldSurfaceReaderPair<
   [SupabaseClient, readonly DirectorySearchFieldDef[], string, Set<string>],
   Set<string>
 > = {
-  readA: readDirectorySearchIdsFromA,
+  // T3.2 — System A removed: the legacy `field_values` ILIKE A-reader was
+  // deleted. Both legs read canonical System B (the search reader was already
+  // B-only in logic; only the kill-switch fallback touched A). NO field_values read.
+  readA: readDirectorySearchIdsFromB,
   readB: readDirectorySearchIdsFromB,
 };
 

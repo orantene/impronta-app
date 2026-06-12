@@ -86,51 +86,6 @@ function fallbackLabel(key: SidebarSectionKey): string {
   return key.replace(/_/g, " ");
 }
 
-// ── A-reader: legacy System A (field_definitions) ────────────────────────────
-//
-// Byte-identical to the label projection in `getOrderedPublicProfileSections`:
-// reads label_en/label_es from `field_definitions`, gated active + non-archived
-// + public-surface flags, and falls back to the de-underscored key for any
-// missing/hidden row. Order is intentionally NOT part of this slice (A and B
-// disagree on display_order by design — see module header; order is T2.2's
-// concern, gated separately).
-async function readSidebarLabelsFromA(
-  locale: string,
-): Promise<SidebarSectionLabel[]> {
-  const supabase = createPublicSupabaseClient();
-  if (!supabase) {
-    return SIDEBAR_SECTION_KEYS.map((key) => ({ key, label: fallbackLabel(key) }));
-  }
-
-  const { data, error } = await supabase
-    .from("field_definitions")
-    .select("key, label_en, label_es")
-    .in("key", [...SIDEBAR_SECTION_KEYS])
-    .eq("active", true)
-    .is("archived_at", null)
-    .eq("public_visible", true)
-    .eq("internal_only", false)
-    .eq("profile_visible", true);
-
-  if (error || !data) {
-    return SIDEBAR_SECTION_KEYS.map((key) => ({ key, label: fallbackLabel(key) }));
-  }
-
-  type Row = { key: string; label_en: string; label_es: string | null };
-  const byKey = new Map<string, Row>(
-    (data as Row[]).map((r) => [r.key, r]),
-  );
-  return SIDEBAR_SECTION_KEYS.map((key) => {
-    const row = byKey.get(key);
-    return {
-      key,
-      label: row
-        ? pickLabel(locale, row.label_en, row.label_es ?? null)
-        : fallbackLabel(key),
-    };
-  });
-}
-
 // ── B-reader: canonical System B (profile_field_definitions) ─────────────────
 //
 // Same projected shape. Reads label/label_es from the canonical registry,
@@ -178,7 +133,9 @@ async function readSidebarLabelsFromB(
 /** The reader pair, exposed so the test + harness can run A and B side by side
  *  via `readFieldSurfaceBoth` without going through the env flag. */
 export const sidebarLabelReaderPair: FieldSurfaceReaderPair<[string], SidebarSectionLabel[]> = {
-  readA: readSidebarLabelsFromA,
+  // T3.2 — System A removed: the legacy `field_definitions` label A-reader was
+  // deleted. Both legs read canonical System B (`profile_field_definitions`).
+  readA: readSidebarLabelsFromB,
   readB: readSidebarLabelsFromB,
 };
 

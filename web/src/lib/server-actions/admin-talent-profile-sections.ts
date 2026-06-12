@@ -29,7 +29,10 @@ import {
 import { isReservedTalentProfileFieldKey } from "@/lib/field-canonical";
 import { applyProfileShellStatusWithPublishGate } from "@/lib/field-engine/profile-publish-server-gate";
 import { mergeShellSocialAndEmbedded } from "@/lib/talent/profile-shell-drawer-persist";
-import { syncProfileShellDynFieldValues } from "@/lib/talent/profile-shell-dyn-field-values";
+import {
+  syncProfileShellDynFieldValues,
+  loadProfileShellDynFieldValues,
+} from "@/lib/talent/profile-shell-dyn-field-values";
 import {
   syncRosterFieldValuesToCatalog,
   readRosterFieldValuesFromCatalog,
@@ -807,7 +810,9 @@ export async function commitTalentProfileShellAdmin(
   return { ok: true };
 }
 
-/** Hydrate profile-shell `dynFields` from `field_values` (staff roster scope). */
+/** Hydrate profile-shell `dynFields` (staff roster scope). T3.2 — reads canonical
+ *  System B (the store the shell writes) via the shared
+ *  `loadProfileShellDynFieldValues` helper; no `field_values`. */
 export async function getTalentProfileDynFieldValuesForShell(input: {
   talent_profile_id: string;
 }): Promise<{ ok: true; values: Record<string, string> } | ErrResult> {
@@ -818,51 +823,9 @@ export async function getTalentProfileDynFieldValuesForShell(input: {
   const check = await assertOnRoster(supabase as never, tenantId, input.talent_profile_id);
   if (!check.ok) return check;
 
-  const { data: rows, error } = await supabase
-    .from("field_values")
-    .select("field_definition_id, value_text, value_number, value_boolean, value_date")
-    .eq("talent_profile_id", input.talent_profile_id);
-  if (error) {
-    logServerError("profile-sections.dyn-fv-hydrate.fv", error);
-    return { ok: false, error: CLIENT_ERROR.generic };
-  }
-
-  const ids = [
-    ...new Set(
-      (rows ?? []).map((r: { field_definition_id: string }) => r.field_definition_id),
-    ),
-  ];
-  if (ids.length === 0) return { ok: true, values: {} };
-
-  const { data: defs, error: dErr } = await supabase
-    .from("field_definitions")
-    .select("id, key")
-    .in("id", ids);
-  if (dErr) {
-    logServerError("profile-sections.dyn-fv-hydrate.defs", dErr);
-    return { ok: false, error: CLIENT_ERROR.generic };
-  }
-
-  const idToKey = new Map((defs ?? []).map((d: { id: string; key: string }) => [d.id, d.key]));
-  const values: Record<string, string> = {};
-  for (const r of rows ?? []) {
-    const key = idToKey.get((r as { field_definition_id: string }).field_definition_id);
-    if (!key || isReservedTalentProfileFieldKey(key)) continue;
-    const row = r as {
-      value_text: string | null;
-      value_number: number | null;
-      value_boolean: boolean | null;
-      value_date: string | null;
-    };
-    let s: string | null = null;
-    if (row.value_text != null && row.value_text !== "") s = String(row.value_text);
-    else if (row.value_number != null && Number.isFinite(Number(row.value_number))) {
-      s = String(row.value_number);
-    } else if (row.value_boolean != null) s = row.value_boolean ? "true" : "false";
-    else if (row.value_date != null && row.value_date !== "") s = String(row.value_date);
-    if (s !== null) values[key] = s;
-  }
-  return { ok: true, values };
+  const res = await loadProfileShellDynFieldValues(supabase, input.talent_profile_id);
+  if (!res.ok) return { ok: false, error: CLIENT_ERROR.generic };
+  return { ok: true, values: res.values };
 }
 
 // ─── Activity log (read) ──────────────────────────────────────────────────────

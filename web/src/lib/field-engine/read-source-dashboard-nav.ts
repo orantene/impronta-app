@@ -85,7 +85,7 @@ import { isReservedTalentProfileFieldKey } from "@/lib/field-canonical";
 import { filterOutReservedFieldDefinitions } from "@/lib/field-canonical";
 import type { FieldDefinitionRow, FieldGroupRow } from "@/lib/fields/types";
 import type { DashboardNavItem } from "@/lib/dashboard/architecture";
-import { OLD_TO_NEW_KEY, NEW_TO_OLD_KEY } from "@/lib/fields/legacy-mirror";
+import { OLD_TO_NEW_KEY } from "@/lib/fields/legacy-mirror";
 
 // ── Shared types ─────────────────────────────────────────────────────────────
 
@@ -151,10 +151,86 @@ export function aKeyToBKey(aKey: string): string | null {
   return null;
 }
 
-// ── A-reader: fetchTalentNavProfileGroupItems ─────────────────────────────────
+// ── Dashboard-nav field→group skeleton (STATIC — System A registry retired) ───
 //
-// Lifted VERBATIM from `fetchTalentNavProfileGroupItems` in talent-nav-groups.ts
-// so `dashboard_nav:a` is byte-for-byte today's behaviour.
+// T3.2 — the nav-group + dashboard-catalog readers used to read legacy System A
+// `field_definitions` purely as a REGISTRY SKELETON: which dynamic-field keys are
+// talent-editable + profile-visible, and which `field_groups` group each belongs
+// to (with the field's intra-group sort). That metadata never lived in the value
+// store and is FROZEN (System A is being retired in T3.x — no new A fields will
+// ever be added). So we pin the skeleton as a code-level constant, captured 1:1
+// from the prod `field_definitions`/`field_groups` join (ref pluhdapdnuiulvxmyspd,
+// 2026-06-11) using the SAME gate the A-reader applied (active, non-archived,
+// editable_by_talent, profile_visible, !internal_only, value_type<>location).
+// This removes the last `field_definitions` reads from the dashboard_nav surface
+// while preserving group display metadata (still read from `field_groups`, which
+// is NOT a T3.2 target). Whether a group/field ACTUALLY appears is still decided
+// at runtime by querying System B (`profile_field_definitions`) for live rows —
+// the static map only supplies the A-key→group skeleton, never a liveness verdict.
+
+/** One eligible dynamic-field key from the (frozen) System-A registry: its owning
+ *  group slug + the field's intra-group sort. Mirrors the A `field_definitions`
+ *  row the readers previously fetched. */
+type DashboardNavFieldSkeleton = {
+  key: string;
+  groupSlug: string;
+  fieldSort: number;
+  valueType: string;
+};
+
+/** The complete dashboard-nav-eligible field skeleton (frozen System-A registry).
+ *  Order within the array is the A-reader's group-sort → field-sort order. */
+const DASHBOARD_NAV_FIELD_SKELETON: readonly DashboardNavFieldSkeleton[] = [
+  { key: "display_name", groupSlug: "basic_info", fieldSort: 10, valueType: "text" },
+  { key: "short_bio", groupSlug: "basic_info", fieldSort: 110, valueType: "textarea" },
+  { key: "talent_type", groupSlug: "classification", fieldSort: 10, valueType: "taxonomy_single" },
+  { key: "skills", groupSlug: "abilities", fieldSort: 30, valueType: "taxonomy_multi" },
+  { key: "languages", groupSlug: "abilities", fieldSort: 70, valueType: "taxonomy_multi" },
+  { key: "height_cm", groupSlug: "traits", fieldSort: 10, valueType: "number" },
+  { key: "eye_color", groupSlug: "traits", fieldSort: 20, valueType: "text" },
+  { key: "tags", groupSlug: "traits", fieldSort: 20, valueType: "taxonomy_multi" },
+  { key: "hair_color", groupSlug: "traits", fieldSort: 30, valueType: "text" },
+  { key: "hair_length", groupSlug: "traits", fieldSort: 40, valueType: "text" },
+  { key: "body_type", groupSlug: "traits", fieldSort: 50, valueType: "text" },
+  { key: "clothing_size", groupSlug: "traits", fieldSort: 60, valueType: "text" },
+  { key: "shoe_size", groupSlug: "traits", fieldSort: 70, valueType: "text" },
+  { key: "experience_level", groupSlug: "experience", fieldSort: 10, valueType: "text" },
+  { key: "years_experience", groupSlug: "experience", fieldSort: 20, valueType: "number" },
+  { key: "notable_work", groupSlug: "experience", fieldSort: 30, valueType: "textarea" },
+  { key: "professional_highlights", groupSlug: "experience", fieldSort: 40, valueType: "textarea" },
+  { key: "industries", groupSlug: "experience", fieldSort: 40, valueType: "taxonomy_multi" },
+  { key: "availability_status", groupSlug: "availability_mobility", fieldSort: 10, valueType: "text" },
+  { key: "willing_to_travel", groupSlug: "availability_mobility", fieldSort: 20, valueType: "boolean" },
+  { key: "travel_scope", groupSlug: "availability_mobility", fieldSort: 30, valueType: "text" },
+  { key: "available_for", groupSlug: "availability_mobility", fieldSort: 40, valueType: "text" },
+  { key: "event_types", groupSlug: "availability_mobility", fieldSort: 50, valueType: "taxonomy_multi" },
+  { key: "fit_labels", groupSlug: "availability_mobility", fieldSort: 60, valueType: "taxonomy_multi" },
+  { key: "instagram_url", groupSlug: "social_external", fieldSort: 10, valueType: "text" },
+  { key: "tiktok_url", groupSlug: "social_external", fieldSort: 20, valueType: "text" },
+  { key: "website_url", groupSlug: "social_external", fieldSort: 30, valueType: "text" },
+  { key: "youtube_url", groupSlug: "social_external", fieldSort: 40, valueType: "text" },
+] as const;
+
+/** The eligible skeleton minus reserved keys + location types — the exact set
+ *  the A-reader produced after its `.filter(...)`. `display_name`/`short_bio` are
+ *  reserved (basic_info) and dropped here, matching the A-reader. */
+function dashboardNavEligibleSkeleton(): DashboardNavFieldSkeleton[] {
+  return DASHBOARD_NAV_FIELD_SKELETON.filter(
+    (f) => !isReservedTalentProfileFieldKey(f.key) && f.valueType !== "location",
+  );
+}
+
+// ── Nav-group-items reader (System B liveness + field_groups metadata) ────────
+//
+// T3.2 — repointed off legacy System A `field_definitions`. The eligible
+// key→group skeleton now comes from the frozen-registry constant above; LIVENESS
+// (which groups actually appear) is decided by querying System B
+// (`profile_field_definitions`) for non-deprecated talent-editable rows; group
+// display metadata comes from `field_groups` (NOT a T3.2 target). Documented diffs
+// vs the historical A render (all non-regressive — see module header):
+//   • `classification` group drops (talent_type has no B definition).
+//   • `abilities`: skills drops (deprecated in B); languages survives.
+//   • `social_external`: instagram/tiktok/youtube drop; website_url survives.
 
 type TalentNavFieldGroupRow = {
   id: string;
@@ -190,103 +266,21 @@ function dedupeFieldGroupsByVisibleLabel(
   );
 }
 
-async function readNavGroupItemsFromA(
-  supabase: SupabaseClient,
-): Promise<DashboardNavProfileGroupItems> {
-  const { data: fieldDefs, error: defsError } = await supabase
-    .from("field_definitions")
-    .select("id, field_group_id, key")
-    .eq("active", true)
-    .is("archived_at", null)
-    .eq("editable_by_talent", true)
-    .eq("profile_visible", true)
-    .eq("internal_only", false)
-    .not("field_group_id", "is", null)
-    .neq("value_type", "location");
-
-  if (defsError) return [];
-
-  const filteredDefs = (fieldDefs ?? []).filter(
-    (row) => typeof row.key === "string" && !isReservedTalentProfileFieldKey(row.key),
-  );
-
-  const groupIds = [
-    ...new Set(filteredDefs.map((row) => row.field_group_id).filter(Boolean)),
-  ];
-  if (groupIds.length === 0) return [];
-
-  const { data: fieldGroups, error: groupsError } = await supabase
-    .from("field_groups")
-    .select("id, slug, name_en, name_es, sort_order")
-    .in("id", groupIds)
-    .is("archived_at", null)
-    .order("sort_order");
-
-  if (groupsError) return [];
-
-  const byGroupId = new Map<string, TalentNavFieldGroupRow>();
-  for (const group of (fieldGroups ?? []) as TalentNavFieldGroupRow[]) {
-    if (!byGroupId.has(group.id)) {
-      byGroupId.set(group.id, { ...group, sort_order: group.sort_order ?? 0 });
-    }
-  }
-  const uniqueById = [...byGroupId.values()];
-  const sorted = dedupeFieldGroupsByVisibleLabel(uniqueById);
-
-  return sorted.map((g) => ({
-    id: `talent-profile-group-${g.slug}`,
-    href: `/talent/my-profile?group=${encodeURIComponent(g.slug)}`,
-    label: g.name_en,
-    match: "exact" as const,
-    icon: "profile" as const,
-    activeQuery: { group: g.slug },
-  }));
-}
-
-// ── B-reader: fetchTalentNavProfileGroupItems ─────────────────────────────────
-//
-// Reads `profile_field_definitions` to find which A-group slugs are represented
-// in B, then uses A's `field_groups` table (the only source for group metadata:
-// slug, name_en, sort_order) to build the same nav items. Groups are only
-// included when ≥1 of their A-eligible keys has a live (non-deprecated)
-// `profile_field_definitions` row.
-//
-// Documented diffs vs A (see module header):
-//   • `classification` group drops (talent_type has no B definition).
-//   • `abilities`: skills drops (deprecated in B); languages survives.
-//   • `social_external`: instagram/tiktok/youtube drop; website_url survives.
-
 async function readNavGroupItemsFromB(
   supabase: SupabaseClient,
 ): Promise<DashboardNavProfileGroupItems> {
-  // Step 1 — get the same A-eligible field_definitions (to know which A-groups
-  // exist and which keys are eligible). We still read A's field_definitions here
-  // to get the full key-to-group mapping — this is metadata, NOT field values.
-  const { data: fieldDefs, error: defsError } = await supabase
-    .from("field_definitions")
-    .select("id, field_group_id, key")
-    .eq("active", true)
-    .is("archived_at", null)
-    .eq("editable_by_talent", true)
-    .eq("profile_visible", true)
-    .eq("internal_only", false)
-    .not("field_group_id", "is", null)
-    .neq("value_type", "location");
+  // Step 1 — the eligible key→group skeleton from the frozen System-A registry
+  // (static constant; no `field_definitions` read).
+  const skeleton = dashboardNavEligibleSkeleton();
 
-  if (defsError) throw new Error(`[dashboard_nav] field_definitions: ${defsError.message}`);
-
-  const filteredDefs = (fieldDefs ?? []).filter(
-    (row) => typeof row.key === "string" && !isReservedTalentProfileFieldKey(row.key),
-  );
-
-  // Step 2 — for each A-eligible key, find its B canonical key.
-  const bKeysNeeded = filteredDefs
-    .map((d) => aKeyToBKey(d.key as string))
+  // Step 2 — for each eligible key, find its B canonical key.
+  const bKeysNeeded = skeleton
+    .map((d) => aKeyToBKey(d.key))
     .filter((k): k is string => k !== null);
 
   if (bKeysNeeded.length === 0) return [];
 
-  // Step 3 — query B for which of those B keys are live (non-deprecated,
+  // Step 3 — query System B for which of those B keys are live (non-deprecated,
   // talent-editable). This is the authoritative "does B have this field?" check.
   const { data: bDefs, error: bDefsError } = await supabase
     .from("profile_field_definitions")
@@ -299,23 +293,21 @@ async function readNavGroupItemsFromB(
 
   const liveBKeys = new Set((bDefs ?? []).map((r) => (r as { field_key: string }).field_key));
 
-  // Step 4 — build the set of A-group IDs that have ≥1 live B field.
-  const groupIdsWithBFields = new Set<string>();
-  for (const def of filteredDefs) {
-    const bKey = aKeyToBKey(def.key as string);
-    if (bKey && liveBKeys.has(bKey)) {
-      if (def.field_group_id) groupIdsWithBFields.add(def.field_group_id as string);
-    }
+  // Step 4 — collect the group slugs that have ≥1 live B field.
+  const groupSlugsWithBFields = new Set<string>();
+  for (const def of skeleton) {
+    const bKey = aKeyToBKey(def.key);
+    if (bKey && liveBKeys.has(bKey)) groupSlugsWithBFields.add(def.groupSlug);
   }
 
-  if (groupIdsWithBFields.size === 0) return [];
+  if (groupSlugsWithBFields.size === 0) return [];
 
-  // Step 5 — get the A group metadata for the B-eligible groups (slug, name, order).
-  // B has no `field_groups` table — we still rely on A's group metadata here.
+  // Step 5 — group display metadata from `field_groups` (NOT a T3.2 target),
+  // matched by slug. B has no group table; group labels/order live here.
   const { data: fieldGroups, error: groupsError } = await supabase
     .from("field_groups")
     .select("id, slug, name_en, name_es, sort_order")
-    .in("id", [...groupIdsWithBFields])
+    .in("slug", [...groupSlugsWithBFields])
     .is("archived_at", null)
     .order("sort_order");
 
@@ -340,12 +332,14 @@ async function readNavGroupItemsFromB(
   }));
 }
 
-/** The reader pair for `fetchTalentNavProfileGroupItems`. */
+/** The reader pair for `fetchTalentNavProfileGroupItems`. T3.2 — System A
+ *  removed: both legs read System B liveness + `field_groups` metadata via the
+ *  frozen-registry skeleton (no `field_definitions` read). */
 export const navGroupItemsReaderPair: FieldSurfaceReaderPair<
   [SupabaseClient],
   DashboardNavProfileGroupItems
 > = {
-  readA: readNavGroupItemsFromA,
+  readA: readNavGroupItemsFromB,
   readB: readNavGroupItemsFromB,
 };
 
@@ -361,90 +355,19 @@ export function readDashboardNavGroupItems(
   return readFieldSurface("dashboard_nav", navGroupItemsReaderPair, supabase);
 }
 
-// ── A-reader: loadTalentDashboardData fieldCatalog ─────────────────────────────
+// ── fieldCatalog + fieldValues reader (System B native) ───────────────────────
 //
-// Lifted from `loadTalentDashboardDataImpl` (~:419–489): the parallel queries
-// for `field_groups` and `field_definitions`, then the catalog assembly. The
-// `fieldValues` (`field_values`) read is paired in a separate reader pair below.
-
-async function readFieldCatalogFromA(
-  supabase: SupabaseClient,
-  talentProfileId: string,
-): Promise<{ catalog: DashboardNavFieldCatalog; fieldValues: DashboardNavFieldValues }> {
-  const [{ data: fieldGroups }, { data: fieldDefs }, { data: fieldValues }] =
-    await Promise.all([
-      supabase
-        .from("field_groups")
-        .select("id, slug, name_en, name_es, sort_order, archived_at")
-        .is("archived_at", null)
-        .order("sort_order"),
-      supabase
-        .from("field_definitions")
-        .select(
-          "id, field_group_id, key, label_en, label_es, help_en, help_es, value_type, required_level, public_visible, internal_only, card_visible, profile_visible, filterable, searchable, ai_visible, editable_by_talent, editable_by_staff, editable_by_admin, active, sort_order, taxonomy_kind, config, archived_at",
-        )
-        .eq("active", true)
-        .is("archived_at", null)
-        .eq("editable_by_talent", true)
-        .eq("profile_visible", true)
-        .eq("internal_only", false)
-        .order("field_group_id")
-        .order("sort_order"),
-      supabase
-        .from("field_values")
-        .select("field_definition_id, value_text, value_number, value_boolean, value_date")
-        .eq("talent_profile_id", talentProfileId),
-    ]);
-
-  const editableDefinitions = filterOutReservedFieldDefinitions(
-    ((fieldDefs ?? []) as FieldDefinitionRow[]).filter(
-      (d) => d.value_type !== "location",
-    ),
-  );
-  const groupIdsUsed = new Set<string>();
-  for (const d of editableDefinitions) {
-    if (d.field_group_id) groupIdsUsed.add(d.field_group_id);
-  }
-  const groups = ((fieldGroups ?? []) as FieldGroupRow[]).filter((g) =>
-    groupIdsUsed.has(g.id),
-  );
-  const editableByGroup = new Map<string, FieldDefinitionRow[]>();
-  for (const d of editableDefinitions) {
-    const gid = d.field_group_id ?? "ungrouped";
-    const arr = editableByGroup.get(gid) ?? [];
-    arr.push(d);
-    editableByGroup.set(gid, arr);
-  }
-  const scalarEditableIds = editableDefinitions
-    .filter((d) =>
-      ["text", "textarea", "number", "boolean", "date"].includes(d.value_type),
-    )
-    .map((d) => d.id);
-
-  return {
-    catalog: { groups, editableDefinitions, editableByGroup, scalarEditableIds },
-    fieldValues: (fieldValues ?? []) as DashboardNavFieldValues,
-  };
-}
-
-// ── B-reader: loadTalentDashboardData fieldCatalog ─────────────────────────────
-//
-// Reads B's `profile_field_definitions` for field metadata and
-// `talent_profile_field_values` for values. Since `FieldDefinitionRow` and
-// `FieldGroupRow` are A-system types (with columns like `field_group_id`,
-// `label_en`, `sort_order`, etc.), the B-reader projects B rows onto those same
-// shapes so the callers that consume `fieldCatalog` are unaffected.
-//
-// Because B has no `field_groups` table, the B-reader still reads A's
-// `field_groups` for group metadata. The `editableDefinitions` are synthesized
-// from B rows with A-compatible shapes, preserving the same filtering logic.
-//
-// B field_values key mapping: `talent_profile_field_values.field_definition_id`
-// is the B `profile_field_definitions.id`. The A fieldValues shape uses the A
-// `field_definitions.id`. The B-reader maps B values via the bridged def IDs so
-// `completionInput` (which joins on A field_definition_id) stays consistent.
-// The value content (value_text/value_number/etc.) is equivalent per Phase-1
-// T1.2a (0 A-only values in the bridged keys; B is the superset).
+// T3.2 — repointed off legacy System A. Field metadata comes from System B
+// `profile_field_definitions` (id/label/kind) + the frozen-registry skeleton
+// (key→group slug + intra-group sort); values come from
+// `talent_profile_field_values`; group display metadata from `field_groups` by
+// slug (NOT a T3.2 target). The synthesized `FieldDefinitionRow`s are keyed by the
+// B def-id, and `fieldValues` are keyed by the SAME B def-id, so the completion
+// scorer's `definitions[].id ↔ fieldValues[].field_definition_id` Map join stays
+// internally consistent (the id is opaque to the scorer — it only needs both
+// sides to agree, which they do on the B def-id). `field_group_id` carries the B
+// group-slug (used only to bucket `editableByGroup` + filter `groups`, which is
+// then matched against `field_groups.slug`).
 
 type BProfileFieldDef = {
   id: string;
@@ -485,38 +408,27 @@ async function readFieldCatalogFromB(
   supabase: SupabaseClient,
   talentProfileId: string,
 ): Promise<{ catalog: DashboardNavFieldCatalog; fieldValues: DashboardNavFieldValues }> {
-  // Get A field_definitions (for A group_id mapping and A def IDs for fieldValues compat)
-  const { data: aDefs, error: aDefsErr } = await supabase
-    .from("field_definitions")
-    .select("id, field_group_id, key, sort_order, value_type")
-    .eq("active", true)
-    .is("archived_at", null)
-    .eq("editable_by_talent", true)
-    .eq("profile_visible", true)
-    .eq("internal_only", false)
-    .not("field_group_id", "is", null)
-    .neq("value_type", "location");
+  // Step 1 — eligible key→group skeleton from the frozen System-A registry
+  // (static; no `field_definitions` read). Remember each key's group slug + sort.
+  const skeleton = dashboardNavEligibleSkeleton();
+  const skeletonByAKey = new Map(skeleton.map((s) => [s.key, s]));
 
-  if (aDefsErr) throw new Error(`[dashboard_nav/catalog-B] field_definitions: ${aDefsErr.message}`);
-
-  const filteredADefs = (aDefs ?? []).filter(
-    (d) => typeof d.key === "string" && !isReservedTalentProfileFieldKey(d.key as string) && d.value_type !== "location",
-  );
-
-  // Build A-key → A-def map
-  const aDefByKey = new Map(filteredADefs.map((d) => [d.key as string, d]));
-
-  // Get B definitions for the bridged + direct-match keys
-  const bKeysNeeded = filteredADefs
-    .map((d) => aKeyToBKey(d.key as string))
-    .filter((k): k is string => k !== null);
+  // Step 2 — the B field_keys we need, plus a B-key → A-key reverse for grouping.
+  const bKeyToAKey = new Map<string, string>();
+  for (const s of skeleton) {
+    const bKey = aKeyToBKey(s.key);
+    if (bKey) bKeyToAKey.set(bKey, s.key);
+  }
+  const bKeysNeeded = [...bKeyToAKey.keys()];
 
   if (bKeysNeeded.length === 0) {
-    // If B has no fields at all, throw so the seam falls back to A
-    throw new Error("[dashboard_nav/catalog-B] no bridged B keys found — falling back to A");
+    return {
+      catalog: { groups: [], editableDefinitions: [], editableByGroup: new Map(), scalarEditableIds: [] },
+      fieldValues: [],
+    };
   }
 
-  const [{ data: bDefs, error: bDefsErr }, { data: aGroups, error: aGroupsErr }] =
+  const [{ data: bDefs, error: bDefsErr }, { data: groupRows, error: groupsErr }] =
     await Promise.all([
       supabase
         .from("profile_field_definitions")
@@ -532,30 +444,25 @@ async function readFieldCatalogFromB(
     ]);
 
   if (bDefsErr) throw new Error(`[dashboard_nav/catalog-B] profile_field_definitions: ${bDefsErr.message}`);
-  if (aGroupsErr) throw new Error(`[dashboard_nav/catalog-B] field_groups: ${aGroupsErr.message}`);
+  if (groupsErr) throw new Error(`[dashboard_nav/catalog-B] field_groups: ${groupsErr.message}`);
 
-  // Build B field_key → B def map
-  const bDefByFieldKey = new Map(
-    ((bDefs ?? []) as BProfileFieldDef[]).map((d) => [d.field_key, d]),
-  );
-
-  // For each A eligible key with a live B row, synthesize an A-shaped FieldDefinitionRow
-  // and determine which A group it belongs to (via A's field_group_id).
+  // Step 3 — synthesize an A-shaped FieldDefinitionRow per live B field, keyed by
+  // the B def-id (the same id we key fieldValues on below). `field_group_id`
+  // carries the group SLUG from the skeleton.
+  const liveBDefs = (bDefs ?? []) as BProfileFieldDef[];
   const syntheticDefs: FieldDefinitionRow[] = [];
-  for (const aDef of filteredADefs) {
-    const bKey = aKeyToBKey(aDef.key as string);
-    if (!bKey) continue;
-    const bDef = bDefByFieldKey.get(bKey);
-    if (!bDef) continue;
-
-    // Project B row onto A's FieldDefinitionRow shape. We use the A def's ID so
-    // that the fieldValues join (which uses A field_definition_id) stays consistent.
-    // The label comes from B (canonical); sort_order and group from A.
+  const bDefIds: string[] = [];
+  for (const bDef of liveBDefs) {
+    const aKey = bKeyToAKey.get(bDef.field_key);
+    if (!aKey) continue;
+    const skel = skeletonByAKey.get(aKey);
+    if (!skel) continue;
+    bDefIds.push(bDef.id);
     syntheticDefs.push({
-      id: aDef.id as string, // A def id for fieldValues compat
-      field_group_id: aDef.field_group_id as string | null,
-      key: aDef.key as string,
-      label_en: (bDef.label ?? aDef.key) as string,
+      id: bDef.id, // B def id — consistent across definitions + fieldValues
+      field_group_id: skel.groupSlug, // group SLUG (matched to field_groups.slug)
+      key: aKey,
+      label_en: bDef.label ?? aKey,
       label_es: bDef.label_es ?? null,
       help_en: null,
       help_es: null,
@@ -573,42 +480,39 @@ async function readFieldCatalogFromB(
       editable_by_staff: false,
       editable_by_admin: true,
       active: true,
-      sort_order: (aDef.sort_order as number) ?? 0,
+      sort_order: skel.fieldSort,
       taxonomy_kind: null,
       config: {},
       archived_at: null,
     });
   }
 
-  // Build groups (same logic as readFieldCatalogFromA)
-  const groupIdsUsed = new Set<string>();
-  for (const d of syntheticDefs) {
-    if (d.field_group_id) groupIdsUsed.add(d.field_group_id);
+  const editableDefinitions = filterOutReservedFieldDefinitions(syntheticDefs);
+
+  // Step 4 — groups: filter `field_groups` to the slugs actually used, then
+  // bucket by slug (the synthetic rows' field_group_id IS the slug).
+  const groupSlugsUsed = new Set<string>();
+  for (const d of editableDefinitions) {
+    if (d.field_group_id) groupSlugsUsed.add(d.field_group_id);
   }
-  const groups = ((aGroups ?? []) as FieldGroupRow[]).filter((g) =>
-    groupIdsUsed.has(g.id),
+  const groups = ((groupRows ?? []) as FieldGroupRow[]).filter((g) =>
+    groupSlugsUsed.has(g.slug),
   );
   const editableByGroup = new Map<string, FieldDefinitionRow[]>();
-  for (const d of syntheticDefs) {
+  for (const d of editableDefinitions) {
     const gid = d.field_group_id ?? "ungrouped";
     const arr = editableByGroup.get(gid) ?? [];
     arr.push(d);
     editableByGroup.set(gid, arr);
   }
-  const scalarEditableIds = syntheticDefs
+  const scalarEditableIds = editableDefinitions
     .filter((d) =>
       ["text", "textarea", "number", "boolean", "date"].includes(d.value_type),
     )
     .map((d) => d.id);
 
-  // Field values: read from B's `talent_profile_field_values` but map back to
-  // A `field_definition_id` (the A def id) so downstream consumers (completion
-  // scorer, value lookup by A field_definition_id) work without change.
-  //
-  // B `value` is JSONB scalar — we extract value_text / value_number /
-  // value_boolean from it so the A-shaped fieldValues object is satisfied.
-  const bDefIds = ((bDefs ?? []) as BProfileFieldDef[]).map((d) => d.id).filter(Boolean);
-
+  // Step 5 — field values from B, keyed by the B def-id (same id as the synthetic
+  // definitions above), with B's JSONB scalar projected to the typed columns.
   const { data: bFieldValues, error: bFvErr } = await supabase
     .from("talent_profile_field_values")
     .select("field_definition_id, value")
@@ -617,22 +521,12 @@ async function readFieldCatalogFromB(
 
   if (bFvErr) throw new Error(`[dashboard_nav/catalog-B] talent_profile_field_values: ${bFvErr.message}`);
 
-  // Build B def-id → A def-id reverse map (via field_key bridge)
-  const bDefIdToADefId = new Map<string, string>();
-  for (const bDef of (bDefs ?? []) as BProfileFieldDef[]) {
-    // Resolve the A key from the B field_key
-    const aKey = NEW_TO_OLD_KEY[bDef.field_key] ?? bDef.field_key;
-    const aDef = aDefByKey.get(aKey);
-    if (aDef) bDefIdToADefId.set(bDef.id, aDef.id as string);
-  }
-
+  const liveBDefIds = new Set(bDefIds);
   type BFieldValueRow = { field_definition_id: string; value: unknown };
   type MaybeFV = DashboardNavFieldValues[number] | null;
   const fieldValues: DashboardNavFieldValues = ((bFieldValues ?? []) as BFieldValueRow[])
     .map((bv): MaybeFV => {
-      const aDefId = bDefIdToADefId.get(bv.field_definition_id);
-      if (!aDefId) return null;
-      // Extract typed values from B's JSONB scalar `value`
+      if (!liveBDefIds.has(bv.field_definition_id)) return null;
       const raw = bv.value;
       let value_text: string | null = null;
       let value_number: number | null = null;
@@ -651,7 +545,7 @@ async function readFieldCatalogFromB(
         return null;
       }
       return {
-        field_definition_id: aDefId,
+        field_definition_id: bv.field_definition_id,
         value_text,
         value_number,
         value_boolean,
@@ -661,17 +555,18 @@ async function readFieldCatalogFromB(
     .filter((v): v is DashboardNavFieldValues[number] => v !== null);
 
   return {
-    catalog: { groups, editableDefinitions: syntheticDefs, editableByGroup, scalarEditableIds },
+    catalog: { groups, editableDefinitions, editableByGroup, scalarEditableIds },
     fieldValues,
   };
 }
 
-/** The reader pair for `loadTalentDashboardData`'s fieldCatalog + fieldValues. */
+/** The reader pair for `loadTalentDashboardData`'s fieldCatalog + fieldValues.
+ *  T3.2 — System A removed: both legs read System B + `field_groups` metadata. */
 export const fieldCatalogReaderPair: FieldSurfaceReaderPair<
   [SupabaseClient, string],
   { catalog: DashboardNavFieldCatalog; fieldValues: DashboardNavFieldValues }
 > = {
-  readA: readFieldCatalogFromA,
+  readA: readFieldCatalogFromB,
   readB: readFieldCatalogFromB,
 };
 

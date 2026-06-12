@@ -1,47 +1,29 @@
 // src/lib/field-engine/read-source-translation-i18n.ts
 //
-// T2.5b — TRANSLATION-CENTER I18N ADAPTER value-store seam.
+// TRANSLATION-CENTER I18N ADAPTER value-store seam.
 //
-// `fieldValueTextI18nAdapter` (translation-center/adapters/field-value-text-i18n-adapter.ts)
-// reads `field_values` twice — once in `aggregate` (coverage counts) and once in
-// `listUnits` (paginated listing). Both legs use the SAME column set:
-//   field_values.id, talent_profile_id, field_definition_id, value_text,
-//   value_i18n, talent_profiles(...)
+// DEAD FIELD-VALUE I18N PATH (T3.2). The `fieldValueTextI18nAdapter` translation
+// domain was built around a `field_values.value_i18n` JSONB column that NEVER
+// EXISTED in the schema — every read of it returned a 42703 "undefined column"
+// error and fell back to a legacy SELECT that carries no i18n status, so the
+// adapter has only ever produced zero usable translation units. T3.2 retires
+// System A (`field_values`); since the i18n column it depended on never existed,
+// this whole field-value translation path is removed rather than repointed:
+//   • `readA` (both legs) no longer reads `field_values` — it returns an EMPTY
+//     result (the same effective output the broken read always produced).
+//   • `readB` (both legs) still THROWS the schema-blocked message: System B
+//     (`talent_profile_field_values`) likewise has no `value_i18n` column, so
+//     there is nothing to read. The throw keeps `readFieldSurface`'s safe-fallback
+//     contract intact (and is asserted by read-source-translation-admin-catalog.test.ts).
+//   • the `translation` surface stays at its `a` default — but `a` is now a
+//     no-op empty read, not a `field_values` query.
 //
-// This module lifts those reads behind the shared read-source seam as `readA`
-// (byte-identical to today) with a `readB` stub.
-//
-// WHY readB IS BLOCKED (important for T2.6 planning):
-//   `talent_profile_field_values` (System B) stores the primary value in a
-//   `value` JSONB column and has NO `value_i18n` column. The translation-center
-//   workflow is specifically built around `field_values.value_i18n` — the save
-//   path (admin-translation-quick-edit.ts:field_value_i18n) writes translated
-//   text back to that A-column. Until `value_i18n` is added to B:
-//     1. A B-read would yield source text (from `value` JSONB) but zero i18n
-//        status → every unit would appear as health="missing" (regression).
-//     2. The entityId threaded through the quick-edit save is the A `field_values.id`.
-//        A pure B-repoint would require the save path to also migrate to B row ids.
-//   Net: a B-repoint is SCHEMA-GATED. The seam is wired so the flag is already
-//   respected at runtime; completing it requires:
-//     (a) ALTER TABLE talent_profile_field_values ADD COLUMN value_i18n jsonb;
-//     (b) Fill in readB below (join B value + i18n column, project to the same
-//         output types: AggregateRow[] / ListRow[]).
-//     (c) Update DEFAULT_FIELD_ENGINE_READ_SOURCE_FLAGS.translation to "b".
-//     (d) Update admin-translation-quick-edit.ts to write value_i18n to B.
-//
-// The `translation` surface therefore DEFAULTS TO `a` (see read-source-types.ts).
-// This file exists to wire the seam + document the blocker, so T2.6 can flip
-// the flag without touching the adapter.
-//
-// WRITE INVENTORY (for T2.6 mirror-stop planning — out of scope here):
-//   1. admin-translation-quick-edit.ts:190-197 (.update({ value_i18n, value_text,
-//      updated_at }).from("field_values").eq("id", entityId).eq("talent_profile_id"))
-//      — writes translated text + updates primary EN text for a single field_values row.
-//      This is the ONLY i18n write path. It must also write to B's value_i18n
-//      before the mirror-stop lands.
-//   2. admin-translation-quick-edit.ts:112-115 (.select("id, value_text, value_i18n")
-//      .from("field_values").eq("id", entityId)) — a READ in the quick-edit load
-//      path (not inventoried above as a write; listed here for completeness).
+// The adapter itself (field-value-text-i18n-adapter.ts) is correspondingly
+// neutralized to surface no field-value translation units, and the
+// admin-translation-quick-edit.ts `fieldValueTextI18n` load/save branches (which
+// read/wrote the non-existent `value_i18n` column) are removed. Re-enabling a
+// real per-field i18n workflow is a future feature that must FIRST add a value_i18n
+// column to System B + wire a B reader/writer.
 
 import "server-only";
 
@@ -109,43 +91,18 @@ export type TranslationReadArgs = {
 
 // ── Aggregate leg ─────────────────────────────────────────────────────────────
 
-/** System A aggregate reader — verbatim from the adapter's `aggregate` method.
- *  Tries the WITH_I18N select first; falls back to LEGACY select if `value_i18n`
- *  is not a defined column (matching the adapter's existing guard). */
+/** A-leg aggregate reader. T3.2 — the dead `field_values.value_i18n` read is
+ *  removed (the column never existed; System A is retired). Returns EMPTY, the
+ *  same effective output the broken read always produced. */
 async function readTranslationAggregateFromA(
-  supabase: SupabaseClient,
-  { defIds, limit }: TranslationReadArgs,
+  _supabase: SupabaseClient,
+  _args: TranslationReadArgs,
 ): Promise<TranslationAggregateRow[]> {
-  if (defIds.length === 0) return [];
-  const cap = limit ?? 5000;
-
-  const WITH_I18N =
-    "id, talent_profile_id, field_definition_id, value_text, value_i18n, talent_profiles ( profile_code, display_name, workflow_status, deleted_at )";
-  const LEGACY =
-    "id, talent_profile_id, field_definition_id, value_text, talent_profiles ( profile_code, display_name, workflow_status, deleted_at )";
-
-  let { data: aggRows, error } = await supabase
-    .from("field_values")
-    .select(WITH_I18N)
-    .in("field_definition_id", defIds as string[])
-    .limit(cap);
-
-  if (error && isUndefinedColumn(error, "value_i18n")) {
-    const legacy = await supabase
-      .from("field_values")
-      .select(LEGACY)
-      .in("field_definition_id", defIds as string[])
-      .limit(cap);
-    aggRows = legacy.data as typeof aggRows;
-    error = legacy.error;
-  }
-
-  if (error) throw new Error(`[translation] aggregate A: ${error.message}`);
-  return (aggRows ?? []) as TranslationAggregateRow[];
+  return [];
 }
 
-/** System B aggregate reader stub. BLOCKED — B has no `value_i18n` column yet.
- *  Throws immediately so the safe-fallback in `readFieldSurface` degrades to A. */
+/** System B aggregate reader stub. BLOCKED — B has no `value_i18n` column.
+ *  Throws so `readFieldSurface`'s safe-fallback contract is preserved. */
 async function readTranslationAggregateFromB(
   _supabase: SupabaseClient,
   _args: TranslationReadArgs,
@@ -183,38 +140,13 @@ export function readTranslationAggregateRows(
 
 // ── List-units leg ────────────────────────────────────────────────────────────
 
-/** System A list reader — verbatim from the adapter's `listUnits` method. */
+/** A-leg list reader. T3.2 — dead `field_values.value_i18n` read removed; returns
+ *  EMPTY (same effective output the broken read always produced). */
 async function readTranslationListFromA(
-  supabase: SupabaseClient,
-  { defIds, offset = 0, limit = 50 }: TranslationReadArgs,
+  _supabase: SupabaseClient,
+  _args: TranslationReadArgs,
 ): Promise<TranslationListRow[]> {
-  if (defIds.length === 0) return [];
-
-  const WITH_I18N =
-    "id, talent_profile_id, field_definition_id, value_text, value_i18n, talent_profiles ( id, profile_code, display_name, workflow_status, deleted_at )";
-  const LEGACY =
-    "id, talent_profile_id, field_definition_id, value_text, talent_profiles ( id, profile_code, display_name, workflow_status, deleted_at )";
-
-  let { data: listRows, error } = await supabase
-    .from("field_values")
-    .select(WITH_I18N)
-    .in("field_definition_id", defIds as string[])
-    .order("updated_at", { ascending: false })
-    .range(offset, offset + limit - 1);
-
-  if (error && isUndefinedColumn(error, "value_i18n")) {
-    const legacy = await supabase
-      .from("field_values")
-      .select(LEGACY)
-      .in("field_definition_id", defIds as string[])
-      .order("updated_at", { ascending: false })
-      .range(offset, offset + limit - 1);
-    listRows = legacy.data as typeof listRows;
-    error = legacy.error;
-  }
-
-  if (error) throw new Error(`[translation] list A: ${error.message}`);
-  return (listRows ?? []) as TranslationListRow[];
+  return [];
 }
 
 /** System B list reader stub. BLOCKED — same reason as aggregate. */
@@ -248,13 +180,4 @@ export function readTranslationListRows(
   args: TranslationReadArgs,
 ): Promise<TranslationListRow[]> {
   return readFieldSurface("translation", translationListReaderPair, supabase, args);
-}
-
-// ── Shared helper (mirrors the adapter's isUndefinedColumn) ───────────────────
-
-function isUndefinedColumn(err: unknown, columnSqlName: string): boolean {
-  if (!err || typeof err !== "object") return false;
-  const e = err as { code?: string; message?: string };
-  const msg = String(e.message ?? "");
-  return e.code === "42703" && msg.includes(columnSqlName);
 }
