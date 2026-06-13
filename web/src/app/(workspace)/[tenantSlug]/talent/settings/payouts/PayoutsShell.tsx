@@ -26,6 +26,7 @@ import { PAYOUT_COUNTRIES } from "@/lib/payments/payout-countries";
 import { HeldPayoutsBanner } from "@/components/payments/HeldPayoutsBanner";
 import { GlobalPayoutsBankCard } from "./GlobalPayoutsBankCard";
 import type { TalentConnectedAccountSnapshot } from "@/lib/payments/stripe-connect-talent";
+import type { ActivePayoutSystem } from "@/lib/payments/active-payout-system";
 
 type HeldTotal = { currency: string; amountCents: number; count: number };
 
@@ -117,6 +118,11 @@ export function PayoutsShell({
   // rail and show only the Global Payouts card, so the status is never
   // contradictory (e.g. a stale Connect "enabled" next to GP "pending").
   const [gpPrimary, setGpPrimary] = useState(false);
+  // Platform-wide payout rail switch. Default "connect" (the restored default,
+  // fail-safe to hiding Global Payouts). When "connect", ALL Global Payouts UI is
+  // hidden and Connect is shown to everyone. When "global_payouts", today's
+  // per-talent behavior is restored exactly. Resolved on mount below.
+  const [system, setSystem] = useState<ActivePayoutSystem>("connect");
 
   const status = snapshot?.status ?? "none";
   const isEnabled = status === "enabled";
@@ -124,7 +130,15 @@ export function PayoutsShell({
   useEffect(() => {
     let cancelled = false;
     loadTalentGpMethods().then((r) => {
-      if (cancelled || !r.ok) return;
+      if (cancelled) return;
+      setSystem(r.activePayoutSystem);
+      // Platform on Connect: Global Payouts is hidden entirely and Connect shows
+      // for everyone, so never promote GP as the primary rail.
+      if (r.activePayoutSystem === "connect") {
+        setGpPrimary(false);
+        return;
+      }
+      if (!r.ok) return;
       const onGp = r.status !== "not_started" || r.methods.length > 0;
       setGpPrimary(onGp || !isConnectPayoutCountry(r.profileCountry));
     });
@@ -272,7 +286,9 @@ export function PayoutsShell({
                 style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: `1px solid ${C.border}`, fontFamily: FONT, fontSize: 13, color: C.ink, background: "#fff", marginBottom: 12 }}
               >
                 <option value="">Select your country…</option>
-                {PAYOUT_COUNTRIES.map((c) => (
+                {PAYOUT_COUNTRIES.filter(
+                  (c) => system !== "connect" || isConnectPayoutCountry(c.iso2),
+                ).map((c) => (
                   <option key={c.iso2} value={c.iso2}>
                     {c.flag} {c.label}
                   </option>
@@ -321,9 +337,10 @@ export function PayoutsShell({
             </div>
           )}
 
-          {/* MORE WAYS TO GET PAID — always available in the drawer (no Stripe
-              popup, reaches ~50 countries incl. Argentina). Not gated on Connect. */}
-          {!showOnboarding && (
+          {/* MORE WAYS TO GET PAID — Global Payouts (no Stripe popup, reaches ~50
+              countries incl. Argentina). Hidden when the platform master switch is
+              on Connect (GP is fully gated off then). */}
+          {!showOnboarding && system !== "connect" && (
             <div style={{ marginTop: 26 }}>
               <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: 0.3, textTransform: "uppercase", color: C.inkDim, marginBottom: 10 }}>
                 {isEnabled ? "More ways to get paid" : "Get paid to your local bank, anywhere"}
