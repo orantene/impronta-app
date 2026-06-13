@@ -22,7 +22,11 @@ export type BuilderSurfaceKind =
   | "homepage"
   | "workspace_page"
   | "talent_page"
-  | "platform_lab";
+  | "platform_lab"
+  // Wave 4.1 — agency storefront pages (`cms_pages`) opted into FREEFORM
+  // (`is_freeform=true`), edited via the front-end `?edit=1` UX. Slot-composed
+  // cms_pages (homepage + system + legacy) stay on the `homepage` kind.
+  | "cms_page";
 
 /** Every valid surface kind, for exhaustiveness checks + guard iteration. */
 export const BUILDER_SURFACE_KINDS: readonly BuilderSurfaceKind[] = [
@@ -30,6 +34,7 @@ export const BUILDER_SURFACE_KINDS: readonly BuilderSurfaceKind[] = [
   "workspace_page",
   "talent_page",
   "platform_lab",
+  "cms_page",
 ] as const;
 
 /** The single surface allowed to write the legacy `cms_page_sections` table /
