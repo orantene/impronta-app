@@ -199,8 +199,7 @@ function makeRow(over: Partial<BuilderTemplateRow> = {}): BuilderTemplateRow {
 test("listGalleryItems applies the overlay loader to the merged set", async () => {
   const templateId = "db-template:abc";
   const deps = {
-    listPublishedTemplates: async () =>
-      ({ ok: true, data: [makeRow()] }) as const,
+    listPublishedTemplates: async () => ({ ok: true as const, data: [makeRow()] }),
     loadOverlays: async (): Promise<CatalogOverlayMap> => ({
       [templateId]: overlay({
         item_ref: templateId,
@@ -215,4 +214,80 @@ test("listGalleryItems applies the overlay loader to the merged set", async () =
 
   assert.equal(onTalent.some((i) => i.id === templateId), false); // hidden on talent
   assert.equal(onWorkspace.some((i) => i.id === templateId), true); // kept on workspace
+});
+
+// ── W13: buildCatalogAdminView visibility matrix + status ─────────────────────
+
+test("buildCatalogAdminView: target_context gates per-surface visibility (full matrix)", () => {
+  const universe: AddGalleryItem[] = [
+    item({ id: "db:t", insertMethod: "dbTemplate", targetContext: "talent" }),
+    item({ id: "db:w", insertMethod: "dbTemplate", targetContext: "workspace" }),
+    item({ id: "db:b", insertMethod: "dbTemplate", targetContext: "both" }),
+    item({ id: "db:p", insertMethod: "dbTemplate", targetContext: "platform" }),
+    item({ id: "el-x" }), // code → implicit "both"
+  ];
+  const view = buildCatalogAdminView(universe, {});
+  const by = (id: string) => view.find((v) => v.id === id)!;
+  assert.deepEqual([by("db:t").talentVisible, by("db:t").workspaceVisible], [true, false]);
+  assert.deepEqual([by("db:w").talentVisible, by("db:w").workspaceVisible], [false, true]);
+  assert.deepEqual([by("db:b").talentVisible, by("db:b").workspaceVisible], [true, true]);
+  assert.deepEqual([by("db:p").talentVisible, by("db:p").workspaceVisible], [false, false]);
+  assert.deepEqual([by("el-x").talentVisible, by("el-x").workspaceVisible], [true, true]);
+});
+
+test("buildCatalogAdminView: availability-hidden hides on both surfaces but item stays listed", () => {
+  const universe: AddGalleryItem[] = [item({ id: "el-x" })];
+  const view = buildCatalogAdminView(universe, {
+    "el-x": overlay({ item_ref: "el-x", availability_override: "hidden" }),
+  });
+  assert.equal(view.length, 1); // still listed → re-enable-able
+  assert.deepEqual([view[0].talentVisible, view[0].workspaceVisible], [false, false]);
+});
+
+test("buildCatalogAdminView: status from statusByRef for templates, 'built-in' for code", () => {
+  const universe: AddGalleryItem[] = [
+    item({ id: "el-x" }),
+    item({ id: "db:d", insertMethod: "dbTemplate", targetContext: "both" }),
+    item({ id: "db:e", insertMethod: "dbTemplate", targetContext: "both" }),
+  ];
+  const view = buildCatalogAdminView(universe, {}, { "db:d": "draft" });
+  assert.equal(view.find((v) => v.id === "el-x")!.status, "built-in");
+  assert.equal(view.find((v) => v.id === "db:d")!.status, "draft");
+  assert.equal(view.find((v) => v.id === "db:e")!.status, "published"); // no entry → default
+});
+
+// ── W13: applyCatalogOverlay null-surface / null-plan contract (homepage/Lab) ──
+
+test("applyCatalogOverlay: null surfaceTarget skips per-surface subtraction", () => {
+  const items = [item()];
+  const nullCtx: GalleryMergeContext = {
+    galleryPolicy: POLICY,
+    surfaceTarget: null,
+    plan: "free",
+    talentTier: null,
+  };
+  // talent_enabled:false but no surface → NOT subtracted
+  assert.equal(
+    applyCatalogOverlay(items, { "el-button": overlay({ talent_enabled: false }) }, nullCtx).length,
+    1,
+  );
+  // availability-hidden still drops even with null surface
+  assert.equal(
+    applyCatalogOverlay(items, { "el-button": overlay({ availability_override: "hidden" }) }, nullCtx).length,
+    0,
+  );
+});
+
+test("applyCatalogOverlay: null plan skips the required_plan_override gate", () => {
+  const items = [item()];
+  const nullPlanCtx: GalleryMergeContext = {
+    galleryPolicy: POLICY,
+    surfaceTarget: "workspace",
+    plan: null,
+    talentTier: null,
+  };
+  assert.equal(
+    applyCatalogOverlay(items, { "el-button": overlay({ required_plan_override: "network" }) }, nullPlanCtx).length,
+    1,
+  );
 });
