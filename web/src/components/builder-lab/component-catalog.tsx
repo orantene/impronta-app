@@ -15,7 +15,7 @@
  * round-trip the live galleries see.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   ADD_GALLERY_CATEGORIES,
@@ -257,7 +257,8 @@ export function ComponentCatalog() {
                 const editing = editingId === r.id;
                 const isTemplate = r.source === "template";
                 return (
-                  <tr key={r.id} style={{ borderTop: `1px solid ${T.borderSoft}`, opacity: busy ? 0.55 : 1 }}>
+                  <Fragment key={r.id}>
+                  <tr style={{ borderTop: `1px solid ${T.borderSoft}`, opacity: busy ? 0.55 : 1 }}>
                     <td style={{ padding: "9px 16px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <span
@@ -325,37 +326,36 @@ export function ComponentCatalog() {
                       )}
                     </td>
                   </tr>
+                    {editing ? (
+                      <tr style={{ background: T.cardSoft }}>
+                        <td colSpan={6} style={{ padding: "10px 16px" }}>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-end" }}>
+                            <Field label="Display name (override)">
+                              <input
+                                value={editLabel}
+                                onChange={(e) => setEditLabel(e.target.value)}
+                                placeholder={r.baseLabel}
+                                style={inputStyle}
+                              />
+                            </Field>
+                            <Field label="Category (override)">
+                              <input
+                                value={editCategory}
+                                onChange={(e) => setEditCategory(e.target.value)}
+                                placeholder={r.baseCategory}
+                                style={inputStyle}
+                              />
+                            </Field>
+                            <span style={{ fontSize: 11, color: T.inkDim }}>
+                              Leave blank to use the default. Reflected in both builders on next open.
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
                 );
               })}
-              {g.rows.map((r) =>
-                editingId === r.id ? (
-                  <tr key={`${r.id}-edit`} style={{ background: T.cardSoft }}>
-                    <td colSpan={6} style={{ padding: "10px 16px" }}>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-end" }}>
-                        <Field label="Display name (override)">
-                          <input
-                            value={editLabel}
-                            onChange={(e) => setEditLabel(e.target.value)}
-                            placeholder={r.baseLabel}
-                            style={inputStyle}
-                          />
-                        </Field>
-                        <Field label="Category (override)">
-                          <input
-                            value={editCategory}
-                            onChange={(e) => setEditCategory(e.target.value)}
-                            placeholder={r.baseCategory}
-                            style={inputStyle}
-                          />
-                        </Field>
-                        <span style={{ fontSize: 11, color: T.inkDim }}>
-                          Leave blank to use the default. Reflected in both builders on next open.
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                ) : null,
-              )}
             </tbody>
           </table>
         </section>
