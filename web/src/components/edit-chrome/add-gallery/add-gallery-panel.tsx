@@ -5,15 +5,17 @@
  * All inserts route through builderTree only via performAddGalleryInsert.
  */
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
-  filterAddGalleryItems,
+  codeGalleryItemsForPolicy,
+  filterGalleryItemsFrom,
   isAddGalleryItemAvailable,
-  listAddGalleryCategoriesForTab,
+  listGalleryCategoriesForTabFrom,
   type AddGalleryItem,
   type AddGalleryTab,
 } from "@/lib/site-admin/add-gallery";
+import { fetchSurfaceGalleryItems } from "@/lib/site-admin/add-gallery/gallery-fetch-action";
 import {
   getAddGalleryCardInfoTooltip,
   getAddGalleryCardShortDescription,
@@ -33,11 +35,15 @@ import { AddGallerySectionPreview } from "./add-gallery-section-previews";
 const PANEL_WIDTH = 592;
 const PANEL_MAX_HEIGHT = "min(78vh, 640px)";
 
-const TABS: ReadonlyArray<{ id: AddGalleryTab; label: string }> = [
+/** Canonical tab order + labels. The visible set is the intersection with the
+ *  surface's `gallerySurface.allowedTabs` — homepage stays 4 tabs; workspace /
+ *  talent / lab also get the DB-backed "Templates" tab. */
+const TAB_DEFS: ReadonlyArray<{ id: AddGalleryTab; label: string }> = [
   { id: "layout", label: "Layout" },
   { id: "elements", label: "Elements" },
   { id: "sections", label: "Sections" },
   { id: "connected", label: "Connected" },
+  { id: "page_templates", label: "Templates" },
 ];
 
 interface AddGalleryPanelProps {
@@ -46,9 +52,11 @@ interface AddGalleryPanelProps {
 }
 
 function TabBar({
+  tabs,
   active,
   onChange,
 }: {
+  tabs: ReadonlyArray<{ id: AddGalleryTab; label: string }>;
   active: AddGalleryTab;
   onChange: (tab: AddGalleryTab) => void;
 }) {
@@ -59,7 +67,7 @@ function TabBar({
       role="tablist"
       aria-label="Add gallery tabs"
     >
-      {TABS.map((tab) => {
+      {tabs.map((tab) => {
         const isActive = tab.id === active;
         return (
           <button
@@ -462,7 +470,7 @@ function GalleryCard(props: {
   onInsert: (item: AddGalleryItem) => void;
   pending: boolean;
 }) {
-  if (props.tab === "sections") {
+  if (props.tab === "sections" || props.tab === "page_templates") {
     return <SectionCard {...props} />;
   }
   if (props.tab === "connected") {
@@ -479,6 +487,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
     insertBuilderComponent,
     reportMutationError,
     selectBuilderNode,
+    gallerySurface,
   } = useEditContext();
   // WS2 — tree read from the micro-store (builder-tree-bridge) instead of the
   // context value, so an edit no longer re-renders this panel via the value memo.
@@ -489,9 +498,69 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
   const [query, setQuery] = useState("");
   const [pending, setPending] = useState(false);
 
+  // P1 — the merged catalog (code items ∪ gated published DB templates) for this
+  // surface. Seeded synchronously with the code-only set so the panel paints
+  // instantly, then refreshed from `fetchSurfaceGalleryItems` on open.
+  const codeSeed = useMemo(
+    () =>
+      codeGalleryItemsForPolicy({
+        allowedTabs: gallerySurface.allowedTabs,
+        allowDbTemplates: gallerySurface.allowDbTemplates,
+      }),
+    [gallerySurface],
+  );
+  const [mergedItems, setMergedItems] =
+    useState<ReadonlyArray<AddGalleryItem>>(codeSeed);
+  const fetchSeqRef = useRef(0);
+
+  useEffect(() => {
+    if (!open) return;
+    // Paint code-only immediately (also the fallback if the fetch fails).
+    setMergedItems(codeSeed);
+    if (!gallerySurface.allowDbTemplates) return; // code-only surface → no DB trip
+    const seq = ++fetchSeqRef.current;
+    let cancelled = false;
+    void fetchSurfaceGalleryItems(gallerySurface)
+      .then((merged) => {
+        if (cancelled || seq !== fetchSeqRef.current) return; // stale response
+        setMergedItems(merged);
+      })
+      .catch(() => {
+        // Keep the code-only seed — never fail the gallery on a template fetch.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, gallerySurface, codeSeed]);
+
+  // Visible tabs = canonical order ∩ this surface's allowed tabs ∩ tabs that
+  // actually have items. The structural tabs (layout/elements/sections/
+  // connected) always carry code items so they always show; "Templates"
+  // (page_templates) is DB-only, so it appears only once a template is
+  // published — never an empty tab on a tenant/talent builder.
+  const tabs = useMemo(
+    () =>
+      TAB_DEFS.filter(
+        (t) =>
+          gallerySurface.allowedTabs.includes(t.id) &&
+          mergedItems.some((item) => item.tab === t.id),
+      ),
+    [gallerySurface, mergedItems],
+  );
+
+  // Keep the active tab valid if the surface's allowed tabs change.
+  useEffect(() => {
+    if (tabs.length > 0 && !tabs.some((t) => t.id === tab)) {
+      setTab(tabs[0].id);
+    }
+  }, [tabs, tab]);
+
   const categories = useMemo(
-    () => listAddGalleryCategoriesForTab(tab),
-    [tab],
+    () =>
+      listGalleryCategoriesForTabFrom(mergedItems, tab, {
+        synthesizeUnknownCategories: true,
+      }),
+    [mergedItems, tab],
   );
 
   const activeCategoryId = useMemo(() => {
@@ -502,12 +571,12 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
   }, [categoryId, categories]);
 
   const items = useMemo(() => {
-    return filterAddGalleryItems({
+    return filterGalleryItemsFrom(mergedItems, {
       tab,
       categoryId: query.trim() ? undefined : (activeCategoryId ?? undefined),
       query,
     });
-  }, [tab, activeCategoryId, query]);
+  }, [mergedItems, tab, activeCategoryId, query]);
 
   const handleInsert = useCallback(
     async (item: AddGalleryItem) => {
@@ -552,10 +621,12 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
         ? "Add Elements"
         : tab === "sections"
           ? "Add Sections"
-          : "Add Connected";
+          : tab === "connected"
+            ? "Add Connected"
+            : "Add Templates";
 
   const gridColumns =
-    tab === "sections" || tab === "connected"
+    tab === "sections" || tab === "connected" || tab === "page_templates"
       ? "repeat(2, minmax(0, 1fr))"
       : "repeat(4, minmax(0, 1fr))";
 
@@ -570,6 +641,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
       testId="add-gallery-panel"
       tabs={
         <TabBar
+          tabs={tabs}
           active={tab}
           onChange={(next) => {
             setTab(next);

@@ -54,6 +54,7 @@ import {
   buildHomepageBuilderConfig,
   type BuilderContextConfig,
 } from "@/lib/site-admin/builder-core/config";
+import type { GallerySurfaceDescriptor } from "@/lib/site-admin/add-gallery/types";
 import { homepageAdapter } from "@/lib/site-admin/builder-core/adapters/homepage-adapter";
 import {
   restoreHomepageRevisionAction,
@@ -310,6 +311,13 @@ export interface EditContextValue {
    * never see them in the element library. See OWNER_ONLY_ELEMENT_INSERT_KINDS.
    */
   canInsertRawHtmlElements: boolean;
+  /**
+   * P1 — the surface descriptor the live Add Gallery uses to fetch its merged
+   * catalog (code items ∪ gated published DB templates) via
+   * `fetchSurfaceGalleryItems`. STABLE: memoized off primitives so adding it to
+   * the context value does not churn the value memo / re-render consumers.
+   */
+  gallerySurface: GallerySurfaceDescriptor;
   locale: string;
   /**
    * Tenant default storefront locale (URL may omit prefix). TopBar locale
@@ -2090,6 +2098,42 @@ export function EditProvider({
   const advancedElementLibraryEnabled = useMemo(
     () => isAdvancedElementLibraryEnabledForPlan(normalizedWorkspacePlan),
     [normalizedWorkspacePlan],
+  );
+
+  // P1 — STABLE gallery surface descriptor for the live Add Gallery fetch
+  // (`fetchSurfaceGalleryItems`). Memoized off PRIMITIVES (a joined tabs key +
+  // booleans / strings) so it keeps a stable identity even when
+  // `resolvedSurfaceConfig` is a fresh object per render (the homepage default
+  // is a factory) — that stability is what keeps the value memo below from
+  // churning every render.
+  const galleryTabsKey =
+    resolvedSurfaceConfig.galleryPolicy.allowedTabs.join(",");
+  const galleryAllowDbTemplates =
+    resolvedSurfaceConfig.galleryPolicy.allowDbTemplates;
+  const gallerySurfaceTarget: GallerySurfaceDescriptor["surfaceTarget"] =
+    resolvedSurfaceConfig.previewSubjectKind === "talent"
+      ? "talent"
+      : resolvedSurfaceConfig.previewSubjectKind === "workspace"
+        ? "workspace"
+        : null;
+  const gallerySurfaceTier = resolvedSurfaceConfig.surfaceTalentTier ?? null;
+  const gallerySurface = useMemo<GallerySurfaceDescriptor>(
+    () => ({
+      allowedTabs: galleryTabsKey
+        ? (galleryTabsKey.split(",") as GallerySurfaceDescriptor["allowedTabs"])
+        : [],
+      allowDbTemplates: galleryAllowDbTemplates,
+      surfaceTarget: gallerySurfaceTarget,
+      plan: normalizedWorkspacePlan || null,
+      talentTier: gallerySurfaceTier,
+    }),
+    [
+      galleryTabsKey,
+      galleryAllowDbTemplates,
+      gallerySurfaceTarget,
+      normalizedWorkspacePlan,
+      gallerySurfaceTier,
+    ],
   );
 
   // ── inspector state ─────────────────────────────────────────────────
@@ -7539,6 +7583,7 @@ export function EditProvider({
       canEditSiteShell,
       advancedElementLibraryEnabled,
       canInsertRawHtmlElements,
+      gallerySurface,
       locale,
       defaultLocale,
       pageSlug,
@@ -7784,6 +7829,7 @@ export function EditProvider({
       canEditSiteShell,
       advancedElementLibraryEnabled,
       canInsertRawHtmlElements,
+      gallerySurface,
       locale,
       defaultLocale,
       pageSlug,

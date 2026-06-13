@@ -22,8 +22,9 @@ import { useState } from "react";
 import { PreviewSubjectPicker, type PreviewSubject } from "./preview-subject-picker";
 import { BuilderLabStage } from "./builder-lab-stage";
 import { TemplateManager } from "./template-manager";
+import { ComponentCatalog } from "./component-catalog";
 
-type LabTab = "talent" | "workspace" | "templates";
+type LabTab = "talent" | "workspace" | "catalog" | "templates";
 
 const T = {
   bg: "#0F0F11",
@@ -40,6 +41,7 @@ const T = {
 const TABS: Array<{ id: LabTab; label: string; blurb: string }> = [
   { id: "talent", label: "Talent Lab", blurb: "Author + test templates against a real talent profile." },
   { id: "workspace", label: "Workspace Lab", blurb: "Author + test against a real workspace / hub." },
+  { id: "catalog", label: "Catalog", blurb: "Every component the \"+\" gallery offers, per surface. Read-only inventory." },
   { id: "templates", label: "Templates", blurb: "Publish into the gallery. Full lifecycle + metadata." },
 ];
 
@@ -108,6 +110,10 @@ export function BuilderLabShell({
       {tab === "templates" ? (
         <Panel>
           <TemplateManager />
+        </Panel>
+      ) : tab === "catalog" ? (
+        <Panel>
+          <ComponentCatalog />
         </Panel>
       ) : (
         <SubjectArea

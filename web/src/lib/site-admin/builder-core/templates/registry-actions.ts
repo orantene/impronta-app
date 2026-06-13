@@ -73,6 +73,31 @@ function getAdminClient() {
 
 const TEMPLATE_CACHE_PATH = "/platform/admin";
 
+/**
+ * Bump the catalog sync counter (P5 sync key) so any consumer that stamps the
+ * version can detect that the published catalog changed. Mirrors the bump in
+ * catalog-overlay-actions; best-effort — a counter failure never fails the
+ * lifecycle op (the template change already succeeded).
+ */
+async function bumpCatalogVersion(
+  sb: ReturnType<typeof getAdminClient>,
+): Promise<void> {
+  try {
+    const { data } = await sb
+      .from("builder_catalog_version")
+      .select("version")
+      .eq("id", 1)
+      .maybeSingle();
+    const next = ((data?.version as number | undefined) ?? 0) + 1;
+    await sb
+      .from("builder_catalog_version")
+      .update({ version: next, updated_at: new Date().toISOString() })
+      .eq("id", 1);
+  } catch {
+    // best-effort — the published-set change already committed.
+  }
+}
+
 // ── createTemplateDraft ───────────────────────────────────────────────────────
 
 export async function createTemplateDraft(
@@ -205,6 +230,40 @@ export async function submitTemplateForReview(
   }
 }
 
+// ── rejectToDraft ─────────────────────────────────────────────────────────────
+
+/**
+ * Reviewer "send back": flips an in_review template back to draft (P4 approval
+ * queue). The author can revise and re-submit. No revision snapshot — nothing
+ * was published.
+ */
+export async function rejectToDraft(
+  templateId: string,
+): Promise<TemplateActionResult<BuilderTemplateRow>> {
+  const gate = await requireSuperAdmin();
+  if (!gate.ok) return fail(gate.error);
+
+  try {
+    const sb = getAdminClient();
+    const { data, error } = await sb
+      .from("builder_templates")
+      .update({ status: "draft" })
+      .eq("id", templateId)
+      .eq("status", "in_review")
+      .select()
+      .single();
+
+    if (error) return fail(error.message);
+    if (!data) return fail("Template not found or not in review.");
+
+    revalidatePath(TEMPLATE_CACHE_PATH);
+    return ok(data as BuilderTemplateRow);
+  } catch (err) {
+    logServerError("rejectToDraft", err);
+    return fail(CLIENT_ERROR.generic);
+  }
+}
+
 // ── publishTemplate ───────────────────────────────────────────────────────────
 
 /**
@@ -273,6 +332,7 @@ export async function publishTemplate(
       logServerError("publishTemplate/revision", revErr);
     }
 
+    await bumpCatalogVersion(sb);
     revalidatePath(TEMPLATE_CACHE_PATH);
     return ok(publishedRow);
   } catch (err) {
@@ -303,6 +363,7 @@ export async function unpublishTemplate(
     if (!data)
       return fail("Template not found or not currently published.");
 
+    await bumpCatalogVersion(sb);
     revalidatePath(TEMPLATE_CACHE_PATH);
     return ok(data as BuilderTemplateRow);
   } catch (err) {
@@ -333,6 +394,7 @@ export async function archiveTemplate(
     if (!data)
       return fail("Template not found or already archived.");
 
+    await bumpCatalogVersion(sb);
     revalidatePath(TEMPLATE_CACHE_PATH);
     return ok(data as BuilderTemplateRow);
   } catch (err) {
