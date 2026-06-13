@@ -129,8 +129,18 @@ for (const design of fidelityDesigns) {
 // to its end state, and `hover` proves the hover/transition system produces a
 // real state change. They run with reduced-motion OFF (so the animation exists
 // to be fast-forwarded) and are clipped to the viewport at a scroll/hover state,
-// unlike the full-page static frames. Sub-pixel AA drift across machines is
-// absorbed by a tight `maxDiffPixels`; a hard regression still fails.
+// unlike the full-page static frames. Sub-pixel AA drift across runs is
+// absorbed by `maxDiffPixels`; a hard regression still fails.
+//
+// The budget is 2000 px, not the original 250: the `scrolled` frames composite
+// `backdrop-filter` glass over scrolled content, and that compositing is not
+// bit-deterministic run-to-run even on the SAME runner — an at-rest re-seed of
+// `saas-scrolled` still drifted ~1014 px on the very next macOS-14 run (a single
+// dashboard metric re-rasterized a sub-pixel over). 2000 absorbs that real
+// non-determinism while still tripping on a genuine regression, which moves
+// 10k–175k px (a shifted layout, a missing element, a broken photo). The static
+// full-page frames stay EXACT (0 tolerance) — they use bundled woff2 and no
+// glass, so they're deterministic.
 test.describe("fidelity: motion", () => {
   test.use({ reducedMotion: "no-preference" });
   for (const frame of FIDELITY_MOTION_FRAMES) {
@@ -148,7 +158,7 @@ test.describe("fidelity: motion", () => {
       await expect(page).toHaveScreenshot(`${frame.design}-${frame.width}-${frameKey}.png`, {
         clip: { x: 0, y: 0, width: frame.width, height: frame.height },
         animations: "disabled",
-        maxDiffPixels: 250,
+        maxDiffPixels: 2000,
       });
     });
   }
