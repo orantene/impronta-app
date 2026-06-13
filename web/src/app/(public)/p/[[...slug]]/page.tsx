@@ -16,6 +16,7 @@ import { renderBuilderNodes } from "@/lib/site-admin/builder-node/render";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
+import { isPreviewActiveForTenant } from "@/lib/site-admin/server/homepage-reads";
 import {
   jsonLdDocumentToScript,
   type JsonLdDocument,
@@ -158,17 +159,28 @@ export default async function CmsPublicPage({
       .eq("locale", locale)
       .eq("slug", slugPath)
       .eq("is_freeform", true)
+      // Defense-in-depth: system-owned pages (homepage, __site_shell__,
+      // __directory__) are NEVER freeform — exclude them explicitly so a row
+      // mis-flagged is_freeform=true can never render through this clause
+      // (don't rely solely on the slug "__" prefix heuristic upstream).
+      .eq("is_system_owned", false)
       .maybeSingle()
       .returns<{ id: string; title: string; blocks: BuilderNode[]; is_freeform: boolean; status: string }>();
-    // Public visitors see PUBLISHED freeform pages only. Staff in edit mode
-    // (?edit=1 + edit cookie) also see DRAFTS, so the ?edit=1 canvas renders the
-    // draft tree to overlay instead of the branded not-found page. On a query
-    // error, fall through to the slot/legacy branches rather than crash.
-    const editActive = await isEditModeActiveForTenant(publicScope.tenantId);
+    // Public visitors see PUBLISHED freeform pages only. Drafts render only when
+    // preview/edit is active — gated EXACTLY like the slot/homepage paths
+    // (loadPageForRender / loadHomepageForRender): a signed preview JWT
+    // (isPreviewActiveForTenant) OR the in-place edit cookie. Checking the JWT
+    // (not just the cookie) brings freeform to parity so staff preview links work
+    // and the surface is no less guarded than the rest of the storefront. On a
+    // query error, fall through to the slot/legacy branches rather than crash.
+    const [previewActive, editActive] = await Promise.all([
+      isPreviewActiveForTenant(publicScope.tenantId),
+      isEditModeActiveForTenant(publicScope.tenantId),
+    ]);
     if (
       !freeformErr &&
       freeformPage?.is_freeform &&
-      (freeformPage.status === "published" || editActive)
+      (freeformPage.status === "published" || previewActive || editActive)
     ) {
       const blocks = (freeformPage.blocks ?? []) as BuilderNode[];
       const publicPathPrefix = await getPublicPathPrefix();
