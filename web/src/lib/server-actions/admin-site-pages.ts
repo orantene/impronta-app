@@ -653,15 +653,23 @@ export async function createDraftPageAction(): Promise<
     // (seedNewPageStarterComposition) — a freeform page begins as an empty
     // `blocks` array the operator builds in place. Existing slot pages + the
     // homepage + system pages keep is_freeform=false and are untouched.
-    const { error: freeformErr } = await tenantScopedQuery(
+    const { data: freeformRow, error: freeformErr } = await tenantScopedQuery(
       auth.supabase,
       "cms_pages",
       scope.tenantId,
     )
       .update({ is_freeform: true })
-      .eq("id", result.data.id);
-    if (freeformErr) {
-      logServerError("site-admin/pages/create-draft.freeform", freeformErr);
+      .eq("id", result.data.id)
+      .select("id")
+      .maybeSingle();
+    // Must affect exactly the new row — a 0-row update (or error) would leave a
+    // slot page mis-routed to the slot editor. Fail loudly so we never create a
+    // half-configured page.
+    if (freeformErr || !freeformRow) {
+      logServerError(
+        "site-admin/pages/create-draft.freeform",
+        freeformErr ?? new Error("is_freeform update affected 0 rows"),
+      );
       return { ok: false, error: CLIENT_ERROR.update };
     }
 

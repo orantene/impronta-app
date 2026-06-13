@@ -76,8 +76,9 @@ export interface CmsFreeformPagePatch {
  * can prove ZERO legacy (cms_page_sections) writes; production binds real DB ops.
  */
 export interface CmsPageAdapterActions {
-  /** Load the freeform cms_pages row by slug (tenant resolved server-side). */
-  loadPage: (input: { slug: string }) => Promise<CmsFreeformPageRow | null>;
+  /** Load the freeform cms_pages row by (locale, slug); tenant resolved
+   *  server-side. Locale is REQUIRED for correct selection on multi-locale tenants. */
+  loadPage: (input: { slug: string; locale?: string }) => Promise<CmsFreeformPageRow | null>;
   /** Persist blocks (+ optional title). NEVER touches cms_page_sections. */
   savePage: (input: {
     pageId: string;
@@ -145,7 +146,7 @@ export function createCmsPageAdapter(
     async load(ctx: BuilderSurfaceContext): Promise<CompositionLoadResult> {
       const slug = ctx.pageSlug ?? "";
       if (!slug) return { ok: false, error: "cms_page load: pageSlug is required." };
-      const row = await actions.loadPage({ slug });
+      const row = await actions.loadPage({ slug, locale: ctx.locale });
       if (!row) return { ok: false, error: "Could not open this page." };
       return { ok: true, data: buildCmsFreeformComposition(row, ctx.locale) };
     },
@@ -178,7 +179,7 @@ export function createCmsPageAdapter(
       if (!ctx.pageSlug) {
         return { ok: false, error: "cms_page saveDraft: pageSlug is required." };
       }
-      const row = await actions.loadPage({ slug: ctx.pageSlug });
+      const row = await actions.loadPage({ slug: ctx.pageSlug, locale: ctx.locale });
       if (!row) return { ok: false, error: "Page not found for saveDraft." };
       const result = await actions.savePage({
         pageId: row.id,
@@ -204,7 +205,7 @@ export function createCmsPageAdapter(
       if (!ctx.pageSlug) {
         return { ok: false, error: "cms_page publish: pageSlug is required." };
       }
-      const row = await actions.loadPage({ slug: ctx.pageSlug });
+      const row = await actions.loadPage({ slug: ctx.pageSlug, locale: ctx.locale });
       if (!row) return { ok: false, error: "Page not found for publish." };
       const result = await actions.publishPage({ pageId: row.id });
       if (!result.ok) return { ok: false, error: result.error };
@@ -225,7 +226,7 @@ export function createCmsPageAdapter(
             if (!ctx.pageSlug) {
               return { ok: false, error: "cms_page restoreRevision: pageSlug is required." };
             }
-            const row = await actions.loadPage({ slug: ctx.pageSlug });
+            const row = await actions.loadPage({ slug: ctx.pageSlug, locale: ctx.locale });
             if (!row) return { ok: false, error: "Page not found for restoreRevision." };
             const result = await actions.restoreRevision!({
               pageId: row.id,

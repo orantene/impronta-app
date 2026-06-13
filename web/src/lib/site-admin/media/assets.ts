@@ -156,16 +156,26 @@ export async function listTenantMediaLibrary(
  * — a talent only sees their own imagery (privacy + the staff-only library API
  * doesn't authorize talents anyway). Caller MUST have already authorized the
  * talent-self / managing-staff boundary (see the /api/talent/media/library route).
+ *
+ * SECURITY: the caller passes a SERVICE-ROLE client (bypasses RLS), so this
+ * function MUST scope EVERY query to `tenantId` at the application layer — a
+ * talent can sit on multiple agencies' rosters (`agency_talent_media` rows in
+ * several tenants), and without the tenant filter a managing-staff caller could
+ * pull another tenant's media for that shared talent. `tenantId` is the managing
+ * tenant verified by the route's auth gate.
  */
 export async function listTalentScopedMediaLibrary(
   supabase: SupabaseClient,
   talentProfileId: string,
+  tenantId: string,
 ): Promise<{ items: MediaLibraryItem[]; portfolioAssetIds: string[] }> {
-  // 1) The talent's portfolio links (the photos shown on their public profile).
+  // 1) The talent's portfolio links (the photos shown on their public profile),
+  //    scoped to the managing tenant.
   const portfolioLinks = await supabase
     .from("agency_talent_media")
     .select("agency_media_id, master_media_id, display_order")
     .eq("talent_profile_id", talentProfileId)
+    .eq("tenant_id", tenantId)
     .order("display_order", { ascending: true });
 
   const portfolioIds: string[] = [];
@@ -179,12 +189,13 @@ export async function listTalentScopedMediaLibrary(
   const uniquePortfolioIds = [...new Set(portfolioIds)];
 
   // 2) The talent's own uploads + 3) the portfolio asset rows (may be agency-
-  //    owned, so a plain owner filter would miss them) — fetched together.
+  //    owned, so a plain owner filter would miss them) — both tenant-scoped.
   const [ownedResult, portfolioRowsResult] = await Promise.all([
     supabase
       .from("media_assets")
       .select(MEDIA_ASSET_COLUMNS)
       .eq("owner_talent_profile_id", talentProfileId)
+      .eq("tenant_id", tenantId)
       .eq("approval_state", "approved")
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
@@ -194,6 +205,7 @@ export async function listTalentScopedMediaLibrary(
           .from("media_assets")
           .select(MEDIA_ASSET_COLUMNS)
           .in("id", uniquePortfolioIds)
+          .eq("tenant_id", tenantId)
           .eq("approval_state", "approved")
           .is("deleted_at", null)
       : Promise.resolve({ data: [], error: null }),

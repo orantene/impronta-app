@@ -44,6 +44,9 @@ export async function GET(req: Request) {
   // talent pages and is verified against the talent's managing tenant below.
   const self = await requireTalentSelfAction(talentProfileId);
   let authorized = self.ok;
+  // The managing tenant whose media this caller may see — used to scope EVERY
+  // query in listTalentScopedMediaLibrary (the service-role client bypasses RLS).
+  let resolvedTenantId: string | null = self.ok ? self.tenantId : null;
 
   if (!authorized) {
     const staff = await requireStaffTenantAction();
@@ -68,6 +71,9 @@ export async function GET(req: Request) {
           (profile as { created_by_agency_id: string | null } | null)
             ?.created_by_agency_id === staff.tenantId;
         authorized = managed;
+        // Scope to the STAFF's own tenant — never a tenant the talent is shared
+        // with elsewhere.
+        if (managed) resolvedTenantId = staff.tenantId;
       }
     }
   }
@@ -77,6 +83,13 @@ export async function GET(req: Request) {
       { ok: false, error: "Not authorized for this talent's media." },
       { status: 403 },
     );
+  }
+
+  // No managing tenant resolved (e.g. an independent self-registered talent on
+  // no roster) → no agency-scoped library to show. Return empty rather than run
+  // an unscoped (cross-tenant) query.
+  if (!resolvedTenantId) {
+    return NextResponse.json({ ok: true, items: [], portfolioAssetIds: [] });
   }
 
   const admin = createServiceRoleClient();
@@ -90,6 +103,7 @@ export async function GET(req: Request) {
   const { items, portfolioAssetIds } = await listTalentScopedMediaLibrary(
     admin,
     talentProfileId,
+    resolvedTenantId,
   );
   return NextResponse.json({ ok: true, items, portfolioAssetIds });
 }

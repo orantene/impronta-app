@@ -201,16 +201,19 @@ export default async function CmsPublicPage({
   // wrapped in the public shell. Slot-composed pages (homepage, system, legacy)
   // have is_freeform=false and fall through to the snapshot branch below.
   if (publicScope && slugPath) {
-    const { data: freeformPage } = await supabase
+    const { data: freeformPage, error: freeformErr } = await supabase
       .from("cms_pages")
       .select("id, title, blocks, is_freeform")
       .eq("tenant_id", publicScope.tenantId)
+      .eq("locale", locale)
       .eq("slug", slugPath)
       .eq("status", "published")
       .eq("is_freeform", true)
       .maybeSingle()
       .returns<{ id: string; title: string; blocks: BuilderNode[]; is_freeform: boolean }>();
-    if (freeformPage?.is_freeform) {
+    // On a query error, fall through to the slot/legacy branches rather than
+    // crash the public page; the freeform path only renders on a clean hit.
+    if (!freeformErr && freeformPage?.is_freeform) {
       const blocks = (freeformPage.blocks ?? []) as BuilderNode[];
       const publicPathPrefix = await getPublicPathPrefix();
       const componentStyleDefaults = await loadPublicComponentStyleDefaults(

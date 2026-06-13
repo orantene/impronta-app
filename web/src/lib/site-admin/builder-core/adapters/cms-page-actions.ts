@@ -24,9 +24,13 @@ import type { CmsFreeformPageRow } from "./cms-page-adapter-core";
 const ROW_COLUMNS =
   "id, slug, title, status, blocks, is_freeform, version, published_at, updated_at";
 
-/** Load a freeform cms_pages row by slug within the caller's tenant. */
+/** Load a freeform cms_pages row by (locale, slug) within the caller's tenant.
+ *  cms_pages is unique on (tenant_id, locale, slug); filtering by locale is
+ *  REQUIRED — without it a multi-locale tenant returns >1 row and `.maybeSingle()`
+ *  errors. Defaults to "en" when the caller omits locale. */
 export async function loadCmsFreeformPage(input: {
   slug: string;
+  locale?: string;
 }): Promise<CmsFreeformPageRow | null> {
   const auth = await requireStaff();
   if (!auth.ok) return null;
@@ -37,6 +41,7 @@ export async function loadCmsFreeformPage(input: {
     .from("cms_pages")
     .select(ROW_COLUMNS)
     .eq("tenant_id", scope.tenantId)
+    .eq("locale", input.locale ?? "en")
     .eq("slug", input.slug)
     .eq("is_freeform", true)
     .maybeSingle()

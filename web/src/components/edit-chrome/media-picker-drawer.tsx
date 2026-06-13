@@ -474,26 +474,37 @@ export function MediaPickerDrawer({
                         ) : null}
                       </button>
                       <div className="grid gap-2 p-2">
-                        <input
-                          className={KIT.input}
-                          value={altDrafts[item.id] ?? ""}
-                          placeholder="Alt text"
-                          onClick={(event) => event.stopPropagation()}
-                          onChange={(event) => {
-                            setAltDrafts((prev) => ({
-                              ...prev,
-                              [item.id]: event.currentTarget.value,
-                            }));
-                          }}
-                          onBlur={() => {
-                            void commitAlt(item);
-                          }}
-                          onKeyDown={(event) => {
-                            if (event.key !== "Enter") return;
-                            event.preventDefault();
-                            event.currentTarget.blur();
-                          }}
-                        />
+                        {isTalentScope ? (
+                          // Talents can't save alt text — the PATCH endpoint is
+                          // staff-only (would 401). Show it read-only instead of
+                          // an editable field that errors on blur.
+                          item.alt ? (
+                            <p className="truncate text-[11px] text-stone-600" title={item.alt}>
+                              {item.alt}
+                            </p>
+                          ) : null
+                        ) : (
+                          <input
+                            className={KIT.input}
+                            value={altDrafts[item.id] ?? ""}
+                            placeholder="Alt text"
+                            onClick={(event) => event.stopPropagation()}
+                            onChange={(event) => {
+                              setAltDrafts((prev) => ({
+                                ...prev,
+                                [item.id]: event.currentTarget.value,
+                              }));
+                            }}
+                            onBlur={() => {
+                              void commitAlt(item);
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key !== "Enter") return;
+                              event.preventDefault();
+                              event.currentTarget.blur();
+                            }}
+                          />
+                        )}
                         <p className="truncate text-[10.5px] text-stone-500">
                           {item.width && item.height
                             ? `${item.width}x${item.height}`
