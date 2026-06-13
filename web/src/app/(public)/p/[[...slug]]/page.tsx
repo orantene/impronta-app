@@ -196,6 +196,53 @@ export default async function CmsPublicPage({
     }
   }
 
+  // Wave 4.1 — cms_pages opted into FREEFORM (is_freeform=true). Render the
+  // BuilderNode[] tree directly (same engine as workspace_pages / talent pages),
+  // wrapped in the public shell. Slot-composed pages (homepage, system, legacy)
+  // have is_freeform=false and fall through to the snapshot branch below.
+  if (publicScope && slugPath) {
+    const { data: freeformPage } = await supabase
+      .from("cms_pages")
+      .select("id, title, blocks, is_freeform")
+      .eq("tenant_id", publicScope.tenantId)
+      .eq("slug", slugPath)
+      .eq("status", "published")
+      .eq("is_freeform", true)
+      .maybeSingle()
+      .returns<{ id: string; title: string; blocks: BuilderNode[]; is_freeform: boolean }>();
+    if (freeformPage?.is_freeform) {
+      const blocks = (freeformPage.blocks ?? []) as BuilderNode[];
+      const publicPathPrefix = await getPublicPathPrefix();
+      const componentStyleDefaults = await loadPublicComponentStyleDefaults(
+        publicScope.tenantId,
+      );
+      return (
+        <>
+          <JsonLdScript script={jsonLdScript} />
+          <PublicHeader />
+          <main className="w-full flex-1" data-theme-canvas-root="">
+            {renderBuilderNodes(blocks, {
+              publicPathPrefix,
+              mode: "freeform",
+              componentStyleDefaults,
+              renderSectionEmbed: makeSectionEmbedRenderer({
+                tenantId: publicScope.tenantId,
+                locale,
+                publicPathPrefix,
+                previewSubject: { kind: "workspace", id: publicScope.tenantId },
+              }),
+            })}
+          </main>
+          <footer className="border-t border-border px-4 py-8 sm:px-6 lg:px-8">
+            <div className="mx-auto flex max-w-3xl flex-col items-center gap-3 text-center text-sm text-muted-foreground">
+              <PublicCmsFooterNav locale={locale} />
+            </div>
+          </footer>
+        </>
+      );
+    }
+  }
+
   // Phase 7 — section-composed snapshot (draft-first while edit/preview).
   // Empty slot arrays still render through HomepageCmsSections so brand-new
   // draft pages do not fall through to `cms_public_pages_for_tenant` (published-only).
