@@ -98,6 +98,9 @@ export interface CatalogAdminItem {
   id: string;
   tab: AddGalleryTab;
   source: "code" | "template";
+  /** Lifecycle status: 'built-in' for code items; the template's status
+   *  (draft|in_review|published|archived) for DB templates. */
+  status: string;
   itemKind: AddGalleryItem["itemKind"];
   availability: AddGalleryItem["availability"];
   targetContext: BuilderTemplateTarget;
@@ -119,10 +122,13 @@ export interface CatalogAdminItem {
 export function buildCatalogAdminView(
   universe: ReadonlyArray<AddGalleryItem>,
   overlays: CatalogOverlayMap,
+  statusByRef?: Record<string, string>,
 ): CatalogAdminItem[] {
   return universe.map((item) => {
     const source: "code" | "template" =
       item.insertMethod === "dbTemplate" ? "template" : "code";
+    const status =
+      source === "template" ? statusByRef?.[item.id] ?? "published" : "built-in";
     const targetContext: BuilderTemplateTarget = item.targetContext ?? "both";
     const ov = overlays[item.id] ?? null;
     const hidden = ov?.availability_override === "hidden";
@@ -138,6 +144,7 @@ export function buildCatalogAdminView(
       id: item.id,
       tab: item.tab,
       source,
+      status,
       itemKind: item.itemKind,
       availability: item.availability,
       targetContext,
