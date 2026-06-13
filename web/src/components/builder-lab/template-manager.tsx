@@ -314,11 +314,20 @@ export function TemplateManager() {
                     rejectToDraft(row.id),
                   )
                 }
-                onPublish={() =>
-                  runLifecycle(row.id, "Published to gallery", () =>
+                onPublish={() => {
+                  // W7 — guard against publishing an empty template (inserts nothing).
+                  if (
+                    (row.builder_tree?.length ?? 0) === 0 &&
+                    !window.confirm(
+                      "This template has no content — it will insert nothing into a page. Publish to the gallery anyway?",
+                    )
+                  ) {
+                    return;
+                  }
+                  void runLifecycle(row.id, "Published to gallery", () =>
                     publishTemplate(row.id),
-                  )
-                }
+                  );
+                }}
                 onUnpublish={() =>
                   runLifecycle(row.id, "Unpublished", () => unpublishTemplate(row.id))
                 }

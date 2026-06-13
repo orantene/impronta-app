@@ -43,7 +43,7 @@ const TAB_DEFS: ReadonlyArray<{ id: AddGalleryTab; label: string }> = [
   { id: "elements", label: "Elements" },
   { id: "sections", label: "Sections" },
   { id: "connected", label: "Connected" },
-  { id: "page_templates", label: "Templates" },
+  { id: "page_templates", label: "Page Templates" },
 ];
 
 interface AddGalleryPanelProps {
@@ -623,7 +623,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
           ? "Add Sections"
           : tab === "connected"
             ? "Add Connected"
-            : "Add Templates";
+            : "Add Page Templates";
 
   const gridColumns =
     tab === "sections" || tab === "connected" || tab === "page_templates"
