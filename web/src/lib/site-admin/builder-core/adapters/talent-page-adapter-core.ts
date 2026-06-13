@@ -1,8 +1,8 @@
 /**
  * Talent-page adapter — PURE FACTORY (no runtime imports).
  *
- * Mirrors `workspace-page-adapter-core.ts` exactly, keyed to `talent_pages`
- * instead of `workspace_pages`. The pure factory pattern (only `import type`
+ * Mirrors `cms-page-adapter-core.ts` exactly, keyed to `talent_pages`
+ * instead of `cms_pages`. The pure factory pattern (only `import type`
  * at module load) lets `talent-page-adapter.test.ts` drive it under a bare
  * `tsx --test` run with spy actions and prove:
  *
@@ -26,7 +26,7 @@
  *
  * The adapter stores the freeform `builderTree` in the `blocks` column.
  * The `theme` column carries `styleClasses`. VERSION is derived from
- * `updated_at` (epoch seconds), matching the workspace_page adapter.
+ * `updated_at` (epoch seconds), matching the cms_page adapter.
  */
 
 import type {

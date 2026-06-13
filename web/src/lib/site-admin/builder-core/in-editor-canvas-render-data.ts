@@ -1,7 +1,7 @@
 /**
  * In-editor canvas render data (server) — assembles the serializable inputs the
  * `<ClientBuilderCanvas>` needs to paint a freeform tree on the NON-homepage
- * builder surfaces (workspace_page / talent_page / platform_lab).
+ * builder surfaces (cms_page / talent_page / platform_lab).
  *
  * The homepage already builds this inline in `homepage-cms-sections.tsx`; this
  * module factors out the SAME assembly for the surfaces that mount the editor

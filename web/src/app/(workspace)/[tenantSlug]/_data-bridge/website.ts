@@ -83,7 +83,7 @@ export async function loadWebsiteData(tenantId: string): Promise<WebsiteData> {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return empty;
 
-    const [pagesRaw, postsRes, redirectsRes, identity, domainSummary, wpPagesRes] = await Promise.all([
+    const [pagesRaw, postsRes, redirectsRes, identity, domainSummary] = await Promise.all([
       listPagesForStaff(supabase, tenantId).catch(() => []),
       supabase
         .from("cms_posts")
@@ -99,48 +99,21 @@ export async function loadWebsiteData(tenantId: string): Promise<WebsiteData> {
         .limit(50),
       loadIdentityForStaff(supabase, tenantId).catch(() => null),
       loadWorkspaceDomainSummary(tenantId).catch(() => emptyDomainSummary),
-      // Phase C — also load workspace_pages so the hero banner counts reflect them.
-      // Wrap in Promise.resolve so the defensive `.catch` is valid: a Supabase
-      // PostgrestFilterBuilder is only PromiseLike (has `.then`, not `.catch`),
-      // and calling `.catch` on it directly poisons the whole Promise.all type.
-      Promise.resolve(
-        supabase
-          .from("workspace_pages")
-          .select("id, slug, title, status, updated_at")
-          .eq("tenant_id", tenantId)
-          .order("updated_at", { ascending: false })
-          .limit(50),
-      ).catch(() => ({ data: null })),
     ]);
 
     type PostRow = { id: string; slug: string; title: string; status: string; updated_at: string | null };
     type RedirectRow = { id: string; old_path: string; new_path: string; status_code: number; active: boolean };
-    type WpPageRow = { id: string; slug: string; title: string; status: string; updated_at: string | null };
-
-    // Phase C: merge workspace_pages into the pages list so hero banner counts are accurate.
-    const wpPages = ((wpPagesRes as { data: WpPageRow[] | null }).data ?? []).map((p) => ({
-      id: `wp:${p.id}`,
-      slug: p.slug,
-      title: p.title,
-      status: p.status,
-      updatedAt: p.updated_at ?? null,
-      updatedBy: null,
-      templateKey: "workspace_page" as const,
-    }));
 
     return {
-      pages: [
-        ...pagesRaw.map((p) => ({
-          id: p.id,
-          slug: p.slug,
-          title: p.title,
-          status: p.status,
-          updatedAt: p.updated_at ?? null,
-          updatedBy: p.updated_by ?? null,
-          templateKey: p.template_key ?? null,
-        })),
-        ...wpPages,
-      ],
+      pages: pagesRaw.map((p) => ({
+        id: p.id,
+        slug: p.slug,
+        title: p.title,
+        status: p.status,
+        updatedAt: p.updated_at ?? null,
+        updatedBy: p.updated_by ?? null,
+        templateKey: p.template_key ?? null,
+      })),
       posts: ((postsRes.data ?? []) as unknown as PostRow[]).map((p) => ({
         id: p.id,
         title: p.title,

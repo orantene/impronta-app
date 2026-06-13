@@ -4,7 +4,7 @@
  *
  * Rule: ONLY the `homepage` surface may write the legacy slot-composition
  * tables (`cms_page_sections`) or persist a `composition[]` array. Every other
- * surface (workspace_page / talent_page / platform_lab) persists exclusively to
+ * surface (cms_page / talent_page / platform_lab) persists exclusively to
  * pure-freeform tables. Each non-homepage adapter calls
  * `assertNoLegacyBuilderWrite(kind, table)` at the top of its `save`/`publish`
  * so a regression that points a freeform surface at a legacy table throws
@@ -41,7 +41,7 @@ export class LegacyBuilderWriteError extends Error {
       `[builder-core] Surface "${kind}" attempted a legacy builder write to ` +
         `"${table}". Only the "${LEGACY_BUILDER_WRITE_SURFACE}" surface may ` +
         `write legacy slot composition. Non-homepage surfaces must persist to ` +
-        `pure-freeform tables (workspace_pages / talent_pages / builder_templates).`,
+        `pure-freeform tables (cms_pages / talent_pages / builder_templates).`,
     );
     this.name = "LegacyBuilderWriteError";
     this.surfaceKind = kind;

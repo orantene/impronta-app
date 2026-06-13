@@ -460,8 +460,8 @@ export function PublishDrawer() {
     // network drops, we get a graceful "Network error" toast instead of
     // a stuck "Publishing…" pending state and a leaked Next.js overlay.
     // Surface-aware publish. Homepage routes through its dedicated CMS action;
-    // talent_page / workspace_page / platform_lab publish through their surface
-    // adapter (talent_pages / workspace_pages) — otherwise the homepage action
+    // talent_page / cms_page / platform_lab publish through their surface
+    // adapter (talent_pages / cms_pages.blocks) — otherwise the homepage action
     // 401s for a non-staff talent and the page can never go live.
     const res = await safeAction(
       () =>
@@ -670,7 +670,7 @@ export function PublishDrawer() {
             <div className="mb-3">
               <PublishPreflight
                 // The CMS preflight (requireStaff + cms_pages) only applies to
-                // the homepage surface; talent_page / workspace_page publish
+                // the homepage surface; talent_page / cms_page publish
                 // through their own adapter, so skip it there (it would 401 for
                 // a non-staff talent and falsely block publish). Mobile-health
                 // advisories below still run for all surfaces.

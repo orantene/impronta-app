@@ -2,7 +2,7 @@
 
 /**
  * InEditorCanvasRegion — mounts a `<ClientBuilderCanvas>` IN the editor chrome
- * for the NON-homepage builder surfaces (workspace_page / talent_page /
+ * for the NON-homepage builder surfaces (cms_page / talent_page /
  * platform_lab).
  *
  * Why this exists: the homepage paints its freeform tree because the storefront
@@ -93,7 +93,7 @@ export function InEditorCanvasRegion({
     // `data-theme-canvas-root` makes this the projection target for the Theme
     // drawer's live preview (ThemePreviewProjector → CSS-var channel). The
     // homepage paints into its storefront body (which carries the same marker);
-    // the non-homepage surfaces (workspace_page / talent_page / platform_lab)
+    // the non-homepage surfaces (cms_page / talent_page / platform_lab)
     // paint here, so the marker must live on this region too — otherwise a token
     // edit has no canvas-root to recolour and GAP A silently no-ops.
     <div

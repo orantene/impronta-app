@@ -2,7 +2,7 @@
 
 /**
  * InEditorEmptyCanvas — the empty-state affordance shown on the NON-homepage
- * builder surfaces (workspace_page / talent_page / platform_lab) when the page
+ * builder surfaces (cms_page / talent_page / platform_lab) when the page
  * has no nodes yet.
  *
  * It is deliberately adapter-NEUTRAL: it does not write any seed content (unlike

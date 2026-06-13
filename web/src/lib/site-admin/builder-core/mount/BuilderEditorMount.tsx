@@ -47,7 +47,7 @@ export interface BuilderEditorMountProps {
   defaultLocale?: string;
   /**
    * The page being edited on this surface. Null/undefined → the surface's
-   * primary/home page. For freeform surfaces (workspace_page / talent_page)
+   * primary/home page. For freeform surfaces (cms_page / talent_page)
    * the adapter keys persistence off the resolved page; pass the surface's
    * page slug so the adapter loads/saves the right row.
    */

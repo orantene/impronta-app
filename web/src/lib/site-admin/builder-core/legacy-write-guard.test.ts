@@ -36,9 +36,9 @@ test("every non-homepage surface throws on cms_page_sections", () => {
 test("non-homepage surface throws on every legacy target (incl. composition shapes)", () => {
   for (const target of LEGACY_BUILDER_WRITE_TARGETS) {
     assert.throws(
-      () => assertNoLegacyBuilderWrite("workspace_page", target),
+      () => assertNoLegacyBuilderWrite("cms_page", target),
       LegacyBuilderWriteError,
-      `expected workspace_page → ${target} to throw`,
+      `expected cms_page → ${target} to throw`,
     );
   }
 });
@@ -59,7 +59,7 @@ test("the thrown error carries the surface kind + offending table", () => {
 
 test("non-homepage surface may write pure-freeform tables", () => {
   assert.doesNotThrow(() =>
-    assertNoLegacyBuilderWrite("workspace_page", "workspace_pages"),
+    assertNoLegacyBuilderWrite("cms_page", "cms_pages"),
   );
   assert.doesNotThrow(() =>
     assertNoLegacyBuilderWrite("talent_page", "talent_pages"),
@@ -76,7 +76,7 @@ test("legacy-target detection is case-insensitive + trims", () => {
   assert.equal(isLegacyBuilderWriteTarget("CMS_PAGE_SECTIONS"), true);
   assert.equal(isLegacyBuilderWriteTarget("  cms_page_sections  "), true);
   assert.equal(isLegacyBuilderWriteTarget("composition[]"), true);
-  assert.equal(isLegacyBuilderWriteTarget("workspace_pages"), false);
+  assert.equal(isLegacyBuilderWriteTarget("cms_pages"), false);
   assert.equal(isLegacyBuilderWriteTarget("talent_pages"), false);
 });
 

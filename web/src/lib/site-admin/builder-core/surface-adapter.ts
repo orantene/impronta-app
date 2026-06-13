@@ -14,7 +14,7 @@
  * provably identical to calling those actions directly (see
  * `adapters/homepage-adapter.ts` + the parity test).
  *
- * Non-homepage adapters (workspace_page / talent_page / platform_lab, built by
+ * Non-homepage adapters (cms_page / talent_page / platform_lab, built by
  * WS5/WS6) implement the same interface against pure-freeform tables and MUST
  * call `assertNoLegacyBuilderWrite(kind, table)` in their `save`/`publish`.
  */

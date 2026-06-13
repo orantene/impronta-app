@@ -450,13 +450,13 @@ export function WebsitePage() {
         </div>
       </section>
 
-      {/* Wave 4.1 — RETIRED the separate "Page Builder" (workspace_pages) section.
+      {/* Wave 4.1 — REMOVED the separate "Page Builder" (workspace_pages) section.
           It was an empty second page system stacked next to the real "Pages"
-          list (cms_pages) below, which is the source of confusion. There is now
+          list (cms_pages) below, which was the source of confusion. There is now
           ONE page system: the cms_pages "Pages" list (cards + front-end ?edit=1),
-          rendered further down. workspace_pages remains in the schema/adapter for
-          now but is no longer surfaced here. (WorkspacePageBuilderSurface import
-          intentionally dropped.) */}
+          rendered further down. The workspace_pages adapter + surface kind were
+          deleted in the page-system consolidation; the empty table is dropped
+          separately. */}
 
       {/* Performance — KPI tiles + funnel + Top performers switcher */}
       <WebsitePerformance analytics={w.analytics} pages={w.pages} fmtMoney={fmtMoney} />

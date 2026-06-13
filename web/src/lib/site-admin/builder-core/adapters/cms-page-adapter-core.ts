@@ -1,8 +1,8 @@
 /**
  * CMS-page FREEFORM adapter — PURE FACTORY (no runtime imports).
  *
- * Wave 4.1. Mirrors `talent-page-adapter-core.ts` / `workspace-page-adapter-core.ts`,
- * keyed to `cms_pages` (the agency storefront page table). It persists the
+ * Wave 4.1. Mirrors `talent-page-adapter-core.ts`, keyed to `cms_pages` (the
+ * agency storefront page table). It persists the
  * freeform `builderTree` to `cms_pages.blocks` and NEVER touches the legacy
  * `cms_page_sections` slot composition — so a freeform agency page edits exactly
  * like a talent/workspace page, but is surfaced through the dashboard "Pages"

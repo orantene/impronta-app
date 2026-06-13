@@ -1161,7 +1161,7 @@ function EditShellInner({
         />
       </div>
       {children}
-        {/* Non-homepage surfaces (workspace_page / talent_page / platform_lab)
+        {/* Non-homepage surfaces (cms_page / talent_page / platform_lab)
             mount the freeform canvas IN the editor — the homepage paints via its
             storefront body, so it short-circuits here. Rendered in normal flow
             BELOW the overlay portal so SelectionLayer / InlineEditor / presence

@@ -304,7 +304,7 @@ export interface EditContextValue {
   workspacePlan: string;
   canEditSiteShell: boolean;
   /**
-   * The surface this editor is mounted on (homepage / workspace_page /
+   * The surface this editor is mounted on (homepage / cms_page /
    * talent_page / platform_lab). EditShell keys the in-editor canvas region off
    * this — homepage paints via its storefront body, everything else mounts an
    * in-editor `ClientBuilderCanvas`.
@@ -573,7 +573,7 @@ export interface EditContextValue {
   getCompositionCasVersion: () => number | null;
   /**
    * Publish the current page through the active SURFACE adapter (talent_page /
-   * workspace_page / platform_lab). The homepage surface publishes via its own
+   * cms_page / platform_lab). The homepage surface publishes via its own
    * dedicated action in the publish drawer; this routes everything else so a
    * talent/workspace freeform page can actually go live (the drawer otherwise
    * hard-routes to the homepage action, which 401s for non-staff talents).
@@ -1954,7 +1954,7 @@ interface EditProviderProps {
   canInsertRawHtmlElements?: boolean;
   /**
    * WS1 core-adapter seam — the surface config that specialises this ONE
-   * Page Builder Core for a surface (homepage / workspace_page / talent_page /
+   * Page Builder Core for a surface (homepage / cms_page / talent_page /
    * platform_lab). Every persistence call-site (load / save / save-draft /
    * restore) routes through `surfaceConfig.surface` (the adapter) instead of
    * importing the homepage actions directly.

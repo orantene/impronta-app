@@ -146,59 +146,8 @@ export default async function CmsPublicPage({
     slugPath,
   );
 
-  // Phase C — workspace_pages check. Agency hosts can publish pages via the
-  // page builder. Check workspace_pages first when on an agency host.
-  if (publicScope && slugPath) {
-    const { data: wpPage } = await supabase
-      .from("workspace_pages")
-      .select("id, title, blocks, theme")
-      .eq("tenant_id", publicScope.tenantId)
-      .eq("slug", slugPath)
-      .eq("status", "published")
-      .maybeSingle();
-    if (wpPage) {
-      const theme = (wpPage.theme ?? {}) as {
-        backgroundColor?: string;
-        fontColor?: string;
-        fontFamily?: string;
-      };
-      // `workspace_pages.blocks` is always a FREEFORM BuilderNode[] (authored in
-      // the WS6 page builder). The legacy PageBlock[] shape + its block renderer
-      // were retired with the legacy block editor — no row can hold them.
-      const blocks = (wpPage.blocks ?? []) as BuilderNode[];
-      const publicPathPrefix = await getPublicPathPrefix();
-      // GAP B — tenant LIVE per-component-type default styles for the cascade.
-      const componentStyleDefaults = await loadPublicComponentStyleDefaults(
-        publicScope.tenantId,
-      );
-      return (
-        <main
-          style={{
-            minHeight: "100vh",
-            backgroundColor: theme.backgroundColor ?? "#fff",
-            color: theme.fontColor ?? "inherit",
-            fontFamily: theme.fontFamily ?? "inherit",
-          }}
-        >
-          <JsonLdScript script={jsonLdScript} />
-          {renderBuilderNodes(blocks, {
-            publicPathPrefix,
-            mode: "freeform",
-            componentStyleDefaults,
-            renderSectionEmbed: makeSectionEmbedRenderer({
-              tenantId: publicScope.tenantId,
-              locale,
-              publicPathPrefix,
-              previewSubject: { kind: "workspace", id: publicScope.tenantId },
-            }),
-          })}
-        </main>
-      );
-    }
-  }
-
   // Wave 4.1 — cms_pages opted into FREEFORM (is_freeform=true). Render the
-  // BuilderNode[] tree directly (same engine as workspace_pages / talent pages),
+  // BuilderNode[] tree directly (same engine as talent pages),
   // wrapped in the public shell. Slot-composed pages (homepage, system, legacy)
   // have is_freeform=false and fall through to the snapshot branch below.
   if (publicScope && slugPath) {

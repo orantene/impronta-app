@@ -7,7 +7,7 @@
  * load / saveDraft / saveComponentStyles / applyPreset / publish — regardless of
  * which surface mounts it. But WHERE the theme lives differs by surface:
  *
- *   - homepage / workspace_page → TENANT-scoped `agency_branding` (the existing
+ *   - homepage / cms_page → TENANT-scoped `agency_branding` (the existing
  *     `design-actions.ts`).
  *   - talent_page               → TALENT-scoped `talent_pages.theme.__design`
  *     (the new `talent-design-actions.ts`), keyed to the signed-in talent's own
@@ -89,7 +89,7 @@ export function resolveThemeActionSet(
     };
   }
 
-  // homepage / workspace_page / platform_lab → tenant-scoped (unchanged).
+  // homepage / cms_page / platform_lab → tenant-scoped (unchanged).
   return {
     load: () => loadDesignAction(),
     saveDraft: (input) => saveDesignDraftFromEditAction(input),
