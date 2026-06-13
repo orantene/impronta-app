@@ -15,6 +15,7 @@ import { loadPublicComponentStyleDefaults } from "@/lib/site-admin/server/reads"
 import { renderBuilderNodes } from "@/lib/site-admin/builder-node/render";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
+import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import {
   jsonLdDocumentToScript,
   type JsonLdDocument,
@@ -203,17 +204,23 @@ export default async function CmsPublicPage({
   if (publicScope && slugPath) {
     const { data: freeformPage, error: freeformErr } = await supabase
       .from("cms_pages")
-      .select("id, title, blocks, is_freeform")
+      .select("id, title, blocks, is_freeform, status")
       .eq("tenant_id", publicScope.tenantId)
       .eq("locale", locale)
       .eq("slug", slugPath)
-      .eq("status", "published")
       .eq("is_freeform", true)
       .maybeSingle()
-      .returns<{ id: string; title: string; blocks: BuilderNode[]; is_freeform: boolean }>();
-    // On a query error, fall through to the slot/legacy branches rather than
-    // crash the public page; the freeform path only renders on a clean hit.
-    if (!freeformErr && freeformPage?.is_freeform) {
+      .returns<{ id: string; title: string; blocks: BuilderNode[]; is_freeform: boolean; status: string }>();
+    // Public visitors see PUBLISHED freeform pages only. Staff in edit mode
+    // (?edit=1 + edit cookie) also see DRAFTS, so the ?edit=1 canvas renders the
+    // draft tree to overlay instead of the branded not-found page. On a query
+    // error, fall through to the slot/legacy branches rather than crash.
+    const editActive = await isEditModeActiveForTenant(publicScope.tenantId);
+    if (
+      !freeformErr &&
+      freeformPage?.is_freeform &&
+      (freeformPage.status === "published" || editActive)
+    ) {
       const blocks = (freeformPage.blocks ?? []) as BuilderNode[];
       const publicPathPrefix = await getPublicPathPrefix();
       const componentStyleDefaults = await loadPublicComponentStyleDefaults(
