@@ -182,3 +182,24 @@ The editor chrome (topbar/rails/panels) already used the light `CHROME` palette;
 - **Publish CAS conflict during QA** was self-inflicted (direct SQL `theme={}` reset bumped the row under the open editor) — not a product bug; the app's own publish checks passed.
 - **QA fixture state:** TAL-92001 (Sofía) left with `theme={}` (renders modern light) — fine as a fixture; clean at ship if desired.
 - Deferred Wave-1 sweep tail (repeaters/field-binding deep test, media-library picker insert, multi-select/drag depth, public `/p/`) unchanged from above.
+
+---
+
+## Wave 3 — Talent media picker (live-verified)
+
+**Feature:** Max talents pick their OWN photos in the builder image picker, split into portfolio vs uploads. New `/api/talent/media/library` (talent-self / managing-staff auth) + `listTalentScopedMediaLibrary` + isolated `BuilderMediaScopeProvider` (keeps `edit-context.tsx` untouched) + talent mode in `media-picker-drawer.tsx`.
+
+**Bug caught by local QA (would have shipped broken):** the new route 404'd because `proxy.ts` host-gates app-host paths via `APP_API_PREFIXES` (surface-allow-list.ts), which lacked `/api/talent`. Added it. `proxy.ts` runs in prod too, so this would have 404'd live — exactly why local verification before merge mattered.
+
+**Live evidence (Sofía TAL-92001, seeded 4 demo assets + 2 portfolio links + 1 existing = 5):**
+- Endpoint `GET /api/talent/media/library` → `{ok:true, items:5, portfolioAssetIds:[2]}`.
+- Picker source tabs: **All my photos 5 · My portfolio 2 (On your profile) · My uploads 3 (Your media)** — DOM-verified counts.
+- Per-tile badges: `[Portfolio, Portfolio, Mine, Mine, Mine]` (2 portfolio, 3 mine).
+- "My portfolio" filter → 2 tiles, both Portfolio-badged.
+- Picking a photo → picker closes, canvas `<img>` src updates to the picked URL (`picsum.photos/seed/sofiaportfolio1`).
+- Console clean (only dev info logs).
+- **Workspace picker** structurally unchanged: talent tabs gate on `talentProfileId` (only the talent mount provides it via `BuilderMediaScopeProvider`); no provider → null → agency-library path, byte-identical. tsc-confirmed.
+
+**Gate:** tsc 0 / lint 0 / surface-allow-list 11 pass / test:builder 465 pass. No migration.
+
+**QA artifacts (remove at ship):** 4 `media_assets` + 2 `agency_talent_media` rows tagged `metadata.source='qa-media-seed'` on Sofía; one throwaway image section in Sofía's *draft* (unpublished).
