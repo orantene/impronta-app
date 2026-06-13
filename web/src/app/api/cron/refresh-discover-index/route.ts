@@ -51,7 +51,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Not configured" }, { status: 500 });
   }
 
-  return await Sentry.withMonitor(
+  const response = await Sentry.withMonitor(
     "refresh-discover-index",
     async () => {
       try {
@@ -100,4 +100,8 @@ export async function GET(request: Request) {
       timezone: "UTC",
     },
   );
+  // Flush Sentry events before the serverless function exits so the
+  // check-in completion is delivered and doesn't time out on the monitor.
+  await Sentry.flush(2000);
+  return response;
 }
