@@ -28,6 +28,7 @@ import { BuilderEditorMount } from "@/lib/site-admin/builder-core/mount/BuilderE
 import { buildTalentPageBuilderConfig } from "@/lib/site-admin/builder-core/config";
 import { createBoundTalentPageAdapter } from "@/lib/site-admin/builder-core/adapters/talent-page-adapter";
 import { CHROME } from "@/components/edit-chrome/kit/tokens";
+import { BuilderMediaScopeProvider } from "@/components/edit-chrome/builder-media-scope";
 import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
 
 export interface TalentMaxBuilderMountProps {
@@ -80,6 +81,7 @@ export function TalentMaxBuilderMount({
   );
 
   return (
+    <BuilderMediaScopeProvider talentProfileId={talentProfileId}>
     <div data-talent-max-builder-mount>
       {onExit && (
         <div
@@ -162,5 +164,6 @@ export function TalentMaxBuilderMount({
         canvasRenderData={canvasRenderData}
       />
     </div>
+    </BuilderMediaScopeProvider>
   );
 }
