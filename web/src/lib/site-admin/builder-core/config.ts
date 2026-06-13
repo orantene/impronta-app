@@ -263,6 +263,55 @@ export function buildWorkspacePageBuilderConfig(
 }
 
 /**
+ * The cms_page FREEFORM config (Wave 4.1) — specialises the ONE Page Builder
+ * Core for an agency STOREFRONT page (`cms_pages` with `is_freeform=true`),
+ * edited in place via the front-end `?edit=1` editor.
+ *
+ * Essentially the workspace-page config (same agency data sources + full
+ * capabilities) but keyed to the `cms_page` surface kind and rendered on the
+ * public storefront, so `previewSubjectKind` is `null` (tenant default — connected
+ * sections hydrate against the tenant, exactly like the homepage). `canEditShell`
+ * stays false: a page doesn't own the shared site shell. Only `is_freeform` pages
+ * are ever routed here; homepage + system + slot pages keep the homepage config.
+ */
+export function buildCmsPageBuilderConfig(
+  cmsPageSurfaceAdapter: BuilderSurfaceAdapter,
+  opts?: {
+    /** Allow raw HTML code elements (super_admin only). Defaults to false. */
+    canInsertRawHtmlElements?: boolean;
+  },
+): BuilderContextConfig {
+  const kind: BuilderSurfaceKind = cmsPageSurfaceAdapter.kind;
+  if (kind !== "cms_page") {
+    throw new Error(
+      `buildCmsPageBuilderConfig requires a cms_page adapter, got "${kind}".`,
+    );
+  }
+  return {
+    surface: cmsPageSurfaceAdapter,
+    permissions: {
+      canEditDraft: true,
+      canPublish: true,
+      canRestoreRevision: true,
+      canEditShell: false,
+      canInsertRawHtmlElements: opts?.canInsertRawHtmlElements ?? false,
+    },
+    galleryPolicy: {
+      allowedTabs: ["layout", "elements", "sections", "connected", "page_templates"],
+      allowDbTemplates: true,
+    },
+    dataSources: { allowed: WORKSPACE_PAGE_DATA_SOURCES },
+    previewSubjectKind: null,
+    capabilities: {
+      motion: true,
+      themeTokens: true,
+      customCss: true,
+      responsiveBreakpoints: true,
+    },
+  };
+}
+
+/**
  * The talent_page config (WS6) — specialises the ONE Page Builder Core for the
  * Talent Max page builder surface. Built as a factory.
  *

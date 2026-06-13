@@ -54,9 +54,13 @@ export interface CmsFreeformPageRow {
   updated_at: string;
 }
 
-/** pageVersion = the row's optimistic-concurrency `version` (fallback: epoch secs). */
+/**
+ * pageVersion = `updated_at` epoch seconds (matches the talent/workspace freeform
+ * adapters). Every save advances `updated_at`, so the editor's compare-and-swap
+ * guard sees a new version. The `version` column is the SLOT system's token and
+ * is intentionally not used on the freeform path.
+ */
 function versionFromRow(row: CmsFreeformPageRow): number {
-  if (typeof row.version === "number" && row.version > 0) return row.version;
   return Math.floor(new Date(row.updated_at).getTime() / 1000);
 }
 
