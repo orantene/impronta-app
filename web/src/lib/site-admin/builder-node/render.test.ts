@@ -165,7 +165,11 @@ describe("renderBuilderNodes", () => {
     assert.match(html, /Adriana Vega/);
     assert.match(html, /Omar Haddad/);
     assert.doesNotMatch(html, /Fallback talent/);
-    assert.match(html, /href="\/impronta\/t\/adriana-vega-adriana-vega"/);
+    // The /t/ route resolves by EXACT profile_code; a `-<slugPart>` suffix 404s
+    // (and here slugPart equals the code, which would double it). Link by code
+    // only — this asserts the renderer does NOT re-introduce the doubled slug.
+    assert.match(html, /href="\/impronta\/t\/adriana-vega"/);
+    assert.doesNotMatch(html, /href="\/impronta\/t\/adriana-vega-adriana-vega"/);
   });
 
   it("renders live tenant location data for data-ready location containers", () => {

@@ -45,13 +45,29 @@ export const SECTION_NAME_MAX = 140;
 export const SECTION_STATUSES = ["draft", "published", "archived"] as const;
 export type SectionStatusLiteral = (typeof SECTION_STATUSES)[number];
 
-/** All registered section type keys — agency picker groups by businessPurpose. */
-export const ALL_SECTION_TYPE_KEYS = Object.keys(
-  SECTION_REGISTRY,
-) as ReadonlyArray<keyof typeof SECTION_REGISTRY>;
+/**
+ * All registered section type keys — agency picker groups by businessPurpose.
+ *
+ * LAZY + memoized on purpose: reading `SECTION_REGISTRY` at module-init crashes
+ * with "Cannot access 'SECTION_REGISTRY' before initialization" when this module
+ * is pulled into the registry's OWN init via a circular import. That cycle is
+ * hoisted away by the Next bundler (prod is fine) but bites under tsx `--test`
+ * load order. Deferring the read to first call breaks the TDZ deterministically.
+ */
+let _allSectionTypeKeys: ReadonlyArray<keyof typeof SECTION_REGISTRY> | undefined;
+export function allSectionTypeKeys(): ReadonlyArray<keyof typeof SECTION_REGISTRY> {
+  return (_allSectionTypeKeys ??= Object.keys(
+    SECTION_REGISTRY,
+  ) as ReadonlyArray<keyof typeof SECTION_REGISTRY>);
+}
 
-export const sectionTypeKeySchema = z.enum(
-  ALL_SECTION_TYPE_KEYS as unknown as [string, ...string[]],
+/**
+ * Section-type-key enum. `z.lazy` defers the `SECTION_REGISTRY` read to first
+ * parse (after every module has finished loading), keeping it TDZ-safe under
+ * the circular import above.
+ */
+export const sectionTypeKeySchema = z.lazy(() =>
+  z.enum(allSectionTypeKeys() as unknown as [string, ...string[]]),
 );
 
 // ---- name -----------------------------------------------------------------
