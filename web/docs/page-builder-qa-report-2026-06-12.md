@@ -234,3 +234,27 @@ QA artifact removed: the throwaway workspace page was deleted post-verification.
 - Gate: tsc 0 / lint 0 / test:builder 465 / test:builder-chrome 102.
 
 **Why it matters:** this is the exact value of verifying-before-merge — the user's question surfaced a regression the automated gate (tsc/lint/tests) did NOT catch (it's a CSS-projection precedence issue, not a type/logic error). It only existed on the integration branch; `main`/prod was never affected.
+
+---
+
+## Wave 4.1 — Freeform agency pages + adversarial review + live QA
+
+**Feature:** agency `cms_pages` can opt into TRUE freeform (`is_freeform=true`, `blocks` BuilderNode[]), edited via the existing dashboard "Pages" list + front-end `?edit=1` UX — one page system, like Talent Max. Homepage + system + existing slot pages are untouched (`is_freeform=false`). New `cms_page` surface kind + adapter/actions/config + `/p/` render clause + `?edit=1` repoint. Migration `20260613050444_cms_pages_freeform_blocks` applied (36 pages, 0 flipped).
+
+**Adversarial review (background Workflow, 20 agents): 5 dismissed, 6 confirmed → ALL FIXED:**
+- 🔒 **Cross-tenant media (security):** `listTalentScopedMediaLibrary` ran unscoped under a service-role client → a shared talent's other-tenant media could leak. Now takes + scopes by `tenantId` (route passes the verified managing tenant). Live-verified non-breaking (Sofía still 5 items / 2 portfolio).
+- **Locale multi-row crash (blocker ×3):** `loadCmsFreeformPage` + adapter + `/p/` render now filter cms_pages by `(locale, slug)` — no `.maybeSingle()` >1-row crash on multi-locale tenants.
+- **Talent alt-text 401 (blocker):** alt is read-only for talents (the PATCH endpoint is staff-only).
+- **Robustness:** `/p/` freeform clause checks the query error; `createDraftPageAction` verifies the `is_freeform` flag landed (no mis-routed slot page).
+
+**Live QA (Chrome, fix-as-you-go):**
+- ✅ "Add page" → creates `is_freeform=true` cms_page → opens the FREEFORM `?edit=1` editor (Layout/Elements/Sections/Connected/Page-Templates gallery).
+- ✅ Added a Section → persisted to `cms_pages.blocks` (block_count 0→1).
+- 🐛→✅ **Found + fixed live:** a DRAFT freeform page rendered the branded "not found" card in the `?edit=1` canvas (the `/p/` clause was published-only). Fixed: render draft blocks when `isEditModeActiveForTenant` (staff edit cookie); public still published-only. Re-verified: canvas shows the page (showsNotFound=false, builderNodes=1, bg #0a0a0a Impronta theme).
+- ✅ Publish → public `/p/untitled-…` renders the freeform tree (builderNodes=1, proper `<title>`, no not-found).
+- ✅ **Homepage protection:** `/impronta` still `editorial-noir`, `--token-color-background:#0a0a0a`, gold `#d4af37`, canvas black — untouched.
+- ✅ Talent Max builder loads light (canvas #fff, light chrome), 10 nodes, **zero console errors**.
+
+**Gate:** tsc 0 / lint 0 / test:builder 465 pass. Migration applied; no further migration.
+
+**QA artifacts removed:** the throwaway published freeform page `untitled-mqc1drl3`. (Sofía's demo media seed left as a fixture.)
