@@ -15,7 +15,6 @@ import { loadPublicComponentStyleDefaults } from "@/lib/site-admin/server/reads"
 import { renderBuilderNodes } from "@/lib/site-admin/builder-node/render";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
-import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import { isPreviewActiveForTenant } from "@/lib/site-admin/server/homepage-reads";
 import {
   jsonLdDocumentToScript,
@@ -166,21 +165,17 @@ export default async function CmsPublicPage({
       .eq("is_system_owned", false)
       .maybeSingle()
       .returns<{ id: string; title: string; blocks: BuilderNode[]; is_freeform: boolean; status: string }>();
-    // Public visitors see PUBLISHED freeform pages only. Drafts render only when
-    // preview/edit is active — gated EXACTLY like the slot/homepage paths
-    // (loadPageForRender / loadHomepageForRender): a signed preview JWT
-    // (isPreviewActiveForTenant) OR the in-place edit cookie. Checking the JWT
-    // (not just the cookie) brings freeform to parity so staff preview links work
-    // and the surface is no less guarded than the rest of the storefront. On a
-    // query error, fall through to the slot/legacy branches rather than crash.
-    const [previewActive, editActive] = await Promise.all([
-      isPreviewActiveForTenant(publicScope.tenantId),
-      isEditModeActiveForTenant(publicScope.tenantId),
-    ]);
+    // Public visitors see PUBLISHED freeform pages only. Drafts render ONLY when
+    // a signed preview JWT is present (isPreviewActiveForTenant) — gated exactly
+    // like the slot/homepage paths (loadPageForRender / loadHomepageForRender).
+    // The non-HttpOnly edit cookie is NOT trusted to unlock drafts; enterEditModeAction
+    // sets both the JWT and the cookie, so staff editing + preview links still see
+    // drafts. On a query error, fall through to the slot/legacy branches.
+    const previewActive = await isPreviewActiveForTenant(publicScope.tenantId);
     if (
       !freeformErr &&
       freeformPage?.is_freeform &&
-      (freeformPage.status === "published" || previewActive || editActive)
+      (freeformPage.status === "published" || previewActive)
     ) {
       const blocks = (freeformPage.blocks ?? []) as BuilderNode[];
       const publicPathPrefix = await getPublicPathPrefix();
