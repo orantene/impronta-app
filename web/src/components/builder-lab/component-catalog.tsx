@@ -1,29 +1,32 @@
 "use client";
 
 /**
- * ComponentCatalog (P2) — the read-only inventory of EVERY page-builder
- * component currently offered in the "+" Add Gallery, for BOTH the Talent-Max
- * and Workspace builders, grouped by the same gallery tabs.
+ * ComponentCatalog (P2 read-only → P3 control-plane).
  *
- * It is the control-plane's read surface: it calls the same single read path
- * the live galleries use (`fetchSurfaceGalleryItems` → `listGalleryItems`),
- * once per surface at max plan/tier so nothing is plan/tier-hidden — what shows
- * here is exactly what each builder's gallery offers. The Talent/Workspace
- * columns are the EFFECTIVE per-surface visibility (after target/tier gating).
+ * The Builder Lab's inventory of EVERY page-builder component the "+" gallery
+ * can offer — built-in code items ∪ published templates — grouped by gallery
+ * tab. P3 makes it the control surface: per-surface (Talent-Max / Workspace)
+ * visibility toggles + inline label/category overrides, persisted to
+ * `builder_catalog_overlay` and reflected in BOTH live builders on next open.
  *
- * P2 is read-only. P3 adds the overlay so these rows become toggle/edit
- * controls; the same fetch + grouping is reused.
+ * Data comes from `loadCatalogAdminView` (the FULL ungated universe + overlay
+ * state) so hidden items remain listed and re-enable-able. Mutations go through
+ * `setComponentOverlay` / `clearComponentOverlay`, then we reload — the same
+ * round-trip the live galleries see.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   ADD_GALLERY_CATEGORIES,
-  type AddGalleryItem,
   type AddGalleryTab,
-  type GallerySurfaceDescriptor,
+  type CatalogAdminItem,
 } from "@/lib/site-admin/add-gallery";
-import { fetchSurfaceGalleryItems } from "@/lib/site-admin/add-gallery/gallery-fetch-action";
+import { loadCatalogAdminView } from "@/lib/site-admin/add-gallery/catalog-admin-view-action";
+import {
+  clearComponentOverlay,
+  setComponentOverlay,
+} from "@/lib/site-admin/builder-core/templates/catalog-overlay-actions";
 import { AddGalleryIcon } from "@/components/edit-chrome/add-gallery/add-gallery-icons";
 
 const T = {
@@ -37,6 +40,7 @@ const T = {
   accent: "#5DD3A0",
   yes: "#5DD3A0",
   no: "rgba(245,242,235,0.28)",
+  field: "#0F0F11",
 };
 
 const ALL_TABS: ReadonlyArray<AddGalleryTab> = [
@@ -55,59 +59,47 @@ const TAB_LABEL: Record<AddGalleryTab, string> = {
   page_templates: "Page Templates",
 };
 
-// Max plan/tier so nothing is plan/tier-hidden — the catalog shows the full set
-// each surface could offer; the per-surface columns reflect target/tier gating.
-const TALENT_DESCRIPTOR: GallerySurfaceDescriptor = {
-  allowedTabs: ALL_TABS,
-  allowDbTemplates: true,
-  surfaceTarget: "talent",
-  plan: "network",
-  talentTier: "talent_portfolio",
-};
-const WORKSPACE_DESCRIPTOR: GallerySurfaceDescriptor = {
-  allowedTabs: ALL_TABS,
-  allowDbTemplates: true,
-  surfaceTarget: "workspace",
-  plan: "network",
-  talentTier: null,
-};
-
 const CATEGORY_LABEL = new Map(
   ADD_GALLERY_CATEGORIES.map((c) => [c.id, c.label] as const),
 );
 
 function humanize(id: string): string {
-  return CATEGORY_LABEL.get(id) ??
+  return (
+    CATEGORY_LABEL.get(id) ??
     id
       .split(/[-_\s]+/)
       .filter(Boolean)
       .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-      .join(" ");
+      .join(" ")
+  );
 }
 
-interface CatalogRow {
-  item: AddGalleryItem;
-  talent: boolean;
-  workspace: boolean;
+function targetAllows(
+  targetContext: CatalogAdminItem["targetContext"],
+  surface: "talent" | "workspace",
+): boolean {
+  if (targetContext === "both") return true;
+  return targetContext === surface;
 }
 
 export function ComponentCatalog() {
-  const [talentItems, setTalentItems] = useState<AddGalleryItem[] | null>(null);
-  const [workspaceItems, setWorkspaceItems] = useState<AddGalleryItem[] | null>(
-    null,
-  );
+  const [items, setItems] = useState<CatalogAdminItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editLabel, setEditLabel] = useState("");
+  const [editCategory, setEditCategory] = useState("");
+
+  const reload = useCallback(async () => {
+    const data = await loadCatalogAdminView();
+    setItems(data);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([
-      fetchSurfaceGalleryItems(TALENT_DESCRIPTOR),
-      fetchSurfaceGalleryItems(WORKSPACE_DESCRIPTOR),
-    ])
-      .then(([t, w]) => {
-        if (cancelled) return;
-        setTalentItems(t);
-        setWorkspaceItems(w);
+    loadCatalogAdminView()
+      .then((data) => {
+        if (!cancelled) setItems(data);
       })
       .catch(() => {
         if (!cancelled) setError("Failed to load the component catalog.");
@@ -117,38 +109,86 @@ export function ComponentCatalog() {
     };
   }, []);
 
-  const rows = useMemo<CatalogRow[] | null>(() => {
-    if (!talentItems || !workspaceItems) return null;
-    const byId = new Map<string, CatalogRow>();
-    for (const item of talentItems) {
-      byId.set(item.id, { item, talent: true, workspace: false });
-    }
-    for (const item of workspaceItems) {
-      const existing = byId.get(item.id);
-      if (existing) existing.workspace = true;
-      else byId.set(item.id, { item, talent: false, workspace: true });
-    }
-    return [...byId.values()];
-  }, [talentItems, workspaceItems]);
+  const mutate = useCallback(
+    async (id: string, run: () => Promise<{ ok: boolean; error?: string }>) => {
+      setPendingId(id);
+      setError(null);
+      try {
+        const res = await run();
+        if (!res.ok) setError(res.error ?? "Update failed.");
+        await reload();
+      } catch {
+        setError("Update failed.");
+      } finally {
+        setPendingId(null);
+      }
+    },
+    [reload],
+  );
+
+  const toggleSurface = useCallback(
+    (item: CatalogAdminItem, surface: "talent" | "workspace") => {
+      const enabledNow =
+        surface === "talent"
+          ? item.overlay?.talent_enabled ?? true
+          : item.overlay?.workspace_enabled ?? true;
+      const field = surface === "talent" ? "talent_enabled" : "workspace_enabled";
+      void mutate(item.id, () =>
+        setComponentOverlay({
+          item_ref: item.id,
+          source: item.source,
+          [field]: !enabledNow,
+        }),
+      );
+    },
+    [mutate],
+  );
+
+  const startEdit = useCallback((item: CatalogAdminItem) => {
+    setEditingId(item.id);
+    setEditLabel(item.overlay?.label_override ?? "");
+    setEditCategory(item.overlay?.category_override ?? "");
+  }, []);
+
+  const saveEdit = useCallback(
+    (item: CatalogAdminItem) => {
+      void mutate(item.id, () =>
+        setComponentOverlay({
+          item_ref: item.id,
+          source: item.source,
+          label_override: editLabel.trim() || null,
+          category_override: editCategory.trim() || null,
+        }),
+      ).then(() => setEditingId(null));
+    },
+    [mutate, editLabel, editCategory],
+  );
+
+  const resetOverlay = useCallback(
+    (item: CatalogAdminItem) => {
+      void mutate(item.id, () => clearComponentOverlay(item.id));
+    },
+    [mutate],
+  );
 
   const groups = useMemo(() => {
-    if (!rows) return null;
-    return ALL_TABS.map((tab) => {
-      const tabRows = rows
-        .filter((r) => r.item.tab === tab)
+    if (!items) return null;
+    return ALL_TABS.map((tab) => ({
+      tab,
+      rows: items
+        .filter((r) => r.tab === tab)
         .sort(
           (a, b) =>
-            a.item.category.localeCompare(b.item.category) ||
-            a.item.label.localeCompare(b.item.label),
-        );
-      return { tab, rows: tabRows };
-    }).filter((g) => g.rows.length > 0);
-  }, [rows]);
+            a.effectiveCategory.localeCompare(b.effectiveCategory) ||
+            a.effectiveLabel.localeCompare(b.effectiveLabel),
+        ),
+    })).filter((g) => g.rows.length > 0);
+  }, [items]);
 
-  if (error) {
+  if (error && !items) {
     return <div style={{ color: "#ff8585", fontSize: 13 }}>{error}</div>;
   }
-  if (!rows || !groups) {
+  if (!items || !groups) {
     return (
       <div style={{ color: T.inkMuted, fontSize: 13, padding: "8px 0" }}>
         Loading the component catalog…
@@ -156,21 +196,20 @@ export function ComponentCatalog() {
     );
   }
 
-  const total = rows.length;
-  const templates = rows.filter(
-    (r) => r.item.insertMethod === "dbTemplate",
-  ).length;
-  const talentCount = rows.filter((r) => r.talent).length;
-  const workspaceCount = rows.filter((r) => r.workspace).length;
+  const total = items.length;
+  const templates = items.filter((r) => r.source === "template").length;
+  const overridden = items.filter((r) => r.overlay).length;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 18, fontSize: 12.5 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 18, fontSize: 12.5, alignItems: "flex-end" }}>
         <Stat label="Components" value={total} />
         <Stat label="Built-in (code)" value={total - templates} />
         <Stat label="Published templates" value={templates} />
-        <Stat label="Visible · Talent-Max" value={talentCount} />
-        <Stat label="Visible · Workspace" value={workspaceCount} />
+        <Stat label="Customized" value={overridden} />
+        {error ? (
+          <span style={{ color: "#ff8585", fontSize: 12 }}>{error}</span>
+        ) : null}
       </div>
 
       {groups.map((g) => (
@@ -203,23 +242,22 @@ export function ComponentCatalog() {
 
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
             <thead>
-              <tr style={{ color: T.inkDim, textAlign: "left" }}>
+              <tr style={{ color: T.inkDim }}>
                 <Th>Component</Th>
                 <Th>Category</Th>
                 <Th>Source</Th>
-                <Th>Kind</Th>
                 <Th center>Talent-Max</Th>
                 <Th center>Workspace</Th>
+                <Th right>Manage</Th>
               </tr>
             </thead>
             <tbody>
               {g.rows.map((r) => {
-                const isTemplate = r.item.insertMethod === "dbTemplate";
+                const busy = pendingId === r.id;
+                const editing = editingId === r.id;
+                const isTemplate = r.source === "template";
                 return (
-                  <tr
-                    key={r.item.id}
-                    style={{ borderTop: `1px solid ${T.borderSoft}` }}
-                  >
+                  <tr key={r.id} style={{ borderTop: `1px solid ${T.borderSoft}`, opacity: busy ? 0.55 : 1 }}>
                     <td style={{ padding: "9px 16px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <span
@@ -235,62 +273,122 @@ export function ComponentCatalog() {
                             flexShrink: 0,
                           }}
                         >
-                          <AddGalleryIcon name={r.item.icon} size="sm" tone="accent" />
+                          <AddGalleryIcon name={r.baseIcon} size="sm" tone="accent" />
                         </span>
                         <div style={{ minWidth: 0 }}>
-                          <div style={{ color: T.ink, fontWeight: 600 }}>
-                            {r.item.label}
+                          <div style={{ color: T.ink, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                            {r.effectiveLabel}
+                            {r.overlay ? (
+                              <span title="Has admin overrides" style={{ width: 6, height: 6, borderRadius: "50%", background: T.accent, flexShrink: 0 }} />
+                            ) : null}
                           </div>
-                          <div
-                            style={{
-                              color: T.inkDim,
-                              fontSize: 10.5,
-                              fontFamily: "ui-monospace, monospace",
-                            }}
-                          >
-                            {r.item.id}
+                          <div style={{ color: T.inkDim, fontSize: 10.5, fontFamily: "ui-monospace, monospace" }}>
+                            {r.id}
                           </div>
                         </div>
                       </div>
                     </td>
                     <td style={{ padding: "9px 16px", color: T.inkMuted }}>
-                      {humanize(r.item.category)}
+                      {humanize(r.effectiveCategory)}
                     </td>
                     <td style={{ padding: "9px 16px" }}>
-                      <Badge
-                        text={isTemplate ? "Template" : "Code"}
-                        tone={isTemplate ? "accent" : "neutral"}
-                      />
-                      {isTemplate && r.item.targetContext ? (
-                        <span style={{ marginLeft: 6, color: T.inkDim, fontSize: 10.5 }}>
-                          {r.item.targetContext}
-                        </span>
+                      <Badge text={isTemplate ? "Template" : "Code"} tone={isTemplate ? "accent" : "neutral"} />
+                      {isTemplate ? (
+                        <span style={{ marginLeft: 6, color: T.inkDim, fontSize: 10.5 }}>{r.targetContext}</span>
                       ) : null}
                     </td>
-                    <td style={{ padding: "9px 16px", color: T.inkMuted, textTransform: "capitalize" }}>
-                      {r.item.itemKind}
-                      {r.item.availability !== "available" ? (
-                        <span style={{ marginLeft: 6, color: T.inkDim, fontSize: 10.5 }}>
-                          ({r.item.availability})
+                    <ToggleCell
+                      on={r.talentVisible}
+                      disabled={busy || !targetAllows(r.targetContext, "talent")}
+                      locked={!targetAllows(r.targetContext, "talent")}
+                      onClick={() => toggleSurface(r, "talent")}
+                    />
+                    <ToggleCell
+                      on={r.workspaceVisible}
+                      disabled={busy || !targetAllows(r.targetContext, "workspace")}
+                      locked={!targetAllows(r.targetContext, "workspace")}
+                      onClick={() => toggleSurface(r, "workspace")}
+                    />
+                    <td style={{ padding: "9px 16px", textAlign: "right", whiteSpace: "nowrap" }}>
+                      {editing ? (
+                        <span style={{ display: "inline-flex", gap: 6 }}>
+                          <LinkBtn label="Save" onClick={() => saveEdit(r)} disabled={busy} primary />
+                          <LinkBtn label="Cancel" onClick={() => setEditingId(null)} disabled={busy} />
                         </span>
-                      ) : null}
+                      ) : (
+                        <span style={{ display: "inline-flex", gap: 10 }}>
+                          <LinkBtn label="Edit" onClick={() => startEdit(r)} disabled={busy} />
+                          {r.overlay ? (
+                            <LinkBtn label="Reset" onClick={() => resetOverlay(r)} disabled={busy} />
+                          ) : null}
+                        </span>
+                      )}
                     </td>
-                    <VisCell on={r.talent} />
-                    <VisCell on={r.workspace} />
                   </tr>
                 );
               })}
+              {g.rows.map((r) =>
+                editingId === r.id ? (
+                  <tr key={`${r.id}-edit`} style={{ background: T.cardSoft }}>
+                    <td colSpan={6} style={{ padding: "10px 16px" }}>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-end" }}>
+                        <Field label="Display name (override)">
+                          <input
+                            value={editLabel}
+                            onChange={(e) => setEditLabel(e.target.value)}
+                            placeholder={r.baseLabel}
+                            style={inputStyle}
+                          />
+                        </Field>
+                        <Field label="Category (override)">
+                          <input
+                            value={editCategory}
+                            onChange={(e) => setEditCategory(e.target.value)}
+                            placeholder={r.baseCategory}
+                            style={inputStyle}
+                          />
+                        </Field>
+                        <span style={{ fontSize: 11, color: T.inkDim }}>
+                          Leave blank to use the default. Reflected in both builders on next open.
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : null,
+              )}
             </tbody>
           </table>
         </section>
       ))}
 
       <p style={{ fontSize: 11.5, color: T.inkDim, lineHeight: 1.5, margin: 0 }}>
-        Read-only inventory. Built-in components are visible on both surfaces;
-        published templates follow their <code>target_context</code>. Per-surface
-        toggles, renaming, and publishing controls land next.
+        Toggles control per-surface visibility (subtract-only — a component can&apos;t be forced onto a
+        surface its <code>target_context</code> excludes; locked cells show that). Renames apply to both
+        builders&apos; &quot;+&quot; gallery on next open. Built-in components can be hidden/renamed but not
+        restructured here — that&apos;s a code change (or, soon, fork-to-template).
       </p>
     </div>
+  );
+}
+
+const inputStyle: React.CSSProperties = {
+  background: T.field,
+  border: `1px solid ${T.border}`,
+  borderRadius: 8,
+  color: T.ink,
+  fontSize: 12.5,
+  padding: "7px 10px",
+  width: 220,
+};
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <span style={{ fontSize: 10, color: T.inkMuted, letterSpacing: 0.4, textTransform: "uppercase" }}>
+        {label}
+      </span>
+      {children}
+    </label>
   );
 }
 
@@ -298,14 +396,12 @@ function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
       <span style={{ fontSize: 18, fontWeight: 700, color: T.ink }}>{value}</span>
-      <span style={{ fontSize: 10.5, color: T.inkMuted, letterSpacing: 0.4 }}>
-        {label}
-      </span>
+      <span style={{ fontSize: 10.5, color: T.inkMuted, letterSpacing: 0.4 }}>{label}</span>
     </div>
   );
 }
 
-function Th({ children, center }: { children: React.ReactNode; center?: boolean }) {
+function Th({ children, center, right }: { children: React.ReactNode; center?: boolean; right?: boolean }) {
   return (
     <th
       style={{
@@ -314,7 +410,7 @@ function Th({ children, center }: { children: React.ReactNode; center?: boolean 
         fontWeight: 700,
         letterSpacing: 0.8,
         textTransform: "uppercase",
-        textAlign: center ? "center" : "left",
+        textAlign: center ? "center" : right ? "right" : "left",
       }}
     >
       {children}
@@ -341,15 +437,70 @@ function Badge({ text, tone }: { text: string; tone: "accent" | "neutral" }) {
   );
 }
 
-function VisCell({ on }: { on: boolean }) {
+function ToggleCell({
+  on,
+  disabled,
+  locked,
+  onClick,
+}: {
+  on: boolean;
+  disabled: boolean;
+  locked: boolean;
+  onClick: () => void;
+}) {
   return (
     <td style={{ padding: "9px 16px", textAlign: "center" }}>
-      <span
-        aria-label={on ? "visible" : "hidden"}
-        style={{ color: on ? T.yes : T.no, fontSize: 14, fontWeight: 700 }}
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        title={locked ? "Not targeted to this surface" : on ? "Visible — click to hide" : "Hidden — click to show"}
+        aria-pressed={on}
+        style={{
+          cursor: disabled ? "default" : "pointer",
+          border: `1px solid ${on ? "rgba(93,211,160,0.45)" : T.border}`,
+          background: on ? "rgba(93,211,160,0.16)" : "transparent",
+          color: locked ? T.no : on ? T.yes : T.inkMuted,
+          borderRadius: 999,
+          padding: "3px 11px",
+          fontSize: 11,
+          fontWeight: 700,
+          minWidth: 52,
+        }}
       >
-        {on ? "✓" : "—"}
-      </span>
+        {locked ? "—" : on ? "On" : "Off"}
+      </button>
     </td>
+  );
+}
+
+function LinkBtn({
+  label,
+  onClick,
+  disabled,
+  primary,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  primary?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        background: "transparent",
+        border: "none",
+        color: disabled ? T.inkDim : primary ? T.accent : T.inkMuted,
+        fontSize: 12,
+        fontWeight: 600,
+        cursor: disabled ? "default" : "pointer",
+        padding: 0,
+      }}
+    >
+      {label}
+    </button>
   );
 }

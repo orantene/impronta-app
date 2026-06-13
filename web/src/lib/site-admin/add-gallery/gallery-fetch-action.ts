@@ -21,6 +21,7 @@
 import { listGalleryItems } from "./registry-db-merge";
 import type { AddGalleryItem, GallerySurfaceDescriptor } from "./types";
 import { listPublishedTemplates } from "@/lib/site-admin/builder-core/templates/registry-actions";
+import { listCatalogOverlays } from "@/lib/site-admin/builder-core/templates/catalog-overlay-actions";
 import type { BuilderTemplateTarget } from "@/lib/site-admin/builder-core/templates/registry-rows";
 
 type PlanKey = "free" | "studio" | "agency" | "network";
@@ -43,6 +44,6 @@ export async function fetchSurfaceGalleryItems(
       plan: coercePlan(descriptor.plan),
       talentTier: descriptor.talentTier,
     },
-    { listPublishedTemplates },
+    { listPublishedTemplates, loadOverlays: listCatalogOverlays },
   );
 }
