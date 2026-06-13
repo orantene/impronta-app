@@ -6,9 +6,8 @@ import type { Locale } from "@/i18n/config";
 import { buildPostPublicPathname, buildPublicPathname, isValidSlugPath, normalizeSlugPath } from "@/lib/cms/paths";
 import { createDraftPageAction } from "@/lib/server-actions/admin-site-pages";
 import { EmptyState, Icon, PrimaryButton, SecondaryButton } from "../primitives";
-import { COLORS, FONTS, TRANSITION, fmtMoney, meetsRole, useAdminShell } from "../state";
+import { COLORS, FONTS, TRANSITION, meetsRole, useAdminShell } from "../state";
 import type { WebsitePageRow, WebsitePost } from "../state";
-import { WorkspacePageBuilderSurface } from "./page-builder/WorkspacePageBuilderSurface";
 import { CardDesignStudio } from "./CardDesignStudio";
 import { PageStatusChip } from "./SitePage";
 import { ConfigStatusRow, HeroStat, PageVisualCard, WebsitePerformance } from "./WebsitePage-2";
@@ -451,26 +450,13 @@ export function WebsitePage() {
         </div>
       </section>
 
-      {/* Phase C — Workspace Page Builder (workspace_pages table).
-          Disabled on the platform hub: tulala.digital is managed in code. */}
-      <section style={{ marginBottom: 24 }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 12 }}>
-          <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, letterSpacing: -0.2 }} className="text-admin-ink">Page Builder</h2>
-          <span style={{ fontSize: 11.5, fontFamily: FONTS.body }} className="text-admin-ink-muted">{isPlatformHub ? "Managed in code" : "Create and publish custom pages"}</span>
-        </div>
-        <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 14, overflow: "hidden", minHeight: 200 }}>
-          {isPlatformHub ? (
-            <div style={{ padding: "40px 24px", textAlign: "center", display: "flex", flexDirection: "column", gap: 6, minHeight: 200, alignItems: "center", justifyContent: "center" }}>
-              <p style={{ margin: 0, fontFamily: FONTS.display, fontSize: 15, fontWeight: 600 }} className="text-admin-ink">This site is managed in code</p>
-              <p style={{ margin: 0, fontFamily: FONTS.body, fontSize: 13, maxWidth: 420, lineHeight: 1.5 }} className="text-admin-ink-muted">
-                tulala.digital is the platform’s in-house site, built and maintained in code. The page builder is disabled here so its pages stay the source of truth.
-              </p>
-            </div>
-          ) : (
-            <WorkspacePageBuilderSurface />
-          )}
-        </div>
-      </section>
+      {/* Wave 4.1 — RETIRED the separate "Page Builder" (workspace_pages) section.
+          It was an empty second page system stacked next to the real "Pages"
+          list (cms_pages) below, which is the source of confusion. There is now
+          ONE page system: the cms_pages "Pages" list (cards + front-end ?edit=1),
+          rendered further down. workspace_pages remains in the schema/adapter for
+          now but is no longer surfaced here. (WorkspacePageBuilderSurface import
+          intentionally dropped.) */}
 
       {/* Performance — KPI tiles + funnel + Top performers switcher */}
       <WebsitePerformance analytics={w.analytics} pages={w.pages} fmtMoney={fmtMoney} />
