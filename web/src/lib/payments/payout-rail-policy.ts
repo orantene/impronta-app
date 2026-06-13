@@ -19,18 +19,29 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { isGlobalPayoutsActive } from "./global-payouts";
 import { isStablecoinPayoutCountry } from "./payout-countries";
+import {
+  loadActivePayoutSystem,
+  type ActivePayoutSystem,
+} from "./active-payout-system";
 import type { PayoutRail } from "./disburse";
 
 export type PayoutRailDecision = { rail: PayoutRail; reason: string };
 
 /**
- * Pure rail decision. Global Payouts only when ALL three hold; otherwise Connect.
+ * Pure rail decision. The platform master switch wins first: when the platform is
+ * on Connect, EVERY leg settles via Connect regardless of a talent's USDC opt-in.
+ * Otherwise Global Payouts only when ALL three remaining conditions hold.
  */
 export function decidePayoutRail(input: {
+  /** Platform master switch. Omitted/`"global_payouts"` keeps the legacy logic. */
+  activePayoutSystem?: ActivePayoutSystem;
   gpActive: boolean;
   countryEligible: boolean;
   talentCryptoOptIn: boolean;
 }): PayoutRailDecision {
+  if (input.activePayoutSystem === "connect") {
+    return { rail: "connect_transfer", reason: "platform switch = Connect → Connect rail" };
+  }
   if (!input.talentCryptoOptIn) {
     return { rail: "connect_transfer", reason: "no USDC opt-in → Connect rail" };
   }
@@ -48,12 +59,16 @@ export type RailResolverDeps = {
   sb?: SupabaseClient | null;
   /** Injected GP-active check (tests). */
   gpActive?: () => Promise<boolean>;
+  /** Injected platform payout-system switch (tests). */
+  activePayoutSystem?: () => Promise<ActivePayoutSystem>;
 };
 
 /**
- * Resolve the rail for a talent from persisted state. Short-circuits to Connect
- * on the common path (no opt-in) before any Stripe call. Test-safe via injected
- * deps.
+ * Resolve the rail for a talent from persisted state. The platform master switch
+ * is read FIRST and short-circuits to Connect before any DB/Stripe call when the
+ * platform is on Connect — so a stale per-talent `crypto_payouts_enabled` can never
+ * override it. Otherwise short-circuits to Connect on the common path (no opt-in)
+ * before any Stripe call. Test-safe via injected deps.
  */
 export async function resolveTalentPayoutRail(
   talentProfileId: string,
@@ -61,6 +76,10 @@ export async function resolveTalentPayoutRail(
 ): Promise<PayoutRail> {
   const sb = deps.sb ?? createServiceRoleClient();
   if (!sb) return "connect_transfer";
+
+  // Platform master switch wins first — Connect mode force-pins every payout.
+  const activePayoutSystem = await (deps.activePayoutSystem ?? loadActivePayoutSystem)();
+  if (activePayoutSystem === "connect") return "connect_transfer";
 
   const { data: tp } = await sb
     .from("talent_profiles")

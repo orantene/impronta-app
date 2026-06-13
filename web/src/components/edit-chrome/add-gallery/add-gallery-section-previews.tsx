@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { cloneElement, isValidElement, memo } from "react";
 
 import { getAddGalleryItemById } from "@/lib/site-admin/add-gallery";
 import { buildAddGallerySectionTemplate } from "@/lib/site-admin/add-gallery/section-templates";
@@ -561,7 +561,14 @@ const TemplateWireframe = memo(function TemplateWireframe({
     );
   }
 
-  const elements = walk(root, ROOT_SLOT, 0);
+  // walk() returns a flat element list whose per-node keys (e.g. "para-0",
+  // "button") are only unique within a single node — sibling nodes of the same
+  // kind collide once flattened. Re-key by position so the SVG's direct children
+  // are always unique (fixes React "two children with the same key" warnings for
+  // every section/template preview, including DB-template fallbacks).
+  const elements = walk(root, ROOT_SLOT, 0).map((el, i) =>
+    isValidElement(el) ? cloneElement(el, { key: `w-${i}` }) : el,
+  );
 
   return (
     <svg

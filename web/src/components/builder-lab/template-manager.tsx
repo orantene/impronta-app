@@ -29,6 +29,7 @@ import {
   createTemplateDraft,
   updateTemplateDraft,
   submitTemplateForReview,
+  rejectToDraft,
   publishTemplate,
   unpublishTemplate,
   archiveTemplate,
@@ -150,6 +151,7 @@ export function TemplateManager() {
 
   const filtered =
     statusFilter === "all" ? rows : rows.filter((r) => r.status === statusFilter);
+  const pendingCount = rows.filter((r) => r.status === "in_review").length;
 
   // ── lifecycle handlers ─────────────────────────────────────────────────────
 
@@ -197,6 +199,7 @@ export function TemplateManager() {
                 }}
               >
                 {s === "all" ? "All" : s.replace("_", " ")}
+                {s === "in_review" && pendingCount > 0 ? ` (${pendingCount})` : ""}
               </button>
             );
           })}
@@ -306,11 +309,25 @@ export function TemplateManager() {
                     submitTemplateForReview(row.id),
                   )
                 }
-                onPublish={() =>
-                  runLifecycle(row.id, "Published to gallery", () =>
-                    publishTemplate(row.id),
+                onReject={() =>
+                  runLifecycle(row.id, "Sent back to draft", () =>
+                    rejectToDraft(row.id),
                   )
                 }
+                onPublish={() => {
+                  // W7 — guard against publishing an empty template (inserts nothing).
+                  if (
+                    (row.builder_tree?.length ?? 0) === 0 &&
+                    !window.confirm(
+                      "This template has no content — it will insert nothing into a page. Publish to the gallery anyway?",
+                    )
+                  ) {
+                    return;
+                  }
+                  void runLifecycle(row.id, "Published to gallery", () =>
+                    publishTemplate(row.id),
+                  );
+                }}
                 onUnpublish={() =>
                   runLifecycle(row.id, "Unpublished", () => unpublishTemplate(row.id))
                 }
@@ -341,6 +358,7 @@ function TemplateRowCard({
   busy,
   onEdit,
   onSubmit,
+  onReject,
   onPublish,
   onUnpublish,
   onArchive,
@@ -351,6 +369,7 @@ function TemplateRowCard({
   busy: boolean;
   onEdit: () => void;
   onSubmit: () => void;
+  onReject: () => void;
   onPublish: () => void;
   onUnpublish: () => void;
   onArchive: () => void;
@@ -405,8 +424,13 @@ function TemplateRowCard({
         {row.status === "draft" ? (
           <GhostBtn onClick={onSubmit} disabled={busy}>Submit for review</GhostBtn>
         ) : null}
+        {row.status === "in_review" ? (
+          <GhostBtn onClick={onReject} disabled={busy}>Send back to draft</GhostBtn>
+        ) : null}
         {row.status !== "published" && row.status !== "archived" ? (
-          <PrimaryBtn onClick={onPublish} disabled={busy}>Publish to gallery</PrimaryBtn>
+          <PrimaryBtn onClick={onPublish} disabled={busy}>
+            {row.status === "in_review" ? "Approve + publish" : "Publish to gallery"}
+          </PrimaryBtn>
         ) : null}
         {row.status === "published" ? (
           <GhostBtn onClick={onUnpublish} disabled={busy}>Unpublish</GhostBtn>

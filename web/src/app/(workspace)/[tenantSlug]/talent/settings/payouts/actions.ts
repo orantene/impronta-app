@@ -28,6 +28,10 @@ import {
 } from "@/lib/payments/stripe-connect-talent";
 import { payoutCountryLabel } from "@/lib/payments/payout-countries";
 import {
+  loadActivePayoutSystem,
+  type ActivePayoutSystem,
+} from "@/lib/payments/active-payout-system";
+import {
   getTalentGpAccountLink,
   getTalentGpStatus,
   listTalentGpPayoutMethods,
@@ -359,16 +363,34 @@ export async function syncTalentGpProfileAction(): Promise<
   }
 }
 
-/** List the talent's Global Payouts destinations + the real recipient status. */
+/**
+ * List the talent's Global Payouts destinations + the real recipient status, plus
+ * the platform payout-system switch so the UI can hide Global Payouts entirely when
+ * the platform is on Connect. This action runs on mount of the payouts shell (both
+ * the page and the drawer), so it's the single place the switch reaches the client.
+ */
 export async function loadTalentGpMethods(): Promise<
-  | { ok: true; methods: TalentGpMethod[]; profileCountry: string | null; status: TalentGpStatusKind }
-  | { ok: false; error: string }
+  | {
+      ok: true;
+      methods: TalentGpMethod[];
+      profileCountry: string | null;
+      status: TalentGpStatusKind;
+      activePayoutSystem: ActivePayoutSystem;
+    }
+  | { ok: false; error: string; activePayoutSystem: ActivePayoutSystem }
 > {
+  const activePayoutSystem = await loadActivePayoutSystem();
   const tp = await resolveOwnTalentProfileId();
-  if (!tp.ok) return { ok: false, error: tp.error };
+  if (!tp.ok) return { ok: false, error: tp.error, activePayoutSystem };
   const r = await listTalentGpPayoutMethods(tp.id);
-  if (!r.ok) return { ok: false, error: r.error };
-  return { ok: true, methods: r.methods, profileCountry: r.profileCountry, status: r.status };
+  if (!r.ok) return { ok: false, error: r.error, activePayoutSystem };
+  return {
+    ok: true,
+    methods: r.methods,
+    profileCountry: r.profileCountry,
+    status: r.status,
+    activePayoutSystem,
+  };
 }
 
 /**

@@ -32,6 +32,7 @@ import {
   type UpdateTemplateDraftInput,
   type ListPublishedTemplatesFilter,
 } from "./registry-rows";
+import { bumpCatalogVersion } from "./catalog-version";
 
 // ── Result type ───────────────────────────────────────────────────────────────
 
@@ -205,6 +206,40 @@ export async function submitTemplateForReview(
   }
 }
 
+// ── rejectToDraft ─────────────────────────────────────────────────────────────
+
+/**
+ * Reviewer "send back": flips an in_review template back to draft (P4 approval
+ * queue). The author can revise and re-submit. No revision snapshot — nothing
+ * was published.
+ */
+export async function rejectToDraft(
+  templateId: string,
+): Promise<TemplateActionResult<BuilderTemplateRow>> {
+  const gate = await requireSuperAdmin();
+  if (!gate.ok) return fail(gate.error);
+
+  try {
+    const sb = getAdminClient();
+    const { data, error } = await sb
+      .from("builder_templates")
+      .update({ status: "draft" })
+      .eq("id", templateId)
+      .eq("status", "in_review")
+      .select()
+      .single();
+
+    if (error) return fail(error.message);
+    if (!data) return fail("Template not found or not in review.");
+
+    revalidatePath(TEMPLATE_CACHE_PATH);
+    return ok(data as BuilderTemplateRow);
+  } catch (err) {
+    logServerError("rejectToDraft", err);
+    return fail(CLIENT_ERROR.generic);
+  }
+}
+
 // ── publishTemplate ───────────────────────────────────────────────────────────
 
 /**
@@ -273,6 +308,7 @@ export async function publishTemplate(
       logServerError("publishTemplate/revision", revErr);
     }
 
+    await bumpCatalogVersion(sb);
     revalidatePath(TEMPLATE_CACHE_PATH);
     return ok(publishedRow);
   } catch (err) {
@@ -303,6 +339,7 @@ export async function unpublishTemplate(
     if (!data)
       return fail("Template not found or not currently published.");
 
+    await bumpCatalogVersion(sb);
     revalidatePath(TEMPLATE_CACHE_PATH);
     return ok(data as BuilderTemplateRow);
   } catch (err) {
@@ -333,6 +370,7 @@ export async function archiveTemplate(
     if (!data)
       return fail("Template not found or already archived.");
 
+    await bumpCatalogVersion(sb);
     revalidatePath(TEMPLATE_CACHE_PATH);
     return ok(data as BuilderTemplateRow);
   } catch (err) {

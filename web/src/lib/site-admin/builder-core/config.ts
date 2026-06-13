@@ -84,6 +84,14 @@ export interface BuilderContextConfig {
   dataSources: BuilderDataSourcePolicy;
   previewSubjectKind: BuilderPreviewSubjectKind;
   capabilities: BuilderSurfaceCapabilities;
+  /**
+   * Talent tier of the surface subject (talent_page surfaces only) — used for
+   * §E gallery gating (`required_talent_tier`). Null/undefined on non-talent
+   * surfaces (homepage / workspace / platform_lab). Stored here so the live
+   * Add Gallery fetch (`fetchSurfaceGalleryItems`) can describe the surface
+   * entirely from `surfaceConfig`.
+   */
+  surfaceTalentTier?: string | null;
 }
 
 /** Every data source the storefront homepage editor can bind today. */
@@ -285,6 +293,7 @@ export function buildTalentPageBuilderConfig(
     },
     dataSources: { allowed: TALENT_PAGE_DATA_SOURCES },
     previewSubjectKind: "talent",
+    surfaceTalentTier: opts?.talentTier ?? null,
     capabilities: {
       motion: isMaxTier,
       themeTokens: isMaxTier,

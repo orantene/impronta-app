@@ -31,6 +31,7 @@ import {
   payoutCountryLabel,
   isStablecoinPayoutCountry,
 } from "@/lib/payments/payout-countries";
+import { loadActivePayoutSystem } from "@/lib/payments/active-payout-system";
 
 export type TalentConnectStatus =
   | "none"
@@ -203,11 +204,17 @@ export async function createOrGetTalentConnectedAccount(
   } catch (err) {
     logServerError("stripe-connect-talent.createAccount", err);
     // Most commonly: Stripe Connect (a US-based platform) can't open a connected
-    // account in `country` (e.g. Mexico, Argentina). That's exactly what the
-    // Global Payouts "local bank" rail below is for, so point the talent there.
+    // account in `country` (e.g. Mexico, Argentina). In Global Payouts mode the
+    // "local bank" rail below covers it, so point the talent there. But when the
+    // platform master switch is on Connect, that GP card is hidden — so a pointer
+    // to it would be a dead end. Word the error for the active rail.
+    const activePayoutSystem = await loadActivePayoutSystem();
     return {
       ok: false,
-      error: `${payoutCountryLabel(country)} isn't supported for direct Stripe payouts. Use "Get paid to your local bank" below, it covers ${payoutCountryLabel(country)}.`,
+      error:
+        activePayoutSystem === "connect"
+          ? `Payouts aren't available in ${payoutCountryLabel(country)} yet. Please reach out to support so we can set you up.`
+          : `${payoutCountryLabel(country)} isn't supported for direct Stripe payouts. Use "Get paid to your local bank" below, it covers ${payoutCountryLabel(country)}.`,
     };
   }
 

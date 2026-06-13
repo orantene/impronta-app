@@ -6,6 +6,7 @@ import {
   validateProfileStatusTransition,
 } from "@/lib/field-engine/profile-publish-requirements";
 import { resolveTalentFields } from "@/lib/field-engine/resolve-talent-fields";
+import { readBlobFieldValuesFromCatalog } from "@/lib/talent/blob-field-values-catalog";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import {
   dbToUiProfileShellStatus,
@@ -20,7 +21,6 @@ type ProfilePublishSnapshot = {
   visibility: string | null;
   display_name: string | null;
   home_city_text: string | null;
-  bios: unknown;
 };
 
 function activeBioLength(bios: unknown): number {
@@ -41,11 +41,16 @@ async function loadCorePublishSnapshot(input: {
   primaryType: string | null;
   totalPhotos: number;
   languageCount: number;
+  activeBioLen: number;
 }> {
   const { supabase, tenantId, talentProfileId } = input;
+  // `bios` is System-B only since the T4 blob-column collapse — it was DROPPED
+  // from talent_profiles, so it must NOT appear in this select (doing so threw
+  // "column talent_profiles.bios does not exist" and broke every publish/status
+  // transition). Read it from the catalog value store below.
   const { data: profile, error: profileError } = await supabase
     .from("talent_profiles")
-    .select("workflow_status, visibility, display_name, home_city_text, bios")
+    .select("workflow_status, visibility, display_name, home_city_text")
     .eq("id", talentProfileId)
     .maybeSingle();
   if (profileError || !profile) throw profileError ?? new Error("Profile not found.");
@@ -59,7 +64,7 @@ async function loadCorePublishSnapshot(input: {
     .limit(1);
   if (primaryError) throw primaryError;
 
-  const [photoRows, languageRows] = await Promise.all([
+  const [photoRows, languageRows, blobValues] = await Promise.all([
     supabase
       .from("media_assets")
       .select("id", { count: "exact", head: true })
@@ -75,6 +80,8 @@ async function loadCorePublishSnapshot(input: {
       .select("id", { count: "exact", head: true })
       .eq("talent_profile_id", talentProfileId)
       .eq("tenant_id", tenantId),
+    // bios lives in System B (catalog value store) post-T4 column collapse.
+    readBlobFieldValuesFromCatalog(supabase, talentProfileId),
   ]);
   if (photoRows.error) throw photoRows.error;
   if (languageRows.error) throw languageRows.error;
@@ -84,6 +91,7 @@ async function loadCorePublishSnapshot(input: {
     primaryType: primaryRows?.[0]?.taxonomy_term_id ?? null,
     totalPhotos: photoRows.count ?? 0,
     languageCount: languageRows.count ?? 0,
+    activeBioLen: activeBioLength(blobValues.bios),
   };
 }
 
@@ -121,7 +129,7 @@ export async function applyProfileShellStatusWithPublishGate(input: {
         primaryType: snapshot.primaryType,
         homeBase: snapshot.profile.home_city_text ?? "",
         totalPhotos: snapshot.totalPhotos,
-        activeBioLength: activeBioLength(snapshot.profile.bios),
+        activeBioLength: snapshot.activeBioLen,
         languageCount: snapshot.languageCount,
       }),
       resolverMissing,

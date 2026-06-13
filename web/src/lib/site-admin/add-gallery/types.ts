@@ -122,3 +122,28 @@ export interface AddGalleryCategoryDef {
   tab: AddGalleryTab;
   icon: string;
 }
+
+/**
+ * Everything the live Add Gallery needs to fetch the merged catalog (code
+ * items ∪ gated published DB templates) for ONE surface. Derived from the
+ * surface's `BuilderContextConfig` + the resolved plan, threaded onto the
+ * EditContext value as a STABLE memoized object and passed to the
+ * `fetchSurfaceGalleryItems` server action.
+ *
+ * Trust note: `plan` / `talentTier` / `surfaceTarget` only gate which template
+ * CARDS the gallery shows. Published templates are readable by any
+ * authenticated user (RLS gates on `status='published'`, not entitlement), so
+ * this is a cosmetic/UX filter — not a hard access boundary.
+ */
+export interface GallerySurfaceDescriptor {
+  /** Gallery tabs offered on this surface (`galleryPolicy.allowedTabs`). */
+  allowedTabs: ReadonlyArray<AddGalleryTab>;
+  /** Whether DB-backed templates are merged in (`galleryPolicy.allowDbTemplates`). */
+  allowDbTemplates: boolean;
+  /** Surface subject target for `target_context` gating (talent | workspace | platform | null). */
+  surfaceTarget: "talent" | "workspace" | "both" | "platform" | null;
+  /** Surface plan for `required_plan` gating. */
+  plan: string | null;
+  /** Surface talent tier for `required_talent_tier` gating. */
+  talentTier: string | null;
+}

@@ -36,6 +36,174 @@ import type { AddGalleryItem, AddGalleryTab } from "./types";
 
 type PlanKey = "free" | "studio" | "agency" | "network";
 
+const PLAN_RANK: Record<PlanKey, number> = {
+  free: 0,
+  studio: 1,
+  agency: 2,
+  network: 3,
+};
+
+/** The MORE restrictive (higher) of two plan requirements. Null acts as "no
+ *  requirement". Used so an overlay's required_plan_override can only TIGHTEN. */
+function morePlanRestrictive(
+  base: PlanKey | null | undefined,
+  override: PlanKey | null | undefined,
+): PlanKey | undefined {
+  if (!override) return base ?? undefined;
+  if (!base) return override;
+  return PLAN_RANK[override] > PLAN_RANK[base] ? override : base;
+}
+
+// ── Catalog overlay (P3) ──────────────────────────────────────────────────────
+
+/** One `builder_catalog_overlay` row. Absence = code/template defaults. */
+export interface CatalogOverlayRow {
+  item_ref: string;
+  source: "code" | "template";
+  talent_enabled: boolean;
+  workspace_enabled: boolean;
+  label_override: string | null;
+  icon_override: string | null;
+  category_override: string | null;
+  required_plan_override: PlanKey | null;
+  availability_override: "available" | "hidden" | null;
+}
+
+/** Overlay rows keyed by `item_ref` (= AddGalleryItem.id). */
+export type CatalogOverlayMap = Record<string, CatalogOverlayRow>;
+
+/**
+ * Patch for `setComponentOverlay`. `item_ref` + `source` are required; the rest
+ * are optional — an explicit `null` clears an override / re-enables a surface.
+ */
+export interface SetCatalogOverlayInput {
+  item_ref: string;
+  source: "code" | "template";
+  talent_enabled?: boolean;
+  workspace_enabled?: boolean;
+  label_override?: string | null;
+  icon_override?: string | null;
+  category_override?: string | null;
+  required_plan_override?: PlanKey | null;
+  availability_override?: "available" | "hidden" | null;
+}
+
+/**
+ * One row of the Builder Lab Catalog admin view — the FULL ungated universe
+ * (every code item + every published template) with its overlay state and the
+ * computed effective per-surface visibility. Unlike the live gallery, hidden
+ * items are STILL listed so a super-admin can re-enable them.
+ */
+export interface CatalogAdminItem {
+  id: string;
+  tab: AddGalleryTab;
+  source: "code" | "template";
+  /** Lifecycle status: 'built-in' for code items; the template's status
+   *  (draft|in_review|published|archived) for DB templates. */
+  status: string;
+  itemKind: AddGalleryItem["itemKind"];
+  availability: AddGalleryItem["availability"];
+  targetContext: BuilderTemplateTarget;
+  baseLabel: string;
+  baseCategory: string;
+  baseIcon: string;
+  overlay: CatalogOverlayRow | null;
+  talentVisible: boolean;
+  workspaceVisible: boolean;
+  effectiveLabel: string;
+  effectiveCategory: string;
+}
+
+/**
+ * Compute the Catalog admin view (PURE) from the ungated universe + overlays.
+ * Effective visibility = target_context allows the surface AND the overlay
+ * doesn't disable it AND it isn't availability-hidden. Code items target "both".
+ */
+export function buildCatalogAdminView(
+  universe: ReadonlyArray<AddGalleryItem>,
+  overlays: CatalogOverlayMap,
+  statusByRef?: Record<string, string>,
+): CatalogAdminItem[] {
+  return universe.map((item) => {
+    const source: "code" | "template" =
+      item.insertMethod === "dbTemplate" ? "template" : "code";
+    const status =
+      source === "template" ? statusByRef?.[item.id] ?? "published" : "built-in";
+    const targetContext: BuilderTemplateTarget = item.targetContext ?? "both";
+    const ov = overlays[item.id] ?? null;
+    const hidden = ov?.availability_override === "hidden";
+    const talentVisible =
+      templateTargetAllowed(targetContext, "talent") &&
+      (ov ? ov.talent_enabled : true) &&
+      !hidden;
+    const workspaceVisible =
+      templateTargetAllowed(targetContext, "workspace") &&
+      (ov ? ov.workspace_enabled : true) &&
+      !hidden;
+    return {
+      id: item.id,
+      tab: item.tab,
+      source,
+      status,
+      itemKind: item.itemKind,
+      availability: item.availability,
+      targetContext,
+      baseLabel: item.label,
+      baseCategory: item.category,
+      baseIcon: item.icon,
+      overlay: ov,
+      talentVisible,
+      workspaceVisible,
+      effectiveLabel: ov?.label_override ?? item.label,
+      effectiveCategory: ov?.category_override ?? item.category,
+    };
+  });
+}
+
+/**
+ * Apply the admin overlay to an already-merged item list (PURE). Subtract-only:
+ *   - `availability_override === "hidden"` → drop everywhere.
+ *   - per-surface `*_enabled === false` → drop on that surface only.
+ *   - `required_plan_override` → a TIGHTEN-only extra plan gate (never loosens;
+ *     drops the item when the surface plan can't meet the override).
+ *   - label / icon / category overrides are applied to the survivors.
+ * The surface is taken from `ctx.surfaceTarget`; "both"/"platform"/null surfaces
+ * (e.g. the homepage / Lab) are not subtracted per-surface, only by availability.
+ */
+export function applyCatalogOverlay(
+  items: ReadonlyArray<AddGalleryItem>,
+  overlays: CatalogOverlayMap,
+  ctx: GalleryMergeContext,
+): AddGalleryItem[] {
+  const surface = ctx.surfaceTarget;
+  const out: AddGalleryItem[] = [];
+  for (const item of items) {
+    const ov = overlays[item.id];
+    if (!ov) {
+      out.push(item);
+      continue;
+    }
+    if (ov.availability_override === "hidden") continue;
+    if (surface === "talent" && !ov.talent_enabled) continue;
+    if (surface === "workspace" && !ov.workspace_enabled) continue;
+    if (
+      ov.required_plan_override &&
+      ctx.plan &&
+      !templatePlanAllowed(ov.required_plan_override, ctx.plan)
+    ) {
+      continue;
+    }
+    out.push({
+      ...item,
+      label: ov.label_override ?? item.label,
+      icon: ov.icon_override ?? item.icon,
+      category: ov.category_override ?? item.category,
+      requiredPlan: morePlanRestrictive(item.requiredPlan, ov.required_plan_override),
+    });
+  }
+  return out;
+}
+
 // ── gallery_tab (DB) → AddGalleryTab (code) ──────────────────────────────────
 
 /**
@@ -233,6 +401,13 @@ export interface ListGalleryItemsDeps {
   resolvePreviewImageUrl?: (
     row: BuilderTemplateRow,
   ) => Promise<string | undefined> | string | undefined;
+  /**
+   * Load the admin catalog overlay (P3). When provided, the merged set is
+   * passed through `applyCatalogOverlay` (subtract-only visibility + metadata
+   * overrides) before returning. Applies to BOTH code items and DB templates.
+   * Omitted (or returning {}) → no overlay, code/template defaults stand.
+   */
+  loadOverlays?: () => Promise<CatalogOverlayMap>;
 }
 
 /**
@@ -248,9 +423,17 @@ export async function listGalleryItems(
   context: GalleryMergeContext,
   deps: ListGalleryItemsDeps,
 ): Promise<AddGalleryItem[]> {
+  // Build the base set (code-only or code ∪ gated DB templates), then apply the
+  // admin overlay once at the end so it governs BOTH populations uniformly.
+  const overlays = deps.loadOverlays
+    ? await deps.loadOverlays().catch(() => ({}) as CatalogOverlayMap)
+    : null;
+  const withOverlay = (items: AddGalleryItem[]): AddGalleryItem[] =>
+    overlays ? applyCatalogOverlay(items, overlays, context) : items;
+
   if (!context.galleryPolicy.allowDbTemplates) {
     // DB templates suppressed → code-only, no DB round-trip.
-    return codeGalleryItemsForPolicy(context.galleryPolicy);
+    return withOverlay(codeGalleryItemsForPolicy(context.galleryPolicy));
   }
 
   const result = await deps.listPublishedTemplates({
@@ -260,7 +443,7 @@ export async function listGalleryItems(
 
   if (!result.ok) {
     // Never fail the gallery on a template-fetch error — fall back to code-only.
-    return codeGalleryItemsForPolicy(context.galleryPolicy);
+    return withOverlay(codeGalleryItemsForPolicy(context.galleryPolicy));
   }
 
   const dbItems: AddGalleryItem[] = [];
@@ -273,5 +456,5 @@ export async function listGalleryItems(
     );
   }
 
-  return mergeGalleryItems(dbItems, context);
+  return withOverlay(mergeGalleryItems(dbItems, context));
 }

@@ -7,7 +7,7 @@ and requests that look identical in a PNG while making the published page slower
 "Proven quality" has to include performance, or fidelity work can silently bloat
 every page it touches.
 
-This budget is the guard. `scripts/fidelity/perf-budget.mts` renders every
+This budget is the guard. `scripts/fidelity/perf-budget.ts` renders every
 registered fidelity design through the **real** renderer
 (`buildFidelityHtml` → `renderBuilderNodes`), measures the things that drive page
 weight, compares them against documented ceilings, and **fails CI** when a design
@@ -39,7 +39,7 @@ families (Georgia, Menlo) from Google Fonts, a small real cost worth knowing abo
 
 ## The budgets
 
-Defined once in `BUDGETS` in `scripts/fidelity/perf-budget.mts`. They are
+Defined once in `BUDGETS` in `scripts/fidelity/perf-budget.ts`. They are
 **ceilings sized to comfortably allow rich, real-photography designs** — the whole
 point of the P4 rebuild is real photos and real fonts, and a budget that punished
 those would be working against the product. They are tuned to catch *genuine*

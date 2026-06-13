@@ -5,8 +5,10 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadPlatformSuperAdmins } from "../../platform-data";
 import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
 import { loadPlatformCommercialDefaults } from "@/lib/platform/commercial-defaults";
+import { loadActivePayoutSystem } from "@/lib/payments/active-payout-system";
 import { PlatformCurrencyCard } from "./PlatformCurrencyCard";
 import { PlatformCommercialDefaultsCard } from "./PlatformCommercialDefaultsCard";
+import { PlatformPayoutSystemCard } from "./PlatformPayoutSystemCard";
 import { SettingsSectionIcon } from "@/components/admin/settings/settings-section-icons";
 
 export const dynamic = "force-dynamic";
@@ -116,6 +118,7 @@ export default async function PlatformSettingsPage() {
   const currentUserId = session.user?.id;
   const operatingCurrency = await loadPlatformOperatingCurrency();
   const commercialDefaults = await loadPlatformCommercialDefaults();
+  const activePayoutSystem = await loadActivePayoutSystem();
 
   return (
     <>
@@ -164,6 +167,15 @@ export default async function PlatformSettingsPage() {
               multiCurrencyDisplayEnabled: operatingCurrency.multiCurrencyDisplayEnabled,
             }}
           />
+        </HqCard>
+
+        {/* Active payout system — Connect (default) vs Global Payouts master switch */}
+        <HqCard
+          title="Payout system"
+          subtitle="Which Stripe rail the platform settles on. Connect (default) hides Global Payouts onboarding and force-pins every payout to Connect. Reversible."
+          iconId="plan"
+        >
+          <PlatformPayoutSystemCard current={activePayoutSystem} />
         </HqCard>
 
         {/* Commercial defaults — base booking terms the resolver falls back to */}

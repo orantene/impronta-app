@@ -1,21 +1,21 @@
 "use client";
 
 /**
- * AddGalleryPanel — builder Add Gallery (Elements / Sections / Connected /
- * Page Templates).
+ * AddGalleryPanel — builder Add Gallery (Elements / Sections / Connected).
  * All inserts route through builderTree only via performAddGalleryInsert.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
-  filterAddGalleryItems,
+  codeGalleryItemsForPolicy,
+  filterGalleryItemsFrom,
   isAddGalleryItemAvailable,
-  listAddGalleryCategoriesForTab,
-  builderTemplateRowToGalleryItem,
+  listGalleryCategoriesForTabFrom,
   type AddGalleryItem,
   type AddGalleryTab,
 } from "@/lib/site-admin/add-gallery";
+import { fetchSurfaceGalleryItems } from "@/lib/site-admin/add-gallery/gallery-fetch-action";
 import {
   getAddGalleryCardInfoTooltip,
   getAddGalleryCardShortDescription,
@@ -23,7 +23,6 @@ import {
 import { performAddGalleryInsert } from "@/lib/site-admin/add-gallery/perform-insert";
 import { armAddGalleryDrag, clearAddGalleryDrag } from "@/lib/site-admin/add-gallery/drag";
 import { galleryItemSupportsDrag } from "@/lib/site-admin/add-gallery/insert";
-import { listPublishedTemplates } from "@/lib/site-admin/builder-core/templates/registry-actions";
 
 import { useEditContext } from "../edit-context";
 import { useBuilderTree } from "../builder-tree-bridge";
@@ -36,13 +35,10 @@ import { AddGallerySectionPreview } from "./add-gallery-section-previews";
 const PANEL_WIDTH = 592;
 const PANEL_MAX_HEIGHT = "min(78vh, 640px)";
 
-/**
- * Full ordered catalog of all possible Add Gallery tabs. The TabBar filters
- * this down to only those in the surface's `galleryPolicy.allowedTabs` so:
- *   - homepage (policy omits page_templates) → 4 tabs, unchanged
- *   - talent/workspace/platform_lab (policy includes page_templates) → 5 tabs
- */
-const ALL_TABS: ReadonlyArray<{ id: AddGalleryTab; label: string }> = [
+/** Canonical tab order + labels. The visible set is the intersection with the
+ *  surface's `gallerySurface.allowedTabs` — homepage stays 4 tabs; workspace /
+ *  talent / lab also get the DB-backed "Templates" tab. */
+const TAB_DEFS: ReadonlyArray<{ id: AddGalleryTab; label: string }> = [
   { id: "layout", label: "Layout" },
   { id: "elements", label: "Elements" },
   { id: "sections", label: "Sections" },
@@ -56,20 +52,14 @@ interface AddGalleryPanelProps {
 }
 
 function TabBar({
+  tabs,
   active,
-  allowedTabs,
   onChange,
 }: {
+  tabs: ReadonlyArray<{ id: AddGalleryTab; label: string }>;
   active: AddGalleryTab;
-  /** Ordered set of tabs this surface permits. Derived from galleryPolicy.allowedTabs. */
-  allowedTabs: ReadonlyArray<AddGalleryTab>;
   onChange: (tab: AddGalleryTab) => void;
 }) {
-  const allowedSet = useMemo(() => new Set(allowedTabs), [allowedTabs]);
-  const tabs = useMemo(
-    () => ALL_TABS.filter((t) => allowedSet.has(t.id)),
-    [allowedSet],
-  );
   return (
     <div
       className="flex shrink-0 gap-0 border-b"
@@ -481,7 +471,6 @@ function GalleryCard(props: {
   pending: boolean;
 }) {
   if (props.tab === "sections" || props.tab === "page_templates") {
-    // page_templates use the same card shape as sections (preview + copy)
     return <SectionCard {...props} />;
   }
   if (props.tab === "connected") {
@@ -498,7 +487,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
     insertBuilderComponent,
     reportMutationError,
     selectBuilderNode,
-    galleryPolicy,
+    gallerySurface,
   } = useEditContext();
   // WS2 — tree read from the micro-store (builder-tree-bridge) instead of the
   // context value, so an edit no longer re-renders this panel via the value memo.
@@ -509,39 +498,69 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
   const [query, setQuery] = useState("");
   const [pending, setPending] = useState(false);
 
-  // ── Page Templates DB loading ────────────────────────────────────────────
-  // `page_templates` items are exclusively DB-backed (no static code catalog
-  // entries). We load them once when the tab is first activated, then cache
-  // them for the lifetime of this panel open/close cycle.
-  const [dbTemplateItems, setDbTemplateItems] = useState<AddGalleryItem[]>([]);
-  const [dbTemplatesLoading, setDbTemplatesLoading] = useState(false);
-  const [dbTemplatesLoaded, setDbTemplatesLoaded] = useState(false);
+  // P1 — the merged catalog (code items ∪ gated published DB templates) for this
+  // surface. Seeded synchronously with the code-only set so the panel paints
+  // instantly, then refreshed from `fetchSurfaceGalleryItems` on open.
+  const codeSeed = useMemo(
+    () =>
+      codeGalleryItemsForPolicy({
+        allowedTabs: gallerySurface.allowedTabs,
+        allowDbTemplates: gallerySurface.allowDbTemplates,
+      }),
+    [gallerySurface],
+  );
+  const [mergedItems, setMergedItems] =
+    useState<ReadonlyArray<AddGalleryItem>>(codeSeed);
+  const fetchSeqRef = useRef(0);
 
   useEffect(() => {
-    if (tab !== "page_templates") return;
-    if (dbTemplatesLoaded) return;
+    if (!open) return;
+    // Paint code-only immediately (also the fallback if the fetch fails).
+    setMergedItems(codeSeed);
+    if (!gallerySurface.allowDbTemplates) return; // code-only surface → no DB trip
+    const seq = ++fetchSeqRef.current;
     let cancelled = false;
-    setDbTemplatesLoading(true);
-    listPublishedTemplates({ galleryTab: "page_templates" }).then((result) => {
-      if (cancelled) return;
-      if (result.ok) {
-        setDbTemplateItems(
-          result.data.map((row) => builderTemplateRowToGalleryItem(row)),
-        );
-      }
-      // On error fall through to empty list — the UI shows "No matches"
-      setDbTemplatesLoading(false);
-      setDbTemplatesLoaded(true);
-    });
-    return () => { cancelled = true; };
-    // Deps are complete: `tab`/`dbTemplatesLoaded` are the reactive inputs; the
-    // setters and the module-level `listPublishedTemplates`/`builderTemplateRowToGalleryItem`
-    // imports are stable and intentionally not listed.
-  }, [tab, dbTemplatesLoaded]);
+    void fetchSurfaceGalleryItems(gallerySurface)
+      .then((merged) => {
+        if (cancelled || seq !== fetchSeqRef.current) return; // stale response
+        setMergedItems(merged);
+      })
+      .catch(() => {
+        // Keep the code-only seed — never fail the gallery on a template fetch.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, gallerySurface, codeSeed]);
+
+  // Visible tabs = canonical order ∩ this surface's allowed tabs ∩ tabs that
+  // actually have items. The structural tabs (layout/elements/sections/
+  // connected) always carry code items so they always show; "Templates"
+  // (page_templates) is DB-only, so it appears only once a template is
+  // published — never an empty tab on a tenant/talent builder.
+  const tabs = useMemo(
+    () =>
+      TAB_DEFS.filter(
+        (t) =>
+          gallerySurface.allowedTabs.includes(t.id) &&
+          mergedItems.some((item) => item.tab === t.id),
+      ),
+    [gallerySurface, mergedItems],
+  );
+
+  // Keep the active tab valid if the surface's allowed tabs change.
+  useEffect(() => {
+    if (tabs.length > 0 && !tabs.some((t) => t.id === tab)) {
+      setTab(tabs[0].id);
+    }
+  }, [tabs, tab]);
 
   const categories = useMemo(
-    () => listAddGalleryCategoriesForTab(tab),
-    [tab],
+    () =>
+      listGalleryCategoriesForTabFrom(mergedItems, tab, {
+        synthesizeUnknownCategories: true,
+      }),
+    [mergedItems, tab],
   );
 
   const activeCategoryId = useMemo(() => {
@@ -552,23 +571,12 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
   }, [categoryId, categories]);
 
   const items = useMemo(() => {
-    if (tab === "page_templates") {
-      // page_templates are DB-only; filter the loaded rows by query
-      const q = query.trim().toLowerCase();
-      if (!q) return dbTemplateItems;
-      return dbTemplateItems.filter((item) =>
-        [item.label, item.description, ...(item.searchTerms ?? [])]
-          .join(" ")
-          .toLowerCase()
-          .includes(q),
-      );
-    }
-    return filterAddGalleryItems({
+    return filterGalleryItemsFrom(mergedItems, {
       tab,
       categoryId: query.trim() ? undefined : (activeCategoryId ?? undefined),
       query,
     });
-  }, [tab, activeCategoryId, query, dbTemplateItems]);
+  }, [mergedItems, tab, activeCategoryId, query]);
 
   const handleInsert = useCallback(
     async (item: AddGalleryItem) => {
@@ -613,9 +621,9 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
         ? "Add Elements"
         : tab === "sections"
           ? "Add Sections"
-          : tab === "page_templates"
-            ? "Page Templates"
-            : "Add Connected";
+          : tab === "connected"
+            ? "Add Connected"
+            : "Add Page Templates";
 
   const gridColumns =
     tab === "sections" || tab === "connected" || tab === "page_templates"
@@ -633,8 +641,8 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
       testId="add-gallery-panel"
       tabs={
         <TabBar
+          tabs={tabs}
           active={tab}
-          allowedTabs={galleryPolicy.allowedTabs}
           onChange={(next) => {
             setTab(next);
             setCategoryId(null);
@@ -718,17 +726,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
             />
           ) : null}
           <div className="min-h-0 flex-1 overflow-y-auto px-[14px] pb-[14px]">
-            {tab === "page_templates" && dbTemplatesLoading ? (
-              <div
-                className="flex flex-col items-center justify-center gap-[8px] px-[20px] py-[48px] text-center"
-                role="status"
-                aria-live="polite"
-              >
-                <span className="text-[13px]" style={{ color: CHROME.muted }}>
-                  Loading templates…
-                </span>
-              </div>
-            ) : items.length === 0 ? (
+            {items.length === 0 ? (
               <div
                 className="flex flex-col items-center justify-center gap-[8px] px-[20px] py-[48px] text-center"
                 role="status"
@@ -740,9 +738,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
                   No matches
                 </span>
                 <span className="text-[12px]" style={{ color: CHROME.muted }}>
-                  {tab === "page_templates"
-                    ? "No published page templates yet."
-                    : "Try a different search or browse another category."}
+                  Try a different search or browse another category.
                 </span>
               </div>
             ) : (
