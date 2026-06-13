@@ -60,12 +60,26 @@ test.afterAll(async () => {
 });
 
 /** Render a design's HTML in the renderer's own process (the bundled-font base
- * URL points at the running server so the woff2 load over http). */
+ * URL points at the running server so the woff2 load over http).
+ *
+ * BUILDER_IMAGE_OPT=off: the renderer's P4-IMAGEOPT adds a responsive `srcSet`
+ * routing through the Next image optimizer (`/_next/image?url=…`). That endpoint
+ * only exists under a running Next server — the fidelity static server can't
+ * serve it, so the browser (which prefers a `srcSet` candidate) fails every
+ * photo to a broken-image box and the goldens diff by exactly the image area.
+ * The renderer ships this opt-out for precisely non-optimizer environments; with
+ * it off the harness emits the plain `<img src>` that the static server resolves
+ * from `public/`. The visual result is identical to production (same photo), so
+ * the existing goldens still match — only the unservable optimizer URL is gone. */
 function buildHtmlInRendererProcess(designId: string): string {
   return execFileSync(
     "npx",
     ["tsx", "scripts/fidelity/render-html.ts", designId, server.fontsBaseUrl],
-    { cwd: process.cwd(), encoding: "utf8" },
+    {
+      cwd: process.cwd(),
+      encoding: "utf8",
+      env: { ...process.env, BUILDER_IMAGE_OPT: "off" },
+    },
   );
 }
 

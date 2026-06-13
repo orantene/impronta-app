@@ -44,8 +44,10 @@ vi.mock("next/navigation", () => ({
 // `React.Profiler.onRender` is NOT a valid probe for a React.memo bail — it
 // fires when the Profiler boundary itself commits (the parent re-render
 // re-creates the <Profiler> element), even when the memoized child bails
-// (empirically verified). So we instead spy on `renderBuilderNodes`, which the
-// component calls IN its render body: if React.memo bails, the body never runs
+// (empirically verified). So we instead spy on `renderFreeformPageRootTree` —
+// the single function `ClientBuilderCanvas` calls IN its render body (it
+// returns `renderFreeformPageRootTree(tree, options)`; it no longer calls
+// `renderBuilderNodes` directly). If React.memo bails, the body never runs
 // → 0 calls. The barrel is mocked-through (real impl wrapped) so DOM still
 // renders for the emit/DOM-count assertions in the second test.
 const renderCalls = { n: 0 };
@@ -54,11 +56,11 @@ vi.mock("@/lib/site-admin/builder-node", async (importOriginal) => {
     await importOriginal<typeof import("@/lib/site-admin/builder-node")>();
   return {
     ...actual,
-    renderBuilderNodes: (
-      ...args: Parameters<typeof actual.renderBuilderNodes>
+    renderFreeformPageRootTree: (
+      ...args: Parameters<typeof actual.renderFreeformPageRootTree>
     ) => {
       renderCalls.n += 1;
-      return actual.renderBuilderNodes(...args);
+      return actual.renderFreeformPageRootTree(...args);
     },
   };
 });

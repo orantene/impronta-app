@@ -13,7 +13,7 @@
  *     uuid id + tenant + expectedVersion; same shape
  *   - sectionRestoreRevisionSchema: sectionId + tenantId + revisionId +
  *     expectedVersion
- *   - ALL_SECTION_TYPE_KEYS tuple matches registry contents (hero only in M4)
+ *   - allSectionTypeKeys() tuple matches registry contents (hero only in M4)
  *   - Capability matrix:
  *       sections.edit:    editor YES, coordinator YES, admin YES, owner YES, viewer NO
  *       sections.publish: editor NO, coordinator YES, admin YES, owner YES, viewer NO
@@ -25,7 +25,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
-  ALL_SECTION_TYPE_KEYS,
+  allSectionTypeKeys,
   rolePhase5HasCapability,
   sectionArchiveSchema,
   sectionDeleteSchema,
@@ -38,12 +38,12 @@ import {
 
 // ---- registry surface -----------------------------------------------------
 
-test("ALL_SECTION_TYPE_KEYS includes the M4 baseline ('hero')", () => {
+test("allSectionTypeKeys() includes the M4 baseline ('hero')", () => {
   // M4 locked the tuple to ['hero']; subsequent milestones (M7, M8) extended
   // it. The invariant we still assert: hero is always registered. The full
   // tuple is intentionally derived from SECTION_REGISTRY so we don't re-lock
   // it here.
-  assert.ok([...ALL_SECTION_TYPE_KEYS].includes("hero"));
+  assert.ok([...allSectionTypeKeys()].includes("hero"));
 });
 
 // ---- sectionUpsertSchema --------------------------------------------------

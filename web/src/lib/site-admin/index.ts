@@ -208,7 +208,7 @@ export {
 export {
   SECTION_NAME_MAX,
   SECTION_STATUSES,
-  ALL_SECTION_TYPE_KEYS,
+  allSectionTypeKeys,
   sectionTypeKeySchema,
   sectionNameSchema,
   validateSectionProps,
