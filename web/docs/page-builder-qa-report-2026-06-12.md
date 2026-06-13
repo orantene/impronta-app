@@ -258,3 +258,29 @@ QA artifact removed: the throwaway workspace page was deleted post-verification.
 **Gate:** tsc 0 / lint 0 / test:builder 465 pass. Migration applied; no further migration.
 
 **QA artifacts removed:** the throwaway published freeform page `untitled-mqc1drl3`. (Sofía's demo media seed left as a fixture.)
+
+---
+
+## Legacy-removal QA + adversarial review (2026-06-13, `feat/page-consolidation`)
+
+**Legacy `workspace_pages` system removed** (commit `74bd849ee`): deleted the orphaned workspace builder (surface, mount, adapter trio, actions), the `/p/` workspace_pages clause, the data-bridge read, the `workspace_page` surface kind. −1476/+99.
+
+**Live QA (Chrome):**
+- ✅ Website admin: ONE unified Pages list, no second "Page Builder" section, zero console errors.
+- ✅ `/p/` published slot page (`faces-of-fall-26`) renders full content + connected talent directory (41 profiles) — slot fallthrough survived removing the workspace clause above it.
+- ✅ Homepage renders on Impronta black/gold theme (intact).
+- ✅ Wave 4.1 create path: "Add page" → `is_freeform=true` freeform draft (DB-confirmed). `untitled-mq5zxu6x` (is_freeform=false) confirmed a stale pre-Wave-4.1 artifact.
+- DB-diagnosed page state rather than driving the editor on drafts (homepage-draft-incident lesson: editor autosave can perpetuate empty).
+
+**Adversarial code review of the 24-commit bundle** (27 agents, 6 dimensions, each finding independently verified): legacy-removal 0 / media-picker-auth 0 / theme-parity 0 / cms-freeform 4 / builder-surface-integrity 11 (mostly positive confirmations) / test-coverage 6. **15 confirmed, 6 refuted.**
+- 🔴 **BLOCKER (fixed, commit `58ebbc1f3`):** `/p/` freeform DRAFT gating honored only the non-HttpOnly edit cookie, not the signed preview JWT. Brought to parity with the slot/homepage paths → `published || isPreviewActiveForTenant || isEditModeActiveForTenant`. (The forgeable-cookie exposure is platform-wide + pre-existing — slot + homepage OR the same cookie in; the verifier's "established patterns require BOTH" was a misread. True JWT-only gating = separate platform-wide hardening, flagged below.)
+- ✅ **MAJOR test gaps (fixed):** new `cms-page-adapter.test.ts` (11 tests) proves guard-call on every mutation + `ctx.locale` threading (multi-locale wrong-row guard) + no-lazy-create; wired into `test:builder`.
+- ✅ **NIT (fixed):** `/p/` freeform query now excludes `is_system_owned` rows (defense-in-depth).
+
+**Deferred (documented test-debt on correct code — not blockers):**
+- `/p/` route-level integration test for the draft render branch (no route-test harness exists; logic now mirrors the proven slot pattern + live-verified).
+- Sub-second `updated_at`-epoch CAS precision on freeform saves (pre-existing pattern shared with talent/workspace adapters).
+- `/api/talent/media/library` auth integration test (code verified sound; returns 403 on cross-tenant, not a leak).
+- **Platform-wide:** draft reads on homepage/slot/freeform all honor the non-HttpOnly edit cookie alone (`previewActive || editActive`); true JWT-only gating is a separate, careful, platform-wide change.
+
+**Gate:** tsc 0 / lint 0 / **test:builder 466 pass**. 25 commits ahead of `origin/main`, awaiting prod-merge approval.
