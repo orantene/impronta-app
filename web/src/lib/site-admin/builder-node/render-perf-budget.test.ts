@@ -9,7 +9,7 @@ import type { BuilderNode } from "./types";
 /**
  * PERF-1 regression lock for the builder perf budget (P4 Lane: perf).
  *
- * The published-page perf budget (scripts/fidelity/perf-budget.mts) asserts the
+ * The published-page perf budget (scripts/fidelity/perf-budget.ts) asserts the
  * global renderer stylesheet is emitted EXACTLY ONCE per page — every page pays
  * its ~57 KB weight, so a duplicate would silently double a fixed cost on every
  * published builder page, and a MISSING sheet would break every page's styling.

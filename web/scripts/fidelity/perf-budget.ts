@@ -31,9 +31,9 @@
  * same report — exactly what a CI gate needs.
  *
  * Usage:
- *   tsx scripts/fidelity/perf-budget.mts            measure + enforce (default)
- *   tsx scripts/fidelity/perf-budget.mts --json     print only the JSON report
- *   tsx scripts/fidelity/perf-budget.mts --selftest  prove the gate REJECTS bloat
+ *   tsx scripts/fidelity/perf-budget.ts            measure + enforce (default)
+ *   tsx scripts/fidelity/perf-budget.ts --json     print only the JSON report
+ *   tsx scripts/fidelity/perf-budget.ts --selftest  prove the gate REJECTS bloat
  */
 
 import { statSync, mkdirSync, writeFileSync } from "node:fs";
