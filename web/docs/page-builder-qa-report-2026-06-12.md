@@ -203,3 +203,17 @@ The editor chrome (topbar/rails/panels) already used the light `CHROME` palette;
 **Gate:** tsc 0 / lint 0 / surface-allow-list 11 pass / test:builder 465 pass. No migration.
 
 **QA artifacts (remove at ship):** 4 `media_assets` + 2 `agency_talent_media` rows tagged `metadata.source='qa-media-seed'` on Sofía; one throwaway image section in Sofía's *draft* (unpublished).
+
+---
+
+## Wave 3 — Deferred deep-sweep (live)
+
+Verified on a fresh workspace page `/impronta/p/untitled-mqbu3n50` (created → Connected "Talent Grid" section → published → viewed public → deleted):
+
+- **Public `/p/` workspace render ✓** — the published page renders the freeform tree on the public route (real talent cards, agency header). Sibling of the already-proven `/t/<code>/home`; same `renderFreeformPageRootTree` engine.
+- **Repeaters / field-binding ✓** — the "Talent Grid" connected block (Source: Talent Collection) hydrated **real talent data**: cards for Anto (Commercial Model · Playa del…), Tina (Event Hostess), Nalea (Art Model) + more, each binding name/discipline/location/photo from the live collection. Confirms the repeater renders one card per row with bound fields.
+- **Workspace canvas render (F6 re-confirm) ✓** — the connected section painted in the in-editor canvas on insert (white default; light theme).
+- **Multi-select / drag-reorder** — Navigator reorder controls (up/down/delete per layer) confirmed present + functional in Wave 1; not re-exercised this round (low-risk editor UX).
+- **Publish CAS quirk (known, not a bug)** — the publish drawer showed "Last published —" + an "Undo history reset (changed in another tab/session)" toast, but the DB confirmed `status=published`. Cosmetic UI-refresh quirk on rapid create→edit→publish; the publish itself succeeds. (Same pattern noted on the talent publish.)
+
+QA artifact removed: the throwaway workspace page was deleted post-verification.
