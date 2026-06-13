@@ -21,6 +21,7 @@ import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { logServerError, CLIENT_ERROR } from "@/lib/server/safe-error";
+import { bumpCatalogVersion } from "./catalog-version";
 import type {
   CatalogOverlayMap,
   CatalogOverlayRow,
@@ -60,24 +61,8 @@ function getAdminClient() {
  *  live "+" gallery refetches on open regardless; this is belt-and-suspenders. */
 function revalidateCatalog() {
   revalidatePath("/platform/admin");
-  revalidatePath("/t", "layout");
-  revalidatePath("/p", "layout");
-}
-
-/** Atomic-enough bump (single super_admin operator) of the sync counter. */
-async function bumpCatalogVersion(
-  sb: ReturnType<typeof getAdminClient>,
-): Promise<void> {
-  const { data } = await sb
-    .from("builder_catalog_version")
-    .select("version")
-    .eq("id", 1)
-    .maybeSingle();
-  const next = ((data?.version as number | undefined) ?? 0) + 1;
-  await sb
-    .from("builder_catalog_version")
-    .update({ version: next, updated_at: new Date().toISOString() })
-    .eq("id", 1);
+  revalidatePath("/t", "layout"); // talent pages are top-level (src/app/t)
+  revalidatePath("/(public)/p", "layout"); // workspace pages live under the (public) route group
 }
 
 // ── reads ──────────────────────────────────────────────────────────────────
@@ -104,11 +89,16 @@ export async function listCatalogOverlays(): Promise<CatalogOverlayMap> {
   }
 }
 
-/** Current sync-counter value (P5 stamp). 0 on any error. */
-export async function getCatalogVersion(): Promise<number> {
+/**
+ * Current sync-counter value (the P5 stamp). Returns `null` on error / no
+ * session so a future staleness poller can distinguish a failure from version 0
+ * (the seeded baseline). The live "+" gallery uses next-load sync (fetch on
+ * open) by design; this reader is the hook for an optional realtime refresh.
+ */
+export async function getCatalogVersion(): Promise<number | null> {
   try {
     const sb = await createClient();
-    if (!sb) return 0;
+    if (!sb) return null;
     const { data } = await sb
       .from("builder_catalog_version")
       .select("version")
@@ -117,7 +107,7 @@ export async function getCatalogVersion(): Promise<number> {
     return (data?.version as number | undefined) ?? 0;
   } catch (err) {
     logServerError("getCatalogVersion", err);
-    return 0;
+    return null;
   }
 }
 

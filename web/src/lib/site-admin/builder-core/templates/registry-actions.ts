@@ -32,6 +32,7 @@ import {
   type UpdateTemplateDraftInput,
   type ListPublishedTemplatesFilter,
 } from "./registry-rows";
+import { bumpCatalogVersion } from "./catalog-version";
 
 // ── Result type ───────────────────────────────────────────────────────────────
 
@@ -72,31 +73,6 @@ function getAdminClient() {
 // ── Revalidation path ─────────────────────────────────────────────────────────
 
 const TEMPLATE_CACHE_PATH = "/platform/admin";
-
-/**
- * Bump the catalog sync counter (P5 sync key) so any consumer that stamps the
- * version can detect that the published catalog changed. Mirrors the bump in
- * catalog-overlay-actions; best-effort — a counter failure never fails the
- * lifecycle op (the template change already succeeded).
- */
-async function bumpCatalogVersion(
-  sb: ReturnType<typeof getAdminClient>,
-): Promise<void> {
-  try {
-    const { data } = await sb
-      .from("builder_catalog_version")
-      .select("version")
-      .eq("id", 1)
-      .maybeSingle();
-    const next = ((data?.version as number | undefined) ?? 0) + 1;
-    await sb
-      .from("builder_catalog_version")
-      .update({ version: next, updated_at: new Date().toISOString() })
-      .eq("id", 1);
-  } catch {
-    // best-effort — the published-set change already committed.
-  }
-}
 
 // ── createTemplateDraft ───────────────────────────────────────────────────────
 
