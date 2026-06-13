@@ -16,6 +16,15 @@
  * Trust: see `GallerySurfaceDescriptor`. `listPublishedTemplates` reads with the
  * caller's cookie session, so RLS (`status='published'`) is the real boundary;
  * the descriptor's plan/tier/target only shape which template cards show.
+ *
+ * SYNC INVARIANT (P5): this is the ONE read path for both live builders' "+"
+ * galleries and the Lab Catalog — code items have no second representation, and
+ * templates + overlay are the only variable inputs, both funnelled through
+ * `listGalleryItems`. There is therefore no second code path that could drift.
+ * The panel refetches on every open → "next-load" sync (the chosen model). Every
+ * mutation that changes the catalog (overlay writes, template publish/unpublish/
+ * archive) bumps `builder_catalog_version` (read via `getCatalogVersion`), the
+ * forward-looking hook for an optional realtime refresh of an already-open panel.
  */
 
 import { listGalleryItems } from "./registry-db-merge";
