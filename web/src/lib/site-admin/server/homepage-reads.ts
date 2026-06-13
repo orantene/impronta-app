@@ -24,7 +24,6 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { tagFor } from "@/lib/site-admin";
 import type { Locale } from "@/lib/site-admin/locales";
 import type { JsonLdDocument } from "@/lib/site-admin/cms-seo";
-import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import { previewCookieNameFor } from "@/lib/site-admin/preview/cookie";
 import { verifyPreviewJwt } from "@/lib/site-admin/preview/jwt";
 import { resolveSnapshotBuilderTree } from "@/lib/site-admin/builder-node/snapshot-tree";
@@ -249,11 +248,14 @@ export async function loadHomepageForRender(
   tenantId: string,
   locale: Locale,
 ): Promise<PublicHomepage | null> {
-  const [previewActive, editActive] = await Promise.all([
-    isPreviewActiveForTenant(tenantId),
-    isEditModeActiveForTenant(tenantId),
-  ]);
-  if (previewActive || editActive) {
+  // Draft reads are gated on the SIGNED preview JWT only. The edit cookie
+  // (isEditModeActiveForTenant) is non-HttpOnly + forgeable and must NOT unlock
+  // unpublished content. enterEditModeAction sets BOTH the JWT and the cookie,
+  // so staff editing still see drafts; a lone (forged / expired-JWT) cookie sees
+  // published only — broken, not privileged. The cookie still drives edit-mode
+  // affordances in the rendered output (separate call sites).
+  const previewActive = await isPreviewActiveForTenant(tenantId);
+  if (previewActive) {
     return loadDraftHomepage(tenantId, locale);
   }
   return loadPublicHomepage(tenantId, locale);
