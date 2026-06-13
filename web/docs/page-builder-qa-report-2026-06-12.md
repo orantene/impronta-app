@@ -217,3 +217,20 @@ Verified on a fresh workspace page `/impronta/p/untitled-mqbu3n50` (created → 
 - **Publish CAS quirk (known, not a bug)** — the publish drawer showed "Last published —" + an "Undo history reset (changed in another tab/session)" toast, but the DB confirmed `status=published`. Cosmetic UI-refresh quirk on rapid create→edit→publish; the publish itself succeeds. (Same pattern noted on the talent publish.)
 
 QA artifact removed: the throwaway workspace page was deleted post-verification.
+
+---
+
+## ⚠️ Wave 3 — PROD-BLOCKING regression caught + fixed (Impronta went white)
+
+**Symptom (user-reported):** "what happened to the Impronta black and gold theme?" — Impronta's public homepage was rendering WHITE instead of black/gold.
+
+**Root cause:** Wave 2 promoted `color.background` to a projected CSS var (`COLOR_VAR_NAMES → --token-color-background`) AND gave it `defaultValue:"#ffffff"`. `resolveDesignTokens` seeds every tenant from `tokenDefaults()`, so the white default was emitted as an **inline** `--token-color-background:#ffffff` on `<html>` — which beats the `html[data-token-background-mode="editorial-noir"]` **stylesheet** re-pin (#0a0a0a). Every dark-mode tenant with no explicit `color.background` (Impronta relies on `background.mode:editorial-noir`, not a bg token) rendered white. Would have shipped to improntamodels.com.
+
+**Fix (commit 6661ae9f8):** `color.background.defaultValue` → `""` (empty = "follow the active background mode", same pattern as `shell.header-bg`); new `hexColorOrEmpty` validator. Empty → `designTokensToCssVars` emits nothing → editorial-noir's dark re-pin (or the `var(--token-color-background,#fff)` fallback for plain) drives the canvas. New light sites keep white because the Modern-2026 platform default sets `color.background:"#ffffff"` **explicitly** (an explicit value still projects + wins).
+
+**Verified (SSR anon + live):**
+- `/impronta` → `data-token-background-mode=editorial-noir`, **no** inline `--token-color-background`, canvas `rgb(10,10,10)`, accent `#d4af37` → **black + gold restored**.
+- `/t/TAL-92001/home` → `plain`, `--token-color-background:#ffffff` → **white (light default preserved)**.
+- Gate: tsc 0 / lint 0 / test:builder 465 / test:builder-chrome 102.
+
+**Why it matters:** this is the exact value of verifying-before-merge — the user's question surfaced a regression the automated gate (tsc/lint/tests) did NOT catch (it's a CSS-projection precedence issue, not a type/logic error). It only existed on the integration branch; `main`/prod was never affected.
