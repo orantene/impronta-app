@@ -74,6 +74,13 @@ const SUPPRESSION_DESTINATIONS: Record<string, string | null> = {
   // Details field, especially before any talent type is selected.
   "skills":                  "services",
 
+  // fit_labels ("Best for …" markers) is a TAXONOMY field — its values live in
+  // talent_profile_taxonomy (relationship_type='attribute', kind='fit_label')
+  // and are edited via the Services taxonomy picker, NOT the generic
+  // profile_field_definitions multiselect (whose `options` are null → the
+  // "No options configured" bug). Suppress it here exactly like skills.
+  "fit_labels":              "services",
+
   // Location accordion
   "service.has_drivers_license": "location",
   "service.owns_vehicle":        "location",
