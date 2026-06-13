@@ -39,6 +39,13 @@ const hexColor = z
   .string()
   .regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, "Invalid hex color");
 
+// Hex OR empty string. Empty = "no explicit value; follow the background mode"
+// (used by color.background so a dark-mode tenant isn't forced onto a white
+// default — see the color.background spec below).
+const hexColorOrEmpty = z
+  .string()
+  .regex(/^(#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}))?$/, "Invalid hex color");
+
 export type TokenScope =
   | "color"
   | "typography"
@@ -116,12 +123,22 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
     // Subtree-overridable page canvas. Projected as `--token-color-background`
     // (COLOR_VAR_NAMES) which the base `--site-page-background` chain + the
     // `[data-theme-canvas-root]` paint rule consume, so a talent/tenant subtree
-    // can override the host's canvas. Dark background modes (editorial-noir,
-    // mesh-noir) re-pin this var to their dark color in token-presets.css, so
-    // Impronta stays black even on subtrees.
+    // can override the host's canvas.
+    //
+    // Default is EMPTY (not "#ffffff") on purpose: `resolveDesignTokens` seeds
+    // every tenant from `tokenDefaults()`, and a non-empty default here gets
+    // projected as an INLINE `--token-color-background` on <html>, which beats
+    // the `html[data-token-background-mode="editorial-noir"]` stylesheet re-pin
+    // — turning a dark-mode tenant (Impronta) WHITE on the public storefront.
+    // Empty means "follow the active background.mode" (same pattern as
+    // shell.header-bg): unset → designTokensToCssVars emits nothing → the dark
+    // mode's re-pin (or the `var(--token-color-background, #ffffff)` fallback
+    // for plain/light) drives the canvas. New light sites get white from the
+    // Modern-2026 platform default, which sets color.background="#ffffff"
+    // EXPLICITLY (an explicit value still projects + wins, as intended).
     agencyConfigurable: true,
-    validator: hexColor,
-    defaultValue: "#ffffff",
+    validator: hexColorOrEmpty,
+    defaultValue: "",
     group: "Brand colors",
   },
 
