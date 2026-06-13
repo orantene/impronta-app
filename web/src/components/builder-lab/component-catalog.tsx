@@ -92,6 +92,8 @@ export function ComponentCatalog() {
   const [editCategory, setEditCategory] = useState("");
   const [editIcon, setEditIcon] = useState("");
   const [editPlan, setEditPlan] = useState("");
+  // W11 — inline (non-blocking) reset confirmation.
+  const [confirmingResetId, setConfirmingResetId] = useState<string | null>(null);
   // W6 — search + filter over the (large) catalog.
   const [query, setQuery] = useState("");
   const [filterMode, setFilterMode] = useState<"all" | "hidden" | "customized">(
@@ -221,15 +223,9 @@ export function ComponentCatalog() {
     [mutate, editLabel, editCategory, editIcon, editPlan, flash],
   );
 
-  const resetOverlay = useCallback(
+  const confirmReset = useCallback(
     (item: CatalogAdminItem) => {
-      if (
-        !window.confirm(
-          `Reset all overrides for "${item.effectiveLabel}"? It returns to its built-in defaults.`,
-        )
-      ) {
-        return;
-      }
+      setConfirmingResetId(null);
       void mutate(item.id, () => clearComponentOverlay(item.id)).then(() =>
         flash("Reset ✓"),
       );
@@ -416,7 +412,7 @@ export function ComponentCatalog() {
                             flexShrink: 0,
                           }}
                         >
-                          <AddGalleryIcon name={r.baseIcon} size="sm" tone="accent" />
+                          <AddGalleryIcon name={r.overlay?.icon_override ?? r.baseIcon} size="sm" tone="accent" />
                         </span>
                         <div style={{ minWidth: 0 }}>
                           <div style={{ color: T.ink, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
@@ -479,11 +475,17 @@ export function ComponentCatalog() {
                           <LinkBtn label="Save" onClick={() => saveEdit(r)} disabled={busy} primary />
                           <LinkBtn label="Cancel" onClick={() => setEditingId(null)} disabled={busy} />
                         </span>
+                      ) : confirmingResetId === r.id ? (
+                        <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
+                          <span style={{ fontSize: 11, color: T.inkMuted }}>Reset to default?</span>
+                          <LinkBtn label="Yes" onClick={() => confirmReset(r)} disabled={busy} primary />
+                          <LinkBtn label="No" onClick={() => setConfirmingResetId(null)} disabled={busy} />
+                        </span>
                       ) : (
                         <span style={{ display: "inline-flex", gap: 10 }}>
                           <LinkBtn label="Edit" onClick={() => startEdit(r)} disabled={busy} />
                           {r.overlay ? (
-                            <LinkBtn label="Reset" onClick={() => resetOverlay(r)} disabled={busy} />
+                            <LinkBtn label="Reset" onClick={() => setConfirmingResetId(r.id)} disabled={busy} />
                           ) : null}
                         </span>
                       )}
