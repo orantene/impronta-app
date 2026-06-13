@@ -199,7 +199,7 @@ export function CommandDock() {
     closePageSettings,
     brandPanelOpen,
     toggleBrandPanel,
-    canEditSiteShell,
+    canEditTheme,
     themeOpen,
     openTheme,
     closeTheme,
@@ -308,7 +308,12 @@ export function CommandDock() {
     },
   ];
 
-  if (canEditSiteShell) {
+  // Theme is offered when the surface's `themeTokens` capability is on (Max
+  // talents) OR the operator may edit the site shell (homepage / workspace).
+  // `canEditTheme = capabilities.themeTokens || canEditSiteShell`. The talent
+  // path now has a backend (talent_pages.theme via the surface-aware drawer),
+  // so the drawer no longer 401s for a Max talent.
+  if (canEditTheme) {
     primaryItems.push({
       id: "theme",
       label: "Theme",

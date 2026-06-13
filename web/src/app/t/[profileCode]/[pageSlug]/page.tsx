@@ -39,7 +39,13 @@ import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-
 import { loadBuilderNodeDataSources } from "@/components/home/homepage-cms-data-sources";
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { loadPublicComponentStyleDefaults } from "@/lib/site-admin/server/reads";
+import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
 import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
+import {
+  designTokensToCssVars,
+  designTokensToDataAttrs,
+} from "@/lib/site-admin/tokens/resolve";
+import { GoogleFontsLink } from "@/app/google-fonts-link";
 import { PublicHeader } from "@/components/public-header";
 
 // A published talent page must reflect the talent's latest publish — mirror the
@@ -76,7 +82,14 @@ export default async function PublicTalentFreeformPage({
   const page = await loadPublishedTalentPage({ profileCode, slug: pageSlug });
   if (!page) notFound();
 
-  const { blocks, theme, tenantId, talentProfileId } = page;
+  const {
+    blocks,
+    theme,
+    tenantId,
+    talentProfileId,
+    designTokens,
+    componentStyleDefaults: talentComponentStyleDefaults,
+  } = page;
 
   if (!hasRenderableBuilderNodes(blocks, { mode: "freeform" })) {
     // A published-but-empty page has nothing to show — treat as not found
@@ -101,7 +114,7 @@ export default async function PublicTalentFreeformPage({
   // Data sources (bound media, collections, directory) + live component
   // instances — only load when the tree actually binds them AND a managing
   // tenant exists (the loaders are tenant-scoped service-role reads).
-  const [dataSources, components, componentStyleDefaults] = await Promise.all([
+  const [dataSources, components, tenantComponentStyleDefaults] = await Promise.all([
     tenantId
       ? loadBuilderNodeDataSources(blocks, tenantId, locale)
       : Promise.resolve({}),
@@ -113,14 +126,64 @@ export default async function PublicTalentFreeformPage({
       : Promise.resolve({}),
   ]);
 
+  // Talent-scoped theme cascade: the talent's OWN published per-component-type
+  // defaults take precedence; otherwise inherit the PLATFORM DEFAULT (Modern
+  // 2026) — NOT the host tenant's (Impronta black/gold) which would render
+  // white-on-white buttons on the light canvas. Mirrors the talent editor.
+  const platformDefault = await loadPlatformDefaultTheme();
+  void tenantComponentStyleDefaults; // host-tenant defaults intentionally not used as the talent fallback
+  const componentStyleDefaults =
+    talentComponentStyleDefaults && Object.keys(talentComponentStyleDefaults).length > 0
+      ? talentComponentStyleDefaults
+      : platformDefault.componentStyles;
+
+  // Talent-scoped design tokens. When the talent has themed their page, project
+  // their LIVE tokens as CSS vars + data-attrs on a `data-theme-canvas-root`
+  // wrapper. Every bound node renders `var(--token-x, fallback)`, so setting the
+  // vars on this ancestor overrides the host tenant's tokens (inherited from
+  // <html>) for this subtree — the SAME projection the storefront + editor use.
+  // Unthemed talent → the PLATFORM DEFAULT tokens (modern light), so the public
+  // page matches what they built in the editor and doesn't inherit the host's bg.
+  const effectiveTokens =
+    Object.keys(designTokens).length > 0 ? designTokens : platformDefault.tokens;
+  const hasTalentTokens = Object.keys(effectiveTokens).length > 0;
+  const talentCssVars = hasTalentTokens ? designTokensToCssVars(effectiveTokens) : {};
+  // Custom font families consume `--site-heading/body-font` (declared on <html>);
+  // override them on the canvas root too when a custom family is set.
+  const headingFamily = effectiveTokens["typography.heading-font-family"]?.trim();
+  const bodyFamily = effectiveTokens["typography.body-font-family"]?.trim();
+  if (headingFamily) talentCssVars["--site-heading-font"] = headingFamily;
+  if (bodyFamily) talentCssVars["--site-body-font"] = bodyFamily;
+  const talentDataAttrs = hasTalentTokens ? designTokensToDataAttrs(effectiveTokens) : {};
+
   return (
-    <div data-talent-freeform-page-shell="">
+    <div
+      data-talent-freeform-page-shell=""
+      // Paint the talent's OWN page background across the whole page area (below
+      // the agency header), with min-height so a short page still fills the
+      // viewport — otherwise a light talent page under a dark-host agency shows
+      // the host's black around the content. The header keeps its own
+      // (--token-shell-header-bg) colour.
+      style={{
+        ...(talentCssVars as React.CSSProperties),
+        backgroundColor: "var(--token-color-background, #ffffff)",
+        minHeight: "100vh",
+      }}
+    >
       <PublicHeader />
       {/* Renderer styles + fonts emitted once at the page level; the root-tree
           helper sets includeRendererStyles/includeFontLinks=false per block. */}
       <BuilderNodeRendererStyles />
       <BuilderNodeFontLinks nodes={blocks} components={components} />
-      <main data-talent-freeform-page-main="">
+      {/* Load any Google fonts the talent picked in their theme. No-op when no
+          picker tokens are set. */}
+      {hasTalentTokens ? <GoogleFontsLink tokens={effectiveTokens} /> : null}
+      <main
+        data-talent-freeform-page-main=""
+        data-theme-canvas-root=""
+        {...talentDataAttrs}
+        style={talentCssVars as React.CSSProperties}
+      >
         {renderFreeformPageRootTree(blocks, {
           publicPathPrefix,
           mode: "freeform",

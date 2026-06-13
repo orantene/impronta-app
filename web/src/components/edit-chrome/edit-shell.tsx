@@ -44,6 +44,8 @@ import { ThemePreviewProjector } from "./theme-preview-projector";
 import { CHROME, CHROME_SHADOWS, EDIT_TOPBAR_H } from "./kit";
 import { isCoachmarkDismissed, dismissCoachmark } from "./builder-coachmarks";
 import { SelectionLayer } from "./selection-layer";
+import { InEditorCanvasRegion } from "./in-editor-canvas-region";
+import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
 import { InspectorDock } from "./inspector-dock";
 import { InlineEditor } from "./inline-editor";
 import { MobileEditPanel } from "./mobile-edit-panel";
@@ -238,6 +240,13 @@ interface EditShellProps {
    * surface adapter.
    */
   surfaceConfig?: import("@/lib/site-admin/builder-core/config").BuilderContextConfig;
+  /**
+   * Server-assembled render data for the in-editor `ClientBuilderCanvas`
+   * (non-homepage surfaces). Null on the homepage (its storefront body paints
+   * the canvas) and acceptable as null on a not-yet-resolved surface (the
+   * canvas mounts empty; the bridge paints live inserts).
+   */
+  canvasRenderData?: InEditorCanvasRenderData | null;
   children?: React.ReactNode;
 }
 
@@ -253,6 +262,7 @@ export function EditShell({
   workspaceMembershipSlug = null,
   canInsertRawHtmlElements = false,
   surfaceConfig,
+  canvasRenderData = null,
   children,
 }: EditShellProps) {
   return (
@@ -280,7 +290,9 @@ export function EditShell({
             useEditContext() consumers. Adds zero nodes when the flag is off. */}
         <BuilderProfilerBoundary id="edit-chrome">
           <CanvasViewportProviderWrapper>
-            <EditShellInner>{children}</EditShellInner>
+            <EditShellInner canvasRenderData={canvasRenderData}>
+              {children}
+            </EditShellInner>
           </CanvasViewportProviderWrapper>
         </BuilderProfilerBoundary>
       </EditProvider>
@@ -380,7 +392,13 @@ async function handleShareClick(
   }
 }
 
-function EditShellInner({ children }: { children?: React.ReactNode }) {
+function EditShellInner({
+  children,
+  canvasRenderData = null,
+}: {
+  children?: React.ReactNode;
+  canvasRenderData?: InEditorCanvasRenderData | null;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -397,6 +415,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     openRevisions,
     openTheme,
     canEditSiteShell,
+    surfaceKind,
     openAssets,
     openCollections,
     openSchedule,
@@ -1142,6 +1161,15 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         />
       </div>
       {children}
+        {/* Non-homepage surfaces (cms_page / talent_page / platform_lab)
+            mount the freeform canvas IN the editor — the homepage paints via its
+            storefront body, so it short-circuits here. Rendered in normal flow
+            BELOW the overlay portal so SelectionLayer / InlineEditor / presence
+            (which query [data-builder-node-id] from the document) attach to the
+            painted nodes automatically. */}
+        {surfaceKind !== "homepage" ? (
+          <InEditorCanvasRegion canvasRenderData={canvasRenderData} />
+        ) : null}
         <DeviceFrameSurface
           device={device}
           previewFrame={previewFrame}

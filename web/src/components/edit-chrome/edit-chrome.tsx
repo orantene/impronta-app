@@ -58,8 +58,12 @@ import dynamic from "next/dynamic";
 import { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 
-import { buildHomepageBuilderConfig } from "@/lib/site-admin/builder-core/config";
+import {
+  buildHomepageBuilderConfig,
+  buildCmsPageBuilderConfig,
+} from "@/lib/site-admin/builder-core/config";
 import { homepageAdapter } from "@/lib/site-admin/builder-core/adapters/homepage-adapter";
+import { createBoundCmsPageAdapter } from "@/lib/site-admin/builder-core/adapters/cms-page-adapter";
 import { EditPill } from "./edit-pill";
 import { EditShellLoading } from "./edit-shell-loading";
 import { IframeChild } from "./iframe-child";
@@ -107,6 +111,14 @@ interface EditChromeProps {
   workspaceMembershipSlug?: string | null;
   /** True only for platform owners (super_admin) — gates raw-HTML `code` insertion. */
   canInsertRawHtmlElements?: boolean;
+  /**
+   * Wave 4.1 — when true, this cms_page is FREEFORM (`is_freeform=true`): build
+   * the freeform cms_page config + adapter (writes `cms_pages.blocks`) instead of
+   * the legacy homepage/slot config. Resolved server-side in EditChromeMount.
+   * The homepage + system + existing slot pages are never freeform, so they keep
+   * the byte-identical homepage path.
+   */
+  freeformPageMode?: boolean;
 }
 
 export function EditChrome({
@@ -121,6 +133,7 @@ export function EditChrome({
   tenantSiteLabel = null,
   workspaceMembershipSlug = null,
   canInsertRawHtmlElements = false,
+  freeformPageMode = false,
 }: EditChromeProps) {
   // Always call useSearchParams unconditionally to keep hook order
   // stable; the EditPill branch ignores the subscription.
@@ -138,8 +151,16 @@ export function EditChrome({
   // own default is this very same config; passing it explicitly makes the
   // storefront surface contract visible and threads the resolved raw-HTML gate.
   const surfaceConfig = useMemo(
-    () => buildHomepageBuilderConfig(homepageAdapter, { canInsertRawHtmlElements }),
-    [canInsertRawHtmlElements],
+    () =>
+      freeformPageMode
+        ? // Wave 4.1 — freeform cms_page: write the BuilderNode[] tree to
+          // cms_pages.blocks via the cms_page adapter (never cms_page_sections).
+          buildCmsPageBuilderConfig(createBoundCmsPageAdapter(), {
+            canInsertRawHtmlElements,
+          })
+        : // Homepage + system + slot pages: byte-identical homepage path.
+          buildHomepageBuilderConfig(homepageAdapter, { canInsertRawHtmlElements }),
+    [canInsertRawHtmlElements, freeformPageMode],
   );
 
   // Sprint 3 — iframe-child mode. The parent editor mounts an <iframe>

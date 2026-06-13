@@ -22,6 +22,10 @@ import { loadTalentSelfProfileByUser } from "@/app/(workspace)/[tenantSlug]/_dat
 import { getActiveTalentAgencyContext } from "@/lib/talent/active-agency-context";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { buildInEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
+import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
+import { readTalentDesignSlice } from "@/lib/site-admin/edit-mode/talent-design-store";
+import type { BuilderNodeTree } from "@/lib/site-admin/builder-node";
 import { TalentPageBuilderScreen } from "@/components/talent/site/TalentPageBuilderScreen";
 
 export const dynamic = "force-dynamic";
@@ -66,6 +70,60 @@ export default async function TalentPageBuilderRoute() {
     }
   }
 
+  // Prime the in-editor canvas: assemble data sources + section_embed islands +
+  // component-style defaults for the talent's CURRENT draft blocks, scoped to
+  // the talent preview subject. The editor's adapter loads/republishes the
+  // canonical draft client-side (which repaints the canvas via the bridge); this
+  // server-built render data makes the FIRST paint correct (data-bound +
+  // section_embed nodes) instead of empty. Best-effort — on any failure the
+  // canvas mounts against empty inputs and still paints live inserts.
+  let canvasRenderData = null;
+  if (tenantId) {
+    try {
+      const admin = createServiceRoleClient();
+      let draftTree: BuilderNodeTree = [];
+      let talentComponentStyleDefaults = null;
+      let talentDesignTokens: Record<string, string> | null = null;
+      if (admin) {
+        const { data: pageRow } = await admin
+          .from("talent_pages")
+          .select("blocks, theme")
+          .eq("talent_profile_id", profile.id)
+          .eq("slug", TALENT_PAGE_SLUG)
+          .maybeSingle();
+        const row = pageRow as { blocks: BuilderNodeTree | null; theme: unknown } | null;
+        draftTree = (row?.blocks ?? []) as BuilderNodeTree;
+        // First paint uses the talent's PUBLISHED theme (component-style defaults
+        // + design tokens) so the canvas reflects the talent's theme, not the host
+        // tenant's. The Theme drawer previews the DRAFT live on top of this.
+        const slice = readTalentDesignSlice(row?.theme);
+        // A talent with NO theme of their own inherits the PLATFORM DEFAULT
+        // (Modern 2026) — NOT the host tenant's (e.g. Impronta's black/gold)
+        // component styles, which would render white-on-white buttons on the
+        // new light canvas. Operator overrides (a non-empty slice) win.
+        const platformDefault = await loadPlatformDefaultTheme();
+        talentComponentStyleDefaults =
+          Object.keys(slice.componentStyles).length > 0
+            ? slice.componentStyles
+            : platformDefault.componentStyles;
+        talentDesignTokens =
+          Object.keys(slice.tokens).length > 0
+            ? slice.tokens
+            : platformDefault.tokens;
+      }
+      canvasRenderData = await buildInEditorCanvasRenderData({
+        tree: draftTree,
+        tenantId,
+        locale,
+        previewSubject: { kind: "talent", id: profile.id },
+        componentStyleDefaultsOverride: talentComponentStyleDefaults,
+        designTokens: talentDesignTokens,
+      });
+    } catch {
+      canvasRenderData = null;
+    }
+  }
+
   return (
     <TalentPageBuilderScreen
       talentProfileId={profile.id}
@@ -75,6 +133,7 @@ export default async function TalentPageBuilderRoute() {
       talentTier={profile.talentTier}
       talentDisplayName={profile.displayName}
       locale={locale}
+      canvasRenderData={canvasRenderData}
     />
   );
 }

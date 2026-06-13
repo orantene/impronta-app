@@ -28,6 +28,7 @@ import { requireStaff } from "@/lib/server/action-guards";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { type CompositionData } from "@/lib/site-admin/edit-mode/composition-actions";
 import { homepageAdapter } from "@/lib/site-admin/builder-core/adapters/homepage-adapter";
+import { createBoundCmsPageAdapter } from "@/lib/site-admin/builder-core/adapters/cms-page-adapter";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { resolveStorefrontLocale } from "@/lib/site-admin/server/storefront-locale";
@@ -209,19 +210,48 @@ export async function EditChromeMount() {
     }
   }
 
-  // WS1 core-adapter seam — the storefront editor is the homepage surface, so
-  // prefetch through the homepage adapter's `load` (a pure pass-through over
-  // `loadHomepageCompositionAction`). Behaviour is byte-identical; routing the
-  // prefetch through the adapter keeps server + client on the one seam. The
-  // EditChrome client layer builds the matching homepage BuilderContextConfig
-  // and threads it into EditProvider.
+  // Wave 4.1 — is this cms_page FREEFORM (is_freeform=true)? Only real custom
+  // slugs can be (never the homepage, never the __system__ pages), so the
+  // homepage/system/slot edit path is provably untouched. The flag picks the
+  // editor surface for BOTH the server prefetch (below) AND EditChrome's client
+  // config, so the two always agree.
+  let freeformPageMode = false;
+  if (
+    (ctx.kind === "agency" || ctx.kind === "hub") &&
+    pageSlug &&
+    !pageSlug.startsWith("__")
+  ) {
+    try {
+      const { data: freeformRow } = await staff.supabase
+        .from("cms_pages")
+        .select("is_freeform")
+        .eq("tenant_id", ctx.tenantId)
+        .eq("slug", pageSlug)
+        .eq("is_freeform", true)
+        .maybeSingle();
+      freeformPageMode = !!freeformRow;
+    } catch {
+      freeformPageMode = false;
+    }
+  }
+
+  // WS1 core-adapter seam — prefetch the composition through the matching
+  // adapter so server + client stay on one seam (eliminates the "0 sections"
+  // first-paint flash). FREEFORM pages prefetch via the cms_page adapter
+  // (cms_pages.blocks); homepage + slot pages via the homepage adapter (a pure
+  // pass-through over loadHomepageCompositionAction — byte-identical behaviour).
   let initialComposition: CompositionData | null = null;
   if (editActive) {
     try {
-      const res = await homepageAdapter.load({
-        locale: localeContext.locale,
-        pageSlug,
-      });
+      const res = freeformPageMode
+        ? await createBoundCmsPageAdapter().load({
+            locale: localeContext.locale,
+            pageSlug,
+          })
+        : await homepageAdapter.load({
+            locale: localeContext.locale,
+            pageSlug,
+          });
       if (res.ok) {
         initialComposition = res.data;
       } else {
@@ -261,6 +291,7 @@ export async function EditChromeMount() {
       tenantSiteLabel={tenantSiteLabel}
       workspaceMembershipSlug={workspaceMembershipSlug}
       canInsertRawHtmlElements={canInsertRawHtmlElements}
+      freeformPageMode={freeformPageMode}
     />
   );
 }

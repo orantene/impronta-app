@@ -50,7 +50,19 @@ export async function loadBuilderNodeDataSources(
   nodes: ReadonlyArray<BuilderNode>,
   tenantId: string,
   locale: string,
+  /**
+   * In-editor PREVIEW SUBJECT (Builder Lab / talent + workspace surfaces). When
+   * present, tenant-scoped data (featured talent / locations / directory) is
+   * resolved against `previewSubject.id` instead of the active `tenantId`, so a
+   * talent/workspace page builder previews THAT subject's data — matching the
+   * published render which scopes the same sources to that subject.
+   *
+   * Homepage callers OMIT this argument → `dataTenantId` falls back to
+   * `tenantId`, keeping the homepage path byte-identical.
+   */
+  previewSubject?: { kind: string; id: string } | null,
 ): Promise<BuilderNodeRenderDataSources> {
+  const dataTenantId = previewSubject?.id ?? tenantId;
   const featuredLimit = collectBuilderDataBindingMax(
     nodes,
     "featured_talent_profiles",
@@ -83,7 +95,7 @@ export async function loadBuilderNodeDataSources(
     featuredLimit == null
       ? Promise.resolve(undefined)
       : fetchFeaturedTalentForSection(
-          tenantId,
+          dataTenantId,
           {
             sourceMode: "auto_featured_flag",
             limit: Math.min(Math.max(featuredLimit, 1), 12),
@@ -94,7 +106,7 @@ export async function loadBuilderNodeDataSources(
           locale,
         ),
     needsLocations || needsDirectoryShortcuts
-      ? getHomepageData({ tenantId })
+      ? getHomepageData({ tenantId: dataTenantId })
       : Promise.resolve(null),
     mediaSupabase
       ? listBuilderImageMediaAssets(mediaSupabase, tenantId, mediaIds)

@@ -282,7 +282,7 @@ test(
       "§F.2 STATIC GUARD FAILED — legacy write patterns found in non-homepage adapter/builder-lab source:\n\n" +
         violations.join("\n\n") +
         "\n\nOnly homepage-adapter.ts / homepage-adapter-core.ts may write cms_page_sections or composition[].\n" +
-        "All other adapters MUST persist only to freeform tables (workspace_pages, talent_pages, builder_templates).",
+        "All other adapters MUST persist only to freeform tables (cms_pages, talent_pages, builder_templates).",
     );
   },
 );

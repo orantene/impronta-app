@@ -176,6 +176,11 @@ const APP_API_PREFIXES = [
   // surfaces is_discoverable=true talents platform-wide. See
   // web/docs/discover-and-unified-inquiry-2026-05-14.md §7.
   "/api/discover",
+  // Talent self-service dashboard API (e.g. /api/talent/media/library — the
+  // Max-tier page-builder media picker, /api/talent/tax-summary). The route
+  // handlers enforce talent-self / managing-staff auth themselves; the proxy
+  // just lets the app-host path through.
+  "/api/talent",
 ] as const;
 
 const APP_API_EXACT_PATHS = [

@@ -23,6 +23,7 @@ import {
   SaveChip,
 } from "./kit";
 import { KIT } from "./inspectors/kit/tokens";
+import { useBuilderMediaScope } from "./builder-media-scope";
 
 export interface MediaPickerItem {
   id: string;
@@ -36,6 +37,9 @@ export interface MediaPickerItem {
   folderIds?: string[];
   mime?: string | null;
 }
+
+/** Talent picker source filter (only used when on a Talent Max surface). */
+type TalentSource = "all" | "portfolio" | "mine";
 
 export interface MediaPickerFolder {
   id: string;
@@ -75,9 +79,16 @@ export function MediaPickerDrawer({
   onMultiPick,
   onClose,
 }: MediaPickerDrawerProps) {
+  // On a Talent Max surface, the picker shows the TALENT's own portfolio +
+  // uploads (talent-self endpoint) instead of the staff-only agency library.
+  const { talentProfileId } = useBuilderMediaScope();
+  const isTalentScope = !!talentProfileId;
+
   const [items, setItems] = useState<MediaPickerItem[] | null>(null);
   const [folders, setFolders] = useState<MediaPickerFolder[]>([]);
   const [activeFolderId, setActiveFolderId] = useState<string>("all");
+  const [portfolioAssetIds, setPortfolioAssetIds] = useState<string[]>([]);
+  const [talentSource, setTalentSource] = useState<TalentSource>("all");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -92,16 +103,17 @@ export function MediaPickerDrawer({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(
-        `/api/admin/media/library?tenantId=${encodeURIComponent(tenantId)}`,
-        { cache: "no-store" },
-      );
+      const endpoint = talentProfileId
+        ? `/api/talent/media/library?talentProfileId=${encodeURIComponent(talentProfileId)}`
+        : `/api/admin/media/library?tenantId=${encodeURIComponent(tenantId)}`;
+      const res = await fetch(endpoint, { cache: "no-store" });
       const body = await res.json();
       if (!res.ok || !body.ok) {
         throw new Error(body.error ?? `HTTP ${res.status}`);
       }
       setItems(body.items as MediaPickerItem[]);
       setFolders((body.folders ?? []) as MediaPickerFolder[]);
+      setPortfolioAssetIds((body.portfolioAssetIds ?? []) as string[]);
       setAltDrafts(
         Object.fromEntries(
           ((body.items as MediaPickerItem[]) ?? []).map((item) => [
@@ -115,7 +127,7 @@ export function MediaPickerDrawer({
     } finally {
       setLoading(false);
     }
-  }, [tenantId]);
+  }, [tenantId, talentProfileId]);
 
   useEffect(() => {
     if (!open || items !== null || loading) return;
@@ -232,14 +244,27 @@ export function MediaPickerDrawer({
 
   if (!open) return null;
 
-  const visibleItems =
-    activeFolderId === "all"
+  const portfolioSet = new Set(portfolioAssetIds);
+  const isPortfolio = (item: MediaPickerItem) => portfolioSet.has(item.id);
+
+  const visibleItems = isTalentScope
+    ? (items ?? []).filter((item) =>
+        talentSource === "all"
+          ? true
+          : talentSource === "portfolio"
+            ? isPortfolio(item)
+            : !isPortfolio(item),
+      )
+    : activeFolderId === "all"
       ? items
       : (items ?? []).filter((item) => item.folderIds?.includes(activeFolderId));
   const activeFolder =
     activeFolderId === "all"
       ? null
       : folders.find((folder) => folder.id === activeFolderId) ?? null;
+
+  const portfolioCount = (items ?? []).filter(isPortfolio).length;
+  const mineCount = (items ?? []).length - portfolioCount;
 
   const chip = uploading ? (
     <SaveChip status="saving" label="Uploading" />
@@ -286,26 +311,34 @@ export function MediaPickerDrawer({
               ? `${pending.length} selected`
               : activeFolder
                 ? activeFolder.name
-                : "Tenant media library"
+                : isTalentScope
+                  ? "Your photos"
+                  : "Tenant media library"
           }
           onClose={handleClose}
         />
         <DrawerBody>
           <div className="mb-3 flex items-center justify-between gap-2">
-            <Button
-              type="button"
-              size="sm"
-              disabled={uploading}
-              onClick={() => fileInputRef.current?.click()}
-              title="Upload image"
-            >
-              {uploading ? (
-                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-              ) : (
-                <Upload className="mr-1.5 size-3.5" />
-              )}
-              {uploading ? "Uploading" : "Upload"}
-            </Button>
+            {isTalentScope ? (
+              <p className="text-[11px] leading-snug text-stone-500">
+                Add photos from your profile, then pick them here.
+              </p>
+            ) : (
+              <Button
+                type="button"
+                size="sm"
+                disabled={uploading}
+                onClick={() => fileInputRef.current?.click()}
+                title="Upload image"
+              >
+                {uploading ? (
+                  <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                ) : (
+                  <Upload className="mr-1.5 size-3.5" />
+                )}
+                {uploading ? "Uploading" : "Upload"}
+              </Button>
+            )}
             {multi ? (
               <div className="flex items-center gap-2">
                 <Button type="button" variant="outline" size="sm" onClick={handleClose}>
@@ -325,7 +358,36 @@ export function MediaPickerDrawer({
             ) : null}
           </div>
 
-          {folders.length > 0 ? (
+          {isTalentScope ? (
+            <div
+              className="mb-3 flex gap-2 overflow-x-auto pb-1"
+              aria-label="Photo source"
+              data-talent-media-source
+            >
+              <SourceButton
+                active={talentSource === "all"}
+                label="All my photos"
+                count={items?.length ?? 0}
+                onClick={() => setTalentSource("all")}
+              />
+              <SourceButton
+                active={talentSource === "portfolio"}
+                label="My portfolio"
+                hint="On your profile"
+                count={portfolioCount}
+                onClick={() => setTalentSource("portfolio")}
+              />
+              <SourceButton
+                active={talentSource === "mine"}
+                label="My uploads"
+                hint="Your media"
+                count={mineCount}
+                onClick={() => setTalentSource("mine")}
+              />
+            </div>
+          ) : null}
+
+          {!isTalentScope && folders.length > 0 ? (
             <div className="mb-3 flex gap-2 overflow-x-auto pb-1" aria-label="Media albums">
               <AlbumButton
                 active={activeFolderId === "all"}
@@ -393,6 +455,18 @@ export function MediaPickerDrawer({
                           style={{ backgroundImage: `url(${item.publicUrl})` }}
                           aria-hidden
                         />
+                        {isTalentScope ? (
+                          <span
+                            className="absolute left-2 top-2 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold shadow-sm"
+                            style={
+                              isPortfolio(item)
+                                ? { background: CHROME.accent, color: "#ffffff" }
+                                : { background: "rgba(255,255,255,0.92)", color: "#3f3f46" }
+                            }
+                          >
+                            {isPortfolio(item) ? "Portfolio" : "Mine"}
+                          </span>
+                        ) : null}
                         {selected ? (
                           <span className="absolute right-2 top-2 inline-flex size-6 items-center justify-center rounded-full bg-[#3d4f7c] text-white shadow">
                             <Check className="size-3.5" />
@@ -400,26 +474,37 @@ export function MediaPickerDrawer({
                         ) : null}
                       </button>
                       <div className="grid gap-2 p-2">
-                        <input
-                          className={KIT.input}
-                          value={altDrafts[item.id] ?? ""}
-                          placeholder="Alt text"
-                          onClick={(event) => event.stopPropagation()}
-                          onChange={(event) => {
-                            setAltDrafts((prev) => ({
-                              ...prev,
-                              [item.id]: event.currentTarget.value,
-                            }));
-                          }}
-                          onBlur={() => {
-                            void commitAlt(item);
-                          }}
-                          onKeyDown={(event) => {
-                            if (event.key !== "Enter") return;
-                            event.preventDefault();
-                            event.currentTarget.blur();
-                          }}
-                        />
+                        {isTalentScope ? (
+                          // Talents can't save alt text — the PATCH endpoint is
+                          // staff-only (would 401). Show it read-only instead of
+                          // an editable field that errors on blur.
+                          item.alt ? (
+                            <p className="truncate text-[11px] text-stone-600" title={item.alt}>
+                              {item.alt}
+                            </p>
+                          ) : null
+                        ) : (
+                          <input
+                            className={KIT.input}
+                            value={altDrafts[item.id] ?? ""}
+                            placeholder="Alt text"
+                            onClick={(event) => event.stopPropagation()}
+                            onChange={(event) => {
+                              setAltDrafts((prev) => ({
+                                ...prev,
+                                [item.id]: event.currentTarget.value,
+                              }));
+                            }}
+                            onBlur={() => {
+                              void commitAlt(item);
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key !== "Enter") return;
+                              event.preventDefault();
+                              event.currentTarget.blur();
+                            }}
+                          />
+                        )}
                         <p className="truncate text-[10.5px] text-stone-500">
                           {item.width && item.height
                             ? `${item.width}x${item.height}`
@@ -435,6 +520,18 @@ export function MediaPickerDrawer({
             <StatePanel
               icon={<FolderOpen className="size-4" />}
               title="No images in this album"
+            />
+          ) : isTalentScope ? (
+            <StatePanel
+              icon={<ImageIcon className="size-4" />}
+              title={
+                talentSource === "portfolio"
+                  ? "No portfolio photos yet"
+                  : talentSource === "mine"
+                    ? "No uploads yet"
+                    : "No photos yet"
+              }
+              detail="Add photos to your profile, then they'll appear here to use on your page."
             />
           ) : (
             <StatePanel
@@ -468,6 +565,42 @@ function StatusNotice({ message }: { message: string }) {
     >
       {message}
     </div>
+  );
+}
+
+function SourceButton({
+  active,
+  label,
+  hint,
+  count,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  hint?: string;
+  count: number;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex shrink-0 flex-col items-start gap-0.5 rounded-md border px-3 py-1.5 text-left transition"
+      style={{
+        background: active ? "#f2f0ea" : "#ffffff",
+        borderColor: active ? CHROME.accent : CHROME.lineStrong,
+        color: active ? "#25304f" : "#5f605d",
+      }}
+      title={hint ? `${label} — ${hint}` : label}
+    >
+      <span className="flex items-center gap-1.5 text-xs font-semibold">
+        {label}
+        <span className="text-[10px] font-medium text-stone-400">{count}</span>
+      </span>
+      {hint ? (
+        <span className="text-[10px] font-medium text-stone-400">{hint}</span>
+      ) : null}
+    </button>
   );
 }
 

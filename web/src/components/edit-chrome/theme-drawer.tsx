@@ -43,9 +43,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
 
 import {
+  AccordionSection,
   Card,
   CardBody,
   CardHead,
+  CardSubHead,
   CHROME,
   CHROME_SHADOWS,
   ColorRow,
@@ -61,6 +63,7 @@ import {
   Helper,
   SaveChip,
   Segmented,
+  TextInput,
   type SegmentedOption,
 } from "./kit";
 import { useEditContext } from "./edit-context";
@@ -68,13 +71,8 @@ import { clearThemePreview, publishThemePreview } from "./theme-preview-bridge";
 import { clearComponentDefaultsPreview } from "./component-defaults-bridge";
 import { ComponentDefaultsTab } from "./component-defaults-tab";
 
-import {
-  applyThemePresetFromEditAction,
-  loadDesignAction,
-  publishDesignFromEditAction,
-  saveDesignDraftFromEditAction,
-  type DesignSnapshot,
-} from "@/lib/site-admin/edit-mode/design-actions";
+import type { DesignSnapshot } from "@/lib/site-admin/edit-mode/design-actions";
+import { resolveThemeActionSet } from "./theme-action-scope";
 import { tokenDefaults } from "@/lib/site-admin/tokens/registry";
 import { GoogleFontPicker } from "./GoogleFontPicker";
 import { ContrastChecker } from "./ContrastChecker";
@@ -375,7 +373,16 @@ function patchesEqual(
 // ── component ─────────────────────────────────────────────────────────────
 
 export function ThemeDrawer(): ReactElement | null {
-  const { themeOpen, closeTheme, queueRouterRefresh } = useEditContext();
+  const { themeOpen, closeTheme, queueRouterRefresh, surfaceKind, pageSlug } =
+    useEditContext();
+
+  // Surface-aware theme backend: talent_page → talent_pages.theme; everything
+  // else → tenant agency_branding. Memoized so the action closures are stable
+  // for the effect deps. `null` only when a talent surface has no slug.
+  const themeActions = useMemo(
+    () => resolveThemeActionSet(surfaceKind, pageSlug),
+    [surfaceKind, pageSlug],
+  );
 
   const [snapshot, setSnapshot] = useState<DesignSnapshot | null>(null);
   const [draft, setDraft] = useState<Record<string, string> | null>(null);
@@ -402,12 +409,19 @@ export function ThemeDrawer(): ReactElement | null {
       clearComponentDefaultsPreview();
       return;
     }
+    if (!themeActions) {
+      setSnapshot(null);
+      setDraft(null);
+      setLoadError("This page has no theme to edit yet.");
+      setBusy("idle");
+      return;
+    }
     let cancelled = false;
     setBusy("loading");
     setLoadError(null);
     setError(null);
     (async () => {
-      const res = await loadDesignAction();
+      const res = await themeActions.load();
       if (cancelled) return;
       if (!res.ok) {
         setSnapshot(null);
@@ -423,7 +437,7 @@ export function ThemeDrawer(): ReactElement | null {
     return () => {
       cancelled = true;
     };
-  }, [themeOpen]);
+  }, [themeOpen, themeActions]);
 
   const dirty = useMemo(() => {
     if (!snapshot || !draft) return false;
@@ -475,18 +489,18 @@ export function ThemeDrawer(): ReactElement | null {
   // bundle into the DRAFT (operator must Publish to go live — surfaced in UI).
   const handleApplyPreset = useCallback(
     async (slug: string) => {
-      if (!snapshot) return;
+      if (!snapshot || !themeActions) return;
       setBusy("saving");
       setError(null);
       try {
-        const res = await applyThemePresetFromEditAction({
+        const res = await themeActions.applyPreset({
           presetSlug: slug,
           expectedVersion: snapshot.version,
         });
         if (!res.ok) {
           setError(res.error);
           if (res.code === "VERSION_CONFLICT") {
-            const fresh = await loadDesignAction();
+            const fresh = await themeActions.load();
             if (fresh.ok) setSnapshot(fresh.snapshot);
           }
           return;
@@ -511,25 +525,25 @@ export function ThemeDrawer(): ReactElement | null {
         setBusy("idle");
       }
     },
-    [snapshot],
+    [snapshot, themeActions],
   );
 
   const handleSaveDraft = useCallback(async () => {
-    if (!snapshot || !draft) return;
+    if (!snapshot || !draft || !themeActions) return;
     setBusy("saving");
     setError(null);
     // T3-1 — Outer try/catch ensures busy state is released even when an
     // intermediate await rejects (network drop, server restart). Without
     // it the drawer stays stuck on "saving" indefinitely.
     try {
-      const res = await saveDesignDraftFromEditAction({
+      const res = await themeActions.saveDraft({
         patch: draft,
         expectedVersion: snapshot.version,
       });
       if (!res.ok) {
         setError(res.error);
         if (res.code === "VERSION_CONFLICT") {
-          const fresh = await loadDesignAction();
+          const fresh = await themeActions.load();
           if (fresh.ok) setSnapshot(fresh.snapshot);
         }
         return;
@@ -554,10 +568,10 @@ export function ThemeDrawer(): ReactElement | null {
     } finally {
       setBusy("idle");
     }
-  }, [snapshot, draft]);
+  }, [snapshot, draft, themeActions]);
 
   const handlePublish = useCallback(async () => {
-    if (!snapshot) return;
+    if (!snapshot || !themeActions) return;
     setBusy("publishing");
     setError(null);
     // T3-1 — Wrapping the multi-step publish flow in try/catch ensures
@@ -568,31 +582,31 @@ export function ThemeDrawer(): ReactElement | null {
       // Save the working copy first if it diverges from the stored draft,
       // so we publish what the operator sees.
       if (dirty && draft) {
-        const saveRes = await saveDesignDraftFromEditAction({
+        const saveRes = await themeActions.saveDraft({
           patch: draft,
           expectedVersion: snapshot.version,
         });
         if (!saveRes.ok) {
           setError(saveRes.error);
           if (saveRes.code === "VERSION_CONFLICT") {
-            const fresh = await loadDesignAction();
+            const fresh = await themeActions.load();
             if (fresh.ok) setSnapshot(fresh.snapshot);
           }
           return;
         }
         const latestVersion = saveRes.version;
-        const pubRes = await publishDesignFromEditAction({
+        const pubRes = await themeActions.publish({
           expectedVersion: latestVersion,
         });
         if (!pubRes.ok) {
           setError(pubRes.error);
           if (pubRes.code === "VERSION_CONFLICT") {
-            const fresh = await loadDesignAction();
+            const fresh = await themeActions.load();
             if (fresh.ok) setSnapshot(fresh.snapshot);
           }
           return;
         }
-        const fresh = await loadDesignAction();
+        const fresh = await themeActions.load();
         if (fresh.ok) {
           setSnapshot(fresh.snapshot);
           setDraft({ ...fresh.snapshot.themeDraft });
@@ -601,18 +615,18 @@ export function ThemeDrawer(): ReactElement | null {
         setConfirmingPublish(false);
         return;
       }
-      const pubRes = await publishDesignFromEditAction({
+      const pubRes = await themeActions.publish({
         expectedVersion: snapshot.version,
       });
       if (!pubRes.ok) {
         setError(pubRes.error);
         if (pubRes.code === "VERSION_CONFLICT") {
-          const fresh = await loadDesignAction();
+          const fresh = await themeActions.load();
           if (fresh.ok) setSnapshot(fresh.snapshot);
         }
         return;
       }
-      const fresh = await loadDesignAction();
+      const fresh = await themeActions.load();
       if (fresh.ok) {
         setSnapshot(fresh.snapshot);
         setDraft({ ...fresh.snapshot.themeDraft });
@@ -626,7 +640,7 @@ export function ThemeDrawer(): ReactElement | null {
     } finally {
       setBusy("idle");
     }
-  }, [snapshot, draft, dirty, queueRouterRefresh]);
+  }, [snapshot, draft, dirty, queueRouterRefresh, themeActions]);
 
   const chipStatus =
     busy === "saving" || busy === "publishing"
@@ -775,23 +789,13 @@ export function ThemeDrawer(): ReactElement | null {
                     ).map(([key, label, placeholder], i, arr) => (
                       <Field key={key} flush={i === arr.length - 1}>
                         <FieldLabel htmlFor={`theme-${key}`}>{label}</FieldLabel>
-                        <input
+                        <TextInput
                           id={`theme-${key}`}
-                          type="text"
-                          placeholder={placeholder}
                           value={draft[key] ?? ""}
-                          onChange={(e) => set(key, e.target.value)}
-                          style={{
-                            width: "100%",
-                            padding: "6px 9px",
-                            border: `1px solid ${CHROME.lineMid}`,
-                            borderRadius: 6,
-                            background: CHROME.surface2,
-                            boxShadow: CHROME_SHADOWS.inputInset,
-                            fontFamily:
-                              'ui-monospace, "SF Mono", Menlo, monospace',
-                            fontSize: 12,
-                          }}
+                          onChange={(v) => set(key, v)}
+                          placeholder={placeholder}
+                          mono
+                          data-theme-control={`type-scale-${key}`}
                         />
                       </Field>
                     ))}
@@ -825,6 +829,14 @@ export function ThemeDrawer(): ReactElement | null {
               <ComponentDefaultsTab
                 initialDefaults={snapshot.componentStylesDraft}
                 version={snapshot.version}
+                saveComponentStyles={(input) =>
+                  themeActions
+                    ? themeActions.saveComponentStyles(input)
+                    : Promise.resolve({
+                        ok: false as const,
+                        error: "This page has no theme to edit yet.",
+                      })
+                }
                 onSaved={(newVersion, saved) =>
                   setSnapshot((prev) =>
                     prev
@@ -980,6 +992,30 @@ export function ThemeDrawer(): ReactElement | null {
 
 // ── tab content ───────────────────────────────────────────────────────────
 
+function BackgroundIcon(): ReactElement {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="2" y="3" width="20" height="18" rx="2" />
+      <path d="M2 9h20" />
+    </svg>
+  );
+}
+
+/** Background-mode options — mirrors LAYOUT_PRESETS `background.mode`. */
+const BACKGROUND_MODE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "plain", label: "Plain" },
+  { value: "aurora", label: "Aurora" },
+  { value: "editorial-ivory", label: "Ivory" },
+  { value: "editorial-noir", label: "Noir" },
+  { value: "champagne-gradient", label: "Champagne" },
+  { value: "noise-texture", label: "Noise" },
+  { value: "mesh-blush", label: "Mesh blush" },
+  { value: "mesh-sage", label: "Mesh sage" },
+  { value: "mesh-noir", label: "Mesh noir" },
+  { value: "mesh-aurora", label: "Mesh aurora" },
+  { value: "noise-animated", label: "Noise (animated)" },
+];
+
 function ColorsTab({
   draft,
   onChange,
@@ -989,6 +1025,34 @@ function ColorsTab({
 }) {
   return (
     <>
+      {/* ── Page background — prominent at top of Colors tab ───────────── */}
+      <Card>
+        <CardHead icon={<BackgroundIcon />} title="Page background" />
+        <CardBody>
+          <Field>
+            <FieldLabel htmlFor="theme-color.background">Background color</FieldLabel>
+            <ColorRow
+              value={draft["color.background"] ?? "#ffffff"}
+              onChange={(v) => onChange("color.background", v)}
+            />
+            <Helper>The main background of your site. White (#ffffff) by default.</Helper>
+          </Field>
+          <Field flush>
+            <FieldLabel htmlFor="theme-background.mode">Background texture</FieldLabel>
+            <Segmented
+              value={draft["background.mode"] ?? "plain"}
+              onChange={(v) => onChange("background.mode", v)}
+              options={BACKGROUND_MODE_OPTIONS}
+              fullWidth
+              compact
+            />
+            <Helper>
+              Layers warmth or grain over the background color above. Also in Layout tab.
+            </Helper>
+          </Field>
+        </CardBody>
+      </Card>
+
       <Card>
         <CardHead icon={<PaletteIcon />} title="Brand colors" />
         <CardBody>
@@ -1203,42 +1267,18 @@ function AdvancedTab({
               borderTop: `1px solid ${CHROME.line}`,
             }}
           >
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                color: CHROME.text2,
-                marginBottom: 6,
-              }}
-            >
-              Theme preset
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {PRESET_OPTIONS.map((p) => {
-                const active = currentPreset === p.slug;
-                return (
-                  <button
-                    key={p.slug}
-                    type="button"
-                    disabled={presetBusy}
-                    onClick={() => onApplyPreset(p.slug)}
-                    title={p.hint}
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 500,
-                      padding: "5px 10px",
-                      borderRadius: 6,
-                      cursor: presetBusy ? "not-allowed" : "pointer",
-                      color: active ? CHROME.paper : CHROME.text2,
-                      background: active ? CHROME.text2 : "transparent",
-                      border: `1px solid ${active ? CHROME.text2 : CHROME.line}`,
-                      opacity: presetBusy ? 0.5 : 1,
-                    }}
-                  >
-                    {p.label}
-                  </button>
-                );
-              })}
+            <CardSubHead borderTop={false} marginBottom={8}>Theme preset</CardSubHead>
+            <div style={{ opacity: presetBusy ? 0.5 : 1, pointerEvents: presetBusy ? "none" : undefined }}>
+              <Segmented
+                value={currentPreset ?? ""}
+                onChange={(slug) => onApplyPreset(slug)}
+                options={PRESET_OPTIONS.map((p) => ({
+                  value: p.slug,
+                  label: p.label,
+                }))}
+                fullWidth
+                compact
+              />
             </div>
             <p
               style={{
@@ -1291,73 +1331,23 @@ function AdvancedTab({
           title="Power tools"
           sub="Bulk-apply tokens or generate visual recipes."
         />
-        <CardBody>
-          <details
-            style={{
-              borderRadius: 7,
-              border: `1px solid ${CHROME.line}`,
-              background: CHROME.surface,
-              padding: "10px 12px",
-              marginBottom: 8,
-            }}
+        <CardBody padding="flush">
+          <AccordionSection
+            title="Brand-kit import"
+            sub="Paste a JSON token bundle or extract from a URL."
+            data-theme-control="brand-kit-import"
           >
-            <summary
-              style={{
-                cursor: "pointer",
-                fontSize: 12,
-                fontWeight: 600,
-                color: CHROME.ink,
-              }}
-            >
-              Brand-kit import
-              <span
-                style={{
-                  marginLeft: 6,
-                  fontSize: 11,
-                  fontWeight: 400,
-                  color: CHROME.muted,
-                }}
-              >
-                Paste a JSON token bundle or extract from a URL.
-              </span>
-            </summary>
-            <div className="mt-2.5">
-              <BrandKitImport onApply={onBulkApply} />
-            </div>
-          </details>
+            <BrandKitImport onApply={onBulkApply} />
+          </AccordionSection>
 
-          <details
-            style={{
-              borderRadius: 7,
-              border: `1px solid ${CHROME.line}`,
-              background: CHROME.surface,
-              padding: "10px 12px",
-            }}
+          <AccordionSection
+            title="Mesh gradient generator"
+            sub="Compose a free mesh background and copy the CSS."
+            marginBottom={0}
+            data-theme-control="mesh-gradient-generator"
           >
-            <summary
-              style={{
-                cursor: "pointer",
-                fontSize: 12,
-                fontWeight: 600,
-                color: CHROME.ink,
-              }}
-            >
-              Mesh gradient generator
-              <span
-                style={{
-                  marginLeft: 6,
-                  fontSize: 11,
-                  fontWeight: 400,
-                  color: CHROME.muted,
-                }}
-              >
-                Compose a free mesh background and copy the CSS.
-              </span>
-            </summary>
-            <div className="mt-2.5">
-              <MeshGradientGenerator />
-            </div>
-          </details>
+            <MeshGradientGenerator />
+          </AccordionSection>
         </CardBody>
       </Card>
     </>

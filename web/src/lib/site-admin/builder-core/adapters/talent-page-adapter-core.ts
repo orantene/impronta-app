@@ -1,8 +1,8 @@
 /**
  * Talent-page adapter — PURE FACTORY (no runtime imports).
  *
- * Mirrors `workspace-page-adapter-core.ts` exactly, keyed to `talent_pages`
- * instead of `workspace_pages`. The pure factory pattern (only `import type`
+ * Mirrors `cms-page-adapter-core.ts` exactly, keyed to `talent_pages`
+ * instead of `cms_pages`. The pure factory pattern (only `import type`
  * at module load) lets `talent-page-adapter.test.ts` drive it under a bare
  * `tsx --test` run with spy actions and prove:
  *
@@ -26,7 +26,7 @@
  *
  * The adapter stores the freeform `builderTree` in the `blocks` column.
  * The `theme` column carries `styleClasses`. VERSION is derived from
- * `updated_at` (epoch seconds), matching the workspace_page adapter.
+ * `updated_at` (epoch seconds), matching the cms_page adapter.
  */
 
 import type {
@@ -115,6 +115,16 @@ export interface TalentPageAdapterActions {
   }) => Promise<{ ok: true; publishedAt: string; updatedAt: string } | { ok: false; error: string }>;
 
   /**
+   * Return the existing talent_pages row for (talentProfileId, slug); if none,
+   * INSERT a draft row (status='draft', blocks=[], theme={}) and return it.
+   * Returns null only on hard failure / RLS denial.
+   */
+  ensurePage: (input: {
+    talentProfileId: string;
+    slug: string;
+  }) => Promise<TalentPageRow | null>;
+
+  /**
    * Restore a revision's blocks+theme onto the live row. Optional.
    */
   restoreRevision?: (input: {
@@ -197,11 +207,11 @@ export function createTalentPageAdapter(
       const talentProfileId = capturedTalentProfileId || ctx.pageId || "";
       const slug = ctx.pageSlug ?? "index";
 
-      const row = await actions.loadPage({ talentProfileId, slug });
+      const row = await actions.ensurePage({ talentProfileId, slug });
       if (!row) {
         return {
           ok: false,
-          error: `Talent page not found: profile=${talentProfileId} slug=${slug}`,
+          error: `Could not open or create your page.`,
         };
       }
       return { ok: true, data: buildEmptyTalentPageComposition(row, ctx.locale) };

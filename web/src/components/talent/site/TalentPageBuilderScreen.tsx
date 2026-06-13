@@ -15,6 +15,8 @@ import Link from "next/link";
 import { useCallback } from "react";
 
 import { TalentMaxBuilderMount } from "./TalentMaxBuilderMount";
+import { CHROME } from "@/components/edit-chrome/kit/tokens";
+import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
 
 type Props = {
   talentProfileId: string;
@@ -26,6 +28,8 @@ type Props = {
   talentTier: string | null;
   talentDisplayName: string | null;
   locale?: string;
+  /** Server-assembled in-editor canvas render data (data sources + islands). */
+  canvasRenderData?: InEditorCanvasRenderData | null;
 };
 
 const MAX_PLAN_KEY = "talent_portfolio";
@@ -38,6 +42,7 @@ export function TalentPageBuilderScreen({
   talentTier,
   talentDisplayName,
   locale,
+  canvasRenderData = null,
 }: Props) {
   const router = useRouter();
 
@@ -56,7 +61,7 @@ export function TalentPageBuilderScreen({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#0E0E11",
+          background: CHROME.canvasWorkspace,
           padding: "32px 20px",
           fontFamily: '"Inter", system-ui, sans-serif',
         }}
@@ -65,12 +70,13 @@ export function TalentPageBuilderScreen({
           style={{
             maxWidth: 460,
             width: "100%",
-            background: "#16161A",
-            border: "1px solid rgba(255,255,255,0.10)",
+            background: CHROME.surface,
+            border: `1px solid ${CHROME.line}`,
             borderRadius: 16,
             padding: "28px 26px",
-            color: "#F5F2EB",
+            color: CHROME.text,
             textAlign: "center",
+            boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 12px 32px -12px rgba(0,0,0,0.10)",
           }}
         >
           <div
@@ -80,8 +86,8 @@ export function TalentPageBuilderScreen({
               gap: 7,
               padding: "4px 11px",
               borderRadius: 999,
-              background: "rgba(93,211,160,0.12)",
-              color: "#5DD3A0",
+              background: CHROME.greenBg,
+              color: CHROME.green,
               fontSize: 11.5,
               fontWeight: 700,
               letterSpacing: 0.3,
@@ -104,7 +110,7 @@ export function TalentPageBuilderScreen({
               margin: "0 0 20px",
               fontSize: 13.5,
               lineHeight: 1.55,
-              color: "rgba(245,242,235,0.66)",
+              color: CHROME.muted,
             }}
           >
             Upgrade to the Max plan to design a fully custom, freeform page for
@@ -126,8 +132,8 @@ export function TalentPageBuilderScreen({
                 alignItems: "center",
                 padding: "8px 16px",
                 borderRadius: 9,
-                background: "#5DD3A0",
-                color: "#0E0E11",
+                background: CHROME.accent,
+                color: "#ffffff",
                 fontSize: 13,
                 fontWeight: 700,
                 textDecoration: "none",
@@ -142,9 +148,9 @@ export function TalentPageBuilderScreen({
                 alignItems: "center",
                 padding: "8px 16px",
                 borderRadius: 9,
-                border: "1px solid rgba(255,255,255,0.16)",
-                background: "rgba(255,255,255,0.04)",
-                color: "#F5F2EB",
+                border: `1px solid ${CHROME.controlBorder}`,
+                background: CHROME.controlFill,
+                color: CHROME.text,
                 fontSize: 13,
                 fontWeight: 600,
                 textDecoration: "none",
@@ -161,7 +167,10 @@ export function TalentPageBuilderScreen({
   return (
     <div
       data-talent-page-builder-screen=""
-      style={{ minHeight: "100vh", background: "#0E0E11" }}
+      // Light "desk" behind the editor canvas (modern 2026 builder). The canvas
+      // region paints its own theme background on top; this is what shows in any
+      // gap / behind the chrome. Was the legacy dark #0E0E11.
+      style={{ minHeight: "100vh", background: CHROME.canvasWorkspace }}
     >
       <TalentMaxBuilderMount
         talentProfileId={talentProfileId}
@@ -171,6 +180,7 @@ export function TalentPageBuilderScreen({
         talentDisplayName={talentDisplayName}
         locale={locale}
         onExit={handleExit}
+        canvasRenderData={canvasRenderData}
       />
     </div>
   );

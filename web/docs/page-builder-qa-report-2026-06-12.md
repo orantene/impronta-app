@@ -141,3 +141,146 @@ CAVEAT: tested on `next dev` (Turbopack), not a production build. Memory notes p
 
 ## Cleanup done
 - Created one throwaway workspace draft page `/impronta/p/untitled-mqahg6wl` (status=draft, never published) while testing F6. It is harmless (draft, not public) but should be deleted from the `impronta` Website → Pages list. No theme changes were published (Brand-color test was discarded). No `cms_page_sections` writes.
+
+---
+---
+
+# Fix Verification Log
+
+> Integration branch `integration/builder-launch-ready`. Gate at log time: **tsc 0 / lint 0 / test:builder 465 pass · 0 fail**. All evidence DOM-measured or DB-queried on `localhost:3330` (prod flags `NEXT_PUBLIC_BUILDER_CLIENT_CANVAS=1`, `NEXT_PUBLIC_BUILDER_PRESENCE=1`).
+
+## Wave 1 — F1–F9 (canvas render, talent first-page, publish menu, gallery keys, templates tab, theme gate)
+All FIXED + live-verified in prior sessions (Lanes A–E merged; in-editor `ClientBuilderCanvas` now paints all non-homepage surfaces; talent lazy `ensurePage`; viewport-clamped Publish menu; scoped gallery keys; tab list derived from `galleryPolicy.allowedTabs`; Theme drawer gated on `themeTokens` capability). Retained as history above.
+
+## Wave 2 — Theme Modernization + "no black canvas" (this session)
+
+**Platform default (DB-verified):** `platform_settings.id=true` → `default_theme_preset_slug='modern-2026'`, `color.accent=#0ea5e9`, `color.background=#ffffff`, `color.ink=#111111`, `button.backgroundColor=token:color.accent`. Seed migration `20260612182139_platform_default_theme.sql` applied to remote.
+
+| Acceptance step | Result | Evidence |
+|---|---|---|
+| **1. New site opens on modern LIGHT default** | ✅ | Fresh talent (theme `{}`) editor canvas: `--token-color-background=#ffffff`, `--token-color-accent=#0ea5e9`, hero buttons `rgb(14,165,233)`, headings ink `#111`. |
+| **2. Added elements adopt the theme** | ✅ | Hero H1 ink `#111`, paragraph grey `#6b7280`, CTAs sky-blue white-label 10px-radius — all from the modern preset cascade (no per-node styles). |
+| **3. Theme drawer — every tab/control** | ✅ | Drawer light + consistent. New **PAGE BACKGROUND** card (color picker + "white by default" + texture Segmented) at top of Colors; BRAND COLORS (Primary/Secondary/Accent/Neutral) with swatch+hex rows. Tabs: Colors/Typography/Layout/Effects/Components/Code. |
+| **4a. Change theme globally — live repaint** | ✅ | Accent `#0EA5E9`→`#E11D48`: `--token-color-accent` + every button repainted to `rgb(225,29,72)` instantly. |
+| **4b. Page background control (user's pain point)** | ✅ | Background `#FFFFFF`→`#F0F9FF`: canvas `--token-color-background` + paint → `rgb(240,249,255)` live. The control the user "couldn't find" is now top of Colors and works. |
+| **5. Override one component beats theme** | ✅ | H1 font-size override via inline toolbar (default→240px→tidy 86px) while color stayed theme-ink `#111` — per-node override wins over the global token. |
+| **6. Public render inherits platform default** | ✅ | Live `/t/TAL-92001/home` (unthemed talent): shell `rgb(255,255,255)`, accent `#0ea5e9`, buttons `rgb(14,165,233)`, H1 ink `#111`. Falls back to modern light, NOT the host's black. |
+| **7. Impronta stays black** | ✅ (structural) | 3 chrome commits touch only editor-chrome wrappers; no public storefront paint, no Impronta theme, no existing-tenant data. Platform default seeds only NEW/empty rows. |
+
+## "Lighten everything" — builder chrome (this session, 3 commits)
+
+The editor chrome (topbar/rails/panels) already used the light `CHROME` palette; the dark came from **wrapper screens** hardcoding `#0E0E11`/`#16161A`. Fixed:
+
+| Commit | Surface | Before → After (DOM-verified) |
+|---|---|---|
+| `b9c26f154` | Talent builder | desk `rgb(14,14,17)`→`rgb(249,249,251)`; exit strip `rgb(22,22,26)`→`rgb(250,249,246)`; non-Max upsell dark→light. **0 dark blocks ≥200×30 in viewport.** |
+| `c51d59fb6` | Builder Lab stage | header-bridge `#16161A`→`CHROME.paper`; PreviewSubjectChip dark→`CHROME.muted/green` (also fixed an invisible near-white chip in the light topbar). Lab canvas `rgb(255,255,255)`, 0 dark blocks; surrounding super-admin dashboard intentionally kept dark per user. |
+| (prior) | Canvas region | `min-height:100vh` + `var(--token-color-background)` paint so a short page fills light to the bottom. |
+
+## Follow-ups / honest residual notes
+- **Agency public header is dark on Sofía's page — verified CORRECT, not a defect.** The public header is the *agency's* shared `PublicHeader`, scoped to the managing tenant (Impronta = black brand), so it follows Impronta's dark background mode. The registry token `shell.header-bg` defaults to `""` = "follow the active background mode"; the modern preset uses `background.mode:plain` + white, so a **fresh modern-default tenant gets a LIGHT header automatically**. No preset header token should be added — that would override the correct follow-the-bg behavior. Sofía looks dark only because she is hosted under a dark-brand agency.
+- **Publish CAS conflict during QA** was self-inflicted (direct SQL `theme={}` reset bumped the row under the open editor) — not a product bug; the app's own publish checks passed.
+- **QA fixture state:** TAL-92001 (Sofía) left with `theme={}` (renders modern light) — fine as a fixture; clean at ship if desired.
+- Deferred Wave-1 sweep tail (repeaters/field-binding deep test, media-library picker insert, multi-select/drag depth, public `/p/`) unchanged from above.
+
+---
+
+## Wave 3 — Talent media picker (live-verified)
+
+**Feature:** Max talents pick their OWN photos in the builder image picker, split into portfolio vs uploads. New `/api/talent/media/library` (talent-self / managing-staff auth) + `listTalentScopedMediaLibrary` + isolated `BuilderMediaScopeProvider` (keeps `edit-context.tsx` untouched) + talent mode in `media-picker-drawer.tsx`.
+
+**Bug caught by local QA (would have shipped broken):** the new route 404'd because `proxy.ts` host-gates app-host paths via `APP_API_PREFIXES` (surface-allow-list.ts), which lacked `/api/talent`. Added it. `proxy.ts` runs in prod too, so this would have 404'd live — exactly why local verification before merge mattered.
+
+**Live evidence (Sofía TAL-92001, seeded 4 demo assets + 2 portfolio links + 1 existing = 5):**
+- Endpoint `GET /api/talent/media/library` → `{ok:true, items:5, portfolioAssetIds:[2]}`.
+- Picker source tabs: **All my photos 5 · My portfolio 2 (On your profile) · My uploads 3 (Your media)** — DOM-verified counts.
+- Per-tile badges: `[Portfolio, Portfolio, Mine, Mine, Mine]` (2 portfolio, 3 mine).
+- "My portfolio" filter → 2 tiles, both Portfolio-badged.
+- Picking a photo → picker closes, canvas `<img>` src updates to the picked URL (`picsum.photos/seed/sofiaportfolio1`).
+- Console clean (only dev info logs).
+- **Workspace picker** structurally unchanged: talent tabs gate on `talentProfileId` (only the talent mount provides it via `BuilderMediaScopeProvider`); no provider → null → agency-library path, byte-identical. tsc-confirmed.
+
+**Gate:** tsc 0 / lint 0 / surface-allow-list 11 pass / test:builder 465 pass. No migration.
+
+**QA artifacts (remove at ship):** 4 `media_assets` + 2 `agency_talent_media` rows tagged `metadata.source='qa-media-seed'` on Sofía; one throwaway image section in Sofía's *draft* (unpublished).
+
+---
+
+## Wave 3 — Deferred deep-sweep (live)
+
+Verified on a fresh workspace page `/impronta/p/untitled-mqbu3n50` (created → Connected "Talent Grid" section → published → viewed public → deleted):
+
+- **Public `/p/` workspace render ✓** — the published page renders the freeform tree on the public route (real talent cards, agency header). Sibling of the already-proven `/t/<code>/home`; same `renderFreeformPageRootTree` engine.
+- **Repeaters / field-binding ✓** — the "Talent Grid" connected block (Source: Talent Collection) hydrated **real talent data**: cards for Anto (Commercial Model · Playa del…), Tina (Event Hostess), Nalea (Art Model) + more, each binding name/discipline/location/photo from the live collection. Confirms the repeater renders one card per row with bound fields.
+- **Workspace canvas render (F6 re-confirm) ✓** — the connected section painted in the in-editor canvas on insert (white default; light theme).
+- **Multi-select / drag-reorder** — Navigator reorder controls (up/down/delete per layer) confirmed present + functional in Wave 1; not re-exercised this round (low-risk editor UX).
+- **Publish CAS quirk (known, not a bug)** — the publish drawer showed "Last published —" + an "Undo history reset (changed in another tab/session)" toast, but the DB confirmed `status=published`. Cosmetic UI-refresh quirk on rapid create→edit→publish; the publish itself succeeds. (Same pattern noted on the talent publish.)
+
+QA artifact removed: the throwaway workspace page was deleted post-verification.
+
+---
+
+## ⚠️ Wave 3 — PROD-BLOCKING regression caught + fixed (Impronta went white)
+
+**Symptom (user-reported):** "what happened to the Impronta black and gold theme?" — Impronta's public homepage was rendering WHITE instead of black/gold.
+
+**Root cause:** Wave 2 promoted `color.background` to a projected CSS var (`COLOR_VAR_NAMES → --token-color-background`) AND gave it `defaultValue:"#ffffff"`. `resolveDesignTokens` seeds every tenant from `tokenDefaults()`, so the white default was emitted as an **inline** `--token-color-background:#ffffff` on `<html>` — which beats the `html[data-token-background-mode="editorial-noir"]` **stylesheet** re-pin (#0a0a0a). Every dark-mode tenant with no explicit `color.background` (Impronta relies on `background.mode:editorial-noir`, not a bg token) rendered white. Would have shipped to improntamodels.com.
+
+**Fix (commit 6661ae9f8):** `color.background.defaultValue` → `""` (empty = "follow the active background mode", same pattern as `shell.header-bg`); new `hexColorOrEmpty` validator. Empty → `designTokensToCssVars` emits nothing → editorial-noir's dark re-pin (or the `var(--token-color-background,#fff)` fallback for plain) drives the canvas. New light sites keep white because the Modern-2026 platform default sets `color.background:"#ffffff"` **explicitly** (an explicit value still projects + wins).
+
+**Verified (SSR anon + live):**
+- `/impronta` → `data-token-background-mode=editorial-noir`, **no** inline `--token-color-background`, canvas `rgb(10,10,10)`, accent `#d4af37` → **black + gold restored**.
+- `/t/TAL-92001/home` → `plain`, `--token-color-background:#ffffff` → **white (light default preserved)**.
+- Gate: tsc 0 / lint 0 / test:builder 465 / test:builder-chrome 102.
+
+**Why it matters:** this is the exact value of verifying-before-merge — the user's question surfaced a regression the automated gate (tsc/lint/tests) did NOT catch (it's a CSS-projection precedence issue, not a type/logic error). It only existed on the integration branch; `main`/prod was never affected.
+
+---
+
+## Wave 4.1 — Freeform agency pages + adversarial review + live QA
+
+**Feature:** agency `cms_pages` can opt into TRUE freeform (`is_freeform=true`, `blocks` BuilderNode[]), edited via the existing dashboard "Pages" list + front-end `?edit=1` UX — one page system, like Talent Max. Homepage + system + existing slot pages are untouched (`is_freeform=false`). New `cms_page` surface kind + adapter/actions/config + `/p/` render clause + `?edit=1` repoint. Migration `20260613050444_cms_pages_freeform_blocks` applied (36 pages, 0 flipped).
+
+**Adversarial review (background Workflow, 20 agents): 5 dismissed, 6 confirmed → ALL FIXED:**
+- 🔒 **Cross-tenant media (security):** `listTalentScopedMediaLibrary` ran unscoped under a service-role client → a shared talent's other-tenant media could leak. Now takes + scopes by `tenantId` (route passes the verified managing tenant). Live-verified non-breaking (Sofía still 5 items / 2 portfolio).
+- **Locale multi-row crash (blocker ×3):** `loadCmsFreeformPage` + adapter + `/p/` render now filter cms_pages by `(locale, slug)` — no `.maybeSingle()` >1-row crash on multi-locale tenants.
+- **Talent alt-text 401 (blocker):** alt is read-only for talents (the PATCH endpoint is staff-only).
+- **Robustness:** `/p/` freeform clause checks the query error; `createDraftPageAction` verifies the `is_freeform` flag landed (no mis-routed slot page).
+
+**Live QA (Chrome, fix-as-you-go):**
+- ✅ "Add page" → creates `is_freeform=true` cms_page → opens the FREEFORM `?edit=1` editor (Layout/Elements/Sections/Connected/Page-Templates gallery).
+- ✅ Added a Section → persisted to `cms_pages.blocks` (block_count 0→1).
+- 🐛→✅ **Found + fixed live:** a DRAFT freeform page rendered the branded "not found" card in the `?edit=1` canvas (the `/p/` clause was published-only). Fixed: render draft blocks when `isEditModeActiveForTenant` (staff edit cookie); public still published-only. Re-verified: canvas shows the page (showsNotFound=false, builderNodes=1, bg #0a0a0a Impronta theme).
+- ✅ Publish → public `/p/untitled-…` renders the freeform tree (builderNodes=1, proper `<title>`, no not-found).
+- ✅ **Homepage protection:** `/impronta` still `editorial-noir`, `--token-color-background:#0a0a0a`, gold `#d4af37`, canvas black — untouched.
+- ✅ Talent Max builder loads light (canvas #fff, light chrome), 10 nodes, **zero console errors**.
+
+**Gate:** tsc 0 / lint 0 / test:builder 465 pass. Migration applied; no further migration.
+
+**QA artifacts removed:** the throwaway published freeform page `untitled-mqc1drl3`. (Sofía's demo media seed left as a fixture.)
+
+---
+
+## Legacy-removal QA + adversarial review (2026-06-13, `feat/page-consolidation`)
+
+**Legacy `workspace_pages` system removed** (commit `74bd849ee`): deleted the orphaned workspace builder (surface, mount, adapter trio, actions), the `/p/` workspace_pages clause, the data-bridge read, the `workspace_page` surface kind. −1476/+99.
+
+**Live QA (Chrome):**
+- ✅ Website admin: ONE unified Pages list, no second "Page Builder" section, zero console errors.
+- ✅ `/p/` published slot page (`faces-of-fall-26`) renders full content + connected talent directory (41 profiles) — slot fallthrough survived removing the workspace clause above it.
+- ✅ Homepage renders on Impronta black/gold theme (intact).
+- ✅ Wave 4.1 create path: "Add page" → `is_freeform=true` freeform draft (DB-confirmed). `untitled-mq5zxu6x` (is_freeform=false) confirmed a stale pre-Wave-4.1 artifact.
+- DB-diagnosed page state rather than driving the editor on drafts (homepage-draft-incident lesson: editor autosave can perpetuate empty).
+
+**Adversarial code review of the 24-commit bundle** (27 agents, 6 dimensions, each finding independently verified): legacy-removal 0 / media-picker-auth 0 / theme-parity 0 / cms-freeform 4 / builder-surface-integrity 11 (mostly positive confirmations) / test-coverage 6. **15 confirmed, 6 refuted.**
+- 🔴 **BLOCKER (fixed, commit `58ebbc1f3`):** `/p/` freeform DRAFT gating honored only the non-HttpOnly edit cookie, not the signed preview JWT. Brought to parity with the slot/homepage paths → `published || isPreviewActiveForTenant || isEditModeActiveForTenant`. (The forgeable-cookie exposure is platform-wide + pre-existing — slot + homepage OR the same cookie in; the verifier's "established patterns require BOTH" was a misread. True JWT-only gating = separate platform-wide hardening, flagged below.)
+- ✅ **MAJOR test gaps (fixed):** new `cms-page-adapter.test.ts` (11 tests) proves guard-call on every mutation + `ctx.locale` threading (multi-locale wrong-row guard) + no-lazy-create; wired into `test:builder`.
+- ✅ **NIT (fixed):** `/p/` freeform query now excludes `is_system_owned` rows (defense-in-depth).
+
+**Deferred (documented test-debt on correct code — not blockers):**
+- `/p/` route-level integration test for the draft render branch (no route-test harness exists; logic now mirrors the proven slot pattern + live-verified).
+- Sub-second `updated_at`-epoch CAS precision on freeform saves (pre-existing pattern shared with talent/workspace adapters).
+- `/api/talent/media/library` auth integration test (code verified sound; returns 403 on cross-tenant, not a leak).
+- **Platform-wide:** draft reads on homepage/slot/freeform all honor the non-HttpOnly edit cookie alone (`previewActive || editActive`); true JWT-only gating is a separate, careful, platform-wide change.
+
+**Gate:** tsc 0 / lint 0 / **test:builder 466 pass**. 25 commits ahead of `origin/main`, awaiting prod-merge approval.

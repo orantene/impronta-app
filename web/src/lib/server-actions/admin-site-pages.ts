@@ -31,7 +31,7 @@ import {
   requirePhase5Capability,
 } from "@/lib/site-admin";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
-import { seedNewPageStarterComposition } from "@/lib/site-admin/edit-mode/new-page-starter";
+import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import {
   archivePage,
   deletePage,
@@ -647,17 +647,30 @@ export async function createDraftPageAction(): Promise<
       return { ok: false, error: result.message ?? "Could not create page." };
     }
 
-    const starter = await seedNewPageStarterComposition({
-      supabase: auth.supabase,
-      tenantId: scope.tenantId,
-      actorProfileId: auth.user.id,
-      locale,
-      pageId: result.data.id,
-      pageVersion: result.data.version,
-      title: parsed.data.title,
-    });
-    if (!starter.ok) {
-      return { ok: false, error: starter.error };
+    // Wave 4.1 — NEW custom pages are FREEFORM. Flag the row so the `?edit=1`
+    // editor routes to the freeform adapter (cms_pages.blocks) + the `/p/` route
+    // renders the BuilderNode[] tree. We therefore SKIP the slot starter
+    // (seedNewPageStarterComposition) — a freeform page begins as an empty
+    // `blocks` array the operator builds in place. Existing slot pages + the
+    // homepage + system pages keep is_freeform=false and are untouched.
+    const { data: freeformRow, error: freeformErr } = await tenantScopedQuery(
+      auth.supabase,
+      "cms_pages",
+      scope.tenantId,
+    )
+      .update({ is_freeform: true })
+      .eq("id", result.data.id)
+      .select("id")
+      .maybeSingle();
+    // Must affect exactly the new row — a 0-row update (or error) would leave a
+    // slot page mis-routed to the slot editor. Fail loudly so we never create a
+    // half-configured page.
+    if (freeformErr || !freeformRow) {
+      logServerError(
+        "site-admin/pages/create-draft.freeform",
+        freeformErr ?? new Error("is_freeform update affected 0 rows"),
+      );
+      return { ok: false, error: CLIENT_ERROR.update };
     }
 
     return { ok: true, id: result.data.id, slug };

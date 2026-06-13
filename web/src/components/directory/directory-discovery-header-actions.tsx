@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Bookmark, Heart, Send } from "lucide-react";
 import { useOptionalDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
 import { useFavoritesDrawer } from "@/components/directory/favorites-drawer-context";
-import { usePublicDiscoveryState } from "@/components/directory/public-discovery-state";
+import { usePublicDiscoveryStateOptional } from "@/components/directory/public-discovery-state";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -50,7 +50,14 @@ export function DirectoryDiscoveryHeaderActions({
   initialCartCount?: number;
   copy: DirectoryDiscoveryHeaderCopy;
 }) {
-  const { savedCount, favoritesCount } = usePublicDiscoveryState();
+  // The discovery provider is present on home / directory / talent-profile /
+  // workspace pages but NOT on a published talent FREEFORM page (`/t/[code]/
+  // [slug]`), which renders the public shell without it. Use the optional hook
+  // + zero defaults so the favorites/inquiry icons render harmlessly there
+  // instead of throwing and tripping the page error boundary.
+  const discovery = usePublicDiscoveryStateOptional();
+  const savedCount = discovery?.savedCount ?? 0;
+  const favoritesCount = discovery?.favoritesCount ?? 0;
   const inquiryModal = useOptionalDirectoryInquiryModal();
   const saveCue = inquiryModal?.saveCue ?? 0;
   const favoritesDrawer = useFavoritesDrawer();

@@ -15,6 +15,8 @@ import { loadPublicComponentStyleDefaults } from "@/lib/site-admin/server/reads"
 import { renderBuilderNodes } from "@/lib/site-admin/builder-node/render";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
+import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
+import { isPreviewActiveForTenant } from "@/lib/site-admin/server/homepage-reads";
 import {
   jsonLdDocumentToScript,
   type JsonLdDocument,
@@ -145,53 +147,69 @@ export default async function CmsPublicPage({
     slugPath,
   );
 
-  // Phase C — workspace_pages check. Agency hosts can publish pages via the
-  // page builder. Check workspace_pages first when on an agency host.
+  // Wave 4.1 — cms_pages opted into FREEFORM (is_freeform=true). Render the
+  // BuilderNode[] tree directly (same engine as talent pages),
+  // wrapped in the public shell. Slot-composed pages (homepage, system, legacy)
+  // have is_freeform=false and fall through to the snapshot branch below.
   if (publicScope && slugPath) {
-    const { data: wpPage } = await supabase
-      .from("workspace_pages")
-      .select("id, title, blocks, theme")
+    const { data: freeformPage, error: freeformErr } = await supabase
+      .from("cms_pages")
+      .select("id, title, blocks, is_freeform, status")
       .eq("tenant_id", publicScope.tenantId)
+      .eq("locale", locale)
       .eq("slug", slugPath)
-      .eq("status", "published")
-      .maybeSingle();
-    if (wpPage) {
-      const theme = (wpPage.theme ?? {}) as {
-        backgroundColor?: string;
-        fontColor?: string;
-        fontFamily?: string;
-      };
-      // `workspace_pages.blocks` is always a FREEFORM BuilderNode[] (authored in
-      // the WS6 page builder). The legacy PageBlock[] shape + its block renderer
-      // were retired with the legacy block editor — no row can hold them.
-      const blocks = (wpPage.blocks ?? []) as BuilderNode[];
+      .eq("is_freeform", true)
+      // Defense-in-depth: system-owned pages (homepage, __site_shell__,
+      // __directory__) are NEVER freeform — exclude them explicitly so a row
+      // mis-flagged is_freeform=true can never render through this clause
+      // (don't rely solely on the slug "__" prefix heuristic upstream).
+      .eq("is_system_owned", false)
+      .maybeSingle()
+      .returns<{ id: string; title: string; blocks: BuilderNode[]; is_freeform: boolean; status: string }>();
+    // Public visitors see PUBLISHED freeform pages only. Drafts render only when
+    // preview/edit is active — gated EXACTLY like the slot/homepage paths
+    // (loadPageForRender / loadHomepageForRender): a signed preview JWT
+    // (isPreviewActiveForTenant) OR the in-place edit cookie. Checking the JWT
+    // (not just the cookie) brings freeform to parity so staff preview links work
+    // and the surface is no less guarded than the rest of the storefront. On a
+    // query error, fall through to the slot/legacy branches rather than crash.
+    const [previewActive, editActive] = await Promise.all([
+      isPreviewActiveForTenant(publicScope.tenantId),
+      isEditModeActiveForTenant(publicScope.tenantId),
+    ]);
+    if (
+      !freeformErr &&
+      freeformPage?.is_freeform &&
+      (freeformPage.status === "published" || previewActive || editActive)
+    ) {
+      const blocks = (freeformPage.blocks ?? []) as BuilderNode[];
       const publicPathPrefix = await getPublicPathPrefix();
-      // GAP B — tenant LIVE per-component-type default styles for the cascade.
       const componentStyleDefaults = await loadPublicComponentStyleDefaults(
         publicScope.tenantId,
       );
       return (
-        <main
-          style={{
-            minHeight: "100vh",
-            backgroundColor: theme.backgroundColor ?? "#fff",
-            color: theme.fontColor ?? "inherit",
-            fontFamily: theme.fontFamily ?? "inherit",
-          }}
-        >
+        <>
           <JsonLdScript script={jsonLdScript} />
-          {renderBuilderNodes(blocks, {
-            publicPathPrefix,
-            mode: "freeform",
-            componentStyleDefaults,
-            renderSectionEmbed: makeSectionEmbedRenderer({
-              tenantId: publicScope.tenantId,
-              locale,
+          <PublicHeader />
+          <main className="w-full flex-1" data-theme-canvas-root="">
+            {renderBuilderNodes(blocks, {
               publicPathPrefix,
-              previewSubject: { kind: "workspace", id: publicScope.tenantId },
-            }),
-          })}
-        </main>
+              mode: "freeform",
+              componentStyleDefaults,
+              renderSectionEmbed: makeSectionEmbedRenderer({
+                tenantId: publicScope.tenantId,
+                locale,
+                publicPathPrefix,
+                previewSubject: { kind: "workspace", id: publicScope.tenantId },
+              }),
+            })}
+          </main>
+          <footer className="border-t border-border px-4 py-8 sm:px-6 lg:px-8">
+            <div className="mx-auto flex max-w-3xl flex-col items-center gap-3 text-center text-sm text-muted-foreground">
+              <PublicCmsFooterNav locale={locale} />
+            </div>
+          </footer>
+        </>
       );
     }
   }

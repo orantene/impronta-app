@@ -53,7 +53,11 @@ import {
 import {
   buildHomepageBuilderConfig,
   type BuilderContextConfig,
+  type BuilderGalleryPolicy,
 } from "@/lib/site-admin/builder-core/config";
+import type { BuilderSurfaceKind } from "@/lib/site-admin/builder-core/surface-kind";
+import type { BuilderSurfacePublishInput } from "@/lib/site-admin/builder-core/surface-adapter";
+import type { PublishResult } from "@/lib/site-admin/edit-mode/composition-actions";
 import type { GallerySurfaceDescriptor } from "@/lib/site-admin/add-gallery/types";
 import { homepageAdapter } from "@/lib/site-admin/builder-core/adapters/homepage-adapter";
 import {
@@ -301,6 +305,20 @@ export interface EditContextValue {
   workspacePlan: string;
   canEditSiteShell: boolean;
   /**
+   * The surface this editor is mounted on (homepage / cms_page /
+   * talent_page / platform_lab). EditShell keys the in-editor canvas region off
+   * this — homepage paints via its storefront body, everything else mounts an
+   * in-editor `ClientBuilderCanvas`.
+   */
+  surfaceKind: BuilderSurfaceKind;
+  /**
+   * Whether the Theme drawer is offered. True when the surface's `themeTokens`
+   * capability is on (e.g. Max talents) OR the operator may edit the site shell
+   * (homepage / workspace shell editors). The Theme command-dock button gates on
+   * this so Max-tier talents get Theme without inheriting shell-edit rights.
+   */
+  canEditTheme: boolean;
+  /**
    * Phase 7A — governed nested builder nodes / element library affordances.
    * False on **free** workspaces (Simple Mode); paid plans enable Advanced surfaces.
    */
@@ -311,6 +329,12 @@ export interface EditContextValue {
    * never see them in the element library. See OWNER_ONLY_ELEMENT_INSERT_KINDS.
    */
   canInsertRawHtmlElements: boolean;
+  /**
+   * WS4 — Add Gallery policy for this surface. Drives the tab bar in
+   * AddGalleryPanel so surfaces whose policy omits `page_templates` never show
+   * that tab, and surfaces that include it always do.
+   */
+  galleryPolicy: BuilderGalleryPolicy;
   /**
    * P1 — the surface descriptor the live Add Gallery uses to fetch its merged
    * catalog (code items ∪ gated published DB templates) via
@@ -555,6 +579,16 @@ export interface EditContextValue {
   liveSitePublishedAt: string | null;
   /** CAS page row version — read from a ref for saves immediately after async gaps. */
   getCompositionCasVersion: () => number | null;
+  /**
+   * Publish the current page through the active SURFACE adapter (talent_page /
+   * cms_page / platform_lab). The homepage surface publishes via its own
+   * dedicated action in the publish drawer; this routes everything else so a
+   * talent/workspace freeform page can actually go live (the drawer otherwise
+   * hard-routes to the homepage action, which 401s for non-staff talents).
+   */
+  publishViaSurfaceAdapter: (
+    input: BuilderSurfacePublishInput,
+  ) => Promise<PublishResult>;
   pageMetadata: PageMetadata | null;
   slots: Record<string, CompositionSectionRef[]>;
   // WS2 — `builderTree` is no longer on the context value; read it via the
@@ -1928,7 +1962,7 @@ interface EditProviderProps {
   canInsertRawHtmlElements?: boolean;
   /**
    * WS1 core-adapter seam — the surface config that specialises this ONE
-   * Page Builder Core for a surface (homepage / workspace_page / talent_page /
+   * Page Builder Core for a surface (homepage / cms_page / talent_page /
    * platform_lab). Every persistence call-site (load / save / save-draft /
    * restore) routes through `surfaceConfig.surface` (the adapter) instead of
    * importing the homepage actions directly.
@@ -2095,6 +2129,13 @@ export function EditProvider({
     normalizedWorkspacePlan,
     "builder.shell.edit",
   );
+  // Theme drawer availability: on when this surface's themeTokens capability is
+  // enabled (e.g. Max talents) OR the operator can edit the site shell
+  // (homepage / workspace shell editors). This lets Max-tier talents reach the
+  // Theme drawer (F5) without granting them shell-edit rights, while keeping
+  // Theme for the homepage/workspace shell editors that already had it.
+  const canEditTheme =
+    resolvedSurfaceConfig.capabilities.themeTokens || canEditSiteShell;
   const advancedElementLibraryEnabled = useMemo(
     () => isAdvancedElementLibraryEnabledForPlan(normalizedWorkspacePlan),
     [normalizedWorkspacePlan],
@@ -2575,12 +2616,22 @@ export function EditProvider({
   // no-op and the legacy server-render path is untouched. Cleared on unmount so
   // a stale tree can't outlive the editor.
   useEffect(() => {
-    if (!isBuilderClientCanvasEnabled()) return;
+    // Homepage stays flag-gated (byte-identical: with the flag off the storefront
+    // body server-renders the canvas). The NON-homepage surfaces have no
+    // server-rendered body — they mount an in-editor ClientBuilderCanvas that
+    // reads this bridge — so they MUST always publish the live tree regardless of
+    // the env flag, or their canvas would never paint.
+    if (
+      !isBuilderClientCanvasEnabled() &&
+      resolvedSurfaceConfig.surface.kind === "homepage"
+    ) {
+      return;
+    }
     publishBuilderCanvasTree(builderTree);
     return () => {
       publishBuilderCanvasTree(null);
     };
-  }, [builderTree]);
+  }, [builderTree, resolvedSurfaceConfig]);
 
   // W1-T2(c) — publish the page's linked-style-class registry to the
   // cross-subtree bridge so the client canvas (a sibling subtree that can't
@@ -7328,9 +7379,12 @@ export function EditProvider({
   const closeRevisions = useCallback(() => setRevisionsOpen(false), []);
 
   const openTheme = useCallback(() => {
-    if (!canEditSiteShell) return;
+    // Gated on `canEditTheme` (= capabilities.themeTokens || canEditSiteShell).
+    // Talent Max surfaces get themeTokens; the drawer routes to the talent-scoped
+    // backend (talent_pages.theme) via theme-action-scope, so it no longer 401s.
+    if (!canEditTheme) return;
     showExclusiveRightRailDrawer("theme");
-  }, [canEditSiteShell, showExclusiveRightRailDrawer]);
+  }, [canEditTheme, showExclusiveRightRailDrawer]);
   const closeTheme = useCallback(() => setThemeOpen(false), []);
 
   const openAssets = useCallback(() => {
@@ -7572,6 +7626,13 @@ export function EditProvider({
     EditContextValue["getCompositionCasVersion"]
   >(() => pageVersionRef.current, []);
 
+  const publishViaSurfaceAdapter = useCallback<
+    EditContextValue["publishViaSurfaceAdapter"]
+  >(
+    (input) => surfaceAdapter.publish({ locale, pageSlug, pageId }, input),
+    [surfaceAdapter, locale, pageSlug, pageId],
+  );
+
   const value = useMemo<EditContextValue>(
     () => ({
       tenantId,
@@ -7581,8 +7642,12 @@ export function EditProvider({
         : null,
       workspacePlan: normalizedWorkspacePlan,
       canEditSiteShell,
+      surfaceKind: resolvedSurfaceConfig.surface.kind,
+      canEditTheme,
+      publishViaSurfaceAdapter,
       advancedElementLibraryEnabled,
       canInsertRawHtmlElements,
+      galleryPolicy: resolvedSurfaceConfig.galleryPolicy,
       gallerySurface,
       locale,
       defaultLocale,
@@ -7827,8 +7892,15 @@ export function EditProvider({
       workspaceMembershipSlug,
       normalizedWorkspacePlan,
       canEditSiteShell,
+      // surfaceKind is read off resolvedSurfaceConfig (a dep below); canEditTheme
+      // is derived from it + canEditSiteShell, both stable per mount.
+      canEditTheme,
       advancedElementLibraryEnabled,
       canInsertRawHtmlElements,
+      // galleryPolicy comes from the surface config object; resolvedSurfaceConfig
+      // is either the stable passed-in prop or the module-level cached singleton,
+      // so this dep is reference-stable across renders.
+      resolvedSurfaceConfig,
       gallerySurface,
       locale,
       defaultLocale,
@@ -7881,6 +7953,7 @@ export function EditProvider({
       pageVersion,
       liveSitePublishedAt,
       getCompositionCasVersion,
+      publishViaSurfaceAdapter,
       pageMetadata,
       slots,
       // WS2 — `builderTree` dropped from the value-memo deps (read via

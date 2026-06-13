@@ -28,6 +28,7 @@ import {
   type TalentPageAdapterActions,
 } from "./talent-page-adapter-core";
 import {
+  ensureTalentPageAction,
   loadTalentPageAction,
   saveTalentPageAction,
   publishTalentPageAction,
@@ -44,6 +45,7 @@ export {
 /** Production action surface — bound to the talent_page "use server" actions so
  *  talent_pages RLS (owner + workspace staff) takes effect on every call. */
 const productionActions: TalentPageAdapterActions = {
+  ensurePage: ensureTalentPageAction,
   loadPage: loadTalentPageAction,
   savePage: saveTalentPageAction,
   publishPage: publishTalentPageAction,

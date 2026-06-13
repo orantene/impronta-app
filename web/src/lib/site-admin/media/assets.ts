@@ -145,6 +145,92 @@ export async function listTenantMediaLibrary(
     .filter((item) => isSafeMediaUrl(item.publicUrl));
 }
 
+/**
+ * Talent-scoped media library for the Max-tier page builder picker. Returns the
+ * talent's OWN media (`owner_talent_profile_id = talentProfileId`) PLUS the
+ * photos on their profile (the `agency_talent_media` portfolio links, which may
+ * point at agency-owned originals). Each portfolio asset id is returned in
+ * `portfolioAssetIds` so the picker can label "My portfolio" vs "My uploads".
+ *
+ * Unlike `listTenantMediaLibrary` this does NOT expose the whole agency library
+ * — a talent only sees their own imagery (privacy + the staff-only library API
+ * doesn't authorize talents anyway). Caller MUST have already authorized the
+ * talent-self / managing-staff boundary (see the /api/talent/media/library route).
+ *
+ * SECURITY: the caller passes a SERVICE-ROLE client (bypasses RLS), so this
+ * function MUST scope EVERY query to `tenantId` at the application layer — a
+ * talent can sit on multiple agencies' rosters (`agency_talent_media` rows in
+ * several tenants), and without the tenant filter a managing-staff caller could
+ * pull another tenant's media for that shared talent. `tenantId` is the managing
+ * tenant verified by the route's auth gate.
+ */
+export async function listTalentScopedMediaLibrary(
+  supabase: SupabaseClient,
+  talentProfileId: string,
+  tenantId: string,
+): Promise<{ items: MediaLibraryItem[]; portfolioAssetIds: string[] }> {
+  // 1) The talent's portfolio links (the photos shown on their public profile),
+  //    scoped to the managing tenant.
+  const portfolioLinks = await supabase
+    .from("agency_talent_media")
+    .select("agency_media_id, master_media_id, display_order")
+    .eq("talent_profile_id", talentProfileId)
+    .eq("tenant_id", tenantId)
+    .order("display_order", { ascending: true });
+
+  const portfolioIds: string[] = [];
+  for (const link of (portfolioLinks.data ?? []) as Array<{
+    agency_media_id: string | null;
+    master_media_id: string | null;
+  }>) {
+    if (link.agency_media_id) portfolioIds.push(link.agency_media_id);
+    if (link.master_media_id) portfolioIds.push(link.master_media_id);
+  }
+  const uniquePortfolioIds = [...new Set(portfolioIds)];
+
+  // 2) The talent's own uploads + 3) the portfolio asset rows (may be agency-
+  //    owned, so a plain owner filter would miss them) — both tenant-scoped.
+  const [ownedResult, portfolioRowsResult] = await Promise.all([
+    supabase
+      .from("media_assets")
+      .select(MEDIA_ASSET_COLUMNS)
+      .eq("owner_talent_profile_id", talentProfileId)
+      .eq("tenant_id", tenantId)
+      .eq("approval_state", "approved")
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(MEDIA_LIBRARY_MAX_ITEMS),
+    uniquePortfolioIds.length > 0
+      ? supabase
+          .from("media_assets")
+          .select(MEDIA_ASSET_COLUMNS)
+          .in("id", uniquePortfolioIds)
+          .eq("tenant_id", tenantId)
+          .eq("approval_state", "approved")
+          .is("deleted_at", null)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  const byId = new Map<string, MediaLibraryItem>();
+  const ingest = (rows: unknown) => {
+    for (const row of (rows ?? []) as MediaAssetRow[]) {
+      if (!isImageMediaRow(row)) continue;
+      const item = rowToMediaLibraryItem(supabase, row, []);
+      if (!isSafeMediaUrl(item.publicUrl)) continue;
+      byId.set(item.id, item);
+    }
+  };
+  ingest(ownedResult.data);
+  ingest(portfolioRowsResult.data);
+
+  // Only the portfolio ids that resolved to a usable image asset.
+  const resolvedPortfolioIds = uniquePortfolioIds.filter((id) => byId.has(id));
+  return {
+    items: [...byId.values()],
+    portfolioAssetIds: resolvedPortfolioIds,
+  };
+}
+
 export async function listTenantMediaFolders(
   supabase: SupabaseClient,
   tenantId: string,

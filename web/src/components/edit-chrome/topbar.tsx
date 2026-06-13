@@ -1696,6 +1696,12 @@ function PublishSplitButton({
   const [menuOpen, setMenuOpen] = useState(false);
   const publishMenuId = useId();
   const publishMenuTriggerId = useId();
+  // Ref on the caret trigger so we can anchor the menu with position:fixed,
+  // escaping the topbar's overflow-x-auto scroll container (F7 fix).
+  const caretRef = useRef<HTMLButtonElement>(null);
+  // Pixel coords for the fixed-position menu: right edge aligned to trigger's
+  // right edge, top just below the trigger, clamped inside the viewport.
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
 
   // Close on outside click
   useEffect(() => {
@@ -1765,8 +1771,33 @@ function PublishSplitButton({
         />
         <button
           type="button"
+          ref={caretRef}
           id={publishMenuTriggerId}
-          onClick={() => setMenuOpen((o) => !o)}
+          onClick={() => {
+            setMenuOpen((o) => {
+              const next = !o;
+              if (next && caretRef.current) {
+                const rect = caretRef.current.getBoundingClientRect();
+                const MENU_W = 240;
+                const GAP = 4;
+                // Anchor right edge of menu to right edge of trigger; clamp
+                // so left edge never goes negative and right edge never
+                // exceeds the viewport.
+                const rightFromViewport = Math.max(
+                  0,
+                  window.innerWidth - rect.right,
+                );
+                setMenuPos({
+                  top: rect.bottom + GAP,
+                  right: Math.min(
+                    rightFromViewport,
+                    window.innerWidth - MENU_W - 8,
+                  ),
+                });
+              }
+              return next;
+            });
+          }}
           aria-label="Publish options"
           aria-expanded={menuOpen}
           aria-haspopup="menu"
@@ -1794,13 +1825,16 @@ function PublishSplitButton({
         </button>
       </div>
 
-      {menuOpen ? (
+      {menuOpen && menuPos ? (
         <div
           id={publishMenuId}
           role="menu"
           aria-labelledby={publishMenuTriggerId}
-          className="absolute right-0 top-[42px] z-[120] min-w-[240px] rounded-[10px] p-[6px] text-[12.5px]"
+          className="z-[120] min-w-[240px] max-w-[calc(100vw-24px)] rounded-[10px] p-[6px] text-[12.5px]"
           style={{
+            position: "fixed",
+            top: menuPos.top,
+            right: menuPos.right,
             background: CHROME.surface,
             border: `1px solid ${CHROME.line}`,
             boxShadow:

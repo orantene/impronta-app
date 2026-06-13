@@ -67,9 +67,12 @@ test("every agency-configurable token has a validator and a default value", () =
   }
 });
 
-test("platform-only tokens are reported as non-overridable", () => {
-  assert.equal(isTokenOverridable("color.background"), false);
-  assert.equal(isTokenOverridable("spacing.scale"), false);
+test("unknown / unregistered tokens are reported as non-overridable", () => {
+  // `color.background` is now agency-configurable (subtree-overridable page
+  // canvas — talent pages can set their own background under the host tenant).
+  assert.equal(isTokenOverridable("color.background"), true);
+  // An unregistered key is never overridable.
+  assert.equal(isTokenOverridable("not.a.real.token"), false);
 });
 
 // ---- validateThemePatch ---------------------------------------------------
@@ -83,15 +86,11 @@ test("validateThemePatch rejects unknown keys", () => {
   }
 });
 
-test("validateThemePatch rejects non-configurable tokens even if registered", () => {
+test("validateThemePatch accepts color.background (now agency-configurable)", () => {
   const res = validateThemePatch({ "color.background": "#ffffff" });
-  assert.equal(res.ok, false);
-  if (!res.ok) {
-    assert.deepEqual(res.rejected, ["color.background"]);
-    assert.match(
-      res.reasons["color.background"] ?? "",
-      /not agency-configurable/i,
-    );
+  assert.equal(res.ok, true);
+  if (res.ok) {
+    assert.equal(res.normalized["color.background"], "#ffffff");
   }
 });
 
@@ -124,7 +123,9 @@ test("validateThemePatch normalises a valid patch", () => {
 test("designPatchSchema surfaces Zod issues keyed by token", () => {
   const res = designPatchSchema.safeParse({
     "color.primary": "nope",
-    "color.background": "#ffffff",
+    // color.background is now agency-configurable; use an INVALID hex so it
+    // still surfaces a keyed Zod issue (the assertion below checks both keys).
+    "color.background": "not-a-hex",
   });
   assert.equal(res.success, false);
   if (!res.success) {
