@@ -27,6 +27,11 @@ import { isStaffRole } from "@/lib/auth-flow";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import {
+  syncBlobFieldValuesToCatalog,
+  readBlobFieldValuesFromCatalog,
+} from "@/lib/talent/blob-field-values-catalog";
+import { resolveDefaultCurrencyForUI } from "@/lib/billing/currencies";
 
 type AuthResult =
   | {
@@ -35,10 +40,15 @@ type AuthResult =
       userId: string;
       isStaff: boolean;
       defaultCurrency: string;
+      /** The talent's active-roster tenant — the scope under which the catalog
+       *  value row is written. null for an independent (no-roster) talent →
+       *  the dual-write SKIPs and the column stays the source. */
+      tenantId: string | null;
     }
   | { ok: false; error: string };
 
-/** Owner (user_id match) OR staff. Returns an RLS-bound client for reads. */
+/** Owner (user_id match) OR staff. Returns an RLS-bound client for reads + the
+ *  talent's active-roster tenant for the catalog dual-write. */
 async function authorizeForTalent(talentProfileId: string): Promise<AuthResult> {
   const session = await getCachedActorSession();
   if (!session.user) return { ok: false, error: "Not authenticated." };
@@ -61,12 +71,28 @@ async function authorizeForTalent(talentProfileId: string): Promise<AuthResult> 
   const isOwner = tp.user_id === session.user.id;
   if (!isOwner && !isStaff) return { ok: false, error: "Forbidden." };
 
+  // Resolve the active-roster tenant (service-role, so RLS edges don't hide the
+  // row) — the catalog value is scoped to it, like every other Tier-B blob.
+  let tenantId: string | null = null;
+  const admin = createServiceRoleClient();
+  if (admin) {
+    const { data: rosterRows } = await admin
+      .from("agency_talent_roster")
+      .select("tenant_id, is_primary")
+      .eq("talent_profile_id", talentProfileId)
+      .eq("status", "active");
+    const rows = (rosterRows ?? []) as { tenant_id: string; is_primary: boolean }[];
+    rows.sort((a, b) => Number(b.is_primary) - Number(a.is_primary));
+    tenantId = rows[0]?.tenant_id ?? null;
+  }
+
   return {
     ok: true,
     supabase,
     userId: session.user.id,
     isStaff,
-    defaultCurrency: (tp.default_currency as string | null)?.toUpperCase() || "USD",
+    defaultCurrency: resolveDefaultCurrencyForUI(tp.default_currency),
+    tenantId,
   };
 }
 
@@ -77,6 +103,10 @@ export async function loadTalentServicesMenu(talentProfileId: string): Promise<L
   try {
     const auth = await authorizeForTalent(talentProfileId);
     if (!auth.ok) return { ok: false, error: auth.error };
+
+    // Catalog is the live source (commerce.servicesMenu, storage_mode
+    // 'field_values'); the dedicated column is the safety-net fallback via ??.
+    const catalog = await readBlobFieldValuesFromCatalog(auth.supabase, talentProfileId);
 
     // services_menu may be unknown to the generated row type until the next
     // regen — assert the shape.
@@ -92,9 +122,10 @@ export async function loadTalentServicesMenu(talentProfileId: string): Promise<L
       return { ok: false, error: "Could not load services." };
     }
 
+    const raw = catalog.services_menu ?? data?.services_menu;
     return {
       ok: true,
-      items: normalizeServicesMenu(data?.services_menu, auth.defaultCurrency),
+      items: normalizeServicesMenu(raw, auth.defaultCurrency),
       defaultCurrency: auth.defaultCurrency,
     };
   } catch (err) {
@@ -136,6 +167,14 @@ export async function updateTalentServicesMenu(
       logServerError("talent.servicesMenu.update", error);
       return { ok: false, error: "Failed to save services." };
     }
+
+    // Dual-write into the catalog (commerce.servicesMenu) so the services menu
+    // lives in the field-engine like every other Tier-B blob — one source of
+    // truth. Fire-and-forget (mirrors updateTalentRates); skips for an
+    // independent talent (tenantId null), where the column stays the source.
+    await syncBlobFieldValuesToCatalog(admin, talentProfileId, auth.tenantId, {
+      services_menu: clean,
+    });
 
     revalidatePath("/talent/settings");
     revalidatePath(`/admin/talent/${talentProfileId}`);
