@@ -4,7 +4,6 @@ import type { BuilderNodeRenderDataSources } from "../render";
 import type { PageDesign } from "./types";
 import { buildTalentDisciplineDecomposedSection } from "../talent-discipline-freeform";
 import { buildFeaturedTalentDecomposedSection, gridOnlyFeaturedTalentConfig } from "../featured-talent-freeform";
-import { buildLocationDiscoveryDecomposedSection, gridOnlyLocationDiscoveryConfig } from "../location-discovery-freeform";
 import { styleTokenRef } from "../style-token-bindings";
 
 /**
@@ -18,31 +17,32 @@ import { styleTokenRef } from "../style-token-bindings";
  * portraits (never placeholder boxes); the discipline rail uses a licensed
  * editorial set pending a first-party shoot (see the `disciplines` note).
  *
- * Sections: a search-first hero (freeform Title / Search Form / CTAs / chips) →
- * "Discover premium talent" stage-card hero → talent-by-discipline rail →
- * featured talent → markets / "Local faces" (real `location_discovery` Tulala
- * component, roster-derived live counts) → a clear process with a connected
- * step rail → "an agency, not a directory" pillars (per-pillar icons) → talent
- * join CTA → final inquiry CTA. Authored as freeform primitives, P3 repeaters,
- * and real `section_embed`s so every block is selectable, restyleable, and
- * movable in the builder — and the interactive moments are REAL, not faked.
+ * Sections (2026 "Casting Issue" recompose — design-kit §3, MULTI-ROOT):
+ * a search-first hero (freeform Title / Search Form / CTAs / chips) → discipline
+ * marquee → featured-talent roster mosaic → talent-by-discipline rail → full-bleed
+ * Plate I ("the runway") → Statement ("the Impronta way") → Best-for occasion
+ * link list → a clear process with a connected step rail → inquiry-as-a-sentence
+ * CTA → stats band → full-bleed Plate II ("the room") → talent join CTA → final
+ * inquiry CTA. The header (§3.1) and footer (§3.13) live in the site_shell, not
+ * in this body tree. The tree is a MULTI-ROOT array of section nodes (no single
+ * wrapping root container) so the editor renders it without the empty-recovery
+ * quirk. Authored as freeform primitives, P3 repeaters, and real `section_embed`s
+ * so every block is selectable, restyleable, and movable in the builder.
+ *
+ * DROPPED from the previous build (not in the kit's 13 sections): the
+ * "Discover premium talent" stage-card hero (heroClassic), the markets /
+ * "Local faces" `location_discovery` section, and the "An agency, not a
+ * directory" pillars section.
  *
  * Real-component decisions (Wave-2 flagship pass — see builder audit
  * 2026-06-02):
  *   - The hero search row is a native GET form (`action=/directory`, field `q`) as
  *     freeform layers — not a monolithic `hero_search` section_embed (so Title,
  *     Search Form, and buttons are separate layers in Page Structure).
- *   - The "markets map" is now a real `location_discovery` section_embed
- *     (source: roster_cities → live per-city counts + featured-market panel,
- *     real /directory links). The registered map visual is the section's own
- *     token-driven editorial map (NOT the legacy home Google-Maps LocationMap,
- *     which is only wired into the removed home-storefront data path and is not
- *     a registered embeddable section — rebuilding it as one is out of scope per
- *     notes/map-component-findings.md "do NOT rebuild the map").
- *   - The hero-2 "discovery form" is REMOVED: the directory route accepts
- *     ?q=/?location=/?tax= only — there is no ?type=/?market= param — so a
- *     two-select form would carry dead params. The stage cards + a real
- *     "Explore the directory" CTA replace it (honest, no decorative inputs).
+ *   - The new Casting-Issue sections (marquee, two full-bleed plates, statement,
+ *     best-for link list, inquiry-sentence, stats) are real `section_embed`s /
+ *     freeform containers authored directly from the design kit (§3); every
+ *     color/font is `token:`-bound so the page re-skins per tenant theme.
  *   - Motion: every section band rises on scroll (animationPreset:"rise" +
  *     animationTrigger:"scroll"); prefers-reduced-motion is honoured by the
  *     static renderer sheet.
@@ -56,7 +56,6 @@ import { styleTokenRef } from "../style-token-bindings";
 // GOLD_GLOW stay literal because the sentinel is not resolved mid-string.
 const INK = styleTokenRef("color.background"); // page canvas
 const SURFACE = styleTokenRef("color.surface-raised"); // alternating band
-const WARM = styleTokenRef("color.surface-raised"); // warm dark band (markets)
 const GOLD = styleTokenRef("color.primary");
 const GOLD_BRIGHT = styleTokenRef("color.accent");
 const TEXT = styleTokenRef("color.ink");
@@ -70,29 +69,18 @@ const FRAUNCES = styleTokenRef("typography.heading-font-family");
 const CINZEL = styleTokenRef("typography.heading-font-family");
 const INTER = styleTokenRef("typography.body-font-family");
 
-// Real represented Impronta talent (public media-public bucket) for the hero
-// stage cards — actual roster portraits, not stock. The Featured Talent section
-// below pulls the same roster live (manualProfileCodes). All three resolve to a
-// real uploaded asset today (verified in prod 2026-06-02: tina = a `card`
-// variant; anto + nalea = `gallery` variants — both render). If these three ever
-// rotate, pick roster profiles that have an approved media asset so the stage
-// never shows a broken image.
-const TALENT = {
-  anto: "https://pluhdapdnuiulvxmyspd.supabase.co/storage/v1/object/public/media-public/42b0d16f-de76-49f3-bc98-f80b5bba377d/gallery/ac0412e7-c608-4b68-bc0d-13af97790fd3.jpg",
-  tina: "https://pluhdapdnuiulvxmyspd.supabase.co/storage/v1/object/public/media-public/1da42501-2e82-4af4-83cd-5bb97ec64718/card/ef913606-660b-4661-857f-bde4c67784e9.webp",
-  nalea: "https://pluhdapdnuiulvxmyspd.supabase.co/storage/v1/object/public/media-public/72033ce0-e8be-4e22-8981-1caa52c3207d/gallery/346ce0a8-ea98-4acb-9c56-df1cb6eaeff3.jpg",
-} as const;
+// NOTE: the hero stage-card portrait set (TALENT) was removed with the dropped
+// heroClassic "Discover premium talent" hero — the Casting-Issue hero is the
+// search-first heroFind (§3.2). The Featured Talent section still pulls the same
+// roster live via manualProfileCodes below.
 
 const dataSources: BuilderNodeRenderDataSources = {
   collections: {
-    // impronta_disciplines and impronta_featured were removed: the discipline
-    // discipline rail is a container + freeform title + grid-only talent_type_grid embed,
-    // and featured talent is a section_embed of featured_talent (live roster).
-    // impronta_markets was removed: the markets panel is now a real
-    // location_discovery section_embed (roster-derived counts), not a repeater.
-    // impronta_pillars was removed: the three pillars are now explicit static
-    // cards so each can carry its own tailored icon (a repeater can't vary the
-    // icon enum per item) — see the `pillars` section below.
+    // impronta_disciplines / impronta_featured / impronta_markets / impronta_pillars
+    // were all removed: the discipline rail is a grid-only talent_type_grid embed,
+    // featured talent is a featured_talent embed (live roster), and the markets +
+    // pillars sections were dropped in the Casting-Issue recompose (§3). Only the
+    // process-step sequence remains as an inline repeater collection.
     impronta_steps: [
       { id: "s1", num: "01", title: "Tell us the brief", detail: "Market, dates, the look you need." },
       { id: "s2", num: "02", title: "We shortlist options", detail: "A shortlist tailored to your project." },
@@ -289,6 +277,44 @@ const lineButton = (id: string, label: string, href: string): BuilderNode => ({
   },
 });
 
+// "Best for" occasion row — an editorial draw-underline link button. The label
+// (incl. its trailing "  →") and layerLabel vary per occasion; every style value
+// is identical to the authored Casting-Issue nodes (token-bound throughout).
+const bestForRow = (slug: string, label: string, layerLabel: string): BuilderNode => ({
+  id: `impronta-best-for-row-${slug}`,
+  kind: "button",
+  props: {
+    label,
+    href: "/directory",
+    tone: "secondary",
+    layerLabel,
+    style: {
+      fontFamily: "token:typography.heading-font-family",
+      fontSize: "22px",
+      fontWeight: 400,
+      letterSpacing: "-0.01em",
+      textColor: "token:color.muted",
+      backgroundColor: "rgba(0,0,0,0)",
+      borderColor: "token:color.line",
+      borderWidth: "0px 0px 1px 0px",
+      borderStyle: "solid",
+      borderRadius: "0px",
+      width: "100%",
+      paddingTop: "22px",
+      paddingBottom: "22px",
+      paddingLeft: "0px",
+      paddingRight: "0px",
+      align: "left",
+      justifyContent: "space-between",
+      alignItems: "center",
+      transitionProperty: "color, border-color, padding-left",
+      transitionDuration: "240ms",
+      transitionTimingFunction: "ease",
+      hover: { color: "token:color.accent", borderColor: "token:color.accent" },
+    },
+  },
+});
+
 // ── sections ──────────────────────────────────────────────────────────────────
 
 /** Decomposed hero search — each row is its own builder layer (not one Tulala embed). */
@@ -471,108 +497,6 @@ const heroFind: BuilderNode = {
   ],
 };
 
-const heroClassic: BuilderNode = {
-  id: "impronta-hero-classic",
-  kind: "container",
-  props: {
-    layout: "stack",
-    align: "center",
-    style: { width: "100%", maxWidthFree: "100%", paddingTop: "40px", paddingRight: "32px", paddingBottom: "100px", paddingLeft: "32px", gap: "0px", backgroundColor: INK, textColor: TEXT, borderColor: HAIRLINE, borderWidth: "1px 0px 0px 0px", borderStyle: "solid", responsive: { mobile: { paddingRight: "20px", paddingLeft: "20px", paddingBottom: "64px" } } },
-  },
-  children: [
-    {
-      id: "impronta-hc-grid",
-      kind: "container",
-      props: {
-        layout: "row",
-        align: "center",
-        responsive: { tablet: { layout: "stack" }, mobile: { layout: "stack" } },
-        style: { width: "100%", maxWidthFree: "1220px", gap: "56px", paddingTop: "70px", justifyContent: "space-between" },
-      },
-      children: [
-        {
-          id: "impronta-hc-copy",
-          kind: "container",
-          props: { layout: "stack", style: { maxWidthFree: "560px", gap: "0px" } },
-          children: [
-            {
-              id: "impronta-hc-title",
-              kind: "heading",
-              props: {
-                text: "Discover premium talent across destination cities.",
-                level: 1,
-                style: { fontFamily: FRAUNCES, fontSize: "60px", lineHeight: "1.02", fontWeight: 500, letterSpacing: "-0.015em", textColor: TEXT, textWrap: "balance", marginBottomFree: "0px", responsive: { tablet: { fontSize: "48px" }, mobile: { fontSize: "36px" } } },
-              },
-            },
-            {
-              id: "impronta-hc-sub",
-              kind: "paragraph",
-              props: {
-                text: "Premium models, hosts, performers and creators for events, productions and brand experiences — Riviera Maya, Mexico City, Buenos Aires & beyond.",
-                style: { fontFamily: INTER, fontSize: "17px", lineHeight: "1.62", textColor: MUTED, marginTopFree: "22px" },
-              },
-            },
-            // Real entry points for the CLIENT. The fake two-select "discovery
-            // form" was removed: the /directory route filters on ?q=/?location=
-            // /?tax= only — there is no ?type=/?market= param — so styled selects
-            // would carry dead params. The hero_search bar above is the real
-            // query surface + the talent-apply path; this second hero is
-            // client-facing, so it sends people into the full directory or
-            // straight to an inquiry (the talent CTA lives in the Join band).
-            {
-              id: "impronta-hc-actions",
-              kind: "container",
-              props: { layout: "row", align: "center", responsive: { mobile: { layout: "stack", align: "stretch" } }, style: { marginTopFree: "30px", gap: "16px" } },
-              children: [
-                goldButton("impronta-hc-explore", "Explore the directory", "/directory"),
-                {
-                  id: "impronta-hc-inquire",
-                  kind: "button",
-                  props: {
-                    label: "Start an Inquiry →",
-                    href: "/inquiry",
-                    tone: "secondary",
-                    style: { fontFamily: INTER, fontSize: "14px", fontWeight: 600, textColor: GOLD_BRIGHT, backgroundColor: "rgba(0,0,0,0)", letterSpacing: "0.02em", paddingTop: "14px", paddingBottom: "14px", hover: { color: GOLD } },
-                  },
-                },
-              ],
-            },
-          ],
-        },
-        // stage cards — overlapping stacked portraits (rotation + negative gutters + depth)
-        {
-          id: "impronta-hc-stage",
-          kind: "container",
-          props: { layout: "row", align: "center", style: { gap: "0px", maxWidthFree: "560px", justifyContent: "center", paddingTop: "24px", paddingBottom: "24px" } },
-          children: [
-            {
-              id: "impronta-hc-stage-l",
-              kind: "image",
-              props: { src: TALENT.nalea, alt: "Nalea", style: { width: "158px", aspectRatioFree: "0.72", objectFit: "cover", objectPosition: "center top", borderRadius: "6px", rotate: "-5deg", marginTopFree: "44px", marginRightFree: "-38px", zIndex: 1, boxShadow: "0 24px 60px rgba(0,0,0,0.55)", borderColor: "rgba(255,255,255,0.08)", borderWidth: "1px", borderStyle: "solid" } },
-            },
-            {
-              id: "impronta-hc-stage-main",
-              kind: "container",
-              props: { layout: "stack", align: "center", style: { gap: "12px", zIndex: 3 } },
-              children: [
-                { id: "impronta-hc-stage-tab", kind: "paragraph", props: { text: "SELECTED", style: { fontFamily: CINZEL, fontSize: "10px", letterSpacing: "0.24em", textColor: "#1a1407", backgroundColor: GOLD, paddingTop: "4px", paddingBottom: "4px", paddingLeft: "12px", paddingRight: "12px", borderRadius: "2px" } } },
-                { id: "impronta-hc-stage-img", kind: "image", props: { src: TALENT.anto, alt: "Anto", style: { width: "256px", aspectRatioFree: "0.74", objectFit: "cover", objectPosition: "center top", borderRadius: "6px", boxShadow: "0 36px 80px rgba(0,0,0,0.65)", borderColor: HAIRLINE, borderWidth: "1px", borderStyle: "solid" } } },
-                { id: "impronta-hc-stage-name", kind: "paragraph", props: { text: "Anto", style: { fontFamily: FRAUNCES, fontSize: "20px", textColor: TEXT, align: "center", marginBottomFree: "0px" } } },
-                { id: "impronta-hc-stage-role", kind: "paragraph", props: { text: "Commercial Model · Playa del Carmen", style: { fontFamily: INTER, fontSize: "12px", letterSpacing: "0.08em", textColor: FAINT, align: "center" } } },
-              ],
-            },
-            {
-              id: "impronta-hc-stage-r",
-              kind: "image",
-              props: { src: TALENT.tina, alt: "Tina", style: { width: "158px", aspectRatioFree: "0.72", objectFit: "cover", objectPosition: "center top", borderRadius: "6px", rotate: "5deg", marginTopFree: "44px", marginLeftFree: "-38px", zIndex: 1, boxShadow: "0 24px 60px rgba(0,0,0,0.55)", borderColor: "rgba(255,255,255,0.08)", borderWidth: "1px", borderStyle: "solid" } },
-            },
-          ],
-        },
-      ],
-    },
-  ],
-};
-
 // Talent by discipline — freeform header layers + grid-only talent_type_grid embed.
 // IMAGERY (P2-VERIFY-DATA): licensed Unsplash placeholders per discipline until
 // first-party editorial assets exist.
@@ -661,56 +585,10 @@ const featured: BuilderNode = buildFeaturedTalentDecomposedSection({
   }),
 });
 
-// Local faces / markets — a REAL `location_discovery` Tulala component,
-// decomposed into freeform header layers + a grid-only `location_discovery`
-// section_embed. The freeform layers (Intro Text / Title / Subtitle / See All
-// Link) are now editable builder nodes; the embed renders the map/grid only
-// (headless mode — SectionHead suppressed by blank eyebrow/headline/subheadline).
-//
-// source = "manual" (not "roster_cities") on purpose: roster_cities dumps the
-// raw residence cities of roster talent (all flagged "active") and would lose
-// both the featured Riviera Maya emphasis and the LA/Madrid expansion narrative.
-// Counts are left unset rather than fabricated — the Component only renders a
-// per-market count when one is supplied, so nothing fake shows; an operator can
-// switch this to roster_cities or add real counts in the section's own editor.
-//
-// The dark WARM band wrapper (id "impronta-markets") is preserved; the
-// decomposed section (rootId "impronta-markets-embed") lives inside it.
-const markets: BuilderNode = band(
-  "impronta-markets",
-  WARM,
-  [
-    buildLocationDiscoveryDecomposedSection({
-      rootId: "impronta-markets-embed",
-      eyebrow: "Talent network",
-      headline: "Local faces, international reach.",
-      subheadline:
-        "Starting with Riviera Maya, expanding across Mexico City, Buenos Aires, and other creative markets — international reach with a real team in every market.",
-      seeAllLabel: "Browse the directory",
-      seeAllHref: "/directory",
-      embedConfig: gridOnlyLocationDiscoveryConfig({
-        source: "manual",
-        items: [
-          { label: "Riviera Maya", region: "Mexico", href: "/directory", featured: true, status: "active" },
-          { label: "Mexico City", region: "Mexico", href: "/directory", status: "active" },
-          { label: "Buenos Aires", region: "Argentina", href: "/directory", status: "active" },
-          { label: "Los Angeles", region: "United States", href: "/directory", status: "coming_soon" },
-          { label: "Madrid", region: "Spain", href: "/directory", status: "coming_soon" },
-        ],
-        maxItems: 8,
-        showCount: false,
-        showMap: true,
-        // The live interactive map with talent-profile photos orbiting each
-        // city pin (sources live roster cities + featured talent; the manual
-        // items above remain as the editorial fallback if no live data).
-        mapStyle: "talent_orbit",
-        layout: "grid",
-        emptyStateText: "Markets appear here as talent join the roster across our cities.",
-        presentation: { background: "espresso", align: "center", dividerTop: "thin-line", paddingTop: "none", paddingBottom: "none", animation: { entry: "fade-up", reducedMotion: "respect" } },
-      }),
-    }),
-  ],
-);
+// NOTE: the "Local faces / markets" location_discovery section was DROPPED in the
+// 2026 Casting-Issue recompose — it is not one of the kit's 13 sections (§3).
+// Its imports (buildLocationDiscoveryDecomposedSection, gridOnlyLocationDiscoveryConfig)
+// and the WARM band-color constant were removed with it.
 
 // Process — a connected step rail. Each step is a numbered disc sitting on a
 // shared gold hairline (the disc overlaps a top rule that runs the width of each
@@ -781,60 +659,11 @@ const process: BuilderNode = band("impronta-process", INK, [
   },
 ]);
 
-// Pillars (an agency, not a directory). Explicit static cards (NOT a repeater)
-// so each pillar carries its own tailored icon — verification, location, and
-// booking — instead of one shared ✓. Icons are real `icon` builder nodes from
-// the icon registry (check / map_pin / calendar), the closest registered analogs
-// to the prototype's shield / pin / contract marks.
-const pillarCard = (
-  idx: string,
-  icon: "check" | "map_pin" | "calendar",
-  title: string,
-  detail: string,
-): BuilderNode => ({
-  id: `impronta-pil-${idx}`,
-  kind: "container",
-  props: { layout: "stack", style: { gap: "14px", backgroundColor: CARD, borderColor: CARD_BORDER, borderWidth: "1px", borderStyle: "solid", borderRadius: "6px", paddingTop: "28px", paddingBottom: "28px", paddingLeft: "24px", paddingRight: "24px" } },
-  children: [
-    {
-      id: `impronta-pil-${idx}-mark`,
-      kind: "container",
-      props: {
-        layout: "stack",
-        align: "center",
-        style: { width: "44px", height: "44px", backgroundColor: "rgba(201,162,39,0.12)", borderColor: HAIRLINE, borderWidth: "1px", borderStyle: "solid", borderRadius: "999px", justifyContent: "center", align: "center" },
-      },
-      children: [
-        {
-          id: `impronta-pil-${idx}-icon`,
-          kind: "icon",
-          props: { icon, size: "sm", label: title, style: { textColor: GOLD_BRIGHT } },
-        },
-      ],
-    },
-    { id: `impronta-pil-${idx}-title`, kind: "heading", props: { text: title, level: 3, style: { fontFamily: FRAUNCES, fontSize: "21px", fontWeight: 500, textColor: TEXT, marginBottomFree: "0px" } } },
-    { id: `impronta-pil-${idx}-detail`, kind: "paragraph", props: { text: detail, style: { fontFamily: INTER, fontSize: "14px", lineHeight: "1.55", textColor: MUTED } } },
-  ],
-});
-
-const pillars: BuilderNode = band("impronta-pillars", SURFACE, [
-  centerHead("impronta-pil", "Why Impronta", "An agency, not a directory", "Every booking is supported by real coordination, local knowledge, and reviewed, agency-approved talent — in every market we operate."),
-  {
-    id: "impronta-pil-grid",
-    kind: "container",
-    props: {
-      layout: "grid",
-      columns: 3,
-      gap: "m",
-      style: { width: "100%", maxWidthFree: "100%", gap: "20px", responsive: { mobile: { gridTemplateColumns: "repeat(1,minmax(0,1fr))" } } },
-    },
-    children: [
-      pillarCard("verified", "check", "Verified profiles", "Every talent is reviewed and verified before you ever see them."),
-      pillarCard("local", "map_pin", "Local coordination", "A real team on the ground in every market — international reach, local execution."),
-      pillarCard("booking", "calendar", "Booking support", "Contracts, usage and logistics — managed end to end."),
-    ],
-  },
-]);
+// NOTE: the "Why Impronta" pillars section (verified profiles / local
+// coordination / booking support) was DROPPED in the 2026 Casting-Issue
+// recompose — it is not one of the kit's 13 sections (§3). Its `pillarCard`
+// helper was removed with it; the human-promise message it carried now lives in
+// the new Statement section (§3.6).
 
 // Join (talent CTA) — gold-glow radial band.
 const join: BuilderNode = band("impronta-join", INK, [
@@ -862,22 +691,360 @@ const finalCta: BuilderNode = band(
       props: { layout: "stack", align: "center", style: { width: "100%", maxWidthFree: "780px", marginLeftFree: "auto", marginRightFree: "auto", gap: "0px", align: "center" } },
       children: [
         eyebrow("Start"),
-        { id: "impronta-final-h", kind: "heading", props: { text: "Planning an event, shoot, activation, or private experience?", level: 2, style: { fontFamily: FRAUNCES, fontSize: "44px", lineHeight: "1.06", fontWeight: 500, letterSpacing: "-0.01em", textColor: TEXT, textWrap: "balance", align: "center", marginBottomFree: "0px", responsive: { mobile: { fontSize: "30px" } } } } },
+        { id: "impronta-final-h", kind: "heading", props: { text: "The right talent is one search away.", level: 2, style: { fontFamily: FRAUNCES, fontSize: "44px", lineHeight: "1.06", fontWeight: 500, letterSpacing: "-0.01em", textColor: TEXT, textWrap: "balance", align: "center", marginBottomFree: "0px", responsive: { mobile: { fontSize: "30px" } } } } },
         { id: "impronta-final-p", kind: "paragraph", props: { text: "Tell us the brief and your market. We'll match the right talent — a coordinator replies personally.", style: { fontFamily: INTER, fontSize: "17px", lineHeight: "1.6", textColor: MUTED, marginTopFree: "18px", align: "center", maxWidthFree: "560px" } } },
-        { id: "impronta-final-actions", kind: "container", props: { layout: "row", align: "center", responsive: { mobile: { layout: "stack" } }, style: { gap: "18px", marginTopFree: "30px", justifyContent: "center" } }, children: [goldButton("impronta-final-cta", "Start an Inquiry", "/inquiry"), lineButton("impronta-final-explore", "Explore Talent", "/directory")] },
+        { id: "impronta-final-actions", kind: "container", props: { layout: "row", align: "center", responsive: { mobile: { layout: "stack" } }, style: { gap: "18px", marginTopFree: "30px", justifyContent: "center" } }, children: [goldButton("impronta-final-cta", "Browse the roster", "/directory"), lineButton("impronta-final-explore", "Start an inquiry", "/inquiry")] },
       ],
     },
   ],
   { borderTop: true, glow: true },
 );
 
-const improntaTree: BuilderNode[] = [
-  {
-    id: "impronta-page",
-    kind: "container",
-    props: { layout: "stack", style: { width: "100%", maxWidthFree: "100%", gap: "0px", backgroundColor: INK } },
-    children: [heroFind, heroClassic, disciplines, featured, markets, process, pillars, join, finalCta],
+// ── Casting-Issue new sections (design-kit §3) ─────────────────────────────────
+// Authored verbatim from the freshly-built section nodes for the 2026 "Casting
+// Issue" home (web/docs/impronta-home-2026-design-kit.md §3). Each keeps its
+// `token:` style refs so it re-skins per tenant theme. The two full-bleed plates
+// carry their own `containerWidth:"full-bleed"` / `fullBleed:true` presentation;
+// Plate I is additionally wrapped in a full-bleed host container so it breaks the
+// page container even when the tree's section sits inside a max-width column.
+
+// §3.3 — Discipline marquee (NEW).
+const marquee: BuilderNode = {
+  id: "impronta-marquee",
+  kind: "section_embed",
+  props: {
+    sectionTypeKey: "marquee",
+    layerLabel: "Discipline Marquee",
+    config: {
+      items: [
+        { text: "Models", href: "/directory" },
+        { text: "Hostesses", href: "/directory" },
+        { text: "Dancers", href: "/directory" },
+        { text: "Brand Ambassadors", href: "/directory" },
+        { text: "Performers", href: "/directory" },
+        { text: "Promotional", href: "/directory" },
+      ],
+      speed: "slow",
+      direction: "left",
+      separator: "diamond",
+      variant: "text",
+      presentation: {
+        background: "espresso",
+        containerWidth: "full-bleed",
+        paddingTop: "tight",
+        paddingBottom: "tight",
+        dividerTop: "thin-line",
+        animation: { entry: "fade", reducedMotion: "respect" },
+        customCss:
+          ".site-marquee { background: var(--token-color-background, #0a0a0a); border-top: 1px solid var(--token-color-line, #1f1f22); border-bottom: 1px solid var(--token-color-line, #1f1f22); } .site-marquee__link, .site-marquee__item > span:not(.site-marquee__sep) { color: var(--token-color-ink, #f4f4f5); font-family: var(--site-heading-font, inherit); font-style: italic; text-decoration: none; } .site-marquee__sep { color: var(--token-color-accent, #d4af37); } .site-marquee__sep::before { content: '\\2726'; } .site-marquee__sep { font-size: 0; } .site-marquee__sep::before { font-size: 1rem; }",
+      },
+    },
   },
+};
+
+// §3.5 — Full-bleed plate I ("the runway") (NEW). Wrapped in a full-bleed host so
+// the cta_banner plate breaks out of the page container at any nesting depth.
+const plate1: BuilderNode = {
+  id: "impronta-plate-1-host",
+  kind: "container",
+  props: {
+    layerLabel: "Plate I — The Runway (full-bleed host)",
+    layout: "stack",
+    align: "stretch",
+    // Full-bleed host: a `container` carries no `presentation` field (that's a
+    // section/section_embed prop), so the source JSON's
+    // presentation:{containerWidth:"full-bleed",fullBleed:true,…} is expressed
+    // via `style` — full width, no max-width clamp, no padding. The embedded
+    // cta_banner child still sets its OWN full-bleed presentation in config, so
+    // the plate breaks out of the page column. gap:"none" → free escape "0px"
+    // (the container gap enum is only s|m|l; single-child host, so cosmetic).
+    style: { width: "100%", maxWidthFree: "none", gap: "0px", paddingTop: "0px", paddingBottom: "0px", paddingLeft: "0px", paddingRight: "0px", backgroundColor: "token:color.background" },
+  },
+  children: [
+    {
+      id: "impronta-plate-1",
+      kind: "section_embed",
+      props: {
+        sectionTypeKey: "cta_banner",
+        layerLabel: "Plate I — The Runway",
+        config: {
+          eyebrow: "I.",
+          headline: "She doesn't walk the runway. She decides where it leads.",
+          variant: "centered-overlay",
+          bandTone: "espresso",
+          insetCard: false,
+          backgroundImageUrl: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=2000&q=80",
+          backgroundImageAlt: "Model on an editorial runway under low light",
+          overlayOpacity: 55,
+          presentation: {
+            containerWidth: "full-bleed",
+            fullBleed: true,
+            background: "espresso",
+            paddingTop: "editorial",
+            paddingBottom: "editorial",
+            align: "center",
+            textTone: "on-dark",
+            overlayColor: "token:color.background",
+            overlayOpacity: 0.55,
+            animation: { scroll: "parallax-soft", reducedMotion: "respect" },
+            parallaxIntensity: 0.4,
+            customCss:
+              ".site-cta-banner .site-eyebrow, .site-cta-banner .site-eyebrow > span { color: var(--token-color-accent, #d4af37); opacity: 0.14; font-family: var(--site-heading-font, inherit); font-style: italic; font-size: clamp(5rem, 16vw, 13rem); line-height: 0.85; letter-spacing: 0; }\n.site-cta-banner__headline { color: var(--token-color-ink, #f4f4f5); font-family: var(--site-heading-font, inherit); font-style: italic; font-weight: 300; }",
+          },
+        },
+      },
+    },
+  ],
+};
+
+// §3.6 — Statement: the Impronta way (NEW, image_copy_alternating).
+const statement: BuilderNode = {
+  id: "impronta-statement",
+  kind: "section_embed",
+  props: {
+    sectionTypeKey: "image_copy_alternating",
+    layerLabel: "Statement — the Impronta way",
+    config: {
+      variant: "editorial-alternating",
+      imageRatio: "4/5",
+      gap: "airy",
+      items: [
+        {
+          eyebrow: "The Impronta way",
+          title: "We do not list faces. We {accent}stand behind them.{/accent}",
+          italicTagline: "Every name on this roster is someone we have met, vetted, and chosen to represent — a promise, not a profile.",
+          body: "Anyone can build a directory. We built an agency. Before a face reaches your shortlist it has been reviewed, its availability confirmed, its rates and rights agreed. When you book through Impronta, a real coordinator is answerable for every detail — from the first reply to the wrap of the shoot.",
+          imageUrl: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=72&w=1200&h=1500",
+          imageAlt: "Editorial black-and-white portrait of a model lit against a dark studio backdrop.",
+          iconKey: "sparkle",
+          listItems: ["Reviewed, agency-approved talent", "Confirmed availability before you ask", "Rates, usage & logistics handled for you"],
+          side: "image-left",
+        },
+      ],
+      presentation: {
+        background: "canvas",
+        textTone: "ink",
+        align: "left",
+        paddingTop: "editorial",
+        paddingBottom: "editorial",
+        containerWidth: "standard",
+        dividerTop: "thin-line",
+        animation: { entry: "fade-up", reducedMotion: "respect" },
+      },
+    },
+  },
+};
+
+// §3.7 — Best for: find talent by occasion (NEW, freeform link rows).
+const bestFor: BuilderNode = {
+  id: "impronta-best-for",
+  kind: "container",
+  props: {
+    layout: "stack",
+    align: "center",
+    layerLabel: "Best for — find talent by occasion",
+    style: {
+      width: "100%",
+      maxWidthFree: "100%",
+      paddingTop: "92px",
+      paddingRight: "32px",
+      paddingBottom: "92px",
+      paddingLeft: "32px",
+      gap: "0px",
+      backgroundColor: "token:color.background",
+      textColor: "token:color.ink",
+      borderColor: "token:color.line",
+      borderWidth: "1px 0px 0px 0px",
+      borderStyle: "solid",
+      responsive: { mobile: { paddingTop: "60px", paddingBottom: "60px", paddingRight: "20px", paddingLeft: "20px" } },
+    },
+  },
+  children: [
+    {
+      id: "impronta-best-for-wrap",
+      kind: "container",
+      props: {
+        layout: "stack",
+        layerLabel: "Container",
+        style: { width: "100%", maxWidthFree: "1220px", gap: "40px", animationPreset: "rise", animationTrigger: "scroll", animationDuration: "0.9s", animationEasing: "smooth" },
+      },
+      children: [
+        {
+          id: "impronta-best-for-head",
+          kind: "container",
+          props: { layout: "stack", align: "start", layerLabel: "Section Head", style: { gap: "0px", maxWidthFree: "640px" } },
+          children: [
+            {
+              id: "impronta-best-for-eyebrow",
+              kind: "paragraph",
+              props: {
+                text: "Best for",
+                layerLabel: "Intro Text",
+                style: { fontFamily: "token:typography.heading-font-family", fontSize: "12px", fontWeight: 600, letterSpacing: "0.32em", textTransform: "uppercase", textColor: "token:color.accent", marginBottomFree: "14px", align: "left" },
+              },
+            },
+            {
+              id: "impronta-best-for-title",
+              kind: "heading",
+              props: {
+                text: "Find talent by occasion.",
+                level: 2,
+                layerLabel: "Title",
+                style: { fontFamily: "token:typography.heading-font-family", fontSize: "46px", lineHeight: "1.04", fontWeight: 500, letterSpacing: "-0.01em", textColor: "token:color.ink", textWrap: "balance", marginBottomFree: "0px", align: "left", responsive: { mobile: { fontSize: "32px" } } },
+              },
+            },
+            {
+              id: "impronta-best-for-sub",
+              kind: "paragraph",
+              props: {
+                text: "Whatever the brief, there is a roster for it — agency-managed end to end.",
+                layerLabel: "Subtitle",
+                style: { fontFamily: "token:typography.body-font-family", fontSize: "17px", lineHeight: "1.6", textColor: "token:color.muted", marginTopFree: "18px", align: "left", maxWidthFree: "560px" },
+              },
+            },
+          ],
+        },
+        {
+          id: "impronta-best-for-grid",
+          kind: "container",
+          props: {
+            layout: "grid",
+            columns: 3,
+            gap: "m",
+            layerLabel: "Occasion Rows",
+            responsive: { tablet: { columns: 2 }, mobile: { columns: 1 } },
+            style: { width: "100%", maxWidthFree: "100%", gap: "0px 48px" },
+          },
+          children: [
+            bestForRow("fashion", "Fashion Campaigns  →", "Fashion Campaigns"),
+            bestForRow("product", "Product Launches  →", "Product Launches"),
+            bestForRow("runway", "Runway & Showroom  →", "Runway & Showroom"),
+            bestForRow("corporate", "Corporate & Galas  →", "Corporate & Galas"),
+            bestForRow("tradeshows", "Trade Shows  →", "Trade Shows"),
+            bestForRow("hospitality", "Hospitality & VIP  →", "Hospitality & VIP"),
+            bestForRow("luxury", "Luxury Brand Shoots  →", "Luxury Brand Shoots"),
+            bestForRow("automotive", "Automotive & Tech  →", "Automotive & Tech"),
+            bestForRow("music", "Music & Performance  →", "Music & Performance"),
+          ],
+        },
+      ],
+    },
+  ],
+};
+
+// §3.9a — Inquiry-as-a-sentence (NEW, cta_banner minimal-band).
+const inquirySentence: BuilderNode = {
+  id: "impronta-inquiry-sentence",
+  kind: "section_embed",
+  props: {
+    sectionTypeKey: "cta_banner",
+    layerLabel: "Inquiry — say it in a sentence",
+    config: {
+      headline: "Tell us who you’re looking for — the rest is ours to handle.",
+      reassurance: "No account needed · replies within 24h",
+      variant: "minimal-band",
+      bandTone: "espresso",
+      insetCard: false,
+      primaryCta: { label: "Start an inquiry", href: "/inquiry" },
+      secondaryCta: { label: "Browse the roster", href: "/directory" },
+      nodePresentation: {
+        headline: { align: "center", textColor: "token:color.ink" },
+        primaryCta: { textColor: "token:color.accent" },
+        secondaryCta: { textColor: "token:color.accent" },
+      },
+      presentation: {
+        background: "espresso",
+        containerWidth: "narrow",
+        align: "center",
+        paddingTop: "editorial",
+        paddingBottom: "editorial",
+        animation: { scroll: "reveal-stagger", reducedMotion: "respect" },
+      },
+    },
+  },
+};
+
+// §3.9b — Stats band (NEW).
+const stats: BuilderNode = {
+  id: "impronta-stats",
+  kind: "section_embed",
+  props: {
+    sectionTypeKey: "stats",
+    layerLabel: "Stats band",
+    config: {
+      eyebrow: "By the numbers",
+      items: [
+        { value: "101", label: "Talents" },
+        { value: "12", label: "Cities" },
+        { value: "<24h", label: "First reply" },
+        { value: "100%", label: "Agency-managed" },
+      ],
+      variant: "row",
+      align: "center",
+      presentation: {
+        background: "espresso",
+        containerWidth: "standard",
+        paddingTop: "editorial",
+        paddingBottom: "editorial",
+        dividerTop: "thin-line",
+        animation: { entry: "fade-up", reducedMotion: "respect" },
+      },
+    },
+  },
+};
+
+// §3.10 — Full-bleed plate II ("the room") (NEW).
+const plate2: BuilderNode = {
+  id: "impronta-plate-2",
+  kind: "section_embed",
+  props: {
+    sectionTypeKey: "cta_banner",
+    layerLabel: "Plate II — The room",
+    config: {
+      eyebrow: "II.",
+      headline: "Behind every face, a room of people answerable for every detail.",
+      backgroundImageUrl: "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=2400&q=80",
+      backgroundImageAlt: "An atelier of people at work behind the scenes, softly out of focus",
+      overlayOpacity: 62,
+      variant: "centered-overlay",
+      bandTone: "espresso",
+      insetCard: false,
+      presentation: {
+        containerWidth: "full-bleed",
+        fullBleed: true,
+        background: "espresso",
+        align: "center",
+        paddingTop: "editorial",
+        paddingBottom: "editorial",
+        overlayColor: "token:color.background",
+        animation: { scroll: "parallax-soft", reducedMotion: "respect" },
+        customCss:
+          ".site-eyebrow > span { font-family: var(--site-heading-font, inherit); font-style: italic; font-weight: 300; font-size: clamp(3.5rem, 9vw, 7rem); line-height: 1; letter-spacing: 0.02em; color: var(--token-color-accent, #d4af37); opacity: 0.18; display: block; margin-bottom: 0.5rem; } .site-cta-banner__headline { font-family: var(--site-heading-font, inherit); font-style: italic; font-weight: 300; color: var(--token-color-ink, #f4f4f5); max-width: 22ch; margin-inline: auto; text-wrap: balance; } .site-cta-banner__shell { min-height: clamp(60vh, 78vh, 820px); display: flex; align-items: center; }",
+      },
+    },
+  },
+};
+
+// MULTI-ROOT tree (design-kit §3 order). NOT wrapped in a single root container,
+// so the editor renders it without the empty-recovery quirk. Header (§3.1) and
+// footer (§3.13) live in the site_shell, not in this body tree.
+// Order: Hero → Marquee → Roster mosaic (featured) → Browse-by-discipline →
+// Plate I → Statement → Best-for → How-it-works → Inquiry sentence → Stats →
+// Plate II → For-talent → Closing CTA.
+const improntaTree: BuilderNode[] = [
+  heroFind,
+  marquee,
+  featured,
+  disciplines,
+  plate1,
+  statement,
+  bestFor,
+  process,
+  inquirySentence,
+  stats,
+  plate2,
+  join,
+  finalCta,
 ];
 
 export const improntaDesign: PageDesign = {
@@ -885,7 +1052,7 @@ export const improntaDesign: PageDesign = {
   title: "Impronta — Models & Image Agency",
   label: "Impronta agency",
   description:
-    "The Impronta Models flagship home, freeform: a dark editorial models-&-image agency site with a warm-gold accent, a directory-search hero, a discipline roster, featured talent, markets, process, and inquiry CTAs.",
+    "The Impronta Models flagship home, freeform (2026 Casting Issue): a dark editorial models-&-image agency site with a warm-gold accent — a directory-search hero, a discipline marquee, a featured-talent roster, browse-by-discipline, two full-bleed editorial plates, an agency statement, find-by-occasion, the process, a stats band, and inquiry/talent CTAs.",
   archetype: "agency",
   tree: improntaTree,
   dataSources,
