@@ -70,6 +70,10 @@ export const BLOB_FIELD_KEYS = {
   upcoming_visits: "logistics.upcomingVisits",
   media_albums_data: "albums.list",
   documents_data: "documents",
+  // Talent services menu (2026-06-14) — the priced menu that feeds offers /
+  // instant-book. ARRAY blob (ServiceMenuItem[]); catalog field
+  // commerce.servicesMenu registered alongside rates.cards / commercial.*.
+  services_menu: "commerce.servicesMenu",
 } as const;
 
 export type BlobFieldColumn = keyof typeof BLOB_FIELD_KEYS;
