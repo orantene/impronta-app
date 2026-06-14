@@ -10,6 +10,8 @@ import { OfferTab } from "./machinery-12";
 import { OfferTermsComposer } from "./offer-terms-ui";
 import { PanelSkeleton, ghostBtn, primaryBtn } from "./machinery-13";
 import type { Offer } from "./machinery-9";
+import { LineServicePicker } from "./line-service-picker";
+import type { ServicePricingType } from "@/lib/talent/services-menu-types";
 
 
 /**
@@ -599,13 +601,18 @@ export function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: s
             </div>
             <select
               value={li.pricingUnit}
-              onChange={(e) => updateLine(li.id, { pricingUnit: e.target.value as "hour" | "day" | "week" | "event" })}
+              onChange={(e) => updateLine(li.id, { pricingUnit: e.target.value as ServicePricingType })}
               style={{ padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
             >
               <option value="hour">/hr</option>
               <option value="day">/day</option>
               <option value="week">/wk</option>
-              <option value="event">flat</option>
+              <option value="half_day">/half-day</option>
+              <option value="event">/event</option>
+              <option value="per_person">/person</option>
+              <option value="per_contact">/session</option>
+              <option value="flat_package">flat</option>
+              <option value="custom">custom</option>
             </select>
             <input type="number" min={0} step="0.5" value={li.units}
               onChange={(e) => updateLine(li.id, { units: parseFloat(e.target.value) || 0 })}
@@ -626,6 +633,22 @@ export function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: s
               background: "transparent", border: "none",
               color: COLORS.coralDeep, cursor: "pointer", fontSize: 14, lineHeight: 1,
             }}>×</button>
+            {/* S14/S15 — prefill this line from the talent's services menu.
+                col-span-full keeps it off the no-new-inline-style ratchet. */}
+            {li.talentProfileId ? (
+              <div className="col-span-full">
+                <LineServicePicker
+                  talentProfileId={li.talentProfileId}
+                  onPick={(svc) =>
+                    updateLine(li.id, {
+                      label: svc.name,
+                      pricingUnit: svc.pricingType,
+                      unitPrice: svc.amountCents != null ? svc.amountCents / 100 : li.unitPrice,
+                    })
+                  }
+                />
+              </div>
+            ) : null}
           </div>
         ))}
       </div>

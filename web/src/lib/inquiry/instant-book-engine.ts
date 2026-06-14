@@ -37,6 +37,7 @@ import {
   loadPayoutReceiverCandidatesForBooking,
 } from "@/lib/bookings/transactions";
 import { parseTalentBookingTerms, parseTenantCommercialTerms } from "@/lib/billing/commercial-terms";
+import { normalizeServicesMenu, findInstantBookService } from "@/lib/talent/services-menu-types";
 
 export type InstantBookInput = {
   tenantId: string;
@@ -119,13 +120,25 @@ export async function loadInstantBookEligibility(
   if (!admin) return out;
   try {
     const [{ data: tp }, { data: ag }] = await Promise.all([
-      admin.from("talent_profiles").select("booking_terms").eq("id", talentProfileId).maybeSingle(),
+      admin
+        .from("talent_profiles")
+        .select("booking_terms, services_menu")
+        .eq("id", talentProfileId)
+        .maybeSingle(),
       admin.from("agencies").select("settings").eq("id", tenantId).maybeSingle(),
     ]);
     const talentTerms = parseTalentBookingTerms(tp?.booking_terms ?? null);
     const tenantTerms = parseTenantCommercialTerms(ag?.settings ?? null);
-    const optIn = talentTerms?.instantBookOptIn === true;
-    const fixed = talentTerms?.fixedRateCents ?? null;
+    // S16 — a services-menu service flagged instant-book (priced, active) is the
+    // newer talent-facing surface; it drives instant-book and takes precedence
+    // over the legacy booking_terms.fixedRateCents. Its presence also satisfies
+    // opt-in (flagging a service IS opting in for that service).
+    const menuItem = findInstantBookService(
+      normalizeServicesMenu((tp as { services_menu?: unknown } | null)?.services_menu),
+    );
+    const menuRateCents = menuItem?.amountCents ?? null;
+    const optIn = talentTerms?.instantBookOptIn === true || menuItem != null;
+    const fixed = menuRateCents ?? talentTerms?.fixedRateCents ?? null;
     const tenantOn = tenantTerms?.instantBookEnabled === true;
     out.fixedRateCents = fixed;
     out.fixedRateDollars = fixed != null ? fixed / 100 : null;
@@ -153,15 +166,25 @@ export async function createInstantBooking(
   try {
     // ── Step 0 — eligibility (server-side, every call) ──────────────────────
     const [{ data: tp }, { data: ag }] = await Promise.all([
-      admin.from("talent_profiles").select("booking_terms, display_name").eq("id", input.talentProfileId).maybeSingle(),
+      admin
+        .from("talent_profiles")
+        .select("booking_terms, display_name, services_menu")
+        .eq("id", input.talentProfileId)
+        .maybeSingle(),
       admin.from("agencies").select("settings").eq("id", input.tenantId).maybeSingle(),
     ]);
     const talentTerms = parseTalentBookingTerms(tp?.booking_terms ?? null);
     const tenantTerms = parseTenantCommercialTerms(ag?.settings ?? null);
-    if (talentTerms?.instantBookOptIn !== true || tenantTerms?.instantBookEnabled !== true) {
+    // S16 — same precedence as loadInstantBookEligibility: a priced, active
+    // services-menu instant-book service drives the rate + satisfies opt-in.
+    const menuItem = findInstantBookService(
+      normalizeServicesMenu((tp as { services_menu?: unknown } | null)?.services_menu),
+    );
+    const optIn = talentTerms?.instantBookOptIn === true || menuItem != null;
+    if (!optIn || tenantTerms?.instantBookEnabled !== true) {
       return { ok: false, reason: "instant_book_not_enabled" };
     }
-    const fixedRateCents = talentTerms.fixedRateCents;
+    const fixedRateCents = menuItem?.amountCents ?? talentTerms?.fixedRateCents ?? null;
     if (fixedRateCents == null || fixedRateCents <= 0) {
       return { ok: false, reason: "no_fixed_rate" };
     }
@@ -229,7 +252,8 @@ export async function createInstantBooking(
       lineItems: [
         {
           talent_profile_id: input.talentProfileId,
-          label: talentName,
+          // S16 — name the line after the booked service when menu-driven.
+          label: menuItem?.name ?? talentName,
           pricing_unit: "event",
           units: 1,
           unit_price: fixedRateDollars,

@@ -249,6 +249,25 @@ export function normalizeServicesMenu(raw: unknown, currencyFallback = "USD"): S
 }
 
 /**
+ * The single service designated for instant-book (S16), if any. normalize already
+ * enforces "at most one isInstantBook", so this is the first active, priced,
+ * non-custom instant-book service. Returns null when none qualifies — callers
+ * then fall back to the legacy booking_terms.fixedRateCents.
+ */
+export function findInstantBookService(items: ServiceMenuItem[]): ServiceMenuItem | null {
+  return (
+    items.find(
+      (it) =>
+        it.isInstantBook &&
+        it.isActive &&
+        it.pricingType !== "custom" &&
+        it.amountCents != null &&
+        it.amountCents > 0,
+    ) ?? null
+  );
+}
+
+/**
  * Validation errors for a save (S20). Returns [] when the menu is persistable.
  * - a non-custom service must have a positive amount
  * - an instant-book service must be active + priced + not custom
