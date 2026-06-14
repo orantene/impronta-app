@@ -336,3 +336,74 @@ export async function loadEmailTemplateState(): Promise<TemplateOverrideState[]>
     })
     .sort((a, b) => a.category.localeCompare(b.category) || a.id.localeCompare(b.id));
 }
+
+// ─── Self-serve white-label sending domains ──────────────────────────────────
+
+export type SendingDomainRecord = {
+  record?: string;
+  type?: string;
+  name?: string;
+  value?: string;
+  ttl?: string;
+  priority?: number;
+  status?: string;
+};
+
+export type SendingDomainState = {
+  tenantId: string;
+  agencyName: string | null;
+  domain: string;
+  verificationStatus: string;
+  connected: boolean;
+  records: SendingDomainRecord[];
+};
+
+const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000001";
+
+/**
+ * Every tenant white-label sending domain (the email_domain integration rows,
+ * excluding the platform default). Drives the console's "Sending domains"
+ * section: domain + Resend verification status + the DNS records to add.
+ */
+export async function loadSendingDomains(): Promise<SendingDomainState[]> {
+  const sb = createServiceRoleClient();
+  if (!sb) return [];
+  const { data, error } = await sb
+    .from("tenant_integrations")
+    .select("tenant_id, status, config_json")
+    .eq("integration_key", EMAIL_DOMAIN_INTEGRATION_KEY)
+    .neq("tenant_id", PLATFORM_TENANT_ID);
+  if (error || !data) {
+    if (error) logServerError("email-console.loadSendingDomains", error);
+    return [];
+  }
+  const rows = data as Array<{
+    tenant_id: string;
+    status: string | null;
+    config_json: Record<string, unknown> | null;
+  }>;
+
+  const names = new Map<string, string>();
+  const ids = rows.map((r) => r.tenant_id);
+  if (ids.length) {
+    const { data: ag } = await sb.from("agencies").select("id, display_name").in("id", ids);
+    for (const a of (ag ?? []) as Array<{ id: string; display_name: string | null }>) {
+      if (a.display_name) names.set(a.id, a.display_name);
+    }
+  }
+
+  return rows
+    .map((r) => {
+      const c = r.config_json ?? {};
+      return {
+        tenantId: r.tenant_id,
+        agencyName: names.get(r.tenant_id) ?? null,
+        domain: typeof c.domain === "string" ? c.domain : "",
+        verificationStatus: typeof c.verification_status === "string" ? c.verification_status : "unknown",
+        connected: r.status === "connected",
+        records: Array.isArray(c.records) ? (c.records as SendingDomainRecord[]) : [],
+      };
+    })
+    .filter((d) => d.domain)
+    .sort((a, b) => (a.agencyName ?? a.tenantId).localeCompare(b.agencyName ?? b.tenantId));
+}
