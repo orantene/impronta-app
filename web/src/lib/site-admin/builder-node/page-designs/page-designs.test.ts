@@ -51,11 +51,27 @@ function collectIds(nodes: BuilderNode[]): string[] {
   return ids;
 }
 
-test("page-designs: eleven single-root container designs with copy", () => {
+// `impronta` is intentionally MULTI-ROOT (a top-level array of section nodes,
+// not one wrapping container) — the 2026 Casting-Issue recompose ships it that
+// way so the editor renders it without the empty-recovery quirk. Every other
+// design stays single-root; this set names the documented exceptions.
+const MULTI_ROOT_DESIGN_IDS = new Set(["impronta"]);
+
+test("page-designs: eleven designs with copy (single-root, except documented multi-root)", () => {
   assert.equal(PAGE_DESIGNS.length, 11);
   for (const design of PAGE_DESIGNS) {
-    assert.equal(design.tree.length, 1, `${design.id} must be a single root`);
-    assert.equal(design.tree[0]?.kind, "container", `${design.id} root kind`);
+    if (MULTI_ROOT_DESIGN_IDS.has(design.id)) {
+      assert.ok(design.tree.length > 1, `${design.id} must be multi-root`);
+      for (const root of design.tree) {
+        assert.ok(
+          root.kind === "container" || root.kind === "section_embed",
+          `${design.id} multi-root section kind`,
+        );
+      }
+    } else {
+      assert.equal(design.tree.length, 1, `${design.id} must be a single root`);
+      assert.equal(design.tree[0]?.kind, "container", `${design.id} root kind`);
+    }
     assert.ok(design.label.length > 0, `${design.id} label`);
     assert.ok(design.description.length > 0, `${design.id} description`);
   }
