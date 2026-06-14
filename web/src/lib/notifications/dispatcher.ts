@@ -1,5 +1,6 @@
 import "server-only";
 
+import * as Sentry from "@sentry/nextjs";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
@@ -191,6 +192,19 @@ export async function dispatchEventNotifications(
             providerReference: null,
             ok: false,
             error: (err instanceof Error ? err.message : String(err)).slice(0, 200),
+          });
+          // A notification send failure is otherwise INVISIBLE to alerting — the
+          // dispatcher only records it to the DB ledger + structured log, so a
+          // misconfigured sender (e.g. an unverified from-domain) silently drops
+          // mail. Surface it to Sentry so the next regression pages instead of
+          // hiding until someone queries notification_dispatch_log.
+          Sentry.captureException(err, {
+            tags: { area: "notifications", channel, event_type: enriched.type },
+            extra: {
+              entryId: entry.id,
+              tenantId: enriched.tenantId,
+              recipient: recipientRef,
+            },
           });
         }
       }

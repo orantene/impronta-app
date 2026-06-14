@@ -121,7 +121,10 @@ async function retryRow(
   if (!entry?.email) return "skipped"; // not an email-capable entry (or unknown)
 
   if (await isEmailSuppressed(admin, row.recipient_user_id, row.recipient_email)) {
-    await mark(admin, row.id, { status: "suppressed" });
+    // Clear any stale send error from the prior 'failed' attempt so the row's
+    // terminal status and its error column stay consistent (a suppressed row
+    // must not keep advertising a send failure).
+    await mark(admin, row.id, { status: "suppressed", error_message: null });
     return "suppressed";
   }
 

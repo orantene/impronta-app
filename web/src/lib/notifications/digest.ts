@@ -309,7 +309,8 @@ async function flushBatch(
 
   // A bounce / complaint may have landed after these rows were queued.
   if (await isEmailSuppressed(admin, batch.recipientUserId, batch.email)) {
-    await markRows(admin, ids, { status: "suppressed" });
+    // Clear any stale error so a suppressed row's status + error column agree.
+    await markRows(admin, ids, { status: "suppressed", error_message: null });
     return "suppressed";
   }
 
