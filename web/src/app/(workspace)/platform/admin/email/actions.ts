@@ -16,6 +16,7 @@ import { getPlatformRole } from "@/lib/access/platform-role";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { retryDispatchLogRow } from "@/lib/notifications/retry";
+import { invalidateNotificationOverlayCache } from "@/lib/notifications/overlay";
 import { sendEmailResult } from "@/lib/email";
 
 const REVALIDATE_PATH = "/platform/admin/email";
@@ -152,4 +153,48 @@ export async function sendTestEmail(input: {
     return { ok: false, error: result.error, from };
   }
   return { ok: true, status: result.status, id: result.status === "sent" ? result.id : null, from };
+}
+
+// ─── Per-event channel toggle (P3b) ──────────────────────────────────────────
+
+export type ToggleActionResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Enable/disable a channel for one catalog entry (the console toggle grid).
+ * Upserts the single channel column so the other channel is preserved. The
+ * dispatcher consults this overlay (degrade-open, cached ~60s); we invalidate
+ * the cache so the change takes effect on the next dispatch.
+ */
+export async function setEventOverlay(input: {
+  catalogEntryId: string;
+  channel: "email" | "in_app";
+  enabled: boolean;
+}): Promise<ToggleActionResult> {
+  const guard = await requirePlatformAdmin();
+  if (!guard.ok) return guard;
+  const entryId = (input.catalogEntryId ?? "").trim();
+  if (!entryId) return { ok: false, error: "Missing entry." };
+  if (input.channel !== "email" && input.channel !== "in_app") {
+    return { ok: false, error: "Invalid channel." };
+  }
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Service unavailable." };
+
+  const column = input.channel === "email" ? "email_enabled" : "in_app_enabled";
+  const { error } = await admin.from("notification_overlay").upsert(
+    {
+      catalog_entry_id: entryId,
+      [column]: input.enabled,
+      updated_by: guard.actorId,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "catalog_entry_id" },
+  );
+  if (error) {
+    logServerError("email-console.setEventOverlay", error);
+    return { ok: false, error: "Couldn't save the toggle. See logs." };
+  }
+  invalidateNotificationOverlayCache();
+  revalidatePath(REVALIDATE_PATH);
+  return { ok: true };
 }

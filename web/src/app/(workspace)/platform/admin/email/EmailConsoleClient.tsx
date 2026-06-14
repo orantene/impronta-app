@@ -8,12 +8,14 @@ import type {
   EmailMetrics,
   SuppressionRow,
   EmailDomainStatus,
+  CatalogEntryState,
 } from "./email-data";
 import {
   retryEmailRow,
   addSuppression,
   removeSuppression,
   sendTestEmail,
+  setEventOverlay,
 } from "./actions";
 
 // ─── HQ design tokens (match the platform admin dark theme) ──────────────────
@@ -93,11 +95,12 @@ export function EmailConsoleClient(props: {
   metrics: EmailMetrics;
   suppressions: SuppressionRow[];
   domain: EmailDomainStatus;
+  catalog: CatalogEntryState[];
   adminEmail: string;
   /** Request time (ms), computed server-side — keeps the client render pure. */
   nowMs: number;
 }) {
-  const { sendLog, metrics, suppressions, domain, adminEmail, nowMs } = props;
+  const { sendLog, metrics, suppressions, domain, catalog, adminEmail, nowMs } = props;
   const router = useRouter();
   const [, startTransition] = useTransition();
 
@@ -116,7 +119,93 @@ export function EmailConsoleClient(props: {
       <MetricsStrip metrics={metrics} />
       <TestSend adminEmail={adminEmail} onDone={() => startTransition(() => router.refresh())} />
       <SendLogTable rows={sendLog} nowMs={nowMs} onChanged={() => startTransition(() => router.refresh())} />
+      <EventToggles entries={catalog} onChanged={() => startTransition(() => router.refresh())} />
       <SuppressionPanel rows={suppressions} onChanged={() => startTransition(() => router.refresh())} />
+    </div>
+  );
+}
+
+// ─── Event toggles (P3b) ─────────────────────────────────────────────────────
+function EventToggles({ entries, onChanged }: { entries: CatalogEntryState[]; onChanged: () => void }) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const byCategory = useMemo(() => {
+    const m = new Map<string, CatalogEntryState[]>();
+    for (const e of entries) {
+      const arr = m.get(e.category) ?? [];
+      arr.push(e);
+      m.set(e.category, arr);
+    }
+    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [entries]);
+
+  async function toggle(e: CatalogEntryState, channel: "email" | "in_app", next: boolean) {
+    const k = `${e.id}:${channel}`;
+    setBusy(k);
+    await setEventOverlay({ catalogEntryId: e.id, channel, enabled: next });
+    setBusy(null);
+    onChanged();
+  }
+
+  function Switch({ e, channel, on, has }: { e: CatalogEntryState; channel: "email" | "in_app"; on: boolean; has: boolean }) {
+    if (!has) return <span style={{ color: HQ.inkDim, fontSize: 12 }}>—</span>;
+    const locked = e.required;
+    const k = `${e.id}:${channel}`;
+    return (
+      <button
+        disabled={locked || busy === k}
+        onClick={() => toggle(e, channel, !on)}
+        title={locked ? "Required — can't be disabled" : on ? "Click to disable" : "Click to enable"}
+        style={{
+          cursor: locked ? "not-allowed" : "pointer",
+          padding: "3px 9px",
+          borderRadius: 999,
+          fontSize: 11,
+          fontWeight: 700,
+          border: "none",
+          opacity: busy === k ? 0.5 : 1,
+          background: on ? "rgba(93,211,160,0.15)" : "rgba(255,255,255,0.06)",
+          color: on ? HQ.green : HQ.inkDim,
+        }}
+      >
+        {on ? "ON" : "OFF"}{locked ? " ·req" : ""}
+      </button>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: 24, marginBottom: 24 }}>
+      <div style={{ fontSize: 16, fontWeight: 600, fontFamily: FONT_DISPLAY, marginBottom: 6 }}>Events</div>
+      <p style={{ color: HQ.inkMuted, fontSize: 13, margin: "0 0 14px" }}>
+        Enable/disable each notification per channel. Required (transactional) events can&apos;t be turned off.
+      </p>
+      <div style={{ border: `1px solid ${HQ.borderSoft}`, borderRadius: 8, overflow: "hidden" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <thead>
+            <tr style={{ background: HQ.card, borderBottom: `1px solid ${HQ.borderSoft}` }}>
+              <th style={{ padding: "10px 12px", textAlign: "left", fontSize: 11, color: HQ.inkMuted, textTransform: "uppercase", letterSpacing: 0.5 }}>Event</th>
+              <th style={{ padding: "10px 12px", textAlign: "center", fontSize: 11, color: HQ.inkMuted, textTransform: "uppercase", letterSpacing: 0.5, width: 90 }}>Email</th>
+              <th style={{ padding: "10px 12px", textAlign: "center", fontSize: 11, color: HQ.inkMuted, textTransform: "uppercase", letterSpacing: 0.5, width: 90 }}>In-app</th>
+            </tr>
+          </thead>
+          <tbody>
+            {byCategory.map(([cat, list]) => (
+              <Fragment key={cat}>
+                <tr style={{ background: "rgba(255,255,255,0.02)" }}>
+                  <td colSpan={3} style={{ padding: "6px 12px", fontSize: 11, color: HQ.inkMuted, textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600 }}>{cat}</td>
+                </tr>
+                {list.map((e) => (
+                  <tr key={e.id} style={{ borderBottom: `1px solid ${HQ.borderSoft}` }}>
+                    <td style={{ padding: "8px 12px", fontFamily: MONO, fontSize: 12 }}>{e.id}</td>
+                    <td style={{ padding: "8px 12px", textAlign: "center" }}><Switch e={e} channel="email" on={e.emailEnabled} has={e.hasEmail} /></td>
+                    <td style={{ padding: "8px 12px", textAlign: "center" }}><Switch e={e} channel="in_app" on={e.inAppEnabled} has={e.hasInApp} /></td>
+                  </tr>
+                ))}
+              </Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div style={{ marginTop: 10, color: HQ.inkMuted, fontSize: 12 }}>{entries.length} catalog events.</div>
     </div>
   );
 }

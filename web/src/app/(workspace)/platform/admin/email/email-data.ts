@@ -4,6 +4,8 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { platformConfigField } from "@/lib/integrations/platform-defaults";
 import { EMAIL_DOMAIN_INTEGRATION_KEY } from "@/lib/integrations/catalog";
+import { NOTIFICATION_CATALOG } from "@/lib/notifications/catalog";
+import { loadNotificationOverlay } from "@/lib/notifications/overlay";
 
 /**
  * Read-only loaders for the platform-admin Email console
@@ -257,4 +259,37 @@ export async function loadEmailDomainStatus(): Promise<EmailDomainStatus> {
   const status: EmailDomainStatus["status"] =
     fromAddress || domain ? "configured" : envFrom ? "env_fallback" : "unset";
   return { fromAddress, domain, envFrom, effectiveFrom, status };
+}
+
+// ─── Catalog + per-event toggles (P3b) ───────────────────────────────────────
+
+export type CatalogEntryState = {
+  id: string;
+  category: string;
+  required: boolean;
+  hasEmail: boolean;
+  hasInApp: boolean;
+  emailEnabled: boolean;
+  inAppEnabled: boolean;
+};
+
+/**
+ * Every code catalog entry merged with the admin overlay — drives the console's
+ * per-event toggle grid. `emailEnabled`/`inAppEnabled` reflect the effective
+ * state (overlay false = off, else on). `required` entries can't be disabled.
+ */
+export async function loadNotificationCatalogState(): Promise<CatalogEntryState[]> {
+  const overlay = await loadNotificationOverlay();
+  return NOTIFICATION_CATALOG.map((e) => {
+    const o = overlay.get(e.id);
+    return {
+      id: e.id,
+      category: e.category,
+      required: e.required ?? false,
+      hasEmail: Boolean(e.email),
+      hasInApp: Boolean(e.in_app),
+      emailEnabled: o?.email !== false,
+      inAppEnabled: o?.in_app !== false,
+    };
+  }).sort((a, b) => a.category.localeCompare(b.category) || a.id.localeCompare(b.id));
 }
