@@ -5,7 +5,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { platformConfigField } from "@/lib/integrations/platform-defaults";
 import { EMAIL_DOMAIN_INTEGRATION_KEY } from "@/lib/integrations/catalog";
 import { NOTIFICATION_CATALOG } from "@/lib/notifications/catalog";
-import { loadNotificationOverlay } from "@/lib/notifications/overlay";
+import { loadNotificationOverlay, loadTemplateOverrides } from "@/lib/notifications/overlay";
 
 /**
  * Read-only loaders for the platform-admin Email console
@@ -292,4 +292,38 @@ export async function loadNotificationCatalogState(): Promise<CatalogEntryState[
       inAppEnabled: o?.in_app !== false,
     };
   }).sort((a, b) => a.category.localeCompare(b.category) || a.id.localeCompare(b.id));
+}
+
+// ─── Editable template overrides (P3b) ───────────────────────────────────────
+
+export type TemplateOverrideState = {
+  id: string; // catalog_entry_id
+  category: string;
+  locale: string;
+  subject: string;
+  body: string;
+  enabled: boolean;
+  hasOverride: boolean;
+};
+
+/**
+ * Every email-capable catalog entry merged with its `en` template override — the
+ * console's template editor. A blank subject/body means "use the code default".
+ */
+export async function loadEmailTemplateState(): Promise<TemplateOverrideState[]> {
+  const overrides = await loadTemplateOverrides();
+  return NOTIFICATION_CATALOG.filter((e) => Boolean(e.email))
+    .map((e) => {
+      const o = overrides.get(`${e.id}::en`);
+      return {
+        id: e.id,
+        category: e.category,
+        locale: "en",
+        subject: o?.subject ?? "",
+        body: o?.body ?? "",
+        enabled: o?.enabled ?? false,
+        hasOverride: Boolean(o),
+      };
+    })
+    .sort((a, b) => a.category.localeCompare(b.category) || a.id.localeCompare(b.id));
 }
