@@ -433,59 +433,59 @@ downgrades data-preservingly. QA: `customer.subscription.deleted`/`updated` → 
 
 | # | Flow | Confidence (start) | Result | Notes |
 |---|---|---|---|---|
-| 1.1 | Talent Connect onboarding (embedded) | 🟡 | | |
-| 1.2 | Unsupported-country wall | 🟡 | | |
-| 1.3 | Agency Connect onboarding | ⬜ | | |
-| 1.4 | Switch hides/shows GP | ✅/🟡 | | |
+| 1.1 | Talent Connect onboarding (embedded) | 🟡 | ✅ app-contract proven: `createOrGetTalentConnectedAccount(Marco, US)` → Express acct `acct_1Ti1fG9…` created + persisted to talent_profiles; `accountSessions.create` → real `accs_secret_…` (the embedded onboarding iframe mounts with this); `refreshTalentAccountStatus` → status mirror updated (`pending`, pre-KYC). Only the Stripe-hosted KYC click-through is non-automatable; settlement-to-enabled proven in Runs A/B | full app contract proven sans the hosted KYC iframe |
+| 1.2 | Unsupported-country wall | 🟡 | ✅ code-confirmed: talent PayoutsShell filters the country `<select>` to CONNECT_PAYOUT_COUNTRIES (excludes MX) in connect-mode + hides the GP card; `createOrGetTalentConnectedAccount` returns a clean switch-aware "not available in your country" error for MX (no dead GP pointer). **Found a MED bug (logged §16.4):** the AGENCY payouts country picker (payouts-actions-client.tsx) does NOT apply the same filter | talent wall correct; agency picker unfiltered (follow-up) |
+| 1.3 | Agency Connect onboarding | ⬜ | ✅ app-contract proven: `createOrGetConnectedAccount(qa-agency, US)` → Express acct `acct_1Ti1fJ…` created + persisted to agencies; `accountSessions.create` → real client_secret; `refreshAccountStatus` → status mirror (`pending`) | same as 1.1 — contract proven sans hosted KYC |
+| 1.4 | Switch hides/shows GP | ✅/🟡 | ✅ rail-force confirmed: `active_payout_system='connect'` (live default in prod DB) → `resolveTalentPayoutRail` returns `connect_transfer` even for a crypto-opted talent (unit-tested, short-circuits before DB/Stripe); GP UI hidden under connect per PayoutsShell gate | switch shipped PR #364; rail logic unit-confirmed |
 | 2.1 | Guest chats a specific talent (/t/) | ✅ | | |
-| 2.2 | "Message this talent" directory card | ⬜ | | |
-| 2.3 | Homepage generic message (agency recommends) | ⬜ | | your point |
-| 2.4 | Structured directory inquiry form | ⬜ | | |
-| 2.5 | Guest → agency-owned (economics) | ⬜ | | retest priority |
+| 2.2 | "Message this talent" directory card | ⬜ | ✅ engine proven: `submitInquiry` `source_channel='directory_guest'` + talent on hub → talent attached to lineup (inq fb12cf23) | engine path; storefront card UI not driven |
+| 2.3 | Homepage generic message (agency recommends) | ⬜ | ✅ engine proven: `submitInquiry` `source_channel='agency_site'`, no talent → inquiry on qa-agency with **0 talent participants** (agency-recommends-later) | engine path; homepage form UI not driven |
+| 2.4 | Structured directory inquiry form | ⬜ | ✅ engine proven: `submitInquiry` `source_channel='directory_client'` + talent → talent on lineup (inq a0a4a559) | engine path; storefront form UI not driven |
+| 2.5 | Guest → agency-owned (economics) | ⬜ | 🟡 the **economics half is PROVEN** — the agency spine (Run A) ran a fully agency-owned inquiry (owning_party=agency, 3-lane split, agency commission settled). Born via `admin_created` engine, not the storefront guest UI; the `qa-agency.lvh.me` storefront door itself not driven | agency economics solid; storefront-guest front-door UI is the remaining piece |
 | 2.6 | Client dashboard drawer/draft/one-shot | 🟡 | | |
-| 2.7 | Discover single talent | ⬜ | | |
-| 2.8 | Discover shortlist multi-tenant fan-out | ⬜ | | |
-| 2.9 | Re-inquire / book-again / saved→inquiry | ⬜ | | RESERVED — verify built |
+| 2.7 | Discover single talent | ⬜ | 🟡 engine confirmed built (`source_channel='discover_single_talent'` valid enum; `POST /api/discover/inquiry` → submitInquiry). Not driven live (HTTP route needs a signed-in client cookie + discoverability fixtures). Recipe captured in the gap-analysis output | scoped w/ recipe |
+| 2.8 | Discover shortlist multi-tenant fan-out | ⬜ | 🟡 confirmed built: `POST /api/discover/inquiry` groups talents by owning tenant → one `submitInquiry` per tenant group (`source_channel='discover_shortlist'`). Not driven live (HTTP + auth + multi-tenant fixtures). Recipe captured | scoped w/ recipe; the multi-tenant approval-population path |
+| 2.9 | Re-inquire / book-again / saved→inquiry | ⬜ | ✅ **confirmed GAP** (verified): `book_again` + `saved_talent` ARE in the `inquiry_source_channel` enum but have **zero producer code paths** (no "Book again" / saved→inquiry button emits them). Reserved-but-unbuilt — a feature, not a bug | enum reserved, no flow |
 | 2.10 | Talent select *inside* the flow | ⬜ | | VERIFY — possible gap |
-| 2.11 | Admin manual inquiry | ⬜ | | |
-| 2.12 | Admin pitch → inquiry | ⬜ | | your point |
-| 2.13 | Inbound phone/WhatsApp/email | ⬜ | | |
-| 3.1 | Talent self-coordination | 🟡 | | |
-| 3.2 | Agency coordinator | ⬜ | | |
-| 3.3 | Admin coordinator management | ⬜ | | |
-| 4.1 | Admin builds + sends offer | ⬜ | ✅ engine `engine_send_offer` proven live (hub inquiry) | engine layer; UI build not yet |
-| 4.2 | Client approves | 🟡 | ✅ `engine_submit_approval` (all participants → approved) proven live | engine layer; client UI click not yet |
-| 4.3 | Talent approves (Offer tab) | ⬜ | ✅ approval engine proven live (same RPC); Offer-tab UI click not yet | |
-| 4.4 | Multi-talent convergence | ⬜ | | |
-| 5.1 | Convert → snapshot lanes | 🟡 | ✅ `engine_convert_to_booking` creates booking live; snapshot persist confirmed **correct-by-code** (real reader uses `participants[].offer_line_items`; the integration test was stale) | spine proven; the stale test needs a shape fix to assert lanes |
-| 6.1 | Client Pay-now (Element) | 🟡 | | |
-| 6.2 | Webhook → markPaid | 🟡 | | |
+| 2.11 | Admin manual inquiry | ⬜ | 🟡 engine proven: `submitInquiry` with `source_channel='admin_created'`, actor=qa-admin → agency-owned inquiry, coordinator seeded from `agencies.default_coordinator_user_id`, client+coordinator+talent participants (Run A birth). The New-inquiry SHEET UI not driven (admin SPA automation friction) | engine path proven; UI sheet deferred |
+| 2.12 | Admin pitch → inquiry | ⬜ | 🟡 confirmed built (`convertPitchToInquiry` → submitInquiry `source_channel='pitch'`, idempotent re-convert, pitched talent bypasses contact-policy gate). Not driven live (needs a seeded pitch + token). Recipe captured | scoped w/ recipe |
+| 2.13 | Inbound phone/WhatsApp/email | ⬜ | ✅ engine proven: `submitInquiry` with `source_channel` in {`phone`,`whatsapp`,`email`} (admin-logged, actor=qa-admin) → all 3 persisted on qa-agency | engine path proven |
+| 3.1 | Talent self-coordination | 🟡 | ✅✅ **PROVEN (claimed path, was unproven): hub direct-to-talent inquiry 7e33a7d0 for Marco (claimed, tulala-only) → Marco seeded role=`coordinator` status=`active` (self-coord) + role=`talent`, owning_party_type=`talent`** | the prior session only saw the unclaimed fallback; this proves the real self-coord branch |
+| 3.2 | Agency coordinator | ⬜ | ✅ covered by Run A: qa-admin (agency coordinator from `default_coordinator_user_id`) ran the agency inquiry; talent (Sofía) only approved the offer (no client-thread coordinator role) | proven via the agency spine |
+| 3.3 | Admin coordinator management | ⬜ | ✅ all 4 actions driven live (inq ea9761b3, qa-admin JWT): `assignCoordinator`(reassign→Sofía, v+1), `addSecondaryCoordinator`(→Luis active), `removeSecondaryCoordinator`(→Luis removed), `promoteToPrimary`(→Luis, coordinator_id flipped) — all `{success:true}`. **2 nuances (confirmed, NOT money-impacting):** reassign full-replaces coordinator participants (loses prior incl. self-coord access); promote leaves the demoted primary's participant row `invited` (stale access). See §16.4 | actions work; 2 access-edge nuances logged as follow-ups |
+| 4.1 | Admin builds + sends offer | ⬜ | ✅ **AGENCY spine (2026-06-13 PM): real offer + Sofía line item ($1000 unit / $700 talent_cost) → `engine_send_offer` → offer `sent`, approvals seeded for client + line-item talent** (inq 684072c8, offer a577e4f5) | engine layer (exact fn `sendOfferAction` wraps); admin Messages SPA section-switch didn't respond to automation this dev session (no app error; rendered in prior sessions) → literal button-click deferred to a focused UI pass |
+| 4.2 | Client approves | 🟡 | ✅ **`engine_submit_approval` driven with actor=CLIENT (qa-client-1)** → approval accepted | engine layer (client UI click deferred w/ 4.1) |
+| 4.3 | Talent approves (Offer tab) | ⬜ | ✅ **`engine_submit_approval` driven with actor=TALENT (Sofía)** → accepted; both approvals → offer `accepted` + inquiry `approved` | engine layer w/ correct per-party actor (Offer-tab button-click deferred w/ 4.1) |
+| 4.4 | Multi-talent convergence | ⬜ | ✅ offer→`accepted` + inquiry→`approved` only after BOTH client + offered talent accepted (no false shortfall) | single offered talent; multi-talent fan-out still to drive |
+| 5.1 | Convert → snapshot lanes | 🟡 | ✅✅ **PROVEN live (biggest gap closed): `convertToBooking` (real engine `engine_convert_to_booking` + `persistBookingCommissionSnapshot`) → booking 143ed619; REAL per-participant snapshot, owning_party=qa-agency, lanes talent_net 70000 + workspace_fee 27000 + platform_fee 6000 == gross_charged 103000 ✓** (6% take = $30 surcharge + $30 seller-deduction; talent paid full $700 protected; agency margin $270) | converted as signed-in qa-admin (RPC checks auth.uid()); correct 3-lane agency economics from a real built offer |
+| 6.1 | Client Pay-now (Element) | 🟡 | ✅ **real PI `pi_3ThzY77Oqi82ykAI0rnBgnPX` ($1030 USD, `metadata.transaction_id`) via `createPaymentIntentForTransaction`** — the exact fn the Pay-now UI calls; confirmed w/ pm_card_visa → succeeded (charge `ch_3ThzY77…`) | backend + real charge proven; the in-browser Payment Element mount/confirm not driven |
+| 6.2 | Webhook → markPaid | 🟡 | ✅✅ **PROVEN via the LIVE SIGNED WEBHOOK (Stripe CLI `stripe listen`): real `payment_intent.succeeded [evt_3ThzY77…]` → POST /api/webhooks/stripe → 200 (sig verified) → markPaid → txn `paid`, agency_bookings payment_status `paid` + client_revenue_lifecycle `fully_paid` (#G9 sync) + payout_lifecycle `paid`** | was simulated-only; now end-to-end through the signed webhook |
 | 6.3 | Deposit / partial | ⬜ | | likely gap |
 | 6.4 | Instant-book | ⬜ | | likely gap |
 | 6.5 | Off-platform accrual | ⬜ | | |
 | 6.6 | Admin "Mark received" | ✅ | | |
-| 7.1 | Hub payout | ✅ | | |
-| 7.2 | Agency payout | ✅ | | |
-| 7.3 | Held → release | ⬜ | | |
-| 7.4 | Reconcile cron | ⬜ | | |
-| 7.5 | Idempotency | ✅ | | |
-| 8.1 | Full refund reversal | ⬜ | | |
-| 8.2 | Partial refund (talent-protected) | ⬜ | | |
-| 8.3 | Dispute | ⬜ | | |
-| 8.4 | Amount guard | 🟡 | | |
-| 8.5 | Currency mismatch skip | 🟡 | | |
+| 7.1 | Hub payout | ✅ | ✅✅ re-proven via the LIVE webhook (hub booking b4e0405a): exactly ONE payout leg — talent $970 `tr_1Thzpj7…`→Marco acct_1Thlqb4, **NO workspace leg**, platform retained $60; payout_lifecycle `paid` | snapshot was workspace_fee=0 / talent_net 97000; settles as 2-lane hub economics |
+| 7.2 | Agency payout | ✅ | ✅✅ **re-proven via the LIVE webhook (not direct markPaid): 2 real transfers in transfer_group booking_143ed619 — `tr_1Thzc97…` $700→talent acct_1Thlqb4, `tr_1ThzcH7…` $270→agency acct_1Thlqe7, platform retained $60; both ledger legs `transferred`, reversed=false; talent acct balance reflects +$700** | full agency 3-lane settle driven by the signed webhook |
+| 7.3 | Held → release | ⬜ | ✅✅ PROVEN e2e live (hub booking a9a1d753 for un-onboarded Marco): markPaid → talent leg `held` (`skipped_no_account`, $485, no transfer); `getHeldPayoutTotals` returned [{usd,48500,1}]; onboarded Marco (acct_1Ti08t…) → `releaseHeldPayouts({talentProfileId})` → real transfer **`tr_1Ti1bl7…`** → leg `transferred`, held totals now []. No double-pay (single transfer, same idempotency key) | the last money-safety gap, closed end-to-end |
+| 7.4 | Reconcile cron | ⬜ | ✅ auth gate proven: GET /api/cron/reconcile-held-payouts → **503 when CRON_SECRET unset**, **401 on bad bearer** (code path confirmed; sibling crons enforce 401 on prod per deploy:smoke). Release loop = `releaseHeldPayouts` (unit-tested). No held legs to sweep this run | gate proven; live sweep needs held legs + the secret |
+| 7.5 | Idempotency | ✅ | ✅ re-confirmed on the live run: exactly ONE transfer per leg in transfer_group booking_143ed619 (no double-pay); `stripe listen` also showed a forward timeout on an unrelated earlier event without producing a duplicate | idempotency key `transfer_<booking>_<participant>_<party>` |
+| 8.1 | Full refund reversal | ⬜ | ✅✅ **PROVEN + BUG FIXED & SHIPPED ([PR #376](https://github.com/orantene/impronta-app/pull/376), da7b1bb0b):** full refund `re_3ThzY77` on agency booking via signed webhook → both transfers reversed on Stripe (`tr_1Thzc97` $700 + `tr_1ThzcH7` $270, `reversed:true`), ledger legs `reversed`, txn `refunded`. **BUG:** booking row stayed `paid`/`fully_paid` because `markBookingRefunded` wrote `payment_status='refunded'` but the enum lacked it (22P02 aborted the whole UPDATE). Fix = add `refunded` to payment_status enum → booking now correctly `refunded`/`refunded`/payout `pending` | money was always reversed correctly; the booking-state lie is fixed (also fixes lost-dispute, same helper) |
+| 8.2 | Partial refund (talent-protected) | ⬜ | ✅ PROVEN: $50 partial refund `re_3ThzpT7` on hub booking → **talent leg untouched** ($970 still `transferred`), linked partial-refund txn `f655d01e` recorded (refund_of=parent), parent stays `paid` | platform absorbs first; talent never auto-clawed; full platform→workspace→escalate order covered by computeTalentProtectiveClawback unit tests |
+| 8.3 | Dispute | ⬜ | ✅ PROVEN (created+won live): `handleBookingDispute` created→txn `disputed` (no reversal, talent leg intact); won→restored `disputed`→`paid`. Lost path = `markRefunded`+`reverseBookingPayouts(full)`+`markBookingRefunded` = identical to the proven 8.1 clawback (now enum-fixed) | 2/3 transitions driven live; lost equivalent to 8.1 |
+| 8.4 | Amount guard | 🟡 | ✅ code-confirmed (webhook-handler.ts:258 — on `gross_amount_cents`/currency ≠ charged, logs `amount_mismatch` + **skips markPaid**) + unit-tested; happy-path match proven in the spine | live mismatch-skip branch not driven (needs a throwaway booking) |
+| 8.5 | Currency mismatch skip | 🟡 | ✅ code-confirmed (transfers.ts:185 — `currency !== settledCurrency` → logs `transfers.currency_mismatch` + skips that lane) + unit-tested | legacy mixed-currency edge; not live-driven |
 | 9.1 | Connect mode forces Connect | ✅ | | |
-| 9.2 | Flip to Global Payouts | ⬜ | | |
-| 10.1 | Talent earnings | 🟡 | | |
-| 10.2 | Agency KPIs | 🟡 | | |
-| 10.3 | Client status (gross-only) | 🟡 | | |
-| 11.1 | Workspace plan upgrade | ⬜ | | subscriptions |
-| 11.2 | Talent Pro/Portfolio subscribe | ⬜ | | subscriptions |
-| 11.3 | Trial start → expiry | ⬜ | | subscriptions |
-| 11.4 | Renewal & dunning | ⬜ | | subscriptions |
-| 11.5 | Cancel / downgrade | ⬜ | | subscriptions |
-| 11.6 | Billing portal | ⬜ | | subscriptions |
-| 12.1 | First real LIVE booking | 🔴 | | owner-run |
+| 9.2 | Flip to Global Payouts | ⬜ | ✅ rail logic unit-confirmed (`payout-rail-policy.test.ts` 8/8): under `active_payout_system='global_payouts'` an opted-in (`crypto_payouts_enabled`) eligible-country talent resolves to `global_payouts`; ineligible/no-opt-in → `connect_transfer`. Live toggle is the one-click HQ switch (shipped PR #364). GP settlement itself is Stripe private-preview (not test-provable) | rail decision proven; not flipping the live prod switch |
+| 10.1 | Talent earnings | 🟡 | ✅ live by-currency loader (`loadTalentEarningsByCurrencyWithSupabase`) returns Sofía's booking 143ed619 **net $700, status `paid`**, agency "QA Agency", currency USD (operating-currency collapse). NOTE: the legacy `loadTalentEarnings` (EUR-only, logs an error per non-EUR row) has **no live callers** (tax-summary route + Money dashboard both use the by-currency path) — confirmed, not a bug | data layer proven; in-browser /talent/money render not driven |
+| 10.2 | Agency KPIs | 🟡 | ✅ qa-agency identity bar KPI now **"$0 pending · 1 confirmed"** (was 0 confirmed) after the booking — USD, **zero stray "€"** on page; pending=$0 correct (payout already settled) | identity-bar KPI proven; full /admin/financials tiles via SPA not driven |
+| 10.3 | Client status (gross-only) | 🟡 | ✅ data confirmed: client-facing figures = GROSS only ($1030 paid) from booking_transactions + agency_bookings (`fully_paid`); no internal split exposed | data confirmed; client UI surface render in Wave 3 |
+| 11.1 | Workspace plan upgrade | ⬜ | ✅ PROVEN: created test Price `price_1Ti0EQ…` ($29/mo); `createWorkspaceCheckoutSession(qa-agency, agency)` → real Checkout session `cs_test_…` (agency price + metadata checkout_type/tenant_id/plan_key); real subscription `sub_1Ti0GD…` (active); `syncStripeSubscriptionToDb` (the webhook's sync fn) → **agencies.plan_tier='agency'** + workspace_subscriptions row | checkout-creation + sync→plan-flip proven; the literal checkout.session.completed delivery is the booking-rail-proven webhook |
+| 11.2 | Talent Pro/Portfolio subscribe | ⬜ | ✅ PROVEN: created talent Price `price_1Ti1fp7…` ($19/mo); `createTalentCheckoutSession(Marco, talent_pro)` → real Checkout `cs_test_…`; sub `sub_1Ti1gs7…` active; `syncTalentSubscriptionToDb` → talent_subscriptions(active, talent_pro) + **talent_plan_key='talent_pro'**; restored to talent_basic | mirrors 11.1; talent surface proven |
+| 11.3 | Trial start → expiry | ⬜ | 🟡 separate trial-promo engine (admin-set free Pro/Max); `trial_will_end` webhook classified (webhook-routing kind `trial_will_end`). Not driven | scoped |
+| 11.4 | Renewal & dunning | ⬜ | 🟡 `invoice_payment_failed`→re-sync (past_due) + `customer.subscription.updated`→`syncStripeSubscriptionToDb` (status map) classified. **Hardened by PR #377:** talent lifecycle now uses `mapStripeStatus` (unpaid→past_due) so a dunning subscription.updated no longer violates the CHECK + loops. Remaining follow-up (§16.4): `invoice.payment_succeeded` should re-sync to active directly (today relies on the trailing subscription.updated). Not force-driven (hard to induce past_due in test) | sync fn proven in 11.1/11.5; lifecycle CHECK bug fixed |
+| 11.5 | Cancel / downgrade | ⬜ | ✅ PROVEN: cancelled `sub_1Ti0GD…` → `syncStripeSubscriptionToDb` → **agencies.plan_tier='free'** (downgrade), ws_sub status `cancelled` | data preserved (row kept, status flipped) |
+| 11.6 | Billing portal | ⬜ | ✅ PROVEN: `billingPortal.sessions.create` for the workspace customer returned a real `billing.stripe.com/p/session/test_…` URL (portal config present) | self-serve card/cancel management works |
+| 12.1 | First real LIVE booking | 🔴 | gating code verified (test-mode): `assertLivePayoutSafe` ok on sk_test; sk_live holds transfers until `STRIPE_ALLOW_LIVE_PAYOUTS=true`. **Owner runbook written (§17).** Live execution = owner-run | all test-mode pieces proven (Runs A–D); live = owner |
 
 ---
 
@@ -496,3 +496,89 @@ One continuous booking closes the seams I trust least: **1.1** (talent onboard) 
 real webhook with `stripe listen`) → **7.2** (agency payout settles) → **10.x** (dashboards). Repeat
 the spine once on the **hub** front door (2.1 → 3.1 talent self-coord → … → 7.1). Then money-safety
 (§8) and the live gate (§12).
+
+---
+
+## 15. Evidence log (live QA runs)
+
+### Run A — AGENCY spine, end-to-end (2026-06-13 PM, sandbox `acct_1ThlEN7Oqi82ykAI`)
+Harness: dev server :3000; Stripe CLI downloaded to `.local/bin`, `stripe listen --forward-to localhost:3000/api/webhooks/stripe` running (whsec in gitignored `.env.local`); webhook signature **verified live** (test `stripe trigger` + the real booking event both returned 200, no signature 400).
+
+Fixtures (test-only; restored after): qa-agency `22222222…` (added qa-admin as active owner + `default_coordinator_user_id`=qa-admin; Sofía `878cb63f` rostered); client qa-client-1 `bb31fa4c`; talent Sofía (claimed login). Connected accounts repointed for settlement: Sofía `talent_profiles.stripe_account_id`→`acct_1Thlqb4Oz1p0TN0w`, qa-agency→`acct_1Thlqe7lgUYnVcw2` (both transfer-ready Custom accts); payout_accounts receiver `93829722…`.
+
+Chain (all real engine fns / RPCs — the exact code the UI actions wrap):
+- Inquiry born via real `submitInquiry` (admin_created, agency-owned): **`684072c8-3f68-43c5-8f6e-57b98c652352`**. (Owning party initially resolved to Impronta because Sofía is primary-exclusive there — *not a bug*; corrected the frozen participant `owning_party_id`→qa-agency to keep the test self-contained + off the real tenant.)
+- Offer **`a577e4f5…`** ($1000 unit / $700 talent_cost, USD) → `engine_send_offer` → `sent` + approvals seeded (client + talent).
+- `engine_submit_approval` actor=client → accepted; actor=Sofía → accepted ⇒ offer `accepted`, inquiry `approved`.
+- `convertToBooking` (signed-in qa-admin; RPC checks auth.uid()) → booking **`143ed619-4a52-4e3b-bce5-1234c1424d00`** + per-participant snapshot: **talent_net 70000 + workspace_fee 27000 + platform_fee 6000 == gross_charged 103000** (owning_party=qa-agency, resolved_from=platform_default, platform_take 600 bps).
+- `createBookingTransaction`→`setTransactionPayoutReceiver`→`requestPayment` (txn **`b7d475c8…`**, payment_requested, $1030) → `createPaymentIntentForTransaction` → real PI **`pi_3ThzY77Oqi82ykAI0rnBgnPX`** ($1030 USD) → confirm `pm_card_visa` → charge **`ch_3ThzY77…`** succeeded.
+- **LIVE signed webhook** `payment_intent.succeeded [evt_3ThzY77…]` → /api/webhooks/stripe 200 → `markPaid` → txn `paid`, agency_bookings `paid`/`fully_paid`/payout_lifecycle `paid` (#G9) → `executeBookingTransfers` → 2 real transfers: **`tr_1Thzc97…` $700→Sofía**, **`tr_1ThzcH7…` $270→qa-agency** (transfer_group `booking_143ed619…`, reversed=false), platform retained $60.
+
+Stories proven: 4.1, 4.2, 4.3, 4.4, 5.1, 6.1 (backend+charge), 6.2 (live webhook), 7.2, 7.5. Caveat: literal admin Messages SPA button-clicks not executed (section-switch didn't respond to automation this dev session — no app error, rendered fine in prior sessions → flagged for a focused UI pass, not a product bug). Pay-now Payment Element in-browser mount/confirm not driven (backend PI + charge are real).
+
+### Run B — HUB spine, end-to-end (2026-06-13 PM, same sandbox)
+Talent **Marco Sánchez** (TAL-92004 `de81316a`, claimed, tulala-hub-only, login tulum-talent-marco), client qa-client-1. Marco repointed to transfer-ready `acct_1Thlqb4Oz1p0TN0w` (Sofía restored to her original `acct_1TdecR…` first to free it); payout_accounts `d7a673a7` under tulala.
+- Inquiry born via real `submitInquiry` (`source_channel=public_talent_profile`, hub tenant): **`7e33a7d0…`** → **Marco self-coordinates** (coordinator/active + talent/invited), **owning_party_type=`talent`** (3.1 ✓).
+- Offer **`cfb56630…`** (Marco line, unit=talent_cost=$1000) → `engine_send_offer` → client + Marco approvals (`engine_submit_approval`, own actors) → inquiry `approved`.
+- `convertToBooking` (signed-in qa-admin super_admin — **staff can convert a non-participant hub inquiry**) → booking **`b4e0405a…`** + snapshot: **talent_net 97000 + workspace_fee 0 + platform_fee 6000 == gross_charged 103000** (hub: talent is seller, no agency lane).
+- txn **`a0278a90…`** → real PI **`pi_3ThzpT7…`** ($1030) → confirm pm_card_visa → charge `ch_3ThzpT7…` → **LIVE webhook** → markPaid → 1 transfer **`tr_1Thzpj7…` $970→Marco** (no workspace leg), platform retained $60; booking `paid`/`fully_paid`/payout `paid`.
+
+Stories proven: 2.1 (channel), 3.1, 4.x, 5.1 (hub economics), 6.1, 6.2, 7.1. Both economics now proven end-to-end: **agency = talent-protected($700)+agency-margin($270)+platform($60)**; **hub = talent-seller($970)+platform($60), no agency**.
+
+> Bookings 143ed619 (agency) + b4e0405a (hub) are **retained paid** as subjects for §8 money-safety (refund/dispute/reversal), then cleaned up.
+
+### Run C — Money safety §8 (2026-06-13 PM, on the Run A/B bookings)
+- **8.1 full refund** on agency 143ed619: refund `re_3ThzY77` ($1030) → signed webhook → `handleBookingRefund` reversed both transfers (`tr_1Thzc97` $700, `tr_1ThzcH7` $270 — Stripe `reversed:true`/amount_reversed=full), ledger legs `reversed`, txn `refunded`. **Found a real bug** (booking row stayed `paid` — `payment_status` enum lacked `refunded`, aborting the lifecycle UPDATE). **Fixed + shipped** (migration `20260613222155`, PR #376, `da7b1bb0b`, deploy:smoke green) — booking now flips to `refunded`/`refunded`/payout `pending`.
+- **8.2 partial refund** on hub b4e0405a: `re_3ThzpT7` ($50) → talent leg **untouched** ($970 `transferred`), linked partial-refund txn `f655d01e` recorded, parent `paid` (talent-protected ✓).
+- **8.3 dispute** on hub b4e0405a (driven via `handleBookingDispute`): created → txn `disputed`, no reversal; won → restored to `paid`. Lost path = same `markBookingRefunded` clawback as 8.1 (enum-fixed).
+- **8.4 / 8.5** confirmed in code (webhook amount/currency guard skips markPaid on mismatch; transfers skip a currency-mismatched lane) + unit-tested.
+
+### Run D — Subscriptions §11 (2026-06-13 PM, second Stripe surface)
+Created test Price `price_1Ti0EQ7Oqi82ykAIzIueOkM0` ($29/mo recurring) + set `STRIPE_PRICE_AGENCY_MONTHLY` in `.env.local`.
+- **11.1 upgrade:** `createWorkspaceCheckoutSession(qa-agency, agency)` → real Checkout session `cs_test_…` (line item = agency price, metadata `checkout_type=workspace_subscription/tenant_id/plan_key`); created real sub `sub_1Ti0GD…` (active) on customer `cus_UhP3…` with pm_card_visa; `syncStripeSubscriptionToDb(sub,'agency')` → **agencies.plan_tier='agency'** + workspace_subscriptions(active, agency).
+- **11.5 cancel/downgrade:** `subscriptions.cancel` → `syncStripeSubscriptionToDb` → **agencies.plan_tier='free'**, ws_sub `cancelled` (row preserved).
+- **11.6 portal:** `billingPortal.sessions.create` → real `billing.stripe.com/p/session/test_…` URL.
+- 11.2 (talent), 11.3 (trial), 11.4 (renewal/dunning) are variants of the same checkout→`syncStripeSubscriptionToDb` mechanism (proven), not separately driven.
+- The literal `checkout.session.completed` delivery is the same signed-webhook path proven on the booking rail (Runs A/B). Subscription test fixtures (price/product/customer/sub) left in test-mode Stripe; DB rows cleaned + qa-agency restored to free.
+
+---
+
+## 16. Feature-gap proposals (NOT built — decide separately)
+
+These are known gaps (per the Executive summary). QA confirmed they have no live flow; below is a short build proposal for each. **Do not build without a go-ahead.**
+
+### 16.1 — Client in-conversation talent picker (§2.10)
+**Gap (confirmed).** Talent is attached by the coordinator (admin lineup / `admin_suggested_talent`) or via the directory cart pre-submit. There is **no client-facing in-chat control** to add/choose talent after a conversation starts. The data model supports it (`inquiry_participants` talent rows + `engine_send_offer` re-seeds the approval set from line-item talents), so this is a UI + a thin guarded action, not an engine change.
+**Proposal.** Add a client "Add/choose talent" control in the client messages thread (visible when `selection_mode='agency_recommends'` or when the lineup is open). It calls a new `clientAddTalentToInquiry(inquiryId, talentProfileId)` server action → validates the talent is on the inquiry tenant's visible roster (`assertAllTalentOnTenantRoster`, same guard as the directory door) → inserts an `inquiry_participants` talent row (status `invited`, owning_party resolved like submit) → emits a thread card. Coordinator still owns pricing; the client only *proposes/selects* candidates. Gate behind the contact-policy trust ladder. ~1 component + 1 action + roster-validation reuse.
+
+### 16.2 — Deposit / partial payment (§6.3)
+**Gap (confirmed).** `inquiry_offers` carries `deposit_pct` + `deposit_amount_cents` (computed server-side) and `agency_bookings` has `deposit_amount_cents`/`deposit_paid_at`, plus `client_revenue_lifecycle` already allows `deposit_paid`. But **Pay-now always charges the full `gross_charged`** — there is no deposit charge path, and the webhook classifier has a `booking_deposit` kind that is unreached.
+**Proposal.** When an accepted offer has `deposit_pct>0`: at convert, set `agency_bookings.deposit_amount_cents`; create the FIRST booking_transaction for the **deposit** amount (not full), `metadata.checkout_type='booking_deposit'`; on `payment_intent.succeeded` route `booking_deposit` → mark `client_revenue_lifecycle='deposit_paid'` + set `deposit_paid_at` + surface a "Balance due $(gross−deposit)" card; a second Pay-now charges the balance → `fully_paid`. Payout fan-out should fire on the BALANCE/fully-paid event (not the deposit) to keep the 3-way split whole. ~1 transaction-split helper + webhook `booking_deposit` branch + 2 client cards. **Decision needed:** does talent payout wait for full payment (recommended) or release pro-rata on deposit?
+
+### 16.3 — Instant-book (§6.4)
+**Gap (confirmed).** `instant_book_default` config exists; no path skips the offer→approval round-trip.
+**Proposal.** For an instant-book-enabled talent with a fixed published rate: a client "Book now" CTA creates the inquiry AND a pre-approved offer in one step (`engine_send_offer` with the talent's fixed line item + auto-accept the talent approval, since the talent opted into instant-book), leaving only the client payment. Convert on payment. Reuses the entire offer/convert/charge/payout spine; the only new pieces are (a) an instant-book eligibility check (talent opt-in + a fixed rate) and (b) auto-seeding+auto-accepting the talent's approval. **Decision needed:** instant-book bypasses talent per-booking approval — confirm talents opting in accept that.
+
+### 16.4 — Smaller bugs found by the gap-analysis pass (logged, not fixed this round)
+The multi-agent gap analysis (2026-06-13) surfaced these; the 3 highest-impact were fixed + shipped in [PR #377](https://github.com/orantene/impronta-app/pull/377). The rest are lower-severity / design-nuanced — left for a focused follow-up:
+- **Agency payout country picker unfiltered (MED).** `admin/payouts/payouts-actions-client.tsx` renders `PAYOUT_COUNTRIES` unfiltered; the talent `PayoutsShell` filters to `CONNECT_PAYOUT_COUNTRIES`. In connect-mode an admin can pick MX/AR/BR → Stripe rejects at `accounts.create` with a confusing low-level error instead of a clean UI block. Fix: agency payouts are always-Connect, so always intersect with `CONNECT_PAYOUT_COUNTRIES` (needs the const exported from a shared module — currently inline in PayoutsShell).
+- **Coordinator reassign wipes secondaries (HIGH, possibly by-design).** `assignCoordinator` deletes ALL `inquiry_participants` coordinator rows before inserting the new primary → secondary coordinators lose private-thread membership on a primary reassign (the `inquiry_coordinators` join row survives but the participant/thread access is gone). Confirmed live (Run: reassign wiped the prior self-coord). Decide whether reassign should preserve secondaries.
+- **Coordinator promote leaves demoted primary stale (MED).** `engine_promote_to_primary` swaps `inquiry_coordinators.role` + `inquiries.coordinator_id` but does NOT update the demoted primary's `inquiry_participants` row (stays `coordinator`/`invited`) → a demoted coordinator retains thread access. Confirmed live.
+- **Talent `invoice.payment_succeeded` doesn't re-sync to active (MED).** A dunning-recovery (past_due → retry succeeds) leaves `talent_subscriptions.status='past_due'` until the next `customer.subscription.updated`. PR #377's `mapStripeStatus` fix makes that follow-up event restore `active` correctly; a cleaner fix re-syncs on the invoice event directly (needs the classifier to expose the subscription id).
+- **Stale `database.types.ts` for `engine_persist_booking_commission_snapshot` (MED).** The generated types show the OLD scalar-param signature; the live RPC + `commission-engine.ts` use the NEW `(p_booking_id, p_rows)` shape. Runtime is correct; regenerate types (`supabase gen types`) so future callers don't follow the stale `.d.ts`.
+
+---
+
+## 17. Production go-live gate (§12) — owner-run runbook
+
+🔴 **Real money. Do NOT run autonomously.** The agent verified the gating CODE; the live execution is the owner's.
+
+**Gating code verified (test-mode):** `assertLivePayoutSafe()` returns ok on `sk_test_` (so `STRIPE_ALLOW_LIVE_PAYOUTS` is irrelevant in the sandbox); on a `sk_live_` key `isLiveStripeKey()` is true and every transfer **holds** as `skipped_live_disabled` until `STRIPE_ALLOW_LIVE_PAYOUTS=true`. The booking rail, the signed webhook, the 3-way split, refund/dispute reversal, and the subscription sync are all proven in test mode (Runs A–D).
+
+**Owner runbook (one small real booking):**
+1. **Prod env (Vercel):** `STRIPE_SECRET_KEY=sk_live_…`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_…`, a **live** `STRIPE_WEBHOOK_SECRET` (from the live Dashboard webhook endpoint → `/api/webhooks/stripe`), and `STRIPE_ALLOW_LIVE_PAYOUTS=true` (else payouts hold). Subscriptions also need the live `STRIPE_PRICE_*` ids.
+2. **Real talent** completes **live** Connect embedded onboarding → confirm `talent_profiles.stripe_account_status='enabled'` on the live account.
+3. Drive ONE small real booking end-to-end (real client card): assert PI succeeded, the **live** signed webhook fired `markPaid`, a live `tr_…` settled to the talent, and the 3-way split (agency) or 2-way (hub) matches the snapshot.
+4. Watch the first real **refund** + **dispute** paths (the `payment_status='refunded'` enum fix shipped 2026-06-13 must be live — confirm the booking flips on a real refund).
+5. Keep the held-payout/reconcile cron (`CRON_SECRET` set) on a schedule for un-onboarded-talent safety.
+**Why 🔴:** everything proven this cycle is test mode; the live webhook delivery, live Connect onboarding, and `STRIPE_ALLOW_LIVE_PAYOUTS` gating on prod are owner-verified only.
