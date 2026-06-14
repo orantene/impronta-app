@@ -2,6 +2,7 @@ import "server-only";
 
 import type { TalentPlanKey } from "@/lib/access/talent-membership";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { mapStripeStatus } from "@/lib/stripe/utils";
 import { onTalentPlanChanged } from "@/lib/talent-site/server/plan-change";
 
 const PRICE_TO_PLAN: Record<string, TalentPlanKey> = {
@@ -134,7 +135,13 @@ export async function handleTalentStripeSubscriptionEvent(
       stripe_subscription_id: sub.id,
       stripe_customer_id: customerId,
       plan_key: nextPlan,
-      status: sub.status === "active" || sub.status === "trialing" ? "active" : sub.status,
+      // QA 2026-06-13: map Stripe status to the canonical set. The old ternary
+      // wrote raw sub.status for non-active/trialing — Stripe 'unpaid' (dunning
+      // exhausted) then violated the talent_subscriptions.status CHECK (no
+      // 'unpaid'), throwing on the webhook + looping retries. mapStripeStatus
+      // maps unpaid→past_due / canceled→cancelled, all within the CHECK set,
+      // and preserves 'trialing'.
+      status: mapStripeStatus(sub.status),
       current_period_end: periodEndUnix
         ? new Date(periodEndUnix * 1000).toISOString()
         : null,

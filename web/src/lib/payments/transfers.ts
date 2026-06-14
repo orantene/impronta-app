@@ -170,7 +170,19 @@ export async function executeBookingTransfers(
 
     const bookingId = txn.booking_id as string;
     const snapshots = await loadBookingCommissionSnapshots(sb, bookingId);
-    if (!snapshots.length) return outcomes;
+    if (!snapshots.length) {
+      // QA 2026-06-13: a paid booking with NO commission snapshot means the
+      // convert-time snapshot persist failed non-fatally — so the talent would
+      // be silently never paid with no booking_payouts row to retry. Surface it
+      // loudly for manual reconciliation instead of returning an empty no-op.
+      logServerError(
+        "transfers.no_snapshot",
+        new Error(
+          `paid booking ${bookingId} (txn ${transactionId}) has NO commission snapshot — payout skipped, talent NOT paid. Backfill persistBookingCommissionSnapshot then re-run.`,
+        ),
+      );
+      return outcomes;
+    }
 
     const stripe = deps.stripe ?? getStripe();
 
