@@ -242,6 +242,45 @@ export const payoutReceiverTalent = async (
 };
 
 /**
+ * The talent behind a reversed payout leg (`payment.payout_reversed.talent`).
+ * The reversal producer carries the `inquiry_participants.id` (the booking
+ * participant whose transfer was clawed back); resolve it to the talent's user
+ * account. Returns nothing for a participant with no linked user.
+ */
+export const payoutReversedTalent = async (
+  event: NotificationEvent,
+  ctx: AudienceContext,
+): Promise<AudienceMember[]> => {
+  const participantId = str(event.payload.participantId);
+  if (!participantId) return [];
+  const { data } = await ctx.admin
+    .from("inquiry_participants")
+    .select("user_id")
+    .eq("id", participantId)
+    .maybeSingle();
+  const userId = (data as { user_id: string | null } | null)?.user_id ?? null;
+  if (!userId) return [];
+  return [{ kind: "user", userId, role: "talent" }];
+};
+
+/**
+ * The client on a refunded / dispute-reversed / partially-refunded booking
+ * (`payment.refunded.client`, `payment.partial_refund.client`). The
+ * authenticated client when known (`clientUserId`), else the guest contact
+ * (`clientEmail`). Mirrors `transactionPayer` but keys on the reversal
+ * producer's client fields.
+ */
+export const refundedClient = async (event: NotificationEvent): Promise<AudienceMember[]> => {
+  const userId = str(event.payload.clientUserId);
+  if (userId) return [{ kind: "user", userId, role: "client" }];
+  const email = str(event.payload.clientEmail);
+  if (email) {
+    return [{ kind: "guest", email, displayName: str(event.payload.contactName), role: "client" }];
+  }
+  return [];
+};
+
+/**
  * Offer-outcome audience: the assigned coordinator plus every workspace
  * owner/admin. The dispatcher dedupes by recipient, so a coordinator who is
  * also an admin is only notified once.

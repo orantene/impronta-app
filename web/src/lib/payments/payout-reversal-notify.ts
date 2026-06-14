@@ -2,7 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { emitNotification } from "@/lib/notifications/emit";
-import { sendEmail } from "@/lib/email";
+import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import { formatMoneyCents } from "@/lib/talent/earnings-view";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -14,24 +14,16 @@ type ReversalOutcome = {
   result: string;
 };
 
-/** Minimal transactional HTML for the one-off reversal notice. `sendEmail`
- *  no-ops without RESEND_API_KEY, so this is safe (and silent) in dev/test. */
-function noticeEmailHtml(title: string, body: string): string {
-  return (
-    `<div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#0b0b0d">` +
-    `<h2 style="font-size:18px;margin:0 0 12px">${title}</h2>` +
-    `<p style="font-size:14px;line-height:1.5;color:#3a3a40;margin:0">${body}</p></div>`
-  );
-}
-
 /**
  * Notify the affected talent(s) + the client when a booking's payouts are
  * reversed by a lost dispute or a refund (audit #14 tail). The money already
  * moved (reverseBookingPayouts clawed the transfer); this closes the silent
  * gap where a talent's payout vanished with no heads-up.
  *
- * Sends BOTH an in-app bell (emitNotification) and an email (sendEmail, which
- * no-ops without RESEND_API_KEY). Best-effort + idempotent via the
+ * Sends BOTH an in-app bell (emitNotification, keeping its money-drawer
+ * deep-link) and an email via the notification dispatcher (catalog entries
+ * payment.payout_reversed / payment.refunded — suppression-checked, logged to
+ * notification_dispatch_log, unsubscribe footer). Best-effort + idempotent via the
  * reversal-is-noop-on-retry guard below (not the unique index), so it never
  * blocks the reversal and a webhook retry won't double-notify. Only talent legs
  * that were ACTUALLY reversed for a non-zero amount trigger a talent notice — a
@@ -95,20 +87,22 @@ export async function notifyBookingPayoutReversal(
           originKind: `payout_reversed_${reason}`,
           originInquiryId: inquiryId,
         });
-        // Email (best-effort; no-ops without RESEND_API_KEY). Resolve the
-        // talent's account email from auth — profiles carries no email.
-        const { data: authUser } = await sb.auth.admin.getUserById(uid);
-        const talentEmail = authUser?.user?.email ?? null;
-        if (talentEmail) {
-          await sendEmail({
-            to: talentEmail,
-            subject: "A payout was reversed",
-            html: noticeEmailHtml(
-              "A payout was reversed",
-              `Your payout of ${formatMoneyCents(leg.amountCents, currency)} was reversed because ${reasonClause}. Please contact the coordinator if you think this is a mistake.`,
-            ),
-          });
-        }
+        // Email via the dispatcher (suppression-checked, logged, unsubscribe
+        // footer) — the catalog resolver hydrates the talent's address from the
+        // participant. Awaited: this runs in the Stripe webhook context where a
+        // fire-and-forget tail is dropped once the route responds.
+        await dispatchEventNotifications({
+          type: "payment.payout_reversed",
+          tenantId,
+          inquiryId,
+          eventId: `payout-reversed:${reason}:${bookingId}:${leg.participantId}`,
+          payload: {
+            participantId: leg.participantId,
+            amountCents: leg.amountCents,
+            currency,
+            reason,
+          },
+        });
       }
     }
 
@@ -139,12 +133,15 @@ export async function notifyBookingPayoutReversal(
           originInquiryId: inquiryId,
         });
       }
-      // Email the client too (best-effort; no-ops without RESEND_API_KEY).
-      if (clientEmail) {
-        await sendEmail({
-          to: clientEmail,
-          subject: clientTitle,
-          html: noticeEmailHtml(clientTitle, clientBody),
+      // Email the client via the dispatcher (suppression + log + unsubscribe);
+      // fires for a guest contact too (refundedClient resolves email-only).
+      if (clientUid || clientEmail) {
+        await dispatchEventNotifications({
+          type: "payment.refunded",
+          tenantId,
+          inquiryId,
+          eventId: `payment-refunded:${reason}:${bookingId}`,
+          payload: { clientUserId: clientUid, clientEmail, reason },
         });
       }
     }
@@ -200,8 +197,14 @@ export async function notifyClientPartialRefund(
         originInquiryId: inquiryId,
       });
     }
-    if (clientEmail) {
-      await sendEmail({ to: clientEmail, subject: title, html: noticeEmailHtml(title, body) });
+    if (clientUid || clientEmail) {
+      await dispatchEventNotifications({
+        type: "payment.partial_refund",
+        tenantId,
+        inquiryId,
+        eventId: `partial-refund:${bookingId}:${refundedCents}`,
+        payload: { clientUserId: clientUid, clientEmail, refundedCents, currency },
+      });
     }
   } catch (err) {
     logServerError(`partial-refund-notify[booking=${bookingId}]`, err);
