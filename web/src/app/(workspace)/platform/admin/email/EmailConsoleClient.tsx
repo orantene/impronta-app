@@ -10,6 +10,7 @@ import type {
   EmailDomainStatus,
   CatalogEntryState,
   TemplateOverrideState,
+  SendingDomainState,
 } from "./email-data";
 import {
   retryEmailRow,
@@ -19,6 +20,9 @@ import {
   setEventOverlay,
   setTemplateOverride,
   clearTemplateOverride,
+  addSendingDomain,
+  verifySendingDomain,
+  removeSendingDomain,
 } from "./actions";
 
 // ─── HQ design tokens (match the platform admin dark theme) ──────────────────
@@ -100,11 +104,12 @@ export function EmailConsoleClient(props: {
   domain: EmailDomainStatus;
   catalog: CatalogEntryState[];
   templates: TemplateOverrideState[];
+  sendingDomains: SendingDomainState[];
   adminEmail: string;
   /** Request time (ms), computed server-side — keeps the client render pure. */
   nowMs: number;
 }) {
-  const { sendLog, metrics, suppressions, domain, catalog, templates, adminEmail, nowMs } = props;
+  const { sendLog, metrics, suppressions, domain, catalog, templates, sendingDomains, adminEmail, nowMs } = props;
   const router = useRouter();
   const [, startTransition] = useTransition();
 
@@ -125,6 +130,7 @@ export function EmailConsoleClient(props: {
       <SendLogTable rows={sendLog} nowMs={nowMs} onChanged={() => startTransition(() => router.refresh())} />
       <EventToggles entries={catalog} onChanged={() => startTransition(() => router.refresh())} />
       <TemplateEditor entries={templates} onChanged={() => startTransition(() => router.refresh())} />
+      <SendingDomains entries={sendingDomains} onChanged={() => startTransition(() => router.refresh())} />
       <SuppressionPanel rows={suppressions} onChanged={() => startTransition(() => router.refresh())} />
     </div>
   );
@@ -621,6 +627,103 @@ function TemplateEditor({ entries, onChanged }: { entries: TemplateOverrideState
         })}
       </div>
       <div style={{ marginTop: 10, color: HQ.inkMuted, fontSize: 12 }}>{entries.length} email templates · {TEMPLATE_LOCALES.join(" / ")}.</div>
+    </div>
+  );
+}
+
+// ─── Sending domains (white-label, Resend Domains API) ───────────────────────
+function SendingDomains({ entries, onChanged }: { entries: SendingDomainState[]; onChanged: () => void }) {
+  const [tenantId, setTenantId] = useState("");
+  const [domain, setDomain] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [busyTenant, setBusyTenant] = useState<string | null>(null);
+
+  async function add() {
+    setBusy(true);
+    setErr(null);
+    const r = await addSendingDomain({ tenantId, domain });
+    if (r.ok) {
+      setTenantId("");
+      setDomain("");
+      onChanged();
+    } else setErr(r.error);
+    setBusy(false);
+  }
+  async function verify(t: string) {
+    setBusyTenant(t);
+    await verifySendingDomain({ tenantId: t });
+    setBusyTenant(null);
+    onChanged();
+  }
+  async function remove(t: string) {
+    setBusyTenant(t);
+    await removeSendingDomain({ tenantId: t });
+    setBusyTenant(null);
+    onChanged();
+  }
+  const statusColor = (s: string) => (s === "verified" ? HQ.green : s === "failed" ? HQ.red : HQ.amber);
+  const th = { padding: "6px 10px", textAlign: "left" as const, color: HQ.inkMuted, fontSize: 10, textTransform: "uppercase" as const };
+
+  return (
+    <div style={{ marginBottom: 24 }}>
+      <div style={{ fontSize: 16, fontWeight: 600, fontFamily: FONT_DISPLAY, marginBottom: 6 }}>Sending domains (white-label)</div>
+      <p style={{ color: HQ.inkMuted, fontSize: 13, margin: "0 0 14px" }}>
+        Register an agency&apos;s own sending domain via Resend. Add it, give the tenant the DNS records,
+        then Verify. Once verified (and the tenant has the white-label entitlement) their email sends
+        from their domain instead of the platform default.
+      </p>
+      <div style={{ background: HQ.card, border: `1px solid ${HQ.borderSoft}`, borderRadius: 10, padding: 16, marginBottom: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 12, alignItems: "end" }}>
+          <div><label style={label}>Tenant id</label><input style={input} value={tenantId} onChange={(e) => setTenantId(e.target.value)} placeholder="agency tenant UUID" /></div>
+          <div><label style={label}>Domain</label><input style={input} value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="mail.agency.com" /></div>
+          <button style={{ ...btn(HQ.green, "#06281C"), opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={add}>{busy ? "Adding…" : "Add domain"}</button>
+        </div>
+        {err && <div style={{ color: HQ.red, fontSize: 12, marginTop: 10 }}>{err}</div>}
+      </div>
+      {entries.length === 0 ? (
+        <div style={{ color: HQ.inkMuted, fontSize: 13 }}>No white-label domains yet — every tenant uses the platform sender.</div>
+      ) : (
+        <div style={{ display: "grid", gap: 12 }}>
+          {entries.map((d) => (
+            <div key={d.tenantId} style={{ border: `1px solid ${HQ.borderSoft}`, borderRadius: 8, padding: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: d.records.length && d.verificationStatus !== "verified" ? 10 : 0 }}>
+                <div>
+                  <div style={{ fontFamily: MONO, fontSize: 13 }}>{d.domain}</div>
+                  <div style={{ fontSize: 12, color: HQ.inkDim }}>{d.agencyName ?? d.tenantId}</div>
+                </div>
+                <span style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: statusColor(d.verificationStatus), textTransform: "uppercase" }}>{d.verificationStatus}{d.connected ? " · live" : ""}</span>
+                  <button style={{ ...btn("rgba(106,166,243,0.15)", HQ.blue), padding: "4px 10px", fontSize: 12, opacity: busyTenant === d.tenantId ? 0.5 : 1 }} disabled={busyTenant === d.tenantId} onClick={() => verify(d.tenantId)}>{busyTenant === d.tenantId ? "…" : "Verify"}</button>
+                  <button style={{ ...btn("transparent", HQ.red), padding: "4px 10px", fontSize: 12, border: `1px solid rgba(243,103,114,0.3)` }} disabled={busyTenant === d.tenantId} onClick={() => remove(d.tenantId)}>Remove</button>
+                </span>
+              </div>
+              {d.records.length > 0 && d.verificationStatus !== "verified" && (
+                <div style={{ border: `1px solid ${HQ.borderSoft}`, borderRadius: 6, overflow: "hidden" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                    <thead>
+                      <tr style={{ background: "rgba(255,255,255,0.03)" }}>
+                        <th style={th}>Type</th>
+                        <th style={th}>Name</th>
+                        <th style={th}>Value</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {d.records.map((rec, i) => (
+                        <tr key={i} style={{ borderTop: `1px solid ${HQ.borderSoft}` }}>
+                          <td style={{ padding: "6px 10px", fontFamily: MONO, color: HQ.inkMuted }}>{rec.type ?? rec.record}</td>
+                          <td style={{ padding: "6px 10px", fontFamily: MONO, color: HQ.inkMuted, wordBreak: "break-all" }}>{rec.name}</td>
+                          <td style={{ padding: "6px 10px", fontFamily: MONO, color: HQ.inkMuted, wordBreak: "break-all" }}>{rec.value}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

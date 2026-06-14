@@ -21,6 +21,9 @@ import {
   invalidateTemplateOverrideCache,
 } from "@/lib/notifications/overlay";
 import { sendEmailResult } from "@/lib/email";
+import { createResendDomain, fetchResendDomain } from "@/lib/integrations/email-domain";
+import { setIntegrationConfig, getTenantIntegration } from "@/lib/integrations/repository";
+import { EMAIL_DOMAIN_INTEGRATION_KEY } from "@/lib/integrations/catalog";
 
 const REVALIDATE_PATH = "/platform/admin/email";
 
@@ -270,6 +273,112 @@ export async function clearTemplateOverride(input: {
     return { ok: false, error: "Couldn't reset the template. See logs." };
   }
   invalidateTemplateOverrideCache();
+  revalidatePath(REVALIDATE_PATH);
+  return { ok: true };
+}
+
+// ─── Self-serve white-label sending domains (Resend Domains API) ──────────────
+
+const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000001";
+
+export type SendingDomainActionResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Register a tenant's own sending domain with Resend (via the platform key) and
+ * store the returned id + DNS records + status on the tenant's email_domain
+ * integration. The tenant then adds the DNS records; `verifySendingDomain` polls
+ * until verified, at which point resolveTenantEmailFrom sends from that domain
+ * (also gated by the white_label_email entitlement).
+ */
+export async function addSendingDomain(input: {
+  tenantId: string;
+  domain: string;
+}): Promise<SendingDomainActionResult> {
+  const guard = await requirePlatformAdmin();
+  if (!guard.ok) return guard;
+  const tenantId = (input.tenantId ?? "").trim();
+  const domain = (input.domain ?? "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  if (!tenantId) return { ok: false, error: "Missing tenant id." };
+  if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(domain)) return { ok: false, error: "Enter a valid domain (e.g. mail.agency.com)." };
+  if (tenantId === PLATFORM_TENANT_ID) return { ok: false, error: "That's the platform default — use the from-address card instead." };
+
+  const created = await createResendDomain(domain);
+  if (!created.ok) return { ok: false, error: created.error };
+
+  const verified = created.status === "verified";
+  const saved = await setIntegrationConfig(
+    tenantId,
+    EMAIL_DOMAIN_INTEGRATION_KEY,
+    {
+      domain,
+      resend_domain_id: created.id,
+      verification_status: created.status,
+      records: created.records,
+    },
+    {
+      status: verified ? "connected" : "not_configured",
+      actorId: guard.actorId,
+      lastVerifiedAt: verified ? new Date().toISOString() : null,
+    },
+  );
+  if (!saved) {
+    logServerError("email-console.addSendingDomain.save", new Error("setIntegrationConfig returned null"));
+    return { ok: false, error: "Registered with Resend but couldn't save. See logs." };
+  }
+  revalidatePath(REVALIDATE_PATH);
+  return { ok: true };
+}
+
+/** Re-check a tenant domain's DNS with Resend and update its stored status + records. */
+export async function verifySendingDomain(input: { tenantId: string }): Promise<SendingDomainActionResult> {
+  const guard = await requirePlatformAdmin();
+  if (!guard.ok) return guard;
+  const tenantId = (input.tenantId ?? "").trim();
+  if (!tenantId) return { ok: false, error: "Missing tenant id." };
+
+  const row = await getTenantIntegration(tenantId, EMAIL_DOMAIN_INTEGRATION_KEY);
+  const cfg = (row?.config_json ?? {}) as Record<string, unknown>;
+  const domainId = typeof cfg.resend_domain_id === "string" ? cfg.resend_domain_id : null;
+  if (!domainId) return { ok: false, error: "No registered domain to verify." };
+
+  const fresh = await fetchResendDomain(domainId, true);
+  if (!fresh.ok) return { ok: false, error: fresh.error };
+
+  const verified = fresh.status === "verified";
+  const saved = await setIntegrationConfig(
+    tenantId,
+    EMAIL_DOMAIN_INTEGRATION_KEY,
+    { verification_status: fresh.status, records: fresh.records },
+    {
+      status: verified ? "connected" : "not_configured",
+      actorId: guard.actorId,
+      lastVerifiedAt: verified ? new Date().toISOString() : null,
+    },
+  );
+  if (!saved) return { ok: false, error: "Couldn't save the refreshed status. See logs." };
+  revalidatePath(REVALIDATE_PATH);
+  return { ok: true };
+}
+
+/** Disconnect a tenant's white-label domain (reverts that tenant to the platform sender). */
+export async function removeSendingDomain(input: { tenantId: string }): Promise<SendingDomainActionResult> {
+  const guard = await requirePlatformAdmin();
+  if (!guard.ok) return guard;
+  const tenantId = (input.tenantId ?? "").trim();
+  if (!tenantId) return { ok: false, error: "Missing tenant id." };
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Service unavailable." };
+  // Clear the integration so resolveTenantEmailFrom falls back to the platform
+  // sender. (The domain stays in the Resend account; re-adding re-links it.)
+  const { error } = await admin
+    .from("tenant_integrations")
+    .delete()
+    .eq("tenant_id", tenantId)
+    .eq("integration_key", EMAIL_DOMAIN_INTEGRATION_KEY);
+  if (error) {
+    logServerError("email-console.removeSendingDomain", error);
+    return { ok: false, error: "Couldn't disconnect the domain. See logs." };
+  }
   revalidatePath(REVALIDATE_PATH);
   return { ok: true };
 }

@@ -11,6 +11,7 @@ import {
   loadEmailDomainStatus,
   loadNotificationCatalogState,
   loadEmailTemplateState,
+  loadSendingDomains,
   serverNowMs,
 } from "./email-data";
 import { EmailConsoleClient } from "./EmailConsoleClient";
@@ -18,15 +19,17 @@ import { EmailConsoleClient } from "./EmailConsoleClient";
 export const dynamic = "force-dynamic";
 
 export default async function EmailConsolePage() {
-  const [sendLog, metrics, suppressions, domain, catalog, templates, session] = await Promise.all([
-    loadEmailSendLog({ limit: 300 }),
-    loadEmailMetrics(),
-    loadEmailSuppressions(),
-    loadEmailDomainStatus(),
-    loadNotificationCatalogState(),
-    loadEmailTemplateState(),
-    getCachedActorSession(),
-  ]);
+  const [sendLog, metrics, suppressions, domain, catalog, templates, sendingDomains, session] =
+    await Promise.all([
+      loadEmailSendLog({ limit: 300 }),
+      loadEmailMetrics(),
+      loadEmailSuppressions(),
+      loadEmailDomainStatus(),
+      loadNotificationCatalogState(),
+      loadEmailTemplateState(),
+      loadSendingDomains(),
+      getCachedActorSession(),
+    ]);
 
   return (
     <EmailConsoleClient
@@ -36,6 +39,7 @@ export default async function EmailConsolePage() {
       domain={domain}
       catalog={catalog}
       templates={templates}
+      sendingDomains={sendingDomains}
       adminEmail={session.user?.email ?? ""}
       nowMs={serverNowMs()}
     />
