@@ -119,6 +119,7 @@ import {
   type BuilderTextRoleId,
   type LegacySnapshotSlot,
 } from "@/lib/site-admin/builder-node";
+import { randomUuid } from "@/lib/site-admin/builder-node/make-id";
 import {
   builderPlanAllows,
   normalizeBuilderWorkspacePlan,
@@ -6330,7 +6331,7 @@ export function EditProvider({
           error: "Copy a block on the page first, then save a preset.",
         };
       }
-      const presetId = crypto.randomUUID();
+      const presetId = randomUuid();
       const label = builderNodeLabel(copiedBuilderNode.kind);
       const preset: BuilderBlockPreset = {
         id: presetId,
