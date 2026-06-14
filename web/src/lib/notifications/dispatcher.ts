@@ -9,6 +9,7 @@ import { findCatalogEntries } from "./catalog";
 import { sendEmailNotification } from "./channels/email";
 import { sendInAppNotification } from "./channels/in_app";
 import { channelsForRecipient } from "./prefs";
+import { loadNotificationOverlay, isChannelEnabled } from "./overlay";
 import type {
   AudienceContext,
   CatalogEntry,
@@ -53,6 +54,12 @@ export async function dispatchEventNotifications(
     );
     return result;
   }
+
+  // P3b admin overlay: per-entry channel enable/disable. Loaded once per dispatch
+  // (cached ~60s), degrades OPEN — a read failure yields an empty overlay so a DB
+  // blip never silently drops notifications. Only non-required entries can be
+  // disabled (transactional/billing notices are never overlay-disabled).
+  const overlay = await loadNotificationOverlay(ctx.admin);
 
   const handlers: Partial<Record<NotificationChannel, ChannelHandler>> = {
     email: sendEmailNotification,
@@ -117,6 +124,15 @@ export async function dispatchEventNotifications(
       for (const channel of channels) {
         const handler = handlers[channel];
         if (!handler) continue;
+        // P3b: skip a channel an admin has disabled for this entry. Required
+        // (transactional) entries are never disabled. No dispatch_log row is
+        // written for a disabled channel (it's a deliberate non-send).
+        if (
+          !entry.required &&
+          (channel === "email" || channel === "in_app") &&
+          !isChannelEnabled(overlay, entry.id, channel)
+        )
+          continue;
 
         const dedupeKey = `${enriched.eventId}:${recipient.dedupeId}:${channel}`;
         // §7 digest: an email entry that opts into batching is logged `queued`
