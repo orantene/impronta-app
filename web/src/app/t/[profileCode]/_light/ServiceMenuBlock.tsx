@@ -22,6 +22,8 @@ type ServiceMenuBlockProps = {
   items: ServiceMenuItem[];
   locale: string;
   heading: string;
+  /** S6 — discipline term id → label, for per-service scoping chips. */
+  disciplineLabels?: Record<string, string>;
 };
 
 /** Money formatter resilient to a bad/short currency code (falls back to plain). */
@@ -49,7 +51,7 @@ function priceLabel(it: ServiceMenuItem, locale: string): string {
   return suffix ? `${price} ${suffix}` : price;
 }
 
-export function ServiceMenuBlock({ items, locale, heading }: ServiceMenuBlockProps) {
+export function ServiceMenuBlock({ items, locale, heading, disciplineLabels }: ServiceMenuBlockProps) {
   // Defensive re-filter (page.tsx already excludes agency_only + inactive).
   const visible = items.filter((it) => it.isActive && it.visibility !== "agency_only");
   if (visible.length === 0) return null;
@@ -68,6 +70,9 @@ export function ServiceMenuBlock({ items, locale, heading }: ServiceMenuBlockPro
           const childNames = (it.childServiceIds ?? [])
             .map((cid) => nameById.get(cid))
             .filter((n): n is string => Boolean(n));
+          const disciplineNames = (it.taxonomyTermIds ?? [])
+            .map((tid) => disciplineLabels?.[tid])
+            .filter((n): n is string => Boolean(n));
           return (
             <div
               key={it.id}
@@ -85,6 +90,23 @@ export function ServiceMenuBlock({ items, locale, heading }: ServiceMenuBlockPro
                   {priceLabel(it, locale)}
                 </p>
               </div>
+
+              {disciplineNames.length > 0 ? (
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {disciplineNames.map((d) => (
+                    <span
+                      key={d}
+                      className="plt-mono inline-flex items-center rounded-full border px-2 py-0.5 text-[0.625rem] uppercase tracking-[0.1em]"
+                      style={{
+                        borderColor: "var(--plt-hairline-strong)",
+                        color: "var(--plt-muted-soft)",
+                      }}
+                    >
+                      {d}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
 
               {it.description ? (
                 <p className="mt-1 text-sm" style={{ color: "var(--plt-muted)" }}>

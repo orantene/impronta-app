@@ -114,6 +114,8 @@ type LightProfileLayoutProps = {
   bookingNote: string | null;
   /** S12 — talent-configured services menu (public/on-request items). */
   serviceMenuItems: ServiceMenuItem[];
+  /** S6 — discipline term id → label, for per-service scoping chips. */
+  disciplineLabels: Record<string, string>;
 
   // ── Taxonomy chips ───────────────────────────────────────────────────────
   fitLabels: string[];
@@ -249,6 +251,7 @@ export function LightProfileLayout({
   startingFrom,
   bookingNote,
   serviceMenuItems,
+  disciplineLabels,
   fitLabels,
   skills,
   industries,
@@ -429,6 +432,7 @@ export function LightProfileLayout({
               items={isFreePlan ? [] : serviceMenuItems}
               locale={locale}
               heading={locale === "es" ? "Servicios y precios" : "Services & pricing"}
+              disciplineLabels={disciplineLabels}
             />
 
             {/* Skills & specialties */}

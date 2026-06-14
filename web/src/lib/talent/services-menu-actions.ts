@@ -96,7 +96,41 @@ async function authorizeForTalent(talentProfileId: string): Promise<AuthResult> 
   };
 }
 
-type LoadResult = { ok: true; items: ServiceMenuItem[]; defaultCurrency: string } | { ok: false; error: string };
+/** A talent discipline (talent_type taxonomy term) for per-service scoping (S6). */
+export type TalentDiscipline = { id: string; label: string };
+
+/**
+ * The talent's talent_type taxonomy terms (their disciplines), for the editor's
+ * per-service scoping picker. Deduped by term id, labelled by name_en.
+ */
+async function loadTalentDisciplines(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  talentProfileId: string,
+): Promise<TalentDiscipline[]> {
+  const { data } = await admin
+    .from("talent_profile_taxonomy")
+    .select("taxonomy_terms:taxonomy_term_id ( id, name_en, kind, term_type )")
+    .eq("talent_profile_id", talentProfileId);
+  type Term = { id: string; name_en: string | null; kind: string | null; term_type: string | null };
+  const rows = (data ?? []) as { taxonomy_terms: Term | Term[] | null }[];
+  const out = new Map<string, string>();
+  for (const r of rows) {
+    const terms = Array.isArray(r.taxonomy_terms)
+      ? r.taxonomy_terms
+      : r.taxonomy_terms
+        ? [r.taxonomy_terms]
+        : [];
+    for (const t of terms) {
+      if (!t?.id || !t.name_en) continue;
+      if (t.kind === "talent_type" || t.term_type === "talent_type") out.set(t.id, t.name_en);
+    }
+  }
+  return [...out].map(([id, label]) => ({ id, label }));
+}
+
+type LoadResult =
+  | { ok: true; items: ServiceMenuItem[]; defaultCurrency: string; disciplines: TalentDiscipline[] }
+  | { ok: false; error: string };
 
 /** Load the talent's services menu (normalized). */
 export async function loadTalentServicesMenu(talentProfileId: string): Promise<LoadResult> {
@@ -123,10 +157,14 @@ export async function loadTalentServicesMenu(talentProfileId: string): Promise<L
     }
 
     const raw = catalog.services_menu ?? data?.services_menu;
+    // S6 — the talent's disciplines, for the editor's per-service scoping picker.
+    const admin = createServiceRoleClient();
+    const disciplines = admin ? await loadTalentDisciplines(admin, talentProfileId) : [];
     return {
       ok: true,
       items: normalizeServicesMenu(raw, auth.defaultCurrency),
       defaultCurrency: auth.defaultCurrency,
+      disciplines,
     };
   } catch (err) {
     logServerError("talent.servicesMenu.load", err);

@@ -19,6 +19,7 @@ import { useEffect, useState, useTransition } from "react";
 import {
   loadTalentServicesMenu,
   updateTalentServicesMenu,
+  type TalentDiscipline,
 } from "@/lib/talent/services-menu-actions";
 import {
   SERVICE_PRICING_TYPES,
@@ -100,6 +101,7 @@ function blankService(defaultCurrency: string, sortOrder: number): ServiceMenuIt
 
 export function TalentServicesMenuCard({ talentId }: { talentId: string }) {
   const [items, setItems] = useState<ServiceMenuItem[]>([]);
+  const [disciplines, setDisciplines] = useState<TalentDiscipline[]>([]);
   const [defaultCurrency, setDefaultCurrency] = useState("USD");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -115,6 +117,7 @@ export function TalentServicesMenuCard({ talentId }: { talentId: string }) {
         if (res.ok) {
           setItems(res.items);
           setDefaultCurrency(res.defaultCurrency);
+          setDisciplines(res.disciplines);
         }
         setLoading(false);
       })
@@ -349,6 +352,31 @@ export function TalentServicesMenuCard({ talentId }: { talentId: string }) {
                     ))}
                     <button type="button" disabled={saving} onClick={() => patchItem(it.id, { tiers: [...it.tiers, { id: clientId(), label: "", amountCents: null } as ServiceTier] })} style={{ marginTop: 6, padding: "5px 10px", borderRadius: 7, border: `1px solid ${C.border}`, background: "#fff", color: C.inkMuted, fontSize: 11.5, cursor: saving ? "wait" : "pointer", fontFamily: FONT }}>+ Tier</button>
                   </div>
+
+                  {/* S6 — discipline scoping (only when the talent has >1 discipline) */}
+                  {disciplines.length > 1 && (
+                    <div>
+                      <span style={labelStyle}>Applies to</span>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 6 }}>
+                        {disciplines.map((d) => {
+                          const checked = (it.taxonomyTermIds ?? []).includes(d.id);
+                          return (
+                            <label key={d.id} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, color: C.inkMuted }}>
+                              <input
+                                type="checkbox" checked={checked} disabled={saving}
+                                onChange={(e) => { const cur = it.taxonomyTermIds ?? []; const next = e.target.checked ? [...cur, d.id] : cur.filter((x) => x !== d.id); patchItem(it.id, { taxonomyTermIds: next.length ? next : null }); }}
+                                style={{ accentColor: C.accentDeep }}
+                              />
+                              {d.label}
+                            </label>
+                          );
+                        })}
+                      </div>
+                      <div style={{ fontSize: 10.5, color: C.inkMuted, marginTop: 5 }}>
+                        Leave all unchecked to apply to every discipline.
+                      </div>
+                    </div>
+                  )}
 
                   {/* S10 — bundle: pick included services (flat_package only) */}
                   {it.pricingType === "flat_package" && items.length > 1 && (
