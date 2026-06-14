@@ -64,6 +64,7 @@ import { markPaid } from "@/lib/bookings/transactions";
 import { emitBookingConfirmation } from "@/lib/payments/booking-confirmation";
 import { releaseHeldPayouts } from "@/lib/payments/booking-payouts-ledger";
 import { handleBookingRefund, handleBookingDispute } from "@/lib/payments/refunds";
+import { notifyTrialWillEnd } from "@/lib/notifications/producers/trial-notify";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
@@ -389,13 +390,46 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
       return;
     }
 
-    case "trial_will_end":
-      // Log only today. B3 will notify the talent / workspace owner.
-      logServerError(
-        "stripe-webhook.trial_will_end",
-        `subscription ${action.subscriptionId} trial_end=${action.trialEnd} (event ${event.id})`,
-      );
+    case "trial_will_end": {
+      // Notify the talent / workspace owner their trial is ending. Resolve the
+      // recipient from the subscription metadata (set at checkout): a workspace
+      // sub carries tenant_id, a talent sub carries talent_profile_id.
+      let trialSub: Stripe.Subscription;
+      try {
+        trialSub = await stripe.subscriptions.retrieve(action.subscriptionId);
+      } catch (err) {
+        throw new TransientWebhookError(`subscriptions.retrieve failed for ${action.subscriptionId}`, err);
+      }
+      const trialEndUnix = action.trialEnd ?? trialSub.trial_end ?? null;
+      const trialEndIso = trialEndUnix ? new Date(trialEndUnix * 1000).toISOString() : null;
+      const trialTenantId = trialSub.metadata?.tenant_id ?? null;
+      const trialTalentProfileId = trialSub.metadata?.talent_profile_id ?? null;
+      if (trialTenantId) {
+        await notifyTrialWillEnd({
+          scope: "workspace",
+          tenantId: trialTenantId,
+          talentProfileId: null,
+          subscriptionId: trialSub.id,
+          planKey: trialSub.metadata?.plan_key ?? null,
+          trialEndIso,
+        });
+      } else if (trialTalentProfileId) {
+        await notifyTrialWillEnd({
+          scope: "talent",
+          tenantId: null,
+          talentProfileId: trialTalentProfileId,
+          subscriptionId: trialSub.id,
+          planKey: trialSub.metadata?.talent_plan_key ?? null,
+          trialEndIso,
+        });
+      } else {
+        logServerError(
+          "stripe-webhook.trial_will_end.unresolved",
+          `subscription ${trialSub.id} has neither tenant_id nor talent_profile_id metadata (event ${event.id})`,
+        );
+      }
       return;
+    }
 
     case "payment_intent_failed":
       // Best-effort: the client may retry the same Checkout session, so we don't
