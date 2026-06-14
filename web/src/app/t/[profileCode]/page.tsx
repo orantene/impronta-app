@@ -81,6 +81,9 @@ import {
   type AgencyTalentOverlayRow,
 } from "@/lib/talent/agency-overlay";
 import { TalentProfileInquireButton } from "./talent-profile-inquire-button";
+import { TalentProfileInstantBookButton } from "./talent-profile-instant-book-button";
+import { loadInstantBookEligibility } from "@/lib/inquiry/instant-book-engine";
+import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
 import { TalentProfileChatLauncherMount } from "./_chat/TalentProfileChatLauncherMount";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { PlatformTalentMaxSiteView } from "@/components/talent/site/PlatformTalentMaxSiteView";
@@ -1514,6 +1517,19 @@ export default async function PublicTalentProfilePage({
     publicPathPrefix,
   );
 
+  // 6.4 instant-book: a "Book now" CTA shown alongside Inquire when the talent
+  // opted in (booking_terms) AND the tenant enabled it. Agency surface only —
+  // it needs a real tenant (the open hub routes through Inquire). Cheap: the
+  // currency loader is request-cached and eligibility is two indexed reads.
+  const instantBook =
+    hostCtx.kind === "agency" && !resolvedPreview
+      ? await loadInstantBookEligibility(
+          profile.id,
+          hostCtx.tenantId,
+          (await loadPlatformOperatingCurrency()).operatingCurrency,
+        )
+      : { eligible: false, fixedRateCents: null, fixedRateDollars: null, currencyCode: "USD" };
+
   // Enrich similar talent with pre-built hrefs for LightProfileLayout
   const similarTalent = similarTalentRaw.map((st) => ({
     ...st,
@@ -1934,40 +1950,79 @@ export default async function PublicTalentProfilePage({
           ) : null
         }
         inquireButtonHeader={
-          <TalentProfileInquireButton
-            talentId={profile.id}
-            talentProfileCode={profile.profile_code}
-            displayName={name}
-            tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
-            tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
-            agencyName={tenantBrand ?? "the agency"}
-            sourcePage={profileSourcePage}
-            className={inquireBtnClass}
-          />
+          <>
+            {instantBook.eligible && instantBook.fixedRateDollars != null ? (
+              <TalentProfileInstantBookButton
+                talentId={profile.id}
+                displayName={name}
+                tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
+                sourcePage={profileSourcePage}
+                fixedRateDollars={instantBook.fixedRateDollars}
+                currencyCode={instantBook.currencyCode}
+                className={inquireBtnClass}
+              />
+            ) : null}
+            <TalentProfileInquireButton
+              talentId={profile.id}
+              talentProfileCode={profile.profile_code}
+              displayName={name}
+              tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
+              tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
+              agencyName={tenantBrand ?? "the agency"}
+              sourcePage={profileSourcePage}
+              className={inquireBtnClass}
+            />
+          </>
         }
         inquireButtonSidebar={
-          <TalentProfileInquireButton
-            talentId={profile.id}
-            talentProfileCode={profile.profile_code}
-            displayName={name}
-            tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
-            tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
-            agencyName={tenantBrand ?? "the agency"}
-            sourcePage={profileSourcePage}
-            className={inquireBtnClassFull}
-          />
+          <>
+            {instantBook.eligible && instantBook.fixedRateDollars != null ? (
+              <TalentProfileInstantBookButton
+                talentId={profile.id}
+                displayName={name}
+                tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
+                sourcePage={profileSourcePage}
+                fixedRateDollars={instantBook.fixedRateDollars}
+                currencyCode={instantBook.currencyCode}
+                className={inquireBtnClassFull}
+              />
+            ) : null}
+            <TalentProfileInquireButton
+              talentId={profile.id}
+              talentProfileCode={profile.profile_code}
+              displayName={name}
+              tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
+              tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
+              agencyName={tenantBrand ?? "the agency"}
+              sourcePage={profileSourcePage}
+              className={inquireBtnClassFull}
+            />
+          </>
         }
         inquireButtonFooter={
-          <TalentProfileInquireButton
-            talentId={profile.id}
-            talentProfileCode={profile.profile_code}
-            displayName={name}
-            tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
-            tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
-            agencyName={tenantBrand ?? "the agency"}
-            sourcePage={profileSourcePage}
-            className={inquireBtnClass}
-          />
+          <>
+            {instantBook.eligible && instantBook.fixedRateDollars != null ? (
+              <TalentProfileInstantBookButton
+                talentId={profile.id}
+                displayName={name}
+                tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
+                sourcePage={profileSourcePage}
+                fixedRateDollars={instantBook.fixedRateDollars}
+                currencyCode={instantBook.currencyCode}
+                className={inquireBtnClass}
+              />
+            ) : null}
+            <TalentProfileInquireButton
+              talentId={profile.id}
+              talentProfileCode={profile.profile_code}
+              displayName={name}
+              tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
+              tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
+              agencyName={tenantBrand ?? "the agency"}
+              sourcePage={profileSourcePage}
+              className={inquireBtnClass}
+            />
+          </>
         }
         shareMenuHeader={
           <ProfileShareRow
