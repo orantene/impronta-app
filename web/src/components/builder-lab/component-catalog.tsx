@@ -99,6 +99,7 @@ export function ComponentCatalog() {
   const [filterMode, setFilterMode] = useState<"all" | "hidden" | "customized">(
     "all",
   );
+  const [activeTab, setActiveTab] = useState<AddGalleryTab | null>(null);
   // W11 — transient success toast.
   const [toast, setToast] = useState<string | null>(null);
 
@@ -233,8 +234,12 @@ export function ComponentCatalog() {
     [mutate, flash],
   );
 
-  const groups = useMemo(() => {
-    if (!items) return null;
+  const { presentTabs, rowsByTab } = useMemo(() => {
+    const empty = {
+      presentTabs: [] as AddGalleryTab[],
+      rowsByTab: new Map<AddGalleryTab, CatalogAdminItem[]>(),
+    };
+    if (!items) return empty;
     const q = query.trim().toLowerCase();
     const matches = (r: CatalogAdminItem) => {
       if (filterMode === "customized" && !r.overlay) return false;
@@ -248,28 +253,41 @@ export function ComponentCatalog() {
       }
       return true;
     };
-    return ALL_TABS.map((tab) => ({
-      tab,
-      rows: items
-        .filter((r) => r.tab === tab && matches(r))
-        .sort(
-          (a, b) =>
-            a.effectiveCategory.localeCompare(b.effectiveCategory) ||
-            a.effectiveLabel.localeCompare(b.effectiveLabel),
-        ),
-    })).filter((g) => g.rows.length > 0);
+    const present: AddGalleryTab[] = [];
+    const byTab = new Map<AddGalleryTab, CatalogAdminItem[]>();
+    for (const tab of ALL_TABS) {
+      const inTab = items.filter((r) => r.tab === tab);
+      if (inTab.length > 0) present.push(tab);
+      byTab.set(
+        tab,
+        inTab
+          .filter(matches)
+          .sort(
+            (a, b) =>
+              a.effectiveCategory.localeCompare(b.effectiveCategory) ||
+              a.effectiveLabel.localeCompare(b.effectiveLabel),
+          ),
+      );
+    }
+    return { presentTabs: present, rowsByTab: byTab };
   }, [items, query, filterMode]);
 
   if (error && !items) {
     return <div style={{ color: "#ff8585", fontSize: 13 }}>{error}</div>;
   }
-  if (!items || !groups) {
+  if (!items) {
     return (
       <div style={{ color: T.inkMuted, fontSize: 13, padding: "8px 0" }}>
         Loading the component catalog…
       </div>
     );
   }
+
+  const currentTab: AddGalleryTab | null =
+    activeTab && presentTabs.includes(activeTab)
+      ? activeTab
+      : presentTabs[0] ?? null;
+  const currentRows = currentTab ? rowsByTab.get(currentTab) ?? [] : [];
 
   const total = items.length;
   const templates = items.filter((r) => r.source === "template").length;
@@ -344,15 +362,74 @@ export function ComponentCatalog() {
         </div>
       </div>
 
-      {groups.every((g) => g.rows.length === 0) ? (
-        <div style={{ color: T.inkMuted, fontSize: 13, padding: "12px 0" }}>
-          No components match “{query}”{filterMode !== "all" ? ` in ${filterMode}` : ""}.
+      {presentTabs.length > 0 ? (
+        <div
+          role="tablist"
+          aria-label="Component categories"
+          style={{
+            display: "flex",
+            gap: 2,
+            flexWrap: "wrap",
+            borderBottom: `1px solid ${T.borderSoft}`,
+          }}
+        >
+          {presentTabs.map((tab) => {
+            const count = rowsByTab.get(tab)?.length ?? 0;
+            const active = tab === currentTab;
+            return (
+              <button
+                key={tab}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setActiveTab(tab)}
+                className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60"
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  borderBottom: `2px solid ${active ? T.accent : "transparent"}`,
+                  color: active ? T.ink : T.inkMuted,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  padding: "8px 13px",
+                  marginBottom: -1,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 7,
+                }}
+              >
+                {TAB_LABEL[tab]}
+                <span
+                  style={{
+                    fontSize: 10.5,
+                    fontWeight: 700,
+                    color: active ? T.accent : T.inkDim,
+                    background: active ? "rgba(93,211,160,0.14)" : T.cardSoft,
+                    borderRadius: 999,
+                    padding: "1px 7px",
+                    minWidth: 18,
+                    textAlign: "center",
+                  }}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
       ) : null}
 
-      {groups.map((g) => (
+      {currentTab && currentRows.length === 0 ? (
+        <div style={{ color: T.inkMuted, fontSize: 13, padding: "12px 0" }}>
+          No {TAB_LABEL[currentTab]} components
+          {query ? ` matching “${query}”` : ""}
+          {filterMode !== "all" ? ` (${filterMode})` : ""}.
+        </div>
+      ) : null}
+
+      {currentTab && currentRows.length > 0 ? (
         <section
-          key={g.tab}
           style={{
             background: T.card,
             border: `1px solid ${T.borderSoft}`,
@@ -371,10 +448,10 @@ export function ComponentCatalog() {
             }}
           >
             <span style={{ fontSize: 13, fontWeight: 700, color: T.ink }}>
-              {TAB_LABEL[g.tab]}
+              {TAB_LABEL[currentTab]}
             </span>
             <span style={{ fontSize: 11.5, color: T.inkMuted }}>
-              {g.rows.length} component{g.rows.length === 1 ? "" : "s"}
+              {currentRows.length} component{currentRows.length === 1 ? "" : "s"}
             </span>
           </div>
 
@@ -390,7 +467,7 @@ export function ComponentCatalog() {
               </tr>
             </thead>
             <tbody>
-              {g.rows.map((r) => {
+              {currentRows.map((r) => {
                 const busy = pendingId === r.id;
                 const editing = editingId === r.id;
                 const isTemplate = r.source === "template";
@@ -563,7 +640,7 @@ export function ComponentCatalog() {
             </tbody>
           </table>
         </section>
-      ))}
+      ) : null}
 
       <p style={{ fontSize: 11.5, color: T.inkDim, lineHeight: 1.5, margin: 0 }}>
         Toggles control per-surface visibility (subtract-only — a component can&apos;t be forced onto a
