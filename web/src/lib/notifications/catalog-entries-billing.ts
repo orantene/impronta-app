@@ -2,6 +2,7 @@ import "server-only";
 
 import * as React from "react";
 import ClientPaymentReceipt from "../../../emails/client/PaymentReceipt";
+import ClientDepositReceived from "../../../emails/client/DepositReceived";
 import WorkspacePaymentReceived from "../../../emails/workspace/PaymentReceived";
 import BillingPaymentFailed from "../../../emails/billing/PaymentFailed";
 import TalentPayoutSettled from "../../../emails/talent/PayoutSettled";
@@ -54,7 +55,10 @@ const PAYMENT_RECEIVED_CLIENT: CatalogEntry = {
   required: false,
   triggers: ["payment.received"],
   hydrate: loadInquiryView,
-  resolveAudience: transactionPayer,
+  // 6.3 deposits: a deposit gets the dedicated deposit_received email instead of
+  // this generic receipt (so the client gets exactly one, balance-aware email).
+  resolveAudience: (event) =>
+    str(event.payload.checkoutType) === "deposit" ? Promise.resolve([]) : transactionPayer(event),
   email: {
     templateId: "client.payment_receipt",
     subject: () => "Payment received",
@@ -108,6 +112,57 @@ const PAYMENT_RECEIVED_WORKSPACE: CatalogEntry = {
         contactName: str(event.payload.contactName),
         amountReceived: formatMoneyCents(num(event.payload.grossAmountCents), str(event.payload.currency)),
         inquiryUrl: pageUrl(brand, inquiryId ? `/admin/work/${inquiryId}` : "/admin/account"),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "payments",
+      });
+    },
+  },
+};
+
+/**
+ * payment.deposit_received → client deposit confirmation (email-only). 6.3
+ * deposits: fired alongside payment.received (whose client receipt is suppressed
+ * for deposits) so the client gets one balance-aware email. Hydrates the offer
+ * total to compute the remaining balance; degrades gracefully if it's unknown.
+ */
+const PAYMENT_DEPOSIT_RECEIVED_CLIENT: CatalogEntry = {
+  id: "payment.deposit_received.client",
+  category: "payments",
+  defaultChannels: ["email"],
+  required: false,
+  triggers: ["payment.deposit_received"],
+  hydrate: loadInquiryView,
+  resolveAudience: transactionPayer,
+  email: {
+    templateId: "client.deposit_received",
+    subject: () => "Deposit received — balance due",
+    render: ({ event, recipient, brand, unsubscribeUrl }) => {
+      const bookingId = str(event.payload.bookingId);
+      const depositCents = num(event.payload.depositAmountCents);
+      const currency = str(event.payload.currency);
+      // loadInquiryView hydrates offerTotal as "<currency> <amount>" (amount is a
+      // plain decimal, not cents); parse the trailing number to derive the balance.
+      let balanceDue: string | null = null;
+      const offerTotal = str(event.payload.offerTotal);
+      if (offerTotal && depositCents != null) {
+        const m = offerTotal.match(/([\d.,]+)\s*$/);
+        const totalNum = m ? Number(m[1].replace(/,/g, "")) : NaN;
+        if (Number.isFinite(totalNum)) {
+          const balanceCents = Math.round(totalNum * 100) - depositCents;
+          if (balanceCents > 0) balanceDue = formatMoneyCents(balanceCents, currency);
+        }
+      }
+      return React.createElement(ClientDepositReceived, {
+        clientName: recipient.displayName,
+        contactName: str(event.payload.contactName),
+        depositPaid: formatMoneyCents(depositCents, currency),
+        balanceDue,
+        paymentDate: formatDateLabel(str(event.payload.paidAt)) ?? "",
+        payBalanceUrl: pageUrl(
+          brand,
+          bookingId ? `/client/bookings/${bookingId}?tab=payment` : "/client/bookings",
+        ),
         brand,
         unsubscribeUrl,
         categoryLabel: "payments",
@@ -294,6 +349,7 @@ const WORKSPACE_SUBSCRIPTION_CANCELLED: CatalogEntry = {
 export const BILLING_CATALOG_ENTRIES: CatalogEntry[] = [
   PAYMENT_RECEIVED_CLIENT,
   PAYMENT_RECEIVED_WORKSPACE,
+  PAYMENT_DEPOSIT_RECEIVED_CLIENT,
   PAYMENT_FAILED_WORKSPACE,
   PAYMENT_PAYOUT_SETTLED_TALENT,
   WORKSPACE_PLAN_UPGRADED,
