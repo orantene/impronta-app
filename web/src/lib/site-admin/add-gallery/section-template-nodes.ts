@@ -8,7 +8,7 @@
  *   child layers requires a stretch refactor (see marathon inventory doc).
  * - Connected wrappers expose one labeled `section_embed` child (Talent Grid, etc.).
  */
-import { createImage, makeId } from "@/lib/site-admin/builder-node/create";
+import { createImage, makeId, randomUuid } from "@/lib/site-admin/builder-node/create";
 import type {
   BuilderNode,
   BuilderNodeStyle,
@@ -408,7 +408,7 @@ export function tplContactForm(): BuilderNode {
       layerLabel: "Contact Form",
       fields: [
           {
-            id: crypto.randomUUID(),
+            id: randomUuid(),
             name: "name",
             type: "text",
             label: "Name",
@@ -416,7 +416,7 @@ export function tplContactForm(): BuilderNode {
             required: true,
           },
           {
-            id: crypto.randomUUID(),
+            id: randomUuid(),
             name: "email",
             type: "email",
             label: "Email",
@@ -424,14 +424,14 @@ export function tplContactForm(): BuilderNode {
             required: true,
           },
           {
-            id: crypto.randomUUID(),
+            id: randomUuid(),
             name: "message",
             type: "textarea",
             label: "Message",
             placeholder: "How can we help?",
           },
           {
-            id: crypto.randomUUID(),
+            id: randomUuid(),
             name: "submit",
             type: "submit",
             label: "Send message",
@@ -460,7 +460,7 @@ export function tplDirectorySearchForm(
       layerLabel: "Search Form",
       fields: [
           {
-            id: crypto.randomUUID(),
+            id: randomUuid(),
             name: "q",
             type: "text",
             label: "Search",
@@ -468,7 +468,7 @@ export function tplDirectorySearchForm(
             required: false,
           },
           {
-            id: crypto.randomUUID(),
+            id: randomUuid(),
             name: "submit",
             type: "submit",
             label: submitLabel,

@@ -5,6 +5,7 @@ import {
   createImage,
   createParagraph,
   makeId,
+  randomUuid,
 } from "@/lib/site-admin/builder-node/create";
 import { cloneNodeWithFreshIds } from "@/lib/site-admin/builder-node/operations";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
@@ -350,8 +351,8 @@ function applyNativeVariant(
             ...node.props,
             ariaLabel: "Breadcrumb",
             links: [
-              { id: crypto.randomUUID(), label: "Home", href: "/" },
-              { id: crypto.randomUUID(), label: "Directory", href: "/directory" },
+              { id: randomUuid(), label: "Home", href: "/" },
+              { id: randomUuid(), label: "Directory", href: "/directory" },
             ],
           },
         };

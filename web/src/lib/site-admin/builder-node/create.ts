@@ -8,7 +8,8 @@ import { makeId, randomUuid } from "./make-id";
 
 // Re-exported so existing `import { makeId } from "./create"` consumers keep
 // working; the canonical home is now the dependency-light `./make-id`.
-export { makeId };
+// randomUuid is the secure-context-safe raw-id generator (see make-id.ts).
+export { makeId, randomUuid };
 
 const SAMPLE_IMAGES = [
   {
