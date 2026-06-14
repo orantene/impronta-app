@@ -148,16 +148,14 @@ export function MediaPickerDrawer({
     setUploadError(null);
     try {
       let item: MediaPickerItem;
-      const fast = await uploadCmsMedia({ file, tenantId, kind: "image" });
-      if (fast.ok) {
-        item = fast.item as MediaPickerItem;
-      } else if (!fast.fallbackToLegacy) {
-        throw new Error(fast.error);
-      } else {
+      if (isTalentScope) {
+        // Talent-self upload — the agency signed-upload + /api/admin routes are
+        // staff-only. POST straight to the talent endpoint, which owns the row
+        // to this talent so it lands in "My uploads".
         const form = new FormData();
-        form.set("tenantId", tenantId);
+        form.set("talentProfileId", talentProfileId!);
         form.set("file", file);
-        const res = await fetch("/api/admin/media/upload", {
+        const res = await fetch("/api/talent/media/upload", {
           method: "POST",
           body: form,
         });
@@ -166,6 +164,26 @@ export function MediaPickerDrawer({
           throw new Error(body.error ?? `HTTP ${res.status}`);
         }
         item = body.item as MediaPickerItem;
+      } else {
+        const fast = await uploadCmsMedia({ file, tenantId, kind: "image" });
+        if (fast.ok) {
+          item = fast.item as MediaPickerItem;
+        } else if (!fast.fallbackToLegacy) {
+          throw new Error(fast.error);
+        } else {
+          const form = new FormData();
+          form.set("tenantId", tenantId);
+          form.set("file", file);
+          const res = await fetch("/api/admin/media/upload", {
+            method: "POST",
+            body: form,
+          });
+          const body = await res.json();
+          if (!res.ok || !body.ok) {
+            throw new Error(body.error ?? `HTTP ${res.status}`);
+          }
+          item = body.item as MediaPickerItem;
+        }
       }
       setActiveFolderId("all");
       setItems((prev) => [item, ...(prev ?? [])]);
@@ -319,26 +337,20 @@ export function MediaPickerDrawer({
         />
         <DrawerBody>
           <div className="mb-3 flex items-center justify-between gap-2">
-            {isTalentScope ? (
-              <p className="text-[11px] leading-snug text-stone-500">
-                Add photos from your profile, then pick them here.
-              </p>
-            ) : (
-              <Button
-                type="button"
-                size="sm"
-                disabled={uploading}
-                onClick={() => fileInputRef.current?.click()}
-                title="Upload image"
-              >
-                {uploading ? (
-                  <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-                ) : (
-                  <Upload className="mr-1.5 size-3.5" />
-                )}
-                {uploading ? "Uploading" : "Upload"}
-              </Button>
-            )}
+            <Button
+              type="button"
+              size="sm"
+              disabled={uploading}
+              onClick={() => fileInputRef.current?.click()}
+              title={isTalentScope ? "Upload a photo" : "Upload image"}
+            >
+              {uploading ? (
+                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+              ) : (
+                <Upload className="mr-1.5 size-3.5" />
+              )}
+              {uploading ? "Uploading" : "Upload"}
+            </Button>
             {multi ? (
               <div className="flex items-center gap-2">
                 <Button type="button" variant="outline" size="sm" onClick={handleClose}>
@@ -531,7 +543,7 @@ export function MediaPickerDrawer({
                     ? "No uploads yet"
                     : "No photos yet"
               }
-              detail="Add photos to your profile, then they'll appear here to use on your page."
+              detail="Use Upload above to add a photo — or add photos to your profile and they'll appear here too."
             />
           ) : (
             <StatePanel
