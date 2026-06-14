@@ -664,12 +664,19 @@ export async function sendOffer(
   });
 }
 
-const PRICING_UNITS = new Set(["hour", "day", "week", "event"]);
+// Extended 2026-06-14 (talent services menu): a service's pricingType is a valid
+// offer unit, so the DB `pricing_unit` enum was widened to match these.
+const PRICING_UNITS = new Set([
+  "hour", "day", "week", "event",
+  "half_day", "per_person", "per_contact", "flat_package", "custom",
+]);
 
 export type OfferLineDraft = {
   talent_profile_id: string | null;
   label: string | null;
-  pricing_unit: "hour" | "day" | "week" | "event";
+  pricing_unit:
+    | "hour" | "day" | "week" | "event"
+    | "half_day" | "per_person" | "per_contact" | "flat_package" | "custom";
   units: number;
   unit_price: number;
   total_price: number;
