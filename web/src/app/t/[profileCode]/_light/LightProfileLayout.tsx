@@ -23,6 +23,7 @@ import Link from "next/link";
 import { ProfileCover } from "./ProfileCover";
 import { ProfileHeader } from "./ProfileHeader";
 import { ServicesBlock } from "./ServicesBlock";
+import { ServiceMenuBlock } from "./ServiceMenuBlock";
 import { SkillsExperienceBlock } from "./SkillsExperienceBlock";
 import { BookingCard } from "./BookingCard";
 import { AvailabilityWidget } from "./AvailabilityWidget";
@@ -36,6 +37,7 @@ import { TalentReviewsSection } from "@/components/reviews/TalentReviewsSection"
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 import { PublicCmsFooterNav } from "@/components/public-cms-footer";
 import type { ResolvedSkill } from "@/lib/server-actions/admin-talent-skills.types";
+import type { ServiceMenuItem } from "@/lib/talent/services-menu-types";
 import type { TalentServiceAreaRow } from "../page";
 import type { TalentRatingSummary, TalentReview } from "@/lib/reviews/review-types";
 import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
@@ -110,6 +112,8 @@ type LightProfileLayoutProps = {
   serviceAreas: TalentServiceAreaRow[];
   startingFrom: string | null;
   bookingNote: string | null;
+  /** S12 — talent-configured services menu (public/on-request items). */
+  serviceMenuItems: ServiceMenuItem[];
 
   // ── Taxonomy chips ───────────────────────────────────────────────────────
   fitLabels: string[];
@@ -244,6 +248,7 @@ export function LightProfileLayout({
   serviceAreas,
   startingFrom,
   bookingNote,
+  serviceMenuItems,
   fitLabels,
   skills,
   industries,
@@ -417,6 +422,13 @@ export function LightProfileLayout({
               heading="Services"
               packagesLabel={t("public.profile.editorial.packages")}
               bookingDetailsLabel={t("public.profile.editorial.bookingDetails")}
+            />
+
+            {/* Services menu — talent-configured services & pricing (S12) */}
+            <ServiceMenuBlock
+              items={isFreePlan ? [] : serviceMenuItems}
+              locale={locale}
+              heading={locale === "es" ? "Servicios y precios" : "Services & pricing"}
             />
 
             {/* Skills & specialties */}

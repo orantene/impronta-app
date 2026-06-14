@@ -28,6 +28,7 @@ import type {
   PaymentMethod,
   PersistedBookingCommissionSnapshot,
 } from "@/lib/billing/commission";
+import type { ServicePricingType } from "@/lib/talent/services-menu-types";
 import { formatRateLimitedCopy } from "@/lib/i18n/error-copy";
 import { logBookingActivity } from "@/lib/server/commercial-audit";
 import { BOOKING_AUDIT } from "@/lib/commercial-audit-events";
@@ -1359,7 +1360,9 @@ export type OfferDraftSnapshot = {
     talentProfileId: string | null;
     talentDisplayName: string | null;
     label: string | null;
-    pricingUnit: "hour" | "day" | "week" | "event";
+    /** Full offer-unit enum (extended for the services menu: half_day,
+     *  per_person, per_contact, flat_package, custom). */
+    pricingUnit: ServicePricingType;
     units: number;
     unitPrice: number;
     totalPrice: number;
@@ -1430,7 +1433,7 @@ export async function loadOfferDraft(
       id: string;
       talent_profile_id: string | null;
       label: string | null;
-      pricing_unit: "hour" | "day" | "week" | "event";
+      pricing_unit: ServicePricingType;
       units: number;
       unit_price: number;
       total_price: number;

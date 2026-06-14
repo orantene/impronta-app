@@ -4,6 +4,7 @@ import {
   normalizeServicesMenu,
   validateServicesMenu,
   pricingTypeRequiresAmount,
+  findInstantBookService,
   type ServiceMenuItem,
 } from "./services-menu-types";
 import { servicePricingTypeToOfferUnit, isServiceOfferPriceable } from "./services-menu-offer";
@@ -100,6 +101,24 @@ test("normalize: empty childServiceIds → null; invalid visibility → public",
   const out = normalizeServicesMenu([{ name: "X", amountCents: 1, childServiceIds: [], visibility: "nope" }]);
   assert.equal(out[0].childServiceIds, null);
   assert.equal(out[0].visibility, "public");
+});
+
+test("findInstantBookService: returns the single priced active instant-book service, else null (S16)", () => {
+  assert.equal(findInstantBookService([]), null);
+  // a flagged but custom (unpriced) service does not qualify
+  assert.equal(
+    findInstantBookService(normalizeServicesMenu([{ name: "Q", pricingType: "custom", isInstantBook: true }])),
+    null,
+  );
+  // normalize keeps the first ACTIVE instant-book; findInstantBookService returns it
+  const items = normalizeServicesMenu([
+    { name: "A", amountCents: 5000, isInstantBook: true, isActive: false },
+    { name: "B", amountCents: 20000, isInstantBook: true },
+    { name: "C", amountCents: 30000, isInstantBook: true },
+  ]);
+  const ib = findInstantBookService(items);
+  assert.equal(ib?.name, "B");
+  assert.equal(ib?.amountCents, 20000);
 });
 
 test("offer mapper: pricingType maps 1:1 to a valid offer unit; custom not priceable", () => {

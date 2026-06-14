@@ -84,6 +84,7 @@ import { TalentProfileInquireButton } from "./talent-profile-inquire-button";
 import { TalentProfileInstantBookButton } from "./talent-profile-instant-book-button";
 import { loadInstantBookEligibility } from "@/lib/inquiry/instant-book-engine";
 import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
+import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
 import { TalentProfileChatLauncherMount } from "./_chat/TalentProfileChatLauncherMount";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { PlatformTalentMaxSiteView } from "@/components/talent/site/PlatformTalentMaxSiteView";
@@ -154,6 +155,9 @@ type TalentProfile = {
   booking_note?: string | null;
   service_category_slug?: string | null;
   package_teasers?: unknown | null;
+  /** S12 — talent-configured services menu (ServiceMenuItem[]); dual-written
+   *  to catalog commerce.servicesMenu. Column read here for the public render. */
+  services_menu?: unknown | null;
   social_links?: unknown | null;
   embedded_media?: unknown | null;
 };
@@ -287,6 +291,7 @@ async function fetchTalentProfile(profileCode: string, preview: boolean) {
             booking_note,
             service_category_slug,
             package_teasers,
+            services_menu,
             social_links,
             embedded_media
           `,
@@ -348,6 +353,7 @@ async function fetchTalentProfile(profileCode: string, preview: boolean) {
       booking_note,
       service_category_slug,
       package_teasers,
+      services_menu,
       social_links,
       embedded_media
     `,
@@ -1530,6 +1536,14 @@ export default async function PublicTalentProfilePage({
         )
       : { eligible: false, fixedRateCents: null, fixedRateDollars: null, currencyCode: "USD" };
 
+  // S12 — talent-configured services menu. Read from the column (always
+  // dual-written alongside catalog commerce.servicesMenu) so the public render
+  // needs no extra RLS path. Public surface shows active, non-agency_only items.
+  const serviceMenuItems = normalizeServicesMenu(
+    profile.services_menu,
+    instantBook.currencyCode || "USD",
+  ).filter((it) => it.isActive && it.visibility !== "agency_only");
+
   // Enrich similar talent with pre-built hrefs for LightProfileLayout
   const similarTalent = similarTalentRaw.map((st) => ({
     ...st,
@@ -1920,6 +1934,7 @@ export default async function PublicTalentProfilePage({
         serviceAreas={structuredServiceAreas}
         startingFrom={profile.starting_from ?? null}
         bookingNote={profile.booking_note ?? null}
+        serviceMenuItems={serviceMenuItems}
         fitLabels={fitLabels}
         skills={skills}
         industries={industries}
