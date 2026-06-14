@@ -336,17 +336,61 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
         )}
         {isAdmin && !txn && state?.bookingId && (
           <div className="mt-2.5">
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => run("Create transaction draft", () => createInquiryTransactionDraft(effectiveTenant.slug, inquiry.id))}
-              style={primaryBtn(COLORS.accent)}
-            >
-              {pending ? "Creating…" : "Create transaction draft"}
-            </button>
-            <div style={{ fontSize: 11, marginTop: 4 }} className="text-admin-ink-muted">
-              Drafts the booking transaction with platform fee from the workspace plan.
-            </div>
+            {state.depositPaid ? (
+              // 6.3: deposit already collected — only the balance remains.
+              <>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => run("Request balance", () => createInquiryTransactionDraft(effectiveTenant.slug, inquiry.id, "balance"))}
+                  style={primaryBtn(COLORS.accent)}
+                >
+                  {pending ? "Creating…" : "Request balance"}
+                </button>
+                <div className="text-[11px] mt-1 text-admin-ink-muted">
+                  Deposit collected — charge the remaining balance. The talent/agency payout fans out when the balance settles.
+                </div>
+              </>
+            ) : state.depositAmountCents > 0 ? (
+              // 6.3: a deposit is configured — offer deposit-first OR full payment.
+              <>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => run("Request deposit", () => createInquiryTransactionDraft(effectiveTenant.slug, inquiry.id, "deposit"))}
+                    style={primaryBtn(COLORS.accent)}
+                  >
+                    {pending ? "Creating…" : `Request deposit (${(state.depositAmountCents / 100).toFixed(2)} ${state.currency ?? "USD"})`}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => run("Create transaction draft", () => createInquiryTransactionDraft(effectiveTenant.slug, inquiry.id, "full"))}
+                    style={ghostBtn()}
+                  >
+                    Request full payment
+                  </button>
+                </div>
+                <div className="text-[11px] mt-1 text-admin-ink-muted">
+                  A deposit holds the booking; the talent/agency payout fans out only when the balance (or full) charge settles.
+                </div>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => run("Create transaction draft", () => createInquiryTransactionDraft(effectiveTenant.slug, inquiry.id, "full"))}
+                  style={primaryBtn(COLORS.accent)}
+                >
+                  {pending ? "Creating…" : "Create transaction draft"}
+                </button>
+                <div style={{ fontSize: 11, marginTop: 4 }} className="text-admin-ink-muted">
+                  Drafts the booking transaction with platform fee from the workspace plan.
+                </div>
+              </>
+            )}
           </div>
         )}
       </DetailSection>

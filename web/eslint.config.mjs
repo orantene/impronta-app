@@ -411,6 +411,9 @@ const eslintConfig = defineConfig([
     // to the suppressions baseline. Regenerate via the command documented
     // in the file's header. See web/src/lib/supabase/database.types.ts.
     "src/lib/supabase/database.types.ts",
+    // Local-only QA driver scripts (gitignored; never shipped). They use
+    // console + relaxed types by design for ad-hoc money-rail drives.
+    "scripts/_sandbox/**",
   ]),
 ]);
 

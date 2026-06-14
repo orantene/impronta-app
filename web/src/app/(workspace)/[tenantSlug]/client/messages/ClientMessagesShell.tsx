@@ -22,6 +22,7 @@ import {
   OfferCard,
   PaymentRequestCard,
   BookingConfirmedCard,
+  BalanceDueCard,
   CallSheetUpdateCard,
   SystemEventCard,
 } from "@/components/chat-cards/ChatCard";
@@ -3306,6 +3307,20 @@ function renderClientChatCard(
           summary={get<string>("summary", "Payment received — your booking is confirmed.")}
         />
       );
+    case "balance_due": {
+      // 6.3: the deposit settled; the client owes the remaining balance. Pay
+      // balance reuses the same checkout flow — the admin creates the balance
+      // txn (checkout_type='balance'), which becomes the active charge onPayNow
+      // settles.
+      const depositLabel = get<string>("deposit_label", "—");
+      return (
+        <BalanceDueCard
+          depositLabel={depositLabel}
+          hint={get<string>("hint", "")}
+          onPayBalance={ctx.onPayNow ? () => ctx.onPayNow!(depositLabel) : undefined}
+        />
+      );
+    }
     case "call_sheet_update":
       return (
         <CallSheetUpdateCard

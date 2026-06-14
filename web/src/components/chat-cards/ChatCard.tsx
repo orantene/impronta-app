@@ -291,6 +291,38 @@ export function BookingConfirmedCard(props: {
   );
 }
 
+/**
+ * BalanceDueCard — emitted when a DEPOSIT settles (6.3). The booking is held
+ * (deposit_paid) and the remaining balance is still owed. Role-safe: shows the
+ * deposit label + remaining-balance hint, never margin/commission. The client
+ * surface adds a "Pay balance" action; talent/admin see the read-only state.
+ */
+export function BalanceDueCard(props: {
+  depositLabel?: string;
+  hint?: string;
+  onPayBalance?: () => void;
+}) {
+  const { depositLabel, hint, onPayBalance } = props;
+  const actions: ChatCardShellProps["actions"] = [];
+  if (onPayBalance) actions.push({ label: "Pay balance", onClick: onPayBalance, tone: "primary" });
+  return (
+    <ChatCardShell
+      tone="info"
+      kind="Deposit"
+      title="Deposit received — balance due"
+      summary={hint ?? "The deposit is paid and your spot is held. The remaining balance is due before the date."}
+      meta={depositLabel || undefined}
+      actions={actions}
+      icon={
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.3" />
+          <path d="M7 3.6V7l2.2 1.3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      }
+    />
+  );
+}
+
 export function CoordinatorRequestCard(props: {
   requesterName: string;
   pitch?: string | null;
