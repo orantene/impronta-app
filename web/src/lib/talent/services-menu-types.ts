@@ -112,6 +112,9 @@ export type ServiceMenuItem = {
   sortOrder: number;
   /** At most one service per talent may be the designated instant-book service. */
   isInstantBook: boolean;
+  /** Bundle/package contents (S10): ids of other menu services included in this
+   *  one. Only meaningful for a flat_package service; null/[] otherwise. */
+  childServiceIds: string[] | null;
 };
 
 const MAX_NAME = 120;
@@ -169,6 +172,10 @@ function normalizeItem(raw: unknown, index: number, currencyFallback: string): S
     ? (o.taxonomyTermIds.filter((x) => typeof x === "string" && x.length > 0) as string[])
     : null;
 
+  const childIds = Array.isArray(o.childServiceIds)
+    ? (o.childServiceIds.filter((x) => typeof x === "string" && x.length > 0) as string[])
+    : null;
+
   const addOns = Array.isArray(o.addOns)
     ? (o.addOns.map((a, i) => normalizeSub(a, index * 1000 + i)).filter(Boolean) as ServiceAddOn[]).slice(0, MAX_SUB)
     : [];
@@ -200,6 +207,7 @@ function normalizeItem(raw: unknown, index: number, currencyFallback: string): S
     visibility: isVisibility(o.visibility) ? o.visibility : "public",
     sortOrder: typeof o.sortOrder === "number" && Number.isFinite(o.sortOrder) ? o.sortOrder : index,
     isInstantBook: o.isInstantBook === true,
+    childServiceIds: childIds && childIds.length > 0 ? childIds : null,
   };
 }
 

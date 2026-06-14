@@ -24,10 +24,20 @@ import {
   SERVICE_PRICING_TYPES,
   SERVICE_PRICING_LABELS,
   SERVICE_PRICING_SUFFIX,
+  SERVICE_VISIBILITIES,
   pricingTypeRequiresAmount,
   type ServiceMenuItem,
   type ServicePricingType,
+  type ServiceVisibility,
+  type ServiceAddOn,
+  type ServiceTier,
 } from "@/lib/talent/services-menu-types";
+
+const VISIBILITY_LABELS: Record<ServiceVisibility, string> = {
+  public: "Public — shown on your page",
+  agency_only: "Agency only — staff see it, clients don't",
+  on_request: "On request — name shown, price hidden",
+};
 import { DEFAULT_CURRENCY_OPTIONS, CURRENCY_LABELS } from "@/lib/billing/currencies";
 
 const C = {
@@ -84,6 +94,7 @@ function blankService(defaultCurrency: string, sortOrder: number): ServiceMenuIt
     visibility: "public",
     sortOrder,
     isInstantBook: false,
+    childServiceIds: null,
   };
 }
 
@@ -276,6 +287,90 @@ export function TalentServicesMenuCard({ talentId }: { talentId: string }) {
                       ? "Quote on request"
                       : `${fmtMoney(it.amountCents, it.currency)} ${SERVICE_PRICING_SUFFIX[it.pricingType]}`.trim()}
                   </span>
+                </div>
+
+                {/* Richness (Phase C): visibility S7 · add-ons S8 · tiers S9 · bundle S10 */}
+                <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px dashed ${C.borderSoft}`, display: "flex", flexDirection: "column", gap: 12 }}>
+                  {/* S7 — visibility */}
+                  <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <span style={labelStyle}>Visibility</span>
+                    <select
+                      value={it.visibility}
+                      disabled={saving}
+                      onChange={(e) => patchItem(it.id, { visibility: e.target.value as ServiceVisibility })}
+                      style={{ ...inputStyle, width: "100%", cursor: saving ? "wait" : "pointer" }}
+                    >
+                      {SERVICE_VISIBILITIES.map((v) => (
+                        <option key={v} value={v}>{VISIBILITY_LABELS[v]}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  {/* S8 — add-ons */}
+                  <div>
+                    <span style={labelStyle}>Add-ons (optional extras)</span>
+                    {it.addOns.map((a) => (
+                      <div key={a.id} style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                        <input
+                          type="text" placeholder="e.g. Overtime, Travel" defaultValue={a.label} disabled={saving}
+                          onBlur={(e) => patchItem(it.id, { addOns: it.addOns.map((x) => x.id === a.id ? { ...x, label: e.target.value.trim() } : x) })}
+                          style={{ ...inputStyle, flex: 1 }}
+                        />
+                        <input
+                          key={`ao-${a.id}-${a.amountCents ?? "x"}`} type="number" min={0} step="0.01" placeholder="0"
+                          defaultValue={a.amountCents == null ? "" : (a.amountCents / 100).toString()} disabled={saving}
+                          onBlur={(e) => { const c = inputToCents(e.target.value); patchItem(it.id, { addOns: it.addOns.map((x) => x.id === a.id ? { ...x, amountCents: c } : x) }); }}
+                          style={{ ...inputStyle, width: 92 }}
+                        />
+                        <button type="button" aria-label="Remove add-on" disabled={saving} onClick={() => patchItem(it.id, { addOns: it.addOns.filter((x) => x.id !== a.id) })} style={{ ...inputStyle, padding: "6px 9px", cursor: "pointer", color: C.error, borderColor: C.errorSoft }}>✕</button>
+                      </div>
+                    ))}
+                    <button type="button" disabled={saving} onClick={() => patchItem(it.id, { addOns: [...it.addOns, { id: clientId(), label: "", pricingType: "flat_package" as ServicePricingType, amountCents: null } as ServiceAddOn] })} style={{ marginTop: 6, padding: "5px 10px", borderRadius: 7, border: `1px solid ${C.border}`, background: "#fff", color: C.inkMuted, fontSize: 11.5, cursor: saving ? "wait" : "pointer", fontFamily: FONT }}>+ Add-on</button>
+                  </div>
+
+                  {/* S9 — tiers */}
+                  <div>
+                    <span style={labelStyle}>Tiers (e.g. 2h / 4h / full-day)</span>
+                    {it.tiers.map((t) => (
+                      <div key={t.id} style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                        <input
+                          type="text" placeholder="Tier label" defaultValue={t.label} disabled={saving}
+                          onBlur={(e) => patchItem(it.id, { tiers: it.tiers.map((x) => x.id === t.id ? { ...x, label: e.target.value.trim() } : x) })}
+                          style={{ ...inputStyle, flex: 1 }}
+                        />
+                        <input
+                          key={`tr-${t.id}-${t.amountCents ?? "x"}`} type="number" min={0} step="0.01" placeholder="0"
+                          defaultValue={t.amountCents == null ? "" : (t.amountCents / 100).toString()} disabled={saving}
+                          onBlur={(e) => { const c = inputToCents(e.target.value); patchItem(it.id, { tiers: it.tiers.map((x) => x.id === t.id ? { ...x, amountCents: c } : x) }); }}
+                          style={{ ...inputStyle, width: 92 }}
+                        />
+                        <button type="button" aria-label="Remove tier" disabled={saving} onClick={() => patchItem(it.id, { tiers: it.tiers.filter((x) => x.id !== t.id) })} style={{ ...inputStyle, padding: "6px 9px", cursor: "pointer", color: C.error, borderColor: C.errorSoft }}>✕</button>
+                      </div>
+                    ))}
+                    <button type="button" disabled={saving} onClick={() => patchItem(it.id, { tiers: [...it.tiers, { id: clientId(), label: "", amountCents: null } as ServiceTier] })} style={{ marginTop: 6, padding: "5px 10px", borderRadius: 7, border: `1px solid ${C.border}`, background: "#fff", color: C.inkMuted, fontSize: 11.5, cursor: saving ? "wait" : "pointer", fontFamily: FONT }}>+ Tier</button>
+                  </div>
+
+                  {/* S10 — bundle: pick included services (flat_package only) */}
+                  {it.pricingType === "flat_package" && items.length > 1 && (
+                    <div>
+                      <span style={labelStyle}>Included in this package</span>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 6 }}>
+                        {items.filter((o) => o.id !== it.id).map((o) => {
+                          const checked = (it.childServiceIds ?? []).includes(o.id);
+                          return (
+                            <label key={o.id} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, color: C.inkMuted }}>
+                              <input
+                                type="checkbox" checked={checked} disabled={saving}
+                                onChange={(e) => { const cur = it.childServiceIds ?? []; const next = e.target.checked ? [...cur, o.id] : cur.filter((x) => x !== o.id); patchItem(it.id, { childServiceIds: next.length ? next : null }); }}
+                                style={{ accentColor: C.accentDeep }}
+                              />
+                              {o.name || "(unnamed)"}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             );
