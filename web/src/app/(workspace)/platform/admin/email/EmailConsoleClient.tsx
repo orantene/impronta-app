@@ -505,8 +505,11 @@ function Detail({ k, v, red }: { k: string; v: string | null; red?: boolean }) {
 }
 
 // ─── Template editor (P3b) ───────────────────────────────────────────────────
+const TEMPLATE_LOCALES = ["en", "es"] as const;
+
 function TemplateEditor({ entries, onChanged }: { entries: TemplateOverrideState[]; onChanged: () => void }) {
   const [openId, setOpenId] = useState<string | null>(null);
+  const [locale, setLocale] = useState<string>("en");
   const [draft, setDraft] = useState<{ subject: string; body: string; enabled: boolean }>({
     subject: "",
     body: "",
@@ -514,18 +517,28 @@ function TemplateEditor({ entries, onChanged }: { entries: TemplateOverrideState
   });
   const [busy, setBusy] = useState(false);
 
+  function loadDraft(e: TemplateOverrideState, loc: string) {
+    const o = e.byLocale[loc];
+    setDraft({ subject: o?.subject ?? "", body: o?.body ?? "", enabled: o?.hasOverride ? o.enabled : true });
+  }
   function open(e: TemplateOverrideState) {
     if (openId === e.id) {
       setOpenId(null);
       return;
     }
     setOpenId(e.id);
-    setDraft({ subject: e.subject, body: e.body, enabled: e.hasOverride ? e.enabled : true });
+    setLocale("en");
+    loadDraft(e, "en");
+  }
+  function switchLocale(e: TemplateOverrideState, loc: string) {
+    setLocale(loc);
+    loadDraft(e, loc);
   }
   async function save(e: TemplateOverrideState) {
     setBusy(true);
     await setTemplateOverride({
       catalogEntryId: e.id,
+      locale,
       subject: draft.subject,
       body: draft.body,
       enabled: draft.enabled,
@@ -536,7 +549,7 @@ function TemplateEditor({ entries, onChanged }: { entries: TemplateOverrideState
   }
   async function reset(e: TemplateOverrideState) {
     setBusy(true);
-    await clearTemplateOverride({ catalogEntryId: e.id });
+    await clearTemplateOverride({ catalogEntryId: e.id, locale });
     setBusy(false);
     setOpenId(null);
     onChanged();
@@ -546,60 +559,68 @@ function TemplateEditor({ entries, onChanged }: { entries: TemplateOverrideState
     <div style={{ marginBottom: 24 }}>
       <div style={{ fontSize: 16, fontWeight: 600, fontFamily: FONT_DISPLAY, marginBottom: 6 }}>Templates</div>
       <p style={{ color: HQ.inkMuted, fontSize: 13, margin: "0 0 14px" }}>
-        Override an email&apos;s subject + body without a deploy. Blank fields keep the code
-        default. Placeholders: <code style={{ fontFamily: MONO }}>{"{{name}}"}</code>,{" "}
-        <code style={{ fontFamily: MONO }}>{"{{brand}}"}</code>. A custom body replaces the code
-        body (rendered in the branded layout); a bad override always falls back to the code template.
+        Override an email&apos;s subject + body per locale, without a deploy. Blank fields keep the
+        code default. Placeholders: <code style={{ fontFamily: MONO }}>{"{{name}}"}</code>,{" "}
+        <code style={{ fontFamily: MONO }}>{"{{brand}}"}</code>. The tenant&apos;s default_locale
+        picks which override renders (en fallback); a bad override always falls back to the code template.
       </p>
       <div style={{ border: `1px solid ${HQ.borderSoft}`, borderRadius: 8, overflow: "hidden" }}>
-        {entries.map((e) => (
-          <div key={e.id} style={{ borderBottom: `1px solid ${HQ.borderSoft}` }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "8px 12px" }}>
-              <span style={{ fontFamily: MONO, fontSize: 12 }}>{e.id}</span>
-              <span style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                {e.hasOverride && e.enabled && (
-                  <span style={{ fontSize: 11, fontWeight: 700, color: HQ.green }}>OVERRIDDEN</span>
-                )}
-                {e.hasOverride && !e.enabled && (
-                  <span style={{ fontSize: 11, color: HQ.inkDim }}>draft (off)</span>
-                )}
-                <button style={{ ...btn("transparent", HQ.blue), padding: "4px 10px", fontSize: 12 }} onClick={() => open(e)}>
-                  {openId === e.id ? "Close" : "Edit"}
-                </button>
-              </span>
-            </div>
-            {openId === e.id && (
-              <div style={{ padding: 12, background: HQ.card, display: "grid", gap: 10 }}>
-                <div>
-                  <label style={label}>Subject (blank = code default)</label>
-                  <input style={input} value={draft.subject} onChange={(ev) => setDraft({ ...draft, subject: ev.target.value })} placeholder="custom subject…" />
-                </div>
-                <div>
-                  <label style={label}>Body (blank = code body)</label>
-                  <textarea
-                    style={{ ...input, minHeight: 120, fontFamily: MONO, lineHeight: 1.5, resize: "vertical" }}
-                    value={draft.body}
-                    onChange={(ev) => setDraft({ ...draft, body: ev.target.value })}
-                    placeholder={"Hi {{name}},\n\nYour message…"}
-                  />
-                </div>
-                <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: HQ.inkMuted }}>
-                  <input type="checkbox" checked={draft.enabled} onChange={(ev) => setDraft({ ...draft, enabled: ev.target.checked })} /> Override active
-                </label>
-                <div style={{ display: "flex", gap: 10 }}>
-                  <button style={{ ...btn(HQ.green, "#06281C"), opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={() => save(e)}>Save</button>
-                  {e.hasOverride && (
-                    <button style={{ ...btn("transparent", HQ.red), border: `1px solid rgba(243,103,114,0.3)`, opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={() => reset(e)}>
-                      Reset to code default
-                    </button>
-                  )}
-                </div>
+        {entries.map((e) => {
+          const activeLocales = TEMPLATE_LOCALES.filter((l) => e.byLocale[l]?.hasOverride && e.byLocale[l]?.enabled);
+          return (
+            <div key={e.id} style={{ borderBottom: `1px solid ${HQ.borderSoft}` }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "8px 12px" }}>
+                <span style={{ fontFamily: MONO, fontSize: 12 }}>{e.id}</span>
+                <span style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                  {activeLocales.map((l) => (
+                    <span key={l} style={{ fontSize: 11, fontWeight: 700, color: HQ.green, textTransform: "uppercase" }}>{l}</span>
+                  ))}
+                  <button style={{ ...btn("transparent", HQ.blue), padding: "4px 10px", fontSize: 12 }} onClick={() => open(e)}>
+                    {openId === e.id ? "Close" : "Edit"}
+                  </button>
+                </span>
               </div>
-            )}
-          </div>
-        ))}
+              {openId === e.id && (
+                <div style={{ padding: 12, background: HQ.card, display: "grid", gap: 10 }}>
+                  <div>
+                    <label style={label}>Locale</label>
+                    <select style={{ ...input, width: 120 }} value={locale} onChange={(ev) => switchLocale(e, ev.target.value)}>
+                      {TEMPLATE_LOCALES.map((l) => (
+                        <option key={l} value={l}>{l}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={label}>Subject (blank = code default)</label>
+                    <input style={input} value={draft.subject} onChange={(ev) => setDraft({ ...draft, subject: ev.target.value })} placeholder="custom subject…" />
+                  </div>
+                  <div>
+                    <label style={label}>Body (blank = code body)</label>
+                    <textarea
+                      style={{ ...input, minHeight: 120, fontFamily: MONO, lineHeight: 1.5, resize: "vertical" }}
+                      value={draft.body}
+                      onChange={(ev) => setDraft({ ...draft, body: ev.target.value })}
+                      placeholder={"Hi {{name}},\n\nYour message…"}
+                    />
+                  </div>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: HQ.inkMuted }}>
+                    <input type="checkbox" checked={draft.enabled} onChange={(ev) => setDraft({ ...draft, enabled: ev.target.checked })} /> Override active
+                  </label>
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <button style={{ ...btn(HQ.green, "#06281C"), opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={() => save(e)}>Save</button>
+                    {e.byLocale[locale]?.hasOverride && (
+                      <button style={{ ...btn("transparent", HQ.red), border: `1px solid rgba(243,103,114,0.3)`, opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={() => reset(e)}>
+                        Reset {locale} to code default
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
-      <div style={{ marginTop: 10, color: HQ.inkMuted, fontSize: 12 }}>{entries.length} email templates.</div>
+      <div style={{ marginTop: 10, color: HQ.inkMuted, fontSize: 12 }}>{entries.length} email templates · {TEMPLATE_LOCALES.join(" / ")}.</div>
     </div>
   );
 }

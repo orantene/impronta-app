@@ -22,6 +22,10 @@ export type EmailBrand = {
   accountName: string;
   footerDomain: string;
   homeHref: string;
+  /** BCP-47 short code (e.g. "en", "es") — drives <Html lang> + the per-locale
+   *  template-override lookup. Sourced from the tenant's default_locale; the
+   *  resolvers always populate it, callers default to "en" when absent. */
+  locale?: string;
 };
 
 function siteUrl(): string {
@@ -36,7 +40,14 @@ export function platformBrand(): EmailBrand {
     accountName: PLATFORM_BRAND.name,
     footerDomain: PLATFORM_BRAND.domain,
     homeHref: siteUrl(),
+    locale: "en",
   };
+}
+
+/** Normalize a stored locale to a short BCP-47 code; default "en". */
+function normalizeLocale(v: unknown): string {
+  const s = typeof v === "string" ? v.trim().toLowerCase().split(/[-_]/)[0] : "";
+  return s || "en";
 }
 
 const TTL_MS = 60_000;
@@ -53,7 +64,7 @@ export async function resolveTenantBrand(tenantId: string | null): Promise<Email
 
   let brand = platformBrand();
   try {
-    const [agencyRes, domainRes] = await Promise.all([
+    const [agencyRes, domainRes, identityRes] = await Promise.all([
       admin.from("agencies").select("display_name, slug").eq("id", tenantId).maybeSingle(),
       admin
         .from("agency_domains")
@@ -61,10 +72,18 @@ export async function resolveTenantBrand(tenantId: string | null): Promise<Email
         .eq("tenant_id", tenantId)
         .eq("is_primary", true)
         .maybeSingle(),
+      admin
+        .from("agency_business_identity")
+        .select("default_locale")
+        .eq("tenant_id", tenantId)
+        .maybeSingle(),
     ]);
 
     const agency = agencyRes.data as { display_name?: string | null; slug?: string | null } | null;
     const primaryHost = (domainRes.data as { hostname?: string | null } | null)?.hostname ?? null;
+    const locale = normalizeLocale(
+      (identityRes.data as { default_locale?: string | null } | null)?.default_locale,
+    );
 
     if (agency?.display_name) {
       brand = {
@@ -72,7 +91,10 @@ export async function resolveTenantBrand(tenantId: string | null): Promise<Email
         accountName: agency.display_name,
         footerDomain: primaryHost ?? PLATFORM_BRAND.domain,
         homeHref: primaryHost ? `https://${primaryHost}` : siteUrl(),
+        locale,
       };
+    } else {
+      brand = { ...brand, locale };
     }
   } catch (err) {
     logServerError(
