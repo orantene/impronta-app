@@ -11,6 +11,7 @@ import ClientPaymentRefunded from "../../../emails/client/PaymentRefunded";
 import BillingPlanUpgraded from "../../../emails/billing/PlanUpgraded";
 import BillingSubscriptionCanceled from "../../../emails/billing/SubscriptionCanceled";
 import BillingTrialWillEnd from "../../../emails/billing/TrialWillEnd";
+import BillingTrialStarted from "../../../emails/billing/TrialStarted";
 import type { CatalogEntry } from "./types";
 import {
   invitedTalent,
@@ -507,6 +508,68 @@ const TALENT_TRIAL_WILL_END: CatalogEntry = {
   },
 };
 
+/** workspace.trial_started → the agency owner (email + in_app). */
+const WORKSPACE_TRIAL_STARTED: CatalogEntry = {
+  id: "workspace.trial_started",
+  category: "billing",
+  defaultChannels: ["email", "in_app"],
+  required: true,
+  triggers: ["workspace.trial_started"],
+  resolveAudience: workspaceOwner,
+  in_app: {
+    kind: "system",
+    surface: "workspace",
+    title: () => "Your trial is active",
+    body: (event) => {
+      const ends = formatDateLabel(str(event.payload.trialEndIso));
+      return ends ? `Your trial is active until ${ends}.` : "Your trial is active.";
+    },
+  },
+  email: {
+    templateId: "billing.trial_started.workspace",
+    subject: () => "Your trial is active",
+    render: ({ event, recipient, brand }) =>
+      React.createElement(BillingTrialStarted, {
+        recipientName: recipient.displayName,
+        planLabel: planLabel(str(event.payload.planKey)),
+        trialEndsAt: formatDateLabel(str(event.payload.trialEndIso)) ?? null,
+        billingUrl: pageUrl(brand, "/admin/account"),
+        brand,
+      }),
+  },
+};
+
+/** talent.trial_started → the talent (email + in_app); platform-scoped (Tulala). */
+const TALENT_TRIAL_STARTED: CatalogEntry = {
+  id: "talent.trial_started",
+  category: "billing",
+  defaultChannels: ["email", "in_app"],
+  required: true,
+  triggers: ["talent.trial_started"],
+  resolveAudience: invitedTalent, // talentProfileId (payload) → talent_profiles.user_id
+  in_app: {
+    kind: "system",
+    surface: "talent",
+    title: () => "Your trial is active",
+    body: (event) => {
+      const ends = formatDateLabel(str(event.payload.trialEndIso));
+      return ends ? `Your trial is active until ${ends}.` : "Your trial is active.";
+    },
+  },
+  email: {
+    templateId: "billing.trial_started.talent",
+    subject: () => "Your trial is active",
+    render: ({ event, recipient, brand }) =>
+      React.createElement(BillingTrialStarted, {
+        recipientName: recipient.displayName,
+        planLabel: planLabel(str(event.payload.planKey)),
+        trialEndsAt: formatDateLabel(str(event.payload.trialEndIso)) ?? null,
+        billingUrl: pageUrl(brand, "/talent/settings"),
+        brand,
+      }),
+  },
+};
+
 /** The Stripe payment + billing entries, in catalog order. */
 export const BILLING_CATALOG_ENTRIES: CatalogEntry[] = [
   PAYMENT_RECEIVED_CLIENT,
@@ -522,4 +585,6 @@ export const BILLING_CATALOG_ENTRIES: CatalogEntry[] = [
   WORKSPACE_SUBSCRIPTION_CANCELLED,
   WORKSPACE_TRIAL_WILL_END,
   TALENT_TRIAL_WILL_END,
+  WORKSPACE_TRIAL_STARTED,
+  TALENT_TRIAL_STARTED,
 ];

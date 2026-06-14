@@ -43,3 +43,32 @@ export async function notifyTrialWillEnd(params: {
     logServerError("notifyTrialWillEnd", err);
   }
 }
+
+/**
+ * `*.trial_started` — confirm a trial just began. Emitted (fire-and-forget,
+ * matching the sibling plan-change notice) from the subscription sync on the
+ * transition INTO `trialing`. Dedupes per subscription so re-syncs don't
+ * re-notify.
+ */
+export function notifyTrialStarted(params: {
+  scope: "workspace" | "talent";
+  tenantId: string | null;
+  talentProfileId: string | null;
+  subscriptionId: string;
+  planKey: string | null;
+  trialEndIso: string | null;
+}): void {
+  const type = params.scope === "talent" ? "talent.trial_started" : "workspace.trial_started";
+  void dispatchEventNotifications({
+    type,
+    tenantId: params.tenantId,
+    eventId: `trial-started:${params.subscriptionId}`,
+    payload: {
+      talentProfileId: params.talentProfileId,
+      planKey: params.planKey,
+      trialEndIso: params.trialEndIso,
+    },
+  }).catch((err) => {
+    logServerError("notifyTrialStarted", err);
+  });
+}

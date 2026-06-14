@@ -17,6 +17,7 @@ import { getTalentPriceId, type TalentPlanKey } from "@/lib/stripe/price-ids";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { mapStripeStatus } from "@/lib/stripe/utils";
+import { notifyTrialStarted } from "@/lib/notifications/producers/trial-notify";
 import type Stripe from "stripe";
 import type { BillingResult } from "@/lib/stripe/workspace-billing";
 
@@ -330,6 +331,19 @@ export async function syncTalentSubscriptionToDb(
     if (subError) {
       logServerError("talent-billing.syncSubscription.upsert", subError);
       return { ok: false, error: "Failed to update talent subscription record." };
+    }
+
+    // Trial start: confirm the trial began on the transition INTO trialing
+    // (platform-scoped — talent Pro/Max is a Tulala subscription, tenantId null).
+    if (status === "trialing" && existingStatus !== "trialing") {
+      notifyTrialStarted({
+        scope: "talent",
+        tenantId: null,
+        talentProfileId,
+        subscriptionId: subscription.id,
+        planKey: newPlanKey,
+        trialEndIso: trialEnd,
+      });
     }
 
     // Sync talent_profiles.talent_plan_key
