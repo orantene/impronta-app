@@ -108,6 +108,11 @@ export async function proxy(request: NextRequest) {
     // host-gating bypass; otherwise this path rewrites to the unregistered-host
     // page and the webhook silently 404s.
     pathname.startsWith("/api/webhooks/") ||
+    // Supabase auth "Send Email" hook → /api/hooks/auth-email. Supabase POSTs
+    // server-to-server with whatever Host it resolves; the route has its own
+    // Standard-Webhooks signature auth, so it must bypass tenant host-gating
+    // (otherwise it rewrites to the not-found page and auth mail silently fails).
+    pathname.startsWith("/api/hooks/") ||
     pathname.startsWith("/api/cron/") ||
     pathname === "/api/analytics/events" ||
     // Branded 404 page for unregistered hosts — must bypass host gating to
