@@ -26,6 +26,8 @@ import {
   CallSheetUpdateCard,
   SystemEventCard,
 } from "@/components/chat-cards/ChatCard";
+import { LineupAddTalentPicker } from "./LineupAddTalentPicker";
+import { isMutablePhase } from "@/lib/inquiry/inquiry-lifecycle";
 import { addReaction, removeReaction } from "@/lib/server-actions/message-reactions";
 import { StarButton } from "@/components/chat-interactions/StarButton";
 import { PinButton } from "@/components/chat-interactions/PinButton";
@@ -506,6 +508,7 @@ export function ClientMessagesShell({
               onTabChange={setActiveTab}
               tenantSlug={tenantSlug}
               client={client}
+              roster={roster}
               viewerUserId={viewerUserId}
               onBack={() => setMobilePane("list")}
               onAfterOfferAction={() => router.refresh()}
@@ -816,6 +819,7 @@ function ThreadPaneWithTabs({
   onTabChange,
   tenantSlug,
   client,
+  roster,
   viewerUserId,
   onBack,
   onAfterOfferAction,
@@ -830,6 +834,7 @@ function ThreadPaneWithTabs({
   onTabChange: (tab: ThreadTab) => void;
   tenantSlug: string;
   client: { displayName: string };
+  roster: TalentOption[];
   viewerUserId: string | null;
   onBack: () => void;
   onAfterOfferAction?: () => void;
@@ -1108,7 +1113,14 @@ function ThreadPaneWithTabs({
           <DetailsTab details={loadingDetails ? null : details} tenantSlug={tenantSlug} />
         )}
         {activeTab === "lineup" && (
-          <LineupTab details={loadingDetails ? null : details} />
+          <LineupTab
+            details={loadingDetails ? null : details}
+            tenantSlug={tenantSlug}
+            inquiryId={inq.id}
+            inquiryStatus={inq.status}
+            roster={roster}
+            onAdded={() => router.refresh()}
+          />
         )}
         {activeTab === "offer" && (
           <OfferTab
@@ -2518,12 +2530,35 @@ function PitchOriginBlock({
 
 // ─── Lineup tab ──────────────────────────────────────────────────────────
 
-function LineupTab({ details }: { details: ClientInquiryDetails | null }) {
+function LineupTab({
+  details,
+  tenantSlug,
+  inquiryId,
+  inquiryStatus,
+  roster,
+  onAdded,
+}: {
+  details: ClientInquiryDetails | null;
+  tenantSlug?: string;
+  inquiryId?: string;
+  inquiryStatus?: string;
+  roster?: TalentOption[];
+  onAdded?: () => void;
+}) {
   if (!details) {
     return <div style={{ padding: 24, color: C.inkMuted, fontFamily: FONT, fontSize: 13 }}>Loading lineup…</div>;
   }
   const list = details.talent.selected;
   const mode = details.talent.selection_mode;
+  // 2.10: a client can propose adding a roster talent while the inquiry is still
+  // mutable (pre-booking, not frozen). is_frozen isn't surfaced on the client
+  // row yet → default false; the server action + engine block frozen writes.
+  const canPropose =
+    !!tenantSlug && !!inquiryId && !!roster && roster.length > 0 &&
+    isMutablePhase(inquiryStatus ?? "", false);
+  const lineupTalentIds = list
+    .map((t) => (t as { talent_profile_id?: string | null }).talent_profile_id)
+    .filter((id): id is string => Boolean(id));
   // D5.4 — rollup label from `lineup_status_summary` SQL fn.
   // D5.5 — cross-tenant context label (null for single-tenant).
   const statusLabel = details.lineup_status_label;
@@ -2657,6 +2692,16 @@ function LineupTab({ details }: { details: ClientInquiryDetails | null }) {
           ))}
         </div>
       )}
+
+      {canPropose ? (
+        <LineupAddTalentPicker
+          tenantSlug={tenantSlug!}
+          inquiryId={inquiryId!}
+          roster={roster!}
+          excludeIds={lineupTalentIds}
+          onAdded={onAdded ?? (() => {})}
+        />
+      ) : null}
     </div>
   );
 }

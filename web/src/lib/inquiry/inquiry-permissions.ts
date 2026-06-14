@@ -144,6 +144,11 @@ export async function validateActorPermission(
     "client_reject_offer",
     "submit_approval",
     "client_cancel",
+    // 2.10: a client may propose adding a roster talent to their own inquiry
+    // (gated above on participant.role==='client' && status==='active'). The
+    // server action layers roster + contact-policy + mutable-phase guards on
+    // top; the engine's addTalentToRoster re-validates here.
+    "add_talent",
   ];
   const talentActions: EngineAction[] = [
     "send_message",
