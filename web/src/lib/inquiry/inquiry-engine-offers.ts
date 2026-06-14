@@ -683,6 +683,9 @@ export type OfferLineDraft = {
   talent_cost: number;
   notes: string | null;
   sort_order: number;
+  /** S18 — the services-menu ServiceMenuItem.id this line was prefilled from
+   *  (audit stamp); null/omitted = hand-authored. */
+  source_service_id?: string | null;
 };
 
 /**
@@ -786,6 +789,10 @@ export async function updateOfferDraft(
         talent_cost: line.talent_cost,
         notes: line.notes,
         sort_order: line.sort_order,
+        // S18 — audit stamp. Spread-as-object so the column (possibly unknown to
+        // the generated row type until the next regen) rides along without an
+        // excess-property error, while the fields above stay type-checked.
+        ...({ source_service_id: line.source_service_id ?? null } as object),
       });
       if (liErr) return { success: false, error: liErr.message };
     }

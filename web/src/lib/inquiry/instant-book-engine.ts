@@ -261,6 +261,7 @@ export async function createInstantBooking(
           talent_cost: fixedRateDollars,
           notes: null,
           sort_order: 0,
+          source_service_id: menuItem?.id ?? null, // S18 — audit stamp
         },
       ],
     });

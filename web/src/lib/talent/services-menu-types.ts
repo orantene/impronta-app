@@ -249,6 +249,21 @@ export function normalizeServicesMenu(raw: unknown, currencyFallback = "USD"): S
 }
 
 /**
+ * S19 — does a service belong under a given discipline filter? A "general"
+ * service (no discipline scoping) applies to EVERY discipline, so it always
+ * matches; a scoped service matches only when the active discipline is one of
+ * its taxonomyTermIds. `activeId === null` means the "All" filter (matches all).
+ */
+export function serviceMatchesDiscipline(
+  item: Pick<ServiceMenuItem, "taxonomyTermIds">,
+  activeId: string | null,
+): boolean {
+  if (activeId === null) return true;
+  const ids = item.taxonomyTermIds ?? [];
+  return ids.length === 0 || ids.includes(activeId);
+}
+
+/**
  * The single service designated for instant-book (S16), if any. normalize already
  * enforces "at most one isInstantBook", so this is the first active, priced,
  * non-custom instant-book service. Returns null when none qualifies — callers
