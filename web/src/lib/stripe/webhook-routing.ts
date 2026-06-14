@@ -84,7 +84,7 @@ export type StripeAction =
       amount: number;
       currency: string;
     }
-  | { kind: "invoice_payment_succeeded"; customerId: string | null; amountPaid: number; currency: string }
+  | { kind: "invoice_payment_succeeded"; subscriptionId: string | null; customerId: string | null; amountPaid: number; currency: string }
   | { kind: "invalid"; reason: string }
   | { kind: "ignore" };
 
@@ -216,6 +216,9 @@ export function classifyStripeEvent(event: Stripe.Event): StripeAction {
       const invoice = event.data.object as Stripe.Invoice;
       return {
         kind: "invoice_payment_succeeded",
+        // QA 2026-06-13: expose the subscription id (mirrors invoice.payment_failed)
+        // so a dunning-recovery payment re-syncs the subscription back to active.
+        subscriptionId: refId(invoice.parent?.subscription_details?.subscription),
         customerId: refId(invoice.customer),
         amountPaid: invoice.amount_paid ?? 0,
         currency: invoice.currency ?? "usd",

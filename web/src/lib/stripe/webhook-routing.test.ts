@@ -308,19 +308,29 @@ test("invoice.payment_failed without parent subscription → invalid", () => {
   expectKind(a, "invalid");
 });
 
-test("invoice.payment_succeeded → invoice_payment_succeeded (audit log)", () => {
+test("invoice.payment_succeeded → invoice_payment_succeeded (with subscription id for re-sync)", () => {
   const a = classifyStripeEvent(
     evt("invoice.payment_succeeded", {
       id: "in_3",
       customer: "cus_1",
       amount_paid: 1200,
       currency: "usd",
+      parent: { subscription_details: { subscription: { id: "sub_xo" } } },
     }),
   );
   const action = expectKind(a, "invoice_payment_succeeded");
+  assert.equal(action.subscriptionId, "sub_xo");
   assert.equal(action.customerId, "cus_1");
   assert.equal(action.amountPaid, 1200);
   assert.equal(action.currency, "usd");
+});
+
+test("invoice.payment_succeeded without parent subscription → subscriptionId null (no re-sync)", () => {
+  const a = classifyStripeEvent(
+    evt("invoice.payment_succeeded", { id: "in_3b", customer: "cus_1", amount_paid: 1200, currency: "usd" }),
+  );
+  const action = expectKind(a, "invoice_payment_succeeded");
+  assert.equal(action.subscriptionId, null);
 });
 
 // ─── charge events ─────────────────────────────────────────────────────────────
