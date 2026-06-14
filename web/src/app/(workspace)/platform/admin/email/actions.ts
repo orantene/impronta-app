@@ -16,7 +16,10 @@ import { getPlatformRole } from "@/lib/access/platform-role";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { retryDispatchLogRow } from "@/lib/notifications/retry";
-import { invalidateNotificationOverlayCache } from "@/lib/notifications/overlay";
+import {
+  invalidateNotificationOverlayCache,
+  invalidateTemplateOverrideCache,
+} from "@/lib/notifications/overlay";
 import { sendEmailResult } from "@/lib/email";
 
 const REVALIDATE_PATH = "/platform/admin/email";
@@ -195,6 +198,78 @@ export async function setEventOverlay(input: {
     return { ok: false, error: "Couldn't save the toggle. See logs." };
   }
   invalidateNotificationOverlayCache();
+  revalidatePath(REVALIDATE_PATH);
+  return { ok: true };
+}
+
+// ─── Editable template overrides (P3b) ───────────────────────────────────────
+
+/**
+ * Save (upsert) an email subject/body override for an entry+locale. Blank
+ * subject AND blank body with enabled=false is equivalent to clearing it. The
+ * render path consults this (cached) before the code template, with a
+ * fallback-on-error guarantee.
+ */
+export async function setTemplateOverride(input: {
+  catalogEntryId: string;
+  locale?: string;
+  subject: string;
+  body: string;
+  enabled: boolean;
+}): Promise<ToggleActionResult> {
+  const guard = await requirePlatformAdmin();
+  if (!guard.ok) return guard;
+  const entryId = (input.catalogEntryId ?? "").trim();
+  if (!entryId) return { ok: false, error: "Missing entry." };
+  const locale = (input.locale ?? "en").trim() || "en";
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Service unavailable." };
+
+  const subject = input.subject.trim() || null;
+  const body = input.body.trim() || null;
+  const { error } = await admin.from("notification_template_override").upsert(
+    {
+      catalog_entry_id: entryId,
+      locale,
+      subject,
+      body_markdown: body,
+      enabled: input.enabled,
+      updated_by: guard.actorId,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "catalog_entry_id,locale" },
+  );
+  if (error) {
+    logServerError("email-console.setTemplateOverride", error);
+    return { ok: false, error: "Couldn't save the template. See logs." };
+  }
+  invalidateTemplateOverrideCache();
+  revalidatePath(REVALIDATE_PATH);
+  return { ok: true };
+}
+
+/** Delete an override so the entry reverts to its code template. */
+export async function clearTemplateOverride(input: {
+  catalogEntryId: string;
+  locale?: string;
+}): Promise<ToggleActionResult> {
+  const guard = await requirePlatformAdmin();
+  if (!guard.ok) return guard;
+  const entryId = (input.catalogEntryId ?? "").trim();
+  if (!entryId) return { ok: false, error: "Missing entry." };
+  const locale = (input.locale ?? "en").trim() || "en";
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Service unavailable." };
+  const { error } = await admin
+    .from("notification_template_override")
+    .delete()
+    .eq("catalog_entry_id", entryId)
+    .eq("locale", locale);
+  if (error) {
+    logServerError("email-console.clearTemplateOverride", error);
+    return { ok: false, error: "Couldn't reset the template. See logs." };
+  }
+  invalidateTemplateOverrideCache();
   revalidatePath(REVALIDATE_PATH);
   return { ok: true };
 }

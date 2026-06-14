@@ -1,13 +1,22 @@
 import "server-only";
 
+import * as React from "react";
+import { Text } from "@react-email/components";
 import { resolveTenantBrand } from "@/lib/brand/resolve-tenant-brand";
 import { renderEmailHtml } from "@/lib/email/render";
 import { sendEmailResult } from "@/lib/email";
+import { Layout } from "../../../../emails/components/Layout";
 import {
   buildUnsubscribeApiUrl,
   buildUnsubscribeUrl,
   getUnsubscribeToken,
 } from "../unsubscribe";
+import {
+  loadTemplateOverrides,
+  getTemplateOverride,
+  interpolateOverride,
+} from "../overlay";
+import { logServerError } from "@/lib/server/safe-error";
 import type {
   AudienceContext,
   CatalogEntry,
@@ -56,12 +65,58 @@ export async function sendEmailNotification(
     }
   }
 
-  const element = cfg.render({ event, recipient, brand, unsubscribeUrl });
+  // Code defaults — the source of truth and the fallback.
+  let subject = cfg.subject(event, recipient);
+  let element = cfg.render({ event, recipient, brand, unsubscribeUrl });
+
+  // P3b editable templates: an admin can override subject/body per (entry, locale)
+  // without a deploy. Body text renders as React text children (auto-escaped, so
+  // XSS-safe) inside the branded Layout. ANY failure falls back to the code
+  // template — a bad override can never break the send path.
+  try {
+    const override = getTemplateOverride(
+      await loadTemplateOverrides(ctx.admin),
+      entry.id,
+      recipient.locale,
+    );
+    if (override) {
+      const vars = { name: recipient.displayName, brand: brand.accountName };
+      if (override.subject?.trim()) subject = interpolateOverride(override.subject, vars);
+      if (override.body?.trim()) {
+        const paragraphs = interpolateOverride(override.body, vars)
+          .split(/\n{2,}/)
+          .map((p) => p.trim())
+          .filter(Boolean);
+        // children-in-props is required by createElement here (this is a .ts
+        // module, so JSX is unavailable); the Layout's `children` prop is typed
+        // required. eslint-disable is the localized, intentional exception.
+        // eslint-disable-next-line react/no-children-prop
+        element = React.createElement(Layout, {
+          preview: subject,
+          brand,
+          unsubscribeUrl,
+          categoryLabel: unsubscribeUrl ? entry.category : undefined,
+          children: paragraphs.map((p, i) =>
+            React.createElement(
+              Text,
+              { key: i, style: { margin: "0 0 16px", fontSize: "15px", color: "#444444", lineHeight: 1.6 } },
+              p,
+            ),
+          ),
+        });
+      }
+    }
+  } catch (err) {
+    logServerError(`notifications.email.override:${entry.id}`, err);
+    subject = cfg.subject(event, recipient);
+    element = cfg.render({ event, recipient, brand, unsubscribeUrl });
+  }
+
   const html = await renderEmailHtml(element);
 
   const result = await sendEmailResult({
     to: recipient.email,
-    subject: cfg.subject(event, recipient),
+    subject,
     html,
     headers,
     // Tenant-scoped notification: a tenant with white_label_email + a VERIFIED

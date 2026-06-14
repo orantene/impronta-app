@@ -9,6 +9,7 @@ import type {
   SuppressionRow,
   EmailDomainStatus,
   CatalogEntryState,
+  TemplateOverrideState,
 } from "./email-data";
 import {
   retryEmailRow,
@@ -16,6 +17,8 @@ import {
   removeSuppression,
   sendTestEmail,
   setEventOverlay,
+  setTemplateOverride,
+  clearTemplateOverride,
 } from "./actions";
 
 // ─── HQ design tokens (match the platform admin dark theme) ──────────────────
@@ -96,11 +99,12 @@ export function EmailConsoleClient(props: {
   suppressions: SuppressionRow[];
   domain: EmailDomainStatus;
   catalog: CatalogEntryState[];
+  templates: TemplateOverrideState[];
   adminEmail: string;
   /** Request time (ms), computed server-side — keeps the client render pure. */
   nowMs: number;
 }) {
-  const { sendLog, metrics, suppressions, domain, catalog, adminEmail, nowMs } = props;
+  const { sendLog, metrics, suppressions, domain, catalog, templates, adminEmail, nowMs } = props;
   const router = useRouter();
   const [, startTransition] = useTransition();
 
@@ -120,6 +124,7 @@ export function EmailConsoleClient(props: {
       <TestSend adminEmail={adminEmail} onDone={() => startTransition(() => router.refresh())} />
       <SendLogTable rows={sendLog} nowMs={nowMs} onChanged={() => startTransition(() => router.refresh())} />
       <EventToggles entries={catalog} onChanged={() => startTransition(() => router.refresh())} />
+      <TemplateEditor entries={templates} onChanged={() => startTransition(() => router.refresh())} />
       <SuppressionPanel rows={suppressions} onChanged={() => startTransition(() => router.refresh())} />
     </div>
   );
@@ -495,6 +500,106 @@ function Detail({ k, v, red }: { k: string; v: string | null; red?: boolean }) {
     <div style={{ display: "flex", gap: 12, padding: "2px 0", fontSize: 12 }}>
       <span style={{ color: HQ.inkDim, minWidth: 130, fontFamily: MONO }}>{k}</span>
       <span style={{ color: red ? HQ.red : HQ.inkMuted, fontFamily: MONO, wordBreak: "break-all" }}>{v}</span>
+    </div>
+  );
+}
+
+// ─── Template editor (P3b) ───────────────────────────────────────────────────
+function TemplateEditor({ entries, onChanged }: { entries: TemplateOverrideState[]; onChanged: () => void }) {
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<{ subject: string; body: string; enabled: boolean }>({
+    subject: "",
+    body: "",
+    enabled: true,
+  });
+  const [busy, setBusy] = useState(false);
+
+  function open(e: TemplateOverrideState) {
+    if (openId === e.id) {
+      setOpenId(null);
+      return;
+    }
+    setOpenId(e.id);
+    setDraft({ subject: e.subject, body: e.body, enabled: e.hasOverride ? e.enabled : true });
+  }
+  async function save(e: TemplateOverrideState) {
+    setBusy(true);
+    await setTemplateOverride({
+      catalogEntryId: e.id,
+      subject: draft.subject,
+      body: draft.body,
+      enabled: draft.enabled,
+    });
+    setBusy(false);
+    setOpenId(null);
+    onChanged();
+  }
+  async function reset(e: TemplateOverrideState) {
+    setBusy(true);
+    await clearTemplateOverride({ catalogEntryId: e.id });
+    setBusy(false);
+    setOpenId(null);
+    onChanged();
+  }
+
+  return (
+    <div style={{ marginBottom: 24 }}>
+      <div style={{ fontSize: 16, fontWeight: 600, fontFamily: FONT_DISPLAY, marginBottom: 6 }}>Templates</div>
+      <p style={{ color: HQ.inkMuted, fontSize: 13, margin: "0 0 14px" }}>
+        Override an email&apos;s subject + body without a deploy. Blank fields keep the code
+        default. Placeholders: <code style={{ fontFamily: MONO }}>{"{{name}}"}</code>,{" "}
+        <code style={{ fontFamily: MONO }}>{"{{brand}}"}</code>. A custom body replaces the code
+        body (rendered in the branded layout); a bad override always falls back to the code template.
+      </p>
+      <div style={{ border: `1px solid ${HQ.borderSoft}`, borderRadius: 8, overflow: "hidden" }}>
+        {entries.map((e) => (
+          <div key={e.id} style={{ borderBottom: `1px solid ${HQ.borderSoft}` }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "8px 12px" }}>
+              <span style={{ fontFamily: MONO, fontSize: 12 }}>{e.id}</span>
+              <span style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                {e.hasOverride && e.enabled && (
+                  <span style={{ fontSize: 11, fontWeight: 700, color: HQ.green }}>OVERRIDDEN</span>
+                )}
+                {e.hasOverride && !e.enabled && (
+                  <span style={{ fontSize: 11, color: HQ.inkDim }}>draft (off)</span>
+                )}
+                <button style={{ ...btn("transparent", HQ.blue), padding: "4px 10px", fontSize: 12 }} onClick={() => open(e)}>
+                  {openId === e.id ? "Close" : "Edit"}
+                </button>
+              </span>
+            </div>
+            {openId === e.id && (
+              <div style={{ padding: 12, background: HQ.card, display: "grid", gap: 10 }}>
+                <div>
+                  <label style={label}>Subject (blank = code default)</label>
+                  <input style={input} value={draft.subject} onChange={(ev) => setDraft({ ...draft, subject: ev.target.value })} placeholder="custom subject…" />
+                </div>
+                <div>
+                  <label style={label}>Body (blank = code body)</label>
+                  <textarea
+                    style={{ ...input, minHeight: 120, fontFamily: MONO, lineHeight: 1.5, resize: "vertical" }}
+                    value={draft.body}
+                    onChange={(ev) => setDraft({ ...draft, body: ev.target.value })}
+                    placeholder={"Hi {{name}},\n\nYour message…"}
+                  />
+                </div>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: HQ.inkMuted }}>
+                  <input type="checkbox" checked={draft.enabled} onChange={(ev) => setDraft({ ...draft, enabled: ev.target.checked })} /> Override active
+                </label>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button style={{ ...btn(HQ.green, "#06281C"), opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={() => save(e)}>Save</button>
+                  {e.hasOverride && (
+                    <button style={{ ...btn("transparent", HQ.red), border: `1px solid rgba(243,103,114,0.3)`, opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={() => reset(e)}>
+                      Reset to code default
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      <div style={{ marginTop: 10, color: HQ.inkMuted, fontSize: 12 }}>{entries.length} email templates.</div>
     </div>
   );
 }
