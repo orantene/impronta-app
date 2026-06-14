@@ -20,6 +20,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { notifyWorkspacePaymentFailed } from "@/lib/notifications/producers/payment-notify";
 import { notifyWorkspacePlanChange } from "@/lib/notifications/producers/workspace-plan-notify";
+import { notifyTrialStarted } from "@/lib/notifications/producers/trial-notify";
 import { mapStripeStatus } from "@/lib/stripe/utils";
 import type { AllowedStatus } from "@/lib/stripe/utils";
 import type Stripe from "stripe";
@@ -398,6 +399,17 @@ export async function syncStripeSubscriptionToDb(
         toPlan: newPlanTier,
         effectiveAtIso: new Date().toISOString(),
         workspaceName,
+      });
+    }
+    // Trial start: confirm the trial began on the transition INTO trialing.
+    if (status === "trialing" && priorStatus !== "trialing") {
+      notifyTrialStarted({
+        scope: "workspace",
+        tenantId,
+        talentProfileId: null,
+        subscriptionId: subscription.id,
+        planKey,
+        trialEndIso: trialEnd,
       });
     }
     if (status === "past_due" && priorStatus !== "past_due") {
