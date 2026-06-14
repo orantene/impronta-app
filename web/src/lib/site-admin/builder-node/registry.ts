@@ -751,8 +751,8 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
   {
     section: {
       kind: "section",
-      label: "Legacy Section",
-      description: "Reference to a section-composition slot entry.",
+      label: "Section",
+      description: "Top-level page section row.",
       children: {
         type: "allow_list",
         kinds: [...COMPOSABLE_LAYOUT_CHILD_KINDS],

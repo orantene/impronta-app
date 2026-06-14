@@ -327,7 +327,11 @@ export function WebsitePage() {
           toast("Draft page created — open it from the list.");
           return;
         }
-        const pathname = buildPublicPathname(locale as Locale, inner);
+        // Open the editor at the locale the page was CREATED at (tenant default),
+        // not the operator's current UI locale — cms_pages is unique on
+        // (tenant_id, locale, slug), so opening at the wrong locale 404s the
+        // `/p/` underlay and the editor shows "not found".
+        const pathname = buildPublicPathname((res.locale as Locale) ?? (locale as Locale), inner);
         window.open(
           `${editorBaseUrl}${pathname}?edit=1&panel=pageSettings`,
           "_blank",
