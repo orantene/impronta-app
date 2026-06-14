@@ -42,11 +42,12 @@ export type EmailLogRow = {
   clickedAtIso: string | null;
   bouncedAtIso: string | null;
   complaintAtIso: string | null;
+  attempts: number;
   payload: Record<string, unknown> | null;
 };
 
 const LOG_COLUMNS =
-  "id, created_at, sent_at, event_kind, channel, status, recipient_email, recipient_user_id, tenant_id, catalog_entry_id, template_id, provider_reference, error_message, delivered_at, opened_at, clicked_at, bounced_at, complaint_at, payload";
+  "id, created_at, sent_at, event_kind, channel, status, recipient_email, recipient_user_id, tenant_id, catalog_entry_id, template_id, provider_reference, error_message, delivered_at, opened_at, clicked_at, bounced_at, complaint_at, attempts, payload";
 
 type RawLogRow = {
   id: string;
@@ -67,6 +68,7 @@ type RawLogRow = {
   clicked_at: string | null;
   bounced_at: string | null;
   complaint_at: string | null;
+  attempts: number | null;
   payload: Record<string, unknown> | null;
 };
 
@@ -90,6 +92,7 @@ function normalizeLogRow(r: RawLogRow): EmailLogRow {
     clickedAtIso: r.clicked_at,
     bouncedAtIso: r.bounced_at,
     complaintAtIso: r.complaint_at,
+    attempts: r.attempts ?? 0,
     payload: r.payload,
   };
 }

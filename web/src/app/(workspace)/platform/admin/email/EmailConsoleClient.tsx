@@ -461,6 +461,9 @@ function SendLogTable({ rows, nowMs, onChanged }: { rows: EmailLogRow[]; nowMs: 
                     <td style={{ ...td, color: HQ.inkMuted, fontFamily: MONO, fontSize: 12 }}>{r.recipientEmail ?? "—"}</td>
                     <td style={td}>
                       <span style={{ padding: "3px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600, background: "rgba(255,255,255,0.06)", color: STATUS_COLOR[r.status] ?? HQ.ink }}>{r.status}</span>
+                      {r.attempts > 1 && (
+                        <span title={`${r.attempts} send attempts`} style={{ marginLeft: 6, fontSize: 11, color: HQ.amber }}>×{r.attempts}</span>
+                      )}
                     </td>
                     <td style={{ ...td, fontFamily: MONO, fontSize: 12, color: r.bouncedAtIso ? HQ.red : HQ.inkMuted }}>{deliv || "—"}</td>
                     <td style={{ ...td, textAlign: "right", whiteSpace: "nowrap" }}>
@@ -476,6 +479,7 @@ function SendLogTable({ rows, nowMs, onChanged }: { rows: EmailLogRow[]; nowMs: 
                     <tr>
                       <td colSpan={6} style={{ padding: 16, background: HQ.card, borderBottom: `1px solid ${HQ.borderSoft}` }}>
                         <Detail k="error" v={r.errorMessage} red />
+                        <Detail k="attempts" v={String(r.attempts)} />
                         <Detail k="provider_reference" v={r.providerReference} />
                         <Detail k="template_id" v={r.templateId} />
                         <Detail k="tenant_id" v={r.tenantId} />
