@@ -240,6 +240,11 @@ export type InquiryPaymentState = {
   totalRevenueCents: number | null;
   currency: string | null;
   transaction: BookingTransaction | null;
+  /** 6.3 deposits: the configured deposit (cents), 0 when none. Drives the
+   *  admin "Request deposit" / "Request balance" buttons. */
+  depositAmountCents: number;
+  /** Whether a deposit has already been collected (booking lifecycle). */
+  depositPaid: boolean;
 };
 
 /**
@@ -257,18 +262,25 @@ export async function loadInquiryPaymentState(
 
     const { data: booking } = await supabase
       .from("agency_bookings")
-      .select("id, total_client_revenue, currency_code")
+      .select("id, total_client_revenue, currency_code, deposit_amount_cents, deposit_pct, client_revenue_lifecycle")
       .eq("tenant_id", tenantId)
       .eq("source_inquiry_id", inquiryId)
       .maybeSingle();
 
     if (!booking) {
-      return { ok: true, data: { bookingId: null, totalRevenueCents: null, currency: null, transaction: null } };
+      return { ok: true, data: { bookingId: null, totalRevenueCents: null, currency: null, transaction: null, depositAmountCents: 0, depositPaid: false } };
     }
 
     const txn = await loadActiveBookingTransaction(booking.id as string, supabase);
     const rawRevenue = booking.total_client_revenue as number | string | null;
     const totalRevenueCents = rawRevenue != null ? Math.round(Number(rawRevenue) * 100) : null;
+    // 6.3: resolve the configured deposit (explicit amount wins; else pct of the
+    // full charge). 0 when no deposit is set on the offer/booking.
+    const depositAmountCents = Number(booking.deposit_amount_cents) > 0
+      ? Math.round(Number(booking.deposit_amount_cents))
+      : booking.deposit_pct != null && totalRevenueCents != null
+        ? Math.round(totalRevenueCents * (Number(booking.deposit_pct) / 100))
+        : 0;
 
     return {
       ok: true,
@@ -277,6 +289,8 @@ export async function loadInquiryPaymentState(
         totalRevenueCents,
         currency: (booking.currency_code as string | null) ?? null,
         transaction: txn,
+        depositAmountCents,
+        depositPaid: booking.client_revenue_lifecycle === "deposit_paid",
       },
     };
   } catch (err) {
@@ -390,6 +404,10 @@ export async function cancelInquiryTransaction(
 export async function createInquiryTransactionDraft(
   _tenantSlug: string,
   inquiryId: string,
+  // 6.3 deposits: 'deposit' charges the deposit portion (no payout on pay);
+  // 'balance' charges the remainder after a deposit (pays out); 'full' = the whole
+  // client charge in one go (default, unchanged behaviour).
+  checkoutType: "deposit" | "balance" | "full" = "full",
 ): Promise<PipelineActionResult> {
   try {
     const auth = await requireStaffTenantAction();
@@ -398,7 +416,7 @@ export async function createInquiryTransactionDraft(
 
     const { data: booking } = await supabase
       .from("agency_bookings")
-      .select("id, total_client_revenue, currency_code, client_user_id, contact_email")
+      .select("id, total_client_revenue, currency_code, client_user_id, contact_email, deposit_amount_cents, deposit_pct")
       .eq("tenant_id", tenantId)
       .eq("source_inquiry_id", inquiryId)
       .maybeSingle();
@@ -419,12 +437,39 @@ export async function createInquiryTransactionDraft(
     // (subtotal + client surcharge + workspace base fee). Fall back to the bare
     // booking revenue when no snapshot exists yet.
     const grossChargedCents = await sumBookingGrossChargedCents(supabase, booking.id as string);
-    const grossAmountCents = grossChargedCents > 0 ? grossChargedCents : baseRevenueCents;
+    const fullGrossCents = grossChargedCents > 0 ? grossChargedCents : baseRevenueCents;
     // #4: the REAL platform fee from the commission snapshot — so the transaction's
     // fee/net match the actual split (transfers pay per snapshot, not this row).
-    // Only used when the gross also came from the snapshot; otherwise the flat
-    // plan-tier % applies (legacy/no-snapshot path).
     const snapshotPlatformFeeCents = await sumBookingPlatformFeeCents(supabase, booking.id as string);
+
+    // 6.3 deposits: split the gross + (proportional) platform fee per checkout_type.
+    // Note the payout still fans out on the BALANCE/FULL charge against the FULL
+    // commission snapshot (markPaid gates on checkout_type) — the per-txn fee here
+    // is informational only.
+    const depositCents = Math.max(
+      0,
+      Number(booking.deposit_amount_cents) > 0
+        ? Math.round(Number(booking.deposit_amount_cents))
+        : booking.deposit_pct != null
+          ? Math.round(fullGrossCents * (Number(booking.deposit_pct) / 100))
+          : 0,
+    );
+    let grossAmountCents = fullGrossCents;
+    if (checkoutType === "deposit") {
+      if (depositCents <= 0 || depositCents >= fullGrossCents) {
+        return { ok: false, error: "This offer has no valid deposit configured." };
+      }
+      grossAmountCents = depositCents;
+    } else if (checkoutType === "balance") {
+      if (depositCents <= 0 || depositCents >= fullGrossCents) {
+        return { ok: false, error: "No deposit was configured — request the full payment instead." };
+      }
+      grossAmountCents = fullGrossCents - depositCents;
+    }
+    const platformFeeOverride =
+      grossChargedCents > 0 && snapshotPlatformFeeCents > 0
+        ? Math.round(snapshotPlatformFeeCents * (grossAmountCents / fullGrossCents))
+        : null;
 
     const { data: agency } = await supabase
       .from("agencies")
@@ -439,12 +484,12 @@ export async function createInquiryTransactionDraft(
       sourceInquiryId: inquiryId,
       planTier,
       grossAmountCents,
-      platformFeeCentsOverride:
-        grossChargedCents > 0 && snapshotPlatformFeeCents > 0 ? snapshotPlatformFeeCents : null,
+      platformFeeCentsOverride: platformFeeOverride,
       currency: (booking.currency_code as string | null) ?? "USD",
       payerUserId: (booking.client_user_id as string | null) ?? null,
       payerEmail: (booking.contact_email as string | null) ?? null,
       createdByProfileId: null,
+      checkoutType,
     });
     if (!result.ok) return { ok: false, error: result.error };
 

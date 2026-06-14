@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import { OfferCard, PaymentRequestCard, BookingConfirmedCard, CoordinatorRequestCard, TalentRateCard, CallSheetUpdateCard, SystemEventCard, SuggestedTalentCard } from "@/components/chat-cards/ChatCard";
+import { OfferCard, PaymentRequestCard, BookingConfirmedCard, BalanceDueCard, CoordinatorRequestCard, TalentRateCard, CallSheetUpdateCard, SystemEventCard, SuggestedTalentCard } from "@/components/chat-cards/ChatCard";
 import { adminAddSuggestedTalent } from "@/lib/server-actions/admin-suggested-talent";
 import { ReservationThread, type ReservationStage, type PillDescriptor, type PillKind, type SheetDescriptor } from "@/components/reservation-thread";
 import { quickPatchInquiryStatus } from "@/lib/server-actions/admin-inquiries";
@@ -336,6 +336,15 @@ export function renderChatCardForMessage(
         <BookingConfirmedCard
           totalLabel={get<string>("total_label", "")}
           summary={get<string>("summary", "")}
+        />
+      );
+    case "balance_due":
+      // 6.3: admin/talent see the deposit-paid milestone read-only. The client
+      // surface (ClientMessagesShell) renders its own Pay-balance variant.
+      return (
+        <BalanceDueCard
+          depositLabel={get<string>("deposit_label", "")}
+          hint={get<string>("hint", "")}
         />
       );
     case "talent_rate_confirmed":

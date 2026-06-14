@@ -60,6 +60,8 @@ export type BookingTransaction = {
   provider: string;
   providerReference: string | null;
   refundOfTransactionId: string | null;
+  /** deposit | balance | full — markPaid pays out only on balance/full (6.3). */
+  checkoutType: "deposit" | "balance" | "full";
   status: TransactionStatus;
   requestedAt: string | null;
   paidAt: string | null;
@@ -295,6 +297,8 @@ export async function createBookingTransaction(opts: {
    * When omitted, falls back to the flat plan-tier % (legacy/no-snapshot path).
    */
   platformFeeCentsOverride?: number | null;
+  /** 6.3 deposits: 'deposit' charges the deposit (no payout); 'balance'/'full' pay out. */
+  checkoutType?: "deposit" | "balance" | "full";
 }): Promise<TransactionResult<BookingTransaction>> {
   const sb = createServiceRoleClient();
   if (!sb) return { ok: false, error: "Database not available." };
@@ -328,6 +332,7 @@ export async function createBookingTransaction(opts: {
         currency:                 opts.currency ?? "USD",
         provider:                 "manual",
         status:                   "draft",
+        checkout_type:            opts.checkoutType ?? "full",
         created_by_profile_id:    opts.createdByProfileId ?? null,
       })
       .select("*")
@@ -413,6 +418,10 @@ export async function markPaid(
   const result = await transitionStatus(transactionId, ["payment_requested", "pending", "disputed"], "paid", {
     paid_at: new Date().toISOString(),
   });
+  // 6.3 deposits: a 'deposit' transaction flips the booking to deposit_paid and
+  // does NOT fan out the talent/agency payout — that waits for the balance/full
+  // charge (payout-on-full). 'balance'/'full' behave as before.
+  const isDeposit = result.ok && result.data.checkoutType === "deposit";
   // Item #15 wiring: audit emit on successful paid transition. Inquiry
   // id resolved from the transaction's sourceInquiryId. Fire-and-forget
   // — failure logs only, never breaks the user-facing action.
@@ -446,57 +455,78 @@ export async function markPaid(
       }).then((r) => {
         if (r.error) logServerError("transactions.markPaid.chatCard", r.error);
       });
-      // §6 chat-card: booking-confirmed milestone — the money settled, so the
-      // job is locked. Emitted alongside payment_paid so every role sees the
-      // same "booking confirmed" card in the thread. Role-safe payload (label
-      // only — no margin/commission). booking_confirmed message_kind added in
-      // migration 20260601155328.
-      sb.from("inquiry_messages").insert({
-        inquiry_id: result.data.sourceInquiryId,
-        tenant_id: result.data.sourceTenantId,
-        thread_type: "private",
-        sender_user_id: null,
-        body: "Booking confirmed",
-        message_kind: "booking_confirmed",
-        card_payload: {
-          total_label: amountLabel,
-          summary: "Payment received — the booking is confirmed.",
-          transaction_id: result.data.id,
-        },
-      }).then((r) => {
-        if (r.error) logServerError("transactions.markPaid.bookingConfirmedCard", r.error);
-      });
-      // Talent-facing mirror to the GROUP (booking-team) thread, which is what
-      // assigned talents read — without this they never get an in-thread
-      // "you're booked & paid" confirmation. Amount-free: the shared group
-      // thread must not carry the client gross (margin) or per-talent rates;
-      // each talent sees their own take-home in the Money dashboard.
-      sb.from("inquiry_messages").insert({
-        inquiry_id: result.data.sourceInquiryId,
-        tenant_id: result.data.sourceTenantId,
-        thread_type: "group",
-        sender_user_id: null,
-        body: "Payment received — your booking is confirmed.",
-        message_kind: "payment_paid",
-        card_payload: { amount_label: "", transaction_id: result.data.id },
-      }).then((r) => {
-        if (r.error) logServerError("transactions.markPaid.chatCard.group", r.error);
-      });
-      sb.from("inquiry_messages").insert({
-        inquiry_id: result.data.sourceInquiryId,
-        tenant_id: result.data.sourceTenantId,
-        thread_type: "group",
-        sender_user_id: null,
-        body: "Booking confirmed",
-        message_kind: "booking_confirmed",
-        card_payload: {
-          total_label: "",
-          summary: "Payment received — your booking is confirmed.",
-          transaction_id: result.data.id,
-        },
-      }).then((r) => {
-        if (r.error) logServerError("transactions.markPaid.bookingConfirmedCard.group", r.error);
-      });
+      if (isDeposit) {
+        // 6.3 deposits: a deposit payment is NOT a confirmed booking — emit a
+        // balance-due card instead of the "booking confirmed" milestone. The
+        // balance charge later emits the real booking_confirmed.
+        sb.from("inquiry_messages").insert({
+          inquiry_id: result.data.sourceInquiryId,
+          tenant_id: result.data.sourceTenantId,
+          thread_type: "private",
+          sender_user_id: null,
+          body: `Deposit received: ${amountLabel} — balance due`,
+          message_kind: "balance_due",
+          card_payload: {
+            deposit_label: amountLabel,
+            transaction_id: result.data.id,
+            hint: "Pay the remaining balance to confirm the booking.",
+          },
+        }).then((r) => {
+          if (r.error) logServerError("transactions.markPaid.balanceDueCard", r.error);
+        });
+      } else {
+        // §6 chat-card: booking-confirmed milestone — the money settled, so the
+        // job is locked. Emitted alongside payment_paid so every role sees the
+        // same "booking confirmed" card in the thread. Role-safe payload (label
+        // only — no margin/commission). booking_confirmed message_kind added in
+        // migration 20260601155328.
+        sb.from("inquiry_messages").insert({
+          inquiry_id: result.data.sourceInquiryId,
+          tenant_id: result.data.sourceTenantId,
+          thread_type: "private",
+          sender_user_id: null,
+          body: "Booking confirmed",
+          message_kind: "booking_confirmed",
+          card_payload: {
+            total_label: amountLabel,
+            summary: "Payment received — the booking is confirmed.",
+            transaction_id: result.data.id,
+          },
+        }).then((r) => {
+          if (r.error) logServerError("transactions.markPaid.bookingConfirmedCard", r.error);
+        });
+        // Talent-facing mirror to the GROUP (booking-team) thread, which is what
+        // assigned talents read — without this they never get an in-thread
+        // "you're booked & paid" confirmation. Amount-free: the shared group
+        // thread must not carry the client gross (margin) or per-talent rates;
+        // each talent sees their own take-home in the Money dashboard.
+        sb.from("inquiry_messages").insert({
+          inquiry_id: result.data.sourceInquiryId,
+          tenant_id: result.data.sourceTenantId,
+          thread_type: "group",
+          sender_user_id: null,
+          body: "Payment received — your booking is confirmed.",
+          message_kind: "payment_paid",
+          card_payload: { amount_label: "", transaction_id: result.data.id },
+        }).then((r) => {
+          if (r.error) logServerError("transactions.markPaid.chatCard.group", r.error);
+        });
+        sb.from("inquiry_messages").insert({
+          inquiry_id: result.data.sourceInquiryId,
+          tenant_id: result.data.sourceTenantId,
+          thread_type: "group",
+          sender_user_id: null,
+          body: "Booking confirmed",
+          message_kind: "booking_confirmed",
+          card_payload: {
+            total_label: "",
+            summary: "Payment received — your booking is confirmed.",
+            transaction_id: result.data.id,
+          },
+        }).then((r) => {
+          if (r.error) logServerError("transactions.markPaid.bookingConfirmedCard.group", r.error);
+        });
+      }
     }
   }
   // Slice 15.4: payment.received → client receipt (email) + workspace alert
@@ -521,18 +551,27 @@ export async function markPaid(
         // client payment — the talent earnings + workspace financials never
         // reflected the money. Awaiting guarantees the sync lands before markPaid
         // resolves (and before the webhook responds).
+        // 6.3 deposits: a deposit charge → payment_status='partial' +
+        // client_revenue_lifecycle='deposit_paid' (NOT fully_paid); the balance/full
+        // charge → 'paid'/'fully_paid'. The lifecycle CHECK allows
+        // pending|deposit_paid|fully_paid|refunded|failed; payment_status allows
+        // unpaid|partial|paid|cancelled|refunded.
+        const bookingPatch = isDeposit
+          ? {
+              payment_status: "partial",
+              client_revenue_lifecycle: "deposit_paid",
+              deposit_paid_at: new Date().toISOString(),
+              balance_due_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            }
+          : {
+              payment_status: "paid",
+              client_revenue_lifecycle: "fully_paid",
+              updated_at: new Date().toISOString(),
+            };
         const { error: bookingSyncError } = await sbBooking
           .from("agency_bookings")
-          .update({
-            payment_status: "paid",
-            // 'fully_paid' (NOT 'paid') — the agency_bookings_client_revenue_lifecycle_check
-            // CHECK only allows pending|deposit_paid|fully_paid|refunded|failed. The prior
-            // 'paid' value violated the constraint, so this whole update was rejected on
-            // every real payment (silently, via the swallowed fire-and-forget) and the
-            // booking never synced to paid.
-            client_revenue_lifecycle: "fully_paid",
-            updated_at: new Date().toISOString(),
-          })
+          .update(bookingPatch)
           .eq("id", result.data.bookingId);
         if (bookingSyncError) logServerError("transactions.markPaid.bookingSync", bookingSyncError);
       }
@@ -554,7 +593,9 @@ export async function markPaid(
     // DISTINCT eventId from the receipt above, so the two never collide on the
     // dispatch_log dedupe key. Requires the source inquiry for client/talent
     // audience + schedule hydration.
-    if (result.data.sourceInquiryId) {
+    // 6.3 deposits: do NOT send the "booking confirmed" email on a deposit — the
+    // booking isn't confirmed until the balance is collected.
+    if (result.data.sourceInquiryId && !isDeposit) {
       notifyBookingConfirmed({
         tenantId: result.data.sourceTenantId,
         inquiryId: result.data.sourceInquiryId,
@@ -567,10 +608,15 @@ export async function markPaid(
     // idempotent (this block runs once, on the first paid transition) and Stripe
     // idempotency keys prevent double-pay; transfer failures are recorded as
     // held/failed legs in booking_payouts for retry, so they must NOT fail markPaid.
-    try {
-      await executeBookingTransfers(result.data.id);
-    } catch (transferErr) {
-      logServerError("transactions.markPaid.executeBookingTransfers", transferErr);
+    // 6.3 deposits: the payout fans out ONLY on the balance/full charge — a deposit
+    // holds the talent/agency payout (the snapshot covers the full gross_charged, so
+    // paying out on a 30% deposit would over-pay). The balance txn triggers it.
+    if (!isDeposit) {
+      try {
+        await executeBookingTransfers(result.data.id);
+      } catch (transferErr) {
+        logServerError("transactions.markPaid.executeBookingTransfers", transferErr);
+      }
     }
   }
   return result;
@@ -1018,6 +1064,7 @@ type TransactionRow = {
   provider_reference: string | null;
   provider_metadata: Record<string, unknown>;
   refund_of_transaction_id: string | null;
+  checkout_type: string | null;
   status: TransactionStatus;
   requested_at: string | null;
   paid_at: string | null;
@@ -1110,6 +1157,7 @@ function mapRow(row: TransactionRow): BookingTransaction {
     provider:                 row.provider,
     providerReference:        row.provider_reference,
     refundOfTransactionId:    row.refund_of_transaction_id,
+    checkoutType:             (row.checkout_type as "deposit" | "balance" | "full") ?? "full",
     status:                   row.status,
     requestedAt:              row.requested_at,
     paidAt:                   row.paid_at,

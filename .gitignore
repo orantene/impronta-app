@@ -48,6 +48,9 @@ pnpm-debug.log*
 # Cursor MCP secret
 .cursor/github-mcp.env
 
+# Local-only QA driver scripts (ad-hoc money-rail drives; never committed)
+web/scripts/_sandbox/
+
 # Supabase CLI cache
 supabase/.temp/
 
