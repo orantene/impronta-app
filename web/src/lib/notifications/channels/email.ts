@@ -77,7 +77,7 @@ export async function sendEmailNotification(
     const override = getTemplateOverride(
       await loadTemplateOverrides(ctx.admin),
       entry.id,
-      recipient.locale,
+      brand.locale ?? "en", // tenant default_locale — there's no per-user locale
     );
     if (override) {
       const vars = { name: recipient.displayName, brand: brand.accountName };

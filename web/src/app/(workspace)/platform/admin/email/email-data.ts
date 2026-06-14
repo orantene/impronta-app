@@ -296,34 +296,43 @@ export async function loadNotificationCatalogState(): Promise<CatalogEntryState[
 
 // ─── Editable template overrides (P3b) ───────────────────────────────────────
 
-export type TemplateOverrideState = {
-  id: string; // catalog_entry_id
-  category: string;
-  locale: string;
+/** Locales the template editor exposes (platform is bilingual EN/ES). */
+export const TEMPLATE_LOCALES = ["en", "es"] as const;
+
+export type TemplateLocaleOverride = {
   subject: string;
   body: string;
   enabled: boolean;
   hasOverride: boolean;
 };
 
+export type TemplateOverrideState = {
+  id: string; // catalog_entry_id
+  category: string;
+  /** Override draft per locale (en, es). A blank subject/body = code default. */
+  byLocale: Record<string, TemplateLocaleOverride>;
+};
+
 /**
- * Every email-capable catalog entry merged with its `en` template override — the
- * console's template editor. A blank subject/body means "use the code default".
+ * Every email-capable catalog entry merged with its template overrides per
+ * locale — the console's template editor. Tenant `default_locale` selects which
+ * override the render path uses (en fallback); a blank field = the code default.
  */
 export async function loadEmailTemplateState(): Promise<TemplateOverrideState[]> {
   const overrides = await loadTemplateOverrides();
   return NOTIFICATION_CATALOG.filter((e) => Boolean(e.email))
     .map((e) => {
-      const o = overrides.get(`${e.id}::en`);
-      return {
-        id: e.id,
-        category: e.category,
-        locale: "en",
-        subject: o?.subject ?? "",
-        body: o?.body ?? "",
-        enabled: o?.enabled ?? false,
-        hasOverride: Boolean(o),
-      };
+      const byLocale: Record<string, TemplateLocaleOverride> = {};
+      for (const loc of TEMPLATE_LOCALES) {
+        const o = overrides.get(`${e.id}::${loc}`);
+        byLocale[loc] = {
+          subject: o?.subject ?? "",
+          body: o?.body ?? "",
+          enabled: o?.enabled ?? false,
+          hasOverride: Boolean(o),
+        };
+      }
+      return { id: e.id, category: e.category, byLocale };
     })
     .sort((a, b) => a.category.localeCompare(b.category) || a.id.localeCompare(b.id));
 }

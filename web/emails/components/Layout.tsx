@@ -23,6 +23,7 @@ const DEFAULTS = {
   accountName: "Tulala",
   footerDomain: "tulala.digital",
   homeHref: "https://tulala.digital",
+  locale: "en",
 };
 
 interface LayoutProps {
@@ -39,7 +40,7 @@ export function Layout({ preview, brand, unsubscribeUrl, categoryLabel, children
   const b = { ...DEFAULTS, ...brand };
 
   return (
-    <Html lang="en">
+    <Html lang={b.locale ?? "en"}>
       <Head />
       <Preview>{preview}</Preview>
       <Body style={body}>
