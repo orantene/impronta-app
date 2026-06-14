@@ -35,6 +35,10 @@ export function notifyPaymentReceived(params: {
   grossAmountCents: number;
   currency: string;
   paidAt: string | null;
+  /** 6.3 deposits: 'deposit' suppresses the generic client receipt (the
+   *  deposit-specific email goes out via notifyDepositReceived instead); the
+   *  workspace alert still fires. */
+  checkoutType?: "deposit" | "balance" | "full";
 }): void {
   void dispatchEventNotifications({
     type: "payment.received",
@@ -50,9 +54,49 @@ export function notifyPaymentReceived(params: {
       grossAmountCents: params.grossAmountCents,
       currency: params.currency,
       paidAt: params.paidAt,
+      checkoutType: params.checkoutType ?? "full",
     },
   }).catch((err) => {
     logServerError("notifyPaymentReceived", err);
+  });
+}
+
+/**
+ * `payment.deposit_received` — the client who paid a 6.3 DEPOSIT
+ * (`payment.deposit_received.client`, email-only). Distinct from the generic
+ * receipt: it confirms the deposit and shows the balance still due, with a CTA
+ * to pay it. The generic `payment.received.client` receipt is suppressed for
+ * deposits (see the entry's audience guard), so the client gets exactly one
+ * email. `loadInquiryView` hydrates the contact name + offer total (→ balance).
+ */
+export function notifyDepositReceived(params: {
+  transactionId: string;
+  tenantId: string;
+  inquiryId: string | null;
+  bookingId: string;
+  payerUserId: string | null;
+  payerEmail: string | null;
+  depositAmountCents: number;
+  currency: string;
+  paidAt: string | null;
+}): void {
+  void dispatchEventNotifications({
+    type: "payment.deposit_received",
+    tenantId: params.tenantId,
+    inquiryId: params.inquiryId,
+    bookingId: params.bookingId,
+    eventId: `deposit-received:${params.transactionId}`,
+    payload: {
+      bookingId: params.bookingId,
+      inquiryId: params.inquiryId,
+      payerUserId: params.payerUserId,
+      payerEmail: params.payerEmail,
+      depositAmountCents: params.depositAmountCents,
+      currency: params.currency,
+      paidAt: params.paidAt,
+    },
+  }).catch((err) => {
+    logServerError("notifyDepositReceived", err);
   });
 }
 
