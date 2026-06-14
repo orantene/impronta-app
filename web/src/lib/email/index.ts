@@ -6,6 +6,7 @@
 import { improntaLog } from "@/lib/server/structured-log";
 import { Resend } from "resend";
 import { logServerError } from "@/lib/server/safe-error";
+import { DEFAULT_PLATFORM_FROM } from "@/lib/email/resend-client";
 
 let _client: Resend | null = null;
 
@@ -17,7 +18,7 @@ function getClient(): Resend | null {
 }
 
 function getFrom(): string {
-  return process.env.EMAIL_FROM ?? "Tulala <noreply@tulala.digital>";
+  return process.env.EMAIL_FROM ?? DEFAULT_PLATFORM_FROM;
 }
 
 /**

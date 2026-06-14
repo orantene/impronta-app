@@ -10,9 +10,18 @@ export function getResendClient(): Resend | null {
   return _resend;
 }
 
+/**
+ * The hardcoded platform-default sender of LAST resort. MUST be an address on a
+ * domain VERIFIED in Resend, or every fall-through send is rejected
+ * ("not authorized to send from <domain>"). tulala.digital is the verified
+ * domain. This is the single source of truth shared with `getFrom()` in
+ * email/index.ts — keep them identical so the two fallbacks can never diverge
+ * (a past divergence onto an unverified domain caused silent send failures).
+ */
+export const DEFAULT_PLATFORM_FROM = "Tulala <noreply@tulala.digital>";
+
 /** Agency sender identity. Customise via env vars or set once here. */
-export const EMAIL_FROM =
-  process.env.EMAIL_FROM ?? "Impronta Agency <noreply@impronta.agency>";
+export const EMAIL_FROM = process.env.EMAIL_FROM ?? DEFAULT_PLATFORM_FROM;
 
 /** Agency support address shown in email footers. */
 export const EMAIL_REPLY_TO =
