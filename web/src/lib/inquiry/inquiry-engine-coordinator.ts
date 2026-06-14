@@ -88,12 +88,26 @@ export async function assignCoordinator(
 
     if (error || !updated) return { success: false, conflict: true, reason: "version_conflict" };
 
-    await supabase
-      .from("inquiry_participants")
-      .delete()
-      .eq("inquiry_id", ctx.inquiryId)
-      .eq("tenant_id", ctx.tenantId)
-      .eq("role", "coordinator");
+    const outgoingCoordinatorId = (inq.coordinator_id as string | null) ?? null;
+
+    // §16.4 fix: a PRIMARY reassign must preserve SECONDARY coordinators. The
+    // previous code deleted EVERY role='coordinator' participant, so secondaries
+    // (and any self-coordination row) silently lost private-thread access. Only
+    // remove the OUTGOING primary's participant row — plus the incoming user's
+    // own row, to dedupe when promoting an existing secondary to primary — then
+    // (re)insert the incoming user as the invited primary.
+    const coordinatorRowsToReplace = [outgoingCoordinatorId, ctx.coordinatorUserId].filter(
+      (id): id is string => Boolean(id),
+    );
+    if (coordinatorRowsToReplace.length > 0) {
+      await supabase
+        .from("inquiry_participants")
+        .delete()
+        .eq("inquiry_id", ctx.inquiryId)
+        .eq("tenant_id", ctx.tenantId)
+        .eq("role", "coordinator")
+        .in("user_id", coordinatorRowsToReplace);
+    }
 
     await supabase.from("inquiry_participants").insert({
       inquiry_id: ctx.inquiryId,
@@ -110,7 +124,6 @@ export async function assignCoordinator(
     // a private-thread system message naming the outgoing → incoming
     // coordinator so both see the handoff. Best-effort: resolving the display
     // names must never fail the reassign.
-    const outgoingCoordinatorId = (inq.coordinator_id as string | null) ?? null;
     const note = ctx.handoffNote?.trim() || null;
     if (note || outgoingCoordinatorId !== ctx.coordinatorUserId) {
       const names = await resolveCoordinatorNames(supabase, [
