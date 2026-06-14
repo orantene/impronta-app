@@ -25,7 +25,7 @@ export default function ClaimInvite({
   const firstName = talentDisplayName?.trim() ? talentDisplayName.split(" ")[0] : "there";
 
   return (
-    <Layout preview="Claim your profile on Tulala" brand={brand}>
+    <Layout preview={`Claim your profile on ${agencyName}`} brand={brand}>
       <Text style={body}>Hi {firstName},</Text>
       <Heading style={h2}>Claim your profile on {agencyName}</Heading>
       <Text style={body}>

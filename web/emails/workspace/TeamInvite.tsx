@@ -21,8 +21,8 @@ export default function TeamInvite({
   brand,
 }: Props) {
   return (
-    <Layout preview={`Join ${agencyName} on Tulala`} brand={brand}>
-      <Heading style={h2}>Join {agencyName} on Tulala</Heading>
+    <Layout preview={`Join ${agencyName}`} brand={brand}>
+      <Heading style={h2}>Join {agencyName}</Heading>
       <Text style={body}>
         {inviterName} added you as {roleLabel}. Accept the invite to get into the workspace.
       </Text>
