@@ -71,14 +71,17 @@ async function authorise(tenantSlug: string): Promise<AuthOk | AuthErr> {
   // to render the upsell card instead of the compose UI.
   const { data: agency, error: agencyErr } = await admin
     .from("agencies")
-    .select("plan")
+    .select("plan_tier")
     .eq("id", scope.tenantId)
     .maybeSingle();
   if (agencyErr) {
     logServerError("pitches.authorise.loadPlan", agencyErr);
     return { ok: false, reason: "internal_error" };
   }
-  if (!canUsePitchFeature(agency?.plan ?? null)) {
+  // QA 2026-06-13: the column is `plan_tier`, not `plan` — selecting the
+  // nonexistent `plan` errored the query → every pitch compose hit the plan
+  // gate and returned plan_not_eligible/internal_error. Fixed to plan_tier.
+  if (!canUsePitchFeature(agency?.plan_tier ?? null)) {
     return { ok: false, reason: "plan_not_eligible" };
   }
 

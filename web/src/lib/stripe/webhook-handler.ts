@@ -417,14 +417,27 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
       }
       return;
 
-    case "invoice_payment_succeeded":
-      // Subscription renewal billed — no entitlement change. Log for audit.
+    case "invoice_payment_succeeded": {
+      // QA 2026-06-13: a renewal/dunning-recovery payment must re-sync the
+      // subscription so a past_due plan returns to active (previously log-only,
+      // leaving a recovered subscription stuck past_due until the next
+      // subscription.updated). Mirrors invoice_payment_failed.
       if (process.env.NODE_ENV !== "production") {
         void improntaLog("stripe_webhook.info", {
           message: `[stripe.subscription] invoice paid customer=${action.customerId ?? "?"} amount=${action.amountPaid} ${action.currency}`,
         });
       }
+      if (action.subscriptionId) {
+        let subscription: Stripe.Subscription;
+        try {
+          subscription = await stripe.subscriptions.retrieve(action.subscriptionId);
+        } catch (err) {
+          throw new TransientWebhookError(`subscriptions.retrieve failed for ${action.subscriptionId}`, err);
+        }
+        await syncSubscriptionByType(subscription, event.id);
+      }
       return;
+    }
 
     case "invalid":
       // Permanent: malformed event we can't act on. Log + ack (no retry).
