@@ -110,6 +110,27 @@ export async function retryFailedEmails(
   return result;
 }
 
+/**
+ * Manually retry ONE dispatch_log row by id — the platform-admin email console's
+ * "Retry" button. Unlike the cron sweep this ignores RETRY_MAX_AGE_HOURS (an
+ * explicit admin action retries regardless of age) and targets a single row.
+ * Returns "not_found" when the row is missing/unreadable.
+ */
+export async function retryDispatchLogRow(
+  admin: SupabaseClient,
+  rowId: string,
+): Promise<"recovered" | "suppressed" | "skipped" | "failed" | "not_found"> {
+  const { data, error } = await admin
+    .from("notification_dispatch_log")
+    .select(
+      "id, tenant_id, inquiry_id, recipient_user_id, recipient_email, catalog_entry_id, event_kind, dedupe_key, locale, payload, created_at",
+    )
+    .eq("id", rowId)
+    .maybeSingle();
+  if (error || !data) return "not_found";
+  return retryRow(admin, data as RetryRow, new Date());
+}
+
 async function retryRow(
   admin: SupabaseClient,
   row: RetryRow,
