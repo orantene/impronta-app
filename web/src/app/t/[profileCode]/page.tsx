@@ -102,6 +102,7 @@ import {
 // ---------------------------------------------------------------------------
 
 type TaxonomyTerm = {
+  id?: string;
   kind: string;
   slug?: string;
   name_en: string;
@@ -278,7 +279,7 @@ async function fetchTalentProfile(profileCode: string, preview: boolean) {
             origin_city:locations!origin_city_id ( display_name_en, display_name_es, country_code ),
             talent_profile_taxonomy (
               is_primary,
-              taxonomy_terms ( kind, slug, name_en, name_es )
+              taxonomy_terms ( id, kind, slug, name_en, name_es )
             ),
             intro_italic,
             event_styles,
@@ -340,7 +341,7 @@ async function fetchTalentProfile(profileCode: string, preview: boolean) {
       origin_city:locations!origin_city_id ( display_name_en, display_name_es, country_code ),
       talent_profile_taxonomy (
         is_primary,
-        taxonomy_terms ( kind, slug, name_en, name_es )
+        taxonomy_terms ( id, kind, slug, name_en, name_es )
       ),
       intro_italic,
       event_styles,
@@ -1544,6 +1545,14 @@ export default async function PublicTalentProfilePage({
     instantBook.currencyCode || "USD",
   ).filter((it) => it.isActive && it.visibility !== "agency_only");
 
+  // S6 — id → label for any discipline a service is scoped to (talent_type terms).
+  const disciplineLabels: Record<string, string> = {};
+  for (const term of flattenTaxonomy(profile.talent_profile_taxonomy ?? [])) {
+    if (term.kind === "talent_type" && term.id) {
+      disciplineLabels[term.id] = pickTaxonomyLabel(locale, term);
+    }
+  }
+
   // Enrich similar talent with pre-built hrefs for LightProfileLayout
   const similarTalent = similarTalentRaw.map((st) => ({
     ...st,
@@ -1935,6 +1944,7 @@ export default async function PublicTalentProfilePage({
         startingFrom={profile.starting_from ?? null}
         bookingNote={profile.booking_note ?? null}
         serviceMenuItems={serviceMenuItems}
+        disciplineLabels={disciplineLabels}
         fitLabels={fitLabels}
         skills={skills}
         industries={industries}
