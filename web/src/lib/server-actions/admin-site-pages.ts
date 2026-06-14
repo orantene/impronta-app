@@ -574,7 +574,7 @@ export async function listPagesForPickerAction(): Promise<
  * Gated the same way as insert + extra-page plan limits (`upsertPage`).
  */
 export async function createDraftPageAction(): Promise<
-  { ok: true; id: string; slug: string } | { ok: false; error: string }
+  { ok: true; id: string; slug: string; locale: string } | { ok: false; error: string }
 > {
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -672,8 +672,8 @@ export async function createDraftPageAction(): Promise<
       );
       return { ok: false, error: CLIENT_ERROR.update };
     }
-
-    return { ok: true, id: result.data.id, slug };
+    // `locale` (tenant default) returned so callers open the editor where the row exists.
+    return { ok: true, id: result.data.id, slug, locale };
   } catch (error) {
     logServerError("site-admin/pages/create-draft", error);
     return { ok: false, error: CLIENT_ERROR.update };
