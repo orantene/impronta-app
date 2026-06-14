@@ -19,6 +19,7 @@ import { useEffect, useState, useTransition } from "react";
 import {
   loadTalentServicesMenu,
   updateTalentServicesMenu,
+  importLegacyServicesMenu,
   type TalentDiscipline,
 } from "@/lib/talent/services-menu-actions";
 import {
@@ -102,6 +103,7 @@ function blankService(defaultCurrency: string, sortOrder: number): ServiceMenuIt
 export function TalentServicesMenuCard({ talentId }: { talentId: string }) {
   const [items, setItems] = useState<ServiceMenuItem[]>([]);
   const [disciplines, setDisciplines] = useState<TalentDiscipline[]>([]);
+  const [legacyImportable, setLegacyImportable] = useState(false);
   const [defaultCurrency, setDefaultCurrency] = useState("USD");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -118,6 +120,7 @@ export function TalentServicesMenuCard({ talentId }: { talentId: string }) {
           setItems(res.items);
           setDefaultCurrency(res.defaultCurrency);
           setDisciplines(res.disciplines);
+          setLegacyImportable(res.legacyImportable);
         }
         setLoading(false);
       })
@@ -148,6 +151,23 @@ export function TalentServicesMenuCard({ talentId }: { talentId: string }) {
   const patchItem = (id: string, patch: Partial<ServiceMenuItem>) =>
     persist(items.map((it) => (it.id === id ? { ...it, ...patch } : it)));
   const addService = () => persist([...items, blankService(defaultCurrency, items.length)]);
+  const importLegacy = () => {
+    setSaving(true);
+    setError(null);
+    setSavedOk(false);
+    startTransition(async () => {
+      const res = await importLegacyServicesMenu(talentId);
+      setSaving(false);
+      if (res.ok) {
+        setItems(res.items);
+        setLegacyImportable(false);
+        setSavedOk(true);
+        setTimeout(() => setSavedOk(false), 1800);
+      } else {
+        setError(res.error);
+      }
+    });
+  };
   const removeService = (id: string) => persist(items.filter((it) => it.id !== id));
   const move = (id: string, dir: -1 | 1) => {
     const idx = items.findIndex((it) => it.id === id);
@@ -191,6 +211,21 @@ export function TalentServicesMenuCard({ talentId }: { talentId: string }) {
       {items.length === 0 ? (
         <div style={{ marginTop: 14, padding: "14px 16px", borderRadius: 10, background: C.surface, border: `1px dashed ${C.border}`, fontSize: 12.5, color: C.inkMuted, lineHeight: 1.5 }}>
           No services yet. Add your first — e.g. &ldquo;DJ set&rdquo; at a per-hour rate, or a flat-package &ldquo;Full wedding&rdquo;.
+          {legacyImportable && (
+            <div style={{ marginTop: 10 }}>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={importLegacy}
+                style={{ padding: "7px 12px", borderRadius: 8, border: `1px solid ${C.border}`, background: "#fff", color: C.accentDeep, fontSize: 12, fontWeight: 600, fontFamily: FONT, cursor: saving ? "wait" : "pointer" }}
+              >
+                Import my existing packages &amp; rate
+              </button>
+              <div style={{ fontSize: 10.5, color: C.inkMuted, marginTop: 5 }}>
+                We&rsquo;ll turn your current packages and fixed rate into editable services. You can tweak them after.
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 14 }}>

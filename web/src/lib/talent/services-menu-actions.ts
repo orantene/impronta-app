@@ -32,6 +32,13 @@ import {
   readBlobFieldValuesFromCatalog,
 } from "@/lib/talent/blob-field-values-catalog";
 import { resolveDefaultCurrencyForUI } from "@/lib/billing/currencies";
+import {
+  legacyToServiceMenuItems,
+  hasImportableLegacy,
+  parsePackageTeasers,
+  type LegacyRateSources,
+} from "@/lib/talent/services-menu-legacy";
+import { parseTalentBookingTerms } from "@/lib/billing/commercial-terms";
 
 type AuthResult =
   | {
@@ -128,8 +135,35 @@ async function loadTalentDisciplines(
   return [...out].map(([id, label]) => ({ id, label }));
 }
 
+/** Read the talent's legacy rate columns into the mapper's input shape (S11). */
+async function readLegacyRateSources(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  talentProfileId: string,
+  currency: string,
+): Promise<LegacyRateSources> {
+  const { data } = await admin
+    .from("talent_profiles")
+    .select("package_teasers, booking_terms")
+    .eq("id", talentProfileId)
+    .maybeSingle();
+  const row = (data ?? {}) as { package_teasers?: unknown; booking_terms?: unknown };
+  const terms = parseTalentBookingTerms(row.booking_terms ?? null);
+  return {
+    packageTeasers: parsePackageTeasers(row.package_teasers),
+    fixedRateCents: terms?.fixedRateCents ?? null,
+    currency,
+  };
+}
+
 type LoadResult =
-  | { ok: true; items: ServiceMenuItem[]; defaultCurrency: string; disciplines: TalentDiscipline[] }
+  | {
+      ok: true;
+      items: ServiceMenuItem[];
+      defaultCurrency: string;
+      disciplines: TalentDiscipline[];
+      /** S11 — menu is empty AND legacy rate data exists, so an import is offered. */
+      legacyImportable: boolean;
+    }
   | { ok: false; error: string };
 
 /** Load the talent's services menu (normalized). */
@@ -157,14 +191,24 @@ export async function loadTalentServicesMenu(talentProfileId: string): Promise<L
     }
 
     const raw = catalog.services_menu ?? data?.services_menu;
+    const items = normalizeServicesMenu(raw, auth.defaultCurrency);
     // S6 — the talent's disciplines, for the editor's per-service scoping picker.
     const admin = createServiceRoleClient();
     const disciplines = admin ? await loadTalentDisciplines(admin, talentProfileId) : [];
+    // S11 — offer a legacy import only when the menu is empty and there's
+    // something to import (a fixed rate or named package teasers).
+    let legacyImportable = false;
+    if (admin && items.length === 0) {
+      legacyImportable = hasImportableLegacy(
+        await readLegacyRateSources(admin, talentProfileId, auth.defaultCurrency),
+      );
+    }
     return {
       ok: true,
-      items: normalizeServicesMenu(raw, auth.defaultCurrency),
+      items,
       defaultCurrency: auth.defaultCurrency,
       disciplines,
+      legacyImportable,
     };
   } catch (err) {
     logServerError("talent.servicesMenu.load", err);
@@ -219,6 +263,38 @@ export async function updateTalentServicesMenu(
     return { ok: true, items: clean };
   } catch (err) {
     logServerError("talent.servicesMenu.update", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+/**
+ * S11 — one-shot import of the talent's legacy rate data (fixed rate + package
+ * teasers) into the services menu. Idempotent + non-destructive: refuses when
+ * the menu already has items, so it can never clobber a hand-authored menu.
+ * Goes through updateTalentServicesMenu, so the imported items get the same
+ * normalize + validate + dual-write treatment.
+ */
+export async function importLegacyServicesMenu(talentProfileId: string): Promise<UpdateResult> {
+  try {
+    const auth = await authorizeForTalent(talentProfileId);
+    if (!auth.ok) return { ok: false, error: auth.error };
+
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, error: "Server configuration error." };
+
+    // Guard: never overwrite an existing menu.
+    const existing = await loadTalentServicesMenu(talentProfileId);
+    if (existing.ok && existing.items.length > 0) {
+      return { ok: false, error: "Your menu already has services — import skipped." };
+    }
+
+    const sources = await readLegacyRateSources(admin, talentProfileId, auth.defaultCurrency);
+    const mapped = legacyToServiceMenuItems(sources);
+    if (mapped.length === 0) return { ok: false, error: "Nothing to import." };
+
+    return await updateTalentServicesMenu(talentProfileId, mapped);
+  } catch (err) {
+    logServerError("talent.servicesMenu.importLegacy", err);
     return { ok: false, error: "Unexpected error." };
   }
 }
