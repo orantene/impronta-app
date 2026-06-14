@@ -244,6 +244,8 @@ const nextConfig: NextConfig = {
     "nova.local",
     "midnight.local",
     "lvh.me",
+    "impronta.lvh.me",
+    "app.lvh.me",
     // Local-host-proxy QA harness (scripts/local-host-proxy.mjs): the browser
     // connects to localhost:<port> while the proxy forwards the real Host. Next
     // dev's cross-origin guard otherwise blocks the proxied /_next assets + HMR,

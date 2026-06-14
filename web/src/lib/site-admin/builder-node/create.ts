@@ -4,7 +4,7 @@ import type {
   BuilderNodeStyle,
 } from "./types";
 import { createBuilderSectionEmbed } from "./section-embed-presets";
-import { makeId } from "./make-id";
+import { makeId, randomUuid } from "./make-id";
 
 // Re-exported so existing `import { makeId } from "./create"` consumers keep
 // working; the canonical home is now the dependency-light `./make-id`.
@@ -129,10 +129,10 @@ export function createNav(style?: BuilderNodeStyle): BuilderNode {
       menuLabel: "Menu",
       ariaLabel: "Primary",
       links: [
-        { id: crypto.randomUUID(), label: "Work", href: "/work" },
-        { id: crypto.randomUUID(), label: "About", href: "/about" },
-        { id: crypto.randomUUID(), label: "Services", href: "/services" },
-        { id: crypto.randomUUID(), label: "Contact", href: "/contact" },
+        { id: randomUuid(), label: "Work", href: "/work" },
+        { id: randomUuid(), label: "About", href: "/about" },
+        { id: randomUuid(), label: "Services", href: "/services" },
+        { id: randomUuid(), label: "Contact", href: "/contact" },
       ],
       style,
     },
@@ -392,7 +392,7 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
           honeypotName: "website",
           fields: [
             {
-              id: crypto.randomUUID(),
+              id: randomUuid(),
               name: "name",
               type: "text",
               label: "Name",
@@ -400,7 +400,7 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
               required: true,
             },
             {
-              id: crypto.randomUUID(),
+              id: randomUuid(),
               name: "email",
               type: "email",
               label: "Email",
@@ -408,14 +408,14 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
               required: true,
             },
             {
-              id: crypto.randomUUID(),
+              id: randomUuid(),
               name: "message",
               type: "textarea",
               label: "Message",
               placeholder: "How can we help?",
             },
             {
-              id: crypto.randomUUID(),
+              id: randomUuid(),
               name: "submit",
               type: "submit",
               label: "Send",
