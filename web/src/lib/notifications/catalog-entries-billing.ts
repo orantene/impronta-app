@@ -6,12 +6,16 @@ import ClientDepositReceived from "../../../emails/client/DepositReceived";
 import WorkspacePaymentReceived from "../../../emails/workspace/PaymentReceived";
 import BillingPaymentFailed from "../../../emails/billing/PaymentFailed";
 import TalentPayoutSettled from "../../../emails/talent/PayoutSettled";
+import TalentPayoutReversed from "../../../emails/talent/PayoutReversed";
+import ClientPaymentRefunded from "../../../emails/client/PaymentRefunded";
 import BillingPlanUpgraded from "../../../emails/billing/PlanUpgraded";
 import BillingSubscriptionCanceled from "../../../emails/billing/SubscriptionCanceled";
 import type { CatalogEntry } from "./types";
 import {
   loadInquiryView,
   payoutReceiverTalent,
+  payoutReversedTalent,
+  refundedClient,
   str,
   transactionPayer,
   workspaceAdmins,
@@ -242,6 +246,96 @@ const PAYMENT_PAYOUT_SETTLED_TALENT: CatalogEntry = {
   },
 };
 
+/**
+ * payment.payout_reversed → the talent whose payout was clawed back by a lost
+ * dispute or a refund (email-only). The in-app bell stays on the reversal
+ * producer's emitNotification (keeps its money-drawer deep-link); this entry
+ * migrates only the EMAIL onto the dispatcher (suppression + log + unsubscribe).
+ */
+const PAYMENT_PAYOUT_REVERSED_TALENT: CatalogEntry = {
+  id: "payment.payout_reversed.talent",
+  category: "payments",
+  defaultChannels: ["email"],
+  required: false,
+  triggers: ["payment.payout_reversed"],
+  resolveAudience: payoutReversedTalent,
+  email: {
+    templateId: "talent.payout_reversed",
+    subject: () => "A payout was reversed",
+    render: ({ event, recipient, brand, unsubscribeUrl }) =>
+      React.createElement(TalentPayoutReversed, {
+        talentName: recipient.displayName,
+        amountReversed: formatMoneyCents(num(event.payload.amountCents), str(event.payload.currency)),
+        reasonClause:
+          str(event.payload.reason) === "dispute"
+            ? "the client's payment was disputed"
+            : "the client's payment was refunded",
+        payoutsUrl: pageUrl(brand, "/talent/settings/payouts"),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "payments",
+      }),
+  },
+};
+
+/** payment.refunded → the client whose booking payment was refunded or whose
+ *  dispute closed with the charge reversed (email-only). */
+const PAYMENT_REFUNDED_CLIENT: CatalogEntry = {
+  id: "payment.refunded.client",
+  category: "payments",
+  defaultChannels: ["email"],
+  required: false,
+  triggers: ["payment.refunded"],
+  resolveAudience: refundedClient,
+  email: {
+    templateId: "client.payment_refunded",
+    subject: (event) =>
+      str(event.payload.reason) === "dispute" ? "Payment dispute closed" : "Payment refunded",
+    render: ({ event, recipient, brand, unsubscribeUrl }) => {
+      const isDispute = str(event.payload.reason) === "dispute";
+      return React.createElement(ClientPaymentRefunded, {
+        clientName: recipient.displayName,
+        heading: isDispute ? "Payment dispute closed" : "Payment refunded",
+        message: isDispute
+          ? "the dispute on your booking payment was resolved and the charge was reversed."
+          : "your booking payment was refunded to your original payment method.",
+        amount: null,
+        bookingUrl: pageUrl(brand, "/client/bookings"),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "payments",
+      });
+    },
+  },
+};
+
+/** payment.partial_refund → the client, with the refunded amount (email-only). */
+const PAYMENT_PARTIAL_REFUND_CLIENT: CatalogEntry = {
+  id: "payment.partial_refund.client",
+  category: "payments",
+  defaultChannels: ["email"],
+  required: false,
+  triggers: ["payment.partial_refund"],
+  resolveAudience: refundedClient,
+  email: {
+    templateId: "client.partial_refund",
+    subject: () => "Partial refund issued",
+    render: ({ event, recipient, brand, unsubscribeUrl }) => {
+      const amount = formatMoneyCents(num(event.payload.refundedCents), str(event.payload.currency));
+      return React.createElement(ClientPaymentRefunded, {
+        clientName: recipient.displayName,
+        heading: "Partial refund issued",
+        message: `a partial refund of ${amount} was issued to your original payment method.`,
+        amount,
+        bookingUrl: pageUrl(brand, "/client/bookings"),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "payments",
+      });
+    },
+  },
+};
+
 // ─── §6.6 billing (REQUIRED — no opt-out, no unsubscribe footer) ───────────────
 
 /** workspace.plan_upgraded → owner (email + in_app). */
@@ -352,6 +446,9 @@ export const BILLING_CATALOG_ENTRIES: CatalogEntry[] = [
   PAYMENT_DEPOSIT_RECEIVED_CLIENT,
   PAYMENT_FAILED_WORKSPACE,
   PAYMENT_PAYOUT_SETTLED_TALENT,
+  PAYMENT_PAYOUT_REVERSED_TALENT,
+  PAYMENT_REFUNDED_CLIENT,
+  PAYMENT_PARTIAL_REFUND_CLIENT,
   WORKSPACE_PLAN_UPGRADED,
   WORKSPACE_PLAN_DOWNGRADED,
   WORKSPACE_SUBSCRIPTION_CANCELLED,
