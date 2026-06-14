@@ -201,6 +201,7 @@ import {
 } from "./profile-shell-internal";
 import { shouldShowPolaroidsSection } from "./profile-polaroids-policy";
 import { CommercialTermsEditor } from "./profile-shell-modules/profile-commercial-terms";
+import { TalentServicesMenuCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/TalentServicesMenuCard";
 import { ProfileReviewsEditor } from "./profile-shell-modules/profile-reviews";
 import {
   ProfileShellSaveErrorBanner,
@@ -3855,6 +3856,9 @@ export function TalentProfileShellDrawer() {
                 onToggle={() => setActiveSection(activeSection === "commercial_terms" ? "" : "commercial_terms")}
               >
                 <CommercialTermsEditor talentId={payload.talentId} />
+                {/* S13 — admin parity for the services menu (same self-saving
+                    card the talent uses; configuration only). */}
+                <TalentServicesMenuCard talentId={payload.talentId} />
               </ProfileAccordionSection>
             )}
 

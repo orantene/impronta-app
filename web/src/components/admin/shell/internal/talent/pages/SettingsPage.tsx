@@ -2,6 +2,7 @@
 
 import { SettingsSectionIcon } from "@/components/admin/settings/settings-section-icons";
 import { CommercialBookingTermsCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/CommercialBookingTermsCard";
+import { TalentServicesMenuCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/TalentServicesMenuCard";
 import { DefaultCurrencyCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/DefaultCurrencyCard";
 import { ProfileVisibilityCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/ProfileVisibilityCard";
 import { TalentPlanCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/TalentPlanCard";
@@ -82,6 +83,13 @@ export function SettingsPage() {
           booking flow, not here. */}
       {bridgeTalentSelfProfile && (
         <CommercialBookingTermsCard talentId={bridgeTalentSelfProfile.id} />
+      )}
+
+      {/* Services menu — talent's priced menu of services (Phase B). Same
+          bridged-profile gate as the booking-terms card. Configuration only;
+          a selected service pre-fills an offer line in the booking flow. */}
+      {bridgeTalentSelfProfile && (
+        <TalentServicesMenuCard talentId={bridgeTalentSelfProfile.id} />
       )}
 
       {/* Trust & Verification — talent's view of their own trust state */}
