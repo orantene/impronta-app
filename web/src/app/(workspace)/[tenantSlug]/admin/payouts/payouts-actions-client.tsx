@@ -16,7 +16,13 @@ import {
 } from "@/lib/server-actions/admin-stripe-connect";
 import type { ConnectAccountStatus } from "@/lib/payments/stripe-connect";
 import { ConnectEmbeddedOnboarding } from "@/components/payments/ConnectEmbeddedOnboarding";
-import { PAYOUT_COUNTRIES } from "@/lib/payments/payout-countries";
+import { PAYOUT_COUNTRIES, CONNECT_PAYOUT_COUNTRIES } from "@/lib/payments/payout-countries";
+
+// The agency payout leg is always Stripe Connect, so the workspace country
+// picker must only offer Connect-supported countries (US/UK/CA/CH + EEA).
+// Previously it showed the full PAYOUT_COUNTRIES list incl. MX/AR/BR, letting an
+// admin pick a country Stripe rejects at accounts.create with a confusing error.
+const CONNECT_COUNTRY_OPTIONS = PAYOUT_COUNTRIES.filter((c) => CONNECT_PAYOUT_COUNTRIES.has(c.iso2));
 import { createTranslator } from "@/i18n/messages";
 
 const C = {
@@ -201,7 +207,7 @@ export function PayoutsActionsClient({
             }}
           >
             <option value="">Select your country…</option>
-            {PAYOUT_COUNTRIES.map((c) => (
+            {CONNECT_COUNTRY_OPTIONS.map((c) => (
               <option key={c.iso2} value={c.iso2}>{c.flag} {c.label}</option>
             ))}
           </select>

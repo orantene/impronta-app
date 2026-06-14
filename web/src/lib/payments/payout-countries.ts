@@ -78,6 +78,22 @@ export function isStablecoinPayoutCountry(iso2: string | null | undefined): bool
   return STABLECOIN_PAYOUT_COUNTRIES.has(iso2.trim().toUpperCase());
 }
 
+/** Countries where Stripe Connect (Express) can open a connected account:
+ *  US/UK/CA/CH + the EEA. Excludes MX and all of LatAm — those need Global
+ *  Payouts. Mirrors the inline set in the talent PayoutsShell; the AGENCY payout
+ *  leg is always Connect, so the agency country picker filters to this set. */
+export const CONNECT_PAYOUT_COUNTRIES: ReadonlySet<string> = new Set([
+  "US", "GB", "CA", "CH",
+  "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU", "IE",
+  "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK", "SI", "ES", "SE", "IS", "LI", "NO",
+]);
+
+/** Can Stripe Connect open an Express account in this ISO-2 country? */
+export function isConnectPayoutCountry(iso2: string | null | undefined): boolean {
+  if (!iso2) return false;
+  return CONNECT_PAYOUT_COUNTRIES.has(iso2.trim().toUpperCase());
+}
+
 /** Default local payout currency (ISO-4217, lowercase) for a payout country —
  *  prefills the Global Payouts bank-payout-method currency. Falls back to USD. */
 export function defaultPayoutCurrency(iso2: string | null | undefined): string {
