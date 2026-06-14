@@ -5,6 +5,7 @@ import {
   validateServicesMenu,
   pricingTypeRequiresAmount,
   findInstantBookService,
+  serviceMatchesDiscipline,
   type ServiceMenuItem,
 } from "./services-menu-types";
 import { servicePricingTypeToOfferUnit, isServiceOfferPriceable } from "./services-menu-offer";
@@ -119,6 +120,22 @@ test("findInstantBookService: returns the single priced active instant-book serv
   const ib = findInstantBookService(items);
   assert.equal(ib?.name, "B");
   assert.equal(ib?.amountCents, 20000);
+});
+
+test("serviceMatchesDiscipline: All matches everything; general matches every filter; scoped matches only its id (S19)", () => {
+  const general = item({ taxonomyTermIds: null });
+  const scopedA = item({ taxonomyTermIds: ["disc-a"] });
+  const scopedAB = item({ taxonomyTermIds: ["disc-a", "disc-b"] });
+  // null = "All"
+  assert.equal(serviceMatchesDiscipline(general, null), true);
+  assert.equal(serviceMatchesDiscipline(scopedA, null), true);
+  // general always shows under a specific filter
+  assert.equal(serviceMatchesDiscipline(general, "disc-a"), true);
+  assert.equal(serviceMatchesDiscipline(general, "disc-z"), true);
+  // scoped shows only under its discipline(s)
+  assert.equal(serviceMatchesDiscipline(scopedA, "disc-a"), true);
+  assert.equal(serviceMatchesDiscipline(scopedA, "disc-b"), false);
+  assert.equal(serviceMatchesDiscipline(scopedAB, "disc-b"), true);
 });
 
 test("offer mapper: pricingType maps 1:1 to a valid offer unit; custom not priceable", () => {

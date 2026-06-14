@@ -1369,6 +1369,8 @@ export type OfferDraftSnapshot = {
     talentCost: number;
     notes: string | null;
     sortOrder: number;
+    /** S18 — services-menu service this line was prefilled from; null = manual. */
+    sourceServiceId: string | null;
   }>;
 };
 
@@ -1423,7 +1425,7 @@ export async function loadOfferDraft(
       .from("inquiry_offer_line_items")
       .select(`
         id, talent_profile_id, label, pricing_unit, units, unit_price,
-        total_price, talent_cost, notes, sort_order,
+        total_price, talent_cost, notes, sort_order, source_service_id,
         talent_profiles ( display_name )
       `)
       .eq("offer_id", offerId)
@@ -1440,6 +1442,7 @@ export async function loadOfferDraft(
       talent_cost: number;
       notes: string | null;
       sort_order: number;
+      source_service_id: string | null;
       talent_profiles: { display_name: string | null } | null;
     };
     const rows = (lines ?? []) as unknown as LineRow[];
@@ -1505,6 +1508,7 @@ export async function loadOfferDraft(
           talentCost: Number(r.talent_cost),
           notes: r.notes,
           sortOrder: r.sort_order,
+          sourceServiceId: r.source_service_id ?? null,
         })),
       },
     };

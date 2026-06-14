@@ -465,6 +465,7 @@ export function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: s
           talentCost: 0,
           notes: null,
           sortOrder: s.lineItems.length,
+          sourceServiceId: null,
         },
       ],
     });
@@ -502,6 +503,7 @@ export function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: s
         talent_cost: li.talentCost,
         notes: li.notes,
         sort_order: idx,
+        source_service_id: li.sourceServiceId,
       }));
       const r = await saveOfferDraft(effectiveTenant.slug, offerId, {
         inquiryExpectedVersion: snapshot.inquiryVersion,
@@ -566,7 +568,9 @@ export function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: s
                 onChange={(e) => {
                   const id = e.target.value || null;
                   const match = rosterOptions.find((p) => p.id === id);
-                  updateLine(li.id, { talentProfileId: id, talentDisplayName: match?.name ?? null, label: match?.name ?? li.label });
+                  // Changing the talent invalidates any prior service prefill
+                  // (the service belonged to the previous talent) — clear the stamp.
+                  updateLine(li.id, { talentProfileId: id, talentDisplayName: match?.name ?? null, label: match?.name ?? li.label, sourceServiceId: null });
                 }}
                 style={{ padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4, flex: 1, minWidth: 0 }}
               >
@@ -644,6 +648,7 @@ export function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: s
                       label: svc.name,
                       pricingUnit: svc.pricingType,
                       unitPrice: svc.amountCents != null ? svc.amountCents / 100 : li.unitPrice,
+                      sourceServiceId: svc.id, // S18 — audit stamp
                     })
                   }
                 />
@@ -704,6 +709,7 @@ export function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: s
               talent_cost: li.talentCost,
               notes: li.notes,
               sort_order: idx,
+              source_service_id: li.sourceServiceId,
             })),
             terms,
           });
