@@ -5,7 +5,7 @@ import type { PageDesign } from "./types";
 import { buildTalentDisciplineDecomposedSection } from "../talent-discipline-freeform";
 import { buildFeaturedTalentDecomposedSection, gridOnlyFeaturedTalentConfig } from "../featured-talent-freeform";
 import { buildLocationDiscoveryDecomposedSection, gridOnlyLocationDiscoveryConfig } from "../location-discovery-freeform";
-import { FRAUNCES, CINZEL, INTER } from "./tokens";
+import { styleTokenRef } from "../style-token-bindings";
 
 /**
  * IMPRONTA — the flagship tenant homepage, rebuilt freeform.
@@ -49,17 +49,26 @@ import { FRAUNCES, CINZEL, INTER } from "./tokens";
  */
 
 // ── palette ──────────────────────────────────────────────────────────────────
-const INK = "#07090c"; // page canvas
-const SURFACE = "#0b0f14"; // alternating band
-const WARM = "#0d0a07"; // warm dark band (markets)
-const GOLD = "#c9a227";
-const GOLD_BRIGHT = "#e3c873";
-const TEXT = "#f4eee2";
-const MUTED = "rgba(244,238,226,0.66)";
-const FAINT = "rgba(244,238,226,0.42)";
-const HAIRLINE = "rgba(201,162,39,0.22)";
-const CARD = "rgba(255,255,255,0.035)";
-const CARD_BORDER = "rgba(244,238,226,0.10)";
+// Palette is bound to THEME TOKENS via the `token:` sentinel (styleTokenRef →
+// var(--token-...)) so colors follow the tenant's theme (platform default →
+// Editorial-Noir black/gold) instead of being hardcoded. Whole-prop color
+// values only (backgroundColor/textColor/borderColor) — gradients like
+// GOLD_GLOW stay literal because the sentinel is not resolved mid-string.
+const INK = styleTokenRef("color.background"); // page canvas
+const SURFACE = styleTokenRef("color.surface-raised"); // alternating band
+const WARM = styleTokenRef("color.surface-raised"); // warm dark band (markets)
+const GOLD = styleTokenRef("color.primary");
+const GOLD_BRIGHT = styleTokenRef("color.accent");
+const TEXT = styleTokenRef("color.ink");
+const MUTED = styleTokenRef("color.muted");
+const FAINT = styleTokenRef("color.muted");
+const HAIRLINE = styleTokenRef("color.line");
+const CARD = styleTokenRef("color.surface-raised");
+const CARD_BORDER = styleTokenRef("color.line");
+// Fonts follow the theme's heading/body presets (display serif / body sans).
+const FRAUNCES = styleTokenRef("typography.heading-font-family");
+const CINZEL = styleTokenRef("typography.heading-font-family");
+const INTER = styleTokenRef("typography.body-font-family");
 
 // Real represented Impronta talent (public media-public bucket) for the hero
 // stage cards — actual roster portraits, not stock. The Featured Talent section
@@ -447,7 +456,7 @@ const heroFind: BuilderNode = {
       gap: "0px",
       backgroundColor: INK,
       backgroundImage:
-        "radial-gradient(120% 80% at 50% 0%, rgba(201,162,39,0.10), rgba(201,162,39,0) 60%), linear-gradient(180deg,#090b0f 0%,#07090c 100%)",
+        "radial-gradient(120% 80% at 50% 0%, rgba(201,162,39,0.10), rgba(201,162,39,0) 60%), linear-gradient(180deg,var(--token-color-surface-raised) 0%,var(--token-color-background) 100%)",
       textColor: TEXT,
       responsive: { mobile: { paddingTop: "76px", paddingBottom: "60px", paddingRight: "20px", paddingLeft: "20px" } },
     },
@@ -747,7 +756,7 @@ const process: BuilderNode = band("impronta-process", INK, [
                     fontSize: "18px",
                     fontWeight: 500,
                     textColor: GOLD,
-                    backgroundColor: "#0d100b",
+                    backgroundColor: SURFACE,
                     borderColor: GOLD,
                     borderWidth: "1px",
                     borderStyle: "solid",
@@ -758,7 +767,7 @@ const process: BuilderNode = band("impronta-process", INK, [
                     lineHeight: "44px",
                     marginTopFree: "-43px",
                     marginBottomFree: "0px",
-                    boxShadow: "0 0 0 6px #07090c",
+                    boxShadow: "0 0 0 6px var(--token-color-background)",
                   },
                 },
               },
