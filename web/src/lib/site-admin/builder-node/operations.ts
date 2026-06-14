@@ -7,6 +7,7 @@ import {
   type BuilderTextRoleId,
 } from "./text-role";
 import type { BuilderNode, BuilderNodeTree } from "./types";
+import { randomUuid } from "./make-id";
 import { syncBaseNodeFieldsFromProps, validateBuilderNodeTree } from "./validate";
 
 export type BuilderNodeOpCode =
@@ -171,7 +172,7 @@ function copyPathToTarget(
 }
 
 function freshNodeId(kind: BuilderNode["kind"]): string {
-  return `${kind}-${crypto.randomUUID()}`;
+  return `${kind}-${randomUuid()}`;
 }
 
 export function cloneNodeWithFreshIds(

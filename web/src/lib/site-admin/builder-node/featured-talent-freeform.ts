@@ -8,10 +8,13 @@
 
 import type { BuilderNode, BuilderNodeKind } from "./types";
 import type { SectionEmbedSubjectKind } from "./section-embed-preview-subject";
+import { randomUuid } from "./make-id";
 
-/** Local id minting — avoids importing `create` (circular via page-designs → impronta). */
+/** Local id minting — `make-id` is dependency-light (types-only imports), so it
+ * sidesteps the `create` → page-designs → impronta circular chain while sharing
+ * the secure-context-safe uuid generator. */
 function makeNodeId(kind: BuilderNodeKind): string {
-  return `builder-${kind}-${crypto.randomUUID()}`;
+  return `builder-${kind}-${randomUuid()}`;
 }
 
 /**
