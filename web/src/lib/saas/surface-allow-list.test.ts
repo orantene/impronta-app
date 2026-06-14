@@ -154,6 +154,17 @@ test("canonical talent surface: /t/* allowed on agency + app + marketing + hub",
   assert.equal(isPathAllowedForHostKind("agency", "/talent"), true);
 });
 
+test("read-only deploy diagnostics: /api/health/* allowed on every host kind", () => {
+  // /api/health/guest-chat reports only the boolean presence of the Upstash KV
+  // env vars (no secrets, no tenant data) and must be reachable unauthenticated
+  // so deploy:smoke can probe the deployed runtime. It is host-agnostic
+  // (SHARED_API_PREFIXES) like /api/cron and /api/stripe.
+  const p = "/api/health/guest-chat";
+  for (const kind of ["app", "agency", "hub", "marketing"] as const) {
+    assert.equal(isPathAllowedForHostKind(kind, p), true, `${kind} should allow ${p}`);
+  }
+});
+
 test("hub host: auth + workspace slug paths + shared routes allowed", () => {
   const allowed = [
     "/",

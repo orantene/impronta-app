@@ -273,13 +273,17 @@ async function check_notification_crons() {
 }
 
 // 10) Resend sending domain is verified (DKIM/SPF/DMARC). Credential-gated:
-//     needs RESEND_API_KEY in env. Since provisioning that key is currently
-//     blocked, this WARNS (not fails) when absent — the honest current state.
+//     needs RESEND_API_KEY in the LOCAL env that runs this script. The key IS
+//     set in Vercel Production (prod email works), but this script reads the
+//     local shell — so absent a local key it WARNS (not fails) and skips the
+//     domain API call. To actually verify the sending domain, run with the key:
+//     `RESEND_API_KEY=$(vercel env pull ...) npm run deploy:smoke`, or pull it
+//     into web/.env.local.
 async function check_resend_domain() {
   console.log("\nResend sending domain");
   const key = process.env.RESEND_API_KEY;
   if (!key) {
-    warn("Resend domain", "skipped — RESEND_API_KEY not in env (provisioning blocked)");
+    warn("Resend domain", "skipped — RESEND_API_KEY not in local env (set it to verify the sending domain; the key is present in Vercel prod)");
     return;
   }
   try {

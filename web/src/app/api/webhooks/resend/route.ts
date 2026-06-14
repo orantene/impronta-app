@@ -17,9 +17,10 @@
  * misconfigured deployment never accepts unsigned events — a forged
  * `email.complained` could otherwise suppress a real customer's mail.
  *
- * BLOCKED (ops, not code): the endpoint + secret must be registered in the
- * Resend dashboard once RESEND_API_KEY is provisioned. Until then this route
- * is inert (503), exactly like the Stripe webhook before its secret exists.
+ * LIVE in production: RESEND_API_KEY + RESEND_WEBHOOK_SECRET are both set in
+ * Vercel prod, so this route is active and verifies signatures (an unsigned
+ * POST returns 400, not the unconfigured 503). The 503 branch below remains the
+ * fail-safe for any environment where the secret is absent.
  */
 
 import { NextResponse, type NextRequest } from "next/server";

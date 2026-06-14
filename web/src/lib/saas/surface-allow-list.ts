@@ -71,12 +71,21 @@ const PROTOTYPE_PREFIX = "/prototypes" as const;
  *                              events to whatever public endpoint we register
  *                              and the originating Host header may not match
  *                              any seeded `agency_domains` row.
+ *   - `/api/health/*`        → read-only deploy diagnostics (e.g.
+ *                              `/api/health/guest-chat` reports only the BOOLEAN
+ *                              presence of the Upstash KV env vars — no secret
+ *                              values, no tenant data). Intentionally
+ *                              unauthenticated so `deploy:smoke` can probe the
+ *                              deployed runtime without a session; without this
+ *                              entry the proxy rewrote it to a 404 and the
+ *                              smoke check could never read the anti-spam signal.
  * These never leak tenant data and have their own gates.
  */
 const SHARED_API_PREFIXES = [
   "/api/cron",
   "/api/analytics/events",
   "/api/stripe",
+  "/api/health",
 ] as const;
 
 /**
