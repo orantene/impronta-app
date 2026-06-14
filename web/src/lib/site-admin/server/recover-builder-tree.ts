@@ -2,8 +2,31 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { improntaLog } from "@/lib/server/structured-log";
 
+/**
+ * Count every node in a builderTree RECURSIVELY (top-level entries plus all
+ * descendant `children`). The earlier implementation counted only the top-level
+ * array length, which mis-classified a FULL single-root tree — one root
+ * `container` node holding all the real sections as `children` (the
+ * post-restructure homepage shape) — as "empty" (length 1). That wrongly tripped
+ * recovery and surfaced a stale/garbage revision in the editor and at publish
+ * (homepage draft garbage-draft incident, 2026-06-12). A recursive count treats
+ * a root container with children as the full tree it is, while a lone empty
+ * container or `[]` still counts as empty (<= 1) and recovery still fires.
+ */
 function builderTreeNodeCount(tree: unknown): number {
-  return Array.isArray(tree) ? tree.length : 0;
+  if (!Array.isArray(tree)) return 0;
+  let count = 0;
+  const stack: unknown[] = [...tree];
+  while (stack.length > 0) {
+    const node = stack.pop();
+    if (!node || typeof node !== "object") continue;
+    count += 1;
+    const children = (node as { children?: unknown }).children;
+    if (Array.isArray(children)) {
+      for (const child of children) stack.push(child);
+    }
+  }
+  return count;
 }
 
 /**
