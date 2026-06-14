@@ -41,7 +41,38 @@ Tradeoff: auth emails still won't show in the platform-admin **send-log**
 dashboard is the tracking surface. If you want them in our console too, use
 Option B.
 
-## Option B — Send Email Hook (Edge Function) — for in-console logging
+## Option B — Send Email Hook → in-app HTTPS endpoint (IMPLEMENTED ✅)
+
+> **Built and shipped.** Rather than a separate Deno Edge Function (the original
+> sketch, kept below for reference), the Send Email Hook points at an HTTPS route
+> **inside the Next.js app**: `POST /api/hooks/auth-email`. That keeps ALL the
+> logic in the gated/tested repo, reuses the branded `emails/auth/*` templates +
+> the Resend send lib, and writes a `notification_dispatch_log` row so every auth
+> email appears in `/platform/admin/email` (the "all control in platform/admin"
+> goal). Enabling this hook makes Supabase delegate auth-email sending to us —
+> it supersedes the Option A SMTP config for hooked email types.
+
+**Activation (two places):**
+1. **Vercel** → project env → add `SEND_EMAIL_HOOK_SECRET` (value from step 2;
+   paste the whole `v1,whsec_…`). Redeploy. `RESEND_API_KEY` +
+   `SUPABASE_SERVICE_ROLE_KEY` are already set. Until the secret is set the route
+   returns 503, so set it BEFORE enabling the hook.
+2. **Supabase → Authentication → Hooks → Send Email Hook → Enable**, type
+   **HTTPS**, URL `https://app.tulala.digital/api/hooks/auth-email`. Copy the
+   generated signing secret into the Vercel var above.
+3. **Verify:** trigger a password reset → arrives from `noreply@tulala.digital`,
+   shows in Resend, AND appears as an `auth.recovery` row in
+   `/platform/admin/email`.
+
+The route verifies the Standard-Webhooks signature (reuses `verifyResendSignature`),
+renders the action's branded template, sends via Resend, builds the in-app
+`/auth/confirm?token_hash=…` link, and logs the send. Auth rows show in the
+send-log but not the toggle/template-editor grids (auth mail is required + code-
+rendered, by design).
+
+---
+
+### Reference (original Deno Edge Function sketch — NOT used; kept for history)
 Supabase calls a Deno Edge Function for every auth email; the function renders +
 sends via Resend AND writes a `notification_dispatch_log` row, so auth mail shows
 in `/platform/admin/email` alongside everything else. More moving parts (a Deno
