@@ -101,7 +101,11 @@ export async function createAgencyInquiry(
     event_date: eventDate,
     event_location: v.event_location.trim() || null,
     message: v.message.trim() || null,
-    source_channel: "admin_manual",
+    // QA 2026-06-13: 'admin_manual' is NOT a member of the inquiry_source_channel
+    // enum (valid: admin_created/admin/…) — it raised a 22P02 enum cast on every
+    // insert, silently breaking the admin in-shell New-inquiry composer. Use the
+    // valid 'admin_created' (same value createManualInquiry uses).
+    source_channel: "admin_created",
     source_page: "admin-workspace-new-inquiry",
     client_user_id: null,
     talent_profile_ids: [],
