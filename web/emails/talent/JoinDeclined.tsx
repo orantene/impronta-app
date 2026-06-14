@@ -33,7 +33,7 @@ export default function JoinDeclined({
       <Heading style={h2}>Update on your request</Heading>
       <Text style={body}>
         Hi {name}, {team} isn&apos;t able to add you to their roster right now.
-        Your Tulala profile stays live — you can keep it polished and explore
+        Your profile stays live — you can keep it polished and explore
         other workspaces open for registration.
       </Text>
       <Button href={exploreUrl}>Explore workspaces →</Button>
