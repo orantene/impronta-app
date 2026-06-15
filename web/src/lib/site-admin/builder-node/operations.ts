@@ -9,6 +9,7 @@ import {
 import type { BuilderNode, BuilderNodeTree } from "./types";
 import { randomUuid } from "./make-id";
 import { syncBaseNodeFieldsFromProps, validateBuilderNodeTree } from "./validate";
+import { stripLockedKeysFromPatch } from "./prop-lock";
 
 export type BuilderNodeOpCode =
   | "NODE_NOT_FOUND"
@@ -892,7 +893,15 @@ export function patchBuilderNodeProps(input: {
   // same comparison as before. Only build the copy-on-write spine once we know
   // there is a real change to apply (avoids a pointless allocation on no-ops).
   const currentProps = location.node.props as Record<string, unknown>;
-  const hasRealChange = Object.entries(input.patch).some(([key, value]) => {
+  // Builder Studio — re-assert admin per-prop locks: strip any locked key from
+  // the incoming patch (the server-trusted chokepoint, since a disabled
+  // inspector input can still be bypassed programmatically/optimistically).
+  const patch = stripLockedKeysFromPatch(
+    input.patch,
+    currentProps,
+    location.node.lockedProps,
+  );
+  const hasRealChange = Object.entries(patch).some(([key, value]) => {
     return !valuesEqual(currentProps[key], value);
   });
   if (!hasRealChange) {
@@ -921,7 +930,7 @@ export function patchBuilderNodeProps(input: {
   }
   const mergedProps = {
     ...currentProps,
-    ...input.patch,
+    ...patch,
   };
   (target as unknown as { props: unknown }).props = mergedProps;
   // Keep the base mirror (locked / visibilityCondition) in sync with the merged

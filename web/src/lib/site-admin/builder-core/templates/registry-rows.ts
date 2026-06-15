@@ -61,6 +61,15 @@ export interface BuilderTemplateRow {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  // Builder Studio (Wave 0 plumbing; behavior in WS-C/WS-D). Optional so existing
+  // row constructors/tests don't need updating; the DB always supplies them.
+  default_props?: Record<string, unknown> | null;
+  locked_props?: string[];
+  data_source_defaults?: Record<string, unknown> | null;
+  rollout_percentage?: number;
+  tenant_allowlist?: string[];
+  tenant_denylist?: string[];
+  changelog?: string | null;
 }
 
 /**

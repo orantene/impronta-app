@@ -52,6 +52,7 @@ export async function fetchSurfaceGalleryItems(
       surfaceTarget: (descriptor.surfaceTarget ?? null) as BuilderTemplateTarget | null,
       plan: coercePlan(descriptor.plan),
       talentTier: descriptor.talentTier,
+      tenantId: descriptor.tenantId,
     },
     { listPublishedTemplates, loadOverlays: listCatalogOverlays },
   );

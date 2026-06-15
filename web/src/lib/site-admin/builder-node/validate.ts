@@ -23,6 +23,16 @@ const BASE_NODE_FIELD_CARRIERS: ReadonlyArray<{
 }> = [
   { key: "locked", normalize: (value) => (value === true ? true : undefined) },
   {
+    key: "lockedProps",
+    normalize: (value) => {
+      if (!Array.isArray(value)) return undefined;
+      const keys = value.filter(
+        (v): v is string => typeof v === "string" && v.length > 0,
+      );
+      return keys.length > 0 ? keys : undefined;
+    },
+  },
+  {
     key: "visibilityCondition",
     normalize: (value) => normalizeBuilderVisibilityCondition(value) ?? undefined,
   },

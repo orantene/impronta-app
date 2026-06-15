@@ -114,6 +114,15 @@ export interface AddGalleryItem {
   targetContext?: "talent" | "workspace" | "both" | "platform";
   /** required_talent_tier for a dbTemplate item (null when unrestricted). */
   requiredTalentTier?: string | null;
+  /** Builder Studio — admin component defaults: props merged OVER the
+   *  variant-resolved props at insert. Plumbed Wave 0; consumed by WS-C. */
+  defaultProps?: Record<string, unknown> | null;
+  /** Builder Studio — admin per-prop locks (dot-paths) stamped onto the
+   *  inserted node so a tenant can't edit them. */
+  lockedProps?: ReadonlyArray<string>;
+  /** Builder Studio — default data binding (filterQuery/maxItems/pinnedIds)
+   *  baked into a connected component at insert. */
+  dataSourceDefaults?: Record<string, unknown> | null;
 }
 
 export interface AddGalleryCategoryDef {
@@ -146,4 +155,8 @@ export interface GallerySurfaceDescriptor {
   plan: string | null;
   /** Surface talent tier for `required_talent_tier` gating. */
   talentTier: string | null;
+  /** Builder Studio — the live tenant id (for staged-rollout bucketing of
+   *  templates). Null on platform/lab surfaces ⇒ no rollout gating (show all).
+   *  Plumbed Wave 0; consumed by WS-D. */
+  tenantId: string | null;
 }
