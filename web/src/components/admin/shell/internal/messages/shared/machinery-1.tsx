@@ -87,13 +87,28 @@ export function buildInquiryTabs(opts: {
   // until Slices C + D migrate them. The unread badges roll up across
   // both client + group threads onto the single Chat tab.
   if (pov === "admin") {
-    const chatUnread = (unread.client ?? 0) + (unread.talent ?? 0);
+    // Match the talent tab row: flatten the single "Chat" tab (which used a
+    // floating sub-toggle) into three native top-level tabs —
+    // Client · Group · Activity — exactly like the talent shell (F2). Same
+    // ThreadTabBar primitive, same tokens; admin now reads as one clean tab
+    // row instead of a tab + a frosted overlay pill.
     const adminTabs: TabDef[] = [
       {
-        id: "chat",
-        label: "Chat",
+        id: "client",
+        label: "Client",
         state: "active",
-        badge: chatUnread > 0 ? chatUnread : undefined,
+        badge: unread.client && unread.client > 0 ? unread.client : undefined,
+      },
+      {
+        id: "talent",
+        label: "Group",
+        state: "active",
+        badge: unread.talent && unread.talent > 0 ? unread.talent : undefined,
+      },
+      {
+        id: "activity",
+        label: "Activity",
+        state: "active",
       },
       {
         id: "lineup",

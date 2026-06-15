@@ -65,9 +65,29 @@ async function relinkFirstConfirmedClaim(userId: string): Promise<void> {
         }
       }
 
+      // Re-attribute the guest's pre-claim messages to the confirming client
+      // BEFORE clearing guest_session_id below — guest rows are
+      // { sender_user_id: NULL, guest_session_id: <gid> }; without this they
+      // render as left-aligned "System" in the client surface. Best-effort.
+      const { error: reattributeErr } = await admin
+        .from("inquiry_messages")
+        .update({ sender_user_id: userId })
+        .eq("inquiry_id", row.id)
+        .is("sender_user_id", null)
+        .not("guest_session_id", "is", null);
+      if (reattributeErr) {
+        logServerError("auth/confirm/relinkFirstConfirmedClaim/reattribute", reattributeErr);
+      }
+
+      // Relink AND sever the originating guest cookie's access by nulling
+      // inquiries.guest_session_id (the guest read/write gate keys off it).
       const { error: relinkErr } = await admin
         .from("inquiries")
-        .update({ client_user_id: userId, updated_at: new Date().toISOString() })
+        .update({
+          client_user_id: userId,
+          guest_session_id: null,
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", row.id);
       if (relinkErr) {
         logServerError("auth/confirm/relinkFirstConfirmedClaim/update", relinkErr);

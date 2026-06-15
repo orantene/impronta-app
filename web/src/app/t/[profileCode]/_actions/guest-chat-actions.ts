@@ -33,6 +33,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { ensureGuestClientByEmail } from "@/lib/inquiry/guest-client";
 import { evaluateGuestConversationGate } from "@/lib/inquiry/guest-trust-gate";
 import { createInquiryFromIntent } from "@/lib/inquiry/inquiry-intent-engine";
+import { assertAllTalentOnTenantRoster } from "@/lib/saas/talent-roster";
 import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
 import { captureGuestMessageDetails } from "@/lib/inquiry/guest-message-extract";
 import { sendMessage } from "@/lib/inquiry/inquiry-engine-messages";
@@ -564,6 +565,27 @@ export async function startGuestChatInquiry(
   const tenantId = await resolveTenantIdBySlug(admin, input.tenantSlug);
   if (!tenantId) {
     return fail("tenant_unavailable", "We couldn't find this workspace.");
+  }
+
+  // SECURITY (L1-F1): the targeted talent id is client-supplied and the insert
+  // below runs under the service-role client, so we MUST verify the talent is on
+  // THIS tenant's publicly visible roster before creating the inquiry. Without
+  // this gate a crafted request could file an inquiry naming a hidden /
+  // unapproved / off-roster / cross-agency talent. Talent-less "message the
+  // agency" inquiries (hasTalent === false) have nothing to gate. Legitimate hub
+  // + agency storefront paths always surface roster-visible talent, so this
+  // never rejects a real conversation.
+  if (talentProfileId) {
+    const rosterCheck = await assertAllTalentOnTenantRoster(admin, tenantId, [
+      talentProfileId,
+    ]);
+    if (!rosterCheck.ok) {
+      logServerError(
+        "guest-chat-actions.startGuestChatInquiry/roster",
+        new Error(`talent not on tenant roster: ${rosterCheck.missingIds.join(",")}`),
+      );
+      return fail("tenant_unavailable", "We couldn't find this workspace.");
+    }
   }
 
   // ── Anti-abuse floor (Lane B): honeypot re-check (L0) + disposable-email

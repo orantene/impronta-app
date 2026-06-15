@@ -3356,13 +3356,17 @@ function renderClientChatCard(
       // 6.3: the deposit settled; the client owes the remaining balance. Pay
       // balance reuses the same checkout flow — the admin creates the balance
       // txn (checkout_type='balance'), which becomes the active charge onPayNow
-      // settles.
+      // settles. onPayNow ignores the passed label and re-resolves the live
+      // charge via clientChargeLabel(details), so the balance txn is charged
+      // even if this card's stored figure is stale.
       const depositLabel = get<string>("deposit_label", "—");
+      const balanceLabel = get<string>("balance_label", "");
       return (
         <BalanceDueCard
           depositLabel={depositLabel}
+          balanceLabel={balanceLabel || undefined}
           hint={get<string>("hint", "")}
-          onPayBalance={ctx.onPayNow ? () => ctx.onPayNow!(depositLabel) : undefined}
+          onPayBalance={ctx.onPayNow ? () => ctx.onPayNow!(balanceLabel || depositLabel) : undefined}
         />
       );
     }

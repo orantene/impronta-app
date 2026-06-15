@@ -27,8 +27,8 @@ import { FilesTab } from "./shared/machinery-15";
 import { AdminBookingTab } from "./shared/machinery-5";
 import { LogisticsTab, PaymentTab, ShellNextActionBar } from "./shared/machinery-6";
 import type { ShellAction } from "./shared/machinery-6";
-import type { ChatSubThreadId, ThreadTabId } from "./shared/machinery-8";
-import { ChatSubToggleDropdown, MOCK_FILES_FOR_CONV, ThreadSearchTrigger, ThreadTabBar } from "./shared/machinery-9";
+import type { ThreadTabId } from "./shared/machinery-8";
+import { MOCK_FILES_FOR_CONV, ThreadSearchTrigger, ThreadTabBar } from "./shared/machinery-9";
 import type { Offer } from "./shared/machinery-9";
 import { ShellHeader } from "./talent-1";
 import type { ShellHeaderInput } from "./talent-1";
@@ -120,11 +120,10 @@ function WhosTurnBanner({
 export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack: () => void }) {
   const { toast, state, effectiveTenant } = useAdminShell();
   const router = useRouter();
-  // Slice B (Messages consolidation v2): admin lands on the unified
-  // Chat tab; Client is the default sub-thread (client conversation
-  // is the primary sales surface for admin/coord).
-  const [activeTab, setActiveTab] = useState<ThreadTabId>("chat");
-  const [chatSubThread, setChatSubThread] = useState<ChatSubThreadId>("client");
+  // Match the talent shell: admin lands on the flat Client tab (the
+  // primary sales surface). Client / Group / Activity are now top-level
+  // tabs, not a floating sub-toggle — the chatSubThread state is gone.
+  const [activeTab, setActiveTab] = useState<ThreadTabId>("client");
   const [coordinatorSheetOpen, setCoordinatorSheetOpen] = useState(false);
   // Slice P wiring: Status sheet state — opens on header status pill tap.
   const [statusSheetOpen, setStatusSheetOpen] = useState(false);
@@ -167,21 +166,15 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
   const coordinatorFirstName = inquiry.coordinator?.name.split(" ")[0] ?? null;
   useEffect(() => {
     if (!inquiryIsUuid) return;
-    // Slice B (Messages consolidation v2): unified Chat tab — mark read
-    // based on which sub-thread is active. Legacy IDs ("client" /
-    // "talent") still honored for any code path that hasn't migrated.
-    if (activeTab === "chat") {
-      if (chatSubThread === "client") {
-        void markThreadRead(effectiveTenant.slug, inquiry.id, "private");
-      } else if (chatSubThread === "group") {
-        void markThreadRead(effectiveTenant.slug, inquiry.id, "group");
-      }
-    } else if (activeTab === "client") {
+    // Flat tabs: mark read directly off the active tab. Client = private
+    // thread, Group (legacy id "talent") = group thread. Activity is the
+    // group thread in read-only mode and shares the Group read state.
+    if (activeTab === "client") {
       void markThreadRead(effectiveTenant.slug, inquiry.id, "private");
-    } else if (activeTab === "talent") {
+    } else if (activeTab === "talent" || activeTab === "activity") {
       void markThreadRead(effectiveTenant.slug, inquiry.id, "group");
     }
-  }, [activeTab, chatSubThread, inquiry.id, inquiryIsUuid, effectiveTenant.slug]);
+  }, [activeTab, inquiry.id, inquiryIsUuid, effectiveTenant.slug]);
 
   // Phase A PR 2 — defer to new primitive when the flag is on. Placed
   // AFTER all hooks so React Hooks order is stable across renders.
@@ -208,8 +201,7 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
     if (inquiry.nextActionBy !== "coordinator") return {};
     if (stageBucket === "inquiry") return {
       hint: "Reply to client to keep this moving.",
-      // Slice B: unified Chat tab + Client sub-thread.
-      primary: { label: "Reply to client", tone: "primary", onClick: () => { setActiveTab("chat"); setChatSubThread("client"); } },
+      primary: { label: "Reply to client", tone: "primary", onClick: () => { setActiveTab("client"); } },
     };
     if (stageBucket === "hold") return {
       hint: "Hold open — send the revised offer.",
@@ -446,27 +438,18 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
             : stageBucket === "approved" ? "offer"
             : stageBucket === "booked" ? "offer"
             : "default";
-          const isOnChat = activeTab === "chat";
-          const isLegacyClient = activeTab === "client"; // backward compat
-          const isLegacyTalent = activeTab === "talent"; // backward compat
-          const showClientStream = (isOnChat && chatSubThread === "client") || isLegacyClient;
-          const showGroupStream = (isOnChat && chatSubThread === "group") || isLegacyTalent;
-          const showDmStream = isOnChat && chatSubThread === "dm";
+          // Flat tabs — same as the talent shell. No floating sub-toggle:
+          // each thread is its own top-level tab. "talent" is the legacy id
+          // for the Group tab; "activity" is the read-only timeline. isOnChat
+          // (client||talent||activity) still gates WhosTurnBanner + PitchOriginCard,
+          // exactly matching the talent shell (talent-2.tsx) — the banner showing
+          // on Activity is intended parity, not a regression.
+          const isOnChat = activeTab === "client" || activeTab === "talent" || activeTab === "activity";
+          const showClientStream = activeTab === "client";
+          const showGroupStream = activeTab === "talent";
+          const showDmStream = activeTab === "activity";
           return (
             <>
-              {/* Chat sub-toggle — floating dropdown anchored to a tiny
-                  pill chip in the conversation pane. Replaces the prior
-                  32px-tall always-on row that ate real estate. Click
-                  the chip → drops the 3 options as an absolute panel.
-                  Auto-closes on selection or backdrop tap. */}
-              {isOnChat && (
-                <ChatSubToggleDropdown
-                  current={chatSubThread}
-                  onSelect={(s) => setChatSubThread(s)}
-                  clientUnread={inquiry.unreadPrivate}
-                  groupUnread={inquiry.unreadGroup}
-                />
-              )}
               {/* D4 — Whose-turn banner. Shows once, above the message
                   stream (not repeated in every bubble). Admin sees a
                   "your turn" nudge when nextActionBy=coordinator; other
@@ -485,7 +468,7 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
                   the Chat content; clicking deep-links to the pitch
                   page. */}
               {isOnChat && inquiry.pitchId && (
-                <div style={{ padding: "44px 12px 4px" }}>
+                <div style={{ padding: "8px 12px 4px" }}>
                   <PitchOriginCard
                     tenantSlug={effectiveTenant.slug}
                     pitchId={inquiry.pitchId}
@@ -509,7 +492,6 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
                   inquiryId={inquiry.id}
                   tenantSlug={effectiveTenant.slug}
                   threadType="private"
-                  topInset={42}
                 />
               )}
               {showGroupStream && (
@@ -525,7 +507,6 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
                   inquiryId={inquiry.id}
                   tenantSlug={effectiveTenant.slug}
                   threadType="group"
-                  topInset={42}
                 />
               )}
               {/* D7 — Activity sub-thread: real DB-backed money/offer timeline.

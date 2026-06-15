@@ -24,6 +24,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { ensureGuestClientByEmail } from "@/lib/inquiry/guest-client";
+import { assertAllTalentOnTenantRoster } from "@/lib/saas/talent-roster";
 import {
   type InquiryIntent,
 } from "@/lib/inquiry/inquiry-intent";
@@ -209,6 +210,33 @@ export async function submitInquiryNowAction(
 
   const ctx = await resolveSubmitContext(tenantSlug);
   if (!ctx.ok) return { kind: "error", message: ctx.error };
+
+  // SECURITY (L1-F1): intent.talent.selected_ids is client-supplied and the
+  // inquiry insert below runs under ctx.writeClient (the service-role client),
+  // so we MUST verify every targeted talent is on THIS tenant's publicly visible
+  // roster before creating the inquiry. Without this gate a crafted intent could
+  // file an inquiry naming hidden / unapproved / off-roster / cross-agency
+  // talent. Talent-less ("agency recommends") intents have no ids to gate.
+  // Mirrors the legacy directory submitGuestInquiry / submitClientInquiry gate.
+  const requestedTalentIds = intent.talent?.selected_ids ?? [];
+  if (requestedTalentIds.length > 0) {
+    const rosterCheck = await assertAllTalentOnTenantRoster(
+      ctx.writeClient,
+      ctx.tenantId,
+      requestedTalentIds,
+    );
+    if (!rosterCheck.ok) {
+      logServerError(
+        "inquiry-intent-actions.submitInquiryNow/roster",
+        new Error(`talent not on tenant roster: ${rosterCheck.missingIds.join(",")}`),
+      );
+      return {
+        kind: "error",
+        message: validationMessage(["brief.summary_or_talent"]),
+        missingFields: ["talent.selected_ids"],
+      };
+    }
+  }
 
   // For logged-in clients the intent.requester.user_id should be the
   // actor's user_id.
