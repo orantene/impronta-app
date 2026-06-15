@@ -1632,8 +1632,18 @@ export function TalentProfileShellDrawer() {
   // Per-slug meta resolver: DB layout first, hardcoded SECTION_META fallback so
   // a slug missing from the DB layout still renders a label + emoji.
   const metaFor = useCallback(
-    (slug: string): { label: string; emoji: string } =>
-      profileEditorLayout.sectionMeta[slug] ?? SECTION_META[slug as Exclude<ProfileSectionId, "">],
+    (slug: string): { label: string; labelEs: string | null; emoji: string } => {
+      const m =
+        profileEditorLayout.sectionMeta[slug] ??
+        SECTION_META[slug as Exclude<ProfileSectionId, "">];
+      return {
+        label: m.label,
+        // DB sectionMeta carries labelEs; the hardcoded SECTION_META fallback
+        // doesn't — so a missing-from-DB slug renders via the EN dictionary.
+        labelEs: (m as { labelEs?: string | null }).labelEs ?? null,
+        emoji: m.emoji,
+      };
+    },
     [profileEditorLayout],
   );
 
@@ -1642,14 +1652,18 @@ export function TalentProfileShellDrawer() {
   // the old `isServicesPrimary ? "Photos of work / venue" : "Portfolio"` flip).
   // Section ids are filtered to known renderer slugs so a stray DB slug can't
   // break typing or rendering.
-  const railGroups = useMemo<{ label: string; ids: ProfileSectionId[] }[]>(
+  const railGroups = useMemo<{ label: string; labelEs: string | null; ids: ProfileSectionId[] }[]>(
     () =>
-      profileEditorLayout.groups.map((g) => ({
-        label: (isServicesPrimary && g.labelEnAlt) ? g.labelEnAlt : g.labelEn,
-        ids: g.sections
-          .map((s) => s.slug)
-          .filter((slug) => (PROFILE_SECTIONS as readonly string[]).includes(slug)) as ProfileSectionId[],
-      })),
+      profileEditorLayout.groups.map((g) => {
+        const useAlt = isServicesPrimary && g.labelEnAlt;
+        return {
+          label: useAlt ? g.labelEnAlt! : g.labelEn,
+          labelEs: useAlt ? g.labelEsAlt : g.labelEs,
+          ids: g.sections
+            .map((s) => s.slug)
+            .filter((slug) => (PROFILE_SECTIONS as readonly string[]).includes(slug)) as ProfileSectionId[],
+        };
+      }),
     [profileEditorLayout, isServicesPrimary],
   );
 
@@ -2581,7 +2595,7 @@ export function TalentProfileShellDrawer() {
                   background: done ? COLORS.green : "rgba(11,11,13,0.18)",
                 }} />
                 <span>{meta.emoji}</span>
-                {copy.t(meta.label)}
+                {copy.term(meta.label, meta.labelEs)}
               </button>
             );
           })}
@@ -2708,7 +2722,7 @@ export function TalentProfileShellDrawer() {
                         letterSpacing: 0.7, textTransform: "uppercase",
                         color: "rgba(11,11,13,0.42)",
                         fontFamily: FONTS.body,
-                      }}>{copy.t(group.label)}</div>
+                      }}>{copy.term(group.label, group.labelEs)}</div>
                       {items.map(s => {
                         const meta = metaFor(s);
                         const ownsProfileFieldGroups = s === "services" && newEngineActive && profileFieldNavGroups.length > 0;
@@ -2766,7 +2780,7 @@ export function TalentProfileShellDrawer() {
                                     : "rgba(11,11,13,0.12)",
                               }} />
                               <span aria-hidden style={{ fontSize: 13, lineHeight: 1, width: 16, textAlign: "center", flexShrink: 0 }}>{meta.emoji}</span>
-                              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{copy.t(meta.label)}</span>
+                              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{copy.term(meta.label, meta.labelEs)}</span>
                               {isDetailsSection && (
                                 <>
                                   <span data-details-rail-badge data-active={active ? "true" : "false"}>
@@ -2795,7 +2809,7 @@ export function TalentProfileShellDrawer() {
                                     }}
                                   >
                                     <span data-details-rail-child-label>
-                                      {copy.t(metaFor("refinement").label)}
+                                      {(() => { const rm = metaFor("refinement"); return copy.term(rm.label, rm.labelEs); })()}
                                     </span>
                                   </button>
                                 )}

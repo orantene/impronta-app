@@ -60,7 +60,6 @@ export type CatalogRisk = {
     | "sensitive-but-public"
     | "admin-but-public"
     | "deprecated-with-values"
-    | "unused"
     | "deprecated-active-overrides";
   field_key: string;
   detail: string;
@@ -77,6 +76,11 @@ export type PlatformCatalogMap = {
     totalGroups: number;
     fieldsWithOverrides: number;
     fieldsWithValues: number;
+    /** Non-deprecated fields with no workspace overrides AND no stored values.
+     *  Informational coverage signal — NOT a risk. */
+    noDataCount: number;
+    /** Non-deprecated fields that have a non-empty Spanish label. */
+    withEsLabel: number;
   };
   groups: CatalogGroup[];
   ungrouped: CatalogField[];
@@ -94,6 +98,8 @@ const EMPTY: PlatformCatalogMap = {
     totalGroups: 0,
     fieldsWithOverrides: 0,
     fieldsWithValues: 0,
+    noDataCount: 0,
+    withEsLabel: 0,
   },
   groups: [],
   ungrouped: [],
@@ -190,6 +196,8 @@ async function loadPlatformCatalogMapUncached(): Promise<PlatformCatalogMap> {
     let sensitive = 0;
     let fieldsWithOverrides = 0;
     let fieldsWithValues = 0;
+    let noDataCount = 0;
+    let withEsLabel = 0;
     const risks: CatalogRisk[] = [];
 
     const fields: CatalogField[] = defs.map((d) => {
@@ -214,6 +222,8 @@ async function loadPlatformCatalogMapUncached(): Promise<PlatformCatalogMap> {
       if (d.is_sensitive) sensitive += 1;
       if (ov > 0) fieldsWithOverrides += 1;
       if (vc > 0) fieldsWithValues += 1;
+      if (!isDeprecated && ov === 0 && vc === 0) noDataCount += 1;
+      if (!isDeprecated && (d.label_es ?? "").trim() !== "") withEsLabel += 1;
 
       // Risk findings (read-only diagnostics; never auto-acted).
       if (d.is_sensitive && d.show_in_public) {
@@ -242,13 +252,6 @@ async function loadPlatformCatalogMapUncached(): Promise<PlatformCatalogMap> {
           kind: "deprecated-active-overrides",
           field_key: key,
           detail: `Deprecated but ${ov} workspace override(s) still active.`,
-        });
-      }
-      if (!isDeprecated && ov === 0 && vc === 0) {
-        risks.push({
-          kind: "unused",
-          field_key: key,
-          detail: "No workspace overrides and no stored values anywhere.",
         });
       }
 
@@ -323,6 +326,8 @@ async function loadPlatformCatalogMapUncached(): Promise<PlatformCatalogMap> {
         totalGroups: groups.length,
         fieldsWithOverrides,
         fieldsWithValues,
+        noDataCount,
+        withEsLabel,
       },
       groups,
       ungrouped,

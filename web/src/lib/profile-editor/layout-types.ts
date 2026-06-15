@@ -19,5 +19,5 @@ export type ProfileEditorGroup = {
 export type ProfileEditorLayout = {
   groups: ProfileEditorGroup[];
   orderedSectionSlugs: string[];
-  sectionMeta: Record<string, { label: string; emoji: string }>;
+  sectionMeta: Record<string, { label: string; labelEs: string | null; emoji: string }>;
 };

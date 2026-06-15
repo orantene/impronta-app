@@ -197,7 +197,6 @@ const RISK_TONE: Record<CatalogRisk["kind"], string> = {
   "admin-but-public": HQ.red,
   "deprecated-with-values": HQ.amber,
   "deprecated-active-overrides": HQ.amber,
-  unused: HQ.inkMuted,
 };
 
 const RISK_LABEL: Record<CatalogRisk["kind"], string> = {
@@ -205,7 +204,6 @@ const RISK_LABEL: Record<CatalogRisk["kind"], string> = {
   "admin-but-public": "Admin-only + public",
   "deprecated-with-values": "Deprecated with values",
   "deprecated-active-overrides": "Deprecated with overrides",
-  unused: "Unused",
 };
 
 // Phase 9A slice 2 — URL-driven filters. Pure server-render (no client JS).
@@ -213,10 +211,17 @@ type FilterParams = {
   tier?: string;
   risk?: string;
   override?: string;
+  status?: string;
   q?: string;
   view?: string;
   tab?: string;
 };
+
+// Active | Archived | All — deprecated (archived) fields are HIDDEN by default.
+type StatusFilter = "active" | "archived" | "all";
+function parseStatus(raw: string | undefined): StatusFilter {
+  return raw === "archived" || raw === "all" ? raw : "active";
+}
 
 // Profile Fields hub tabs. The Fields view is the default and lives inline in
 // this page; the other five are extracted tab modules.
@@ -239,7 +244,7 @@ const HUB_TABS: ReadonlyArray<{ tab: HubTab; label: string }> = [
   { tab: "groups", label: "Talent-Type Fields Groups" },
   { tab: "fields", label: "Talent-Type Fields" },
   { tab: "editor", label: "Section Category" },
-  { tab: "sections", label: "Section Fields Groups" },
+  { tab: "sections", label: "Sections" },
   { tab: "section-fields", label: "Section Fields" },
 ];
 
@@ -296,6 +301,7 @@ function urlFor(current: FilterParams, patch: Partial<FilterParams>): string {
   if (next.tier && next.tier !== "all") sp.set("tier", next.tier);
   if (next.risk === "yes") sp.set("risk", "yes");
   if (next.override === "yes") sp.set("override", "yes");
+  if (next.status && next.status !== "active") sp.set("status", next.status);
   if (next.q) sp.set("q", next.q);
   if (next.view && next.view !== "platform_admin") sp.set("view", next.view);
   const qs = sp.toString();
@@ -341,6 +347,7 @@ export default async function PlatformCatalogMapPage({
   const tier = params.tier ?? "all";
   const riskFilter = params.risk === "yes";
   const overrideFilter = params.override === "yes";
+  const status: StatusFilter = parseStatus(params.status);
   const q = (params.q ?? "").trim().toLowerCase();
   const viewAs: ViewerRole = parseView(params.view);
   const tab: HubTab = parseTab(params.tab);
@@ -348,6 +355,7 @@ export default async function PlatformCatalogMapPage({
     tier !== "all" ||
     riskFilter ||
     overrideFilter ||
+    status !== "active" ||
     !!q ||
     viewAs !== "platform_admin";
 
@@ -371,6 +379,10 @@ export default async function PlatformCatalogMapPage({
   // Apply slice-2 filters (purely in-memory; data was already loaded).
   const hasRiskByKey = new Set(map.risks.map((r) => r.field_key));
   function passes(f: CatalogField): boolean {
+    // Status gate first: archived (deprecated) fields are hidden unless the
+    // viewer opts into Archived / All.
+    if (status === "active" && f.deprecated) return false;
+    if (status === "archived" && !f.deprecated) return false;
     if (tier !== "all" && f.tier !== tier) return false;
     if (riskFilter && !hasRiskByKey.has(f.field_key)) return false;
     if (overrideFilter && f.override_count === 0) return false;
@@ -390,10 +402,10 @@ export default async function PlatformCatalogMapPage({
     filteredGroups.reduce((n, g) => n + g.fields.length, 0) +
     filteredUngrouped.length;
 
-  // Separate action-worthy risks from the high-volume "unused" diagnostic so
-  // the two real warnings aren't buried under 100+ informational rows.
-  const priorityRisks = map.risks.filter((r) => r.kind !== "unused");
-  const unusedRisks = map.risks.filter((r) => r.kind === "unused");
+  // Every remaining risk is action-worthy now that the high-volume "unused"
+  // diagnostic is excluded at the loader (it's surfaced as a neutral coverage
+  // line below instead of a risk row).
+  const priorityRisks = map.risks;
 
   // Shared GET-form hidden inputs so the header search preserves active filters.
   const preservedParams = (
@@ -401,6 +413,7 @@ export default async function PlatformCatalogMapPage({
       {tier !== "all" && <input type="hidden" name="tier" value={tier} />}
       {riskFilter && <input type="hidden" name="risk" value="yes" />}
       {overrideFilter && <input type="hidden" name="override" value="yes" />}
+      {status !== "active" && <input type="hidden" name="status" value={status} />}
       {viewAs !== "platform_admin" && <input type="hidden" name="view" value={viewAs} />}
     </>
   );
@@ -607,6 +620,7 @@ export default async function PlatformCatalogMapPage({
           <Stat label="Sensitive" value={s.sensitive} tone={s.sensitive ? HQ.red : undefined} />
           <Stat label="Admin-only" value={s.adminOnly} />
           <Stat label="With values" value={s.fieldsWithValues} />
+          <Stat label="Has ES label" value={`${s.withEsLabel}/${s.totalFields}`} />
           <Stat
             label="Risks"
             value={priorityRisks.length}
@@ -645,6 +659,17 @@ export default async function PlatformCatalogMapPage({
             <FilterChip label="Type-specific" href={urlFor(params, { tier: "type-specific" })} active={tier === "type-specific"} />
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span
+              style={{ fontSize: 10.5, color: HQ.inkDim, minWidth: 56 }}
+              title="Archived = deprecated fields, hidden by default"
+            >
+              Lifecycle
+            </span>
+            <FilterChip label="Active" href={urlFor(params, { status: undefined })} active={status === "active"} />
+            <FilterChip label={`Archived (${s.deprecated})`} href={urlFor(params, { status: "archived" })} active={status === "archived"} />
+            <FilterChip label="All" href={urlFor(params, { status: "all" })} active={status === "all"} />
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <span style={{ fontSize: 10.5, color: HQ.inkDim, minWidth: 56 }}>Status</span>
             <FilterChip
               label={`Has risks (${map.risks.length})`}
@@ -678,71 +703,42 @@ export default async function PlatformCatalogMapPage({
         </div>
       </HqAccordion>
 
-      {/* Risk warnings — real issues headlined; the high-volume "unused"
-          diagnostic is tucked into its own nested collapse so it can't bury them. */}
-      {map.risks.length > 0 && (
+      {/* Risk warnings — only action-worthy issues now. "No data yet" is a
+          neutral coverage line, not a risk, so it can't bury the real ones. */}
+      {priorityRisks.length > 0 && (
         <HqAccordion
           title="Risk warnings"
-          defaultOpen={priorityRisks.length > 0}
-          badge={
-            priorityRisks.length > 0
-              ? { text: `${priorityRisks.length} need${priorityRisks.length === 1 ? "s" : ""} attention`, tone: HQ.red }
-              : { text: "all clear", tone: HQ.green }
-          }
-          meta="Read-only diagnostics"
+          defaultOpen
+          badge={{ text: `${priorityRisks.length} need${priorityRisks.length === 1 ? "s" : ""} attention`, tone: HQ.red }}
+          meta="Read-only diagnostics — click a row to open the field"
         >
-          {priorityRisks.length > 0 ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {priorityRisks.map((r, i) => (
-                <div
-                  key={`${r.kind}-${r.field_key}-${i}`}
-                  style={{ display: "flex", gap: 8, fontSize: 12, padding: "5px 8px", background: HQ.cardSoft, borderRadius: 8 }}
-                >
-                  <span style={{ fontSize: 10, fontWeight: 700, color: RISK_TONE[r.kind], minWidth: 168 }} title={r.kind}>
-                    {RISK_LABEL[r.kind]}
-                  </span>
-                  <span style={{ color: HQ.ink, fontFamily: "ui-monospace, monospace" }}>{r.field_key}</span>
-                  <span style={{ color: HQ.inkMuted }}>{r.detail}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div style={{ fontSize: 12, color: HQ.inkMuted }}>
-              No action-worthy risks. Only informational “unused field” diagnostics below.
-            </div>
-          )}
-          {unusedRisks.length > 0 && (
-            <details className="hq-acc" style={{ marginTop: priorityRisks.length ? 12 : 0 }}>
-              <summary style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "8px 10px", background: HQ.cardSoft, borderRadius: 8, userSelect: "none" }}>
-                <span className="hq-chev" aria-hidden style={{ fontSize: 10, color: HQ.inkDim, transition: "transform .15s", display: "inline-block" }}>▶</span>
-                <span style={{ fontSize: 12, fontWeight: 600, color: HQ.inkMuted }}>
-                  {unusedRisks.length} unused fields
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {priorityRisks.map((r, i) => (
+              <Link
+                key={`${r.kind}-${r.field_key}-${i}`}
+                href={`/platform/admin/catalog/${encodeURIComponent(r.field_key)}`}
+                className="hq-field-row"
+                title={`Open ${r.field_key} — ${RISK_LABEL[r.kind]}`}
+                style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12, padding: "5px 8px", background: HQ.cardSoft, borderRadius: 8, textDecoration: "none" }}
+              >
+                <span style={{ fontSize: 10, fontWeight: 700, color: RISK_TONE[r.kind], minWidth: 168 }} title={r.kind}>
+                  {RISK_LABEL[r.kind]}
                 </span>
-                <span style={{ fontSize: 11, color: HQ.inkDim }}>no overrides, no stored values — informational</span>
-              </summary>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: "10px 4px 4px" }}>
-                {unusedRisks.map((r, i) => (
-                  <Link
-                    key={`${r.field_key}-${i}`}
-                    href={`/platform/admin/catalog/${encodeURIComponent(r.field_key)}`}
-                    style={{
-                      fontSize: 11,
-                      fontFamily: "ui-monospace, monospace",
-                      color: HQ.inkMuted,
-                      background: HQ.cardSoft,
-                      border: `1px solid ${HQ.borderSoft}`,
-                      borderRadius: 6,
-                      padding: "2px 7px",
-                      textDecoration: "none",
-                    }}
-                  >
-                    {r.field_key}
-                  </Link>
-                ))}
-              </div>
-            </details>
-          )}
+                <span style={{ color: HQ.ink, fontFamily: "ui-monospace, monospace" }}>{r.field_key}</span>
+                <span style={{ color: HQ.inkMuted }}>{r.detail}</span>
+                <span style={{ marginLeft: "auto", fontSize: 11, color: HQ.green }}>›</span>
+              </Link>
+            ))}
+          </div>
         </HqAccordion>
+      )}
+
+      {/* Neutral coverage line — fields with no data yet are informational, not
+          a risk. Replaces the old high-volume "unused" risk rows. */}
+      {s.noDataCount > 0 && (
+        <div style={{ fontSize: 11.5, color: HQ.inkDim, padding: "4px 2px 10px" }}>
+          {s.noDataCount} field{s.noDataCount === 1 ? "" : "s"} have no data yet (informational)
+        </div>
       )}
 
       {/* Field-group index — each group a collapsed accordion. Auto-opens while
@@ -761,7 +757,7 @@ export default async function PlatformCatalogMapPage({
                   ? { text: `${deprecatedInGroup} deprecated`, tone: HQ.amber }
                   : undefined
             }
-            meta={`${filtersActive ? `${g.fields.length} of ${g.field_count}` : g.field_count} field${g.field_count === 1 ? "" : "s"} · ${g.slug}`}
+            meta={`${g.fields.length < g.field_count ? `${g.fields.length} of ${g.field_count}` : g.fields.length} field${g.fields.length === 1 ? "" : "s"} · ${g.slug}`}
           >
             {g.fields.length === 0 ? (
               <div style={{ fontSize: 12, color: HQ.inkDim, padding: "6px 0" }}>
