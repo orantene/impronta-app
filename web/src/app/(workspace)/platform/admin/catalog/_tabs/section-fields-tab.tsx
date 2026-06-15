@@ -165,6 +165,7 @@ export async function SectionFieldsTab({
                               id: f.id,
                               field_key: f.field_key,
                               label: f.label,
+                              display_order: f.display_order,
                             }))}
                           />
                         </div>
@@ -230,6 +231,7 @@ export async function SectionFieldsTab({
                             id: f.id,
                             field_key: f.field_key,
                             label: f.label,
+                            display_order: f.display_order,
                           }))}
                         />
                       </div>

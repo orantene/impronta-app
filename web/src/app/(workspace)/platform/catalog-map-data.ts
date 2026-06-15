@@ -22,6 +22,9 @@ export type CatalogField = {
   id: string;
   field_key: string;
   label: string;
+  /** Spanish label (null when untranslated). Surfaced so the platform list +
+   *  Section Fields tab can show ES inline and flag coverage gaps. */
+  label_es: string | null;
   tier: string;
   section: string | null;
   field_group_id: string | null;
@@ -101,6 +104,7 @@ type DefRow = {
   id: string;
   field_key: string | null;
   label: string | null;
+  label_es: string | null;
   tier: string | null;
   section: string | null;
   field_group_id: string | null;
@@ -152,7 +156,7 @@ async function loadPlatformCatalogMapUncached(): Promise<PlatformCatalogMap> {
       sb
         .from("profile_field_definitions")
         .select(
-          "id, field_key, label, tier, section, field_group_id, display_order, default_visibility, admin_only, is_sensitive, show_in_public, is_optional, deprecated_at, render_mode",
+          "id, field_key, label, label_es, tier, section, field_group_id, display_order, default_visibility, admin_only, is_sensitive, show_in_public, is_optional, deprecated_at, render_mode",
         ),
       sb
         .from("profile_field_groups")
@@ -252,6 +256,7 @@ async function loadPlatformCatalogMapUncached(): Promise<PlatformCatalogMap> {
         id: d.id,
         field_key: key,
         label: d.label ?? key,
+        label_es: d.label_es ?? null,
         tier,
         section: d.section,
         field_group_id: d.field_group_id,

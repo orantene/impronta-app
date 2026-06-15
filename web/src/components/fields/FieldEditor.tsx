@@ -21,6 +21,7 @@
 import { useEffect, useState, useRef, type CSSProperties, type ReactNode } from "react";
 import { type ResolvedField } from "@/lib/server-actions/admin-taxonomy";
 import { HeightDualControl, HEIGHT_CM_FIELD_KEY } from "@/components/fields/HeightDualControl";
+import { readLocale, fieldLabel, fieldHelper, optionLabel } from "./field-locale";
 
 // Palette mirrors the real app COLORS tokens (state.tsx) so the Details
 // editor's greys match the New Inquiry / rest of the shell exactly:
@@ -43,22 +44,10 @@ const T = {
 
 const F = "Inter, system-ui, sans-serif";
 
-// C1/C2 — read the app's `locale` cookie client-side so the editor can
-// show Spanish field labels without threading a locale prop through the
-// drawer. Falls back to "en" on the server / when no cookie.
-export function readLocale(): string {
-  if (typeof document === "undefined") return "en";
-  const m = document.cookie.match(/(?:^|;\s*)locale=([^;]+)/);
-  return m?.[1] === "es" ? "es" : "en";
-}
-
-/** Locale-aware field label — Spanish when locale=es AND label_es set. */
-export function fieldLabel(field: { label: string; label_es?: string | null }, locale: string): string {
-  if (locale === "es" && field.label_es && field.label_es.trim()) {
-    return field.label_es.trim();
-  }
-  return field.label;
-}
+// Locale helpers live in ./field-locale (pure, no React). Re-exported here so
+// existing callers (live-category-fields-editor, etc.) keep importing them from
+// FieldEditor unchanged.
+export { readLocale, fieldLabel, fieldHelper, optionLabel };
 
 type FieldStatus = "idle" | "saving" | "saved" | "error";
 
@@ -433,6 +422,7 @@ export function FieldEditor({
     boxShadow: status === "error" ? `0 0 0 2px rgba(200,40,40,0.10)` : "none",
   };
 
+  const locale = readLocale();
   let control: ReactNode = null;
   const opts = field.options ?? [];
 
@@ -568,7 +558,7 @@ export function FieldEditor({
             color: on ? T.ink : T.inkMuted,
           }}
         >
-          {on ? "Yes" : "No"}
+          {on ? (locale === "es" ? "Sí" : "Yes") : "No"}
           <span style={{
             width: 30, height: 18, borderRadius: 999,
             background: on ? T.accent : "rgba(11,11,13,0.18)",
@@ -614,7 +604,7 @@ export function FieldEditor({
                   color: active ? T.ink : T.inkMuted,
                   fontFamily: F, fontSize: 12, fontWeight: 600, cursor: "pointer",
                 }}
-              >{o}</button>
+              >{optionLabel(field, o, locale)}</button>
             );
           })}
         </div>
@@ -649,7 +639,7 @@ export function FieldEditor({
                   color: active ? T.ink : T.inkMuted,
                   fontFamily: F, fontSize: 12, fontWeight: 600, cursor: "pointer",
                 }}
-              >{opt}</button>
+              >{optionLabel(field, opt, locale)}</button>
             );
           })}
         </div>
@@ -689,7 +679,7 @@ export function FieldEditor({
   // Compose the hint line under the input from validation_rules so users
   // see constraints up front instead of discovering them by hitting Save.
   const hint = buildValidationHint(field);
-  const locale = readLocale();
+  const helperText = fieldHelper(field, locale);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 9 }}>
@@ -742,12 +732,12 @@ export function FieldEditor({
           background: "rgba(200,40,40,0.06)", borderLeft: `3px solid ${T.red}`,
           padding: "6px 10px", borderRadius: 4,
         }}>{error}</div>
-      ) : (field.helper || hint) ? (
+      ) : (helperText || hint) ? (
         <>
-          {field.helper && (
+          {helperText && (
             <div style={{
               fontSize: 11, color: T.inkMuted, fontFamily: F, lineHeight: 1.35,
-            }}>{field.helper}</div>
+            }}>{helperText}</div>
           )}
           {hint && (
             <div style={{ fontSize: 10.5, color: T.inkDim, fontFamily: F }}>{hint}</div>
