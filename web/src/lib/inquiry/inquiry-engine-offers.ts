@@ -782,17 +782,14 @@ export async function updateOfferDraft(
         tenant_id: ctx.tenantId,
         talent_profile_id: line.talent_profile_id,
         label: line.label,
-        pricing_unit: line.pricing_unit as never,
+        pricing_unit: line.pricing_unit,
         units: line.units,
         unit_price: line.unit_price,
         total_price: line.total_price,
         talent_cost: line.talent_cost,
         notes: line.notes,
         sort_order: line.sort_order,
-        // S18 — audit stamp. Spread-as-object so the column (possibly unknown to
-        // the generated row type until the next regen) rides along without an
-        // excess-property error, while the fields above stay type-checked.
-        ...({ source_service_id: line.source_service_id ?? null } as object),
+        source_service_id: line.source_service_id ?? null, // S18 audit stamp
       });
       if (liErr) return { success: false, error: liErr.message };
     }

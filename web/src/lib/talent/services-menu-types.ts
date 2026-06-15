@@ -253,13 +253,20 @@ export function normalizeServicesMenu(raw: unknown, currencyFallback = "USD"): S
  * service (no discipline scoping) applies to EVERY discipline, so it always
  * matches; a scoped service matches only when the active discipline is one of
  * its taxonomyTermIds. `activeId === null` means the "All" filter (matches all).
+ *
+ * `knownIds` (the disciplines actually shown as pills) makes a service scoped
+ * ONLY to stale/unknown ids behave like "general" — otherwise such a service
+ * would be invisible under every pill (it's neither general nor matchable). When
+ * omitted, no narrowing is applied (back-compat).
  */
 export function serviceMatchesDiscipline(
   item: Pick<ServiceMenuItem, "taxonomyTermIds">,
   activeId: string | null,
+  knownIds?: ReadonlySet<string>,
 ): boolean {
   if (activeId === null) return true;
-  const ids = item.taxonomyTermIds ?? [];
+  let ids = item.taxonomyTermIds ?? [];
+  if (knownIds) ids = ids.filter((id) => knownIds.has(id));
   return ids.length === 0 || ids.includes(activeId);
 }
 

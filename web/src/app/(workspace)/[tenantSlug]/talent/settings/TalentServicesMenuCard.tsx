@@ -20,7 +20,9 @@ import {
   loadTalentServicesMenu,
   updateTalentServicesMenu,
   importLegacyServicesMenu,
+  loadTalentServicePerformance,
   type TalentDiscipline,
+  type ServicePerformanceStat,
 } from "@/lib/talent/services-menu-actions";
 import {
   SERVICE_PRICING_TYPES,
@@ -103,6 +105,7 @@ function blankService(defaultCurrency: string, sortOrder: number): ServiceMenuIt
 export function TalentServicesMenuCard({ talentId }: { talentId: string }) {
   const [items, setItems] = useState<ServiceMenuItem[]>([]);
   const [disciplines, setDisciplines] = useState<TalentDiscipline[]>([]);
+  const [perf, setPerf] = useState<Record<string, ServicePerformanceStat>>({});
   const [legacyImportable, setLegacyImportable] = useState(false);
   const [defaultCurrency, setDefaultCurrency] = useState("USD");
   const [loading, setLoading] = useState(true);
@@ -125,6 +128,15 @@ export function TalentServicesMenuCard({ talentId }: { talentId: string }) {
         setLoading(false);
       })
       .catch(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [talentId]);
+
+  // S18 consumer — per-service performance counts (non-blocking; best-effort).
+  useEffect(() => {
+    let cancelled = false;
+    loadTalentServicePerformance(talentId)
+      .then((res) => { if (!cancelled && res.ok) setPerf(res.stats); })
+      .catch(() => {});
     return () => { cancelled = true; };
   }, [talentId]);
 
@@ -326,6 +338,21 @@ export function TalentServicesMenuCard({ talentId }: { talentId: string }) {
                       : `${fmtMoney(it.amountCents, it.currency)} ${SERVICE_PRICING_SUFFIX[it.pricingType]}`.trim()}
                   </span>
                 </div>
+
+                {/* S18 consumer — performance counts from offer line items stamped
+                    with this service id (shown only once it's been quoted). */}
+                {perf[it.id] && perf[it.id].timesQuoted > 0 && (
+                  <div style={{ marginTop: 8, fontSize: 11, color: C.inkMuted }}>
+                    <span style={{ fontWeight: 600, color: C.accentDeep }}>
+                      Quoted {perf[it.id].timesQuoted}×
+                    </span>
+                    {" · "}
+                    Booked {perf[it.id].timesBooked}×
+                    <span style={{ color: C.inkMuted }}>
+                      {" "}({Math.round((perf[it.id].timesBooked / perf[it.id].timesQuoted) * 100)}% convert)
+                    </span>
+                  </div>
+                )}
 
                 {/* Richness (Phase C): visibility S7 · add-ons S8 · tiers S9 · bundle S10 */}
                 <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px dashed ${C.borderSoft}`, display: "flex", flexDirection: "column", gap: 12 }}>

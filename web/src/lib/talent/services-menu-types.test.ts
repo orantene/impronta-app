@@ -138,6 +138,20 @@ test("serviceMatchesDiscipline: All matches everything; general matches every fi
   assert.equal(serviceMatchesDiscipline(scopedAB, "disc-b"), true);
 });
 
+test("serviceMatchesDiscipline: knownIds makes a stale-only-scoped service behave like general (S19 edge)", () => {
+  const known = new Set(["disc-a", "disc-b"]);
+  const staleOnly = item({ taxonomyTermIds: ["disc-ghost"] }); // scoped only to an unknown id
+  const mixed = item({ taxonomyTermIds: ["disc-a", "disc-ghost"] });
+  // stale-only → treated as general → shows under every pill
+  assert.equal(serviceMatchesDiscipline(staleOnly, "disc-a", known), true);
+  assert.equal(serviceMatchesDiscipline(staleOnly, "disc-b", known), true);
+  // mixed → known id still governs (shows under disc-a, hidden under disc-b)
+  assert.equal(serviceMatchesDiscipline(mixed, "disc-a", known), true);
+  assert.equal(serviceMatchesDiscipline(mixed, "disc-b", known), false);
+  // WITHOUT knownIds (back-compat) the stale-only service is filter-invisible
+  assert.equal(serviceMatchesDiscipline(staleOnly, "disc-a"), false);
+});
+
 test("offer mapper: pricingType maps 1:1 to a valid offer unit; custom not priceable", () => {
   for (const t of ["hour", "day", "week", "half_day", "event", "per_person", "per_contact", "flat_package", "custom"] as const) {
     assert.equal(servicePricingTypeToOfferUnit(t), t);

@@ -298,3 +298,83 @@ export async function importLegacyServicesMenu(talentProfileId: string): Promise
     return { ok: false, error: "Unexpected error." };
   }
 }
+
+/** Per-service performance counts (consumes the S18 source_service_id stamp). */
+export type ServicePerformanceStat = { timesQuoted: number; timesBooked: number };
+type ServicePerformanceResult =
+  | { ok: true; stats: Record<string, ServicePerformanceStat> }
+  | { ok: false; error: string };
+
+/**
+ * "Which services book best" — aggregates the talent's offer line items by the
+ * S18 source_service_id stamp. timesQuoted = line items prefilled from that
+ * service; timesBooked = those whose inquiry produced an agency_bookings row
+ * (the ground-truth conversion signal via source_inquiry_id). Counts only:
+ * line items carry no currency (the offer does), so a cross-currency gross sum
+ * would mislead. Read-only; authorized like the menu (owner or staff).
+ */
+export async function loadTalentServicePerformance(
+  talentProfileId: string,
+): Promise<ServicePerformanceResult> {
+  try {
+    const auth = await authorizeForTalent(talentProfileId);
+    if (!auth.ok) return { ok: false, error: auth.error };
+
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, error: "Server configuration error." };
+
+    // Stamped line items for this talent, with their inquiry id (via the offer).
+    // Owner (the talent) sees the aggregate across all their agencies; a STAFF
+    // viewer is scoped to their own tenant so cross-tenant counts don't leak in
+    // the admin profile drawer (skip when tenantId is null = independent talent).
+    let q = admin
+      .from("inquiry_offer_line_items")
+      .select("source_service_id, inquiry_offers!inner ( inquiry_id )")
+      .eq("talent_profile_id", talentProfileId)
+      .not("source_service_id", "is", null);
+    if (auth.isStaff && auth.tenantId) q = q.eq("tenant_id", auth.tenantId);
+    const { data: lineRows, error: liErr } = await q;
+    if (liErr) {
+      logServerError("talent.servicesMenu.performance", liErr);
+      return { ok: false, error: "Could not load performance." };
+    }
+
+    type Row = {
+      source_service_id: string | null;
+      inquiry_offers: { inquiry_id: string | null } | { inquiry_id: string | null }[] | null;
+    };
+    const rows = (lineRows ?? []) as Row[];
+    const inquiryIdOf = (r: Row): string | null => {
+      const o = Array.isArray(r.inquiry_offers) ? r.inquiry_offers[0] : r.inquiry_offers;
+      return o?.inquiry_id ?? null;
+    };
+
+    // Which of those inquiries actually became bookings.
+    const inquiryIds = [...new Set(rows.map(inquiryIdOf).filter((x): x is string => Boolean(x)))];
+    const bookedInquiryIds = new Set<string>();
+    if (inquiryIds.length > 0) {
+      const { data: bookings } = await admin
+        .from("agency_bookings")
+        .select("source_inquiry_id")
+        .in("source_inquiry_id", inquiryIds);
+      for (const b of (bookings ?? []) as { source_inquiry_id: string | null }[]) {
+        if (b.source_inquiry_id) bookedInquiryIds.add(b.source_inquiry_id);
+      }
+    }
+
+    const stats: Record<string, ServicePerformanceStat> = {};
+    for (const r of rows) {
+      const sid = r.source_service_id;
+      if (!sid) continue;
+      const stat = (stats[sid] ??= { timesQuoted: 0, timesBooked: 0 });
+      stat.timesQuoted += 1;
+      const inqId = inquiryIdOf(r);
+      if (inqId && bookedInquiryIds.has(inqId)) stat.timesBooked += 1;
+    }
+
+    return { ok: true, stats };
+  } catch (err) {
+    logServerError("talent.servicesMenu.performance", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
