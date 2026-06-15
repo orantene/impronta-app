@@ -338,7 +338,7 @@ export function ComponentCatalog({
   }, [items, query, filterMode]);
 
   if (error && !items) {
-    return <div style={{ color: "#ff8585", fontSize: 13 }}>{error}</div>;
+    return <div style={{ color: T.red, fontSize: 13 }}>{error}</div>;
   }
   if (!items) {
     return (
@@ -443,7 +443,7 @@ export function ComponentCatalog({
         <Stat label="Templates" value={templates} />
         <Stat label="Customized" value={overridden} />
         {error ? (
-          <span style={{ color: "#ff8585", fontSize: 12 }}>{error}</span>
+          <span style={{ color: T.red, fontSize: 12 }}>{error}</span>
         ) : null}
       </div>
 
@@ -798,7 +798,7 @@ function SiteStarterKitView({
       {group ? (
         <div style={{ fontSize: 12, color: T.inkMuted }}>{group.blurb}</div>
       ) : null}
-      {error ? <div style={{ fontSize: 12, color: "#ff8585" }}>{error}</div> : null}
+      {error ? <div style={{ fontSize: 12, color: T.red }}>{error}</div> : null}
       <div
         style={{
           display: "grid",
