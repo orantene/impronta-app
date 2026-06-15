@@ -31,7 +31,10 @@ export const BILLING_EN = {
     button: "Update payment →",
   },
   "billing.plan_upgraded": {
-    subject: "You're now on {plan}",
+    // Static: the channel interpolates subjects from the raw payload (toPlan is a
+    // slug, not a label), so keep the plan name out of the subject. The body
+    // still shows the friendly {plan} label (interpolated in the template).
+    subject: "Your plan was upgraded",
     subjectFallback: "Your plan was upgraded",
     preview: "You're on {plan}",
     heading: "You're on {plan}",
@@ -89,7 +92,7 @@ export const BILLING_ES: typeof BILLING_EN = {
     button: "Actualizar pago →",
   },
   "billing.plan_upgraded": {
-    subject: "Ya estás en {plan}",
+    subject: "Tu plan fue actualizado",
     subjectFallback: "Tu plan fue actualizado",
     preview: "Ya estás en {plan}",
     heading: "Ya estás en {plan}",

@@ -17,7 +17,7 @@
 
 export const WORKSPACE_EN = {
   "workspace.signup_welcome": {
-    subject: "{workspace} is ready on Tulala",
+    subject: "{workspaceName} is ready on Tulala",
     preview: "Your {workspace} workspace is ready",
     heading: "Your workspace is ready",
     intro:
@@ -26,7 +26,7 @@ export const WORKSPACE_EN = {
     button: "Open your dashboard →",
   },
   "workspace.team_invite": {
-    subject: "{inviter} invited you to {brand} on Tulala",
+    subject: "{inviterName} invited you to {brand} on Tulala",
     preview: "Join {brand}",
     heading: "Join {brand}",
     intro: "{inviter} added you as {role}. Accept the invite to get into the workspace.",
@@ -34,7 +34,7 @@ export const WORKSPACE_EN = {
     button: "Accept invite →",
   },
   "roster.join_requested": {
-    subject: "{who} wants to join your roster",
+    subject: "{talentName} wants to join your roster",
     preview: "{who} wants to join your roster",
     heading: "New roster request",
     intro:
@@ -51,8 +51,8 @@ export const WORKSPACE_EN = {
     button: "Open inquiry →",
   },
   "workspace.form_submission": {
-    subject: "New form submission from {name} — {form}",
-    subjectNoName: "New form submission — {form}",
+    subject: "New form submission — {formName}",
+    subjectNoName: "New form submission — {formName}",
     preview: "New form submission from {name} — {form}",
     previewNoName: "New form submission — {form}",
     heading: "New form submission",
@@ -142,7 +142,7 @@ export const WORKSPACE_EN = {
 
 export const WORKSPACE_ES: typeof WORKSPACE_EN = {
   "workspace.signup_welcome": {
-    subject: "{workspace} ya está listo en Tulala",
+    subject: "{workspaceName} ya está listo en Tulala",
     preview: "Tu espacio de trabajo {workspace} ya está listo",
     heading: "Tu espacio de trabajo ya está listo",
     intro:
@@ -151,7 +151,7 @@ export const WORKSPACE_ES: typeof WORKSPACE_EN = {
     button: "Abrir tu panel →",
   },
   "workspace.team_invite": {
-    subject: "{inviter} te invitó a {brand} en Tulala",
+    subject: "{inviterName} te invitó a {brand} en Tulala",
     preview: "Únete a {brand}",
     heading: "Únete a {brand}",
     intro: "{inviter} te agregó como {role}. Acepta la invitación para entrar al espacio de trabajo.",
@@ -159,7 +159,7 @@ export const WORKSPACE_ES: typeof WORKSPACE_EN = {
     button: "Aceptar invitación →",
   },
   "roster.join_requested": {
-    subject: "{who} quiere unirse a tu roster",
+    subject: "{talentName} quiere unirse a tu roster",
     preview: "{who} quiere unirse a tu roster",
     heading: "Nueva solicitud de roster",
     intro:
@@ -176,8 +176,8 @@ export const WORKSPACE_ES: typeof WORKSPACE_EN = {
     button: "Abrir solicitud →",
   },
   "workspace.form_submission": {
-    subject: "Nuevo envío de formulario de {name} — {form}",
-    subjectNoName: "Nuevo envío de formulario — {form}",
+    subject: "Nuevo envío de formulario — {formName}",
+    subjectNoName: "Nuevo envío de formulario — {formName}",
     preview: "Nuevo envío de formulario de {name} — {form}",
     previewNoName: "Nuevo envío de formulario — {form}",
     heading: "Nuevo envío de formulario",
