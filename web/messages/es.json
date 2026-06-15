@@ -658,6 +658,32 @@
           "unnamedTalent": "Talento sin nombre",
           "added": "Añadido"
         },
+        "gender": {
+          "transWoman": "Mujer trans",
+          "transMan": "Hombre trans",
+          "transgender": "Transgénero",
+          "genderfluid": "Género fluido",
+          "genderqueer": "Género queer",
+          "agender": "Agénero",
+          "bigender": "Bigénero",
+          "twoSpirit": "Dos espíritus",
+          "intersex": "Intersexual",
+          "selfDescribe": "Prefiero describirlo yo",
+          "preferNotToSay": "Prefiero no decirlo"
+        },
+        "sidebar": {
+          "fullRepresentation": "Representación completa →",
+          "hiddenByTalentTitle": "Oculto por el talento",
+          "hiddenByTalentBody": "Este talento ocultó su perfil en todo Tulala. No aparecerá públicamente hasta que lo muestre de nuevo — tu ajuste de abajo se guarda, pero no tiene efecto mientras tanto.",
+          "stateFeatured": "Destacado",
+          "stateVisible": "Visible",
+          "stateRosterOnly": "Solo en lista",
+          "stateVisibleDesc": "Se muestra en tu directorio, búsqueda y en una página pública.",
+          "stateRosterOnlyDesc": "En tu lista — no se muestra públicamente.",
+          "saving": "Guardando…",
+          "hideFromDirectory": "Ocultar del directorio",
+          "showInDirectory": "Mostrar en el directorio"
+        },
         "dangerZone": {
           "title": "Zona de peligro",
           "description": "Eliminar a un talento lo oculta de tu lista, sitio público y descubrimiento. El perfil subyacente se conserva en caso de que estén en otra agencia o reclamen su cuenta más adelante."

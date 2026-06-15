@@ -658,6 +658,32 @@
           "unnamedTalent": "Unnamed talent",
           "added": "Added"
         },
+        "gender": {
+          "transWoman": "Trans woman",
+          "transMan": "Trans man",
+          "transgender": "Transgender",
+          "genderfluid": "Genderfluid",
+          "genderqueer": "Genderqueer",
+          "agender": "Agender",
+          "bigender": "Bigender",
+          "twoSpirit": "Two-Spirit",
+          "intersex": "Intersex",
+          "selfDescribe": "Prefer to self-describe",
+          "preferNotToSay": "Prefer not to say"
+        },
+        "sidebar": {
+          "fullRepresentation": "Full representation →",
+          "hiddenByTalentTitle": "Hidden by talent",
+          "hiddenByTalentBody": "This talent has hidden their profile across all of Tulala. They will not appear publicly until they unhide it — your setting below is saved but has no effect meanwhile.",
+          "stateFeatured": "Featured",
+          "stateVisible": "Visible",
+          "stateRosterOnly": "Roster only",
+          "stateVisibleDesc": "Shown in your directory, search and on a public page.",
+          "stateRosterOnlyDesc": "On your roster — not shown publicly.",
+          "saving": "Saving…",
+          "hideFromDirectory": "Hide from directory",
+          "showInDirectory": "Show in directory"
+        },
         "dangerZone": {
           "title": "Danger zone",
           "description": "Removing a talent hides them from your roster, public site, and discovery. The talent's underlying profile is kept intact in case they're on another agency or claim their account later."

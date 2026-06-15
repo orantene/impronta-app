@@ -1,0 +1,35 @@
+-- Security advisor remediation: convert SECURITY DEFINER views to security_invoker
+-- where the underlying-table RLS should apply to the CALLER (closes the
+-- definer-view privilege-escalation class the advisor flagged).
+--
+-- INCLUDED: public.talent_skills_resolved
+--   Body joins talent_profile_taxonomy + taxonomy_terms (+ LEFT JOIN
+--   talent_skill_metrics). All three have RLS. Under security_invoker the
+--   caller's own RLS applies:
+--     - talent_profile_taxonomy.talent_taxonomy_select has a PUBLIC branch
+--       (is_publicly_hidden = false AND talent_is_site_visible_anywhere(id)) so
+--       anon still reads skills of publicly-visible talents. Verified live: a
+--       publicly-visible talent's 9 primary/secondary skill rows remain fully
+--       visible under role=anon.
+--     - taxonomy_terms.taxonomy_select_active grants anon non-archived terms.
+--     - talent_skill_metrics is staff-only; under invoker the LEFT JOIN yields
+--       no metric rows for non-staff, so COALESCE(booking_count,0)=0 and
+--       last_booked_at=NULL for anon / talent-self reads. This is a benign
+--       degradation, NOT a blank — those two fields are consumed only by
+--       staff-side components (skill-freshness-banner, skill-hints-banner),
+--       and staff (is_agency_staff()) keep full access to all three tables.
+--   SECURITY GAIN: today (DEFINER) anon can read the resolved skills of
+--   non-publicly-visible talents through this view; invoker correctly blocks
+--   that while leaving every public profile's skills render intact.
+--
+-- EXCLUDED (must stay SECURITY DEFINER): public.inquiry_offer_line_items_talent_view
+--   The view self-gates to the owner (WHERE talent_profiles.user_id = auth.uid())
+--   and exists *specifically* to grant a roster talent read access to their OWN
+--   offer line-item costs — access the base table inquiry_offer_line_items does
+--   NOT grant (its SELECT policies cover only client / coordinator / tenant-staff,
+--   never a talent-self path; see migration 20260520110000 "Contract 5"). Flipping
+--   it to invoker would blank it for the exact callers it serves. DEFINER here is
+--   not an escalation hole: it returns only the caller's own rows, never another
+--   talent's cost.
+
+alter view public.talent_skills_resolved set (security_invoker = on);
