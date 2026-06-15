@@ -557,7 +557,7 @@
   },
   "src/components/admin/shell/internal/messages/shared/machinery-9.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 15
+      "count": 12
     }
   },
   "src/components/admin/shell/internal/messages/shared/offer-terms-ui.tsx": {

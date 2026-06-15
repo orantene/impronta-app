@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { canTransition, resolveNextActionBy } from "./inquiry-lifecycle";
 import { validateActorPermission } from "./inquiry-permissions";
 import { engineRateKey, rateLimiter } from "./inquiry-rate-limiter";
-import { assignCoordinatorFromSettings, seedOwningAgencyCoordinators } from "./coordinator-assignment";
+import { resolveInquiryCoordination, seedOwningAgencyCoordinators } from "./coordinator-assignment";
 import { resolveOwningPartiesForTalents, isHubSourcedChannel } from "./owning-party-resolver";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
 import { assertConsistencyAfterWrite, inquiryWriteClient, runWithEngineLog } from "./inquiry-engine.helpers";
@@ -291,10 +291,60 @@ export async function submitInquiry(
       }
     }
 
-    const assignment = await assignCoordinatorFromSettings(supabase, {
-      source_type: "agency",
-      tenant_id: input.tenant_id,
+    // Coordinator-of-record + oversight resolution (2026-06-15). Resolve owning
+    // parties + talent accounts UP FRONT so the inquiry is seated correctly at
+    // insert: a talent whose owning party is THEMSELVES (open-hub) coordinates
+    // their own inquiry (true talent-direct) with the platform officer as a
+    // secondary scam/dispute/support overseer; otherwise the agency coordinates
+    // and is never left unmanaged (the platform officer stays out of agency threads).
+    const hubSourced = isHubSourcedChannel(input.source_channel);
+    const owningParties = await resolveOwningPartiesForTalents(
+      supabase,
+      input.talent_profile_ids,
+      input.tenant_id,
+      hubSourced,
+    );
+
+    // Batch-resolve talent → claimed user account once; reused for the
+    // coordinator-of-record, the lineup rows, and self-coordination seeding.
+    const talentUserIdByProfile = new Map<string, string | null>();
+    if (input.talent_profile_ids.length > 0) {
+      const { data: tpRows } = await supabase
+        .from("talent_profiles")
+        .select("id, user_id")
+        .in("id", input.talent_profile_ids);
+      for (const r of (tpRows ?? []) as Array<{ id: string; user_id: string | null }>) {
+        talentUserIdByProfile.set(r.id, r.user_id ?? null);
+      }
+    }
+
+    // First self-coordinating talent (owning party = themselves) with a claimed
+    // account → coordinator-of-record (talent-direct).
+    let selfCoordPrimaryUserId: string | null = null;
+    for (const tid of input.talent_profile_ids) {
+      if (owningParties.get(tid)?.type !== "talent") continue;
+      const uid = talentUserIdByProfile.get(tid) ?? null;
+      if (uid) {
+        selfCoordPrimaryUserId = uid;
+        break;
+      }
+    }
+
+    // Resolve coordinator-of-record + (talent-direct only) the secondary platform
+    // oversight officer + the stored source_type ('hub' for talent-direct, so a
+    // later auto-reassign/timeout resolves the officer; else 'agency').
+    const {
+      coordinatorOfRecordId: resolvedCoordinatorId,
+      oversightOfficerId,
+      sourceType: inquirySourceType,
+    } = await resolveInquiryCoordination(supabase, {
+      tenantId: input.tenant_id,
+      selfCoordPrimaryUserId,
     });
+    let coordinatorOfRecordId = resolvedCoordinatorId;
+
+    // Dedup set shared across every coordinator-participant insert below.
+    const coordSeen = new Set<string>();
 
     const status = "submitted" as const;
     const next = resolveNextActionBy(status);
@@ -336,9 +386,9 @@ export async function submitInquiry(
         initiator_user_id: input.initiator_user_id ?? input.actorUserId ?? null,
         status: status as never,
         uses_new_engine: true,
-        source_type: "agency",
-        coordinator_id: assignment.coordinator_id,
-        coordinator_assigned_at: assignment.coordinator_id ? new Date().toISOString() : null,
+        source_type: inquirySourceType,
+        coordinator_id: coordinatorOfRecordId,
+        coordinator_assigned_at: coordinatorOfRecordId ? new Date().toISOString() : null,
         next_action_by: next,
         version: 1,
       })
@@ -387,11 +437,28 @@ export async function submitInquiry(
       });
     }
 
-    if (assignment.coordinator_id) {
+    // Seat the coordinator-of-record. A self-coordinating talent is immediately
+    // active (they run their own booking); an agency coordinator is invited
+    // (they accept). Tracked in coordSeen so later coordinator inserts dedupe.
+    if (coordinatorOfRecordId) {
+      coordSeen.add(coordinatorOfRecordId);
       await supabase.from("inquiry_participants").insert({
         inquiry_id: inquiryId,
         tenant_id: input.tenant_id,
-        user_id: assignment.coordinator_id,
+        user_id: coordinatorOfRecordId,
+        role: "coordinator",
+        status: selfCoordPrimaryUserId ? "active" : "invited",
+      });
+    }
+
+    // Seat the platform oversight officer (talent-direct inquiries only) as a
+    // SECONDARY coordinator — the "officer / consultant" in the private thread.
+    if (oversightOfficerId && !coordSeen.has(oversightOfficerId)) {
+      coordSeen.add(oversightOfficerId);
+      await supabase.from("inquiry_participants").insert({
+        inquiry_id: inquiryId,
+        tenant_id: input.tenant_id,
+        user_id: oversightOfficerId,
         role: "coordinator",
         status: "invited",
       });
@@ -419,13 +486,10 @@ export async function submitInquiry(
             .from("talent_profiles")
             .select("user_id")
             .in("id", coordTalentIds);
-          const seenCoord = new Set<string>(
-            assignment.coordinator_id ? [assignment.coordinator_id] : [],
-          );
           for (const t of (coordTalent ?? []) as Array<{ user_id: string | null }>) {
             const uid = t.user_id;
-            if (!uid || seenCoord.has(uid)) continue;
-            seenCoord.add(uid);
+            if (!uid || coordSeen.has(uid)) continue;
+            coordSeen.add(uid);
             await supabase.from("inquiry_participants").insert({
               inquiry_id: inquiryId,
               tenant_id: input.tenant_id,
@@ -440,44 +504,15 @@ export async function submitInquiry(
       }
     }
 
-    // D0 (Discover funnel convergence): resolve per-row owning party at
-    // submit time. Each talent's owning party is FROZEN onto
-    // `inquiry_participants.owning_party_type/_id` so commission
-    // resolution + thread fan-out stay coherent even if the talent's
-    // exclusivity later changes. Single batch query for all talents.
-    //
-    // For the dominant single-tenant case (talent on this workspace's
-    // roster), the resolver returns `{ type: 'workspace', id: tenant_id }`
-    // which matches the trigger default — no behavior change.
-    // For Discover-originated inquiries (D5), exclusive-agency talents
-    // route to the agency tenant; independent talents route to the
-    // talent's own inbox.
-    // Pass the inquiry's tenant + a hub-source flag so the resolver is
-    // SOURCE-AWARE: a non-exclusive talent inquired through the open Tulala hub
-    // (Discover / public directory / public profile) self-coordinates; inquired
-    // through an agency's own storefront is owned by that workspace. Exclusive
-    // talents route to their agency regardless. Composes with the
-    // talent-self-coordinator seed below.
-    //
-    // The hub flag is REQUIRED (not just tenant matching): the Discover fan-out
-    // route files each inquiry under the talent's PRIMARY ROSTER tenant (the
-    // agency), so `inquiryTenantId` always matches the agency and can never
-    // detect a hub origin on its own. `source_channel` is the reliable signal.
-    const hubSourced = isHubSourcedChannel(input.source_channel);
-    const owningParties = await resolveOwningPartiesForTalents(
-      supabase,
-      input.talent_profile_ids,
-      input.tenant_id,
-      hubSourced,
-    );
-
+    // D0 (Discover funnel convergence): freeze each talent's owning party (resolved
+    // up front) onto `inquiry_participants.owning_party_type/_id` so commission
+    // resolution + thread fan-out stay coherent even if the talent's exclusivity
+    // later changes. For the dominant single-tenant case the resolver returns
+    // `{ type: 'workspace', id: tenant_id }` (matches the trigger default); for
+    // Discover/hub-originated inquiries exclusive-agency talents route to the
+    // agency and independent talents to their own inbox.
     let sort = 0;
     for (const tid of input.talent_profile_ids) {
-      const { data: tp } = await supabase
-        .from("talent_profiles")
-        .select("user_id")
-        .eq("id", tid)
-        .maybeSingle();
       // Resolver guarantees a value for every id; fall back to workspace
       // + this inquiry's tenant_id (matches trigger default) on miss.
       const owning = owningParties.get(tid) ?? {
@@ -487,7 +522,7 @@ export async function submitInquiry(
       await supabase.from("inquiry_participants").insert({
         inquiry_id: inquiryId,
         tenant_id: input.tenant_id,
-        user_id: tp?.user_id ?? null,
+        user_id: talentUserIdByProfile.get(tid) ?? null,
         talent_profile_id: tid,
         role: "talent",
         status: "invited",
@@ -503,36 +538,18 @@ export async function submitInquiry(
       });
     }
 
-    // Hub self-coordination (2026-06-02). When a talent's resolved owning
-    // party is THEMSELVES (`owning.type === 'talent'` — an independent
-    // talent with no exclusive agency / roster owner: the Tulala open-hub
-    // case), the talent runs their own booking. They join the thread as a
-    // `coordinator` (in addition to their `talent` lineup row) so they can
-    // broker the client directly on the private/client thread — the same
-    // access an agency-designated coordinator gets, which the private-thread
-    // RLS already grants to `role IN ('client','coordinator')`. No agency
-    // sits in the money path; the platform's flat take still applies
-    // (commission resolves sellerOfRecord='talent' for a talent-owned job).
-    //
-    // Mechanics mirror the multi-coordinator fan-out above: keyed on
-    // `user_id` only (no talent_profile_id, so the talent/coordinator rows
-    // never collide on the active_talent unique index), deduped against any
-    // coordinator already added, and skipped for talents without a claimed
-    // account (a coordinator row needs a user_id to key the message RLS on).
+    // Hub self-coordination (2026-06-02; talent-primary 2026-06-15). Each talent
+    // whose owning party is THEMSELVES joins as a `coordinator` (alongside their
+    // `talent` lineup row) so they can broker the client on the private thread. The
+    // FIRST is already coordinator-of-record (seated above); this seeds ADDITIONAL
+    // self-coordinating talents (shortlist), deduped via coordSeen, keyed on user_id
+    // only, skipped for unclaimed accounts. No agency in the money path.
     try {
-      const selfCoordSeen = new Set<string>(
-        assignment.coordinator_id ? [assignment.coordinator_id] : [],
-      );
       for (const tid of input.talent_profile_ids) {
         if (owningParties.get(tid)?.type !== "talent") continue;
-        const { data: selfTp } = await supabase
-          .from("talent_profiles")
-          .select("user_id")
-          .eq("id", tid)
-          .maybeSingle();
-        const uid = (selfTp as { user_id?: string | null } | null)?.user_id ?? null;
-        if (!uid || selfCoordSeen.has(uid)) continue;
-        selfCoordSeen.add(uid);
+        const uid = talentUserIdByProfile.get(tid) ?? null;
+        if (!uid || coordSeen.has(uid)) continue;
+        coordSeen.add(uid);
         await supabase.from("inquiry_participants").insert({
           inquiry_id: inquiryId,
           tenant_id: input.tenant_id,
@@ -552,12 +569,12 @@ export async function submitInquiry(
     // under the hub tenant), seed that owning agency's coordinator so the inquiry
     // isn't left unmanaged. No-op for the common same-tenant case. Returns the
     // (possibly newly-promoted) coordinator of record for the engine event below.
-    assignment.coordinator_id = await seedOwningAgencyCoordinators(supabase, {
+    coordinatorOfRecordId = await seedOwningAgencyCoordinators(supabase, {
       inquiryId,
       inquiryTenantId: input.tenant_id,
       talentProfileIds: input.talent_profile_ids,
       owningParties,
-      existingCoordinatorId: assignment.coordinator_id,
+      existingCoordinatorId: coordinatorOfRecordId,
     });
 
     await assertConsistencyAfterWrite(supabase, inquiryId);
@@ -591,7 +608,7 @@ export async function submitInquiry(
       inquiryId,
       actorUserId: input.actorUserId ?? null,
       data: {
-        coordinatorAssigned: Boolean(assignment.coordinator_id),
+        coordinatorAssigned: Boolean(coordinatorOfRecordId),
         talentCount: input.talent_profile_ids.length,
         sourceChannel: input.source_channel,
         initiatorRole: input.initiator_role,

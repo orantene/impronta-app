@@ -6,6 +6,7 @@ export type SystemEventType =
   | "coordinator_reassigned"
   | "roster_talent_swapped"
   | "coordinator_assigned"
+  | "coordinator_removed"
   | "coordinator_accepted"
   | "coordinator_declined"
   | "talent_invited"

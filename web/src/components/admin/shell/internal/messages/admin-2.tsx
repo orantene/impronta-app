@@ -409,8 +409,7 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
       {/* TAB BAR — admin sees all 4 tabs unlocked. Lineup + Offer summaries
           live inside the Offer tab now (single source of truth). The hero
           stays slim: identity + brief + funnel only. */}
-      <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, overflow: "hidden", flex: 1, minHeight: 0, display: "flex", flexDirection: "column", // Anchor for the floating ChatSubToggleDropdown (absolute,
-        // top:4 left:8 — see component).
+      <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, overflow: "hidden", flex: 1, minHeight: 0, display: "flex", flexDirection: "column",
         position: "relative" }} className="rounded-admin-md">
         <ThreadTabBar
           activeId={activeTab}
