@@ -3,6 +3,7 @@ import * as React from "react";
 import { Button } from "../components/Button";
 import { FieldTable } from "../components/FieldTable";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   workspaceName: string;
@@ -19,19 +20,16 @@ export default function UsageQuotaAlert({
   adminUrl,
   brand,
 }: Props) {
-  const fields: { label: string; value: string }[] = [
-    { label: "Usage", value: usageLabel },
-  ];
+  const t = getEmailCopy(brand?.locale)["platform.workspace_over_quota"];
+  const fields: { label: string; value: string }[] = [{ label: t.usageRowLabel, value: usageLabel }];
 
   return (
-    <Layout preview="Workspace over quota" brand={brand}>
-      <Heading style={h2}>Workspace over quota</Heading>
-      <Text style={body}>
-        {workspaceName} has exceeded its {metricLabel} quota.
-      </Text>
+    <Layout preview={t.preview} brand={brand}>
+      <Heading style={h2}>{t.heading}</Heading>
+      <Text style={body}>{interpolate(t.body, { workspaceName, metricLabel })}</Text>
       <FieldTable fields={fields} />
-      <Text style={note}>Review usage and consider reaching out about an upgrade.</Text>
-      <Button href={adminUrl}>Open in admin →</Button>
+      <Text style={note}>{t.note}</Text>
+      <Button href={adminUrl}>{t.button}</Button>
     </Layout>
   );
 }

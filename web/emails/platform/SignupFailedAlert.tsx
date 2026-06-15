@@ -3,6 +3,7 @@ import * as React from "react";
 import { Button } from "../components/Button";
 import { FieldTable } from "../components/FieldTable";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy } from "@/lib/notifications/email-copy";
 
 interface Props {
   attemptedEmail: string;
@@ -17,20 +18,19 @@ export default function SignupFailedAlert({
   adminUrl,
   brand,
 }: Props) {
+  const t = getEmailCopy(brand?.locale)["platform.workspace_signup_failed"];
   const fields: { label: string; value: string }[] = [
-    { label: "Email", value: attemptedEmail },
-    { label: "Reason", value: reason },
+    { label: t.emailLabel, value: attemptedEmail },
+    { label: t.reasonLabel, value: reason },
   ];
 
   return (
-    <Layout preview="Workspace signup failed" brand={brand}>
-      <Heading style={h2}>Workspace signup failed</Heading>
-      <Text style={body}>
-        A workspace signup didn&apos;t complete and may need a manual follow-up.
-      </Text>
+    <Layout preview={t.preview} brand={brand}>
+      <Heading style={h2}>{t.heading}</Heading>
+      <Text style={body}>{t.body}</Text>
       <FieldTable fields={fields} />
-      <Text style={note}>Check the logs and follow up if needed.</Text>
-      <Button href={adminUrl}>Open in admin →</Button>
+      <Text style={note}>{t.note}</Text>
+      <Button href={adminUrl}>{t.button}</Button>
     </Layout>
   );
 }

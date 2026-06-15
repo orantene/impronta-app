@@ -62,6 +62,45 @@ export function notifyPaymentReceived(params: {
 }
 
 /**
+ * `payment.invoice_issued` — a formal INVOICE to the client on a CONFIRMED
+ * (full/balance, non-deposit) payment. Same audience + hydrate as the receipt
+ * (transactionPayer + loadInquiryView). This entry is DEFAULT OFF in the console
+ * (notification_overlay seeded email_enabled=false) so it never duplicates the
+ * `payment.received` receipt unless an admin opts in at /platform/admin/email.
+ */
+export function notifyInvoiceIssued(params: {
+  transactionId: string;
+  tenantId: string;
+  inquiryId: string | null;
+  bookingId: string;
+  payerUserId: string | null;
+  payerEmail: string | null;
+  grossAmountCents: number;
+  currency: string;
+  paidAt: string | null;
+}): void {
+  void dispatchEventNotifications({
+    type: "payment.invoice_issued",
+    tenantId: params.tenantId,
+    inquiryId: params.inquiryId,
+    bookingId: params.bookingId,
+    eventId: `invoice-issued:${params.transactionId}`,
+    payload: {
+      transactionId: params.transactionId,
+      bookingId: params.bookingId,
+      inquiryId: params.inquiryId,
+      payerUserId: params.payerUserId,
+      payerEmail: params.payerEmail,
+      grossAmountCents: params.grossAmountCents,
+      currency: params.currency,
+      paidAt: params.paidAt,
+    },
+  }).catch((err) => {
+    logServerError("notifyInvoiceIssued", err);
+  });
+}
+
+/**
  * `payment.deposit_received` — the client who paid a 6.3 DEPOSIT
  * (`payment.deposit_received.client`, email-only). Distinct from the generic
  * receipt: it confirms the deposit and shows the balance still due, with a CTA

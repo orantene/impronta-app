@@ -5,6 +5,7 @@ import ClientPaymentReceipt from "../../../emails/client/PaymentReceipt";
 import ClientDepositReceived from "../../../emails/client/DepositReceived";
 import WorkspacePaymentReceived from "../../../emails/workspace/PaymentReceived";
 import BillingPaymentFailed from "../../../emails/billing/PaymentFailed";
+import BillingInvoice from "../../../emails/billing/Invoice";
 import TalentPayoutSettled from "../../../emails/talent/PayoutSettled";
 import TalentPayoutReversed from "../../../emails/talent/PayoutReversed";
 import ClientPaymentRefunded from "../../../emails/client/PaymentRefunded";
@@ -133,6 +134,46 @@ const PAYMENT_RECEIVED_WORKSPACE: CatalogEntry = {
  * for deposits) so the client gets one balance-aware email. Hydrates the offer
  * total to compute the remaining balance; degrades gracefully if it's unknown.
  */
+/**
+ * payment.invoice_issued → client formal invoice (email-only). DEFAULT OFF via a
+ * seeded notification_overlay row (email_enabled=false) so it never duplicates
+ * the payment.received receipt unless an admin enables it in /platform/admin/email.
+ * Fires only on confirmed (full/balance, non-deposit) payments.
+ */
+const PAYMENT_INVOICE_ISSUED_CLIENT: CatalogEntry = {
+  id: "payment.invoice_issued.client",
+  category: "payments",
+  defaultChannels: ["email"],
+  required: false,
+  triggers: ["payment.invoice_issued"],
+  hydrate: loadInquiryView,
+  resolveAudience: transactionPayer,
+  email: {
+    templateId: "payment.invoice_issued.client",
+    subject: () => "Your invoice",
+    render: ({ event, recipient: _recipient, brand, unsubscribeUrl }) => {
+      const bookingId = str(event.payload.bookingId);
+      const txnId = str(event.payload.transactionId) ?? bookingId ?? "";
+      const paidAt = str(event.payload.paidAt);
+      const year = paidAt ? new Date(paidAt).getFullYear() : new Date().getFullYear();
+      const invoiceNumber = `INV-${year}-${txnId.replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+      return React.createElement(BillingInvoice, {
+        agencyName: brand.accountName ?? "",
+        invoiceNumber,
+        amount: formatMoneyCents(num(event.payload.grossAmountCents), str(event.payload.currency)),
+        dateLabel: formatDateLabel(paidAt) ?? "",
+        invoiceUrl: pageUrl(
+          brand,
+          bookingId ? `/client/bookings/${bookingId}?tab=payment` : "/client/bookings",
+        ),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "payments",
+      });
+    },
+  },
+};
+
 const PAYMENT_DEPOSIT_RECEIVED_CLIENT: CatalogEntry = {
   id: "payment.deposit_received.client",
   category: "payments",
@@ -574,6 +615,7 @@ const TALENT_TRIAL_STARTED: CatalogEntry = {
 export const BILLING_CATALOG_ENTRIES: CatalogEntry[] = [
   PAYMENT_RECEIVED_CLIENT,
   PAYMENT_RECEIVED_WORKSPACE,
+  PAYMENT_INVOICE_ISSUED_CLIENT,
   PAYMENT_DEPOSIT_RECEIVED_CLIENT,
   PAYMENT_FAILED_WORKSPACE,
   PAYMENT_PAYOUT_SETTLED_TALENT,

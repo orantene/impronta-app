@@ -20,6 +20,7 @@ import {
 } from "@/lib/bookings/transaction-events";
 import {
   notifyDepositReceived,
+  notifyInvoiceIssued,
   notifyPaymentReceived,
   notifyTalentPayoutSettled,
 } from "@/lib/notifications/producers/payment-notify";
@@ -589,6 +590,22 @@ export async function markPaid(
       paidAt: result.data.paidAt,
       checkoutType: result.data.checkoutType,
     });
+    // Formal invoice (default OFF in the console — see PAYMENT_INVOICE_ISSUED_CLIENT).
+    // Only on confirmed (full/balance) payments, never a deposit. No-op unless an
+    // admin enabled the entry, so it never duplicates the receipt by default.
+    if (!isDeposit) {
+      notifyInvoiceIssued({
+        transactionId: result.data.id,
+        tenantId: result.data.sourceTenantId,
+        inquiryId: result.data.sourceInquiryId,
+        bookingId: result.data.bookingId,
+        payerUserId: result.data.payerUserId,
+        payerEmail: result.data.payerEmail,
+        grossAmountCents: result.data.grossAmountCents,
+        currency: result.data.currency,
+        paidAt: result.data.paidAt,
+      });
+    }
     // 6.3 deposits: the generic client receipt above is suppressed for deposits;
     // send the deposit-specific email (deposit paid + balance due + pay-balance CTA).
     if (isDeposit) {

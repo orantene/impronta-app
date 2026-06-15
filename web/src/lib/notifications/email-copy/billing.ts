@@ -22,6 +22,17 @@
  */
 
 export const BILLING_EN = {
+  "payment.invoice_issued.client": {
+    subject: "Your invoice from {brand}",
+    preview: "Your invoice",
+    heading: "Your invoice",
+    intro: "Here's your invoice for your booking with {brand}.",
+    invoiceRowLabel: "Invoice",
+    amountRowLabel: "Amount",
+    dateRowLabel: "Date",
+    note: "A copy is always available from your bookings.",
+    button: "View booking →",
+  },
   "workspace.payment_failed": {
     subject: "Payment failed — action needed",
     preview: "Payment failed",
@@ -83,6 +94,17 @@ export const BILLING_EN = {
 };
 
 export const BILLING_ES: typeof BILLING_EN = {
+  "payment.invoice_issued.client": {
+    subject: "Tu factura de {brand}",
+    preview: "Tu factura",
+    heading: "Tu factura",
+    intro: "Aquí está tu factura por tu reservación con {brand}.",
+    invoiceRowLabel: "Factura",
+    amountRowLabel: "Importe",
+    dateRowLabel: "Fecha",
+    note: "Siempre tienes una copia disponible en tus reservaciones.",
+    button: "Ver reservación →",
+  },
   "workspace.payment_failed": {
     subject: "Pago rechazado — acción requerida",
     preview: "Pago rechazado",
