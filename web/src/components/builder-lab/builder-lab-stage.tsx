@@ -44,6 +44,7 @@ import { useBuilderTree } from "@/components/edit-chrome/builder-tree-bridge";
 import { CHROME } from "@/components/edit-chrome/kit/tokens";
 
 import { PreviewSubjectPicker, type PreviewSubject } from "./preview-subject-picker";
+import { PillToggle } from "./ui";
 
 /** Who a Playground draft is *for* — chosen at "+ New". Distinct from the
  *  preview SUBJECT (the specific talent/workspace authored against in-canvas). */
@@ -309,44 +310,19 @@ function BuilderLabStageHeaderBridge({
             }}
           >
             {/* "Both" target → talent ⇄ workspace toggle so the same design can
-                be previewed against either surface's live data. */}
+                be previewed against either surface's live data. Uses the shared
+                PillToggle so it matches the Catalog surface switchers. */}
             {isBoth ? (
-              <div
-                role="tablist"
-                aria-label="Preview against"
-                style={{
-                  display: "inline-flex",
-                  background: "rgba(255,255,255,0.05)",
-                  borderRadius: 999,
-                  padding: 2,
-                  marginBottom: 10,
-                }}
-              >
-                {(["talent", "workspace"] as const).map((k) => {
-                  const on = activeKind === k;
-                  return (
-                    <button
-                      key={k}
-                      type="button"
-                      role="tab"
-                      aria-selected={on}
-                      onClick={() => onKindChange(k)}
-                      style={{
-                        background: on ? CHROME.green : "transparent",
-                        color: on ? "#0F0F11" : "rgba(245,242,235,0.62)",
-                        border: "none",
-                        fontSize: 11,
-                        fontWeight: 700,
-                        padding: "4px 14px",
-                        borderRadius: 999,
-                        cursor: "pointer",
-                        textTransform: "capitalize",
-                      }}
-                    >
-                      {k}
-                    </button>
-                  );
-                })}
+              <div style={{ marginBottom: 10 }}>
+                <PillToggle
+                  ariaLabel="Preview against"
+                  value={activeKind}
+                  onChange={onKindChange}
+                  options={[
+                    { key: "talent", label: "Talent" },
+                    { key: "workspace", label: "Workspace" },
+                  ]}
+                />
               </div>
             ) : null}
             <div

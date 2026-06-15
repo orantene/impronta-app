@@ -28,20 +28,11 @@ import {
   type LabWorkspaceSubjectHit,
 } from "@/lib/site-admin/builder-core/lab/preview-subject-search";
 
+import { LAB as T, RADII, fieldStyle, LabBadge } from "./ui";
+
 export type PreviewSubject =
   | { kind: "talent"; id: string; label: string; thumbnailUrl?: string | null }
   | { kind: "workspace"; id: string; label: string };
-
-const T = {
-  card: "#16161A",
-  cardSoft: "rgba(255,255,255,0.04)",
-  border: "rgba(255,255,255,0.10)",
-  borderSoft: "rgba(255,255,255,0.06)",
-  ink: "#F5F2EB",
-  inkMuted: "rgba(245,242,235,0.62)",
-  inkDim: "rgba(245,242,235,0.38)",
-  accent: "#5DD3A0",
-};
 
 export function PreviewSubjectPicker({
   kind,
@@ -127,26 +118,17 @@ export function PreviewSubjectPicker({
             ? "Search talent by name or code…"
             : "Search workspaces by name or slug…"
         }
-        style={{
-          width: "100%",
-          padding: "9px 12px",
-          borderRadius: 9,
-          border: `1px solid ${T.border}`,
-          background: T.cardSoft,
-          color: T.ink,
-          fontSize: 13,
-          outline: "none",
-        }}
+        style={{ ...fieldStyle, width: "100%", outline: "none" }}
       />
 
       {error ? (
         <div
           style={{
             fontSize: 12,
-            color: "#F36772",
-            padding: "8px 10px",
-            background: "rgba(243,103,114,0.12)",
-            borderRadius: 8,
+            color: T.red,
+            padding: "8px 11px",
+            background: T.redBg,
+            borderRadius: RADII.control,
           }}
         >
           {error}
@@ -231,7 +213,7 @@ function SubjectRow({
         padding: "8px 10px",
         borderRadius: 9,
         border: `1px solid ${active ? T.accent : "transparent"}`,
-        background: active ? "rgba(93,211,160,0.10)" : "transparent",
+        background: active ? T.accentSoft : "transparent",
         cursor: "pointer",
         textAlign: "left",
         color: T.ink,
@@ -242,7 +224,7 @@ function SubjectRow({
         style={{
           width: 30,
           height: 30,
-          borderRadius: 7,
+          borderRadius: RADII.icon,
           flexShrink: 0,
           background: T.cardSoft,
           overflow: "hidden",
@@ -272,21 +254,9 @@ function SubjectRow({
         ) : null}
       </span>
       {chip ? (
-        <span
-          style={{
-            flexShrink: 0,
-            fontSize: 9.5,
-            fontWeight: 600,
-            letterSpacing: 0.4,
-            textTransform: "uppercase",
-            color: T.inkMuted,
-            padding: "2px 7px",
-            borderRadius: 999,
-            background: T.cardSoft,
-          }}
-        >
+        <LabBadge tone="muted" style={{ flexShrink: 0 }}>
           {chip}
-        </span>
+        </LabBadge>
       ) : null}
     </button>
   );
@@ -313,7 +283,7 @@ function SubjectSkeleton() {
 
 function EmptyState({ label }: { label: string }) {
   return (
-    <div style={{ fontSize: 12.5, color: T.inkMuted, padding: "18px 8px", textAlign: "center" }}>
+    <div style={{ fontSize: 12.5, color: T.inkMuted, padding: "16px 8px", textAlign: "center" }}>
       {label}
     </div>
   );
