@@ -26,8 +26,9 @@
  * you are building survives the switch). For "both" the kind toggle drives which
  * picker is shown; switching kind + re-picking re-hydrates against the new kind.
  *
- * Persistence stays ephemeral: the `platform_lab` adapter's autosave / save /
- * publish are no-op sinks. The only durable output is a `builder_templates` row.
+ * Persistence (Phase 3): when opened on a `draftId`, the editor binds to a
+ * `builder_templates` draft — load/save/publish go through the draft-bound
+ * adapter. Opened without one, the canvas is the ephemeral no-op sink (scratch).
  */
 
 import { useCallback, useMemo, useState } from "react";
@@ -36,6 +37,7 @@ import { BuilderEditorMount } from "@/lib/site-admin/builder-core/mount/BuilderE
 import { buildPlatformLabBuilderConfig } from "@/lib/site-admin/builder-core/config";
 import type { BuilderPreviewSubjectKind } from "@/lib/site-admin/builder-core/config";
 import { platformLabAdapter } from "@/lib/site-admin/builder-core/adapters/platform-lab-adapter";
+import { createDraftBoundPlatformLabAdapter } from "@/lib/site-admin/builder-core/adapters/platform-lab-adapter-draft";
 import { buildLabCanvasRenderData } from "@/lib/site-admin/builder-core/lab/lab-canvas-render-data";
 import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
 import { useBuilderTree } from "@/components/edit-chrome/builder-tree-bridge";
@@ -63,6 +65,7 @@ function targetToPreviewSubjectKind(
 
 export function BuilderLabStage({
   target,
+  draftId,
   tenantId,
   workspacePlan,
   locale,
@@ -70,6 +73,12 @@ export function BuilderLabStage({
 }: {
   /** Who the draft is for — drives the gallery scope + which picker(s) appear. */
   target: BuilderLabTarget;
+  /**
+   * When set, the editor is bound to a `builder_templates` DRAFT — load reads
+   * its tree and save/publish persist (Phase 3). When omitted, the canvas is the
+   * ephemeral no-op sink (a throwaway scratch session).
+   */
+  draftId?: string;
   /** Active platform tenant id (builder credentials/scope). */
   tenantId: string;
   workspacePlan?: string | null;
@@ -77,13 +86,17 @@ export function BuilderLabStage({
   /** Return to the Lab dashboard (closes the editor). */
   onExit: () => void;
 }) {
-  const surfaceConfig = useMemo(
+  // Draft-bound adapter (persists to builder_templates) when a draft is open;
+  // otherwise the ephemeral singleton. Memoized on draftId so the editor mount
+  // keeps a stable adapter for its lifetime.
+  const adapter = useMemo(
     () =>
-      buildPlatformLabBuilderConfig(
-        platformLabAdapter,
-        targetToPreviewSubjectKind(target),
-      ),
-    [target],
+      draftId ? createDraftBoundPlatformLabAdapter(draftId) : platformLabAdapter,
+    [draftId],
+  );
+  const surfaceConfig = useMemo(
+    () => buildPlatformLabBuilderConfig(adapter, targetToPreviewSubjectKind(target)),
+    [adapter, target],
   );
 
   // For "both" the operator toggles which kind they preview against; for a

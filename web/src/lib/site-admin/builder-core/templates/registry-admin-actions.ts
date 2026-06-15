@@ -75,6 +75,32 @@ export async function listAllTemplates(): Promise<
   }
 }
 
+/** A single template row by id (any status). super_admin only. Used by the
+ *  Playground draft-bound adapter's `load` to hydrate the editor with the
+ *  draft's `builder_tree`. */
+export async function getTemplateById(
+  templateId: string,
+): Promise<AdminTemplateResult<BuilderTemplateRow>> {
+  const gate = await requireSuperAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+
+  try {
+    const sb = getAdminClient();
+    const { data, error } = await sb
+      .from("builder_templates")
+      .select()
+      .eq("id", templateId)
+      .maybeSingle();
+
+    if (error) return { ok: false, error: error.message };
+    if (!data) return { ok: false, error: "Draft not found." };
+    return { ok: true, data: data as BuilderTemplateRow };
+  } catch (err) {
+    logServerError("getTemplateById", err);
+    return { ok: false, error: CLIENT_ERROR.generic };
+  }
+}
+
 /** Revision trail (version + status + note) for a template. super_admin only. */
 export async function listTemplateRevisions(
   templateId: string,

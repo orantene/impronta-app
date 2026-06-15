@@ -32,6 +32,13 @@ import {
   clearComponentOverlay,
   setComponentOverlay,
 } from "@/lib/site-admin/builder-core/templates/catalog-overlay-actions";
+import { createTemplateDraft } from "@/lib/site-admin/builder-core/templates/registry-actions";
+import { listAllTemplates } from "@/lib/site-admin/builder-core/templates/registry-admin-actions";
+import type {
+  BuilderTemplateRow,
+  BuilderTemplateStatus,
+  BuilderTemplateTarget,
+} from "@/lib/site-admin/builder-core/templates/registry-rows";
 import { AddGalleryIcon } from "@/components/edit-chrome/add-gallery/add-gallery-icons";
 import {
   PAGE_DESIGN_SUMMARIES,
@@ -131,7 +138,7 @@ export function ComponentCatalog({
   defaultView,
 }: {
   /** Launch the editor from Playground's "+ New" against the chosen target. */
-  onLaunchEditor?: (target: BuilderLabTarget) => void;
+  onLaunchEditor?: (target: BuilderLabTarget, draftId?: string) => void;
   /** Initial inner view — defaults to the first component tab; the shell passes
    *  "playground" so exiting the editor returns to the workbench. */
   defaultView?: CatalogView;
@@ -767,7 +774,7 @@ function designsForSurface(
 function SiteStarterKitView({
   onLaunchEditor,
 }: {
-  onLaunchEditor?: (target: BuilderLabTarget) => void;
+  onLaunchEditor?: (target: BuilderLabTarget, draftId?: string) => void;
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
@@ -886,23 +893,95 @@ const PLAYGROUND_TARGETS: ReadonlyArray<{
   },
 ];
 
+const PLAYGROUND_STATUS_FILTERS: ReadonlyArray<{
+  key: "all" | BuilderTemplateStatus;
+  label: string;
+}> = [
+  { key: "all", label: "All" },
+  { key: "draft", label: "Draft" },
+  { key: "in_review", label: "In Review" },
+  { key: "published", label: "Published" },
+  { key: "archived", label: "Archived" },
+];
+
+const STATUS_TONE: Record<BuilderTemplateStatus, { bg: string; fg: string }> = {
+  draft: { bg: "rgba(255,255,255,0.07)", fg: T.inkMuted },
+  in_review: { bg: "rgba(155,168,183,0.16)", fg: "#9BA8B7" },
+  published: { bg: "rgba(93,211,160,0.16)", fg: T.accent },
+  archived: { bg: "rgba(255,255,255,0.05)", fg: T.inkDim },
+};
+
+/** builder_templates target_context → the editor's launch target. */
+function targetToLabTarget(t: BuilderTemplateTarget): BuilderLabTarget {
+  return t === "talent" || t === "workspace" ? t : "both";
+}
+
 /**
- * Playground (Phase 2) — the workbench. A single "+ New" launches the editor
- * SUBJECT-LESS against the picked target (talent / workspace / both); you choose
- * + switch the preview subject inside the editor. The persistent draft list
- * lands in Phase 3.
+ * Playground (Phase 3) — the workbench. A persistent list of your full-page
+ * drafts (builder_templates, kind=page_template) with status pills. "+ New"
+ * creates a draft for the picked target and opens it; clicking a draft reopens
+ * it. The editor binds to the draft id, so edits persist and Publish promotes
+ * the draft into the page-templates gallery (the Site Starter Kit).
  */
 function PlaygroundView({
   onLaunchEditor,
 }: {
-  onLaunchEditor?: (target: BuilderLabTarget) => void;
+  onLaunchEditor?: (target: BuilderLabTarget, draftId?: string) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [drafts, setDrafts] = useState<BuilderTemplateRow[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<"all" | BuilderTemplateStatus>(
+    "all",
+  );
+  const [creating, setCreating] = useState(false);
 
-  const launch = (target: BuilderLabTarget) => {
-    setMenuOpen(false);
-    onLaunchEditor?.(target);
-  };
+  const reload = useCallback(async () => {
+    const res = await listAllTemplates();
+    if (res.ok) {
+      setDrafts(res.data.filter((t) => t.kind === "page_template"));
+    } else {
+      setError(res.error);
+    }
+  }, []);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  const createAndOpen = useCallback(
+    async (target: BuilderLabTarget) => {
+      setMenuOpen(false);
+      setCreating(true);
+      setError(null);
+      const stamp = Date.now().toString(36);
+      const res = await createTemplateDraft({
+        kind: "page_template",
+        title: "Untitled draft",
+        slug: `playground-${stamp}-${Math.random().toString(36).slice(2, 7)}`,
+        category: "playground",
+        gallery_tab: "page_templates",
+        target_context: target,
+      });
+      setCreating(false);
+      if (res.ok) {
+        onLaunchEditor?.(target, res.data.id);
+      } else {
+        setError(res.error);
+      }
+    },
+    [onLaunchEditor],
+  );
+
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { all: drafts?.length ?? 0 };
+    for (const d of drafts ?? []) c[d.status] = (c[d.status] ?? 0) + 1;
+    return c;
+  }, [drafts]);
+
+  const visible = (drafts ?? []).filter(
+    (d) => statusFilter === "all" || d.status === statusFilter,
+  );
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -918,8 +997,8 @@ function PlaygroundView({
         <div>
           <div style={{ fontSize: 14, fontWeight: 700, color: T.ink }}>Playground</div>
           <div style={{ fontSize: 12, color: T.inkMuted, marginTop: 2 }}>
-            Your workbench — start a fresh draft, pick its target, author against
-            real data inside the editor.
+            Your workbench — full-page drafts. Start one, author against real data,
+            then publish it into the page-templates gallery.
           </div>
         </div>
 
@@ -927,6 +1006,7 @@ function PlaygroundView({
           <button
             type="button"
             onClick={() => setMenuOpen((v) => !v)}
+            disabled={creating}
             aria-haspopup="menu"
             aria-expanded={menuOpen}
             className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60"
@@ -941,10 +1021,11 @@ function PlaygroundView({
               color: "#0F0F11",
               fontSize: 13,
               fontWeight: 700,
-              cursor: "pointer",
+              cursor: creating ? "default" : "pointer",
+              opacity: creating ? 0.6 : 1,
             }}
           >
-            + New
+            {creating ? "Creating…" : "+ New"}
             <span aria-hidden style={{ fontSize: 9, opacity: 0.75 }}>
               {menuOpen ? "▲" : "▼"}
             </span>
@@ -985,7 +1066,7 @@ function PlaygroundView({
                   key={opt.target}
                   type="button"
                   role="menuitem"
-                  onClick={() => launch(opt.target)}
+                  onClick={() => void createAndOpen(opt.target)}
                   className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60"
                   style={{
                     display: "block",
@@ -1016,21 +1097,140 @@ function PlaygroundView({
         </div>
       </div>
 
-      <div
-        style={{
-          background: T.card,
-          border: `1px solid ${T.borderSoft}`,
-          borderRadius: 12,
-          padding: "32px 20px",
-          textAlign: "center",
-        }}
-      >
-        <p style={{ fontSize: 12.5, color: T.inkMuted, margin: "0 auto", maxWidth: 480, lineHeight: 1.55 }}>
-          No saved drafts yet. Hit <strong style={{ color: T.ink }}>+ New</strong> to open a fresh
-          editor canvas. Persistence — a list of your drafts with{" "}
-          <em>All / Draft / In&nbsp;Review / Published / Archived</em> states — lands in Phase 3.
-        </p>
+      {/* Status pills */}
+      <div style={{ display: "inline-flex", background: T.cardSoft, borderRadius: 999, padding: 2, alignSelf: "flex-start" }}>
+        {PLAYGROUND_STATUS_FILTERS.map((f) => {
+          const active = statusFilter === f.key;
+          const n = counts[f.key] ?? 0;
+          return (
+            <button
+              key={f.key}
+              type="button"
+              onClick={() => setStatusFilter(f.key)}
+              style={{
+                background: active ? T.ink : "transparent",
+                color: active ? "#0F0F11" : T.inkMuted,
+                border: "none",
+                fontSize: 11.5,
+                fontWeight: 600,
+                padding: "5px 13px",
+                borderRadius: 999,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              {f.label}
+              <span style={{ fontSize: 10, fontWeight: 700, opacity: 0.7 }}>{n}</span>
+            </button>
+          );
+        })}
       </div>
+
+      {error ? (
+        <div style={{ fontSize: 12, color: "#ff8585" }}>{error}</div>
+      ) : null}
+
+      {drafts === null ? (
+        <div style={{ color: T.inkMuted, fontSize: 13, padding: "10px 0" }}>Loading drafts…</div>
+      ) : visible.length === 0 ? (
+        <div
+          style={{
+            background: T.card,
+            border: `1px solid ${T.borderSoft}`,
+            borderRadius: 12,
+            padding: "32px 20px",
+            textAlign: "center",
+          }}
+        >
+          <p style={{ fontSize: 12.5, color: T.inkMuted, margin: "0 auto", maxWidth: 460, lineHeight: 1.55 }}>
+            {statusFilter === "all"
+              ? "No drafts yet. Hit + New to start a full-page draft — it’s saved as you edit."
+              : `No ${statusFilter.replace("_", " ")} drafts.`}
+          </p>
+        </div>
+      ) : (
+        <section
+          style={{
+            background: T.card,
+            border: `1px solid ${T.borderSoft}`,
+            borderRadius: 12,
+            overflow: "hidden",
+          }}
+        >
+          {visible.map((d, i) => {
+            const tone = STATUS_TONE[d.status];
+            return (
+              <button
+                key={d.id}
+                type="button"
+                onClick={() => onLaunchEditor?.(targetToLabTarget(d.target_context), d.id)}
+                className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  width: "100%",
+                  textAlign: "left",
+                  background: "transparent",
+                  border: "none",
+                  borderTop: i === 0 ? "none" : `1px solid ${T.borderSoft}`,
+                  padding: "12px 16px",
+                  cursor: "pointer",
+                  color: T.ink,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = T.cardSoft;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "transparent";
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {d.title || "Untitled draft"}
+                  </div>
+                  <div style={{ fontSize: 11, color: T.inkDim, marginTop: 2 }}>
+                    Updated {new Date(d.updated_at).toLocaleDateString()} · v{d.version}
+                  </div>
+                </div>
+                <span
+                  style={{
+                    flexShrink: 0,
+                    fontSize: 9.5,
+                    fontWeight: 700,
+                    letterSpacing: 0.4,
+                    textTransform: "uppercase",
+                    color: T.inkMuted,
+                    background: T.cardSoft,
+                    borderRadius: 999,
+                    padding: "2px 8px",
+                  }}
+                >
+                  {d.target_context}
+                </span>
+                <span
+                  style={{
+                    flexShrink: 0,
+                    fontSize: 9.5,
+                    fontWeight: 700,
+                    letterSpacing: 0.4,
+                    textTransform: "uppercase",
+                    color: tone.fg,
+                    background: tone.bg,
+                    borderRadius: 999,
+                    padding: "2px 8px",
+                  }}
+                >
+                  {d.status.replace("_", " ")}
+                </span>
+                <span aria-hidden style={{ color: T.inkDim, fontSize: 14, flexShrink: 0 }}>›</span>
+              </button>
+            );
+          })}
+        </section>
+      )}
     </div>
   );
 }

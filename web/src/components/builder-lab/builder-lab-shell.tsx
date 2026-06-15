@@ -39,22 +39,27 @@ export function BuilderLabShell({
   workspacePlan?: string | null;
   locale?: string;
 }) {
-  // Which target the editor was launched against (null → not editing).
-  const [launchTarget, setLaunchTarget] = useState<BuilderLabTarget | null>(null);
+  // The open editor session — target + (for a persisted Playground draft) its
+  // builder_templates id. Null → not editing.
+  const [launch, setLaunch] = useState<{
+    target: BuilderLabTarget;
+    draftId?: string;
+  } | null>(null);
   // After the first editor exit, return to the Playground view (you launched
   // from there) rather than the default Catalog landing.
   const [hasLaunched, setHasLaunched] = useState(false);
 
   // When the editor is open, render the stage full-bleed (its own chrome).
-  if (launchTarget) {
+  if (launch) {
     return (
       <BuilderLabStage
-        target={launchTarget}
+        target={launch.target}
+        draftId={launch.draftId}
         tenantId={tenantId}
         workspacePlan={workspacePlan}
         locale={locale}
         onExit={() => {
-          setLaunchTarget(null);
+          setLaunch(null);
           setHasLaunched(true);
         }}
       />
@@ -64,7 +69,7 @@ export function BuilderLabShell({
   return (
     <Panel>
       <ComponentCatalog
-        onLaunchEditor={(target) => setLaunchTarget(target)}
+        onLaunchEditor={(target, draftId) => setLaunch({ target, draftId })}
         defaultView={hasLaunched ? "playground" : undefined}
       />
     </Panel>
