@@ -282,6 +282,36 @@ function PagePicker({
   const router = useRouter();
   const pagePickerMenuId = useId();
   const pagePickerTriggerId = useId();
+  // Fixed-position anchor so the menu escapes the topbar's overflow-y-hidden
+  // scroll container (an absolutely-positioned menu gets clipped — same reason
+  // the publish-split menu is position:fixed).
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(
+    null,
+  );
+  // Double-click-to-rename the page/template title inline.
+  const [renaming, setRenaming] = useState(false);
+  const [nameDraft, setNameDraft] = useState(title);
+  const renameDoneRef = useRef(false);
+
+  async function commitRename() {
+    if (renameDoneRef.current) return; // dedupe Enter + blur
+    renameDoneRef.current = true;
+    const next = nameDraft.trim();
+    setRenaming(false);
+    if (
+      editCtx?.savePageMetadata &&
+      editCtx.pageMetadata &&
+      next &&
+      next !== title
+    ) {
+      await editCtx.savePageMetadata({ ...editCtx.pageMetadata, title: next });
+    }
+  }
+  function cancelRename() {
+    renameDoneRef.current = true;
+    setRenaming(false);
+  }
 
   useEffect(() => {
     if ((pagesPickerOpenNonce ?? 0) > 0) setOpen(true);
@@ -405,54 +435,107 @@ function PagePicker({
 
   return (
     <div className="relative shrink-0" data-page-picker>
-      {/* ── Trigger ── */}
-      <button
-        type="button"
-        id={pagePickerTriggerId}
-        title="Switch page"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-controls={pagePickerMenuId}
-        onClick={() => setOpen((o) => !o)}
-        className="inline-flex shrink-0 cursor-pointer items-center gap-[8px] rounded-[10px] border border-transparent transition-colors"
-        style={{
-          padding: "8px 12px",
-          fontSize: TB_FONT_PX,
-          fontWeight: 500,
-          color: CHROME.ink,
-          background: open ? CHROME.paper2 : "transparent",
-          borderColor: open ? CHROME.line : "transparent",
-        }}
-        onMouseEnter={(e) => {
-          if (!open) {
-            e.currentTarget.style.background = CHROME.paper2;
-            e.currentTarget.style.borderColor = CHROME.line;
+      {/* ── Trigger (single-click = switch page · double-click = rename) ── */}
+      {renaming ? (
+        <input
+          autoFocus
+          value={nameDraft}
+          onChange={(e) => setNameDraft(e.target.value)}
+          onFocus={(e) => e.currentTarget.select()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              void commitRename();
+            } else if (e.key === "Escape") {
+              e.preventDefault();
+              cancelRename();
+            }
+          }}
+          onBlur={() => void commitRename()}
+          aria-label="Rename"
+          className="rounded-[10px] border"
+          style={{
+            padding: "7px 11px",
+            fontSize: TB_FONT_PX,
+            fontWeight: 500,
+            color: CHROME.ink,
+            background: CHROME.paper,
+            borderColor: CHROME.accent,
+            outline: "none",
+            minWidth: 140,
+            maxWidth: 280,
+          }}
+        />
+      ) : (
+        <button
+          type="button"
+          ref={triggerRef}
+          id={pagePickerTriggerId}
+          title="Click to switch page · double-click to rename"
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-controls={pagePickerMenuId}
+          onClick={() =>
+            setOpen((o) => {
+              const next = !o;
+              if (next && triggerRef.current) {
+                const rect = triggerRef.current.getBoundingClientRect();
+                setMenuPos({ top: rect.bottom + 4, left: rect.left });
+              }
+              return next;
+            })
           }
-        }}
-        onMouseLeave={(e) => {
-          if (!open) {
-            e.currentTarget.style.background = "transparent";
-            e.currentTarget.style.borderColor = "transparent";
-          }
-        }}
-      >
-        <span className="font-medium tracking-[-0.005em]" style={{ color: CHROME.ink, fontSize: TB_FONT_PX }}>
-          {title || "Homepage"}
-        </span>
-        <span style={{ color: CHROME.muted2 }} aria-hidden>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </span>
-      </button>
+          onDoubleClick={() => {
+            setOpen(false);
+            setNameDraft(title);
+            renameDoneRef.current = false;
+            setRenaming(true);
+          }}
+          className="inline-flex shrink-0 cursor-pointer items-center gap-[8px] rounded-[10px] border border-transparent transition-colors"
+          style={{
+            padding: "8px 12px",
+            fontSize: TB_FONT_PX,
+            fontWeight: 500,
+            color: CHROME.ink,
+            background: open ? CHROME.paper2 : "transparent",
+            borderColor: open ? CHROME.line : "transparent",
+          }}
+          onMouseEnter={(e) => {
+            if (!open) {
+              e.currentTarget.style.background = CHROME.paper2;
+              e.currentTarget.style.borderColor = CHROME.line;
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!open) {
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.borderColor = "transparent";
+            }
+          }}
+        >
+          <span className="font-medium tracking-[-0.005em]" style={{ color: CHROME.ink, fontSize: TB_FONT_PX }}>
+            {title || "Homepage"}
+          </span>
+          <span style={{ color: CHROME.muted2 }} aria-hidden>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </span>
+        </button>
+      )}
 
-      {open ? (
+      {open && menuPos ? (
         <div
           id={pagePickerMenuId}
           role="menu"
           aria-labelledby={pagePickerTriggerId}
-          className="absolute left-0 top-[42px] z-[120] min-w-[280px] rounded-[10px] p-[6px]"
+          className="z-[120] min-w-[280px] rounded-[10px] p-[6px]"
           style={{
+            // Fixed (anchored to the trigger rect) so the topbar's
+            // overflow-y-hidden scroll container can't clip the menu.
+            position: "fixed",
+            top: menuPos.top,
+            left: menuPos.left,
             background: CHROME.surface,
             border: `1px solid ${CHROME.line}`,
             boxShadow:

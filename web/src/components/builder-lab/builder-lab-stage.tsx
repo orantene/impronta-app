@@ -224,6 +224,14 @@ function BuilderLabSubjectPicker({
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Fixed-position anchor so the dropdown ESCAPES the editor topbar's
+  // overflow-x-auto/overflow-y-hidden scroll container (which clips an
+  // absolutely-positioned child). Coords are computed from the trigger rect on
+  // open — same "F7 fix" pattern the publish-split menu uses.
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(
+    null,
+  );
 
   // Dismiss the open subject dropdown on Escape or an outside click (mirrors the
   // editor's PagePicker). Scoped to this picker via the data-attr — it does not
@@ -281,7 +289,22 @@ function BuilderLabSubjectPicker({
     <div data-builder-lab-subject-picker style={{ position: "relative" }}>
         <button
           type="button"
-          onClick={() => setOpen((v) => !v)}
+          ref={triggerRef}
+          onClick={() =>
+            setOpen((v) => {
+              const next = !v;
+              if (next && triggerRef.current) {
+                const rect = triggerRef.current.getBoundingClientRect();
+                const MENU_W = 340;
+                const left = Math.max(
+                  8,
+                  Math.min(rect.left, window.innerWidth - MENU_W - 8),
+                );
+                setMenuPos({ top: rect.bottom + 6, left });
+              }
+              return next;
+            })
+          }
           aria-haspopup="listbox"
           aria-expanded={open}
           style={{
@@ -315,14 +338,16 @@ function BuilderLabSubjectPicker({
           ) : null}
         </button>
 
-        {open ? (
+        {open && menuPos ? (
           <div
             role="listbox"
             style={{
-              position: "absolute",
-              top: "calc(100% + 6px)",
-              left: 0,
-              zIndex: 60,
+              // Fixed (not absolute) so the topbar's overflow-y-hidden scroll
+              // container can't clip it — anchored to the trigger rect.
+              position: "fixed",
+              top: menuPos.top,
+              left: menuPos.left,
+              zIndex: 120,
               width: 340,
               maxWidth: "90vw",
               background: "#16161A",
