@@ -16,6 +16,8 @@ export interface EmailBrand {
   accountName?: string;
   footerDomain?: string;
   homeHref?: string;
+  /** BCP-47 short code ("en" | "es") — drives <Html lang> + bilingual copy. */
+  locale?: string;
 }
 
 const DEFAULTS = {

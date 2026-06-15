@@ -59,8 +59,11 @@ export async function requestPasswordReset(
   }
 
   const origin = getAppUrl();
+  // Carry the page locale so the auth-email hook can send EN/ES (no per-user
+  // locale exists in Supabase — the page language is the only signal).
+  const lang = String(formData.get("locale") ?? "en") === "es" ? "es" : "en";
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${origin}/auth/callback?next=${encodeURIComponent("/update-password")}`,
+    redirectTo: `${origin}/auth/callback?next=${encodeURIComponent("/update-password")}&lang=${lang}`,
   });
 
   if (error) {
@@ -131,12 +134,14 @@ export async function signUpWithEmail(
   // create the profile with app_role='talent' immediately, avoiding a brief
   // window where a talent is misidentified as a client.
   const signupIntent = nextPath.startsWith("/onboarding/talent") ? "talent" : undefined;
+  // Carry the page locale so the auth-email hook sends the confirm email in EN/ES.
+  const lang = String(formData.get("locale") ?? "en") === "es" ? "es" : "en";
 
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(nextPath)}`,
+      emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(nextPath)}&lang=${lang}`,
       data: signupIntent ? { signup_intent: signupIntent } : undefined,
     },
   });

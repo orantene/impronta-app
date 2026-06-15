@@ -2,6 +2,7 @@ import { Heading, Text } from "@react-email/components";
 import * as React from "react";
 import { Button } from "../components/Button";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy } from "@/lib/notifications/email-copy";
 
 interface Props {
   resetUrl: string;
@@ -9,18 +10,13 @@ interface Props {
 }
 
 export default function PasswordReset({ resetUrl, brand }: Props) {
+  const t = getEmailCopy(brand?.locale)["auth.recovery"];
   return (
-    <Layout preview="Reset your password" brand={brand}>
-      <Heading style={h2}>Reset your password</Heading>
-      <Text style={body}>
-        Someone requested a password reset for your account. Click the button below to choose a new
-        password.
-      </Text>
-      <Text style={note}>
-        This link expires in 1 hour. If you didn&apos;t request this, you can safely ignore this
-        email and your password will stay unchanged.
-      </Text>
-      <Button href={resetUrl}>Reset password →</Button>
+    <Layout preview={t.preview} brand={brand}>
+      <Heading style={h2}>{t.heading}</Heading>
+      <Text style={body}>{t.intro}</Text>
+      <Text style={note}>{t.note}</Text>
+      <Button href={resetUrl}>{t.button}</Button>
     </Layout>
   );
 }

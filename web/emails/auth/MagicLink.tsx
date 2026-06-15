@@ -2,6 +2,7 @@ import { Heading, Text } from "@react-email/components";
 import * as React from "react";
 import { Button } from "../components/Button";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy } from "@/lib/notifications/email-copy";
 
 interface Props {
   magicUrl: string;
@@ -9,14 +10,13 @@ interface Props {
 }
 
 export default function MagicLink({ magicUrl, brand }: Props) {
+  const t = getEmailCopy(brand?.locale)["auth.magiclink"];
   return (
-    <Layout preview="Your sign-in link" brand={brand}>
-      <Heading style={h2}>Sign in to Tulala</Heading>
-      <Text style={body}>
-        Click the button below to sign in. This link is single-use and expires in 1 hour.
-      </Text>
-      <Text style={note}>If you didn&apos;t request this, you can safely ignore this email.</Text>
-      <Button href={magicUrl}>Sign in →</Button>
+    <Layout preview={t.preview} brand={brand}>
+      <Heading style={h2}>{t.heading}</Heading>
+      <Text style={body}>{t.intro}</Text>
+      <Text style={note}>{t.note}</Text>
+      <Button href={magicUrl}>{t.button}</Button>
     </Layout>
   );
 }

@@ -2,6 +2,7 @@ import { Heading, Text } from "@react-email/components";
 import * as React from "react";
 import { Button } from "../components/Button";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   confirmUrl: string;
@@ -10,18 +11,13 @@ interface Props {
 }
 
 export default function EmailChange({ confirmUrl, newEmail, brand }: Props) {
+  const t = getEmailCopy(brand?.locale)["auth.email_change"];
   return (
-    <Layout preview="Confirm your new email" brand={brand}>
-      <Heading style={h2}>Confirm your new email</Heading>
-      <Text style={body}>
-        A request was made to change the email address on your account to {newEmail}. Click the
-        button below to confirm the change.
-      </Text>
-      <Text style={note}>
-        If you didn&apos;t request this, you can safely ignore this email and your address will stay
-        unchanged.
-      </Text>
-      <Button href={confirmUrl}>Confirm new email →</Button>
+    <Layout preview={t.preview} brand={brand}>
+      <Heading style={h2}>{t.heading}</Heading>
+      <Text style={body}>{interpolate(t.intro, { email: newEmail })}</Text>
+      <Text style={note}>{t.note}</Text>
+      <Button href={confirmUrl}>{t.button}</Button>
     </Layout>
   );
 }
