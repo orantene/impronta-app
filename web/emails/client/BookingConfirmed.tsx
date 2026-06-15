@@ -3,6 +3,7 @@ import * as React from "react";
 import { Button } from "../components/Button";
 import { FieldTable } from "../components/FieldTable";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   clientName: string | null;
@@ -25,30 +26,27 @@ export default function BookingConfirmed({
   unsubscribeUrl,
   categoryLabel,
 }: Props) {
+  const t = getEmailCopy(brand?.locale)["client.booking_confirmed"];
   const name = clientName ?? "there";
   const event = contactName ?? "your booking";
 
   const fields = [
-    eventDate ? { label: "Date", value: eventDate } : null,
-    eventLocation ? { label: "Location", value: eventLocation } : null,
+    eventDate ? { label: t.dateLabel, value: eventDate } : null,
+    eventLocation ? { label: t.locationLabel, value: eventLocation } : null,
   ].filter(Boolean) as { label: string; value: string }[];
 
   return (
     <Layout
-      preview="Booking confirmed"
+      preview={t.preview}
       brand={brand}
       unsubscribeUrl={unsubscribeUrl}
       categoryLabel={categoryLabel}
     >
-      <Heading style={h2}>Booking confirmed</Heading>
-      <Text style={body}>
-        Hi {name}, {event} has been confirmed.
-      </Text>
+      <Heading style={h2}>{t.heading}</Heading>
+      <Text style={body}>{interpolate(t.intro, { name, event })}</Text>
       {fields.length > 0 && <FieldTable fields={fields} />}
-      <Text style={note}>
-        The agency will be in touch with next steps. You can view your booking from your dashboard.
-      </Text>
-      <Button href={bookingUrl}>View booking →</Button>
+      <Text style={note}>{t.note}</Text>
+      <Button href={bookingUrl}>{t.button}</Button>
     </Layout>
   );
 }

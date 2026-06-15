@@ -2,6 +2,7 @@ import { Heading, Text } from "@react-email/components";
 import * as React from "react";
 import { Button } from "../components/Button";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   agencyName: string;
@@ -20,23 +21,20 @@ export default function SubscriptionCanceled({
   billingUrl,
   brand,
 }: Props) {
+  const t = getEmailCopy(brand?.locale)["billing.subscription_cancelled"];
   const isFullCancel = toPlan.trim().toLowerCase() === "free";
   const preview = isFullCancel
-    ? `${agencyName} — subscription canceled`
-    : `${agencyName} — plan changed to ${toPlan}`;
+    ? interpolate(t.previewCancel, { brand: agencyName })
+    : interpolate(t.previewChange, { brand: agencyName, toPlan });
 
   return (
     <Layout preview={preview} brand={brand}>
-      <Heading style={h2}>{isFullCancel ? "Your subscription is canceled" : "Plan change confirmed"}</Heading>
+      <Heading style={h2}>{isFullCancel ? t.headingCancel : t.headingChange}</Heading>
       <Text style={body}>
-        {agencyName} moved from {fromPlan} to {toPlan}, effective {effectiveLabel}.
+        {interpolate(t.intro, { brand: agencyName, fromPlan, toPlan, effective: effectiveLabel })}
       </Text>
-      <Text style={body}>
-        {isFullCancel
-          ? "Your roster, inquiries, and booking history stay intact. Public site pages stop publishing and any custom domain disconnects. Resubscribe any time at tulala.digital."
-          : "Entitlements for your new tier are active immediately. Anything that requires the higher tier (custom domain, advanced analytics) is paused; everything else continues."}
-      </Text>
-      <Button href={billingUrl}>Manage billing →</Button>
+      <Text style={body}>{isFullCancel ? t.bodyCancel : t.bodyChange}</Text>
+      <Button href={billingUrl}>{t.button}</Button>
     </Layout>
   );
 }

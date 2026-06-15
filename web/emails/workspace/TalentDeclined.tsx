@@ -2,6 +2,7 @@ import { Heading, Text } from "@react-email/components";
 import * as React from "react";
 import { Button } from "../components/Button";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   recipientName: string | null;
@@ -22,24 +23,23 @@ export default function TalentDeclined({
   unsubscribeUrl,
   categoryLabel,
 }: Props) {
-  const name = recipientName ?? "there";
-  const talent = talentName ?? "A talent";
-  const event = contactName ?? "an inquiry";
+  const t = getEmailCopy(brand?.locale)["workspace.talent_declined"];
+  const isEs = (brand?.locale ?? "").toLowerCase().startsWith("es");
+  const name = recipientName ?? (isEs ? "hola" : "there");
+  const talent = talentName ?? (isEs ? "Un talento" : "A talent");
+  const event = contactName ?? (isEs ? "una solicitud" : "an inquiry");
 
   return (
     <Layout
-      preview="A talent declined an inquiry"
+      preview={t.preview}
       brand={brand}
       unsubscribeUrl={unsubscribeUrl}
       categoryLabel={categoryLabel}
     >
-      <Heading style={h2}>A talent declined</Heading>
-      <Text style={body}>
-        Hi {name}, {talent} declined the invite for {event}. You may want to line up
-        an alternative or follow up with them.
-      </Text>
-      <Text style={note}>Open the inquiry to review the roster.</Text>
-      <Button href={inquiryUrl}>Open inquiry →</Button>
+      <Heading style={h2}>{t.heading}</Heading>
+      <Text style={body}>{interpolate(t.intro, { name, talent, event })}</Text>
+      <Text style={note}>{t.note}</Text>
+      <Button href={inquiryUrl}>{t.button}</Button>
     </Layout>
   );
 }

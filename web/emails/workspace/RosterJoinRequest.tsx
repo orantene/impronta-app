@@ -2,6 +2,7 @@ import { Heading, Text } from "@react-email/components";
 import * as React from "react";
 import { Button } from "../components/Button";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   recipientName?: string | null;
@@ -19,21 +20,20 @@ export default function RosterJoinRequest({
   unsubscribeUrl,
   categoryLabel,
 }: Props) {
-  const who = talentName ?? "A talent";
+  const t = getEmailCopy(brand?.locale)["roster.join_requested"];
+  const isEs = (brand?.locale ?? "").toLowerCase().startsWith("es");
+  const who = talentName ?? (isEs ? "Un talento" : "A talent");
 
   return (
     <Layout
-      preview={`${who} wants to join your roster`}
+      preview={interpolate(t.preview, { who })}
       brand={brand}
       unsubscribeUrl={unsubscribeUrl}
       categoryLabel={categoryLabel}
     >
-      <Heading style={h2}>New roster request</Heading>
-      <Text style={body}>
-        {who} asked to join your roster from your public site. Review the request
-        to approve or decline.
-      </Text>
-      <Button href={reviewUrl}>Review request →</Button>
+      <Heading style={h2}>{t.heading}</Heading>
+      <Text style={body}>{interpolate(t.intro, { who })}</Text>
+      <Button href={reviewUrl}>{t.button}</Button>
     </Layout>
   );
 }

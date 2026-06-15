@@ -2,6 +2,7 @@ import { Heading, Text } from "@react-email/components";
 import * as React from "react";
 import { Button } from "../components/Button";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   inviterName: string;
@@ -20,14 +21,16 @@ export default function TeamInvite({
   expiresLabel,
   brand,
 }: Props) {
+  const t = getEmailCopy(brand?.locale)["workspace.team_invite"];
+
   return (
-    <Layout preview={`Join ${agencyName}`} brand={brand}>
-      <Heading style={h2}>Join {agencyName}</Heading>
+    <Layout preview={interpolate(t.preview, { brand: agencyName })} brand={brand}>
+      <Heading style={h2}>{interpolate(t.heading, { brand: agencyName })}</Heading>
       <Text style={body}>
-        {inviterName} added you as {roleLabel}. Accept the invite to get into the workspace.
+        {interpolate(t.intro, { inviter: inviterName, role: roleLabel })}
       </Text>
-      <Text style={note}>Link expires {expiresLabel}.</Text>
-      <Button href={redeemUrl}>Accept invite →</Button>
+      <Text style={note}>{interpolate(t.note, { expires: expiresLabel })}</Text>
+      <Button href={redeemUrl}>{t.button}</Button>
     </Layout>
   );
 }

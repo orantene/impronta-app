@@ -3,6 +3,7 @@ import * as React from "react";
 import { Button } from "../components/Button";
 import { FieldTable } from "../components/FieldTable";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   recipientName: string | null;
@@ -23,29 +24,27 @@ export default function AssignmentTimedOut({
   unsubscribeUrl,
   categoryLabel,
 }: Props) {
-  const name = recipientName ?? "there";
-  const event = contactName ?? "a new inquiry";
+  const t = getEmailCopy(brand?.locale)["workspace.assignment_timed_out"];
+  const isEs = (brand?.locale ?? "").toLowerCase().startsWith("es");
+  const name = recipientName ?? (isEs ? "hola" : "there");
+  const event = contactName ?? (isEs ? "una nueva solicitud" : "a new inquiry");
 
-  const fields = [eventDate ? { label: "Date", value: eventDate } : null].filter(
+  const fields = [eventDate ? { label: t.fieldDate, value: eventDate } : null].filter(
     Boolean,
   ) as { label: string; value: string }[];
 
   return (
     <Layout
-      preview="An inquiry needs a coordinator"
+      preview={t.preview}
       brand={brand}
       unsubscribeUrl={unsubscribeUrl}
       categoryLabel={categoryLabel}
     >
-      <Heading style={h2}>An inquiry needs a coordinator</Heading>
-      <Text style={body}>
-        Hi {name}, {event} hasn&apos;t been picked up automatically and is still
-        waiting for a coordinator. Please assign someone so the client gets a timely
-        reply.
-      </Text>
+      <Heading style={h2}>{t.heading}</Heading>
+      <Text style={body}>{interpolate(t.intro, { name, event })}</Text>
       {fields.length > 0 && <FieldTable fields={fields} />}
-      <Text style={note}>Open the inquiry to assign a coordinator.</Text>
-      <Button href={inquiryUrl}>Assign coordinator →</Button>
+      <Text style={note}>{t.note}</Text>
+      <Button href={inquiryUrl}>{t.button}</Button>
     </Layout>
   );
 }

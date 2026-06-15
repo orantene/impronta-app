@@ -3,6 +3,7 @@ import * as React from "react";
 import { Button } from "../components/Button";
 import { FieldTable } from "../components/FieldTable";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   clientName: string | null;
@@ -23,25 +24,24 @@ export default function OfferReady({
   unsubscribeUrl,
   categoryLabel,
 }: Props) {
+  const t = getEmailCopy(brand?.locale)["client.offer_ready"];
   const name = clientName ?? "there";
   const event = contactName ?? "your inquiry";
 
-  const fields = [{ label: "Total", value: totalAmount }];
+  const fields = [{ label: t.totalLabel, value: totalAmount }];
 
   return (
     <Layout
-      preview="Your offer is ready"
+      preview={t.preview}
       brand={brand}
       unsubscribeUrl={unsubscribeUrl}
       categoryLabel={categoryLabel}
     >
-      <Heading style={h2}>Your offer is ready</Heading>
-      <Text style={body}>
-        Hi {name}, the agency has prepared an offer for {event}.
-      </Text>
+      <Heading style={h2}>{t.heading}</Heading>
+      <Text style={body}>{interpolate(t.intro, { name, event })}</Text>
       {fields.length > 0 && <FieldTable fields={fields} />}
-      <Text style={note}>Review the offer and accept or decline from your dashboard.</Text>
-      <Button href={offerUrl}>Review offer →</Button>
+      <Text style={note}>{t.note}</Text>
+      <Button href={offerUrl}>{t.button}</Button>
     </Layout>
   );
 }

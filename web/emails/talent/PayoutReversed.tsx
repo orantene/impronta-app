@@ -3,6 +3,7 @@ import * as React from "react";
 import { Button } from "../components/Button";
 import { FieldTable } from "../components/FieldTable";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   talentName: string | null;
@@ -24,22 +25,29 @@ export default function PayoutReversed({
   unsubscribeUrl,
   categoryLabel,
 }: Props) {
-  const name = talentName ?? "there";
+  const t = getEmailCopy(brand?.locale)["talent.payout_reversed"];
+  const name = talentName ?? t.fallbackName;
+  // The catalog passes an English clause; re-localize the two known cases and
+  // fall back to whatever was passed for anything else.
+  const reason =
+    reasonClause === "the client's payment was disputed"
+      ? t.reasonDispute
+      : reasonClause === "the client's payment was refunded"
+        ? t.reasonRefund
+        : reasonClause;
+
   return (
     <Layout
-      preview="A payout was reversed"
+      preview={t.preview}
       brand={brand}
       unsubscribeUrl={unsubscribeUrl}
       categoryLabel={categoryLabel}
     >
-      <Heading style={h2}>A payout was reversed</Heading>
-      <Text style={body}>
-        Hi {name}, a payout was reversed because {reasonClause}. If you think this is a mistake,
-        contact your coordinator.
-      </Text>
-      <FieldTable fields={[{ label: "Amount reversed", value: amountReversed }]} />
-      <Text style={note}>Your earnings dashboard always shows your current payout status.</Text>
-      <Button href={payoutsUrl}>View payouts →</Button>
+      <Heading style={h2}>{t.heading}</Heading>
+      <Text style={body}>{interpolate(t.intro, { name, reason })}</Text>
+      <FieldTable fields={[{ label: t.labelAmountReversed, value: amountReversed }]} />
+      <Text style={note}>{t.note}</Text>
+      <Button href={payoutsUrl}>{t.button}</Button>
     </Layout>
   );
 }

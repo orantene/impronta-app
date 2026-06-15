@@ -2,6 +2,7 @@ import { Heading, Text } from "@react-email/components";
 import * as React from "react";
 import { Button } from "../components/Button";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   coordinatorName: string | null;
@@ -24,23 +25,29 @@ export default function CoordinatorAssigned({
   unsubscribeUrl,
   categoryLabel,
 }: Props) {
-  const name = coordinatorName ?? "there";
-  const event = contactName ?? "a new inquiry";
+  const t = getEmailCopy(brand?.locale)["workspace.coordinator_assigned"];
+  const isEs = (brand?.locale ?? "").toLowerCase().startsWith("es");
+  const name = coordinatorName ?? (isEs ? "hola" : "there");
+  const event = contactName ?? (isEs ? "una nueva solicitud" : "a new inquiry");
 
   return (
     <Layout
-      preview="New inquiry assigned to you"
+      preview={t.preview}
       brand={brand}
       unsubscribeUrl={unsubscribeUrl}
       categoryLabel={categoryLabel}
     >
-      <Heading style={h2}>New inquiry assigned to you</Heading>
+      <Heading style={h2}>{t.heading}</Heading>
       <Text style={body}>
-        Hi {name}, you&apos;ve been assigned as coordinator for {event} at {agencyName}.
-        {eventDate ? ` The event is on ${eventDate}.` : ""}
+        {interpolate(eventDate ? t.introWithDate : t.intro, {
+          name,
+          event,
+          brand: agencyName,
+          eventDate: eventDate ?? "",
+        })}
       </Text>
-      <Text style={note}>Review the inquiry and reach out to the client.</Text>
-      <Button href={inquiryUrl}>Open inquiry →</Button>
+      <Text style={note}>{t.note}</Text>
+      <Button href={inquiryUrl}>{t.button}</Button>
     </Layout>
   );
 }

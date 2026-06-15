@@ -3,6 +3,7 @@ import * as React from "react";
 import { Button } from "../components/Button";
 import { FieldTable } from "../components/FieldTable";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   talentName: string | null;
@@ -25,31 +26,27 @@ export default function InquiryInvited({
   unsubscribeUrl,
   categoryLabel,
 }: Props) {
-  const event = contactName ?? "a new inquiry";
-  const name = talentName ?? "there";
+  const t = getEmailCopy(brand?.locale)["talent.inquiry_invited"];
+  const event = contactName ?? t.fallbackEvent;
+  const name = talentName ?? t.fallbackName;
 
   const fields = [
-    eventDate ? { label: "Date", value: eventDate } : null,
-    eventLocation ? { label: "Location", value: eventLocation } : null,
+    eventDate ? { label: t.labelDate, value: eventDate } : null,
+    eventLocation ? { label: t.labelLocation, value: eventLocation } : null,
   ].filter(Boolean) as { label: string; value: string }[];
 
   return (
     <Layout
-      preview="You've been added to an inquiry"
+      preview={t.preview}
       brand={brand}
       unsubscribeUrl={unsubscribeUrl}
       categoryLabel={categoryLabel}
     >
-      <Heading style={h2}>You&apos;ve been added to an inquiry</Heading>
-      <Text style={body}>
-        Hi {name}, the agency has added you to {event}.
-      </Text>
+      <Heading style={h2}>{t.heading}</Heading>
+      <Text style={body}>{interpolate(t.intro, { name, event })}</Text>
       {fields.length > 0 && <FieldTable fields={fields} />}
-      <Text style={note}>
-        You&apos;ll be notified when an offer is ready for your review. Log in to see the full
-        details.
-      </Text>
-      <Button href={inquiryUrl}>View inquiry →</Button>
+      <Text style={note}>{t.note}</Text>
+      <Button href={inquiryUrl}>{t.button}</Button>
     </Layout>
   );
 }

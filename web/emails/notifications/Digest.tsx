@@ -2,6 +2,7 @@ import { Heading, Section, Text } from "@react-email/components";
 import * as React from "react";
 import { Button } from "../components/Button";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 /**
  * Digest email — one summary message standing in for N batched notifications.
@@ -44,6 +45,7 @@ export default function Digest({
   categoryLabel,
 }: Props) {
   const name = recipientName ?? "there";
+  const t = getEmailCopy(brand?.locale)["notifications.digest"];
 
   return (
     <Layout
@@ -53,9 +55,7 @@ export default function Digest({
       categoryLabel={categoryLabel}
     >
       <Heading style={h2}>{heading}</Heading>
-      <Text style={body}>
-        Hi {name}, {intro}
-      </Text>
+      <Text style={body}>{interpolate(t.greeting, { name, intro })}</Text>
       <Section style={list}>
         {items.map((it, i) => (
           <Text key={i} style={item}>

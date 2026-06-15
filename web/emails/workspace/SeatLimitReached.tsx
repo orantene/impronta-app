@@ -3,6 +3,7 @@ import * as React from "react";
 import { Button } from "../components/Button";
 import { FieldTable } from "../components/FieldTable";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   recipientName: string | null;
@@ -27,34 +28,36 @@ export default function SeatLimitReached({
   unsubscribeUrl,
   categoryLabel,
 }: Props) {
-  const name = recipientName ?? "there";
-  const workspace = workspaceName ?? "Your workspace";
-  const plan = planLabel ?? "current";
+  const t = getEmailCopy(brand?.locale)["workspace.over_seat_limit"];
+  const isEs = (brand?.locale ?? "").toLowerCase().startsWith("es");
+  const name = recipientName ?? (isEs ? "hola" : "there");
+  const workspace = workspaceName ?? (isEs ? "Tu espacio de trabajo" : "Your workspace");
+  const plan = planLabel ?? (isEs ? "actual" : "current");
 
   const fields = [
-    activeCount != null ? { label: "Roster", value: `${activeCount} talent` } : null,
-    seatLimit != null ? { label: "Plan limit", value: `${seatLimit} seats (${plan})` } : null,
+    activeCount != null
+      ? { label: t.fieldRoster, value: interpolate(t.fieldRosterValue, { count: String(activeCount) }) }
+      : null,
+    seatLimit != null
+      ? {
+          label: t.fieldPlanLimit,
+          value: interpolate(t.fieldPlanLimitValue, { seats: String(seatLimit), plan }),
+        }
+      : null,
   ].filter(Boolean) as { label: string; value: string }[];
 
   return (
     <Layout
-      preview="Your roster is over its plan limit"
+      preview={t.preview}
       brand={brand}
       unsubscribeUrl={unsubscribeUrl}
       categoryLabel={categoryLabel}
     >
-      <Heading style={h2}>You&apos;ve reached your roster limit</Heading>
-      <Text style={body}>
-        Hi {name}, {workspace} now has more talent on its roster than your {plan}{" "}
-        plan allows. To keep adding talent — and make sure everyone stays visible
-        and bookable — upgrade your plan or adjust your roster.
-      </Text>
+      <Heading style={h2}>{t.heading}</Heading>
+      <Text style={body}>{interpolate(t.intro, { name, workspace, plan })}</Text>
       {fields.length > 0 && <FieldTable fields={fields} />}
-      <Text style={note}>
-        Nothing is removed automatically. This is a heads-up so you can choose how
-        to handle it.
-      </Text>
-      <Button href={accountUrl}>Manage your plan →</Button>
+      <Text style={note}>{t.note}</Text>
+      <Button href={accountUrl}>{t.button}</Button>
     </Layout>
   );
 }

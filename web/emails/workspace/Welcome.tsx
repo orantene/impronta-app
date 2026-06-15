@@ -2,6 +2,7 @@ import { Heading, Text } from "@react-email/components";
 import * as React from "react";
 import { Button } from "../components/Button";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   ownerName: string | null;
@@ -21,19 +22,18 @@ export default function Welcome({
   publicUrl,
   brand,
 }: Props) {
-  const firstName = ownerName?.trim() ? ownerName.split(" ")[0] : "there";
+  const t = getEmailCopy(brand?.locale)["workspace.signup_welcome"];
+  const isEs = (brand?.locale ?? "").toLowerCase().startsWith("es");
+  const firstName = ownerName?.trim() ? ownerName.split(" ")[0] : isEs ? "hola" : "there";
 
   return (
-    <Layout preview={`Your ${workspaceName} workspace is ready`} brand={brand}>
-      <Heading style={h2}>Your workspace is ready</Heading>
+    <Layout preview={interpolate(t.preview, { workspace: workspaceName })} brand={brand}>
+      <Heading style={h2}>{t.heading}</Heading>
       <Text style={body}>
-        Welcome, {firstName}. Your {planLabel} workspace, {workspaceName}, is live. Add your first
-        talent, customize your public page, and start taking inquiries.
+        {interpolate(t.intro, { name: firstName, plan: planLabel, workspace: workspaceName })}
       </Text>
-      <Text style={note}>
-        Public link: {publicUrl}
-      </Text>
-      <Button href={adminUrl}>Open your dashboard →</Button>
+      <Text style={note}>{interpolate(t.note, { publicUrl })}</Text>
+      <Button href={adminUrl}>{t.button}</Button>
     </Layout>
   );
 }

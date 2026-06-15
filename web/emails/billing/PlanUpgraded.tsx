@@ -2,6 +2,7 @@ import { Heading, Text } from "@react-email/components";
 import * as React from "react";
 import { Button } from "../components/Button";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   agencyName: string;
@@ -11,14 +12,13 @@ interface Props {
 }
 
 export default function PlanUpgraded({ agencyName, toPlan, billingUrl, brand }: Props) {
+  const t = getEmailCopy(brand?.locale)["billing.plan_upgraded"];
   return (
-    <Layout preview={`You're on ${toPlan}`} brand={brand}>
-      <Heading style={h2}>You&apos;re on {toPlan}</Heading>
-      <Text style={body}>
-        {agencyName} is now on the {toPlan} plan. Your new features are active immediately.
-      </Text>
-      <Text style={note}>Manage your plan and billing anytime.</Text>
-      <Button href={billingUrl}>Manage billing →</Button>
+    <Layout preview={interpolate(t.preview, { plan: toPlan })} brand={brand}>
+      <Heading style={h2}>{interpolate(t.heading, { plan: toPlan })}</Heading>
+      <Text style={body}>{interpolate(t.intro, { brand: agencyName, plan: toPlan })}</Text>
+      <Text style={note}>{t.note}</Text>
+      <Button href={billingUrl}>{t.button}</Button>
     </Layout>
   );
 }

@@ -2,6 +2,7 @@ import { Heading, Text } from "@react-email/components";
 import * as React from "react";
 import { Button } from "../components/Button";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   talentName: string | null;
@@ -20,23 +21,20 @@ export default function JoinDeclined({
   unsubscribeUrl,
   categoryLabel,
 }: Props) {
-  const name = talentName ?? "there";
-  const team = workspaceName ?? "this workspace";
+  const t = getEmailCopy(brand?.locale)["roster.join_rejected"];
+  const name = talentName ?? t.fallbackName;
+  const team = workspaceName ?? t.fallbackTeam;
 
   return (
     <Layout
-      preview="Update on your roster request"
+      preview={t.preview}
       brand={brand}
       unsubscribeUrl={unsubscribeUrl}
       categoryLabel={categoryLabel}
     >
-      <Heading style={h2}>Update on your request</Heading>
-      <Text style={body}>
-        Hi {name}, {team} isn&apos;t able to add you to their roster right now.
-        Your profile stays live — you can keep it polished and explore
-        other workspaces open for registration.
-      </Text>
-      <Button href={exploreUrl}>Explore workspaces →</Button>
+      <Heading style={h2}>{t.heading}</Heading>
+      <Text style={body}>{interpolate(t.intro, { name, team })}</Text>
+      <Button href={exploreUrl}>{t.button}</Button>
     </Layout>
   );
 }
