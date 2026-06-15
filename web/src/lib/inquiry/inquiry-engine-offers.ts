@@ -808,7 +808,19 @@ export async function updateOfferDraft(
     //      line items — never clobbers terms set via the dedicated terms action /
     //      updateOfferCommercialTermsAction), else
     //   2. the W5 resolver defaults (first save, when the offer has no terms yet).
-    const totalClientPriceCents = Math.round(ctx.total_client_price * 100);
+    // Reconcile the offer total to the SUM of the line items we just wrote
+    // (mirrors sendOffer's "Audit #3" self-heal) so a stale / hand-typed
+    // ctx.total_client_price can never persist on a draft — the saved total
+    // always == SUM(line_items.total_price) == what will be charged. The
+    // OfferDraftEditor UI already auto-sums, so this is a no-op for well-behaved
+    // callers and a correctness guard otherwise. The W6a deposit derivation
+    // below uses this reconciled total too, so deposit_amount_cents stays
+    // consistent with the priced lines.
+    const reconciledTotal = ctx.lineItems.reduce(
+      (sum, line) => sum + Number(line.total_price ?? 0),
+      0,
+    );
+    const totalClientPriceCents = Math.round(reconciledTotal * 100);
     let fallbackTerms: {
       depositPct: number;
       balanceMethod: BalanceCollectionMethod;
@@ -851,7 +863,7 @@ export async function updateOfferDraft(
     const { data: offerUp, error: oerr } = await writeDraft
       .from("inquiry_offers")
       .update({
-        total_client_price: ctx.total_client_price,
+        total_client_price: reconciledTotal,
         coordinator_fee: ctx.coordinator_fee,
         currency_code: ctx.currency_code,
         notes: ctx.notes,
@@ -901,7 +913,7 @@ export async function updateOfferDraft(
       p_payload: {
         offer_id: ctx.offerId,
         line_item_count: ctx.lineItems.length,
-        total_client_price_cents: Math.round(ctx.total_client_price * 100),
+        total_client_price_cents: Math.round(reconciledTotal * 100),
         currency: ctx.currency_code,
       },
     }).then((r) => { if (r.error) logServerError("audit.emit.offer_edited", r.error); });
