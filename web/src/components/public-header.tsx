@@ -107,9 +107,13 @@ export async function PublicHeader() {
     return <PublishedShellHeader tenantId={tenantIdForIdentity} locale={locale} />;
   }
 
-  const tenantLocaleSettings = tenantIdForIdentity
-    ? await loadTenantLocaleSettings(tenantIdForIdentity)
-    : { defaultLocale: "en" as const, supportedLocales: ["en", "es"] as const, showLanguageSwitcher: true };
+  // For agency/hub hosts: use the tenant's locale settings.
+  // For platform/marketing hosts (no tenantId): `loadTenantLocaleSettings("")`
+  // returns the platform fallback (single "en", switcher hidden), which is
+  // correct — the marketing layout controls its own locale toggle independently.
+  const tenantLocaleSettings = await loadTenantLocaleSettings(
+    tenantIdForIdentity ?? "",
+  );
 
   const h = await headers();
   const originalPath = h.get(ORIGINAL_PATHNAME_HEADER) ?? "/";

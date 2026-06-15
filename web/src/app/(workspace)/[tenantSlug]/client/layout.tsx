@@ -34,6 +34,7 @@ import { ClientKeyboardShortcuts, type KeyboardShortcutLabels } from "./_keyboar
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { loadMyNotifications } from "@/lib/server-actions/notifications-self";
+import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 
 type LayoutParams = Promise<{ tenantSlug: string }>;
 
@@ -174,11 +175,15 @@ export default async function ClientLayout({
   // saved_talent cart. Both are global / cross-tenant.
   //
   // D1 — seed initial notifications for the bell (zero client waterfalls).
-  const [favoriteIds, savedIds, initialNotifications] = await Promise.all([
-    getFavoriteTalentIds(),
-    getSavedTalentIds(),
-    loadMyNotifications(50),
-  ]);
+  // Locale settings are also pre-fetched here so the DashboardLocaleToggle
+  // inside ClientAccountMenu knows the tenant's supported languages.
+  const [favoriteIds, savedIds, initialNotifications, tenantLocaleSettings] =
+    await Promise.all([
+      getFavoriteTalentIds(),
+      getSavedTalentIds(),
+      loadMyNotifications(50),
+      loadTenantLocaleSettings(scope.tenantId),
+    ]);
 
   const userInitials = initials(clientProfile.displayName);
 
@@ -299,6 +304,8 @@ export default async function ClientLayout({
               userEmail={session.user.email ?? ""}
               userInitials={userInitials}
               company={clientProfile.company ?? null}
+              supportedLocales={tenantLocaleSettings.supportedLocales}
+              defaultLocale={tenantLocaleSettings.defaultLocale}
               labels={{
                 signedInAs: t("dashboard.signedInAs"),
                 profile: t("dashboard.accountMenu.profile"),

@@ -31,6 +31,7 @@ import {
 } from "@/components/admin/admin-shortcuts-drawer";
 import { AdminWorkspaceSummaryDrawer } from "@/components/admin/admin-workspace-summary-drawer";
 import { DashboardLocaleToggle } from "@/components/dashboard-locale-toggle";
+import type { Locale } from "@/i18n/config";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -408,6 +409,8 @@ export function AdminShellTopBar({
   onToggleTheme,
   userEmail,
   unreadAlerts: _unreadAlerts = 0,
+  supportedLocales,
+  defaultLocale,
 }: {
   onOpenMobileMenu: () => void;
   chromeTheme: "dark" | "light";
@@ -418,6 +421,10 @@ export function AdminShellTopBar({
    * the bell is now self-loading via TopBarNotificationBell.
    */
   unreadAlerts?: number;
+  /** Tenant's supported locales — drives the locale toggle visibility. */
+  supportedLocales?: readonly Locale[];
+  /** Tenant's primary locale — initialises the toggle's active state. */
+  defaultLocale?: Locale;
 }) {
   const pathname = usePathname() ?? "/admin";
   const crumbs = React.useMemo(() => buildCrumbs(pathname), [pathname]);
@@ -659,6 +666,8 @@ export function AdminShellTopBar({
         <DashboardLocaleToggle
           variant="prototype"
           className="hidden shrink-0 sm:flex"
+          supportedLocales={supportedLocales}
+          defaultLocale={defaultLocale}
         />
 
         {/* Theme */}

@@ -42,6 +42,7 @@ import { GlobalUpgradeModal } from "@/components/admin/site-control-center/globa
 import { AgencySwitcher } from "@/components/admin/agency-switcher";
 import { AdminWorkspaceProvider } from "@/components/admin/workspace-context";
 import { DashboardLocaleToggle } from "@/components/dashboard-locale-toggle";
+import type { Locale } from "@/i18n/config";
 import type { TenantMembership } from "@/lib/saas";
 import type { AdminWorkspaceSummary } from "@/lib/dashboard/admin-workspace-summary";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
@@ -576,6 +577,17 @@ export type AdminDashboardShellProps = {
    * (e.g. `{ "/admin/talent": "/admin/roster", "/admin/inquiries": "/admin/work" }`).
    */
   navPathOverrides?: Record<string, string>;
+  /**
+   * Tenant's supported locales (from `TenantLocaleSettings.supportedLocales`).
+   * The locale toggle hides when this list has <= 1 entry.
+   * Thread from the server layout via `loadTenantLocaleSettings(tenantId)`.
+   */
+  supportedLocales?: readonly Locale[];
+  /**
+   * Tenant's primary locale (from `TenantLocaleSettings.defaultLocale`).
+   * Seeds the toggle's initial active state when no cookie is set.
+   */
+  defaultLocale?: Locale;
 };
 
 export function AdminDashboardShell({
@@ -588,6 +600,8 @@ export function AdminDashboardShell({
   userEmail = null,
   navBase,
   navPathOverrides,
+  supportedLocales,
+  defaultLocale,
 }: AdminDashboardShellProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
@@ -827,7 +841,11 @@ export function AdminDashboardShell({
               <p className="mb-2 text-[10px] font-medium uppercase tracking-[0.22em] text-[var(--admin-gold-muted)]">
                 Language
               </p>
-              <DashboardLocaleToggle variant="prototype" />
+              <DashboardLocaleToggle
+                variant="prototype"
+                supportedLocales={supportedLocales}
+                defaultLocale={defaultLocale}
+              />
             </div>
           </SheetContent>
         </Sheet>
@@ -845,6 +863,8 @@ export function AdminDashboardShell({
             }
             userEmail={userEmail}
             unreadAlerts={navBadges?.inquiries ?? 0}
+            supportedLocales={supportedLocales}
+            defaultLocale={defaultLocale}
           />
 
           <AdminTopShortcutsBar shortcutIds={shortcutIds} />

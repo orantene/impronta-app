@@ -17,6 +17,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { signOut } from "@/app/auth/actions";
 import { DashboardLocaleToggle } from "@/components/dashboard-locale-toggle";
+import type { Locale } from "@/i18n/config";
 
 const FONT = '"Inter", system-ui, sans-serif';
 const C = {
@@ -66,6 +67,8 @@ export function ClientAccountMenu({
   userInitials,
   company,
   labels = DEFAULT_LABELS,
+  supportedLocales,
+  defaultLocale,
 }: {
   tenantSlug: string;
   userName: string;
@@ -73,6 +76,16 @@ export function ClientAccountMenu({
   userInitials: string;
   company?: string | null;
   labels?: Labels;
+  /**
+   * Tenant's supported locale list (from `TenantLocaleSettings.supportedLocales`).
+   * When length <= 1, the language toggle row is hidden.
+   */
+  supportedLocales?: readonly Locale[];
+  /**
+   * Tenant's primary locale (from `TenantLocaleSettings.defaultLocale`).
+   * Seeds the toggle's initial active state when no cookie is set.
+   */
+  defaultLocale?: Locale;
 }) {
   const [open, setOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -263,7 +276,10 @@ export function ClientAccountMenu({
                 {labels.languageSub}
               </div>
             </div>
-            <DashboardLocaleToggle />
+            <DashboardLocaleToggle
+              supportedLocales={supportedLocales}
+              defaultLocale={defaultLocale}
+            />
           </div>
 
           <MenuButton

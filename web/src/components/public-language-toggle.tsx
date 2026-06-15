@@ -18,7 +18,10 @@ export function PublicLanguageToggle({
   className,
   activeLocale,
   pathnameWithoutLocale,
-  availableLocales = ["en", "es"],
+  // Falls back to the static en/es list — callers already pass the
+  // tenant-resolved list so this default is only reached in tests / offline.
+  // The toggle hides itself when availableLocales.length <= 1.
+  availableLocales = ["en", "es"] as const,
   defaultLocale = "en",
   showLanguageSwitcher = true,
 }: {

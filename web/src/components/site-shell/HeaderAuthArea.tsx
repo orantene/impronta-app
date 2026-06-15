@@ -60,6 +60,9 @@ export async function HeaderAuthArea({
   showAccountMenu,
   showLanguageToggle,
   showDiscoveryTools,
+  // `availableLocales` defaults to FALLBACK_LANGUAGE_SETTINGS.publicLocales so
+  // call sites that haven't been updated yet still compile. The toggle hides
+  // itself when availableLocales.length <= 1 (PublicLanguageToggle contract).
   availableLocales = ["en", "es"],
   defaultLocale = "en",
   showLanguageSwitcher = true,

@@ -8,13 +8,14 @@ import { getPublicHostContext } from "@/lib/saas/scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { runAiDirectorySearch } from "@/lib/ai/run-ai-directory-search";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
+import { localeSchema } from "@/lib/site-admin/locales";
 
 const bodySchema = z.object({
   q: z.string().optional().nullable(),
   taxonomyTermIds: z.array(pgUuidSchema()).optional(),
   locationSlug: z.string().optional().nullable(),
   sort: z.string().optional().nullable(),
-  locale: z.enum(["en", "es"]).optional(),
+  locale: localeSchema.optional(),
   limit: z.number().int().min(1).max(DIRECTORY_PAGE_SIZE_MAX).optional(),
   heightMinCm: z.number().optional().nullable(),
   heightMaxCm: z.number().optional().nullable(),

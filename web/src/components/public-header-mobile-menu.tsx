@@ -87,7 +87,10 @@ export function PublicHeaderMobileMenu({
   utilityContent,
   openMenuLabel = "Open menu",
   closeMenuLabel = "Close menu",
-  availableLocales = ["en", "es"],
+  // Falls back to the static en/es list — callers (public-header.tsx) already
+  // pass the tenant-resolved list so this default is only reached in tests /
+  // offline. The toggle hides itself when availableLocales.length <= 1.
+  availableLocales = ["en", "es"] as const,
   defaultLocale = "en",
   showLanguageSwitcher = true,
   roleNavLinks,

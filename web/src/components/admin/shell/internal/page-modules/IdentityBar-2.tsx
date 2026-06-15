@@ -62,31 +62,46 @@ export function AccountMenuItem({
 // assignment isn't lexically inside the LocaleToggle render body
 // (react-hooks/immutability flags any assignment inside a component body
 // without distinguishing host-object setters from React state mutations).
-function persistLocaleCookie(next: "en" | "es"): void {
+function persistLocaleCookie(next: string): void {
   const { path, maxAge, sameSite, secure } = localeCookieOptions;
   let line = `${LOCALE_COOKIE}=${next}; path=${path}; max-age=${String(maxAge)}; samesite=${sameSite}`;
   if (secure) line += "; secure";
   document.cookie = line;
 }
 
-export function LocaleToggle() {
-  const [locale, setLocale] = useState<"en" | "es">("en");
+/**
+ * Inline locale toggle used by the old workspace admin prototype shell.
+ * Config-aware: hides when `supportedLocales.length <= 1` (single-language).
+ * Falls back to `["en", "es"]` when the prop is not provided.
+ */
+export function LocaleToggle({
+  supportedLocales = ["en", "es"],
+  defaultLocale = "en",
+}: {
+  supportedLocales?: readonly string[];
+  defaultLocale?: string;
+} = {}) {
+  const [locale, setLocale] = useState<string>(defaultLocale);
 
   useEffect(() => {
     const m = document.cookie.match(
       new RegExp(`(?:^|; )${LOCALE_COOKIE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}=([^;]*)`)
     );
     const raw = m?.[1] ? decodeURIComponent(m[1]) : null;
-    if (raw === "es") setLocale("es");
-    else setLocale("en");
-  }, []);
+    if (raw && supportedLocales.includes(raw)) setLocale(raw);
+    else setLocale(defaultLocale);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultLocale]);
 
-  const pick = (next: "en" | "es") => {
+  const pick = (next: string) => {
     if (locale === next) return;
     persistLocaleCookie(next);
     setLocale(next);
     window.location.reload();
   };
+
+  // Single-language tenant: hide the toggle.
+  if (supportedLocales.length <= 1) return null;
 
   return (
     <div
@@ -101,7 +116,7 @@ export function LocaleToggle() {
         fontFamily: FONTS.body,
       }}
     >
-      {(["en", "es"] as const).map((code) => {
+      {supportedLocales.map((code) => {
         const active = locale === code;
         return (
           <button
