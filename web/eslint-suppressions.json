@@ -1636,11 +1636,6 @@
       "count": 3
     }
   },
-  "src/lib/server-actions/coord-request-actions.ts": {
-    "ratchet/no-untenanted-from": {
-      "count": 4
-    }
-  },
   "src/lib/server-actions/details-tab-data.ts": {
     "ratchet/no-untenanted-from": {
       "count": 6
