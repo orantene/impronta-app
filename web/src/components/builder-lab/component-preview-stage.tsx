@@ -27,6 +27,7 @@ import { getAddGalleryItemById } from "@/lib/site-admin/add-gallery/registry";
 import { resolveAddGalleryInsertAction } from "@/lib/site-admin/add-gallery/insert";
 import { createBuilderSectionEmbed } from "@/lib/site-admin/builder-node/section-embed-presets";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+import { CHROME } from "@/components/edit-chrome/kit/tokens";
 
 import { LAB } from "./ui";
 
@@ -42,6 +43,10 @@ export type CatalogItemPreview = {
   available: boolean;
   /** Optional explanatory note (e.g. dynamic component, coming soon). */
   note?: string;
+  /** Catalog metadata surfaced in the Settings panel (read-only here). */
+  category?: string;
+  talentVisible?: boolean;
+  workspaceVisible?: boolean;
 };
 
 /**
@@ -53,8 +58,18 @@ export function buildCatalogItemPreview(row: {
   id: string;
   source: "code" | "template";
   label: string;
+  category?: string;
+  talentVisible?: boolean;
+  workspaceVisible?: boolean;
 }): CatalogItemPreview {
-  const base = { id: row.id, label: row.label, source: row.source };
+  const base = {
+    id: row.id,
+    label: row.label,
+    source: row.source,
+    category: row.category,
+    talentVisible: row.talentVisible,
+    workspaceVisible: row.workspaceVisible,
+  };
 
   // DB templates aren't in the code registry — their tree lives in builder_tree
   // (a server round-trip). Out of scope for the client-side fast path; show a note.
@@ -136,6 +151,7 @@ export function BuilderLabComponentPreview({
   onExit: () => void;
 }) {
   const [showCode, setShowCode] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const stageRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -196,6 +212,9 @@ export function BuilderLabComponentPreview({
             onExit={onExit}
             exitLabel="Close preview"
             previewSubjectChip={<PreviewChip label={preview.label} />}
+            labHeaderActions={
+              <PreviewHeaderActions onOpenSettings={() => setShowSettings(true)} />
+            }
           >
             <SeedPreviewing />
           </BuilderEditorMount>
@@ -204,6 +223,11 @@ export function BuilderLabComponentPreview({
             note={preview.note}
             open={showCode}
             onToggle={() => setShowCode((v) => !v)}
+          />
+          <SettingsPanel
+            preview={preview}
+            open={showSettings}
+            onClose={() => setShowSettings(false)}
           />
         </>
       ) : (
@@ -356,6 +380,201 @@ function CodeInspector({
         {open ? "Hide code" : "View code"}
       </button>
     </>
+  );
+}
+
+/** Lock (read-only ↔ editable) + Settings buttons in the lab topbar. Rendered
+ *  INSIDE the editor provider (via labHeaderActions) so the lock can read/toggle
+ *  the live `previewing` state. Lock semantics: locked = read-only (look-only),
+ *  unlocked = editable preview. */
+function PreviewHeaderActions({ onOpenSettings }: { onOpenSettings: () => void }) {
+  const { previewing, setPreviewing } = useEditContext();
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+      <HeaderIconBtn
+        active={previewing}
+        title={
+          previewing
+            ? "Locked (read-only) — click to edit this preview"
+            : "Editable — click to lock (read-only)"
+        }
+        ariaLabel={previewing ? "Locked — read only" : "Unlocked — editable"}
+        onClick={() => setPreviewing(!previewing)}
+      >
+        <LockGlyph locked={previewing} />
+      </HeaderIconBtn>
+      <HeaderIconBtn
+        title="Component settings"
+        ariaLabel="Component settings"
+        onClick={onOpenSettings}
+      >
+        <GearGlyph />
+      </HeaderIconBtn>
+    </span>
+  );
+}
+
+function HeaderIconBtn({
+  children,
+  onClick,
+  title,
+  ariaLabel,
+  active,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  title: string;
+  ariaLabel: string;
+  active?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      aria-label={ariaLabel}
+      aria-pressed={active}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 30,
+        height: 30,
+        borderRadius: 8,
+        border: `1px solid ${active ? CHROME.accent : CHROME.controlBorder}`,
+        background: active ? "rgba(124,58,237,0.10)" : CHROME.controlFill,
+        color: active ? CHROME.accent : CHROME.text,
+        cursor: "pointer",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function LockGlyph({ locked }: { locked?: boolean }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      {locked ? (
+        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+      ) : (
+        <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+      )}
+    </svg>
+  );
+}
+
+function GearGlyph() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  );
+}
+
+/** Read-only Settings panel — the component's catalog metadata at a glance.
+ *  (Editing these overrides stays on the Catalog row's accordion.) */
+function SettingsPanel({
+  preview,
+  open,
+  onClose,
+}: {
+  preview: CatalogItemPreview;
+  open: boolean;
+  onClose: () => void;
+}) {
+  if (!open) return null;
+  return (
+    <div
+      role="dialog"
+      aria-label="Component settings"
+      style={{
+        position: "fixed",
+        top: 60,
+        right: 16,
+        zIndex: 95,
+        width: "min(320px, 92vw)",
+        background: LAB.card,
+        border: `1px solid ${LAB.border}`,
+        borderRadius: 14,
+        boxShadow: "0 24px 64px rgba(0,0,0,0.45)",
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "10px 14px",
+          borderBottom: `1px solid ${LAB.borderSoft}`,
+        }}
+      >
+        <span style={{ color: LAB.ink, fontWeight: 700, fontSize: 12.5 }}>
+          Component settings
+        </span>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close settings"
+          style={{ border: "none", background: "transparent", color: LAB.inkMuted, cursor: "pointer", fontSize: 16, lineHeight: 1 }}
+        >
+          ✕
+        </button>
+      </div>
+      <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 9 }}>
+        <SettingRow label="Name" value={preview.label} />
+        <SettingRow label="Component id" value={preview.id} mono />
+        <SettingRow label="Source" value={preview.source === "template" ? "Template" : "Built-in (code)"} />
+        {preview.category ? <SettingRow label="Category" value={preview.category} /> : null}
+        <SettingRow
+          label="Talent-Max"
+          value={preview.talentVisible == null ? "—" : preview.talentVisible ? "Visible" : "Hidden"}
+          tone={preview.talentVisible === false ? "off" : "on"}
+        />
+        <SettingRow
+          label="Workspace"
+          value={preview.workspaceVisible == null ? "—" : preview.workspaceVisible ? "Visible" : "Hidden"}
+          tone={preview.workspaceVisible === false ? "off" : "on"}
+        />
+      </div>
+      <div style={{ padding: "0 14px 12px", fontSize: 11, color: LAB.inkDim, lineHeight: 1.45 }}>
+        Rename, re-icon, re-category or toggle per-surface visibility from the
+        component&rsquo;s row in the Catalog.
+      </div>
+    </div>
+  );
+}
+
+function SettingRow({
+  label,
+  value,
+  mono,
+  tone,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  tone?: "on" | "off";
+}) {
+  return (
+    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
+      <span style={{ fontSize: 11, color: LAB.inkDim }}>{label}</span>
+      <span
+        style={{
+          fontSize: 12,
+          fontWeight: 600,
+          color: tone === "off" ? LAB.no : tone === "on" ? LAB.yes : LAB.ink,
+          fontFamily: mono ? "ui-monospace, monospace" : undefined,
+          textAlign: "right",
+          wordBreak: "break-word",
+        }}
+      >
+        {value}
+      </span>
+    </div>
   );
 }
 

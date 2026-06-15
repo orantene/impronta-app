@@ -261,6 +261,9 @@ interface EditShellProps {
   /** Extra chrome rendered in the topbar's left cluster (lab only) — e.g. the
    *  Lab's in-editor preview-subject picker, so it lives in the one topbar. */
   previewSubjectChip?: React.ReactNode;
+  /** Extra topbar chrome after the subject chip (lab only) — e.g. the
+   *  component-preview lock + settings buttons. */
+  labHeaderActions?: React.ReactNode;
   children?: React.ReactNode;
 }
 
@@ -281,6 +284,7 @@ export function EditShell({
   onExit,
   exitLabel = "Exit",
   previewSubjectChip,
+  labHeaderActions,
   children,
 }: EditShellProps) {
   return (
@@ -314,6 +318,7 @@ export function EditShell({
               onExit={onExit}
               exitLabel={exitLabel}
               previewSubjectChip={previewSubjectChip}
+              labHeaderActions={labHeaderActions}
             >
               {children}
             </EditShellInner>
@@ -423,6 +428,7 @@ function EditShellInner({
   onExit,
   exitLabel = "Exit",
   previewSubjectChip,
+  labHeaderActions,
 }: {
   children?: React.ReactNode;
   canvasRenderData?: InEditorCanvasRenderData | null;
@@ -430,6 +436,7 @@ function EditShellInner({
   onExit?: () => void;
   exitLabel?: string;
   previewSubjectChip?: React.ReactNode;
+  labHeaderActions?: React.ReactNode;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -1102,6 +1109,7 @@ function EditShellInner({
           onExit={onExit}
           exitLabel={exitLabel}
           previewSubjectChip={previewSubjectChip}
+          labHeaderActions={labHeaderActions}
         />
         {/* z-[83]: above the Layers/Structure navigator (z-80) so canvas
          *  chrome — selection rings, chips, and especially the #30 right-click
