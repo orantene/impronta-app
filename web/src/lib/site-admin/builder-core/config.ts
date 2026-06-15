@@ -54,6 +54,24 @@ export interface BuilderGalleryPolicy {
   allowedTabs: readonly AddGalleryTab[];
   /** When true the (WS2/WS4) DB-backed "Page Templates" tab is offered. */
   allowDbTemplates: boolean;
+  /**
+   * Catalog audience for §E `target_context` gating + the Builder Lab's
+   * per-surface overlay toggles (`talent_enabled` / `workspace_enabled`).
+   *
+   * This is DELIBERATELY separate from `previewSubjectKind`. The latter only
+   * governs whom connected nodes hydrate against in-canvas; a surface can
+   * preview against the tenant default (`previewSubjectKind: null`) while still
+   * declaring a definite gallery audience. The workspace freeform (`cms_page`)
+   * surface is exactly this case: it renders connected sections against the
+   * tenant (null preview subject) but its gallery audience is `workspace`, so
+   * the Lab's Workspace activate/deactivate toggle and `workspace`/`both`
+   * target gating actually apply on the live builder.
+   *
+   * Omitted → derive from `previewSubjectKind` (talent_page → `talent`;
+   * homepage → `null`, i.e. unscoped). Set it explicitly only when the gallery
+   * audience differs from the preview subject.
+   */
+  surfaceTarget?: "talent" | "workspace" | "platform";
 }
 
 /**
@@ -231,6 +249,12 @@ export function buildCmsPageBuilderConfig(
     galleryPolicy: {
       allowedTabs: ["layout", "elements", "sections", "connected", "page_templates"],
       allowDbTemplates: true,
+      // Workspace freeform pages preview against the tenant default
+      // (previewSubjectKind: null) but their gallery audience is `workspace` —
+      // so the Lab's per-surface Workspace toggle + workspace/both target
+      // gating bite on the live builder. Without this the surface target would
+      // collapse to null and deactivation from the Lab would be a no-op here.
+      surfaceTarget: "workspace",
     },
     dataSources: { allowed: AGENCY_PAGE_DATA_SOURCES },
     previewSubjectKind: null,
