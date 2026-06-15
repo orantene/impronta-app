@@ -23,9 +23,8 @@ import { PreviewSubjectPicker, type PreviewSubject } from "./preview-subject-pic
 import { BuilderLabStage } from "./builder-lab-stage";
 import { TemplateManager } from "./template-manager";
 import { ComponentCatalog } from "./component-catalog";
-import { SiteDefaultsEditor } from "./site-defaults-editor";
 
-type LabTab = "talent" | "workspace" | "catalog" | "templates" | "site-defaults";
+type LabTab = "talent" | "workspace" | "catalog" | "templates";
 
 const T = {
   bg: "#0F0F11",
@@ -42,9 +41,8 @@ const T = {
 const TABS: Array<{ id: LabTab; label: string; blurb: string }> = [
   { id: "talent", label: "Talent Lab", blurb: "Author + test templates against a real talent profile." },
   { id: "workspace", label: "Workspace Lab", blurb: "Author + test against a real workspace / hub." },
-  { id: "catalog", label: "Catalog", blurb: "Every component the \"+\" gallery offers, per surface. Read-only inventory." },
+  { id: "catalog", label: "Catalog", blurb: "Every component the \"+\" gallery offers, per surface, plus Site Starter Kit, Site Defaults & Playground." },
   { id: "templates", label: "Templates", blurb: "Publish into the gallery. Full lifecycle + metadata." },
-  { id: "site-defaults", label: "Site Defaults", blurb: "Edit the platform default theme every new tenant + talent page inherits." },
 ];
 
 export function BuilderLabShell({
@@ -57,7 +55,7 @@ export function BuilderLabShell({
   workspacePlan?: string | null;
   locale?: string;
 }) {
-  const [tab, setTab] = useState<LabTab>("talent");
+  const [tab, setTab] = useState<LabTab>("catalog");
   const [talentSubject, setTalentSubject] = useState<PreviewSubject | null>(null);
   const [workspaceSubject, setWorkspaceSubject] = useState<PreviewSubject | null>(null);
   const [editing, setEditing] = useState(false);
@@ -112,10 +110,6 @@ export function BuilderLabShell({
       {tab === "templates" ? (
         <Panel>
           <TemplateManager />
-        </Panel>
-      ) : tab === "site-defaults" ? (
-        <Panel title="Platform default theme">
-          <SiteDefaultsEditor />
         </Panel>
       ) : tab === "catalog" ? (
         <Panel>

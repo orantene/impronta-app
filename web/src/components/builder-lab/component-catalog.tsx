@@ -1,5 +1,9 @@
 "use client";
 
+/* eslint-disable max-lines -- Builder Lab catalog control-plane: 7-tab inventory
+   (component categories + Site Starter Kit / Site Defaults / Playground views).
+   Splitting the row table into its own component is a tracked follow-up. */
+
 /**
  * ComponentCatalog (P2 read-only → P3 control-plane).
  *
@@ -29,6 +33,7 @@ import {
   setComponentOverlay,
 } from "@/lib/site-admin/builder-core/templates/catalog-overlay-actions";
 import { AddGalleryIcon } from "@/components/edit-chrome/add-gallery/add-gallery-icons";
+import { SiteDefaultsEditor } from "./site-defaults-editor";
 
 const T = {
   card: "#16161A",
@@ -59,6 +64,20 @@ const TAB_LABEL: Record<AddGalleryTab, string> = {
   connected: "Connected",
   page_templates: "Page Templates",
 };
+
+// Special (non-gallery) Catalog views shown after the component categories.
+const SPECIAL_TABS = ["site_starter_kit", "site_defaults", "playground"] as const;
+type SpecialTab = (typeof SPECIAL_TABS)[number];
+type CatalogView = AddGalleryTab | SpecialTab;
+const VIEW_LABEL: Record<CatalogView, string> = {
+  ...TAB_LABEL,
+  site_starter_kit: "Site Starter Kit",
+  site_defaults: "Site Defaults",
+  playground: "Playground",
+};
+function isSpecialTab(v: CatalogView): v is SpecialTab {
+  return (SPECIAL_TABS as readonly string[]).includes(v);
+}
 
 const CATEGORY_LABEL = new Map(
   ADD_GALLERY_CATEGORIES.map((c) => [c.id, c.label] as const),
@@ -99,6 +118,7 @@ export function ComponentCatalog() {
   const [filterMode, setFilterMode] = useState<"all" | "hidden" | "customized">(
     "all",
   );
+  const [activeTab, setActiveTab] = useState<CatalogView | null>(null);
   // W11 — transient success toast.
   const [toast, setToast] = useState<string | null>(null);
 
@@ -233,8 +253,12 @@ export function ComponentCatalog() {
     [mutate, flash],
   );
 
-  const groups = useMemo(() => {
-    if (!items) return null;
+  const { presentTabs, rowsByTab } = useMemo(() => {
+    const empty = {
+      presentTabs: [] as AddGalleryTab[],
+      rowsByTab: new Map<AddGalleryTab, CatalogAdminItem[]>(),
+    };
+    if (!items) return empty;
     const q = query.trim().toLowerCase();
     const matches = (r: CatalogAdminItem) => {
       if (filterMode === "customized" && !r.overlay) return false;
@@ -248,22 +272,29 @@ export function ComponentCatalog() {
       }
       return true;
     };
-    return ALL_TABS.map((tab) => ({
-      tab,
-      rows: items
-        .filter((r) => r.tab === tab && matches(r))
-        .sort(
-          (a, b) =>
-            a.effectiveCategory.localeCompare(b.effectiveCategory) ||
-            a.effectiveLabel.localeCompare(b.effectiveLabel),
-        ),
-    })).filter((g) => g.rows.length > 0);
+    const present: AddGalleryTab[] = [];
+    const byTab = new Map<AddGalleryTab, CatalogAdminItem[]>();
+    for (const tab of ALL_TABS) {
+      const inTab = items.filter((r) => r.tab === tab);
+      if (inTab.length > 0) present.push(tab);
+      byTab.set(
+        tab,
+        inTab
+          .filter(matches)
+          .sort(
+            (a, b) =>
+              a.effectiveCategory.localeCompare(b.effectiveCategory) ||
+              a.effectiveLabel.localeCompare(b.effectiveLabel),
+          ),
+      );
+    }
+    return { presentTabs: present, rowsByTab: byTab };
   }, [items, query, filterMode]);
 
   if (error && !items) {
     return <div style={{ color: "#ff8585", fontSize: 13 }}>{error}</div>;
   }
-  if (!items || !groups) {
+  if (!items) {
     return (
       <div style={{ color: T.inkMuted, fontSize: 13, padding: "8px 0" }}>
         Loading the component catalog…
@@ -271,12 +302,83 @@ export function ComponentCatalog() {
     );
   }
 
+  // Gallery component categories (drop the empty page_templates tab — its
+  // full-page role moves to the Site Starter Kit view), then the special views.
+  const categoryTabs = presentTabs.filter((t) => t !== "page_templates");
+  const viewTabs: CatalogView[] = [...categoryTabs, ...SPECIAL_TABS];
+  const currentView: CatalogView =
+    activeTab && viewTabs.includes(activeTab)
+      ? activeTab
+      : categoryTabs[0] ?? "site_starter_kit";
+  const galleryView = !isSpecialTab(currentView);
+  const currentRows = galleryView
+    ? rowsByTab.get(currentView as AddGalleryTab) ?? []
+    : [];
+
   const total = items.length;
   const templates = items.filter((r) => r.source === "template").length;
   const overridden = items.filter((r) => r.overlay).length;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {viewTabs.length > 0 ? (
+        <div
+          role="tablist"
+          aria-label="Catalog views"
+          style={{ display: "flex", gap: 2, flexWrap: "wrap", borderBottom: `1px solid ${T.borderSoft}` }}
+        >
+          {viewTabs.map((view) => {
+            const gallery = !isSpecialTab(view);
+            const count = gallery ? rowsByTab.get(view as AddGalleryTab)?.length ?? 0 : null;
+            const active = view === currentView;
+            return (
+              <button
+                key={view}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setActiveTab(view)}
+                className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60"
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  borderBottom: `2px solid ${active ? T.accent : "transparent"}`,
+                  color: active ? T.ink : T.inkMuted,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  padding: "8px 13px",
+                  marginBottom: -1,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 7,
+                }}
+              >
+                {VIEW_LABEL[view]}
+                {count !== null ? (
+                  <span
+                    style={{
+                      fontSize: 10.5,
+                      fontWeight: 700,
+                      color: active ? T.accent : T.inkDim,
+                      background: active ? "rgba(93,211,160,0.14)" : T.cardSoft,
+                      borderRadius: 999,
+                      padding: "1px 7px",
+                      minWidth: 18,
+                      textAlign: "center",
+                    }}
+                  >
+                    {count}
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {galleryView ? (
+        <>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 18, fontSize: 12.5, alignItems: "flex-end" }}>
         <Stat label="Components" value={total} />
         <Stat label="Built-in (code)" value={total - templates} />
@@ -344,15 +446,16 @@ export function ComponentCatalog() {
         </div>
       </div>
 
-      {groups.every((g) => g.rows.length === 0) ? (
+      {currentRows.length === 0 ? (
         <div style={{ color: T.inkMuted, fontSize: 13, padding: "12px 0" }}>
-          No components match “{query}”{filterMode !== "all" ? ` in ${filterMode}` : ""}.
+          No {VIEW_LABEL[currentView]} components
+          {query ? ` matching “${query}”` : ""}
+          {filterMode !== "all" ? ` (${filterMode})` : ""}.
         </div>
       ) : null}
 
-      {groups.map((g) => (
+      {currentRows.length > 0 ? (
         <section
-          key={g.tab}
           style={{
             background: T.card,
             border: `1px solid ${T.borderSoft}`,
@@ -371,10 +474,10 @@ export function ComponentCatalog() {
             }}
           >
             <span style={{ fontSize: 13, fontWeight: 700, color: T.ink }}>
-              {TAB_LABEL[g.tab]}
+              {VIEW_LABEL[currentView]}
             </span>
             <span style={{ fontSize: 11.5, color: T.inkMuted }}>
-              {g.rows.length} component{g.rows.length === 1 ? "" : "s"}
+              {currentRows.length} component{currentRows.length === 1 ? "" : "s"}
             </span>
           </div>
 
@@ -390,7 +493,7 @@ export function ComponentCatalog() {
               </tr>
             </thead>
             <tbody>
-              {g.rows.map((r) => {
+              {currentRows.map((r) => {
                 const busy = pendingId === r.id;
                 const editing = editingId === r.id;
                 const isTemplate = r.source === "template";
@@ -563,7 +666,7 @@ export function ComponentCatalog() {
             </tbody>
           </table>
         </section>
-      ))}
+      ) : null}
 
       <p style={{ fontSize: 11.5, color: T.inkDim, lineHeight: 1.5, margin: 0 }}>
         Toggles control per-surface visibility (subtract-only — a component can&apos;t be forced onto a
@@ -571,6 +674,29 @@ export function ComponentCatalog() {
         builders&apos; &quot;+&quot; gallery on next open. Built-in components can be hidden, renamed,
         re-iconed, or plan-gated here; changing their internal structure is a code change.
       </p>
+        </>
+      ) : currentView === "site_defaults" ? (
+        <SiteDefaultsEditor />
+      ) : (
+        <div
+          style={{
+            background: T.card,
+            border: `1px solid ${T.borderSoft}`,
+            borderRadius: 12,
+            padding: "36px 20px",
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, marginBottom: 6 }}>
+            {VIEW_LABEL[currentView]}
+          </div>
+          <p style={{ fontSize: 12.5, color: T.inkMuted, margin: "0 auto", maxWidth: 460, lineHeight: 1.55 }}>
+            {currentView === "site_starter_kit"
+              ? "Coming soon — this view will hold the full-page starter designs (the editor’s “Start with a design” set)."
+              : "Playground — a scratch space for experiments. Nothing is wired up here yet."}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
