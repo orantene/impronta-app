@@ -27,6 +27,7 @@ import { WORKSPACE_EN, WORKSPACE_ES } from "./email-copy/workspace";
 import { TALENT_EN, TALENT_ES } from "./email-copy/talent";
 import { BILLING_EN, BILLING_ES } from "./email-copy/billing";
 import { NOTIF_EN, NOTIF_ES } from "./email-copy/notifications";
+import { PLATFORM_EN, PLATFORM_ES } from "./email-copy/platform";
 
 export type EmailLocale = "en" | "es";
 
@@ -44,6 +45,7 @@ const en = {
   ...TALENT_EN,
   ...BILLING_EN,
   ...NOTIF_EN,
+  ...PLATFORM_EN,
 };
 
 const es = {
@@ -53,6 +55,7 @@ const es = {
   ...TALENT_ES,
   ...BILLING_ES,
   ...NOTIF_ES,
+  ...PLATFORM_ES,
 };
 
 export type EmailCopy = typeof en;

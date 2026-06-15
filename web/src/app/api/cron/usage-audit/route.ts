@@ -6,6 +6,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { sendEmail } from "@/lib/email";
 import { notifyWorkspaceOverSeatLimit } from "@/lib/notifications/producers/workspace-over-seat-limit-notify";
+import { notifyWorkspaceOverQuota } from "@/lib/notifications/producers/workspace-over-quota-notify";
 
 /**
  * Scheduled job — weekly Supabase usage audit.
@@ -310,6 +311,86 @@ async function auditTenantSeatLimits(
 }
 
 // ---------------------------------------------------------------------------
+// Per-tenant PLAN-QUOTA audit (spec §12) — flags a workspace that has exceeded a
+// quota the seat sweep does NOT cover: the `agency_entitlements.max_active_roster_size`
+// roster cap. Emits `platform.workspace_over_quota` to PLATFORM admins (upsell
+// signal), distinct from the workspace-facing seat-limit alert. Only fires for
+// tenants with a positive cap set (cap <= 0 = unset/unlimited → never over), so
+// it's a safe no-op until entitlements are populated.
+// ---------------------------------------------------------------------------
+type QuotaAuditSummary = { scanned: number; overQuota: number; notified: number };
+
+async function auditTenantQuotas(
+  supabase: SupabaseClient,
+  auditDate: string,
+): Promise<QuotaAuditSummary> {
+  const summary: QuotaAuditSummary = { scanned: 0, overQuota: 0, notified: 0 };
+
+  const { data: entRows, error: entError } = await supabase
+    .from("agency_entitlements")
+    .select("tenant_id, max_active_roster_size")
+    .gt("max_active_roster_size", 0);
+  if (entError) {
+    logServerError("cron/usage-audit.quota.entitlements", entError);
+    return summary;
+  }
+  const ents = (entRows ?? []) as Array<{ tenant_id: string; max_active_roster_size: number }>;
+  if (ents.length === 0) return summary;
+
+  // Resolve names + active status for the capped tenants in one query.
+  const ids = ents.map((e) => e.tenant_id);
+  const { data: agencyRows, error: agencyError } = await supabase
+    .from("agencies")
+    .select("id, display_name, status")
+    .in("id", ids);
+  if (agencyError) {
+    logServerError("cron/usage-audit.quota.agencies", agencyError);
+    return summary;
+  }
+  const agencyById = new Map(
+    ((agencyRows ?? []) as Array<{ id: string; display_name: string | null; status: string | null }>).map(
+      (a) => [a.id, a],
+    ),
+  );
+
+  for (const ent of ents) {
+    const agency = agencyById.get(ent.tenant_id);
+    if (!agency || agency.status !== "active") continue;
+    summary.scanned++;
+
+    const { count, error: countError } = await supabase
+      .from("agency_talent_roster")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", ent.tenant_id)
+      .neq("status", "removed");
+    if (countError) {
+      logServerError("cron/usage-audit.quota.count", countError);
+      continue;
+    }
+
+    const active = count ?? 0;
+    if (active <= ent.max_active_roster_size) continue;
+    summary.overQuota++;
+
+    try {
+      const result = await notifyWorkspaceOverQuota({
+        workspaceTenantId: ent.tenant_id,
+        workspaceName: agency.display_name,
+        metricLabel: "roster",
+        usageLabel: `${active} of ${ent.max_active_roster_size} talent`,
+        auditDate,
+      });
+      if (result.dispatched > 0 || result.queued > 0) summary.notified++;
+    } catch (notifyError) {
+      // A single tenant's dispatch failure must not abort the sweep.
+      logServerError("cron/usage-audit.quota.notify", notifyError);
+    }
+  }
+
+  return summary;
+}
+
+// ---------------------------------------------------------------------------
 // Route handler
 // ---------------------------------------------------------------------------
 export async function GET(request: Request) {
@@ -362,14 +443,16 @@ export async function GET(request: Request) {
         // findings — a tenant can be over its seat limit while Supabase usage is
         // all green — so it runs before the all-green early return below.
         const seatAudit = await auditTenantSeatLimits(supabase, auditDate);
+        const quotaAudit = await auditTenantQuotas(supabase, auditDate);
 
-        // 3) All green → nothing to log or send (but report the seat sweep).
+        // 3) All green → nothing to log or send (but report the per-tenant sweeps).
         if (alerts.length === 0) {
           return NextResponse.json({
             ok: true,
             summary: "all green",
             durationMs: Date.now() - startedAt,
             seatAudit,
+            quotaAudit,
             metrics,
           });
         }
@@ -432,6 +515,7 @@ export async function GET(request: Request) {
           report,
           alerts,
           seatAudit,
+          quotaAudit,
           metrics,
         });
       } catch (error) {

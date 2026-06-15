@@ -3,6 +3,7 @@ import * as React from "react";
 import { Button } from "../components/Button";
 import { FieldTable } from "../components/FieldTable";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   workspaceName: string;
@@ -19,18 +20,19 @@ export default function NewWorkspaceAlert({
   adminUrl,
   brand,
 }: Props) {
+  const t = getEmailCopy(brand?.locale)["platform.new_workspace"];
   const fields: { label: string; value: string }[] = [
-    { label: "Owner", value: ownerEmail },
-    { label: "Plan", value: planLabel },
+    { label: t.ownerLabel, value: ownerEmail },
+    { label: t.planRowLabel, value: planLabel },
   ];
 
   return (
-    <Layout preview="New workspace signed up" brand={brand}>
-      <Heading style={h2}>New workspace signed up</Heading>
-      <Text style={body}>{workspaceName} just created a workspace on Tulala.</Text>
+    <Layout preview={t.preview} brand={brand}>
+      <Heading style={h2}>{t.heading}</Heading>
+      <Text style={body}>{interpolate(t.body, { workspaceName })}</Text>
       <FieldTable fields={fields} />
-      <Text style={note}>Review it in the platform admin console.</Text>
-      <Button href={adminUrl}>Open in admin →</Button>
+      <Text style={note}>{t.note}</Text>
+      <Button href={adminUrl}>{t.button}</Button>
     </Layout>
   );
 }
