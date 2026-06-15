@@ -73,6 +73,10 @@ export function stripLockedKeysFromPatch(
 ): Record<string, unknown> {
   if (!Array.isArray(lockedProps) || lockedProps.length === 0) return patch;
   const out: Record<string, unknown> = { ...patch };
+  // The lock carrier itself is admin-owned — a locked node's tenant must not be
+  // able to clear its locks by patching `{ lockedProps: [] }`. Drop the carrier
+  // from any patch on a locked node (the base field is re-asserted elsewhere).
+  if ("lockedProps" in out) delete out.lockedProps;
   for (const path of lockedProps) {
     if (typeof path !== "string" || path.length === 0) continue;
     const segs = path.split(".");
@@ -87,4 +91,126 @@ export function stripLockedKeysFromPatch(
     out[top] = restoreLeaf(out[top], currentProps[top], segs.slice(1));
   }
   return out;
+}
+
+// ── Server-side full-tree enforcement (WS-C C1 hardening) ────────────────────
+//
+// `stripLockedKeysFromPatch` guards single-node INSPECTOR patches. But the
+// editor also persists the WHOLE tree (talent_pages.blocks / cms_pages.blocks),
+// and that save path trusts whatever tree the client sends — so a tenant could
+// edit a locked prop in devtools and save it. The functions below are the
+// SERVER-TRUSTED enforcement for that path: given the incoming tree and the
+// current (DB) tree, every locked path is forced back to its current value and
+// the lock carrier is re-asserted. Pure + client-safe (no I/O), structurally
+// typed so they don't depend on the full BuilderNode union.
+
+/** Minimal node shape these helpers need; a real BuilderNode satisfies it. */
+export interface LockableNode {
+  id: string;
+  props?: Record<string, unknown> | null;
+  children?: LockableNode[] | null;
+  lockedProps?: readonly string[] | null;
+}
+
+/** The trusted lock list for a node — base field first, then the props carrier. */
+function readNodeLocks(node: {
+  lockedProps?: readonly string[] | null;
+  props?: Record<string, unknown> | null;
+}): string[] {
+  const fromBase = Array.isArray(node.lockedProps) ? node.lockedProps : null;
+  const carrier =
+    node.props && Array.isArray((node.props as { lockedProps?: unknown }).lockedProps)
+      ? ((node.props as { lockedProps?: string[] }).lockedProps as string[])
+      : null;
+  const raw = fromBase ?? carrier ?? [];
+  return raw.filter((k): k is string => typeof k === "string" && k.length > 0);
+}
+
+/**
+ * Force every locked path on a node's props back to its trusted CURRENT value,
+ * leaving unlocked props exactly as supplied. Unlike `stripLockedKeysFromPatch`
+ * (which prepares a patch to merge over current), this takes a FULL set of
+ * incoming props (a whole-tree save) and returns the reconciled full props.
+ */
+export function enforceLockedProps(
+  incomingProps: Record<string, unknown>,
+  currentProps: Record<string, unknown>,
+  lockedProps: readonly string[] | null | undefined,
+): Record<string, unknown> {
+  if (!Array.isArray(lockedProps) || lockedProps.length === 0) return incomingProps;
+  const out: Record<string, unknown> = { ...incomingProps };
+  for (const path of lockedProps) {
+    if (typeof path !== "string" || path.length === 0) continue;
+    const segs = path.split(".");
+    if (segs.length === 1) {
+      const leaf = segs[0];
+      if (leaf in currentProps) out[leaf] = currentProps[leaf];
+      else delete out[leaf];
+      continue;
+    }
+    // Nested lock → force just the locked leaf from current, keep sibling leaves.
+    out[segs[0]] = restoreLeaf(out[segs[0]], currentProps[segs[0]], segs.slice(1));
+  }
+  return out;
+}
+
+/**
+ * Walk an incoming builder tree against the current (DB) tree and re-assert
+ * every admin lock. For each node matched by id whose CURRENT version carries
+ * locks, the locked paths are forced back to the current values and the lock
+ * carrier is re-stamped (so a dropped/cleared carrier can't unlock it). Nodes
+ * with no current counterpart keep their own self-declared locks (freshly
+ * inserted locked components) but have no prior value to enforce against.
+ *
+ * Returns a NEW tree; never mutates the inputs. A non-array input is returned
+ * unchanged so a malformed/empty save degrades safely.
+ */
+export function enforceLockedPropsOnTree(
+  incomingTree: unknown,
+  currentTree: unknown,
+): unknown {
+  if (!Array.isArray(incomingTree)) return incomingTree;
+  const currentById = new Map<string, LockableNode>();
+  const index = (nodes: unknown) => {
+    if (!Array.isArray(nodes)) return;
+    for (const n of nodes as LockableNode[]) {
+      if (n && typeof n === "object" && typeof n.id === "string") {
+        currentById.set(n.id, n);
+        if (Array.isArray(n.children)) index(n.children);
+      }
+    }
+  };
+  index(currentTree);
+
+  const walk = (nodes: LockableNode[]): LockableNode[] =>
+    nodes.map((node) => {
+      if (!node || typeof node !== "object") return node;
+      const current = typeof node.id === "string" ? currentById.get(node.id) : undefined;
+      // The trusted lock list comes from the CURRENT (DB) node when it exists —
+      // so a client that dropped the carrier can't shed the lock. Fall back to
+      // the node's own locks only for brand-new (un-persisted) nodes.
+      const locks = current ? readNodeLocks(current) : readNodeLocks(node);
+      let out: LockableNode = node;
+      if (locks.length > 0) {
+        const incomingProps = (node.props as Record<string, unknown>) ?? {};
+        const props = current
+          ? enforceLockedProps(
+              incomingProps,
+              (current.props as Record<string, unknown>) ?? {},
+              locks,
+            )
+          : incomingProps;
+        out = {
+          ...node,
+          lockedProps: locks,
+          props: { ...props, lockedProps: locks },
+        };
+      }
+      if (Array.isArray(out.children)) {
+        out = { ...out, children: walk(out.children) };
+      }
+      return out;
+    });
+
+  return walk(incomingTree as LockableNode[]);
 }

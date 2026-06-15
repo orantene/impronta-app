@@ -389,8 +389,11 @@ function migrateUnboundGallerySectionsToContainers(
     if (!isUnboundGallerySectionNode(node)) return node;
     changed = true;
     const label = node.props.label?.trim() || "Container";
+    // Spread `...node` so base-field carriers (locked, lockedProps,
+    // visibilityCondition) survive the section→container migration; without it
+    // an admin lock silently drops the first time the tree is normalized.
     return {
-      id: node.id,
+      ...node,
       kind: "container",
       props: {
         layerLabel: label,

@@ -103,6 +103,16 @@ export function buildConvertedTextNode(
   const style = stripFontSizeOverride(
     (node.props.style as Record<string, unknown> | undefined) ?? undefined,
   );
+  // Preserve base-field carriers (whole-node lock, per-prop locks, visibility)
+  // across the heading<->paragraph reconstruction — this rebuilds the node from
+  // a literal, so without this an admin lock silently drops on a role change.
+  const carriers: Record<string, unknown> = {};
+  for (const key of ["locked", "lockedProps", "visibilityCondition"] as const) {
+    const v =
+      (node.props as Record<string, unknown>)[key] ??
+      (node as unknown as Record<string, unknown>)[key];
+    if (v !== undefined) carriers[key] = v;
+  }
   const level = headingLevelForRole(role);
   if (level === null) {
     return {
@@ -112,8 +122,10 @@ export function buildConvertedTextNode(
         text,
         ...(layerLabel ? { layerLabel } : {}),
         ...(style ? { style } : {}),
+        ...carriers,
       },
-    };
+      ...carriers,
+    } as Extract<BuilderNode, { kind: "paragraph" }>;
   }
   return {
     id: node.id,
@@ -123,7 +135,9 @@ export function buildConvertedTextNode(
       level,
       ...(layerLabel ? { layerLabel } : {}),
       ...(style ? { style } : {}),
+      ...carriers,
     },
-  };
+    ...carriers,
+  } as Extract<BuilderNode, { kind: "heading" }>;
 }
 
