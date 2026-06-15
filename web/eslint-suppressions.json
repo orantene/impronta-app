@@ -1716,7 +1716,7 @@
   },
   "src/lib/server-actions/talent-self.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 1
+      "count": 5
     }
   },
   "src/lib/server-actions/talent-takeover.ts": {

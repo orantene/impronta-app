@@ -10,6 +10,7 @@
  *   - Archive / restore
  */
 
+import Link from "next/link";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import type { AppLocaleRow } from "@/lib/language-settings/types";
 import {
@@ -578,12 +579,12 @@ export default async function PlatformLanguagesPage({
               <button type="submit" style={primaryButtonStyle}>
                 Save changes
               </button>
-              <a
+              <Link
                 href="/platform/admin/languages"
                 style={{ fontSize: 12.5, color: HQ.inkMuted, textDecoration: "none" }}
               >
                 Cancel
-              </a>
+              </Link>
             </div>
           </form>
         </HqCard>

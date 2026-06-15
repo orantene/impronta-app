@@ -14,7 +14,12 @@ import {
   resolveResidenceLocationEmbed,
   type CanonicalLocationEmbed,
 } from "@/lib/canonical-location-display";
-import { publicBioForLocale, canonicalBioEn } from "@/lib/translation/public-bio";
+import {
+  publicBioForLocale,
+  canonicalBioEn,
+  bioEnFromI18n,
+} from "@/lib/translation/public-bio";
+import type { LocalizedMap } from "@/lib/i18n/resolve-localized";
 import { createTranslator } from "@/i18n/messages";
 
 async function resolvePathTenantIdFromReferer(
@@ -157,8 +162,7 @@ export async function GET(
       first_name,
       last_name,
       short_bio,
-      bio_en,
-      bio_es,
+      bio_i18n,
       height_cm,
       languages,
       residence_city:locations!residence_city_id ( display_name_en, display_name_es, country_code ),
@@ -239,14 +243,13 @@ export async function GET(
       profile.display_name?.trim() ||
       [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim() ||
       profile.profile_code,
-    shortBio: publicBioForLocale(
-      locale,
-      canonicalBioEn(
-        profile.bio_en as string | null,
+    shortBio: publicBioForLocale(locale, [locale, "en"], {
+      ...((profile.bio_i18n as LocalizedMap | null) ?? {}),
+      en: canonicalBioEn(
+        bioEnFromI18n(profile.bio_i18n as LocalizedMap | null),
         profile.short_bio as string | null,
       ),
-      profile.bio_es as string | null,
-    ),
+    }),
     heightCm: profile.height_cm,
     primaryTalentTypeLabel: primaryTalentType,
     locationLabel: formatCityCountryLabel(locale, residenceRow),

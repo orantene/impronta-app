@@ -51,6 +51,15 @@ export function fieldHelper(
   return v.length > 0 ? v : null;
 }
 
+/** Locale-aware placeholder — resolves `placeholder_i18n`; "" when empty. */
+export function fieldPlaceholder(
+  field: { placeholder_i18n?: LocalizedMap | null },
+  locale: Locale,
+  chain: readonly Locale[] = defaultChain(locale),
+): string {
+  return resolveLocalized(field.placeholder_i18n ?? null, locale, chain).value;
+}
+
 /** Locale-aware option label — resolves `option_labels_i18n[value]`, falling
  *  back to the option value (its English label) when there is no entry. */
 export function optionLabel(

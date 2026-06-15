@@ -3,7 +3,12 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
-import { canonicalBioEn, publicBioForLocale } from "@/lib/translation/public-bio";
+import {
+  canonicalBioEn,
+  publicBioForLocale,
+  bioEnFromI18n,
+} from "@/lib/translation/public-bio";
+import type { LocalizedMap } from "@/lib/i18n/resolve-localized";
 
 import { templateKeyForPlan } from "@/lib/talent-site/templates/registry";
 import { buildTemplateSnapshot } from "@/lib/talent-site/templates/build-template-snapshot";
@@ -26,7 +31,7 @@ export async function loadTalentStarterProfileData(
       last_name,
       profile_code,
       short_bio,
-      bio_en,
+      bio_i18n,
       talent_profile_taxonomy (
         relationship_type,
         taxonomy_terms ( name_en )
@@ -50,7 +55,7 @@ export async function loadTalentStarterProfileData(
     last_name: string | null;
     profile_code: string | null;
     short_bio: string | null;
-    bio_en: string | null;
+    bio_i18n: LocalizedMap | null;
     talent_profile_taxonomy: {
       relationship_type: string | null;
       taxonomy_terms: { name_en: string | null } | null;
@@ -109,8 +114,8 @@ export async function loadTalentStarterProfileData(
     profileCode: p.profile_code,
     primaryTypeLabel,
     publicBio:
-      publicBioForLocale("en", p.bio_en, null).trim() ||
-      canonicalBioEn(p.bio_en, p.short_bio) ||
+      publicBioForLocale("en", ["en"], p.bio_i18n).trim() ||
+      canonicalBioEn(bioEnFromI18n(p.bio_i18n), p.short_bio) ||
       null,
     homeCity,
     serviceAreaLabels,

@@ -37,7 +37,12 @@ import { createTranslator } from "@/i18n/messages";
 import { buildDirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 import { PublicFlashHost } from "@/components/directory/public-flash-host";
 import { getRequestLocale } from "@/i18n/request-locale";
-import { publicBioForLocale, canonicalBioEn } from "@/lib/translation/public-bio";
+import {
+  publicBioForLocale,
+  canonicalBioEn,
+  bioEnFromI18n,
+} from "@/lib/translation/public-bio";
+import { type LocalizedMap } from "@/lib/i18n/resolve-localized";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -136,8 +141,8 @@ type TalentProfile = {
   first_name: string | null;
   last_name: string | null;
   short_bio: string | null;
-  bio_en: string | null;
-  bio_es: string | null;
+  /** Per-locale published bio map { "en": …, "es": … } (replaces bio_en/bio_es). */
+  bio_i18n: LocalizedMap | null;
   is_publicly_hidden: boolean | null;
   is_featured: boolean | null;
   height_cm: number | null;
@@ -276,8 +281,7 @@ async function fetchTalentProfile(profileCode: string, preview: boolean) {
             first_name,
             last_name,
             short_bio,
-            bio_en,
-            bio_es,
+            bio_i18n,
             is_publicly_hidden,
             is_featured,
             height_cm,
@@ -338,8 +342,7 @@ async function fetchTalentProfile(profileCode: string, preview: boolean) {
       first_name,
       last_name,
       short_bio,
-      bio_en,
-      bio_es,
+      bio_i18n,
       is_publicly_hidden,
       is_featured,
       height_cm,
@@ -397,12 +400,14 @@ async function fetchPublicFieldValues(
   type NewDefEmbed = {
     id: string;
     field_key: string;
-    label: string;
+    /** Per-locale label map { "en": …, "es": … }. */
+    label_i18n: unknown;
     kind: string;
     /** universal | global | type-specific (Gap 2b — orphan check). */
     tier: string | null;
     options: string[] | null;
-    options_es: Record<string, string> | null;
+    /** Per-option per-locale label map { "<value>": { "en": …, "es": … } }. */
+    option_labels_i18n: unknown;
     display_order: number | null;
     field_group_id: string | null;
     admin_only: boolean | null;
@@ -434,7 +439,7 @@ async function fetchPublicFieldValues(
       visibility_override,
       workflow_state,
       profile_field_definitions (
-        id, field_key, label, kind, tier, options, options_es, display_order, field_group_id,
+        id, field_key, label_i18n, kind, tier, options, option_labels_i18n, display_order, field_group_id,
         admin_only, is_sensitive, show_in_public, default_visibility, deprecated_at,
         profile_field_groups ( sort_order, slug )
       )
@@ -707,6 +712,17 @@ async function fetchPublicFieldValues(
       ? (resolvedGroupOrderBySlug.get(resolvedGroupSlug) ?? fg?.sort_order ?? 0)
       : (fg?.sort_order ?? 0);
 
+    // i18n maps: prefer the shared resolver's maps (custom_label folded in),
+    // else the raw def columns. Project the en/es slots the legacy flat embed
+    // shape carries (label_en/label_es/options_es) — the renderer below keeps
+    // its existing locale pick over those slots.
+    const labelMap: LocalizedMap =
+      resolvedField?.label_i18n ?? asLocalizedMap(def.label_i18n);
+    const optionEsMap =
+      optionEsMapFromI18n(
+        resolvedField?.option_labels_i18n ?? def.option_labels_i18n,
+      );
+
     projected.push({
       id: row.id,
       value_text,
@@ -715,10 +731,10 @@ async function fetchPublicFieldValues(
       value_date,
       field_definitions: {
         key: resolvedField?.field_key ?? def.field_key,
-        label_en: resolvedField?.label ?? def.label,
-        label_es: resolvedField?.label_es ?? null,
+        label_en: localeSlot(labelMap, "en") ?? resolvedField?.label ?? "",
+        label_es: localeSlot(labelMap, "es"),
         value_type: resolvedField?.kind ?? def.kind,
-        options_es: resolvedField?.options_es ?? def.options_es ?? null,
+        options_es: optionEsMap,
         config: null,
         sort_order: resolvedField?.display_order ?? def.display_order ?? 0,
         field_group_id: def.field_group_id,
@@ -901,6 +917,41 @@ function formatLanguageRow(row: TalentLanguageRow, locale: string): string {
 function pickFieldLabel(locale: string, en: string, es?: string | null): string {
   if (locale === "es" && es && es.trim()) return es.trim();
   return en.trim();
+}
+
+// ── i18n → legacy en/es projection helpers ──────────────────────────────────
+// The public-profile renderer below carries a flat en/es embed shape
+// (PublicFieldDefinitionEmbed). The catalog now stores labels/option-labels as
+// per-locale JSONB maps. These coerce a raw jsonb value into a LocalizedMap and
+// pull a single locale's slot so the projection can keep populating label_en /
+// label_es / options_es without changing the downstream render code.
+function asLocalizedMap(raw: unknown): LocalizedMap {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: LocalizedMap = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof v === "string") out[k] = v;
+  }
+  return out;
+}
+
+/** A single locale's non-empty value from a per-locale map, or null. */
+function localeSlot(map: LocalizedMap, locale: string): string | null {
+  const v = map[locale];
+  return typeof v === "string" && v.trim() ? v.trim() : null;
+}
+
+/** Build the legacy `options_es` map ({ "<en option>": "<es label>" }) from the
+ *  new per-option per-locale map ({ "<value>": { en, es } }). */
+function optionEsMapFromI18n(
+  raw: unknown,
+): Record<string, string> | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const out: Record<string, string> = {};
+  for (const [value, sub] of Object.entries(raw as Record<string, unknown>)) {
+    const es = localeSlot(asLocalizedMap(sub), "es");
+    if (es) out[value] = es;
+  }
+  return Object.keys(out).length > 0 ? out : null;
 }
 
 
@@ -1270,11 +1321,10 @@ export async function generateMetadata({
   const loc = residenceLabel("en", profile as TalentProfile);
 
   const title = loc ? `${name} — ${talentType} · ${loc}` : `${name} — ${talentType}`;
-  const about = publicBioForLocale(
-    locale,
-    canonicalBioEn(profile.bio_en, profile.short_bio),
-    profile.bio_es,
-  );
+  const about = publicBioForLocale(locale, [locale, "en"], {
+    ...(profile.bio_i18n ?? {}),
+    en: canonicalBioEn(bioEnFromI18n(profile.bio_i18n), profile.short_bio),
+  });
   const description =
     about.trim() ||
     `View ${name}'s talent profile on Impronta — ${talentType}${loc ? ` — lives in ${loc}` : ""}.`;
@@ -1807,11 +1857,10 @@ export default async function PublicTalentProfilePage({
   }
 
   const canonicalName = displayName(profile as TalentProfile);
-  const canonicalAboutText = publicBioForLocale(
-    locale,
-    canonicalBioEn(profile.bio_en, profile.short_bio),
-    profile.bio_es,
-  );
+  const canonicalAboutText = publicBioForLocale(locale, [locale, "en"], {
+    ...(profile.bio_i18n ?? {}),
+    en: canonicalBioEn(bioEnFromI18n(profile.bio_i18n), profile.short_bio),
+  });
   // PR-A — home_base from talent_service_areas takes precedence over the
   // legacy residence_city/location_id pair when populated. Falls through
   // to the existing residenceLabel() helper otherwise.

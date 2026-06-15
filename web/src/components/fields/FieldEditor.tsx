@@ -21,7 +21,13 @@
 import { useEffect, useState, useRef, type CSSProperties, type ReactNode } from "react";
 import { type ResolvedField } from "@/lib/server-actions/admin-taxonomy";
 import { HeightDualControl, HEIGHT_CM_FIELD_KEY } from "@/components/fields/HeightDualControl";
-import { readLocale, fieldLabel, fieldHelper, optionLabel } from "./field-locale";
+import {
+  readLocale,
+  fieldLabel,
+  fieldHelper,
+  fieldPlaceholder,
+  optionLabel,
+} from "./field-locale";
 
 // Palette mirrors the real app COLORS tokens (state.tsx) so the Details
 // editor's greys match the New Inquiry / rest of the shell exactly:
@@ -47,7 +53,7 @@ const F = "Inter, system-ui, sans-serif";
 // Locale helpers live in ./field-locale (pure, no React). Re-exported here so
 // existing callers (live-category-fields-editor, etc.) keep importing them from
 // FieldEditor unchanged.
-export { readLocale, fieldLabel, fieldHelper, optionLabel };
+export { readLocale, fieldLabel, fieldHelper, fieldPlaceholder, optionLabel };
 
 type FieldStatus = "idle" | "saving" | "saved" | "error";
 
@@ -434,7 +440,7 @@ export function FieldEditor({
           value={asString(draft)}
           onChange={(e) => setDraftAndClearError(e.target.value)}
           onBlur={() => commit(asString(draft).trim() || null)}
-          placeholder={field.placeholder ?? ""}
+          placeholder={fieldPlaceholder(field, locale)}
           style={inputStyle}
         />
       );
@@ -454,7 +460,7 @@ export function FieldEditor({
             value={asString(draft)}
             onChange={(e) => setDraftAndClearError(e.target.value)}
             onBlur={() => commit(asString(draft).trim() || null)}
-            placeholder={field.placeholder ?? ""}
+            placeholder={fieldPlaceholder(field, locale)}
             rows={3}
             maxLength={maxLen ?? undefined}
             style={{ ...inputStyle, resize: "vertical", lineHeight: 1.4 }}
@@ -506,7 +512,7 @@ export function FieldEditor({
               const s = asNumber(draft);
               commit(s === "" ? null : Number(s));
             }}
-            placeholder={field.placeholder ?? ""}
+            placeholder={fieldPlaceholder(field, locale)}
             style={unit ? { ...inputStyle, paddingRight: 56 } : inputStyle}
           />
           {unit && (
@@ -652,7 +658,7 @@ export function FieldEditor({
       control = (
         <ChipsControl
           values={arr}
-          placeholder={field.placeholder ?? "Type then press Enter"}
+          placeholder={fieldPlaceholder(field, locale) || "Type then press Enter"}
           onChange={(next) => {
             setDraftAndClearError(next);
             commit(next.length === 0 ? null : next);
@@ -670,7 +676,7 @@ export function FieldEditor({
           value={asString(draft)}
           onChange={(e) => setDraftAndClearError(e.target.value)}
           onBlur={() => commit(asString(draft).trim() || null)}
-          placeholder={field.placeholder ?? ""}
+          placeholder={fieldPlaceholder(field, locale)}
           style={inputStyle}
         />
       );

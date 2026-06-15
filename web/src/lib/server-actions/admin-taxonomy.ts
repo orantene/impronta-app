@@ -384,11 +384,7 @@ export async function getCategoryDetail(input: {
     fields.push({
       field_definition_id: d.id,
       field_key: d.field_key,
-      label: localizedValue(
-        d.label_i18n as Record<string, string> | null,
-        DEFAULT_PLATFORM_LOCALE,
-        [DEFAULT_PLATFORM_LOCALE],
-      ),
+      label: localizedValue(d.label_i18n as Record<string, string> | null, DEFAULT_PLATFORM_LOCALE, [DEFAULT_PLATFORM_LOCALE]),
       tier: d.tier as "universal" | "global" | "type-specific",
       section: d.section,
       kind: d.kind,

@@ -12,21 +12,24 @@ import {
 } from "@/lib/translation/talent-bio-translation-service";
 
 test("public bio: non-empty ES always shown on /es (incl. stale semantics)", () => {
-  assert.equal(publicBioForLocale("es", "New English", "Texto español viejo"), "Texto español viejo");
+  assert.equal(
+    publicBioForLocale("es", ["es", "en"], { en: "New English", es: "Texto español viejo" }),
+    "Texto español viejo",
+  );
 });
 
 test("public bio: empty ES falls back to EN on es locale", () => {
-  assert.equal(publicBioForLocale("es", "Solo inglés", ""), "Solo inglés");
-  assert.equal(publicBioForLocale("es", "Solo inglés", "   "), "Solo inglés");
+  assert.equal(publicBioForLocale("es", ["es", "en"], { en: "Solo inglés", es: "" }), "Solo inglés");
+  assert.equal(publicBioForLocale("es", ["es", "en"], { en: "Solo inglés", es: "   " }), "Solo inglés");
 });
 
 test("public bio: en locale uses English source", () => {
-  assert.equal(publicBioForLocale("en", "EN text", "ES text"), "EN text");
+  assert.equal(publicBioForLocale("en", ["en", "es"], { en: "EN text", es: "ES text" }), "EN text");
 });
 
 test("public bio: en locale falls back to Spanish when English empty", () => {
-  assert.equal(publicBioForLocale("en", "", "Solo español"), "Solo español");
-  assert.equal(publicBioForLocale("en", "   ", "ES"), "ES");
+  assert.equal(publicBioForLocale("en", ["en", "es"], { en: "", es: "Solo español" }), "Solo español");
+  assert.equal(publicBioForLocale("en", ["en", "es"], { en: "   ", es: "ES" }), "ES");
 });
 
 test("stale: already stale → no new status from EN-change helper", () => {
