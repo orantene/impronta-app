@@ -21,6 +21,10 @@
 import { useState } from "react";
 
 import { BuilderLabStage, type BuilderLabTarget } from "./builder-lab-stage";
+import {
+  BuilderLabComponentPreview,
+  type CatalogItemPreview,
+} from "./component-preview-stage";
 import { ComponentCatalog } from "./component-catalog";
 import { LAB, panelStyle } from "./ui";
 
@@ -40,9 +44,25 @@ export function BuilderLabShell({
     target: BuilderLabTarget;
     draftId?: string;
   } | null>(null);
+  // The open component PREVIEW (Catalog row "Preview" → full-screen page-builder
+  // preview of one component). Null → not previewing.
+  const [preview, setPreview] = useState<CatalogItemPreview | null>(null);
   // After the first editor exit, return to the Playground view (you launched
   // from there) rather than the default Catalog landing.
   const [hasLaunched, setHasLaunched] = useState(false);
+
+  // A component preview takes over full-bleed (its own read-only chrome).
+  if (preview) {
+    return (
+      <BuilderLabComponentPreview
+        preview={preview}
+        tenantId={tenantId}
+        workspacePlan={workspacePlan}
+        locale={locale}
+        onExit={() => setPreview(null)}
+      />
+    );
+  }
 
   // When the editor is open, render the stage full-bleed (its own chrome).
   if (launch) {
@@ -65,6 +85,7 @@ export function BuilderLabShell({
     <Panel>
       <ComponentCatalog
         onLaunchEditor={(target, draftId) => setLaunch({ target, draftId })}
+        onPreviewComponent={setPreview}
         defaultView={hasLaunched ? "playground" : undefined}
       />
     </Panel>

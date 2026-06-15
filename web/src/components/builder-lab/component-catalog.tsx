@@ -49,6 +49,10 @@ import { SiteDefaultsEditor } from "./site-defaults-editor";
 import { SurfaceSwitcher } from "./surface-switcher";
 import type { BuilderLabTarget } from "./builder-lab-stage";
 import {
+  buildCatalogItemPreview,
+  type CatalogItemPreview,
+} from "./component-preview-stage";
+import {
   LAB as T,
   RADII,
   fieldStyle,
@@ -135,10 +139,14 @@ function connectedDataGroupOf(item: CatalogAdminItem): ConnectedDataGroup {
 
 export function ComponentCatalog({
   onLaunchEditor,
+  onPreviewComponent,
   defaultView,
 }: {
   /** Launch the editor from Playground's "+ New" against the chosen target. */
   onLaunchEditor?: (target: BuilderLabTarget, draftId?: string) => void;
+  /** Open a catalog component in the full-screen page-builder PREVIEW (the row's
+   *  "Edit" link). The shell renders BuilderLabComponentPreview from this. */
+  onPreviewComponent?: (preview: CatalogItemPreview) => void;
   /** Initial inner view — defaults to the first component tab; the shell passes
    *  "playground" so exiting the editor returns to the workbench. */
   defaultView?: CatalogView;
@@ -373,10 +381,6 @@ export function ComponentCatalog({
       : [{ key: String(currentView), label: VIEW_LABEL[currentView], rows: currentRows }]
   ).filter((g) => g.rows.length > 0);
 
-  const total = items.length;
-  const templates = items.filter((r) => r.source === "template").length;
-  const overridden = items.filter((r) => r.overlay).length;
-
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {viewTabs.length > 0 ? (
@@ -437,15 +441,9 @@ export function ComponentCatalog({
 
       {galleryView ? (
         <>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 18, fontSize: 12.5, alignItems: "flex-end" }}>
-        <Stat label="Components" value={total} />
-        <Stat label="Built-in (code)" value={total - templates} />
-        <Stat label="Templates" value={templates} />
-        <Stat label="Customized" value={overridden} />
-        {error ? (
-          <span style={{ color: T.red, fontSize: 12 }}>{error}</span>
-        ) : null}
-      </div>
+      {error ? (
+        <div style={{ color: T.red, fontSize: 12 }}>{error}</div>
+      ) : null}
 
       {toast ? (
         <div
@@ -539,7 +537,25 @@ export function ComponentCatalog({
                 const isTemplate = r.source === "template";
                 return (
                   <Fragment key={r.id}>
-                  <tr style={{ borderTop: `1px solid ${T.borderSoft}`, opacity: busy ? 0.55 : 1 }}>
+                  <tr
+                    onClick={(e) => {
+                      // Click anywhere on the row (except an interactive control)
+                      // to toggle its override accordion.
+                      if (
+                        (e.target as HTMLElement).closest(
+                          "button, input, a, select, textarea",
+                        )
+                      )
+                        return;
+                      if (editing) setEditingId(null);
+                      else startEdit(r);
+                    }}
+                    style={{
+                      borderTop: `1px solid ${T.borderSoft}`,
+                      opacity: busy ? 0.55 : 1,
+                      cursor: "pointer",
+                    }}
+                  >
                     <td style={{ padding: "9px 16px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <span
@@ -626,7 +642,19 @@ export function ComponentCatalog({
                         </span>
                       ) : (
                         <span style={{ display: "inline-flex", gap: 10 }}>
-                          <LinkBtn label="Edit" onClick={() => startEdit(r)} disabled={busy} />
+                          <LinkBtn
+                            label="Preview"
+                            onClick={() =>
+                              onPreviewComponent?.(
+                                buildCatalogItemPreview({
+                                  id: r.id,
+                                  source: r.source,
+                                  label: r.effectiveLabel,
+                                }),
+                              )
+                            }
+                            disabled={busy}
+                          />
                           {r.overlay ? (
                             <LinkBtn label="Reset" onClick={() => setConfirmingResetId(r.id)} disabled={busy} />
                           ) : null}
@@ -1175,15 +1203,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       </span>
       {children}
     </label>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: number }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      <span style={{ fontSize: 18, fontWeight: 700, color: T.ink }}>{value}</span>
-      <span style={{ fontSize: 10.5, color: T.inkMuted, letterSpacing: 0.4 }}>{label}</span>
-    </div>
   );
 }
 
