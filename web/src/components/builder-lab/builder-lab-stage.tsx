@@ -5,6 +5,16 @@
  * Builder Lab with the EPHEMERAL `platform_lab` adapter + the chosen preview
  * subject.
  *
+ * The Lab always opens SUBJECT-LESS (launched from Playground's "+ New"). The
+ * editor is launched against a TARGET — who the draft is *for*:
+ *   - "talent"    → preview against a single talent (previewSubjectKind="talent").
+ *   - "workspace" → preview against a single workspace (previewSubjectKind="workspace").
+ *   - "both"      → the draft is for both surfaces; the editor exposes a
+ *                   talent ⇄ workspace KIND TOGGLE so you can preview against
+ *                   either. The gallery is unscoped (previewSubjectKind=null)
+ *                   so the full component union is offered, and that scope stays
+ *                   STABLE no matter which subject kind you preview against.
+ *
  * Subject switching (Playground Phase 1): the preview subject is chosen and
  * SWITCHED from inside the editor. The header bridge (which lives inside the
  * provider, so it can read the live tree via `useBuilderTree`) hosts a
@@ -13,17 +23,21 @@
  * subject + the live tree (`buildLabCanvasRenderData`) and lifts it to the
  * stage, which feeds it back down as `canvasRenderData` — a reactive prop, so
  * connected nodes re-hydrate to the new subject WITHOUT remounting (the design
- * you are building survives the switch).
+ * you are building survives the switch). For "both" the kind toggle drives which
+ * picker is shown; switching kind + re-picking re-hydrates against the new kind.
  *
- * Persistence stays ephemeral: the `platform_lab` adapter's autosave / save /
- * publish are no-op sinks. The only durable output is a `builder_templates` row.
+ * Persistence (Phase 3): when opened on a `draftId`, the editor binds to a
+ * `builder_templates` draft — load/save/publish go through the draft-bound
+ * adapter. Opened without one, the canvas is the ephemeral no-op sink (scratch).
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { BuilderEditorMount } from "@/lib/site-admin/builder-core/mount/BuilderEditorMount";
 import { buildPlatformLabBuilderConfig } from "@/lib/site-admin/builder-core/config";
+import type { BuilderPreviewSubjectKind } from "@/lib/site-admin/builder-core/config";
 import { platformLabAdapter } from "@/lib/site-admin/builder-core/adapters/platform-lab-adapter";
+import { createDraftBoundPlatformLabAdapter } from "@/lib/site-admin/builder-core/adapters/platform-lab-adapter-draft";
 import { buildLabCanvasRenderData } from "@/lib/site-admin/builder-core/lab/lab-canvas-render-data";
 import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
 import { useBuilderTree } from "@/components/edit-chrome/builder-tree-bridge";
@@ -31,18 +45,40 @@ import { CHROME } from "@/components/edit-chrome/kit/tokens";
 
 import { PreviewSubjectPicker, type PreviewSubject } from "./preview-subject-picker";
 
+/** Who a Playground draft is *for* — chosen at "+ New". Distinct from the
+ *  preview SUBJECT (the specific talent/workspace authored against in-canvas). */
+export type BuilderLabTarget = "talent" | "workspace" | "both";
+
+/** A subject kind that can be previewed in-canvas (the half of `both` you are
+ *  currently authoring against). */
+type PreviewKind = "talent" | "workspace";
+
+/** Map the draft target → the gallery's previewSubjectKind. "both" is unscoped
+ *  (null) so the full component union is offered and stays stable across the
+ *  talent ⇄ workspace preview toggle (the gallery filter reads this immutable
+ *  config, not the live preview subject). */
+function targetToPreviewSubjectKind(
+  target: BuilderLabTarget,
+): BuilderPreviewSubjectKind {
+  return target === "both" ? null : target;
+}
+
 export function BuilderLabStage({
-  area,
-  subject: initialSubject,
+  target,
+  draftId,
   tenantId,
   workspacePlan,
   locale,
   onExit,
 }: {
-  /** Which Lab area is active — drives the surface config's previewSubjectKind. */
-  area: "talent" | "workspace";
-  /** Optional starting subject (legacy Talent/Workspace Lab entry). Null → pick inside. */
-  subject: PreviewSubject | null;
+  /** Who the draft is for — drives the gallery scope + which picker(s) appear. */
+  target: BuilderLabTarget;
+  /**
+   * When set, the editor is bound to a `builder_templates` DRAFT — load reads
+   * its tree and save/publish persist (Phase 3). When omitted, the canvas is the
+   * ephemeral no-op sink (a throwaway scratch session).
+   */
+  draftId?: string;
   /** Active platform tenant id (builder credentials/scope). */
   tenantId: string;
   workspacePlan?: string | null;
@@ -50,15 +86,28 @@ export function BuilderLabStage({
   /** Return to the Lab dashboard (closes the editor). */
   onExit: () => void;
 }) {
-  const surfaceConfig = useMemo(
-    () => buildPlatformLabBuilderConfig(platformLabAdapter, area),
-    [area],
+  // Draft-bound adapter (persists to builder_templates) when a draft is open;
+  // otherwise the ephemeral singleton. Memoized on draftId so the editor mount
+  // keeps a stable adapter for its lifetime.
+  const adapter = useMemo(
+    () =>
+      draftId ? createDraftBoundPlatformLabAdapter(draftId) : platformLabAdapter,
+    [draftId],
   );
+  const surfaceConfig = useMemo(
+    () => buildPlatformLabBuilderConfig(adapter, targetToPreviewSubjectKind(target)),
+    [adapter, target],
+  );
+
+  // For "both" the operator toggles which kind they preview against; for a
+  // single-target draft the active kind is fixed to the target.
+  const [bothKind, setBothKind] = useState<PreviewKind>("talent");
+  const activeKind: PreviewKind = target === "both" ? bothKind : target;
 
   // The chosen preview subject + its rebuilt canvas render data. `canvasRenderData`
   // is a reactive prop consumed by InEditorCanvasRegion, so updating it re-hydrates
   // connected nodes in place — the design tree (separate editor state) is untouched.
-  const [subject, setSubject] = useState<PreviewSubject | null>(initialSubject);
+  const [subject, setSubject] = useState<PreviewSubject | null>(null);
   const [canvasRenderData, setCanvasRenderData] =
     useState<InEditorCanvasRenderData | null>(null);
 
@@ -66,6 +115,8 @@ export function BuilderLabStage({
     (next: PreviewSubject, data: InEditorCanvasRenderData) => {
       setSubject(next);
       setCanvasRenderData(data);
+      // Keep the toggle in sync with whatever kind was just picked (for "both").
+      setBothKind(next.kind);
     },
     [],
   );
@@ -82,14 +133,15 @@ export function BuilderLabStage({
         canvasRenderData={canvasRenderData}
         tenantSiteLabel={
           subject
-            ? `Previewing ${area === "talent" ? "talent" : "workspace"}: ${subject.label}`
+            ? `Previewing ${subject.kind}: ${subject.label}`
             : "Builder Lab — pick a subject"
         }
       >
         <BuilderLabStageHeaderBridge
-          area={area}
+          target={target}
+          activeKind={activeKind}
+          onKindChange={setBothKind}
           subject={subject}
-          initialSubject={initialSubject}
           tenantId={tenantId}
           locale={locale}
           onExit={onExit}
@@ -104,19 +156,26 @@ export function BuilderLabStage({
  * Bridges the Lab's exit control + the in-editor subject picker into the editor
  * chrome. Lives INSIDE the provider tree so it can read the live builder tree
  * (`useBuilderTree`) when rebuilding the preview against a switched subject.
+ *
+ * For a "both" target it also renders a talent ⇄ workspace kind toggle so the
+ * operator can preview the same design against either surface's data.
  */
 function BuilderLabStageHeaderBridge({
-  area,
+  target,
+  activeKind,
+  onKindChange,
   subject,
-  initialSubject,
   tenantId,
   locale,
   onExit,
   onSubjectResolved,
 }: {
-  area: "talent" | "workspace";
+  target: BuilderLabTarget;
+  /** Which kind's picker is shown — fixed for single-target, toggled for "both". */
+  activeKind: PreviewKind;
+  /** Switch the previewed kind (only used when target === "both"). */
+  onKindChange: (kind: PreviewKind) => void;
   subject: PreviewSubject | null;
-  initialSubject: PreviewSubject | null;
   tenantId: string;
   locale?: string;
   onExit: () => void;
@@ -148,16 +207,16 @@ function BuilderLabStageHeaderBridge({
     [tenantId, tree, locale, onSubjectResolved],
   );
 
-  // Hydrate once on mount when the editor was opened with a starting subject
-  // (legacy Talent/Workspace Lab entry). New flow opens subject-less.
-  const ranInitial = useRef(false);
-  useEffect(() => {
-    if (ranInitial.current || !initialSubject) return;
-    ranInitial.current = true;
-    void buildFor(initialSubject);
-  }, [initialSubject, buildFor]);
-
-  const kindLabel = area === "talent" ? "talent" : "workspace";
+  const isBoth = target === "both";
+  // The chip/dropdown copy is driven by the subject (once picked) or the active
+  // kind (while picking). "both" hasn't a fixed kind, so its empty hint is generic.
+  const emptyChipLabel = isBoth
+    ? "Pick a subject"
+    : `Pick a ${activeKind}`;
+  // The picker highlight only applies when the current subject matches the
+  // active kind (toggling kind on a "both" draft clears the visible highlight).
+  const pickerSelectedId =
+    subject && subject.kind === activeKind ? subject.id : null;
 
   return (
     <div
@@ -221,10 +280,10 @@ function BuilderLabStageHeaderBridge({
                 aria-hidden
                 style={{ width: 6, height: 6, borderRadius: "50%", background: CHROME.green }}
               />
-              {area === "talent" ? "Talent" : "Workspace"}: {subject.label}
+              {subject.kind === "talent" ? "Talent" : "Workspace"}: {subject.label}
             </>
           ) : (
-            `Pick a ${kindLabel}`
+            emptyChipLabel
           )}
           <span aria-hidden style={{ fontSize: 9, opacity: 0.7 }}>{open ? "▲" : "▼"}</span>
           {pending ? (
@@ -249,6 +308,47 @@ function BuilderLabStageHeaderBridge({
               padding: 12,
             }}
           >
+            {/* "Both" target → talent ⇄ workspace toggle so the same design can
+                be previewed against either surface's live data. */}
+            {isBoth ? (
+              <div
+                role="tablist"
+                aria-label="Preview against"
+                style={{
+                  display: "inline-flex",
+                  background: "rgba(255,255,255,0.05)",
+                  borderRadius: 999,
+                  padding: 2,
+                  marginBottom: 10,
+                }}
+              >
+                {(["talent", "workspace"] as const).map((k) => {
+                  const on = activeKind === k;
+                  return (
+                    <button
+                      key={k}
+                      type="button"
+                      role="tab"
+                      aria-selected={on}
+                      onClick={() => onKindChange(k)}
+                      style={{
+                        background: on ? CHROME.green : "transparent",
+                        color: on ? "#0F0F11" : "rgba(245,242,235,0.62)",
+                        border: "none",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        padding: "4px 14px",
+                        borderRadius: 999,
+                        cursor: "pointer",
+                        textTransform: "capitalize",
+                      }}
+                    >
+                      {k}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
             <div
               style={{
                 fontSize: 10.5,
@@ -259,7 +359,7 @@ function BuilderLabStageHeaderBridge({
                 marginBottom: 8,
               }}
             >
-              Pick a {kindLabel} to preview against
+              Pick a {activeKind} to preview against
             </div>
             {error ? (
               <div
@@ -276,8 +376,11 @@ function BuilderLabStageHeaderBridge({
               </div>
             ) : null}
             <PreviewSubjectPicker
-              kind={area}
-              selectedId={subject?.id ?? null}
+              // Re-mount the picker per kind so its internal search/query resets
+              // cleanly when the "both" toggle flips.
+              key={activeKind}
+              kind={activeKind}
+              selectedId={pickerSelectedId}
               onSelect={(s) => void buildFor(s)}
             />
           </div>
@@ -286,47 +389,11 @@ function BuilderLabStageHeaderBridge({
 
       {!subject ? (
         <span style={{ fontSize: 11, color: CHROME.muted, fontWeight: 500 }}>
-          Pick a {kindLabel} to preview live data on connected blocks.
+          {isBoth
+            ? "Pick a talent or workspace to preview live data on connected blocks."
+            : `Pick a ${activeKind} to preview live data on connected blocks.`}
         </span>
       ) : null}
     </div>
-  );
-}
-
-/**
- * The preview-subject chip — kept exported for any chrome slot that renders the
- * subject indicator outside the stage.
- */
-export function PreviewSubjectChip({
-  area,
-  subject,
-}: {
-  area: "talent" | "workspace";
-  subject: PreviewSubject | null;
-}) {
-  if (!subject) {
-    return (
-      <span style={{ fontSize: 11.5, color: CHROME.muted, fontWeight: 500 }}>
-        No {area} selected — pick a subject to preview live data.
-      </span>
-    );
-  }
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 7,
-        padding: "3px 10px",
-        borderRadius: 999,
-        background: CHROME.greenBg,
-        color: CHROME.green,
-        fontSize: 11.5,
-        fontWeight: 600,
-      }}
-    >
-      <span aria-hidden style={{ width: 6, height: 6, borderRadius: "50%", background: CHROME.green }} />
-      {area === "talent" ? "Talent" : "Workspace"}: {subject.label}
-    </span>
   );
 }

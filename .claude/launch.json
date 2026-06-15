@@ -131,6 +131,13 @@
       "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-app/web/prototypes/impronta-home && python3 -m http.server 8901"],
       "port": 8901,
       "autoPort": true
+    },
+    {
+      "name": "Builder Lab (3000, dev)",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-app/web && NODE_ENV=development PORT=3000 npm run dev"],
+      "port": 3000,
+      "autoPort": false
     }
   ]
 }

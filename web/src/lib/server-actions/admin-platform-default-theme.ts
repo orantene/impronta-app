@@ -21,6 +21,7 @@ import {
   loadPlatformDefaultTheme,
   writePlatformDefaultTheme,
   type PlatformDefaultTheme,
+  type PlatformThemeSurface,
 } from "@/lib/platform/default-theme";
 import { validateThemePatch } from "@/lib/site-admin/tokens/registry";
 import {
@@ -32,7 +33,9 @@ import {
  * Load the current platform default theme. Gated to super-admins (the Lab is
  * already super-admin gated, but this is the action a client component calls).
  */
-export async function loadPlatformDefaultThemeAction(): Promise<
+export async function loadPlatformDefaultThemeAction(
+  surface: PlatformThemeSurface = "workspace",
+): Promise<
   | { ok: true; theme: PlatformDefaultTheme }
   | { ok: false; error: string }
 > {
@@ -41,7 +44,7 @@ export async function loadPlatformDefaultThemeAction(): Promise<
   if (!isPlatformAdmin(session.profile)) {
     return { ok: false, error: "Platform admin access required." };
   }
-  const theme = await loadPlatformDefaultTheme();
+  const theme = await loadPlatformDefaultTheme(surface);
   return { ok: true, theme };
 }
 
@@ -51,6 +54,7 @@ export async function loadPlatformDefaultThemeAction(): Promise<
  * write. New sites provisioned after this read the updated default.
  */
 export async function savePlatformDefaultThemeAction(input: {
+  surface?: PlatformThemeSurface;
   tokens: Record<string, string>;
   componentStyles: ComponentStyleDefaults;
   presetSlug: string | null;
@@ -69,11 +73,15 @@ export async function savePlatformDefaultThemeAction(input: {
   }
   const componentStyles = normalizeComponentStyleDefaults(input.componentStyles);
 
-  const result = await writePlatformDefaultTheme(session.user.id, {
-    tokens,
-    componentStyles,
-    presetSlug: input.presetSlug,
-  });
+  const result = await writePlatformDefaultTheme(
+    input.surface ?? "workspace",
+    session.user.id,
+    {
+      tokens,
+      componentStyles,
+      presetSlug: input.presetSlug,
+    },
+  );
   if (!result.ok) return { ok: false, error: CLIENT_ERROR.update };
   return { ok: true };
 }

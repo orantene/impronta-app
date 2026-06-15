@@ -32,8 +32,21 @@ import {
   clearComponentOverlay,
   setComponentOverlay,
 } from "@/lib/site-admin/builder-core/templates/catalog-overlay-actions";
+import { createTemplateDraft } from "@/lib/site-admin/builder-core/templates/registry-actions";
+import { createPlaygroundDraftFromDesign } from "@/lib/site-admin/builder-core/lab/create-draft-from-design";
+import { listAllTemplates } from "@/lib/site-admin/builder-core/templates/registry-admin-actions";
+import type {
+  BuilderTemplateRow,
+  BuilderTemplateStatus,
+  BuilderTemplateTarget,
+} from "@/lib/site-admin/builder-core/templates/registry-rows";
 import { AddGalleryIcon } from "@/components/edit-chrome/add-gallery/add-gallery-icons";
+import {
+  PAGE_DESIGN_SUMMARIES,
+  type PageDesignSummary,
+} from "@/lib/site-admin/builder-node/page-designs/summaries";
 import { SiteDefaultsEditor } from "./site-defaults-editor";
+import type { BuilderLabTarget } from "./builder-lab-stage";
 
 const T = {
   card: "#16161A",
@@ -102,7 +115,35 @@ function targetAllows(
   return targetContext === surface;
 }
 
-export function ComponentCatalog() {
+// The Connected view is split by which DATA the component binds: talent-roster /
+// collection / directory sources → "Talent Data"; agency profile / booking /
+// inquiry sources → "Agency Data". This is a DISPLAY grouping (derived from the
+// stable `connectedSource`, not from target_context), so it never changes the
+// real per-surface gating — that stays controlled by the Talent-Max / Workspace
+// toggles on each row.
+const CONNECTED_DATA_GROUPS = [
+  { key: "talent", label: "Talent Data" },
+  { key: "agency", label: "Agency Data" },
+] as const;
+type ConnectedDataGroup = (typeof CONNECTED_DATA_GROUPS)[number]["key"];
+
+function connectedDataGroupOf(item: CatalogAdminItem): ConnectedDataGroup {
+  const src = item.connectedSource ?? "";
+  return src === "Talent Collection" || src === "Talent Directory"
+    ? "talent"
+    : "agency";
+}
+
+export function ComponentCatalog({
+  onLaunchEditor,
+  defaultView,
+}: {
+  /** Launch the editor from Playground's "+ New" against the chosen target. */
+  onLaunchEditor?: (target: BuilderLabTarget, draftId?: string) => void;
+  /** Initial inner view — defaults to the first component tab; the shell passes
+   *  "playground" so exiting the editor returns to the workbench. */
+  defaultView?: CatalogView;
+} = {}) {
   const [items, setItems] = useState<CatalogAdminItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -118,7 +159,9 @@ export function ComponentCatalog() {
   const [filterMode, setFilterMode] = useState<"all" | "hidden" | "customized">(
     "all",
   );
-  const [activeTab, setActiveTab] = useState<CatalogView | null>(null);
+  const [activeTab, setActiveTab] = useState<CatalogView | null>(
+    defaultView ?? null,
+  );
   // W11 — transient success toast.
   const [toast, setToast] = useState<string | null>(null);
 
@@ -315,6 +358,18 @@ export function ComponentCatalog() {
     ? rowsByTab.get(currentView as AddGalleryTab) ?? []
     : [];
 
+  // The Connected view renders two labeled groups (Talent Data | Agency Data);
+  // every other gallery view renders as a single group. Empty groups are dropped.
+  const rowGroups: Array<{ key: string; label: string; rows: CatalogAdminItem[] }> = (
+    currentView === "connected"
+      ? CONNECTED_DATA_GROUPS.map((g) => ({
+          key: g.key,
+          label: g.label,
+          rows: currentRows.filter((r) => connectedDataGroupOf(r) === g.key),
+        }))
+      : [{ key: String(currentView), label: VIEW_LABEL[currentView], rows: currentRows }]
+  ).filter((g) => g.rows.length > 0);
+
   const total = items.length;
   const templates = items.filter((r) => r.source === "template").length;
   const overridden = items.filter((r) => r.overlay).length;
@@ -454,8 +509,9 @@ export function ComponentCatalog() {
         </div>
       ) : null}
 
-      {currentRows.length > 0 ? (
+      {rowGroups.map((group) => (
         <section
+          key={group.key}
           style={{
             background: T.card,
             border: `1px solid ${T.borderSoft}`,
@@ -474,10 +530,10 @@ export function ComponentCatalog() {
             }}
           >
             <span style={{ fontSize: 13, fontWeight: 700, color: T.ink }}>
-              {VIEW_LABEL[currentView]}
+              {group.label}
             </span>
             <span style={{ fontSize: 11.5, color: T.inkMuted }}>
-              {currentRows.length} component{currentRows.length === 1 ? "" : "s"}
+              {group.rows.length} component{group.rows.length === 1 ? "" : "s"}
             </span>
           </div>
 
@@ -493,7 +549,7 @@ export function ComponentCatalog() {
               </tr>
             </thead>
             <tbody>
-              {currentRows.map((r) => {
+              {group.rows.map((r) => {
                 const busy = pendingId === r.id;
                 const editing = editingId === r.id;
                 const isTemplate = r.source === "template";
@@ -666,7 +722,7 @@ export function ComponentCatalog() {
             </tbody>
           </table>
         </section>
-      ) : null}
+      ))}
 
       <p style={{ fontSize: 11.5, color: T.inkDim, lineHeight: 1.5, margin: 0 }}>
         Toggles control per-surface visibility (subtract-only — a component can&apos;t be forced onto a
@@ -677,25 +733,532 @@ export function ComponentCatalog() {
         </>
       ) : currentView === "site_defaults" ? (
         <SiteDefaultsEditor />
+      ) : currentView === "playground" ? (
+        <PlaygroundView onLaunchEditor={onLaunchEditor} />
       ) : (
+        <SiteStarterKitView onLaunchEditor={onLaunchEditor} />
+      )}
+    </div>
+  );
+}
+
+// ── Site Starter Kit ──────────────────────────────────────────────────────────
+
+const STARTER_KIT_GROUPS = [
+  {
+    surface: "talent" as const,
+    label: "Talent Starter Kit",
+    blurb: "Full-page starts for a single talent's Max page.",
+  },
+  {
+    surface: "workspace" as const,
+    label: "Agency Starter Kit",
+    blurb: "Full-page starts for an agency / workspace storefront.",
+  },
+];
+
+/** A design belongs to a surface group when it targets that surface or "both". */
+function designsForSurface(
+  surface: "talent" | "workspace",
+): PageDesignSummary[] {
+  return PAGE_DESIGN_SUMMARIES.filter(
+    (d) => d.target === surface || d.target === "both",
+  );
+}
+
+/**
+ * Site Starter Kit (Catalog) — the full-page starter designs, split into a
+ * Talent Starter Kit and an Agency Starter Kit by each design's target surface
+ * ("both" designs appear in both kits). "Use this starter" creates a Playground
+ * draft seeded with the chosen design's baked tree (server-side) and opens the
+ * editor on it.
+ */
+function SiteStarterKitView({
+  onLaunchEditor,
+}: {
+  onLaunchEditor?: (target: BuilderLabTarget, draftId?: string) => void;
+}) {
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const startFromDesign = useCallback(
+    async (design: PageDesignSummary, surface: "talent" | "workspace") => {
+      setBusyId(design.id);
+      setError(null);
+      const res = await createPlaygroundDraftFromDesign({
+        designId: design.id,
+        target: surface,
+      });
+      setBusyId(null);
+      if (res.ok) {
+        onLaunchEditor?.(surface, res.draftId);
+      } else {
+        setError(res.error);
+      }
+    },
+    [onLaunchEditor],
+  );
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+      {error ? <div style={{ fontSize: 12, color: "#ff8585" }}>{error}</div> : null}
+      {STARTER_KIT_GROUPS.map((group) => {
+        const designs = designsForSurface(group.surface);
+        return (
+          <section key={group.surface} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: T.ink }}>{group.label}</div>
+              <div style={{ fontSize: 12, color: T.inkMuted, marginTop: 2 }}>{group.blurb}</div>
+            </div>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+                gap: 12,
+              }}
+            >
+              {designs.map((d) => (
+                <StarterKitCard
+                  key={d.id}
+                  design={d}
+                  busy={busyId === d.id}
+                  onUse={() => void startFromDesign(d, group.surface)}
+                />
+              ))}
+            </div>
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+function StarterKitCard({
+  design,
+  busy,
+  onUse,
+}: {
+  design: PageDesignSummary;
+  busy?: boolean;
+  onUse: () => void;
+}) {
+  return (
+    <div
+      style={{
+        background: T.card,
+        border: `1px solid ${T.borderSoft}`,
+        borderRadius: 12,
+        padding: 14,
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+        <span style={{ fontSize: 13.5, fontWeight: 700, color: T.ink }}>{design.label}</span>
+        <span
+          style={{
+            fontSize: 9.5,
+            fontWeight: 700,
+            letterSpacing: 0.4,
+            textTransform: "uppercase",
+            color: T.inkMuted,
+            background: T.cardSoft,
+            borderRadius: 999,
+            padding: "2px 7px",
+          }}
+        >
+          {design.archetype}
+        </span>
+      </div>
+      <p style={{ fontSize: 11.5, color: T.inkMuted, lineHeight: 1.5, margin: 0, flex: 1 }}>
+        {design.description}
+      </p>
+      <button
+        type="button"
+        onClick={onUse}
+        disabled={busy}
+        className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60"
+        style={{
+          alignSelf: "flex-start",
+          padding: "6px 13px",
+          borderRadius: 8,
+          border: `1px solid ${T.accent}`,
+          background: "rgba(93,211,160,0.12)",
+          color: T.accent,
+          fontSize: 12,
+          fontWeight: 700,
+          cursor: busy ? "default" : "pointer",
+          opacity: busy ? 0.6 : 1,
+        }}
+      >
+        {busy ? "Creating…" : "Use this starter →"}
+      </button>
+    </div>
+  );
+}
+
+// ── Playground ────────────────────────────────────────────────────────────────
+
+const PLAYGROUND_TARGETS: ReadonlyArray<{
+  target: BuilderLabTarget;
+  label: string;
+  blurb: string;
+}> = [
+  {
+    target: "talent",
+    label: "Talent page",
+    blurb: "Author against a single talent's live data.",
+  },
+  {
+    target: "workspace",
+    label: "Workspace page",
+    blurb: "Author against a workspace / hub.",
+  },
+  {
+    target: "both",
+    label: "Both",
+    blurb: "A design for both surfaces — preview against a talent or a workspace.",
+  },
+];
+
+const PLAYGROUND_STATUS_FILTERS: ReadonlyArray<{
+  key: "all" | BuilderTemplateStatus;
+  label: string;
+}> = [
+  { key: "all", label: "All" },
+  { key: "draft", label: "Draft" },
+  { key: "in_review", label: "In Review" },
+  { key: "published", label: "Published" },
+  { key: "archived", label: "Archived" },
+];
+
+const STATUS_TONE: Record<BuilderTemplateStatus, { bg: string; fg: string }> = {
+  draft: { bg: "rgba(255,255,255,0.07)", fg: T.inkMuted },
+  in_review: { bg: "rgba(155,168,183,0.16)", fg: "#9BA8B7" },
+  published: { bg: "rgba(93,211,160,0.16)", fg: T.accent },
+  archived: { bg: "rgba(255,255,255,0.05)", fg: T.inkDim },
+};
+
+/** builder_templates target_context → the editor's launch target. */
+function targetToLabTarget(t: BuilderTemplateTarget): BuilderLabTarget {
+  return t === "talent" || t === "workspace" ? t : "both";
+}
+
+/**
+ * Playground (Phase 3) — the workbench. A persistent list of your full-page
+ * drafts (builder_templates, kind=page_template) with status pills. "+ New"
+ * creates a draft for the picked target and opens it; clicking a draft reopens
+ * it. The editor binds to the draft id, so edits persist and Publish promotes
+ * the draft into the page-templates gallery (the Site Starter Kit).
+ */
+function PlaygroundView({
+  onLaunchEditor,
+}: {
+  onLaunchEditor?: (target: BuilderLabTarget, draftId?: string) => void;
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [drafts, setDrafts] = useState<BuilderTemplateRow[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<"all" | BuilderTemplateStatus>(
+    "all",
+  );
+  const [creating, setCreating] = useState(false);
+
+  const reload = useCallback(async () => {
+    const res = await listAllTemplates();
+    if (res.ok) {
+      setDrafts(res.data.filter((t) => t.kind === "page_template"));
+    } else {
+      setError(res.error);
+    }
+  }, []);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  const createAndOpen = useCallback(
+    async (target: BuilderLabTarget) => {
+      setMenuOpen(false);
+      setCreating(true);
+      setError(null);
+      const stamp = Date.now().toString(36);
+      const res = await createTemplateDraft({
+        kind: "page_template",
+        title: "Untitled draft",
+        slug: `playground-${stamp}-${Math.random().toString(36).slice(2, 7)}`,
+        category: "playground",
+        gallery_tab: "page_templates",
+        target_context: target,
+      });
+      setCreating(false);
+      if (res.ok) {
+        onLaunchEditor?.(target, res.data.id);
+      } else {
+        setError(res.error);
+      }
+    },
+    [onLaunchEditor],
+  );
+
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { all: drafts?.length ?? 0 };
+    for (const d of drafts ?? []) c[d.status] = (c[d.status] ?? 0) + 1;
+    return c;
+  }, [drafts]);
+
+  const visible = (drafts ?? []).filter(
+    (d) => statusFilter === "all" || d.status === statusFilter,
+  );
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          flexWrap: "wrap",
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: T.ink }}>Playground</div>
+          <div style={{ fontSize: 12, color: T.inkMuted, marginTop: 2 }}>
+            Your workbench — full-page drafts. Start one, author against real data,
+            then publish it into the page-templates gallery.
+          </div>
+        </div>
+
+        <div style={{ position: "relative" }}>
+          <button
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            disabled={creating}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 7,
+              padding: "8px 16px",
+              borderRadius: 9,
+              border: "none",
+              background: T.accent,
+              color: "#0F0F11",
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: creating ? "default" : "pointer",
+              opacity: creating ? 0.6 : 1,
+            }}
+          >
+            {creating ? "Creating…" : "+ New"}
+            <span aria-hidden style={{ fontSize: 9, opacity: 0.75 }}>
+              {menuOpen ? "▲" : "▼"}
+            </span>
+          </button>
+
+          {menuOpen ? (
+            <div
+              role="menu"
+              aria-label="New draft target"
+              style={{
+                position: "absolute",
+                top: "calc(100% + 6px)",
+                right: 0,
+                zIndex: 60,
+                width: 320,
+                maxWidth: "90vw",
+                background: T.card,
+                border: `1px solid ${T.border}`,
+                borderRadius: 12,
+                boxShadow: "0 18px 48px rgba(0,0,0,0.45)",
+                padding: 8,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: 0.6,
+                  textTransform: "uppercase",
+                  color: T.inkDim,
+                  padding: "4px 8px 6px",
+                }}
+              >
+                New draft — pick a target
+              </div>
+              {PLAYGROUND_TARGETS.map((opt) => (
+                <button
+                  key={opt.target}
+                  type="button"
+                  role="menuitem"
+                  onClick={() => void createAndOpen(opt.target)}
+                  className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60"
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    textAlign: "left",
+                    background: "transparent",
+                    border: "none",
+                    borderRadius: 9,
+                    padding: "9px 10px",
+                    cursor: "pointer",
+                    color: T.ink,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = T.cardSoft;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "transparent";
+                  }}
+                >
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{opt.label}</div>
+                  <div style={{ fontSize: 11.5, color: T.inkMuted, marginTop: 2, lineHeight: 1.4 }}>
+                    {opt.blurb}
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Status pills */}
+      <div style={{ display: "inline-flex", background: T.cardSoft, borderRadius: 999, padding: 2, alignSelf: "flex-start" }}>
+        {PLAYGROUND_STATUS_FILTERS.map((f) => {
+          const active = statusFilter === f.key;
+          const n = counts[f.key] ?? 0;
+          return (
+            <button
+              key={f.key}
+              type="button"
+              onClick={() => setStatusFilter(f.key)}
+              style={{
+                background: active ? T.ink : "transparent",
+                color: active ? "#0F0F11" : T.inkMuted,
+                border: "none",
+                fontSize: 11.5,
+                fontWeight: 600,
+                padding: "5px 13px",
+                borderRadius: 999,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              {f.label}
+              <span style={{ fontSize: 10, fontWeight: 700, opacity: 0.7 }}>{n}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {error ? (
+        <div style={{ fontSize: 12, color: "#ff8585" }}>{error}</div>
+      ) : null}
+
+      {drafts === null ? (
+        <div style={{ color: T.inkMuted, fontSize: 13, padding: "10px 0" }}>Loading drafts…</div>
+      ) : visible.length === 0 ? (
         <div
           style={{
             background: T.card,
             border: `1px solid ${T.borderSoft}`,
             borderRadius: 12,
-            padding: "36px 20px",
+            padding: "32px 20px",
             textAlign: "center",
           }}
         >
-          <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, marginBottom: 6 }}>
-            {VIEW_LABEL[currentView]}
-          </div>
           <p style={{ fontSize: 12.5, color: T.inkMuted, margin: "0 auto", maxWidth: 460, lineHeight: 1.55 }}>
-            {currentView === "site_starter_kit"
-              ? "Coming soon — this view will hold the full-page starter designs (the editor’s “Start with a design” set)."
-              : "Playground — a scratch space for experiments. Nothing is wired up here yet."}
+            {statusFilter === "all"
+              ? "No drafts yet. Hit + New to start a full-page draft — it’s saved as you edit."
+              : `No ${statusFilter.replace("_", " ")} drafts.`}
           </p>
         </div>
+      ) : (
+        <section
+          style={{
+            background: T.card,
+            border: `1px solid ${T.borderSoft}`,
+            borderRadius: 12,
+            overflow: "hidden",
+          }}
+        >
+          {visible.map((d, i) => {
+            const tone = STATUS_TONE[d.status];
+            return (
+              <button
+                key={d.id}
+                type="button"
+                onClick={() => onLaunchEditor?.(targetToLabTarget(d.target_context), d.id)}
+                className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  width: "100%",
+                  textAlign: "left",
+                  background: "transparent",
+                  border: "none",
+                  borderTop: i === 0 ? "none" : `1px solid ${T.borderSoft}`,
+                  padding: "12px 16px",
+                  cursor: "pointer",
+                  color: T.ink,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = T.cardSoft;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "transparent";
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {d.title || "Untitled draft"}
+                  </div>
+                  <div style={{ fontSize: 11, color: T.inkDim, marginTop: 2 }}>
+                    Updated {new Date(d.updated_at).toLocaleDateString()} · v{d.version}
+                  </div>
+                </div>
+                <span
+                  style={{
+                    flexShrink: 0,
+                    fontSize: 9.5,
+                    fontWeight: 700,
+                    letterSpacing: 0.4,
+                    textTransform: "uppercase",
+                    color: T.inkMuted,
+                    background: T.cardSoft,
+                    borderRadius: 999,
+                    padding: "2px 8px",
+                  }}
+                >
+                  {d.target_context}
+                </span>
+                <span
+                  style={{
+                    flexShrink: 0,
+                    fontSize: 9.5,
+                    fontWeight: 700,
+                    letterSpacing: 0.4,
+                    textTransform: "uppercase",
+                    color: tone.fg,
+                    background: tone.bg,
+                    borderRadius: 999,
+                    padding: "2px 8px",
+                  }}
+                >
+                  {d.status.replace("_", " ")}
+                </span>
+                <span aria-hidden style={{ color: T.inkDim, fontSize: 14, flexShrink: 0 }}>›</span>
+              </button>
+            );
+          })}
+        </section>
       )}
     </div>
   );

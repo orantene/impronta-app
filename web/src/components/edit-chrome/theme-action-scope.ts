@@ -112,7 +112,10 @@ import {
   loadPlatformDefaultThemeAction,
   savePlatformDefaultThemeAction,
 } from "@/lib/server-actions/admin-platform-default-theme";
-import type { PlatformDefaultTheme } from "@/lib/platform/default-theme";
+import type {
+  PlatformDefaultTheme,
+  PlatformThemeSurface,
+} from "@/lib/platform/default-theme";
 
 /** The two lifecycle moves the focused Site-Defaults editor needs. */
 export interface PlatformDefaultThemeActionSet {
@@ -130,11 +133,14 @@ export interface PlatformDefaultThemeActionSet {
 
 /**
  * The `platform_default` route — the action set the super-admin Site-Defaults
- * editor calls. Both moves are platform-admin gated inside the actions.
+ * editor calls, scoped to a surface (talent override vs the shared/agency
+ * default). Both moves are platform-admin gated inside the actions.
  */
-export function resolvePlatformDefaultThemeActionSet(): PlatformDefaultThemeActionSet {
+export function resolvePlatformDefaultThemeActionSet(
+  surface: PlatformThemeSurface = "workspace",
+): PlatformDefaultThemeActionSet {
   return {
-    load: () => loadPlatformDefaultThemeAction(),
-    save: (input) => savePlatformDefaultThemeAction(input),
+    load: () => loadPlatformDefaultThemeAction(surface),
+    save: (input) => savePlatformDefaultThemeAction({ ...input, surface }),
   };
 }
