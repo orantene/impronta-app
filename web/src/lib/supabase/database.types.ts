@@ -6382,6 +6382,7 @@ export type Database = {
           offer_id: string
           pricing_unit: Database["public"]["Enums"]["pricing_unit"]
           sort_order: number
+          source_service_id: string | null
           talent_cost: number
           talent_profile_id: string | null
           tenant_id: string
@@ -6397,6 +6398,7 @@ export type Database = {
           offer_id: string
           pricing_unit?: Database["public"]["Enums"]["pricing_unit"]
           sort_order?: number
+          source_service_id?: string | null
           talent_cost?: number
           talent_profile_id?: string | null
           tenant_id: string
@@ -6412,6 +6414,7 @@ export type Database = {
           offer_id?: string
           pricing_unit?: Database["public"]["Enums"]["pricing_unit"]
           sort_order?: number
+          source_service_id?: string | null
           talent_cost?: number
           talent_profile_id?: string | null
           tenant_id?: string
@@ -7252,6 +7255,7 @@ export type Database = {
       }
       notification_dispatch_log: {
         Row: {
+          attempts: number
           bounced_at: string | null
           catalog_entry_id: string | null
           channel: string
@@ -7276,6 +7280,7 @@ export type Database = {
           tenant_id: string | null
         }
         Insert: {
+          attempts?: number
           bounced_at?: string | null
           catalog_entry_id?: string | null
           channel: string
@@ -7300,6 +7305,7 @@ export type Database = {
           tenant_id?: string | null
         }
         Update: {
+          attempts?: number
           bounced_at?: string | null
           catalog_entry_id?: string | null
           channel?: string
@@ -7339,6 +7345,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      notification_overlay: {
+        Row: {
+          catalog_entry_id: string
+          email_enabled: boolean | null
+          in_app_enabled: boolean | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          catalog_entry_id: string
+          email_enabled?: boolean | null
+          in_app_enabled?: boolean | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          catalog_entry_id?: string
+          email_enabled?: boolean | null
+          in_app_enabled?: boolean | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      notification_template_override: {
+        Row: {
+          body_markdown: string | null
+          catalog_entry_id: string
+          enabled: boolean
+          id: string
+          locale: string
+          subject: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          body_markdown?: string | null
+          catalog_entry_id: string
+          enabled?: boolean
+          id?: string
+          locale?: string
+          subject?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          body_markdown?: string | null
+          catalog_entry_id?: string
+          enabled?: boolean
+          id?: string
+          locale?: string
+          subject?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
       }
       notifications: {
         Row: {
@@ -11227,6 +11290,7 @@ export type Database = {
           residence_city_id: string | null
           residence_country_id: string | null
           service_category_slug: string | null
+          services_menu: Json
           short_bio: string | null
           social_links: Json
           source_type: string | null
@@ -11325,6 +11389,7 @@ export type Database = {
           residence_city_id?: string | null
           residence_country_id?: string | null
           service_category_slug?: string | null
+          services_menu?: Json
           short_bio?: string | null
           social_links?: Json
           source_type?: string | null
@@ -11423,6 +11488,7 @@ export type Database = {
           residence_city_id?: string | null
           residence_country_id?: string | null
           service_category_slug?: string | null
+          services_menu?: Json
           short_bio?: string | null
           social_links?: Json
           source_type?: string | null
@@ -14983,7 +15049,16 @@ export type Database = {
         | "declined"
         | "cancelled"
         | "expired"
-      pricing_unit: "hour" | "day" | "week" | "event"
+      pricing_unit:
+        | "hour"
+        | "day"
+        | "week"
+        | "event"
+        | "half_day"
+        | "per_person"
+        | "per_contact"
+        | "flat_package"
+        | "custom"
       profile_workflow_status:
         | "draft"
         | "invited"
@@ -15303,7 +15378,17 @@ export const Constants = {
         "cancelled",
         "expired",
       ],
-      pricing_unit: ["hour", "day", "week", "event"],
+      pricing_unit: [
+        "hour",
+        "day",
+        "week",
+        "event",
+        "half_day",
+        "per_person",
+        "per_contact",
+        "flat_package",
+        "custom",
+      ],
       profile_workflow_status: [
         "draft",
         "invited",
