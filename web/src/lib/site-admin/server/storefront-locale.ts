@@ -23,6 +23,7 @@
 import { getRequestLocale } from "@/i18n/request-locale";
 import { getPublicTenantScope } from "@/lib/saas/scope";
 import {
+  buildTenantLocaleSettings,
   loadTenantLocaleSettings,
   resolveTenantLocale,
   type TenantLocaleSettings,
@@ -56,15 +57,13 @@ export async function resolveStorefrontLocale(): Promise<StorefrontLocaleContext
   const tenantId = scope?.tenantId ?? null;
 
   if (!tenantId) {
-    const { locale, isFallback } = resolveTenantLocale(
-      { defaultLocale: "en", supportedLocales: ["en"], showLanguageSwitcher: false },
-      requestedLocale,
-    );
+    const settings = buildTenantLocaleSettings("en", ["en"], false);
+    const { locale, isFallback } = resolveTenantLocale(settings, requestedLocale);
     return {
       locale,
       requestedLocale,
       isFallback,
-      settings: { defaultLocale: "en", supportedLocales: ["en"], showLanguageSwitcher: false },
+      settings,
       tenantId: null,
     };
   }

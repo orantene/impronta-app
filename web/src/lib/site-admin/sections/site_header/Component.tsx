@@ -27,6 +27,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getFavoriteTalentIds, getSavedTalentIds } from "@/lib/public-discovery";
 import { resolveAccountHref } from "@/lib/auth-flow";
 import {
+  buildTenantLocaleSettings,
   loadTenantLocaleSettings,
   type TenantLocaleSettings,
 } from "@/lib/site-admin/server/locale-resolver";
@@ -502,7 +503,7 @@ export async function SiteHeaderComponent({
   });
   const tenantLocaleSettings = tenantId
     ? await loadTenantLocaleSettings(tenantId)
-    : { defaultLocale: "en" as const, supportedLocales: ["en", "es"] as const, showLanguageSwitcher: true };
+    : buildTenantLocaleSettings("en", ["en", "es"], true);
   const bd = brandDisplay ?? "image-and-text";
   const showBrandImage = (bd === "image" || bd === "image-and-text") && !!brandLogoUrl;
   const showBrandText = (bd === "text" || bd === "image-and-text") && !!brand.label;

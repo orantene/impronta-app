@@ -21,18 +21,31 @@
 
 import { z } from "zod";
 
+/** Seed locales shipped at launch. NO LONGER a gate — the real universe is the
+ *  `app_locales` registry (platform-admin managed). Kept for fallbacks/tests. */
 export const PLATFORM_LOCALES = ["en", "es"] as const;
 
-export type Locale = (typeof PLATFORM_LOCALES)[number];
+/** BCP-47 / ISO locale code. Dynamic — any registry-defined language is valid. */
+export type Locale = string;
 
 export const DEFAULT_PLATFORM_LOCALE: Locale = "en";
 
+/** Shape of a BCP-47 / ISO locale code ("en", "fr", "pt-BR"). */
+export const LOCALE_CODE_RE = /^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})?$/;
+
+/** Runtime guard: looks like a locale code. Validate actual membership against
+ *  the registry / tenant `supportedLocales`, not a hardcoded list. */
 export function isLocale(value: unknown): value is Locale {
-  return typeof value === "string" && (PLATFORM_LOCALES as readonly string[]).includes(value);
+  return typeof value === "string" && LOCALE_CODE_RE.test(value.trim());
 }
 
-/** Zod validator for a single locale. */
-export const localeSchema = z.enum(PLATFORM_LOCALES);
+/** Zod validator for a single locale code (registry validates the actual set). */
+export const localeSchema = z
+  .string()
+  .trim()
+  .min(2)
+  .max(12)
+  .regex(/^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})?$/, "Must be a BCP-47 locale code");
 
 /**
  * Zod validator for `agency_business_identity.supported_locales`.

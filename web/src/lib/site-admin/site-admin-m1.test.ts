@@ -27,7 +27,7 @@ import {
   identityFormSchema,
   brandingFormSchema,
 } from "./index";
-import { resolveTenantLocale } from "./server/locale-resolver";
+import { resolveTenantLocale, buildTenantLocaleSettings } from "./server/locale-resolver";
 
 // ---- invariants -----------------------------------------------------------
 
@@ -287,33 +287,21 @@ test("brandingFormSchema rejects over-length font_preset", () => {
 // ---- resolveTenantLocale --------------------------------------------------
 
 test("resolveTenantLocale returns supported locale passthrough", () => {
-  const settings = {
-    defaultLocale: "en" as const,
-    supportedLocales: ["en", "es"] as const,
-    showLanguageSwitcher: true,
-  };
+  const settings = buildTenantLocaleSettings("en", ["en", "es"], true);
   const r = resolveTenantLocale(settings, "es");
   assert.equal(r.locale, "es");
   assert.equal(r.isFallback, false);
 });
 
 test("resolveTenantLocale falls back to default for unsupported", () => {
-  const settings = {
-    defaultLocale: "en" as const,
-    supportedLocales: ["en"] as const,
-    showLanguageSwitcher: false,
-  };
+  const settings = buildTenantLocaleSettings("en", ["en"], false);
   const r = resolveTenantLocale(settings, "es");
   assert.equal(r.locale, "en");
   assert.equal(r.isFallback, true);
 });
 
 test("resolveTenantLocale falls back to default for null/empty/invalid", () => {
-  const settings = {
-    defaultLocale: "en" as const,
-    supportedLocales: ["en", "es"] as const,
-    showLanguageSwitcher: true,
-  };
+  const settings = buildTenantLocaleSettings("en", ["en", "es"], true);
   for (const req of [null, undefined, "", "fr", "DE"]) {
     const r = resolveTenantLocale(settings, req);
     assert.equal(r.locale, "en", `req=${String(req)} should fall back to en`);

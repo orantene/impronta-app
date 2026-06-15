@@ -1,42 +1,78 @@
 /**
- * Phase 5 / M1 — per-tenant locale resolver.
+ * Phase 5 / M1 — per-tenant locale resolver.  (Phase-0 multi-language upgrade)
  *
  * Reads `agency_business_identity.{default_locale, supported_locales}` and
  * caches the pair per tenant in a short-TTL in-memory map — safe to call
- * from both edge middleware and React Server Components (no `unstable_cache`,
- * which is Node-only).
+ * from both edge middleware and React Server Components.
  *
- * Cache TTL mirrors the existing `getLanguageSettingsForMiddleware` so
- * middleware cost stays bounded on hot paths.
+ * Multi-language model:
+ *   - `defaultLocale`     = the PRIMARY language (also the first fallback target).
+ *   - `secondaryLocales`  = the ordered remaining supported languages.
+ *   - `supportedLocales`  = [default, ...secondary].
+ *   - `fallbackChain(l)`  = deterministic walk for the universal content resolver
+ *                           (`resolveLocalized`): [l, default, ...rest].
  *
- * Storefront + middleware both consult this module for:
- *   - "Does the tenant support this locale?"
- *   - "What locale should we fall back to?"
- *
- * Fallback is TEMPORARY safety only — a future milestone will surface
- * missing-locale warnings via the Site Health panel; M1 simply never shows
- * the user a broken page.
+ * N-language: supported locales are accepted as-is (validated at write time by
+ * the settings action + DB CHECK against the `app_locales` registry). We no
+ * longer hard-filter to en/es here.
  */
 
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { isPostgrestMissingColumnError } from "@/lib/server/safe-error";
-import {
-  DEFAULT_PLATFORM_LOCALE,
-  type Locale,
-  isLocale,
-} from "@/lib/site-admin/locales";
+import { DEFAULT_PLATFORM_LOCALE, type Locale } from "@/lib/site-admin/locales";
 
 export interface TenantLocaleSettings {
+  /** Primary language = default + first fallback target. */
   defaultLocale: Locale;
+  /** Ordered remaining supported languages (supported minus default). */
+  secondaryLocales: readonly Locale[];
+  /** [default, ...secondary]. */
   supportedLocales: readonly Locale[];
   showLanguageSwitcher: boolean;
+  /** Deterministic fallback walk for `resolveLocalized(map, locale, chain)`. */
+  fallbackChain: (locale: Locale) => Locale[];
 }
 
-const PLATFORM_FALLBACK: TenantLocaleSettings = {
-  defaultLocale: DEFAULT_PLATFORM_LOCALE,
-  supportedLocales: [DEFAULT_PLATFORM_LOCALE],
-  showLanguageSwitcher: false,
-};
+function nonEmptyLocale(v: unknown): v is Locale {
+  return typeof v === "string" && v.trim().length > 0;
+}
+
+/** Build the fallback walk for a requested locale: [requested, default, ...rest]. */
+export function buildFallbackChain(
+  requested: Locale,
+  defaultLocale: Locale,
+  supported: readonly Locale[],
+): Locale[] {
+  const chain: Locale[] = [requested];
+  if (defaultLocale !== requested) chain.push(defaultLocale);
+  for (const l of supported) if (!chain.includes(l)) chain.push(l);
+  return chain;
+}
+
+/** Assemble a full settings object from a validated default + supported list. */
+export function buildTenantLocaleSettings(
+  defaultLocale: Locale,
+  supported: readonly Locale[],
+  showLanguageSwitcher: boolean,
+): TenantLocaleSettings {
+  const supportedList = supported.length > 0 ? supported : [defaultLocale];
+  const primary = supportedList.includes(defaultLocale) ? defaultLocale : supportedList[0]!;
+  const secondaryLocales = supportedList.filter((l) => l !== primary);
+  return {
+    defaultLocale: primary,
+    secondaryLocales,
+    supportedLocales: supportedList,
+    // A switcher only makes sense with 2+ languages.
+    showLanguageSwitcher: showLanguageSwitcher && supportedList.length > 1,
+    fallbackChain: (locale: Locale) => buildFallbackChain(locale, primary, supportedList),
+  };
+}
+
+const PLATFORM_FALLBACK: TenantLocaleSettings = buildTenantLocaleSettings(
+  DEFAULT_PLATFORM_LOCALE,
+  [DEFAULT_PLATFORM_LOCALE],
+  false,
+);
 
 const TTL_MS = 60_000;
 
@@ -50,35 +86,21 @@ type LocaleRow = {
 
 function normalize(row: LocaleRow | null): TenantLocaleSettings {
   if (!row) return PLATFORM_FALLBACK;
-  const supported = (row.supported_locales ?? []).filter(isLocale);
+  const supported = (row.supported_locales ?? []).filter(nonEmptyLocale);
   const showLanguageSwitcher = row.show_language_switcher ?? true;
-  const fallbackDefault: Locale = isLocale(row.default_locale)
+  const fallbackDefault: Locale = nonEmptyLocale(row.default_locale)
     ? row.default_locale
     : DEFAULT_PLATFORM_LOCALE;
   if (supported.length === 0) {
-    return {
-      defaultLocale: fallbackDefault,
-      supportedLocales: [fallbackDefault],
-      showLanguageSwitcher: false,
-    };
+    return buildTenantLocaleSettings(fallbackDefault, [fallbackDefault], false);
   }
-  return {
-    defaultLocale: supported.includes(fallbackDefault)
-      ? fallbackDefault
-      : supported[0]!,
-    supportedLocales: supported,
-    showLanguageSwitcher,
-  };
+  return buildTenantLocaleSettings(fallbackDefault, supported, showLanguageSwitcher);
 }
 
 /**
  * Cached (60s TTL) read of the tenant's locale settings. Returns a safe
  * platform fallback when no row exists or the DB is unreachable — callers
  * never 500 on locale lookup.
- *
- * Callers that need read-your-own-writes after an identity save should
- * invoke `invalidateTenantLocaleSettings(tenantId)`; the identity action
- * already does this via the unified cache-bust path for tenant-scoped reads.
  */
 export async function loadTenantLocaleSettings(
   tenantId: string,
@@ -121,21 +143,16 @@ export function invalidateTenantLocaleSettings(tenantId: string): void {
 }
 
 /**
- * Pure helper — decides what locale to render for a requested locale, given
- * a tenant's settings.
- *
- *   - If `requested` is in `supportedLocales`  → render requested.
- *   - Otherwise                                  → render default, `isFallback=true`.
+ * Pure helper — decides what locale to render for a requested locale, given a
+ * tenant's settings.
+ *   - If `requested` is in `supportedLocales` → render requested.
+ *   - Otherwise                                → render default, `isFallback=true`.
  */
 export function resolveTenantLocale(
   settings: TenantLocaleSettings,
   requested: string | null | undefined,
 ): { locale: Locale; isFallback: boolean } {
-  if (
-    requested &&
-    isLocale(requested) &&
-    settings.supportedLocales.includes(requested)
-  ) {
+  if (requested && settings.supportedLocales.includes(requested)) {
     return { locale: requested, isFallback: false };
   }
   return { locale: settings.defaultLocale, isFallback: true };
