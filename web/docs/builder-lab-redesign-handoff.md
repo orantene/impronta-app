@@ -82,6 +82,18 @@ The Lab canvas is currently **EPHEMERAL** (the `platform_lab` adapter's save/aut
 - **Go-live (PENDING + GATED):** publish via the editor at `localhost:3000/impronta?edit=1` → **Publish** button (page-only — do **NOT** publish the Theme drawer's draft; that draft is a stale LIGHT theme, while live `theme_json` is already noir+gold). Publish is **classifier-gated and needs the user's explicit OK**. After publishing: re-alias domains + `cd web && npm run deploy:smoke`.
 - Re-seed the draft if needed (DRAFT-ONLY): `cd web; git checkout <commit-with-impronta.ts> -- web/src/lib/site-admin/builder-node/page-designs/impronta.ts` (it's on `main` now) `; npx tsx scripts/bake-impronta-tree.mts > /tmp/impronta-tree.json; npx tsx --env-file=.env.local scripts/seed-impronta-revision.mts`. **NEVER run `scripts/seed-impronta-homepage.mts`** (writes the LIVE published snapshot).
 
+### Publish attempt — 2026-06-15 findings (READ before the next publish try)
+
+A real publish was attempted via the localhost editor (`/impronta?edit=1` → Publish) on the **real production Impronta tenant** (`00000000-…-0001` = "Impronta Models", serving improntamodels.com + impronta.tulala.digital — the seed-looking UUID is genuinely production). **Nothing was published** (the gate blocked it) and **no data was deleted**. The draft is now **rev 1420** (14 well-formed roots — 13 containers + 1 marquee `section_embed`; renders correctly in noir/gold with live connected talent, no console errors).
+
+The publish preflight surfaced **4 blockers** that disable "Publish now", from two unrelated causes:
+
+1. **2 LAYOUT blockers — a REAL home bug.** Container `builder-container-657d86…3635c0cbdd9f` is `layout:"grid"`, `columns:4` (4 children) with a tablet override (`responsive.tablet.gridTemplateColumns: repeat(2,…)`) but **no mobile override** → stays multi-column on phones and clips. **Fix:** add `style.responsive.mobile.gridTemplateColumns: "repeat(1,minmax(0,1fr))"` — in the editor (select block → Style → responsive → mobile → 1 col) or in `impronta.ts` then re-bake/re-seed.
+
+2. **2 ALT-TEXT blockers — production QA pollution, NOT the home.** "Phase E QA — Scroll carousel" + "Phase E QA — Masonry" come from a **separate QA test page `audit-batch3`** (`cms_pages.id=b4e8f2a1-0000-0000-0000-000000000001`, `status=published` → live broken page at improntamodels.com/audit-batch3) with 14 synthetic fixture sections. **Why it blocks the home:** `runPublishPreflight` (`src/lib/site-admin/edit-mode/publish-preflight-action.ts`) calls `listSectionsForStaff(tenantId)`, which scans **every `cms_sections` row for the tenant** (no page/status filter) — so unrelated pages' bad sections block ANY page's publish. Archiving the page does NOT help (preflight reads section rows directly). **To unblock, one of:** (a) delete the `audit-batch3` page + its fixture `cms_sections` rows (back up first — it's QA junk + a live broken page, so removal doubles as cleanup), or (b) scope the preflight's section audit to the page being published (broader change; affects all tenants — needs care + tests). **User decision 2026-06-15: declined to delete the QA page; publish stopped — home stays draft.**
+
+**Publish mechanism that works** (once the above are resolved): publishing via the localhost editor writes `published_homepage_snapshot` to prod Supabase; prod self-heals within **5 min** via the `revalidate: 300` TTL on `loadPublicHomepage` (`homepage-reads.ts`) — no prod redeploy needed. Flow = `publishHomepage` (`server/homepage.ts:1087`) via the editor's Publish button (needs editor auth + CAS version + localStorage style-class registry — NOT a raw script).
+
 ---
 
 ## C. Outstanding / follow-ups
