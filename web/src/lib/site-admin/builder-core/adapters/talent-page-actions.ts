@@ -16,6 +16,7 @@
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { mergeStyleClassesPreservingDesign } from "@/lib/site-admin/edit-mode/talent-design-store";
+import { enforceLockedPropsOnTree } from "@/lib/site-admin/builder-node/prop-lock";
 
 import type {
   TalentPageAdapterActions,
@@ -124,7 +125,7 @@ export async function saveTalentPageAction(
     // adapter-core factory — its page-content contract is unchanged.)
     const { data: existing } = await sb
       .from("talent_pages")
-      .select("theme")
+      .select("theme, blocks")
       .eq("id", pageId)
       .eq("talent_profile_id", talentProfileId)
       .maybeSingle();
@@ -133,8 +134,16 @@ export async function saveTalentPageAction(
       patch.theme,
     );
 
+    // C1 — server-trusted lock enforcement on the full-tree save. The inspector
+    // strips locked-prop edits, but a crafted client could still POST a tree
+    // with a locked prop changed; re-assert every lock against the current row.
+    const enforcedBlocks = enforceLockedPropsOnTree(
+      patch.blocks,
+      (existing as { blocks: unknown } | null)?.blocks,
+    );
+
     const updatePayload: Record<string, unknown> = {
-      blocks: patch.blocks,
+      blocks: enforcedBlocks,
       theme: mergedTheme,
       updated_at: patch.updated_at,
     };
@@ -210,7 +219,7 @@ export async function restoreTalentPageRevisionAction(
     // whatever the snapshot held (revisions predate the design slice).
     const { data: live } = await sb
       .from("talent_pages")
-      .select("theme")
+      .select("theme, blocks")
       .eq("id", pageId)
       .eq("talent_profile_id", talentProfileId)
       .maybeSingle();
@@ -219,10 +228,17 @@ export async function restoreTalentPageRevisionAction(
       rev.theme,
     );
 
+    // C1 — re-assert current locks onto the restored content so restoring an
+    // old (pre-lock or tampered) revision can't drop an admin lock.
+    const restoredBlocks = enforceLockedPropsOnTree(
+      rev.blocks,
+      (live as { blocks: unknown } | null)?.blocks,
+    );
+
     const now = new Date().toISOString();
     const { data, error } = await sb
       .from("talent_pages")
-      .update({ blocks: rev.blocks, theme: mergedTheme, updated_at: now, status: "draft" })
+      .update({ blocks: restoredBlocks, theme: mergedTheme, updated_at: now, status: "draft" })
       .eq("id", pageId)
       .eq("talent_profile_id", talentProfileId)
       .select("updated_at")
