@@ -34,6 +34,7 @@ import {
 } from "@/lib/site-admin/builder-core/templates/catalog-overlay-actions";
 import { AddGalleryIcon } from "@/components/edit-chrome/add-gallery/add-gallery-icons";
 import { SiteDefaultsEditor } from "./site-defaults-editor";
+import type { BuilderLabTarget } from "./builder-lab-stage";
 
 const T = {
   card: "#16161A",
@@ -102,7 +103,16 @@ function targetAllows(
   return targetContext === surface;
 }
 
-export function ComponentCatalog() {
+export function ComponentCatalog({
+  onLaunchEditor,
+  defaultView,
+}: {
+  /** Launch the editor from Playground's "+ New" against the chosen target. */
+  onLaunchEditor?: (target: BuilderLabTarget) => void;
+  /** Initial inner view — defaults to the first component tab; the shell passes
+   *  "playground" so exiting the editor returns to the workbench. */
+  defaultView?: CatalogView;
+} = {}) {
   const [items, setItems] = useState<CatalogAdminItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -118,7 +128,9 @@ export function ComponentCatalog() {
   const [filterMode, setFilterMode] = useState<"all" | "hidden" | "customized">(
     "all",
   );
-  const [activeTab, setActiveTab] = useState<CatalogView | null>(null);
+  const [activeTab, setActiveTab] = useState<CatalogView | null>(
+    defaultView ?? null,
+  );
   // W11 — transient success toast.
   const [toast, setToast] = useState<string | null>(null);
 
@@ -677,6 +689,8 @@ export function ComponentCatalog() {
         </>
       ) : currentView === "site_defaults" ? (
         <SiteDefaultsEditor />
+      ) : currentView === "playground" ? (
+        <PlaygroundView onLaunchEditor={onLaunchEditor} />
       ) : (
         <div
           style={{
@@ -691,12 +705,184 @@ export function ComponentCatalog() {
             {VIEW_LABEL[currentView]}
           </div>
           <p style={{ fontSize: 12.5, color: T.inkMuted, margin: "0 auto", maxWidth: 460, lineHeight: 1.55 }}>
-            {currentView === "site_starter_kit"
-              ? "Coming soon — this view will hold the full-page starter designs (the editor’s “Start with a design” set)."
-              : "Playground — a scratch space for experiments. Nothing is wired up here yet."}
+            Coming soon — this view will hold the full-page starter designs (the
+            editor&rsquo;s &ldquo;Start with a design&rdquo; set).
           </p>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Playground ────────────────────────────────────────────────────────────────
+
+const PLAYGROUND_TARGETS: ReadonlyArray<{
+  target: BuilderLabTarget;
+  label: string;
+  blurb: string;
+}> = [
+  {
+    target: "talent",
+    label: "Talent page",
+    blurb: "Author against a single talent's live data.",
+  },
+  {
+    target: "workspace",
+    label: "Workspace page",
+    blurb: "Author against a workspace / hub.",
+  },
+  {
+    target: "both",
+    label: "Both",
+    blurb: "A design for both surfaces — preview against a talent or a workspace.",
+  },
+];
+
+/**
+ * Playground (Phase 2) — the workbench. A single "+ New" launches the editor
+ * SUBJECT-LESS against the picked target (talent / workspace / both); you choose
+ * + switch the preview subject inside the editor. The persistent draft list
+ * lands in Phase 3.
+ */
+function PlaygroundView({
+  onLaunchEditor,
+}: {
+  onLaunchEditor?: (target: BuilderLabTarget) => void;
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const launch = (target: BuilderLabTarget) => {
+    setMenuOpen(false);
+    onLaunchEditor?.(target);
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          flexWrap: "wrap",
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: T.ink }}>Playground</div>
+          <div style={{ fontSize: 12, color: T.inkMuted, marginTop: 2 }}>
+            Your workbench — start a fresh draft, pick its target, author against
+            real data inside the editor.
+          </div>
+        </div>
+
+        <div style={{ position: "relative" }}>
+          <button
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 7,
+              padding: "8px 16px",
+              borderRadius: 9,
+              border: "none",
+              background: T.accent,
+              color: "#0F0F11",
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            + New
+            <span aria-hidden style={{ fontSize: 9, opacity: 0.75 }}>
+              {menuOpen ? "▲" : "▼"}
+            </span>
+          </button>
+
+          {menuOpen ? (
+            <div
+              role="menu"
+              aria-label="New draft target"
+              style={{
+                position: "absolute",
+                top: "calc(100% + 6px)",
+                right: 0,
+                zIndex: 60,
+                width: 320,
+                maxWidth: "90vw",
+                background: T.card,
+                border: `1px solid ${T.border}`,
+                borderRadius: 12,
+                boxShadow: "0 18px 48px rgba(0,0,0,0.45)",
+                padding: 8,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: 0.6,
+                  textTransform: "uppercase",
+                  color: T.inkDim,
+                  padding: "4px 8px 6px",
+                }}
+              >
+                New draft — pick a target
+              </div>
+              {PLAYGROUND_TARGETS.map((opt) => (
+                <button
+                  key={opt.target}
+                  type="button"
+                  role="menuitem"
+                  onClick={() => launch(opt.target)}
+                  className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60"
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    textAlign: "left",
+                    background: "transparent",
+                    border: "none",
+                    borderRadius: 9,
+                    padding: "9px 10px",
+                    cursor: "pointer",
+                    color: T.ink,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = T.cardSoft;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "transparent";
+                  }}
+                >
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{opt.label}</div>
+                  <div style={{ fontSize: 11.5, color: T.inkMuted, marginTop: 2, lineHeight: 1.4 }}>
+                    {opt.blurb}
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      <div
+        style={{
+          background: T.card,
+          border: `1px solid ${T.borderSoft}`,
+          borderRadius: 12,
+          padding: "32px 20px",
+          textAlign: "center",
+        }}
+      >
+        <p style={{ fontSize: 12.5, color: T.inkMuted, margin: "0 auto", maxWidth: 480, lineHeight: 1.55 }}>
+          No saved drafts yet. Hit <strong style={{ color: T.ink }}>+ New</strong> to open a fresh
+          editor canvas. Persistence — a list of your drafts with{" "}
+          <em>All / Draft / In&nbsp;Review / Published / Archived</em> states — lands in Phase 3.
+        </p>
+      </div>
     </div>
   );
 }
