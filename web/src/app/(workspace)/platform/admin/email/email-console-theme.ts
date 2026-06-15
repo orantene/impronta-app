@@ -20,6 +20,13 @@ export const FONT_BODY = '"Inter", system-ui, sans-serif';
 export const FONT_DISPLAY = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
 export const MONO = '"SF Mono", Monaco, monospace';
 
+// Sticky offsets. The platform admin layout has two stacked sticky bars
+// (Identity 56 + PlatformTopbar 56 = 112). Our console tab bar sticks beneath
+// them, and table headers stick beneath the tab bar.
+export const PLATFORM_BARS_H = 112;
+export const TABBAR_H = 46;
+export const STICKY_THEAD_TOP = PLATFORM_BARS_H + TABBAR_H;
+
 export function relTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const m = Math.floor(diff / 60000);

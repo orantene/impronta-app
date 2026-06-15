@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState, useTransition } from "react";
+import { Fragment, useMemo, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 import type {
@@ -13,13 +13,10 @@ import type {
   SendingDomainState,
 } from "./email-data";
 import {
-  retryEmailRow,
   addSuppression,
   removeSuppression,
   sendTestEmail,
   setEventOverlay,
-  setTemplateOverride,
-  clearTemplateOverride,
   addSendingDomain,
   verifySendingDomain,
   removeSendingDomain,
@@ -29,17 +26,23 @@ import {
   FONT_BODY,
   FONT_DISPLAY,
   MONO,
-  relTime,
-  STATUS_COLOR,
+  PLATFORM_BARS_H,
+  STICKY_THEAD_TOP,
   label,
   input,
   btn,
+  relTime,
 } from "./email-console-theme";
+import {
+  Alert,
+  StatusBadge,
+  CountBadge,
+  EmptyState,
+  SearchBox,
+  RateStat,
+} from "./email-console-widgets";
+import { SendLogTable, TemplateEditor } from "./email-console-sections";
 
-type DateKey = "all" | "24h" | "7d" | "30d";
-
-// Tabs keep the console to ~one screen instead of one long scroll. Each tab's
-// content is capped at PANEL_MAX_H and scrolls internally past that.
 type ConsoleTab = "overview" | "log" | "events" | "templates" | "domains" | "suppressions";
 const CONSOLE_TABS: { key: ConsoleTab; label: string }[] = [
   { key: "overview", label: "Overview" },
@@ -49,7 +52,6 @@ const CONSOLE_TABS: { key: ConsoleTab; label: string }[] = [
   { key: "domains", label: "Domains" },
   { key: "suppressions", label: "Suppressions" },
 ];
-const PANEL_MAX_H = 600;
 
 export function EmailConsoleClient(props: {
   sendLog: EmailLogRow[];
@@ -65,64 +67,94 @@ export function EmailConsoleClient(props: {
 }) {
   const { sendLog, metrics, suppressions, domain, catalog, templates, sendingDomains, adminEmail, nowMs } = props;
   const router = useRouter();
-  const [, startTransition] = useTransition();
+  const [isPending, startTransition] = useTransition();
   const [tab, setTab] = useState<ConsoleTab>("overview");
   const refresh = () => startTransition(() => router.refresh());
 
+  const unverified = sendingDomains.filter((d) => d.verificationStatus !== "verified").length;
+  const customized = templates.filter((t) =>
+    (["en", "es"] as const).some((l) => t.byLocale[l]?.hasOverride),
+  ).length;
+  const badge: Record<ConsoleTab, ReactNode> = {
+    overview: null,
+    log: metrics.byStatus.failed ? <CountBadge n={metrics.byStatus.failed} tone="red" /> : null,
+    events: null,
+    templates: customized ? <CountBadge n={customized} tone="blue" /> : null,
+    domains: unverified ? <CountBadge n={unverified} tone="amber" /> : null,
+    suppressions: suppressions.length ? <CountBadge n={suppressions.length} tone="muted" /> : null,
+  };
+
   return (
     <div style={{ fontFamily: FONT_BODY, color: HQ.ink, paddingBottom: 60 }}>
-      <div style={{ marginBottom: 16 }}>
-        <h1 style={{ fontFamily: FONT_DISPLAY, fontSize: 28, fontWeight: 600, letterSpacing: -0.5, margin: "0 0 6px" }}>
+      <div style={{ marginBottom: 12 }}>
+        <h1 style={{ fontFamily: FONT_DISPLAY, fontSize: 26, fontWeight: 600, letterSpacing: -0.5, margin: "0 0 4px" }}>
           Email
         </h1>
-        <p style={{ color: HQ.inkMuted, margin: 0, fontSize: 14 }}>
+        <p style={{ color: HQ.inkMuted, margin: 0, fontSize: 13 }}>
           Deliverability, send log, suppressions, and diagnostics for the platform email pipeline.
         </p>
       </div>
 
-      {/* Tab bar — only one section shows at a time. */}
-      <div style={{ display: "flex", gap: 2, flexWrap: "wrap", borderBottom: `1px solid ${HQ.border}`, marginBottom: 18 }}>
-        {CONSOLE_TABS.map((t) => {
-          const active = tab === t.key;
-          return (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              style={{
-                appearance: "none",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                padding: "9px 14px",
-                fontSize: 13,
-                fontWeight: 600,
-                fontFamily: FONT_BODY,
-                color: active ? HQ.ink : HQ.inkMuted,
-                borderBottom: `2px solid ${active ? HQ.green : "transparent"}`,
-                marginBottom: -1,
-              }}
-            >
-              {t.label}
-            </button>
-          );
-        })}
+      {/* Sticky tab bar — sits beneath the two platform layout bars. */}
+      <div
+        style={{
+          position: "sticky",
+          top: PLATFORM_BARS_H,
+          zIndex: 20,
+          background: HQ.bg,
+          borderBottom: `1px solid ${HQ.border}`,
+          marginBottom: 18,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+          {CONSOLE_TABS.map((t) => {
+            const active = tab === t.key;
+            return (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                style={{
+                  appearance: "none",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: "12px 14px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  fontFamily: FONT_BODY,
+                  color: active ? HQ.ink : HQ.inkMuted,
+                  borderBottom: `2px solid ${active ? HQ.green : "transparent"}`,
+                  marginBottom: -1,
+                }}
+              >
+                {t.label}
+                {badge[t.key]}
+              </button>
+            );
+          })}
+        </div>
+        {isPending && (
+          <span style={{ fontSize: 12, color: HQ.inkMuted, paddingRight: 4 }}>Refreshing…</span>
+        )}
       </div>
 
-      {/* Active panel — capped at PANEL_MAX_H; taller content scrolls internally. */}
-      <div style={{ maxHeight: PANEL_MAX_H, overflowY: "auto", overflowX: "hidden", paddingRight: 6 }}>
-        {tab === "overview" && (
-          <>
-            <HealthBanner domain={domain} metrics={metrics} />
-            <MetricsStrip metrics={metrics} />
-            <TestSend adminEmail={adminEmail} onDone={refresh} />
-          </>
-        )}
-        {tab === "log" && <SendLogTable rows={sendLog} nowMs={nowMs} onChanged={refresh} />}
-        {tab === "events" && <EventToggles entries={catalog} onChanged={refresh} />}
-        {tab === "templates" && <TemplateEditor entries={templates} onChanged={refresh} />}
-        {tab === "domains" && <SendingDomains entries={sendingDomains} onChanged={refresh} />}
-        {tab === "suppressions" && <SuppressionPanel rows={suppressions} onChanged={refresh} />}
-      </div>
+      {tab === "overview" && (
+        <>
+          <HealthBanner domain={domain} metrics={metrics} />
+          <MetricsStrip metrics={metrics} />
+          <TestSend adminEmail={adminEmail} onDone={refresh} />
+        </>
+      )}
+      {tab === "log" && <SendLogTable rows={sendLog} nowMs={nowMs} onChanged={refresh} />}
+      {tab === "events" && <EventToggles entries={catalog} onChanged={refresh} />}
+      {tab === "templates" && <TemplateEditor entries={templates} onChanged={refresh} />}
+      {tab === "domains" && <SendingDomains entries={sendingDomains} onChanged={refresh} />}
+      {tab === "suppressions" && <SuppressionPanel rows={suppressions} onChanged={refresh} />}
     </div>
   );
 }
@@ -130,15 +162,20 @@ export function EmailConsoleClient(props: {
 // ─── Event toggles (P3b) ─────────────────────────────────────────────────────
 function EventToggles({ entries, onChanged }: { entries: CatalogEntryState[]; onChanged: () => void }) {
   const [busy, setBusy] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+
   const byCategory = useMemo(() => {
+    const s = q.toLowerCase();
+    const matched = q ? entries.filter((e) => e.id.toLowerCase().includes(s) || e.category.toLowerCase().includes(s)) : entries;
     const m = new Map<string, CatalogEntryState[]>();
-    for (const e of entries) {
+    for (const e of matched) {
       const arr = m.get(e.category) ?? [];
       arr.push(e);
       m.set(e.category, arr);
     }
     return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  }, [entries]);
+  }, [entries, q]);
+  const shown = byCategory.reduce((n, [, list]) => n + list.length, 0);
 
   async function toggle(e: CatalogEntryState, channel: "email" | "in_app", next: boolean) {
     const k = `${e.id}:${channel}`;
@@ -149,7 +186,7 @@ function EventToggles({ entries, onChanged }: { entries: CatalogEntryState[]; on
   }
 
   function Switch({ e, channel, on, has }: { e: CatalogEntryState; channel: "email" | "in_app"; on: boolean; has: boolean }) {
-    if (!has) return <span style={{ color: HQ.inkDim, fontSize: 12 }}>—</span>;
+    if (!has) return <StatusBadge label="n/a" tone="muted" title="Channel not available for this event" />;
     const locked = e.required;
     const k = `${e.id}:${channel}`;
     return (
@@ -169,27 +206,45 @@ function EventToggles({ entries, onChanged }: { entries: CatalogEntryState[]; on
           color: on ? HQ.green : HQ.inkDim,
         }}
       >
-        {on ? "ON" : "OFF"}{locked ? " ·req" : ""}
+        {locked ? "🔒 ON" : on ? "ON" : "OFF"}
       </button>
     );
   }
 
+  const th = {
+    padding: "10px 12px",
+    textAlign: "center" as const,
+    fontSize: 11,
+    color: HQ.inkMuted,
+    textTransform: "uppercase" as const,
+    letterSpacing: 0.5,
+    position: "sticky" as const,
+    top: STICKY_THEAD_TOP,
+    background: HQ.card,
+    zIndex: 2,
+    boxShadow: `inset 0 -1px 0 ${HQ.borderSoft}`,
+  };
+
   return (
-    <div style={{ marginTop: 24, marginBottom: 24 }}>
+    <div style={{ marginBottom: 24 }}>
       <div style={{ fontSize: 16, fontWeight: 600, fontFamily: FONT_DISPLAY, marginBottom: 6 }}>Events</div>
-      <p style={{ color: HQ.inkMuted, fontSize: 13, margin: "0 0 14px" }}>
-        Enable/disable each notification per channel. Required (transactional) events can&apos;t be turned off.
+      <p style={{ color: HQ.inkMuted, fontSize: 13, margin: "0 0 12px" }}>
+        Enable/disable each notification per channel. 🔒 Required (transactional) events can&apos;t be turned off.
       </p>
+      <div style={{ marginBottom: 12 }}><SearchBox value={q} onChange={setQ} placeholder="Search events…" /></div>
       <div style={{ border: `1px solid ${HQ.borderSoft}`, borderRadius: 8, overflow: "hidden" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
-            <tr style={{ background: HQ.card, borderBottom: `1px solid ${HQ.borderSoft}` }}>
-              <th style={{ padding: "10px 12px", textAlign: "left", fontSize: 11, color: HQ.inkMuted, textTransform: "uppercase", letterSpacing: 0.5 }}>Event</th>
-              <th style={{ padding: "10px 12px", textAlign: "center", fontSize: 11, color: HQ.inkMuted, textTransform: "uppercase", letterSpacing: 0.5, width: 90 }}>Email</th>
-              <th style={{ padding: "10px 12px", textAlign: "center", fontSize: 11, color: HQ.inkMuted, textTransform: "uppercase", letterSpacing: 0.5, width: 90 }}>In-app</th>
+            <tr>
+              <th style={{ ...th, textAlign: "left" }}>Event</th>
+              <th style={{ ...th, width: 90 }}>Email</th>
+              <th style={{ ...th, width: 90 }}>In-app</th>
             </tr>
           </thead>
           <tbody>
+            {shown === 0 && (
+              <tr><td colSpan={3}><EmptyState>No events match “{q}”.</EmptyState></td></tr>
+            )}
             {byCategory.map(([cat, list]) => (
               <Fragment key={cat}>
                 <tr style={{ background: "rgba(255,255,255,0.02)" }}>
@@ -207,7 +262,7 @@ function EventToggles({ entries, onChanged }: { entries: CatalogEntryState[]; on
           </tbody>
         </table>
       </div>
-      <div style={{ marginTop: 10, color: HQ.inkMuted, fontSize: 12 }}>{entries.length} catalog events.</div>
+      <div style={{ marginTop: 10, color: HQ.inkMuted, fontSize: 12 }}>Showing {shown} of {entries.length} catalog events.</div>
     </div>
   );
 }
@@ -216,8 +271,9 @@ function EventToggles({ entries, onChanged }: { entries: CatalogEntryState[]; on
 function HealthBanner({ domain, metrics }: { domain: EmailDomainStatus; metrics: EmailMetrics }) {
   const ok = domain.status === "configured";
   const trackingDark = metrics.funnel.opened === 0 && metrics.funnel.clicked === 0 && metrics.funnel.sent > 0;
+  const [dismissed, setDismissed] = useState(false);
   return (
-    <div style={{ display: "grid", gap: 12, marginBottom: 20 }}>
+    <div style={{ display: "grid", gap: 12, marginBottom: 18 }}>
       <div
         style={{
           background: HQ.card,
@@ -236,23 +292,27 @@ function HealthBanner({ domain, metrics }: { domain: EmailDomainStatus; metrics:
           </div>
           <div style={{ fontSize: 16, fontWeight: 600, fontFamily: MONO }}>{domain.effectiveFrom}</div>
         </div>
-        <span
-          style={{
-            padding: "5px 12px",
-            borderRadius: 999,
-            fontSize: 12,
-            fontWeight: 700,
-            background: ok ? "rgba(93,211,160,0.15)" : "rgba(227,179,65,0.15)",
-            color: ok ? HQ.green : HQ.amber,
-          }}
-        >
-          {ok ? "Configured ✓" : domain.status === "env_fallback" ? "Env fallback" : "Unset — using code default"}
-        </span>
+        <StatusBadge
+          tone={ok ? "green" : "amber"}
+          label={ok ? "Configured ✓" : domain.status === "env_fallback" ? "Env fallback" : "Unset — code default"}
+        />
       </div>
-      {trackingDark && (
-        <div style={{ background: "rgba(227,179,65,0.08)", border: `1px solid rgba(227,179,65,0.3)`, borderRadius: 10, padding: "12px 16px", fontSize: 13, color: HQ.amber }}>
-          ⚠ Open/click tracking shows zero across all sends. Enable Open + Click tracking for the sending domain in the Resend dashboard, and confirm the webhook subscribes to email.delivered / opened / clicked.
-        </div>
+      {metrics.byStatus.failed > 0 && (
+        <Alert tone="red" title={`${metrics.byStatus.failed} send${metrics.byStatus.failed === 1 ? "" : "s"} failed`}>
+          Open the <strong>Send log</strong> tab and use “Retry all failed” to re-send.
+        </Alert>
+      )}
+      {trackingDark && !dismissed && (
+        <Alert
+          tone="amber"
+          title="Open/click tracking is dark"
+          actionLabel="Open Resend dashboard"
+          actionHref="https://resend.com/settings"
+          onDismiss={() => setDismissed(true)}
+        >
+          No opens or clicks recorded across all sends. Enable Open + Click tracking for the sending
+          domain in Resend, and confirm the webhook subscribes to opened / clicked events.
+        </Alert>
       )}
     </div>
   );
@@ -261,33 +321,42 @@ function HealthBanner({ domain, metrics }: { domain: EmailDomainStatus; metrics:
 // ─── Metrics strip ───────────────────────────────────────────────────────────
 function MetricCard({ label: l, value, color }: { label: string; value: number | string; color?: string }) {
   return (
-    <div style={{ background: HQ.card, border: `1px solid ${HQ.borderSoft}`, borderRadius: 10, padding: "14px 16px" }}>
+    <div style={{ background: HQ.card, border: `1px solid ${HQ.borderSoft}`, borderRadius: 10, padding: "12px 14px" }}>
       <div style={{ fontSize: 11, color: HQ.inkMuted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>{l}</div>
-      <div style={{ fontSize: 24, fontWeight: 700, color: color ?? HQ.ink }}>{value}</div>
+      <div style={{ fontSize: 22, fontWeight: 700, color: color ?? HQ.ink }}>{value}</div>
     </div>
   );
 }
 
 function MetricsStrip({ metrics }: { metrics: EmailMetrics }) {
   const f = metrics.funnel;
+  const pct = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 100) : null);
+  const deliveryPct = pct(f.delivered, f.sent);
+  const openPct = pct(f.opened, f.delivered);
+  const bouncePct = pct(f.bounced, f.sent);
+  const sectionLabel = { fontSize: 11, color: HQ.inkDim, textTransform: "uppercase" as const, letterSpacing: 0.5, margin: "0 0 8px" };
+
   return (
-    <div style={{ marginBottom: 24 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(120px,1fr))", gap: 12, marginBottom: 12 }}>
+    <div style={{ marginBottom: 20 }}>
+      <div style={sectionLabel}>Deliverability</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12, marginBottom: 16 }}>
+        <RateStat label="Delivery rate" pct={deliveryPct} caption={`${f.delivered}/${f.sent} delivered`} tone="green" />
+        <RateStat label="Open rate" pct={openPct} caption={`${f.opened}/${f.delivered} opened`} tone="blue" />
+        <RateStat label="Bounce rate" pct={bouncePct} caption={`${f.bounced}/${f.sent} bounced`} tone={bouncePct && bouncePct > 5 ? "red" : "muted"} />
+      </div>
+
+      <div style={sectionLabel}>Status counts</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(110px,1fr))", gap: 12, marginBottom: 12 }}>
         <MetricCard label="Sent" value={metrics.byStatus.sent} color={HQ.green} />
         <MetricCard label="Failed" value={metrics.byStatus.failed} color={metrics.byStatus.failed ? HQ.red : HQ.ink} />
         <MetricCard label="Suppressed" value={metrics.byStatus.suppressed} color={HQ.amber} />
         <MetricCard label="Queued" value={metrics.byStatus.queued} color={metrics.byStatus.queued ? HQ.amber : HQ.ink} />
-        <MetricCard label="Sent · 30d" value={metrics.last30d.sent} />
+        <MetricCard label="Skipped" value={metrics.byStatus.skipped} color={HQ.inkDim} />
         <MetricCard label="Failed · 30d" value={metrics.last30d.failed} color={metrics.last30d.failed ? HQ.red : HQ.ink} />
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(120px,1fr))", gap: 12 }}>
-        <MetricCard label="Delivered" value={f.delivered} color={HQ.blue} />
-        <MetricCard label="Opened" value={f.opened} color={f.opened ? HQ.blue : HQ.inkDim} />
-        <MetricCard label="Clicked" value={f.clicked} color={f.clicked ? HQ.blue : HQ.inkDim} />
-        <MetricCard label="Bounced" value={f.bounced} color={f.bounced ? HQ.red : HQ.ink} />
-      </div>
+
       {metrics.topFailingEvents.length > 0 && (
-        <div style={{ marginTop: 14, background: HQ.card, border: `1px solid ${HQ.borderSoft}`, borderRadius: 10, padding: "12px 16px" }}>
+        <div style={{ background: HQ.card, border: `1px solid ${HQ.borderSoft}`, borderRadius: 10, padding: "12px 16px" }}>
           <div style={{ fontSize: 11, color: HQ.inkMuted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Top failing events</div>
           {metrics.topFailingEvents.map((e) => (
             <div key={e.eventKind} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "4px 0", fontSize: 13, borderBottom: `1px solid ${HQ.borderSoft}` }}>
@@ -323,9 +392,13 @@ function TestSend({ adminEmail, onDone }: { adminEmail: string; onDone: () => vo
     setBusy(false);
   }
 
+  const valid = to.includes("@");
   return (
     <div style={{ background: HQ.card, border: `1px solid ${HQ.borderSoft}`, borderRadius: 10, padding: 16, marginBottom: 24 }}>
-      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Send a test email</div>
+      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Send a test email</div>
+      <p style={{ color: HQ.inkDim, fontSize: 12, margin: "0 0 12px" }}>
+        Fires a real diagnostic email through the production send path. Leave tenant blank for the platform sender, or enter a tenant id to exercise its white-label resolution.
+      </p>
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr auto", gap: 12, alignItems: "end" }}>
         <div>
           <label style={label}>Recipient</label>
@@ -335,293 +408,13 @@ function TestSend({ adminEmail, onDone }: { adminEmail: string; onDone: () => vo
           <label style={label}>Tenant id (optional)</label>
           <input style={input} value={tenantId} onChange={(e) => setTenantId(e.target.value)} placeholder="platform default" />
         </div>
-        <button style={{ ...btn(HQ.green, "#06281C"), opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={fire}>
+        <button style={{ ...btn(HQ.green, "#06281C"), opacity: busy || !valid ? 0.5 : 1 }} disabled={busy || !valid} onClick={fire}>
           {busy ? "Sending…" : "Send test"}
         </button>
       </div>
       {result && (
         <div style={{ marginTop: 10, fontSize: 12, fontFamily: MONO, color: ok ? HQ.green : HQ.red }}>{result}</div>
       )}
-    </div>
-  );
-}
-
-// ─── Send-log table ──────────────────────────────────────────────────────────
-function SendLogTable({ rows, nowMs, onChanged }: { rows: EmailLogRow[]; nowMs: number; onChanged: () => void }) {
-  const [q, setQ] = useState("");
-  const [status, setStatus] = useState("all");
-  const [eventKind, setEventKind] = useState("all");
-  const [dateKey, setDateKey] = useState<DateKey>("all");
-  const [expanded, setExpanded] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
-
-  const eventKinds = useMemo(
-    () => Array.from(new Set(rows.map((r) => r.eventKind))).sort(),
-    [rows],
-  );
-
-  const filtered = useMemo(() => {
-    const dayLimit = dateKey === "24h" ? 1 : dateKey === "7d" ? 7 : dateKey === "30d" ? 30 : null;
-    return rows.filter((r) => {
-      if (dayLimit && nowMs - new Date(r.createdAtIso).getTime() > dayLimit * 86400000) return false;
-      if (status !== "all" && r.status !== status) return false;
-      if (eventKind !== "all" && r.eventKind !== eventKind) return false;
-      if (q) {
-        const s = `${r.recipientEmail ?? ""} ${r.eventKind} ${r.catalogEntryId ?? ""} ${r.errorMessage ?? ""}`.toLowerCase();
-        if (!s.includes(q.toLowerCase())) return false;
-      }
-      return true;
-    });
-  }, [rows, q, status, eventKind, dateKey, nowMs]);
-
-  async function doRetry(id: string) {
-    setBusyId(id);
-    await retryEmailRow(id);
-    setBusyId(null);
-    onChanged();
-  }
-
-  const th = { padding: "10px 12px", textAlign: "left" as const, fontWeight: 600, color: HQ.inkMuted, textTransform: "uppercase" as const, fontSize: 11, letterSpacing: 0.5 };
-  const td = { padding: "10px 12px", verticalAlign: "top" as const };
-
-  return (
-    <div style={{ marginBottom: 24 }}>
-      <div style={{ fontSize: 16, fontWeight: 600, fontFamily: FONT_DISPLAY, marginBottom: 12 }}>Send log</div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 12, marginBottom: 14 }}>
-        <div><label style={label}>Search</label><input style={input} value={q} onChange={(e) => setQ(e.target.value)} placeholder="recipient, event, error…" /></div>
-        <div>
-          <label style={label}>Status</label>
-          <select style={input} value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="all">All</option>
-            <option value="sent">sent</option>
-            <option value="failed">failed</option>
-            <option value="suppressed">suppressed</option>
-            <option value="queued">queued</option>
-            <option value="skipped">skipped</option>
-          </select>
-        </div>
-        <div>
-          <label style={label}>Event</label>
-          <select style={input} value={eventKind} onChange={(e) => setEventKind(e.target.value)}>
-            <option value="all">All</option>
-            {eventKinds.map((k) => <option key={k} value={k}>{k}</option>)}
-          </select>
-        </div>
-        <div>
-          <label style={label}>Date</label>
-          <select style={input} value={dateKey} onChange={(e) => setDateKey(e.target.value as DateKey)}>
-            <option value="all">All time</option>
-            <option value="24h">Last 24h</option>
-            <option value="7d">Last 7d</option>
-            <option value="30d">Last 30d</option>
-          </select>
-        </div>
-      </div>
-
-      <div style={{ border: `1px solid ${HQ.borderSoft}`, borderRadius: 8, overflow: "hidden" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-          <thead>
-            <tr style={{ background: HQ.card, borderBottom: `1px solid ${HQ.borderSoft}` }}>
-              <th style={th}>When</th>
-              <th style={th}>Event</th>
-              <th style={th}>Recipient</th>
-              <th style={th}>Status</th>
-              <th style={th}>Delivery</th>
-              <th style={th}></th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 && (
-              <tr><td colSpan={6} style={{ ...td, textAlign: "center", color: HQ.inkMuted, padding: 32 }}>No rows.</td></tr>
-            )}
-            {filtered.map((r) => {
-              const isOpen = expanded === r.id;
-              const canRetry = r.status === "failed" || r.status === "suppressed";
-              const deliv = [
-                r.deliveredAtIso ? "D" : null,
-                r.openedAtIso ? "O" : null,
-                r.clickedAtIso ? "C" : null,
-                r.bouncedAtIso ? "B" : null,
-                r.complaintAtIso ? "✗" : null,
-              ].filter(Boolean).join(" ");
-              return (
-                <Fragment key={r.id}>
-                  <tr style={{ borderBottom: `1px solid ${HQ.borderSoft}`, background: isOpen ? "rgba(93,211,160,0.04)" : "transparent" }}>
-                    <td style={{ ...td, color: HQ.inkMuted, whiteSpace: "nowrap" }}>{relTime(r.createdAtIso)}</td>
-                    <td style={{ ...td, fontFamily: MONO, fontSize: 12 }}>{r.catalogEntryId ?? r.eventKind}</td>
-                    <td style={{ ...td, color: HQ.inkMuted, fontFamily: MONO, fontSize: 12 }}>{r.recipientEmail ?? "—"}</td>
-                    <td style={td}>
-                      <span style={{ padding: "3px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600, background: "rgba(255,255,255,0.06)", color: STATUS_COLOR[r.status] ?? HQ.ink }}>{r.status}</span>
-                      {r.attempts > 1 && (
-                        <span title={`${r.attempts} send attempts`} style={{ marginLeft: 6, fontSize: 11, color: HQ.amber }}>×{r.attempts}</span>
-                      )}
-                    </td>
-                    <td style={{ ...td, fontFamily: MONO, fontSize: 12, color: r.bouncedAtIso ? HQ.red : HQ.inkMuted }}>{deliv || "—"}</td>
-                    <td style={{ ...td, textAlign: "right", whiteSpace: "nowrap" }}>
-                      {canRetry && (
-                        <button style={{ ...btn("rgba(106,166,243,0.15)", HQ.blue), padding: "4px 10px", fontSize: 12, opacity: busyId === r.id ? 0.5 : 1 }} disabled={busyId === r.id} onClick={() => doRetry(r.id)}>
-                          {busyId === r.id ? "…" : "Retry"}
-                        </button>
-                      )}
-                      <button onClick={() => setExpanded(isOpen ? null : r.id)} style={{ ...btn("transparent", HQ.green), padding: "4px 8px" }}>{isOpen ? "−" : "+"}</button>
-                    </td>
-                  </tr>
-                  {isOpen && (
-                    <tr>
-                      <td colSpan={6} style={{ padding: 16, background: HQ.card, borderBottom: `1px solid ${HQ.borderSoft}` }}>
-                        <Detail k="error" v={r.errorMessage} red />
-                        <Detail k="attempts" v={String(r.attempts)} />
-                        <Detail k="provider_reference" v={r.providerReference} />
-                        <Detail k="template_id" v={r.templateId} />
-                        <Detail k="tenant_id" v={r.tenantId} />
-                        <Detail k="sent_at" v={r.sentAtIso} />
-                        <Detail k="delivered_at" v={r.deliveredAtIso} />
-                        <Detail k="opened_at" v={r.openedAtIso} />
-                        <Detail k="bounced_at" v={r.bouncedAtIso} />
-                        {r.payload && (
-                          <pre style={{ marginTop: 8, padding: 8, background: "rgba(0,0,0,0.25)", border: `1px solid ${HQ.borderSoft}`, borderRadius: 4, fontSize: 11, color: HQ.inkMuted, fontFamily: MONO, overflowX: "auto", maxHeight: 180 }}>{JSON.stringify(r.payload, null, 2)}</pre>
-                        )}
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      <div style={{ marginTop: 10, color: HQ.inkMuted, fontSize: 12 }}>Showing {filtered.length} of {rows.length} logged sends.</div>
-    </div>
-  );
-}
-
-function Detail({ k, v, red }: { k: string; v: string | null; red?: boolean }) {
-  if (!v) return null;
-  return (
-    <div style={{ display: "flex", gap: 12, padding: "2px 0", fontSize: 12 }}>
-      <span style={{ color: HQ.inkDim, minWidth: 130, fontFamily: MONO }}>{k}</span>
-      <span style={{ color: red ? HQ.red : HQ.inkMuted, fontFamily: MONO, wordBreak: "break-all" }}>{v}</span>
-    </div>
-  );
-}
-
-// ─── Template editor (P3b) ───────────────────────────────────────────────────
-const TEMPLATE_LOCALES = ["en", "es"] as const;
-
-function TemplateEditor({ entries, onChanged }: { entries: TemplateOverrideState[]; onChanged: () => void }) {
-  const [openId, setOpenId] = useState<string | null>(null);
-  const [locale, setLocale] = useState<string>("en");
-  const [draft, setDraft] = useState<{ subject: string; body: string; enabled: boolean }>({
-    subject: "",
-    body: "",
-    enabled: true,
-  });
-  const [busy, setBusy] = useState(false);
-
-  function loadDraft(e: TemplateOverrideState, loc: string) {
-    const o = e.byLocale[loc];
-    setDraft({ subject: o?.subject ?? "", body: o?.body ?? "", enabled: o?.hasOverride ? o.enabled : true });
-  }
-  function open(e: TemplateOverrideState) {
-    if (openId === e.id) {
-      setOpenId(null);
-      return;
-    }
-    setOpenId(e.id);
-    setLocale("en");
-    loadDraft(e, "en");
-  }
-  function switchLocale(e: TemplateOverrideState, loc: string) {
-    setLocale(loc);
-    loadDraft(e, loc);
-  }
-  async function save(e: TemplateOverrideState) {
-    setBusy(true);
-    await setTemplateOverride({
-      catalogEntryId: e.id,
-      locale,
-      subject: draft.subject,
-      body: draft.body,
-      enabled: draft.enabled,
-    });
-    setBusy(false);
-    setOpenId(null);
-    onChanged();
-  }
-  async function reset(e: TemplateOverrideState) {
-    setBusy(true);
-    await clearTemplateOverride({ catalogEntryId: e.id, locale });
-    setBusy(false);
-    setOpenId(null);
-    onChanged();
-  }
-
-  return (
-    <div style={{ marginBottom: 24 }}>
-      <div style={{ fontSize: 16, fontWeight: 600, fontFamily: FONT_DISPLAY, marginBottom: 6 }}>Templates</div>
-      <p style={{ color: HQ.inkMuted, fontSize: 13, margin: "0 0 14px" }}>
-        Override an email&apos;s subject + body per locale, without a deploy. Blank fields keep the
-        code default. Placeholders: <code style={{ fontFamily: MONO }}>{"{{name}}"}</code>,{" "}
-        <code style={{ fontFamily: MONO }}>{"{{brand}}"}</code>. The tenant&apos;s default_locale
-        picks which override renders (en fallback); a bad override always falls back to the code template.
-      </p>
-      <div style={{ border: `1px solid ${HQ.borderSoft}`, borderRadius: 8, overflow: "hidden" }}>
-        {entries.map((e) => {
-          const activeLocales = TEMPLATE_LOCALES.filter((l) => e.byLocale[l]?.hasOverride && e.byLocale[l]?.enabled);
-          return (
-            <div key={e.id} style={{ borderBottom: `1px solid ${HQ.borderSoft}` }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "8px 12px" }}>
-                <span style={{ fontFamily: MONO, fontSize: 12 }}>{e.id}</span>
-                <span style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                  {activeLocales.map((l) => (
-                    <span key={l} style={{ fontSize: 11, fontWeight: 700, color: HQ.green, textTransform: "uppercase" }}>{l}</span>
-                  ))}
-                  <button style={{ ...btn("transparent", HQ.blue), padding: "4px 10px", fontSize: 12 }} onClick={() => open(e)}>
-                    {openId === e.id ? "Close" : "Edit"}
-                  </button>
-                </span>
-              </div>
-              {openId === e.id && (
-                <div style={{ padding: 12, background: HQ.card, display: "grid", gap: 10 }}>
-                  <div>
-                    <label style={label}>Locale</label>
-                    <select style={{ ...input, width: 120 }} value={locale} onChange={(ev) => switchLocale(e, ev.target.value)}>
-                      {TEMPLATE_LOCALES.map((l) => (
-                        <option key={l} value={l}>{l}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={label}>Subject (blank = code default)</label>
-                    <input style={input} value={draft.subject} onChange={(ev) => setDraft({ ...draft, subject: ev.target.value })} placeholder="custom subject…" />
-                  </div>
-                  <div>
-                    <label style={label}>Body (blank = code body)</label>
-                    <textarea
-                      style={{ ...input, minHeight: 120, fontFamily: MONO, lineHeight: 1.5, resize: "vertical" }}
-                      value={draft.body}
-                      onChange={(ev) => setDraft({ ...draft, body: ev.target.value })}
-                      placeholder={"Hi {{name}},\n\nYour message…"}
-                    />
-                  </div>
-                  <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: HQ.inkMuted }}>
-                    <input type="checkbox" checked={draft.enabled} onChange={(ev) => setDraft({ ...draft, enabled: ev.target.checked })} /> Override active
-                  </label>
-                  <div style={{ display: "flex", gap: 10 }}>
-                    <button style={{ ...btn(HQ.green, "#06281C"), opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={() => save(e)}>Save</button>
-                    {e.byLocale[locale]?.hasOverride && (
-                      <button style={{ ...btn("transparent", HQ.red), border: `1px solid rgba(243,103,114,0.3)`, opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={() => reset(e)}>
-                        Reset {locale} to code default
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      <div style={{ marginTop: 10, color: HQ.inkMuted, fontSize: 12 }}>{entries.length} email templates · {TEMPLATE_LOCALES.join(" / ")}.</div>
     </div>
   );
 }
@@ -657,7 +450,7 @@ function SendingDomains({ entries, onChanged }: { entries: SendingDomainState[];
     setBusyTenant(null);
     onChanged();
   }
-  const statusColor = (s: string) => (s === "verified" ? HQ.green : s === "failed" ? HQ.red : HQ.amber);
+  const tone = (s: string): "green" | "red" | "amber" => (s === "verified" ? "green" : s === "failed" ? "red" : "amber");
   const th = { padding: "6px 10px", textAlign: "left" as const, color: HQ.inkMuted, fontSize: 10, textTransform: "uppercase" as const };
 
   return (
@@ -677,7 +470,7 @@ function SendingDomains({ entries, onChanged }: { entries: SendingDomainState[];
         {err && <div style={{ color: HQ.red, fontSize: 12, marginTop: 10 }}>{err}</div>}
       </div>
       {entries.length === 0 ? (
-        <div style={{ color: HQ.inkMuted, fontSize: 13 }}>No white-label domains yet — every tenant uses the platform sender.</div>
+        <EmptyState>No white-label domains yet — every tenant uses the platform sender.</EmptyState>
       ) : (
         <div style={{ display: "grid", gap: 12 }}>
           {entries.map((d) => (
@@ -688,7 +481,7 @@ function SendingDomains({ entries, onChanged }: { entries: SendingDomainState[];
                   <div style={{ fontSize: 12, color: HQ.inkDim }}>{d.agencyName ?? d.tenantId}</div>
                 </div>
                 <span style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: statusColor(d.verificationStatus), textTransform: "uppercase" }}>{d.verificationStatus}{d.connected ? " · live" : ""}</span>
+                  <StatusBadge tone={tone(d.verificationStatus)} label={`${d.verificationStatus}${d.connected ? " · live" : ""}`} />
                   <button style={{ ...btn("rgba(106,166,243,0.15)", HQ.blue), padding: "4px 10px", fontSize: 12, opacity: busyTenant === d.tenantId ? 0.5 : 1 }} disabled={busyTenant === d.tenantId} onClick={() => verify(d.tenantId)}>{busyTenant === d.tenantId ? "…" : "Verify"}</button>
                   <button style={{ ...btn("transparent", HQ.red), padding: "4px 10px", fontSize: 12, border: `1px solid rgba(243,103,114,0.3)` }} disabled={busyTenant === d.tenantId} onClick={() => remove(d.tenantId)}>Remove</button>
                 </span>
@@ -729,6 +522,13 @@ function SuppressionPanel({ rows, onChanged }: { rows: SuppressionRow[]; onChang
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+
+  const filtered = useMemo(() => {
+    if (!q) return rows;
+    const s = q.toLowerCase();
+    return rows.filter((r) => `${r.email ?? ""} ${r.reason ?? ""} ${r.source ?? ""} ${r.notes ?? ""}`.toLowerCase().includes(s));
+  }, [rows, q]);
 
   async function add() {
     setBusy(true);
@@ -745,19 +545,22 @@ function SuppressionPanel({ rows, onChanged }: { rows: SuppressionRow[]; onChang
   }
 
   return (
-    <div style={{ background: HQ.card, border: `1px solid ${HQ.borderSoft}`, borderRadius: 10, padding: 16 }}>
+    <div style={{ background: HQ.card, border: `1px solid ${HQ.borderSoft}`, borderRadius: 10, padding: 16, marginBottom: 24 }}>
       <div style={{ fontSize: 16, fontWeight: 600, fontFamily: FONT_DISPLAY, marginBottom: 12 }}>Suppressions ({rows.length})</div>
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 2fr auto", gap: 12, alignItems: "end", marginBottom: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 2fr auto", gap: 12, alignItems: "end", marginBottom: 12 }}>
         <div><label style={label}>Email to suppress</label><input style={input} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="bounced@example.com" /></div>
         <div><label style={label}>Notes</label><input style={input} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="reason (optional)" /></div>
         <button style={{ ...btn(HQ.amber, "#2A2206"), opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={add}>Suppress</button>
       </div>
       {err && <div style={{ color: HQ.red, fontSize: 12, marginBottom: 10 }}>{err}</div>}
+      {rows.length > 0 && <div style={{ marginBottom: 12 }}><SearchBox value={q} onChange={setQ} placeholder="Search suppressions…" /></div>}
       {rows.length === 0 ? (
-        <div style={{ color: HQ.inkMuted, fontSize: 13 }}>No suppressed addresses.</div>
+        <EmptyState>No suppressed addresses.</EmptyState>
+      ) : filtered.length === 0 ? (
+        <EmptyState>No suppressions match “{q}”.</EmptyState>
       ) : (
         <div style={{ display: "grid", gap: 6 }}>
-          {rows.map((s) => (
+          {filtered.map((s) => (
             <div key={s.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "8px 10px", border: `1px solid ${HQ.borderSoft}`, borderRadius: 6, fontSize: 13 }}>
               <span style={{ fontFamily: MONO }}>{s.email}</span>
               <span style={{ color: HQ.inkDim, fontSize: 12, flex: 1 }}>{s.reason}{s.source ? ` · ${s.source}` : ""}{s.notes ? ` · ${s.notes}` : ""} · {relTime(s.createdAtIso)}</span>
