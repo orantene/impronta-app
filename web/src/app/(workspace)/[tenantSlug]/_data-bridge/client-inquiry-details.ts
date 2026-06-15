@@ -183,6 +183,10 @@ export type ClientInquiryDetails = {
       unit_price: number;
       total_price: number;
       talent_name: string | null;
+      /** S18 — name of the talent services-menu item this line was prefilled
+       *  from (resolved from source_service_id ⨯ talent_profiles.services_menu).
+       *  null = hand-authored or service no longer in the menu. */
+      service_name: string | null;
     }>;
     /**
      * Audit #12-A (client side): the CLIENT's own approval status on THIS offer.
@@ -280,6 +284,23 @@ const CLIENT_VISIBLE_EVENT_TYPES = new Set<string>([
   "booking_confirmed",
 ]);
 
+/**
+ * S18 — resolve a talent services-menu item NAME from its id by scanning the
+ * talent's services_menu jsonb (ServiceMenuItem[]). Degrades to null when the
+ * stamp is absent or the service was since removed from the menu. Pure + total.
+ */
+function resolveServiceName(sourceServiceId: string | null, servicesMenu: unknown): string | null {
+  if (!sourceServiceId || !Array.isArray(servicesMenu)) return null;
+  for (const item of servicesMenu) {
+    if (item && typeof item === "object"
+      && (item as { id?: unknown }).id === sourceServiceId) {
+      const name = (item as { name?: unknown }).name;
+      return typeof name === "string" && name.trim() ? name.trim() : null;
+    }
+  }
+  return null;
+}
+
 // ─── Loader ─────────────────────────────────────────────────────────────────
 
 export async function loadClientInquiryDetails(
@@ -373,8 +394,8 @@ export async function loadClientInquiryDetails(
                deposit_pct, deposit_amount_cents, balance_collection_method, refund_policy_key,
                inquiry_offer_line_items (
                  id, label, pricing_unit, units, unit_price, total_price,
-                 sort_order,
-                 talent_profiles!talent_profile_id ( display_name, first_name, last_name )
+                 sort_order, source_service_id, talent_profile_id,
+                 talent_profiles!talent_profile_id ( display_name, first_name, last_name, services_menu )
                )`,
             )
             .eq("id", inq.current_offer_id)
@@ -520,10 +541,13 @@ export async function loadClientInquiryDetails(
       unit_price: number;
       total_price: number;
       sort_order: number | null;
+      source_service_id: string | null;
+      talent_profile_id: string | null;
       talent_profiles: {
         display_name: string | null;
         first_name: string | null;
         last_name: string | null;
+        services_menu: unknown;
       } | null;
     };
     type OfferRow = {
@@ -543,7 +567,20 @@ export async function loadClientInquiryDetails(
       refund_policy_key: RefundPolicyKey | null;
       inquiry_offer_line_items: OfferLineRow[] | null;
     };
-    const offerRow = offerRes.data as OfferRow | null;
+    const offerRowRaw = offerRes.data as OfferRow | null;
+    // L4-F2 — client money confidentiality: never surface an offer the client
+    // isn't allowed to see yet. The service-role read above bypasses the
+    // inquiry_offers_client_select RLS (status IN ('sent','accepted')), so a
+    // `draft` offer's line items, per-talent rates, and total_client_price would
+    // reach the client while the coordinator is still pricing it — and the
+    // line-sum self-heal only runs at sendOffer, so a draft can show a stale
+    // total != charged. Gate to the RLS-visible statuses; anything else (draft /
+    // superseded / invalidated) => treat as "no offer yet".
+    const CLIENT_VISIBLE_OFFER_STATUSES = new Set(["sent", "accepted"]);
+    const offerRow =
+      offerRowRaw && CLIENT_VISIBLE_OFFER_STATUSES.has(offerRowRaw.status)
+        ? offerRowRaw
+        : null;
     // Audit #12-A (client side): read the CLIENT's own approval on this offer so
     // the OfferTab stops re-showing Approve/Counter/Decline after they approve
     // (the multi-party gate keeps the offer `sent` until everyone is in). Read
@@ -597,6 +634,7 @@ export async function loadClientInquiryDetails(
                 ln.talent_profiles?.display_name?.trim()
                 || `${ln.talent_profiles?.first_name ?? ""} ${ln.talent_profiles?.last_name ?? ""}`.trim()
                 || null,
+              service_name: resolveServiceName(ln.source_service_id, ln.talent_profiles?.services_menu),
             })),
           myApprovalStatus: clientApprovalStatus,
           commercialTerms: offerRow.balance_collection_method

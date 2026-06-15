@@ -461,17 +461,49 @@ export async function markPaid(
         // 6.3 deposits: a deposit payment is NOT a confirmed booking — emit a
         // balance-due card instead of the "booking confirmed" milestone. The
         // balance charge later emits the real booking_confirmed.
+        //
+        // Surface the REMAINING balance (booking total − deposit just paid), not
+        // just the deposit — so the client sees exactly what's still owed in the
+        // thread (matching the deposit email). Private thread only: the balance
+        // amount never reaches the amount-free group mirror. Format matches
+        // clientChargeLabel ("USD 1,030": code prefix, grouped, no decimals).
+        let balanceLabel = "";
+        try {
+          const sbBal = createServiceRoleClient();
+          if (sbBal && result.data.bookingId && result.data.grossAmountCents) {
+            const { data: bk } = await sbBal
+              .from("agency_bookings")
+              .select("total_client_revenue, currency_code")
+              .eq("id", result.data.bookingId)
+              .maybeSingle();
+            const totalMajor = bk?.total_client_revenue != null ? Number(bk.total_client_revenue) : null;
+            if (totalMajor != null) {
+              const remainingMajor = Math.max(0, totalMajor - result.data.grossAmountCents / 100);
+              if (remainingMajor > 0) {
+                const cur = bk?.currency_code ?? result.data.currency ?? "USD";
+                balanceLabel = `${cur} ${remainingMajor.toLocaleString()}`;
+              }
+            }
+          }
+        } catch (balErr) {
+          logServerError("transactions.markPaid.balanceLabel", balErr);
+        }
         sb.from("inquiry_messages").insert({
           inquiry_id: result.data.sourceInquiryId,
           tenant_id: result.data.sourceTenantId,
           thread_type: "private",
           sender_user_id: null,
-          body: `Deposit received: ${amountLabel} — balance due`,
+          body: balanceLabel
+            ? `Deposit received: ${amountLabel} — ${balanceLabel} balance due`
+            : `Deposit received: ${amountLabel} — balance due`,
           message_kind: "balance_due",
           card_payload: {
             deposit_label: amountLabel,
+            balance_label: balanceLabel || undefined,
             transaction_id: result.data.id,
-            hint: "Pay the remaining balance to confirm the booking.",
+            hint: balanceLabel
+              ? `${balanceLabel} remaining — pay the balance to confirm the booking.`
+              : "Pay the remaining balance to confirm the booking.",
           },
         }).then((r) => {
           if (r.error) logServerError("transactions.markPaid.balanceDueCard", r.error);

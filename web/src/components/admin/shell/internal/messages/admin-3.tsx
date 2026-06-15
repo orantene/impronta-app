@@ -344,6 +344,7 @@ export function renderChatCardForMessage(
       return (
         <BalanceDueCard
           depositLabel={get<string>("deposit_label", "")}
+          balanceLabel={get<string>("balance_label", "") || undefined}
           hint={get<string>("hint", "")}
         />
       );

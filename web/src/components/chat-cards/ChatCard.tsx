@@ -299,19 +299,35 @@ export function BookingConfirmedCard(props: {
  */
 export function BalanceDueCard(props: {
   depositLabel?: string;
+  /** Remaining balance still owed (booking total − deposit). When present it
+   *  becomes the prominent meta + the Pay-balance CTA label, and the deposit
+   *  drops into the summary line. 6.3 polish — private thread only. */
+  balanceLabel?: string;
   hint?: string;
   onPayBalance?: () => void;
 }) {
-  const { depositLabel, hint, onPayBalance } = props;
+  const { depositLabel, balanceLabel, hint, onPayBalance } = props;
   const actions: ChatCardShellProps["actions"] = [];
-  if (onPayBalance) actions.push({ label: "Pay balance", onClick: onPayBalance, tone: "primary" });
+  if (onPayBalance) {
+    actions.push({
+      label: balanceLabel ? `Pay ${balanceLabel} balance` : "Pay balance",
+      onClick: onPayBalance,
+      tone: "primary",
+    });
+  }
+  const summary = hint
+    ?? (balanceLabel
+      ? `Deposit of ${depositLabel ?? "your deposit"} is paid and your spot is held. ${balanceLabel} remains, due before the date.`
+      : "The deposit is paid and your spot is held. The remaining balance is due before the date.");
   return (
     <ChatCardShell
       tone="info"
-      kind="Deposit"
+      kind="Balance due"
       title="Deposit received — balance due"
-      summary={hint ?? "The deposit is paid and your spot is held. The remaining balance is due before the date."}
-      meta={depositLabel || undefined}
+      summary={summary}
+      // Lead with the remaining balance (the actionable number); fall back to
+      // the deposit amount when the balance isn't resolved.
+      meta={balanceLabel || depositLabel || undefined}
       actions={actions}
       icon={
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none">

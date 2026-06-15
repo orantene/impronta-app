@@ -231,6 +231,11 @@ function LineItemsTable({
                 <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 2 }}>
                   {ln.units} × {formatMoney(ln.unit_price, offer.currency)} / {ln.pricing_unit}
                 </div>
+                {ln.service_name && ln.service_name !== ln.label && (
+                  <div style={{ fontSize: 11, color: C.inkDim, marginTop: 2 }}>
+                    from {ln.service_name}
+                  </div>
+                )}
               </td>
               <td
                 style={{
