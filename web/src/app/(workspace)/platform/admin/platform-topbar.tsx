@@ -34,6 +34,7 @@ const TABS = [
   { id: "email",      label: "Email",       segment: "email"      },
   { id: "catalog",    label: "Profile Fields", segment: "catalog" },
   { id: "taxonomy",   label: "Taxonomy",    segment: "taxonomy"   },
+  { id: "languages",  label: "Languages",   segment: "languages"  },
   { id: "builder-lab", label: "Builder Lab", segment: "builder-lab" },
   { id: "settings",   label: "Settings",    segment: "settings"   },
   { id: "audit-log", label: "Audit Log",   segment: "audit-log" },
