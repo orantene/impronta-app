@@ -450,6 +450,12 @@ export function WorkspaceSettingsDrawer() {
   const [defaultLocale, setDefaultLocale] = useState<Locale>("en");
   const [activeLocales, setActiveLocales] = useState<Locale[]>(["en"]);
   const [showLanguageSwitcher, setShowLanguageSwitcher] = useState(true);
+  // Selectable languages — sourced from the `app_locales` registry via
+  // loadWorkspaceAccountSettings (no longer a hardcoded ["en","es"] list).
+  // Seeded with EN so the picker is never empty before the load resolves.
+  const [availableLocales, setAvailableLocales] = useState<
+    { code: Locale; labelNative: string; labelEn: string }[]
+  >([{ code: "en", labelNative: "English", labelEn: "English" }]);
   const [timezone, setTimezone] = useState("America/Cancun");
   const [currency, setCurrency] = useState("USD");
   const [firstDay, setFirstDay] = useState("Monday");
@@ -462,6 +468,7 @@ export function WorkspaceSettingsDrawer() {
       try {
         const res = await loadWorkspaceAccountSettings();
         if (res.ok) {
+          if (res.data.availableLocales.length) setAvailableLocales(res.data.availableLocales);
           setDefaultLocale(res.data.defaultLocale);
           setActiveLocales(res.data.activeLocales.length ? res.data.activeLocales : [res.data.defaultLocale]);
           setShowLanguageSwitcher(res.data.showLanguageSwitcher);
@@ -472,29 +479,45 @@ export function WorkspaceSettingsDrawer() {
     })();
   }, [tenantSlug]);
 
-  // Map prototype-friendly labels to canonical values + back.
-  const localeOptions = [
-    { label: "English", value: "en" as const },
-    { label: "Español", value: "es" as const },
-  ];
-  const localeLabel = localeOptions.find((o) => o.value === defaultLocale)?.label ?? "English";
+  // Display label for a locale: native, plus the English name in parens when
+  // it differs (so "Español (Spanish)" but just "English").
+  const labelFor = useCallback((code: Locale): string => {
+    const opt = availableLocales.find((o) => o.code === code);
+    if (!opt) return code.toUpperCase();
+    return opt.labelNative === opt.labelEn
+      ? opt.labelNative
+      : `${opt.labelNative} (${opt.labelEn})`;
+  }, [availableLocales]);
+
+  // The active list ORDER expresses priority (primary first → ordered
+  // secondary). Keep the default/primary at index 0 whenever we mutate it so
+  // the saved `supported_locales` array order is [primary, ...secondary].
+  const orderPrimaryFirst = useCallback((list: Locale[], primary: Locale): Locale[] => {
+    const rest = list.filter((l) => l !== primary);
+    return list.includes(primary) ? [primary, ...rest] : rest;
+  }, []);
+
+  const localeLabel = labelFor(defaultLocale);
   const handleLocaleChange = (label: string) => {
-    const match = localeOptions.find((o) => o.label === label);
+    const match = availableLocales.find((o) => labelFor(o.code) === label);
     if (!match) return;
-    setDefaultLocale(match.value);
+    setDefaultLocale(match.code);
     setActiveLocales((current) =>
-      current.includes(match.value) ? current : [...current, match.value],
+      orderPrimaryFirst(
+        current.includes(match.code) ? current : [...current, match.code],
+        match.code,
+      ),
     );
   };
   const toggleActiveLocale = (code: Locale, checked: boolean) => {
-    const next = checked
+    const union = checked
       ? Array.from(new Set([...activeLocales, code]))
       : activeLocales.filter((l) => l !== code);
-    if (next.length === 0) return;
-    if (!next.includes(defaultLocale)) {
-      setDefaultLocale(next[0] ?? "en");
-    }
-    setActiveLocales(next);
+    if (union.length === 0) return;
+    // If we just removed the current primary, promote the first survivor.
+    const nextPrimary = union.includes(defaultLocale) ? defaultLocale : (union[0] ?? "en");
+    if (nextPrimary !== defaultLocale) setDefaultLocale(nextPrimary);
+    setActiveLocales(orderPrimaryFirst(union, nextPrimary));
   };
   const languagePreview =
     activeLocales.length > 1 && showLanguageSwitcher
@@ -511,6 +534,16 @@ export function WorkspaceSettingsDrawer() {
           "{language}",
           activeLocales[0]?.toUpperCase() ?? defaultLocale.toUpperCase(),
         );
+
+  // Render the active-languages checklist primary-first (active locales in
+  // their saved priority order), then the remaining registry options — so the
+  // UI order mirrors the persisted `supported_locales` priority.
+  const orderedLocaleOptions: Locale[] = (() => {
+    const inactive = availableLocales
+      .map((o) => o.code)
+      .filter((c) => !activeLocales.includes(c));
+    return [...activeLocales, ...inactive];
+  })();
 
   const currencyOptions = [
     { label: "USD $", value: "USD" },
@@ -567,27 +600,27 @@ export function WorkspaceSettingsDrawer() {
       <Section title={tt("Language & localization")} framed>
         <FieldRow label={tt("Default public language")}>
           <SelectInput
-            options={localeOptions.map((o) => o.label)}
+            options={availableLocales.map((o) => labelFor(o.code))}
             value={localeLabel}
             onChange={handleLocaleChange}
           />
         </FieldRow>
         <FieldRow label={tt("Active public languages")}>
           <div className="flex flex-col gap-2" style={{ fontFamily: FONTS.body }}>
-            {localeOptions.map((opt) => {
-              const checked = activeLocales.includes(opt.value);
+            {orderedLocaleOptions.map((code) => {
+              const checked = activeLocales.includes(code);
               const locked = checked && activeLocales.length === 1;
               return (
-                <label key={opt.value} className="flex items-center gap-2 text-admin-ink" style={{ fontSize: 13 }}>
+                <label key={code} className="flex items-center gap-2 text-admin-ink" style={{ fontSize: 13 }}>
                   <input
                     type="checkbox"
                     checked={checked}
                     disabled={locked}
-                    onChange={(e) => toggleActiveLocale(opt.value, e.currentTarget.checked)}
+                    onChange={(e) => toggleActiveLocale(code, e.currentTarget.checked)}
                     className="size-4 cursor-pointer rounded border-admin-border"
                   />
-                  <span>{opt.label}</span>
-                  {opt.value === defaultLocale ? (
+                  <span>{labelFor(code)}</span>
+                  {code === defaultLocale ? (
                     <span style={{ fontSize: 10.5 }} className="text-admin-ink-muted">
                       {tt("default")}
                     </span>

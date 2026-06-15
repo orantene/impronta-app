@@ -28,6 +28,7 @@ import {
   type Locale,
 } from "@/lib/site-admin/locales";
 import { invalidateTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
+import { fetchLanguageSettings } from "@/lib/language-settings/fetch-language-settings";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
 
 // ─── Branding ────────────────────────────────────────────────────────────────
@@ -405,6 +406,25 @@ async function updateCanonicalWorkspaceLanguageSettings({
     return { ok: false, error: "Default language must be active." };
   }
 
+  // Registry gate (replaces the dropped en/es-only DB CHECK): every chosen
+  // locale must be an ENABLED PUBLIC locale in the `app_locales` registry.
+  // The registry — not a hardcoded union — is the platform source of truth for
+  // which languages a tenant may publish. Reads are TTL-free here (settings
+  // saves are rare) and degrade safely: a registry-read failure falls back to
+  // the BCP-47 shape check the schema already enforced (never blocks a save on
+  // a transient DB blip).
+  const language = await fetchLanguageSettings(supabase).catch(() => null);
+  if (language) {
+    const allowedPublic = new Set(language.publicLocales);
+    const rejected = nextActive.filter((l) => !allowedPublic.has(l));
+    if (rejected.length > 0) {
+      return {
+        ok: false,
+        error: `Unsupported language${rejected.length > 1 ? "s" : ""}: ${rejected.join(", ")}. Enable it in the platform language registry first.`,
+      };
+    }
+  }
+
   const nextVersion = (currentIdentity?.version ?? 0) + 1;
   const publicName =
     currentIdentity?.public_name?.trim() ||
@@ -575,6 +595,15 @@ export async function loadAgencyAutoAck(): Promise<LoadAutoAckResult> {
 
 // ─── Load workspace account + fields settings ────────────────────────────────
 
+/** A selectable language sourced from the `app_locales` registry. */
+export type AgencyLocaleOption = {
+  code: Locale;
+  /** Native label, e.g. "Español". */
+  labelNative: string;
+  /** English label, e.g. "Spanish". */
+  labelEn: string;
+};
+
 export type AgencyAccountSettings = {
   displayName: string | null;
   contactEmail: string | null;
@@ -584,6 +613,14 @@ export type AgencyAccountSettings = {
   activeLocales: Locale[];
   showLanguageSwitcher: boolean;
   preferredCurrency: string | null;
+  /**
+   * Languages the agency may pick from — the ENABLED PUBLIC locales in the
+   * platform `app_locales` registry. Replaces the old hardcoded en/es list in
+   * the Workspace settings drawer. Always includes any locale already active
+   * for this tenant (so a previously-saved language never silently disappears
+   * from the picker even if it was later disabled in the registry).
+   */
+  availableLocales: AgencyLocaleOption[];
 };
 
 export type LoadAccountResult =
@@ -595,7 +632,11 @@ export async function loadWorkspaceAccountSettings(): Promise<LoadAccountResult>
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
-  const [{ data: agency, error }, { data: identity, error: identityError }] = await Promise.all([
+  const [
+    { data: agency, error },
+    { data: identity, error: identityError },
+    language,
+  ] = await Promise.all([
     supabase
     .from("agencies")
     .select("display_name, settings, preferred_currency, supported_locales")
@@ -604,6 +645,7 @@ export async function loadWorkspaceAccountSettings(): Promise<LoadAccountResult>
     tenantScopedQuery(supabase, "agency_business_identity", tenantId)
       .select("default_locale, supported_locales, show_language_switcher")
       .maybeSingle(),
+    fetchLanguageSettings(supabase).catch(() => null),
   ]);
 
   if (error) {
@@ -638,6 +680,32 @@ export async function loadWorkspaceAccountSettings(): Promise<LoadAccountResult>
     : activeLocales[0] ?? DEFAULT_PLATFORM_LOCALE;
   const showLanguageSwitcher = identityRow?.show_language_switcher ?? true;
 
+  // Registry-sourced picker options (enabled PUBLIC locales). Union with any
+  // locale already active for this tenant so a previously-saved language is
+  // never dropped from the UI if the registry later disables it.
+  const labelByCode = new Map<string, { labelNative: string; labelEn: string }>();
+  for (const row of language?.locales ?? []) {
+    labelByCode.set(row.code, { labelNative: row.label_native, labelEn: row.label_en });
+  }
+  const optionCodes: string[] = [];
+  const seen = new Set<string>();
+  const pushCode = (code: string) => {
+    if (!isLocale(code) || seen.has(code)) return;
+    seen.add(code);
+    optionCodes.push(code);
+  };
+  for (const code of language?.publicLocales ?? []) pushCode(code);
+  for (const code of activeLocales) pushCode(code);
+  if (optionCodes.length === 0) pushCode(defaultLocale);
+  const availableLocales: AgencyLocaleOption[] = optionCodes.map((code) => {
+    const labels = labelByCode.get(code);
+    return {
+      code,
+      labelNative: labels?.labelNative ?? code.toUpperCase(),
+      labelEn: labels?.labelEn ?? code.toUpperCase(),
+    };
+  });
+
   return {
     ok: true,
     data: {
@@ -649,6 +717,7 @@ export async function loadWorkspaceAccountSettings(): Promise<LoadAccountResult>
       activeLocales,
       showLanguageSwitcher,
       preferredCurrency: typeof agency?.preferred_currency === "string" ? agency.preferred_currency : null,
+      availableLocales,
     },
   };
 }

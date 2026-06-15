@@ -28,6 +28,7 @@ import {
   brandingFormSchema,
 } from "./index";
 import { resolveTenantLocale, buildTenantLocaleSettings } from "./server/locale-resolver";
+import { resolveTalentLocale } from "./server/talent-locale";
 
 // ---- invariants -----------------------------------------------------------
 
@@ -306,5 +307,31 @@ test("resolveTenantLocale falls back to default for null/empty/invalid", () => {
     const r = resolveTenantLocale(settings, req);
     assert.equal(r.locale, "en", `req=${String(req)} should fall back to en`);
     assert.equal(r.isFallback, true);
+  }
+});
+
+// ---- resolveTalentLocale (WS2 / R1) ---------------------------------------
+
+test("resolveTalentLocale honors a supported preference", () => {
+  const settings = buildTenantLocaleSettings("en", ["en", "es"], true);
+  const r = resolveTalentLocale(settings, "es");
+  assert.equal(r.locale, "es");
+  assert.equal(r.isPreferred, true);
+});
+
+test("resolveTalentLocale inherits agency default when preference is null", () => {
+  const settings = buildTenantLocaleSettings("es", ["es", "en"], true);
+  const r = resolveTalentLocale(settings, null);
+  assert.equal(r.locale, "es");
+  assert.equal(r.isPreferred, false);
+});
+
+test("resolveTalentLocale falls back when preference is not in the agency set", () => {
+  // Agency dropped "fr" — a stale talent preference must not render it.
+  const settings = buildTenantLocaleSettings("en", ["en", "es"], true);
+  for (const pref of ["fr", "pt-BR", "", "EN ", undefined]) {
+    const r = resolveTalentLocale(settings, pref);
+    assert.equal(r.locale, "en", `pref=${String(pref)} should fall back to agency default`);
+    assert.equal(r.isPreferred, false);
   }
 });

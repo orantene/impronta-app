@@ -4,6 +4,7 @@ import { SettingsSectionIcon } from "@/components/admin/settings/settings-sectio
 import { CommercialBookingTermsCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/CommercialBookingTermsCard";
 import { TalentServicesMenuCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/TalentServicesMenuCard";
 import { DefaultCurrencyCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/DefaultCurrencyCard";
+import { PreferredLanguageCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/PreferredLanguageCard";
 import { ProfileVisibilityCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/ProfileVisibilityCard";
 import { TalentPlanCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/TalentPlanCard";
 import { PasskeysCard } from "../../modern-features";
@@ -73,6 +74,15 @@ export function SettingsPage() {
           would fail. */}
       {bridgeTalentSelfProfile && (
         <DefaultCurrencyCard />
+      )}
+
+      {/* WS2 / R1 — Preferred language. Overrides the agency default for the
+          talent's own dashboard + the default language of their public page,
+          constrained to the agency's supported set. Same bridged-profile gate
+          as DefaultCurrencyCard (the mock prototype user has no talent_profiles
+          row, so the self-scoped load/save would fail). */}
+      {bridgeTalentSelfProfile && (
+        <PreferredLanguageCard />
       )}
 
       {/* Commercial booking terms — talent's preferred deposit / refund /

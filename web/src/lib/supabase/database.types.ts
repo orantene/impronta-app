@@ -11262,6 +11262,7 @@ export type Database = {
           package_teasers: Json
           phone: string | null
           phone_e164: string | null
+          preferred_locale: string | null
           profile_code: string
           profile_completeness_pct: number | null
           profile_completeness_score: number
@@ -11357,6 +11358,7 @@ export type Database = {
           package_teasers?: Json
           phone?: string | null
           phone_e164?: string | null
+          preferred_locale?: string | null
           profile_code: string
           profile_completeness_pct?: number | null
           profile_completeness_score?: number
@@ -11452,6 +11454,7 @@ export type Database = {
           package_teasers?: Json
           phone?: string | null
           phone_e164?: string | null
+          preferred_locale?: string | null
           profile_code?: string
           profile_completeness_pct?: number | null
           profile_completeness_score?: number
