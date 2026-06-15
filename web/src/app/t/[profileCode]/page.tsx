@@ -25,6 +25,11 @@ import { resolveAccountHref, getAppUrl } from "@/lib/auth-flow";
 import { signOut } from "@/app/auth/actions";
 import { stripLocaleFromPathname } from "@/i18n/pathnames";
 import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
+import {
+  localizeLanguageName,
+  localizeSpeakingLevel,
+  localizeLanguageFlag,
+} from "@/lib/i18n/language-names";
 import { headers } from "next/headers";
 import { getFavoriteTalentIds, getSavedTalentIds } from "@/lib/public-discovery";
 import { readPublicSidebarVisibility } from "@/lib/field-engine/read-source-public-sidebar";
@@ -879,14 +884,18 @@ async function fetchPublicAvailability(
  * actually unlock client filters (host/sell/translate). Native flag
  * subsumes the level.
  */
-function formatLanguageRow(row: TalentLanguageRow): string {
-  const level = row.is_native ? "native" : row.speaking_level;
+function formatLanguageRow(row: TalentLanguageRow, locale: string): string {
+  const name = localizeLanguageName(row.language_code, row.language_name, locale);
+  const level = localizeSpeakingLevel(
+    row.is_native ? "native" : row.speaking_level,
+    locale,
+  );
   const flags: string[] = [];
-  if (row.can_host) flags.push("host");
-  if (row.can_sell) flags.push("sell");
-  if (row.can_translate) flags.push("translate");
+  if (row.can_host) flags.push(localizeLanguageFlag("host", locale));
+  if (row.can_sell) flags.push(localizeLanguageFlag("sell", locale));
+  if (row.can_translate) flags.push(localizeLanguageFlag("translate", locale));
   const flagsTail = flags.length > 0 ? ` · ${flags.join(", ")}` : "";
-  return `${row.language_name} (${level}${flagsTail})`;
+  return `${name} (${level}${flagsTail})`;
 }
 
 function pickFieldLabel(locale: string, en: string, es?: string | null): string {
@@ -1737,7 +1746,7 @@ export default async function PublicTalentProfilePage({
   // Languages come solely from the canonical talent_languages table now —
   // the legacy taxonomy `grouped["language"]` fallback was retired when the
   // taxonomy language terms were consolidated into talent_languages.
-  const languages: string[] = structuredLanguages.map(formatLanguageRow);
+  const languages: string[] = structuredLanguages.map((r) => formatLanguageRow(r, locale));
   const homeBaseLabel: string | null = structuredServiceAreas.find(s => s.service_kind === "home_base")
     ?.locations?.[locale === "es" ? "display_name_es" : "display_name_en"]
     ?? null;
