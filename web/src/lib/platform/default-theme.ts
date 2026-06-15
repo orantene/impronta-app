@@ -60,7 +60,17 @@ type PlatformDefaultThemeRow = {
   default_theme_tokens: unknown;
   default_component_styles: unknown;
   default_theme_preset_slug: string | null;
+  // Per-surface TALENT override (Builder Lab → Site Defaults → Talent). NULL on
+  // any column → the surface falls back to the shared (agency) default above.
+  default_theme_tokens_talent: unknown;
+  default_component_styles_talent: unknown;
+  default_theme_preset_slug_talent: string | null;
 };
+
+/** Which surface's default to read/write. "workspace" = the shared default that
+ *  every new tenant inherits (and the historical single default); "talent" = the
+ *  talent-page override, which falls back to the shared default when unset. */
+export type PlatformThemeSurface = "talent" | "workspace";
 
 /**
  * Coerce a stored jsonb token blob into a string→string map. Non-string values
@@ -82,7 +92,9 @@ function asTokenMap(raw: unknown): Record<string, string> {
  * theme. Stored tokens are re-validated against the registry as defence-in-depth.
  */
 export const loadPlatformDefaultTheme = cache(
-  async (): Promise<PlatformDefaultTheme> => {
+  async (
+    surface: PlatformThemeSurface = "workspace",
+  ): Promise<PlatformDefaultTheme> => {
     const fallback = modernFallback();
     try {
       const admin = createServiceRoleClient();
@@ -90,22 +102,45 @@ export const loadPlatformDefaultTheme = cache(
       const { data } = await admin
         .from("platform_settings")
         .select(
-          "default_theme_tokens, default_component_styles, default_theme_preset_slug",
+          "default_theme_tokens, default_component_styles, default_theme_preset_slug, default_theme_tokens_talent, default_component_styles_talent, default_theme_preset_slug_talent",
         )
         .eq("id", true)
         .maybeSingle()
         .returns<PlatformDefaultThemeRow>();
-      if (!data || data.default_theme_tokens == null) return fallback;
+      if (!data) return fallback;
 
-      const tokens = validateThemePatch(asTokenMap(data.default_theme_tokens)).normalized;
-      // If the stored tokens validated to nothing, treat the row as empty.
-      if (Object.keys(tokens).length === 0) return fallback;
+      // The shared (agency) default — what every new tenant inherits, and the
+      // talent fallback when no talent-specific override is set.
+      const shared = ((): PlatformDefaultTheme => {
+        if (data.default_theme_tokens == null) return fallback;
+        const tokens = validateThemePatch(asTokenMap(data.default_theme_tokens)).normalized;
+        if (Object.keys(tokens).length === 0) return fallback;
+        return {
+          tokens,
+          componentStyles: normalizeComponentStyleDefaults(data.default_component_styles),
+          presetSlug: data.default_theme_preset_slug ?? DEFAULT_THEME_PRESET_SLUG,
+        };
+      })();
 
-      return {
-        tokens,
-        componentStyles: normalizeComponentStyleDefaults(data.default_component_styles),
-        presetSlug: data.default_theme_preset_slug ?? DEFAULT_THEME_PRESET_SLUG,
-      };
+      if (surface === "workspace") return shared;
+
+      // Talent: prefer the talent override; fall back to the shared default.
+      if (data.default_theme_tokens_talent != null) {
+        const tTokens = validateThemePatch(
+          asTokenMap(data.default_theme_tokens_talent),
+        ).normalized;
+        if (Object.keys(tTokens).length > 0) {
+          return {
+            tokens: tTokens,
+            componentStyles: normalizeComponentStyleDefaults(
+              data.default_component_styles_talent,
+            ),
+            presetSlug:
+              data.default_theme_preset_slug_talent ?? DEFAULT_THEME_PRESET_SLUG,
+          };
+        }
+      }
+      return shared;
     } catch (err) {
       logServerError("platform.loadDefaultTheme", err);
       return fallback;
@@ -120,6 +155,7 @@ export const loadPlatformDefaultTheme = cache(
  * can't land in the singleton that seeds every new site.
  */
 export async function writePlatformDefaultTheme(
+  surface: PlatformThemeSurface,
   updatedBy: string,
   input: {
     tokens: Record<string, string>;
@@ -134,12 +170,23 @@ export async function writePlatformDefaultTheme(
     const tokens = validateThemePatch(input.tokens).normalized;
     const componentStyles = normalizeComponentStyleDefaults(input.componentStyles);
 
+    const surfacePatch =
+      surface === "talent"
+        ? {
+            default_theme_tokens_talent: tokens,
+            default_component_styles_talent: componentStyles,
+            default_theme_preset_slug_talent: input.presetSlug,
+          }
+        : {
+            default_theme_tokens: tokens,
+            default_component_styles: componentStyles,
+            default_theme_preset_slug: input.presetSlug,
+          };
+
     const { error } = await admin
       .from("platform_settings")
       .update({
-        default_theme_tokens: tokens,
-        default_component_styles: componentStyles,
-        default_theme_preset_slug: input.presetSlug,
+        ...surfacePatch,
         default_theme_updated_at: new Date().toISOString(),
         default_theme_updated_by: updatedBy,
       })

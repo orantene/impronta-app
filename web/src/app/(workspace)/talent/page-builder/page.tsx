@@ -101,7 +101,7 @@ export default async function TalentPageBuilderRoute() {
         // (Modern 2026) — NOT the host tenant's (e.g. Impronta's black/gold)
         // component styles, which would render white-on-white buttons on the
         // new light canvas. Operator overrides (a non-empty slice) win.
-        const platformDefault = await loadPlatformDefaultTheme();
+        const platformDefault = await loadPlatformDefaultTheme("talent");
         talentComponentStyleDefaults =
           Object.keys(slice.componentStyles).length > 0
             ? slice.componentStyles

@@ -19,16 +19,27 @@
  *   - Save/Publish so every new site inherits it.
  */
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 
 import { resolvePlatformDefaultThemeActionSet } from "@/components/edit-chrome/theme-action-scope";
 import { listThemePresets } from "@/lib/site-admin/presets/theme-presets";
-
-// The `platform_default` route — stable module-level action set (its two moves
-// are plain server-action references), resolved once so the load effect has a
-// stable dependency.
-const PLATFORM_DEFAULT_ACTIONS = resolvePlatformDefaultThemeActionSet();
+import type { PlatformThemeSurface } from "@/lib/platform/default-theme";
 import type { ComponentStyleDefaults } from "@/lib/site-admin/builder-node/component-style-defaults";
+
+// Which surface's default the operator is editing. The shared (agency) default
+// is what every new tenant inherits; the talent override falls back to it.
+const SURFACE_TABS: ReadonlyArray<{ key: PlatformThemeSurface; label: string; blurb: string }> = [
+  {
+    key: "workspace",
+    label: "Agency Site Defaults",
+    blurb: "The shared default every new agency / workspace inherits.",
+  },
+  {
+    key: "talent",
+    label: "Talent Site Defaults",
+    blurb: "The default for new talent pages — falls back to the agency default when unset.",
+  },
+];
 
 const T = {
   card: "#16161A",
@@ -76,7 +87,12 @@ function asHex(value: string | undefined): string {
 }
 
 export function SiteDefaultsEditor() {
-  const actions = PLATFORM_DEFAULT_ACTIONS;
+  const [surface, setSurface] = useState<PlatformThemeSurface>("workspace");
+  // Per-surface action set (talent override vs the shared/agency default).
+  const actions = useMemo(
+    () => resolvePlatformDefaultThemeActionSet(surface),
+    [surface],
+  );
 
   const [loading, setLoading] = useState(true);
   const [tokens, setTokens] = useState<Record<string, string>>({});
@@ -90,12 +106,15 @@ export function SiteDefaultsEditor() {
 
   useEffect(() => {
     let alive = true;
+    setLoading(true);
+    setStatus(null);
     void actions.load().then((r) => {
       if (!alive) return;
       if (r.ok) {
         setTokens({ ...r.theme.tokens });
         setComponentStyles(r.theme.componentStyles);
         setPresetSlug(r.theme.presetSlug);
+        setLoadError(null);
       } else {
         setLoadError(r.error);
       }
@@ -128,20 +147,58 @@ export function SiteDefaultsEditor() {
       const r = await actions.save({ tokens, componentStyles, presetSlug });
       setStatus(
         r.ok
-          ? { ok: true, msg: "Saved — every new tenant + talent page now inherits this." }
+          ? {
+              ok: true,
+              msg:
+                surface === "talent"
+                  ? "Saved — new talent pages now inherit this."
+                  : "Saved — every new agency / workspace now inherits this.",
+            }
           : { ok: false, msg: `Failed: ${r.error}` },
       );
     });
   };
 
-  if (loading) {
-    return <div style={{ color: T.inkMuted, fontSize: 13, padding: "12px 0" }}>Loading Site Default…</div>;
-  }
-  if (loadError) {
-    return <div style={{ color: "#f0a8a8", fontSize: 13, padding: "12px 0" }}>{loadError}</div>;
-  }
+  const activeTab = SURFACE_TABS.find((t) => t.key === surface);
 
   return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Surface toggle — Agency (shared) vs Talent (override) */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ display: "inline-flex", background: T.cardSoft, borderRadius: 999, padding: 3, alignSelf: "flex-start" }}>
+          {SURFACE_TABS.map((t) => {
+            const on = surface === t.key;
+            return (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => setSurface(t.key)}
+                style={{
+                  background: on ? T.ink : "transparent",
+                  color: on ? "#0F0F11" : T.inkMuted,
+                  border: "none",
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  padding: "7px 16px",
+                  borderRadius: 999,
+                  cursor: "pointer",
+                }}
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+        {activeTab ? (
+          <div style={{ fontSize: 12, color: T.inkMuted }}>{activeTab.blurb}</div>
+        ) : null}
+      </div>
+
+      {loading ? (
+        <div style={{ color: T.inkMuted, fontSize: 13, padding: "12px 0" }}>Loading Site Default…</div>
+      ) : loadError ? (
+        <div style={{ color: "#f0a8a8", fontSize: 13, padding: "12px 0" }}>{loadError}</div>
+      ) : (
     <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 340px", gap: 16, alignItems: "start" }}>
       {/* ── Controls ── */}
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
@@ -272,6 +329,8 @@ export function SiteDefaultsEditor() {
 
       {/* ── Live preview ── */}
       <SitePreview tokens={tokens} />
+    </div>
+      )}
     </div>
   );
 }

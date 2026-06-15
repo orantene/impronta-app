@@ -187,7 +187,7 @@ export async function loadTalentDesignAction(input: {
   const resolved = await resolveOwnTalentPageRow(input.pageSlug);
   if (!resolved.ok) return { ok: false, error: resolved.error, code: resolved.code };
   try {
-    const platformDefault = await loadPlatformDefaultTheme();
+    const platformDefault = await loadPlatformDefaultTheme("talent");
     const slice = readTalentDesignSlice(resolved.row.theme);
     return snapshotFromSlice(slice, platformDefault.tokens);
   } catch (error) {

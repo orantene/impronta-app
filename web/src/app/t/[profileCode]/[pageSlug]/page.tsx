@@ -130,7 +130,7 @@ export default async function PublicTalentFreeformPage({
   // defaults take precedence; otherwise inherit the PLATFORM DEFAULT (Modern
   // 2026) — NOT the host tenant's (Impronta black/gold) which would render
   // white-on-white buttons on the light canvas. Mirrors the talent editor.
-  const platformDefault = await loadPlatformDefaultTheme();
+  const platformDefault = await loadPlatformDefaultTheme("talent");
   void tenantComponentStyleDefaults; // host-tenant defaults intentionally not used as the talent fallback
   const componentStyleDefaults =
     talentComponentStyleDefaults && Object.keys(talentComponentStyleDefaults).length > 0
