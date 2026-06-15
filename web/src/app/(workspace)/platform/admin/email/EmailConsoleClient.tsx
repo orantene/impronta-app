@@ -24,78 +24,32 @@ import {
   verifySendingDomain,
   removeSendingDomain,
 } from "./actions";
-
-// ─── HQ design tokens (match the platform admin dark theme) ──────────────────
-const HQ = {
-  bg: "#0F0F11",
-  card: "#16161A",
-  border: "rgba(255,255,255,0.10)",
-  borderSoft: "rgba(255,255,255,0.06)",
-  ink: "#F5F2EB",
-  inkMuted: "rgba(245,242,235,0.62)",
-  inkDim: "rgba(245,242,235,0.38)",
-  green: "#5DD3A0",
-  amber: "#E3B341",
-  red: "#F36772",
-  blue: "#6AA6F3",
-} as const;
-const FONT_BODY = '"Inter", system-ui, sans-serif';
-const FONT_DISPLAY = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
-const MONO = '"SF Mono", Monaco, monospace';
-
-function relTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const m = Math.floor(diff / 60000);
-  const h = Math.floor(diff / 3600000);
-  const d = Math.floor(diff / 86400000);
-  if (m < 1) return "just now";
-  if (m < 60) return `${m}m ago`;
-  if (h < 24) return `${h}h ago`;
-  if (d < 7) return `${d}d ago`;
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
-const STATUS_COLOR: Record<string, string> = {
-  sent: HQ.green,
-  failed: HQ.red,
-  suppressed: HQ.amber,
-  queued: HQ.inkMuted,
-  skipped: HQ.inkDim,
-};
-
-const label = {
-  display: "block",
-  fontSize: 11,
-  fontWeight: 600,
-  color: HQ.inkMuted,
-  marginBottom: 6,
-  textTransform: "uppercase",
-  letterSpacing: 0.5,
-} as const;
-const input = {
-  width: "100%",
-  padding: "8px 12px",
-  fontSize: 13,
-  fontFamily: FONT_BODY,
-  background: HQ.card,
-  border: `1px solid ${HQ.border}`,
-  borderRadius: 6,
-  color: HQ.ink,
-  boxSizing: "border-box" as const,
-};
-const btn = (bg: string, fg: string) => ({
-  padding: "8px 14px",
-  fontSize: 13,
-  fontWeight: 600,
-  fontFamily: FONT_BODY,
-  background: bg,
-  color: fg,
-  border: "none",
-  borderRadius: 6,
-  cursor: "pointer",
-});
+import {
+  HQ,
+  FONT_BODY,
+  FONT_DISPLAY,
+  MONO,
+  relTime,
+  STATUS_COLOR,
+  label,
+  input,
+  btn,
+} from "./email-console-theme";
 
 type DateKey = "all" | "24h" | "7d" | "30d";
+
+// Tabs keep the console to ~one screen instead of one long scroll. Each tab's
+// content is capped at PANEL_MAX_H and scrolls internally past that.
+type ConsoleTab = "overview" | "log" | "events" | "templates" | "domains" | "suppressions";
+const CONSOLE_TABS: { key: ConsoleTab; label: string }[] = [
+  { key: "overview", label: "Overview" },
+  { key: "log", label: "Send log" },
+  { key: "events", label: "Events" },
+  { key: "templates", label: "Templates" },
+  { key: "domains", label: "Domains" },
+  { key: "suppressions", label: "Suppressions" },
+];
+const PANEL_MAX_H = 600;
 
 export function EmailConsoleClient(props: {
   sendLog: EmailLogRow[];
@@ -112,10 +66,12 @@ export function EmailConsoleClient(props: {
   const { sendLog, metrics, suppressions, domain, catalog, templates, sendingDomains, adminEmail, nowMs } = props;
   const router = useRouter();
   const [, startTransition] = useTransition();
+  const [tab, setTab] = useState<ConsoleTab>("overview");
+  const refresh = () => startTransition(() => router.refresh());
 
   return (
     <div style={{ fontFamily: FONT_BODY, color: HQ.ink, paddingBottom: 60 }}>
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: 16 }}>
         <h1 style={{ fontFamily: FONT_DISPLAY, fontSize: 28, fontWeight: 600, letterSpacing: -0.5, margin: "0 0 6px" }}>
           Email
         </h1>
@@ -124,14 +80,49 @@ export function EmailConsoleClient(props: {
         </p>
       </div>
 
-      <HealthBanner domain={domain} metrics={metrics} />
-      <MetricsStrip metrics={metrics} />
-      <TestSend adminEmail={adminEmail} onDone={() => startTransition(() => router.refresh())} />
-      <SendLogTable rows={sendLog} nowMs={nowMs} onChanged={() => startTransition(() => router.refresh())} />
-      <EventToggles entries={catalog} onChanged={() => startTransition(() => router.refresh())} />
-      <TemplateEditor entries={templates} onChanged={() => startTransition(() => router.refresh())} />
-      <SendingDomains entries={sendingDomains} onChanged={() => startTransition(() => router.refresh())} />
-      <SuppressionPanel rows={suppressions} onChanged={() => startTransition(() => router.refresh())} />
+      {/* Tab bar — only one section shows at a time. */}
+      <div style={{ display: "flex", gap: 2, flexWrap: "wrap", borderBottom: `1px solid ${HQ.border}`, marginBottom: 18 }}>
+        {CONSOLE_TABS.map((t) => {
+          const active = tab === t.key;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              style={{
+                appearance: "none",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: "9px 14px",
+                fontSize: 13,
+                fontWeight: 600,
+                fontFamily: FONT_BODY,
+                color: active ? HQ.ink : HQ.inkMuted,
+                borderBottom: `2px solid ${active ? HQ.green : "transparent"}`,
+                marginBottom: -1,
+              }}
+            >
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Active panel — capped at PANEL_MAX_H; taller content scrolls internally. */}
+      <div style={{ maxHeight: PANEL_MAX_H, overflowY: "auto", overflowX: "hidden", paddingRight: 6 }}>
+        {tab === "overview" && (
+          <>
+            <HealthBanner domain={domain} metrics={metrics} />
+            <MetricsStrip metrics={metrics} />
+            <TestSend adminEmail={adminEmail} onDone={refresh} />
+          </>
+        )}
+        {tab === "log" && <SendLogTable rows={sendLog} nowMs={nowMs} onChanged={refresh} />}
+        {tab === "events" && <EventToggles entries={catalog} onChanged={refresh} />}
+        {tab === "templates" && <TemplateEditor entries={templates} onChanged={refresh} />}
+        {tab === "domains" && <SendingDomains entries={sendingDomains} onChanged={refresh} />}
+        {tab === "suppressions" && <SuppressionPanel rows={suppressions} onChanged={refresh} />}
+      </div>
     </div>
   );
 }
