@@ -67,6 +67,12 @@ export interface CatalogOverlayRow {
   category_override: string | null;
   required_plan_override: PlanKey | null;
   availability_override: "available" | "hidden" | null;
+  // Builder Studio (Wave 0 plumbing; behavior in WS-C). Optional so existing
+  // overlay-row constructors/tests don't need updating; the DB always supplies them.
+  default_props?: Record<string, unknown> | null;
+  locked_props?: string[];
+  default_variant?: string | null;
+  data_source_defaults?: Record<string, unknown> | null;
 }
 
 /** Overlay rows keyed by `item_ref` (= AddGalleryItem.id). */
@@ -211,6 +217,13 @@ export function applyCatalogOverlay(
       icon: ov.icon_override ?? item.icon,
       category: ov.category_override ?? item.category,
       requiredPlan: morePlanRestrictive(item.requiredPlan, ov.required_plan_override),
+      // Builder Studio governance carry (Wave 0 plumbing; behavior in WS-C).
+      defaultProps: ov.default_props ?? item.defaultProps,
+      lockedProps:
+        ov.locked_props && ov.locked_props.length > 0
+          ? ov.locked_props
+          : item.lockedProps,
+      dataSourceDefaults: ov.data_source_defaults ?? item.dataSourceDefaults,
     });
   }
   return out;
@@ -320,6 +333,10 @@ export function builderTemplateRowToGalleryItem(
     requiredPlan: row.required_plan,
     targetContext: row.target_context,
     requiredTalentTier: row.required_talent_tier,
+    // Builder Studio governance carry (Wave 0 plumbing; behavior in WS-C).
+    defaultProps: row.default_props,
+    lockedProps: row.locked_props,
+    dataSourceDefaults: row.data_source_defaults,
     ...(row.data_binding_requirements.length > 0
       ? { connectedSource: "Live data" }
       : {}),
@@ -337,6 +354,8 @@ export interface GalleryMergeContext {
   plan?: PlanKey | null;
   /** Surface talent tier for required_talent_tier gating (§E). */
   talentTier?: string | null;
+  /** Builder Studio — live tenant id for staged-rollout bucketing (WS-D). */
+  tenantId?: string | null;
 }
 
 /**

@@ -2174,6 +2174,8 @@ export function EditProvider({
       surfaceTarget: gallerySurfaceTarget,
       plan: normalizedWorkspacePlan || null,
       talentTier: gallerySurfaceTier,
+      // Builder Studio — live tenant id for staged-rollout bucketing (WS-D).
+      tenantId: tenantId || null,
     }),
     [
       galleryTabsKey,
@@ -2181,6 +2183,7 @@ export function EditProvider({
       gallerySurfaceTarget,
       normalizedWorkspacePlan,
       gallerySurfaceTier,
+      tenantId,
     ],
   );
 

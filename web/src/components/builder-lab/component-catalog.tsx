@@ -27,6 +27,7 @@ import {
   type CatalogAdminItem,
   type CatalogOverlayRow,
 } from "@/lib/site-admin/add-gallery";
+import { CODE_TAB_DEFS } from "@/lib/site-admin/add-gallery/catalog-structure";
 import { loadCatalogAdminView } from "@/lib/site-admin/add-gallery/catalog-admin-view-action";
 import {
   clearComponentOverlay,
@@ -64,21 +65,13 @@ import {
   EmptyCard,
 } from "./ui";
 
-const ALL_TABS: ReadonlyArray<AddGalleryTab> = [
-  "layout",
-  "elements",
-  "sections",
-  "connected",
-  "page_templates",
-];
-
-const TAB_LABEL: Record<AddGalleryTab, string> = {
-  layout: "Layout",
-  elements: "Elements",
-  sections: "Sections",
-  connected: "Connected",
-  page_templates: "Page Templates",
-};
+// Single source — derived from the Builder Studio catalog-structure resolver
+// (was duplicated with add-gallery-panel.tsx's TAB_DEFS). WS-B threads loaded
+// structure for admin tab rename/reorder; code defaults verbatim otherwise.
+const ALL_TABS: ReadonlyArray<AddGalleryTab> = CODE_TAB_DEFS.map((t) => t.id);
+const TAB_LABEL = Object.fromEntries(
+  CODE_TAB_DEFS.map((t) => [t.id, t.label]),
+) as Record<AddGalleryTab, string>;
 
 // Special (non-gallery) Catalog views shown after the component categories.
 const SPECIAL_TABS = ["site_starter_kit", "site_defaults", "playground"] as const;

@@ -34,6 +34,8 @@ export interface BuilderNodeBase {
   kind: BuilderNodeKind;
   /** P3-LOCK — per-node editorial lock (selection-layer + inspector + layers row honor it). Patched via props; carried by validate's base-field allow-list. */
   locked?: boolean;
+  /** Builder Studio — per-PROP locks (dot-paths, e.g. "tone", "style.textColor"). Admin-set; read-only in the inspector + stripped from patches in patchBuilderNodeProps. Carried by validate's base-field allow-list (see prop-lock.ts). */
+  lockedProps?: string[];
   /** Wave 5B (#38) — OPTIONAL conditional visibility (locale / auth / variant), evaluated at `shouldRenderNode`; node omitted when unmatched, undefined → always shown. See visibility.ts. */
   visibilityCondition?: BuilderVisibilityCondition;
 }

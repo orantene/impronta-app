@@ -23,6 +23,7 @@ import {
 import { performAddGalleryInsert } from "@/lib/site-admin/add-gallery/perform-insert";
 import { armAddGalleryDrag, clearAddGalleryDrag } from "@/lib/site-admin/add-gallery/drag";
 import { galleryItemSupportsDrag } from "@/lib/site-admin/add-gallery/insert";
+import { resolveTabs } from "@/lib/site-admin/add-gallery/catalog-structure";
 
 import { useEditContext } from "../edit-context";
 import { useBuilderTree } from "../builder-tree-bridge";
@@ -35,16 +36,12 @@ import { AddGallerySectionPreview } from "./add-gallery-section-previews";
 const PANEL_WIDTH = 592;
 const PANEL_MAX_HEIGHT = "min(78vh, 640px)";
 
-/** Canonical tab order + labels. The visible set is the intersection with the
- *  surface's `gallerySurface.allowedTabs` — homepage stays 4 tabs; workspace /
- *  talent / lab also get the DB-backed "Templates" tab. */
-const TAB_DEFS: ReadonlyArray<{ id: AddGalleryTab; label: string }> = [
-  { id: "layout", label: "Layout" },
-  { id: "elements", label: "Elements" },
-  { id: "sections", label: "Sections" },
-  { id: "connected", label: "Connected" },
-  { id: "page_templates", label: "Page Templates" },
-];
+/** Canonical tab order + labels — the SINGLE source (Builder Studio
+ *  catalog-structure resolver; was duplicated with component-catalog.tsx). The
+ *  visible set is the intersection with `gallerySurface.allowedTabs`. WS-B
+ *  threads loaded structure into `resolveTabs(...)` for admin rename/reorder;
+ *  with no structure this is the code default verbatim. */
+const TAB_DEFS: ReadonlyArray<{ id: AddGalleryTab; label: string }> = resolveTabs();
 
 interface AddGalleryPanelProps {
   open: boolean;
