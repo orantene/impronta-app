@@ -32,8 +32,10 @@ export type TalentTaxonomyAssignment = {
   displayOrder: number;
   termSlug: string;
   termNameEn: string;
+  termNameEs: string | null;
   termType: string;
   parentNameEn: string | null;
+  parentNameEs: string | null;
 };
 
 export type TalentLanguageRow = {
@@ -155,6 +157,7 @@ export async function loadTalentTaxonomy(
       taxonomy_terms:taxonomy_term_id (
         slug,
         name_en,
+        name_es,
         term_type,
         parent_id
       )
@@ -185,21 +188,22 @@ export async function loadTalentTaxonomy(
       | { parent_id?: string | null } | null;
     if (t?.parent_id) parentIds.push(t.parent_id);
   }
-  const parentMap = new Map<string, string>();
+  const parentMap = new Map<string, { en: string; es: string | null }>();
   if (parentIds.length > 0) {
     const { data: parents } = await admin
       .from("taxonomy_terms")
-      .select("id, name_en")
+      .select("id, name_en, name_es")
       .in("id", parentIds);
-    for (const p of (parents ?? []) as { id: string; name_en: string | null }[]) {
-      parentMap.set(p.id, p.name_en ?? "—");
+    for (const p of (parents ?? []) as { id: string; name_en: string | null; name_es: string | null }[]) {
+      parentMap.set(p.id, { en: p.name_en ?? "—", es: p.name_es });
     }
   }
 
   return rows.map((r): TalentTaxonomyAssignment => {
     const term = (Array.isArray(r.taxonomy_terms) ? r.taxonomy_terms[0] : r.taxonomy_terms) as
-      | { slug?: string; name_en?: string | null; term_type?: string | null; parent_id?: string | null }
+      | { slug?: string; name_en?: string | null; name_es?: string | null; term_type?: string | null; parent_id?: string | null }
       | null;
+    const parent = term?.parent_id ? parentMap.get(term.parent_id) ?? null : null;
     return {
       termId: r.taxonomy_term_id,
       relationshipType: r.relationship_type,
@@ -209,8 +213,10 @@ export async function loadTalentTaxonomy(
       displayOrder: r.display_order,
       termSlug: term?.slug ?? "",
       termNameEn: term?.name_en ?? term?.slug ?? "",
+      termNameEs: term?.name_es ?? null,
       termType: term?.term_type ?? "",
-      parentNameEn: term?.parent_id ? parentMap.get(term.parent_id) ?? null : null,
+      parentNameEn: parent?.en ?? null,
+      parentNameEs: parent?.es ?? null,
     };
   });
 }

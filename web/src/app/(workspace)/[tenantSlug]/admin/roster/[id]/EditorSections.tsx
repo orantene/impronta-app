@@ -179,7 +179,7 @@ function TermChip({
 function TaxonomyBucketEditor({
   tenantSlug, talentId, bucketKey, bucketLabel, bucketDescription,
   acceptTermTypes, allTerms, currentAssignments,
-  isPrimary, t,
+  isPrimary, t, locale,
 }: {
   tenantSlug: string;
   talentId: string;
@@ -191,7 +191,9 @@ function TaxonomyBucketEditor({
   currentAssignments: TalentTaxonomyAssignment[];
   isPrimary: boolean;
   t: (key: string) => string;
+  locale: string;
 }) {
+  const isEs = locale === "es";
   const router = useRouter();
   const [pendingTerm, setPendingTerm] = useState<string | null>(null);
   const [, startMutation] = useTransition();
@@ -209,7 +211,7 @@ function TaxonomyBucketEditor({
     if (!search.trim()) return eligibleTerms.slice(0, 80);
     const q = search.toLowerCase();
     return eligibleTerms.filter((t) =>
-      (t.nameEn + " " + t.slug + " " + (t.parentNameEn ?? "")).toLowerCase().includes(q),
+      (t.nameEn + " " + (t.nameEs ?? "") + " " + t.slug + " " + (t.parentNameEn ?? "")).toLowerCase().includes(q),
     ).slice(0, 80);
   }, [eligibleTerms, search]);
 
@@ -271,8 +273,8 @@ function TaxonomyBucketEditor({
         ) : currentAssignments.map((a) => (
           <TermChip
             key={a.termId}
-            label={a.termNameEn}
-            parent={a.parentNameEn}
+            label={(isEs && a.termNameEs) || a.termNameEn}
+            parent={(isEs && a.parentNameEs) || a.parentNameEn}
             pending={pendingTerm === a.termId}
             onRemove={() => handleRemove(a.termId)}
           />
@@ -322,7 +324,7 @@ function TaxonomyBucketEditor({
                     {t.parentNameEn} ›
                   </span>
                 )}
-                <span className="font-semibold">{t.nameEn}</span>
+                <span className="font-semibold">{(isEs && t.nameEs) || t.nameEn}</span>
                 <span style={{ flex: 1 }} />
                 <span style={{
                   fontSize: 9.5, color: C.inkDim,
@@ -376,6 +378,7 @@ export function TaxonomySection({
             currentAssignments={currentAssignments.filter((a) => a.relationshipType === b.key)}
             isPrimary={b.key === "primary_role"}
             t={t}
+            locale={locale}
           />
         );
       })}

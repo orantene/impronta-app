@@ -721,7 +721,7 @@ function WorkflowSidebar({
               fontFamily: F,
             }}
           >
-            Full representation →
+            {t("admin.talent.edit.sidebar.fullRepresentation")}
           </button>
         </div>
 
@@ -736,12 +736,10 @@ function WorkflowSidebar({
             }}
           >
             <div style={{ fontSize: 12, fontWeight: 700, color: C.amber, marginBottom: 2 }}>
-              Hidden by talent
+              {t("admin.talent.edit.sidebar.hiddenByTalentTitle")}
             </div>
             <div style={{ fontSize: 11, color: C.inkMuted, lineHeight: 1.45 }}>
-              This talent has hidden their profile across all of Tulala. They
-              will not appear publicly until they unhide it — your setting below
-              is saved but has no effect meanwhile.
+              {t("admin.talent.edit.sidebar.hiddenByTalentBody")}
             </div>
           </div>
         )}
@@ -778,12 +776,16 @@ function WorkflowSidebar({
           </span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>
-              {visible ? (isFeatured ? "Featured" : "Visible") : "Roster only"}
+              {visible
+                ? (isFeatured
+                    ? t("admin.talent.edit.sidebar.stateFeatured")
+                    : t("admin.talent.edit.sidebar.stateVisible"))
+                : t("admin.talent.edit.sidebar.stateRosterOnly")}
             </div>
             <div style={{ fontSize: 11.5, color: C.inkMuted, lineHeight: 1.4 }}>
               {visible
-                ? "Shown in your directory, search and on a public page."
-                : "On your roster — not shown publicly."}
+                ? t("admin.talent.edit.sidebar.stateVisibleDesc")
+                : t("admin.talent.edit.sidebar.stateRosterOnlyDesc")}
             </div>
           </div>
         </div>
@@ -825,10 +827,10 @@ function WorkflowSidebar({
           }}
         >
           {pending
-            ? "Saving…"
+            ? t("admin.talent.edit.sidebar.saving")
             : visible
-              ? "Hide from directory"
-              : "Show in directory"}
+              ? t("admin.talent.edit.sidebar.hideFromDirectory")
+              : t("admin.talent.edit.sidebar.showInDirectory")}
         </button>
       </div>
 
@@ -963,17 +965,17 @@ export function TalentEditForm({
               <option value="Woman">{t("admin.talent.edit.form.genderWoman")}</option>
               <option value="Man">{t("admin.talent.edit.form.genderMan")}</option>
               <option value="Non-binary">{t("admin.talent.edit.form.genderNonBinary")}</option>
-              <option value="Trans woman">Trans woman</option>
-              <option value="Trans man">Trans man</option>
-              <option value="Transgender">Transgender</option>
-              <option value="Genderfluid">Genderfluid</option>
-              <option value="Genderqueer">Genderqueer</option>
-              <option value="Agender">Agender</option>
-              <option value="Bigender">Bigender</option>
-              <option value="Two-Spirit">Two-Spirit</option>
-              <option value="Intersex">Intersex</option>
-              <option value="Prefer to self-describe">Prefer to self-describe</option>
-              <option value="Prefer not to say">Prefer not to say</option>
+              <option value="Trans woman">{t("admin.talent.edit.gender.transWoman")}</option>
+              <option value="Trans man">{t("admin.talent.edit.gender.transMan")}</option>
+              <option value="Transgender">{t("admin.talent.edit.gender.transgender")}</option>
+              <option value="Genderfluid">{t("admin.talent.edit.gender.genderfluid")}</option>
+              <option value="Genderqueer">{t("admin.talent.edit.gender.genderqueer")}</option>
+              <option value="Agender">{t("admin.talent.edit.gender.agender")}</option>
+              <option value="Bigender">{t("admin.talent.edit.gender.bigender")}</option>
+              <option value="Two-Spirit">{t("admin.talent.edit.gender.twoSpirit")}</option>
+              <option value="Intersex">{t("admin.talent.edit.gender.intersex")}</option>
+              <option value="Prefer to self-describe">{t("admin.talent.edit.gender.selfDescribe")}</option>
+              <option value="Prefer not to say">{t("admin.talent.edit.gender.preferNotToSay")}</option>
             </select>
           </Field>
           <Field label={t("admin.talent.edit.form.dob")}>
