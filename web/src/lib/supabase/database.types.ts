@@ -1594,8 +1594,7 @@ export type Database = {
           allow_as_secondary: boolean
           created_at: string
           created_by_user_id: string | null
-          custom_label: string | null
-          custom_label_es: string | null
+          custom_label_i18n: Json
           display_order: number
           helper_text: string | null
           id: string
@@ -1612,8 +1611,7 @@ export type Database = {
           allow_as_secondary?: boolean
           created_at?: string
           created_by_user_id?: string | null
-          custom_label?: string | null
-          custom_label_es?: string | null
+          custom_label_i18n?: Json
           display_order?: number
           helper_text?: string | null
           id?: string
@@ -1630,8 +1628,7 @@ export type Database = {
           allow_as_secondary?: boolean
           created_at?: string
           created_by_user_id?: string | null
-          custom_label?: string | null
-          custom_label_es?: string | null
+          custom_label_i18n?: Json
           display_order?: number
           helper_text?: string | null
           id?: string
@@ -6884,8 +6881,7 @@ export type Database = {
           country_code: string
           country_id: string | null
           created_at: string
-          display_name_en: string
-          display_name_es: string | null
+          display_name_i18n: Json
           id: string
           latitude: number | null
           longitude: number | null
@@ -6899,8 +6895,7 @@ export type Database = {
           country_code: string
           country_id?: string | null
           created_at?: string
-          display_name_en: string
-          display_name_es?: string | null
+          display_name_i18n?: Json
           id?: string
           latitude?: number | null
           longitude?: number | null
@@ -6914,8 +6909,7 @@ export type Database = {
           country_code?: string
           country_id?: string | null
           created_at?: string
-          display_name_en?: string
-          display_name_es?: string | null
+          display_name_i18n?: Json
           id?: string
           latitude?: number | null
           longitude?: number | null
@@ -11211,14 +11205,10 @@ export type Database = {
         Row: {
           ai_search_document: string | null
           availability_data: Json
-          bio_en: string | null
-          bio_en_draft: string | null
-          bio_en_status: Database["public"]["Enums"]["bio_es_status"]
-          bio_en_updated_at: string | null
-          bio_es: string | null
-          bio_es_draft: string | null
-          bio_es_status: Database["public"]["Enums"]["bio_es_status"]
-          bio_es_updated_at: string | null
+          bio_draft_i18n: Json
+          bio_i18n: Json
+          bio_status_i18n: Json
+          bio_updated_at_i18n: Json
           booking_note: string | null
           booking_terms: Json | null
           contact_policy: Json
@@ -11310,14 +11300,10 @@ export type Database = {
         Insert: {
           ai_search_document?: string | null
           availability_data?: Json
-          bio_en?: string | null
-          bio_en_draft?: string | null
-          bio_en_status?: Database["public"]["Enums"]["bio_es_status"]
-          bio_en_updated_at?: string | null
-          bio_es?: string | null
-          bio_es_draft?: string | null
-          bio_es_status?: Database["public"]["Enums"]["bio_es_status"]
-          bio_es_updated_at?: string | null
+          bio_draft_i18n?: Json
+          bio_i18n?: Json
+          bio_status_i18n?: Json
+          bio_updated_at_i18n?: Json
           booking_note?: string | null
           booking_terms?: Json | null
           contact_policy?: Json
@@ -11409,14 +11395,10 @@ export type Database = {
         Update: {
           ai_search_document?: string | null
           availability_data?: Json
-          bio_en?: string | null
-          bio_en_draft?: string | null
-          bio_en_status?: Database["public"]["Enums"]["bio_es_status"]
-          bio_en_updated_at?: string | null
-          bio_es?: string | null
-          bio_es_draft?: string | null
-          bio_es_status?: Database["public"]["Enums"]["bio_es_status"]
-          bio_es_updated_at?: string | null
+          bio_draft_i18n?: Json
+          bio_i18n?: Json
+          bio_status_i18n?: Json
+          bio_updated_at_i18n?: Json
           booking_note?: string | null
           booking_terms?: Json | null
           contact_policy?: Json
@@ -12645,8 +12627,7 @@ export type Database = {
           is_visible_by_default: boolean
           kind: Database["public"]["Enums"]["taxonomy_kind"]
           level: number
-          name_en: string
-          name_es: string | null
+          name_i18n: Json
           parent_id: string | null
           plural_name: string | null
           promo_image_storage_path: string | null
@@ -12674,8 +12655,7 @@ export type Database = {
           is_visible_by_default?: boolean
           kind: Database["public"]["Enums"]["taxonomy_kind"]
           level?: number
-          name_en: string
-          name_es?: string | null
+          name_i18n?: Json
           parent_id?: string | null
           plural_name?: string | null
           promo_image_storage_path?: string | null
@@ -12703,8 +12683,7 @@ export type Database = {
           is_visible_by_default?: boolean
           kind?: Database["public"]["Enums"]["taxonomy_kind"]
           level?: number
-          name_en?: string
-          name_es?: string | null
+          name_i18n?: Json
           parent_id?: string | null
           plural_name?: string | null
           promo_image_storage_path?: string | null

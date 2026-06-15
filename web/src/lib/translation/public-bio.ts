@@ -1,23 +1,34 @@
 import type { Locale } from "@/i18n/config";
-import { pickLocalizedString } from "@/lib/i18n/pick-localized-string";
+import { resolveLocalized, type LocalizedMap } from "@/lib/i18n/resolve-localized";
 
 /**
- * Locale-first display with symmetric EN ↔ ES fallback (see Translation Center plan).
+ * Locale-first published-bio display via the universal per-locale resolver
+ * (talent_profiles.bio_i18n = { "en":"…", "es":"…" }). Pass the tenant's
+ * `fallbackChain(locale)` so a missing translation falls back deterministically.
  */
 export function publicBioForLocale(
   locale: Locale,
-  bio_en: string | null | undefined,
-  bio_es: string | null | undefined,
+  chain: readonly Locale[],
+  bio_i18n: LocalizedMap | null | undefined,
 ): string {
-  return pickLocalizedString(locale, bio_en, bio_es);
+  return resolveLocalized(bio_i18n, locale, chain).value;
 }
 
-/** Source English for editing / admin (coalesce legacy `short_bio`). */
+/**
+ * Source English for editing / admin (coalesce the legacy `short_bio` mirror).
+ * Takes the already-extracted English bio string (`bio_i18n.en`).
+ */
 export function canonicalBioEn(
-  bio_en: string | null | undefined,
+  bioEn: string | null | undefined,
   short_bio: string | null | undefined,
 ): string {
-  const a = (bio_en ?? "").trim();
+  const a = (bioEn ?? "").trim();
   if (a) return a;
   return (short_bio ?? "").trim();
+}
+
+/** Convenience: pull the English published bio out of a `bio_i18n` map. */
+export function bioEnFromI18n(bio_i18n: LocalizedMap | null | undefined): string | null {
+  const v = bio_i18n?.en;
+  return typeof v === "string" && v.trim() ? v : null;
 }
