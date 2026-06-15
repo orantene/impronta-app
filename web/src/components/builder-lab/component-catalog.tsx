@@ -103,6 +103,25 @@ function targetAllows(
   return targetContext === surface;
 }
 
+// The Connected view is split by which DATA the component binds: talent-roster /
+// collection / directory sources → "Talent Data"; agency profile / booking /
+// inquiry sources → "Agency Data". This is a DISPLAY grouping (derived from the
+// stable `connectedSource`, not from target_context), so it never changes the
+// real per-surface gating — that stays controlled by the Talent-Max / Workspace
+// toggles on each row.
+const CONNECTED_DATA_GROUPS = [
+  { key: "talent", label: "Talent Data" },
+  { key: "agency", label: "Agency Data" },
+] as const;
+type ConnectedDataGroup = (typeof CONNECTED_DATA_GROUPS)[number]["key"];
+
+function connectedDataGroupOf(item: CatalogAdminItem): ConnectedDataGroup {
+  const src = item.connectedSource ?? "";
+  return src === "Talent Collection" || src === "Talent Directory"
+    ? "talent"
+    : "agency";
+}
+
 export function ComponentCatalog({
   onLaunchEditor,
   defaultView,
@@ -327,6 +346,18 @@ export function ComponentCatalog({
     ? rowsByTab.get(currentView as AddGalleryTab) ?? []
     : [];
 
+  // The Connected view renders two labeled groups (Talent Data | Agency Data);
+  // every other gallery view renders as a single group. Empty groups are dropped.
+  const rowGroups: Array<{ key: string; label: string; rows: CatalogAdminItem[] }> = (
+    currentView === "connected"
+      ? CONNECTED_DATA_GROUPS.map((g) => ({
+          key: g.key,
+          label: g.label,
+          rows: currentRows.filter((r) => connectedDataGroupOf(r) === g.key),
+        }))
+      : [{ key: String(currentView), label: VIEW_LABEL[currentView], rows: currentRows }]
+  ).filter((g) => g.rows.length > 0);
+
   const total = items.length;
   const templates = items.filter((r) => r.source === "template").length;
   const overridden = items.filter((r) => r.overlay).length;
@@ -466,8 +497,9 @@ export function ComponentCatalog({
         </div>
       ) : null}
 
-      {currentRows.length > 0 ? (
+      {rowGroups.map((group) => (
         <section
+          key={group.key}
           style={{
             background: T.card,
             border: `1px solid ${T.borderSoft}`,
@@ -486,10 +518,10 @@ export function ComponentCatalog({
             }}
           >
             <span style={{ fontSize: 13, fontWeight: 700, color: T.ink }}>
-              {VIEW_LABEL[currentView]}
+              {group.label}
             </span>
             <span style={{ fontSize: 11.5, color: T.inkMuted }}>
-              {currentRows.length} component{currentRows.length === 1 ? "" : "s"}
+              {group.rows.length} component{group.rows.length === 1 ? "" : "s"}
             </span>
           </div>
 
@@ -505,7 +537,7 @@ export function ComponentCatalog({
               </tr>
             </thead>
             <tbody>
-              {currentRows.map((r) => {
+              {group.rows.map((r) => {
                 const busy = pendingId === r.id;
                 const editing = editingId === r.id;
                 const isTemplate = r.source === "template";
@@ -678,7 +710,7 @@ export function ComponentCatalog({
             </tbody>
           </table>
         </section>
-      ) : null}
+      ))}
 
       <p style={{ fontSize: 11.5, color: T.inkDim, lineHeight: 1.5, margin: 0 }}>
         Toggles control per-surface visibility (subtract-only — a component can&apos;t be forced onto a

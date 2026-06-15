@@ -104,6 +104,10 @@ export interface CatalogAdminItem {
   itemKind: AddGalleryItem["itemKind"];
   availability: AddGalleryItem["availability"];
   targetContext: BuilderTemplateTarget;
+  /** The bound data source for connected items (e.g. "Talent Collection",
+   *  "Agency Profile") — drives the Catalog's Talent-Data / Agency-Data grouping
+   *  of the Connected view. Undefined for non-connected items. */
+  connectedSource: AddGalleryItem["connectedSource"];
   baseLabel: string;
   baseCategory: string;
   baseIcon: string;
@@ -148,6 +152,7 @@ export function buildCatalogAdminView(
       itemKind: item.itemKind,
       availability: item.availability,
       targetContext,
+      connectedSource: item.connectedSource,
       baseLabel: item.label,
       baseCategory: item.category,
       baseIcon: item.icon,
