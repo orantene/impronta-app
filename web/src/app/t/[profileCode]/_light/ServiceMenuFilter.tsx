@@ -56,7 +56,10 @@ export function ServiceMenuFilter({
   const nameById = new Map(items.map((it) => [it.id, it.name]));
   const allLabel = locale === "es" ? "Todos" : "All";
 
-  const filtered = items.filter((it) => serviceMatchesDiscipline(it, active));
+  // Only the disciplines shown as pills are "known" — a service scoped solely to
+  // a stale id then behaves like general (shows under every pill, not nowhere).
+  const knownIds = new Set(present.map((d) => d.id));
+  const filtered = items.filter((it) => serviceMatchesDiscipline(it, active, knownIds));
 
   return (
     <>
