@@ -33,6 +33,10 @@ import {
   setComponentOverlay,
 } from "@/lib/site-admin/builder-core/templates/catalog-overlay-actions";
 import { AddGalleryIcon } from "@/components/edit-chrome/add-gallery/add-gallery-icons";
+import {
+  PAGE_DESIGN_SUMMARIES,
+  type PageDesignSummary,
+} from "@/lib/site-admin/builder-node/page-designs/summaries";
 import { SiteDefaultsEditor } from "./site-defaults-editor";
 import type { BuilderLabTarget } from "./builder-lab-stage";
 
@@ -724,24 +728,136 @@ export function ComponentCatalog({
       ) : currentView === "playground" ? (
         <PlaygroundView onLaunchEditor={onLaunchEditor} />
       ) : (
-        <div
+        <SiteStarterKitView onLaunchEditor={onLaunchEditor} />
+      )}
+    </div>
+  );
+}
+
+// ── Site Starter Kit ──────────────────────────────────────────────────────────
+
+const STARTER_KIT_GROUPS = [
+  {
+    surface: "talent" as const,
+    label: "Talent Starter Kit",
+    blurb: "Full-page starts for a single talent's Max page.",
+  },
+  {
+    surface: "workspace" as const,
+    label: "Agency Starter Kit",
+    blurb: "Full-page starts for an agency / workspace storefront.",
+  },
+];
+
+/** A design belongs to a surface group when it targets that surface or "both". */
+function designsForSurface(
+  surface: "talent" | "workspace",
+): PageDesignSummary[] {
+  return PAGE_DESIGN_SUMMARIES.filter(
+    (d) => d.target === surface || d.target === "both",
+  );
+}
+
+/**
+ * Site Starter Kit (Catalog) — the full-page starter designs, split into a
+ * Talent Starter Kit and an Agency Starter Kit by each design's target surface
+ * ("both" designs appear in both kits). "Use this starter" opens the editor for
+ * that surface; Phase 3 seeds the chosen design's tree into a fresh draft.
+ */
+function SiteStarterKitView({
+  onLaunchEditor,
+}: {
+  onLaunchEditor?: (target: BuilderLabTarget) => void;
+}) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+      {STARTER_KIT_GROUPS.map((group) => {
+        const designs = designsForSurface(group.surface);
+        return (
+          <section key={group.surface} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: T.ink }}>{group.label}</div>
+              <div style={{ fontSize: 12, color: T.inkMuted, marginTop: 2 }}>{group.blurb}</div>
+            </div>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+                gap: 12,
+              }}
+            >
+              {designs.map((d) => (
+                <StarterKitCard
+                  key={d.id}
+                  design={d}
+                  onUse={() => onLaunchEditor?.(group.surface)}
+                />
+              ))}
+            </div>
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+function StarterKitCard({
+  design,
+  onUse,
+}: {
+  design: PageDesignSummary;
+  onUse: () => void;
+}) {
+  return (
+    <div
+      style={{
+        background: T.card,
+        border: `1px solid ${T.borderSoft}`,
+        borderRadius: 12,
+        padding: 14,
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+        <span style={{ fontSize: 13.5, fontWeight: 700, color: T.ink }}>{design.label}</span>
+        <span
           style={{
-            background: T.card,
-            border: `1px solid ${T.borderSoft}`,
-            borderRadius: 12,
-            padding: "36px 20px",
-            textAlign: "center",
+            fontSize: 9.5,
+            fontWeight: 700,
+            letterSpacing: 0.4,
+            textTransform: "uppercase",
+            color: T.inkMuted,
+            background: T.cardSoft,
+            borderRadius: 999,
+            padding: "2px 7px",
           }}
         >
-          <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, marginBottom: 6 }}>
-            {VIEW_LABEL[currentView]}
-          </div>
-          <p style={{ fontSize: 12.5, color: T.inkMuted, margin: "0 auto", maxWidth: 460, lineHeight: 1.55 }}>
-            Coming soon — this view will hold the full-page starter designs (the
-            editor&rsquo;s &ldquo;Start with a design&rdquo; set).
-          </p>
-        </div>
-      )}
+          {design.archetype}
+        </span>
+      </div>
+      <p style={{ fontSize: 11.5, color: T.inkMuted, lineHeight: 1.5, margin: 0, flex: 1 }}>
+        {design.description}
+      </p>
+      <button
+        type="button"
+        onClick={onUse}
+        className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60"
+        style={{
+          alignSelf: "flex-start",
+          padding: "6px 13px",
+          borderRadius: 8,
+          border: `1px solid ${T.accent}`,
+          background: "rgba(93,211,160,0.12)",
+          color: T.accent,
+          fontSize: 12,
+          fontWeight: 700,
+          cursor: "pointer",
+        }}
+      >
+        Use this starter →
+      </button>
     </div>
   );
 }
