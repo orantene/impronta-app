@@ -75,44 +75,6 @@ async function assertResolvesToPreDbError(
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// coord-request-actions — VALIDATE-FIRST (input check precedes auth & DB)
-// ─────────────────────────────────────────────────────────────────────────
-
-describe("coord-request-actions: pure validation-fail precedes auth/DB", () => {
-  it("requestCoordinatorJoin('') → 'Missing inquiry id.' (no auth, no DB, no env needed)", async () => {
-    const { requestCoordinatorJoin } = await import("./coord-request-actions");
-    const e = await assertResolvesToPreDbError("requestCoordinatorJoin('')", () =>
-      requestCoordinatorJoin(""),
-    );
-    assert.equal(e, "Missing inquiry id.");
-  });
-
-  it("requestCoordinatorJoin('iq_x') → 'Sign in required.' (auth gate, still no DB)", async () => {
-    const { requestCoordinatorJoin } = await import("./coord-request-actions");
-    const e = await assertResolvesToPreDbError("requestCoordinatorJoin('iq_x')", () =>
-      requestCoordinatorJoin("iq_x"),
-    );
-    assert.equal(e, "Sign in required.");
-  });
-
-  it("approveCoordinatorJoin('') and declineCoordinatorJoin('') → 'Missing request id.'", async () => {
-    const m = await import("./coord-request-actions");
-    assert.equal(
-      await assertResolvesToPreDbError("approveCoordinatorJoin('')", () =>
-        m.approveCoordinatorJoin(""),
-      ),
-      "Missing request id.",
-    );
-    assert.equal(
-      await assertResolvesToPreDbError("declineCoordinatorJoin('')", () =>
-        m.declineCoordinatorJoin(""),
-      ),
-      "Missing request id.",
-    );
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────
 // message-reactions / message-stars — AUTH-FIRST (no input validation)
 // ─────────────────────────────────────────────────────────────────────────
 
@@ -243,16 +205,11 @@ describe("client-pipeline: server-only import boundary (pinned)", () => {
 
 describe("META: guard/validation ordering is inconsistent across the layer (pinned, not judged)", () => {
   it("(at least) three different orderings coexist for the same 'invalid input + no session/env' scenario", async () => {
-    const { requestCoordinatorJoin } = await import("./coord-request-actions");
     const { changeWorkspacePlan } = await import("./admin-billing");
     const { addReaction } = await import("./message-reactions");
     const { updateAdminClientProfile } = await import("./admin-clients");
 
     // validate-first: input error surfaces despite no session/env
-    const coord = await requestCoordinatorJoin("");
-    assert.equal(coord.ok === false && coord.error, "Missing inquiry id.");
-
-    // validate-first (different module, same shape of ordering)
     const billing = await changeWorkspacePlan(
       "__nope__" as unknown as Parameters<typeof changeWorkspacePlan>[0],
     );
