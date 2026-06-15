@@ -216,6 +216,31 @@ test("listGalleryItems applies the overlay loader to the merged set", async () =
   assert.equal(onWorkspace.some((i) => i.id === templateId), true); // kept on workspace
 });
 
+test("listGalleryItems applies the structure loader (item tab/category move) to the merged set", async () => {
+  const deps = {
+    listPublishedTemplates: async () => ({ ok: true as const, data: [] }),
+    loadStructure: async () => ({
+      "item:el-button": {
+        ref: "item:el-button",
+        kind: "item" as const,
+        label_override: null,
+        icon_override: null,
+        parent_tab: "layout",
+        sort_order: null,
+        created: false,
+        hidden: false,
+        category_override: "promos",
+      },
+    }),
+  };
+
+  const items = await listGalleryItems(workspaceCtx, deps);
+  const moved = items.find((i) => i.id === "el-button");
+  assert.ok(moved, "el-button should be present");
+  assert.equal(moved!.tab, "layout"); // moved by the structure row
+  assert.equal(moved!.category, "promos");
+});
+
 // ── W13: buildCatalogAdminView visibility matrix + status ─────────────────────
 
 test("buildCatalogAdminView: target_context gates per-surface visibility (full matrix)", () => {

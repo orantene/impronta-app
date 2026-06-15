@@ -30,6 +30,7 @@ import type {
 import { templatePlanAllowed } from "@/lib/site-admin/builder-core/templates/registry-rows";
 
 import { ADD_GALLERY_ITEMS } from "./registry";
+import { applyStructureToItems, type CatalogStructureMap } from "./catalog-structure";
 import type { AddGalleryItem, AddGalleryTab } from "./types";
 
 // ── Plan rank (mirrors registry-rows.templatePlanAllowed / data-bindings PLAN_RANK) ──
@@ -441,6 +442,12 @@ export interface ListGalleryItemsDeps {
    * Omitted (or returning {}) → no overlay, code/template defaults stand.
    */
   loadOverlays?: () => Promise<CatalogOverlayMap>;
+  /**
+   * Load the catalog STRUCTURE map (WS-B). When provided, items are passed
+   * through `applyStructureToItems` (tab/category placement overrides) AFTER the
+   * overlay. Omitted (or returning {}) → code-default tab/category placement.
+   */
+  loadStructure?: () => Promise<CatalogStructureMap>;
 }
 
 /**
@@ -461,12 +468,20 @@ export async function listGalleryItems(
   const overlays = deps.loadOverlays
     ? await deps.loadOverlays().catch(() => ({}) as CatalogOverlayMap)
     : null;
-  const withOverlay = (items: AddGalleryItem[]): AddGalleryItem[] =>
-    overlays ? applyCatalogOverlay(items, overlays, context) : items;
+  const structure = deps.loadStructure
+    ? await deps.loadStructure().catch(() => ({}) as CatalogStructureMap)
+    : null;
+  // Overlay first (visibility/label/icon/plan), then structure (tab/category
+  // placement) — independent concerns; structure wins on placement because it is
+  // the explicit "move this component" control. Empty inputs ⇒ identity.
+  const finalize = (items: AddGalleryItem[]): AddGalleryItem[] => {
+    const withOverlay = overlays ? applyCatalogOverlay(items, overlays, context) : items;
+    return structure ? applyStructureToItems(withOverlay, structure) : withOverlay;
+  };
 
   if (!context.galleryPolicy.allowDbTemplates) {
     // DB templates suppressed → code-only, no DB round-trip.
-    return withOverlay(codeGalleryItemsForPolicy(context.galleryPolicy));
+    return finalize(codeGalleryItemsForPolicy(context.galleryPolicy));
   }
 
   const result = await deps.listPublishedTemplates({
@@ -476,7 +491,7 @@ export async function listGalleryItems(
 
   if (!result.ok) {
     // Never fail the gallery on a template-fetch error — fall back to code-only.
-    return withOverlay(codeGalleryItemsForPolicy(context.galleryPolicy));
+    return finalize(codeGalleryItemsForPolicy(context.galleryPolicy));
   }
 
   const dbItems: AddGalleryItem[] = [];
@@ -489,5 +504,5 @@ export async function listGalleryItems(
     );
   }
 
-  return withOverlay(mergeGalleryItems(dbItems, context));
+  return finalize(mergeGalleryItems(dbItems, context));
 }
