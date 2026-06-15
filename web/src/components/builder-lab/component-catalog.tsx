@@ -46,6 +46,7 @@ import {
   type PageDesignSummary,
 } from "@/lib/site-admin/builder-node/page-designs/summaries";
 import { SiteDefaultsEditor } from "./site-defaults-editor";
+import { SurfaceSwitcher } from "./surface-switcher";
 import type { BuilderLabTarget } from "./builder-lab-stage";
 
 const T = {
@@ -117,13 +118,14 @@ function targetAllows(
 
 // The Connected view is split by which DATA the component binds: talent-roster /
 // collection / directory sources → "Talent Data"; agency profile / booking /
-// inquiry sources → "Agency Data". This is a DISPLAY grouping (derived from the
-// stable `connectedSource`, not from target_context), so it never changes the
-// real per-surface gating — that stays controlled by the Talent-Max / Workspace
-// toggles on each row.
+// inquiry sources → "Agency Data". The surface switcher shows one at a time
+// (Agency first, matching Site Defaults). This is a DISPLAY grouping (derived
+// from the stable `connectedSource`, not from target_context), so it never
+// changes the real per-surface gating — that stays controlled by the Talent-Max
+// / Workspace toggles on each row.
 const CONNECTED_DATA_GROUPS = [
-  { key: "talent", label: "Talent Data" },
   { key: "agency", label: "Agency Data" },
+  { key: "talent", label: "Talent Data" },
 ] as const;
 type ConnectedDataGroup = (typeof CONNECTED_DATA_GROUPS)[number]["key"];
 
@@ -162,6 +164,10 @@ export function ComponentCatalog({
   const [activeTab, setActiveTab] = useState<CatalogView | null>(
     defaultView ?? null,
   );
+  // Connected view shows one surface at a time via the shared SurfaceSwitcher
+  // (Agency first, matching Site Defaults).
+  const [connectedSurface, setConnectedSurface] =
+    useState<ConnectedDataGroup>("agency");
   // W11 — transient success toast.
   const [toast, setToast] = useState<string | null>(null);
 
@@ -358,11 +364,11 @@ export function ComponentCatalog({
     ? rowsByTab.get(currentView as AddGalleryTab) ?? []
     : [];
 
-  // The Connected view renders two labeled groups (Talent Data | Agency Data);
+  // The Connected view shows ONE surface at a time (driven by the switcher);
   // every other gallery view renders as a single group. Empty groups are dropped.
   const rowGroups: Array<{ key: string; label: string; rows: CatalogAdminItem[] }> = (
     currentView === "connected"
-      ? CONNECTED_DATA_GROUPS.map((g) => ({
+      ? CONNECTED_DATA_GROUPS.filter((g) => g.key === connectedSurface).map((g) => ({
           key: g.key,
           label: g.label,
           rows: currentRows.filter((r) => connectedDataGroupOf(r) === g.key),
@@ -501,7 +507,16 @@ export function ComponentCatalog({
         </div>
       </div>
 
-      {currentRows.length === 0 ? (
+      {currentView === "connected" ? (
+        <SurfaceSwitcher
+          options={CONNECTED_DATA_GROUPS}
+          value={connectedSurface}
+          onChange={setConnectedSurface}
+          ariaLabel="Connected data surface"
+        />
+      ) : null}
+
+      {rowGroups.length === 0 ? (
         <div style={{ color: T.inkMuted, fontSize: 13, padding: "12px 0" }}>
           No {VIEW_LABEL[currentView]} components
           {query ? ` matching “${query}”` : ""}
@@ -746,14 +761,14 @@ export function ComponentCatalog({
 
 const STARTER_KIT_GROUPS = [
   {
-    surface: "talent" as const,
-    label: "Talent Starter Kit",
-    blurb: "Full-page starts for a single talent's Max page.",
-  },
-  {
-    surface: "workspace" as const,
+    key: "workspace" as const,
     label: "Agency Starter Kit",
     blurb: "Full-page starts for an agency / workspace storefront.",
+  },
+  {
+    key: "talent" as const,
+    label: "Talent Starter Kit",
+    blurb: "Full-page starts for a single talent's Max page.",
   },
 ];
 
@@ -767,22 +782,23 @@ function designsForSurface(
 }
 
 /**
- * Site Starter Kit (Catalog) — the full-page starter designs, split into a
- * Talent Starter Kit and an Agency Starter Kit by each design's target surface
- * ("both" designs appear in both kits). "Use this starter" creates a Playground
- * draft seeded with the chosen design's baked tree (server-side) and opens the
- * editor on it.
+ * Site Starter Kit (Catalog) — the full-page starter designs. The shared
+ * SurfaceSwitcher shows one kit at a time (Agency / Talent), matching Site
+ * Defaults; "both"-target designs appear in both. "Use this starter" creates a
+ * Playground draft seeded with the chosen design's baked tree (server-side) and
+ * opens the editor on it.
  */
 function SiteStarterKitView({
   onLaunchEditor,
 }: {
   onLaunchEditor?: (target: BuilderLabTarget, draftId?: string) => void;
 }) {
+  const [surface, setSurface] = useState<"talent" | "workspace">("workspace");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const startFromDesign = useCallback(
-    async (design: PageDesignSummary, surface: "talent" | "workspace") => {
+    async (design: PageDesignSummary) => {
       setBusyId(design.id);
       setError(null);
       const res = await createPlaygroundDraftFromDesign({
@@ -796,39 +812,40 @@ function SiteStarterKitView({
         setError(res.error);
       }
     },
-    [onLaunchEditor],
+    [onLaunchEditor, surface],
   );
 
+  const group = STARTER_KIT_GROUPS.find((g) => g.key === surface);
+  const designs = designsForSurface(surface);
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <SurfaceSwitcher
+        options={STARTER_KIT_GROUPS}
+        value={surface}
+        onChange={setSurface}
+        ariaLabel="Starter kit surface"
+      />
+      {group ? (
+        <div style={{ fontSize: 12, color: T.inkMuted }}>{group.blurb}</div>
+      ) : null}
       {error ? <div style={{ fontSize: 12, color: "#ff8585" }}>{error}</div> : null}
-      {STARTER_KIT_GROUPS.map((group) => {
-        const designs = designsForSurface(group.surface);
-        return (
-          <section key={group.surface} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: T.ink }}>{group.label}</div>
-              <div style={{ fontSize: 12, color: T.inkMuted, marginTop: 2 }}>{group.blurb}</div>
-            </div>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-                gap: 12,
-              }}
-            >
-              {designs.map((d) => (
-                <StarterKitCard
-                  key={d.id}
-                  design={d}
-                  busy={busyId === d.id}
-                  onUse={() => void startFromDesign(d, group.surface)}
-                />
-              ))}
-            </div>
-          </section>
-        );
-      })}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+          gap: 12,
+        }}
+      >
+        {designs.map((d) => (
+          <StarterKitCard
+            key={d.id}
+            design={d}
+            busy={busyId === d.id}
+            onUse={() => void startFromDesign(d)}
+          />
+        ))}
+      </div>
     </div>
   );
 }

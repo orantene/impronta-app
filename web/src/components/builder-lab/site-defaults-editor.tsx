@@ -23,6 +23,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 
 import { resolvePlatformDefaultThemeActionSet } from "@/components/edit-chrome/theme-action-scope";
 import { listThemePresets } from "@/lib/site-admin/presets/theme-presets";
+import { SurfaceSwitcher } from "./surface-switcher";
 import type { PlatformThemeSurface } from "@/lib/platform/default-theme";
 import type { ComponentStyleDefaults } from "@/lib/site-admin/builder-node/component-style-defaults";
 
@@ -165,30 +166,12 @@ export function SiteDefaultsEditor() {
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {/* Surface toggle — Agency (shared) vs Talent (override) */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <div style={{ display: "inline-flex", background: T.cardSoft, borderRadius: 999, padding: 3, alignSelf: "flex-start" }}>
-          {SURFACE_TABS.map((t) => {
-            const on = surface === t.key;
-            return (
-              <button
-                key={t.key}
-                type="button"
-                onClick={() => setSurface(t.key)}
-                style={{
-                  background: on ? T.ink : "transparent",
-                  color: on ? "#0F0F11" : T.inkMuted,
-                  border: "none",
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  padding: "7px 16px",
-                  borderRadius: 999,
-                  cursor: "pointer",
-                }}
-              >
-                {t.label}
-              </button>
-            );
-          })}
-        </div>
+        <SurfaceSwitcher
+          options={SURFACE_TABS}
+          value={surface}
+          onChange={setSurface}
+          ariaLabel="Site default surface"
+        />
         {activeTab ? (
           <div style={{ fontSize: 12, color: T.inkMuted }}>{activeTab.blurb}</div>
         ) : null}
