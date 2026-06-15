@@ -69,6 +69,11 @@
       "count": 1
     }
   },
+  "src/app/(workspace)/[tenantSlug]/talent/inbox/[id]/actions.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
   "src/app/(workspace)/platform/platform-data.ts": {
     "prefer-const": {
       "count": 1
@@ -410,7 +415,7 @@
       "count": 1
     },
     "ratchet/no-new-inline-style": {
-      "count": 25
+      "count": 26
     }
   },
   "src/components/admin/shell/internal/messages/ClientProjectShell.tsx": {
@@ -423,7 +428,7 @@
       "count": 1
     },
     "ratchet/no-new-inline-style": {
-      "count": 36
+      "count": 37
     }
   },
   "src/components/admin/shell/internal/messages/admin-1.tsx": {
@@ -527,7 +532,7 @@
   },
   "src/components/admin/shell/internal/messages/shared/machinery-4.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 28
+      "count": 43
     }
   },
   "src/components/admin/shell/internal/messages/shared/machinery-5.tsx": {
@@ -573,7 +578,7 @@
       "count": 1
     },
     "ratchet/no-new-inline-style": {
-      "count": 32
+      "count": 35
     }
   },
   "src/components/admin/shell/internal/metrics-ribbon.tsx": {

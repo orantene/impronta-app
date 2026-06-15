@@ -371,6 +371,14 @@ type CoordinatorActionCtx = {
   tenantId: string;
   userId: string;
   actorUserId: string;
+  /**
+   * Assign-time client-thread history window for a newly-added coordinator
+   * (addSecondaryCoordinator only). `true`/undefined → the coordinator sees the
+   * full prior client thread (visible_from stays null). `false` → "start fresh":
+   * visible_from is stamped to now() so loadTalentInquiryThread hides messages
+   * that predate the assignment. Ignored by the other coordinator actions.
+   */
+  showHistory?: boolean;
 };
 
 function mapCoordinatorRpcError(msg: string): { reason: string; field: "reason" | "error" } {
@@ -450,7 +458,32 @@ export async function addSecondaryCoordinator(
       metadata: { target_user_id: ctx.userId, role: "secondary" },
     });
 
+    // Stamp the new coordinator's client-thread history window. Set explicitly
+    // both ways so a re-assignment (the RPC reactivates an existing coordinator
+    // row via ON CONFLICT) reflects the current choice rather than a stale one.
+    // visible_from is enforced app-side in loadTalentInquiryThread.
+    await supabase
+      .from("inquiry_participants")
+      .update({ visible_from: ctx.showHistory === false ? new Date().toISOString() : null })
+      .eq("inquiry_id", ctx.inquiryId)
+      .eq("user_id", ctx.userId)
+      .eq("role", "coordinator");
+
     await assertConsistencyAfterWrite(supabase, ctx.inquiryId);
+
+    // WS6 — private-thread system card so the CLIENT sees who's now
+    // coordinating. Fire-and-forget; failure never blocks the assign.
+    {
+      const names = await resolveCoordinatorNames(supabase, [ctx.userId, ctx.actorUserId]);
+      const appointeeName = names[ctx.userId] ?? "A teammate";
+      await insertSystemMessage(supabase, {
+        inquiryId: ctx.inquiryId,
+        threadType: "private",
+        eventType: "coordinator_assigned",
+        body: `${appointeeName} is now coordinating this inquiry.`,
+        metadata: { target_user_id: ctx.userId, actor_user_id: ctx.actorUserId },
+      });
+    }
 
     await emitStandardEngineEvent(supabase, {
       type: ENGINE_EVENT_TYPES.SECONDARY_COORDINATOR_ASSIGNED,
@@ -517,6 +550,21 @@ export async function removeSecondaryCoordinator(
     });
 
     await assertConsistencyAfterWrite(supabase, ctx.inquiryId);
+
+    // WS6 — private-thread system card on removal (client visibility).
+    // SystemEventType has no 'coordinator_removed', so reuse
+    // 'coordinator_reassigned' for the removal card.
+    {
+      const names = await resolveCoordinatorNames(supabase, [ctx.userId, ctx.actorUserId]);
+      const removedName = names[ctx.userId] ?? "A coordinator";
+      await insertSystemMessage(supabase, {
+        inquiryId: ctx.inquiryId,
+        threadType: "private",
+        eventType: "coordinator_reassigned",
+        body: `${removedName} is no longer coordinating this inquiry.`,
+        metadata: { target_user_id: ctx.userId, actor_user_id: ctx.actorUserId },
+      });
+    }
 
     await emitStandardEngineEvent(supabase, {
       type: ENGINE_EVENT_TYPES.SECONDARY_COORDINATOR_UNASSIGNED,

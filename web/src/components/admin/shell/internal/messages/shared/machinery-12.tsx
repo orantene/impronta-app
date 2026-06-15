@@ -8,6 +8,7 @@ import { type TalentTakeHome } from "@/lib/talent/inquiry-take-home";
 import { submitMyCounterRate, submitMyRateForInquiry } from "@/lib/server-actions/talent-pipeline";
 import { clientApproveCurrentOffer, clientRejectCurrentOffer } from "@/lib/server-actions/client-pipeline";
 import { sendOfferAction, counterOfferAction, loadBookingCommissionSnapshotAction, loadInquiryPaymentState, reopenOfferAction, loadOfferDraft } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
+import { loadCoordinatorInquiryOffer } from "@/app/(workspace)/[tenantSlug]/talent/inbox/[id]/coordinator-offer-loader";
 import type { PersistedBookingCommissionSnapshot } from "@/lib/billing/commission";
 import { useAdminShell, COLORS, FONTS } from "../../state";
 import { type Conversation } from "../../talent";
@@ -48,15 +49,28 @@ function offerStatusInfo(status: string): { label: string; bg: string; tone: str
  * Replaces the old developer-scaffolding banner ("Live · DB-backed", raw
  * offer UUID, "engine above"). Shows nothing for synthetic mock-only convs.
  */
-export function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: OfferPov }) {
+export function LiveOfferPanel({
+  inquiryId, pov, injectedOffer, injectedBookingId,
+}: {
+  inquiryId: string;
+  pov: OfferPov;
+  /** WS4 — talent shell has no live inquiry list (effectiveMessagesInquiries
+   *  is mock RICH_INQUIRIES), so a talent_coord hydrates the real DB offer via
+   *  loadCoordinatorInquiryOffer and injects it here. Admin keeps reading the
+   *  in-memory list. */
+  injectedOffer?: NonNullable<ReturnType<typeof useAdminShell>["effectiveMessagesInquiries"][number]["offer"]> | null;
+  injectedBookingId?: string | null;
+}) {
   const { toast, effectiveMessagesInquiries, effectiveTenant } = useAdminShell();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const real = effectiveMessagesInquiries.find((r) => r.id === inquiryId);
-  const offer = real?.offer ?? null;
+  const offer = injectedOffer ?? real?.offer ?? null;
   const offerId = offer?.id;
+  // WS4 — coordinator UI parity: admin OR the appointed inquiry coordinator.
   const isAdmin = pov.kind === "admin";
-  const directBookingId = real?.bookingId ?? null;
+  const canManage = isAdmin || (pov.kind === "talent" && pov.isCoordinator);
+  const directBookingId = injectedBookingId ?? real?.bookingId ?? null;
 
   // The admin shell's in-memory inquiry stub doesn't carry bookingId (it's set
   // null in state/context). Resolve it from the inquiry's payment state so the
@@ -64,14 +78,14 @@ export function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: Off
   // admin-only commission breakdown never renders.
   const [resolvedBookingId, setResolvedBookingId] = useState<string | null>(null);
   useEffect(() => {
-    if (!isAdmin || directBookingId) { setResolvedBookingId(null); return; }
+    if (!canManage || directBookingId) { setResolvedBookingId(null); return; }
     let cancelled = false;
     loadInquiryPaymentState(effectiveTenant.slug, inquiryId).then((r) => {
       if (cancelled) return;
       setResolvedBookingId(r.ok ? (r.data?.bookingId ?? null) : null);
     });
     return () => { cancelled = true; };
-  }, [isAdmin, directBookingId, inquiryId, effectiveTenant.slug]);
+  }, [canManage, directBookingId, inquiryId, effectiveTenant.slug]);
   const bookingId = directBookingId ?? resolvedBookingId;
 
   // Admin-only: load the per-participant commission snapshot for the booking
@@ -79,14 +93,14 @@ export function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: Off
   // deal-level breakdown. Never shown to client/talent.
   const [snapshots, setSnapshots] = useState<PersistedBookingCommissionSnapshot[] | null>(null);
   useEffect(() => {
-    if (!isAdmin || !bookingId) { setSnapshots(null); return; }
+    if (!canManage || !bookingId) { setSnapshots(null); return; }
     let cancelled = false;
     loadBookingCommissionSnapshotAction(effectiveTenant.slug, bookingId).then((r) => {
       if (cancelled) return;
       setSnapshots(r.ok ? (r.data ?? []) : []);
     });
     return () => { cancelled = true; };
-  }, [isAdmin, bookingId, effectiveTenant.slug]);
+  }, [canManage, bookingId, effectiveTenant.slug]);
 
   // W6a — negotiated booking terms for the read-only summary. The offer loader
   // (data-bridge) populates offer.commercialTerms once the new columns are
@@ -100,7 +114,7 @@ export function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: Off
     currencyCode: string;
   } | null>(null);
   useEffect(() => {
-    if (!isAdmin || !offerId || offerId.endsWith("-offer")) { setAdminTerms(null); return; }
+    if (!canManage || !offerId || offerId.endsWith("-offer")) { setAdminTerms(null); return; }
     let cancelled = false;
     loadOfferDraft(effectiveTenant.slug, offerId).then((r) => {
       if (cancelled) return;
@@ -115,7 +129,7 @@ export function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: Off
       }
     });
     return () => { cancelled = true; };
-  }, [isAdmin, offerId, effectiveTenant.slug]);
+  }, [canManage, offerId, effectiveTenant.slug]);
 
   // Render nothing for synthetic mock-only inquiries — keeps demo data clean.
   if (!offer || !offerId || offerId.endsWith("-offer")) return null;
@@ -136,7 +150,7 @@ export function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: Off
 
   // Aggregate commission lanes across participant rows. Currency comes from
   // the snapshot itself — never hardcoded.
-  const hasSnapshot = isAdmin && !!snapshots && snapshots.length > 0;
+  const hasSnapshot = canManage && !!snapshots && snapshots.length > 0;
   const agg = hasSnapshot
     ? snapshots!.reduce(
         (a, s) => ({
@@ -278,8 +292,9 @@ export function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: Off
         />
       )}
 
-      {/* Admin-only commission breakdown — from booking_commission_snapshot. */}
-      {isAdmin && hasSnapshot && agg && (
+      {/* Commission breakdown (gross → talent net → platform fee → workspace
+          margin). Admin + the appointed inquiry coordinator see all legs. */}
+      {canManage && hasSnapshot && agg && (
         <div style={{ padding: "12px 14px", borderRadius: 10, display: "flex", flexDirection: "column", gap: 7, border: `1px solid ${COLORS.borderSoft}` }} className="bg-admin-surface-alt">
           <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 2 }} className="text-admin-ink-muted">
             Commission breakdown
@@ -291,14 +306,16 @@ export function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: Off
           <CommissionRow label="Your margin (workspace)" value={fmtMoney(agg.workspaceFee / 100, snapCurrency)} strong />
         </div>
       )}
-      {isAdmin && bookingId && snapshots !== null && !hasSnapshot && (
+      {canManage && bookingId && snapshots !== null && !hasSnapshot && (
         <div className="text-admin-ink-muted text-admin-11" style={{ lineHeight: 1.5 }}>
           Commission breakdown appears once the booking&apos;s commission snapshot is recorded.
         </div>
       )}
 
-      {/* Engine-wired actions */}
-      {(isAdmin && (status === "draft" || status === "sent" || status === "rejected")) && (
+      {/* Engine-wired actions — admin OR the appointed inquiry coordinator.
+          sendOfferAction / reopenOfferAction / counterOfferAction are
+          coordinator-authorized (WS3) and run under the coordinator session. */}
+      {(canManage && (status === "draft" || status === "sent" || status === "rejected")) && (
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           {status === "draft" && (
             <button type="button" disabled={pending}
@@ -348,7 +365,7 @@ export function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: Off
       {/* Inline draft editor — only when the offer is editable. */}
       {status === "draft" && (
         <div style={{ marginTop: 4 }}>
-          <OfferDraftEditor inquiryId={inquiryId} offerId={offerId} isAdmin={isAdmin} />
+          <OfferDraftEditor inquiryId={inquiryId} offerId={offerId} canEdit={canManage} />
         </div>
       )}
     </div>
@@ -422,6 +439,22 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
   const isAdmin = pov.kind === "admin";
   const isTalent = pov.kind === "talent";
   const canSeeFullCommerce = isAdmin || (isTalent && pov.isCoordinator);
+  // WS4 — the talent shell has no live inquiry list, so a talent COORDINATOR
+  // hydrates the real DB offer + bookingId for THIS inquiry and injects them
+  // into LiveOfferPanel. Admin keeps reading effectiveMessagesInquiries.
+  const [coordOffer, setCoordOffer] = useState<typeof liveOffer>(null);
+  const [coordBookingId, setCoordBookingId] = useState<string | null>(null);
+  const isCoordPov = pov.kind === "talent" && pov.isCoordinator;
+  useEffect(() => {
+    if (!isCoordPov || !realInquiryId) { setCoordOffer(null); setCoordBookingId(null); return; }
+    let cancelled = false;
+    loadCoordinatorInquiryOffer(realInquiryId).then((r) => {
+      if (cancelled) return;
+      if (r.ok) { setCoordOffer(r.offer); setCoordBookingId(r.bookingId); }
+      else { setCoordOffer(null); setCoordBookingId(null); }
+    });
+    return () => { cancelled = true; };
+  }, [isCoordPov, realInquiryId]);
   // Submit-rate sheet state — opens from any of:
   //   • the empty-state CTA (no offer at all yet)
   //   • the sticky-bar "Submit my rate" CTA when stage = awaiting_talent
@@ -439,7 +472,11 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
   const offer = baseOffer ? applyRowOverrides(conv.id, baseOffer) : undefined;
 
   if (!offer) {
-    if (isTalent) {
+    // WS4 — a talent COORDINATOR with no seed offer manages like admin: skip
+    // the rate stub and fall through to the shared admin-style render below
+    // (LiveOfferPanel + create CTA), which hydrates the real DB offer via
+    // injectedOffer in the talent shell. Plain talents still get the stub.
+    if (isTalent && !pov.isCoordinator) {
       // Audit #7 tail: derive the talent's offer state from data the TALENT
       // actually has — conv.stage / conv.myApprovalStatus. `liveOffer` reads the
       // admin `effectiveMessagesInquiries` list, which is EMPTY in the talent
@@ -525,12 +562,15 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
     }
     return (
       <div style={{ padding: 18, fontFamily: FONTS.body, display: "flex", flexDirection: "column", gap: 12 }}>
-        {liveOffer ? (
-          <LiveOfferPanel inquiryId={conv.id} pov={pov} />
+        {/* WS4 — admin reads liveOffer (in-memory); the talent COORDINATOR has
+            no live list, so coordOffer (loadCoordinatorInquiryOffer) drives the
+            panel. Either present → render LiveOfferPanel, else the create CTA. */}
+        {(liveOffer || coordOffer) ? (
+          <LiveOfferPanel inquiryId={conv.id} pov={pov} injectedOffer={coordOffer} injectedBookingId={coordBookingId} />
         ) : (
           <div style={{ padding: 24, textAlign: "center", fontSize: 13 }} className="text-admin-ink-dim">
             No offer yet for this inquiry.
-            {isAdmin && <CreateOfferButton inquiryId={conv.id} />}
+            {(isAdmin || (isTalent && pov.isCoordinator)) && <CreateOfferButton inquiryId={conv.id} />}
           </div>
         )}
       </div>
@@ -562,7 +602,7 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
 
   return (
     <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
-      <LiveOfferPanel inquiryId={conv.id} pov={pov} />
+      <LiveOfferPanel inquiryId={conv.id} pov={pov} injectedOffer={coordOffer} injectedBookingId={coordBookingId} />
       {/* ── Sticky action bar — "what do I do now" ──────────────── */}
       <div style={{
         position: "sticky", top: 0, zIndex: 4,

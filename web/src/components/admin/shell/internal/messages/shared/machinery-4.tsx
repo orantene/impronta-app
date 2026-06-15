@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { loadWorkspaceCoordinatorCandidates, addSecondaryCoordinatorAction, reassignCoordinatorAction, type WorkspaceCoordinatorCandidate } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
+import { loadWorkspaceCoordinatorCandidates, loadCoordinatorAssignCandidates, addSecondaryCoordinatorAction, reassignCoordinatorAction, removeSecondaryCoordinatorAction, loadSecondaryCoordinators, type WorkspaceCoordinatorCandidate, type CoordinatorAssignCandidate, type SecondaryCoordinatorRow } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import { useAdminShell, FONTS, COLORS, meetsRole, type InquiryRecord } from "../../state";
 import { Avatar } from "../../primitives";
 import { MOCK_CONVERSATIONS, type Conversation } from "../../talent";
@@ -37,10 +37,15 @@ export function ReassignCoordinatorSheet({
   const [picked, setPicked] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [notifyOutgoing, setNotifyOutgoing] = useState(true);
+  // swap → staff-only handoff list; add_secondary → staff + roster talents.
   const [coords, setCoords] = useState<WorkspaceCoordinatorCandidate[] | null>(null);
+  const [appointCands, setAppointCands] = useState<CoordinatorAssignCandidate[] | null>(null);
   const [loadingCoords, setLoadingCoords] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  // Assign-time client-thread window: true = full history, false = start fresh.
+  const [showHistory, setShowHistory] = useState(true);
 
   // Fetch real workspace coordinators on open. 2026-05-12 fix A5:
   // replaces the hardcoded mock list with a live agency_memberships
@@ -51,21 +56,34 @@ export function ReassignCoordinatorSheet({
     let cancelled = false;
     setLoadingCoords(true);
     setError(null);
-    loadWorkspaceCoordinatorCandidates(effectiveTenant.slug, {
-      excludeUserId: currentCoordUserId,
-    }).then((r) => {
-      if (cancelled) return;
-      if (r.ok) setCoords(r.data ?? []);
-      else { setError(r.error); setCoords([]); }
-    }).finally(() => {
-      if (!cancelled) setLoadingCoords(false);
-    });
+    if (mode === "add_secondary") {
+      loadCoordinatorAssignCandidates(effectiveTenant.slug, {
+        excludeUserId: currentCoordUserId,
+        inquiryId,
+      }).then((r) => {
+        if (cancelled) return;
+        if (r.ok) setAppointCands(r.data ?? []);
+        else { setError(r.error); setAppointCands([]); }
+      }).finally(() => {
+        if (!cancelled) setLoadingCoords(false);
+      });
+    } else {
+      loadWorkspaceCoordinatorCandidates(effectiveTenant.slug, {
+        excludeUserId: currentCoordUserId,
+      }).then((r) => {
+        if (cancelled) return;
+        if (r.ok) setCoords(r.data ?? []);
+        else { setError(r.error); setCoords([]); }
+      }).finally(() => {
+        if (!cancelled) setLoadingCoords(false);
+      });
+    }
     return () => { cancelled = true; };
-  }, [open, effectiveTenant.slug, currentCoordUserId]);
+  }, [open, mode, inquiryId, effectiveTenant.slug, currentCoordUserId]);
 
   const reset = () => {
     setPicked(null); setNote(""); setNotifyOutgoing(true);
-    setError(null); setSubmitting(false);
+    setError(null); setSubmitting(false); setSearch(""); setShowHistory(true);
   };
 
   const handleClose = () => { reset(); onClose(); };
@@ -75,7 +93,7 @@ export function ReassignCoordinatorSheet({
     if (mode === "swap" && !note.trim()) return;
     setSubmitting(true); setError(null);
     const r = mode === "add_secondary"
-      ? await addSecondaryCoordinatorAction(effectiveTenant.slug, inquiryId, picked)
+      ? await addSecondaryCoordinatorAction(effectiveTenant.slug, inquiryId, picked, showHistory)
       : await reassignCoordinatorAction(effectiveTenant.slug, inquiryId, picked, note.trim());
     setSubmitting(false);
     if (!r.ok) {
@@ -116,10 +134,10 @@ export function ReassignCoordinatorSheet({
           display: "flex", alignItems: "flex-start", gap: 10,
         }}>
           <div className="flex-1 min-w-0">
-            <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 16, fontWeight: 700, letterSpacing: -0.2 }} className="text-admin-ink">{mode === "add_secondary" ? "Add coordinator" : "Reassign coordinator"}</h2>
+            <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 16, fontWeight: 700, letterSpacing: -0.2 }} className="text-admin-ink">{mode === "add_secondary" ? "Assign coordinator" : "Reassign coordinator"}</h2>
             <div style={{ fontSize: 11.5, marginTop: 3 }} className="text-admin-ink-muted">
               {mode === "add_secondary"
-                ? `Add a secondary coordinator alongside ${currentCoordName}.`
+                ? "Hand this inquiry to a teammate or a roster talent. They get full coordinator control of this inquiry."
                 : `Move this project from ${currentCoordName} to a teammate.`}
             </div>
           </div>
@@ -133,55 +151,177 @@ export function ReassignCoordinatorSheet({
         <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 12 }}>
           <div>
             <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }} className="text-admin-ink-muted">
-              Pick the new coordinator
+              {mode === "add_secondary" ? "Who should coordinate this inquiry?" : "Pick the new coordinator"}
             </div>
             {loadingCoords && (
               <div style={{ padding: "10px 12px", fontSize: 12 }} className="text-admin-ink-muted">Loading workspace…</div>
             )}
-            {!loadingCoords && coords != null && coords.length === 0 && (
-              <div style={{ padding: "10px 12px", fontSize: 12, borderRadius: 8 }} className="text-admin-ink-muted bg-admin-surface-alt">
-                No other workspace members can take over this inquiry yet. Invite a teammate from Settings → Team.
-              </div>
-            )}
-            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-              {(coords ?? []).map(c => {
-                const initials = c.displayName
-                  .split(/\s+/).filter(Boolean).map(w => w[0]).join("").slice(0, 2).toUpperCase() || "?";
-                const meta = c.status === "pending_acceptance"
-                  ? "Pending invite acceptance"
-                  : `${c.activeInquiryCount} active · ${c.role}`;
-                const isPicked = picked === c.userId;
-                return (
-                  <button key={c.userId}
-                    type="button"
-                    onClick={() => setPicked(c.userId)}
-                    style={{
-                      display: "flex", alignItems: "center", gap: 10,
-                      padding: "8px 10px", borderRadius: 10,
-                      background: isPicked ? COLORS.surfaceAlt : "#fff",
-                      border: `1px solid ${isPicked ? COLORS.accent : COLORS.borderSoft}`,
-                      cursor: "pointer",
-                      textAlign: "left", fontFamily: FONTS.body,
-                    }}>
-                    <Avatar size={32} tone="auto" hashSeed={c.displayName} initials={initials} />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-admin-ink text-admin-13 font-bold">{c.displayName}</div>
-                      <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">{meta}</div>
+            {mode === "add_secondary" ? (
+              <>
+                {/* Searchable, grouped picker: Staff + Your roster. */}
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.currentTarget.value)}
+                  placeholder="Search teammates or roster talent…"
+                  style={{
+                    width: "100%", padding: "8px 10px", borderRadius: 8, marginBottom: 8,
+                    border: `1px solid ${COLORS.borderSoft}`, background: COLORS.surfaceAlt,
+                    fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink,
+                    outline: "none", boxSizing: "border-box",
+                  }}
+                />
+                {!loadingCoords && appointCands != null && appointCands.length === 0 && (
+                  <div style={{ padding: "10px 12px", fontSize: 12, borderRadius: 8 }} className="text-admin-ink-muted bg-admin-surface-alt">
+                    No teammates or roster talent are available to coordinate this inquiry yet.
+                  </div>
+                )}
+                {(["staff", "talent"] as const).map((groupKind) => {
+                  const q = search.trim().toLowerCase();
+                  const group = (appointCands ?? [])
+                    .filter((c) => c.kind === groupKind)
+                    .filter((c) => !q || c.displayName.toLowerCase().includes(q) || (c.headline ?? c.role ?? "").toLowerCase().includes(q));
+                  if (group.length === 0) return null;
+                  return (
+                    <div key={groupKind} style={{ marginBottom: 8 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, margin: "2px 0 5px" }} className="text-admin-ink-dim">
+                        {groupKind === "staff" ? "Staff" : "Your roster"}
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                        {group.map((c) => {
+                          const initials = c.displayName
+                            .split(/\s+/).filter(Boolean).map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "?";
+                          const meta = c.status === "pending_acceptance"
+                            ? "Pending invite acceptance"
+                            : (c.kind === "talent" ? (c.headline ?? "Roster talent") : `${c.activeInquiryCount} active · ${c.role}`);
+                          const isPicked = picked === c.userId;
+                          return (
+                            <button key={c.userId}
+                              type="button"
+                              onClick={() => setPicked(c.userId)}
+                              style={{
+                                display: "flex", alignItems: "center", gap: 10,
+                                padding: "8px 10px", borderRadius: 10,
+                                background: isPicked ? COLORS.surfaceAlt : "#fff",
+                                border: `1px solid ${isPicked ? COLORS.accent : COLORS.borderSoft}`,
+                                cursor: "pointer",
+                                textAlign: "left", fontFamily: FONTS.body,
+                              }}>
+                              <Avatar size={32} tone="auto" hashSeed={c.displayName} initials={initials} />
+                              <div className="flex-1 min-w-0">
+                                <div className="text-admin-ink text-admin-13 font-bold">{c.displayName}</div>
+                                <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">{meta}</div>
+                              </div>
+                              {c.inLineup && (
+                                <span style={{
+                                  flexShrink: 0, padding: "2px 7px", borderRadius: 999,
+                                  fontSize: 10, fontWeight: 700,
+                                  background: `${COLORS.accent}1c`, color: COLORS.accent,
+                                }}>In lineup</span>
+                              )}
+                              {isPicked && (
+                                <span aria-hidden style={{
+                                  flexShrink: 0,
+                                  width: 18, height: 18, borderRadius: "50%",
+                                  background: COLORS.accent, color: "#fff",
+                                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                                  fontSize: 11, fontWeight: 700,
+                                }}>✓</span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                    {isPicked && (
-                      <span aria-hidden style={{
-                        flexShrink: 0,
-                        width: 18, height: 18, borderRadius: "50%",
-                        background: COLORS.accent, color: "#fff",
-                        display: "inline-flex", alignItems: "center", justifyContent: "center",
-                        fontSize: 11, fontWeight: 700,
-                      }}>✓</span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </>
+            ) : (
+              <>
+                {!loadingCoords && coords != null && coords.length === 0 && (
+                  <div style={{ padding: "10px 12px", fontSize: 12, borderRadius: 8 }} className="text-admin-ink-muted bg-admin-surface-alt">
+                    No other workspace members can take over this inquiry yet. Invite a teammate from Settings → Team.
+                  </div>
+                )}
+                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                  {(coords ?? []).map(c => {
+                    const initials = c.displayName
+                      .split(/\s+/).filter(Boolean).map(w => w[0]).join("").slice(0, 2).toUpperCase() || "?";
+                    const meta = c.status === "pending_acceptance"
+                      ? "Pending invite acceptance"
+                      : `${c.activeInquiryCount} active · ${c.role}`;
+                    const isPicked = picked === c.userId;
+                    return (
+                      <button key={c.userId}
+                        type="button"
+                        onClick={() => setPicked(c.userId)}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 10,
+                          padding: "8px 10px", borderRadius: 10,
+                          background: isPicked ? COLORS.surfaceAlt : "#fff",
+                          border: `1px solid ${isPicked ? COLORS.accent : COLORS.borderSoft}`,
+                          cursor: "pointer",
+                          textAlign: "left", fontFamily: FONTS.body,
+                        }}>
+                        <Avatar size={32} tone="auto" hashSeed={c.displayName} initials={initials} />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-admin-ink text-admin-13 font-bold">{c.displayName}</div>
+                          <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">{meta}</div>
+                        </div>
+                        {isPicked && (
+                          <span aria-hidden style={{
+                            flexShrink: 0,
+                            width: 18, height: 18, borderRadius: "50%",
+                            background: COLORS.accent, color: "#fff",
+                            display: "inline-flex", alignItems: "center", justifyContent: "center",
+                            fontSize: 11, fontWeight: 700,
+                          }}>✓</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
+          {mode === "add_secondary" && (
+            <div>
+              <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }} className="text-admin-ink-muted">
+                Client chat history
+              </div>
+              {/* Segmented control: full history vs start fresh. Maps to the
+                  addSecondaryCoordinator showHistory → participant.visible_from. */}
+              <div style={{ display: "flex", gap: 6 }}>
+                {([
+                  { val: true, label: "Show full history", hint: "They see the whole client conversation." },
+                  { val: false, label: "Start fresh", hint: "They only see client messages from now on." },
+                ] as const).map((opt) => {
+                  const active = showHistory === opt.val;
+                  return (
+                    <button key={String(opt.val)} type="button" onClick={() => setShowHistory(opt.val)} style={{
+                      flex: 1, padding: "8px 10px", borderRadius: 10, textAlign: "left",
+                      border: `1px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+                      background: active ? COLORS.surfaceAlt : "#fff",
+                      cursor: "pointer", fontFamily: FONTS.body,
+                    }}>
+                      <div className="text-admin-ink text-admin-13 font-bold">{opt.label}</div>
+                      <div style={{ fontSize: 10.5, marginTop: 2 }} className="text-admin-ink-muted">{opt.hint}</div>
+                    </button>
+                  );
+                })}
+              </div>
+              {/* Consequence summary — names the appointee + what they get. */}
+              {picked && (() => {
+                const cand = (appointCands ?? []).find((c) => c.userId === picked);
+                const name = cand?.displayName ?? "This person";
+                return (
+                  <div style={{ marginTop: 10, padding: "9px 11px", borderRadius: 10, fontSize: 11.5, lineHeight: 1.5 }} className="text-admin-ink-muted bg-admin-surface-alt">
+                    <strong className="text-admin-ink">{name}</strong> will get full coordinator control of this inquiry — the client chat, the offer, the lineup, and booking &amp; payment.
+                  </div>
+                );
+              })()}
+            </div>
+          )}
           {mode === "swap" && (
             <div>
               <label style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6, display: "block" }} className="text-admin-ink-muted">
@@ -244,8 +384,8 @@ export function ReassignCoordinatorSheet({
               fontFamily: FONTS.body,
             }}>
             {submitting
-              ? (mode === "add_secondary" ? "Adding…" : "Reassigning…")
-              : (mode === "add_secondary" ? "Add coordinator" : "Reassign")}
+              ? (mode === "add_secondary" ? "Assigning…" : "Reassigning…")
+              : (mode === "add_secondary" ? "Assign coordinator" : "Reassign")}
           </button>
         </div>
       </aside>
@@ -300,16 +440,39 @@ export function AdminParticipantsActions({ inquiry, planTier = "agency" }: {
    *  there. Studio / Agency / Hub-Network all surface it. */
   planTier?: "free" | "studio" | "agency" | "hub-network";
 }) {
-  const { state, toast } = useAdminShell();
+  const { state, toast, effectiveTenant } = useAdminShell();
   const router = useRouter();
   // S0.3 retirement: drawer retired. "View lineup" toasts the admin to
   // the Lineup tab where LiveLineupPanel is the canonical surface.
   const openLineupTab = () => toast("Open the Lineup tab in this conversation to manage talent");
   const [reassignOpen, setReassignOpen] = useState(false);
   const [reassignMode, setReassignMode] = useState<"swap" | "add_secondary">("swap");
+  const [removing, startRemove] = useTransition();
+  // WS6 — real secondary coordinators loaded from the DB (coordinators[] holds
+  // only the primary on this data path; fixtures.ts:513). Drives Remove chips.
+  const [secondaryCoords, setSecondaryCoords] = useState<SecondaryCoordinatorRow[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inquiry.id);
+    if (!isUuid) { setSecondaryCoords([]); return; }
+    loadSecondaryCoordinators(effectiveTenant.slug, inquiry.id).then((r) => {
+      if (!cancelled && r.ok) setSecondaryCoords(r.data ?? []);
+    });
+    return () => { cancelled = true; };
+  }, [inquiry.id, effectiveTenant.slug]);
   const conv = buildConvFromInquiry(inquiry);
   void conv;
   const currentCoord = inquiry.coordinators[0];
+  const removeCoord = (c: SecondaryCoordinatorRow) => {
+    const base = `Remove ${c.name} as coordinator? They'll lose the client chat and booking access.`;
+    const extra = c.inLineup ? " They'll stay in the lineup and keep the team chat." : "";
+    if (!confirm(base + extra)) return;
+    startRemove(async () => {
+      const r = await removeSecondaryCoordinatorAction(effectiveTenant.slug, inquiry.id, c.userId);
+      if (!r.ok) toast(`Couldn't remove coordinator: ${r.error}`);
+      else { toast(`${c.name} removed as coordinator`); router.refresh(); }
+    });
+  };
   const canEdit = inquiry.status !== "wrapped" && inquiry.status !== "cancelled";
   // Phase 3 of System User direction — permission ladder:
   //   • Add talent: requires coordinator+ (anyone managing projects can
@@ -354,7 +517,21 @@ export function AdminParticipantsActions({ inquiry, planTier = "agency" }: {
               borderRadius: 999, border: `1px solid ${COLORS.border}`,
               background: "transparent", color: COLORS.ink, cursor: "pointer",
               fontFamily: FONTS.body,
-            }}>+ Add coordinator</button>
+            }}>+ Assign coordinator</button>
+            {secondaryCoords.map((c) => (
+              <button key={c.userId} type="button" disabled={removing} onClick={() => removeCoord(c)} style={{
+                padding: "6px 12px", fontSize: 11.5, fontWeight: 600,
+                borderRadius: 999, border: `1px solid ${COLORS.coral}55`,
+                background: "transparent", color: COLORS.coralDeep ?? COLORS.coral,
+                cursor: removing ? "not-allowed" : "pointer", fontFamily: FONTS.body,
+                display: "inline-flex", alignItems: "center", gap: 5,
+              }}>
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden>
+                  <path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+                </svg>
+                Remove {c.name.split(" ")[0]}
+              </button>
+            ))}
           </>
         )}
         {/* Free-tier upgrade nudge — Reassign hides on Free, but

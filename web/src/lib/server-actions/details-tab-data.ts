@@ -280,7 +280,7 @@ export async function loadDetailsTabData(
 
     // Coordinators — display names resolved from profiles for the
     // user_ids attached to coord rows.
-    const coordRows = participants.filter((p) => p.role === "coord" && p.status !== "removed");
+    const coordRows = participants.filter((p) => p.role === "coordinator" && p.status !== "removed");
     const coordUserIds = [...new Set(coordRows.map((p) => p.user_id).filter(Boolean) as string[])];
     let coordinators: Array<{ name: string; role?: string }> | undefined;
     if (coordUserIds.length > 0) {

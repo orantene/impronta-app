@@ -8,7 +8,7 @@ import {
 } from "@/lib/inquiry/inquiry-engine";
 import type { EngineErr } from "@/lib/inquiry/inquiry-engine.types";
 import type { ActionResult } from "@/lib/inquiry/inquiry-action-result";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireStaffTenantAction, requireInquiryManagerAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import type { Database } from "@/lib/supabase/database.types";
@@ -41,13 +41,13 @@ function mapRosterEngineFailure(res: EngineErr): ActionResult {
 }
 
 export async function rosterAddTalent(formData: FormData): Promise<ActionResult> {
-  const auth = await requireStaffTenantAction();
+  const inquiryId = String(formData.get("inquiry_id") ?? "").trim();
+  const auth = await requireInquiryManagerAction(inquiryId);
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: auth.error };
   }
   const { supabase, user, tenantId } = auth;
 
-  const inquiryId = String(formData.get("inquiry_id") ?? "").trim();
   const talentProfileId = String(formData.get("talent_profile_id") ?? "").trim();
   const expectedVersion = Number(formData.get("expected_version") ?? "1");
 
@@ -76,13 +76,13 @@ export async function rosterAddTalent(formData: FormData): Promise<ActionResult>
 }
 
 export async function rosterRemoveParticipant(formData: FormData): Promise<ActionResult> {
-  const auth = await requireStaffTenantAction();
+  const inquiryId = String(formData.get("inquiry_id") ?? "").trim();
+  const auth = await requireInquiryManagerAction(inquiryId);
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: auth.error };
   }
   const { supabase, user, tenantId } = auth;
 
-  const inquiryId = String(formData.get("inquiry_id") ?? "").trim();
   const participantId = String(formData.get("participant_id") ?? "").trim();
   const expectedVersion = Number(formData.get("expected_version") ?? "1");
 

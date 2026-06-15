@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { requireStaff } from "@/lib/server/action-guards";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getTenantScope, type TenantScope } from "./scope";
 
 /**
@@ -92,6 +93,105 @@ export async function requireStaffTenantAction(): Promise<
     tenantId: scope.tenantId,
     tenantSlug: scope.membership.slug,
   };
+}
+
+/**
+ * Server-action guard for ANY active coordinator of a specific inquiry —
+ * staff OR a roster talent appointed as coordinator (pov 'talent_coord').
+ *
+ * Same shape as requireStaffTenantAction plus an `isStaff` discriminator, so
+ * coordinator actions swap the gate with no other change. The returned
+ * `supabase` is ALWAYS the caller's user-scoped session client, so actor-gated
+ * RPCs (engine_convert_to_booking, RLS writes) run under the coordinator's own
+ * auth.uid() — never service-role.
+ *
+ * Resolution: 1) try requireStaffTenantAction; if staff-on-this-tenant AND the
+ * inquiry belongs to that tenant (assertRowBelongsToTenant), return isStaff:true.
+ * 2) else authorize via an ACTIVE role='coordinator' participant row on THIS
+ * inquiry (RLS-readable via inquiry_participants_own_coordinator_select), take
+ * tenant_id from that row, resolve tenantSlug via a service-role agencies.slug
+ * read, return isStaff:false. Fails closed otherwise.
+ */
+export type InquiryManagerActionGuard = {
+  ok: true;
+  supabase: SupabaseClient;
+  user: User;
+  tenantId: string;
+  tenantSlug: string;
+  /** true = agency staff on this tenant; false = appointed coordinator
+   *  (incl. a talent coordinator) acting on this single inquiry. */
+  isStaff: boolean;
+};
+
+export async function requireInquiryManagerAction(
+  inquiryId: string,
+): Promise<InquiryManagerActionGuard | StaffTenantActionGuardFail> {
+  const trimmedInquiryId = typeof inquiryId === "string" ? inquiryId.trim() : "";
+  if (!trimmedInquiryId) return { ok: false, error: "Missing inquiry." };
+
+  // 1. Staff fast-path (cross-tenant-safe).
+  const staff = await requireStaffTenantAction();
+  if (staff.ok) {
+    const belongs = await assertRowBelongsToTenant(
+      staff.supabase,
+      "inquiries",
+      trimmedInquiryId,
+      staff.tenantId,
+    );
+    if (belongs) {
+      return {
+        ok: true,
+        supabase: staff.supabase,
+        user: staff.user,
+        tenantId: staff.tenantId,
+        tenantSlug: staff.tenantSlug,
+        isStaff: true,
+      };
+    }
+    // Staff, but inquiry is in another tenant → fall through to the
+    // coordinator path (don't escalate or leak).
+  }
+
+  // 2. Coordinator path — under the user's own session client.
+  const supabase = await getCachedServerSupabase();
+  if (!supabase) return { ok: false, error: "Not configured." };
+
+  const {
+    data: { user },
+    error: userErr,
+  } = await supabase.auth.getUser();
+  if (userErr || !user) return { ok: false, error: "You must be signed in." };
+
+  // Readable via inquiry_participants_own_coordinator_select
+  // (user_id = auth.uid() AND role = 'coordinator'). The unique index
+  // (inquiry_id,user_id,role) WHERE user_id IS NOT NULL guarantees ≤1 row.
+  const { data: coordRow } = await supabase
+    .from("inquiry_participants")
+    .select("tenant_id, status")
+    .eq("inquiry_id", trimmedInquiryId)
+    .eq("user_id", user.id)
+    .eq("role", "coordinator")
+    .maybeSingle();
+
+  if (!coordRow || coordRow.status !== "active") {
+    return { ok: false, error: "You are not the coordinator of this inquiry." };
+  }
+  const tenantId = (coordRow.tenant_id as string | null) ?? null;
+  if (!tenantId) return { ok: false, error: "Coordinator assignment is missing a tenant." };
+
+  // tenantSlug via service-role (talent has no membership). Read-only slug
+  // lookup, NOT a data path — all mutations run on `supabase` (user client).
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Not configured." };
+  const { data: agency } = await admin
+    .from("agencies")
+    .select("slug")
+    .eq("id", tenantId)
+    .maybeSingle();
+  const tenantSlug = (agency?.slug as string | null) ?? null;
+  if (!tenantSlug) return { ok: false, error: "Could not resolve workspace for this inquiry." };
+
+  return { ok: true, supabase, user, tenantId, tenantSlug, isStaff: false };
 }
 
 /**
