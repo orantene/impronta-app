@@ -114,6 +114,41 @@ export async function assignCoordinatorFromSettings(
 }
 
 /**
+ * Resolve a new inquiry's coordinator-of-record + (talent-direct only) the
+ * secondary platform oversight officer + the stored source_type. When a self-
+ * coordinating talent is supplied (their owning party is themselves) they are the
+ * coordinator-of-record and the platform officer (platform_coordinator_user_id →
+ * hub owner) rides along as a secondary; otherwise the agency coordinator (default
+ * → owner → global default) leads and no platform officer is seated. See
+ * inquiry-engine-submit.ts for the full model.
+ */
+export async function resolveInquiryCoordination(
+  supabase: SupabaseClient,
+  opts: { tenantId: string; selfCoordPrimaryUserId: string | null },
+): Promise<{
+  coordinatorOfRecordId: string | null;
+  oversightOfficerId: string | null;
+  sourceType: "agency" | "hub";
+}> {
+  if (opts.selfCoordPrimaryUserId) {
+    const officer = await assignCoordinatorFromSettings(supabase, {
+      source_type: "hub",
+      tenant_id: opts.tenantId,
+    });
+    const oversightOfficerId =
+      officer.coordinator_id && officer.coordinator_id !== opts.selfCoordPrimaryUserId
+        ? officer.coordinator_id
+        : null;
+    return { coordinatorOfRecordId: opts.selfCoordPrimaryUserId, oversightOfficerId, sourceType: "hub" };
+  }
+  const agencyAssignment = await assignCoordinatorFromSettings(supabase, {
+    source_type: "agency",
+    tenant_id: opts.tenantId,
+  });
+  return { coordinatorOfRecordId: agencyAssignment.coordinator_id, oversightOfficerId: null, sourceType: "agency" };
+}
+
+/**
  * Seed coordinators for talents whose resolved owning party is an AGENCY that
  * differs from the inquiry's tenant — the cross-tenant case.
  *

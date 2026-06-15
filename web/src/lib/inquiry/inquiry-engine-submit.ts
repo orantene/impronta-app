@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { canTransition, resolveNextActionBy } from "./inquiry-lifecycle";
 import { validateActorPermission } from "./inquiry-permissions";
 import { engineRateKey, rateLimiter } from "./inquiry-rate-limiter";
-import { assignCoordinatorFromSettings, seedOwningAgencyCoordinators } from "./coordinator-assignment";
+import { resolveInquiryCoordination, seedOwningAgencyCoordinators } from "./coordinator-assignment";
 import { resolveOwningPartiesForTalents, isHubSourcedChannel } from "./owning-party-resolver";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
 import { assertConsistencyAfterWrite, inquiryWriteClient, runWithEngineLog } from "./inquiry-engine.helpers";
@@ -291,19 +291,12 @@ export async function submitInquiry(
       }
     }
 
-    // ── Coordinator-of-record + oversight resolution (2026-06-15) ─────────────
-    // Resolve owning parties + talent accounts UP FRONT so the inquiry is seated
-    // with the correct coordinator-of-record at insert time:
-    //   • Talent-direct (open-hub) inquiries — any talent whose owning party is
-    //     THEMSELVES — are coordinated BY that talent (true talent-direct). The
-    //     platform oversight officer (platform_coordinator_user_id → hub owner)
-    //     also joins as a SECONDARY coordinator: an "officer / consultant" in the
-    //     private thread for scam & dispute protection and instant support
-    //     (this is how open / free hubs stay protected).
-    //   • Agency-owned inquiries (an agency storefront, or an exclusive talent
-    //     inquired through the open directory) are coordinated by the agency
-    //     (default coordinator → workspace owner → global default) and are NEVER
-    //     left unmanaged. The platform officer stays out of agency threads.
+    // Coordinator-of-record + oversight resolution (2026-06-15). Resolve owning
+    // parties + talent accounts UP FRONT so the inquiry is seated correctly at
+    // insert: a talent whose owning party is THEMSELVES (open-hub) coordinates
+    // their own inquiry (true talent-direct) with the platform officer as a
+    // secondary scam/dispute/support overseer; otherwise the agency coordinates
+    // and is never left unmanaged (the platform officer stays out of agency threads).
     const hubSourced = isHubSourcedChannel(input.source_channel);
     const owningParties = await resolveOwningPartiesForTalents(
       supabase,
@@ -337,32 +330,18 @@ export async function submitInquiry(
       }
     }
 
-    // Resolve the coordinator-of-record + (talent-direct only) the secondary
-    // platform oversight officer.
-    let coordinatorOfRecordId: string | null;
-    let oversightOfficerId: string | null = null;
-    if (selfCoordPrimaryUserId) {
-      coordinatorOfRecordId = selfCoordPrimaryUserId;
-      const officer = await assignCoordinatorFromSettings(supabase, {
-        source_type: "hub",
-        tenant_id: input.tenant_id,
-      });
-      oversightOfficerId =
-        officer.coordinator_id && officer.coordinator_id !== selfCoordPrimaryUserId
-          ? officer.coordinator_id
-          : null;
-    } else {
-      const agencyAssignment = await assignCoordinatorFromSettings(supabase, {
-        source_type: "agency",
-        tenant_id: input.tenant_id,
-      });
-      coordinatorOfRecordId = agencyAssignment.coordinator_id;
-    }
-
-    // Stored source_type reflects the coordination model: 'hub' for talent-direct
-    // (so a later auto-reassign / timeout resolves the platform officer), else
-    // 'agency'.
-    const inquirySourceType: "agency" | "hub" = selfCoordPrimaryUserId ? "hub" : "agency";
+    // Resolve coordinator-of-record + (talent-direct only) the secondary platform
+    // oversight officer + the stored source_type ('hub' for talent-direct, so a
+    // later auto-reassign/timeout resolves the officer; else 'agency').
+    const {
+      coordinatorOfRecordId: resolvedCoordinatorId,
+      oversightOfficerId,
+      sourceType: inquirySourceType,
+    } = await resolveInquiryCoordination(supabase, {
+      tenantId: input.tenant_id,
+      selfCoordPrimaryUserId,
+    });
+    let coordinatorOfRecordId = resolvedCoordinatorId;
 
     // Dedup set shared across every coordinator-participant insert below.
     const coordSeen = new Set<string>();
@@ -559,17 +538,12 @@ export async function submitInquiry(
       });
     }
 
-    // Hub self-coordination (2026-06-02; talent-primary 2026-06-15). Every talent
-    // whose resolved owning party is THEMSELVES (independent / open-hub) runs their
-    // own booking and joins the thread as a `coordinator` (in addition to their
-    // `talent` lineup row) so they can broker the client on the private thread —
-    // the access the private-thread RLS grants to `role IN ('client','coordinator')`.
-    // The FIRST such talent is already the coordinator-of-record (seated above);
-    // this seeds any ADDITIONAL self-coordinating talents (multi-talent shortlist),
-    // deduped via coordSeen. Keyed on user_id only (no talent_profile_id, so the
-    // talent/coordinator rows never collide on the active_talent unique index) and
-    // skipped for talents without a claimed account. No agency sits in the money
-    // path; the platform's flat take still applies (sellerOfRecord='talent').
+    // Hub self-coordination (2026-06-02; talent-primary 2026-06-15). Each talent
+    // whose owning party is THEMSELVES joins as a `coordinator` (alongside their
+    // `talent` lineup row) so they can broker the client on the private thread. The
+    // FIRST is already coordinator-of-record (seated above); this seeds ADDITIONAL
+    // self-coordinating talents (shortlist), deduped via coordSeen, keyed on user_id
+    // only, skipped for unclaimed accounts. No agency in the money path.
     try {
       for (const tid of input.talent_profile_ids) {
         if (owningParties.get(tid)?.type !== "talent") continue;
