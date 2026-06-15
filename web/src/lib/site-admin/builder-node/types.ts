@@ -36,6 +36,14 @@ export interface BuilderNodeBase {
   locked?: boolean;
   /** Wave 5B (#38) — OPTIONAL conditional visibility (locale / auth / variant), evaluated at `shouldRenderNode`; node omitted when unmatched, undefined → always shown. See visibility.ts. */
   visibilityCondition?: BuilderVisibilityCondition;
+  /**
+   * WS5 — OPTIONAL per-element translation overlay: `{ es: { text: "Hola" }, fr: {…} }`.
+   * Base-prop values stay in `props`; the overlay carries secondary-locale copy.
+   * SOURCE OF TRUTH = `props.i18n` (patch landing zone); mirrored here by
+   * validate's base-field allow-list so the renderer + i18n primitives read it
+   * directly. Absent → today's single-language behavior. See i18n-overlay.ts.
+   */
+  i18n?: Record<string, Record<string, string>>;
 }
 
 export interface BuilderNodeStyleValue {

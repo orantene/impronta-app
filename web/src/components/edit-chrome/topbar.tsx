@@ -36,15 +36,12 @@ import {
   useMemo,
   useRef,
   useState,
-  useTransition,
 } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 import { exitEditModeAction } from "@/lib/site-admin/edit-mode/server";
-import { pathnameWithoutAnyLocalePrefix, withLocalePath } from "@/i18n/pathnames";
-import type { LanguageSettings } from "@/lib/language-settings/types";
 import { localeMetadata } from "@/i18n/config";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import {
@@ -64,47 +61,11 @@ import { usePagePresence } from "./presence-provider";
 import { RailPresenceStack } from "./chrome-icon-rail";
 import { isBuilderPresenceEnabled } from "@/lib/site-admin/edit-mode/presence-flag";
 import { useEditContext } from "./edit-context";
-
-/** Minimal `LanguageSettings` for `withLocalePath` / strip-prefix helpers. */
-function localePathSettings(
-  defaultLocale: string,
-  availableLocales: ReadonlyArray<string>,
-): LanguageSettings {
-  const publicLocales = Array.from(
-    new Set([defaultLocale, ...availableLocales]),
-  );
-  return {
-    locales: [],
-    defaultLocale,
-    publicLocales,
-    adminLocales: [],
-    fallbackMode: "default_then_chain",
-    publicSwitcherMode: "prefix",
-    translationInventoryVersion: 0,
-    translationInventoryRefreshedAt: null,
-  };
-}
-
-/**
- * Build the destination URL for a locale switch. Preserves the active
- * search string (e.g. `?edit=1`, share-link query, ad UTM) and hash so a
- * mid-edit locale flip doesn't drop into the visitor view or lose scroll
- * anchors. Path shaping matches middleware (`withLocalePath`): the tenant
- * default locale has no URL prefix; others use `/{code}/…`.
- */
-function urlForLocale(
-  pathname: string,
-  search: string,
-  hash: string,
-  newLocale: string,
-  pathSettings: LanguageSettings,
-): string {
-  const stripped = pathnameWithoutAnyLocalePrefix(pathname, pathSettings);
-  const path = withLocalePath(stripped, newLocale, pathSettings);
-  const q = search ? (search.startsWith("?") ? search : `?${search}`) : "";
-  const h = hash ? (hash.startsWith("#") ? hash : `#${hash}`) : "";
-  return `${path}${q}${h}`;
-}
+import {
+  publishActiveContentLocale,
+  useActiveContentLocale,
+  buildContentFallbackChain,
+} from "./active-content-locale-bridge";
 
 const TOPBAR_H = EDIT_TOPBAR_H;
 /** Shared control sizing — mockup breathing-room pass. */
@@ -1117,104 +1078,66 @@ function viewportPreviewTitle(device: EditDevice, label: string): string {
 }
 
 /**
- * Locale switcher pill — visible only when the active tenant publishes more
- * than one locale. Clicking a non-active code navigates to the equivalent
- * URL on that locale; the storefront re-renders, EditChromeMount re-resolves
- * the locale, and EditProvider remounts with the new value (so the homepage
- * row for that locale loads). When the operator has unsaved edits we warn
- * before navigating so a hot draft on the previous locale isn't dropped.
+ * WS5 — in-session content-locale toggle. REPLACES the navigate+reload
+ * `LocaleSwitcher` for the page-builder per-element translation feature.
+ *
+ * Flipping a locale here does NOT navigate or reload: it publishes the active
+ * content locale (+ its fallback chain) to the `active-content-locale-bridge`,
+ * which the canvas reads to re-render every node through `resolveNodeProp` (a
+ * fallback node renders at 40% opacity) and the Content panel's per-field tabs
+ * read to default to the active locale. The base/default locale renders the
+ * page exactly as published; secondary locales surface the translation gaps.
+ *
+ * Hidden entirely for single-language tenants (< 2 supported locales).
  */
-function LocaleSwitcher({
-  activeLocale,
+function ContentLocaleToggle({
   defaultLocale,
   availableLocales,
-  dirty,
 }: {
-  activeLocale: string;
   defaultLocale: string;
   availableLocales: ReadonlyArray<string>;
-  dirty: boolean;
 }) {
-  const router = useRouter();
-  const pathname = usePathname() ?? "/";
-  const pathSettings = useMemo(
-    () => localePathSettings(defaultLocale, availableLocales),
+  const { locale: activeContentLocale } = useActiveContentLocale();
+  const buttonsRef = useRef<Array<HTMLButtonElement | null>>([]);
+
+  // Default first, then the rest in tenant order.
+  const orderedLocales = useMemo(
+    () => [
+      defaultLocale,
+      ...availableLocales.filter((l) => l !== defaultLocale),
+    ],
     [defaultLocale, availableLocales],
   );
-  const buttonsRef = useRef<Array<HTMLButtonElement | null>>([]);
-  // `isPending` reflects React 19 transition state — true from the moment
-  // we kick the navigation off until the new route's RSC payload is in.
-  // We surface it as a subtle pulse on the active pill so the operator
-  // gets immediate feedback that their click registered, even on a slow
-  // tenant where the homepage row takes a beat to load.
-  const [isPending, startTransition] = useTransition();
 
-  const navigateToLocale = useCallback(
+  const selectLocale = useCallback(
     (code: string) => {
-      if (code === activeLocale) return;
-      if (dirty) {
-        const ok = window.confirm(
-          "Switch locale with unsaved edits?\n\nYour current draft is auto-saved per locale on the server, so it won't be lost — when you come back it will still be here. The canvas will reload to show the draft for the other locale.",
-        );
-        if (!ok) return;
-      }
-      const search = typeof window !== "undefined" ? window.location.search : "";
-      const hash = typeof window !== "undefined" ? window.location.hash : "";
-      const target = urlForLocale(pathname, search, hash, code, pathSettings);
-      const doNavigate = () =>
-        startTransition(() => {
-          router.push(target);
-        });
-      // Locale switch — plain navigation, no View Transitions.
-      //
-      // QA 2026-05-13 — `document.startViewTransition(doNavigate)` was
-      // throwing `InvalidStateError: Transition was aborted because of
-      // invalid state` and silently swallowing the navigation. The
-      // operator clicked ES and nothing happened — locale switching was
-      // effectively broken in development. The error tracks back to
-      // either a concurrent transition mid-cleanup OR (more likely on
-      // this codebase) interaction with the admin-shell's parallel
-      // `startViewTransition` call in `state.tsx:7229`, which can leave
-      // the document's transition slot in an aborted state for the next
-      // call.
-      //
-      // We previously tried wrapping in try/catch + handle.updateCallbackDone.catch
-      // — neither caught the error reliably across browsers. The pragmatic
-      // fix is to skip the crossfade for locale switches: the operator
-      // does this maybe twice per session, the perceived flash is no
-      // worse than any other route change in Next.js, and the navigation
-      // actually happens. If the crossfade is missed enough that someone
-      // notices, we can revive it once the underlying view-transition
-      // contention is fixed at the platform level (probably moving all
-      // VT calls behind a single coordinator).
-      doNavigate();
+      if (code === activeContentLocale) return;
+      publishActiveContentLocale({
+        locale: code,
+        defaultLocale,
+        chain: buildContentFallbackChain(code, defaultLocale, orderedLocales),
+      });
     },
-    [activeLocale, dirty, pathSettings, pathname, router],
+    [activeContentLocale, defaultLocale, orderedLocales],
   );
 
-  // Arrow-key navigation: ←/→ cycle through locales. Operators using a
-  // bilingual roster spend a lot of time here; one keystroke beats two
-  // mouse moves. Wraps at the ends. We avoid hijacking arrow keys when
-  // an inputtable element has focus (handled by the topbar-level keymap
-  // already) — the radio group's buttons are non-text targets, so this
-  // handler only fires when one of the chips owns focus.
   const handleKey = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
-      if (availableLocales.length < 2) return;
+      if (orderedLocales.length < 2) return;
       if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
       e.preventDefault();
-      const idx = availableLocales.indexOf(activeLocale);
+      const idx = orderedLocales.indexOf(activeContentLocale);
       const dir = e.key === "ArrowLeft" ? -1 : 1;
       const next =
-        availableLocales[
-          (idx + dir + availableLocales.length) % availableLocales.length
+        orderedLocales[
+          (idx + dir + orderedLocales.length) % orderedLocales.length
         ];
-      if (next) navigateToLocale(next);
+      if (next) selectLocale(next);
     },
-    [activeLocale, availableLocales, navigateToLocale],
+    [activeContentLocale, orderedLocales, selectLocale],
   );
 
-  if (availableLocales.length < 2) return null;
+  if (orderedLocales.length < 2) return null;
 
   return (
     <div
@@ -1224,28 +1147,30 @@ function LocaleSwitcher({
         boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.04)",
       }}
       role="radiogroup"
-      aria-label="Editing locale"
+      aria-label="Content language (in-session preview + per-element translation)"
       onKeyDown={handleKey}
     >
-      {availableLocales.map((code, i) => {
+      {orderedLocales.map((code, i) => {
         const meta = localeMetadata[code];
         const label = meta?.label ?? code.toUpperCase();
-        const active = code === activeLocale;
-        const showPending = active && isPending;
+        const active = code === activeContentLocale;
+        const isDefault = code === defaultLocale;
         return (
           <button
             key={code}
             type="button"
             role="radio"
             aria-checked={active}
-            aria-busy={showPending || undefined}
             tabIndex={active ? 0 : -1}
-            disabled={isPending && !active}
             ref={(el) => {
               buttonsRef.current[i] = el;
             }}
-            title={`Edit homepage in ${label} (←/→ to cycle)`}
-            onClick={() => navigateToLocale(code)}
+            title={
+              isDefault
+                ? `Show the page in ${label} (default) — ←/→ to cycle`
+                : `Translate / preview the page in ${label} — untranslated blocks dim — ←/→ to cycle`
+            }
+            onClick={() => selectLocale(code)}
             className="inline-flex items-center gap-[5px] rounded-full border-none px-[14px] py-[7px] text-[13px] font-semibold uppercase tracking-[0.04em] transition-all"
             style={{
               background: active ? CHROME.surface : "transparent",
@@ -1253,14 +1178,7 @@ function LocaleSwitcher({
               boxShadow: active
                 ? "0 1px 3px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.04)"
                 : "none",
-              cursor: active
-                ? "default"
-                : isPending
-                  ? "wait"
-                  : "pointer",
-              opacity: isPending && !active ? 0.5 : showPending ? 0.7 : 1,
-              transition:
-                "opacity 200ms ease, background 200ms ease, color 200ms ease",
+              cursor: active ? "default" : "pointer",
             }}
           >
             {code}
@@ -2920,6 +2838,24 @@ export function TopBar({
 }: TopBarProps) {
   const editCtx = useMaybeEditContext();
 
+  // WS5 — seed the in-session content-locale bridge from the page's resolved
+  // locale + tenant default on first paint (and whenever they change). The
+  // ContentLocaleToggle + canvas + Content panel all read this bridge; seeding
+  // here means the canvas resolves overlays for the correct locale immediately,
+  // even before the operator touches the toggle. Re-runs only on a real change.
+  const seededLocale = activeLocale || defaultLocale;
+  useEffect(() => {
+    const ordered = [
+      defaultLocale,
+      ...availableLocales.filter((l) => l !== defaultLocale),
+    ];
+    publishActiveContentLocale({
+      locale: seededLocale,
+      defaultLocale,
+      chain: buildContentFallbackChain(seededLocale, defaultLocale, ordered),
+    });
+  }, [seededLocale, defaultLocale, availableLocales]);
+
   // WS4-TASK1: Named checkpoint prompt state.
   const [namedDraftOpen, setNamedDraftOpen] = useState(false);
   const [namedDraftLabel, setNamedDraftLabel] = useState("");
@@ -3027,12 +2963,10 @@ export function TopBar({
       {headerVariant === "lab" && labHeaderActions ? (
         <>{labHeaderActions}</>
       ) : null}
-      {activeLocale && availableLocales.length > 1 ? (
-        <LocaleSwitcher
-          activeLocale={activeLocale}
+      {availableLocales.length > 1 ? (
+        <ContentLocaleToggle
           defaultLocale={defaultLocale}
           availableLocales={availableLocales}
-          dirty={dirty}
         />
       ) : null}
 

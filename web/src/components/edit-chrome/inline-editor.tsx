@@ -51,6 +51,9 @@ import {
   resolveSectionEmbedConfigTextValue,
 } from "./inline-editor-builder-resolvers";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node";
+import { useActiveContentLocale } from "./active-content-locale-bridge";
+import { isLocalizableProp } from "@/lib/i18n/builder-i18n-props";
+import { setOverlayProp } from "@/lib/site-admin/builder-node/i18n-overlay";
 
 type Banner =
   | { kind: "none" }

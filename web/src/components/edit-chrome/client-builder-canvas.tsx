@@ -52,6 +52,7 @@ import {
   getStyleClassRegistryServerSnapshot,
   subscribeStyleClassRegistry,
 } from "@/lib/site-admin/builder-node/style-classes-storage";
+import { useActiveContentLocale } from "./active-content-locale-bridge";
 
 import {
   getBuilderCanvasTreeSnapshot,
@@ -151,6 +152,23 @@ function ClientBuilderCanvasInner({
     [sectionEmbedIslands],
   );
 
+  // WS5 — the in-session content locale (top-header toggle). On the editor
+  // canvas we resolve every localizable prop through the node's i18n overlay for
+  // this locale, and dim (40% opacity + dotted outline) any node that falls back
+  // (editorPreview: true). On the default locale this resolves to the base prop
+  // → byte-identical to today. The bridge flip re-renders the canvas with no
+  // navigation / reload.
+  const activeLocale = useActiveContentLocale();
+  const contentLocale = useMemo(
+    () => ({
+      locale: activeLocale.locale,
+      defaultLocale: activeLocale.defaultLocale,
+      chain: activeLocale.chain,
+      editorPreview: true,
+    }),
+    [activeLocale.locale, activeLocale.defaultLocale, activeLocale.chain],
+  );
+
   // W2-T1 — memoize the `renderBuilderNodes` options object. The only memo
   // boundary inside the renderer is `BuilderNodeView`, which compares
   // `Object.is(prev.options, next.options)`; a fresh inline options object every
@@ -170,6 +188,7 @@ function ClientBuilderCanvasInner({
       styleClasses,
       componentStyleDefaults: effectiveComponentDefaults,
       renderSectionEmbed,
+      contentLocale,
       // W3-T1 — editor-only insert/delete/reorder motion. The published /
       // server render paths never set this, so they stay byte-identical; here
       // on the live editor canvas it wraps the tree in the FLIP primitive.
@@ -184,6 +203,7 @@ function ClientBuilderCanvasInner({
       styleClasses,
       effectiveComponentDefaults,
       renderSectionEmbed,
+      contentLocale,
     ],
   );
 
