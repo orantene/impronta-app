@@ -31,7 +31,7 @@
  * adapter. Opened without one, the canvas is the ephemeral no-op sink (scratch).
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { BuilderEditorMount } from "@/lib/site-admin/builder-core/mount/BuilderEditorMount";
 import { buildPlatformLabBuilderConfig } from "@/lib/site-admin/builder-core/config";
@@ -123,10 +123,14 @@ export function BuilderLabStage({
   );
 
   // Full-screen popup: lock the page behind it from scrolling while the editor
-  // is open, and restore on close.
+  // is open, and restore on close. Also move focus into the popup on open — it
+  // covers the whole platform-admin app, so keyboard/SR focus must not stay on
+  // the now-hidden "+ New" trigger behind the z-50 overlay.
+  const stageRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    stageRef.current?.focus();
     return () => {
       document.body.style.overflow = prev;
     };
@@ -149,6 +153,15 @@ export function BuilderLabStage({
   return (
     <div
       data-builder-lab-stage
+      ref={stageRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label={
+        subject
+          ? `Builder Lab — previewing ${subject.kind}: ${subject.label}`
+          : "Builder Lab editor"
+      }
+      tabIndex={-1}
       style={{
         position: "fixed",
         inset: 0,
@@ -158,6 +171,7 @@ export function BuilderLabStage({
         zIndex: 50,
         background: "#E9E9EE",
         overflow: "auto",
+        outline: "none",
       }}
     >
       <BuilderEditorMount
@@ -210,6 +224,26 @@ function BuilderLabSubjectPicker({
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Dismiss the open subject dropdown on Escape or an outside click (mirrors the
+  // editor's PagePicker). Scoped to this picker via the data-attr — it does not
+  // touch the editor's own Escape handling.
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && !t.closest("[data-builder-lab-subject-picker]")) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
 
   const buildFor = useCallback(
     async (next: PreviewSubject) => {

@@ -122,6 +122,13 @@ export interface CatalogAdminItem {
  * Compute the Catalog admin view (PURE) from the ungated universe + overlays.
  * Effective visibility = target_context allows the surface AND the overlay
  * doesn't disable it AND it isn't availability-hidden. Code items target "both".
+ *
+ * NOTE: talentVisible/workspaceVisible intentionally IGNORE required_plan and
+ * required_talent_tier gating, which the live consumer gallery DOES apply
+ * (applyCatalogOverlay / listPublishedTemplates). So a column shown "visible"
+ * here can still be hidden on a specific live builder whose plan/tier doesn't
+ * meet a row's requirement — this answers "is it enabled for the surface", not
+ * "will every builder on that surface see it".
  */
 export function buildCatalogAdminView(
   universe: ReadonlyArray<AddGalleryItem>,

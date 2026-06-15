@@ -909,7 +909,8 @@ function targetToLabTarget(t: BuilderTemplateTarget): BuilderLabTarget {
  * drafts (builder_templates, kind=page_template) with status pills. "+ New"
  * creates a draft for the picked target and opens it; clicking a draft reopens
  * it. The editor binds to the draft id, so edits persist and Publish promotes
- * the draft into the page-templates gallery (the Site Starter Kit).
+ * the draft into the page-templates gallery — the live builders' "+" Add →
+ * Page Templates tab (scoped by the draft's target_context).
  */
 function PlaygroundView({
   onLaunchEditor,

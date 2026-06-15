@@ -169,7 +169,7 @@ export function PillToggle<K extends string>({
         alignSelf: "flex-start",
       }}
     >
-      {options.map((o) => {
+      {options.map((o, idx) => {
         const on = value === o.key;
         return (
           <button
@@ -177,7 +177,28 @@ export function PillToggle<K extends string>({
             type="button"
             role="tab"
             aria-selected={on}
+            // Roving tabindex: the group is one tab stop; arrow keys move
+            // selection + focus between segments (WAI-ARIA tabs keyboard contract).
+            tabIndex={on ? 0 : -1}
             onClick={() => onChange(o.key)}
+            onKeyDown={(e) => {
+              const last = options.length - 1;
+              let next: number | null = null;
+              if (e.key === "ArrowRight" || e.key === "ArrowDown")
+                next = idx === last ? 0 : idx + 1;
+              else if (e.key === "ArrowLeft" || e.key === "ArrowUp")
+                next = idx === 0 ? last : idx - 1;
+              else if (e.key === "Home") next = 0;
+              else if (e.key === "End") next = last;
+              if (next === null) return;
+              e.preventDefault();
+              onChange(options[next].key);
+              (
+                e.currentTarget.parentElement?.children[next] as
+                  | HTMLElement
+                  | undefined
+              )?.focus();
+            }}
             className={FOCUS_RING}
             style={{
               display: "inline-flex",
