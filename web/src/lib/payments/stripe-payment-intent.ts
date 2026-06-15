@@ -110,7 +110,13 @@ export async function createPaymentIntentForTransaction(
       currency: input.currency.toLowerCase(),
       automatic_payment_methods: { enabled: true },
       description: input.description ?? "Booking payment",
-      receipt_email: input.payerEmail ?? undefined,
+      // NOTE: receipt_email is intentionally NOT set. The app sends its own
+      // branded, bilingual "Payment received" receipt (notification entry
+      // payment.received → client.payment_receipt) and logs it in the platform
+      // email console. Setting receipt_email would make Stripe send a SECOND,
+      // unbranded receipt — the duplicate we're removing. (Belt-and-suspenders:
+      // also turn off Stripe Dashboard → Settings → Customer emails →
+      // "Successful payments".)
       // Idempotency at the booking-transaction grain keeps a double-open of the
       // drawer from minting two intents for the same invoice.
       metadata,
