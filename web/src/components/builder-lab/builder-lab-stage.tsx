@@ -31,7 +31,7 @@
  * adapter. Opened without one, the canvas is the ephemeral no-op sink (scratch).
  */
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { BuilderEditorMount } from "@/lib/site-admin/builder-core/mount/BuilderEditorMount";
 import { buildPlatformLabBuilderConfig } from "@/lib/site-admin/builder-core/config";
@@ -44,6 +44,7 @@ import { useBuilderTree } from "@/components/edit-chrome/builder-tree-bridge";
 import { CHROME } from "@/components/edit-chrome/kit/tokens";
 
 import { PreviewSubjectPicker, type PreviewSubject } from "./preview-subject-picker";
+import { PillToggle } from "./ui";
 
 /** Who a Playground draft is *for* — chosen at "+ New". Distinct from the
  *  preview SUBJECT (the specific talent/workspace authored against in-canvas). */
@@ -121,8 +122,58 @@ export function BuilderLabStage({
     [],
   );
 
+  // Full-screen popup: lock the page behind it from scrolling while the editor
+  // is open, and restore on close. Also move focus into the popup on open — it
+  // covers the whole platform-admin app, so keyboard/SR focus must not stay on
+  // the now-hidden "+ New" trigger behind the z-50 overlay.
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    stageRef.current?.focus();
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
+  // The in-editor subject picker lives in the editor's ONE topbar (passed as
+  // previewSubjectChip) — not a separate bar — so the editor is one clean window.
+  const subjectPicker = (
+    <BuilderLabSubjectPicker
+      target={target}
+      activeKind={activeKind}
+      onKindChange={setBothKind}
+      subject={subject}
+      tenantId={tenantId}
+      locale={locale}
+      onSubjectResolved={onSubjectResolved}
+    />
+  );
+
   return (
-    <div data-builder-lab-stage style={{ minHeight: "calc(100vh - 50px)" }}>
+    <div
+      data-builder-lab-stage
+      ref={stageRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label={
+        subject
+          ? `Builder Lab — previewing ${subject.kind}: ${subject.label}`
+          : "Builder Lab editor"
+      }
+      tabIndex={-1}
+      style={{
+        position: "fixed",
+        inset: 0,
+        // Above the admin sticky header (z-40) so the editor is a full-screen
+        // popup that covers the platform admin chrome; the editor's own
+        // body-portal selection layer (z-83) still paints above the canvas.
+        zIndex: 50,
+        background: "#E9E9EE",
+        overflow: "auto",
+        outline: "none",
+      }}
+    >
       <BuilderEditorMount
         surfaceConfig={surfaceConfig}
         tenantId={tenantId}
@@ -132,42 +183,31 @@ export function BuilderLabStage({
         canInsertRawHtmlElements
         canvasRenderData={canvasRenderData}
         tenantSiteLabel={
-          subject
-            ? `Previewing ${subject.kind}: ${subject.label}`
-            : "Builder Lab — pick a subject"
+          subject ? `Previewing ${subject.kind}: ${subject.label}` : "Builder Lab"
         }
-      >
-        <BuilderLabStageHeaderBridge
-          target={target}
-          activeKind={activeKind}
-          onKindChange={setBothKind}
-          subject={subject}
-          tenantId={tenantId}
-          locale={locale}
-          onExit={onExit}
-          onSubjectResolved={onSubjectResolved}
-        />
-      </BuilderEditorMount>
+        headerVariant="lab"
+        onExit={onExit}
+        exitLabel="Exit Lab"
+        previewSubjectChip={subjectPicker}
+      />
     </div>
   );
 }
 
 /**
- * Bridges the Lab's exit control + the in-editor subject picker into the editor
- * chrome. Lives INSIDE the provider tree so it can read the live builder tree
- * (`useBuilderTree`) when rebuilding the preview against a switched subject.
- *
- * For a "both" target it also renders a talent ⇄ workspace kind toggle so the
- * operator can preview the same design against either surface's data.
+ * The Lab's in-editor preview-subject picker — a chip + dropdown rendered in the
+ * editor TOPBAR (passed as previewSubjectChip), so the whole editor is one clean
+ * window. Lives INSIDE the provider tree so it can read the live builder tree
+ * (`useBuilderTree`) when rebuilding the preview against a switched subject. For
+ * a "both" target it includes a talent ⇄ workspace kind toggle.
  */
-function BuilderLabStageHeaderBridge({
+function BuilderLabSubjectPicker({
   target,
   activeKind,
   onKindChange,
   subject,
   tenantId,
   locale,
-  onExit,
   onSubjectResolved,
 }: {
   target: BuilderLabTarget;
@@ -178,13 +218,32 @@ function BuilderLabStageHeaderBridge({
   subject: PreviewSubject | null;
   tenantId: string;
   locale?: string;
-  onExit: () => void;
   onSubjectResolved: (s: PreviewSubject, data: InEditorCanvasRenderData) => void;
 }) {
   const tree = useBuilderTree();
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Dismiss the open subject dropdown on Escape or an outside click (mirrors the
+  // editor's PagePicker). Scoped to this picker via the data-attr — it does not
+  // touch the editor's own Escape handling.
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && !t.closest("[data-builder-lab-subject-picker]")) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
 
   const buildFor = useCallback(
     async (next: PreviewSubject) => {
@@ -219,42 +278,7 @@ function BuilderLabStageHeaderBridge({
     subject && subject.kind === activeKind ? subject.id : null;
 
   return (
-    <div
-      data-builder-lab-header-bridge
-      style={{
-        position: "sticky",
-        top: 50,
-        zIndex: 41,
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        padding: "8px 16px",
-        background: CHROME.paper,
-        borderBottom: `1px solid ${CHROME.line}`,
-      }}
-    >
-      <button
-        type="button"
-        onClick={onExit}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "5px 12px",
-          borderRadius: 8,
-          border: `1px solid ${CHROME.controlBorder}`,
-          background: CHROME.controlFill,
-          color: CHROME.text,
-          fontSize: 12,
-          fontWeight: 600,
-          cursor: "pointer",
-        }}
-      >
-        ← Exit Lab
-      </button>
-
-      {/* In-editor subject switcher — the keystone of the Playground flow. */}
-      <div style={{ position: "relative" }}>
+    <div data-builder-lab-subject-picker style={{ position: "relative" }}>
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
@@ -309,44 +333,19 @@ function BuilderLabStageHeaderBridge({
             }}
           >
             {/* "Both" target → talent ⇄ workspace toggle so the same design can
-                be previewed against either surface's live data. */}
+                be previewed against either surface's live data. Uses the shared
+                PillToggle so it matches the Catalog surface switchers. */}
             {isBoth ? (
-              <div
-                role="tablist"
-                aria-label="Preview against"
-                style={{
-                  display: "inline-flex",
-                  background: "rgba(255,255,255,0.05)",
-                  borderRadius: 999,
-                  padding: 2,
-                  marginBottom: 10,
-                }}
-              >
-                {(["talent", "workspace"] as const).map((k) => {
-                  const on = activeKind === k;
-                  return (
-                    <button
-                      key={k}
-                      type="button"
-                      role="tab"
-                      aria-selected={on}
-                      onClick={() => onKindChange(k)}
-                      style={{
-                        background: on ? CHROME.green : "transparent",
-                        color: on ? "#0F0F11" : "rgba(245,242,235,0.62)",
-                        border: "none",
-                        fontSize: 11,
-                        fontWeight: 700,
-                        padding: "4px 14px",
-                        borderRadius: 999,
-                        cursor: "pointer",
-                        textTransform: "capitalize",
-                      }}
-                    >
-                      {k}
-                    </button>
-                  );
-                })}
+              <div style={{ marginBottom: 10 }}>
+                <PillToggle
+                  ariaLabel="Preview against"
+                  value={activeKind}
+                  onChange={onKindChange}
+                  options={[
+                    { key: "talent", label: "Talent" },
+                    { key: "workspace", label: "Workspace" },
+                  ]}
+                />
               </div>
             ) : null}
             <div
@@ -386,14 +385,5 @@ function BuilderLabStageHeaderBridge({
           </div>
         ) : null}
       </div>
-
-      {!subject ? (
-        <span style={{ fontSize: 11, color: CHROME.muted, fontWeight: 500 }}>
-          {isBoth
-            ? "Pick a talent or workspace to preview live data on connected blocks."
-            : `Pick a ${activeKind} to preview live data on connected blocks.`}
-        </span>
-      ) : null}
-    </div>
   );
 }

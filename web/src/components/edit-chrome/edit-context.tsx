@@ -2152,12 +2152,18 @@ export function EditProvider({
     resolvedSurfaceConfig.galleryPolicy.allowedTabs.join(",");
   const galleryAllowDbTemplates =
     resolvedSurfaceConfig.galleryPolicy.allowDbTemplates;
+  // Gallery audience for §E target gating + the Lab's per-surface overlay
+  // toggles. Prefer the explicit `galleryPolicy.surfaceTarget` (a surface can
+  // declare a definite gallery audience even when it previews against the
+  // tenant default, e.g. the workspace freeform `cms_page` surface); otherwise
+  // fall back to `previewSubjectKind`.
   const gallerySurfaceTarget: GallerySurfaceDescriptor["surfaceTarget"] =
-    resolvedSurfaceConfig.previewSubjectKind === "talent"
+    resolvedSurfaceConfig.galleryPolicy.surfaceTarget ??
+    (resolvedSurfaceConfig.previewSubjectKind === "talent"
       ? "talent"
       : resolvedSurfaceConfig.previewSubjectKind === "workspace"
         ? "workspace"
-        : null;
+        : null);
   const gallerySurfaceTier = resolvedSurfaceConfig.surfaceTalentTier ?? null;
   const gallerySurface = useMemo<GallerySurfaceDescriptor>(
     () => ({

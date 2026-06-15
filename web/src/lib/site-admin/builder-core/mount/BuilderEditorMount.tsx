@@ -76,6 +76,16 @@ export interface BuilderEditorMountProps {
    * since the mount is rendered by a server component that builds them.
    */
   canvasRenderData?: InEditorCanvasRenderData | null;
+  /** Topbar variant — "lab" gives a close-callback exit + the previewSubjectChip
+   *  slot (used by the Platform Builder Lab popup). Defaults to "live". */
+  headerVariant?: "live" | "lab";
+  /** Close handler for the "lab" exit. */
+  onExit?: () => void;
+  /** Label for the "lab" exit button. */
+  exitLabel?: string;
+  /** Chrome rendered in the topbar's left cluster (lab only) — the Lab's
+   *  in-editor preview-subject picker. */
+  previewSubjectChip?: ReactNode;
   /** Optional extra chrome rendered inside the provider tree. */
   children?: ReactNode;
 }
@@ -93,6 +103,10 @@ export function BuilderEditorMount({
   workspaceMembershipSlug = null,
   canInsertRawHtmlElements = false,
   canvasRenderData = null,
+  headerVariant = "live",
+  onExit,
+  exitLabel = "Exit",
+  previewSubjectChip,
   children,
 }: BuilderEditorMountProps) {
   return (
@@ -109,6 +123,10 @@ export function BuilderEditorMount({
       canInsertRawHtmlElements={canInsertRawHtmlElements}
       surfaceConfig={surfaceConfig}
       canvasRenderData={canvasRenderData}
+      headerVariant={headerVariant}
+      onExit={onExit}
+      exitLabel={exitLabel}
+      previewSubjectChip={previewSubjectChip}
     >
       {children}
     </EditShell>

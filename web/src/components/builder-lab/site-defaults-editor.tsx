@@ -23,6 +23,8 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 
 import { resolvePlatformDefaultThemeActionSet } from "@/components/edit-chrome/theme-action-scope";
 import { listThemePresets } from "@/lib/site-admin/presets/theme-presets";
+import { SurfaceSwitcher } from "./surface-switcher";
+import { LAB as T, RADII, fieldStyle, LabButton, SectionLabel } from "./ui";
 import type { PlatformThemeSurface } from "@/lib/platform/default-theme";
 import type { ComponentStyleDefaults } from "@/lib/site-admin/builder-node/component-style-defaults";
 
@@ -40,18 +42,6 @@ const SURFACE_TABS: ReadonlyArray<{ key: PlatformThemeSurface; label: string; bl
     blurb: "The default for new talent pages — falls back to the agency default when unset.",
   },
 ];
-
-const T = {
-  card: "#16161A",
-  cardSoft: "rgba(255,255,255,0.04)",
-  border: "rgba(255,255,255,0.10)",
-  borderSoft: "rgba(255,255,255,0.06)",
-  ink: "#F5F2EB",
-  inkMuted: "rgba(245,242,235,0.62)",
-  inkDim: "rgba(245,242,235,0.38)",
-  accent: "#5DD3A0",
-  field: "#1F1F25",
-};
 
 /** Color tokens surfaced as swatches. */
 const COLOR_TOKENS: Array<{ key: string; label: string }> = [
@@ -165,30 +155,12 @@ export function SiteDefaultsEditor() {
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {/* Surface toggle — Agency (shared) vs Talent (override) */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <div style={{ display: "inline-flex", background: T.cardSoft, borderRadius: 999, padding: 3, alignSelf: "flex-start" }}>
-          {SURFACE_TABS.map((t) => {
-            const on = surface === t.key;
-            return (
-              <button
-                key={t.key}
-                type="button"
-                onClick={() => setSurface(t.key)}
-                style={{
-                  background: on ? T.ink : "transparent",
-                  color: on ? "#0F0F11" : T.inkMuted,
-                  border: "none",
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  padding: "7px 16px",
-                  borderRadius: 999,
-                  cursor: "pointer",
-                }}
-              >
-                {t.label}
-              </button>
-            );
-          })}
-        </div>
+        <SurfaceSwitcher
+          options={SURFACE_TABS}
+          value={surface}
+          onChange={setSurface}
+          ariaLabel="Site default surface"
+        />
         {activeTab ? (
           <div style={{ fontSize: 12, color: T.inkMuted }}>{activeTab.blurb}</div>
         ) : null}
@@ -219,9 +191,9 @@ export function SiteDefaultsEditor() {
                     alignItems: "center",
                     gap: 8,
                     padding: "7px 11px",
-                    borderRadius: 9,
+                    borderRadius: RADII.control,
                     border: `1px solid ${active ? T.accent : T.border}`,
-                    background: active ? "rgba(93,211,160,0.12)" : T.field,
+                    background: active ? T.accentSoft : T.field,
                     color: T.ink,
                     fontSize: 12.5,
                     fontWeight: 600,
@@ -284,12 +256,9 @@ export function SiteDefaultsEditor() {
                   value={tokens[f.key] ?? f.options[0]}
                   onChange={(e) => setToken(f.key, e.target.value)}
                   style={{
+                    ...fieldStyle,
                     padding: "6px 8px",
-                    borderRadius: 7,
-                    border: `1px solid ${T.border}`,
-                    background: T.field,
-                    color: T.ink,
-                    fontSize: 12.5,
+                    borderRadius: RADII.icon,
                   }}
                 >
                   {f.options.map((o) => (
@@ -304,23 +273,9 @@ export function SiteDefaultsEditor() {
         </section>
 
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <button
-            type="button"
-            disabled={pending}
-            onClick={save}
-            style={{
-              padding: "9px 18px",
-              borderRadius: 9,
-              border: "none",
-              background: pending ? "#3a3a42" : T.accent,
-              color: "#0F0F11",
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: pending ? "default" : "pointer",
-            }}
-          >
+          <LabButton variant="primary" disabled={pending} onClick={save}>
             {pending ? "Saving…" : "Save & publish default"}
-          </button>
+          </LabButton>
           {status && (
             <span style={{ fontSize: 12.5, color: status.ok ? T.accent : "#f0a8a8" }}>{status.msg}</span>
           )}
@@ -336,20 +291,7 @@ export function SiteDefaultsEditor() {
 }
 
 function Legend({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      style={{
-        fontSize: 10.5,
-        color: T.inkMuted,
-        fontWeight: 600,
-        letterSpacing: 1.2,
-        textTransform: "uppercase",
-        marginBottom: 10,
-      }}
-    >
-      {children}
-    </div>
-  );
+  return <SectionLabel style={{ marginBottom: 10 }}>{children}</SectionLabel>;
 }
 
 /** A small, self-contained preview of the default theme's key surfaces. */

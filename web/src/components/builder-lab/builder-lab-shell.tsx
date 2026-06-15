@@ -22,12 +22,7 @@ import { useState } from "react";
 
 import { BuilderLabStage, type BuilderLabTarget } from "./builder-lab-stage";
 import { ComponentCatalog } from "./component-catalog";
-
-const T = {
-  card: "#16161A",
-  borderSoft: "rgba(255,255,255,0.06)",
-  inkMuted: "rgba(245,242,235,0.62)",
-};
+import { LAB, panelStyle } from "./ui";
 
 export function BuilderLabShell({
   tenantId,
@@ -78,15 +73,7 @@ export function BuilderLabShell({
 
 function Panel({ children }: { children: React.ReactNode }) {
   return (
-    <section
-      style={{
-        background: T.card,
-        border: `1px solid ${T.borderSoft}`,
-        borderRadius: 12,
-        padding: 16,
-        color: T.inkMuted,
-      }}
-    >
+    <section style={{ ...panelStyle, padding: 16, color: LAB.inkMuted }}>
       {children}
     </section>
   );

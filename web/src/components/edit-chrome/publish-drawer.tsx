@@ -30,6 +30,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { publishHomepageFromEditModeAction } from "@/lib/site-admin/edit-mode/composition-actions";
+import type { BuilderSurfaceKind } from "@/lib/site-admin/builder-core/surface-kind";
 import { safeAction } from "@/lib/site-admin/edit-mode/safe-action";
 import {
   readClasses,
@@ -599,11 +600,17 @@ export function PublishDrawer() {
     </span>
   );
 
-  const publishHeadTitle = isSuccess
-    ? "Published"
-    : pageSlug
-      ? "Publish page"
-      : "Publish homepage";
+  // Surface-aware noun: the Builder Lab edits a TEMPLATE (platform_lab, no
+  // pageSlug), the homepage edits the homepage, talent/workspace edit a page.
+  // Drives the title here and the body/success copy below so the Lab never
+  // mislabels a template publish as a "homepage" publish.
+  const surfaceNoun =
+    surfaceKind === "platform_lab"
+      ? "template"
+      : surfaceKind === "homepage"
+        ? "homepage"
+        : "page";
+  const publishHeadTitle = isSuccess ? "Published" : `Publish ${surfaceNoun}`;
 
   return (
     <Drawer
@@ -629,6 +636,7 @@ export function PublishDrawer() {
             publishedAt={
               (state as Extract<PublishState, { kind: "success" }>).publishedAt
             }
+            surfaceKind={surfaceKind}
             onClose={closePublish}
           />
         ) : (
@@ -651,16 +659,28 @@ export function PublishDrawer() {
               }}
             >
               <strong style={{ color: CHROME.text }}>What publishing does</strong>
-              <p style={{ margin: "6px 0 0", fontSize: 11.5, color: CHROME.muted }}>
-                <strong style={{ color: CHROME.text }}>Autosave</strong> keeps your in-progress
-                work as a <strong style={{ color: CHROME.text }}>draft</strong>.{" "}
-                <strong style={{ color: CHROME.text }}>Publishing</strong> replaces the current{" "}
-                <strong style={{ color: CHROME.text }}>public</strong> version of{" "}
-                {pageSlug ? "this page" : "your homepage"} with that draft — so visitors then
-                see this page as you have it now. Other pages are unchanged. Use{" "}
-                <strong style={{ color: CHROME.text }}>Revisions</strong> to roll back to a
-                previous snapshot if needed.
-              </p>
+              {surfaceKind === "platform_lab" ? (
+                <p style={{ margin: "6px 0 0", fontSize: 11.5, color: CHROME.muted }}>
+                  <strong style={{ color: CHROME.text }}>Autosave</strong> keeps your in-progress
+                  work as a <strong style={{ color: CHROME.text }}>draft</strong>.{" "}
+                  <strong style={{ color: CHROME.text }}>Publishing</strong> promotes this{" "}
+                  <strong style={{ color: CHROME.text }}>template</strong>{" "}into the
+                  page-builder gallery — so the live builders&rsquo;{" "}
+                  <strong style={{ color: CHROME.text }}>+ Add</strong> can use it. The canvas here
+                  is a sandbox; no live page changes.
+                </p>
+              ) : (
+                <p style={{ margin: "6px 0 0", fontSize: 11.5, color: CHROME.muted }}>
+                  <strong style={{ color: CHROME.text }}>Autosave</strong> keeps your in-progress
+                  work as a <strong style={{ color: CHROME.text }}>draft</strong>.{" "}
+                  <strong style={{ color: CHROME.text }}>Publishing</strong> replaces the current{" "}
+                  <strong style={{ color: CHROME.text }}>public</strong> version of{" "}
+                  {pageSlug ? "this page" : "your homepage"} with that draft — so visitors then
+                  see this page as you have it now. Other pages are unchanged. Use{" "}
+                  <strong style={{ color: CHROME.text }}>Revisions</strong> to roll back to a
+                  previous snapshot if needed.
+                </p>
+              )}
               <p style={{ margin: "8px 0 0", fontSize: 11, color: CHROME.muted2, lineHeight: 1.45 }}>
                 Saving only stores your draft — it does not mean visitors see these changes. Scroll the
                 canvas, try Preview mode, and review the publish checks below before publishing.
@@ -1670,9 +1690,11 @@ function SearchPreview({
 
 function SuccessBody({
   publishedAt,
+  surfaceKind,
   onClose,
 }: {
   publishedAt: string;
+  surfaceKind: BuilderSurfaceKind;
   onClose: () => void;
 }) {
   const when = new Date(publishedAt);
@@ -1716,8 +1738,11 @@ function SuccessBody({
               lineHeight: 1.5,
             }}
           >
-            Visitors see the new homepage now. Keep editing — your next publish
-            only replaces the live page when you click Publish again.
+            {surfaceKind === "platform_lab"
+              ? "This template is now in the page-builder gallery. Keep editing — your next publish updates it when you click Publish again."
+              : surfaceKind === "homepage"
+                ? "Visitors see the new homepage now. Keep editing — your next publish only replaces the live page when you click Publish again."
+                : "Visitors see the new page now. Keep editing — your next publish only replaces the live page when you click Publish again."}
           </p>
         </div>
       </div>

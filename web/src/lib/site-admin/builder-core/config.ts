@@ -54,6 +54,24 @@ export interface BuilderGalleryPolicy {
   allowedTabs: readonly AddGalleryTab[];
   /** When true the (WS2/WS4) DB-backed "Page Templates" tab is offered. */
   allowDbTemplates: boolean;
+  /**
+   * Catalog audience for §E `target_context` gating + the Builder Lab's
+   * per-surface overlay toggles (`talent_enabled` / `workspace_enabled`).
+   *
+   * This is DELIBERATELY separate from `previewSubjectKind`. The latter only
+   * governs whom connected nodes hydrate against in-canvas; a surface can
+   * preview against the tenant default (`previewSubjectKind: null`) while still
+   * declaring a definite gallery audience. The workspace freeform (`cms_page`)
+   * surface is exactly this case: it renders connected sections against the
+   * tenant (null preview subject) but its gallery audience is `workspace`, so
+   * the Lab's Workspace activate/deactivate toggle and `workspace`/`both`
+   * target gating actually apply on the live builder.
+   *
+   * Omitted → derive from `previewSubjectKind` (talent_page → `talent`;
+   * homepage → `null`, i.e. unscoped). Set it explicitly only when the gallery
+   * audience differs from the preview subject.
+   */
+  surfaceTarget?: "talent" | "workspace" | "platform";
 }
 
 /**
@@ -231,6 +249,12 @@ export function buildCmsPageBuilderConfig(
     galleryPolicy: {
       allowedTabs: ["layout", "elements", "sections", "connected", "page_templates"],
       allowDbTemplates: true,
+      // Workspace freeform pages preview against the tenant default
+      // (previewSubjectKind: null) but their gallery audience is `workspace` —
+      // so the Lab's per-surface Workspace toggle + workspace/both target
+      // gating bite on the live builder. Without this the surface target would
+      // collapse to null and deactivation from the Lab would be a no-op here.
+      surfaceTarget: "workspace",
     },
     dataSources: { allowed: AGENCY_PAGE_DATA_SOURCES },
     previewSubjectKind: null,
@@ -334,9 +358,9 @@ export function builderConfigUsesInEditorCanvas(
  *     nodes hydrate against the picked subject in-canvas (WS4 render plumbing).
  *   - `allowDbTemplates` + the "Page Templates" gallery tab are ON — the Lab is
  *     where templates are authored, so it both consumes and produces them.
- *   - `canPublish` is false: the Lab never publishes a live PAGE. Publishing a
- *     TEMPLATE happens via the header's "Save as page template" → WS2 actions,
- *     not the surface adapter's publish (which is an ephemeral no-op sink).
+ *   - `canPublish` is true: the editor's Publish promotes the open draft to a
+ *     published TEMPLATE via the draft-bound adapter's publish() →
+ *     publishTemplate(draftId) (Phase 3). It never touches a live page.
  *   - `canEditShell` is false: the Lab edits template bodies, not the shared
  *     site header/footer shell.
  *   - raw-HTML `code` insertion is allowed (super_admin-only surface).
@@ -356,10 +380,11 @@ export function buildPlatformLabBuilderConfig(
     surface: platformLabSurfaceAdapter,
     permissions: {
       canEditDraft: true,
-      // The Lab never publishes a live page; template publish is a separate
-      // header action through the WS2 registry, not the surface adapter.
-      canPublish: false,
-      // No revision history on the ephemeral sink.
+      // Publish promotes the open draft to a published TEMPLATE via the
+      // draft-bound adapter's publish() → publishTemplate(draftId) (Phase 3).
+      // It never publishes a live page.
+      canPublish: true,
+      // Revision restore isn't wired for the lab draft surface yet.
       canRestoreRevision: false,
       // The Lab edits template bodies, not the shared site shell.
       canEditShell: false,
@@ -379,6 +404,11 @@ export function buildPlatformLabBuilderConfig(
     },
     dataSources: { allowed: PLATFORM_LAB_DATA_SOURCES },
     previewSubjectKind,
+    // The Lab author is a super-admin authoring/previewing across ALL tiers, so
+    // present the gallery as the top tier — otherwise tier-gated templates
+    // (required_talent_tier) would be hidden from the very surface that authors
+    // them. gallerySurfaceTier (edit-context.tsx) is the only reader.
+    surfaceTalentTier: "talent_portfolio",
     capabilities: {
       motion: true,
       themeTokens: true,

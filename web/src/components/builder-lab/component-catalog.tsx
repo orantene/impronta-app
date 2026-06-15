@@ -46,21 +46,19 @@ import {
   type PageDesignSummary,
 } from "@/lib/site-admin/builder-node/page-designs/summaries";
 import { SiteDefaultsEditor } from "./site-defaults-editor";
+import { SurfaceSwitcher } from "./surface-switcher";
 import type { BuilderLabTarget } from "./builder-lab-stage";
-
-const T = {
-  card: "#16161A",
-  cardSoft: "rgba(255,255,255,0.04)",
-  border: "rgba(255,255,255,0.10)",
-  borderSoft: "rgba(255,255,255,0.06)",
-  ink: "#F5F2EB",
-  inkMuted: "rgba(245,242,235,0.62)",
-  inkDim: "rgba(245,242,235,0.38)",
-  accent: "#5DD3A0",
-  yes: "#5DD3A0",
-  no: "rgba(245,242,235,0.28)",
-  field: "#0F0F11",
-};
+import {
+  LAB as T,
+  RADII,
+  fieldStyle,
+  panelStyle,
+  LabButton,
+  LabBadge,
+  PillToggle,
+  SectionLabel,
+  EmptyCard,
+} from "./ui";
 
 const ALL_TABS: ReadonlyArray<AddGalleryTab> = [
   "layout",
@@ -117,13 +115,14 @@ function targetAllows(
 
 // The Connected view is split by which DATA the component binds: talent-roster /
 // collection / directory sources → "Talent Data"; agency profile / booking /
-// inquiry sources → "Agency Data". This is a DISPLAY grouping (derived from the
-// stable `connectedSource`, not from target_context), so it never changes the
-// real per-surface gating — that stays controlled by the Talent-Max / Workspace
-// toggles on each row.
+// inquiry sources → "Agency Data". The surface switcher shows one at a time
+// (Agency first, matching Site Defaults). This is a DISPLAY grouping (derived
+// from the stable `connectedSource`, not from target_context), so it never
+// changes the real per-surface gating — that stays controlled by the Talent-Max
+// / Workspace toggles on each row.
 const CONNECTED_DATA_GROUPS = [
-  { key: "talent", label: "Talent Data" },
   { key: "agency", label: "Agency Data" },
+  { key: "talent", label: "Talent Data" },
 ] as const;
 type ConnectedDataGroup = (typeof CONNECTED_DATA_GROUPS)[number]["key"];
 
@@ -162,6 +161,10 @@ export function ComponentCatalog({
   const [activeTab, setActiveTab] = useState<CatalogView | null>(
     defaultView ?? null,
   );
+  // Connected view shows one surface at a time via the shared SurfaceSwitcher
+  // (Agency first, matching Site Defaults).
+  const [connectedSurface, setConnectedSurface] =
+    useState<ConnectedDataGroup>("agency");
   // W11 — transient success toast.
   const [toast, setToast] = useState<string | null>(null);
 
@@ -335,7 +338,7 @@ export function ComponentCatalog({
   }, [items, query, filterMode]);
 
   if (error && !items) {
-    return <div style={{ color: "#ff8585", fontSize: 13 }}>{error}</div>;
+    return <div style={{ color: T.red, fontSize: 13 }}>{error}</div>;
   }
   if (!items) {
     return (
@@ -358,11 +361,11 @@ export function ComponentCatalog({
     ? rowsByTab.get(currentView as AddGalleryTab) ?? []
     : [];
 
-  // The Connected view renders two labeled groups (Talent Data | Agency Data);
+  // The Connected view shows ONE surface at a time (driven by the switcher);
   // every other gallery view renders as a single group. Empty groups are dropped.
   const rowGroups: Array<{ key: string; label: string; rows: CatalogAdminItem[] }> = (
     currentView === "connected"
-      ? CONNECTED_DATA_GROUPS.map((g) => ({
+      ? CONNECTED_DATA_GROUPS.filter((g) => g.key === connectedSurface).map((g) => ({
           key: g.key,
           label: g.label,
           rows: currentRows.filter((r) => connectedDataGroupOf(r) === g.key),
@@ -440,7 +443,7 @@ export function ComponentCatalog({
         <Stat label="Templates" value={templates} />
         <Stat label="Customized" value={overridden} />
         {error ? (
-          <span style={{ color: "#ff8585", fontSize: 12 }}>{error}</span>
+          <span style={{ color: T.red, fontSize: 12 }}>{error}</span>
         ) : null}
       </div>
 
@@ -466,42 +469,31 @@ export function ComponentCatalog({
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search components by name, category, or id…"
           aria-label="Search components"
-          style={{
-            flex: 1,
-            minWidth: 240,
-            background: T.field,
-            border: `1px solid ${T.border}`,
-            borderRadius: 8,
-            color: T.ink,
-            fontSize: 12.5,
-            padding: "8px 11px",
-          }}
+          style={{ ...fieldStyle, flex: 1, minWidth: 240, outline: "none" }}
         />
-        <div style={{ display: "inline-flex", background: T.cardSoft, borderRadius: 999, padding: 2 }}>
-          {(["all", "hidden", "customized"] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => setFilterMode(m)}
-              style={{
-                background: filterMode === m ? T.ink : "transparent",
-                color: filterMode === m ? "#0F0F11" : T.inkMuted,
-                border: "none",
-                fontSize: 11.5,
-                fontWeight: 600,
-                padding: "5px 13px",
-                borderRadius: 999,
-                cursor: "pointer",
-                textTransform: "capitalize",
-              }}
-            >
-              {m}
-            </button>
-          ))}
-        </div>
+        <PillToggle
+          size="sm"
+          ariaLabel="Filter components"
+          value={filterMode}
+          onChange={setFilterMode}
+          options={[
+            { key: "all", label: "All" },
+            { key: "hidden", label: "Hidden" },
+            { key: "customized", label: "Customized" },
+          ]}
+        />
       </div>
 
-      {currentRows.length === 0 ? (
+      {currentView === "connected" ? (
+        <SurfaceSwitcher
+          options={CONNECTED_DATA_GROUPS}
+          value={connectedSurface}
+          onChange={setConnectedSurface}
+          ariaLabel="Connected data surface"
+        />
+      ) : null}
+
+      {rowGroups.length === 0 ? (
         <div style={{ color: T.inkMuted, fontSize: 13, padding: "12px 0" }}>
           No {VIEW_LABEL[currentView]} components
           {query ? ` matching “${query}”` : ""}
@@ -510,15 +502,7 @@ export function ComponentCatalog({
       ) : null}
 
       {rowGroups.map((group) => (
-        <section
-          key={group.key}
-          style={{
-            background: T.card,
-            border: `1px solid ${T.borderSoft}`,
-            borderRadius: 12,
-            overflow: "hidden",
-          }}
-        >
+        <section key={group.key} style={{ ...panelStyle, overflow: "hidden" }}>
           <div
             style={{
               display: "flex",
@@ -746,14 +730,14 @@ export function ComponentCatalog({
 
 const STARTER_KIT_GROUPS = [
   {
-    surface: "talent" as const,
-    label: "Talent Starter Kit",
-    blurb: "Full-page starts for a single talent's Max page.",
-  },
-  {
-    surface: "workspace" as const,
+    key: "workspace" as const,
     label: "Agency Starter Kit",
     blurb: "Full-page starts for an agency / workspace storefront.",
+  },
+  {
+    key: "talent" as const,
+    label: "Talent Starter Kit",
+    blurb: "Full-page starts for a single talent's Max page.",
   },
 ];
 
@@ -767,22 +751,23 @@ function designsForSurface(
 }
 
 /**
- * Site Starter Kit (Catalog) — the full-page starter designs, split into a
- * Talent Starter Kit and an Agency Starter Kit by each design's target surface
- * ("both" designs appear in both kits). "Use this starter" creates a Playground
- * draft seeded with the chosen design's baked tree (server-side) and opens the
- * editor on it.
+ * Site Starter Kit (Catalog) — the full-page starter designs. The shared
+ * SurfaceSwitcher shows one kit at a time (Agency / Talent), matching Site
+ * Defaults; "both"-target designs appear in both. "Use this starter" creates a
+ * Playground draft seeded with the chosen design's baked tree (server-side) and
+ * opens the editor on it.
  */
 function SiteStarterKitView({
   onLaunchEditor,
 }: {
   onLaunchEditor?: (target: BuilderLabTarget, draftId?: string) => void;
 }) {
+  const [surface, setSurface] = useState<"talent" | "workspace">("workspace");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const startFromDesign = useCallback(
-    async (design: PageDesignSummary, surface: "talent" | "workspace") => {
+    async (design: PageDesignSummary) => {
       setBusyId(design.id);
       setError(null);
       const res = await createPlaygroundDraftFromDesign({
@@ -796,39 +781,40 @@ function SiteStarterKitView({
         setError(res.error);
       }
     },
-    [onLaunchEditor],
+    [onLaunchEditor, surface],
   );
 
+  const group = STARTER_KIT_GROUPS.find((g) => g.key === surface);
+  const designs = designsForSurface(surface);
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
-      {error ? <div style={{ fontSize: 12, color: "#ff8585" }}>{error}</div> : null}
-      {STARTER_KIT_GROUPS.map((group) => {
-        const designs = designsForSurface(group.surface);
-        return (
-          <section key={group.surface} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: T.ink }}>{group.label}</div>
-              <div style={{ fontSize: 12, color: T.inkMuted, marginTop: 2 }}>{group.blurb}</div>
-            </div>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-                gap: 12,
-              }}
-            >
-              {designs.map((d) => (
-                <StarterKitCard
-                  key={d.id}
-                  design={d}
-                  busy={busyId === d.id}
-                  onUse={() => void startFromDesign(d, group.surface)}
-                />
-              ))}
-            </div>
-          </section>
-        );
-      })}
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <SurfaceSwitcher
+        options={STARTER_KIT_GROUPS}
+        value={surface}
+        onChange={setSurface}
+        ariaLabel="Starter kit surface"
+      />
+      {group ? (
+        <div style={{ fontSize: 12, color: T.inkMuted }}>{group.blurb}</div>
+      ) : null}
+      {error ? <div style={{ fontSize: 12, color: T.red }}>{error}</div> : null}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+          gap: 12,
+        }}
+      >
+        {designs.map((d) => (
+          <StarterKitCard
+            key={d.id}
+            design={d}
+            busy={busyId === d.id}
+            onUse={() => void startFromDesign(d)}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -845,9 +831,7 @@ function StarterKitCard({
   return (
     <div
       style={{
-        background: T.card,
-        border: `1px solid ${T.borderSoft}`,
-        borderRadius: 12,
+        ...panelStyle,
         padding: 14,
         display: "flex",
         flexDirection: "column",
@@ -856,44 +840,19 @@ function StarterKitCard({
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
         <span style={{ fontSize: 13.5, fontWeight: 700, color: T.ink }}>{design.label}</span>
-        <span
-          style={{
-            fontSize: 9.5,
-            fontWeight: 700,
-            letterSpacing: 0.4,
-            textTransform: "uppercase",
-            color: T.inkMuted,
-            background: T.cardSoft,
-            borderRadius: 999,
-            padding: "2px 7px",
-          }}
-        >
-          {design.archetype}
-        </span>
+        <LabBadge tone="muted">{design.archetype}</LabBadge>
       </div>
       <p style={{ fontSize: 11.5, color: T.inkMuted, lineHeight: 1.5, margin: 0, flex: 1 }}>
         {design.description}
       </p>
-      <button
-        type="button"
-        onClick={onUse}
+      <LabButton
+        variant="soft"
         disabled={busy}
-        className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60"
-        style={{
-          alignSelf: "flex-start",
-          padding: "6px 13px",
-          borderRadius: 8,
-          border: `1px solid ${T.accent}`,
-          background: "rgba(93,211,160,0.12)",
-          color: T.accent,
-          fontSize: 12,
-          fontWeight: 700,
-          cursor: busy ? "default" : "pointer",
-          opacity: busy ? 0.6 : 1,
-        }}
+        onClick={onUse}
+        style={{ alignSelf: "flex-start" }}
       >
         {busy ? "Creating…" : "Use this starter →"}
-      </button>
+      </LabButton>
     </div>
   );
 }
@@ -950,7 +909,8 @@ function targetToLabTarget(t: BuilderTemplateTarget): BuilderLabTarget {
  * drafts (builder_templates, kind=page_template) with status pills. "+ New"
  * creates a draft for the picked target and opens it; clicking a draft reopens
  * it. The editor binds to the draft id, so edits persist and Publish promotes
- * the draft into the page-templates gallery (the Site Starter Kit).
+ * the draft into the page-templates gallery — the live builders' "+" Add →
+ * Page Templates tab (scoped by the draft's target_context).
  */
 function PlaygroundView({
   onLaunchEditor,
@@ -1044,10 +1004,10 @@ function PlaygroundView({
               alignItems: "center",
               gap: 7,
               padding: "8px 16px",
-              borderRadius: 9,
+              borderRadius: RADII.control,
               border: "none",
               background: T.accent,
-              color: "#0F0F11",
+              color: T.accentInk,
               fontSize: 13,
               fontWeight: 700,
               cursor: creating ? "default" : "pointer",
@@ -1127,67 +1087,32 @@ function PlaygroundView({
       </div>
 
       {/* Status pills */}
-      <div style={{ display: "inline-flex", background: T.cardSoft, borderRadius: 999, padding: 2, alignSelf: "flex-start" }}>
-        {PLAYGROUND_STATUS_FILTERS.map((f) => {
-          const active = statusFilter === f.key;
-          const n = counts[f.key] ?? 0;
-          return (
-            <button
-              key={f.key}
-              type="button"
-              onClick={() => setStatusFilter(f.key)}
-              style={{
-                background: active ? T.ink : "transparent",
-                color: active ? "#0F0F11" : T.inkMuted,
-                border: "none",
-                fontSize: 11.5,
-                fontWeight: 600,
-                padding: "5px 13px",
-                borderRadius: 999,
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
-              {f.label}
-              <span style={{ fontSize: 10, fontWeight: 700, opacity: 0.7 }}>{n}</span>
-            </button>
-          );
-        })}
-      </div>
+      <PillToggle
+        size="sm"
+        ariaLabel="Filter drafts by status"
+        value={statusFilter}
+        onChange={setStatusFilter}
+        options={PLAYGROUND_STATUS_FILTERS.map((f) => ({
+          key: f.key,
+          label: f.label,
+          count: counts[f.key] ?? 0,
+        }))}
+      />
 
       {error ? (
-        <div style={{ fontSize: 12, color: "#ff8585" }}>{error}</div>
+        <div style={{ fontSize: 12, color: T.red }}>{error}</div>
       ) : null}
 
       {drafts === null ? (
         <div style={{ color: T.inkMuted, fontSize: 13, padding: "10px 0" }}>Loading drafts…</div>
       ) : visible.length === 0 ? (
-        <div
-          style={{
-            background: T.card,
-            border: `1px solid ${T.borderSoft}`,
-            borderRadius: 12,
-            padding: "32px 20px",
-            textAlign: "center",
-          }}
-        >
-          <p style={{ fontSize: 12.5, color: T.inkMuted, margin: "0 auto", maxWidth: 460, lineHeight: 1.55 }}>
-            {statusFilter === "all"
-              ? "No drafts yet. Hit + New to start a full-page draft — it’s saved as you edit."
-              : `No ${statusFilter.replace("_", " ")} drafts.`}
-          </p>
-        </div>
+        <EmptyCard>
+          {statusFilter === "all"
+            ? "No drafts yet. Hit + New to start a full-page draft — it’s saved as you edit."
+            : `No ${statusFilter.replace("_", " ")} drafts.`}
+        </EmptyCard>
       ) : (
-        <section
-          style={{
-            background: T.card,
-            border: `1px solid ${T.borderSoft}`,
-            borderRadius: 12,
-            overflow: "hidden",
-          }}
-        >
+        <section style={{ ...panelStyle, overflow: "hidden" }}>
           {visible.map((d, i) => {
             const tone = STATUS_TONE[d.status];
             return (
@@ -1224,36 +1149,12 @@ function PlaygroundView({
                     Updated {new Date(d.updated_at).toLocaleDateString()} · v{d.version}
                   </div>
                 </div>
-                <span
-                  style={{
-                    flexShrink: 0,
-                    fontSize: 9.5,
-                    fontWeight: 700,
-                    letterSpacing: 0.4,
-                    textTransform: "uppercase",
-                    color: T.inkMuted,
-                    background: T.cardSoft,
-                    borderRadius: 999,
-                    padding: "2px 8px",
-                  }}
-                >
+                <LabBadge tone="muted" style={{ flexShrink: 0 }}>
                   {d.target_context}
-                </span>
-                <span
-                  style={{
-                    flexShrink: 0,
-                    fontSize: 9.5,
-                    fontWeight: 700,
-                    letterSpacing: 0.4,
-                    textTransform: "uppercase",
-                    color: tone.fg,
-                    background: tone.bg,
-                    borderRadius: 999,
-                    padding: "2px 8px",
-                  }}
-                >
+                </LabBadge>
+                <LabBadge tone="custom" bg={tone.bg} fg={tone.fg} style={{ flexShrink: 0 }}>
                   {d.status.replace("_", " ")}
-                </span>
+                </LabBadge>
                 <span aria-hidden style={{ color: T.inkDim, fontSize: 14, flexShrink: 0 }}>›</span>
               </button>
             );
@@ -1264,15 +1165,7 @@ function PlaygroundView({
   );
 }
 
-const inputStyle: React.CSSProperties = {
-  background: T.field,
-  border: `1px solid ${T.border}`,
-  borderRadius: 8,
-  color: T.ink,
-  fontSize: 12.5,
-  padding: "7px 10px",
-  width: 220,
-};
+const inputStyle: React.CSSProperties = { ...fieldStyle, width: 220 };
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -1312,22 +1205,7 @@ function Th({ children, center, right }: { children: React.ReactNode; center?: b
 }
 
 function Badge({ text, tone }: { text: string; tone: "accent" | "neutral" }) {
-  return (
-    <span
-      style={{
-        fontSize: 10,
-        fontWeight: 700,
-        letterSpacing: 0.4,
-        textTransform: "uppercase",
-        padding: "2px 7px",
-        borderRadius: 999,
-        background: tone === "accent" ? "rgba(93,211,160,0.14)" : "rgba(255,255,255,0.07)",
-        color: tone === "accent" ? T.accent : T.inkMuted,
-      }}
-    >
-      {text}
-    </span>
-  );
+  return <LabBadge tone={tone}>{text}</LabBadge>;
 }
 
 function ToggleCell({

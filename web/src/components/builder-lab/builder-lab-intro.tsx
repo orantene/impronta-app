@@ -11,29 +11,14 @@
  * new inline styles lets them stay inside the frozen area without violations.
  */
 
-const HQ = {
-  card: "#16161A",
-  borderSoft: "rgba(255,255,255,0.06)",
-  ink: "#F5F2EB",
-  inkMuted: "rgba(245,242,235,0.62)",
-};
+import { LAB as HQ, panelStyle, SectionLabel } from "./ui";
 
 /** Title + eyebrow + description shown above the lab tabs. */
 export function BuilderLabHeader() {
   return (
     <div data-tulala-page-header style={{ marginBottom: 16 }}>
       <div style={{ marginBottom: 6 }}>
-        <span
-          style={{
-            fontSize: 10.5,
-            fontWeight: 600,
-            letterSpacing: 1.4,
-            textTransform: "uppercase",
-            color: HQ.inkMuted,
-          }}
-        >
-          Tulala HQ
-        </span>
+        <SectionLabel>Tulala HQ</SectionLabel>
       </div>
       <h1
         style={{
@@ -67,16 +52,7 @@ export function BuilderLabHeader() {
 /** Shown when no active platform tenant is bound to the session. */
 export function BuilderLabNoTenant() {
   return (
-    <section
-      style={{
-        background: HQ.card,
-        border: `1px solid ${HQ.borderSoft}`,
-        borderRadius: 12,
-        padding: 16,
-        color: HQ.inkMuted,
-        fontSize: 13,
-      }}
-    >
+    <section style={{ ...panelStyle, padding: 16, color: HQ.inkMuted, fontSize: 13 }}>
       No active platform tenant is bound to this session. Sign in as a platform
       super admin to use the Builder Lab.
     </section>
