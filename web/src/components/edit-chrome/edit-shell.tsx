@@ -247,6 +247,20 @@ interface EditShellProps {
    * canvas mounts empty; the bridge paints live inserts).
    */
   canvasRenderData?: InEditorCanvasRenderData | null;
+  /**
+   * Topbar header variant. "lab" swaps the storefront "Exit to live site" form
+   * (which redirects to /) for a simple close-callback exit and shows
+   * `previewSubjectChip` — used by the Platform Builder Lab so the editor is a
+   * self-contained popup. Defaults to "live".
+   */
+  headerVariant?: "live" | "lab";
+  /** Close handler for the "lab" exit button (e.g. close the Lab popup). */
+  onExit?: () => void;
+  /** Label for the "lab" exit button. */
+  exitLabel?: string;
+  /** Extra chrome rendered in the topbar's left cluster (lab only) — e.g. the
+   *  Lab's in-editor preview-subject picker, so it lives in the one topbar. */
+  previewSubjectChip?: React.ReactNode;
   children?: React.ReactNode;
 }
 
@@ -263,6 +277,10 @@ export function EditShell({
   canInsertRawHtmlElements = false,
   surfaceConfig,
   canvasRenderData = null,
+  headerVariant = "live",
+  onExit,
+  exitLabel = "Exit",
+  previewSubjectChip,
   children,
 }: EditShellProps) {
   return (
@@ -290,7 +308,13 @@ export function EditShell({
             useEditContext() consumers. Adds zero nodes when the flag is off. */}
         <BuilderProfilerBoundary id="edit-chrome">
           <CanvasViewportProviderWrapper>
-            <EditShellInner canvasRenderData={canvasRenderData}>
+            <EditShellInner
+              canvasRenderData={canvasRenderData}
+              headerVariant={headerVariant}
+              onExit={onExit}
+              exitLabel={exitLabel}
+              previewSubjectChip={previewSubjectChip}
+            >
               {children}
             </EditShellInner>
           </CanvasViewportProviderWrapper>
@@ -395,9 +419,17 @@ async function handleShareClick(
 function EditShellInner({
   children,
   canvasRenderData = null,
+  headerVariant = "live",
+  onExit,
+  exitLabel = "Exit",
+  previewSubjectChip,
 }: {
   children?: React.ReactNode;
   canvasRenderData?: InEditorCanvasRenderData | null;
+  headerVariant?: "live" | "lab";
+  onExit?: () => void;
+  exitLabel?: string;
+  previewSubjectChip?: React.ReactNode;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -1066,6 +1098,10 @@ function EditShellInner({
           onPageSettings={openPageSettings}
           onDuplicatePage={requestPagesPickerOpen}
           onUnpublish={openPublish}
+          headerVariant={headerVariant}
+          onExit={onExit}
+          exitLabel={exitLabel}
+          previewSubjectChip={previewSubjectChip}
         />
         {/* z-[83]: above the Layers/Structure navigator (z-80) so canvas
          *  chrome — selection rings, chips, and especially the #30 right-click
