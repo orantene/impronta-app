@@ -650,6 +650,9 @@ export function ComponentCatalog({
                                   id: r.id,
                                   source: r.source,
                                   label: r.effectiveLabel,
+                                  category: humanize(r.effectiveCategory),
+                                  talentVisible: r.talentVisible,
+                                  workspaceVisible: r.workspaceVisible,
                                 }),
                               )
                             }

@@ -2844,6 +2844,9 @@ export interface TopBarProps {
    * Ignored when `headerVariant === "live"`.
    */
   previewSubjectChip?: React.ReactNode;
+  /** Extra lab-only topbar chrome after the subject chip (e.g. the
+   *  component-preview lock + settings buttons). Ignored when not "lab". */
+  labHeaderActions?: React.ReactNode;
 }
 
 /**
@@ -2913,6 +2916,7 @@ export function TopBar({
   onExit,
   exitLabel = "Exit",
   previewSubjectChip,
+  labHeaderActions,
 }: TopBarProps) {
   const editCtx = useMaybeEditContext();
 
@@ -3019,6 +3023,9 @@ export function TopBar({
       />
       {headerVariant === "lab" && previewSubjectChip ? (
         <>{previewSubjectChip}</>
+      ) : null}
+      {headerVariant === "lab" && labHeaderActions ? (
+        <>{labHeaderActions}</>
       ) : null}
       {activeLocale && availableLocales.length > 1 ? (
         <LocaleSwitcher

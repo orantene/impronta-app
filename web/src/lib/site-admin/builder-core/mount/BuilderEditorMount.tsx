@@ -86,6 +86,9 @@ export interface BuilderEditorMountProps {
   /** Chrome rendered in the topbar's left cluster (lab only) — the Lab's
    *  in-editor preview-subject picker. */
   previewSubjectChip?: ReactNode;
+  /** Chrome rendered in the topbar's left cluster (lab only), after the subject
+   *  chip — e.g. the component-preview lock + settings buttons. */
+  labHeaderActions?: ReactNode;
   /** Optional extra chrome rendered inside the provider tree. */
   children?: ReactNode;
 }
@@ -107,6 +110,7 @@ export function BuilderEditorMount({
   onExit,
   exitLabel = "Exit",
   previewSubjectChip,
+  labHeaderActions,
   children,
 }: BuilderEditorMountProps) {
   return (
@@ -127,6 +131,7 @@ export function BuilderEditorMount({
       onExit={onExit}
       exitLabel={exitLabel}
       previewSubjectChip={previewSubjectChip}
+      labHeaderActions={labHeaderActions}
     >
       {children}
     </EditShell>
