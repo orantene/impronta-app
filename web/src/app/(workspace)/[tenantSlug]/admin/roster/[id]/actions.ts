@@ -214,7 +214,10 @@ export async function updateRosterTalentProfile(
             .eq("talent_profile_id", talentId)
             .eq("field_definition_id", definitionId);
           if (delErr) {
+            // As with the upsert path: don't let the denormalized column be
+            // cleared while the canonical store still holds a value.
             logServerError("roster/[id].updateRosterTalentProfile/canonicalHeightDelete", delErr);
+            return { error: "Could not update height. Try again." };
           }
         } else {
           const { error: upsertErr } = await admin
@@ -226,12 +229,17 @@ export async function updateRosterTalentProfile(
                 field_definition_id: definitionId,
                 value: heightVal,
                 workflow_state: "live",
-                last_edited_role: "platform",
+                last_edited_role: "admin",
               },
               { onConflict: "talent_profile_id,field_definition_id" },
             );
           if (upsertErr) {
+            // Canonical store is the source of truth product reads from. If this
+            // write fails we must NOT proceed to the denormalized
+            // talent_profiles.height_cm column update below — that would leave
+            // the two stores disagreeing. Surface the failure to the caller.
             logServerError("roster/[id].updateRosterTalentProfile/canonicalHeightUpsert", upsertErr);
+            return { error: "Could not update height. Try again." };
           }
         }
       }
@@ -318,19 +326,29 @@ export async function updateRosterTalentProfile(
 
   // ── Taxonomy: update primary talent type ───────────────────────────────────
   if ("talent_type_term_id" in raw.data) {
-    // Remove existing primary_role term(s) for this profile
-    const { error: removeErr } = await admin
-      .from("talent_profile_taxonomy")
-      .delete()
-      .eq("talent_profile_id", talentId)
-      .eq("relationship_type", "primary_role");
-
-    if (removeErr) {
-      logServerError("roster/[id].updateRosterTalentProfile/removeTaxonomy", removeErr);
-    }
-
-    // Insert new one if provided
+    // A partial unique index (ux_talent_profile_taxonomy_one_primary) enforces
+    // exactly ONE primary_role row per talent, so we MUST delete the old before
+    // inserting the new (insert-first would violate the index on every change).
+    // To avoid the original bug — a swallowed insert failure leaving the talent
+    // role-less while reporting success — we capture the prior primary first and
+    // roll it back if the replacement insert fails, then surface the error.
     if (d.talent_type_term_id) {
+      const { data: priorPrimary } = await admin
+        .from("talent_profile_taxonomy")
+        .select("taxonomy_term_id")
+        .eq("talent_profile_id", talentId)
+        .eq("relationship_type", "primary_role");
+
+      const { error: removeErr } = await admin
+        .from("talent_profile_taxonomy")
+        .delete()
+        .eq("talent_profile_id", talentId)
+        .eq("relationship_type", "primary_role");
+      if (removeErr) {
+        logServerError("roster/[id].updateRosterTalentProfile/removeTaxonomy", removeErr);
+        return { error: "Could not update talent type. Try again." };
+      }
+
       const { error: insertErr } = await admin
         .from("talent_profile_taxonomy")
         .insert({
@@ -339,10 +357,35 @@ export async function updateRosterTalentProfile(
           relationship_type: "primary_role",
           is_primary: true,
         });
-
       if (insertErr) {
+        // Restore the prior primary_role row(s) so a failed swap never leaves
+        // the talent without a primary type, then report the failure (fatal).
         logServerError("roster/[id].updateRosterTalentProfile/insertTaxonomy", insertErr);
-        // Non-fatal
+        const restore = (priorPrimary ?? []).filter(
+          (r): r is { taxonomy_term_id: string } => !!r.taxonomy_term_id,
+        );
+        if (restore.length > 0) {
+          await admin.from("talent_profile_taxonomy").insert(
+            restore.map((r) => ({
+              talent_profile_id: talentId,
+              taxonomy_term_id: r.taxonomy_term_id,
+              relationship_type: "primary_role",
+              is_primary: true,
+            })),
+          );
+        }
+        return { error: "Could not update talent type. Try again." };
+      }
+    } else {
+      // Explicitly cleared: remove existing primary_role term(s).
+      const { error: removeErr } = await admin
+        .from("talent_profile_taxonomy")
+        .delete()
+        .eq("talent_profile_id", talentId)
+        .eq("relationship_type", "primary_role");
+
+      if (removeErr) {
+        logServerError("roster/[id].updateRosterTalentProfile/removeTaxonomy", removeErr);
       }
     }
   }

@@ -79,8 +79,13 @@ export type ResolvedField = {
   /** Per-field guidance text shown while editing. Tenant `custom_helper`
    *  override falls back to the platform definition's `helper`. Null = none. */
   helper: string | null;
+  /** Spanish helper text — null when not translated; render falls back to EN. */
+  helper_es: string | null;
   /** For `select` and `multiselect` kinds: the choices list. */
   options: string[] | null;
+  /** Per-option ES label map { "<english option>": "<es label>" }. Render
+   *  layers look up options_es[value] when locale=es; missing → English. */
+  options_es: Record<string, string> | null;
   /** Default visibility channels — used as the fallback when a value
    *  has no `visibility_override`. Empty array == effectively private. */
   default_visibility: string[];
@@ -204,6 +209,8 @@ type FieldDefRow = {
   show_in_public: boolean | null; show_in_directory: boolean | null;
   talent_editable: boolean | null;
   helper: string | null;
+  helper_es: string | null;
+  options_es: unknown;
 };
 
 type TenantFieldCatalog = {
@@ -262,7 +269,7 @@ async function loadTenantFieldCatalogUncached(
   void t0;
   const [defsR, groupsR, pcgR, recsR, gOvR, fOvR] = await Promise.all([
     svc.from("profile_field_definitions").select(
-      "id, field_key, label, label_es, tier, section, subsection, kind, unit, placeholder, options, default_visibility, is_optional, display_order, field_group_id, validation_rules, show_when, deprecated_at, admin_only, is_sensitive, show_in_registration, show_in_edit_drawer, show_in_public, show_in_directory, talent_editable, helper",
+      "id, field_key, label, label_es, tier, section, subsection, kind, unit, placeholder, options, options_es, default_visibility, is_optional, display_order, field_group_id, validation_rules, show_when, deprecated_at, admin_only, is_sensitive, show_in_registration, show_in_edit_drawer, show_in_public, show_in_directory, talent_editable, helper, helper_es",
     ).is("deprecated_at", null),
     svc.from("profile_field_groups").select(
       "id, slug, name_en, name_es, sort_order, is_active",
@@ -569,7 +576,7 @@ export async function resolveTalentFields(
     const { data: dRows, error: defsErr } = await sb
       .from("profile_field_definitions")
       .select(
-        "id, field_key, label, label_es, tier, section, subsection, kind, unit, placeholder, options, default_visibility, is_optional, display_order, field_group_id, validation_rules, show_when, deprecated_at, admin_only, is_sensitive, show_in_registration, show_in_edit_drawer, show_in_public, show_in_directory, talent_editable, helper",
+        "id, field_key, label, label_es, tier, section, subsection, kind, unit, placeholder, options, options_es, default_visibility, is_optional, display_order, field_group_id, validation_rules, show_when, deprecated_at, admin_only, is_sensitive, show_in_registration, show_in_edit_drawer, show_in_public, show_in_directory, talent_editable, helper, helper_es",
       )
       .is("deprecated_at", null);
     if (defsErr) {
@@ -834,6 +841,11 @@ export async function resolveTalentFields(
       label: o?.custom_label ?? d.label,
       label_es: (d as { label_es?: string | null }).label_es ?? null,
       helper: o?.custom_helper ?? d.helper ?? null,
+      // Tenant custom_helper has no ES variant; only fall back to platform
+      // helper_es when the tenant hasn't overridden the helper at all.
+      helper_es: o?.custom_helper != null && o.custom_helper !== ""
+        ? null
+        : ((d as { helper_es?: string | null }).helper_es ?? null),
       tier: d.tier as "universal" | "global" | "type-specific",
       section: d.section as string,
       subsection: d.subsection,
@@ -841,6 +853,12 @@ export async function resolveTalentFields(
       unit: (d as { unit?: string | null }).unit ?? null,
       placeholder: d.placeholder,
       options: Array.isArray(d.options) ? (d.options as string[]) : null,
+      options_es:
+        (d as { options_es?: unknown }).options_es &&
+        typeof (d as { options_es?: unknown }).options_es === "object" &&
+        !Array.isArray((d as { options_es?: unknown }).options_es)
+          ? ((d as { options_es?: Record<string, string> }).options_es ?? null)
+          : null,
       default_visibility: out_visibility,
       is_required: o?.required_override ?? catalogRequired,
       is_recommended: relationship === "recommended",

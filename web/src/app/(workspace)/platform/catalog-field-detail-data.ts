@@ -86,6 +86,9 @@ export type FieldDetailRisk = {
     | "admin-but-public"
     | "deprecated-with-values"
     | "deprecated-active-overrides"
+    // "unused" is no longer emitted (a field with no data is informational, not
+    // a risk — it buried the real warnings). Kept in the union for back-compat
+    // with the detail view's tone map; safe to drop once that map is updated.
     | "unused";
   detail: string;
 };
@@ -632,12 +635,9 @@ async function loadPlatformCatalogFieldDetailUncached(
         detail: `Deprecated but ${totalOverride} workspace override(s) still active.`,
       });
     }
-    if (!isDeprecated && totalOverride === 0 && totalValue === 0) {
-      risks.push({
-        kind: "unused",
-        detail: "No workspace overrides and no stored values anywhere.",
-      });
-    }
+    // "unused" (no overrides + no values) is intentionally NOT pushed — a field
+    // with no data yet is informational, not action-worthy, and previously
+    // buried the real warnings. Mirrors catalog-map-data.ts.
 
     return { ok: true, field, workspaces, risks, recommendations, taxonomyTerms, fieldGroups, audit };
   } catch (e) {

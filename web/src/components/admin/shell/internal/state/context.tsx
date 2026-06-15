@@ -741,11 +741,11 @@ const FALLBACK_PROFILE_EDITOR_LAYOUT: ProfileEditorLayout = (() => {
     }),
   }));
   const orderedSectionSlugs: string[] = [];
-  const sectionMeta: Record<string, { label: string; emoji: string }> = {};
+  const sectionMeta: Record<string, { label: string; labelEs: string | null; emoji: string }> = {};
   for (const group of groups) {
     for (const section of group.sections) {
       orderedSectionSlugs.push(section.slug);
-      sectionMeta[section.slug] = { label: section.labelEn, emoji: section.emoji };
+      sectionMeta[section.slug] = { label: section.labelEn, labelEs: section.labelEs, emoji: section.emoji };
     }
   }
   return { groups, orderedSectionSlugs, sectionMeta };

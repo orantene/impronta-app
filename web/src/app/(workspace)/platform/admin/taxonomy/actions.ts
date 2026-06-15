@@ -220,27 +220,43 @@ export async function updatePlatformTaxonomyTermAction(formData: FormData): Prom
 
   if (!beforeRow) redirect("/platform/admin/taxonomy?error=Term%20not%20found");
 
+  // Preserve fields the edit form does NOT submit, so a plain "Save" never
+  // silently clears them. Unchecked checkboxes and absent inputs are
+  // indistinguishable in FormData, so `?? beforeRow.x` / `has()`-guards are
+  // used for every field the forms don't always render:
+  //   - is_active / is_generic_fallback / restriction_level are NEVER on the
+  //     edit forms → without a guard, every save flipped is_active=false,
+  //     nulled restriction_level, and dropped the generic-fallback flag.
+  //   - parent_id is absent on the talent_type form → without a guard, every
+  //     type save nulled parent_id and ORPHANED the type from its group.
+  //   - name_es / plural_name / description / icon are nullable text → guard so
+  //     a blank/partial submit can't clobber an existing Spanish value.
   const patch = {
     slug: text(formData, "slug") ?? beforeRow.slug,
     name_en: text(formData, "name_en") ?? beforeRow.name_en,
-    name_es: text(formData, "name_es"),
-    plural_name: text(formData, "plural_name"),
-    description: text(formData, "description"),
-    icon: text(formData, "icon"),
+    name_es: text(formData, "name_es") ?? beforeRow.name_es,
+    plural_name: text(formData, "plural_name") ?? beforeRow.plural_name,
+    description: text(formData, "description") ?? beforeRow.description,
+    icon: text(formData, "icon") ?? beforeRow.icon,
     term_type: text(formData, "term_type") ?? beforeRow.term_type,
-    parent_id: text(formData, "parent_id"),
+    parent_id: text(formData, "parent_id") ?? beforeRow.parent_id,
     level: intOrNull(formData, "level") ?? beforeRow.level,
     sort_order: intOrNull(formData, "sort_order") ?? beforeRow.sort_order,
     aliases: list(formData, "aliases"),
     search_synonyms: list(formData, "search_synonyms"),
     ai_keywords: list(formData, "ai_keywords"),
-    is_active: checked(formData, "is_active"),
+    is_active: formData.has("is_active")
+      ? checked(formData, "is_active")
+      : beforeRow.is_active,
     is_public_filter: checked(formData, "is_public_filter"),
     is_visible_by_default: checked(formData, "is_visible_by_default"),
     is_profile_badge: checked(formData, "is_profile_badge"),
     is_restricted: checked(formData, "is_restricted"),
-    is_generic_fallback: checked(formData, "is_generic_fallback"),
-    restriction_level: text(formData, "restriction_level"),
+    is_generic_fallback: formData.has("is_generic_fallback")
+      ? checked(formData, "is_generic_fallback")
+      : beforeRow.is_generic_fallback,
+    restriction_level:
+      text(formData, "restriction_level") ?? beforeRow.restriction_level,
     updated_at: new Date().toISOString(),
   };
 

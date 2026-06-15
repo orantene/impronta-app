@@ -22,6 +22,9 @@ export type CatalogField = {
   id: string;
   field_key: string;
   label: string;
+  /** Spanish label (null when untranslated). Surfaced so the platform list +
+   *  Section Fields tab can show ES inline and flag coverage gaps. */
+  label_es: string | null;
   tier: string;
   section: string | null;
   field_group_id: string | null;
@@ -57,7 +60,6 @@ export type CatalogRisk = {
     | "sensitive-but-public"
     | "admin-but-public"
     | "deprecated-with-values"
-    | "unused"
     | "deprecated-active-overrides";
   field_key: string;
   detail: string;
@@ -74,6 +76,11 @@ export type PlatformCatalogMap = {
     totalGroups: number;
     fieldsWithOverrides: number;
     fieldsWithValues: number;
+    /** Non-deprecated fields with no workspace overrides AND no stored values.
+     *  Informational coverage signal — NOT a risk. */
+    noDataCount: number;
+    /** Non-deprecated fields that have a non-empty Spanish label. */
+    withEsLabel: number;
   };
   groups: CatalogGroup[];
   ungrouped: CatalogField[];
@@ -91,6 +98,8 @@ const EMPTY: PlatformCatalogMap = {
     totalGroups: 0,
     fieldsWithOverrides: 0,
     fieldsWithValues: 0,
+    noDataCount: 0,
+    withEsLabel: 0,
   },
   groups: [],
   ungrouped: [],
@@ -101,6 +110,7 @@ type DefRow = {
   id: string;
   field_key: string | null;
   label: string | null;
+  label_es: string | null;
   tier: string | null;
   section: string | null;
   field_group_id: string | null;
@@ -152,7 +162,7 @@ async function loadPlatformCatalogMapUncached(): Promise<PlatformCatalogMap> {
       sb
         .from("profile_field_definitions")
         .select(
-          "id, field_key, label, tier, section, field_group_id, display_order, default_visibility, admin_only, is_sensitive, show_in_public, is_optional, deprecated_at, render_mode",
+          "id, field_key, label, label_es, tier, section, field_group_id, display_order, default_visibility, admin_only, is_sensitive, show_in_public, is_optional, deprecated_at, render_mode",
         ),
       sb
         .from("profile_field_groups")
@@ -186,6 +196,8 @@ async function loadPlatformCatalogMapUncached(): Promise<PlatformCatalogMap> {
     let sensitive = 0;
     let fieldsWithOverrides = 0;
     let fieldsWithValues = 0;
+    let noDataCount = 0;
+    let withEsLabel = 0;
     const risks: CatalogRisk[] = [];
 
     const fields: CatalogField[] = defs.map((d) => {
@@ -210,6 +222,8 @@ async function loadPlatformCatalogMapUncached(): Promise<PlatformCatalogMap> {
       if (d.is_sensitive) sensitive += 1;
       if (ov > 0) fieldsWithOverrides += 1;
       if (vc > 0) fieldsWithValues += 1;
+      if (!isDeprecated && ov === 0 && vc === 0) noDataCount += 1;
+      if (!isDeprecated && (d.label_es ?? "").trim() !== "") withEsLabel += 1;
 
       // Risk findings (read-only diagnostics; never auto-acted).
       if (d.is_sensitive && d.show_in_public) {
@@ -240,18 +254,12 @@ async function loadPlatformCatalogMapUncached(): Promise<PlatformCatalogMap> {
           detail: `Deprecated but ${ov} workspace override(s) still active.`,
         });
       }
-      if (!isDeprecated && ov === 0 && vc === 0) {
-        risks.push({
-          kind: "unused",
-          field_key: key,
-          detail: "No workspace overrides and no stored values anywhere.",
-        });
-      }
 
       return {
         id: d.id,
         field_key: key,
         label: d.label ?? key,
+        label_es: d.label_es ?? null,
         tier,
         section: d.section,
         field_group_id: d.field_group_id,
@@ -318,6 +326,8 @@ async function loadPlatformCatalogMapUncached(): Promise<PlatformCatalogMap> {
         totalGroups: groups.length,
         fieldsWithOverrides,
         fieldsWithValues,
+        noDataCount,
+        withEsLabel,
       },
       groups,
       ungrouped,

@@ -43,12 +43,14 @@ export async function SectionCategoryTab({
           label="Groups"
           value={`${data.counts.activeGroups}/${data.counts.groups}`}
         />
+        {/* Active = active ÷ live (non-archived) sections, so the archived rows
+            aren't implied twice — they get their own "Archived" stat below. */}
         <Stat
-          label="Sections total"
-          value={`${data.counts.activeSections}/${data.counts.sections}`}
+          label="Active sections"
+          value={`${data.counts.activeSections}/${data.counts.sections - data.counts.archivedSections}`}
         />
         <Stat
-          label="Archived sections"
+          label="Archived"
           value={data.counts.archivedSections}
           tone={data.counts.archivedSections > 0 ? HQ.amber : undefined}
         />

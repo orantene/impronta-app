@@ -28,6 +28,10 @@ export type EditorSectionField = {
   field_key: string;
   label: string;
   label_es: string | null;
+  /** Catalog display_order — drives the reorder panel's order AND its
+   *  saved value, so the bucket MUST be sorted by it (see buildFieldBuckets).
+   *  Sorting by label here silently destroyed catalog ordering on save. */
+  display_order: number;
   tier: string;
   required_default: boolean;
   deprecated: boolean;
@@ -147,7 +151,8 @@ function toSectionField(f: CatalogField): EditorSectionField {
     id: f.id,
     field_key: f.field_key,
     label: f.label,
-    label_es: null, // not available in CatalogField; kept for future join
+    label_es: f.label_es ?? null,
+    display_order: f.display_order,
     tier: f.tier,
     required_default: f.required_default,
     deprecated: f.deprecated,
@@ -203,10 +208,14 @@ function buildFieldBuckets(fields: CatalogField[]): FieldBuckets {
     }
   }
 
-  // Sort each slug bucket
+  // Sort each slug bucket by display_order — this is the order the reorder
+  // panel renders AND the order it saves back as display_order. Sorting by
+  // label here meant a drag wrote alphabetical positions into display_order,
+  // destroying the catalog field ordering shared with the Fields tab.
   for (const bucket of bySectionSlug.values()) {
     bucket.sort(
       (a, b) =>
+        a.display_order - b.display_order ||
         a.label.localeCompare(b.label) ||
         a.field_key.localeCompare(b.field_key),
     );
@@ -221,6 +230,7 @@ function buildFieldBuckets(fields: CatalogField[]): FieldBuckets {
       section,
       fields: sectionFields.sort(
         (a, b) =>
+          a.display_order - b.display_order ||
           a.label.localeCompare(b.label) ||
           a.field_key.localeCompare(b.field_key),
       ),

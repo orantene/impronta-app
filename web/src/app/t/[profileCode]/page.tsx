@@ -168,6 +168,9 @@ type PublicFieldDefinitionEmbed = {
   label_en: string;
   label_es: string | null;
   value_type: string;
+  /** Per-option ES label map { "<english option>": "<es label>" }. Used to
+   *  localize select/multiselect/chips values on the public profile. */
+  options_es?: Record<string, string> | null;
   config?: Record<string, unknown> | null;
   sort_order?: number;
   field_group_id?: string | null;
@@ -394,6 +397,7 @@ async function fetchPublicFieldValues(
     /** universal | global | type-specific (Gap 2b — orphan check). */
     tier: string | null;
     options: string[] | null;
+    options_es: Record<string, string> | null;
     display_order: number | null;
     field_group_id: string | null;
     admin_only: boolean | null;
@@ -425,7 +429,7 @@ async function fetchPublicFieldValues(
       visibility_override,
       workflow_state,
       profile_field_definitions (
-        id, field_key, label, kind, tier, options, display_order, field_group_id,
+        id, field_key, label, kind, tier, options, options_es, display_order, field_group_id,
         admin_only, is_sensitive, show_in_public, default_visibility, deprecated_at,
         profile_field_groups ( sort_order, slug )
       )
@@ -709,6 +713,7 @@ async function fetchPublicFieldValues(
         label_en: resolvedField?.label ?? def.label,
         label_es: resolvedField?.label_es ?? null,
         value_type: resolvedField?.kind ?? def.kind,
+        options_es: resolvedField?.options_es ?? def.options_es ?? null,
         config: null,
         sort_order: resolvedField?.display_order ?? def.display_order ?? 0,
         field_group_id: def.field_group_id,
@@ -890,31 +895,48 @@ function pickFieldLabel(locale: string, en: string, es?: string | null): string 
 }
 
 
-function formatFieldValue(row: PublicFieldValueRow): string | null {
+function formatFieldValue(row: PublicFieldValueRow, locale: string): string | null {
   const fd = row.field_definitions
     ? Array.isArray(row.field_definitions)
       ? (row.field_definitions[0] ?? null)
       : row.field_definitions
     : null;
 
-  if (row.value_text && row.value_text.trim() && fd?.config && typeof fd.config === "object" && !Array.isArray(fd.config)) {
-    const input = (fd.config as Record<string, unknown>).input;
-    const options = (fd.config as Record<string, unknown>).options;
-    if (input === "select" && Array.isArray(options)) {
-      const raw = row.value_text.trim();
-      const match = options.find((o) => {
-        if (!o || typeof o !== "object" || Array.isArray(o)) return false;
-        return String((o as Record<string, unknown>).value ?? "").trim() === raw;
-      });
-      if (match && typeof match === "object" && !Array.isArray(match)) {
-        const labelEn = (match as Record<string, unknown>).label_en;
-        if (typeof labelEn === "string" && labelEn.trim()) return labelEn.trim();
-      }
+  // Locale-aware per-option label: look up the stored English option string in
+  // options_es when locale=es; fall back to the English string. (Replaces the
+  // old, never-reachable fd.config branch — config was always projected null
+  // and canonical options are plain string[], not {value,label_en} objects.)
+  const optEs = fd?.options_es ?? null;
+  const mapOpt = (val: string): string => {
+    const t = val.trim();
+    if (locale === "es" && optEs) {
+      const es = optEs[t];
+      if (typeof es === "string" && es.trim()) return es.trim();
     }
+    return t;
+  };
+
+  if (row.value_text && row.value_text.trim()) {
+    const kind = fd?.value_type;
+    // multiselect / chips are projected as a ", "-joined string of English
+    // option values — split, localize each, rejoin.
+    if (kind === "multiselect" || kind === "chips") {
+      return row.value_text
+        .split(",")
+        .map((s) => mapOpt(s))
+        .filter((s) => s.length > 0)
+        .join(", ");
+    }
+    // select / text — map a single option value (text fields have no
+    // options_es, so mapOpt is a no-op for them).
+    return mapOpt(row.value_text);
   }
-  if (row.value_text && row.value_text.trim()) return row.value_text.trim();
   if (typeof row.value_number === "number") return String(row.value_number);
-  if (typeof row.value_boolean === "boolean") return row.value_boolean ? "Yes" : "No";
+  if (typeof row.value_boolean === "boolean") {
+    return row.value_boolean
+      ? (locale === "es" ? "Sí" : "Yes")
+      : "No";
+  }
   if (row.value_date) return row.value_date;
   return null;
 }
@@ -1477,7 +1499,7 @@ export default async function PublicTalentProfilePage({
       if (def.internal_only) return acc;
       if (def.profile_visible === false) return acc;
       if (def.public_visible === false) return acc;
-      const value = formatFieldValue(row);
+      const value = formatFieldValue(row, locale);
       if (!value) return acc;
       const fg = def.field_groups;
       const groupSort = Array.isArray(fg) ? fg[0]?.sort_order ?? 0 : fg?.sort_order ?? 0;
