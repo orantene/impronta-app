@@ -27,6 +27,7 @@ import {
   type BuilderNodePastePreview,
 } from "../edit-context";
 import { siblingDropGapToMoveIndex } from "@/lib/site-admin/builder-node/sibling-drop-gap";
+import { stripLockedKeysFromPatch } from "@/lib/site-admin/builder-node/prop-lock";
 import { ElementLibraryInsertPicker } from "../element-library-insert-picker";
 import { Card, CardBody, CardHead, Field, FieldLabel, Helper, Segmented, Toggle } from "../kit";
 import { KIT } from "./kit/tokens";
@@ -87,7 +88,21 @@ export function BuilderNodeContentInspector({
   } = useEditContext();
 
   async function commitPatch(patch: Record<string, unknown>) {
-    const result = await patchBuilderNodeProps(node.id, patch);
+    // Builder Studio (WS-C) — honor admin per-prop locks in the UI. The server
+    // re-strips in `patchBuilderNodeProps` (the trusted chokepoint); this mirror
+    // gives instant feedback and a clear "locked by admin" message instead of a
+    // silent no-op. Nested locks (`style.x`) restore the leaf and let the rest
+    // of the patch through; a fully-locked top-level key drops the whole patch.
+    const guarded = stripLockedKeysFromPatch(
+      patch,
+      node.props as Record<string, unknown>,
+      node.lockedProps,
+    );
+    if (Object.keys(guarded).length === 0 && Object.keys(patch).length > 0) {
+      reportMutationError("That field is locked by the platform admin and can’t be changed.");
+      return;
+    }
+    const result = await patchBuilderNodeProps(node.id, guarded);
     if (!result.ok && result.error) {
       reportMutationError(result.error);
     }

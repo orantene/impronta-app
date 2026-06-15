@@ -140,6 +140,7 @@ export async function setComponentOverlay(
   assign("category_override");
   assign("required_plan_override");
   assign("availability_override");
+  assign("locked_props");
 
   try {
     const sb = getAdminClient();

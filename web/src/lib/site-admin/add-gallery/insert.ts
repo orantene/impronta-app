@@ -46,6 +46,22 @@ export function createNativeNodeForGalleryItem(item: AddGalleryItem): BuilderNod
 }
 
 /**
+ * Builder Studio (WS-C) — stamp admin-locked prop keys onto the inserted root
+ * node so a tenant can't edit them. Enforcement is the patch-strip chokepoint
+ * (operations.ts `patchBuilderNodeProps`); this only marks the node. The lock
+ * carrier (validate.ts) round-trips `lockedProps` from `props`. No-op without locks.
+ */
+function stampItemLockedProps(node: BuilderNode, item: AddGalleryItem): BuilderNode {
+  if (!item.lockedProps || item.lockedProps.length === 0) return node;
+  const keys = [...item.lockedProps];
+  const props: Record<string, unknown> = {
+    ...(node.props as Record<string, unknown>),
+    lockedProps: keys,
+  };
+  return { ...node, lockedProps: keys, props } as unknown as BuilderNode;
+}
+
+/**
  * Build the editable freeform node for a `dbTemplate` gallery item.
  *
  * The published row's `builder_tree` is a freeform `BuilderNode[]`. Every node
@@ -395,7 +411,10 @@ export function resolveAddGalleryInsertAction(
 
   switch (item.insertMethod) {
     case "nativeNode":
-      return { type: "nativeNode", node: createNativeNodeForGalleryItem(item) };
+      return {
+        type: "nativeNode",
+        node: stampItemLockedProps(createNativeNodeForGalleryItem(item), item),
+      };
     case "sectionTemplate": {
       const templateId = item.sectionTemplateId;
       if (!templateId) {
@@ -405,10 +424,13 @@ export function resolveAddGalleryInsertAction(
       if (!node) {
         throw new Error(`Unknown section template "${templateId}".`);
       }
-      return { type: "sectionTemplate", node };
+      return { type: "sectionTemplate", node: stampItemLockedProps(node, item) };
     }
     case "dbTemplate":
-      return { type: "dbTemplate", node: createDbTemplateNodeForGalleryItem(item) };
+      return {
+        type: "dbTemplate",
+        node: stampItemLockedProps(createDbTemplateNodeForGalleryItem(item), item),
+      };
     case "sectionEmbed":
     case "connectedNode": {
       const key = item.sectionEmbedKey;

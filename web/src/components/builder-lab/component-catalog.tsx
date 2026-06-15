@@ -130,6 +130,17 @@ function connectedDataGroupOf(item: CatalogAdminItem): ConnectedDataGroup {
     : "agency";
 }
 
+/** Parse the "Locked props" textarea (comma/newline/space-separated dot-paths)
+ *  into the normalized `locked_props` array. Empty ⇒ [] (clears the lock). */
+function parseLockedProps(raw: string): string[] {
+  const seen = new Set<string>();
+  for (const tok of raw.split(/[\s,]+/)) {
+    const key = tok.trim();
+    if (key) seen.add(key);
+  }
+  return Array.from(seen);
+}
+
 export function ComponentCatalog({
   onLaunchEditor,
   onPreviewComponent,
@@ -152,6 +163,7 @@ export function ComponentCatalog({
   const [editCategory, setEditCategory] = useState("");
   const [editIcon, setEditIcon] = useState("");
   const [editPlan, setEditPlan] = useState("");
+  const [editLockedProps, setEditLockedProps] = useState("");
   // W11 — inline (non-blocking) reset confirmation.
   const [confirmingResetId, setConfirmingResetId] = useState<string | null>(null);
   // W6 — search + filter over the (large) catalog.
@@ -268,6 +280,7 @@ export function ComponentCatalog({
     setEditCategory(item.overlay?.category_override ?? "");
     setEditIcon(item.overlay?.icon_override ?? "");
     setEditPlan(item.overlay?.required_plan_override ?? "");
+    setEditLockedProps((item.overlay?.locked_props ?? []).join(", "));
   }, []);
 
   const saveEdit = useCallback(
@@ -281,13 +294,14 @@ export function ComponentCatalog({
           icon_override: editIcon.trim() || null,
           required_plan_override:
             (editPlan as "free" | "studio" | "agency" | "network" | "") || null,
+          locked_props: parseLockedProps(editLockedProps),
         }),
       ).then(() => {
         setEditingId(null);
         flash("Saved ✓");
       });
     },
-    [mutate, editLabel, editCategory, editIcon, editPlan, flash],
+    [mutate, editLabel, editCategory, editIcon, editPlan, editLockedProps, flash],
   );
 
   const confirmReset = useCallback(
@@ -716,9 +730,19 @@ export function ComponentCatalog({
                                 <option value="network">network</option>
                               </select>
                             </Field>
+                            <Field label="Locked props (tenant can't edit)">
+                              <input
+                                value={editLockedProps}
+                                onChange={(e) => setEditLockedProps(e.target.value)}
+                                placeholder="e.g. tone, style.textColor"
+                                style={{ ...inputStyle, width: 260 }}
+                              />
+                            </Field>
                             <span style={{ fontSize: 11, color: T.inkDim }}>
                               Blank = built-in default. Icon names match the gallery icon set. Plan only
-                              tightens (never widens). Reflected in both builders on next open.
+                              tightens (never widens). <strong>Locked props</strong> are dot-paths
+                              (comma-separated) the tenant can&apos;t change once inserted — the look stays
+                              on-brand, they still edit the copy. Reflected in both builders on next open.
                             </span>
                           </div>
                         </td>

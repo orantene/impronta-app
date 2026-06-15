@@ -844,6 +844,17 @@ export function InspectorDock() {
   const selectedStandaloneBuilderNodeIsLocked =
     selectedStandaloneBuilderNode?.locked === true;
 
+  /** WS-C per-prop locks — dot-path props the platform admin froze on this node.
+   *  The fields stay visible+editable-looking, but `commitPatch` (and the server
+   *  chokepoint) reject changes; this banner explains why. */
+  const selectedStandaloneBuilderNodeLockedProps = Array.isArray(
+    selectedStandaloneBuilderNode?.lockedProps,
+  )
+    ? selectedStandaloneBuilderNode!.lockedProps!.filter(
+        (k): k is string => typeof k === "string" && k.length > 0,
+      )
+    : [];
+
   // Visibility is operator-controlled (persisted). Content still reflects the
   // current canvas selection — closing the dock no longer clears selection.
   const dockOpen = inspectorDockOpen;
@@ -1162,6 +1173,27 @@ export function InspectorDock() {
                 }}
               >
                 {saveError}
+              </div>
+            ) : null}
+            {selectedStandaloneBuilderNode &&
+            selectedStandaloneBuilderNodeLockedProps.length > 0 ? (
+              <div
+                role="note"
+                className="mb-3 rounded-lg px-3 py-2.5 text-[11.5px] leading-snug"
+                style={{
+                  background: "rgba(93,211,160,0.08)",
+                  border: "1px solid rgba(93,211,160,0.28)",
+                  color: CHROME.ink,
+                }}
+              >
+                <span style={{ fontWeight: 600 }}>🔒 Locked by the platform admin</span>
+                <span style={{ display: "block", marginTop: 2, opacity: 0.85 }}>
+                  These props keep this component on-brand and can&apos;t be changed here:{" "}
+                  <span style={{ fontFamily: "var(--font-mono, monospace)" }}>
+                    {selectedStandaloneBuilderNodeLockedProps.join(", ")}
+                  </span>
+                  . You can still edit everything else.
+                </span>
               </div>
             ) : null}
             {(currentLoadedSection || selectedStandaloneBuilderNode) ? (
