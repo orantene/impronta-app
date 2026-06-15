@@ -23,6 +23,27 @@ async function readSetting(supabase: SupabaseClient, key: string): Promise<strin
 }
 
 /**
+ * The active owner (profile id) of a tenant, or null. Used as the coordinator
+ * fallback for both agency-owned inquiries (the workspace owner manages them)
+ * and hub inquiries (the hub owner is the oversight officer when no global
+ * platform coordinator is configured).
+ */
+export async function resolveTenantOwnerId(
+  supabase: SupabaseClient,
+  tenantId: string,
+): Promise<string | null> {
+  const { data: ownerRow } = await supabase
+    .from("agency_memberships")
+    .select("profile_id")
+    .eq("tenant_id", tenantId)
+    .eq("role", "owner")
+    .eq("status", "active")
+    .limit(1)
+    .maybeSingle();
+  return (ownerRow as { profile_id?: string } | null)?.profile_id ?? null;
+}
+
+/**
  * Resolve default coordinator at inquiry submission time.
  *
  * Per-tenant resolution order (F.1):
@@ -30,7 +51,11 @@ async function readSetting(supabase: SupabaseClient, key: string): Promise<strin
  *   2. workspace owner                          — fallback when (1) is null
  *   3. global settings.default_coordinator_user_id — legacy fallback (Phase 1)
  *
- * Hub source uses the global platform coordinator setting.
+ * Hub source resolves the platform OVERSIGHT OFFICER (the "officer / consultant"
+ * who sits in talent-direct hub threads for scam/dispute protection + instant
+ * support — see inquiry-engine-submit.ts):
+ *   1. global settings.platform_coordinator_user_id — the designated platform officer
+ *   2. the hub tenant's own owner                   — so every hub still has an officer
  */
 export async function assignCoordinatorFromSettings(
   supabase: SupabaseClient,
@@ -38,10 +63,19 @@ export async function assignCoordinatorFromSettings(
 ): Promise<CoordinatorAssignmentResult> {
   if (input.source_type === "hub") {
     const id = await readSetting(supabase, "platform_coordinator_user_id");
-    return {
-      coordinator_id: id?.trim() || null,
-      assignment_reason: id ? "hub_default_platform_coordinator" : "hub_no_platform_coordinator_configured",
-    };
+    if (id?.trim()) {
+      return { coordinator_id: id.trim(), assignment_reason: "hub_default_platform_coordinator" };
+    }
+    // Fallback: the hub tenant's own owner acts as the oversight officer when no
+    // global platform coordinator is configured — so every hub inquiry still has
+    // a protective officer in the private thread.
+    if (input.tenant_id) {
+      const ownerId = await resolveTenantOwnerId(supabase, input.tenant_id);
+      if (ownerId) {
+        return { coordinator_id: ownerId, assignment_reason: "hub_owner_fallback" };
+      }
+    }
+    return { coordinator_id: null, assignment_reason: "hub_no_platform_coordinator_configured" };
   }
 
   // 1. Per-tenant explicit default.
@@ -61,15 +95,7 @@ export async function assignCoordinatorFromSettings(
     }
 
     // 2. Workspace owner fallback.
-    const { data: ownerRow } = await supabase
-      .from("agency_memberships")
-      .select("profile_id")
-      .eq("tenant_id", input.tenant_id)
-      .eq("role", "owner")
-      .eq("status", "active")
-      .limit(1)
-      .maybeSingle();
-    const ownerId = (ownerRow as { profile_id?: string } | null)?.profile_id ?? null;
+    const ownerId = await resolveTenantOwnerId(supabase, input.tenant_id);
     if (ownerId) {
       return {
         coordinator_id: ownerId,
@@ -78,7 +104,8 @@ export async function assignCoordinatorFromSettings(
     }
   }
 
-  // 3. Global legacy setting.
+  // 3. Global legacy setting — the platform-wide safety net so an inquiry is
+  // never left with NO coordinator even on an owner-less workspace.
   const id = await readSetting(supabase, "default_coordinator_user_id");
   return {
     coordinator_id: id?.trim() || null,
