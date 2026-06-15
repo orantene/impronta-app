@@ -130,6 +130,8 @@ export async function createPlatformTaxonomyTermAction(formData: FormData): Prom
   if (!slug || !nameEn) {
     redirect("/platform/admin/taxonomy?error=Slug%20and%20English%20name%20are%20required");
   }
+  // NOTE: 'language' is intentionally NOT creatable — languages are owned by the
+  // canonical talent_languages table, not taxonomy_terms (consolidated 2026-06-15).
   if (![
     "parent_category",
     "category_group",
@@ -141,7 +143,6 @@ export async function createPlatformTaxonomyTermAction(formData: FormData): Prom
     "context",
     "credential",
     "attribute",
-    "language",
   ].includes(termType)) {
     redirect("/platform/admin/taxonomy?error=Invalid%20taxonomy%20term%20type");
   }

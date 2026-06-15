@@ -160,6 +160,7 @@ export async function GET(
       bio_en,
       bio_es,
       height_cm,
+      languages,
       residence_city:locations!residence_city_id ( display_name_en, display_name_es, country_code ),
       legacy_location:locations!location_id ( display_name_en, display_name_es, country_code ),
       origin_city:locations!origin_city_id ( display_name_en, display_name_es, country_code ),
@@ -260,9 +261,7 @@ export async function GET(
       ? terms.filter((term) => term.kind === "skill").map((term) => pickTermName(term))
       : [],
     languages: allowedKeys.has("languages")
-      ? terms
-          .filter((term) => term.kind === "language")
-          .map((term) => pickTermName(term))
+      ? ((profile.languages as string[] | null) ?? [])
       : [],
     image: imageUrl
       ? {
