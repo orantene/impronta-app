@@ -3,6 +3,7 @@ import * as React from "react";
 import { Button } from "../components/Button";
 import { FieldTable } from "../components/FieldTable";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   recipientName: string | null;
@@ -20,24 +21,27 @@ export default function TrialStarted({
   billingUrl,
   brand,
 }: Props) {
+  const t = getEmailCopy(brand?.locale)["billing.trial_started.workspace"];
   const name = recipientName ?? "there";
   const plan = planLabel ?? "your plan";
 
   const fields = [
-    { label: "Plan", value: plan },
-    ...(trialEndsAt ? [{ label: "Trial ends", value: trialEndsAt }] : []),
+    { label: t.fieldPlan, value: plan },
+    ...(trialEndsAt ? [{ label: t.fieldTrialEnds, value: trialEndsAt }] : []),
   ];
 
+  const intro = interpolate(trialEndsAt ? t.introWithDate : t.introNoDate, {
+    name,
+    plan,
+    trialEnds: trialEndsAt,
+  });
+
   return (
-    <Layout preview="Your trial is active" brand={brand}>
-      <Heading style={h2}>Your trial is active</Heading>
-      <Text style={body}>
-        Hi {name}, your {plan} trial is live — explore everything it unlocks. You won&apos;t be
-        charged{trialEndsAt ? ` until ${trialEndsAt}` : " during the trial"}, and you can manage
-        your subscription anytime.
-      </Text>
+    <Layout preview={t.preview} brand={brand}>
+      <Heading style={h2}>{t.heading}</Heading>
+      <Text style={body}>{intro}</Text>
       <FieldTable fields={fields} />
-      <Button href={billingUrl}>Manage subscription →</Button>
+      <Button href={billingUrl}>{t.button}</Button>
     </Layout>
   );
 }

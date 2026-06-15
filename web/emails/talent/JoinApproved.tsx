@@ -2,6 +2,7 @@ import { Heading, Text } from "@react-email/components";
 import * as React from "react";
 import { Button } from "../components/Button";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   talentName: string | null;
@@ -20,22 +21,20 @@ export default function JoinApproved({
   unsubscribeUrl,
   categoryLabel,
 }: Props) {
-  const name = talentName ?? "there";
-  const team = workspaceName ?? "the roster";
+  const t = getEmailCopy(brand?.locale)["roster.join_approved"];
+  const name = talentName ?? t.fallbackName;
+  const team = workspaceName ?? t.fallbackTeam;
 
   return (
     <Layout
-      preview={`You're on ${team}`}
+      preview={interpolate(t.preview, { team })}
       brand={brand}
       unsubscribeUrl={unsubscribeUrl}
       categoryLabel={categoryLabel}
     >
-      <Heading style={h2}>You&apos;re on the roster</Heading>
-      <Text style={body}>
-        Hi {name}, your request to join {team} was approved. Open your dashboard
-        to keep your photos, rates, and availability up to date.
-      </Text>
-      <Button href={dashboardUrl}>Go to my dashboard →</Button>
+      <Heading style={h2}>{t.heading}</Heading>
+      <Text style={body}>{interpolate(t.intro, { name, team })}</Text>
+      <Button href={dashboardUrl}>{t.button}</Button>
     </Layout>
   );
 }

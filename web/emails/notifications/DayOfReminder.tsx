@@ -3,6 +3,7 @@ import * as React from "react";
 import { Button } from "../components/Button";
 import { FieldTable } from "../components/FieldTable";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 /**
  * Day-of booking reminder (spec §6.4) — a heads-up that a confirmed booking is
@@ -32,26 +33,25 @@ export default function DayOfReminder({
   categoryLabel,
 }: Props) {
   const name = recipientName ?? "there";
+  const t = getEmailCopy(brand?.locale)["client.booking_day_of_reminder"];
 
   const fields = [
-    eventDate ? { label: "Date", value: eventDate } : null,
-    eventLocation ? { label: "Location", value: eventLocation } : null,
+    eventDate ? { label: t.dateLabel, value: eventDate } : null,
+    eventLocation ? { label: t.locationLabel, value: eventLocation } : null,
   ].filter(Boolean) as { label: string; value: string }[];
 
   return (
     <Layout
-      preview="Reminder: your event is tomorrow"
+      preview={t.preview}
       brand={brand}
       unsubscribeUrl={unsubscribeUrl}
       categoryLabel={categoryLabel}
     >
-      <Heading style={h2}>Your event is tomorrow</Heading>
-      <Text style={body}>
-        Hi {name}, this is a reminder that you have a booking tomorrow. Here are the details:
-      </Text>
+      <Heading style={h2}>{t.heading}</Heading>
+      <Text style={body}>{interpolate(t.intro, { name })}</Text>
       {fields.length > 0 && <FieldTable fields={fields} />}
-      <Text style={note}>Open the inquiry for the full schedule, location, and any final notes.</Text>
-      <Button href={inquiryUrl}>View details →</Button>
+      <Text style={note}>{t.note}</Text>
+      <Button href={inquiryUrl}>{t.button}</Button>
     </Layout>
   );
 }

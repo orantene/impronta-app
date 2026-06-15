@@ -3,6 +3,7 @@ import * as React from "react";
 import { Button } from "../components/Button";
 import { FieldTable } from "../components/FieldTable";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   clientName: string | null;
@@ -25,28 +26,27 @@ export default function PaymentReceipt({
   unsubscribeUrl,
   categoryLabel,
 }: Props) {
+  const t = getEmailCopy(brand?.locale)["client.payment_receipt"];
   const name = clientName ?? "there";
   const event = contactName ?? "your booking";
 
   const fields = [
-    { label: "Amount", value: amountPaid },
-    { label: "Date", value: paymentDate },
+    { label: t.amountLabel, value: amountPaid },
+    { label: t.dateLabel, value: paymentDate },
   ];
 
   return (
     <Layout
-      preview="Payment received"
+      preview={t.preview}
       brand={brand}
       unsubscribeUrl={unsubscribeUrl}
       categoryLabel={categoryLabel}
     >
-      <Heading style={h2}>Payment received</Heading>
-      <Text style={body}>
-        Hi {name}, we&apos;ve received your payment for {event}. Thank you.
-      </Text>
+      <Heading style={h2}>{t.heading}</Heading>
+      <Text style={body}>{interpolate(t.intro, { name, event })}</Text>
       {fields.length > 0 && <FieldTable fields={fields} />}
-      <Text style={note}>A copy of this receipt is always available from your dashboard.</Text>
-      <Button href={receiptUrl}>View receipt →</Button>
+      <Text style={note}>{t.note}</Text>
+      <Button href={receiptUrl}>{t.button}</Button>
     </Layout>
   );
 }

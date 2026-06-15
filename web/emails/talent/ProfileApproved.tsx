@@ -2,6 +2,7 @@ import { Heading, Text } from "@react-email/components";
 import * as React from "react";
 import { Button } from "../components/Button";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   talentName: string | null;
@@ -18,24 +19,20 @@ export default function ProfileApproved({
   unsubscribeUrl,
   categoryLabel,
 }: Props) {
-  const name = talentName ?? "there";
+  const t = getEmailCopy(brand?.locale)["talent.profile_approved"];
+  const name = talentName ?? t.fallbackName;
 
   return (
     <Layout
-      preview="Your profile is approved"
+      preview={t.preview}
       brand={brand}
       unsubscribeUrl={unsubscribeUrl}
       categoryLabel={categoryLabel}
     >
-      <Heading style={h2}>Your profile is approved</Heading>
-      <Text style={body}>
-        Hi {name}, your profile has been reviewed and approved. It&apos;s now visible and
-        discoverable to clients.
-      </Text>
-      <Text style={note}>
-        Keep your availability and portfolio up to date so clients always see your best work.
-      </Text>
-      <Button href={profileUrl}>View my profile →</Button>
+      <Heading style={h2}>{t.heading}</Heading>
+      <Text style={body}>{interpolate(t.intro, { name })}</Text>
+      <Text style={note}>{t.note}</Text>
+      <Button href={profileUrl}>{t.button}</Button>
     </Layout>
   );
 }

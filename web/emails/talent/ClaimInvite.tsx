@@ -2,6 +2,7 @@ import { Heading, Text } from "@react-email/components";
 import * as React from "react";
 import { Button } from "../components/Button";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   agencyName: string;
@@ -22,18 +23,18 @@ export default function ClaimInvite({
   expiresLabel,
   brand,
 }: Props) {
-  const firstName = talentDisplayName?.trim() ? talentDisplayName.split(" ")[0] : "there";
+  const t = getEmailCopy(brand?.locale)["talent.claim_invite"];
+  const firstName = talentDisplayName?.trim() ? talentDisplayName.split(" ")[0] : t.fallbackName;
 
   return (
-    <Layout preview={`Claim your profile on ${agencyName}`} brand={brand}>
-      <Text style={body}>Hi {firstName},</Text>
-      <Heading style={h2}>Claim your profile on {agencyName}</Heading>
-      <Text style={body}>
-        {agencyName} added you to their roster. Claim your profile to manage bookings, reply to
-        inquiries, and edit your photos and bio.
-      </Text>
-      {expiresLabel ? <Text style={note}>Link expires {expiresLabel}.</Text> : null}
-      <Button href={redeemUrl}>Claim profile →</Button>
+    <Layout preview={interpolate(t.preview, { brand: agencyName })} brand={brand}>
+      <Text style={body}>{interpolate(t.greeting, { name: firstName })}</Text>
+      <Heading style={h2}>{interpolate(t.heading, { brand: agencyName })}</Heading>
+      <Text style={body}>{interpolate(t.intro, { brand: agencyName })}</Text>
+      {expiresLabel ? (
+        <Text style={note}>{interpolate(t.expires, { expiresLabel })}</Text>
+      ) : null}
+      <Button href={redeemUrl}>{t.button}</Button>
     </Layout>
   );
 }

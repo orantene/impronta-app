@@ -3,6 +3,7 @@ import * as React from "react";
 import { Button } from "../components/Button";
 import { FieldTable } from "../components/FieldTable";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   talentName: string | null;
@@ -25,30 +26,27 @@ export default function BookingConfirmed({
   unsubscribeUrl,
   categoryLabel,
 }: Props) {
-  const event = contactName ?? "your booking";
-  const name = talentName ?? "there";
+  const t = getEmailCopy(brand?.locale)["talent.booking_confirmed"];
+  const event = contactName ?? t.fallbackEvent;
+  const name = talentName ?? t.fallbackName;
 
   const fields = [
-    eventDate ? { label: "Date", value: eventDate } : null,
-    eventLocation ? { label: "Location", value: eventLocation } : null,
+    eventDate ? { label: t.labelDate, value: eventDate } : null,
+    eventLocation ? { label: t.labelLocation, value: eventLocation } : null,
   ].filter(Boolean) as { label: string; value: string }[];
 
   return (
     <Layout
-      preview="Booking confirmed"
+      preview={t.preview}
       brand={brand}
       unsubscribeUrl={unsubscribeUrl}
       categoryLabel={categoryLabel}
     >
-      <Heading style={h2}>Booking confirmed</Heading>
-      <Text style={body}>
-        Hi {name}, {event} has been confirmed.
-      </Text>
+      <Heading style={h2}>{t.heading}</Heading>
+      <Text style={body}>{interpolate(t.intro, { name, event })}</Text>
       {fields.length > 0 && <FieldTable fields={fields} />}
-      <Text style={note}>
-        You&apos;re confirmed for this event. The coordinator will share any additional details.
-      </Text>
-      <Button href={inquiriesUrl}>View my inquiries →</Button>
+      <Text style={note}>{t.note}</Text>
+      <Button href={inquiriesUrl}>{t.button}</Button>
     </Layout>
   );
 }

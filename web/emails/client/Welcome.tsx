@@ -2,6 +2,7 @@ import { Heading, Text } from "@react-email/components";
 import * as React from "react";
 import { Button } from "../components/Button";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   clientName: string | null;
@@ -10,20 +11,15 @@ interface Props {
 }
 
 export default function Welcome({ clientName, dashboardUrl, brand }: Props) {
+  const t = getEmailCopy(brand?.locale)["client.welcome"];
   const name = clientName ?? "there";
 
   return (
-    <Layout preview="Welcome to Tulala" brand={brand}>
-      <Heading style={h2}>Welcome to Tulala</Heading>
-      <Text style={body}>
-        Welcome, {name}. You can now browse talent, send inquiries, and track your bookings all in
-        one place.
-      </Text>
-      <Text style={note}>
-        Tip: every message and offer stays in one organized place &mdash; no more scattered WhatsApp
-        threads.
-      </Text>
-      <Button href={dashboardUrl}>Browse talent →</Button>
+    <Layout preview={t.preview} brand={brand}>
+      <Heading style={h2}>{t.heading}</Heading>
+      <Text style={body}>{interpolate(t.intro, { name })}</Text>
+      <Text style={note}>{t.note}</Text>
+      <Button href={dashboardUrl}>{t.button}</Button>
     </Layout>
   );
 }

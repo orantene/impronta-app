@@ -3,6 +3,7 @@ import * as React from "react";
 import { Button } from "../components/Button";
 import { FieldTable } from "../components/FieldTable";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   recipientName: string | null;
@@ -23,22 +24,24 @@ export default function PaymentReceived({
   unsubscribeUrl,
   categoryLabel,
 }: Props) {
-  const event = contactName ?? "a booking";
+  const t = getEmailCopy(brand?.locale)["workspace.payment_received"];
+  const isEs = (brand?.locale ?? "").toLowerCase().startsWith("es");
+  const event = contactName ?? (isEs ? "una reserva" : "a booking");
 
-  const fields = [{ label: "Amount", value: amountReceived }];
+  const fields = [{ label: t.fieldAmount, value: amountReceived }];
 
   return (
     <Layout
-      preview="Payment received"
+      preview={t.preview}
       brand={brand}
       unsubscribeUrl={unsubscribeUrl}
       categoryLabel={categoryLabel}
     >
-      <Heading style={h2}>Payment received</Heading>
-      <Text style={body}>A payment for {event} has been received.</Text>
+      <Heading style={h2}>{t.heading}</Heading>
+      <Text style={body}>{interpolate(t.intro, { event })}</Text>
       {fields.length > 0 && <FieldTable fields={fields} />}
-      <Text style={note}>View the breakdown and payout status from the workspace.</Text>
-      <Button href={inquiryUrl}>View payment →</Button>
+      <Text style={note}>{t.note}</Text>
+      <Button href={inquiryUrl}>{t.button}</Button>
     </Layout>
   );
 }

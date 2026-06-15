@@ -2,6 +2,7 @@ import { Heading, Text } from "@react-email/components";
 import * as React from "react";
 import { Button } from "../components/Button";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   talentName: string | null;
@@ -10,19 +11,15 @@ interface Props {
 }
 
 export default function Welcome({ talentName, dashboardUrl, brand }: Props) {
-  const firstName = talentName?.trim() ? talentName.split(" ")[0] : "there";
+  const t = getEmailCopy(brand?.locale)["account.talent_welcome"];
+  const firstName = talentName?.trim() ? talentName.split(" ")[0] : t.fallbackName;
 
   return (
-    <Layout preview="Welcome to Tulala" brand={brand}>
-      <Heading style={h2}>Welcome to Tulala</Heading>
-      <Text style={body}>
-        Welcome, {firstName}. Your profile is live. You can now manage bookings, respond to
-        inquiries, and keep your portfolio current.
-      </Text>
-      <Text style={note}>
-        Tip: complete your profile photos and bio so you stand out to clients.
-      </Text>
-      <Button href={dashboardUrl}>Go to my dashboard →</Button>
+    <Layout preview={t.preview} brand={brand}>
+      <Heading style={h2}>{t.heading}</Heading>
+      <Text style={body}>{interpolate(t.intro, { name: firstName })}</Text>
+      <Text style={note}>{t.note}</Text>
+      <Button href={dashboardUrl}>{t.button}</Button>
     </Layout>
   );
 }

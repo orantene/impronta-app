@@ -3,6 +3,7 @@ import * as React from "react";
 import { Button } from "../components/Button";
 import { FieldTable } from "../components/FieldTable";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   recipientName: string | null;
@@ -20,25 +21,28 @@ export default function TrialWillEnd({
   billingUrl,
   brand,
 }: Props) {
+  const t = getEmailCopy(brand?.locale)["billing.trial_will_end.workspace"];
   const name = recipientName ?? "there";
   const plan = planLabel ?? "your plan";
 
   const fields = [
-    { label: "Plan", value: plan },
-    ...(trialEndsAt ? [{ label: "Trial ends", value: trialEndsAt }] : []),
+    { label: t.fieldPlan, value: plan },
+    ...(trialEndsAt ? [{ label: t.fieldTrialEnds, value: trialEndsAt }] : []),
   ];
 
+  const intro = interpolate(trialEndsAt ? t.introWithDate : t.introNoDate, {
+    name,
+    plan,
+    trialEnds: trialEndsAt,
+  });
+
   return (
-    <Layout preview="Your trial is ending soon" brand={brand}>
-      <Heading style={h2}>Your trial is ending soon</Heading>
-      <Text style={body}>
-        Hi {name}, your {plan} trial{trialEndsAt ? ` ends on ${trialEndsAt}` : " is ending soon"}.
-        To keep your features without interruption, add a payment method or confirm your
-        subscription.
-      </Text>
+    <Layout preview={t.preview} brand={brand}>
+      <Heading style={h2}>{t.heading}</Heading>
+      <Text style={body}>{intro}</Text>
       <FieldTable fields={fields} />
-      <Text style={note}>You won&apos;t be charged until your trial ends.</Text>
-      <Button href={billingUrl}>Manage billing →</Button>
+      <Text style={note}>{t.note}</Text>
+      <Button href={billingUrl}>{t.button}</Button>
     </Layout>
   );
 }

@@ -3,6 +3,7 @@ import * as React from "react";
 import { Button } from "../components/Button";
 import { FieldTable } from "../components/FieldTable";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   talentName: string | null;
@@ -23,27 +24,26 @@ export default function PayoutSettled({
   unsubscribeUrl,
   categoryLabel,
 }: Props) {
-  const name = talentName ?? "there";
-  const event = contactName ?? "your booking";
+  const t = getEmailCopy(brand?.locale)["talent.payout_settled"];
+  const name = talentName ?? t.fallbackName;
+  const event = contactName ?? t.fallbackEvent;
 
-  const fields = [{ label: "Amount", value: amountSettled }].filter(
+  const fields = [{ label: t.labelAmount, value: amountSettled }].filter(
     (f) => Boolean(f.value),
   );
 
   return (
     <Layout
-      preview="Your payout is on its way"
+      preview={t.preview}
       brand={brand}
       unsubscribeUrl={unsubscribeUrl}
       categoryLabel={categoryLabel}
     >
-      <Heading style={h2}>Your payout is on its way</Heading>
-      <Text style={body}>
-        Hi {name}, your payout for {event} has been settled.
-      </Text>
+      <Heading style={h2}>{t.heading}</Heading>
+      <Text style={body}>{interpolate(t.intro, { name, event })}</Text>
       {fields.length > 0 && <FieldTable fields={fields} />}
-      <Text style={note}>Track this and past payouts from your payout settings.</Text>
-      <Button href={payoutsUrl}>View payouts →</Button>
+      <Text style={note}>{t.note}</Text>
+      <Button href={payoutsUrl}>{t.button}</Button>
     </Layout>
   );
 }

@@ -3,6 +3,7 @@ import * as React from "react";
 import { Button } from "../components/Button";
 import { FieldTable } from "../components/FieldTable";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   clientName: string | null;
@@ -27,6 +28,10 @@ export default function PaymentRefunded({
   categoryLabel,
 }: Props) {
   const name = clientName ?? "there";
+  // heading + message are passed in by the catalog (reason-dependent); the
+  // template owns the greeting wrapper, the field label, and the button. The
+  // two refund templateIds share identical owned copy — pick by shape.
+  const t = getEmailCopy(brand?.locale)[amount ? "client.partial_refund" : "client.payment_refunded"];
   return (
     <Layout
       preview={heading}
@@ -35,11 +40,9 @@ export default function PaymentRefunded({
       categoryLabel={categoryLabel}
     >
       <Heading style={h2}>{heading}</Heading>
-      <Text style={body}>
-        Hi {name}, {message}
-      </Text>
-      {amount && <FieldTable fields={[{ label: "Refunded", value: amount }]} />}
-      <Button href={bookingUrl}>View booking →</Button>
+      <Text style={body}>{interpolate(t.greeting, { name, message })}</Text>
+      {amount && <FieldTable fields={[{ label: t.refundedLabel, value: amount }]} />}
+      <Button href={bookingUrl}>{t.button}</Button>
     </Layout>
   );
 }

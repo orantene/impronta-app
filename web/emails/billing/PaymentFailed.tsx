@@ -3,6 +3,7 @@ import * as React from "react";
 import { Button } from "../components/Button";
 import { FieldTable } from "../components/FieldTable";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   agencyName: string;
@@ -21,20 +22,21 @@ export default function PaymentFailed({
   unsubscribeUrl,
   categoryLabel,
 }: Props) {
+  const t = getEmailCopy(brand?.locale)["workspace.payment_failed"];
   const fields = [{ label: "Amount due", value: amountDue }].filter((f) => Boolean(f.value));
 
   return (
     <Layout
-      preview="Payment failed"
+      preview={t.preview}
       brand={brand}
       unsubscribeUrl={unsubscribeUrl}
       categoryLabel={categoryLabel}
     >
-      <Heading style={h2}>Payment failed</Heading>
-      <Text style={body}>We couldn&apos;t process the latest payment for {agencyName}.</Text>
+      <Heading style={h2}>{t.heading}</Heading>
+      <Text style={body}>{interpolate(t.intro, { brand: agencyName })}</Text>
       {fields.length > 0 && <FieldTable fields={fields} />}
-      <Text style={note}>Update your payment method to avoid any interruption to your workspace.</Text>
-      <Button href={billingUrl}>Update payment →</Button>
+      <Text style={note}>{t.note}</Text>
+      <Button href={billingUrl}>{t.button}</Button>
     </Layout>
   );
 }

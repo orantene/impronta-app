@@ -3,6 +3,7 @@ import * as React from "react";
 import { Button } from "../components/Button";
 import { FieldTable } from "../components/FieldTable";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   recipientName: string | null;
@@ -27,26 +28,25 @@ export default function InquiryCancelled({
 }: Props) {
   const name = recipientName ?? "there";
   const event = contactName ?? "an inquiry";
+  const t = getEmailCopy(brand?.locale)["inquiry.cancelled"];
 
   const fields = [
-    eventDate ? { label: "Date", value: eventDate } : null,
-    eventLocation ? { label: "Location", value: eventLocation } : null,
+    eventDate ? { label: t.dateLabel, value: eventDate } : null,
+    eventLocation ? { label: t.locationLabel, value: eventLocation } : null,
   ].filter(Boolean) as { label: string; value: string }[];
 
   return (
     <Layout
-      preview="An inquiry has been cancelled"
+      preview={t.preview}
       brand={brand}
       unsubscribeUrl={unsubscribeUrl}
       categoryLabel={categoryLabel}
     >
-      <Heading style={h2}>Inquiry cancelled</Heading>
-      <Text style={body}>
-        Hi {name}, {event} has been cancelled. No further action is needed.
-      </Text>
+      <Heading style={h2}>{t.heading}</Heading>
+      <Text style={body}>{interpolate(t.intro, { name, event })}</Text>
       {fields.length > 0 && <FieldTable fields={fields} />}
-      <Text style={note}>You can review the details any time.</Text>
-      <Button href={inquiryUrl}>View details →</Button>
+      <Text style={note}>{t.note}</Text>
+      <Button href={inquiryUrl}>{t.button}</Button>
     </Layout>
   );
 }

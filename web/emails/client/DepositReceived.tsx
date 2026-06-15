@@ -3,6 +3,7 @@ import * as React from "react";
 import { Button } from "../components/Button";
 import { FieldTable } from "../components/FieldTable";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   clientName: string | null;
@@ -28,30 +29,29 @@ export default function DepositReceived({
   unsubscribeUrl,
   categoryLabel,
 }: Props) {
+  const t = getEmailCopy(brand?.locale)["client.deposit_received"];
   const name = clientName ?? "there";
   const event = contactName ?? "your booking";
+  const balanceClause = balanceDue ? interpolate(t.balanceClause, { balance: balanceDue }) : "";
 
   const fields = [
-    { label: "Deposit paid", value: depositPaid },
-    ...(balanceDue ? [{ label: "Balance due", value: balanceDue }] : []),
-    { label: "Date", value: paymentDate },
+    { label: t.depositLabel, value: depositPaid },
+    ...(balanceDue ? [{ label: t.balanceLabel, value: balanceDue }] : []),
+    { label: t.dateLabel, value: paymentDate },
   ];
 
   return (
     <Layout
-      preview="Deposit received — balance due to confirm your booking"
+      preview={t.preview}
       brand={brand}
       unsubscribeUrl={unsubscribeUrl}
       categoryLabel={categoryLabel}
     >
-      <Heading style={h2}>Deposit received</Heading>
-      <Text style={body}>
-        Hi {name}, we&apos;ve received your deposit for {event}. To confirm the booking, pay the
-        remaining balance{balanceDue ? ` of ${balanceDue}` : ""}.
-      </Text>
+      <Heading style={h2}>{t.heading}</Heading>
+      <Text style={body}>{interpolate(t.intro, { name, event, balanceClause })}</Text>
       {fields.length > 0 && <FieldTable fields={fields} />}
-      <Text style={note}>Your booking is held — paying the balance locks it in.</Text>
-      <Button href={payBalanceUrl}>Pay balance →</Button>
+      <Text style={note}>{t.note}</Text>
+      <Button href={payBalanceUrl}>{t.button}</Button>
     </Layout>
   );
 }

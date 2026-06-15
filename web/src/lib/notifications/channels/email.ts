@@ -16,6 +16,8 @@ import {
   getTemplateOverride,
   interpolateOverride,
 } from "../overlay";
+import { getEmailSubject, interpolate } from "../email-copy";
+import type { EmailBrand } from "@/lib/brand/resolve-tenant-brand";
 import { logServerError } from "@/lib/server/safe-error";
 import type {
   AudienceContext,
@@ -66,7 +68,10 @@ export async function sendEmailNotification(
   }
 
   // Code defaults — the source of truth and the fallback.
-  let subject = cfg.subject(event, recipient);
+  // Subject: a baked-in localized subject (EN/ES) when this templateId is
+  // translated in email-copy, else the catalog entry's English subject() fn.
+  // Body: the template renders EN/ES off brand.locale internally.
+  let subject = resolveLocalizedSubject(cfg, event, recipient, brand);
   let element = cfg.render({ event, recipient, brand, unsubscribeUrl });
 
   // P3b editable templates: an admin can override subject/body per (entry, locale)
@@ -108,7 +113,7 @@ export async function sendEmailNotification(
     }
   } catch (err) {
     logServerError(`notifications.email.override:${entry.id}`, err);
-    subject = cfg.subject(event, recipient);
+    subject = resolveLocalizedSubject(cfg, event, recipient, brand);
     element = cfg.render({ event, recipient, brand, unsubscribeUrl });
   }
 
@@ -134,4 +139,36 @@ export async function sendEmailNotification(
     throw new Error(`Resend send failed for ${entry.id}: ${result.error}`);
   }
   return result.status === "sent" ? result.id : null;
+}
+
+/** String-only vars for subject interpolation: recipient/brand + flat payload. */
+function subjectVars(
+  event: NotificationEvent,
+  recipient: ResolvedRecipient,
+  brand: EmailBrand,
+): Record<string, string> {
+  const vars: Record<string, string> = {
+    name: recipient.displayName ?? "",
+    brand: brand.accountName ?? "",
+  };
+  for (const [k, v] of Object.entries(event.payload ?? {})) {
+    if (typeof v === "string" || typeof v === "number") vars[k] = String(v);
+  }
+  return vars;
+}
+
+/**
+ * Localized subject: the baked-in EN/ES subject for this templateId (with
+ * `{placeholder}` interpolation from the event payload), or the catalog entry's
+ * English `subject()` fn when the templateId isn't translated yet.
+ */
+function resolveLocalizedSubject(
+  cfg: NonNullable<CatalogEntry["email"]>,
+  event: NotificationEvent,
+  recipient: ResolvedRecipient,
+  brand: EmailBrand,
+): string {
+  const localized = getEmailSubject(brand.locale, cfg.templateId);
+  if (localized) return interpolate(localized, subjectVars(event, recipient, brand));
+  return cfg.subject(event, recipient);
 }

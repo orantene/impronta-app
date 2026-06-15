@@ -3,6 +3,7 @@ import * as React from "react";
 import { Button } from "../components/Button";
 import { FieldTable } from "../components/FieldTable";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   recipientName: string | null;
@@ -23,24 +24,24 @@ export default function OfferAccepted({
   unsubscribeUrl,
   categoryLabel,
 }: Props) {
-  const event = contactName ?? "the inquiry";
+  const t = getEmailCopy(brand?.locale)["workspace.offer_accepted"];
+  const isEs = (brand?.locale ?? "").toLowerCase().startsWith("es");
+  const event = contactName ?? (isEs ? "la solicitud" : "the inquiry");
 
-  const fields = totalAmount ? [{ label: "Total", value: totalAmount }] : [];
+  const fields = totalAmount ? [{ label: t.fieldTotal, value: totalAmount }] : [];
 
   return (
     <Layout
-      preview="Offer accepted"
+      preview={t.preview}
       brand={brand}
       unsubscribeUrl={unsubscribeUrl}
       categoryLabel={categoryLabel}
     >
-      <Heading style={h2}>Offer accepted</Heading>
-      <Text style={body}>
-        Good news — the client accepted the offer for {event}.
-      </Text>
+      <Heading style={h2}>{t.heading}</Heading>
+      <Text style={body}>{interpolate(t.intro, { event })}</Text>
       {fields.length > 0 && <FieldTable fields={fields} />}
-      <Text style={note}>Confirm the booking and coordinate next steps.</Text>
-      <Button href={inquiryUrl}>Open inquiry →</Button>
+      <Text style={note}>{t.note}</Text>
+      <Button href={inquiryUrl}>{t.button}</Button>
     </Layout>
   );
 }

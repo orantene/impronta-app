@@ -3,6 +3,7 @@ import * as React from "react";
 import { Button } from "../components/Button";
 import { FieldTable } from "../components/FieldTable";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   formName: string;
@@ -30,13 +31,15 @@ export default function FormSubmission({
   brand,
   unsubscribeUrl,
 }: Props) {
+  const t = getEmailCopy(brand?.locale)["workspace.form_submission"];
+  const isEs = (brand?.locale ?? "").toLowerCase().startsWith("es");
   const preview = contactName
-    ? `New form submission from ${contactName} — ${formName}`
-    : `New form submission — ${formName}`;
+    ? interpolate(t.preview, { name: contactName, form: formName })
+    : interpolate(t.previewNoName, { form: formName });
 
   const dateLabel = (() => {
     try {
-      return new Intl.DateTimeFormat("en-GB", {
+      return new Intl.DateTimeFormat(isEs ? "es-MX" : "en-GB", {
         day: "numeric",
         month: "short",
         year: "numeric",
@@ -50,33 +53,40 @@ export default function FormSubmission({
   })();
 
   const metaFields: Array<{ label: string; value: string }> = [
-    { label: "Form", value: formName },
-    ...(contactName ? [{ label: "Name", value: contactName }] : []),
-    ...(contactEmail ? [{ label: "Email", value: contactEmail }] : []),
-    { label: "Received", value: dateLabel },
+    { label: t.fieldForm, value: formName },
+    ...(contactName ? [{ label: t.fieldName, value: contactName }] : []),
+    ...(contactEmail ? [{ label: t.fieldEmail, value: contactEmail }] : []),
+    { label: t.fieldReceived, value: dateLabel },
   ];
 
   return (
     <Layout preview={preview} brand={brand} unsubscribeUrl={unsubscribeUrl} categoryLabel="site">
-      <Heading style={h2}>New form submission</Heading>
+      <Heading style={h2}>{t.heading}</Heading>
       <Text style={body}>
-        A visitor submitted the <strong>{formName}</strong> form on your {agencyName} site.
+        {(() => {
+          const [before, after] = t.intro.split("{form}");
+          return (
+            <>
+              {interpolate(before ?? "", { brand: agencyName })}
+              <strong>{formName}</strong>
+              {interpolate(after ?? "", { brand: agencyName })}
+            </>
+          );
+        })()}
       </Text>
 
       <FieldTable fields={metaFields} />
 
       {payloadFields.length > 0 && (
         <>
-          <Text style={sectionLabel}>Submitted fields</Text>
+          <Text style={sectionLabel}>{t.submittedFields}</Text>
           <FieldTable fields={payloadFields} />
         </>
       )}
 
-      <Button href={inboxUrl}>Open inbox →</Button>
+      <Button href={inboxUrl}>{t.button}</Button>
 
-      <Text style={note}>
-        Mark it as read or archive it in your forms inbox.
-      </Text>
+      <Text style={note}>{t.note}</Text>
     </Layout>
   );
 }

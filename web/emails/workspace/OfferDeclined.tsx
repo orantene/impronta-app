@@ -2,6 +2,7 @@ import { Heading, Text } from "@react-email/components";
 import * as React from "react";
 import { Button } from "../components/Button";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   recipientName: string | null;
@@ -20,19 +21,21 @@ export default function OfferDeclined({
   unsubscribeUrl,
   categoryLabel,
 }: Props) {
-  const event = contactName ?? "the inquiry";
+  const t = getEmailCopy(brand?.locale)["workspace.offer_declined"];
+  const isEs = (brand?.locale ?? "").toLowerCase().startsWith("es");
+  const event = contactName ?? (isEs ? "la solicitud" : "the inquiry");
 
   return (
     <Layout
-      preview="Offer declined"
+      preview={t.preview}
       brand={brand}
       unsubscribeUrl={unsubscribeUrl}
       categoryLabel={categoryLabel}
     >
-      <Heading style={h2}>Offer declined</Heading>
-      <Text style={body}>The client declined the offer for {event}.</Text>
-      <Text style={note}>You can revise the offer or follow up with the client.</Text>
-      <Button href={inquiryUrl}>Open inquiry →</Button>
+      <Heading style={h2}>{t.heading}</Heading>
+      <Text style={body}>{interpolate(t.intro, { event })}</Text>
+      <Text style={note}>{t.note}</Text>
+      <Button href={inquiryUrl}>{t.button}</Button>
     </Layout>
   );
 }

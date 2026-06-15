@@ -3,6 +3,7 @@ import * as React from "react";
 import { Button } from "../components/Button";
 import { FieldTable } from "../components/FieldTable";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
 
 interface Props {
   contactName: string | null;
@@ -26,27 +27,25 @@ export default function InquiryReceived({
   categoryLabel,
 }: Props) {
   const name = contactName ?? "there";
+  const t = getEmailCopy(brand?.locale)["client.inquiry_received"];
 
   const fields = [
-    eventDate ? { label: "Date", value: eventDate } : null,
-    eventLocation ? { label: "Location", value: eventLocation } : null,
+    eventDate ? { label: t.dateLabel, value: eventDate } : null,
+    eventLocation ? { label: t.locationLabel, value: eventLocation } : null,
   ].filter(Boolean) as { label: string; value: string }[];
 
   return (
     <Layout
-      preview="We've received your inquiry"
+      preview={t.preview}
       brand={brand}
       unsubscribeUrl={unsubscribeUrl}
       categoryLabel={categoryLabel}
     >
-      <Heading style={h2}>We&apos;ve received your inquiry</Heading>
-      <Text style={body}>
-        Hi {name}, thanks for reaching out to {agencyName}. We&apos;ll get back to you as soon as
-        possible.
-      </Text>
+      <Heading style={h2}>{t.heading}</Heading>
+      <Text style={body}>{interpolate(t.intro, { name, brand: agencyName })}</Text>
       {fields.length > 0 && <FieldTable fields={fields} />}
-      <Text style={note}>You can track the status of your inquiry from your dashboard.</Text>
-      <Button href={inquiryUrl}>View inquiry →</Button>
+      <Text style={note}>{t.note}</Text>
+      <Button href={inquiryUrl}>{t.button}</Button>
     </Layout>
   );
 }
