@@ -32,6 +32,21 @@ import { updateTemplateDraft, publishTemplate } from "../templates/registry-acti
 import { getTemplateById } from "../templates/registry-admin-actions";
 import type { BuilderTemplateRow } from "../templates/registry-rows";
 
+/** Forward the editor's title / meta-description edits to the draft row. Page
+ *  Settings is the natural place to NAME a Playground draft, so a non-empty
+ *  title becomes the template title and the meta description its description.
+ *  Empty/absent values are skipped so a metadata-light save never wipes them. */
+function draftMetadataPatch(
+  metadata: CompositionSaveInput["metadata"] | undefined,
+): { title?: string; description?: string | null } {
+  const patch: { title?: string; description?: string | null } = {};
+  if (metadata?.title && metadata.title.trim()) patch.title = metadata.title;
+  if (metadata?.metaDescription !== undefined) {
+    patch.description = metadata.metaDescription;
+  }
+  return patch;
+}
+
 /** Build the editor's CompositionData lingua franca from a draft template row.
  *  Only `builderTree` carries real content for a freeform Lab draft; the rest is
  *  inert metadata so the editor mounts. */
@@ -92,6 +107,7 @@ export function createDraftBoundPlatformLabAdapter(
     ): Promise<CompositionSaveResult> {
       const res = await updateTemplateDraft({
         id: draftId,
+        ...draftMetadataPatch(input.metadata),
         ...(input.builderTree !== undefined
           ? { builder_tree: input.builderTree }
           : {}),
@@ -106,6 +122,7 @@ export function createDraftBoundPlatformLabAdapter(
     ): Promise<SaveDraftResult> {
       const res = await updateTemplateDraft({
         id: draftId,
+        ...draftMetadataPatch(input.metadata),
         ...(input.builderTree !== undefined
           ? { builder_tree: input.builderTree }
           : {}),

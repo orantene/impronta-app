@@ -33,6 +33,7 @@ import {
   setComponentOverlay,
 } from "@/lib/site-admin/builder-core/templates/catalog-overlay-actions";
 import { createTemplateDraft } from "@/lib/site-admin/builder-core/templates/registry-actions";
+import { createPlaygroundDraftFromDesign } from "@/lib/site-admin/builder-core/lab/create-draft-from-design";
 import { listAllTemplates } from "@/lib/site-admin/builder-core/templates/registry-admin-actions";
 import type {
   BuilderTemplateRow,
@@ -768,16 +769,39 @@ function designsForSurface(
 /**
  * Site Starter Kit (Catalog) — the full-page starter designs, split into a
  * Talent Starter Kit and an Agency Starter Kit by each design's target surface
- * ("both" designs appear in both kits). "Use this starter" opens the editor for
- * that surface; Phase 3 seeds the chosen design's tree into a fresh draft.
+ * ("both" designs appear in both kits). "Use this starter" creates a Playground
+ * draft seeded with the chosen design's baked tree (server-side) and opens the
+ * editor on it.
  */
 function SiteStarterKitView({
   onLaunchEditor,
 }: {
   onLaunchEditor?: (target: BuilderLabTarget, draftId?: string) => void;
 }) {
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const startFromDesign = useCallback(
+    async (design: PageDesignSummary, surface: "talent" | "workspace") => {
+      setBusyId(design.id);
+      setError(null);
+      const res = await createPlaygroundDraftFromDesign({
+        designId: design.id,
+        target: surface,
+      });
+      setBusyId(null);
+      if (res.ok) {
+        onLaunchEditor?.(surface, res.draftId);
+      } else {
+        setError(res.error);
+      }
+    },
+    [onLaunchEditor],
+  );
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+      {error ? <div style={{ fontSize: 12, color: "#ff8585" }}>{error}</div> : null}
       {STARTER_KIT_GROUPS.map((group) => {
         const designs = designsForSurface(group.surface);
         return (
@@ -797,7 +821,8 @@ function SiteStarterKitView({
                 <StarterKitCard
                   key={d.id}
                   design={d}
-                  onUse={() => onLaunchEditor?.(group.surface)}
+                  busy={busyId === d.id}
+                  onUse={() => void startFromDesign(d, group.surface)}
                 />
               ))}
             </div>
@@ -810,9 +835,11 @@ function SiteStarterKitView({
 
 function StarterKitCard({
   design,
+  busy,
   onUse,
 }: {
   design: PageDesignSummary;
+  busy?: boolean;
   onUse: () => void;
 }) {
   return (
@@ -850,6 +877,7 @@ function StarterKitCard({
       <button
         type="button"
         onClick={onUse}
+        disabled={busy}
         className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60"
         style={{
           alignSelf: "flex-start",
@@ -860,10 +888,11 @@ function StarterKitCard({
           color: T.accent,
           fontSize: 12,
           fontWeight: 700,
-          cursor: "pointer",
+          cursor: busy ? "default" : "pointer",
+          opacity: busy ? 0.6 : 1,
         }}
       >
-        Use this starter →
+        {busy ? "Creating…" : "Use this starter →"}
       </button>
     </div>
   );
