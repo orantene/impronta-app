@@ -205,3 +205,38 @@ test("dbTemplate with an empty tree yields an editable empty container (never th
   assert.equal(node.kind, "container");
   assert.deepEqual((node as { children?: BuilderNode[] }).children, []);
 });
+
+// ── WS-C per-prop locking — admin-locked props are stamped at insert ──────────
+
+test("resolveAddGalleryInsertAction stamps item.lockedProps onto the node + carrier", () => {
+  const locked: AddGalleryItem = { ...baseItem, lockedProps: ["style.textColor", "tone"] };
+  const action = resolveAddGalleryInsertAction(locked);
+  assert.equal(action.type, "nativeNode");
+  if (action.type === "nativeNode") {
+    // Base field set so the inspector lock gate sees it.
+    assert.deepEqual(action.node.lockedProps, ["style.textColor", "tone"]);
+    // Carrier mirror in props so it round-trips through validate/persist.
+    assert.deepEqual(
+      (action.node.props as { lockedProps?: string[] }).lockedProps,
+      ["style.textColor", "tone"],
+    );
+  }
+});
+
+test("resolveAddGalleryInsertAction leaves the node untouched when no locks", () => {
+  const action = resolveAddGalleryInsertAction(baseItem);
+  assert.equal(action.type, "nativeNode");
+  if (action.type === "nativeNode") {
+    assert.equal(action.node.lockedProps, undefined);
+    assert.equal((action.node.props as { lockedProps?: string[] }).lockedProps, undefined);
+  }
+});
+
+test("dbTemplate insert also carries admin locks", () => {
+  const locked: AddGalleryItem = { ...dbTemplateItem, lockedProps: ["layout"] };
+  const action = resolveAddGalleryInsertAction(locked);
+  assert.equal(action.type, "dbTemplate");
+  if (action.type === "dbTemplate") {
+    assert.deepEqual(action.node.lockedProps, ["layout"]);
+  }
+});
