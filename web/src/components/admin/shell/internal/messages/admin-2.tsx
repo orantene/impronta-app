@@ -608,7 +608,13 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
           currentCoordName={inquiry.coordinator?.name ?? "Unassigned"}
           currentCoordUserId={inquiry.coordinator?.id ?? null}
           onSuccess={() => router.refresh()}
-          mode="swap"
+          // The coordinator chip is the primary "assign a talent / hand off"
+          // control (its tooltip promises both). Open the redesigned combined
+          // picker (staff teammates + roster talents + history toggle) which
+          // appoints a co-coordinator with full control of this inquiry —
+          // matching the admin-appoints-a-talent feature. (Pure primary-swap
+          // remains available via the engine; revisit a unified sheet later.)
+          mode="add_secondary"
         />
       )}
     </div>
