@@ -1734,9 +1734,10 @@ export default async function PublicTalentProfilePage({
     loadTalentReviews(profile.id, 12),
   ]);
 
-  const languages: string[] = structuredLanguages.length > 0
-    ? structuredLanguages.map(formatLanguageRow)
-    : (grouped["language"] ?? []);
+  // Languages come solely from the canonical talent_languages table now —
+  // the legacy taxonomy `grouped["language"]` fallback was retired when the
+  // taxonomy language terms were consolidated into talent_languages.
+  const languages: string[] = structuredLanguages.map(formatLanguageRow);
   const homeBaseLabel: string | null = structuredServiceAreas.find(s => s.service_kind === "home_base")
     ?.locations?.[locale === "es" ? "display_name_es" : "display_name_en"]
     ?? null;
