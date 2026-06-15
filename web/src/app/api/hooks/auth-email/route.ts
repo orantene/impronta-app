@@ -37,6 +37,7 @@ import { verifyResendSignature } from "@/lib/notifications/resend-webhook";
 import { sendEmailResult } from "@/lib/email";
 import { renderEmailHtml } from "@/lib/email/render";
 import { platformBrand } from "@/lib/brand/resolve-tenant-brand";
+import { getEmailCopy, normalizeEmailLocale, type EmailCopyKey } from "@/lib/notifications/email-copy";
 import { getAppUrl, normalizeNextPath } from "@/lib/auth-flow";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -64,14 +65,36 @@ type HookPayload = {
   email_data?: EmailData;
 };
 
-const SUBJECTS: Record<string, string> = {
-  signup: "Confirm your email",
-  invite: "You've been invited",
-  magiclink: "Your sign-in link",
-  recovery: "Reset your password",
-  email_change: "Confirm your new email",
-  email_change_new: "Confirm your new email",
-};
+/** Map a Supabase email_action_type to the bilingual copy key for its subject. */
+function copyKeyFor(action: string): EmailCopyKey {
+  switch (action) {
+    case "recovery":
+      return "auth.recovery";
+    case "magiclink":
+      return "auth.magiclink";
+    case "email_change":
+    case "email_change_new":
+      return "auth.email_change";
+    case "signup":
+    case "invite":
+    default:
+      return "auth.signup";
+  }
+}
+
+/**
+ * Locale for the auth email. There's no per-user locale in Supabase, so the
+ * app's auth actions append `?lang=es` to redirectTo (the language of the page
+ * the user was on); we read it back here. Defaults to English.
+ */
+function localeFromRedirect(redirectTo: string | undefined): "en" | "es" {
+  if (!redirectTo) return "en";
+  try {
+    return normalizeEmailLocale(new URL(redirectTo).searchParams.get("lang"));
+  } catch {
+    return "en";
+  }
+}
 
 /** Build the in-app token_hash verification link (/auth/confirm consumes it). */
 function confirmUrl(action: string, tokenHash: string, redirectTo: string | undefined): string {
@@ -91,8 +114,14 @@ function confirmUrl(action: string, tokenHash: string, redirectTo: string | unde
   return `${base}/auth/confirm?${params.toString()}`;
 }
 
-function renderTemplate(action: string, url: string, newEmail: string | undefined) {
-  const brand = platformBrand();
+function renderTemplate(
+  action: string,
+  url: string,
+  newEmail: string | undefined,
+  locale: "en" | "es",
+) {
+  // Platform brand carries the locale so the templates render in EN/ES.
+  const brand = { ...platformBrand(), locale };
   switch (action) {
     case "recovery":
       return React.createElement(PasswordReset, { resetUrl: url, brand });
@@ -146,11 +175,12 @@ export async function POST(req: NextRequest) {
 
   const url = confirmUrl(action, tokenHash, data.redirect_to);
   const newEmail = data.new_email ?? payload.user?.new_email;
-  const subject = SUBJECTS[action] ?? "Tulala";
+  const locale = localeFromRedirect(data.redirect_to);
+  const subject = getEmailCopy(locale)[copyKeyFor(action)].subject;
 
   let html: string;
   try {
-    html = await renderEmailHtml(renderTemplate(action, url, newEmail));
+    html = await renderEmailHtml(renderTemplate(action, url, newEmail, locale));
   } catch (err) {
     logServerError("hooks.auth-email.render", err);
     return hookError(500, "Render failed");
@@ -174,7 +204,7 @@ export async function POST(req: NextRequest) {
         dedupe_key: `auth:${action}:${tokenHash}`,
         template_id: `auth.${action}`,
         catalog_entry_id: `auth.${action}`,
-        locale: "en",
+        locale,
         payload: { action },
         sent_at: result.status === "sent" ? new Date().toISOString() : null,
         provider_reference: result.status === "sent" ? result.id : null,

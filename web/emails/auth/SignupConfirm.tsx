@@ -2,6 +2,7 @@ import { Heading, Text } from "@react-email/components";
 import * as React from "react";
 import { Button } from "../components/Button";
 import { Layout, type EmailBrand } from "../components/Layout";
+import { getEmailCopy } from "@/lib/notifications/email-copy";
 
 interface Props {
   confirmUrl: string;
@@ -9,15 +10,13 @@ interface Props {
 }
 
 export default function SignupConfirm({ confirmUrl, brand }: Props) {
+  const t = getEmailCopy(brand?.locale)["auth.signup"];
   return (
-    <Layout preview="Confirm your email to get started" brand={brand}>
-      <Heading style={h2}>Confirm your email</Heading>
-      <Text style={body}>
-        Thanks for signing up. Click the button below to confirm your email address and activate
-        your account.
-      </Text>
-      <Text style={note}>This link expires in 24 hours.</Text>
-      <Button href={confirmUrl}>Confirm email →</Button>
+    <Layout preview={t.preview} brand={brand}>
+      <Heading style={h2}>{t.heading}</Heading>
+      <Text style={body}>{t.intro}</Text>
+      <Text style={note}>{t.note}</Text>
+      <Button href={confirmUrl}>{t.button}</Button>
     </Layout>
   );
 }
