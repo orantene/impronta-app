@@ -334,6 +334,18 @@ export function TalentJobRow({
               boxShadow: `0 0 0 2px ${COLORS.coral}1f`,
             }}>NEW</span>
           )}
+          {/* WS6 — "Coordinating" pill when this talent is the appointed
+              coordinator on the inquiry (conv.iAmCoordinator is the bridge
+              source of truth). */}
+          {conv.iAmCoordinator && (
+            <span style={{
+              flexShrink: 0,
+              fontSize: 9, fontWeight: 800, letterSpacing: 0.6,
+              padding: "2px 6px", borderRadius: 999,
+              background: COLORS.indigoSoft, color: COLORS.indigoDeep ?? COLORS.indigo,
+              textTransform: "uppercase",
+            }}>Coordinating</span>
+          )}
           {yourRate && yourRate !== "—" && (
             <span style={{ flexShrink: 0, fontSize: 12.5, fontWeight: 700, fontVariantNumeric: "tabular-nums", letterSpacing: -0.1 }} className="text-admin-ink">{yourRate}</span>
           )}

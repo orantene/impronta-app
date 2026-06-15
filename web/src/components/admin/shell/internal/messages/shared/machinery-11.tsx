@@ -385,7 +385,7 @@ export function LiveLineupPanel({
  * `updateOfferDraft`. Each save replaces the line items wholesale —
  * matches the engine contract.
  */
-export function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: string; offerId: string; isAdmin: boolean }) {
+export function OfferDraftEditor({ inquiryId, offerId, canEdit }: { inquiryId: string; offerId: string; canEdit: boolean }) {
   const { toast, effectiveRoster, effectiveTenant } = useAdminShell();
   const [snapshot, setSnapshot] = useState<OfferDraftSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
@@ -426,7 +426,7 @@ export function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: s
 
   useEffect(() => { reload(); }, [reload]);
 
-  if (!isAdmin) return null;
+  if (!canEdit) return null;
   // C9 — loading skeleton (was a blank flash before).
   if (loading) {
     return (

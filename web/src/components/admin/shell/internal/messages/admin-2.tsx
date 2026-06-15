@@ -268,7 +268,7 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
               <button
                 type="button"
                 onClick={() => setCoordinatorSheetOpen(true)}
-                title={inquiry.coordinator ? `Reassign coordinator: ${inquiry.coordinator.name}` : "Assign a talent coordinator"}
+                title={inquiry.coordinator ? `Coordinator: ${inquiry.coordinator.name} · click to reassign or assign a talent` : "Assign a coordinator (staff or roster talent)"}
                 style={{
                   height: 32,
                   padding: "0 10px",

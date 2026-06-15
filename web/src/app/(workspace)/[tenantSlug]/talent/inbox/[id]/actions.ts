@@ -267,6 +267,9 @@ export async function loadTalentInquiryThread(
     const contactName = ((inquiry as { contact_name?: string | null }).contact_name ?? "")?.trim();
     const clientUserId = (inquiry as { client_user_id?: string | null }).client_user_id ?? null;
 
+    // History window for a coordinator added with "start fresh" — only client
+    // (private) messages created at/after visible_from are shown to them.
+    let privateVisibleFrom: string | null = null;
     if (threadType === "private") {
       // Private/client thread is coordinator-only. Authorize on a COORDINATOR
       // participant row keyed on the user (the self-coordinator's role row
@@ -275,13 +278,14 @@ export async function loadTalentInquiryThread(
       // coordinator row, so they get [] here and never see the client chat.
       const { data: coordPart } = await readClient
         .from("inquiry_participants")
-        .select("inquiry_id")
+        .select("inquiry_id, visible_from")
         .eq("inquiry_id", inquiryId)
         .eq("user_id", user.id)
         .eq("role", "coordinator")
         .in("status", ["invited", "active"])
         .maybeSingle();
       if (!coordPart) return [];
+      privateVisibleFrom = (coordPart as { visible_from?: string | null }).visible_from ?? null;
     } else {
       // Group thread — authorize on the signed-in user's talent profile being
       // a participant. Resolve by user_id (NOT the tenant/roster-scoped
@@ -304,13 +308,19 @@ export async function loadTalentInquiryThread(
       if (!participant) return [];
     }
 
-    const { data, error } = await readClient
+    let messagesQuery = readClient
       .from("inquiry_messages")
       .select("id, sender_user_id, guest_session_id, body, created_at, message_kind, card_payload, metadata, profiles:sender_user_id(display_name)")
       .eq("inquiry_id", inquiryId)
       .eq("thread_type", threadType)
       .eq("tenant_id", tenantId)
-      .is("deleted_at", null)
+      .is("deleted_at", null);
+    // "Start fresh" coordinator: hide client-thread messages that predate the
+    // assignment (visible_from). Full-history coordinators have null → no filter.
+    if (threadType === "private" && privateVisibleFrom) {
+      messagesQuery = messagesQuery.gte("created_at", privateVisibleFrom);
+    }
+    const { data, error } = await messagesQuery
       .order("created_at", { ascending: true })
       .limit(200);
     if (error) {

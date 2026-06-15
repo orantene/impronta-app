@@ -16,7 +16,8 @@
  */
 
 import { revalidatePath } from "next/cache";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireStaffTenantAction, requireInquiryManagerAction } from "@/lib/saas/admin-scope";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import {
   persistBookingCommissionSnapshot,
@@ -65,6 +66,7 @@ import {
 import { clientAcceptOffer } from "@/lib/inquiry/inquiry-engine-approvals";
 import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
 import { loadTalentChipInfo } from "@/lib/talent/talent-chip-info";
+import { listAdminRosterTalentIds } from "@/lib/saas/talent-roster";
 
 export type PipelineActionResult<T = undefined> =
   | { ok: true; data?: T }
@@ -88,7 +90,7 @@ export async function convertInquiryToBookingAction(
   inquiryId: string,
 ): Promise<PipelineActionResult<{ bookingId: string }>> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -152,7 +154,7 @@ export async function submitTalentRate(
   talentCost: number,
 ): Promise<PipelineActionResult> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -202,7 +204,7 @@ export async function counterOfferAction(
   previousOfferId: string | null,
 ): Promise<PipelineActionResult<{ offerId: string }>> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -257,7 +259,7 @@ export async function loadInquiryPaymentState(
   inquiryId: string,
 ): Promise<PipelineActionResult<InquiryPaymentState>> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, tenantId } = auth;
 
@@ -304,7 +306,7 @@ async function withInquiryBooking<T>(
   inquiryId: string,
   fn: (ctx: { supabase: import("@supabase/supabase-js").SupabaseClient; userId: string; tenantId: string; bookingId: string }) => Promise<T>,
 ): Promise<PipelineActionResult<T>> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireInquiryManagerAction(inquiryId);
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, user, tenantId } = auth;
 
@@ -411,7 +413,7 @@ export async function createInquiryTransactionDraft(
   checkoutType: "deposit" | "balance" | "full" = "full",
 ): Promise<PipelineActionResult> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, tenantId } = auth;
 
@@ -592,7 +594,7 @@ export async function sendOfferAction(
   offerId: string,
 ): Promise<PipelineActionResult> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -640,7 +642,7 @@ export async function approveOfferAction(
   offerId: string,
 ): Promise<PipelineActionResult> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -680,7 +682,7 @@ export async function rejectOfferAction(
   reasonText: string | null,
 ): Promise<PipelineActionResult> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -987,7 +989,7 @@ export async function loadInquiryLineup(
   inquiryId: string,
 ): Promise<PipelineActionResult<InquiryParticipant[]>> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, tenantId } = auth;
 
@@ -1058,7 +1060,7 @@ export async function removeInquiryLineupParticipant(
   participantId: string,
 ): Promise<PipelineActionResult> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -1104,7 +1106,7 @@ export async function addInquiryLineupTalent(
   talentProfileId: string,
 ): Promise<PipelineActionResult> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -1166,7 +1168,7 @@ export async function loadInquiryAttachments(
   inquiryId: string,
 ): Promise<PipelineActionResult<InquiryAttachment[]>> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, tenantId } = auth;
 
@@ -1383,7 +1385,20 @@ export async function loadOfferDraft(
   offerId: string,
 ): Promise<PipelineActionResult<OfferDraftSnapshot>> {
   try {
-    const auth = await requireStaffTenantAction();
+    // Resolve the inquiry the offer belongs to BEFORE the guard so a talent
+    // coordinator is checked against the RIGHT inquiry. Narrow service-role id
+    // lookup only; all reads below run on the user-scoped client.
+    const adminLookup = createServiceRoleClient();
+    if (!adminLookup) return { ok: false, error: "Not configured." };
+    const { data: offerOwner } = await adminLookup
+      .from("inquiry_offers")
+      .select("inquiry_id")
+      .eq("id", offerId)
+      .maybeSingle();
+    const resolvedInquiryId = (offerOwner?.inquiry_id as string | null) ?? null;
+    if (!resolvedInquiryId) return { ok: false, error: "Offer not found." };
+
+    const auth = await requireInquiryManagerAction(resolvedInquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, tenantId } = auth;
 
@@ -1549,7 +1564,20 @@ export async function saveOfferDraft(
   },
 ): Promise<PipelineActionResult> {
   try {
-    const auth = await requireStaffTenantAction();
+    // Resolve the inquiry the offer belongs to BEFORE the guard so a talent
+    // coordinator is checked against the RIGHT inquiry. Narrow service-role id
+    // lookup only; all mutations below run on the user-scoped client.
+    const adminLookup = createServiceRoleClient();
+    if (!adminLookup) return { ok: false, error: "Not configured." };
+    const { data: offerOwner } = await adminLookup
+      .from("inquiry_offers")
+      .select("inquiry_id")
+      .eq("id", offerId)
+      .maybeSingle();
+    const resolvedInquiryId = (offerOwner?.inquiry_id as string | null) ?? null;
+    if (!resolvedInquiryId) return { ok: false, error: "Offer not found." };
+
+    const auth = await requireInquiryManagerAction(resolvedInquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -1620,7 +1648,7 @@ export async function loadInquiryPayoutReceiverCandidates(
   inquiryId: string,
 ): Promise<PipelineActionResult<PayoutReceiverOption[]>> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, tenantId } = auth;
 
@@ -1701,7 +1729,7 @@ export async function reorderInquiryLineup(
   participantIdsInOrder: string[],
 ): Promise<PipelineActionResult> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -1897,7 +1925,7 @@ export async function createOfferAction(
   );
   const work = (async (): Promise<PipelineActionResult<{ offerId: string }>> => {
     try {
-      const auth = await requireStaffTenantAction();
+      const auth = await requireInquiryManagerAction(inquiryId);
       if (!auth.ok) return { ok: false, error: auth.error };
       const { supabase, user, tenantId } = auth;
 
@@ -2045,6 +2073,208 @@ export async function loadWorkspaceCoordinatorCandidates(
 }
 
 /**
+ * A candidate the admin can appoint as coordinator of an inquiry: either a
+ * staff workspace member OR a roster talent (the "hand it to a talent" flow).
+ * Talents are surfaced with their face + discipline so the picker reads like
+ * a roster, and flagged when they're already on this inquiry's lineup.
+ */
+export type CoordinatorAssignCandidate = {
+  userId: string;
+  displayName: string;
+  /** 'staff' = agency member; 'talent' = roster talent appointee. */
+  kind: "staff" | "talent";
+  /** Staff: membership role (owner/admin/manager). Talent: discipline/headline. */
+  role: string;
+  status: "active" | "pending_acceptance";
+  activeInquiryCount: number;
+  /** True when this talent already holds a lineup row on this inquiry. */
+  inLineup: boolean;
+  photoUrl: string | null;
+  headline: string | null;
+};
+
+/**
+ * Candidate list for the "Assign coordinator" sheet's appoint flow: staff
+ * members (reusing loadWorkspaceCoordinatorCandidates) PLUS every roster talent
+ * that has a linked user account (coordinator assignment keys on a user id).
+ * A talent already in the lineup is flagged so the admin understands the
+ * revert-on-remove behaviour. Staff who are also talents keep their staff entry.
+ */
+export async function loadCoordinatorAssignCandidates(
+  tenantSlug: string,
+  options: { excludeUserId?: string | null; inquiryId?: string | null } = {},
+): Promise<PipelineActionResult<CoordinatorAssignCandidate[]>> {
+  try {
+    const auth = await requireStaffTenantAction();
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const { supabase, tenantId } = auth;
+
+    // 1. Staff candidates (existing loader already gates + counts load).
+    const staffRes = await loadWorkspaceCoordinatorCandidates(tenantSlug, {
+      excludeUserId: options.excludeUserId,
+    });
+    const staff: CoordinatorAssignCandidate[] = (staffRes.ok ? staffRes.data ?? [] : [])
+      .map((s) => ({
+        userId: s.userId,
+        displayName: s.displayName,
+        kind: "staff" as const,
+        role: s.role,
+        status: s.status,
+        activeInquiryCount: s.activeInquiryCount,
+        inLineup: false,
+        photoUrl: null,
+        headline: null,
+      }));
+
+    // 2. Roster talents with a linked auth user.
+    const rosterTalentIds = await listAdminRosterTalentIds(supabase, tenantId);
+    let talents: CoordinatorAssignCandidate[] = [];
+    if (rosterTalentIds.length > 0) {
+      const { data: tps } = await supabase
+        .from("talent_profiles")
+        .select("id, user_id, display_name, first_name, last_name")
+        .in("id", rosterTalentIds);
+      const rows = ((tps ?? []) as Array<{
+        id: string;
+        user_id: string | null;
+        display_name: string | null;
+        first_name: string | null;
+        last_name: string | null;
+      }>).filter((t) => !!t.user_id && t.user_id !== options.excludeUserId);
+
+      const chips = await loadTalentChipInfo(supabase, rows.map((r) => r.id));
+
+      // Which of these talents already hold a lineup row on this inquiry.
+      const lineupUserIds = new Set<string>();
+      if (options.inquiryId) {
+        const { data: parts } = await supabase
+          .from("inquiry_participants")
+          .select("user_id")
+          .eq("inquiry_id", options.inquiryId)
+          .eq("role", "talent")
+          .in("status", ["invited", "active"]);
+        for (const p of (parts ?? []) as Array<{ user_id: string | null }>) {
+          if (p.user_id) lineupUserIds.add(p.user_id);
+        }
+      }
+
+      talents = rows.map((r) => {
+        const chip = chips.get(r.id);
+        const name =
+          r.display_name?.trim() ||
+          `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim() ||
+          "Talent";
+        return {
+          userId: r.user_id as string,
+          displayName: name,
+          kind: "talent" as const,
+          role: chip?.headline ?? "Talent",
+          status: "active" as const,
+          activeInquiryCount: 0,
+          inLineup: lineupUserIds.has(r.user_id as string),
+          photoUrl: chip?.photoUrl ?? null,
+          headline: chip?.headline ?? null,
+        };
+      });
+    }
+
+    // Dedup: a roster talent who is also staff keeps the staff entry.
+    const staffIds = new Set(staff.map((s) => s.userId));
+    const merged = [...staff, ...talents.filter((t) => !staffIds.has(t.userId))];
+    return { ok: true, data: merged };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.loadCoordinatorAssignCandidates", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+/**
+ * WS6 §B — the inquiry's ACTIVE secondary coordinators (every active
+ * role='coordinator' participant that ISN'T the primary coordinator_id),
+ * with their display name and whether they also hold a lineup talent row
+ * (so the Remove confirm can promise "they stay in the lineup"). Drives the
+ * Remove chips in AdminParticipantsActions — coordinators[] on the
+ * InquiryRecord carries only the PRIMARY, so the removable set must be read
+ * from the DB.
+ *
+ * Gate: requireInquiryManagerAction (staff OR the appointed coordinator may
+ * view). Reads run under the caller's session.
+ */
+export type SecondaryCoordinatorRow = {
+  userId: string;
+  participantId: string;
+  name: string;
+  inLineup: boolean;
+};
+
+export async function loadSecondaryCoordinators(
+  _tenantSlug: string,
+  inquiryId: string,
+): Promise<PipelineActionResult<SecondaryCoordinatorRow[]>> {
+  try {
+    const auth = await requireInquiryManagerAction(inquiryId);
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const { supabase, tenantId } = auth;
+
+    const { data: inq } = await supabase
+      .from("inquiries")
+      .select("coordinator_id")
+      .eq("id", inquiryId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    const primaryUserId = (inq?.coordinator_id as string | null) ?? null;
+
+    const { data: parts } = await supabase
+      .from("inquiry_participants")
+      .select("id, user_id, role, status, profiles:user_id(display_name)")
+      .eq("inquiry_id", inquiryId)
+      .eq("role", "coordinator")
+      .eq("status", "active");
+
+    type PartRow = {
+      id: string;
+      user_id: string | null;
+      role: string;
+      status: string;
+      profiles: { display_name: string | null } | { display_name: string | null }[] | null;
+    };
+    const rows = ((parts ?? []) as PartRow[]).filter(
+      (p) => !!p.user_id && p.user_id !== primaryUserId,
+    );
+
+    // Which of these coordinators also hold an active lineup (talent) row.
+    const userIds = rows.map((p) => p.user_id as string);
+    const lineupUserIds = new Set<string>();
+    if (userIds.length > 0) {
+      const { data: talentParts } = await supabase
+        .from("inquiry_participants")
+        .select("user_id")
+        .eq("inquiry_id", inquiryId)
+        .eq("role", "talent")
+        .in("status", ["invited", "active"])
+        .in("user_id", userIds);
+      for (const t of (talentParts ?? []) as Array<{ user_id: string | null }>) {
+        if (t.user_id) lineupUserIds.add(t.user_id);
+      }
+    }
+
+    const data: SecondaryCoordinatorRow[] = rows.map((p) => {
+      const prof = Array.isArray(p.profiles) ? p.profiles[0] : p.profiles;
+      return {
+        userId: p.user_id as string,
+        participantId: p.id,
+        name: prof?.display_name ?? "Coordinator",
+        inLineup: lineupUserIds.has(p.user_id as string),
+      };
+    });
+    return { ok: true, data };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.loadSecondaryCoordinators", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+/**
  * Reassign the primary coordinator on an inquiry to a new workspace
  * member. Wraps the `assignCoordinator` engine call, which atomically
  * updates `inquiries.coordinator_id` AND deletes the old coordinator
@@ -2061,7 +2291,7 @@ export async function reassignCoordinatorAction(
   handoffNote: string,
 ): Promise<PipelineActionResult> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -2115,9 +2345,10 @@ export async function addSecondaryCoordinatorAction(
   _tenantSlug: string,
   inquiryId: string,
   userId: string,
+  showHistory: boolean = true,
 ): Promise<PipelineActionResult> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
     const result = await addSecondaryCoordinator(supabase, {
@@ -2125,6 +2356,7 @@ export async function addSecondaryCoordinatorAction(
       tenantId,
       userId,
       actorUserId: user.id,
+      showHistory,
     });
     if (!result.success) {
       const reason = (result as { reason?: string }).reason;
@@ -2151,7 +2383,7 @@ export async function removeSecondaryCoordinatorAction(
   userId: string,
 ): Promise<PipelineActionResult> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
     const result = await removeSecondaryCoordinator(supabase, {
@@ -2185,7 +2417,7 @@ export async function promoteToPrimaryCoordinatorAction(
   userId: string,
 ): Promise<PipelineActionResult> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
     const result = await promoteToPrimary(supabase, {
@@ -2233,7 +2465,20 @@ export async function loadBookingCommissionSnapshotAction(
   bookingId: string,
 ): Promise<PipelineActionResult<PersistedBookingCommissionSnapshot[]>> {
   try {
-    const auth = await requireStaffTenantAction();
+    // Resolve the inquiry the booking belongs to BEFORE the guard so a talent
+    // coordinator is checked against the RIGHT inquiry. Narrow service-role id
+    // lookup only; all reads below run on the user-scoped client.
+    const adminLookup = createServiceRoleClient();
+    if (!adminLookup) return { ok: false, error: "Not configured." };
+    const { data: bk } = await adminLookup
+      .from("agency_bookings")
+      .select("source_inquiry_id")
+      .eq("id", bookingId)
+      .maybeSingle();
+    const resolvedInquiryId = (bk?.source_inquiry_id as string | null) ?? null;
+    if (!resolvedInquiryId) return { ok: false, error: "Booking not found." };
+
+    const auth = await requireInquiryManagerAction(resolvedInquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, tenantId } = auth;
 
@@ -2664,7 +2909,7 @@ export async function reopenOfferAction(
   offerId: string,
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireInquiryManagerAction(inquiryId);
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 

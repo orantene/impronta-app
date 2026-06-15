@@ -205,6 +205,17 @@ export function buildInquiryTabs(opts: {
       state: "active",
       badge: offerNeedsAttention ? "!" : (status === "booked" && paymentDue ? payDueGlyph : undefined),
     });
+    // WS4 — Booking/Payment tab for the appointed inquiry coordinator only,
+    // once a booking exists. Plain talents never get it (they have their own
+    // take-home surface). isCoord is defined above; paymentRelevant from opts.
+    if (isCoord && paymentRelevant) {
+      talentTabs.push({
+        id: "payment",
+        label: "Booking",
+        state: "active",
+        badge: status === "booked" && paymentDue ? payDueGlyph : undefined,
+      });
+    }
     talentTabs.push({
       id: "event",
       label: "Details",

@@ -612,6 +612,32 @@ export async function loadClientInquiryDetails(
 
     const coord = coordRes.data as { id: string; display_name: string | null; avatar_url: string | null } | null;
 
+    // WS6 — appointed coordinator (a talent/teammate handed this inquiry). The
+    // most-recent active role='coordinator' participant that ISN'T the primary
+    // coordinator_id. Surfaced to the CLIENT so they see who they're dealing
+    // with. Read-only attribution; adds NO client gate.
+    let appointedCoord: { id: string; display_name: string | null; avatar_url: string | null } | null = null;
+    {
+      const { data: partRows } = await readClient
+        .from("inquiry_participants")
+        .select("user_id, created_at")
+        .eq("inquiry_id", inquiryId)
+        .eq("role", "coordinator")
+        .eq("status", "active")
+        .order("created_at", { ascending: false });
+      const appointedUserId = ((partRows ?? []) as Array<{ user_id: string | null }>)
+        .map((r) => r.user_id)
+        .find((uid) => uid && uid !== inq.coordinator_id) ?? null;
+      if (appointedUserId) {
+        const { data: prof } = await readClient
+          .from("profiles")
+          .select("id, display_name, avatar_url")
+          .eq("id", appointedUserId)
+          .maybeSingle();
+        appointedCoord = (prof as typeof appointedCoord) ?? null;
+      }
+    }
+
     // Merge submission-time files (iq.files) with post-submission uploads
     // (inquiry_attachments). Generate 1-hour signed URLs for the storage
     // rows — bucket is private so we can't link to raw URLs.
@@ -730,10 +756,10 @@ export async function loadClientInquiryDetails(
       },
 
       coordinator: {
-        assigned: !!coord,
-        user_id: coord?.id ?? null,
-        name: coord?.display_name ?? null,
-        avatar_url: coord?.avatar_url ?? null,
+        assigned: !!(appointedCoord ?? coord),
+        user_id: (appointedCoord ?? coord)?.id ?? null,
+        name: (appointedCoord ?? coord)?.display_name ?? null,
+        avatar_url: (appointedCoord ?? coord)?.avatar_url ?? null,
         assigned_at: (inq.coordinator_assigned_at as string | null) ?? null,
       },
 

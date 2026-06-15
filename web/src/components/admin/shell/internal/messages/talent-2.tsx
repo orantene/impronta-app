@@ -24,8 +24,8 @@ import { OfferTab } from "./shared/machinery-12";
 import { FilesTab, TeamStrip } from "./shared/machinery-15";
 import { ConversationTab } from "./shared/machinery-16";
 import { TalentBookingTab } from "./shared/machinery-2";
-import { TalentLogisticsTab, TalentPaymentTab } from "./shared/machinery-5";
-import { ShellNextActionBar, resolveShellAction } from "./shared/machinery-6";
+import { AdminBookingTab, TalentLogisticsTab, TalentPaymentTab } from "./shared/machinery-5";
+import { PaymentTab, ShellNextActionBar, resolveShellAction } from "./shared/machinery-6";
 import { DetailsPanel } from "./shared/machinery-7";
 import { PageTopThread } from "./shared/machinery-8";
 import type { ThreadTabId } from "./shared/machinery-8";
@@ -224,6 +224,12 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
   // For c7 (Solstice fire show) and c10 (Atelier Noir bridal) Marta
   // runs her own workspace and brokers the client directly.
   const isCoordinator = conv.iAmCoordinator === true;
+  // WS4 — pin the coordinator's money surface to the REAL inquiry id.
+  // convToInquiry fuzzy-matches mock RICH_INQUIRIES by client name and can
+  // return a MOCK id; PaymentTab/AdminBookingTab key every load + payout
+  // action on inquiry.id, so a name collision would load another inquiry's
+  // money. Forcing .id = conv.id closes that scope leak (WS4-PRE-2).
+  const coordInquiryRecord = (c: Conversation) => ({ ...convToInquiry(c), id: c.id });
   // Default tab — coord-talents on inquiry/hold start on the client
   // thread (they need to see what the client just said). Booked stage
   // shifts to logistics-heavy work, so booking team is the right default.
@@ -359,6 +365,22 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
         toast={toast}
       />
 
+      {/* WS6 — talent coordinator context banner. Tells the appointed talent
+          they're running this booking (client chat + offer + booking). The
+          provenance clause ("Handed to you by…") is omitted gracefully when
+          conv.coordinatorHandoff is absent (optional WS5 plumbing). */}
+      {isCoordinator && (
+        <div style={{
+          padding: "7px 12px", fontSize: 11.5, lineHeight: 1.4,
+          background: COLORS.indigoSoft, color: COLORS.indigoDeep ?? COLORS.indigo,
+          borderBottom: `1px solid ${COLORS.borderSoft}`,
+          display: "flex", alignItems: "center", gap: 6, fontFamily: FONTS.body,
+        }}>
+          <span style={{ fontWeight: 700 }}>You&apos;re coordinating this booking</span>
+          <span style={{ opacity: 0.85 }}>· you manage the client chat, offer, lineup, and payment.</span>
+        </div>
+      )}
+
       {/* TAB BAR — F2 flattened talent row:
           Client · Group · Activity · Lineup · Offer · Details · Files
           (Client only for coordinators; Group only with ≥2 talents) */}
@@ -372,6 +394,11 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
             pov: isCoordinator ? "talent_coord" : "talent",
             unread: { talent: talentGroupUnread, files: fileCount },
             paymentDue: conv.stage === "booked",
+            // WS4 — coordinator Booking/Payment tab once a booking exists.
+            // Conversation has no 'approved' stage, so scope to booked/past;
+            // a freshly-converted booking surfaces once stage flips to booked.
+            paymentRelevant: isCoordinator
+              && (conv.stage === "booked" || conv.stage === "past"),
             lineupTotal,
           })}
         />
@@ -485,7 +512,20 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
         )}
         {activeTab === "payment" && (
           <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
-            <TalentPaymentTab conv={conv} yourRate={yourRate} />
+            {isCoordinator && (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i).test(conv.id) ? (
+              // WS4 — coordinator Booking/Payment surface: the admin PaymentTab
+              // (billing + payout receiver + status actions, pov 'talent_coord')
+              // and AdminBookingTab (booking detail), driven by WS3-widened
+              // actions under the coordinator's session. inquiry id pinned to
+              // conv.id (PRE-2) so loads hit THIS inquiry. No Pay CTA (client-
+              // only); nothing emits to the group thread.
+              <>
+                <PaymentTab inquiry={coordInquiryRecord(conv)} pov="talent_coord" />
+                <AdminBookingTab inquiry={coordInquiryRecord(conv)} />
+              </>
+            ) : (
+              <TalentPaymentTab conv={conv} yourRate={yourRate} />
+            )}
           </div>
         )}
         {/* Details v3 (plan §10): canonical 9-section <DetailsTab> is

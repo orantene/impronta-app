@@ -233,7 +233,12 @@ export function formatCents(cents: number | null, currency: string): string {
 export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: DetailsPov }) {
   const { toast, effectiveTenant } = useAdminShell();
   const isClient = pov === "client";
-  const isAdmin = pov === "admin";
+  // WS4 — the appointed inquiry coordinator (talent_coord) manages payment +
+  // payout for THIS booking with admin-equivalent rights. Every money action
+  // runs through the WS3-widened pipeline actions under the coordinator's own
+  // session. No Pay CTA added (client checkout stays client-only). Regression-
+  // safe: existing call sites pass pov 'client' or 'admin', never 'talent_coord'.
+  const isAdmin = pov === "admin" || pov === "talent_coord";
   const fallbackTotal = inquiry.budget?.amount ?? 0;
   const fallbackCurrency = inquiry.budget?.currency ?? "USD";
 

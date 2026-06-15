@@ -521,7 +521,8 @@ export function AdminInquiryRow({
               display: "inline-flex", alignItems: "center", gap: 4,
               flexShrink: 0,
               fontSize: 10.5, color: COLORS.inkMuted,
-            }} title={coord.name}>
+            }} title={`Coordinator: ${coord.name}`}>
+              <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, opacity: 0.7 }}>Coord</span>
               <Avatar size={14} tone="ink" hashSeed={coord.name} initials={coord.initials} />
               {coord.name.split(" ")[0]}
             </span>
