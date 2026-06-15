@@ -20,6 +20,8 @@ import type {
 } from "@/lib/field-engine/resolve-talent-fields";
 import { assertCanEnableTenantParentCategory } from "@/lib/taxonomy/tenant-taxonomy-plan-limits";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
+import { localizedValue } from "@/lib/i18n/resolve-localized";
+import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 
 // Keep legacy type import paths working while the field engine owns the shapes.
 // Use direct type re-export; Turbopack emitted runtime references for local re-export.
@@ -328,7 +330,7 @@ export async function getCategoryDetail(input: {
   const { data: defs } = await supabase
     .from("profile_field_definitions")
     .select(
-      "id, field_key, label, tier, section, kind, is_optional, deprecated_at",
+      "id, field_key, label_i18n, tier, section, kind, is_optional, deprecated_at",
     )
     .is("deprecated_at", null);
 
@@ -382,7 +384,11 @@ export async function getCategoryDetail(input: {
     fields.push({
       field_definition_id: d.id,
       field_key: d.field_key,
-      label: d.label,
+      label: localizedValue(
+        d.label_i18n as Record<string, string> | null,
+        DEFAULT_PLATFORM_LOCALE,
+        [DEFAULT_PLATFORM_LOCALE],
+      ),
       tier: d.tier as "universal" | "global" | "type-specific",
       section: d.section,
       kind: d.kind,

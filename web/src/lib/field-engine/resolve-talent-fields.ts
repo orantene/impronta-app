@@ -42,6 +42,12 @@ import {
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
+import {
+  resolveLocalized,
+  setLocalized,
+  type LocalizedMap,
+} from "@/lib/i18n/resolve-localized";
+import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 
 /** ViewerRole accepted by the resolver. Authoritative union lives in
  *  `effective-visibility.ts`; we accept the staff + talent subset here
@@ -66,26 +72,32 @@ export type ResolverViewerRole =
 export type ResolvedField = {
   field_definition_id: string;
   field_key: string;
+  /** Resolved DEFAULT-locale (en) display label — tenant `custom_label` folded
+   *  into the en slot. Kept for the sort comparator + non-localized consumers;
+   *  localized render must use `label_i18n` via resolveLocalized. */
   label: string;
-  /** Spanish label — null when not translated; editor falls back to EN. */
-  label_es: string | null;
+  /** Per-locale label map { "en": …, "es": … } (custom_label overlaid on en).
+   *  Read via resolveLocalized(label_i18n, locale, chain). */
+  label_i18n: LocalizedMap;
   tier: "universal" | "global" | "type-specific";
   section: string;
   subsection: string | null;
   kind: string;
   /** Unit suffix for number inputs (e.g. "years", "guests"). Null = none. */
   unit: string | null;
-  placeholder: string | null;
-  /** Per-field guidance text shown while editing. Tenant `custom_helper`
-   *  override falls back to the platform definition's `helper`. Null = none. */
+  /** Per-locale placeholder map (en only at launch). */
+  placeholder_i18n: LocalizedMap;
+  /** Resolved DEFAULT-locale (en) guidance text — tenant `custom_helper`
+   *  folded into the en slot. Null = none. Localized render uses `helper_i18n`. */
   helper: string | null;
-  /** Spanish helper text — null when not translated; render falls back to EN. */
-  helper_es: string | null;
-  /** For `select` and `multiselect` kinds: the choices list. */
+  /** Per-locale helper map { "en": …, "es": … } (custom_helper overlaid on en). */
+  helper_i18n: LocalizedMap;
+  /** For `select` and `multiselect` kinds: the choices list (option VALUES). */
   options: string[] | null;
-  /** Per-option ES label map { "<english option>": "<es label>" }. Render
-   *  layers look up options_es[value] when locale=es; missing → English. */
-  options_es: Record<string, string> | null;
+  /** Per-option per-locale label map { "<value>": { "en": …, "es": … } }.
+   *  Render layers look up option_labels_i18n[value] then resolveLocalized;
+   *  missing → the value itself (its English label). */
+  option_labels_i18n: Record<string, LocalizedMap> | null;
   /** Default visibility channels — used as the fallback when a value
    *  has no `visibility_override`. Empty array == effectively private. */
   default_visibility: string[];
@@ -139,8 +151,11 @@ export type ResolvedField = {
 
 export type ResolvedFieldGroup = {
   group_slug: string;
+  /** Resolved DEFAULT-locale (en) group label — tenant `custom_label` folded
+   *  into the en slot. Localized render uses `group_label_i18n`. */
   group_label_en: string;
-  group_label_es: string | null;
+  /** Per-locale group label map { "en": …, "es": … } (custom_label on en). */
+  group_label_i18n: LocalizedMap;
   weight: "default" | "heavy" | "light" | "optional";
   display_order: number;
   in_registration_wizard: boolean;
@@ -198,9 +213,9 @@ export function getResolverMetricsSnapshotSync(): ResolverMetrics & {
 // supabase client (zero behaviour change).
 
 type FieldDefRow = {
-  id: string; field_key: string; label: string; label_es: string | null;
+  id: string; field_key: string; label_i18n: unknown;
   tier: string; section: string | null; subsection: string | null;
-  kind: string; unit: string | null; placeholder: string | null;
+  kind: string; unit: string | null; placeholder_i18n: unknown;
   options: unknown; default_visibility: unknown; is_optional: boolean | null;
   display_order: number | null; field_group_id: string | null;
   validation_rules: unknown; show_when: unknown; deprecated_at: string | null;
@@ -208,15 +223,14 @@ type FieldDefRow = {
   show_in_registration: boolean | null; show_in_edit_drawer: boolean | null;
   show_in_public: boolean | null; show_in_directory: boolean | null;
   talent_editable: boolean | null;
-  helper: string | null;
-  helper_es: string | null;
-  options_es: unknown;
+  helper_i18n: unknown;
+  option_labels_i18n: unknown;
 };
 
 type TenantFieldCatalog = {
   defs: FieldDefRow[];
   groupRows: Array<{
-    id: string; slug: string; name_en: string; name_es: string | null;
+    id: string; slug: string; name_i18n: unknown;
     sort_order: number; is_active: boolean;
   }>;
   allParentCategoryGroups: Array<{
@@ -269,10 +283,10 @@ async function loadTenantFieldCatalogUncached(
   void t0;
   const [defsR, groupsR, pcgR, recsR, gOvR, fOvR] = await Promise.all([
     svc.from("profile_field_definitions").select(
-      "id, field_key, label, label_es, tier, section, subsection, kind, unit, placeholder, options, options_es, default_visibility, is_optional, display_order, field_group_id, validation_rules, show_when, deprecated_at, admin_only, is_sensitive, show_in_registration, show_in_edit_drawer, show_in_public, show_in_directory, talent_editable, helper, helper_es",
+      "id, field_key, label_i18n, tier, section, subsection, kind, unit, placeholder_i18n, options, option_labels_i18n, default_visibility, is_optional, display_order, field_group_id, validation_rules, show_when, deprecated_at, admin_only, is_sensitive, show_in_registration, show_in_edit_drawer, show_in_public, show_in_directory, talent_editable, helper_i18n",
     ).is("deprecated_at", null),
     svc.from("profile_field_groups").select(
-      "id, slug, name_en, name_es, sort_order, is_active",
+      "id, slug, name_i18n, sort_order, is_active",
     ).eq("is_active", true),
     svc.from("parent_category_field_groups").select(
       "parent_category_id, field_group_id, weight, display_order, in_registration_wizard",
@@ -352,6 +366,47 @@ function pickBool(
   if (typeof override === "boolean") return override;
   if (typeof fallback === "boolean") return fallback;
   return defaultValue;
+}
+
+// ─── i18n helpers (WS3) ──────────────────────────────────────────────────────
+// The catalog tables store labels/helpers/option-labels as per-locale JSONB
+// maps. The DB client hands them to us as `unknown`; coerce to a string-keyed
+// LocalizedMap, fold the tenant's EN-only overrides onto the `en` slot, and
+// resolve the default-locale string for the non-localized `label`/`helper`
+// fields (the per-locale maps ride along for resolveLocalized at render time).
+
+/** Coerce a jsonb value to a LocalizedMap, keeping only string entries. */
+function asLocalizedMap(raw: unknown): LocalizedMap {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: LocalizedMap = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof v === "string") out[k] = v;
+  }
+  return out;
+}
+
+/** Coerce a jsonb value to a per-option label map { value: LocalizedMap }. */
+function asOptionLabelMap(raw: unknown): Record<string, LocalizedMap> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: Record<string, LocalizedMap> = {};
+  for (const [value, sub] of Object.entries(raw as Record<string, unknown>)) {
+    out[value] = asLocalizedMap(sub);
+  }
+  return out;
+}
+
+/** Overlay a tenant EN-only override (custom_label/custom_helper) onto `en`.
+ *  A null/empty override leaves the map untouched. */
+function overlayEn(map: LocalizedMap, override: string | null | undefined): LocalizedMap {
+  if (typeof override === "string" && override.trim().length > 0) {
+    return setLocalized(map, DEFAULT_PLATFORM_LOCALE, override);
+  }
+  return map;
+}
+
+/** Resolve the default-locale (en) string from a map, "" when absent. */
+function resolveEn(map: LocalizedMap): string {
+  return resolveLocalized(map, DEFAULT_PLATFORM_LOCALE, [DEFAULT_PLATFORM_LOCALE]).value;
 }
 
 // ─── Resolver ────────────────────────────────────────────────────────────────
@@ -557,7 +612,7 @@ export async function resolveTalentFields(
 
     const { data: gRows, error: groupErr } = await sb
       .from("profile_field_groups")
-      .select("id, slug, name_en, name_es, sort_order, is_active")
+      .select("id, slug, name_i18n, sort_order, is_active")
       .eq("is_active", true);
     if (groupErr) {
       logServerError("resolveTalentFields.groups", groupErr);
@@ -576,7 +631,7 @@ export async function resolveTalentFields(
     const { data: dRows, error: defsErr } = await sb
       .from("profile_field_definitions")
       .select(
-        "id, field_key, label, label_es, tier, section, subsection, kind, unit, placeholder, options, options_es, default_visibility, is_optional, display_order, field_group_id, validation_rules, show_when, deprecated_at, admin_only, is_sensitive, show_in_registration, show_in_edit_drawer, show_in_public, show_in_directory, talent_editable, helper, helper_es",
+        "id, field_key, label_i18n, tier, section, subsection, kind, unit, placeholder_i18n, options, option_labels_i18n, default_visibility, is_optional, display_order, field_group_id, validation_rules, show_when, deprecated_at, admin_only, is_sensitive, show_in_registration, show_in_edit_drawer, show_in_public, show_in_directory, talent_editable, helper_i18n",
       )
       .is("deprecated_at", null);
     if (defsErr) {
@@ -624,7 +679,7 @@ export async function resolveTalentFields(
     {
       slug: string;
       label: string;
-      label_es: string | null;
+      label_i18n: LocalizedMap;
       weight: string;
       display_order: number;
       in_wizard: boolean;
@@ -638,10 +693,12 @@ export async function resolveTalentFields(
     // Highest-weight wins if multiple parents recommend the same group.
     const existing = groupMetaById.get(pg.field_group_id);
     if (existing && weightRank(existing.weight) >= weightRank(pg.weight)) continue;
+    // Tenant custom_label (EN-only) overlays the en slot of the group's name map.
+    const nameMap = overlayEn(asLocalizedMap(groupRow.name_i18n), ov?.custom_label ?? null);
     groupMetaById.set(pg.field_group_id, {
       slug: groupRow.slug,
-      label: ov?.custom_label ?? groupRow.name_en,
-      label_es: groupRow.name_es,
+      label: resolveEn(nameMap),
+      label_i18n: nameMap,
       weight: pg.weight,
       display_order: ov?.display_order ?? pg.display_order,
       in_wizard: pg.in_registration_wizard,
@@ -835,30 +892,35 @@ export async function resolveTalentFields(
         (o.custom_helper != null && o.custom_helper !== "") ||
         o.display_order_override != null);
 
+    // i18n maps. Tenant custom_label is EN-only → overlay it on the en slot of
+    // the platform label map. custom_helper likewise overrides the helper map,
+    // but when a tenant sets a custom_helper we DROP the platform ES helper
+    // (it described the platform text) — matching the prior behaviour.
+    const label_i18n = overlayEn(asLocalizedMap(d.label_i18n), o?.custom_label ?? null);
+    const helper_i18n =
+      o?.custom_helper != null && o.custom_helper !== ""
+        ? setLocalized({}, DEFAULT_PLATFORM_LOCALE, o.custom_helper)
+        : asLocalizedMap(d.helper_i18n);
+    const resolvedHelperEn = resolveEn(helper_i18n);
+
     resolved.push({
       field_definition_id: d.id,
       field_key: d.field_key,
-      label: o?.custom_label ?? d.label,
-      label_es: (d as { label_es?: string | null }).label_es ?? null,
-      helper: o?.custom_helper ?? d.helper ?? null,
-      // Tenant custom_helper has no ES variant; only fall back to platform
-      // helper_es when the tenant hasn't overridden the helper at all.
-      helper_es: o?.custom_helper != null && o.custom_helper !== ""
-        ? null
-        : ((d as { helper_es?: string | null }).helper_es ?? null),
+      label: resolveEn(label_i18n),
+      label_i18n,
+      helper: resolvedHelperEn.length > 0 ? resolvedHelperEn : null,
+      helper_i18n,
       tier: d.tier as "universal" | "global" | "type-specific",
       section: d.section as string,
       subsection: d.subsection,
       kind: d.kind,
       unit: (d as { unit?: string | null }).unit ?? null,
-      placeholder: d.placeholder,
+      placeholder_i18n: asLocalizedMap(d.placeholder_i18n),
       options: Array.isArray(d.options) ? (d.options as string[]) : null,
-      options_es:
-        (d as { options_es?: unknown }).options_es &&
-        typeof (d as { options_es?: unknown }).options_es === "object" &&
-        !Array.isArray((d as { options_es?: unknown }).options_es)
-          ? ((d as { options_es?: Record<string, string> }).options_es ?? null)
-          : null,
+      option_labels_i18n: (() => {
+        const m = asOptionLabelMap(d.option_labels_i18n);
+        return Object.keys(m).length > 0 ? m : null;
+      })(),
       default_visibility: out_visibility,
       is_required: o?.required_override ?? catalogRequired,
       is_recommended: relationship === "recommended",
@@ -919,7 +981,7 @@ export async function resolveTalentFields(
     resolvedGroups.push({
       group_slug: meta.slug,
       group_label_en: meta.label,
-      group_label_es: meta.label_es,
+      group_label_i18n: meta.label_i18n,
       weight: meta.weight as ResolvedFieldGroup["weight"],
       display_order: meta.display_order,
       in_registration_wizard: meta.in_wizard,

@@ -8694,8 +8694,7 @@ export type Database = {
           id: string
           is_active: boolean
           is_system: boolean
-          label_en: string
-          label_es: string | null
+          label_i18n: Json
           section_group_id: string | null
           slug: string
           sort_order: number
@@ -8708,8 +8707,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_system?: boolean
-          label_en: string
-          label_es?: string | null
+          label_i18n?: Json
           section_group_id?: string | null
           slug: string
           sort_order?: number
@@ -8722,8 +8720,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_system?: boolean
-          label_en?: string
-          label_es?: string | null
+          label_i18n?: Json
           section_group_id?: string | null
           slug?: string
           sort_order?: number
@@ -8750,19 +8747,18 @@ export type Database = {
           display_order: number
           field_group_id: string | null
           field_key: string
-          helper: string | null
-          helper_es: string | null
+          helper_i18n: Json
           id: string
           is_optional: boolean
           is_searchable: boolean
           is_sensitive: boolean
           kind: string
-          label: string
-          label_es: string | null
+          label_i18n: Json
           legacy_field_keys: string[] | null
           note: string | null
+          option_labels_i18n: Json
           options: Json | null
-          placeholder: string | null
+          placeholder_i18n: Json
           render_mode: string
           requires_review_on_change: boolean
           section: string
@@ -8792,19 +8788,18 @@ export type Database = {
           display_order?: number
           field_group_id?: string | null
           field_key: string
-          helper?: string | null
-          helper_es?: string | null
+          helper_i18n?: Json
           id?: string
           is_optional?: boolean
           is_searchable?: boolean
           is_sensitive?: boolean
           kind?: string
-          label: string
-          label_es?: string | null
+          label_i18n?: Json
           legacy_field_keys?: string[] | null
           note?: string | null
+          option_labels_i18n?: Json
           options?: Json | null
-          placeholder?: string | null
+          placeholder_i18n?: Json
           render_mode?: string
           requires_review_on_change?: boolean
           section: string
@@ -8834,19 +8829,18 @@ export type Database = {
           display_order?: number
           field_group_id?: string | null
           field_key?: string
-          helper?: string | null
-          helper_es?: string | null
+          helper_i18n?: Json
           id?: string
           is_optional?: boolean
           is_searchable?: boolean
           is_sensitive?: boolean
           kind?: string
-          label?: string
-          label_es?: string | null
+          label_i18n?: Json
           legacy_field_keys?: string[] | null
           note?: string | null
+          option_labels_i18n?: Json
           options?: Json | null
-          placeholder?: string | null
+          placeholder_i18n?: Json
           render_mode?: string
           requires_review_on_change?: boolean
           section?: string
@@ -8883,8 +8877,7 @@ export type Database = {
           description_es: string | null
           id: string
           is_active: boolean
-          name_en: string
-          name_es: string | null
+          name_i18n: Json
           slug: string
           sort_order: number
           updated_at: string
@@ -8895,8 +8888,7 @@ export type Database = {
           description_es?: string | null
           id?: string
           is_active?: boolean
-          name_en: string
-          name_es?: string | null
+          name_i18n?: Json
           slug: string
           sort_order?: number
           updated_at?: string
@@ -8907,8 +8899,7 @@ export type Database = {
           description_es?: string | null
           id?: string
           is_active?: boolean
-          name_en?: string
-          name_es?: string | null
+          name_i18n?: Json
           slug?: string
           sort_order?: number
           updated_at?: string
