@@ -9,6 +9,7 @@ import {
   DEFAULT_TALENT_PROFILE_TEMPLATE_SLUG,
   buildDefaultTalentProfileTree,
   hydrateTalentTree,
+  stripSectionEmbeds,
   type TalentProfileTokens,
 } from "./default-talent-tree";
 
@@ -85,14 +86,21 @@ export function talentProfileTokens(
       : profile.primaryTypeLabel
         ? [profile.primaryTypeLabel]
         : [];
-  const galleryUrls = media.map((m) => m.url).filter(Boolean);
+  // FIX 5 — the hero headshot is chosen from a variant set that INCLUDES "card";
+  // the gallery set OMITS "card", so on most profiles gallery[0] === headshotUrl
+  // and the hero image would repeat as the first masonry tile. Exclude the
+  // chosen headshot from the gallery so the hero never duplicates.
+  const headshotUrl = profile.headshotUrl ?? "";
+  const galleryUrls = media
+    .map((m) => m.url)
+    .filter((u) => Boolean(u) && u !== headshotUrl);
   return {
     displayName,
     primaryTypeLabel: profile.primaryTypeLabel ?? "",
     tagline,
     bio: profile.publicBio?.trim() || tagline || `Welcome to ${displayName}'s profile.`,
     locationLine: profile.homeCity ? `Based in ${profile.homeCity}` : "",
-    headshotUrl: profile.headshotUrl ?? "",
+    headshotUrl,
     profilePath,
     inquireHref: `${profilePath}?inquire=1`,
     service1: services[0] ?? "",
@@ -121,7 +129,12 @@ export async function buildDefaultTalentFreeformSnapshot(input: {
   if (!isDefaultTalentFreeformEnabled()) return null;
 
   const labTree = await loadPublishedDefaultTalentProfileTree();
-  const baseTree = labTree ?? buildDefaultTalentProfileTree();
+  // FIX 3 — the default talent tree is intentionally embed-free. A talent-subject
+  // curated `section_embed` is unsupported (the preview-subject machinery never
+  // returns the "talent" kind) and would mis-scope to the managing AGENCY
+  // tenant's data, so defensively strip any embed a Lab-author placed in the
+  // reserved template before rendering.
+  const baseTree = stripSectionEmbeds(labTree ?? buildDefaultTalentProfileTree());
   const tokens = talentProfileTokens(input.profile, input.media);
   const tree = hydrateTalentTree(baseTree, tokens);
 

@@ -58,11 +58,39 @@ function resolveTokens(value: string, tokens: Record<string, string>): string {
 }
 
 /**
- * Walk a builder-node tree and substitute `{{token}}` placeholders in every
- * text-bearing prop (`text`/`label`/`href`/`src`/`alt`) against the talent's
- * data. Returns a NEW tree (structural clone) — the source constant is never
- * mutated. Image/button nodes whose resolved `src`/`href` is empty keep a safe
- * fallback so the page never renders a broken `<img src="">` / dead link.
+ * Deep-clone a props value, substituting `{{token}}` in EVERY string it contains
+ * — recursing into nested objects and arrays. Prop-agnostic: a Lab-authored tree
+ * can place `{{token}}` in any prop (title, brand, nav-link labels, pricing
+ * fields, form fields…), not just the built-in text-bearing ones, and they all
+ * hydrate. Unknown tokens resolve to "" so nothing leaks a raw `{{x}}`. Pure —
+ * returns new values, never mutates the input.
+ */
+function resolvePropValue(
+  value: unknown,
+  tokens: Record<string, string>,
+): unknown {
+  if (typeof value === "string") {
+    return value.includes("{{") ? resolveTokens(value, tokens) : value;
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => resolvePropValue(entry, tokens));
+  }
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = resolvePropValue(v, tokens);
+    }
+    return out;
+  }
+  return value;
+}
+
+/**
+ * Walk a builder-node tree and substitute `{{token}}` placeholders in EVERY
+ * string-valued prop (deep — including nested objects and arrays) against the
+ * talent's data. Returns a NEW tree (structural clone) — the source constant is
+ * never mutated. Image/button nodes whose resolved `src`/`href` is empty keep a
+ * safe fallback so the page never renders a broken `<img src="">` / dead link.
  */
 export function hydrateTalentTree(
   tree: ReadonlyArray<BuilderNode>,
@@ -89,14 +117,11 @@ export function hydrateTalentTree(
   };
 
   const visit = (node: BuilderNode): BuilderNode => {
-    // Clone props shallowly + rewrite the known text-bearing string props.
-    const props = { ...(node.props as Record<string, unknown>) };
-    for (const key of ["text", "label", "href", "src", "alt"] as const) {
-      const raw = props[key];
-      if (typeof raw === "string" && raw.includes("{{")) {
-        props[key] = resolveTokens(raw, flat);
-      }
-    }
+    // Deep-rewrite every string-valued prop (recurses nested objects/arrays).
+    const props = resolvePropValue(
+      node.props as Record<string, unknown>,
+      flat,
+    ) as Record<string, unknown>;
     const children =
       "children" in node && Array.isArray(node.children)
         ? node.children.map(visit)
@@ -108,7 +133,86 @@ export function hydrateTalentTree(
     } as BuilderNode;
   };
 
-  return tree.map(visit);
+  return pruneEmptyServiceCards(tree.map(visit));
+}
+
+/**
+ * FIX 1 — drop any "outline card" whose only meaningful content (its descendant
+ * heading text) resolved to an empty string after token substitution. The
+ * built-in Services grid is a fixed 3-column grid of `{{service1..3}}` cards;
+ * most talents have 0-1 service labels, so service2/service3 hydrate to "" and
+ * would otherwise render visible empty bordered boxes. Pruning post-substitution
+ * keeps the static tree simple and also covers a Lab-authored default tree.
+ *
+ * A `card` is dropped only when EVERY descendant heading/paragraph resolves to
+ * empty AND it has no other renderable content (image/button/nested card), so a
+ * card with real copy is never removed. The surrounding grid lays out cleanly
+ * with the remaining 1-2 cards.
+ */
+function pruneEmptyServiceCards(tree: BuilderNode[]): BuilderNode[] {
+  const cardIsEmpty = (node: BuilderNode): boolean => {
+    let sawTextNode = false;
+    let allTextEmpty = true;
+    const scan = (n: BuilderNode): void => {
+      if (n.kind === "heading" || n.kind === "paragraph") {
+        sawTextNode = true;
+        const text = (n.props as { text?: unknown }).text;
+        if (typeof text === "string" && text.trim() !== "") allTextEmpty = false;
+      }
+      // Any non-text renderable content keeps the card.
+      if (n.kind === "image" || n.kind === "button") allTextEmpty = false;
+      if ("children" in n && Array.isArray(n.children)) n.children.forEach(scan);
+    };
+    if ("children" in node && Array.isArray(node.children)) {
+      node.children.forEach(scan);
+    }
+    return sawTextNode && allTextEmpty;
+  };
+
+  const prune = (nodes: BuilderNode[]): BuilderNode[] =>
+    nodes
+      .filter((n) => !(n.kind === "card" && cardIsEmpty(n)))
+      .map((n) =>
+        "children" in n && Array.isArray(n.children)
+          ? ({ ...n, children: prune(n.children) } as BuilderNode)
+          : n,
+      );
+
+  return prune(tree);
+}
+
+/**
+ * FIX 3 — defensively strip every `section_embed` node from a tree. The
+ * platform-default talent tree is intentionally embed-free: a talent-subject
+ * curated embed is not supported by the section-embed preview-subject machinery
+ * (no section returns the `"talent"` kind), so it would mis-scope to the
+ * MANAGING AGENCY tenant's data instead of rendering a placeholder. A Lab-author
+ * could place one in the reserved template, so we strip them before render.
+ * Pure — returns a new tree.
+ */
+export function stripSectionEmbeds(
+  tree: ReadonlyArray<BuilderNode>,
+): BuilderNode[] {
+  return tree
+    .filter((n) => n.kind !== "section_embed")
+    .map((n) =>
+      "children" in n && Array.isArray(n.children)
+        ? ({ ...n, children: stripSectionEmbeds(n.children) } as BuilderNode)
+        : n,
+    );
+}
+
+/** True when a tree (any depth) contains at least one `section_embed` node. */
+export function treeHasSectionEmbed(
+  tree: ReadonlyArray<BuilderNode>,
+): boolean {
+  return tree.some(
+    (n) =>
+      n.kind === "section_embed" ||
+      ("children" in n &&
+        Array.isArray(n.children) &&
+        treeHasSectionEmbed(n.children)),
+  );
 }
 
 function id(suffix: string): string {

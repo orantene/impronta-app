@@ -24,6 +24,7 @@ import { validateBuilderNodeTree } from "../src/lib/site-admin/builder-node/vali
 import {
   DEFAULT_TALENT_PROFILE_TEMPLATE_SLUG,
   buildDefaultTalentProfileTree,
+  treeHasSectionEmbed,
 } from "../src/lib/talent-site/default-talent-tree";
 
 async function main() {
@@ -52,6 +53,17 @@ async function main() {
   }
   if (tree.length === 0) {
     throw new Error("Default talent tree validated to empty — aborting.");
+  }
+  // FIX 3 — the default talent tree must stay embed-free. A talent-subject
+  // curated `section_embed` is unsupported (the preview-subject machinery never
+  // returns the "talent" kind) and would mis-scope to the managing AGENCY
+  // tenant's data at render. Reject here so the author gets immediate feedback.
+  if (treeHasSectionEmbed(tree)) {
+    throw new Error(
+      "Default talent tree contains a section_embed node — embeds are not " +
+        "supported in the platform-default talent profile (they would mis-scope " +
+        "to the managing agency's data). Remove the embed before publishing.",
+    );
   }
   // eslint-disable-next-line no-console
   console.log(`Validated default talent tree: ${tree.length} root section(s).`);
