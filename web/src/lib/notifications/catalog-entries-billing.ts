@@ -55,11 +55,11 @@ const num = (v: unknown): number | null => {
 
 // ─── §6.5 payments ─────────────────────────────────────────────────────────────
 
-/** payment.received → client receipt (email-only). */
+/** payment.received → client receipt (email + in_app). */
 const PAYMENT_RECEIVED_CLIENT: CatalogEntry = {
   id: "payment.received.client",
   category: "payments",
-  defaultChannels: ["email"],
+  defaultChannels: ["email", "in_app"],
   required: false,
   triggers: ["payment.received"],
   hydrate: loadInquiryView,
@@ -67,6 +67,18 @@ const PAYMENT_RECEIVED_CLIENT: CatalogEntry = {
   // this generic receipt (so the client gets exactly one, balance-aware email).
   resolveAudience: (event) =>
     str(event.payload.checkoutType) === "deposit" ? Promise.resolve([]) : transactionPayer(event),
+  in_app: {
+    kind: "payment",
+    surface: "client",
+    title: () => "Payment received",
+    body: (event) => {
+      const amount = formatMoneyCents(num(event.payload.grossAmountCents), str(event.payload.currency));
+      const contact = str(event.payload.contactName);
+      if (amount && contact) return `Your ${amount} payment for ${contact} was received.`;
+      if (amount) return `Your ${amount} payment was received.`;
+      return "Your payment was received.";
+    },
+  },
   email: {
     templateId: "client.payment_receipt",
     subject: () => "Payment received",
@@ -177,11 +189,23 @@ const PAYMENT_INVOICE_ISSUED_CLIENT: CatalogEntry = {
 const PAYMENT_DEPOSIT_RECEIVED_CLIENT: CatalogEntry = {
   id: "payment.deposit_received.client",
   category: "payments",
-  defaultChannels: ["email"],
+  defaultChannels: ["email", "in_app"],
   required: false,
   triggers: ["payment.deposit_received"],
   hydrate: loadInquiryView,
   resolveAudience: transactionPayer,
+  in_app: {
+    kind: "payment",
+    surface: "client",
+    title: () => "Deposit received",
+    body: (event) => {
+      const amount = formatMoneyCents(num(event.payload.depositAmountCents), str(event.payload.currency));
+      const contact = str(event.payload.contactName);
+      if (amount && contact) return `Your ${amount} deposit for ${contact} was received. Balance due before the booking.`;
+      if (amount) return `Your ${amount} deposit was received. Balance due before the booking.`;
+      return "Your deposit was received. Balance due before the booking.";
+    },
+  },
   email: {
     templateId: "client.deposit_received",
     subject: () => "Deposit received — balance due",
@@ -323,14 +347,24 @@ const PAYMENT_PAYOUT_REVERSED_TALENT: CatalogEntry = {
 };
 
 /** payment.refunded → the client whose booking payment was refunded or whose
- *  dispute closed with the charge reversed (email-only). */
+ *  dispute closed with the charge reversed (email + in_app). */
 const PAYMENT_REFUNDED_CLIENT: CatalogEntry = {
   id: "payment.refunded.client",
   category: "payments",
-  defaultChannels: ["email"],
+  defaultChannels: ["email", "in_app"],
   required: false,
   triggers: ["payment.refunded"],
   resolveAudience: refundedClient,
+  in_app: {
+    kind: "payment",
+    surface: "client",
+    title: (event) =>
+      str(event.payload.reason) === "dispute" ? "Payment dispute closed" : "Payment refunded",
+    body: (event) =>
+      str(event.payload.reason) === "dispute"
+        ? "The dispute on your booking payment was resolved and the charge was reversed."
+        : "Your booking payment was refunded to your original payment method.",
+  },
   email: {
     templateId: "client.payment_refunded",
     subject: (event) =>
@@ -353,14 +387,25 @@ const PAYMENT_REFUNDED_CLIENT: CatalogEntry = {
   },
 };
 
-/** payment.partial_refund → the client, with the refunded amount (email-only). */
+/** payment.partial_refund → the client, with the refunded amount (email + in_app). */
 const PAYMENT_PARTIAL_REFUND_CLIENT: CatalogEntry = {
   id: "payment.partial_refund.client",
   category: "payments",
-  defaultChannels: ["email"],
+  defaultChannels: ["email", "in_app"],
   required: false,
   triggers: ["payment.partial_refund"],
   resolveAudience: refundedClient,
+  in_app: {
+    kind: "payment",
+    surface: "client",
+    title: () => "Partial refund issued",
+    body: (event) => {
+      const amount = formatMoneyCents(num(event.payload.refundedCents), str(event.payload.currency));
+      return amount
+        ? `A partial refund of ${amount} was issued to your original payment method.`
+        : "A partial refund was issued to your original payment method.";
+    },
+  },
   email: {
     templateId: "client.partial_refund",
     subject: () => "Partial refund issued",
