@@ -18,6 +18,7 @@ import { listBuilderImageMediaAssets } from "@/lib/site-admin/media/assets";
 import { resolveCollectionDataSources } from "@/lib/site-admin/collections/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getHomepageData } from "@/lib/home-data";
+import { resolveShellSocialContact } from "@/lib/site-admin/server/shell-social-contact";
 
 function collectBuilderDataBindingMax(
   nodes: ReadonlyArray<BuilderNode>,
@@ -44,6 +45,27 @@ function hasBuilderDataBinding(
   sourceKey: string,
 ): boolean {
   return collectBuilderDataBindingMax(nodes, sourceKey) != null;
+}
+
+// A4 — a `social_links` node carries its OWN `dataBinding` (it is not a generic
+// repeater container), so detect it separately. When any social_links node binds
+// to `workspace_social_links`, the loader fetches the tenant's social/contact
+// profiles once and exposes them on `dataSources.socialLinks`.
+function hasBoundSocialLinksNode(nodes: ReadonlyArray<BuilderNode>): boolean {
+  const visit = (node: BuilderNode): boolean => {
+    if (
+      node.kind === "social_links" &&
+      (node.props.dataBinding?.sourceKey === "workspace_social_links" ||
+        node.props.dataBinding?.sourceKey === "social_links")
+    ) {
+      return true;
+    }
+    if ("children" in node && Array.isArray(node.children)) {
+      return node.children.some(visit);
+    }
+    return false;
+  };
+  return nodes.some(visit);
 }
 
 export async function loadBuilderNodeDataSources(
@@ -74,10 +96,12 @@ export async function loadBuilderNodeDataSources(
   );
   const mediaIds = collectBuilderImageMediaIds(nodes);
   const collectionSourceKeys = collectBuilderCollectionSourceKeys(nodes);
+  const needsSocialLinks = hasBoundSocialLinksNode(nodes);
   if (
     featuredLimit == null &&
     !needsLocations &&
     !needsDirectoryShortcuts &&
+    !needsSocialLinks &&
     mediaIds.length === 0 &&
     collectionSourceKeys.length === 0
   ) {
@@ -90,8 +114,13 @@ export async function loadBuilderNodeDataSources(
       : null;
   const mediaSupabase = mediaIds.length > 0 ? serviceSupabase : null;
 
-  const [featuredTalentProfiles, homepageData, mediaAssets, collections] =
-    await Promise.all([
+  const [
+    featuredTalentProfiles,
+    homepageData,
+    mediaAssets,
+    collections,
+    socialContact,
+  ] = await Promise.all([
     featuredLimit == null
       ? Promise.resolve(undefined)
       : fetchFeaturedTalentForSection(
@@ -114,7 +143,28 @@ export async function loadBuilderNodeDataSources(
     serviceSupabase && collectionSourceKeys.length > 0
       ? resolveCollectionDataSources(serviceSupabase, tenantId, collectionSourceKeys)
       : Promise.resolve(undefined),
+    // A4 — RLS-scoped social/contact read (anon-safe public client inside the
+    // resolver). Combines social + contact links into one platform/href list
+    // the social_links node renders. Empty when nothing is configured.
+    needsSocialLinks
+      ? resolveShellSocialContact({ tenantId: dataTenantId })
+      : Promise.resolve(null),
   ]);
+
+  const socialLinks = socialContact
+    ? [
+        ...socialContact.socialLinks.map((link) => ({
+          platform: link.platform,
+          href: link.href,
+          ...(link.label ? { label: link.label } : {}),
+        })),
+        ...socialContact.contactLinks.map((link) => ({
+          platform: link.type,
+          href: link.value,
+          ...(link.label ? { label: link.label } : {}),
+        })),
+      ]
+    : undefined;
 
   return {
     featuredTalentProfiles,
@@ -122,5 +172,6 @@ export async function loadBuilderNodeDataSources(
     directoryShortcuts: homepageData?.talentTypes,
     mediaAssets,
     collections,
+    ...(socialLinks ? { socialLinks } : {}),
   };
 }
