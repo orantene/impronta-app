@@ -64,8 +64,14 @@ export function EmailConsoleClient(props: {
   adminEmail: string;
   /** Request time (ms), computed server-side — keeps the client render pure. */
   nowMs: number;
+  /**
+   * Platform admin-enabled locales from the `app_locales` registry.
+   * Used to render the template-editor locale tabs and count customised
+   * templates. Falls back to `["en", "es"]` when not provided.
+   */
+  adminLocales?: readonly string[];
 }) {
-  const { sendLog, metrics, suppressions, domain, catalog, templates, sendingDomains, adminEmail, nowMs } = props;
+  const { sendLog, metrics, suppressions, domain, catalog, templates, sendingDomains, adminEmail, nowMs, adminLocales = ["en", "es"] } = props;
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [tab, setTab] = useState<ConsoleTab>("overview");
@@ -73,7 +79,7 @@ export function EmailConsoleClient(props: {
 
   const unverified = sendingDomains.filter((d) => d.verificationStatus !== "verified").length;
   const customized = templates.filter((t) =>
-    (["en", "es"] as const).some((l) => t.byLocale[l]?.hasOverride),
+    adminLocales.some((l) => t.byLocale[l]?.hasOverride),
   ).length;
   const badge: Record<ConsoleTab, ReactNode> = {
     overview: null,
@@ -152,7 +158,7 @@ export function EmailConsoleClient(props: {
       )}
       {tab === "log" && <SendLogTable rows={sendLog} nowMs={nowMs} onChanged={refresh} />}
       {tab === "events" && <EventToggles entries={catalog} onChanged={refresh} />}
-      {tab === "templates" && <TemplateEditor entries={templates} onChanged={refresh} />}
+      {tab === "templates" && <TemplateEditor entries={templates} onChanged={refresh} adminLocales={adminLocales} />}
       {tab === "domains" && <SendingDomains entries={sendingDomains} onChanged={refresh} />}
       {tab === "suppressions" && <SuppressionPanel rows={suppressions} onChanged={refresh} />}
     </div>

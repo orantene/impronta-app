@@ -299,7 +299,15 @@ export async function loadNotificationCatalogState(): Promise<CatalogEntryState[
 
 // ─── Editable template overrides (P3b) ───────────────────────────────────────
 
-/** Locales the template editor exposes (platform is bilingual EN/ES). */
+/**
+ * Locales the template editor exposes. Sourced from the platform registry's
+ * `adminLocales` (the set enabled for admin/back-end surfaces). The fallback
+ * `["en", "es"]` is only reached when the DB is unavailable (test / offline).
+ *
+ * @deprecated Prefer passing `adminLocales` from `fetchLanguageSettingsPublic()`
+ * at the page level and threading it through as a prop — this constant remains
+ * only for call sites that can't easily receive the prop.
+ */
 export const TEMPLATE_LOCALES = ["en", "es"] as const;
 
 export type TemplateLocaleOverride = {

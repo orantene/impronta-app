@@ -47,14 +47,15 @@ export default async function AuthLayout({
     getPublicHostContext(),
     headers(),
   ]);
+  // For agency/hub hosts: use the tenant's locale settings.
+  // For platform/marketing hosts: `loadTenantLocaleSettings("")` returns the
+  // platform fallback (single "en", switcher hidden) — the auth layout still
+  // renders a toggle via `PublicLanguageToggle` which hides itself when
+  // `supportedLocales.length <= 1`, so no toggle shows on the platform host.
   const localeSettings =
     ctx.kind === "agency" || ctx.kind === "hub"
       ? await loadTenantLocaleSettings(ctx.tenantId)
-      : {
-          defaultLocale: "en" as const,
-          supportedLocales: ["en", "es"] as const,
-          showLanguageSwitcher: true,
-        };
+      : await loadTenantLocaleSettings("");
   const originalPath = h.get(ORIGINAL_PATHNAME_HEADER) ?? "/";
   const { pathnameWithoutLocale } = stripLocaleFromPathname(originalPath);
 

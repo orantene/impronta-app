@@ -27,7 +27,6 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getFavoriteTalentIds, getSavedTalentIds } from "@/lib/public-discovery";
 import { resolveAccountHref } from "@/lib/auth-flow";
 import {
-  buildTenantLocaleSettings,
   loadTenantLocaleSettings,
   type TenantLocaleSettings,
 } from "@/lib/site-admin/server/locale-resolver";
@@ -501,9 +500,11 @@ export async function SiteHeaderComponent({
     tenantId,
     brandTagline: brand.tagline,
   });
-  const tenantLocaleSettings = tenantId
-    ? await loadTenantLocaleSettings(tenantId)
-    : buildTenantLocaleSettings("en", ["en", "es"], true);
+  // For tenant hosts: use the tenant's locale settings.
+  // For platform/no-tenant context: `loadTenantLocaleSettings("")` returns the
+  // platform fallback (single "en", switcher hidden) which is safe here since
+  // the site_header section only renders for tenant snapshots.
+  const tenantLocaleSettings = await loadTenantLocaleSettings(tenantId ?? "");
   const bd = brandDisplay ?? "image-and-text";
   const showBrandImage = (bd === "image" || bd === "image-and-text") && !!brandLogoUrl;
   const showBrandText = (bd === "text" || bd === "image-and-text") && !!brand.label;

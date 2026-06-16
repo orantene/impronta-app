@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { localeSchema } from "@/lib/site-admin/locales";
 import { DIRECTORY_PAGE_SIZE_MAX } from "@/lib/directory/types";
 import { getPublicSettings } from "@/lib/public-settings";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
@@ -14,7 +15,7 @@ const bodySchema = z.object({
   taxonomyTermIds: z.array(pgUuidSchema()).optional(),
   locationSlug: z.string().optional().nullable(),
   sort: z.string().optional().nullable(),
-  locale: z.enum(["en", "es"]).optional(),
+  locale: localeSchema.optional(),
   limit: z.number().int().min(1).max(DIRECTORY_PAGE_SIZE_MAX).optional(),
   heightMinCm: z.number().optional().nullable(),
   heightMaxCm: z.number().optional().nullable(),

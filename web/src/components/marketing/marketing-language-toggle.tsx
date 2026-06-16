@@ -3,27 +3,42 @@ import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-langua
 import { cn } from "@/lib/utils";
 
 /**
- * EN | ES switch, marketing-themed. Plain `<a>` links (full navigation) to the
- * `/es` rewrite — `next/link` breaks under locale rewrites. Server-rendered;
- * `activeLocale` + `pathnameWithoutLocale` come from the shell.
+ * Language switch for the marketing site, themed in the platform style.
+ * Plain `<a>` links (full navigation) — `next/link` breaks under locale
+ * rewrites. Server-rendered; `activeLocale` + `pathnameWithoutLocale` come
+ * from the shell.
+ *
+ * `availableLocales` is sourced from the platform registry's `publicLocales`
+ * by the parent (e.g. the marketing layout). Falls back to
+ * `FALLBACK_LANGUAGE_SETTINGS.publicLocales` when not provided.
+ * Hidden when `availableLocales.length <= 1` (single-language).
  */
-const LOCALES = ["en", "es"] as const;
-
 export function MarketingLanguageToggle({
   activeLocale,
   pathnameWithoutLocale,
   className,
   style,
+  availableLocales,
+  defaultLocale = FALLBACK_LANGUAGE_SETTINGS.defaultLocale,
 }: {
   activeLocale: string;
   pathnameWithoutLocale: string;
   className?: string;
   style?: React.CSSProperties;
+  /**
+   * Platform-sourced public locale list. When omitted, falls back to
+   * `FALLBACK_LANGUAGE_SETTINGS.publicLocales` (`["en","es"]`).
+   */
+  availableLocales?: readonly string[];
+  defaultLocale?: string;
 }) {
+  const locales = availableLocales ?? FALLBACK_LANGUAGE_SETTINGS.publicLocales;
+  if (locales.length <= 1) return null;
+
   const settings = {
     ...FALLBACK_LANGUAGE_SETTINGS,
-    defaultLocale: "en",
-    publicLocales: ["en", "es"],
+    defaultLocale,
+    publicLocales: Array.from(locales),
   };
   return (
     <div
@@ -36,7 +51,7 @@ export function MarketingLanguageToggle({
         ...style,
       }}
     >
-      {LOCALES.map((code) => {
+      {locales.map((code) => {
         const active = activeLocale === code;
         return (
           <a

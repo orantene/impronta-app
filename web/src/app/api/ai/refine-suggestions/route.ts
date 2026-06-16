@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { localeSchema } from "@/lib/site-admin/locales";
 import { getPublicSettings } from "@/lib/public-settings";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import { getCachedTaxonomyFilterOptions } from "@/lib/directory/taxonomy-filters";
@@ -55,7 +56,7 @@ async function resolveTenantIdForRefineRequest(
 const bodySchema = z.object({
   q: z.string().optional().nullable(),
   taxonomyTermIds: z.array(pgUuidSchema()).optional(),
-  locale: z.enum(["en", "es"]).optional(),
+  locale: localeSchema.optional(),
   locationSlug: z.string().optional().nullable(),
   /** Top visible result fit-label slugs — boosts refine when `ai_refine_v2`. */
   matchFitSlugs: z.array(z.string().max(120)).max(48).optional(),

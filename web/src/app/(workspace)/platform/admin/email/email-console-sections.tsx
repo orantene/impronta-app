@@ -217,17 +217,23 @@ function Detail({ k, v, red }: { k: string; v: string | null; red?: boolean }) {
 }
 
 // ─── Template editor (P3b) ───────────────────────────────────────────────────
-const TEMPLATE_LOCALES = ["en", "es"] as const;
 
 export function TemplateEditor({
   entries,
   onChanged,
+  adminLocales = ["en", "es"],
 }: {
   entries: TemplateOverrideState[];
   onChanged: () => void;
+  /**
+   * Platform admin-enabled locales from the `app_locales` registry.
+   * Determines which locale tabs appear in the template editor. Falls back
+   * to `["en", "es"]` when not provided.
+   */
+  adminLocales?: readonly string[];
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
-  const [locale, setLocale] = useState<string>("en");
+  const [locale, setLocale] = useState<string>(adminLocales[0] ?? "en");
   const [q, setQ] = useState("");
   const [draft, setDraft] = useState<{ subject: string; body: string; enabled: boolean }>({ subject: "", body: "", enabled: true });
   const [busy, setBusy] = useState(false);
@@ -237,7 +243,7 @@ export function TemplateEditor({
     const s = q.toLowerCase();
     return entries.filter((e) => e.id.toLowerCase().includes(s));
   }, [entries, q]);
-  const customizedCount = entries.filter((e) => TEMPLATE_LOCALES.some((l) => e.byLocale[l]?.hasOverride)).length;
+  const customizedCount = entries.filter((e) => adminLocales.some((l) => e.byLocale[l]?.hasOverride)).length;
 
   function loadDraft(e: TemplateOverrideState, loc: string) {
     const o = e.byLocale[loc];
@@ -245,9 +251,10 @@ export function TemplateEditor({
   }
   function open(e: TemplateOverrideState) {
     if (openId === e.id) { setOpenId(null); return; }
+    const defaultLoc = adminLocales[0] ?? "en";
     setOpenId(e.id);
-    setLocale("en");
-    loadDraft(e, "en");
+    setLocale(defaultLoc);
+    loadDraft(e, defaultLoc);
   }
   function switchLocale(e: TemplateOverrideState, loc: string) {
     setLocale(loc);
@@ -285,7 +292,7 @@ export function TemplateEditor({
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "8px 12px" }}>
                 <span style={{ fontFamily: MONO, fontSize: 12 }}>{e.id}</span>
                 <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  {TEMPLATE_LOCALES.map((l) => {
+                  {adminLocales.map((l) => {
                     const o = e.byLocale[l];
                     if (!o?.hasOverride) return null;
                     const paused = !o.enabled;
@@ -309,7 +316,7 @@ export function TemplateEditor({
                   <div>
                     <label style={label}>Locale</label>
                     <select style={{ ...input, width: 120 }} value={locale} onChange={(ev) => switchLocale(e, ev.target.value)}>
-                      {TEMPLATE_LOCALES.map((l) => <option key={l} value={l}>{l}</option>)}
+                      {adminLocales.map((l) => <option key={l} value={l}>{l}</option>)}
                     </select>
                   </div>
                   <div>
@@ -343,7 +350,7 @@ export function TemplateEditor({
         })}
       </div>
       <div style={{ marginTop: 10, color: HQ.inkMuted, fontSize: 12 }}>
-        {customizedCount} of {entries.length} templates customized · {TEMPLATE_LOCALES.join(" / ")}.
+        {customizedCount} of {entries.length} templates customized · {adminLocales.join(" / ")}.
       </div>
     </div>
   );
