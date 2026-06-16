@@ -106,6 +106,7 @@
     "create:test-clients": "node --env-file=.env.local scripts/create-test-clients.mjs",
     "create:test-admin": "node --env-file=.env.local scripts/create-test-admin.mjs",
     "seed:phase5-qa": "node --env-file=.env.local scripts/seed-phase5-qa.mjs",
+    "seed:default-storefront": "tsx --env-file=.env.local scripts/seed-default-storefront.ts",
     "backfill:page-snapshots": "node --env-file=.env.local scripts/backfill-page-snapshots.mjs",
     "reset:impronta-homepage": "tsx --env-file=.env.local scripts/reset-impronta-homepage.ts --slug impronta",
     "reset:impronta-homepage:help": "tsx scripts/reset-impronta-homepage.ts --help",

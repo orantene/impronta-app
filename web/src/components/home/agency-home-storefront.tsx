@@ -36,6 +36,8 @@ import { homepageMeta } from "@/lib/site-admin/templates/homepage/meta";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { EmptyCanvasStarter } from "@/components/edit-chrome/empty-canvas-starter";
 import { DefaultStorefrontBody } from "@/components/home/default-storefront-body";
+import { resolvePlatformDefaultStorefrontTree } from "@/lib/site-admin/server/default-storefront-template";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 // Phase B.2.A — snapshot site shell wrappers. Two server components that
 // return the snapshot-rendered header + footer slots when the feature
 // flag is on for this tenant AND a published shell exists; otherwise
@@ -163,6 +165,50 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
     ((cmsSectionCount > 0 || hasFreeformBuilderTree) &&
       Boolean(cmsHomepage?.snapshot));
 
+  // No-published-composition fallback. The edit-mode empty-canvas starter, the
+  // freeform branch, and the curated-slot branch all win first (mirrors the JSX
+  // mutex below). When NONE of them render, the public visitor would otherwise
+  // see the bland DefaultStorefrontBody — so first try the platform-authored
+  // DEFAULT STOREFRONT (a published freeform template under the reserved slug).
+  // If it resolves to a non-empty tree we render it through the SAME freeform
+  // path the regular builder uses, scoped to THIS tenant (so the connected
+  // featured-talent / discipline sections auto-populate from this roster).
+  // Absent / empty / any error → defaultStorefrontSnapshot stays null and the
+  // JSX falls back to DefaultStorefrontBody exactly as before — so nothing is
+  // live until the lead publishes the reserved template.
+  const wouldRenderDefaultBranch =
+    !(editActive && cmsSectionCount === 0 && !hasFreeformBuilderTree) &&
+    !hasFreeformBuilderTree &&
+    !(cmsSectionCount > 0 && Boolean(cmsHomepage?.snapshot));
+  let defaultStorefrontSnapshot: HomepageSnapshot | null = null;
+  if (wouldRenderDefaultBranch) {
+    try {
+      const serviceSupabase = createServiceRoleClient();
+      const resolved = serviceSupabase
+        ? await resolvePlatformDefaultStorefrontTree(serviceSupabase)
+        : null;
+      if (resolved && resolved.builderTree.length > 0) {
+        defaultStorefrontSnapshot = {
+          version: 1,
+          publishedAt: new Date().toISOString(),
+          pageVersion: 0,
+          locale: cmsLocale ?? locale,
+          fields: { title: brandLabel, metaDescription: null, introTagline: null },
+          templateSchemaVersion: 1,
+          // Freeform full-page design: NO curated slots, tree-only — so it
+          // renders through HomepageCmsSections' freeform branch.
+          slots: [],
+          builderTree: resolved.builderTree,
+        };
+      }
+    } catch {
+      // Never throw to the visitor — leave the snapshot null so the JSX falls
+      // back to DefaultStorefrontBody (the untouched safety net).
+      defaultStorefrontSnapshot = null;
+    }
+  }
+  const shouldRenderDefaultStorefront = defaultStorefrontSnapshot !== null;
+
   const year = new Date().getFullYear();
 
   // P4-SEO — operator-authored schema.org JSON-LD, emitted as a structured-data
@@ -281,13 +327,27 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
                 includeBuilderNodeRendererStyles={false}
               />
             </>
+          ) : shouldRenderDefaultStorefront ? (
+            // No published composition, but a platform DEFAULT STOREFRONT
+            // template is published under the reserved slug. Render that
+            // premium freeform tree through the SAME path the freeform branch
+            // uses, scoped to THIS tenant so the connected featured-talent /
+            // discipline sections auto-populate from this tenant's roster.
+            // Resolution + degrade-to-null happened above (try/catch); reaching
+            // here means defaultStorefrontSnapshot is a non-empty tree.
+            <HomepageCmsSections
+              snapshot={defaultStorefrontSnapshot!}
+              tenantId={tenantId}
+              locale={locale}
+            />
           ) : (
-            // No published composition (public visitor). Render a data-driven
-            // *default* storefront built entirely from THIS tenant's own
-            // identity + published roster — never hardcoded one-tenant
-            // marketing (the Phase-5 concern), and never a blank page. Owners
-            // are still guided to a custom composition via EmptyCanvasStarter
-            // in edit mode (above); this is what the public sees until then.
+            // No published composition AND no platform default (public
+            // visitor). Render a data-driven *default* storefront built
+            // entirely from THIS tenant's own identity + published roster —
+            // never hardcoded one-tenant marketing (the Phase-5 concern), and
+            // never a blank page. Owners are still guided to a custom
+            // composition via EmptyCanvasStarter in edit mode (above); this is
+            // what the public sees until then.
             <DefaultStorefrontBody
               tenantId={tenantId}
               brandName={brandLabel}
