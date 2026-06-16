@@ -328,6 +328,71 @@ export function buildTalentPageBuilderConfig(
 }
 
 /**
+ * The site_shell FREEFORM config (Builder Studio WS-A A1) — specialises the ONE
+ * Page Builder Core for the tenant's shared HEADER + FOOTER, edited as a freeform
+ * tree against the dormant `site_shell` `cms_pages` row.
+ *
+ * Differences from the cms_page config:
+ *   - keyed to the `site_shell` surface kind.
+ *   - `canEditShell: true` — this surface IS the shell editor (the only non-
+ *     homepage surface that owns the shared site shell). Every other freeform
+ *     surface keeps `canEditShell: false`.
+ *   - `previewSubjectKind: null` — header/footer hydrate against the tenant
+ *     default, exactly like the homepage.
+ *   - DB "Page Templates" off: the shell is a single well-known surface, not a
+ *     template-applied page. A2+ may layer shell-specific gallery policy.
+ *
+ * The adapter is passed IN to keep `config.ts` free of server-action edges
+ * (same rule as the homepage / platform_lab / talent_page factories).
+ *
+ * GUARDRAIL: this config is only ever built behind `site-shell-flag.ts`
+ * (`shouldRouteSiteShellSurface`), OFF by default — so it cannot affect any live
+ * header/footer rendering.
+ */
+export function buildSiteShellBuilderConfig(
+  siteShellSurfaceAdapter: BuilderSurfaceAdapter,
+  opts?: {
+    /** Allow raw HTML code elements (super_admin only). Defaults to false. */
+    canInsertRawHtmlElements?: boolean;
+  },
+): BuilderContextConfig {
+  const kind: BuilderSurfaceKind = siteShellSurfaceAdapter.kind;
+  if (kind !== "site_shell") {
+    throw new Error(
+      `buildSiteShellBuilderConfig requires a site_shell adapter, got "${kind}".`,
+    );
+  }
+  return {
+    surface: siteShellSurfaceAdapter,
+    permissions: {
+      canEditDraft: true,
+      canPublish: true,
+      // No revision history for the shell surface yet (A2+); the adapter omits
+      // restoreRevision, so this stays false.
+      canRestoreRevision: false,
+      // This surface IS the shell editor — the one non-homepage surface that
+      // owns the shared site header/footer.
+      canEditShell: true,
+      canInsertRawHtmlElements: opts?.canInsertRawHtmlElements ?? false,
+    },
+    galleryPolicy: {
+      allowedTabs: ["layout", "elements", "sections", "connected"],
+      // The shell is a single well-known surface — no DB template application.
+      allowDbTemplates: false,
+      surfaceTarget: "workspace",
+    },
+    dataSources: { allowed: AGENCY_PAGE_DATA_SOURCES },
+    previewSubjectKind: null,
+    capabilities: {
+      motion: true,
+      themeTokens: true,
+      customCss: true,
+      responsiveBreakpoints: true,
+    },
+  };
+}
+
+/**
  * True for every NON-homepage surface (cms_page / talent_page /
  * platform_lab). These surfaces mount the editor via `BuilderEditorMount`
  * over a chrome-only shell — they have no server-rendered storefront body that
