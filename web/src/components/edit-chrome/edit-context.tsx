@@ -58,7 +58,12 @@ import {
 import type { BuilderSurfaceKind } from "@/lib/site-admin/builder-core/surface-kind";
 import type { BuilderSurfacePublishInput } from "@/lib/site-admin/builder-core/surface-adapter";
 import type { PublishResult } from "@/lib/site-admin/edit-mode/composition-actions";
-import type { GallerySurfaceDescriptor } from "@/lib/site-admin/add-gallery/types";
+import type {
+  AddGalleryItem,
+  GallerySurfaceDescriptor,
+} from "@/lib/site-admin/add-gallery/types";
+import { fetchSurfaceGalleryItems } from "@/lib/site-admin/add-gallery/gallery-fetch-action";
+import { governRawInsertNode } from "@/lib/site-admin/add-gallery/kind-governance";
 import { homepageAdapter } from "@/lib/site-admin/builder-core/adapters/homepage-adapter";
 import {
   restoreHomepageRevisionAction,
@@ -2186,6 +2191,28 @@ export function EditProvider({
       tenantId,
     ],
   );
+
+  // Builder Studio (WS-C) — the surface's merged gallery items carrying the
+  // admin catalog overlay (lockedProps / defaultProps / dataSourceDefaults),
+  // loaded ONCE here so the quick-add `insertBuilderNode` chokepoint can govern
+  // a raw kind-insert the same way the "+" gallery governs a card insert. Held
+  // in a ref (read at insert time, never a render input) so loading it can't
+  // churn the value memo. Empty until the fetch resolves ⇒ raw inserts behave
+  // exactly as today (no governance) — and stay byte-identical for any kind the
+  // admin hasn't governed. Same read path as the gallery panel
+  // (`fetchSurfaceGalleryItems`), so governance can never drift between them.
+  const galleryItemsRef = useRef<ReadonlyArray<AddGalleryItem>>([]);
+  useEffect(() => {
+    let cancelled = false;
+    void fetchSurfaceGalleryItems(gallerySurface)
+      .then((items) => {
+        if (!cancelled) galleryItemsRef.current = items;
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [gallerySurface]);
 
   // ── inspector state ─────────────────────────────────────────────────
   const [selectedSectionId, setSelectedSectionIdRaw] = useState<string | null>(
@@ -5729,7 +5756,18 @@ export function EditProvider({
     EditContextValue["insertBuilderNode"]
   >(
     async (parentId, kind, index) => {
-      const node = createBuilderNode(kind);
+      // Builder Studio (WS-C) — apply the SAME catalog governance the "+" gallery
+      // applies, but on the raw kind-insert path that all quick-add callers funnel
+      // through (section "ADD BLOCK" chips, freeform popover, between-blocks,
+      // empty-canvas starter, inspector commitInsert). Byte-identical to
+      // `createBuilderNode(kind)` for any kind the admin hasn't governed, and
+      // never double-applies on the gallery path (which routes native inserts
+      // through `insertBuilderComponent`, not here).
+      const node = governRawInsertNode(
+        createBuilderNode(kind),
+        kind,
+        galleryItemsRef.current,
+      );
       const inserted = await executeBuilderNodeOperation({
         operation: "insert",
         nodeId: node.id,
