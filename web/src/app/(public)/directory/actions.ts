@@ -345,7 +345,7 @@ export async function submitClientInquiry(
     event_type_id
       ? supabase
           .from("taxonomy_terms")
-          .select("id, name_en")
+          .select("id, name_i18n")
           .eq("id", event_type_id)
           .maybeSingle()
       : Promise.resolve({ data: null }),
@@ -355,7 +355,7 @@ export async function submitClientInquiry(
     eventDate: event_date,
     eventLocation: event_location,
     eventTypeId: event_type_id,
-    eventTypeName: eventTypeRow?.name_en ?? null,
+    eventTypeName: (eventTypeRow as { name_i18n?: Record<string, string | null> | null } | null)?.name_i18n?.en ?? null,
     quantity,
     rawQuery: raw_query,
     directorySearch: directory_context
@@ -538,7 +538,7 @@ export async function submitGuestInquiry(
     event_type_id
       ? pub
           .from("taxonomy_terms")
-          .select("id, name_en")
+          .select("id, name_i18n")
           .eq("id", event_type_id)
           .maybeSingle()
       : Promise.resolve({ data: null }),
@@ -548,7 +548,7 @@ export async function submitGuestInquiry(
     eventDate: event_date,
     eventLocation: event_location,
     eventTypeId: event_type_id,
-    eventTypeName: eventTypeRow?.name_en ?? null,
+    eventTypeName: (eventTypeRow as { name_i18n?: Record<string, string | null> | null } | null)?.name_i18n?.en ?? null,
     quantity,
     rawQuery: raw_query,
     directorySearch: directory_context
