@@ -17,6 +17,7 @@
  *   4. Returns discriminated { ok } result — never throws to the client.
  */
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
@@ -26,6 +27,8 @@ import { logServerError, CLIENT_ERROR } from "@/lib/server/safe-error";
 import {
   computeDataBindingRequirements,
   templatePlanAllowed,
+  nextPublishedVersion,
+  rollbackRevisionNote,
   type BuilderTemplateRow,
   type BuilderTemplateRevisionRow,
   type CreateTemplateDraftInput,
@@ -74,6 +77,93 @@ function getAdminClient() {
 // ── Revalidation path ─────────────────────────────────────────────────────────
 
 const TEMPLATE_CACHE_PATH = "/platform/admin";
+
+// ── publishRowCore (shared publish sequence) ──────────────────────────────────
+
+interface PublishRowCoreInput {
+  templateId: string;
+  /** The builder_tree to publish (the live row's tree for publish; a revision's
+   *  snapshot tree for rollback). data_binding_requirements is computed from it. */
+  tree: BuilderTemplateRow["builder_tree"];
+  /** The current row version; the published version becomes fromVersion + 1. */
+  fromVersion: number;
+  /** Who is performing the publish (stamped on the revision snapshot). */
+  createdBy: string;
+  /** Optional revision note. */
+  note?: string | null;
+  /**
+   * When true, the row's builder_tree is overwritten with `tree` (rollback —
+   * the live tree must become the restored revision's tree). When false (the
+   * normal publish path), builder_tree is left as-is and only the published
+   * metadata + freshly-computed data_binding_requirements are written. The
+   * normal-publish behaviour is byte-identical to the pre-extraction inline
+   * block — the caller passes the live row's own tree, so even the computed
+   * data_binding_requirements match.
+   */
+  writeTree?: boolean;
+}
+
+/**
+ * The shared publish sequence (extracted from publishTemplate so rollback can
+ * reuse it): bump to fromVersion + 1, update the row to status=published with
+ * a fresh published_at + data_binding_requirements computed from `tree`, write
+ * an immutable builder_template_revisions snapshot, bump the catalog version,
+ * and revalidate. Returns the updated row or a failure result.
+ *
+ * Ordering matches the proven publish path: the row UPDATE happens first; the
+ * revision-snapshot insert is best-effort (logged, never rolled back) because
+ * the template is already published once the row commits. If the UPDATE itself
+ * fails, nothing is published — no half-published state is left behind.
+ */
+async function publishRowCore(
+  sb: SupabaseClient,
+  input: PublishRowCoreInput,
+): Promise<TemplateActionResult<BuilderTemplateRow>> {
+  const newVersion = nextPublishedVersion(input.fromVersion);
+  const now = new Date().toISOString();
+  const dataBindingRequirements = computeDataBindingRequirements(input.tree);
+
+  const patch: Record<string, unknown> = {
+    status: "published",
+    version: newVersion,
+    published_at: now,
+    data_binding_requirements: dataBindingRequirements,
+  };
+  if (input.writeTree) {
+    patch.builder_tree = input.tree;
+  }
+
+  const { data: updated, error: updateErr } = await sb
+    .from("builder_templates")
+    .update(patch)
+    .eq("id", input.templateId)
+    .select()
+    .single();
+
+  if (updateErr || !updated)
+    return fail(updateErr?.message ?? "Failed to update template.");
+
+  const publishedRow = updated as BuilderTemplateRow;
+
+  // Write revision snapshot
+  const { error: revErr } = await sb.from("builder_template_revisions").insert({
+    template_id: input.templateId,
+    version: newVersion,
+    status: "published",
+    snapshot: publishedRow,
+    note: input.note?.trim() ?? null,
+    created_by: input.createdBy,
+  });
+
+  if (revErr) {
+    // Non-fatal: log but don't roll back (template is published)
+    logServerError("publishRowCore/revision", revErr);
+  }
+
+  await bumpCatalogVersion(sb);
+  revalidatePath(TEMPLATE_CACHE_PATH);
+  return ok(publishedRow);
+}
 
 // ── createTemplateDraft ───────────────────────────────────────────────────────
 
@@ -291,56 +381,16 @@ export async function publishTemplate(
       return fail("Can't publish: " + validation.reasons.join("; "));
     }
 
-    const newVersion = row.version + 1;
-    const now = new Date().toISOString();
-
-    // Compute data bindings in case the tree changed since last update
-    const dataBindingRequirements = computeDataBindingRequirements(
-      row.builder_tree,
-    );
-
-    // TODO(WS-D D2 rollback): extract the sequence below — update row to
-    // published @ newVersion + write builder_template_revisions snapshot +
-    // bumpCatalogVersion — into a shared `publishRowCore(sb, row, { version,
-    // status, note })` helper that rollback can reuse to re-publish an older
-    // revision. Left inline here (not extracted) to keep this D1 change
-    // strictly additive and not perturb the proven publish path.
-    // Update the template row
-    const { data: updated, error: updateErr } = await sb
-      .from("builder_templates")
-      .update({
-        status: "published",
-        version: newVersion,
-        published_at: now,
-        data_binding_requirements: dataBindingRequirements,
-      })
-      .eq("id", templateId)
-      .select()
-      .single();
-
-    if (updateErr || !updated)
-      return fail(updateErr?.message ?? "Failed to update template.");
-
-    const publishedRow = updated as BuilderTemplateRow;
-
-    // Write revision snapshot
-    const { error: revErr } = await sb.from("builder_template_revisions").insert({
-      template_id: templateId,
-      version: newVersion,
-      status: "published",
-      snapshot: publishedRow,
-      note: note?.trim() ?? null,
-      created_by: gate.userId,
+    // Publish the live row's own tree at version+1 (writeTree omitted: the row's
+    // builder_tree is unchanged; only published metadata + freshly-computed
+    // data_binding_requirements are written — identical to the prior inline path).
+    return await publishRowCore(sb, {
+      templateId,
+      tree: row.builder_tree,
+      fromVersion: row.version,
+      createdBy: gate.userId,
+      note,
     });
-
-    if (revErr) {
-      // Non-fatal: log but don't roll back (template is published)
-      logServerError("publishTemplate/revision", revErr);
-    }
-
-    await bumpCatalogVersion(sb);
-    revalidatePath(TEMPLATE_CACHE_PATH);
-    return ok(publishedRow);
   } catch (err) {
     logServerError("publishTemplate", err);
     return fail(CLIENT_ERROR.generic);
@@ -520,6 +570,82 @@ export async function restoreTemplateRevision(
     return ok(restored as BuilderTemplateRow);
   } catch (err) {
     logServerError("restoreTemplateRevision", err);
+    return fail(CLIENT_ERROR.generic);
+  }
+}
+
+// ── rollbackToRevision (WS-D D2) ──────────────────────────────────────────────
+
+/**
+ * One-click rollback: re-publish an earlier revision's snapshot tree as a NEW
+ * forward version. History is never rewritten — the target revision and every
+ * version after it are preserved; rolling back simply publishes the old tree
+ * again at current+1, leaving an audit note ("Rolled back to vN").
+ *
+ * Differs from `restoreTemplateRevision`, which restores the tree onto the live
+ * row as a DRAFT (requiring a separate publish). This action restores AND
+ * publishes in one step via the shared `publishRowCore`.
+ *
+ * Partial-failure safety: the only state-changing writes are inside
+ * publishRowCore, which orders the row UPDATE first (atomic) and treats the
+ * revision-snapshot insert + catalog bump as best-effort. If the UPDATE fails,
+ * nothing is published; there is no half-published row.
+ */
+export async function rollbackToRevision(
+  templateId: string,
+  version: number,
+): Promise<TemplateActionResult<{ version: number }>> {
+  const gate = await requireSuperAdmin();
+  if (!gate.ok) return fail(gate.error);
+
+  try {
+    const sb = getAdminClient();
+
+    // Load the target revision's snapshot tree.
+    const { data: rev, error: revErr } = await sb
+      .from("builder_template_revisions")
+      .select("snapshot")
+      .eq("template_id", templateId)
+      .eq("version", version)
+      .maybeSingle();
+
+    if (revErr) return fail(revErr.message);
+    if (!rev) return fail(`Revision v${version} not found.`);
+
+    const snapshot = (rev as { snapshot: BuilderTemplateRow | null }).snapshot;
+    const tree = snapshot?.builder_tree;
+    if (!Array.isArray(tree) || tree.length === 0) {
+      return fail(`Revision v${version} has no content to roll back to.`);
+    }
+
+    // Read the current live row version so the rollback publishes at version+1
+    // (forward-only history — we never reuse or rewind the version counter).
+    const { data: current, error: curErr } = await sb
+      .from("builder_templates")
+      .select("version")
+      .eq("id", templateId)
+      .maybeSingle();
+
+    if (curErr) return fail(curErr.message);
+    if (!current) return fail("Template not found.");
+
+    const fromVersion = (current as { version: number }).version;
+
+    // Re-publish the snapshot tree as a new forward version. writeTree=true so
+    // the live row's builder_tree becomes the restored tree.
+    const result = await publishRowCore(sb, {
+      templateId,
+      tree,
+      fromVersion,
+      createdBy: gate.userId,
+      note: rollbackRevisionNote(version),
+      writeTree: true,
+    });
+
+    if (!result.ok) return fail(result.error);
+    return ok({ version: result.data.version });
+  } catch (err) {
+    logServerError("rollbackToRevision", err);
     return fail(CLIENT_ERROR.generic);
   }
 }
