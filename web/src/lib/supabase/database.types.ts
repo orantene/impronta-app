@@ -10740,10 +10740,13 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          is_home: boolean
+          nav_label: string | null
           published_at: string | null
           required_talent_tier: string | null
           scheduled_for: string | null
           slug: string
+          sort_order: number
           status: string
           talent_profile_id: string
           theme: Json
@@ -10755,10 +10758,13 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          is_home?: boolean
+          nav_label?: string | null
           published_at?: string | null
           required_talent_tier?: string | null
           scheduled_for?: string | null
           slug: string
+          sort_order?: number
           status?: string
           talent_profile_id: string
           theme?: Json
@@ -10770,10 +10776,13 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          is_home?: boolean
+          nav_label?: string | null
           published_at?: string | null
           required_talent_tier?: string | null
           scheduled_for?: string | null
           slug?: string
+          sort_order?: number
           status?: string
           talent_profile_id?: string
           theme?: Json
@@ -11980,6 +11989,66 @@ export type Database = {
           },
         ]
       }
+      talent_site_domains: {
+        Row: {
+          created_at: string
+          domain: string
+          failure_reason: string | null
+          id: string
+          is_primary: boolean
+          last_health_check_at: string | null
+          ssl_provisioned_at: string | null
+          status: string
+          talent_profile_id: string
+          updated_at: string
+          verification_token: string | null
+          verified_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          domain: string
+          failure_reason?: string | null
+          id?: string
+          is_primary?: boolean
+          last_health_check_at?: string | null
+          ssl_provisioned_at?: string | null
+          status?: string
+          talent_profile_id: string
+          updated_at?: string
+          verification_token?: string | null
+          verified_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          domain?: string
+          failure_reason?: string | null
+          id?: string
+          is_primary?: boolean
+          last_health_check_at?: string | null
+          ssl_provisioned_at?: string | null
+          status?: string
+          talent_profile_id?: string
+          updated_at?: string
+          verification_token?: string | null
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "talent_site_domains_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_discover_index"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "talent_site_domains_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       talent_site_revisions: {
         Row: {
           created_at: string
@@ -12049,11 +12118,16 @@ export type Database = {
           draft_snapshot: Json
           draft_updated_at: string
           id: string
+          logo_url: string | null
           pending_template_reset: boolean
           plan_locked: boolean
           published_at: string | null
           published_snapshot: Json | null
+          shell_published: Json | null
+          shell_tree: Json
           site_kind: string
+          site_published_at: string | null
+          site_slug: string | null
           status: string
           talent_profile_id: string
           unpublished_at: string | null
@@ -12067,11 +12141,16 @@ export type Database = {
           draft_snapshot?: Json
           draft_updated_at?: string
           id?: string
+          logo_url?: string | null
           pending_template_reset?: boolean
           plan_locked?: boolean
           published_at?: string | null
           published_snapshot?: Json | null
+          shell_published?: Json | null
+          shell_tree?: Json
           site_kind?: string
+          site_published_at?: string | null
+          site_slug?: string | null
           status?: string
           talent_profile_id: string
           unpublished_at?: string | null
@@ -12085,11 +12164,16 @@ export type Database = {
           draft_snapshot?: Json
           draft_updated_at?: string
           id?: string
+          logo_url?: string | null
           pending_template_reset?: boolean
           plan_locked?: boolean
           published_at?: string | null
           published_snapshot?: Json | null
+          shell_published?: Json | null
+          shell_tree?: Json
           site_kind?: string
+          site_published_at?: string | null
+          site_slug?: string | null
           status?: string
           talent_profile_id?: string
           unpublished_at?: string | null
@@ -14928,6 +15012,14 @@ export type Database = {
           profile_code: string
           published_at: string
           published_snapshot: Json
+          talent_profile_id: string
+        }[]
+      }
+      talent_site_domain_lookup: {
+        Args: { p_host: string }
+        Returns: {
+          domain: string
+          site_slug: string
           talent_profile_id: string
         }[]
       }
