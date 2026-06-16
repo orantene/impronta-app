@@ -260,6 +260,7 @@ export async function FeaturedTalentComponent({
   props,
   tenantId,
   locale,
+  preview,
   sectionId,
   publicPathPrefix,
   builderNodeBindings,
@@ -738,9 +739,14 @@ export async function FeaturedTalentComponent({
                 ? emptyStateText
                 : emptyCopy(sourceMode, props)}
             </p>
-            <a href={rosterAddHref} className="site-featured-talent__empty-action">
-              Add or publish roster profiles
-            </a>
+            {/* Operator-only admin route — editor (preview) only. Public/anon
+                renders pass preview=false, so it never leaks onto a published
+                storefront. The empty note above still renders (never blank). */}
+            {preview ? (
+              <a href={rosterAddHref} className="site-featured-talent__empty-action">
+                Add or publish roster profiles
+              </a>
+            ) : null}
           </div>
         )}
         {footerCtaBelow ? (
