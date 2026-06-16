@@ -315,11 +315,8 @@ export type BridgeData = {
   } | null;
 
   // ── Media gallery + watermark (Agency tier) ────────────────────────────────
-  /**
-   * Workspace media photos joined to roster talent. `null` means the
-   * Media page falls back to MOCK_MEDIA. An empty array means "live mode
-   * but no photos yet" — UI shows the empty state, NOT mock data.
-   */
+  /** Workspace media photos joined to roster talent. `null` = Media page falls
+   * back to MOCK_MEDIA; empty array = "live mode, no photos yet" (empty state). */
   mediaPhotos?: WorkspaceMediaPhoto[] | null;
   /** Workspace virtual folders. Empty array = live mode, no folders yet. */
   mediaFolders?: WorkspaceMediaFolder[];
@@ -355,6 +352,8 @@ export type BridgeData = {
   profileEditorLayout?: ProfileEditorLayout;
   // P1 — DB-resolved field source + flags; null = static (default).
   clientFieldSource?: ClientFieldSourcePayload | null;
+  /** Tenant locale settings (loadTenantLocaleSettings) — drives the shell chrome's DashboardLocaleToggle so registry-added languages show; omitted = mock mode → ["en","es"]. */
+  localeSettings?: { supportedLocales: readonly import("@/i18n/config").Locale[]; defaultLocale: import("@/i18n/config").Locale } | null;
 };
 
 export function createBridgeDataFromRoster(

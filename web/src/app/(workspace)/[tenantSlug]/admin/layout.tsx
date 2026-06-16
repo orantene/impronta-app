@@ -34,6 +34,7 @@ import {
 } from "@/components/admin/shell/internal/data-bridge";
 import { loadProfileEditorLayout } from "@/lib/profile-editor/section-layout";
 import { loadClientFieldSource } from "@/lib/field-engine/client-field-source";
+import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { loadPayoutsSurface } from "./payouts/payouts-surface-actions";
 import { loadTalentUnreadCount } from "@/lib/saas/unread-counts";
 import { loadUserPrefs, type UserPrefs } from "@/lib/server-actions/user-prefs";
@@ -126,6 +127,7 @@ export default async function WorkspaceAdminLayout({
     recentActivity,
     profileEditorLayout,
     clientFieldSource,
+    localeSettings,
   ] = await Promise.all([
     loadWorkspaceRosterForCurrentTenant(tenantId),
     loadInquiriesForMessages(tenantId),
@@ -162,6 +164,10 @@ export default async function WorkspaceAdminLayout({
     // catalog). Returns null when every surface is `static` (the default), so
     // it adds no DB work in the default config and never breaks the layout.
     loadClientFieldSource(tenantId),
+    // Tenant locale settings — drives the shell chrome's DashboardLocaleToggle
+    // so registry-added languages (e.g. `fr`) appear, not just static en/es.
+    // Cached + degrades to the platform fallback, so it never breaks the layout.
+    loadTenantLocaleSettings(tenantId),
   ]);
 
   // Pre-fetch hybrid-only data (talent inquiries + cross-mode unread + user
@@ -237,6 +243,10 @@ export default async function WorkspaceAdminLayout({
           recentActivity,
           profileEditorLayout,
           clientFieldSource,
+          localeSettings: {
+            supportedLocales: localeSettings.supportedLocales,
+            defaultLocale: localeSettings.defaultLocale,
+          },
         }}
       >
         {/* PageRouteSyncer lives here — inside AdminShellProvider context, returns null */}

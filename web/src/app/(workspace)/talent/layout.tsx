@@ -33,6 +33,7 @@ import { TalentSiteDashboardProvider } from "@/components/talent/site/TalentSite
 import { loadTalentPersonalSiteDashboardState } from "@/lib/talent-site/server/dashboard-state";
 import { loadProfileEditorLayout } from "@/lib/profile-editor/section-layout";
 import { loadClientFieldSource } from "@/lib/field-engine/client-field-source";
+import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 
 export const dynamic = "force-dynamic";
 
@@ -131,6 +132,7 @@ export default async function PlatformTalentLayout({
     talentHeldPayouts,
     profileEditorLayout,
     clientFieldSource,
+    localeSettings,
   ] = await Promise.all([
     loadTalentInquiriesAllAgencies(baseProfile.id),
     loadTalentAgencies(talentSelfProfile.id),
@@ -155,6 +157,10 @@ export default async function PlatformTalentLayout({
     // catalog). Null when every surface is `static` (default). `tenantId` may
     // be null for independent talent — the loader degrades to flags-only.
     loadClientFieldSource(tenantId),
+    // Tenant locale settings for the shell chrome's DashboardLocaleToggle.
+    // For independent talent (no active agency, tenantId null) the loader
+    // returns the single-locale platform fallback, so the toggle hides.
+    loadTenantLocaleSettings(tenantId ?? ""),
   ]);
 
   // Platform currency policy: unless a super-admin has turned multi-currency
@@ -207,6 +213,10 @@ export default async function PlatformTalentLayout({
         talentEarnings: displayEarnings,
         profileEditorLayout,
         clientFieldSource,
+        localeSettings: {
+          supportedLocales: localeSettings.supportedLocales,
+          defaultLocale: localeSettings.defaultLocale,
+        },
       }}
     >
       {isHybrid && agencyOptions.length > 1 ? (

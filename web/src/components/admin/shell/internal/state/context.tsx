@@ -434,6 +434,16 @@ type Ctx = {
     initials: string;
     entityType: EntityType;
   };
+  /**
+   * Tenant's full supported-locale list, resolved server-side and threaded
+   * onto the bridge (`initialBridgeData.localeSettings`). The shell chrome's
+   * `DashboardLocaleToggle` reads this so registry-added languages (e.g. `fr`)
+   * appear — not just the static en/es default. Falls back to `["en", "es"]`
+   * in standalone/mock mode (no bridge).
+   */
+  supportedLocales: readonly string[];
+  /** Tenant's primary locale; initial active state for the locale toggle. */
+  tenantDefaultLocale: string;
   /** Current UI locale resolved from the locale cookie. */
   locale: string;
   /** Dot-path translator for the current locale. */
@@ -1869,6 +1879,16 @@ export function AdminShellProvider({
   const bridgeTenantIdentity = initialBridgeData?.tenantIdentity ?? null;
   const bridgeSessionIdentity = initialBridgeData?.sessionIdentity ?? null;
 
+  // Tenant locale settings, resolved server-side and threaded onto the bridge
+  // (`initialBridgeData.localeSettings`). Exposed so the shell chrome's
+  // `DashboardLocaleToggle` (in `TulalaIdentityBar`) renders the full
+  // registry-driven language list. Falls back to the static en/es default in
+  // standalone/mock mode so the toggle behaves exactly as before.
+  const supportedLocales: readonly string[] =
+    initialBridgeData?.localeSettings?.supportedLocales ?? ["en", "es"];
+  const tenantDefaultLocale: string =
+    initialBridgeData?.localeSettings?.defaultLocale ?? "en";
+
   // DB-backed profile-editor sidebar layout (or the client-safe hardcoded
   // fallback when the bridge didn't carry one). Never null, so the drawer can
   // read order/grouping/labels unconditionally.
@@ -2101,6 +2121,8 @@ export function AdminShellProvider({
       bridgeTalentUnread,
       bridgeWorkspaceUnread,
       bridgeFirstRunToggleTipSeen,
+      supportedLocales,
+      tenantDefaultLocale,
       locale,
       t: createTranslator(locale),
     }),
@@ -2215,6 +2237,8 @@ export function AdminShellProvider({
       bridgeTalentUnread,
       bridgeWorkspaceUnread,
       bridgeFirstRunToggleTipSeen,
+      supportedLocales,
+      tenantDefaultLocale,
       locale,
     ],
   );

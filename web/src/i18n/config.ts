@@ -29,10 +29,21 @@ export type LocaleMetadata = {
   label: string;
 };
 
-/** Labels for static en/es; unknown locales get code as label until DB metadata is wired. */
+/**
+ * Native labels + hreflang for common locales. Registry-added languages resolve
+ * here so the public switcher's aria-label and `getLocaleMetadata` show a proper
+ * native name (e.g. `fr` → "Français") instead of the bare code. Locales not
+ * listed still fall back to the code via `getLocaleMetadata`.
+ */
 export const localeMetadata: Record<string, LocaleMetadata> = {
   en: { dir: "ltr", hreflang: "en", label: "English" },
   es: { dir: "ltr", hreflang: "es", label: "Español" },
+  fr: { dir: "ltr", hreflang: "fr", label: "Français" },
+  pt: { dir: "ltr", hreflang: "pt", label: "Português" },
+  "pt-BR": { dir: "ltr", hreflang: "pt-BR", label: "Português (Brasil)" },
+  de: { dir: "ltr", hreflang: "de", label: "Deutsch" },
+  it: { dir: "ltr", hreflang: "it", label: "Italiano" },
+  ja: { dir: "ltr", hreflang: "ja", label: "日本語" },
 };
 
 export function getLocaleMetadata(locale: string): LocaleMetadata {

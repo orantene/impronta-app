@@ -1,17 +1,24 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { isLocale, type Locale } from "@/i18n/config";
+import { isLocaleInList, type Locale } from "@/i18n/config";
 import { LOCALE_COOKIE, localeCookieOptions } from "@/i18n/locale-middleware";
 import { cn } from "@/lib/utils";
 
-function readLocaleFromDocumentCookie(fallback: Locale): Locale {
+/**
+ * Reads the locale cookie and accepts it only when it's in this toggle's
+ * resolved `allowed` list. Using the narrow static `isLocale` (en/es) here
+ * would reject any registry-added locale (e.g. `fr`), leaving the active pill
+ * stuck on the fallback — so we validate against the tenant's actual supported
+ * locales instead.
+ */
+function readLocaleFromDocumentCookie(fallback: Locale, allowed: readonly Locale[]): Locale {
   if (typeof document === "undefined") return fallback;
   const m = document.cookie.match(
     new RegExp(`(?:^|; )${LOCALE_COOKIE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}=([^;]*)`),
   );
   const raw = m?.[1] ? decodeURIComponent(m[1]) : null;
-  return raw && isLocale(raw) ? raw : fallback;
+  return raw && isLocaleInList(raw, allowed) ? raw : fallback;
 }
 
 function setLocaleCookie(locale: Locale) {
@@ -64,12 +71,13 @@ export function DashboardLocaleToggle({
   const [locale, setLocale] = useState<Locale>(defaultLocale);
 
   useEffect(() => {
-    // Seed from cookie on mount; use tenant default when cookie is absent /
-    // holds a locale this tenant no longer supports.
-    const fromCookie = readLocaleFromDocumentCookie(defaultLocale);
     // Re-derive the list from the stable key so the closure doesn't capture
     // the `locales` array reference (which may change identity on re-render).
     const list = localesKey.split(",").filter((s): s is Locale => s.length > 0);
+    // Seed from cookie on mount, validating against this tenant's supported
+    // list so a registry locale (e.g. `fr`) is honoured; use tenant default
+    // when the cookie is absent / holds a locale this tenant no longer supports.
+    const fromCookie = readLocaleFromDocumentCookie(defaultLocale, list);
     setLocale(list.includes(fromCookie) ? fromCookie : defaultLocale);
   }, [defaultLocale, localesKey]);
 

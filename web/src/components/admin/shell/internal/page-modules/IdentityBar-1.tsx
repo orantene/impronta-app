@@ -443,7 +443,7 @@ function AccountMenuTrigger({
   userInitials: string;
   children: ReactNode;
 }) {
-  const { state, openDrawer, bridgeTalentSelfProfile, bridgeTenantIdentity, tenantSlug, bridgeSessionIdentity } = useAdminShell();
+  const { state, openDrawer, bridgeTalentSelfProfile, bridgeTenantIdentity, tenantSlug, bridgeSessionIdentity, supportedLocales, tenantDefaultLocale } = useAdminShell();
   const copy = useDashboardText();
   const [open, setOpen] = useState(false);
   const [createTalentDialogOpen, setCreateTalentDialogOpen] = useState(false);
@@ -587,7 +587,11 @@ function AccountMenuTrigger({
               <div className="text-admin-ink text-admin-13 font-medium">{copy.t("Language")}</div>
               <div className="mt-px text-[11.5px] text-admin-ink-muted">{copy.t("Dashboard display language")}</div>
             </div>
-            <DashboardLocaleToggle variant="prototype" />
+            <DashboardLocaleToggle
+              variant="prototype"
+              supportedLocales={supportedLocales}
+              defaultLocale={tenantDefaultLocale}
+            />
           </div>
           <AccountMenuItem
             label="Keyboard shortcuts"
