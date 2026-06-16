@@ -81,8 +81,8 @@ export function ServicesBlock({
         <div className="mt-5 flex flex-wrap gap-2">
           {serviceAreas.map((area) => {
             const locationName =
-              area.locations?.[
-                locale === "es" ? "display_name_es" : "display_name_en"
+              area.locations?.display_name_i18n?.[
+                locale === "es" ? "es" : "en"
               ] ?? null;
             const kindLabel =
               area.service_kind === "home_base"

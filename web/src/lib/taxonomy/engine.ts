@@ -279,13 +279,13 @@ export async function fetchParentCategoryByTermId(
   let nextId: string | null = termId;
   let depth = 0;
   while (nextId && depth < 10) {
-    const { data, error } = await supabase
+    const { data, error }: { data: unknown; error: unknown } = await supabase
       .from("taxonomy_terms")
       .select("id, slug, name_i18n, kind, term_type, parent_id, level, is_public_filter, archived_at")
       .eq("id", nextId)
       .maybeSingle();
     if (error || !data) return null;
-    const cur = withFlatName(data as unknown as TermShape)!;
+    const cur = withFlatName(data as TermShape)!;
     if (isParentCategoryTerm(cur)) return cur;
     nextId = cur.parent_id ?? null;
     depth++;
@@ -304,13 +304,13 @@ export async function fetchLineageByTermId(
   let nextId: string | null = termId;
   let depth = 0;
   while (nextId && depth < 10) {
-    const { data, error } = await supabase
+    const { data, error }: { data: unknown; error: unknown } = await supabase
       .from("taxonomy_terms")
       .select("id, slug, name_i18n, kind, term_type, parent_id, level, is_public_filter, archived_at")
       .eq("id", nextId)
       .maybeSingle();
     if (error || !data) break;
-    const cur = withFlatName(data as unknown as TermShape)!;
+    const cur = withFlatName(data as TermShape)!;
     path.unshift(cur);
     nextId = cur.parent_id ?? null;
     depth++;

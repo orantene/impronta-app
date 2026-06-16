@@ -441,7 +441,7 @@ async function hydrateRows(
   }
 
   const localizedTermName = (
-    term: { name_i18n: Record<string, string | null> | null } | null,
+    term: { name_i18n?: Record<string, string | null> | null } | null,
   ): string | null => {
     if (!term) return null;
     const i18n = term.name_i18n ?? {};
