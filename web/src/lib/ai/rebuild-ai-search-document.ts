@@ -35,7 +35,7 @@ export async function rebuildAiSearchDocument(
   try {
     const { data: profile, error: pErr } = await supabase
       .from("talent_profiles")
-      .select("id, display_name, first_name, last_name, short_bio, bio_en, bio_es, height_cm, gender, residence_city_id")
+      .select("id, display_name, first_name, last_name, short_bio, bio_i18n, height_cm, gender, residence_city_id")
       .eq("id", talentProfileId)
       .maybeSingle();
 
@@ -241,8 +241,8 @@ export async function rebuildAiSearchDocument(
       heightCm: (p.height_cm as number | null) ?? null,
       gender: genderForDoc,
       shortBio: (p.short_bio as string | null) ?? null,
-      bioEn: (p.bio_en as string | null) ?? null,
-      bioEs: (p.bio_es as string | null) ?? null,
+      bioEn: ((p.bio_i18n as Record<string, string> | null)?.en as string | null) ?? null,
+      bioEs: ((p.bio_i18n as Record<string, string> | null)?.es as string | null) ?? null,
       taxonomyTerms,
       structuredLanguages,
       skills,

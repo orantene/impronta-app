@@ -34,7 +34,9 @@ export type TalentDashboardProfileRow = {
   first_name: string | null;
   last_name: string | null;
   short_bio: string | null;
-  bio_en: string | null;
+  // WS4 i18n migration: bio_en folded into bio_i18n {en,es,…}. Completion
+  // scoring only needs the English long-bio, read off the map below.
+  bio_i18n: Record<string, string> | null;
   phone: string | null;
   gender: string | null;
   date_of_birth: string | null;
@@ -312,7 +314,7 @@ async function loadTalentDashboardDataImpl(): Promise<TalentDashboardLoadResult>
         first_name,
         last_name,
         short_bio,
-        bio_en,
+        bio_i18n,
         phone,
         gender,
         date_of_birth,
@@ -442,7 +444,7 @@ async function loadTalentDashboardDataImpl(): Promise<TalentDashboardLoadResult>
       first_name: typedProfile.first_name,
       last_name: typedProfile.last_name,
       short_bio: typedProfile.short_bio,
-      bio_en: typedProfile.bio_en,
+      bio_en: typedProfile.bio_i18n?.en ?? null,
       phone: typedProfile.phone,
       gender: typedProfile.gender,
       date_of_birth: typedProfile.date_of_birth,
