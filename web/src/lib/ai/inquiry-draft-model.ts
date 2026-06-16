@@ -1,4 +1,5 @@
 import { resolveAiChatAdapter } from "@/lib/ai/resolve-provider";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 
 export type InquiryDraftAction = "generate" | "polish";
 
@@ -16,24 +17,24 @@ export type InquiryDraftModelInput = {
 const DEFAULT_CHAT_MODEL_FALLBACK = "gpt-4o-mini";
 
 function systemPrompt(locale: string): string {
-  if (locale === "es") {
-    return [
+  return pickLocale(locale, {
+    en: [
+      "You help write short, professional inquiry messages to a talent agency.",
+      "The user is contacting the agency (not talent directly).",
+      "Do not invent contact details, exact dates, or budgets the user did not provide.",
+      "Never state talent availability, pricing, refunds, or booking guarantees — the agency confirms those.",
+      "Use only information from the context. Be concise (about 3–8 sentences).",
+      "Return only the message body text — no headings or surrounding quotes.",
+    ].join(" "),
+    es: [
       "Eres un asistente para redactar consultas breves y profesionales a una agencia de talentos.",
       "El usuario contacta a la agencia (no al talento directamente).",
       "No inventes datos de contacto, fechas exactas ni presupuestos que el usuario no haya indicado.",
       "No afirmes disponibilidad del talento, precios, reembolsos ni reservas confirmadas — la agencia lo confirma.",
       "Usa solo la información proporcionada en el contexto. Sé conciso (unos 3–8 frases).",
       "Devuelve únicamente el texto del mensaje, sin títulos ni comillas envolventes.",
-    ].join(" ");
-  }
-  return [
-    "You help write short, professional inquiry messages to a talent agency.",
-    "The user is contacting the agency (not talent directly).",
-    "Do not invent contact details, exact dates, or budgets the user did not provide.",
-    "Never state talent availability, pricing, refunds, or booking guarantees — the agency confirms those.",
-    "Use only information from the context. Be concise (about 3–8 sentences).",
-    "Return only the message body text — no headings or surrounding quotes.",
-  ].join(" ");
+    ].join(" "),
+  });
 }
 
 function userPayload(input: InquiryDraftModelInput): string {

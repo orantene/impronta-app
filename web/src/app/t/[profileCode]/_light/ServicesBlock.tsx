@@ -6,6 +6,7 @@
 
 import type { TalentServiceAreaRow } from "../page";
 import { LightSectionLabel } from "./section-label";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 
 type PackageTeaser = { label: string; detail: string | null };
 
@@ -82,7 +83,7 @@ export function ServicesBlock({
           {serviceAreas.map((area) => {
             const locationName =
               area.locations?.display_name_i18n?.[
-                locale === "es" ? "es" : "en"
+                pickLocale(locale, { en: "en", es: "es" })
               ] ?? null;
             const kindLabel =
               area.service_kind === "home_base"

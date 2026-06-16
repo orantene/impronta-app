@@ -19,6 +19,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 
 import { ProfileCover } from "./ProfileCover";
 import { ProfileHeader } from "./ProfileHeader";
@@ -431,7 +432,7 @@ export function LightProfileLayout({
             <ServiceMenuBlock
               items={isFreePlan ? [] : serviceMenuItems}
               locale={locale}
-              heading={locale === "es" ? "Servicios y precios" : "Services & pricing"}
+              heading={pickLocale(locale, { en: "Services & pricing", es: "Servicios y precios" })}
               disciplineLabels={disciplineLabels}
             />
 
@@ -475,7 +476,7 @@ export function LightProfileLayout({
                     summary={ratingSummary}
                     reviews={talentReviews}
                     theme="light"
-                    heading={locale === "es" ? "Reseñas" : "Reviews"}
+                    heading={pickLocale(locale, { en: "Reviews", es: "Reseñas" })}
                   />
                 </div>
               </section>

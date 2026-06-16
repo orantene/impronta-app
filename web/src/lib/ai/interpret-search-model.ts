@@ -1,6 +1,7 @@
 import { formatInterpretCatalogForPrompt } from "@/lib/ai/interpret-search-catalog";
 import type { InterpretCatalogTerm } from "@/lib/ai/interpret-search-catalog";
 import { resolveAiChatAdapter } from "@/lib/ai/resolve-provider";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 import type { RawModelIntent } from "@/lib/ai/validate-interpret-intent";
 import { improntaLog } from "@/lib/server/structured-log";
 
@@ -108,10 +109,10 @@ export async function runInterpretSearchModel(args: {
     locale: args.locale,
   });
 
-  const langNote =
-    args.locale === "es"
-      ? "The user may write in Spanish; match taxonomy UUIDs using Spanish labels in TAXONOMY when present (fourth column).\n"
-      : "";
+  const langNote = pickLocale(args.locale, {
+    en: "",
+    es: "The user may write in Spanish; match taxonomy UUIDs using Spanish labels in TAXONOMY when present (fourth column).\n",
+  });
 
   const systemPrompt = `You map natural-language talent directory searches into structured intent for a modeling agency.
 

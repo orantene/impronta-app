@@ -10,6 +10,7 @@
 
 import { useState } from "react";
 import type { ServiceMenuItem } from "@/lib/talent/services-menu-types";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 import { serviceMatchesDiscipline } from "@/lib/talent/services-menu-types";
 import { ServiceMenuList } from "./ServiceMenuList";
 
@@ -54,7 +55,7 @@ export function ServiceMenuFilter({
 }) {
   const [active, setActive] = useState<string | null>(null);
   const nameById = new Map(items.map((it) => [it.id, it.name]));
-  const allLabel = locale === "es" ? "Todos" : "All";
+  const allLabel = pickLocale(locale, { en: "All", es: "Todos" });
 
   // Only the disciplines shown as pills are "known" — a service scoped solely to
   // a stale id then behaves like general (shows under every pill, not nowhere).

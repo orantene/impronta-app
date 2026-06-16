@@ -9,12 +9,13 @@
 
 import type { ServiceMenuItem } from "@/lib/talent/services-menu-types";
 import { SERVICE_PRICING_SUFFIX } from "@/lib/talent/services-menu-types";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 
 /** Money formatter resilient to a bad/short currency code (falls back to plain). */
 export function formatPrice(amountCents: number, currency: string, locale: string): string {
   const amount = amountCents / 100;
   try {
-    return new Intl.NumberFormat(locale === "es" ? "es" : "en", {
+    return new Intl.NumberFormat(pickLocale(locale, { en: "en", es: "es" }), {
       style: "currency",
       currency: currency.toUpperCase(),
       maximumFractionDigits: amount % 1 === 0 ? 0 : 2,
@@ -26,9 +27,9 @@ export function formatPrice(amountCents: number, currency: string, locale: strin
 
 /** The price label for a service line: amount + unit suffix, or quote/on-request. */
 function priceLabel(it: ServiceMenuItem, locale: string): string {
-  if (it.visibility === "on_request") return locale === "es" ? "Bajo consulta" : "On request";
+  if (it.visibility === "on_request") return pickLocale(locale, { en: "On request", es: "Bajo consulta" });
   if (it.pricingType === "custom" || it.amountCents == null) {
-    return locale === "es" ? "Cotización a pedido" : "Quote on request";
+    return pickLocale(locale, { en: "Quote on request", es: "Cotización a pedido" });
   }
   const suffix = SERVICE_PRICING_SUFFIX[it.pricingType];
   const price = formatPrice(it.amountCents, it.currency, locale);
@@ -45,8 +46,8 @@ type ServiceMenuListProps = {
 };
 
 export function ServiceMenuList({ items, locale, disciplineLabels, nameById }: ServiceMenuListProps) {
-  const addOnsLabel = locale === "es" ? "Extras" : "Add-ons";
-  const includesLabel = locale === "es" ? "Incluye" : "Includes";
+  const addOnsLabel = pickLocale(locale, { en: "Add-ons", es: "Extras" });
+  const includesLabel = pickLocale(locale, { en: "Includes", es: "Incluye" });
 
   return (
     <div className="mt-5 space-y-3">

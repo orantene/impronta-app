@@ -1,4 +1,5 @@
 import { improntaLog } from "@/lib/server/structured-log";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -994,7 +995,7 @@ function formatFieldValue(row: PublicFieldValueRow, locale: string): string | nu
   if (typeof row.value_number === "number") return String(row.value_number);
   if (typeof row.value_boolean === "boolean") {
     return row.value_boolean
-      ? (locale === "es" ? "Sí" : "Yes")
+      ? pickLocale(locale, { en: "Yes", es: "Sí" })
       : "No";
   }
   if (row.value_date) return row.value_date;
@@ -1334,7 +1335,7 @@ export async function generateMetadata({
     description,
     metadataBase: metadataBaseUrl,
     alternates: {
-      canonical: locale === "es" ? canonicalEs : canonicalEn,
+      canonical: pickLocale(locale, { en: canonicalEn, es: canonicalEs }),
       languages: {
         en: canonicalEn,
         es: canonicalEs,
@@ -1345,8 +1346,8 @@ export async function generateMetadata({
       title,
       description,
       type: "profile",
-      locale: locale === "es" ? "es_ES" : "en_US",
-      alternateLocale: locale === "es" ? "en_US" : "es_ES",
+      locale: pickLocale(locale, { en: "en_US", es: "es_ES" }),
+      alternateLocale: pickLocale(locale, { en: "es_ES", es: "en_US" }),
     },
   };
 }
@@ -1499,7 +1500,7 @@ export default async function PublicTalentProfilePage({
   // so we title-case the slug and apply a few curated labels. Ungrouped rows
   // fall back to a generic "Details" bucket.
   const groupLabelFromSlug = (slug: string | null): string => {
-    if (!slug) return locale === "es" ? "Detalles" : "Details";
+    if (!slug) return pickLocale(locale, { en: "Details", es: "Detalles" });
     const curated: Record<string, { en: string; es: string }> = {
       measurements: { en: "Measurements", es: "Medidas" },
       physical: { en: "Physical", es: "Físico" },
@@ -1510,7 +1511,7 @@ export default async function PublicTalentProfilePage({
       preferences: { en: "Preferences", es: "Preferencias" },
     };
     const hit = curated[slug];
-    if (hit) return locale === "es" ? hit.es : hit.en;
+    if (hit) return pickLocale(locale, hit);
     return slug
       .replace(/[_-]+/g, " ")
       .replace(/\b\w/g, (c) => c.toUpperCase())
@@ -1798,11 +1799,11 @@ export default async function PublicTalentProfilePage({
   // taxonomy language terms were consolidated into talent_languages.
   const languages: string[] = structuredLanguages.map((r) => formatLanguageRow(r, locale));
   const homeBaseLabel: string | null = structuredServiceAreas.find(s => s.service_kind === "home_base")
-    ?.locations?.display_name_i18n?.[locale === "es" ? "es" : "en"]
+    ?.locations?.display_name_i18n?.[pickLocale(locale, { en: "en", es: "es" })]
     ?? null;
   const travelToCities: string[] = structuredServiceAreas
     .filter(s => s.service_kind === "travel_to")
-    .map(s => s.locations?.display_name_i18n?.[locale === "es" ? "es" : "en"])
+    .map(s => s.locations?.display_name_i18n?.[pickLocale(locale, { en: "en", es: "es" })])
     .filter((x): x is string => !!x);
 
   // Talent-selected manual featured media (showcase only, NOT verified). Only
@@ -1906,9 +1907,9 @@ export default async function PublicTalentProfilePage({
   };
 
   const detailsLabels = {
-    measurements: locale === "es" ? "Información básica" : "Basic info",
-    logistics: locale === "es" ? "Logística" : "Logistics",
-    experience: locale === "es" ? "Experiencia" : "Experience",
+    measurements: pickLocale(locale, { en: "Basic info", es: "Información básica" }),
+    logistics: pickLocale(locale, { en: "Logistics", es: "Logística" }),
+    experience: pickLocale(locale, { en: "Experience", es: "Experiencia" }),
     details: t("public.profile.details"),
   };
 
@@ -1922,7 +1923,7 @@ export default async function PublicTalentProfilePage({
     profile.profile_code,
     currentTenantId,
   );
-  const alsoOnLabel = locale === "es" ? "También en" : "Also on";
+  const alsoOnLabel = pickLocale(locale, { en: "Also on", es: "También en" });
 
   const firstName = name.split(" ")[0] ?? name;
 
@@ -1972,11 +1973,11 @@ export default async function PublicTalentProfilePage({
     givenName: profile.first_name ?? null,
     familyName: profile.last_name ?? null,
     jobTitle:
-      primaryTalentType(locale === "es" ? "es" : "en", profile.talent_profile_taxonomy ?? []) ?? null,
+      primaryTalentType(pickLocale(locale, { en: "en", es: "es" }), profile.talent_profile_taxonomy ?? []) ?? null,
     description: aboutText.trim() || null,
     imageUrl: bannerUrl ?? null,
-    addressLocality: residenceLabel(locale === "es" ? "es" : "en", profile as TalentProfile) ?? null,
-    inLanguage: locale === "es" ? "es" : "en",
+    addressLocality: residenceLabel(pickLocale(locale, { en: "en", es: "es" }), profile as TalentProfile) ?? null,
+    inLanguage: pickLocale(locale, { en: "en", es: "es" }),
     createdAt: (profile as { created_at?: string | null }).created_at ?? null,
     updatedAt: (profile as { updated_at?: string | null }).updated_at ?? null,
     affiliationName: hostCtx.kind === "agency" ? tenantBrand : null,
