@@ -74,16 +74,17 @@ export function kindGovernanceIsEmpty(g: KindGovernance | null | undefined): boo
  * Find the native catalog item that represents the PLAIN insert of `kind` and
  * return its governance overlay — or `null` when no such item exists.
  *
- * Matching rule (PURE, deterministic):
- *   - candidate items are `insertMethod === "nativeNode"` with `nativeKind === kind`;
- *   - the PLAIN-insert item is the candidate carrying NO `nativeVariant`
- *     (equivalently `nativeVariant === "default"`) — the governance counterpart
- *     of `createBuilderNode(kind)`. Kinds whose every catalog card is a variant
- *     (e.g. `cta_group` only exists as the "button-group" variant card) have NO
- *     plain item, so a bare kind-insert of them is left ungoverned (its variant
- *     cards govern their own gallery inserts).
- *   - when several plain items somehow match (shouldn't happen), the FIRST in
- *     list order wins (stable).
+ * Matching rule (PURE, deterministic) — candidates are `insertMethod ===
+ * "nativeNode"` with `nativeKind === kind`; the canonical card (the governance
+ * counterpart of a plain `createBuilderNode(kind)`) is resolved in priority:
+ *   1. a no-variant card (`nativeVariant` absent or `"default"`) — e.g.
+ *      `el-text`→paragraph, `el-image`→image, `el-section`→section;
+ *   2. else a SELF-NAMED variant card (`nativeVariant === kind`) — e.g.
+ *      `el-button` (`nativeKind:"button"`, `nativeVariant:"button"`), since
+ *      `button` has no no-variant card;
+ *   3. else the `el-<kind>` id convention.
+ * No match ⇒ `null`, so a kind whose only cards are true variants (e.g.
+ * `cta_group`, only ever the "button-group" variant) is never mis-governed.
  *
  * Returns `null` when no plain item matches, so the caller can short-circuit to
  * the byte-identical raw node.
@@ -92,17 +93,30 @@ export function resolveKindGovernance(
   kind: BuilderNodeKind,
   items: ReadonlyArray<AddGalleryItem>,
 ): KindGovernance | null {
-  const plain = items.find(
-    (item) =>
-      item.insertMethod === "nativeNode" &&
-      item.nativeKind === kind &&
-      (item.nativeVariant === undefined || item.nativeVariant === "default"),
+  // Candidates = every native catalog card for this kind. Most kinds have ONE
+  // plain (no-variant) card (el-text→paragraph, el-image→image, el-section→
+  // section). But some canonical cards carry a SELF-NAMED variant — e.g.
+  // `el-button` is `nativeKind:"button"` + `nativeVariant:"button"`, and `button`
+  // has NO no-variant card (every button card is a variant). The registry id
+  // convention is `el-<kind>`. So resolve the card that a plain
+  // `createBuilderNode(kind)` corresponds to, in priority order; no match ⇒ null
+  // (ungoverned, byte-identical) so a kind whose only cards are true variants
+  // (e.g. a "cta_group" only ever the button-group variant) is never mis-governed.
+  const candidates = items.filter(
+    (item) => item.insertMethod === "nativeNode" && item.nativeKind === kind,
   );
-  if (!plain) return null;
+  const canonical =
+    candidates.find(
+      (i) => i.nativeVariant === undefined || i.nativeVariant === "default",
+    ) ??
+    candidates.find((i) => i.nativeVariant === kind) ??
+    candidates.find((i) => i.id === `el-${kind}`) ??
+    null;
+  if (!canonical) return null;
   const governance: KindGovernance = {
-    lockedProps: plain.lockedProps,
-    defaultProps: plain.defaultProps,
-    dataSourceDefaults: plain.dataSourceDefaults,
+    lockedProps: canonical.lockedProps,
+    defaultProps: canonical.defaultProps,
+    dataSourceDefaults: canonical.dataSourceDefaults,
   };
   return kindGovernanceIsEmpty(governance) ? null : governance;
 }

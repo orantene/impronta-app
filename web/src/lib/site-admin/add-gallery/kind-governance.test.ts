@@ -11,6 +11,7 @@ import {
 import { createBuilderNode } from "@/lib/site-admin/builder-node/create";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import type { AddGalleryItem } from "./types";
+import { ADD_GALLERY_ITEMS } from "./registry";
 
 // ── fixtures ──────────────────────────────────────────────────────────────────
 
@@ -225,4 +226,35 @@ test("governRawInsertNode: a governed-but-other-kind overlay does NOT touch an u
 test("KindGovernance type is usable", () => {
   const g: KindGovernance = { lockedProps: ["x"] };
   assert.ok(g.lockedProps);
+});
+
+// ── REAL registry (regression guard for the variant-canonical mismatch) ───────
+// These use ADD_GALLERY_ITEMS so a wrong kind→item assumption can't pass on a
+// hand-mocked item. el-button is `nativeKind:"button"` + `nativeVariant:"button"`
+// (NOT no-variant) — the live-QA bug where resolveKindGovernance returned null.
+
+test("resolveKindGovernance: REAL el-button (self-named variant) governs kind 'button'", () => {
+  const items = ADD_GALLERY_ITEMS.map((it) =>
+    it.id === "el-button"
+      ? { ...it, lockedProps: ["tone"], defaultProps: { label: "Brand CTA" } }
+      : it,
+  );
+  const g = resolveKindGovernance("button", items);
+  assert.ok(g, "kind 'button' must resolve governance from el-button");
+  assert.deepEqual(g!.lockedProps, ["tone"]);
+  assert.deepEqual(g!.defaultProps, { label: "Brand CTA" });
+});
+
+test("resolveKindGovernance: REAL el-text (no-variant) governs kind 'paragraph'", () => {
+  const items = ADD_GALLERY_ITEMS.map((it) =>
+    it.id === "el-text" ? { ...it, lockedProps: ["style.textColor"] } : it,
+  );
+  const g = resolveKindGovernance("paragraph", items);
+  assert.ok(g);
+  assert.deepEqual(g!.lockedProps, ["style.textColor"]);
+});
+
+test("resolveKindGovernance: REAL registry, no overlay ⇒ null (byte-identical insert)", () => {
+  assert.equal(resolveKindGovernance("button", ADD_GALLERY_ITEMS), null);
+  assert.equal(resolveKindGovernance("paragraph", ADD_GALLERY_ITEMS), null);
 });
