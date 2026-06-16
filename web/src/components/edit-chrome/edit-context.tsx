@@ -63,7 +63,10 @@ import type {
   GallerySurfaceDescriptor,
 } from "@/lib/site-admin/add-gallery/types";
 import { fetchSurfaceGalleryItems } from "@/lib/site-admin/add-gallery/gallery-fetch-action";
-import { governRawInsertNode } from "@/lib/site-admin/add-gallery/kind-governance";
+import {
+  governRawInsertNode,
+  governSectionEmbedNode,
+} from "@/lib/site-admin/add-gallery/kind-governance";
 import { homepageAdapter } from "@/lib/site-admin/builder-core/adapters/homepage-adapter";
 import {
   restoreHomepageRevisionAction,
@@ -5851,7 +5854,18 @@ export function EditProvider({
     EditContextValue["insertBuilderSectionEmbed"]
   >(
     async (parentId, sectionTypeKey, index) => {
-      const node = createBuilderSectionEmbed(sectionTypeKey);
+      // Builder Studio (WS-C) — apply the SAME catalog governance the "+" gallery
+      // applies to a native insert, but on the curated section_embed / connected
+      // insert path. All embed callers (chips, layers tree, navigator, palette
+      // drop) funnel through here, so resolving governance by `sectionTypeKey`
+      // here governs every one of them. Byte-identical to
+      // `createBuilderSectionEmbed(sectionTypeKey)` for any embed the admin
+      // hasn't governed.
+      const node = governSectionEmbedNode(
+        createBuilderSectionEmbed(sectionTypeKey),
+        sectionTypeKey,
+        galleryItemsRef.current,
+      );
       const inserted = await executeBuilderNodeOperation({
         operation: "insert",
         nodeId: node.id,

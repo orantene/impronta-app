@@ -40,6 +40,8 @@ export function TulalaIdentityBar() {
     bridgeFirstRunToggleTipSeen,
     effectiveTenant,
     tenantSlug,
+    supportedLocales,
+    tenantDefaultLocale,
   } = useAdminShell();
   const copy = useDashboardText();
   const { surface, alsoTalent, role, entityType } = state;
@@ -372,9 +374,13 @@ export function TulalaIdentityBar() {
           <span className="font-admin-body text-[13px] font-bold">?</span>
         </IdentityBarIconButton>
 
-        {/* Locale toggle — matches production EN/ES affordance.
-            Compact pill; the inactive side flips on click. */}
-        <LocaleToggle />
+        {/* Locale toggle — the always-visible top-bar pill. Threaded from the
+            shell bridge so registry-added languages (e.g. `fr`) appear, not
+            just the static en/es fallback; hides for single-locale tenants. */}
+        <LocaleToggle
+          supportedLocales={supportedLocales}
+          defaultLocale={tenantDefaultLocale}
+        />
 
         {/* Preview public site — opens the agency homepage in a new tab */}
         <a
