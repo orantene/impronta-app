@@ -90,6 +90,16 @@ export type PayoutReceiverCandidate = {
 
 // ─── Read ─────────────────────────────────────────────────────────────────────
 
+// Mirror idx_booking_transactions_booking_active (migration 20260614031530): a
+// PAID / paid-out DEPOSIT no longer occupies the active slot — the balance charge
+// follows it. Without this the read-layer returns the settled deposit as "active",
+// which blocks creating the balance charge and surfaces a bogus "Initiate payout"
+// on the deposit. A deposit still in flight (draft/payment_requested/pending) keeps
+// the slot, correctly forcing "pay the deposit before the balance". OR-clause is
+// null-safe (checkout_type defaults to 'full' but never assume).
+const ACTIVE_NOT_SETTLED_DEPOSIT =
+  "checkout_type.is.null,checkout_type.neq.deposit,status.not.in.(paid,payout_pending,payout_sent,payout)";
+
 /**
  * Load the active transaction for a booking.
  * Returns null if no non-cancelled transaction exists.
@@ -108,6 +118,7 @@ export async function loadActiveBookingTransaction(
       .select("*")
       .eq("booking_id", bookingId)
       .not("status", "in", '("cancelled","failed","refunded")')
+      .or(ACTIVE_NOT_SETTLED_DEPOSIT)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -143,6 +154,7 @@ export async function loadTransactionsForTenant(
       .select("*")
       .eq("source_tenant_id", tenantId)
       .not("status", "in", '("cancelled","failed","refunded")')
+      .or(ACTIVE_NOT_SETTLED_DEPOSIT)
       .order("created_at", { ascending: false });
 
     if (error) {
