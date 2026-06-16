@@ -129,7 +129,17 @@ async function commitRows(rows: StructureUpsert[]): Promise<StructureActionResul
   if (!gate.ok) return fail(gate.error);
   if (rows.length === 0) return ok(undefined);
 
-  const payload = rows.map((r) => ({ ...r, updated_by: gate.userId }));
+  // Strip `undefined` fields so a PARTIAL write (e.g. a rename that only sets
+  // label_override) doesn't send `hidden: undefined` → null and trip the NOT
+  // NULL constraint on insert. Omitted columns then take their DB default on
+  // insert, and on a conflict-update only the provided columns are touched.
+  const payload = rows.map((r) => {
+    const clean: Record<string, unknown> = { updated_by: gate.userId };
+    for (const [k, v] of Object.entries(r)) {
+      if (v !== undefined) clean[k] = v;
+    }
+    return clean;
+  });
   try {
     const sb = getAdminClient();
     const { error } = await sb
