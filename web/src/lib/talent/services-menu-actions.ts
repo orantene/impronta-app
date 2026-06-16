@@ -114,11 +114,17 @@ async function loadTalentDisciplines(
   admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
   talentProfileId: string,
 ): Promise<TalentDiscipline[]> {
+  // name_en folded into name_i18n {en,es} (WS4); label off the English value.
   const { data } = await admin
     .from("talent_profile_taxonomy")
-    .select("taxonomy_terms:taxonomy_term_id ( id, name_en, kind, term_type )")
+    .select("taxonomy_terms:taxonomy_term_id ( id, name_i18n, kind, term_type )")
     .eq("talent_profile_id", talentProfileId);
-  type Term = { id: string; name_en: string | null; kind: string | null; term_type: string | null };
+  type Term = {
+    id: string;
+    name_i18n: Record<string, string | null> | null;
+    kind: string | null;
+    term_type: string | null;
+  };
   const rows = (data ?? []) as { taxonomy_terms: Term | Term[] | null }[];
   const out = new Map<string, string>();
   for (const r of rows) {
@@ -128,8 +134,9 @@ async function loadTalentDisciplines(
         ? [r.taxonomy_terms]
         : [];
     for (const t of terms) {
-      if (!t?.id || !t.name_en) continue;
-      if (t.kind === "talent_type" || t.term_type === "talent_type") out.set(t.id, t.name_en);
+      const nameEn = t?.name_i18n?.en ?? null;
+      if (!t?.id || !nameEn) continue;
+      if (t.kind === "talent_type" || t.term_type === "talent_type") out.set(t.id, nameEn);
     }
   }
   return [...out].map(([id, label]) => ({ id, label }));

@@ -175,7 +175,7 @@ export async function searchTalent(
     .from("talent_profile_taxonomy")
     .select(
       `talent_profile_id, taxonomy_term_id, relationship_type,
-       taxonomy_terms!inner ( slug, name_en, term_type )`,
+       taxonomy_terms!inner ( slug, term_type )`,
     )
     .in("talent_profile_id", candidateIds)
     .eq("relationship_type", "context");

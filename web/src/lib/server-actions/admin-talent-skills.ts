@@ -1243,7 +1243,7 @@ export async function getAspirations(input: {
     .from("talent_profile_taxonomy")
     .select(
       `taxonomy_term_id,
-       taxonomy_terms!inner ( slug, name_en, parent_id )`,
+       taxonomy_terms!inner ( slug, name_i18n, parent_id )`,
     )
     .eq("talent_profile_id", input.talent_profile_id)
     .eq("relationship_type", "aspiration");
@@ -1255,16 +1255,17 @@ export async function getAspirations(input: {
 
   return {
     ok: true,
+    // name_en folded into name_i18n {en,es} (WS4); flatten back for the DTO.
     aspirations: (data ?? []).map((row) => {
       const t = row.taxonomy_terms as unknown as {
         slug: string;
-        name_en: string;
+        name_i18n: Record<string, string | null> | null;
         parent_id: string | null;
       };
       return {
         term_id: row.taxonomy_term_id,
         slug: t.slug,
-        name_en: t.name_en,
+        name_en: t.name_i18n?.en ?? "",
         parent_name: null, // Resolved in UI via parent_id if needed
       };
     }),
