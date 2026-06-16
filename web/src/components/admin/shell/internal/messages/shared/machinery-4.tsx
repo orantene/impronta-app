@@ -36,7 +36,6 @@ export function ReassignCoordinatorSheet({
   const { toast, effectiveTenant } = useAdminShell();
   const [picked, setPicked] = useState<string | null>(null);
   const [note, setNote] = useState("");
-  const [notifyOutgoing, setNotifyOutgoing] = useState(true);
   // swap → staff-only handoff list; add_secondary → staff + roster talents.
   const [coords, setCoords] = useState<WorkspaceCoordinatorCandidate[] | null>(null);
   const [appointCands, setAppointCands] = useState<CoordinatorAssignCandidate[] | null>(null);
@@ -82,7 +81,7 @@ export function ReassignCoordinatorSheet({
   }, [open, mode, inquiryId, effectiveTenant.slug, currentCoordUserId]);
 
   const reset = () => {
-    setPicked(null); setNote(""); setNotifyOutgoing(true);
+    setPicked(null); setNote("");
     setError(null); setSubmitting(false); setSearch(""); setShowHistory(true);
   };
 
@@ -342,15 +341,6 @@ export function ReassignCoordinatorSheet({
               />
             </div>
           )}
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, cursor: "pointer" }} className="text-admin-ink">
-            <input
-              type="checkbox"
-              checked={notifyOutgoing}
-              onChange={(e) => setNotifyOutgoing(e.currentTarget.checked)}
-              style={{ width: 14, height: 14, cursor: "pointer" }}
-            />
-            Notify {currentCoordName} (sends a system message in the team thread)
-          </label>
           {error && (
             <div role="alert" style={{
               padding: "8px 10px", borderRadius: 8, fontSize: 12,
