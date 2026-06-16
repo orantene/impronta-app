@@ -214,6 +214,10 @@ const nextConfig: NextConfig = {
    */
   experimental: {
     viewTransition: true,
+    // Vercel Skew Protection (`skewProtection: true`) is injected just below the
+    // `experimental` block via a typed augmentation, not inline here: this Next
+    // version's `ExperimentalConfig` is a closed interface without the key, so an
+    // inline literal would fail `tsc`. See the long note at the assignment site.
     /**
      * Talent/agency photo uploads POST the image to a Server Action. Next's
      * default Server Action body limit is 1 MB, which silently rejected real
@@ -316,6 +320,35 @@ const nextConfig: NextConfig = {
     ];
   },
 };
+
+/**
+ * Vercel Skew Protection. After a new deploy ships, an already-loaded client can
+ * still hold the previous build's chunks / Server-Action ids; a mismatched
+ * client/server pair produced a recoverable React #310 hydration crash on the
+ * client message surface in prod (see incident_client_310_hydration). Skew
+ * Protection pins each client to the deployment it loaded so requests resolve
+ * against matching assets/functions until the user reloads.
+ *
+ * KEY CAVEAT — read before "fixing" this:
+ * Next 16.2.3 has NO `skewProtection` config key. Verified against this version's
+ * node_modules: `config-schema.js` (runtime validation) and the `ExperimentalConfig`
+ * interface in `config-shared.d.ts` expose only top-level `deploymentId` and
+ * `experimental.useSkewCookie` — there is no `skewProtection` anywhere, and
+ * `ExperimentalConfig` is a closed interface (no index signature), so an inline
+ * `experimental: { skewProtection: true }` literal fails `tsc` with an
+ * excess-property error. We therefore assign it through a typed augmentation so
+ * the central `tsc --noEmit` gate stays green.
+ *
+ * Next's own unknown-key handling treats this as a NON-FATAL warning, so it will
+ * not break the build — but on a plain `next build` it is effectively a no-op.
+ * The REAL enablement lives in the Vercel project dashboard
+ * (Settings → Advanced → Skew Protection), where Vercel wires the deployment id
+ * automatically. This flag is the documented "common form" and is kept here so
+ * (a) intent is colocated with the build config and (b) it is picked up
+ * automatically if/when Next promotes it to a first-class option. If you are
+ * enabling this for real, ALSO flip it in the Vercel dashboard.
+ */
+(nextConfig.experimental as Record<string, unknown>).skewProtection = true;
 
 export default withSentryConfig(nextConfig, {
   org: "tulala-digital",

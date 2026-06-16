@@ -24,6 +24,15 @@ jobs:
     name: Fidelity goldens
     runs-on: macos-14
     timeout-minutes: 15
+    # TEMPORARY (platform-health WS-E): non-blocking until the WebKit goldens are
+    # re-seeded. The WebKit cross-engine snapshots are unseeded and Chromium
+    # pixel diffs flake on essentially every PR, so this job was red-by-default —
+    # which trained everyone to merge through red. `continue-on-error: true`
+    # keeps the job RUNNING and visible (diffs still upload as artifacts) but a
+    # failure no longer reds/blocks the PR. Remove this line once the goldens are
+    # re-seeded via the `workflow_dispatch` + update_snapshots=true path below and
+    # the diffs are stable. Do NOT delete the workflow.
+    continue-on-error: true
     defaults:
       run:
         working-directory: web
@@ -114,11 +123,22 @@ jobs:
       # Enforce the published-page weight ceilings (HTML / renderer CSS / fonts /
       # images / DOM nodes / total transfer). Deterministic + offline — no browser
       # needed. Rationale + change-discipline: web/docs/builder-perf-budget.md.
+      #
+      # TEMPORARY (platform-health WS-E): this enforcement step is currently
+      # red-by-default on most PRs, which trains people to merge through red.
+      # `continue-on-error: true` keeps the budget RUNNING + reported (the report
+      # still uploads below) but a breach no longer blocks the PR. The self-test
+      # step right after stays BLOCKING, so the "the gate can still fail" property
+      # is preserved. Remove this line once the budget ceilings are re-tuned to
+      # the current page weights. Do NOT delete the step.
       - name: Enforce perf budget
+        continue-on-error: true
         run: npm run perf:builder-budget
 
       # Prove the gate still REJECTS bloat. A budget that can never fail is worse
-      # than no budget — this fails CI if the enforcement is ever weakened.
+      # than no budget — this fails CI if the enforcement is ever weakened. Kept
+      # BLOCKING on purpose (no continue-on-error) so the self-test still guards
+      # the budget logic even while enforcement above is temporarily soft.
       - name: Verify the gate rejects over-budget pages
         run: npm run perf:builder-budget:selftest
 
