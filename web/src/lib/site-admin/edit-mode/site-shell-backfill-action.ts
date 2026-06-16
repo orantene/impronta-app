@@ -37,6 +37,7 @@ import {
 import { upsertSection } from "@/lib/site-admin/server/sections";
 import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
 import { buildLegacySectionBuilderTree } from "@/lib/site-admin/builder-node/snapshot-slot-bridge";
+import { enrichShellBuilderTree } from "@/lib/site-admin/builder-node/shell-builder-tree";
 import { revalidateTag } from "next/cache";
 import { tagFor } from "@/lib/site-admin/cache-tags";
 
@@ -315,7 +316,15 @@ export async function backfillSiteShellForCurrentTenant(): Promise<ShellBackfill
     },
     templateSchemaVersion: 1,
     slots: snapshotSlots,
-    builderTree: buildLegacySectionBuilderTree(snapshotSlots),
+    // WS-A A8 — enrich the seeded builderTree so the new shell surface opens
+    // against the tenant's REAL content: a `nav` node from the header nav items,
+    // a `social_links` node from the footer social array, brand logo image, and
+    // footer column nav — appended to the role-bound brand/CTA/tagline children
+    // the base derivation already produces. Seed-path only (never read-time).
+    builderTree: enrichShellBuilderTree(
+      buildLegacySectionBuilderTree(snapshotSlots),
+      { header: headerProps, footer: footerProps },
+    ),
   };
 
   const { error: pubErr } = await admin

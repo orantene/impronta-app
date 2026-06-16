@@ -58,6 +58,39 @@ export function isSiteShellEnabledForTenant(tenantId: string): boolean {
 }
 
 /**
+ * Which chrome renders the page header/footer — the TWO-HEADERS MUTUAL-EXCLUSION
+ * predicate, extracted PURE so it is unit-testable without a DB read.
+ *
+ * This is exactly the decision `shouldRenderSnapshotShell` makes (flag gate AND
+ * a published shell exists), factored into its two pure inputs:
+ *   - `flagEnabled` = `isSiteShellEnabledForTenant(tenantId)` (env render flag +
+ *      tenant allow-list), and
+ *   - `shellPublished` = `loadPublishedShell(...) !== null`.
+ *
+ * The two outcomes are MUTUALLY EXCLUSIVE by construction (`renderSnapshotShell`
+ * and `renderLegacyHeader` are never both true):
+ *   - flag OFF  ⇒ legacy only (the flag-off parity guarantee).
+ *   - flag ON + allowed + shell published ⇒ snapshot only (the legacy
+ *     `PublicHeader` early-returns before rendering — see public-header.tsx).
+ *   - flag ON + allowed but NO published shell ⇒ legacy only (belt-and-suspenders
+ *     so a tenant with no shell row never renders empty chrome).
+ */
+export interface ShellRenderDecision {
+  /** Render the snapshot-rendered shell header/footer. */
+  renderSnapshotShell: boolean;
+  /** Render the legacy `PublicHeader` / footer. */
+  renderLegacyHeader: boolean;
+}
+
+export function resolveShellRenderDecision(input: {
+  flagEnabled: boolean;
+  shellPublished: boolean;
+}): ShellRenderDecision {
+  const snapshot = input.flagEnabled && input.shellPublished;
+  return { renderSnapshotShell: snapshot, renderLegacyHeader: !snapshot };
+}
+
+/**
  * Builder Studio WS-A — separate gate for whether the EDITOR may open the
  * `site_shell` builder SURFACE (load / edit / save / publish the freeform shell
  * tree). This is DELIBERATELY independent from `isSiteShellEnabledForTenant`,

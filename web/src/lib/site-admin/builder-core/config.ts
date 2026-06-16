@@ -376,9 +376,14 @@ export function buildSiteShellBuilderConfig(
       canInsertRawHtmlElements: opts?.canInsertRawHtmlElements ?? false,
     },
     galleryPolicy: {
-      allowedTabs: ["layout", "elements", "sections", "connected"],
-      // The shell is a single well-known surface — no DB template application.
-      allowDbTemplates: false,
+      // WS-A A7 — the shell surface gains the shell-only "shell" tab so a
+      // super-admin's published `shell_header` / `shell_footer` templates are
+      // insertable here (and ONLY here — no page-builder surface lists "shell").
+      allowedTabs: ["layout", "elements", "sections", "connected", "shell"],
+      // WS-A A7 — DB templates are now merged in so the shell tab can carry the
+      // published shell templates. The merge still filters by `allowedTabs`, so
+      // only `shell`-tab templates surface on this surface.
+      allowDbTemplates: true,
       surfaceTarget: "workspace",
     },
     dataSources: { allowed: AGENCY_PAGE_DATA_SOURCES },
@@ -463,6 +468,10 @@ export function buildPlatformLabBuilderConfig(
         "sections",
         "connected",
         "page_templates",
+        // WS-A A7 — the Lab is where shell templates are authored, so it both
+        // produces and consumes them; the "shell" tab surfaces published
+        // `shell_header` / `shell_footer` templates here for preview/insert.
+        "shell",
       ],
       // The Lab both authors and consumes DB templates.
       allowDbTemplates: true,
