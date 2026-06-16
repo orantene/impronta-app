@@ -54,8 +54,7 @@ import { resolveTenantSafeDirectoryTaxonomyTermIds } from "@/lib/directory/taxon
 type LocationRow = {
   id: string;
   city_slug: string;
-  display_name_en: string;
-  display_name_es: string | null;
+  display_name_i18n: Record<string, string | null> | null;
   country_code: string;
 };
 
@@ -83,8 +82,7 @@ type TaxonomyTermNested = {
   id: string;
   kind: string;
   slug: string;
-  name_en: string;
-  name_es: string | null;
+  name_i18n: Record<string, string | null> | null;
   sort_order: number;
 };
 
@@ -142,8 +140,8 @@ function buildClassicFilterMatchLabels(
     const cityLabel =
       pickLocalizedTermName(
         locale,
-        residence.display_name_en,
-        residence.display_name_es,
+        residence.display_name_i18n?.en ?? null,
+        residence.display_name_i18n?.es ?? null,
       ) || residence.city_slug;
     const line =
       locale === "es" ? `En ${cityLabel}` : `${cityLabel} based`;
@@ -321,7 +319,7 @@ export async function fetchDirectoryPage(
       () =>
         supabase
           .from("taxonomy_terms")
-          .select("id, kind, slug, name_en, name_es")
+          .select("id, kind, slug, name_i18n")
           .in("id", taxonomyTermIds)
           .is("archived_at", null),
     );
@@ -338,13 +336,12 @@ export async function fetchDirectoryPage(
       id: string;
       kind: string;
       slug: string;
-      name_en: string;
-      name_es: string | null;
+      name_i18n: Record<string, string | null> | null;
     }[]) {
       nextMeta.set(row.id, {
         kind: row.kind,
         slug: row.slug,
-        label: pickLocalizedTermName(locale, row.name_en, row.name_es),
+        label: pickLocalizedTermName(locale, row.name_i18n?.en ?? null, row.name_i18n?.es ?? null),
       });
       if (row.kind === "location_city") locationTaxonomy.citySlugs.push(row.slug);
       else if (row.kind === "location_country") locationTaxonomy.countrySlugs.push(row.slug);
@@ -643,15 +640,13 @@ export async function fetchDirectoryPage(
       residence_city:locations!residence_city_id (
         id,
         city_slug,
-        display_name_en,
-        display_name_es,
+        display_name_i18n,
         country_code
       ),
       legacy_location:locations!location_id (
         id,
         city_slug,
-        display_name_en,
-        display_name_es,
+        display_name_i18n,
         country_code
       )
     `,
@@ -780,7 +775,7 @@ export async function fetchDirectoryPage(
         () =>
           supabase
             .from("taxonomy_terms")
-            .select("id, name_en, name_es")
+            .select("id, name_i18n")
             .in("id", [...termIdSet]),
       );
 
@@ -789,10 +784,9 @@ export async function fetchDirectoryPage(
       }
       for (const t of (termRows ?? []) as {
         id: string;
-        name_en: string;
-        name_es: string | null;
+        name_i18n: Record<string, string | null> | null;
       }[]) {
-        termsById.set(t.id, { name_en: t.name_en, name_es: t.name_es });
+        termsById.set(t.id, { name_en: t.name_i18n?.en ?? "", name_es: t.name_i18n?.es ?? null });
       }
     }
   }
@@ -809,7 +803,7 @@ export async function fetchDirectoryPage(
             `
         talent_profile_id,
         is_primary,
-        taxonomy_terms ( id, kind, slug, name_en, name_es, sort_order )
+        taxonomy_terms ( id, kind, slug, name_i18n, sort_order )
       `,
           )
           .in("talent_profile_id", profileIds),
@@ -929,8 +923,8 @@ export async function fetchDirectoryPage(
           if (term.kind === "fit_label") {
             fitLabels.push({
               slug: term.slug,
-              name_en: term.name_en,
-              name_es: term.name_es,
+              name_en: term.name_i18n?.en ?? "",
+              name_es: term.name_i18n?.es ?? null,
               sort_order: term.sort_order,
             });
           }
@@ -950,8 +944,8 @@ export async function fetchDirectoryPage(
       for (const term of terms) {
         profileTaxonomyTerms.push({
           kind: term.kind,
-          name_en: term.name_en,
-          name_es: term.name_es,
+          name_en: term.name_i18n?.en ?? "",
+          name_es: term.name_i18n?.es ?? null,
           sort_order: term.sort_order,
         });
       }
@@ -1017,8 +1011,8 @@ export async function fetchDirectoryPage(
       thumb_storage_path: chosenMedia?.storage_path ?? null,
       primary_talent_type_name_en: primaryTalentType?.name_en ?? null,
       primary_talent_type_name_es: primaryTalentType?.name_es ?? null,
-      location_display_en: location?.display_name_en ?? null,
-      location_display_es: location?.display_name_es ?? null,
+      location_display_en: location?.display_name_i18n?.en ?? null,
+      location_display_es: location?.display_name_i18n?.es ?? null,
       location_country_code: location?.country_code ?? null,
       fit_labels_jsonb: fitLabels.slice(0, 2).map((label) => ({
         slug: label.slug,

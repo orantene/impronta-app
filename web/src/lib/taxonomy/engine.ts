@@ -35,6 +35,11 @@ import { shortParentLabel } from "./parent-labels";
 export type TermShape = {
   id: string;
   slug: string;
+  /** Canonical per-locale name map `{en,es}` (replaced the dropped
+   *  `name_en`/`name_es` columns). When a callsite selects `name_i18n`,
+   *  `unwrapTerm` backfills `name_en`/`name_es` from it so the many
+   *  downstream `.name_en` reads keep working unchanged. */
+  name_i18n?: Record<string, string | null> | null;
   name_en: string;
   name_es?: string | null;
   /** Legacy enum (talent_type, skill, language, …). */
@@ -95,11 +100,26 @@ export function isParentCategoryTerm(term: { term_type?: string | null }): boole
 // Profile primary/secondary role extraction
 // ────────────────────────────────────────────────────────────────────────
 
+/** Backfill `name_en`/`name_es` from `name_i18n` so downstream `.name_en`
+ *  reads keep working after the en/es columns were dropped. No-op when the
+ *  callsite already provided flat name_en (legacy partial selects). */
+function withFlatName(term: TermShape | null): TermShape | null {
+  if (!term) return null;
+  if (term.name_i18n && (term.name_en === undefined || term.name_en === null)) {
+    return {
+      ...term,
+      name_en: term.name_i18n.en ?? "",
+      name_es: term.name_es ?? term.name_i18n.es ?? null,
+    };
+  }
+  return term;
+}
+
 function unwrapTerm(row: ProfileTaxonomyRow): TermShape | null {
   const t = row.taxonomy_terms;
   if (!t) return null;
-  if (Array.isArray(t)) return t[0] ?? null;
-  return t;
+  if (Array.isArray(t)) return withFlatName(t[0] ?? null);
+  return withFlatName(t);
 }
 
 /**
@@ -261,11 +281,11 @@ export async function fetchParentCategoryByTermId(
   while (nextId && depth < 10) {
     const { data, error } = await supabase
       .from("taxonomy_terms")
-      .select("id, slug, name_en, name_es, kind, term_type, parent_id, level, is_public_filter, archived_at")
+      .select("id, slug, name_i18n, kind, term_type, parent_id, level, is_public_filter, archived_at")
       .eq("id", nextId)
       .maybeSingle();
     if (error || !data) return null;
-    const cur = data as TermShape;
+    const cur = withFlatName(data as TermShape)!;
     if (isParentCategoryTerm(cur)) return cur;
     nextId = cur.parent_id ?? null;
     depth++;
@@ -286,11 +306,11 @@ export async function fetchLineageByTermId(
   while (nextId && depth < 10) {
     const { data, error } = await supabase
       .from("taxonomy_terms")
-      .select("id, slug, name_en, name_es, kind, term_type, parent_id, level, is_public_filter, archived_at")
+      .select("id, slug, name_i18n, kind, term_type, parent_id, level, is_public_filter, archived_at")
       .eq("id", nextId)
       .maybeSingle();
     if (error || !data) break;
-    const cur = data as TermShape;
+    const cur = withFlatName(data as TermShape)!;
     path.unshift(cur);
     nextId = cur.parent_id ?? null;
     depth++;
@@ -311,7 +331,7 @@ export async function fetchParentCategories(
 ): Promise<ParentCategoryView[]> {
   let query = supabase
     .from("taxonomy_terms")
-    .select("id, slug, name_en, is_public_filter, sort_order")
+    .select("id, slug, name_i18n, is_public_filter, sort_order")
     .eq("term_type", "parent_category")
     .is("archived_at", null)
     .order("sort_order");
@@ -320,13 +340,16 @@ export async function fetchParentCategories(
   }
   const { data, error } = await query;
   if (error || !data) return [];
-  return (data as { id: string; slug: string; name_en: string; is_public_filter: boolean | null }[]).map((row) => ({
-    id: row.id,
-    slug: row.slug,
-    fullLabel: row.name_en,
-    shortLabel: shortParentLabel({ slug: row.slug, name: row.name_en }),
-    isPublicFilter: !!row.is_public_filter,
-  }));
+  return (data as { id: string; slug: string; name_i18n: Record<string, string | null> | null; is_public_filter: boolean | null }[]).map((row) => {
+    const fullLabel = row.name_i18n?.en ?? "";
+    return {
+      id: row.id,
+      slug: row.slug,
+      fullLabel,
+      shortLabel: shortParentLabel({ slug: row.slug, name: fullLabel }),
+      isPublicFilter: !!row.is_public_filter,
+    };
+  });
 }
 
 /**
