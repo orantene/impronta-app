@@ -757,6 +757,11 @@ const navPropsSchema = z.object({
     .optional(),
   menuLabel: z.string().max(80).optional(),
   ariaLabel: z.string().max(80).optional(),
+  // A4 follow-up — optional bind to a collection nav source (`cms_page` /
+  // `cms_posts`). When it resolves, the SHELL/server caller passes those
+  // records and the renderer auto-populates the top-level links from them;
+  // otherwise the static `links[]` render unchanged.
+  dataBinding: dataBindingPropsSchema.optional(),
   style: builderNodeStyleSchema,
 });
 

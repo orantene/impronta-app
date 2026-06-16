@@ -1671,6 +1671,31 @@ export function BuilderNodeContentInspector({
                   How the collapsed hamburger menu opens on mobile.
                 </Helper>
               </Field>
+              <Field flush>
+                <FieldLabel>Auto-populate links from</FieldLabel>
+                <select
+                  className={KIT.select}
+                  value={node.props.dataBinding?.sourceKey ?? ""}
+                  onChange={(event) => {
+                    const next = event.currentTarget.value;
+                    void commitPatch({
+                      dataBinding:
+                        next === "cms_page" || next === "cms_posts"
+                          ? { sourceKey: next }
+                          : undefined,
+                    });
+                  }}
+                >
+                  <option value="">Manual links (below)</option>
+                  <option value="cms_page">Site pages</option>
+                  <option value="cms_posts">Blog posts</option>
+                </select>
+                <Helper>
+                  When set, the nav builds its links from your published pages or
+                  posts. The manual links below stay as the fallback when nothing
+                  resolves.
+                </Helper>
+              </Field>
             </div>
           </CardBody>
         </Card>
@@ -1678,7 +1703,7 @@ export function BuilderNodeContentInspector({
         {/* Links list */}
         <Card>
           <CardHead
-            title="Nav links"
+            title={node.props.dataBinding ? "Fallback links" : "Nav links"}
             sub={`${links.length} link${links.length === 1 ? "" : "s"}`}
           />
           <CardBody>
@@ -3330,7 +3355,11 @@ function childSecondaryLabel(node: BuilderNode): string {
     case "spacer":
       return `Spacer · ${node.props.size.toUpperCase()}`;
     case "nav":
-      return `Navigation · ${node.props.links.length} link${node.props.links.length === 1 ? "" : "s"}`;
+      return node.props.dataBinding?.sourceKey === "cms_page"
+        ? "Navigation · from site pages"
+        : node.props.dataBinding?.sourceKey === "cms_posts"
+          ? "Navigation · from blog posts"
+          : `Navigation · ${node.props.links.length} link${node.props.links.length === 1 ? "" : "s"}`;
     case "social_links":
       return node.props.dataBinding?.sourceKey === "workspace_social_links"
         ? "Social links · synced"

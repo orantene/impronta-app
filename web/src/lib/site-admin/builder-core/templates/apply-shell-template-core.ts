@@ -48,6 +48,35 @@ export function slotForShellTemplateKind(kind: ShellTemplateKind): ShellSlotKey 
 }
 
 /**
+ * A7 follow-up — the `gallery_tab` a draft of `kind` must carry so the Lab
+ * "+ New" / template-manager create flow produces a coherent row:
+ *   - shell templates (`shell_header` / `shell_footer`) live ONLY on the "shell"
+ *     tab (gated by the shell surface's allowedTabs).
+ *   - `element` → "elements", `connected` → "connected", everything else
+ *     (`section` / `page_template` / `starter_kit`) → its natural tab.
+ * Pure so the create-draft kind wiring is unit-testable without React.
+ */
+export function galleryTabForTemplateKind(
+  kind: BuilderTemplateKind,
+): "sections" | "elements" | "connected" | "page_templates" | "shell" {
+  switch (kind) {
+    case "shell_header":
+    case "shell_footer":
+      return "shell";
+    case "element":
+      return "elements";
+    case "connected":
+      return "connected";
+    case "page_template":
+    case "starter_kit":
+      return "page_templates";
+    case "section":
+    default:
+      return "sections";
+  }
+}
+
+/**
  * Re-mint the template's `builder_tree` into the freeform CHILDREN of the target
  * landmark. The template tree is shared/immutable, so every node id is freshly
  * minted (no collision with the tenant's other landmark or a prior apply). The

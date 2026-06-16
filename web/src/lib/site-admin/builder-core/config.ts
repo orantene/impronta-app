@@ -367,9 +367,10 @@ export function buildSiteShellBuilderConfig(
     permissions: {
       canEditDraft: true,
       canPublish: true,
-      // No revision history for the shell surface yet (A2+); the adapter omits
-      // restoreRevision, so this stays false.
-      canRestoreRevision: false,
+      // A2 follow-up — the shell surface now has revision history (backed by
+      // `cms_page_revisions`); the bound adapter exposes `restoreRevision`, so
+      // the revisions UI is enabled here.
+      canRestoreRevision: true,
       // This surface IS the shell editor — the one non-homepage surface that
       // owns the shared site header/footer.
       canEditShell: true,

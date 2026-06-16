@@ -43,6 +43,8 @@ import { createTemplateDraft } from "@/lib/site-admin/builder-core/templates/reg
 import { createPlaygroundDraftFromDesign } from "@/lib/site-admin/builder-core/lab/create-draft-from-design";
 import { listAllTemplates } from "@/lib/site-admin/builder-core/templates/registry-admin-actions";
 import type {
+  BuilderGalleryTab,
+  BuilderTemplateKind,
   BuilderTemplateRow,
   BuilderTemplateStatus,
   BuilderTemplateTarget,
@@ -1107,25 +1109,86 @@ function StarterKitCard({
 
 // ── Playground ────────────────────────────────────────────────────────────────
 
-const PLAYGROUND_TARGETS: ReadonlyArray<{
+/** A "+ New" draft recipe — the kind/tab/seed metadata for `createTemplateDraft`.
+ *  Page-template targets vary by surface; shell templates are platform-authored
+ *  header/footer drafts that apply to a tenant's site_shell. */
+type PlaygroundNewSpec = {
+  kind: BuilderTemplateKind;
   target: BuilderLabTarget;
+  gallery_tab: BuilderGalleryTab;
+  category: string;
+  titleSeed: string;
+  slugSeed: string;
+};
+
+const PLAYGROUND_TARGETS: ReadonlyArray<{
+  spec: PlaygroundNewSpec;
   label: string;
   blurb: string;
 }> = [
   {
-    target: "talent",
+    spec: {
+      kind: "page_template",
+      target: "talent",
+      gallery_tab: "page_templates",
+      category: "playground",
+      titleSeed: "Untitled draft",
+      slugSeed: "playground",
+    },
     label: "Talent page",
     blurb: "Author against a single talent's live data.",
   },
   {
-    target: "workspace",
+    spec: {
+      kind: "page_template",
+      target: "workspace",
+      gallery_tab: "page_templates",
+      category: "playground",
+      titleSeed: "Untitled draft",
+      slugSeed: "playground",
+    },
     label: "Workspace page",
     blurb: "Author against a workspace / hub.",
   },
   {
-    target: "both",
+    spec: {
+      kind: "page_template",
+      target: "both",
+      gallery_tab: "page_templates",
+      category: "playground",
+      titleSeed: "Untitled draft",
+      slugSeed: "playground",
+    },
     label: "Both",
     blurb: "A design for both surfaces — preview against a talent or a workspace.",
+  },
+  // A7 follow-up — shell (header/footer) templates. Platform-authored; they
+  // surface ONLY on the shell-surface gallery and apply to a tenant's
+  // site_shell row via applyShellTemplateToTenant. Authored against a workspace
+  // preview subject (the shell hydrates against the tenant default).
+  {
+    spec: {
+      kind: "shell_header",
+      target: "workspace",
+      gallery_tab: "shell",
+      category: "shell",
+      titleSeed: "Untitled header",
+      slugSeed: "shell-header",
+    },
+    label: "Shell header",
+    blurb: "A reusable site header — apply it to a tenant's shell.",
+  },
+  {
+    spec: {
+      kind: "shell_footer",
+      target: "workspace",
+      gallery_tab: "shell",
+      category: "shell",
+      titleSeed: "Untitled footer",
+      slugSeed: "shell-footer",
+    },
+    label: "Shell footer",
+    blurb: "A reusable site footer — apply it to a tenant's shell.",
   },
 ];
 
@@ -1176,7 +1239,17 @@ function PlaygroundView({
   const reload = useCallback(async () => {
     const res = await listAllTemplates();
     if (res.ok) {
-      setDrafts(res.data.filter((t) => t.kind === "page_template"));
+      // A7 follow-up — the Playground lists full-page drafts AND the shell
+      // (header/footer) drafts, so a shell template can be authored + reopened
+      // here just like a page template.
+      setDrafts(
+        res.data.filter(
+          (t) =>
+            t.kind === "page_template" ||
+            t.kind === "shell_header" ||
+            t.kind === "shell_footer",
+        ),
+      );
     } else {
       setError(res.error);
     }
@@ -1187,22 +1260,24 @@ function PlaygroundView({
   }, [reload]);
 
   const createAndOpen = useCallback(
-    async (target: BuilderLabTarget) => {
+    async (spec: PlaygroundNewSpec) => {
       setMenuOpen(false);
       setCreating(true);
       setError(null);
       const stamp = Date.now().toString(36);
       const res = await createTemplateDraft({
-        kind: "page_template",
-        title: "Untitled draft",
-        slug: `playground-${stamp}-${Math.random().toString(36).slice(2, 7)}`,
-        category: "playground",
-        gallery_tab: "page_templates",
-        target_context: target,
+        kind: spec.kind,
+        title: spec.titleSeed,
+        slug: `${spec.slugSeed}-${stamp}-${Math.random()
+          .toString(36)
+          .slice(2, 7)}`,
+        category: spec.category,
+        gallery_tab: spec.gallery_tab,
+        target_context: spec.target,
       });
       setCreating(false);
       if (res.ok) {
-        onLaunchEditor?.(target, res.data.id);
+        onLaunchEditor?.(spec.target, res.data.id);
       } else {
         setError(res.error);
       }
@@ -1300,10 +1375,10 @@ function PlaygroundView({
               </div>
               {PLAYGROUND_TARGETS.map((opt) => (
                 <button
-                  key={opt.target}
+                  key={`${opt.spec.kind}:${opt.spec.target}`}
                   type="button"
                   role="menuitem"
-                  onClick={() => void createAndOpen(opt.target)}
+                  onClick={() => void createAndOpen(opt.spec)}
                   className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60"
                   style={{
                     display: "block",

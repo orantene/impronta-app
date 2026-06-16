@@ -121,6 +121,17 @@ export interface SiteShellAdapterActions {
     | { ok: true; publishedAt: string; updatedAt: string }
     | { ok: false; error: string }
   >;
+  /**
+   * A2 follow-up — OPTIONAL: restore a `cms_page_revisions` snapshot's freeform
+   * `blocks` tree back onto the shell row's draft. Re-asserts admin prop-locks
+   * (C1 chokepoint) on the restored tree. Returns the new `updated_at`. A shell
+   * adapter built without this omits `restoreRevision` (call-sites guard on its
+   * presence), exactly like the cms_page / talent_page model.
+   */
+  restoreRevision?: (input: {
+    pageId: string;
+    revisionId: string;
+  }) => Promise<{ ok: true; updatedAt: string } | { ok: false; error: string }>;
 }
 
 /** Build a freeform composition from the shell row. Pure — no I/O. */
@@ -244,11 +255,42 @@ export function createSiteShellAdapter(
         publishedAt: result.publishedAt,
       };
     },
+
+    // A2 follow-up — restore a saved shell revision's freeform tree onto the
+    // draft. Only present when the action surface supplies `restoreRevision`
+    // (production binds it; the spy test omits it to prove no-revision shells
+    // still type-check). Mirrors the cms_page adapter; keys off `locale`.
+    ...(actions.restoreRevision
+      ? {
+          async restoreRevision(
+            ctx: BuilderSurfaceContext,
+            input: BuilderSurfaceRestoreInput,
+          ): Promise<RevisionRestoreResult> {
+            guard("cms_pages");
+            const row = await actions.loadShell({ locale: ctx.locale });
+            if (!row) {
+              return { ok: false, error: "No site shell exists for this tenant." };
+            }
+            const result = await actions.restoreRevision!({
+              pageId: row.id,
+              revisionId: input.revisionId,
+            });
+            if (!result.ok) return { ok: false, error: result.error };
+            return {
+              ok: true,
+              pageVersion: Math.floor(
+                new Date(result.updatedAt).getTime() / 1000,
+              ),
+            };
+          },
+        }
+      : {}),
   };
 }
 
 /** Convenience re-export so callers can satisfy the optional restore contract.
- *  The shell has no revision history yet (A2+), so the adapter omits
- *  `restoreRevision` — call-sites already guard on its presence. */
+ *  A2 follow-up — when the action surface supplies `restoreRevision`, the shell
+ *  adapter exposes `restoreRevision` (backed by `cms_page_revisions`); a surface
+ *  built without it omits the method (call-sites guard on its presence). */
 export type SiteShellRevisionRestoreResult = RevisionRestoreResult;
 export type { BuilderSurfaceRestoreInput };
