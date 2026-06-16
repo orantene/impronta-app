@@ -17,6 +17,14 @@
  *                          FREEFORM (`is_freeform=true`), edited via the
  *                          front-end `?edit=1` UX. Slot-composed cms_pages
  *                          (homepage + system + legacy) stay on `homepage`.
+ *   - `site_shell`      — the tenant's shared site HEADER + FOOTER, edited as a
+ *                          freeform tree (Builder Studio WS-A). Persists the
+ *                          freeform `builderTree` to the dormant `site_shell`
+ *                          `cms_pages` row's `blocks` column and publishes through
+ *                          the existing `site-shell-publish` snapshot path. NEVER
+ *                          writes `cms_page_sections` — the dormant slot
+ *                          composition stays untouched. Behind `site-shell-flag`
+ *                          (OFF by default), so it cannot affect live rendering.
  *
  * Keep this list closed: adding a surface means adding an adapter, not
  * special-casing the editor.
@@ -28,7 +36,8 @@ export type BuilderSurfaceKind =
   | "homepage"
   | "talent_page"
   | "platform_lab"
-  | "cms_page";
+  | "cms_page"
+  | "site_shell";
 
 /** Every valid surface kind, for exhaustiveness checks + guard iteration. */
 export const BUILDER_SURFACE_KINDS: readonly BuilderSurfaceKind[] = [
@@ -36,6 +45,7 @@ export const BUILDER_SURFACE_KINDS: readonly BuilderSurfaceKind[] = [
   "talent_page",
   "platform_lab",
   "cms_page",
+  "site_shell",
 ] as const;
 
 /** The single surface allowed to write the legacy `cms_page_sections` table /

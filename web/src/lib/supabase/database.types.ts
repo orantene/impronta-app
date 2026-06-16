@@ -2552,9 +2552,13 @@ export type Database = {
         Row: {
           availability_override: string | null
           category_override: string | null
+          data_source_defaults: Json | null
+          default_props: Json | null
+          default_variant: string | null
           icon_override: string | null
           item_ref: string
           label_override: string | null
+          locked_props: string[]
           required_plan_override: string | null
           source: string
           talent_enabled: boolean
@@ -2565,9 +2569,13 @@ export type Database = {
         Insert: {
           availability_override?: string | null
           category_override?: string | null
+          data_source_defaults?: Json | null
+          default_props?: Json | null
+          default_variant?: string | null
           icon_override?: string | null
           item_ref: string
           label_override?: string | null
+          locked_props?: string[]
           required_plan_override?: string | null
           source: string
           talent_enabled?: boolean
@@ -2578,9 +2586,13 @@ export type Database = {
         Update: {
           availability_override?: string | null
           category_override?: string | null
+          data_source_defaults?: Json | null
+          default_props?: Json | null
+          default_variant?: string | null
           icon_override?: string | null
           item_ref?: string
           label_override?: string | null
+          locked_props?: string[]
           required_plan_override?: string | null
           source?: string
           talent_enabled?: boolean
@@ -2597,6 +2609,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      builder_catalog_structure: {
+        Row: {
+          category_override: string | null
+          created: boolean
+          hidden: boolean
+          icon_override: string | null
+          kind: string
+          label_override: string | null
+          parent_tab: string | null
+          ref: string
+          sort_order: number | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          category_override?: string | null
+          created?: boolean
+          hidden?: boolean
+          icon_override?: string | null
+          kind: string
+          label_override?: string | null
+          parent_tab?: string | null
+          ref: string
+          sort_order?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          category_override?: string | null
+          created?: boolean
+          hidden?: boolean
+          icon_override?: string | null
+          kind?: string
+          label_override?: string | null
+          parent_tab?: string | null
+          ref?: string
+          sort_order?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
       }
       builder_catalog_version: {
         Row: {
@@ -2668,23 +2722,30 @@ export type Database = {
         Row: {
           builder_tree: Json
           category: string
+          changelog: string | null
           created_at: string
           created_by: string | null
           data_binding_requirements: Json
+          data_source_defaults: Json | null
+          default_props: Json | null
           description: string | null
           gallery_tab: string
           hero_asset_id: string | null
           id: string
           kind: Database["public"]["Enums"]["builder_template_kind"]
+          locked_props: string[]
           published_at: string | null
           required_plan: string
           required_talent_tier: string | null
+          rollout_percentage: number
           schema_version: number
           slug: string
           source_tenant_id: string | null
           status: Database["public"]["Enums"]["builder_template_status"]
           tags: string[]
           target_context: Database["public"]["Enums"]["builder_template_target"]
+          tenant_allowlist: string[]
+          tenant_denylist: string[]
           theme_tokens: Json | null
           thumbnail_asset_id: string | null
           title: string
@@ -2694,23 +2755,30 @@ export type Database = {
         Insert: {
           builder_tree?: Json
           category: string
+          changelog?: string | null
           created_at?: string
           created_by?: string | null
           data_binding_requirements?: Json
+          data_source_defaults?: Json | null
+          default_props?: Json | null
           description?: string | null
           gallery_tab: string
           hero_asset_id?: string | null
           id?: string
           kind: Database["public"]["Enums"]["builder_template_kind"]
+          locked_props?: string[]
           published_at?: string | null
           required_plan?: string
           required_talent_tier?: string | null
+          rollout_percentage?: number
           schema_version?: number
           slug: string
           source_tenant_id?: string | null
           status?: Database["public"]["Enums"]["builder_template_status"]
           tags?: string[]
           target_context?: Database["public"]["Enums"]["builder_template_target"]
+          tenant_allowlist?: string[]
+          tenant_denylist?: string[]
           theme_tokens?: Json | null
           thumbnail_asset_id?: string | null
           title: string
@@ -2720,23 +2788,30 @@ export type Database = {
         Update: {
           builder_tree?: Json
           category?: string
+          changelog?: string | null
           created_at?: string
           created_by?: string | null
           data_binding_requirements?: Json
+          data_source_defaults?: Json | null
+          default_props?: Json | null
           description?: string | null
           gallery_tab?: string
           hero_asset_id?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["builder_template_kind"]
+          locked_props?: string[]
           published_at?: string | null
           required_plan?: string
           required_talent_tier?: string | null
+          rollout_percentage?: number
           schema_version?: number
           slug?: string
           source_tenant_id?: string | null
           status?: Database["public"]["Enums"]["builder_template_status"]
           tags?: string[]
           target_context?: Database["public"]["Enums"]["builder_template_target"]
+          tenant_allowlist?: string[]
+          tenant_denylist?: string[]
           theme_tokens?: Json | null
           thumbnail_asset_id?: string | null
           title?: string
@@ -14901,6 +14976,8 @@ export type Database = {
         | "connected"
         | "page_template"
         | "starter_kit"
+        | "shell_header"
+        | "shell_footer"
       builder_template_status: "draft" | "in_review" | "published" | "archived"
       builder_template_target: "talent" | "workspace" | "both" | "platform"
       client_account_type:
@@ -15219,6 +15296,8 @@ export const Constants = {
         "connected",
         "page_template",
         "starter_kit",
+        "shell_header",
+        "shell_footer",
       ],
       builder_template_status: ["draft", "in_review", "published", "archived"],
       builder_template_target: ["talent", "workspace", "both", "platform"],

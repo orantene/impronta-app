@@ -67,6 +67,16 @@ export interface BuilderNodeRenderDataSources {
     slug: string;
     name: string;
   }>;
+  // A4 — tenant social/contact links (the `workspace_social_links` source).
+  // Injected by the SHELL/server caller from `resolveShellSocialContact`
+  // (agency_business_identity). A bound `social_links` node renders these
+  // instead of its static authored `links[]`. Absent ⇒ the node falls back to
+  // its own links (never blanks out).
+  socialLinks?: ReadonlyArray<{
+    platform: string;
+    href: string;
+    label?: string;
+  }>;
   mediaAssets?: ReadonlyArray<BuilderImageMediaAsset>;
 }
 
@@ -363,6 +373,29 @@ const BUILDER_NODE_NAV_CSS = `
 .site-builder-node--nav-menu{list-style:none;margin:0;padding:0.5rem;display:flex;flex-direction:column;gap:0.25rem;position:absolute;top:calc(100% + 8px);left:0;right:0;z-index:30;background:var(--bn-nav-menu-bg,#ffffff);color:var(--bn-nav-menu-color,#111111);border:1px solid var(--bn-nav-menu-border,rgba(17,17,17,0.12));border-radius:12px;box-shadow:0 18px 40px rgba(0,0,0,0.16)}
 .site-builder-node--nav-menu>li{margin:0;padding:0}
 .site-builder-node--nav-menu a{display:block;padding:0.6rem 0.75rem;border-radius:8px;text-decoration:none;color:inherit;font-size:0.95rem}
+/* A3 — submenu disclosure. Desktop: the parent <li> is position:relative and
+   the .nav-submenu panel is absolutely positioned, hidden by default and
+   revealed on hover OR keyboard focus-within (CSS-only, no JS). The caret
+   toggle is tabIndex=-1 (the link is the real focus target); :focus-within on
+   the <li> opens the panel so a keyboard user reaches the children by tabbing.
+   "mega" widens the panel into auto-fill columns. On mobile (inside .nav-menu)
+   the panel is static + always laid out (children nest inline, indented). */
+.site-builder-node--nav-links .site-builder-node--nav-has-sub{position:relative;display:flex;align-items:center;gap:0.35rem}
+.site-builder-node--nav-sub-toggle{display:inline-flex;align-items:center;justify-content:center;width:1.25rem;height:1.25rem;padding:0;margin:0;background:none;border:0;color:inherit;cursor:pointer}
+.site-builder-node--nav-caret{display:block;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid currentColor;opacity:0.7}
+.site-builder-node--nav-links .site-builder-node--nav-submenu{list-style:none;margin:0;padding:0.5rem;display:flex;flex-direction:column;gap:0.15rem;position:absolute;top:calc(100% + 10px);left:0;z-index:40;min-width:200px;background:var(--bn-nav-menu-bg,#ffffff);color:var(--bn-nav-menu-color,#111111);border:1px solid var(--bn-nav-menu-border,rgba(17,17,17,0.12));border-radius:12px;box-shadow:0 18px 40px rgba(0,0,0,0.16);opacity:0;visibility:hidden;transform:translateY(4px);transition:opacity 120ms ease,transform 120ms ease,visibility 0s linear 120ms}
+.site-builder-node--nav-links .site-builder-node--nav-has-sub:hover .site-builder-node--nav-submenu,.site-builder-node--nav-links .site-builder-node--nav-has-sub:focus-within .site-builder-node--nav-submenu{opacity:1;visibility:visible;transform:translateY(0);transition-delay:0s}
+.site-builder-node--nav-links .site-builder-node--nav-submenu[data-bn-submenu="mega"]{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:0.15rem 1.25rem;min-width:min(620px,80vw)}
+.site-builder-node--nav-links .site-builder-node--nav-submenu>li{margin:0;padding:0}
+.site-builder-node--nav-links .site-builder-node--nav-submenu a{display:block;padding:0.5rem 0.65rem;border-radius:8px;text-decoration:none;color:inherit;font-size:0.92rem;white-space:nowrap}
+.site-builder-node--nav-menu .site-builder-node--nav-has-sub{display:block}
+.site-builder-node--nav-menu .site-builder-node--nav-sub-toggle{display:none}
+.site-builder-node--nav-menu .site-builder-node--nav-submenu{list-style:none;margin:0.1rem 0 0.3rem;padding:0 0 0 0.85rem;display:flex;flex-direction:column;gap:0.1rem;border-left:1px solid var(--bn-nav-menu-border,rgba(17,17,17,0.12))}
+.site-builder-node--nav-menu .site-builder-node--nav-submenu>li{margin:0;padding:0}
+.site-builder-node--nav-menu .site-builder-node--nav-submenu a{display:block;padding:0.45rem 0.6rem;border-radius:8px;text-decoration:none;color:inherit;font-size:0.9rem;opacity:0.92}
+@media (prefers-reduced-motion:reduce){
+  .site-builder-node--nav-links .site-builder-node--nav-submenu{transition:none}
+}
 @media (max-width:900px){
   .site-builder-node--nav[data-bn-collapse="tablet"] .site-builder-node--nav-links{display:none}
   .site-builder-node--nav[data-bn-collapse="tablet"] .site-builder-node--nav-disclosure{display:block}
@@ -370,7 +403,175 @@ const BUILDER_NODE_NAV_CSS = `
 @media (max-width:640px){
   .site-builder-node--nav[data-bn-collapse="mobile"] .site-builder-node--nav-links{display:none}
   .site-builder-node--nav[data-bn-collapse="mobile"] .site-builder-node--nav-disclosure{display:block}
+}
+/* A6 — collapsed mobile-menu VARIANTS. Mirrors PublicHeaderMobileMenu's
+   drawer-right / sheet-bottom / full-screen-fade shapes, driven purely by the
+   native details open state (no JS). "dropdown" (default / absent) keeps the
+   pre-A6 panel below, so existing nav trees are byte-identical. The panel is
+   position:fixed for the off-canvas variants so it escapes the header's
+   stacking/overflow; the open details animates it in. Variants apply ONLY
+   when the disclosure is visible (i.e. at/under the collapse breakpoint), so a
+   desktop render is untouched. */
+.site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu{animation:bn-nav-menu-in 200ms ease both}
+@keyframes bn-nav-menu-in{from{opacity:0}to{opacity:1}}
+.site-builder-node--nav[data-bn-mobile-menu="drawer-right"] .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu,
+.site-builder-node--nav[data-bn-mobile-menu="sheet-bottom"] .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu,
+.site-builder-node--nav[data-bn-mobile-menu="full-screen-fade"] .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu{position:fixed;z-index:80;max-height:none;overflow:auto}
+.site-builder-node--nav[data-bn-mobile-menu="drawer-right"] .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu{top:0;right:0;bottom:0;left:auto;width:88vw;max-width:400px;border-radius:0;box-shadow:-18px 0 40px rgba(0,0,0,0.2);animation:bn-nav-drawer-right 240ms ease both}
+@keyframes bn-nav-drawer-right{from{transform:translateX(100%)}to{transform:translateX(0)}}
+.site-builder-node--nav[data-bn-mobile-menu="sheet-bottom"] .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu{left:0;right:0;bottom:0;top:auto;max-height:80vh;border-radius:18px 18px 0 0;box-shadow:0 -18px 40px rgba(0,0,0,0.2);animation:bn-nav-sheet-bottom 240ms ease both}
+@keyframes bn-nav-sheet-bottom{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.site-builder-node--nav[data-bn-mobile-menu="full-screen-fade"] .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu{inset:0;width:100%;border-radius:0;padding:1.25rem;gap:0.35rem;justify-content:center;animation:bn-nav-menu-in 240ms ease both}
+@media (prefers-reduced-motion:reduce){
+  .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu{animation:none}
 }`;
+
+// A4 — social/contact icon row. The list lays out as an inline-flex row of
+// circular/square/bare icon chips; the SVG glyph paints in currentColor so the
+// active theme token colours them. Size + shape are driven by data attributes
+// on the wrapper so all variants share one stylesheet (no per-node inline CSS).
+const BUILDER_NODE_SOCIAL_CSS = `
+.site-builder-node--social{display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;gap:0.5rem;list-style:none;margin:0;padding:0}
+.site-builder-node--social>li{margin:0;padding:0}
+.site-builder-node--social-link{display:inline-flex;align-items:center;justify-content:center;color:inherit;text-decoration:none;transition:opacity 120ms ease,background-color 120ms ease}
+.site-builder-node--social-link:hover{opacity:0.72}
+.site-builder-node--social-link:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+.site-builder-node--social-icon{display:block;width:100%;height:100%}
+.site-builder-node--social[data-bn-size="sm"] .site-builder-node--social-link{width:1.75rem;height:1.75rem}
+.site-builder-node--social[data-bn-size="md"] .site-builder-node--social-link{width:2.25rem;height:2.25rem}
+.site-builder-node--social[data-bn-size="lg"] .site-builder-node--social-link{width:2.75rem;height:2.75rem}
+.site-builder-node--social[data-bn-size="sm"] .site-builder-node--social-icon{width:1.05rem;height:1.05rem}
+.site-builder-node--social[data-bn-size="md"] .site-builder-node--social-icon{width:1.25rem;height:1.25rem}
+.site-builder-node--social[data-bn-size="lg"] .site-builder-node--social-icon{width:1.5rem;height:1.5rem}
+.site-builder-node--social[data-bn-shape="circle"] .site-builder-node--social-link{border-radius:999px;background:var(--bn-social-chip-bg,rgba(127,127,127,0.12))}
+.site-builder-node--social[data-bn-shape="square"] .site-builder-node--social-link{border-radius:10px;background:var(--bn-social-chip-bg,rgba(127,127,127,0.12))}
+.site-builder-node--social[data-bn-shape="bare"] .site-builder-node--social-link{background:none}
+@media (prefers-reduced-motion:reduce){
+  .site-builder-node--social-link{transition:none}
+}`;
+
+// A4 — the `workspace_social_links` source aliases (mirrors the
+// `normalizeDataSourceKey` aliases in data-bindings.ts). A bound node may store
+// the canonical key directly; this keeps the case resilient to alias drift.
+function normalizeSocialSourceKey(sourceKey: string): string {
+  return sourceKey === "social_links" || sourceKey === "workspace_social"
+    ? "workspace_social_links"
+    : sourceKey;
+}
+
+const SOCIAL_PLATFORM_LABELS: Readonly<Record<string, string>> = {
+  instagram: "Instagram",
+  tiktok: "TikTok",
+  facebook: "Facebook",
+  youtube: "YouTube",
+  linkedin: "LinkedIn",
+  x: "X",
+  whatsapp: "WhatsApp",
+  email: "Email",
+};
+
+function socialPlatformLabel(platform: string): string {
+  return SOCIAL_PLATFORM_LABELS[platform] ?? "Link";
+}
+
+// Social hrefs are already full destinations (https / mailto: / tel: / wa.me).
+// They must NOT pass through `prefixPublicHref` (that would corrupt absolute
+// URLs). A bare email/phone value (no scheme) is upgraded to mailto:/tel:.
+function socialLinkHref(platform: string, href: string): string {
+  const raw = href.trim();
+  if (/^[a-z][a-z0-9+.-]*:/i.test(raw) || raw.startsWith("//")) return raw;
+  if (platform === "email") return `mailto:${raw}`;
+  if (platform === "whatsapp") return `https://wa.me/${raw.replace(/\D/g, "")}`;
+  return `https://${raw}`;
+}
+
+/**
+ * A4 — brand-neutral social/contact glyphs, painted in `currentColor` so the
+ * active theme token colours them (no external icon dependency, no tenant
+ * hardcoding). The paths are the SAME markup as the header cluster's
+ * `ClusterIcon` (site_header/Component.tsx) so the two surfaces stay visually
+ * consistent. An unknown platform falls back to a generic link glyph.
+ */
+function SocialGlyph({ platform }: { platform: string }) {
+  const cls = "site-builder-node--social-icon";
+  const stroke = {
+    className: cls,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.7,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    "aria-hidden": true,
+    focusable: "false" as const,
+  };
+  const solid = {
+    className: cls,
+    viewBox: "0 0 24 24",
+    fill: "currentColor",
+    "aria-hidden": true,
+    focusable: "false" as const,
+  };
+  switch (platform) {
+    case "instagram":
+      return (
+        <svg {...stroke}>
+          <rect x="2" y="2" width="20" height="20" rx="5.5" />
+          <circle cx="12" cy="12" r="4.2" />
+          <circle cx="17.6" cy="6.4" r="1.2" fill="currentColor" stroke="none" />
+        </svg>
+      );
+    case "tiktok":
+      return (
+        <svg {...solid}>
+          <path d="M16.5 1.5h-3v14.2a3.1 3.1 0 11-2.3-3v-3.1a6.2 6.2 0 105.3 6.1V8.4a7.3 7.3 0 004.3 1.4V6.7a4.3 4.3 0 01-4.3-4.3v-.9z" />
+        </svg>
+      );
+    case "facebook":
+      return (
+        <svg {...solid}>
+          <path d="M22 12a10 10 0 1 0-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.5h-1.3c-1.2 0-1.6.8-1.6 1.6V12h2.8l-.4 2.9h-2.4v7A10 10 0 0 0 22 12z" />
+        </svg>
+      );
+    case "youtube":
+      return (
+        <svg {...solid}>
+          <path d="M22.5 7.1a2.7 2.7 0 0 0-1.9-1.9C18.9 4.7 12 4.7 12 4.7s-6.9 0-8.6.5A2.7 2.7 0 0 0 1.5 7.1 28 28 0 0 0 1 12a28 28 0 0 0 .5 4.9 2.7 2.7 0 0 0 1.9 1.9c1.7.5 8.6.5 8.6.5s6.9 0 8.6-.5a2.7 2.7 0 0 0 1.9-1.9A28 28 0 0 0 23 12a28 28 0 0 0-.5-4.9zM9.8 15.3V8.7l5.7 3.3z" />
+        </svg>
+      );
+    case "linkedin":
+      return (
+        <svg {...solid}>
+          <path d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zM3 9h4v12H3zM10 9h3.8v1.7h.1c.5-1 1.8-2 3.7-2 4 0 4.7 2.6 4.7 6V21h-4v-5.3c0-1.3 0-2.9-1.8-2.9s-2 1.4-2 2.8V21h-4z" />
+        </svg>
+      );
+    case "x":
+      return (
+        <svg {...solid}>
+          <path d="M18.9 2h3.3l-7.2 8.3L23 22h-6.6l-5.2-6.8L5.3 22H2l7.7-8.8L1.5 2h6.8l4.7 6.2zm-1.2 18h1.8L7.1 3.9H5.2z" />
+        </svg>
+      );
+    case "whatsapp":
+      return (
+        <svg {...solid}>
+          <path d="M.06 24l1.69-6.16a11.87 11.87 0 01-1.59-5.95C.16 5.34 5.5 0 12.06 0a11.82 11.82 0 018.41 3.49 11.82 11.82 0 013.48 8.41c0 6.56-5.34 11.9-11.9 11.9a11.9 11.9 0 01-5.69-1.45L.06 24zM6.6 20.13c1.68 1 3.28 1.6 5.45 1.6 5.45 0 9.89-4.43 9.89-9.88a9.83 9.83 0 00-2.9-7 9.78 9.78 0 00-6.98-2.9c-5.46 0-9.9 4.44-9.9 9.89a9.82 9.82 0 001.51 5.26l-.99 3.6 3.92-1.02zm11.39-5.7c-.07-.12-.27-.2-.56-.34-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.66.15-.2.29-.76.96-.94 1.16-.17.2-.34.22-.64.07-.3-.15-1.25-.46-2.39-1.47-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.14.3-.34.44-.52.15-.17.2-.29.3-.49.1-.2.05-.37-.02-.52-.08-.15-.66-1.6-.9-2.19-.24-.57-.48-.5-.66-.5l-.57-.01c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.47s1.07 2.86 1.21 3.06c.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.69.63.71.22 1.36.19 1.87.12.57-.09 1.76-.72 2-1.41.25-.7.25-1.29.18-1.41z" />
+        </svg>
+      );
+    case "email":
+      return (
+        <svg {...stroke}>
+          <rect x="2.5" y="4.5" width="19" height="15" rx="2" />
+          <path d="m3 6 9 6.5L21 6" />
+        </svg>
+      );
+    default:
+      return (
+        <svg {...stroke}>
+          <path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1m-2 9a5 5 0 0 1-7 0 5 5 0 0 1 0-7l3-3a5 5 0 0 1 7 0" />
+        </svg>
+      );
+  }
+}
 
 const CONTAINER_STYLE: CSSProperties = {
   width: "100%",
@@ -709,6 +910,7 @@ const BUILDER_NODE_RENDERER_CSS = `
 }
 ${BUILDER_NODE_CONTAINER_QUERY_CSS}
 ${BUILDER_NODE_NAV_CSS}
+${BUILDER_NODE_SOCIAL_CSS}
 `;
 
 /**
@@ -2110,6 +2312,8 @@ function collectionRecordsForSource(
         ...shortcut,
         href: `/directory?type=${encodeURIComponent(shortcut.slug)}`,
       }));
+    case "workspace_social_links":
+      return (dataSources.socialLinks ?? []).map((link) => ({ ...link }));
     default:
       return [];
   }
@@ -3467,18 +3671,63 @@ function renderBuilderNodeElement(
         options.contentLocale,
       );
       const collapseAt = navProps.collapseAt ?? "mobile";
+      const submenuVariant = navProps.submenuVariant ?? "dropdown";
+      const mobileMenuVariant = navProps.mobileMenuVariant ?? "dropdown";
       const menuLabel = navProps.menuLabel?.trim() || "Menu";
       const navAriaLabel = navProps.ariaLabel?.trim() || "Primary";
       const menuId = `${node.id}-menu`;
       const links = navProps.links ?? [];
+      // A3 — render one link row item. A link with NO children emits the EXACT
+      // pre-A3 `<li><a>…</a></li>` markup (byte-identical). A link WITH children
+      // wraps in a CSS-only disclosure: desktop = a hover/focus dropdown (or a
+      // wider multi-column "mega" panel), mobile = the children nest inline. The
+      // `aria-haspopup`/`group` semantics live on the parent <li>; the panel is
+      // a real <ul> in the a11y tree (never display:none-into-nothing on focus).
       const renderNavLinks = (variant: "inline" | "menu") =>
-        links.map((link) => (
-          <li key={`${node.id}:${variant}:${link.id}`}>
+        links.map((link) => {
+          const children = link.children ?? [];
+          const linkAnchor = (
             <a href={prefixPublicHref(link.href, options.publicPathPrefix)}>
               {link.label}
             </a>
-          </li>
-        ));
+          );
+          if (children.length === 0) {
+            return <li key={`${node.id}:${variant}:${link.id}`}>{linkAnchor}</li>;
+          }
+          const subId = `${node.id}-sub-${link.id}-${variant}`;
+          return (
+            <li
+              key={`${node.id}:${variant}:${link.id}`}
+              className="site-builder-node--nav-has-sub"
+              data-bn-submenu={submenuVariant}
+            >
+              {linkAnchor}
+              <button
+                type="button"
+                className="site-builder-node--nav-sub-toggle"
+                aria-haspopup="true"
+                aria-controls={subId}
+                aria-label={`${link.label} submenu`}
+                tabIndex={-1}
+              >
+                <span className="site-builder-node--nav-caret" aria-hidden="true" />
+              </button>
+              <ul
+                id={subId}
+                className="site-builder-node--nav-submenu"
+                data-bn-submenu={submenuVariant}
+              >
+                {children.map((child) => (
+                  <li key={`${node.id}:${variant}:${link.id}:${child.id}`}>
+                    <a href={prefixPublicHref(child.href, options.publicPathPrefix)}>
+                      {child.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </li>
+          );
+        });
       return (
         <nav
           key={node.id}
@@ -3486,6 +3735,8 @@ function renderBuilderNodeElement(
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(navProps.style)}
           data-bn-collapse={collapseAt}
+          data-bn-submenu={submenuVariant}
+          data-bn-mobile-menu={mobileMenuVariant}
           aria-label={navAriaLabel}
           className="site-builder-node site-builder-node--nav"
           style={inlineNodeStyle(navProps.style)}
@@ -3523,6 +3774,81 @@ function renderBuilderNodeElement(
             </ul>
           </details>
         </nav>
+      );
+    }
+    case "social_links": {
+      const socialProps = node.props;
+      const size = socialProps.size ?? "md";
+      const shape = socialProps.shape ?? "circle";
+      const ariaLabel = socialProps.ariaLabel?.trim() || "Social links";
+      // A4 — when bound to `workspace_social_links` AND the SHELL/server caller
+      // supplied resolved tenant links, render those; otherwise fall back to the
+      // static authored links. Either way a missing/invalid href is dropped so
+      // the row never emits a dead `<a href>`.
+      const boundRecords =
+        socialProps.dataBinding
+          ? collectionRecordsForSource(
+              normalizeSocialSourceKey(socialProps.dataBinding.sourceKey),
+              options.dataSources,
+            )
+          : null;
+      const resolved: ReadonlyArray<{
+        key: string;
+        platform: string;
+        href: string;
+        label?: string;
+      }> =
+        boundRecords && boundRecords.length > 0
+          ? boundRecords
+              .map((record, index) => ({
+                key: `bound-${index}`,
+                platform: String(record.platform ?? ""),
+                href: String(record.href ?? ""),
+                label:
+                  typeof record.label === "string" ? record.label : undefined,
+              }))
+              .filter((link) => link.href.length > 0)
+          : (socialProps.links ?? [])
+              .filter((link) => link.href.trim().length > 0)
+              .map((link) => ({
+                key: link.id,
+                platform: link.platform,
+                href: link.href,
+                label: link.label,
+              }));
+      // An empty social row (no links, no bound data) renders nothing rather
+      // than an empty <ul> — keeps the shell clean when nothing is configured.
+      if (resolved.length === 0) return null;
+      return (
+        <ul
+          key={node.id}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          {...builderNodeStyleAttrs(socialProps.style)}
+          data-bn-size={size}
+          data-bn-shape={shape}
+          aria-label={ariaLabel}
+          className="site-builder-node site-builder-node--social"
+          style={inlineNodeStyle(socialProps.style)}
+        >
+          {resolved.map((link) => {
+            const accessibleLabel =
+              link.label?.trim() || socialPlatformLabel(link.platform);
+            return (
+              <li key={`${node.id}:${link.key}`}>
+                <a
+                  className="site-builder-node--social-link"
+                  href={socialLinkHref(link.platform, link.href)}
+                  aria-label={accessibleLabel}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                >
+                  <SocialGlyph platform={link.platform} />
+                </a>
+              </li>
+            );
+          })}
+        </ul>
       );
     }
     default:

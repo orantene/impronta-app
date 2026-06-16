@@ -140,6 +140,24 @@ export function createNav(style?: BuilderNodeStyle): BuilderNode {
   };
 }
 
+export function createSocialLinks(style?: BuilderNodeStyle): BuilderNode {
+  return {
+    id: makeId("social_links"),
+    kind: "social_links",
+    props: {
+      size: "md",
+      shape: "circle",
+      ariaLabel: "Social links",
+      links: [
+        { id: randomUuid(), platform: "instagram", href: "https://instagram.com/" },
+        { id: randomUuid(), platform: "tiktok", href: "https://tiktok.com/" },
+        { id: randomUuid(), platform: "facebook", href: "https://facebook.com/" },
+      ],
+      style,
+    },
+  };
+}
+
 export function createAccordionItem(title: string, body: string): BuilderNode {
   return {
     id: makeId("accordion_item"),
@@ -384,6 +402,8 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
       };
     case "nav":
       return createNav();
+    case "social_links":
+      return createSocialLinks();
     case "form":
       return {
         id: makeId("form"),

@@ -25,6 +25,9 @@ import { locationDiscoveryMeta } from "./location_discovery/meta";
 import { siteFooterMeta } from "./site_footer/meta";
 import { siteHeaderMeta } from "./site_header/meta";
 import { talentTypeGridMeta } from "./talent_type_grid/meta";
+// WS-A A5 — async (server-data-loader) header-widget embeds.
+import { headerAccountMeta } from "./header_account/meta";
+import { headerInquiryMeta } from "./header_inquiry/meta";
 import type { SectionMeta } from "./types";
 
 /**
@@ -42,6 +45,8 @@ const LIVE_DATA_METAS: ReadonlyArray<SectionMeta> = [
   siteFooterMeta,
   siteHeaderMeta,
   talentTypeGridMeta,
+  headerAccountMeta,
+  headerInquiryMeta,
 ];
 
 /** Section type keys whose meta is tagged `hasLiveData:true`. Derived, not hand-listed. */

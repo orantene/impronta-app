@@ -22,13 +22,27 @@ export type BuilderTemplateKind =
   | "section"
   | "connected"
   | "page_template"
-  | "starter_kit";
+  | "starter_kit"
+  // WS-A A7 — a template that targets the shared SITE SHELL header / footer.
+  // Authored in the Builder Lab, surfaced ONLY on the shell-surface gallery
+  // (gated by `allowedTabs`), applied to a tenant's `site_shell` row via
+  // `applyShellTemplateToTenant`. Never shown in the page builders' tabs.
+  | "shell_header"
+  | "shell_footer";
 
 export type BuilderTemplateStatus = "draft" | "in_review" | "published" | "archived";
 
 export type BuilderTemplateTarget = "talent" | "workspace" | "both" | "platform";
 
-export type BuilderGalleryTab = "sections" | "elements" | "connected" | "page_templates";
+export type BuilderGalleryTab =
+  | "sections"
+  | "elements"
+  | "connected"
+  | "page_templates"
+  // WS-A A7 — shell-only gallery tab. Carries `shell_header` / `shell_footer`
+  // templates; offered solely on the shell surface (+ the Lab for authoring),
+  // so these never appear in a tenant/talent page builder.
+  | "shell";
 
 // ── DB row types ──────────────────────────────────────────────────────────────
 
@@ -61,6 +75,15 @@ export interface BuilderTemplateRow {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  // Builder Studio (Wave 0 plumbing; behavior in WS-C/WS-D). Optional so existing
+  // row constructors/tests don't need updating; the DB always supplies them.
+  default_props?: Record<string, unknown> | null;
+  locked_props?: string[];
+  data_source_defaults?: Record<string, unknown> | null;
+  rollout_percentage?: number;
+  tenant_allowlist?: string[];
+  tenant_denylist?: string[];
+  changelog?: string | null;
 }
 
 /**
@@ -171,6 +194,105 @@ export function computeDataBindingRequirements(
   }
 
   return result;
+}
+
+// ── Publish / rollback version + note helpers (pure) ─────────────────────────
+
+/**
+ * The version a publish (or rollback re-publish) lands on: always one past the
+ * current row version. History is forward-only — we never reuse or rewind a
+ * version number, even when rolling back to an older revision's content.
+ */
+export function nextPublishedVersion(currentVersion: number): number {
+  return currentVersion + 1;
+}
+
+/**
+ * The audit note stamped on a rollback's revision snapshot. Kept pure + shared
+ * so the action and its tests agree on the exact wording.
+ */
+export function rollbackRevisionNote(targetVersion: number): string {
+  return `Rolled back to v${targetVersion}`;
+}
+
+/**
+ * Normalize a publish-time changelog/note string (WS-D D4) into the value to
+ * persist. Pure + shared so the publish action and its tests agree on the rule:
+ *   - `undefined` ⇒ `undefined` (caller skips the column — leaves it untouched)
+ *   - blank / whitespace-only ⇒ `null` (explicitly clears it)
+ *   - otherwise ⇒ the trimmed string
+ */
+export function normalizeChangelog(
+  raw: string | null | undefined,
+): string | null | undefined {
+  if (raw === undefined) return undefined;
+  const trimmed = raw?.trim();
+  return trimmed ? trimmed : null;
+}
+
+// ── Staged-rollout input normalizer (WS-D D3, pure) ──────────────────────────
+
+/** Input for the `setTemplateRollout` action. All fields optional. */
+export interface SetTemplateRolloutInput {
+  rollout_percentage?: number;
+  tenant_allowlist?: string[];
+  tenant_denylist?: string[];
+}
+
+/** A simple UUID v4-ish shape check so a fat-fingered tenant id is dropped
+ *  rather than persisted as a poison value the bucket can never match. */
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Trim, lowercase, dedupe, and keep only well-formed UUIDs. PURE. */
+export function normalizeTenantIdList(raw: string[] | undefined): string[] {
+  if (!raw) return [];
+  const seen = new Set<string>();
+  for (const v of raw) {
+    const id = v.trim().toLowerCase();
+    if (id && UUID_RE.test(id)) seen.add(id);
+  }
+  return [...seen];
+}
+
+/**
+ * Normalize a `setTemplateRollout` input into the exact column patch to persist.
+ * PURE + shared so the action and its tests agree:
+ *   - percentage is clamped to [0, 100] and rounded; omitted ⇒ column untouched.
+ *   - allow/deny lists are trimmed/lowercased/deduped/UUID-filtered; omitted ⇒
+ *     column untouched. A tenant id in BOTH lists is dropped from the allowlist
+ *     (deny wins) so the persisted state matches the runtime decision order.
+ */
+export function normalizeRolloutPatch(
+  input: SetTemplateRolloutInput,
+): Record<string, unknown> {
+  const patch: Record<string, unknown> = {};
+
+  if (input.rollout_percentage !== undefined) {
+    const n = Math.round(input.rollout_percentage);
+    patch.rollout_percentage = Math.max(0, Math.min(100, Number.isFinite(n) ? n : 100));
+  }
+
+  const deny =
+    input.tenant_denylist !== undefined
+      ? normalizeTenantIdList(input.tenant_denylist)
+      : undefined;
+  const allow =
+    input.tenant_allowlist !== undefined
+      ? normalizeTenantIdList(input.tenant_allowlist)
+      : undefined;
+
+  if (deny !== undefined) patch.tenant_denylist = deny;
+  if (allow !== undefined) {
+    // Deny wins: a tenant in both lists is removed from the allowlist so the
+    // stored state can't imply a contradiction. Only de-conflict against deny
+    // ids we know about (the incoming deny list, else the existing one is left
+    // to the runtime gate, which already prefers deny).
+    const denySet = new Set(deny ?? []);
+    patch.tenant_allowlist = allow.filter((id) => !denySet.has(id));
+  }
+
+  return patch;
 }
 
 // ── Plan rank helper (mirrors data-bindings.ts PLAN_RANK) ────────────────────

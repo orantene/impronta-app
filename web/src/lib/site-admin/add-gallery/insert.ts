@@ -10,6 +10,7 @@ import {
 import { cloneNodeWithFreshIds } from "@/lib/site-admin/builder-node/operations";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 
+import { applyItemDataSourceDefaults, applyItemDefaultProps } from "./apply-item-overlay";
 import { buildAddGallerySectionTemplate } from "./section-templates";
 import type { AddGalleryInsertMethod, AddGalleryItem, AddGalleryNativeVariant } from "./types";
 
@@ -41,8 +42,54 @@ export function createNativeNodeForGalleryItem(item: AddGalleryItem): BuilderNod
   if (item.insertMethod !== "nativeNode" || !item.nativeKind) {
     throw new Error(`Item "${item.id}" is not a nativeNode insert.`);
   }
-  const variant = item.nativeVariant ?? "default";
-  return applyNativeVariant(createBuilderNode(item.nativeKind), variant);
+  // C3 — resolve the variant: an explicit registry `nativeVariant` wins; else the
+  // admin `default_variant` overlay (`item.defaultVariant`); else "default".
+  const variant: AddGalleryNativeVariant =
+    item.nativeVariant ?? (item.defaultVariant as AddGalleryNativeVariant) ?? "default";
+  const node = applyNativeVariant(createBuilderNode(item.nativeKind), variant);
+  // C3 — record the chosen variant on the node so it's known/re-pickable in the
+  // Content-tab "Variant" control. "default" carries nothing (clean baseline).
+  if (variant === "default") return node;
+  return {
+    ...node,
+    props: { ...(node.props as Record<string, unknown>), nativeVariant: variant },
+  } as unknown as BuilderNode;
+}
+
+/**
+ * Builder Studio (WS-C) — stamp admin-locked prop keys onto the inserted root
+ * node so a tenant can't edit them. Enforcement is the patch-strip chokepoint
+ * (operations.ts `patchBuilderNodeProps`); this only marks the node. The lock
+ * carrier (validate.ts) round-trips `lockedProps` from `props`. No-op without locks.
+ */
+function stampItemLockedProps(node: BuilderNode, item: AddGalleryItem): BuilderNode {
+  if (!item.lockedProps || item.lockedProps.length === 0) return node;
+  const keys = [...item.lockedProps];
+  const props: Record<string, unknown> = {
+    ...(node.props as Record<string, unknown>),
+    lockedProps: keys,
+  };
+  return { ...node, lockedProps: keys, props } as unknown as BuilderNode;
+}
+
+/**
+ * Builder Studio (WS-C C2/C4 → C1) — apply a catalog item's admin overlay to a
+ * variant-resolved insert node, in the fixed order:
+ *   variant (already applied by the caller) → defaults → data-source defaults → locks.
+ * Admin `defaultProps` are deep-merged OVER the node first (so they ARE the
+ * canonical baseline a tenant edits), then `dataSourceDefaults` are merged into
+ * `props.dataBinding` (curating a connected component's query), then locks are
+ * stamped on top — making a locked prop's first-save baseline the admin default
+ * (closes the C1 residual). Every step is a no-op when its item field is absent.
+ */
+function applyItemOverlayAtInsert(node: BuilderNode, item: AddGalleryItem): BuilderNode {
+  return stampItemLockedProps(
+    applyItemDataSourceDefaults(
+      applyItemDefaultProps(node, item.defaultProps),
+      item.dataSourceDefaults,
+    ),
+    item,
+  );
 }
 
 /**
@@ -108,7 +155,13 @@ export function createDbTemplateNodeForGalleryItem(
   return cloneNodeWithFreshIds(wrapper);
 }
 
-function applyNativeVariant(
+/**
+ * Apply a native variant's preset props to a freshly-created node of the
+ * matching kind. PURE — returns a new node (or the input unchanged when the
+ * variant doesn't apply to the node's kind). Exported so the Content-tab
+ * "Variant" inspector control can re-apply a variant after insert (C3).
+ */
+export function applyNativeVariant(
   node: BuilderNode,
   variant: AddGalleryNativeVariant,
 ): BuilderNode {
@@ -395,7 +448,10 @@ export function resolveAddGalleryInsertAction(
 
   switch (item.insertMethod) {
     case "nativeNode":
-      return { type: "nativeNode", node: createNativeNodeForGalleryItem(item) };
+      return {
+        type: "nativeNode",
+        node: applyItemOverlayAtInsert(createNativeNodeForGalleryItem(item), item),
+      };
     case "sectionTemplate": {
       const templateId = item.sectionTemplateId;
       if (!templateId) {
@@ -405,10 +461,13 @@ export function resolveAddGalleryInsertAction(
       if (!node) {
         throw new Error(`Unknown section template "${templateId}".`);
       }
-      return { type: "sectionTemplate", node };
+      return { type: "sectionTemplate", node: applyItemOverlayAtInsert(node, item) };
     }
     case "dbTemplate":
-      return { type: "dbTemplate", node: createDbTemplateNodeForGalleryItem(item) };
+      return {
+        type: "dbTemplate",
+        node: applyItemOverlayAtInsert(createDbTemplateNodeForGalleryItem(item), item),
+      };
     case "sectionEmbed":
     case "connectedNode": {
       const key = item.sectionEmbedKey;

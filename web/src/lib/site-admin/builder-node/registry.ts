@@ -15,6 +15,7 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "cta_group",
   "split",
   "nav",
+  "social_links",
   "accordion",
   "tabs",
   "carousel",
@@ -728,22 +729,67 @@ const formPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+// A3 — a nav link MAY carry a one-level `children[]` submenu. The child link
+// shape is the SAME (id/label/href) but WITHOUT its own `children` — nesting is
+// capped at one level for the header bar, so a child's children key is simply
+// not declared and is stripped on validate. A top-level link's `children` is
+// optional + capped at 12 (matches the top-row cap). No children ⇒ the link
+// object is byte-identical to the pre-A3 shape, so old trees parse unchanged.
+const navChildLinkSchema = z.object({
+  id: z.string().min(1).max(120),
+  label: z.string().min(1).max(120),
+  href: z.string().min(1).max(500),
+});
+
+const navLinkSchema = navChildLinkSchema.extend({
+  children: z.array(navChildLinkSchema).max(12).optional(),
+});
+
 const navPropsSchema = z.object({
   brand: z.string().max(120).optional(),
   brandHref: z.string().max(500).optional(),
-  links: z
-    .array(
-      z.object({
-        id: z.string().min(1).max(120),
-        label: z.string().min(1).max(120),
-        href: z.string().min(1).max(500),
-      }),
-    )
-    .min(1)
-    .max(12),
+  links: z.array(navLinkSchema).min(1).max(12),
+  submenuVariant: z.enum(["dropdown", "mega"]).optional(),
   collapseAt: z.enum(["tablet", "mobile"]).optional(),
+  // A6 — collapsed mobile-menu style (mirrors PublicHeaderMobileMenu variants).
+  mobileMenuVariant: z
+    .enum(["dropdown", "drawer-right", "sheet-bottom", "full-screen-fade"])
+    .optional(),
   menuLabel: z.string().max(80).optional(),
   ariaLabel: z.string().max(80).optional(),
+  style: builderNodeStyleSchema,
+});
+
+// A4 — social/contact icon row. `links[]` is an ordered array of
+// {platform, href}; the renderer paints a brand-neutral glyph per platform.
+// `dataBinding` optionally binds to `workspace_social_links` (the tenant's
+// identity store) — when it resolves, the SHELL/server caller passes those
+// records and the renderer paints them instead of the static `links[]`.
+const socialPlatformSchema = z.enum([
+  "instagram",
+  "tiktok",
+  "facebook",
+  "youtube",
+  "linkedin",
+  "x",
+  "whatsapp",
+  "email",
+]);
+
+const socialLinkSchema = z.object({
+  id: z.string().min(1).max(120),
+  platform: socialPlatformSchema,
+  href: z.string().min(1).max(500),
+  label: z.string().max(80).optional(),
+});
+
+const socialLinksPropsSchema = z.object({
+  links: z.array(socialLinkSchema).max(12),
+  size: z.enum(["sm", "md", "lg"]).optional(),
+  shape: z.enum(["bare", "circle", "square"]).optional(),
+  ariaLabel: z.string().max(80).optional(),
+  dataBinding: dataBindingPropsSchema.optional(),
+  layerLabel: layerLabelSchema,
   style: builderNodeStyleSchema,
 });
 
@@ -988,9 +1034,17 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
       kind: "nav",
       label: "Navigation",
       description:
-        "Header navigation bar — inline links on desktop, hamburger menu on mobile. Links stay reachable at every width.",
+        "Header navigation bar — inline links on desktop, hamburger menu on mobile. Links stay reachable at every width. Each link can open a dropdown or mega submenu.",
       children: { type: "none" },
       propsSchema: navPropsSchema,
+    },
+    social_links: {
+      kind: "social_links",
+      label: "Social links",
+      description:
+        "A row of social/contact icon links (Instagram, TikTok, X, …). Bind to your workspace social profiles or set links by hand.",
+      children: { type: "none" },
+      propsSchema: socialLinksPropsSchema,
     },
     form: {
       kind: "form",

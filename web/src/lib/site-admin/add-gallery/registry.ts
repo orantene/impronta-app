@@ -18,6 +18,9 @@ export const ADD_GALLERY_CATEGORIES: ReadonlyArray<AddGalleryCategoryDef> = [
   { id: "forms", label: "Forms", tab: "elements", icon: "forms" },
   { id: "utility", label: "Utility", tab: "elements", icon: "utility" },
   { id: "social-embed", label: "Social & Embed", tab: "elements", icon: "social" },
+  // WS-A A5 — shell-only interactive header widgets (search / account / inquiry /
+  // favorites), surfaced as curated section_embed presets in the shell gallery.
+  { id: "header-widgets", label: "Header Widgets", tab: "elements", icon: "interactive" },
   { id: "hero", label: "Hero", tab: "sections", icon: "hero" },
   { id: "about", label: "About", tab: "sections", icon: "about" },
   { id: "services", label: "Services", tab: "sections", icon: "services" },
@@ -74,6 +77,8 @@ const FALLBACK_CATEGORY_ICON_BY_TAB: Record<AddGalleryItem["tab"], string> = {
   sections: "hero",
   connected: "dynamic",
   page_templates: "layout",
+  // WS-A A7 — shell templates tab.
+  shell: "layout",
 };
 
 /**

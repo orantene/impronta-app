@@ -3,8 +3,10 @@ import test from "node:test";
 
 import {
   AddGalleryForbiddenInsertError,
+  applyNativeVariant,
   assertAddGalleryBuilderTreeOnly,
   createDbTemplateNodeForGalleryItem,
+  createNativeNodeForGalleryItem,
   resolveAddGalleryInsertAction,
 } from "./insert";
 import type { AddGalleryItem } from "./types";
@@ -204,4 +206,225 @@ test("dbTemplate with an empty tree yields an editable empty container (never th
   const node = createDbTemplateNodeForGalleryItem(empty);
   assert.equal(node.kind, "container");
   assert.deepEqual((node as { children?: BuilderNode[] }).children, []);
+});
+
+// ── WS-C per-prop locking — admin-locked props are stamped at insert ──────────
+
+test("resolveAddGalleryInsertAction stamps item.lockedProps onto the node + carrier", () => {
+  const locked: AddGalleryItem = { ...baseItem, lockedProps: ["style.textColor", "tone"] };
+  const action = resolveAddGalleryInsertAction(locked);
+  assert.equal(action.type, "nativeNode");
+  if (action.type === "nativeNode") {
+    // Base field set so the inspector lock gate sees it.
+    assert.deepEqual(action.node.lockedProps, ["style.textColor", "tone"]);
+    // Carrier mirror in props so it round-trips through validate/persist.
+    assert.deepEqual(
+      (action.node.props as { lockedProps?: string[] }).lockedProps,
+      ["style.textColor", "tone"],
+    );
+  }
+});
+
+test("resolveAddGalleryInsertAction leaves the node untouched when no locks", () => {
+  const action = resolveAddGalleryInsertAction(baseItem);
+  assert.equal(action.type, "nativeNode");
+  if (action.type === "nativeNode") {
+    assert.equal(action.node.lockedProps, undefined);
+    assert.equal((action.node.props as { lockedProps?: string[] }).lockedProps, undefined);
+  }
+});
+
+test("dbTemplate insert also carries admin locks", () => {
+  const locked: AddGalleryItem = { ...dbTemplateItem, lockedProps: ["layout"] };
+  const action = resolveAddGalleryInsertAction(locked);
+  assert.equal(action.type, "dbTemplate");
+  if (action.type === "dbTemplate") {
+    assert.deepEqual(action.node.lockedProps, ["layout"]);
+  }
+});
+
+// ── WS-C C2 — admin default props are merged onto the inserted node ────────────
+
+test("resolveAddGalleryInsertAction deep-merges item.defaultProps onto the node", () => {
+  // The paragraph native default has no `style`; the admin default sets one and
+  // overrides text. Variant resolution runs first, then defaults merge over it.
+  const withDefaults: AddGalleryItem = {
+    ...baseItem,
+    defaultProps: { text: "Admin copy", style: { tone: "muted", size: "lg" } },
+  };
+  const action = resolveAddGalleryInsertAction(withDefaults);
+  assert.equal(action.type, "nativeNode");
+  if (action.type === "nativeNode") {
+    const props = action.node.props as { text?: string; style?: Record<string, unknown> };
+    assert.equal(props.text, "Admin copy");
+    assert.deepEqual(props.style, { tone: "muted", size: "lg" });
+  }
+});
+
+test("resolveAddGalleryInsertAction applies defaults BEFORE stamping locks (locks ride on top)", () => {
+  const both: AddGalleryItem = {
+    ...baseItem,
+    defaultProps: { text: "Locked baseline", tone: "primary" },
+    lockedProps: ["tone"],
+  };
+  const action = resolveAddGalleryInsertAction(both);
+  assert.equal(action.type, "nativeNode");
+  if (action.type === "nativeNode") {
+    const props = action.node.props as {
+      text?: string;
+      tone?: string;
+      lockedProps?: string[];
+    };
+    // Default value is present (the canonical first-save baseline for the lock)…
+    assert.equal(props.tone, "primary");
+    assert.equal(props.text, "Locked baseline");
+    // …and the lock carrier stamped on top.
+    assert.deepEqual(action.node.lockedProps, ["tone"]);
+    assert.deepEqual(props.lockedProps, ["tone"]);
+  }
+});
+
+test("resolveAddGalleryInsertAction leaves the node untouched when no defaultProps", () => {
+  const action = resolveAddGalleryInsertAction(baseItem);
+  assert.equal(action.type, "nativeNode");
+  if (action.type === "nativeNode") {
+    // Paragraph native default — no admin text/style injected.
+    const props = action.node.props as { text?: string; style?: unknown };
+    assert.equal(props.style, undefined);
+  }
+});
+
+test("dbTemplate insert also applies admin defaultProps onto the root node", () => {
+  const withDefaults: AddGalleryItem = {
+    ...dbTemplateItem,
+    defaultProps: { layerLabel: "Admin label", gap: "l" },
+  };
+  const action = resolveAddGalleryInsertAction(withDefaults);
+  assert.equal(action.type, "dbTemplate");
+  if (action.type === "dbTemplate") {
+    const props = action.node.props as { layerLabel?: string; gap?: string; layout?: string };
+    assert.equal(props.layerLabel, "Admin label");
+    assert.equal(props.gap, "l");
+    // The template's own root props survive the merge.
+    assert.equal(props.layout, "stack");
+  }
+});
+
+// ── WS-C C3 — variant persistence + admin default_variant ─────────────────────
+
+const headingItem: AddGalleryItem = {
+  ...baseItem,
+  id: "heading",
+  nativeKind: "heading",
+};
+
+test("applyNativeVariant applies a variant's preset props (exported for the inspector)", () => {
+  const node = { id: "h", kind: "heading", props: {} } as unknown as BuilderNode;
+  const titled = applyNativeVariant(node, "title");
+  const props = titled.props as { text?: string; level?: number };
+  assert.equal(props.text, "Title");
+  assert.equal(props.level, 1);
+});
+
+test("createNativeNodeForGalleryItem records an explicit nativeVariant on the node", () => {
+  const item: AddGalleryItem = { ...headingItem, nativeVariant: "subtitle" };
+  const node = createNativeNodeForGalleryItem(item);
+  const props = node.props as { nativeVariant?: string; level?: number };
+  assert.equal(props.nativeVariant, "subtitle");
+  // Variant preset applied (subtitle → level 2).
+  assert.equal(props.level, 2);
+});
+
+test("createNativeNodeForGalleryItem honors admin default_variant when no explicit variant", () => {
+  const item: AddGalleryItem = { ...headingItem, defaultVariant: "title" };
+  const node = createNativeNodeForGalleryItem(item);
+  const props = node.props as { nativeVariant?: string; text?: string };
+  assert.equal(props.nativeVariant, "title");
+  assert.equal(props.text, "Title");
+});
+
+test("explicit nativeVariant WINS over admin default_variant", () => {
+  const item: AddGalleryItem = {
+    ...headingItem,
+    nativeVariant: "subtitle",
+    defaultVariant: "title",
+  };
+  const node = createNativeNodeForGalleryItem(item);
+  const props = node.props as { nativeVariant?: string; level?: number };
+  assert.equal(props.nativeVariant, "subtitle");
+  assert.equal(props.level, 2);
+});
+
+test("createNativeNodeForGalleryItem records NO variant for the default (clean baseline)", () => {
+  const node = createNativeNodeForGalleryItem(headingItem);
+  assert.equal((node.props as { nativeVariant?: string }).nativeVariant, undefined);
+});
+
+test("resolveAddGalleryInsertAction persists the variant through the composer", () => {
+  const action = resolveAddGalleryInsertAction({
+    ...headingItem,
+    nativeVariant: "title",
+  });
+  assert.equal(action.type, "nativeNode");
+  if (action.type === "nativeNode") {
+    assert.equal((action.node.props as { nativeVariant?: string }).nativeVariant, "title");
+  }
+});
+
+// ── WS-C C4 — data-source defaults merged into props.dataBinding at insert ─────
+
+const CONNECTED_TREE: BuilderNode[] = [
+  {
+    id: "tpl-grid",
+    kind: "container",
+    props: {
+      layout: "grid",
+      dataBinding: { sourceKey: "talent_roster", maxItems: 12 },
+    },
+    children: [],
+  } as unknown as BuilderNode,
+];
+
+const connectedDbItem: AddGalleryItem = {
+  ...dbTemplateItem,
+  id: "db-template:connected",
+  dbTemplateTree: CONNECTED_TREE,
+};
+
+test("resolveAddGalleryInsertAction merges dataSourceDefaults into props.dataBinding", () => {
+  const action = resolveAddGalleryInsertAction({
+    ...connectedDbItem,
+    dataSourceDefaults: { maxItems: 6, pinnedIds: ["a", "b"] },
+  });
+  assert.equal(action.type, "dbTemplate");
+  if (action.type === "dbTemplate") {
+    const binding = (action.node.props as {
+      dataBinding: { sourceKey?: string; maxItems?: number; pinnedIds?: unknown[] };
+    }).dataBinding;
+    assert.equal(binding.sourceKey, "talent_roster"); // existing key survives
+    assert.equal(binding.maxItems, 6); // admin default wins
+    assert.deepEqual(binding.pinnedIds, ["a", "b"]); // array taken wholesale
+  }
+});
+
+test("dataSourceDefaults is a no-op when absent", () => {
+  const action = resolveAddGalleryInsertAction(connectedDbItem);
+  assert.equal(action.type, "dbTemplate");
+  if (action.type === "dbTemplate") {
+    const binding = (action.node.props as {
+      dataBinding: { maxItems?: number };
+    }).dataBinding;
+    assert.equal(binding.maxItems, 12); // unchanged from the template
+  }
+});
+
+test("dataSourceDefaults is a no-op on a node with no dataBinding (static native)", () => {
+  const action = resolveAddGalleryInsertAction({
+    ...headingItem,
+    dataSourceDefaults: { maxItems: 4 },
+  });
+  assert.equal(action.type, "nativeNode");
+  if (action.type === "nativeNode") {
+    assert.equal((action.node.props as { dataBinding?: unknown }).dataBinding, undefined);
+  }
 });

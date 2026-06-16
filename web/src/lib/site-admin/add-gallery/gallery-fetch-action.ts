@@ -28,6 +28,7 @@
  */
 
 import { listGalleryItems } from "./registry-db-merge";
+import { listCatalogStructure } from "./catalog-structure-actions";
 import type { AddGalleryItem, GallerySurfaceDescriptor } from "./types";
 import { listPublishedTemplates } from "@/lib/site-admin/builder-core/templates/registry-actions";
 import { listCatalogOverlays } from "@/lib/site-admin/builder-core/templates/catalog-overlay-actions";
@@ -52,7 +53,12 @@ export async function fetchSurfaceGalleryItems(
       surfaceTarget: (descriptor.surfaceTarget ?? null) as BuilderTemplateTarget | null,
       plan: coercePlan(descriptor.plan),
       talentTier: descriptor.talentTier,
+      tenantId: descriptor.tenantId,
     },
-    { listPublishedTemplates, loadOverlays: listCatalogOverlays },
+    {
+      listPublishedTemplates,
+      loadOverlays: listCatalogOverlays,
+      loadStructure: listCatalogStructure,
+    },
   );
 }

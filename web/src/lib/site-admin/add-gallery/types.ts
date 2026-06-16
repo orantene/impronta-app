@@ -6,7 +6,14 @@ export type AddGalleryTab =
   | "sections"
   | "connected"
   /** DB-backed published page/section templates (WS2/WS4). */
-  | "page_templates";
+  | "page_templates"
+  /**
+   * WS-A A7 — shell-only tab carrying `shell_header` / `shell_footer` DB
+   * templates. Offered ONLY on the site-shell surface (+ the Lab for
+   * authoring) via each surface's `allowedTabs`; every page-builder surface
+   * omits it, so the live "+" gallery never shows shell templates on a page.
+   */
+  | "shell";
 
 export type AddGalleryInsertMethod =
   | "nativeNode"
@@ -114,6 +121,29 @@ export interface AddGalleryItem {
   targetContext?: "talent" | "workspace" | "both" | "platform";
   /** required_talent_tier for a dbTemplate item (null when unrestricted). */
   requiredTalentTier?: string | null;
+  /** Builder Studio (WS-C C3) — admin default native variant. When set and the
+   *  item carries no explicit `nativeVariant`, this variant is applied + recorded
+   *  on the inserted node. Carried from the overlay row `default_variant`. */
+  defaultVariant?: AddGalleryNativeVariant | string | null;
+  /** Builder Studio — admin component defaults: props merged OVER the
+   *  variant-resolved props at insert. Plumbed Wave 0; consumed by WS-C. */
+  defaultProps?: Record<string, unknown> | null;
+  /** Builder Studio — admin per-prop locks (dot-paths) stamped onto the
+   *  inserted node so a tenant can't edit them. */
+  lockedProps?: ReadonlyArray<string>;
+  /** Builder Studio — default data binding (filterQuery/maxItems/pinnedIds)
+   *  baked into a connected component at insert. */
+  dataSourceDefaults?: Record<string, unknown> | null;
+  /** Builder Studio (WS-D D3) — staged-rollout ceiling 0-100 for a dbTemplate
+   *  item. Carried from the row so `gateDbGalleryItems` can bucket the live
+   *  tenant. Undefined ⇒ 100 (fully rolled out / back-compat). */
+  rolloutPercentage?: number | null;
+  /** Builder Studio (WS-D D3) — tenants that ALWAYS see this template (bypass
+   *  the % bucket). Carried from the row `tenant_allowlist`. */
+  rolloutAllowlist?: ReadonlyArray<string>;
+  /** Builder Studio (WS-D D3) — tenants that NEVER see this template. Carried
+   *  from the row `tenant_denylist`. */
+  rolloutDenylist?: ReadonlyArray<string>;
 }
 
 export interface AddGalleryCategoryDef {
@@ -146,4 +176,8 @@ export interface GallerySurfaceDescriptor {
   plan: string | null;
   /** Surface talent tier for `required_talent_tier` gating. */
   talentTier: string | null;
+  /** Builder Studio — the live tenant id (for staged-rollout bucketing of
+   *  templates). Null on platform/lab surfaces ⇒ no rollout gating (show all).
+   *  Plumbed Wave 0; consumed by WS-D. */
+  tenantId: string | null;
 }

@@ -19,6 +19,7 @@
 
 import { requireStaff } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas/scope";
+import { enforceLockedPropsOnTree } from "@/lib/site-admin/builder-node/prop-lock";
 import type { CmsFreeformPageRow } from "./cms-page-adapter-core";
 
 const ROW_COLUMNS =
@@ -60,8 +61,24 @@ export async function saveCmsFreeformPage(input: {
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Select an agency workspace first." };
 
+  // C1 — server-trusted lock enforcement on the full-tree save. Load the current
+  // blocks and re-assert every admin lock so a crafted client can't persist an
+  // edit to a locked prop (the inspector strip alone is bypassable).
+  const { data: current } = await auth.supabase
+    .from("cms_pages")
+    .select("blocks")
+    .eq("id", input.pageId)
+    .eq("tenant_id", scope.tenantId)
+    .eq("is_freeform", true)
+    .maybeSingle()
+    .returns<{ blocks: unknown }>();
+  const enforcedBlocks = enforceLockedPropsOnTree(
+    input.patch.blocks ?? [],
+    current?.blocks,
+  );
+
   const patch: Record<string, unknown> = {
-    blocks: input.patch.blocks ?? [],
+    blocks: enforcedBlocks,
     updated_at: input.patch.updated_at,
   };
   if (typeof input.patch.title === "string" && input.patch.title.length > 0) {

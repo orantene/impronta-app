@@ -47,7 +47,10 @@ import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active"
 import { listBuilderImageMediaAssets } from "@/lib/site-admin/media/assets";
 import { resolveCollectionDataSources } from "@/lib/site-admin/collections/server";
 import { getSectionType } from "@/lib/site-admin/sections/registry";
-import { isSiteShellEnabledForTenant } from "@/lib/site-admin/site-shell-flag";
+import {
+  isSiteShellEnabledForTenant,
+  resolveShellRenderDecision,
+} from "@/lib/site-admin/site-shell-flag";
 import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
 import type { Locale } from "@/i18n/config";
 import { getPublicPathPrefix } from "@/lib/saas";
@@ -77,9 +80,15 @@ export async function shouldRenderSnapshotShell(
   tenantId: string,
   locale: Locale,
 ): Promise<boolean> {
-  if (!isSiteShellEnabledForTenant(tenantId)) return false;
+  const flagEnabled = isSiteShellEnabledForTenant(tenantId);
+  // Short-circuit the DB read when the flag is off (the common case) — the
+  // pure decision is false regardless of whether a shell row exists.
+  if (!flagEnabled) return false;
   const shell = await loadPublishedShell(tenantId, locale);
-  return shell !== null;
+  return resolveShellRenderDecision({
+    flagEnabled,
+    shellPublished: shell !== null,
+  }).renderSnapshotShell;
 }
 
 /**
@@ -346,6 +355,11 @@ async function renderShellSlot(
               tenantId,
               locale,
               publicPathPrefix,
+              // WS-A A5 — on the shell EDIT canvas, interactive header-widget
+              // embeds render their static placeholder (no live widget / auth
+              // read / data fetch); the published shell mounts the real widget.
+              // Pure-render embeds ignore `preview`, so they are unaffected.
+              editorMode: editModeActive,
             }),
           })
         : null}

@@ -35,19 +35,23 @@ import {
   archiveTemplate,
   duplicateTemplate,
   restoreTemplateRevision,
+  rollbackToRevision,
+  setTemplateRollout,
   listPublishedTemplates,
 } from "@/lib/site-admin/builder-core/templates/registry-actions";
+import { listAllTemplates } from "@/lib/site-admin/builder-core/templates/registry-admin-actions";
 import {
-  listAllTemplates,
-  listTemplateRevisions,
-  type TemplateRevisionSummary,
-} from "@/lib/site-admin/builder-core/templates/registry-admin-actions";
+  RevisionList,
+  PublishNotePanel,
+} from "./template-revision-list";
+import { RolloutPanel, rolloutSummary } from "./template-rollout-panel";
 import type {
   BuilderTemplateRow,
   BuilderTemplateKind,
   BuilderTemplateStatus,
   BuilderTemplateTarget,
   BuilderGalleryTab,
+  SetTemplateRolloutInput,
 } from "@/lib/site-admin/builder-core/templates/registry-rows";
 
 const T = {
@@ -314,7 +318,7 @@ export function TemplateManager() {
                     rejectToDraft(row.id),
                   )
                 }
-                onPublish={() => {
+                onPublish={(changelog) => {
                   // W7 — guard against publishing an empty template (inserts nothing).
                   if (
                     (row.builder_tree?.length ?? 0) === 0 &&
@@ -325,7 +329,7 @@ export function TemplateManager() {
                     return;
                   }
                   void runLifecycle(row.id, "Published to gallery", () =>
-                    publishTemplate(row.id),
+                    publishTemplate(row.id, changelog ?? null),
                   );
                 }}
                 onUnpublish={() =>
@@ -340,6 +344,23 @@ export function TemplateManager() {
                 onRestore={(version) =>
                   runLifecycle(row.id, `Restored v${version}`, () =>
                     restoreTemplateRevision(row.id, version),
+                  )
+                }
+                onRollback={(version) => {
+                  if (
+                    !window.confirm(
+                      `Roll back to v${version}? This re-publishes that revision's content as a new version (history is preserved).`,
+                    )
+                  ) {
+                    return;
+                  }
+                  void runLifecycle(row.id, `Rolled back to v${version}`, () =>
+                    rollbackToRevision(row.id, version),
+                  );
+                }}
+                onSetRollout={(input) =>
+                  runLifecycle(row.id, "Rollout saved", () =>
+                    setTemplateRollout(row.id, input),
                   )
                 }
               />
@@ -364,19 +385,27 @@ function TemplateRowCard({
   onArchive,
   onDuplicate,
   onRestore,
+  onRollback,
+  onSetRollout,
 }: {
   row: BuilderTemplateRow;
   busy: boolean;
   onEdit: () => void;
   onSubmit: () => void;
   onReject: () => void;
-  onPublish: () => void;
+  onPublish: (changelog?: string | null) => void;
   onUnpublish: () => void;
   onArchive: () => void;
   onDuplicate: () => void;
   onRestore: (version: number) => void;
+  onRollback: (version: number) => void;
+  onSetRollout: (input: SetTemplateRolloutInput) => void;
 }) {
   const [showRevs, setShowRevs] = useState(false);
+  const [showRollout, setShowRollout] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [changelog, setChangelog] = useState("");
+  const rolloutPct = row.rollout_percentage ?? 100;
   const statusTone =
     row.status === "published"
       ? T.accent
@@ -404,6 +433,9 @@ function TemplateRowCard({
             <Pill>{row.kind.replace("_", " ")}</Pill>
             <Pill>{row.target_context}</Pill>
             <Pill>{row.required_plan}</Pill>
+            <Pill tone={rolloutPct < 100 ? T.amber : undefined}>
+              {rolloutSummary(row)}
+            </Pill>
           </div>
           <div style={{ fontSize: 11.5, color: T.inkMuted, marginTop: 4, fontFamily: "ui-monospace, monospace" }}>
             {row.slug} · v{row.version} · {row.gallery_tab}
@@ -428,7 +460,10 @@ function TemplateRowCard({
           <GhostBtn onClick={onReject} disabled={busy}>Send back to draft</GhostBtn>
         ) : null}
         {row.status !== "published" && row.status !== "archived" ? (
-          <PrimaryBtn onClick={onPublish} disabled={busy}>
+          <PrimaryBtn
+            onClick={() => setPublishing((p) => !p)}
+            disabled={busy}
+          >
             {row.status === "in_review" ? "Approve + publish" : "Publish to gallery"}
           </PrimaryBtn>
         ) : null}
@@ -439,74 +474,51 @@ function TemplateRowCard({
         {row.status !== "archived" ? (
           <GhostBtn onClick={onArchive} disabled={busy} tone="danger">Archive</GhostBtn>
         ) : null}
+        <GhostBtn onClick={() => setShowRollout((s) => !s)} disabled={busy}>
+          {showRollout ? "Hide rollout" : "Rollout"}
+        </GhostBtn>
         <GhostBtn onClick={() => setShowRevs((s) => !s)} disabled={busy}>
           {showRevs ? "Hide revisions" : "Revisions"}
         </GhostBtn>
       </div>
 
-      {showRevs ? <RevisionList templateId={row.id} onRestore={onRestore} /> : null}
-    </div>
-  );
-}
+      {publishing ? (
+        <PublishNotePanel
+          value={changelog}
+          busy={busy}
+          ctaLabel={
+            row.status === "in_review" ? "Approve + publish" : "Publish to gallery"
+          }
+          onChange={setChangelog}
+          onCancel={() => setPublishing(false)}
+          onConfirm={() => {
+            const note = changelog.trim();
+            setPublishing(false);
+            setChangelog("");
+            onPublish(note || null);
+          }}
+        />
+      ) : null}
 
-function RevisionList({
-  templateId,
-  onRestore,
-}: {
-  templateId: string;
-  onRestore: (version: number) => void;
-}) {
-  const [revs, setRevs] = useState<TemplateRevisionSummary[] | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+      {showRollout ? (
+        <RolloutPanel
+          row={row}
+          busy={busy}
+          onCancel={() => setShowRollout(false)}
+          onSave={(input) => {
+            setShowRollout(false);
+            onSetRollout(input);
+          }}
+        />
+      ) : null}
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const res = await listTemplateRevisions(templateId).catch(() => null);
-      if (cancelled) return;
-      if (!res || !res.ok) {
-        setErr(res?.error ?? "Could not load revisions.");
-        setRevs([]);
-        return;
-      }
-      setRevs(res.data);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [templateId]);
-
-  return (
-    <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${T.borderSoft}` }}>
-      {err ? (
-        <div style={{ fontSize: 11.5, color: T.red }}>{err}</div>
-      ) : revs === null ? (
-        <div style={{ fontSize: 11.5, color: T.inkMuted }}>Loading revisions…</div>
-      ) : revs.length === 0 ? (
-        <div style={{ fontSize: 11.5, color: T.inkMuted }}>
-          No published revisions yet. Publish to create the first snapshot.
-        </div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          {revs.map((r) => (
-            <div
-              key={r.version}
-              style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 11.5, color: T.inkMuted }}
-            >
-              <span style={{ fontFamily: "ui-monospace, monospace" }}>v{r.version}</span>
-              <span>{r.status}</span>
-              <span style={{ flex: 1, color: T.inkDim }}>{r.note ?? ""}</span>
-              <button
-                type="button"
-                onClick={() => onRestore(r.version)}
-                style={{ ...ghostBase, padding: "3px 9px", fontSize: 11 }}
-              >
-                Restore
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+      {showRevs ? (
+        <RevisionList
+          templateId={row.id}
+          onRestore={onRestore}
+          onRollback={onRollback}
+        />
+      ) : null}
     </div>
   );
 }

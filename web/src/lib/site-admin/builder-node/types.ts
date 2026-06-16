@@ -26,6 +26,7 @@ export type BuilderNodeKind =
   | "card"
   | "cta_group"
   | "nav"
+  | "social_links"
   | "form"
   | "section_embed";
 
@@ -34,6 +35,8 @@ export interface BuilderNodeBase {
   kind: BuilderNodeKind;
   /** P3-LOCK — per-node editorial lock (selection-layer + inspector + layers row honor it). Patched via props; carried by validate's base-field allow-list. */
   locked?: boolean;
+  /** Builder Studio — per-PROP locks (dot-paths, e.g. "tone", "style.textColor"). Admin-set; read-only in the inspector + stripped from patches in patchBuilderNodeProps. Carried by validate's base-field allow-list (see prop-lock.ts). */
+  lockedProps?: string[];
   /** Wave 5B (#38) — OPTIONAL conditional visibility (locale / auth / variant), evaluated at `shouldRenderNode`; node omitted when unmatched, undefined → always shown. See visibility.ts. */
   visibilityCondition?: BuilderVisibilityCondition;
   /**
@@ -809,11 +812,22 @@ export interface BuilderCtaGroupNode extends BuilderNodeBase {
 
 /** A single navigation link inside a `nav` node. Links are PROPS (not child
  *  nodes) so the responsive disclosure can render them in two places — the
- *  inline desktop row and the mobile menu — from one source of truth. */
+ *  inline desktop row and the mobile menu — from one source of truth.
+ *
+ *  A3 (WS-A) — a link MAY carry a `children[]` submenu (one level deep). When
+ *  present, the desktop renderer wraps the link in a CSS-driven disclosure
+ *  (hover/focus dropdown, or a multi-column "mega" panel when the nav's
+ *  `submenuVariant` is "mega") and the mobile menu nests the children inline.
+ *  A link with NO `children` renders byte-identically to the pre-A3 flat link,
+ *  so existing nav trees are unchanged. The schema caps nesting at one level
+ *  (children's own `children` are stripped on validate) — deep trees are a
+ *  documented non-goal for the header bar. */
 export interface BuilderNavLink {
   id: string;
   label: string;
   href: string;
+  /** Optional one-level submenu. Absent ⇒ a plain flat link (pre-A3 behavior). */
+  children?: BuilderNavLink[];
 }
 
 /**
@@ -921,15 +935,92 @@ export interface BuilderNavNode extends BuilderNodeBase {
     brand?: string;
     /** Where the brand links (default "/"). */
     brandHref?: string;
-    /** Navigation links — rendered inline on desktop AND inside the mobile menu. */
+    /** Navigation links — rendered inline on desktop AND inside the mobile menu.
+     *  A link with a `children[]` submenu renders as a disclosure (see
+     *  `submenuVariant`); a link without children stays a plain flat link. */
     links: BuilderNavLink[];
+    /** A3 — how a link's `children[]` submenu opens on desktop.
+     *  "dropdown" (default) = a single-column hover/focus panel under the link;
+     *  "mega" = a wider multi-column panel. Ignored for links with no children.
+     *  Absent ⇒ "dropdown". */
+    submenuVariant?: "dropdown" | "mega";
     /** Viewport at/below which the inline row collapses to the hamburger menu.
      *  "mobile" = ≤640px (default), "tablet" = ≤900px. */
     collapseAt?: "tablet" | "mobile";
+    /** A6 (WS-A) — how the collapsed mobile menu opens. Mirrors the live header's
+     *  `PublicHeaderMobileMenu` variants so the shell's mobile menu style is
+     *  pickable. The CSS-only <details> disclosure positions + animates its panel
+     *  per variant:
+     *    "dropdown"        (default) — the pre-A6 panel under the toggle.
+     *    "drawer-right"    — a right-side slide-in drawer (88vw, capped).
+     *    "sheet-bottom"    — a bottom sheet (rounded top, ≤80vh).
+     *    "full-screen-fade"— a full-viewport fade-in overlay.
+     *  Absent ⇒ "dropdown" (byte-identical to the pre-A6 nav). */
+    mobileMenuVariant?:
+      | "dropdown"
+      | "drawer-right"
+      | "sheet-bottom"
+      | "full-screen-fade";
     /** Accessible label for the hamburger toggle (default "Menu"). */
     menuLabel?: string;
     /** Accessible label for the <nav> landmark (default "Primary"). */
     ariaLabel?: string;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/** A4 — supported social platforms for the `social_links` node. Mirrors the
+ *  header cluster's `HeaderSocialPlatform` vocabulary so a node can bind to the
+ *  same canonical `agency_business_identity` store the inspector edits. The
+ *  renderer paints a brand-neutral glyph per platform in `currentColor`. */
+export type BuilderSocialPlatform =
+  | "instagram"
+  | "tiktok"
+  | "facebook"
+  | "youtube"
+  | "linkedin"
+  | "x"
+  | "whatsapp"
+  | "email";
+
+/** A single social/contact link inside a `social_links` node. `href` is the
+ *  full destination (https URL, mailto:, tel:, or wa.me). Links are PROPS so
+ *  the renderer emits one coherent icon row from a single source of truth —
+ *  the same modelling choice as `nav` links and `form` fields. */
+export interface BuilderSocialLink {
+  id: string;
+  platform: BuilderSocialPlatform;
+  href: string;
+  /** Optional accessible label override (defaults to the platform name). */
+  label?: string;
+}
+
+/**
+ * A4 (WS-A) — a row of social/contact icon links. Renders each platform as a
+ * brand-neutral SVG glyph (in `currentColor`) wrapped in an `<a>`. Designed for
+ * the site shell header/footer but droppable in any layout shell.
+ *
+ * OPTIONALLY binds to the `workspace_social_links` data source: when
+ * `dataBinding` is set the SHELL/server caller passes the tenant's resolved
+ * social links (from `agency_business_identity` via `resolveShellSocialContact`)
+ * and the renderer paints those instead of the static `links[]`. Absent binding
+ * ⇒ the static authored `links[]` render (a node never blanks out). The icon
+ * presentation (size, gap, shape) is shared with the existing header cluster.
+ */
+export interface BuilderSocialLinksNode extends BuilderNodeBase {
+  kind: "social_links";
+  props: {
+    /** Static authored links — the fallback when no data binding resolves. */
+    links: BuilderSocialLink[];
+    /** Icon glyph size (default "md"). */
+    size?: "sm" | "md" | "lg";
+    /** Icon container shape: "bare" = glyph only, "circle"/"square" = chip. */
+    shape?: "bare" | "circle" | "square";
+    /** Accessible label for the list landmark (default "Social links"). */
+    ariaLabel?: string;
+    /** Optional bind to `workspace_social_links` (tenant identity store). */
+    dataBinding?: BuilderDataBindingProps;
+    layerLabel?: string;
     style?: BuilderNodeStyle;
   };
 }
@@ -959,6 +1050,7 @@ export type BuilderNode =
   | BuilderCardNode
   | BuilderCtaGroupNode
   | BuilderNavNode
+  | BuilderSocialLinksNode
   | BuilderFormNode
   | BuilderSectionEmbedNode;
 

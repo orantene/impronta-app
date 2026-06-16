@@ -29,6 +29,8 @@ import { getPublicHostContext } from "@/lib/saas/scope";
 import { type CompositionData } from "@/lib/site-admin/edit-mode/composition-actions";
 import { homepageAdapter } from "@/lib/site-admin/builder-core/adapters/homepage-adapter";
 import { createBoundCmsPageAdapter } from "@/lib/site-admin/builder-core/adapters/cms-page-adapter";
+import { createBoundSiteShellAdapter } from "@/lib/site-admin/builder-core/adapters/site-shell-adapter";
+import { shouldRouteSiteShellSurface } from "@/lib/site-admin/site-shell-flag";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { resolveStorefrontLocale } from "@/lib/site-admin/server/storefront-locale";
@@ -170,11 +172,33 @@ export async function EditChromeMount() {
     supportedLocales,
     publicPathPrefix,
   });
-  if (ownership.kind !== "builder_page" && ownership.kind !== "directory") {
+
+  // WS-A A2 — the `site_shell` editor surface. The `__site_shell__` storefront
+  // path resolves to ownership.kind "site_shell" (set up in A1's edit-path
+  // resolver). Routing here is gated on `shouldRouteSiteShellSurface`, OFF by
+  // default: with the flag off this branch is NEVER taken — a `site_shell`
+  // ownership falls through to the `return null` below exactly as before, so the
+  // existing mount path is byte-for-byte unchanged. The shell surface is keyed
+  // by (tenant, locale), not slug — the adapter ignores pageSlug — but we thread
+  // the canonical `__site_shell__` slug for display + surface identity.
+  const siteShellSurfaceActive =
+    ownership.kind === "site_shell" &&
+    shouldRouteSiteShellSurface(ctx.tenantId);
+
+  if (
+    ownership.kind !== "builder_page" &&
+    ownership.kind !== "directory" &&
+    !siteShellSurfaceActive
+  ) {
     return null;
   }
-  const pageSlug =
-    ownership.kind === "directory" ? "__directory__" : ownership.pageSlug;
+  const pageSlug = siteShellSurfaceActive
+    ? "__site_shell__"
+    : ownership.kind === "directory"
+      ? "__directory__"
+      : ownership.kind === "builder_page"
+        ? ownership.pageSlug
+        : null;
 
   // T1-2 — Server-prefetch the composition when the editor is engaged.
   //
@@ -243,15 +267,24 @@ export async function EditChromeMount() {
   let initialComposition: CompositionData | null = null;
   if (editActive) {
     try {
-      const res = freeformPageMode
-        ? await createBoundCmsPageAdapter().load({
+      // WS-A A2 — the shell surface prefetches via the A1 site_shell adapter
+      // (cms_pages.blocks draft, falling back to the published snapshot tree).
+      // It is keyed by locale; pageSlug is ignored by the adapter. Only reachable
+      // when `siteShellSurfaceActive` (flag ON) — otherwise this branch is dead.
+      const res = siteShellSurfaceActive
+        ? await createBoundSiteShellAdapter(localeContext.locale).load({
             locale: localeContext.locale,
             pageSlug,
           })
-        : await homepageAdapter.load({
-            locale: localeContext.locale,
-            pageSlug,
-          });
+        : freeformPageMode
+          ? await createBoundCmsPageAdapter().load({
+              locale: localeContext.locale,
+              pageSlug,
+            })
+          : await homepageAdapter.load({
+              locale: localeContext.locale,
+              pageSlug,
+            });
       if (res.ok) {
         initialComposition = res.data;
       } else {
@@ -292,6 +325,7 @@ export async function EditChromeMount() {
       workspaceMembershipSlug={workspaceMembershipSlug}
       canInsertRawHtmlElements={canInsertRawHtmlElements}
       freeformPageMode={freeformPageMode}
+      siteShellMode={siteShellSurfaceActive}
     />
   );
 }

@@ -1,7 +1,6 @@
 // QuickAdd drawer: single-talent entry, CSV import, then full profile handoff.
 "use client";
 import React, { useState, useEffect, useMemo, useRef, useTransition, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import {
@@ -102,7 +101,6 @@ function PublishChecklist({
 
 export function NewTalentDrawer() {
   const { state, closeDrawer, openDrawer, toast, bulkAddTalent, tenantSlug, effectiveTenant, bridgeTenantIdentity } = useAdminShell();
-  const router = useRouter();
   const queueRouterRefresh = useQueuedRouterRefresh();
   const [isPending, startTransition] = useTransition();
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
@@ -321,8 +319,10 @@ export function NewTalentDrawer() {
     runAdd("agency", (talentProfileId) => {
       closeDrawer();
       if (talentProfileId) {
-        // Navigate to the real edit page for this newly-created talent
-        router.push(`/${tenantSlug}/admin/roster/${talentProfileId}`);
+        // Hand the newly-created talent off to the canonical catalog-driven
+        // edit drawer (mirrors the roster list's openProfile in TalentPage-1).
+        // The standalone full-page editor at /admin/roster/[id] is retired.
+        openDrawer("talent-profile-shell", { mode: "edit-admin", talentId: talentProfileId });
       } else {
         openDrawer("talent-profile-shell", { mode: "create", seed: seedForShell() });
       }
@@ -362,11 +362,12 @@ export function NewTalentDrawer() {
 
   const publish = () => {
     if (!allChecklistDone) return;
-    // Live mode + draft already exists → hand off to the full editor at
-    // the existing draftId. No duplicate row.
+    // Live mode + draft already exists → hand off to the canonical catalog
+    // edit drawer at the existing draftId. No duplicate row. The standalone
+    // full-page editor at /admin/roster/[id] is retired.
     if (tenantSlug && draftId) {
       closeDrawer();
-      router.push(`/${tenantSlug}/admin/roster/${draftId}`);
+      openDrawer("talent-profile-shell", { mode: "edit-admin", talentId: draftId });
       return;
     }
     // Prototype mode or no draftId yet → use the legacy create-and-handoff.

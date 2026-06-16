@@ -28,8 +28,10 @@ import type {
   ListPublishedTemplatesFilter,
 } from "@/lib/site-admin/builder-core/templates/registry-rows";
 import { templatePlanAllowed } from "@/lib/site-admin/builder-core/templates/registry-rows";
+import { templateRolloutAllowed } from "@/lib/site-admin/builder-core/templates/rollout";
 
 import { ADD_GALLERY_ITEMS } from "./registry";
+import { applyStructureToItems, type CatalogStructureMap } from "./catalog-structure";
 import type { AddGalleryItem, AddGalleryTab } from "./types";
 
 // ── Plan rank (mirrors registry-rows.templatePlanAllowed / data-bindings PLAN_RANK) ──
@@ -67,6 +69,12 @@ export interface CatalogOverlayRow {
   category_override: string | null;
   required_plan_override: PlanKey | null;
   availability_override: "available" | "hidden" | null;
+  // Builder Studio (Wave 0 plumbing; behavior in WS-C). Optional so existing
+  // overlay-row constructors/tests don't need updating; the DB always supplies them.
+  default_props?: Record<string, unknown> | null;
+  locked_props?: string[];
+  default_variant?: string | null;
+  data_source_defaults?: Record<string, unknown> | null;
 }
 
 /** Overlay rows keyed by `item_ref` (= AddGalleryItem.id). */
@@ -86,6 +94,18 @@ export interface SetCatalogOverlayInput {
   category_override?: string | null;
   required_plan_override?: PlanKey | null;
   availability_override?: "available" | "hidden" | null;
+  /** Builder Studio (WS-C C3) — admin default native variant applied at insert
+   *  when the item has no explicit variant. `null` clears the override. */
+  default_variant?: string | null;
+  /** Builder Studio (WS-C C2) — admin component defaults: props deep-merged OVER
+   *  the variant-resolved props at insert. `null` clears the override. */
+  default_props?: Record<string, unknown> | null;
+  /** Builder Studio (WS-C C4) — admin data-source defaults: a binding overlay
+   *  (`{ filterQuery?, maxItems?, pinnedIds? }`) deep-merged into a connected
+   *  node's `props.dataBinding` at insert. `null` clears the override. */
+  data_source_defaults?: Record<string, unknown> | null;
+  /** Builder Studio (WS-C) — dot-path prop keys a tenant may NOT edit. */
+  locked_props?: string[] | null;
 }
 
 /**
@@ -211,6 +231,14 @@ export function applyCatalogOverlay(
       icon: ov.icon_override ?? item.icon,
       category: ov.category_override ?? item.category,
       requiredPlan: morePlanRestrictive(item.requiredPlan, ov.required_plan_override),
+      // Builder Studio governance carry (Wave 0 plumbing; behavior in WS-C).
+      defaultVariant: ov.default_variant ?? item.defaultVariant,
+      defaultProps: ov.default_props ?? item.defaultProps,
+      lockedProps:
+        ov.locked_props && ov.locked_props.length > 0
+          ? ov.locked_props
+          : item.lockedProps,
+      dataSourceDefaults: ov.data_source_defaults ?? item.dataSourceDefaults,
     });
   }
   return out;
@@ -233,6 +261,10 @@ function dbGalleryTabToAddGalleryTab(tab: BuilderGalleryTab): AddGalleryTab {
       return "connected";
     case "page_templates":
       return "page_templates";
+    // WS-A A7 — shell templates land on the shell-only tab (offered solely on
+    // the site-shell surface via `allowedTabs`).
+    case "shell":
+      return "shell";
     default:
       return "page_templates";
   }
@@ -320,6 +352,15 @@ export function builderTemplateRowToGalleryItem(
     requiredPlan: row.required_plan,
     targetContext: row.target_context,
     requiredTalentTier: row.required_talent_tier,
+    // Builder Studio governance carry (Wave 0 plumbing; behavior in WS-C).
+    defaultProps: row.default_props,
+    lockedProps: row.locked_props,
+    dataSourceDefaults: row.data_source_defaults,
+    // Builder Studio staged rollout (WS-D D3) — carried so the live gate can
+    // bucket the tenant. Undefined fields fall back to "fully rolled out".
+    rolloutPercentage: row.rollout_percentage,
+    rolloutAllowlist: row.tenant_allowlist,
+    rolloutDenylist: row.tenant_denylist,
     ...(row.data_binding_requirements.length > 0
       ? { connectedSource: "Live data" }
       : {}),
@@ -337,6 +378,8 @@ export interface GalleryMergeContext {
   plan?: PlanKey | null;
   /** Surface talent tier for required_talent_tier gating (§E). */
   talentTier?: string | null;
+  /** Builder Studio — live tenant id for staged-rollout bucketing (WS-D). */
+  tenantId?: string | null;
 }
 
 /**
@@ -373,6 +416,27 @@ export function gateDbGalleryItems(
       return false;
     }
     if (!templateTalentTierAllowed(item.requiredTalentTier, ctx.talentTier)) {
+      return false;
+    }
+    // Staged rollout (WS-D D3): a published row may be canaried to a fraction of
+    // tenants (or allow/deny-listed). A null tenant context (platform / Lab)
+    // always passes — authors are never hidden from. `item.dbTemplateId` is the
+    // row id used for deterministic bucketing.
+    if (
+      !templateRolloutAllowed(
+        {
+          id: item.dbTemplateId ?? item.id,
+          rollout_percentage: item.rolloutPercentage,
+          tenant_allowlist: item.rolloutAllowlist
+            ? [...item.rolloutAllowlist]
+            : null,
+          tenant_denylist: item.rolloutDenylist
+            ? [...item.rolloutDenylist]
+            : null,
+        },
+        ctx.tenantId,
+      )
+    ) {
       return false;
     }
     return true;
@@ -420,6 +484,12 @@ export interface ListGalleryItemsDeps {
    * Omitted (or returning {}) → no overlay, code/template defaults stand.
    */
   loadOverlays?: () => Promise<CatalogOverlayMap>;
+  /**
+   * Load the catalog STRUCTURE map (WS-B). When provided, items are passed
+   * through `applyStructureToItems` (tab/category placement overrides) AFTER the
+   * overlay. Omitted (or returning {}) → code-default tab/category placement.
+   */
+  loadStructure?: () => Promise<CatalogStructureMap>;
 }
 
 /**
@@ -440,12 +510,20 @@ export async function listGalleryItems(
   const overlays = deps.loadOverlays
     ? await deps.loadOverlays().catch(() => ({}) as CatalogOverlayMap)
     : null;
-  const withOverlay = (items: AddGalleryItem[]): AddGalleryItem[] =>
-    overlays ? applyCatalogOverlay(items, overlays, context) : items;
+  const structure = deps.loadStructure
+    ? await deps.loadStructure().catch(() => ({}) as CatalogStructureMap)
+    : null;
+  // Overlay first (visibility/label/icon/plan), then structure (tab/category
+  // placement) — independent concerns; structure wins on placement because it is
+  // the explicit "move this component" control. Empty inputs ⇒ identity.
+  const finalize = (items: AddGalleryItem[]): AddGalleryItem[] => {
+    const withOverlay = overlays ? applyCatalogOverlay(items, overlays, context) : items;
+    return structure ? applyStructureToItems(withOverlay, structure) : withOverlay;
+  };
 
   if (!context.galleryPolicy.allowDbTemplates) {
     // DB templates suppressed → code-only, no DB round-trip.
-    return withOverlay(codeGalleryItemsForPolicy(context.galleryPolicy));
+    return finalize(codeGalleryItemsForPolicy(context.galleryPolicy));
   }
 
   const result = await deps.listPublishedTemplates({
@@ -455,7 +533,7 @@ export async function listGalleryItems(
 
   if (!result.ok) {
     // Never fail the gallery on a template-fetch error — fall back to code-only.
-    return withOverlay(codeGalleryItemsForPolicy(context.galleryPolicy));
+    return finalize(codeGalleryItemsForPolicy(context.galleryPolicy));
   }
 
   const dbItems: AddGalleryItem[] = [];
@@ -468,5 +546,5 @@ export async function listGalleryItems(
     );
   }
 
-  return withOverlay(mergeGalleryItems(dbItems, context));
+  return finalize(mergeGalleryItems(dbItems, context));
 }

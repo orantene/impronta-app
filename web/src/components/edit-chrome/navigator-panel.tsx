@@ -275,6 +275,7 @@ export function NavigatorPanel() {
     openPageSettings,
     openTheme,
     canEditSiteShell,
+    surfaceKind,
     navigatorOpen,
     navigatorWidth,
     recentNavigatorAdditions,
@@ -488,8 +489,15 @@ export function NavigatorPanel() {
     builderNodeId: string | null;
   }
   const [shellRows, setShellRows] = useState<ShellNavRow[]>([]);
+  // WS-A A2 — this DOM-scrape lists the header/footer rendered as legacy SLOT
+  // sections on the homepage canvas. On the dedicated `site_shell` SURFACE the
+  // header/footer are first-class freeform section nodes already in the normal
+  // navigator tree, so the scraped group would be redundant — keep it OFF there.
+  // Every legacy path is unchanged (isSiteShellSurface is always false when the
+  // routing flag is off).
+  const isSiteShellSurface = surfaceKind === "site_shell";
   useEffect(() => {
-    if (!canEditSiteShell) {
+    if (!canEditSiteShell || isSiteShellSurface) {
       setShellRows([]);
       return;
     }
@@ -532,7 +540,7 @@ export function NavigatorPanel() {
     const mo = new MutationObserver(() => recompute());
     mo.observe(document.body, { childList: true, subtree: true });
     return () => mo.disconnect();
-  }, [navigatorOpen, canEditSiteShell]);
+  }, [navigatorOpen, canEditSiteShell, isSiteShellSurface]);
   /** Flat-index of the current drop-line target (insert *before* this row). null → no drop visible. */
   const [dropAt, setDropAt] = useState<number | null>(null);
   const dropEdgeRef = useRef<"top" | "bottom">("top");

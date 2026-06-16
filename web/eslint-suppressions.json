@@ -532,7 +532,7 @@
   },
   "src/components/admin/shell/internal/messages/shared/machinery-4.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 43
+      "count": 41
     }
   },
   "src/components/admin/shell/internal/messages/shared/machinery-5.tsx": {
@@ -557,7 +557,7 @@
   },
   "src/components/admin/shell/internal/messages/shared/machinery-9.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 15
+      "count": 12
     }
   },
   "src/components/admin/shell/internal/messages/shared/offer-terms-ui.tsx": {
@@ -1634,11 +1634,6 @@
   "src/lib/server-actions/commercial-terms-tenant.ts": {
     "ratchet/no-untenanted-from": {
       "count": 3
-    }
-  },
-  "src/lib/server-actions/coord-request-actions.ts": {
-    "ratchet/no-untenanted-from": {
-      "count": 4
     }
   },
   "src/lib/server-actions/details-tab-data.ts": {

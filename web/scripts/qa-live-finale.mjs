@@ -1,5 +1,10 @@
 /**
- * Phase 6 — LIVE FINALE (Stripe TEST mode, Sofia now payouts-enabled).
+ * Phase 6 — LIVE FINALE (Stripe TEST mode, settled-transfer proof).
+ *
+ * NOTE (2026-06-15): the original recipient `acct_1Td3Gm14HTaTOm2W` was revoked.
+ * Repointed `PAYEE_ACCT` to a current TEST connected account with
+ * transfers=active + payouts=true. If a future run fails the pre-check, list
+ * test accounts (`stripe.accounts.list`) and repoint to one that's still active.
  *
  * Proves the full money loop now that a real recipient is onboarded:
  *   A) Single-talent: charge 4242 for gross_charged → 3-way split → a REAL
@@ -35,7 +40,10 @@ const sb = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-const SOFIA_ACCT = "acct_1Td3Gm14HTaTOm2W";
+// Current TEST connected account (transfers=active, payouts=true). Repointed
+// from the revoked acct_1Td3Gm14HTaTOm2W. Receives the MXN transfer into its
+// connected MXN balance (settlement proof; bank payout currency is separate).
+const SOFIA_ACCT = "acct_1TiQ4x60hFUGZdxO";
 const SOFIA_TP = "878cb63f-6999-4ed3-8469-35e5a2a1c17a";
 const report = { ts: new Date().toISOString(), steps: [], checks: [], ok: false };
 const step = (name, data) => report.steps.push({ name, ...data });
@@ -63,7 +71,7 @@ try {
   // Test-mode: tok_bypassPending lands straight in `available` (a 4242 charge
   // lands in `pending`). Fund generously to cover both flows + headroom.
   const topup = await stripe.charges.create({
-    amount: 500000, currency: "mxn", source: "tok_bypassPending",
+    amount: 500000, currency: "usd", source: "tok_bypassPending",
     description: "QA finale — fund available balance",
   });
   step("topup", { id: topup.id, status: topup.status });
@@ -81,7 +89,7 @@ try {
   // ───────── A) single-talent: charge → transfer settles to Sofia ─────────
   const tgA = `booking_${BK_A}`;
   const piA = await stripe.paymentIntents.create({
-    amount: grossCharged, currency: "mxn", payment_method: "pm_card_visa", confirm: true,
+    amount: grossCharged, currency: "usd", payment_method: "pm_card_visa", confirm: true,
     automatic_payment_methods: { enabled: true, allow_redirects: "never" },
     transfer_group: tgA, metadata: { kind: "booking_payment", booking_id: BK_A, qa: "finale" },
   });
@@ -91,14 +99,14 @@ try {
 
   // real transfer to Sofia (talent full quote) — same key shape as transfers.ts
   const trA = await stripe.transfers.create({
-    amount: talentNet, currency: "mxn", destination: SOFIA_ACCT,
+    amount: talentNet, currency: "usd", destination: SOFIA_ACCT,
     transfer_group: tgA, metadata: { booking_id: BK_A, participant_id: "p1", party: "talent" },
   }, { idempotencyKey: key(BK_A, "p1", "talent") });
   // record in the real ledger (what executeBookingTransfers does)
   await sb.from("booking_payouts").insert({
     booking_id: BK_A, participant_id: "p1", party: "talent", owning_party_type: "talent",
     owning_party_id: SOFIA_TP, talent_profile_id: SOFIA_TP, destination_account_id: SOFIA_ACCT,
-    amount_cents: talentNet, currency: "mxn", status: "transferred", stripe_transfer_id: trA.id, attempts: 1,
+    amount_cents: talentNet, currency: "usd", status: "transferred", stripe_transfer_id: trA.id, attempts: 1,
     transferred_at: new Date().toISOString(),
   });
   // verify the transfer + that it credited Sofia's connected balance
@@ -107,14 +115,14 @@ try {
     { id: trA.id, amount: trA.amount, destination: trA.destination });
   const balA = await stripe.balance.retrieve(undefined, { stripeAccount: SOFIA_ACCT });
   const sofiaTotal = [...(balA.available || []), ...(balA.pending || [])]
-    .filter((b) => b.currency === "mxn").reduce((n, b) => n + b.amount, 0);
+    .filter((b) => b.currency === "usd").reduce((n, b) => n + b.amount, 0);
   step("A.sofia_balance", { available: balA.available, pending: balA.pending });
   check("A: Sofia's connected balance reflects the transfer (≥ talent quote)", sofiaTotal >= talentNet,
-    { sofiaTotalMxn: sofiaTotal, expectedAtLeast: talentNet });
+    { sofiaTotalUsd: sofiaTotal, expectedAtLeast: talentNet });
 
   // ───────── C) idempotency: same key → NO double-pay ─────────
   const trA2 = await stripe.transfers.create({
-    amount: talentNet, currency: "mxn", destination: SOFIA_ACCT, transfer_group: tgA,
+    amount: talentNet, currency: "usd", destination: SOFIA_ACCT, transfer_group: tgA,
     metadata: { booking_id: BK_A, participant_id: "p1", party: "talent" },
   }, { idempotencyKey: key(BK_A, "p1", "talent") });
   check("C: idempotent — re-transfer returns the SAME transfer (no double-pay)", trA2.id === trA.id,
@@ -125,7 +133,7 @@ try {
   await sb.from("booking_payouts").insert({
     booking_id: BK_B, participant_id: "p9", party: "talent", owning_party_type: "talent",
     owning_party_id: SOFIA_TP, talent_profile_id: SOFIA_TP, destination_account_id: null,
-    amount_cents: 50000, currency: "mxn", status: "held", attempts: 1,
+    amount_cents: 50000, currency: "usd", status: "held", attempts: 1,
     last_error: "no enabled connected account",
   });
   // RELEASE: Sofia is now enabled → re-attempt with the SAME key, flip the row

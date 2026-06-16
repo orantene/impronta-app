@@ -5,7 +5,7 @@ import { ThreadSearch, type ThreadSearchMessage, type JumpTarget } from "@/compo
 import { COLORS, FONTS, TRANSITION } from "../../state";
 import { Icon } from "../../primitives";
 import { disabledBtn } from "./machinery-13";
-import type { ChatSubThreadId, TabDef, ThreadTabId } from "./machinery-8";
+import type { TabDef, ThreadTabId } from "./machinery-8";
 
 export function ThreadTabBar({
   tabs, activeId, onSelect,
@@ -190,123 +190,6 @@ export function ThreadSearchTrigger({
         onClose={() => setOpen(false)}
       />
     </>
-  );
-}
-
-/**
- * ChatSubToggleDropdown — floating absolute segmented switch for the
- * Chat tab. NOT a dropdown — a 3-button pill that hovers below the
- * Chat tab. Click any button to switch threads immediately.
- *
- * F2 NOTE: the TALENT shell no longer uses this — its Chat sub-toggle
- * was flattened into three top-level tabs (Client · Group · Activity).
- * The ADMIN shell (admin-2.tsx) still renders the single Chat tab with
- * this floating sub-toggle, so the component stays.
- *
- * Position is `absolute` so it doesn't reserve vertical space — it
- * floats above the conversation pane's top edge. Parent must be
- * `position: relative`. The conversation pane below sits 36px down
- * from the tab bar (the floating switch overlays that gap visually).
- */
-export function ChatSubToggleDropdown({
-  current,
-  onSelect,
-  clientUnread,
-  groupUnread,
-  lockClient = false,
-  onLockedClick,
-}: {
-  current: ChatSubThreadId;
-  onSelect: (sub: ChatSubThreadId) => void;
-  clientUnread?: number;
-  groupUnread?: number;
-  lockClient?: boolean;
-  onLockedClick?: () => void;
-}) {
-  const labelOf = (s: ChatSubThreadId): string =>
-    s === "client" ? "Client" : s === "group" ? "Chat" : "Activity";
-
-  const subs: ChatSubThreadId[] = ["client", "group", "dm"];
-
-  return (
-    <div
-      data-chat-sub-toggle
-      style={{
-        // Floats down from the Chat tab. Parent must be
-        // `position: relative`. Top offset accounts for the ~44px
-        // ThreadTabBar height + a 4px gap so the switch sits flush
-        // beneath the tab strip without reserving vertical space in
-        // the conversation column.
-        position: "absolute",
-        top: 48,
-        left: 10,
-        zIndex: 6,
-        display: "inline-flex",
-        gap: 2,
-        padding: 3,
-        background: "rgba(255,255,255,0.96)",
-        backdropFilter: "blur(8px)",
-        border: `1px solid ${COLORS.borderSoft}`,
-        borderRadius: 999,
-        boxShadow: "0 6px 14px rgba(11,11,13,0.10)",
-      }}
-    >
-      {subs.map((s) => {
-        const active = current === s;
-        const locked = s === "client" && lockClient;
-        const subUnread = s === "client" ? clientUnread
-          : s === "group" ? groupUnread
-          : 0;
-        return (
-          <button
-            key={s}
-            type="button"
-            onClick={() => {
-              if (locked) {
-                onLockedClick?.();
-                return;
-              }
-              onSelect(s);
-            }}
-            title={locked ? "Locked — request to join as coordinator" : undefined}
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 4,
-              padding: "4px 10px",
-              borderRadius: 999,
-              border: "none",
-              cursor: locked ? "not-allowed" : "pointer",
-              fontFamily: FONTS.body, fontSize: 12,
-              fontWeight: active ? 700 : 600,
-              color: locked ? COLORS.inkDim : (active ? "#fff" : COLORS.inkMuted),
-              background: active ? COLORS.accent : "transparent",
-              opacity: locked ? 0.7 : 1,
-              transition: "background 100ms, color 100ms",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {locked && (
-              <svg width="9" height="9" viewBox="0 0 12 12" fill="none" aria-hidden>
-                <rect x="2.5" y="5" width="7" height="5" rx="1" stroke="currentColor" strokeWidth="1.4"/>
-                <path d="M4 5V3.5a2 2 0 014 0V5" stroke="currentColor" strokeWidth="1.4"/>
-              </svg>
-            )}
-            {labelOf(s)}
-            {(subUnread ?? 0) > 0 && (
-              <span style={{
-                minWidth: 15, height: 15, padding: "0 4px",
-                borderRadius: 999,
-                background: active ? "rgba(255,255,255,0.25)" : COLORS.indigoSoft,
-                color: active ? "#fff" : COLORS.indigoDeep,
-                fontSize: 9.5, fontWeight: 700,
-                display: "inline-flex", alignItems: "center", justifyContent: "center",
-              }}>
-                {subUnread}
-              </span>
-            )}
-          </button>
-        );
-      })}
-    </div>
   );
 }
 

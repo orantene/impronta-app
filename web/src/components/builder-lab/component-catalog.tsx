@@ -23,10 +23,17 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   ADD_GALLERY_CATEGORIES,
+  type AddGalleryNativeVariant,
   type AddGalleryTab,
   type CatalogAdminItem,
   type CatalogOverlayRow,
 } from "@/lib/site-admin/add-gallery";
+import {
+  CODE_TAB_DEFS,
+  resolveTabLabel,
+  type CatalogStructureMap,
+} from "@/lib/site-admin/add-gallery/catalog-structure";
+import { listCatalogStructure } from "@/lib/site-admin/add-gallery/catalog-structure-actions";
 import { loadCatalogAdminView } from "@/lib/site-admin/add-gallery/catalog-admin-view-action";
 import {
   clearComponentOverlay,
@@ -46,6 +53,7 @@ import {
   type PageDesignSummary,
 } from "@/lib/site-admin/builder-node/page-designs/summaries";
 import { SiteDefaultsEditor } from "./site-defaults-editor";
+import { CatalogStudioView } from "./catalog-studio";
 import { SurfaceSwitcher } from "./surface-switcher";
 import type { BuilderLabTarget } from "./builder-lab-stage";
 import {
@@ -64,28 +72,26 @@ import {
   EmptyCard,
 } from "./ui";
 
-const ALL_TABS: ReadonlyArray<AddGalleryTab> = [
-  "layout",
-  "elements",
-  "sections",
-  "connected",
-  "page_templates",
-];
-
-const TAB_LABEL: Record<AddGalleryTab, string> = {
-  layout: "Layout",
-  elements: "Elements",
-  sections: "Sections",
-  connected: "Connected",
-  page_templates: "Page Templates",
-};
+// Single source — derived from the Builder Studio catalog-structure resolver
+// (was duplicated with add-gallery-panel.tsx's TAB_DEFS). WS-B threads loaded
+// structure for admin tab rename/reorder; code defaults verbatim otherwise.
+const ALL_TABS: ReadonlyArray<AddGalleryTab> = CODE_TAB_DEFS.map((t) => t.id);
+const TAB_LABEL = Object.fromEntries(
+  CODE_TAB_DEFS.map((t) => [t.id, t.label]),
+) as Record<AddGalleryTab, string>;
 
 // Special (non-gallery) Catalog views shown after the component categories.
-const SPECIAL_TABS = ["site_starter_kit", "site_defaults", "playground"] as const;
+const SPECIAL_TABS = [
+  "catalog_studio",
+  "site_starter_kit",
+  "site_defaults",
+  "playground",
+] as const;
 type SpecialTab = (typeof SPECIAL_TABS)[number];
 type CatalogView = AddGalleryTab | SpecialTab;
 const VIEW_LABEL: Record<CatalogView, string> = {
   ...TAB_LABEL,
+  catalog_studio: "Catalog Studio",
   site_starter_kit: "Site Starter Kit",
   site_defaults: "Site Defaults",
   playground: "Playground",
@@ -97,6 +103,36 @@ function isSpecialTab(v: CatalogView): v is SpecialTab {
 const CATEGORY_LABEL = new Map(
   ADD_GALLERY_CATEGORIES.map((c) => [c.id, c.label] as const),
 );
+
+// C3 — selectable admin "default variant" values. The native preset variants the
+// insert composer (applyNativeVariant) recognizes, sans "default" (= no variant).
+// A free-form value still round-trips (only applied when it matches the node's
+// kind), but the select keeps the common set one click away.
+const DEFAULT_VARIANT_OPTIONS: ReadonlyArray<AddGalleryNativeVariant> = [
+  "title",
+  "subtitle",
+  "intro",
+  "caption",
+  "badge",
+  "quote",
+  "text-link",
+  "icon-button",
+  "download-link",
+  "cover-image",
+  "logo",
+  "stack",
+  "row",
+  "card-group",
+  "grid",
+  "image-card",
+  "icon-card",
+  "profile-card",
+  "service-card",
+  "testimonial-card",
+  "cta-card",
+  "breadcrumb",
+  "youtube",
+];
 
 function humanize(id: string): string {
   return (
@@ -137,6 +173,38 @@ function connectedDataGroupOf(item: CatalogAdminItem): ConnectedDataGroup {
     : "agency";
 }
 
+/** Parse the "Locked props" textarea (comma/newline/space-separated dot-paths)
+ *  into the normalized `locked_props` array. Empty ⇒ [] (clears the lock). */
+function parseLockedProps(raw: string): string[] {
+  const seen = new Set<string>();
+  for (const tok of raw.split(/[\s,]+/)) {
+    const key = tok.trim();
+    if (key) seen.add(key);
+  }
+  return Array.from(seen);
+}
+
+/** Parse a JSON-object textarea. Empty ⇒ null (clears the override). Invalid
+ *  JSON or a non-object → `{ error }` so the caller can show an inline message
+ *  and block the save. `noun` names the field in the error copy. */
+function parseJsonObjectField(
+  raw: string,
+  noun: string,
+): { ok: true; value: Record<string, unknown> | null } | { ok: false; error: string } {
+  const trimmed = raw.trim();
+  if (!trimmed) return { ok: true, value: null };
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(trimmed);
+  } catch {
+    return { ok: false, error: "Invalid JSON." };
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    return { ok: false, error: `${noun} must be a JSON object.` };
+  }
+  return { ok: true, value: parsed as Record<string, unknown> };
+}
+
 export function ComponentCatalog({
   onLaunchEditor,
   onPreviewComponent,
@@ -152,6 +220,10 @@ export function ComponentCatalog({
   defaultView?: CatalogView;
 } = {}) {
   const [items, setItems] = useState<CatalogAdminItem[] | null>(null);
+  // Catalog structure — used only to reflect admin tab renames in the Lab's
+  // gallery-tab labels (Catalog Studio is the primary edit surface). Items are
+  // already structure-placed by loadCatalogAdminView.
+  const [structure, setStructure] = useState<CatalogStructureMap>({});
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -159,6 +231,16 @@ export function ComponentCatalog({
   const [editCategory, setEditCategory] = useState("");
   const [editIcon, setEditIcon] = useState("");
   const [editPlan, setEditPlan] = useState("");
+  const [editLockedProps, setEditLockedProps] = useState("");
+  const [editDefaultVariant, setEditDefaultVariant] = useState("");
+  const [editDefaultProps, setEditDefaultProps] = useState("");
+  const [editDefaultPropsError, setEditDefaultPropsError] = useState<string | null>(
+    null,
+  );
+  const [editDataSourceDefaults, setEditDataSourceDefaults] = useState("");
+  const [editDataSourceDefaultsError, setEditDataSourceDefaultsError] = useState<
+    string | null
+  >(null);
   // W11 — inline (non-blocking) reset confirmation.
   const [confirmingResetId, setConfirmingResetId] = useState<string | null>(null);
   // W6 — search + filter over the (large) catalog.
@@ -188,6 +270,13 @@ export function ComponentCatalog({
 
   useEffect(() => {
     let cancelled = false;
+    listCatalogStructure()
+      .then((s) => {
+        if (!cancelled) setStructure(s);
+      })
+      .catch(() => {
+        /* keep code-default tab labels */
+      });
     loadCatalogAdminView()
       .then((data) => {
         if (!cancelled) setItems(data);
@@ -275,10 +364,31 @@ export function ComponentCatalog({
     setEditCategory(item.overlay?.category_override ?? "");
     setEditIcon(item.overlay?.icon_override ?? "");
     setEditPlan(item.overlay?.required_plan_override ?? "");
+    setEditLockedProps((item.overlay?.locked_props ?? []).join(", "));
+    setEditDefaultVariant(item.overlay?.default_variant ?? "");
+    const dp = item.overlay?.default_props;
+    setEditDefaultProps(dp ? JSON.stringify(dp, null, 2) : "");
+    setEditDefaultPropsError(null);
+    const dsd = item.overlay?.data_source_defaults;
+    setEditDataSourceDefaults(dsd ? JSON.stringify(dsd, null, 2) : "");
+    setEditDataSourceDefaultsError(null);
   }, []);
 
   const saveEdit = useCallback(
     (item: CatalogAdminItem) => {
+      const dp = parseJsonObjectField(editDefaultProps, "Default props");
+      if (!dp.ok) {
+        // Invalid JSON → keep the editor open, show the inline error, don't save.
+        setEditDefaultPropsError(dp.error);
+        return;
+      }
+      const dsd = parseJsonObjectField(editDataSourceDefaults, "Data-source defaults");
+      if (!dsd.ok) {
+        setEditDataSourceDefaultsError(dsd.error);
+        return;
+      }
+      setEditDefaultPropsError(null);
+      setEditDataSourceDefaultsError(null);
       void mutate(item.id, () =>
         setComponentOverlay({
           item_ref: item.id,
@@ -288,13 +398,28 @@ export function ComponentCatalog({
           icon_override: editIcon.trim() || null,
           required_plan_override:
             (editPlan as "free" | "studio" | "agency" | "network" | "") || null,
+          locked_props: parseLockedProps(editLockedProps),
+          default_variant: editDefaultVariant.trim() || null,
+          default_props: dp.value,
+          data_source_defaults: dsd.value,
         }),
       ).then(() => {
         setEditingId(null);
         flash("Saved ✓");
       });
     },
-    [mutate, editLabel, editCategory, editIcon, editPlan, flash],
+    [
+      mutate,
+      editLabel,
+      editCategory,
+      editIcon,
+      editPlan,
+      editLockedProps,
+      editDefaultVariant,
+      editDefaultProps,
+      editDataSourceDefaults,
+      flash,
+    ],
   );
 
   const confirmReset = useCallback(
@@ -369,6 +494,13 @@ export function ComponentCatalog({
     ? rowsByTab.get(currentView as AddGalleryTab) ?? []
     : [];
 
+  // Display label for a view: gallery tabs honor admin renames (Catalog Studio);
+  // special views keep their fixed label.
+  const viewLabel = (view: CatalogView): string =>
+    isSpecialTab(view)
+      ? VIEW_LABEL[view]
+      : resolveTabLabel(view as AddGalleryTab, structure);
+
   // The Connected view shows ONE surface at a time (driven by the switcher);
   // every other gallery view renders as a single group. Empty groups are dropped.
   const rowGroups: Array<{ key: string; label: string; rows: CatalogAdminItem[] }> = (
@@ -378,7 +510,7 @@ export function ComponentCatalog({
           label: g.label,
           rows: currentRows.filter((r) => connectedDataGroupOf(r) === g.key),
         }))
-      : [{ key: String(currentView), label: VIEW_LABEL[currentView], rows: currentRows }]
+      : [{ key: String(currentView), label: viewLabel(currentView), rows: currentRows }]
   ).filter((g) => g.rows.length > 0);
 
   return (
@@ -416,7 +548,7 @@ export function ComponentCatalog({
                   gap: 7,
                 }}
               >
-                {VIEW_LABEL[view]}
+                {viewLabel(view)}
                 {count !== null ? (
                   <span
                     style={{
@@ -493,7 +625,7 @@ export function ComponentCatalog({
 
       {rowGroups.length === 0 ? (
         <div style={{ color: T.inkMuted, fontSize: 13, padding: "12px 0" }}>
-          No {VIEW_LABEL[currentView]} components
+          No {viewLabel(currentView)} components
           {query ? ` matching “${query}”` : ""}
           {filterMode !== "all" ? ` (${filterMode})` : ""}.
         </div>
@@ -723,9 +855,92 @@ export function ComponentCatalog({
                                 <option value="network">network</option>
                               </select>
                             </Field>
+                            <Field label="Locked props (tenant can't edit)">
+                              <input
+                                value={editLockedProps}
+                                onChange={(e) => setEditLockedProps(e.target.value)}
+                                placeholder="e.g. tone, style.textColor"
+                                style={{ ...inputStyle, width: 260 }}
+                              />
+                            </Field>
+                            <Field label="Default variant">
+                              <select
+                                value={editDefaultVariant}
+                                onChange={(e) => setEditDefaultVariant(e.target.value)}
+                                style={{ ...inputStyle, width: 170 }}
+                              >
+                                <option value="">— default —</option>
+                                {DEFAULT_VARIANT_OPTIONS.map((v) => (
+                                  <option key={v} value={v}>
+                                    {v}
+                                  </option>
+                                ))}
+                              </select>
+                            </Field>
+                            <Field label="Default props (JSON)">
+                              <textarea
+                                value={editDefaultProps}
+                                onChange={(e) => {
+                                  setEditDefaultProps(e.target.value);
+                                  if (editDefaultPropsError) setEditDefaultPropsError(null);
+                                }}
+                                placeholder={'{\n  "tone": "primary"\n}'}
+                                spellCheck={false}
+                                rows={4}
+                                style={{
+                                  ...inputStyle,
+                                  width: 300,
+                                  minHeight: 76,
+                                  fontFamily: "ui-monospace, monospace",
+                                  resize: "vertical",
+                                  borderColor: editDefaultPropsError ? T.red : undefined,
+                                }}
+                              />
+                              {editDefaultPropsError ? (
+                                <span style={{ fontSize: 10.5, color: T.red }}>
+                                  {editDefaultPropsError}
+                                </span>
+                              ) : null}
+                            </Field>
+                            <Field label="Data-source defaults (JSON)">
+                              <textarea
+                                value={editDataSourceDefaults}
+                                onChange={(e) => {
+                                  setEditDataSourceDefaults(e.target.value);
+                                  if (editDataSourceDefaultsError) {
+                                    setEditDataSourceDefaultsError(null);
+                                  }
+                                }}
+                                placeholder={'{\n  "maxItems": 6\n}'}
+                                spellCheck={false}
+                                rows={4}
+                                style={{
+                                  ...inputStyle,
+                                  width: 300,
+                                  minHeight: 76,
+                                  fontFamily: "ui-monospace, monospace",
+                                  resize: "vertical",
+                                  borderColor: editDataSourceDefaultsError ? T.red : undefined,
+                                }}
+                              />
+                              {editDataSourceDefaultsError ? (
+                                <span style={{ fontSize: 10.5, color: T.red }}>
+                                  {editDataSourceDefaultsError}
+                                </span>
+                              ) : null}
+                            </Field>
                             <span style={{ fontSize: 11, color: T.inkDim }}>
                               Blank = built-in default. Icon names match the gallery icon set. Plan only
-                              tightens (never widens). Reflected in both builders on next open.
+                              tightens (never widens). <strong>Locked props</strong> are dot-paths
+                              (comma-separated) the tenant can&apos;t change once inserted — the look stays
+                              on-brand, they still edit the copy. <strong>Default variant</strong> picks the
+                              native preset applied at insert (when the item has no built-in variant).{" "}
+                              <strong>Default props</strong> (a JSON object) are deep-merged over the
+                              component&apos;s defaults at insert (arrays replaced) — the admin&apos;s
+                              canonical starting content. <strong>Data-source defaults</strong> (a JSON
+                              object, e.g. <code>{"{ \"maxItems\": 6 }"}</code>) are merged into a connected
+                              component&apos;s <code>dataBinding</code> at insert. Reflected in both
+                              builders on next open.
                             </span>
                           </div>
                         </td>
@@ -746,6 +961,8 @@ export function ComponentCatalog({
         re-iconed, or plan-gated here; changing their internal structure is a code change.
       </p>
         </>
+      ) : currentView === "catalog_studio" ? (
+        <CatalogStudioView />
       ) : currentView === "site_defaults" ? (
         <SiteDefaultsEditor />
       ) : currentView === "playground" ? (

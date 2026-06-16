@@ -552,15 +552,13 @@ export async function removeSecondaryCoordinator(
     await assertConsistencyAfterWrite(supabase, ctx.inquiryId);
 
     // WS6 — private-thread system card on removal (client visibility).
-    // SystemEventType has no 'coordinator_removed', so reuse
-    // 'coordinator_reassigned' for the removal card.
     {
       const names = await resolveCoordinatorNames(supabase, [ctx.userId, ctx.actorUserId]);
       const removedName = names[ctx.userId] ?? "A coordinator";
       await insertSystemMessage(supabase, {
         inquiryId: ctx.inquiryId,
         threadType: "private",
-        eventType: "coordinator_reassigned",
+        eventType: "coordinator_removed",
         body: `${removedName} is no longer coordinating this inquiry.`,
         metadata: { target_user_id: ctx.userId, actor_user_id: ctx.actorUserId },
       });
