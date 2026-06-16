@@ -20,6 +20,26 @@ export type TalentPortfolioStarterProfile = {
    */
   serviceNames: string[];
   headshotUrl: string | null;
+  /**
+   * Non-primary `talent_type` taxonomy labels (locale-aware, primary excluded),
+   * e.g. ["Photographer","Stylist"]. Drives the default freeform profile's
+   * discipline chip row. Optional + additive — existing callers/fixtures that
+   * predate this field still type-check; the loader always populates it ([] when
+   * none).
+   */
+  secondaryTypeLabels?: string[];
+  /**
+   * The talent's full published bio (locale-resolved via `publicBioForLocale` /
+   * `canonicalBioEn`), unsliced — drives the default freeform profile's About
+   * paragraph. Empty string when none. Distinct from `publicBio`, which the slot
+   * templates slice to a short intro tagline. Optional + additive.
+   */
+  richBio?: string;
+  /**
+   * Joined spoken-language names (e.g. "Spanish · English"), or "" when none /
+   * not loaded. Optional + additive — shown as a small About line when present.
+   */
+  languagesLabel?: string;
 };
 
 export type TalentPortfolioStarterMedia = {

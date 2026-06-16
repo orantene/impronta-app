@@ -36,7 +36,9 @@ export async function loadTalentStarterProfileData(
       services_menu,
       talent_profile_taxonomy (
         relationship_type,
-        taxonomy_terms ( name_i18n )
+        is_primary,
+        display_order,
+        taxonomy_terms ( kind, name_i18n )
       ),
       talent_service_areas (
         service_kind,
@@ -61,7 +63,12 @@ export async function loadTalentStarterProfileData(
     services_menu: unknown;
     talent_profile_taxonomy: {
       relationship_type: string | null;
-      taxonomy_terms: { name_i18n: Record<string, string | null> | null } | null;
+      is_primary: boolean | null;
+      display_order: number | null;
+      taxonomy_terms: {
+        kind: string | null;
+        name_i18n: Record<string, string | null> | null;
+      } | null;
     }[] | null;
     talent_service_areas: {
       service_kind: string | null;
@@ -77,10 +84,44 @@ export async function loadTalentStarterProfileData(
     `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() ||
     "Unnamed";
 
+  // Talent-type taxonomy — primary first, then the rest as secondaries. Mirrors
+  // the canonical public profile page (kind === "talent_type", `is_primary`
+  // flag, `display_order` ordering). The snapshot renders in English (the
+  // resolver hardcodes locale "en"), so labels use `name_i18n.en`.
+  const talentTypeRows = (p.talent_profile_taxonomy ?? [])
+    .filter((t) => t.taxonomy_terms?.kind === "talent_type")
+    .slice()
+    .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+
+  const primaryTalentTypeLabel =
+    talentTypeRows.find((t) => t.is_primary)?.taxonomy_terms?.name_i18n?.en?.trim() ??
+    null;
+
+  // Backward-compatible: prefer the `is_primary` talent_type; fall back to the
+  // legacy `relationship_type === "primary_role"` lookup so this never regresses
+  // for rows that only set the relationship_type.
   const primaryTypeLabel =
+    primaryTalentTypeLabel ||
     (p.talent_profile_taxonomy ?? [])
       .find((t) => t.relationship_type === "primary_role")
-      ?.taxonomy_terms?.name_i18n?.en ?? null;
+      ?.taxonomy_terms?.name_i18n?.en?.trim() ||
+    null;
+
+  // All non-primary talent types (de-duped, primary label excluded), e.g.
+  // ["Photographer","Stylist"] — drives the default profile's discipline chips.
+  const secondaryTypeLabels = (() => {
+    const seen = new Set<string>();
+    if (primaryTypeLabel) seen.add(primaryTypeLabel);
+    const out: string[] = [];
+    for (const row of talentTypeRows) {
+      if (row.is_primary) continue;
+      const label = row.taxonomy_terms?.name_i18n?.en?.trim();
+      if (!label || seen.has(label)) continue;
+      seen.add(label);
+      out.push(label);
+    }
+    return out;
+  })();
 
   const homeCity =
     (p.talent_service_areas ?? [])
@@ -121,14 +162,36 @@ export async function loadTalentStarterProfileData(
 
   const headshotUrl = media[0]?.url ?? null;
 
+  // The full published bio (locale-resolved, NOT sliced). Same resolution the
+  // slot templates use for `publicBio`, but the default freeform About renders
+  // it in full as a proper paragraph. "" when none.
+  const richBio =
+    publicBioForLocale("en", ["en"], p.bio_i18n).trim() ||
+    canonicalBioEn(bioEnFromI18n(p.bio_i18n), p.short_bio) ||
+    "";
+
+  // Cheap, single extra query — joined spoken-language names ("Spanish · English"),
+  // ordered the way the public profile orders them. "" when none / on error.
+  const { data: languageRows } = await trusted
+    .from("talent_languages")
+    .select("language_name, display_order")
+    .eq("talent_profile_id", talentProfileId)
+    .order("display_order", { ascending: true })
+    .order("language_name", { ascending: true });
+
+  const languagesLabel = (languageRows ?? [])
+    .map((row) => (row as { language_name: string | null }).language_name?.trim())
+    .filter((name): name is string => !!name)
+    .join(" · ");
+
   return {
     displayName,
     profileCode: p.profile_code,
     primaryTypeLabel,
-    publicBio:
-      publicBioForLocale("en", ["en"], p.bio_i18n).trim() ||
-      canonicalBioEn(bioEnFromI18n(p.bio_i18n), p.short_bio) ||
-      null,
+    secondaryTypeLabels,
+    publicBio: richBio || null,
+    richBio,
+    languagesLabel,
     homeCity,
     serviceAreaLabels,
     serviceNames,
