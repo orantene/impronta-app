@@ -172,8 +172,8 @@ const EMPTY: PlatformCatalogFieldDetail = {
 type DefRow = {
   id: string;
   field_key: string;
-  label: string | null;
-  label_es: string | null;
+  // label/label_es, helper/helper_es, placeholder folded into *_i18n (WS3).
+  label_i18n: Record<string, string | null> | null;
   tier: string | null;
   section: string | null;
   subsection: string | null;
@@ -190,9 +190,8 @@ type DefRow = {
   is_searchable: boolean | null;
   is_optional: boolean | null;
   deprecated_at: string | null;
-  helper: string | null;
-  helper_es: string | null;
-  placeholder: string | null;
+  helper_i18n: Record<string, string | null> | null;
+  placeholder_i18n: Record<string, string | null> | null;
   unit: string | null;
   kind: string | null;
   options: unknown;
@@ -273,8 +272,9 @@ async function loadPlatformCatalogFieldDetailUncached(
     // 1. The field itself
     const { data: defR, error: defErr } = await sb
       .from("profile_field_definitions")
+      // label/label_es, helper/helper_es, placeholder folded into *_i18n (WS3).
       .select(
-        "id, field_key, label, label_es, tier, section, subsection, field_group_id, default_visibility, admin_only, is_sensitive, show_in_public, show_in_directory, show_in_registration, show_in_edit_drawer, talent_editable, requires_review_on_change, is_searchable, is_optional, deprecated_at, helper, helper_es, placeholder, unit, kind, options, display_order, count_min",
+        "id, field_key, label_i18n, tier, section, subsection, field_group_id, default_visibility, admin_only, is_sensitive, show_in_public, show_in_directory, show_in_registration, show_in_edit_drawer, talent_editable, requires_review_on_change, is_searchable, is_optional, deprecated_at, helper_i18n, placeholder_i18n, unit, kind, options, display_order, count_min",
       )
       .eq("field_key", fieldKey)
       .maybeSingle();
@@ -304,11 +304,12 @@ async function loadPlatformCatalogFieldDetailUncached(
     if (def.field_group_id) {
       const { data: gR } = await sb
         .from("profile_field_groups")
-        .select("name_en, slug")
+        // name_en folded into name_i18n {en,es} (WS3).
+        .select("name_i18n, slug")
         .eq("id", def.field_group_id)
         .maybeSingle();
-      const g = gR as { name_en: string | null; slug: string | null } | null;
-      groupName = g?.name_en ?? g?.slug ?? null;
+      const g = gR as { name_i18n: Record<string, string | null> | null; slug: string | null } | null;
+      groupName = g?.name_i18n?.en ?? g?.slug ?? null;
     }
 
     // 3. Value count (existence only; never the value) + workspace overrides —
@@ -339,21 +340,36 @@ async function loadPlatformCatalogFieldDetailUncached(
       // `archived_at IS NULL` alone ≈ 1068 rows > PostgREST's 1000-row cap, so an
       // un-paged select silently dropped terms past row 1000. Page by `id`, then
       // re-sort by the original display order (level → sort_order → name_en) below.
-      fetchAllTaxonomyTerms<FieldDetailTaxonomyTerm>(
+      // taxonomy_terms.name_en/_es + profile_field_groups.name_en/_es folded into
+      // name_i18n (WS3/WS4); flattened to the flat DTOs below.
+      fetchAllTaxonomyTerms<Omit<FieldDetailTaxonomyTerm, "name_en" | "name_es"> & {
+        name_i18n: Record<string, string | null> | null;
+      }>(
         sb,
-        "id, slug, name_en, name_es, term_type, level, parent_id, sort_order",
+        "id, slug, name_i18n, term_type, level, parent_id, sort_order",
         (q) => q.is("archived_at", null),
       ),
       sb
         .from("profile_field_groups")
-        .select("id, slug, name_en, name_es, sort_order, is_active")
+        .select("id, slug, name_i18n, sort_order, is_active")
         .order("sort_order", { ascending: true }),
     ]);
     const ovRows = (ovsRes.data ?? []) as OverrideRow[];
 
-    const taxonomyTerms = termRows.sort(
-      (a, b) => a.level - b.level || a.sort_order - b.sort_order || a.name_en.localeCompare(b.name_en),
-    );
+    const taxonomyTerms: FieldDetailTaxonomyTerm[] = termRows
+      .map((r) => ({
+        id: r.id,
+        slug: r.slug,
+        name_en: r.name_i18n?.en ?? "",
+        name_es: r.name_i18n?.es ?? null,
+        term_type: r.term_type,
+        level: r.level,
+        parent_id: r.parent_id,
+        sort_order: r.sort_order,
+      }))
+      .sort(
+        (a, b) => a.level - b.level || a.sort_order - b.sort_order || a.name_en.localeCompare(b.name_en),
+      );
     const taxonomyById = new Map(taxonomyTerms.map((t) => [t.id, t] as const));
     const recommendations = ((recsRes.data ?? []) as Array<{
       id: string;
@@ -387,9 +403,24 @@ async function loadPlatformCatalogFieldDetailUncached(
       })
       .sort((a, b) => a.display_order - b.display_order || a.term_name_en.localeCompare(b.term_name_en));
 
-    const fieldGroups = ((groupsRes.data ?? []) as FieldDetailGroupOption[]).sort(
-      (a, b) => a.sort_order - b.sort_order || a.name_en.localeCompare(b.name_en),
-    );
+    const fieldGroups: FieldDetailGroupOption[] = (
+      (groupsRes.data ?? []) as Array<{
+        id: string;
+        slug: string;
+        name_i18n: Record<string, string | null> | null;
+        sort_order: number;
+        is_active: boolean;
+      }>
+    )
+      .map((g) => ({
+        id: g.id,
+        slug: g.slug,
+        name_en: g.name_i18n?.en ?? "",
+        name_es: g.name_i18n?.es ?? null,
+        sort_order: g.sort_order,
+        is_active: g.is_active,
+      }))
+      .sort((a, b) => a.sort_order - b.sort_order || a.name_en.localeCompare(b.name_en));
 
     const auditTargetIds = [def.id, ...recommendations.map((r) => r.id)];
     const { data: auditData } = auditTargetIds.length > 0
@@ -495,7 +526,7 @@ async function loadPlatformCatalogFieldDetailUncached(
     }
 
     // 6. Build merged workspace rows.
-    const fieldLabel = def.label ?? def.field_key;
+    const fieldLabel = def.label_i18n?.en ?? def.field_key;
     const workspaceMap = new Map<string, FieldDetailWorkspace>();
 
     // Override rows first (may or may not have value counts).
@@ -575,16 +606,16 @@ async function loadPlatformCatalogFieldDetailUncached(
     const field: FieldDetailField = {
       id: def.id,
       field_key: def.field_key,
-      label: def.label ?? def.field_key,
-      label_es: def.label_es,
+      label: def.label_i18n?.en ?? def.field_key,
+      label_es: def.label_i18n?.es ?? null,
       tier: def.tier ?? "unknown",
       section: def.section,
       subsection: def.subsection,
       field_group_id: def.field_group_id,
       field_group_name: groupName,
-      helper: def.helper,
-      helper_es: def.helper_es,
-      placeholder: def.placeholder,
+      helper: def.helper_i18n?.en ?? null,
+      helper_es: def.helper_i18n?.es ?? null,
+      placeholder: def.placeholder_i18n?.en ?? null,
       unit: def.unit,
       kind: def.kind ?? "text",
       options: def.options,

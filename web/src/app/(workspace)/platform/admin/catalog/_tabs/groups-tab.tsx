@@ -62,7 +62,8 @@ async function loadGroupList(): Promise<GroupListRow[] | null> {
         .order("sort_order", { ascending: true }),
       sb
         .from("profile_field_definitions")
-        .select("id, field_key, label, field_group_id"),
+        // label folded into label_i18n {en,es} (WS3); resolved to .en below.
+        .select("id, field_key, label_i18n, field_group_id"),
     ]);
 
     if (groupsR.error) return null;
@@ -70,7 +71,7 @@ async function loadGroupList(): Promise<GroupListRow[] | null> {
     type RawField = {
       id: string;
       field_key: string;
-      label: string;
+      label_i18n: Record<string, string | null> | null;
       field_group_id: string | null;
     };
 
@@ -169,7 +170,7 @@ async function loadGroupList(): Promise<GroupListRow[] | null> {
           field_count: groupFields.length,
           mapped_talent_types: uniqueTypes,
           fields: groupFields
-            .map((f) => ({ field_key: f.field_key, label: f.label }))
+            .map((f) => ({ field_key: f.field_key, label: f.label_i18n?.en ?? "" }))
             .sort((a, b) => a.label.localeCompare(b.label)),
         };
       })
