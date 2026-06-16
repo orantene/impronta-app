@@ -19,17 +19,19 @@
 #   version with `ON CONFLICT (version) DO NOTHING`. That is exactly the manual
 #   pattern the team already trusts, now run by CI.
 #
-# SAFETY POSTURE — "fail loudly + do nothing" over "apply something uncertain":
-#   • Migration-only guard: if the same push touched BOTH migrations AND app
-#     code (`web/src/**` or other tracked code), the job FAILS without applying —
-#     schema changes must land in migration-only commits so application code can
-#     never silently trigger a schema change.
+# SAFETY POSTURE — idempotent + dormant-by-default; never applies something uncertain:
+#   • Dormant until activated: if the required secrets are absent the job is a
+#     NEUTRAL no-op (green), NOT a failure — so merging this workflow is harmless
+#     and `main` stays green until the owner adds the secrets on purpose. Until
+#     then, migrations keep being applied via the manual MCP / db:push flow.
+#   • Migration-only WARNING (not a block): this repo commonly bundles a migration
+#     with the code that needs it + regenerated database.types.ts in one PR, so a
+#     mixed push only logs a warning and still applies the pending migration(s).
 #   • Concurrency lock: only one apply run executes at a time; newer pushes
 #     queue rather than racing the schema_migrations table.
-#   • Secrets-only DB access; nothing is hardcoded. If a secret is missing the
-#     applier exits non-zero and nothing is applied.
+#   • Secrets-only DB access; nothing is hardcoded.
 #   • The applier is idempotent — a re-run after a partial failure re-applies
-#     only what is still pending.
+#     only what is still pending (ON CONFLICT DO NOTHING on schema_migrations).
 #
 # ── REQUIRED GITHUB SECRETS (owner must add — Settings ▸ Secrets and variables
 #    ▸ Actions ▸ Repository secrets) ──────────────────────────────────────────
@@ -46,10 +48,11 @@
 #                           verification step. If absent, that step is skipped;
 #                           the apply itself still runs. Same value Vercel uses.
 #
-# ── MIGRATION-ONLY-COMMIT RULE ───────────────────────────────────────────────
-#   Land schema changes in their own commit/PR containing ONLY
-#   `supabase/migrations/**` files. Merge the migration commit slightly AHEAD of
-#   the code that depends on it. Mixed commits are rejected by the guard below.
+# ── MIGRATION-ORDER RECOMMENDATION (not enforced) ────────────────────────────
+#   Prefer landing a schema change a beat AHEAD of the code that depends on it
+#   (its own commit, or first in the PR) so the migration is applied before that
+#   code's deploy builds. Mixed migration+code pushes are allowed (the guard only
+#   warns) — this matches how the repo already ships.
 #
 # ── RESIDUAL RACE (non-blocking by design) ───────────────────────────────────
 #   This Action runs independently of Vercel. Vercel's prebuild drift gate
@@ -156,14 +159,11 @@ jobs:
           # unambiguous: a migration push carries migrations and nothing else.
           NON_MIGRATIONS="$(echo "$CHANGED" | grep -vE '^supabase/migrations/' | grep -vE '^[[:space:]]*$' || true)"
           if [ -n "$NON_MIGRATIONS" ]; then
-            echo "::error title=Mixed migration + non-migration push::This push to main changed migration files AND other files. Migrations must land in migration-ONLY commits so application code never silently triggers a schema apply. Offending non-migration files:"
+            echo "::warning title=Mixed migration + non-migration push::This push changed migrations AND other files. That is normal in this repo (PRs commonly bundle a migration with the code that needs it + regenerated database.types.ts). Proceeding to apply the pending migration(s). Non-migration files in this push:"
             echo "$NON_MIGRATIONS" | sed 's/^/  • /'
-            echo ""
-            echo "Fix: split the migration into its own commit/PR (only supabase/migrations/** files) and merge it a beat ahead of the dependent code. See web/docs/migration-auto-apply.md."
-            exit 1
           fi
 
-          echo "::notice::migration-only push confirmed — proceeding to apply"
+          echo "::notice::migration push detected — proceeding to apply pending migrations"
           echo "APPLY=1" >> "$GITHUB_ENV"
 
       - name: Setup Node 22.x
@@ -175,7 +175,11 @@ jobs:
           # needed — keeps this powerful job minimal and fast.
           node-version: '22'
 
-      # ── Gate 2: secret presence (fail loud, apply nothing) ───────────────
+      # ── Gate 2: secret presence → DORMANT no-op if absent (not a failure) ──
+      # Merging this workflow is harmless: until the owner adds both secrets, a
+      # migration push lands here as a NEUTRAL green no-op (APPLY flipped to 0 so
+      # the apply + verify steps skip). Migrations keep being applied via the
+      # manual MCP / db:push flow until the secrets are added to activate this.
       - name: Verify required secrets are present
         if: ${{ env.APPLY == '1' }}
         env:
@@ -183,16 +187,11 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
         run: |
           set -euo pipefail
-          missing=0
-          if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then
-            echo "::error title=Missing secret::SUPABASE_ACCESS_TOKEN is not set. Add it under Settings ▸ Secrets and variables ▸ Actions."
-            missing=1
+          if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ] || [ -z "${SUPABASE_URL:-}" ]; then
+            echo "::notice title=Auto-apply dormant::SUPABASE_ACCESS_TOKEN and/or SUPABASE_URL not set — skipping auto-apply as a no-op. Add BOTH under Settings ▸ Secrets and variables ▸ Actions to activate. Until then migrations are applied via the manual MCP / db:push flow."
+            echo "APPLY=0" >> "$GITHUB_ENV"
+            exit 0
           fi
-          if [ -z "${SUPABASE_URL:-}" ]; then
-            echo "::error title=Missing secret::SUPABASE_URL is not set (e.g. https://<ref>.supabase.co). Add it under Settings ▸ Secrets and variables ▸ Actions."
-            missing=1
-          fi
-          [ "$missing" = "0" ] || exit 1
           echo "Required secrets present."
 
       # ── Apply ONLY pending migrations via the proven file-by-file applier ──

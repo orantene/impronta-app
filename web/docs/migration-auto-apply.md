@@ -1,7 +1,7 @@
 # Migration auto-apply — runbook
 
 **Workflow:** `.github/workflows/auto-apply-migrations.yml`
-**Status:** active on `main` (triggers on pushes that touch `supabase/migrations/**`).
+**Status:** merged but **DORMANT** — it triggers on pushes that touch `supabase/migrations/**`, but does nothing (neutral green no-op) until the two required secrets below are added. Adding them activates it.
 
 ## What it does
 
@@ -48,19 +48,22 @@ Add under **Settings ▸ Secrets and variables ▸ Actions ▸ Repository secret
 | `SUPABASE_URL` | **Yes** | Project URL `https://<ref>.supabase.co`. Mirrors Vercel's `NEXT_PUBLIC_SUPABASE_URL`. The applier derives the project ref from it. | `apply-migration.mjs` (mapped to `NEXT_PUBLIC_SUPABASE_URL`) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Optional | Service-role key (same value Vercel uses). Enables the post-apply drift-verification step; if absent that step is skipped. | `check-migrations-applied.mjs` |
 
-Nothing is hardcoded. If a required secret is missing, the Action **fails loudly
-and applies nothing**.
+Nothing is hardcoded. **Until both required secrets are added the Action is a
+dormant no-op** — a migration push lands as a neutral green job that applies
+nothing, so `main` stays green and migrations keep being applied via the manual
+MCP / `db:push` flow. Adding both secrets activates auto-apply.
 
-## The migration-only-commit rule (enforced)
+## Migration-order recommendation (not enforced)
 
-Land schema changes in a commit/PR containing **only** `supabase/migrations/**`
-files, and merge it a beat **ahead** of the code that depends on it.
+Prefer landing a schema change a beat **ahead** of the code that depends on it
+(its own commit, or first in the PR) so it's applied before that code's deploy
+builds.
 
-The Action's first step diffs the push range (`before..after`) and **fails
-without applying** if the push changed migration files **and** anything else
-(`web/src/**`, config, scripts, docs, even other workflows). This guarantees app
-code can never silently trigger a schema apply — and that a migration apply is
-always reviewable as a self-contained change.
+This is a **recommendation, not a gate.** The Action's guard only **warns** on a
+mixed migration + code push and still applies the pending migration(s) — because
+this repo routinely bundles a migration with the code that needs it and the
+regenerated `database.types.ts` in one PR. (The apply is idempotent and records
+each version with `ON CONFLICT DO NOTHING`, so a bundled push is safe.)
 
 ## Residual race vs. Vercel (non-blocking by design)
 
@@ -99,8 +102,8 @@ recorded state, not its file.
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| Job fails at "Guard — push must be migration-only" | Migration + non-migration files in one push | Split into a migration-only commit; re-push. |
-| Job fails at "Verify required secrets are present" | `SUPABASE_ACCESS_TOKEN` / `SUPABASE_URL` not set | Add the secret(s). |
+| Guard logs a "Mixed migration + non-migration push" **warning** | Migration + code/types in one push | None needed — it's a warning; the migration still applies. Split commits only if you want the recommended migration-ahead ordering. |
+| Job is green but applied nothing ("Auto-apply dormant" notice) | `SUPABASE_ACCESS_TOKEN` / `SUPABASE_URL` not set yet | Add both secrets to activate; the migration was applied via the manual flow in the meantime. |
 | `apply-migration` SQL error | Bad SQL in a migration file | Fix the migration, push a migration-only correction (or compensating migration); the applier re-runs only pending files. |
 | Post-apply drift check fails | A file applied but its `schema_migrations` row didn't record, or a file the RPC sees as pending | Inspect; the apply is idempotent — re-run the workflow. |
 | Vercel deploy 500s right after merge | Code deploy built before this Action applied the migration | Wait for this Action to go green, then redeploy. |
