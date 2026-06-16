@@ -107,7 +107,7 @@ async function loadTalentDiscover(
     const [catRes, rosterRes, photoRes, favRes, slRes, inqRes] = await Promise.all([
       admin
         .from("talent_profile_taxonomy")
-        .select("relationship_type, taxonomy_terms(name_en, kind)")
+        .select("relationship_type, taxonomy_terms(name_i18n, kind)")
         .eq("talent_profile_id", talentProfileId)
         .eq("relationship_type", "primary_role")
         .limit(1),
@@ -141,10 +141,10 @@ async function loadTalentDiscover(
     ]);
 
     const catRow = (catRes.data ?? [])[0] as
-      | { taxonomy_terms: { name_en: string | null } | { name_en: string | null }[] | null }
+      | { taxonomy_terms: { name_i18n: Record<string, string | null> | null } | { name_i18n: Record<string, string | null> | null }[] | null }
       | undefined;
     const term = catRow ? (Array.isArray(catRow.taxonomy_terms) ? catRow.taxonomy_terms[0] : catRow.taxonomy_terms) : null;
-    categoryLabel = term?.name_en ?? null;
+    categoryLabel = term?.name_i18n?.en ?? null;
 
     const rosterRow = (rosterRes.data ?? [])[0] as
       | { is_primary: boolean; agencies: { display_name: string | null; plan_tier: string | null } | { display_name: string | null; plan_tier: string | null }[] | null }

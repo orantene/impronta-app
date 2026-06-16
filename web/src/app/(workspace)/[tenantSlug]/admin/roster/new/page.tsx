@@ -38,7 +38,7 @@ async function loadTalentTypes() {
 
   const { data, error } = await admin
     .from("taxonomy_terms")
-    .select("id, name_en")
+    .select("id, name_i18n")
     .eq("kind", "talent_type")
     .is("archived_at", null)
     .order("sort_order", { ascending: true });
@@ -50,7 +50,7 @@ async function loadTalentTypes() {
 
   return (data ?? []).map((t) => ({
     id: t.id as string,
-    name_en: t.name_en as string,
+    name_en: ((t as { name_i18n?: Record<string, string | null> | null }).name_i18n?.en ?? "") as string,
   }));
 }
 

@@ -59,14 +59,17 @@ export async function getTalentProfileInquireData(): Promise<TalentProfileInquir
       : { data: null };
 
   // Fetch event types from the public client.
-  const { data: eventTypes } = pub
+  const { data: eventTypeRows } = pub
     ? await pub
         .from("taxonomy_terms")
-        .select("id, name_en")
+        .select("id, name_i18n")
         .eq("kind", "event_type")
         .is("archived_at", null)
         .order("sort_order", { ascending: true })
-    : { data: [] as Array<{ id: string; name_en: string }> };
+    : { data: [] as Array<{ id: string; name_i18n: Record<string, string | null> | null }> };
+  const eventTypes = ((eventTypeRows ?? []) as Array<{ id: string; name_i18n: Record<string, string | null> | null }>).map(
+    (t) => ({ id: t.id, name_en: t.name_i18n?.en ?? "" }),
+  );
 
   const defaultEmail = user?.email ?? undefined;
   const defaultName =

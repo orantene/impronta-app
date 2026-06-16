@@ -111,7 +111,7 @@ type SettingRow = {
 };
 
 type RecRow = { field_definition_id: string; taxonomy_term_id: string; relationship: string };
-type TermRow = { id: string; slug: string | null; name_en: string | null };
+type TermRow = { id: string; slug: string | null; name_i18n: Record<string, string | null> | null };
 
 const UNIVERSAL_GROUP_KEY = "universal";
 
@@ -185,7 +185,7 @@ async function loadTenantRegistrationFieldsUncached(
     if (termIds.length > 0) {
       const { data: termsData } = await sb
         .from("taxonomy_terms")
-        .select("id, slug, name_en")
+        .select("id, slug, name_i18n")
         .in("id", termIds);
       termById = new Map(((termsData ?? []) as TermRow[]).map((t) => [t.id, t]));
     }
@@ -262,7 +262,7 @@ async function loadTenantRegistrationFieldsUncached(
 
     const slugLabelMap = new Map<string, string>();
     for (const t of termById.values()) {
-      if (t.slug) slugLabelMap.set(t.slug, t.name_en ?? t.slug);
+      if (t.slug) slugLabelMap.set(t.slug, t.name_i18n?.en ?? t.slug);
     }
     const slugLabel = (slug: string): string => slugLabelMap.get(slug) ?? slug;
 

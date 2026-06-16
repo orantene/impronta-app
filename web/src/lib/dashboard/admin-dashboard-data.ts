@@ -622,7 +622,7 @@ export const loadTaxonomyTalentTypesForFilters = cache(async () => {
   const { supabase } = auth;
   const { data, error } = await supabase
     .from("taxonomy_terms")
-    .select("id, slug, name_en")
+    .select("id, slug, name_i18n")
     .eq("kind", "talent_type")
     .is("archived_at", null)
     .order("sort_order", { ascending: true });
@@ -635,7 +635,7 @@ export const loadTaxonomyTalentTypesForFilters = cache(async () => {
   return (data ?? []).map((t) => ({
     id: t.id as string,
     slug: t.slug as string,
-    name_en: t.name_en as string,
+    name_en: ((t as { name_i18n?: Record<string, string | null> | null }).name_i18n?.en ?? "") as string,
   }));
 });
 
