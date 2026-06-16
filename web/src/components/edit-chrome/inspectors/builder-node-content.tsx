@@ -28,6 +28,11 @@ import {
 } from "../edit-context";
 import { siblingDropGapToMoveIndex } from "@/lib/site-admin/builder-node/sibling-drop-gap";
 import { stripLockedKeysFromPatch } from "@/lib/site-admin/builder-node/prop-lock";
+import { createBuilderNode } from "@/lib/site-admin/builder-node/create";
+import {
+  applyNativeVariant,
+  type AddGalleryNativeVariant,
+} from "@/lib/site-admin/add-gallery";
 import { ElementLibraryInsertPicker } from "../element-library-insert-picker";
 import { Card, CardBody, CardHead, Field, FieldLabel, Helper, Segmented, Toggle } from "../kit";
 import { KIT } from "./kit/tokens";
@@ -270,6 +275,7 @@ export function BuilderNodeContentInspector({
               ]}
             />
           </div>
+          <VariantPicker node={node} commitPatch={(p) => void commitPatch(p)} />
         </BuilderNodeSection>
       </BuilderNodeFlatPanel>
     );
@@ -290,6 +296,7 @@ export function BuilderNodeContentInspector({
             onCommit={(next) => commitTextInput("text", node.props.text)(next)}
           />
         </div>
+        <VariantPicker node={node} commitPatch={(p) => void commitPatch(p)} />
       </BuilderNodeFlatPanel>
     );
   }
@@ -425,6 +432,7 @@ export function BuilderNodeContentInspector({
               ]}
             />
           </div>
+          <VariantPicker node={node} commitPatch={(p) => void commitPatch(p)} />
         </BuilderNodeSection>
       </BuilderNodeFlatPanel>
     );
@@ -469,6 +477,7 @@ export function BuilderNodeContentInspector({
               })}
             />
           </div>
+          <VariantPicker node={node} commitPatch={(p) => void commitPatch(p)} />
         </BuilderNodeSection>
       </BuilderNodeFlatPanel>
     );
@@ -1825,6 +1834,7 @@ export function BuilderNodeContentInspector({
             </CardBody>
           </Card>
         ) : null}
+        <VariantPicker node={node} commitPatch={(p) => void commitPatch(p)} />
         <NestedBlocksCard
           title={`${BUILDER_NODE_REGISTRY[node.kind].label} blocks`}
           parentNodeId={node.id}
@@ -2928,5 +2938,114 @@ function BuilderNodeRichTextField({
       ariaLabel={ariaLabel}
       className={className}
     />
+  );
+}
+
+// ── C3 — Content-tab "Variant" control ────────────────────────────────────────
+
+/**
+ * Curated, meaningful variants per node kind (the `applyNativeVariant` presets
+ * the gallery offers). "default" leads each list (the clean baseline). Only kinds
+ * with >1 entry render the Content-tab "Variant" segmented control.
+ */
+const VARIANTS_BY_KIND: Partial<
+  Record<BuilderNodeKind, ReadonlyArray<AddGalleryNativeVariant>>
+> = {
+  heading: ["default", "title", "subtitle"],
+  paragraph: ["default", "intro", "caption", "quote"],
+  button: ["default", "text-link", "icon-button", "download-link"],
+  container: ["default", "stack", "row", "grid", "card-group"],
+  image: ["default", "cover-image", "logo"],
+  card: [
+    "default",
+    "image-card",
+    "icon-card",
+    "profile-card",
+    "service-card",
+    "testimonial-card",
+    "cta-card",
+  ],
+};
+
+/** Human label for a variant value in the segmented control. */
+function variantLabel(v: AddGalleryNativeVariant): string {
+  if (v === "default") return "Default";
+  return v
+    .split("-")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+/**
+ * The props a variant CHANGES versus the kind's clean default — computed by
+ * applying the variant to a fresh default node and keeping only the keys whose
+ * value differs. Demo CONTENT keys are excluded so re-picking a variant restyles
+ * the node without clobbering the tenant's copy. Empty ⇒ nothing to re-apply.
+ */
+const VARIANT_CONTENT_KEYS: ReadonlySet<string> = new Set([
+  "text",
+  "label",
+  "links",
+  "alt",
+  "href",
+]);
+
+function variantStyleProps(
+  kind: BuilderNodeKind,
+  variant: AddGalleryNativeVariant,
+): Record<string, unknown> {
+  const baseProps = (createBuilderNode(kind).props ?? {}) as Record<string, unknown>;
+  const stub = { id: "variant-probe", kind, props: {} } as unknown as BuilderNode;
+  const variantProps = (applyNativeVariant(stub, variant).props ?? {}) as Record<
+    string,
+    unknown
+  >;
+  const out: Record<string, unknown> = {};
+  for (const key of Object.keys(variantProps)) {
+    if (VARIANT_CONTENT_KEYS.has(key)) continue;
+    if (JSON.stringify(variantProps[key]) === JSON.stringify(baseProps[key])) continue;
+    out[key] = variantProps[key];
+  }
+  return out;
+}
+
+/**
+ * "Variant" segmented control. Picking a variant re-applies that variant's
+ * styling/structural props (content preserved) through `commitPatch`, and records
+ * `nativeVariant` so the choice persists + the active pill reflects it.
+ */
+function VariantPicker({
+  node,
+  commitPatch,
+}: {
+  node: BuilderNode;
+  commitPatch: (patch: Record<string, unknown>) => void;
+}) {
+  const options = VARIANTS_BY_KIND[node.kind];
+  if (!options || options.length < 2) return null;
+  const current =
+    ((node.props as { nativeVariant?: string } | undefined)?.nativeVariant as
+      | AddGalleryNativeVariant
+      | undefined) ?? "default";
+  const value = options.includes(current) ? current : "default";
+  return (
+    <Field flush>
+      <FieldLabel>Variant</FieldLabel>
+      <Segmented
+        fullWidth
+        compact
+        value={value}
+        onChange={(next) => {
+          const variant = next as AddGalleryNativeVariant;
+          const styleProps = variantStyleProps(node.kind, variant);
+          commitPatch({
+            ...styleProps,
+            nativeVariant: variant === "default" ? undefined : variant,
+          });
+        }}
+        options={options.map((v) => ({ value: v, label: variantLabel(v) }))}
+      />
+      <Helper>Restyles to a preset look — your content stays.</Helper>
+    </Field>
   );
 }

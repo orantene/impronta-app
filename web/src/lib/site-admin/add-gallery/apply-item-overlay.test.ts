@@ -1,11 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { applyItemDefaultProps, deepMergeReplaceArrays } from "./apply-item-overlay";
+import {
+  applyItemDataSourceDefaults,
+  applyItemDefaultProps,
+  deepMergeReplaceArrays,
+} from "./apply-item-overlay";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 
 function node(props: Record<string, unknown>): BuilderNode {
   return { id: "n1", kind: "heading", props } as unknown as BuilderNode;
+}
+
+function containerNode(props: Record<string, unknown>): BuilderNode {
+  return { id: "c1", kind: "container", props, children: [] } as unknown as BuilderNode;
 }
 
 // ── deepMergeReplaceArrays ────────────────────────────────────────────────────
@@ -105,4 +113,55 @@ test("applyItemDefaultProps handles a node with no props", () => {
   const bare = { id: "n2", kind: "heading" } as unknown as BuilderNode;
   const result = applyItemDefaultProps(bare, { text: "Hi", level: 1 });
   assert.deepEqual(result.props, { text: "Hi", level: 1 });
+});
+
+// ── applyItemDataSourceDefaults (C4) ──────────────────────────────────────────
+
+test("applyItemDataSourceDefaults deep-merges into props.dataBinding", () => {
+  const result = applyItemDataSourceDefaults(
+    containerNode({
+      layout: "grid",
+      dataBinding: { sourceKey: "talent_roster", maxItems: 12 },
+    }),
+    { maxItems: 6, filterQuery: "discipline=model" },
+  );
+  const binding = (result.props as { dataBinding: Record<string, unknown> }).dataBinding;
+  // Admin defaults win; the existing sourceKey survives the merge.
+  assert.deepEqual(binding, {
+    sourceKey: "talent_roster",
+    maxItems: 6,
+    filterQuery: "discipline=model",
+  });
+  // Sibling props untouched.
+  assert.equal((result.props as { layout?: string }).layout, "grid");
+});
+
+test("applyItemDataSourceDefaults REPLACES arrays (pinnedIds taken wholesale)", () => {
+  const result = applyItemDataSourceDefaults(
+    containerNode({ dataBinding: { sourceKey: "s", pinnedIds: ["a", "b"] } }),
+    { pinnedIds: ["c"] },
+  );
+  const binding = (result.props as { dataBinding: { pinnedIds: unknown[] } }).dataBinding;
+  assert.deepEqual(binding.pinnedIds, ["c"]);
+});
+
+test("applyItemDataSourceDefaults is a no-op when defaults are absent/empty", () => {
+  const original = containerNode({ dataBinding: { sourceKey: "s" } });
+  assert.equal(applyItemDataSourceDefaults(original, undefined), original);
+  assert.equal(applyItemDataSourceDefaults(original, null), original);
+  assert.equal(applyItemDataSourceDefaults(original, {}), original);
+});
+
+test("applyItemDataSourceDefaults is a no-op on a node with no dataBinding", () => {
+  // A static node (no binding) — defaults configure an existing connection, they
+  // don't create one, so the node is returned unchanged.
+  const original = containerNode({ layout: "stack" });
+  assert.equal(applyItemDataSourceDefaults(original, { maxItems: 4 }), original);
+});
+
+test("applyItemDataSourceDefaults does not mutate the input node", () => {
+  const original = containerNode({ dataBinding: { sourceKey: "s", maxItems: 12 } });
+  const before = JSON.stringify(original);
+  applyItemDataSourceDefaults(original, { maxItems: 4 });
+  assert.equal(JSON.stringify(original), before);
 });
