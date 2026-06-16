@@ -28,6 +28,7 @@ import type {
   ListPublishedTemplatesFilter,
 } from "@/lib/site-admin/builder-core/templates/registry-rows";
 import { templatePlanAllowed } from "@/lib/site-admin/builder-core/templates/registry-rows";
+import { templateRolloutAllowed } from "@/lib/site-admin/builder-core/templates/rollout";
 
 import { ADD_GALLERY_ITEMS } from "./registry";
 import { applyStructureToItems, type CatalogStructureMap } from "./catalog-structure";
@@ -351,6 +352,11 @@ export function builderTemplateRowToGalleryItem(
     defaultProps: row.default_props,
     lockedProps: row.locked_props,
     dataSourceDefaults: row.data_source_defaults,
+    // Builder Studio staged rollout (WS-D D3) — carried so the live gate can
+    // bucket the tenant. Undefined fields fall back to "fully rolled out".
+    rolloutPercentage: row.rollout_percentage,
+    rolloutAllowlist: row.tenant_allowlist,
+    rolloutDenylist: row.tenant_denylist,
     ...(row.data_binding_requirements.length > 0
       ? { connectedSource: "Live data" }
       : {}),
@@ -406,6 +412,27 @@ export function gateDbGalleryItems(
       return false;
     }
     if (!templateTalentTierAllowed(item.requiredTalentTier, ctx.talentTier)) {
+      return false;
+    }
+    // Staged rollout (WS-D D3): a published row may be canaried to a fraction of
+    // tenants (or allow/deny-listed). A null tenant context (platform / Lab)
+    // always passes — authors are never hidden from. `item.dbTemplateId` is the
+    // row id used for deterministic bucketing.
+    if (
+      !templateRolloutAllowed(
+        {
+          id: item.dbTemplateId ?? item.id,
+          rollout_percentage: item.rolloutPercentage,
+          tenant_allowlist: item.rolloutAllowlist
+            ? [...item.rolloutAllowlist]
+            : null,
+          tenant_denylist: item.rolloutDenylist
+            ? [...item.rolloutDenylist]
+            : null,
+        },
+        ctx.tenantId,
+      )
+    ) {
       return false;
     }
     return true;

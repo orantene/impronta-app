@@ -216,6 +216,71 @@ export function normalizeChangelog(
   return trimmed ? trimmed : null;
 }
 
+// ── Staged-rollout input normalizer (WS-D D3, pure) ──────────────────────────
+
+/** Input for the `setTemplateRollout` action. All fields optional. */
+export interface SetTemplateRolloutInput {
+  rollout_percentage?: number;
+  tenant_allowlist?: string[];
+  tenant_denylist?: string[];
+}
+
+/** A simple UUID v4-ish shape check so a fat-fingered tenant id is dropped
+ *  rather than persisted as a poison value the bucket can never match. */
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Trim, lowercase, dedupe, and keep only well-formed UUIDs. PURE. */
+export function normalizeTenantIdList(raw: string[] | undefined): string[] {
+  if (!raw) return [];
+  const seen = new Set<string>();
+  for (const v of raw) {
+    const id = v.trim().toLowerCase();
+    if (id && UUID_RE.test(id)) seen.add(id);
+  }
+  return [...seen];
+}
+
+/**
+ * Normalize a `setTemplateRollout` input into the exact column patch to persist.
+ * PURE + shared so the action and its tests agree:
+ *   - percentage is clamped to [0, 100] and rounded; omitted ⇒ column untouched.
+ *   - allow/deny lists are trimmed/lowercased/deduped/UUID-filtered; omitted ⇒
+ *     column untouched. A tenant id in BOTH lists is dropped from the allowlist
+ *     (deny wins) so the persisted state matches the runtime decision order.
+ */
+export function normalizeRolloutPatch(
+  input: SetTemplateRolloutInput,
+): Record<string, unknown> {
+  const patch: Record<string, unknown> = {};
+
+  if (input.rollout_percentage !== undefined) {
+    const n = Math.round(input.rollout_percentage);
+    patch.rollout_percentage = Math.max(0, Math.min(100, Number.isFinite(n) ? n : 100));
+  }
+
+  const deny =
+    input.tenant_denylist !== undefined
+      ? normalizeTenantIdList(input.tenant_denylist)
+      : undefined;
+  const allow =
+    input.tenant_allowlist !== undefined
+      ? normalizeTenantIdList(input.tenant_allowlist)
+      : undefined;
+
+  if (deny !== undefined) patch.tenant_denylist = deny;
+  if (allow !== undefined) {
+    // Deny wins: a tenant in both lists is removed from the allowlist so the
+    // stored state can't imply a contradiction. Only de-conflict against deny
+    // ids we know about (the incoming deny list, else the existing one is left
+    // to the runtime gate, which already prefers deny).
+    const denySet = new Set(deny ?? []);
+    patch.tenant_allowlist = allow.filter((id) => !denySet.has(id));
+  }
+
+  return patch;
+}
+
 // ── Plan rank helper (mirrors data-bindings.ts PLAN_RANK) ────────────────────
 
 const PLAN_RANK: Record<string, number> = {

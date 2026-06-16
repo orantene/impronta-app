@@ -36,6 +36,7 @@ import {
   duplicateTemplate,
   restoreTemplateRevision,
   rollbackToRevision,
+  setTemplateRollout,
   listPublishedTemplates,
 } from "@/lib/site-admin/builder-core/templates/registry-actions";
 import { listAllTemplates } from "@/lib/site-admin/builder-core/templates/registry-admin-actions";
@@ -43,12 +44,14 @@ import {
   RevisionList,
   PublishNotePanel,
 } from "./template-revision-list";
+import { RolloutPanel, rolloutSummary } from "./template-rollout-panel";
 import type {
   BuilderTemplateRow,
   BuilderTemplateKind,
   BuilderTemplateStatus,
   BuilderTemplateTarget,
   BuilderGalleryTab,
+  SetTemplateRolloutInput,
 } from "@/lib/site-admin/builder-core/templates/registry-rows";
 
 const T = {
@@ -355,6 +358,11 @@ export function TemplateManager() {
                     rollbackToRevision(row.id, version),
                   );
                 }}
+                onSetRollout={(input) =>
+                  runLifecycle(row.id, "Rollout saved", () =>
+                    setTemplateRollout(row.id, input),
+                  )
+                }
               />
             ),
           )}
@@ -378,6 +386,7 @@ function TemplateRowCard({
   onDuplicate,
   onRestore,
   onRollback,
+  onSetRollout,
 }: {
   row: BuilderTemplateRow;
   busy: boolean;
@@ -390,10 +399,13 @@ function TemplateRowCard({
   onDuplicate: () => void;
   onRestore: (version: number) => void;
   onRollback: (version: number) => void;
+  onSetRollout: (input: SetTemplateRolloutInput) => void;
 }) {
   const [showRevs, setShowRevs] = useState(false);
+  const [showRollout, setShowRollout] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [changelog, setChangelog] = useState("");
+  const rolloutPct = row.rollout_percentage ?? 100;
   const statusTone =
     row.status === "published"
       ? T.accent
@@ -421,6 +433,9 @@ function TemplateRowCard({
             <Pill>{row.kind.replace("_", " ")}</Pill>
             <Pill>{row.target_context}</Pill>
             <Pill>{row.required_plan}</Pill>
+            <Pill tone={rolloutPct < 100 ? T.amber : undefined}>
+              {rolloutSummary(row)}
+            </Pill>
           </div>
           <div style={{ fontSize: 11.5, color: T.inkMuted, marginTop: 4, fontFamily: "ui-monospace, monospace" }}>
             {row.slug} · v{row.version} · {row.gallery_tab}
@@ -459,6 +474,9 @@ function TemplateRowCard({
         {row.status !== "archived" ? (
           <GhostBtn onClick={onArchive} disabled={busy} tone="danger">Archive</GhostBtn>
         ) : null}
+        <GhostBtn onClick={() => setShowRollout((s) => !s)} disabled={busy}>
+          {showRollout ? "Hide rollout" : "Rollout"}
+        </GhostBtn>
         <GhostBtn onClick={() => setShowRevs((s) => !s)} disabled={busy}>
           {showRevs ? "Hide revisions" : "Revisions"}
         </GhostBtn>
@@ -478,6 +496,18 @@ function TemplateRowCard({
             setPublishing(false);
             setChangelog("");
             onPublish(note || null);
+          }}
+        />
+      ) : null}
+
+      {showRollout ? (
+        <RolloutPanel
+          row={row}
+          busy={busy}
+          onCancel={() => setShowRollout(false)}
+          onSave={(input) => {
+            setShowRollout(false);
+            onSetRollout(input);
           }}
         />
       ) : null}
