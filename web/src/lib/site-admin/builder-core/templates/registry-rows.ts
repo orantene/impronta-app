@@ -182,6 +182,25 @@ export function computeDataBindingRequirements(
   return result;
 }
 
+// ── Publish / rollback version + note helpers (pure) ─────────────────────────
+
+/**
+ * The version a publish (or rollback re-publish) lands on: always one past the
+ * current row version. History is forward-only — we never reuse or rewind a
+ * version number, even when rolling back to an older revision's content.
+ */
+export function nextPublishedVersion(currentVersion: number): number {
+  return currentVersion + 1;
+}
+
+/**
+ * The audit note stamped on a rollback's revision snapshot. Kept pure + shared
+ * so the action and its tests agree on the exact wording.
+ */
+export function rollbackRevisionNote(targetVersion: number): string {
+  return `Rolled back to v${targetVersion}`;
+}
+
 // ── Plan rank helper (mirrors data-bindings.ts PLAN_RANK) ────────────────────
 
 const PLAN_RANK: Record<string, number> = {

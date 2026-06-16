@@ -35,6 +35,7 @@ import {
   archiveTemplate,
   duplicateTemplate,
   restoreTemplateRevision,
+  rollbackToRevision,
   listPublishedTemplates,
 } from "@/lib/site-admin/builder-core/templates/registry-actions";
 import {
@@ -342,6 +343,18 @@ export function TemplateManager() {
                     restoreTemplateRevision(row.id, version),
                   )
                 }
+                onRollback={(version) => {
+                  if (
+                    !window.confirm(
+                      `Roll back to v${version}? This re-publishes that revision's content as a new version (history is preserved).`,
+                    )
+                  ) {
+                    return;
+                  }
+                  void runLifecycle(row.id, `Rolled back to v${version}`, () =>
+                    rollbackToRevision(row.id, version),
+                  );
+                }}
               />
             ),
           )}
@@ -364,6 +377,7 @@ function TemplateRowCard({
   onArchive,
   onDuplicate,
   onRestore,
+  onRollback,
 }: {
   row: BuilderTemplateRow;
   busy: boolean;
@@ -375,6 +389,7 @@ function TemplateRowCard({
   onArchive: () => void;
   onDuplicate: () => void;
   onRestore: (version: number) => void;
+  onRollback: (version: number) => void;
 }) {
   const [showRevs, setShowRevs] = useState(false);
   const statusTone =
@@ -444,7 +459,13 @@ function TemplateRowCard({
         </GhostBtn>
       </div>
 
-      {showRevs ? <RevisionList templateId={row.id} onRestore={onRestore} /> : null}
+      {showRevs ? (
+        <RevisionList
+          templateId={row.id}
+          onRestore={onRestore}
+          onRollback={onRollback}
+        />
+      ) : null}
     </div>
   );
 }
@@ -452,9 +473,11 @@ function TemplateRowCard({
 function RevisionList({
   templateId,
   onRestore,
+  onRollback,
 }: {
   templateId: string;
   onRestore: (version: number) => void;
+  onRollback: (version: number) => void;
 }) {
   const [revs, setRevs] = useState<TemplateRevisionSummary[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -500,8 +523,23 @@ function RevisionList({
                 type="button"
                 onClick={() => onRestore(r.version)}
                 style={{ ...ghostBase, padding: "3px 9px", fontSize: 11 }}
+                title="Copy this revision's content onto the live draft (does not publish)."
               >
-                Restore
+                Restore to draft
+              </button>
+              <button
+                type="button"
+                onClick={() => onRollback(r.version)}
+                style={{
+                  ...ghostBase,
+                  padding: "3px 9px",
+                  fontSize: 11,
+                  color: T.accent,
+                  borderColor: T.accent,
+                }}
+                title="Re-publish this revision's content as a new version (one-click rollback)."
+              >
+                Roll back to this version
               </button>
             </div>
           ))}
