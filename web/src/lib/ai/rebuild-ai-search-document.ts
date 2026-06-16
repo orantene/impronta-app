@@ -79,8 +79,7 @@ export async function rebuildAiSearchDocument(
           term_type,
           parent_id,
           slug,
-          name_en,
-          name_es,
+          name_i18n,
           search_synonyms,
           ai_keywords
         )
@@ -102,8 +101,10 @@ export async function rebuildAiSearchDocument(
           ? primaryRow.taxonomy_terms[0]
           : primaryRow.taxonomy_terms) ?? null
       : null;
+    // name_en folded into name_i18n {en,es} (WS4); resolve the English value.
+    const primaryTermNameEn = primaryTerm?.name_i18n?.en ?? primaryTerm?.name_en ?? null;
     const primaryTalentTypeLabel: string | null = primaryTerm
-      ? primaryTerm.name_en?.trim() || primaryTerm.slug || null
+      ? primaryTermNameEn?.trim() || primaryTerm.slug || null
       : null;
 
     const secondaryRoles: string[] = extractSecondaryRoleTerms(taxRows)
@@ -153,8 +154,8 @@ export async function rebuildAiSearchDocument(
       taxonomyTerms.push({
         kind: t.kind,
         slug: t.slug ?? null,
-        name_en: t.name_en ?? "",
-        name_es: t.name_es ?? null,
+        name_en: t.name_i18n?.en ?? t.name_en ?? "",
+        name_es: t.name_i18n?.es ?? t.name_es ?? null,
       });
     }
 

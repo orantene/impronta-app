@@ -21,14 +21,16 @@ export async function loadInterpretSearchCatalog(
   // un-paged select silently dropped terms past row 1000 — the AI search
   // interpreter would then be unable to resolve those terms. Page by `id`, then
   // re-sort by the original display order (kind → sort_order) below.
-  type InterpretTermRow = InterpretCatalogTerm & {
+  // name_en/name_es folded into name_i18n {en,es} (WS4); flattened below.
+  type InterpretTermRow = Omit<InterpretCatalogTerm, "name_en" | "name_es"> & {
+    name_i18n: Record<string, string | null> | null;
     aliases?: unknown;
     sort_order: number | null;
   };
   const [termRows, { data: locRows, error: locErr }] = await Promise.all([
     fetchAllTaxonomyTerms<InterpretTermRow>(
       supabase,
-      "id, kind, slug, name_en, name_es, aliases, sort_order",
+      "id, kind, slug, name_i18n, aliases, sort_order",
       (q) => q.is("archived_at", null),
     ),
     supabase
@@ -52,8 +54,8 @@ export async function loadInterpretSearchCatalog(
     id: r.id,
     kind: r.kind,
     slug: r.slug,
-    name_en: r.name_en,
-    name_es: r.name_es,
+    name_en: r.name_i18n?.en ?? "",
+    name_es: r.name_i18n?.es ?? null,
     aliases: Array.isArray(r.aliases)
       ? r.aliases.filter((a): a is string => typeof a === "string" && a.trim().length > 0)
       : [],
