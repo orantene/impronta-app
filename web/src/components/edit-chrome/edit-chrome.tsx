@@ -61,9 +61,11 @@ import { useSearchParams } from "next/navigation";
 import {
   buildHomepageBuilderConfig,
   buildCmsPageBuilderConfig,
+  buildSiteShellBuilderConfig,
 } from "@/lib/site-admin/builder-core/config";
 import { homepageAdapter } from "@/lib/site-admin/builder-core/adapters/homepage-adapter";
 import { createBoundCmsPageAdapter } from "@/lib/site-admin/builder-core/adapters/cms-page-adapter";
+import { createBoundSiteShellAdapter } from "@/lib/site-admin/builder-core/adapters/site-shell-adapter";
 import { EditPill } from "./edit-pill";
 import { EditShellLoading } from "./edit-shell-loading";
 import { IframeChild } from "./iframe-child";
@@ -119,6 +121,16 @@ interface EditChromeProps {
    * the byte-identical homepage path.
    */
   freeformPageMode?: boolean;
+  /**
+   * WS-A A2 — when true, the editor is mounted on the `site_shell` SURFACE: build
+   * the freeform site_shell config + adapter (writes the shell `cms_pages.blocks`
+   * draft, publishes via site-shell-publish). Resolved server-side in
+   * EditChromeMount behind `shouldRouteSiteShellSurface` (OFF by default). Takes
+   * precedence over `freeformPageMode` (the shell is never a freeform cms_page).
+   * With the routing flag off this is always false → the homepage/cms_page path
+   * is byte-identical.
+   */
+  siteShellMode?: boolean;
 }
 
 export function EditChrome({
@@ -134,6 +146,7 @@ export function EditChrome({
   workspaceMembershipSlug = null,
   canInsertRawHtmlElements = false,
   freeformPageMode = false,
+  siteShellMode = false,
 }: EditChromeProps) {
   // Always call useSearchParams unconditionally to keep hook order
   // stable; the EditPill branch ignores the subscription.
@@ -152,15 +165,25 @@ export function EditChrome({
   // storefront surface contract visible and threads the resolved raw-HTML gate.
   const surfaceConfig = useMemo(
     () =>
-      freeformPageMode
-        ? // Wave 4.1 — freeform cms_page: write the BuilderNode[] tree to
-          // cms_pages.blocks via the cms_page adapter (never cms_page_sections).
-          buildCmsPageBuilderConfig(createBoundCmsPageAdapter(), {
-            canInsertRawHtmlElements,
-          })
-        : // Homepage + system + slot pages: byte-identical homepage path.
-          buildHomepageBuilderConfig(homepageAdapter, { canInsertRawHtmlElements }),
-    [canInsertRawHtmlElements, freeformPageMode],
+      siteShellMode
+        ? // WS-A A2 — the site_shell SURFACE: edit the shared header/footer as a
+          // freeform tree persisted to the shell row's cms_pages.blocks (never
+          // cms_page_sections), published via site-shell-publish. The adapter is
+          // keyed by locale. Only reachable when EditChromeMount green-lit the
+          // surface (routing flag ON) — otherwise siteShellMode is false.
+          buildSiteShellBuilderConfig(
+            createBoundSiteShellAdapter(locale ?? "en"),
+            { canInsertRawHtmlElements },
+          )
+        : freeformPageMode
+          ? // Wave 4.1 — freeform cms_page: write the BuilderNode[] tree to
+            // cms_pages.blocks via the cms_page adapter (never cms_page_sections).
+            buildCmsPageBuilderConfig(createBoundCmsPageAdapter(), {
+              canInsertRawHtmlElements,
+            })
+          : // Homepage + system + slot pages: byte-identical homepage path.
+            buildHomepageBuilderConfig(homepageAdapter, { canInsertRawHtmlElements }),
+    [canInsertRawHtmlElements, freeformPageMode, siteShellMode, locale],
   );
 
   // Sprint 3 — iframe-child mode. The parent editor mounts an <iframe>
