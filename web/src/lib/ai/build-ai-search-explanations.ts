@@ -11,20 +11,21 @@ async function loadLocationQueryCity(
 ): Promise<string | null> {
   const slug = locationSlug.trim();
   if (!slug) return null;
+  // display_name_en/_es folded into display_name_i18n {en,es} (WS4 migration).
   const { data, error } = await supabase
     .from("locations")
-    .select("display_name_en, display_name_es, city_slug")
+    .select("display_name_i18n, city_slug")
     .eq("city_slug", slug)
     .maybeSingle();
   if (error || !data) return null;
   const row = data as {
-    display_name_en: string | null;
-    display_name_es: string | null;
+    display_name_i18n: Record<string, string | null> | null;
     city_slug: string;
   };
-  if (locale === "es" && row.display_name_es?.trim()) return row.display_name_es.trim();
-  if (row.display_name_en?.trim()) return row.display_name_en.trim();
-  if (row.display_name_es?.trim()) return row.display_name_es.trim();
+  const i18n = row.display_name_i18n ?? {};
+  if (locale === "es" && i18n.es?.trim()) return i18n.es.trim();
+  if (i18n.en?.trim()) return i18n.en.trim();
+  if (i18n.es?.trim()) return i18n.es.trim();
   return row.city_slug;
 }
 

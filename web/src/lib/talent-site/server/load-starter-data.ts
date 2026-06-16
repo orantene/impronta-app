@@ -34,11 +34,11 @@ export async function loadTalentStarterProfileData(
       bio_i18n,
       talent_profile_taxonomy (
         relationship_type,
-        taxonomy_terms ( name_en )
+        taxonomy_terms ( name_i18n )
       ),
       talent_service_areas (
         service_kind,
-        locations ( display_name_en )
+        locations ( display_name_i18n )
       )
     `)
     .eq("id", talentProfileId)
@@ -58,11 +58,11 @@ export async function loadTalentStarterProfileData(
     bio_i18n: LocalizedMap | null;
     talent_profile_taxonomy: {
       relationship_type: string | null;
-      taxonomy_terms: { name_en: string | null } | null;
+      taxonomy_terms: { name_i18n: Record<string, string | null> | null } | null;
     }[] | null;
     talent_service_areas: {
       service_kind: string | null;
-      locations: { display_name_en: string | null } | null;
+      locations: { display_name_i18n: Record<string, string | null> | null } | null;
     }[] | null;
   };
 
@@ -77,15 +77,15 @@ export async function loadTalentStarterProfileData(
   const primaryTypeLabel =
     (p.talent_profile_taxonomy ?? [])
       .find((t) => t.relationship_type === "primary_role")
-      ?.taxonomy_terms?.name_en ?? null;
+      ?.taxonomy_terms?.name_i18n?.en ?? null;
 
   const homeCity =
     (p.talent_service_areas ?? [])
       .find((a) => a.service_kind === "home_base")
-      ?.locations?.display_name_en ?? null;
+      ?.locations?.display_name_i18n?.en ?? null;
 
   const serviceAreaLabels = (p.talent_service_areas ?? [])
-    .map((a) => a.locations?.display_name_en?.trim())
+    .map((a) => a.locations?.display_name_i18n?.en?.trim())
     .filter((label): label is string => !!label);
 
   const { data: mediaRows } = await trusted

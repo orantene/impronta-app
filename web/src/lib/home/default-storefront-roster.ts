@@ -51,11 +51,11 @@ export async function loadDefaultStorefrontRoster(
           home_city_text,
           talent_profile_taxonomy (
             relationship_type,
-            taxonomy_terms ( name_en, term_type )
+            taxonomy_terms ( name_i18n, term_type )
           ),
           talent_service_areas (
             service_kind,
-            locations ( display_name_en )
+            locations ( display_name_i18n )
           )
         )
         `,
@@ -81,11 +81,11 @@ export async function loadDefaultStorefrontRoster(
         home_city_text: string | null;
         talent_profile_taxonomy: Array<{
           relationship_type: string | null;
-          taxonomy_terms: { name_en: string | null; term_type: string | null } | null;
+          taxonomy_terms: { name_i18n: Record<string, string | null> | null; term_type: string | null } | null;
         }> | null;
         talent_service_areas: Array<{
           service_kind: string | null;
-          locations: { display_name_en: string | null } | null;
+          locations: { display_name_i18n: Record<string, string | null> | null } | null;
         }> | null;
       } | null;
     };
@@ -123,12 +123,12 @@ export async function loadDefaultStorefrontRoster(
           (term.relationship_type === "primary" &&
             term.taxonomy_terms?.term_type === "category"),
       );
-      const primaryTypeLabel = primaryTerm?.taxonomy_terms?.name_en ?? null;
+      const primaryTypeLabel = primaryTerm?.taxonomy_terms?.name_i18n?.en ?? null;
 
       const city =
         p.home_city_text?.trim() ||
         (p.talent_service_areas ?? []).find((a) => a.service_kind === "home_base")?.locations
-          ?.display_name_en ||
+          ?.display_name_i18n?.en ||
         null;
 
       return {

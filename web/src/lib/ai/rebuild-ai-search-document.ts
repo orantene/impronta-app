@@ -53,13 +53,13 @@ export async function rebuildAiSearchDocument(
     if (rid) {
       const { data: loc } = await supabase
         .from("locations")
-        .select("display_name_en, display_name_es")
+        .select("display_name_i18n")
         .eq("id", rid)
         .maybeSingle();
       if (loc) {
-        const l = loc as { display_name_en?: string; display_name_es?: string | null };
+        const i18n = (loc as { display_name_i18n?: Record<string, string | null> | null }).display_name_i18n ?? {};
         locationLabel =
-          l.display_name_en?.trim() || (typeof l.display_name_es === "string" ? l.display_name_es.trim() : "") || null;
+          i18n.en?.trim() || (typeof i18n.es === "string" ? i18n.es.trim() : "") || null;
       }
     }
 
@@ -186,7 +186,7 @@ export async function rebuildAiSearchDocument(
         service_kind,
         travel_radius_km,
         display_order,
-        locations ( display_name_en, country_code )
+        locations ( display_name_i18n, country_code )
       `,
       )
       .eq("talent_profile_id", talentProfileId)
@@ -197,12 +197,12 @@ export async function rebuildAiSearchDocument(
         service_kind: AiSearchDocumentServiceArea["service_kind"];
         travel_radius_km: number | null;
         locations:
-          | { display_name_en?: string | null; country_code?: string | null }
-          | { display_name_en?: string | null; country_code?: string | null }[]
+          | { display_name_i18n?: Record<string, string | null> | null; country_code?: string | null }
+          | { display_name_i18n?: Record<string, string | null> | null; country_code?: string | null }[]
           | null;
       };
       const loc = Array.isArray(row.locations) ? row.locations[0] : row.locations;
-      const cityName = loc?.display_name_en?.trim();
+      const cityName = loc?.display_name_i18n?.en?.trim();
       if (!cityName) return [];
       return [{
         service_kind: row.service_kind,
