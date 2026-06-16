@@ -19,6 +19,7 @@ import {
   saveTalentBioQuickEdit,
   saveTalentBioTranslationCenterLive,
 } from "@/lib/translation/talent-bio-translation-service";
+import { BIO_I18N_SELECT, flattenBioColumns, type BioI18nColumns } from "@/lib/translation/bio-i18n-columns";
 
 const idSchema = z.object({
   talent_profile_id: pgUuidSchema(),
@@ -276,27 +277,27 @@ export async function adminLoadBioTranslationPanelData(
 
   const { data: row, error: loadErr } = await auth.supabase
     .from("talent_profiles")
-    .select(
-      "id, bio_en, bio_es, bio_es_draft, bio_es_status, bio_en_draft, bio_en_status, bio_en_updated_at, bio_es_updated_at, short_bio",
-    )
+    .select(`id, ${BIO_I18N_SELECT}`)
     .eq("id", id)
     .is("deleted_at", null)
     .maybeSingle();
   if (loadErr || !row) return { ok: false, error: "Profile not found." };
 
+  const flat = flattenBioColumns(row as unknown as BioI18nColumns);
+
   return {
     ok: true,
     data: {
       talent_profile_id: row.id as string,
-      bio_en: (row as { bio_en?: string | null }).bio_en ?? null,
-      bio_es: (row as { bio_es?: string | null }).bio_es ?? null,
-      bio_es_draft: (row as { bio_es_draft?: string | null }).bio_es_draft ?? null,
-      bio_es_status: (row as { bio_es_status?: string | null }).bio_es_status ?? null,
-      bio_en_draft: (row as { bio_en_draft?: string | null }).bio_en_draft ?? null,
-      bio_en_status: (row as { bio_en_status?: string | null }).bio_en_status ?? null,
-      bio_en_updated_at: (row as { bio_en_updated_at?: string | null }).bio_en_updated_at ?? null,
-      bio_es_updated_at: (row as { bio_es_updated_at?: string | null }).bio_es_updated_at ?? null,
-      short_bio: (row as { short_bio?: string | null }).short_bio ?? null,
+      bio_en: flat.bio_en,
+      bio_es: flat.bio_es,
+      bio_es_draft: flat.bio_es_draft,
+      bio_es_status: flat.bio_es_status,
+      bio_en_draft: flat.bio_en_draft,
+      bio_en_status: flat.bio_en_status,
+      bio_en_updated_at: flat.bio_en_updated_at,
+      bio_es_updated_at: flat.bio_es_updated_at,
+      short_bio: flat.short_bio,
       open_ai_available: await isResolvedAiChatConfigured(),
     },
   };
