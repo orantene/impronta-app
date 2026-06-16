@@ -377,22 +377,36 @@
   }
 }
 
-/* Empty state — admin-visible, calm. */
+/* Empty state — calm, brand-aligned. Intentional, not broken-looking.
+ *
+ * On the dark premium storefront the default grey dashed box reads as an
+ * error state to first visitors.  Instead we use a very subtle ink-tinted
+ * surface with a quiet 1 px solid border, generous padding, and muted
+ * centered text — consistent with the `#0c0c0e` / `#111114` band palette. */
 .site-featured-talent__empty {
-  padding: 56px 24px;
+  padding: 64px 32px;
   text-align: center;
-  border: 1px dashed var(--token-color-line);
-  border-radius: var(--site-radius);
-  background: var(--token-color-secondary);
-  color: var(--token-color-muted);
+  border: 1px solid rgba(244, 241, 234, 0.10);
+  border-radius: var(--site-radius, 6px);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(244, 241, 234, 0.44);
 }
-.site-featured-talent__empty-note { font-size: 14px; line-height: 1.6; }
+.site-featured-talent__empty-note {
+  font-size: 14px;
+  line-height: 1.7;
+  letter-spacing: 0.01em;
+}
 .site-featured-talent__empty-action {
   display: inline-flex;
-  margin-top: 10px;
-  font-size: 13px;
+  margin-top: 12px;
+  font-size: 12px;
   font-weight: 600;
+  letter-spacing: 0.06em;
   text-decoration: underline;
-  text-underline-offset: 2px;
-  color: var(--token-color-primary);
+  text-underline-offset: 3px;
+  color: rgba(244, 241, 234, 0.54);
+  transition: color 180ms ease;
+}
+.site-featured-talent__empty-action:hover {
+  color: rgba(244, 241, 234, 0.82);
 }

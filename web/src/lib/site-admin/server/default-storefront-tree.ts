@@ -425,6 +425,7 @@ export const PLATFORM_DEFAULT_STOREFRONT_TREE: BuilderNodeTree = [
                 headline: "",
                 subheadline: "",
                 seeAllLabel: "",
+                emptyStateText: "Disciplines appear as you build your roster.",
               },
             },
           },
