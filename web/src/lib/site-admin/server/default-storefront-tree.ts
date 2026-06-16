@@ -16,11 +16,14 @@
  * storefront uses elsewhere. When `HomepageCmsSections` renders this tree with
  * the viewing tenant's `tenantId`, the section-embed renderer fetches THAT
  * tenant's roster + discipline taxonomy from request context (no preview
- * subject ⇒ the active tenant). The wrapping `container`s additionally carry a
- * `dataBinding` to `featured_talent_profiles` / `tenant_directory_search` so the
- * connected-source registry + `loadBuilderNodeDataSources` recognise the page's
- * data requirements. Curated section embeds degrade to a labeled placeholder
- * (never blank, never throw) when a tenant has no roster yet.
+ * subject ⇒ the active tenant). The embeds self-fetch and self-scope, so the
+ * wrapping `container`s deliberately carry NO `dataBinding` — a container-level
+ * `featured_talent_profiles` / `tenant_directory_search` binding would make the
+ * render path substitute its own built-in live grid (a generic SEARCH BOX for
+ * the discipline block, a degraded actionless card grid for featured) and DROP
+ * the curated embed. Curated section embeds degrade to a public-safe empty note
+ * (never blank, never throw, never an operator-only link) when a tenant has no
+ * roster yet.
  *
  * Idiom: matches the productised page-design templates
  * (`builder-node/page-designs/*`) — full-bleed hero with a background image +
@@ -45,10 +48,10 @@ const HERO_IMAGE = "/marketing/photos/talent-services-hero.jpg";
  * The default storefront tree. A single root `container` band stack:
  *   1. HERO            — full-bleed background image + ink overlay, eyebrow,
  *                        headline, subheading, two CTAs (Explore / Inquire).
- *   2. FEATURED TALENT — container bound to `featured_talent_profiles`, with a
- *                        heading + a `featured_talent` section embed (cards).
- *   3. BY DISCIPLINE   — container bound to `tenant_directory_search`, with a
- *                        heading + a `talent_type_grid` section embed.
+ *   2. FEATURED TALENT — heading + a `featured_talent` section embed that
+ *                        renders the tenant's roster cards (auto-scoped).
+ *   3. BY DISCIPLINE   — heading + a `talent_type_grid` section embed in
+ *                        dynamic mode (derives disciplines from the roster).
  *   4. CLOSING CTA     — ink band with a heading + inquire button.
  */
 export const PLATFORM_DEFAULT_STOREFRONT_TREE: BuilderNodeTree = [
@@ -248,14 +251,11 @@ export const PLATFORM_DEFAULT_STOREFRONT_TREE: BuilderNodeTree = [
           layerLabel: "Featured talent",
           layout: "stack",
           align: "center",
-          // The wrapping container declares the page's roster data requirement;
-          // the curated `featured_talent` embed below renders the cards, scoped
-          // to the active tenant by HomepageCmsSections.
-          dataBinding: {
-            sourceKey: "featured_talent_profiles",
-            mode: "bound",
-            maxItems: 6,
-          },
+          // NO container-level `dataBinding`: the curated `featured_talent` embed
+          // below self-fetches + self-scopes to the active tenant. A container
+          // `featured_talent_profiles` binding here would make the render path
+          // substitute its own DEGRADED live grid (no inquiry/bookmark actions,
+          // no display toggles) and silently DROP the curated embed.
           style: {
             width: "100%",
             maxWidthFree: "100%",
@@ -320,8 +320,16 @@ export const PLATFORM_DEFAULT_STOREFRONT_TREE: BuilderNodeTree = [
               sectionTypeKey: "featured_talent",
               layerLabel: "Talent grid",
               // Headless: header copy lives in the heading nodes above, so the
-              // embed renders cards only.
-              config: { eyebrow: "", headline: "", copy: "", headless: true },
+              // embed renders cards only. `emptyStateText` keeps the zero-roster
+              // state public-safe (a brand-new agency is the common viewer) —
+              // a friendly note, never an operator-only "add roster" link.
+              config: {
+                eyebrow: "",
+                headline: "",
+                copy: "",
+                headless: true,
+                emptyStateText: "New talent joining soon — check back shortly.",
+              },
             },
           },
         ],
@@ -334,11 +342,11 @@ export const PLATFORM_DEFAULT_STOREFRONT_TREE: BuilderNodeTree = [
           layerLabel: "Talent by discipline",
           layout: "stack",
           align: "center",
-          dataBinding: {
-            sourceKey: "tenant_directory_search",
-            mode: "bound",
-            maxItems: 8,
-          },
+          // NO container-level `dataBinding`: a `tenant_directory_search`
+          // binding here makes the render path substitute a generic SEARCH BOX
+          // + chip list and DROP the embed — the opposite of the authored
+          // discipline-card grid. The `talent_type_grid` embed below renders the
+          // cards (dynamic mode → derived from THIS tenant's roster taxonomy).
           style: {
             width: "100%",
             maxWidthFree: "100%",
@@ -405,7 +413,19 @@ export const PLATFORM_DEFAULT_STOREFRONT_TREE: BuilderNodeTree = [
             props: {
               sectionTypeKey: "talent_type_grid",
               layerLabel: "Discipline grid",
-              config: { eyebrow: "", headline: "", subheadline: "", seeAllLabel: "" },
+              // `mode: "dynamic"` derives the cards from THIS tenant's roster
+              // taxonomy (fetchTenantTalentCategories scoped to tenantId);
+              // `parentCategoryMode` rolls child types up to broad disciplines.
+              // Header copy lives in the heading nodes above (empty strings here).
+              config: {
+                mode: "dynamic",
+                parentCategoryMode: true,
+                maxItems: 8,
+                eyebrow: "",
+                headline: "",
+                subheadline: "",
+                seeAllLabel: "",
+              },
             },
           },
         ],
