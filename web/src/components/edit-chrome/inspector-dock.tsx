@@ -52,7 +52,7 @@ import {
   resolveStandaloneBuilderNodeForContent,
 } from "./inspectors/builder-node-content-utils";
 import { SiteHeaderInspector } from "./inspectors/site-header/SiteHeaderInspector";
-import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
+import { isLegacySiteHeaderSelection } from "@/lib/site-admin/site-header/selection-id";
 import { LayoutPanel } from "./inspectors/layout-panel";
 import { StylePanel } from "./inspectors/style-panel";
 import { DataPanel } from "./inspectors/data-panel";
@@ -260,6 +260,7 @@ export function InspectorDock() {
     reportMutationError,
     slots,
     canEditSiteShell,
+    surfaceKind,
     queueRouterRefresh,
     device,
     setDevice,
@@ -366,7 +367,22 @@ export function InspectorDock() {
   // The header isn't a real cms_page_sections row — it's a synthesized
   // selection target that maps to <SiteHeaderInspector>. Skip the
   // standard load + tab dispatch when this id is selected.
-  const isSiteHeaderSelected = selectedSectionId === SITE_HEADER_SELECTION_ID;
+  //
+  // WS-A A2 — this synthetic selection is a LEGACY slot-path construct:
+  // `PublishedShell` emits `SITE_HEADER_SELECTION_ID` as the header slot's
+  // `data-section-id` so the homepage/slot editor routes header clicks to the
+  // form-based <SiteHeaderInspector>. On the fully-freeform `site_shell` SURFACE
+  // (A1/A2) the header/footer are plain freeform section nodes — the synthetic
+  // id is never produced there, and any header/footer node must stay SELECTABLE
+  // and route through the normal node/section inspector. So we gate the special-
+  // case on the shell surface NOT being active: on every legacy path
+  // (surfaceKind !== "site_shell", incl. the homepage with the flag off) the
+  // behavior is byte-identical; on the shell surface it goes inert.
+  const isSiteShellSurface = surfaceKind === "site_shell";
+  const isSiteHeaderSelected = isLegacySiteHeaderSelection({
+    selectedSectionId,
+    surfaceKind,
+  });
 
   // ---- load section whenever selectedSectionId changes --------------------
   useEffect(() => {
@@ -834,7 +850,14 @@ export function InspectorDock() {
   const registryEntry = currentLoadedSection
     ? (SECTION_EDITOR_REGISTRY[currentLoadedSection.sectionTypeKey] ?? null)
     : null;
+  // The legacy plan lock ("Site shell editing is locked on Free") gates the
+  // homepage/slot editor when the operator's plan can't edit the shell. On the
+  // dedicated `site_shell` SURFACE (A2) access is governed by the routing flag +
+  // RLS, not this plan capability, and the header/footer are first-class
+  // freeform nodes — so the lock goes inert there. Every legacy path is
+  // unchanged (isSiteShellSurface is always false when the routing flag is off).
   const shellSectionLocked =
+    !isSiteShellSurface &&
     !canEditSiteShell &&
     (isSiteHeaderSelected ||
       currentLoadedSection?.sectionTypeKey === "site_header" ||
