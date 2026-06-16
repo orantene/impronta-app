@@ -1,0 +1,43 @@
+{
+  "public": {
+    "auth": {
+      "language": "Langue",
+      "or": "ou",
+      "login": {
+        "title": "Se connecter",
+        "google": "Continuer avec Google",
+        "emailSubmit": "Se connecter par e-mail",
+        "forgot": "Mot de passe oublié ?",
+        "noAccount": "Pas de compte ?",
+        "signUp": "S'inscrire"
+      },
+      "register": {
+        "title": "Créez votre compte",
+        "google": "S'inscrire avec Google",
+        "emailSubmit": "S'inscrire par e-mail",
+        "haveAccount": "Vous avez déjà un compte ?",
+        "logIn": "Se connecter"
+      },
+      "form": {
+        "email": "E-mail",
+        "password": "Mot de passe"
+      }
+    },
+    "home": {
+      "hero": {
+        "kicker": "Roster géré par l'agence",
+        "titleBefore": "Trouvez le",
+        "titleHighlight": "bon talent",
+        "titleAfter": "pour votre brief",
+        "searchSubmit": "Rechercher"
+      }
+    },
+    "common": {
+      "brand": "Roster"
+    }
+  },
+  "dashboard": {
+    "signOut": "Se déconnecter",
+    "exit": "Quitter"
+  }
+}
