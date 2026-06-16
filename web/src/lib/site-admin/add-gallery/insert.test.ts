@@ -240,3 +240,70 @@ test("dbTemplate insert also carries admin locks", () => {
     assert.deepEqual(action.node.lockedProps, ["layout"]);
   }
 });
+
+// ── WS-C C2 — admin default props are merged onto the inserted node ────────────
+
+test("resolveAddGalleryInsertAction deep-merges item.defaultProps onto the node", () => {
+  // The paragraph native default has no `style`; the admin default sets one and
+  // overrides text. Variant resolution runs first, then defaults merge over it.
+  const withDefaults: AddGalleryItem = {
+    ...baseItem,
+    defaultProps: { text: "Admin copy", style: { tone: "muted", size: "lg" } },
+  };
+  const action = resolveAddGalleryInsertAction(withDefaults);
+  assert.equal(action.type, "nativeNode");
+  if (action.type === "nativeNode") {
+    const props = action.node.props as { text?: string; style?: Record<string, unknown> };
+    assert.equal(props.text, "Admin copy");
+    assert.deepEqual(props.style, { tone: "muted", size: "lg" });
+  }
+});
+
+test("resolveAddGalleryInsertAction applies defaults BEFORE stamping locks (locks ride on top)", () => {
+  const both: AddGalleryItem = {
+    ...baseItem,
+    defaultProps: { text: "Locked baseline", tone: "primary" },
+    lockedProps: ["tone"],
+  };
+  const action = resolveAddGalleryInsertAction(both);
+  assert.equal(action.type, "nativeNode");
+  if (action.type === "nativeNode") {
+    const props = action.node.props as {
+      text?: string;
+      tone?: string;
+      lockedProps?: string[];
+    };
+    // Default value is present (the canonical first-save baseline for the lock)…
+    assert.equal(props.tone, "primary");
+    assert.equal(props.text, "Locked baseline");
+    // …and the lock carrier stamped on top.
+    assert.deepEqual(action.node.lockedProps, ["tone"]);
+    assert.deepEqual(props.lockedProps, ["tone"]);
+  }
+});
+
+test("resolveAddGalleryInsertAction leaves the node untouched when no defaultProps", () => {
+  const action = resolveAddGalleryInsertAction(baseItem);
+  assert.equal(action.type, "nativeNode");
+  if (action.type === "nativeNode") {
+    // Paragraph native default — no admin text/style injected.
+    const props = action.node.props as { text?: string; style?: unknown };
+    assert.equal(props.style, undefined);
+  }
+});
+
+test("dbTemplate insert also applies admin defaultProps onto the root node", () => {
+  const withDefaults: AddGalleryItem = {
+    ...dbTemplateItem,
+    defaultProps: { layerLabel: "Admin label", gap: "l" },
+  };
+  const action = resolveAddGalleryInsertAction(withDefaults);
+  assert.equal(action.type, "dbTemplate");
+  if (action.type === "dbTemplate") {
+    const props = action.node.props as { layerLabel?: string; gap?: string; layout?: string };
+    assert.equal(props.layerLabel, "Admin label");
+    assert.equal(props.gap, "l");
+    // The template's own root props survive the merge.
+    assert.equal(props.layout, "stack");
+  }
+});

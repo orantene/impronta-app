@@ -153,6 +153,26 @@ function parseLockedProps(raw: string): string[] {
   return Array.from(seen);
 }
 
+/** Parse the "Default props" textarea (JSON object). Empty ⇒ null (clears the
+ *  override). Invalid JSON or a non-object → `{ error }` so the caller can show
+ *  an inline message and block the save. */
+function parseDefaultProps(
+  raw: string,
+): { ok: true; value: Record<string, unknown> | null } | { ok: false; error: string } {
+  const trimmed = raw.trim();
+  if (!trimmed) return { ok: true, value: null };
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(trimmed);
+  } catch {
+    return { ok: false, error: "Invalid JSON." };
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    return { ok: false, error: "Default props must be a JSON object." };
+  }
+  return { ok: true, value: parsed as Record<string, unknown> };
+}
+
 export function ComponentCatalog({
   onLaunchEditor,
   onPreviewComponent,
@@ -180,6 +200,10 @@ export function ComponentCatalog({
   const [editIcon, setEditIcon] = useState("");
   const [editPlan, setEditPlan] = useState("");
   const [editLockedProps, setEditLockedProps] = useState("");
+  const [editDefaultProps, setEditDefaultProps] = useState("");
+  const [editDefaultPropsError, setEditDefaultPropsError] = useState<string | null>(
+    null,
+  );
   // W11 — inline (non-blocking) reset confirmation.
   const [confirmingResetId, setConfirmingResetId] = useState<string | null>(null);
   // W6 — search + filter over the (large) catalog.
@@ -304,10 +328,20 @@ export function ComponentCatalog({
     setEditIcon(item.overlay?.icon_override ?? "");
     setEditPlan(item.overlay?.required_plan_override ?? "");
     setEditLockedProps((item.overlay?.locked_props ?? []).join(", "));
+    const dp = item.overlay?.default_props;
+    setEditDefaultProps(dp ? JSON.stringify(dp, null, 2) : "");
+    setEditDefaultPropsError(null);
   }, []);
 
   const saveEdit = useCallback(
     (item: CatalogAdminItem) => {
+      const dp = parseDefaultProps(editDefaultProps);
+      if (!dp.ok) {
+        // Invalid JSON → keep the editor open, show the inline error, don't save.
+        setEditDefaultPropsError(dp.error);
+        return;
+      }
+      setEditDefaultPropsError(null);
       void mutate(item.id, () =>
         setComponentOverlay({
           item_ref: item.id,
@@ -318,13 +352,23 @@ export function ComponentCatalog({
           required_plan_override:
             (editPlan as "free" | "studio" | "agency" | "network" | "") || null,
           locked_props: parseLockedProps(editLockedProps),
+          default_props: dp.value,
         }),
       ).then(() => {
         setEditingId(null);
         flash("Saved ✓");
       });
     },
-    [mutate, editLabel, editCategory, editIcon, editPlan, editLockedProps, flash],
+    [
+      mutate,
+      editLabel,
+      editCategory,
+      editIcon,
+      editPlan,
+      editLockedProps,
+      editDefaultProps,
+      flash,
+    ],
   );
 
   const confirmReset = useCallback(
@@ -768,11 +812,39 @@ export function ComponentCatalog({
                                 style={{ ...inputStyle, width: 260 }}
                               />
                             </Field>
+                            <Field label="Default props (JSON)">
+                              <textarea
+                                value={editDefaultProps}
+                                onChange={(e) => {
+                                  setEditDefaultProps(e.target.value);
+                                  if (editDefaultPropsError) setEditDefaultPropsError(null);
+                                }}
+                                placeholder={'{\n  "tone": "primary"\n}'}
+                                spellCheck={false}
+                                rows={4}
+                                style={{
+                                  ...inputStyle,
+                                  width: 300,
+                                  minHeight: 76,
+                                  fontFamily: "ui-monospace, monospace",
+                                  resize: "vertical",
+                                  borderColor: editDefaultPropsError ? T.red : undefined,
+                                }}
+                              />
+                              {editDefaultPropsError ? (
+                                <span style={{ fontSize: 10.5, color: T.red }}>
+                                  {editDefaultPropsError}
+                                </span>
+                              ) : null}
+                            </Field>
                             <span style={{ fontSize: 11, color: T.inkDim }}>
                               Blank = built-in default. Icon names match the gallery icon set. Plan only
                               tightens (never widens). <strong>Locked props</strong> are dot-paths
                               (comma-separated) the tenant can&apos;t change once inserted — the look stays
-                              on-brand, they still edit the copy. Reflected in both builders on next open.
+                              on-brand, they still edit the copy. <strong>Default props</strong> (a JSON
+                              object) are deep-merged over the component&apos;s defaults at insert (arrays
+                              replaced) — the admin&apos;s canonical starting content. Reflected in both
+                              builders on next open.
                             </span>
                           </div>
                         </td>
