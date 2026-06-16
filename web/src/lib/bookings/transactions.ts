@@ -318,18 +318,57 @@ export async function createBookingTransaction(opts: {
   if (!sb) return { ok: false, error: "Database not available." };
 
   try {
+    // A7 — for a DEPOSIT charge the booking's snapshotted
+    // `agency_bookings.deposit_amount_cents` is the single source of truth for
+    // how much may be collected. When that snapshot is set we make it
+    // authoritative: the requested amount must equal it (we reject on mismatch
+    // rather than silently rewriting, so a caller bug surfaces loudly instead of
+    // charging a surprise amount) and the row is charged for exactly the
+    // snapshotted cents. A booking with no snapshotted deposit amount cannot take
+    // a deposit charge at all — it falls through to the legacy/no-snapshot guard.
+    let grossAmountCents = opts.grossAmountCents;
+    if ((opts.checkoutType ?? "full") === "deposit") {
+      const { data: bookingDeposit, error: depositErr } = await sb
+        .from("agency_bookings")
+        .select("deposit_amount_cents")
+        .eq("id", opts.bookingId)
+        .maybeSingle();
+      if (depositErr) {
+        logServerError("transactions.create.depositLookup", depositErr);
+        return { ok: false, error: "Failed to verify deposit amount." };
+      }
+      const snapshotDepositCents =
+        bookingDeposit?.deposit_amount_cents != null
+          ? Math.round(Number(bookingDeposit.deposit_amount_cents))
+          : 0;
+      if (snapshotDepositCents <= 0) {
+        return { ok: false, error: "This booking has no deposit configured." };
+      }
+      if (snapshotDepositCents !== opts.grossAmountCents) {
+        logServerError("transactions.create.depositMismatch", {
+          message: "Requested deposit does not match the booking's snapshotted deposit_amount_cents",
+          bookingId: opts.bookingId,
+          requested: opts.grossAmountCents,
+          snapshot: snapshotDepositCents,
+        });
+        return { ok: false, error: "Deposit amount does not match the booking's configured deposit." };
+      }
+      // Snapshot is authoritative — charge exactly the snapshotted deposit.
+      grossAmountCents = snapshotDepositCents;
+    }
+
     // #4: prefer the commission-snapshot platform fee (the true split) over the
     // flat FEE_TABLE %, so the admin's displayed fee/net agree with the payouts.
     const override = opts.platformFeeCentsOverride;
     const amounts =
-      override != null && override >= 0 && override <= opts.grossAmountCents && opts.grossAmountCents > 0
+      override != null && override >= 0 && override <= grossAmountCents && grossAmountCents > 0
         ? {
-            grossCents: opts.grossAmountCents,
+            grossCents: grossAmountCents,
             feeCents: override,
-            netCents: opts.grossAmountCents - override,
-            feeBasisPoints: Math.round((override / opts.grossAmountCents) * 10_000),
+            netCents: grossAmountCents - override,
+            feeBasisPoints: Math.round((override / grossAmountCents) * 10_000),
           }
-        : calculateTransactionAmounts(opts.grossAmountCents, opts.planTier);
+        : calculateTransactionAmounts(grossAmountCents, opts.planTier);
 
     const { data, error } = await sb
       .from("booking_transactions")
