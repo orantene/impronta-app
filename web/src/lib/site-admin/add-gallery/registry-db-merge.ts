@@ -93,9 +93,16 @@ export interface SetCatalogOverlayInput {
   category_override?: string | null;
   required_plan_override?: PlanKey | null;
   availability_override?: "available" | "hidden" | null;
+  /** Builder Studio (WS-C C3) — admin default native variant applied at insert
+   *  when the item has no explicit variant. `null` clears the override. */
+  default_variant?: string | null;
   /** Builder Studio (WS-C C2) — admin component defaults: props deep-merged OVER
    *  the variant-resolved props at insert. `null` clears the override. */
   default_props?: Record<string, unknown> | null;
+  /** Builder Studio (WS-C C4) — admin data-source defaults: a binding overlay
+   *  (`{ filterQuery?, maxItems?, pinnedIds? }`) deep-merged into a connected
+   *  node's `props.dataBinding` at insert. `null` clears the override. */
+  data_source_defaults?: Record<string, unknown> | null;
   /** Builder Studio (WS-C) — dot-path prop keys a tenant may NOT edit. */
   locked_props?: string[] | null;
 }
@@ -224,6 +231,7 @@ export function applyCatalogOverlay(
       category: ov.category_override ?? item.category,
       requiredPlan: morePlanRestrictive(item.requiredPlan, ov.required_plan_override),
       // Builder Studio governance carry (Wave 0 plumbing; behavior in WS-C).
+      defaultVariant: ov.default_variant ?? item.defaultVariant,
       defaultProps: ov.default_props ?? item.defaultProps,
       lockedProps:
         ov.locked_props && ov.locked_props.length > 0

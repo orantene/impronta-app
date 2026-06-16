@@ -23,6 +23,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   ADD_GALLERY_CATEGORIES,
+  type AddGalleryNativeVariant,
   type AddGalleryTab,
   type CatalogAdminItem,
   type CatalogOverlayRow,
@@ -103,6 +104,36 @@ const CATEGORY_LABEL = new Map(
   ADD_GALLERY_CATEGORIES.map((c) => [c.id, c.label] as const),
 );
 
+// C3 — selectable admin "default variant" values. The native preset variants the
+// insert composer (applyNativeVariant) recognizes, sans "default" (= no variant).
+// A free-form value still round-trips (only applied when it matches the node's
+// kind), but the select keeps the common set one click away.
+const DEFAULT_VARIANT_OPTIONS: ReadonlyArray<AddGalleryNativeVariant> = [
+  "title",
+  "subtitle",
+  "intro",
+  "caption",
+  "badge",
+  "quote",
+  "text-link",
+  "icon-button",
+  "download-link",
+  "cover-image",
+  "logo",
+  "stack",
+  "row",
+  "card-group",
+  "grid",
+  "image-card",
+  "icon-card",
+  "profile-card",
+  "service-card",
+  "testimonial-card",
+  "cta-card",
+  "breadcrumb",
+  "youtube",
+];
+
 function humanize(id: string): string {
   return (
     CATEGORY_LABEL.get(id) ??
@@ -153,11 +184,12 @@ function parseLockedProps(raw: string): string[] {
   return Array.from(seen);
 }
 
-/** Parse the "Default props" textarea (JSON object). Empty ⇒ null (clears the
- *  override). Invalid JSON or a non-object → `{ error }` so the caller can show
- *  an inline message and block the save. */
-function parseDefaultProps(
+/** Parse a JSON-object textarea. Empty ⇒ null (clears the override). Invalid
+ *  JSON or a non-object → `{ error }` so the caller can show an inline message
+ *  and block the save. `noun` names the field in the error copy. */
+function parseJsonObjectField(
   raw: string,
+  noun: string,
 ): { ok: true; value: Record<string, unknown> | null } | { ok: false; error: string } {
   const trimmed = raw.trim();
   if (!trimmed) return { ok: true, value: null };
@@ -168,7 +200,7 @@ function parseDefaultProps(
     return { ok: false, error: "Invalid JSON." };
   }
   if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-    return { ok: false, error: "Default props must be a JSON object." };
+    return { ok: false, error: `${noun} must be a JSON object.` };
   }
   return { ok: true, value: parsed as Record<string, unknown> };
 }
@@ -200,10 +232,15 @@ export function ComponentCatalog({
   const [editIcon, setEditIcon] = useState("");
   const [editPlan, setEditPlan] = useState("");
   const [editLockedProps, setEditLockedProps] = useState("");
+  const [editDefaultVariant, setEditDefaultVariant] = useState("");
   const [editDefaultProps, setEditDefaultProps] = useState("");
   const [editDefaultPropsError, setEditDefaultPropsError] = useState<string | null>(
     null,
   );
+  const [editDataSourceDefaults, setEditDataSourceDefaults] = useState("");
+  const [editDataSourceDefaultsError, setEditDataSourceDefaultsError] = useState<
+    string | null
+  >(null);
   // W11 — inline (non-blocking) reset confirmation.
   const [confirmingResetId, setConfirmingResetId] = useState<string | null>(null);
   // W6 — search + filter over the (large) catalog.
@@ -328,20 +365,30 @@ export function ComponentCatalog({
     setEditIcon(item.overlay?.icon_override ?? "");
     setEditPlan(item.overlay?.required_plan_override ?? "");
     setEditLockedProps((item.overlay?.locked_props ?? []).join(", "));
+    setEditDefaultVariant(item.overlay?.default_variant ?? "");
     const dp = item.overlay?.default_props;
     setEditDefaultProps(dp ? JSON.stringify(dp, null, 2) : "");
     setEditDefaultPropsError(null);
+    const dsd = item.overlay?.data_source_defaults;
+    setEditDataSourceDefaults(dsd ? JSON.stringify(dsd, null, 2) : "");
+    setEditDataSourceDefaultsError(null);
   }, []);
 
   const saveEdit = useCallback(
     (item: CatalogAdminItem) => {
-      const dp = parseDefaultProps(editDefaultProps);
+      const dp = parseJsonObjectField(editDefaultProps, "Default props");
       if (!dp.ok) {
         // Invalid JSON → keep the editor open, show the inline error, don't save.
         setEditDefaultPropsError(dp.error);
         return;
       }
+      const dsd = parseJsonObjectField(editDataSourceDefaults, "Data-source defaults");
+      if (!dsd.ok) {
+        setEditDataSourceDefaultsError(dsd.error);
+        return;
+      }
       setEditDefaultPropsError(null);
+      setEditDataSourceDefaultsError(null);
       void mutate(item.id, () =>
         setComponentOverlay({
           item_ref: item.id,
@@ -352,7 +399,9 @@ export function ComponentCatalog({
           required_plan_override:
             (editPlan as "free" | "studio" | "agency" | "network" | "") || null,
           locked_props: parseLockedProps(editLockedProps),
+          default_variant: editDefaultVariant.trim() || null,
           default_props: dp.value,
+          data_source_defaults: dsd.value,
         }),
       ).then(() => {
         setEditingId(null);
@@ -366,7 +415,9 @@ export function ComponentCatalog({
       editIcon,
       editPlan,
       editLockedProps,
+      editDefaultVariant,
       editDefaultProps,
+      editDataSourceDefaults,
       flash,
     ],
   );
@@ -812,6 +863,20 @@ export function ComponentCatalog({
                                 style={{ ...inputStyle, width: 260 }}
                               />
                             </Field>
+                            <Field label="Default variant">
+                              <select
+                                value={editDefaultVariant}
+                                onChange={(e) => setEditDefaultVariant(e.target.value)}
+                                style={{ ...inputStyle, width: 170 }}
+                              >
+                                <option value="">— default —</option>
+                                {DEFAULT_VARIANT_OPTIONS.map((v) => (
+                                  <option key={v} value={v}>
+                                    {v}
+                                  </option>
+                                ))}
+                              </select>
+                            </Field>
                             <Field label="Default props (JSON)">
                               <textarea
                                 value={editDefaultProps}
@@ -837,13 +902,44 @@ export function ComponentCatalog({
                                 </span>
                               ) : null}
                             </Field>
+                            <Field label="Data-source defaults (JSON)">
+                              <textarea
+                                value={editDataSourceDefaults}
+                                onChange={(e) => {
+                                  setEditDataSourceDefaults(e.target.value);
+                                  if (editDataSourceDefaultsError) {
+                                    setEditDataSourceDefaultsError(null);
+                                  }
+                                }}
+                                placeholder={'{\n  "maxItems": 6\n}'}
+                                spellCheck={false}
+                                rows={4}
+                                style={{
+                                  ...inputStyle,
+                                  width: 300,
+                                  minHeight: 76,
+                                  fontFamily: "ui-monospace, monospace",
+                                  resize: "vertical",
+                                  borderColor: editDataSourceDefaultsError ? T.red : undefined,
+                                }}
+                              />
+                              {editDataSourceDefaultsError ? (
+                                <span style={{ fontSize: 10.5, color: T.red }}>
+                                  {editDataSourceDefaultsError}
+                                </span>
+                              ) : null}
+                            </Field>
                             <span style={{ fontSize: 11, color: T.inkDim }}>
                               Blank = built-in default. Icon names match the gallery icon set. Plan only
                               tightens (never widens). <strong>Locked props</strong> are dot-paths
                               (comma-separated) the tenant can&apos;t change once inserted — the look stays
-                              on-brand, they still edit the copy. <strong>Default props</strong> (a JSON
-                              object) are deep-merged over the component&apos;s defaults at insert (arrays
-                              replaced) — the admin&apos;s canonical starting content. Reflected in both
+                              on-brand, they still edit the copy. <strong>Default variant</strong> picks the
+                              native preset applied at insert (when the item has no built-in variant).{" "}
+                              <strong>Default props</strong> (a JSON object) are deep-merged over the
+                              component&apos;s defaults at insert (arrays replaced) — the admin&apos;s
+                              canonical starting content. <strong>Data-source defaults</strong> (a JSON
+                              object, e.g. <code>{"{ \"maxItems\": 6 }"}</code>) are merged into a connected
+                              component&apos;s <code>dataBinding</code> at insert. Reflected in both
                               builders on next open.
                             </span>
                           </div>

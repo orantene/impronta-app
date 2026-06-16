@@ -114,6 +114,10 @@ export interface AddGalleryItem {
   targetContext?: "talent" | "workspace" | "both" | "platform";
   /** required_talent_tier for a dbTemplate item (null when unrestricted). */
   requiredTalentTier?: string | null;
+  /** Builder Studio (WS-C C3) — admin default native variant. When set and the
+   *  item carries no explicit `nativeVariant`, this variant is applied + recorded
+   *  on the inserted node. Carried from the overlay row `default_variant`. */
+  defaultVariant?: AddGalleryNativeVariant | string | null;
   /** Builder Studio — admin component defaults: props merged OVER the
    *  variant-resolved props at insert. Plumbed Wave 0; consumed by WS-C. */
   defaultProps?: Record<string, unknown> | null;
