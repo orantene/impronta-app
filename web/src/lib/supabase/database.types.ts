@@ -8416,6 +8416,9 @@ export type Database = {
           default_component_styles: Json | null
           default_deposit_pct: number
           default_refund_policy: string
+          default_storefront_template_id: string | null
+          default_talent_freeform_enabled: boolean
+          default_talent_template_id: string | null
           default_theme_preset_slug: string | null
           default_theme_tokens: Json | null
           default_theme_updated_at: string | null
@@ -8432,6 +8435,9 @@ export type Database = {
           default_component_styles?: Json | null
           default_deposit_pct?: number
           default_refund_policy?: string
+          default_storefront_template_id?: string | null
+          default_talent_freeform_enabled?: boolean
+          default_talent_template_id?: string | null
           default_theme_preset_slug?: string | null
           default_theme_tokens?: Json | null
           default_theme_updated_at?: string | null
@@ -8448,6 +8454,9 @@ export type Database = {
           default_component_styles?: Json | null
           default_deposit_pct?: number
           default_refund_policy?: string
+          default_storefront_template_id?: string | null
+          default_talent_freeform_enabled?: boolean
+          default_talent_template_id?: string | null
           default_theme_preset_slug?: string | null
           default_theme_tokens?: Json | null
           default_theme_updated_at?: string | null
