@@ -13,6 +13,7 @@ test("validation rejects wrong siteKind", () => {
       publicBio: null,
       homeCity: null,
       serviceAreaLabels: [],
+      serviceNames: [],
       headshotUrl: null,
     },
     [],
@@ -32,6 +33,7 @@ test("validation rejects tenant-only section types", () => {
       publicBio: null,
       homeCity: null,
       serviceAreaLabels: [],
+      serviceNames: [],
       headshotUrl: null,
     },
     [
@@ -65,6 +67,7 @@ test("validation accepts valid talent_portfolio starter", () => {
       publicBio: "Public bio only.",
       homeCity: "NYC",
       serviceAreaLabels: ["NYC"],
+      serviceNames: [],
       headshotUrl: "https://example.com/h.jpg",
     },
     [

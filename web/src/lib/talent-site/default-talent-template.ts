@@ -9,6 +9,7 @@ import {
   DEFAULT_TALENT_PROFILE_TEMPLATE_SLUG,
   buildDefaultTalentProfileTree,
   hydrateTalentTree,
+  selectServiceFocusLabels,
   stripSectionEmbeds,
   type TalentProfileTokens,
 } from "./default-talent-tree";
@@ -80,12 +81,14 @@ export function talentProfileTokens(
     profile.publicBio?.trim().slice(0, 160) ||
     [profile.primaryTypeLabel, profile.homeCity].filter(Boolean).join(" · ") ||
     "";
-  const services =
-    profile.serviceAreaLabels.length > 0
-      ? profile.serviceAreaLabels
-      : profile.primaryTypeLabel
-        ? [profile.primaryTypeLabel]
-        : [];
+  // FIX B — the "Services & focus" cards come from the talent's ACTUAL services
+  // (services menu), falling back to the discipline (`primaryTypeLabel`). NEVER
+  // from `serviceAreaLabels` — those are geographic work markets / cities (shown
+  // separately as "Based in {homeCity}"), not services.
+  const services = selectServiceFocusLabels(
+    profile.serviceNames,
+    profile.primaryTypeLabel,
+  );
   // FIX 5 — the hero headshot is chosen from a variant set that INCLUDES "card";
   // the gallery set OMITS "card", so on most profiles gallery[0] === headshotUrl
   // and the hero image would repeat as the first masonry tile. Exclude the

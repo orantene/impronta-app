@@ -6,6 +6,7 @@ import { validateBuilderNodeTree } from "@/lib/site-admin/builder-node/validate"
 import {
   buildDefaultTalentProfileTree,
   hydrateTalentTree,
+  selectServiceFocusLabels,
   stripSectionEmbeds,
   treeHasSectionEmbed,
   type TalentProfileTokens,
@@ -171,6 +172,42 @@ test("FIX 4 — hydration substitutes tokens in nested/array props (not just all
   assert.match(joined, /Model/);
   assert.match(joined, /\/t\/TAL-92026\?inquire=1/);
   assert.doesNotMatch(joined, /\{\{/);
+});
+
+test("FIX B — service focus labels come from the services menu (top 3, deduped)", () => {
+  const labels = selectServiceFocusLabels(
+    ["Editorial Shoot", "Runway", "Editorial Shoot", "Commercial", "Brand Day"],
+    "Editorial Model",
+  );
+  // Top 3, de-duped, in menu order — discipline NOT appended when a menu exists.
+  assert.deepEqual(labels, ["Editorial Shoot", "Runway", "Commercial"]);
+});
+
+test("FIX B — falls back to the discipline when there is no services menu", () => {
+  assert.deepEqual(selectServiceFocusLabels([], "Editorial Model"), [
+    "Editorial Model",
+  ]);
+  // Blank / whitespace service names are dropped, then the discipline is used.
+  assert.deepEqual(selectServiceFocusLabels(["", "   "], "Photographer"), [
+    "Photographer",
+  ]);
+});
+
+test("FIX B — empty when neither a services menu nor a discipline exists", () => {
+  assert.deepEqual(selectServiceFocusLabels([], null), []);
+  assert.deepEqual(selectServiceFocusLabels([], ""), []);
+});
+
+test("FIX B — service focus NEVER sources geographic service-area labels", () => {
+  // Regression guard for the LIVE-QA bug: a location ("Playa del Carmen") must
+  // never appear as a "service". The helper has no access to serviceAreaLabels
+  // by construction — it takes only services-menu names + the discipline. With
+  // no menu and no discipline, the section is empty (and the empty-card prune
+  // then drops it) rather than showing a city.
+  const cityAsServiceArea = "Playa del Carmen";
+  const labels = selectServiceFocusLabels([], null);
+  assert.equal(labels.includes(cityAsServiceArea), false);
+  assert.deepEqual(labels, []);
 });
 
 test("FIX 3 — stripSectionEmbeds drops section_embed nodes (and detects them)", () => {

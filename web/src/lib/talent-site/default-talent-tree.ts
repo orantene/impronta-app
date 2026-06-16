@@ -215,6 +215,43 @@ export function treeHasSectionEmbed(
   );
 }
 
+/**
+ * FIX B — pick the "Services & focus" labels for the default talent profile.
+ *
+ * Source order (NEVER `serviceAreaLabels`, which are geographic WORK MARKETS /
+ * cities, not services — those are surfaced separately as "Based in {city}"):
+ *   1. the talent's actual services-menu names (already filtered to active,
+ *      non-`agency_only` and ordered by the menu's sortOrder upstream);
+ *   2. fallback — the talent's discipline (`primaryTypeLabel`, e.g. "Editorial
+ *      Model"), which is a real focus.
+ * Returns at most 3 non-empty, de-duped labels. An all-empty result lets the
+ * caller leave service tokens "" so the empty-card prune drops the section.
+ *
+ * Pure — safe to unit-test and import from the server-only template module.
+ */
+export function selectServiceFocusLabels(
+  serviceNames: ReadonlyArray<string>,
+  primaryTypeLabel: string | null | undefined,
+): string[] {
+  const clean = (labels: ReadonlyArray<string>): string[] => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const raw of labels) {
+      const label = raw?.trim();
+      if (!label || seen.has(label)) continue;
+      seen.add(label);
+      out.push(label);
+    }
+    return out;
+  };
+
+  const fromMenu = clean(serviceNames);
+  if (fromMenu.length > 0) return fromMenu.slice(0, 3);
+
+  const discipline = primaryTypeLabel?.trim();
+  return discipline ? [discipline] : [];
+}
+
 function id(suffix: string): string {
   return `default-talent-${suffix}`;
 }

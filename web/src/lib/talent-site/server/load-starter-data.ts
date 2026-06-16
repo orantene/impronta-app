@@ -12,6 +12,7 @@ import type { LocalizedMap } from "@/lib/i18n/resolve-localized";
 
 import { templateKeyForPlan } from "@/lib/talent-site/templates/registry";
 import { buildTemplateSnapshot } from "@/lib/talent-site/templates/build-template-snapshot";
+import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
 import type { TalentPortfolioStarterMedia, TalentPortfolioStarterProfile } from "../starter";
 import type { TalentSiteSnapshot } from "../types";
 
@@ -32,6 +33,7 @@ export async function loadTalentStarterProfileData(
       profile_code,
       short_bio,
       bio_i18n,
+      services_menu,
       talent_profile_taxonomy (
         relationship_type,
         taxonomy_terms ( name_i18n )
@@ -56,6 +58,7 @@ export async function loadTalentStarterProfileData(
     profile_code: string | null;
     short_bio: string | null;
     bio_i18n: LocalizedMap | null;
+    services_menu: unknown;
     talent_profile_taxonomy: {
       relationship_type: string | null;
       taxonomy_terms: { name_i18n: Record<string, string | null> | null } | null;
@@ -88,6 +91,15 @@ export async function loadTalentStarterProfileData(
     .map((a) => a.locations?.display_name_i18n?.en?.trim())
     .filter((label): label is string => !!label);
 
+  // Public, active services-menu names (active + non-agency_only), ordered by
+  // the menu's sortOrder — mirrors the public profile's services filter. Drives
+  // the default freeform profile's "Services & focus" cards. NOT the geographic
+  // `serviceAreaLabels`.
+  const serviceNames = normalizeServicesMenu(p.services_menu)
+    .filter((it) => it.isActive && it.visibility !== "agency_only")
+    .map((it) => it.name.trim())
+    .filter((name): name is string => name.length > 0);
+
   const { data: mediaRows } = await trusted
     .from("media_assets")
     .select("storage_path, variant_kind")
@@ -119,6 +131,7 @@ export async function loadTalentStarterProfileData(
       null,
     homeCity,
     serviceAreaLabels,
+    serviceNames,
     headshotUrl,
   };
 }

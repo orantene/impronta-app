@@ -11,6 +11,14 @@ export type TalentPortfolioStarterProfile = {
   publicBio: string | null;
   homeCity: string | null;
   serviceAreaLabels: string[];
+  /**
+   * Public, active service-menu display names (already filtered to non-
+   * `agency_only` and ordered by the menu sortOrder). Drives the default
+   * freeform profile's "Services & focus" cards. Empty when the talent has no
+   * services menu — the default profile then falls back to the discipline.
+   * NOTE: distinct from `serviceAreaLabels`, which are geographic work markets.
+   */
+  serviceNames: string[];
   headshotUrl: string | null;
 };
 
