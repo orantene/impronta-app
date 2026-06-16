@@ -293,6 +293,9 @@ const VISIBLE_KINDS: ReadonlySet<string> = new Set<GuestMessageKind>([
   "talent_rate",
   "call_sheet_update",
   "booking_status",
+  "booking_confirmed",
+  "balance_due",
+  "voice",
   "system_event",
 ]);
 
