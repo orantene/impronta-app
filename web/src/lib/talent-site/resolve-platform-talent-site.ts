@@ -1,13 +1,7 @@
 import "server-only";
 
-import { getCachedActorSession } from "@/lib/server/request-cache";
-import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { planPermitsPublishedTalentSite } from "@/lib/talent-site/plan-permits-snapshot";
 import type { TalentSiteSnapshot } from "@/lib/talent-site/types";
-import {
-  loadTalentPublicSiteByProfileCode,
-  loadTalentPublicSiteDraftForOwner,
-} from "@/lib/talent-site/server/public-load";
+import { loadTalentPublicSiteByProfileCode } from "@/lib/talent-site/server/public-load";
 import {
   buildDefaultTalentFreeformSnapshot,
   isDefaultTalentFreeformEnabled,
@@ -16,28 +10,6 @@ import { loadPlatformDefaultTemplatePointers } from "@/lib/platform/default-temp
 import {
   loadDefaultTalentFreeformContext,
 } from "@/lib/talent-site/server/default-talent-context";
-
-/**
- * Current effective plan for a talent (the materialized `talent_plan_key`,
- * kept current by the expiry reconcile + daily cron). Read-only; service-role
- * because the public client can't see another talent's plan. Returns null on
- * any failure so the gate fails OPEN — a transient DB hiccup never downgrades
- * a paying talent's site.
- */
-async function loadCurrentTalentPlanKey(
-  talentProfileId: string,
-): Promise<string | null> {
-  const admin = createServiceRoleClient();
-  if (!admin) return null;
-  const { data } = await admin
-    .from("talent_profiles")
-    .select("talent_plan_key")
-    .eq("id", talentProfileId)
-    .maybeSingle();
-  return (
-    (data as { talent_plan_key?: string | null } | null)?.talent_plan_key ?? null
-  );
-}
 
 export type PlatformTalentSiteResolveResult =
   | {
@@ -59,12 +31,26 @@ export type PlatformTalentSiteResolveResult =
   | { kind: "not_found" };
 
 /**
- * On Tulala platform hosts, resolve whether `/t/<code>` should render the Max
- * snapshot or fall back to the default profile template.
+ * On Tulala platform hosts, resolve what `/t/<code>` renders.
+ *
+ * REPOINTED (Talent Max Site): `/t/<code>` is now ALWAYS the DISCOVERY PROFILE
+ * — the freeform default (when the `default_talent_freeform_enabled` Lab toggle
+ * or the `DEFAULT_TALENT_FREEFORM_PROFILE` env flag is on) or the untouched
+ * `LightProfileLayout` fallback. It NO LONGER renders the legacy
+ * `talent_sites.published_snapshot` / `draft_snapshot` as the profile — the
+ * talent's multi-page Max website lives at its own route (`/t/site/<slug>`),
+ * rendered by `renderTalentMaxSite()`. The legacy snapshot columns remain in the
+ * DB (untouched) — they are simply no longer the profile render. Because the
+ * snapshot is never served here, the previous published-snapshot plan gate +
+ * draft-preview snapshot branches are gone; the profile's own preview (`?
+ * preview=1`) and `LightProfileLayout` are byte-identical to before.
  */
 export async function resolvePlatformTalentSiteForProfile(
   profileCode: string,
-  opts: { previewDraft?: boolean },
+  // `opts.previewDraft` is retained for call-site compatibility but no longer
+  // serves a draft SNAPSHOT here (the snapshot is not the profile anymore). The
+  // Max site's own draft preview lives on `/t/site/<slug>?preview=draft`.
+  _opts: { previewDraft?: boolean } = {},
 ): Promise<PlatformTalentSiteResolveResult> {
   const loaded = await loadTalentPublicSiteByProfileCode(profileCode);
 
@@ -72,43 +58,17 @@ export async function resolvePlatformTalentSiteForProfile(
     return { kind: "not_found" };
   }
 
-  if (opts.previewDraft) {
-    const session = await getCachedActorSession();
-    if (session.user) {
-      const draft = await loadTalentPublicSiteDraftForOwner(
-        profileCode,
-        session.user.id,
-      );
-      if (draft) {
-        return { kind: "render", snapshot: draft, draftPreview: true };
-      }
-    }
-  }
+  // Resolve the talent_profile_id regardless of whether a legacy published
+  // snapshot still exists — the snapshot is intentionally ignored as the
+  // profile render. Both load kinds carry the talent_profile_id.
+  const talentProfileId =
+    loaded.kind === "published"
+      ? loaded.row.talent_profile_id
+      : loaded.talentProfileId;
 
-  if (loaded.kind === "published") {
-    // Read-time plan gate — data-preserving graceful degradation. If the
-    // talent's current plan no longer permits this published composition
-    // (e.g. a Max trial lapsed back to Pro/Free), fall back to the default
-    // profile instead of serving the premium page. The snapshot row is never
-    // mutated, so the full site returns the instant the plan is restored.
-    const planKey = await loadCurrentTalentPlanKey(loaded.row.talent_profile_id);
-    if (planKey && !planPermitsPublishedTalentSite(loaded.snapshot, planKey)) {
-      return resolveDefaultProfile(loaded.row.talent_profile_id);
-    }
-    return {
-      kind: "render",
-      snapshot: loaded.snapshot,
-      draftPreview: false,
-    };
-  }
-
-  // not_published — the talent has no published Max site. Serve the premium
-  // freeform default when enabled; otherwise fall back to LightProfileLayout.
-  if (loaded.kind === "not_published") {
-    return resolveDefaultProfile(loaded.talentProfileId);
-  }
-
-  return { kind: "fallback" };
+  // ALWAYS the discovery profile: the freeform default when enabled, otherwise
+  // `{ kind: "fallback" }` → the untouched `LightProfileLayout`.
+  return resolveDefaultProfile(talentProfileId);
 }
 
 /**
