@@ -24,7 +24,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 
 import { localeMetadata } from "@/i18n/config";
-import { KIT } from "./kit/tokens";
 
 export interface LocaleFieldTabsProps {
   /** Tenant supported locales, DEFAULT first (from TenantLocaleSettings). */
@@ -53,28 +52,33 @@ export function LocaleFieldTabs({
   renderField,
   ariaLabel = "Field language",
 }: LocaleFieldTabsProps) {
-  // Order: default first, then the rest in tenant order.
+  // Order: default first, then the rest in tenant order. Recomputed each render
+  // (a tiny array); its identity is irrelevant because nothing downstream
+  // depends on it — the sync effect below keys off a derived VALUE, not the
+  // array, so exhaustive-deps is satisfied with no suppression.
   const orderedLocales = [
     defaultLocale,
     ...supportedLocales.filter((l) => l !== defaultLocale),
   ];
 
-  const initialActive = orderedLocales.includes(activeContentLocale)
-    ? activeContentLocale
-    : defaultLocale;
-  const [activeTab, setActiveTab] = useState(initialActive);
+  // Whether the active header locale is one this field offers — a stable boolean
+  // the sync effect depends on (instead of the recomputed array). It flips only
+  // when the header locale or the supported set actually changes, so an
+  // unrelated re-render can't reset a local tab click.
+  const activeLocaleSupported = orderedLocales.includes(activeContentLocale);
+
+  const [activeTab, setActiveTab] = useState(
+    activeLocaleSupported ? activeContentLocale : defaultLocale,
+  );
 
   // Follow the top-header toggle: when the operator flips the page locale, every
   // open field's tab snaps to that locale (Behavior 2c). Local clicks still win
   // until the header changes again.
   useEffect(() => {
-    if (orderedLocales.includes(activeContentLocale)) {
+    if (activeLocaleSupported) {
       setActiveTab(activeContentLocale);
     }
-    // Intentionally keyed on the header locale only — a local tab click must not
-    // be reset by an unrelated re-render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeContentLocale]);
+  }, [activeContentLocale, activeLocaleSupported]);
 
   const allTranslated = orderedLocales.every((l) => hasValueForLocale(l));
   const isDefaultActive = activeTab === defaultLocale;
