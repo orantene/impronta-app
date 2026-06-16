@@ -119,10 +119,14 @@ export function statusCopy(status: GuestThreadStatus, t: Translator): string {
   return t(STATUS_COPY_KEYS[status]);
 }
 
-// C3 — every GuestMessageKind now resolves to a localized label, including the
-// previously-unhandled `system_event` (was falling through to a generic
-// "Update"). `text` still uses the generic update label (it never renders a
-// card chip in practice).
+// Every GuestMessageKind resolves to a localized label, including the now
+// first-class `booking_confirmed` / `balance_due` / `voice` kinds and the
+// `system_event` kind (all previously fell through to a generic "Update").
+// `text` still uses the generic update label (it never renders a card chip in
+// practice). `voice` renders as a labelled card chip — the guest contract does
+// not plumb the signed audio URL, so the mini-chat shows a clear "Voice note"
+// affordance rather than the full VoiceNotePlayer (a fast-follow per the
+// contract's card-rendering note).
 export function labelForKind(kind: GuestMessageKind, t: Translator): string {
   switch (kind) {
     case "offer_event":
@@ -139,6 +143,12 @@ export function labelForKind(kind: GuestMessageKind, t: Translator): string {
       return t("public.guestChat.kindCallSheet");
     case "booking_status":
       return t("public.guestChat.kindBooking");
+    case "booking_confirmed":
+      return t("public.guestChat.kindBookingConfirmed");
+    case "balance_due":
+      return t("public.guestChat.kindBalanceDue");
+    case "voice":
+      return t("public.guestChat.kindVoice");
     case "system_event":
       return t("public.guestChat.kindSystemEvent");
     default:
