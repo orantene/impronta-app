@@ -448,20 +448,22 @@ async function searchLocalCities(query: string, countryIso2: string): Promise<Ci
   const supabase = await getCachedServerSupabase();
   if (!supabase) return [];
 
+  // locations.display_name_en/_es → display_name_i18n {en,es} (WS4 i18n
+  // migration). countries.name_en/_es are a DIFFERENT, un-migrated table.
   let builder = supabase
     .from("locations")
-    .select("id, city_slug, display_name_en, display_name_es, latitude, longitude, countries!locations_country_id_fkey(iso2, name_en, name_es)")
+    .select("id, city_slug, display_name_i18n, latitude, longitude, countries!locations_country_id_fkey(iso2, name_en, name_es)")
     .eq("country_code", countryIso2)
     .eq("active", true)
     .is("archived_at", null)
-    .order("display_name_en")
+    .order("display_name_i18n->>en")
     .limit(12);
 
   const q = query.trim();
   if (q) {
     const escaped = q.replace(/[%_]/g, "");
     builder = builder.or(
-      `display_name_en.ilike.%${escaped}%,display_name_es.ilike.%${escaped}%,city_slug.ilike.%${escaped}%`,
+      `display_name_i18n->>en.ilike.%${escaped}%,display_name_i18n->>es.ilike.%${escaped}%,city_slug.ilike.%${escaped}%`,
     );
   }
 
@@ -469,8 +471,7 @@ async function searchLocalCities(query: string, countryIso2: string): Promise<Ci
   return ((data ?? []) as Array<{
     id: string;
     city_slug: string;
-    display_name_en: string;
-    display_name_es: string | null;
+    display_name_i18n: Record<string, string | null> | null;
     latitude: number | null;
     longitude: number | null;
     countries: { iso2: string; name_en: string; name_es: string | null } | { iso2: string; name_en: string; name_es: string | null }[] | null;
@@ -479,8 +480,8 @@ async function searchLocalCities(query: string, countryIso2: string): Promise<Ci
     return {
       id: row.id,
       slug: row.city_slug,
-      name_en: row.display_name_en,
-      name_es: row.display_name_es,
+      name_en: row.display_name_i18n?.en ?? "",
+      name_es: row.display_name_i18n?.es ?? null,
       lat: row.latitude,
       lng: row.longitude,
       country_iso2: country?.iso2?.toUpperCase() ?? countryIso2,
@@ -502,21 +503,22 @@ export async function searchCuratedCitiesGlobal(
   const supabase = await getCachedServerSupabase();
   if (!supabase) return [];
 
+  // locations.display_name_en/_es → display_name_i18n (WS4); countries.* stays.
   let builder = supabase
     .from("locations")
     .select(
-      "id, city_slug, display_name_en, display_name_es, latitude, longitude, countries!locations_country_id_fkey(iso2, name_en, name_es)",
+      "id, city_slug, display_name_i18n, latitude, longitude, countries!locations_country_id_fkey(iso2, name_en, name_es)",
     )
     .eq("active", true)
     .is("archived_at", null)
-    .order("display_name_en")
+    .order("display_name_i18n->>en")
     .limit(20);
 
   const q = query.trim();
   if (q) {
     const escaped = q.replace(/[%_]/g, "");
     builder = builder.or(
-      `display_name_en.ilike.%${escaped}%,display_name_es.ilike.%${escaped}%,city_slug.ilike.%${escaped}%`,
+      `display_name_i18n->>en.ilike.%${escaped}%,display_name_i18n->>es.ilike.%${escaped}%,city_slug.ilike.%${escaped}%`,
     );
   }
 
@@ -524,8 +526,7 @@ export async function searchCuratedCitiesGlobal(
   return ((data ?? []) as Array<{
     id: string;
     city_slug: string;
-    display_name_en: string;
-    display_name_es: string | null;
+    display_name_i18n: Record<string, string | null> | null;
     latitude: number | null;
     longitude: number | null;
     countries:
@@ -539,8 +540,8 @@ export async function searchCuratedCitiesGlobal(
     return {
       id: row.id,
       slug: row.city_slug,
-      name_en: row.display_name_en,
-      name_es: row.display_name_es,
+      name_en: row.display_name_i18n?.en ?? "",
+      name_es: row.display_name_i18n?.es ?? null,
       lat: row.latitude,
       lng: row.longitude,
       country_iso2: country?.iso2?.toUpperCase() ?? "",

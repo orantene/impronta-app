@@ -31,7 +31,7 @@ export type ResolvedServiceArea = {
   id: string;
   location_id: string;
   service_kind: ServiceKind;
-  city: string; // locations.display_name_en
+  city: string; // locations.display_name_i18n.en (was display_name_en)
   country_code: string | null;
   travel_radius_km: number | null;
   travel_fee_required: boolean;
@@ -50,7 +50,7 @@ export async function getTalentServiceAreas(
   const { data, error } = await supabase
     .from("talent_service_areas")
     .select(
-      "id, location_id, service_kind, travel_radius_km, travel_fee_required, display_order, locations ( display_name_en, country_code )",
+      "id, location_id, service_kind, travel_radius_km, travel_fee_required, display_order, locations ( display_name_i18n, country_code )",
     )
     .eq("talent_profile_id", talentProfileId)
     .not("location_id", "is", null)
@@ -67,8 +67,8 @@ export async function getTalentServiceAreas(
     travel_fee_required: boolean;
     display_order: number;
     locations:
-      | { display_name_en: string | null; country_code: string | null }
-      | { display_name_en: string | null; country_code: string | null }[]
+      | { display_name_i18n: Record<string, string | null> | null; country_code: string | null }
+      | { display_name_i18n: Record<string, string | null> | null; country_code: string | null }[]
       | null;
   };
   return ((data ?? []) as unknown as Row[]).map((r) => {
@@ -77,7 +77,7 @@ export async function getTalentServiceAreas(
       id: r.id,
       location_id: r.location_id,
       service_kind: r.service_kind,
-      city: loc?.display_name_en ?? "",
+      city: loc?.display_name_i18n?.en ?? "",
       country_code: loc?.country_code ?? null,
       travel_radius_km: r.travel_radius_km,
       travel_fee_required: r.travel_fee_required,
