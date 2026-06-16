@@ -4,11 +4,14 @@ import test from "node:test";
 import {
   applyKindGovernanceAtInsert,
   governRawInsertNode,
+  governSectionEmbedNode,
   kindGovernanceIsEmpty,
   resolveKindGovernance,
+  resolveSectionEmbedGovernance,
   type KindGovernance,
 } from "./kind-governance";
 import { createBuilderNode } from "@/lib/site-admin/builder-node/create";
+import { createBuilderSectionEmbed } from "@/lib/site-admin/builder-node/section-embed-presets";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import type { AddGalleryItem } from "./types";
 import { ADD_GALLERY_ITEMS } from "./registry";
@@ -257,4 +260,125 @@ test("resolveKindGovernance: REAL el-text (no-variant) governs kind 'paragraph'"
 test("resolveKindGovernance: REAL registry, no overlay ⇒ null (byte-identical insert)", () => {
   assert.equal(resolveKindGovernance("button", ADD_GALLERY_ITEMS), null);
   assert.equal(resolveKindGovernance("paragraph", ADD_GALLERY_ITEMS), null);
+});
+
+// ── resolveSectionEmbedGovernance (Gap 1 — the curated embed path) ─────────────
+
+const embedItem: AddGalleryItem = {
+  id: "el-search-bar",
+  label: "Directory",
+  description: "Searchable talent directory",
+  tab: "connected",
+  category: "directory",
+  icon: "search",
+  previewType: "icon-card",
+  itemKind: "connected",
+  insertMethod: "sectionEmbed",
+  dragSupported: true,
+  availability: "available",
+  sourceType: "section-embed",
+  sectionEmbedKey: "directory",
+};
+
+test("resolveSectionEmbedGovernance: returns the embed item's overlay for the key", () => {
+  const items: AddGalleryItem[] = [
+    { ...embedItem, lockedProps: ["config.heading"], defaultProps: { config: { heading: "Find talent" } } },
+  ];
+  const g = resolveSectionEmbedGovernance("directory", items);
+  assert.ok(g);
+  assert.deepEqual(g!.lockedProps, ["config.heading"]);
+  assert.deepEqual(g!.defaultProps, { config: { heading: "Find talent" } });
+});
+
+test("resolveSectionEmbedGovernance: null when no embed item matches the key", () => {
+  const items: AddGalleryItem[] = [{ ...embedItem, lockedProps: ["config.heading"] }];
+  assert.equal(resolveSectionEmbedGovernance("booking_widget", items), null);
+});
+
+test("resolveSectionEmbedGovernance: null when the matching embed carries no governance", () => {
+  // An ungoverned embed item ⇒ null so the embed insert is byte-identical.
+  assert.equal(resolveSectionEmbedGovernance("directory", [embedItem]), null);
+});
+
+test("resolveSectionEmbedGovernance: matches a connectedNode item on the same key", () => {
+  const items: AddGalleryItem[] = [
+    {
+      ...embedItem,
+      id: "cn-directory",
+      insertMethod: "connectedNode",
+      lockedProps: ["config.maxItems"],
+    },
+  ];
+  const g = resolveSectionEmbedGovernance("directory", items);
+  assert.ok(g);
+  assert.deepEqual(g!.lockedProps, ["config.maxItems"]);
+});
+
+test("resolveSectionEmbedGovernance: a GOVERNED sibling wins over an ungoverned one on the same key", () => {
+  const items: AddGalleryItem[] = [
+    { ...embedItem, id: "el-search-bar" }, // ungoverned
+    { ...embedItem, id: "el-search-bar-2", lockedProps: ["config.heading"] }, // governed
+  ];
+  const g = resolveSectionEmbedGovernance("directory", items);
+  assert.ok(g);
+  assert.deepEqual(g!.lockedProps, ["config.heading"]);
+});
+
+test("resolveSectionEmbedGovernance: a nativeNode item with the same key is IGNORED", () => {
+  // Only sectionEmbed / connectedNode items govern an embed insert.
+  const items: AddGalleryItem[] = [
+    { ...embedItem, insertMethod: "nativeNode", nativeKind: "section_embed", lockedProps: ["config.x"] },
+  ];
+  assert.equal(resolveSectionEmbedGovernance("directory", items), null);
+});
+
+// ── governSectionEmbedNode (the embed chokepoint call) ─────────────────────────
+
+test("governSectionEmbedNode: a GOVERNED embed stamps locks + merges defaults onto the embed node", () => {
+  const items: AddGalleryItem[] = [
+    {
+      ...embedItem,
+      lockedProps: ["config.heading"],
+      defaultProps: { config: { heading: "Find talent" } },
+    },
+  ];
+  const node = createBuilderSectionEmbed("directory");
+  const out = governSectionEmbedNode(node, "directory", items);
+  assert.deepEqual(out.lockedProps, ["config.heading"]);
+  const props = out.props as Record<string, unknown>;
+  assert.deepEqual(props.lockedProps, ["config.heading"]);
+  // defaultProps deep-merged OVER the preset config (heading overridden, other
+  // preset config keys preserved).
+  const config = props.config as Record<string, unknown>;
+  assert.equal(config.heading, "Find talent");
+  // The embed identity is unchanged.
+  assert.equal(out.kind, "section_embed");
+  assert.equal(props.sectionTypeKey, "directory");
+});
+
+test("governSectionEmbedNode: an UNGOVERNED embed is byte-identical to createBuilderSectionEmbed(key)", () => {
+  const node = createBuilderSectionEmbed("directory");
+  // No governance anywhere ⇒ same reference back.
+  assert.equal(governSectionEmbedNode(node, "directory", []), node);
+  // And same reference when the matching item carries no governance.
+  assert.equal(governSectionEmbedNode(node, "directory", [embedItem]), node);
+});
+
+test("governSectionEmbedNode: dataSourceDefaults bind onto an embed that carries a dataBinding", () => {
+  const items: AddGalleryItem[] = [
+    { ...embedItem, dataSourceDefaults: { maxItems: 6 } },
+  ];
+  // Seed a node WITH a dataBinding (a connected embed) so the binding overlay applies.
+  const seeded = {
+    ...createBuilderSectionEmbed("directory"),
+    props: {
+      ...(createBuilderSectionEmbed("directory").props as Record<string, unknown>),
+      dataBinding: { sourceKey: "talents" },
+    },
+  } as BuilderNode;
+  const out = governSectionEmbedNode(seeded, "directory", items);
+  assert.deepEqual((out.props as Record<string, unknown>).dataBinding, {
+    sourceKey: "talents",
+    maxItems: 6,
+  });
 });

@@ -112,18 +112,53 @@ export interface LockableNode {
   lockedProps?: readonly string[] | null;
 }
 
+function normalizeLockKeys(raw: readonly unknown[]): string[] {
+  const out: string[] = [];
+  for (const k of raw) {
+    if (typeof k === "string" && k.length > 0 && !out.includes(k)) out.push(k);
+  }
+  return out;
+}
+
+function baseLockKeys(node: { lockedProps?: readonly string[] | null }): readonly unknown[] {
+  return Array.isArray(node.lockedProps) ? node.lockedProps : [];
+}
+
+function propsLockKeys(node: { props?: Record<string, unknown> | null }): readonly unknown[] {
+  const carrier =
+    node.props && Array.isArray((node.props as { lockedProps?: unknown }).lockedProps)
+      ? ((node.props as { lockedProps?: unknown[] }).lockedProps as unknown[])
+      : null;
+  return carrier ?? [];
+}
+
 /** The trusted lock list for a node — base field first, then the props carrier. */
 function readNodeLocks(node: {
   lockedProps?: readonly string[] | null;
   props?: Record<string, unknown> | null;
 }): string[] {
-  const fromBase = Array.isArray(node.lockedProps) ? node.lockedProps : null;
-  const carrier =
-    node.props && Array.isArray((node.props as { lockedProps?: unknown }).lockedProps)
-      ? ((node.props as { lockedProps?: string[] }).lockedProps as string[])
-      : null;
-  const raw = fromBase ?? carrier ?? [];
-  return raw.filter((k): k is string => typeof k === "string" && k.length > 0);
+  const raw = Array.isArray(node.lockedProps) ? node.lockedProps : propsLockKeys(node);
+  return normalizeLockKeys(raw);
+}
+
+/**
+ * The trusted lock list for a BRAND-NEW (un-persisted) node — the UNION of its
+ * base field and its `props.lockedProps` carrier, de-duped + normalized.
+ *
+ * For a DB-matched node we deliberately prefer the DB carrier (a client that
+ * dropped the carrier can't shed the lock). But a new node has no DB row, so
+ * BOTH carriers are client-supplied — and a crafted save could split locks
+ * across base vs props so the legitimate union is under-declared in the first
+ * persisted row. Taking the union (never less than either) means a new locked
+ * node can never persist FEWER locks than it declared in either location, which
+ * the second save then enforces locked VALUES against. Strictly strengthens the
+ * guard; never narrows it.
+ */
+function readNewNodeLocks(node: {
+  lockedProps?: readonly string[] | null;
+  props?: Record<string, unknown> | null;
+}): string[] {
+  return normalizeLockKeys([...baseLockKeys(node), ...propsLockKeys(node)]);
 }
 
 /**
@@ -158,9 +193,33 @@ export function enforceLockedProps(
  * Walk an incoming builder tree against the current (DB) tree and re-assert
  * every admin lock. For each node matched by id whose CURRENT version carries
  * locks, the locked paths are forced back to the current values and the lock
- * carrier is re-stamped (so a dropped/cleared carrier can't unlock it). Nodes
- * with no current counterpart keep their own self-declared locks (freshly
- * inserted locked components) but have no prior value to enforce against.
+ * carrier is re-stamped (so a dropped/cleared carrier can't unlock it).
+ *
+ * FIRST-SAVE HARDENING (WS-C C1 residual) — a freshly-inserted locked node has
+ * NO current (DB) counterpart, so there is no prior trusted value to enforce its
+ * locked props against on the FIRST save. With C2 the node is inserted carrying
+ * the admin `default_props` value + a clean `lockedProps` carrier, so the
+ * legitimate first-save baseline IS the admin default. The residual a crafted
+ * client could still exploit is the CARRIER: shipping a new locked node whose
+ * `lockedProps` carrier disagrees between the base field and the `props` mirror,
+ * or carries garbage/duplicate/split entries, so the next save's enforcement
+ * keys off an inconsistent / under-declared list. This path takes the UNION of
+ * the new node's base + props carriers (`readNewNodeLocks`), normalizes it
+ * (valid non-empty, de-duped strings), and RE-ASSERTS the identical normalized
+ * list onto BOTH base + `props`, so the first PERSISTED state always has a
+ * clean, self-consistent carrier that is never fewer locks than the node
+ * declared — which the second save (now matched by id against this DB row)
+ * enforces locked VALUES against.
+ *
+ * Residual that intentionally REMAINS: on the very first save the server cannot
+ * enforce the locked-prop VALUE for a brand-new node, because it has no trusted
+ * baseline for it — the catalog overlay (which holds the admin default) is not
+ * loaded in the save action, and a persisted node carries no catalog-item id to
+ * back-map to its governance (kind alone is ambiguous for variant / embed
+ * cards). See the PR / commit notes. The exposure is narrow: it requires a
+ * devtools-crafted FIRST save before the node is ever persisted, sets only that
+ * node's own locked-prop value (not the carrier, which is normalized here), and
+ * is corrected on any subsequent legitimate save.
  *
  * Returns a NEW tree; never mutates the inputs. A non-array input is returned
  * unchanged so a malformed/empty save degrades safely.
@@ -187,12 +246,21 @@ export function enforceLockedPropsOnTree(
       if (!node || typeof node !== "object") return node;
       const current = typeof node.id === "string" ? currentById.get(node.id) : undefined;
       // The trusted lock list comes from the CURRENT (DB) node when it exists —
-      // so a client that dropped the carrier can't shed the lock. Fall back to
-      // the node's own locks only for brand-new (un-persisted) nodes.
-      const locks = current ? readNodeLocks(current) : readNodeLocks(node);
+      // so a client that dropped the carrier can't shed the lock. For a brand-new
+      // (un-persisted) node, take the UNION of its base + props carriers so a
+      // crafted first save can't under-declare locks by splitting them across the
+      // two carrier locations. Either path NORMALIZES the list (valid non-empty,
+      // de-duped strings only), so a malformed carrier never reaches the first
+      // persisted row.
+      const locks = current ? readNodeLocks(current) : readNewNodeLocks(node);
       let out: LockableNode = node;
       if (locks.length > 0) {
         const incomingProps = (node.props as Record<string, unknown>) ?? {};
+        // Matched node → enforce locked VALUES back to the trusted DB value.
+        // Brand-new node → no prior value to enforce, but the carrier is still
+        // normalized + re-asserted on BOTH base and props below (so the first
+        // persisted state is self-consistent; the locked value reflects the
+        // C2-stamped admin default the insert produced — see header residual).
         const props = current
           ? enforceLockedProps(
               incomingProps,
