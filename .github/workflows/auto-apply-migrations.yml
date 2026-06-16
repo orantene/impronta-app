@@ -1,0 +1,235 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# WS-F — Safe migration auto-apply
+#
+# Applies any Supabase migration files that land on `main` to the linked remote
+# project automatically, so the "code is auto-deployed by Vercel but migrations
+# are applied by hand" gap (which has caused 3 separate silent-500 incidents —
+# see CLAUDE.md "Schema + code shipping protocol") closes itself.
+#
+# WHY NOT `supabase db push`:
+#   This project's remote `supabase_migrations.schema_migrations` has drifted —
+#   several historical migrations were applied out of order via the Supabase
+#   Management API / MCP (e.g. 20261027000000/001/002), so their files were not
+#   on `main` at apply time. A naive `supabase db push` reconciles full history
+#   and FAILS on this drift. Instead we reuse the proven, idempotent,
+#   file-by-file applier already in the repo:
+#       web/scripts/apply-migration.mjs --apply-pending
+#   which (1) reads the versions already in remote schema_migrations, (2) applies
+#   ONLY the local files whose version is absent, and (3) records each applied
+#   version with `ON CONFLICT (version) DO NOTHING`. That is exactly the manual
+#   pattern the team already trusts, now run by CI.
+#
+# SAFETY POSTURE — "fail loudly + do nothing" over "apply something uncertain":
+#   • Migration-only guard: if the same push touched BOTH migrations AND app
+#     code (`web/src/**` or other tracked code), the job FAILS without applying —
+#     schema changes must land in migration-only commits so application code can
+#     never silently trigger a schema change.
+#   • Concurrency lock: only one apply run executes at a time; newer pushes
+#     queue rather than racing the schema_migrations table.
+#   • Secrets-only DB access; nothing is hardcoded. If a secret is missing the
+#     applier exits non-zero and nothing is applied.
+#   • The applier is idempotent — a re-run after a partial failure re-applies
+#     only what is still pending.
+#
+# ── REQUIRED GITHUB SECRETS (owner must add — Settings ▸ Secrets and variables
+#    ▸ Actions ▸ Repository secrets) ──────────────────────────────────────────
+#   SUPABASE_ACCESS_TOKEN   Supabase personal access token (Account ▸ Access
+#                           Tokens). Used to call the Management API SQL endpoint
+#                           POST /v1/projects/{ref}/database/query. This is the
+#                           SAME token Vercel/`vercel env pull` already uses.
+#   SUPABASE_URL            The project URL, e.g. https://<ref>.supabase.co —
+#                           the applier derives the project ref from it. (Stored
+#                           in Vercel as NEXT_PUBLIC_SUPABASE_URL; the workflow
+#                           maps SUPABASE_URL → NEXT_PUBLIC_SUPABASE_URL for the
+#                           script.) Mirror that exact value here.
+#   SUPABASE_SERVICE_ROLE_KEY  (OPTIONAL) Enables the post-apply drift
+#                           verification step. If absent, that step is skipped;
+#                           the apply itself still runs. Same value Vercel uses.
+#
+# ── MIGRATION-ONLY-COMMIT RULE ───────────────────────────────────────────────
+#   Land schema changes in their own commit/PR containing ONLY
+#   `supabase/migrations/**` files. Merge the migration commit slightly AHEAD of
+#   the code that depends on it. Mixed commits are rejected by the guard below.
+#
+# ── RESIDUAL RACE (non-blocking by design) ───────────────────────────────────
+#   This Action runs independently of Vercel. Vercel's prebuild drift gate
+#   (web/scripts/check-migrations-applied.mjs) can briefly fail a build that
+#   starts BEFORE this Action finishes applying. Mitigation: keep migrations in
+#   their own commit merged a beat ahead of the dependent code, so by the time
+#   the code's deploy builds, the migration is already applied. If a deploy
+#   trips the drift gate transiently, just redeploy once this Action is green.
+#
+# ── HOW TO DISABLE ───────────────────────────────────────────────────────────
+#   Disable in the GitHub UI (Actions ▸ this workflow ▸ "···" ▸ Disable
+#   workflow), or delete this file. With it off, migrations go back to the
+#   manual `npm run db:push` / Management-API flow.
+#
+# ── ROLLBACK ─────────────────────────────────────────────────────────────────
+#   This Action only rolls migrations FORWARD; it never drops or reverts schema.
+#   To undo an applied migration, write a NEW compensating migration (the normal
+#   forward-only discipline) and let this Action apply it, or revert manually via
+#   the Supabase MCP / SQL editor and delete the corresponding schema_migrations
+#   row. Never edit an already-applied migration file in place.
+#
+#   Full runbook: web/docs/migration-auto-apply.md
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Auto-apply Supabase migrations
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+
+# Serialize: never let two pushes apply migrations concurrently against the same
+# schema_migrations table. We do NOT cancel-in-progress — an apply must run to
+# completion (it's idempotent, but interrupting it mid-batch is needless risk).
+concurrency:
+  group: auto-apply-migrations
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  apply:
+    name: Apply pending migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Checkout (full history for the push-range diff)
+        uses: actions/checkout@v4
+        with:
+          # Need both endpoints of the push range to diff. Full history is the
+          # simplest way to guarantee github.event.before is reachable even after
+          # a force-push or a deep range.
+          fetch-depth: 0
+
+      # ── Gate 1: migration-only guard ─────────────────────────────────────
+      # Compute the files changed by THIS push (before..after). If the push
+      # touched both a migration AND application code, fail without applying —
+      # schema changes must land in migration-only commits.
+      - name: Guard — push must be migration-only
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.after }}
+        run: |
+          set -euo pipefail
+
+          # `before` is all-zeros for a brand-new branch / first push. In that
+          # rare case we can't compute a range; diff against the parent of AFTER
+          # instead, falling back to "just this commit".
+          ZERO="0000000000000000000000000000000000000000"
+          if [ -z "${BEFORE:-}" ] || [ "$BEFORE" = "$ZERO" ]; then
+            echo "::notice::push.before is empty/zero — diffing AFTER against its first parent"
+            RANGE="${AFTER}^..${AFTER}"
+          else
+            RANGE="${BEFORE}..${AFTER}"
+          fi
+          echo "Diffing range: $RANGE"
+
+          # List every file changed across the push range. We run git against the
+          # repo root ($GITHUB_WORKSPACE) so --name-only paths are repo-root
+          # relative regardless of the job's working-directory (web/).
+          CHANGED="$(git -C "$GITHUB_WORKSPACE" diff --name-only "$RANGE")"
+          echo "── changed files ──"
+          echo "$CHANGED"
+          echo "───────────────────"
+
+          # Did this push touch any migration file?
+          MIGRATIONS="$(echo "$CHANGED" | grep -E '^supabase/migrations/' || true)"
+          if [ -z "$MIGRATIONS" ]; then
+            # The path filter on the trigger should make this unreachable, but be
+            # explicit: nothing to do, exit clean.
+            echo "::notice::no migration files in this push — nothing to apply"
+            echo "APPLY=0" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          # Anything OUTSIDE supabase/migrations/** is "app code" for this guard.
+          # We deliberately treat EVERY non-migration path as disqualifying
+          # (web/src, web config, scripts, docs, workflows, etc.) so the rule is
+          # unambiguous: a migration push carries migrations and nothing else.
+          NON_MIGRATIONS="$(echo "$CHANGED" | grep -vE '^supabase/migrations/' | grep -vE '^[[:space:]]*$' || true)"
+          if [ -n "$NON_MIGRATIONS" ]; then
+            echo "::error title=Mixed migration + non-migration push::This push to main changed migration files AND other files. Migrations must land in migration-ONLY commits so application code never silently triggers a schema apply. Offending non-migration files:"
+            echo "$NON_MIGRATIONS" | sed 's/^/  • /'
+            echo ""
+            echo "Fix: split the migration into its own commit/PR (only supabase/migrations/** files) and merge it a beat ahead of the dependent code. See web/docs/migration-auto-apply.md."
+            exit 1
+          fi
+
+          echo "::notice::migration-only push confirmed — proceeding to apply"
+          echo "APPLY=1" >> "$GITHUB_ENV"
+
+      - name: Setup Node 22.x
+        if: ${{ env.APPLY == '1' }}
+        uses: actions/setup-node@v4
+        with:
+          # package.json engines.node = ">=22.0.0 <25.0.0". apply-migration.mjs
+          # uses only Node builtins + global fetch (Node 18+), so no `npm ci` is
+          # needed — keeps this powerful job minimal and fast.
+          node-version: '22'
+
+      # ── Gate 2: secret presence (fail loud, apply nothing) ───────────────
+      - name: Verify required secrets are present
+        if: ${{ env.APPLY == '1' }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        run: |
+          set -euo pipefail
+          missing=0
+          if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then
+            echo "::error title=Missing secret::SUPABASE_ACCESS_TOKEN is not set. Add it under Settings ▸ Secrets and variables ▸ Actions."
+            missing=1
+          fi
+          if [ -z "${SUPABASE_URL:-}" ]; then
+            echo "::error title=Missing secret::SUPABASE_URL is not set (e.g. https://<ref>.supabase.co). Add it under Settings ▸ Secrets and variables ▸ Actions."
+            missing=1
+          fi
+          [ "$missing" = "0" ] || exit 1
+          echo "Required secrets present."
+
+      # ── Apply ONLY pending migrations via the proven file-by-file applier ──
+      # NOT `supabase db push` (which fails on this project's history drift).
+      # The script: reads remote schema_migrations, applies only the local files
+      # whose version is missing, and records each via ON CONFLICT DO NOTHING.
+      # Idempotent: a re-run applies only what is still pending.
+      - name: Apply pending migrations
+        if: ${{ env.APPLY == '1' }}
+        env:
+          # apply-migration.mjs reads SUPABASE_ACCESS_TOKEN + NEXT_PUBLIC_SUPABASE_URL.
+          # We store the URL secret as SUPABASE_URL and map it here.
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        run: |
+          set -euo pipefail
+          # Call the script directly (NOT `npm run migrate:apply`, which loads
+          # --env-file=.env.vercel.local that doesn't exist in CI). Env comes
+          # from the step env above.
+          node scripts/apply-migration.mjs --apply-pending
+
+      # ── Post-apply verification: confirm zero drift remains ───────────────
+      # Uses the same RPC the prebuild gate uses. Needs the service-role key, so
+      # it's best-effort: if that secret isn't configured we skip rather than
+      # fail (the apply itself already succeeded above).
+      - name: Verify no drift remains (best-effort)
+        if: ${{ env.APPLY == '1' }}
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
+            echo "::notice::SUPABASE_SERVICE_ROLE_KEY not set — skipping post-apply drift verification (apply already succeeded). Add it to enable this check."
+            exit 0
+          fi
+          # check-migrations-applied.mjs needs @supabase/supabase-js, so install
+          # deps only for this optional verification step.
+          npm ci
+          node scripts/check-migrations-applied.mjs
