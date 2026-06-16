@@ -61,7 +61,8 @@ function primaryTalentType(
     const termRow = Array.isArray(term) ? term[0] : term;
     if (termRow && typeof termRow === "object") {
       const k = (termRow as Record<string, unknown>).kind;
-      const name = (termRow as Record<string, unknown>).name_en;
+      const i18n = (termRow as Record<string, unknown>).name_i18n as Record<string, unknown> | null;
+      const name = i18n && typeof i18n === "object" ? i18n.en : undefined;
       if (k === "talent_type" && typeof name === "string") return { label: name };
     }
   }
@@ -72,7 +73,8 @@ function primaryTalentType(
     const termRow = Array.isArray(term) ? term[0] : term;
     if (termRow && typeof termRow === "object") {
       const k = (termRow as Record<string, unknown>).kind;
-      const name = (termRow as Record<string, unknown>).name_en;
+      const i18n = (termRow as Record<string, unknown>).name_i18n as Record<string, unknown> | null;
+      const name = i18n && typeof i18n === "object" ? i18n.en : undefined;
       if (k === "talent_type" && typeof name === "string") return { label: name };
     }
   }
@@ -89,9 +91,13 @@ function locationLabels(row: Record<string, unknown>): { city: string | null; co
   const rco = row.res_ctry;
   const cityRow = Array.isArray(rc) ? rc[0] : rc;
   const countryRow = Array.isArray(rco) ? rco[0] : rco;
-  const city =
+  const cityI18n =
     cityRow && typeof cityRow === "object"
-      ? ((cityRow as Record<string, unknown>).display_name_en as string | null) ?? null
+      ? ((cityRow as Record<string, unknown>).display_name_i18n as Record<string, unknown> | null)
+      : null;
+  const city =
+    cityI18n && typeof cityI18n === "object"
+      ? ((cityI18n.en as string | null) ?? null)
       : null;
   let country: string | null =
     countryRow && typeof countryRow === "object"
@@ -179,9 +185,9 @@ export async function GET(request: Request) {
         deleted_at,
         updated_at,
         profiles!talent_profiles_user_id_fkey(display_name, app_role, account_status, avatar_url),
-        res_city:locations!talent_profiles_residence_city_id_fkey(display_name_en),
+        res_city:locations!talent_profiles_residence_city_id_fkey(display_name_i18n),
         res_ctry:countries!talent_profiles_residence_country_id_fkey(name_en, iso2),
-        talent_profile_taxonomy(taxonomy_term_id, is_primary, taxonomy_terms(kind, name_en))
+        talent_profile_taxonomy(taxonomy_term_id, is_primary, taxonomy_terms(kind, name_i18n))
       `,
       )
       .is("deleted_at", null)
@@ -200,7 +206,7 @@ export async function GET(request: Request) {
       let fb = supabase
         .from("talent_profiles")
         .select(
-          "id, user_id, profile_code, display_name, workflow_status, visibility, profile_completeness_score, phone, deleted_at, updated_at, profiles!talent_profiles_user_id_fkey(display_name, app_role, account_status, avatar_url), talent_profile_taxonomy(taxonomy_term_id, is_primary, taxonomy_terms(kind, name_en))",
+          "id, user_id, profile_code, display_name, workflow_status, visibility, profile_completeness_score, phone, deleted_at, updated_at, profiles!talent_profiles_user_id_fkey(display_name, app_role, account_status, avatar_url), talent_profile_taxonomy(taxonomy_term_id, is_primary, taxonomy_terms(kind, name_i18n))",
         )
         .is("deleted_at", null)
         .order("updated_at", { ascending: false })
