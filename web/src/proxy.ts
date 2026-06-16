@@ -132,7 +132,15 @@ export async function proxy(request: NextRequest) {
     //     refuses to serve in production as defense-in-depth.
     ((process.env.NODE_ENV === "development" ||
       process.env.VERCEL_ENV === "preview") &&
-      pathname.startsWith("/api/dev/"))
+      pathname.startsWith("/api/dev/")) ||
+    // Dev UI routes — /dev/template-preview/[key] and /dev/section-sandbox/[type].
+    // Mirroring the /api/dev/ bypass above: reachable in dev and preview only.
+    // The surface allow-list would otherwise 404 these paths because /dev/ is
+    // not in any host-kind allow-list. Production is intentionally excluded so
+    // these QA surfaces are never reachable on tulala.digital.
+    ((process.env.NODE_ENV === "development" ||
+      process.env.VERCEL_ENV === "preview") &&
+      pathname.startsWith("/dev/"))
   ) {
     return NextResponse.next();
   }

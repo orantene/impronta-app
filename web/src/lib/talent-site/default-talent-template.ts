@@ -150,13 +150,13 @@ export function talentProfileTokens(
     .filter(Boolean)
     .join(" · ");
 
-  // Full bio for the About paragraph — `richBio` when present, else the existing
-  // short bio / tagline / a welcome line so About never reads blank.
-  const richBio =
-    profile.richBio?.trim() ||
-    profile.publicBio?.trim() ||
-    tagline ||
-    `Welcome to ${displayName}'s profile.`;
+  // Full bio for the About paragraph. When the talent HAS a real bio we use
+  // it verbatim (`richBio` → `publicBio` → short tagline). When NEITHER is
+  // set we leave `richBio` empty so the About body paragraph renders blank
+  // (an empty <p> is invisible), avoiding a redundant "Discipline · City"
+  // line that merely repeats the hero eyebrow and the location line below it.
+  // The `locationLine` ("Based in {city}") stays visible regardless.
+  const richBio = profile.richBio?.trim() || profile.publicBio?.trim() || "";
 
   const languagesLine = profile.languagesLabel?.trim()
     ? `Languages: ${profile.languagesLabel.trim()}`

@@ -229,6 +229,38 @@ test("ENRICH — About renders the full richBio paragraph", () => {
   assert.doesNotMatch(joined, /A short public bio\./);
 });
 
+test("FIX 2 — no-bio About: body is empty, location line still shows, discipline·location NOT repeated", () => {
+  // When richBio is "" (no real bio), the about-body paragraph resolves to ""
+  // (empty, invisible). The locationLine ("Based in …") still renders.
+  // The discipline·location tagline must NOT appear as About body copy — it
+  // already shows in the hero eyebrow/tagline and repeating it is redundant.
+  const noBioTokens: TalentProfileTokens = {
+    ...TOKENS,
+    richBio: "",
+    bio: "",
+    tagline: "Editorial Model · Playa del Carmen",
+    locationLine: "Based in Playa del Carmen",
+  };
+  const hydrated = hydrateTalentTree(buildDefaultTalentProfileTree(), noBioTokens);
+  const texts: string[] = [];
+  for (const node of hydrated) collectText(node, texts);
+  const joined = texts.join("\n");
+  // Location line must still appear.
+  assert.match(joined, /Based in Playa del Carmen/);
+  // The about-body paragraph is empty — the discipline·location tagline must
+  // NOT appear as a standalone About body line.
+  const lines = texts.map((t) => t.trim()).filter(Boolean);
+  // Count occurrences of the redundant discipline·location string — must be
+  // at most 1 (it may appear in the hero tagline slot, not in About).
+  const redundantCount = lines.filter((l) =>
+    l.includes("Editorial Model · Playa del Carmen"),
+  ).length;
+  assert.ok(
+    redundantCount <= 1,
+    `"Editorial Model · Playa del Carmen" appears ${redundantCount} times — About body must not repeat the hero tagline`,
+  );
+});
+
 test("ENRICH — languages line renders when present and is empty otherwise", () => {
   const withLangs = hydrateTalentTree(buildDefaultTalentProfileTree(), TOKENS);
   const withTexts: string[] = [];
