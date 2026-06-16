@@ -108,9 +108,11 @@ export async function saveTalentServiceAreas(
 
   // Validate every id is a real, active curated location.
   if (allIds.length > 0) {
+    // Only id + active are read below; display_name_en was dropped by the WS4
+    // i18n migration and was never consumed here, so it's no longer selected.
     const { data: locs, error: locErr } = await supabase
       .from("locations")
-      .select("id, display_name_en, active")
+      .select("id, active")
       .in("id", allIds);
     if (locErr) {
       logServerError("admin-service-areas.locvalidate", locErr);
