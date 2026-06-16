@@ -270,6 +270,37 @@ export function getLineageFromMap(termId: string, allTerms: Map<string, TermShap
 // ────────────────────────────────────────────────────────────────────────
 
 /**
+ * Fetch a single taxonomy_terms row (incl. the per-locale `name_i18n` map) by id.
+ * Returns `{ data: unknown }` deliberately: `name_i18n` is not yet in the
+ * generated `database.types.ts` for this table, so a typed `.select("name_i18n")`
+ * can't resolve and its inferred result type self-references (TS7022). Boxing the
+ * result as `unknown` here keeps the two parent-walk callers type-clean; they
+ * cast the row to `TermShape` (which `withFlatName` backfills `name_en` from).
+ */
+async function fetchTaxonomyTermRow(
+  supabase: SupabaseClient,
+  termId: string,
+): Promise<{ data: unknown; error: unknown }> {
+  // `supabase` is cast to an untyped client for THIS query only: a typed
+  // `.select("name_i18n")` can't resolve against the (stale) generated schema
+  // and produces a self-referential inferred type (TS7022).
+  const untyped = supabase as unknown as {
+    from: (table: string) => {
+      select: (cols: string) => {
+        eq: (col: string, val: string) => {
+          maybeSingle: () => Promise<{ data: unknown; error: unknown }>;
+        };
+      };
+    };
+  };
+  return untyped
+    .from("taxonomy_terms")
+    .select("id, slug, name_i18n, kind, term_type, parent_id, level, is_public_filter, archived_at")
+    .eq("id", termId)
+    .maybeSingle();
+}
+
+/**
  * Async parent walk — for callers without an in-memory term map.
  */
 export async function fetchParentCategoryByTermId(
@@ -279,13 +310,14 @@ export async function fetchParentCategoryByTermId(
   let nextId: string | null = termId;
   let depth = 0;
   while (nextId && depth < 10) {
-    const { data, error }: { data: unknown; error: unknown } = await supabase
-      .from("taxonomy_terms")
-      .select("id, slug, name_i18n, kind, term_type, parent_id, level, is_public_filter, archived_at")
-      .eq("id", nextId)
-      .maybeSingle();
-    if (error || !data) return null;
-    const cur = withFlatName(data as TermShape)!;
+    // NOTE: `taxonomy_terms.name_i18n` is not yet in the generated
+    // `database.types.ts` (WS3 added the column; types not regenerated for this
+    // table), so the typed `.select()` overload cannot resolve `name_i18n` and
+    // the inferred result type self-references. Resolve the awaited result as
+    // `unknown` to break the chain, then cast the row to TermShape.
+    const res: { data: unknown; error: unknown } = await fetchTaxonomyTermRow(supabase, nextId);
+    if (res.error || !res.data) return null;
+    const cur = withFlatName(res.data as TermShape)!;
     if (isParentCategoryTerm(cur)) return cur;
     nextId = cur.parent_id ?? null;
     depth++;
@@ -304,13 +336,9 @@ export async function fetchLineageByTermId(
   let nextId: string | null = termId;
   let depth = 0;
   while (nextId && depth < 10) {
-    const { data, error }: { data: unknown; error: unknown } = await supabase
-      .from("taxonomy_terms")
-      .select("id, slug, name_i18n, kind, term_type, parent_id, level, is_public_filter, archived_at")
-      .eq("id", nextId)
-      .maybeSingle();
-    if (error || !data) break;
-    const cur = withFlatName(data as TermShape)!;
+    const res: { data: unknown; error: unknown } = await fetchTaxonomyTermRow(supabase, nextId);
+    if (res.error || !res.data) break;
+    const cur = withFlatName(res.data as TermShape)!;
     path.unshift(cur);
     nextId = cur.parent_id ?? null;
     depth++;
