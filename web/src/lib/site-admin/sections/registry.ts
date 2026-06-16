@@ -411,6 +411,47 @@ import { siteFooterSchemasByVersion, type SiteFooterV1 } from "./site_footer/sch
 import { SiteFooterComponent } from "./site_footer/Component";
 import { SiteFooterEditor } from "./site_footer/Editor";
 
+// ── WS-A A5 — curated header-widget embeds (shell-only) ─────────────────
+// Thin sections that wrap the live header's interactive widgets. Each renders
+// a static placeholder on the in-editor canvas (preview) and the real widget on
+// the published shell. visibleToAgency=false keeps them out of the page picker;
+// they're surfaced only as header-widget embed presets in the shell gallery.
+import { headerSearchMeta } from "./header_search/meta";
+import { headerSearchMigrations } from "./header_search/migrations";
+import {
+  headerSearchSchemasByVersion,
+  type HeaderSearchV1,
+} from "./header_search/schema";
+import { HeaderSearchComponent } from "./header_search/Component";
+import { HeaderSearchEditor } from "./header_search/Editor";
+
+import { headerAccountMeta } from "./header_account/meta";
+import { headerAccountMigrations } from "./header_account/migrations";
+import {
+  headerAccountSchemasByVersion,
+  type HeaderAccountV1,
+} from "./header_account/schema";
+import { HeaderAccountComponent } from "./header_account/Component";
+import { HeaderAccountEditor } from "./header_account/Editor";
+
+import { headerInquiryMeta } from "./header_inquiry/meta";
+import { headerInquiryMigrations } from "./header_inquiry/migrations";
+import {
+  headerInquirySchemasByVersion,
+  type HeaderInquiryV1,
+} from "./header_inquiry/schema";
+import { HeaderInquiryComponent } from "./header_inquiry/Component";
+import { HeaderInquiryEditor } from "./header_inquiry/Editor";
+
+import { headerFavoritesMeta } from "./header_favorites/meta";
+import { headerFavoritesMigrations } from "./header_favorites/migrations";
+import {
+  headerFavoritesSchemasByVersion,
+  type HeaderFavoritesV1,
+} from "./header_favorites/schema";
+import { HeaderFavoritesComponent } from "./header_favorites/Component";
+import { HeaderFavoritesEditor } from "./header_favorites/Editor";
+
 // ── entries ──────────────────────────────────────────────────────────────
 
 export const heroSection: SectionRegistryEntry<HeroV1> = {
@@ -802,6 +843,20 @@ export const siteFooterSection: SectionRegistryEntry<SiteFooterV1> = {
   meta: siteFooterMeta, currentVersion: 1, schemasByVersion: siteFooterSchemasByVersion, migrations: siteFooterMigrations, Component: SiteFooterComponent, Editor: SiteFooterEditor,
 };
 
+// WS-A A5 — curated header-widget embed section types (shell-only).
+export const headerSearchSection: SectionRegistryEntry<HeaderSearchV1> = {
+  meta: headerSearchMeta, currentVersion: 1, schemasByVersion: headerSearchSchemasByVersion, migrations: headerSearchMigrations, Component: HeaderSearchComponent, Editor: HeaderSearchEditor,
+};
+export const headerAccountSection: SectionRegistryEntry<HeaderAccountV1> = {
+  meta: headerAccountMeta, currentVersion: 1, schemasByVersion: headerAccountSchemasByVersion, migrations: headerAccountMigrations, Component: HeaderAccountComponent, Editor: HeaderAccountEditor,
+};
+export const headerInquirySection: SectionRegistryEntry<HeaderInquiryV1> = {
+  meta: headerInquiryMeta, currentVersion: 1, schemasByVersion: headerInquirySchemasByVersion, migrations: headerInquiryMigrations, Component: HeaderInquiryComponent, Editor: HeaderInquiryEditor,
+};
+export const headerFavoritesSection: SectionRegistryEntry<HeaderFavoritesV1> = {
+  meta: headerFavoritesMeta, currentVersion: 1, schemasByVersion: headerFavoritesSchemasByVersion, migrations: headerFavoritesMigrations, Component: HeaderFavoritesComponent, Editor: HeaderFavoritesEditor,
+};
+
 export const SECTION_REGISTRY = {
   hero: heroSection,
   trust_strip: trustStripSection,
@@ -861,6 +916,11 @@ export const SECTION_REGISTRY = {
   // Phase B.1 — shell-only section types.
   site_header: siteHeaderSection,
   site_footer: siteFooterSection,
+  // WS-A A5 — curated header-widget embeds (shell-only; not in page picker).
+  header_search: headerSearchSection,
+  header_account: headerAccountSection,
+  header_inquiry: headerInquirySection,
+  header_favorites: headerFavoritesSection,
 } as const;
 
 export type SectionTypeKey = keyof typeof SECTION_REGISTRY;

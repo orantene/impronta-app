@@ -346,6 +346,11 @@ async function renderShellSlot(
               tenantId,
               locale,
               publicPathPrefix,
+              // WS-A A5 — on the shell EDIT canvas, interactive header-widget
+              // embeds render their static placeholder (no live widget / auth
+              // read / data fetch); the published shell mounts the real widget.
+              // Pure-render embeds ignore `preview`, so they are unaffected.
+              editorMode: editModeActive,
             }),
           })
         : null}

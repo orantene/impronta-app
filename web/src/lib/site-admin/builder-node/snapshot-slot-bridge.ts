@@ -1834,6 +1834,19 @@ export function deriveLegacySectionChildNodes(
   if (slot.sectionTypeKey === "join_register") {
     return [];
   }
+  // WS-A A5 — header-widget embeds wrap a live widget and derive no child layers.
+  if (slot.sectionTypeKey === "header_search") {
+    return [];
+  }
+  if (slot.sectionTypeKey === "header_account") {
+    return [];
+  }
+  if (slot.sectionTypeKey === "header_inquiry") {
+    return [];
+  }
+  if (slot.sectionTypeKey === "header_favorites") {
+    return [];
+  }
   return [];
 }
 

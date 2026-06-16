@@ -413,6 +413,44 @@ export const SECTION_EMBED_PRESETS: ReadonlyArray<SectionEmbedPreset> = [
       presentation: {},
     },
   },
+
+  // ── WS-A A5 · curated HEADER-WIDGET embeds (shell-only) ───────────────────
+  // Each wraps a live header widget. config is empty: the widget owns its own
+  // data + markup; on the in-editor canvas it renders a static placeholder chip,
+  // on the published shell it mounts the real interactive widget. Surfaced in
+  // the shell gallery's "Header widgets" category.
+  {
+    id: "header-search",
+    sectionTypeKey: "header_search",
+    label: "Header search",
+    description:
+      "The header's talent-search affordance (search icon → directory). Interactive on the published site.",
+    config: {},
+  },
+  {
+    id: "header-account",
+    sectionTypeKey: "header_account",
+    label: "Header account",
+    description:
+      "The header's account menu / sign-in affordance. Interactive on the published site.",
+    config: {},
+  },
+  {
+    id: "header-inquiry",
+    sectionTypeKey: "header_inquiry",
+    label: "Header inquiry",
+    description:
+      "The header's inquiry-cart affordance (plane icon → inquiry drawer). Interactive on the published site.",
+    config: {},
+  },
+  {
+    id: "header-favorites",
+    sectionTypeKey: "header_favorites",
+    label: "Header favorites",
+    description:
+      "The header's saved-talent / favorites affordance (bookmark icon). Interactive on the published site.",
+    config: {},
+  },
 ];
 
 const SECTION_EMBED_PRESET_BY_ID = new Map(

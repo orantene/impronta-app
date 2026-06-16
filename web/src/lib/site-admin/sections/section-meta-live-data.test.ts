@@ -54,6 +54,9 @@ const EXPECTED_DATA_BOUND_SECTIONS = [
   "site_footer",
   "site_header",
   "talent_type_grid",
+  // WS-A A5 — async header-widget embeds (read session / discovery counts).
+  "header_account",
+  "header_inquiry",
 ].sort();
 
 /** A section's Component.tsx is a server data-loader iff it renders async. */

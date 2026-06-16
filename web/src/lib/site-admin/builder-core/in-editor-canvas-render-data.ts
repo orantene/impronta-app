@@ -139,6 +139,9 @@ export async function buildInEditorCanvasRenderData(args: {
     locale,
     publicPathPrefix,
     previewSubject: subjectForSectionEmbed,
+    // WS-A A5 — this is the in-editor CANVAS render. Interactive header-widget
+    // embeds render their static placeholder here (no live widget / auth read).
+    editorMode: true,
   });
 
   const sectionEmbedIslands: Record<string, ReactNode> = {};

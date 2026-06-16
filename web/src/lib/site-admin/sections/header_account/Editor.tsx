@@ -1,0 +1,15 @@
+"use client";
+
+import { HeaderWidgetEditorNote } from "../shared/HeaderWidgetEditor";
+import type { SectionEditorProps } from "../types";
+import type { HeaderAccountV1 } from "./schema";
+
+export function HeaderAccountEditor(_props: SectionEditorProps<HeaderAccountV1>) {
+  return (
+    <HeaderWidgetEditorNote title="Header account">
+      Drops the live account menu / sign-in affordance into the shell — the same
+      widget the default header uses. It is interactive on the published site;
+      the editor shows a placeholder chip so the canvas never reads the session.
+    </HeaderWidgetEditorNote>
+  );
+}

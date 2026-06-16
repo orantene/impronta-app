@@ -1053,6 +1053,12 @@ const EDITABLE_ROLES_BY_SECTION: Record<string, ReadonlyArray<EditableNodeRole>>
   anchor_nav: [],
   marquee: [],
   join_register: [],
+  // WS-A A5 — header-widget embeds carry no role-bound child layers (the wrapped
+  // widget owns its own markup), so they expose no editable text/CTA roles.
+  header_search: [],
+  header_account: [],
+  header_inquiry: [],
+  header_favorites: [],
 };
 
 function resolveNodeRole(

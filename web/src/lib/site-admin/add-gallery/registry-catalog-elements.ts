@@ -479,4 +479,53 @@ export const ADD_GALLERY_ELEMENT_ITEMS: ReadonlyArray<AddGalleryItem> = [
     nativeVariant: "text-link",
     searchTerms: ["website link"],
   }),
+
+  // ── Elements / Header Widgets (WS-A A5 — shell interactive embeds) ────────
+  // Curated section_embed presets that wrap the live header's interactive
+  // widgets. They render a placeholder on the editor canvas and the real widget
+  // on the published shell (see sections/header_*/Component.tsx).
+  el({
+    id: "el-header-search",
+    label: "Header Search",
+    description: "The header's talent-search affordance (search icon → directory).",
+    category: "header-widgets",
+    icon: "search",
+    insertMethod: "sectionEmbed",
+    sectionEmbedKey: "header_search",
+    sourceType: "section-embed",
+    searchTerms: ["search", "directory", "header widget", "find talent"],
+  }),
+  el({
+    id: "el-header-account",
+    label: "Header Account",
+    description: "The header's account menu / sign-in affordance.",
+    category: "header-widgets",
+    icon: "account",
+    insertMethod: "sectionEmbed",
+    sectionEmbedKey: "header_account",
+    sourceType: "section-embed",
+    searchTerms: ["account", "login", "sign in", "profile", "header widget"],
+  }),
+  el({
+    id: "el-header-inquiry",
+    label: "Header Inquiry",
+    description: "The header's inquiry-cart affordance (plane icon → inquiry drawer).",
+    category: "header-widgets",
+    icon: "inquiry",
+    insertMethod: "sectionEmbed",
+    sectionEmbedKey: "header_inquiry",
+    sourceType: "section-embed",
+    searchTerms: ["inquiry", "cart", "shortlist", "header widget"],
+  }),
+  el({
+    id: "el-header-favorites",
+    label: "Header Favorites",
+    description: "The header's saved-talent / favorites affordance (bookmark icon).",
+    category: "header-widgets",
+    icon: "bookmark",
+    insertMethod: "sectionEmbed",
+    sectionEmbedKey: "header_favorites",
+    sourceType: "section-embed",
+    searchTerms: ["favorites", "saved", "bookmark", "shortlist", "header widget"],
+  }),
 ];

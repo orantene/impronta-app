@@ -1639,6 +1639,30 @@ export function BuilderNodeContentInspector({
                   links.
                 </Helper>
               </Field>
+              <Field flush>
+                <FieldLabel>Mobile menu style</FieldLabel>
+                <select
+                  className={KIT.select}
+                  value={node.props.mobileMenuVariant ?? "dropdown"}
+                  onChange={(event) => {
+                    void commitPatch({
+                      mobileMenuVariant: event.currentTarget.value as
+                        | "dropdown"
+                        | "drawer-right"
+                        | "sheet-bottom"
+                        | "full-screen-fade",
+                    });
+                  }}
+                >
+                  <option value="dropdown">Dropdown (under toggle)</option>
+                  <option value="drawer-right">Drawer (slide from right)</option>
+                  <option value="sheet-bottom">Sheet (slide from bottom)</option>
+                  <option value="full-screen-fade">Full screen (fade)</option>
+                </select>
+                <Helper>
+                  How the collapsed hamburger menu opens on mobile.
+                </Helper>
+              </Field>
             </div>
           </CardBody>
         </Card>

@@ -674,6 +674,32 @@ const CASES: ReadonlyArray<BindingCase> = [
     expectedRoles: [],
     componentPath: "src/lib/site-admin/sections/join_register/Component.tsx",
   },
+  // WS-A A5 — header-widget embeds. No role-bound child layers (the wrapped
+  // widget owns its own markup), so expectedRoles is empty for all four.
+  {
+    sectionTypeKey: "header_search",
+    props: {},
+    expectedRoles: [],
+    componentPath: "src/lib/site-admin/sections/header_search/Component.tsx",
+  },
+  {
+    sectionTypeKey: "header_account",
+    props: {},
+    expectedRoles: [],
+    componentPath: "src/lib/site-admin/sections/header_account/Component.tsx",
+  },
+  {
+    sectionTypeKey: "header_inquiry",
+    props: {},
+    expectedRoles: [],
+    componentPath: "src/lib/site-admin/sections/header_inquiry/Component.tsx",
+  },
+  {
+    sectionTypeKey: "header_favorites",
+    props: {},
+    expectedRoles: [],
+    componentPath: "src/lib/site-admin/sections/header_favorites/Component.tsx",
+  },
 ];
 
 test("derived child roles stay in sync with renderer bindings", () => {
