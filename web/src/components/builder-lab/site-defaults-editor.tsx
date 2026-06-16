@@ -24,6 +24,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { resolvePlatformDefaultThemeActionSet } from "@/components/edit-chrome/theme-action-scope";
 import { listThemePresets } from "@/lib/site-admin/presets/theme-presets";
 import { SurfaceSwitcher } from "./surface-switcher";
+import { ComponentStylesEditor } from "./component-styles-editor";
 import { LAB as T, RADII, fieldStyle, LabButton, SectionLabel } from "./ui";
 import type { PlatformThemeSurface } from "@/lib/platform/default-theme";
 import type { ComponentStyleDefaults } from "@/lib/site-admin/builder-node/component-style-defaults";
@@ -118,6 +119,11 @@ export function SiteDefaultsEditor() {
   const setToken = (key: string, value: string) => {
     setStatus(null);
     setTokens((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const setComponentStylesWorking = (next: ComponentStyleDefaults) => {
+    setStatus(null);
+    setComponentStyles(next);
   };
 
   const applyPreset = (slug: string) => {
@@ -271,6 +277,12 @@ export function SiteDefaultsEditor() {
             ))}
           </div>
         </section>
+
+        {/* Component default styles — surfaces the existing
+            `default_component_styles` cascade (load/save already wired above). */}
+        <div style={{ borderTop: `1px solid ${T.borderSoft}`, paddingTop: 18 }}>
+          <ComponentStylesEditor value={componentStyles} onChange={setComponentStylesWorking} />
+        </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <LabButton variant="primary" disabled={pending} onClick={save}>
