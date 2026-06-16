@@ -51,6 +51,9 @@ import {
   resolveSectionEmbedConfigTextValue,
 } from "./inline-editor-builder-resolvers";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node";
+import { useActiveContentLocale } from "./active-content-locale-bridge";
+import { isLocalizableProp } from "@/lib/i18n/builder-i18n-props";
+import { setOverlayProp } from "@/lib/site-admin/builder-node/i18n-overlay";
 
 type Banner =
   | { kind: "none" }
@@ -67,6 +70,13 @@ interface ActiveTextEdit {
     propKey: "text" | "label" | "title" | "brand";
     /** Patches `section_embed.props.config[sectionEmbedConfigKey]` when set. */
     sectionEmbedConfigKey?: string;
+    /**
+     * WS5 — the content locale this edit authors, captured when the overlay
+     * opened. Default locale → writes the base prop; a secondary locale →
+     * writes `node.i18n[locale][propKey]`. `sectionEmbedConfigKey` edits stay
+     * base-only (curated section_embed config has no per-element overlay).
+     */
+    locale: string;
   };
 }
 
@@ -93,6 +103,7 @@ export function InlineEditor() {
   const {
     tenantId,
     draftProps,
+    defaultLocale,
     patchBuilderNodeProps,
     reportMutationError,
     selectBuilderNode,
@@ -122,6 +133,18 @@ export function InlineEditor() {
   useEffect(() => {
     builderTreeRef.current = builderTree;
   }, [builderTree]);
+
+  // WS5 — the in-session content locale (top-header toggle). The canvas dims
+  // untranslated nodes for this locale; inline canvas authoring must write to
+  // the SAME locale (Behavior 3): typing on a fallback node while a secondary
+  // locale is active writes `node.i18n[locale][prop]`, not the base prop. The
+  // live `dblclick` / commit handlers run from a long-lived effect / overlay
+  // callback, so they read the locale through a ref to dodge stale closures.
+  const activeContentLocale = useActiveContentLocale();
+  const activeContentLocaleRef = useRef(activeContentLocale);
+  useEffect(() => {
+    activeContentLocaleRef.current = activeContentLocale;
+  }, [activeContentLocale]);
 
   // Auto-dismiss info/error banners after 4s.
   useEffect(() => {
@@ -203,6 +226,36 @@ export function InlineEditor() {
         }
         return;
       }
+
+      // WS5 — Behavior 3: when a secondary content locale is active and this is
+      // a localizable prop, the edit writes the per-element translation overlay
+      // (`node.i18n[locale][prop]`) instead of the base/default-locale prop. The
+      // canvas re-resolves through `resolveNodeProp`, so the node flips to full
+      // opacity + a green dot. The default locale (and any non-localizable prop)
+      // keeps writing the base prop exactly as before → byte-identical.
+      const node = findBuilderNodeById(builderTreeRef.current, target.id);
+      if (
+        node &&
+        target.locale !== defaultLocale &&
+        isLocalizableProp(node.kind, target.propKey)
+      ) {
+        const nextOverlay = setOverlayProp(
+          node.i18n,
+          target.locale,
+          target.propKey,
+          next.trim(),
+        );
+        const result = await patchBuilderNodeProps(target.id, {
+          i18n: nextOverlay,
+        });
+        if (!result.ok) {
+          const text = result.error ?? "Couldn't save this translation. Try the inspector.";
+          reportMutationError(text);
+          setBanner({ kind: "error", text });
+        }
+        return;
+      }
+
       const result = await patchBuilderNodeProps(target.id, {
         [target.propKey]: next.trim(),
       });
@@ -212,7 +265,7 @@ export function InlineEditor() {
         setBanner({ kind: "error", text });
       }
     },
-    [patchBuilderNodeProps, reportMutationError],
+    [patchBuilderNodeProps, reportMutationError, defaultLocale],
   );
 
   // ── text editing driver ──────────────────────────────────────────────
@@ -290,6 +343,12 @@ export function InlineEditor() {
       // colour / link toolbar) would never appear on double-click. Resolve and
       // open the overlay here, before that gate. ──
       if (builderNodeTarget) {
+        // WS5 — the locale this edit authors = the active content locale at
+        // open-time. The seed value (and the undo/redo resync) honor it: the
+        // default locale reads the base prop, a secondary locale reads its
+        // overlay entry (falling back to the base copy when untranslated).
+        const editLocale = activeContentLocaleRef.current.locale;
+        const editDefaultLocale = activeContentLocaleRef.current.defaultLocale;
         // Resolve the stored value BEFORE the empty check so a heading that
         // contains only styled spans (empty DOM text) doesn't block.
         const storedValue = builderNodeTarget.sectionEmbedConfigKey
@@ -298,10 +357,12 @@ export function InlineEditor() {
               builderNodeTarget.id,
               builderNodeTarget.sectionEmbedConfigKey,
             )
-          : resolveBuilderNodeTextValue(
+          : resolveBuilderNodeLocalizedSeed(
               builderTreeRef.current,
               builderNodeTarget.id,
               builderNodeTarget.propKey,
+              editLocale,
+              editDefaultLocale,
             );
         const original =
           storedValue !== null
@@ -318,6 +379,11 @@ export function InlineEditor() {
           builderNode: {
             id: builderNodeTarget.id,
             propKey: builderNodeTarget.propKey,
+            // section_embed config edits stay base-only (no per-element overlay).
+            locale: builderNodeTarget.sectionEmbedConfigKey
+              ? editDefaultLocale
+              : editLocale,
+            sectionEmbedConfigKey: builderNodeTarget.sectionEmbedConfigKey,
           },
         });
         return;
@@ -375,6 +441,8 @@ export function InlineEditor() {
   );
 
   // Undo/redo while inline edit is open — remount the overlay from stored copy.
+  // WS5 — for a secondary-locale edit the stored copy is the overlay entry, so
+  // re-seed through the same locale-aware resolver the open-time path uses.
   useEffect(() => {
     if (!activeEdit?.builderNode) return;
     const stored = activeEdit.builderNode.sectionEmbedConfigKey
@@ -383,10 +451,12 @@ export function InlineEditor() {
           activeEdit.builderNode.id,
           activeEdit.builderNode.sectionEmbedConfigKey,
         )
-      : resolveBuilderNodeTextValue(
+      : resolveBuilderNodeLocalizedSeed(
           builderTree,
           activeEdit.builderNode.id,
           activeEdit.builderNode.propKey,
+          activeEdit.builderNode.locale,
+          activeContentLocaleRef.current.defaultLocale,
         );
     if (stored === null) return;
     setActiveEdit((prev) => {
@@ -398,7 +468,12 @@ export function InlineEditor() {
         resyncKey: (prev.resyncKey ?? 0) + 1,
       };
     });
-  }, [builderTree, activeEdit?.builderNode?.id, activeEdit?.builderNode?.propKey]);
+  }, [
+    builderTree,
+    activeEdit?.builderNode?.id,
+    activeEdit?.builderNode?.propKey,
+    activeEdit?.builderNode?.locale,
+  ]);
 
   // ── image hover + replace driver + text hover hint driver ────────────
   useEffect(() => {
@@ -657,6 +732,32 @@ export function InlineEditor() {
       />
     </>
   );
+}
+
+/**
+ * WS5 — the value to SEED the inline overlay with for a localizable node prop,
+ * resolved for the active content locale. The default locale reads the base
+ * prop; a secondary locale reads `node.i18n[locale][prop]` and, when that is
+ * empty (the untranslated/dimmed case), falls back to the base prop so the
+ * operator starts from the source copy and overwrites it. Returns `null` when
+ * the node / prop is absent (caller then uses the DOM text). Used at open-time
+ * AND on the undo/redo resync so both honor the locale the edit is bound to.
+ */
+function resolveBuilderNodeLocalizedSeed(
+  tree: BuilderNodeTree,
+  nodeId: string,
+  propKey: "text" | "label" | "title" | "brand",
+  locale: string,
+  defaultLocale: string,
+): string | null {
+  const base = resolveBuilderNodeTextValue(tree, nodeId, propKey);
+  if (locale === defaultLocale) return base;
+  const node = findBuilderNodeById(tree, nodeId);
+  const overlayValue = node?.i18n?.[locale]?.[propKey];
+  if (typeof overlayValue === "string" && overlayValue.trim().length > 0) {
+    return overlayValue;
+  }
+  return base;
 }
 
 function resolveOriginalImageSrc(src: string): string {

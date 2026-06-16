@@ -48,6 +48,8 @@ import {
   evaluateBuilderNodeVisibility,
   type BuilderVisibilityContext,
 } from "./visibility";
+import { resolveLocalized } from "@/lib/i18n/resolve-localized";
+import { isLocalizableProp } from "@/lib/i18n/builder-i18n-props";
 import type { BuilderNode, BuilderNodeStyle, BuilderNodeStyleValue } from "./types";
 import type { BuilderImageMediaAsset } from "@/lib/site-admin/media/types";
 
@@ -115,12 +117,40 @@ export interface BuilderNodeRenderOptions {
   // this, so the cascade is computed in ONE place for both. See
   // `component-style-defaults.ts`.
   componentStyleDefaults?: ComponentStyleDefaults;
+  // WS5 — per-element translation. When provided, every localizable string prop
+  // (`text`/`label`/`alt`/`title`/`brand`, per builder-i18n-props) resolves
+  // through the node's `i18n` overlay via `resolveLocalized(map, locale, chain)`:
+  // the base prop is the default-locale value, the overlay supplies the rest.
+  // Absent → the base prop renders verbatim (byte-identical single-language).
+  //   - PUBLISHED render: pass `{ locale, defaultLocale, chain }` (visitor's
+  //     resolved locale + tenant fallback chain). NEVER set `editorPreview`, so
+  //     fallbacks render at full opacity exactly like today.
+  //   - EDITOR canvas: ALSO pass `editorPreview: true`. A node whose active-locale
+  //     value is a FALLBACK then renders at 40% opacity + a dotted "untranslated"
+  //     outline — the editor-only "needs translation" cue. Never reaches the
+  //     published site.
+  contentLocale?: BuilderNodeContentLocaleOptions;
+}
+
+export interface BuilderNodeContentLocaleOptions {
+  /** The locale to resolve localizable props for. */
+  locale: string;
+  /** Tenant default ("primary") locale = the node's base-prop language. */
+  defaultLocale: string;
+  /** Ordered fallback walk for `resolveLocalized(map, locale, chain)`. */
+  chain: readonly string[];
+  /**
+   * Editor-only. When true, a node whose active-locale value falls back to
+   * another locale renders at 40% opacity + a dotted outline (the "needs
+   * translation" cue). The published render path leaves this unset.
+   */
+  editorPreview?: boolean;
 }
 
 type NormalizedBuilderNodeRenderOptions = Required<
   Omit<
     BuilderNodeRenderOptions,
-    "renderSectionEmbed" | "styleClasses" | "visibilityContext"
+    "renderSectionEmbed" | "styleClasses" | "visibilityContext" | "contentLocale"
   >
 > & {
   renderSectionEmbed: BuilderSectionEmbedRenderer | null;
@@ -131,6 +161,9 @@ type NormalizedBuilderNodeRenderOptions = Required<
   // Wave 5B · #38 — undefined when the caller supplies no signals; the
   // visibility evaluator treats undefined as "always shown".
   visibilityContext: BuilderVisibilityContext | undefined;
+  // WS5 — undefined when the caller supplies no locale (single-language tenants
+  // / tests): every localizable prop renders its base value verbatim.
+  contentLocale: BuilderNodeContentLocaleOptions | undefined;
   repeatItem: BuilderRepeatItem | null;
   repeatDepth: number;
 };
@@ -2385,14 +2418,100 @@ function resolveNodeStringProp(
   prop: BuilderFieldBindingProp,
   fallbackValue: string,
   repeatItem: BuilderRepeatItem | null,
-): { value: string; bound: boolean } {
+  contentLocale?: BuilderNodeContentLocaleOptions,
+): { value: string; bound: boolean; isFallback: boolean } {
+  // WS5 — for LOCALIZABLE props, swap the base (default-locale) value for the
+  // locale-resolved value BEFORE field-binding. The base prop is the
+  // default-locale value; `node.i18n[locale][prop]` supplies the rest. A
+  // {{field}} binding (repeat data) still wins over both — it overrides the
+  // resolved string just as it overrode the raw base value before.
+  let baseValue = fallbackValue;
+  let isFallback = false;
+  if (contentLocale && isLocalizableProp(node.kind, prop)) {
+    const map: Record<string, string | null | undefined> = {
+      [contentLocale.defaultLocale]: fallbackValue,
+    };
+    const overlay = node.i18n;
+    if (overlay) {
+      for (const [code, props] of Object.entries(overlay)) {
+        const v = props?.[prop];
+        if (typeof v === "string") map[code] = v;
+      }
+    }
+    const resolved = resolveLocalized(
+      map,
+      contentLocale.locale,
+      contentLocale.chain,
+    );
+    // Keep the default-locale base when the overlay resolved to empty (e.g. a
+    // brand-new node with no copy yet) so we never blank out a populated field.
+    baseValue = resolved.value !== "" ? resolved.value : fallbackValue;
+    isFallback = resolved.isFallback;
+  }
   const fieldBindings = (node.props as { fieldBindings?: Record<string, string> })
     .fieldBindings;
-  return resolveBuilderFieldBindingValue(
-    fallbackValue,
+  const bound = resolveBuilderFieldBindingValue(
+    baseValue,
     fieldBindings?.[prop],
     repeatItem,
   );
+  // A live field-binding supersedes the translation entirely → not a fallback.
+  return { ...bound, isFallback: bound.bound ? false : isFallback };
+}
+
+/**
+ * WS5 — resolve a localizable prop NOT covered by the field-binding props
+ * (`title` on accordion/tab/embed, `brand` on nav, `label` on icon). No
+ * `{{field}}` repeat-binding applies to these, so this is a pure overlay
+ * resolution. Returns the localized value + whether it fell back. When no
+ * `contentLocale` is supplied, returns the base value verbatim (byte-identical).
+ */
+function resolveNodeLocalizedText(
+  node: BuilderNode,
+  prop: string,
+  baseValue: string,
+  contentLocale: BuilderNodeContentLocaleOptions | undefined,
+): { value: string; isFallback: boolean } {
+  if (!contentLocale || !isLocalizableProp(node.kind, prop)) {
+    return { value: baseValue, isFallback: false };
+  }
+  const map: Record<string, string | null | undefined> = {
+    [contentLocale.defaultLocale]: baseValue,
+  };
+  const overlay = node.i18n;
+  if (overlay) {
+    for (const [code, props] of Object.entries(overlay)) {
+      const v = props?.[prop];
+      if (typeof v === "string") map[code] = v;
+    }
+  }
+  const resolved = resolveLocalized(map, contentLocale.locale, contentLocale.chain);
+  return {
+    value: resolved.value !== "" ? resolved.value : baseValue,
+    isFallback: resolved.isFallback,
+  };
+}
+
+/**
+ * WS5 — editor-only "needs translation" cue. Returns style + data-attr overrides
+ * to splat onto a node element when its active-locale text fell back to another
+ * locale AND we're in the editor preview (`editorPreview: true`). 40% opacity +
+ * a dotted outline. Empty object on the published path (no `editorPreview`) or
+ * when the node IS translated → byte-identical published markup.
+ */
+function localeFallbackCue(
+  isFallback: boolean,
+  contentLocale: BuilderNodeContentLocaleOptions | undefined,
+): { style?: CSSProperties; attrs?: Record<string, string> } {
+  if (!isFallback || !contentLocale?.editorPreview) return {};
+  return {
+    style: {
+      opacity: 0.4,
+      outline: "1px dotted rgba(124, 58, 237, 0.55)",
+      outlineOffset: "2px",
+    },
+    attrs: { "data-builder-i18n-untranslated": contentLocale.locale },
+  };
 }
 
 function renderButtonHref(
@@ -2625,13 +2744,24 @@ function renderBuilderNodeElement(
           {renderChildren(node, options)}
         </div>
       );
-    case "accordion_item":
+    case "accordion_item": {
+      const titleResolved = resolveNodeLocalizedText(
+        node,
+        "title",
+        node.props.title,
+        options.contentLocale,
+      );
+      const titleCue = localeFallbackCue(
+        titleResolved.isFallback,
+        options.contentLocale,
+      );
       return (
         <details
           key={node.id}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
+          {...titleCue.attrs}
           className="site-builder-node site-builder-node--accordion-item"
           open
           style={inlineNodeStyle(node.props.style, {
@@ -2640,14 +2770,15 @@ function renderBuilderNodeElement(
             padding: "1rem",
           })}
         >
-          <summary style={{ cursor: "pointer", fontWeight: 700 }}>
-            {node.props.title}
+          <summary style={{ cursor: "pointer", fontWeight: 700, ...titleCue.style }}>
+            {titleResolved.value}
           </summary>
           <div style={{ display: "grid", gap: GAP_BY_SIZE.s, paddingTop: "0.75rem" }}>
             {renderChildren(node, options)}
           </div>
         </details>
       );
+    }
     case "tabs": {
       const panels = node.children.filter((child) => child.kind === "tab_panel");
       const activePanel =
@@ -2665,22 +2796,36 @@ function renderBuilderNodeElement(
           })}
         >
           <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
-            {panels.map((panel) => (
-              <span
-                key={`${panel.id}:tab`}
-                data-builder-node-id={panel.id}
-                data-builder-node-kind={panel.kind}
-                style={{
-                  border: "1px solid rgba(18, 18, 18, 0.14)",
-                  borderRadius: "0",
-                  padding: "0.45rem 0.75rem",
-                  fontSize: "0.875rem",
-                  fontWeight: panel.id === activePanel?.id ? 700 : 500,
-                }}
-              >
-                {panel.props.title}
-              </span>
-            ))}
+            {panels.map((panel) => {
+              const panelTitle = resolveNodeLocalizedText(
+                panel,
+                "title",
+                panel.props.title,
+                options.contentLocale,
+              );
+              const panelCue = localeFallbackCue(
+                panelTitle.isFallback,
+                options.contentLocale,
+              );
+              return (
+                <span
+                  key={`${panel.id}:tab`}
+                  data-builder-node-id={panel.id}
+                  data-builder-node-kind={panel.kind}
+                  {...panelCue.attrs}
+                  style={{
+                    border: "1px solid rgba(18, 18, 18, 0.14)",
+                    borderRadius: "0",
+                    padding: "0.45rem 0.75rem",
+                    fontSize: "0.875rem",
+                    fontWeight: panel.id === activePanel?.id ? 700 : 500,
+                    ...panelCue.style,
+                  }}
+                >
+                  {panelTitle.value}
+                </span>
+              );
+            })}
           </div>
           {activePanel ? renderBuilderNode(activePanel, options) : null}
         </div>
@@ -2781,61 +2926,70 @@ function renderBuilderNodeElement(
       );
     case "heading": {
       const Tag = `h${node.props.level}` as "h1" | "h2" | "h3" | "h4";
-      const text = resolveNodeStringProp(
+      const resolved = resolveNodeStringProp(
         node,
         "text",
         node.props.text,
         options.repeatItem,
-      ).value;
+        options.contentLocale,
+      );
+      const cue = localeFallbackCue(resolved.isFallback, options.contentLocale);
       return (
         <Tag
           key={node.id}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
+          {...cue.attrs}
           className="site-builder-node site-builder-node--heading"
           suppressHydrationWarning
-          style={inlineNodeStyle(node.props.style, MARGIN_ZERO, { lineHeight: 1.05 })}
+          style={inlineNodeStyle(node.props.style, MARGIN_ZERO, { lineHeight: 1.05, ...cue.style })}
         >
-          {renderInlineRich(text)}
+          {renderInlineRich(resolved.value)}
         </Tag>
       );
     }
     case "paragraph": {
-      const text = resolveNodeStringProp(
+      const resolved = resolveNodeStringProp(
         node,
         "text",
         node.props.text,
         options.repeatItem,
-      ).value;
+        options.contentLocale,
+      );
+      const cue = localeFallbackCue(resolved.isFallback, options.contentLocale);
       return (
         <p
           key={node.id}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
+          {...cue.attrs}
           className="site-builder-node site-builder-node--paragraph"
           suppressHydrationWarning
           style={inlineNodeStyle(node.props.style, MARGIN_ZERO, {
             lineHeight: 1.65,
             color: "rgba(18, 18, 18, 0.72)",
+            ...cue.style,
           })}
         >
-          {renderInlineRich(text)}
+          {renderInlineRich(resolved.value)}
         </p>
       );
     }
     case "button": {
-      const label = resolveNodeStringProp(
+      const resolvedLabel = resolveNodeStringProp(
         node,
         "label",
         node.props.label,
         options.repeatItem,
-      ).value;
+        options.contentLocale,
+      );
       const href = renderButtonHref(
         resolveNodeStringProp(node, "href", node.props.href, options.repeatItem),
         options.publicPathPrefix,
       );
+      const cue = localeFallbackCue(resolvedLabel.isFallback, options.contentLocale);
       return (
         <a
           key={node.id}
@@ -2843,11 +2997,12 @@ function renderBuilderNodeElement(
           data-builder-node-kind={node.kind}
           {...buttonStateAttrs(node)}
           {...builderNodeStyleAttrs(node.props.style)}
+          {...cue.attrs}
           className={`site-builder-node site-builder-node--button site-builder-node--button-${node.props.tone ?? "primary"}`}
           href={href}
-          style={inlineNodeStyle(node.props.style)}
+          style={inlineNodeStyle(node.props.style, cue.style)}
         >
-          {label}
+          {resolvedLabel.value}
         </a>
       );
     }
@@ -2868,11 +3023,14 @@ function renderBuilderNodeElement(
       const src = renderImageSrc(
         resolveNodeStringProp(node, "src", baseSrc, options.repeatItem),
       );
+      // `alt` is localizable but not on-page TEXT, so it resolves through the
+      // overlay (for the correct-language alt) WITHOUT the 40%-opacity cue.
       const alt = resolveNodeStringProp(
         node,
         "alt",
         baseAlt,
         options.repeatItem,
+        options.contentLocale,
       ).value;
       if (!src || !isSafeBuilderImageSrc(src)) return null;
       const imageOpt = builderImageSrcSet(src);
@@ -2930,7 +3088,15 @@ function renderBuilderNodeElement(
           })}
         />
       );
-    case "embed":
+    case "embed": {
+      // `title` is the iframe accessible name (not on-page text) → localized,
+      // no opacity cue.
+      const embedTitle = resolveNodeLocalizedText(
+        node,
+        "title",
+        node.props.title ?? "",
+        options.contentLocale,
+      ).value;
       return (
         <iframe
           key={node.id}
@@ -2940,7 +3106,7 @@ function renderBuilderNodeElement(
           {...builderNodeStyleAttrs(node.props.style)}
           className="site-builder-node site-builder-node--embed"
           src={node.props.src}
-          title={node.props.title ?? "Embedded content"}
+          title={embedTitle || "Embedded content"}
           loading="lazy"
           sandbox="allow-forms allow-popups allow-presentation allow-scripts"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; gyroscope; picture-in-picture; web-share"
@@ -2953,9 +3119,18 @@ function renderBuilderNodeElement(
           })}
         />
       );
+    }
     case "icon": {
       const icon = getBuilderIconDefinition(node.props.icon);
       const decorative = node.props.decorative ?? !node.props.label;
+      // `label` is the icon's accessible name (not on-page text) → localized,
+      // no opacity cue.
+      const iconLabel = resolveNodeLocalizedText(
+        node,
+        "label",
+        node.props.label ?? "",
+        options.contentLocale,
+      ).value;
       return (
         <span
           key={node.id}
@@ -2965,7 +3140,7 @@ function renderBuilderNodeElement(
           {...builderNodeStyleAttrs(node.props.style)}
           className="site-builder-node site-builder-node--icon"
           role={decorative ? undefined : "img"}
-          aria-label={decorative ? undefined : node.props.label || icon.name}
+          aria-label={decorative ? undefined : iconLabel || icon.name}
           aria-hidden={decorative ? true : undefined}
           style={inlineNodeStyle(node.props.style, {
             fontSize: ICON_SIZE[node.props.size ?? "md"],
@@ -3070,26 +3245,30 @@ function renderBuilderNodeElement(
         </div>
       );
     case "rich_text": {
-      const text = resolveNodeStringProp(
+      const resolved = resolveNodeStringProp(
         node,
         "text",
         node.props.text,
         options.repeatItem,
-      ).value;
+        options.contentLocale,
+      );
+      const cue = localeFallbackCue(resolved.isFallback, options.contentLocale);
       return (
         <div
           key={node.id}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
+          {...cue.attrs}
           className="site-builder-node site-builder-node--rich-text"
           style={inlineNodeStyle(node.props.style, MARGIN_ZERO, {
             lineHeight: 1.65,
             color: "rgba(18, 18, 18, 0.72)",
             whiteSpace: "pre-wrap",
+            ...cue.style,
           })}
         >
-          {renderInlineRich(sanitizeBuilderRichText(text))}
+          {renderInlineRich(sanitizeBuilderRichText(resolved.value))}
         </div>
       );
     }
@@ -3277,6 +3456,16 @@ function renderBuilderNodeElement(
     }
     case "nav": {
       const navProps = node.props;
+      const navBrand = resolveNodeLocalizedText(
+        node,
+        "brand",
+        navProps.brand ?? "",
+        options.contentLocale,
+      );
+      const navBrandCue = localeFallbackCue(
+        navBrand.isFallback,
+        options.contentLocale,
+      );
       const collapseAt = navProps.collapseAt ?? "mobile";
       const menuLabel = navProps.menuLabel?.trim() || "Menu";
       const navAriaLabel = navProps.ariaLabel?.trim() || "Primary";
@@ -3301,12 +3490,14 @@ function renderBuilderNodeElement(
           className="site-builder-node site-builder-node--nav"
           style={inlineNodeStyle(navProps.style)}
         >
-          {navProps.brand ? (
+          {navBrand.value ? (
             <a
               className="site-builder-node--nav-brand"
               href={prefixPublicHref(navProps.brandHref ?? "/", options.publicPathPrefix)}
+              {...navBrandCue.attrs}
+              style={navBrandCue.style}
             >
-              {navProps.brand}
+              {navBrand.value}
             </a>
           ) : null}
           <ul className="site-builder-node--nav-links">{renderNavLinks("inline")}</ul>
@@ -3384,6 +3575,7 @@ export function renderBuilderNodes(
     renderSectionEmbed: options.renderSectionEmbed ?? null,
     animateLayout: options.animateLayout ?? false,
     componentStyleDefaults: options.componentStyleDefaults ?? {},
+    contentLocale: options.contentLocale,
     repeatItem: null,
     repeatDepth: 0,
   };

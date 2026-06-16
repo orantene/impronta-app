@@ -1,6 +1,7 @@
 import { BUILDER_NODE_REGISTRY } from "./registry";
 import { builderNodeKindAllowedAtRoot } from "./drop-policy";
 import { normalizeBuilderVisibilityCondition } from "./visibility";
+import { normalizeNodeI18nOverlay } from "./i18n-overlay";
 import type { BuilderNode, BuilderNodeTree } from "./types";
 
 /**
@@ -25,6 +26,16 @@ const BASE_NODE_FIELD_CARRIERS: ReadonlyArray<{
   {
     key: "visibilityCondition",
     normalize: (value) => normalizeBuilderVisibilityCondition(value) ?? undefined,
+  },
+  // WS5 — per-element translation overlay: { es: { text: "Hola" }, fr: {…} }.
+  // SOURCE OF TRUTH = props.i18n (where patchBuilderNodeProps writes); mirrored
+  // onto node.i18n so the renderer + i18n primitives (resolveNodeProp,
+  // propHasLocale) read `node.i18n` directly. An empty overlay normalizes to
+  // undefined → carried on NEITHER (a node with no translations is byte-identical
+  // to today's single-language behavior).
+  {
+    key: "i18n",
+    normalize: (value) => normalizeNodeI18nOverlay(value),
   },
 ];
 

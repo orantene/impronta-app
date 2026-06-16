@@ -27,6 +27,10 @@ import {
   type BuilderNodePastePreview,
 } from "../edit-context";
 import { siblingDropGapToMoveIndex } from "@/lib/site-admin/builder-node/sibling-drop-gap";
+import {
+  overlayHasProp,
+  setOverlayProp,
+} from "@/lib/site-admin/builder-node/i18n-overlay";
 import { ElementLibraryInsertPicker } from "../element-library-insert-picker";
 import { Card, CardBody, CardHead, Field, FieldLabel, Helper, Segmented, Toggle } from "../kit";
 import { KIT } from "./kit/tokens";
@@ -34,6 +38,8 @@ import { MediaPickerButton } from "./kit";
 import { MyBlocksPanel } from "./my-blocks-panel";
 import { ComponentLibraryPanel } from "./component-library-panel";
 import { GenericContent } from "./generic-content";
+import { LocaleFieldTabs } from "./locale-field-tabs";
+import { useActiveContentLocale } from "../active-content-locale-bridge";
 
 interface BuilderNodeContentInspectorProps {
   node: Exclude<BuilderNode, { kind: "section" }>;
@@ -228,14 +234,16 @@ export function BuilderNodeContentInspector({
         <BuilderNodeSection title="Heading">
           <div className={KIT.field}>
             <label className={KIT.label}>Text</label>
-            <BuilderNodeRichTextField
-              key={`${node.id}:text:${node.props.text}`}
-              value={node.props.text}
+            <BuilderNodeLocalizableTextField
+              node={node}
+              prop="text"
               tenantId={tenantId}
-              variant="single"
+              fieldKind="rich-single"
+              baseValue={node.props.text}
               ariaLabel="Heading text"
               className={KIT.inputLg}
-              onCommit={(next) => commitTextInput("text", node.props.text)(next)}
+              onCommitBase={(next) => commitTextInput("text", node.props.text)(next)}
+              patch={commitPatch}
             />
           </div>
           <div className={KIT.field}>
@@ -265,14 +273,16 @@ export function BuilderNodeContentInspector({
       <BuilderNodeFlatPanel>
         <div className={KIT.field}>
           <label className={KIT.label}>Copy</label>
-          <BuilderNodeRichTextField
-            key={`${node.id}:text:${node.props.text}`}
-            value={node.props.text}
+          <BuilderNodeLocalizableTextField
+            node={node}
+            prop="text"
             tenantId={tenantId}
-            variant="multi"
+            fieldKind="rich-multi"
+            baseValue={node.props.text}
             ariaLabel="Paragraph copy"
             className={`${KIT.textarea} min-h-[128px] whitespace-pre-wrap break-words`}
-            onCommit={(next) => commitTextInput("text", node.props.text)(next)}
+            onCommitBase={(next) => commitTextInput("text", node.props.text)(next)}
+            patch={commitPatch}
           />
         </div>
       </BuilderNodeFlatPanel>
@@ -364,36 +374,34 @@ export function BuilderNodeContentInspector({
     return (
       <BuilderNodeFlatPanel>
         <BuilderNodeSection title="Button">
-          <div className="grid grid-cols-2 gap-2">
-            <div className={KIT.field}>
-              <label className={KIT.label}>Text</label>
-              <input
-                key={`${node.id}:label:${node.props.label}`}
-                defaultValue={node.props.label}
-                className={KIT.input}
-                onBlur={(event) => {
-                  void commitTextInput("label", node.props.label)(event.currentTarget.value);
-                }}
-                onKeyDown={handleCommitKey((value) => {
-                  void commitTextInput("label", node.props.label)(value);
-                })}
-              />
-            </div>
-            <div className={KIT.field}>
-              <label className={KIT.label}>Link</label>
-              <input
-                key={`${node.id}:href:${node.props.href}`}
-                defaultValue={node.props.href}
-                className={KIT.input}
-                placeholder="/contact or https://..."
-                onBlur={(event) => {
-                  void commitTextInput("href", node.props.href)(event.currentTarget.value);
-                }}
-                onKeyDown={handleCommitKey((value) => {
-                  void commitTextInput("href", node.props.href)(value);
-                })}
-              />
-            </div>
+          <div className={KIT.field}>
+            <label className={KIT.label}>Text</label>
+            <BuilderNodeLocalizableTextField
+              node={node}
+              prop="label"
+              tenantId={tenantId}
+              fieldKind="input"
+              baseValue={node.props.label}
+              ariaLabel="Button text"
+              className={KIT.input}
+              onCommitBase={(next) => commitTextInput("label", node.props.label)(next)}
+              patch={commitPatch}
+            />
+          </div>
+          <div className={KIT.field}>
+            <label className={KIT.label}>Link</label>
+            <input
+              key={`${node.id}:href:${node.props.href}`}
+              defaultValue={node.props.href}
+              className={KIT.input}
+              placeholder="/contact or https://..."
+              onBlur={(event) => {
+                void commitTextInput("href", node.props.href)(event.currentTarget.value);
+              }}
+              onKeyDown={handleCommitKey((value) => {
+                void commitTextInput("href", node.props.href)(value);
+              })}
+            />
           </div>
           <div className={KIT.field}>
             <label className={KIT.label}>Tone</label>
@@ -439,19 +447,19 @@ export function BuilderNodeContentInspector({
           />
           <div className={KIT.field}>
             <label className={KIT.label}>Alt text</label>
-            <input
-              key={`${node.id}:alt:${node.props.alt ?? ""}`}
-              defaultValue={node.props.alt ?? ""}
+            <BuilderNodeLocalizableTextField
+              node={node}
+              prop="alt"
+              tenantId={tenantId}
+              fieldKind="input"
+              baseValue={node.props.alt ?? ""}
+              ariaLabel="Alt text"
               className={KIT.input}
               placeholder="Describe the image"
-              onBlur={(event) => {
-                void commitTextInput("alt", node.props.alt ?? "", true)(
-                  event.currentTarget.value,
-                );
-              }}
-              onKeyDown={handleCommitKey((value) => {
-                void commitTextInput("alt", node.props.alt ?? "", true)(value);
-              })}
+              onCommitBase={(next) =>
+                commitTextInput("alt", node.props.alt ?? "", true)(next)
+              }
+              patch={commitPatch}
             />
           </div>
         </BuilderNodeSection>
@@ -550,16 +558,16 @@ export function BuilderNodeContentInspector({
           <CardBody>
             <Field flush>
               <FieldLabel>Question</FieldLabel>
-              <input
-                key={`${node.id}:title:${node.props.title}`}
-                defaultValue={node.props.title}
+              <BuilderNodeLocalizableTextField
+                node={node}
+                prop="title"
+                tenantId={tenantId}
+                fieldKind="input"
+                baseValue={node.props.title}
+                ariaLabel="Accordion question"
                 className={KIT.inputLg}
-                onBlur={(event) => {
-                  void commitTextInput("title", node.props.title)(event.currentTarget.value);
-                }}
-                onKeyDown={handleCommitKey((value) => {
-                  void commitTextInput("title", node.props.title)(value);
-                })}
+                onCommitBase={(next) => commitTextInput("title", node.props.title)(next)}
+                patch={commitPatch}
               />
               <Helper>Use Structure to edit the answer blocks nested inside this item.</Helper>
             </Field>
@@ -599,16 +607,16 @@ export function BuilderNodeContentInspector({
           <CardBody>
             <Field flush>
               <FieldLabel>Tab label</FieldLabel>
-              <input
-                key={`${node.id}:title:${node.props.title}`}
-                defaultValue={node.props.title}
+              <BuilderNodeLocalizableTextField
+                node={node}
+                prop="title"
+                tenantId={tenantId}
+                fieldKind="input"
+                baseValue={node.props.title}
+                ariaLabel="Tab label"
                 className={KIT.inputLg}
-                onBlur={(event) => {
-                  void commitTextInput("title", node.props.title)(event.currentTarget.value);
-                }}
-                onKeyDown={handleCommitKey((value) => {
-                  void commitTextInput("title", node.props.title)(value);
-                })}
+                onCommitBase={(next) => commitTextInput("title", node.props.title)(next)}
+                patch={commitPatch}
               />
               <Helper>Use Structure to edit the content blocks inside this tab.</Helper>
             </Field>
@@ -886,19 +894,19 @@ export function BuilderNodeContentInspector({
           </div>
           <div className={KIT.field}>
             <label className={KIT.label}>Title</label>
-            <input
-              key={`${node.id}:title:${node.props.title ?? ""}`}
-              defaultValue={node.props.title ?? ""}
+            <BuilderNodeLocalizableTextField
+              node={node}
+              prop="title"
+              tenantId={tenantId}
+              fieldKind="input"
+              baseValue={node.props.title ?? ""}
+              ariaLabel="Embed title"
               className={KIT.input}
               placeholder="e.g. Demo video"
-              onBlur={(event) => {
-                void commitTextInput("title", node.props.title ?? "", true)(
-                  event.currentTarget.value,
-                );
-              }}
-              onKeyDown={handleCommitKey((value) => {
-                void commitTextInput("title", node.props.title ?? "", true)(value);
-              })}
+              onCommitBase={(next) =>
+                commitTextInput("title", node.props.title ?? "", true)(next)
+              }
+              patch={commitPatch}
             />
           </div>
           <Toggle
@@ -1543,19 +1551,19 @@ export function BuilderNodeContentInspector({
             <div className="flex flex-col gap-3">
               <Field flush>
                 <FieldLabel>Brand name</FieldLabel>
-                <input
-                  key={`${node.id}:brand:${node.props.brand ?? ""}`}
-                  defaultValue={node.props.brand ?? ""}
+                <BuilderNodeLocalizableTextField
+                  node={node}
+                  prop="brand"
+                  tenantId={tenantId}
+                  fieldKind="input"
+                  baseValue={node.props.brand ?? ""}
+                  ariaLabel="Brand name"
                   className={KIT.input}
                   placeholder="Your brand or site name"
-                  onBlur={(event) => {
-                    void commitTextInput("brand", node.props.brand ?? "", true)(
-                      event.currentTarget.value,
-                    );
-                  }}
-                  onKeyDown={handleCommitKey((value) => {
-                    void commitTextInput("brand", node.props.brand ?? "", true)(value);
-                  })}
+                  onCommitBase={(next) =>
+                    commitTextInput("brand", node.props.brand ?? "", true)(next)
+                  }
+                  patch={commitPatch}
                 />
               </Field>
               <Field flush>
@@ -1734,14 +1742,16 @@ export function BuilderNodeContentInspector({
       <BuilderNodeFlatPanel>
         <div className={KIT.field}>
           <label className={KIT.label}>Copy</label>
-          <BuilderNodeRichTextField
-            key={`${node.id}:text:${node.props.text}`}
-            value={node.props.text}
+          <BuilderNodeLocalizableTextField
+            node={node}
+            prop="text"
             tenantId={tenantId}
-            variant="multi"
+            fieldKind="rich-multi"
+            baseValue={node.props.text}
             ariaLabel="Rich text copy"
             className={`${KIT.textarea} min-h-[128px] whitespace-pre-wrap break-words`}
-            onCommit={(next) => commitTextInput("text", node.props.text)(next)}
+            onCommitBase={(next) => commitTextInput("text", node.props.text)(next)}
+            patch={commitPatch}
           />
         </div>
       </BuilderNodeFlatPanel>
@@ -2881,6 +2891,7 @@ function BuilderNodeRichTextField({
   ariaLabel,
   className,
   onCommit,
+  allowEmpty = false,
 }: {
   value: string;
   tenantId: string;
@@ -2888,6 +2899,9 @@ function BuilderNodeRichTextField({
   ariaLabel: string;
   className: string;
   onCommit: (next: string) => Promise<void>;
+  /** WS5 — secondary-locale fields may be cleared back to empty (removes the
+   *  overlay key). The base/default field keeps `false` (non-empty required). */
+  allowEmpty?: boolean;
 }) {
   const [draft, setDraft] = useState(value);
 
@@ -2897,12 +2911,14 @@ function BuilderNodeRichTextField({
 
   useEffect(() => {
     const next = draft.trim();
-    if (!next || next === value) return;
+    // allowEmpty lets a cleared secondary translation persist (next === "" but
+    // value !== "" → commit the clear). The default field still no-ops on empty.
+    if ((!allowEmpty && !next) || next === value) return;
     const timer = window.setTimeout(() => {
       void onCommit(draft);
     }, 450);
     return () => window.clearTimeout(timer);
-  }, [draft, onCommit, value]);
+  }, [draft, onCommit, value, allowEmpty]);
 
   return (
     <RichEditor
@@ -2912,6 +2928,140 @@ function BuilderNodeRichTextField({
       tenantId={tenantId}
       ariaLabel={ariaLabel}
       className={className}
+    />
+  );
+}
+
+// ── WS5: per-element inline translation ───────────────────────────────────────
+// `LocalizableTextField` wraps a localizable text prop with the EN/ES(/FR…) tab
+// strip. Single-language tenants render the plain field (no strip). Each tab
+// edits its locale: the default tab writes the node's base prop; a secondary tab
+// writes `node.i18n[locale][prop]`. All writes flow through the same
+// `patchBuilderNodeProps` autosave as every other field edit.
+
+type LocalizableFieldKind = "rich-single" | "rich-multi" | "input" | "textarea";
+
+function BuilderNodeLocalizableTextField({
+  node,
+  prop,
+  tenantId,
+  fieldKind,
+  baseValue,
+  ariaLabel,
+  className,
+  placeholder,
+  onCommitBase,
+  patch,
+}: {
+  node: Exclude<BuilderNode, { kind: "section" }>;
+  prop: string;
+  tenantId: string;
+  fieldKind: LocalizableFieldKind;
+  /** The node's base (default-locale) value for this prop. */
+  baseValue: string;
+  ariaLabel: string;
+  className: string;
+  placeholder?: string;
+  /** Commit a new base (default-locale) value — the panel's existing handler. */
+  onCommitBase: (next: string) => void | Promise<void>;
+  /** Raw prop patcher (used to write the `i18n` overlay for secondary locales). */
+  patch: (patch: Record<string, unknown>) => void | Promise<void>;
+}) {
+  const { availableLocales, defaultLocale } = useEditContext();
+  const { locale: activeContentLocale } = useActiveContentLocale();
+
+  const overlay = node.i18n;
+  const supported = availableLocales.length > 0 ? availableLocales : [defaultLocale];
+
+  // Value for a given locale: default → base prop; secondary → overlay entry.
+  const valueForLocale = (locale: string): string => {
+    if (locale === defaultLocale) return baseValue;
+    return overlay?.[locale]?.[prop] ?? "";
+  };
+  const hasValueForLocale = (locale: string): boolean => {
+    if (locale === defaultLocale) return baseValue.trim().length > 0;
+    return overlayHasProp(overlay, locale, prop);
+  };
+
+  // Commit for a given locale: default → onCommitBase; secondary → patch overlay.
+  const commitForLocale = (locale: string) => async (next: string) => {
+    if (locale === defaultLocale) {
+      await onCommitBase(next);
+      return;
+    }
+    const current = overlay?.[locale]?.[prop] ?? "";
+    if (next.trim() === current.trim()) return;
+    const nextOverlay = setOverlayProp(overlay, locale, prop, next);
+    await patch({ i18n: nextOverlay });
+  };
+
+  const renderField = (locale: string, isDefault: boolean) => {
+    // Re-mount the field whenever the active locale OR its stored value changes,
+    // so the editor's internal draft re-seeds (RichEditor + uncontrolled inputs).
+    const fieldValue = valueForLocale(locale);
+    const fieldKey = `${node.id}:${prop}:${locale}:${fieldValue}`;
+    const commit = commitForLocale(locale);
+    if (fieldKind === "rich-single" || fieldKind === "rich-multi") {
+      return (
+        <BuilderNodeRichTextField
+          key={fieldKey}
+          value={fieldValue}
+          tenantId={tenantId}
+          variant={fieldKind === "rich-single" ? "single" : "multi"}
+          ariaLabel={`${ariaLabel}${isDefault ? "" : ` (${locale})`}`}
+          className={className}
+          allowEmpty={!isDefault}
+          onCommit={commit}
+        />
+      );
+    }
+    if (fieldKind === "textarea") {
+      return (
+        <textarea
+          key={fieldKey}
+          defaultValue={fieldValue}
+          className={className}
+          placeholder={placeholder}
+          aria-label={`${ariaLabel}${isDefault ? "" : ` (${locale})`}`}
+          onBlur={(event) => {
+            void commit(event.currentTarget.value);
+          }}
+        />
+      );
+    }
+    return (
+      <input
+        key={fieldKey}
+        defaultValue={fieldValue}
+        className={className}
+        placeholder={placeholder}
+        aria-label={`${ariaLabel}${isDefault ? "" : ` (${locale})`}`}
+        onBlur={(event) => {
+          void commit(event.currentTarget.value);
+        }}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter" || event.shiftKey) return;
+          event.preventDefault();
+          void commit(event.currentTarget.value);
+          event.currentTarget.blur();
+        }}
+      />
+    );
+  };
+
+  // Single-language tenant → no tab strip, plain field on the default locale.
+  if (supported.length <= 1) {
+    return renderField(defaultLocale, true);
+  }
+
+  return (
+    <LocaleFieldTabs
+      supportedLocales={supported}
+      defaultLocale={defaultLocale}
+      activeContentLocale={activeContentLocale}
+      hasValueForLocale={hasValueForLocale}
+      renderField={renderField}
+      ariaLabel={`${ariaLabel} language`}
     />
   );
 }
