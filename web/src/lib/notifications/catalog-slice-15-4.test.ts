@@ -50,7 +50,7 @@ function event(
 
 test("catalog: all 7 Slice 15.4 entries are registered with the right category/required/channels", () => {
   const expected = [
-    { id: "payment.received.client", category: "payments", required: false, channels: ["email"] },
+    { id: "payment.received.client", category: "payments", required: false, channels: ["email", "in_app"] },
     { id: "payment.received.workspace", category: "payments", required: false, channels: ["email", "in_app"] },
     { id: "payment.failed.workspace", category: "payments", required: false, channels: ["email", "in_app"] },
     { id: "payment.payout_settled.talent", category: "payments", required: false, channels: ["email", "in_app"] },
@@ -85,7 +85,7 @@ test("catalog: each Slice 15.4 trigger routes to exactly its expected entries", 
 });
 
 test("catalog: in-app surfaces route each payment bell to the right dashboard", () => {
-  assert.equal(findCatalogEntryById("payment.received.client")!.in_app, undefined); // client receipt is email-only
+  assert.equal(findCatalogEntryById("payment.received.client")!.in_app!.surface, "client"); // client receipt bells the client dashboard
   assert.equal(findCatalogEntryById("payment.received.workspace")!.in_app!.surface, "workspace");
   assert.equal(findCatalogEntryById("payment.failed.workspace")!.in_app!.surface, "workspace");
   assert.equal(findCatalogEntryById("payment.payout_settled.talent")!.in_app!.surface, "talent");
@@ -105,9 +105,10 @@ test("payment.received.client: receipt names amount + date and deep-links to the
     currency: "eur",
     paidAt: "2026-06-05T12:00:00.000Z",
   });
+  const r = recipient("client");
   const el = entry.email!.render({
     event: ev,
-    recipient: recipient("client"),
+    recipient: r,
     brand,
     unsubscribeUrl: "https://tulala.digital/unsub?t=x",
   }) as ReactElement<{
@@ -127,6 +128,10 @@ test("payment.received.client: receipt names amount + date and deep-links to the
   // payments is opt-out → the dispatcher's unsubscribe URL must be forwarded.
   assert.equal(el.props.categoryLabel, "payments");
   assert.equal(el.props.unsubscribeUrl, "https://tulala.digital/unsub?t=x");
+  // The client also gets an in-app bell naming the amount + contact.
+  const body = entry.in_app!.body?.(ev, r) ?? "";
+  assert.match(body, /EUR 2,250\.00/);
+  assert.match(body, /Sofia's Wedding/);
 });
 
 test("payment.received.workspace: alert deep-links to the inquiry + bells with amount and contact", () => {
