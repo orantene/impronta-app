@@ -17,6 +17,7 @@ import assert from "node:assert/strict";
 import {
   nextPublishedVersion,
   rollbackRevisionNote,
+  normalizeChangelog,
 } from "./registry-rows";
 
 describe("nextPublishedVersion", () => {
@@ -39,5 +40,23 @@ describe("rollbackRevisionNote", () => {
   it("formats the audit note with the target version", () => {
     assert.equal(rollbackRevisionNote(2), "Rolled back to v2");
     assert.equal(rollbackRevisionNote(13), "Rolled back to v13");
+  });
+});
+
+describe("normalizeChangelog (WS-D D4)", () => {
+  it("leaves undefined as undefined so the column stays untouched", () => {
+    assert.equal(normalizeChangelog(undefined), undefined);
+  });
+
+  it("clears blank / whitespace-only input to null", () => {
+    assert.equal(normalizeChangelog(null), null);
+    assert.equal(normalizeChangelog(""), null);
+    assert.equal(normalizeChangelog("   "), null);
+    assert.equal(normalizeChangelog("\n\t "), null);
+  });
+
+  it("trims and keeps a real note", () => {
+    assert.equal(normalizeChangelog("Tightened hero spacing"), "Tightened hero spacing");
+    assert.equal(normalizeChangelog("  padded note  "), "padded note");
   });
 });

@@ -29,6 +29,7 @@ import {
   templatePlanAllowed,
   nextPublishedVersion,
   rollbackRevisionNote,
+  normalizeChangelog,
   type BuilderTemplateRow,
   type BuilderTemplateRevisionRow,
   type CreateTemplateDraftInput,
@@ -92,6 +93,13 @@ interface PublishRowCoreInput {
   /** Optional revision note. */
   note?: string | null;
   /**
+   * Optional author changelog (WS-D D4). When provided, written to the template
+   * row's `changelog` column as the latest-changelog convenience field. Omitting
+   * it (undefined) leaves the existing value untouched; passing an empty/blank
+   * string clears it to null.
+   */
+  changelog?: string | null;
+  /**
    * When true, the row's builder_tree is overwritten with `tree` (rollback —
    * the live tree must become the restored revision's tree). When false (the
    * normal publish path), builder_tree is left as-is and only the published
@@ -132,6 +140,12 @@ async function publishRowCore(
   if (input.writeTree) {
     patch.builder_tree = input.tree;
   }
+  // Latest-changelog convenience field (WS-D D4). Only touch the column when the
+  // caller threads a value through; undefined leaves the existing value alone.
+  const normalizedChangelog = normalizeChangelog(input.changelog);
+  if (normalizedChangelog !== undefined) {
+    patch.changelog = normalizedChangelog;
+  }
 
   const { data: updated, error: updateErr } = await sb
     .from("builder_templates")
@@ -151,7 +165,7 @@ async function publishRowCore(
     version: newVersion,
     status: "published",
     snapshot: publishedRow,
-    note: input.note?.trim() ?? null,
+    note: normalizeChangelog(input.note) ?? null,
     created_by: input.createdBy,
   });
 
@@ -336,10 +350,15 @@ export async function rejectToDraft(
 /**
  * Bumps the version, sets status=published, sets published_at, and writes an
  * immutable builder_template_revisions row (snapshot of the full row).
+ *
+ * `changelog` (WS-D D4) is an optional author note threaded from the UI. It is
+ * persisted both as the revision's `note` (per-version history) AND as the
+ * template row's `changelog` convenience field (latest published note). Omitting
+ * it leaves the row's changelog untouched; passing blank clears it.
  */
 export async function publishTemplate(
   templateId: string,
-  note?: string | null,
+  changelog?: string | null,
 ): Promise<TemplateActionResult<BuilderTemplateRow>> {
   const gate = await requireSuperAdmin();
   if (!gate.ok) return fail(gate.error);
@@ -389,7 +408,8 @@ export async function publishTemplate(
       tree: row.builder_tree,
       fromVersion: row.version,
       createdBy: gate.userId,
-      note,
+      note: changelog,
+      changelog,
     });
   } catch (err) {
     logServerError("publishTemplate", err);

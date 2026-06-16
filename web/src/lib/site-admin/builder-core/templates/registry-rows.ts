@@ -201,6 +201,21 @@ export function rollbackRevisionNote(targetVersion: number): string {
   return `Rolled back to v${targetVersion}`;
 }
 
+/**
+ * Normalize a publish-time changelog/note string (WS-D D4) into the value to
+ * persist. Pure + shared so the publish action and its tests agree on the rule:
+ *   - `undefined` ⇒ `undefined` (caller skips the column — leaves it untouched)
+ *   - blank / whitespace-only ⇒ `null` (explicitly clears it)
+ *   - otherwise ⇒ the trimmed string
+ */
+export function normalizeChangelog(
+  raw: string | null | undefined,
+): string | null | undefined {
+  if (raw === undefined) return undefined;
+  const trimmed = raw?.trim();
+  return trimmed ? trimmed : null;
+}
+
 // ── Plan rank helper (mirrors data-bindings.ts PLAN_RANK) ────────────────────
 
 const PLAN_RANK: Record<string, number> = {
