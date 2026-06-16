@@ -102,3 +102,135 @@ describe("CONTRACT PIN: createOffer reaches the DB as its first effect after the
     assert.deepEqual(res, { success: false, error: DB_TRIPWIRE });
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// A1 + A1b — submitTalentRate (recording fake DB).
+//
+// The pure-guard tests above prove the early exits; these drive the function
+// through to its writes with a small recording Supabase fake to assert WHAT it
+// writes:
+//   A1  — the line-item UPDATE sets talent_cost ONLY (the talent's cost), never
+//         unit_price / total_price (the coordinator-set CLIENT price → margin).
+//   A1b — the talent_rate chat-card is inserted into the PRIVATE (staff) thread,
+//         not the group thread the client + peer talents can read.
+//
+// The actor is super_admin (isStaff=true), which skips the talent-self lookup.
+// ─────────────────────────────────────────────────────────────────────────────
+
+type RecordedInsert = { table: string; values: Record<string, unknown> };
+type RecordedUpdate = { table: string; values: Record<string, unknown> };
+
+/**
+ * Minimal chainable Supabase fake. Reads (.maybeSingle/.single) resolve to the
+ * canned row for the table; writes (.insert/.update) are recorded and resolve
+ * benignly. Any other awaited terminal resolves to { data: [], error: null } so
+ * the engine's post-write event listeners never throw.
+ */
+function makeRecordingSupabase(reads: Record<string, unknown>) {
+  const inserts: RecordedInsert[] = [];
+  const updates: RecordedUpdate[] = [];
+
+  function makeBuilder(table: string) {
+    let pendingUpdate: Record<string, unknown> | null = null;
+    const builder: Record<string, unknown> = {};
+    const chain = () => builder;
+    const result = { data: reads[table] ?? null, error: null };
+
+    builder.select = chain;
+    builder.eq = chain;
+    builder.in = chain;
+    builder.not = chain;
+    builder.order = chain;
+    builder.limit = chain;
+    builder.returns = chain;
+    builder.delete = chain;
+    builder.maybeSingle = async () => result;
+    builder.single = async () => result;
+    builder.insert = (values: Record<string, unknown>) => {
+      inserts.push({ table, values });
+      return { ...builder, then: undefined };
+    };
+    builder.update = (values: Record<string, unknown>) => {
+      pendingUpdate = values;
+      updates.push({ table, values });
+      return builder;
+    };
+    // Awaiting the builder directly (e.g. an unterminated update) resolves OK.
+    builder.then = (resolve: (v: { data: unknown; error: null }) => unknown) =>
+      resolve({ data: pendingUpdate ?? reads[table] ?? [], error: null });
+    return builder;
+  }
+
+  const supabase = {
+    from: (table: string) => makeBuilder(table),
+    rpc: async () => ({ data: null, error: null }),
+  } as unknown as SupabaseClient;
+
+  return { supabase, inserts, updates };
+}
+
+function staffReads(line: { units: number | null; talent_profile_id: string | null }) {
+  return {
+    inquiries: { id: "inq-1", tenant_id: "ten-1" },
+    profiles: { id: "actor-staff", app_role: "super_admin" },
+    inquiry_offer_line_items: { id: "li-1", offer_id: "off-1", talent_profile_id: line.talent_profile_id, units: line.units },
+    inquiry_offers: { id: "off-1", status: "draft", inquiry_id: "inq-1", currency_code: "USD" },
+    talent_profiles: { display_name: "Test Talent", full_name: "Test Talent" },
+  };
+}
+
+describe("A1 — submitTalentRate updates talent_cost ONLY (never unit_price/total_price)", () => {
+  it("the line-item UPDATE carries talent_cost and NOT unit_price / total_price", async () => {
+    const { supabase, updates } = makeRecordingSupabase(
+      staffReads({ units: 3, talent_profile_id: "tp-1" }),
+    );
+    const res = await submitTalentRate(supabase, {
+      inquiryId: "inq-1",
+      tenantId: "ten-1",
+      offerId: "off-1",
+      lineItemId: "li-1",
+      actorUserId: "actor-staff",
+      talentCost: 200,
+    });
+    assert.equal(res.success, true);
+
+    const liUpdate = updates.find((u) => u.table === "inquiry_offer_line_items");
+    assert.ok(liUpdate, "expected an inquiry_offer_line_items UPDATE");
+    assert.equal(liUpdate.values.talent_cost, 200);
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(liUpdate.values, "unit_price"),
+      false,
+      "unit_price (CLIENT price) must NOT be touched",
+    );
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(liUpdate.values, "total_price"),
+      false,
+      "total_price (CLIENT price) must NOT be touched",
+    );
+    assert.deepEqual(liUpdate.values, { talent_cost: 200 });
+  });
+});
+
+describe("A1b — submitTalentRate routes the rate card to the PRIVATE thread", () => {
+  it("the talent_rate chat-card insert uses thread_type 'private', not 'group'", async () => {
+    const { supabase, inserts } = makeRecordingSupabase(
+      staffReads({ units: 1, talent_profile_id: "tp-1" }),
+    );
+    const res = await submitTalentRate(supabase, {
+      inquiryId: "inq-1",
+      tenantId: "ten-1",
+      offerId: "off-1",
+      lineItemId: "li-1",
+      actorUserId: "actor-staff",
+      talentCost: 150,
+    });
+    assert.equal(res.success, true);
+
+    const rateCard = inserts.find(
+      (i) => i.table === "inquiry_messages" && i.values.message_kind === "talent_rate",
+    );
+    assert.ok(rateCard, "expected a talent_rate chat-card insert");
+    assert.equal(rateCard.values.thread_type, "private");
+    assert.notEqual(rateCard.values.thread_type, "group");
+  });
+});

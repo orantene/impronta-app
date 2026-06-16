@@ -21,15 +21,25 @@
  *     own already-approved inquiry; the RPC permits this) and then re-stamp the
  *     booking's owner/creator to the tenant staff actor.
  *
- * v1 is single-talent, full-payment (the fixed rate is charged in full). Multi-
- * talent and deposit-on-instant-book are explicit non-goals here.
+ * v1 is single-talent. The client is charged the SAME total a normal offer
+ * would bill for the same fixed rate — subtotal + the platform's client-side
+ * surcharge (+ workspace base fee), read back from the booking's commission
+ * snapshot (A2) — NOT the bare talent rate. When the resolved offer terms carry
+ * a deposit, the first charge is the deposit (balance collected later, like the
+ * offer path); otherwise the full amount is charged in one go. Multi-talent is an
+ * explicit non-goal here.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { submitInquiry } from "./inquiry-engine-submit";
 import { createOffer, updateOfferDraft, sendOffer } from "./inquiry-engine-offers";
-import { persistBookingCommissionSnapshot } from "@/lib/billing/commission-engine";
+import {
+  persistBookingCommissionSnapshot,
+  sumBookingGrossChargedCents,
+  sumBookingPlatformFeeCents,
+} from "@/lib/billing/commission-engine";
+import { readOfferTermsFromRow } from "@/lib/billing/offer-commercial-terms";
 import {
   createBookingTransaction,
   requestPayment,
@@ -347,18 +357,89 @@ export async function createInstantBooking(
       logServerError("instantBook.commission_snapshot", new Error(`booking ${bookingId}: ${snap.reason ?? "persist_failed"}`));
     }
 
-    // ── Step 8 — create + request the (full) payment ────────────────────────
+    // ── Step 8 — create + request the payment ───────────────────────────────
+    // A2 — charge the SAME client total a normal offer would for this fixed rate:
+    // subtotal + platform surcharge (+ workspace base fee), NOT the bare talent
+    // rate. The commission snapshot persisted above froze gross_charged_cents
+    // (subtotal + client surcharge + base fee) and platform_fee_cents; bill those
+    // — exactly as the offer path does in admin/_pipeline-actions.ts. Charging the
+    // raw fixedRateCents undercharged the client (the platform's client-side
+    // surcharge was never collected) vs. the offer path for identical inputs.
+    //
+    // The surcharge percentage is NOT hand-rolled here: it is computed by the
+    // shared commission resolver inside persistBookingCommissionSnapshot and read
+    // back via these snapshot sums. Falls back to the bare fixed rate only when no
+    // snapshot exists (rare — the snapshot persist above failed).
+    const grossChargedCents = await sumBookingGrossChargedCents(admin, bookingId);
+    const fullGrossCents = grossChargedCents > 0 ? grossChargedCents : fixedRateCents;
+    const snapshotPlatformFeeCents = await sumBookingPlatformFeeCents(admin, bookingId);
+
+    // A2 — apply a deposit when the offer's resolved terms specify one. The offer
+    // carries the negotiated/defaulted deposit terms (W6a, set in updateOfferDraft);
+    // derive the deposit from the FULL client gross (mirrors the offer path's
+    // deposit-from-fullGross derivation in _pipeline-actions.ts) so the deposit is
+    // never under-billed relative to the surcharge-inclusive total. Absent a valid
+    // deposit (0 or ≥ full), charge the full amount in one go.
+    const { data: offerTermsRow } = await admin
+      .from("inquiry_offers")
+      .select("deposit_pct, deposit_amount_cents, balance_collection_method, refund_policy_key")
+      .eq("id", offerId)
+      .eq("tenant_id", input.tenantId)
+      .maybeSingle();
+    const offerTerms = readOfferTermsFromRow(
+      (offerTermsRow as {
+        deposit_pct?: number | string | null;
+        deposit_amount_cents?: number | string | null;
+        balance_collection_method?: string | null;
+        refund_policy_key?: string | null;
+      } | null) ?? null,
+      fullGrossCents,
+    );
+    const depositCents =
+      offerTerms != null
+        ? Math.round((fullGrossCents * offerTerms.depositPct) / 100)
+        : 0;
+    const isDeposit = depositCents > 0 && depositCents < fullGrossCents;
+    const grossAmountCents = isDeposit ? depositCents : fullGrossCents;
+
+    // When a deposit is charged, snapshot the agreed terms onto the booking the
+    // way convertToBooking's TS wrapper (snapshotOfferTermsOntoBooking) does —
+    // the raw convert RPC we drive here skips that step. Without it the
+    // deposit-paid → balance-due lifecycle (markPaid's balance card + the later
+    // balance charge) has no deposit context on agency_bookings. Non-fatal.
+    if (isDeposit && offerTerms != null) {
+      const { error: depErr } = await admin
+        .from("agency_bookings")
+        .update({
+          deposit_pct: offerTerms.depositPct,
+          deposit_amount_cents: depositCents,
+          deposit_currency: currency,
+          balance_collection_method: offerTerms.balanceMethod,
+          refund_policy_key: offerTerms.refundPolicy,
+        })
+        .eq("id", bookingId);
+      if (depErr) logServerError("instantBook.deposit_terms_snapshot", depErr);
+    }
+
+    // Pro-rate the snapshot platform fee to the charged slice (matches the offer
+    // path); null when there's no snapshot fee to pro-rate.
+    const platformFeeOverride =
+      grossChargedCents > 0 && snapshotPlatformFeeCents > 0
+        ? Math.round(snapshotPlatformFeeCents * (grossAmountCents / fullGrossCents))
+        : null;
+
     const txn = await createBookingTransaction({
       bookingId,
       sourceTenantId: input.tenantId,
       sourceInquiryId: inquiryId,
       planTier: "agency",
-      grossAmountCents: fixedRateCents,
+      grossAmountCents,
+      platformFeeCentsOverride: platformFeeOverride,
       currency,
       payerUserId: input.clientUserId,
       payerEmail: input.contactEmail,
       createdByProfileId: staffActor,
-      checkoutType: "full",
+      checkoutType: isDeposit ? "deposit" : "full",
     });
     if (!txn.ok) {
       return { ok: false, reason: "engine_error", error: "txn:" + txn.error };

@@ -466,3 +466,60 @@ describe("balanceSummary", () => {
     assert.deepEqual(balanceSummary({ USD: 0, MXN: 0 }), []);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// A2 — instant-book must charge the SAME client gross as the normal offer path
+// for the same fixed rate. Both paths feed the SAME resolver and read the gross
+// back via sumBookingGrossChargedCents, so this pins the shared math:
+//   • instant-book's line item has zero margin (unit_price == talent_cost ==
+//     the fixed rate) — the platform's client-side surcharge is still added on
+//     top, so the client is charged MORE than the bare fixed rate (the bug was
+//     charging the raw fixedRateCents).
+//   • an offer-path line item with the SAME fixed rate (whatever its margin)
+//     yields the identical client surcharge + gross for the same subtotal —
+//     proving instant-book is not undercharged relative to the offer path.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("A2 — instant-book client gross matches the offer path (shared resolver)", () => {
+  const FIXED_RATE_CENTS = 100_000; // $1,000 fixed rate
+
+  it("instant-book gross = subtotal + platform surcharge, NOT the bare fixed rate", () => {
+    // Instant-book line item: no coordinator margin (subtotal == talent cost).
+    const instantBook = resolveBookingCommissions(baseInput({
+      currencyCode: "USD",
+      platformConfig: defaultPlatformConfig({ default_take_bps: 600, client_surcharge_bps: 300 }),
+      offerLineItems: [
+        { units: 1, unit_price_cents: FIXED_RATE_CENTS, talent_cost_cents: FIXED_RATE_CENTS },
+      ],
+    }));
+    assert.equal(instantBook.gross_cents, FIXED_RATE_CENTS);          // subtotal == fixed rate
+    assert.equal(instantBook.client_surcharge_cents, 3_000);          // 3% on top
+    assert.equal(instantBook.gross_charged_cents, 103_000);           // client pays $1,030
+    assert.ok(
+      instantBook.gross_charged_cents > FIXED_RATE_CENTS,
+      "client must be charged the surcharge ON TOP of the fixed rate (the A2 undercharge fix)",
+    );
+    assert.equal(instantBook.talent_net_cents, FIXED_RATE_CENTS);     // talent paid the full fixed rate
+  });
+
+  it("the same fixed rate billed via the offer path yields the IDENTICAL client gross", () => {
+    const cfg = defaultPlatformConfig({ default_take_bps: 600, client_surcharge_bps: 300 });
+    const instantBook = resolveBookingCommissions(baseInput({
+      currencyCode: "USD",
+      platformConfig: cfg,
+      offerLineItems: [
+        { units: 1, unit_price_cents: FIXED_RATE_CENTS, talent_cost_cents: FIXED_RATE_CENTS },
+      ],
+    }));
+    // Offer path for the SAME fixed-rate subtotal (here with an agency margin —
+    // the client surcharge keys off the subtotal, so the gross matches).
+    const offerPath = resolveBookingCommissions(baseInput({
+      currencyCode: "USD",
+      platformConfig: cfg,
+      offerLineItems: [
+        { units: 1, unit_price_cents: FIXED_RATE_CENTS, talent_cost_cents: 80_000 },
+      ],
+    }));
+    assert.equal(instantBook.gross_charged_cents, offerPath.gross_charged_cents);
+    assert.equal(instantBook.client_surcharge_cents, offerPath.client_surcharge_cents);
+  });
+});
