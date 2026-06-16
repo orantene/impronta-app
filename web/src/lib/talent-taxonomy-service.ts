@@ -45,6 +45,23 @@ export type TalentTypeTermLookupRow = {
   archived_at: string | null;
 };
 
+/** Map a raw taxonomy_terms row (with `name_i18n`) into the flat lookup row,
+ *  resolving `name_en` from the per-locale map (WS4 i18n migration). */
+function toTalentTypeTermLookupRow(data: unknown): TalentTypeTermLookupRow {
+  const r = data as Record<string, unknown>;
+  const nameMap = r.name_i18n as Record<string, string | null> | null;
+  return {
+    id: r.id as string,
+    slug: r.slug as string,
+    name_en: nameMap?.en ?? "",
+    kind: r.kind as string,
+    term_type: (r.term_type as string | null) ?? null,
+    parent_id: (r.parent_id as string | null) ?? null,
+    is_active: r.is_active as boolean,
+    archived_at: (r.archived_at as string | null) ?? null,
+  };
+}
+
 export type TenantTaxonomyAvailabilitySetting = {
   taxonomy_term_id: string;
   is_enabled: boolean | null;
@@ -160,9 +177,10 @@ async function fetchTalentTypeTermBySlugOrId(
   const value = slugOrId.trim();
   if (!value) return { ok: false, error: "Choose a talent type." };
 
+  // name_en folded into name_i18n {en,es} (WS4); flatten to keep the lookup row.
   const query = supabase
     .from("taxonomy_terms")
-    .select("id, slug, name_en, kind, term_type, parent_id, is_active, archived_at")
+    .select("id, slug, name_i18n, kind, term_type, parent_id, is_active, archived_at")
     .eq("kind", TALENT_TYPE_KIND);
 
   const { data, error } = UUID_RE.test(value)
@@ -175,7 +193,7 @@ async function fetchTalentTypeTermBySlugOrId(
   }
   if (!data) return { ok: false, error: `Unknown talent type: ${value}` };
 
-  const term = data as TalentTypeTermLookupRow;
+  const term = toTalentTypeTermLookupRow(data);
   if (!term.is_active || term.archived_at || !isTalentTypeTerm(term)) {
     return { ok: false, error: "That talent type is not available." };
   }
@@ -191,7 +209,7 @@ async function fetchTermAncestors(
   for (let depth = 0; parentId && depth < 6; depth += 1) {
     const { data, error } = await supabase
       .from("taxonomy_terms")
-      .select("id, slug, name_en, kind, term_type, parent_id, is_active, archived_at")
+      .select("id, slug, name_i18n, kind, term_type, parent_id, is_active, archived_at")
       .eq("id", parentId)
       .maybeSingle();
     if (error) {
@@ -199,7 +217,7 @@ async function fetchTermAncestors(
       return { ok: false, error: "Could not load taxonomy hierarchy." };
     }
     if (!data) break;
-    const row = data as TalentTypeTermLookupRow;
+    const row = toTalentTypeTermLookupRow(data);
     ancestors.push(row);
     parentId = row.parent_id;
   }

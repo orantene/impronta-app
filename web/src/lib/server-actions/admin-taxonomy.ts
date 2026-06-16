@@ -95,10 +95,15 @@ export async function getEnabledTaxonomyTree(): Promise<GetTaxonomyTreeResult> {
   // overrides without another fetch.
   // Broad types are ~532 rows today but grow past PostgREST's 1000-row cap
   // (un-paged → silent drop). Page by `id`; tree re-sorts in `sortRecursive`.
-  type EnabledTreeTermRow = Pick<TaxonomyNode, "id" | "slug" | "name_en" | "name_es" | "level" | "term_type" | "parent_id" | "is_active"> & { sort_order: number | null };
+  // taxonomy_terms.name_en/_es folded into name_i18n {en,es} (WS4); flattened
+  // into the node DTO below. (agency_taxonomy_terms below is NOT migrated.)
+  type EnabledTreeTermRow = Pick<TaxonomyNode, "id" | "slug" | "level" | "term_type" | "parent_id" | "is_active"> & {
+    name_i18n: Record<string, string | null> | null;
+    sort_order: number | null;
+  };
   const { data: terms, error: termsErr } = await fetchAllTaxonomyTerms<EnabledTreeTermRow>(
     supabase,
-    "id, slug, name_en, name_es, level, term_type, parent_id, is_active, sort_order",
+    "id, slug, name_i18n, level, term_type, parent_id, is_active, sort_order",
     (q) => q.eq("is_active", true).in("term_type", ["parent_category", "category_group", "talent_type"]),
   ).then((data) => ({ data, error: null as null }), (error) => ({ data: null, error }));
 
@@ -110,8 +115,8 @@ export async function getEnabledTaxonomyTree(): Promise<GetTaxonomyTreeResult> {
   const { data: settings, error: settingsErr } = await supabase
     .from("agency_taxonomy_settings")
     .select(
-      // Phase 2 (Sub-Task 1): include custom_label_es alongside custom_label.
-      "taxonomy_term_id, is_enabled, show_in_registration, show_in_directory, allow_as_primary, allow_as_secondary, requires_approval, display_order, custom_label, custom_label_es, helper_text",
+      // custom_label/custom_label_es folded into custom_label_i18n {en,es} (WS4).
+      "taxonomy_term_id, is_enabled, show_in_registration, show_in_directory, allow_as_primary, allow_as_secondary, requires_approval, display_order, custom_label_i18n, helper_text",
     )
     .eq("tenant_id", tenantId);
 
@@ -148,11 +153,13 @@ export async function getEnabledTaxonomyTree(): Promise<GetTaxonomyTreeResult> {
   const nodes = new Map<string, TaxonomyNode>();
   for (const t of terms ?? []) {
     const overlay = settingsByTermId.get(t.id);
+    const overlayLabel =
+      (overlay?.custom_label_i18n as Record<string, string | null> | null) ?? null;
     nodes.set(t.id, {
       id: t.id,
       slug: t.slug,
-      name_en: t.name_en,
-      name_es: t.name_es,
+      name_en: t.name_i18n?.en ?? "",
+      name_es: t.name_i18n?.es ?? null,
       level: t.level,
       term_type: t.term_type,
       parent_id: t.parent_id,
@@ -164,8 +171,8 @@ export async function getEnabledTaxonomyTree(): Promise<GetTaxonomyTreeResult> {
       allow_as_secondary: overlay?.allow_as_secondary ?? true,
       requires_approval: overlay?.requires_approval ?? false,
       display_order: overlay?.display_order ?? t.sort_order ?? 100,
-      custom_label: overlay?.custom_label ?? null,
-      custom_label_es: overlay?.custom_label_es ?? null,
+      custom_label: overlayLabel?.en ?? null,
+      custom_label_es: overlayLabel?.es ?? null,
       helper_text: overlay?.helper_text ?? null,
       is_custom: false,
       children: [],
@@ -241,6 +248,21 @@ export type CategoryDetailNode = {
   is_active: boolean;
 };
 
+/** Map a raw taxonomy_terms row (with `name_i18n`) into CategoryDetailNode,
+ *  resolving `name_en` off the per-locale map (WS4 i18n migration). */
+function toCategoryDetailNode(row: unknown): CategoryDetailNode {
+  const r = row as Record<string, unknown>;
+  return {
+    id: r.id as string,
+    slug: r.slug as string,
+    name_en: (r.name_i18n as Record<string, string | null> | null)?.en ?? "",
+    level: r.level as number,
+    term_type: r.term_type as string,
+    parent_id: (r.parent_id as string | null) ?? null,
+    is_active: r.is_active as boolean,
+  };
+}
+
 export type CategoryFieldEntry = {
   field_definition_id: string;
   field_key: string;
@@ -277,46 +299,51 @@ export async function getCategoryDetail(input: {
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase } = auth;
 
+  // taxonomy_terms.name_en folded into name_i18n (WS4); flatten each row to a
+  // CategoryDetailNode via toCategoryDetailNode below.
   // 1. The parent itself.
-  const { data: parent, error: parentErr } = await supabase
+  const { data: parentRow, error: parentErr } = await supabase
     .from("taxonomy_terms")
-    .select("id, slug, name_en, level, term_type, parent_id, is_active")
+    .select("id, slug, name_i18n, level, term_type, parent_id, is_active")
     .eq("id", input.parent_id)
     .maybeSingle();
 
-  if (parentErr || !parent) {
+  if (parentErr || !parentRow) {
     return { ok: false, error: "Category not found." };
   }
+  const parent = toCategoryDetailNode(parentRow);
 
   // 2. All descendants — category_groups (level 2) + talent_types (level 3)
   // whose parent chain leads back to this parent_category. Two queries
   // because Postgrest doesn't do recursive in select.
-  const { data: groups } = await supabase
+  const { data: groupRows } = await supabase
     .from("taxonomy_terms")
-    .select("id, slug, name_en, level, term_type, parent_id, is_active")
+    .select("id, slug, name_i18n, level, term_type, parent_id, is_active")
     .eq("is_active", true)
     .eq("parent_id", input.parent_id);
+  const groups = (groupRows ?? []).map(toCategoryDetailNode);
 
-  const groupIds = (groups ?? []).map((g) => g.id);
+  const groupIds = groups.map((g) => g.id);
   let talentTypes: CategoryDetailNode[] = [];
   if (groupIds.length > 0) {
     const { data: tts } = await supabase
       .from("taxonomy_terms")
-      .select("id, slug, name_en, level, term_type, parent_id, is_active")
+      .select("id, slug, name_i18n, level, term_type, parent_id, is_active")
       .eq("is_active", true)
       .eq("term_type", "talent_type")
       .in("parent_id", groupIds);
-    talentTypes = (tts ?? []) as CategoryDetailNode[];
+    talentTypes = (tts ?? []).map(toCategoryDetailNode);
   }
 
   // Some parent_categories may have direct talent_type children (no
   // category_group between them).
-  const { data: directTTs } = await supabase
+  const { data: directTTRows } = await supabase
     .from("taxonomy_terms")
-    .select("id, slug, name_en, level, term_type, parent_id, is_active")
+    .select("id, slug, name_i18n, level, term_type, parent_id, is_active")
     .eq("is_active", true)
     .eq("term_type", "talent_type")
     .eq("parent_id", input.parent_id);
+  const directTTs = (directTTRows ?? []).map(toCategoryDetailNode);
 
   // 3. Field catalog: universal + global (always) + type-specific
   // recommended for this parent OR any of its descendants.
@@ -324,7 +351,7 @@ export async function getCategoryDetail(input: {
     input.parent_id,
     ...groupIds,
     ...talentTypes.map((t) => t.id),
-    ...((directTTs ?? []).map((t) => t.id)),
+    ...directTTs.map((t) => t.id),
   ];
 
   const { data: defs } = await supabase
@@ -344,9 +371,9 @@ export async function getCategoryDetail(input: {
   // Build a quick term-id → name map for source labelling.
   const termNameById = new Map<string, string>();
   termNameById.set(parent.id, parent.name_en);
-  for (const g of groups ?? []) termNameById.set(g.id, g.name_en);
+  for (const g of groups) termNameById.set(g.id, g.name_en);
   for (const t of talentTypes) termNameById.set(t.id, t.name_en);
-  for (const t of directTTs ?? []) termNameById.set(t.id, t.name_en);
+  for (const t of directTTs) termNameById.set(t.id, t.name_en);
 
   const recsByField = new Map<
     string,
@@ -395,8 +422,8 @@ export async function getCategoryDetail(input: {
 
   // Group talent_types under their parent group.
   const groupNodes: Array<{ group: CategoryDetailNode; talentTypes: CategoryDetailNode[] }> =
-    (groups ?? []).map((g) => ({
-      group: g as CategoryDetailNode,
+    groups.map((g) => ({
+      group: g,
       talentTypes: talentTypes
         .filter((t) => t.parent_id === g.id)
         .sort((a, b) => a.name_en.localeCompare(b.name_en)),
@@ -405,9 +432,9 @@ export async function getCategoryDetail(input: {
   return {
     ok: true,
     detail: {
-      parent: parent as CategoryDetailNode,
+      parent,
       groups: groupNodes,
-      directTalentTypes: ((directTTs ?? []) as CategoryDetailNode[]).sort(
+      directTalentTypes: directTTs.sort(
         (a, b) => a.name_en.localeCompare(b.name_en),
       ),
       fields: fields.sort((a, b) => {
@@ -544,10 +571,11 @@ export async function setTaxonomyFlags(
   // (i.e. all defaults). Same columns as the upsert below for symmetry.
   // Phase 2: include custom_label_es so the audit log captures EN+ES label
   // changes side by side.
+  // custom_label/custom_label_es folded into custom_label_i18n {en,es} (WS4).
   const { data: beforeRow } = await supabase
     .from("agency_taxonomy_settings")
     .select(
-      "is_enabled, show_in_registration, show_in_directory, allow_as_primary, allow_as_secondary, requires_approval, display_order, custom_label, custom_label_es, helper_text",
+      "is_enabled, show_in_registration, show_in_directory, allow_as_primary, allow_as_secondary, requires_approval, display_order, custom_label_i18n, helper_text",
     )
     .eq("tenant_id", tenantId)
     .eq("taxonomy_term_id", taxonomy_term_id)
@@ -562,13 +590,38 @@ export async function setTaxonomyFlags(
     if (!planLimit.ok) return planLimit;
   }
 
+  // custom_label/custom_label_es are folded into custom_label_i18n {en,es} (WS4).
+  // Pull them out of the spread and assemble the map, merging onto the existing
+  // one so an unspecified locale is preserved (a null/blank input clears it).
+  const { custom_label, custom_label_es, ...restFlags } = flags;
+  const labelI18nPatch: { custom_label_i18n?: Record<string, string> } = {};
+  if (custom_label !== undefined || custom_label_es !== undefined) {
+    const existing =
+      (beforeRow?.custom_label_i18n as Record<string, string | null> | null) ?? {};
+    const map: Record<string, string> = {};
+    for (const [k, v] of Object.entries(existing)) {
+      if (typeof v === "string" && v.trim().length > 0) map[k] = v;
+    }
+    if (custom_label !== undefined) {
+      const en = (custom_label ?? "").trim();
+      if (en) map.en = en;
+      else delete map.en;
+    }
+    if (custom_label_es !== undefined) {
+      const es = (custom_label_es ?? "").trim();
+      if (es) map.es = es;
+      else delete map.es;
+    }
+    labelI18nPatch.custom_label_i18n = map;
+  }
+
   // Phase 2 (Sub-Task 1): set created_by_user_id on first insert. The column
   // is nullable + only-on-insert (no UPDATE clause for it), so subsequent
   // edits leave the original creator intact — engine_audit_log carries the
   // per-edit actor history.
   const upsertPayload = beforeRow
-    ? { tenant_id: tenantId, taxonomy_term_id, ...flags }
-    : { tenant_id: tenantId, taxonomy_term_id, ...flags, created_by_user_id: user.id };
+    ? { tenant_id: tenantId, taxonomy_term_id, ...restFlags, ...labelI18nPatch }
+    : { tenant_id: tenantId, taxonomy_term_id, ...restFlags, ...labelI18nPatch, created_by_user_id: user.id };
 
   const { error } = await supabase.from("agency_taxonomy_settings").upsert(
     upsertPayload,
