@@ -398,9 +398,22 @@ export async function updateSection(formData: FormData): Promise<void> {
     .maybeSingle();
 
   // slug is NOT editable — it's the stable join key to catalog fields.
+  // label_en/label_es folded into label_i18n {en,es} (WS3); merge onto the
+  // existing map (preserve-on-blank for EN, mirroring the legacy `?? beforeRow`).
+  const beforeLabelI18n =
+    (beforeRow?.label_i18n as Record<string, string | null> | null) ?? {};
+  const sectionLabelI18n: Record<string, string> = {};
+  for (const [k, v] of Object.entries(beforeLabelI18n)) {
+    if (typeof v === "string" && v.trim().length > 0) sectionLabelI18n[k] = v;
+  }
+  const sectionLabelEn = text(formData, "label_en");
+  if (sectionLabelEn) sectionLabelI18n.en = sectionLabelEn;
+  const sectionLabelEs = text(formData, "label_es");
+  if (sectionLabelEs) sectionLabelI18n.es = sectionLabelEs;
+  else delete sectionLabelI18n.es;
+
   const patch = {
-    label_en: text(formData, "label_en") ?? beforeRow?.label_en,
-    label_es: text(formData, "label_es"),
+    label_i18n: sectionLabelI18n,
     emoji: text(formData, "emoji") ?? beforeRow?.emoji ?? "",
     is_active: checked(formData, "is_active"),
     updated_at: new Date().toISOString(),
