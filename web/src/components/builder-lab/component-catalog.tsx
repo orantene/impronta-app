@@ -27,7 +27,12 @@ import {
   type CatalogAdminItem,
   type CatalogOverlayRow,
 } from "@/lib/site-admin/add-gallery";
-import { CODE_TAB_DEFS } from "@/lib/site-admin/add-gallery/catalog-structure";
+import {
+  CODE_TAB_DEFS,
+  resolveTabLabel,
+  type CatalogStructureMap,
+} from "@/lib/site-admin/add-gallery/catalog-structure";
+import { listCatalogStructure } from "@/lib/site-admin/add-gallery/catalog-structure-actions";
 import { loadCatalogAdminView } from "@/lib/site-admin/add-gallery/catalog-admin-view-action";
 import {
   clearComponentOverlay,
@@ -47,6 +52,7 @@ import {
   type PageDesignSummary,
 } from "@/lib/site-admin/builder-node/page-designs/summaries";
 import { SiteDefaultsEditor } from "./site-defaults-editor";
+import { CatalogStudioView } from "./catalog-studio";
 import { SurfaceSwitcher } from "./surface-switcher";
 import type { BuilderLabTarget } from "./builder-lab-stage";
 import {
@@ -74,11 +80,17 @@ const TAB_LABEL = Object.fromEntries(
 ) as Record<AddGalleryTab, string>;
 
 // Special (non-gallery) Catalog views shown after the component categories.
-const SPECIAL_TABS = ["site_starter_kit", "site_defaults", "playground"] as const;
+const SPECIAL_TABS = [
+  "catalog_studio",
+  "site_starter_kit",
+  "site_defaults",
+  "playground",
+] as const;
 type SpecialTab = (typeof SPECIAL_TABS)[number];
 type CatalogView = AddGalleryTab | SpecialTab;
 const VIEW_LABEL: Record<CatalogView, string> = {
   ...TAB_LABEL,
+  catalog_studio: "Catalog Studio",
   site_starter_kit: "Site Starter Kit",
   site_defaults: "Site Defaults",
   playground: "Playground",
@@ -156,6 +168,10 @@ export function ComponentCatalog({
   defaultView?: CatalogView;
 } = {}) {
   const [items, setItems] = useState<CatalogAdminItem[] | null>(null);
+  // Catalog structure — used only to reflect admin tab renames in the Lab's
+  // gallery-tab labels (Catalog Studio is the primary edit surface). Items are
+  // already structure-placed by loadCatalogAdminView.
+  const [structure, setStructure] = useState<CatalogStructureMap>({});
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -193,6 +209,13 @@ export function ComponentCatalog({
 
   useEffect(() => {
     let cancelled = false;
+    listCatalogStructure()
+      .then((s) => {
+        if (!cancelled) setStructure(s);
+      })
+      .catch(() => {
+        /* keep code-default tab labels */
+      });
     loadCatalogAdminView()
       .then((data) => {
         if (!cancelled) setItems(data);
@@ -376,6 +399,13 @@ export function ComponentCatalog({
     ? rowsByTab.get(currentView as AddGalleryTab) ?? []
     : [];
 
+  // Display label for a view: gallery tabs honor admin renames (Catalog Studio);
+  // special views keep their fixed label.
+  const viewLabel = (view: CatalogView): string =>
+    isSpecialTab(view)
+      ? VIEW_LABEL[view]
+      : resolveTabLabel(view as AddGalleryTab, structure);
+
   // The Connected view shows ONE surface at a time (driven by the switcher);
   // every other gallery view renders as a single group. Empty groups are dropped.
   const rowGroups: Array<{ key: string; label: string; rows: CatalogAdminItem[] }> = (
@@ -385,7 +415,7 @@ export function ComponentCatalog({
           label: g.label,
           rows: currentRows.filter((r) => connectedDataGroupOf(r) === g.key),
         }))
-      : [{ key: String(currentView), label: VIEW_LABEL[currentView], rows: currentRows }]
+      : [{ key: String(currentView), label: viewLabel(currentView), rows: currentRows }]
   ).filter((g) => g.rows.length > 0);
 
   return (
@@ -423,7 +453,7 @@ export function ComponentCatalog({
                   gap: 7,
                 }}
               >
-                {VIEW_LABEL[view]}
+                {viewLabel(view)}
                 {count !== null ? (
                   <span
                     style={{
@@ -500,7 +530,7 @@ export function ComponentCatalog({
 
       {rowGroups.length === 0 ? (
         <div style={{ color: T.inkMuted, fontSize: 13, padding: "12px 0" }}>
-          No {VIEW_LABEL[currentView]} components
+          No {viewLabel(currentView)} components
           {query ? ` matching “${query}”` : ""}
           {filterMode !== "all" ? ` (${filterMode})` : ""}.
         </div>
@@ -763,6 +793,8 @@ export function ComponentCatalog({
         re-iconed, or plan-gated here; changing their internal structure is a code change.
       </p>
         </>
+      ) : currentView === "catalog_studio" ? (
+        <CatalogStudioView />
       ) : currentView === "site_defaults" ? (
         <SiteDefaultsEditor />
       ) : currentView === "playground" ? (

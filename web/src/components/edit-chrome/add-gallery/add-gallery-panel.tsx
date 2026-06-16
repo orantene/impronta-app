@@ -16,6 +16,7 @@ import {
   type AddGalleryTab,
 } from "@/lib/site-admin/add-gallery";
 import { fetchSurfaceGalleryItems } from "@/lib/site-admin/add-gallery/gallery-fetch-action";
+import { listCatalogStructure } from "@/lib/site-admin/add-gallery/catalog-structure-actions";
 import {
   getAddGalleryCardInfoTooltip,
   getAddGalleryCardShortDescription,
@@ -23,7 +24,11 @@ import {
 import { performAddGalleryInsert } from "@/lib/site-admin/add-gallery/perform-insert";
 import { armAddGalleryDrag, clearAddGalleryDrag } from "@/lib/site-admin/add-gallery/drag";
 import { galleryItemSupportsDrag } from "@/lib/site-admin/add-gallery/insert";
-import { resolveTabs } from "@/lib/site-admin/add-gallery/catalog-structure";
+import {
+  resolveTabs,
+  resolveCategoriesForTab,
+  type CatalogStructureMap,
+} from "@/lib/site-admin/add-gallery/catalog-structure";
 
 import { useEditContext } from "../edit-context";
 import { useBuilderTree } from "../builder-tree-bridge";
@@ -36,12 +41,13 @@ import { AddGallerySectionPreview } from "./add-gallery-section-previews";
 const PANEL_WIDTH = 592;
 const PANEL_MAX_HEIGHT = "min(78vh, 640px)";
 
-/** Canonical tab order + labels — the SINGLE source (Builder Studio
- *  catalog-structure resolver; was duplicated with component-catalog.tsx). The
- *  visible set is the intersection with `gallerySurface.allowedTabs`. WS-B
- *  threads loaded structure into `resolveTabs(...)` for admin rename/reorder;
- *  with no structure this is the code default verbatim. */
-const TAB_DEFS: ReadonlyArray<{ id: AddGalleryTab; label: string }> = resolveTabs();
+/** Code-default tab order + labels — the synchronous seed shown while the
+ *  admin-editable structure loads (and the fallback if the fetch fails). On open
+ *  the panel fetches `listCatalogStructure()` and re-resolves tabs + categories
+ *  so a super-admin's renames/reorders/hides (Catalog Studio, WS-B) reflect in
+ *  the live "+" gallery. With no structure this is the code default verbatim. */
+const CODE_TAB_DEFS_SEED: ReadonlyArray<{ id: AddGalleryTab; label: string }> =
+  resolveTabs();
 
 interface AddGalleryPanelProps {
   open: boolean;
@@ -508,41 +514,57 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
   );
   const [mergedItems, setMergedItems] =
     useState<ReadonlyArray<AddGalleryItem>>(codeSeed);
+  // Admin-editable catalog structure (tab/category renames, order, hides).
+  // Empty until the open-effect fetch resolves ⇒ code-default taxonomy.
+  const [structure, setStructure] = useState<CatalogStructureMap>({});
   const fetchSeqRef = useRef(0);
 
   useEffect(() => {
     if (!open) return;
     // Paint code-only immediately (also the fallback if the fetch fails).
     setMergedItems(codeSeed);
-    if (!gallerySurface.allowDbTemplates) return; // code-only surface → no DB trip
     const seq = ++fetchSeqRef.current;
     let cancelled = false;
-    void fetchSurfaceGalleryItems(gallerySurface)
-      .then((merged) => {
-        if (cancelled || seq !== fetchSeqRef.current) return; // stale response
-        setMergedItems(merged);
-      })
-      .catch(() => {
-        // Keep the code-only seed — never fail the gallery on a template fetch.
-      });
+    const live = () => !cancelled && seq === fetchSeqRef.current;
+    // Structure governs the tab/category taxonomy on EVERY surface (even
+    // code-only ones), so fetch it independently of the template merge. Never
+    // fail the gallery on either fetch — fall back to code defaults.
+    void listCatalogStructure()
+      .then((s) => live() && setStructure(s))
+      .catch(() => {});
+    if (gallerySurface.allowDbTemplates) {
+      void fetchSurfaceGalleryItems(gallerySurface)
+        .then((merged) => live() && setMergedItems(merged))
+        .catch(() => {});
+    }
     return () => {
       cancelled = true;
     };
   }, [open, gallerySurface, codeSeed]);
 
-  // Visible tabs = canonical order ∩ this surface's allowed tabs ∩ tabs that
+  // Resolved tab defs with admin structure overrides applied (rename/reorder/
+  // hide). Falls back to the code-default seed before the structure loads.
+  const tabDefs = useMemo<ReadonlyArray<{ id: AddGalleryTab; label: string }>>(
+    () =>
+      Object.keys(structure).length > 0
+        ? resolveTabs(structure)
+        : CODE_TAB_DEFS_SEED,
+    [structure],
+  );
+
+  // Visible tabs = resolved order ∩ this surface's allowed tabs ∩ tabs that
   // actually have items. The structural tabs (layout/elements/sections/
   // connected) always carry code items so they always show; "Templates"
   // (page_templates) is DB-only, so it appears only once a template is
   // published — never an empty tab on a tenant/talent builder.
   const tabs = useMemo(
     () =>
-      TAB_DEFS.filter(
+      tabDefs.filter(
         (t) =>
           gallerySurface.allowedTabs.includes(t.id) &&
           mergedItems.some((item) => item.tab === t.id),
       ),
-    [gallerySurface, mergedItems],
+    [gallerySurface, mergedItems, tabDefs],
   );
 
   // Keep the active tab valid if the surface's allowed tabs change.
@@ -552,13 +574,24 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
     }
   }, [tabs, tab]);
 
-  const categories = useMemo(
-    () =>
-      listGalleryCategoriesForTabFrom(mergedItems, tab, {
-        synthesizeUnknownCategories: true,
-      }),
-    [mergedItems, tab],
-  );
+  const categories = useMemo(() => {
+    // The categories actually PRESENT in the merged item list for this tab
+    // (incl. synthesized free-text categories from DB templates).
+    const present = listGalleryCategoriesForTabFrom(mergedItems, tab, {
+      synthesizeUnknownCategories: true,
+    });
+    if (Object.keys(structure).length === 0) return present;
+    // Apply admin structure overrides (rename/icon/order/hide + created) and
+    // keep only categories that still have items present on this surface.
+    const presentIds = new Set(present.map((c) => c.id));
+    const resolved = resolveCategoriesForTab(tab, structure);
+    const merged = resolved.filter((c) => presentIds.has(c.id));
+    // Surface-present categories the structure doesn't mention, in their
+    // original order, appended so nothing silently disappears.
+    const covered = new Set(merged.map((c) => c.id));
+    const extras = present.filter((c) => !covered.has(c.id));
+    return [...merged, ...extras];
+  }, [mergedItems, tab, structure]);
 
   const activeCategoryId = useMemo(() => {
     if (categoryId && categories.some((c) => c.id === categoryId)) {
