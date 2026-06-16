@@ -130,6 +130,22 @@ function str(v: unknown, max: number): string | null {
   const t = v.trim();
   return t ? t.slice(0, max) : null;
 }
+/**
+ * Read a per-item localized scalar tolerant of BOTH storage shapes: the WS4
+ * migration folded each services_menu item's `name`/`description` into
+ * `name_i18n`/`description_i18n` ({ "en": … }). Prefer the `_i18n.en` value, then
+ * fall back to the legacy flat key so pre/post-migration blobs both load (and a
+ * blob that was just re-saved flat still reads). Returns the in-app flat scalar.
+ */
+function strI18n(o: Record<string, unknown>, base: string, max: number): string | null {
+  const map = o[`${base}_i18n`];
+  if (map && typeof map === "object") {
+    const en = (map as Record<string, unknown>).en;
+    const fromMap = str(en, max);
+    if (fromMap) return fromMap;
+  }
+  return str(o[base], max);
+}
 function isPricingType(v: unknown): v is ServicePricingType {
   return typeof v === "string" && (SERVICE_PRICING_TYPES as readonly string[]).includes(v);
 }
@@ -161,7 +177,8 @@ function normalizeSub(raw: unknown, seed: number): ServiceAddOn | null {
 function normalizeItem(raw: unknown, index: number, currencyFallback: string): ServiceMenuItem | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
-  const name = str(o.name, MAX_NAME);
+  // WS4: name/description live in name_i18n/description_i18n ({en}); read tolerant.
+  const name = strI18n(o, "name", MAX_NAME);
   if (!name) return null;
 
   const pricingType = isPricingType(o.pricingType) ? o.pricingType : "event";
@@ -196,7 +213,7 @@ function normalizeItem(raw: unknown, index: number, currencyFallback: string): S
   return {
     id: str(o.id, 64) ?? fallbackId(index),
     name,
-    description: str(o.description, MAX_DESC),
+    description: strI18n(o, "description", MAX_DESC),
     pricingType,
     amountCents,
     currency,
@@ -246,6 +263,28 @@ export function normalizeServicesMenu(raw: unknown, currencyFallback = "USD"): S
   }
 
   return deduped.slice(0, MAX_ITEMS);
+}
+
+/**
+ * WS4 storage serializer: convert the in-app flat `ServiceMenuItem[]` into the
+ * per-locale stored shape (each item carries `name_i18n`/`description_i18n`
+ * { "en": … } instead of flat `name`/`description`). Writers persist THIS so a
+ * saved menu matches the migrated jsonb shape (idempotent with the WS4 backfill
+ * + ready for additional languages). The flat `name`/`description` keys are
+ * dropped so the blob never drifts back to the legacy shape. The reader
+ * (`normalizeItem`) accepts both shapes, so round-tripping is lossless.
+ */
+export function serializeServicesMenuForStorage(
+  items: ServiceMenuItem[],
+): Array<Record<string, unknown>> {
+  return items.map((it) => {
+    const { name, description, ...rest } = it;
+    const out: Record<string, unknown> = { ...rest };
+    out.name_i18n = name && name.trim() ? { en: name.trim() } : {};
+    const desc = description?.trim();
+    out.description_i18n = desc ? { en: desc } : {};
+    return out;
+  });
 }
 
 /**

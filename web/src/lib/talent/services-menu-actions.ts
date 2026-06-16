@@ -19,6 +19,7 @@
 import { revalidatePath } from "next/cache";
 import {
   normalizeServicesMenu,
+  serializeServicesMenuForStorage,
   validateServicesMenu,
   type ServiceMenuItem,
 } from "@/lib/talent/services-menu-types";
@@ -245,8 +246,12 @@ export async function updateTalentServicesMenu(
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };
 
+    // WS4: persist the per-locale shape (name_i18n/description_i18n) so the stored
+    // jsonb matches the migrated form. The reader accepts both shapes.
+    const stored = serializeServicesMenuForStorage(clean);
+
     const patch = {
-      services_menu: clean,
+      services_menu: stored,
       updated_at: new Date().toISOString(),
     } as unknown as Record<string, never>;
 
@@ -262,7 +267,7 @@ export async function updateTalentServicesMenu(
     // truth. Fire-and-forget (mirrors updateTalentRates); skips for an
     // independent talent (tenantId null), where the column stays the source.
     await syncBlobFieldValuesToCatalog(admin, talentProfileId, auth.tenantId, {
-      services_menu: clean,
+      services_menu: stored,
     });
 
     revalidatePath("/talent/settings");

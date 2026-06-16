@@ -294,7 +294,14 @@ function resolveServiceName(sourceServiceId: string | null, servicesMenu: unknow
   for (const item of servicesMenu) {
     if (item && typeof item === "object"
       && (item as { id?: unknown }).id === sourceServiceId) {
-      const name = (item as { name?: unknown }).name;
+      // WS4: the item name lives in name_i18n.en; fall back to the legacy flat
+      // `name` for any not-yet-migrated blob.
+      const map = (item as { name_i18n?: unknown }).name_i18n;
+      const fromMap =
+        map && typeof map === "object" ? (map as Record<string, unknown>).en : undefined;
+      const name =
+        (typeof fromMap === "string" ? fromMap : undefined) ??
+        (item as { name?: unknown }).name;
       return typeof name === "string" && name.trim() ? name.trim() : null;
     }
   }
