@@ -1006,9 +1006,10 @@ export async function getEnabledParentCategoriesForPicker(): Promise<
   const { supabase, tenantId } = auth;
 
   // Get all active parent_categories. Apply tenant overlay (is_enabled).
+  // name_en folded into name_i18n {en,es} (WS4); flattened for the picker DTO.
   const { data: terms } = await supabase
     .from("taxonomy_terms")
-    .select("id, slug, name_en")
+    .select("id, slug, name_i18n")
     .eq("term_type", "parent_category")
     .eq("is_active", true)
     .order("sort_order", { ascending: true });
@@ -1023,10 +1024,16 @@ export async function getEnabledParentCategoriesForPicker(): Promise<
   );
 
   // Default: enabled when no overlay row exists.
-  const filtered = (terms ?? []).filter((t) => {
-    const overlay = settingsByTermId.get(t.id);
-    return overlay?.is_enabled !== false;
-  });
+  const filtered = (terms ?? [])
+    .filter((t) => {
+      const overlay = settingsByTermId.get(t.id);
+      return overlay?.is_enabled !== false;
+    })
+    .map((t) => ({
+      id: t.id,
+      slug: t.slug,
+      name_en: (t.name_i18n as Record<string, string | null> | null)?.en ?? "",
+    }));
 
   return { ok: true, parents: filtered };
 }
@@ -1243,7 +1250,7 @@ export async function getAspirations(input: {
     .from("talent_profile_taxonomy")
     .select(
       `taxonomy_term_id,
-       taxonomy_terms!inner ( slug, name_en, parent_id )`,
+       taxonomy_terms!inner ( slug, name_i18n, parent_id )`,
     )
     .eq("talent_profile_id", input.talent_profile_id)
     .eq("relationship_type", "aspiration");
@@ -1255,16 +1262,17 @@ export async function getAspirations(input: {
 
   return {
     ok: true,
+    // name_en folded into name_i18n {en,es} (WS4); flatten back for the DTO.
     aspirations: (data ?? []).map((row) => {
       const t = row.taxonomy_terms as unknown as {
         slug: string;
-        name_en: string;
+        name_i18n: Record<string, string | null> | null;
         parent_id: string | null;
       };
       return {
         term_id: row.taxonomy_term_id,
         slug: t.slug,
-        name_en: t.name_en,
+        name_en: t.name_i18n?.en ?? "",
         parent_name: null, // Resolved in UI via parent_id if needed
       };
     }),
@@ -1369,15 +1377,20 @@ export async function getTalentTypesUnderParent(input: {
   // Get all talent_type level-3 descendants of this parent_category, filter
   // out generic fallbacks. The taxonomy structure is:
   //   parent_category (L1) -> category_group (L2) -> talent_type (L3)
+  // name_en folded into name_i18n {en,es} (WS4); flatten for the picker DTO.
   const { data: groups } = await supabase
     .from("taxonomy_terms")
-    .select("id, name_en")
+    .select("id, name_i18n")
     .eq("parent_id", input.parent_category_id)
     .eq("term_type", "category_group")
     .eq("is_active", true);
 
   const groupIds = (groups ?? []).map((g) => g.id);
-  const groupNameById = new Map((groups ?? []).map((g) => [g.id, g.name_en] as const));
+  const groupNameById = new Map(
+    (groups ?? []).map(
+      (g) => [g.id, (g.name_i18n as Record<string, string | null> | null)?.en ?? ""] as const,
+    ),
+  );
 
   if (groupIds.length === 0) {
     return { ok: true, types: [] };
@@ -1394,16 +1407,16 @@ export async function getTalentTypesUnderParent(input: {
   // for queries with spaces or special chars.
   const baseQuery = supabase
     .from("taxonomy_terms")
-    .select("id, slug, name_en, name_es, parent_id")
+    .select("id, slug, name_i18n, parent_id")
     .in("parent_id", groupIds)
     .eq("term_type", "talent_type")
     .eq("is_active", true)
     .eq("is_generic_fallback", false)
-    .order("name_en", { ascending: true });
+    .order("name_i18n->>en", { ascending: true });
 
   let primary: typeof baseQuery = baseQuery;
   if (input.query && input.query.length > 0) {
-    primary = primary.ilike("name_en", `%${input.query}%`);
+    primary = primary.ilike("name_i18n->>en", `%${input.query}%`);
   }
   const { data: nameMatches, error } = await primary;
   if (error) {
@@ -1420,7 +1433,7 @@ export async function getTalentTypesUnderParent(input: {
     const safe = input.query.replace(/[\\"]/g, "");
     const { data: aliasHits } = await supabase
       .from("taxonomy_terms")
-      .select("id, slug, name_en, name_es, parent_id")
+      .select("id, slug, name_i18n, parent_id")
       .in("parent_id", groupIds)
       .eq("term_type", "talent_type")
       .eq("is_active", true)
@@ -1429,7 +1442,7 @@ export async function getTalentTypesUnderParent(input: {
     aliasMatches = aliasHits ?? [];
   }
 
-  // Union (dedup by id), then sort by name_en for stable ordering.
+  // Union (dedup by id), then sort by English name for stable ordering.
   const seen = new Set<string>();
   const types: NonNullable<typeof nameMatches> = [];
   for (const row of [...(nameMatches ?? []), ...aliasMatches]) {
@@ -1437,15 +1450,18 @@ export async function getTalentTypesUnderParent(input: {
     seen.add(row.id);
     types.push(row);
   }
-  types.sort((a, b) => a.name_en.localeCompare(b.name_en));
+  const nameEnOf = (r: { name_i18n: Record<string, string | null> | null }) =>
+    r.name_i18n?.en ?? "";
+  types.sort((a, b) => nameEnOf(a).localeCompare(nameEnOf(b)));
 
   return {
     ok: true,
+    // name_en/name_es folded into name_i18n {en,es} (WS4); flatten for the DTO.
     types: types.map((t) => ({
       id: t.id,
       slug: t.slug,
-      name_en: t.name_en,
-      name_es: t.name_es,
+      name_en: t.name_i18n?.en ?? "",
+      name_es: t.name_i18n?.es ?? null,
       category_group_name: groupNameById.get(t.parent_id) ?? null,
     })),
   };

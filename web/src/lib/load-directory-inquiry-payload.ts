@@ -151,12 +151,15 @@ export async function loadDirectoryInquiryPayload(): Promise<DirectoryInquiryPay
     })
     .filter((t): t is DirectoryInquiryOrderedTalent => t !== null);
 
-  const { data: eventTypes } = await pub
+  const { data: eventTypeRows } = await pub
     .from("taxonomy_terms")
-    .select("id, name_en")
+    .select("id, name_i18n")
     .eq("kind", "event_type")
     .is("archived_at", null)
     .order("sort_order", { ascending: true });
+  const eventTypes = ((eventTypeRows ?? []) as Array<{ id: string; name_i18n: Record<string, string | null> | null }>).map(
+    (t) => ({ id: t.id, name_en: t.name_i18n?.en ?? "" }),
+  );
 
   const aiFlags = await getAiFeatureFlags();
   const aiInquiryDraftEnabled = Boolean(

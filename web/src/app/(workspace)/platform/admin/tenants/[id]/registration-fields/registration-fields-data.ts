@@ -94,7 +94,8 @@ const EMPTY: TenantRegistrationFieldsData = {
 type DefRow = {
   id: string;
   field_key: string | null;
-  label: string | null;
+  // label folded into label_i18n {en,es} (WS3).
+  label_i18n: Record<string, string | null> | null;
   tier: string | null;
   display_order: number | null;
   show_in_registration: boolean | null;
@@ -111,7 +112,7 @@ type SettingRow = {
 };
 
 type RecRow = { field_definition_id: string; taxonomy_term_id: string; relationship: string };
-type TermRow = { id: string; slug: string | null; name_en: string | null };
+type TermRow = { id: string; slug: string | null; name_i18n: Record<string, string | null> | null };
 
 const UNIVERSAL_GROUP_KEY = "universal";
 
@@ -156,8 +157,9 @@ async function loadTenantRegistrationFieldsUncached(
       // resolver from registration mode, so it never appears here.
       sb
         .from("profile_field_definitions")
+        // label folded into label_i18n {en,es} (WS3); resolved to .en at the read.
         .select(
-          "id, field_key, label, tier, display_order, show_in_registration, is_optional, deprecated_at",
+          "id, field_key, label_i18n, tier, display_order, show_in_registration, is_optional, deprecated_at",
         )
         .is("deprecated_at", null)
         .in("tier", ["universal", "type-specific"]),
@@ -185,7 +187,7 @@ async function loadTenantRegistrationFieldsUncached(
     if (termIds.length > 0) {
       const { data: termsData } = await sb
         .from("taxonomy_terms")
-        .select("id, slug, name_en")
+        .select("id, slug, name_i18n")
         .in("id", termIds);
       termById = new Map(((termsData ?? []) as TermRow[]).map((t) => [t.id, t]));
     }
@@ -230,7 +232,7 @@ async function loadTenantRegistrationFieldsUncached(
       all.push({
         field_definition_id: d.id,
         field_key: d.field_key ?? d.id,
-        label: d.label ?? d.field_key ?? d.id,
+        label: d.label_i18n?.en ?? d.field_key ?? d.id,
         tier,
         catalog_display_order: catalogOrder,
         display_order: order,
@@ -262,7 +264,7 @@ async function loadTenantRegistrationFieldsUncached(
 
     const slugLabelMap = new Map<string, string>();
     for (const t of termById.values()) {
-      if (t.slug) slugLabelMap.set(t.slug, t.name_en ?? t.slug);
+      if (t.slug) slugLabelMap.set(t.slug, t.name_i18n?.en ?? t.slug);
     }
     const slugLabel = (slug: string): string => slugLabelMap.get(slug) ?? slug;
 

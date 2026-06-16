@@ -21,8 +21,8 @@ export type LoadedTalentForAdminUserEdit = {
 type LocationRow = {
   id: string;
   city_slug: string;
-  display_name_en: string;
-  display_name_es: string | null;
+  // locations.display_name_en/_es → display_name_i18n (WS4); countries.* stays.
+  display_name_i18n: Record<string, string | null> | null;
   latitude: number | null;
   longitude: number | null;
   countries:
@@ -48,8 +48,8 @@ function selectionFromLocationRow(row: LocationRow): {
     city: {
       id: row.id,
       slug: row.city_slug,
-      name_en: row.display_name_en,
-      name_es: row.display_name_es,
+      name_en: row.display_name_i18n?.en ?? "",
+      name_es: row.display_name_i18n?.es ?? null,
       lat: row.latitude,
       lng: row.longitude,
       country_iso2: country?.iso2 ?? "",
@@ -110,7 +110,7 @@ export async function loadTalentForAdminUserEdit(
       ? await supabase
           .from("locations")
           .select(
-            "id, city_slug, display_name_en, display_name_es, latitude, longitude, countries!locations_country_id_fkey(id, iso2, name_en, name_es)",
+            "id, city_slug, display_name_i18n, latitude, longitude, countries!locations_country_id_fkey(id, iso2, name_en, name_es)",
           )
           .in("id", ids)
       : { data: [] as LocationRow[] };

@@ -43,13 +43,11 @@ type TaxonomyRow = {
   taxonomy_terms:
     | {
         kind: string;
-        name_en: string;
-        name_es?: string | null;
+        name_i18n: Record<string, string | null> | null;
       }
     | {
         kind: string;
-        name_en: string;
-        name_es?: string | null;
+        name_i18n: Record<string, string | null> | null;
       }[]
     | null;
 };
@@ -120,8 +118,10 @@ export async function GET(
   const t = createTranslator(locale);
   const fallbackPrimaryTalentType = t("public.directory.fallbackPrimaryTalentType");
 
-  const pickTermName = (term: { name_en: string; name_es?: string | null }) =>
-    locale === "es" && term.name_es ? term.name_es : term.name_en;
+  const pickTermName = (term: { name_i18n: Record<string, string | null> | null }) => {
+    const i18n = term.name_i18n ?? {};
+    return (locale === "es" && i18n.es ? i18n.es : i18n.en) ?? "";
+  };
 
   type FieldVisibilityRow = {
     field_key: string;
@@ -165,12 +165,12 @@ export async function GET(
       bio_i18n,
       height_cm,
       languages,
-      residence_city:locations!residence_city_id ( display_name_en, display_name_es, country_code ),
-      legacy_location:locations!location_id ( display_name_en, display_name_es, country_code ),
-      origin_city:locations!origin_city_id ( display_name_en, display_name_es, country_code ),
+      residence_city:locations!residence_city_id ( display_name_i18n, country_code ),
+      legacy_location:locations!location_id ( display_name_i18n, country_code ),
+      origin_city:locations!origin_city_id ( display_name_i18n, country_code ),
       talent_profile_taxonomy (
         is_primary,
-        taxonomy_terms ( kind, name_en, name_es )
+        taxonomy_terms ( kind, name_i18n )
       )
     `,
     )

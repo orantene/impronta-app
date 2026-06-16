@@ -35,14 +35,14 @@ type RosterRow = {
           taxonomy_terms: {
             term_type: string | null;
             slug: string | null;
-            name_en: string | null;
+            name_i18n: Record<string, string | null> | null;
           } | null;
         }[]
       | null;
     talent_service_areas:
       | {
           service_kind: string | null;
-          locations: { display_name_en: string | null; country_code: string | null } | null;
+          locations: { display_name_i18n: Record<string, string | null> | null; country_code: string | null } | null;
         }[]
       | null;
   } | null;
@@ -55,7 +55,7 @@ export type WorkspaceRosterItem = {
   name: string;
   state: "published" | "draft" | "invited" | "awaiting-approval" | "claimed";
   primaryType?: string;        // taxonomy term slug
-  primaryTypeLabel?: string;   // human-readable label from taxonomy_terms.name_en
+  primaryTypeLabel?: string;   // human-readable label from taxonomy_terms.name_i18n.en
   city?: string;
   height?: string;
   thumb?: string;
@@ -112,7 +112,7 @@ function derivePrimaryTypeLabel(p: NonNullable<RosterRow["talent_profiles"]>): s
   return (
     (p.talent_profile_taxonomy ?? [])
       .find((t) => t.relationship_type === "primary_role")
-      ?.taxonomy_terms?.name_en ?? undefined
+      ?.taxonomy_terms?.name_i18n?.en ?? undefined
   ) || undefined;
 }
 
@@ -120,7 +120,7 @@ function deriveCity(p: NonNullable<RosterRow["talent_profiles"]>): string | unde
   return (
     (p.talent_service_areas ?? [])
       .find((a) => a.service_kind === "home_base")
-      ?.locations?.display_name_en ?? undefined
+      ?.locations?.display_name_i18n?.en ?? undefined
   );
 }
 
@@ -162,11 +162,11 @@ export async function loadWorkspaceRosterForTenant(
           is_discoverable,
           talent_profile_taxonomy (
             relationship_type,
-            taxonomy_terms ( term_type, slug, name_en )
+            taxonomy_terms ( term_type, slug, name_i18n )
           ),
           talent_service_areas (
             service_kind,
-            locations ( display_name_en, country_code )
+            locations ( display_name_i18n, country_code )
           )
         )
         `,
@@ -251,7 +251,7 @@ export async function loadWorkspaceRosterLite(
           user_id,
           talent_profile_taxonomy (
             relationship_type,
-            taxonomy_terms ( term_type, name_en )
+            taxonomy_terms ( term_type, name_i18n )
           )
         )
         `,
@@ -279,7 +279,7 @@ export async function loadWorkspaceRosterLite(
         talent_profile_taxonomy:
           | Array<{
               relationship_type: string | null;
-              taxonomy_terms: { term_type: string | null; name_en: string | null } | null;
+              taxonomy_terms: { term_type: string | null; name_i18n: Record<string, string | null> | null } | null;
             }>
           | null;
       } | null;
@@ -304,7 +304,7 @@ export async function loadWorkspaceRosterLite(
           || (t.relationship_type === "primary"
             && t.taxonomy_terms?.term_type === "category"),
       );
-      const primaryTypeLabel = primaryRel?.taxonomy_terms?.name_en ?? undefined;
+      const primaryTypeLabel = primaryRel?.taxonomy_terms?.name_i18n?.en ?? undefined;
       const city = p.home_city_text?.trim() || undefined;
       out.push({ id: p.id, name, primaryTypeLabel, city });
     }
@@ -318,7 +318,7 @@ export async function loadWorkspaceRosterLite(
 /**
  * Enriched roster for the canonical workspace roster page.
  * Same query as loadWorkspaceRosterForTenant but returns WorkspaceRosterItem[]
- * with primaryTypeLabel included (from taxonomy_terms.name_en).
+ * with primaryTypeLabel included (from taxonomy_terms.name_i18n.en).
  */
 export async function loadWorkspaceRosterEnriched(
   tenantId: string,
@@ -367,11 +367,11 @@ export async function loadWorkspaceRosterEnriched(
           user_id,
           talent_profile_taxonomy (
             relationship_type,
-            taxonomy_terms ( term_type, slug, name_en )
+            taxonomy_terms ( term_type, slug, name_i18n )
           ),
           talent_service_areas (
             service_kind,
-            locations ( display_name_en, country_code )
+            locations ( display_name_i18n, country_code )
           )
         )
         `,

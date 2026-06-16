@@ -135,8 +135,7 @@ type GroupDbRow = {
 type SectionDbRow = {
   id: string;
   slug: string | null;
-  label_en: string | null;
-  label_es: string | null;
+  label_i18n: Record<string, string | null> | null;
   emoji: string | null;
   section_group_id: string | null;
   sort_order: number | null;
@@ -254,7 +253,7 @@ export async function loadEditorLayoutAdmin(): Promise<EditorLayoutAdmin> {
       sb
         .from("profile_editor_sections")
         .select(
-          "id, slug, label_en, label_es, emoji, section_group_id, sort_order, is_active, is_system, archived_at",
+          "id, slug, label_i18n, emoji, section_group_id, sort_order, is_active, is_system, archived_at",
         )
         .order("sort_order", { ascending: true }),
       loadPlatformCatalogMap(),
@@ -282,8 +281,8 @@ export async function loadEditorLayoutAdmin(): Promise<EditorLayoutAdmin> {
       return {
         id: row.id,
         slug,
-        label_en: row.label_en ?? slug,
-        label_es: row.label_es,
+        label_en: row.label_i18n?.en ?? slug,
+        label_es: row.label_i18n?.es ?? null,
         emoji: row.emoji ?? "",
         section_group_id: row.section_group_id,
         sort_order: row.sort_order ?? 0,

@@ -225,17 +225,18 @@ async function loadPrimaryTalentTags(
   if (!talentProfileIds.length) return map;
   const { data, error } = await supabase
     .from("talent_profile_taxonomy")
-    .select("talent_profile_id, is_primary, taxonomy_terms(kind, name_en)")
+    .select("talent_profile_id, is_primary, taxonomy_terms(kind, name_i18n)")
     .in("talent_profile_id", talentProfileIds);
   if (error || !data) return map;
   for (const row of data) {
-    const term = Array.isArray(row.taxonomy_terms)
+    const term = (Array.isArray(row.taxonomy_terms)
       ? row.taxonomy_terms[0]
-      : row.taxonomy_terms;
+      : row.taxonomy_terms) as { kind?: string | null; name_i18n?: Record<string, string | null> | null } | null;
     const tid = row.talent_profile_id as string;
-    if (term?.kind !== "talent_type" || !term.name_en?.trim()) continue;
+    const nm = term?.name_i18n?.en ?? null;
+    if (term?.kind !== "talent_type" || !nm?.trim()) continue;
     if (!map.has(tid) || row.is_primary) {
-      map.set(tid, term.name_en.trim());
+      map.set(tid, nm.trim());
     }
   }
   return map;

@@ -29,7 +29,7 @@ import { TAXONOMY, type TaxonomyParent, type TaxonomyParentId } from "./state";
 type TaxonomyTermsRow = {
   id: string;
   slug: string;
-  name_en: string;
+  name_i18n: Record<string, string | null> | null;
   plural_name?: string | null;
   icon?: string | null;
   term_type: string;
@@ -97,14 +97,14 @@ const PARENT_DISPLAY_HINT: Record<string, { emoji: string; helper: string }> = {
 };
 
 function rowToTerm(row: {
-  id: string; slug: string; name_en: string; plural_name?: string | null;
+  id: string; slug: string; name_i18n: Record<string, string | null> | null; plural_name?: string | null;
   icon?: string | null; term_type: string; parent_id: string | null;
   level: number; sort_order: number; is_public_filter: boolean; is_active: boolean;
 }): LiveTaxonomyTerm {
   return {
     id: row.id,
     slug: row.slug,
-    label: row.name_en ?? row.slug,
+    label: row.name_i18n?.en ?? row.slug,
     pluralLabel: row.plural_name ?? undefined,
     icon: row.icon ?? undefined,
     termType: row.term_type ?? "attribute",
@@ -202,7 +202,7 @@ export function useLiveTaxonomy(): LiveTaxonomyResult {
       // browser Supabase client.
       const data = await fetchAllTaxonomyTerms<TaxonomyTermsRow>(
         sb,
-        "id, slug, name_en, plural_name, icon, term_type, parent_id, level, sort_order, is_public_filter, is_active",
+        "id, slug, name_i18n, plural_name, icon, term_type, parent_id, level, sort_order, is_public_filter, is_active",
         (q) =>
           q
             .in("term_type", ["parent_category", "category_group", "talent_type"])

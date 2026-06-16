@@ -43,7 +43,7 @@ export async function GET() {
       home_country_text,
       talent_profile_taxonomy (
         relationship_type,
-        taxonomy_terms ( name_en, slug )
+        taxonomy_terms ( name_i18n, slug )
       )
       `,
     )
@@ -59,7 +59,7 @@ export async function GET() {
     home_country_text: string | null;
     talent_profile_taxonomy: Array<{
       relationship_type: string | null;
-      taxonomy_terms: { name_en: string | null; slug: string | null } | null;
+      taxonomy_terms: { name_i18n: Record<string, string | null> | null; slug: string | null } | null;
     }> | null;
   };
 
@@ -76,7 +76,7 @@ export async function GET() {
     const tax = row.talent_profile_taxonomy ?? [];
     const primary = tax.find((t) => t.relationship_type === "primary_role");
     const slug = primary?.taxonomy_terms?.slug?.trim();
-    const label = primary?.taxonomy_terms?.name_en?.trim();
+    const label = primary?.taxonomy_terms?.name_i18n?.en?.trim();
     if (slug && label) {
       const existing = categoryCounts.get(slug);
       categoryCounts.set(slug, {

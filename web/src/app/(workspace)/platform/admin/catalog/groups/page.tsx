@@ -167,7 +167,8 @@ async function loadGroups(): Promise<GroupRow[] | null> {
   const [groupsR, fieldsR] = await Promise.all([
     sb
       .from("profile_field_groups")
-      .select("id, slug, name_en, name_es, description_en, description_es, sort_order, is_active")
+      // name_en/name_es folded into name_i18n (WS3); description_* kept.
+      .select("id, slug, name_i18n, description_en, description_es, sort_order, is_active")
       .order("sort_order", { ascending: true }),
     sb.from("profile_field_definitions").select("field_group_id"),
   ]);
@@ -180,9 +181,20 @@ async function loadGroups(): Promise<GroupRow[] | null> {
     counts.set(row.field_group_id, (counts.get(row.field_group_id) ?? 0) + 1);
   }
 
-  return ((groupsR.data ?? []) as Array<Omit<GroupRow, "field_count">>)
+  return ((groupsR.data ?? []) as Array<
+    Omit<GroupRow, "field_count" | "name_en" | "name_es"> & {
+      name_i18n: Record<string, string | null> | null;
+    }
+  >)
     .map((group) => ({
-      ...group,
+      id: group.id,
+      slug: group.slug,
+      name_en: group.name_i18n?.en ?? "",
+      name_es: group.name_i18n?.es ?? null,
+      description_en: group.description_en,
+      description_es: group.description_es,
+      sort_order: group.sort_order,
+      is_active: group.is_active,
       field_count: counts.get(group.id) ?? 0,
     }))
     .sort((a, b) => a.sort_order - b.sort_order || a.name_en.localeCompare(b.name_en));

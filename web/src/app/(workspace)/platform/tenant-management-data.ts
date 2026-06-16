@@ -633,7 +633,7 @@ export async function loadTenantManagementDetail(
   if (activeTalentIds.length > 0) {
     const { data: tpt } = await sb
       .from("talent_profile_taxonomy")
-      .select("taxonomy_terms!inner(kind, name_en)")
+      .select("taxonomy_terms!inner(kind, name_i18n)")
       .in("talent_profile_id", activeTalentIds)
       .eq("taxonomy_terms.kind", "talent_type");
     const seen = new Set<string>();
@@ -641,7 +641,7 @@ export async function loadTenantManagementDetail(
       const term = Array.isArray(row.taxonomy_terms)
         ? row.taxonomy_terms[0]
         : row.taxonomy_terms;
-      const name = (term as { name_en?: string | null } | null)?.name_en;
+      const name = (term as { name_i18n?: Record<string, string | null> | null } | null)?.name_i18n?.en;
       if (name && !seen.has(name)) {
         seen.add(name);
         talentTypes.push(name);

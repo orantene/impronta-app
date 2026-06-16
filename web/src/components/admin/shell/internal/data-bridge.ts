@@ -444,7 +444,7 @@ type RosterRow = {
           taxonomy_terms: {
             term_type: string | null;
             slug: string | null;
-            name_en: string | null;
+            name_i18n: Record<string, string | null> | null;
           } | null;
         }[]
       | null;
@@ -452,7 +452,7 @@ type RosterRow = {
       | {
           service_kind: string | null;
           locations: {
-            display_name_en: string | null;
+            display_name_i18n: Record<string, string | null> | null;
             country_code: string | null;
           } | null;
         }[]
@@ -601,9 +601,9 @@ function derivePrimaryType(
     });
 
   const top = ranked[0]?.taxonomy_terms;
-  // Fall back to name_en when slug is absent — card renderer shows it
-  // directly when TAXONOMY.children.find(c => c.id === slug) returns null.
-  return top?.slug ?? top?.name_en ?? undefined;
+  // Fall back to the English term name (name_i18n.en, WS4) when slug is absent —
+  // card renderer shows it when TAXONOMY.children.find(c => c.id === slug) is null.
+  return top?.slug ?? top?.name_i18n?.en ?? undefined;
 }
 
 /**
@@ -618,7 +618,7 @@ function deriveCity(
 ): string | undefined {
   const areas = profile.talent_service_areas ?? [];
   const home = areas.find((a) => a.service_kind === "home_base");
-  return home?.locations?.display_name_en ?? undefined;
+  return home?.locations?.display_name_i18n?.en ?? undefined;
 }
 
 function deriveHeightLabel(profile: {
@@ -714,11 +714,11 @@ export async function loadWorkspaceRosterForCurrentTenant(
           talent_profile_taxonomy (
             relationship_type,
             display_order,
-            taxonomy_terms ( term_type, slug, name_en )
+            taxonomy_terms ( term_type, slug, name_i18n )
           ),
           talent_service_areas (
             service_kind,
-            locations ( display_name_en, country_code )
+            locations ( display_name_i18n, country_code )
           ),
           media_assets (
             storage_path,

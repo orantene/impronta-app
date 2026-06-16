@@ -33,7 +33,7 @@ export type DiscoverTalentDetail = {
   agencyName: string | null;
   agencyTenantId: string | null;
   isExclusive: boolean;
-  /** Short bio (first non-empty of short_bio, bio_en). */
+  /** Short bio (first non-empty of short_bio, bio_i18n.en). */
   bio: string | null;
   /** Talent's stated response-time SLA. */
   responseTime: "1h" | "4h" | "24h" | "48h" | null;
@@ -72,10 +72,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       id, display_name, first_name, last_name, profile_code,
       home_country_text, home_city_text,
       workflow_status, is_discoverable,
-      short_bio, bio_en,
+      short_bio, bio_i18n,
       talent_profile_taxonomy (
         relationship_type,
-        taxonomy_terms ( name_en, slug )
+        taxonomy_terms ( name_i18n, slug )
       ),
       agency_talent_roster!talent_profile_id (
         tenant_id, status, is_primary,
@@ -107,10 +107,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     workflow_status: string | null;
     is_discoverable: boolean | null;
     short_bio: string | null;
-    bio_en: string | null;
+    bio_i18n: Record<string, string | null> | null;
     talent_profile_taxonomy: Array<{
       relationship_type: string | null;
-      taxonomy_terms: { name_en: string | null; slug: string | null } | null;
+      taxonomy_terms: { name_i18n: Record<string, string | null> | null; slug: string | null } | null;
     }> | null;
     agency_talent_roster: Array<{
       tenant_id: string;
@@ -137,11 +137,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const tax = row.talent_profile_taxonomy ?? [];
   const primaryTerm = tax.find((t) => t.relationship_type === "primary_role");
-  const primaryTypeLabel = primaryTerm?.taxonomy_terms?.name_en ?? null;
+  const primaryTypeLabel = primaryTerm?.taxonomy_terms?.name_i18n?.en ?? null;
   const primaryTypeSlug = primaryTerm?.taxonomy_terms?.slug ?? null;
   const secondaryTypeLabels = tax
     .filter((t) => t.relationship_type === "secondary_role")
-    .map((t) => t.taxonomy_terms?.name_en)
+    .map((t) => t.taxonomy_terms?.name_i18n?.en)
     .filter((l): l is string => Boolean(l));
 
   const roster = row.agency_talent_roster ?? [];
@@ -150,7 +150,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const agencyRowOrArr = primaryRoster?.agencies;
   const agencyRow = Array.isArray(agencyRowOrArr) ? agencyRowOrArr[0] : agencyRowOrArr;
 
-  const bio = (row.short_bio?.trim() || row.bio_en?.trim()) || null;
+  const bio = (row.short_bio?.trim() || row.bio_i18n?.en?.trim()) || null;
 
   // T4 collapse-dedicated-columns: response_time is sourced from System B
   // (`talent_profile_field_values`) — its dedicated talent_profiles column was

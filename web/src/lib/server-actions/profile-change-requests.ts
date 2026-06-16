@@ -23,8 +23,12 @@ const ALLOWED_FIELDS = new Set<string>([
   "first_name",
   "last_name",
   "short_bio",
-  "bio_en",
-  "bio_es",
+  // bio_en / bio_es were dropped by the WS4 i18n migration (folded into
+  // bio_i18n). The long-form bio is reviewed/published through the dedicated
+  // Translation Center write path (talent-bio-translation-service), never as a
+  // raw column in this generic change-request applier — listing them here would
+  // both .select() and .update() now-nonexistent columns. short_bio (the legacy
+  // EN mirror, still a live column) remains reviewable here.
   "phone",
   "height_cm",
   "location_id",

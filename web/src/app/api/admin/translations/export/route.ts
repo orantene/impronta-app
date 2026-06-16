@@ -50,16 +50,18 @@ export async function GET(request: NextRequest) {
 
   try {
     for (let from = 0; ; from += PAGE) {
+      // bio_en/bio_es/bio_es_draft/bio_es_status/bio_*_updated_at were folded
+      // into per-locale JSONB maps by the WS4 i18n migration; read the maps.
       let profileQuery = supabase
         .from("talent_profiles")
         .select(
-          "profile_code, display_name, bio_en, bio_es, bio_es_draft, bio_es_status, bio_es_updated_at, bio_en_updated_at",
+          "profile_code, display_name, bio_i18n, bio_draft_i18n, bio_status_i18n, bio_updated_at_i18n",
         )
         .is("deleted_at", null);
 
       profileQuery = includeStaleBios
-        ? profileQuery.in("bio_es_status", ["missing", "stale"])
-        : profileQuery.eq("bio_es_status", "missing");
+        ? profileQuery.or("bio_status_i18n->>es.eq.missing,bio_status_i18n->>es.eq.stale")
+        : profileQuery.eq("bio_status_i18n->>es", "missing");
 
       const { data, error } = await profileQuery
         .order("profile_code", { ascending: true })
@@ -73,18 +75,22 @@ export async function GET(request: NextRequest) {
       for (const p of rows) {
         const code = p.profile_code as string;
         const name = ((p.display_name as string | null) ?? "").trim() || code;
-        const draft = (p.bio_es_draft as string | null) ?? "";
+        const bio = (p.bio_i18n as Record<string, string> | null) ?? null;
+        const bioDraft = (p.bio_draft_i18n as Record<string, string> | null) ?? null;
+        const bioStatus = (p.bio_status_i18n as Record<string, string> | null) ?? null;
+        const bioUpdatedAt = (p.bio_updated_at_i18n as Record<string, string> | null) ?? null;
+        const draft = (bioDraft?.es as string | null) ?? "";
         chunks.push(
           row([
             "profile",
             name,
             code,
-            String(p.bio_es_status ?? "missing"),
-            (p.bio_en as string | null) ?? "",
-            (p.bio_es as string | null) ?? "",
+            String(bioStatus?.es ?? "missing"),
+            (bio?.en as string | null) ?? "",
+            (bio?.es as string | null) ?? "",
             draft.trim() ? "yes" : "no",
-            (p.bio_es_updated_at as string | null) ?? "",
-            (p.bio_en_updated_at as string | null) ?? "",
+            (bioUpdatedAt?.es as string | null) ?? "",
+            (bioUpdatedAt?.en as string | null) ?? "",
             "",
           ]),
         );
@@ -93,11 +99,12 @@ export async function GET(request: NextRequest) {
     }
 
     for (let from = 0; ; from += PAGE) {
+      // name_en/name_es → name_i18n {en,es} (WS4 i18n migration).
       const { data, error } = await supabase
         .from("taxonomy_terms")
-        .select("kind, slug, name_en, name_es, updated_at")
+        .select("kind, slug, name_i18n, updated_at")
         .is("archived_at", null)
-        .or("name_es.is.null,name_es.eq.")
+        .or("name_i18n->>es.is.null,name_i18n->>es.eq.")
         .order("kind", { ascending: true })
         .order("slug", { ascending: true })
         .range(from, from + PAGE - 1);
@@ -109,14 +116,16 @@ export async function GET(request: NextRequest) {
       const rows = data ?? [];
       for (const t of rows) {
         const slug = t.slug as string;
+        const nameMap = (t.name_i18n as Record<string, string> | null) ?? null;
+        const nameEn = (nameMap?.en as string | null) ?? "";
         chunks.push(
           row([
             "taxonomy_term",
-            (t.name_en as string) ?? "",
+            nameEn,
             slug,
             "missing",
-            (t.name_en as string) ?? "",
-            (t.name_es as string | null) ?? "",
+            nameEn,
+            (nameMap?.es as string | null) ?? "",
             "",
             "",
             "",
@@ -128,13 +137,14 @@ export async function GET(request: NextRequest) {
     }
 
     for (let from = 0; ; from += PAGE) {
+      // display_name_en/display_name_es → display_name_i18n {en,es} (WS4).
       const { data, error } = await supabase
         .from("locations")
-        .select("country_code, city_slug, display_name_en, display_name_es, updated_at")
+        .select("country_code, city_slug, display_name_i18n, updated_at")
         .is("archived_at", null)
-        .or("display_name_es.is.null,display_name_es.eq.")
+        .or("display_name_i18n->>es.is.null,display_name_i18n->>es.eq.")
         .order("country_code", { ascending: true })
-        .order("display_name_en", { ascending: true })
+        .order("display_name_i18n->>en", { ascending: true })
         .range(from, from + PAGE - 1);
 
       if (error) {
@@ -145,14 +155,16 @@ export async function GET(request: NextRequest) {
       for (const loc of rows) {
         const cc = loc.country_code as string;
         const cs = loc.city_slug as string;
+        const nameMap = (loc.display_name_i18n as Record<string, string> | null) ?? null;
+        const nameEn = (nameMap?.en as string | null) ?? "";
         chunks.push(
           row([
             "location",
-            (loc.display_name_en as string) ?? "",
+            nameEn,
             `${cs}|${cc}`,
             "missing",
-            (loc.display_name_en as string) ?? "",
-            (loc.display_name_es as string | null) ?? "",
+            nameEn,
+            (nameMap?.es as string | null) ?? "",
             "",
             "",
             "",

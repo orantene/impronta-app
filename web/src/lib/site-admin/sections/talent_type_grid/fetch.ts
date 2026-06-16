@@ -26,15 +26,13 @@ type TptRow = {
   taxonomy_terms:
     | {
         id: string;
-        name_en: string | null;
-        name_es: string | null;
+        name_i18n: Record<string, string | null> | null;
         term_type: string | null;
         parent_id: string | null;
       }
     | {
         id: string;
-        name_en: string | null;
-        name_es: string | null;
+        name_i18n: Record<string, string | null> | null;
         term_type: string | null;
         parent_id: string | null;
       }[]
@@ -65,7 +63,7 @@ export async function fetchTenantTalentCategories(params: {
       .from("talent_profile_taxonomy")
       .select(
         `talent_profile_id, taxonomy_term_id,
-         taxonomy_terms ( id, name_en, name_es, term_type, parent_id )`,
+         taxonomy_terms ( id, name_i18n, term_type, parent_id )`,
       )
       .in("talent_profile_id", roster);
 
@@ -106,9 +104,10 @@ export async function fetchTenantTalentCategories(params: {
         ) {
           continue;
         }
+        const ti18n = term.name_i18n ?? {};
         const label =
-          (locale === "es" ? term.name_es : term.name_en) ??
-          term.name_en ??
+          (locale === "es" ? ti18n.es : ti18n.en) ??
+          ti18n.en ??
           "";
         const slot =
           byTerm.get(term.id) ?? { label, talents: new Set<string>() };
@@ -122,16 +121,15 @@ export async function fetchTenantTalentCategories(params: {
     if (parentCategoryMode && parentIds.size > 0) {
       const { data: parents } = await supabase
         .from("taxonomy_terms")
-        .select("id, name_en, name_es")
+        .select("id, name_i18n")
         .in("id", [...parentIds]);
       for (const p of parents ?? []) {
         const slot = byTerm.get(p.id as string);
         if (slot) {
+          const pi18n = (p as { name_i18n?: Record<string, string | null> | null }).name_i18n ?? {};
           slot.label =
-            (locale === "es"
-              ? (p.name_es as string | null)
-              : (p.name_en as string | null)) ??
-            (p.name_en as string | null) ??
+            (locale === "es" ? pi18n.es : pi18n.en) ??
+            pi18n.en ??
             slot.label;
         }
       }

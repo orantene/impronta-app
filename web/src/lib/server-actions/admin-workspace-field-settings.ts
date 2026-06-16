@@ -119,14 +119,15 @@ export async function getFieldPrivacyCatalog(): Promise<
     // eslint-disable-next-line ratchet/no-untenanted-from -- profile_field_definitions is the platform-global catalog table and has no tenant_id column
     supabase
       .from("profile_field_definitions")
+      // label/name_en folded into label_i18n/name_i18n (WS3); flattened below.
       .select(
-        "id, field_key, label, tier, field_group_id, display_order, admin_only, is_sensitive, default_visibility, show_in_public",
+        "id, field_key, label_i18n, tier, field_group_id, display_order, admin_only, is_sensitive, default_visibility, show_in_public",
       )
       .is("deprecated_at", null),
     // eslint-disable-next-line ratchet/no-untenanted-from -- profile_field_groups is the platform-global catalog table and has no tenant_id column
     supabase
       .from("profile_field_groups")
-      .select("id, slug, name_en, sort_order")
+      .select("id, slug, name_i18n, sort_order")
       .eq("is_active", true),
     tenantScopedQuery(supabase, "workspace_profile_field_settings", tenantId)
       .select(
@@ -196,7 +197,7 @@ export async function getFieldPrivacyCatalog(): Promise<
     const def = d as {
       id: string;
       field_key: string;
-      label: string;
+      label_i18n: Record<string, string | null> | null;
       tier: string | null;
       field_group_id: string | null;
       display_order: number | null;
@@ -235,7 +236,7 @@ export async function getFieldPrivacyCatalog(): Promise<
     return {
       field_definition_id: def.id,
       field_key: def.field_key,
-      label: o?.custom_label ?? def.label,
+      label: o?.custom_label ?? def.label_i18n?.en ?? "",
       field_group_id: def.field_group_id,
       display_order: o?.display_order_override ?? def.display_order ?? 100,
       effective,
@@ -251,7 +252,7 @@ export async function getFieldPrivacyCatalog(): Promise<
       const gg = g as {
         id: string;
         slug: string;
-        name_en: string | null;
+        name_i18n: Record<string, string | null> | null;
         sort_order: number | null;
       };
       const o = groupOvByGroup.get(gg.id) as
@@ -260,7 +261,7 @@ export async function getFieldPrivacyCatalog(): Promise<
       return {
         id: gg.id,
         slug: gg.slug,
-        name: o?.custom_label ?? gg.name_en ?? gg.slug,
+        name: o?.custom_label ?? gg.name_i18n?.en ?? gg.slug,
         sort_order: o?.display_order ?? gg.sort_order ?? 0,
       };
     })
@@ -507,12 +508,13 @@ export async function getWorkspaceFieldCatalog(): Promise<
     // eslint-disable-next-line ratchet/no-untenanted-from -- profile_field_definitions is the platform-global catalog table and has no tenant_id column
     supabase
       .from("profile_field_definitions")
-      .select("id, field_key, label, tier, field_group_id, display_order")
+      // label/name_en folded into label_i18n/name_i18n (WS3); flattened below.
+      .select("id, field_key, label_i18n, tier, field_group_id, display_order")
       .is("deprecated_at", null),
     // eslint-disable-next-line ratchet/no-untenanted-from -- profile_field_groups is the platform-global catalog table and has no tenant_id column
     supabase
       .from("profile_field_groups")
-      .select("id, name_en, slug, sort_order")
+      .select("id, name_i18n, slug, sort_order")
       .eq("is_active", true),
     tenantScopedQuery(supabase, "workspace_profile_field_settings", tenantId)
       .select("field_definition_id, enabled_override, required_override, custom_label, custom_helper, display_order_override"),
@@ -574,7 +576,7 @@ export async function getWorkspaceFieldCatalog(): Promise<
 
   const fields: FieldCatalogField[] = scopedDefs.map((d) => {
     const def = d as {
-      id: string; field_key: string; label: string;
+      id: string; field_key: string; label_i18n: Record<string, string | null> | null;
       tier: string | null; field_group_id: string | null; display_order: number | null;
     };
     const o = fOv.get(def.id) as
@@ -587,7 +589,7 @@ export async function getWorkspaceFieldCatalog(): Promise<
     return {
       field_definition_id: def.id,
       field_key: def.field_key,
-      label: def.label,
+      label: def.label_i18n?.en ?? "",
       field_group_id: def.field_group_id,
       display_order: o?.display_order_override ?? def.display_order ?? 100,
       enabled: o?.enabled_override !== false,
@@ -601,7 +603,7 @@ export async function getWorkspaceFieldCatalog(): Promise<
     .filter((g) => activeGroupIds.has((g as { id: string }).id))
     .map((g) => {
       const gg = g as {
-        id: string; name_en: string | null; slug: string;
+        id: string; name_i18n: Record<string, string | null> | null; slug: string;
         sort_order: number | null;
       };
       const o = gOv.get(gg.id) as
@@ -609,7 +611,7 @@ export async function getWorkspaceFieldCatalog(): Promise<
         | undefined;
       return {
         id: gg.id,
-        name: gg.name_en ?? gg.slug,
+        name: gg.name_i18n?.en ?? gg.slug,
         sort_order: o?.display_order ?? gg.sort_order ?? 0,
         enabled: o?.is_enabled !== false,
         custom_label: o?.custom_label ?? null,

@@ -69,7 +69,7 @@ export async function getAspirationsAsTalent(input: {
   if (!auth.ok) return auth;
   const { data, error } = await auth.supabase
     .from("talent_profile_taxonomy")
-    .select("taxonomy_term_id, taxonomy_terms!inner ( slug, name_en, parent_id )")
+    .select("taxonomy_term_id, taxonomy_terms!inner ( slug, name_i18n, parent_id )")
     .eq("tenant_id", auth.tenantId)
     .eq("talent_profile_id", input.talent_profile_id)
     .eq("relationship_type", "aspiration");
@@ -79,12 +79,16 @@ export async function getAspirationsAsTalent(input: {
   }
   return {
     ok: true,
+    // name_en folded into name_i18n {en,es} (WS4); flatten back for the picker DTO.
     aspirations: (data ?? []).map((row) => {
-      const t = row.taxonomy_terms as unknown as { slug: string; name_en: string };
+      const t = row.taxonomy_terms as unknown as {
+        slug: string;
+        name_i18n: Record<string, string | null> | null;
+      };
       return {
         term_id: row.taxonomy_term_id,
         slug: t.slug,
-        name_en: t.name_en,
+        name_en: t.name_i18n?.en ?? "",
         parent_name: null,
       };
     }),
@@ -277,9 +281,10 @@ export async function getEnabledParentCategoriesForPickerAsTalent(input: { talen
   if (!input.talent_profile_id) return { ok: false as const, error: "Missing profile." };
   const auth = await requireTalentServiceScope(input.talent_profile_id);
   if (!auth.ok) return auth;
+  // name_en folded into name_i18n {en,es} (WS4); flatten back for the picker DTO.
   const { data: terms } = await auth.supabase
     .from("taxonomy_terms")
-    .select("id, slug, name_en")
+    .select("id, slug, name_i18n")
     .eq("term_type", "parent_category")
     .eq("is_active", true)
     .order("sort_order", { ascending: true });
@@ -288,7 +293,16 @@ export async function getEnabledParentCategoriesForPickerAsTalent(input: { talen
     .select("taxonomy_term_id, is_enabled")
     .eq("tenant_id", auth.tenantId);
   const settingsByTermId = new Map((settings ?? []).map((s) => [s.taxonomy_term_id, s] as const));
-  return { ok: true as const, parents: (terms ?? []).filter((t) => settingsByTermId.get(t.id)?.is_enabled !== false) };
+  return {
+    ok: true as const,
+    parents: (terms ?? [])
+      .filter((t) => settingsByTermId.get(t.id)?.is_enabled !== false)
+      .map((t) => ({
+        id: t.id,
+        slug: t.slug,
+        name_en: (t.name_i18n as Record<string, string | null> | null)?.en ?? "",
+      })),
+  };
 }
 
 export async function getTalentTypesUnderParentAsTalent(input: {
@@ -299,35 +313,43 @@ export async function getTalentTypesUnderParentAsTalent(input: {
   if (!input.talent_profile_id) return { ok: false as const, error: "Missing profile." };
   const auth = await requireTalentServiceScope(input.talent_profile_id);
   if (!auth.ok) return auth;
+  // name_en/name_es folded into name_i18n {en,es} (WS4); flatten for picker DTO.
   const { data: groups } = await auth.supabase
     .from("taxonomy_terms")
-    .select("id, name_en")
+    .select("id, name_i18n")
     .eq("parent_id", input.parent_category_id)
     .eq("term_type", "category_group")
     .eq("is_active", true);
   const groupIds = (groups ?? []).map((g) => g.id);
-  const groupNameById = new Map((groups ?? []).map((g) => [g.id, g.name_en] as const));
+  const groupNameById = new Map(
+    (groups ?? []).map(
+      (g) => [g.id, (g.name_i18n as Record<string, string | null> | null)?.en ?? ""] as const,
+    ),
+  );
   if (groupIds.length === 0) return { ok: true as const, types: [] };
   let query = auth.supabase
     .from("taxonomy_terms")
-    .select("id, slug, name_en, name_es, parent_id")
+    .select("id, slug, name_i18n, parent_id")
     .in("parent_id", groupIds)
     .eq("term_type", "talent_type")
     .eq("is_active", true)
     .eq("is_generic_fallback", false)
-    .order("name_en", { ascending: true });
-  if (input.query) query = query.ilike("name_en", `%${input.query}%`);
+    .order("name_i18n->>en", { ascending: true });
+  if (input.query) query = query.ilike("name_i18n->>en", `%${input.query}%`);
   const { data, error } = await query;
   if (error) return { ok: false as const, error: CLIENT_ERROR.generic };
   return {
     ok: true as const,
-    types: (data ?? []).map((t) => ({
-      id: t.id,
-      slug: t.slug,
-      name_en: t.name_en,
-      name_es: t.name_es,
-      category_group_name: t.parent_id ? groupNameById.get(t.parent_id) ?? null : null,
-    })),
+    types: (data ?? []).map((t) => {
+      const nameMap = t.name_i18n as Record<string, string | null> | null;
+      return {
+        id: t.id,
+        slug: t.slug,
+        name_en: nameMap?.en ?? "",
+        name_es: nameMap?.es ?? null,
+        category_group_name: t.parent_id ? groupNameById.get(t.parent_id) ?? null : null,
+      };
+    }),
   };
 }
 
@@ -408,18 +430,18 @@ export async function getResolvedContextsAsTalent(input: {
   if (!auth.ok) return auth;
   const { data: rows, error } = await auth.supabase
     .from("talent_profile_taxonomy")
-    .select("taxonomy_term_id, taxonomy_terms!inner(id, slug, name_en, name_es, term_type, parent_id, sort_order)")
+    .select("taxonomy_term_id, taxonomy_terms!inner(id, slug, name_i18n, term_type, parent_id, sort_order)")
     .eq("tenant_id", auth.tenantId)
     .eq("talent_profile_id", input.talent_profile_id)
     .eq("relationship_type", "context");
   if (error) return { ok: false, error: CLIENT_ERROR.generic };
+  // name_en/name_es folded into name_i18n {en,es} (WS4); flatten for the DTO.
   type Joined = {
     taxonomy_term_id: string;
     taxonomy_terms: {
       id: string;
       slug: string;
-      name_en: string;
-      name_es: string | null;
+      name_i18n: Record<string, string | null> | null;
       term_type: string;
       parent_id: string | null;
       sort_order: number | null;
@@ -431,21 +453,26 @@ export async function getResolvedContextsAsTalent(input: {
   if (parentIds.length > 0) {
     const { data: groups } = await auth.supabase
       .from("taxonomy_terms")
-      .select("id, slug, name_en, sort_order")
+      .select("id, slug, name_i18n, sort_order")
       .in("id", parentIds)
       .eq("term_type", "context_group");
     for (const group of groups ?? []) {
-      groupById.set(group.id, { slug: group.slug, name_en: group.name_en, sort_order: group.sort_order ?? 999 });
+      groupById.set(group.id, {
+        slug: group.slug,
+        name_en: (group.name_i18n as Record<string, string | null> | null)?.en ?? "",
+        sort_order: group.sort_order ?? 999,
+      });
     }
   }
   const contexts = ctxRows.map((row) => {
     const term = row.taxonomy_terms!;
+    const termNameMap = term.name_i18n as Record<string, string | null> | null;
     const group = term.parent_id ? groupById.get(term.parent_id) : undefined;
     return {
       context_term_id: term.id,
       context_slug: term.slug,
-      context_name_en: term.name_en,
-      context_name_es: term.name_es,
+      context_name_en: termNameMap?.en ?? "",
+      context_name_es: termNameMap?.es ?? null,
       group_id: term.parent_id,
       group_slug: group?.slug ?? null,
       group_name_en: group?.name_en ?? null,
@@ -462,13 +489,14 @@ export async function getContextCatalogAsTalent(input: { talent_profile_id?: str
   const auth = await requireTalentServiceScope(input.talent_profile_id);
   if (!auth.ok) return auth;
   const [{ data: terms, error }, { data: groups }, { data: settings }] = await Promise.all([
-    auth.supabase.from("taxonomy_terms").select("id, slug, name_en, name_es, parent_id, sort_order").eq("term_type", "context").eq("is_active", true).eq("is_generic_fallback", false).order("sort_order", { ascending: true }),
-    auth.supabase.from("taxonomy_terms").select("id, slug, name_en, sort_order").eq("term_type", "context_group").order("sort_order", { ascending: true }),
+    // name_en/name_es folded into name_i18n {en,es} (WS4); flattened below.
+    auth.supabase.from("taxonomy_terms").select("id, slug, name_i18n, parent_id, sort_order").eq("term_type", "context").eq("is_active", true).eq("is_generic_fallback", false).order("sort_order", { ascending: true }),
+    auth.supabase.from("taxonomy_terms").select("id, slug, name_i18n, sort_order").eq("term_type", "context_group").order("sort_order", { ascending: true }),
     auth.supabase.from("agency_taxonomy_settings").select("taxonomy_term_id, is_enabled").eq("tenant_id", auth.tenantId),
   ]);
   if (error) return { ok: false as const, error: CLIENT_ERROR.generic };
   const disabled = new Set((settings ?? []).filter((s) => s.is_enabled === false).map((s) => s.taxonomy_term_id));
-  const groupMeta = new Map((groups ?? []).map((g) => [g.id, { slug: g.slug, name_en: g.name_en, sort_order: g.sort_order ?? 999 }]));
+  const groupMeta = new Map((groups ?? []).map((g) => [g.id, { slug: g.slug, name_en: (g.name_i18n as Record<string, string | null> | null)?.en ?? "", sort_order: g.sort_order ?? 999 }]));
   const byGroup = new Map<string, ContextCatalogGroup>();
   const ungrouped = "__ungrouped__";
   for (const term of terms ?? []) {
@@ -478,7 +506,8 @@ export async function getContextCatalogAsTalent(input: { talent_profile_id?: str
       const meta = term.parent_id ? groupMeta.get(term.parent_id) : undefined;
       byGroup.set(groupId, { group_id: groupId, group_slug: meta?.slug ?? "other", group_name_en: meta?.name_en ?? "Other Contexts", sort_order: meta?.sort_order ?? 999, contexts: [] });
     }
-    byGroup.get(groupId)!.contexts.push({ id: term.id, slug: term.slug, name_en: term.name_en, name_es: term.name_es, sort_order: term.sort_order ?? 999 });
+    const termNameMap = term.name_i18n as Record<string, string | null> | null;
+    byGroup.get(groupId)!.contexts.push({ id: term.id, slug: term.slug, name_en: termNameMap?.en ?? "", name_es: termNameMap?.es ?? null, sort_order: term.sort_order ?? 999 });
   }
   const result = [...byGroup.values()].sort((a, b) => a.sort_order - b.sort_order || a.group_name_en.localeCompare(b.group_name_en));
   for (const group of result) group.contexts.sort((a, b) => a.sort_order - b.sort_order || a.name_en.localeCompare(b.name_en));

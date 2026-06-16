@@ -18,23 +18,26 @@ async function markTaxonomyTranslatedCore(
   supabase: SupabaseClient,
   id: string,
 ): Promise<{ error: string | null }> {
+  // name_en/name_es folded into name_i18n {en,es} (WS4 migration). Merge so the
+  // EN key is preserved when seeding ES from EN.
   const { data: row, error: loadErr } = await supabase
     .from("taxonomy_terms")
-    .select("id, name_en, name_es")
+    .select("id, name_i18n")
     .eq("id", id)
     .maybeSingle();
   if (loadErr || !row) return { error: "Term not found." };
 
-  const es = String(row.name_es ?? "").trim();
+  const nameMap = (row.name_i18n as Record<string, string | null> | null) ?? {};
+  const es = String(nameMap.es ?? "").trim();
   if (es) return { error: null };
 
-  const en = String(row.name_en ?? "").trim();
+  const en = String(nameMap.en ?? "").trim();
   if (!en) return { error: "English label is empty." };
 
   const now = new Date().toISOString();
   const { error } = await supabase
     .from("taxonomy_terms")
-    .update({ name_es: en, updated_at: now })
+    .update({ name_i18n: { ...nameMap, es: en }, updated_at: now })
     .eq("id", id);
   if (error) return { error: error.message };
   return { error: null };
@@ -44,23 +47,26 @@ async function markLocationTranslatedCore(
   supabase: SupabaseClient,
   id: string,
 ): Promise<{ error: string | null }> {
+  // display_name_en/_es folded into display_name_i18n {en,es} (WS4). Merge so
+  // the EN key is preserved when seeding ES from EN.
   const { data: row, error: loadErr } = await supabase
     .from("locations")
-    .select("id, display_name_en, display_name_es")
+    .select("id, display_name_i18n")
     .eq("id", id)
     .maybeSingle();
   if (loadErr || !row) return { error: "Location not found." };
 
-  const es = String(row.display_name_es ?? "").trim();
+  const nameMap = (row.display_name_i18n as Record<string, string | null> | null) ?? {};
+  const es = String(nameMap.es ?? "").trim();
   if (es) return { error: null };
 
-  const en = String(row.display_name_en ?? "").trim();
+  const en = String(nameMap.en ?? "").trim();
   if (!en) return { error: "English display name is empty." };
 
   const now = new Date().toISOString();
   const { error } = await supabase
     .from("locations")
-    .update({ display_name_es: en, updated_at: now })
+    .update({ display_name_i18n: { ...nameMap, es: en }, updated_at: now })
     .eq("id", id);
   if (error) return { error: error.message };
   return { error: null };
@@ -181,19 +187,20 @@ export async function adminLoadTaxonomyTranslationPanelData(
 
   const { data: row, error } = await auth.supabase
     .from("taxonomy_terms")
-    .select("id, kind, slug, name_en, name_es")
+    .select("id, kind, slug, name_i18n")
     .eq("id", parsed.data.id)
     .is("archived_at", null)
     .maybeSingle();
   if (error || !row) return { ok: false, error: "Term not found." };
+  const nameMap = (row.name_i18n as Record<string, string | null> | null) ?? {};
   return {
     ok: true,
     data: {
       id: row.id as string,
       kind: String(row.kind ?? ""),
       slug: String(row.slug ?? ""),
-      name_en: String(row.name_en ?? ""),
-      name_es: (row.name_es as string | null) ?? null,
+      name_en: String(nameMap.en ?? ""),
+      name_es: (nameMap.es as string | null) ?? null,
     },
   };
 }
@@ -208,19 +215,20 @@ export async function adminLoadLocationTranslationPanelData(
 
   const { data: row, error } = await auth.supabase
     .from("locations")
-    .select("id, country_code, city_slug, display_name_en, display_name_es")
+    .select("id, country_code, city_slug, display_name_i18n")
     .eq("id", parsed.data.id)
     .is("archived_at", null)
     .maybeSingle();
   if (error || !row) return { ok: false, error: "Location not found." };
+  const nameMap = (row.display_name_i18n as Record<string, string | null> | null) ?? {};
   return {
     ok: true,
     data: {
       id: row.id as string,
       country_code: String(row.country_code ?? ""),
       city_slug: String(row.city_slug ?? ""),
-      display_name_en: String(row.display_name_en ?? ""),
-      display_name_es: (row.display_name_es as string | null) ?? null,
+      display_name_en: String(nameMap.en ?? ""),
+      display_name_es: (nameMap.es as string | null) ?? null,
     },
   };
 }
@@ -233,11 +241,24 @@ export async function adminSaveTaxonomySpanishLabel(
   const parsed = labelEsSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid data." };
 
+  // name_es folded into name_i18n {en,es} (WS4). Read-merge-write so the EN key
+  // is never clobbered; clear ES (delete key) when the input is blank.
+  const { data: cur, error: loadErr } = await auth.supabase
+    .from("taxonomy_terms")
+    .select("name_i18n")
+    .eq("id", parsed.data.id)
+    .maybeSingle();
+  if (loadErr || !cur) return { ok: false, error: "Term not found." };
+  const nameMap = { ...((cur.name_i18n as Record<string, string | null> | null) ?? {}) };
+  const es = parsed.data.name_es.trim();
+  if (es) nameMap.es = es;
+  else delete nameMap.es;
+
   const now = new Date().toISOString();
   const { error } = await auth.supabase
     .from("taxonomy_terms")
     .update({
-      name_es: parsed.data.name_es.trim() || null,
+      name_i18n: nameMap,
       updated_at: now,
     })
     .eq("id", parsed.data.id);
@@ -257,11 +278,24 @@ export async function adminSaveLocationSpanishDisplay(
   const parsed = locationEsSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid data." };
 
+  // display_name_es folded into display_name_i18n {en,es} (WS4). Read-merge-write
+  // so the EN key survives; clear ES (delete key) when the input is blank.
+  const { data: cur, error: loadErr } = await auth.supabase
+    .from("locations")
+    .select("display_name_i18n")
+    .eq("id", parsed.data.id)
+    .maybeSingle();
+  if (loadErr || !cur) return { ok: false, error: "Location not found." };
+  const nameMap = { ...((cur.display_name_i18n as Record<string, string | null> | null) ?? {}) };
+  const es = parsed.data.display_name_es.trim();
+  if (es) nameMap.es = es;
+  else delete nameMap.es;
+
   const now = new Date().toISOString();
   const { error } = await auth.supabase
     .from("locations")
     .update({
-      display_name_es: parsed.data.display_name_es.trim() || null,
+      display_name_i18n: nameMap,
       updated_at: now,
     })
     .eq("id", parsed.data.id);

@@ -34,7 +34,9 @@ export type TalentDashboardProfileRow = {
   first_name: string | null;
   last_name: string | null;
   short_bio: string | null;
-  bio_en: string | null;
+  // WS4 i18n migration: bio_en folded into bio_i18n {en,es,…}. Completion
+  // scoring only needs the English long-bio, read off the map below.
+  bio_i18n: Record<string, string> | null;
   phone: string | null;
   gender: string | null;
   date_of_birth: string | null;
@@ -216,13 +218,26 @@ export const loadTalentTaxonomyEditorData = cache(
         .from("talent_profile_taxonomy")
         .select("taxonomy_term_id, is_primary, taxonomy_terms(kind)")
         .eq("talent_profile_id", profile.id),
-      fetchAllTaxonomyTerms<TalentTaxonomyTermOption>(
+      // name_en/name_es folded into name_i18n {en,es} (WS4); flattened below.
+      fetchAllTaxonomyTerms<Omit<TalentTaxonomyTermOption, "name_en" | "name_es"> & {
+        name_i18n: Record<string, string | null> | null;
+      }>(
         supabase,
-        "id, kind, slug, name_en, name_es, sort_order",
+        "id, kind, slug, name_i18n, sort_order",
         (q) => q.is("archived_at", null),
       ).then(
-        (rows) => ({ data: rows, error: null as null }),
-        (error) => ({ data: null, error }),
+        (rows) => ({
+          data: rows.map((r) => ({
+            id: r.id,
+            kind: r.kind,
+            slug: r.slug,
+            name_en: r.name_i18n?.en ?? "",
+            name_es: r.name_i18n?.es ?? null,
+            sort_order: r.sort_order,
+          })),
+          error: null as null,
+        }),
+        (error) => ({ data: null as TalentTaxonomyTermOption[] | null, error }),
       ),
     ]);
 
@@ -312,7 +327,7 @@ async function loadTalentDashboardDataImpl(): Promise<TalentDashboardLoadResult>
         first_name,
         last_name,
         short_bio,
-        bio_en,
+        bio_i18n,
         phone,
         gender,
         date_of_birth,
@@ -442,7 +457,7 @@ async function loadTalentDashboardDataImpl(): Promise<TalentDashboardLoadResult>
       first_name: typedProfile.first_name,
       last_name: typedProfile.last_name,
       short_bio: typedProfile.short_bio,
-      bio_en: typedProfile.bio_en,
+      bio_en: typedProfile.bio_i18n?.en ?? null,
       phone: typedProfile.phone,
       gender: typedProfile.gender,
       date_of_birth: typedProfile.date_of_birth,

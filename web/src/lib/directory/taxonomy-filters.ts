@@ -46,8 +46,8 @@ async function loadTaxonomyTermsUncached(
     is_public_filter: boolean | null;
     is_active: boolean | null;
     search_synonyms: string[] | null;
-    name_en: string;
-    name_es: string | null;
+    // name_en/name_es folded into name_i18n {en,es} (WS4).
+    name_i18n: Record<string, string | null> | null;
     sort_order: number | null;
   };
 
@@ -61,7 +61,7 @@ async function loadTaxonomyTermsUncached(
   try {
     rows = await fetchAllTaxonomyTerms<TaxonomyTermRow>(
       supabase,
-      "id, slug, kind, term_type, parent_id, level, is_public_filter, is_active, search_synonyms, name_en, name_es, sort_order",
+      "id, slug, kind, term_type, parent_id, level, is_public_filter, is_active, search_synonyms, name_i18n, sort_order",
       (q) => q.is("archived_at", null),
     );
   } catch {
@@ -90,7 +90,8 @@ async function loadTaxonomyTermsUncached(
       is_enabled: boolean | null;
       show_in_directory: boolean | null;
       display_order: number | null;
-      custom_label: string | null;
+      // custom_label/custom_label_es folded into custom_label_i18n {en,es} (WS4).
+      custom_label_i18n: Record<string, string | null> | null;
     }
   >();
 
@@ -99,7 +100,7 @@ async function loadTaxonomyTermsUncached(
     if (!svc) return [];
     const { data: settings, error: settingsError } = await svc
       .from("agency_taxonomy_settings")
-      .select("taxonomy_term_id, is_enabled, show_in_directory, display_order, custom_label")
+      .select("taxonomy_term_id, is_enabled, show_in_directory, display_order, custom_label_i18n")
       .eq("tenant_id", tenantId);
     if (settingsError) return [];
     for (const setting of (settings ?? []) as Array<{
@@ -107,14 +108,14 @@ async function loadTaxonomyTermsUncached(
       is_enabled: boolean | null;
       show_in_directory: boolean | null;
       display_order: number | null;
-      custom_label: string | null;
+      custom_label_i18n: Record<string, string | null> | null;
     }>) {
       if (!setting.taxonomy_term_id) continue;
       tenantSettings.set(setting.taxonomy_term_id, {
         is_enabled: setting.is_enabled,
         show_in_directory: setting.show_in_directory,
         display_order: setting.display_order,
-        custom_label: setting.custom_label,
+        custom_label_i18n: setting.custom_label_i18n,
       });
     }
   }
@@ -150,8 +151,13 @@ async function loadTaxonomyTermsUncached(
         isActive: true,
         searchSynonyms: Array.isArray(row.search_synonyms) ? row.search_synonyms : [],
         name:
-          setting?.custom_label?.trim() ||
-          (locale === "es" && row.name_es ? row.name_es : row.name_en),
+          // tenant custom-label override (locale-aware, EN fallback), then the
+          // term's own per-locale name. All read off the *_i18n maps (WS4).
+          (locale === "es"
+            ? setting?.custom_label_i18n?.es?.trim() || setting?.custom_label_i18n?.en?.trim()
+            : setting?.custom_label_i18n?.en?.trim()) ||
+          (locale === "es" && row.name_i18n?.es ? row.name_i18n.es : row.name_i18n?.en) ||
+          row.slug,
       };
     })
     .sort((a, b) => {

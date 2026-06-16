@@ -49,7 +49,7 @@ export async function getResolvedContexts(input: {
     supabase
       .from("talent_profile_taxonomy")
       .select(
-        "taxonomy_term_id, taxonomy_terms!inner(id, slug, name_en, name_es, term_type, parent_id, sort_order)",
+        "taxonomy_term_id, taxonomy_terms!inner(id, slug, name_i18n, term_type, parent_id, sort_order)",
       )
       .eq("talent_profile_id", input.talent_profile_id)
       .eq("relationship_type", "context"),
@@ -63,13 +63,13 @@ export async function getResolvedContexts(input: {
     return { ok: false, error: CLIENT_ERROR.generic };
   }
 
+  // name_en/name_es folded into name_i18n {en,es} (WS4); flattened for the DTO.
   type Joined = {
     taxonomy_term_id: string;
     taxonomy_terms: {
       id: string;
       slug: string;
-      name_en: string;
-      name_es: string | null;
+      name_i18n: Record<string, string | null> | null;
       term_type: string;
       parent_id: string | null;
       sort_order: number | null;
@@ -95,13 +95,13 @@ export async function getResolvedContexts(input: {
   if (parentIds.length > 0) {
     const { data: groups } = await supabase
       .from("taxonomy_terms")
-      .select("id, slug, name_en, sort_order")
+      .select("id, slug, name_i18n, sort_order")
       .in("id", parentIds)
       .eq("term_type", "context_group");
     for (const g of groups ?? []) {
       groupById.set(g.id, {
         slug: g.slug,
-        name_en: g.name_en,
+        name_en: (g.name_i18n as Record<string, string | null> | null)?.en ?? "",
         sort_order: g.sort_order ?? 999,
       });
     }
@@ -109,12 +109,13 @@ export async function getResolvedContexts(input: {
 
   const contexts: ResolvedContext[] = ctxRows.map((r) => {
     const t = r.taxonomy_terms!;
+    const tNameMap = t.name_i18n as Record<string, string | null> | null;
     const g = t.parent_id ? groupById.get(t.parent_id) : undefined;
     return {
       context_term_id: t.id,
       context_slug: t.slug,
-      context_name_en: t.name_en,
-      context_name_es: t.name_es,
+      context_name_en: tNameMap?.en ?? "",
+      context_name_es: tNameMap?.es ?? null,
       group_id: t.parent_id,
       group_slug: g?.slug ?? null,
       group_name_en: g?.name_en ?? null,
@@ -147,14 +148,15 @@ export async function getContextCatalog(): Promise<
     await Promise.all([
       supabase
         .from("taxonomy_terms")
-        .select("id, slug, name_en, name_es, parent_id, sort_order")
+        // name_en/name_es folded into name_i18n {en,es} (WS4); flattened below.
+        .select("id, slug, name_i18n, parent_id, sort_order")
         .eq("term_type", "context")
         .eq("is_active", true)
         .eq("is_generic_fallback", false)
         .order("sort_order", { ascending: true }),
       supabase
         .from("taxonomy_terms")
-        .select("id, slug, name_en, sort_order")
+        .select("id, slug, name_i18n, sort_order")
         .eq("term_type", "context_group")
         .order("sort_order", { ascending: true }),
       supabase
@@ -179,7 +181,11 @@ export async function getContextCatalog(): Promise<
   const groupMeta = new Map(
     (groups ?? []).map((g) => [
       g.id,
-      { slug: g.slug, name_en: g.name_en, sort_order: g.sort_order ?? 999 },
+      {
+        slug: g.slug,
+        name_en: (g.name_i18n as Record<string, string | null> | null)?.en ?? "",
+        sort_order: g.sort_order ?? 999,
+      },
     ]),
   );
 
@@ -198,11 +204,12 @@ export async function getContextCatalog(): Promise<
         contexts: [],
       });
     }
+    const tNameMap = t.name_i18n as Record<string, string | null> | null;
     byGroup.get(gid)!.contexts.push({
       id: t.id,
       slug: t.slug,
-      name_en: t.name_en,
-      name_es: t.name_es,
+      name_en: tNameMap?.en ?? "",
+      name_es: tNameMap?.es ?? null,
       sort_order: t.sort_order ?? 999,
     });
   }

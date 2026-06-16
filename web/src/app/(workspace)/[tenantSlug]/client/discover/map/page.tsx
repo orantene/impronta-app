@@ -59,7 +59,7 @@ async function loadMappableTalents(): Promise<{
       locations!residence_city_id ( latitude, longitude ),
       talent_profile_taxonomy (
         relationship_type,
-        taxonomy_terms ( name_en )
+        taxonomy_terms ( name_i18n )
       ),
       agency_talent_roster!talent_profile_id (
         tenant_id, status, is_primary,
@@ -91,7 +91,7 @@ async function loadMappableTalents(): Promise<{
       | null;
     talent_profile_taxonomy: Array<{
       relationship_type: string | null;
-      taxonomy_terms: { name_en: string | null } | null;
+      taxonomy_terms: { name_i18n: Record<string, string | null> | null } | null;
     }> | null;
     agency_talent_roster: Array<{
       tenant_id: string;
@@ -171,7 +171,7 @@ async function loadMappableTalents(): Promise<{
       id: row.id,
       displayName,
       profileCode: row.profile_code,
-      primaryTypeLabel: primary?.taxonomy_terms?.name_en ?? null,
+      primaryTypeLabel: primary?.taxonomy_terms?.name_i18n?.en ?? null,
       homeCity: row.home_city_text,
       homeCountry: row.home_country_text,
       agencyName: agencyRow?.display_name ?? null,

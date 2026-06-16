@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     .from("talent_profiles")
     .select(
       `
-      id, profile_code, display_name, short_bio, bio_en, bio_es,
+      id, profile_code, display_name, short_bio, bio_i18n,
       phone, workflow_status, visibility, is_featured,
       profile_completeness_score, deleted_at
     `,
@@ -40,8 +40,7 @@ export async function GET(request: Request) {
     profile_code: string;
     display_name: string | null;
     short_bio: string | null;
-    bio_en: string | null;
-    bio_es: string | null;
+    bio_i18n: Record<string, string | null> | null;
     phone: string | null;
     workflow_status: string;
     visibility: string;
@@ -63,8 +62,8 @@ export async function GET(request: Request) {
 
   const warnings: string[] = [];
   if (!row.phone?.trim()) warnings.push("Phone not set");
-  if (!row.short_bio?.trim() && !row.bio_en?.trim()) warnings.push("No short bio or English bio");
-  if (!row.bio_es?.trim()) warnings.push("Spanish bio empty");
+  if (!row.short_bio?.trim() && !row.bio_i18n?.en?.trim()) warnings.push("No short bio or English bio");
+  if (!row.bio_i18n?.es?.trim()) warnings.push("Spanish bio empty");
   if (row.visibility === "hidden") warnings.push("Visibility is hidden");
   if (row.workflow_status !== "approved" && row.workflow_status !== "featured") {
     warnings.push(`Workflow: ${row.workflow_status.replace(/_/g, " ")}`);

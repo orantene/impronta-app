@@ -372,8 +372,7 @@ export function readDashboardNavGroupItems(
 type BProfileFieldDef = {
   id: string;
   field_key: string;
-  label: string | null;
-  label_es: string | null;
+  label_i18n: Record<string, string | null> | null;
   section: string | null;
   display_order: number | null;
   kind: string | null;
@@ -432,7 +431,7 @@ async function readFieldCatalogFromB(
     await Promise.all([
       supabase
         .from("profile_field_definitions")
-        .select("id, field_key, label, label_es, section, display_order, kind, deprecated_at, talent_editable")
+        .select("id, field_key, label_i18n, section, display_order, kind, deprecated_at, talent_editable")
         .in("field_key", bKeysNeeded)
         .is("deprecated_at", null)
         .eq("talent_editable", true),
@@ -462,8 +461,8 @@ async function readFieldCatalogFromB(
       id: bDef.id, // B def id — consistent across definitions + fieldValues
       field_group_id: skel.groupSlug, // group SLUG (matched to field_groups.slug)
       key: aKey,
-      label_en: bDef.label ?? aKey,
-      label_es: bDef.label_es ?? null,
+      label_en: bDef.label_i18n?.en ?? aKey,
+      label_es: bDef.label_i18n?.es ?? null,
       help_en: null,
       help_es: null,
       value_type: bKindToValueType(bDef.kind),

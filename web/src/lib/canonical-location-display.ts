@@ -6,10 +6,11 @@
  * every row is backfilled and the mirror is removed (see comment on LEGACY_LOCATION_READS below).
  */
 
-/** Minimal shape returned from `locations` embeds on public reads. */
+/** Minimal shape returned from `locations` embeds on public reads.
+ *  `display_name_i18n` is the per-locale JSONB map (`{"en":…,"es":…}`) that
+ *  replaced the dropped `display_name_en` / `display_name_es` columns. */
 export type CanonicalLocationEmbed = {
-  display_name_en: string | null;
-  display_name_es?: string | null;
+  display_name_i18n: Record<string, string | null> | null;
   country_code?: string | null;
 };
 
@@ -44,10 +45,11 @@ export function formatCityCountryLabel(
 ): string {
   const loc = normalizeEmbed(row);
   if (!loc) return "";
+  const i18n = loc.display_name_i18n ?? {};
   const city =
-    locale === "es" && loc.display_name_es?.trim()
-      ? loc.display_name_es.trim()
-      : loc.display_name_en?.trim() ?? "";
+    locale === "es" && i18n.es?.trim()
+      ? i18n.es.trim()
+      : i18n.en?.trim() ?? "";
   const country = loc.country_code?.trim() ?? "";
   if (city && country) return `${city}, ${country}`;
   return city || country;

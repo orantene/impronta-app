@@ -25,8 +25,8 @@ export type GroupDetail = {
 type GroupRow = {
   id: string;
   slug: string;
-  name_en: string;
-  name_es: string | null;
+  // name_en/name_es folded into name_i18n {en,es} (WS3); description_* kept.
+  name_i18n: Record<string, string | null> | null;
   description_en: string | null;
   description_es: string | null;
   sort_order: number;
@@ -42,7 +42,7 @@ export async function loadFieldGroupDetail(id: string): Promise<GroupDetail | nu
       sb
         .from("profile_field_groups")
         .select(
-          "id, slug, name_en, name_es, description_en, description_es, sort_order, is_active",
+          "id, slug, name_i18n, description_en, description_es, sort_order, is_active",
         )
         .eq("id", id)
         .maybeSingle(),
@@ -76,12 +76,17 @@ export async function loadFieldGroupDetail(id: string): Promise<GroupDetail | nu
           ];
           const termsR = await sb
             .from("taxonomy_terms")
-            .select("name_en")
+            // name_en folded into name_i18n {en,es} (WS4).
+            .select("name_i18n")
             .in("id", termIds)
-            .order("name_en");
+            .order("name_i18n->>en");
 
           if (!termsR.error && termsR.data) {
-            mapped_talent_types = (termsR.data as Array<{ name_en: string }>).map((t) => t.name_en);
+            mapped_talent_types = (
+              termsR.data as Array<{ name_i18n: Record<string, string | null> | null }>
+            )
+              .map((t) => t.name_i18n?.en ?? "")
+              .filter((n) => n.length > 0);
           }
         }
       } catch (e) {
@@ -92,8 +97,8 @@ export async function loadFieldGroupDetail(id: string): Promise<GroupDetail | nu
     return {
       id: group.id,
       slug: group.slug,
-      name_en: group.name_en,
-      name_es: group.name_es,
+      name_en: group.name_i18n?.en ?? "",
+      name_es: group.name_i18n?.es ?? null,
       description_en: group.description_en,
       description_es: group.description_es,
       sort_order: group.sort_order ?? 100,

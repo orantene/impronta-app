@@ -48,9 +48,10 @@ export const taxonomyTermNameAdapter: TranslationCenterAdapter = {
     let offset = 0;
 
     while (offset < MAX) {
+      // name_en/name_es folded into name_i18n {en,es} (WS4 migration).
       const { data, error } = await supabase
         .from("taxonomy_terms")
-        .select("name_en, name_es")
+        .select("name_i18n")
         .is("archived_at", null)
         .order("kind", { ascending: true })
         .order("slug", { ascending: true })
@@ -62,11 +63,11 @@ export const taxonomyTermNameAdapter: TranslationCenterAdapter = {
       }
       if (!data?.length) break;
 
-      for (const row of data as { name_en: string; name_es: string | null }[]) {
+      for (const row of data as { name_i18n: Record<string, string | null> | null }[]) {
         base.counts.applicableRequired += 1;
         const h = healthPairedColumnsEsTarget({
-          source: row.name_en,
-          target: row.name_es,
+          source: row.name_i18n?.en ?? null,
+          target: row.name_i18n?.es ?? null,
           sourceUpdatedAt: null,
           targetUpdatedAt: null,
           hasReliableTimestamps: false,
@@ -90,21 +91,23 @@ export const taxonomyTermNameAdapter: TranslationCenterAdapter = {
       return { units: [], hasMore: false, loadError: null };
     }
 
+    // name_en/name_es folded into name_i18n {en,es} (WS4); sort + status filters
+    // move to JSONB-path expressions.
     const orderCol =
       params.taxonomySort === "name_es"
-        ? "name_es"
+        ? "name_i18n->>es"
         : params.taxonomySort === "slug"
           ? "slug"
           : params.taxonomySort === "updated"
             ? "updated_at"
             : params.taxonomySort === "name_en"
-              ? "name_en"
+              ? "name_i18n->>en"
               : "kind";
     const ascending = params.sortDir === "asc";
 
     let tq = supabase
       .from("taxonomy_terms")
-      .select("id, kind, slug, name_en, name_es, updated_at")
+      .select("id, kind, slug, name_i18n, updated_at")
       .is("archived_at", null)
       .order(orderCol, { ascending, nullsFirst: false })
       .order("kind", { ascending: true })
@@ -114,14 +117,14 @@ export const taxonomyTermNameAdapter: TranslationCenterAdapter = {
 
     const st = params.statusFilter;
     if (st === "missing") {
-      tq = tq.or("name_es.is.null,name_es.eq.");
+      tq = tq.or("name_i18n->>es.is.null,name_i18n->>es.eq.");
     } else if (st === "complete" || st === "translated" || st === "published") {
-      tq = tq.not("name_es", "is", null).neq("name_es", "");
+      tq = tq.not("name_i18n->>es", "is", null).neq("name_i18n->>es", "");
     }
 
     if (params.q.trim()) {
       const escaped = params.q.trim().replace(/[%_]/g, "\\$&");
-      tq = tq.or(`name_en.ilike.%${escaped}%,slug.ilike.%${escaped}%`);
+      tq = tq.or(`name_i18n->>en.ilike.%${escaped}%,slug.ilike.%${escaped}%`);
     }
 
     const { data, error } = await tq;
@@ -134,18 +137,19 @@ export const taxonomyTermNameAdapter: TranslationCenterAdapter = {
       id: string;
       kind: string;
       slug: string;
-      name_en: string;
-      name_es: string | null;
+      name_i18n: Record<string, string | null> | null;
       updated_at: string;
     }>;
     if (st === "complete" || st === "translated" || st === "published") {
-      rows = rows.filter((r) => (r.name_es ?? "").trim().length > 0);
+      rows = rows.filter((r) => (r.name_i18n?.es ?? "").trim().length > 0);
     }
 
     const units: TranslationUnitDTO[] = rows.map((row) => {
+      const nameEn = row.name_i18n?.en ?? null;
+      const nameEs = row.name_i18n?.es ?? null;
       const h = healthPairedColumnsEsTarget({
-        source: row.name_en,
-        target: row.name_es,
+        source: nameEn,
+        target: nameEs,
         sourceUpdatedAt: null,
         targetUpdatedAt: null,
         hasReliableTimestamps: false,
@@ -159,10 +163,10 @@ export const taxonomyTermNameAdapter: TranslationCenterAdapter = {
         fieldKey: "name",
         groupKey: domain.groupKey,
         contentClass: domain.contentClass,
-        displayLabel: `${row.kind}: ${row.name_en}`,
+        displayLabel: `${row.kind}: ${nameEn ?? ""}`,
         health: h.health,
         integrityFlags: h.integrityFlags,
-        localeSummary: `ES: ${(row.name_es ?? "").trim() ? "✓" : "—"}`,
+        localeSummary: `ES: ${(nameEs ?? "").trim() ? "✓" : "—"}`,
         updatedAt: row.updated_at,
         adminHref,
         inlineEdit: buildTranslationUnitInlineEdit({ domain, open_full_editor_url: adminHref }),

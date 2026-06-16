@@ -24,14 +24,12 @@ type Row = {
   residence_city:
     | {
         id: string;
-        display_name_en: string | null;
-        display_name_es: string | null;
+        display_name_i18n: Record<string, string | null> | null;
         country_code: string | null;
       }
     | {
         id: string;
-        display_name_en: string | null;
-        display_name_es: string | null;
+        display_name_i18n: Record<string, string | null> | null;
         country_code: string | null;
       }[]
     | null;
@@ -57,7 +55,7 @@ export async function fetchTenantRosterCities(params: {
     const { data, error } = await supabase
       .from("talent_profiles")
       .select(
-        `id, residence_city:locations!residence_city_id ( id, display_name_en, display_name_es, country_code )`,
+        `id, residence_city:locations!residence_city_id ( id, display_name_i18n, country_code )`,
       )
       .in("id", roster)
       .is("deleted_at", null);
@@ -75,9 +73,10 @@ export async function fetchTenantRosterCities(params: {
     for (const r of (data ?? []) as Row[]) {
       const city = one(r.residence_city);
       if (!city?.id) continue;
+      const i18n = city.display_name_i18n ?? {};
       const label =
-        (locale === "es" ? city.display_name_es : city.display_name_en) ??
-        city.display_name_en ??
+        (locale === "es" ? i18n.es : i18n.en) ??
+        i18n.en ??
         "";
       if (!label) continue;
       const slot =

@@ -110,7 +110,8 @@ const EMPTY: TenantCatalogPosture = {
 type DefRow = {
   id: string;
   field_key: string | null;
-  label: string | null;
+  // label folded into label_i18n {en,es} (WS3); resolved to .en at the reads.
+  label_i18n: Record<string, string | null> | null;
   tier: string | null;
   default_visibility: unknown;
   admin_only: boolean | null;
@@ -137,7 +138,8 @@ type GroupSettingRow = {
 
 type GroupRow = {
   id: string;
-  name_en: string | null;
+  // name_en folded into name_i18n {en,es} (WS3); resolved to .en at the read.
+  name_i18n: Record<string, string | null> | null;
   slug: string | null;
 };
 
@@ -228,7 +230,7 @@ async function loadTenantCatalogPostureUncached(
       const { data: defsData } = await sb
         .from("profile_field_definitions")
         .select(
-          "id, field_key, label, tier, default_visibility, admin_only, is_sensitive, show_in_public, deprecated_at",
+          "id, field_key, label_i18n, tier, default_visibility, admin_only, is_sensitive, show_in_public, deprecated_at",
         )
         .in("id", overrideDefIds);
 
@@ -267,7 +269,7 @@ async function loadTenantCatalogPostureUncached(
           return {
             field_definition_id: d.id,
             field_key: key,
-            label: d.label ?? key,
+            label: d.label_i18n?.en ?? key,
             tier: d.tier ?? "unknown",
             platformVisibility,
             effectiveVisibility,
@@ -294,7 +296,7 @@ async function loadTenantCatalogPostureUncached(
     if (groupIds.length > 0) {
       const { data: groupsData } = await sb
         .from("profile_field_groups")
-        .select("id, name_en, slug")
+        .select("id, name_i18n, slug")
         .in("id", groupIds);
 
       const groupById = new Map<string, GroupRow>(
@@ -306,7 +308,7 @@ async function loadTenantCatalogPostureUncached(
           const g = groupById.get(gs.field_group_id);
           return {
             field_group_id: gs.field_group_id,
-            group_name: g?.name_en ?? g?.slug ?? gs.field_group_id,
+            group_name: g?.name_i18n?.en ?? g?.slug ?? gs.field_group_id,
             is_enabled: gs.is_enabled,
             custom_label: gs.custom_label,
           };
@@ -339,7 +341,7 @@ async function loadTenantCatalogPostureUncached(
         const { data: adoptionDefs } = await sb
           .from("profile_field_definitions")
           .select(
-            "id, field_key, label, tier, default_visibility, admin_only, is_sensitive, show_in_public, deprecated_at",
+            "id, field_key, label_i18n, tier, default_visibility, admin_only, is_sensitive, show_in_public, deprecated_at",
           )
           .in("id", adoptionDefIds);
 
@@ -352,7 +354,7 @@ async function loadTenantCatalogPostureUncached(
             return {
               field_definition_id: d.id,
               field_key: key,
-              label: d.label ?? key,
+              label: d.label_i18n?.en ?? key,
               tier: d.tier ?? "unknown",
               platformVisibility: platformBaseVisibility({
                 default_visibility: dv,

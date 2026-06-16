@@ -161,19 +161,19 @@ async function loadDirectoryFilterSectionsUncached(
     ),
   ];
 
+  // taxonomy_terms.name_en/_es → name_i18n and locations.display_name_en/_es →
+  // display_name_i18n (WS4 i18n migration); both read via the map below.
   type TaxonomyTermRow = {
     id: string;
     kind: string;
-    name_en: string;
-    name_es: string | null;
+    name_i18n: Record<string, string | null> | null;
     sort_order: number;
     slug: string;
   };
   type LocationRow = {
     id: string;
     city_slug: string;
-    display_name_en: string;
-    display_name_es: string | null;
+    display_name_i18n: Record<string, string | null> | null;
     country_code: string;
   };
 
@@ -186,7 +186,7 @@ async function loadDirectoryFilterSectionsUncached(
     taxonomyKinds.length > 0
       ? fetchAllTaxonomyTerms<TaxonomyTermRow>(
           supabase,
-          "id, kind, name_en, name_es, sort_order, slug",
+          "id, kind, name_i18n, sort_order, slug",
           (q) => q.in("kind", taxonomyKinds).is("archived_at", null),
         ).then(
           (rows) => ({
@@ -211,9 +211,9 @@ async function loadDirectoryFilterSectionsUncached(
       if (!tenantId) {
         return supabase
           .from("locations")
-          .select("id, city_slug, display_name_en, display_name_es, country_code")
+          .select("id, city_slug, display_name_i18n, country_code")
           .is("archived_at", null)
-          .order("display_name_en");
+          .order("display_name_i18n->>en");
       }
       const rosterRes = await supabase
         .from("agency_talent_roster")
@@ -246,10 +246,10 @@ async function loadDirectoryFilterSectionsUncached(
       }
       return supabase
         .from("locations")
-        .select("id, city_slug, display_name_en, display_name_es, country_code")
+        .select("id, city_slug, display_name_i18n, country_code")
         .is("archived_at", null)
         .in("id", [...cityIdSet])
-        .order("display_name_en");
+        .order("display_name_i18n->>en");
     })(),
   ]);
 
@@ -267,13 +267,13 @@ async function loadDirectoryFilterSectionsUncached(
     const list = taxonomyByKind.get(row.kind) ?? [];
     list.push({
       id: row.id,
-      label: pickLabel(locale, row.name_en, row.name_es),
+      label: pickLabel(locale, row.name_i18n?.en ?? "", row.name_i18n?.es ?? null),
     });
     taxonomyByKind.set(row.kind, list);
   }
 
   const locationOptions: DirectoryFilterOption[] = ((locationsRes.data ?? []) as LocationRow[]).map((l) => {
-    const city = pickLabel(locale, l.display_name_en, l.display_name_es);
+    const city = pickLabel(locale, l.display_name_i18n?.en ?? "", l.display_name_i18n?.es ?? null);
     const cc = String(l.country_code ?? "").trim();
     return { id: String(l.city_slug), label: cc ? `${city}, ${cc}` : city };
   });

@@ -182,12 +182,19 @@ async function loadTaxonomy(): Promise<{
     // Page by `id`, then re-sort by the original display order (level →
     // sort_order) below. The display tree is independently re-sorted in
     // `sortTree`, so this only restores the incidental flat order.
-    fetchAllTaxonomyTerms<FlatTaxonomyRow>(
+    // name_en/name_es folded into name_i18n {en,es} (WS4); flattened below.
+    fetchAllTaxonomyTerms<Omit<FlatTaxonomyRow, "name_en" | "name_es"> & {
+      name_i18n: Record<string, string | null> | null;
+    }>(
       sb,
-      "id, slug, name_en, name_es, plural_name, description, icon, term_type, level, parent_id, sort_order, aliases, search_synonyms, ai_keywords, is_active, archived_at, is_public_filter, is_visible_by_default, is_profile_badge, is_restricted, is_generic_fallback, restriction_level",
+      "id, slug, name_i18n, plural_name, description, icon, term_type, level, parent_id, sort_order, aliases, search_synonyms, ai_keywords, is_active, archived_at, is_public_filter, is_visible_by_default, is_profile_badge, is_restricted, is_generic_fallback, restriction_level",
     ).then((rows) => ({
       data: rows
-        .slice()
+        .map((r) => ({
+          ...r,
+          name_en: r.name_i18n?.en ?? "",
+          name_es: r.name_i18n?.es ?? null,
+        }))
         .sort((a, b) => a.level - b.level || a.sort_order - b.sort_order),
       error: null as null,
     })),
@@ -206,8 +213,9 @@ async function loadTaxonomy(): Promise<{
       .limit(8),
     sb
       .from("profile_field_definitions")
-      .select("id, field_key, label, tier, section, deprecated_at")
-      .order("label", { ascending: true }),
+      // label folded into label_i18n {en,es} (WS3); flattened below.
+      .select("id, field_key, label_i18n, tier, section, deprecated_at")
+      .order("label_i18n->>en", { ascending: true }),
   ]);
 
   if (termsR.error || recsR.error || fieldsR.error) return null;
@@ -251,9 +259,14 @@ async function loadTaxonomy(): Promise<{
   };
   for (const term of terms) collectDescendants(term);
 
-  const fieldOptions = ((fieldsR.data ?? []) as TaxonomyFieldOption[]).sort((a, b) =>
-    a.label.localeCompare(b.label) || a.field_key.localeCompare(b.field_key),
-  );
+  // label folded into label_i18n (WS3); flatten to the TaxonomyFieldOption DTO.
+  const fieldOptions: TaxonomyFieldOption[] = (
+    (fieldsR.data ?? []) as Array<
+      Omit<TaxonomyFieldOption, "label"> & { label_i18n: Record<string, string | null> | null }
+    >
+  )
+    .map((f) => ({ ...f, label: f.label_i18n?.en ?? "" }))
+    .sort((a, b) => a.label.localeCompare(b.label) || a.field_key.localeCompare(b.field_key));
   const fieldById = new Map(fieldOptions.map((field) => [field.id, field] as const));
   const recs = (recsR.data ?? []) as Array<{
     id: string;

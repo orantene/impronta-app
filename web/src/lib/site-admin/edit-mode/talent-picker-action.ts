@@ -43,15 +43,15 @@ type Row = {
   profile_code: string;
   display_name: string | null;
   residence_city:
-    | { display_name_en: string | null; display_name_es: string | null }
-    | { display_name_en: string | null; display_name_es: string | null }[]
+    | { display_name_i18n: Record<string, string | null> | null }
+    | { display_name_i18n: Record<string, string | null> | null }[]
     | null;
   talent_profile_taxonomy:
     | Array<{
         is_primary: boolean | null;
         taxonomy_terms:
-          | { name_en: string | null; name_es: string | null }
-          | { name_en: string | null; name_es: string | null }[]
+          | { name_i18n: Record<string, string | null> | null }
+          | { name_i18n: Record<string, string | null> | null }[]
           | null;
       }>
     | null;
@@ -83,8 +83,8 @@ export async function searchTenantTalent(input: {
       .from("talent_profiles")
       .select(
         `id, profile_code, display_name,
-         residence_city:locations!residence_city_id ( display_name_en, display_name_es ),
-         talent_profile_taxonomy ( is_primary, taxonomy_terms ( name_en, name_es ) )`,
+         residence_city:locations!residence_city_id ( display_name_i18n ),
+         talent_profile_taxonomy ( is_primary, taxonomy_terms ( name_i18n ) )`,
       )
       .in("id", rosterIds)
       .is("deleted_at", null)
@@ -112,7 +112,7 @@ export async function searchTenantTalent(input: {
       .map((r) => {
         const city = one(r.residence_city);
         const cityLabel =
-          city?.display_name_en ?? city?.display_name_es ?? null;
+          city?.display_name_i18n?.en ?? city?.display_name_i18n?.es ?? null;
         const primary = (r.talent_profile_taxonomy ?? []).find(
           (t) => t.is_primary === true,
         );
@@ -121,7 +121,7 @@ export async function searchTenantTalent(input: {
           talentProfileId: r.id,
           profileCode: r.profile_code,
           displayName: r.display_name ?? r.profile_code,
-          primaryTypeLabel: term?.name_en ?? term?.name_es ?? null,
+          primaryTypeLabel: term?.name_i18n?.en ?? term?.name_i18n?.es ?? null,
           cityLabel,
         };
       })

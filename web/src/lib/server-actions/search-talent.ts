@@ -126,7 +126,7 @@ export async function searchTalent(
           total_completed_bookings,
           profile_completeness_pct,
           media_assets ( storage_path, variant_kind, sort_order, deleted_at, approval_state, width, height ),
-          talent_service_areas ( service_kind, locations ( display_name_en ) )
+          talent_service_areas ( service_kind, locations ( display_name_i18n ) )
         )
       `,
     )
@@ -175,7 +175,7 @@ export async function searchTalent(
     .from("talent_profile_taxonomy")
     .select(
       `talent_profile_id, taxonomy_term_id, relationship_type,
-       taxonomy_terms!inner ( slug, name_en, term_type )`,
+       taxonomy_terms!inner ( slug, term_type )`,
     )
     .in("talent_profile_id", candidateIds)
     .eq("relationship_type", "context");
@@ -214,7 +214,7 @@ export async function searchTalent(
       }> | null;
       talent_service_areas: Array<{
         service_kind: string | null;
-        locations: { display_name_en: string | null } | null;
+        locations: { display_name_i18n: Record<string, string | null> | null } | null;
       }> | null;
     };
 
@@ -260,7 +260,7 @@ export async function searchTalent(
     if (v.service_area_cities && v.service_area_cities.length > 0) {
       const cities = new Set(
         (profile.talent_service_areas ?? [])
-          .map((sa) => sa.locations?.display_name_en?.toLowerCase())
+          .map((sa) => sa.locations?.display_name_i18n?.en?.toLowerCase())
           .filter(Boolean) as string[],
       );
       const wanted = v.service_area_cities.map((c) => c.toLowerCase());
@@ -338,7 +338,7 @@ export async function searchTalent(
         profile.display_name ||
         `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim() ||
         "Unnamed talent",
-      home_base_city: homeBase?.locations?.display_name_en ?? null,
+      home_base_city: homeBase?.locations?.display_name_i18n?.en ?? null,
       thumbnail_storage_path: thumb,
       featured_skill_name: featured?.skill_name_en ?? null,
       featured_skill_slug: featured?.skill_slug ?? null,

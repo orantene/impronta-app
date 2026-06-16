@@ -39,6 +39,28 @@ function intOrNull(fd: FormData, key: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/**
+ * Build the `name_i18n` JSONB map (WS4 migration) from the EN/ES name form
+ * fields, merging onto an existing map so unrelated locales survive. A blank
+ * locale value deletes that key.
+ */
+function nameI18nFromForm(
+  fd: FormData,
+  existing?: Record<string, string | null> | null,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(existing ?? {})) {
+    if (typeof v === "string" && v.trim().length > 0) out[k] = v;
+  }
+  const en = text(fd, "name_en");
+  if (en) out.en = en;
+  else delete out.en;
+  const es = text(fd, "name_es");
+  if (es) out.es = es;
+  else delete out.es;
+  return out;
+}
+
 function checked(fd: FormData, key: string): boolean {
   return fd.get(key) === "on";
 }
@@ -152,8 +174,9 @@ export async function createPlatformTaxonomyTermAction(formData: FormData): Prom
     term_type: termType,
     level: intOrNull(formData, "level") ?? defaultLevelFor(termType),
     slug,
-    name_en: nameEn,
-    name_es: text(formData, "name_es"),
+    // name_en/name_es folded into name_i18n {en,es} (WS4). plural_name stays a
+    // dedicated column (not migrated).
+    name_i18n: nameI18nFromForm(formData),
     plural_name: text(formData, "plural_name") ?? nameEn,
     description: text(formData, "description"),
     icon: text(formData, "icon"),
@@ -232,10 +255,23 @@ export async function updatePlatformTaxonomyTermAction(formData: FormData): Prom
   //     type save nulled parent_id and ORPHANED the type from its group.
   //   - name_es / plural_name / description / icon are nullable text → guard so
   //     a blank/partial submit can't clobber an existing Spanish value.
+  // name_en/name_es folded into name_i18n {en,es} (WS4). Preserve-on-blank
+  // semantics: an omitted EN/ES form field keeps the existing map value (mirrors
+  // the legacy `?? beforeRow.name_x`), so a partial save never clears a locale.
+  const beforeNameI18n =
+    (beforeRow.name_i18n as Record<string, string | null> | null) ?? {};
+  const patchNameI18n: Record<string, string> = {};
+  for (const [k, v] of Object.entries(beforeNameI18n)) {
+    if (typeof v === "string" && v.trim().length > 0) patchNameI18n[k] = v;
+  }
+  const formNameEn = text(formData, "name_en");
+  if (formNameEn) patchNameI18n.en = formNameEn;
+  const formNameEs = text(formData, "name_es");
+  if (formNameEs) patchNameI18n.es = formNameEs;
+
   const patch = {
     slug: text(formData, "slug") ?? beforeRow.slug,
-    name_en: text(formData, "name_en") ?? beforeRow.name_en,
-    name_es: text(formData, "name_es") ?? beforeRow.name_es,
+    name_i18n: patchNameI18n,
     plural_name: text(formData, "plural_name") ?? beforeRow.plural_name,
     description: text(formData, "description") ?? beforeRow.description,
     icon: text(formData, "icon") ?? beforeRow.icon,
@@ -358,10 +394,11 @@ export async function movePlatformTaxonomyTermAction(formData: FormData): Promis
 
   let siblingsQuery = auth.sb
     .from("taxonomy_terms")
-    .select("id, slug, sort_order, name_en, parent_id, term_type")
+    // name_en folded into name_i18n {en,es} (WS4); only used as a sort key here.
+    .select("id, slug, sort_order, parent_id, term_type")
     .eq("term_type", term.term_type)
     .order("sort_order", { ascending: true })
-    .order("name_en", { ascending: true });
+    .order("name_i18n->>en", { ascending: true });
 
   siblingsQuery = term.parent_id
     ? siblingsQuery.eq("parent_id", term.parent_id)
@@ -422,7 +459,8 @@ export async function reorderPlatformTaxonomySiblingsAction(formData: FormData):
 
   const { data: rows, error } = await auth.sb
     .from("taxonomy_terms")
-    .select("id, slug, sort_order, name_en, parent_id, term_type")
+    // name_en folded into name_i18n {en,es} (WS4); used as a sort tiebreaker below.
+    .select("id, slug, sort_order, name_i18n, parent_id, term_type")
     .in("id", orderedIds);
 
   if (error || !rows || rows.length !== orderedIds.length) {
@@ -445,7 +483,11 @@ export async function reorderPlatformTaxonomySiblingsAction(formData: FormData):
 
   const beforeValue = rows
     .slice()
-    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name_en.localeCompare(b.name_en))
+    .sort((a, b) => {
+      const an = (a.name_i18n as Record<string, string | null> | null)?.en ?? "";
+      const bn = (b.name_i18n as Record<string, string | null> | null)?.en ?? "";
+      return (a.sort_order ?? 0) - (b.sort_order ?? 0) || an.localeCompare(bn);
+    })
     .map((row) => ({ id: row.id, sort_order: row.sort_order }));
   const afterValue = orderedIds.map((id, i) => ({ id, sort_order: (i + 1) * 10 }));
   const now = new Date().toISOString();
@@ -495,12 +537,14 @@ export async function setPlatformTaxonomyFieldMappingAction(formData: FormData):
   const [{ data: term }, { data: field }] = await Promise.all([
     auth.sb
       .from("taxonomy_terms")
-      .select("id, slug, name_en")
+      // name_en folded into name_i18n (WS4); only slug is read below.
+      .select("id, slug")
       .eq("id", taxonomyTermId)
       .maybeSingle(),
     auth.sb
       .from("profile_field_definitions")
-      .select("id, field_key, label, deprecated_at")
+      // label folded into label_i18n (WS3); only deprecated_at is read below.
+      .select("id, field_key, deprecated_at")
       .eq("id", fieldDefinitionId)
       .maybeSingle(),
   ]);

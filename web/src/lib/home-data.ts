@@ -65,7 +65,7 @@ export async function getHomepageData({ tenantId }: { tenantId: string }) {
   // applied taxonomy v2 yet (term_type column absent).
   const typesFull = await supabase
     .from("taxonomy_terms")
-    .select("id, slug, name_en, promo_image_storage_path, promo_placements")
+    .select("id, slug, name_i18n, promo_image_storage_path, promo_placements")
     .eq("term_type", "parent_category")
     .eq("is_public_filter", true)
     .is("archived_at", null)
@@ -74,7 +74,7 @@ export async function getHomepageData({ tenantId }: { tenantId: string }) {
   type TalentTypeRow = {
     id: string;
     slug: string;
-    name_en: string;
+    name_i18n: Record<string, string | null> | null;
     promo_image_storage_path?: string | null;
     promo_placements?: string[] | null;
   };
@@ -85,7 +85,7 @@ export async function getHomepageData({ tenantId }: { tenantId: string }) {
   } else if (typesFull.error && isMissingTaxonomyPromoColumnsError(typesFull.error)) {
     const leg = await supabase
       .from("taxonomy_terms")
-      .select("id, slug, name_en")
+      .select("id, slug, name_i18n")
       .eq("kind", "talent_type")
       .is("archived_at", null)
       .order("sort_order");
@@ -93,7 +93,7 @@ export async function getHomepageData({ tenantId }: { tenantId: string }) {
       logServerError("home/getHomepageData/talentTypes", leg.error);
     } else {
       talentTypeRows = (leg.data ?? []).map((t) => ({
-        ...(t as { id: string; slug: string; name_en: string }),
+        ...(t as { id: string; slug: string; name_i18n: Record<string, string | null> | null }),
         promo_image_storage_path: null,
         promo_placements: [] as string[],
       }));
@@ -112,11 +112,11 @@ export async function getHomepageData({ tenantId }: { tenantId: string }) {
           is_featured,
           location_id,
           residence_city_id,
-          residence_city:locations!residence_city_id ( display_name_en, display_name_es, country_code ),
-          legacy_location:locations!location_id ( display_name_en, display_name_es, country_code ),
+          residence_city:locations!residence_city_id ( display_name_i18n, country_code ),
+          legacy_location:locations!location_id ( display_name_i18n, country_code ),
           talent_profile_taxonomy (
             is_primary,
-            taxonomy_terms ( kind, name_en )
+            taxonomy_terms ( kind, name_i18n )
           )
         `)
         .in("id", rosterTalentIds)
@@ -133,16 +133,16 @@ export async function getHomepageData({ tenantId }: { tenantId: string }) {
 
     supabase
       .from("taxonomy_terms")
-      .select("id, slug, name_en")
+      .select("id, slug, name_i18n")
       .eq("kind", "fit_label")
       .is("archived_at", null)
       .order("sort_order"),
 
     supabase
       .from("locations")
-      .select("id, city_slug, display_name_en, country_code, latitude, longitude")
+      .select("id, city_slug, display_name_i18n, country_code, latitude, longitude")
       .is("archived_at", null)
-      .order("display_name_en"),
+      .order("display_name_i18n->>en"),
   ]);
 
   const talentTypes = talentTypeRows.map((t) => {
@@ -158,7 +158,7 @@ export async function getHomepageData({ tenantId }: { tenantId: string }) {
     return {
       id: t.id,
       slug: t.slug,
-      name: t.name_en,
+      name: t.name_i18n?.en ?? t.slug,
       imageUrl,
     };
   });
@@ -224,7 +224,7 @@ export async function getHomepageData({ tenantId }: { tenantId: string }) {
   const fitLabels: FitLabelItem[] = (fitRes.data ?? []).map((f) => ({
     id: f.id,
     slug: f.slug,
-    name: f.name_en,
+    name: (f as { name_i18n?: Record<string, string | null> | null }).name_i18n?.en ?? f.slug,
   }));
 
   // Count talent per location
@@ -312,7 +312,7 @@ export async function getHomepageData({ tenantId }: { tenantId: string }) {
       return {
         id: l.id,
         citySlug: l.city_slug,
-        displayName: l.display_name_en,
+        displayName: (l as { display_name_i18n?: Record<string, string | null> | null }).display_name_i18n?.en ?? l.city_slug,
         countryCode: l.country_code,
         talentCount: locationCounts[l.id] ?? 0,
         latitude: resolved?.lat ?? null,

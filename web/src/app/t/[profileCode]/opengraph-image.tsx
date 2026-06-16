@@ -13,7 +13,7 @@ export const contentType = "image/png";
 
 type TaxonomyTerm = {
   kind: string;
-  name_en: string;
+  name_i18n: Record<string, string | null> | null;
 };
 
 type TaxonomyRow = {
@@ -52,8 +52,9 @@ function primaryTalentType(rows: TaxonomyRow[] | null): string | null {
       : [];
     for (const term of terms) {
       if (term.kind !== "talent_type") continue;
-      if (row.is_primary) return term.name_en;
-      if (!fallback) fallback = term.name_en;
+      const nm = term.name_i18n?.en ?? "";
+      if (row.is_primary) return nm;
+      if (!fallback) fallback = nm;
     }
   }
   return fallback;
@@ -75,7 +76,7 @@ export default async function Image({
       .from("talent_profiles")
       .select(
         `id, profile_code, display_name, first_name, last_name,
-         talent_profile_taxonomy ( is_primary, taxonomy_terms ( kind, name_en ) )`,
+         talent_profile_taxonomy ( is_primary, taxonomy_terms ( kind, name_i18n ) )`,
       )
       .eq("profile_code", profileCode)
       .eq("workflow_status", "approved")

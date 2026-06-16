@@ -188,11 +188,11 @@ async function loadClientDashboardDataImpl(): Promise<ClientDashboardLoadResult>
       new Set(inquiryRows.map((inquiry) => inquiry.event_type_id).filter(Boolean)),
     ) as string[];
 
-    type EventTypeRow = { id: string; name_en: string };
+    type EventTypeRow = { id: string; name_i18n: Record<string, string | null> | null };
 
     const [{ data: eventTypes }, { data: whatsappSetting }] = await Promise.all([
       eventTypeIds.length > 0
-        ? supabase.from("taxonomy_terms").select("id, name_en").in("id", eventTypeIds)
+        ? supabase.from("taxonomy_terms").select("id, name_i18n").in("id", eventTypeIds)
         : Promise.resolve({ data: [] as EventTypeRow[] }),
       pub
         ? pub.from("settings").select("value").eq("key", "agency_whatsapp_number").maybeSingle()
@@ -200,7 +200,7 @@ async function loadClientDashboardDataImpl(): Promise<ClientDashboardLoadResult>
     ]);
 
     const eventTypeMap = new Map(
-      ((eventTypes ?? []) as EventTypeRow[]).map((row) => [row.id, row.name_en] as const),
+      ((eventTypes ?? []) as EventTypeRow[]).map((row) => [row.id, row.name_i18n?.en ?? ""] as const),
     );
     const agencyWhatsAppNumber =
       typeof whatsappSetting?.value === "string" ? whatsappSetting.value : undefined;

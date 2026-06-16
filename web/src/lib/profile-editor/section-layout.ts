@@ -135,8 +135,9 @@ type GroupRow = {
 
 type SectionRow = {
   slug: string;
-  label_en: string;
-  label_es: string | null;
+  // profile_editor_sections.label_en/label_es folded into label_i18n (WS3).
+  // (section_GROUPS still carry label_en/label_es — those are NOT migrated.)
+  label_i18n: Record<string, string | null> | null;
   emoji: string;
   section_group_id: string | null;
   sort_order: number;
@@ -155,7 +156,7 @@ async function loadProfileEditorLayoutUncached(): Promise<ProfileEditorLayout> {
         .order("sort_order", { ascending: true }),
       supabase
         .from("profile_editor_sections")
-        .select("slug, label_en, label_es, emoji, section_group_id, sort_order")
+        .select("slug, label_i18n, emoji, section_group_id, sort_order")
         .eq("is_active", true)
         .is("archived_at", null)
         .order("sort_order", { ascending: true }),
@@ -197,8 +198,8 @@ async function loadProfileEditorLayoutUncached(): Promise<ProfileEditorLayout> {
       const bucket = sectionsByGroup.get(row.section_group_id) ?? [];
       bucket.push({
         slug: row.slug,
-        labelEn: row.label_en,
-        labelEs: row.label_es,
+        labelEn: row.label_i18n?.en ?? "",
+        labelEs: row.label_i18n?.es ?? null,
         emoji: row.emoji ?? "",
       });
       sectionsByGroup.set(row.section_group_id, bucket);

@@ -40,20 +40,20 @@ export async function fetchLegacyDirectorySearchTalentIds(
       .is("deleted_at", null)
       .eq("is_publicly_hidden", false)
       .or(
-        `display_name.ilike.%${term}%,first_name.ilike.%${term}%,last_name.ilike.%${term}%,profile_code.ilike.%${term}%,short_bio.ilike.%${term}%,bio_en.ilike.%${term}%,bio_es.ilike.%${term}%`,
+        `display_name.ilike.%${term}%,first_name.ilike.%${term}%,last_name.ilike.%${term}%,profile_code.ilike.%${term}%,short_bio.ilike.%${term}%,bio_i18n->>en.ilike.%${term}%,bio_i18n->>es.ilike.%${term}%`,
       ),
     supabase
       .from("locations")
       .select("id")
       .is("archived_at", null)
       .or(
-        `city_slug.ilike.%${term}%,display_name_en.ilike.%${term}%,display_name_es.ilike.%${term}%`,
+        `city_slug.ilike.%${term}%,display_name_i18n->>en.ilike.%${term}%,display_name_i18n->>es.ilike.%${term}%`,
       ),
     supabase
       .from("taxonomy_terms")
       .select("id")
       .is("archived_at", null)
-      .or(`name_en.ilike.%${term}%,name_es.ilike.%${term}%,slug.ilike.%${term}%`),
+      .or(`name_i18n->>en.ilike.%${term}%,name_i18n->>es.ilike.%${term}%,slug.ilike.%${term}%`),
   ]);
 
   if (profileError || locationError || termError) {

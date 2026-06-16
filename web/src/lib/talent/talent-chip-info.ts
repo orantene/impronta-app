@@ -64,19 +64,19 @@ export async function loadTalentChipInfo(
   try {
     const { data: tax } = await supabase
       .from("talent_profile_taxonomy")
-      .select("talent_profile_id, taxonomy_terms ( name_en )")
+      .select("talent_profile_id, taxonomy_terms ( name_i18n )")
       .in("talent_profile_id", ids)
       .eq("is_primary", true);
     for (const t of tax ?? []) {
       const row = t as unknown as {
         talent_profile_id: string;
         taxonomy_terms:
-          | { name_en: string | null }
-          | { name_en: string | null }[]
+          | { name_i18n: Record<string, string | null> | null }
+          | { name_i18n: Record<string, string | null> | null }[]
           | null;
       };
       const tt = row.taxonomy_terms;
-      const term = Array.isArray(tt) ? (tt[0]?.name_en ?? null) : (tt?.name_en ?? null);
+      const term = Array.isArray(tt) ? (tt[0]?.name_i18n?.en ?? null) : (tt?.name_i18n?.en ?? null);
       const cur = out.get(row.talent_profile_id);
       if (cur && term && !cur.headline) cur.headline = term;
     }

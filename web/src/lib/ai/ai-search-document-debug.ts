@@ -25,7 +25,7 @@ export async function loadAiSearchDocumentDebug(
   const { data: profile } = await supabase
     .from("talent_profiles")
     .select(
-      "ai_search_document, display_name, first_name, last_name, short_bio, bio_en, bio_es, height_cm, gender, residence_city_id",
+      "ai_search_document, display_name, first_name, last_name, short_bio, bio_i18n, height_cm, gender, residence_city_id",
     )
     .eq("id", talentProfileId)
     .maybeSingle();
@@ -78,10 +78,11 @@ export async function loadAiSearchDocumentDebug(
   if (typeof p.short_bio === "string" && p.short_bio.trim()) {
     contributors.push({ source: "profile", detail: "Short bio" });
   }
-  if (typeof p.bio_en === "string" && p.bio_en.trim()) {
+  const bioMap = (p.bio_i18n as Record<string, unknown> | null) ?? null;
+  if (typeof bioMap?.en === "string" && bioMap.en.trim()) {
     contributors.push({ source: "profile", detail: "Bio (EN)" });
   }
-  if (typeof p.bio_es === "string" && p.bio_es.trim()) {
+  if (typeof bioMap?.es === "string" && bioMap.es.trim()) {
     contributors.push({ source: "profile", detail: "Bio (ES)" });
   }
 

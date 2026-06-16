@@ -91,6 +91,34 @@ function intOrNull(fd: FormData, key: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/**
+ * Build a per-locale `_i18n` JSONB map for the WS3/WS4 migration from EN/ES form
+ * fields, merging onto an existing map so unrelated locales (e.g. a future "fr")
+ * survive. A blank/absent locale value deletes that key. `enKey`/`esKey` are the
+ * FormData field names (e.g. "label" / "label_es"); pass `esKey: null` for
+ * EN-only columns like `placeholder`.
+ */
+function i18nMapFromForm(
+  fd: FormData,
+  enKey: string,
+  esKey: string | null,
+  existing?: Record<string, string | null> | null,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(existing ?? {})) {
+    if (typeof v === "string" && v.trim().length > 0) out[k] = v;
+  }
+  const en = text(fd, enKey);
+  if (en) out.en = en;
+  else delete out.en;
+  if (esKey) {
+    const es = text(fd, esKey);
+    if (es) out.es = es;
+    else delete out.es;
+  }
+  return out;
+}
+
 function parseOrderedIds(fd: FormData): string[] {
   const raw = text(fd, "ordered_ids");
   if (!raw) return [];
@@ -168,11 +196,11 @@ export async function createPlatformFieldAction(formData: FormData): Promise<voi
 
   const insertRow = {
     field_key: fieldKey,
-    label,
-    label_es: text(formData, "label_es"),
-    helper: text(formData, "helper"),
-    helper_es: text(formData, "helper_es"),
-    placeholder: text(formData, "placeholder"),
+    // label/label_es, helper/helper_es, placeholder folded into *_i18n maps
+    // (WS3 migration). `label` is required, so en is always present.
+    label_i18n: i18nMapFromForm(formData, "label", "label_es"),
+    helper_i18n: i18nMapFromForm(formData, "helper", "helper_es"),
+    placeholder_i18n: i18nMapFromForm(formData, "placeholder", null),
     unit: text(formData, "unit"),
     tier,
     kind,
@@ -263,11 +291,30 @@ export async function updatePlatformFieldAction(formData: FormData): Promise<voi
 
   const patch = {
     field_key: fieldKey,
-    label,
-    label_es: text(formData, "label_es"),
-    helper: text(formData, "helper"),
-    helper_es: text(formData, "helper_es"),
-    placeholder: text(formData, "placeholder"),
+    // label/label_es, helper/helper_es, placeholder folded into *_i18n maps
+    // (WS3); merge onto the existing maps so other locales aren't clobbered.
+    // EN falls back to the field key (matches the legacy `label ?? fieldKey`).
+    label_i18n: {
+      ...i18nMapFromForm(
+        formData,
+        "label",
+        "label_es",
+        beforeRow?.label_i18n as Record<string, string | null> | null,
+      ),
+      en: label,
+    },
+    helper_i18n: i18nMapFromForm(
+      formData,
+      "helper",
+      "helper_es",
+      beforeRow?.helper_i18n as Record<string, string | null> | null,
+    ),
+    placeholder_i18n: i18nMapFromForm(
+      formData,
+      "placeholder",
+      null,
+      beforeRow?.placeholder_i18n as Record<string, string | null> | null,
+    ),
     unit: text(formData, "unit"),
     tier,
     kind,
@@ -484,10 +531,15 @@ export async function createPlatformFieldGroupAction(formData: FormData): Promis
     redirect("/platform/admin/catalog?tab=groups&error=Slug%20and%20name%20(EN)%20are%20required");
   }
 
+  // name_en/name_es folded into name_i18n {en,es} (WS3 migration). Assemble the
+  // map from the EN/ES form fields; description_* stay dedicated columns.
+  const nameEsRaw = text(formData, "name_es");
+  const nameI18n: Record<string, string> = { en: nameEn };
+  if (nameEsRaw) nameI18n.es = nameEsRaw;
+
   const insertRow = {
     slug,
-    name_en: nameEn,
-    name_es: text(formData, "name_es"),
+    name_i18n: nameI18n,
     description_en: text(formData, "description_en"),
     description_es: text(formData, "description_es"),
     sort_order: intOrNull(formData, "sort_order") ?? 100,
@@ -578,10 +630,19 @@ export async function updatePlatformFieldGroupAction(formData: FormData): Promis
     .eq("id", id)
     .maybeSingle();
 
+  // name_en/name_es folded into name_i18n {en,es} (WS3). Merge the EN/ES form
+  // fields onto the existing map so a blank ES clears that key while EN is kept.
+  const beforeNameI18n =
+    (beforeRow?.name_i18n as Record<string, string | null> | null) ?? {};
+  const nextNameEn = text(formData, "name_en") ?? beforeNameI18n.en ?? "";
+  const nextNameEs = text(formData, "name_es");
+  const nameI18n: Record<string, string> = {};
+  if (nextNameEn) nameI18n.en = nextNameEn;
+  if (nextNameEs) nameI18n.es = nextNameEs;
+
   const patch = {
     slug: text(formData, "slug") ?? beforeRow?.slug,
-    name_en: text(formData, "name_en") ?? beforeRow?.name_en,
-    name_es: text(formData, "name_es"),
+    name_i18n: nameI18n,
     description_en: text(formData, "description_en"),
     description_es: text(formData, "description_es"),
     sort_order: intOrNull(formData, "sort_order") ?? beforeRow?.sort_order ?? 100,
@@ -623,7 +684,8 @@ export async function reorderPlatformFieldGroupsAction(formData: FormData): Prom
 
   const { data: rows, error } = await auth.sb
     .from("profile_field_groups")
-    .select("id, name_en, sort_order")
+    // name_en folded into name_i18n {en,es} (WS3); used only as a sort tiebreaker.
+    .select("id, name_i18n, sort_order")
     .in("id", orderedIds);
 
   if (error || !rows || rows.length !== orderedIds.length) {
@@ -638,7 +700,11 @@ export async function reorderPlatformFieldGroupsAction(formData: FormData): Prom
 
   const beforeValue = rows
     .slice()
-    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name_en.localeCompare(b.name_en))
+    .sort((a, b) => {
+      const an = (a.name_i18n as Record<string, string | null> | null)?.en ?? "";
+      const bn = (b.name_i18n as Record<string, string | null> | null)?.en ?? "";
+      return (a.sort_order ?? 0) - (b.sort_order ?? 0) || an.localeCompare(bn);
+    })
     .map((row) => ({ id: row.id, sort_order: row.sort_order }));
   const afterValue = orderedIds.map((id, i) => ({ id, sort_order: (i + 1) * 10 }));
   const now = new Date().toISOString();

@@ -11,6 +11,7 @@ import type {
   TranslationUnitDTO,
 } from "@/lib/translation-center/types";
 import { canonicalBioEn } from "@/lib/translation/public-bio";
+import { BIO_I18N_SELECT, flattenBioColumns, type BioI18nColumns } from "@/lib/translation/bio-i18n-columns";
 
 function emptyDomainAggregate(domain: AdapterContext["domain"]): DomainAggregateDTO {
   return {
@@ -47,7 +48,7 @@ export const talentBioAdapter: TranslationCenterAdapter = {
     const { data, error } = await supabase
       .from("talent_profiles")
       .select(
-        "id, profile_code, display_name, bio_en, short_bio, bio_es, bio_es_updated_at, bio_en_updated_at, workflow_status",
+        `id, profile_code, display_name, workflow_status, ${BIO_I18N_SELECT}`,
       )
       .is("deleted_at", null)
       .limit(TC_AGGREGATE_LIST_CAP);
@@ -62,10 +63,11 @@ export const talentBioAdapter: TranslationCenterAdapter = {
     for (const row of data ?? []) {
       if ((row as { workflow_status?: string }).workflow_status !== "approved") continue;
       base.counts.applicableRequired += 1;
+      const flat = flattenBioColumns(row as unknown as BioI18nColumns);
       const h = healthAsymmetricBioEsTarget({
-        bio_en: (row as { bio_en?: string | null }).bio_en ?? null,
-        short_bio: (row as { short_bio?: string | null }).short_bio ?? null,
-        bio_es: (row as { bio_es?: string | null }).bio_es ?? null,
+        bio_en: flat.bio_en,
+        short_bio: flat.short_bio,
+        bio_es: flat.bio_es,
       });
       bump(base.counts, h.health);
       if (h.health !== "missing" && h.health !== "language_issue") {
@@ -86,16 +88,16 @@ export const talentBioAdapter: TranslationCenterAdapter = {
       params.bioSort === "code"
         ? "profile_code"
         : params.bioSort === "es_at"
-          ? "bio_es_updated_at"
+          ? "bio_updated_at_i18n->>es"
           : params.bioSort === "en_at"
-            ? "bio_en_updated_at"
+            ? "bio_updated_at_i18n->>en"
             : "display_name";
     const ascending = params.sortDir === "asc";
 
     let query = supabase
       .from("talent_profiles")
       .select(
-        "id, profile_code, display_name, bio_en, short_bio, bio_es, bio_es_updated_at, bio_en_updated_at, workflow_status",
+        `id, profile_code, display_name, workflow_status, ${BIO_I18N_SELECT}`,
       )
       .eq("workflow_status", "approved")
       .is("deleted_at", null)
@@ -105,9 +107,9 @@ export const talentBioAdapter: TranslationCenterAdapter = {
 
     const st = params.statusFilter;
     if (st === "missing") {
-      query = query.or("bio_es.is.null,bio_es.eq.");
+      query = query.or("bio_i18n->>es.is.null,bio_i18n->>es.eq.");
     } else if (st === "complete" || st === "translated" || st === "published") {
-      query = query.not("bio_es", "is", null).neq("bio_es", "");
+      query = query.not("bio_i18n->>es", "is", null).neq("bio_i18n->>es", "");
     }
 
     if (params.q.trim()) {
@@ -124,37 +126,39 @@ export const talentBioAdapter: TranslationCenterAdapter = {
       return { units: [], hasMore: false, loadError: null };
     }
 
-    const rows = (data ?? []) as Array<{
-      id: string;
-      profile_code: string;
-      display_name: string | null;
-      bio_en: string | null;
-      short_bio: string | null;
-      bio_es: string | null;
-      bio_es_updated_at: string | null;
-      bio_en_updated_at: string | null;
-      workflow_status: string | null;
-    }>;
+    const rows = (data ?? []) as Array<
+      BioI18nColumns & {
+        id: string;
+        profile_code: string;
+        display_name: string | null;
+        workflow_status: string | null;
+      }
+    >;
+
+    // Flatten each row's per-locale JSONB bio columns once, keyed by id.
+    const flatById = new Map(rows.map((row) => [row.id, flattenBioColumns(row)]));
 
     const workRows =
       st === "needs_attention"
         ? rows.filter((row) => {
+            const flat = flatById.get(row.id)!;
             const h = healthAsymmetricBioEsTarget({
-              bio_en: row.bio_en,
-              short_bio: row.short_bio,
-              bio_es: row.bio_es,
+              bio_en: flat.bio_en,
+              short_bio: flat.short_bio,
+              bio_es: flat.bio_es,
             });
             return h.health === "needs_attention";
           })
         : rows;
 
     let units: TranslationUnitDTO[] = workRows.map((row) => {
+      const flat = flatById.get(row.id)!;
       const h = healthAsymmetricBioEsTarget({
-        bio_en: row.bio_en,
-        short_bio: row.short_bio,
-        bio_es: row.bio_es,
+        bio_en: flat.bio_en,
+        short_bio: flat.short_bio,
+        bio_es: flat.bio_es,
       });
-      const en = canonicalBioEn(row.bio_en, row.short_bio);
+      const en = canonicalBioEn(flat.bio_en, flat.short_bio);
       const adminHref = `/admin/talent/${row.id}#bio-translation`;
       return {
         domainId: domain.id,
@@ -167,8 +171,8 @@ export const talentBioAdapter: TranslationCenterAdapter = {
         displayLabel: row.display_name?.trim() || row.profile_code,
         health: h.health,
         integrityFlags: h.integrityFlags,
-        localeSummary: `ES: ${(row.bio_es ?? "").trim() ? "✓" : "—"} · EN: ${en ? "✓" : "—"}`,
-        updatedAt: row.bio_es_updated_at ?? row.bio_en_updated_at,
+        localeSummary: `ES: ${(flat.bio_es ?? "").trim() ? "✓" : "—"} · EN: ${en ? "✓" : "—"}`,
+        updatedAt: flat.bio_es_updated_at ?? flat.bio_en_updated_at,
         adminHref,
         inlineEdit: buildTranslationUnitInlineEdit({ domain, open_full_editor_url: adminHref }),
       };

@@ -19,6 +19,7 @@
 import { revalidatePath } from "next/cache";
 import {
   normalizeServicesMenu,
+  serializeServicesMenuForStorage,
   validateServicesMenu,
   type ServiceMenuItem,
 } from "@/lib/talent/services-menu-types";
@@ -114,11 +115,17 @@ async function loadTalentDisciplines(
   admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
   talentProfileId: string,
 ): Promise<TalentDiscipline[]> {
+  // name_en folded into name_i18n {en,es} (WS4); label off the English value.
   const { data } = await admin
     .from("talent_profile_taxonomy")
-    .select("taxonomy_terms:taxonomy_term_id ( id, name_en, kind, term_type )")
+    .select("taxonomy_terms:taxonomy_term_id ( id, name_i18n, kind, term_type )")
     .eq("talent_profile_id", talentProfileId);
-  type Term = { id: string; name_en: string | null; kind: string | null; term_type: string | null };
+  type Term = {
+    id: string;
+    name_i18n: Record<string, string | null> | null;
+    kind: string | null;
+    term_type: string | null;
+  };
   const rows = (data ?? []) as { taxonomy_terms: Term | Term[] | null }[];
   const out = new Map<string, string>();
   for (const r of rows) {
@@ -128,8 +135,9 @@ async function loadTalentDisciplines(
         ? [r.taxonomy_terms]
         : [];
     for (const t of terms) {
-      if (!t?.id || !t.name_en) continue;
-      if (t.kind === "talent_type" || t.term_type === "talent_type") out.set(t.id, t.name_en);
+      const nameEn = t?.name_i18n?.en ?? null;
+      if (!t?.id || !nameEn) continue;
+      if (t.kind === "talent_type" || t.term_type === "talent_type") out.set(t.id, nameEn);
     }
   }
   return [...out].map(([id, label]) => ({ id, label }));
@@ -238,8 +246,12 @@ export async function updateTalentServicesMenu(
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };
 
+    // WS4: persist the per-locale shape (name_i18n/description_i18n) so the stored
+    // jsonb matches the migrated form. The reader accepts both shapes.
+    const stored = serializeServicesMenuForStorage(clean);
+
     const patch = {
-      services_menu: clean,
+      services_menu: stored,
       updated_at: new Date().toISOString(),
     } as unknown as Record<string, never>;
 
@@ -255,7 +267,7 @@ export async function updateTalentServicesMenu(
     // truth. Fire-and-forget (mirrors updateTalentRates); skips for an
     // independent talent (tenantId null), where the column stays the source.
     await syncBlobFieldValuesToCatalog(admin, talentProfileId, auth.tenantId, {
-      services_menu: clean,
+      services_menu: stored,
     });
 
     revalidatePath("/talent/settings");

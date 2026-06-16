@@ -35,7 +35,7 @@ export async function rebuildAiSearchDocument(
   try {
     const { data: profile, error: pErr } = await supabase
       .from("talent_profiles")
-      .select("id, display_name, first_name, last_name, short_bio, bio_en, bio_es, height_cm, gender, residence_city_id")
+      .select("id, display_name, first_name, last_name, short_bio, bio_i18n, height_cm, gender, residence_city_id")
       .eq("id", talentProfileId)
       .maybeSingle();
 
@@ -53,13 +53,13 @@ export async function rebuildAiSearchDocument(
     if (rid) {
       const { data: loc } = await supabase
         .from("locations")
-        .select("display_name_en, display_name_es")
+        .select("display_name_i18n")
         .eq("id", rid)
         .maybeSingle();
       if (loc) {
-        const l = loc as { display_name_en?: string; display_name_es?: string | null };
+        const i18n = (loc as { display_name_i18n?: Record<string, string | null> | null }).display_name_i18n ?? {};
         locationLabel =
-          l.display_name_en?.trim() || (typeof l.display_name_es === "string" ? l.display_name_es.trim() : "") || null;
+          i18n.en?.trim() || (typeof i18n.es === "string" ? i18n.es.trim() : "") || null;
       }
     }
 
@@ -79,8 +79,7 @@ export async function rebuildAiSearchDocument(
           term_type,
           parent_id,
           slug,
-          name_en,
-          name_es,
+          name_i18n,
           search_synonyms,
           ai_keywords
         )
@@ -102,8 +101,10 @@ export async function rebuildAiSearchDocument(
           ? primaryRow.taxonomy_terms[0]
           : primaryRow.taxonomy_terms) ?? null
       : null;
+    // name_en folded into name_i18n {en,es} (WS4); resolve the English value.
+    const primaryTermNameEn = primaryTerm?.name_i18n?.en ?? primaryTerm?.name_en ?? null;
     const primaryTalentTypeLabel: string | null = primaryTerm
-      ? primaryTerm.name_en?.trim() || primaryTerm.slug || null
+      ? primaryTermNameEn?.trim() || primaryTerm.slug || null
       : null;
 
     const secondaryRoles: string[] = extractSecondaryRoleTerms(taxRows)
@@ -153,8 +154,8 @@ export async function rebuildAiSearchDocument(
       taxonomyTerms.push({
         kind: t.kind,
         slug: t.slug ?? null,
-        name_en: t.name_en ?? "",
-        name_es: t.name_es ?? null,
+        name_en: t.name_i18n?.en ?? t.name_en ?? "",
+        name_es: t.name_i18n?.es ?? t.name_es ?? null,
       });
     }
 
@@ -186,7 +187,7 @@ export async function rebuildAiSearchDocument(
         service_kind,
         travel_radius_km,
         display_order,
-        locations ( display_name_en, country_code )
+        locations ( display_name_i18n, country_code )
       `,
       )
       .eq("talent_profile_id", talentProfileId)
@@ -197,12 +198,12 @@ export async function rebuildAiSearchDocument(
         service_kind: AiSearchDocumentServiceArea["service_kind"];
         travel_radius_km: number | null;
         locations:
-          | { display_name_en?: string | null; country_code?: string | null }
-          | { display_name_en?: string | null; country_code?: string | null }[]
+          | { display_name_i18n?: Record<string, string | null> | null; country_code?: string | null }
+          | { display_name_i18n?: Record<string, string | null> | null; country_code?: string | null }[]
           | null;
       };
       const loc = Array.isArray(row.locations) ? row.locations[0] : row.locations;
-      const cityName = loc?.display_name_en?.trim();
+      const cityName = loc?.display_name_i18n?.en?.trim();
       if (!cityName) return [];
       return [{
         service_kind: row.service_kind,
@@ -241,8 +242,8 @@ export async function rebuildAiSearchDocument(
       heightCm: (p.height_cm as number | null) ?? null,
       gender: genderForDoc,
       shortBio: (p.short_bio as string | null) ?? null,
-      bioEn: (p.bio_en as string | null) ?? null,
-      bioEs: (p.bio_es as string | null) ?? null,
+      bioEn: ((p.bio_i18n as Record<string, string> | null)?.en as string | null) ?? null,
+      bioEs: ((p.bio_i18n as Record<string, string> | null)?.es as string | null) ?? null,
       taxonomyTerms,
       structuredLanguages,
       skills,

@@ -35,8 +35,14 @@ import {
 } from "@/lib/translation/audit";
 import {
   buildBioEnEditExtras,
-  type TalentBioRow,
 } from "@/lib/translation/talent-bio-translation-service";
+import {
+  BIO_I18N_SELECT,
+  flattenBioColumns,
+  bioPatchToColumns,
+  type BioI18nColumns,
+  type FlatBioPatch,
+} from "@/lib/translation/bio-i18n-columns";
 import { assertLocaleConsistency } from "@/lib/translation-center/save/assert-locale-consistency";
 import type { Locale } from "@/i18n/config";
 import { scheduleRebuildAiSearchDocument } from "@/lib/ai/schedule-rebuild-ai-search-document";
@@ -135,12 +141,14 @@ export async function updateTalentProfile(
 
   const { data: before, error: beforeErr } = await supabase
     .from("talent_profiles")
-    .select(
-      "workflow_status, visibility, bio_en, bio_es, bio_es_draft, bio_es_status, bio_en_draft, bio_en_status, short_bio",
-    )
+    .select(`workflow_status, visibility, ${BIO_I18N_SELECT}`)
     .eq("id", id)
     .maybeSingle();
   if (beforeErr || !before) return { error: "Talent profile not found." };
+  // WS4 — the bio engine reads the FLAT shape; storage is per-locale JSONB.
+  // Flatten for `buildBioEnEditExtras`, keep the raw maps for the write-merge.
+  const beforeBioRaw = before as unknown as BioI18nColumns;
+  const beforeBioFlat = flattenBioColumns(beforeBioRaw);
 
   // Phase 2b — multi-tenant identity safety floor. A Tulala-native talent in a
   // non-confirmed agency relationship owns their personal profile; the disabled
@@ -202,12 +210,14 @@ export async function updateTalentProfile(
     const nowIso = new Date().toISOString();
     const { payload: bioPatch, audit } = buildBioEnEditExtras({
       talentProfileId: id,
-      prev: before as TalentBioRow,
+      prev: beforeBioFlat,
       nextShortBio: short_bio || null,
       actorId: user.id,
       nowIso,
     });
-    Object.assign(payload, bioPatch);
+    // bioPatch carries FLAT bio_* keys; merge them into the per-locale JSONB
+    // maps (never clobbering the other locale) before they hit the raw UPDATE.
+    Object.assign(payload, bioPatchToColumns(beforeBioRaw, bioPatch as FlatBioPatch));
     bioAudit = audit;
   }
   if (formData.has("phone")) payload.phone = phone || null;

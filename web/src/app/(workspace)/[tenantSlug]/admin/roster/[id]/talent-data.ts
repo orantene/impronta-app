@@ -91,8 +91,7 @@ export async function loadAllTaxonomyTerms(): Promise<TaxonomyTermPick[]> {
   type Row = {
     id: string;
     slug: string;
-    name_en: string | null;
-    name_es: string | null;
+    name_i18n: Record<string, string | null> | null;
     term_type: string | null;
     level: number | null;
     parent_id: string | null;
@@ -106,7 +105,7 @@ export async function loadAllTaxonomyTerms(): Promise<TaxonomyTermPick[]> {
   try {
     rows = await fetchAllTaxonomyTerms<Row>(
       admin,
-      "id, slug, name_en, name_es, term_type, level, parent_id, sort_order",
+      "id, slug, name_i18n, term_type, level, parent_id, sort_order",
       (q) => q.is("archived_at", null).eq("is_active", true),
     );
   } catch (error) {
@@ -128,13 +127,13 @@ export async function loadAllTaxonomyTerms(): Promise<TaxonomyTermPick[]> {
     return {
       id: r.id,
       slug: r.slug,
-      nameEn: r.name_en ?? r.slug,
-      nameEs: r.name_es,
+      nameEn: r.name_i18n?.en ?? r.slug,
+      nameEs: r.name_i18n?.es ?? null,
       termType: r.term_type ?? "",
       level: r.level,
       parentId: r.parent_id,
       parentSlug: parent?.slug ?? null,
-      parentNameEn: parent?.name_en ?? null,
+      parentNameEn: parent?.name_i18n?.en ?? null,
     };
   });
 }
@@ -156,8 +155,7 @@ export async function loadTalentTaxonomy(
       display_order,
       taxonomy_terms:taxonomy_term_id (
         slug,
-        name_en,
-        name_es,
+        name_i18n,
         term_type,
         parent_id
       )
@@ -192,16 +190,16 @@ export async function loadTalentTaxonomy(
   if (parentIds.length > 0) {
     const { data: parents } = await admin
       .from("taxonomy_terms")
-      .select("id, name_en, name_es")
+      .select("id, name_i18n")
       .in("id", parentIds);
-    for (const p of (parents ?? []) as { id: string; name_en: string | null; name_es: string | null }[]) {
-      parentMap.set(p.id, { en: p.name_en ?? "—", es: p.name_es });
+    for (const p of (parents ?? []) as { id: string; name_i18n: Record<string, string | null> | null }[]) {
+      parentMap.set(p.id, { en: p.name_i18n?.en ?? "—", es: p.name_i18n?.es ?? null });
     }
   }
 
   return rows.map((r): TalentTaxonomyAssignment => {
     const term = (Array.isArray(r.taxonomy_terms) ? r.taxonomy_terms[0] : r.taxonomy_terms) as
-      | { slug?: string; name_en?: string | null; name_es?: string | null; term_type?: string | null; parent_id?: string | null }
+      | { slug?: string; name_i18n?: Record<string, string | null> | null; term_type?: string | null; parent_id?: string | null }
       | null;
     const parent = term?.parent_id ? parentMap.get(term.parent_id) ?? null : null;
     return {
@@ -212,8 +210,8 @@ export async function loadTalentTaxonomy(
       yearsExperience: r.years_experience,
       displayOrder: r.display_order,
       termSlug: term?.slug ?? "",
-      termNameEn: term?.name_en ?? term?.slug ?? "",
-      termNameEs: term?.name_es ?? null,
+      termNameEn: term?.name_i18n?.en ?? term?.slug ?? "",
+      termNameEs: term?.name_i18n?.es ?? null,
       termType: term?.term_type ?? "",
       parentNameEn: parent?.en ?? null,
       parentNameEs: parent?.es ?? null,
@@ -281,7 +279,7 @@ export async function loadTalentServiceAreas(
     .from("talent_service_areas")
     .select(`
       id, service_kind, city, travel_radius_km, travel_fee_required, notes, display_order,
-      location_id, locations ( display_name_en, country_code )
+      location_id, locations ( display_name_i18n, country_code )
     `)
     .eq("tenant_id", tenantId)
     .eq("talent_profile_id", talentProfileId)
@@ -302,8 +300,8 @@ export async function loadTalentServiceAreas(
     display_order: number;
     location_id: string | null;
     locations:
-      | { display_name_en: string | null; country_code: string | null }
-      | { display_name_en: string | null; country_code: string | null }[]
+      | { display_name_i18n: Record<string, string | null> | null; country_code: string | null }
+      | { display_name_i18n: Record<string, string | null> | null; country_code: string | null }[]
       | null;
   }>).map((r) => {
     const loc = Array.isArray(r.locations) ? r.locations[0] : r.locations;
@@ -312,7 +310,7 @@ export async function loadTalentServiceAreas(
       serviceKind: r.service_kind,
       // Canonical label first; legacy free-text only as a last-resort
       // fallback for any pre-conversion row (none expected).
-      city: loc?.display_name_en ?? r.city,
+      city: loc?.display_name_i18n?.en ?? r.city,
       region: null,
       country: loc?.country_code ?? null,
       travelRadiusKm: r.travel_radius_km,
