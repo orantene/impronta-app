@@ -83,15 +83,19 @@ export function LocaleToggle({
 } = {}) {
   const [locale, setLocale] = useState<string>(defaultLocale);
 
+  // Use a joined string dep so the effect only re-runs when the actual
+  // locale set changes, not on every render when a new array literal is passed.
+  const localesKey = supportedLocales.join(",");
+
   useEffect(() => {
     const m = document.cookie.match(
       new RegExp(`(?:^|; )${LOCALE_COOKIE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}=([^;]*)`)
     );
     const raw = m?.[1] ? decodeURIComponent(m[1]) : null;
-    if (raw && supportedLocales.includes(raw)) setLocale(raw);
+    const list = localesKey.split(",").filter(Boolean);
+    if (raw && list.includes(raw)) setLocale(raw);
     else setLocale(defaultLocale);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [defaultLocale]);
+  }, [defaultLocale, localesKey]);
 
   const pick = (next: string) => {
     if (locale === next) return;

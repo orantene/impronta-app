@@ -56,7 +56,10 @@ export function DashboardLocaleToggle({
   const locales: readonly Locale[] =
     supportedLocales && supportedLocales.length > 0
       ? supportedLocales
-      : ["en", "es"];
+      : (["en", "es"] as Locale[]);
+
+  // Stable string dep so the effect only re-runs when the locale set changes.
+  const localesKey = locales.join(",");
 
   const [locale, setLocale] = useState<Locale>(defaultLocale);
 
@@ -64,9 +67,11 @@ export function DashboardLocaleToggle({
     // Seed from cookie on mount; use tenant default when cookie is absent /
     // holds a locale this tenant no longer supports.
     const fromCookie = readLocaleFromDocumentCookie(defaultLocale);
-    setLocale(locales.includes(fromCookie) ? fromCookie : defaultLocale);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [defaultLocale]);
+    // Re-derive the list from the stable key so the closure doesn't capture
+    // the `locales` array reference (which may change identity on re-render).
+    const list = localesKey.split(",").filter((s): s is Locale => s.length > 0);
+    setLocale(list.includes(fromCookie) ? fromCookie : defaultLocale);
+  }, [defaultLocale, localesKey]);
 
   const pick = useCallback((next: Locale) => {
     setLocaleCookie(next);
