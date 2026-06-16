@@ -285,7 +285,7 @@ export async function fetchParentCategoryByTermId(
       .eq("id", nextId)
       .maybeSingle();
     if (error || !data) return null;
-    const cur = withFlatName(data as TermShape)!;
+    const cur = withFlatName(data as unknown as TermShape)!;
     if (isParentCategoryTerm(cur)) return cur;
     nextId = cur.parent_id ?? null;
     depth++;
@@ -310,7 +310,7 @@ export async function fetchLineageByTermId(
       .eq("id", nextId)
       .maybeSingle();
     if (error || !data) break;
-    const cur = withFlatName(data as TermShape)!;
+    const cur = withFlatName(data as unknown as TermShape)!;
     path.unshift(cur);
     nextId = cur.parent_id ?? null;
     depth++;

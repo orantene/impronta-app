@@ -240,8 +240,8 @@ type FeaturedTalentRow = {
   talent_profile_taxonomy: ReadonlyArray<{
     is_primary: boolean;
     taxonomy_terms:
-      | { kind: string; name_en: string; name_es: string | null }
-      | { kind: string; name_en: string; name_es: string | null }[]
+      | { kind: string; name_i18n: Record<string, string | null> | null }
+      | { kind: string; name_i18n: Record<string, string | null> | null }[]
       | null;
   }> | null;
 };
@@ -256,11 +256,11 @@ const FEATURED_TALENT_SELECT = `
   featured_level,
   featured_position,
   languages,
-  residence_city:locations!residence_city_id ( display_name_en, display_name_es, country_code ),
-  legacy_location:locations!location_id ( display_name_en, display_name_es, country_code ),
+  residence_city:locations!residence_city_id ( display_name_i18n, country_code ),
+  legacy_location:locations!location_id ( display_name_i18n, country_code ),
   talent_profile_taxonomy (
     is_primary,
-    taxonomy_terms ( kind, name_en, name_es )
+    taxonomy_terms ( kind, name_i18n )
   )
 `;
 
@@ -441,10 +441,11 @@ async function hydrateRows(
   }
 
   const localizedTermName = (
-    term: { name_en: string; name_es?: string | null } | null,
+    term: { name_i18n: Record<string, string | null> | null } | null,
   ): string | null => {
     if (!term) return null;
-    return (locale === "es" && term.name_es) || term.name_en || null;
+    const i18n = term.name_i18n ?? {};
+    return (locale === "es" && i18n.es) || i18n.en || null;
   };
 
   return rows.map((row) => {
