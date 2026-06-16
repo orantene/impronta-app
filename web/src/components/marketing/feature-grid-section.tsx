@@ -1,4 +1,5 @@
 import { getRequestLocale } from "@/i18n/request-locale";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
 
 type Feature = {
@@ -8,48 +9,53 @@ type Feature = {
 };
 
 function getFeatures(locale: string): Feature[] {
-  const es = locale === "es";
   return [
     {
-      title: es ? "Sitio con tu marca para tu roster" : "Branded roster site",
-      body: es
-        ? "Tu identidad, tu tipografía, tus colores y tu dominio. Un sitio web de verdad —no una plantilla genérica— que administras desde un CMS moderno."
-        : "Your identity, typography, colors, and domain. A real website — not a generic template — managed in a modern CMS.",
+      title: pickLocale(locale, { en: "Branded roster site", es: "Sitio con tu marca para tu roster" }),
+      body: pickLocale(locale, {
+        en: "Your identity, typography, colors, and domain. A real website — not a generic template — managed in a modern CMS.",
+        es: "Tu identidad, tu tipografía, tus colores y tu dominio. Un sitio web de verdad —no una plantilla genérica— que administras desde un CMS moderno.",
+      }),
       icon: <SiteIcon />,
     },
     {
-      title: es ? "Perfiles de personas, como debe ser" : "People profiles, done right",
-      body: es
-        ? "Taxonomía estructurada, flujo de medios, soporte multilingüe y una presentación editorial: el perfil que tu roster se merece."
-        : "Structured taxonomy, media pipeline, multi-locale support, and editorial presentation — the profile your roster deserves.",
+      title: pickLocale(locale, { en: "People profiles, done right", es: "Perfiles de personas, como debe ser" }),
+      body: pickLocale(locale, {
+        en: "Structured taxonomy, media pipeline, multi-locale support, and editorial presentation — the profile your roster deserves.",
+        es: "Taxonomía estructurada, flujo de medios, soporte multilingüe y una presentación editorial: el perfil que tu roster se merece.",
+      }),
       icon: <ProfileIcon />,
     },
     {
-      title: es ? "De la consulta a la reserva" : "Inquiry → booking pipeline",
-      body: es
-        ? "Consultas estructuradas, ofertas con versiones, aprobaciones entre varias partes y reservas reales. No otro hilo de chat."
-        : "Structured inquiries, versioned offers, multi-party approvals, and real bookings. Not another chat thread.",
+      title: pickLocale(locale, { en: "Inquiry → booking pipeline", es: "De la consulta a la reserva" }),
+      body: pickLocale(locale, {
+        en: "Structured inquiries, versioned offers, multi-party approvals, and real bookings. Not another chat thread.",
+        es: "Consultas estructuradas, ofertas con versiones, aprobaciones entre varias partes y reservas reales. No otro hilo de chat.",
+      }),
       icon: <PipelineIcon />,
     },
     {
-      title: es ? "Hub de red compartido" : "Shared network hub",
-      body: es
-        ? "Súmate a un hub entre organizaciones donde los clientes exploran talento, casting y operadores de toda la red."
-        : "Opt into a cross-org hub where clients browse talent, casting, and operators across the whole network.",
+      title: pickLocale(locale, { en: "Shared network hub", es: "Hub de red compartido" }),
+      body: pickLocale(locale, {
+        en: "Opt into a cross-org hub where clients browse talent, casting, and operators across the whole network.",
+        es: "Súmate a un hub entre organizaciones donde los clientes exploran talento, casting y operadores de toda la red.",
+      }),
       icon: <NetworkIcon />,
     },
     {
-      title: es ? "Varios usuarios, con roles" : "Multi-user with roles",
-      body: es
-        ? "Coordinadores, administradores, asistentes, dueños: define el acceso de cada quien con permisos. Crece más allá del cuello de botella de una sola persona."
-        : "Coordinators, admins, assistants, owners — scope access with permissions. Scale past the one-person bottleneck.",
+      title: pickLocale(locale, { en: "Multi-user with roles", es: "Varios usuarios, con roles" }),
+      body: pickLocale(locale, {
+        en: "Coordinators, admins, assistants, owners — scope access with permissions. Scale past the one-person bottleneck.",
+        es: "Coordinadores, administradores, asistentes, dueños: define el acceso de cada quien con permisos. Crece más allá del cuello de botella de una sola persona.",
+      }),
       icon: <RolesIcon />,
     },
     {
-      title: es ? "Analíticas e insights" : "Analytics + insights",
-      body: es
-        ? "Mira quién ve los perfiles, de dónde llegan las consultas, qué convierte —y dónde te conviene invertir la próxima hora."
-        : "See who&rsquo;s viewing profiles, where inquiries come from, what converts — and where to spend the next hour.",
+      title: pickLocale(locale, { en: "Analytics + insights", es: "Analíticas e insights" }),
+      body: pickLocale(locale, {
+        en: "See who&rsquo;s viewing profiles, where inquiries come from, what converts — and where to spend the next hour.",
+        es: "Mira quién ve los perfiles, de dónde llegan las consultas, qué convierte —y dónde te conviene invertir la próxima hora.",
+      }),
       icon: <AnalyticsIcon />,
     },
   ];
@@ -57,7 +63,6 @@ function getFeatures(locale: string): Feature[] {
 
 export async function FeatureGridSection() {
   const locale = await getRequestLocale();
-  const es = locale === "es";
   const features = getFeatures(locale);
   return (
     <MarketingSection id="features" style={{ background: "var(--mkt-surface)" }}>
@@ -69,33 +74,37 @@ export async function FeatureGridSection() {
       <MarketingContainer size="wide">
         <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end md:gap-10">
           <div className="max-w-2xl">
-            <MarketingEyebrow>{es ? "Qué incluye" : "What’s inside"}</MarketingEyebrow>
+            <MarketingEyebrow>{pickLocale(locale, { en: "What’s inside", es: "Qué incluye" })}</MarketingEyebrow>
             <h2
               className="mkt-display mt-5 text-[2rem] font-medium tracking-[-0.02em] sm:text-[2.75rem] md:text-[3rem]"
               style={{ color: "var(--mkt-ink)" }}
             >
-              {es ? (
-                <>
-                  Todo lo que un negocio
-                  <br />
-                  de roster necesita de verdad.
-                </>
-              ) : (
-                <>
-                  Everything a roster-based
-                  <br />
-                  business actually needs.
-                </>
-              )}
+              {pickLocale(locale, {
+                en: (
+                  <>
+                    Everything a roster-based
+                    <br />
+                    business actually needs.
+                  </>
+                ),
+                es: (
+                  <>
+                    Todo lo que un negocio
+                    <br />
+                    de roster necesita de verdad.
+                  </>
+                ),
+              })}
             </h2>
           </div>
           <p
             className="max-w-sm text-[1rem] leading-[1.6]"
             style={{ color: "var(--mkt-muted)" }}
           >
-            {es
-              ? "Un sitio con tu marca, un sistema de perfiles serio, un flujo de consultas de verdad, una red compartida y los permisos para crecer más allá de un solo teléfono."
-              : "A branded site, a proper profile system, a real inquiry pipeline, a shared network, and the permissions to scale past a single phone."}
+            {pickLocale(locale, {
+              en: "A branded site, a proper profile system, a real inquiry pipeline, a shared network, and the permissions to scale past a single phone.",
+              es: "Un sitio con tu marca, un sistema de perfiles serio, un flujo de consultas de verdad, una red compartida y los permisos para crecer más allá de un solo teléfono.",
+            })}
           </p>
         </div>
 
