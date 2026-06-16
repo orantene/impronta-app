@@ -115,12 +115,13 @@ async function loadPlatformTalentTypesUncached(): Promise<LoadPlatformTalentType
     const [termsR, recsR, assignmentsR, rosterR] = await Promise.all([
       sb
         .from("taxonomy_terms")
+        // name_en/name_es folded into name_i18n {en,es} (WS4); flattened below.
         .select(
-          "id, slug, name_en, name_es, plural_name, description, icon, level, sort_order, is_active, archived_at",
+          "id, slug, name_i18n, plural_name, description, icon, level, sort_order, is_active, archived_at",
         )
         .eq("term_type", "talent_type")
         .order("sort_order", { ascending: true })
-        .order("name_en", { ascending: true }),
+        .order("name_i18n->>en", { ascending: true }),
       sb
         .from("profile_field_recommendations")
         .select("taxonomy_term_id"),
@@ -175,8 +176,7 @@ async function loadPlatformTalentTypesUncached(): Promise<LoadPlatformTalentType
       termsR.data as Array<{
         id: string;
         slug: string;
-        name_en: string;
-        name_es: string | null;
+        name_i18n: Record<string, string | null> | null;
         plural_name: string | null;
         description: string | null;
         icon: string | null;
@@ -196,8 +196,8 @@ async function loadPlatformTalentTypesUncached(): Promise<LoadPlatformTalentType
       return {
         id: term.id,
         slug: term.slug,
-        name_en: term.name_en,
-        name_es: term.name_es,
+        name_en: term.name_i18n?.en ?? "",
+        name_es: term.name_i18n?.es ?? null,
         plural_name: term.plural_name,
         description: term.description,
         icon: term.icon,
@@ -285,9 +285,12 @@ async function loadPlatformTaxonomyTreeUncached(): Promise<LoadPlatformTaxonomyT
       // grow as talent_types are added and can cross PostgREST's 1000-row cap.
       // Page by `id`, then re-sort by the display order (sort_order → name_en)
       // below so the partitioned parent/group/type lists keep their order.
-      fetchAllTaxonomyTerms<TaxonomyTermBase>(
+      // name_en/name_es folded into name_i18n {en,es} (WS4); flattened below.
+      fetchAllTaxonomyTerms<Omit<TaxonomyTermBase, "name_en" | "name_es"> & {
+        name_i18n: Record<string, string | null> | null;
+      }>(
         sb,
-        "id, slug, name_en, name_es, icon, parent_id, sort_order, term_type, is_active, archived_at",
+        "id, slug, name_i18n, icon, parent_id, sort_order, term_type, is_active, archived_at",
         (q) =>
           q
             .in("term_type", ["parent_category", "category_group", "talent_type"])
@@ -305,8 +308,19 @@ async function loadPlatformTaxonomyTreeUncached(): Promise<LoadPlatformTaxonomyT
         .neq("status", "removed"),
     ]);
 
-    const allTerms = termRows
-      .slice()
+    const allTerms: TaxonomyTermBase[] = termRows
+      .map((r) => ({
+        id: r.id,
+        slug: r.slug,
+        name_en: r.name_i18n?.en ?? "",
+        name_es: r.name_i18n?.es ?? null,
+        icon: r.icon,
+        parent_id: r.parent_id,
+        sort_order: r.sort_order,
+        term_type: r.term_type,
+        is_active: r.is_active,
+        archived_at: r.archived_at,
+      }))
       .sort(
         (a, b) =>
           (a.sort_order ?? 0) - (b.sort_order ?? 0) ||
@@ -509,19 +523,20 @@ async function loadPlatformTaxonomyTermDetailUncached(
     const [termR, childrenR, assignmentsR, rosterR] = await Promise.all([
       sb
         .from("taxonomy_terms")
+        // name_en/name_es folded into name_i18n {en,es} (WS4); flattened below.
         .select(
-          "id, slug, name_en, name_es, plural_name, description, icon, level, sort_order, is_active, archived_at, is_public_filter, is_profile_badge, is_visible_by_default, is_restricted, term_type, parent_id",
+          "id, slug, name_i18n, plural_name, description, icon, level, sort_order, is_active, archived_at, is_public_filter, is_profile_badge, is_visible_by_default, is_restricted, term_type, parent_id",
         )
         .eq("id", termId)
         .in("term_type", ["parent_category", "category_group"])
         .maybeSingle(),
       sb
         .from("taxonomy_terms")
-        .select("id, slug, name_en, name_es, term_type")
+        .select("id, slug, name_i18n, term_type")
         .eq("parent_id", termId)
         .is("archived_at", null)
         .order("sort_order", { ascending: true })
-        .order("name_en", { ascending: true }),
+        .order("name_i18n->>en", { ascending: true }),
       sb
         .from("talent_profile_taxonomy")
         .select("taxonomy_term_id, talent_profile_id"),
@@ -538,14 +553,26 @@ async function loadPlatformTaxonomyTermDetailUncached(
     }
     if (!termR.data) return { ok: false, notFound: true };
 
-    const term = termR.data as TaxonomyTermDetail;
-    const childRows = (childrenR.data ?? []) as Array<{
+    // name_en/name_es resolved off name_i18n (WS4) into the flat DTOs.
+    const termRaw = termR.data as Record<string, unknown>;
+    const termNameMap = termRaw.name_i18n as Record<string, string | null> | null;
+    const term = {
+      ...(termRaw as object),
+      name_en: termNameMap?.en ?? "",
+      name_es: termNameMap?.es ?? null,
+    } as TaxonomyTermDetail;
+    const childRows = ((childrenR.data ?? []) as Array<{
       id: string;
       slug: string;
-      name_en: string;
-      name_es: string | null;
+      name_i18n: Record<string, string | null> | null;
       term_type: string;
-    }>;
+    }>).map((c) => ({
+      id: c.id,
+      slug: c.slug,
+      name_en: c.name_i18n?.en ?? "",
+      name_es: c.name_i18n?.es ?? null,
+      term_type: c.term_type,
+    }));
 
     // Build talent/agency rollups
     const tenantsByTalent = new Map<string, Set<string>>();
@@ -673,8 +700,9 @@ async function loadPlatformTalentTypeDetailUncached(
     const [termR, recsR, fieldsR, assignmentsR, rosterR] = await Promise.all([
       sb
         .from("taxonomy_terms")
+        // name_en/name_es folded into name_i18n {en,es} (WS4); flattened below.
         .select(
-          "id, slug, name_en, name_es, plural_name, description, icon, level, sort_order, is_active, archived_at, is_public_filter, is_profile_badge, is_visible_by_default, is_restricted",
+          "id, slug, name_i18n, plural_name, description, icon, level, sort_order, is_active, archived_at, is_public_filter, is_profile_badge, is_visible_by_default, is_restricted",
         )
         .eq("id", termId)
         .eq("term_type", "talent_type")
@@ -687,8 +715,9 @@ async function loadPlatformTalentTypeDetailUncached(
         .eq("taxonomy_term_id", termId),
       sb
         .from("profile_field_definitions")
-        .select("id, field_key, label, label_es, tier, section, deprecated_at")
-        .order("label", { ascending: true }),
+        // label/label_es folded into label_i18n {en,es} (WS3); flattened below.
+        .select("id, field_key, label_i18n, tier, section, deprecated_at")
+        .order("label_i18n->>en", { ascending: true }),
       sb
         .from("talent_profile_taxonomy")
         .select("talent_profile_id")
@@ -706,21 +735,38 @@ async function loadPlatformTalentTypeDetailUncached(
     }
     if (!termR.data) return { ok: false, notFound: true };
 
-    const term = termR.data as TalentTypeDetail;
+    const termRaw = termR.data as Record<string, unknown>;
+    const termNameMap = termRaw.name_i18n as Record<string, string | null> | null;
+    const term = {
+      ...(termRaw as object),
+      name_en: termNameMap?.en ?? "",
+      name_es: termNameMap?.es ?? null,
+    } as TalentTypeDetail;
 
-    // Build recommendations joined to field definitions
+    // Build recommendations joined to field definitions. label/label_es were
+    // folded into label_i18n (WS3); flatten each def to keep the flat DTO.
     const fieldById = new Map(
       (
         fieldsR.data as Array<{
           id: string;
           field_key: string;
-          label: string;
-          label_es: string | null;
+          label_i18n: Record<string, string | null> | null;
           tier: string;
           section: string | null;
           deprecated_at: string | null;
         }>
-      ).map((f) => [f.id, f] as const),
+      ).map((f) => [
+        f.id,
+        {
+          id: f.id,
+          field_key: f.field_key,
+          label: f.label_i18n?.en ?? "",
+          label_es: f.label_i18n?.es ?? null,
+          tier: f.tier,
+          section: f.section,
+          deprecated_at: f.deprecated_at,
+        },
+      ] as const),
     );
 
     const recommendations: TalentTypeRecommendation[] = (
@@ -764,8 +810,7 @@ async function loadPlatformTalentTypeDetailUncached(
       fieldsR.data as Array<{
         id: string;
         field_key: string;
-        label: string;
-        label_es: string | null;
+        label_i18n: Record<string, string | null> | null;
         tier: string;
         section: string | null;
         deprecated_at: string | null;
@@ -774,7 +819,7 @@ async function loadPlatformTalentTypeDetailUncached(
       .map((f) => ({
         id: f.id,
         field_key: f.field_key,
-        label: f.label,
+        label: f.label_i18n?.en ?? "",
         tier: f.tier,
         section: f.section,
         deprecated_at: f.deprecated_at,
