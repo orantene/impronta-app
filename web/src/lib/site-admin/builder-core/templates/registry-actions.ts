@@ -33,6 +33,7 @@ import {
   type ListPublishedTemplatesFilter,
 } from "./registry-rows";
 import { bumpCatalogVersion } from "./catalog-version";
+import { validateTemplateForPublish } from "./validate-publish";
 
 // ── Result type ───────────────────────────────────────────────────────────────
 
@@ -267,6 +268,29 @@ export async function publishTemplate(
       return fail(fetchErr?.message ?? "Template not found.");
 
     const row = current as BuilderTemplateRow;
+
+    // VALIDATE + DIFF GATE (WS-D D1) — must run BEFORE the row update so a
+    // broken / empty / unbindable template never reaches a tenant's "+"
+    // gallery. Read the previous published snapshot's tree for the (advisory)
+    // diff; failure to read it is non-fatal — validation still runs.
+    const { data: lastRev } = await sb
+      .from("builder_template_revisions")
+      .select("snapshot")
+      .eq("template_id", templateId)
+      .order("version", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const previousTree =
+      (lastRev?.snapshot as BuilderTemplateRow | undefined)?.builder_tree ??
+      null;
+
+    const validation = validateTemplateForPublish(row.builder_tree, {
+      previousTree,
+    });
+    if (!validation.ok) {
+      return fail("Can't publish: " + validation.reasons.join("; "));
+    }
+
     const newVersion = row.version + 1;
     const now = new Date().toISOString();
 
@@ -275,6 +299,12 @@ export async function publishTemplate(
       row.builder_tree,
     );
 
+    // TODO(WS-D D2 rollback): extract the sequence below — update row to
+    // published @ newVersion + write builder_template_revisions snapshot +
+    // bumpCatalogVersion — into a shared `publishRowCore(sb, row, { version,
+    // status, note })` helper that rollback can reuse to re-publish an older
+    // revision. Left inline here (not extracted) to keep this D1 change
+    // strictly additive and not perturb the proven publish path.
     // Update the template row
     const { data: updated, error: updateErr } = await sb
       .from("builder_templates")
