@@ -105,7 +105,7 @@ async function readSidebarLabelsFromB(
   const bKeys = SIDEBAR_SECTION_KEYS.map((k) => A_KEY_TO_B_KEY[k]);
   const { data, error } = await svc
     .from("profile_field_definitions")
-    .select("field_key, label, label_es")
+    .select("field_key, label_i18n")
     .in("field_key", bKeys)
     .is("deprecated_at", null);
 
@@ -113,18 +113,18 @@ async function readSidebarLabelsFromB(
     return SIDEBAR_SECTION_KEYS.map((key) => ({ key, label: fallbackLabel(key) }));
   }
 
-  type Row = { field_key: string; label: string | null; label_es: string | null };
+  type Row = { field_key: string; label_i18n: Record<string, string | null> | null };
   const byBKey = new Map<string, Row>(
     (data as Row[]).map((r) => [r.field_key, r]),
   );
   return SIDEBAR_SECTION_KEYS.map((key) => {
     const row = byBKey.get(A_KEY_TO_B_KEY[key]);
-    const en = row?.label ?? null;
+    const en = row?.label_i18n?.en ?? null;
     return {
       key,
       label:
         en && en.trim()
-          ? pickLabel(locale, en, row?.label_es ?? null)
+          ? pickLabel(locale, en, row?.label_i18n?.es ?? null)
           : fallbackLabel(key),
     };
   });

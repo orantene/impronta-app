@@ -148,8 +148,7 @@ type BProfileFieldDefRow = {
   id: string;
   field_key: string;
   kind: string | null;
-  label: string | null;
-  label_es: string | null;
+  label_i18n: Record<string, string | null> | null;
   show_in_directory_card: boolean | null;
   deprecated_at: string | null;
 };
@@ -181,7 +180,7 @@ async function readDirectoryCardCatalogFromB(
   // settings, which the canonical batch loader checks inside the resolver.
   const { data: bDefs, error: bDefsErr } = await supabase
     .from("profile_field_definitions")
-    .select("id, field_key, kind, label, label_es, show_in_directory_card, deprecated_at")
+    .select("id, field_key, kind, label_i18n, show_in_directory_card, deprecated_at")
     .eq("show_in_directory_card", true)
     .is("deprecated_at", null);
 
@@ -248,8 +247,8 @@ async function readDirectoryCardCatalogFromB(
         // Use the A sort_order (frozen registry) to preserve card attribute
         // display order. B's display_order diverges for this surface.
         sort_order: typeof aMeta?.sort_order === "number" ? aMeta.sort_order : 0,
-        label_en: bRow.label ?? aKey,
-        label_es: bRow.label_es ?? null,
+        label_en: bRow.label_i18n?.en ?? aKey,
+        label_es: bRow.label_i18n?.es ?? null,
       };
     });
 

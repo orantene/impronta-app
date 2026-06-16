@@ -120,7 +120,7 @@ export async function syncProfileShellDynFieldValues(
   if (bKeysNeeded.length > 0) {
     const { data: defs, error: defErr } = await supabase
       .from("profile_field_definitions")
-      .select("field_key, kind, talent_editable, admin_only, deprecated_at, label")
+      .select("field_key, kind, talent_editable, admin_only, deprecated_at, label_i18n")
       .in("field_key", bKeysNeeded)
       .is("deprecated_at", null);
     if (defErr) {
@@ -133,7 +133,7 @@ export async function syncProfileShellDynFieldValues(
       talent_editable: boolean;
       admin_only: boolean;
       deprecated_at: string | null;
-      label: string | null;
+      label_i18n: Record<string, string | null> | null;
     };
     const bDefByKey = new Map(
       ((defs ?? []) as BDefRow[]).map((d) => [d.field_key, d] as const),
@@ -148,7 +148,7 @@ export async function syncProfileShellDynFieldValues(
         value_type,
         editable_by_talent: bDef.talent_editable === true,
         editable_by_staff: bDef.admin_only !== true,
-        label_en: bDef.label,
+        label_en: bDef.label_i18n?.en ?? null,
       });
     }
   }

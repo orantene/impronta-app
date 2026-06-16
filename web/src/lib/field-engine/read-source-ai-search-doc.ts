@@ -221,7 +221,7 @@ async function readAiSearchDocFieldsFromB(
     await Promise.all([
       supabase
         .from("profile_field_definitions")
-        .select("id, field_key, label, kind")
+        .select("id, field_key, label_i18n, kind")
         .in("field_key", bKeysNeeded)
         .is("deprecated_at", null)
         .eq("show_in_public", true)
@@ -243,7 +243,7 @@ async function readAiSearchDocFieldsFromB(
   const defRows = (bDefs ?? []) as Array<{
     id: string;
     field_key: string;
-    label: string | null;
+    label_i18n: Record<string, string | null> | null;
     kind: string | null;
   }>;
 
@@ -253,7 +253,7 @@ async function readAiSearchDocFieldsFromB(
       d.id,
       {
         aKey: B_TO_A_KEY[d.field_key] ?? d.field_key,
-        label: d.label ?? (B_TO_A_KEY[d.field_key] ?? d.field_key),
+        label: d.label_i18n?.en ?? (B_TO_A_KEY[d.field_key] ?? d.field_key),
         kind: d.kind,
       },
     ]),

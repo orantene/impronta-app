@@ -43,7 +43,7 @@ async function loadHeightFilterCatalogFromB(
   if (!supabase) return HEIGHT_FALLBACK;
   const { data, error } = await supabase
     .from("profile_field_definitions")
-    .select("show_in_directory_filter, deprecated_at, directory_filter_config, label, label_es")
+    .select("show_in_directory_filter, deprecated_at, directory_filter_config, label_i18n")
     .eq("field_key", "physical.height_cm")
     .maybeSingle();
   if (error) {
@@ -54,8 +54,7 @@ async function loadHeightFilterCatalogFromB(
     show_in_directory_filter?: boolean | null;
     deprecated_at?: string | null;
     directory_filter_config?: { min?: unknown; max?: unknown } | null;
-    label?: string | null;
-    label_es?: string | null;
+    label_i18n?: Record<string, string | null> | null;
   };
   const enabled = Boolean(r.show_in_directory_filter === true && r.deprecated_at == null);
   const cfg = r.directory_filter_config ?? {};
@@ -68,8 +67,8 @@ async function loadHeightFilterCatalogFromB(
     sliderMinCm: Math.min(sliderMinCm, sliderMaxCm),
     sliderMaxCm: Math.max(sliderMinCm, sliderMaxCm),
     labelEn:
-      typeof r.label === "string" && r.label.trim() ? r.label.trim() : "Height (cm)",
-    labelEs: typeof r.label_es === "string" && r.label_es.trim() ? r.label_es.trim() : null,
+      typeof r.label_i18n?.en === "string" && r.label_i18n.en.trim() ? r.label_i18n.en.trim() : "Height (cm)",
+    labelEs: typeof r.label_i18n?.es === "string" && r.label_i18n.es.trim() ? r.label_i18n.es.trim() : null,
   };
 }
 

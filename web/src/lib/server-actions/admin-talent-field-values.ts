@@ -252,7 +252,7 @@ export async function setTalentFieldValue(
 
   const { data: def } = await supabase
     .from("profile_field_definitions")
-    .select("id, deprecated_at, kind, label, options, validation_rules")
+    .select("id, deprecated_at, kind, label_i18n, options, validation_rules")
     .eq("id", v.field_definition_id)
     .maybeSingle();
   if (!def) return { ok: false, error: "Unknown field." };
@@ -273,7 +273,7 @@ export async function setTalentFieldValue(
   if (!isEmptyValue(v.value)) {
     const validationError = validateFieldValue(v.value, {
       kind: def.kind as string,
-      label: def.label as string,
+      label: ((def.label_i18n as Record<string, string | null> | null)?.en ?? "") as string,
       options: (def.options as string[] | null) ?? null,
       rules: (def.validation_rules as Record<string, unknown> | null) ?? null,
     });
@@ -430,7 +430,7 @@ export async function getTalentFieldValueHistory(input: {
       `
       id, changed_at, operation, before_value, after_value,
       actor_user_id, actor_role,
-      field_definition:profile_field_definitions!field_definition_id ( field_key, label )
+      field_definition:profile_field_definitions!field_definition_id ( field_key, label_i18n )
     `,
     )
     .eq("talent_profile_id", input.talent_profile_id)
@@ -456,8 +456,8 @@ export async function getTalentFieldValueHistory(input: {
     actor_user_id: string | null;
     actor_role: string | null;
     field_definition:
-      | { field_key: string | null; label: string | null }
-      | { field_key: string | null; label: string | null }[]
+      | { field_key: string | null; label_i18n: Record<string, string | null> | null }
+      | { field_key: string | null; label_i18n: Record<string, string | null> | null }[]
       | null;
   };
 
@@ -470,7 +470,7 @@ export async function getTalentFieldValueHistory(input: {
       changed_at: r.changed_at,
       operation: r.operation,
       field_key: def?.field_key ?? "(unknown)",
-      field_label: def?.label ?? def?.field_key ?? "(unknown)",
+      field_label: def?.label_i18n?.en ?? def?.field_key ?? "(unknown)",
       before_value: r.before_value,
       after_value: r.after_value,
       actor_role: r.actor_role,
