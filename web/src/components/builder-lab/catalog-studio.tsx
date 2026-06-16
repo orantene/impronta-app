@@ -39,7 +39,7 @@ import {
 } from "@/lib/site-admin/add-gallery/catalog-structure-actions";
 import { loadCatalogAdminView } from "@/lib/site-admin/add-gallery/catalog-admin-view-action";
 
-import { LAB as T, RADII, fieldStyle } from "./ui";
+import { LAB as T, RADII, fieldStyle, LabChip, LabToast } from "./ui";
 import {
   slugifyCategory,
   readDrag,
@@ -149,21 +149,7 @@ export function CatalogStudioView() {
       </div>
 
       {error ? <div style={{ fontSize: 12, color: T.red }}>{error}</div> : null}
-      {toast ? (
-        <div
-          role="status"
-          style={{
-            fontSize: 12,
-            color: T.accent,
-            background: "rgba(93,211,160,0.10)",
-            padding: "6px 12px",
-            borderRadius: 8,
-            alignSelf: "flex-start",
-          }}
-        >
-          {toast}
-        </div>
-      ) : null}
+      {toast ? <LabToast>{toast}</LabToast> : null}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {tabs.map((tab, idx) => (
@@ -348,8 +334,17 @@ function TabNode({
       {/* Categories */}
       <div style={{ padding: "8px 10px 12px", display: "flex", flexDirection: "column", gap: 6 }}>
         {cats.length === 0 ? (
-          <div style={{ fontSize: 11.5, color: T.inkDim, padding: "4px 6px" }}>
-            No categories.
+          <div
+            style={{
+              fontSize: 11.5,
+              color: T.inkDim,
+              padding: "8px 10px",
+              border: `1px dashed ${T.border}`,
+              borderRadius: 6,
+              fontStyle: "italic",
+            }}
+          >
+            No categories yet — add one below to group this tab&apos;s components.
           </div>
         ) : (
           cats.map((cat, catIdx) => (
@@ -413,7 +408,11 @@ function CategoryNode({
   ) => Promise<void>;
 }) {
   const [drop, setDrop] = useState<"before" | "after" | "inside" | null>(null);
-  const catOverridden = Boolean(structure[`cat:${cat.id}`]);
+  const catRow = structure[`cat:${cat.id}`];
+  const catOverridden = Boolean(catRow);
+  // A category the admin created in the Studio (vs a built-in) — flagged so an
+  // empty new category reads as intentional, not broken.
+  const catCreated = Boolean(catRow?.created);
   const catItems = items.filter(
     (it) => it.tab === parentTab && it.effectiveCategory === cat.id,
   );
@@ -555,6 +554,11 @@ function CategoryNode({
             );
           }}
         />
+        {catCreated ? (
+          <LabChip tone="accent" title="Created in Catalog Studio (not a built-in category)">
+            new
+          </LabChip>
+        ) : null}
         <span style={{ fontSize: 10, color: T.inkDim }}>
           {catItems.length} component{catItems.length === 1 ? "" : "s"}
         </span>
@@ -600,7 +604,22 @@ function CategoryNode({
             <ItemNode key={it.id} item={it} busy={busy} />
           ))}
         </div>
-      ) : null}
+      ) : (
+        // Empty category — make it read as a valid drop target, not broken.
+        <div
+          style={{
+            margin: "0 10px 8px 30px",
+            padding: "8px 10px",
+            border: `1px dashed ${drop === "inside" ? T.accent : T.border}`,
+            borderRadius: 6,
+            fontSize: 10.5,
+            color: drop === "inside" ? T.accent : T.inkDim,
+            fontStyle: "italic",
+          }}
+        >
+          {drop === "inside" ? "Drop to move here" : "Empty — drag a component here"}
+        </div>
+      )}
     </div>
   );
 }
