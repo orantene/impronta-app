@@ -46,6 +46,10 @@ import { loadPublicComponentStyleDefaults } from "@/lib/site-admin/server/reads"
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import { listBuilderImageMediaAssets } from "@/lib/site-admin/media/assets";
 import { resolveCollectionDataSources } from "@/lib/site-admin/collections/server";
+import {
+  collectNavCollectionSourceKeys,
+  resolveNavCollectionDataSources,
+} from "@/lib/site-admin/server/nav-collection-sources";
 import { getSectionType } from "@/lib/site-admin/sections/registry";
 import {
   isSiteShellEnabledForTenant,
@@ -271,15 +275,24 @@ async function renderShellSlot(
       : undefined;
   const mediaIds = collectBuilderImageMediaIds(builderSectionChildren);
   const collectionSourceKeys = collectBuilderCollectionSourceKeys(builderSectionChildren);
+  // A4 follow-up — built-in collection NAV sources (cms_page / cms_posts) a nav
+  // node in this slot binds to. Resolved + injected into the same `collections`
+  // map so the nav render case auto-populates its links from them.
+  const navCollectionSourceKeys = collectNavCollectionSourceKeys(
+    builderSectionChildren,
+  );
   const serviceSupabase =
-    mediaIds.length > 0 || collectionSourceKeys.length > 0
+    mediaIds.length > 0 ||
+    collectionSourceKeys.length > 0 ||
+    navCollectionSourceKeys.length > 0
       ? createServiceRoleClient()
       : null;
   const mediaSupabase = mediaIds.length > 0 ? serviceSupabase : null;
   const [
     builderComponents,
     mediaAssets,
-    collections,
+    userCollections,
+    navCollections,
     actorSession,
     editModeActive,
     componentStyleDefaults,
@@ -294,10 +307,25 @@ async function renderShellSlot(
       serviceSupabase && collectionSourceKeys.length > 0
         ? resolveCollectionDataSources(serviceSupabase, tenantId, collectionSourceKeys)
         : Promise.resolve(undefined),
+      serviceSupabase && navCollectionSourceKeys.length > 0
+        ? resolveNavCollectionDataSources(
+            serviceSupabase,
+            tenantId,
+            navCollectionSourceKeys,
+            locale,
+          )
+        : Promise.resolve(undefined),
       getCachedActorSession(),
       isEditModeActiveForTenant(tenantId),
       loadPublicComponentStyleDefaults(tenantId),
     ]);
+  // Merge the user collections + the built-in nav collections into one map so
+  // every binding (user `collection:<id>` repeaters AND nav cms_page/cms_posts)
+  // resolves through `dataSources.collections`. Either may be undefined.
+  const collections =
+    userCollections || navCollections
+      ? { ...(userCollections ?? {}), ...(navCollections ?? {}) }
+      : undefined;
   // Wave 5B · #38 — shell blocks honor node-level conditional visibility too
   // (e.g. a "Sign in" CTA shown only to signed-out visitors). Request-cached
   // session = no extra round-trip. In EDIT mode pass NO context so every block

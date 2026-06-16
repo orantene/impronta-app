@@ -50,7 +50,12 @@ import {
 } from "./visibility";
 import { resolveLocalized } from "@/lib/i18n/resolve-localized";
 import { isLocalizableProp } from "@/lib/i18n/builder-i18n-props";
-import type { BuilderNode, BuilderNodeStyle, BuilderNodeStyleValue } from "./types";
+import type {
+  BuilderNavLink,
+  BuilderNode,
+  BuilderNodeStyle,
+  BuilderNodeStyleValue,
+} from "./types";
 import type { BuilderImageMediaAsset } from "@/lib/site-admin/media/types";
 
 export interface BuilderNodeRenderDataSources {
@@ -2314,9 +2319,45 @@ function collectionRecordsForSource(
       }));
     case "workspace_social_links":
       return (dataSources.socialLinks ?? []).map((link) => ({ ...link }));
+    case "cms_page":
+    case "cms_posts":
+      // A4 follow-up — collection nav sources. The SHELL/server caller injects
+      // the resolved records into `dataSources.collections[sourceKey]` (handled
+      // by the `custom` short-circuit above); with nothing injected this returns
+      // [] so a bound nav simply falls back to its static links.
+      return [];
     default:
       return [];
   }
+}
+
+/**
+ * A4 follow-up — project resolved collection records into flat nav links
+ * (label + href). PURE: used by the `nav` render case to auto-populate a bound
+ * nav. Records without a usable href are dropped (no dead `<a href>`); the label
+ * falls back through `label → title → href` so a page/post row always shows
+ * something. `maxItems` caps the row when set. Returns [] when there are no
+ * usable records, so the nav case can fall back to static links.
+ */
+export function navLinksFromRecords(
+  records: ReadonlyArray<BuilderDataSourceRecord>,
+  maxItems?: number,
+): Array<{ id: string; label: string; href: string }> {
+  const out: Array<{ id: string; label: string; href: string }> = [];
+  for (let i = 0; i < records.length; i += 1) {
+    const record = records[i]!;
+    const href = typeof record.href === "string" ? record.href.trim() : "";
+    if (!href) continue;
+    const labelRaw =
+      (typeof record.label === "string" && record.label.trim()) ||
+      (typeof record.title === "string" && record.title.trim()) ||
+      href;
+    out.push({ id: `bound-${i}`, label: labelRaw, href });
+  }
+  if (typeof maxItems === "number" && maxItems > 0) {
+    return out.slice(0, maxItems);
+  }
+  return out;
 }
 
 function profileHrefForRepeat(card: FeaturedTalentCardDTO): string {
@@ -3676,7 +3717,22 @@ function renderBuilderNodeElement(
       const menuLabel = navProps.menuLabel?.trim() || "Menu";
       const navAriaLabel = navProps.ariaLabel?.trim() || "Primary";
       const menuId = `${node.id}-menu`;
-      const links = navProps.links ?? [];
+      // A4 follow-up — when bound to a collection nav source (cms_page /
+      // cms_posts) AND the SHELL/server caller supplied resolved records, auto-
+      // populate the top-level links from those records (always flat — bound
+      // links carry no submenu). With no binding or no resolved records the
+      // static authored `links[]` render exactly as before (byte-identical).
+      const boundNavLinks = navProps.dataBinding
+        ? navLinksFromRecords(
+            collectionRecordsForSource(
+              navProps.dataBinding.sourceKey,
+              options.dataSources,
+            ),
+            navProps.dataBinding.maxItems,
+          )
+        : [];
+      const links: BuilderNavLink[] =
+        boundNavLinks.length > 0 ? boundNavLinks : navProps.links ?? [];
       // A3 — render one link row item. A link with NO children emits the EXACT
       // pre-A3 `<li><a>…</a></li>` markup (byte-identical). A link WITH children
       // wraps in a CSS-only disclosure: desktop = a hover/focus dropdown (or a

@@ -28,6 +28,7 @@ import {
   loadSiteShellRow,
   saveSiteShellRow,
   publishSiteShellRow,
+  restoreSiteShellRevisionAction,
 } from "./site-shell-actions";
 
 export {
@@ -45,6 +46,10 @@ function makeProductionActions(locale: string): SiteShellAdapterActions {
     loadShell: loadSiteShellRow,
     saveShell: saveSiteShellRow,
     publishShell: ({ pageId }) => publishSiteShellRow({ pageId, locale }),
+    // A2 follow-up — restore a saved shell revision's freeform tree onto the
+    // draft (re-asserting admin locks). Binding it makes the adapter expose
+    // `restoreRevision`, so the shell config can flip `canRestoreRevision: true`.
+    restoreRevision: restoreSiteShellRevisionAction,
   };
 }
 

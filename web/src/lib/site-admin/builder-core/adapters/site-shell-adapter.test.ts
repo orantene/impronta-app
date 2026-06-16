@@ -129,9 +129,73 @@ test("[shell] adapter kind is 'site_shell'", () => {
   assert.equal(adapter.kind, "site_shell");
 });
 
-test("[shell] adapter omits restoreRevision (no revision history yet)", () => {
+test("[shell] adapter omits restoreRevision when the action surface lacks it", () => {
   const adapter = createSiteShellAdapter(makeActions());
   assert.equal(adapter.restoreRevision, undefined);
+});
+
+// ── A2 follow-up — restoreRevision present when the action supplies it ─────────
+
+test("[shell] adapter EXPOSES restoreRevision when the action supplies it", () => {
+  const actions = makeActions();
+  const restoreCalls: Array<{ pageId: string; revisionId: string }> = [];
+  const adapter = createSiteShellAdapter({
+    ...actions,
+    async restoreRevision(input) {
+      restoreCalls.push(input);
+      return { ok: true, updatedAt: new Date("2026-06-16T00:00:00Z").toISOString() };
+    },
+  });
+  assert.equal(typeof adapter.restoreRevision, "function");
+});
+
+test("[shell] restoreRevision threads locale, guards('cms_pages'), round-trips the revisionId", async () => {
+  const guardCalls: string[] = [];
+  const actions = makeActions();
+  const restoreCalls: Array<{ pageId: string; revisionId: string }> = [];
+  const adapter = createSiteShellAdapter(
+    {
+      ...actions,
+      async restoreRevision(input) {
+        restoreCalls.push(input);
+        return { ok: true, updatedAt: new Date("2026-06-16T00:00:00Z").toISOString() };
+      },
+    },
+    { assertNoLegacyWrite: (table) => guardCalls.push(table) },
+  );
+
+  const result = await adapter.restoreRevision!(CTX, {
+    revisionId: "rev-123",
+    expectedVersion: 1,
+  });
+
+  assert.equal(result.ok, true);
+  assert.ok(guardCalls.includes("cms_pages"), "guard called with cms_pages on restore");
+  assert.equal(
+    guardCalls.includes("cms_page_sections"),
+    false,
+    "restore MUST NOT touch the legacy slot table",
+  );
+  assert.deepEqual(actions.loadCalls, [{ locale: "es" }], "restore resolves by ctx.locale");
+  assert.deepEqual(restoreCalls, [{ pageId: "shell-row-001", revisionId: "rev-123" }]);
+});
+
+test("[shell] restoreRevision errors when no shell row exists (does NOT restore the wrong row)", async () => {
+  const actions = makeActions(null);
+  const restoreCalls: unknown[] = [];
+  const adapter = createSiteShellAdapter({
+    ...actions,
+    async restoreRevision(input) {
+      restoreCalls.push(input);
+      return { ok: true, updatedAt: new Date().toISOString() };
+    },
+  });
+  const result = await adapter.restoreRevision!(CTX, {
+    revisionId: "rev-123",
+    expectedVersion: 1,
+  });
+  assert.equal(result.ok, false, "missing shell → restore errors");
+  assert.equal(restoreCalls.length, 0, "restore action must not run without a shell row");
 });
 
 // ── Load: exposes the shell tree, threads locale, no lazy-create ──────────────

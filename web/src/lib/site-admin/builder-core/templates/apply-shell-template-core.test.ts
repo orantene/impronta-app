@@ -24,6 +24,7 @@ import type {
 import {
   applyShellTemplateToTree,
   asShellTemplateKind,
+  galleryTabForTemplateKind,
   slotForShellTemplateKind,
   templateTreeToLandmarkChildren,
 } from "./apply-shell-template-core";
@@ -62,6 +63,32 @@ test("[A7] asShellTemplateKind narrows only shell kinds", () => {
 test("[A7] slotForShellTemplateKind maps kind → slot", () => {
   assert.equal(slotForShellTemplateKind("shell_header"), "header");
   assert.equal(slotForShellTemplateKind("shell_footer"), "footer");
+});
+
+// ── A7 follow-up — create-draft kind → gallery_tab wiring ────────────────────
+
+test("[A7 follow-up] galleryTabForTemplateKind pins shell kinds to the 'shell' tab", () => {
+  // Shell templates must ONLY ever land on the shell-surface gallery tab.
+  assert.equal(galleryTabForTemplateKind("shell_header"), "shell");
+  assert.equal(galleryTabForTemplateKind("shell_footer"), "shell");
+});
+
+test("[A7 follow-up] galleryTabForTemplateKind maps non-shell kinds to their natural tab", () => {
+  assert.equal(galleryTabForTemplateKind("element"), "elements");
+  assert.equal(galleryTabForTemplateKind("connected"), "connected");
+  assert.equal(galleryTabForTemplateKind("section"), "sections");
+  assert.equal(galleryTabForTemplateKind("page_template"), "page_templates");
+  assert.equal(galleryTabForTemplateKind("starter_kit"), "page_templates");
+  // No non-shell kind ever resolves to the shell tab.
+  for (const k of [
+    "element",
+    "connected",
+    "section",
+    "page_template",
+    "starter_kit",
+  ] as const) {
+    assert.notEqual(galleryTabForTemplateKind(k), "shell");
+  }
 });
 
 // ── targeted landmark replacement ───────────────────────────────────────────────

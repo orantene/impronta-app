@@ -965,6 +965,18 @@ export interface BuilderNavNode extends BuilderNodeBase {
     menuLabel?: string;
     /** Accessible label for the <nav> landmark (default "Primary"). */
     ariaLabel?: string;
+    /**
+     * A4 follow-up — OPTIONAL bind to a collection nav source (`cms_page` =
+     * published site pages, `cms_posts` = published blog posts). When set AND
+     * the SHELL/server caller supplies the resolved records, the nav AUTO-
+     * POPULATES its top-level links from those records (label + href from the
+     * record fields) instead of the static `links[]`. Absent binding ⇒ the
+     * static authored `links[]` render exactly as before (byte-identical), so
+     * existing navs are unchanged. A bound link is always flat (no submenu);
+     * the static `links[]` are kept as the fallback when nothing resolves so a
+     * nav never blanks out.
+     */
+    dataBinding?: BuilderDataBindingProps;
     style?: BuilderNodeStyle;
   };
 }

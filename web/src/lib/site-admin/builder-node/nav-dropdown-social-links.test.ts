@@ -10,7 +10,11 @@ import {
   getBuilderDataSourceDefinition,
 } from "./data-bindings";
 import { BUILDER_NODE_REGISTRY } from "./registry";
-import { renderBuilderNodes, type BuilderNodeRenderDataSources } from "./render";
+import {
+  navLinksFromRecords,
+  renderBuilderNodes,
+  type BuilderNodeRenderDataSources,
+} from "./render";
 import type {
   BuilderNavNode,
   BuilderNode,
@@ -284,4 +288,103 @@ test("a bound social_links node with no resolved data falls back to static", () 
   // No socialLinks supplied → fall back to the authored list (never blanks out).
   const html = renderHtml([node], {});
   assert.ok(html.includes("https://facebook.com/me"));
+});
+
+// ── A4 follow-up — nav-from-collection autopopulate ─────────────────────────
+
+test("navLinksFromRecords maps records → flat links (label/title fallback, href required)", () => {
+  const links = navLinksFromRecords([
+    { label: "About", href: "/p/about" },
+    // No label → falls back to title.
+    { title: "Journal", href: "/posts/journal" },
+    // No label/title → falls back to href.
+    { href: "/p/contact" },
+    // No href → dropped (never a dead <a href>).
+    { label: "Ghost" },
+  ]);
+  assert.deepEqual(links, [
+    { id: "bound-0", label: "About", href: "/p/about" },
+    { id: "bound-1", label: "Journal", href: "/posts/journal" },
+    { id: "bound-2", label: "/p/contact", href: "/p/contact" },
+  ]);
+});
+
+test("navLinksFromRecords honors maxItems", () => {
+  const records = [
+    { label: "A", href: "/a" },
+    { label: "B", href: "/b" },
+    { label: "C", href: "/c" },
+  ];
+  assert.equal(navLinksFromRecords(records, 2).length, 2);
+  // 0 / undefined ⇒ no cap.
+  assert.equal(navLinksFromRecords(records, 0).length, 3);
+  assert.equal(navLinksFromRecords(records).length, 3);
+});
+
+test("a flat nav with no dataBinding renders static links unchanged (byte-stable)", () => {
+  const nav = createNav() as BuilderNavNode;
+  const a = renderHtml([nav]);
+  // Even when cms_page records are present, an UNBOUND nav ignores them.
+  const b = renderHtml([nav], {
+    collections: { cms_page: [{ label: "Injected", href: "/p/injected" }] },
+  });
+  assert.equal(a, b);
+  assert.ok(!a.includes("/p/injected"));
+});
+
+test("a nav bound to cms_page auto-populates its links from the resolved records", () => {
+  const nav: BuilderNavNode = {
+    id: "nav-bound",
+    kind: "nav",
+    props: {
+      links: [{ id: "static", label: "Fallback", href: "/fallback" }],
+      dataBinding: { sourceKey: "cms_page" },
+    },
+  };
+  const html = renderHtml([nav], {
+    collections: {
+      cms_page: [
+        { label: "About", href: "/p/about" },
+        { label: "Services", href: "/p/services" },
+      ],
+    },
+  });
+  // Bound links win over the static fallback.
+  assert.ok(html.includes("/p/about"));
+  assert.ok(html.includes("/p/services"));
+  assert.ok(html.includes("About"));
+  assert.ok(!html.includes("/fallback"));
+});
+
+test("a bound nav with no resolved records falls back to its static links", () => {
+  const nav: BuilderNavNode = {
+    id: "nav-fallback",
+    kind: "nav",
+    props: {
+      links: [{ id: "static", label: "Home", href: "/" }],
+      dataBinding: { sourceKey: "cms_posts" },
+    },
+  };
+  // No collections supplied → static links render (never blanks out).
+  const html = renderHtml([nav], {});
+  assert.ok(html.includes(">Home</a>"));
+});
+
+test("nav accepts an optional cms_page / cms_posts dataBinding through validate", () => {
+  for (const sourceKey of ["cms_page", "cms_posts"] as const) {
+    const node: BuilderNode = {
+      id: `nav-${sourceKey}`,
+      kind: "nav",
+      props: {
+        links: [{ id: "l1", label: "Home", href: "/" }],
+        dataBinding: { sourceKey },
+      },
+    };
+    const { ok, inner } = validateInner(node);
+    assert.equal(ok, true, `${sourceKey} binding should validate`);
+    assert.equal(
+      (inner as BuilderNavNode).props.dataBinding?.sourceKey,
+      sourceKey,
+    );
+  }
 });

@@ -40,6 +40,7 @@ import {
   listPublishedTemplates,
 } from "@/lib/site-admin/builder-core/templates/registry-actions";
 import { listAllTemplates } from "@/lib/site-admin/builder-core/templates/registry-admin-actions";
+import { galleryTabForTemplateKind } from "@/lib/site-admin/builder-core/templates/apply-shell-template-core";
 import {
   RevisionList,
   PublishNotePanel,
@@ -73,12 +74,18 @@ const KINDS: BuilderTemplateKind[] = [
   "connected",
   "page_template",
   "starter_kit",
+  // A7 follow-up — shell templates are platform-authored here; they surface
+  // ONLY on the shell-surface gallery (gated by allowedTabs) + apply to a
+  // tenant's site_shell via applyShellTemplateToTenant.
+  "shell_header",
+  "shell_footer",
 ];
 const GALLERY_TABS: BuilderGalleryTab[] = [
   "sections",
   "elements",
   "connected",
   "page_templates",
+  "shell",
 ];
 const TARGETS: BuilderTemplateTarget[] = ["talent", "workspace", "both", "platform"];
 const PLANS = ["free", "studio", "agency", "network"] as const;
@@ -565,7 +572,22 @@ function TemplateForm({
         </Field>
         {mode === "create" ? (
           <Field label="Kind">
-            <select style={input} value={form.kind} onChange={(e) => set("kind", e.target.value as BuilderTemplateKind)}>
+            <select
+              style={input}
+              value={form.kind}
+              onChange={(e) => {
+                const nextKind = e.target.value as BuilderTemplateKind;
+                set("kind", nextKind);
+                // A7 follow-up — a shell template only ever lives on the "shell"
+                // gallery tab; pick the coherent tab automatically. Only force a
+                // shell↔non-shell switch so a manual tab choice is preserved
+                // within a kind family.
+                const wasShell = form.gallery_tab === "shell";
+                const nextTab = galleryTabForTemplateKind(nextKind);
+                const nowShell = nextTab === "shell";
+                if (nowShell !== wasShell) set("gallery_tab", nextTab);
+              }}
+            >
               {KINDS.map((k) => (
                 <option key={k} value={k}>{k}</option>
               ))}
