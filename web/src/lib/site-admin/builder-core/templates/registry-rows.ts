@@ -22,13 +22,27 @@ export type BuilderTemplateKind =
   | "section"
   | "connected"
   | "page_template"
-  | "starter_kit";
+  | "starter_kit"
+  // WS-A A7 — a template that targets the shared SITE SHELL header / footer.
+  // Authored in the Builder Lab, surfaced ONLY on the shell-surface gallery
+  // (gated by `allowedTabs`), applied to a tenant's `site_shell` row via
+  // `applyShellTemplateToTenant`. Never shown in the page builders' tabs.
+  | "shell_header"
+  | "shell_footer";
 
 export type BuilderTemplateStatus = "draft" | "in_review" | "published" | "archived";
 
 export type BuilderTemplateTarget = "talent" | "workspace" | "both" | "platform";
 
-export type BuilderGalleryTab = "sections" | "elements" | "connected" | "page_templates";
+export type BuilderGalleryTab =
+  | "sections"
+  | "elements"
+  | "connected"
+  | "page_templates"
+  // WS-A A7 — shell-only gallery tab. Carries `shell_header` / `shell_footer`
+  // templates; offered solely on the shell surface (+ the Lab for authoring),
+  // so these never appear in a tenant/talent page builder.
+  | "shell";
 
 // ── DB row types ──────────────────────────────────────────────────────────────
 

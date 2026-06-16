@@ -473,7 +473,8 @@ function GalleryCard(props: {
   onInsert: (item: AddGalleryItem) => void;
   pending: boolean;
 }) {
-  if (props.tab === "sections" || props.tab === "page_templates") {
+  // WS-A A7 — shell templates use the richer template-card look like sections.
+  if (props.tab === "sections" || props.tab === "page_templates" || props.tab === "shell") {
     return <SectionCard {...props} />;
   }
   if (props.tab === "connected") {
@@ -653,10 +654,12 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
           ? "Add Sections"
           : tab === "connected"
             ? "Add Connected"
-            : "Add Page Templates";
+            : tab === "shell"
+              ? "Add Shell Templates"
+              : "Add Page Templates";
 
   const gridColumns =
-    tab === "sections" || tab === "connected" || tab === "page_templates"
+    tab === "sections" || tab === "connected" || tab === "page_templates" || tab === "shell"
       ? "repeat(2, minmax(0, 1fr))"
       : "repeat(4, minmax(0, 1fr))";
 

@@ -15003,6 +15003,8 @@ export type Database = {
         | "connected"
         | "page_template"
         | "starter_kit"
+        | "shell_header"
+        | "shell_footer"
       builder_template_status: "draft" | "in_review" | "published" | "archived"
       builder_template_target: "talent" | "workspace" | "both" | "platform"
       client_account_type:
@@ -15321,6 +15323,8 @@ export const Constants = {
         "connected",
         "page_template",
         "starter_kit",
+        "shell_header",
+        "shell_footer",
       ],
       builder_template_status: ["draft", "in_review", "published", "archived"],
       builder_template_target: ["talent", "workspace", "both", "platform"],

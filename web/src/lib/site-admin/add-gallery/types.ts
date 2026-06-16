@@ -6,7 +6,14 @@ export type AddGalleryTab =
   | "sections"
   | "connected"
   /** DB-backed published page/section templates (WS2/WS4). */
-  | "page_templates";
+  | "page_templates"
+  /**
+   * WS-A A7 — shell-only tab carrying `shell_header` / `shell_footer` DB
+   * templates. Offered ONLY on the site-shell surface (+ the Lab for
+   * authoring) via each surface's `allowedTabs`; every page-builder surface
+   * omits it, so the live "+" gallery never shows shell templates on a page.
+   */
+  | "shell";
 
 export type AddGalleryInsertMethod =
   | "nativeNode"

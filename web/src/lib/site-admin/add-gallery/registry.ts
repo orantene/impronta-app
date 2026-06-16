@@ -77,6 +77,8 @@ const FALLBACK_CATEGORY_ICON_BY_TAB: Record<AddGalleryItem["tab"], string> = {
   sections: "hero",
   connected: "dynamic",
   page_templates: "layout",
+  // WS-A A7 — shell templates tab.
+  shell: "layout",
 };
 
 /**

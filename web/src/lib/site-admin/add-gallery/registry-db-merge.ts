@@ -261,6 +261,10 @@ function dbGalleryTabToAddGalleryTab(tab: BuilderGalleryTab): AddGalleryTab {
       return "connected";
     case "page_templates":
       return "page_templates";
+    // WS-A A7 — shell templates land on the shell-only tab (offered solely on
+    // the site-shell surface via `allowedTabs`).
+    case "shell":
+      return "shell";
     default:
       return "page_templates";
   }

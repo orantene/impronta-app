@@ -29,6 +29,12 @@ export const CODE_TAB_DEFS: ReadonlyArray<{ id: AddGalleryTab; label: string }> 
   { id: "sections", label: "Sections" },
   { id: "connected", label: "Connected" },
   { id: "page_templates", label: "Page Templates" },
+  // WS-A A7 — shell templates tab. Listed here so the single-source resolvers
+  // (`resolveTabs`, the Lab's `TAB_LABEL`/`ALL_TABS`) know its label/order; the
+  // live "+" gallery still only shows it where a surface's `allowedTabs`
+  // includes "shell" AND items exist (the same gating `page_templates` uses), so
+  // adding it here does NOT make it appear on any page-builder surface.
+  { id: "shell", label: "Shell" },
 ];
 
 /** One `builder_catalog_structure` row. `ref` = 'tab:<id>' | 'cat:<id>' | 'item:<id>'. */
