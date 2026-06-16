@@ -138,7 +138,8 @@ type GroupSettingRow = {
 
 type GroupRow = {
   id: string;
-  name_en: string | null;
+  // name_en folded into name_i18n {en,es} (WS3); resolved to .en at the read.
+  name_i18n: Record<string, string | null> | null;
   slug: string | null;
 };
 
@@ -295,7 +296,7 @@ async function loadTenantCatalogPostureUncached(
     if (groupIds.length > 0) {
       const { data: groupsData } = await sb
         .from("profile_field_groups")
-        .select("id, name_en, slug")
+        .select("id, name_i18n, slug")
         .in("id", groupIds);
 
       const groupById = new Map<string, GroupRow>(
@@ -307,7 +308,7 @@ async function loadTenantCatalogPostureUncached(
           const g = groupById.get(gs.field_group_id);
           return {
             field_group_id: gs.field_group_id,
-            group_name: g?.name_en ?? g?.slug ?? gs.field_group_id,
+            group_name: g?.name_i18n?.en ?? g?.slug ?? gs.field_group_id,
             is_enabled: gs.is_enabled,
             custom_label: gs.custom_label,
           };
