@@ -218,13 +218,26 @@ export const loadTalentTaxonomyEditorData = cache(
         .from("talent_profile_taxonomy")
         .select("taxonomy_term_id, is_primary, taxonomy_terms(kind)")
         .eq("talent_profile_id", profile.id),
-      fetchAllTaxonomyTerms<TalentTaxonomyTermOption>(
+      // name_en/name_es folded into name_i18n {en,es} (WS4); flattened below.
+      fetchAllTaxonomyTerms<Omit<TalentTaxonomyTermOption, "name_en" | "name_es"> & {
+        name_i18n: Record<string, string | null> | null;
+      }>(
         supabase,
-        "id, kind, slug, name_en, name_es, sort_order",
+        "id, kind, slug, name_i18n, sort_order",
         (q) => q.is("archived_at", null),
       ).then(
-        (rows) => ({ data: rows, error: null as null }),
-        (error) => ({ data: null, error }),
+        (rows) => ({
+          data: rows.map((r) => ({
+            id: r.id,
+            kind: r.kind,
+            slug: r.slug,
+            name_en: r.name_i18n?.en ?? "",
+            name_es: r.name_i18n?.es ?? null,
+            sort_order: r.sort_order,
+          })),
+          error: null as null,
+        }),
+        (error) => ({ data: null as TalentTaxonomyTermOption[] | null, error }),
       ),
     ]);
 

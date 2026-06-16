@@ -164,7 +164,8 @@ async function loadTalentTypes() {
 
   const { data, error } = await admin
     .from("taxonomy_terms")
-    .select("id, name_en")
+    // name_en folded into name_i18n {en,es} (WS4); flattened to the picker DTO.
+    .select("id, name_i18n")
     .eq("kind", "talent_type")
     .is("archived_at", null)
     .order("sort_order", { ascending: true });
@@ -176,7 +177,7 @@ async function loadTalentTypes() {
 
   return (data ?? []).map((t) => ({
     id: t.id as string,
-    name_en: t.name_en as string,
+    name_en: (t.name_i18n as Record<string, string | null> | null)?.en ?? "",
   }));
 }
 
