@@ -32,6 +32,8 @@ import {
   REFUND_POLICY_DESCRIPTIONS,
   normalizeDepositPct,
 } from "@/lib/billing/commercial-terms-types";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 
 const FONT = '"Inter", system-ui, sans-serif';
 const FONT_DISPLAY =
@@ -65,21 +67,22 @@ export function OfferTab({
   /** Called after Approve/Decline succeeds (parent typically refreshes details). */
   onAfterAction?: () => void;
 }) {
+  const t = useT();
   if (!details) {
-    return <div style={{ padding: 24, color: C.inkMuted, fontSize: 13 }}>Loading offer…</div>;
+    return <div style={{ padding: 24, color: C.inkMuted, fontSize: 13 }}>{t("dashboard.clientOffer.loading")}</div>;
   }
   if (!details.offer?.exists) {
     return (
       <div style={{ padding: "24px 22px", fontFamily: FONT }}>
         <div style={emptyCardStyle}>
           <div style={{ fontSize: 11, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: 0.6 }}>
-            Offer
+            {t("dashboard.clientOffer.label")}
           </div>
           <div style={{ marginTop: 8, fontSize: 14, color: C.ink, fontWeight: 600 }}>
-            No offer yet
+            {t("dashboard.clientOffer.noOfferYet")}
           </div>
           <p style={{ marginTop: 6, fontSize: 13, color: C.inkMuted, lineHeight: 1.5 }}>
-            Your coordinator is confirming talent. You&apos;ll receive an offer here once the lineup is ready.
+            {t("dashboard.clientOffer.noOfferBody")}
           </p>
         </div>
       </div>
@@ -135,9 +138,9 @@ export function OfferTab({
           <>
             <Divider />
             <div style={{ padding: "12px 0 2px", fontFamily: FONT }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: C.ink }}>You approved this offer</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.ink }}>{t("dashboard.clientOffer.youApproved")}</div>
               <p style={{ marginTop: 4, fontSize: 12.5, color: C.inkMuted, lineHeight: 1.5 }}>
-                Locked in on your side — we&apos;re just waiting on the other parties before it becomes a confirmed booking.
+                {t("dashboard.clientOffer.youApprovedBody")}
               </p>
             </div>
           </>
@@ -164,24 +167,25 @@ function OfferHeader({
   offer: NonNullable<ClientInquiryDetails["offer"]>;
   expired: boolean;
 }) {
+  const t = useT();
   // Audit #12-A (client side): once the client has approved, don't keep
   // badging "Awaiting your decision" — the decision is theirs and it's made.
   const statusInfo =
     offer.myApprovalStatus === "accepted" && offer.status === "sent" && !expired
-      ? { tone: "success" as const, label: "You approved · awaiting others" }
-      : statusBadgeInfo(offer.status, expired);
+      ? { tone: "success" as const, label: t("dashboard.clientOffer.approvedAwaitingOthers") }
+      : statusBadgeInfo(offer.status, expired, t);
   return (
     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
       <div>
         <div style={{ fontSize: 11, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: 0.6 }}>
-          Offer
+          {t("dashboard.clientOffer.label")}
         </div>
         <h2 style={{ margin: "3px 0 0", fontSize: 22, fontWeight: 600, fontFamily: FONT_DISPLAY, color: C.ink, letterSpacing: -0.2 }}>
           {formatMoney(offer.total_client_price, offer.currency)}
         </h2>
         {offer.sent_at && (
           <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 4 }}>
-            Sent {formatDateTime(offer.sent_at)}
+            {t("dashboard.clientOffer.sentPrefix")} {formatDateTime(offer.sent_at)}
           </div>
         )}
       </div>
@@ -189,7 +193,7 @@ function OfferHeader({
         <span style={statusBadgeStyle(statusInfo.tone)}>{statusInfo.label}</span>
         {offer.expires_at && (
           <span style={{ fontSize: 11, color: expired ? C.crimson : C.inkMuted, fontWeight: expired ? 600 : 400 }}>
-            {expired ? "Expired " : "Expires "}
+            {expired ? `${t("dashboard.clientOffer.expiredPrefix")} ` : `${t("dashboard.clientOffer.expiresPrefix")} `}
             {formatDateTime(offer.expires_at)}
           </span>
         )}
@@ -203,17 +207,18 @@ function LineItemsTable({
 }: {
   offer: NonNullable<ClientInquiryDetails["offer"]>;
 }) {
+  const t = useT();
   if (offer.lines.length === 0) {
     return (
       <div style={{ fontSize: 12.5, color: C.inkMuted, fontStyle: "italic", padding: "10px 0" }}>
-        Single-line offer — no itemization.
+        {t("dashboard.clientOffer.singleLine")}
       </div>
     );
   }
   return (
     <div>
       <div style={{ fontSize: 11, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>
-        What&apos;s included
+        {t("dashboard.clientOffer.whatsIncluded")}
       </div>
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, fontFamily: FONT }}>
         <tbody>
@@ -221,7 +226,7 @@ function LineItemsTable({
             <tr key={ln.id}>
               <td style={{ padding: "8px 0", color: C.ink, verticalAlign: "top" }}>
                 <div className="font-semibold">
-                  {ln.label || ln.talent_name || "Item"}
+                  {ln.label || ln.talent_name || t("dashboard.clientOffer.lineItemFallback")}
                 </div>
                 {ln.talent_name && ln.label && (
                   <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 2 }}>
@@ -233,7 +238,7 @@ function LineItemsTable({
                 </div>
                 {ln.service_name && ln.service_name !== ln.label && (
                   <div style={{ fontSize: 11, color: C.inkDim, marginTop: 2 }}>
-                    from {ln.service_name}
+                    {interpolate(t("dashboard.clientOffer.fromService"), { service: ln.service_name })}
                   </div>
                 )}
               </td>
@@ -262,9 +267,10 @@ function Totals({
 }: {
   offer: NonNullable<ClientInquiryDetails["offer"]>;
 }) {
+  const t = useT();
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", fontFamily: FONT }}>
-      <div style={{ fontSize: 13, color: C.inkMuted }}>Total</div>
+      <div style={{ fontSize: 13, color: C.inkMuted }}>{t("dashboard.clientOffer.total")}</div>
       <div style={{ fontSize: 18, fontWeight: 700, color: C.ink, fontVariantNumeric: "tabular-nums" }}>
         {formatMoney(offer.total_client_price, offer.currency)}
       </div>
@@ -285,6 +291,7 @@ function BookingTerms({
   offer: NonNullable<ClientInquiryDetails["offer"]>;
   canDecide: boolean;
 }) {
+  const t = useT();
   const terms = offer.commercialTerms;
   if (!terms) return null;
   const pct = normalizeDepositPct(terms.balanceMethod, terms.depositPct);
@@ -306,7 +313,7 @@ function BookingTerms({
           marginBottom: 8,
         }}
       >
-        Booking terms
+        {t("dashboard.clientOffer.bookingTerms")}
       </div>
       <div
         style={{
@@ -318,20 +325,30 @@ function BookingTerms({
         }}
       >
         <TermRow
-          label="Deposit"
-          value={pct === 0 ? "None up front" : `${formatMoney(depositMajor, offer.currency)} (${pct}%)`}
+          label={t("dashboard.clientOffer.deposit")}
+          value={
+            pct === 0
+              ? t("dashboard.clientOffer.noneUpFront")
+              : interpolate(t("dashboard.clientOffer.depositValue"), {
+                  amount: formatMoney(depositMajor, offer.currency),
+                  pct,
+                })
+          }
         />
         <TermRow
-          label="Balance"
+          label={t("dashboard.clientOffer.balance")}
           value={
             balanceMajor <= 0
-              ? "Paid in full up front"
-              : `${formatMoney(balanceMajor, offer.currency)} via ${BALANCE_METHOD_LABELS[terms.balanceMethod]}`
+              ? t("dashboard.clientOffer.paidInFull")
+              : interpolate(t("dashboard.clientOffer.balanceVia"), {
+                  amount: formatMoney(balanceMajor, offer.currency),
+                  method: BALANCE_METHOD_LABELS[terms.balanceMethod],
+                })
           }
           hint={BALANCE_METHOD_DESCRIPTIONS[terms.balanceMethod]}
         />
         <TermRow
-          label="Refunds"
+          label={t("dashboard.clientOffer.refunds")}
           value={REFUND_POLICY_LABELS[terms.refundPolicy]}
           hint={REFUND_POLICY_DESCRIPTIONS[terms.refundPolicy]}
           last
@@ -339,7 +356,7 @@ function BookingTerms({
       </div>
       {canDecide && (
         <div style={{ marginTop: 6, fontSize: 11.5, color: C.inkMuted, lineHeight: 1.45 }}>
-          Approving this offer confirms you agree to these booking terms.
+          {t("dashboard.clientOffer.termsAgreement")}
         </div>
       )}
     </div>
@@ -406,6 +423,7 @@ function CostBreakdown({
 }: {
   offer: NonNullable<ClientInquiryDetails["offer"]>;
 }) {
+  const t = useT();
   if (offer.lines.length === 0) return null;
 
   const talentFeeTotal = offer.lines.reduce((s, ln) => s + (Number(ln.total_price) || 0), 0);
@@ -427,7 +445,7 @@ function CostBreakdown({
           marginBottom: 8,
         }}
       >
-        What you&apos;re paying for
+        {t("dashboard.clientOffer.whatYouArePayingFor")}
       </div>
       <div
         style={{
@@ -439,13 +457,17 @@ function CostBreakdown({
         }}
       >
         <BreakdownRow
-          label="Talent fee"
-          hint={offer.lines.length === 1 ? undefined : `${offer.lines.length} talent`}
+          label={t("dashboard.clientOffer.talentFee")}
+          hint={
+            offer.lines.length === 1
+              ? undefined
+              : interpolate(t("dashboard.clientOffer.talentCount"), { count: offer.lines.length })
+          }
           amount={formatMoney(talentFeeTotal, offer.currency)}
         />
         <BreakdownRow
-          label="Service fee"
-          hint="Booking and coordination"
+          label={t("dashboard.clientOffer.serviceFee")}
+          hint={t("dashboard.clientOffer.serviceFeeHint")}
           amount={formatMoney(serviceFee, offer.currency)}
         />
         <div
@@ -458,7 +480,7 @@ function CostBreakdown({
             borderTop: `1px solid ${C.borderSoft}`,
           }}
         >
-          <div style={{ fontSize: 13, fontWeight: 700, color: C.ink }}>Total</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.ink }}>{t("dashboard.clientOffer.total")}</div>
           <div
             style={{
               fontSize: 15,
@@ -479,7 +501,7 @@ function CostBreakdown({
           lineHeight: 1.45,
         }}
       >
-        Exact payment terms confirmed in the booking contract after you approve.
+        {t("dashboard.clientOffer.exactTerms")}
       </div>
     </div>
   );
@@ -526,10 +548,11 @@ function BreakdownRow({
 }
 
 function Notes({ notes }: { notes: string }) {
+  const t = useT();
   return (
     <div>
       <div style={{ fontSize: 11, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 6 }}>
-        Coordinator note
+        {t("dashboard.clientOffer.coordinatorNote")}
       </div>
       <p style={{ margin: 0, fontSize: 13, color: C.ink, lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{notes}</p>
     </div>
@@ -541,6 +564,7 @@ function RejectionSummary({
 }: {
   offer: NonNullable<ClientInquiryDetails["offer"]>;
 }) {
+  const t = useT();
   return (
     <div
       style={{
@@ -552,9 +576,9 @@ function RejectionSummary({
         lineHeight: 1.5,
       }}
     >
-      <strong>Previously declined</strong>
+      <strong>{t("dashboard.clientOffer.previouslyDeclined")}</strong>
       {offer.rejection_reason && (
-        <span className="ml-1.5">· {humanizeReason(offer.rejection_reason)}</span>
+        <span className="ml-1.5">· {humanizeReason(offer.rejection_reason, t)}</span>
       )}
       {offer.rejection_reason_text && (
         <div style={{ marginTop: 4, color: C.ink, fontWeight: 400 }}>{offer.rejection_reason_text}</div>
@@ -564,6 +588,7 @@ function RejectionSummary({
 }
 
 function AcceptedBanner() {
+  const t = useT();
   return (
     <div
       style={{
@@ -575,7 +600,7 @@ function AcceptedBanner() {
         fontWeight: 600,
       }}
     >
-      ✓ Offer accepted. The booking is being prepared.
+      {t("dashboard.clientOffer.acceptedBanner")}
     </div>
   );
 }
@@ -591,6 +616,7 @@ function DecisionRibbon({
   tenantSlug: string;
   onAfterAction?: () => void;
 }) {
+  const t = useT();
   const [confirming, setConfirming] = useState<"approve" | "counter" | "decline" | null>(null);
   return (
     <>
@@ -600,21 +626,21 @@ function DecisionRibbon({
           onClick={() => setConfirming("approve")}
           style={primaryBtn}
         >
-          Approve &amp; lock
+          {t("dashboard.clientOffer.approveLock")}
         </button>
         <button
           type="button"
           onClick={() => setConfirming("counter")}
           style={ghostBtn}
         >
-          Counter
+          {t("dashboard.clientOffer.counter")}
         </button>
         <button
           type="button"
           onClick={() => setConfirming("decline")}
           style={ghostBtn}
         >
-          Decline
+          {t("dashboard.clientOffer.decline")}
         </button>
         <div style={{ flex: 1 }} />
         <a
@@ -627,7 +653,7 @@ function DecisionRibbon({
             justifyContent: "center",
           }}
         >
-          Ask a question
+          {t("dashboard.clientOffer.askQuestion")}
         </a>
       </div>
 
@@ -675,6 +701,7 @@ function CounterDrawer({
   onClose: () => void;
   onAfterAction?: () => void;
 }) {
+  const t = useT();
   const [note, setNote] = useState("");
   const [state, formAction, pending] = useActionState<InquiryOfferActionState, FormData>(
     counterOfferAction,
@@ -706,22 +733,24 @@ function CounterDrawer({
   const canSend = note.trim().length > 0 && !pending;
 
   return (
-    <DrawerShell title="Propose a change" subtitle="Keep the project — ask the coordinator to adjust the offer." onClose={onClose}>
+    <DrawerShell
+      title={t("dashboard.clientOffer.counterTitle")}
+      subtitle={t("dashboard.clientOffer.counterSubtitle")}
+      onClose={onClose}
+    >
       <div className="flex flex-col gap-3.5">
         <label className="flex flex-col gap-1.5">
-          <span style={{ fontSize: 11.5, color: C.inkMuted, fontWeight: 600 }}>What would you like to change?</span>
+          <span style={{ fontSize: 11.5, color: C.inkMuted, fontWeight: 600 }}>{t("dashboard.clientOffer.counterPrompt")}</span>
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
             rows={4}
-            placeholder="e.g. budget closer to $3k, swap one talent, shift the date a week…"
+            placeholder={t("dashboard.clientOffer.counterPlaceholder")}
             style={{ ...inputStyle, resize: "vertical", minHeight: 80, lineHeight: 1.45 }}
           />
         </label>
         <Hint>
-          This sends your request to the coordinator without declining — they&apos;ll
-          rework the offer and send an updated version. The current offer stays open
-          until you approve or decline.
+          {t("dashboard.clientOffer.counterHint")}
         </Hint>
         {state.kind === "error" && (
           <div style={errorBoxStyle}>{state.message}</div>
@@ -729,7 +758,7 @@ function CounterDrawer({
       </div>
       <DrawerFooter>
         <button type="button" style={ghostBtn} onClick={onClose}>
-          Cancel
+          {t("dashboard.clientOffer.cancel")}
         </button>
         <button
           type="button"
@@ -737,7 +766,7 @@ function CounterDrawer({
           onClick={submit}
           disabled={!canSend}
         >
-          {pending ? "Sending…" : "Send counter"}
+          {pending ? t("dashboard.clientOffer.sending") : t("dashboard.clientOffer.sendCounter")}
         </button>
       </DrawerFooter>
     </DrawerShell>
@@ -757,6 +786,7 @@ function ApproveDrawer({
   onClose: () => void;
   onAfterAction?: () => void;
 }) {
+  const t = useT();
   const offer = details.offer!;
   const [state, formAction, pending] = useActionState<InquiryOfferActionState, FormData>(
     approveOfferAction,
@@ -788,43 +818,52 @@ function ApproveDrawer({
   };
 
   return (
-    <DrawerShell title="Approve & lock" subtitle="One last check before you confirm." onClose={onClose}>
+    <DrawerShell
+      title={t("dashboard.clientOffer.approveLock")}
+      subtitle={t("dashboard.clientOffer.approveSubtitle")}
+      onClose={onClose}
+    >
       <div className="flex flex-col gap-3.5">
-        <SummaryRow label="Project" value={details.job.title ?? "Inquiry"} />
-        <SummaryRow label="Talent" value={`${details.talent.selected.length} on lineup`} />
+        <SummaryRow label={t("dashboard.clientOffer.summaryProject")} value={details.job.title ?? t("dashboard.clientOffer.inquiryFallback")} />
         <SummaryRow
-          label="Schedule"
+          label={t("dashboard.clientOffer.summaryTalent")}
+          value={interpolate(t("dashboard.clientOffer.talentOnLineup"), { count: details.talent.selected.length })}
+        />
+        <SummaryRow
+          label={t("dashboard.clientOffer.summarySchedule")}
           value={
             details.schedule.event_date
               ? formatDate(details.schedule.event_date)
-              : statusLabel(details.schedule.date_status) ?? "TBD"
+              : statusLabel(details.schedule.date_status) ?? t("dashboard.clientOffer.tbd")
           }
         />
-        <SummaryRow label="Total" value={formatMoney(offer.total_client_price, offer.currency)} bold />
+        <SummaryRow label={t("dashboard.clientOffer.total")} value={formatMoney(offer.total_client_price, offer.currency)} bold />
         {offer.commercialTerms && (
           <SummaryRow
-            label="Deposit"
+            label={t("dashboard.clientOffer.deposit")}
             value={
               offer.commercialTerms.depositPct === 0
-                ? "None up front"
-                : `${formatMoney(
-                    offer.commercialTerms.depositAmountCents > 0
-                      ? offer.commercialTerms.depositAmountCents / 100
-                      : (offer.total_client_price * offer.commercialTerms.depositPct) / 100,
-                    offer.currency,
-                  )} (${offer.commercialTerms.depositPct}%)`
+                ? t("dashboard.clientOffer.noneUpFront")
+                : interpolate(t("dashboard.clientOffer.depositValue"), {
+                    amount: formatMoney(
+                      offer.commercialTerms.depositAmountCents > 0
+                        ? offer.commercialTerms.depositAmountCents / 100
+                        : (offer.total_client_price * offer.commercialTerms.depositPct) / 100,
+                      offer.currency,
+                    ),
+                    pct: offer.commercialTerms.depositPct,
+                  })
             }
           />
         )}
         {offer.commercialTerms && (
           <SummaryRow
-            label="Refunds"
+            label={t("dashboard.clientOffer.refunds")}
             value={REFUND_POLICY_LABELS[offer.commercialTerms.refundPolicy]}
           />
         )}
         <Hint>
-          Approving locks the lineup and confirms you agree to the booking terms
-          above. You can still ask questions in Chat.
+          {t("dashboard.clientOffer.approveHint")}
         </Hint>
         {state.kind === "error" && (
           <div style={errorBoxStyle}>{state.message}</div>
@@ -832,7 +871,7 @@ function ApproveDrawer({
       </div>
       <DrawerFooter>
         <button type="button" style={ghostBtn} onClick={onClose}>
-          Cancel
+          {t("dashboard.clientOffer.cancel")}
         </button>
         <button
           type="button"
@@ -840,7 +879,7 @@ function ApproveDrawer({
           onClick={submit}
           disabled={pending}
         >
-          {pending ? "Approving…" : "Approve & lock"}
+          {pending ? t("dashboard.clientOffer.approving") : t("dashboard.clientOffer.approveLock")}
         </button>
       </DrawerFooter>
     </DrawerShell>
@@ -849,12 +888,14 @@ function ApproveDrawer({
 
 // ─── Decline drawer ──────────────────────────────────────────────────────────
 
+// Value → i18n label-key. Labels are resolved at render via the translator so
+// the dropdown follows the dashboard locale.
 const REJECTION_OPTIONS = [
-  { value: "too_expensive", label: "Too expensive" },
-  { value: "wrong_talent", label: "Wrong talent fit" },
-  { value: "timing", label: "Timing changed" },
-  { value: "changed_plans", label: "Changed plans" },
-  { value: "other", label: "Other" },
+  { value: "too_expensive", labelKey: "dashboard.clientOffer.reasonTooExpensive" },
+  { value: "wrong_talent", labelKey: "dashboard.clientOffer.reasonWrongTalent" },
+  { value: "timing", labelKey: "dashboard.clientOffer.reasonTiming" },
+  { value: "changed_plans", labelKey: "dashboard.clientOffer.reasonChangedPlans" },
+  { value: "other", labelKey: "dashboard.clientOffer.reasonOther" },
 ];
 
 function DeclineDrawer({
@@ -868,6 +909,7 @@ function DeclineDrawer({
   onClose: () => void;
   onAfterAction?: () => void;
 }) {
+  const t = useT();
   const offer = details.offer!;
   const [reason, setReason] = useState("too_expensive");
   const [note, setNote] = useState("");
@@ -902,33 +944,36 @@ function DeclineDrawer({
   };
 
   return (
-    <DrawerShell title="Decline offer" subtitle="Tell the coordinator what's not working." onClose={onClose}>
+    <DrawerShell
+      title={t("dashboard.clientOffer.declineTitle")}
+      subtitle={t("dashboard.clientOffer.declineSubtitle")}
+      onClose={onClose}
+    >
       <div className="flex flex-col gap-3.5">
         <label className="flex flex-col gap-1.5">
-          <span style={{ fontSize: 11.5, color: C.inkMuted, fontWeight: 600 }}>Reason</span>
+          <span style={{ fontSize: 11.5, color: C.inkMuted, fontWeight: 600 }}>{t("dashboard.clientOffer.reason")}</span>
           <select
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             style={inputStyle}
           >
             {REJECTION_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
+              <option key={o.value} value={o.value}>{t(o.labelKey)}</option>
             ))}
           </select>
         </label>
         <label className="flex flex-col gap-1.5">
-          <span style={{ fontSize: 11.5, color: C.inkMuted, fontWeight: 600 }}>What would help (optional)</span>
+          <span style={{ fontSize: 11.5, color: C.inkMuted, fontWeight: 600 }}>{t("dashboard.clientOffer.whatWouldHelp")}</span>
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
             rows={3}
-            placeholder="e.g. budget closer to $3k, different talent vibe, later date…"
+            placeholder={t("dashboard.clientOffer.declinePlaceholder")}
             style={{ ...inputStyle, resize: "vertical", minHeight: 60, lineHeight: 1.45 }}
           />
         </label>
         <Hint>
-          Declining sends the project back to coordination — your coordinator
-          will rework the offer with your feedback. You can still discuss in Chat.
+          {t("dashboard.clientOffer.declineHint")}
         </Hint>
         {state.kind === "error" && (
           <div style={errorBoxStyle}>{state.message}</div>
@@ -936,7 +981,7 @@ function DeclineDrawer({
       </div>
       <DrawerFooter>
         <button type="button" style={ghostBtn} onClick={onClose}>
-          Cancel
+          {t("dashboard.clientOffer.cancel")}
         </button>
         <button
           type="button"
@@ -944,7 +989,7 @@ function DeclineDrawer({
           onClick={submit}
           disabled={pending}
         >
-          {pending ? "Sending…" : "Decline offer"}
+          {pending ? t("dashboard.clientOffer.sending") : t("dashboard.clientOffer.declineCta")}
         </button>
       </DrawerFooter>
     </DrawerShell>
@@ -954,6 +999,7 @@ function DeclineDrawer({
 // ─── Disclosures footer ──────────────────────────────────────────────────────
 
 function Disclosures({ expired, status }: { expired: boolean; status: string }) {
+  const t = useT();
   if (status === "accepted") return null;
   return (
     <div
@@ -970,11 +1016,12 @@ function Disclosures({ expired, status }: { expired: boolean; status: string }) 
     >
       {expired ? (
         <span>
-          This offer has expired. Reply in Chat to ask your coordinator to refresh it.
+          {t("dashboard.clientOffer.expiredDisclosure")}
         </span>
       ) : (
         <>
-          <strong style={{ color: C.ink }}>Payment & cancellation</strong> terms are summarized in the offer notes and will be confirmed in the booking contract after approval.
+          <strong style={{ color: C.ink }}>{t("dashboard.clientOffer.paymentCancellation")}</strong>{" "}
+          {t("dashboard.clientOffer.paymentCancellationBody")}
         </>
       )}
     </div>
@@ -994,6 +1041,7 @@ function DrawerShell({
   onClose: () => void;
   children: React.ReactNode;
 }) {
+  const t = useT();
   // Body-scroll lock.
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -1031,7 +1079,7 @@ function DrawerShell({
         <div style={{ padding: "16px 22px", borderBottom: `1px solid ${C.borderSoft}`, background: "#fff", display: "flex", alignItems: "flex-start", gap: 10 }}>
           <div className="flex-1 min-w-0">
             <div style={{ fontSize: 11, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: 0.6 }}>
-              Offer decision
+              {t("dashboard.clientOffer.offerDecision")}
             </div>
             <h2 style={{ margin: "3px 0 0", fontSize: 18, fontWeight: 600, color: C.ink, fontFamily: FONT_DISPLAY }}>
               {title}
@@ -1041,7 +1089,7 @@ function DrawerShell({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t("dashboard.clientOffer.close")}
             style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${C.borderSoft}`, background: "transparent", color: C.ink, fontSize: 16, cursor: "pointer" }}
           >
             ×
@@ -1122,13 +1170,20 @@ const emptyCardStyle: React.CSSProperties = {
   padding: "20px 22px",
 };
 
-function statusBadgeInfo(status: string, expired: boolean): { tone: "accent" | "success" | "amber" | "crimson"; label: string } {
-  if (status === "accepted") return { tone: "success", label: "Accepted" };
-  if (status === "rejected") return { tone: "crimson", label: "Declined" };
-  if (status === "draft") return { tone: "amber", label: "Being prepared" };
-  if (status === "sent") return expired ? { tone: "crimson", label: "Expired" } : { tone: "accent", label: "Awaiting your decision" };
-  if (status === "withdrawn") return { tone: "crimson", label: "Withdrawn" };
-  if (status === "superseded") return { tone: "amber", label: "Superseded" };
+function statusBadgeInfo(
+  status: string,
+  expired: boolean,
+  t: (key: string) => string,
+): { tone: "accent" | "success" | "amber" | "crimson"; label: string } {
+  if (status === "accepted") return { tone: "success", label: t("dashboard.clientStatus.offerAccepted") };
+  if (status === "rejected") return { tone: "crimson", label: t("dashboard.clientStatus.offerDeclined") };
+  if (status === "draft") return { tone: "amber", label: t("dashboard.clientStatus.offerBeingPrepared") };
+  if (status === "sent")
+    return expired
+      ? { tone: "crimson", label: t("dashboard.clientStatus.offerExpired") }
+      : { tone: "accent", label: t("dashboard.clientStatus.offerAwaitingDecision") };
+  if (status === "withdrawn") return { tone: "crimson", label: t("dashboard.clientStatus.offerWithdrawn") };
+  if (status === "superseded") return { tone: "amber", label: t("dashboard.clientStatus.offerSuperseded") };
   return { tone: "amber", label: status };
 }
 
@@ -1269,13 +1324,13 @@ function statusLabel(s: string | null | undefined): string | null {
   return s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function humanizeReason(reason: string): string {
+function humanizeReason(reason: string, t: (key: string) => string): string {
   const map: Record<string, string> = {
-    too_expensive: "too expensive",
-    wrong_talent: "wrong talent fit",
-    timing: "timing changed",
-    changed_plans: "plans changed",
-    other: "other",
+    too_expensive: t("dashboard.clientOffer.humanTooExpensive"),
+    wrong_talent: t("dashboard.clientOffer.humanWrongTalent"),
+    timing: t("dashboard.clientOffer.humanTiming"),
+    changed_plans: t("dashboard.clientOffer.humanChangedPlans"),
+    other: t("dashboard.clientOffer.humanOther"),
   };
   return map[reason] ?? reason.replace(/_/g, " ");
 }

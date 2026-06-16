@@ -25,6 +25,8 @@ import type {
   ListGuestInquiriesCallback,
   MiniChatBrand,
 } from "@/lib/inquiry/guest-chat-contract";
+import { createTranslator } from "@/i18n/messages";
+import { interpolate } from "@/i18n/interpolate";
 
 import type { StreamRow } from "./MiniChatMessageBubble";
 
@@ -42,7 +44,7 @@ import {
   C,
   EMAIL_RE,
   FONT,
-  STATUS_COPY,
+  statusCopy,
 } from "./mini-chat-styles";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -178,6 +180,9 @@ export function MiniChatPanelColumn({
   identity,
   textareaRef,
 }: MiniChatPanelColumnProps) {
+  // Guest UI locale rides along on `brand` (resolved server-side from the
+  // tenant's default_locale, since guests have no LOCALE_COOKIE).
+  const t = createTranslator(brand.locale ?? "en");
   const gateReady = Boolean(firstName.trim()) && EMAIL_RE.test(email.trim());
   const guestContactEmail =
     (emailedTo ?? prefill?.email ?? email.trim()) || null;
@@ -233,10 +238,10 @@ export function MiniChatPanelColumn({
           </div>
           <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 1 }}>
             {inquiryId
-              ? STATUS_COPY[threadStatus]
+              ? statusCopy(threadStatus, t)
               : typicalReply
-                ? `Typically replies ${typicalReply}`
-                : "Leave a message — the team replies by email"}
+                ? interpolate(t("public.guestChat.typicallyReplies"), { when: typicalReply })
+                : t("public.guestChat.leaveMessage")}
           </div>
         </div>
         <button
@@ -313,7 +318,7 @@ export function MiniChatPanelColumn({
         </div>
 
         {rows.map((m) => (
-          <MiniChatMessageBubble key={m.id} m={m} accent={accent} />
+          <MiniChatMessageBubble key={m.id} m={m} accent={accent} locale={brand.locale ?? "en"} />
         ))}
 
         {limitNudge && limitNudge.tier !== "account" && (

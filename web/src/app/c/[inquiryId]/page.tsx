@@ -86,6 +86,7 @@ export default async function GuestFullConversationPage({
       initialMessages={result.messages}
       initialThreadStatus={result.threadStatus}
       typicalReplyLabel={result.typicalReplyLabel}
+      locale={result.locale}
       onFetch={getGuestThreadMessages}
       onSend={sendGuestMessageAction}
     />

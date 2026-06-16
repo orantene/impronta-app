@@ -13,7 +13,7 @@
  * REUSE, not a new design system:
  *   • Atoms: MiniChatMessageBubble + SendIcon from the _chat module.
  *   • Tokens: C / FONT / DEFAULT_ACCENT / readableOn / primaryBtnStyle /
- *     STATUS_COPY from mini-chat-styles.
+ *     statusCopy from mini-chat-styles (locale-aware via createTranslator).
  *   • Liveness: the SAME ~4s poll + optimistic-send + mergeServer reconcile as
  *     MiniChatPanel — pause on document.hidden; cursor via lastSeenIsoRef;
  *     reconcile tmp- rows by body; NEVER Date.now() in render.
@@ -48,6 +48,8 @@ import type {
   GuestThreadStatus,
   OnSendMessageCallback,
 } from "@/lib/inquiry/guest-chat-contract";
+import { createTranslator } from "@/i18n/messages";
+import { interpolate } from "@/i18n/interpolate";
 
 import { GuestFullThreadHeader } from "./GuestFullThreadHeader";
 
@@ -70,6 +72,8 @@ export type GuestFullThreadViewProps = {
   onFetch: FetchMessagesCallback;
   onSend: OnSendMessageCallback;
   pollIntervalMs?: number;
+  /** Guest UI locale — resolved server-side from the tenant default_locale. */
+  locale?: string;
 };
 
 export function GuestFullThreadView({
@@ -81,7 +85,9 @@ export function GuestFullThreadView({
   onFetch,
   onSend,
   pollIntervalMs = 4000,
+  locale = "en",
 }: GuestFullThreadViewProps) {
+  const t = createTranslator(locale);
   const accent = brand.accentColor ?? DEFAULT_ACCENT;
   const accentInk = readableOn(brand.accentColor);
 
@@ -184,14 +190,14 @@ export function GuestFullThreadView({
   function applyFailure(code: string, message: string, retryAfterMs?: number) {
     if (code === "rate_limited") {
       setCooldownSecs(Math.max(1, Math.ceil((retryAfterMs ?? 30_000) / 1000)));
-      setError(message || "You're sending a little fast — give it a moment.");
+      setError(message || t("public.guestChat.errRateLimited"));
       return;
     }
     if (code === "blocked") {
-      setError(message || "This conversation can't continue.");
+      setError(message || t("public.guestChat.errBlocked"));
       return;
     }
-    setError(message || "Something went wrong. Please try again.");
+    setError(message || t("public.guestChat.errGeneric"));
   }
 
   // ── Send a reply (optimistic) — mirrors MiniChatPanel.handleReply ─────────
@@ -279,6 +285,7 @@ export function GuestFullThreadView({
           logoUrl={brand.logoUrl}
           threadStatus={threadStatus}
           typicalReplyLabel={reply}
+          locale={locale}
         />
 
         {/* ── Tall scrolling message list ─────────────────────────────────── */}
@@ -305,11 +312,12 @@ export function GuestFullThreadView({
                 maxWidth: 380,
               }}
             >
-              No messages yet. Send the first one below and the team will reply by
-              email.
+              {t("public.guestChat.noMessagesYet")}
             </div>
           ) : (
-            rows.map((m) => <MiniChatMessageBubble key={m.id} m={m} accent={accent} />)
+            rows.map((m) => (
+              <MiniChatMessageBubble key={m.id} m={m} accent={accent} locale={locale} />
+            ))
           )}
         </div>
 
@@ -325,7 +333,9 @@ export function GuestFullThreadView({
             }}
           >
             {error}
-            {inCooldown ? ` Try again in ${cooldownSecs}s.` : ""}
+            {inCooldown
+              ? ` ${interpolate(t("public.guestChat.tryAgainIn"), { secs: cooldownSecs })}`
+              : ""}
           </div>
         )}
 
@@ -370,7 +380,7 @@ export function GuestFullThreadView({
                 void handleSend();
               }
             }}
-            placeholder="Write a reply…"
+            placeholder={t("public.guestChat.replyPlaceholder")}
             rows={1}
             disabled={sending || inCooldown}
             style={{
@@ -394,7 +404,7 @@ export function GuestFullThreadView({
             type="button"
             onClick={() => void handleSend()}
             disabled={sendDisabled}
-            aria-label="Send message"
+            aria-label={t("public.guestChat.sendMessageAria")}
             style={{
               ...primaryBtnStyle(accent, accentInk),
               height: 44,

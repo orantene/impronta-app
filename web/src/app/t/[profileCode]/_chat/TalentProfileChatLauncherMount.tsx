@@ -64,6 +64,12 @@ type TalentProfileChatLauncherMountProps = {
   openFullHref?: string | null;
   /** Optional custom opener from tenant_guest_chat_settings.greeting. */
   greeting?: string | null;
+  /**
+   * Guest UI locale — the public-profile locale already resolved on the page
+   * (URL/tenant default; guests have no LOCALE_COOKIE). Threaded onto `brand` so
+   * the panel's card/status labels render in the tenant's language.
+   */
+  locale?: string | null;
 };
 
 export async function TalentProfileChatLauncherMount({
@@ -77,6 +83,7 @@ export async function TalentProfileChatLauncherMount({
   sourcePage,
   openFullHref = null,
   greeting = null,
+  locale = null,
 }: TalentProfileChatLauncherMountProps) {
   // Guest chat only makes sense on an agency surface (the thread is tenant-owned).
   if (!tenantSlug) return null;
@@ -98,6 +105,7 @@ export async function TalentProfileChatLauncherMount({
         accentColor,
         logoUrl,
         greeting,
+        locale,
       }}
       // Returning guest → reopen the thread + prefill the gate (B1). null → fresh.
       existingInquiryId={active?.inquiryId ?? null}
