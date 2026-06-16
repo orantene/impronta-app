@@ -115,8 +115,8 @@ type TaxonomyTerm = {
   id?: string;
   kind: string;
   slug?: string;
-  name_en: string;
-  name_es?: string | null;
+  /** Per-locale term name map { "en": …, "es": … } (replaced name_en/name_es). */
+  name_i18n: Record<string, string | null> | null;
 };
 
 type TaxonomyRow = {
@@ -212,8 +212,9 @@ function flattenTaxonomy(rows: TaxonomyRow[]): TaxonomyTerm[] {
 }
 
 function pickTaxonomyLabel(locale: string, term: TaxonomyTerm): string {
-  if (locale === "es" && term.name_es && term.name_es.trim()) return term.name_es.trim();
-  return term.name_en;
+  const i18n = term.name_i18n ?? {};
+  if (locale === "es" && i18n.es && i18n.es.trim()) return i18n.es.trim();
+  return i18n.en ?? "";
 }
 
 function groupByKind(locale: string, terms: TaxonomyTerm[]): Record<string, string[]> {
@@ -286,12 +287,12 @@ async function fetchTalentProfile(profileCode: string, preview: boolean) {
             is_featured,
             height_cm,
             talent_plan_key,
-            residence_city:locations!residence_city_id ( display_name_en, display_name_es, country_code ),
-            legacy_location:locations!location_id ( display_name_en, display_name_es, country_code ),
-            origin_city:locations!origin_city_id ( display_name_en, display_name_es, country_code ),
+            residence_city:locations!residence_city_id ( display_name_i18n, country_code ),
+            legacy_location:locations!location_id ( display_name_i18n, country_code ),
+            origin_city:locations!origin_city_id ( display_name_i18n, country_code ),
             talent_profile_taxonomy (
               is_primary,
-              taxonomy_terms ( id, kind, slug, name_en, name_es )
+              taxonomy_terms ( id, kind, slug, name_i18n )
             ),
             intro_italic,
             event_styles,
@@ -347,12 +348,12 @@ async function fetchTalentProfile(profileCode: string, preview: boolean) {
       is_featured,
       height_cm,
       talent_plan_key,
-      residence_city:locations!residence_city_id ( display_name_en, display_name_es, country_code ),
-      legacy_location:locations!location_id ( display_name_en, display_name_es, country_code ),
-      origin_city:locations!origin_city_id ( display_name_en, display_name_es, country_code ),
+      residence_city:locations!residence_city_id ( display_name_i18n, country_code ),
+      legacy_location:locations!location_id ( display_name_i18n, country_code ),
+      origin_city:locations!origin_city_id ( display_name_i18n, country_code ),
       talent_profile_taxonomy (
         is_primary,
-        taxonomy_terms ( id, kind, slug, name_en, name_es )
+        taxonomy_terms ( id, kind, slug, name_i18n )
       ),
       intro_italic,
       event_styles,
@@ -786,8 +787,7 @@ export type TalentServiceAreaRow = {
   travel_fee_required: boolean;
   display_order: number;
   locations: {
-    display_name_en: string | null;
-    display_name_es: string | null;
+    display_name_i18n: Record<string, string | null> | null;
     country_code: string | null;
   } | null;
 };
@@ -820,7 +820,7 @@ async function fetchTalentServiceAreas(
     .select(
       `
       id, service_kind, travel_radius_km, travel_fee_required, display_order,
-      locations ( display_name_en, display_name_es, country_code )
+      locations ( display_name_i18n, country_code )
     `,
     )
     .eq("talent_profile_id", talentProfileId)
@@ -1056,7 +1056,7 @@ async function fetchSimilarTalent(
     .from("talent_profiles")
     .select(
       `id, profile_code, display_name, first_name, last_name, workflow_status,
-       talent_profile_taxonomy ( is_primary, taxonomy_terms ( kind, name_en, name_es ) ),
+       talent_profile_taxonomy ( is_primary, taxonomy_terms ( kind, name_i18n ) ),
        media_assets ( bucket_id, storage_path, variant_kind, sort_order )`,
     )
     .in("id", profileIds)
@@ -1798,11 +1798,11 @@ export default async function PublicTalentProfilePage({
   // taxonomy language terms were consolidated into talent_languages.
   const languages: string[] = structuredLanguages.map((r) => formatLanguageRow(r, locale));
   const homeBaseLabel: string | null = structuredServiceAreas.find(s => s.service_kind === "home_base")
-    ?.locations?.[locale === "es" ? "display_name_es" : "display_name_en"]
+    ?.locations?.display_name_i18n?.[locale === "es" ? "es" : "en"]
     ?? null;
   const travelToCities: string[] = structuredServiceAreas
     .filter(s => s.service_kind === "travel_to")
-    .map(s => s.locations?.[locale === "es" ? "display_name_es" : "display_name_en"])
+    .map(s => s.locations?.display_name_i18n?.[locale === "es" ? "es" : "en"])
     .filter((x): x is string => !!x);
 
   // Talent-selected manual featured media (showcase only, NOT verified). Only
