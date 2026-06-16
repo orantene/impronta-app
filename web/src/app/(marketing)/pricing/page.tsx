@@ -12,6 +12,7 @@ import { SimplePageHero } from "@/components/marketing/simple-page-hero";
 import { PlanFeatureCompareTable } from "@/components/marketing/plan-feature-compare-table";
 import { resolveCurrency } from "@/lib/pricing/currency-resolver";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 
 export const metadata: Metadata = {
   title: "Pricing",
@@ -38,40 +39,40 @@ export default async function PricingPage({
   const resolved = await searchParams;
   const { currency, source } = await resolveCurrency(resolved);
   const locale = await getRequestLocale();
-  const c =
-    locale === "es"
-      ? {
-          heroEyebrow: "Precios",
-          heroTitleA: "Empieza gratis.",
-          heroTitleB: "Crece a tu ritmo.",
-          heroSubtitle:
-            "Cada plan arranca con un nivel gratis de verdad. Sube de plan cuando estés listo para un dominio propio, un pipeline real, un equipo o una red con tu marca.",
-          heroPrimary: "Empieza gratis",
-          heroSecondary: "Ver el recorrido",
-          compareEyebrow: "Comparación de planes",
-          compareTitleA: "Cada función,",
-          compareTitleB: "en cada plan.",
-          fineA: "Los planes anuales ahorran 20%.",
-          fineB:
-            "La moneda se ajusta sola para LATAM y la UE. Sin costos de instalación. Sin secuestrar tus datos —",
-          fineC: "exportas todo en cualquier plan de pago.",
-        }
-      : {
-          heroEyebrow: "Pricing",
-          heroTitleA: "Start free.",
-          heroTitleB: "Grow on your schedule.",
-          heroSubtitle:
-            "Every plan starts with a real free tier. Upgrade when you’re ready for a custom domain, a real pipeline, a team, or a white-label network.",
-          heroPrimary: "Start free",
-          heroSecondary: "See the walkthrough",
-          compareEyebrow: "Plan comparison",
-          compareTitleA: "Every feature,",
-          compareTitleB: "every plan.",
-          fineA: "Annual plans save 20%.",
-          fineB:
-            "Currency automatically localizes for LATAM and EU. No setup fees. No hostage data —",
-          fineC: "full export on every paid plan.",
-        };
+  const c = pickLocale(locale, {
+    en: {
+      heroEyebrow: "Pricing",
+      heroTitleA: "Start free.",
+      heroTitleB: "Grow on your schedule.",
+      heroSubtitle:
+        "Every plan starts with a real free tier. Upgrade when you\u2019re ready for a custom domain, a real pipeline, a team, or a white-label network.",
+      heroPrimary: "Start free",
+      heroSecondary: "See the walkthrough",
+      compareEyebrow: "Plan comparison",
+      compareTitleA: "Every feature,",
+      compareTitleB: "every plan.",
+      fineA: "Annual plans save 20%.",
+      fineB:
+        "Currency automatically localizes for LATAM and EU. No setup fees. No hostage data \u2014",
+      fineC: "full export on every paid plan.",
+    },
+    es: {
+      heroEyebrow: "Precios",
+      heroTitleA: "Empieza gratis.",
+      heroTitleB: "Crece a tu ritmo.",
+      heroSubtitle:
+        "Cada plan arranca con un nivel gratis de verdad. Sube de plan cuando est\u00e9s listo para un dominio propio, un pipeline real, un equipo o una red con tu marca.",
+      heroPrimary: "Empieza gratis",
+      heroSecondary: "Ver el recorrido",
+      compareEyebrow: "Comparaci\u00f3n de planes",
+      compareTitleA: "Cada funci\u00f3n,",
+      compareTitleB: "en cada plan.",
+      fineA: "Los planes anuales ahorran 20%.",
+      fineB:
+        "La moneda se ajusta sola para LATAM y la UE. Sin costos de instalaci\u00f3n. Sin secuestrar tus datos \u2014",
+      fineC: "exportas todo en cualquier plan de pago.",
+    },
+  })
   return (
     <>
       <SimplePageHero

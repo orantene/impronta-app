@@ -4,6 +4,7 @@ import { FinalCtaSection } from "@/components/marketing/final-cta-section";
 import { SimplePageHero } from "@/components/marketing/simple-page-hero";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 
 export const metadata: Metadata = {
   title: "Frequently asked",
@@ -13,24 +14,24 @@ export const metadata: Metadata = {
 
 export default async function FaqPage() {
   const locale = await getRequestLocale();
-  const c =
-    locale === "es"
-      ? {
-          eyebrow: "Preguntas frecuentes",
-          titleA: "Respuestas claras.",
-          titleB: "Sin rodeos.",
-          subtitle: `Lo que la gente pregunta antes de registrarse, en versi\u00f3n corta. Si tu duda no est\u00e1 aqu\u00ed, escr\u00edbenos a hello@${PLATFORM_BRAND.domain} \u2014 te respondemos el mismo d\u00eda.`,
-          startFree: "Empieza gratis",
-          seePricing: "Ver precios",
-        }
-      : {
-          eyebrow: "Frequently asked",
-          titleA: "Straight answers.",
-          titleB: "No fluff.",
-          subtitle: `The short version of what people ask before signing up. If you have a question that isn\u2019t here, email hello@${PLATFORM_BRAND.domain} \u2014 we reply same-day.`,
-          startFree: "Start free",
-          seePricing: "See pricing",
-        };
+  const c = pickLocale(locale, {
+    en: {
+      eyebrow: "Frequently asked",
+      titleA: "Straight answers.",
+      titleB: "No fluff.",
+      subtitle: `The short version of what people ask before signing up. If you have a question that isn\u2019t here, email hello@${PLATFORM_BRAND.domain} \u2014 we reply same-day.`,
+      startFree: "Start free",
+      seePricing: "See pricing",
+    },
+    es: {
+      eyebrow: "Preguntas frecuentes",
+      titleA: "Respuestas claras.",
+      titleB: "Sin rodeos.",
+      subtitle: `Lo que la gente pregunta antes de registrarse, en versi\u00f3n corta. Si tu duda no est\u00e1 aqu\u00ed, escr\u00edbenos a hello@${PLATFORM_BRAND.domain} \u2014 te respondemos el mismo d\u00eda.`,
+      startFree: "Empieza gratis",
+      seePricing: "Ver precios",
+    },
+  });
 
   return (
     <>

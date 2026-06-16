@@ -9,6 +9,7 @@ import { NetworkSection } from "@/components/marketing/network-section";
 import { SimplePageHero } from "@/components/marketing/simple-page-hero";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 
 export const metadata: Metadata = {
   title: "The shared network",
@@ -24,8 +25,34 @@ type Fact = {
 };
 
 function getFacts(locale: string): Fact[] {
-  if (locale === "es") {
-    return [
+  return pickLocale(locale, {
+    en: [
+      {
+        index: "01",
+        label: "Opt-in",
+        value: "Per org, per profile",
+        detail: "Nothing lands in the network without you choosing it. Toggle on, toggle off, per entry.",
+      },
+      {
+        index: "02",
+        label: "Discovery",
+        value: "Cross-roster search",
+        detail: "Clients search by category, location, availability, skill \u2014 across every opted-in roster on the platform.",
+      },
+      {
+        index: "03",
+        label: "Attribution",
+        value: "Inquiries route to you",
+        detail: "If a client finds one of your people in the hub, the inquiry still lands in your inbox, with source tracking.",
+      },
+      {
+        index: "04",
+        label: "Portability",
+        value: "Your data, always",
+        detail: "Full roster export available on every paid plan. Leaving the network never means leaving your data behind.",
+      },
+    ],
+    es: [
       {
         index: "01",
         label: "T\u00fa decides",
@@ -50,67 +77,41 @@ function getFacts(locale: string): Fact[] {
         value: "Tus datos, siempre",
         detail: "Exporta tu roster completo en cualquier plan de pago. Salir de la red nunca significa dejar tus datos atr\u00e1s.",
       },
-    ];
-  }
-  return [
-    {
-      index: "01",
-      label: "Opt-in",
-      value: "Per org, per profile",
-      detail: "Nothing lands in the network without you choosing it. Toggle on, toggle off, per entry.",
-    },
-    {
-      index: "02",
-      label: "Discovery",
-      value: "Cross-roster search",
-      detail: "Clients search by category, location, availability, skill \u2014 across every opted-in roster on the platform.",
-    },
-    {
-      index: "03",
-      label: "Attribution",
-      value: "Inquiries route to you",
-      detail: "If a client finds one of your people in the hub, the inquiry still lands in your inbox, with source tracking.",
-    },
-    {
-      index: "04",
-      label: "Portability",
-      value: "Your data, always",
-      detail: "Full roster export available on every paid plan. Leaving the network never means leaving your data behind.",
-    },
-  ];
+    ],
+  });
 }
 
 export default async function NetworkPage() {
   const locale = await getRequestLocale();
   const facts = getFacts(locale);
-  const c =
-    locale === "es"
-      ? {
-          heroEyebrow: "El hub de descubrimiento compartido",
-          heroTitleA: "M\u00e1s grande que",
-          heroTitleB: "un solo roster.",
-          heroSubtitle: `${PLATFORM_BRAND.name} no es solo un constructor de sitios. Cada roster con tu marca se conecta a un hub compartido donde los clientes de verdad buscan \u2014 as\u00ed tu gente se ve incluso cuando no est\u00e1s present\u00e1ndola.`,
-          heroPrimary: "Empieza gratis",
-          heroSecondary: "C\u00f3mo funciona",
-          rulesEyebrow: "Las reglas del juego",
-          rulesHeadingA: "Descubrimiento compartido,",
-          rulesHeadingB: "datos que no se comparten.",
-          rulesSubhead:
-            "La red existe porque la exposici\u00f3n se acumula. Estas son las cuatro promesas que le cumplimos a cada workspace que se une.",
-        }
-      : {
-          heroEyebrow: "The shared discovery hub",
-          heroTitleA: "Bigger than",
-          heroTitleB: "a single roster.",
-          heroSubtitle: `${PLATFORM_BRAND.name} isn\u2019t just a site-builder. Every branded roster plugs into a shared hub where clients actually browse \u2014 so your people get seen even when you\u2019re not pitching.`,
-          heroPrimary: "Start free",
-          heroSecondary: "How it works",
-          rulesEyebrow: "The ground rules",
-          rulesHeadingA: "Shared discovery,",
-          rulesHeadingB: "not shared data.",
-          rulesSubhead:
-            "The network exists because exposure compounds. These are the four promises we hold to every org that joins.",
-        };
+  const c = pickLocale(locale, {
+    en: {
+      heroEyebrow: "The shared discovery hub",
+      heroTitleA: "Bigger than",
+      heroTitleB: "a single roster.",
+      heroSubtitle: `${PLATFORM_BRAND.name} isn\u2019t just a site-builder. Every branded roster plugs into a shared hub where clients actually browse \u2014 so your people get seen even when you\u2019re not pitching.`,
+      heroPrimary: "Start free",
+      heroSecondary: "How it works",
+      rulesEyebrow: "The ground rules",
+      rulesHeadingA: "Shared discovery,",
+      rulesHeadingB: "not shared data.",
+      rulesSubhead:
+        "The network exists because exposure compounds. These are the four promises we hold to every org that joins.",
+    },
+    es: {
+      heroEyebrow: "El hub de descubrimiento compartido",
+      heroTitleA: "M\u00e1s grande que",
+      heroTitleB: "un solo roster.",
+      heroSubtitle: `${PLATFORM_BRAND.name} no es solo un constructor de sitios. Cada roster con tu marca se conecta a un hub compartido donde los clientes de verdad buscan \u2014 as\u00ed tu gente se ve incluso cuando no est\u00e1s present\u00e1ndola.`,
+      heroPrimary: "Empieza gratis",
+      heroSecondary: "C\u00f3mo funciona",
+      rulesEyebrow: "Las reglas del juego",
+      rulesHeadingA: "Descubrimiento compartido,",
+      rulesHeadingB: "datos que no se comparten.",
+      rulesSubhead:
+        "La red existe porque la exposici\u00f3n se acumula. Estas son las cuatro promesas que le cumplimos a cada workspace que se une.",
+    },
+  })
   return (
     <>
       <SimplePageHero

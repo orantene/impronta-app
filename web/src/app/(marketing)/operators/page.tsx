@@ -12,6 +12,7 @@ import { NetworkSection } from "@/components/marketing/network-section";
 import { SimplePageHero } from "@/components/marketing/simple-page-hero";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 
 export const metadata: Metadata = {
   title: "For independent operators",
@@ -26,13 +27,33 @@ type PainPoint = {
 };
 
 function getPainPoints(locale: string): PainPoint[] {
-  if (locale === "es") {
-    return [
+  return pickLocale(locale, {
+    en: [
+      {
+        id: "bottleneck",
+        number: "01",
+        title: "You ARE the business.",
+        body: "Every inquiry, every booking, every response \u2014 it\u2019s all you. The phone doesn\u2019t stop, and there\u2019s no coordinator to delegate to.",
+      },
+      {
+        id: "tools",
+        number: "02",
+        title: "Your tools don\u2019t match your work.",
+        body: "WhatsApp, a Notes app, maybe a spreadsheet. You\u2019re running a business with tools built for personal chat.",
+      },
+      {
+        id: "optics",
+        number: "03",
+        title: "You look smaller than you are.",
+        body: "Clients judge based on what they see. A screenshot pile doesn\u2019t convey the quality of the work, or the quality of you.",
+      },
+    ],
+    es: [
       {
         id: "bottleneck",
         number: "01",
         title: "El negocio eres tú.",
-        body: "Cada consulta, cada reserva, cada respuesta — todo recae en ti. El teléfono no para, y no hay un coordinador a quien delegarle.",
+        body: "Cada consulta, cada reserva, cada respuesta \u2014 todo recae en ti. El teléfono no para, y no hay un coordinador a quien delegarle.",
       },
       {
         id: "tools",
@@ -46,28 +67,8 @@ function getPainPoints(locale: string): PainPoint[] {
         title: "Te ves más chico de lo que eres.",
         body: "Los clientes te juzgan por lo que ven. Un montón de capturas no transmite la calidad del trabajo, ni la tuya.",
       },
-    ];
-  }
-  return [
-    {
-      id: "bottleneck",
-      number: "01",
-      title: "You ARE the business.",
-      body: "Every inquiry, every booking, every response — it\u2019s all you. The phone doesn\u2019t stop, and there\u2019s no coordinator to delegate to.",
-    },
-    {
-      id: "tools",
-      number: "02",
-      title: "Your tools don\u2019t match your work.",
-      body: "WhatsApp, a Notes app, maybe a spreadsheet. You\u2019re running a business with tools built for personal chat.",
-    },
-    {
-      id: "optics",
-      number: "03",
-      title: "You look smaller than you are.",
-      body: "Clients judge based on what they see. A screenshot pile doesn\u2019t convey the quality of the work, or the quality of you.",
-    },
-  ];
+    ],
+  });
 }
 
 type Shift = {
@@ -76,15 +77,41 @@ type Shift = {
 };
 
 function getShifts(locale: string): Shift[] {
-  if (locale === "es") {
-    return [
+  return pickLocale(locale, {
+    en: [
+      {
+        before: "Roster lives in your camera roll.",
+        after: "Roster lives on your domain, rendering like an agency.",
+      },
+      {
+        before: "Inquiries buried in WhatsApp.",
+        after: "Inquiries land structured \u2014 brief, dates, budget.",
+      },
+      {
+        before: "Rates quoted from memory.",
+        after: "Offers version-tracked, approved in-product.",
+      },
+      {
+        before: "Screenshots as your portfolio.",
+        after: "Editorial profiles with one share link.",
+      },
+      {
+        before: "Calendar inside your head.",
+        after: "Availability queryable, bookings exportable.",
+      },
+      {
+        before: "No way to scale past you.",
+        after: "Role-scoped access when you\u2019re ready to delegate.",
+      },
+    ],
+    es: [
       {
         before: "Tu roster vive en el carrete de fotos.",
         after: "Tu roster vive en tu dominio, presentado como una agencia.",
       },
       {
         before: "Consultas enterradas en WhatsApp.",
-        after: "Las consultas llegan estructuradas — brief, fechas, presupuesto.",
+        after: "Las consultas llegan estructuradas \u2014 brief, fechas, presupuesto.",
       },
       {
         before: "Tarifas cotizadas de memoria.",
@@ -102,74 +129,48 @@ function getShifts(locale: string): Shift[] {
         before: "Sin forma de crecer más allá de ti.",
         after: "Accesos por rol cuando estés listo para delegar.",
       },
-    ];
-  }
-  return [
-    {
-      before: "Roster lives in your camera roll.",
-      after: "Roster lives on your domain, rendering like an agency.",
-    },
-    {
-      before: "Inquiries buried in WhatsApp.",
-      after: "Inquiries land structured — brief, dates, budget.",
-    },
-    {
-      before: "Rates quoted from memory.",
-      after: "Offers version-tracked, approved in-product.",
-    },
-    {
-      before: "Screenshots as your portfolio.",
-      after: "Editorial profiles with one share link.",
-    },
-    {
-      before: "Calendar inside your head.",
-      after: "Availability queryable, bookings exportable.",
-    },
-    {
-      before: "No way to scale past you.",
-      after: "Role-scoped access when you\u2019re ready to delegate.",
-    },
-  ];
+    ],
+  });
 }
 
 export default async function OperatorsPage() {
   const locale = await getRequestLocale();
   const painPoints = getPainPoints(locale);
   const shifts = getShifts(locale);
-  const c =
-    locale === "es"
-      ? {
-          heroEyebrow: "Para operadores independientes",
-          heroTitleA: "Ya est\u00e1s llevando",
-          heroTitleB: "un negocio de verdad.",
-          heroSubtitle: `${PLATFORM_BRAND.name} es la plataforma de negocio de talento para coordinadores, scouts independientes, m\u00e1nagers y agencias de una sola persona. Ten un escaparate pulido, un buz\u00f3n de consultas estructurado y presencia en una red de descubrimiento compartida \u2014 gratis para empezar.`,
-          startFree: "Empieza gratis",
-          seeHow: "Mira c\u00f3mo funciona",
-          bottleneckEyebrow: "El cuello de botella de una sola persona",
-          bottleneckTitleA: "Est\u00e1s haciendo trabajo de agencia.",
-          bottleneckTitleB: "Con herramientas personales.",
-          shiftsEyebrow: `Hoy \u2192 con ${PLATFORM_BRAND.name}`,
-          shiftsTitleA: "Seis cambios que te hacen",
-          shiftsTitleB: "ver como una agencia de verdad.",
-          shiftsBody:
-            "Nada de esto reemplaza lo que haces. Reemplaza las herramientas improvisadas que hacen que el trabajo se vea m\u00e1s chico de lo que es.",
-        }
-      : {
-          heroEyebrow: "For independent operators",
-          heroTitleA: "You\u2019re already running",
-          heroTitleB: "a real business.",
-          heroSubtitle: `${PLATFORM_BRAND.name} is the talent business platform for coordinators, freelance scouts, managers, and one-person agencies. Get a polished storefront, a structured inquiry inbox, and exposure on a shared discovery network \u2014 free to start.`,
-          startFree: "Start free",
-          seeHow: "See how it works",
-          bottleneckEyebrow: "The one-person bottleneck",
-          bottleneckTitleA: "You\u2019re doing agency work.",
-          bottleneckTitleB: "With personal tools.",
-          shiftsEyebrow: `Today \u2192 with ${PLATFORM_BRAND.name}`,
-          shiftsTitleA: "Six shifts that make you",
-          shiftsTitleB: "look like a real agency.",
-          shiftsBody:
-            "None of this replaces what you do. It replaces the improvised tooling that makes the work feel smaller than it is.",
-        };
+  const c = pickLocale(locale, {
+    en: {
+      heroEyebrow: "For independent operators",
+      heroTitleA: "You\u2019re already running",
+      heroTitleB: "a real business.",
+      heroSubtitle: `${PLATFORM_BRAND.name} is the talent business platform for coordinators, freelance scouts, managers, and one-person agencies. Get a polished storefront, a structured inquiry inbox, and exposure on a shared discovery network \u2014 free to start.`,
+      startFree: "Start free",
+      seeHow: "See how it works",
+      bottleneckEyebrow: "The one-person bottleneck",
+      bottleneckTitleA: "You\u2019re doing agency work.",
+      bottleneckTitleB: "With personal tools.",
+      shiftsEyebrow: `Today \u2192 with ${PLATFORM_BRAND.name}`,
+      shiftsTitleA: "Six shifts that make you",
+      shiftsTitleB: "look like a real agency.",
+      shiftsBody:
+        "None of this replaces what you do. It replaces the improvised tooling that makes the work feel smaller than it is.",
+    },
+    es: {
+      heroEyebrow: "Para operadores independientes",
+      heroTitleA: "Ya est\u00e1s llevando",
+      heroTitleB: "un negocio de verdad.",
+      heroSubtitle: `${PLATFORM_BRAND.name} es la plataforma de negocio de talento para coordinadores, scouts independientes, m\u00e1nagers y agencias de una sola persona. Ten un escaparate pulido, un buz\u00f3n de consultas estructurado y presencia en una red de descubrimiento compartida \u2014 gratis para empezar.`,
+      startFree: "Empieza gratis",
+      seeHow: "Mira c\u00f3mo funciona",
+      bottleneckEyebrow: "El cuello de botella de una sola persona",
+      bottleneckTitleA: "Est\u00e1s haciendo trabajo de agencia.",
+      bottleneckTitleB: "Con herramientas personales.",
+      shiftsEyebrow: `Hoy \u2192 con ${PLATFORM_BRAND.name}`,
+      shiftsTitleA: "Seis cambios que te hacen",
+      shiftsTitleB: "ver como una agencia de verdad.",
+      shiftsBody:
+        "Nada de esto reemplaza lo que haces. Reemplaza las herramientas improvisadas que hacen que el trabajo se vea m\u00e1s chico de lo que es.",
+    },
+  })
   return (
     <>
       <SimplePageHero
