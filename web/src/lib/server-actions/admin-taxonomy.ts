@@ -1,4 +1,7 @@
 "use server";
+/* eslint-disable max-lines -- cohesive taxonomy server-action module (enabled-tree
+   + category detail + term CRUD + flags + custom sub-types). The WS4 i18n migration
+   added per-locale read/merge/flatten helpers; a split is a clean follow-up. */
 
 // Server actions for Settings -> Roster taxonomy controls.
 

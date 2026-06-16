@@ -601,9 +601,8 @@ function derivePrimaryType(
     });
 
   const top = ranked[0]?.taxonomy_terms;
-  // Fall back to the English term name when slug is absent — card renderer
-  // shows it directly when TAXONOMY.children.find(c => c.id === slug) is null.
-  // name_en was folded into name_i18n by the WS4 i18n migration.
+  // Fall back to the English term name (name_i18n.en, WS4) when slug is absent —
+  // card renderer shows it when TAXONOMY.children.find(c => c.id === slug) is null.
   return top?.slug ?? top?.name_i18n?.en ?? undefined;
 }
 
