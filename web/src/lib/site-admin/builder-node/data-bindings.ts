@@ -11,6 +11,8 @@ export type BuilderDataSourceKey =
   | "talent_locations"
   | "inquiry_path"
   | "cms_page"
+  | "cms_posts"
+  | "workspace_social_links"
   | "asset"
   | "custom_field";
 
@@ -105,6 +107,34 @@ const GENERIC_FIELDS: ReadonlyArray<BuilderDataSourceFieldDefinition> = [
   { key: "href", label: "Link", kind: "href" },
 ];
 
+// A4 — CMS pages projected as NAV-LINK rows (label + href) so a nav can
+// auto-populate its links from the published page list. `title` is kept as an
+// alias of `label` for parity with the generic content shape.
+const PAGE_NAV_FIELDS: ReadonlyArray<BuilderDataSourceFieldDefinition> = [
+  { key: "label", label: "Link label", kind: "text" },
+  { key: "title", label: "Page title", kind: "text" },
+  { key: "slug", label: "Slug", kind: "text" },
+  { key: "href", label: "Page link", kind: "href" },
+];
+
+// A4 — blog/journal posts collection (label/title + summary + cover + link).
+const POST_FIELDS: ReadonlyArray<BuilderDataSourceFieldDefinition> = [
+  { key: "title", label: "Title", kind: "text" },
+  { key: "excerpt", label: "Excerpt", kind: "text" },
+  { key: "publishedAt", label: "Published date", kind: "text" },
+  { key: "coverUrl", label: "Cover image", kind: "image" },
+  { key: "href", label: "Post link", kind: "href" },
+];
+
+// A4 — tenant social/contact profiles (the `workspace_social_links` source).
+// `platform` selects the rendered glyph; `href` is the destination; `label` is
+// the accessible name. Resolved server-side from agency_business_identity.
+const SOCIAL_LINK_FIELDS: ReadonlyArray<BuilderDataSourceFieldDefinition> = [
+  { key: "platform", label: "Platform", kind: "text" },
+  { key: "label", label: "Label", kind: "text" },
+  { key: "href", label: "Profile link", kind: "href" },
+];
+
 export const BUILDER_DATA_SOURCE_REGISTRY: ReadonlyArray<BuilderDataSourceDefinition> = [
   {
     key: "workspace_profile",
@@ -161,14 +191,39 @@ export const BUILDER_DATA_SOURCE_REGISTRY: ReadonlyArray<BuilderDataSourceDefini
   },
   {
     key: "cms_page",
-    label: "CMS page",
-    description: "Published CMS pages and editorial entries.",
-    examples: ["Journal index", "Featured story", "Press page"],
-    fields: GENERIC_FIELDS,
-    recommendedMaxItems: 4,
+    label: "Site pages",
+    description:
+      "Published site pages projected as nav links — bind a navigation to auto-populate its links from your page list.",
+    examples: ["Primary navigation", "Footer links", "Sitemap menu"],
+    fields: PAGE_NAV_FIELDS,
+    recommendedMaxItems: 8,
     supportsManualSelection: true,
     supportsFiltering: true,
     requiredPlan: "studio",
+  },
+  {
+    key: "cms_posts",
+    label: "Blog posts",
+    description:
+      "Published blog / journal posts — bind a list or nav to surface your latest writing.",
+    examples: ["Latest posts", "Journal index", "Featured story"],
+    fields: POST_FIELDS,
+    recommendedMaxItems: 6,
+    supportsManualSelection: true,
+    supportsFiltering: true,
+    requiredPlan: "studio",
+  },
+  {
+    key: "workspace_social_links",
+    label: "Social profiles",
+    description:
+      "Your workspace social and contact profiles (Instagram, TikTok, X, …). Bind a Social links block to keep them in sync.",
+    examples: ["Header social row", "Footer follow icons", "Contact bar"],
+    fields: SOCIAL_LINK_FIELDS,
+    recommendedMaxItems: 8,
+    supportsManualSelection: false,
+    supportsFiltering: false,
+    requiredPlan: "free",
   },
   {
     key: "asset",

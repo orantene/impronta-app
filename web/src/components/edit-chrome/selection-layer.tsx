@@ -6545,6 +6545,10 @@ function canvasChildSecondaryLabel(node: BuilderNode): string {
       return `Spacer · ${node.props.size.toUpperCase()}`;
     case "nav":
       return `Navigation · ${node.props.links.length} link${node.props.links.length === 1 ? "" : "s"}`;
+    case "social_links":
+      return node.props.dataBinding?.sourceKey === "workspace_social_links"
+        ? "Social links · synced"
+        : `Social links · ${node.props.links.length} link${node.props.links.length === 1 ? "" : "s"}`;
     case "form":
       return `Form · ${node.props.fields.length} field${node.props.fields.length === 1 ? "" : "s"}`;
     case "section":

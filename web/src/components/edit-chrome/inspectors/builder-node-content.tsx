@@ -1617,6 +1617,28 @@ export function BuilderNodeContentInspector({
                   &ldquo;Mobile&rdquo; keeps links visible on tablet and above.
                 </Helper>
               </Field>
+              <Field flush>
+                <FieldLabel>Submenu style</FieldLabel>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={node.props.submenuVariant ?? "dropdown"}
+                  onChange={(next) => {
+                    void commitPatch({
+                      submenuVariant: next as "dropdown" | "mega",
+                    });
+                  }}
+                  options={[
+                    { value: "dropdown", label: "Dropdown" },
+                    { value: "mega", label: "Mega" },
+                  ]}
+                />
+                <Helper>
+                  How a link&rsquo;s submenu opens on desktop. &ldquo;Mega&rdquo;
+                  uses a wider multi-column panel. Only affects links with child
+                  links.
+                </Helper>
+              </Field>
             </div>
           </CardBody>
         </Card>
@@ -1723,6 +1745,170 @@ export function BuilderNodeContentInspector({
                         }}
                       />
                     </Field>
+                    {/* A3 — submenu (child links) editor. A link with no
+                        children renders as a flat link; adding children turns it
+                        into a dropdown/mega disclosure (see Submenu style). */}
+                    <div className="mt-1 flex flex-col gap-2 rounded-md border border-stone-200 bg-white px-2.5 py-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">
+                          Submenu
+                        </span>
+                        <span className="text-[11px] text-stone-400">
+                          {(link.children?.length ?? 0) === 0
+                            ? "Flat link"
+                            : `${link.children!.length} child${
+                                link.children!.length === 1 ? "" : "ren"
+                              }`}
+                        </span>
+                      </div>
+                      {(link.children ?? []).map((child, childIndex) => (
+                        <div
+                          key={child.id}
+                          className="flex flex-col gap-1.5 rounded-md bg-[#faf9f6] px-2 py-1.5"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="flex-1 truncate text-[11px] font-semibold text-stone-600">
+                              {child.label || `Sub-link ${childIndex + 1}`}
+                            </span>
+                            <button
+                              type="button"
+                              className={KIT.subtleButton}
+                              disabled={childIndex === 0}
+                              onClick={() => {
+                                const nextChildren = [...(link.children ?? [])];
+                                [
+                                  nextChildren[childIndex - 1],
+                                  nextChildren[childIndex],
+                                ] = [
+                                  nextChildren[childIndex]!,
+                                  nextChildren[childIndex - 1]!,
+                                ];
+                                const nextLinks = links.map((l, i) =>
+                                  i === linkIndex
+                                    ? { ...l, children: nextChildren }
+                                    : l,
+                                );
+                                void commitPatch({ links: nextLinks });
+                              }}
+                            >
+                              Up
+                            </button>
+                            <button
+                              type="button"
+                              className={KIT.subtleButton}
+                              disabled={
+                                childIndex === (link.children?.length ?? 0) - 1
+                              }
+                              onClick={() => {
+                                const nextChildren = [...(link.children ?? [])];
+                                [
+                                  nextChildren[childIndex],
+                                  nextChildren[childIndex + 1],
+                                ] = [
+                                  nextChildren[childIndex + 1]!,
+                                  nextChildren[childIndex]!,
+                                ];
+                                const nextLinks = links.map((l, i) =>
+                                  i === linkIndex
+                                    ? { ...l, children: nextChildren }
+                                    : l,
+                                );
+                                void commitPatch({ links: nextLinks });
+                              }}
+                            >
+                              Down
+                            </button>
+                            <button
+                              type="button"
+                              className={KIT.subtleButton}
+                              onClick={() => {
+                                const nextChildren = (link.children ?? []).filter(
+                                  (_, i) => i !== childIndex,
+                                );
+                                const nextLinks = links.map((l, i) =>
+                                  i === linkIndex
+                                    ? {
+                                        ...l,
+                                        children:
+                                          nextChildren.length > 0
+                                            ? nextChildren
+                                            : undefined,
+                                      }
+                                    : l,
+                                );
+                                void commitPatch({ links: nextLinks });
+                              }}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                          <input
+                            key={`${child.id}:label:${child.label}`}
+                            defaultValue={child.label}
+                            className={KIT.input}
+                            placeholder="Label"
+                            onBlur={(event) => {
+                              const next = event.currentTarget.value.trim();
+                              if (!next || next === child.label) return;
+                              const nextChildren = (link.children ?? []).map(
+                                (c, i) =>
+                                  i === childIndex ? { ...c, label: next } : c,
+                              );
+                              const nextLinks = links.map((l, i) =>
+                                i === linkIndex
+                                  ? { ...l, children: nextChildren }
+                                  : l,
+                              );
+                              void commitPatch({ links: nextLinks });
+                            }}
+                          />
+                          <input
+                            key={`${child.id}:href:${child.href}`}
+                            defaultValue={child.href}
+                            className={KIT.input}
+                            placeholder="/path or https://..."
+                            onBlur={(event) => {
+                              const next = event.currentTarget.value.trim();
+                              if (!next || next === child.href) return;
+                              const nextChildren = (link.children ?? []).map(
+                                (c, i) =>
+                                  i === childIndex ? { ...c, href: next } : c,
+                              );
+                              const nextLinks = links.map((l, i) =>
+                                i === linkIndex
+                                  ? { ...l, children: nextChildren }
+                                  : l,
+                              );
+                              void commitPatch({ links: nextLinks });
+                            }}
+                          />
+                        </div>
+                      ))}
+                      {(link.children?.length ?? 0) < 12 ? (
+                        <button
+                          type="button"
+                          className={KIT.ghostButton}
+                          onClick={() => {
+                            const nextChildren = [
+                              ...(link.children ?? []),
+                              {
+                                id: `sublink-${Date.now()}`,
+                                label: "New sub-link",
+                                href: "/",
+                              },
+                            ];
+                            const nextLinks = links.map((l, i) =>
+                              i === linkIndex
+                                ? { ...l, children: nextChildren }
+                                : l,
+                            );
+                            void commitPatch({ links: nextLinks });
+                          }}
+                        >
+                          + Add submenu link
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -1744,6 +1930,232 @@ export function BuilderNodeContentInspector({
             </div>
           </CardBody>
         </Card>
+      </div>
+    );
+  }
+
+  // ── social_links ──────────────────────────────────────────────────────────
+  // Pattern: links[] array editor (platform select + href) + size/shape
+  // controls + optional bind to the tenant's social profiles.
+  // Schema: socialLinksPropsSchema — links max(12).
+  if (node.kind === "social_links") {
+    const socialLinks = node.props.links ?? [];
+    const isBound =
+      node.props.dataBinding?.sourceKey === "workspace_social_links";
+    const platformOptions: ReadonlyArray<{ value: string; label: string }> = [
+      { value: "instagram", label: "Instagram" },
+      { value: "tiktok", label: "TikTok" },
+      { value: "facebook", label: "Facebook" },
+      { value: "youtube", label: "YouTube" },
+      { value: "linkedin", label: "LinkedIn" },
+      { value: "x", label: "X" },
+      { value: "whatsapp", label: "WhatsApp" },
+      { value: "email", label: "Email" },
+    ];
+    return (
+      <div className="flex flex-col gap-3">
+        <Card state="active">
+          <CardHead
+            title="Social links"
+            sub={
+              isBound
+                ? "Synced to workspace profiles"
+                : `${socialLinks.length} link${
+                    socialLinks.length === 1 ? "" : "s"
+                  }`
+            }
+            iconAccent="blue"
+          />
+          <CardBody>
+            <div className="flex flex-col gap-3">
+              <Field flush>
+                <FieldLabel>Icon size</FieldLabel>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={node.props.size ?? "md"}
+                  onChange={(next) => {
+                    void commitPatch({ size: next as "sm" | "md" | "lg" });
+                  }}
+                  options={[
+                    { value: "sm", label: "Small" },
+                    { value: "md", label: "Medium" },
+                    { value: "lg", label: "Large" },
+                  ]}
+                />
+              </Field>
+              <Field flush>
+                <FieldLabel>Icon shape</FieldLabel>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={node.props.shape ?? "circle"}
+                  onChange={(next) => {
+                    void commitPatch({
+                      shape: next as "bare" | "circle" | "square",
+                    });
+                  }}
+                  options={[
+                    { value: "bare", label: "Bare" },
+                    { value: "circle", label: "Circle" },
+                    { value: "square", label: "Square" },
+                  ]}
+                />
+              </Field>
+              <Field flush>
+                <FieldLabel>Source</FieldLabel>
+                <Toggle
+                  on={isBound}
+                  onChange={(checked) => {
+                    void commitPatch({
+                      dataBinding: checked
+                        ? { sourceKey: "workspace_social_links" }
+                        : undefined,
+                    });
+                  }}
+                  label="Sync from workspace social profiles"
+                />
+                <Helper>
+                  When on, this block shows the social/contact links from your
+                  workspace identity and ignores the manual list below.
+                </Helper>
+              </Field>
+            </div>
+          </CardBody>
+        </Card>
+
+        {!isBound ? (
+          <Card>
+            <CardHead
+              title="Links"
+              sub={`${socialLinks.length} link${
+                socialLinks.length === 1 ? "" : "s"
+              }`}
+            />
+            <CardBody>
+              <div className="flex flex-col gap-3">
+                <p className={KIT.hint}>
+                  Pick a platform and paste the profile URL (or handle). Drag to
+                  reorder.
+                </p>
+                {socialLinks.map((link, linkIndex) => (
+                  <div
+                    key={link.id}
+                    className="rounded-lg border border-stone-200 bg-[#faf9f6] px-3 py-2"
+                  >
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="flex-1 truncate text-[12px] font-semibold text-stone-700">
+                          {platformOptions.find(
+                            (option) => option.value === link.platform,
+                          )?.label ?? link.platform}
+                        </span>
+                        <button
+                          type="button"
+                          className={KIT.subtleButton}
+                          disabled={linkIndex === 0}
+                          onClick={() => {
+                            const nextLinks = [...socialLinks];
+                            [nextLinks[linkIndex - 1], nextLinks[linkIndex]] = [
+                              nextLinks[linkIndex]!,
+                              nextLinks[linkIndex - 1]!,
+                            ];
+                            void commitPatch({ links: nextLinks });
+                          }}
+                        >
+                          Up
+                        </button>
+                        <button
+                          type="button"
+                          className={KIT.subtleButton}
+                          disabled={linkIndex === socialLinks.length - 1}
+                          onClick={() => {
+                            const nextLinks = [...socialLinks];
+                            [nextLinks[linkIndex], nextLinks[linkIndex + 1]] = [
+                              nextLinks[linkIndex + 1]!,
+                              nextLinks[linkIndex]!,
+                            ];
+                            void commitPatch({ links: nextLinks });
+                          }}
+                        >
+                          Down
+                        </button>
+                        <button
+                          type="button"
+                          className={KIT.subtleButton}
+                          onClick={() => {
+                            const nextLinks = socialLinks.filter(
+                              (_, i) => i !== linkIndex,
+                            );
+                            void commitPatch({ links: nextLinks });
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                      <Field flush>
+                        <FieldLabel>Platform</FieldLabel>
+                        <Segmented
+                          compact
+                          value={link.platform}
+                          onChange={(next) => {
+                            const nextLinks = socialLinks.map((l, i) =>
+                              i === linkIndex
+                                ? {
+                                    ...l,
+                                    platform:
+                                      next as (typeof platformOptions)[number]["value"],
+                                  }
+                                : l,
+                            );
+                            void commitPatch({ links: nextLinks });
+                          }}
+                          options={platformOptions}
+                        />
+                      </Field>
+                      <Field flush>
+                        <FieldLabel>Destination</FieldLabel>
+                        <input
+                          key={`${link.id}:href:${link.href}`}
+                          defaultValue={link.href}
+                          className={KIT.input}
+                          placeholder="https://instagram.com/you"
+                          onBlur={(event) => {
+                            const next = event.currentTarget.value.trim();
+                            if (!next || next === link.href) return;
+                            const nextLinks = socialLinks.map((l, i) =>
+                              i === linkIndex ? { ...l, href: next } : l,
+                            );
+                            void commitPatch({ links: nextLinks });
+                          }}
+                        />
+                      </Field>
+                    </div>
+                  </div>
+                ))}
+                {socialLinks.length < 12 ? (
+                  <button
+                    type="button"
+                    className={KIT.ghostButton}
+                    onClick={() => {
+                      const nextLinks = [
+                        ...socialLinks,
+                        {
+                          id: `social-${Date.now()}`,
+                          platform: "instagram" as const,
+                          href: "https://instagram.com/",
+                        },
+                      ];
+                      void commitPatch({ links: nextLinks });
+                    }}
+                  >
+                    + Add social link
+                  </button>
+                ) : null}
+              </div>
+            </CardBody>
+          </Card>
+        ) : null}
       </div>
     );
   }
@@ -2885,6 +3297,10 @@ function childSecondaryLabel(node: BuilderNode): string {
       return `Spacer · ${node.props.size.toUpperCase()}`;
     case "nav":
       return `Navigation · ${node.props.links.length} link${node.props.links.length === 1 ? "" : "s"}`;
+    case "social_links":
+      return node.props.dataBinding?.sourceKey === "workspace_social_links"
+        ? "Social links · synced"
+        : `Social links · ${node.props.links.length} link${node.props.links.length === 1 ? "" : "s"}`;
     case "form":
       return `Form · ${node.props.fields.length} field${node.props.fields.length === 1 ? "" : "s"}`;
     case "section":
