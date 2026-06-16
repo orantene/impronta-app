@@ -54,8 +54,10 @@ async function loadGroupList(): Promise<GroupListRow[] | null> {
     const [groupsR, fieldsR] = await Promise.all([
       sb
         .from("profile_field_groups")
+        // WS3 i18n migration: name_en/name_es folded into name_i18n {en,es}.
+        // description_en/description_es were left OUT OF SCOPE (still columns).
         .select(
-          "id, slug, name_en, name_es, description_en, description_es, sort_order, is_active",
+          "id, slug, name_i18n, description_en, description_es, sort_order, is_active",
         )
         .order("sort_order", { ascending: true }),
       sb
@@ -108,13 +110,14 @@ async function loadGroupList(): Promise<GroupListRow[] | null> {
           ];
           const termsR = await sb
             .from("taxonomy_terms")
-            .select("id, name_en")
+            // name_en folded into name_i18n {en,es} (WS4 migration).
+            .select("id, name_i18n")
             .in("id", termIds);
 
           const termNameById = new Map(
             (
-              (termsR.data ?? []) as Array<{ id: string; name_en: string }>
-            ).map((t) => [t.id, t.name_en]),
+              (termsR.data ?? []) as Array<{ id: string; name_i18n: Record<string, string | null> | null }>
+            ).map((t) => [t.id, t.name_i18n?.en ?? ""]),
           );
 
           for (const rec of recsR.data as Array<{
@@ -136,8 +139,8 @@ async function loadGroupList(): Promise<GroupListRow[] | null> {
     type RawGroup = {
       id: string;
       slug: string;
-      name_en: string;
-      name_es: string | null;
+      // name_en/name_es folded into name_i18n {en,es} (WS3 migration).
+      name_i18n: Record<string, string | null> | null;
       description_en: string | null;
       description_es: string | null;
       sort_order: number;
@@ -157,8 +160,8 @@ async function loadGroupList(): Promise<GroupListRow[] | null> {
         return {
           id: g.id,
           slug: g.slug,
-          name_en: g.name_en,
-          name_es: g.name_es,
+          name_en: g.name_i18n?.en ?? "",
+          name_es: g.name_i18n?.es ?? null,
           description_en: g.description_en ?? null,
           description_es: g.description_es ?? null,
           sort_order: g.sort_order ?? 100,
