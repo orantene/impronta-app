@@ -48,12 +48,13 @@ export const locationDisplayAdapter: TranslationCenterAdapter = {
     let offset = 0;
 
     while (offset < MAX) {
+      // display_name_en/_es folded into display_name_i18n {en,es} (WS4).
       const { data, error } = await supabase
         .from("locations")
-        .select("display_name_en, display_name_es")
+        .select("display_name_i18n")
         .is("archived_at", null)
         .order("country_code", { ascending: true })
-        .order("display_name_en", { ascending: true })
+        .order("display_name_i18n->>en", { ascending: true })
         .range(offset, offset + PAGE - 1);
 
       if (error) {
@@ -62,11 +63,11 @@ export const locationDisplayAdapter: TranslationCenterAdapter = {
       }
       if (!data?.length) break;
 
-      for (const row of data as { display_name_en: string; display_name_es: string | null }[]) {
+      for (const row of data as { display_name_i18n: Record<string, string | null> | null }[]) {
         base.counts.applicableRequired += 1;
         const h = healthPairedColumnsEsTarget({
-          source: row.display_name_en,
-          target: row.display_name_es,
+          source: row.display_name_i18n?.en ?? null,
+          target: row.display_name_i18n?.es ?? null,
           sourceUpdatedAt: null,
           targetUpdatedAt: null,
           hasReliableTimestamps: false,
@@ -90,37 +91,39 @@ export const locationDisplayAdapter: TranslationCenterAdapter = {
       return { units: [], hasMore: false, loadError: null };
     }
 
+    // display_name_en/_es folded into display_name_i18n {en,es} (WS4); sort +
+    // status filters move to JSONB-path expressions.
     const orderCol =
       params.locationSort === "display_es"
-        ? "display_name_es"
+        ? "display_name_i18n->>es"
         : params.locationSort === "slug"
           ? "city_slug"
           : params.locationSort === "updated"
             ? "updated_at"
             : params.locationSort === "display_en"
-              ? "display_name_en"
+              ? "display_name_i18n->>en"
               : "country_code";
     const ascending = params.sortDir === "asc";
 
     let lq = supabase
       .from("locations")
-      .select("id, country_code, city_slug, display_name_en, display_name_es, updated_at")
+      .select("id, country_code, city_slug, display_name_i18n, updated_at")
       .is("archived_at", null)
       .order(orderCol, { ascending, nullsFirst: false })
       .order("country_code", { ascending: true })
-      .order("display_name_en", { ascending: true })
+      .order("display_name_i18n->>en", { ascending: true })
       .range(params.offset, params.offset + TC_TABLE_PAGE_SIZE - 1);
 
     const st = params.statusFilter;
     if (st === "missing") {
-      lq = lq.or("display_name_es.is.null,display_name_es.eq.");
+      lq = lq.or("display_name_i18n->>es.is.null,display_name_i18n->>es.eq.");
     } else if (st === "complete" || st === "translated" || st === "published") {
-      lq = lq.not("display_name_es", "is", null).neq("display_name_es", "");
+      lq = lq.not("display_name_i18n->>es", "is", null).neq("display_name_i18n->>es", "");
     }
     if (params.q.trim()) {
       const escaped = params.q.trim().replace(/[%_]/g, "\\$&");
       lq = lq.or(
-        `display_name_en.ilike.%${escaped}%,city_slug.ilike.%${escaped}%,country_code.ilike.%${escaped}%`,
+        `display_name_i18n->>en.ilike.%${escaped}%,city_slug.ilike.%${escaped}%,country_code.ilike.%${escaped}%`,
       );
     }
 
@@ -134,18 +137,19 @@ export const locationDisplayAdapter: TranslationCenterAdapter = {
       id: string;
       country_code: string;
       city_slug: string;
-      display_name_en: string;
-      display_name_es: string | null;
+      display_name_i18n: Record<string, string | null> | null;
       updated_at: string;
     }>;
     if (st === "complete" || st === "translated" || st === "published") {
-      rows = rows.filter((r) => (r.display_name_es ?? "").trim().length > 0);
+      rows = rows.filter((r) => (r.display_name_i18n?.es ?? "").trim().length > 0);
     }
 
     const units: TranslationUnitDTO[] = rows.map((row) => {
+      const nameEn = row.display_name_i18n?.en ?? null;
+      const nameEs = row.display_name_i18n?.es ?? null;
       const h = healthPairedColumnsEsTarget({
-        source: row.display_name_en,
-        target: row.display_name_es,
+        source: nameEn,
+        target: nameEs,
         sourceUpdatedAt: null,
         targetUpdatedAt: null,
         hasReliableTimestamps: false,
@@ -159,10 +163,10 @@ export const locationDisplayAdapter: TranslationCenterAdapter = {
         fieldKey: "display_name",
         groupKey: domain.groupKey,
         contentClass: domain.contentClass,
-        displayLabel: `${row.country_code} · ${row.display_name_en}`,
+        displayLabel: `${row.country_code} · ${nameEn ?? ""}`,
         health: h.health,
         integrityFlags: h.integrityFlags,
-        localeSummary: `ES: ${(row.display_name_es ?? "").trim() ? "✓" : "—"}`,
+        localeSummary: `ES: ${(nameEs ?? "").trim() ? "✓" : "—"}`,
         updatedAt: row.updated_at,
         adminHref,
         inlineEdit: buildTranslationUnitInlineEdit({ domain, open_full_editor_url: adminHref }),
