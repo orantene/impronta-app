@@ -25,6 +25,7 @@
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { logServerError } from "@/lib/server/safe-error";
+import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { getGuestThreadMessages } from "./guest-chat-actions";
 import type {
   GuestChatFailure,
@@ -201,6 +202,11 @@ export async function getGuestFullThread(input: {
     talentDisplayName = (talentRow?.display_name as string | null)?.trim() || null;
   }
 
+  // Guest UI locale — guests carry no LOCALE_COOKIE, so resolve from the
+  // tenant's default_locale (same source the email pipeline uses). Cached 60s
+  // per tenant; falls back to the platform default when no row exists.
+  const localeSettings = await loadTenantLocaleSettings(tenantId);
+
   return {
     ok: true,
     brand: { agencyName, talentDisplayName, accentColor, logoUrl },
@@ -209,5 +215,6 @@ export async function getGuestFullThread(input: {
     messages: thread.messages,
     threadStatus: thread.threadStatus,
     typicalReplyLabel: thread.typicalReplyLabel,
+    locale: localeSettings.defaultLocale,
   };
 }

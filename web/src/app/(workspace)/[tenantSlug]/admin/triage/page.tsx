@@ -9,6 +9,14 @@
 //   next_action_by ∈ { 'admin', 'coordinator' }
 // — the engine's queue marker. Anything where the next action is on
 // client/talent is correctly NOT in the admin triage queue.
+//
+// PLUS a leading "Unassigned · needs coordinator" bucket: open inquiries
+// where coordinator_id IS NULL. The 3-tier assignment fallback
+// (lib/inquiry/coordinator-assignment.ts) can leave coordinator_id NULL
+// (`agency_manual_pickup`) with next_action_by pointing anywhere, so these
+// would otherwise sit invisibly — nobody is driving them. They're sourced
+// from the full open set (not the next_action_by queue) and deduped out of
+// the other buckets so each inquiry appears once.
 
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -86,22 +94,43 @@ export default async function AdminTriagePage({ params }: { params: PageParams }
   if (!canView) notFound();
 
   const inquiries = await loadWorkspaceInquiries(scope.tenantId);
-  const queue = inquiries.filter((i) => i.next_action_by === "admin" || i.next_action_by === "coordinator");
 
-  // Bucket by stage for visual grouping.
-  type Bucket = "new" | "in_progress" | "offer" | "ready";
+  // Unassigned bucket — open inquiries with NO coordinator of record. These
+  // come straight from the full open set (already terminal-excluded by
+  // loadWorkspaceInquiries), NOT the next_action_by queue, because the
+  // 3-tier assignment fallback can leave coordinator_id NULL with the next
+  // action pointing anywhere — so they'd otherwise sit invisibly. Nobody is
+  // driving them: surface them first, deduped out of the other buckets.
+  const unassigned = inquiries.filter((i) => !i.coordinator_id);
+  const unassignedIds = new Set(unassigned.map((i) => i.id));
+
+  const queue = inquiries.filter(
+    (i) =>
+      !unassignedIds.has(i.id) &&
+      (i.next_action_by === "admin" || i.next_action_by === "coordinator"),
+  );
+
+  // Bucket by stage for visual grouping. "unassigned" leads (its own source
+  // set above); the rest are the next_action_by queue split by status.
+  type Bucket = "unassigned" | "new" | "in_progress" | "offer" | "ready";
   const buckets: Record<Bucket, typeof queue> = {
+    unassigned,
     new: queue.filter((i) => i.status === "submitted"),
     in_progress: queue.filter((i) => i.status === "coordination"),
     offer: queue.filter((i) => i.status === "offer_pending" || i.status === "offer_sent"),
     ready: queue.filter((i) => i.status === "approved" || i.status === "booked" || i.status === "converted"),
   };
   const bucketMeta: Array<{ key: Bucket; label: string; hint: string }> = [
+    { key: "unassigned",  label: "Unassigned · needs coordinator", hint: "No coordinator of record — claim one so it gets driven" },
     { key: "new",         label: "New inquiries",  hint: "Just landed — triage and assign a coordinator" },
     { key: "in_progress", label: "In review",      hint: "Coordinator working on talent + brief" },
     { key: "offer",       label: "Offer in flight", hint: "Sent or drafting — chase the client if stalled" },
     { key: "ready",       label: "Ready for booking", hint: "Client approved — confirm and convert" },
   ];
+
+  // Total awaiting the team — the next_action_by queue plus every unassigned
+  // inquiry (which may not be in that queue at all).
+  const totalNeedingTeam = queue.length + unassigned.length;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18, fontFamily: FONT }}>
@@ -110,15 +139,16 @@ export default async function AdminTriagePage({ params }: { params: PageParams }
           Triage
         </div>
         <h1 style={{ margin: "4px 0 0", fontSize: 24, fontWeight: 600, color: C.ink, letterSpacing: -0.2, fontFamily: FONT_DISPLAY }}>
-          {queue.length === 0 ? "Inbox zero" : `${queue.length} ${queue.length === 1 ? "inquiry" : "inquiries"} need your team`}
+          {totalNeedingTeam === 0 ? "Inbox zero" : `${totalNeedingTeam} ${totalNeedingTeam === 1 ? "inquiry" : "inquiries"} need your team`}
         </h1>
         <p style={{ margin: "6px 0 0", fontSize: 13, color: C.inkMuted, lineHeight: 1.5, maxWidth: 620 }}>
-          Open inquiries where the next action belongs to admin or coordinator.
-          Anything waiting on client or talent has been filtered out.
+          Open inquiries where the next action belongs to admin or coordinator,
+          plus any with no coordinator assigned. Anything waiting on client or
+          talent has been filtered out.
         </p>
       </header>
 
-      {queue.length === 0 ? (
+      {totalNeedingTeam === 0 ? (
         <div
           style={{
             background: C.card,
@@ -140,26 +170,29 @@ export default async function AdminTriagePage({ params }: { params: PageParams }
           {bucketMeta.map(({ key, label, hint }) => {
             const rows = buckets[key];
             if (rows.length === 0) return null;
+            // The unassigned bucket carries an amber accent — nobody is
+            // driving these, so they're the most urgent thing on the page.
+            const isUrgent = key === "unassigned";
             return (
               <section
                 key={key}
                 style={{
                   background: C.card,
-                  border: `1px solid ${C.borderSoft}`,
+                  border: `1px solid ${isUrgent ? "rgba(245,158,11,0.30)" : C.borderSoft}`,
                   borderRadius: 14,
                   overflow: "hidden",
                 }}
               >
-                <div style={{ padding: "12px 18px", borderBottom: `1px solid ${C.borderSoft}`, background: C.surface }}>
+                <div style={{ padding: "12px 18px", borderBottom: `1px solid ${C.borderSoft}`, background: isUrgent ? C.amber : C.surface }}>
                   <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, letterSpacing: -0.1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: isUrgent ? C.amberDeep : C.ink, letterSpacing: -0.1 }}>
                       {label}
                     </div>
-                    <span style={{ fontSize: 11.5, color: C.inkMuted, fontWeight: 600 }}>
+                    <span style={{ fontSize: 11.5, color: isUrgent ? C.amberDeep : C.inkMuted, fontWeight: 600 }}>
                       ({rows.length})
                     </span>
                   </div>
-                  <div style={{ marginTop: 2, fontSize: 11.5, color: C.inkMuted }}>{hint}</div>
+                  <div style={{ marginTop: 2, fontSize: 11.5, color: isUrgent ? C.amberDeep : C.inkMuted }}>{hint}</div>
                 </div>
                 <div>
                   {rows.map((inq, idx) => {
@@ -199,8 +232,12 @@ export default async function AdminTriagePage({ params }: { params: PageParams }
                             >
                               {stage.label}
                             </span>
-                            <span style={{ fontSize: 11, color: C.inkDim }}>
-                              {inq.next_action_by === "admin" ? "Admin to act" : "Coordinator to act"}
+                            <span style={{ fontSize: 11, color: isUrgent ? C.amberDeep : C.inkDim, fontWeight: isUrgent ? 600 : 400 }}>
+                              {!inq.coordinator_id
+                                ? "Needs coordinator"
+                                : inq.next_action_by === "admin"
+                                  ? "Admin to act"
+                                  : "Coordinator to act"}
                             </span>
                             <span style={{ flex: 1 }} />
                             <span style={{ fontSize: 11, color: C.inkMuted }}>{ageLabel(inq.created_at)} ago</span>

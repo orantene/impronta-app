@@ -63,18 +63,47 @@ function listAllRecent() {
 }
 
 function currentAlias(domain) {
-  // Resolve where the alias currently points. `vercel alias ls` output:
-  //   source(deployment-url, no https://)  url(alias-domain)  age
-  // We look for the line whose middle column is EXACTLY `domain` (no
-  // substring match, so `tulala.digital` doesn't catch `www.tulala.digital`).
+  // Resolve where the alias currently points by parsing `vercel alias ls`.
+  //
+  // The real CLI output is a whitespace-padded table whose columns have
+  // drifted across versions; the OLD regex here (a `*.vercel.app` URL THEN the
+  // domain, in that fixed order) never matched, so `--check` printed
+  // "(unknown)" for every domain. The actual layout puts the CUSTOM DOMAIN
+  // first and the deployment host (a bare `*.vercel.app`, no scheme) in a
+  // later column, e.g.:
+  //
+  //   Source                Deployment                         Age
+  //   app.tulala.digital    tulala-abc123.vercel.app           2d
+  //
+  // We no longer assume column ORDER: for each row we independently pull (a)
+  // the first bare `*.vercel.app` host and (b) whether `domain` appears as a
+  // standalone, whole-token cell. Both must be present on the same row. This
+  // tolerates either ordering and any extra columns (Age/Created/etc.).
   const out = run(`vercel alias ls --scope ${SCOPE}`);
   const lines = out.split("\n");
-  for (const line of lines) {
-    // Pull the first vercel.app deployment URL, then check the rest of the
-    // line has the domain as a standalone token.
-    const m = line.match(/(\S+\.vercel\.app)\s+(\S+)/);
-    if (m && m[2] === domain) return `https://${m[1]}`;
+  // Debug branch — set DEBUG or VERBOSE to dump the raw table so future column
+  // drift is diagnosable without editing the script.
+  if (process.env.DEBUG || process.env.VERBOSE) {
+    console.error(`[alias-debug] raw 'vercel alias ls' rows (matching "${domain}"):`);
+    for (const l of lines) console.error(`[alias-debug]   ${l}`);
   }
+  for (const line of lines) {
+    // (a) the deployment host this row points at (scheme-less in the table).
+    const deploy = line.match(/\b([a-z0-9-]+\.vercel\.app)\b/i);
+    if (!deploy) continue;
+    // (b) the custom domain must be present as a standalone cell on this row —
+    // split on whitespace and compare tokens exactly, so `tulala.digital`
+    // doesn't get matched inside `www.tulala.digital` or a deployment slug.
+    const cells = line.trim().split(/\s+/);
+    if (cells.includes(domain)) return `https://${deploy[1]}`;
+  }
+  if (process.env.DEBUG || process.env.VERBOSE) {
+    console.error(
+      `[alias-debug] no row matched "${domain}" — keeping the (unknown) fallback.`,
+    );
+  }
+  // Defensive: if parsing still finds nothing, return null so the caller prints
+  // "(unknown)" rather than throwing — a stale label is better than a crash.
   return null;
 }
 

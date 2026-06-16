@@ -57,6 +57,7 @@ import {
   deleteClientMessageAction,
 } from "../_actions/inquiry-message-actions";
 import { uploadInquiryAttachmentAsClient } from "@/lib/server-actions/client-inquiry-attachments";
+import { useT } from "@/i18n/use-t";
 
 const FONT = '"Inter", system-ui, sans-serif';
 const FONT_DISPLAY = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
@@ -75,26 +76,28 @@ const C = {
   accentDeep: "#1E40AF",
 } as const;
 
-const STAGE_COLORS: Record<string, { bg: string; fg: string; label: string }> = {
-  submitted:        { bg: "rgba(245,158,11,0.10)",  fg: "#92400E", label: "Submitted" },
-  coordination:     { bg: "rgba(29,78,216,0.10)",   fg: "#1E40AF", label: "Coordinating" },
-  offer_pending:    { bg: "rgba(168,85,247,0.10)",  fg: "#6D28D9", label: "Offer pending" },
-  offer_sent:       { bg: "rgba(168,85,247,0.10)",  fg: "#6D28D9", label: "Offer sent" },
-  approved:         { bg: "rgba(16,185,129,0.10)",  fg: "#047857", label: "Approved" },
-  booked:           { bg: "rgba(16,185,129,0.12)",  fg: "#065F46", label: "Booked" },
-  cancelled:        { bg: "rgba(239,68,68,0.10)",   fg: "#991B1B", label: "Cancelled" },
-  archived:         { bg: "rgba(11,11,13,0.06)",    fg: "#52525B", label: "Archived" },
-  draft:            { bg: "rgba(11,11,13,0.06)",    fg: "#52525B", label: "Draft" },
+// Colors are static; the label rides on an i18n key resolved at render via the
+// dashboard translator (`stageStyle(s, t)`).
+const STAGE_COLORS: Record<string, { bg: string; fg: string; labelKey: string }> = {
+  submitted:        { bg: "rgba(245,158,11,0.10)",  fg: "#92400E", labelKey: "dashboard.clientStatus.submitted" },
+  coordination:     { bg: "rgba(29,78,216,0.10)",   fg: "#1E40AF", labelKey: "dashboard.clientStatus.coordination" },
+  offer_pending:    { bg: "rgba(168,85,247,0.10)",  fg: "#6D28D9", labelKey: "dashboard.clientStatus.offerPending" },
+  offer_sent:       { bg: "rgba(168,85,247,0.10)",  fg: "#6D28D9", labelKey: "dashboard.clientStatus.offerSent" },
+  approved:         { bg: "rgba(16,185,129,0.10)",  fg: "#047857", labelKey: "dashboard.clientStatus.approved" },
+  booked:           { bg: "rgba(16,185,129,0.12)",  fg: "#065F46", labelKey: "dashboard.clientStatus.booked" },
+  cancelled:        { bg: "rgba(239,68,68,0.10)",   fg: "#991B1B", labelKey: "dashboard.clientStatus.cancelled" },
+  archived:         { bg: "rgba(11,11,13,0.06)",    fg: "#52525B", labelKey: "dashboard.clientStatus.archived" },
+  draft:            { bg: "rgba(11,11,13,0.06)",    fg: "#52525B", labelKey: "dashboard.clientStatus.draft" },
 };
 
-function stageStyle(s: string) {
-  return (
-    STAGE_COLORS[s] ?? {
-      bg: "rgba(11,11,13,0.06)",
-      fg: "#52525B",
-      label: s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-    }
-  );
+function stageStyle(s: string, t: (key: string) => string) {
+  const hit = STAGE_COLORS[s];
+  if (hit) return { bg: hit.bg, fg: hit.fg, label: t(hit.labelKey) };
+  return {
+    bg: "rgba(11,11,13,0.06)",
+    fg: "#52525B",
+    label: s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+  };
 }
 
 type Filter = "all" | "needs-me" | "active" | "booked" | "past";
@@ -641,7 +644,8 @@ type RowChip = {
 };
 
 function InquiryRow({ inq, active, onClick }: { inq: ClientInquiryRow; active: boolean; onClick: () => void }) {
-  const stage = stageStyle(inq.status);
+  const t = useT();
+  const stage = stageStyle(inq.status, t);
   const company = inq.company || "Unnamed inquiry";
   const dateLabel = inq.event_date ? formatDate(inq.event_date) : null;
   const location = inq.event_location;
@@ -839,7 +843,8 @@ function ThreadPaneWithTabs({
   onBack: () => void;
   onAfterOfferAction?: () => void;
 }) {
-  const stage = stageStyle(inq.status);
+  const t = useT();
+  const stage = stageStyle(inq.status, t);
   const router = useRouter();
   const [statusSheetOpen, setStatusSheetOpen] = useState(false);
   const [payNowSheet, setPayNowSheet] = useState<{ amountLabel: string } | null>(null);
@@ -869,8 +874,8 @@ function ThreadPaneWithTabs({
     [messages, details],
   );
   const statusSheetData = useMemo<StatusSheetData>(
-    () => buildClientStatusSheetData(inq, details),
-    [inq, details],
+    () => buildClientStatusSheetData(inq, details, t),
+    [inq, details, t],
   );
   // Ephemeral typing presence (broadcast-only, no DB). Channel keyed per
   // inquiry; null when no viewer id so the hook safely no-ops.
@@ -1237,6 +1242,7 @@ function clientChargeLabel(details: ClientInquiryDetails | null): string | null 
 function buildClientStatusSheetData(
   inq: ClientInquiryRow,
   details: ClientInquiryDetails | null,
+  translate: (key: string) => string,
 ): StatusSheetData {
   const stage = STAGE_FROM_INQUIRY[inq.status] ?? "Inquiry";
   const offerStatus: OfferStatus = details?.offer?.exists
@@ -1260,11 +1266,11 @@ function buildClientStatusSheetData(
     const p = details?.payment ?? null;
     const amountLabel = clientChargeLabel(details) ?? offerTotal;
     switch (p?.state) {
-      case "requested":      return { status: "Requested", amountLabel, nextAction: "Open the Offer tab to pay and confirm your booking." };
-      case "partially_paid": return { status: "Partially paid", amountLabel, nextAction: "A balance remains — open the Offer tab to pay the rest." };
+      case "requested":      return { status: "Requested", amountLabel, nextAction: translate("dashboard.clientOffer.paymentRequestedNext") };
+      case "partially_paid": return { status: "Partially paid", amountLabel, nextAction: translate("dashboard.clientOffer.paymentBalanceNext") };
       case "paid":           return { status: "Paid", amountLabel };
       case "refunded":       return { status: "Refunded", amountLabel };
-      case "failed":         return { status: "Failed", amountLabel, nextAction: "The last payment attempt failed — try again from the Offer tab." };
+      case "failed":         return { status: "Failed", amountLabel, nextAction: translate("dashboard.clientOffer.paymentFailedNext") };
       default:               return { status: "Not requested" };
     }
   })();
