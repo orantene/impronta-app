@@ -48,6 +48,25 @@ export async function submitApproval(
     const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "submit_approval");
     if (!perm.ok) return { success: false, forbidden: true, reason: "forbidden" };
 
+    // A5-guard — block accepting an offer whose validity window has lapsed. The
+    // offer's `valid_until` is the source of truth; a non-null timestamp in the
+    // past means the quote expired and must be re-issued by the coordinator
+    // before anyone can accept it. Rejections are unaffected (a party may always
+    // decline a stale offer). Mirrors the engine's `{ success:false, error }`
+    // return style.
+    if (ctx.decision === "accepted") {
+      const { data: offerRow } = await supabase
+        .from("inquiry_offers")
+        .select("valid_until")
+        .eq("id", ctx.offerId)
+        .eq("tenant_id", ctx.tenantId)
+        .maybeSingle();
+      const validUntil = (offerRow?.valid_until as string | null) ?? null;
+      if (validUntil && new Date(validUntil).getTime() < Date.now()) {
+        return { success: false, error: "offer_expired" };
+      }
+    }
+
     const { data, error } = await supabase.rpc("engine_submit_approval", {
       p_inquiry_id: ctx.inquiryId,
       p_offer_id: ctx.offerId,
@@ -84,6 +103,27 @@ export async function submitApproval(
         actorUserId: ctx.actorUserId,
         data: { offerId: ctx.offerId, participantId: ctx.participantId },
       });
+
+      // A4 — a talent/party rejection bounces the inquiry back to coordination
+      // but the engine RPC leaves the offer at `sent` (limbo). Explicitly mark
+      // the offer `invalidated` so the one-active-offer slot is freed and the
+      // coordinator can issue a fresh offer. Mirrors `clientRejectOffer`'s
+      // self-elevation pattern: the permission gate above is the security
+      // boundary; service-role is only used for the mechanical write (the
+      // rejecting party cannot UPDATE inquiry_offers through their own session).
+      const { createServiceRoleClient } = await import("@/lib/supabase/admin");
+      const adminClient = createServiceRoleClient();
+      const writeClient = adminClient ?? supabase;
+      const { error: invalidateErr } = await writeClient
+        .from("inquiry_offers")
+        .update({ status: "invalidated" as never })
+        .eq("id", ctx.offerId)
+        .eq("tenant_id", ctx.tenantId)
+        .eq("status", "sent");
+      if (invalidateErr) {
+        logServerError("inquiry-engine-approvals.submitApproval.invalidateOffer", invalidateErr);
+      }
+
       return { success: true };
     }
 

@@ -292,11 +292,13 @@ export async function convertToBooking(
       clientAccountId: bookingFigures?.client_account_id ?? null,
     });
 
-    // Phase B PR 2 — persist commission snapshot. Non-fatal: a failure
-    // here is logged but does NOT roll back the booking. Commissions
-    // can be backfilled later by an admin if the snapshot fails (rare).
-    // Default payment_method='card' — workspaces flip to off-platform
-    // via the dedicated mark-as-cash action (lands in a follow-up PR).
+    // A6 — persist commission snapshot. This is now FATAL: a booking with no
+    // commission snapshot can never pay the talent (executeBookingTransfers
+    // skips a booking with no snapshot rows), so a snapshot failure must roll
+    // the whole conversion back rather than leave a payout-less booking.
+    //
+    // Default payment_method='card' — workspaces flip to off-platform via the
+    // dedicated mark-as-cash action.
     const commissionResult = await persistBookingCommissionSnapshot(supabase, bookingId);
     if (!commissionResult.ok) {
       await improntaLog("convertToBooking.commission_snapshot_failed", {
@@ -304,9 +306,64 @@ export async function convertToBooking(
         reason: commissionResult.reason,
         detail: commissionResult.detail ?? "",
       });
-      // Continue — booking is real even without the snapshot. UI will
-      // show a "Commission not yet computed" hint for the rare case
-      // until a backfill action fixes it.
+
+      // Compensating cleanup — undo everything the RPC created so the inquiry is
+      // left exactly as it was pre-convert and can be retried cleanly. The
+      // RPC's effects are:
+      //   • agency_bookings row (the booking)
+      //   • booking_talent rows           ── ON DELETE CASCADE from agency_bookings
+      //   • booking_activity_log row      ── ON DELETE CASCADE from agency_bookings
+      //   • (booking_commission_snapshot / booking_transactions if any) ── CASCADE
+      //   • inquiries: status='booked', booked_at=now(), version+1
+      // So a single DELETE of the agency_bookings row removes the booking and
+      // every FK child, then we restore the inquiry to its 'approved' pre-convert
+      // state (version back to the caller's expectedVersion). Done via service-role
+      // so RLS can't silently filter the compensating writes.
+      const { createServiceRoleClient } = await import("@/lib/supabase/admin");
+      const cleanupClient = createServiceRoleClient() ?? supabase;
+
+      const { error: delErr } = await cleanupClient
+        .from("agency_bookings")
+        .delete()
+        .eq("id", bookingId)
+        .eq("tenant_id", ctx.tenantId);
+
+      const { error: restoreErr } = await cleanupClient
+        .from("inquiries")
+        .update({
+          status: "approved" as never,
+          booked_at: null,
+          next_action_by: "coordinator",
+          version: ctx.expectedVersion,
+        })
+        .eq("id", ctx.inquiryId)
+        .eq("tenant_id", ctx.tenantId);
+
+      if (delErr || restoreErr) {
+        // The compensating cleanup itself failed — surface loudly. The booking
+        // may now be orphaned (no commission snapshot) and the inquiry may be
+        // stuck at 'booked'; an operator must reconcile manually.
+        await improntaLog("convertToBooking.commission_snapshot_rollback_failed", {
+          bookingId,
+          deleteError: delErr?.message ?? "",
+          restoreError: restoreErr?.message ?? "",
+        });
+      }
+
+      await logInquiryAction(supabase, {
+        inquiryId: ctx.inquiryId,
+        actorUserId: ctx.actorUserId,
+        actionType: "booking_conversion_attempt",
+        result: "failure",
+        reason: "commission_snapshot_failed",
+        metadata: {
+          booking_id: bookingId,
+          snapshot_reason: commissionResult.reason,
+          rolled_back: !delErr && !restoreErr,
+        },
+      });
+
+      return { success: false, error: "commission_snapshot_failed" };
     }
 
     // W6a — snapshot the approved offer's NEGOTIATED commercial terms onto the
