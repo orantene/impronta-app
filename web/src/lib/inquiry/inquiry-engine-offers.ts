@@ -23,6 +23,14 @@ import type {
 } from "@/lib/billing/commercial-terms-types";
 
 /**
+ * A5 — how long a SENT offer stays valid before it lapses. Stamped onto
+ * inquiry_offers.valid_until at send time; a sweeper (separate workstream)
+ * transitions a lapsed offer to status='expired' (enum value added in
+ * 20261029000001_offer_status_add_expired.sql).
+ */
+const DEFAULT_OFFER_EXPIRY_DAYS = 7;
+
+/**
  * W6a — resolve the DEFAULT offer commercial terms for an inquiry's offer by
  * layering the W5 config: platform default → tenant override → talent
  * preference. For multi-talent offers, the line-item talents' booking_terms are
@@ -563,9 +571,16 @@ export async function sendOffer(
     if (!liRows?.length || lineSum <= 0) {
       return { success: false, error: "empty_offer" };
     }
+    // A5 — stamp the offer's expiry window at send time. engine_send_offer flips
+    // status='sent' but does not set valid_until, so we stamp it here in the same
+    // pre-send JS update (computed in JS as an ISO timestamp). A sweeper (separate
+    // workstream) later transitions a lapsed offer to status='expired'.
+    const validUntil = new Date(
+      Date.now() + DEFAULT_OFFER_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+    ).toISOString();
     await supabase
       .from("inquiry_offers")
-      .update({ total_client_price: lineSum })
+      .update({ total_client_price: lineSum, valid_until: validUntil })
       .eq("id", ctx.offerId)
       .eq("tenant_id", ctx.tenantId);
 
@@ -767,6 +782,14 @@ export async function updateOfferDraft(
     for (const line of ctx.lineItems) {
       if (!PRICING_UNITS.has(line.pricing_unit)) {
         return { success: false, error: "invalid_pricing_unit" };
+      }
+      // A3: every priced line must name a talent. A null/empty talent_profile_id
+      // orphans the line from the commission snapshot (resolved per participant)
+      // and from the lineup sync below, so the client would be charged for a line
+      // that pays no one. Reject at draft (DB CHECK backstops this — see
+      // 20261029000000_line_item_talent_required.sql).
+      if (!line.talent_profile_id || String(line.talent_profile_id).trim() === "") {
+        return { success: false, error: "line_item_talent_required" };
       }
     }
 
@@ -1184,7 +1207,7 @@ export async function submitTalentRate(
 
     const { data: line } = await supabase
       .from("inquiry_offer_line_items")
-      .select("id, offer_id, talent_profile_id, units")
+      .select("id, offer_id, talent_profile_id")
       .eq("id", ctx.lineItemId)
       .maybeSingle();
     if (!line || line.offer_id !== ctx.offerId) {
@@ -1216,15 +1239,14 @@ export async function submitTalentRate(
       return { success: false, error: "offer_not_editable" };
     }
 
-    const units = (line.units as number | null) ?? 1;
-    const totalPrice = ctx.talentCost * units;
-
+    // A1: a talent's submitted rate is their COST only — it must NOT overwrite
+    // the coordinator-set CLIENT price (unit_price / total_price). Writing all
+    // three to the talent cost erased the agency margin (the offer total
+    // collapsed to the talent's own number). Set talent_cost alone.
     const { error: upErr } = await supabase
       .from("inquiry_offer_line_items")
       .update({
         talent_cost: ctx.talentCost,
-        unit_price: ctx.talentCost,
-        total_price: totalPrice,
       })
       .eq("id", ctx.lineItemId);
 
@@ -1239,7 +1261,7 @@ export async function submitTalentRate(
       data: { offerId: ctx.offerId, lineItemId: ctx.lineItemId },
     });
 
-    // §6 chat-card: emit talent_rate card into the group thread.
+    // §6 chat-card: emit talent_rate card into the private (staff) thread.
     // state="submitted" when talent submits their own rate; "accepted"
     // when an admin/coordinator sets it on the talent's behalf. Fire-
     // and-forget — never block the user action on emit failure.
@@ -1260,10 +1282,14 @@ export async function submitTalentRate(
       const bodyText = isStaff
         ? `Coordinator set ${talentName}'s rate to ${rateLabel}.`
         : `${talentName} submitted a rate of ${rateLabel}.`;
+      // A1b: route the rate card to the PRIVATE (staff) thread — the group
+      // thread is readable by the client + every peer talent (canSeeGroupThread
+      // is true for all), so a "group" rate card leaked each talent's cost to
+      // the client and to other talents. Mirror the offer_card private insert.
       await supabase.from("inquiry_messages").insert({
         inquiry_id: ctx.inquiryId,
         tenant_id: ctx.tenantId,
-        thread_type: "group",
+        thread_type: "private",
         sender_user_id: ctx.actorUserId,
         body: bodyText,
         message_kind: "talent_rate",
