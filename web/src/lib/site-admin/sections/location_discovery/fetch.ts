@@ -1,4 +1,5 @@
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 import { listTalentIdsOnTenantRoster } from "@/lib/saas/talent-roster";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -75,7 +76,7 @@ export async function fetchTenantRosterCities(params: {
       if (!city?.id) continue;
       const i18n = city.display_name_i18n ?? {};
       const label =
-        (locale === "es" ? i18n.es : i18n.en) ??
+        pickLocale(locale, { en: i18n.en, es: i18n.es }) ??
         i18n.en ??
         "";
       if (!label) continue;

@@ -1,5 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { CACHE_TAG_TAXONOMY } from "@/lib/cache-tags";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { fetchAllTaxonomyTerms } from "@/lib/supabase/paged";
@@ -153,9 +154,10 @@ async function loadTaxonomyTermsUncached(
         name:
           // tenant custom-label override (locale-aware, EN fallback), then the
           // term's own per-locale name. All read off the *_i18n maps (WS4).
-          (locale === "es"
-            ? setting?.custom_label_i18n?.es?.trim() || setting?.custom_label_i18n?.en?.trim()
-            : setting?.custom_label_i18n?.en?.trim()) ||
+          pickLocale(locale, {
+            en: setting?.custom_label_i18n?.en?.trim(),
+            es: setting?.custom_label_i18n?.es?.trim() || setting?.custom_label_i18n?.en?.trim(),
+          }) ||
           (locale === "es" && row.name_i18n?.es ? row.name_i18n.es : row.name_i18n?.en) ||
           row.slug,
       };

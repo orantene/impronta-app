@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import type { Locale } from "@/i18n/config";
 import { withLocalePath } from "@/i18n/pathnames";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 
 export function publicSiteMetadataBase(): URL {
   const raw = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "http://localhost:3000";
@@ -24,7 +25,7 @@ export function buildPublicLocaleAlternates(
   return {
     metadataBase: publicSiteMetadataBase(),
     alternates: {
-      canonical: locale === "es" ? pathEs : pathEn,
+      canonical: pickLocale(locale, { en: pathEn, es: pathEs }),
       languages: {
         en: pathEn,
         es: pathEs,

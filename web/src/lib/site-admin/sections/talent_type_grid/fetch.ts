@@ -1,4 +1,5 @@
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 import { listTalentIdsOnTenantRoster } from "@/lib/saas/talent-roster";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -106,7 +107,7 @@ export async function fetchTenantTalentCategories(params: {
         }
         const ti18n = term.name_i18n ?? {};
         const label =
-          (locale === "es" ? ti18n.es : ti18n.en) ??
+          pickLocale(locale, { en: ti18n.en, es: ti18n.es }) ??
           ti18n.en ??
           "";
         const slot =
@@ -128,7 +129,7 @@ export async function fetchTenantTalentCategories(params: {
         if (slot) {
           const pi18n = (p as { name_i18n?: Record<string, string | null> | null }).name_i18n ?? {};
           slot.label =
-            (locale === "es" ? pi18n.es : pi18n.en) ??
+            pickLocale(locale, { en: pi18n.en, es: pi18n.es }) ??
             pi18n.en ??
             slot.label;
         }

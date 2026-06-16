@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { createTranslator } from "@/i18n/messages";
 import { CACHE_TAG_DIRECTORY, CACHE_TAG_TAXONOMY } from "@/lib/cache-tags";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { fetchAllTaxonomyTerms } from "@/lib/supabase/paged";
@@ -337,8 +338,8 @@ async function loadDirectoryFilterSectionsUncached(
         kind: "field_boolean",
         presentation: "chips",
         options: [
-          { id: "true", label: locale === "es" ? "Sí" : "Yes" },
-          { id: "false", label: locale === "es" ? "No" : "No" },
+          { id: "true", label: pickLocale(locale, { en: "Yes", es: "Sí" }) },
+          { id: "false", label: pickLocale(locale, { en: "No", es: "No" }) },
         ],
       });
       continue;

@@ -1,5 +1,6 @@
 import type { Locale } from "@/i18n/config";
 import { withLocalePath } from "@/i18n/pathnames";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 
 /** Public CMS pages live under `/p/...` (English) and `/es/p/...` (Spanish). */
 export const CMS_PATH_SEGMENT = "p";
@@ -28,7 +29,10 @@ export function normalizeSlugPath(raw: string): string {
 export function buildPublicPathname(locale: Locale, slugPath: string): string {
   const clean = normalizeSlugPath(slugPath);
   if (!clean) return "/";
-  return locale === "es" ? `/es/${CMS_PATH_SEGMENT}/${clean}` : `/${CMS_PATH_SEGMENT}/${clean}`;
+  return pickLocale(locale, {
+    en: `/${CMS_PATH_SEGMENT}/${clean}`,
+    es: `/es/${CMS_PATH_SEGMENT}/${clean}`,
+  });
 }
 
 /** Editorial posts under `/posts/...` (see `cms_posts`). */

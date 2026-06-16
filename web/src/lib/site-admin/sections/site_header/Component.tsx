@@ -6,6 +6,7 @@ import {
 } from "../shared/presentation";
 import type { SectionComponentProps } from "../types";
 import type { SiteHeaderV1 } from "./schema";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
 import { HeaderAuthArea } from "@/components/site-shell/HeaderAuthArea";
 import { EditorialSplitActions } from "./EditorialSplitActions";
@@ -70,7 +71,6 @@ async function renderRightZone(
     getSavedTalentIds(),
     getFavoriteTalentIds(),
   ]);
-  const isEs = locale === "es";
   const pathSettings = {
     ...FALLBACK_LANGUAGE_SETTINGS,
     defaultLocale: localeSettings.defaultLocale,
@@ -95,13 +95,13 @@ async function renderRightZone(
       savedCount={savedIds.length}
       favoritesCount={favoriteIds.length}
       copy={{
-        menu: isEs ? "Menú" : "Menu",
-        close: isEs ? "Cerrar" : "Close",
-        saved: isEs ? "Guardados" : "Saved",
-        inquiry: isEs ? "Tu solicitud" : "Your inquiry",
-        startInquiry: isEs ? "Iniciar solicitud" : "Start an inquiry",
-        exploreTalent: isEs ? "Explorar talento" : "Explore talent",
-        language: isEs ? "Idioma" : "Language",
+        menu: pickLocale(locale, { en: "Menu", es: "Menú" }),
+        close: pickLocale(locale, { en: "Close", es: "Cerrar" }),
+        saved: pickLocale(locale, { en: "Saved", es: "Guardados" }),
+        inquiry: pickLocale(locale, { en: "Your inquiry", es: "Tu solicitud" }),
+        startInquiry: pickLocale(locale, { en: "Start an inquiry", es: "Iniciar solicitud" }),
+        exploreTalent: pickLocale(locale, { en: "Explore talent", es: "Explorar talento" }),
+        language: pickLocale(locale, { en: "Language", es: "Idioma" }),
       }}
     />
   );

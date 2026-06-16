@@ -26,6 +26,7 @@ import {
   SHARE_JWT_MIN_TTL_SECONDS,
   type ShareVerifyResult,
 } from "@/lib/site-admin/share-link/jwt";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 
 export type SignedPitchToken = {
   token: string;
@@ -113,10 +114,10 @@ export function buildWhatsappDeepLink(args: {
   locale?: "en" | "es";
 }): string {
   const locale = args.locale ?? "en";
-  const text =
-    locale === "es"
-      ? `${args.agencyName} te ha enviado una propuesta de talento: ${args.shareUrl}`
-      : `${args.agencyName} sent you a talent pitch: ${args.shareUrl}`;
+  const text = pickLocale(locale, {
+    en: `${args.agencyName} sent you a talent pitch: ${args.shareUrl}`,
+    es: `${args.agencyName} te ha enviado una propuesta de talento: ${args.shareUrl}`,
+  });
   const phoneSegment = args.phone ? args.phone.replace(/[^\d]/g, "") : "";
   return `https://wa.me/${phoneSegment}?text=${encodeURIComponent(text)}`;
 }
@@ -131,14 +132,14 @@ export function buildEmailDeepLink(args: {
   locale?: "en" | "es";
 }): string {
   const locale = args.locale ?? "en";
-  const subject =
-    locale === "es"
-      ? `${args.agencyName} — propuesta de talento`
-      : `${args.agencyName} — talent pitch`;
-  const body =
-    locale === "es"
-      ? `${args.agencyName} te ha enviado una propuesta de talento.\n\nÁbrela aquí: ${args.shareUrl}`
-      : `${args.agencyName} sent you a talent pitch.\n\nOpen it here: ${args.shareUrl}`;
+  const subject = pickLocale(locale, {
+    en: `${args.agencyName} — talent pitch`,
+    es: `${args.agencyName} — propuesta de talento`,
+  });
+  const body = pickLocale(locale, {
+    en: `${args.agencyName} sent you a talent pitch.\n\nOpen it here: ${args.shareUrl}`,
+    es: `${args.agencyName} te ha enviado una propuesta de talento.\n\nÁbrela aquí: ${args.shareUrl}`,
+  });
   const to = args.email ? encodeURIComponent(args.email) : "";
   return `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }

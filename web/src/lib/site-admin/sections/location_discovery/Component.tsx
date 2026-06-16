@@ -3,6 +3,7 @@ import { nodePresentationInlineStyle } from "../shared/node-presentation";
 import { Container, SectionHead, Cta } from "../shared/section-primitives";
 import { renderInlineRich } from "../shared/rich-text";
 import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 import type { CSSProperties } from "react";
 import type { SectionComponentProps } from "../types";
 import type { LocationDiscoveryV1 } from "./schema";
@@ -229,7 +230,6 @@ export async function LocationDiscoveryComponent({
     // mapped roster cities; otherwise fall through to the always-renders
     // editorial map below (no bare "map unavailable" state on key-less tenants).
     if (mapsApiKey && locations.length > 0) {
-      const es = locale === "es";
       return (
         <LocationSection
           locations={locations}
@@ -237,26 +237,31 @@ export async function LocationDiscoveryComponent({
           mapsApiKey={mapsApiKey}
           publicPathPrefix={publicPathPrefix}
           copy={{
-            sectionKicker: eyebrow ?? (es ? "Red de talento" : "Talent network"),
+            sectionKicker:
+              eyebrow ?? pickLocale(locale, { en: "Talent network", es: "Red de talento" }),
             sectionTitle:
               headline ??
-              (es
-                ? "Rostros locales, alcance internacional."
-                : "Local faces, international reach."),
-            talentCountOne: es ? "1 talento" : "1 talent",
-            talentCountMany: es ? "{count} talentos" : "{count} talent",
-            viewTalents: es ? "Ver talentos" : "View talents",
-            mapLoadErrorTitle: es ? "Mapa no disponible" : "Map unavailable",
-            mapLoadErrorBody: es
-              ? "No se pudo cargar el mapa interactivo."
-              : "The interactive map could not load.",
-            mapLoadErrorOpenConsole: es
-              ? "Abre la consola del navegador para más detalles."
-              : "Open the browser console for details.",
-            mapPinPreviewAria: es
-              ? "Talento destacado en {city}"
-              : "Featured talent in {city}",
-            mapPinPreviewPhotoAlt: es ? "Talento destacado" : "Featured talent",
+              pickLocale(locale, {
+                en: "Local faces, international reach.",
+                es: "Rostros locales, alcance internacional.",
+              }),
+            talentCountOne: pickLocale(locale, { en: "1 talent", es: "1 talento" }),
+            talentCountMany: pickLocale(locale, { en: "{count} talent", es: "{count} talentos" }),
+            viewTalents: pickLocale(locale, { en: "View talents", es: "Ver talentos" }),
+            mapLoadErrorTitle: pickLocale(locale, { en: "Map unavailable", es: "Mapa no disponible" }),
+            mapLoadErrorBody: pickLocale(locale, {
+              en: "The interactive map could not load.",
+              es: "No se pudo cargar el mapa interactivo.",
+            }),
+            mapLoadErrorOpenConsole: pickLocale(locale, {
+              en: "Open the browser console for details.",
+              es: "Abre la consola del navegador para más detalles.",
+            }),
+            mapPinPreviewAria: pickLocale(locale, {
+              en: "Featured talent in {city}",
+              es: "Talento destacado en {city}",
+            }),
+            mapPinPreviewPhotoAlt: pickLocale(locale, { en: "Featured talent", es: "Talento destacado" }),
           }}
         />
       );

@@ -1,6 +1,7 @@
 import { Suspense, cache, type CSSProperties } from "react";
 
 import { defaultLocale, isLocale, type Locale } from "@/i18n/config";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 import { createTranslator, getMessageStringArray } from "@/i18n/messages";
 import { buildDirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
@@ -105,9 +106,10 @@ export async function DirectoryComponent({
   // tagKeys (no fake filtering — Amendment A2 rule).
   const scopeLimitedHint =
     props.scope === "by_tag" && props.tagKeys.length > 0
-      ? loc === "es"
-        ? "Esta sección muestra todos los talentos disponibles — el filtro por etiquetas aún no proyecta en este endpoint."
-        : "This section shows all talent — tag-scope projection lands with the deferred public Discover listing endpoint."
+      ? pickLocale(loc, {
+          en: "This section shows all talent — tag-scope projection lands with the deferred public Discover listing endpoint.",
+          es: "Esta sección muestra todos los talentos disponibles — el filtro por etiquetas aún no proyecta en este endpoint.",
+        })
       : undefined;
 
   let initialPage: Awaited<ReturnType<typeof getPublicDirectoryFirstPage>> | null =
@@ -280,7 +282,7 @@ export async function DirectoryComponent({
                 directoryUrlSync
                 initialDirectoryQuery=""
                 aiSearchEnabled={aiEnabled}
-                locale={loc === "es" ? "es" : "en"}
+                locale={pickLocale(loc, { en: "en", es: "es" } as const)}
               />
             </Suspense>
           </div>
@@ -307,7 +309,7 @@ export async function DirectoryComponent({
         ) : (
           <DirectoryReactiveResults
             initialPage={initialPage!}
-            locale={loc === "es" ? "es" : "en"}
+            locale={pickLocale(loc, { en: "en", es: "es" } as const)}
             ui={ui}
             topBarFacet={topBarFacet}
             sidebarBlocks={sidebar.blocks}

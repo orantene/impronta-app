@@ -4,6 +4,7 @@ import {
   encodeDirectoryCursor,
 } from "@/lib/directory/cursor";
 import { buildCardAttributesForProfile } from "@/lib/directory/build-card-attributes-for-profile";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 import type { ProfileTaxonomyTerm } from "@/lib/directory/format-card-attribute-value";
 import { getCachedDirectoryCardDisplayCatalog } from "@/lib/directory/directory-card-display-catalog";
 import {
@@ -144,7 +145,7 @@ function buildClassicFilterMatchLabels(
         residence.display_name_i18n?.es ?? null,
       ) || residence.city_slug;
     const line =
-      locale === "es" ? `En ${cityLabel}` : `${cityLabel} based`;
+      pickLocale(locale, { en: `${cityLabel} based`, es: `En ${cityLabel}` });
     labels.push(line);
     seen.add(line.toLowerCase());
   }

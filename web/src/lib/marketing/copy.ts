@@ -9,6 +9,7 @@
  * Server components: `getMarketingCopy(await getRequestLocale())`.
  * Client components: receive `locale` as a prop and call `getMarketingCopy(locale)`.
  */
+import { pickLocale } from "@/lib/i18n/pick-locale";
 
 const en = {
   nav: {
@@ -667,5 +668,5 @@ const es: MarketingCopy = {
 };
 
 export function getMarketingCopy(locale: string): MarketingCopy {
-  return locale === "es" ? es : en;
+  return pickLocale(locale, { en, es });
 }

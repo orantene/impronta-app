@@ -1,3 +1,5 @@
+import { pickLocale } from "@/lib/i18n/pick-locale";
+
 export type TalentSiteLocale = "en" | "es";
 
 const COPY = {
@@ -103,6 +105,6 @@ export function talentSiteCopy(
   locale: TalentSiteLocale | string | undefined,
   key: TalentSiteCopyKey,
 ): string {
-  const loc = locale === "es" ? "es" : "en";
+  const loc = pickLocale(locale, { en: "en", es: "es" } as const);
   return COPY[loc][key];
 }

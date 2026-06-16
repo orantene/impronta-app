@@ -1,5 +1,6 @@
 import type { DirectoryCardScalarDef } from "@/lib/directory/directory-card-display-catalog";
 import type { DirectoryLocale } from "@/lib/directory/talent-card-dto";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 
 export type FieldValueRow = {
   talent_profile_id: string;
@@ -27,8 +28,7 @@ function pickLocalized(locale: DirectoryLocale, en: string, es: string | null): 
 }
 
 function boolLabel(v: boolean, locale: DirectoryLocale): string {
-  if (locale === "es") return v ? "Sí" : "No";
-  return v ? "Yes" : "No";
+  return pickLocale(locale, { en: v ? "Yes" : "No", es: v ? "Sí" : "No" });
 }
 
 /**
@@ -62,7 +62,7 @@ export function formatCardAttributeValue(
       if (!fv.value_date) return null;
       const d = new Date(`${fv.value_date}T12:00:00Z`);
       if (Number.isNaN(d.getTime())) return fv.value_date;
-      return d.toLocaleDateString(locale === "es" ? "es" : "en", {
+      return d.toLocaleDateString(pickLocale(locale, { en: "en", es: "es" }), {
         year: "numeric",
         month: "short",
         day: "numeric",
