@@ -12,6 +12,12 @@
  * `createBuilderNode(kind)` — and never touch the gallery item, so a governed
  * component inserted that way came out UNgoverned (no lock, no default).
  *
+ * A SECOND ungoverned path is the curated `section_embed` / `connectedNode`
+ * insert: `insertBuilderSectionEmbed(parentId, sectionTypeKey)` builds the node
+ * via `createBuilderSectionEmbed(sectionTypeKey)` and likewise never touches the
+ * gallery item. `resolveSectionEmbedGovernance` + `governSectionEmbedNode`
+ * (below) close that gap the same way, keyed on `sectionEmbedKey`.
+ *
  * This module closes that gap with a PURE kind→governance resolver:
  *   - `resolveKindGovernance(kind, items)` finds the native catalog item that
  *     represents the PLAIN insert of `kind` (the item whose `nativeKind === kind`
@@ -172,4 +178,67 @@ export function governRawInsertNode(
   items: ReadonlyArray<AddGalleryItem>,
 ): BuilderNode {
   return applyKindGovernanceAtInsert(node, resolveKindGovernance(kind, items));
+}
+
+/**
+ * Builder Studio (WS-C) — find the catalog item that represents a curated
+ * `section_embed` / `connectedNode` insert for `sectionTypeKey`, and return its
+ * governance overlay (or `null` when none / un-governed).
+ *
+ * The embed insert paths (`insertBuilderSectionEmbed`) create a node via
+ * `createBuilderSectionEmbed(sectionTypeKey)` and DON'T thread the gallery item,
+ * so a governed embed card came out un-governed. This resolver is the embed
+ * counterpart of `resolveKindGovernance`, keyed on `sectionEmbedKey` rather than
+ * `nativeKind`.
+ *
+ * Matching rule (PURE, deterministic): candidates are items whose
+ * `insertMethod` is `"sectionEmbed"` or `"connectedNode"` with
+ * `sectionEmbedKey === sectionTypeKey`. When more than one card targets the same
+ * key (e.g. a static section card + a connected variant), the FIRST card that
+ * actually carries governance wins (so an un-governed sibling never masks a
+ * governed one); otherwise the first candidate. No candidate ⇒ `null`.
+ *
+ * Returns `null` when no embed item matches OR the matched item is un-governed,
+ * so the caller short-circuits to the byte-identical raw embed node.
+ */
+export function resolveSectionEmbedGovernance(
+  sectionTypeKey: string,
+  items: ReadonlyArray<AddGalleryItem>,
+): KindGovernance | null {
+  const candidates = items.filter(
+    (item) =>
+      (item.insertMethod === "sectionEmbed" ||
+        item.insertMethod === "connectedNode") &&
+      item.sectionEmbedKey === sectionTypeKey,
+  );
+  if (candidates.length === 0) return null;
+  const governanceOf = (item: AddGalleryItem): KindGovernance => ({
+    lockedProps: item.lockedProps,
+    defaultProps: item.defaultProps,
+    dataSourceDefaults: item.dataSourceDefaults,
+  });
+  const governed = candidates.find(
+    (item) => !kindGovernanceIsEmpty(governanceOf(item)),
+  );
+  if (!governed) return null;
+  return governanceOf(governed);
+}
+
+/**
+ * Convenience: resolve the governance for a curated `section_embed`
+ * (`sectionTypeKey`) from `items` and apply it to the freshly-created embed
+ * `node`, REUSING the exact same defaults → data-source-defaults → locks helper
+ * the gallery + raw-kind paths use (`applyKindGovernanceAtInsert`). Byte-
+ * identical to `node` when the embed is un-governed. The single call the
+ * `insertBuilderSectionEmbed` chokepoint makes.
+ */
+export function governSectionEmbedNode(
+  node: BuilderNode,
+  sectionTypeKey: string,
+  items: ReadonlyArray<AddGalleryItem>,
+): BuilderNode {
+  return applyKindGovernanceAtInsert(
+    node,
+    resolveSectionEmbedGovernance(sectionTypeKey, items),
+  );
 }
