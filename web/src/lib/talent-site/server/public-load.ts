@@ -7,7 +7,12 @@ import { parseTalentSiteSnapshot, validateTalentSiteSnapshot } from "@/lib/talen
 
 export type TalentPublicSiteLoadResult =
   | { kind: "published"; row: TalentPublicSiteRpcRow; snapshot: TalentSiteSnapshot }
-  | { kind: "not_published"; profileExists: boolean; profileCode: string }
+  | {
+      kind: "not_published";
+      profileExists: boolean;
+      profileCode: string;
+      talentProfileId: string;
+    }
   | { kind: "not_found" };
 
 export async function loadTalentPublicSiteByProfileCode(
@@ -43,6 +48,7 @@ export async function loadTalentPublicSiteByProfileCode(
   }
 
   const p = profile as {
+    id: string;
     profile_code: string;
     is_publicly_hidden: boolean | null;
   };
@@ -55,6 +61,7 @@ export async function loadTalentPublicSiteByProfileCode(
     kind: "not_published",
     profileExists: true,
     profileCode: p.profile_code,
+    talentProfileId: p.id,
   };
 }
 

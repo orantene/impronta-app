@@ -1,11 +1,18 @@
 import type { Locale } from "@/lib/site-admin/locales";
+import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import type { TalentSiteTemplateKey } from "./templates/types";
 
 export type TalentSiteStatus = "draft" | "published" | "unpublished" | "archived";
 
 export type TalentSiteRevisionKind = "draft" | "published" | "unpublished";
 
-export type TalentSiteCompositionMode = "template" | "custom";
+// `"freeform"` (ADDITIVE) — a node-tree composition rendered through the shared
+// builder-node renderer (the SAME engine the agency storefront + talent extra
+// pages use), carried on `TalentSiteSnapshot.builderTree`. Every existing
+// snapshot is `"template"` or `"custom"` and slot-based; the freeform value is
+// only ever produced by the platform-default freeform path, so slot snapshots
+// are byte-behavior-identical.
+export type TalentSiteCompositionMode = "template" | "custom" | "freeform";
 
 export type TalentSiteSnapshotSection = {
   slotKey: string;
@@ -33,6 +40,15 @@ export type TalentSiteSnapshot = {
   };
   templateSchemaVersion: number;
   slots: TalentSiteSnapshotSection[];
+  /**
+   * ADDITIVE (platform-default freeform path). A builder-node tree rendered
+   * through the shared freeform renderer when `compositionMode === "freeform"`.
+   * Present ONLY on freeform snapshots; every slot-based snapshot omits it (the
+   * field is optional, so the existing shape + every persisted row is unchanged
+   * and the slot render path never reads it). The slot renderer ignores this
+   * field entirely.
+   */
+  builderTree?: BuilderNode[];
 };
 
 export type TalentSiteRow = {

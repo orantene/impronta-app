@@ -14,19 +14,52 @@ import {
   presentationVideoBackground,
 } from "@/lib/site-admin/sections/shared/presentation";
 import type { TalentSiteSnapshot } from "@/lib/talent-site/types";
+import { TalentSiteFreeformRenderer } from "./TalentSiteFreeformRenderer";
 
 type Props = {
   snapshot: TalentSiteSnapshot;
   locale?: string;
+  /**
+   * ADDITIVE freeform render context (platform-default freeform path only).
+   * Slot-based snapshots ignore it. When the snapshot is freeform, the managing
+   * agency tenant scopes any curated `section_embed` data + the talent subject
+   * scopes connected sections to THIS talent. Absent ⇒ embeds show their
+   * "connects on publish" placeholder (the tree is otherwise build-time
+   * hydrated, so the page still renders fully).
+   */
+  freeformContext?: {
+    tenantId: string | null;
+    talentProfileId: string;
+    publicPathPrefix?: string;
+  };
 };
 
 /**
  * Public renderer for talent Max personal site snapshots on Tulala hosts.
  * No tenant edit-mode, preview, or agency business identity.
  */
-export function TalentSiteRenderer({ snapshot, locale = "en" }: Props) {
+export function TalentSiteRenderer({ snapshot, locale = "en", freeformContext }: Props) {
   if (snapshot.siteKind !== "talent_personal") {
     return null;
+  }
+
+  // ADDITIVE freeform branch. A freeform snapshot carries a builder-node tree
+  // rendered through the SHARED freeform renderer (the same engine the agency
+  // storefront + talent extra pages use) instead of the slot/section-registry
+  // path below. Gated by composition mode + a present tree, so every existing
+  // slot snapshot falls straight through to the unchanged slot path.
+  if (
+    snapshot.compositionMode === "freeform" &&
+    Array.isArray(snapshot.builderTree) &&
+    snapshot.builderTree.length > 0
+  ) {
+    return (
+      <TalentSiteFreeformRenderer
+        tree={snapshot.builderTree}
+        locale={locale}
+        context={freeformContext}
+      />
+    );
   }
 
   const entries = [...snapshot.slots]

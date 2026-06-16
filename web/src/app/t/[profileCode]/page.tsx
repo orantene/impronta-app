@@ -1396,6 +1396,11 @@ export default async function PublicTalentProfilePage({
             snapshot={siteResolved.snapshot}
             locale={locale}
             draftPreview={siteResolved.draftPreview}
+            freeformContext={
+              siteResolved.freeformContext
+                ? { ...siteResolved.freeformContext, publicPathPrefix }
+                : undefined
+            }
           />
         </PublicDiscoveryStateProvider>
       );
