@@ -14,6 +14,7 @@ const BASE_CTX = {
     homeCity: "Milan",
     headshotUrl: "https://cdn.example/head.jpg",
     serviceAreaLabels: [],
+    serviceNames: [],
   },
   media: [
     { url: "https://cdn.example/1.jpg", alt: "Look 1" },

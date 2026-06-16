@@ -8,6 +8,13 @@ import {
   loadTalentPublicSiteByProfileCode,
   loadTalentPublicSiteDraftForOwner,
 } from "@/lib/talent-site/server/public-load";
+import {
+  buildDefaultTalentFreeformSnapshot,
+  isDefaultTalentFreeformEnabled,
+} from "@/lib/talent-site/default-talent-template";
+import {
+  loadDefaultTalentFreeformContext,
+} from "@/lib/talent-site/server/default-talent-context";
 
 /**
  * Current effective plan for a talent (the materialized `talent_plan_key`,
@@ -32,7 +39,21 @@ async function loadCurrentTalentPlanKey(
 }
 
 export type PlatformTalentSiteResolveResult =
-  | { kind: "render"; snapshot: TalentSiteSnapshot; draftPreview: boolean }
+  | {
+      kind: "render";
+      snapshot: TalentSiteSnapshot;
+      draftPreview: boolean;
+      /**
+       * ADDITIVE — present ONLY for a platform-default FREEFORM snapshot, so the
+       * page can thread tenant + talent subject context to the freeform
+       * renderer (curated `section_embed` data + connected sections). Absent for
+       * every published slot snapshot (the renderer ignores it).
+       */
+      freeformContext?: {
+        tenantId: string | null;
+        talentProfileId: string;
+      };
+    }
   | { kind: "fallback" }
   | { kind: "not_found" };
 
@@ -71,7 +92,7 @@ export async function resolvePlatformTalentSiteForProfile(
     // mutated, so the full site returns the instant the plan is restored.
     const planKey = await loadCurrentTalentPlanKey(loaded.row.talent_profile_id);
     if (planKey && !planPermitsPublishedTalentSite(loaded.snapshot, planKey)) {
-      return { kind: "fallback" };
+      return resolveDefaultProfile(loaded.row.talent_profile_id);
     }
     return {
       kind: "render",
@@ -80,5 +101,38 @@ export async function resolvePlatformTalentSiteForProfile(
     };
   }
 
+  // not_published — the talent has no published Max site. Serve the premium
+  // freeform default when enabled; otherwise fall back to LightProfileLayout.
+  if (loaded.kind === "not_published") {
+    return resolveDefaultProfile(loaded.talentProfileId);
+  }
+
   return { kind: "fallback" };
+}
+
+/**
+ * Build the platform-default FREEFORM profile for a talent, gated by the
+ * `DEFAULT_TALENT_FREEFORM_PROFILE` flag. Returns `{ kind: "fallback" }` when
+ * the flag is OFF (→ the untouched `LightProfileLayout`) OR when the talent's
+ * profile data can't be loaded (degrade safe). Never throws.
+ */
+async function resolveDefaultProfile(
+  talentProfileId: string,
+): Promise<PlatformTalentSiteResolveResult> {
+  if (!isDefaultTalentFreeformEnabled()) {
+    return { kind: "fallback" };
+  }
+  const ctx = await loadDefaultTalentFreeformContext(talentProfileId);
+  if (!ctx) return { kind: "fallback" };
+  const snapshot = await buildDefaultTalentFreeformSnapshot({
+    profile: ctx.profile,
+    media: ctx.media,
+  });
+  if (!snapshot) return { kind: "fallback" };
+  return {
+    kind: "render",
+    snapshot,
+    draftPreview: false,
+    freeformContext: { tenantId: ctx.tenantId, talentProfileId },
+  };
 }

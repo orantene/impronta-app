@@ -13,6 +13,7 @@ test("starter snapshot sections are allowed for talent_personal", () => {
       publicBio: "Editorial and runway work across Europe.",
       homeCity: "Paris",
       serviceAreaLabels: ["Paris", "Milan"],
+      serviceNames: [],
       headshotUrl: "https://example.com/headshot.jpg",
     },
     [

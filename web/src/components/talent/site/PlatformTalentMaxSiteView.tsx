@@ -8,6 +8,16 @@ type Props = {
   snapshot: TalentSiteSnapshot;
   locale: string;
   draftPreview?: boolean;
+  /**
+   * ADDITIVE — freeform render context for a platform-default freeform snapshot
+   * (tenant + talent subject scope). Ignored by slot snapshots. Forwarded to
+   * `TalentSiteRenderer`.
+   */
+  freeformContext?: {
+    tenantId: string | null;
+    talentProfileId: string;
+    publicPathPrefix?: string;
+  };
 };
 
 /**
@@ -18,6 +28,7 @@ export function PlatformTalentMaxSiteView({
   snapshot,
   locale,
   draftPreview = false,
+  freeformContext,
 }: Props) {
   return (
     <div data-talent-personal-site-shell="">
@@ -37,7 +48,11 @@ export function PlatformTalentMaxSiteView({
         </div>
       ) : null}
       <main>
-        <TalentSiteRenderer snapshot={snapshot} locale={locale} />
+        <TalentSiteRenderer
+          snapshot={snapshot}
+          locale={locale}
+          freeformContext={freeformContext}
+        />
       </main>
       <footer
         style={{
