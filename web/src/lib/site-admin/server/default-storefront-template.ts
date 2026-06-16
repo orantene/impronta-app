@@ -20,10 +20,77 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { improntaLog } from "@/lib/server/structured-log";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 import type { BuilderTemplateRow } from "@/lib/site-admin/builder-core/templates/registry-rows";
+import { loadPlatformDefaultTemplatePointers } from "@/lib/platform/default-templates";
+import { resolveDefaultTemplateTree } from "@/lib/platform/default-template-chain";
 import { PLATFORM_DEFAULT_STOREFRONT_SLUG } from "./default-storefront-tree";
 
 export interface ResolvedDefaultStorefront {
   builderTree: BuilderNodeTree;
+}
+
+/**
+ * Load a published `builder_templates` row's tree by id (service-role). Used as
+ * the POINTER link in the default-storefront chain. Returns `null` on any error
+ * / not-published / empty tree so the chain falls back to the reserved slug.
+ */
+async function loadPublishedStorefrontTemplateById(
+  supabase: SupabaseClient,
+  templateId: string,
+): Promise<BuilderNodeTree | null> {
+  const { data, error } = await supabase
+    .from("builder_templates")
+    .select("builder_tree, status")
+    .eq("id", templateId)
+    .eq("status", "published")
+    .maybeSingle<Pick<BuilderTemplateRow, "builder_tree" | "status">>();
+  if (error) {
+    void improntaLog("site_admin_default_storefront.warn", {
+      message: "[default-storefront] pointer template read failed",
+      templateId,
+      error: error.message,
+    });
+    return null;
+  }
+  const tree = data?.builder_tree;
+  return Array.isArray(tree) && tree.length > 0
+    ? (tree as BuilderNodeTree)
+    : null;
+}
+
+/**
+ * Load the reserved-slug default-storefront tree (service-role). Returns `null`
+ * when the reserved row is absent / not published / empty.
+ */
+async function loadReservedStorefrontSlugTree(
+  supabase: SupabaseClient,
+): Promise<BuilderNodeTree | null> {
+  const { data, error } = await supabase
+    .from("builder_templates")
+    .select("builder_tree, status, target_context, kind")
+    .eq("slug", PLATFORM_DEFAULT_STOREFRONT_SLUG)
+    .eq("status", "published")
+    .in("target_context", ["workspace", "both"])
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle<
+      Pick<
+        BuilderTemplateRow,
+        "builder_tree" | "status" | "target_context" | "kind"
+      >
+    >();
+
+  if (error) {
+    void improntaLog("site_admin_default_storefront.warn", {
+      message: "[default-storefront] template read failed",
+      slug: PLATFORM_DEFAULT_STOREFRONT_SLUG,
+      error: error.message,
+    });
+    return null;
+  }
+  const tree = data?.builder_tree;
+  return Array.isArray(tree) && tree.length > 0
+    ? (tree as BuilderNodeTree)
+    : null;
 }
 
 /**
@@ -39,35 +106,25 @@ export async function resolvePlatformDefaultStorefrontTree(
   supabase: SupabaseClient,
 ): Promise<ResolvedDefaultStorefront | null> {
   try {
-    const { data, error } = await supabase
-      .from("builder_templates")
-      .select("builder_tree, status, target_context, kind")
-      .eq("slug", PLATFORM_DEFAULT_STOREFRONT_SLUG)
-      .eq("status", "published")
-      .in("target_context", ["workspace", "both"])
-      .order("version", { ascending: false })
-      .limit(1)
-      .maybeSingle<
-        Pick<
-          BuilderTemplateRow,
-          "builder_tree" | "status" | "target_context" | "kind"
-        >
-      >();
+    // Fallback chain: Lab pointer → reserved slug → null (caller keeps
+    // DefaultStorefrontBody). With no pointer + no reserved row this returns
+    // null — byte-identical to the pre-pointer behaviour.
+    const { storefrontTemplateId } =
+      await loadPlatformDefaultTemplatePointers();
 
-    if (error) {
-      void improntaLog("site_admin_default_storefront.warn", {
-        message: "[default-storefront] template read failed",
-        slug: PLATFORM_DEFAULT_STOREFRONT_SLUG,
-        error: error.message,
-      });
-      return null;
-    }
+    const builderTree = await resolveDefaultTemplateTree<
+      BuilderNodeTree[number]
+    >({
+      pointerId: storefrontTemplateId,
+      loadPointer: storefrontTemplateId
+        ? () =>
+            loadPublishedStorefrontTemplateById(supabase, storefrontTemplateId)
+        : null,
+      loadSlug: () => loadReservedStorefrontSlugTree(supabase),
+      builtIn: null,
+    });
 
-    const builderTree = data?.builder_tree;
-    if (!Array.isArray(builderTree) || builderTree.length === 0) {
-      return null;
-    }
-
+    if (!builderTree || builderTree.length === 0) return null;
     return { builderTree: builderTree as BuilderNodeTree };
   } catch (err) {
     // Defensive — the fallback caller must never throw to the visitor.
