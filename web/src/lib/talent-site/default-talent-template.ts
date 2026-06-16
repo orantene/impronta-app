@@ -84,11 +84,15 @@ async function loadPublishedTalentTemplateById(
   const admin = createServiceRoleClient();
   if (!admin) return null;
   try {
+    // Filter target_context (talent/both) so a pointer mistakenly set to a
+    // workspace/storefront template can never render as a talent profile; it
+    // yields null and the chain falls back to the reserved slug → built-in tree.
     const { data, error } = await admin
       .from("builder_templates")
-      .select("builder_tree, status")
+      .select("builder_tree, status, target_context")
       .eq("id", templateId)
       .eq("status", "published")
+      .in("target_context", ["talent", "both"])
       .maybeSingle();
     if (error) {
       logServerError("talentSite.defaultFreeform.loadPointer", error);

@@ -37,12 +37,18 @@ async function loadPublishedStorefrontTemplateById(
   supabase: SupabaseClient,
   templateId: string,
 ): Promise<BuilderNodeTree | null> {
+  // Filter target_context (workspace/both) like the reserved-slug loader — so a
+  // pointer mistakenly set to a talent/platform-context template can never
+  // render as the storefront; it yields null and the chain falls back to the slug.
   const { data, error } = await supabase
     .from("builder_templates")
-    .select("builder_tree, status")
+    .select("builder_tree, status, target_context")
     .eq("id", templateId)
     .eq("status", "published")
-    .maybeSingle<Pick<BuilderTemplateRow, "builder_tree" | "status">>();
+    .in("target_context", ["workspace", "both"])
+    .maybeSingle<
+      Pick<BuilderTemplateRow, "builder_tree" | "status" | "target_context">
+    >();
   if (error) {
     void improntaLog("site_admin_default_storefront.warn", {
       message: "[default-storefront] pointer template read failed",
