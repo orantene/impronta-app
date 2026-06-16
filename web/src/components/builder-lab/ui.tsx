@@ -268,6 +268,127 @@ export function LabBadge({
   );
 }
 
+// ── Chip (small inline metadata pill) ─────────────────────────────────────────
+export type ChipTone = "accent" | "neutral" | "lock";
+
+/** A compact, lower-key pill than {@link LabBadge} — used for inline row
+ *  metadata (governance chips, counts) where an uppercase status badge would be
+ *  too loud. Not uppercase; sentence-case content. */
+export function LabChip({
+  children,
+  tone = "neutral",
+  title,
+  style,
+}: {
+  children: ReactNode;
+  tone?: ChipTone;
+  title?: string;
+  style?: CSSProperties;
+}) {
+  const tones: Record<ChipTone, { bg: string; fg: string; border: string }> = {
+    accent: { bg: LAB.accentSoft, fg: LAB.accent, border: "rgba(93,211,160,0.30)" },
+    neutral: {
+      bg: "rgba(255,255,255,0.05)",
+      fg: LAB.inkMuted,
+      border: LAB.borderSoft,
+    },
+    lock: { bg: "rgba(155,168,183,0.14)", fg: "#B6C2CF", border: "rgba(155,168,183,0.28)" },
+  };
+  const c = tones[tone];
+  return (
+    <span
+      title={title}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        fontSize: 10,
+        fontWeight: 600,
+        lineHeight: 1.2,
+        padding: "2px 7px",
+        borderRadius: RADII.pill,
+        background: c.bg,
+        color: c.fg,
+        border: `1px solid ${c.border}`,
+        whiteSpace: "nowrap",
+        ...style,
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+// ── Toast (transient success / status banner) ─────────────────────────────────
+/** The one canonical success/status toast — was hand-rolled identically in the
+ *  Catalog + Catalog Studio. `role="status"` for SR announcement. */
+export function LabToast({ children }: { children: ReactNode }) {
+  return (
+    <div
+      role="status"
+      style={{
+        fontSize: 12,
+        color: LAB.accent,
+        background: "rgba(93,211,160,0.10)",
+        padding: "6px 12px",
+        borderRadius: RADII.control,
+        alignSelf: "flex-start",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+// ── View header (title + blurb) ───────────────────────────────────────────────
+/** A view's heading block — bold title + muted one-liner. Optional `badge`
+ *  renders to the right of the title (e.g. the platform-scope hint). The shared
+ *  shape across Playground / Catalog Studio / Site Defaults headers. */
+export function LabViewHeader({
+  title,
+  blurb,
+  badge,
+  actions,
+}: {
+  title: ReactNode;
+  blurb?: ReactNode;
+  badge?: ReactNode;
+  actions?: ReactNode;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "flex-start",
+        justifyContent: "space-between",
+        gap: 12,
+        flexWrap: "wrap",
+      }}
+    >
+      <div style={{ minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: LAB.ink }}>{title}</span>
+          {badge}
+        </div>
+        {blurb ? (
+          <div
+            style={{
+              fontSize: 12,
+              color: LAB.inkMuted,
+              marginTop: 3,
+              maxWidth: 640,
+              lineHeight: 1.5,
+            }}
+          >
+            {blurb}
+          </div>
+        ) : null}
+      </div>
+      {actions}
+    </div>
+  );
+}
+
 // ── Section label (uppercase legend) ──────────────────────────────────────────
 export function SectionLabel({ children, style }: { children: ReactNode; style?: CSSProperties }) {
   return (

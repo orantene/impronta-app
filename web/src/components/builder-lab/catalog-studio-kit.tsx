@@ -122,18 +122,30 @@ export function DragHandle({
     <span
       role="button"
       aria-label={ariaLabel}
-      title="Drag to move"
+      title="Drag to reorder or move"
       draggable={draggable}
       onDragStart={onDragStart}
       tabIndex={0}
+      className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60"
       style={{
         cursor: draggable ? "grab" : "default",
         color: T.inkDim,
-        fontSize: small ? 11 : 13,
+        fontSize: small ? 12 : 14,
         lineHeight: 1,
         userSelect: "none",
         flexShrink: 0,
-        padding: "0 1px",
+        padding: "1px 3px",
+        borderRadius: 4,
+        transition: "color 120ms, background 120ms",
+      }}
+      onMouseEnter={(e) => {
+        if (!draggable) return;
+        e.currentTarget.style.color = T.ink;
+        e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.color = T.inkDim;
+        e.currentTarget.style.background = "transparent";
       }}
     >
       ⠿
