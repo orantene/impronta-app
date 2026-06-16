@@ -35,6 +35,7 @@ import {
   setComponentOverlay,
 } from "@/lib/site-admin/builder-core/templates/catalog-overlay-actions";
 import { SiteDefaultsEditor } from "./site-defaults-editor";
+import { DefaultSurfacesPanel } from "./default-surfaces-panel";
 import { CatalogStudioView } from "./catalog-studio";
 import { SurfaceSwitcher } from "./surface-switcher";
 import { CatalogRowTable, targetAllows } from "./catalog-row-table";
@@ -66,6 +67,7 @@ const SPECIAL_TABS = [
   "catalog_studio",
   "site_starter_kit",
   "site_defaults",
+  "default_surfaces",
   "playground",
 ] as const;
 type SpecialTab = (typeof SPECIAL_TABS)[number];
@@ -75,6 +77,7 @@ const VIEW_LABEL: Record<CatalogView, string> = {
   catalog_studio: "Catalog Studio",
   site_starter_kit: "Site Starter Kit",
   site_defaults: "Site Defaults",
+  default_surfaces: "Default surfaces",
   playground: "Playground",
 };
 function isSpecialTab(v: CatalogView): v is SpecialTab {
@@ -640,6 +643,8 @@ export function ComponentCatalog({
         <CatalogStudioView />
       ) : currentView === "site_defaults" ? (
         <SiteDefaultsEditor />
+      ) : currentView === "default_surfaces" ? (
+        <DefaultSurfacesPanel />
       ) : currentView === "playground" ? (
         <PlaygroundView onLaunchEditor={onLaunchEditor} />
       ) : (

@@ -12,6 +12,7 @@ import {
   buildDefaultTalentFreeformSnapshot,
   isDefaultTalentFreeformEnabled,
 } from "@/lib/talent-site/default-talent-template";
+import { loadPlatformDefaultTemplatePointers } from "@/lib/platform/default-templates";
 import {
   loadDefaultTalentFreeformContext,
 } from "@/lib/talent-site/server/default-talent-context";
@@ -111,15 +112,21 @@ export async function resolvePlatformTalentSiteForProfile(
 }
 
 /**
- * Build the platform-default FREEFORM profile for a talent, gated by the
- * `DEFAULT_TALENT_FREEFORM_PROFILE` flag. Returns `{ kind: "fallback" }` when
- * the flag is OFF (→ the untouched `LightProfileLayout`) OR when the talent's
- * profile data can't be loaded (degrade safe). Never throws.
+ * Build the platform-default FREEFORM profile for a talent. The freeform default
+ * is ON when the Builder Lab toggle (`default_talent_freeform_enabled`) OR the
+ * legacy env flag `DEFAULT_TALENT_FREEFORM_PROFILE` is true — so the env flag
+ * still works and the Lab toggle is the new no-deploy path. Returns
+ * `{ kind: "fallback" }` when BOTH are OFF (→ the untouched `LightProfileLayout`,
+ * byte-identical to today) OR when the talent's profile data can't be loaded
+ * (degrade safe). Never throws.
  */
 async function resolveDefaultProfile(
   talentProfileId: string,
 ): Promise<PlatformTalentSiteResolveResult> {
-  if (!isDefaultTalentFreeformEnabled()) {
+  const { talentFreeformEnabled } = await loadPlatformDefaultTemplatePointers();
+  const freeformEnabled =
+    talentFreeformEnabled || isDefaultTalentFreeformEnabled();
+  if (!freeformEnabled) {
     return { kind: "fallback" };
   }
   const ctx = await loadDefaultTalentFreeformContext(talentProfileId);
@@ -127,6 +134,7 @@ async function resolveDefaultProfile(
   const snapshot = await buildDefaultTalentFreeformSnapshot({
     profile: ctx.profile,
     media: ctx.media,
+    freeformEnabled,
   });
   if (!snapshot) return { kind: "fallback" };
   return {
