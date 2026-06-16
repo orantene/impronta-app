@@ -38,6 +38,13 @@ export type WorkspaceInquiryRow = {
   next_action_by: string | null;
   /** Inquiry source channel — renamed from `source` to match the actual DB column. */
   source_channel: string | null;
+  /**
+   * Coordinator of record. NULL when the 3-tier assignment fallback found no
+   * default coordinator / owner (`agency_manual_pickup`) — these inquiries
+   * have nobody driving them and need an admin to claim one. Surfaced as the
+   * triage "Unassigned" bucket.
+   */
+  coordinator_id: string | null;
 };
 
 /**
@@ -60,7 +67,7 @@ export async function loadWorkspaceInquiries(
         // `inquiries.source` doesn't exist — the real columns are `source_channel`,
         // `source_type`, `source_page`, `source_workspace_id`, `source_pitch_id`.
         // Use `source_channel` which is the most user-facing identifier.
-        "id, status, contact_name, company, event_date, event_location, quantity, created_at, next_action_by, source_channel",
+        "id, status, contact_name, company, event_date, event_location, quantity, created_at, next_action_by, source_channel, coordinator_id",
       )
       .eq("tenant_id", tenantId)
       .not("status", "in", `(${INQUIRY_CLOSED_STATUSES.join(",")})`)
