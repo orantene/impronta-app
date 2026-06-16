@@ -155,6 +155,77 @@ test("enforceLockedPropsOnTree keeps a brand-new locked node's self-declared car
   assert.deepEqual(out[0].lockedProps, ["tone"]);
 });
 
+// ── first-save hardening (C1 residual) ───────────────────────────────────────
+
+test("enforceLockedPropsOnTree UNIONS a new node's base + props carriers (no under-declare)", () => {
+  // A crafted first save splits the lock list across base vs props so the union
+  // is larger than either. The persisted carrier must be the full union, on BOTH.
+  const incoming = [
+    {
+      id: "new1",
+      kind: "button",
+      props: { tone: "primary", label: "Hi", lockedProps: ["label"] },
+      lockedProps: ["tone"],
+    },
+  ];
+  const out = enforceLockedPropsOnTree(incoming, []) as Array<{
+    lockedProps?: string[];
+    props: Record<string, unknown>;
+  }>;
+  assert.deepEqual(out[0].lockedProps, ["tone", "label"]);
+  assert.deepEqual(out[0].props.lockedProps, ["tone", "label"]);
+});
+
+test("enforceLockedPropsOnTree normalizes a new node's carrier (drops garbage + dupes)", () => {
+  const incoming = [
+    {
+      id: "new1",
+      kind: "button",
+      props: { tone: "primary", lockedProps: ["tone", "", "tone", 7, null] as unknown[] },
+      lockedProps: ["tone"],
+    },
+  ];
+  const out = enforceLockedPropsOnTree(incoming, []) as Array<{
+    lockedProps?: string[];
+    props: Record<string, unknown>;
+  }>;
+  // Only valid, de-duped, non-empty string keys survive on BOTH carriers.
+  assert.deepEqual(out[0].lockedProps, ["tone"]);
+  assert.deepEqual(out[0].props.lockedProps, ["tone"]);
+});
+
+test("enforceLockedPropsOnTree: a new node's locked VALUE is the value it carried (documented residual)", () => {
+  // No DB counterpart ⇒ no trusted baseline; the server keeps the value the node
+  // carried (which, in the legitimate insert flow, is the C2-stamped admin
+  // default). The carrier is still normalized + re-asserted.
+  const incoming = [
+    { id: "new1", kind: "button", props: { tone: "secondary" }, lockedProps: ["tone"] },
+  ];
+  const out = enforceLockedPropsOnTree(incoming, []) as Array<{
+    lockedProps?: string[];
+    props: Record<string, unknown>;
+  }>;
+  assert.equal(out[0].props.tone, "secondary");
+  assert.deepEqual(out[0].lockedProps, ["tone"]);
+});
+
+test("enforceLockedPropsOnTree: the SECOND save (node now in DB) enforces the locked value", () => {
+  // After the first save persists the node, a tamper on a later save is reverted
+  // to the persisted (now trusted) value — closing the window end-to-end.
+  const persisted = [
+    { id: "new1", kind: "button", props: { tone: "secondary", lockedProps: ["tone"] }, lockedProps: ["tone"] },
+  ];
+  const tampered = [
+    { id: "new1", kind: "button", props: { tone: "evil" }, lockedProps: ["tone"] },
+  ];
+  const out = enforceLockedPropsOnTree(tampered, persisted) as Array<{
+    props: Record<string, unknown>;
+    lockedProps?: string[];
+  }>;
+  assert.equal(out[0].props.tone, "secondary");
+  assert.deepEqual(out[0].lockedProps, ["tone"]);
+});
+
 test("enforceLockedPropsOnTree returns a non-array input unchanged (safe degrade)", () => {
   assert.equal(enforceLockedPropsOnTree(null, []), null);
   assert.equal(enforceLockedPropsOnTree(undefined, []), undefined);
