@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 import { ContrastSection } from "@/components/marketing/contrast-section";
 import { FinalCtaSection } from "@/components/marketing/final-cta-section";
 import { HowItWorksSection } from "@/components/marketing/how-it-works-section";
@@ -28,8 +29,49 @@ type Surface = {
 };
 
 function getSurfaces(locale: string): Surface[] {
-  if (locale === "es") {
-    return [
+  return pickLocale(locale, {
+    en: [
+      {
+        id: "site",
+        index: "01",
+        eyebrow: "Surface 01",
+        title: "The branded roster site.",
+        body: "A modern editorial website \u2014 nav, pages, posts, design system \u2014 that renders your roster front-and-centre. On your domain, with your identity, managed in a modern CMS. No template feel.",
+        highlights: [
+          "Your domain, your identity, your tokens",
+          "Editorial layouts \u2014 not drag-and-drop kitsch",
+          "CMS for pages, posts, and navigation",
+        ],
+        art: "site",
+      },
+      {
+        id: "profiles",
+        index: "02",
+        eyebrow: "Surface 02",
+        title: "People profiles, done right.",
+        body: "Each person has a structured profile: portfolio, specs, availability, rates, location, and an inquiry button. Share the whole roster as one link, or a single profile as its own.",
+        highlights: [
+          "Structured specs, availability, rate card",
+          "One URL per person, renders everywhere",
+          "Portfolio pipeline that handles real image weight",
+        ],
+        art: "profile",
+      },
+      {
+        id: "pipeline",
+        index: "03",
+        eyebrow: "Surface 03",
+        title: "The inquiry engine.",
+        body: "Inquiries arrive structured \u2014 not buried in a chat thread. You respond with a versioned offer, get multi-party sign-off, and watch it convert into a tracked booking with calendar-ready data.",
+        highlights: [
+          "Structured intake with brief, dates, budget",
+          "Versioned offers \u2014 nothing lost to memory",
+          "Bookings export to calendar + invoicing",
+        ],
+        art: "pipeline",
+      },
+    ],
+    es: [
       {
         id: "site",
         index: "01",
@@ -69,89 +111,49 @@ function getSurfaces(locale: string): Surface[] {
         ],
         art: "pipeline",
       },
-    ];
-  }
-  return [
-    {
-      id: "site",
-      index: "01",
-      eyebrow: "Surface 01",
-      title: "The branded roster site.",
-      body: "A modern editorial website \u2014 nav, pages, posts, design system \u2014 that renders your roster front-and-centre. On your domain, with your identity, managed in a modern CMS. No template feel.",
-      highlights: [
-        "Your domain, your identity, your tokens",
-        "Editorial layouts \u2014 not drag-and-drop kitsch",
-        "CMS for pages, posts, and navigation",
-      ],
-      art: "site",
-    },
-    {
-      id: "profiles",
-      index: "02",
-      eyebrow: "Surface 02",
-      title: "People profiles, done right.",
-      body: "Each person has a structured profile: portfolio, specs, availability, rates, location, and an inquiry button. Share the whole roster as one link, or a single profile as its own.",
-      highlights: [
-        "Structured specs, availability, rate card",
-        "One URL per person, renders everywhere",
-        "Portfolio pipeline that handles real image weight",
-      ],
-      art: "profile",
-    },
-    {
-      id: "pipeline",
-      index: "03",
-      eyebrow: "Surface 03",
-      title: "The inquiry engine.",
-      body: "Inquiries arrive structured \u2014 not buried in a chat thread. You respond with a versioned offer, get multi-party sign-off, and watch it convert into a tracked booking with calendar-ready data.",
-      highlights: [
-        "Structured intake with brief, dates, budget",
-        "Versioned offers \u2014 nothing lost to memory",
-        "Bookings export to calendar + invoicing",
-      ],
-      art: "pipeline",
-    },
-  ];
+    ],
+  });
 }
 
 export default async function HowItWorksPage() {
   const locale = await getRequestLocale();
   const surfaces = getSurfaces(locale);
-  const hero =
-    locale === "es"
-      ? {
-          eyebrow: "El recorrido completo",
-          subtitle:
-            "Lo que m\u00e1s frena a los negocios de representaci\u00f3n no es el esfuerzo \u2014 son las herramientas. Esto es lo que cambia cuando tu sitio, tus perfiles y tu flujo de consultas por fin se hablan entre s\u00ed.",
-          startFree: "Empieza gratis",
-          seePricing: "Ver precios",
-        }
-      : {
-          eyebrow: "The full walkthrough",
-          subtitle:
-            "Most of what holds representation businesses back isn\u2019t effort \u2014 it\u2019s tooling. Here\u2019s what changes when your site, your profiles, and your inquiry flow actually talk to each other.",
-          startFree: "Start free",
-          seePricing: "See pricing",
-        };
+  const hero = pickLocale(locale, {
+    en: {
+      eyebrow: "The full walkthrough",
+      subtitle:
+        "Most of what holds representation businesses back isn\u2019t effort \u2014 it\u2019s tooling. Here\u2019s what changes when your site, your profiles, and your inquiry flow actually talk to each other.",
+      startFree: "Start free",
+      seePricing: "See pricing",
+    },
+    es: {
+      eyebrow: "El recorrido completo",
+      subtitle:
+        "Lo que m\u00e1s frena a los negocios de representaci\u00f3n no es el esfuerzo \u2014 son las herramientas. Esto es lo que cambia cuando tu sitio, tus perfiles y tu flujo de consultas por fin se hablan entre s\u00ed.",
+      startFree: "Empieza gratis",
+      seePricing: "Ver precios",
+    },
+  });
   return (
     <>
       <SimplePageHero
         eyebrow={hero.eyebrow}
-        title={
-          locale === "es" ? (
-            <>
-              Tres superficies,
-              <br />
-              <span style={{ color: "var(--plt-forest)" }}>una plataforma.</span>
-            </>
-          ) : (
+        title={pickLocale(locale, {
+          en: (
             <>
               Three surfaces,
               <br />
               <span style={{ color: "var(--plt-forest)" }}>one platform.</span>
             </>
-          )
-        }
+          ),
+          es: (
+            <>
+              Tres superficies,
+              <br />
+              <span style={{ color: "var(--plt-forest)" }}>una plataforma.</span>
+            </>
+          ),
+        })}
         subtitle={hero.subtitle}
         primary={{ label: hero.startFree, href: "/get-started", intent: "get-started" }}
         secondary={{ label: hero.seePricing, href: "/pricing", intent: "pricing" }}
