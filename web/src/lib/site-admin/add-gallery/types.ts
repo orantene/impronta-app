@@ -127,6 +127,16 @@ export interface AddGalleryItem {
   /** Builder Studio — default data binding (filterQuery/maxItems/pinnedIds)
    *  baked into a connected component at insert. */
   dataSourceDefaults?: Record<string, unknown> | null;
+  /** Builder Studio (WS-D D3) — staged-rollout ceiling 0-100 for a dbTemplate
+   *  item. Carried from the row so `gateDbGalleryItems` can bucket the live
+   *  tenant. Undefined ⇒ 100 (fully rolled out / back-compat). */
+  rolloutPercentage?: number | null;
+  /** Builder Studio (WS-D D3) — tenants that ALWAYS see this template (bypass
+   *  the % bucket). Carried from the row `tenant_allowlist`. */
+  rolloutAllowlist?: ReadonlyArray<string>;
+  /** Builder Studio (WS-D D3) — tenants that NEVER see this template. Carried
+   *  from the row `tenant_denylist`. */
+  rolloutDenylist?: ReadonlyArray<string>;
 }
 
 export interface AddGalleryCategoryDef {

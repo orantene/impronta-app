@@ -30,11 +30,13 @@ import {
   nextPublishedVersion,
   rollbackRevisionNote,
   normalizeChangelog,
+  normalizeRolloutPatch,
   type BuilderTemplateRow,
   type BuilderTemplateRevisionRow,
   type CreateTemplateDraftInput,
   type UpdateTemplateDraftInput,
   type ListPublishedTemplatesFilter,
+  type SetTemplateRolloutInput,
 } from "./registry-rows";
 import { bumpCatalogVersion } from "./catalog-version";
 import { validateTemplateForPublish } from "./validate-publish";
@@ -279,6 +281,55 @@ export async function updateTemplateDraft(
     return ok(data as BuilderTemplateRow);
   } catch (err) {
     logServerError("updateTemplateDraft", err);
+    return fail(CLIENT_ERROR.generic);
+  }
+}
+
+// ── setTemplateRollout (WS-D D3) ──────────────────────────────────────────────
+
+/**
+ * Persist a template's staged-rollout rule: the canary `rollout_percentage`
+ * (0-100) plus the explicit `tenant_allowlist` / `tenant_denylist`. Each field
+ * is optional — an omitted field leaves its column untouched, so the caller can
+ * nudge the percentage without re-sending the lists.
+ *
+ * The patch is normalized by the pure `normalizeRolloutPatch` (clamp + round the
+ * %, trim/lowercase/dedupe/UUID-filter the lists, drop deny ∩ allow from the
+ * allowlist). Bumps the catalog version so an open "+" gallery can detect the
+ * change on next load, and revalidates the admin path.
+ *
+ * super_admin-gated. Rollout fields live on `builder_templates`, so this is a
+ * template-level action (NOT a per-component catalog overlay).
+ */
+export async function setTemplateRollout(
+  templateId: string,
+  input: SetTemplateRolloutInput,
+): Promise<TemplateActionResult<BuilderTemplateRow>> {
+  const gate = await requireSuperAdmin();
+  if (!gate.ok) return fail(gate.error);
+
+  const patch = normalizeRolloutPatch(input);
+  if (Object.keys(patch).length === 0) {
+    return fail("No rollout fields to update.");
+  }
+
+  try {
+    const sb = getAdminClient();
+    const { data, error } = await sb
+      .from("builder_templates")
+      .update(patch)
+      .eq("id", templateId)
+      .select()
+      .single();
+
+    if (error) return fail(error.message);
+    if (!data) return fail("Template not found.");
+
+    await bumpCatalogVersion(sb);
+    revalidatePath(TEMPLATE_CACHE_PATH);
+    return ok(data as BuilderTemplateRow);
+  } catch (err) {
+    logServerError("setTemplateRollout", err);
     return fail(CLIENT_ERROR.generic);
   }
 }
