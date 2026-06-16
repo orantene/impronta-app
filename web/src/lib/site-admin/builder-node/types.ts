@@ -939,6 +939,20 @@ export interface BuilderNavNode extends BuilderNodeBase {
     /** Viewport at/below which the inline row collapses to the hamburger menu.
      *  "mobile" = ≤640px (default), "tablet" = ≤900px. */
     collapseAt?: "tablet" | "mobile";
+    /** A6 (WS-A) — how the collapsed mobile menu opens. Mirrors the live header's
+     *  `PublicHeaderMobileMenu` variants so the shell's mobile menu style is
+     *  pickable. The CSS-only <details> disclosure positions + animates its panel
+     *  per variant:
+     *    "dropdown"        (default) — the pre-A6 panel under the toggle.
+     *    "drawer-right"    — a right-side slide-in drawer (88vw, capped).
+     *    "sheet-bottom"    — a bottom sheet (rounded top, ≤80vh).
+     *    "full-screen-fade"— a full-viewport fade-in overlay.
+     *  Absent ⇒ "dropdown" (byte-identical to the pre-A6 nav). */
+    mobileMenuVariant?:
+      | "dropdown"
+      | "drawer-right"
+      | "sheet-bottom"
+      | "full-screen-fade";
     /** Accessible label for the hamburger toggle (default "Menu"). */
     menuLabel?: string;
     /** Accessible label for the <nav> landmark (default "Primary"). */

@@ -824,6 +824,24 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
       tone: "follow",
     },
   },
+  // WS-A A5 — curated header-widget embeds. They carry no authored content (the
+  // wrapped widget owns its own data + markup), so an empty payload is valid.
+  header_search: {
+    name: "Header search",
+    props: {},
+  },
+  header_account: {
+    name: "Header account",
+    props: {},
+  },
+  header_inquiry: {
+    name: "Header inquiry",
+    props: {},
+  },
+  header_favorites: {
+    name: "Header favorites",
+    props: {},
+  },
 };
 
 export function getLibraryDefault(

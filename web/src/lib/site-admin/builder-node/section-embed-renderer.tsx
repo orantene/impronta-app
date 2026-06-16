@@ -50,6 +50,19 @@ export interface SectionEmbedRenderContext {
   locale: string;
   publicPathPrefix?: string;
   /**
+   * WS-A A5 — TRUE when the embed is rendered onto the in-editor CANVAS (not the
+   * published storefront). Threaded down to the curated Component as its
+   * `preview` prop, so an interactive curated section (the header-widget embeds:
+   * `header_search` / `header_account` / `header_inquiry` / `header_favorites`)
+   * can render a static, side-effect-free PLACEHOLDER on the canvas instead of
+   * mounting its live widget (no auth read, no client island, no data fetch).
+   *
+   * The published shell ALWAYS omits this (⇒ `preview={false}`), so a published
+   * render is byte-identical to its pre-A5 behaviour. Pure-render embeds ignore
+   * `preview` entirely, so they too render the same on canvas and live.
+   */
+  editorMode?: boolean;
+  /**
    * In-editor PREVIEW SUBJECT (Builder Lab / talent + workspace previews, WS4).
    *
    * When set AND its `kind` matches the section embed's subject kind
@@ -254,7 +267,7 @@ export function renderSectionEmbed(
         props={payloadForRender as never}
         tenantId={scope.tenantId}
         locale={scope.locale}
-        preview={false}
+        preview={context.editorMode === true}
         sectionId={node.props.sectionId ?? undefined}
         publicPathPrefix={publicPathPrefix}
       />

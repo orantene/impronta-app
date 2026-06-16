@@ -370,6 +370,27 @@ const BUILDER_NODE_NAV_CSS = `
 @media (max-width:640px){
   .site-builder-node--nav[data-bn-collapse="mobile"] .site-builder-node--nav-links{display:none}
   .site-builder-node--nav[data-bn-collapse="mobile"] .site-builder-node--nav-disclosure{display:block}
+}
+/* A6 — collapsed mobile-menu VARIANTS. Mirrors PublicHeaderMobileMenu's
+   drawer-right / sheet-bottom / full-screen-fade shapes, driven purely by the
+   native details open state (no JS). "dropdown" (default / absent) keeps the
+   pre-A6 panel below, so existing nav trees are byte-identical. The panel is
+   position:fixed for the off-canvas variants so it escapes the header's
+   stacking/overflow; the open details animates it in. Variants apply ONLY
+   when the disclosure is visible (i.e. at/under the collapse breakpoint), so a
+   desktop render is untouched. */
+.site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu{animation:bn-nav-menu-in 200ms ease both}
+@keyframes bn-nav-menu-in{from{opacity:0}to{opacity:1}}
+.site-builder-node--nav[data-bn-mobile-menu="drawer-right"] .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu,
+.site-builder-node--nav[data-bn-mobile-menu="sheet-bottom"] .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu,
+.site-builder-node--nav[data-bn-mobile-menu="full-screen-fade"] .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu{position:fixed;z-index:80;max-height:none;overflow:auto}
+.site-builder-node--nav[data-bn-mobile-menu="drawer-right"] .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu{top:0;right:0;bottom:0;left:auto;width:88vw;max-width:400px;border-radius:0;box-shadow:-18px 0 40px rgba(0,0,0,0.2);animation:bn-nav-drawer-right 240ms ease both}
+@keyframes bn-nav-drawer-right{from{transform:translateX(100%)}to{transform:translateX(0)}}
+.site-builder-node--nav[data-bn-mobile-menu="sheet-bottom"] .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu{left:0;right:0;bottom:0;top:auto;max-height:80vh;border-radius:18px 18px 0 0;box-shadow:0 -18px 40px rgba(0,0,0,0.2);animation:bn-nav-sheet-bottom 240ms ease both}
+@keyframes bn-nav-sheet-bottom{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.site-builder-node--nav[data-bn-mobile-menu="full-screen-fade"] .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu{inset:0;width:100%;border-radius:0;padding:1.25rem;gap:0.35rem;justify-content:center;animation:bn-nav-menu-in 240ms ease both}
+@media (prefers-reduced-motion:reduce){
+  .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu{animation:none}
 }`;
 
 // A4 — social/contact icon row. The list lays out as an inline-flex row of
@@ -3462,6 +3483,7 @@ function renderBuilderNodeElement(
       const navProps = node.props;
       const collapseAt = navProps.collapseAt ?? "mobile";
       const submenuVariant = navProps.submenuVariant ?? "dropdown";
+      const mobileMenuVariant = navProps.mobileMenuVariant ?? "dropdown";
       const menuLabel = navProps.menuLabel?.trim() || "Menu";
       const navAriaLabel = navProps.ariaLabel?.trim() || "Primary";
       const menuId = `${node.id}-menu`;
@@ -3525,6 +3547,7 @@ function renderBuilderNodeElement(
           {...builderNodeStyleAttrs(navProps.style)}
           data-bn-collapse={collapseAt}
           data-bn-submenu={submenuVariant}
+          data-bn-mobile-menu={mobileMenuVariant}
           aria-label={navAriaLabel}
           className="site-builder-node site-builder-node--nav"
           style={inlineNodeStyle(navProps.style)}

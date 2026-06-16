@@ -751,6 +751,10 @@ const navPropsSchema = z.object({
   links: z.array(navLinkSchema).min(1).max(12),
   submenuVariant: z.enum(["dropdown", "mega"]).optional(),
   collapseAt: z.enum(["tablet", "mobile"]).optional(),
+  // A6 — collapsed mobile-menu style (mirrors PublicHeaderMobileMenu variants).
+  mobileMenuVariant: z
+    .enum(["dropdown", "drawer-right", "sheet-bottom", "full-screen-fade"])
+    .optional(),
   menuLabel: z.string().max(80).optional(),
   ariaLabel: z.string().max(80).optional(),
   style: builderNodeStyleSchema,
