@@ -109,8 +109,8 @@ const EMPTY: PlatformCatalogMap = {
 type DefRow = {
   id: string;
   field_key: string | null;
-  label: string | null;
-  label_es: string | null;
+  // label/label_es folded into label_i18n {en,es} (WS3).
+  label_i18n: Record<string, string | null> | null;
   tier: string | null;
   section: string | null;
   field_group_id: string | null;
@@ -126,7 +126,7 @@ type DefRow = {
 type GroupRow = {
   id: string;
   slug: string | null;
-  name_en: string | null;
+  name_i18n: Record<string, string | null> | null;
   sort_order: number | null;
   is_active: boolean | null;
 };
@@ -161,12 +161,13 @@ async function loadPlatformCatalogMapUncached(): Promise<PlatformCatalogMap> {
     const [defsR, groupsR, ovR, valR] = await Promise.all([
       sb
         .from("profile_field_definitions")
+        // label/label_es + name_en folded into label_i18n/name_i18n (WS3).
         .select(
-          "id, field_key, label, label_es, tier, section, field_group_id, display_order, default_visibility, admin_only, is_sensitive, show_in_public, is_optional, deprecated_at, render_mode",
+          "id, field_key, label_i18n, tier, section, field_group_id, display_order, default_visibility, admin_only, is_sensitive, show_in_public, is_optional, deprecated_at, render_mode",
         ),
       sb
         .from("profile_field_groups")
-        .select("id, slug, name_en, sort_order, is_active"),
+        .select("id, slug, name_i18n, sort_order, is_active"),
       sb.from("workspace_profile_field_settings").select("field_definition_id"),
       sb.from("talent_profile_field_values").select("field_definition_id"),
     ]);
@@ -223,7 +224,7 @@ async function loadPlatformCatalogMapUncached(): Promise<PlatformCatalogMap> {
       if (ov > 0) fieldsWithOverrides += 1;
       if (vc > 0) fieldsWithValues += 1;
       if (!isDeprecated && ov === 0 && vc === 0) noDataCount += 1;
-      if (!isDeprecated && (d.label_es ?? "").trim() !== "") withEsLabel += 1;
+      if (!isDeprecated && (d.label_i18n?.es ?? "").trim() !== "") withEsLabel += 1;
 
       // Risk findings (read-only diagnostics; never auto-acted).
       if (d.is_sensitive && d.show_in_public) {
@@ -258,8 +259,8 @@ async function loadPlatformCatalogMapUncached(): Promise<PlatformCatalogMap> {
       return {
         id: d.id,
         field_key: key,
-        label: d.label ?? key,
-        label_es: d.label_es ?? null,
+        label: d.label_i18n?.en ?? key,
+        label_es: d.label_i18n?.es ?? null,
         tier,
         section: d.section,
         field_group_id: d.field_group_id,
@@ -298,7 +299,7 @@ async function loadPlatformCatalogMapUncached(): Promise<PlatformCatalogMap> {
         return {
           id: g.id,
           slug: g.slug ?? g.id,
-          name: g.name_en ?? g.slug ?? g.id,
+          name: g.name_i18n?.en ?? g.slug ?? g.id,
           sort_order: g.sort_order ?? 0,
           is_active: g.is_active !== false,
           field_count: gf.length,
