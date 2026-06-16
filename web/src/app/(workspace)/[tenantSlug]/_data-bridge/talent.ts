@@ -57,7 +57,7 @@ export type TalentSelfProfile = {
   agencyName: string;
   /** Public URL of the talent's "card" variant media asset, or null */
   headshotUrl: string | null;
-  /** True if short_bio or bio_en is non-empty */
+  /** True if short_bio or the English published bio is non-empty */
   hasBio: boolean;
   /** True if height_cm is non-null */
   hasHeight: boolean;
@@ -91,16 +91,16 @@ export async function loadTalentSelfProfile(
         profile_code,
         talent_plan_key,
         short_bio,
-        bio_en,
+        bio_i18n,
         height_cm,
         contact_policy,
         talent_profile_taxonomy (
           relationship_type,
-          taxonomy_terms ( name_en )
+          taxonomy_terms ( name_i18n )
         ),
         talent_service_areas (
           service_kind,
-          locations ( display_name_en )
+          locations ( display_name_i18n )
         )
       `)
       .eq("user_id", userId)
@@ -121,11 +121,11 @@ export async function loadTalentSelfProfile(
       profile_code: string | null;
       talent_plan_key: string | null;
       short_bio: string | null;
-      bio_en: string | null;
+      bio_i18n: Record<string, string | null> | null;
       height_cm: number | null;
       contact_policy: Record<string, boolean> | null;
-      talent_profile_taxonomy: { relationship_type: string | null; taxonomy_terms: { name_en: string | null } | null }[] | null;
-      talent_service_areas: { service_kind: string | null; locations: { display_name_en: string | null } | null }[] | null;
+      talent_profile_taxonomy: { relationship_type: string | null; taxonomy_terms: { name_i18n: Record<string, string | null> | null } | null }[] | null;
+      talent_service_areas: { service_kind: string | null; locations: { display_name_i18n: Record<string, string | null> | null } | null }[] | null;
     };
 
     const p = profileRow as unknown as ProfileRaw;
@@ -165,12 +165,12 @@ export async function loadTalentSelfProfile(
     const primaryTypeLabel =
       (p.talent_profile_taxonomy ?? [])
         .find((t) => t.relationship_type === "primary_role")
-        ?.taxonomy_terms?.name_en ?? null;
+        ?.taxonomy_terms?.name_i18n?.en ?? null;
 
     const homeCity =
       (p.talent_service_areas ?? [])
         .find((a) => a.service_kind === "home_base")
-        ?.locations?.display_name_en ?? null;
+        ?.locations?.display_name_i18n?.en ?? null;
     const membership = buildTalentMembershipState(p.talent_plan_key);
 
     return {
@@ -187,7 +187,7 @@ export async function loadTalentSelfProfile(
       talentCapabilities: membership.capabilities,
       agencyName: agencyRow?.display_name ?? "Agency",
       headshotUrl,
-      hasBio: !!(p.short_bio?.trim() || p.bio_en?.trim()),
+      hasBio: !!(p.short_bio?.trim() || p.bio_i18n?.en?.trim()),
       hasHeight: p.height_cm !== null,
       contactPolicy: p.contact_policy ?? { basic: true, verified: true, silver: true, gold: true },
     };
@@ -221,16 +221,16 @@ export async function loadTalentSelfProfileByUser(
         profile_code,
         talent_plan_key,
         short_bio,
-        bio_en,
+        bio_i18n,
         height_cm,
         contact_policy,
         talent_profile_taxonomy (
           relationship_type,
-          taxonomy_terms ( name_en )
+          taxonomy_terms ( name_i18n )
         ),
         talent_service_areas (
           service_kind,
-          locations ( display_name_en )
+          locations ( display_name_i18n )
         )
       `)
       .eq("user_id", userId)
@@ -251,11 +251,11 @@ export async function loadTalentSelfProfileByUser(
       profile_code: string | null;
       talent_plan_key: string | null;
       short_bio: string | null;
-      bio_en: string | null;
+      bio_i18n: Record<string, string | null> | null;
       height_cm: number | null;
       contact_policy: Record<string, boolean> | null;
-      talent_profile_taxonomy: { relationship_type: string | null; taxonomy_terms: { name_en: string | null } | null }[] | null;
-      talent_service_areas: { service_kind: string | null; locations: { display_name_en: string | null } | null }[] | null;
+      talent_profile_taxonomy: { relationship_type: string | null; taxonomy_terms: { name_i18n: Record<string, string | null> | null } | null }[] | null;
+      talent_service_areas: { service_kind: string | null; locations: { display_name_i18n: Record<string, string | null> | null } | null }[] | null;
     };
 
     const p = profileRow as unknown as ProfileRaw;
@@ -272,12 +272,12 @@ export async function loadTalentSelfProfileByUser(
     const primaryTypeLabel =
       (p.talent_profile_taxonomy ?? [])
         .find((t) => t.relationship_type === "primary_role")
-        ?.taxonomy_terms?.name_en ?? null;
+        ?.taxonomy_terms?.name_i18n?.en ?? null;
 
     const homeCity =
       (p.talent_service_areas ?? [])
         .find((a) => a.service_kind === "home_base")
-        ?.locations?.display_name_en ?? null;
+        ?.locations?.display_name_i18n?.en ?? null;
     const membership = buildTalentMembershipState(p.talent_plan_key);
 
     return {
@@ -294,7 +294,7 @@ export async function loadTalentSelfProfileByUser(
       talentCapabilities: membership.capabilities,
       agencyName: "Tulala",
       headshotUrl,
-      hasBio: !!(p.short_bio?.trim() || p.bio_en?.trim()),
+      hasBio: !!(p.short_bio?.trim() || p.bio_i18n?.en?.trim()),
       hasHeight: p.height_cm !== null,
       contactPolicy: p.contact_policy ?? { basic: true, verified: true, silver: true, gold: true },
     };
