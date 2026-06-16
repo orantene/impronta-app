@@ -93,6 +93,9 @@ export interface SetCatalogOverlayInput {
   category_override?: string | null;
   required_plan_override?: PlanKey | null;
   availability_override?: "available" | "hidden" | null;
+  /** Builder Studio (WS-C C2) — admin component defaults: props deep-merged OVER
+   *  the variant-resolved props at insert. `null` clears the override. */
+  default_props?: Record<string, unknown> | null;
   /** Builder Studio (WS-C) — dot-path prop keys a tenant may NOT edit. */
   locked_props?: string[] | null;
 }

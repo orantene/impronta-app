@@ -10,6 +10,7 @@ import {
 import { cloneNodeWithFreshIds } from "@/lib/site-admin/builder-node/operations";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 
+import { applyItemDefaultProps } from "./apply-item-overlay";
 import { buildAddGallerySectionTemplate } from "./section-templates";
 import type { AddGalleryInsertMethod, AddGalleryItem, AddGalleryNativeVariant } from "./types";
 
@@ -59,6 +60,19 @@ function stampItemLockedProps(node: BuilderNode, item: AddGalleryItem): BuilderN
     lockedProps: keys,
   };
   return { ...node, lockedProps: keys, props } as unknown as BuilderNode;
+}
+
+/**
+ * Builder Studio (WS-C C2 → C1) — apply a catalog item's admin overlay to a
+ * variant-resolved insert node, in the fixed order:
+ *   variant (already applied by the caller) → defaults → locks.
+ * Admin `defaultProps` are deep-merged OVER the node first (so they ARE the
+ * canonical baseline a tenant edits), then locks are stamped on top — making a
+ * locked prop's first-save baseline the admin default (closes the C1 residual).
+ * Both steps are no-ops when their item field is absent.
+ */
+function applyItemOverlayAtInsert(node: BuilderNode, item: AddGalleryItem): BuilderNode {
+  return stampItemLockedProps(applyItemDefaultProps(node, item.defaultProps), item);
 }
 
 /**
@@ -413,7 +427,7 @@ export function resolveAddGalleryInsertAction(
     case "nativeNode":
       return {
         type: "nativeNode",
-        node: stampItemLockedProps(createNativeNodeForGalleryItem(item), item),
+        node: applyItemOverlayAtInsert(createNativeNodeForGalleryItem(item), item),
       };
     case "sectionTemplate": {
       const templateId = item.sectionTemplateId;
@@ -424,12 +438,12 @@ export function resolveAddGalleryInsertAction(
       if (!node) {
         throw new Error(`Unknown section template "${templateId}".`);
       }
-      return { type: "sectionTemplate", node: stampItemLockedProps(node, item) };
+      return { type: "sectionTemplate", node: applyItemOverlayAtInsert(node, item) };
     }
     case "dbTemplate":
       return {
         type: "dbTemplate",
-        node: stampItemLockedProps(createDbTemplateNodeForGalleryItem(item), item),
+        node: applyItemOverlayAtInsert(createDbTemplateNodeForGalleryItem(item), item),
       };
     case "sectionEmbed":
     case "connectedNode": {

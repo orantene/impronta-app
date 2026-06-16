@@ -140,6 +140,7 @@ export async function setComponentOverlay(
   assign("category_override");
   assign("required_plan_override");
   assign("availability_override");
+  assign("default_props");
   assign("locked_props");
 
   try {
