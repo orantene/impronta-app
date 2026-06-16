@@ -214,8 +214,7 @@ function flattenTaxonomy(rows: TaxonomyRow[]): TaxonomyTerm[] {
 
 function pickTaxonomyLabel(locale: string, term: TaxonomyTerm): string {
   const i18n = term.name_i18n ?? {};
-  if (locale === "es" && i18n.es && i18n.es.trim()) return i18n.es.trim();
-  return i18n.en ?? "";
+  return pickLocale(locale, { en: i18n.en ?? "", es: i18n.es?.trim() || undefined });
 }
 
 function groupByKind(locale: string, terms: TaxonomyTerm[]): Record<string, string[]> {
@@ -916,8 +915,7 @@ function formatLanguageRow(row: TalentLanguageRow, locale: string): string {
 }
 
 function pickFieldLabel(locale: string, en: string, es?: string | null): string {
-  if (locale === "es" && es && es.trim()) return es.trim();
-  return en.trim();
+  return pickLocale(locale, { en: en.trim(), es: es?.trim() || undefined });
 }
 
 // ── i18n → legacy en/es projection helpers ──────────────────────────────────

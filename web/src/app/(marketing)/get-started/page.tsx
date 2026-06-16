@@ -24,6 +24,7 @@ import {
   type MarketingTier,
 } from "@/lib/pricing/get-active-prices";
 import { validateDiscount } from "@/lib/server-actions/admin-product-discounts";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 
 export const metadata: Metadata = {
   title: "Start your business — free",
@@ -61,8 +62,40 @@ function buildHeadlineByTier(
   locale: string,
 ): Record<string, TierHeadline> {
   const studio = workspaceTiers.find((t) => t.key === "studio");
-  if (locale === "es") {
-    return {
+  return pickLocale(locale, {
+    en: {
+      free: {
+        eyebrow: "Start free",
+        title: "Your business, online in ten minutes.",
+        subtitle:
+          "A free site and link, your work or team on it, and bookings + payments built in. No code, no credit card.",
+      },
+      studio: {
+        eyebrow: studioEyebrow(studio),
+        title: "The pipeline, plus WhatsApp.",
+        subtitle:
+          "Up to fifty profiles, three seats, and inquiry notifications that ping WhatsApp — where your clients actually write to you.",
+      },
+      agency: {
+        eyebrow: "Agency · 14-day trial",
+        title: "A branded business surface.",
+        subtitle:
+          "Your own domain, a CMS-driven site, unlimited profiles, and eight seats with roles & permissions. Full Agency plan, free for 14 days.",
+      },
+      network: {
+        eyebrow: "Network · Book a walkthrough",
+        title: "For teams placing people at scale.",
+        subtitle:
+          "Staffing, casting, and larger placement operations get SSO, advanced roles, API access, and white-label options. Start with a walkthrough.",
+      },
+      default: {
+        eyebrow: "Start free",
+        title: "Start your business. <span style=\"color: var(--plt-forest)\">Free.</span>",
+        subtitle:
+          "Build your own website in one click, share your link, and start taking bookings and payments. Run an agency, a network, a band, a studio, a team — or just sell your own work.",
+      },
+    },
+    es: {
       free: {
         eyebrow: "Empieza gratis",
         title: "Tu negocio, en línea en diez minutos.",
@@ -93,40 +126,8 @@ function buildHeadlineByTier(
         subtitle:
           "Crea tu propio sitio web en un clic, comparte tu link y empieza a recibir reservas y pagos. Lleva una agencia, una red, una banda, un estudio, un equipo — o simplemente vende tu propio trabajo.",
       },
-    };
-  }
-  return {
-    free: {
-      eyebrow: "Start free",
-      title: "Your business, online in ten minutes.",
-      subtitle:
-        "A free site and link, your work or team on it, and bookings + payments built in. No code, no credit card.",
     },
-    studio: {
-      eyebrow: studioEyebrow(studio),
-      title: "The pipeline, plus WhatsApp.",
-      subtitle:
-        "Up to fifty profiles, three seats, and inquiry notifications that ping WhatsApp — where your clients actually write to you.",
-    },
-    agency: {
-      eyebrow: "Agency · 14-day trial",
-      title: "A branded business surface.",
-      subtitle:
-        "Your own domain, a CMS-driven site, unlimited profiles, and eight seats with roles & permissions. Full Agency plan, free for 14 days.",
-    },
-    network: {
-      eyebrow: "Network · Book a walkthrough",
-      title: "For teams placing people at scale.",
-      subtitle:
-        "Staffing, casting, and larger placement operations get SSO, advanced roles, API access, and white-label options. Start with a walkthrough.",
-    },
-    default: {
-      eyebrow: "Start free",
-      title: "Start your business. <span style=\"color: var(--plt-forest)\">Free.</span>",
-      subtitle:
-        "Build your own website in one click, share your link, and start taking bookings and payments. Run an agency, a network, a band, a studio, a team — or just sell your own work.",
-    },
-  };
+  });
 }
 
 type TierKey = "free" | "studio" | "agency" | "network";
@@ -257,40 +258,40 @@ function HeroSection({
    *  when no ?promo=CODE is applied. Phase 3. */
   appliedDiscountLabel?: string | null;
 }) {
-  const c =
-    locale === "es"
-      ? {
-          bullets: [
-            "Sitio + link gratis, sin tarjeta",
-            "Editor de páginas incluido",
-            "Recibe reservas y pagos",
-          ],
-          imageEyebrow: "Hecho para que ganes dinero",
-          imageCaption:
-            "Agencias, bandas, estudios y profesionales independientes llevan su negocio aquí.",
-          founderNote:
-            "Los workspaces gratis están disponibles al instante — reserva tu link, crea tu cuenta y entra a tu panel en minutos. Los planes Agency y Network incluyen configuración guiada. Sin pruebas sociales falsas, sin embudos de growth-hacking — solo un producto que construimos con quienes lo usan.",
-          founderSign: `— Oran, fundador · ${PLATFORM_BRAND.name}`,
-          promoApplied: "Promo aplicada:",
-          alreadyAccount: "¿Ya tienes cuenta?",
-          signIn: "Entrar",
-        }
-      : {
-          bullets: [
-            "Free site + link, no card",
-            "Page builder included",
-            "Take bookings & payments",
-          ],
-          imageEyebrow: "Built to make you money",
-          imageCaption:
-            "Agencies, bands, studios, and solo pros run their business here.",
-          founderNote:
-            "Free workspaces are available immediately — claim your link, create your account, and land in your dashboard in minutes. Agency and Network plans include guided setup. No fake social proof, no growth-hack funnel — just a product we’re building with the people who use it.",
-          founderSign: `— Oran, founder · ${PLATFORM_BRAND.name}`,
-          promoApplied: "Promo applied:",
-          alreadyAccount: "Already have an account?",
-          signIn: "Sign in",
-        };
+  const c = pickLocale(locale, {
+    en: {
+      bullets: [
+        "Free site + link, no card",
+        "Page builder included",
+        "Take bookings & payments",
+      ],
+      imageEyebrow: "Built to make you money",
+      imageCaption:
+        "Agencies, bands, studios, and solo pros run their business here.",
+      founderNote:
+        "Free workspaces are available immediately — claim your link, create your account, and land in your dashboard in minutes. Agency and Network plans include guided setup. No fake social proof, no growth-hack funnel — just a product we\u2019re building with the people who use it.",
+      founderSign: `— Oran, founder · ${PLATFORM_BRAND.name}`,
+      promoApplied: "Promo applied:",
+      alreadyAccount: "Already have an account?",
+      signIn: "Sign in",
+    },
+    es: {
+      bullets: [
+        "Sitio + link gratis, sin tarjeta",
+        "Editor de páginas incluido",
+        "Recibe reservas y pagos",
+      ],
+      imageEyebrow: "Hecho para que ganes dinero",
+      imageCaption:
+        "Agencias, bandas, estudios y profesionales independientes llevan su negocio aquí.",
+      founderNote:
+        "Los workspaces gratis están disponibles al instante — reserva tu link, crea tu cuenta y entra a tu panel en minutos. Los planes Agency y Network incluyen configuración guiada. Sin pruebas sociales falsas, sin embudos de growth-hacking — solo un producto que construimos con quienes lo usan.",
+      founderSign: `— Oran, fundador · ${PLATFORM_BRAND.name}`,
+      promoApplied: "Promo aplicada:",
+      alreadyAccount: "¿Ya tienes cuenta?",
+      signIn: "Entrar",
+    },
+  });
   return (
     <MarketingSection spacing="tight" className="relative">
       <span
@@ -436,8 +437,38 @@ type Audience = {
 };
 
 function getAudiences(locale: string): Audience[] {
-  if (locale === "es") {
-    return [
+  return pickLocale(locale, {
+    en: [
+      {
+        key: "solo",
+        eyebrow: "Solo & talent",
+        title: "Sell your own work.",
+        body: `You're the talent and the business. Get a site, share your link, and take bookings and payments — without building anything or paying someone to do it for you.`,
+        examples: "Singers, stylists, coaches, chefs, photographers, performers",
+      },
+      {
+        key: "agencies",
+        eyebrow: "Agencies & studios",
+        title: "Run a branded business.",
+        body: "A branded site on your own domain, your whole roster on it, multi-user roles, and a real booking pipeline. Built for agencies and studios that represent other people.",
+        examples: "Model & talent agencies, studios, reps, speaker bureaus",
+      },
+      {
+        key: "teams",
+        eyebrow: "Bands & teams",
+        title: "One workspace for the crew.",
+        body: "Run the bookings, the calendar, and the money for your whole group in one place. Everyone sees the same schedule — you split the work, not the chaos.",
+        examples: "Bands, DJ crews, event teams, production units, collectives",
+      },
+      {
+        key: "networks",
+        eyebrow: "Networks & hubs",
+        title: "Many pros, one roof.",
+        body: "Bring dozens or hundreds of independents under one branded hub — filterable discovery, role-scoped access, and inquiries that route to the right person.",
+        examples: "Local hubs, marketplaces, staffing networks, communities",
+      },
+    ],
+    es: [
       {
         key: "solo",
         eyebrow: "Solo y talento",
@@ -466,54 +497,24 @@ function getAudiences(locale: string): Audience[] {
         body: "Reúne a decenas o cientos de independientes bajo un hub con tu marca — directorio con filtros, accesos por rol y consultas que llegan a la persona correcta.",
         examples: "Hubs locales, marketplaces, redes de staffing, comunidades",
       },
-    ];
-  }
-  return [
-    {
-      key: "solo",
-      eyebrow: "Solo & talent",
-      title: "Sell your own work.",
-      body: `You're the talent and the business. Get a site, share your link, and take bookings and payments — without building anything or paying someone to do it for you.`,
-      examples: "Singers, stylists, coaches, chefs, photographers, performers",
-    },
-    {
-      key: "agencies",
-      eyebrow: "Agencies & studios",
-      title: "Run a branded business.",
-      body: "A branded site on your own domain, your whole roster on it, multi-user roles, and a real booking pipeline. Built for agencies and studios that represent other people.",
-      examples: "Model & talent agencies, studios, reps, speaker bureaus",
-    },
-    {
-      key: "teams",
-      eyebrow: "Bands & teams",
-      title: "One workspace for the crew.",
-      body: "Run the bookings, the calendar, and the money for your whole group in one place. Everyone sees the same schedule — you split the work, not the chaos.",
-      examples: "Bands, DJ crews, event teams, production units, collectives",
-    },
-    {
-      key: "networks",
-      eyebrow: "Networks & hubs",
-      title: "Many pros, one roof.",
-      body: "Bring dozens or hundreds of independents under one branded hub — filterable discovery, role-scoped access, and inquiries that route to the right person.",
-      examples: "Local hubs, marketplaces, staffing networks, communities",
-    },
-  ];
+    ],
+  });
 }
 
 function WhoItsForSection({ locale }: { locale: string }) {
   const audiences = getAudiences(locale);
-  const c =
-    locale === "es"
-      ? {
-          eyebrow: "Para quién es",
-          heading: "Sea lo que sea que estés construyendo, empiézalo aquí.",
-          subhead: `${PLATFORM_BRAND.name} es la plataforma para vender servicios y llevar un negocio de gente — ya seas solo tú, una agencia completa, una banda, un equipo o toda una red. Un motor, todas las formas.`,
-        }
-      : {
-          eyebrow: "Who it’s for",
-          heading: "Whatever you’re building, start it here.",
-          subhead: `${PLATFORM_BRAND.name} is the platform for selling services and running a people business — whether that’s just you, a full agency, a band, a team, or a whole network. One engine, every shape.`,
-        };
+  const c = pickLocale(locale, {
+    en: {
+      eyebrow: "Who it's for",
+      heading: "Whatever you're building, start it here.",
+      subhead: `${PLATFORM_BRAND.name} is the platform for selling services and running a people business — whether that's just you, a full agency, a band, a team, or a whole network. One engine, every shape.`,
+    },
+    es: {
+      eyebrow: "Para quién es",
+      heading: "Sea lo que sea que estés construyendo, empiézalo aquí.",
+      subhead: `${PLATFORM_BRAND.name} es la plataforma para vender servicios y llevar un negocio de gente — ya seas solo tú, una agencia completa, una banda, un equipo o toda una red. Un motor, todas las formas.`,
+    },
+  });
   return (
     <MarketingSection spacing="tight" style={{ background: "var(--plt-bg-elevated)" }}>
       <span
@@ -591,7 +592,7 @@ function AudienceCard({ audience, locale }: { audience: Audience; locale: string
             color: "var(--plt-ink-soft)",
           }}
         >
-          {locale === "es" ? "Ejemplos" : "Examples"}
+          {pickLocale(locale, { en: "Examples", es: "Ejemplos" })}
         </span>
         {audience.examples}
       </p>
@@ -604,8 +605,34 @@ function AudienceCard({ audience, locale }: { audience: Audience; locale: string
 // ────────────────────────────────────────────────────────────────────────────
 
 function getSteps(locale: string) {
-  if (locale === "es") {
-    return [
+  return pickLocale(locale, {
+    en: [
+      {
+        numeral: "01",
+        title: "Build your site in one click.",
+        body: `Pick your link and the page builder spins up a real website for your business in minutes — ${FREE_LINK_EXAMPLE}. No code, no credit card.`,
+        caption: FREE_LINK_EXAMPLE,
+      },
+      {
+        numeral: "02",
+        title: "Add your work, services, or team.",
+        body: "Your services, your prices, your roster or band — structured the same way every time, so clients can browse exactly what you offer and what it costs.",
+        caption: "Services · team · prices",
+      },
+      {
+        numeral: "03",
+        title: "Share your link. Get booked.",
+        body: "Drop your link in a bio, a DM, or a pitch. Clients browse, send an inquiry, and you turn it into a confirmed booking — right inside your messages.",
+        caption: "One link. Everywhere.",
+      },
+      {
+        numeral: "04",
+        title: "Get paid — and grow when you're ready.",
+        body: "Take payments in chat, add your own domain, bring on your team, open up to the discovery hub. Upgrade only when it starts paying for itself.",
+        caption: "Payments · domain · team",
+      },
+    ],
+    es: [
       {
         numeral: "01",
         title: "Crea tu sitio en un clic.",
@@ -630,52 +657,26 @@ function getSteps(locale: string) {
         body: "Recibe pagos en el chat, agrega tu propio dominio, suma a tu equipo, ábrete al hub de descubrimiento. Sube de plan solo cuando empiece a pagarse solo.",
         caption: "Pagos · dominio · equipo",
       },
-    ];
-  }
-  return [
-    {
-      numeral: "01",
-      title: "Build your site in one click.",
-      body: `Pick your link and the page builder spins up a real website for your business in minutes — ${FREE_LINK_EXAMPLE}. No code, no credit card.`,
-      caption: FREE_LINK_EXAMPLE,
-    },
-    {
-      numeral: "02",
-      title: "Add your work, services, or team.",
-      body: "Your services, your prices, your roster or band — structured the same way every time, so clients can browse exactly what you offer and what it costs.",
-      caption: "Services · team · prices",
-    },
-    {
-      numeral: "03",
-      title: "Share your link. Get booked.",
-      body: "Drop your link in a bio, a DM, or a pitch. Clients browse, send an inquiry, and you turn it into a confirmed booking — right inside your messages.",
-      caption: "One link. Everywhere.",
-    },
-    {
-      numeral: "04",
-      title: "Get paid — and grow when you're ready.",
-      body: "Take payments in chat, add your own domain, bring on your team, open up to the discovery hub. Upgrade only when it starts paying for itself.",
-      caption: "Payments · domain · team",
-    },
-  ];
+    ],
+  });
 }
 
 function HowItWorksSection({ locale }: { locale: string }) {
   const steps = getSteps(locale);
-  const c =
-    locale === "es"
-      ? {
-          eyebrow: "Cómo funciona",
-          heading: "Cuatro pasos hasta tu primera reserva.",
-          subhead:
-            "La mayoría tiene un sitio real y un link para compartir antes del mediodía — y empieza a recibir reservas esa misma semana. Sube de plan solo cuando se pague solo.",
-        }
-      : {
-          eyebrow: "How it works",
-          heading: "Four steps to your first booking.",
-          subhead:
-            "Most people have a real site and a shareable link before lunch — and start taking bookings the same week. Upgrade only when it pays for itself.",
-        };
+  const c = pickLocale(locale, {
+    en: {
+      eyebrow: "How it works",
+      heading: "Four steps to your first booking.",
+      subhead:
+        "Most people have a real site and a shareable link before lunch — and start taking bookings the same week. Upgrade only when it pays for itself.",
+    },
+    es: {
+      eyebrow: "Cómo funciona",
+      heading: "Cuatro pasos hasta tu primera reserva.",
+      subhead:
+        "La mayoría tiene un sitio real y un link para compartir antes del mediodía — y empieza a recibir reservas esa misma semana. Sube de plan solo cuando se pague solo.",
+    },
+  });
   return (
     <MarketingSection spacing="tight">
       <MarketingContainer size="wide">
@@ -809,24 +810,24 @@ function ladderHighlights(slug: string): string[] {
 }
 
 function PlanLadderSection({ tiers, locale }: { tiers: MarketingTier[]; locale: string }) {
-  const c =
-    locale === "es"
-      ? {
-          eyebrow: "El pipeline está en todos los planes.",
-          heading: "Un producto. Cuatro tamaños.",
-          subhead:
-            "Cada plan convierte consultas en reservas — el pipeline completo viene en Free. Lo que crece en cada paso es el tamaño del roster, los canales de avisos y qué tan personalizada está la marca.",
-          startFree: "Empieza gratis",
-          fullComparison: "Comparación completa de planes",
-        }
-      : {
-          eyebrow: "The pipeline is on every plan.",
-          heading: "One product. Four sizes.",
-          subhead:
-            "Every tier turns inquiries into bookings — the full pipeline ships on Free. What grows with each step is roster size, notification channels, and how branded the surface is.",
-          startFree: "Start free",
-          fullComparison: "Full plan comparison",
-        };
+  const c = pickLocale(locale, {
+    en: {
+      eyebrow: "The pipeline is on every plan.",
+      heading: "One product. Four sizes.",
+      subhead:
+        "Every tier turns inquiries into bookings — the full pipeline ships on Free. What grows with each step is roster size, notification channels, and how branded the surface is.",
+      startFree: "Start free",
+      fullComparison: "Full plan comparison",
+    },
+    es: {
+      eyebrow: "El pipeline está en todos los planes.",
+      heading: "Un producto. Cuatro tamaños.",
+      subhead:
+        "Cada plan convierte consultas en reservas — el pipeline completo viene en Free. Lo que crece en cada paso es el tamaño del roster, los canales de avisos y qué tan personalizada está la marca.",
+      startFree: "Empieza gratis",
+      fullComparison: "Comparación completa de planes",
+    },
+  });
   return (
     <MarketingSection spacing="tight" style={{ background: "var(--plt-bg-elevated)" }}>
       <span
@@ -935,7 +936,7 @@ function PlanCard({
             border: "1px solid rgba(241,237,227,0.18)",
           }}
         >
-          {locale === "es" ? "Más popular" : "Most popular"}
+          {pickLocale(locale, { en: "Most popular", es: "Más popular" })}
         </span>
       ) : null}
       <div
@@ -1026,32 +1027,32 @@ const PREVIEW_PROFILES = [
 ];
 
 function ProductPreviewSection({ locale }: { locale: string }) {
-  const c =
-    locale === "es"
-      ? {
-          eyebrow: "Lo que obtienes",
-          heading: "Un sitio web de verdad, no un link en la bio.",
-          subhead:
-            "Cada cuenta obtiene un sitio con tu marca, perfiles estructurados, navegación con filtros y un buzón de reservas — ya sea que vendas tus propios servicios, lleves una agencia o coordines a todo un equipo.",
-          bullets: [
-            "Perfiles estructurados con portafolio, medidas y disponibilidad",
-            "Directorio navegable y con filtros — los clientes se atienden solos",
-            "Cada consulta llega como un registro estructurado, no como un mensaje de chat",
-            "Una presentación editorial que se ve como un negocio de verdad",
-          ],
-        }
-      : {
-          eyebrow: "What you get",
-          heading: "A real website, not a link in bio.",
-          subhead:
-            "Every account gets a branded site with structured profiles, filterable browsing, and a booking inbox — whether you’re selling your own services, running an agency, or coordinating a whole team.",
-          bullets: [
-            "Structured people profiles with portfolios, specs & availability",
-            "Browsable, filterable directory — clients self-serve",
-            "Every inquiry lands as a structured record, not a chat message",
-            "Editorial presentation that reads as a real business",
-          ],
-        };
+  const c = pickLocale(locale, {
+    en: {
+      eyebrow: "What you get",
+      heading: "A real website, not a link in bio.",
+      subhead:
+        "Every account gets a branded site with structured profiles, filterable browsing, and a booking inbox — whether you're selling your own services, running an agency, or coordinating a whole team.",
+      bullets: [
+        "Structured people profiles with portfolios, specs & availability",
+        "Browsable, filterable directory — clients self-serve",
+        "Every inquiry lands as a structured record, not a chat message",
+        "Editorial presentation that reads as a real business",
+      ],
+    },
+    es: {
+      eyebrow: "Lo que obtienes",
+      heading: "Un sitio web de verdad, no un link en la bio.",
+      subhead:
+        "Cada cuenta obtiene un sitio con tu marca, perfiles estructurados, navegación con filtros y un buzón de reservas — ya sea que vendas tus propios servicios, lleves una agencia o coordines a todo un equipo.",
+      bullets: [
+        "Perfiles estructurados con portafolio, medidas y disponibilidad",
+        "Directorio navegable y con filtros — los clientes se atienden solos",
+        "Cada consulta llega como un registro estructurado, no como un mensaje de chat",
+        "Una presentación editorial que se ve como un negocio de verdad",
+      ],
+    },
+  });
   return (
     <MarketingSection spacing="tight">
       <MarketingContainer size="wide">
@@ -1224,56 +1225,56 @@ function ProductPreviewSection({ locale }: { locale: string }) {
 // ────────────────────────────────────────────────────────────────────────────
 
 function ContrastSection({ locale }: { locale: string }) {
-  const c =
-    locale === "es"
-      ? {
-          eyebrow: "El cambio",
-          heading: "Las hojas de cálculo y los chats no son un producto.",
-          subhead:
-            "El trabajo es el mismo, representes a dos personas o a doscientas. Lo que cambia es qué tan creíble se ve, qué tan rápido cierran las consultas y cuánto del día pasas reenviando lo que ya enviaste.",
-          manualLabel: "A mano",
-          manualTitle: "Copiar y pegar, cada vez.",
-          manualRows: [
-            "Perfiles enviados de uno en uno, en chats que se pierden",
-            "Tarifas y disponibilidad re-escritas en cada consulta",
-            "Sin buzón estructurado — &ldquo;¿alguna vez respondieron?&rdquo;",
-            "Tu marca parece un contacto, no un negocio",
-            "Hojas de cálculo que solo tú entiendes",
-          ],
-          withLabel: `Con ${PLATFORM_BRAND.name}`,
-          withTitle: "Un link. Estructurado. Tuyo.",
-          withRows: [
-            "Un solo link de directorio pulido — bios, medidas, portafolios",
-            "Tarifas y disponibilidad publicadas una vez, siempre al día",
-            "Cada consulta llega como un registro rastreable",
-            "Una presentación editorial que gana respuestas premium",
-            "Exporta todo tu roster y tu historial cuando quieras",
-          ],
-        }
-      : {
-          eyebrow: "The shift",
-          heading: "Spreadsheets and chat threads are not a product.",
-          subhead:
-            "The work is the same whether you represent two people or two hundred. What changes is how credible it looks, how fast inquiries close, and how much of the day you spend re-sending what you already sent.",
-          manualLabel: "The manual way",
-          manualTitle: "Copy-paste, every time.",
-          manualRows: [
-            "Profiles sent one at a time, in chats that scroll away",
-            "Rates and availability re-typed for every inquiry",
-            "No structured inbox — &ldquo;did they ever reply?&rdquo;",
-            "Your brand looks like a contact, not a business",
-            "Spreadsheets that only you can read",
-          ],
-          withLabel: `With ${PLATFORM_BRAND.name}`,
-          withTitle: "One link. Structured. Yours.",
-          withRows: [
-            "One polished directory URL — bios, specs, portfolios",
-            "Rates &amp; availability surfaced once, always fresh",
-            "Every inquiry lands as a traceable record",
-            "Editorial presentation that earns premium replies",
-            "Full export of your roster and history on demand",
-          ],
-        };
+  const c = pickLocale(locale, {
+    en: {
+      eyebrow: "The shift",
+      heading: "Spreadsheets and chat threads are not a product.",
+      subhead:
+        "The work is the same whether you represent two people or two hundred. What changes is how credible it looks, how fast inquiries close, and how much of the day you spend re-sending what you already sent.",
+      manualLabel: "The manual way",
+      manualTitle: "Copy-paste, every time.",
+      manualRows: [
+        "Profiles sent one at a time, in chats that scroll away",
+        "Rates and availability re-typed for every inquiry",
+        "No structured inbox — &ldquo;did they ever reply?&rdquo;",
+        "Your brand looks like a contact, not a business",
+        "Spreadsheets that only you can read",
+      ],
+      withLabel: `With ${PLATFORM_BRAND.name}`,
+      withTitle: "One link. Structured. Yours.",
+      withRows: [
+        "One polished directory URL — bios, specs, portfolios",
+        "Rates &amp; availability surfaced once, always fresh",
+        "Every inquiry lands as a traceable record",
+        "Editorial presentation that earns premium replies",
+        "Full export of your roster and history on demand",
+      ],
+    },
+    es: {
+      eyebrow: "El cambio",
+      heading: "Las hojas de cálculo y los chats no son un producto.",
+      subhead:
+        "El trabajo es el mismo, representes a dos personas o a doscientas. Lo que cambia es qué tan creíble se ve, qué tan rápido cierran las consultas y cuánto del día pasas reenviando lo que ya enviaste.",
+      manualLabel: "A mano",
+      manualTitle: "Copiar y pegar, cada vez.",
+      manualRows: [
+        "Perfiles enviados de uno en uno, en chats que se pierden",
+        "Tarifas y disponibilidad re-escritas en cada consulta",
+        "Sin buzón estructurado — &ldquo;¿alguna vez respondieron?&rdquo;",
+        "Tu marca parece un contacto, no un negocio",
+        "Hojas de cálculo que solo tú entiendes",
+      ],
+      withLabel: `Con ${PLATFORM_BRAND.name}`,
+      withTitle: "Un link. Estructurado. Tuyo.",
+      withRows: [
+        "Un solo link de directorio pulido — bios, medidas, portafolios",
+        "Tarifas y disponibilidad publicadas una vez, siempre al día",
+        "Cada consulta llega como un registro rastreable",
+        "Una presentación editorial que gana respuestas premium",
+        "Exporta todo tu roster y tu historial cuando quieras",
+      ],
+    },
+  });
   return (
     <MarketingSection spacing="tight" style={{ background: "var(--plt-bg-elevated)" }}>
       <span
@@ -1375,26 +1376,26 @@ function ContrastColumn({
 // ────────────────────────────────────────────────────────────────────────────
 
 function FinalCtaSection({ locale }: { locale: string }) {
-  const c =
-    locale === "es"
-      ? {
-          eyebrow: "Cuando estés listo",
-          titleA: "Empieza tu negocio.",
-          titleB: "Gratis, en minutos.",
-          subhead:
-            "Gratis para siempre. Agrega tu propio dominio, recibe pagos y suma a tu equipo cuando el trabajo lo pida.",
-          startFree: "Empieza gratis",
-          seeHow: "Mira cómo funciona",
-        }
-      : {
-          eyebrow: "Ready when you are",
-          titleA: "Start your business.",
-          titleB: "Free, in minutes.",
-          subhead:
-            "Free forever. Add your own domain, take payments, and bring on your team whenever the work calls for it.",
-          startFree: "Start free",
-          seeHow: "See how it works",
-        };
+  const c = pickLocale(locale, {
+    en: {
+      eyebrow: "Ready when you are",
+      titleA: "Start your business.",
+      titleB: "Free, in minutes.",
+      subhead:
+        "Free forever. Add your own domain, take payments, and bring on your team whenever the work calls for it.",
+      startFree: "Start free",
+      seeHow: "See how it works",
+    },
+    es: {
+      eyebrow: "Cuando estés listo",
+      titleA: "Empieza tu negocio.",
+      titleB: "Gratis, en minutos.",
+      subhead:
+        "Gratis para siempre. Agrega tu propio dominio, recibe pagos y suma a tu equipo cuando el trabajo lo pida.",
+      startFree: "Empieza gratis",
+      seeHow: "Mira cómo funciona",
+    },
+  });
   return (
     <MarketingSection spacing="tight" className="relative overflow-hidden">
       <span
