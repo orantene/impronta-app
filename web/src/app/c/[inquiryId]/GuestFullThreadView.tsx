@@ -208,8 +208,7 @@ export function GuestFullThreadView({
     setSending(true);
     setError(null);
 
-    const tmpId = `tmp-${Date.now()}`;
-    const nowIso = new Date().toISOString();
+    const { tmpId, nowIso } = optimisticSendIds();
     setRows((cur) => [
       ...cur,
       {
@@ -428,6 +427,13 @@ export function GuestFullThreadView({
 
 function sortedRows(messages: GuestThreadMessage[]): StreamRow[] {
   return [...messages].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+}
+
+// Optimistic-send id + timestamp. Module scope so the impure Date.now()/new Date()
+// calls live outside render (the react-hooks/purity rule flags them in component scope).
+function optimisticSendIds(): { tmpId: string; nowIso: string } {
+  const now = Date.now();
+  return { tmpId: `tmp-${now}`, nowIso: new Date(now).toISOString() };
 }
 
 function newestIso(messages: GuestThreadMessage[]): string | null {
