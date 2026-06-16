@@ -24,6 +24,8 @@
  * surfaced as a convenience base-level type field for editor reads.
  */
 
+import { pickLocale } from "@/lib/i18n/pick-locale";
+
 /** Locale signal — the two storefront locales the app ships. */
 export type BuilderVisibilityLocale = "en" | "es";
 
@@ -187,7 +189,7 @@ export function describeBuilderVisibilityCondition(
   const rule = normalizeBuilderVisibilityCondition(condition);
   if (!rule) return "Always visible";
   const parts: string[] = [];
-  if (rule.locale) parts.push(rule.locale === "es" ? "Spanish only" : "English only");
+  if (rule.locale) parts.push(pickLocale(rule.locale, { en: "English only", es: "Spanish only" }));
   if (rule.auth) {
     parts.push(rule.auth === "signed_in" ? "Signed-in only" : "Signed-out only");
   }

@@ -31,6 +31,7 @@ import {
 } from "./extended-actions";
 import { CuratedCityField } from "./curated-city-field";
 import { PhotoLightbox } from "@/components/media/photo-lightbox";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 
 // ─── Tokens ───────────────────────────────────────────────────────────────────
 
@@ -193,7 +194,6 @@ function TaxonomyBucketEditor({
   t: (key: string) => string;
   locale: string;
 }) {
-  const isEs = locale === "es";
   const router = useRouter();
   const [pendingTerm, setPendingTerm] = useState<string | null>(null);
   const [, startMutation] = useTransition();
@@ -273,8 +273,8 @@ function TaxonomyBucketEditor({
         ) : currentAssignments.map((a) => (
           <TermChip
             key={a.termId}
-            label={(isEs && a.termNameEs) || a.termNameEn}
-            parent={(isEs && a.parentNameEs) || a.parentNameEn}
+            label={pickLocale(locale, { en: a.termNameEn, es: a.termNameEs || undefined })}
+            parent={pickLocale(locale, { en: a.parentNameEn, es: a.parentNameEs || undefined })}
             pending={pendingTerm === a.termId}
             onRemove={() => handleRemove(a.termId)}
           />
@@ -324,7 +324,7 @@ function TaxonomyBucketEditor({
                     {t.parentNameEn} ›
                   </span>
                 )}
-                <span className="font-semibold">{(isEs && t.nameEs) || t.nameEn}</span>
+                <span className="font-semibold">{pickLocale(locale, { en: t.nameEn, es: t.nameEs || undefined })}</span>
                 <span style={{ flex: 1 }} />
                 <span style={{
                   fontSize: 9.5, color: C.inkDim,

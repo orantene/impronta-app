@@ -1,3 +1,5 @@
+import { pickLocale } from "@/lib/i18n/pick-locale";
+
 /**
  * Centralized error-copy lexicon (C.1).
  *
@@ -132,12 +134,14 @@ export function formatRateLimitedCopy(
 
   const seconds = Math.ceil(retryAfterMs / 1000);
   if (seconds < 60) {
-    return locale === "es"
-      ? `Vas un poco rápido. Intenta de nuevo en ${seconds}s.`
-      : `Going a bit fast — try again in ${seconds}s.`;
+    return pickLocale(locale, {
+      en: `Going a bit fast — try again in ${seconds}s.`,
+      es: `Vas un poco rápido. Intenta de nuevo en ${seconds}s.`,
+    });
   }
   const minutes = Math.ceil(seconds / 60);
-  return locale === "es"
-    ? `Vas un poco rápido. Intenta de nuevo en ${minutes} min.`
-    : `Going a bit fast — try again in ${minutes} min.`;
+  return pickLocale(locale, {
+    en: `Going a bit fast — try again in ${minutes} min.`,
+    es: `Vas un poco rápido. Intenta de nuevo en ${minutes} min.`,
+  });
 }

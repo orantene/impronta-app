@@ -7,6 +7,7 @@ import { withLocalePath } from "@/i18n/pathnames";
 import { getPublicHostContext, getPublicTenantScope } from "@/lib/saas/scope";
 import { TULALA_APEX_HOST } from "@/lib/brand/tulala";
 import { isTalentProfilePlatformHost } from "@/lib/talent-site/platform-host";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 
 const PLATFORM_TALENT_SITEMAP_BASE = `https://${TULALA_APEX_HOST}`;
 
@@ -213,7 +214,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const cmsEntries: MetadataRoute.Sitemap = pages.map((row) => {
     const slug = row.slug;
     const locale = row.locale;
-    const path = locale === "es" ? withLocalePath(`/p/${slug}`, "es") : `/p/${slug}`;
+    const path = pickLocale(locale, { en: `/p/${slug}`, es: withLocalePath(`/p/${slug}`, "es") });
     return {
       url: new URL(path, base).toString(),
       lastModified: row.updated_at ? new Date(row.updated_at) : new Date(),
@@ -230,7 +231,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const postEntries: MetadataRoute.Sitemap = posts.map((row) => {
     const slug = row.slug;
     const locale = row.locale;
-    const path = locale === "es" ? withLocalePath(`/posts/${slug}`, "es") : `/posts/${slug}`;
+    const path = pickLocale(locale, { en: `/posts/${slug}`, es: withLocalePath(`/posts/${slug}`, "es") });
     return {
       url: new URL(path, base).toString(),
       lastModified: row.updated_at ? new Date(row.updated_at) : new Date(),

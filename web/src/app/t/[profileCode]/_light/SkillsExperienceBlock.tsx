@@ -8,6 +8,7 @@
 
 import type { ResolvedSkill } from "@/lib/server-actions/admin-talent-skills.types";
 import { LightSectionLabel } from "./section-label";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 
 type SkillsExperienceBlockProps = {
   resolvedSkills: ResolvedSkill[];
@@ -67,7 +68,7 @@ export function SkillsExperienceBlock({
         <div className="mt-5 space-y-3">
           {resolvedSkills.map((s) => {
             const label =
-              locale === "es" && s.skill_name_es ? s.skill_name_es : s.skill_name_en;
+              pickLocale(locale, { en: s.skill_name_en, es: s.skill_name_es || undefined });
             const profLabel = s.proficiency_level
               ? PROF_LABELS[s.proficiency_level] ?? s.proficiency_level
               : null;

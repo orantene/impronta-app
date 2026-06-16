@@ -37,6 +37,7 @@ import {
 } from "@/lib/taxonomy/engine";
 
 import type { FeaturedTalentV1 } from "./schema";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 
 /**
  * Trimmed card shape consumed by FeaturedTalentCard (the presentational
@@ -445,7 +446,7 @@ async function hydrateRows(
   ): string | null => {
     if (!term) return null;
     const i18n = term.name_i18n ?? {};
-    return (locale === "es" && i18n.es) || i18n.en || null;
+    return pickLocale(locale, { en: i18n.en || undefined, es: i18n.es || undefined }) ?? null;
   };
 
   return rows.map((row) => {

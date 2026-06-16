@@ -32,6 +32,7 @@ import { ADMIN_DRAWER_CLASS_WIDE } from "@/lib/admin/admin-drawer-classes";
 import { detectLocaleHint } from "@/lib/translation-center/save/locale-hint";
 import type { TranslationUnitDTO } from "@/lib/translation-center/types";
 import { cn } from "@/lib/utils";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 
 function BioLocaleHint({ text, expectEn }: { text: string; expectEn: boolean }) {
   const t = text.trim();
@@ -42,7 +43,7 @@ function BioLocaleHint({ text, expectEn }: { text: string; expectEn: boolean }) 
   if (!mismatch) return null;
   return (
     <p className="text-xs text-amber-700 dark:text-amber-300/90">
-      Language check: this text reads like {hint === "es" ? "Spanish" : "English"} — confirm the correct
+      Language check: this text reads like {pickLocale(hint, { en: "English", es: "Spanish" })} — confirm the correct
       locale column.
     </p>
   );

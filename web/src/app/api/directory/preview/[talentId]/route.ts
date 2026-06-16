@@ -21,6 +21,7 @@ import {
 } from "@/lib/translation/public-bio";
 import type { LocalizedMap } from "@/lib/i18n/resolve-localized";
 import { createTranslator } from "@/i18n/messages";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 
 async function resolvePathTenantIdFromReferer(
   request: Request,
@@ -120,7 +121,7 @@ export async function GET(
 
   const pickTermName = (term: { name_i18n: Record<string, string | null> | null }) => {
     const i18n = term.name_i18n ?? {};
-    return (locale === "es" && i18n.es ? i18n.es : i18n.en) ?? "";
+    return pickLocale(locale, { en: i18n.en, es: i18n.es || undefined }) ?? "";
   };
 
   type FieldVisibilityRow = {

@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DirectoryCardDTO } from "@/lib/directory/types";
 import { explainMatch } from "@/lib/ai/match-explain";
 import type { SearchExplanationItem } from "@/lib/ai/search-result";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 
 async function loadLocationQueryCity(
   supabase: SupabaseClient,
@@ -23,10 +24,7 @@ async function loadLocationQueryCity(
     city_slug: string;
   };
   const i18n = row.display_name_i18n ?? {};
-  if (locale === "es" && i18n.es?.trim()) return i18n.es.trim();
-  if (i18n.en?.trim()) return i18n.en.trim();
-  if (i18n.es?.trim()) return i18n.es.trim();
-  return row.city_slug;
+  return pickLocale(locale, { en: i18n.en?.trim() || i18n.es?.trim() || row.city_slug, es: i18n.es?.trim() || undefined });
 }
 
 async function loadTaxonomySlugSet(

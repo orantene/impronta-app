@@ -44,6 +44,7 @@ import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import type { FieldSurfaceReaderPair } from "@/lib/field-engine/read-source";
 import { readFieldSurface } from "@/lib/field-engine/read-source";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 
 /** The six public-profile sidebar taxonomy sections (same set + order as the
  *  legacy `public-profile-field-order.ts` SUPPORTED list). */
@@ -77,8 +78,7 @@ const A_KEY_TO_B_KEY: Record<SidebarSectionKey, string> = {
 };
 
 function pickLabel(locale: string, en: string, es: string | null): string {
-  if (locale === "es" && es && es.trim()) return es.trim();
-  return en.trim();
+  return pickLocale(locale, { en: en.trim(), es: es?.trim() || undefined });
 }
 
 /** The static fallback label for a key (matches the legacy helper's fallback). */

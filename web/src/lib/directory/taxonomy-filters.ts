@@ -158,7 +158,7 @@ async function loadTaxonomyTermsUncached(
             en: setting?.custom_label_i18n?.en?.trim(),
             es: setting?.custom_label_i18n?.es?.trim() || setting?.custom_label_i18n?.en?.trim(),
           }) ||
-          (locale === "es" && row.name_i18n?.es ? row.name_i18n.es : row.name_i18n?.en) ||
+          pickLocale(locale, { en: row.name_i18n?.en, es: row.name_i18n?.es || undefined }) ||
           row.slug,
       };
     })

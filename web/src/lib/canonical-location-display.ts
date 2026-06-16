@@ -1,3 +1,5 @@
+import { pickLocale } from "@/lib/i18n/pick-locale";
+
 /**
  * Read-side helpers for canonical profile locations (residence + origin city rows).
  *
@@ -46,10 +48,7 @@ export function formatCityCountryLabel(
   const loc = normalizeEmbed(row);
   if (!loc) return "";
   const i18n = loc.display_name_i18n ?? {};
-  const city =
-    locale === "es" && i18n.es?.trim()
-      ? i18n.es.trim()
-      : i18n.en?.trim() ?? "";
+  const city = pickLocale(locale, { en: i18n.en?.trim() ?? "", es: i18n.es?.trim() || undefined });
   const country = loc.country_code?.trim() ?? "";
   if (city && country) return `${city}, ${country}`;
   return city || country;

@@ -28,6 +28,7 @@ import {
   fieldPlaceholder,
   optionLabel,
 } from "./field-locale";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 
 // Palette mirrors the real app COLORS tokens (state.tsx) so the Details
 // editor's greys match the New Inquiry / rest of the shell exactly:
@@ -564,7 +565,7 @@ export function FieldEditor({
             color: on ? T.ink : T.inkMuted,
           }}
         >
-          {on ? (locale === "es" ? "Sí" : "Yes") : "No"}
+          {on ? pickLocale(locale, { en: "Yes", es: "Sí" }) : "No"}
           <span style={{
             width: 30, height: 18, borderRadius: 999,
             background: on ? T.accent : "rgba(11,11,13,0.18)",

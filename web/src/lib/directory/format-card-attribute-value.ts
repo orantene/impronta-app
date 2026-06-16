@@ -23,8 +23,7 @@ export type ProfileTaxonomyTerm = {
 };
 
 function pickLocalized(locale: DirectoryLocale, en: string, es: string | null): string {
-  if (locale === "es" && es?.trim()) return es.trim();
-  return en.trim() || es?.trim() || "";
+  return pickLocale(locale, { en: en.trim() || es?.trim() || "", es: es?.trim() || undefined });
 }
 
 function boolLabel(v: boolean, locale: DirectoryLocale): string {

@@ -9,6 +9,7 @@ import type { Locale } from "@/i18n/config";
 import { buildPublicLocaleAlternates } from "@/lib/seo/locale-alternates";
 import { withLocalePath } from "@/i18n/pathnames";
 import { getPublicTenantScope } from "@/lib/saas/scope";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 
 export const dynamic = "force-dynamic";
 
@@ -103,8 +104,7 @@ export default async function CmsPublicPostPage({
 
   const post = data as { title: string; excerpt: string; body: string; slug: string };
 
-  const backHref =
-    locale === "es" ? withLocalePath("/directory", "es") : "/directory";
+  const backHref = pickLocale(locale, { en: "/directory", es: withLocalePath("/directory", "es") });
 
   return (
     <>

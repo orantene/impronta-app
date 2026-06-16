@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DirectoryCardDTO } from "@/lib/directory/types";
 import type { Locale } from "@/i18n/config";
 import { createTranslator } from "@/i18n/messages";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 
 export const MAX_CARD_FIT_LABELS = 3;
 
@@ -57,10 +58,7 @@ function pickLocalizedName(
   en: string | null,
   es: string | null,
 ): string {
-  if (locale === "es" && es && es.trim()) return es.trim();
-  if (en && en.trim()) return en.trim();
-  if (es && es.trim()) return es.trim();
-  return "";
+  return pickLocale(locale, { en: en?.trim() || es?.trim() || "", es: es?.trim() || undefined });
 }
 
 type FitLabelJson = {

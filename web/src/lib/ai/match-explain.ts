@@ -1,4 +1,5 @@
 import type { SearchExplanationItem } from "@/lib/ai/search-result";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 
 export type ExplainMatchContext = {
   queryCity?: string | null;
@@ -147,14 +148,13 @@ export function publicMatchConfidenceFromExplanations(
     const r = CONF_RANK[it.confidence ?? "medium"] ?? 2;
     if (r > best) best = r;
   }
-  const es = locale === "es";
   if (best >= 3) {
-    return es ? "Encaje sólido con tu búsqueda" : "Strong match for your search";
+    return pickLocale(locale, { en: "Strong match for your search", es: "Encaje sólido con tu búsqueda" });
   }
   if (best === 2) {
-    return es ? "Encaje razonable" : "Reasonable match";
+    return pickLocale(locale, { en: "Reasonable match", es: "Encaje razonable" });
   }
-  return es ? "Encaje parcial" : "Partial match";
+  return pickLocale(locale, { en: "Partial match", es: "Encaje parcial" });
 }
 
 export type MatchExplanationUiLine = { id: string; text: string };
@@ -181,30 +181,34 @@ function formatOneExplanationLine(
   locale: string,
 ): string {
   const p = item.templateParams ?? {};
-  const es = locale === "es";
   switch (item.code) {
     case "loc_match_residence":
-      return es
-        ? `Ubicación: ${p.city ?? ""}`.trim()
-        : `Located in ${p.city ?? ""}`.trim();
+      return pickLocale(locale, {
+        en: `Located in ${p.city ?? ""}`.trim(),
+        es: `Ubicación: ${p.city ?? ""}`.trim(),
+      });
     case "height_in_range":
-      return es ? "Coincide con la altura solicitada" : "Matches requested height";
+      return pickLocale(locale, { en: "Matches requested height", es: "Coincide con la altura solicitada" });
     case "taxonomy_overlap":
-      return es
-        ? `Experiencia: ${p.label ?? ""}`.trim()
-        : `${p.label ?? ""} experience`.trim();
+      return pickLocale(locale, {
+        en: `${p.label ?? ""} experience`.trim(),
+        es: `Experiencia: ${p.label ?? ""}`.trim(),
+      });
     case "primary_type_overlap":
-      return es
-        ? `Tipo principal: ${p.label ?? ""}`.trim()
-        : `Primary type: ${p.label ?? ""}`.trim();
+      return pickLocale(locale, {
+        en: `Primary type: ${p.label ?? ""}`.trim(),
+        es: `Tipo principal: ${p.label ?? ""}`.trim(),
+      });
     case "primary_query_overlap":
-      return es
-        ? `Alineado con tu búsqueda (${p.label ?? ""})`.trim()
-        : `Aligned with your search (${p.label ?? ""})`.trim();
+      return pickLocale(locale, {
+        en: `Aligned with your search (${p.label ?? ""})`.trim(),
+        es: `Alineado con tu búsqueda (${p.label ?? ""})`.trim(),
+      });
     case "fit_label_query_overlap":
-      return es
-        ? `Coincide con tu búsqueda: ${p.label ?? ""}`.trim()
-        : `Matches your search: ${p.label ?? ""}`.trim();
+      return pickLocale(locale, {
+        en: `Matches your search: ${p.label ?? ""}`.trim(),
+        es: `Coincide con tu búsqueda: ${p.label ?? ""}`.trim(),
+      });
     default:
       return "";
   }

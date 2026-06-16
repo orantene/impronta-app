@@ -1,4 +1,5 @@
 import type { DirectoryFieldFacetSelection } from "@/lib/directory/types";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 
 export type DirectoryFilterPresentation = "chips" | "radio" | "grid" | "location" | "height_range" | "age_range";
 
@@ -168,8 +169,7 @@ export function compareFieldCatalogOrder(a: FieldDefinitionQueryRow, b: FieldDef
 }
 
 export function pickLabel(locale: string, en: string, es?: string | null): string {
-  if (locale === "es" && es && es.trim()) return es.trim();
-  return en.trim();
+  return pickLocale(locale, { en: en.trim(), es: es?.trim() || undefined });
 }
 
 export function supportedValueType(valueType: string): valueType is "taxonomy_single" | "taxonomy_multi" | "location" {

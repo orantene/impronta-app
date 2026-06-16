@@ -120,10 +120,7 @@ function pickLocalizedTermName(
   en: string | null,
   es: string | null,
 ): string {
-  if (loc === "es" && es?.trim()) return es.trim();
-  if (en?.trim()) return en.trim();
-  if (es?.trim()) return es.trim();
-  return "";
+  return pickLocale(loc, { en: en?.trim() || es?.trim() || "", es: es?.trim() || undefined });
 }
 
 function buildClassicFilterMatchLabels(

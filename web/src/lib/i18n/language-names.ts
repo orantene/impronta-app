@@ -1,3 +1,5 @@
+import { pickLocale } from "@/lib/i18n/pick-locale";
+
 // Locale-aware language-name + proficiency labels for talent_languages.
 //
 // talent_languages stores language_name in English only. This maps the ISO
@@ -38,21 +40,18 @@ export function localizeLanguageName(
   englishName: string,
   locale: string,
 ): string {
-  if (locale === "es") {
-    const es = LANGUAGE_NAME_ES[languageCode?.toLowerCase()];
-    if (es) return es;
-  }
-  return englishName;
+  return pickLocale(locale, {
+    en: englishName,
+    es: LANGUAGE_NAME_ES[languageCode?.toLowerCase()] || englishName,
+  });
 }
 
 /** Locale-aware proficiency level (native/fluent/…). */
 export function localizeSpeakingLevel(level: string, locale: string): string {
-  if (locale === "es") return SPEAKING_LEVEL_ES[level] ?? level;
-  return level;
+  return pickLocale(locale, { en: level, es: SPEAKING_LEVEL_ES[level] ?? level });
 }
 
 /** Locale-aware role flag (host/sell/translate). */
 export function localizeLanguageFlag(flag: string, locale: string): string {
-  if (locale === "es") return LANGUAGE_FLAG_ES[flag] ?? flag;
-  return flag;
+  return pickLocale(locale, { en: flag, es: LANGUAGE_FLAG_ES[flag] ?? flag });
 }
