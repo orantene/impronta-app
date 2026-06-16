@@ -209,6 +209,72 @@ CREATE OR REPLACE VIEW public.talent_skills_resolved AS
      LEFT JOIN talent_skill_metrics tsm ON tsm.talent_profile_id = tpt.talent_profile_id AND tsm.taxonomy_term_id = tpt.taxonomy_term_id
   WHERE tpt.relationship_type = ANY (ARRAY['primary_role'::text, 'secondary_role'::text]);
 
+-- 6a-2. Materialized view talent_discover_index — category_label now from name_i18n.
+--       (matview cannot CREATE OR REPLACE; drop + recreate + restore its 3 indexes.
+--        WITH DATA is implicit, so it is populated at creation — no separate REFRESH.)
+DROP MATERIALIZED VIEW IF EXISTS public.talent_discover_index;
+CREATE MATERIALIZED VIEW public.talent_discover_index AS
+ WITH primary_roster AS (
+         SELECT DISTINCT ON (r.talent_profile_id) r.talent_profile_id,
+            r.tenant_id AS agency_tenant_id,
+            a.display_name AS agency_name,
+            a.plan_tier AS agency_plan_tier,
+            r.is_primary = true AND (a.plan_tier = ANY (ARRAY['studio'::text, 'agency'::text, 'network'::text, 'hub-network'::text])) AS is_exclusive
+           FROM agency_talent_roster r
+             JOIN agencies a ON a.id = r.tenant_id
+          WHERE r.status = ANY (ARRAY['active'::text, 'pending'::text])
+          ORDER BY r.talent_profile_id, r.is_primary DESC, r.added_at
+        ), primary_category AS (
+         SELECT DISTINCT ON (tpt.talent_profile_id) tpt.talent_profile_id,
+            (tt.name_i18n ->> 'en') AS category_label,
+            tt.slug AS category_slug
+           FROM talent_profile_taxonomy tpt
+             JOIN taxonomy_terms tt ON tt.id = tpt.taxonomy_term_id
+          WHERE tpt.relationship_type = 'primary_role'::text AND tt.kind = 'talent_type'::taxonomy_kind
+          ORDER BY tpt.talent_profile_id, tpt.created_at
+        ), trust_counts AS (
+         SELECT b.talent_profile_id,
+            count(*)::integer AS verified_badge_count
+           FROM talent_profile_trust_badges b
+          WHERE b.status = 'verified'::text AND b.scope = 'platform'::text AND (b.expires_at IS NULL OR b.expires_at > now())
+          GROUP BY b.talent_profile_id
+        )
+ SELECT tp.id,
+    tp.display_name,
+    tp.first_name,
+    tp.last_name,
+    tp.profile_code,
+    tp.home_country_text,
+    tp.home_city_text,
+    tp.residence_city_id,
+    tp.workflow_status,
+    pr.agency_tenant_id,
+    pr.agency_name,
+    pr.agency_plan_tier,
+    COALESCE(pr.is_exclusive, false) AS is_exclusive,
+    pc.category_label,
+    pc.category_slug,
+    avail.next_available_date,
+    avail.available_days_in_next_30,
+    avail.availability_dots_14d,
+        CASE
+            WHEN COALESCE(tc.verified_badge_count, 0) >= 3 THEN 'gold'::text
+            WHEN COALESCE(tc.verified_badge_count, 0) = 2 THEN 'silver'::text
+            WHEN COALESCE(tc.verified_badge_count, 0) = 1 THEN 'verified'::text
+            ELSE 'basic'::text
+        END AS trust_tier,
+    now() AS index_refreshed_at
+   FROM talent_profiles tp
+     LEFT JOIN primary_roster pr ON pr.talent_profile_id = tp.id
+     LEFT JOIN primary_category pc ON pc.talent_profile_id = tp.id
+     LEFT JOIN trust_counts tc ON tc.talent_profile_id = tp.id
+     LEFT JOIN LATERAL compute_talent_availability_snapshot(tp.id) avail(next_available_date, available_days_in_next_30, availability_dots_14d) ON true
+  WHERE tp.is_discoverable = true AND (tp.workflow_status = ANY (ARRAY['approved'::profile_workflow_status, 'published'::profile_workflow_status]));
+
+CREATE UNIQUE INDEX talent_discover_index_id_uniq ON public.talent_discover_index USING btree (id);
+CREATE INDEX talent_discover_index_country ON public.talent_discover_index USING btree (home_country_text);
+CREATE INDEX talent_discover_index_trust_tier ON public.talent_discover_index USING btree (trust_tier);
+
 -- 6b. api_directory_cards (cursor overload). Output columns unchanged; *_es now from *_i18n.
 CREATE OR REPLACE FUNCTION public.api_directory_cards(p_limit integer DEFAULT 24, p_after_created_at timestamp with time zone DEFAULT NULL::timestamp with time zone, p_after_id uuid DEFAULT NULL::uuid, p_taxonomy_term_ids uuid[] DEFAULT NULL::uuid[])
  RETURNS TABLE(id uuid, profile_code text, public_slug_part text, display_name text, first_name text, last_name text, created_at timestamp with time zone, is_featured boolean, featured_level integer, thumb_width integer, thumb_height integer, thumb_bucket_id text, thumb_storage_path text, primary_talent_type_name_en text, primary_talent_type_name_es text, location_display_en text, location_display_es text, location_country_code text, fit_labels_jsonb jsonb, height_cm integer)
@@ -867,13 +933,13 @@ DROP INDEX IF EXISTS public.idx_talent_profiles_directory_fts;
 CREATE INDEX idx_talent_profiles_directory_fts
   ON public.talent_profiles
   USING gin (to_tsvector('simple'::regconfig,
-    (((((((((((((COALESCE(display_name, ''::text) || ' '::text)
-      || COALESCE(first_name, ''::text)) || ' '::text)
-      || COALESCE(last_name, ''::text)) || ' '::text)
-      || COALESCE(profile_code, ''::text)) || ' '::text)
-      || COALESCE(short_bio, ''::text)) || ' '::text)
-      || COALESCE(bio_i18n ->> 'en', ''::text)) || ' '::text)
-      || COALESCE(bio_i18n ->> 'es', ''::text))))
+    COALESCE(display_name, ''::text) || ' '::text
+    || COALESCE(first_name, ''::text) || ' '::text
+    || COALESCE(last_name, ''::text) || ' '::text
+    || COALESCE(profile_code, ''::text) || ' '::text
+    || COALESCE(short_bio, ''::text) || ' '::text
+    || COALESCE(bio_i18n ->> 'en', ''::text) || ' '::text
+    || COALESCE(bio_i18n ->> 'es', ''::text)))
   WHERE ((deleted_at IS NULL) AND (is_publicly_hidden = false));
 
 -- ========================================================================
