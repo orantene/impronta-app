@@ -15,11 +15,13 @@
 import {
   C,
   FONT,
-  STATUS_COPY,
+  statusCopy as resolveStatusCopy,
   firstNameOf,
   readableOn,
 } from "@/app/t/[profileCode]/_chat/mini-chat-styles";
 import type { GuestThreadStatus } from "@/lib/inquiry/guest-chat-contract";
+import { createTranslator } from "@/i18n/messages";
+import { interpolate } from "@/i18n/interpolate";
 
 export type GuestFullThreadHeaderProps = {
   agencyName: string;
@@ -29,6 +31,8 @@ export type GuestFullThreadHeaderProps = {
   threadStatus: GuestThreadStatus;
   /** Bare fragment ("in ~2 hours"); the "Typically replies" prefix is owned here. */
   typicalReplyLabel: string | null;
+  /** Guest UI locale (tenant default_locale). Falls back to "en". */
+  locale?: string;
 };
 
 export function GuestFullThreadHeader({
@@ -38,7 +42,9 @@ export function GuestFullThreadHeader({
   logoUrl,
   threadStatus,
   typicalReplyLabel,
+  locale = "en",
 }: GuestFullThreadHeaderProps) {
+  const t = createTranslator(locale);
   const accentInk = readableOn(accent);
   // The avatar initial: agency name first, then talent — never empty.
   const initialSource = agencyName || talentDisplayName || "";
@@ -46,8 +52,10 @@ export function GuestFullThreadHeader({
 
   // Secondary line: the live status once a thread exists, plus the honest reply
   // SLA when the server gave us one. Status always present; reply label optional.
-  const statusCopy = STATUS_COPY[threadStatus];
-  const replyLine = typicalReplyLabel ? `Typically replies ${typicalReplyLabel}` : null;
+  const statusCopy = resolveStatusCopy(threadStatus, t);
+  const replyLine = typicalReplyLabel
+    ? interpolate(t("public.guestChat.typicallyReplies"), { when: typicalReplyLabel })
+    : null;
 
   return (
     <header
@@ -105,7 +113,7 @@ export function GuestFullThreadHeader({
         >
           {talentDisplayName ? (
             <>
-              <span>About {talentDisplayName}</span>
+              <span>{interpolate(t("public.guestChat.aboutTalent"), { name: talentDisplayName })}</span>
               <span style={{ color: C.inkDim }}> &middot; {statusCopy}</span>
             </>
           ) : (

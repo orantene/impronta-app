@@ -102,32 +102,47 @@ export function joinGuestDisplayName(firstName: string, lastName: string): strin
   return [firstName.trim(), lastName.trim()].filter(Boolean).join(" ");
 }
 
-export const STATUS_COPY: Record<GuestThreadStatus, string> = {
-  open: "Open conversation",
-  offer_pending: "You have an offer",
-  approved: "Approved",
-  booked: "Booked",
-  closed: "Closed",
+/** Minimal translator shape — a `createTranslator(locale)` instance satisfies it. */
+type Translator = (key: string) => string;
+
+/** Maps a guest thread status → its i18n key under `public.guestChat.*`. */
+const STATUS_COPY_KEYS: Record<GuestThreadStatus, string> = {
+  open: "public.guestChat.statusOpen",
+  offer_pending: "public.guestChat.statusOfferPending",
+  approved: "public.guestChat.statusApproved",
+  booked: "public.guestChat.statusBooked",
+  closed: "public.guestChat.statusClosed",
 };
 
-export function labelForKind(kind: GuestMessageKind): string {
+/** Localized thread-status copy. Pass a `createTranslator(locale)` instance. */
+export function statusCopy(status: GuestThreadStatus, t: Translator): string {
+  return t(STATUS_COPY_KEYS[status]);
+}
+
+// C3 — every GuestMessageKind now resolves to a localized label, including the
+// previously-unhandled `system_event` (was falling through to a generic
+// "Update"). `text` still uses the generic update label (it never renders a
+// card chip in practice).
+export function labelForKind(kind: GuestMessageKind, t: Translator): string {
   switch (kind) {
     case "offer_event":
-      return "Offer";
+      return t("public.guestChat.kindOffer");
     case "payment_request":
-      return "Payment requested";
+      return t("public.guestChat.kindPaymentRequested");
     case "payment_paid":
-      return "Payment received";
+      return t("public.guestChat.kindPaymentReceived");
     case "coordinator_request":
-      return "Coordinator";
+      return t("public.guestChat.kindCoordinator");
     case "talent_rate":
-      return "Rate";
+      return t("public.guestChat.kindRate");
     case "call_sheet_update":
-      return "Call sheet";
+      return t("public.guestChat.kindCallSheet");
     case "booking_status":
-      return "Booking";
+      return t("public.guestChat.kindBooking");
+    case "system_event":
+      return t("public.guestChat.kindSystemEvent");
     default:
-      return "Update";
+      return t("public.guestChat.kindUpdate");
   }
 }
 

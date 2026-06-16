@@ -2201,6 +2201,7 @@ export default async function PublicTalentProfilePage({
           logoUrl={watermarkLogoUrl}
           sourcePage={profileSourcePage}
           greeting={guestChatSettings.greeting}
+          locale={locale}
         />
       )}
     </>

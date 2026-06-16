@@ -505,6 +505,13 @@ export type MiniChatBrand = {
    * replaces the default "Hi — I'm {talent}'s booking assistant…" opener.
    */
   greeting?: string | null;
+  /**
+   * Guest UI locale. Guests have no LOCALE_COOKIE, so this is resolved
+   * server-side from the tenant's `default_locale` and threaded through `brand`
+   * (which already flows to every panel/bubble) so card-kind + status labels
+   * render in the tenant's language. Falls back to "en" when absent.
+   */
+  locale?: string | null;
 };
 
 export type MiniChatPanelProps = {
@@ -740,5 +747,11 @@ export type GetGuestFullThreadResult =
       messages: GuestThreadMessage[];
       threadStatus: GuestThreadStatus;
       typicalReplyLabel: string | null;
+      /**
+       * Guest UI locale — the tenant's `default_locale` (guests have no
+       * LOCALE_COOKIE). Threaded to the view so card/status copy renders in the
+       * tenant's language. Always a concrete locale code (falls back to "en").
+       */
+      locale: string;
     }
   | GuestChatFailure;

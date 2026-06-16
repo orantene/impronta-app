@@ -8,6 +8,7 @@
  */
 
 import type { GuestThreadMessage } from "@/lib/inquiry/guest-chat-contract";
+import { createTranslator } from "@/i18n/messages";
 
 import { C, formatTime, labelForKind, readableOn } from "./mini-chat-styles";
 
@@ -17,7 +18,17 @@ import { C, formatTime, labelForKind, readableOn } from "./mini-chat-styles";
  */
 export type StreamRow = GuestThreadMessage & { pending?: boolean; failed?: boolean };
 
-export function MiniChatMessageBubble({ m, accent }: { m: StreamRow; accent: string }) {
+export function MiniChatMessageBubble({
+  m,
+  accent,
+  locale = "en",
+}: {
+  m: StreamRow;
+  accent: string;
+  /** Guest UI locale (tenant default_locale). Falls back to "en". */
+  locale?: string;
+}) {
+  const t = createTranslator(locale);
   const mine = m.authorRole === "guest";
   const system = m.authorRole === "system";
 
@@ -36,7 +47,7 @@ export function MiniChatMessageBubble({ m, accent }: { m: StreamRow; accent: str
           lineHeight: 1.45,
         }}
       >
-        {m.isDeleted ? "Message removed" : m.body}
+        {m.isDeleted ? t("public.guestChat.messageRemoved") : m.body}
       </div>
     );
   }
@@ -99,13 +110,13 @@ export function MiniChatMessageBubble({ m, accent }: { m: StreamRow; accent: str
                 marginBottom: 3,
               }}
             >
-              {labelForKind(m.kind)}
+              {labelForKind(m.kind, t)}
             </span>
             <br />
-            {m.body || "Open the full conversation to view this update."}
+            {m.body || t("public.guestChat.openFullToView")}
           </span>
         ) : m.isDeleted ? (
-          <em style={{ color: C.inkDim }}>Message removed</em>
+          <em style={{ color: C.inkDim }}>{t("public.guestChat.messageRemoved")}</em>
         ) : (
           m.body
         )}
@@ -119,9 +130,9 @@ export function MiniChatMessageBubble({ m, accent }: { m: StreamRow; accent: str
         }}
       >
         {m.failed
-          ? "Not sent — restored to the box"
+          ? t("public.guestChat.notSent")
           : m.pending
-            ? "Sending…"
+            ? t("public.guestChat.sendingShort")
             : formatTime(m.createdAt)}
       </div>
     </div>
