@@ -938,7 +938,7 @@ export async function loadClientFavoritesForUser(
         is_discoverable, workflow_status,
         talent_profile_taxonomy (
           relationship_type,
-          taxonomy_terms ( name_en )
+          taxonomy_terms ( name_i18n )
         ),
         agency_talent_roster!talent_profile_id (
           tenant_id, status, is_primary,
@@ -970,7 +970,7 @@ export async function loadClientFavoritesForUser(
       workflow_status: string | null;
       talent_profile_taxonomy: Array<{
         relationship_type: string | null;
-        taxonomy_terms: { name_en: string | null } | null;
+        taxonomy_terms: { name_i18n: Record<string, string | null> | null } | null;
       }> | null;
       agency_talent_roster: Array<{
         tenant_id: string;
@@ -997,7 +997,7 @@ export async function loadClientFavoritesForUser(
         || "Unnamed";
       const tax = p.talent_profile_taxonomy ?? [];
       const primaryLabel = tax.find((t) => t.relationship_type === "primary_role")
-        ?.taxonomy_terms?.name_en ?? null;
+        ?.taxonomy_terms?.name_i18n?.en ?? null;
       const roster = (p.agency_talent_roster ?? []).filter(
         (r) => r.status === "active" || r.status === "pending",
       );
