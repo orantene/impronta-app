@@ -8,6 +8,13 @@ import {
 import type { BioEsStatus } from "@/lib/translation/bio-es-status";
 import { canonicalBioEn } from "@/lib/translation/public-bio";
 import { translateBioEnToEs } from "@/lib/translation/ai-translate-bio";
+import {
+  BIO_I18N_SELECT,
+  flattenBioColumns,
+  bioPatchToColumns,
+  type BioI18nColumns,
+  type FlatBioPatch,
+} from "@/lib/translation/bio-i18n-columns";
 
 export type TalentBioRow = {
   bio_en: string | null;
@@ -18,6 +25,25 @@ export type TalentBioRow = {
   bio_en_status: string | null;
   short_bio: string | null;
 };
+
+/**
+ * WS4: the bio engine is written against the FLAT `bio_en`/`bio_es`/… shape, but
+ * storage is now four per-locale JSONB maps. `loadTalentBioRow` returns the flat
+ * row for the engine's logic PLUS the raw i18n columns (`raw`) so each write can
+ * merge its flat patch back into the maps via `bioPatchToColumns` (never
+ * clobbering the other locale). `bioUpdate` is the single write seam.
+ */
+async function bioUpdate(
+  supabase: SupabaseClient,
+  talentProfileId: string,
+  raw: BioI18nColumns,
+  patch: FlatBioPatch,
+) {
+  return supabase
+    .from("talent_profiles")
+    .update(bioPatchToColumns(raw, patch))
+    .eq("id", talentProfileId);
+}
 
 export function nextBioEsStatusAfterEnglishChanged(
   prev: BioEsStatus,
@@ -111,14 +137,16 @@ export function buildBioEnEditExtras(args: {
 export async function loadTalentBioRow(
   supabase: SupabaseClient,
   talentProfileId: string,
-): Promise<{ row: TalentBioRow | null; error: string | null }> {
+): Promise<{ row: TalentBioRow | null; raw: BioI18nColumns | null; error: string | null }> {
   const { data, error } = await supabase
     .from("talent_profiles")
-    .select("bio_en, bio_es, bio_es_draft, bio_es_status, bio_en_draft, bio_en_status, short_bio")
+    .select(BIO_I18N_SELECT)
     .eq("id", talentProfileId)
     .maybeSingle();
-  if (error) return { row: null, error: error.message };
-  return { row: data as TalentBioRow | null, error: null };
+  if (error) return { row: null, raw: null, error: error.message };
+  if (!data) return { row: null, raw: null, error: null };
+  const raw = data as unknown as BioI18nColumns;
+  return { row: flattenBioColumns(raw), raw, error: null };
 }
 
 /** Missing ES: AI writes published `bio_es`, status `auto` (plan §0). */
@@ -127,9 +155,9 @@ export async function aiFillMissingSpanishBio(
   talentProfileId: string,
   actorId: string | null,
 ): Promise<{ error: string | null }> {
-  const { row, error: loadErr } = await loadTalentBioRow(supabase, talentProfileId);
+  const { row, raw, error: loadErr } = await loadTalentBioRow(supabase, talentProfileId);
   if (loadErr) return { error: loadErr };
-  if (!row) return { error: "Profile not found." };
+  if (!row || !raw) return { error: "Profile not found." };
 
   const en = (row.bio_en ?? row.short_bio ?? "").trim();
   if (!en) return { error: "English bio is empty." };
@@ -145,15 +173,12 @@ export async function aiFillMissingSpanishBio(
   const translated = tr.text;
   const now = new Date().toISOString();
 
-  const { error } = await supabase
-    .from("talent_profiles")
-    .update({
-      bio_es: translated,
-      bio_es_status: "auto",
-      bio_es_updated_at: now,
-      updated_at: now,
-    })
-    .eq("id", talentProfileId);
+  const { error } = await bioUpdate(supabase, talentProfileId, raw, {
+    bio_es: translated,
+    bio_es_status: "auto",
+    bio_es_updated_at: now,
+    updated_at: now,
+  });
   if (error) return { error: error.message };
 
   await appendTranslationAudit(supabase, {
@@ -179,9 +204,9 @@ export async function aiRefreshSpanishBioDraft(
   talentProfileId: string,
   actorId: string | null,
 ): Promise<{ error: string | null }> {
-  const { row, error: loadErr } = await loadTalentBioRow(supabase, talentProfileId);
+  const { row, raw, error: loadErr } = await loadTalentBioRow(supabase, talentProfileId);
   if (loadErr) return { error: loadErr };
-  if (!row) return { error: "Profile not found." };
+  if (!row || !raw) return { error: "Profile not found." };
 
   const status = (row.bio_es_status ?? "missing") as BioEsStatus;
   if (status !== "approved") {
@@ -198,13 +223,10 @@ export async function aiRefreshSpanishBioDraft(
   const translated = tr.text;
   const now = new Date().toISOString();
 
-  const { error } = await supabase
-    .from("talent_profiles")
-    .update({
-      bio_es_draft: translated,
-      updated_at: now,
-    })
-    .eq("id", talentProfileId);
+  const { error } = await bioUpdate(supabase, talentProfileId, raw, {
+    bio_es_draft: translated,
+    updated_at: now,
+  });
   if (error) return { error: error.message };
 
   await appendTranslationAudit(supabase, {
@@ -230,9 +252,9 @@ export async function aiRefreshSpanishBioLive(
   talentProfileId: string,
   actorId: string | null,
 ): Promise<{ error: string | null }> {
-  const { row, error: loadErr } = await loadTalentBioRow(supabase, talentProfileId);
+  const { row, raw, error: loadErr } = await loadTalentBioRow(supabase, talentProfileId);
   if (loadErr) return { error: loadErr };
-  if (!row) return { error: "Profile not found." };
+  if (!row || !raw) return { error: "Profile not found." };
 
   const en = (row.bio_en ?? row.short_bio ?? "").trim();
   if (!en) return { error: "English bio is empty." };
@@ -245,16 +267,13 @@ export async function aiRefreshSpanishBioLive(
   const prevStatus = (row.bio_es_status ?? "missing") as BioEsStatus;
   const now = new Date().toISOString();
 
-  const { error } = await supabase
-    .from("talent_profiles")
-    .update({
-      bio_es: translated,
-      bio_es_status: "auto",
-      bio_es_updated_at: now,
-      bio_es_draft: null,
-      updated_at: now,
-    })
-    .eq("id", talentProfileId);
+  const { error } = await bioUpdate(supabase, talentProfileId, raw, {
+    bio_es: translated,
+    bio_es_status: "auto",
+    bio_es_updated_at: now,
+    bio_es_draft: null,
+    updated_at: now,
+  });
   if (error) return { error: error.message };
 
   await appendTranslationAudit(supabase, {
@@ -280,9 +299,9 @@ export async function aiRefreshSpanishBioPublishedWhenNotApproved(
   talentProfileId: string,
   actorId: string | null,
 ): Promise<{ error: string | null }> {
-  const { row, error: loadErr } = await loadTalentBioRow(supabase, talentProfileId);
+  const { row, raw, error: loadErr } = await loadTalentBioRow(supabase, talentProfileId);
   if (loadErr) return { error: loadErr };
-  if (!row) return { error: "Profile not found." };
+  if (!row || !raw) return { error: "Profile not found." };
 
   const status = (row.bio_es_status ?? "missing") as BioEsStatus;
   if (status === "approved") {
@@ -300,16 +319,13 @@ export async function aiRefreshSpanishBioPublishedWhenNotApproved(
   const prevStatus = status;
   const now = new Date().toISOString();
 
-  const { error } = await supabase
-    .from("talent_profiles")
-    .update({
-      bio_es: translated,
-      bio_es_status: "auto",
-      bio_es_updated_at: now,
-      bio_es_draft: null,
-      updated_at: now,
-    })
-    .eq("id", talentProfileId);
+  const { error } = await bioUpdate(supabase, talentProfileId, raw, {
+    bio_es: translated,
+    bio_es_status: "auto",
+    bio_es_updated_at: now,
+    bio_es_draft: null,
+    updated_at: now,
+  });
   if (error) return { error: error.message };
 
   await appendTranslationAudit(supabase, {
@@ -337,22 +353,19 @@ export async function saveManualSpanishBio(
 ): Promise<{ error: string | null }> {
   const trimmed = (text ?? "").trim();
   const now = new Date().toISOString();
-  const { row, error: loadErr } = await loadTalentBioRow(supabase, talentProfileId);
+  const { row, raw, error: loadErr } = await loadTalentBioRow(supabase, talentProfileId);
   if (loadErr) return { error: loadErr };
-  if (!row) return { error: "Profile not found." };
+  if (!row || !raw) return { error: "Profile not found." };
   const prevStatus = (row.bio_es_status ?? "missing") as BioEsStatus;
   const prevPublished = (row.bio_es ?? "").trim();
   const publishedTextChanged = prevPublished !== trimmed;
 
   /** Approved / locked published copy: edits go to draft until promoted (Translation Center hub). */
   if (prevStatus === "approved") {
-    const { error } = await supabase
-      .from("talent_profiles")
-      .update({
-        bio_es_draft: trimmed.length > 0 ? trimmed : null,
-        updated_at: now,
-      })
-      .eq("id", talentProfileId);
+    const { error } = await bioUpdate(supabase, talentProfileId, raw, {
+      bio_es_draft: trimmed.length > 0 ? trimmed : null,
+      updated_at: now,
+    });
     if (error) return { error: error.message };
 
     await appendTranslationAudit(supabase, {
@@ -390,10 +403,7 @@ export async function saveManualSpanishBio(
     }
   }
 
-  const { error } = await supabase
-    .from("talent_profiles")
-    .update(patch)
-    .eq("id", talentProfileId);
+  const { error } = await bioUpdate(supabase, talentProfileId, raw, patch as FlatBioPatch);
   if (error) return { error: error.message };
 
   await appendTranslationAudit(supabase, {
@@ -425,9 +435,9 @@ export async function saveTalentBioQuickEdit(
     bio_es_draft: string;
   },
 ): Promise<{ error: string | null }> {
-  const { row, error: loadErr } = await loadTalentBioRow(supabase, talentProfileId);
+  const { row, raw, error: loadErr } = await loadTalentBioRow(supabase, talentProfileId);
   if (loadErr) return { error: loadErr };
-  if (!row) return { error: "Profile not found." };
+  if (!row || !raw) return { error: "Profile not found." };
 
   const now = new Date().toISOString();
   const enStatus = (row.bio_en_status ?? "missing") as BioEsStatus;
@@ -484,7 +494,7 @@ export async function saveTalentBioQuickEdit(
     return { error: null };
   }
 
-  const { error } = await supabase.from("talent_profiles").update(patch).eq("id", talentProfileId);
+  const { error } = await bioUpdate(supabase, talentProfileId, raw, patch as FlatBioPatch);
   if (error) return { error: error.message };
 
   await appendTranslationAudit(supabase, {
@@ -514,9 +524,9 @@ export async function saveTalentBioTranslationCenterLive(
   actorId: string,
   input: { bio_en: string; bio_es: string },
 ): Promise<{ error: string | null }> {
-  const { row, error: loadErr } = await loadTalentBioRow(supabase, talentProfileId);
+  const { row, raw, error: loadErr } = await loadTalentBioRow(supabase, talentProfileId);
   if (loadErr) return { error: loadErr };
-  if (!row) return { error: "Profile not found." };
+  if (!row || !raw) return { error: "Profile not found." };
 
   const now = new Date().toISOString();
   const nextEn = normBio(input.bio_en);
@@ -543,7 +553,7 @@ export async function saveTalentBioTranslationCenterLive(
     patch.bio_es_status = nextEs ? "reviewed" : "missing";
   }
 
-  const { error } = await supabase.from("talent_profiles").update(patch).eq("id", talentProfileId);
+  const { error } = await bioUpdate(supabase, talentProfileId, raw, patch as FlatBioPatch);
   if (error) return { error: error.message };
 
   await appendTranslationAudit(supabase, {
@@ -568,9 +578,9 @@ export async function approveEnglishBioDraft(
   talentProfileId: string,
   actorId: string,
 ): Promise<{ error: string | null }> {
-  const { row, error: loadErr } = await loadTalentBioRow(supabase, talentProfileId);
+  const { row, raw, error: loadErr } = await loadTalentBioRow(supabase, talentProfileId);
   if (loadErr) return { error: loadErr };
-  if (!row) return { error: "Profile not found." };
+  if (!row || !raw) return { error: "Profile not found." };
 
   const draft = normBio(row.bio_en_draft);
   if (!draft) return { error: "No English draft to publish." };
@@ -581,18 +591,15 @@ export async function approveEnglishBioDraft(
   const prevEsSt = (row.bio_es_status ?? "missing") as BioEsStatus;
   const markEsStale = nextBioEsStatusAfterEnglishChanged(prevEsSt, row.bio_es);
 
-  const { error } = await supabase
-    .from("talent_profiles")
-    .update({
-      bio_en: draft,
-      short_bio: draft,
-      bio_en_draft: null,
-      bio_en_status: "approved",
-      bio_en_updated_at: now,
-      updated_at: now,
-      ...(markEsStale ? { bio_es_status: markEsStale } : {}),
-    })
-    .eq("id", talentProfileId);
+  const { error } = await bioUpdate(supabase, talentProfileId, raw, {
+    bio_en: draft,
+    short_bio: draft,
+    bio_en_draft: null,
+    bio_en_status: "approved",
+    bio_en_updated_at: now,
+    updated_at: now,
+    ...(markEsStale ? { bio_es_status: markEsStale } : {}),
+  });
   if (error) return { error: error.message };
 
   await appendTranslationAudit(supabase, {
@@ -617,9 +624,9 @@ export async function approveSpanishBioDraft(
   talentProfileId: string,
   actorId: string,
 ): Promise<{ error: string | null }> {
-  const { row, error: loadErr } = await loadTalentBioRow(supabase, talentProfileId);
+  const { row, raw, error: loadErr } = await loadTalentBioRow(supabase, talentProfileId);
   if (loadErr) return { error: loadErr };
-  if (!row) return { error: "Profile not found." };
+  if (!row || !raw) return { error: "Profile not found." };
 
   const draft = (row.bio_es_draft ?? "").trim();
   if (!draft) return { error: "No draft to approve." };
@@ -631,17 +638,14 @@ export async function approveSpanishBioDraft(
   const prevEnSt = (row.bio_en_status ?? "missing") as BioEsStatus;
   const markEnStale = enCanon ? nextBioEnStatusAfterSpanishChanged(prevEnSt, true) : null;
 
-  const { error } = await supabase
-    .from("talent_profiles")
-    .update({
-      bio_es: draft,
-      bio_es_draft: null,
-      bio_es_status: "approved",
-      bio_es_updated_at: now,
-      updated_at: now,
-      ...(markEnStale ? { bio_en_status: markEnStale } : {}),
-    })
-    .eq("id", talentProfileId);
+  const { error } = await bioUpdate(supabase, talentProfileId, raw, {
+    bio_es: draft,
+    bio_es_draft: null,
+    bio_es_status: "approved",
+    bio_es_updated_at: now,
+    updated_at: now,
+    ...(markEnStale ? { bio_en_status: markEnStale } : {}),
+  });
   if (error) return { error: error.message };
 
   await appendTranslationAudit(supabase, {
@@ -667,9 +671,9 @@ export async function markSpanishBioReviewed(
   talentProfileId: string,
   actorId: string,
 ): Promise<{ error: string | null }> {
-  const { row, error: loadErr } = await loadTalentBioRow(supabase, talentProfileId);
+  const { row, raw, error: loadErr } = await loadTalentBioRow(supabase, talentProfileId);
   if (loadErr) return { error: loadErr };
-  if (!row) return { error: "Profile not found." };
+  if (!row || !raw) return { error: "Profile not found." };
 
   const es = normBio(row.bio_es);
   if (!es) return { error: "No Spanish bio to mark reviewed." };
@@ -681,13 +685,10 @@ export async function markSpanishBioReviewed(
 
   const now = new Date().toISOString();
 
-  const { error } = await supabase
-    .from("talent_profiles")
-    .update({
-      bio_es_status: "reviewed",
-      updated_at: now,
-    })
-    .eq("id", talentProfileId);
+  const { error } = await bioUpdate(supabase, talentProfileId, raw, {
+    bio_es_status: "reviewed",
+    updated_at: now,
+  });
   if (error) return { error: error.message };
 
   await appendTranslationAudit(supabase, {
@@ -712,9 +713,9 @@ export async function markSpanishBioApproved(
   talentProfileId: string,
   actorId: string,
 ): Promise<{ error: string | null }> {
-  const { row, error: loadErr } = await loadTalentBioRow(supabase, talentProfileId);
+  const { row, raw, error: loadErr } = await loadTalentBioRow(supabase, talentProfileId);
   if (loadErr) return { error: loadErr };
-  if (!row) return { error: "Profile not found." };
+  if (!row || !raw) return { error: "Profile not found." };
 
   const es = (row.bio_es ?? "").trim();
   if (!es) return { error: "No Spanish bio to approve." };
@@ -722,13 +723,10 @@ export async function markSpanishBioApproved(
   const prevStatus = (row.bio_es_status ?? "missing") as BioEsStatus;
   const now = new Date().toISOString();
 
-  const { error } = await supabase
-    .from("talent_profiles")
-    .update({
-      bio_es_status: "approved",
-      updated_at: now,
-    })
-    .eq("id", talentProfileId);
+  const { error } = await bioUpdate(supabase, talentProfileId, raw, {
+    bio_es_status: "approved",
+    updated_at: now,
+  });
   if (error) return { error: error.message };
 
   await appendTranslationAudit(supabase, {
