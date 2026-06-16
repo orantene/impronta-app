@@ -259,6 +259,13 @@ export function ComponentCatalog({
     useState<ConnectedDataGroup>("agency");
   // W11 — transient success toast.
   const [toast, setToast] = useState<string | null>(null);
+  // QA harness — flips to true after mount so browser automation can wait for
+  // hydration (data-hydrated="true" on the catalog root) before clicking tabs,
+  // fixing the clicks-before-React-attaches race. Inert; no behavior change.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   const flash = useCallback((msg: string) => {
     setToast(msg);
@@ -516,7 +523,11 @@ export function ComponentCatalog({
   ).filter((g) => g.rows.length > 0);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div
+      data-testid="lab-catalog-root"
+      data-hydrated={hydrated ? "true" : undefined}
+      style={{ display: "flex", flexDirection: "column", gap: 16 }}
+    >
       {viewTabs.length > 0 ? (
         <div
           role="tablist"
@@ -532,6 +543,7 @@ export function ComponentCatalog({
                 key={view}
                 type="button"
                 role="tab"
+                data-testid={`lab-tab-${view}`}
                 aria-selected={active}
                 onClick={() => setActiveTab(view)}
                 className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60"
@@ -672,6 +684,7 @@ export function ComponentCatalog({
                 return (
                   <Fragment key={r.id}>
                   <tr
+                    data-testid={`lab-catalog-row-${r.id}`}
                     onClick={(e) => {
                       // Click anywhere on the row (except an interactive control)
                       // to toggle its override accordion.
@@ -765,7 +778,7 @@ export function ComponentCatalog({
                     <td style={{ padding: "9px 16px", textAlign: "right", whiteSpace: "nowrap" }}>
                       {editing ? (
                         <span style={{ display: "inline-flex", gap: 6 }}>
-                          <LinkBtn label="Save" onClick={() => saveEdit(r)} disabled={busy} primary />
+                          <LinkBtn label="Save" testId={`lab-catalog-row-save-${r.id}`} onClick={() => saveEdit(r)} disabled={busy} primary />
                           <LinkBtn label="Cancel" onClick={() => setEditingId(null)} disabled={busy} />
                         </span>
                       ) : confirmingResetId === r.id ? (
@@ -859,6 +872,7 @@ export function ComponentCatalog({
                             </Field>
                             <Field label="Locked props (tenant can't edit)">
                               <input
+                                data-testid="lab-catalog-edit-locked-props"
                                 value={editLockedProps}
                                 onChange={(e) => setEditLockedProps(e.target.value)}
                                 placeholder="e.g. tone, style.textColor"
@@ -881,6 +895,7 @@ export function ComponentCatalog({
                             </Field>
                             <Field label="Default props (JSON)">
                               <textarea
+                                data-testid="lab-catalog-edit-default-props"
                                 value={editDefaultProps}
                                 onChange={(e) => {
                                   setEditDefaultProps(e.target.value);
@@ -1317,6 +1332,7 @@ function PlaygroundView({
         <div style={{ position: "relative" }}>
           <button
             type="button"
+            data-testid="lab-playground-new"
             onClick={() => setMenuOpen((v) => !v)}
             disabled={creating}
             aria-haspopup="menu"
@@ -1575,15 +1591,19 @@ function LinkBtn({
   onClick,
   disabled,
   primary,
+  testId,
 }: {
   label: string;
   onClick: () => void;
   disabled?: boolean;
   primary?: boolean;
+  /** QA harness — optional inert data-testid for browser automation. */
+  testId?: string;
 }) {
   return (
     <button
       type="button"
+      data-testid={testId}
       onClick={onClick}
       disabled={disabled}
       className="rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60"

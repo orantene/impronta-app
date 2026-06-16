@@ -127,10 +127,14 @@ export function BuilderLabStage({
   // covers the whole platform-admin app, so keyboard/SR focus must not stay on
   // the now-hidden "+ New" trigger behind the z-50 overlay.
   const stageRef = useRef<HTMLDivElement | null>(null);
+  // QA harness — flips after mount so automation can wait for the editor stage
+  // to hydrate (data-hydrated="true") before driving it. Inert; no behavior change.
+  const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     stageRef.current?.focus();
+    setHydrated(true);
     return () => {
       document.body.style.overflow = prev;
     };
@@ -153,6 +157,8 @@ export function BuilderLabStage({
   return (
     <div
       data-builder-lab-stage
+      data-testid="lab-stage"
+      data-hydrated={hydrated ? "true" : undefined}
       ref={stageRef}
       role="dialog"
       aria-modal="true"
