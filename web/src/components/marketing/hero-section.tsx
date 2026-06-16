@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { MARKETING_PHOTOS, type MarketingPhoto } from "@/lib/marketing/photography";
 import { getMarketingCopy } from "@/lib/marketing/copy";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 import { MarketingContainer } from "./container";
 import { MarketingCta } from "./cta-link";
 import { OpenTalentModalButton } from "./open-talent-modal-button";
@@ -199,8 +200,17 @@ type BookingCard = {
 
 /** One booking per slide — the card mirrors the talent on screen (same order as SLIDES). */
 function getBookingCards(locale: string): BookingCard[] {
-  if (locale === "es") {
-    return [
+  return pickLocale(locale, {
+    en: [
+      { label: "Booking paid", status: "Paid", tone: "paid", amount: "$1,400", who: "Mateo · Private chef", when: "Saturday · 8 guests" },
+      { label: "Booking paid", status: "Paid", tone: "paid", amount: "$2,500", who: "Léa & Marco · Runway", when: "Fashion week · Sat" },
+      { label: "New booking", status: "New", tone: "new", amount: "$900", who: "Daniela · DJ set", when: "Friday · 9pm–1am" },
+      { label: "New booking", status: "New", tone: "new", amount: "$1,800", who: "Brand launch · 3 models", when: "Friday night" },
+      { label: "Offer sent", status: "Sent", tone: "sent", amount: "$1,600", who: "Casa Rizo · Event bar", when: "Awaiting reply" },
+      { label: "Booking paid", status: "Paid", tone: "paid", amount: "$640", who: "Tomás · Event host", when: "Dinner · 6 hrs" },
+      { label: "Booking paid", status: "Paid", tone: "paid", amount: "$140", who: "Renata · Massage", when: "Today · 4pm" },
+    ],
+    es: [
       { label: "Reserva pagada", status: "Pagado", tone: "paid", amount: "$1,400", who: "Mateo · Chef privado", when: "Sábado · 8 invitados" },
       { label: "Reserva pagada", status: "Pagado", tone: "paid", amount: "$2,500", who: "Léa y Marco · Pasarela", when: "Fashion week · Sáb" },
       { label: "Nueva reserva", status: "Nueva", tone: "new", amount: "$900", who: "Daniela · Set de DJ", when: "Viernes · 9pm–1am" },
@@ -208,17 +218,8 @@ function getBookingCards(locale: string): BookingCard[] {
       { label: "Oferta enviada", status: "Enviada", tone: "sent", amount: "$1,600", who: "Casa Rizo · Bar de evento", when: "Esperando respuesta" },
       { label: "Reserva pagada", status: "Pagado", tone: "paid", amount: "$640", who: "Tomás · Anfitrión", when: "Cena · 6 h" },
       { label: "Reserva pagada", status: "Pagado", tone: "paid", amount: "$140", who: "Renata · Masaje", when: "Hoy · 4pm" },
-    ];
-  }
-  return [
-    { label: "Booking paid", status: "Paid", tone: "paid", amount: "$1,400", who: "Mateo · Private chef", when: "Saturday · 8 guests" },
-    { label: "Booking paid", status: "Paid", tone: "paid", amount: "$2,500", who: "Léa & Marco · Runway", when: "Fashion week · Sat" },
-    { label: "New booking", status: "New", tone: "new", amount: "$900", who: "Daniela · DJ set", when: "Friday · 9pm–1am" },
-    { label: "New booking", status: "New", tone: "new", amount: "$1,800", who: "Brand launch · 3 models", when: "Friday night" },
-    { label: "Offer sent", status: "Sent", tone: "sent", amount: "$1,600", who: "Casa Rizo · Event bar", when: "Awaiting reply" },
-    { label: "Booking paid", status: "Paid", tone: "paid", amount: "$640", who: "Tomás · Event host", when: "Dinner · 6 hrs" },
-    { label: "Booking paid", status: "Paid", tone: "paid", amount: "$140", who: "Renata · Massage", when: "Today · 4pm" },
-  ];
+    ],
+  });
 }
 
 const STATUS_TONES: Record<BookingTone, { bg: string; fg: string }> = {

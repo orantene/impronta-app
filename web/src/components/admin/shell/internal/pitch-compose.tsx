@@ -1,5 +1,6 @@
 "use client";
 import { logServerError } from "@/lib/server/safe-error";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 
 /**
  * PitchComposeDrawer — admin compose surface for the Pitch feature.
@@ -59,10 +60,10 @@ function buildWhatsappDeepLink({
   phone?: string;
   locale?: "en" | "es";
 }): string {
-  const body =
-    locale === "es"
-      ? `${agencyName} te ha enviado una selección de talentos. Ábrela aquí: ${shareUrl}`
-      : `${agencyName} sent you a talent pitch. Open it here: ${shareUrl}`;
+  const body = pickLocale(locale, {
+    en: `${agencyName} sent you a talent pitch. Open it here: ${shareUrl}`,
+    es: `${agencyName} te ha enviado una selección de talentos. Ábrela aquí: ${shareUrl}`,
+  });
   const digits = phone ? phone.replace(/\D/g, "") : "";
   return `https://wa.me/${digits}?text=${encodeURIComponent(body)}`;
 }
@@ -78,12 +79,14 @@ function buildEmailDeepLink({
   email?: string;
   locale?: "en" | "es";
 }): string {
-  const subject =
-    locale === "es" ? `${agencyName} — selección de talentos` : `${agencyName} — talent pitch`;
-  const body =
-    locale === "es"
-      ? `Hola,\n\n${agencyName} ha preparado una selección de talentos para ti.\n\nÁbrela aquí: ${shareUrl}`
-      : `Hi,\n\n${agencyName} has prepared a talent pitch for you.\n\nOpen it here: ${shareUrl}`;
+  const subject = pickLocale(locale, {
+    en: `${agencyName} — talent pitch`,
+    es: `${agencyName} — selección de talentos`,
+  });
+  const body = pickLocale(locale, {
+    en: `Hi,\n\n${agencyName} has prepared a talent pitch for you.\n\nOpen it here: ${shareUrl}`,
+    es: `Hola,\n\n${agencyName} ha preparado una selección de talentos para ti.\n\nÁbrela aquí: ${shareUrl}`,
+  });
   const to = email ? encodeURIComponent(email) : "";
   return `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }

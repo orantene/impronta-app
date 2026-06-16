@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 import { MARKETING_PHOTOS, type MarketingPhotoKey } from "@/lib/marketing/photography";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
 import { OpenTalentModalButton } from "./open-talent-modal-button";
@@ -181,31 +182,35 @@ export async function AgencyHubDiscovery({
   filters: DiscoveryFilters;
 }) {
   const locale = await getRequestLocale();
-  const es = locale === "es";
   const c = {
-    eyebrow: es ? "Agencias y redes" : "Agencies & hubs",
-    h1: es
-      ? "Encuentra dónde puede crecer tu talento."
-      : "Find where your talent can grow next.",
-    subhead: es
-      ? "Explora agencias y redes por categoría, ciudad y forma de aplicar. Crea gratis tu página de talento en Tulala y postúlate desde tu panel cuando encuentres algo que encaje."
-      : "Browse agencies and hubs by category, city, and application mode. Create a free Tulala talent page, then apply from the talent dashboard when you find a fit.",
-    ctaCreate: es ? "Crear página de talento gratis" : "Create free talent page",
-    ctaApply: es ? "Postularme desde el panel" : "Apply in dashboard",
-    feedLabel: es ? "Oportunidades en vivo" : "Opportunity feed",
-    feedTitle: es
-      ? "Busca en la red como en un marketplace y postúlate desde una sola cuenta."
-      : "Search the network like a marketplace, then apply from one account.",
-    resultsEyebrow: es ? "Resultados" : "Search results",
+    eyebrow: pickLocale(locale, { en: "Agencies & hubs", es: "Agencias y redes" }),
+    h1: pickLocale(locale, {
+      en: "Find where your talent can grow next.",
+      es: "Encuentra dónde puede crecer tu talento.",
+    }),
+    subhead: pickLocale(locale, {
+      en: "Browse agencies and hubs by category, city, and application mode. Create a free Tulala talent page, then apply from the talent dashboard when you find a fit.",
+      es: "Explora agencias y redes por categoría, ciudad y forma de aplicar. Crea gratis tu página de talento en Tulala y postúlate desde tu panel cuando encuentres algo que encaje.",
+    }),
+    ctaCreate: pickLocale(locale, { en: "Create free talent page", es: "Crear página de talento gratis" }),
+    ctaApply: pickLocale(locale, { en: "Apply in dashboard", es: "Postularme desde el panel" }),
+    feedLabel: pickLocale(locale, { en: "Opportunity feed", es: "Oportunidades en vivo" }),
+    feedTitle: pickLocale(locale, {
+      en: "Search the network like a marketplace, then apply from one account.",
+      es: "Busca en la red como en un marketplace y postúlate desde una sola cuenta.",
+    }),
+    resultsEyebrow: pickLocale(locale, { en: "Search results", es: "Resultados" }),
     matchesReady: (n: number) =>
-      es
-        ? `${n} ${n === 1 ? "resultado listo" : "resultados listos"} para explorar`
-        : `${n} ${n === 1 ? "match" : "matches"} ready to explore`,
-    resetFilters: es ? "Limpiar filtros" : "Reset filters",
-    emptyTitle: es ? "No hay resultados para ese filtro." : "No matches for that filter.",
-    emptyBody: es
-      ? "Prueba con una categoría más amplia o abre tu panel de talento para ver las agencias y redes activas disponibles para tu perfil."
-      : "Try a broader category or open the talent dashboard to see live agencies and hubs available to your profile.",
+      pickLocale(locale, {
+        en: `${n} ${n === 1 ? "match" : "matches"} ready to explore`,
+        es: `${n} ${n === 1 ? "resultado listo" : "resultados listos"} para explorar`,
+      }),
+    resetFilters: pickLocale(locale, { en: "Reset filters", es: "Limpiar filtros" }),
+    emptyTitle: pickLocale(locale, { en: "No matches for that filter.", es: "No hay resultados para ese filtro." }),
+    emptyBody: pickLocale(locale, {
+      en: "Try a broader category or open the talent dashboard to see live agencies and hubs available to your profile.",
+      es: "Prueba con una categoría más amplia o abre tu panel de talento para ver las agencias y redes activas disponibles para tu perfil.",
+    }),
   };
   const { query, kind, category, location, join } = filters;
   const q = query.toLowerCase();
@@ -336,25 +341,25 @@ export async function AgencyHubDiscovery({
             <div className="grid gap-3 lg:grid-cols-[minmax(13rem,1.2fr)_repeat(4,minmax(0,1fr))_minmax(7rem,0.7fr)]">
               <FilterInput value={query} locale={locale} />
               <FilterSelect
-                label={es ? "Tipo" : "Type"}
+                label={pickLocale(locale, { en: "Type", es: "Tipo" })}
                 name="kind"
                 value={kind}
                 values={KIND_OPTIONS}
               />
               <FilterSelect
-                label={es ? "Categoría" : "Category"}
+                label={pickLocale(locale, { en: "Category", es: "Categoría" })}
                 name="category"
                 value={category}
                 values={CATEGORIES}
               />
               <FilterSelect
-                label={es ? "Ubicación" : "Location"}
+                label={pickLocale(locale, { en: "Location", es: "Ubicación" })}
                 name="location"
                 value={location}
                 values={LOCATIONS}
               />
               <FilterSelect
-                label={es ? "Cómo aplicar" : "Apply"}
+                label={pickLocale(locale, { en: "Apply", es: "Cómo aplicar" })}
                 name="join"
                 value={join}
                 values={JOIN_OPTIONS}
@@ -368,7 +373,7 @@ export async function AgencyHubDiscovery({
                   boxShadow: "var(--plt-shadow-forest)",
                 }}
               >
-                {es ? "Buscar" : "Search"}
+                {pickLocale(locale, { en: "Search", es: "Buscar" })}
               </button>
             </div>
           </form>
@@ -450,7 +455,6 @@ function FilterInput({
   value: string;
   locale: string;
 }) {
-  const es = locale === "es";
   return (
     <label
       className="flex min-h-14 flex-col justify-center rounded-[18px] border px-4 py-2"
@@ -460,12 +464,12 @@ function FilterInput({
       }}
     >
       <span className="plt-mono text-[0.625rem] font-medium uppercase" style={{ color: "var(--plt-muted)" }}>
-        {es ? "Buscar" : "Search"}
+        {pickLocale(locale, { en: "Search", es: "Buscar" })}
       </span>
       <input
         name="q"
         defaultValue={value}
-        placeholder={es ? "chef, cantante, Tulum..." : "chef, singer, Tulum..."}
+        placeholder={pickLocale(locale, { en: "chef, singer, Tulum...", es: "chef, cantante, Tulum..." })}
         className="mt-1 w-full bg-transparent text-[0.9375rem] font-medium outline-none placeholder:text-[var(--plt-muted-soft)]"
         style={{ color: "var(--plt-ink)" }}
       />
@@ -520,7 +524,6 @@ function DiscoveryResultCard({
   appDiscoverHref: string;
   locale: string;
 }) {
-  const es = locale === "es";
   const photo = MARKETING_PHOTOS[card.photoKey];
   return (
     <article
@@ -623,7 +626,7 @@ function DiscoveryResultCard({
               color: "var(--plt-forest-on)",
             }}
           >
-            {es ? "Postularme desde el panel" : "Apply from dashboard"}
+            {pickLocale(locale, { en: "Apply from dashboard", es: "Postularme desde el panel" })}
           </a>
           <a
             href={card.href}
@@ -633,7 +636,7 @@ function DiscoveryResultCard({
               color: "var(--plt-ink-soft)",
             }}
           >
-            {es ? "Ver perfil" : "View profile"}
+            {pickLocale(locale, { en: "View profile", es: "Ver perfil" })}
           </a>
         </div>
       </div>

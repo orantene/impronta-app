@@ -1,4 +1,5 @@
 import { getRequestLocale } from "@/i18n/request-locale";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
 import { MarketingCta } from "./cta-link";
@@ -11,8 +12,31 @@ type Step = {
 };
 
 function getSteps(locale: string): Step[] {
-  if (locale === "es") {
-    return [
+  return pickLocale(locale, {
+    en: [
+      {
+        index: "01",
+        title: "Claim your roster site.",
+        body:
+          "Sign up, add the people you represent — one, ten, or forty — and upload their work. Get a branded roster site on our domain, or bring your own when you upgrade.",
+        highlight: `${PLATFORM_BRAND.domain}/your-roster`,
+      },
+      {
+        index: "02",
+        title: "Share it everywhere.",
+        body:
+          "Paste it into DMs, email signatures, bios, and proposals. Clients see a real directory, not three attached photos.",
+        highlight: "One link. Everywhere.",
+      },
+      {
+        index: "03",
+        title: "Inquiries come to you.",
+        body:
+          "Structured inquiries land in your inbox — not another chat thread. Review, respond, and turn them into real bookings.",
+        highlight: "Inquiry → Offer → Booking",
+      },
+    ],
+    es: [
       {
         index: "01",
         title: "Crea el sitio de tu roster.",
@@ -34,56 +58,33 @@ function getSteps(locale: string): Step[] {
           "Las solicitudes ordenadas llegan a tu bandeja —no a otro hilo de chat más—. Revísalas, responde y conviértelas en reservas reales.",
         highlight: "Solicitud → Oferta → Reserva",
       },
-    ];
-  }
-  return [
-    {
-      index: "01",
-      title: "Claim your roster site.",
-      body:
-        "Sign up, add the people you represent — one, ten, or forty — and upload their work. Get a branded roster site on our domain, or bring your own when you upgrade.",
-      highlight: `${PLATFORM_BRAND.domain}/your-roster`,
-    },
-    {
-      index: "02",
-      title: "Share it everywhere.",
-      body:
-        "Paste it into DMs, email signatures, bios, and proposals. Clients see a real directory, not three attached photos.",
-      highlight: "One link. Everywhere.",
-    },
-    {
-      index: "03",
-      title: "Inquiries come to you.",
-      body:
-        "Structured inquiries land in your inbox — not another chat thread. Review, respond, and turn them into real bookings.",
-      highlight: "Inquiry → Offer → Booking",
-    },
-  ];
+    ],
+  });
 }
 
 export async function HowItWorksSection() {
   const locale = await getRequestLocale();
   const steps = getSteps(locale);
-  const c =
-    locale === "es"
-      ? {
-          eyebrow: "Cómo funciona",
-          titleLine1: "Tres pasos para pasar de WhatsApp",
-          titleLine2: "a un negocio de verdad.",
-          intro: "La mayoría de los coordinadores manejan un negocio con herramientas hechas para chatear con amigos.",
-          introBrandTail: " te da la estructura sin la complicación.",
-          ctaWalkthrough: "El recorrido completo",
-          ctaGetStarted: "O ve directo al grano — empieza gratis",
-        }
-      : {
-          eyebrow: "How it works",
-          titleLine1: "Three steps from WhatsApp",
-          titleLine2: "to a real business.",
-          intro: "Most coordinators are running a business with tools built for personal chat.",
-          introBrandTail: " gives you the structure without the overhead.",
-          ctaWalkthrough: "The full walkthrough",
-          ctaGetStarted: "Or skip ahead — start free",
-        };
+  const c = pickLocale(locale, {
+    en: {
+      eyebrow: "How it works",
+      titleLine1: "Three steps from WhatsApp",
+      titleLine2: "to a real business.",
+      intro: "Most coordinators are running a business with tools built for personal chat.",
+      introBrandTail: " gives you the structure without the overhead.",
+      ctaWalkthrough: "The full walkthrough",
+      ctaGetStarted: "Or skip ahead — start free",
+    },
+    es: {
+      eyebrow: "Cómo funciona",
+      titleLine1: "Tres pasos para pasar de WhatsApp",
+      titleLine2: "a un negocio de verdad.",
+      intro: "La mayoría de los coordinadores manejan un negocio con herramientas hechas para chatear con amigos.",
+      introBrandTail: " te da la estructura sin la complicación.",
+      ctaWalkthrough: "El recorrido completo",
+      ctaGetStarted: "O ve directo al grano — empieza gratis",
+    },
+  });
   return (
     <MarketingSection
       id="how-it-works"
