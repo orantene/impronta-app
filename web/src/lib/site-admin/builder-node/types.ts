@@ -671,6 +671,12 @@ export interface BuilderImageNode extends BuilderNodeBase {
     src: string;
     mediaId?: string;
     alt?: string;
+    /**
+     * Above-the-fold hint. When `true` the image is emitted with
+     * `loading="eager"` + `fetchpriority="high"` so it is not deferred by the
+     * lazy loader (used for the LCP hero image). Defaults to lazy when unset.
+     */
+    priority?: boolean;
     layerLabel?: string;
     fieldBindings?: BuilderNodeFieldBindings;
     style?: BuilderNodeStyle;

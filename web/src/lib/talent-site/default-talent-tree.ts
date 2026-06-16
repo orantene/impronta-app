@@ -28,11 +28,33 @@ export interface TalentProfileTokens {
   displayName: string;
   /** Discipline / primary type label, e.g. "Model". */
   primaryTypeLabel: string;
+  /**
+   * Up to three NON-primary discipline labels, e.g. "Photographer", "Stylist".
+   * Empty strings when fewer — the empty-card prune drops their chips.
+   */
+  secondaryType1: string;
+  secondaryType2: string;
+  secondaryType3: string;
+  /**
+   * All disciplines (primary first) joined " · ", e.g. "Model · Photographer".
+   * "" when none. A single-line alternative to the chip row for Lab authors.
+   */
+  disciplinesLine: string;
   /** Short location/discipline tagline shown under the name. */
   tagline: string;
   bio: string;
+  /**
+   * The talent's FULL published bio (unsliced), for the About paragraph. Falls
+   * back to the tagline / a welcome line when no bio exists.
+   */
+  richBio: string;
   /** City line, e.g. "Based in Cancún" (already prefixed). */
   locationLine: string;
+  /**
+   * Spoken-languages line, e.g. "Languages: Spanish · English" (already
+   * prefixed). "" when none — the empty-paragraph carries no visible box.
+   */
+  languagesLine: string;
   /** Hero / about headshot URL (absolute). Empty when none. */
   headshotUrl: string;
   /** `/t/<code>` profile path. */
@@ -99,9 +121,15 @@ export function hydrateTalentTree(
   const flat: Record<string, string> = {
     displayName: talent.displayName,
     primaryTypeLabel: talent.primaryTypeLabel,
+    secondaryType1: talent.secondaryType1,
+    secondaryType2: talent.secondaryType2,
+    secondaryType3: talent.secondaryType3,
+    disciplinesLine: talent.disciplinesLine,
     tagline: talent.tagline,
     bio: talent.bio,
+    richBio: talent.richBio,
     locationLine: talent.locationLine,
+    languagesLine: talent.languagesLine,
     headshotUrl: talent.headshotUrl,
     profilePath: talent.profilePath,
     inquireHref: talent.inquireHref,
@@ -257,6 +285,33 @@ function id(suffix: string): string {
 }
 
 /**
+ * One pill chip for the hero discipline row. A `card` (outline, pill radius)
+ * whose only content is a label paragraph carrying the `{{token}}`. When the
+ * token resolves to "" the empty-card prune drops the whole chip — so this is
+ * the same empty-prune mechanism the service cards rely on, no new machinery.
+ */
+function disciplineChip(suffix: string, token: string): BuilderNode {
+  return {
+    id: id(`discipline-${suffix}`),
+    kind: "card",
+    props: {
+      variant: "outline",
+      style: { radius: "pill", paddingX: "m", paddingY: "s" },
+    },
+    children: [
+      {
+        id: id(`discipline-${suffix}-label`),
+        kind: "paragraph",
+        props: {
+          text: token,
+          style: { size: "sm", tone: "muted" },
+        },
+      },
+    ],
+  } as BuilderNode;
+}
+
+/**
  * The built-in default freeform tree. Sections: HERO, ABOUT, SERVICES/FOCUS,
  * GALLERY, CONTACT. Premium dark-on-light editorial composition built from real
  * `BuilderNodeKind`s. Per-talent content is `{{token}}`-driven.
@@ -325,6 +380,29 @@ export function buildDefaultTalentProfileTree(): BuilderNode[] {
                 style: { size: "lg", tone: "muted", maxWidth: "reading" },
               },
             },
+            // ── DISCIPLINE CHIPS ───────────────────────────────────────────────
+            // A wrapping row of pill chips: primary discipline + up to three
+            // secondary talent types. Each chip is a `card` whose only content is
+            // its label paragraph, so the existing empty-card prune drops chips
+            // whose label resolved to "" (most talents have 0-1 secondary types).
+            // When NO discipline exists at all, every chip prunes and the row is
+            // an empty (invisible) row container.
+            {
+              id: id("hero-disciplines"),
+              kind: "container",
+              props: {
+                layout: "row",
+                gap: "s",
+                align: "start",
+                style: { flexWrap: "wrap", marginTop: "s" },
+              },
+              children: [
+                disciplineChip("primary", "{{primaryTypeLabel}}"),
+                disciplineChip("secondary-1", "{{secondaryType1}}"),
+                disciplineChip("secondary-2", "{{secondaryType2}}"),
+                disciplineChip("secondary-3", "{{secondaryType3}}"),
+              ],
+            },
             {
               id: id("hero-cta"),
               kind: "button",
@@ -343,6 +421,10 @@ export function buildDefaultTalentProfileTree(): BuilderNode[] {
           props: {
             src: "{{headshotUrl}}",
             alt: "{{displayName}}",
+            // The hero headshot is the LCP image — load it eagerly so it does
+            // not stream in late (read blank on fast-scroll QA). Gallery images
+            // below the fold stay lazy.
+            priority: true,
             style: {
               radius: "lg",
               aspectRatio: "4:3",
@@ -387,7 +469,9 @@ export function buildDefaultTalentProfileTree(): BuilderNode[] {
           id: id("about-body"),
           kind: "paragraph",
           props: {
-            text: "{{bio}}",
+            // Full published bio (token falls back to the short bio / tagline /
+            // welcome line in talentProfileTokens), rendered as a real paragraph.
+            text: "{{richBio}}",
             style: { size: "lg", maxWidth: "reading" },
           },
         },
@@ -396,6 +480,16 @@ export function buildDefaultTalentProfileTree(): BuilderNode[] {
           kind: "paragraph",
           props: {
             text: "{{locationLine}}",
+            style: { tone: "muted", size: "md" },
+          },
+        },
+        {
+          // Optional languages line — "" when the talent has no languages, so the
+          // empty paragraph carries no visible box.
+          id: id("about-languages"),
+          kind: "paragraph",
+          props: {
+            text: "{{languagesLine}}",
             style: { tone: "muted", size: "md" },
           },
         },

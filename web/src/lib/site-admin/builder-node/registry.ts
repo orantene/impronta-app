@@ -584,6 +584,8 @@ const imagePropsSchema = z.object({
   src: z.string().max(2048),
   mediaId: pgUuidSchema().optional(),
   alt: z.string().max(240).optional(),
+  // Above-the-fold hint — eager-load + fetchpriority=high (LCP hero image).
+  priority: z.boolean().optional(),
   layerLabel: layerLabelSchema,
   fieldBindings: fieldBindingPropsSchema.optional(),
   style: builderNodeStyleSchema,

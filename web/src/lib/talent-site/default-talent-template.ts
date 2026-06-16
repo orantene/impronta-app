@@ -97,12 +97,43 @@ export function talentProfileTokens(
   const galleryUrls = media
     .map((m) => m.url)
     .filter((u) => Boolean(u) && u !== headshotUrl);
+
+  // Disciplines — primary first, then non-primary talent types (de-duped). The
+  // chip row hydrates `{{primaryTypeLabel}}` + `{{secondaryType1..3}}`; the
+  // empty-card prune drops chips whose label resolved to "". `disciplinesLine`
+  // is the same set joined " · " for a single-line alternative.
+  const primaryTypeLabel = profile.primaryTypeLabel?.trim() ?? "";
+  const secondaryTypes = (profile.secondaryTypeLabels ?? [])
+    .map((label) => label?.trim())
+    .filter((label): label is string => !!label && label !== primaryTypeLabel);
+  const disciplinesLine = [primaryTypeLabel, ...secondaryTypes]
+    .filter(Boolean)
+    .join(" · ");
+
+  // Full bio for the About paragraph — `richBio` when present, else the existing
+  // short bio / tagline / a welcome line so About never reads blank.
+  const richBio =
+    profile.richBio?.trim() ||
+    profile.publicBio?.trim() ||
+    tagline ||
+    `Welcome to ${displayName}'s profile.`;
+
+  const languagesLine = profile.languagesLabel?.trim()
+    ? `Languages: ${profile.languagesLabel.trim()}`
+    : "";
+
   return {
     displayName,
-    primaryTypeLabel: profile.primaryTypeLabel ?? "",
+    primaryTypeLabel,
+    secondaryType1: secondaryTypes[0] ?? "",
+    secondaryType2: secondaryTypes[1] ?? "",
+    secondaryType3: secondaryTypes[2] ?? "",
+    disciplinesLine,
     tagline,
     bio: profile.publicBio?.trim() || tagline || `Welcome to ${displayName}'s profile.`,
+    richBio,
     locationLine: profile.homeCity ? `Based in ${profile.homeCity}` : "",
+    languagesLine,
     headshotUrl,
     profilePath,
     inquireHref: `${profilePath}?inquire=1`,

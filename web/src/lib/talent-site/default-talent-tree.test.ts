@@ -15,9 +15,15 @@ import {
 const TOKENS: TalentProfileTokens = {
   displayName: "Orlando Tene",
   primaryTypeLabel: "Model",
+  secondaryType1: "Photographer",
+  secondaryType2: "Stylist",
+  secondaryType3: "",
+  disciplinesLine: "Model · Photographer · Stylist",
   tagline: "Model · Cancún",
   bio: "A short public bio.",
+  richBio: "A longer, richer public bio that spans a full paragraph of editorial detail.",
   locationLine: "Based in Cancún",
+  languagesLine: "Languages: Spanish · English",
   headshotUrl: "https://cdn.example/headshot.jpg",
   profilePath: "/t/TAL-92026",
   inquireHref: "/t/TAL-92026?inquire=1",
@@ -74,7 +80,8 @@ test("hydrate substitutes {{tokens}} and leaves no raw placeholders", () => {
   for (const node of hydrated) collectText(node, texts);
   const joined = texts.join("\n");
   assert.match(joined, /Orlando Tene/);
-  assert.match(joined, /A short public bio\./);
+  // About renders the FULL bio (`{{richBio}}`), not the short `{{bio}}` token.
+  assert.match(joined, /a full paragraph of editorial detail\./);
   assert.match(joined, /\/t\/TAL-92026\?inquire=1/);
   assert.match(joined, /Editorial/);
   assert.match(joined, /headshot\.jpg/);
@@ -98,15 +105,22 @@ test("missing gallery slots resolve to empty strings (no broken {{galleryN}})", 
   assert.doesNotMatch(texts.join("\n"), /\{\{gallery/);
 });
 
-/** Walk a hydrated tree and count surviving `card` nodes by descendant heading. */
-function findCards(node: unknown, out: BuilderNode[]): void {
+/**
+ * Walk a hydrated tree and collect surviving `card` nodes. Optional `idPrefix`
+ * scopes the collection — discipline chips and service cards are BOTH `card`
+ * nodes, so a count assertion must scope to one family by id prefix.
+ */
+function findCards(node: unknown, out: BuilderNode[], idPrefix?: string): void {
   if (!node || typeof node !== "object") return;
   const n = node as BuilderNode;
-  if (n.kind === "card") out.push(n);
+  if (n.kind === "card" && (!idPrefix || n.id.startsWith(idPrefix))) out.push(n);
   if ("children" in n && Array.isArray(n.children)) {
-    for (const c of n.children) findCards(c, out);
+    for (const c of n.children) findCards(c, out, idPrefix);
   }
 }
+
+const SERVICE_CARD_PREFIX = "default-talent-service-";
+const DISCIPLINE_CHIP_PREFIX = "default-talent-discipline-";
 
 test("FIX 1 — empty service cards are pruned (no visible empty bordered boxes)", () => {
   // Only one service label → service2/service3 hydrate to "" → those cards must
@@ -119,7 +133,7 @@ test("FIX 1 — empty service cards are pruned (no visible empty bordered boxes)
   };
   const hydrated = hydrateTalentTree(buildDefaultTalentProfileTree(), oneService);
   const cards: BuilderNode[] = [];
-  for (const node of hydrated) findCards(node, cards);
+  for (const node of hydrated) findCards(node, cards, SERVICE_CARD_PREFIX);
   // Exactly one service card remains (the non-empty one); none are empty.
   assert.equal(cards.length, 1, `expected 1 surviving service card, got ${cards.length}`);
   const cardTexts: string[] = [];
@@ -140,8 +154,119 @@ test("FIX 1 — all-empty services prune to zero cards", () => {
   };
   const hydrated = hydrateTalentTree(buildDefaultTalentProfileTree(), noServices);
   const cards: BuilderNode[] = [];
-  for (const node of hydrated) findCards(node, cards);
+  for (const node of hydrated) findCards(node, cards, SERVICE_CARD_PREFIX);
   assert.equal(cards.length, 0, "all service cards should be pruned when none have labels");
+});
+
+/** Collect every `image` node (deep) in a tree. */
+function findImages(node: unknown, out: BuilderNode[]): void {
+  if (!node || typeof node !== "object") return;
+  const n = node as BuilderNode;
+  if (n.kind === "image") out.push(n);
+  if ("children" in n && Array.isArray(n.children)) {
+    for (const c of n.children) findImages(c, out);
+  }
+}
+
+test("ENRICH — discipline chips render the primary + secondary talent types", () => {
+  const hydrated = hydrateTalentTree(buildDefaultTalentProfileTree(), TOKENS);
+  const chips: BuilderNode[] = [];
+  for (const node of hydrated) findCards(node, chips, DISCIPLINE_CHIP_PREFIX);
+  // Primary (Model) + secondary1 (Photographer) + secondary2 (Stylist); the
+  // empty secondary3 chip is pruned.
+  assert.equal(chips.length, 3, `expected 3 surviving discipline chips, got ${chips.length}`);
+  const texts: string[] = [];
+  for (const c of chips) collectText(c, texts);
+  const joined = texts.join("\n");
+  assert.match(joined, /Model/);
+  assert.match(joined, /Photographer/);
+  assert.match(joined, /Stylist/);
+  assert.ok(
+    texts.every((t) => t.trim() !== ""),
+    "no surviving chip should have empty label text",
+  );
+});
+
+test("ENRICH — discipline chips prune to just the primary when no secondary types", () => {
+  const onlyPrimary: TalentProfileTokens = {
+    ...TOKENS,
+    secondaryType1: "",
+    secondaryType2: "",
+    secondaryType3: "",
+    disciplinesLine: "Model",
+  };
+  const hydrated = hydrateTalentTree(buildDefaultTalentProfileTree(), onlyPrimary);
+  const chips: BuilderNode[] = [];
+  for (const node of hydrated) findCards(node, chips, DISCIPLINE_CHIP_PREFIX);
+  assert.equal(chips.length, 1, `expected only the primary chip, got ${chips.length}`);
+  const texts: string[] = [];
+  for (const c of chips) collectText(c, texts);
+  assert.match(texts.join("\n"), /Model/);
+});
+
+test("ENRICH — every discipline chip prunes when the talent has no discipline", () => {
+  const noDiscipline: TalentProfileTokens = {
+    ...TOKENS,
+    primaryTypeLabel: "",
+    secondaryType1: "",
+    secondaryType2: "",
+    secondaryType3: "",
+    disciplinesLine: "",
+  };
+  const hydrated = hydrateTalentTree(buildDefaultTalentProfileTree(), noDiscipline);
+  const chips: BuilderNode[] = [];
+  for (const node of hydrated) findCards(node, chips, DISCIPLINE_CHIP_PREFIX);
+  assert.equal(chips.length, 0, "all discipline chips should be pruned when no type exists");
+});
+
+test("ENRICH — About renders the full richBio paragraph", () => {
+  const hydrated = hydrateTalentTree(buildDefaultTalentProfileTree(), TOKENS);
+  const texts: string[] = [];
+  for (const node of hydrated) collectText(node, texts);
+  const joined = texts.join("\n");
+  // The full bio is present; the short `{{bio}}` token text is NOT rendered.
+  assert.match(joined, /a full paragraph of editorial detail\./);
+  assert.doesNotMatch(joined, /A short public bio\./);
+});
+
+test("ENRICH — languages line renders when present and is empty otherwise", () => {
+  const withLangs = hydrateTalentTree(buildDefaultTalentProfileTree(), TOKENS);
+  const withTexts: string[] = [];
+  for (const node of withLangs) collectText(node, withTexts);
+  assert.match(withTexts.join("\n"), /Languages: Spanish · English/);
+
+  const noLangs = hydrateTalentTree(buildDefaultTalentProfileTree(), {
+    ...TOKENS,
+    languagesLine: "",
+  });
+  const noTexts: string[] = [];
+  for (const node of noLangs) collectText(node, noTexts);
+  assert.doesNotMatch(noTexts.join("\n"), /Languages:/);
+});
+
+test("ENRICH — only the hero image is priority; gallery images stay lazy", () => {
+  const tree = buildDefaultTalentProfileTree();
+  const images: BuilderNode[] = [];
+  for (const node of tree) findImages(node, images);
+  const heroImage = images.find((n) => n.id === "default-talent-hero-image");
+  assert.ok(heroImage, "hero image node should exist");
+  assert.equal(
+    (heroImage!.props as { priority?: boolean }).priority,
+    true,
+    "the hero image must be priority (eager)",
+  );
+  // Every non-hero image (the gallery tiles) must NOT be priority.
+  const galleryImages = images.filter((n) => n.id !== "default-talent-hero-image");
+  assert.ok(galleryImages.length > 0, "expected gallery image nodes");
+  assert.ok(
+    galleryImages.every((n) => !(n.props as { priority?: boolean }).priority),
+    "gallery images must stay lazy (no priority)",
+  );
+});
+
+test("ENRICH — the enriched default tree still validates cleanly", () => {
+  const result = validateBuilderNodeTree(buildDefaultTalentProfileTree());
+  assert.equal(result.ok, true, result.ok ? "" : JSON.stringify(result.issues));
 });
 
 test("FIX 4 — hydration substitutes tokens in nested/array props (not just allowlist)", () => {

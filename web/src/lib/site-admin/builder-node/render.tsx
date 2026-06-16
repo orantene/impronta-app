@@ -3293,7 +3293,11 @@ function renderBuilderNodeElement(
             ? { srcSet: imageOpt.srcSet, sizes: imageOpt.sizes }
             : {})}
           alt={alt}
-          loading="lazy"
+          // `priority` images (e.g. the LCP hero) load eagerly with a high fetch
+          // priority so they are not deferred by the lazy loader; all others stay
+          // lazy. React maps `fetchPriority` → the `fetchpriority` HTML attribute.
+          loading={node.props.priority ? "eager" : "lazy"}
+          {...(node.props.priority ? { fetchPriority: "high" as const } : {})}
           decoding="async"
           style={inlineNodeStyle(node.props.style, {
             display: "block",
