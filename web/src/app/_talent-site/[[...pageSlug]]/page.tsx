@@ -8,10 +8,17 @@
  *
  * It reads the resolved talent_profile_id from the host header the proxy set
  * (`x-impronta-talent-profile`) and renders the talent's published Max site via
- * the shared `renderTalentMaxSite()` server function. The talent_profile_id is
- * trusted ONLY because it came from middleware (which stripped any client-
- * supplied value before resolving the host) — this route never accepts it from
- * the URL or query string.
+ * the shared `renderTalentMaxSite()` server function.
+ *
+ * TRUST INVARIANT — the talent_profile_id is trusted ONLY because it came from
+ * the proxy. The proxy strips any client-supplied `x-impronta-talent-profile`
+ * AND `x-impronta-host-context` from the inbound request on EVERY path
+ * (including the `/_talent-site` short-circuit), then re-sets both only on the
+ * legitimate `kind: "talent_site"` rewrite. This route never accepts the
+ * profile id from the URL or query string. As defense-in-depth it ALSO requires
+ * the resolved `x-impronta-host-context` to equal `"talent_site"`: a direct
+ * `/_talent-site` request on a non-talent-site host (app/agency/hub) carries a
+ * different (or stripped) host-context and 404s before any render.
  *
  * Gating lives entirely in `renderTalentMaxSite` (Max + published + not hidden;
  * the lookup RPC already required active+published+not-hidden to even resolve
@@ -23,19 +30,32 @@ import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 
 import { getRequestLocale } from "@/i18n/request-locale";
-import { HOST_TALENT_PROFILE_HEADER } from "@/lib/saas/host-context";
+import {
+  HOST_CONTEXT_HEADER,
+  HOST_TALENT_PROFILE_HEADER,
+} from "@/lib/saas/host-context";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { renderTalentMaxSite } from "@/lib/talent-site/server/render-max-site";
+import { resolveGatedTalentProfileId } from "@/lib/talent-site/server/talent-site-host-gate";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 export const revalidate = 0;
 
+/**
+ * Resolve the talent_profile_id from the proxy-set host header — but ONLY when
+ * the resolved host context is `talent_site`. The proxy strips any inbound copy
+ * of these headers on every path and re-sets them on the legitimate talent_site
+ * rewrite, so a direct hit on a non-talent-site host (app/agency/hub) carries a
+ * different host-context and resolves to null → notFound().
+ */
 async function resolveTalentProfileId(): Promise<string | null> {
   try {
     const h = await headers();
-    const value = h.get(HOST_TALENT_PROFILE_HEADER)?.trim();
-    return value ? value : null;
+    return resolveGatedTalentProfileId({
+      hostContext: h.get(HOST_CONTEXT_HEADER),
+      talentProfileId: h.get(HOST_TALENT_PROFILE_HEADER),
+    });
   } catch {
     return null;
   }

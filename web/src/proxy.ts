@@ -90,9 +90,40 @@ function withTenantLanguageSettings(
   };
 }
 
+/**
+ * Internal host-context headers that the proxy itself sets AFTER host
+ * resolution. A client must never be able to supply them: a forged
+ * `x-impronta-talent-profile` would otherwise let `/_talent-site` render an
+ * arbitrary talent's Max site on a host that isn't that talent's domain
+ * (header-confusion / host-binding bypass), and a forged
+ * `x-impronta-host-context` would defeat the route's defense-in-depth gate.
+ *
+ * These are stripped from the INBOUND request on EVERY path — including the
+ * `/_talent-site` short-circuit's `NextResponse.next()` — so the only value
+ * the app ever sees is one the proxy set on the legitimate `talent_site`
+ * rewrite. Mirrors the actor-header hygiene in `lib/supabase/middleware.ts`
+ * and the `TENANT_HEADER_NAME` strip below.
+ */
+const HOST_CONTEXT_HEADERS_TO_STRIP = [
+  HOST_CONTEXT_HEADER,
+  HOST_TALENT_PROFILE_HEADER,
+];
+
+function stripInboundHostContextHeaders(request: NextRequest): Headers {
+  const headers = new Headers(request.headers);
+  for (const h of HOST_CONTEXT_HEADERS_TO_STRIP) headers.delete(h);
+  return headers;
+}
+
 export async function proxy(request: NextRequest) {
   const ip = clientIp(request);
   const { pathname } = request.nextUrl;
+
+  // Strip client-supplied host-context spoofs (x-impronta-host-context,
+  // x-impronta-talent-profile) up front. The proxy is the only writer of
+  // these; resetting them here means even the short-circuit's
+  // `NextResponse.next()` forwards a request the client could not have forged.
+  const sanitizedInboundHeaders = stripInboundHostContextHeaders(request);
 
   // ── Shared-API short-circuit (audit C2) ──────────────────────────────────
   // The Stripe webhook + cron + analytics-events endpoints must reach their
@@ -153,7 +184,10 @@ export async function proxy(request: NextRequest) {
       process.env.VERCEL_ENV === "preview") &&
       pathname.startsWith("/dev/"))
   ) {
-    return NextResponse.next();
+    // Forward the sanitized headers so the `/_talent-site` short-circuit can
+    // NEVER carry a client-forged `x-impronta-talent-profile` /
+    // `x-impronta-host-context` into the route.
+    return NextResponse.next({ request: { headers: sanitizedInboundHeaders } });
   }
 
   // SaaS Phase 4 — unified host resolution. Every hostname (marketing /
@@ -218,7 +252,7 @@ export async function proxy(request: NextRequest) {
       );
     }
 
-    const talentHeaders = new Headers(request.headers);
+    const talentHeaders = new Headers(sanitizedInboundHeaders);
     const locale = resolveLocaleForPathname(pathname, request, talentLangSettings);
     talentHeaders.set(LOCALE_HEADER, locale);
     talentHeaders.set(ORIGINAL_PATHNAME_HEADER, request.nextUrl.pathname);
@@ -568,7 +602,9 @@ export async function proxy(request: NextRequest) {
   // EN even when the URL is `/es/...`, and the operator-facing locale
   // switcher appears non-functional.
   const locale = resolveLocaleForPathname(pathname, request, effectiveLangSettings);
-  const requestHeaders = new Headers(request.headers);
+  // Built from the sanitized clone — a forged x-impronta-talent-profile /
+  // x-impronta-host-context can never reach the app on non-talent-site hosts.
+  const requestHeaders = new Headers(sanitizedInboundHeaders);
   requestHeaders.set(LOCALE_HEADER, locale);
   requestHeaders.set(ORIGINAL_PATHNAME_HEADER, originalPathname);
 
