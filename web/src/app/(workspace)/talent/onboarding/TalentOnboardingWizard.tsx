@@ -249,7 +249,11 @@ export function TalentOnboardingWizard(props: {
               <BioStep talentProfileId={talentProfileId} initialBio={prefill.shortBio} onSaved={refresh} />
             )}
             {step.key === "photo" && (
-              <PhotoStep mediaCount={mediaCount} />
+              <PhotoStep
+                mediaCount={mediaCount}
+                talentProfileId={talentProfileId}
+                onSaved={refresh}
+              />
             )}
             {step.key === "discipline" && (
               <DisciplineStep

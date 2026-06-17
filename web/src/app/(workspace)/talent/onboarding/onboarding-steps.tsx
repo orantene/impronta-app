@@ -193,46 +193,10 @@ export function BioStep({ talentProfileId, initialBio, onSaved }: { talentProfil
   );
 }
 
-// ─── Step: Photo — links to the existing media editor (no self upload action) ──
-
-export function PhotoStep({ mediaCount }: { mediaCount: number }) {
-  const hasMedia = mediaCount > 0;
-  return (
-    <div>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          padding: "12px 14px",
-          borderRadius: 12,
-          border: `1px solid ${hasMedia ? "rgba(22,163,74,0.3)" : C.borderSoft}`,
-          background: hasMedia ? "rgba(22,163,74,0.06)" : C.surface,
-        }}
-      >
-        <span style={{ fontSize: 22 }} aria-hidden>
-          {hasMedia ? "✓" : "📷"}
-        </span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 600 }}>
-            {hasMedia ? `${mediaCount} photo${mediaCount === 1 ? "" : "s"} uploaded` : "No photos yet"}
-          </div>
-          <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 2, lineHeight: 1.45 }}>
-            {hasMedia
-              ? "Great — your profile has imagery. Add more in the photo editor any time."
-              : "Upload at least one image so review and matching can begin."}
-          </div>
-        </div>
-      </div>
-      <Link href="/talent/public-page" style={{ ...saveBtn, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}>
-        {hasMedia ? "Manage photos" : "Add photos"} →
-      </Link>
-      <p style={{ fontSize: 11, color: C.inkMuted, marginTop: 10, lineHeight: 1.45 }}>
-        Photo uploads use the full media editor. We&apos;ll bring you back here when you&apos;re done.
-      </p>
-    </div>
-  );
-}
+// ─── Step: Photo — inline talent-self upload (see onboarding-photo-step.tsx) ───
+// Extracted to its own file (it carries the upload logic + would push this file
+// over the 800-line lint ceiling); re-exported here so importers are unchanged.
+export { PhotoStep } from "./onboarding-photo-step";
 
 // ─── Step: Discipline — syncSelfTalentTypeTaxonomyFromShell (slugs) ────────────
 
