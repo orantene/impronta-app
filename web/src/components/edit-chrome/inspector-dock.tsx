@@ -96,6 +96,7 @@ import {
 } from "@/lib/site-admin/builder-node";
 import { isBuilderClientCanvasEnabled } from "@/lib/site-admin/edit-mode/client-canvas-flag";
 import { sectionTypeHasLiveData } from "@/lib/site-admin/sections/section-live-data";
+import { runMobileHealthCheck } from "@/lib/site-admin/builder-node/mobile-health";
 
 type TabKey = "content" | "layout" | "style" | "data" | "motion";
 
@@ -770,6 +771,15 @@ export function InspectorDock() {
     return countPresentationOverrides(sectionPresentation, viewportDevice);
   }, [sectionPresentation, selectedStandaloneBuilderNode, viewportDevice, isBaseViewport]);
 
+  // RESP-2 — advisory mobile-health issue count. Feeds the badge on the Mobile
+  // toggle in InspectorViewportRail. Pure check over the full tree; zero cost when
+  // the tree is empty (no section is open). Reuses the shared checker from
+  // mobile-health.ts (same pure function the publish drawer and MobileEditPanel use).
+  const mobileHealthCount = useMemo(
+    () => runMobileHealthCheck(builderTree).length,
+    [builderTree],
+  );
+
   const handleViewportHideChange = useCallback(
     (hidden: boolean) => {
       if (isBaseViewport) return;
@@ -1273,6 +1283,7 @@ export function InspectorDock() {
                 onResetOverrides={
                   viewportOverrideCount > 0 ? handleResetViewportOverrides : undefined
                 }
+                mobileHealthCount={mobileHealthCount}
               />
             ) : null}
             {tab === "content" ? (
