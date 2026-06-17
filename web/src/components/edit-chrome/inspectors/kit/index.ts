@@ -77,3 +77,11 @@ export {
   InspectorLayoutPresetCards,
   InspectorResetFooter,
 } from "./inspector-mockup-primitives";
+export { InlineNameInput, type InlineNameInputProps } from "./inline-name-input";
+export {
+  InspectorSearchProvider,
+  InspectorSearchField,
+  useInspectorSearch,
+  useInspectorSearchFilter,
+  useInspectorSearchQuery,
+} from "./inspector-search";

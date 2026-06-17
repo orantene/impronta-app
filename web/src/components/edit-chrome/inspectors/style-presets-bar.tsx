@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 import type { BuilderNodeStyle } from "@/lib/site-admin/builder-node/types";
 import type {
   BuilderStylePreset,
@@ -14,6 +14,7 @@ import {
   getStylePresetRegistryServerSnapshot,
 } from "@/lib/site-admin/builder-node/style-presets-storage";
 import { CHROME } from "../kit/tokens";
+import { InlineNameInput } from "./kit/inline-name-input";
 
 /**
  * Copy/paste style + named style presets — a Figma/Webflow-style convenience
@@ -63,6 +64,9 @@ export function StylePresetsBar({
   const presets = registry.presets;
   const hasClipboard = Boolean(registry.clipboard);
 
+  // INS-3: inline naming state (replaces window.prompt).
+  const [namingOpen, setNamingOpen] = useState(false);
+
   const persist = useCallback(
     (next: BuilderStylePresetRegistry) => {
       // writePresets republishes to the bridge, so the subscription above
@@ -84,10 +88,9 @@ export function StylePresetsBar({
     if (clip) onApply(clip);
   };
 
-  const savePreset = () => {
-    if (!currentStyle) return;
-    const name = window.prompt("Name this style preset");
-    if (!name?.trim()) return;
+  const commitSavePreset = (name: string) => {
+    setNamingOpen(false);
+    if (!name.trim() || !currentStyle) return;
     // Stable id without Date.now()/Math.random() (both unavailable here) —
     // derive from name + current count.
     const id = `${name.trim().toLowerCase().replace(/\s+/g, "-")}-${presets.length}`;
@@ -133,11 +136,21 @@ export function StylePresetsBar({
           data-builder-style-preset-action="save"
           style={{ ...btnStyle, opacity: hasStyle ? 1 : 0.45 }}
           disabled={!hasStyle}
-          onClick={savePreset}
+          onClick={() => setNamingOpen(true)}
         >
           Save preset…
         </button>
       </div>
+      {namingOpen ? (
+        <InlineNameInput
+          mode="text"
+          title="Name this style preset"
+          placeholder="Preset name…"
+          confirmLabel="Save"
+          onConfirm={commitSavePreset}
+          onCancel={() => setNamingOpen(false)}
+        />
+      ) : null}
       {presets.length > 0 ? (
         <div className="flex flex-wrap gap-1.5">
           {presets.map((preset) => (

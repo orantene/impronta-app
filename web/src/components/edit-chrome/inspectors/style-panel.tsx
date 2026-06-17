@@ -97,8 +97,90 @@ import { ImageCropModal } from "../image-crop";
 import { uploadCmsMedia } from "@/lib/client/signed-upload";
 import { breakpointLabelForDevice, naturalWidthForDevice } from "../breakpoint-registry";
 import { useBuilderBreakpoints } from "../use-builder-breakpoints";
+import { InlineNameInput } from "./kit/inline-name-input";
 
 const INHERIT_HINT = HINT;
+
+/**
+ * INS-3: inline textarea overlay for importing presets JSON (replaces window.prompt).
+ * Kept as a small file-local component to avoid polluting the inspector kit with
+ * a one-off that's only useful for the style-panel preset import flow.
+ */
+function ImportPresetsOverlay({
+  error,
+  onConfirm,
+  onCancel,
+}: {
+  error: string | null;
+  onConfirm: (raw: string) => void;
+  onCancel: () => void;
+}) {
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Import presets JSON"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 6,
+        borderRadius: 10,
+        border: `1px solid ${CHROME.controlBorder}`,
+        background: CHROME.surface,
+        boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+        padding: "10px 12px",
+      }}
+    >
+      <p style={{ margin: 0, fontSize: 12, color: CHROME.muted }}>
+        Paste the presets JSON array here.
+      </p>
+      <textarea
+        ref={textareaRef}
+        autoFocus
+        rows={5}
+        style={{
+          width: "100%",
+          resize: "vertical",
+          borderRadius: 7,
+          border: `1px solid ${CHROME.controlBorder}`,
+          background: CHROME.paper,
+          padding: "7px 10px",
+          fontSize: 11,
+          fontFamily: "var(--font-mono, monospace)",
+          color: CHROME.ink,
+          outline: "none",
+          boxSizing: "border-box",
+        }}
+        aria-label="Presets JSON"
+        onFocus={(e) => { e.currentTarget.style.borderColor = CHROME.blue; }}
+        onBlur={(e) => { e.currentTarget.style.borderColor = CHROME.controlBorder; }}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") { e.preventDefault(); onCancel(); }
+        }}
+      />
+      {error ? (
+        <p style={{ margin: 0, fontSize: 11, color: CHROME.amber }}>{error}</p>
+      ) : null}
+      <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+        <button
+          type="button"
+          onClick={onCancel}
+          style={{ height: 28, paddingInline: 10, fontSize: 12, fontWeight: 500, background: "transparent", border: `1px solid ${CHROME.controlBorder}`, borderRadius: 7, color: CHROME.muted, cursor: "pointer" }}
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={() => onConfirm(textareaRef.current?.value ?? "")}
+          style={{ height: 28, paddingInline: 10, fontSize: 12, fontWeight: 600, background: CHROME.accent, border: `1px solid ${CHROME.accent}`, borderRadius: 7, color: "#fff", cursor: "pointer" }}
+        >
+          Import
+        </button>
+      </div>
+    </div>
+  );
+}
 
 // Approximate hex for each background palette token. Real tenant rendering
 // uses CSS variables from token-presets.css — these swatches are inspector
@@ -1989,6 +2071,11 @@ export function StylePanel({
   const [presetDeleteConfirmTarget, setPresetDeleteConfirmTarget] =
     useState<PresetDeleteConfirmTarget>(null);
   const [nodeStylePresetName, setNodeStylePresetName] = useState("");
+  // INS-3: inline rename state (replaces window.prompt).
+  const [renamePresetTarget, setRenamePresetTarget] = useState<StoredNodeStylePreset | null>(null);
+  // INS-3: inline import state (replaces window.prompt for JSON import).
+  const [importPresetsOpen, setImportPresetsOpen] = useState(false);
+  const [importPresetsError, setImportPresetsError] = useState<string | null>(null);
   const [storedNodeStylePresets, setStoredNodeStylePresets] = useState<
     ReadonlyArray<StoredNodeStylePreset>
   >([]);
@@ -3156,22 +3243,27 @@ export function StylePanel({
   }
 
   function renameNodeStylePreset(preset: StoredNodeStylePreset) {
-    if (typeof window === "undefined") return;
-    const raw = window.prompt("Rename preset", preset.name);
-    if (raw === null) return;
-    const nextName = raw.trim();
-    if (!nextName || nextName === preset.name) return;
+    // INS-3: opens inline rename overlay (replaces window.prompt).
+    setRenamePresetTarget(preset);
+  }
+
+  function commitRenameNodeStylePreset(nextName: string) {
+    const preset = renamePresetTarget;
+    setRenamePresetTarget(null);
+    if (!preset) return;
+    const trimmed = nextName.trim();
+    if (!trimmed || trimmed === preset.name) return;
     setStoredNodeStylePresets((prev) => {
       const next = [...prev];
       const index = next.findIndex((entry) => entry.id === preset.id);
       if (index < 0) return prev;
       next[index] = {
         ...next[index],
-        name: nextName,
+        name: trimmed,
       };
       return next;
     });
-    recordNodeAction(`Renamed preset to "${nextName}"`);
+    recordNodeAction(`Renamed preset to "${trimmed}"`);
   }
 
   async function exportNodeStylePresetsJson() {
@@ -3181,40 +3273,39 @@ export function StylePanel({
     try {
       if ("clipboard" in navigator && navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(payload);
-        recordNodeAction("Copied presets JSON");
+        recordNodeAction("Copied presets JSON to clipboard");
         return;
       }
     } catch {
-      // Fall back to prompt copy flow.
+      // Clipboard not available — silently skip (the operator can use Export→clipboard manually).
     }
-    window.prompt("Copy style presets JSON", payload);
+    // Clipboard unavailable — open inline import overlay pre-filled so user can copy from textarea.
+    setImportPresetsOpen(true);
     recordNodeAction("Opened presets JSON");
   }
 
-  async function importNodeStylePresetsJson() {
-    if (typeof window === "undefined") return;
-    let seed = "";
-    try {
-      if ("clipboard" in navigator && navigator.clipboard?.readText) {
-        seed = await navigator.clipboard.readText();
-      }
-    } catch {
-      seed = "";
-    }
-    const raw = window.prompt("Paste style presets JSON", seed);
-    if (raw === null) return;
+  function importNodeStylePresetsJson() {
+    // INS-3: opens the inline import textarea (replaces window.prompt).
+    setImportPresetsError(null);
+    setImportPresetsOpen(true);
+  }
+
+  function commitImportNodeStylePresetsJson(raw: string) {
+    setImportPresetsOpen(false);
+    setImportPresetsError(null);
+    if (!raw.trim()) return;
 
     let parsed: unknown;
     try {
       parsed = JSON.parse(raw);
     } catch {
-      window.alert(
+      setImportPresetsError(
         "That isn't valid JSON — paste the presets array you exported from this panel.",
       );
       return;
     }
     if (!Array.isArray(parsed)) {
-      window.alert("Paste a JSON array of presets — use Export from this panel first.");
+      setImportPresetsError("Paste a JSON array of presets — use Export from this panel first.");
       return;
     }
 
@@ -3269,7 +3360,7 @@ export function StylePanel({
       recordNodeAction(`Imported ${importedCount} preset${importedCount === 1 ? "" : "s"}`);
       return;
     }
-    window.alert("No valid presets found in payload.");
+    setImportPresetsError("No valid presets found in payload.");
   }
 
   function broadcastSelectedRoleStyle() {
@@ -4510,6 +4601,13 @@ export function StylePanel({
                       </button>
                     ) : null}
                   </div>
+                  {importPresetsOpen ? (
+                    <ImportPresetsOverlay
+                      error={importPresetsError}
+                      onConfirm={commitImportNodeStylePresetsJson}
+                      onCancel={() => { setImportPresetsOpen(false); setImportPresetsError(null); }}
+                    />
+                  ) : null}
                   {storedNodeStylePresets.length > 0 ? (
                     <div className="flex flex-col gap-1">
                       {storedNodeStylePresets.slice(0, 4).map((preset) => (
@@ -4667,6 +4765,17 @@ export function StylePanel({
                           </div>
                         </div>
                       ))}
+                      {renamePresetTarget ? (
+                        <InlineNameInput
+                          mode="text"
+                          title={`Rename preset "${renamePresetTarget.name}"`}
+                          defaultValue={renamePresetTarget.name}
+                          placeholder="Preset name…"
+                          confirmLabel="Rename"
+                          onConfirm={commitRenameNodeStylePreset}
+                          onCancel={() => setRenamePresetTarget(null)}
+                        />
+                      ) : null}
                     </div>
                   ) : (
                     <span className={INHERIT_HINT}>

@@ -16,6 +16,7 @@ import {
   type ReactNode,
 } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
+import { useInspectorSearchFilter } from "./inspector-search";
 
 import { CHROME } from "../../kit/tokens";
 import { useEditContext } from "../../edit-context";
@@ -81,6 +82,12 @@ export function InspectorSection({
   children: ReactNode;
   className?: string;
 }) {
+  // INS-3: auto-filter from the shared search context.
+  // String-only titles participate in search; ReactNode titles (icons etc.) are skipped.
+  const searchLabel = typeof title === "string" ? title : "";
+  const hidden = useInspectorSearchFilter(searchLabel ? [searchLabel, description ?? ""] : []);
+  if (hidden) return null;
+
   return (
     <section
       className={`flex flex-col ${className ?? ""}`}
@@ -135,8 +142,11 @@ export function InspectorAccordion({
   defaultOpen?: boolean;
   children: ReactNode;
 }) {
+  // INS-3: auto-filter from the shared search context.
+  const hidden = useInspectorSearchFilter([title, description ?? ""]);
   const [open, setOpen] = useState(defaultOpen);
   const panelId = useId();
+  if (hidden) return null;
 
   return (
     <div
@@ -212,6 +222,9 @@ export function InspectorField({
 }) {
   const { device } = useEditContext();
   const showPlaceholder = desktopOnly && device !== "desktop";
+  // INS-3: field-level search filter — fields with a label participate.
+  const hidden = useInspectorSearchFilter(label ? [label, help ?? ""] : []);
+  if (hidden) return null;
 
   return (
     <div
