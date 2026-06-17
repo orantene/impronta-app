@@ -8,7 +8,20 @@ import {
   ADD_GALLERY_ROADMAP_ITEMS,
 } from "./registry-catalog";
 
+// ONB-4 — curated recommended section IDs; the category is listed first in the
+// sections tab so operators land on the most-useful items immediately.
+export const RECOMMENDED_SECTION_IDS: ReadonlyArray<string> = [
+  "sec-hero-centered",
+  "sec-hero-split",
+  "sec-about-simple",
+  "sec-services-grid",
+  "sec-gallery-grid",
+  "sec-cta-banner",
+];
+
 export const ADD_GALLERY_CATEGORIES: ReadonlyArray<AddGalleryCategoryDef> = [
+  // ONB-4 — "Recommended" always first in the sections tab.
+  { id: "recommended", label: "Recommended", tab: "sections", icon: "sparkle" },
   { id: "text", label: "Text", tab: "elements", icon: "text" },
   { id: "buttons", label: "Buttons", tab: "elements", icon: "buttons" },
   { id: "media", label: "Media", tab: "elements", icon: "media" },
@@ -38,8 +51,18 @@ export const ADD_GALLERY_CATEGORIES: ReadonlyArray<AddGalleryCategoryDef> = [
   { id: "dynamic", label: "Dynamic Data", tab: "connected", icon: "dynamic" },
 ];
 
+// ONB-4 — synthetic "recommended" category items: alias the curated section
+// items with category="recommended" so the gallery filter picks them up under
+// the new category. IDs get a "rec:" prefix to avoid duplicate-key collisions
+// with the originals; insertBuilderNode looks up the underlying item by its
+// sectionTemplateId or nativeKind, not the gallery item id, so this is safe.
+const RECOMMENDED_ITEMS: ReadonlyArray<AddGalleryItem> = ADD_GALLERY_AVAILABLE_ITEMS
+  .filter((item) => RECOMMENDED_SECTION_IDS.includes(item.id))
+  .map((item) => ({ ...item, id: `rec:${item.id}`, category: "recommended" }));
+
 export const ADD_GALLERY_ITEMS: ReadonlyArray<AddGalleryItem> = [
   ...ADD_GALLERY_AVAILABLE_ITEMS,
+  ...RECOMMENDED_ITEMS,
   ...ADD_GALLERY_ROADMAP_ITEMS,
 ];
 

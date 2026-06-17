@@ -565,6 +565,93 @@ export async function listPagesForPickerAction(): Promise<
   return { ok: true, pages: (data ?? []) as PagePickerItem[], availability };
 }
 
+// ---- quick inline rename (ONB-4) ----------------------------------------
+
+/**
+ * ONB-4 — lightweight rename used by the inline page-picker form (AllPagesPanel).
+ * Only updates `title` + `slug`; all other page fields are untouched.
+ * The homepage (slug="") cannot be renamed through this path.
+ */
+export async function quickRenamePageAction(input: {
+  id: string;
+  title: string;
+  slug: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const auth = await requireStaff();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const scope = await requireTenantScope().catch(() => null);
+  if (!scope) return { ok: false, error: "No workspace." };
+
+  const title = input.title.trim();
+  const slug = input.slug.trim().toLowerCase();
+  if (!title) return { ok: false, error: "Title is required." };
+  if (!slug) return { ok: false, error: "Slug is required." };
+  if (slug === "") return { ok: false, error: "Cannot rename the homepage via this path." };
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
+    return { ok: false, error: "Slug may only contain lowercase letters, digits, and hyphens." };
+  }
+
+  // Check the slug isn't already taken by another page in this tenant.
+  const { data: clash } = await auth.supabase
+    .from("cms_pages")
+    .select("id")
+    .eq("tenant_id", scope.tenantId)
+    .eq("slug", slug)
+    .neq("id", input.id)
+    .maybeSingle();
+  if (clash) return { ok: false, error: "That slug is already used by another page." };
+
+  const { error } = await auth.supabase
+    .from("cms_pages")
+    .update({ title, slug, updated_at: new Date().toISOString() })
+    .eq("id", input.id)
+    .eq("tenant_id", scope.tenantId);
+
+  if (error) {
+    logServerError("site-admin/pages/quick-rename", error);
+    return { ok: false, error: "Could not rename the page." };
+  }
+  return { ok: true };
+}
+
+// ---- quick delete (ONB-4) ------------------------------------------------
+
+/**
+ * ONB-4 — direct delete used by the inline page-picker (AllPagesPanel).
+ * Guards: must be staff + same tenant + page must not be system-owned.
+ * The DB trigger `cms_pages_reserved_slug_guard` also blocks system-page deletes.
+ */
+export async function quickDeletePageAction(input: {
+  id: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const auth = await requireStaff();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const scope = await requireTenantScope().catch(() => null);
+  if (!scope) return { ok: false, error: "No workspace." };
+
+  const { data: page } = await auth.supabase
+    .from("cms_pages")
+    .select("id, is_system_owned")
+    .eq("id", input.id)
+    .eq("tenant_id", scope.tenantId)
+    .maybeSingle();
+
+  if (!page) return { ok: false, error: "Page not found." };
+  if (page.is_system_owned) return { ok: false, error: "System pages cannot be deleted." };
+
+  const { error } = await auth.supabase
+    .from("cms_pages")
+    .delete()
+    .eq("id", input.id)
+    .eq("tenant_id", scope.tenantId);
+
+  if (error) {
+    logServerError("site-admin/pages/quick-delete", error);
+    return { ok: false, error: "Could not delete the page." };
+  }
+  return { ok: true };
+}
+
 // ---- create blank draft page ---------------------------------------------
 
 /**
