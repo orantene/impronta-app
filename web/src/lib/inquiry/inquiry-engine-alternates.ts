@@ -10,6 +10,7 @@ import {
   evaluatePromoteGuard,
   nextAppendRank,
 } from "./alternates-logic";
+import type { Database } from "@/lib/supabase/database.types";
 
 // Deep-plan W9 — inquiry waitlist / alternates engine. Plain functions taking
 // the supabase client + a ctx object, returning the EngineResult shape. The
@@ -21,18 +22,21 @@ import {
 // reusing the exact add-to-roster insert shape (mirrors
 // inquiry-engine-roster.ts addTalentToRoster / swapTalent).
 
-// inquiry_alternates is not in the generated database.types.ts yet — read NEW
-// columns via .returns<T>() with a local row shape.
-type AlternateDbRow = {
-  id: string;
-  inquiry_id: string;
-  tenant_id: string;
-  requirement_group_id: string | null;
-  talent_profile_id: string;
-  rank: number;
-  note: string | null;
-  created_at: string;
-};
+// inquiry_alternates is now in database.types.ts. AlternateDbRow is a Pick of
+// the columns that are actually SELECTed in the read-side queries; using Pick
+// keeps the type honest (no phantom fields) while tying it to the schema so
+// column renames/drops are caught by tsc.
+type AlternateDbRow = Pick<
+  Database["public"]["Tables"]["inquiry_alternates"]["Row"],
+  | "id"
+  | "inquiry_id"
+  | "tenant_id"
+  | "requirement_group_id"
+  | "talent_profile_id"
+  | "rank"
+  | "note"
+  | "created_at"
+>;
 
 /**
  * Add a talent to an inquiry's waitlist. Idempotency is handled by the

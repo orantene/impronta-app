@@ -271,13 +271,16 @@ export function InboxShell({
           (remediation plan §4, Phase 2 strangler step 1). The talent
           inbox is list-only: no activeId / messages / details, so the
           shell renders just its list rail and this surface keeps its
-          own role-specific filter chrome above as a sibling. */}
-      <ThreadShell
-        role="talent"
-        inquiries={filtered.map((inq) => toThreadItem(inq, tenantSlug))}
-        activeId={null}
-        actions={{}}
-      />
+          own role-specific filter chrome above as a sibling.
+          aria-live="polite" announces filter-tab changes to screen readers. */}
+      <div aria-live="polite" aria-label="Inbox thread list">
+        <ThreadShell
+          role="talent"
+          inquiries={filtered.map((inq) => toThreadItem(inq, tenantSlug))}
+          activeId={null}
+          actions={{}}
+        />
+      </div>
     </div>
   );
 }

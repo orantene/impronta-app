@@ -337,47 +337,53 @@ export function DiscoverShell({
         )}
       </div>
 
-      {/* Result count + grid */}
-      <div style={{ fontSize: 12, color: C.inkMuted, marginBottom: 12, fontFamily: FONT }}>
-        {items.length} of {total} {total === 1 ? "talent" : "talents"}
-        {hasActiveFilters && " · matching your filters"}
-      </div>
+      {/* Result count + grid — wrapped in a polite live region so screen
+          readers announce filter updates and load-more completions. */}
+      <div aria-live="polite" aria-busy={loadingMore} aria-label="Discover results">
+        <div
+          role="status"
+          style={{ fontSize: 12, color: C.inkMuted, marginBottom: 12, fontFamily: FONT }}
+        >
+          {items.length} of {total} {total === 1 ? "talent" : "talents"}
+          {hasActiveFilters && " · matching your filters"}
+        </div>
 
-      {items.length > 0 ? (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-            gap: 16,
-          }}
-        >
-          {items.map((t) => (
-            <DiscoverCard
-              key={t.id}
-              item={t}
-              availability={availabilityByTalent.get(t.id)}
-              onOpen={() => { setAutoOpenPicker(false); setOpenTalentId(t.id); }}
-              onAddToShortlist={() => { setAutoOpenPicker(true); setOpenTalentId(t.id); }}
-            />
-          ))}
-        </div>
-      ) : (
-        <div
-          style={{
-            padding: "48px 20px", textAlign: "center",
-            background: C.surface, border: `1px dashed ${C.borderSoft}`,
-            borderRadius: 14, fontFamily: FONT,
-          }}
-        >
-          <div style={{ fontSize: 32, marginBottom: 12 }}>🔍</div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: C.ink, marginBottom: 4 }}>
-            No matches
+        {items.length > 0 ? (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+              gap: 16,
+            }}
+          >
+            {items.map((t) => (
+              <DiscoverCard
+                key={t.id}
+                item={t}
+                availability={availabilityByTalent.get(t.id)}
+                onOpen={() => { setAutoOpenPicker(false); setOpenTalentId(t.id); }}
+                onAddToShortlist={() => { setAutoOpenPicker(true); setOpenTalentId(t.id); }}
+              />
+            ))}
           </div>
-          <p style={{ fontSize: 13, color: C.inkMuted, margin: "0 auto", maxWidth: 320, lineHeight: 1.5 }}>
-            Try a broader country or category — or clear your filters to see everyone.
-          </p>
-        </div>
-      )}
+        ) : (
+          <div
+            style={{
+              padding: "48px 20px", textAlign: "center",
+              background: C.surface, border: `1px dashed ${C.borderSoft}`,
+              borderRadius: 14, fontFamily: FONT,
+            }}
+          >
+            <div aria-hidden="true" style={{ fontSize: 32, marginBottom: 12 }}>🔍</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: C.ink, marginBottom: 4 }}>
+              No matches
+            </div>
+            <p style={{ fontSize: 13, color: C.inkMuted, margin: "0 auto", maxWidth: 320, lineHeight: 1.5 }}>
+              Try a broader country or category — or clear your filters to see everyone.
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* Load more */}
       {items.length > 0 && items.length < total && (

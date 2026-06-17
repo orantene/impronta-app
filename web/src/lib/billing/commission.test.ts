@@ -580,3 +580,214 @@ describe("(c) multi-talent rounding — booking lanes reconcile exactly", () => 
     assert.equal(recon.adjustParticipantId, "large"); // largest gross absorbs it
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// P3 EXTENSION — money/engine test tranche (audit-flagged under-tested paths).
+//
+// The blocks above already pin the happy path, the override hierarchy, the floor
+// rules, and the booking-level reconciliation invariant. The blocks below add the
+// edge cases the audit called out specifically:
+//   • odd-cents subtotals where the take/surcharge do NOT divide evenly (the
+//     Math.round/Math.floor seams in the resolver) — the per-row invariant must
+//     still hold to the cent.
+//   • the explicit client/seller split ratio (client_surcharge_bps) — including
+//     the clamp to [0, take] so a misconfigured split never goes negative or
+//     over-charges.
+//   • the talent-protective seller deduction when the workspace margin is THINNER
+//     than the seller-side target (platform absorbs the gap; talent stays whole).
+//   • the largest-remainder reconciliation across N participants with deliberately
+//     ugly cents (proving Σ lanes == Σ gross_charged with zero stranded cents).
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("P3 — odd-cents rounding holds the per-row invariant", () => {
+  it("a take that does not divide evenly still balances to the cent (Σ lanes == gross_charged)", () => {
+    // 333 bps total on a 99,999-cent subtotal; even split → floor(333/2)=166
+    // client share, 167 seller share. Neither divides evenly → exercises the
+    // Math.round seams. The lane-sum invariant must still hold exactly.
+    const r = resolveBookingCommissions(baseInput({
+      currencyCode: "USD",
+      offerLineItems: [{ units: 1, unit_price_cents: 99_999, talent_cost_cents: 70_001 }],
+      platformConfig: defaultPlatformConfig({ default_take_bps: 333 }),
+    }));
+    assert.equal(r.gross_cents, 99_999);
+    // talent is protected — paid the full quote regardless of rounding.
+    assert.equal(r.talent_net_cents, 70_001);
+    // the three lanes reconcile to what the client is charged, exactly.
+    assert.equal(
+      r.talent_net_cents + r.workspace_fee_cents + r.platform_fee_cents,
+      r.gross_charged_cents,
+    );
+    // gross_charged = subtotal + client surcharge (no base fee here).
+    assert.equal(r.gross_charged_cents, r.gross_cents + r.client_surcharge_cents);
+    // platform_fee is the WHOLE take = client surcharge + seller deduction.
+    assert.equal(r.platform_fee_cents, r.client_surcharge_cents + r.seller_deduction_cents);
+  });
+
+  it("multi-unit odd unit_price (units * price re-rounded) still balances", () => {
+    const r = resolveBookingCommissions(baseInput({
+      currencyCode: "USD",
+      offerLineItems: [{ units: 7, unit_price_cents: 14_287, talent_cost_cents: 9_991 }],
+      platformConfig: defaultPlatformConfig({ default_take_bps: 617, client_surcharge_bps: 311 }),
+    }));
+    assert.equal(r.gross_cents, 7 * 14_287); // 100,009
+    assert.equal(r.talent_net_cents, 7 * 9_991); // 69,937 — full quote
+    assert.equal(
+      r.talent_net_cents + r.workspace_fee_cents + r.platform_fee_cents,
+      r.gross_charged_cents,
+    );
+    assert.ok(r.workspace_fee_cents >= 0 && r.platform_fee_cents >= 0);
+  });
+});
+
+describe("P3 — client/seller split ratio (client_surcharge_bps)", () => {
+  it("a 0-bps client share puts the WHOLE take on the seller side (no surcharge added)", () => {
+    // client_surcharge_bps=0 → the client pays the bare subtotal, the seller
+    // bears the full take from its margin.
+    const r = resolveBookingCommissions(baseInput({
+      currencyCode: "USD",
+      offerLineItems: [{ units: 1, unit_price_cents: 100_000, talent_cost_cents: 80_000 }],
+      platformConfig: defaultPlatformConfig({ default_take_bps: 600, client_surcharge_bps: 0 }),
+    }));
+    assert.equal(r.client_surcharge_cents, 0);
+    assert.equal(r.gross_charged_cents, 100_000); // no surcharge → bare subtotal
+    assert.equal(r.seller_deduction_cents, 6_000); // full 6% off the margin
+    assert.equal(r.platform_fee_cents, 6_000);
+    assert.equal(r.workspace_fee_cents, 14_000); // 20,000 margin − 6,000
+    assert.equal(r.talent_net_cents, 80_000); // protected
+  });
+
+  it("a client share at the FULL take puts everything on the client surcharge (margin untouched)", () => {
+    const r = resolveBookingCommissions(baseInput({
+      currencyCode: "USD",
+      offerLineItems: [{ units: 1, unit_price_cents: 100_000, talent_cost_cents: 80_000 }],
+      platformConfig: defaultPlatformConfig({ default_take_bps: 600, client_surcharge_bps: 600 }),
+    }));
+    assert.equal(r.client_surcharge_cents, 6_000);
+    assert.equal(r.seller_deduction_cents, 0); // nothing taken from the margin
+    assert.equal(r.gross_charged_cents, 106_000);
+    assert.equal(r.workspace_fee_cents, 20_000); // full margin kept
+    assert.equal(r.platform_fee_cents, 6_000);
+  });
+
+  it("a client share LARGER than the take is clamped to the take (never over-charges the client)", () => {
+    // Misconfigured: client_surcharge_bps (900) > default_take_bps (600).
+    // clientShareBps clamps to min(900, 600) = 600; seller share floors at 0.
+    const r = resolveBookingCommissions(baseInput({
+      currencyCode: "USD",
+      offerLineItems: [{ units: 1, unit_price_cents: 100_000, talent_cost_cents: 80_000 }],
+      platformConfig: defaultPlatformConfig({ default_take_bps: 600, client_surcharge_bps: 900 }),
+    }));
+    assert.equal(r.client_surcharge_cents, 6_000); // clamped to the 6% take
+    assert.equal(r.seller_deduction_cents, 0);
+    assert.equal(r.platform_fee_cents, 6_000); // total take unchanged by the clamp
+    assert.equal(r.gross_charged_cents, 106_000);
+    assert.equal(
+      r.talent_net_cents + r.workspace_fee_cents + r.platform_fee_cents,
+      r.gross_charged_cents,
+    );
+  });
+
+  it("a negative client share is clamped to 0 (never reduces the gross below subtotal)", () => {
+    const r = resolveBookingCommissions(baseInput({
+      currencyCode: "USD",
+      offerLineItems: [{ units: 1, unit_price_cents: 100_000, talent_cost_cents: 80_000 }],
+      platformConfig: defaultPlatformConfig({ default_take_bps: 600, client_surcharge_bps: -100 }),
+    }));
+    assert.equal(r.client_surcharge_cents, 0); // floored at 0
+    assert.equal(r.gross_charged_cents, 100_000); // never below the subtotal
+    assert.equal(r.seller_deduction_cents, 6_000); // whole take falls to the seller
+  });
+});
+
+describe("P3 — thin-margin seller deduction is talent-protective", () => {
+  it("when the margin is THINNER than the seller-side target, the deduction is capped at the margin", () => {
+    // 10% take, even split → 5% client surcharge + 5% seller target.
+    // subtotal 100,000 → seller target = 5,000. But the margin is only 1,000
+    // (talent_cost 99,000). The seller deduction is capped at the 1,000 margin;
+    // the talent is NEVER clawed below its 99,000 quote.
+    const r = resolveBookingCommissions(baseInput({
+      currencyCode: "USD",
+      offerLineItems: [{ units: 1, unit_price_cents: 100_000, talent_cost_cents: 99_000 }],
+      platformConfig: defaultPlatformConfig({ default_take_bps: 1_000 }),
+    }));
+    assert.equal(r.talent_net_cents, 99_000); // protected — full quote
+    assert.equal(r.seller_deduction_cents, 1_000); // capped at the thin margin
+    assert.equal(r.workspace_fee_cents, 0); // margin fully consumed
+    assert.equal(r.client_surcharge_cents, 5_000);
+    // The uncollected seller-side half is surfaced as a shortfall for the composer.
+    assert.equal(r.seller_shortfall_cents, 4_000); // 5,000 target − 1,000 collected
+    assert.equal(r.platform_fee_cents, r.client_surcharge_cents + r.seller_deduction_cents);
+    assert.equal(
+      r.talent_net_cents + r.workspace_fee_cents + r.platform_fee_cents,
+      r.gross_charged_cents,
+    );
+  });
+});
+
+describe("P3 — multi-participant largest-remainder reconciliation (Σ lanes == Σ gross_charged)", () => {
+  // Four participants with deliberately ugly cents + a take that never divides
+  // evenly. Each per-participant snapshot satisfies its own per-row invariant,
+  // so reconcileBookingLanes over the four rows must land EXACTLY on
+  // Σ(gross_charged) with no cents stranded on the platform balance.
+  const cfg = defaultPlatformConfig({ default_take_bps: 437, client_surcharge_bps: 211 });
+  const mk = (units: number, price: number, cost: number) =>
+    resolveBookingCommissions(baseInput({
+      currencyCode: "USD",
+      platformConfig: cfg,
+      offerLineItems: [{ units, unit_price_cents: price, talent_cost_cents: cost }],
+    }));
+  const people = [
+    mk(1, 33_333, 21_111),
+    mk(3, 14_287, 9_991),
+    mk(2, 50_001, 33_337),
+    mk(5, 9_999, 7_001),
+  ];
+  const rows: BookingLaneRow[] = people.map((p, i) => ({
+    participant_id: `p${i + 1}`,
+    talent_net_cents: p.talent_net_cents,
+    workspace_fee_cents: p.workspace_fee_cents,
+    platform_fee_cents: p.platform_fee_cents,
+    gross_charged_cents: p.gross_charged_cents,
+  }));
+
+  it("every per-participant row balances on its own", () => {
+    for (const r of rows) {
+      assert.equal(
+        r.talent_net_cents + r.workspace_fee_cents + r.platform_fee_cents,
+        r.gross_charged_cents,
+      );
+    }
+  });
+
+  it("the booking-level reconciliation has zero drift and needs no correction", () => {
+    const recon = reconcileBookingLanes(rows);
+    assert.equal(recon.driftCents, 0);
+    assert.equal(recon.laneTotalCents, recon.grossChargedTotalCents);
+    assert.equal(recon.adjustParticipantId, null);
+  });
+
+  it("a multi-cent injected drift is fully absorbed by the largest-gross participant", () => {
+    // Three short cents across the smaller participants → all routed to the
+    // single largest-gross lane (the largest-remainder target).
+    const broken: BookingLaneRow[] = [
+      { participant_id: "a", talent_net_cents: 200, workspace_fee_cents: 0, platform_fee_cents: 0, gross_charged_cents: 201 },
+      { participant_id: "b", talent_net_cents: 300, workspace_fee_cents: 0, platform_fee_cents: 0, gross_charged_cents: 301 },
+      { participant_id: "biggest", talent_net_cents: 9_999, workspace_fee_cents: 0, platform_fee_cents: 0, gross_charged_cents: 10_000 },
+    ];
+    const recon = reconcileBookingLanes(broken);
+    // lanes 200+300+9999 = 10499; gross 201+301+10000 = 10502 → 3 cents short.
+    assert.equal(recon.driftCents, 3);
+    assert.equal(recon.adjustParticipantId, "biggest"); // largest gross absorbs it
+  });
+
+  it("the FULL multi-participant reconciliation matches the resolver-derived rows exactly", () => {
+    // Sanity: feed the resolver-derived per-row totals straight into the
+    // reconciler — Σ lanes must equal Σ gross_charged with zero stranded cents.
+    const lanesTotal = rows.reduce(
+      (s, r) => s + r.talent_net_cents + r.workspace_fee_cents + r.platform_fee_cents,
+      0,
+    );
+    const grossTotal = rows.reduce((s, r) => s + r.gross_charged_cents, 0);
+    assert.equal(lanesTotal, grossTotal);
+  });
+});

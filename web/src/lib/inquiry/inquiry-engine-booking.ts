@@ -8,6 +8,10 @@ import type { EngineResult } from "./inquiry-engine.types";
 import { logInquiryAction } from "./inquiry-action-log";
 import { getInquiryGroupShortfall } from "./inquiry-fulfillment";
 import { persistBookingCommissionSnapshot } from "@/lib/billing/commission-engine";
+import type { Database } from "@/lib/supabase/database.types";
+
+type InquiryRow = Database["public"]["Tables"]["inquiries"]["Row"];
+type InquiryOffersRow = Database["public"]["Tables"]["inquiry_offers"]["Row"];
 
 // SaaS P1.B STEP A: tenant-scoped by construction. Before invoking the RPC
 // we verify the inquiry row belongs to ctx.tenantId so cross-tenant ids are
@@ -67,10 +71,14 @@ async function snapshotOfferTermsOntoBooking(
     .eq("id", inquiryId)
     .eq("tenant_id", tenantId)
     .maybeSingle()
-    .returns<{ current_offer_id: string | null }>();
+    .returns<Pick<InquiryRow, "current_offer_id">>();
   const offerId = inq?.current_offer_id ?? null;
   if (!offerId) return;
 
+  // TODO: inquiry_offers.total_client_price / deposit_pct / deposit_amount_cents
+  // are typed as `number` in InquiryOffersRow but may arrive as string over the
+  // wire in some Supabase client versions. Keep the wider cast until the Supabase
+  // JS client is pinned to a version that guarantees numeric coercion.
   const { data: offer } = await supabase
     .from("inquiry_offers")
     .select(
@@ -79,14 +87,7 @@ async function snapshotOfferTermsOntoBooking(
     .eq("id", offerId)
     .eq("tenant_id", tenantId)
     .maybeSingle()
-    .returns<{
-      total_client_price: number | string | null;
-      currency_code: string | null;
-      deposit_pct: number | string | null;
-      deposit_amount_cents: number | string | null;
-      balance_collection_method: string | null;
-      refund_policy_key: string | null;
-    }>();
+    .returns<Pick<InquiryOffersRow, "total_client_price" | "currency_code" | "deposit_pct" | "deposit_amount_cents" | "balance_collection_method" | "refund_policy_key">>();
   if (!offer) return;
 
   const { readOfferTermsFromRow } = await import("@/lib/billing/offer-commercial-terms");

@@ -8,8 +8,8 @@ import type { GroupShortfall, InquiryAlternate } from "./alternates-types";
 // Plain server module (NOT "use server") so it can return rich objects.
 // Reads run on the request-scoped user-session client, so RLS
 // (inquiry_alternates_staff_all = is_staff_of_tenant) is the tenant boundary —
-// a non-staff caller sees nothing. inquiry_alternates is not in the generated
-// database.types.ts yet, so the row shape is read via .returns<T>().
+// a non-staff caller sees nothing. AlternateDbRow is now a Pick of the
+// database.types.ts row for inquiry_alternates.
 
 /**
  * Load an inquiry's waitlist, ranked (rank asc, then created_at asc). Joins the

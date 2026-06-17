@@ -52,6 +52,9 @@ function offerStatusLabel(status: string): string {
   return OFFER_STATUS_LABELS[status] ?? humanize(status);
 }
 
+// NOTE: client-facing wording intentionally differs from the admin canonical set
+// in @/lib/status-labels (e.g. "In review" vs "Coordination", "Declined" vs
+// "Rejected"). Do not replace with the shared import without auditing copy.
 const INQUIRY_STATUS_LABELS: Record<string, string> = {
   draft: "Draft",
   submitted: "Submitted",
