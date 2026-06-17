@@ -114,6 +114,8 @@ async function loadPublishedTalentTemplateById(
 export function talentProfileTokens(
   profile: TalentPortfolioStarterProfile,
   media: TalentPortfolioStarterMedia[],
+  /** Max site URL — non-empty only when the talent has a published Max site. */
+  maxSiteUrl = "",
 ): TalentProfileTokens {
   const displayName = profile.displayName.trim() || "Talent";
   const profilePath = `/t/${profile.profileCode}`;
@@ -181,6 +183,7 @@ export function talentProfileTokens(
     service2: services[1] ?? "",
     service3: services[2] ?? "",
     gallery: galleryUrls.slice(0, 6),
+    maxSiteUrl,
   };
 }
 
@@ -211,6 +214,12 @@ export async function buildDefaultTalentFreeformSnapshot(input: {
    *  false so existing callers keep the env-only gate. The talent-site resolver
    *  passes true once it has already OR-ed the Lab toggle. */
   freeformEnabled?: boolean;
+  /**
+   * Max site URL for the VIP badge + "Visit my site" CTA. Pass the result of
+   * `loadTalentMaxSiteLink(talentProfileId)?.url` — empty string when absent
+   * so the badge nodes are pruned from the tree by `pruneEmptyMaxBadge`.
+   */
+  maxSiteUrl?: string;
 }): Promise<TalentSiteSnapshot | null> {
   if (!(input.freeformEnabled || isDefaultTalentFreeformEnabled())) return null;
 
@@ -231,7 +240,7 @@ export async function buildDefaultTalentFreeformSnapshot(input: {
   const baseTree = stripSectionEmbeds(
     (resolvedTree as BuilderNode[] | null) ?? buildDefaultTalentProfileTree(),
   );
-  const tokens = talentProfileTokens(input.profile, input.media);
+  const tokens = talentProfileTokens(input.profile, input.media, input.maxSiteUrl ?? "");
   const tree = hydrateTalentTree(baseTree, tokens);
 
   const title = tokens.displayName;

@@ -95,6 +95,12 @@ type LightProfileLayoutProps = {
   /** talent_basic → free. talent_pro / talent_portfolio → social links + embeds visible. */
   talentPlanKey: string;
 
+  /**
+   * Max site URL. Non-null ONLY when the talent is on the Max plan AND has a
+   * published site. Passed through to ProfileHeader for the VIP badge + CTA.
+   */
+  maxSiteUrl?: string | null;
+
   // ── Media ────────────────────────────────────────────────────────────────
   galleryItems: GalleryItem[];
   watermarkPreset: WatermarkPreset | null;
@@ -239,6 +245,7 @@ export function LightProfileLayout({
   languages,
   locale,
   talentPlanKey,
+  maxSiteUrl,
   galleryItems,
   watermarkPreset,
   watermarkLogoUrl,
@@ -345,6 +352,7 @@ export function LightProfileLayout({
         shareMenu={shareMenuHeader}
         discoveryCta={discoveryCta}
         hubsIndicator={hubsIndicator}
+        maxSiteUrl={maxSiteUrl}
       />
 
       {/* ── 3 + 4. PORTFOLIO + BODY (70/30) ─────────────────────────────── */}
