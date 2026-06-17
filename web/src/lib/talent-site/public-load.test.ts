@@ -24,19 +24,17 @@ test("profile route resolves Max site via platform helper on Tulala hosts", () =
   assert.equal(PUBLIC_PAGE_SRC.includes("draft_snapshot"), false);
 });
 
-test("public loader uses published RPC first", () => {
+test("public loader uses published RPC first to resolve profile_code → id", () => {
+  // The loader still hits the anon-executable published RPC first as the
+  // cheapest code→id lookup for a published talent, then falls back to a direct
+  // talent_profiles lookup. It NO LONGER parses the snapshot (the snapshot is
+  // not the profile render anymore — repoint #493).
   assert.match(PUBLIC_LOAD_SRC, /talent_public_site_for_profile_code/);
-  assert.match(PUBLIC_LOAD_SRC, /published_snapshot/);
-  assert.match(PUBLIC_LOAD_SRC, /validateTalentSiteSnapshot/);
-});
-
-test("draft preview owner-only loader is still owner-gated via user_id match", () => {
-  // The loader itself is untouched — owner draft reads still require user_id
-  // to match. (Talent Max Site's draft preview lives at /t/site/<slug>; the
-  // /t/[code] profile no longer serves the snapshot draft — see the repoint
-  // test below.)
-  assert.match(PUBLIC_LOAD_SRC, /loadTalentPublicSiteDraftForOwner/);
-  assert.match(PUBLIC_LOAD_SRC, /user_id !== userId/);
+  assert.match(PUBLIC_LOAD_SRC, /talent_profile_id/);
+  // The dead snapshot-as-profile reads are gone: no snapshot validation, and
+  // the orphaned owner-draft-preview loader has been removed.
+  assert.equal(PUBLIC_LOAD_SRC.includes("validateTalentSiteSnapshot"), false);
+  assert.equal(PUBLIC_LOAD_SRC.includes("loadTalentPublicSiteDraftForOwner"), false);
 });
 
 test("REPOINT: /t/[code] always resolves the discovery profile (never the Max snapshot)", () => {
@@ -52,6 +50,9 @@ test("REPOINT: /t/[code] always resolves the discovery profile (never the Max sn
   // doc-comment still NAMES the columns to explain what is no longer served;
   // we assert there is no draft-snapshot LOAD, not that the word never appears.)
   assert.equal(/loadTalentPublicSiteDraft|draft\s*=\s*await/.test(RESOLVE_SRC), false);
+  // The dead `previewDraft` option that drove the removed draft-snapshot branch
+  // is gone from the resolver signature.
+  assert.equal(RESOLVE_SRC.includes("previewDraft?"), false);
 
   // The snapshot plan gate itself is unchanged (now used only by the Max-site
   // render path), so keep proving its rules.

@@ -56,7 +56,20 @@ export type TalentSiteRow = {
   talent_profile_id: string;
   site_kind: "talent_personal";
   status: TalentSiteStatus;
+  /**
+   * @deprecated LEGACY PROFILE SNAPSHOT (kept, not dropped). Before the Talent
+   * Max Site repoint (#493) the slot-based `draft_snapshot` / `published_snapshot`
+   * jsonb rendered the Max PROFILE at `/t/<code>`. That render path is GONE:
+   * `/t/<code>` is now always the discovery profile, and the Max website renders
+   * from `talent_pages` + the shell (`talent_sites.shell_tree` / `shell_published`).
+   * These columns are NO LONGER read as any public render; they are still WRITTEN
+   * by the legacy slot editor (`server/actions.ts` + the `TalentSiteDashboard*`
+   * UI) pending that editor's removal. Migrate authored content with
+   * `scripts/migrate-legacy-talent-snapshots.ts` before any future `drop column`.
+   * Do NOT drop yet — reversible deprecation only.
+   */
   draft_snapshot: TalentSiteSnapshot | Record<string, unknown>;
+  /** @deprecated See `draft_snapshot` — legacy profile snapshot, no longer rendered. */
   published_snapshot: TalentSiteSnapshot | null;
   version: number;
   draft_updated_at: string;

@@ -1244,9 +1244,7 @@ export async function generateMetadata({
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "http://localhost:3000";
   const hostCtx = await getPublicHostContext();
   if (isTalentProfilePlatformHost(hostCtx.kind) && preview !== "1") {
-    const siteResolved = await resolvePlatformTalentSiteForProfile(profileCode, {
-      previewDraft: preview === "draft",
-    });
+    const siteResolved = await resolvePlatformTalentSiteForProfile(profileCode);
     if (siteResolved.kind === "render") {
       const title = siteResolved.snapshot.fields.title;
       const description =
@@ -1380,9 +1378,7 @@ export default async function PublicTalentProfilePage({
 
   const platformHost = isTalentProfilePlatformHost(hostCtx.kind);
   if (platformHost && preview !== "1") {
-    const siteResolved = await resolvePlatformTalentSiteForProfile(profileCode, {
-      previewDraft: preview === "draft",
-    });
+    const siteResolved = await resolvePlatformTalentSiteForProfile(profileCode);
     if (siteResolved.kind === "not_found") {
       notFound();
     }
