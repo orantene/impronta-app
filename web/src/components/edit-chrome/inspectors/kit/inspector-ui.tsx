@@ -76,7 +76,7 @@ export function InspectorSection({
   children,
   className,
 }: {
-  title: string;
+  title: ReactNode;
   description?: string;
   children: ReactNode;
   className?: string;

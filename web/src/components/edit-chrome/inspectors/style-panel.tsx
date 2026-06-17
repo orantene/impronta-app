@@ -75,7 +75,12 @@ import { useComponentDefaultsPreview } from "../component-defaults-bridge";
 import { InstanceOverridesPanel } from "./instance-overrides-panel";
 import { InstanceVariantPicker } from "./instance-variant-picker";
 import { SectionStyleMockupPanel } from "./section-style-mockup-panel";
-import { InspectorGroup } from "./kit";
+import {
+  InspectorGroup,
+  LockBadge,
+  LockedFieldsBanner,
+  styleLockedPathsOf,
+} from "./kit";
 import {
   INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL,
   INSPECTOR_HELP_TEXT_CLASS as HINT,
@@ -83,6 +88,7 @@ import {
   InspectorBody,
   InspectorOverrideBadge,
 } from "./kit/inspector-ui";
+import { stripLockedKeysFromPatch } from "@/lib/site-admin/builder-node/prop-lock";
 import { getStyleOverrideDevice } from "./responsive-field-state";
 import { Swatch } from "../kit/swatch";
 import { CHROME } from "../kit/tokens";
@@ -1948,6 +1954,7 @@ export function StylePanel({
   const {
     pageId,
     patchBuilderNodeProps,
+    reportMutationError,
     detachComponentInstance,
     undo,
     redo,
@@ -2036,6 +2043,12 @@ export function StylePanel({
     // already excludes the structural `section` shell, so just return it.
     return node ?? null;
   }, [builderTree, selectedBuilderNodeId]);
+  // INS-1 — per-prop lock affordance. A locked `style.*` path renders a
+  // Style-tab banner mirroring the Content tab; the patch chokepoint above
+  // strips the locked leaf. Shared kit scope filter, no surfaceKind branch.
+  const styleLockedPaths = styleLockedPathsOf(
+    selectedStandaloneStyleNode?.lockedProps,
+  );
   // Linked-component instance marker (Living Components Phase 2) — present only
   // on a container tagged instanceOf. Drives the Detach affordance.
   const selectedInstanceComponentId =
@@ -3542,12 +3555,29 @@ export function StylePanel({
     if (!selectedStandaloneStyleNode) return;
     const nodeId = selectedStandaloneStyleNode.id;
     const label = standaloneNodeLabel(selectedStandaloneStyleNode);
+    // INS-1 — honor admin per-prop locks in the Style tab, mirroring the Content
+    // tab's commitPatch. `patchBuilderNodeProps` (and the whole-tree
+    // `enforceLockedPropsOnTree` backstop) re-strip server-trustedly; this client
+    // mirror gives instant feedback + a clear "locked" message instead of a
+    // silent no-op when an operator drags a locked color/spacing control. Nested
+    // locks (`style.textColor`) restore just that leaf and let the rest through.
+    const guarded = stripLockedKeysFromPatch(
+      patch,
+      selectedStandaloneStyleNode.props as Record<string, unknown>,
+      selectedStandaloneStyleNode.lockedProps,
+    );
+    if (Object.keys(guarded).length === 0 && Object.keys(patch).length > 0) {
+      reportMutationError(
+        "That style is locked by the platform admin and can’t be changed.",
+      );
+      return;
+    }
     standalonePatchChainRef.current = standalonePatchChainRef.current
       .catch(() => {
         // Keep the queue alive after a failed save attempt.
       })
       .then(async () => {
-        const result = await patchBuilderNodeProps(nodeId, patch);
+        const result = await patchBuilderNodeProps(nodeId, guarded);
         if (!result.ok) return;
         recordNodeAction(`Updated ${label}`);
       });
@@ -4015,6 +4045,9 @@ export function StylePanel({
   return (
     <InspectorBody>
       {/* Viewport scope is shown in the dock InspectorViewportRail (synced to canvas device). */}
+      {selectedStandaloneStyleNode ? (
+        <LockedFieldsBanner paths={styleLockedPaths} noun="styles" />
+      ) : null}
       {selectedNodeRole && selectedNodeLabel ? (
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
@@ -5419,9 +5452,12 @@ export function StylePanel({
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <div className={SECTION_TITLE}>Selected block</div>
-            <span className={INHERIT_HINT}>
-              {standaloneNodeLabel(selectedStandaloneStyleNode)}
-            </span>
+            <div className="flex items-center gap-2">
+              {styleLockedPaths.length > 0 ? <LockBadge /> : null}
+              <span className={INHERIT_HINT}>
+                {standaloneNodeLabel(selectedStandaloneStyleNode)}
+              </span>
+            </div>
           </div>
           <div
             className="flex flex-col gap-3"

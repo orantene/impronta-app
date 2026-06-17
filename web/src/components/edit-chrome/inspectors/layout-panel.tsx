@@ -73,6 +73,8 @@ import {
 import { InspectorResetFooter } from "./kit/inspector-mockup-primitives";
 import { InspectorLayoutPresetCards } from "./kit/inspector-mockup-primitives";
 import { InspectorResponsiveSettings } from "./kit/inspector-responsive-settings";
+import { LockBadge, LockedFieldsBanner, layoutLockedPathsOf } from "./kit";
+import { stripLockedKeysFromPatch } from "@/lib/site-admin/builder-node/prop-lock";
 import {
   countPresentationOverrides,
   type ViewportDevice,
@@ -1958,11 +1960,33 @@ export function LayoutPanel({
         : [],
     [selectedBuilderNode],
   );
+  // INS-1 — per-prop lock affordance for the Layout tab. A locked layout path
+  // (`layout`, `gap`, `columns`, `style.responsive`, …) renders a banner +
+  // disabled controls; this chokepoint strips the locked leaf client-side,
+  // mirroring the Content tab. `patchBuilderNodeProps` + the whole-tree
+  // `enforceLockedPropsOnTree` backstop re-strip server-trustedly.
+  // The Layout tab governs structural props (layout/gap/columns/ratio/…) and
+  // responsive overrides; the Data tab owns binding/field-binding/visibility.
+  // Surface only the layout-relevant locks here (shared scope filter).
+  const layoutLockedPaths = layoutLockedPathsOf(selectedBuilderNode?.lockedProps);
   const commitBuilderNodePatch = async (
     nodeId: string,
     patch: Record<string, unknown>,
   ) => {
-    const result = await patchBuilderNodeProps(nodeId, patch);
+    const guarded = selectedBuilderNode
+      ? stripLockedKeysFromPatch(
+          patch,
+          selectedBuilderNode.props as Record<string, unknown>,
+          selectedBuilderNode.lockedProps,
+        )
+      : patch;
+    if (Object.keys(guarded).length === 0 && Object.keys(patch).length > 0) {
+      reportMutationError(
+        "That layout setting is locked by the platform admin and can’t be changed.",
+      );
+      return;
+    }
+    const result = await patchBuilderNodeProps(nodeId, guarded);
     if (!result.ok && result.error) {
       reportMutationError(result.error);
     }
@@ -2051,13 +2075,19 @@ export function LayoutPanel({
           />
         </>
       ) : null}
+      {selectedBuilderNode && layoutLockedPaths.length > 0 ? (
+        <LockedFieldsBanner paths={layoutLockedPaths} noun="layout settings" />
+      ) : null}
       {selectedBuilderNode ? (
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <div className={SECTION_TITLE}>Selected node</div>
-            <span className={INHERIT_HINT}>
-              {nodeKindLabel(selectedBuilderNode.kind)}
-            </span>
+            <div className="flex items-center gap-2">
+              {layoutLockedPaths.length > 0 ? <LockBadge /> : null}
+              <span className={INHERIT_HINT}>
+                {nodeKindLabel(selectedBuilderNode.kind)}
+              </span>
+            </div>
           </div>
           <div className="flex flex-col gap-3">
             <LayoutHealthCard

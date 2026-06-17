@@ -1198,7 +1198,12 @@ export function InspectorDock() {
                 {saveError}
               </div>
             ) : null}
-            {selectedStandaloneBuilderNode &&
+            {/* INS-1 — the Style / Layout / Data tabs now self-badge their own
+                locked fields with a scoped LockedFieldsBanner, so this dock-level
+                prose banner is demoted to the Content tab (which has no per-tab
+                banner of its own). Avoids a duplicate banner on the other tabs. */}
+            {tab === "content" &&
+            selectedStandaloneBuilderNode &&
             selectedStandaloneBuilderNodeLockedProps.length > 0 ? (
               <div
                 role="note"
