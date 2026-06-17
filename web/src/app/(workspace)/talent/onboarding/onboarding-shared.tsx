@@ -49,12 +49,33 @@ export const LANGUAGE_LEVELS = [
   { value: "native", label: "Native" },
 ] as const;
 
+// Canonical gender vocabulary — MUST stay in sync with the platform's source of
+// truth: `GENDER_OPTIONS` in
+// `components/admin/shell/internal/state/fixtures.ts` (the `GenderOption` union
+// in `state/types.ts`), which the full profile editor uses, and the
+// `identity.gender` field-engine definition whose options ARE the stored column
+// values (see `lib/talent/identity-field-values-catalog.ts`). The `value` here
+// is the stored value, so a talent's saved gender (e.g. "Woman") round-trips and
+// displays correctly. The earlier short list (female/male/non-binary/other) did
+// not match the stored vocab, so a set gender rendered as the empty placeholder.
+// The leading empty entry is the unset placeholder ("Select gender" → saved as
+// null via nullIfEmpty); "Prefer not to say" is a distinct, explicit choice.
 export const GENDER_OPTIONS = [
-  { value: "", label: "Prefer not to say" },
-  { value: "female", label: "Female" },
-  { value: "male", label: "Male" },
-  { value: "non-binary", label: "Non-binary" },
-  { value: "other", label: "Other" },
+  { value: "", label: "Select gender" },
+  { value: "Woman", label: "Woman" },
+  { value: "Man", label: "Man" },
+  { value: "Non-binary", label: "Non-binary" },
+  { value: "Trans woman", label: "Trans woman" },
+  { value: "Trans man", label: "Trans man" },
+  { value: "Transgender", label: "Transgender" },
+  { value: "Genderfluid", label: "Genderfluid" },
+  { value: "Genderqueer", label: "Genderqueer" },
+  { value: "Agender", label: "Agender" },
+  { value: "Bigender", label: "Bigender" },
+  { value: "Two-Spirit", label: "Two-Spirit" },
+  { value: "Intersex", label: "Intersex" },
+  { value: "Prefer to self-describe", label: "Prefer to self-describe" },
+  { value: "Prefer not to say", label: "Prefer not to say" },
 ] as const;
 
 export type RateRow = { typeId: string; amount: number; currency: string; unit: string };
