@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } 
 import {
   dismissCoachmark,
   isCoachmarkDismissed,
+  nextUndismissedCoachmark,
   type CoachmarkId,
 } from "./builder-coachmarks";
 import { CHROME, CHROME_SHADOWS } from "./kit/tokens";
@@ -12,17 +13,28 @@ import { CHROME, CHROME_SHADOWS } from "./kit/tokens";
 /**
  * One-shot contextual tip anchored near a builder affordance.
  * Persists dismissal per tenant via `builder-coachmarks.ts`.
+ *
+ * When `sequence` is provided the tip is only shown if `id` is the
+ * first undismissed entry in that sequence — enforcing one-at-a-time
+ * display so the canvas is never smothered by multiple simultaneous tips.
  */
 export function BuilderCoachmarkTip({
   id,
   message,
   placement = "below",
+  sequence,
   wrapperStyle,
   children,
 }: {
   id: CoachmarkId;
   message: string;
   placement?: "below" | "above";
+  /**
+   * When provided, this tip only becomes visible once `id` is the first
+   * undismissed entry in `sequence`. Allows groups of coachmarks to surface
+   * one-at-a-time without coupling tip components to each other.
+   */
+  sequence?: ReadonlyArray<CoachmarkId>;
   /** Optional layout on the outer wrapper (e.g. flex: 1 in a tab bar). */
   wrapperStyle?: CSSProperties;
   children: ReactNode;
@@ -30,8 +42,11 @@ export function BuilderCoachmarkTip({
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    if (!isCoachmarkDismissed(id)) setVisible(true);
-  }, [id]);
+    if (isCoachmarkDismissed(id)) return;
+    // If a sequence is provided, only show when this id is the active one.
+    if (sequence && nextUndismissedCoachmark(sequence) !== id) return;
+    setVisible(true);
+  }, [id, sequence]);
 
   const dismiss = useCallback(() => {
     dismissCoachmark(id);
