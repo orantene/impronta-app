@@ -38,7 +38,7 @@ import {
   InspectorNotice,
   LockBadge,
   LockedFieldsBanner,
-  useLockedFields,
+  dataLockedPathsOf,
 } from "./kit";
 import { InspectorPlaceholderField } from "./kit/inspector-mockup-primitives";
 import { KIT } from "./kit/tokens";
@@ -147,18 +147,6 @@ function useDataPropLockGuard(
   };
 }
 
-/** Filter to the Data-tab dot-paths this tab governs (for the locked banner). */
-function filterDataLockedPaths(lockedPaths: readonly string[]): string[] {
-  return lockedPaths.filter(
-    (p) =>
-      p === "dataBinding" ||
-      p === "fieldBindings" ||
-      p === "visibilityCondition" ||
-      p.startsWith("dataBinding.") ||
-      p.startsWith("fieldBindings."),
-  );
-}
-
 export function DataPanel(props: DataPanelProps) {
   const guardedPatch = useDataPropLockGuard(
     props.selectedBuilderNode,
@@ -176,8 +164,7 @@ function DataPanelInner({
   onMutationError,
 }: DataPanelProps) {
   const { workspacePlan, device } = useEditContext();
-  const dataLocks = useLockedFields(selectedBuilderNode);
-  const lockedDataPaths = filterDataLockedPaths(dataLocks.lockedPaths);
+  const lockedDataPaths = dataLockedPathsOf(selectedBuilderNode?.lockedProps);
   const collections = useWorkspaceCollections();
   const persistedBinding = useMemo(
     () =>

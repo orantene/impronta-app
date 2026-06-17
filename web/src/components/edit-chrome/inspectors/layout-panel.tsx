@@ -73,7 +73,7 @@ import {
 import { InspectorResetFooter } from "./kit/inspector-mockup-primitives";
 import { InspectorLayoutPresetCards } from "./kit/inspector-mockup-primitives";
 import { InspectorResponsiveSettings } from "./kit/inspector-responsive-settings";
-import { LockBadge, LockedFieldsBanner, useLockedFields } from "./kit";
+import { LockBadge, LockedFieldsBanner, layoutLockedPathsOf } from "./kit";
 import { stripLockedKeysFromPatch } from "@/lib/site-admin/builder-node/prop-lock";
 import {
   countPresentationOverrides,
@@ -1929,19 +1929,10 @@ export function LayoutPanel({
   // disabled controls; this chokepoint strips the locked leaf client-side,
   // mirroring the Content tab. `patchBuilderNodeProps` + the whole-tree
   // `enforceLockedPropsOnTree` backstop re-strip server-trustedly.
-  const layoutLocks = useLockedFields(selectedBuilderNode);
   // The Layout tab governs structural props (layout/gap/columns/ratio/…) and
-  // responsive visibility; the Data tab owns binding/field-binding/visibility
-  // paths and the Style tab owns colour/typography under `style`. Surface only
-  // the layout-relevant locks in this tab's banner.
-  const layoutLockedPaths = layoutLocks.lockedPaths.filter(
-    (p) =>
-      p !== "dataBinding" &&
-      p !== "fieldBindings" &&
-      p !== "visibilityCondition" &&
-      !p.startsWith("dataBinding.") &&
-      !p.startsWith("fieldBindings."),
-  );
+  // responsive overrides; the Data tab owns binding/field-binding/visibility.
+  // Surface only the layout-relevant locks here (shared scope filter).
+  const layoutLockedPaths = layoutLockedPathsOf(selectedBuilderNode?.lockedProps);
   const commitBuilderNodePatch = async (
     nodeId: string,
     patch: Record<string, unknown>,

@@ -167,7 +167,7 @@ export function LockedFieldWrapper({
   locked: boolean;
   /** Badge label (e.g. "Locked", "Text color locked"). Defaults to "Locked". */
   label?: string;
-  children: ReactNode;
+  children?: ReactNode;
   style?: CSSProperties;
 }) {
   if (!locked) return <>{children}</>;

@@ -79,7 +79,7 @@ import {
   InspectorGroup,
   LockBadge,
   LockedFieldsBanner,
-  useLockedFields,
+  styleLockedPathsOf,
 } from "./kit";
 import {
   INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL,
@@ -2043,15 +2043,11 @@ export function StylePanel({
     // already excludes the structural `section` shell, so just return it.
     return node ?? null;
   }, [builderTree, selectedBuilderNodeId]);
-  // INS-1 — per-prop lock affordance. A locked `style.*` (or root) path renders
-  // a Style-tab banner mirroring the Content tab; the patch chokepoint above
-  // strips the locked leaf. Shared kit hook, no surfaceKind branch.
-  const styleLocks = useLockedFields(selectedStandaloneStyleNode);
-  // The Style tab governs the `style` object (+ a few root-level look props like
-  // hero overlay/mood). Surface those locked paths in the banner; data/layout
-  // paths are owned by their own tabs.
-  const styleLockedPaths = styleLocks.lockedPaths.filter(
-    (p) => p === "style" || p.startsWith("style."),
+  // INS-1 — per-prop lock affordance. A locked `style.*` path renders a
+  // Style-tab banner mirroring the Content tab; the patch chokepoint above
+  // strips the locked leaf. Shared kit scope filter, no surfaceKind branch.
+  const styleLockedPaths = styleLockedPathsOf(
+    selectedStandaloneStyleNode?.lockedProps,
   );
   // Linked-component instance marker (Living Components Phase 2) — present only
   // on a container tagged instanceOf. Drives the Detach affordance.

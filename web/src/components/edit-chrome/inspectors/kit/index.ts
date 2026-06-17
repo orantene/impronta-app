@@ -31,6 +31,13 @@ export {
   type LockableInspectorNode,
 } from "./locked-fields";
 export {
+  isDataLockPath,
+  isStyleLockPath,
+  styleLockedPathsOf,
+  dataLockedPathsOf,
+  layoutLockedPathsOf,
+} from "./inspector-lock-scopes";
+export {
   InspectorBody,
   InspectorSection,
   InspectorCard,
