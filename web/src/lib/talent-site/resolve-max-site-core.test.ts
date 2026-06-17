@@ -24,6 +24,13 @@ function page(partial: Partial<MaxSitePageRow> & { slug: string }): MaxSitePageR
     sortOrder: partial.sortOrder ?? 0,
     blocks: partial.blocks ?? [],
     theme: partial.theme ?? {},
+    metaDescription: partial.metaDescription ?? null,
+    ogTitle: partial.ogTitle ?? null,
+    ogDescription: partial.ogDescription ?? null,
+    ogImageUrl: partial.ogImageUrl ?? null,
+    canonicalUrl: partial.canonicalUrl ?? null,
+    noindex: partial.noindex ?? null,
+    jsonLd: partial.jsonLd ?? null,
     ...partial,
   };
 }

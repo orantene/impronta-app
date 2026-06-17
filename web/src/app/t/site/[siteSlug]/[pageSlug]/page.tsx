@@ -16,12 +16,22 @@ import { notFound } from "next/navigation";
 
 import { getRequestLocale } from "@/i18n/request-locale";
 import { getPublicPathPrefix } from "@/lib/saas/scope";
+import { publicSiteMetadataBase } from "@/lib/seo/locale-alternates";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { renderTalentMaxSite } from "@/lib/talent-site/server/render-max-site";
+import {
+  maxSiteJsonLdString,
+  maxSiteSeoToMetadata,
+} from "@/lib/talent-site/server/site-metadata";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 export const revalidate = 0;
+
+/** English (unprefixed) path of this inner page — feeds shared hreflang. */
+function innerPath(siteSlug: string, pageSlug: string): string {
+  return `/t/site/${encodeURIComponent(siteSlug)}/${encodeURIComponent(pageSlug)}`;
+}
 
 export async function generateMetadata({
   params,
@@ -34,19 +44,20 @@ export async function generateMetadata({
   const { siteSlug, pageSlug } = await params;
   const { preview } = await searchParams;
   const locale = await getRequestLocale();
+  const path = innerPath(siteSlug, pageSlug);
   const result = await renderTalentMaxSite({
     siteSlug,
     pageSlug,
     locale,
     previewDraft: preview === "draft",
+    canonicalOrigin: publicSiteMetadataBase().origin,
+    canonicalPath: path,
   });
   if (result.kind !== "render") return { title: "Not found" };
-  const { seo } = result;
-  return {
-    title: seo.title,
-    ...(seo.description ? { description: seo.description } : {}),
-    ...(seo.noindex ? { robots: { index: false, follow: false } } : {}),
-  };
+  return maxSiteSeoToMetadata(result.seo, {
+    localePathWithoutLocale: path,
+    locale,
+  });
 }
 
 export default async function TalentMaxSiteInnerPage({
@@ -70,7 +81,20 @@ export default async function TalentMaxSiteInnerPage({
     locale,
     publicPathPrefix,
     previewDraft: preview === "draft",
+    canonicalOrigin: publicSiteMetadataBase().origin,
+    canonicalPath: innerPath(siteSlug, pageSlug),
   });
   if (result.kind !== "render") notFound();
-  return result.node;
+  const jsonLd = maxSiteJsonLdString(result.seo);
+  return (
+    <>
+      {jsonLd ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: jsonLd }}
+        />
+      ) : null}
+      {result.node}
+    </>
+  );
 }
