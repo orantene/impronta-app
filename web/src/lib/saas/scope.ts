@@ -426,6 +426,10 @@ export type PublicHostContext =
   | { kind: "hub"; tenantId: string; hostname: string | null }
   | { kind: "app"; tenantId: null; hostname: string | null }
   | { kind: "marketing"; tenantId: null; hostname: string | null }
+  // Talent custom-domain host — serves a talent's published Max site. Not
+  // tenant-scoped (tenantId stays null); the talent_profile_id rides in a
+  // dedicated header consumed by the host render route, not here.
+  | { kind: "talent_site"; tenantId: null; hostname: string | null }
   | { kind: "unknown"; tenantId: null; hostname: null };
 
 /**
@@ -457,6 +461,8 @@ export async function getPublicHostContext(): Promise<PublicHostContext> {
         return { kind: "app", tenantId: null, hostname };
       case "marketing":
         return { kind: "marketing", tenantId: null, hostname };
+      case "talent_site":
+        return { kind: "talent_site", tenantId: null, hostname };
       default:
         return { kind: "unknown", tenantId: null, hostname: null };
     }
