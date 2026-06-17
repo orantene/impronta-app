@@ -17,9 +17,16 @@
  * works without the slot system's `cms_pages.version` machinery.
  */
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 import { requireStaff } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas/scope";
 import { enforceLockedPropsOnTree } from "@/lib/site-admin/builder-node/prop-lock";
+import { parseBuilderTreeFromSnapshot } from "@/lib/site-admin/edit-mode/composition-revision-snapshot";
+import {
+  buildFreeformRevisionSnapshot,
+  nextFreeformRevisionVersion,
+} from "./freeform-revision-snapshot";
 import type { CmsFreeformPageRow } from "./cms-page-adapter-core";
 
 // STYLE-1 — the style registry columns are selected/written through a graceful
@@ -29,6 +36,68 @@ import type { CmsFreeformPageRow } from "./cms-page-adapter-core";
 const BASE_ROW_COLUMNS =
   "id, slug, title, status, blocks, is_freeform, version, published_at, updated_at";
 const ROW_COLUMNS = `${BASE_ROW_COLUMNS}, style_classes, style_presets`;
+
+/**
+ * REV-1 — resolve the next `cms_page_revisions.version` for a freeform page: max
+ * existing version + 1 (defaults to 1 for the first revision). Best-effort — a
+ * read failure falls back to 1, which never blocks a save/publish (the revision
+ * insert is itself best-effort).
+ */
+async function nextCmsRevisionVersion(
+  supabase: SupabaseClient,
+  tenantId: string,
+  pageId: string,
+): Promise<number> {
+  const { data } = await supabase
+    .from("cms_page_revisions")
+    .select("version")
+    .eq("tenant_id", tenantId)
+    .eq("page_id", pageId)
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ version: number }>();
+  return nextFreeformRevisionVersion(data?.version);
+}
+
+/**
+ * REV-1 — write a `cms_page_revisions` row capturing a freeform page's `blocks`
+ * tree. Best-effort: a failure is swallowed (the page is already saved/published
+ * once the row commits), mirroring `writeShellRevision` for the agency shell.
+ * The snapshot carries the freeform tree under the shared `builderTree` key so
+ * the existing revisions-drawer / diff / `parseBuilderTreeFromSnapshot` read it.
+ * Uses the caller's tenant-scoped client (cms_page_revisions RLS backs it).
+ */
+async function writeCmsFreeformRevision(input: {
+  supabase: SupabaseClient;
+  tenantId: string;
+  pageId: string;
+  title: string;
+  blocks: unknown;
+  kind: "draft" | "published" | "rollback";
+  actorProfileId: string | null;
+}): Promise<void> {
+  try {
+    const version = await nextCmsRevisionVersion(
+      input.supabase,
+      input.tenantId,
+      input.pageId,
+    );
+    await input.supabase.from("cms_page_revisions").insert({
+      tenant_id: input.tenantId,
+      page_id: input.pageId,
+      kind: input.kind,
+      version,
+      snapshot: buildFreeformRevisionSnapshot({
+        title: input.title,
+        blocks: input.blocks,
+      }),
+      created_by: input.actorProfileId,
+    });
+  } catch {
+    // Non-fatal: the page is already persisted; a missing revision row only
+    // means this checkpoint isn't restorable, never that the save/publish failed.
+  }
+}
 
 /** Load a freeform cms_pages row by (locale, slug) within the caller's tenant.
  *  cms_pages is unique on (tenant_id, locale, slug); filtering by locale is
@@ -125,8 +194,21 @@ export async function saveCmsFreeformPage(input: {
       .maybeSingle()
       .returns<{ updated_at: string }>();
 
+  // REV-1 — checkpoint the saved freeform tree as a restorable draft revision.
+  // Best-effort, never blocks the save result.
+  const checkpoint = (updatedAt: string) =>
+    writeCmsFreeformRevision({
+      supabase: auth.supabase,
+      tenantId: scope.tenantId,
+      pageId: input.pageId,
+      title: (typeof input.patch.title === "string" && input.patch.title) || "Page",
+      blocks: enforcedBlocks,
+      kind: "draft",
+      actorProfileId: auth.user.id,
+    }).then(() => updatedAt);
+
   const { data, error } = await runUpdate({ ...patch, ...stylePatch });
-  if (!error && data) return { ok: true, updatedAt: data.updated_at };
+  if (!error && data) return { ok: true, updatedAt: await checkpoint(data.updated_at) };
 
   // STYLE-1 graceful fallback — if the style columns don't exist yet (migration
   // unapplied) the update errors. Retry WITHOUT them so the tree still saves; the
@@ -134,7 +216,7 @@ export async function saveCmsFreeformPage(input: {
   if (Object.keys(stylePatch).length > 0) {
     const retry = await runUpdate(patch);
     if (!retry.error && retry.data) {
-      return { ok: true, updatedAt: retry.data.updated_at };
+      return { ok: true, updatedAt: await checkpoint(retry.data.updated_at) };
     }
     return { ok: false, error: retry.error?.message ?? "Could not save the page." };
   }
@@ -160,11 +242,101 @@ export async function publishCmsFreeformPage(input: {
     .eq("id", input.pageId)
     .eq("tenant_id", scope.tenantId)
     .eq("is_freeform", true)
-    .select("published_at, updated_at")
+    .select("title, blocks, published_at, updated_at")
     .maybeSingle()
-    .returns<{ published_at: string; updated_at: string }>();
+    .returns<{ title: string; blocks: unknown; published_at: string; updated_at: string }>();
   if (error || !data) {
     return { ok: false, error: error?.message ?? "Could not publish the page." };
   }
+
+  // REV-1 — checkpoint the just-published freeform tree as a restorable
+  // `cms_page_revisions` row (kind=published). Best-effort, never blocks.
+  await writeCmsFreeformRevision({
+    supabase: auth.supabase,
+    tenantId: scope.tenantId,
+    pageId: input.pageId,
+    title: data.title ?? "Page",
+    blocks: data.blocks,
+    kind: "published",
+    actorProfileId: auth.user.id,
+  });
+
   return { ok: true, publishedAt: data.published_at ?? now, updatedAt: data.updated_at };
+}
+
+/**
+ * REV-1 — restore a saved freeform revision's `builderTree` back onto the page's
+ * live `cms_pages.blocks`. Mirrors `restoreSiteShellRevisionAction`:
+ *   - reads the revision's `builderTree` snapshot (scoped to tenant + page),
+ *   - re-asserts admin prop-locks (C1 chokepoint) against the current blocks so
+ *     restoring an old/pre-lock revision can't drop an admin lock,
+ *   - writes the restored tree back to `blocks` (status flips to draft so the
+ *     operator reviews + republishes), and
+ *   - mints a fresh `kind='rollback'` revision so the audit trail is complete.
+ *
+ * Auth = staff of the active tenant (same gate as save/publish); cms_pages RLS
+ * independently backs every write.
+ */
+export async function restoreCmsFreeformRevisionAction(input: {
+  pageId: string;
+  revisionId: string;
+}): Promise<{ ok: true; updatedAt: string } | { ok: false; error: string }> {
+  const auth = await requireStaff();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const scope = await requireTenantScope().catch(() => null);
+  if (!scope) return { ok: false, error: "Select an agency workspace first." };
+
+  // 1. Read the revision's snapshot (scoped to tenant + page).
+  const { data: rev, error: revErr } = await auth.supabase
+    .from("cms_page_revisions")
+    .select("snapshot")
+    .eq("id", input.revisionId)
+    .eq("tenant_id", scope.tenantId)
+    .eq("page_id", input.pageId)
+    .maybeSingle()
+    .returns<{ snapshot: unknown }>();
+  if (revErr || !rev) {
+    return { ok: false, error: revErr?.message ?? "Page revision not found." };
+  }
+  const restoredTree = parseBuilderTreeFromSnapshot(rev.snapshot) ?? [];
+
+  // 2. Re-assert current locks onto the restored content (C1) against the live
+  //    blocks, so restoring a pre-lock/tampered revision can't drop an admin lock.
+  const { data: current } = await auth.supabase
+    .from("cms_pages")
+    .select("blocks, title")
+    .eq("id", input.pageId)
+    .eq("tenant_id", scope.tenantId)
+    .eq("is_freeform", true)
+    .maybeSingle()
+    .returns<{ blocks: unknown; title: string }>();
+  const enforced = enforceLockedPropsOnTree(restoredTree, current?.blocks);
+
+  // 3. Write the restored tree back to blocks (status → draft for review).
+  const nowIso = new Date().toISOString();
+  const { data, error } = await auth.supabase
+    .from("cms_pages")
+    .update({ blocks: enforced, status: "draft", updated_at: nowIso })
+    .eq("id", input.pageId)
+    .eq("tenant_id", scope.tenantId)
+    .eq("is_freeform", true)
+    .select("updated_at")
+    .maybeSingle()
+    .returns<{ updated_at: string }>();
+  if (error || !data) {
+    return { ok: false, error: error?.message ?? "Could not restore the page revision." };
+  }
+
+  // 4. Mint a rollback revision for the audit trail (best-effort).
+  await writeCmsFreeformRevision({
+    supabase: auth.supabase,
+    tenantId: scope.tenantId,
+    pageId: input.pageId,
+    title: current?.title ?? "Page",
+    blocks: enforced,
+    kind: "rollback",
+    actorProfileId: auth.user.id,
+  });
+
+  return { ok: true, updatedAt: data.updated_at };
 }

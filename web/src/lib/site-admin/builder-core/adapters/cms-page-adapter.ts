@@ -22,6 +22,7 @@ import {
   loadCmsFreeformPage,
   saveCmsFreeformPage,
   publishCmsFreeformPage,
+  restoreCmsFreeformRevisionAction,
 } from "./cms-page-actions";
 
 export {
@@ -37,6 +38,13 @@ const productionActions: CmsPageAdapterActions = {
   loadPage: loadCmsFreeformPage,
   savePage: saveCmsFreeformPage,
   publishPage: publishCmsFreeformPage,
+  // REV-1 — restore a saved freeform revision's tree onto the live page
+  // (re-asserting admin locks). The core factory already supported the slot
+  // (cms-page-adapter-core.ts) but the production binding omitted it — that gap
+  // meant non-homepage freeform pages silently couldn't restore. Binding it
+  // makes the adapter expose `restoreRevision`, so the shared RevisionsDrawer
+  // works on cms freeform pages exactly like the homepage + site shell.
+  restoreRevision: restoreCmsFreeformRevisionAction,
 };
 
 /** Create a cms_page freeform adapter bound to the production actions. */

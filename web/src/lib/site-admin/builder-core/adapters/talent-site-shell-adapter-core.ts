@@ -28,6 +28,7 @@ import type {
   SaveDraftResult,
   PublishResult,
 } from "@/lib/site-admin/edit-mode/composition-actions";
+import type { RevisionRestoreResult } from "@/lib/site-admin/edit-mode/revisions-actions";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 
 import type {
@@ -35,6 +36,7 @@ import type {
   BuilderSurfaceContext,
   BuilderSurfacePublishInput,
   BuilderSurfaceSaveDraftInput,
+  BuilderSurfaceRestoreInput,
 } from "../surface-adapter";
 import { assertNoLegacyBuilderWrite } from "../legacy-write-guard";
 import {
@@ -98,6 +100,18 @@ export interface TalentSiteShellAdapterActions {
     | { ok: true; publishedAt: string; updatedAt: string }
     | { ok: false; error: string }
   >;
+  /**
+   * REV-1 — OPTIONAL: restore a `talent_site_revisions` snapshot's freeform
+   * `shell_tree` back onto the talent site's DRAFT shell. Re-asserts admin
+   * prop-locks (C1 chokepoint) on the restored tree. Returns the new
+   * `updated_at`. A shell adapter built WITHOUT this omits `restoreRevision`
+   * (call-sites guard on its presence), exactly like the agency `site_shell` /
+   * `cms_page` / `talent_page` model. Keys off `talentProfileId`.
+   */
+  restoreRevision?: (input: {
+    talentProfileId: string;
+    revisionId: string;
+  }) => Promise<{ ok: true; updatedAt: string } | { ok: false; error: string }>;
 }
 
 /** Build a freeform composition from the talent shell row. Pure — no I/O. */
@@ -260,5 +274,39 @@ export function createTalentSiteShellAdapter(
         publishedAt: result.publishedAt,
       };
     },
+
+    // REV-1 — restore a saved shell revision's freeform tree onto the draft.
+    // Only present when the action surface supplies `restoreRevision`
+    // (production binds it; the spy test omits it to prove a no-revision shell
+    // still type-checks). Mirrors the agency `site_shell` adapter; keys off the
+    // captured `talentProfileId` (falling back to `ctx.pageId`, as save does).
+    ...(actions.restoreRevision
+      ? {
+          async restoreRevision(
+            ctx: BuilderSurfaceContext,
+            input: BuilderSurfaceRestoreInput,
+          ): Promise<RevisionRestoreResult> {
+            guard("talent_sites");
+            const talentProfileId = captured || ctx.pageId || "";
+            if (!talentProfileId) {
+              return {
+                ok: false,
+                error: "talent_site_shell restoreRevision: talentProfileId is required.",
+              };
+            }
+            const result = await actions.restoreRevision!({
+              talentProfileId,
+              revisionId: input.revisionId,
+            });
+            if (!result.ok) return { ok: false, error: result.error };
+            return {
+              ok: true,
+              pageVersion: Math.floor(
+                new Date(result.updatedAt).getTime() / 1000,
+              ),
+            };
+          },
+        }
+      : {}),
   };
 }
