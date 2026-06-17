@@ -24,6 +24,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import {
   resolveBookingCommissions,
+  reconcileBookingLanes,
   CommissionResolutionError,
   type PaymentMethod,
   type PlatformCommissionConfig,
@@ -227,6 +228,30 @@ export async function persistBookingCommissionSnapshot(
     const code = err instanceof CommissionResolutionError ? err.code : "unknown";
     logServerError(`commission-engine/resolve_failed[${code}][booking=${bookingId}]`, err);
     return { ok: false, reason: "resolver_failed", detail: code };
+  }
+
+  // 2b. Booking-level lane reconciliation (P1 hardening — multi-talent drift).
+  //     Each row already balances per the per-ROW invariant, so summing N rows
+  //     is exact and `driftCents` is 0 for the current resolver. This is a
+  //     DEFENSIVE assertion: if a future change ever leaves the booking-level
+  //     Σ(lanes) off from Σ(gross_charged) (cents silently stuck on the platform
+  //     balance), we log it loudly AND apply a single correcting cent adjustment
+  //     to the platform fee of the largest-gross participant so the persisted
+  //     snapshot still sums exactly to what the client was charged.
+  const recon = reconcileBookingLanes(snapshots);
+  if (recon.driftCents !== 0 && recon.adjustParticipantId) {
+    logServerError(
+      `commission-engine/lane_drift[booking=${bookingId}]`,
+      new Error(
+        `booking lanes drifted ${recon.driftCents} cents (laneTotal=${recon.laneTotalCents} grossCharged=${recon.grossChargedTotalCents}) — correcting platform_fee on participant ${recon.adjustParticipantId}`,
+      ),
+    );
+    for (const s of snapshots) {
+      if (s.participant_id === recon.adjustParticipantId) {
+        s.platform_fee_cents += recon.driftCents;
+        break;
+      }
+    }
   }
 
   // 3. Persist via the engine RPC (atomic — N snapshot rows + (for any

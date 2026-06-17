@@ -347,6 +347,28 @@ test("charge.refunded with PI + positive refund → charge_refunded", () => {
   assert.equal(action.paymentIntentId, "pi_ref");
   assert.equal(action.refundedCents, 5000);
   assert.equal(action.chargeId, "ch_1");
+  // No enumerable refund object → no id, per-refund amount falls back to total.
+  assert.equal(action.refundId, null);
+  assert.equal(action.refundAmountCents, 5000);
+});
+
+test("charge.refunded surfaces the latest Refund id + its own (non-cumulative) amount", () => {
+  // A second additive partial: cumulative amount_refunded = 3000 (1000 + 2000),
+  // but the newest refund object (re_2) only refunded its own 2000 slice. The
+  // classifier must surface re_2 + 2000, NOT the cumulative 3000 — that's the
+  // event-based idempotency key + per-refund amount the handler dedups/claws on.
+  const a = classifyStripeEvent(
+    evt("charge.refunded", {
+      id: "ch_4",
+      payment_intent: "pi_ref",
+      amount_refunded: 3000,
+      refunds: { data: [{ id: "re_2", amount: 2000 }, { id: "re_1", amount: 1000 }] },
+    }),
+  );
+  const action = expectKind(a, "charge_refunded");
+  assert.equal(action.refundedCents, 3000); // cumulative — drives full-vs-partial
+  assert.equal(action.refundId, "re_2"); // newest refund (event-based dedup key)
+  assert.equal(action.refundAmountCents, 2000); // this refund's own slice
 });
 
 test("charge.refunded without payment_intent → ignore (not a tracked top-up)", () => {

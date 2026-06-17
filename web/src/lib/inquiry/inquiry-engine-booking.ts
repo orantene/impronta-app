@@ -297,6 +297,17 @@ export async function convertToBooking(
     // skips a booking with no snapshot rows), so a snapshot failure must roll
     // the whole conversion back rather than leave a payout-less booking.
     //
+    // GUARANTEE (verified P1 money-hardening 2026-06-17): the block below is the
+    // ONLY thing standing between a snapshot failure and a payout-less booking.
+    // On `!commissionResult.ok` it MUST (a) DELETE the agency_bookings row —
+    // which CASCADE-removes booking_talent / booking_activity_log / any
+    // snapshot+transaction children — (b) restore the inquiry to its
+    // pre-convert 'approved' state at the caller's expectedVersion, and (c)
+    // return { success: false }. Do NOT weaken this to a non-fatal log: a
+    // commission-snapshot orphan = a talent who can never be paid. Orphan
+    // MONITORING (detecting a booking that somehow slipped through with no
+    // snapshot) is owned by a separate observability workstream, not here.
+    //
     // Default payment_method='card' — workspaces flip to off-platform via the
     // dedicated mark-as-cash action.
     const commissionResult = await persistBookingCommissionSnapshot(supabase, bookingId);

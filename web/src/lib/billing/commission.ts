@@ -435,3 +435,67 @@ export function balanceSummary(
     .map(([currency, cents]) => ({ currency, cents }))
     .sort((a, b) => b.cents - a.cents);
 }
+
+// ─── Booking-level lane reconciliation (P1 hardening, multi-talent drift) ─────
+
+/** One participant's persisted lanes, projected to the cents that must balance. */
+export interface BookingLaneRow {
+  participant_id: string;
+  talent_net_cents: number;
+  workspace_fee_cents: number;
+  platform_fee_cents: number;
+  gross_charged_cents: number;
+}
+
+/** Result of {@link reconcileBookingLanes}. */
+export interface BookingLaneReconciliation {
+  /** Σ(talent_net) + Σ(workspace_fee) + Σ(platform_fee) across all rows. */
+  laneTotalCents: number;
+  /** Σ(gross_charged) across all rows — what the client is actually billed. */
+  grossChargedTotalCents: number;
+  /** grossChargedTotal − laneTotal. 0 means the booking balances exactly.
+   *  A non-zero value is cents that would otherwise be unaccounted on the
+   *  platform balance (the drift this guards against). */
+  driftCents: number;
+  /** When `driftCents !== 0`, the participant row whose platform_fee_cents the
+   *  caller should adjust by `driftCents` (largest gross → most able to absorb a
+   *  cent without going negative). Null when there's no drift / no rows. */
+  adjustParticipantId: string | null;
+}
+
+/**
+ * Reconcile a booking's per-participant lanes against the total charged.
+ *
+ * Each snapshot row already satisfies the per-ROW invariant
+ * (talent_net + workspace_fee + platform_fee === gross_charged), enforced in
+ * `resolveBookingCommissions`. Summing N balanced rows is therefore exact, so
+ * for the current resolver `driftCents` is always 0 — this is a DEFENSIVE net,
+ * not a routine correction. It exists so that if a future change ever rounds a
+ * lane independently of its row's gross (breaking the per-row invariant), the
+ * booking-level drift is detected and a single correcting cent adjustment is
+ * directed to the platform fee of the largest-gross participant (where any
+ * unaccounted cents would otherwise silently sit on the platform balance) —
+ * via a largest-remainder choice of WHERE the residual lands. Pure: callers
+ * log + apply the correction.
+ */
+export function reconcileBookingLanes(rows: BookingLaneRow[]): BookingLaneReconciliation {
+  let laneTotalCents = 0;
+  let grossChargedTotalCents = 0;
+  let largestGross = -1;
+  let adjustParticipantId: string | null = null;
+  for (const r of rows) {
+    laneTotalCents += r.talent_net_cents + r.workspace_fee_cents + r.platform_fee_cents;
+    grossChargedTotalCents += r.gross_charged_cents;
+    if (r.gross_charged_cents > largestGross) {
+      largestGross = r.gross_charged_cents;
+      adjustParticipantId = r.participant_id;
+    }
+  }
+  const driftCents = grossChargedTotalCents - laneTotalCents;
+  return {
+    laneTotalCents,
+    grossChargedTotalCents,
+    driftCents,
+    adjustParticipantId: driftCents !== 0 ? adjustParticipantId : null,
+  };
+}
