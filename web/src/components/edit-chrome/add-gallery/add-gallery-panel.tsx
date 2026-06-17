@@ -19,13 +19,8 @@ import {
 } from "@/lib/site-admin/add-gallery";
 import { fetchSurfaceGalleryItems } from "@/lib/site-admin/add-gallery/gallery-fetch-action";
 import { listCatalogStructure } from "@/lib/site-admin/add-gallery/catalog-structure-actions";
-import {
-  getAddGalleryCardInfoTooltip,
-  getAddGalleryCardShortDescription,
-} from "@/lib/site-admin/add-gallery/card-display";
 import { performAddGalleryInsert } from "@/lib/site-admin/add-gallery/perform-insert";
 import { armAddGalleryDrag, clearAddGalleryDrag } from "@/lib/site-admin/add-gallery/drag";
-import { galleryItemSupportsDrag } from "@/lib/site-admin/add-gallery/insert";
 import {
   resolveTabs,
   resolveCategoriesForTab,
@@ -38,6 +33,11 @@ import { useSelectedBuilderNodeId } from "../selection-bridge";
 import { DockFloatingPanel } from "../dock-floating-panel";
 import { CHROME } from "../kit";
 import { AddGalleryCardInfo } from "./add-gallery-card-info";
+import {
+  GalleryCardCopy,
+  GalleryStatusBadge,
+  useGalleryCardState,
+} from "./add-gallery-card-meta";
 import { AddGalleryIcon } from "./add-gallery-icons";
 import { AddGallerySectionPreview } from "./add-gallery-section-previews";
 import { resolveGalleryInsertHint } from "./gallery-insert-hint";
@@ -152,95 +152,6 @@ function CategoryRail({
       })}
     </nav>
   );
-}
-
-function GalleryStatusBadge({
-  variant,
-  className,
-}: {
-  variant: "soon" | "connected" | "advanced";
-  className?: string;
-}) {
-  const styles =
-    variant === "connected"
-      ? {
-          background: "rgba(124, 58, 237, 0.1)",
-          color: CHROME.accent,
-        }
-      : variant === "advanced"
-        ? {
-            background: "rgba(15, 23, 42, 0.06)",
-            color: CHROME.ink2,
-          }
-        : {
-            background: CHROME.paper2,
-            color: CHROME.muted,
-          };
-
-  const label =
-    variant === "connected"
-      ? "Connected"
-      : variant === "advanced"
-        ? "Advanced"
-        : "Soon";
-
-  return (
-    <span
-      className={`shrink-0 rounded-full px-[5px] py-[1px] text-[8px] font-bold uppercase tracking-[0.05em] ${className ?? ""}`}
-      style={styles}
-    >
-      {label}
-    </span>
-  );
-}
-
-function GalleryCardCopy({
-  label,
-  description,
-  align = "center",
-}: {
-  label: string;
-  description: string;
-  align?: "center" | "left";
-}) {
-  return (
-    <div className={`min-w-0 ${align === "center" ? "text-center" : "text-left"}`}>
-      <span
-        className="block text-[12px] font-semibold leading-tight"
-        style={{ color: CHROME.ink }}
-      >
-        {label}
-      </span>
-      {description ? (
-        <span
-          className="mt-[3px] block line-clamp-1 text-[10px] leading-snug"
-          style={{ color: CHROME.muted }}
-        >
-          {description}
-        </span>
-      ) : null}
-    </div>
-  );
-}
-
-function useGalleryCardState(item: AddGalleryItem) {
-  const comingSoon = !isAddGalleryItemAvailable(item);
-  const advanced = item.availability === "advanced-hidden";
-  const connected =
-    item.tab === "connected" ||
-    item.itemKind === "connected" ||
-    Boolean(item.connectedSource);
-  const draggable = galleryItemSupportsDrag(item);
-  const shortDescription = getAddGalleryCardShortDescription(item);
-  const infoTooltip = getAddGalleryCardInfoTooltip(item);
-  return {
-    comingSoon,
-    advanced,
-    connected,
-    draggable,
-    shortDescription,
-    infoTooltip,
-  };
 }
 
 function ElementCard({
