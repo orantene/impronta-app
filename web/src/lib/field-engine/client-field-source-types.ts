@@ -222,6 +222,26 @@ export type ClientDynamicFieldDTO = {
 };
 
 /**
+ * Stable sort comparator for the per-parent dynamic field lists: DB
+ * `displayOrder` is the primary key, `label` (A→Z) the tiebreak.
+ *
+ * `label` is TYPED non-null but can be undefined at runtime — a catalog row
+ * with a null/blank label slips through `profile-fields-service` (the type is
+ * a lie). Calling `.localeCompare` on it threw and crashed the whole
+ * `buildDynamicFieldsByParent` sort, dropping the surface's entire DB-backed
+ * field catalog. Coercing both sides with `?? ""` keeps the field (it sorts
+ * deterministically as if its label were "") instead of nuking the catalog.
+ */
+export function compareDynamicFieldDTOs(
+  a: ClientDynamicFieldDTO,
+  b: ClientDynamicFieldDTO,
+): number {
+  return (
+    a.displayOrder - b.displayOrder || (a.label ?? "").localeCompare(b.label ?? "")
+  );
+}
+
+/**
  * The payload carried on the AdminShell bridge when at least one client field
  * surface is flipped to `db`. `null` everywhere = every surface is `static`
  * (the default) and the client uses its existing static path untouched.

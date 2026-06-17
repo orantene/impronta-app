@@ -8,9 +8,11 @@ import assert from "node:assert/strict";
 
 import {
   parseFieldEngineClientSourceFlags,
+  compareDynamicFieldDTOs,
   DEFAULT_FIELD_ENGINE_CLIENT_SOURCE_FLAGS,
   WIZARD_PARENT_ID_TO_DB_SLUG,
   wizardParentKeyToDbSlug,
+  type ClientDynamicFieldDTO,
   type ClientFieldSourcePayload,
 } from "@/lib/field-engine/client-field-source-types";
 import {
@@ -207,4 +209,62 @@ test("selector: unmapped 'services' → static fallback even with a payload", ()
     resolveDynamicFieldsForParent({ payload: p, surface: "wizard", parentSlug: "services", staticFields }),
     null,
   );
+});
+
+// ── Dynamic-field comparator (regression: localeCompare on undefined) ─────────
+//
+// `ClientDynamicFieldDTO.label` is TYPED `string` but a catalog row can carry a
+// null/undefined label at runtime. The old inline sort
+// `a.label.localeCompare(b.label)` threw `Cannot read properties of undefined
+// (reading 'localeCompare')`, crashing `buildDynamicFieldsByParent` and dropping
+// the talent dashboard's entire DB-backed field catalog every load.
+
+// Model the runtime type-lie: a DTO whose label is actually undefined.
+function dto(
+  over: Partial<ClientDynamicFieldDTO> & { displayOrder: number },
+): ClientDynamicFieldDTO {
+  return {
+    id: over.id ?? "f",
+    fieldKey: over.fieldKey ?? "x.f",
+    label: "L",
+    kind: "text",
+    ...over,
+  } as ClientDynamicFieldDTO;
+}
+
+test("comparator: an undefined label does NOT throw (regression)", () => {
+  const withLabel = dto({ id: "a", label: "Apple", displayOrder: 1 });
+  const noLabel = dto({
+    id: "b",
+    label: undefined as unknown as string,
+    displayOrder: 1,
+  });
+  // Both orderings must be safe (sort calls the comparator both ways).
+  assert.doesNotThrow(() => compareDynamicFieldDTOs(withLabel, noLabel));
+  assert.doesNotThrow(() => compareDynamicFieldDTOs(noLabel, withLabel));
+  // An undefined label is coerced to "" → sorts before "Apple".
+  assert.ok(compareDynamicFieldDTOs(noLabel, withLabel) < 0);
+  assert.ok(compareDynamicFieldDTOs(withLabel, noLabel) > 0);
+});
+
+test("comparator: a full list with a label-less field sorts without throwing", () => {
+  const list: ClientDynamicFieldDTO[] = [
+    dto({ id: "c", label: "Cherry", displayOrder: 2 }),
+    dto({ id: "z", label: undefined as unknown as string, displayOrder: 2 }),
+    dto({ id: "a", label: "Apple", displayOrder: 1 }),
+  ];
+  assert.doesNotThrow(() => list.sort(compareDynamicFieldDTOs));
+  // displayOrder is the primary key (1 before 2); within order 2 the
+  // empty-label field sorts before "Cherry".
+  assert.deepEqual(
+    list.map((f) => f.id),
+    ["a", "z", "c"],
+  );
+});
+
+test("comparator: displayOrder is the primary key, label only the tiebreak", () => {
+  // Lower displayOrder wins even when its label sorts later alphabetically.
+  const early = dto({ id: "zzz", label: "Zzz", displayOrder: 1 });
+  const late = dto({ id: "aaa", label: "Aaa", displayOrder: 5 });
+  assert.ok(compareDynamicFieldDTOs(early, late) < 0);
 });
