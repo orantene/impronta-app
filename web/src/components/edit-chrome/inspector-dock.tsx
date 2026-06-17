@@ -37,8 +37,13 @@ import {
   saveSectionDraftAction,
 } from "@/lib/site-admin/edit-mode/section-actions";
 import { SECTION_EDITOR_REGISTRY } from "@/lib/site-admin/sections/registry-editors";
-import type { LoadedSection } from "./edit-context";
+import type { EditDevice, LoadedSection } from "./edit-context";
 import { useEditContext } from "./edit-context";
+import {
+  baseBreakpointId,
+  breakpointLabelForDevice,
+  isBaseBreakpoint,
+} from "./breakpoint-registry";
 import { useBuilderTree } from "./builder-tree-bridge";
 import {
   useSelectedSectionId,
@@ -731,31 +736,43 @@ export function InspectorDock() {
   );
 
   const viewportDevice = device as ViewportDevice;
+  const isBaseViewport = isBaseBreakpoint(viewportDevice);
+  const baseViewportLabel = breakpointLabelForDevice(baseBreakpointId());
+  const viewportDeviceLabel = breakpointLabelForDevice(viewportDevice);
+
+  // The rail emits a registry-driven tier id (string); the canvas device state
+  // (EditDevice) is the same registry tier set, so we narrow at this one seam.
+  const handleViewportDeviceChange = useCallback(
+    (next: ViewportDevice) => {
+      setDevice(next as EditDevice);
+    },
+    [setDevice],
+  );
 
   const hideOnDevice = useMemo(() => {
-    if (viewportDevice === "desktop") return false;
+    if (isBaseViewport) return false;
     if (selectedStandaloneBuilderNode) {
       const style = (selectedStandaloneBuilderNode.props as { style?: { responsive?: Record<string, Record<string, unknown>> } }).style;
       return style?.responsive?.[viewportDevice]?.visibility === "hidden";
     }
     const bp = sectionPresentation.breakpoints as
-      | Partial<Record<"tablet" | "mobile", Record<string, unknown>>>
+      | Record<string, Record<string, unknown>>
       | undefined;
     return bp?.[viewportDevice]?.visibility === "hidden";
-  }, [sectionPresentation, selectedStandaloneBuilderNode, viewportDevice]);
+  }, [sectionPresentation, selectedStandaloneBuilderNode, viewportDevice, isBaseViewport]);
 
   const viewportOverrideCount = useMemo(() => {
-    if (viewportDevice === "desktop") return 0;
+    if (isBaseViewport) return 0;
     if (selectedStandaloneBuilderNode) {
       const style = (selectedStandaloneBuilderNode.props as { style?: import("@/lib/site-admin/builder-node").BuilderNodeStyle }).style;
       return countStyleOverrides(style, viewportDevice);
     }
     return countPresentationOverrides(sectionPresentation, viewportDevice);
-  }, [sectionPresentation, selectedStandaloneBuilderNode, viewportDevice]);
+  }, [sectionPresentation, selectedStandaloneBuilderNode, viewportDevice, isBaseViewport]);
 
   const handleViewportHideChange = useCallback(
     (hidden: boolean) => {
-      if (viewportDevice === "desktop") return;
+      if (isBaseViewport) return;
       if (selectedStandaloneBuilderNode) {
         void patchBuilderNodeProps(selectedStandaloneBuilderNode.id, {
           style: {
@@ -781,11 +798,12 @@ export function InspectorDock() {
       patchBuilderNodeProps,
       selectedStandaloneBuilderNode,
       viewportDevice,
+      isBaseViewport,
     ],
   );
 
   const handleResetViewportOverrides = useCallback(() => {
-    if (viewportDevice === "desktop") return;
+    if (isBaseViewport) return;
     if (selectedStandaloneBuilderNode) {
       const style = (selectedStandaloneBuilderNode.props as { style?: { responsive?: Record<string, Record<string, unknown>> } }).style;
       const bucket = style?.responsive?.[viewportDevice];
@@ -803,7 +821,7 @@ export function InspectorDock() {
     }
     if (!currentLoadedSection) return;
     const bp = sectionPresentation.breakpoints as
-      | Partial<Record<"tablet" | "mobile", Record<string, unknown>>>
+      | Record<string, Record<string, unknown>>
       | undefined;
     const bucket = bp?.[viewportDevice];
     if (!bucket) return;
@@ -822,6 +840,7 @@ export function InspectorDock() {
     sectionPresentation,
     selectedStandaloneBuilderNode,
     viewportDevice,
+    isBaseViewport,
   ]);
 
   const handleStylePatch = useCallback(
@@ -1050,7 +1069,7 @@ export function InspectorDock() {
             error={saveError}
           />
         ) : null}
-        {device !== "desktop" ? (
+        {!isBaseViewport ? (
           <span
             className="inline-flex w-fit rounded-md px-2 py-0.5 text-[10.5px] font-semibold"
             style={{
@@ -1061,9 +1080,9 @@ export function InspectorDock() {
             // WS3 — make the per-device scoping explicit (the reported confusion was
             // "I thought elements can be different per size"): they CAN, but style
             // edits here are scoped to the selected device only.
-            title={`Style changes here apply to ${device === "tablet" ? "Tablet" : "Mobile"} only. Switch the device above to edit Desktop or another size.`}
+            title={`Style changes here apply to ${viewportDeviceLabel} only. Switch the device above to edit ${baseViewportLabel} or another size.`}
           >
-            Editing {device === "tablet" ? "Tablet" : "Mobile"} only
+            Editing {viewportDeviceLabel} only
           </span>
         ) : null}
       </div>
@@ -1247,7 +1266,7 @@ export function InspectorDock() {
             {(currentLoadedSection || selectedStandaloneBuilderNode) ? (
               <InspectorViewportRail
                 device={viewportDevice}
-                onDeviceChange={setDevice}
+                onDeviceChange={handleViewportDeviceChange}
                 hideOnDevice={hideOnDevice}
                 onHideChange={handleViewportHideChange}
                 overrideCount={viewportOverrideCount}

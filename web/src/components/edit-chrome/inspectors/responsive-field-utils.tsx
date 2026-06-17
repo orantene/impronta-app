@@ -2,12 +2,15 @@
  * Shared responsive field utilities extracted from responsive-panel.
  */
 
+import {
+  breakpointLabelForDevice,
+  editableOverrideTierIds,
+  isBaseBreakpoint,
+} from "../breakpoint-registry";
 import type { ViewportDevice } from "./responsive-field-state";
 
 export function responsiveFieldLabel(device: ViewportDevice): string {
-  if (device === "desktop") return "Desktop";
-  if (device === "tablet") return "Tablet";
-  return "Mobile";
+  return breakpointLabelForDevice(device);
 }
 
 /** Build a deep patch clearing one field from a breakpoint bucket. */
@@ -45,6 +48,6 @@ export function visibilityQuickFixPatch(
   };
 }
 
-export function isEditingOverrideDevice(device: ViewportDevice): device is "tablet" | "mobile" {
-  return device === "tablet" || device === "mobile";
+export function isEditingOverrideDevice(device: ViewportDevice): boolean {
+  return !isBaseBreakpoint(device) && editableOverrideTierIds().includes(device);
 }

@@ -7,7 +7,7 @@
  * element) so formatting controls stay in a stable, reachable spot while editing.
  */
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import {
   ALargeSmall,
@@ -36,6 +36,11 @@ import {
 
 import { BUILDER_VISUAL } from "./inspectors/kit/tokens";
 import type { ViewportDevice } from "./inspectors/responsive-field-state";
+import {
+  baseBreakpointId,
+  editableOverrideTierIds,
+  isBaseBreakpoint,
+} from "./breakpoint-registry";
 import { useActiveCanvasTextFormatting } from "./use-canvas-text-formatting";
 import {
   requestCanvasToolbarColor,
@@ -115,9 +120,9 @@ function resolveStyleField(
   device: ViewportDevice,
   field: string,
 ): unknown {
-  if (device !== "desktop") {
+  if (!isBaseBreakpoint(device)) {
     const responsive = style.responsive as
-      | Partial<Record<"tablet" | "mobile", Record<string, unknown>>>
+      | Record<string, Record<string, unknown>>
       | undefined;
     const override = responsive?.[device]?.[field];
     if (override !== undefined && override !== null && override !== "") {
@@ -385,8 +390,14 @@ export function CanvasTextToolbar({
   onChangeTextRole,
 }: CanvasTextToolbarProps) {
   const { inspectorDockOpen, device } = useEditContext();
-  const viewportDevice: ViewportDevice =
-    device === "tablet" || device === "mobile" ? device : "desktop";
+  // Resolve to the active editable tier when the canvas is on a render-backed
+  // override tier; otherwise fall back to the base tier (RESP-1 registry-driven).
+  // Memoized so the registry lookups stay referentially stable per device.
+  const viewportDevice = useMemo<ViewportDevice>(
+    () =>
+      editableOverrideTierIds().includes(device) ? device : baseBreakpointId(),
+    [device],
+  );
   const rightReservePx = inspectorRightReservePx(inspectorDockOpen);
   const lexical = useActiveCanvasTextFormatting(true);
   const editingActive = lexical.editor !== null;

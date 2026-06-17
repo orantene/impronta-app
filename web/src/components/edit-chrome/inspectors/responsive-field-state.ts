@@ -3,21 +3,38 @@
  */
 
 import type { BuilderNodeStyle } from "@/lib/site-admin/builder-node";
+import {
+  baseBreakpointId,
+  editableOverrideTierIds,
+  isBaseBreakpoint,
+} from "../breakpoint-registry";
 
-export type ViewportDevice = "desktop" | "tablet" | "mobile";
-export type OverrideDevice = "tablet" | "mobile";
+/**
+ * The active inspector viewport tier. Registry-driven (RESP-1): a `string` keyed
+ * off the breakpoint registry rather than a fixed literal union, so widening the
+ * registry's editable tiers (wide/compact) requires no change here. `"desktop"`
+ * (the base tier id) means "edit the default — no override bucket".
+ */
+export type ViewportDevice = string;
+
+/**
+ * A non-base override tier id (the bucket key under `breakpoints[...]` /
+ * `responsive[...]`). Registry-driven; backward-compatible with the saved
+ * `tablet`/`mobile` buckets, which remain the only render-backed tiers today.
+ */
+export type OverrideDevice = string;
 
 export function getPresentationFieldForDevice(
   presentation: Record<string, unknown>,
   device: ViewportDevice,
   field: string,
 ): string | undefined {
-  if (device === "desktop") {
+  if (isBaseBreakpoint(device)) {
     const v = presentation[field];
     return typeof v === "string" ? v : undefined;
   }
   const bp = presentation.breakpoints as
-    | Partial<Record<OverrideDevice, Record<string, unknown>>>
+    | Record<string, Record<string, unknown>>
     | undefined;
   const bucket = bp?.[device]?.[field];
   return typeof bucket === "string" ? bucket : undefined;
@@ -28,10 +45,10 @@ export function getPresentationOverrideDevice(
   field: string,
 ): OverrideDevice | null {
   const bp = presentation.breakpoints as
-    | Partial<Record<OverrideDevice, Record<string, unknown>>>
+    | Record<string, Record<string, unknown>>
     | undefined;
   if (!bp) return null;
-  for (const device of ["tablet", "mobile"] as const) {
+  for (const device of editableOverrideTierIds()) {
     const bucket = bp[device];
     if (bucket && bucket[field] !== undefined && bucket[field] !== null) {
       return device;
@@ -45,7 +62,7 @@ export function countPresentationOverrides(
   device: OverrideDevice,
 ): number {
   const bp = presentation.breakpoints as
-    | Partial<Record<OverrideDevice, Record<string, unknown>>>
+    | Record<string, Record<string, unknown>>
     | undefined;
   const bucket = bp?.[device];
   if (!bucket) return 0;
@@ -60,8 +77,10 @@ export function getStyleOverrideDevice(
 ): OverrideDevice | null {
   const responsive = style?.responsive;
   if (!responsive) return null;
-  for (const device of ["tablet", "mobile"] as const) {
-    const bucket = responsive[device] as Record<string, unknown> | undefined;
+  for (const device of editableOverrideTierIds()) {
+    const bucket = (responsive as Record<string, unknown>)[device] as
+      | Record<string, unknown>
+      | undefined;
     if (bucket && bucket[field] !== undefined && bucket[field] !== null) {
       return device;
     }
@@ -73,7 +92,9 @@ export function countStyleOverrides(
   style: BuilderNodeStyle | undefined,
   device: OverrideDevice,
 ): number {
-  const bucket = style?.responsive?.[device] as Record<string, unknown> | undefined;
+  const bucket = (style?.responsive as Record<string, unknown> | undefined)?.[
+    device
+  ] as Record<string, unknown> | undefined;
   if (!bucket) return 0;
   return Object.keys(bucket).filter(
     (k) => bucket[k] !== undefined && bucket[k] !== null,
@@ -86,10 +107,10 @@ export function getNodePresentationOverrideDevice(
 ): OverrideDevice | null {
   if (!nodePresentation) return null;
   const bp = nodePresentation.breakpoints as
-    | Partial<Record<OverrideDevice, Record<string, unknown>>>
+    | Record<string, Record<string, unknown>>
     | undefined;
   if (!bp) return null;
-  for (const device of ["tablet", "mobile"] as const) {
+  for (const device of editableOverrideTierIds()) {
     const bucket = bp[device];
     if (bucket && bucket[field] !== undefined && bucket[field] !== null) {
       return device;
@@ -104,7 +125,7 @@ export function patchFieldForDevice(
   field: string,
   value: unknown,
 ): Record<string, unknown> {
-  if (device === "desktop") {
+  if (isBaseBreakpoint(device)) {
     return { [field]: value ?? undefined };
   }
   return {
@@ -120,7 +141,7 @@ export function patchStyleFieldForDevice(
   field: string,
   value: unknown,
 ): { style: Record<string, unknown> } {
-  if (device === "desktop") {
+  if (isBaseBreakpoint(device)) {
     return { style: { [field]: value ?? undefined } };
   }
   return {
@@ -131,3 +152,6 @@ export function patchStyleFieldForDevice(
     },
   };
 }
+
+/** Re-export the base tier id so consumers needn't import the registry too. */
+export { baseBreakpointId };

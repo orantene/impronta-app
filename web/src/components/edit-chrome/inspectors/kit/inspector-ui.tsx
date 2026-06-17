@@ -20,6 +20,10 @@ import { useInspectorSearchFilter } from "./inspector-search";
 
 import { CHROME } from "../../kit/tokens";
 import { useEditContext } from "../../edit-context";
+import {
+  baseBreakpointId,
+  breakpointLabelForDevice,
+} from "../../breakpoint-registry";
 import { BUILDER_VISUAL } from "./tokens";
 import type { OverrideDevice } from "../responsive-field-state";
 
@@ -470,8 +474,14 @@ export function InspectorDeviceCards<T extends string>({
     icon: ReactNode;
   }>;
 }) {
+  // Column count tracks the registry-driven option list (RESP-1) so adding a
+  // wide/compact editable tier keeps the cards evenly sized rather than spilling.
+  const columns = Math.min(Math.max(options.length, 1), 5);
   return (
-    <div className="grid grid-cols-3 gap-2">
+    <div
+      className="grid gap-2"
+      style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+    >
       {options.map((opt) => {
         const active = opt.key === value;
         return (
@@ -591,10 +601,10 @@ export function InspectorOverrideBadge({
   onReset?: () => void;
   tooltip?: string;
 }) {
-  const label = device === "tablet" ? "Tablet" : "Mobile";
+  const label = breakpointLabelForDevice(device);
   const title =
     tooltip ??
-    `${label} override — tap Reset to inherit desktop`;
+    `${label} override — tap Reset to inherit ${breakpointLabelForDevice(baseBreakpointId()).toLowerCase()}`;
   return (
     <span
       title={title}
