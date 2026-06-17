@@ -34,6 +34,7 @@ import {
 import { logServerError } from "@/lib/server/safe-error";
 import {
   parseFieldEngineClientSourceFlags,
+  compareDynamicFieldDTOs,
   FIELD_ENGINE_CLIENT_SURFACES,
   type ClientDynamicFieldDTO,
   type ClientFieldSourcePayload,
@@ -103,7 +104,10 @@ function toDynamicFieldDTO(f: ResolvedFieldDefinition): ClientDynamicFieldDTO {
   return {
     id: shortId(f.fieldKey),
     fieldKey: f.fieldKey,
-    label: f.label,
+    // `f.label` is typed `string` but a catalog row can carry a null/blank
+    // label at runtime — fall back to the field key so the DTO label is never
+    // undefined (no blank label downstream; the comparator stays safe too).
+    label: f.label ?? f.fieldKey,
     kind: toRegFieldKind(f.kind),
     optional: f.isOptional,
     placeholder: f.placeholder ?? undefined,
@@ -157,10 +161,7 @@ function buildDynamicFieldsByParent(
     }
   }
   for (const slug of Object.keys(byParent)) {
-    byParent[slug]!.sort(
-      (a, b) =>
-        a.displayOrder - b.displayOrder || a.label.localeCompare(b.label),
-    );
+    byParent[slug]!.sort(compareDynamicFieldDTOs);
   }
   return byParent;
 }
