@@ -11,6 +11,10 @@ import type { OfferPov } from "./machinery-10";
 import { disabledBtn, ghostBtn, primaryBtn } from "./machinery-13";
 import { DetailField, DetailSection, DetailsPanel } from "./machinery-7";
 import type { Offer } from "./machinery-9";
+// Friendly labels for booking_transactions.status — source of truth is
+// status-labels.ts; the export alias keeps existing callers stable.
+import { TRANSACTION_STATUS_LABELS as TRANSACTION_STATUS_LABEL } from "@/lib/status-labels";
+export { TRANSACTION_STATUS_LABELS as TRANSACTION_STATUS_LABEL } from "@/lib/status-labels";
 
 
 export function LogisticsTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: DetailsPov }) {
@@ -205,20 +209,6 @@ export function PayoutReceiverPicker({
     </div>
   );
 }
-
-// Friendly labels for booking_transactions.status enum
-export const TRANSACTION_STATUS_LABEL: Record<string, string> = {
-  draft: "Draft",
-  payment_requested: "Payment requested",
-  pending: "Pending",
-  paid: "Paid",
-  payout_pending: "Payout pending",
-  payout_sent: "Payout sent",
-  cancelled: "Cancelled",
-  failed: "Failed",
-  disputed: "Disputed",
-  refunded: "Refunded",
-};
 
 export function formatCents(cents: number | null, currency: string): string {
   if (cents == null) return "—";
