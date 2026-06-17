@@ -120,7 +120,7 @@ function buildTulalaDigitalSlots(ctx: TemplateBuildContext): TalentSiteSnapshotS
 export const TULALA_DIGITAL_TEMPLATE: TalentSiteTemplateDef = {
   key: "tulala-digital",
   label: "Tulala Digital",
-  blurb: "Included with Free — a clean service profile on Tulala.",
+  blurb: "Included with Free. A clean, focused service profile on Tulala with a split hero, about section, portfolio gallery and contact call to action.",
   availableAt: "free",
   thumbnailUrl: "/talent-templates/tulala-digital.webp",
   buildSlots: buildTulalaDigitalSlots,
