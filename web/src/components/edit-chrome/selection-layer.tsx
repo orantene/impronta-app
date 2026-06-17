@@ -135,6 +135,11 @@ import { MultiSelectionToolbar } from "./multi-selection-toolbar";
 import { SectionTypeIcon } from "./kit/section-type-icon";
 import type { MultiNodeRect } from "./multi-node-layout";
 import { CanvasBetweenBlocksInsert } from "./canvas-between-blocks-insert";
+import { BuilderCoachmarkTip } from "./builder-coachmark-tip";
+import {
+  CANVAS_GESTURE_COACHMARK_SEQUENCE,
+  nextUndismissedCoachmark,
+} from "./builder-coachmarks";
 
 interface Rect {
   top: number;
@@ -4815,30 +4820,38 @@ export function SelectionLayer() {
                 touchAction: "none",
               }}
             >
-              {/* 2×3 grip dot grid */}
-              <span
-                style={{
-                  color: selectedNodeIsEditableBlock
-                    ? "rgba(255,255,255,0.50)"
-                    : CHROME.muted3,
-                  lineHeight: 0,
-                }}
+              {/* 2×3 grip dot grid — CANVAS-3: move-grip coachmark anchor.
+               *  Sequences after double-click-edit so both never appear at once. */}
+              <BuilderCoachmarkTip
+                id="move-grip"
+                message="Drag this grip to reorder or nest this block on the canvas."
+                placement="above"
+                sequence={CANVAS_GESTURE_COACHMARK_SEQUENCE}
               >
-                <svg
-                  width="9"
-                  height="14"
-                  viewBox="0 0 9 14"
-                  fill="currentColor"
-                  aria-hidden
+                <span
+                  style={{
+                    color: selectedNodeIsEditableBlock
+                      ? "rgba(255,255,255,0.50)"
+                      : CHROME.muted3,
+                    lineHeight: 0,
+                  }}
                 >
-                  <circle cx="2" cy="2" r="1" />
-                  <circle cx="7" cy="2" r="1" />
-                  <circle cx="2" cy="7" r="1" />
-                  <circle cx="7" cy="7" r="1" />
-                  <circle cx="2" cy="12" r="1" />
-                  <circle cx="7" cy="12" r="1" />
-                </svg>
-              </span>
+                  <svg
+                    width="9"
+                    height="14"
+                    viewBox="0 0 9 14"
+                    fill="currentColor"
+                    aria-hidden
+                  >
+                    <circle cx="2" cy="2" r="1" />
+                    <circle cx="7" cy="2" r="1" />
+                    <circle cx="2" cy="7" r="1" />
+                    <circle cx="7" cy="7" r="1" />
+                    <circle cx="2" cy="12" r="1" />
+                    <circle cx="7" cy="12" r="1" />
+                  </svg>
+                </span>
+              </BuilderCoachmarkTip>
 
               {/* Section-type icon tile */}
               <span
@@ -4864,16 +4877,26 @@ export function SelectionLayer() {
                 <SectionTypeIcon typeKey={selectedTypeKey} size={13} />
               </span>
 
-              {/* Section name */}
-              <span
-                style={{
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  letterSpacing: "-0.005em",
-                }}
+              {/* Section name — CANVAS-3: double-click-edit coachmark anchor.
+               *  The tip surfaces once on first node selection (the moment the
+               *  chip becomes visible) and sequences before move-grip +
+               *  plus-line-insert so only one gesture tip shows at a time. */}
+              <BuilderCoachmarkTip
+                id="double-click-edit"
+                message="Double-click any text on the canvas to edit it inline."
+                placement="above"
+                sequence={CANVAS_GESTURE_COACHMARK_SEQUENCE}
               >
-                {chipPrimaryLabel}
-              </span>
+                <span
+                  style={{
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    letterSpacing: "-0.005em",
+                  }}
+                >
+                  {chipPrimaryLabel}
+                </span>
+              </BuilderCoachmarkTip>
 
               {/* Sprint 4 — multi-select count badge. Renders only when the
                *  multi-set has any entries beyond the primary. Reads as

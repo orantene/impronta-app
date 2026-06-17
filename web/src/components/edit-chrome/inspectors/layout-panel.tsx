@@ -73,6 +73,8 @@ import {
 import { InspectorResetFooter } from "./kit/inspector-mockup-primitives";
 import { InspectorLayoutPresetCards } from "./kit/inspector-mockup-primitives";
 import { InspectorResponsiveSettings } from "./kit/inspector-responsive-settings";
+import { LockBadge, LockedFieldsBanner, layoutLockedPathsOf } from "./kit";
+import { stripLockedKeysFromPatch } from "@/lib/site-admin/builder-node/prop-lock";
 import {
   countPresentationOverrides,
   type ViewportDevice,
@@ -441,6 +443,19 @@ const GRID_COLUMNS_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "2", label: "2" },
   { value: "3", label: "3" },
   { value: "4", label: "4" },
+];
+// REND-1 — HTML landmark tag options for container nodes. Compact short labels
+// fit the chip strip; full descriptions appear in the helper text below.
+// Values mirror BuilderContainerNode.props.htmlTag in types.ts.
+const CONTAINER_HTML_TAG_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "div", label: "div" },
+  { value: "section", label: "section" },
+  { value: "article", label: "article" },
+  { value: "aside", label: "aside" },
+  { value: "header", label: "header" },
+  { value: "footer", label: "footer" },
+  { value: "nav", label: "nav" },
+  { value: "main", label: "main" },
 ];
 const SPLIT_RATIO_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "50-50", label: "50 / 50" },
@@ -1233,6 +1248,29 @@ function AdvancedNodeLayoutEditor({
             />
           </div>
         </div>
+        {/* REND-1 — Semantic HTML tag picker. Only shown when editing the base
+            desktop tier (not a breakpoint override), because htmlTag is a
+            document-structure decision not a responsive one. Default (div) is
+            the standard value that keeps existing trees byte-stable. */}
+        {!editingOverride ? (
+          <div className="flex flex-col gap-1.5">
+            <span className={FIELD_LABEL}>HTML tag</span>
+            <Segmented
+              fullWidth
+              compact
+              value={node.props.htmlTag ?? "div"}
+              onChange={(next) => {
+                onPatch({ htmlTag: next === "div" ? undefined : next });
+              }}
+              options={CONTAINER_HTML_TAG_OPTIONS}
+            />
+            <span className={INHERIT_HINT}>
+              Semantic landmark element emitted in the page HTML. Default (div) keeps the
+              standard layout box. Use section/article for content regions, header/footer
+              for page-level landmarks, nav for navigation, aside for supplementary content.
+            </span>
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -1922,11 +1960,33 @@ export function LayoutPanel({
         : [],
     [selectedBuilderNode],
   );
+  // INS-1 — per-prop lock affordance for the Layout tab. A locked layout path
+  // (`layout`, `gap`, `columns`, `style.responsive`, …) renders a banner +
+  // disabled controls; this chokepoint strips the locked leaf client-side,
+  // mirroring the Content tab. `patchBuilderNodeProps` + the whole-tree
+  // `enforceLockedPropsOnTree` backstop re-strip server-trustedly.
+  // The Layout tab governs structural props (layout/gap/columns/ratio/…) and
+  // responsive overrides; the Data tab owns binding/field-binding/visibility.
+  // Surface only the layout-relevant locks here (shared scope filter).
+  const layoutLockedPaths = layoutLockedPathsOf(selectedBuilderNode?.lockedProps);
   const commitBuilderNodePatch = async (
     nodeId: string,
     patch: Record<string, unknown>,
   ) => {
-    const result = await patchBuilderNodeProps(nodeId, patch);
+    const guarded = selectedBuilderNode
+      ? stripLockedKeysFromPatch(
+          patch,
+          selectedBuilderNode.props as Record<string, unknown>,
+          selectedBuilderNode.lockedProps,
+        )
+      : patch;
+    if (Object.keys(guarded).length === 0 && Object.keys(patch).length > 0) {
+      reportMutationError(
+        "That layout setting is locked by the platform admin and can’t be changed.",
+      );
+      return;
+    }
+    const result = await patchBuilderNodeProps(nodeId, guarded);
     if (!result.ok && result.error) {
       reportMutationError(result.error);
     }
@@ -2015,13 +2075,19 @@ export function LayoutPanel({
           />
         </>
       ) : null}
+      {selectedBuilderNode && layoutLockedPaths.length > 0 ? (
+        <LockedFieldsBanner paths={layoutLockedPaths} noun="layout settings" />
+      ) : null}
       {selectedBuilderNode ? (
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <div className={SECTION_TITLE}>Selected node</div>
-            <span className={INHERIT_HINT}>
-              {nodeKindLabel(selectedBuilderNode.kind)}
-            </span>
+            <div className="flex items-center gap-2">
+              {layoutLockedPaths.length > 0 ? <LockBadge /> : null}
+              <span className={INHERIT_HINT}>
+                {nodeKindLabel(selectedBuilderNode.kind)}
+              </span>
+            </div>
           </div>
           <div className="flex flex-col gap-3">
             <LayoutHealthCard

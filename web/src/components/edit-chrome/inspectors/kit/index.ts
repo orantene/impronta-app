@@ -22,6 +22,22 @@ export {
 } from "./category-icon-glyph";
 export { TalentPicker } from "./talent-picker";
 export {
+  useLockedFields,
+  LockBadge,
+  LockedFieldWrapper,
+  LockedFieldsBanner,
+  LOCKED_FIELD_TITLE,
+  type LockedFieldsApi,
+  type LockableInspectorNode,
+} from "./locked-fields";
+export {
+  isDataLockPath,
+  isStyleLockPath,
+  styleLockedPathsOf,
+  dataLockedPathsOf,
+  layoutLockedPathsOf,
+} from "./inspector-lock-scopes";
+export {
   InspectorBody,
   InspectorSection,
   InspectorCard,

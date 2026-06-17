@@ -38,6 +38,8 @@ import {
 } from "@/lib/site-admin/builder-node";
 import { ElementLibraryInsertPicker } from "./element-library-insert-picker";
 import { collectPageBlockBoundaries } from "./page-block-dom";
+import { BuilderCoachmarkTip } from "./builder-coachmark-tip";
+import { CANVAS_GESTURE_COACHMARK_SEQUENCE } from "./builder-coachmarks";
 
 // Visual constants — mirror selection-layer.tsx chip tokens exactly so the
 // two surfaces look identical without coupling the file.
@@ -230,57 +232,68 @@ export function CanvasBetweenBlocksInsert({
               borderRadius: 1,
             }}
           />
-          {/* Pill button — wider pointer area than the 2px line */}
-          <button
-            type="button"
-            aria-label="Add block here"
-            data-canvas-between-blocks-trigger=""
-            style={{
+          {/* Pill button — wider pointer area than the 2px line.
+           *  CANVAS-3: plus-line-insert coachmark anchor (sequences last,
+           *  after double-click-edit and move-grip are both dismissed). */}
+          <BuilderCoachmarkTip
+            id="plus-line-insert"
+            message="Hover between blocks and click + to insert a new block here."
+            placement="above"
+            sequence={CANVAS_GESTURE_COACHMARK_SEQUENCE}
+            wrapperStyle={{
               position: "absolute",
               left: "50%",
               top: "50%",
               transform: "translate(-50%, -50%)",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 5,
-              padding: "4px 10px",
-              background: CHIP_BG,
-              color: "rgba(255,255,255,0.92)",
-              border: "none",
-              borderRadius: 14,
-              boxShadow: CHIP_SHADOW,
-              cursor: "pointer",
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: "0.01em",
-              whiteSpace: "nowrap",
-              pointerEvents: "auto",
-              fontFamily:
-                'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
-            }}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setHoveredGap(null);
-              setPickerTarget({ gap, pointerX: e.clientX });
             }}
           >
-            <svg
-              width="11"
-              height="11"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
+            <button
+              type="button"
+              aria-label="Add block here"
+              data-canvas-between-blocks-trigger=""
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                padding: "4px 10px",
+                background: CHIP_BG,
+                color: "rgba(255,255,255,0.92)",
+                border: "none",
+                borderRadius: 14,
+                boxShadow: CHIP_SHADOW,
+                cursor: "pointer",
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: "0.01em",
+                whiteSpace: "nowrap",
+                pointerEvents: "auto",
+                fontFamily:
+                  'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
+              }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setHoveredGap(null);
+                setPickerTarget({ gap, pointerX: e.clientX });
+              }}
             >
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            Add block
-          </button>
+              <svg
+                width="11"
+                height="11"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Add block
+            </button>
+          </BuilderCoachmarkTip>
         </div>
       ) : null}
 

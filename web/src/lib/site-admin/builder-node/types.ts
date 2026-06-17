@@ -506,6 +506,15 @@ export interface BuilderContainerNode extends BuilderNodeBase {
     // is active and re-apply it; the resolved overrides still live in
     // instanceOverrides, so the live render path is unchanged.
     instanceVariant?: string;
+    /**
+     * REND-1 — Semantic HTML landmark element for this container. When omitted
+     * the container renders as `<div>` (default), preserving byte-stability for
+     * all existing trees. Authors can promote a container to a semantic landmark
+     * via the Layout inspector's "HTML tag" picker. The renderer uses the tag as
+     * a drop-in replacement for `<div>` — all CSS classes, data-* attrs, and
+     * inline styles are preserved regardless of the chosen tag.
+     */
+    htmlTag?: "div" | "section" | "article" | "aside" | "header" | "footer" | "nav" | "main";
   };
   children: BuilderNode[];
 }

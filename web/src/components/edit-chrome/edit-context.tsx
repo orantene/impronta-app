@@ -685,6 +685,30 @@ export interface EditContextValue {
     index?: number,
   ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
   /**
+   * CANVAS-4 — the ONE shared template/starter-apply path for every surface
+   * (storefront homepage, /t/[code] profile, /t/site/[slug] page, Lab
+   * playground). Before the apply runs, the CURRENT full builderTree is pushed
+   * to the undo history (a `builderTree` `{ pre, post }` entry, exactly as a
+   * normal node mutation), so a single `undo()` restores the pre-apply tree
+   * completely through the surface adapter — no raw `setBuilderTree`, no
+   * per-surface snapshot fork. `apply` performs the surface's authoritative
+   * write (server action or client op) and resolves the post-apply tree; on
+   * success the helper adopts that tree locally and raises the shared
+   * `templateAppliedToast` whose Undo button calls `undo()`. A failed `apply`
+   * pops the snapshot so the history stack stays consistent. `label` names the
+   * design in the toast.
+   *
+   * Routing every starter/template apply through this one helper is the
+   * shared-improvement invariant: snapshot-before-apply + Undo is a property of
+   * the EditProvider, never of a surface, so all four surfaces inherit it.
+   */
+  applyTemplateWithUndo: (input: {
+    label: string;
+    apply: () => Promise<
+      { ok: true; tree: BuilderNodeTree } | { ok: false; error?: string }
+    >;
+  }) => Promise<{ ok: boolean; error?: string }>;
+  /**
    * Insert a curated Tulala component (`section_embed` node) — Directory,
    * Featured talent, Booking, or CTA — seeded with that section's default
    * config, at the target. Mirrors the composition-preset insert.
@@ -1214,6 +1238,29 @@ export interface EditContextValue {
   /** ISO timestamp of the most recent successful Save draft press; null when clear. */
   lastDraftSavedAt: string | null;
   clearDraftSavedToast: () => void;
+
+  // ── CANVAS-4 — transient toast after a template/starter design is applied ──
+  /**
+   * Truthy while the "Template applied — Undo?" toast is on screen. Holds the
+   * applied design's human label (or a generic fallback) so the toast can name
+   * what landed. Cleared on dismiss, on Undo, or after the auto-hide window.
+   * The toast's Undo button calls `undo()` — the pre-apply snapshot that
+   * `applyTemplateWithUndo` pushed to the history stack restores the prior tree
+   * through the same machinery every other edit uses.
+   */
+  templateAppliedToast: { label: string } | null;
+  clearTemplateAppliedToast: () => void;
+  /**
+   * CANVAS-4 — raise the shared "Template applied — Undo?" toast for an apply
+   * path that ALREADY pushed its own undo snapshot (the "+" gallery
+   * `page_templates` tab routes a full-page template through
+   * `insertBuilderComponent` → `executeBuilderNodeOperation`, which records the
+   * `{ pre, post }` history entry itself). This only surfaces the toast — Undo
+   * still calls `undo()` and replays that existing entry. Server-action replaces
+   * that DON'T snapshot client-side use `applyTemplateWithUndo` instead, which
+   * pushes the snapshot AND raises this same toast.
+   */
+  notifyTemplateApplied: (label: string) => void;
 
   // ── transient toast for mutation errors ──
   /** Most recent mutation error that's still on screen; null when clear. */
@@ -3573,6 +3620,27 @@ export function EditProvider({
     return () => clearTimeout(t);
   }, [lastDraftSavedAt]);
 
+  // CANVAS-4 — the shared "Template applied — Undo?" toast. Set by
+  // applyTemplateWithUndo on every surface; auto-clears after 8s (longer than
+  // the 4s Saved chip so the operator has a real window to reconsider a
+  // whole-page replace). The Undo button in the toast calls undo().
+  const [templateAppliedToast, setTemplateAppliedToast] = useState<
+    { label: string } | null
+  >(null);
+  const clearTemplateAppliedToast = useCallback(
+    () => setTemplateAppliedToast(null),
+    [],
+  );
+  const notifyTemplateApplied = useCallback(
+    (label: string) => setTemplateAppliedToast({ label }),
+    [],
+  );
+  useEffect(() => {
+    if (!templateAppliedToast) return;
+    const t = setTimeout(() => setTemplateAppliedToast(null), 8000);
+    return () => clearTimeout(t);
+  }, [templateAppliedToast]);
+
   // beforeunload guard. When the inspector has un-persisted section edits
   // (`dirty`) or a save is in flight (`saving`), nudge the operator with
   // the browser's "Leave site?" dialog before the tab/window is closed.
@@ -5876,6 +5944,63 @@ export function EditProvider({
       markNodeInserted,
     ],
   );
+
+  // CANVAS-4 — the single shared template/starter-apply path. Every surface's
+  // "apply this design" gesture routes through here so snapshot-before-apply +
+  // the Undo toast is identical on storefront, /t/[code], /t/site/[slug] and
+  // the Lab playground — a property of the provider, not a per-surface fork.
+  //
+  // We capture the CURRENT full tree as `pre`, run the surface's authoritative
+  // apply (`input.apply` — a server action or a client op that resolves the new
+  // tree), and on success push a `builderTree` `{ pre, post }` history entry
+  // (the exact shape `commitBuilderTreeMutation` records for a normal node
+  // mutation) and adopt `post` locally. A single `undo()` then replays
+  // `persistBuilderTree(entry.pre)`, restoring the whole prior tree through the
+  // surface adapter — no raw setBuilderTree, no parallel undo stack. The toast's
+  // Undo button calls undo(). On apply failure nothing is pushed, so the history
+  // stack and the canvas stay exactly as they were.
+  const applyTemplateWithUndo = useCallback<
+    EditContextValue["applyTemplateWithUndo"]
+  >(
+    async ({ label, apply }) => {
+      if (pageVersionRef.current === null) {
+        return {
+          ok: false,
+          error: "This page is still loading — try again in a moment.",
+        };
+      }
+      // Snapshot the pre-apply tree BEFORE the write so Undo restores it intact.
+      const preTree = builderTreeRef.current;
+      // Stamp the selection now so undo/redo of the apply restores it.
+      const selection = captureHistorySelection();
+
+      const result = await apply();
+      if (!result.ok) {
+        if (result.error) reportMutationError(result.error);
+        return { ok: false, error: result.error };
+      }
+
+      const postTree = result.tree;
+      // Adopt the applied tree locally (the authoritative write already
+      // persisted it server-side; this publishes it to the canvas bridge).
+      builderTreeRef.current = postTree;
+      setBuilderTree(postTree);
+      // Record one undoable entry — same `{ pre, post }` shape every builder
+      // mutation uses, so undo()/redo() replay it through persistBuilderTree.
+      setPast((p) =>
+        capHistory([
+          ...p,
+          { kind: "builderTree", pre: preTree, post: postTree, selection },
+        ]),
+      );
+      setFuture([]);
+      // Raise the shared Undo toast.
+      setTemplateAppliedToast({ label });
+      return { ok: true };
+    },
+    [captureHistorySelection, reportMutationError, capHistory],
+  );
+
   const insertBuilderSectionEmbed = useCallback<
     EditContextValue["insertBuilderSectionEmbed"]
   >(
@@ -7823,6 +7948,7 @@ export function EditProvider({
       moveBuilderNodeToParentIndex,
       insertBuilderNode,
       insertBuilderNodeCompositionPreset,
+      applyTemplateWithUndo,
       insertBuilderSectionEmbed,
       insertBuilderComponent,
       insertLinkedComponent,
@@ -7963,6 +8089,9 @@ export function EditProvider({
       flushBuilderTreeSave,
       lastDraftSavedAt,
       clearDraftSavedToast,
+      templateAppliedToast,
+      clearTemplateAppliedToast,
+      notifyTemplateApplied,
 
       mutationError,
       clearMutationError,
@@ -8056,6 +8185,7 @@ export function EditProvider({
       moveBuilderNodeToParentIndex,
       insertBuilderNode,
       insertBuilderNodeCompositionPreset,
+      applyTemplateWithUndo,
       insertBuilderSectionEmbed,
       insertBuilderComponent,
       insertLinkedComponent,
@@ -8190,6 +8320,9 @@ export function EditProvider({
       flushBuilderTreeSave,
       lastDraftSavedAt,
       clearDraftSavedToast,
+      templateAppliedToast,
+      clearTemplateAppliedToast,
+      notifyTemplateApplied,
       mutationError,
       clearMutationError,
       reportMutationError,

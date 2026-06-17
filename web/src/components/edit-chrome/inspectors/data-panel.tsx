@@ -32,9 +32,17 @@ import {
   FieldMapPreview,
   VisibilityRulesCard,
 } from "./data-panel-conditional";
-import { InspectorBody, InspectorSection, InspectorNotice } from "./kit";
+import {
+  InspectorBody,
+  InspectorSection,
+  InspectorNotice,
+  LockBadge,
+  LockedFieldsBanner,
+  dataLockedPathsOf,
+} from "./kit";
 import { InspectorPlaceholderField } from "./kit/inspector-mockup-primitives";
 import { KIT } from "./kit/tokens";
+import { stripLockedKeysFromPatch } from "@/lib/site-admin/builder-node/prop-lock";
 
 interface DataPanelProps {
   selectedBuilderNode: BuilderNode | null;
@@ -110,12 +118,53 @@ function useWorkspaceCollections(): BuilderCollectionDataSource[] {
   return collections;
 }
 
-export function DataPanel({
+/**
+ * INS-1 — wrap a node-props patch emitter with the per-prop lock guard so a
+ * locked Data path (`dataBinding`, `fieldBindings`, `visibilityCondition`) is
+ * stripped client-side, mirroring the Content tab. `patchBuilderNodeProps` and
+ * the whole-tree `enforceLockedPropsOnTree` backstop re-strip server-trustedly.
+ * Shared lock primitive, no surfaceKind branch.
+ */
+function useDataPropLockGuard(
+  node: BuilderNode | null,
+  onPatchBuilderNodeProps: DataPanelProps["onPatchBuilderNodeProps"],
+  onMutationError?: DataPanelProps["onMutationError"],
+): DataPanelProps["onPatchBuilderNodeProps"] {
+  return async (nodeId, patch) => {
+    if (!node) return onPatchBuilderNodeProps(nodeId, patch);
+    const guarded = stripLockedKeysFromPatch(
+      patch,
+      node.props as Record<string, unknown>,
+      node.lockedProps,
+    );
+    if (Object.keys(guarded).length === 0 && Object.keys(patch).length > 0) {
+      onMutationError?.(
+        "That data setting is locked by the platform admin and can’t be changed.",
+      );
+      return { ok: false };
+    }
+    return onPatchBuilderNodeProps(nodeId, guarded);
+  };
+}
+
+export function DataPanel(props: DataPanelProps) {
+  const guardedPatch = useDataPropLockGuard(
+    props.selectedBuilderNode,
+    props.onPatchBuilderNodeProps,
+    props.onMutationError,
+  );
+  return (
+    <DataPanelInner {...props} onPatchBuilderNodeProps={guardedPatch} />
+  );
+}
+
+function DataPanelInner({
   selectedBuilderNode,
   onPatchBuilderNodeProps,
   onMutationError,
 }: DataPanelProps) {
   const { workspacePlan, device } = useEditContext();
+  const lockedDataPaths = dataLockedPathsOf(selectedBuilderNode?.lockedProps);
   const collections = useWorkspaceCollections();
   const persistedBinding = useMemo(
     () =>
@@ -150,11 +199,15 @@ export function DataPanel({
           selectedBuilderNode={selectedBuilderNode}
           onPatchBuilderNodeProps={onPatchBuilderNodeProps}
           onMutationError={onMutationError}
+          lockedDataPaths={lockedDataPaths}
         />
       );
     }
     return (
       <div className="flex flex-col gap-3">
+        {lockedDataPaths.length > 0 ? (
+          <LockedFieldsBanner paths={lockedDataPaths} noun="data settings" />
+        ) : null}
         <UnsupportedDataNodeCard kind={selectedBuilderNode.kind} />
         <VisibilityRulesCard
           selectedBuilderNode={selectedBuilderNode}
@@ -213,13 +266,24 @@ export function DataPanel({
       data-builder-data-target-kind={selectedBuilderNode.kind}
       data-builder-data-target-id={selectedBuilderNode.id}
     >
+      {lockedDataPaths.length > 0 ? (
+        <LockedFieldsBanner paths={lockedDataPaths} noun="data settings" />
+      ) : null}
       {device !== "desktop" ? (
         <InspectorNotice tone="info">
           Data binding uses desktop settings on {device === "tablet" ? "Tablet" : "Mobile"}. Per-device binding is not available yet.
         </InspectorNotice>
       ) : null}
       <InspectorSection
-        title="Data binding"
+        title={
+          lockedDataPaths.length > 0 ? (
+            <span className="inline-flex items-center gap-2">
+              Data binding <LockBadge />
+            </span>
+          ) : (
+            "Data binding"
+          )
+        }
         description={
           binding
             ? boundCollection?.label ?? source?.label ?? binding.sourceKey
@@ -433,10 +497,12 @@ function FieldBindingsPanel({
   selectedBuilderNode,
   onPatchBuilderNodeProps,
   onMutationError,
+  lockedDataPaths,
 }: {
   selectedBuilderNode: BuilderNode;
   onPatchBuilderNodeProps: DataPanelProps["onPatchBuilderNodeProps"];
   onMutationError?: DataPanelProps["onMutationError"];
+  lockedDataPaths: readonly string[];
 }) {
   const collections = useWorkspaceCollections();
   const propKeys = getBuilderNodeFieldBindingProps(selectedBuilderNode.kind);
@@ -478,6 +544,9 @@ function FieldBindingsPanel({
       data-builder-data-target-kind={selectedBuilderNode.kind}
       data-builder-data-target-id={selectedBuilderNode.id}
     >
+      {lockedDataPaths.length > 0 ? (
+        <LockedFieldsBanner paths={lockedDataPaths} noun="data settings" />
+      ) : null}
       <Card state={persisted ? "active" : "default"}>
         <CardHead title="Field bindings" sub="Repeat item props" iconAccent="green" />
         <CardBody>

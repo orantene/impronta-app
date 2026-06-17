@@ -1186,6 +1186,7 @@ function EditShellInner({
         <ThemePreviewProjector />
         <MutationErrorToast />
         <DraftSavedToast />
+        <TemplateAppliedToast />
         <PresenceBanner />
         <RemoteCursorsLayer />
         {/* Preview toggle: when on, links navigate normally so the
@@ -1748,6 +1749,90 @@ function DraftSavedToast() {
         title="Dismiss"
       >
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+// CANVAS-4 — shared "Template applied — Undo?" toast. Mounted once in the
+// universal edit-chrome, so storefront, /t/[code], /t/site/[slug] and the Lab
+// playground all surface the SAME affordance after a template/starter apply.
+// The toast reuses the DraftSavedToast presentation and the existing undo
+// stack: `applyTemplateWithUndo` pushed the pre-apply tree to history before
+// the write, so Undo here restores it in one step through the surface adapter.
+function TemplateAppliedToast() {
+  const { templateAppliedToast, clearTemplateAppliedToast, undo } =
+    useEditContext();
+  if (!templateAppliedToast) return null;
+  return (
+    <div
+      data-edit-overlay="template-applied-toast"
+      role="status"
+      aria-live="polite"
+      className="pointer-events-auto fixed left-1/2 top-[66px] z-[120] flex -translate-x-1/2 items-center gap-3 rounded-md border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-800 shadow-lg"
+    >
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="text-stone-500"
+        aria-hidden
+      >
+        <polyline points="20 6 9 17 4 12" />
+      </svg>
+      <span className="max-w-[min(360px,calc(100vw-160px))] leading-snug">
+        <span className="font-semibold">{templateAppliedToast.label}</span>{" "}
+        applied.
+      </span>
+      <button
+        type="button"
+        onClick={() => {
+          clearTemplateAppliedToast();
+          void undo();
+        }}
+        className="inline-flex shrink-0 items-center gap-1 rounded-md border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-[11px] font-semibold text-stone-700 transition hover:border-stone-300 hover:bg-stone-100"
+      >
+        <svg
+          width="11"
+          height="11"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="M9 14 4 9l5-5" />
+          <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+        </svg>
+        Undo
+      </button>
+      <button
+        type="button"
+        onClick={clearTemplateAppliedToast}
+        className="rounded-sm px-1 text-stone-400 transition hover:bg-stone-100 hover:text-stone-700"
+        aria-label="Dismiss"
+        title="Dismiss"
+      >
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <line x1="18" y1="6" x2="6" y2="18" />
           <line x1="6" y1="6" x2="18" y2="18" />
         </svg>
