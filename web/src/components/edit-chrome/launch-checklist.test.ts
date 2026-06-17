@@ -21,7 +21,12 @@ import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 // ─── helper ────────────────────────────────────────────────────────────────
 
 function makeSection(id = "s1"): BuilderNodeTree[number] {
-  return { id, kind: "section", props: {}, children: [] } as BuilderNodeTree[number];
+  return {
+    id,
+    kind: "section",
+    props: { sectionTypeKey: "hero" },
+    children: [],
+  } as BuilderNodeTree[number];
 }
 
 function makeNode(id = "n1", kind: string = "heading"): BuilderNodeTree[number] {
