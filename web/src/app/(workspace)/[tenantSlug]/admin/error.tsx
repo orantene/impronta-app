@@ -10,6 +10,7 @@
 // surface — not a redirect to "/".
 
 import { useEffect } from "react";
+import Link from "next/link";
 import { logServerError } from "@/lib/server/safe-error";
 
 export default function AdminWorkspaceError({
@@ -125,7 +126,7 @@ export default function AdminWorkspaceError({
           >
             Retry
           </button>
-          <a
+          <Link
             href="/"
             style={{
               display: "inline-flex",
@@ -142,7 +143,7 @@ export default function AdminWorkspaceError({
             }}
           >
             Go home
-          </a>
+          </Link>
         </div>
       </div>
     </div>

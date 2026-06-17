@@ -10,6 +10,7 @@
 // retry on the same talent surface.
 
 import { useEffect } from "react";
+import Link from "next/link";
 import { logServerError } from "@/lib/server/safe-error";
 
 export default function TalentShellError({
@@ -126,7 +127,7 @@ export default function TalentShellError({
           >
             Retry
           </button>
-          <a
+          <Link
             href="/"
             style={{
               display: "inline-flex",
@@ -143,7 +144,7 @@ export default function TalentShellError({
             }}
           >
             Go home
-          </a>
+          </Link>
         </div>
       </div>
     </div>
