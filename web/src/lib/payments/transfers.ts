@@ -30,6 +30,7 @@ import {
   canRouteTransfersToTalent,
 } from "@/lib/payments/stripe-connect-talent";
 import { recordPayoutLeg, syncBookingPayoutLifecycle } from "@/lib/payments/booking-payouts-ledger";
+import { notifyCurrencyMismatchHold } from "@/lib/payments/payout-reversal-notify";
 import {
   disburse,
   type DisburseOutcome,
@@ -189,24 +190,75 @@ export async function executeBookingTransfers(
     const settledCurrency = String((txn.currency as string) || "usd").toLowerCase();
     for (const snap of snapshots) {
       const currency = (snap.currency_code || settledCurrency || "usd").toLowerCase();
-      // Audit #5: never transfer in a currency the platform did NOT settle. The
-      // client charge settled in the transaction currency; a snapshot lane in a
-      // different currency (a legacy mixed-currency booking) can't be funded from
-      // this settlement — paying it out would fail or misfund the talent. Skip
-      // the lane and flag it for manual reconciliation rather than guessing.
-      if (currency !== settledCurrency) {
-        logServerError(
-          "transfers.currency_mismatch",
-          new Error(
-            `snapshot lane ${currency} != settled ${settledCurrency} (booking ${bookingId}, txn ${transactionId}) — skipped payout to avoid misfunding`,
-          ),
-        );
-        continue;
-      }
       const talentProfileId = await resolveTalentProfileId(sb, snap);
       const isWorkspaceOwned =
         snap.owning_party_type === "agency" || snap.owning_party_type === "workspace";
       const tenantId = isWorkspaceOwned ? snap.owning_party_id : null;
+
+      // Audit #5: never transfer in a currency the platform did NOT settle. The
+      // client charge settled in the transaction currency; a snapshot lane in a
+      // different currency (a legacy mixed-currency booking) can't be funded from
+      // this settlement — paying it out would fail or misfund the talent.
+      //
+      // P1 hardening: rather than SILENTLY skip (which left the talent unpaid
+      // with no record and no way to reconcile), record a HELD leg per lane with
+      // an explicit currency-mismatch reason. Held legs surface on the platform
+      // admin held-payouts dashboard (listHeldPayouts) exactly like an
+      // un-onboarded-account hold, so an operator can reconcile it manually
+      // instead of the money silently vanishing. We do NOT re-route or guess a
+      // conversion — these legs stay held until a human resolves them (the
+      // automatic release path only retries account-eligibility, not currency,
+      // so a held currency-mismatch leg is never auto-paid in the wrong currency).
+      if (currency !== settledCurrency) {
+        const reason = `currency mismatch: snapshot lane ${currency} != settled ${settledCurrency} — held for manual reconciliation (not auto-funded to avoid misfunding)`;
+        logServerError(
+          "transfers.currency_mismatch",
+          new Error(
+            `snapshot lane ${currency} != settled ${settledCurrency} (booking ${bookingId}, txn ${transactionId}) — recorded HELD payout leg(s) for manual reconciliation`,
+          ),
+        );
+        if (snap.talent_net_cents > 0) {
+          await recordPayoutLeg(sb, {
+            bookingId,
+            transactionId,
+            participantId: snap.participant_id,
+            party: "talent",
+            owningPartyType: snap.owning_party_type,
+            owningPartyId: snap.owning_party_id,
+            talentProfileId,
+            tenantId,
+            destinationAccountId: null,
+            amountCents: snap.talent_net_cents,
+            currency,
+            status: "held",
+            stripeTransferId: null,
+            lastError: reason,
+          });
+          // Notify the affected talent their payout is held (in-app bell),
+          // reusing the payout-notification pattern, so the talent isn't left
+          // silently unpaid with no heads-up.
+          await notifyCurrencyMismatchHold(sb, bookingId, snap.participant_id, snap.talent_net_cents, currency);
+        }
+        if (isWorkspaceOwned && snap.workspace_fee_cents > 0) {
+          await recordPayoutLeg(sb, {
+            bookingId,
+            transactionId,
+            participantId: snap.participant_id,
+            party: "workspace",
+            owningPartyType: snap.owning_party_type,
+            owningPartyId: snap.owning_party_id,
+            talentProfileId: null,
+            tenantId,
+            destinationAccountId: null,
+            amountCents: snap.workspace_fee_cents,
+            currency,
+            status: "held",
+            stripeTransferId: null,
+            lastError: reason,
+          });
+        }
+        continue;
+      }
 
       // 1) Talent — full protected quote. Routed via the resolved rail: a
       //    Connect transfer by default, or a Global Payouts OutboundPayment when

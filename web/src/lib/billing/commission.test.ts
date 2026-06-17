@@ -17,9 +17,11 @@ import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
 import {
   resolveBookingCommissions,
+  reconcileBookingLanes,
   CommissionResolutionError,
   isOffPlatformPaymentMethod,
   balanceSummary,
+  type BookingLaneRow,
   type PlatformCommissionConfig,
   type ResolveBookingCommissionsInput,
 } from "./commission";
@@ -521,5 +523,60 @@ describe("A2 — instant-book client gross matches the offer path (shared resolv
     }));
     assert.equal(instantBook.gross_charged_cents, offerPath.gross_charged_cents);
     assert.equal(instantBook.client_surcharge_cents, offerPath.client_surcharge_cents);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// P1 hardening (c) — multi-talent rounding drift. A booking with two talent
+// participants and ODD-cents lines: each per-participant snapshot already
+// satisfies the per-ROW invariant (talent + workspace + platform === gross
+// charged), so summing the two rows must land EXACTLY on Σ(gross_charged) with
+// no cents stranded on the platform balance. reconcileBookingLanes is the
+// booking-level assertion that proves this and (defensively) reports any drift.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("(c) multi-talent rounding — booking lanes reconcile exactly", () => {
+  // Two participants, odd-cents prices that DON'T divide evenly by the take —
+  // the per-row rounding is where naive independent rounding could drift.
+  const cfg = defaultPlatformConfig({ default_take_bps: 333, client_surcharge_bps: 167 });
+  const girl1 = resolveBookingCommissions(baseInput({
+    currencyCode: "USD",
+    platformConfig: cfg,
+    offerLineItems: [{ units: 3, unit_price_cents: 33_333, talent_cost_cents: 21_111 }],
+  }));
+  const girl2 = resolveBookingCommissions(baseInput({
+    currencyCode: "USD",
+    platformConfig: cfg,
+    offerLineItems: [{ units: 7, unit_price_cents: 14_287, talent_cost_cents: 9_991 }],
+  }));
+  const rows: BookingLaneRow[] = [
+    { participant_id: "p1", talent_net_cents: girl1.talent_net_cents, workspace_fee_cents: girl1.workspace_fee_cents, platform_fee_cents: girl1.platform_fee_cents, gross_charged_cents: girl1.gross_charged_cents },
+    { participant_id: "p2", talent_net_cents: girl2.talent_net_cents, workspace_fee_cents: girl2.workspace_fee_cents, platform_fee_cents: girl2.platform_fee_cents, gross_charged_cents: girl2.gross_charged_cents },
+  ];
+
+  it("each row balances on its own (per-row invariant)", () => {
+    for (const r of rows) {
+      assert.equal(
+        r.talent_net_cents + r.workspace_fee_cents + r.platform_fee_cents,
+        r.gross_charged_cents,
+      );
+    }
+  });
+
+  it("Σ(talent)+Σ(workspace)+Σ(platform) === Σ(gross_charged) — zero drift across participants", () => {
+    const recon = reconcileBookingLanes(rows);
+    assert.equal(recon.laneTotalCents, recon.grossChargedTotalCents);
+    assert.equal(recon.driftCents, 0);
+    assert.equal(recon.adjustParticipantId, null); // no correction needed
+  });
+
+  it("detects an injected drift and targets the largest-gross participant for the correcting cent", () => {
+    // Simulate a future bug: a lane row that's 1 cent short of its gross.
+    const broken: BookingLaneRow[] = [
+      { participant_id: "small", talent_net_cents: 100, workspace_fee_cents: 0, platform_fee_cents: 0, gross_charged_cents: 100 },
+      { participant_id: "large", talent_net_cents: 999, workspace_fee_cents: 0, platform_fee_cents: 0, gross_charged_cents: 1_000 },
+    ];
+    const recon = reconcileBookingLanes(broken);
+    assert.equal(recon.driftCents, 1); // 1100 charged − 1099 lanes
+    assert.equal(recon.adjustParticipantId, "large"); // largest gross absorbs it
   });
 });

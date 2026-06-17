@@ -273,3 +273,44 @@ test("does not fan out before the charge settles (status guard)", async () => {
   assert.equal(outcomes.length, 0);
   assert.equal(calls.length, 0);
 });
+
+test("currency-mismatch lane is HELD (not silently dropped), recorded for manual reconciliation", async () => {
+  // P1 hardening (b): the txn settled in MXN, but this snapshot lane is in USD —
+  // it can't be funded from the MXN settlement. Previously this `continue`d with
+  // only a log (talent never paid, no record). Now we record HELD legs so they
+  // surface on the admin held-payouts dashboard, and make NO Stripe call.
+  const snapshots: Snap[] = [
+    // matching-currency lane → pays normally
+    snap({ participant_id: "p_ok", talent_net_cents: 100000, workspace_fee_cents: 25000, currency_code: "mxn" }),
+    // mismatched-currency lane → held, no transfer
+    snap({ participant_id: "p_bad", talent_net_cents: 90000, workspace_fee_cents: 15000, currency_code: "usd" }),
+  ];
+  const participants = { p_ok: "tp_ok", p_bad: "tp_bad" };
+  const { calls, stripe } = makeStripe();
+  const ledger: LedgerWrite[] = [];
+
+  const outcomes = await executeBookingTransfers(TXN_ID, {
+    sb: makeSupabase({ snapshots, participants, ledger }),
+    stripe,
+    resolveTalentAccount: async (tp) => `acct_talent_${tp}`,
+    resolveWorkspaceAccount: async (t) => `acct_${t}`,
+  });
+
+  // The mismatched lane produced NO transfer outcomes + NO Stripe calls for it.
+  assert.ok(!outcomes.some((o) => o.amountCents === 90000), "no transfer outcome for the held lane");
+  assert.ok(!outcomes.some((o) => o.amountCents === 15000), "no workspace transfer for the held lane");
+  assert.ok(!calls.some((c) => c.idempotencyKey === `transfer_${BOOKING_ID}_p_bad_talent`));
+
+  // The matching lane still paid (2 transfers: talent + workspace).
+  assert.equal(calls.length, 2, "only the MXN lane transferred");
+
+  // LEDGER: the mismatched lane is recorded HELD for both parties (no transfer
+  // id), with a currency-mismatch reason — visible on the held-payouts board.
+  const heldTalent = ledger.find((w) => w.row.party === "talent" && w.row.amount_cents === 90000);
+  assert.equal(heldTalent?.row.status, "held", "mismatched talent leg held");
+  assert.equal(heldTalent?.row.stripe_transfer_id, null);
+  assert.match(String(heldTalent?.row.last_error ?? ""), /currency mismatch/i);
+  const heldWs = ledger.find((w) => w.row.party === "workspace" && w.row.amount_cents === 15000);
+  assert.equal(heldWs?.row.status, "held", "mismatched workspace leg held");
+  assert.match(String(heldWs?.row.last_error ?? ""), /currency mismatch/i);
+});
