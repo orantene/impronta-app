@@ -105,7 +105,7 @@ function buildEpkSlots(ctx: TemplateBuildContext): TalentSiteSnapshotSection[] {
 export const STAGE_TEMPLATE: TalentSiteTemplateDef = {
   key: "stage",
   label: "Stage",
-  blurb: "Video-first hero for performers and live talent.",
+  blurb: "A video-first layout that puts your showreel front and center. Designed for performers, musicians and live talent who lead with their reel.",
   availableAt: "max",
   thumbnailUrl: "/talent-templates/stage.webp",
   buildSlots: buildStageSlots,
@@ -114,7 +114,7 @@ export const STAGE_TEMPLATE: TalentSiteTemplateDef = {
 export const CREATOR_TEMPLATE: TalentSiteTemplateDef = {
   key: "creator",
   label: "Creator",
-  blurb: "Social-first layout for creators and influencers.",
+  blurb: "A social-first layout with an editorial hero, a portfolio section and a Follow links row. Built for creators and influencers who want to connect every channel.",
   availableAt: "max",
   thumbnailUrl: "/talent-templates/creator.webp",
   buildSlots: buildCreatorSlots,
@@ -123,7 +123,7 @@ export const CREATOR_TEMPLATE: TalentSiteTemplateDef = {
 export const EPK_TEMPLATE: TalentSiteTemplateDef = {
   key: "epk",
   label: "EPK",
-  blurb: "Press-kit feel — bio, gallery, and contact CTA.",
+  blurb: "A press-kit style page with a bold hero, a full bio, a media image gallery and a press contact call to action. Share it directly with media and bookers.",
   availableAt: "max",
   thumbnailUrl: "/talent-templates/epk.webp",
   buildSlots: buildEpkSlots,

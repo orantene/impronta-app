@@ -5,7 +5,7 @@ import type { TalentSiteTemplateDef } from "./types";
 export const ROSTER_TEMPLATE: TalentSiteTemplateDef = {
   key: "roster",
   label: "Roster",
-  blurb: "Classic comp-card layout with hero, gallery, and contact.",
+  blurb: "A classic comp-card layout with a split hero, a portfolio gallery and a contact section. A solid starting point for models and performers.",
   availableAt: "pro",
   thumbnailUrl: "/talent-templates/roster.webp",
   buildSlots: (ctx) => {

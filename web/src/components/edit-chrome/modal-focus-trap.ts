@@ -9,9 +9,21 @@ import { useEffect, useRef } from "react";
 const FOCUSABLE =
   'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
-export function useModalFocusTrap(active: boolean, onEscape?: () => void) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
+export function useModalFocusTrap<T extends HTMLElement = HTMLDivElement>(
+  active: boolean,
+  onEscape?: () => void,
+) {
+  const containerRef = useRef<T | null>(null);
   const priorFocusRef = useRef<HTMLElement | null>(null);
+
+  // Keep the latest onEscape in a ref so a changing callback identity (e.g.
+  // `state.kind === "publishing" ? undefined : close`) does NOT re-run the
+  // capture/trap effect — re-running it would steal focus back to the first
+  // focusable on every such render. The effect reads the live ref instead.
+  const onEscapeRef = useRef(onEscape);
+  useEffect(() => {
+    onEscapeRef.current = onEscape;
+  }, [onEscape]);
 
   useEffect(() => {
     if (!active) return undefined;
@@ -29,7 +41,7 @@ export function useModalFocusTrap(active: boolean, onEscape?: () => void) {
       if (e.key === "Escape") {
         e.preventDefault();
         e.stopPropagation();
-        onEscape?.();
+        onEscapeRef.current?.();
         return;
       }
       if (e.key !== "Tab" || !container) return;
@@ -61,7 +73,10 @@ export function useModalFocusTrap(active: boolean, onEscape?: () => void) {
         }
       }
     };
-  }, [active, onEscape]);
+    // `onEscape` is intentionally NOT a dependency — it's read through
+    // `onEscapeRef` so a changing callback identity doesn't re-run the
+    // capture/trap effect (which would steal focus back on every render).
+  }, [active]);
 
   return containerRef;
 }

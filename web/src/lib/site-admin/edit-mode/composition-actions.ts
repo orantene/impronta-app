@@ -65,7 +65,10 @@ import { requireTenantScope } from "@/lib/saas";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { publishPageSnapshot } from "@/lib/site-admin/edit-mode/page-composer-action";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
-import type { BuilderStyleClassRegistry } from "@/lib/site-admin/builder-node/style-classes";
+import type {
+  BuilderStyleClassRegistry,
+  BuilderStylePresetRegistry,
+} from "@/lib/site-admin/builder-node/style-classes";
 import {
   buildLegacySectionBuilderTree,
   type LegacySnapshotSlot,
@@ -76,6 +79,7 @@ import { isShellMutationAllowedForPlan } from "@/lib/site-admin/edit-mode/shell-
 import {
   parseBuilderTreeFromSnapshot,
   parseStyleClassesFromSnapshot,
+  parseStylePresetsFromSnapshot,
 } from "@/lib/site-admin/edit-mode/composition-revision-snapshot";
 
 // ── types ─────────────────────────────────────────────────────────────────
@@ -166,6 +170,13 @@ export interface CompositionData {
   library: CompositionLibraryEntry[];
   /** Linked style classes from the latest draft revision snapshot. */
   styleClasses?: BuilderStyleClassRegistry;
+  /**
+   * STYLE-1 — site-scoped style presets + copy/paste clipboard, carried through
+   * the SAME surface-agnostic envelope as `styleClasses`. Every adapter reads it
+   * from its surface's `style_presets` column (or `null`/absent → undefined for a
+   * not-yet-migrated row, which degrades to the localStorage seed).
+   */
+  stylePresets?: BuilderStylePresetRegistry;
   /** Locales available for the active tenant (read-only here — used for the
    *  Topbar locale switcher and the clone-from-locale command). */
   availableLocales: ReadonlyArray<Locale>;
@@ -232,6 +243,7 @@ async function loadDraftRevisionExtras(
   version?: number,
 ): Promise<{
   styleClasses?: BuilderStyleClassRegistry;
+  stylePresets?: BuilderStylePresetRegistry;
   builderTree?: BuilderNodeTree;
 }> {
   let query = admin
@@ -249,6 +261,7 @@ async function loadDraftRevisionExtras(
   if (!snapshot) return {};
   return {
     styleClasses: parseStyleClassesFromSnapshot(snapshot),
+    stylePresets: parseStylePresetsFromSnapshot(snapshot),
     builderTree: parseBuilderTreeFromSnapshot(snapshot),
   };
 }
@@ -483,6 +496,7 @@ export async function loadHomepageCompositionAction(input: {
     const revisionExtras = revisionRow?.snapshot
       ? {
           styleClasses: parseStyleClassesFromSnapshot(revisionRow.snapshot),
+          stylePresets: parseStylePresetsFromSnapshot(revisionRow.snapshot),
           builderTree: parseBuilderTreeFromSnapshot(revisionRow.snapshot),
         }
       : await loadDraftRevisionExtras(admin, scope.tenantId, pageRow.id, pageRow.version);
@@ -518,6 +532,7 @@ export async function loadHomepageCompositionAction(input: {
           preferredBuilderTree,
         }),
         styleClasses: revisionExtras.styleClasses,
+        stylePresets: revisionExtras.stylePresets,
         slotDefs,
         library,
         availableLocales: localeSettings.supportedLocales,
@@ -614,6 +629,7 @@ export async function loadHomepageCompositionAction(input: {
   const isFreeformPage = Object.keys(slots).length === 0;
   let draftRevisionBuilderTree: BuilderNodeTree | undefined;
   let draftRevisionStyleClasses: BuilderStyleClassRegistry | undefined;
+  let draftRevisionStylePresets: BuilderStylePresetRegistry | undefined;
   const adminClient = createServiceRoleClient();
   if (adminClient) {
     const revisionExtras = await loadDraftRevisionExtras(
@@ -622,6 +638,7 @@ export async function loadHomepageCompositionAction(input: {
       page.pageId,
     );
     draftRevisionStyleClasses = revisionExtras.styleClasses;
+    draftRevisionStylePresets = revisionExtras.stylePresets;
     if (isFreeformPage) {
       draftRevisionBuilderTree = revisionExtras.builderTree;
     }
@@ -670,6 +687,7 @@ export async function loadHomepageCompositionAction(input: {
           })
         : buildBuilderTreeFromCompositionSlots(slots),
       styleClasses: draftRevisionStyleClasses,
+      stylePresets: draftRevisionStylePresets,
       slotDefs,
       library,
       availableLocales: localeSettings.supportedLocales,
@@ -714,6 +732,12 @@ export interface CompositionSaveInput {
   builderTree?: BuilderNodeTree;
   /** Page-scoped linked style classes to persist in the draft revision snapshot. */
   styleClasses?: BuilderStyleClassRegistry;
+  /**
+   * STYLE-1 — site-scoped style presets + clipboard to persist alongside
+   * `styleClasses`. Optional: a save that doesn't touch presets omits it and the
+   * adapter preserves the stored value.
+   */
+  stylePresets?: BuilderStylePresetRegistry;
   /**
    * First-run starter for a newly created standard page — exempt from the
    * Free-plan nested-builder draft guard (same intent as homepage curated seeds).
@@ -994,6 +1018,12 @@ export async function saveHomepageCompositionAction(
           ...(input.styleClasses && Object.keys(input.styleClasses).length > 0
             ? { styleClasses: input.styleClasses }
             : {}),
+          // STYLE-1 — store presets in the snapshot alongside styleClasses so
+          // the homepage / cms_page slot path round-trips them too.
+          ...(input.stylePresets &&
+          (input.stylePresets.presets.length > 0 || input.stylePresets.clipboard)
+            ? { stylePresets: input.stylePresets }
+            : {}),
         },
         created_by: auth.user.id,
       });
@@ -1056,6 +1086,7 @@ export async function saveHomepageCompositionAction(
       tenantId: scope.tenantId,
       values: envelope.data,
       styleClasses: input.styleClasses,
+      stylePresets: input.stylePresets,
       actorProfileId: auth.user.id,
       editSession: input.editSession,
     });
@@ -1634,6 +1665,7 @@ export async function applyHomepageDraftBeaconAction(input: {
   slots: Record<string, Array<{ sectionId: string; sortOrder: number }>>;
   builderTree?: BuilderNodeTree;
   styleClasses?: BuilderStyleClassRegistry;
+  stylePresets?: BuilderStylePresetRegistry;
   editSession: { id: string; seq: number };
 }): Promise<SaveDraftResult> {
   // Non-homepage pages: keep the existing CAS beacon (session columns stamped).
@@ -1702,6 +1734,7 @@ export async function applyHomepageDraftBeaconAction(input: {
       tenantId: scope.tenantId,
       values: envelope.data,
       styleClasses: input.styleClasses,
+      stylePresets: input.stylePresets,
       actorProfileId: auth.user.id,
       editSession: input.editSession,
       incomingHasContent: beaconPayloadHasContent({
@@ -1769,6 +1802,9 @@ export async function publishHomepageFromEditModeAction(input: {
    * publish strips classRefs to a clean tree (pre-W1 fallback).
    */
   styleClasses?: BuilderStyleClassRegistry;
+  /** STYLE-1 — site-scoped style presets + clipboard baked into the published
+   *  snapshot alongside styleClasses. */
+  stylePresets?: BuilderStylePresetRegistry;
 }): Promise<PublishResult> {
   const auth = await requireStaff();
   if (!auth.ok) {
@@ -1879,6 +1915,8 @@ export async function publishHomepageFromEditModeAction(input: {
       actorProfileId: auth.user.id,
       // W1-T2 — bake the operator's linked style classes into the snapshot.
       styleClasses: input.styleClasses,
+      // STYLE-1 — bake presets alongside classes so they survive publish.
+      stylePresets: input.stylePresets,
     });
     if (!result.ok) {
       if (result.code === "VERSION_CONFLICT") {

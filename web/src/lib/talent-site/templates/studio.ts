@@ -87,7 +87,7 @@ function buildStudioSlots(ctx: TemplateBuildContext): TalentSiteSnapshotSection[
 export const STUDIO_TEMPLATE: TalentSiteTemplateDef = {
   key: "studio",
   label: "Studio",
-  blurb: "Tight grid, big imagery — fashion and lifestyle.",
+  blurb: "A tight masonry grid with big imagery and a bold headline hero. Built for fashion, beauty and lifestyle talent whose work speaks for itself.",
   availableAt: "pro",
   thumbnailUrl: "/talent-templates/studio.webp",
   buildSlots: buildStudioSlots,

@@ -40,6 +40,12 @@ import type {
   BuilderSurfaceRestoreInput,
 } from "../surface-adapter";
 import { assertNoLegacyBuilderWrite } from "../legacy-write-guard";
+import {
+  coerceStyleClassRegistry,
+  coerceStylePresetRegistry,
+  serializeStyleClassRegistry,
+  serializeStylePresetRegistry,
+} from "@/lib/site-admin/builder-node/style-registry-coerce";
 
 /** Minimal `cms_pages` row shape used by the freeform adapter. */
 export interface CmsFreeformPageRow {
@@ -52,6 +58,11 @@ export interface CmsFreeformPageRow {
   version: number | null;
   published_at: string | null;
   updated_at: string;
+  /** STYLE-1 — site-scoped style-class registry (cms_pages.style_classes).
+   *  Optional so a pre-migration read (column absent → undefined) degrades. */
+  style_classes?: unknown;
+  /** STYLE-1 — site-scoped style presets + clipboard (cms_pages.style_presets). */
+  style_presets?: unknown;
 }
 
 /**
@@ -69,6 +80,12 @@ export interface CmsFreeformPagePatch {
   blocks: unknown;
   updated_at: string;
   title?: string;
+  /** STYLE-1 — serialized style-class registry (or null to clear); `undefined`
+   *  means "leave the stored value untouched" (a save that didn't touch classes). */
+  style_classes?: unknown;
+  /** STYLE-1 — serialized presets envelope (or null to clear); `undefined` =
+   *  leave untouched. */
+  style_presets?: unknown;
 }
 
 /**
@@ -124,9 +141,30 @@ export function buildCmsFreeformComposition(
     builderTree: (row.blocks as CompositionData["builderTree"]) ?? [],
     slotDefs: [],
     library: [],
-    styleClasses: undefined,
+    // STYLE-1 — site-scoped registries read from the dedicated columns. A
+    // pre-migration row (column absent → undefined) degrades to the editor's
+    // localStorage seed; coercion tolerates a malformed blob.
+    styleClasses: coerceStyleClassRegistry(row.style_classes),
+    stylePresets: coerceStylePresetRegistry(row.style_presets),
     availableLocales: [locale as CompositionData["locale"]],
   };
+}
+
+/** STYLE-1 — build the style-registry slice of a `cms_pages` patch from a save
+ *  input, mapping `undefined` (untouched) vs. a registry (serialize). Shared by
+ *  `save` and `saveDraft` so both legs persist classes/presets identically. */
+function cmsStyleRegistryPatch(input: {
+  styleClasses?: CompositionSaveInput["styleClasses"];
+  stylePresets?: CompositionSaveInput["stylePresets"];
+}): Pick<CmsFreeformPagePatch, "style_classes" | "style_presets"> {
+  const patch: Pick<CmsFreeformPagePatch, "style_classes" | "style_presets"> = {};
+  if (input.styleClasses !== undefined) {
+    patch.style_classes = serializeStyleClassRegistry(input.styleClasses);
+  }
+  if (input.stylePresets !== undefined) {
+    patch.style_presets = serializeStylePresetRegistry(input.stylePresets);
+  }
+  return patch;
 }
 
 /**
@@ -169,6 +207,7 @@ export function createCmsPageAdapter(
           blocks: input.builderTree ?? [],
           updated_at: new Date().toISOString(),
           title: input.metadata?.title,
+          ...cmsStyleRegistryPatch(input),
         },
       });
       if (!result.ok) return { ok: false, error: result.error };
@@ -191,6 +230,7 @@ export function createCmsPageAdapter(
           blocks: input.builderTree ?? [],
           updated_at: new Date().toISOString(),
           title: input.metadata?.title,
+          ...cmsStyleRegistryPatch(input),
         },
       });
       if (!result.ok) return { ok: false, error: result.error };

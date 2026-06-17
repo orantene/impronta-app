@@ -5557,6 +5557,7 @@ export function StylePanel({
             ) : null}
 
             <StylePresetsBar
+              pageId={pageId}
               currentStyle={selectedStandaloneFullStyle ?? undefined}
               onApply={(style) => patchSelectedBaseStyle(style)}
             />

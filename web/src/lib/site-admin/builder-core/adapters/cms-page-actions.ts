@@ -22,8 +22,13 @@ import { requireTenantScope } from "@/lib/saas/scope";
 import { enforceLockedPropsOnTree } from "@/lib/site-admin/builder-node/prop-lock";
 import type { CmsFreeformPageRow } from "./cms-page-adapter-core";
 
-const ROW_COLUMNS =
+// STYLE-1 — the style registry columns are selected/written through a graceful
+// path: a pre-migration DB (column absent) would ERROR the whole PostgREST query
+// (data:null), 500-ing the editor. So the base column list excludes them and we
+// add them only when present, falling back to the base list on error.
+const BASE_ROW_COLUMNS =
   "id, slug, title, status, blocks, is_freeform, version, published_at, updated_at";
+const ROW_COLUMNS = `${BASE_ROW_COLUMNS}, style_classes, style_presets`;
 
 /** Load a freeform cms_pages row by (locale, slug) within the caller's tenant.
  *  cms_pages is unique on (tenant_id, locale, slug); filtering by locale is
@@ -38,23 +43,38 @@ export async function loadCmsFreeformPage(input: {
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return null;
 
-  const { data, error } = await auth.supabase
-    .from("cms_pages")
-    .select(ROW_COLUMNS)
-    .eq("tenant_id", scope.tenantId)
-    .eq("locale", input.locale ?? "en")
-    .eq("slug", input.slug)
-    .eq("is_freeform", true)
-    .maybeSingle()
-    .returns<CmsFreeformPageRow>();
-  if (error || !data) return null;
-  return data;
+  const selectRow = (columns: string) =>
+    auth.supabase
+      .from("cms_pages")
+      .select(columns)
+      .eq("tenant_id", scope.tenantId)
+      .eq("locale", input.locale ?? "en")
+      .eq("slug", input.slug)
+      .eq("is_freeform", true)
+      .maybeSingle()
+      .returns<CmsFreeformPageRow>();
+
+  const { data, error } = await selectRow(ROW_COLUMNS);
+  if (!error && data) return data;
+
+  // STYLE-1 graceful fallback — the style columns may not exist yet (migration
+  // unapplied). Re-select the base columns so the editor still opens; the style
+  // registry then degrades to the SSR/localStorage seed.
+  const fallback = await selectRow(BASE_ROW_COLUMNS);
+  if (fallback.error || !fallback.data) return null;
+  return fallback.data;
 }
 
-/** Persist the freeform tree (+ optional title) to cms_pages.blocks. */
+/** Persist the freeform tree (+ optional title + STYLE-1 registries) to cms_pages. */
 export async function saveCmsFreeformPage(input: {
   pageId: string;
-  patch: { blocks: unknown; updated_at: string; title?: string };
+  patch: {
+    blocks: unknown;
+    updated_at: string;
+    title?: string;
+    style_classes?: unknown;
+    style_presets?: unknown;
+  };
 }): Promise<{ ok: true; updatedAt: string } | { ok: false; error: string }> {
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -84,20 +104,41 @@ export async function saveCmsFreeformPage(input: {
   if (typeof input.patch.title === "string" && input.patch.title.length > 0) {
     patch.title = input.patch.title;
   }
-
-  const { data, error } = await auth.supabase
-    .from("cms_pages")
-    .update(patch)
-    .eq("id", input.pageId)
-    .eq("tenant_id", scope.tenantId)
-    .eq("is_freeform", true)
-    .select("updated_at")
-    .maybeSingle()
-    .returns<{ updated_at: string }>();
-  if (error || !data) {
-    return { ok: false, error: error?.message ?? "Could not save the page." };
+  // STYLE-1 — only set the style columns when the caller actually touched them
+  // (`undefined` = leave the stored value alone). `null` clears the column.
+  const stylePatch: Record<string, unknown> = {};
+  if (input.patch.style_classes !== undefined) {
+    stylePatch.style_classes = input.patch.style_classes;
   }
-  return { ok: true, updatedAt: data.updated_at };
+  if (input.patch.style_presets !== undefined) {
+    stylePatch.style_presets = input.patch.style_presets;
+  }
+
+  const runUpdate = (payload: Record<string, unknown>) =>
+    auth.supabase
+      .from("cms_pages")
+      .update(payload)
+      .eq("id", input.pageId)
+      .eq("tenant_id", scope.tenantId)
+      .eq("is_freeform", true)
+      .select("updated_at")
+      .maybeSingle()
+      .returns<{ updated_at: string }>();
+
+  const { data, error } = await runUpdate({ ...patch, ...stylePatch });
+  if (!error && data) return { ok: true, updatedAt: data.updated_at };
+
+  // STYLE-1 graceful fallback — if the style columns don't exist yet (migration
+  // unapplied) the update errors. Retry WITHOUT them so the tree still saves; the
+  // registry stays in the editor's localStorage seed until the migration lands.
+  if (Object.keys(stylePatch).length > 0) {
+    const retry = await runUpdate(patch);
+    if (!retry.error && retry.data) {
+      return { ok: true, updatedAt: retry.data.updated_at };
+    }
+    return { ok: false, error: retry.error?.message ?? "Could not save the page." };
+  }
+  return { ok: false, error: error?.message ?? "Could not save the page." };
 }
 
 /** Publish a freeform page (status=published, published_at=now()). */

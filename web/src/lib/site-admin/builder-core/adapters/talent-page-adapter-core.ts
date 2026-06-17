@@ -47,6 +47,12 @@ import type {
   BuilderSurfaceRestoreInput,
 } from "../surface-adapter";
 import { assertNoLegacyBuilderWrite } from "../legacy-write-guard";
+import {
+  coerceStyleClassRegistry,
+  coerceStylePresetRegistry,
+  serializeStyleClassRegistry,
+  serializeStylePresetRegistry,
+} from "@/lib/site-admin/builder-node/style-registry-coerce";
 
 // ── Row shape ────────────────────────────────────────────────────────────────
 
@@ -62,6 +68,11 @@ export interface TalentPageRow {
   required_talent_tier: string | null;
   published_at: string | null;
   updated_at: string;
+  /** STYLE-1 — dedicated style-class registry column (supersedes the slice in
+   *  `theme`). Optional so a pre-migration row degrades to the `theme` fallback. */
+  style_classes?: unknown;
+  /** STYLE-1 — site-scoped presets envelope. */
+  style_presets?: unknown;
 }
 
 /** Derive a monotonic version from `updated_at` (epoch seconds). */
@@ -75,6 +86,12 @@ export interface TalentPagePatch {
   theme: unknown;
   updated_at: string;
   title?: string;
+  /** STYLE-1 — serialized style-class registry for the dedicated column
+   *  (`undefined` = leave untouched, `null` = clear). The binding ALSO keeps
+   *  `theme` carrying the registry for back-compat reads during the cutover. */
+  style_classes?: unknown;
+  /** STYLE-1 — serialized presets envelope (`undefined` = untouched). */
+  style_presets?: unknown;
 }
 
 // ── Action surface injected by the production binding ────────────────────────
@@ -169,9 +186,35 @@ export function buildEmptyTalentPageComposition(
     builderTree: (row.blocks as CompositionData["builderTree"]) ?? [],
     slotDefs: [],
     library: [],
-    styleClasses: (row.theme as CompositionData["styleClasses"]) ?? undefined,
+    // STYLE-1 — prefer the dedicated `style_classes` column; fall back to the
+    // legacy `theme` slice for pre-migration rows (coercion tolerates both the
+    // registry-map and bare-array shapes, and a malformed/absent value → undefined).
+    styleClasses:
+      coerceStyleClassRegistry(row.style_classes) ??
+      coerceStyleClassRegistry(row.theme),
+    stylePresets: coerceStylePresetRegistry(row.style_presets),
     availableLocales: [locale as CompositionData["locale"]],
   };
+}
+
+/** STYLE-1 — build the style-registry slice of a `talent_pages` patch from a
+ *  save input. Threads `theme` (back-compat) AND the dedicated columns. */
+function talentStyleRegistryPatch(input: {
+  styleClasses?: CompositionSaveInput["styleClasses"];
+  stylePresets?: CompositionSaveInput["stylePresets"];
+}): Pick<TalentPagePatch, "theme" | "style_classes" | "style_presets"> {
+  const patch: Pick<TalentPagePatch, "theme" | "style_classes" | "style_presets"> = {
+    // Keep `theme` carrying the class registry so a not-yet-migrated read path
+    // (or a row read before the dedicated column existed) still resolves classes.
+    theme: input.styleClasses ?? {},
+  };
+  if (input.styleClasses !== undefined) {
+    patch.style_classes = serializeStyleClassRegistry(input.styleClasses);
+  }
+  if (input.stylePresets !== undefined) {
+    patch.style_presets = serializeStylePresetRegistry(input.stylePresets);
+  }
+  return patch;
 }
 
 // ── createTalentPageAdapter ──────────────────────────────────────────────────
@@ -238,9 +281,9 @@ export function createTalentPageAdapter(
         pageId: input.pageId,
         patch: {
           blocks: input.builderTree ?? [],
-          theme: input.styleClasses ?? {},
           updated_at: new Date().toISOString(),
           title: input.metadata?.title,
+          ...talentStyleRegistryPatch(input),
         },
       });
       if (!result.ok) return { ok: false, error: result.error };
@@ -271,9 +314,9 @@ export function createTalentPageAdapter(
         pageId: row.id,
         patch: {
           blocks: input.builderTree ?? [],
-          theme: input.styleClasses ?? {},
           updated_at: new Date().toISOString(),
           title: input.metadata?.title,
+          ...talentStyleRegistryPatch(input),
         },
       });
       if (!result.ok) return { ok: false, error: result.error };

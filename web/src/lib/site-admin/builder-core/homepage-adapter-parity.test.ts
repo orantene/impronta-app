@@ -174,7 +174,7 @@ test("homepage adapter.saveDraft forwards the legacy saveDraftHomepageAction sha
 
   const res = await adapter.saveDraft(ctx, input);
 
-  // Direct call-site passed: saveDraftHomepageAction({ locale, pageId, expectedVersion, metadata, slots, builderTree, styleClasses, editSession })
+  // Direct call-site passed: saveDraftHomepageAction({ locale, pageId, expectedVersion, metadata, slots, builderTree, styleClasses, stylePresets, editSession })
   assert.deepEqual(calls.saveDraft![0], {
     locale: "en",
     pageId: null,
@@ -183,6 +183,8 @@ test("homepage adapter.saveDraft forwards the legacy saveDraftHomepageAction sha
     slots: baseSlots,
     builderTree: [],
     styleClasses: undefined,
+    // STYLE-1 — presets forward alongside classes (undefined here = none set).
+    stylePresets: undefined,
     editSession: { id: "sess-1", seq: 3 },
   });
   assert.equal(res, results.saveDraft);
@@ -196,12 +198,14 @@ test("homepage adapter.publish forwards the legacy publish shape", async () => {
 
   const res = await adapter.publish(ctx, input);
 
-  // Direct call-site passed: publishHomepageFromEditModeAction({ locale, pageId, expectedVersion, styleClasses })
+  // Direct call-site passed: publishHomepageFromEditModeAction({ locale, pageId, expectedVersion, styleClasses, stylePresets })
   assert.deepEqual(calls.publish![0], {
     locale: "en",
     pageId: null,
     expectedVersion: 5,
     styleClasses: undefined,
+    // STYLE-1 — presets forward alongside classes.
+    stylePresets: undefined,
   });
   assert.equal(res, results.publish);
 });

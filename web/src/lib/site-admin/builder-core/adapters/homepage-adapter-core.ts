@@ -47,6 +47,8 @@ export interface HomepageAdapterActions {
     slots: CompositionSaveInput["slots"];
     builderTree?: CompositionSaveInput["builderTree"];
     styleClasses?: BuilderSurfaceSaveDraftInput["styleClasses"];
+    /** STYLE-1 — persisted in the draft revision snapshot alongside styleClasses. */
+    stylePresets?: BuilderSurfaceSaveDraftInput["stylePresets"];
     editSession?: BuilderSurfaceSaveDraftInput["editSession"];
   }) => Promise<SaveDraftResult>;
   publish: (input: {
@@ -54,6 +56,8 @@ export interface HomepageAdapterActions {
     pageId?: string | null;
     expectedVersion: number;
     styleClasses?: BuilderSurfacePublishInput["styleClasses"];
+    /** STYLE-1 — published alongside styleClasses. */
+    stylePresets?: BuilderSurfacePublishInput["stylePresets"];
   }) => Promise<PublishResult>;
   restoreHomepageRevision: (input: {
     revisionId: string;
@@ -107,6 +111,7 @@ export function createHomepageAdapter(
         slots: input.slots,
         builderTree: input.builderTree,
         styleClasses: input.styleClasses,
+        stylePresets: input.stylePresets,
         editSession: input.editSession,
       });
     },
@@ -120,6 +125,7 @@ export function createHomepageAdapter(
         pageId: ctx.pageId,
         expectedVersion: input.expectedVersion,
         styleClasses: input.styleClasses,
+        stylePresets: input.stylePresets,
       });
     },
 
