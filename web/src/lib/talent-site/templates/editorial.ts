@@ -84,7 +84,7 @@ export function buildEditorialSlots(ctx: TemplateBuildContext): TalentSiteSnapsh
 export const EDITORIAL_TEMPLATE: TalentSiteTemplateDef = {
   key: "editorial",
   label: "Editorial",
-  blurb: "Magazine spread feel — large hero, generous white space.",
+  blurb: "A magazine-spread layout with a large editorial hero, generous white space, a portfolio row and a contact call to action. Best for photographers and image-forward talent.",
   availableAt: "pro",
   thumbnailUrl: "/talent-templates/editorial.webp",
   buildSlots: buildEditorialSlots,

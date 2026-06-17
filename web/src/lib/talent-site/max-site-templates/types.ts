@@ -48,13 +48,19 @@ export interface MaxSiteTemplateContext {
 export interface MaxSiteTemplateDef {
   key: MaxSiteTemplateKey;
   label: string;
-  /** One-line gallery card description. */
+  /** Plain-language 1-2 sentence description shown on the card. */
   description: string;
   /**
    * Short tag describing the layout emphasis (shown under the label in the
    * gallery card, e.g. "Magazine-style split hero").
    */
   emphasis: string;
+  /**
+   * Root-relative URL for a template thumbnail image.
+   * Absent = the CSS-wireframe TemplateThumb fallback renders in the picker.
+   * Present but empty string is treated the same as absent.
+   */
+  thumbnailUrl?: string;
   /**
    * Build the SITE SHELL tree (header + footer). Returns valid `BuilderNode[]`
    * for `talent_sites.shell_tree`.
