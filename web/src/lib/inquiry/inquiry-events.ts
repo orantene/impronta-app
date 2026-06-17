@@ -220,8 +220,14 @@ export async function emitEngineEvents(
         listener_name: `listener_${i}`,
         engine_action: event.type,
         failed_step: "listener_exception",
+        // `payload` carries the ERROR for debugging; the ORIGINAL event needed
+        // for a faithful replay lives in the dedicated event_* columns below
+        // (migration 20261032000002).
         payload: { message: err.message, stack: err.stack },
         priority: event.priority,
+        event_type: event.type,
+        event_payload: event.payload,
+        event_actor_user_id: event.actorUserId,
       });
       if (insErr) logServerError("inquiry-events/failed_effect_insert", insErr);
       await supabase
@@ -236,6 +242,43 @@ export async function emitEngineEvents(
 
 export function registerEngineEventListener(listener: Listener): void {
   listeners.push(listener);
+}
+
+/** Number of registered listeners. The retry sweep uses this to bound a
+ *  persisted `listener_${i}` index before re-invoking it. */
+export function engineListenerCount(): number {
+  return listeners.length;
+}
+
+/**
+ * Re-invoke a SINGLE listener by index. Used exclusively by
+ * `retryFailedEngineEffects` to faithfully replay the one listener that failed
+ * (e.g. `listener_1` = the bell), WITHOUT re-running the listeners that already
+ * succeeded — those would otherwise double-apply (a duplicate system message,
+ * a duplicate observability line).
+ *
+ * Idempotency for the listener that IS replayed is provided downstream:
+ *   - listener_1 (notifyUsers) / listener_3 (dispatchEventNotifications) key on
+ *     `event.eventId` (the dispatcher's `dedupe_key` has a unique index), so a
+ *     re-run after a partial landing is a no-op for the parts that landed.
+ *   - listener_0 (system message) / listener_2 (improntaLog) are only recorded
+ *     as FAILED when they threw before writing anything, so a replay re-does
+ *     work that did not complete.
+ *
+ * Throws if the listener throws (the caller records the failure + backs off) or
+ * if the index is out of range (a listener was removed since the row was
+ * logged — treated as un-replayable by the caller).
+ */
+export async function runEngineListener(
+  supabase: SupabaseClient,
+  index: number,
+  event: EngineEvent,
+): Promise<void> {
+  const listener = listeners[index];
+  if (!listener) {
+    throw new Error(`engine listener index out of range: ${index}`);
+  }
+  await listener(supabase, event);
 }
 
 const DEFAULT_PRIORITY: Record<EngineEventType, EngineEventPriority> = {

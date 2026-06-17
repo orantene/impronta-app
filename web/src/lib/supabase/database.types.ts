@@ -5089,11 +5089,15 @@ export type Database = {
           attempt_count: number
           created_at: string
           engine_action: string
+          event_actor_user_id: string | null
           event_id: string
+          event_payload: Json | null
+          event_type: string | null
           failed_step: string
           id: string
           inquiry_id: string
           listener_name: string
+          next_retry_at: string | null
           payload: Json
           priority: string
           resolved: boolean
@@ -5104,11 +5108,15 @@ export type Database = {
           attempt_count?: number
           created_at?: string
           engine_action: string
+          event_actor_user_id?: string | null
           event_id?: string
+          event_payload?: Json | null
+          event_type?: string | null
           failed_step: string
           id?: string
           inquiry_id: string
           listener_name: string
+          next_retry_at?: string | null
           payload?: Json
           priority?: string
           resolved?: boolean
@@ -5119,11 +5127,15 @@ export type Database = {
           attempt_count?: number
           created_at?: string
           engine_action?: string
+          event_actor_user_id?: string | null
           event_id?: string
+          event_payload?: Json | null
+          event_type?: string | null
           failed_step?: string
           id?: string
           inquiry_id?: string
           listener_name?: string
+          next_retry_at?: string | null
           payload?: Json
           priority?: string
           resolved?: boolean
