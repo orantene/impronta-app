@@ -411,7 +411,8 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
   // CANVAS-1 — read selection from micro-store for insert-at-selection hint.
   const selectedBuilderNodeId = useSelectedBuilderNodeId();
 
-  const [tab, setTab] = useState<AddGalleryTab>("layout");
+  // ONB-4 — open on Sections by default; every surface inherits (shared chrome).
+  const [tab, setTab] = useState<AddGalleryTab>("sections");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [pending, setPending] = useState(false);

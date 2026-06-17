@@ -46,6 +46,12 @@ import {
   type MaxSiteTemplateSummary,
 } from "@/lib/talent-site/max-site-templates/registry";
 import { TalentSiteDomainPanel } from "@/components/talent/site/TalentSiteDomainPanel";
+import {
+  PageAddForm,
+  PageDeleteConfirm,
+  PageRenameForm,
+  slugifyPageTitle,
+} from "@/components/talent/site/TalentMaxSiteManagerPageForms";
 
 type Props = { locale?: "en" | "es" };
 
@@ -348,6 +354,9 @@ function LogoPanel({ state, onSaved }: { state: MaxSiteManagerState; onSaved: ()
 }
 
 // ── Pages ────────────────────────────────────────────────────────────────────
+// Inline form components (PageRenameForm, PageDeleteConfirm, PageAddForm) and
+// slugifyPageTitle are extracted to TalentMaxSiteManagerPageForms.tsx to keep
+// this file under the 800-line ESLint cap. They are re-imported above.
 
 function PagesPanel({
   state,
@@ -359,22 +368,24 @@ function PagesPanel({
   run: (fn: () => Promise<{ ok: boolean; error?: string }>) => void;
 }) {
   const pages = [...state.pages].sort((a, b) => a.sortOrder - b.sortOrder || a.slug.localeCompare(b.slug));
+  // ONB-4 — inline form state: null = no form open.
+  const [addingPage, setAddingPage] = useState(false);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  function addPage() {
-    const title = window.prompt("New page title");
-    if (!title || !title.trim()) return;
-    run(() => addMaxSitePageAction({ title: title.trim() }));
+  function commitAdd(title: string) {
+    setAddingPage(false);
+    run(() => addMaxSitePageAction({ title }));
   }
 
-  function rename(p: MaxSiteManagerPage) {
-    const title = window.prompt("Rename page", p.title);
-    if (title == null) return;
-    if (!title.trim()) return;
-    run(() => renameMaxSitePageAction({ pageId: p.id, title: title.trim(), navLabel: title.trim() }));
+  function commitRename(p: MaxSiteManagerPage, title: string, navLabel: string) {
+    setRenamingId(null);
+    if (!title) return;
+    run(() => renameMaxSitePageAction({ pageId: p.id, title, navLabel }));
   }
 
-  function del(p: MaxSiteManagerPage) {
-    if (!window.confirm(`Delete "${p.title}"? This can't be undone.`)) return;
+  function commitDelete(p: MaxSiteManagerPage) {
+    setDeletingId(null);
     run(() => deleteMaxSitePageAction({ pageId: p.id }));
   }
 
@@ -401,53 +412,93 @@ function PagesPanel({
             Add pages, set your home page, and arrange the order they appear in your navigation.
           </p>
         </div>
-        <button type="button" onClick={addPage} disabled={pending} style={linkButton}>＋ Add page</button>
+        {!addingPage ? (
+          <button type="button" onClick={() => setAddingPage(true)} disabled={pending} style={linkButton}>＋ Add page</button>
+        ) : null}
       </div>
 
+      {/* ONB-4 — inline add form with live slug preview */}
+      {addingPage ? (
+        <PageAddForm
+          siteSlug={state.siteSlug}
+          onSave={commitAdd}
+          onCancel={() => setAddingPage(false)}
+        />
+      ) : null}
+
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        {pages.length === 0 ? (
+        {pages.length === 0 && !addingPage ? (
           <span style={mutedText}>No pages yet. Add your first page.</span>
         ) : (
-          pages.map((p, i) => (
-            <div
-              key={p.id}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 10,
-                padding: "9px 12px",
-                background: COLORS.surfaceAlt,
-                border: `1px solid ${COLORS.borderSoft}`,
-                borderRadius: 10,
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                  <button type="button" aria-label="Move up" onClick={() => move(i, -1)} disabled={pending || i === 0} style={arrowBtn}>▲</button>
-                  <button type="button" aria-label="Move down" onClick={() => move(i, 1)} disabled={pending || i === pages.length - 1} style={arrowBtn}>▼</button>
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 220 }}>
-                      {p.navLabel || p.title}
-                    </span>
-                    {p.isHome ? <Pill tone="green">Home</Pill> : null}
-                    {p.status === "published" ? <Pill tone="green">Live</Pill> : <Pill tone="indigo">Draft</Pill>}
+          pages.map((p, i) => {
+            // ONB-4 — inline rename form replaces the button row for this page.
+            if (renamingId === p.id) {
+              return (
+                <PageRenameForm
+                  key={p.id}
+                  page={p}
+                  siteSlug={state.siteSlug}
+                  onSave={(title, navLabel) => commitRename(p, title, navLabel)}
+                  onCancel={() => setRenamingId(null)}
+                />
+              );
+            }
+            // ONB-4 — inline delete confirm replaces the page row.
+            if (deletingId === p.id) {
+              return (
+                <PageDeleteConfirm
+                  key={p.id}
+                  page={p}
+                  onConfirm={() => commitDelete(p)}
+                  onCancel={() => setDeletingId(null)}
+                />
+              );
+            }
+
+            return (
+              <div
+                key={p.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 10,
+                  padding: "9px 12px",
+                  background: COLORS.surfaceAlt,
+                  border: `1px solid ${COLORS.borderSoft}`,
+                  borderRadius: 10,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                    <button type="button" aria-label="Move up" onClick={() => move(i, -1)} disabled={pending || i === 0} style={arrowBtn}>▲</button>
+                    <button type="button" aria-label="Move down" onClick={() => move(i, 1)} disabled={pending || i === pages.length - 1} style={arrowBtn}>▼</button>
                   </div>
-                  <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>/t/site/{state.siteSlug ?? "…"}{p.isHome ? "" : `/${p.slug}`}</div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 220 }}>
+                        {p.navLabel || p.title}
+                      </span>
+                      {p.isHome ? <Pill tone="green">Home</Pill> : null}
+                      {p.status === "published" ? <Pill tone="green">Live</Pill> : <Pill tone="indigo">Draft</Pill>}
+                    </div>
+                    <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>/t/site/{state.siteSlug ?? "…"}{p.isHome ? "" : `/${p.slug}`}</div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                  {!p.isHome ? (
+                    <button type="button" onClick={() => setHome(p)} disabled={pending} style={miniBtn}>Set home</button>
+                  ) : null}
+                  <Link href={`/talent/page-builder?page=${encodeURIComponent(p.slug)}`} style={miniBtnLink}>Edit</Link>
+                  {/* ONB-4 — inline rename / delete instead of window.prompt / window.confirm */}
+                  <button type="button" onClick={() => setRenamingId(p.id)} disabled={pending} style={miniBtn}>Rename</button>
+                  {!p.isHome ? (
+                    <button type="button" onClick={() => setDeletingId(p.id)} disabled={pending} style={{ ...miniBtn, color: COLORS.criticalDeep }}>Delete</button>
+                  ) : null}
                 </div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                {!p.isHome ? (
-                  <button type="button" onClick={() => setHome(p)} disabled={pending} style={miniBtn}>Set home</button>
-                ) : null}
-                <Link href={`/talent/page-builder?page=${encodeURIComponent(p.slug)}`} style={miniBtnLink}>Edit</Link>
-                <button type="button" onClick={() => rename(p)} disabled={pending} style={miniBtn}>Rename</button>
-                <button type="button" onClick={() => del(p)} disabled={pending} style={{ ...miniBtn, color: COLORS.criticalDeep }}>Delete</button>
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </Card>
