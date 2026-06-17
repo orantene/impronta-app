@@ -1617,3 +1617,78 @@ test("bridge cascade: visibility hidden renders display:none", () => {
   const html = render([headingWithStyle(style as Record<string, unknown>)]);
   assert.match(html, /display:none/);
 });
+
+// ── REND-1: Semantic HTML tags on builder containers ──────────────────────────
+
+function containerWithTag(htmlTag?: string): BuilderNode {
+  return {
+    id: "rend1-c",
+    kind: "container",
+    props: {
+      layout: "stack",
+      ...(htmlTag ? { htmlTag } : {}),
+      style: {},
+    },
+    children: [{ id: "rend1-h", kind: "heading", props: { text: "Hello", level: 2 } }],
+  } as BuilderNode;
+}
+
+test("REND-1: container without htmlTag renders as <div> (byte-stable)", () => {
+  const html = render([containerWithTag()]);
+  // Must open with a div carrying the expected class
+  assert.ok(
+    html.includes('<div'),
+    "no-htmlTag container must render as <div>",
+  );
+  assert.ok(
+    html.includes('site-builder-node--container'),
+    "must carry site-builder-node--container class",
+  );
+  // Must NOT emit a section/article/aside/header/footer/nav/main tag
+  for (const tag of ["section", "article", "aside", "header", "footer", "nav", "main"]) {
+    assert.ok(
+      !html.includes(`<${tag}`),
+      `no-htmlTag container must not emit <${tag}>`,
+    );
+  }
+});
+
+test("REND-1: container with htmlTag='section' renders as <section>", () => {
+  const html = render([containerWithTag("section")]);
+  assert.ok(html.includes("<section"), "must open with <section");
+  assert.ok(html.includes("</section>"), "must close with </section>");
+  // All structural attrs must be preserved on the semantic element
+  assert.ok(html.includes('site-builder-node--container'), "class preserved on <section>");
+  assert.ok(html.includes('data-builder-node-kind="container"'), "data-builder-node-kind preserved");
+  assert.ok(html.includes('data-builder-layout="stack"'), "data-builder-layout preserved");
+  // Must NOT fall back to div
+  assert.ok(!html.includes("<div"), "must not emit a <div> for the container");
+});
+
+test("REND-1: each semantic tag renders correctly", () => {
+  for (const tag of ["article", "aside", "header", "footer", "nav", "main"] as const) {
+    const html = render([containerWithTag(tag)]);
+    assert.ok(html.includes(`<${tag}`), `tag=${tag}: must open with <${tag}`);
+    assert.ok(html.includes(`</${tag}>`), `tag=${tag}: must close with </${tag}>`);
+    assert.ok(
+      html.includes('site-builder-node--container'),
+      `tag=${tag}: class preserved`,
+    );
+    assert.ok(
+      !html.includes("<div"),
+      `tag=${tag}: must not emit the default <div>`,
+    );
+  }
+});
+
+test("REND-1: container children render inside the semantic tag", () => {
+  const html = render([containerWithTag("section")]);
+  // The heading child must appear inside the section
+  assert.ok(html.includes("Hello"), "child text must be rendered");
+  // Structural order: <section…><h2>Hello</h2></section>
+  const sectionStart = html.indexOf("<section");
+  const sectionEnd = html.indexOf("</section>");
+  const headingPos = html.indexOf("<h2");
+  assert.ok(headingPos > sectionStart, "heading must come after section open tag");
+  assert.ok(headingPos < sectionEnd, "heading must come before section close tag");
+});
