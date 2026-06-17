@@ -45,6 +45,7 @@ import {
   listMaxSiteTemplateSummaries,
   type MaxSiteTemplateSummary,
 } from "@/lib/talent-site/max-site-templates/registry";
+import { getTemplatePreviewUrl } from "@/lib/site-admin/builder-core/templates/template-def";
 import { TalentSiteDomainPanel } from "@/components/talent/site/TalentSiteDomainPanel";
 import {
   PageAddForm,
@@ -200,7 +201,7 @@ function ManagerBody({ state, onReload }: { state: MaxSiteManagerState; onReload
       </Card>
 
       {/* Starter template gallery */}
-      <TemplateGallery pending={pending} run={run} />
+      <TemplateGallery pending={pending} run={run} talentProfileId={state.talentProfileId} />
 
       {/* Site address (slug) */}
       <SlugEditor state={state} onSaved={onReload} />
@@ -517,9 +518,11 @@ function PagesPanel({
 function TemplateGallery({
   pending,
   run,
+  talentProfileId,
 }: {
   pending: boolean;
   run: (fn: () => Promise<{ ok: boolean; error?: string }>) => void;
+  talentProfileId: string;
 }) {
   const templates = listMaxSiteTemplateSummaries();
   const [applyingKey, setApplyingKey] = useState<string | null>(null);
@@ -574,14 +577,49 @@ function TemplateGallery({
             <p style={{ margin: "0 0 8px", fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.45 }}>
               {t.description}
             </p>
-            <button
-              type="button"
-              onClick={() => apply(t)}
-              disabled={pending}
-              style={{ ...miniBtn, alignSelf: "flex-start", marginTop: "auto" }}
-            >
-              {pending && applyingKey === t.key ? "Applying…" : "Apply"}
-            </button>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: "auto" }}>
+              <button
+                type="button"
+                onClick={() => apply(t)}
+                disabled={pending}
+                style={{ ...miniBtn, alignSelf: "flex-start" }}
+              >
+                {pending && applyingKey === t.key ? "Applying…" : "Apply"}
+              </button>
+              {/* Eye / Preview — opens the SHARED owner-gated hydrated preview
+                  route with this talent's real data (?talent param). */}
+              <a
+                href={getTemplatePreviewUrl(t.key, {
+                  talentProfileId,
+                  family: "max-site",
+                })}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Preview with your details"
+                aria-label={`Preview ${t.label} with your details`}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  color: COLORS.inkMuted,
+                  textDecoration: "none",
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path
+                    d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8" />
+                </svg>
+                Preview
+              </a>
+            </div>
           </div>
         ))}
       </div>

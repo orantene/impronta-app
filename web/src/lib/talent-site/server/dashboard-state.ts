@@ -104,6 +104,7 @@ export async function loadTalentPersonalSiteDashboardState(
     canUseTemplateGallery: membership.capabilities.canUseTemplateGallery,
     canUseCustomBuilder: membership.capabilities.canUseCustomBuilder,
     profileCode,
+    talentProfileId: scope.talentProfile.id,
     publicSiteUrl: profileCode ? `/t/${profileCode}` : null,
     // `preview=1` forces the standard profile renderer when a published site exists.
     publicProfileUrl: profileCode ? `/t/${profileCode}?preview=1` : null,
