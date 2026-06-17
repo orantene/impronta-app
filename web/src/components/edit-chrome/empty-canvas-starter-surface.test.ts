@@ -28,11 +28,14 @@ import {
   type EmptyCanvasStarterSurface,
 } from "./empty-canvas-starter-surface";
 
-test("every builder surfaceKind maps to a starter surface (closed mapping)", () => {
+test("every builder surfaceKind maps to a defined starter surface (or undefined = full set)", () => {
   for (const kind of BUILDER_SURFACE_KINDS) {
     const surface = starterSurfaceForKind(kind);
     assert.ok(
-      surface === "talent" || surface === "workspace" || surface === "talent-site",
+      surface === undefined ||
+        surface === "talent" ||
+        surface === "workspace" ||
+        surface === "talent-site",
       `surfaceKind ${kind} resolved to an unexpected starter surface: ${surface}`,
     );
   }
@@ -42,8 +45,12 @@ test("talent_page resolves to the talent starter surface", () => {
   assert.equal(starterSurfaceForKind("talent_page"), "talent");
 });
 
-test("storefront / shell / lab surfaceKinds resolve to the workspace surface", () => {
-  for (const kind of ["homepage", "cms_page", "site_shell", "platform_lab"] as const) {
+test("homepage resolves to undefined (full design set — historical behavior)", () => {
+  assert.equal(starterSurfaceForKind("homepage"), undefined);
+});
+
+test("inner cms_page / shell / lab surfaceKinds resolve to the workspace surface", () => {
+  for (const kind of ["cms_page", "site_shell", "platform_lab"] as const) {
     assert.equal(starterSurfaceForKind(kind), "workspace");
   }
 });

@@ -30,19 +30,23 @@ export type EmptyCanvasStarterSurface = "workspace" | "talent" | "talent-site";
  * consumes the resolved surface, so a fifth surface inherits the picker by
  * mapping its kind here once, not by editing the component.
  *
- * `homepage` and `cms_page` are the agency storefront → `workspace`.
- * `talent_page` is BOTH the /t/[code] profile AND the /t/site/[slug] pages; the
- * caller can override to `talent-site` for the multi-page site mount. `site_shell`
- * (header/footer) and `platform_lab` (authoring playground) both default to
- * `workspace` so they see the full agency+generic set.
+ * `homepage` returns `undefined` = the FULL design set (no audience filter): the
+ * agency storefront homepage is the historical mount and its behavior is
+ * preserved byte-for-byte. Inner `cms_page` storefront pages, `site_shell`
+ * (header/footer) and `platform_lab` (authoring playground) map to `workspace`
+ * (agency + generic starters). `talent_page` is BOTH the /t/[code] profile AND
+ * the /t/site/[slug] pages → `talent`; the caller can override to `talent-site`
+ * for the multi-page site mount (same starter set, distinct label downstream).
  */
 export function starterSurfaceForKind(
   kind: BuilderSurfaceKind,
-): EmptyCanvasStarterSurface {
+): EmptyCanvasStarterSurface | undefined {
   switch (kind) {
     case "talent_page":
       return "talent";
     case "homepage":
+      // Full set — preserve the historical homepage picker exactly.
+      return undefined;
     case "cms_page":
     case "site_shell":
     case "platform_lab":
