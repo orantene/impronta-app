@@ -167,8 +167,8 @@ function contentSecurityPolicy(): string {
     `img-src 'self' data: blob: https: https://www.google-analytics.com`,
     `connect-src ${connectSrcDirectives().join(" ")} ${googleMapsCsp.connect} ${stripeCsp.connect} ${googleTag} ${captchaConnect} https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com ${vercelInsights} https://*.sentry.io`,
     `frame-src ${googleMapsCsp.frameSrc} ${stripeCsp.frame} ${builderEmbedCsp.frame} ${captchaFrame} ${talentMediaEmbedCsp.frame}`,
-    /** Maps workers use blob: URLs */
-    "worker-src blob:",
+    /** Maps workers use blob: URLs; service worker needs 'self'. */
+    "worker-src 'self' blob:",
     "frame-ancestors 'self'",
     "base-uri 'self'",
     "form-action 'self'",
