@@ -98,6 +98,7 @@ import { uploadCmsMedia } from "@/lib/client/signed-upload";
 import { breakpointLabelForDevice, naturalWidthForDevice } from "../breakpoint-registry";
 import { useBuilderBreakpoints } from "../use-builder-breakpoints";
 import { InlineNameInput } from "./kit/inline-name-input";
+import { CssEditorWithHints } from "./kit/css-editor-with-hints";
 
 const INHERIT_HINT = HINT;
 
@@ -9375,29 +9376,18 @@ export function StylePanel({
                     </button>
                   </div>
                 ) : null}
-                <textarea
+                <CssEditorWithHints
                   value={selectedStandaloneFullStyle?.customCss ?? ""}
-                  onChange={(e) =>
+                  onValueChange={(next) =>
                     patchSelectedBaseStyle({
-                      customCss: e.target.value || undefined,
+                      customCss: next || undefined,
                     })
                   }
                   placeholder={
                     "/* Scoped to this block. Modern CSS supported. */\n.headline {\n  letter-spacing: -0.02em;\n}"
                   }
-                  spellCheck={false}
                   rows={6}
-                  className="w-full px-2 py-2"
-                  style={{
-                    fontSize: 11.5,
-                    lineHeight: 1.45,
-                    fontFamily: "ui-monospace, SFMono-Regular, monospace",
-                    background: CHROME.surface2,
-                    border: `1px solid ${CHROME.controlBorder}`,
-                    borderRadius: 7,
-                    color: CHROME.ink,
-                    outline: "none",
-                  }}
+                  ariaLabel="Custom CSS for this block"
                 />
                 <span className={INHERIT_HINT}>
                   Scoped to this block and its contents. Cannot affect the rest
@@ -9698,32 +9688,18 @@ export function StylePanel({
               </button>
             ) : null}
           </div>
-          <textarea
+          <CssEditorWithHints
             value={customCss}
-            onChange={(e) =>
+            onValueChange={(next) =>
               onPatch({
-                __presentation: { customCss: e.target.value || undefined },
+                __presentation: { customCss: next || undefined },
               })
             }
             placeholder={
               "/* Scoped to this section. Modern CSS supported. */\n.site-section-headline {\n  letter-spacing: -0.02em;\n}"
             }
-            spellCheck={false}
             rows={6}
-            className="w-full px-2 py-2"
-            style={{
-              fontSize: 11.5,
-              lineHeight: 1.45,
-              fontFamily: "ui-monospace, SFMono-Regular, monospace",
-              background: CHROME.surface2,
-              border: `1px solid ${CHROME.controlBorder}`,
-              borderRadius: 7,
-              color: CHROME.ink,
-              outline: "none",
-              resize: "vertical",
-              minHeight: 110,
-              transition: "border-color 150ms, box-shadow 150ms",
-            }}
+            ariaLabel="Custom CSS for this section"
           />
           <span className={HINT}>
             Per-section escape hatch. Wrapped in{" "}
