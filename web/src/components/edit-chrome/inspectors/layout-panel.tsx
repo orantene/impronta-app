@@ -55,6 +55,7 @@ import {
 import { useEffect, useMemo, useState, type ReactElement } from "react";
 
 import { useEditContext } from "../edit-context";
+import type { EditDevice } from "../edit-context";
 import { useBuilderTree } from "../builder-tree-bridge";
 import { useSelectedBuilderNodeId } from "../selection-bridge";
 import { NumberUnit, type LengthUnit } from "../kit/number-unit";
@@ -80,7 +81,7 @@ import {
   type ViewportDevice,
 } from "./responsive-field-state";
 import { useBuilderBreakpoints } from "../use-builder-breakpoints";
-import { breakpointLabelForDevice } from "../breakpoint-registry";
+import { breakpointLabelForDevice, isBaseBreakpoint } from "../breakpoint-registry";
 
 const INHERIT_HINT = HINT;
 
@@ -1997,21 +1998,20 @@ export function LayoutPanel({
       {!selectedBuilderNode && onDeepPatch ? (
         <InspectorResponsiveSettings
           device={device as ViewportDevice}
-          onDeviceChange={setDevice}
+          onDeviceChange={(next) => setDevice(next as EditDevice)}
           presentation={presentation}
           onPatch={onPatch}
           onDeepPatch={onDeepPatch}
           hideOnDevice={
-            device !== "desktop" &&
+            !isBaseBreakpoint(device) &&
             (
               (presentation.breakpoints as
-                | Partial<Record<"tablet" | "mobile", Record<string, unknown>>>
-                | undefined)?.[device as "tablet" | "mobile"]?.visibility ===
-              "hidden"
+                | Record<string, Record<string, unknown>>
+                | undefined)?.[device]?.visibility === "hidden"
             )
           }
           onHideChange={(hidden) => {
-            if (device === "desktop") return;
+            if (isBaseBreakpoint(device)) return;
             onDeepPatch({
               breakpoints: {
                 [device]: { visibility: hidden ? "hidden" : undefined },
@@ -2019,17 +2019,17 @@ export function LayoutPanel({
             });
           }}
           overrideCount={
-            device === "tablet" || device === "mobile"
+            !isBaseBreakpoint(device)
               ? countPresentationOverrides(presentation, device)
               : 0
           }
           onResetOverrides={() => {
-            if (device === "desktop") return;
+            if (isBaseBreakpoint(device)) return;
             const bucket = (
               presentation.breakpoints as
-                | Partial<Record<"tablet" | "mobile", Record<string, unknown>>>
+                | Record<string, Record<string, unknown>>
                 | undefined
-            )?.[device as "tablet" | "mobile"];
+            )?.[device];
             if (!bucket) return;
             onDeepPatch({
               breakpoints: {

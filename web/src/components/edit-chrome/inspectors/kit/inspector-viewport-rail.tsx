@@ -5,10 +5,18 @@
  * Layout tab uses InspectorResponsiveSettings for full layout-scoped fields.
  */
 
-import { Monitor, Smartphone, Tablet } from "lucide-react";
+import { useMemo, type ReactNode } from "react";
+import { Monitor, MonitorSmartphone, Smartphone, Tablet } from "lucide-react";
 
 import { Toggle } from "../../kit/toggle";
 import { CHROME } from "../../kit/tokens";
+import {
+  type BuilderBreakpoint,
+  baseBreakpointId,
+  breakpointLabelForDevice,
+  inspectorRailTierIds,
+} from "../../breakpoint-registry";
+import { useBuilderBreakpoints } from "../../use-builder-breakpoints";
 import { BUILDER_VISUAL } from "./tokens";
 import { InspectorDeviceCards } from "./inspector-ui";
 import type { ViewportDevice } from "../responsive-field-state";
@@ -23,26 +31,36 @@ export interface InspectorViewportRailProps {
   compact?: boolean;
 }
 
-const DEVICE_OPTIONS = [
-  {
-    key: "desktop" as const,
-    label: "Desktop",
-    hint: "≥ 1280px",
-    icon: <Monitor size={18} strokeWidth={1.75} aria-hidden />,
-  },
-  {
-    key: "tablet" as const,
-    label: "Tablet",
-    hint: "768–1279",
-    icon: <Tablet size={18} strokeWidth={1.75} aria-hidden />,
-  },
-  {
-    key: "mobile" as const,
-    label: "Mobile",
-    hint: "< 768px",
-    icon: <Smartphone size={18} strokeWidth={1.75} aria-hidden />,
-  },
-];
+/** Icon per known tier id; unknown custom tiers fall back to a neutral glyph. */
+function tierIcon(id: string): ReactNode {
+  switch (id) {
+    case "tablet":
+      return <Tablet size={18} strokeWidth={1.75} aria-hidden />;
+    case "mobile":
+    case "compact":
+      return <Smartphone size={18} strokeWidth={1.75} aria-hidden />;
+    case "desktop":
+    case "wide":
+      return <Monitor size={18} strokeWidth={1.75} aria-hidden />;
+    default:
+      return <MonitorSmartphone size={18} strokeWidth={1.75} aria-hidden />;
+  }
+}
+
+/** Short range hint per tier, derived from the registry min-widths. */
+function tierHint(
+  tier: BuilderBreakpoint,
+  ordered: ReadonlyArray<BuilderBreakpoint>,
+): string | undefined {
+  if (tier.isBase) return `≥ ${tier.minWidth}px`;
+  if (tier.id === "compact") return "narrow phone";
+  // Upper bound = the next-larger tier's min-width minus 1.
+  const larger = ordered
+    .filter((bp) => bp.minWidth > tier.minWidth)
+    .sort((a, b) => a.minWidth - b.minWidth)[0];
+  if (tier.minWidth <= 0) return larger ? `< ${larger.minWidth}px` : undefined;
+  return larger ? `${tier.minWidth}–${larger.minWidth - 1}` : `≥ ${tier.minWidth}px`;
+}
 
 export function InspectorViewportRail({
   device,
@@ -53,6 +71,32 @@ export function InspectorViewportRail({
   onResetOverrides,
   compact = false,
 }: InspectorViewportRailProps) {
+  const breakpoints = useBuilderBreakpoints();
+
+  // Single reconciled source (RESP-1): the rail offers the base tier plus one
+  // button per non-base editable registry tier, in the order the registry
+  // declares — never a hardcoded 3-device list. Editable tiers are exactly the
+  // tiers the renderer emits buckets for, so the editable rail matches render.
+  const deviceOptions = useMemo(() => {
+    const railIds = inspectorRailTierIds(breakpoints);
+    return railIds.map((id) => {
+      const bp =
+        breakpoints.find((b) => b.id === id) ??
+        ({ id, label: id, minWidth: 0 } as BuilderBreakpoint);
+      return {
+        key: bp.id,
+        label: bp.label,
+        hint: tierHint(bp, breakpoints),
+        icon: tierIcon(bp.id),
+      };
+    });
+  }, [breakpoints]);
+
+  const baseId = baseBreakpointId(breakpoints);
+  const isBase = device === baseId;
+  const baseLabel = breakpointLabelForDevice(baseId, breakpoints);
+  const deviceLabel = breakpointLabelForDevice(device, breakpoints);
+
   return (
     <div
       className="flex flex-col"
@@ -66,7 +110,7 @@ export function InspectorViewportRail({
       <InspectorDeviceCards
         value={device}
         onChange={onDeviceChange}
-        options={DEVICE_OPTIONS}
+        options={deviceOptions}
       />
       <div
         className="flex items-center justify-between gap-3"
@@ -83,16 +127,16 @@ export function InspectorViewportRail({
         </span>
         <Toggle on={hideOnDevice} onChange={onHideChange} />
       </div>
-      {device !== "desktop" ? (
+      {!isBase ? (
         <div
           className="flex items-center justify-between gap-2"
           style={{ fontSize: 11, color: CHROME.muted }}
         >
           <span>
-            Editing {device === "tablet" ? "Tablet" : "Mobile"}
+            Editing {deviceLabel}
             {overrideCount > 0
               ? ` · ${overrideCount} override${overrideCount === 1 ? "" : "s"}`
-              : " · Inherits desktop"}
+              : ` · Inherits ${baseLabel.toLowerCase()}`}
           </span>
           {overrideCount > 0 && onResetOverrides ? (
             <button
@@ -107,7 +151,7 @@ export function InspectorViewportRail({
         </div>
       ) : (
         <p style={{ fontSize: 11, color: CHROME.muted2, margin: 0, lineHeight: 1.4 }}>
-          Desktop is the base — switch to Tablet or Mobile to add overrides.
+          {baseLabel} is the base — switch tiers to add overrides.
         </p>
       )}
     </div>
