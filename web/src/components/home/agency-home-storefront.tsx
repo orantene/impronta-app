@@ -1,3 +1,4 @@
+import { SkipToContent } from "@/components/accessibility/skip-to-content";
 import { AgencyChatLauncherMount } from "@/app/(public)/_chat/AgencyChatLauncherMount";
 import { MergeGuestFavorites } from "@/components/client/merge-guest-favorites";
 import { DirectoryInquiryModalProvider } from "@/components/directory/directory-inquiry-modal-context";
@@ -256,6 +257,8 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
           <FavoritesDrawerProvider>
         <PublicFlashHost dismissAria={t("public.directory.ui.flash.dismissAria")} />
         {shouldRenderBuilderNodeStyles ? <BuilderNodeRendererStyles /> : null}
+        {/* A11Y-2 — skip link must be first focusable element before any nav. */}
+        <SkipToContent />
         {/* Phase B.2.A mutex — snapshot shell wins when its gates open;
          *  otherwise legacy PublicHeader. Never both. Kept in Phase 5. */}
         {snapshotShellActive && cmsLocale ? (
@@ -267,7 +270,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
         ) : (
           <PublicHeader />
         )}
-        <main className="flex flex-1 flex-col">
+        <main id="main-content" className="flex flex-1 flex-col">
           {editActive && cmsSectionCount === 0 && !hasFreeformBuilderTree ? (
             // Edit mode, no composition yet → starter picker. Dispatches the
             // same `applyStarterComposition` the admin composer uses, so the

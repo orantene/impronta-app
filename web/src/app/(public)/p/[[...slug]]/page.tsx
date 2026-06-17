@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { SkipToContent } from "@/components/accessibility/skip-to-content";
 import { PublicCmsFooterNav } from "@/components/public-cms-footer";
 import { PublicHeader } from "@/components/public-header";
 import { HomepageCmsSections } from "@/components/home/homepage-cms-sections";
@@ -184,9 +185,10 @@ export default async function CmsPublicPage({
       );
       return (
         <>
+          <SkipToContent />
           <JsonLdScript script={jsonLdScript} />
           <PublicHeader />
-          <main className="w-full flex-1" data-theme-canvas-root="">
+          <main id="main-content" className="w-full flex-1" data-theme-canvas-root="">
             {renderBuilderNodes(blocks, {
               publicPathPrefix,
               mode: "freeform",
@@ -216,9 +218,10 @@ export default async function CmsPublicPage({
   if (sectionPage?.snapshot) {
     return (
       <>
+        <SkipToContent />
         <JsonLdScript script={jsonLdScript} />
         <PublicHeader />
-        <main className="w-full flex-1">
+        <main id="main-content" className="w-full flex-1">
           <HomepageCmsSections
             snapshot={sectionPage.snapshot}
             tenantId={publicScope.tenantId}
@@ -245,9 +248,10 @@ export default async function CmsPublicPage({
 
   return (
     <>
+      <SkipToContent />
       <JsonLdScript script={jsonLdScript} />
       <PublicHeader />
-      <main className="w-full flex-1 px-4 py-16 sm:px-6 lg:px-8">
+      <main id="main-content" className="w-full flex-1 px-4 py-16 sm:px-6 lg:px-8">
         <article className="mx-auto max-w-3xl">
           <h1 className="font-display text-3xl font-normal tracking-wide text-foreground">{data.title}</h1>
           <div className="prose prose-neutral mt-8 max-w-none dark:prose-invert">
