@@ -115,7 +115,6 @@ import {
   summarizeBuilderNodeIssues,
   reconcileBuilderTreeWithLegacySlots,
   unboundGallerySectionIdsSignature,
-  validateBuilderNodeTree,
   assertAdvancedLibraryAllowsOperation,
   isAdvancedElementLibraryEnabledForPlan,
   type BuilderNode,
@@ -161,6 +160,18 @@ import {
   writeOsBuilderClipboard,
   type SerializedBuilderNodeClipboard,
 } from "./builder-clipboard";
+import {
+  readStoredBuilderNodeClipboard,
+  writeStoredBuilderNodeClipboard,
+  readStoredBuilderNodeMultiClipboard,
+  writeStoredBuilderNodeMultiClipboard,
+} from "./builder-node-clipboard-storage";
+import {
+  BUILDER_BLOCK_PRESET_LIMIT,
+  readStoredBuilderBlockPresets,
+  writeStoredBuilderBlockPresets,
+  type BuilderBlockPreset,
+} from "./builder-block-presets";
 import {
   readClasses as readStyleClasses,
   writeClasses as writeStyleClasses,
@@ -290,12 +301,10 @@ export interface BuilderNodePastePreview {
   message: string;
 }
 
-export interface BuilderBlockPreset {
-  id: string;
-  name: string;
-  node: Exclude<BuilderNode, { kind: "section" }>;
-  createdAt: string;
-}
+// Re-exported from ./builder-block-presets (MAINT-1 peel) so existing
+// `import { type BuilderBlockPreset } from "../edit-context"` consumers keep
+// working without churn.
+export type { BuilderBlockPreset } from "./builder-block-presets";
 
 export interface NavigatorRecentAddition {
   sectionId: string;
@@ -1307,11 +1316,6 @@ const DEFAULT_METADATA: PageMetadata = {
   noindex: false,
 };
 
-const BUILDER_NODE_CLIPBOARD_STORAGE_KEY = "impronta.builderNodeClipboard.v1";
-const BUILDER_NODE_MULTI_CLIPBOARD_STORAGE_KEY =
-  "impronta.builderNodeClipboard.v2";
-const BUILDER_BLOCK_PRESETS_STORAGE_KEY = "impronta.builderBlockPresets.v1";
-const BUILDER_BLOCK_PRESET_LIMIT = 24;
 const NAVIGATOR_WIDTH_STORAGE_KEY = "impronta.editChrome.navigator.width.v1";
 const NAVIGATOR_WIDTH_MIN = 280;
 const NAVIGATOR_WIDTH_MAX = 520;
@@ -1425,172 +1429,6 @@ function cloneBuilderNodeTree(tree: BuilderNodeTree): BuilderNodeTree {
 
 function cloneBuilderNode(node: BuilderNode): BuilderNode {
   return cloneBuilderNodeTree([node])[0]!;
-}
-
-function validateStoredBuilderNodeClipboard(input: unknown): BuilderNode | null {
-  if (typeof input !== "object" || input == null) return null;
-  const rawKind = (input as { kind?: unknown }).kind;
-  if (typeof rawKind !== "string" || !(rawKind in BUILDER_NODE_REGISTRY)) {
-    return null;
-  }
-  const kind = rawKind as BuilderNode["kind"];
-  if (kind === "section") return null;
-
-  if (builderNodeKindAllowedAtRoot(kind)) {
-    const validation = validateBuilderNodeTree([input]);
-    return validation.ok ? (validation.tree[0] ?? null) : null;
-  }
-
-  const wrapper =
-    kind === "accordion_item"
-      ? {
-          id: "__clipboard_accordion__",
-          kind: "accordion" as const,
-          props: {},
-          children: [input],
-        }
-      : kind === "tab_panel"
-        ? {
-            id: "__clipboard_tabs__",
-            kind: "tabs" as const,
-            props: {},
-            children: [input],
-          }
-        : {
-            id: "__clipboard_container__",
-            kind: "container" as const,
-            props: { layout: "stack" as const },
-            children: [input],
-          };
-
-  const validation = validateBuilderNodeTree([wrapper]);
-  if (!validation.ok) return null;
-  const parsedWrapper = validation.tree[0];
-  if (
-    !parsedWrapper ||
-    !("children" in parsedWrapper) ||
-    !Array.isArray(parsedWrapper.children)
-  ) {
-    return null;
-  }
-  return parsedWrapper.children[0] ?? null;
-}
-
-function readStoredBuilderNodeClipboard(): BuilderNode | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.sessionStorage.getItem(BUILDER_NODE_CLIPBOARD_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as unknown;
-    return validateStoredBuilderNodeClipboard(parsed);
-  } catch {
-    return null;
-  }
-}
-
-function writeStoredBuilderNodeClipboard(node: BuilderNode | null) {
-  if (typeof window === "undefined") return;
-  try {
-    if (!node || node.kind === "section") {
-      window.sessionStorage.removeItem(BUILDER_NODE_CLIPBOARD_STORAGE_KEY);
-      return;
-    }
-    window.sessionStorage.setItem(
-      BUILDER_NODE_CLIPBOARD_STORAGE_KEY,
-      JSON.stringify(node),
-    );
-  } catch {
-    // Storage can fail in private browsing or under quota. The in-memory
-    // clipboard still works for the current edit session.
-  }
-}
-
-function readStoredBuilderNodeMultiClipboard(): SerializedBuilderNodeClipboard | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.sessionStorage.getItem(BUILDER_NODE_MULTI_CLIPBOARD_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<SerializedBuilderNodeClipboard>;
-    if (parsed.version !== 2 || !Array.isArray(parsed.nodes)) return null;
-    const nodes = parsed.nodes
-      .map((node) => validateStoredBuilderNodeClipboard(node))
-      .filter((node): node is BuilderNode => Boolean(node));
-    return nodes.length > 0 ? { version: 2, nodes } : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeStoredBuilderNodeMultiClipboard(
-  clipboard: SerializedBuilderNodeClipboard | null,
-) {
-  if (typeof window === "undefined") return;
-  try {
-    if (!clipboard || clipboard.nodes.length === 0) {
-      window.sessionStorage.removeItem(BUILDER_NODE_MULTI_CLIPBOARD_STORAGE_KEY);
-      return;
-    }
-    window.sessionStorage.setItem(
-      BUILDER_NODE_MULTI_CLIPBOARD_STORAGE_KEY,
-      JSON.stringify(clipboard),
-    );
-  } catch {
-    // Clipboard persistence is best-effort only.
-  }
-}
-
-function readStoredBuilderBlockPresets(): BuilderBlockPreset[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(BUILDER_BLOCK_PRESETS_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    const presets: BuilderBlockPreset[] = [];
-    for (const item of parsed) {
-      if (typeof item !== "object" || item == null) continue;
-      const rawPreset = item as {
-        id?: unknown;
-        name?: unknown;
-        node?: unknown;
-        createdAt?: unknown;
-      };
-      if (
-        typeof rawPreset.id !== "string" ||
-        typeof rawPreset.name !== "string" ||
-        typeof rawPreset.createdAt !== "string"
-      ) {
-        continue;
-      }
-      const node = validateStoredBuilderNodeClipboard(rawPreset.node);
-      if (!node || node.kind === "section") continue;
-      presets.push({
-        id: rawPreset.id,
-        name: rawPreset.name.trim() || `${builderNodeLabel(node.kind)} pattern`,
-        node,
-        createdAt: rawPreset.createdAt,
-      });
-      if (presets.length >= BUILDER_BLOCK_PRESET_LIMIT) break;
-    }
-    return presets;
-  } catch {
-    return [];
-  }
-}
-
-function writeStoredBuilderBlockPresets(
-  presets: ReadonlyArray<BuilderBlockPreset>,
-) {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(
-      BUILDER_BLOCK_PRESETS_STORAGE_KEY,
-      JSON.stringify(presets.slice(0, BUILDER_BLOCK_PRESET_LIMIT)),
-    );
-  } catch {
-    // Local preset persistence is a convenience layer; editing continues
-    // even when browser storage is unavailable.
-  }
 }
 
 function stripSnapshotForSave(s: CompositionSnapshot) {
