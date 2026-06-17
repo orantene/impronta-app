@@ -347,8 +347,10 @@ function builderNodeContainerQueryCss(breakpoint: "tablet" | "mobile", maxWidth:
     `  .site-builder-node[${attr}-size="md"]{font-size:clamp(1rem,1.3vw,1.25rem)!important}`,
     `  .site-builder-node[${attr}-size="lg"]{font-size:clamp(1.35rem,2vw,2.25rem)!important}`,
     `  .site-builder-node[${attr}-size="xl"]{font-size:clamp(2rem,4vw,4.5rem)!important}`,
+    `  .site-builder-node[${attr}-size="display"]{font-size:clamp(3.5rem,6vw,6rem)!important}`,
     `  .site-builder-node--paragraph[${attr}-size="lg"]{font-size:clamp(1.1rem,1.45vw,1.45rem)!important}`,
     `  .site-builder-node--paragraph[${attr}-size="xl"]{font-size:clamp(1.25rem,1.8vw,1.8rem)!important}`,
+    `  .site-builder-node--paragraph[${attr}-size="display"]{font-size:clamp(2rem,4vw,4.5rem)!important}`,
     rules,
   ].join("\n")}\n}`;
 }
@@ -689,8 +691,10 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node[data-builder-style-size="md"]{font-size:clamp(1rem,1.3vw,1.25rem)}
 .site-builder-node[data-builder-style-size="lg"]{font-size:clamp(1.35rem,2vw,2.25rem)}
 .site-builder-node[data-builder-style-size="xl"]{font-size:clamp(2rem,4vw,4.5rem)}
+.site-builder-node[data-builder-style-size="display"]{font-size:clamp(3.5rem,6vw,6rem)}
 .site-builder-node--paragraph[data-builder-style-size="lg"]{font-size:clamp(1.1rem,1.45vw,1.45rem)}
 .site-builder-node--paragraph[data-builder-style-size="xl"]{font-size:clamp(1.25rem,1.8vw,1.8rem)}
+.site-builder-node--paragraph[data-builder-style-size="display"]{font-size:clamp(2rem,4vw,4.5rem)}
 .site-builder-node[data-builder-style-transition]{transition-property:var(--bn-transition-property,all);transition-duration:var(--bn-transition-duration,.2s);transition-timing-function:var(--bn-transition-timing-function,ease);transition-delay:var(--bn-transition-delay,0s)}
 .site-builder-node[data-builder-style-hover-bg]:hover,.site-builder-node[data-builder-style-hover-bg]:focus-visible{background-color:var(--bn-hover-bg)!important}
 .site-builder-node[data-builder-style-hover-color]:hover,.site-builder-node[data-builder-style-hover-color]:focus-visible{color:var(--bn-hover-color)!important}
@@ -719,8 +723,10 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-tablet-size="md"]{font-size:clamp(1rem,1.3vw,1.25rem)!important}
   .site-builder-node[data-builder-style-tablet-size="lg"]{font-size:clamp(1.35rem,2vw,2.25rem)!important}
   .site-builder-node[data-builder-style-tablet-size="xl"]{font-size:clamp(2rem,4vw,4.5rem)!important}
+  .site-builder-node[data-builder-style-tablet-size="display"]{font-size:clamp(3.5rem,6vw,6rem)!important}
   .site-builder-node--paragraph[data-builder-style-tablet-size="lg"]{font-size:clamp(1.1rem,1.45vw,1.45rem)!important}
   .site-builder-node--paragraph[data-builder-style-tablet-size="xl"]{font-size:clamp(1.25rem,1.8vw,1.8rem)!important}
+  .site-builder-node--paragraph[data-builder-style-tablet-size="display"]{font-size:clamp(2rem,4vw,4.5rem)!important}
   .site-builder-node[data-builder-style-tablet-tone]{color:var(--bn-tablet-color)!important}
   .site-builder-node[data-builder-style-tablet-width]{max-width:var(--bn-tablet-max-width)!important}
   .site-builder-node[data-builder-style-tablet-margin-top]{margin-top:var(--bn-tablet-margin-top)!important}
@@ -820,8 +826,10 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-size="md"]{font-size:clamp(1rem,1.3vw,1.25rem)!important}
   .site-builder-node[data-builder-style-mobile-size="lg"]{font-size:clamp(1.35rem,2vw,2.25rem)!important}
   .site-builder-node[data-builder-style-mobile-size="xl"]{font-size:clamp(2rem,4vw,4.5rem)!important}
+  .site-builder-node[data-builder-style-mobile-size="display"]{font-size:clamp(3.5rem,6vw,6rem)!important}
   .site-builder-node--paragraph[data-builder-style-mobile-size="lg"]{font-size:clamp(1.1rem,1.45vw,1.45rem)!important}
   .site-builder-node--paragraph[data-builder-style-mobile-size="xl"]{font-size:clamp(1.25rem,1.8vw,1.8rem)!important}
+  .site-builder-node--paragraph[data-builder-style-mobile-size="display"]{font-size:clamp(2rem,4vw,4.5rem)!important}
   .site-builder-node[data-builder-style-mobile-tone]{color:var(--bn-mobile-color)!important}
   .site-builder-node[data-builder-style-mobile-width]{max-width:var(--bn-mobile-max-width)!important}
   .site-builder-node[data-builder-style-mobile-margin-top]{margin-top:var(--bn-mobile-margin-top)!important}

@@ -327,6 +327,8 @@ const SIZE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "md", label: "M" },
   { value: "lg", label: "L" },
   { value: "xl", label: "XL" },
+  // STYLE-2 — display tier: storefront-grade headline scale above XL (clamp 3.5–6rem).
+  { value: "display", label: "Display" },
 ];
 
 const BUILDER_NODE_STYLE_SIZE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
@@ -335,6 +337,8 @@ const BUILDER_NODE_STYLE_SIZE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = 
   { value: "md", label: "M" },
   { value: "lg", label: "L" },
   { value: "xl", label: "XL" },
+  // STYLE-2 — display tier: storefront-grade headline scale above XL (clamp 3.5–6rem).
+  { value: "display", label: "Display" },
 ];
 
 const TONE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [

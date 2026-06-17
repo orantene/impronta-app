@@ -22,14 +22,14 @@ function textToneColor(
   return undefined;
 }
 
-function headingSize(size?: "sm" | "md" | "lg" | "xl"): CSSProperties["fontSize"] {
+function headingSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSProperties["fontSize"] {
   if (size === "sm") return "clamp(1.7rem, 3.8vw, 2.85rem)";
   if (size === "lg") return "clamp(2.25rem, 5.6vw, 4.35rem)";
   if (size === "xl") return "clamp(2.6rem, 6.6vw, 5.2rem)";
   return undefined;
 }
 
-function paragraphSize(size?: "sm" | "md" | "lg" | "xl"): CSSProperties["fontSize"] {
+function paragraphSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSProperties["fontSize"] {
   if (size === "sm") return "clamp(0.92rem, 1.15vw, 1.06rem)";
   if (size === "lg") return "clamp(1.08rem, 1.58vw, 1.36rem)";
   if (size === "xl") return "clamp(1.2rem, 1.85vw, 1.56rem)";
@@ -43,7 +43,7 @@ function visibilityDisplay(
   return undefined;
 }
 
-function ctaSize(size?: "sm" | "md" | "lg" | "xl"): CSSProperties {
+function ctaSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSProperties {
   if (size === "sm") return { padding: "0.66rem 1.2rem", fontSize: "0.84rem" };
   if (size === "lg") return { padding: "0.95rem 1.8rem", fontSize: "1.02rem" };
   if (size === "xl") return { padding: "1.08rem 2.1rem", fontSize: "1.08rem" };
@@ -86,12 +86,12 @@ function textNodeDecls(
         paddingInlinePx?: number;
         paddingLeftPx?: number;
         paddingRightPx?: number;
-        size?: "sm" | "md" | "lg" | "xl";
+        size?: "sm" | "md" | "lg" | "xl" | "display";
         tone?: "default" | "muted" | "strong";
         visibility?: "visible" | "hidden";
       }
     | undefined,
-  sizeMapper: (size?: "sm" | "md" | "lg" | "xl") => CSSProperties["fontSize"],
+  sizeMapper: (size?: "sm" | "md" | "lg" | "xl" | "display") => CSSProperties["fontSize"],
 ): string[] {
   if (!node) return [];
   const hasMarginSides =
@@ -152,7 +152,7 @@ function textNodeDecls(
 function ctaDecls(
   node:
     | {
-        size?: "sm" | "md" | "lg" | "xl";
+        size?: "sm" | "md" | "lg" | "xl" | "display";
         marginTopPx?: number;
         marginBottomPx?: number;
         marginInlinePx?: number;
