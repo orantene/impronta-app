@@ -51,8 +51,18 @@ test("reserved access capability keys resolve through the talent plan map", () =
   assert.equal(talentPlanGrantsAccessCapability("talent_basic", "talent.page.set_template"), false);
   assert.equal(talentPlanGrantsAccessCapability("talent_pro", "talent.page.set_template"), true);
   assert.equal(talentPlanGrantsAccessCapability("talent_portfolio", "talent.page.enable_module"), true);
+  // Custom domain is a Max-only capability — granted to talent_portfolio, denied
+  // to free/pro.
   assert.equal(
     talentPlanGrantsAccessCapability("talent_portfolio", "talent.page.connect_custom_domain"),
+    true,
+  );
+  assert.equal(
+    talentPlanGrantsAccessCapability("talent_basic", "talent.page.connect_custom_domain"),
+    false,
+  );
+  assert.equal(
+    talentPlanGrantsAccessCapability("talent_pro", "talent.page.connect_custom_domain"),
     false,
   );
 });
@@ -99,7 +109,7 @@ test("membership state exposes UI-safe capability booleans", () => {
       canUseTemplateGallery: true,
       canUseCustomBuilder: true,
       canSetPersonalSiteTemplate: true,
-      canConnectPersonalSiteDomain: false,
+      canConnectPersonalSiteDomain: true,
     },
   });
 });

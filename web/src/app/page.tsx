@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { AgencyHomeStorefront } from "@/components/home/agency-home-storefront";
 import { AppLanding } from "@/components/home/app-landing";
@@ -129,6 +129,13 @@ export default async function HomePage() {
       return <HubLanding tenantId={ctx.tenantId} />;
     case "marketing":
       return <MarketingLanding />;
+    case "talent_site":
+      // A talent custom-domain host is ALWAYS rewritten to /_talent-site by the
+      // proxy, so this case is unreachable in practice. If it is ever hit (a
+      // mid-deploy header skew), 404 rather than leak the app landing — the
+      // talent site has its own dedicated host route. notFound() throws, so it
+      // never falls through to the app branch.
+      notFound();
     case "app":
     default: {
       // App-host ROOT only: a signed-in visitor jumps straight to their

@@ -75,6 +75,10 @@ const TALENT_PLAN_CAPABILITIES: Record<TalentPlanKey, ReadonlySet<TalentPlanCapa
     "personalSitePublish",
     "personalSiteTemplate",
     "personalSiteCustomBuilder",
+    // Max-only — connect / verify / manage a custom domain for the Max site.
+    // The DB RLS on `talent_site_domains` enforces the same Max gate
+    // (`talent_profile_has_max`) as a defense-in-depth backstop.
+    "personalSiteCustomDomain",
   ]),
 };
 

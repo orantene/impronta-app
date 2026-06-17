@@ -28,7 +28,12 @@ import {
   HOST_CONTEXT_HEADER,
   HOST_NAME_HEADER,
   HOST_TENANT_SLUG_HEADER,
+  HOST_TALENT_PROFILE_HEADER,
 } from "@/lib/saas/host-context";
+import {
+  isTalentSiteHostPathAllowed,
+  talentSiteHostRewritePath,
+} from "@/lib/saas/talent-site-host-routing";
 import { resolveCanonicalCustomDomainRedirectHost } from "@/lib/saas/domain-canonical";
 import {
   PUBLIC_PATH_PREFIX_HEADER,
@@ -121,6 +126,12 @@ export async function proxy(request: NextRequest) {
     // Branded "page not found" page for known-host disallowed paths — same
     // recursion-avoidance rationale as /_host-unregistered above.
     pathname === "/_page-not-found" ||
+    // Talent custom-domain host route — internal rewrite target for a
+    // `kind: "talent_site"` host. Whitelisted so the rewrite below does not
+    // recurse back through host resolution. The route reads the resolved
+    // talent_profile_id from the host header set by the talent_site block.
+    pathname === "/_talent-site" ||
+    pathname.startsWith("/_talent-site/") ||
     // Dev sign-in shortcut — host-resolution bypass.
     //   - NODE_ENV=development: local `npm run dev`, allowed unconditionally
     //   - VERCEL_ENV=preview: Vercel preview deploys, allowed because previews
@@ -184,6 +195,52 @@ export async function proxy(request: NextRequest) {
       new URL("/_host-unregistered", request.url),
       { status: 404 },
     );
+  }
+
+  // ── Talent custom-domain host ────────────────────────────────────────────
+  // A `kind: "talent_site"` host (resolved only AFTER agency_domains misses)
+  // serves the talent's published Max site. Its surface is intentionally tiny:
+  // the site home (`/`) and inner page slugs (`/<slug>`), plus shared plumbing.
+  // Anything else 404s — a vanity domain never exposes the workspace, directory,
+  // or auth. The render path reads the talent_profile_id from a host header set
+  // here, so a client can never spoof it.
+  if (hostContext.kind === "talent_site") {
+    const talentLangSettings = await getLanguageSettingsForMiddleware();
+    const localeStripped = isNonDefaultLocalePrefixedPath(pathname, talentLangSettings)
+      ? stripNonDefaultLocalePrefix(pathname, talentLangSettings)
+      : stripDefaultLocalePrefixFromPath(pathname, talentLangSettings);
+
+    const decision = isTalentSiteHostPathAllowed(localeStripped);
+    if (!decision) {
+      return NextResponse.rewrite(
+        new URL("/_page-not-found", request.url),
+        { status: 404 },
+      );
+    }
+
+    const talentHeaders = new Headers(request.headers);
+    const locale = resolveLocaleForPathname(pathname, request, talentLangSettings);
+    talentHeaders.set(LOCALE_HEADER, locale);
+    talentHeaders.set(ORIGINAL_PATHNAME_HEADER, request.nextUrl.pathname);
+    talentHeaders.set(HOST_CONTEXT_HEADER, "talent_site");
+    talentHeaders.set(HOST_NAME_HEADER, hostContext.hostname);
+    talentHeaders.set(HOST_TALENT_PROFILE_HEADER, hostContext.talentProfileId);
+    // A talent_site host is NOT tenant-scoped — never let a tenant id leak.
+    talentHeaders.delete(TENANT_HEADER_NAME);
+    talentHeaders.delete(HOST_TENANT_SLUG_HEADER);
+    talentHeaders.delete(PUBLIC_PATH_PREFIX_HEADER);
+
+    if (decision.kind === "passthrough") {
+      return NextResponse.next({ request: { headers: talentHeaders } });
+    }
+
+    const rewriteUrl = request.nextUrl.clone();
+    rewriteUrl.pathname = talentSiteHostRewritePath(decision.pageSlug);
+    const res = NextResponse.rewrite(rewriteUrl, {
+      request: { headers: talentHeaders },
+    });
+    syncLocaleCookieForPath(res, request.nextUrl.pathname, talentLangSettings, request);
+    return res;
   }
 
   if (
@@ -378,6 +435,10 @@ export async function proxy(request: NextRequest) {
     !cmsSlugRewrite &&
     (
       effectiveHostContext.kind === "not_found" ||
+      // `talent_site` is fully handled + early-returned above, so this is dead
+      // in practice; the guard keeps the allow-list call to the four
+      // tenant-surface host kinds and 404s defensively if it ever reaches here.
+      effectiveHostContext.kind === "talent_site" ||
       !isPathAllowedForHostKind(effectiveHostContext.kind, effectiveCanonicalPath)
     )
   ) {
