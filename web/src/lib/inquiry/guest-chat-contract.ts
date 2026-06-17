@@ -34,6 +34,13 @@
 // 0. Message-kind discriminator — EXACT mirror of the DB CHECK constraint on
 //    inquiry_messages.message_kind (migration 20260513214948). Do not add a
 //    value here without an accompanying CHECK migration.
+//
+//    `booking_confirmed` / `balance_due` are already written by the booking
+//    money rail (lib/bookings/transactions.ts) and `voice` by the voice-note
+//    action (lib/server-actions/voice-notes.ts) — they were live in the DB but
+//    missing from this union, so the guest surface downgraded them to a generic
+//    "Update". Adding them here (no new migration: the rows already persist)
+//    lets the guest mini-chat render them as first-class kinds.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type GuestMessageKind =
@@ -45,6 +52,9 @@ export type GuestMessageKind =
   | "talent_rate"
   | "call_sheet_update"
   | "booking_status"
+  | "booking_confirmed"
+  | "balance_due"
+  | "voice"
   | "system_event";
 
 /**

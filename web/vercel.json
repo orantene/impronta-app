@@ -39,6 +39,9 @@
     "src/app/api/cron/expire-offers/route.ts": {
       "maxDuration": 30
     },
+    "src/app/api/cron/flag-unassigned-inquiries/route.ts": {
+      "maxDuration": 30
+    },
     "src/app/api/stripe/webhook/route.ts": {
       "maxDuration": 30
     }
@@ -53,6 +56,7 @@
     { "path": "/api/cron/retry-failed-emails", "schedule": "0 * * * *" },
     { "path": "/api/cron/booking-reminders", "schedule": "0 8 * * *" },
     { "path": "/api/cron/reconcile-held-payouts", "schedule": "0 6 * * *" },
-    { "path": "/api/cron/expire-offers", "schedule": "30 * * * *" }
+    { "path": "/api/cron/expire-offers", "schedule": "30 * * * *" },
+    { "path": "/api/cron/flag-unassigned-inquiries", "schedule": "45 * * * *" }
   ]
 }
