@@ -2462,6 +2462,7 @@ test("W4-T2 seam: the three DELIBERATE divergences are pinned (size/tone/inline 
 test("FORMS-1: contact form renders date field as <input type='date'>", () => {
   const props: ContactFormV1 = {
     action: "internal",
+    method: "POST",
     fields: [{ name: "event_date", label: "Event date", type: "date", required: true }],
     submitLabel: "Send",
     honeypot: "website",
@@ -2486,6 +2487,7 @@ test("FORMS-1: contact form renders date field as <input type='date'>", () => {
 test("FORMS-1: contact form renders number field with min/max attributes", () => {
   const props: ContactFormV1 = {
     action: "internal",
+    method: "POST",
     fields: [{ name: "guests", label: "Guest count", type: "number", required: true, numberMin: 1, numberMax: 500 }],
     submitLabel: "Send",
     honeypot: "website",
@@ -2510,7 +2512,8 @@ test("FORMS-1: contact form renders number field with min/max attributes", () =>
 test("FORMS-1: contact form renders file field with accept and data-max-size-mb", () => {
   const props: ContactFormV1 = {
     action: "internal",
-    fields: [{ name: "brief", label: "Brief", type: "file", fileAccept: ".pdf,image/*", fileMaxSizeMb: 8 }],
+    method: "POST",
+    fields: [{ name: "brief", label: "Brief", type: "file", required: false, fileAccept: ".pdf,image/*", fileMaxSizeMb: 8 }],
     submitLabel: "Send",
     honeypot: "website",
     successMessage: "Thanks!",
@@ -2534,7 +2537,8 @@ test("FORMS-1: contact form renders file field with accept and data-max-size-mb"
 test("FORMS-1: contact form renders consent checkbox with consentText", () => {
   const props: ContactFormV1 = {
     action: "internal",
-    fields: [{ name: "gdpr", label: "GDPR", type: "consent", consentText: "I agree to the privacy policy." }],
+    method: "POST",
+    fields: [{ name: "gdpr", label: "GDPR", type: "consent", required: true, consentText: "I agree to the privacy policy." }],
     submitLabel: "Send",
     honeypot: "website",
     successMessage: "Thanks!",
@@ -2560,6 +2564,7 @@ test("FORMS-1: contact form renders consent checkbox with consentText", () => {
 test("FORMS-1: contact form renders regular checkbox (optional)", () => {
   const props: ContactFormV1 = {
     action: "internal",
+    method: "POST",
     fields: [{ name: "newsletter", label: "Subscribe to updates", type: "checkbox", required: false }],
     submitLabel: "Send",
     honeypot: "website",
@@ -2585,10 +2590,11 @@ test("FORMS-1: contact form renders regular checkbox (optional)", () => {
 test("FORMS-1: existing legacy form renders unchanged (backward compat)", () => {
   const props: ContactFormV1 = {
     action: "/api/cms/forms/submit",
+    method: "POST",
     fields: [
       { name: "name", label: "Name", type: "text", required: true, placeholder: "Your name" },
       { name: "email", label: "Email", type: "email", required: true },
-      { name: "message", label: "Message", type: "textarea" },
+      { name: "message", label: "Message", type: "textarea", required: false },
     ],
     submitLabel: "Send",
     honeypot: "website",

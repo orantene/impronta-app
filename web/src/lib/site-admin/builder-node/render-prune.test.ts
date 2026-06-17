@@ -225,14 +225,13 @@ test("Q5 — well-known non-empty built-in source is NOT pruned", () => {
       {
         id: "t1",
         profileCode: "TAL-001",
+        slugPart: null,
         displayName: "Sofía",
         primaryTalentTypeLabel: "Model",
         secondaryTalentTypeLabel: null,
         locationLabel: "CDMX",
         thumbnailUrl: "https://cdn.example/t1.jpg",
-        agencyName: null,
-        agencyLogoUrl: null,
-        maxTier: false,
+        isFeatured: true,
       },
     ],
   };
