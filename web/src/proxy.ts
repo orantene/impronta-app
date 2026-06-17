@@ -774,12 +774,17 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // `sw.js` + `manifest.webmanifest` are static PWA files in `public/`, and
-    // `/offline` is a `force-static` fallback route — all three must serve
-    // host-agnostically without tenant gating. Without these exclusions the
-    // proxy runs host resolution + the surface allow-list on them, which 404s
-    // every PWA asset on tenant hosts (the service worker can't register and
-    // the offline page can't be pre-cached). Mirrors the `favicon.ico` skip.
-    "/((?!_next/static|_next/image|favicon.ico|sw\\.js|manifest\\.webmanifest|offline|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // `sw.js` + `manifest.webmanifest` are static PWA files in `public/` that
+    // must serve host-agnostically — without these exclusions the proxy runs
+    // host resolution + the surface allow-list on them and 404s every PWA
+    // asset on tenant hosts (the service worker then can't register). Mirrors
+    // the `favicon.ico` skip.
+    //
+    // `/offline` is deliberately NOT excluded here: it is a rendered route
+    // under the `force-dynamic` root layout, so it MUST go through the proxy
+    // to receive the locale + host headers the layout's data loads depend on
+    // (bypassing the proxy made it 500). It is instead allow-listed for every
+    // host kind in `surface-allow-list.ts`.
+    "/((?!_next/static|_next/image|favicon.ico|sw\\.js|manifest\\.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

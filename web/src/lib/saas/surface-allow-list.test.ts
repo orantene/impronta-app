@@ -367,6 +367,22 @@ test("compliance endpoints: /unsubscribe + /api/unsubscribe allowed on every hos
   assert.equal(isPathAllowedForHostKind("app", "/api/unsubscribexyz"), false);
 });
 
+test("PWA offline fallback: /offline allowed on every host kind", () => {
+  // The service worker pre-caches /offline by fetching it over the network
+  // during install, so it must return 200 on every host (app, agency
+  // subdomain, custom domain, hub) — otherwise the SW can never cache the
+  // fallback and tenant hosts 404 the offline page.
+  for (const kind of ["agency", "app", "hub", "marketing"] as const) {
+    assert.equal(
+      isPathAllowedForHostKind(kind, "/offline"),
+      true,
+      `${kind} should allow /offline`,
+    );
+  }
+  // Exact match only — a lookalike must not be swallowed.
+  assert.equal(isPathAllowedForHostKind("app", "/offline-mode"), false);
+});
+
 test("prefix boundaries: /talented is not /talent, /administration is not /admin", () => {
   // Segment boundary protection — workspace prefixes must not swallow
   // storefront routes that happen to share a leading substring.
