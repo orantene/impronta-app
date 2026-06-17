@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useActionState, useMemo, useState, useTransition } from "react";
 import { useQueuedRouterRefresh } from "@/lib/ui/use-queued-router-refresh";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, ExternalLink, Plus, Search, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ExternalLink, Lock, Plus, Search, Trash2 } from "lucide-react";
 import { addInquiryTalent, type AdminActionState, moveInquiryTalent, removeInquiryTalent } from "@/lib/server-actions/admin-inquiries";
 import {
   rosterAddTalent,
@@ -14,6 +14,7 @@ import {
 } from "@/lib/server-actions/admin-inquiry-roster";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { handleActionResult, type ActionResult } from "@/lib/inquiry/inquiry-action-result";
 import { cn } from "@/lib/utils";
 
@@ -21,7 +22,107 @@ type TalentOption = {
   id: string;
   profile_code: string;
   display_name: string | null;
+  /**
+   * Picker enrichment (optional — populated by `enrichPickerTalents` in the
+   * loader; absent for callers that don't enrich, so the picker degrades to
+   * its original behavior). See `@/lib/inquiry/picker-talent-guard`.
+   */
+  isExclusiveElsewhere?: boolean;
+  nextAvailableDate?: string | null;
+  availableDaysInNext30?: number | null;
+  availabilityDots14d?: string | null;
 };
+
+// ───────────────────────────────────────────────────────────────────────────
+// Picker enrichment presentation helpers
+// ───────────────────────────────────────────────────────────────────────────
+
+/** Compact "N of next 30 days open" / "Next free Jun 24" label, mirroring Discover. */
+function availabilityLabel(option: TalentOption): string | null {
+  const days = option.availableDaysInNext30;
+  if (typeof days === "number") {
+    if (days === 0) return "Fully booked · 30d";
+    return `${days} of 30 days open`;
+  }
+  const next = option.nextAvailableDate;
+  if (next) {
+    const d = new Date(next);
+    if (!Number.isNaN(d.getTime())) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (d > today) {
+        return `Next free ${d.toLocaleString("en-US", { month: "short" })} ${d.getDate()}`;
+      }
+    }
+  }
+  return null;
+}
+
+/** True when the enrichment says this talent has zero open days in the next 30. */
+function isFullyBooked(option: TalentOption): boolean {
+  return option.availableDaysInNext30 === 0;
+}
+
+/**
+ * A small inline strip of 14 availability dots (·=free / ×=blocked), matching
+ * the Discover card's binary-dots fast path. Renders nothing when no data.
+ */
+function AvailabilityDots({ dots }: { dots: string | null | undefined }) {
+  if (!dots) return null;
+  const chars = dots.split("").slice(0, 14);
+  return (
+    <span className="inline-flex items-center gap-[2px] align-middle" aria-hidden>
+      {Array.from({ length: 14 }, (_, i) => {
+        const c = chars[i];
+        const color =
+          c === "·" ? "#2E7D5B" : c === "×" ? "rgba(11,11,13,0.32)" : "rgba(11,11,13,0.12)";
+        return (
+          <span
+            key={i}
+            className="inline-block h-[5px] w-[5px] shrink-0 rounded-full"
+            style={{ background: color }}
+          />
+        );
+      })}
+    </span>
+  );
+}
+
+/**
+ * Inline metadata row under a picker candidate's name: the exclusivity lock
+ * chip (when the talent is bound to another agency) + an availability label
+ * with a compact dots strip. Both are no-ops when the option carries no
+ * enrichment, so unenriched callers render exactly as before.
+ */
+function TalentOptionMeta({ option }: { option: TalentOption }) {
+  const availLabel = availabilityLabel(option);
+  const exclusive = option.isExclusiveElsewhere === true;
+  if (!availLabel && !exclusive && !option.availabilityDots14d) return null;
+  return (
+    <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+      {exclusive ? (
+        <span
+          title="Exclusive to another agency"
+          className="inline-flex items-center gap-1 rounded-full border border-destructive/35 bg-destructive/5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-destructive"
+        >
+          <Lock className="h-3 w-3" />
+          Exclusive
+        </span>
+      ) : null}
+      {availLabel ? (
+        <span
+          className={cn(
+            "inline-flex items-center gap-1.5 text-[11px]",
+            isFullyBooked(option) ? "text-destructive/80" : "text-muted-foreground",
+          )}
+        >
+          <AvailabilityDots dots={option.availabilityDots14d} />
+          {availLabel}
+        </span>
+      ) : null}
+    </span>
+  );
+}
 
 type InquiryTalentRow = {
   id: string;
@@ -62,6 +163,7 @@ function TalentDraftList({
               <p className="font-medium text-foreground">{row.display_name ?? row.profile_code}</p>
             </div>
             <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">{row.profile_code}</p>
+            <TalentOptionMeta option={row} />
           </div>
           <div className="flex items-center gap-1">
             <Button type="button" variant="ghost" size="sm" className="h-8 w-8 px-0" disabled={index === 0} onClick={() => onMove(index, "up")}>
@@ -191,6 +293,29 @@ function RosterEngineV2RowControls({
   );
 }
 
+/**
+ * Toggle row used for the two additive picker filters ("Available only",
+ * "Hide exclusive-to-other-agency"). Matches the cool admin token palette.
+ */
+function PickerFilterToggle({
+  id,
+  label,
+  checked,
+  onCheckedChange,
+}: {
+  id: string;
+  label: string;
+  checked: boolean;
+  onCheckedChange: (next: boolean) => void;
+}) {
+  return (
+    <label htmlFor={id} className="inline-flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+      <Switch id={id} checked={checked} onCheckedChange={onCheckedChange} />
+      <span>{label}</span>
+    </label>
+  );
+}
+
 export function InquiryTalentDraftField({
   talents,
   initialSelectedIds = [],
@@ -203,6 +328,22 @@ export function InquiryTalentDraftField({
   const [query, setQuery] = useState("");
   const initialRows = initialSelectedIds.map((id) => talents.find((talent) => talent.id === id)).filter(Boolean) as TalentOption[];
   const [selected, setSelected] = useState<TalentOption[]>(initialRows);
+  // Additive filters — both default OFF so the picker is unchanged on first paint.
+  const [availableOnly, setAvailableOnly] = useState(false);
+  const [hideExclusive, setHideExclusive] = useState(false);
+  // Two-step confirm before adding a talent who's exclusive to another agency.
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+
+  // Only show the filter toggles when the candidates actually carry the
+  // relevant enrichment — otherwise the controls would be no-ops.
+  const hasAvailabilityData = useMemo(
+    () => talents.some((t) => typeof t.availableDaysInNext30 === "number"),
+    [talents],
+  );
+  const hasExclusivityData = useMemo(
+    () => talents.some((t) => t.isExclusiveElsewhere === true),
+    [talents],
+  );
 
   const selectedIds = useMemo(() => new Set(selected.map((row) => row.id)), [selected]);
   const filtered = useMemo(
@@ -210,9 +351,17 @@ export function InquiryTalentDraftField({
       talents
         .filter((option) => !selectedIds.has(option.id))
         .filter((option) => matchTalent(option, query))
+        .filter((option) => !(availableOnly && option.availableDaysInNext30 === 0))
+        .filter((option) => !(hideExclusive && option.isExclusiveElsewhere === true))
         .slice(0, 8),
-    [query, selectedIds, talents],
+    [query, selectedIds, talents, availableOnly, hideExclusive],
   );
+
+  const addOption = (option: TalentOption) => {
+    setSelected((current) => [...current, option]);
+    setQuery("");
+    setConfirmId(null);
+  };
 
   return (
     <div className="space-y-3">
@@ -220,34 +369,92 @@ export function InquiryTalentDraftField({
       <div className="rounded-2xl border border-border/45 bg-muted/10 p-3">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search talent by code or name" className="pl-9" />
+          <Input
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              // Drop a pending exclusive-confirm when the search changes so the
+              // "Confirm" affordance can't carry over to a different candidate.
+              setConfirmId(null);
+            }}
+            placeholder="Search talent by code or name"
+            className="pl-9"
+          />
         </div>
+        {hasAvailabilityData || hasExclusivityData ? (
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+            {hasAvailabilityData ? (
+              <PickerFilterToggle
+                id="picker-available-only"
+                label="Available only"
+                checked={availableOnly}
+                onCheckedChange={setAvailableOnly}
+              />
+            ) : null}
+            {hasExclusivityData ? (
+              <PickerFilterToggle
+                id="picker-hide-exclusive"
+                label="Hide exclusive-to-other-agency"
+                checked={hideExclusive}
+                onCheckedChange={setHideExclusive}
+              />
+            ) : null}
+          </div>
+        ) : null}
       </div>
       <div className="rounded-2xl border border-border/45 bg-background">
         {query.trim().length >= 1 ? (
           filtered.length > 0 ? (
             <ul className="divide-y divide-border/40">
-              {filtered.map((option) => (
-                <li key={option.id}>
-                  <button
-                    type="button"
-                    className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/30"
-                    onClick={() => {
-                      setSelected((current) => [...current, option]);
-                      setQuery("");
-                    }}
-                  >
-                    <span className="min-w-0 text-sm">
-                      <span className="block font-medium text-foreground">{option.display_name ?? option.profile_code}</span>
-                      <span className="block text-xs uppercase tracking-[0.16em] text-muted-foreground">{option.profile_code}</span>
-                    </span>
-                    <span className="inline-flex items-center gap-1 rounded-full border border-[var(--impronta-gold-border)]/70 bg-[var(--impronta-gold-muted)] px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--impronta-gold)]">
-                      <Plus className="h-3.5 w-3.5" />
-                      Add
-                    </span>
-                  </button>
-                </li>
-              ))}
+              {filtered.map((option) => {
+                const exclusive = option.isExclusiveElsewhere === true;
+                const awaitingConfirm = confirmId === option.id;
+                return (
+                  <li key={option.id}>
+                    <button
+                      type="button"
+                      className={cn(
+                        "flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/30",
+                        exclusive && "bg-destructive/[0.03]",
+                        awaitingConfirm && "bg-destructive/[0.06]",
+                      )}
+                      onClick={() => {
+                        // Exclusive-elsewhere requires an explicit confirm tap
+                        // first (we warn, never hard-block).
+                        if (exclusive && !awaitingConfirm) {
+                          setConfirmId(option.id);
+                          return;
+                        }
+                        addOption(option);
+                      }}
+                    >
+                      <span className="min-w-0 text-sm">
+                        <span className={cn("block font-medium", exclusive ? "text-foreground/70" : "text-foreground")}>
+                          {option.display_name ?? option.profile_code}
+                        </span>
+                        <span className="block text-xs uppercase tracking-[0.16em] text-muted-foreground">{option.profile_code}</span>
+                        <TalentOptionMeta option={option} />
+                        {awaitingConfirm ? (
+                          <span className="mt-1 block text-[11px] font-medium text-destructive">
+                            Exclusive to another agency — tap again to add anyway.
+                          </span>
+                        ) : null}
+                      </span>
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.16em]",
+                          awaitingConfirm
+                            ? "border-destructive/40 bg-destructive/5 text-destructive"
+                            : "border-[var(--impronta-gold-border)]/70 bg-[var(--impronta-gold-muted)] text-[var(--impronta-gold)]",
+                        )}
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        {awaitingConfirm ? "Confirm" : "Add"}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           ) : (
             <p className="px-3 py-3 text-sm text-muted-foreground">No talent matches.</p>
@@ -300,14 +507,34 @@ export function InquiryTalentEditor({
   const [state, addAction, addPending] = useActionState<AdminActionState, FormData>(addInquiryTalent, undefined);
   const [v2AddPending, startV2Add] = useTransition();
 
+  // Additive filters — both default OFF so the editor is unchanged on first paint.
+  const [availableOnly, setAvailableOnly] = useState(false);
+  const [hideExclusive, setHideExclusive] = useState(false);
+
+  const hasAvailabilityData = useMemo(
+    () => allTalents.some((t) => typeof t.availableDaysInNext30 === "number"),
+    [allTalents],
+  );
+  const hasExclusivityData = useMemo(
+    () => allTalents.some((t) => t.isExclusiveElsewhere === true),
+    [allTalents],
+  );
+
   const selectedIds = useMemo(() => new Set(rows.map((row) => row.talent_profile_id)), [rows]);
   const filtered = useMemo(
     () =>
       allTalents
         .filter((option) => !selectedIds.has(option.id))
         .filter((option) => matchTalent(option, query))
+        .filter((option) => !(availableOnly && option.availableDaysInNext30 === 0))
+        .filter((option) => !(hideExclusive && option.isExclusiveElsewhere === true))
         .slice(0, 8),
-    [allTalents, query, selectedIds],
+    [allTalents, query, selectedIds, availableOnly, hideExclusive],
+  );
+
+  const selectedOption = useMemo(
+    () => allTalents.find((t) => t.id === selectedTalentId) ?? null,
+    [allTalents, selectedTalentId],
   );
 
   const addFormAction = engineV2 ? undefined : addAction;
@@ -348,6 +575,26 @@ export function InquiryTalentEditor({
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search talent by code or name" className="pl-9" />
         </div>
+        {hasAvailabilityData || hasExclusivityData ? (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            {hasAvailabilityData ? (
+              <PickerFilterToggle
+                id="editor-available-only"
+                label="Available only"
+                checked={availableOnly}
+                onCheckedChange={setAvailableOnly}
+              />
+            ) : null}
+            {hasExclusivityData ? (
+              <PickerFilterToggle
+                id="editor-hide-exclusive"
+                label="Hide exclusive-to-other-agency"
+                checked={hideExclusive}
+                onCheckedChange={setHideExclusive}
+              />
+            ) : null}
+          </div>
+        ) : null}
         <div className="rounded-2xl border border-border/45 bg-background">
           {query.trim().length >= 1 ? (
             filtered.length > 0 ? (
@@ -359,12 +606,21 @@ export function InquiryTalentEditor({
                       className={cn(
                         "flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/30",
                         selectedTalentId === option.id && "bg-muted/30",
+                        option.isExclusiveElsewhere === true && "bg-destructive/[0.03]",
                       )}
                       onClick={() => setSelectedTalentId(option.id)}
                     >
                       <span className="min-w-0 text-sm">
-                        <span className="block font-medium text-foreground">{option.display_name ?? option.profile_code}</span>
+                        <span
+                          className={cn(
+                            "block font-medium",
+                            option.isExclusiveElsewhere === true ? "text-foreground/70" : "text-foreground",
+                          )}
+                        >
+                          {option.display_name ?? option.profile_code}
+                        </span>
                         <span className="block text-xs uppercase tracking-[0.16em] text-muted-foreground">{option.profile_code}</span>
+                        <TalentOptionMeta option={option} />
                       </span>
                       <span className="inline-flex items-center gap-1 rounded-full border border-[var(--impronta-gold-border)]/70 bg-[var(--impronta-gold-muted)] px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--impronta-gold)]">
                         {selectedTalentId === option.id ? "Selected" : "Pick"}
@@ -380,6 +636,12 @@ export function InquiryTalentEditor({
             <p className="px-3 py-3 text-sm text-muted-foreground">Search to add talent to this inquiry.</p>
           )}
         </div>
+        {selectedOption?.isExclusiveElsewhere === true ? (
+          <p className="flex items-center gap-1.5 text-xs font-medium text-destructive">
+            <Lock className="h-3.5 w-3.5" />
+            {selectedOption.display_name ?? selectedOption.profile_code} is exclusive to another agency. Confirm before adding.
+          </p>
+        ) : null}
         {addError ? <p className="text-sm text-destructive">{addError}</p> : null}
         <Button type="submit" size="sm" className="rounded-full px-4" disabled={!selectedTalentId || addPendingState}>
           {addPendingState ? "Adding…" : "Add talent"}

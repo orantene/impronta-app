@@ -19,7 +19,18 @@ import { INQUIRY_SOURCE_CHANNEL_VALUES } from "@/lib/admin/validation";
 import { useLiveTaxonomy } from "@/components/admin/shell/internal/use-taxonomy";
 
 type Contact = { id: string; client_account_id: string; label: string };
-type TalentOption = { id: string; profile_code: string; display_name: string | null };
+// Optional picker-enrichment fields (exclusivity + availability) are passed
+// straight through to InquiryTalentDraftField. They're optional so loaders
+// that don't enrich stay valid. See @/lib/inquiry/picker-talent-guard.
+type TalentOption = {
+  id: string;
+  profile_code: string;
+  display_name: string | null;
+  isExclusiveElsewhere?: boolean;
+  nextAvailableDate?: string | null;
+  availableDaysInNext30?: number | null;
+  availabilityDots14d?: string | null;
+};
 
 // Friendly labels for the source-channel select. Falls back to a
 // title-cased underscore-to-space transform for any value not in the

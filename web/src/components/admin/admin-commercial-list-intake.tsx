@@ -10,7 +10,18 @@ import { DashboardEditPanel } from "@/components/dashboard/dashboard-edit-panel"
 import { cn } from "@/lib/utils";
 
 type Contact = { id: string; client_account_id: string; label: string };
-type Talent = { id: string; profile_code: string; display_name: string | null };
+// Optional picker-enrichment fields flow through to the New-Inquiry sheet's
+// talent picker. Optional so the bookings variant + unenriched loaders are
+// unaffected. See @/lib/inquiry/picker-talent-guard.
+type Talent = {
+  id: string;
+  profile_code: string;
+  display_name: string | null;
+  isExclusiveElsewhere?: boolean;
+  nextAvailableDate?: string | null;
+  availableDaysInNext30?: number | null;
+  availabilityDots14d?: string | null;
+};
 type Staff = { id: string; display_name: string | null };
 type PlatformClient = { id: string; display_name: string | null };
 
