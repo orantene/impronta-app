@@ -308,6 +308,7 @@ export function LightProfileLayout({
 
   return (
     <main
+      id="main-content"
       className="flex-1"
       style={{ background: "var(--plt-bg)", color: "var(--plt-ink)" }}
       data-profile-shell

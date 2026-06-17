@@ -2,6 +2,8 @@ import "server-only";
 
 import type { ReactNode } from "react";
 
+import { SkipToContent } from "@/components/accessibility/skip-to-content";
+
 import {
   BuilderNodeFontLinks,
   BuilderNodeRendererStyles,
@@ -295,6 +297,8 @@ async function renderMaxSiteDocument(args: {
         flexDirection: "column",
       }}
     >
+      {/* A11Y-2 — first focusable element on every talent Max site surface. */}
+      <SkipToContent />
       <BuilderNodeRendererStyles />
       <BuilderNodeFontLinks nodes={[...shellTree, ...blocks]} components={components} />
       {hasTokens ? <GoogleFontsLink tokens={effectiveTokens} /> : null}
@@ -328,7 +332,7 @@ async function renderMaxSiteDocument(args: {
         </header>
       ) : null}
 
-      <main data-talent-max-site-main="" style={{ flex: "1 0 auto" }}>
+      <main id="main-content" data-talent-max-site-main="" style={{ flex: "1 0 auto" }}>
         {renderFreeformPageRootTree(blocks, {
           publicPathPrefix,
           mode: "freeform",
