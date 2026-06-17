@@ -51,7 +51,8 @@ export interface BuilderNodeBase {
 
 export interface BuilderNodeStyleValue {
   align?: "left" | "center" | "right";
-  size?: "sm" | "md" | "lg" | "xl";
+  /** STYLE-2 — 'display' is the tier above 'xl', yielding the storefront-grade display scale (clamp(3.5rem,6vw,6rem)). Existing sm/md/lg/xl tiers are unchanged. */
+  size?: "sm" | "md" | "lg" | "xl" | "display";
   tone?: "default" | "muted" | "strong";
   maxWidth?: "narrow" | "reading" | "wide" | "full";
   marginTop?: "none" | "s" | "m" | "l";

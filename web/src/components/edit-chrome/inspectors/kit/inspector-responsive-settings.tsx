@@ -14,6 +14,7 @@ import {
 import { InspectorViewportRail } from "./inspector-viewport-rail";
 import { getPresentationOverrideDevice } from "../responsive-field-state";
 import type { ViewportDevice } from "../responsive-field-state";
+import { isBaseBreakpoint } from "../../breakpoint-registry";
 
 export interface InspectorResponsiveSettingsProps {
   device: ViewportDevice;
@@ -48,21 +49,21 @@ export function InspectorResponsiveSettings({
   const val = (key: string): string =>
     (presentation[key] as string | undefined) ?? "";
 
+  const isBase = isBaseBreakpoint(device);
   const bp =
     (presentation.breakpoints as
-      | Partial<Record<"tablet" | "mobile", Record<string, unknown>>>
+      | Record<string, Record<string, unknown>>
       | undefined) ?? {};
-  const activeBucket =
-    device === "tablet" || device === "mobile" ? bp[device] ?? {} : null;
+  const activeBucket = !isBase ? bp[device] ?? {} : null;
 
   const readField = (key: string): string => {
-    if (device === "desktop") return val(key);
+    if (isBase) return val(key);
     const v = activeBucket?.[key];
     return typeof v === "string" ? v : "";
   };
 
   const writeField = (key: string, next: string) => {
-    if (device === "desktop") {
+    if (isBase) {
       onPatch({ [key]: next || undefined });
       return;
     }

@@ -46,7 +46,8 @@ export const nodePresentationValueSchema = z.object({
   paddingRightPx: z.number().int().min(0).max(120).optional(),
   // Section-SCOPED token (font-size scale resolved per section via sizeMapper) —
   // DELIBERATELY not collapsed to Engine A (no context-free home). Kept native.
-  size: z.enum(["sm", "md", "lg", "xl"]).optional(),
+  // STYLE-2 — 'display' is the tier above 'xl', yielding clamp(3.5rem,6vw,6rem). Existing tiers unchanged.
+  size: z.enum(["sm", "md", "lg", "xl", "display"]).optional(),
   // Token color hint (muted/strong) — DELIBERATELY not collapsed (resolves to a
   // different color string across engines). Kept native.
   tone: z.enum(["default", "muted", "strong"]).optional(),

@@ -7,30 +7,33 @@ import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
 import type { SectionComponentProps } from "../types";
 import type { EditorialSplitHeroV1 } from "./schema";
 
-function eyebrowSize(size: "sm" | "md" | "lg" | "xl"): string {
+function eyebrowSize(size: "sm" | "md" | "lg" | "xl" | "display"): string {
   return {
     sm: "0.68rem",
     md: "0.75rem",
     lg: "0.85rem",
     xl: "0.95rem",
+    display: "1.1rem",
   }[size];
 }
 
-function headingSize(size: "sm" | "md" | "lg" | "xl"): string {
+function headingSize(size: "sm" | "md" | "lg" | "xl" | "display"): string {
   return {
     sm: "clamp(2.2rem, 4.8vw, 4.8rem)",
     md: "clamp(2.8rem, 6vw, 6.2rem)",
     lg: "clamp(3.3rem, 7vw, 7.4rem)",
     xl: "clamp(3.8rem, 8vw, 8.6rem)",
+    display: "clamp(3.5rem, 6vw, 6rem)",
   }[size];
 }
 
-function paragraphSize(size: "sm" | "md" | "lg" | "xl"): string {
+function paragraphSize(size: "sm" | "md" | "lg" | "xl" | "display"): string {
   return {
     sm: "0.95rem",
     md: "1.08rem",
     lg: "1.22rem",
     xl: "1.38rem",
+    display: "clamp(2rem, 4vw, 4.5rem)",
   }[size];
 }
 

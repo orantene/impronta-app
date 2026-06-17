@@ -30,21 +30,21 @@ function textToneColor(
   return undefined;
 }
 
-function headingSize(size?: "sm" | "md" | "lg" | "xl"): CSSProperties["fontSize"] {
+function headingSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSProperties["fontSize"] {
   if (size === "sm") return "clamp(1.45rem, 3.2vw, 2.2rem)";
   if (size === "lg") return "clamp(2.05rem, 4.6vw, 3.25rem)";
   if (size === "xl") return "clamp(2.35rem, 5.2vw, 3.7rem)";
   return undefined;
 }
 
-function eyebrowSize(size?: "sm" | "md" | "lg" | "xl"): CSSProperties["fontSize"] {
+function eyebrowSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSProperties["fontSize"] {
   if (size === "sm") return "0.82rem";
   if (size === "lg") return "1rem";
   if (size === "xl") return "1.08rem";
   return undefined;
 }
 
-function paragraphSize(size?: "sm" | "md" | "lg" | "xl"): CSSProperties["fontSize"] {
+function paragraphSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSProperties["fontSize"] {
   if (size === "sm") return "0.94rem";
   if (size === "lg") return "1.1rem";
   if (size === "xl") return "1.2rem";
@@ -52,7 +52,7 @@ function paragraphSize(size?: "sm" | "md" | "lg" | "xl"): CSSProperties["fontSiz
 }
 
 function ctaSize(
-  size?: "sm" | "md" | "lg" | "xl",
+  size?: "sm" | "md" | "lg" | "xl" | "display",
 ): Pick<CSSProperties, "padding" | "fontSize"> {
   if (size === "sm") return { padding: "0.64rem 1.14rem", fontSize: "0.84rem" };
   if (size === "lg") return { padding: "0.95rem 1.8rem", fontSize: "1rem" };
@@ -103,12 +103,12 @@ function textNodeStyle(
         paddingInlinePx?: number;
         paddingLeftPx?: number;
         paddingRightPx?: number;
-        size?: "sm" | "md" | "lg" | "xl";
+        size?: "sm" | "md" | "lg" | "xl" | "display";
         tone?: "default" | "muted" | "strong";
         visibility?: "visible" | "hidden";
       }
     | undefined,
-  sizeMapper: (size?: "sm" | "md" | "lg" | "xl") => CSSProperties["fontSize"],
+  sizeMapper: (size?: "sm" | "md" | "lg" | "xl" | "display") => CSSProperties["fontSize"],
 ): CSSProperties {
   return {
     display: visibilityDisplay(node?.visibility) ?? "inline-block",
@@ -147,7 +147,7 @@ function textNodeStyle(
 function ctaNodeStyle(
   node:
     | {
-        size?: "sm" | "md" | "lg" | "xl";
+        size?: "sm" | "md" | "lg" | "xl" | "display";
         marginTopPx?: number;
         marginBottomPx?: number;
         marginInlinePx?: number;
@@ -208,12 +208,12 @@ function textNodeDecls(
         paddingInlinePx?: number;
         paddingLeftPx?: number;
         paddingRightPx?: number;
-        size?: "sm" | "md" | "lg" | "xl";
+        size?: "sm" | "md" | "lg" | "xl" | "display";
         tone?: "default" | "muted" | "strong";
         visibility?: "visible" | "hidden";
       }
     | undefined,
-  sizeMapper: (size?: "sm" | "md" | "lg" | "xl") => CSSProperties["fontSize"],
+  sizeMapper: (size?: "sm" | "md" | "lg" | "xl" | "display") => CSSProperties["fontSize"],
 ): string[] {
   if (!node) return [];
   return toCssDecls(textNodeStyle(node, sizeMapper));
@@ -222,7 +222,7 @@ function textNodeDecls(
 function ctaDecls(
   node:
     | {
-        size?: "sm" | "md" | "lg" | "xl";
+        size?: "sm" | "md" | "lg" | "xl" | "display";
         marginTopPx?: number;
         marginBottomPx?: number;
         marginInlinePx?: number;

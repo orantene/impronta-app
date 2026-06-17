@@ -21,28 +21,28 @@ function textToneColor(
   return undefined;
 }
 
-function headingSize(size?: "sm" | "md" | "lg" | "xl"): CSSProperties["fontSize"] {
+function headingSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSProperties["fontSize"] {
   if (size === "sm") return "clamp(1.45rem, 3.2vw, 2.2rem)";
   if (size === "lg") return "clamp(2.05rem, 4.6vw, 3.25rem)";
   if (size === "xl") return "clamp(2.35rem, 5.2vw, 3.7rem)";
   return undefined;
 }
 
-function eyebrowSize(size?: "sm" | "md" | "lg" | "xl"): CSSProperties["fontSize"] {
+function eyebrowSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSProperties["fontSize"] {
   if (size === "sm") return "0.82rem";
   if (size === "lg") return "1rem";
   if (size === "xl") return "1.08rem";
   return undefined;
 }
 
-function paragraphSize(size?: "sm" | "md" | "lg" | "xl"): CSSProperties["fontSize"] {
+function paragraphSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSProperties["fontSize"] {
   if (size === "sm") return "0.94rem";
   if (size === "lg") return "1.1rem";
   if (size === "xl") return "1.2rem";
   return undefined;
 }
 
-function buttonSize(size?: "sm" | "md" | "lg" | "xl"): CSSProperties {
+function buttonSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSProperties {
   if (size === "sm") return { padding: "0.5rem 0.85rem", fontSize: "0.78rem" };
   if (size === "lg") return { padding: "0.72rem 1.08rem", fontSize: "0.9rem" };
   if (size === "xl") return { padding: "0.82rem 1.2rem", fontSize: "0.94rem" };
@@ -100,12 +100,12 @@ function textNodeDecls(
         paddingInlinePx?: number;
         paddingLeftPx?: number;
         paddingRightPx?: number;
-        size?: "sm" | "md" | "lg" | "xl";
+        size?: "sm" | "md" | "lg" | "xl" | "display";
         tone?: "default" | "muted" | "strong";
         visibility?: "visible" | "hidden";
       }
     | undefined,
-  sizeMapper: (size?: "sm" | "md" | "lg" | "xl") => CSSProperties["fontSize"],
+  sizeMapper: (size?: "sm" | "md" | "lg" | "xl" | "display") => CSSProperties["fontSize"],
 ): string[] {
   if (!node) return [];
   const hasMarginSides =
@@ -166,7 +166,7 @@ function textNodeDecls(
 function ctaDecls(
   node:
     | {
-        size?: "sm" | "md" | "lg" | "xl";
+        size?: "sm" | "md" | "lg" | "xl" | "display";
         marginTopPx?: number;
         marginBottomPx?: number;
         marginInlinePx?: number;

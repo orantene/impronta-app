@@ -26,21 +26,21 @@ function textToneColor(
   return undefined;
 }
 
-function headingSize(size?: "sm" | "md" | "lg" | "xl"): CSSProperties["fontSize"] {
+function headingSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSProperties["fontSize"] {
   if (size === "sm") return "clamp(1.55rem, 3.3vw, 2.4rem)";
   if (size === "lg") return "clamp(2.1rem, 4.8vw, 3.4rem)";
   if (size === "xl") return "clamp(2.4rem, 5.6vw, 3.9rem)";
   return undefined;
 }
 
-function eyebrowSize(size?: "sm" | "md" | "lg" | "xl"): CSSProperties["fontSize"] {
+function eyebrowSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSProperties["fontSize"] {
   if (size === "sm") return "0.66rem";
   if (size === "lg") return "0.84rem";
   if (size === "xl") return "0.92rem";
   return undefined;
 }
 
-function paragraphSize(size?: "sm" | "md" | "lg" | "xl"): CSSProperties["fontSize"] {
+function paragraphSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSProperties["fontSize"] {
   if (size === "sm") return "0.95rem";
   if (size === "lg") return "1.1rem";
   if (size === "xl") return "1.2rem";
@@ -54,7 +54,7 @@ function visibilityDisplay(
   return undefined;
 }
 
-function buttonSize(size?: "sm" | "md" | "lg" | "xl"): CSSProperties {
+function buttonSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSProperties {
   if (size === "sm") return { padding: "0.5rem 0.85rem", fontSize: "0.78rem" };
   if (size === "lg") return { padding: "0.72rem 1.08rem", fontSize: "0.9rem" };
   if (size === "xl") return { padding: "0.82rem 1.2rem", fontSize: "0.94rem" };
@@ -98,12 +98,12 @@ function textNodeDecls(
         paddingInlinePx?: number;
         paddingLeftPx?: number;
         paddingRightPx?: number;
-        size?: "sm" | "md" | "lg" | "xl";
+        size?: "sm" | "md" | "lg" | "xl" | "display";
         tone?: "default" | "muted" | "strong";
         visibility?: "visible" | "hidden";
       }
     | undefined,
-  sizeMapper: (size?: "sm" | "md" | "lg" | "xl") => CSSProperties["fontSize"],
+  sizeMapper: (size?: "sm" | "md" | "lg" | "xl" | "display") => CSSProperties["fontSize"],
 ): string[] {
   if (!node) return [];
   const hasMarginSides =
@@ -172,7 +172,7 @@ function footerCtaDecls(
   node:
     | {
         align?: "left" | "center" | "right";
-        size?: "sm" | "md" | "lg" | "xl";
+        size?: "sm" | "md" | "lg" | "xl" | "display";
         marginTopPx?: number;
         marginBottomPx?: number;
         marginInlinePx?: number;

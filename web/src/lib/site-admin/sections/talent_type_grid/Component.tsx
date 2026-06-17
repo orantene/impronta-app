@@ -65,14 +65,14 @@ function textToneColor(
   return undefined;
 }
 
-function eyebrowSize(size?: "sm" | "md" | "lg" | "xl"): CSSProperties["fontSize"] {
+function eyebrowSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSProperties["fontSize"] {
   if (size === "sm") return "0.66rem";
   if (size === "lg") return "0.84rem";
   if (size === "xl") return "0.92rem";
   return undefined;
 }
 
-function headingSize(size?: "sm" | "md" | "lg" | "xl"): CSSProperties["fontSize"] {
+function headingSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSProperties["fontSize"] {
   if (size === "sm") return "clamp(2.1rem, 3.3vw, 3.1rem)";
   if (size === "md") return "clamp(2.45rem, 3.85vw, 3.85rem)";
   if (size === "lg") return "clamp(2.75rem, 4.25vw, 4.35rem)";
@@ -80,7 +80,7 @@ function headingSize(size?: "sm" | "md" | "lg" | "xl"): CSSProperties["fontSize"
   return undefined;
 }
 
-function paragraphSize(size?: "sm" | "md" | "lg" | "xl"): CSSProperties["fontSize"] {
+function paragraphSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSProperties["fontSize"] {
   if (size === "sm") return "0.95rem";
   if (size === "lg") return "1.1rem";
   if (size === "xl") return "1.2rem";
@@ -96,7 +96,7 @@ function visibilityDisplay(
 
 function textNodeStyle(
   node: NodePresentationValue | undefined,
-  sizeMapper: (size?: "sm" | "md" | "lg" | "xl") => CSSProperties["fontSize"],
+  sizeMapper: (size?: "sm" | "md" | "lg" | "xl" | "display") => CSSProperties["fontSize"],
 ): CSSProperties {
   if (!node) return {};
   const hasMarginSides =
@@ -171,7 +171,7 @@ function toCssDecls(style: CSSProperties): string[] {
 
 function textNodeDecls(
   node: NodePresentationValue | undefined,
-  sizeMapper: (size?: "sm" | "md" | "lg" | "xl") => CSSProperties["fontSize"],
+  sizeMapper: (size?: "sm" | "md" | "lg" | "xl" | "display") => CSSProperties["fontSize"],
 ): string[] {
   return toCssDecls(textNodeStyle(node, sizeMapper));
 }

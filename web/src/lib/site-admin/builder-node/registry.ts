@@ -103,7 +103,8 @@ const sectionPropsSchema = z.object({
  */
 export const builderNodeStyleValueSchema = z.object({
   align: z.enum(["left", "center", "right"]).optional(),
-  size: z.enum(["sm", "md", "lg", "xl"]).optional(),
+  /** STYLE-2 — 'display' is the tier above 'xl'. Existing tiers unchanged. */
+  size: z.enum(["sm", "md", "lg", "xl", "display"]).optional(),
   tone: z.enum(["default", "muted", "strong"]).optional(),
   maxWidth: z.enum(["narrow", "reading", "wide", "full"]).optional(),
   marginTop: z.enum(["none", "s", "m", "l"]).optional(),

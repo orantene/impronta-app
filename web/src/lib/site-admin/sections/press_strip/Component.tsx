@@ -94,7 +94,7 @@ function visibilityDisplay(
   return undefined;
 }
 
-function eyebrowSize(size?: "sm" | "md" | "lg" | "xl"): CSSProperties["fontSize"] {
+function eyebrowSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSProperties["fontSize"] {
   if (size === "sm") return "0.82rem";
   if (size === "lg") return "1rem";
   if (size === "xl") return "1.08rem";
@@ -116,7 +116,7 @@ function textNodeStyle(
         paddingInlinePx?: number;
         paddingLeftPx?: number;
         paddingRightPx?: number;
-        size?: "sm" | "md" | "lg" | "xl";
+        size?: "sm" | "md" | "lg" | "xl" | "display";
         tone?: "default" | "muted" | "strong";
         visibility?: "visible" | "hidden";
       }
@@ -191,7 +191,7 @@ function textNodeDecls(
         paddingInlinePx?: number;
         paddingLeftPx?: number;
         paddingRightPx?: number;
-        size?: "sm" | "md" | "lg" | "xl";
+        size?: "sm" | "md" | "lg" | "xl" | "display";
         tone?: "default" | "muted" | "strong";
         visibility?: "visible" | "hidden";
       }
