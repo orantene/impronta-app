@@ -41,7 +41,7 @@
  */
 
 import type Stripe from "stripe";
-import { markRefunded, markDisputed } from "@/lib/bookings/transactions";
+import { markRefunded as markRefundedReal, markDisputed as markDisputedReal } from "@/lib/bookings/transactions";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadBookingCommissionSnapshots } from "@/lib/billing/commission-engine";
 import {
@@ -49,12 +49,61 @@ import {
   computeTalentProtectiveClawback,
   reversalLegKey,
 } from "@/lib/payments/booking-payouts-ledger";
-import { notifyBookingPayoutReversal, notifyClientPartialRefund } from "@/lib/payments/payout-reversal-notify";
+import {
+  notifyBookingPayoutReversal as notifyBookingPayoutReversalReal,
+  notifyClientPartialRefund as notifyClientPartialRefundReal,
+} from "@/lib/payments/payout-reversal-notify";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type BookingRef = { transactionId: string; bookingId: string | null; chargeAmountCents: number };
+
+/**
+ * Optional dependency-injection seam for the refund/dispute handlers.
+ *
+ * Production passes NOTHING: `supabase` defaults to the real
+ * `createServiceRoleClient()`, the booking-transaction transitions
+ * (`markRefunded` / `markDisputed`) and the reversal notifications default to the
+ * real server-only implementations (each of which resolves its own service-role
+ * client). The Stripe client stays the first positional arg (the live webhook
+ * passes it), so production behaviour is byte-for-byte identical.
+ *
+ * Tests inject a recording Supabase fake + a mock Stripe + no-op transition /
+ * notify stubs so the full refund → markRefunded → payout-reversal flow can be
+ * asserted end-to-end without a live Stripe account or DB.
+ */
+export type RefundDeps = {
+  /** Service-role Supabase client; defaults to createServiceRoleClient(). */
+  supabase?: SupabaseClient | null;
+  /** Flip a booking_transaction to 'refunded' (+ linked refund row). Defaults to the real markRefunded. */
+  markRefunded?: typeof markRefundedReal;
+  /** Flip a booking_transaction to 'disputed'. Defaults to the real markDisputed. */
+  markDisputed?: typeof markDisputedReal;
+  /** Notify talent + client of a full payout reversal. Defaults to the real notifier. */
+  notifyBookingPayoutReversal?: typeof notifyBookingPayoutReversalReal;
+  /** Notify the client of a partial refund. Defaults to the real notifier. */
+  notifyClientPartialRefund?: typeof notifyClientPartialRefundReal;
+};
+
+/** Resolve the injected deps, defaulting every slot to its real implementation. */
+function resolveRefundDeps(deps: RefundDeps): {
+  resolveSupabase: () => SupabaseClient | null;
+  markRefunded: typeof markRefundedReal;
+  markDisputed: typeof markDisputedReal;
+  notifyBookingPayoutReversal: typeof notifyBookingPayoutReversalReal;
+  notifyClientPartialRefund: typeof notifyClientPartialRefundReal;
+} {
+  return {
+    // A test passes `supabase` once and reuses it for every internal read/write;
+    // production resolves a fresh service-role client per call site (unchanged).
+    resolveSupabase: () => (deps.supabase !== undefined ? deps.supabase : createServiceRoleClient()),
+    markRefunded: deps.markRefunded ?? markRefundedReal,
+    markDisputed: deps.markDisputed ?? markDisputedReal,
+    notifyBookingPayoutReversal: deps.notifyBookingPayoutReversal ?? notifyBookingPayoutReversalReal,
+    notifyClientPartialRefund: deps.notifyClientPartialRefund ?? notifyClientPartialRefundReal,
+  };
+}
 
 /**
  * Retrieve the PaymentIntent and pull the booking linkage off its metadata.
@@ -228,8 +277,10 @@ async function reconcilePartialRefund(
   refundAmountCents: number,
   chargeId: string,
   refundId: string | null,
+  deps: RefundDeps = {},
 ): Promise<void> {
-  const sb = createServiceRoleClient();
+  const d = resolveRefundDeps(deps);
+  const sb = d.resolveSupabase();
   if (!sb) {
     logServerError("refunds.partial.noDb", new Error(`partial refund ${refundAmountCents} on txn ${ref.transactionId} — no service-role client`));
     return;
@@ -275,9 +326,20 @@ async function reconcilePartialRefund(
   });
 
   if (clawback.workspaceClawbackTotalCents > 0) {
+    // The partial-reversal idempotency key is anchored on the same stable
+    // per-refund value as the reference: the Stripe Refund id (`re_...`) when we
+    // have it, else the charge id. Distinct refunds → distinct anchors →
+    // distinct keys (so a 2nd partial on the same transfer is applied, not
+    // rejected); a re-delivered same refund → same anchor → same key (replay,
+    // no double-claw).
     await reverseBookingPayouts(
       ref.bookingId,
-      { mode: "partial", reference: `partial_refund ${refundId ?? chargeId}`, workspaceClawbackByLeg: clawback.workspaceClawbackByLeg },
+      {
+        mode: "partial",
+        reference: `partial_refund ${refundId ?? chargeId}`,
+        workspaceClawbackByLeg: clawback.workspaceClawbackByLeg,
+        partialReversalAnchor: refundId ?? chargeId,
+      },
       { sb, stripe },
     );
   }
@@ -300,7 +362,7 @@ async function reconcilePartialRefund(
 
   // Tell the client their (partial) money is on the way back. The talent is
   // protected from a partial clawback, so they're intentionally not notified.
-  await notifyClientPartialRefund(sb, ref.bookingId, refundAmountCents);
+  await d.notifyClientPartialRefund(sb, ref.bookingId, refundAmountCents);
 }
 
 /**
@@ -323,7 +385,9 @@ export async function handleBookingRefund(
     refundId?: string | null;
     refundAmountCents?: number;
   },
+  deps: RefundDeps = {},
 ): Promise<boolean> {
+  const d = resolveRefundDeps(deps);
   const ref = await resolveBookingFromPaymentIntent(stripe, input.paymentIntentId);
   if (!ref) return false;
 
@@ -333,11 +397,11 @@ export async function handleBookingRefund(
     // to the cumulative amount only if the routing layer couldn't enumerate the
     // refund object (legacy/trimmed payload).
     const refundAmountCents = input.refundAmountCents ?? input.refundedCents;
-    await reconcilePartialRefund(stripe, ref, refundAmountCents, input.chargeId, input.refundId ?? null);
+    await reconcilePartialRefund(stripe, ref, refundAmountCents, input.chargeId, input.refundId ?? null, deps);
     return true;
   }
 
-  const marked = await markRefunded(ref.transactionId, {
+  const marked = await d.markRefunded(ref.transactionId, {
     providerReference: input.chargeId,
     refundNote: "Stripe charge.refunded (full)",
   });
@@ -350,11 +414,11 @@ export async function handleBookingRefund(
   }
 
   if (ref.bookingId) {
-    const sb = createServiceRoleClient();
+    const sb = d.resolveSupabase();
     const outcomes = await reverseBookingPayouts(ref.bookingId, { mode: "full", reference: `refund ${input.chargeId}` }, { sb, stripe });
     if (sb) {
       await markBookingRefunded(sb, ref.bookingId);
-      await notifyBookingPayoutReversal(sb, ref.bookingId, outcomes, "refund");
+      await d.notifyBookingPayoutReversal(sb, ref.bookingId, outcomes, "refund");
     }
   }
   return true;
@@ -380,13 +444,15 @@ export async function handleBookingDispute(
     status: string;
     closed: boolean;
   },
+  deps: RefundDeps = {},
 ): Promise<boolean> {
+  const d = resolveRefundDeps(deps);
   const ref = await resolveBookingFromPaymentIntent(stripe, input.paymentIntentId);
   if (!ref) return false;
 
   // ── dispute opened: flag + alert, do NOT touch the money ──
   if (!input.closed) {
-    const marked = await markDisputed(ref.transactionId);
+    const marked = await d.markDisputed(ref.transactionId);
     if (!marked.ok) {
       void improntaLog("stripe_webhook.info", {
         message: `[dispute] markDisputed(${ref.transactionId}) not applied: ${marked.error}`,
@@ -404,7 +470,7 @@ export async function handleBookingDispute(
   // ── dispute closed ──
   if (input.status === "lost") {
     // Funds are gone — mirror the full-refund clawback.
-    const marked = await markRefunded(ref.transactionId, {
+    const marked = await d.markRefunded(ref.transactionId, {
       providerReference: input.disputeId,
       refundNote: "Stripe charge.dispute.closed (lost)",
     });
@@ -414,7 +480,7 @@ export async function handleBookingDispute(
       });
     }
     if (ref.bookingId) {
-      const sb = createServiceRoleClient();
+      const sb = d.resolveSupabase();
       const outcomes = await reverseBookingPayouts(
         ref.bookingId,
         { mode: "full", reference: `dispute_lost ${input.disputeId}` },
@@ -422,7 +488,7 @@ export async function handleBookingDispute(
       );
       if (sb) {
         await markBookingRefunded(sb, ref.bookingId);
-        await notifyBookingPayoutReversal(sb, ref.bookingId, outcomes, "dispute");
+        await d.notifyBookingPayoutReversal(sb, ref.bookingId, outcomes, "dispute");
       }
     }
     logServerError(
@@ -436,7 +502,7 @@ export async function handleBookingDispute(
     // The platform kept the money; restore the transaction to paid (it was moved
     // to 'disputed' on open). Talent payouts were never reversed, so nothing to
     // re-send. Guarded so it only flips a transaction still sitting in 'disputed'.
-    const sb = createServiceRoleClient();
+    const sb = d.resolveSupabase();
     if (sb) {
       const { error } = await sb
         .from("booking_transactions")
