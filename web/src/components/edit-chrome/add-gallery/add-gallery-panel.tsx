@@ -492,6 +492,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
     insertBuilderComponent,
     reportMutationError,
     selectBuilderNode,
+    notifyTemplateApplied,
     gallerySurface,
   } = useEditContext();
   // WS2 — read tree from micro-store so edits don't re-render this panel.
@@ -627,6 +628,16 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
           reportMutationError(result.error);
           return;
         }
+        // CANVAS-4 — a full-page template from the "page_templates" tab is the
+        // in-editor template-apply path on the non-homepage surfaces (cms_page /
+        // talent_page / talent-site / Lab). The insert above already pushed the
+        // `{ pre, post }` undo snapshot via insertBuilderComponent →
+        // executeBuilderNodeOperation, so we only raise the SHARED Undo toast
+        // here — the same affordance applyTemplateWithUndo raises on the
+        // homepage. Block/section/element inserts keep their quieter feedback.
+        if (result.ok && item.tab === "page_templates") {
+          notifyTemplateApplied(item.label);
+        }
         // selectBuilderNode triggers the selection-layer scroll-into-view effect.
         if (result.nodeId) selectBuilderNode(result.nodeId);
         onClose();
@@ -643,6 +654,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
       insertBuilderComponent,
       reportMutationError,
       selectBuilderNode,
+      notifyTemplateApplied,
       onClose,
     ],
   );

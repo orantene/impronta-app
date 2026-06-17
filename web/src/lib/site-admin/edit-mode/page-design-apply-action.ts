@@ -29,10 +29,21 @@ import {
   bakePageDesignTree,
   getPageDesign,
 } from "@/lib/site-admin/builder-node/page-designs";
+import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 import { saveHomepageCompositionAction } from "./composition-actions";
 
 export type ApplyPageDesignState =
-  | { ok: true; designId: string }
+  | {
+      ok: true;
+      designId: string;
+      /**
+       * CANVAS-4 — the baked tree the server just persisted, returned so the
+       * client's shared `applyTemplateWithUndo` can adopt it as the post-apply
+       * tree and record one undoable history entry (snapshot-before-apply +
+       * Undo toast) without re-importing the (large) design trees client-side.
+       */
+      builderTree: BuilderNodeTree;
+    }
   | { ok: false; error: string; code?: string }
   | undefined;
 
@@ -116,7 +127,7 @@ export async function applyPageDesignToHomepage(
     };
   }
 
-  return { ok: true, designId: design.id };
+  return { ok: true, designId: design.id, builderTree };
 }
 
 /** Apply a curated page design to any cms_page (not just homepage). */
@@ -162,5 +173,5 @@ export async function applyPageDesignToPage(
   if (!save.ok) {
     return { ok: false, error: save.error, code: save.code };
   }
-  return { ok: true, designId: design.id };
+  return { ok: true, designId: design.id, builderTree };
 }

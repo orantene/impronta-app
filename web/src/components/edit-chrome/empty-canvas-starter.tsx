@@ -26,8 +26,6 @@
  */
 
 import {
-  startTransition,
-  useActionState,
   useCallback,
   useEffect,
   useRef,
@@ -49,7 +47,6 @@ import {
 } from "@/lib/site-admin/builder-node/page-designs/summaries";
 import { pageDesignThumbnail } from "./design-thumbnails";
 import { useMaybeEditContext } from "./edit-context";
-import { useCanUndo } from "./history-bridge";
 
 /** A soft archetype-tinted gradient for each full-page design preview card. */
 function archetypeGradient(archetype: PageDesignSummary["archetype"]): string {
@@ -80,15 +77,9 @@ export function EmptyCanvasStarter({
 } = {}) {
   const router = useRouter();
   const editCtx = useMaybeEditContext();
-  // WS2 — can-undo read from the micro-store (history-bridge). The store is a
-  // process global, so we still gate the undo card on `editCtx` being mounted
-  // (inside an EditProvider) below — preserving the original behavior exactly.
-  const canUndo = useCanUndo();
-  const [designState, designDispatch, designPending] = useActionState<
-    ApplyPageDesignState,
-    FormData
-  >(applyPageDesignToHomepage, undefined);
+  const [designError, setDesignError] = useState<string | null>(null);
   const [pendingDesignId, setPendingDesignId] = useState<string | null>(null);
+  const [designApplyPending, startDesignApply] = useTransition();
   const [quickInsertPending, startQuickInsert] = useTransition();
   const [quickInsertError, setQuickInsertError] = useState<string | null>(null);
   // W6-T4(b) — shown briefly after "Start from scratch" inserts the hero so the
@@ -96,10 +87,6 @@ export function EmptyCanvasStarter({
   // manual close) — the card unmounts once they hover a section gap and add a block.
   const [scratchMomentum, setScratchMomentum] = useState(false);
   const scratchMomentumTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // W6-T4(c) — show a brief Undo affordance after a full-page design is applied.
-  // The card stays visible for up to ~2 s while the canvas syncs; the affordance
-  // lives inside it so it's only ever shown during that window (not a ghost toast).
-  const [showDesignUndo, setShowDesignUndo] = useState(false);
 
   // Cleanup the scratch-momentum auto-dismiss timer on unmount.
   useEffect(() => {
@@ -151,18 +138,60 @@ export function EmptyCanvasStarter({
     });
   }, [editCtx, router]);
 
-  // A one-click full-page design fills the homepage builderTree; reuse the same
-  // in-place refresh so the canvas paints the design without a manual reload.
-  useEffect(() => {
-    if (designState?.ok) {
-      // W6-T4(c) — surface the Undo affordance while the sync is in flight.
-      setShowDesignUndo(true);
-      void requestStarterSync().then(() => {
-        // The card is likely unmounted by now, but guard in case of fast sync.
-        setShowDesignUndo(false);
+  // CANVAS-4 — a one-click full-page design fills the homepage builderTree. The
+  // apply routes through the SHARED `applyTemplateWithUndo` helper so the
+  // pre-apply tree is snapshotted onto the undo stack and the shared "Template
+  // applied — Undo?" toast appears (identical to every other surface), replacing
+  // the old bespoke per-card undo affordance. The server action stays the
+  // authoritative write (it sets `seedCuratedDesign` so the Free-plan starter
+  // on-ramp keeps working) and now returns the baked tree for the helper to
+  // adopt as the post-apply tree. After the write we still run the in-place sync
+  // so the server-rendered homepage paints the design without a manual reload.
+  const handleDesignApply = useCallback(
+    (summary: PageDesignSummary) => {
+      setDesignError(null);
+      setPendingDesignId(summary.id);
+      startDesignApply(async () => {
+        const runApply = async () => {
+          const fd = new FormData();
+          fd.set("designId", summary.id);
+          fd.set("locale", locale);
+          const state: ApplyPageDesignState = await applyPageDesignToHomepage(
+            undefined,
+            fd,
+          );
+          if (!state?.ok) {
+            return {
+              ok: false as const,
+              error: state?.error ?? "Could not apply the design — try again.",
+            };
+          }
+          return { ok: true as const, tree: state.builderTree };
+        };
+
+        if (editCtx) {
+          const result = await editCtx.applyTemplateWithUndo({
+            label: summary.label,
+            apply: runApply,
+          });
+          if (!result.ok) {
+            setDesignError(result.error ?? "Could not apply the design — try again.");
+            return;
+          }
+        } else {
+          // No EditProvider mounted (legacy fallback) — apply without the
+          // shared snapshot/toast and let the page reload paint the design.
+          const result = await runApply();
+          if (!result.ok) {
+            setDesignError(result.error);
+            return;
+          }
+        }
+        await requestStarterSync();
       });
-    }
-  }, [designState, requestStarterSync]);
+    },
+    [editCtx, locale, requestStarterSync],
+  );
 
   function handleQuickHeroInsert() {
     setQuickInsertError(null);
@@ -216,7 +245,7 @@ export function EmptyCanvasStarter({
         {/* World-class full-page designs — the new 2026 starting point */}
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
           {PAGE_DESIGN_SUMMARIES.map((summary) => {
-            const busy = designPending && pendingDesignId === summary.id;
+            const busy = designApplyPending && pendingDesignId === summary.id;
             // W6-T4(a) — real editorial photo per design (asset-pipeline ready;
             // falls back to the tinted gradient + placeholder bars when no photo
             // maps, so the card is never a bare gray box).
@@ -225,16 +254,9 @@ export function EmptyCanvasStarter({
               <button
                 key={summary.id}
                 type="button"
-                disabled={designPending}
+                disabled={designApplyPending}
                 title={`Use the ${summary.label} design`}
-                onClick={() => {
-                  setPendingDesignId(summary.id);
-                  const fd = new FormData();
-                  fd.set("designId", summary.id);
-                  startTransition(() => {
-                    designDispatch(fd);
-                  });
-                }}
+                onClick={() => handleDesignApply(summary)}
                 className="group relative flex flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-stone-300 hover:shadow-[0_18px_44px_-26px_rgba(15,23,20,0.5)] focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900/25 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <div
@@ -297,9 +319,9 @@ export function EmptyCanvasStarter({
             );
           })}
         </div>
-        {designState && !designState.ok ? (
+        {designError ? (
           <div className="mx-auto mt-3 max-w-md rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-center text-xs text-red-700">
-            {designState.error}
+            {designError}
           </div>
         ) : null}
 
@@ -411,48 +433,10 @@ export function EmptyCanvasStarter({
           </div>
         ) : null}
 
-        {/* W6-T4(c) — Undo affordance shown while the full-page design is
-            syncing. The card is visible for up to ~2 s during the sync; calling
-            editCtx.undo() before the canvas refreshes reverts the DB write and
-            the canvas returns to the empty state. Dismissed when the sync fires
-            or when the user clicks Undo. Only shown when editCtx is mounted (i.e.
-            we're inside an EditProvider) and the undo stack is non-empty. */}
-        {showDesignUndo && editCtx && canUndo ? (
-          <div
-            role="status"
-            aria-live="polite"
-            className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-stone-200 bg-stone-50 px-4 py-2.5"
-          >
-            <p className="text-xs text-stone-600">
-              <span className="font-semibold">Design applied.</span>{" "}
-              Changed your mind?
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                setShowDesignUndo(false);
-                void editCtx.undo();
-              }}
-              className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-stone-700 shadow-sm transition hover:border-stone-300 hover:bg-stone-50"
-            >
-              <svg
-                width="11"
-                height="11"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden
-              >
-                <path d="M9 14 4 9l5-5" />
-                <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
-              </svg>
-              Undo
-            </button>
-          </div>
-        ) : null}
+        {/* CANVAS-4 — the post-apply Undo affordance is now the SHARED
+            TemplateAppliedToast (edit-shell), raised by applyTemplateWithUndo on
+            every surface. The old per-card bespoke undo affordance was removed
+            so the homepage no longer forks its own undo UI. */}
       </div>
     </div>
   );
