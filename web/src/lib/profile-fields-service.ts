@@ -22,6 +22,11 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { filterTenantCatalogFieldsByEnabledTaxonomy } from "@/lib/field-engine/tenant-catalog-scope";
+// The ONE universal localized-value resolver. label/helper/placeholder are
+// stored as `*_i18n jsonb` maps (migration 20260615211100); resolve them with
+// the SAME helper admin-taxonomy.ts uses — never a second i18n resolver.
+import { localizedValue, type LocalizedMap } from "@/lib/i18n/resolve-localized";
+import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 // PostgREST caps a single SELECT at `max-rows` (1000 by default). `taxonomy_terms`
 // has >1000 rows, so an un-paged `.select()` SILENTLY drops terms past the cap —
 // including parent_category rows the field-recommendation join needs (this is what
@@ -101,13 +106,17 @@ export type TalentFieldValue = {
 type FieldDefinitionRow = {
   id: string;
   field_key: string;
-  label: string;
+  /** Per-locale label map { "en": …, "es": … }. The flat `label`/`helper`/
+   *  `placeholder` columns were DROPPED by migration
+   *  20260615211100_ml_fields_sections_groups_i18n.sql in favor of these jsonb
+   *  maps; resolve via localizedValue(). */
+  label_i18n: LocalizedMap | null;
+  helper_i18n: LocalizedMap | null;
+  placeholder_i18n: LocalizedMap | null;
   tier: FieldTier;
   section: string;
   subsection: "physical" | "wardrobe" | null;
   kind: FieldKind;
-  placeholder: string | null;
-  helper: string | null;
   options: string[] | null;
   is_optional: boolean;
   is_sensitive: boolean;
@@ -389,68 +398,108 @@ function mergeCatalog(
     recsByField.set(r.field_definition_id, arr);
   }
 
-  return defs.map((d) => {
-    const o = overrideById.get(d.id);
-    const fieldRecs = recsByField.get(d.id) ?? [];
-    const appliesTo = uniqSlugs(fieldRecs.filter((r) => r.relationship === "applies"), slugByTermId);
-    const requiredFor = uniqSlugs(fieldRecs.filter((r) => r.relationship === "required"), slugByTermId);
-    const recommendedFor = uniqSlugs(fieldRecs.filter((r) => r.relationship === "recommended"), slugByTermId);
+  return defs.map((d) =>
+    resolveFieldDefinition(d, overrideById.get(d.id), recsByField.get(d.id) ?? [], slugByTermId),
+  );
+}
 
-    // Merge order: catalog default → workspace override.
-    const enabled = d.tier === "universal"
-      ? true
-      : pickBool(o?.enabled_override, true);
-    // required_override: TRUE → required (so isOptional FALSE), FALSE
-    // → optional (isOptional TRUE), null/undefined → fall back to catalog.
-    const requiredOverride = o?.required_override;
-    const isOptional = requiredOverride === null || requiredOverride === undefined
-      ? d.is_optional
-      : !requiredOverride;
-    const showInRegistration = pickBool(o?.show_in_registration_override, d.show_in_registration);
-    const showInEditDrawer = pickBool(o?.show_in_edit_drawer_override, d.show_in_edit_drawer);
-    const showInPublic = pickBool(o?.show_in_public_override, d.show_in_public);
-    const showInDirectory = pickBool(o?.show_in_directory_override, d.show_in_directory);
-    const adminOnly = pickBool(o?.admin_only_override, d.admin_only);
-    const talentEditable = pickBool(o?.talent_editable_override, d.talent_editable) && !adminOnly;
-    const requiresReviewOnChange = pickBool(
-      o?.requires_review_on_change_override,
-      d.requires_review_on_change,
-    );
-    const defaultVisibility = (o?.default_visibility_override ?? d.default_visibility) as ReadonlyArray<FieldVisibilityChannel>;
+/**
+ * Pure row → ResolvedFieldDefinition mapping. Exported (the module is
+ * server-only otherwise) so the i18n label resolution is unit-testable in
+ * isolation, without a Supabase mock.
+ *
+ * F1 fix: label/helper/placeholder are read from the `label_i18n` /
+ * `helper_i18n` / `placeholder_i18n` jsonb maps (the flat columns were dropped
+ * by migration 20260615211100) via the shared `localizedValue()` resolver —
+ * the same helper admin-taxonomy.ts uses. Before this fix the mapper read the
+ * non-existent flat columns, so every catalog label resolved to `undefined`
+ * and the DB-backed wizard/drawer rendered raw field keys.
+ *
+ * Override precedence is preserved: a workspace `custom_label`/`custom_helper`
+ * (still flat text columns on workspace_profile_field_settings — there is no
+ * custom_label_i18n column on that table yet, so workspace label overrides are
+ * EN-only by design) wins over the resolved i18n value.
+ */
+export function resolveFieldDefinition(
+  d: FieldDefinitionRow,
+  o: WorkspaceOverrideRow | undefined,
+  fieldRecs: RecommendationRow[],
+  slugByTermId: Map<string, string>,
+): ResolvedFieldDefinition {
+  const appliesTo = uniqSlugs(fieldRecs.filter((r) => r.relationship === "applies"), slugByTermId);
+  const requiredFor = uniqSlugs(fieldRecs.filter((r) => r.relationship === "required"), slugByTermId);
+  const recommendedFor = uniqSlugs(fieldRecs.filter((r) => r.relationship === "recommended"), slugByTermId);
 
-    return {
-      id: d.id,
-      fieldKey: d.field_key,
-      label: o?.custom_label ?? d.label,
-      tier: d.tier,
-      section: d.section,
-      subsection: d.subsection,
-      kind: d.kind,
-      placeholder: d.placeholder,
-      helper: o?.custom_helper ?? d.helper,
-      options: d.options,
-      isOptional,
-      isSensitive: d.is_sensitive,
-      defaultVisibility,
-      showInRegistration,
-      showInEditDrawer,
-      showInPublic,
-      showInDirectory,
-      adminOnly,
-      talentEditable,
-      requiresReviewOnChange,
-      isSearchable: d.is_searchable,
-      countMin: d.count_min,
-      displayOrder: o?.display_order_override ?? d.display_order,
-      note: d.note,
-      renderMode: d.render_mode ?? "catalog",
-      storageMode: d.storage_mode ?? "field_values",
-      appliesTo,
-      requiredFor,
-      recommendedFor,
-      enabled,
-    };
-  });
+  // Merge order: catalog default → workspace override.
+  const enabled = d.tier === "universal"
+    ? true
+    : pickBool(o?.enabled_override, true);
+  // required_override: TRUE → required (so isOptional FALSE), FALSE
+  // → optional (isOptional TRUE), null/undefined → fall back to catalog.
+  const requiredOverride = o?.required_override;
+  const isOptional = requiredOverride === null || requiredOverride === undefined
+    ? d.is_optional
+    : !requiredOverride;
+  const showInRegistration = pickBool(o?.show_in_registration_override, d.show_in_registration);
+  const showInEditDrawer = pickBool(o?.show_in_edit_drawer_override, d.show_in_edit_drawer);
+  const showInPublic = pickBool(o?.show_in_public_override, d.show_in_public);
+  const showInDirectory = pickBool(o?.show_in_directory_override, d.show_in_directory);
+  const adminOnly = pickBool(o?.admin_only_override, d.admin_only);
+  const talentEditable = pickBool(o?.talent_editable_override, d.talent_editable) && !adminOnly;
+  const requiresReviewOnChange = pickBool(
+    o?.requires_review_on_change_override,
+    d.requires_review_on_change,
+  );
+  const defaultVisibility = (o?.default_visibility_override ?? d.default_visibility) as ReadonlyArray<FieldVisibilityChannel>;
+
+  // Resolve the translatable values from the i18n maps. label coalesces to the
+  // field_key as a last resort so the UI is never blank even for an unseeded
+  // row; helper/placeholder coalesce to null (they are optional).
+  const resolvedLabel = localizedValue(d.label_i18n, DEFAULT_PLATFORM_LOCALE, [DEFAULT_PLATFORM_LOCALE]);
+  const resolvedHelper = localizedValue(d.helper_i18n, DEFAULT_PLATFORM_LOCALE, [DEFAULT_PLATFORM_LOCALE]);
+  const resolvedPlaceholder = localizedValue(d.placeholder_i18n, DEFAULT_PLATFORM_LOCALE, [DEFAULT_PLATFORM_LOCALE]);
+
+  return {
+    id: d.id,
+    fieldKey: d.field_key,
+    label: nonEmptyString(o?.custom_label) ?? nonEmptyString(resolvedLabel) ?? d.field_key,
+    tier: d.tier,
+    section: d.section,
+    subsection: d.subsection,
+    kind: d.kind,
+    placeholder: nonEmptyString(resolvedPlaceholder),
+    helper: nonEmptyString(o?.custom_helper) ?? nonEmptyString(resolvedHelper),
+    options: d.options,
+    isOptional,
+    isSensitive: d.is_sensitive,
+    defaultVisibility,
+    showInRegistration,
+    showInEditDrawer,
+    showInPublic,
+    showInDirectory,
+    adminOnly,
+    talentEditable,
+    requiresReviewOnChange,
+    isSearchable: d.is_searchable,
+    countMin: d.count_min,
+    displayOrder: o?.display_order_override ?? d.display_order,
+    note: d.note,
+    renderMode: d.render_mode ?? "catalog",
+    storageMode: d.storage_mode ?? "field_values",
+    appliesTo,
+    requiredFor,
+    recommendedFor,
+    enabled,
+  };
+}
+
+/** Trim + null-coalesce: returns the trimmed string, or null when empty/blank.
+ *  Lets the override and i18n values flow through one coalesce chain so an
+ *  empty custom_label/blank i18n entry falls through to the next source. */
+function nonEmptyString(v: string | null | undefined): string | null {
+  if (typeof v !== "string") return null;
+  const t = v.trim();
+  return t.length > 0 ? t : null;
 }
 
 /** P2 bug fix: resolve slugs via `slugByTermId` map (separate query)
