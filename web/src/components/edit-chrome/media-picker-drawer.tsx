@@ -4,9 +4,11 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import {
   AlertCircle,
   Check,
+  FileText,
   FolderOpen,
   ImageIcon,
   Loader2,
+  Play,
   Upload,
   X,
 } from "lucide-react";
@@ -25,21 +27,78 @@ import {
 import { KIT } from "./inspectors/kit/tokens";
 import { useBuilderMediaScope } from "./builder-media-scope";
 
+/** MEDIA-1 — the library discriminant carried from the shared data layer. */
+export type MediaPickerAssetKind = "image" | "video" | "document";
+
 export interface MediaPickerItem {
   id: string;
   publicUrl: string;
   storagePath: string;
   variantKind: string;
+  /** MEDIA-1 — image (default) | video | document. */
+  assetKind?: MediaPickerAssetKind | null;
   width: number | null;
   height: number | null;
   createdAt: string;
   alt?: string | null;
+  /** MEDIA-1 — free-text workspace tags. */
+  tags?: string[] | null;
   folderIds?: string[];
   mime?: string | null;
 }
 
 /** Talent picker source filter (only used when on a Talent Max surface). */
 type TalentSource = "all" | "portfolio" | "mine";
+
+/** MEDIA-1 — library kind filter (staff/agency surfaces). */
+type KindFilter = "all" | MediaPickerAssetKind;
+
+/** Resolve a picker item's kind, defaulting legacy/absent values to image. */
+function pickerKind(item: MediaPickerItem): MediaPickerAssetKind {
+  return item.assetKind === "video" || item.assetKind === "document"
+    ? item.assetKind
+    : "image";
+}
+
+/** MEDIA-1 — infer the upload kind from a chosen file's MIME / extension. */
+function detectUploadKind(file: File): MediaPickerAssetKind {
+  const mime = (file.type || "").toLowerCase();
+  if (mime.startsWith("video/")) return "video";
+  if (mime.startsWith("image/")) return "image";
+  if (
+    mime === "application/pdf" ||
+    mime.startsWith("application/vnd.") ||
+    mime === "application/msword" ||
+    mime === "text/plain" ||
+    mime === "text/csv"
+  ) {
+    return "document";
+  }
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  if (["mp4", "mov", "webm", "avi", "mkv", "m4v"].includes(ext)) return "video";
+  if (
+    ["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "csv"].includes(ext)
+  ) {
+    return "document";
+  }
+  return "image";
+}
+
+/** File-input accept lists, by surface. Talents stay image-only; staff/agency
+ *  surfaces also accept video + document. */
+const IMAGE_ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
+const STAFF_ACCEPT = [
+  IMAGE_ACCEPT,
+  "video/mp4,video/quicktime,video/webm",
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "text/plain,text/csv",
+].join(",");
 
 export interface MediaPickerFolder {
   id: string;
@@ -87,6 +146,7 @@ export function MediaPickerDrawer({
   const [items, setItems] = useState<MediaPickerItem[] | null>(null);
   const [folders, setFolders] = useState<MediaPickerFolder[]>([]);
   const [activeFolderId, setActiveFolderId] = useState<string>("all");
+  const [kindFilter, setKindFilter] = useState<KindFilter>("all");
   const [portfolioAssetIds, setPortfolioAssetIds] = useState<string[]>([]);
   const [talentSource, setTalentSource] = useState<TalentSource>("all");
   const [loading, setLoading] = useState(false);
@@ -97,6 +157,9 @@ export function MediaPickerDrawer({
   const [altDrafts, setAltDrafts] = useState<Record<string, string>>({});
   const [savingAltId, setSavingAltId] = useState<string | null>(null);
   const [altError, setAltError] = useState<string | null>(null);
+  // MEDIA-1 central tag manager — per-item draft + a new-tag input buffer.
+  const [tagInputs, setTagInputs] = useState<Record<string, string>>({});
+  const [savingTagId, setSavingTagId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadLibrary = useCallback(async () => {
@@ -111,17 +174,14 @@ export function MediaPickerDrawer({
       if (!res.ok || !body.ok) {
         throw new Error(body.error ?? `HTTP ${res.status}`);
       }
-      setItems(body.items as MediaPickerItem[]);
+      const loaded = (body.items as MediaPickerItem[]) ?? [];
+      setItems(loaded);
       setFolders((body.folders ?? []) as MediaPickerFolder[]);
       setPortfolioAssetIds((body.portfolioAssetIds ?? []) as string[]);
       setAltDrafts(
-        Object.fromEntries(
-          ((body.items as MediaPickerItem[]) ?? []).map((item) => [
-            item.id,
-            item.alt ?? "",
-          ]),
-        ),
+        Object.fromEntries(loaded.map((item) => [item.id, item.alt ?? ""])),
       );
+      setTagInputs(Object.fromEntries(loaded.map((item) => [item.id, ""])));
     } catch (e) {
       setError(String(e).slice(0, 200));
     } finally {
@@ -165,7 +225,11 @@ export function MediaPickerDrawer({
         }
         item = body.item as MediaPickerItem;
       } else {
-        const fast = await uploadCmsMedia({ file, tenantId, kind: "image" });
+        // MEDIA-1 — route by the file's kind so staff can add video/doc assets,
+        // not just images. The shared signed pipeline + legacy fallback both
+        // accept the `kind` discriminant.
+        const uploadKind = detectUploadKind(file);
+        const fast = await uploadCmsMedia({ file, tenantId, kind: uploadKind });
         if (fast.ok) {
           item = fast.item as MediaPickerItem;
         } else if (!fast.fallbackToLegacy) {
@@ -173,6 +237,7 @@ export function MediaPickerDrawer({
         } else {
           const form = new FormData();
           form.set("tenantId", tenantId);
+          form.set("kind", uploadKind);
           form.set("file", file);
           const res = await fetch("/api/admin/media/upload", {
             method: "POST",
@@ -186,8 +251,10 @@ export function MediaPickerDrawer({
         }
       }
       setActiveFolderId("all");
+      setKindFilter("all");
       setItems((prev) => [item, ...(prev ?? [])]);
       setAltDrafts((prev) => ({ ...prev, [item.id]: item.alt ?? "" }));
+      setTagInputs((prev) => ({ ...prev, [item.id]: "" }));
       if (multi) {
         setPending((prev) =>
           prev.includes(item.publicUrl) ? prev : [...prev, item.publicUrl],
@@ -260,10 +327,58 @@ export function MediaPickerDrawer({
     }
   }
 
+  // MEDIA-1 — persist the full tag list for one asset (central tag manager).
+  async function commitTags(item: MediaPickerItem, nextTags: string[]) {
+    setSavingTagId(item.id);
+    setAltError(null);
+    try {
+      const res = await fetch("/api/admin/media/library", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId, id: item.id, tags: nextTags }),
+      });
+      const body = await res.json();
+      if (!res.ok || !body.ok) {
+        throw new Error(body.error ?? `HTTP ${res.status}`);
+      }
+      const updated = body.item as MediaPickerItem;
+      setItems((prev) =>
+        (prev ?? []).map((candidate) =>
+          candidate.id === updated.id
+            ? { ...candidate, tags: updated.tags ?? [] }
+            : candidate,
+        ),
+      );
+    } catch (e) {
+      setAltError(String(e).slice(0, 200));
+    } finally {
+      setSavingTagId(null);
+    }
+  }
+
+  function addTag(item: MediaPickerItem) {
+    const raw = (tagInputs[item.id] ?? "").trim().toLowerCase();
+    if (!raw) return;
+    const existing = item.tags ?? [];
+    if (existing.includes(raw)) {
+      setTagInputs((prev) => ({ ...prev, [item.id]: "" }));
+      return;
+    }
+    setTagInputs((prev) => ({ ...prev, [item.id]: "" }));
+    void commitTags(item, [...existing, raw]);
+  }
+
+  function removeTag(item: MediaPickerItem, tag: string) {
+    void commitTags(item, (item.tags ?? []).filter((value) => value !== tag));
+  }
+
   if (!open) return null;
 
   const portfolioSet = new Set(portfolioAssetIds);
   const isPortfolio = (item: MediaPickerItem) => portfolioSet.has(item.id);
+
+  const matchesKind = (item: MediaPickerItem) =>
+    kindFilter === "all" || pickerKind(item) === kindFilter;
 
   const visibleItems = isTalentScope
     ? (items ?? []).filter((item) =>
@@ -273,9 +388,10 @@ export function MediaPickerDrawer({
             ? isPortfolio(item)
             : !isPortfolio(item),
       )
-    : activeFolderId === "all"
-      ? items
-      : (items ?? []).filter((item) => item.folderIds?.includes(activeFolderId));
+    : (activeFolderId === "all"
+        ? items ?? []
+        : (items ?? []).filter((item) => item.folderIds?.includes(activeFolderId))
+      ).filter(matchesKind);
   const activeFolder =
     activeFolderId === "all"
       ? null
@@ -283,6 +399,16 @@ export function MediaPickerDrawer({
 
   const portfolioCount = (items ?? []).filter(isPortfolio).length;
   const mineCount = (items ?? []).length - portfolioCount;
+
+  // MEDIA-1 — kind counts for the staff/agency library filter row.
+  const kindCounts = {
+    all: (items ?? []).length,
+    image: (items ?? []).filter((item) => pickerKind(item) === "image").length,
+    video: (items ?? []).filter((item) => pickerKind(item) === "video").length,
+    document: (items ?? []).filter((item) => pickerKind(item) === "document")
+      .length,
+  } as const;
+  const hasNonImage = kindCounts.video > 0 || kindCounts.document > 0;
 
   const chip = uploading ? (
     <SaveChip status="saving" label="Uploading" />
@@ -314,7 +440,7 @@ export function MediaPickerDrawer({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif"
+          accept={isTalentScope ? IMAGE_ACCEPT : STAFF_ACCEPT}
           className="hidden"
           onChange={(event) => {
             const file = event.target.files?.[0];
@@ -401,6 +527,42 @@ export function MediaPickerDrawer({
             </div>
           ) : null}
 
+          {!isTalentScope && hasNonImage ? (
+            <div
+              className="mb-3 flex gap-2 overflow-x-auto pb-1"
+              aria-label="Media kind"
+              data-media-kind-filter
+            >
+              <KindButton
+                active={kindFilter === "all"}
+                label="All assets"
+                count={kindCounts.all}
+                onClick={() => setKindFilter("all")}
+              />
+              <KindButton
+                active={kindFilter === "image"}
+                label="Images"
+                icon={<ImageIcon className="size-3" />}
+                count={kindCounts.image}
+                onClick={() => setKindFilter("image")}
+              />
+              <KindButton
+                active={kindFilter === "video"}
+                label="Videos"
+                icon={<Play className="size-3" />}
+                count={kindCounts.video}
+                onClick={() => setKindFilter("video")}
+              />
+              <KindButton
+                active={kindFilter === "document"}
+                label="Documents"
+                icon={<FileText className="size-3" />}
+                count={kindCounts.document}
+                onClick={() => setKindFilter("document")}
+              />
+            </div>
+          ) : null}
+
           {!isTalentScope && folders.length > 0 ? (
             <div className="mb-3 flex gap-2 overflow-x-auto pb-1" aria-label="Media albums">
               <AlbumButton
@@ -448,6 +610,7 @@ export function MediaPickerDrawer({
             <ul className="grid grid-cols-2 gap-3 md:grid-cols-3">
               {visibleItems.map((item) => {
                 const selected = multi && pending.includes(item.publicUrl);
+                const kind = pickerKind(item);
                 return (
                   <li key={item.id}>
                     <div
@@ -463,12 +626,19 @@ export function MediaPickerDrawer({
                           else pickItem(item);
                         }}
                         className="relative block w-full bg-stone-100 text-left"
+                        data-asset-kind={kind}
                       >
-                        <span
-                          className="block aspect-[4/5] w-full bg-cover bg-center"
-                          style={{ backgroundImage: `url(${item.publicUrl})` }}
-                          aria-hidden
-                        />
+                        <MediaThumb item={item} kind={kind} />
+                        {kind !== "image" ? (
+                          <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-[#242942]/85 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-sm">
+                            {kind === "video" ? (
+                              <Play className="size-2.5" />
+                            ) : (
+                              <FileText className="size-2.5" />
+                            )}
+                            {kind}
+                          </span>
+                        ) : null}
                         {isTalentScope ? (
                           <span
                             className="absolute left-2 top-2 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold shadow-sm"
@@ -498,31 +668,43 @@ export function MediaPickerDrawer({
                             </p>
                           ) : null
                         ) : (
-                          <input
-                            className={KIT.input}
-                            value={altDrafts[item.id] ?? ""}
-                            placeholder="Alt text"
-                            onClick={(event) => event.stopPropagation()}
-                            onChange={(event) => {
-                              setAltDrafts((prev) => ({
-                                ...prev,
-                                [item.id]: event.currentTarget.value,
-                              }));
-                            }}
-                            onBlur={() => {
-                              void commitAlt(item);
-                            }}
-                            onKeyDown={(event) => {
-                              if (event.key !== "Enter") return;
-                              event.preventDefault();
-                              event.currentTarget.blur();
-                            }}
-                          />
+                          <>
+                            <input
+                              className={KIT.input}
+                              value={altDrafts[item.id] ?? ""}
+                              placeholder="Alt text"
+                              onClick={(event) => event.stopPropagation()}
+                              onChange={(event) => {
+                                setAltDrafts((prev) => ({
+                                  ...prev,
+                                  [item.id]: event.currentTarget.value,
+                                }));
+                              }}
+                              onBlur={() => {
+                                void commitAlt(item);
+                              }}
+                              onKeyDown={(event) => {
+                                if (event.key !== "Enter") return;
+                                event.preventDefault();
+                                event.currentTarget.blur();
+                              }}
+                            />
+                            <TagEditor
+                              item={item}
+                              value={tagInputs[item.id] ?? ""}
+                              saving={savingTagId === item.id}
+                              onChange={(value) =>
+                                setTagInputs((prev) => ({ ...prev, [item.id]: value }))
+                              }
+                              onAdd={() => addTag(item)}
+                              onRemove={(tag) => removeTag(item, tag)}
+                            />
+                          </>
                         )}
                         <p className="truncate text-[10.5px] text-stone-500">
-                          {item.width && item.height
+                          {kind === "image" && item.width && item.height
                             ? `${item.width}x${item.height}`
-                            : item.variantKind}
+                            : kind}
                         </p>
                       </div>
                     </div>
@@ -578,6 +760,143 @@ function StatusNotice({ message }: { message: string }) {
       role="alert"
     >
       {message}
+    </div>
+  );
+}
+
+/** MEDIA-1 — kind-aware thumbnail: an image bg for images, an inline (muted,
+ *  no-autoplay) <video> for videos, a document tile for docs. */
+function MediaThumb({
+  item,
+  kind,
+}: {
+  item: MediaPickerItem;
+  kind: MediaPickerAssetKind;
+}) {
+  if (kind === "video") {
+    return (
+      <span className="relative flex aspect-[4/5] w-full items-center justify-center bg-[#1c2030]">
+        <video
+          className="size-full object-cover"
+          src={item.publicUrl}
+          muted
+          playsInline
+          preload="metadata"
+          aria-hidden
+        />
+        <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <span className="inline-flex size-9 items-center justify-center rounded-full bg-white/85 text-[#242942]">
+            <Play className="size-4" />
+          </span>
+        </span>
+      </span>
+    );
+  }
+  if (kind === "document") {
+    const ext =
+      item.storagePath.split(".").pop()?.toLowerCase().slice(0, 4) ?? "doc";
+    return (
+      <span className="flex aspect-[4/5] w-full flex-col items-center justify-center gap-1.5 bg-[#f3f1ec] text-[#3d4f7c]">
+        <FileText className="size-7" />
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">
+          {ext}
+        </span>
+      </span>
+    );
+  }
+  return (
+    <span
+      className="block aspect-[4/5] w-full bg-cover bg-center"
+      style={{ backgroundImage: `url(${item.publicUrl})` }}
+      aria-hidden
+    />
+  );
+}
+
+function KindButton({
+  active,
+  label,
+  count,
+  icon,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  count: number;
+  icon?: ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition"
+      style={{
+        background: active ? "#f2f0ea" : "#ffffff",
+        borderColor: active ? CHROME.accent : CHROME.lineStrong,
+        color: active ? "#25304f" : "#5f605d",
+      }}
+      title={label}
+    >
+      {icon ? <span aria-hidden>{icon}</span> : null}
+      <span>{label}</span>
+      <span className="text-[10px] text-stone-400">{count}</span>
+    </button>
+  );
+}
+
+/** MEDIA-1 — central tag manager: a chip list + an inline add-tag input. */
+function TagEditor({
+  item,
+  value,
+  saving,
+  onChange,
+  onAdd,
+  onRemove,
+}: {
+  item: MediaPickerItem;
+  value: string;
+  saving: boolean;
+  onChange: (value: string) => void;
+  onAdd: () => void;
+  onRemove: (tag: string) => void;
+}) {
+  const tags = item.tags ?? [];
+  return (
+    <div className="grid gap-1" onClick={(event) => event.stopPropagation()}>
+      {tags.length > 0 ? (
+        <div className="flex flex-wrap gap-1">
+          {tags.map((tag) => (
+            <span
+              key={tag}
+              className="inline-flex items-center gap-1 rounded-full bg-[#eef0f6] px-2 py-0.5 text-[10px] font-medium text-[#3d4f7c]"
+            >
+              {tag}
+              <button
+                type="button"
+                aria-label={`Remove tag ${tag}`}
+                disabled={saving}
+                onClick={() => onRemove(tag)}
+                className="text-[#3d4f7c]/70 transition hover:text-[#242942]"
+              >
+                <X className="size-2.5" />
+              </button>
+            </span>
+          ))}
+        </div>
+      ) : null}
+      <input
+        className={KIT.input}
+        value={value}
+        placeholder="Add tag + Enter"
+        disabled={saving}
+        onChange={(event) => onChange(event.currentTarget.value)}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter") return;
+          event.preventDefault();
+          onAdd();
+        }}
+      />
     </div>
   );
 }

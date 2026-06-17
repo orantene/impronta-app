@@ -80,8 +80,9 @@ type AssetKind = "image" | "document" | "video";
 function resolveKindConfig(kind: AssetKind): {
   mimeMap: Record<string, string>;
   maxBytes: number;
+  /** MEDIA-1 media_purpose enum value preferred for this kind. Falls back to
+   *  'cms' if the enum hasn't been extended yet (migration unapplied). */
   purpose: string;
-  variantKind: string;
   acceptedLabel: string;
 } {
   switch (kind) {
@@ -90,7 +91,6 @@ function resolveKindConfig(kind: AssetKind): {
         mimeMap: DOCUMENT_MIME_TO_EXT,
         maxBytes: MAX_BYTES_DOCUMENT,
         purpose: "document",
-        variantKind: "document",
         acceptedLabel: "PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX, TXT, CSV",
       };
     case "video":
@@ -98,7 +98,6 @@ function resolveKindConfig(kind: AssetKind): {
         mimeMap: VIDEO_MIME_TO_EXT,
         maxBytes: MAX_BYTES_VIDEO,
         purpose: "video",
-        variantKind: "video",
         acceptedLabel: "MP4, MOV, WebM, AVI, MKV",
       };
     case "image":
@@ -107,7 +106,6 @@ function resolveKindConfig(kind: AssetKind): {
         mimeMap: IMAGE_MIME_TO_EXT,
         maxBytes: MAX_BYTES_IMAGE,
         purpose: "cms",
-        variantKind: "original",
         acceptedLabel: "JPEG, PNG, WebP, GIF",
       };
   }
@@ -284,31 +282,67 @@ export async function POST(req: Request) {
     });
   }
 
-  const { data: inserted, error: insertErr } = await supabase
-    .from("media_assets")
-    .insert([
-      {
-        tenant_id: scope.tenantId,
-        uploaded_by_user_id: auth.user.id,
-        bucket_id: BUCKET,
-        storage_path: storagePath,
-        variant_kind: kindCfg.variantKind,
-        approval_state: "approved",
-        purpose: kindCfg.purpose,
-        sort_order: 0,
-        file_size: uploadBuffer.length,
-        metadata: {
-          source: "admin-upload",
-          original_mime: mime,
-          kind,
-          original_file_name: (file as { name?: string }).name ?? null,
-        },
-      },
-    ])
-    .select("id, bucket_id, storage_path, variant_kind, created_at")
-    .single();
+  const { data: publicUrlData } = supabase.storage
+    .from(BUCKET)
+    .getPublicUrl(storagePath);
+  const publicUrl = publicUrlData?.publicUrl ?? null;
 
-  if (insertErr || !inserted) {
+  // MEDIA-1 — a non-image library row. `variant_kind` stays the valid
+  // image-enum 'original' (the media_variant_kind enum has no video/document
+  // labels); the new `asset_kind` text column carries the real kind. We try the
+  // richest insert first, then degrade twice so an unapplied migration still
+  // records the asset:
+  //   1) asset_kind + the kind-specific purpose (needs migration 20261102000000)
+  //   2) asset_kind only (purpose enum unextended) — never happens once applied
+  //   3) neither (column absent) — row still recorded; library infers from mime
+  const baseRow = {
+    tenant_id: scope.tenantId,
+    uploaded_by_user_id: auth.user.id,
+    created_by: auth.user.id,
+    bucket_id: BUCKET,
+    storage_path: storagePath,
+    public_url: publicUrl,
+    variant_kind: "original",
+    approval_state: "approved",
+    sort_order: 0,
+    file_size: uploadBuffer.length,
+    file_size_bytes: uploadBuffer.length,
+    byte_size: uploadBuffer.length,
+    mime,
+    mime_type: mime,
+    metadata: {
+      source: "admin-upload",
+      original_mime: mime,
+      kind,
+      original_file_name: (file as { name?: string }).name ?? null,
+    },
+  } as const;
+
+  const insertVariants: Array<Record<string, unknown>> = [
+    { ...baseRow, asset_kind: kind, purpose: kindCfg.purpose },
+    { ...baseRow, asset_kind: kind, purpose: "cms" },
+    { ...baseRow, purpose: "cms" },
+  ];
+
+  let inserted:
+    | { id: string; bucket_id: string; storage_path: string; created_at: string }
+    | null = null;
+  let insertErr: { message: string } | null = null;
+  for (const candidate of insertVariants) {
+    const res = await supabase
+      .from("media_assets")
+      .insert([candidate])
+      .select("id, bucket_id, storage_path, created_at")
+      .single();
+    if (!res.error && res.data) {
+      inserted = res.data;
+      insertErr = null;
+      break;
+    }
+    insertErr = res.error;
+  }
+
+  if (!inserted) {
     // Best-effort cleanup — storage row without a DB row is an orphan.
     await supabase.storage.from(BUCKET).remove([storagePath]);
     return NextResponse.json(
@@ -328,9 +362,10 @@ export async function POST(req: Request) {
     ok: true,
     item: {
       id: inserted.id,
-      variantKind: inserted.variant_kind,
+      variantKind: "original",
+      assetKind: kind,
       storagePath: inserted.storage_path,
-      publicUrl: urlData?.publicUrl ?? "",
+      publicUrl: publicUrl ?? urlData?.publicUrl ?? "",
       createdAt: inserted.created_at,
       width: null,
       height: null,
