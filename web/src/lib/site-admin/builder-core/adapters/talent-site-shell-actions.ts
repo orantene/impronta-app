@@ -75,7 +75,7 @@ export async function loadTalentSiteShellRow(
       ));
     }
     if (error || !data) return null;
-    const row = data as {
+    const row = data as unknown as {
       id: string;
       shell_tree: unknown;
       shell_published: unknown;

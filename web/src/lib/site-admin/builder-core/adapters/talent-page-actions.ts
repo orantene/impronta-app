@@ -44,11 +44,11 @@ export async function loadTalentPageAction(
         .eq("slug", input.slug)
         .single();
     const { data, error } = await selectRow(TALENT_PAGE_COLS);
-    if (!error && data) return data as TalentPageRow;
+    if (!error && data) return data as unknown as TalentPageRow;
     // STYLE-1 graceful fallback — style columns not yet migrated.
     const fallback = await selectRow(TALENT_PAGE_BASE_COLS);
     if (fallback.error || !fallback.data) return null;
-    return fallback.data as TalentPageRow;
+    return fallback.data as unknown as TalentPageRow;
   } catch (err) {
     logServerError("talentPageAdapter/loadPage", err);
     return null;
@@ -85,7 +85,7 @@ export async function ensureTalentPageAction(
         existing = base.data;
       }
     }
-    if (existing) return existing as TalentPageRow;
+    if (existing) return existing as unknown as TalentPageRow;
 
     // 2. No row — INSERT a draft. Re-select with graceful fallback.
     const insertReturning = async (cols: string) =>
@@ -111,19 +111,19 @@ export async function ensureTalentPageAction(
       // 23505 = unique_violation — concurrent insert; re-select.
       if (inserted.error.code === "23505") {
         const raced = await selectExisting(TALENT_PAGE_COLS);
-        if (!raced.error && raced.data) return raced.data as TalentPageRow;
+        if (!raced.error && raced.data) return raced.data as unknown as TalentPageRow;
         const racedBase = await selectExisting(TALENT_PAGE_BASE_COLS);
         if (racedBase.error) {
           logServerError("talentPageAdapter/ensurePage/race-reselect", racedBase.error);
           return null;
         }
-        return (racedBase.data as TalentPageRow) ?? null;
+        return (racedBase.data as unknown as TalentPageRow) ?? null;
       }
       logServerError("talentPageAdapter/ensurePage/insert", inserted.error);
       return null;
     }
 
-    return inserted.data as TalentPageRow;
+    return inserted.data as unknown as TalentPageRow;
   } catch (err) {
     logServerError("talentPageAdapter/ensurePage", err);
     return null;
