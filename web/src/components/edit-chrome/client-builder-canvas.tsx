@@ -59,6 +59,7 @@ import {
   registerClientBuilderCanvasMount,
   subscribeBuilderCanvasTree,
 } from "./client-builder-canvas-bridge";
+import { registerCanvasAnimationReplayListener } from "./inspectors/kit/motion-animation-replay";
 
 export interface ClientBuilderCanvasProps {
   /**
@@ -121,6 +122,11 @@ function ClientBuilderCanvasInner({
   // when an edit will actually repaint here. On a curated-slot page no canvas
   // mounts, so the signal stays false and those edits keep refreshing (safe).
   useEffect(() => registerClientBuilderCanvasMount(), []);
+
+  // MOTION-1 — register the animation-replay listener so the Motion inspector's
+  // "Preview" button can replay an animation on this canvas. The listener is a
+  // CustomEvent handler on document, scoped to this canvas's mount lifetime.
+  useEffect(() => registerCanvasAnimationReplayListener(), []);
 
   // W1-T2(c) — subscribe to the live linked-style-class registry the editor
   // publishes (localStorage-backed). Threading it here makes linked blocks look

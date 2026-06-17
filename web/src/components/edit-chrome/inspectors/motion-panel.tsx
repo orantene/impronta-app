@@ -38,6 +38,7 @@ import {
 import { useEffect, useRef, useState, type ReactElement } from "react";
 
 import { useEditContext } from "../edit-context";
+import { useSelectedSectionId } from "../selection-bridge";
 import { Segmented, type SegmentedOption } from "../kit/segmented";
 import {
   INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL,
@@ -47,6 +48,8 @@ import {
   InspectorOptionCards,
   InspectorSection,
 } from "./kit/inspector-ui";
+import { triggerAnimationReplay } from "./kit/motion-animation-replay";
+import { CHROME } from "../kit/tokens";
 
 /**
  * Debounced range slider.
@@ -263,6 +266,65 @@ const HOVER_ICONS: Record<string, () => ReactElement> = {
   tilt: TiltIcon,
 };
 
+/**
+ * AnimationPreviewButton — "Play preview" button for the Motion inspector.
+ *
+ * Fires the animation replay on the canvas for the selected section/node.
+ * Advisory: disabled under prefers-reduced-motion unless the operator has
+ * opted into "always" — callers should only render this when an animation
+ * is actually configured.
+ */
+function AnimationPreviewButton({ onPlay }: { onPlay: () => void }) {
+  const [playing, setPlaying] = useState(false);
+
+  function handlePlay() {
+    if (playing) return;
+    setPlaying(true);
+    onPlay();
+    // Reset the playing state after a generous window — animations are
+    // typically ≤1 500ms but the operator may have set a long delay.
+    setTimeout(() => setPlaying(false), 1500);
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handlePlay}
+      disabled={playing}
+      aria-label="Preview animation in canvas"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        padding: "5px 10px",
+        borderRadius: 6,
+        border: `1px solid ${CHROME.controlBorder}`,
+        background: playing ? CHROME.surface2 : CHROME.surface,
+        color: playing ? CHROME.muted : CHROME.ink,
+        fontSize: 11.5,
+        fontWeight: 500,
+        cursor: playing ? "default" : "pointer",
+        transition: "all 120ms",
+        alignSelf: "flex-start",
+        opacity: playing ? 0.7 : 1,
+      }}
+    >
+      {/* Play triangle */}
+      <svg
+        width="10"
+        height="10"
+        viewBox="0 0 24 24"
+        fill={playing ? CHROME.muted : CHROME.accent}
+        aria-hidden
+        style={{ flexShrink: 0 }}
+      >
+        <polygon points="5,3 19,12 5,21" />
+      </svg>
+      {playing ? "Playing…" : "Preview"}
+    </button>
+  );
+}
+
 interface MotionPanelProps {
   presentation: Record<string, unknown>;
   onDeepPatch: (patch: Record<string, unknown>) => void;
@@ -271,6 +333,7 @@ interface MotionPanelProps {
 export function MotionPanel({ presentation, onDeepPatch }: MotionPanelProps) {
   const { device } = useEditContext();
   const nonDesktop = device !== "desktop";
+  const selectedSectionId = useSelectedSectionId();
   const animation =
     (presentation.animation as Record<string, unknown> | undefined) ?? {};
 
@@ -343,6 +406,12 @@ export function MotionPanel({ presentation, onDeepPatch }: MotionPanelProps) {
             };
           })}
         />
+        {/* Live preview — replays the configured animation on the canvas. */}
+        {entryValue && entryValue !== "none" ? (
+          <AnimationPreviewButton
+            onPlay={() => triggerAnimationReplay(selectedSectionId, null)}
+          />
+        ) : null}
       </InspectorSection>
 
       <InspectorSection
