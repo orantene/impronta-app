@@ -2235,6 +2235,7 @@ function ChatThreadBody({
       ref={scrollRef}
       role="log"
       aria-live="polite"
+      aria-busy={loading}
       aria-label={mode === "activity" ? "Booking activity timeline" : "Conversation messages"}
       style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 10 }}
     >
