@@ -32,7 +32,7 @@ import type { CSSProperties } from "react";
 
 import { ClientBuilderCanvas } from "./client-builder-canvas";
 import { BuilderProfilerBoundary } from "./builder-profiler-boundary";
-import { InEditorEmptyCanvas } from "./in-editor-empty-canvas";
+import { EmptyCanvasStarter } from "./empty-canvas-starter";
 import { useBuilderTree } from "./builder-tree-bridge";
 import {
   designTokensToCssVars,
@@ -57,8 +57,13 @@ export function InEditorCanvasRegion({
   // The live tree the provider publishes (insert/edit/reorder repaint here).
   const tree = useBuilderTree();
 
-  // Empty page → adapter-neutral starter affordance (opens Add Gallery). The
-  // canvas still mounts below so the first insert paints in place.
+  // ONB-1 — empty page → the SHARED, surface-parameterized EmptyCanvasStarter
+  // (the same picker the homepage uses), replacing the old passive
+  // InEditorEmptyCanvas stub so no non-homepage surface falls off a blank-page
+  // cliff. It derives its starter set from the EditContext `surfaceKind`, and
+  // applies through the shared `applyPageDesignWithUndo` chokepoint → the
+  // active SurfaceAdapter (undo + autosave inherited). The canvas still mounts
+  // below so the first insert / applied design paints in place.
   const isEmpty = tree.length === 0;
 
   // Surface-scoped LIVE design tokens (talent_page → the talent's published
@@ -102,7 +107,7 @@ export function InEditorCanvasRegion({
       {...tokenDataAttrs}
       style={{ ...canvasBackground, ...(tokenCssVars as CSSProperties) }}
     >
-      {isEmpty ? <InEditorEmptyCanvas /> : null}
+      {isEmpty ? <EmptyCanvasStarter /> : null}
       <BuilderProfilerBoundary id="builder-canvas">
         <ClientBuilderCanvas
           initialTree={tree}

@@ -132,6 +132,7 @@ import {
   normalizeBuilderWorkspacePlan,
 } from "@/lib/site-admin/builder-capabilities";
 import { checkSlotTypeCompatibility } from "@/lib/site-admin/edit-mode/slot-type-compatibility";
+import { bakePageDesignTreeAction } from "@/lib/site-admin/edit-mode/page-design-bake-action";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
 import { isBuilderClientCanvasEnabled } from "@/lib/site-admin/edit-mode/client-canvas-flag";
@@ -714,6 +715,40 @@ export interface EditContextValue {
   applyTemplateWithUndo: (input: {
     label: string;
     apply: () => Promise<
+      { ok: true; tree: BuilderNodeTree } | { ok: false; error?: string }
+    >;
+  }) => Promise<{ ok: boolean; error?: string }>;
+  /**
+   * ONB-1 — the ONE shared "apply a full-page design starter" path used by the
+   * surface-parameterized `EmptyCanvasStarter` on EVERY empty editable surface
+   * (storefront homepage + inner cms_page, /t/[code] profile, /t/site/[slug]
+   * page, Lab playground). It bakes the chosen design by id (server-side, so the
+   * large design trees never enter the client bundle) and routes the apply
+   * through `applyTemplateWithUndo` so snapshot-before-apply + the shared "Template
+   * applied — Undo" toast + autosave are inherited identically on every surface.
+   *
+   * The persist target is the ACTIVE surface, chosen by capability — NOT a
+   * surfaceKind branch in the component:
+   *   - `homepage` keeps its authoritative server action
+   *     (`applyPageDesignToHomepage`, which seeds the Free-plan curated on-ramp
+   *     and writes the empty-slot composition), then adopts the returned tree.
+   *   - Every other surface (cms_page / talent_page / platform_lab / site_shell)
+   *     bakes the tree and persists it through the active `SurfaceAdapter`
+   *     (`persistBuilderTree`), so the design is written to the surface's own
+   *     table — never the homepage-only path. The caller passes `homepageApply`
+   *     (the homepage server-action closure) so this module stays free of a
+   *     storefront-only import; when omitted the adapter path is always used.
+   */
+  applyPageDesignWithUndo: (input: {
+    designId: string;
+    label: string;
+    locale?: string;
+    /**
+     * Homepage-only authoritative apply (the storefront server action). When the
+     * active surface is `homepage` and this is supplied, it is used verbatim;
+     * otherwise the design is baked + persisted through the active adapter.
+     */
+    homepageApply?: () => Promise<
       { ok: true; tree: BuilderNodeTree } | { ok: false; error?: string }
     >;
   }) => Promise<{ ok: boolean; error?: string }>;
@@ -5839,6 +5874,51 @@ export function EditProvider({
     [captureHistorySelection, reportMutationError, capHistory],
   );
 
+  // ONB-1 — the ONE shared "apply a full-page design starter" path. The
+  // surface-parameterized EmptyCanvasStarter calls THIS on every empty surface;
+  // it routes through `applyTemplateWithUndo` (snapshot + Undo toast + history)
+  // so all four surfaces inherit the same behavior. The only surface difference
+  // is the persist target, chosen by capability (the surface's own adapter),
+  // NOT a surfaceKind branch in the component.
+  const applyPageDesignWithUndo = useCallback<
+    EditContextValue["applyPageDesignWithUndo"]
+  >(
+    async ({ designId, label, homepageApply }) => {
+      const isHomepage = resolvedSurfaceConfig.surface.kind === "homepage";
+      // Homepage keeps its authoritative server action (seeds the Free-plan
+      // curated on-ramp + writes the empty-slot composition). Every other
+      // surface bakes the tree and persists it through its OWN adapter.
+      const apply =
+        isHomepage && homepageApply
+          ? homepageApply
+          : async (): Promise<
+              | { ok: true; tree: BuilderNodeTree }
+              | { ok: false; error?: string }
+            > => {
+              const baked = await bakePageDesignTreeAction(designId);
+              if (!baked.ok) return { ok: false, error: baked.error };
+              // Persist through the active SurfaceAdapter (NOT the homepage
+              // path) so the design is written to this surface's own table.
+              const saved = await persistBuilderTree(baked.builderTree);
+              if (!saved.ok) {
+                return {
+                  ok: false,
+                  error:
+                    saved.error ??
+                    "Could not apply the design — try again.",
+                };
+              }
+              return { ok: true, tree: baked.builderTree };
+            };
+      return applyTemplateWithUndo({ label, apply });
+    },
+    [
+      resolvedSurfaceConfig,
+      applyTemplateWithUndo,
+      persistBuilderTree,
+    ],
+  );
+
   const insertBuilderSectionEmbed = useCallback<
     EditContextValue["insertBuilderSectionEmbed"]
   >(
@@ -7787,6 +7867,7 @@ export function EditProvider({
       insertBuilderNode,
       insertBuilderNodeCompositionPreset,
       applyTemplateWithUndo,
+      applyPageDesignWithUndo,
       insertBuilderSectionEmbed,
       insertBuilderComponent,
       insertLinkedComponent,
@@ -8024,6 +8105,7 @@ export function EditProvider({
       insertBuilderNode,
       insertBuilderNodeCompositionPreset,
       applyTemplateWithUndo,
+      applyPageDesignWithUndo,
       insertBuilderSectionEmbed,
       insertBuilderComponent,
       insertLinkedComponent,
