@@ -97,7 +97,8 @@ export const STYLE_CONTROLS: ReadonlyArray<StyleControl> = [
   {
     prop: "size",
     label: "Size",
-    options: ["sm", "md", "lg", "xl"],
+    // STYLE-2 — 'display' is the tier above 'xl' (clamp 3.5–6rem). Existing tiers unchanged.
+    options: ["sm", "md", "lg", "xl", "display"],
     appliesTo: ["heading", "paragraph", "button", "icon"],
   },
   {
