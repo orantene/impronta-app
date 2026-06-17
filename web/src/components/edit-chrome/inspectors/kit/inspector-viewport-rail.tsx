@@ -29,6 +29,12 @@ export interface InspectorViewportRailProps {
   overrideCount?: number;
   onResetOverrides?: () => void;
   compact?: boolean;
+  /**
+   * RESP-2 — advisory mobile-health issue count. When > 0, a small count badge
+   * is shown on the Mobile device toggle so authors catch issues while editing,
+   * not only at publish time. Advisory only — never blocks any action.
+   */
+  mobileHealthCount?: number;
 }
 
 /** Icon per known tier id; unknown custom tiers fall back to a neutral glyph. */
@@ -70,6 +76,7 @@ export function InspectorViewportRail({
   overrideCount = 0,
   onResetOverrides,
   compact = false,
+  mobileHealthCount = 0,
 }: InspectorViewportRailProps) {
   const breakpoints = useBuilderBreakpoints();
 
@@ -77,20 +84,25 @@ export function InspectorViewportRail({
   // button per non-base editable registry tier, in the order the registry
   // declares — never a hardcoded 3-device list. Editable tiers are exactly the
   // tiers the renderer emits buckets for, so the editable rail matches render.
+  //
+  // RESP-2: mobile-family tiers (id "mobile" or "compact") carry the advisory
+  // mobileHealthCount badge so authors see it at a glance while editing.
   const deviceOptions = useMemo(() => {
     const railIds = inspectorRailTierIds(breakpoints);
     return railIds.map((id) => {
       const bp =
         breakpoints.find((b) => b.id === id) ??
         ({ id, label: id, minWidth: 0 } as BuilderBreakpoint);
+      const isMobileTier = id === "mobile" || id === "compact";
       return {
         key: bp.id,
         label: bp.label,
         hint: tierHint(bp, breakpoints),
         icon: tierIcon(bp.id),
+        badgeCount: isMobileTier && mobileHealthCount > 0 ? mobileHealthCount : undefined,
       };
     });
-  }, [breakpoints]);
+  }, [breakpoints, mobileHealthCount]);
 
   const baseId = baseBreakpointId(breakpoints);
   const isBase = device === baseId;

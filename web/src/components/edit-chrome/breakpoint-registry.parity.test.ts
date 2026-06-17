@@ -101,3 +101,56 @@ test("widening the registry to a new editable tier flows through every consumer"
   assert.ok(editableOverrideTierIds(widened).includes("wide"));
   assert.ok(inspectorRailTierIds(widened).includes("wide"));
 });
+
+// ── RESP-2: mobile-health count badge wiring ─────────────────────────────────
+
+import { runMobileHealthCheck } from "../../lib/site-admin/builder-node/mobile-health";
+import type { BuilderNodeTree } from "../../lib/site-admin/builder-node/types";
+
+test("RESP-2: runMobileHealthCheck returns count > 0 for a tree with mobile issues", () => {
+  const tinyTextTree: BuilderNodeTree = [
+    {
+      id: "h-tiny",
+      kind: "heading",
+      props: { text: "Tiny", level: 3, style: { fontSize: "8px" } },
+    },
+  ];
+  const count = runMobileHealthCheck(tinyTextTree).length;
+  assert.ok(count > 0, `expected count > 0 for a tiny-text node, got ${count}`);
+});
+
+test("RESP-2: runMobileHealthCheck returns 0 for a clean tree (no badge shown)", () => {
+  const cleanTree: BuilderNodeTree = [
+    {
+      id: "h-ok",
+      kind: "heading",
+      props: { text: "Normal heading", level: 1, style: { fontSize: "24px" } },
+    },
+  ];
+  const count = runMobileHealthCheck(cleanTree).length;
+  assert.equal(count, 0, `expected 0 for a clean tree, got ${count}`);
+});
+
+test("RESP-2: runMobileHealthCheck returns 0 for an empty tree", () => {
+  assert.equal(runMobileHealthCheck([]).length, 0);
+});
+
+test("RESP-2: mobile tier ids ('mobile', 'compact') are in the inspector rail", () => {
+  // The badge is attached to mobile-family tiers. Confirm they appear in the
+  // default registry rail so the badge has a target to render on.
+  const railIds = inspectorRailTierIds();
+  assert.ok(railIds.includes("mobile"), `"mobile" tier must appear in rail; got ${railIds}`);
+});
+
+test("RESP-2: multiple mobile issues accumulate into the count correctly", () => {
+  const multi: BuilderNodeTree = [
+    // tiny text — 1 issue
+    { id: "h1", kind: "heading", props: { text: "Tiny", level: 2, style: { fontSize: "5px" } } },
+    // button with small tap target — 1 issue
+    { id: "btn1", kind: "button", props: { label: "x", href: "#", style: { width: "10px" } } },
+    // split that won't collapse — 1 issue
+    { id: "sp1", kind: "split", props: { collapseOnMobile: false }, children: [] },
+  ];
+  const count = runMobileHealthCheck(multi).length;
+  assert.ok(count >= 3, `expected at least 3 issues for 3 problem nodes, got ${count}`);
+});
