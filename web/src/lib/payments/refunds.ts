@@ -112,16 +112,30 @@ async function markBookingRefunded(sb: SupabaseClient, bookingId: string): Promi
  * Record a PARTIAL refund as a linked refund transaction so the books
  * reconcile, WITHOUT transitioning the parent (it stays `paid` — it was). The
  * refund row carries the partial amount (platform_fee 0 / net = refunded, which
- * satisfies the platform_fee + net = gross balance check). Idempotent: a refund
- * row of the same amount for this parent is inserted at most once.
+ * satisfies the platform_fee + net = gross balance check).
+ *
+ * EVENT-BASED idempotency (P1 hardening): the row is keyed on the Stripe Refund
+ * id (`re_...`), persisted in `provider_refund_id` with a UNIQUE index. Stripe
+ * emits one `charge.refunded` per refund, and `charge.amount_refunded` is
+ * cumulative — so amount-based dedup couldn't tell a re-delivered event from a
+ * genuinely new additive partial, and each new amount inserted another clawing
+ * row (double-claw of the workspace leg). Keying on `re_...` makes a re-delivery
+ * (same id) a no-op while a real new partial (new id) records exactly once.
+ * When no refund id is available (legacy/trimmed payload) we fall back to the
+ * previous (parent, amount, refunded) probe so that legacy shape still doesn't
+ * duplicate on re-delivery.
+ *
+ * `refundAmountCents` is THIS refund's own slice (not the cumulative charge
+ * total) so additive partials each record only what they refunded.
  */
 async function recordPartialRefund(
   sb: SupabaseClient,
   transactionId: string,
-  refundedCents: number,
+  refundAmountCents: number,
   chargeId: string,
+  refundId: string | null,
 ): Promise<boolean> {
-  if (refundedCents <= 0) return false;
+  if (refundAmountCents <= 0) return false;
   const { data: parentData, error: parentErr } = await sb
     .from("booking_transactions")
     .select(
@@ -135,15 +149,25 @@ async function recordPartialRefund(
   }
   const parent = parentData as Record<string, unknown>;
 
-  // Idempotency: a partial refund row of this amount already linked → stop.
-  const { data: existing } = await sb
-    .from("booking_transactions")
-    .select("id")
-    .eq("refund_of_transaction_id", transactionId)
-    .eq("gross_amount_cents", refundedCents)
-    .eq("status", "refunded")
-    .maybeSingle();
-  if (existing) return false;
+  // Idempotency. Prefer the event-based key (Stripe Refund id). Fall back to
+  // the legacy amount probe only when no refund id is available.
+  if (refundId) {
+    const { data: existing } = await sb
+      .from("booking_transactions")
+      .select("id")
+      .eq("provider_refund_id", refundId)
+      .maybeSingle();
+    if (existing) return false;
+  } else {
+    const { data: existing } = await sb
+      .from("booking_transactions")
+      .select("id")
+      .eq("refund_of_transaction_id", transactionId)
+      .eq("gross_amount_cents", refundAmountCents)
+      .eq("status", "refunded")
+      .maybeSingle();
+    if (existing) return false;
+  }
 
   const { error: insertErr } = await sb.from("booking_transactions").insert({
     booking_id: parent.booking_id,
@@ -154,13 +178,14 @@ async function recordPartialRefund(
     payout_receiver_id: parent.payout_receiver_id,
     payout_receiver_kind: parent.payout_receiver_kind,
     payout_receiver_display_name: parent.payout_receiver_display_name,
-    gross_amount_cents: refundedCents,
+    gross_amount_cents: refundAmountCents,
     platform_fee_basis_points: 0,
     platform_fee_cents: 0,
-    net_amount_cents: refundedCents,
+    net_amount_cents: refundAmountCents,
     currency: parent.currency,
     provider: parent.provider,
     provider_reference: chargeId,
+    provider_refund_id: refundId,
     status: "refunded",
     refund_of_transaction_id: transactionId,
     refunded_at: new Date().toISOString(),
@@ -168,6 +193,10 @@ async function recordPartialRefund(
     created_by_profile_id: parent.created_by_profile_id,
   });
   if (insertErr) {
+    // A unique-violation on provider_refund_id is a benign re-delivery race
+    // (two webhook deliveries inserting the same refund id concurrently) — the
+    // row already exists, so treat it as "not newly recorded", not an error.
+    if ((insertErr as { code?: string }).code === "23505") return false;
     logServerError("refunds.recordPartialRefund.insert", insertErr);
     return false;
   }
@@ -179,29 +208,50 @@ async function recordPartialRefund(
  * platform-first, then workspace margin (partial reversal of the workspace
  * leg), protecting the talent's quote; records the partial refund row; and
  * escalates any residual that would otherwise reach the talent.
+ *
+ * `refundAmountCents` is THIS refund event's own slice (Stripe `Refund.amount`),
+ * NOT the cumulative `charge.amount_refunded` — so the clawback math and the
+ * recorded leg cover only the money this delivery actually refunded. The
+ * workspace clawback per-leg partial reversal is keyed on the leg's transfer id
+ * (in reverseBookingPayouts), and the recorded refund row is keyed on the
+ * Stripe Refund id, so a sequence of additive partials each reverse/record
+ * exactly their own portion with no double-claw.
  */
 async function reconcilePartialRefund(
   stripe: Stripe,
   ref: BookingRef,
-  refundedCents: number,
+  refundAmountCents: number,
   chargeId: string,
+  refundId: string | null,
 ): Promise<void> {
   const sb = createServiceRoleClient();
   if (!sb) {
-    logServerError("refunds.partial.noDb", new Error(`partial refund ${refundedCents} on txn ${ref.transactionId} — no service-role client`));
+    logServerError("refunds.partial.noDb", new Error(`partial refund ${refundAmountCents} on txn ${ref.transactionId} — no service-role client`));
     return;
   }
 
   // Record the partial refund on the books regardless of payout state.
-  // `isNew` gates the client notification so a webhook re-delivery (same amount)
-  // doesn't re-notify — recordPartialRefund dedups on (parent, amount, refunded).
-  const isNew = await recordPartialRefund(sb, ref.transactionId, refundedCents, chargeId);
+  // `isNew` gates the client notification + the payout clawback so a webhook
+  // re-delivery (same Stripe Refund id) doesn't re-claw or re-notify —
+  // recordPartialRefund dedups on the refund id (event-based).
+  const isNew = await recordPartialRefund(sb, ref.transactionId, refundAmountCents, chargeId, refundId);
 
   if (!ref.bookingId) {
     logServerError(
       `refunds.partial[txn=${ref.transactionId}]`,
-      new Error(`Partial refund ${refundedCents} recorded; no booking_id on PI → payout math not reconciled (manual check).`),
+      new Error(`Partial refund ${refundAmountCents} recorded; no booking_id on PI → payout math not reconciled (manual check).`),
     );
+    return;
+  }
+
+  // Only run the clawback for a NEWLY-recorded refund. A re-delivered event
+  // (already-recorded refund id) must not claw again. The per-transfer Stripe
+  // idempotency key in reverseBookingPayouts is a second line of defence; this
+  // is the primary event-level guard.
+  if (!isNew) {
+    void improntaLog("stripe_webhook.info", {
+      message: `[refund.partial] booking=${ref.bookingId} refund=${refundId ?? "(no-id)"} already recorded — clawback + notify skipped (re-delivery).`,
+    });
     return;
   }
 
@@ -216,13 +266,13 @@ async function reconcilePartialRefund(
     platformFeeCents,
     workspaceLegs,
     talentTotalCents,
-    refundedCents,
+    refundedCents: refundAmountCents,
   });
 
   if (clawback.workspaceClawbackTotalCents > 0) {
     await reverseBookingPayouts(
       ref.bookingId,
-      { mode: "partial", reference: `partial_refund ${chargeId}`, workspaceClawbackByLeg: clawback.workspaceClawbackByLeg },
+      { mode: "partial", reference: `partial_refund ${refundId ?? chargeId}`, workspaceClawbackByLeg: clawback.workspaceClawbackByLeg },
       { sb, stripe },
     );
   }
@@ -234,21 +284,18 @@ async function reconcilePartialRefund(
     logServerError(
       `refunds.partial.talentResidual[txn=${ref.transactionId}]`,
       new Error(
-        `Partial refund ${refundedCents} exceeds platform+workspace buffer by ${clawback.talentResidualCents} cents — talent NOT auto-clawed; needs manual reconciliation.`,
+        `Partial refund ${refundAmountCents} exceeds platform+workspace buffer by ${clawback.talentResidualCents} cents — talent NOT auto-clawed; needs manual reconciliation.`,
       ),
     );
   }
 
   void improntaLog("stripe_webhook.info", {
-    message: `[refund.partial] booking=${ref.bookingId} refunded=${refundedCents} platformAbsorbed=${clawback.platformAbsorbedCents} workspaceClawed=${clawback.workspaceClawbackTotalCents} talentResidual=${clawback.talentResidualCents}`,
+    message: `[refund.partial] booking=${ref.bookingId} refunded=${refundAmountCents} platformAbsorbed=${clawback.platformAbsorbedCents} workspaceClawed=${clawback.workspaceClawbackTotalCents} talentResidual=${clawback.talentResidualCents}`,
   });
 
-  // Tell the client their (partial) money is on the way back — only on a newly
-  // recorded refund so a re-delivered webhook doesn't re-notify. The talent is
+  // Tell the client their (partial) money is on the way back. The talent is
   // protected from a partial clawback, so they're intentionally not notified.
-  if (isNew) {
-    await notifyClientPartialRefund(sb, ref.bookingId, refundedCents);
-  }
+  await notifyClientPartialRefund(sb, ref.bookingId, refundAmountCents);
 }
 
 /**
@@ -256,17 +303,32 @@ async function reconcilePartialRefund(
  * payouts (ledger-synced), flip the booking to refunded. PARTIAL refund →
  * talent-protective reconciliation. Returns true if this refund belonged to a
  * booking transaction (so the caller skips the balance-top-up refund path).
+ *
+ * `refundedCents` is Stripe's CUMULATIVE `amount_refunded` — used only to decide
+ * full-vs-partial. `refundAmountCents` is THIS refund event's own slice (used
+ * for the partial leg + clawback), and `refundId` (Stripe `re_...`) is the
+ * event-based idempotency key the partial path dedups on.
  */
 export async function handleBookingRefund(
   stripe: Stripe,
-  input: { paymentIntentId: string | null; chargeId: string; refundedCents: number },
+  input: {
+    paymentIntentId: string | null;
+    chargeId: string;
+    refundedCents: number;
+    refundId?: string | null;
+    refundAmountCents?: number;
+  },
 ): Promise<boolean> {
   const ref = await resolveBookingFromPaymentIntent(stripe, input.paymentIntentId);
   if (!ref) return false;
 
   const isFullRefund = ref.chargeAmountCents > 0 && input.refundedCents >= ref.chargeAmountCents;
   if (!isFullRefund) {
-    await reconcilePartialRefund(stripe, ref, input.refundedCents, input.chargeId);
+    // The individual refund slice drives the partial reconciliation; fall back
+    // to the cumulative amount only if the routing layer couldn't enumerate the
+    // refund object (legacy/trimmed payload).
+    const refundAmountCents = input.refundAmountCents ?? input.refundedCents;
+    await reconcilePartialRefund(stripe, ref, refundAmountCents, input.chargeId, input.refundId ?? null);
     return true;
   }
 

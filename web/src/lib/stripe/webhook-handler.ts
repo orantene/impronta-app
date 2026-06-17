@@ -342,6 +342,8 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
         paymentIntentId: action.paymentIntentId,
         chargeId: action.chargeId,
         refundedCents: action.refundedCents,
+        refundId: action.refundId,
+        refundAmountCents: action.refundAmountCents,
       });
       if (!wasBookingRefund) {
         ensureSyncOk(

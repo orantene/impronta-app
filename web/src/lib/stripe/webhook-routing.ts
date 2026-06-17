@@ -61,8 +61,19 @@ export type StripeAction =
   | {
       kind: "charge_refunded";
       paymentIntentId: string;
+      /** Cumulative amount refunded on the charge (Stripe `amount_refunded`).
+       *  Used only to decide full-vs-partial; the per-refund amount drives the
+       *  recorded leg. */
       refundedCents: number;
       chargeId: string;
+      /** The Stripe Refund object id (re_...) for THIS refund event — stable
+       *  per refund, the event-based idempotency key the refund handler dedups
+       *  on. Null when the charge carries no enumerable refund (legacy events). */
+      refundId: string | null;
+      /** This refund's OWN amount (Refund.amount), not the cumulative total.
+       *  Additive partials each report only their own slice here. Falls back to
+       *  the cumulative amount when no individual refund is enumerable. */
+      refundAmountCents: number;
     }
   | { kind: "charge_dispute"; disputeId: string; paymentIntentId: string | null; amount: number; reason: string; status: string; closed: boolean }
   | { kind: "trial_will_end"; subscriptionId: string; trialEnd: number | null }
@@ -232,7 +243,25 @@ export function classifyStripeEvent(event: Stripe.Event): StripeAction {
       if (!paymentIntentId || refundedCents <= 0) {
         return { kind: "ignore" }; // not a tracked top-up refund
       }
-      return { kind: "charge_refunded", paymentIntentId, refundedCents, chargeId: charge.id };
+      // The Stripe Refund that this event is about. `charge.refunds.data` is
+      // ordered newest-first; the most recent refund is the one this delivery
+      // represents. We surface its id (re_...) + its OWN amount so the handler
+      // dedups on the refund id (stable per refund — survives re-delivery) and
+      // records the individual partial slice, NOT the cumulative total (which
+      // grows with each additive partial). `charge.refunds` may be absent on a
+      // trimmed/legacy payload → fall back to no-id + the cumulative amount.
+      const refundsList = charge.refunds as { data?: Array<{ id?: string; amount?: number }> } | null;
+      const latestRefund = refundsList?.data?.[0] ?? null;
+      const refundId = latestRefund?.id ?? null;
+      const refundAmountCents = latestRefund?.amount ?? refundedCents;
+      return {
+        kind: "charge_refunded",
+        paymentIntentId,
+        refundedCents,
+        chargeId: charge.id,
+        refundId,
+        refundAmountCents,
+      };
     }
 
     case "charge.dispute.created":

@@ -210,3 +210,56 @@ export async function notifyClientPartialRefund(
     logServerError(`partial-refund-notify[booking=${bookingId}]`, err);
   }
 }
+
+/**
+ * Notify a talent that their payout is HELD because the snapshot lane currency
+ * doesn't match the currency the client charge settled in (P1 hardening — a
+ * legacy mixed-currency booking). The leg is recorded as `held` in the payouts
+ * ledger and surfaces on the platform-admin held-payouts dashboard for manual
+ * reconciliation; this in-app bell makes sure the talent isn't left silently
+ * unpaid with no heads-up. Best-effort + never throws (the charge already
+ * settled). No email catalog entry exists for a held leg, so this is the in-app
+ * bell only, matching how other held legs surface (the admin dashboard is the
+ * operational source of truth).
+ */
+export async function notifyCurrencyMismatchHold(
+  sb: SupabaseClient,
+  bookingId: string,
+  participantId: string,
+  amountCents: number,
+  laneCurrency: string,
+): Promise<void> {
+  if (amountCents <= 0) return;
+  try {
+    const { data: booking } = await sb
+      .from("agency_bookings")
+      .select("source_inquiry_id, tenant_id")
+      .eq("id", bookingId)
+      .maybeSingle();
+    const tenantId = (booking as { tenant_id?: string | null } | null)?.tenant_id ?? null;
+    const inquiryId = (booking as { source_inquiry_id?: string | null } | null)?.source_inquiry_id ?? null;
+
+    const { data: part } = await sb
+      .from("inquiry_participants")
+      .select("user_id")
+      .eq("id", participantId)
+      .maybeSingle();
+    const uid = (part as { user_id?: string | null } | null)?.user_id ?? null;
+    if (!uid) return;
+
+    await emitNotification({
+      userId: uid,
+      tenantId,
+      kind: "payment",
+      surface: "talent",
+      title: "A payout is on hold",
+      body: `Your payout of ${formatMoneyCents(amountCents, laneCurrency)} is on hold because of a currency mismatch on this booking. Our team will reconcile it — contact the coordinator if you have questions.`,
+      targetDrawer: "money",
+      originEventId: null,
+      originKind: "payout_held_currency_mismatch",
+      originInquiryId: inquiryId,
+    });
+  } catch (err) {
+    logServerError(`currency-mismatch-hold-notify[booking=${bookingId}]`, err);
+  }
+}
