@@ -40,6 +40,7 @@ import type {
   MaxSiteManagerState,
   MaxSiteManagerPage,
 } from "@/lib/talent-site/server/site-management-types";
+import { TalentSiteDomainPanel } from "@/components/talent/site/TalentSiteDomainPanel";
 
 type Props = { locale?: "en" | "es" };
 
@@ -209,11 +210,10 @@ function ManagerBody({ state, onReload }: { state: MaxSiteManagerState; onReload
         </div>
       </Card>
 
-      {/* TALENT_SITE_DOMAIN_PANEL_SLOT —
-          Mount point for the future Custom-domain panel (a sibling agent owns
-          domains end-to-end: connect/verify a custom domain → talent_sites).
-          Intentionally a placeholder here; do NOT implement domains in this file. */}
-      <DomainPanelPlaceholder />
+      {/* Custom-domain panel — connect/verify a custom domain for this site.
+          Self-hydrates via its own server action; Max-gated (this manager only
+          renders for Max talents, so canManage is true here). */}
+      <TalentSiteDomainPanel canManage />
     </div>
   );
 }
@@ -441,26 +441,6 @@ function PagesPanel({
             </div>
           ))
         )}
-      </div>
-    </Card>
-  );
-}
-
-// ── Domain panel mount point (placeholder — sibling owns domains) ─────────────
-
-function DomainPanelPlaceholder() {
-  return (
-    <Card data-talent-site-domain-panel-slot>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-        <div>
-          <div style={sectionLabel}>Custom domain</div>
-          <p style={{ margin: "4px 0 0", fontSize: 12.5, color: COLORS.inkMuted, maxWidth: 520 }}>
-            Connect your own domain (e.g. yourname.com) to your website.
-          </p>
-        </div>
-        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, color: COLORS.inkMuted, textTransform: "uppercase" }}>
-          Coming soon
-        </span>
       </div>
     </Card>
   );
