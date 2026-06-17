@@ -11,6 +11,10 @@ import { ADMIN_OUTLINE_CONTROL_CLASS } from "@/lib/dashboard-shell-classes";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
+// NOTE: this is a compact subset (shorter labels like "Reviewing", "Waiting",
+// "Lost") used only in the dense client-inquiry panel. The canonical full set
+// lives in @/lib/status-labels (INQUIRY_STATUS_LABELS). Do not merge without
+// auditing every render context — these shorter strings are intentional.
 const INQUIRY_STATUS_LABEL: Record<string, string> = {
   new: "New",
   reviewing: "Reviewing",

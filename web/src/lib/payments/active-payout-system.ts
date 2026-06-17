@@ -4,6 +4,9 @@ import { cache } from "react";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import type { Database } from "@/lib/supabase/database.types";
+
+type PlatformSettingsRow = Database["public"]["Tables"]["platform_settings"]["Row"];
 
 /**
  * lib/payments/active-payout-system.ts
@@ -46,8 +49,7 @@ export const loadActivePayoutSystem = cache(
         .select("active_payout_system")
         .eq("id", true)
         .maybeSingle()
-        // database.types.ts not regenerated for this column this wave.
-        .returns<{ active_payout_system: string | null }>();
+        .returns<Pick<PlatformSettingsRow, "active_payout_system">>();
       if (error || data?.active_payout_system !== "global_payouts") {
         return DEFAULT_PAYOUT_SYSTEM;
       }

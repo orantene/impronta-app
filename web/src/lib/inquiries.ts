@@ -36,26 +36,10 @@ type InquiryContextInput = {
   submittedVia: "client" | "guest";
 };
 
-export const INQUIRY_STATUS_LABELS: Record<string, string> = {
-  new: "New",
-  reviewing: "Under review",
-  waiting_for_client: "Waiting for you",
-  talent_suggested: "Talent suggested",
-  in_progress: "In progress",
-  qualified: "Qualified",
-  converted: "Converted",
-  closed: "Closed",
-  closed_lost: "Closed (lost)",
-  archived: "Archived",
-  draft: "Draft",
-  submitted: "Submitted",
-  coordination: "Coordination",
-  offer_pending: "Offer pending",
-  approved: "Approved",
-  booked: "Booked",
-  rejected: "Rejected",
-  expired: "Expired",
-};
+// Import from the canonical source; re-export so callers can import from here
+// or from status-labels.ts interchangeably.
+import { INQUIRY_STATUS_LABELS } from "@/lib/status-labels";
+export { INQUIRY_STATUS_LABELS } from "@/lib/status-labels";
 
 function normalizePhone(phone?: string | null): string {
   return (phone ?? "").replace(/[^\d]/g, "");
@@ -71,6 +55,8 @@ function pushLine(lines: string[], label: string, value?: string | number | null
 export function formatInquiryStatus(status: string): string {
   return INQUIRY_STATUS_LABELS[status] ?? status.replace(/_/g, " ");
 }
+// Alias — callers that prefer the status-labels helper can import either.
+export { inquiryStatusLabel } from "@/lib/status-labels";
 
 export function buildInquiryContext(input: InquiryContextInput) {
   return {

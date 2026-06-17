@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/supabase/database.types";
 import { isMutablePhase } from "./inquiry-lifecycle";
 import { validateActorPermission } from "./inquiry-permissions";
 import { engineRateKey, rateLimiter } from "./inquiry-rate-limiter";
@@ -114,7 +115,7 @@ async function resolveDefaultOfferTerms(
         .from("talent_profiles")
         .select("id, booking_terms")
         .in("id", talentIds)
-        .returns<{ id: string; booking_terms: unknown }[]>();
+        .returns<Pick<Database["public"]["Tables"]["talent_profiles"]["Row"], "id" | "booking_terms">[]>();
       const parsed = (profiles ?? [])
         .map((p) => parseTalentBookingTerms(p.booking_terms))
         .filter((x): x is TalentBookingTerms => x != null);
@@ -763,19 +764,13 @@ export async function updateOfferDraft(
       .eq("id", ctx.offerId)
       .eq("tenant_id", ctx.tenantId)
       .maybeSingle()
-      .returns<{
-        id: string;
-        inquiry_id: string;
-        status: string;
-        version: number;
-        deposit_pct: number | string | null;
-        balance_collection_method: string | null;
-        refund_policy_key: string | null;
-      }>();
+      .returns<Pick<Database["public"]["Tables"]["inquiry_offers"]["Row"],
+        "id" | "inquiry_id" | "status" | "version" | "deposit_pct" | "balance_collection_method" | "refund_policy_key"
+      >>();
 
     if (!offer || offer.inquiry_id !== ctx.inquiryId) return { success: false, error: "offer_not_found" };
     if (offer.status !== "draft") return { success: false, error: "offer_not_editable" };
-    if ((offer.version as number) !== ctx.offerExpectedVersion) {
+    if (offer.version !== ctx.offerExpectedVersion) {
       return { success: false, conflict: true, reason: "version_conflict" };
     }
 
