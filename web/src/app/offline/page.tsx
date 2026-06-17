@@ -4,7 +4,14 @@
  *
  * This page must be a static, minimal file. It is cached during SW install so
  * it must not depend on any runtime DB reads, auth, or dynamic data.
+ *
+ * The single interactive control (Try again) lives in a Client Component
+ * sibling — a Server Component cannot carry an `onClick` handler inline
+ * (React throws "Event handlers cannot be passed to Client Component props",
+ * which 500s the whole page).
  */
+
+import { TryAgainButton } from "./try-again-button";
 
 export const dynamic = "force-static";
 
@@ -76,24 +83,7 @@ export default function OfflinePage() {
         </p>
 
         <div style={{ marginTop: 24 }}>
-          <button
-            onClick={() => window.location.reload()}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              padding: "9px 18px",
-              borderRadius: 999,
-              background: "#0F4F3E",
-              color: "#ffffff",
-              fontFamily: '"Inter", system-ui, sans-serif',
-              fontSize: 13.5,
-              fontWeight: 600,
-              border: "none",
-              cursor: "pointer",
-            }}
-          >
-            Try again
-          </button>
+          <TryAgainButton />
         </div>
       </div>
     </div>
