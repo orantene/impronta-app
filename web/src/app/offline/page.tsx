@@ -59,7 +59,7 @@ export default function OfflinePage() {
             marginBottom: 0,
           }}
         >
-          You're offline
+          You&apos;re offline
         </h1>
         <p
           style={{
