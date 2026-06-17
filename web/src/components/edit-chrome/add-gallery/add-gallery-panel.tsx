@@ -3,6 +3,12 @@
 /**
  * AddGalleryPanel — builder Add Gallery (Elements / Sections / Connected).
  * All inserts route through builderTree only via performAddGalleryInsert.
+ *
+ * CANVAS-1: inserts land adjacent to the current selection (afterIndex in the
+ * selected node's owning section chain, or root after-section) rather than
+ * always appending at the end of the tree. Scroll-into-view is handled by the
+ * existing selection-layer scroll effect which fires on selectedBuilderNodeId
+ * change (triggered by the selectBuilderNode call after every insert).
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -29,9 +35,11 @@ import {
   resolveCategoriesForTab,
   type CatalogStructureMap,
 } from "@/lib/site-admin/add-gallery/catalog-structure";
+import type { BuilderNode, BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 
 import { useEditContext } from "../edit-context";
 import { useBuilderTree } from "../builder-tree-bridge";
+import { useSelectedBuilderNodeId } from "../selection-bridge";
 import { DockFloatingPanel } from "../dock-floating-panel";
 import { CHROME } from "../kit";
 import { AddGalleryCardInfo } from "./add-gallery-card-info";
@@ -40,6 +48,65 @@ import { AddGallerySectionPreview } from "./add-gallery-section-previews";
 
 const PANEL_WIDTH = 592;
 const PANEL_MAX_HEIGHT = "min(78vh, 640px)";
+
+// ── CANVAS-1: insert-at-selection hint ──────────────────────────────────────
+
+/**
+ * The resolved target for the next gallery insert.
+ *
+ * - `parentId: null` with an `index` → insert at root level after the section
+ *   that owns the current selection (typical for sections/connected blocks).
+ * - `parentId: <id>` with an `index` → insert after the selected node inside
+ *   its parent container (typical for element inserts into a layout block).
+ */
+interface GalleryInsertHint {
+  parentId: string | null;
+  index: number;
+}
+
+/**
+ * Walk the tree to find:
+ * 1. The root index of the section containing `nodeId` (for root-level inserts).
+ * 2. The direct parent + sibling-after-index for nested element inserts.
+ *
+ * Returns `null` when the node is not found in the tree (stale selection) so
+ * the caller falls back to end-of-tree.
+ */
+function resolveGalleryInsertHint(
+  tree: BuilderNodeTree,
+  selectedNodeId: string,
+): GalleryInsertHint | null {
+  // Walk with DFS; track the nearest parent and root-section index.
+  function walk(
+    nodes: ReadonlyArray<BuilderNode>,
+    parentId: string | null,
+    rootSectionIndex: number,
+  ): GalleryInsertHint | null {
+    for (let i = 0; i < nodes.length; i += 1) {
+      const node = nodes[i]!;
+      const isRootSection = parentId === null && node.kind === "section";
+      const effectiveRootIdx = isRootSection ? i : rootSectionIndex;
+
+      if (node.id === selectedNodeId) {
+        // Prefer nested parent context when the selected node lives inside a
+        // container (parentId is non-null). For root-level section nodes, use
+        // the root index so the insert lands after that section.
+        if (parentId !== null) {
+          return { parentId, index: i + 1 };
+        }
+        return { parentId: null, index: effectiveRootIdx + 1 };
+      }
+
+      if ("children" in node && Array.isArray(node.children) && node.children.length > 0) {
+        const nested = walk(node.children, node.id, effectiveRootIdx);
+        if (nested !== null) return nested;
+      }
+    }
+    return null;
+  }
+
+  return walk(tree, null, 0);
+}
 
 /** Code-default tab order + labels — the synchronous seed shown while the
  *  admin-editable structure loads (and the fallback if the fetch fails). On open
@@ -496,6 +563,9 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
   // WS2 — tree read from the micro-store (builder-tree-bridge) instead of the
   // context value, so an edit no longer re-renders this panel via the value memo.
   const builderTree = useBuilderTree();
+  // CANVAS-1 — read selected node id from the selection-bridge micro-store so a
+  // selection change re-renders only this panel, not all context consumers.
+  const selectedBuilderNodeId = useSelectedBuilderNodeId();
 
   const [tab, setTab] = useState<AddGalleryTab>("layout");
   const [categoryId, setCategoryId] = useState<string | null>(null);
@@ -614,9 +684,20 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
       if (pending || !isAddGalleryItemAvailable(item)) return;
       setPending(true);
       try {
+        // CANVAS-1 — resolve the insert target from the current selection:
+        //   • If a node is selected, compute the hint (parentId + afterIndex).
+        //   • Guard against a stale selection by validating against the live tree
+        //     (resolveGalleryInsertHint returns null when node not found).
+        //   • Fall back to end-of-tree when there is no valid selection context.
+        const hint =
+          selectedBuilderNodeId !== null
+            ? resolveGalleryInsertHint(builderTree, selectedBuilderNodeId)
+            : null;
+        const insertTarget = hint ?? { parentId: null, index: builderTree.length };
+
         const result = await performAddGalleryInsert(
           item,
-          { parentId: null, index: builderTree.length },
+          insertTarget,
           {
             insertBuilderNode,
             insertBuilderSectionEmbed,
@@ -627,7 +708,12 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
           reportMutationError(result.error);
           return;
         }
-        if (result.nodeId) selectBuilderNode(result.nodeId);
+        if (result.nodeId) {
+          // Select the inserted node — this triggers the selection-layer's
+          // scroll-into-view effect (selectedBuilderNodeId dep), which retries
+          // until the RSC-refreshed DOM contains the new node's element.
+          selectBuilderNode(result.nodeId);
+        }
         onClose();
       } finally {
         setPending(false);
@@ -635,7 +721,8 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
     },
     [
       pending,
-      builderTree.length,
+      builderTree,
+      selectedBuilderNodeId,
       insertBuilderNode,
       insertBuilderSectionEmbed,
       insertBuilderComponent,
@@ -699,7 +786,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
             <path d="M5 9l4 4-4 4" />
             <path d="M9 5v14" />
           </svg>
-          Drag between blocks on the canvas, or click to append at the bottom.
+          Drag to a specific position, or click to insert after the selected block.
         </div>
       }
     >
