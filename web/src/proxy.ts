@@ -774,6 +774,12 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // `sw.js` + `manifest.webmanifest` are static PWA files in `public/`, and
+    // `/offline` is a `force-static` fallback route — all three must serve
+    // host-agnostically without tenant gating. Without these exclusions the
+    // proxy runs host resolution + the surface allow-list on them, which 404s
+    // every PWA asset on tenant hosts (the service worker can't register and
+    // the offline page can't be pre-cached). Mirrors the `favicon.ico` skip.
+    "/((?!_next/static|_next/image|favicon.ico|sw\\.js|manifest\\.webmanifest|offline|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
